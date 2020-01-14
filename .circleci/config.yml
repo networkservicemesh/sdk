@@ -1,0 +1,77 @@
+---
+version: 2.1
+
+jobs:
+
+# sanity
+  test-sanity-check:
+    working_directory: /go/src/github.com/networkservicemesh/cloudtest
+    docker:
+      - image: circleci/golang:1.13-stretch
+    steps:
+      - checkout
+      - run:
+          name: Install Shellcheck
+          command: ./.circleci/install-shellcheck.sh
+      - run:
+          name: Run Shellcheck
+          command: shellcheck `find . -name "*.sh" -not -path "*vendor/*"`;
+      - run:
+          name: Run Error Usage Check
+          command: ./.circleci/check_errors.sh
+      - run:
+          name: Check code formatting
+          command: |
+            GO111MODULE=off go get -u golang.org/x/tools/cmd/goimports
+            GO111MODULE=on goimports -w -local github.com/networkservicemesh/sdk -d .
+            git diff --exit-code || (echo 'Seems like your Go files are not properly formatted. Run goimports -w -local github.com/networkservicemesh/sdk -d . in your branch and commit the changes.' && exit 1)
+      - run:
+          name: Go Vet
+          command: go vet --all ./...
+      - run:
+          name: Build
+          command: go build ./...
+      - run: ./.circleci/check_dependencies.sh
+      - run:
+          name: Unit Tests
+          command: |
+            mkdir -p ~/junit/
+            gotestsum --junitfile ~/junit/unit-tests.xml -- -short $(go list ./...)
+      - store_test_results:
+          path: ~/junit
+      - store_artifacts:
+          path: ~/junit
+    environment:
+      GO111MODULE: "on"
+
+# code analysis
+  test-static-code-analysis:
+    docker:
+      - image: circleci/golang:1.13-stretch
+    steps:
+      - checkout
+      - run:
+          name: lint
+          command: |
+            ./.circleci/lint-download.sh
+            GOGC=50 golangci-lint run
+      - run:
+          name: license lint
+          command: |
+            go get github.com/denis-tingajkin/go-header@v0.2.0
+            go-header
+    environment:
+      GO111MODULE: "on"
+      LOG_LEVEL: "error"
+
+
+# workflows
+workflows:
+  version: 2
+  build-and-test:
+    jobs:
+      - test-sanity-check
+      - test-static-code-analysis:
+          name: "test-static-code-analysis"
+          requires:
+            - test-sanity-check
