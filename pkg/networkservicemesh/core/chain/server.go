@@ -18,8 +18,8 @@ package chain
 import (
 	"github.com/networkservicemesh/networkservicemesh/controlplane/api/networkservice"
 
-	"github.com/networkservicemesh/sdk/networkservicemesh/core/next"
-	"github.com/networkservicemesh/sdk/networkservicemesh/core/trace"
+	"github.com/networkservicemesh/sdk/pkg/networkservicemesh/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservicemesh/core/trace"
 )
 
 func NewNetworkServiceServer(servers ...networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {

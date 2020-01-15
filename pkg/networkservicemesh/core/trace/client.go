@@ -21,23 +21,24 @@ import (
 	"fmt"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/networkservicemesh/controlplane/api/connection"
 	"github.com/networkservicemesh/networkservicemesh/controlplane/api/networkservice"
 
-	"github.com/networkservicemesh/sdk/tools/spanhelper"
-	"github.com/networkservicemesh/sdk/tools/typeutils"
+	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
+	"github.com/networkservicemesh/sdk/pkg/tools/typeutils"
 )
 
-type traceServer struct {
-	traced networkservice.NetworkServiceServer
+type traceClient struct {
+	traced networkservice.NetworkServiceClient
 }
 
-func NewNetworkServiceServer(traced networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
-	return &traceServer{traced: traced}
+func NewNetworkServiceClient(traced networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
+	return &traceClient{traced: traced}
 }
 
-func (t *traceServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*connection.Connection, error) {
+func (t *traceClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*connection.Connection, error) {
 	// Create a new span
 	span := spanhelper.FromContext(ctx, fmt.Sprintf("%s.Request", typeutils.GetTypeName(t.traced)))
 	defer span.Finish()
@@ -49,7 +50,7 @@ func (t *traceServer) Request(ctx context.Context, request *networkservice.Netwo
 	span.LogObject("request", request)
 
 	// Actually call the next
-	rv, err := t.traced.Request(ctx, request)
+	rv, err := t.traced.Request(ctx, request, opts...)
 
 	if err != nil {
 		span.LogError(err)
@@ -59,7 +60,7 @@ func (t *traceServer) Request(ctx context.Context, request *networkservice.Netwo
 	return rv, err
 }
 
-func (t *traceServer) Close(ctx context.Context, conn *connection.Connection) (*empty.Empty, error) {
+func (t *traceClient) Close(ctx context.Context, conn *connection.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	// Create a new span
 	span := spanhelper.FromContext(ctx, fmt.Sprintf("%s.Close", typeutils.GetTypeName(t.traced)))
 	defer span.Finish()
@@ -67,7 +68,7 @@ func (t *traceServer) Close(ctx context.Context, conn *connection.Connection) (*
 	ctx = withLog(span.Context(), span.Logger())
 
 	span.LogObject("request", conn)
-	rv, err := t.traced.Close(ctx, conn)
+	rv, err := t.traced.Close(ctx, conn, opts...)
 
 	if err != nil {
 		span.LogError(err)
