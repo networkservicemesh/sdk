@@ -19,8 +19,8 @@ type spanHelperKeyType string
 
 const (
 	spanHelperTraceDepth spanHelperKeyType = "spanHelperTraceDepth"
-	maxStringLength                        = 1000
-	dotCount                               = 3
+	maxStringLength      int               = 1000
+	dotCount             int               = 3
 )
 
 func withTraceDepth(parent context.Context, value int) context.Context {
@@ -147,17 +147,6 @@ func NewSpanHelper(ctx context.Context, span opentracing.Span, operation string)
 		span:      span,
 		operation: operation,
 	}
-}
-
-func (s *spanHelper) startSpan(operation string) (result SpanHelper) {
-	if s.ctx != nil && jaeger.IsOpentracingEnabled() {
-		newSpan, newCtx := opentracing.StartSpanFromContext(s.ctx, operation)
-		result = NewSpanHelper(newCtx, newSpan, operation)
-	} else {
-		result = NewSpanHelper(context.Background(), nil, operation)
-	}
-	result.Logger().Infof("===> %v()", operation)
-	return result
 }
 
 func (s *spanHelper) Context() context.Context {
