@@ -33,7 +33,7 @@ func newTailServer() *tailServer {
 	return &tailServer{}
 }
 
-func (t *tailServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*connection.Connection, error) {
+func (t *tailServer) Request(_ context.Context, request *networkservice.NetworkServiceRequest) (*connection.Connection, error) {
 	return request.GetConnection(), nil
 }
 

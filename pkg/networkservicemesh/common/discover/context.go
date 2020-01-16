@@ -15,7 +15,7 @@
 // limitations under the License.
 
 // Package discover provides a NetworkServiceServer chain element that discovers possible NSEs that can provide
-// the requested network service and add them to the context.Context where they can be retreived by
+// the requested network service and add them to the context.Context where they can be retrieved by
 // Candidates(ctx)
 package discover
 

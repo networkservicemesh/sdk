@@ -15,7 +15,7 @@
 // limitations under the License.
 
 // Package chain provides a simple file for creating a networkservice.NetworkService{Server,Client} from a 'chain' of
-// networkserver.NetworkService{Server,Client}s
+// networkservice.NetworkService{Server,Client}s
 package chain
 
 import (

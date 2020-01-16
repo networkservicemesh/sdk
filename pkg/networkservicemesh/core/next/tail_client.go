@@ -34,10 +34,10 @@ func newTailClient() *tailClient {
 	return &tailClient{}
 }
 
-func (t *tailClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*connection.Connection, error) {
+func (t *tailClient) Request(_ context.Context, request *networkservice.NetworkServiceRequest, _ ...grpc.CallOption) (*connection.Connection, error) {
 	return request.GetConnection(), nil
 }
 
-func (t *tailClient) Close(context.Context, *connection.Connection, ...grpc.CallOption) (*empty.Empty, error) {
+func (t *tailClient) Close(_ context.Context, _ *connection.Connection, _ ...grpc.CallOption) (*empty.Empty, error) {
 	return &empty.Empty{}, nil
 }
