@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package adapters provides adapters to translate between networkservice.NetworkService{Server,Client}
 package adapters
 
 import (

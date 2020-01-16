@@ -48,7 +48,7 @@ func NewWrappedNetworkServiceClient(wrapper ClientWrapper, clients ...networkser
 	return rv
 }
 
-// NewNetworkServiceClient - chains together clients into a single networkservice.NetworkServiceServer
+// NewNetworkServiceClient - chains together clients into a single networkservice.NetworkServiceClient
 func NewNetworkServiceClient(clients ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	return NewWrappedNetworkServiceClient(nil, clients...)
 }
