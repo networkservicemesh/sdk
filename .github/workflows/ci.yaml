@@ -1,0 +1,69 @@
+---
+name: ci
+on: [push, pull_request]
+jobs:
+  yamllint:
+    name: yamllint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v1
+      - name: Setup Python
+        uses: actions/setup-python@v1
+      - name: Install yamllint
+        run: pip install --user yamllint
+      - name: Run yamllint
+        run: ~/.local/bin/yamllint -c .yamllint.yml --strict .
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: shellcheck
+        uses: reviewdog/action-shellcheck@v1
+        with:
+          github_token: ${{ secrets.github_token }}
+          reporter: github-check
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions/setup-go@v1
+        with:
+          go-version: 1.13
+      - run: |
+          go build ./...
+#  test:
+#    name: test
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v1
+#      - uses: actions/setup-go@v1
+#        with:
+#          go-version: 1.13
+#      - run: mkdir -p ~/junit/
+#      - run: go get gotest.tools/gotestsum@v0.4.0
+#      - run: gotestsum --junitfile ~/junit/unit-tests.xml -- -short $(go list ./...)
+  golangci-lint:
+    name: golangci-lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v1
+      - name: golangci-lint
+        uses: reviewdog/action-golangci-lint@v1
+        with:
+          github_token: ${{ secrets.github_token }}
+          reporter: github-check
+
+  excludeFmtErrorf:
+    name: Exclude fmt.Errorf
+    runs-on: ubuntu-latest
+    steps:
+      - name: Exclude fmt.Errorf
+        run: |
+          if grep -r --include=*.go fmt.Errorf . ; then
+           echo "Please use errors.Errorf (or errors.New or errors.Wrap or errors.Wrapf) as appropriate rather than fmt.Errorf"
+           exit 1
+          fi
