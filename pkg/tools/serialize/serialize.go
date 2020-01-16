@@ -13,10 +13,16 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// Package serialize provides a simple means for Async or Sync execution of a func()
+// with the guarantee that each func() will be executed exactly once and that all funcs()
+// will be executed in order
 package serialize
 
 import "runtime"
 
+// Executor - allows one at a time in order execution of func()s.  func()s can be queued Asynchronously or
+// Synchronously
 type Executor interface {
 	AsyncExec(func())
 	SyncExec(func())
@@ -27,6 +33,7 @@ type executor struct {
 	finalizedCh chan struct{}
 }
 
+// NewExecutor - returns a new Executor
 func NewExecutor() Executor {
 	rv := &executor{
 		execCh:      make(chan func(), 100),
@@ -44,16 +51,19 @@ func (t *executor) eventLoop() {
 		select {
 		case exec := <-t.execCh:
 			exec()
+			continue
 		case <-t.finalizedCh:
-			break
 		}
+		break
 	}
 }
 
+// AsyncExec - queues exec for execution and returns without waiting for exec() to run
 func (t *executor) AsyncExec(exec func()) {
 	t.execCh <- exec
 }
 
+// SyncExec - queues exec for execution and returns *after* exec() has run
 func (t *executor) SyncExec(exec func()) {
 	done := make(chan struct{})
 	t.execCh <- func() {

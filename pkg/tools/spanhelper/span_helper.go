@@ -1,3 +1,20 @@
+// Copyright (c) 2020 Cisco Systems, Inc.
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at:
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Package spanhelper provides a set of utilities to assist in working with opentracing spans
 package spanhelper
 
 import (
@@ -94,10 +111,10 @@ func (s *spanHelper) Span() opentracing.Span {
 
 func (s *spanHelper) LogError(err error) {
 	if s.span != nil && err != nil {
-		debug := limitString(string(debug.Stack()))
+		d := limitString(string(debug.Stack()))
 		msg := limitString(fmt.Sprintf("%+v", err))
 		otgrpc.SetSpanTags(s.span, err, false)
-		s.span.LogFields(log.String("event", "error"), log.String("message", msg), log.String("stacktrace", debug))
+		s.span.LogFields(log.String("event", "error"), log.String("message", msg), log.String("stacktrace", d))
 		logrus.Errorf(">><<%s %s=%v span=%v", strings.Repeat("--", traceDepth(s.ctx)), "error", fmt.Sprintf("%+v", err), s.span)
 	}
 }
@@ -184,7 +201,7 @@ func GetSpanHelper(ctx context.Context) SpanHelper {
 	}
 }
 
-//CopySpan - construct span helper object with ctx and copy span from spanContext
+// CopySpan - construct span helper object with ctx and copy span from spanContext
 // Will start new operation on span
 func CopySpan(ctx context.Context, spanContext SpanHelper, operation string) SpanHelper {
 	return WithSpan(ctx, spanContext.Span(), operation)
