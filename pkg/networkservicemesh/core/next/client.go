@@ -13,6 +13,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package next
 
 import (
@@ -30,9 +31,13 @@ type nextClient struct {
 	index   int
 }
 
+// ClientWrapper - a function that wraps around a networkservice.NetworkServiceClient
 type ClientWrapper func(networkservice.NetworkServiceClient) networkservice.NetworkServiceClient
+
+// ClientChainer - a function that chains together a list of networkservice.NetworkServiceClients
 type ClientChainer func(...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient
 
+// NewWrappedNetworkServiceClient chains together clients with wrapper wrapped around each one
 func NewWrappedNetworkServiceClient(wrapper ClientWrapper, clients ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	rv := &nextClient{
 		clients: clients,
@@ -43,6 +48,7 @@ func NewWrappedNetworkServiceClient(wrapper ClientWrapper, clients ...networkser
 	return rv
 }
 
+// NewNetworkServiceClient - chains together clients into a single networkservice.NetworkServiceServer
 func NewNetworkServiceClient(clients ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	return NewWrappedNetworkServiceClient(nil, clients...)
 }

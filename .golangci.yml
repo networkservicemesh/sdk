@@ -1,0 +1,158 @@
+---
+run:
+  # concurrency: 6
+  timeout: 1m
+  issues-exit-code: 1
+  tests: true
+linters-settings:
+  errcheck:
+    check-type-assertions: false
+    check-blank: false
+  govet:
+    check-shadowing: true
+    settings:
+      printf:
+        funcs:
+          - (github.com/sirupsen/logrus.FieldLogger).Infof
+          - (github.com/sirupsen/logrus.FieldLogger).Warnf
+          - (github.com/sirupsen/logrus.FieldLogger).Errorf
+          - (github.com/sirupsen/logrus.FieldLogger).Fatalf
+  golint:
+    min-confidence: 0.8
+  goimports:
+    local-prefixes: github.com/networkservicemesh/sdk
+  gocyclo:
+    min-complexity: 15
+  maligned:
+    suggest-new: true
+  dupl:
+    threshold: 150
+  goconst:
+    min-len: 2
+    min-occurrences: 2
+  depguard:
+    list-type: blacklist
+    include-go-root: false
+    packages:
+      - errors
+    packages-with-error-message:
+      # specify an error message to output when a blacklisted package is used
+      - errors: "Please use \"github.com/pkg/errors\" instead of \"errors\" in go imports"
+  misspell:
+    locale: US
+  unparam:
+    check-exported: false
+  nakedret:
+    max-func-lines: 30
+  prealloc:
+    simple: true
+    range-loops: true
+    for-loops: false
+  gocritic:
+    enabled-checks:
+      - appendAssign
+      - assignOp
+      - appendCombine
+      - argOrder
+      - badCall
+      - badCond
+      - boolExprSimplify
+      - builtinShadow
+      - captLocal
+      - caseOrder
+      - codegenComment
+      - commentFormatting
+      - commentedOutCode
+      - commentedOutImport
+      - defaultCaseOrder
+      - deprecatedComment
+      - docStub
+      - dupArg
+      - dupBranchBody
+      - dupCase
+      - dupImport
+      - dupSubExpr
+      - elseif
+      - emptyFallthrough
+      - emptyStringTest
+      - equalFold
+      - evalOrder
+      - exitAfterDefer
+      - flagDeref
+      - flagName
+      - hexLiteral
+      - hugeParam
+      - ifElseChain
+      - importShadow
+      - indexAlloc
+      - initClause
+      - methodExprCall
+      - nestingReduce
+      - newDeref
+      - nilValReturn
+      - octalLiteral
+      - offBy1
+      - paramTypeCombine
+      - ptrToRefParam
+      - rangeExprCopy
+      - rangeValCopy
+      - regexpMust
+      - regexpPattern
+      - singleCaseSwitch
+      - sloppyLen
+      - sloppyReassign
+      - stringXbytes
+      - switchTrue
+      - typeAssertChain
+      - typeSwitchVar
+      - typeUnparen
+      - unlabelStmt
+      - unnamedResult
+      - unnecessaryBlock
+      - underef
+      - unlambda
+      - unslice
+      - valSwap
+      - weakCond
+      - wrapperFunc
+      - yodaStyleExpr
+linters:
+  disable-all: true
+  enable:
+    # - rowserrcheck
+    - bodyclose
+    - deadcode
+    - depguard
+    - dogsled
+    - dupl
+    - errcheck
+    - funlen
+    - gochecknoinits
+    - goconst
+    - gocritic
+    - gocyclo
+    - gofmt
+    - goimports
+    - golint
+    - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    - interfacer
+    # - lll
+    - misspell
+    - nakedret
+    - scopelint
+    - staticcheck
+    - structcheck
+    - stylecheck
+    - typecheck
+    - unconvert
+    - unparam
+    # - unused
+    - varcheck
+    - whitespace
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0

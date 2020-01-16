@@ -13,6 +13,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package next
 
 import (
@@ -29,9 +30,13 @@ type nextServer struct {
 	index   int
 }
 
+// ServerWrapper - A function that wraps a networkservice.NetworkServiceServer
 type ServerWrapper func(networkservice.NetworkServiceServer) networkservice.NetworkServiceServer
+
+// ServerChainer - A function that chains a list of networkservice.NetworkServiceServers together
 type ServerChainer func(...networkservice.NetworkServiceServer) networkservice.NetworkServiceServer
 
+// NewWrappedNetworkServiceServer - chains together the servers provides with the wrapper wrapped around each one in turn.
 func NewWrappedNetworkServiceServer(wrapper ServerWrapper, servers ...networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
 	rv := &nextServer{
 		servers: servers,
@@ -42,6 +47,8 @@ func NewWrappedNetworkServiceServer(wrapper ServerWrapper, servers ...networkser
 	return rv
 }
 
+// NewNetworkServiceServer - chains together servers while providing them with the correct next.Server(ctx) to call to
+// invoke the next element in the chain.
 func NewNetworkServiceServer(servers ...networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
 	return NewWrappedNetworkServiceServer(nil, servers...)
 }

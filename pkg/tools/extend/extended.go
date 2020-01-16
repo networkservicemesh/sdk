@@ -13,15 +13,25 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package chain
 
-import (
-	"github.com/networkservicemesh/networkservicemesh/controlplane/api/networkservice"
+// Package extend allows you to extend a context with values from another context
+package extend
 
-	"github.com/networkservicemesh/sdk/networkservicemesh/core/next"
-	"github.com/networkservicemesh/sdk/networkservicemesh/core/trace"
-)
+import "context"
 
-func NewNetworkServiceServer(servers ...networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
-	return next.NewWrappedNetworkServiceServer(trace.NewNetworkServiceServer, servers...)
+type extendedContext struct {
+	context.Context
+	valuesContext context.Context
+}
+
+func (ec *extendedContext) Value(key interface{}) interface{} {
+	return ec.valuesContext.Value(key)
+}
+
+// WithValuesFromContext - creates a child context with the Values from valuesContext rather than the parent
+func WithValuesFromContext(parent, valuesContext context.Context) context.Context {
+	return &extendedContext{
+		Context:       parent,
+		valuesContext: valuesContext,
+	}
 }

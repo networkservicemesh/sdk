@@ -33,6 +33,7 @@ type traceServer struct {
 	traced networkservice.NetworkServiceServer
 }
 
+// NewNetworkServiceServer - wraps tracing around the supplied traced
 func NewNetworkServiceServer(traced networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
 	return &traceServer{traced: traced}
 }

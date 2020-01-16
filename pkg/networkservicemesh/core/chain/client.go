@@ -13,6 +13,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package chain
 
 import (
@@ -22,6 +23,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservicemesh/core/trace"
 )
 
+// NewNetworkServiceClient - chains together a list of networkservice.NetworkServiceClient with tracing
 func NewNetworkServiceClient(clients ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	return next.NewWrappedNetworkServiceClient(trace.NewNetworkServiceClient, clients...)
 }

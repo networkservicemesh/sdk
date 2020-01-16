@@ -13,6 +13,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package adapters
 
 import (
@@ -28,6 +29,7 @@ type clientToServer struct {
 	client networkservice.NetworkServiceClient
 }
 
+// NewClientToServer - returns a networkservice.NetworkServiceServer wrapped around the supplied client
 func NewClientToServer(client networkservice.NetworkServiceClient) networkservice.NetworkServiceServer {
 	return &clientToServer{client: client}
 }

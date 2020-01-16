@@ -13,6 +13,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// Package chain provides a simple file for creating a networkservice.NetworkService{Server,Client} from a 'chain' of
+// networkserver.NetworkService{Server,Client}s
 package chain
 
 import (
@@ -22,6 +25,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservicemesh/core/trace"
 )
 
+// NewNetworkServiceServer - chains together a list of networkservice.Servers with tracing
 func NewNetworkServiceServer(servers ...networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
 	return next.NewWrappedNetworkServiceServer(trace.NewNetworkServiceServer, servers...)
 }

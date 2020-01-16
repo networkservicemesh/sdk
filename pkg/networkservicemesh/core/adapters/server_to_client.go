@@ -13,6 +13,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// Package adapters provides adapters to translate between networkservice.NetworkService{Server,Client}
 package adapters
 
 import (
@@ -29,6 +31,7 @@ type serverToClient struct {
 	server networkservice.NetworkServiceServer
 }
 
+// NewServerToClient - returns a new networkservice.NetworkServiceClient that is a wrapper around server
 func NewServerToClient(server networkservice.NetworkServiceServer) networkservice.NetworkServiceClient {
 	return &serverToClient{server: server}
 }
