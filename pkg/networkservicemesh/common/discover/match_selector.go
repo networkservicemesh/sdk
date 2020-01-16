@@ -61,7 +61,7 @@ func matchEndpoint(nsLabels map[string]string, ns *registry.NetworkService, netw
 			continue
 		}
 
-		nseCandidates := []*registry.NetworkServiceEndpoint{}
+		nseCandidates := make([]*registry.NetworkServiceEndpoint, 0)
 		// Check all Destinations in that match
 		for _, destination := range match.GetRoutes() {
 			// Each NSE should be matched against that destination
