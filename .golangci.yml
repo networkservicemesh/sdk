@@ -156,3 +156,10 @@ issues:
   exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
+  exclude-rules:
+    # We really *do* want to pass a pointer to an interface in this case.  See comments in file for NewServer
+    # function for why
+    - path: pkg/networkservicemesh/common/monitor/server.go
+      linters:
+        - gocritic
+      text: "ptrToRefParam"
