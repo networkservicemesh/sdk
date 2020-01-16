@@ -163,3 +163,7 @@ issues:
       linters:
         - gocritic
       text: "ptrToRefParam"
+    - path: pkg/networkservicemesh/common/timeout/server.go
+      linters:
+        - gocritic
+      text: "ptrToRefParam"
