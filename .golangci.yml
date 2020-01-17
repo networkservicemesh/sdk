@@ -167,3 +167,9 @@ issues:
       linters:
         - gocritic
       text: "ptrToRefParam"
+    # We really *do* want to pass a pointer to an interface in this case.  See comments in file for NewClient
+    # function for why
+    - path: pkg/networkservicemesh/common/heal/client.go
+      linters:
+        - gocritic
+      text: "ptrToRefParam"
