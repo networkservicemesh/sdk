@@ -34,17 +34,22 @@ jobs:
           go-version: 1.13
       - run: |
           go build ./...
-#  test:
-#    name: test
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: actions/checkout@v1
-#      - uses: actions/setup-go@v1
-#        with:
-#          go-version: 1.13
-#      - run: mkdir -p ~/junit/
-#      - run: go get gotest.tools/gotestsum@v0.4.0
-#      - run: gotestsum --junitfile ~/junit/unit-tests.xml -- -short $(go list ./...)
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions/setup-go
+        with:
+          go-version: 1.13
+      - run: |
+          go get gotest.tools/gotestsum@v0.4.0
+      - name: Run Tests
+      - run: |
+          mkdir -p ~/junit/
+          echo GOBIN:${GOBIN}
+          ls $${GOBIN}
+          ${GOBIN}/gotestsum --junitfile ~/junit/unit-tests.xml -- -short $(go list ./...)
   golangci-lint:
     name: golangci-lint
     runs-on: ubuntu-latest
@@ -67,3 +72,30 @@ jobs:
            echo "Please use errors.Errorf (or errors.New or errors.Wrap or errors.Wrapf) as appropriate rather than fmt.Errorf"
            exit 1
           fi
+
+  license:
+    name: License Header Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions/setup-go@v1
+        with:
+          go-version: 1.13
+      - name: Install go-header
+        run: go get github.com/denis-tingajkin/go-header@v0.2.0
+      - name: Run go-header
+        run: go-header
+
+  checkgomod:
+    name: Check go.mod and go.sum
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions/setup-go@v1
+        with:
+          go-version: 1.13
+      - run: go mod tidy
+      - name: Check for changes in go.mod or go.sum
+        run: |
+          git diff --name-only --exit-code go.mod || echo "Run go tidy" && false
+          git diff --name-only --exit-code go.sum || echo "Run go tidy" && false
