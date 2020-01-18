@@ -175,3 +175,7 @@ issues:
       linters:
         - gocritic
       text: "ptrToRefParam"
+    - path: pkg/networkservicemesh/common/localbypass/networkservice_server.go
+      linters:
+        - gocritic
+      text: "ptrToRefParam"
