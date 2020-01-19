@@ -1,0 +1,38 @@
+---
+name: merge
+on: pull_request
+# This will eventually be on push to master
+jobs:
+  sdk-vppagent:
+    name: Update sdk-vppagent
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v1
+        with:
+          go-version: 1.13
+      - uses: actions/checkout@v1
+        with:
+          repository: networkservicemesh/sdk-vppagent
+          ref: master
+          token: ${{secrets.NSM_BOT_GITHUB_TOKEN}}
+      - name: Update sdk version
+        working-directory: ../sdk-vppagent
+        shell: bash {0}  # Intentionally disabling -eo pipefail
+        run: |
+          V=$(
+           go mod download -json "github.com/networkservicemesh/sdk@master" |
+           sed -n 's|.*"Version": "\(.*\)".*|\1|p'
+           )
+          echo V:${V}
+          go mod edit -replace=github.com/networkservicemesh/sdk=github.com/networkservicemesh/sdk@${V}
+          go mod tidy
+          git diff
+      - name: Push change to sdk-vppagent
+        working-directory: ../sdk-vppagent
+        run: |
+          git config --local user.email "nsmbot@example.com"
+          git config --local user.name "NSM Bot"
+          git checkout -b "sdk-agent-dep-update/${GITHUB_SHA:8:8}"
+          git add go.mod go.sum
+          git commit -s -m "Update dependency on networkservicemesh/sdk to ${GITHUB_SHA:8:8}"
+          git push --set-upstream origin "sdk-agent-dep-update/${GITHUB_SHA:8:8}"
