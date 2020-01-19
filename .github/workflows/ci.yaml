@@ -71,6 +71,20 @@ jobs:
            echo "Please use errors.Errorf (or errors.New or errors.Wrap or errors.Wrapf) as appropriate rather than fmt.Errorf"
            exit 1
           fi
+
+  restrictNSMDeps:
+    name: Restrict dependencies on github.com/networkservicemesh/*
+    runs-on: ubuntu-latest
+    steps:
+      - name: Restrict dependencies on github.com/networkservicemesh/*
+        run: |
+          for i in $(grep github.com/networkservicemesh/ go.mod | gsed 's;.*\(github.com\/networkservicemesh\/[a-zA-z\/]*\).*;\1;g' | sort -u);do
+            if [ "${i}" != "github.com/networkservicemesh/networkservicemesh/controlplane/api" ]; then
+              echo Dependency on "${i}" is forbidden
+              exit 1
+            fi
+          done
+
   checkgomod:
     name: check go.mod and go.sum
     runs-on: ubuntu-latest
