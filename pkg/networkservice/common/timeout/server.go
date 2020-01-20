@@ -94,7 +94,7 @@ func (t *timeoutServer) createTimer(ctx context.Context, request *networkservice
 	return time.AfterFunc(duration, func() {
 		newCtx := extend.WithValuesFromContext(context.Background(), ctx)
 		if _, err := (*t.onTimeout).Close(newCtx, request.GetConnection()); err != nil {
-			trace.Log(newCtx).Errorf("Error attempting to close timedout connnection: %s: %+v", request.GetConnection().GetId(), err)
+			trace.Log(newCtx).Errorf("Error attempting to close timed out connection: %s: %+v", request.GetConnection().GetId(), err)
 		}
 	}), nil
 }

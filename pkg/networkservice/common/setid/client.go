@@ -35,7 +35,7 @@ type idClient struct {
 
 // NewClient - creates a new setId client.
 //             name - name of the client
-//             Iff the current pathSegment name != name && pathsegment.id != connection.Id, set a new uuid for
+//             Iff the current pathSegment name != name && pathSegment.id != connection.Id, set a new uuid for
 //             connection id
 func NewClient(name string) networkservice.NetworkServiceClient {
 	return &idClient{name: name}
