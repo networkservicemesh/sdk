@@ -44,31 +44,34 @@ func NewServer() networkservice.NetworkServiceServer {
 }
 
 func (s *selectEndpointServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*connection.Connection, error) {
-	ctx, err := s.withClientURL(ctx)
+	ctx, err := s.withClientURL(ctx, request.GetConnection())
 	if err != nil {
 		return nil, err
 	}
-	// TODO - set Request.Connection.NetworkServiceEndpoint if unset
 	return next.Server(ctx).Request(ctx, request)
 }
 
 func (s *selectEndpointServer) Close(ctx context.Context, conn *connection.Connection) (*empty.Empty, error) {
 	// TODO - we should remember the previous selection here.
-	ctx, err := s.withClientURL(ctx)
+	ctx, err := s.withClientURL(ctx, conn)
 	if err != nil {
 		return nil, err
 	}
 	return next.Server(ctx).Close(ctx, conn)
 }
 
-func (s *selectEndpointServer) withClientURL(ctx context.Context) (context.Context, error) {
-	candidates := discover.Candidates(ctx)
-	endpoint := s.selector.selectEndpoint(candidates.GetNetworkService(), candidates.GetNetworkServiceEndpoints())
-	urlString := candidates.GetNetworkServiceManagers()[endpoint.GetNetworkServiceManagerName()].GetUrl()
-	u, err := url.Parse(urlString)
-	if err != nil {
-		return nil, errors.WithStack(err)
+func (s *selectEndpointServer) withClientURL(ctx context.Context, conn *connection.Connection) (context.Context, error) {
+	if clienturl.ClientURL(ctx) == nil {
+		candidates := discover.Candidates(ctx)
+		endpoint := s.selector.selectEndpoint(candidates.GetNetworkService(), candidates.GetNetworkServiceEndpoints())
+		conn.NetworkServiceEndpointName = endpoint.GetName()
+		urlString := candidates.GetNetworkServiceManagers()[endpoint.GetNetworkServiceManagerName()].GetUrl()
+		u, err := url.Parse(urlString)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		ctx = clienturl.WithClientURL(ctx, u)
+		return ctx, nil
 	}
-	ctx = clienturl.WithClientURL(ctx, u)
 	return ctx, nil
 }
