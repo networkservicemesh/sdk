@@ -18,16 +18,45 @@ package authorize_test
 
 import (
 	"context"
+	"testing"
+
 	"github.com/networkservicemesh/networkservicemesh/controlplane/api/connection"
 	"github.com/networkservicemesh/networkservicemesh/controlplane/api/networkservice"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"testing"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 )
+
+const (
+	testPolicy = `
+		package test
+	
+		default allow = false
+	
+		allow {
+			input = "allowed"
+		}
+	`
+)
+
+func requestWithToken(token string) *networkservice.NetworkServiceRequest {
+	return &networkservice.NetworkServiceRequest{
+		Connection: &connection.Connection{
+			Path: &connection.Path{
+				Index: 0,
+				PathSegments: []*connection.PathSegment{
+					{
+						Token: token,
+					},
+				},
+			},
+		},
+	}
+}
 
 func TestAuthzEndpoint(t *testing.T) {
 	suits := []struct {
@@ -38,56 +67,16 @@ func TestAuthzEndpoint(t *testing.T) {
 		denied   bool
 	}{
 		{
-			name: "simple positive test",
-			policy: `
-			package test
-		
-			default allow = false
-		
-			allow {
-				input = "allowed"
-			}
-			`,
-			request: &networkservice.NetworkServiceRequest{
-				Connection: &connection.Connection{
-					Id: "conn-1",
-					Path: &connection.Path{
-						Index: 0,
-						PathSegments: []*connection.PathSegment{
-							{
-								Token: "allowed",
-							},
-						},
-					},
-				},
-			},
-			denied: false,
+			name:    "simple positive test",
+			policy:  testPolicy,
+			request: requestWithToken("allowed"),
+			denied:  false,
 		},
 		{
-			name: "simple negative test",
-			policy: `
-			package test
-		
-			default allow = false
-		
-			allow {
-				input = "allowed"
-			}
-			`,
-			request: &networkservice.NetworkServiceRequest{
-				Connection: &connection.Connection{
-					Id: "conn-1",
-					Path: &connection.Path{
-						Index: 0,
-						PathSegments: []*connection.PathSegment{
-							{
-								Token: "not_allowed",
-							},
-						},
-					},
-				},
-			},
-			denied: true,
+			name:    "simple negative test",
+			policy:  testPolicy,
+			request: requestWithToken("not_allowed"),
+			denied:  true,
 		},
 	}
 
