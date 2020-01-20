@@ -21,7 +21,7 @@ import (
 	"crypto/tls"
 )
 
-// Provider - interface for tls.Config provier
+// Provider - interface for tls.Config provider
 type Provider interface {
 	GetTLSConfig(ctx context.Context) (*tls.Config, error)
 }
