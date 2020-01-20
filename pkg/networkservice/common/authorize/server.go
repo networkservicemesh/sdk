@@ -32,11 +32,11 @@ import (
 )
 
 type authorizeServer struct {
-	policy rego.PreparedEvalQuery
+	policy *rego.PreparedEvalQuery
 }
 
 // NewServer - returns a new authorization networkservicemesh.NetworkServiceServers
-func NewServer(p rego.PreparedEvalQuery) networkservice.NetworkServiceServer {
+func NewServer(p *rego.PreparedEvalQuery) networkservice.NetworkServiceServer {
 	return &authorizeServer{
 		policy: p,
 	}
