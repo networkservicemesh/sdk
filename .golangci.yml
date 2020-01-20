@@ -179,3 +179,7 @@ issues:
       linters:
         - gocritic
       text: "ptrToRefParam"
+    - path: pkg/tools/addressof/networkservice_client.go
+      linters:
+        - gocritic
+      text: "ptrToRefParam"

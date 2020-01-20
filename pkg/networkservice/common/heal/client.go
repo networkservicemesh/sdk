@@ -30,6 +30,7 @@ import (
 	"github.com/networkservicemesh/networkservicemesh/controlplane/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
+	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
 
@@ -72,8 +73,7 @@ func NewClient(client connection.MonitorConnectionClient, onHeal *networkservice
 		recvEventExecutor: serialize.NewExecutor(),
 	}
 	if rv.onHeal == nil {
-		var actualOnHeal networkservice.NetworkServiceClient = rv
-		rv.onHeal = &actualOnHeal
+		rv.onHeal = addressof.NetworkServiceClient(rv)
 	}
 	rv.updateExecutor.AsyncExec(func() {
 		runtime.SetFinalizer(rv, func(f *healClient) {
