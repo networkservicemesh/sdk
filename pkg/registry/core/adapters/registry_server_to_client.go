@@ -35,10 +35,10 @@ func NewRegistryServerToClient(server registry.NetworkServiceRegistryServer) reg
 	return &registryServerToClient{server: server}
 }
 
-func (r *registryServerToClient) RegisterNSE(ctx context.Context, registration *registry.NSERegistration, opts ...grpc.CallOption) (*registry.NSERegistration, error) {
+func (r *registryServerToClient) RegisterNSE(ctx context.Context, registration *registry.NSERegistration, _ ...grpc.CallOption) (*registry.NSERegistration, error) {
 	return r.server.RegisterNSE(ctx, registration)
 }
 
-func (r *registryServerToClient) RemoveNSE(ctx context.Context, request *registry.RemoveNSERequest, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (r *registryServerToClient) RemoveNSE(ctx context.Context, request *registry.RemoveNSERequest, _ ...grpc.CallOption) (*empty.Empty, error) {
 	return r.server.RemoveNSE(ctx, request)
 }

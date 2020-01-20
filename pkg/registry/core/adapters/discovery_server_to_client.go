@@ -33,6 +33,6 @@ func NewDiscoveryServerToClient(server registry.NetworkServiceDiscoveryServer) r
 	return &discoveryServerToClient{server: server}
 }
 
-func (s *discoveryServerToClient) FindNetworkService(ctx context.Context, request *registry.FindNetworkServiceRequest, opts ...grpc.CallOption) (*registry.FindNetworkServiceResponse, error) {
+func (s *discoveryServerToClient) FindNetworkService(ctx context.Context, request *registry.FindNetworkServiceRequest, _ ...grpc.CallOption) (*registry.FindNetworkServiceResponse, error) {
 	return s.server.FindNetworkService(ctx, request)
 }

@@ -75,7 +75,7 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 	return rv, nil
 }
 
-func (t *refreshClient) Close(ctx context.Context, conn *connection.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (t *refreshClient) Close(ctx context.Context, conn *connection.Connection, _ ...grpc.CallOption) (*empty.Empty, error) {
 	t.executor.AsyncExec(func() {
 		if timer, ok := t.connectionTimers[conn.GetId()]; ok {
 			timer.Stop()
