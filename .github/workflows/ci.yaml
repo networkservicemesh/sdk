@@ -107,7 +107,7 @@ jobs:
         with:
           go-version: 1.13
       - name: Install go-header
-        run: 'go get github.com/denis-tingajkin/go-header@v0.2.0'
+        run: 'go get github.com/denis-tingajkin/go-header@v0.2.1'
       - name: Run go-header
         run: |
           eval $(go env)
