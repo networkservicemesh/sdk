@@ -19,7 +19,9 @@ package authorize
 
 import (
 	"context"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize/opa"
 	"github.com/open-policy-agent/opa/rego"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -32,23 +34,18 @@ import (
 )
 
 type authorizeServer struct {
-	policy *rego.PreparedEvalQuery
+	opa opa.Provider
 }
 
 // NewServer - returns a new authorization networkservicemesh.NetworkServiceServers
-func NewServer(p *rego.PreparedEvalQuery) networkservice.NetworkServiceServer {
+func NewServer(opa opa.Provider) networkservice.NetworkServiceServer {
 	return &authorizeServer{
-		policy: p,
+		opa: opa,
 	}
 }
 
 func (a *authorizeServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*connection.Connection, error) {
-	rs, err := a.policy.Eval(ctx, rego.EvalInput(request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].GetToken()))
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-
-	if err := check(rs); err != nil {
+	if err := check(ctx, a.opa, request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].GetToken()); err != nil {
 		return nil, err
 	}
 
@@ -56,30 +53,49 @@ func (a *authorizeServer) Request(ctx context.Context, request *networkservice.N
 }
 
 func (a *authorizeServer) Close(ctx context.Context, conn *connection.Connection) (*empty.Empty, error) {
-	rs, err := a.policy.Eval(ctx, rego.EvalInput(conn.GetPath().GetPathSegments()[conn.GetPath().GetIndex()].GetToken()))
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-
-	if err := check(rs); err != nil {
+	if err := check(ctx, a.opa, conn.GetPath().GetPathSegments()[conn.GetPath().GetIndex()].GetToken()); err != nil {
 		return nil, err
 	}
 
 	return next.Server(ctx).Close(ctx, conn)
 }
 
-func check(rs rego.ResultSet) error {
+func check(ctx context.Context, p opa.Provider, input interface{}) error {
+	policy, err := p.Get(ctx)
+	if err != nil {
+		return status.Error(codes.Internal, err.Error())
+	}
+
+	rs, err := policy.Eval(ctx, rego.EvalInput(input))
+	if err != nil {
+		return status.Error(codes.Internal, err.Error())
+	}
+
+	hasAccess, err := hasAccess(rs)
+	if err != nil {
+		return status.Error(codes.Internal, err.Error())
+	}
+
+	if !hasAccess {
+		return status.Error(codes.PermissionDenied, "no sufficient privileges to call Request")
+	}
+
+	return nil
+}
+
+func hasAccess(rs rego.ResultSet) (bool, error) {
 	for _, r := range rs {
 		for _, e := range r.Expressions {
 			t, ok := e.Value.(bool)
 			if !ok {
-				return status.Error(codes.Internal, "non boolean expression")
+				return false, errors.New("policy contains non boolean expression")
 			}
 
 			if !t {
-				return status.Error(codes.PermissionDenied, "no sufficient privileges to call Request")
+				return false, nil
 			}
 		}
 	}
-	return nil
+
+	return true, nil
 }
