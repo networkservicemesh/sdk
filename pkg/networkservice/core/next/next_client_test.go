@@ -18,12 +18,14 @@ package next
 
 import (
 	"context"
+	"testing"
+
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/networkservicemesh/controlplane/api/connection"
-	"github.com/networkservicemesh/networkservicemesh/controlplane/api/networkservice"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
-	"testing"
+
+	"github.com/networkservicemesh/networkservicemesh/controlplane/api/connection"
+	"github.com/networkservicemesh/networkservicemesh/controlplane/api/networkservice"
 )
 
 func Test_NewNetworkServiceClient_ShouldNotPanic(t *testing.T) {
