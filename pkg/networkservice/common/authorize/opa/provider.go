@@ -14,13 +14,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package opa provides integration with OPA services
 package opa
 
 import (
 	"context"
+
 	"github.com/open-policy-agent/opa/rego"
 )
 
+// Provider abstracts obtaining policies
 type Provider interface {
 	Get(context.Context) (rego.PreparedEvalQuery, error)
 }

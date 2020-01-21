@@ -19,11 +19,13 @@ package authorize
 
 import (
 	"context"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize/opa"
+
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize/opa"
 
 	"github.com/golang/protobuf/ptypes/empty"
 
@@ -34,18 +36,18 @@ import (
 )
 
 type authorizeServer struct {
-	opa opa.Provider
+	p opa.Provider
 }
 
 // NewServer - returns a new authorization networkservicemesh.NetworkServiceServers
-func NewServer(opa opa.Provider) networkservice.NetworkServiceServer {
+func NewServer(p opa.Provider) networkservice.NetworkServiceServer {
 	return &authorizeServer{
-		opa: opa,
+		p: p,
 	}
 }
 
 func (a *authorizeServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*connection.Connection, error) {
-	if err := check(ctx, a.opa, request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].GetToken()); err != nil {
+	if err := check(ctx, a.p, request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].GetToken()); err != nil {
 		return nil, err
 	}
 
@@ -53,7 +55,7 @@ func (a *authorizeServer) Request(ctx context.Context, request *networkservice.N
 }
 
 func (a *authorizeServer) Close(ctx context.Context, conn *connection.Connection) (*empty.Empty, error) {
-	if err := check(ctx, a.opa, conn.GetPath().GetPathSegments()[conn.GetPath().GetIndex()].GetToken()); err != nil {
+	if err := check(ctx, a.p, conn.GetPath().GetPathSegments()[conn.GetPath().GetIndex()].GetToken()); err != nil {
 		return nil, err
 	}
 
