@@ -25,8 +25,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize/opa"
-
 	"github.com/golang/protobuf/ptypes/empty"
 
 	"github.com/networkservicemesh/networkservicemesh/controlplane/api/connection"
@@ -36,11 +34,11 @@ import (
 )
 
 type authorizeServer struct {
-	p opa.Provider
+	p *rego.PreparedEvalQuery
 }
 
 // NewServer - returns a new authorization networkservicemesh.NetworkServiceServers
-func NewServer(p opa.Provider) networkservice.NetworkServiceServer {
+func NewServer(p *rego.PreparedEvalQuery) networkservice.NetworkServiceServer {
 	return &authorizeServer{
 		p: p,
 	}
@@ -62,13 +60,8 @@ func (a *authorizeServer) Close(ctx context.Context, conn *connection.Connection
 	return next.Server(ctx).Close(ctx, conn)
 }
 
-func check(ctx context.Context, p opa.Provider, input interface{}) error {
-	policy, err := p.Get(ctx)
-	if err != nil {
-		return status.Error(codes.Internal, err.Error())
-	}
-
-	rs, err := policy.Eval(ctx, rego.EvalInput(input))
+func check(ctx context.Context, p *rego.PreparedEvalQuery, input interface{}) error {
+	rs, err := p.Eval(ctx, rego.EvalInput(input))
 	if err != nil {
 		return status.Error(codes.Internal, err.Error())
 	}
