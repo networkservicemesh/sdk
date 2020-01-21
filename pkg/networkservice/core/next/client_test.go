@@ -28,7 +28,7 @@ import (
 	"github.com/networkservicemesh/networkservicemesh/controlplane/api/networkservice"
 )
 
-func Test_NewNetworkServiceClient_ShouldNotPanic(t *testing.T) {
+func TestNewNetworkServiceClientShouldNotPanic(t *testing.T) {
 	assert.NotPanics(t, func() {
 		NewNetworkServiceClient(&testNetworkServiceClient{})
 	})
