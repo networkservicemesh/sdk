@@ -2,7 +2,7 @@
 year: 2020
 goroutine-count: 6
 scope:
-  policy: "new"
+  policy: "diff"
   master-branch: "origin/master"
 rules:
   - template-path: ".license/template.txt"
@@ -12,5 +12,5 @@ rules:
       - ".*[.]pb"
 custom-patterns:
   - name: NSM COPYRIGHT HOLDERS
-    pattern: "Copyright (c) {YEAR} {COPYRIGHT HOLDER}."
+    pattern: "Copyright (c) {YEAR} {COPYRIGHT HOLDER}"
     separator: "\n//\n// "
