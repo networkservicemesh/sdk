@@ -5,10 +5,11 @@ jobs:
   update-sdk-vppagent:
     name: Update sdk-vppagent
     runs-on: ubuntu-latest
+    if: ${{ github.GITHUB_REPOSITORY == networkservicemesh/sdk }}
     steps:
       - uses: actions/checkout@v2
         with:
-          repository: edwarnicke/sdk-vppagent
+          repository: networkservicemesh/sdk-vppagent
           token: ${{ secrets.NSM_BOT_GITHUB_TOKEN }}
       - uses: actions/setup-go@v1
         with:
@@ -16,6 +17,7 @@ jobs:
       - name: Update sdk locally
         run: |
           go get -u github.com/networkservicemesh/sdk
+          go mod tidy
           git diff
       - name: Push update to sdk-vppagent
         run: |
