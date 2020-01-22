@@ -55,7 +55,7 @@ func NewServer(name string, additionalFunctionality ...networkservice.NetworkSer
 	var ns networkservice.NetworkServiceServer = rv
 	rv.NetworkServiceServer = chain.NewNetworkServiceServer(
 		append([]networkservice.NetworkServiceServer{
-			authorize.NewServer(),
+			authorize.NewServer(nil),
 			setid.NewServer(name),
 			monitor.NewServer(&rv.MonitorConnectionServer),
 			timeout.NewServer(&ns),
