@@ -22,64 +22,64 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/networkservicemesh/controlplane/api/connection"
 	"github.com/networkservicemesh/networkservicemesh/controlplane/api/networkservice"
 )
 
-type testNetworkServiceClient struct {
-	request func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*connection.Connection, error)
-	close   func(ctx context.Context, in *connection.Connection, opts ...grpc.CallOption) (*empty.Empty, error)
+type testNetworkServiceServer struct {
+	request func(context.Context, *networkservice.NetworkServiceRequest) (*connection.Connection, error)
+	close   func(context.Context, *connection.Connection) (*empty.Empty, error)
 }
 
-func (t *testNetworkServiceClient) Request(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*connection.Connection, error) {
+func (t *testNetworkServiceServer) Request(ctx context.Context, r *networkservice.NetworkServiceRequest) (*connection.Connection, error) {
 	if t != nil {
-		return t.request(ctx, in)
-	}
-	return nil, nil
-}
-func (t *testNetworkServiceClient) Close(ctx context.Context, in *connection.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	if t != nil {
-		return t.close(ctx, in)
+		return t.request(ctx, r)
 	}
 	return nil, nil
 }
 
-func TestNewNetworkServiceClientShouldNotPanic(t *testing.T) {
+func (t *testNetworkServiceServer) Close(ctx context.Context, r *connection.Connection) (*empty.Empty, error) {
+	if t != nil {
+		return t.close(ctx, r)
+	}
+	return nil, nil
+}
+
+func TestNewNetworkServiceServerShouldNotPanic(t *testing.T) {
 	assert.NotPanics(t, func() {
-		NewNetworkServiceClient(&testNetworkServiceClient{})
+		NewNetworkServiceServer(&testNetworkServiceServer{})
 	})
 }
 
-func TestClientBranches(t *testing.T) {
+func TestServerBranches(t *testing.T) {
 	var visit []bool
 	index := 0
-	next := &testNetworkServiceClient{
-		request: func(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*connection.Connection, error) {
+	next := &testNetworkServiceServer{
+		request: func(ctx context.Context, request *networkservice.NetworkServiceRequest) (*connection.Connection, error) {
 			visit[index] = !visit[index]
 			index++
-			return Client(ctx).Request(ctx, request)
+			return Server(ctx).Request(ctx, request)
 		},
-		close: func(ctx context.Context, conn *connection.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+		close: func(ctx context.Context, conn *connection.Connection) (*empty.Empty, error) {
 			visit[index] = !visit[index]
 			index++
-			return Client(ctx).Close(ctx, conn)
+			return Server(ctx).Close(ctx, conn)
 		},
 	}
-	breaker := &testNetworkServiceClient{
-		request: func(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*connection.Connection, error) {
+	breaker := &testNetworkServiceServer{
+		request: func(ctx context.Context, request *networkservice.NetworkServiceRequest) (*connection.Connection, error) {
 			visit[index] = !visit[index]
 			index++
 			return nil, nil
 		},
-		close: func(ctx context.Context, conn *connection.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+		close: func(ctx context.Context, conn *connection.Connection) (*empty.Empty, error) {
 			visit[index] = !visit[index]
 			index++
 			return nil, nil
 		},
 	}
-	samples := [][]networkservice.NetworkServiceClient{
+	samples := [][]networkservice.NetworkServiceServer{
 		{next},
 		{next, next},
 		{next, next, next},
@@ -100,15 +100,15 @@ func TestClientBranches(t *testing.T) {
 		index = 0
 	}
 	for i, sample := range samples {
-		for _, ctx := range []context.Context{nil, context.Background()} {
+		for _, ctx := range []context.Context{context.Background(), nil} {
 			count := len(sample)
 			reset(count)
 			expect := expects[i]
-			c := NewNetworkServiceClient(sample...)
-			_, _ = c.Request(ctx, nil)
+			s := NewNetworkServiceServer(sample...)
+			_, _ = s.Request(ctx, nil)
 			assert.Equal(t, expect, visit)
 			reset(count)
-			_, _ = c.Close(ctx, nil)
+			_, _ = s.Close(ctx, nil)
 			assert.Equal(t, expect, visit)
 		}
 	}

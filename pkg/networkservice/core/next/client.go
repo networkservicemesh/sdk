@@ -50,7 +50,7 @@ func NewWrappedNetworkServiceClient(wrapper ClientWrapper, clients ...networkser
 
 // NewNetworkServiceClient - chains together clients into a single networkservice.NetworkServiceClient
 func NewNetworkServiceClient(clients ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
-	return NewWrappedNetworkServiceClient(notWrap, clients...)
+	return NewWrappedNetworkServiceClient(notWrapClient, clients...)
 }
 
 func (n *nextClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*connection.Connection, error) {
@@ -67,6 +67,6 @@ func (n *nextClient) Close(ctx context.Context, conn *connection.Connection, opt
 	return n.clients[n.index].Close(withNextClient(ctx, newTailClient()), conn, opts...)
 }
 
-func notWrap(c networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
+func notWrapClient(c networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	return c
 }
