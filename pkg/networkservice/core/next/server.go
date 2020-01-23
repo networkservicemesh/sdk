@@ -50,7 +50,7 @@ func NewWrappedNetworkServiceServer(wrapper ServerWrapper, servers ...networkser
 // NewNetworkServiceServer - chains together servers while providing them with the correct next.Server(ctx) to call to
 // invoke the next element in the chain.
 func NewNetworkServiceServer(servers ...networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
-	return NewWrappedNetworkServiceServer(nil, servers...)
+	return NewWrappedNetworkServiceServer(notWrapServer, servers...)
 }
 
 func (n *nextServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*connection.Connection, error) {
@@ -65,4 +65,8 @@ func (n *nextServer) Close(ctx context.Context, conn *connection.Connection) (*e
 		return n.servers[n.index].Close(withNextServer(ctx, &nextServer{servers: n.servers, index: n.index + 1}), conn)
 	}
 	return n.servers[n.index].Close(withNextServer(ctx, newTailServer()), conn)
+}
+
+func notWrapServer(server networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
+	return server
 }
