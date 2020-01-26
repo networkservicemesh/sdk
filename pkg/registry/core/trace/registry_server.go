@@ -58,6 +58,37 @@ func (t *traceRegistryServer) RegisterNSE(ctx context.Context, request *registry
 	return rv, err
 }
 
+type traceServer struct {
+	registry.NetworkServiceRegistry_BulkRegisterNSEServer
+	span   spanhelper.SpanHelper
+	server registry.NetworkServiceRegistry_BulkRegisterNSEServer
+}
+
+func (ts *traceServer) Send(reg *registry.NSERegistration) error {
+	ts.span.LogObject("send", reg)
+	err := ts.server.Send(reg)
+	ts.span.LogError(err)
+	return err
+}
+func (ts *traceServer) Recv() (*registry.NSERegistration, error) {
+	reg, err := ts.server.Recv()
+	ts.span.LogError(err)
+	ts.span.LogObject("recv", reg)
+	return reg, err
+}
+
+// BulkRegisterNSE - register NSEs in a Bulk
+func (t *traceRegistryServer) BulkRegisterNSE(server registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
+	span := spanhelper.FromContext(server.Context(), fmt.Sprintf("%s.Request", typeutils.GetTypeName(t.traced)))
+	span.Finish()
+
+	stream := &traceServer{
+		span:   span,
+		server: server,
+	}
+	return t.traced.BulkRegisterNSE(stream)
+}
+
 func (t *traceRegistryServer) RemoveNSE(ctx context.Context, request *registry.RemoveNSERequest) (*empty.Empty, error) {
 	// Create a new span
 	span := spanhelper.FromContext(ctx, fmt.Sprintf("%s.Request", typeutils.GetTypeName(t.traced)))

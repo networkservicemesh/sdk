@@ -59,6 +59,41 @@ func (t *traceRegistryClient) RegisterNSE(ctx context.Context, request *registry
 	return rv, err
 }
 
+type traceClient struct {
+	registry.NetworkServiceRegistry_BulkRegisterNSEClient
+	span   spanhelper.SpanHelper
+	client registry.NetworkServiceRegistry_BulkRegisterNSEClient
+}
+
+func (ts *traceClient) Send(reg *registry.NSERegistration) error {
+	ts.span.LogObject("send", reg)
+	err := ts.client.Send(reg)
+	ts.span.LogError(err)
+	return err
+}
+func (ts *traceClient) Recv() (*registry.NSERegistration, error) {
+	reg, err := ts.client.Recv()
+	ts.span.LogError(err)
+	ts.span.LogObject("recv", reg)
+	return reg, err
+}
+
+func (t *traceRegistryClient) BulkRegisterNSE(ctx context.Context, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_BulkRegisterNSEClient, error) {
+	// Create a new span
+	span := spanhelper.FromContext(ctx, fmt.Sprintf("%s.BulkRegisterNSE", typeutils.GetTypeName(t.traced)))
+	span.Finish() // Since events will be bound to span in any case
+	ctx = withLog(span.Context(), span.Logger())
+
+	cl, err := t.traced.BulkRegisterNSE(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &traceClient{
+		client: cl,
+		span:   span,
+	}, nil
+}
+
 func (t *traceRegistryClient) RemoveNSE(ctx context.Context, request *registry.RemoveNSERequest, opts ...grpc.CallOption) (*empty.Empty, error) {
 	// Create a new span
 	span := spanhelper.FromContext(ctx, fmt.Sprintf("%s.Request", typeutils.GetTypeName(t.traced)))

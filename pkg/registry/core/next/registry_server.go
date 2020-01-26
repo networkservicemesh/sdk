@@ -58,6 +58,10 @@ func (n *nextRegistryServer) RegisterNSE(ctx context.Context, request *registry.
 	return n.servers[n.index].RegisterNSE(withNextRegistryServer(ctx, nil), request)
 }
 
+func (n *nextRegistryServer) BulkRegisterNSE(server registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
+	return n.servers[n.index].BulkRegisterNSE(server)
+}
+
 func (n *nextRegistryServer) RemoveNSE(ctx context.Context, request *registry.RemoveNSERequest) (*empty.Empty, error) {
 	if n.index+1 < len(n.servers) {
 		return n.servers[n.index].RemoveNSE(withNextRegistryServer(ctx, &nextRegistryServer{servers: n.servers, index: n.index + 1}), request)
