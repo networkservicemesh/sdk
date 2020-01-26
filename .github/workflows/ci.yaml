@@ -59,6 +59,7 @@ jobs:
     name: exclude fmt.Errorf
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v1
       - name: Exclude fmt.Errorf
         run: |
           if grep -r --include=*.go fmt.Errorf . ; then
@@ -70,10 +71,11 @@ jobs:
     name: Restrict dependencies on github.com/networkservicemesh/*
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v1
       - name: Restrict dependencies on github.com/networkservicemesh/*
         run: |
-          for i in $(grep github.com/networkservicemesh/ go.mod | gsed 's;.*\(github.com\/networkservicemesh\/[a-zA-z\/]*\).*;\1;g' | sort -u);do
-            if [ "${i}" != "github.com/networkservicemesh/networkservicemesh/controlplane/api" ]; then
+          for i in $(grep github.com/networkservicemesh/ go.mod |grep -v '^module' | sed 's;.*\(github.com\/networkservicemesh\/[a-zA-z\/]*\).*;\1;g' | sort -u);do
+            if [ "${i}" != "github.com/networkservicemesh/api" ]; then
               echo Dependency on "${i}" is forbidden
               exit 1
             fi
