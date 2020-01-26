@@ -1,6 +1,9 @@
 ---
 name: Update sdk-kernel
-on: push
+on:
+  push:
+    branches:
+      - master
 jobs:
   update-sdk-kernel:
     name: Update sdk-kernel
