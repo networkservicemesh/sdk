@@ -33,13 +33,13 @@ func TestASyncExec(t *testing.T) {
 	count := 0
 	completion0 := make(chan struct{})
 	exec.AsyncExec(func() {
-		assert.Equal(t,count,0)
+		assert.Equal(t, count, 0)
 		count = 1
 		close(completion0)
 	})
 	select {
 	case <-completion0:
-		assert.Fail(t,"exec.AsyncExec did run to completion before returning.")
+		assert.Fail(t, "exec.AsyncExec did run to completion before returning.")
 	default:
 	}
 }
@@ -49,26 +49,25 @@ func TestSyncExec(t *testing.T) {
 	count := 0
 	completion0 := make(chan struct{})
 	exec.SyncExec(func() {
-		assert.Equal(t,count,0)
+		assert.Equal(t, count, 0)
 		count = 1
 		close(completion0)
 	})
 	select {
 	case <-completion0:
 	default:
-		assert.Fail(t,"exec.SyncExec did not run to completion before returning.")
+		assert.Fail(t, "exec.SyncExec did not run to completion before returning.")
 	}
 }
 
-
-func TestAsyncExecOrder1(t *testing.T ) {
+func TestAsyncExecOrder1(t *testing.T) {
 	exec := serialize.NewExecutor()
 	count := 0
 	trigger0 := make(chan struct{})
 	completion0 := make(chan struct{})
 	exec.AsyncExec(func() {
 		<-trigger0
-		assert.Equal(t,count,0)
+		assert.Equal(t, count, 0)
 		count = 1
 		close(completion0)
 	})
@@ -76,7 +75,7 @@ func TestAsyncExecOrder1(t *testing.T ) {
 	completion1 := make(chan struct{})
 	exec.AsyncExec(func() {
 		<-trigger1
-		assert.Equal(t,count,1)
+		assert.Equal(t, count, 1)
 		count = 2
 		close(completion1)
 	})
@@ -88,7 +87,7 @@ func TestAsyncExecOrder1(t *testing.T ) {
 }
 
 // Same as TestAsyncExecOrder1 but making sure out of order fails as expected
-func TestAsyncExecOrder2(t *testing.T ) {
+func TestAsyncExecOrder2(t *testing.T) {
 	exec := serialize.NewExecutor()
 	count := 0
 
@@ -96,7 +95,7 @@ func TestAsyncExecOrder2(t *testing.T ) {
 	completion1 := make(chan struct{})
 	exec.AsyncExec(func() {
 		<-trigger1
-		assert.NotEqual(t,count,1)
+		assert.NotEqual(t, count, 1)
 		count = 2
 		close(completion1)
 	})
@@ -105,7 +104,7 @@ func TestAsyncExecOrder2(t *testing.T ) {
 	completion0 := make(chan struct{})
 	exec.AsyncExec(func() {
 		<-trigger0
-		assert.NotEqual(t,count,0)
+		assert.NotEqual(t, count, 0)
 		count = 1
 		close(completion0)
 	})
@@ -120,26 +119,22 @@ func TestAsyncExecOneAtATime(t *testing.T) {
 	exec := serialize.NewExecutor()
 	start := make(chan struct{})
 	count := 100
-	finished := make([]chan struct{},count)
+	finished := make([]chan struct{}, count)
 	var running int
-	for i := 0;i < count;i++ {
+	for i := 0; i < count; i++ {
 		finished[i] = make(chan struct{})
 		end := finished[i]
-		exec.AsyncExec(func(){
+		exec.AsyncExec(func() {
 			<-start
-			assert.Equal(t,running,0)
+			assert.Equal(t, running, 0)
 			running++
-			assert.Equal(t,running,1)
+			assert.Equal(t, running, 1)
 			running--
 			close(end)
 		})
 	}
 	close(start)
-	for _,done := range finished {
+	for _, done := range finished {
 		<-done
 	}
 }
-
-
-
-

@@ -21,7 +21,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/networkservicemesh/controlplane/api/registry"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
 // DiscoveryClientWrapper - a function that wraps around a registry.NetworkServiceDiscoveryClient

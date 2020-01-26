@@ -26,7 +26,7 @@
 package addressof
 
 import (
-	"github.com/networkservicemesh/networkservicemesh/controlplane/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
 // NetworkServiceClient - convenience function to help in converting things from networkservice.NetworkServiceClient to *networkservice.NetworkServiceClient

@@ -23,11 +23,54 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/networkservicemesh/controlplane/api/registry"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
 type registryServerToClient struct {
 	server registry.NetworkServiceRegistryServer
+}
+
+type regErr struct {
+	reg *registry.NSERegistration
+	err error
+}
+
+type streamClient struct {
+	registry.NetworkServiceRegistry_BulkRegisterNSEClient
+	sendCh chan *regErr
+	recvCh chan *regErr
+	err    error
+}
+
+type streamServer struct {
+	registry.NetworkServiceRegistry_BulkRegisterNSEServer
+	sendCh chan *regErr
+	recvCh chan *regErr
+}
+
+func (ts *streamClient) Send(reg *registry.NSERegistration) error {
+	ts.sendCh <- &regErr{
+		reg: reg,
+	}
+	return ts.err
+}
+func (ts *streamClient) Recv() (*registry.NSERegistration, error) {
+	if ts.err != nil {
+		return nil, ts.err
+	}
+	res := <-ts.recvCh
+	return res.reg, res.err
+}
+
+func (ts *streamServer) Send(reg *registry.NSERegistration) error {
+	ts.sendCh <- &regErr{
+		reg: reg,
+	}
+	return nil
+}
+func (ts *streamServer) Recv() (*registry.NSERegistration, error) {
+	res := <-ts.recvCh
+	return res.reg, res.err
 }
 
 // NewRegistryServerToClient - returns a new registry.NetworkServiceRegistryServer that is a wrapper around server
@@ -37,6 +80,20 @@ func NewRegistryServerToClient(server registry.NetworkServiceRegistryServer) reg
 
 func (r *registryServerToClient) RegisterNSE(ctx context.Context, registration *registry.NSERegistration, _ ...grpc.CallOption) (*registry.NSERegistration, error) {
 	return r.server.RegisterNSE(ctx, registration)
+}
+
+// BulkRegisterNSE - register in bulk
+func (r *registryServerToClient) BulkRegisterNSE(ctx context.Context, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_BulkRegisterNSEClient, error) {
+	recv := make(chan *regErr, 1)
+	send := make(chan *regErr, 1)
+	regClient := &streamClient{sendCh: send, recvCh: recv}
+	// Reverse channels
+	regServer := &streamServer{sendCh: recv, recvCh: send}
+
+	go func() {
+		regClient.err = r.server.BulkRegisterNSE(regServer)
+	}()
+	return regClient, nil
 }
 
 func (r *registryServerToClient) RemoveNSE(ctx context.Context, request *registry.RemoveNSERequest, _ ...grpc.CallOption) (*empty.Empty, error) {

@@ -21,7 +21,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 
-	"github.com/networkservicemesh/networkservicemesh/controlplane/api/registry"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
 // RegistryServerWrapper - function that wraps a registry server
@@ -56,6 +56,10 @@ func (n *nextRegistryServer) RegisterNSE(ctx context.Context, request *registry.
 		return n.servers[n.index].RegisterNSE(withNextRegistryServer(ctx, &nextRegistryServer{servers: n.servers, index: n.index + 1}), request)
 	}
 	return n.servers[n.index].RegisterNSE(withNextRegistryServer(ctx, nil), request)
+}
+
+func (n *nextRegistryServer) BulkRegisterNSE(server registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
+	return n.servers[n.index].BulkRegisterNSE(server)
 }
 
 func (n *nextRegistryServer) RemoveNSE(ctx context.Context, request *registry.RemoveNSERequest) (*empty.Empty, error) {
