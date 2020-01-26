@@ -1,6 +1,10 @@
 ---
 name: Update sdk-vppagent
-on: push
+on:
+  push:
+    branches:
+      - master
+
 jobs:
   update-sdk-vppagent:
     name: Update sdk-vppagent
