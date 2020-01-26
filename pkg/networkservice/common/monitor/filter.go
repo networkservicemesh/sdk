@@ -31,12 +31,40 @@ func newMonitorFilter(selector *connection.MonitorScopeSelector, srv connection.
 }
 
 func (m *monitorFilter) Send(event *connection.ConnectionEvent) error {
+	connections := connection.FilterMapOnManagerScopeSelector(event.GetConnections(), m.selector)
 	rv := &connection.ConnectionEvent{
 		Type:        event.Type,
-		Connections: connection.FilterMapOnManagerScopeSelector(event.GetConnections(), m.selector),
+		Connections: connections,
+		Metrics:     filteredMetrics(event, connections),
 	}
 	if rv.Type == connection.ConnectionEventType_INITIAL_STATE_TRANSFER || len(rv.GetConnections()) > 0 {
 		return m.MonitorConnection_MonitorConnectionsServer.Send(rv)
 	}
 	return nil
+}
+
+// SendMetrics - send metrics to connections matched by filter.
+func (m *monitorFilter) SendMetrics(event *connection.ConnectionEvent, connections map[string]*connection.Connection) error {
+	matchedConnections := connection.FilterMapOnManagerScopeSelector(connections, m.selector)
+
+	rv := &connection.ConnectionEvent{
+		Type:    event.Type,
+		Metrics: filteredMetrics(event, matchedConnections),
+	}
+	if len(rv.Metrics) > 0 {
+		return m.MonitorConnection_MonitorConnectionsServer.Send(rv)
+	}
+	return nil
+}
+
+func filteredMetrics(event *connection.ConnectionEvent, matchedConnections map[string]*connection.Connection) map[string]*connection.Metrics {
+	filteredMetrics := map[string]*connection.Metrics{}
+
+	// Put only relevant metrics
+	for k, v := range event.Metrics {
+		if _, ok := matchedConnections[k]; ok {
+			filteredMetrics[k] = v
+		}
+	}
+	return filteredMetrics
 }

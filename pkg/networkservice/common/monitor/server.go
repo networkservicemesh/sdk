@@ -34,7 +34,7 @@ import (
 
 type monitorServer struct {
 	connections map[string]*connection.Connection
-	monitors    []connection.MonitorConnection_MonitorConnectionsServer
+	monitors    []*monitorFilter
 	executor    serialize.Executor
 	finalized   chan struct{}
 }
@@ -78,10 +78,15 @@ func (m *monitorServer) MonitorConnections(selector *connection.MonitorScopeSele
 }
 
 func (m *monitorServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*connection.Connection, error) {
+	// Pass metrics monitor, so it could be used later in chain.
+	ctx = WithMetricsMonitor(ctx, m)
+
 	conn, err := next.Server(ctx).Request(ctx, request)
 	if err == nil {
 		m.executor.AsyncExec(func() {
 			m.connections[conn.GetId()] = conn
+
+			//TODO: Do we need to send if no update was performed to connection?
 			event := &connection.ConnectionEvent{
 				Type:        connection.ConnectionEventType_UPDATE,
 				Connections: map[string]*connection.Connection{conn.GetId(): conn},
@@ -93,6 +98,9 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 }
 
 func (m *monitorServer) Close(ctx context.Context, conn *connection.Connection) (*empty.Empty, error) {
+	// Pass metrics monitor, so it could be used later in chain.
+	ctx = WithMetricsMonitor(ctx, m)
+
 	m.executor.AsyncExec(func() {
 		delete(m.connections, conn.GetId())
 		event := &connection.ConnectionEvent{
@@ -105,7 +113,7 @@ func (m *monitorServer) Close(ctx context.Context, conn *connection.Connection) 
 }
 
 func (m *monitorServer) send(ctx context.Context, event *connection.ConnectionEvent) {
-	newMonitors := make([]connection.MonitorConnection_MonitorConnectionsServer, len(m.monitors))
+	newMonitors := []*monitorFilter{}
 	for _, srv := range m.monitors {
 		select {
 		case <-srv.Context().Done():
@@ -117,4 +125,27 @@ func (m *monitorServer) send(ctx context.Context, event *connection.ConnectionEv
 		}
 	}
 	m.monitors = newMonitors
+}
+
+func (m *monitorServer) HandleMetrics(statistics map[string]*connection.Metrics) {
+	m.executor.AsyncExec(func() {
+		event := &connection.ConnectionEvent{
+			Metrics: statistics,
+			Type:    connection.ConnectionEventType_UPDATE,
+		}
+		// We need to add all connections
+		newMonitors := []*monitorFilter{}
+		for _, srv := range m.monitors {
+			// Try to send metrics
+			select {
+			case <-srv.Context().Done():
+			default:
+				if err := srv.SendMetrics(event, m.connections); err != nil {
+					trace.Log(context.Background()).Errorf("Error sending event: %+v: %+v", event, err)
+				}
+				newMonitors = append(newMonitors, srv)
+			}
+		}
+		m.monitors = newMonitors
+	})
 }
