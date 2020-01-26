@@ -21,7 +21,7 @@ package next
 import (
 	"context"
 
-	"github.com/networkservicemesh/networkservicemesh/controlplane/api/registry"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
 const (

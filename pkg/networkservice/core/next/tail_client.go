@@ -22,8 +22,8 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/networkservicemesh/controlplane/api/connection"
-	"github.com/networkservicemesh/networkservicemesh/controlplane/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/connection"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
 // tailServer is a simple implementation of networkservice.NetworkServiceServer that is called at the end of a chain

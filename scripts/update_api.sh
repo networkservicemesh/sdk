@@ -11,7 +11,7 @@ set -euo pipefail
 BRANCH=master
 
 V=$(
-        go mod download -json "github.com/networkservicemesh/networkservicemesh/controlplane/api@${BRANCH}" |
+        go mod download -json "github.com/networkservicemesh/api@${BRANCH}" |
         sed -n 's|.*"Version": "\(.*\)".*|\1|p'
     )
 
@@ -19,7 +19,7 @@ MODS=()
 while IFS='' read -r line
 do
     MODS+=("$line")
-done < <( grep "github.com/networkservicemesh/networkservicemesh" go.mod  | sed 's/^replace //' | awk '{print $1}' | sort -u)
+done < <( grep "github.com/networkservicemesh/api" go.mod  | sed 's/^replace //' | awk '{print $1}' | sort -u)
 
 
 for MOD in "${MODS[@]}"; do

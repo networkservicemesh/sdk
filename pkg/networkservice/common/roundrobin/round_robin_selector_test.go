@@ -20,7 +20,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/networkservicemesh/networkservicemesh/controlplane/api/registry"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
 type args struct {

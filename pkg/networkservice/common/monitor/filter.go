@@ -16,7 +16,7 @@
 
 package monitor
 
-import "github.com/networkservicemesh/networkservicemesh/controlplane/api/connection"
+import "github.com/networkservicemesh/api/pkg/api/connection"
 
 type monitorFilter struct {
 	selector *connection.MonitorScopeSelector
