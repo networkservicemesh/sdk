@@ -1,3 +1,5 @@
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
+//
 // Copyright (c) 2020 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -50,6 +52,9 @@ func NewWrappedNetworkServiceClient(wrapper ClientWrapper, clients ...networkser
 
 // NewNetworkServiceClient - chains together clients into a single networkservice.NetworkServiceClient
 func NewNetworkServiceClient(clients ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
+	if len(clients) == 0 {
+		return &tailClient{}
+	}
 	return NewWrappedNetworkServiceClient(notWrapClient, clients...)
 }
 
