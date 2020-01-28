@@ -19,7 +19,7 @@ jobs:
           go-version: 1.13.4
       - name: Update sdk locally
         run: |
-          go get -u github.com/networkservicemesh/sdk
+          GOPROXY=direct go get -u github.com/networkservicemesh/sdk
           go mod tidy
           git diff
       - name: Push update to sdk-kernel
