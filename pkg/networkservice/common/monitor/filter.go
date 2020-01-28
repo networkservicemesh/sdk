@@ -16,26 +16,28 @@
 
 package monitor
 
-import "github.com/networkservicemesh/api/pkg/api/connection"
+import (
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+)
 
 type monitorFilter struct {
-	selector *connection.MonitorScopeSelector
-	connection.MonitorConnection_MonitorConnectionsServer
+	selector *networkservice.MonitorScopeSelector
+	networkservice.MonitorConnection_MonitorConnectionsServer
 }
 
-func newMonitorFilter(selector *connection.MonitorScopeSelector, srv connection.MonitorConnection_MonitorConnectionsServer) *monitorFilter {
+func newMonitorFilter(selector *networkservice.MonitorScopeSelector, srv networkservice.MonitorConnection_MonitorConnectionsServer) *monitorFilter {
 	return &monitorFilter{
 		selector: selector,
 		MonitorConnection_MonitorConnectionsServer: srv,
 	}
 }
 
-func (m *monitorFilter) Send(event *connection.ConnectionEvent) error {
-	rv := &connection.ConnectionEvent{
+func (m *monitorFilter) Send(event *networkservice.ConnectionEvent) error {
+	rv := &networkservice.ConnectionEvent{
 		Type:        event.Type,
-		Connections: connection.FilterMapOnManagerScopeSelector(event.GetConnections(), m.selector),
+		Connections: networkservice.FilterMapOnManagerScopeSelector(event.GetConnections(), m.selector),
 	}
-	if rv.Type == connection.ConnectionEventType_INITIAL_STATE_TRANSFER || len(rv.GetConnections()) > 0 {
+	if rv.Type == networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER || len(rv.GetConnections()) > 0 {
 		return m.MonitorConnection_MonitorConnectionsServer.Send(rv)
 	}
 	return nil

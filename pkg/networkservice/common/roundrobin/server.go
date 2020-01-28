@@ -23,7 +23,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 
-	"github.com/networkservicemesh/api/pkg/api/connection"
+	
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
@@ -43,7 +43,7 @@ func NewServer() networkservice.NetworkServiceServer {
 	}
 }
 
-func (s *selectEndpointServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*connection.Connection, error) {
+func (s *selectEndpointServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	ctx, err := s.withClientURL(ctx, request.GetConnection())
 	if err != nil {
 		return nil, err
@@ -51,7 +51,7 @@ func (s *selectEndpointServer) Request(ctx context.Context, request *networkserv
 	return next.Server(ctx).Request(ctx, request)
 }
 
-func (s *selectEndpointServer) Close(ctx context.Context, conn *connection.Connection) (*empty.Empty, error) {
+func (s *selectEndpointServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	// TODO - we should remember the previous selection here.
 	ctx, err := s.withClientURL(ctx, conn)
 	if err != nil {
@@ -60,7 +60,7 @@ func (s *selectEndpointServer) Close(ctx context.Context, conn *connection.Conne
 	return next.Server(ctx).Close(ctx, conn)
 }
 
-func (s *selectEndpointServer) withClientURL(ctx context.Context, conn *connection.Connection) (context.Context, error) {
+func (s *selectEndpointServer) withClientURL(ctx context.Context, conn *networkservice.Connection) (context.Context, error) {
 	if clienturl.ClientURL(ctx) == nil {
 		candidates := discover.Candidates(ctx)
 		endpoint := s.selector.selectEndpoint(candidates.GetNetworkService(), candidates.GetNetworkServiceEndpoints())

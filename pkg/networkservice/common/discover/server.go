@@ -22,7 +22,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 
-	"github.com/networkservicemesh/api/pkg/api/connection"
+	
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
@@ -39,7 +39,7 @@ func NewServer(reg registry.NetworkServiceDiscoveryClient) networkservice.Networ
 	return &discoverCandidatesServer{registry: reg}
 }
 
-func (d *discoverCandidatesServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*connection.Connection, error) {
+func (d *discoverCandidatesServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	// TODO - handle case where NetworkServiceEndpoint is already set
 	// if request.GetConnection().GetNetworkServiceEndpointName() != "" {
 	//    TODO what to do in this case?
@@ -57,6 +57,6 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 	return next.Server(ctx).Request(ctx, request)
 }
 
-func (d *discoverCandidatesServer) Close(context.Context, *connection.Connection) (*empty.Empty, error) {
+func (d *discoverCandidatesServer) Close(context.Context, *networkservice.Connection) (*empty.Empty, error) {
 	panic("implement me")
 }

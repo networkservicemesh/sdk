@@ -24,7 +24,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 
-	"github.com/networkservicemesh/api/pkg/api/connection"
+	
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -33,23 +33,23 @@ import (
 )
 
 type monitorServer struct {
-	connections map[string]*connection.Connection
-	monitors    []connection.MonitorConnection_MonitorConnectionsServer
+	connections map[string]*networkservice.Connection
+	monitors    []networkservice.MonitorConnection_MonitorConnectionsServer
 	executor    serialize.Executor
 	finalized   chan struct{}
 }
 
 // NewServer - creates a NetworkServiceServer chain element that will properly update a MonitorConnectionServer
-//             - monitorServerPtr - *connection.MonitorConnectionServer.  Since connection.MonitorConnectionServer is an interface
-//                        (and thus a pointer) *connection.MonitorConnectionServer is a double pointer.  Meaning it
-//                        points to a place that points to a place that implements connection.MonitorConnectionServer
+//             - monitorServerPtr - *networkservice.MonitorConnectionServer.  Since networkservice.MonitorConnectionServer is an interface
+//                        (and thus a pointer) *networkservice.MonitorConnectionServer is a double pointer.  Meaning it
+//                        points to a place that points to a place that implements networkservice.MonitorConnectionServer
 //                        This is done so that we can preserve the return of networkservice.NetworkServer and use
 //                        NewServer(...) as any other chain element constructor, but also get back a
-//                        connection.MonitorConnectionServer that can be used either standalone or in a
-//                        connection.MonitorConnectionServer chain
-func NewServer(monitorServerPtr *connection.MonitorConnectionServer) networkservice.NetworkServiceServer {
+//                        networkservice.MonitorConnectionServer that can be used either standalone or in a
+//                        networkservice.MonitorConnectionServer chain
+func NewServer(monitorServerPtr *networkservice.MonitorConnectionServer) networkservice.NetworkServiceServer {
 	rv := &monitorServer{
-		connections: make(map[string]*connection.Connection),
+		connections: make(map[string]*networkservice.Connection),
 		monitors:    nil, // Intentionally nil
 		executor:    serialize.NewExecutor(),
 		finalized:   make(chan struct{}),
@@ -61,12 +61,12 @@ func NewServer(monitorServerPtr *connection.MonitorConnectionServer) networkserv
 	return rv
 }
 
-func (m *monitorServer) MonitorConnections(selector *connection.MonitorScopeSelector, srv connection.MonitorConnection_MonitorConnectionsServer) error {
+func (m *monitorServer) MonitorConnections(selector *networkservice.MonitorScopeSelector, srv networkservice.MonitorConnection_MonitorConnectionsServer) error {
 	m.executor.AsyncExec(func() {
 		monitor := newMonitorFilter(selector, srv)
 		m.monitors = append(m.monitors, monitor)
-		_ = monitor.Send(&connection.ConnectionEvent{
-			Type:        connection.ConnectionEventType_INITIAL_STATE_TRANSFER,
+		_ = monitor.Send(&networkservice.ConnectionEvent{
+			Type:        networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,
 			Connections: m.connections,
 		})
 	})
@@ -77,14 +77,14 @@ func (m *monitorServer) MonitorConnections(selector *connection.MonitorScopeSele
 	return nil
 }
 
-func (m *monitorServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*connection.Connection, error) {
+func (m *monitorServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	conn, err := next.Server(ctx).Request(ctx, request)
 	if err == nil {
 		m.executor.AsyncExec(func() {
 			m.connections[conn.GetId()] = conn
-			event := &connection.ConnectionEvent{
-				Type:        connection.ConnectionEventType_UPDATE,
-				Connections: map[string]*connection.Connection{conn.GetId(): conn},
+			event := &networkservice.ConnectionEvent{
+				Type:        networkservice.ConnectionEventType_UPDATE,
+				Connections: map[string]*networkservice.Connection{conn.GetId(): conn},
 			}
 			m.send(ctx, event)
 		})
@@ -92,20 +92,20 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 	return conn, err
 }
 
-func (m *monitorServer) Close(ctx context.Context, conn *connection.Connection) (*empty.Empty, error) {
+func (m *monitorServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	m.executor.AsyncExec(func() {
 		delete(m.connections, conn.GetId())
-		event := &connection.ConnectionEvent{
-			Type:        connection.ConnectionEventType_DELETE,
-			Connections: map[string]*connection.Connection{conn.GetId(): conn},
+		event := &networkservice.ConnectionEvent{
+			Type:        networkservice.ConnectionEventType_DELETE,
+			Connections: map[string]*networkservice.Connection{conn.GetId(): conn},
 		}
 		m.send(ctx, event)
 	})
 	return next.Server(ctx).Close(ctx, conn)
 }
 
-func (m *monitorServer) send(ctx context.Context, event *connection.ConnectionEvent) {
-	newMonitors := make([]connection.MonitorConnection_MonitorConnectionsServer, len(m.monitors))
+func (m *monitorServer) send(ctx context.Context, event *networkservice.ConnectionEvent) {
+	newMonitors := make([]networkservice.MonitorConnection_MonitorConnectionsServer, len(m.monitors))
 	for _, srv := range m.monitors {
 		select {
 		case <-srv.Context().Done():

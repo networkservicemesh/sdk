@@ -22,7 +22,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 
-	"github.com/networkservicemesh/api/pkg/api/connection"
+	
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
@@ -35,10 +35,10 @@ func NewClientToServer(client networkservice.NetworkServiceClient) networkservic
 	return &clientToServer{client: client}
 }
 
-func (c *clientToServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*connection.Connection, error) {
+func (c *clientToServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	return c.client.Request(ctx, request)
 }
 
-func (c *clientToServer) Close(ctx context.Context, request *connection.Connection) (*empty.Empty, error) {
+func (c *clientToServer) Close(ctx context.Context, request *networkservice.Connection) (*empty.Empty, error) {
 	return c.client.Close(ctx, request)
 }

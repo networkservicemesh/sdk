@@ -21,7 +21,7 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/connection"
+	
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
 
@@ -56,11 +56,11 @@ func visitServer() networkservice.NetworkServiceServer {
 	return &testVisitNetworkServiceServer{}
 }
 
-func (t *testVisitNetworkServiceServer) Request(ctx context.Context, r *networkservice.NetworkServiceRequest) (*connection.Connection, error) {
+func (t *testVisitNetworkServiceServer) Request(ctx context.Context, r *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	return next.Server(visit(ctx)).Request(ctx, r)
 }
 
-func (t *testVisitNetworkServiceServer) Close(ctx context.Context, r *connection.Connection) (*empty.Empty, error) {
+func (t *testVisitNetworkServiceServer) Close(ctx context.Context, r *networkservice.Connection) (*empty.Empty, error) {
 	return next.Server(visit(ctx)).Close(ctx, r)
 }
 
@@ -70,21 +70,21 @@ func visitClient() networkservice.NetworkServiceClient {
 	return &testVisitNetworkServiceClient{}
 }
 
-func (t *testVisitNetworkServiceClient) Request(ctx context.Context, r *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*connection.Connection, error) {
+func (t *testVisitNetworkServiceClient) Request(ctx context.Context, r *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	return next.Client(visit(ctx)).Request(ctx, r, opts...)
 }
 
-func (t *testVisitNetworkServiceClient) Close(ctx context.Context, r *connection.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (t *testVisitNetworkServiceClient) Close(ctx context.Context, r *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	return next.Client(visit(ctx)).Close(ctx, r, opts...)
 }
 
 type testEmptyClient struct{}
 
-func (t testEmptyClient) Request(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*connection.Connection, error) {
+func (t testEmptyClient) Request(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	return nil, nil
 }
 
-func (t testEmptyClient) Close(ctx context.Context, in *connection.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (t testEmptyClient) Close(ctx context.Context, in *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	return nil, nil
 }
 
@@ -94,11 +94,11 @@ func emptyClient() networkservice.NetworkServiceClient {
 
 type testEmptyServer struct{}
 
-func (t testEmptyServer) Request(ctx context.Context, in *networkservice.NetworkServiceRequest) (*connection.Connection, error) {
+func (t testEmptyServer) Request(ctx context.Context, in *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	return nil, nil
 }
 
-func (t testEmptyServer) Close(ctx context.Context, in *connection.Connection) (*empty.Empty, error) {
+func (t testEmptyServer) Close(ctx context.Context, in *networkservice.Connection) (*empty.Empty, error) {
 	return nil, nil
 }
 

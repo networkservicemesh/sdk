@@ -23,7 +23,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/api/pkg/api/connection"
+	
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
@@ -36,10 +36,10 @@ func NewServerToClient(server networkservice.NetworkServiceServer) networkservic
 	return &serverToClient{server: server}
 }
 
-func (s *serverToClient) Request(ctx context.Context, in *networkservice.NetworkServiceRequest, _ ...grpc.CallOption) (*connection.Connection, error) {
+func (s *serverToClient) Request(ctx context.Context, in *networkservice.NetworkServiceRequest, _ ...grpc.CallOption) (*networkservice.Connection, error) {
 	return s.server.Request(ctx, in)
 }
 
-func (s *serverToClient) Close(ctx context.Context, in *connection.Connection, _ ...grpc.CallOption) (*empty.Empty, error) {
+func (s *serverToClient) Close(ctx context.Context, in *networkservice.Connection, _ ...grpc.CallOption) (*empty.Empty, error) {
 	return s.server.Close(ctx, in)
 }

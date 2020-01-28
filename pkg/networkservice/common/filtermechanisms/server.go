@@ -22,8 +22,8 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc/peer"
 
-	"github.com/networkservicemesh/api/pkg/api/connection"
-	"github.com/networkservicemesh/api/pkg/api/connection/mechanisms/cls"
+	
+	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -37,11 +37,11 @@ func NewServer() networkservice.NetworkServiceServer {
 	return &filterMechanismsServer{}
 }
 
-func (f *filterMechanismsServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*connection.Connection, error) {
+func (f *filterMechanismsServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	p, ok := peer.FromContext(ctx)
 	if ok {
 		if p.Addr.Network() == "unix" {
-			var mechanisms []*connection.Mechanism
+			var mechanisms []*networkservice.Mechanism
 			for _, mechanism := range request.GetMechanismPreferences() {
 				if mechanism.Cls == cls.LOCAL {
 					mechanisms = append(mechanisms, mechanism)
@@ -50,7 +50,7 @@ func (f *filterMechanismsServer) Request(ctx context.Context, request *networkse
 			request.MechanismPreferences = mechanisms
 			return next.Server(ctx).Request(ctx, request)
 		}
-		var mechanisms []*connection.Mechanism
+		var mechanisms []*networkservice.Mechanism
 		for _, mechanism := range request.GetMechanismPreferences() {
 			if mechanism.Cls == cls.REMOTE {
 				mechanisms = append(mechanisms, mechanism)
@@ -61,6 +61,6 @@ func (f *filterMechanismsServer) Request(ctx context.Context, request *networkse
 	return next.Server(ctx).Request(ctx, request)
 }
 
-func (f *filterMechanismsServer) Close(ctx context.Context, conn *connection.Connection) (*empty.Empty, error) {
+func (f *filterMechanismsServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	return next.Server(ctx).Close(ctx, conn)
 }

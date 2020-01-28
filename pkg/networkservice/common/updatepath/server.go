@@ -23,7 +23,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 
-	"github.com/networkservicemesh/api/pkg/api/connection"
+	
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -39,7 +39,7 @@ func NewServer(name string) networkservice.NetworkServiceServer {
 	return &updatePathServer{name: name}
 }
 
-func (u *updatePathServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*connection.Connection, error) {
+func (u *updatePathServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	if int(request.GetConnection().GetPath().GetIndex()) >= len(request.GetConnection().GetPath().GetPathSegments()) {
 		return nil, errors.Errorf("NetworkServiceRequest.Connection.Path.Index(%d) >= len(NetworkServiceRequest.Connection.Path.PathSegments)(%d)",
 			request.GetConnection().GetPath().GetIndex(),
@@ -49,7 +49,7 @@ func (u *updatePathServer) Request(ctx context.Context, request *networkservice.
 	request.GetConnection().GetPath().Index++
 	// extend the path (presuming that we need to)
 	if int(request.GetConnection().GetPath().GetIndex()) == len(request.GetConnection().GetPath().GetPathSegments()) {
-		request.GetConnection().GetPath().PathSegments = append(request.GetConnection().GetPath().PathSegments, &connection.PathSegment{})
+		request.GetConnection().GetPath().PathSegments = append(request.GetConnection().GetPath().PathSegments, &networkservice.PathSegment{})
 	}
 	request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].Name = u.name
 	request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].Id = request.GetConnection().GetId()
@@ -59,6 +59,6 @@ func (u *updatePathServer) Request(ctx context.Context, request *networkservice.
 	return next.Server(ctx).Request(ctx, request)
 }
 
-func (u *updatePathServer) Close(context.Context, *connection.Connection) (*empty.Empty, error) {
+func (u *updatePathServer) Close(context.Context, *networkservice.Connection) (*empty.Empty, error) {
 	panic("implement me")
 }

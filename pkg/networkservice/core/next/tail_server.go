@@ -21,7 +21,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 
-	"github.com/networkservicemesh/api/pkg/api/connection"
+	
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
@@ -33,10 +33,10 @@ func newTailServer() *tailServer {
 	return &tailServer{}
 }
 
-func (t *tailServer) Request(_ context.Context, request *networkservice.NetworkServiceRequest) (*connection.Connection, error) {
+func (t *tailServer) Request(_ context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	return request.GetConnection(), nil
 }
 
-func (t *tailServer) Close(context.Context, *connection.Connection) (*empty.Empty, error) {
+func (t *tailServer) Close(context.Context, *networkservice.Connection) (*empty.Empty, error) {
 	return &empty.Empty{}, nil
 }

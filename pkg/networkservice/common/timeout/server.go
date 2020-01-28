@@ -25,7 +25,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 
-	"github.com/networkservicemesh/api/pkg/api/connection"
+	
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -62,7 +62,7 @@ func NewServer(onTimout *networkservice.NetworkServiceServer) networkservice.Net
 	return rv
 }
 
-func (t *timeoutServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*connection.Connection, error) {
+func (t *timeoutServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	ct, err := t.createTimer(ctx, request)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Error creating timer from Request.Connection.Path.PathSegment[%d].ExpireTime", request.GetConnection().GetPath().GetIndex())
@@ -75,7 +75,7 @@ func (t *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 	return next.Server(ctx).Request(ctx, request)
 }
 
-func (t *timeoutServer) Close(ctx context.Context, conn *connection.Connection) (*empty.Empty, error) {
+func (t *timeoutServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	t.executor.AsyncExec(func() {
 		if timer, ok := t.connections[conn.GetId()]; ok {
 			timer.Stop()

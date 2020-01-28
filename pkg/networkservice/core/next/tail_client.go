@@ -22,7 +22,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/api/pkg/api/connection"
+	
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
@@ -34,10 +34,10 @@ func newTailClient() *tailClient {
 	return &tailClient{}
 }
 
-func (t *tailClient) Request(_ context.Context, request *networkservice.NetworkServiceRequest, _ ...grpc.CallOption) (*connection.Connection, error) {
+func (t *tailClient) Request(_ context.Context, request *networkservice.NetworkServiceRequest, _ ...grpc.CallOption) (*networkservice.Connection, error) {
 	return request.GetConnection(), nil
 }
 
-func (t *tailClient) Close(_ context.Context, _ *connection.Connection, _ ...grpc.CallOption) (*empty.Empty, error) {
+func (t *tailClient) Close(_ context.Context, _ *networkservice.Connection, _ ...grpc.CallOption) (*empty.Empty, error) {
 	return &empty.Empty{}, nil
 }

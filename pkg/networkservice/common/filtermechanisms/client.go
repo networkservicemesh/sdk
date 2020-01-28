@@ -26,8 +26,8 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/api/pkg/api/connection"
-	"github.com/networkservicemesh/api/pkg/api/connection/mechanisms/cls"
+	
+	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
@@ -42,10 +42,10 @@ func NewClient() networkservice.NetworkServiceClient {
 	return &filterMechanismsClient{}
 }
 
-func (f *filterMechanismsClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*connection.Connection, error) {
+func (f *filterMechanismsClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	u := clienturl.ClientURL(ctx)
 	if u.Scheme == clienturl.UnixURLScheme {
-		var mechanisms []*connection.Mechanism
+		var mechanisms []*networkservice.Mechanism
 		for _, mechanism := range request.GetMechanismPreferences() {
 			if mechanism.Cls == cls.LOCAL {
 				mechanisms = append(mechanisms, mechanism)
@@ -54,7 +54,7 @@ func (f *filterMechanismsClient) Request(ctx context.Context, request *networkse
 		request.MechanismPreferences = mechanisms
 		return next.Client(ctx).Request(ctx, request, opts...)
 	}
-	var mechanisms []*connection.Mechanism
+	var mechanisms []*networkservice.Mechanism
 	for _, mechanism := range request.GetMechanismPreferences() {
 		if mechanism.Cls == cls.REMOTE {
 			mechanisms = append(mechanisms, mechanism)
@@ -64,6 +64,6 @@ func (f *filterMechanismsClient) Request(ctx context.Context, request *networkse
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
 
-func (f *filterMechanismsClient) Close(ctx context.Context, conn *connection.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (f *filterMechanismsClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }

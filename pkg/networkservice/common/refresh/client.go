@@ -15,7 +15,7 @@
 // limitations under the License.
 
 // Package refresh periodically resends NetworkServiceMesh.Request for an existing connection
-// so that the Endpoint doesn't 'expire' the connection.
+// so that the Endpoint doesn't 'expire' the networkservice.
 package refresh
 
 import (
@@ -27,7 +27,7 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/api/pkg/api/connection"
+	
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -38,7 +38,7 @@ import (
 
 type refreshClient struct {
 	connectionTimers map[string]*time.Timer
-	connections      map[string]*connection.Connection
+	connections      map[string]*networkservice.Connection
 	executor         serialize.Executor
 }
 
@@ -47,13 +47,13 @@ type refreshClient struct {
 func NewClient() networkservice.NetworkServiceClient {
 	rv := &refreshClient{
 		connectionTimers: make(map[string]*time.Timer),
-		connections:      make(map[string]*connection.Connection),
+		connections:      make(map[string]*networkservice.Connection),
 		executor:         serialize.NewExecutor(),
 	}
 	return rv
 }
 
-func (t *refreshClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*connection.Connection, error) {
+func (t *refreshClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	rv, err := next.Server(ctx).Request(ctx, request)
 	if err != nil {
 		return nil, errors.Wrap(err, "Error calling next")
@@ -75,7 +75,7 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 	return rv, nil
 }
 
-func (t *refreshClient) Close(ctx context.Context, conn *connection.Connection, _ ...grpc.CallOption) (*empty.Empty, error) {
+func (t *refreshClient) Close(ctx context.Context, conn *networkservice.Connection, _ ...grpc.CallOption) (*empty.Empty, error) {
 	t.executor.AsyncExec(func() {
 		if timer, ok := t.connectionTimers[conn.GetId()]; ok {
 			timer.Stop()
