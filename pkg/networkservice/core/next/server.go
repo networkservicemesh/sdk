@@ -1,3 +1,5 @@
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
+//
 // Copyright (c) 2020 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -50,6 +52,9 @@ func NewWrappedNetworkServiceServer(wrapper ServerWrapper, servers ...networkser
 // NewNetworkServiceServer - chains together servers while providing them with the correct next.Server(ctx) to call to
 // invoke the next element in the chain.
 func NewNetworkServiceServer(servers ...networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
+	if len(servers) == 0 {
+		return &tailServer{}
+	}
 	return NewWrappedNetworkServiceServer(notWrapServer, servers...)
 }
 

@@ -1,3 +1,5 @@
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
+//
 // Copyright (c) 2020 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -22,6 +24,8 @@ import (
 	"context"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 )
 
 const (
@@ -47,6 +51,9 @@ func Server(ctx context.Context) networkservice.NetworkServiceServer {
 	if rv, ok := ctx.Value(nextServerKey).(networkservice.NetworkServiceServer); ok {
 		return rv
 	}
+	if rv, ok := ctx.Value(nextClientKey).(networkservice.NetworkServiceClient); ok {
+		return adapters.NewClientToServer(rv)
+	}
 	return nil
 }
 
@@ -65,6 +72,9 @@ func withNextClient(parent context.Context, next networkservice.NetworkServiceCl
 func Client(ctx context.Context) networkservice.NetworkServiceClient {
 	if rv, ok := ctx.Value(nextClientKey).(networkservice.NetworkServiceClient); ok {
 		return rv
+	}
+	if rv, ok := ctx.Value(nextServerKey).(networkservice.NetworkServiceServer); ok {
+		return adapters.NewServerToClient(rv)
 	}
 	return nil
 }

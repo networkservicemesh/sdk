@@ -52,7 +52,6 @@ func (n *localRegistry) BulkRegisterNSE(server registry.NetworkServiceRegistry_B
 	return next.RegistryServer(server.Context()).BulkRegisterNSE(server)
 }
 
-
 func (n *localRegistry) RemoveNSE(ctx context.Context, request *registry.RemoveNSERequest) (*empty.Empty, error) {
 	if n.server != nil {
 		n.server.sockets.Delete(request.GetNetworkServiceEndpointName())
