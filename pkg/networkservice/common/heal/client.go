@@ -19,7 +19,6 @@ package heal
 
 import (
 	"context"
-	"runtime"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -75,17 +74,10 @@ func NewClient(client networkservice.MonitorConnectionClient, onHeal *networkser
 		rv.onHeal = addressof.NetworkServiceClient(rv)
 	}
 	rv.updateExecutor.AsyncExec(func() {
-		runtime.SetFinalizer(rv, func(f *healClient) {
-			f.updateExecutor.AsyncExec(func() {
-				if f.cancelFunc != nil {
-					f.cancelFunc()
-				}
-			})
-		})
 		ctx, cancelFunc := context.WithCancel(context.Background())
 		rv.cancelFunc = cancelFunc
 		// TODO decide what to do about err here
-		recv, _ := rv.client.MonitorConnections(ctx, nil)
+		recv, _ := rv.client.MonitorConnections(ctx, &networkservice.MonitorScopeSelector{})
 		rv.eventReceiver = recv
 		rv.recvEventExecutor.AsyncExec(rv.recvEvent)
 	})
@@ -101,6 +93,7 @@ func (f *healClient) recvEvent() {
 		event, err := f.eventReceiver.Recv()
 		if err != nil {
 			event = nil
+			return
 		}
 		f.updateExecutor.AsyncExec(func() {
 			switch event.GetType() {
@@ -159,6 +152,17 @@ func (f *healClient) Request(ctx context.Context, request *networkservice.Networ
 		}
 	})
 	return rv, nil
+}
+
+func (f *healClient) Stop() {
+	f.updateExecutor.SyncExec(func() {
+		if f.cancelFunc != nil {
+			f.cancelFunc()
+		}
+	})
+
+	f.updateExecutor.Stop()
+	f.recvEventExecutor.Stop()
 }
 
 func (f *healClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
