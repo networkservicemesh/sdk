@@ -20,7 +20,7 @@ package endpoint
 import (
 	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/api/pkg/api/connection"
+	
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
@@ -33,17 +33,17 @@ import (
 
 // Endpoint - aggregates the APIs:
 //            - networkservice.NetworkServiceServer
-//            -connection.MonitorConnectionServer
+//            -networkservice.MonitorConnectionServer
 type Endpoint interface {
 	networkservice.NetworkServiceServer
-	connection.MonitorConnectionServer
+	networkservice.MonitorConnectionServer
 	// Register - register the endpoint with *grpc.Server s
 	Register(s *grpc.Server)
 }
 
 type endpoint struct {
 	networkservice.NetworkServiceServer
-	connection.MonitorConnectionServer
+	networkservice.MonitorConnectionServer
 }
 
 // NewServer - returns a NetworkServiceMesh client as a chain of the standard Client pieces plus whatever
@@ -66,5 +66,5 @@ func NewServer(name string, additionalFunctionality ...networkservice.NetworkSer
 
 func (e *endpoint) Register(s *grpc.Server) {
 	networkservice.RegisterNetworkServiceServer(s, e)
-	connection.RegisterMonitorConnectionServer(s, e)
+	networkservice.RegisterMonitorConnectionServer(s, e)
 }

@@ -20,7 +20,7 @@ package client
 import (
 	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/api/pkg/api/connection"
+	
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
@@ -52,7 +52,7 @@ func NewClient(name string, onHeal *networkservice.NetworkServiceClient, cc *grp
 			append([]networkservice.NetworkServiceClient{
 				authorize.NewClient(),
 				setid.NewClient(name),
-				heal.NewClient(connection.NewMonitorConnectionClient(cc), onHeal),
+				heal.NewClient(networkservice.NewMonitorConnectionClient(cc), onHeal),
 				refresh.NewClient(),
 				updatepath.NewClient(name),
 			}, additionalFunctionality...),

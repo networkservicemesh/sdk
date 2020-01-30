@@ -23,7 +23,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 
-	"github.com/networkservicemesh/api/pkg/api/connection"
+	
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
@@ -58,14 +58,14 @@ func NewNetworkServiceServer(servers ...networkservice.NetworkServiceServer) net
 	return NewWrappedNetworkServiceServer(notWrapServer, servers...)
 }
 
-func (n *nextServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*connection.Connection, error) {
+func (n *nextServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	if n.index+1 < len(n.servers) {
 		return n.servers[n.index].Request(withNextServer(ctx, &nextServer{servers: n.servers, index: n.index + 1}), request)
 	}
 	return n.servers[n.index].Request(withNextServer(ctx, newTailServer()), request)
 }
 
-func (n *nextServer) Close(ctx context.Context, conn *connection.Connection) (*empty.Empty, error) {
+func (n *nextServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	if n.index+1 < len(n.servers) {
 		return n.servers[n.index].Close(withNextServer(ctx, &nextServer{servers: n.servers, index: n.index + 1}), conn)
 	}

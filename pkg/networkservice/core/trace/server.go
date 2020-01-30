@@ -22,7 +22,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 
-	"github.com/networkservicemesh/api/pkg/api/connection"
+	
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
@@ -38,7 +38,7 @@ func NewNetworkServiceServer(traced networkservice.NetworkServiceServer) network
 	return &traceServer{traced: traced}
 }
 
-func (t *traceServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*connection.Connection, error) {
+func (t *traceServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	// Create a new span
 	span := spanhelper.FromContext(ctx, fmt.Sprintf("%s.Request", typeutils.GetTypeName(t.traced)))
 	defer span.Finish()
@@ -60,7 +60,7 @@ func (t *traceServer) Request(ctx context.Context, request *networkservice.Netwo
 	return rv, err
 }
 
-func (t *traceServer) Close(ctx context.Context, conn *connection.Connection) (*empty.Empty, error) {
+func (t *traceServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	// Create a new span
 	span := spanhelper.FromContext(ctx, fmt.Sprintf("%s.Close", typeutils.GetTypeName(t.traced)))
 	defer span.Finish()

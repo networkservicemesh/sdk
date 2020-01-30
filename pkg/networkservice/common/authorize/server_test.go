@@ -25,7 +25,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/networkservicemesh/api/pkg/api/connection"
+	
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
@@ -46,10 +46,10 @@ const (
 
 func requestWithToken(token string) *networkservice.NetworkServiceRequest {
 	return &networkservice.NetworkServiceRequest{
-		Connection: &connection.Connection{
-			Path: &connection.Path{
+		Connection: &networkservice.Connection{
+			Path: &networkservice.Path{
 				Index: 0,
-				PathSegments: []*connection.PathSegment{
+				PathSegments: []*networkservice.PathSegment{
 					{
 						Token: token,
 					},
@@ -64,7 +64,7 @@ func TestAuthzEndpoint(t *testing.T) {
 		name     string
 		policy   string
 		request  *networkservice.NetworkServiceRequest
-		response *connection.Connection
+		response *networkservice.Connection
 		denied   bool
 	}{
 		{

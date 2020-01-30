@@ -27,7 +27,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 
-	"github.com/networkservicemesh/api/pkg/api/connection"
+	
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -44,7 +44,7 @@ func NewServer(p *rego.PreparedEvalQuery) networkservice.NetworkServiceServer {
 	}
 }
 
-func (a *authorizeServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*connection.Connection, error) {
+func (a *authorizeServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	if err := check(ctx, a.p, request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].GetToken()); err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func (a *authorizeServer) Request(ctx context.Context, request *networkservice.N
 	return next.Server(ctx).Request(ctx, request)
 }
 
-func (a *authorizeServer) Close(ctx context.Context, conn *connection.Connection) (*empty.Empty, error) {
+func (a *authorizeServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	if err := check(ctx, a.p, conn.GetPath().GetPathSegments()[conn.GetPath().GetIndex()].GetToken()); err != nil {
 		return nil, err
 	}

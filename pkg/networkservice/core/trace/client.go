@@ -23,7 +23,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/api/pkg/api/connection"
+	
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
@@ -39,7 +39,7 @@ func NewNetworkServiceClient(traced networkservice.NetworkServiceClient) network
 	return &traceClient{traced: traced}
 }
 
-func (t *traceClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*connection.Connection, error) {
+func (t *traceClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	// Create a new span
 	span := spanhelper.FromContext(ctx, fmt.Sprintf("%s.Request", typeutils.GetTypeName(t.traced)))
 	defer span.Finish()
@@ -61,7 +61,7 @@ func (t *traceClient) Request(ctx context.Context, request *networkservice.Netwo
 	return rv, err
 }
 
-func (t *traceClient) Close(ctx context.Context, conn *connection.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (t *traceClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	// Create a new span
 	span := spanhelper.FromContext(ctx, fmt.Sprintf("%s.Close", typeutils.GetTypeName(t.traced)))
 	defer span.Finish()

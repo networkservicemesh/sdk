@@ -26,7 +26,7 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/api/pkg/api/connection"
+	
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
@@ -40,17 +40,17 @@ import (
 type healClient struct {
 	requestors        map[string]func()
 	closers           map[string]func()
-	reported          map[string]*connection.Connection
+	reported          map[string]*networkservice.Connection
 	onHeal            *networkservice.NetworkServiceClient
-	client            connection.MonitorConnectionClient
-	eventReceiver     connection.MonitorConnection_MonitorConnectionsClient
+	client            networkservice.MonitorConnectionClient
+	eventReceiver     networkservice.MonitorConnection_MonitorConnectionsClient
 	updateExecutor    serialize.Executor
 	recvEventExecutor serialize.Executor
 	cancelFunc        context.CancelFunc
 }
 
 // NewClient - creates a new networkservice.NetworkServiceClient chain element that implements the healing algorithm
-//             - client - connection.MonitorConnectionClient that can be used to call MonitorConnection against the endpoint
+//             - client - networkservice.MonitorConnectionClient that can be used to call MonitorConnection against the endpoint
 //             - onHeal - *networkservice.NetworkServiceClient.  Since networkservice.NetworkServiceClient is an interface
 //                        (and thus a pointer) *networkservice.NetworkServiceClient is a double pointer.  Meaning it
 //                        points to a place that points to a place that implements networkservice.NetworkServiceClient
@@ -61,12 +61,12 @@ type healClient struct {
 //                        If we are part of a larger chain or a server, we should pass the resulting chain into
 //                        this constructor before we actually have a pointer to it.
 //                        If onHeal nil, onHeal will be pointed to the returned networkservice.NetworkServiceClient
-func NewClient(client connection.MonitorConnectionClient, onHeal *networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
+func NewClient(client networkservice.MonitorConnectionClient, onHeal *networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	rv := &healClient{
 		onHeal:            onHeal,
 		requestors:        make(map[string]func()),
 		closers:           make(map[string]func()),
-		reported:          make(map[string]*connection.Connection),
+		reported:          make(map[string]*networkservice.Connection),
 		client:            client,
 		updateExecutor:    serialize.NewExecutor(),
 		eventReceiver:     nil, // This is intentionally nil
@@ -105,13 +105,13 @@ func (f *healClient) recvEvent() {
 		}
 		f.updateExecutor.AsyncExec(func() {
 			switch event.GetType() {
-			case connection.ConnectionEventType_INITIAL_STATE_TRANSFER:
+			case networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER:
 				f.reported = event.GetConnections()
-			case connection.ConnectionEventType_UPDATE:
+			case networkservice.ConnectionEventType_UPDATE:
 				for _, conn := range event.GetConnections() {
 					f.reported[conn.GetId()] = conn
 				}
-			case connection.ConnectionEventType_DELETE:
+			case networkservice.ConnectionEventType_DELETE:
 				for _, conn := range event.GetConnections() {
 					delete(f.reported, conn.GetId())
 					if f.requestors[conn.GetId()] != nil {
@@ -129,7 +129,7 @@ func (f *healClient) recvEvent() {
 	f.recvEventExecutor.AsyncExec(f.recvEvent)
 }
 
-func (f *healClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*connection.Connection, error) {
+func (f *healClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	rv, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Error calling next")
@@ -162,7 +162,7 @@ func (f *healClient) Request(ctx context.Context, request *networkservice.Networ
 	return rv, nil
 }
 
-func (f *healClient) Close(ctx context.Context, conn *connection.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (f *healClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	rv, err := next.Client(ctx).Close(ctx, conn, opts...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Error calling next")

@@ -23,7 +23,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
 
-	"github.com/networkservicemesh/api/pkg/api/connection"
+	
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -35,13 +35,13 @@ type idServer struct {
 
 // NewServer - creates a new setId server.
 //             name - name of the client
-//             Iff the current pathSegment name != name && pathsegment.id != connection.Id, set a new uuid for
+//             Iff the current pathSegment name != name && pathsegment.id != networkservice.Id, set a new uuid for
 //             connection id
 func NewServer(name string) networkservice.NetworkServiceServer {
 	return &idServer{name: name}
 }
 
-func (i *idServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*connection.Connection, error) {
+func (i *idServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	pathSegments := request.GetConnection().GetPath().GetPathSegments()
 	index := request.GetConnection().GetPath().GetIndex()
 	if len(pathSegments) > int(index) &&
@@ -52,6 +52,6 @@ func (i *idServer) Request(ctx context.Context, request *networkservice.NetworkS
 	return next.Server(ctx).Request(ctx, request)
 }
 
-func (i *idServer) Close(ctx context.Context, conn *connection.Connection) (*empty.Empty, error) {
+func (i *idServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	return next.Server(ctx).Close(ctx, conn)
 }

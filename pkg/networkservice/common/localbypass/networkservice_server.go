@@ -25,7 +25,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 
-	"github.com/networkservicemesh/api/pkg/api/connection"
+	
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
@@ -53,7 +53,7 @@ func NewServer(server *registry.NetworkServiceRegistryServer) networkservice.Net
 	return rv
 }
 
-func (l *localBypassServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*connection.Connection, error) {
+func (l *localBypassServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	if v, ok := l.sockets.Load(request.GetConnection().GetNetworkServiceEndpointName()); ok && v != nil {
 		if u, ok := v.(*url.URL); ok {
 			ctx = clienturl.WithClientURL(ctx, u)
@@ -62,7 +62,7 @@ func (l *localBypassServer) Request(ctx context.Context, request *networkservice
 	return next.Server(ctx).Request(ctx, request)
 }
 
-func (l *localBypassServer) Close(ctx context.Context, conn *connection.Connection) (*empty.Empty, error) {
+func (l *localBypassServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	if v, ok := l.sockets.Load(conn.GetNetworkServiceEndpointName()); ok && v != nil {
 		if u, ok := v.(*url.URL); ok {
 			ctx = clienturl.WithClientURL(ctx, u)

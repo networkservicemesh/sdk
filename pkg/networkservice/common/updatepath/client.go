@@ -23,7 +23,7 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/api/pkg/api/connection"
+	
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -39,10 +39,10 @@ func NewClient(name string) networkservice.NetworkServiceClient {
 	return &updatePathClient{name: name}
 }
 
-func (u *updatePathClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*connection.Connection, error) {
+func (u *updatePathClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	// Handle zero index case
 	if int(request.GetConnection().GetPath().GetIndex()) == len(request.GetConnection().GetPath().GetPathSegments()) {
-		request.GetConnection().GetPath().PathSegments = append(request.GetConnection().GetPath().PathSegments, &connection.PathSegment{})
+		request.GetConnection().GetPath().PathSegments = append(request.GetConnection().GetPath().PathSegments, &networkservice.PathSegment{})
 	}
 	if int(request.GetConnection().GetPath().GetIndex()) >= len(request.GetConnection().GetPath().GetPathSegments()) {
 		return nil, errors.Errorf("NetworkServiceRequest.Connection.Path.Index(%d) >= len(NetworkServiceRequest.Connection.Path.PathSegments)(%d)",
@@ -57,6 +57,6 @@ func (u *updatePathClient) Request(ctx context.Context, request *networkservice.
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
 
-func (u *updatePathClient) Close(ctx context.Context, conn *connection.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (u *updatePathClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }

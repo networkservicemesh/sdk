@@ -23,7 +23,7 @@ import (
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/api/pkg/api/connection"
+	
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -35,13 +35,13 @@ type idClient struct {
 
 // NewClient - creates a new setId client.
 //             name - name of the client
-//             Iff the current pathSegment name != name && pathSegment.id != connection.Id, set a new uuid for
+//             Iff the current pathSegment name != name && pathSegment.id != networkservice.Id, set a new uuid for
 //             connection id
 func NewClient(name string) networkservice.NetworkServiceClient {
 	return &idClient{name: name}
 }
 
-func (i *idClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*connection.Connection, error) {
+func (i *idClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	pathSegments := request.GetConnection().GetPath().GetPathSegments()
 	index := request.GetConnection().GetPath().GetIndex()
 	if len(pathSegments) > int(index) &&
@@ -52,6 +52,6 @@ func (i *idClient) Request(ctx context.Context, request *networkservice.NetworkS
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
 
-func (i *idClient) Close(ctx context.Context, conn *connection.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (i *idClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
