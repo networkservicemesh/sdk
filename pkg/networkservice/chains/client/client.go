@@ -44,9 +44,9 @@ import (
 //                        If we are part of a larger chain or a server, we should pass the resulting chain into
 //                        this constructor before we actually have a pointer to it.
 //                        If onHeal nil, onHeal will be pointed to the returned networkservice.NetworkServiceClient
-//             - cc - *grpc.ClientConn for the endpoint to which this client should connect
+//             - cc - grpc.ClientConnInterface for the endpoint to which this client should connect
 //             - additionalFunctionality - any additional NetworkServiceClient chain elements to be included in the chain
-func NewClient(name string, onHeal *networkservice.NetworkServiceClient, cc *grpc.ClientConn, additionalFunctionality ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
+func NewClient(name string, onHeal *networkservice.NetworkServiceClient, cc grpc.ClientConnInterface, additionalFunctionality ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	return chain.NewNetworkServiceClient(
 		append(
 			append([]networkservice.NetworkServiceClient{
@@ -60,7 +60,7 @@ func NewClient(name string, onHeal *networkservice.NetworkServiceClient, cc *grp
 		)...)
 }
 
-// NewClientFactory - returns a func(cc *grpc.ClientConn)that returns a  standard Client pieces plus whatever
+// NewClientFactory - returns a func(cc grpc.ClientConnInterface)that returns a  standard Client pieces plus whatever
 //                    additional functionality is specified
 //                    - name - name of the NetworkServiceMeshClient
 //                    - onHeal - *networkservice.NetworkServiceClient.  Since networkservice.NetworkServiceClient is an interface
@@ -74,8 +74,8 @@ func NewClient(name string, onHeal *networkservice.NetworkServiceClient, cc *grp
 //                        this constructor before we actually have a pointer to it.
 //                        If onHeal nil, onHeal will be pointed to the returned networkservice.NetworkServiceClient
 //                    - additionalFunctionality - any additional NetworkServiceClient chain elements to be included in the chain
-func NewClientFactory(name string, onHeal *networkservice.NetworkServiceClient, additionalFunctionality ...networkservice.NetworkServiceClient) func(cc *grpc.ClientConn) networkservice.NetworkServiceClient {
-	return func(cc *grpc.ClientConn) networkservice.NetworkServiceClient {
+func NewClientFactory(name string, onHeal *networkservice.NetworkServiceClient, additionalFunctionality ...networkservice.NetworkServiceClient) func(cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+	return func(cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 		return NewClient(name, onHeal, cc, additionalFunctionality...)
 	}
 }
