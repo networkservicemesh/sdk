@@ -7,7 +7,7 @@ require (
 	github.com/golang/protobuf v1.3.2
 	github.com/google/uuid v1.1.1
 	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645
-	github.com/networkservicemesh/api v0.0.0-20200129141249-737163382ea0
+	github.com/networkservicemesh/api v0.0.0-20200130012923-51362d9e8db9
 	github.com/open-policy-agent/opa v0.16.1
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/pkg/errors v0.9.1
