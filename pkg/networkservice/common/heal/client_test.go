@@ -20,7 +20,6 @@ import (
 	"context"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/connection"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
@@ -37,17 +36,17 @@ import (
 type testMonitor struct {
 	sync.WaitGroup
 	stopCh   chan struct{}
-	streamCh chan connection.MonitorConnection_MonitorConnectionsServer
+	streamCh chan networkservice.MonitorConnection_MonitorConnectionsServer
 }
 
 func newTestMonitor() *testMonitor {
 	return &testMonitor{
 		stopCh:   make(chan struct{}),
-		streamCh: make(chan connection.MonitorConnection_MonitorConnectionsServer),
+		streamCh: make(chan networkservice.MonitorConnection_MonitorConnectionsServer),
 	}
 }
 
-func (t *testMonitor) MonitorConnections(s *connection.MonitorScopeSelector, stream connection.MonitorConnection_MonitorConnectionsServer) error {
+func (t *testMonitor) MonitorConnections(s *networkservice.MonitorScopeSelector, stream networkservice.MonitorConnection_MonitorConnectionsServer) error {
 	t.Add(1)
 	defer t.Done()
 
@@ -56,7 +55,7 @@ func (t *testMonitor) MonitorConnections(s *connection.MonitorScopeSelector, str
 	return nil
 }
 
-func (t *testMonitor) stream(ctx context.Context) (connection.MonitorConnection_MonitorConnectionsServer, func(), error) {
+func (t *testMonitor) stream(ctx context.Context) (networkservice.MonitorConnection_MonitorConnectionsServer, func(), error) {
 	closeFunc := func() {
 		close(t.stopCh)
 		t.Wait()
@@ -70,9 +69,9 @@ func (t *testMonitor) stream(ctx context.Context) (connection.MonitorConnection_
 	}
 }
 
-func serve(s connection.MonitorConnectionServer) (*bufconn.Listener, func()) {
+func serve(s networkservice.MonitorConnectionServer) (*bufconn.Listener, func()) {
 	srv := grpc.NewServer()
-	connection.RegisterMonitorConnectionServer(srv, s)
+	networkservice.RegisterMonitorConnectionServer(srv, s)
 	ln := bufconn.Listen(1024 * 1024)
 
 	var wg sync.WaitGroup
@@ -88,7 +87,7 @@ func serve(s connection.MonitorConnectionServer) (*bufconn.Listener, func()) {
 	}
 }
 
-func dial(ctx context.Context, ln *bufconn.Listener) (connection.MonitorConnectionClient, func(), error) {
+func dial(ctx context.Context, ln *bufconn.Listener) (networkservice.MonitorConnectionClient, func(), error) {
 	dialer := func(context context.Context, s string) (conn net.Conn, e error) {
 		return ln.Dial()
 	}
@@ -98,7 +97,7 @@ func dial(ctx context.Context, ln *bufconn.Listener) (connection.MonitorConnecti
 		return nil, nil, err
 	}
 
-	return connection.NewMonitorConnectionClient(cc), func() { _ = cc.Close() }, nil
+	return networkservice.NewMonitorConnectionClient(cc), func() { _ = cc.Close() }, nil
 }
 
 func syncCond(exec serialize.Executor, cond func() bool) func() bool {
@@ -114,7 +113,7 @@ func syncCond(exec serialize.Executor, cond func() bool) func() bool {
 type fixture struct {
 	tm           *testMonitor
 	closeFuncs   []func()
-	serverStream connection.MonitorConnection_MonitorConnectionsServer
+	serverStream networkservice.MonitorConnection_MonitorConnectionsServer
 	client       *healClient
 	onHeal       networkservice.NetworkServiceClient
 }
@@ -159,23 +158,23 @@ func (f *fixture) close() {
 	}
 }
 
-type clientRequest func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*connection.Connection, error)
+type clientRequest func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error)
 
 type testOnHeal struct {
 	r clientRequest
 }
 
-func (t *testOnHeal) Request(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*connection.Connection, error) {
+func (t *testOnHeal) Request(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	return t.r(ctx, in, opts...)
 }
 
-func (t *testOnHeal) Close(ctx context.Context, in *connection.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (t *testOnHeal) Close(ctx context.Context, in *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	panic("implement me")
 }
 
 // calledOnce closes notifier channel when h called once
 func calledOnce(notifier chan struct{}, h clientRequest) clientRequest {
-	return func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (i *connection.Connection, e error) {
+	return func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (i *networkservice.Connection, e error) {
 		close(notifier)
 		if h != nil {
 			return h(ctx, in, opts...)
@@ -187,71 +186,71 @@ func calledOnce(notifier chan struct{}, h clientRequest) clientRequest {
 func TestHealClient_New(t *testing.T) {
 	suits := []struct {
 		name     string
-		events   []*connection.ConnectionEvent
-		reported map[string]*connection.Connection
+		events   []*networkservice.ConnectionEvent
+		reported map[string]*networkservice.Connection
 	}{
 		{
 			name: "initial state transfer",
-			events: []*connection.ConnectionEvent{
+			events: []*networkservice.ConnectionEvent{
 				{
-					Type: connection.ConnectionEventType_INITIAL_STATE_TRANSFER,
-					Connections: map[string]*connection.Connection{
+					Type: networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,
+					Connections: map[string]*networkservice.Connection{
 						"conn-1": {Id: "conn-1", NetworkService: "ns-1"},
 						"conn-2": {Id: "conn-2", NetworkService: "ns-2"},
 					},
 				},
 			},
-			reported: map[string]*connection.Connection{
+			reported: map[string]*networkservice.Connection{
 				"conn-1": {Id: "conn-1", NetworkService: "ns-1"},
 				"conn-2": {Id: "conn-2", NetworkService: "ns-2"},
 			},
 		},
 		{
 			name: "update event",
-			events: []*connection.ConnectionEvent{
+			events: []*networkservice.ConnectionEvent{
 				{
-					Type: connection.ConnectionEventType_INITIAL_STATE_TRANSFER,
-					Connections: map[string]*connection.Connection{
+					Type: networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,
+					Connections: map[string]*networkservice.Connection{
 						"conn-1": {Id: "conn-1", NetworkService: "ns-1"},
 						"conn-2": {Id: "conn-2", NetworkService: "ns-2"},
 					},
 				},
 				{
-					Type: connection.ConnectionEventType_UPDATE,
-					Connections: map[string]*connection.Connection{
+					Type: networkservice.ConnectionEventType_UPDATE,
+					Connections: map[string]*networkservice.Connection{
 						"conn-1": {Id: "conn-1", NetworkService: "ns-1-upd"},
 					},
 				},
 				{
-					Type: connection.ConnectionEventType_UPDATE,
-					Connections: map[string]*connection.Connection{
+					Type: networkservice.ConnectionEventType_UPDATE,
+					Connections: map[string]*networkservice.Connection{
 						"conn-2": {Id: "conn-2", NetworkService: "ns-2-upd"},
 					},
 				},
 			},
-			reported: map[string]*connection.Connection{
+			reported: map[string]*networkservice.Connection{
 				"conn-1": {Id: "conn-1", NetworkService: "ns-1-upd"},
 				"conn-2": {Id: "conn-2", NetworkService: "ns-2-upd"},
 			},
 		},
 		{
 			name: "delete event",
-			events: []*connection.ConnectionEvent{
+			events: []*networkservice.ConnectionEvent{
 				{
-					Type: connection.ConnectionEventType_INITIAL_STATE_TRANSFER,
-					Connections: map[string]*connection.Connection{
+					Type: networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,
+					Connections: map[string]*networkservice.Connection{
 						"conn-1": {Id: "conn-1", NetworkService: "ns-1"},
 						"conn-2": {Id: "conn-2", NetworkService: "ns-2"},
 					},
 				},
 				{
-					Type: connection.ConnectionEventType_DELETE,
-					Connections: map[string]*connection.Connection{
+					Type: networkservice.ConnectionEventType_DELETE,
+					Connections: map[string]*networkservice.Connection{
 						"conn-1": {Id: "conn-1", NetworkService: "ns-1"},
 					},
 				},
 			},
-			reported: map[string]*connection.Connection{
+			reported: map[string]*networkservice.Connection{
 				"conn-2": {Id: "conn-2", NetworkService: "ns-2"},
 			},
 		},
@@ -271,7 +270,7 @@ func TestHealClient_New(t *testing.T) {
 			}
 
 			cond := func() bool {
-				equal := func(m1, m2 map[string]*connection.Connection) bool {
+				equal := func(m1, m2 map[string]*networkservice.Connection) bool {
 					for k, v := range m1 {
 						if v2, ok := m2[k]; !ok || !proto.Equal(v, v2) {
 							return false
@@ -296,7 +295,7 @@ func TestHealClient_Request(t *testing.T) {
 	healChain := chain.NewNetworkServiceClient(f.client)
 
 	conn, err := healChain.Request(context.Background(), &networkservice.NetworkServiceRequest{
-		Connection: &connection.Connection{
+		Connection: &networkservice.Connection{
 			Id:             "conn-1",
 			NetworkService: "ns-1",
 		},
@@ -313,9 +312,9 @@ func TestHealClient_Request(t *testing.T) {
 	calledOnceNotifier := make(chan struct{})
 	f.onHeal.(*testOnHeal).r = calledOnce(calledOnceNotifier, f.onHeal.(*testOnHeal).r)
 
-	err = f.serverStream.Send(&connection.ConnectionEvent{
-		Type: connection.ConnectionEventType_INITIAL_STATE_TRANSFER,
-		Connections: map[string]*connection.Connection{
+	err = f.serverStream.Send(&networkservice.ConnectionEvent{
+		Type: networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,
+		Connections: map[string]*networkservice.Connection{
 			"conn-1": {
 				Id:             "conn-1",
 				NetworkService: "ns-1",
@@ -324,9 +323,9 @@ func TestHealClient_Request(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = f.serverStream.Send(&connection.ConnectionEvent{
-		Type: connection.ConnectionEventType_DELETE,
-		Connections: map[string]*connection.Connection{
+	err = f.serverStream.Send(&networkservice.ConnectionEvent{
+		Type: networkservice.ConnectionEventType_DELETE,
+		Connections: map[string]*networkservice.Connection{
 			"conn-1": {
 				Id:             "conn-1",
 				NetworkService: "ns-1",
@@ -352,7 +351,7 @@ func TestHealClient_Close(t *testing.T) {
 	healChain := chain.NewNetworkServiceClient(f.client)
 
 	conn, err := healChain.Request(context.Background(), &networkservice.NetworkServiceRequest{
-		Connection: &connection.Connection{
+		Connection: &networkservice.Connection{
 			Id:             "conn-1",
 			NetworkService: "ns-1",
 		},
@@ -366,7 +365,7 @@ func TestHealClient_Close(t *testing.T) {
 	cond = syncCond(f.client.updateExecutor, cond)
 	require.True(t, cond())
 
-	_, err = healChain.Close(context.Background(), &connection.Connection{Id: "conn-1"})
+	_, err = healChain.Close(context.Background(), &networkservice.Connection{Id: "conn-1"})
 	require.Nil(t, err)
 
 	cond = func() bool {
