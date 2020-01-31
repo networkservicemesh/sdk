@@ -18,7 +18,6 @@ package heal
 
 import (
 	"context"
-	"github.com/gogo/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
@@ -28,6 +27,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 	"net"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -269,20 +269,9 @@ func TestHealClient_New(t *testing.T) {
 				require.Nil(t, err)
 			}
 
-			cond := func() bool {
-				equal := func(m1, m2 map[string]*networkservice.Connection) bool {
-					for k, v := range m1 {
-						if v2, ok := m2[k]; !ok || !proto.Equal(v, v2) {
-							return false
-						}
-					}
-					return true
-				}
-
-				return equal(f.client.reported, s.reported)
-			}
-
-			cond = syncCond(f.client.updateExecutor, cond)
+			cond := syncCond(f.client.updateExecutor, func() bool {
+				return reflect.DeepEqual(f.client.reported, s.reported)
+			})
 			require.Eventually(t, cond, 5*time.Second, 10*time.Millisecond)
 		})
 		logrus.Info(ok)
