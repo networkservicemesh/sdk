@@ -89,10 +89,12 @@ func (f *healClient) recvEvent() {
 	select {
 	case <-f.eventReceiver.Context().Done():
 		f.eventReceiver = nil
+		// TODO re-request eventReceiver
+		return
 	default:
 		event, err := f.eventReceiver.Recv()
 		if err != nil {
-			event = nil
+			// TODO re-request eventReceiver
 			return
 		}
 		f.updateExecutor.AsyncExec(func() {
@@ -106,9 +108,6 @@ func (f *healClient) recvEvent() {
 			case networkservice.ConnectionEventType_DELETE:
 				for _, conn := range event.GetConnections() {
 					delete(f.reported, conn.GetId())
-					if f.requestors[conn.GetId()] != nil {
-						f.requestors[conn.GetId()]()
-					}
 				}
 			}
 			for id, request := range f.requestors {
@@ -172,6 +171,7 @@ func (f *healClient) Close(ctx context.Context, conn *networkservice.Connection,
 	}
 	f.updateExecutor.AsyncExec(func() {
 		delete(f.requestors, conn.GetId())
+		delete(f.closers, conn.GetId())
 	})
 	return rv, nil
 }

@@ -19,7 +19,10 @@ package heal
 import (
 	"context"
 	"github.com/gogo/protobuf/proto"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/connection"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
@@ -98,13 +101,86 @@ func dial(ctx context.Context, ln *bufconn.Listener) (connection.MonitorConnecti
 	return connection.NewMonitorConnectionClient(cc), func() { _ = cc.Close() }, nil
 }
 
-func syncCondCheck(exec serialize.Executor, pred func() bool) func() bool {
+func syncCond(exec serialize.Executor, cond func() bool) func() bool {
 	return func() bool {
 		check := make(chan bool)
 		exec.AsyncExec(func() {
-			check <- pred()
+			check <- cond()
 		})
 		return <-check
+	}
+}
+
+type fixture struct {
+	tm           *testMonitor
+	closeFuncs   []func()
+	serverStream connection.MonitorConnection_MonitorConnectionsServer
+	client       *healClient
+	onHeal       networkservice.NetworkServiceClient
+}
+
+func newFixture() (*fixture, error) {
+	rv := &fixture{
+		tm: newTestMonitor(),
+	}
+
+	ln, cancelServe := serve(rv.tm)
+	rv.pushOnCloseFunc(cancelServe)
+
+	m, cancelDial, err := dial(context.Background(), ln)
+	if err != nil {
+		return nil, err
+	}
+	rv.pushOnCloseFunc(cancelDial)
+
+	rv.onHeal = &testOnHeal{}
+	rv.client = NewClient(m, &rv.onHeal).(*healClient)
+	rv.pushOnCloseFunc(rv.client.Stop)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	rv.pushOnCloseFunc(cancel)
+
+	serverStream, cancelStream, err := rv.tm.stream(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rv.serverStream = serverStream
+	rv.pushOnCloseFunc(cancelStream)
+	return rv, nil
+}
+
+func (f *fixture) pushOnCloseFunc(h func()) {
+	f.closeFuncs = append([]func(){h}, f.closeFuncs...)
+}
+
+func (f *fixture) close() {
+	for _, c := range f.closeFuncs {
+		c()
+	}
+}
+
+type clientRequest func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*connection.Connection, error)
+
+type testOnHeal struct {
+	r clientRequest
+}
+
+func (t *testOnHeal) Request(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*connection.Connection, error) {
+	return t.r(ctx, in, opts...)
+}
+
+func (t *testOnHeal) Close(ctx context.Context, in *connection.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	panic("implement me")
+}
+
+// calledOnce closes notifier channel when h called once
+func calledOnce(notifier chan struct{}, h clientRequest) clientRequest {
+	return func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (i *connection.Connection, e error) {
+		close(notifier)
+		if h != nil {
+			return h(ctx, in, opts...)
+		}
+		return nil, nil
 	}
 }
 
@@ -185,28 +261,12 @@ func TestHealClient_New(t *testing.T) {
 		s := suits[i]
 		logrus.Info(s.name)
 		ok := t.Run(s.name, func(t *testing.T) {
-			tm := newTestMonitor()
-
-			ln, cancelServe := serve(tm)
-			defer cancelServe()
-
-			m, cancelDial, err := dial(context.Background(), ln)
+			f, err := newFixture()
 			require.Nil(t, err)
-			defer cancelDial()
-
-			healCl := NewClient(m, nil).(*healClient)
-			require.True(t, healCl == *healCl.onHeal)
-			defer healCl.Stop()
-
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-
-			stream, cancelStream, err := tm.stream(ctx)
-			require.Nil(t, err)
-			defer cancelStream()
+			defer f.close()
 
 			for _, event := range s.events {
-				err = stream.Send(event)
+				err = f.serverStream.Send(event)
 				require.Nil(t, err)
 			}
 
@@ -220,12 +280,100 @@ func TestHealClient_New(t *testing.T) {
 					return true
 				}
 
-				return equal(healCl.reported, s.reported)
+				return equal(f.client.reported, s.reported)
 			}
 
-			cond = syncCondCheck(healCl.updateExecutor, cond)
+			cond = syncCond(f.client.updateExecutor, cond)
 			require.Eventually(t, cond, 5*time.Second, 10*time.Millisecond)
 		})
 		logrus.Info(ok)
 	}
+}
+
+func TestHealClient_Request(t *testing.T) {
+	f, err := newFixture()
+	require.Nil(t, err)
+	healChain := chain.NewNetworkServiceClient(f.client)
+
+	conn, err := healChain.Request(context.Background(), &networkservice.NetworkServiceRequest{
+		Connection: &connection.Connection{
+			Id:             "conn-1",
+			NetworkService: "ns-1",
+		},
+	})
+
+	cond := func() bool {
+		_, okR := f.client.requestors[conn.GetId()]
+		_, okC := f.client.closers[conn.GetId()]
+		return okR && okC
+	}
+	cond = syncCond(f.client.updateExecutor, cond)
+	require.True(t, cond())
+
+	calledOnceNotifier := make(chan struct{})
+	f.onHeal.(*testOnHeal).r = calledOnce(calledOnceNotifier, f.onHeal.(*testOnHeal).r)
+
+	err = f.serverStream.Send(&connection.ConnectionEvent{
+		Type: connection.ConnectionEventType_INITIAL_STATE_TRANSFER,
+		Connections: map[string]*connection.Connection{
+			"conn-1": {
+				Id:             "conn-1",
+				NetworkService: "ns-1",
+			},
+		},
+	})
+	require.Nil(t, err)
+
+	err = f.serverStream.Send(&connection.ConnectionEvent{
+		Type: connection.ConnectionEventType_DELETE,
+		Connections: map[string]*connection.Connection{
+			"conn-1": {
+				Id:             "conn-1",
+				NetworkService: "ns-1",
+			},
+		},
+	})
+	require.Nil(t, err)
+
+	cond = func() bool {
+		select {
+		case <-calledOnceNotifier:
+			return true
+		default:
+			return false
+		}
+	}
+	require.Eventually(t, cond, 5*time.Second, 10*time.Millisecond)
+}
+
+func TestHealClient_Close(t *testing.T) {
+	f, err := newFixture()
+	require.Nil(t, err)
+	healChain := chain.NewNetworkServiceClient(f.client)
+
+	conn, err := healChain.Request(context.Background(), &networkservice.NetworkServiceRequest{
+		Connection: &connection.Connection{
+			Id:             "conn-1",
+			NetworkService: "ns-1",
+		},
+	})
+
+	cond := func() bool {
+		_, okR := f.client.requestors[conn.GetId()]
+		_, okC := f.client.closers[conn.GetId()]
+		return okR && okC
+	}
+	cond = syncCond(f.client.updateExecutor, cond)
+	require.True(t, cond())
+
+	_, err = healChain.Close(context.Background(), &connection.Connection{Id: "conn-1"})
+	require.Nil(t, err)
+
+	cond = func() bool {
+		_, okR := f.client.requestors[conn.GetId()]
+		_, okC := f.client.closers[conn.GetId()]
+		return !okR && !okC
+	}
+	cond = syncCond(f.client.updateExecutor, cond)
+	require.True(t, cond())
 }
