@@ -39,20 +39,23 @@ func NewExecutor() Executor {
 		execCh:      make(chan func(), 100),
 		finalizedCh: make(chan struct{}),
 	}
-	go rv.eventLoop()
+	go eventLoop(rv.execCh,rv.finalizedCh)
 	runtime.SetFinalizer(rv, func(f *executor) {
 		close(f.finalizedCh)
 	})
 	return rv
 }
 
-func (t *executor) eventLoop() {
+// eventLoop is intentionally written as a separate function passed channels directly
+// because if we make it a receiver on the executor{} then it will prevent garbage collection of the
+// executor.
+func eventLoop(execCh chan func(), finalizedCh chan struct{}) {
 	for {
 		select {
-		case exec := <-t.execCh:
+		case exec := <-execCh:
 			exec()
 			continue
-		case <-t.finalizedCh:
+		case <-finalizedCh:
 		}
 		break
 	}
