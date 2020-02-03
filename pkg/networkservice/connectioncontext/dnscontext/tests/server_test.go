@@ -14,12 +14,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dnscontext
+package tests
 
 import (
 	"context"
 	"os"
 	"testing"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
@@ -39,7 +41,7 @@ func TestServerBasic(t *testing.T) {
 			},
 		},
 	}
-	s := next.NewNetworkServiceServer(NewServer(ConfigFromConnection()))
+	s := next.NewNetworkServiceServer(dnscontext.NewServer(dnscontext.ConfigFromConnection()))
 	resp, err := s.Request(context.Background(), r)
 	require.Nil(t, err)
 	require.NotNil(t, resp.GetContext().GetDnsContext())
@@ -61,7 +63,7 @@ func TestServerBasicFromEnv(t *testing.T) {
 	require.Nil(t, err)
 	err = os.Setenv("DNSCONFIG_SEARCHDOMAINS", expectedDomain)
 	require.Nil(t, err)
-	s := next.NewNetworkServiceServer(NewServer(ConfigFromEnv()))
+	s := next.NewNetworkServiceServer(dnscontext.NewServer(dnscontext.ConfigFromEnv()))
 	resp, err := s.Request(context.Background(), r)
 	require.Nil(t, err)
 	require.NotNil(t, resp.GetContext().GetDnsContext())
