@@ -46,7 +46,6 @@ type HealClient struct {
 	updateExecutor    serialize.Executor
 	recvEventExecutor serialize.Executor
 	cancelFunc        context.CancelFunc
-	stop              bool
 }
 
 // NewClient - creates a new networkservice.NetworkServiceClient chain element that implements the healing algorithm
@@ -83,10 +82,6 @@ func NewClient(client networkservice.MonitorConnectionClient, onHeal *networkser
 }
 
 func (f *HealClient) recvEvent() {
-	if f.stop {
-		return
-	}
-
 	if f.eventReceiver == nil {
 		logrus.Info("creating new eventReceiver")
 
@@ -107,7 +102,7 @@ func (f *HealClient) recvEvent() {
 	select {
 	case <-f.eventReceiver.Context().Done():
 		f.resetEventReceiver()
-		break
+		return
 	default:
 		event, err := f.eventReceiver.Recv()
 		f.updateExecutor.AsyncExec(func() {
@@ -196,8 +191,5 @@ func (f *HealClient) Stop() {
 		if f.cancelFunc != nil {
 			f.cancelFunc()
 		}
-	})
-	f.recvEventExecutor.AsyncExec(func() {
-		f.stop = true
 	})
 }
