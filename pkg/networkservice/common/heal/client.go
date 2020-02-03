@@ -91,7 +91,9 @@ func (f *HealClient) recvEvent() {
 		logrus.Info("creating new eventReceiver")
 
 		ctx, cancelFunc := context.WithCancel(context.Background())
-		f.cancelFunc = cancelFunc
+		f.updateExecutor.AsyncExec(func() {
+			f.cancelFunc = cancelFunc
+		})
 
 		recv, err := f.client.MonitorConnections(ctx, &networkservice.MonitorScopeSelector{}, grpc.WaitForReady(true))
 		if err != nil {
@@ -104,18 +106,17 @@ func (f *HealClient) recvEvent() {
 
 	select {
 	case <-f.eventReceiver.Context().Done():
-		f.eventReceiver = nil
-		f.recvEventExecutor.AsyncExec(f.recvEvent)
-		return
+		f.resetEventReceiver()
+		break
 	default:
 		event, err := f.eventReceiver.Recv()
 		f.updateExecutor.AsyncExec(func() {
 			switch {
 			case err != nil:
+				f.resetEventReceiver()
 				for k := range f.reported {
 					delete(f.reported, k)
 				}
-				f.eventReceiver = nil
 			case event.GetType() == networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER:
 				f.reported = event.GetConnections()
 			case event.GetType() == networkservice.ConnectionEventType_UPDATE:
@@ -137,6 +138,12 @@ func (f *HealClient) recvEvent() {
 	}
 
 	f.recvEventExecutor.AsyncExec(f.recvEvent)
+}
+
+func (f *HealClient) resetEventReceiver() {
+	f.recvEventExecutor.AsyncExec(func() {
+		f.eventReceiver = nil
+	})
 }
 
 func (f *HealClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {

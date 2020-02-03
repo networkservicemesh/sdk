@@ -26,7 +26,6 @@ import (
 )
 
 type fakeMonitorServer struct {
-	sync.WaitGroup
 	stopCh   chan struct{}
 	streamCh chan networkservice.MonitorConnection_MonitorConnectionsServer
 
@@ -44,9 +43,6 @@ func New() *fakeMonitorServer {
 }
 
 func (f *fakeMonitorServer) MonitorConnections(s *networkservice.MonitorScopeSelector, stream networkservice.MonitorConnection_MonitorConnectionsServer) error {
-	f.Add(1)
-	defer f.Done()
-
 	f.streamCh <- stream
 	<-f.stopCh
 	return nil
@@ -55,7 +51,6 @@ func (f *fakeMonitorServer) MonitorConnections(s *networkservice.MonitorScopeSel
 func (f *fakeMonitorServer) Stream(ctx context.Context) (networkservice.MonitorConnection_MonitorConnectionsServer, func(), error) {
 	closeFunc := func() {
 		close(f.stopCh)
-		f.Wait()
 	}
 
 	select {
