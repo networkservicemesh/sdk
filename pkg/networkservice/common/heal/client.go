@@ -19,6 +19,7 @@ package heal
 
 import (
 	"context"
+	"github.com/sirupsen/logrus"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -35,7 +36,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type healClient struct {
+type HealClient struct {
 	requestors        map[string]func()
 	closers           map[string]func()
 	reported          map[string]*networkservice.Connection
@@ -45,6 +46,7 @@ type healClient struct {
 	updateExecutor    serialize.Executor
 	recvEventExecutor serialize.Executor
 	cancelFunc        context.CancelFunc
+	stop              bool
 }
 
 // NewClient - creates a new networkservice.NetworkServiceClient chain element that implements the healing algorithm
@@ -60,7 +62,7 @@ type healClient struct {
 //                        this constructor before we actually have a pointer to it.
 //                        If onHeal nil, onHeal will be pointed to the returned networkservice.NetworkServiceClient
 func NewClient(client networkservice.MonitorConnectionClient, onHeal *networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
-	rv := &healClient{
+	rv := &HealClient{
 		onHeal:            onHeal,
 		requestors:        make(map[string]func()),
 		closers:           make(map[string]func()),
@@ -70,46 +72,62 @@ func NewClient(client networkservice.MonitorConnectionClient, onHeal *networkser
 		eventReceiver:     nil, // This is intentionally nil
 		recvEventExecutor: serialize.NewExecutor(),
 	}
+
 	if rv.onHeal == nil {
 		rv.onHeal = addressof.NetworkServiceClient(rv)
 	}
-	rv.updateExecutor.AsyncExec(func() {
-		ctx, cancelFunc := context.WithCancel(context.Background())
-		rv.cancelFunc = cancelFunc
-		// TODO decide what to do about err here
-		recv, _ := rv.client.MonitorConnections(ctx, &networkservice.MonitorScopeSelector{})
-		rv.eventReceiver = recv
-		rv.recvEventExecutor.AsyncExec(rv.recvEvent)
-	})
+
+	rv.recvEventExecutor.AsyncExec(rv.recvEvent)
 
 	return rv
 }
 
-func (f *healClient) recvEvent() {
+func (f *HealClient) recvEvent() {
+	if f.stop {
+		return
+	}
+
+	if f.eventReceiver == nil {
+		logrus.Info("creating new eventReceiver")
+
+		ctx, cancelFunc := context.WithCancel(context.Background())
+		f.cancelFunc = cancelFunc
+
+		recv, err := f.client.MonitorConnections(ctx, &networkservice.MonitorScopeSelector{}, grpc.WaitForReady(true))
+		if err != nil {
+			f.recvEventExecutor.AsyncExec(f.recvEvent)
+			return
+		}
+
+		f.eventReceiver = recv
+	}
+
 	select {
 	case <-f.eventReceiver.Context().Done():
 		f.eventReceiver = nil
-		// TODO re-request eventReceiver
+		f.recvEventExecutor.AsyncExec(f.recvEvent)
 		return
 	default:
 		event, err := f.eventReceiver.Recv()
-		if err != nil {
-			// TODO re-request eventReceiver
-			return
-		}
 		f.updateExecutor.AsyncExec(func() {
-			switch event.GetType() {
-			case networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER:
+			switch {
+			case err != nil:
+				for k := range f.reported {
+					delete(f.reported, k)
+				}
+				f.eventReceiver = nil
+			case event.GetType() == networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER:
 				f.reported = event.GetConnections()
-			case networkservice.ConnectionEventType_UPDATE:
+			case event.GetType() == networkservice.ConnectionEventType_UPDATE:
 				for _, conn := range event.GetConnections() {
 					f.reported[conn.GetId()] = conn
 				}
-			case networkservice.ConnectionEventType_DELETE:
+			case event.GetType() == networkservice.ConnectionEventType_DELETE:
 				for _, conn := range event.GetConnections() {
 					delete(f.reported, conn.GetId())
 				}
 			}
+
 			for id, request := range f.requestors {
 				if _, ok := f.reported[id]; !ok {
 					request()
@@ -117,10 +135,11 @@ func (f *healClient) recvEvent() {
 			}
 		})
 	}
+
 	f.recvEventExecutor.AsyncExec(f.recvEvent)
 }
 
-func (f *healClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+func (f *HealClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	rv, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Error calling next")
@@ -153,18 +172,7 @@ func (f *healClient) Request(ctx context.Context, request *networkservice.Networ
 	return rv, nil
 }
 
-func (f *healClient) Stop() {
-	f.updateExecutor.SyncExec(func() {
-		if f.cancelFunc != nil {
-			f.cancelFunc()
-		}
-	})
-
-	f.updateExecutor.Stop()
-	f.recvEventExecutor.Stop()
-}
-
-func (f *healClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (f *HealClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	rv, err := next.Client(ctx).Close(ctx, conn, opts...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Error calling next")
@@ -174,4 +182,15 @@ func (f *healClient) Close(ctx context.Context, conn *networkservice.Connection,
 		delete(f.closers, conn.GetId())
 	})
 	return rv, nil
+}
+
+func (f *HealClient) Stop() {
+	f.updateExecutor.SyncExec(func() {
+		if f.cancelFunc != nil {
+			f.cancelFunc()
+		}
+	})
+	f.recvEventExecutor.AsyncExec(func() {
+		f.stop = true
+	})
 }
