@@ -26,7 +26,6 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
-	
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
