@@ -37,9 +37,9 @@ func TestFinalizer(t *testing.T) {
 	// Run the garbage collector
 	runtime.GC()
 	select {
-		case <-finalizedCh:
-			return
-		case <- time.After(30*time.Second):
-			assert.Fail(t,"Timeout waiting for finalizer to run")
+	case <-finalizedCh:
+		return
+	case <-time.After(30 * time.Second):
+		assert.Fail(t, "Timeout waiting for finalizer to run")
 	}
 }

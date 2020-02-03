@@ -39,7 +39,7 @@ func NewExecutor() Executor {
 		execCh:      make(chan func(), 100),
 		finalizedCh: make(chan struct{}),
 	}
-	go eventLoop(rv.execCh,rv.finalizedCh)
+	go eventLoop(rv.execCh, rv.finalizedCh)
 	runtime.SetFinalizer(rv, func(f *executor) {
 		close(f.finalizedCh)
 	})
