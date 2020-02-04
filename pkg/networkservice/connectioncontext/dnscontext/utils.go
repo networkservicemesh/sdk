@@ -17,22 +17,8 @@
 package dnscontext
 
 import (
-	"github.com/kelseyhightower/envconfig"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/sirupsen/logrus"
 )
-
-// ConfigFromEnv returns default getter for DNS configs. Builds config from env variables.
-func ConfigFromEnv() GetDNSConfigsFunc {
-	return func(_ *networkservice.Connection) []*networkservice.DNSConfig {
-		config := &networkservice.DNSConfig{}
-		err := envconfig.Process("DNSCONFIG", config)
-		if err != nil {
-			logrus.Error(err.Error())
-		}
-		return []*networkservice.DNSConfig{config}
-	}
-}
 
 // ConfigFromConnection returns default getter for DNS configs. Builds config from the connection.
 func ConfigFromConnection() GetDNSConfigsFunc {

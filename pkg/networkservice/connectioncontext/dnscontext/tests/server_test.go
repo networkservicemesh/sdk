@@ -18,7 +18,6 @@ package tests
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
@@ -49,26 +48,4 @@ func TestServerBasic(t *testing.T) {
 	require.Len(t, resp.Context.DnsContext.Configs[0].DnsServerIps, 1)
 	require.Equal(t, resp.Context.DnsContext.Configs[0].SearchDomains[0], r.Connection.NetworkService)
 	require.Equal(t, resp.Context.DnsContext.Configs[0].DnsServerIps[0], r.Connection.Context.IpContext.DstIpAddr)
-}
-
-func TestServerBasicFromEnv(t *testing.T) {
-	r := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Context: &networkservice.ConnectionContext{},
-		},
-	}
-	expectedDomain := "test.domain"
-	expectedIP := "8.8.8.8"
-	err := os.Setenv("DNSCONFIG_DNSSERVERIPS", expectedIP)
-	require.Nil(t, err)
-	err = os.Setenv("DNSCONFIG_SEARCHDOMAINS", expectedDomain)
-	require.Nil(t, err)
-	s := next.NewNetworkServiceServer(dnscontext.NewServer(dnscontext.ConfigFromEnv()))
-	resp, err := s.Request(context.Background(), r)
-	require.Nil(t, err)
-	require.NotNil(t, resp.GetContext().GetDnsContext())
-	require.Len(t, resp.Context.DnsContext.Configs[0].SearchDomains, 1)
-	require.Len(t, resp.Context.DnsContext.Configs[0].DnsServerIps, 1)
-	require.Equal(t, resp.Context.DnsContext.Configs[0].SearchDomains[0], expectedDomain)
-	require.Equal(t, resp.Context.DnsContext.Configs[0].DnsServerIps[0], expectedIP)
 }
