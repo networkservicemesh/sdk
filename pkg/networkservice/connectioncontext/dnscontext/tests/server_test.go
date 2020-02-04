@@ -48,4 +48,18 @@ func TestServerBasic(t *testing.T) {
 	require.Len(t, resp.Context.DnsContext.Configs[0].DnsServerIps, 1)
 	require.Equal(t, resp.Context.DnsContext.Configs[0].SearchDomains[0], r.Connection.NetworkService)
 	require.Equal(t, resp.Context.DnsContext.Configs[0].DnsServerIps[0], r.Connection.Context.IpContext.DstIpAddr)
+	r.Connection.Context.DnsContext = nil
+	_, err = s.Close(context.Background(), r.Connection)
+	require.Nil(t, err)
+	require.NotNil(t, resp.GetContext().GetDnsContext())
+	require.Len(t, resp.Context.DnsContext.Configs[0].SearchDomains, 1)
+	require.Len(t, resp.Context.DnsContext.Configs[0].DnsServerIps, 1)
+	require.Equal(t, resp.Context.DnsContext.Configs[0].SearchDomains[0], r.Connection.NetworkService)
+	require.Equal(t, resp.Context.DnsContext.Configs[0].DnsServerIps[0], r.Connection.Context.IpContext.DstIpAddr)
+}
+
+func TestServerShouldNotPanicIfPassNil(t *testing.T) {
+	require.NotPanics(t, func() {
+		_, _ = next.NewNetworkServiceServer(dnscontext.NewServer(nil)).Request(context.Context(nil), nil)
+	})
 }
