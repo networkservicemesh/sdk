@@ -28,7 +28,7 @@ import (
 )
 
 // GetDNSConfigsFunc gets dns configs
-type GetDNSConfigsFunc func(conn *networkservice.Connection) []*networkservice.DNSConfig
+type GetDNSConfigsFunc func() []*networkservice.DNSConfig
 
 type dnsContextServer struct {
 	getDNSConfigs GetDNSConfigsFunc
@@ -42,7 +42,7 @@ func NewServer(getter GetDNSConfigsFunc) networkservice.NetworkServiceServer {
 func (d *dnsContextServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	if d.getDNSConfigs != nil {
 		request.GetConnection().GetContext().DnsContext = &networkservice.DNSContext{
-			Configs: d.getDNSConfigs(request.GetConnection()),
+			Configs: d.getDNSConfigs(),
 		}
 	}
 	return next.Server(ctx).Request(ctx, request)
@@ -51,7 +51,7 @@ func (d *dnsContextServer) Request(ctx context.Context, request *networkservice.
 func (d *dnsContextServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	if d.getDNSConfigs != nil {
 		conn.GetContext().DnsContext = &networkservice.DNSContext{
-			Configs: d.getDNSConfigs(conn),
+			Configs: d.getDNSConfigs(),
 		}
 	}
 	return next.Server(ctx).Close(ctx, conn)

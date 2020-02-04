@@ -31,31 +31,31 @@ import (
 func TestServerBasic(t *testing.T) {
 	r := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
-			Id:             "0",
-			NetworkService: "icmp",
-			Context: &networkservice.ConnectionContext{
-				IpContext: &networkservice.IPContext{
-					DstIpAddr: "172.16.1.2",
-				},
-			},
+			Context: &networkservice.ConnectionContext{},
 		},
 	}
-	s := next.NewNetworkServiceServer(dnscontext.NewServer(dnscontext.ConfigFromConnection()))
+	configs := func() []*networkservice.DNSConfig {
+		return []*networkservice.DNSConfig{
+			{
+				DnsServerIps:  []string{"8.8.8.8"},
+				SearchDomains: []string{"sample1"},
+			},
+			{
+				DnsServerIps:  []string{"8.8.4.4"},
+				SearchDomains: []string{"sample2"},
+			},
+		}
+	}
+	expected := configs()
+	s := next.NewNetworkServiceServer(dnscontext.NewServer(configs))
 	resp, err := s.Request(context.Background(), r)
 	require.Nil(t, err)
 	require.NotNil(t, resp.GetContext().GetDnsContext())
-	require.Len(t, resp.Context.DnsContext.Configs[0].SearchDomains, 1)
-	require.Len(t, resp.Context.DnsContext.Configs[0].DnsServerIps, 1)
-	require.Equal(t, resp.Context.DnsContext.Configs[0].SearchDomains[0], r.Connection.NetworkService)
-	require.Equal(t, resp.Context.DnsContext.Configs[0].DnsServerIps[0], r.Connection.Context.IpContext.DstIpAddr)
+	require.Equal(t, resp.GetContext().GetDnsContext().Configs, expected)
 	r.Connection.Context.DnsContext = nil
 	_, err = s.Close(context.Background(), r.Connection)
 	require.Nil(t, err)
-	require.NotNil(t, resp.GetContext().GetDnsContext())
-	require.Len(t, resp.Context.DnsContext.Configs[0].SearchDomains, 1)
-	require.Len(t, resp.Context.DnsContext.Configs[0].DnsServerIps, 1)
-	require.Equal(t, resp.Context.DnsContext.Configs[0].SearchDomains[0], r.Connection.NetworkService)
-	require.Equal(t, resp.Context.DnsContext.Configs[0].DnsServerIps[0], r.Connection.Context.IpContext.DstIpAddr)
+	require.Equal(t, resp.GetContext().GetDnsContext().Configs, expected)
 }
 
 func TestServerShouldNotPanicIfPassNil(t *testing.T) {
