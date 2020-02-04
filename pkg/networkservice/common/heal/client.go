@@ -22,6 +22,10 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -40,6 +44,7 @@ type healClient struct {
 	requestors        map[string]func()
 	closers           map[string]func()
 	reported          map[string]*networkservice.Connection
+	monitors          map[string]networkservice.MonitorConnection_MonitorConnectionsServer
 	onHeal            *networkservice.NetworkServiceClient
 	client            networkservice.MonitorConnectionClient
 	eventReceiver     networkservice.MonitorConnection_MonitorConnectionsClient
@@ -66,6 +71,7 @@ func NewClient(client networkservice.MonitorConnectionClient, onHeal *networkser
 		requestors:        make(map[string]func()),
 		closers:           make(map[string]func()),
 		reported:          make(map[string]*networkservice.Connection),
+		monitors:          make(map[string]networkservice.MonitorConnection_MonitorConnectionsServer),
 		client:            client,
 		updateExecutor:    serialize.NewExecutor(),
 		eventReceiver:     nil, // This is intentionally nil
@@ -106,6 +112,7 @@ func (f *healClient) recvEvent() {
 			switch event.GetType() {
 			case networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER:
 				f.reported = event.GetConnections()
+
 			case networkservice.ConnectionEventType_UPDATE:
 				for _, conn := range event.GetConnections() {
 					f.reported[conn.GetId()] = conn
@@ -123,9 +130,21 @@ func (f *healClient) recvEvent() {
 					request()
 				}
 			}
+			// Forward event to monitors registered
+			f.sendToServer(event)
 		})
 	}
 	f.recvEventExecutor.AsyncExec(f.recvEvent)
+}
+
+func (f *healClient) sendToServer(event *networkservice.ConnectionEvent) {
+	for connID, monitor := range f.monitors {
+		if event.Connections[connID] != nil || event.Metrics[connID] != nil {
+			if err := monitor.Send(event); err != nil {
+				logrus.Errorf("Failed to send event to monitor: %v", err)
+			}
+		}
+	}
 }
 
 func (f *healClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
@@ -157,6 +176,8 @@ func (f *healClient) Request(ctx context.Context, request *networkservice.Networ
 			trace.Log(ctx).Errorf("Attempt to close connection %s during heal resulted in error: %+v", req.GetConnection().GetId(), err)
 			cancelFunc()
 		}
+		// Store monitor server to send updates to
+		f.monitors[req.GetConnection().GetId()] = monitor.Server(ctx)
 	})
 	return rv, nil
 }
@@ -168,6 +189,7 @@ func (f *healClient) Close(ctx context.Context, conn *networkservice.Connection,
 	}
 	f.updateExecutor.AsyncExec(func() {
 		delete(f.requestors, conn.GetId())
+		delete(f.monitors, conn.GetId())
 	})
 	return rv, nil
 }

@@ -20,22 +20,28 @@ package monitor
 
 import (
 	"context"
+	"github.com/gogo/protobuf/proto"
 	"runtime"
 
-	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/sirupsen/logrus"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/golang/protobuf/ptypes/empty"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
 	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
 type monitorServer struct {
 	connections map[string]*networkservice.Connection
-	monitors    []networkservice.MonitorConnection_MonitorConnectionsServer
+	metrics     map[string]*networkservice.Metrics
+	monitors    []*monitorFilter
 	executor    serialize.Executor
 	finalized   chan struct{}
+
+	networkservice.MonitorConnection_MonitorConnectionsServer
 }
 
 // NewServer - creates a NetworkServiceServer chain element that will properly update a MonitorConnectionServer
@@ -49,6 +55,7 @@ type monitorServer struct {
 func NewServer(monitorServerPtr *networkservice.MonitorConnectionServer) networkservice.NetworkServiceServer {
 	rv := &monitorServer{
 		connections: make(map[string]*networkservice.Connection),
+		metrics:     make(map[string]*networkservice.Metrics),
 		monitors:    nil, // Intentionally nil
 		executor:    serialize.NewExecutor(),
 		finalized:   make(chan struct{}),
@@ -67,7 +74,8 @@ func (m *monitorServer) MonitorConnections(selector *networkservice.MonitorScope
 		_ = monitor.Send(&networkservice.ConnectionEvent{
 			Type:        networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,
 			Connections: m.connections,
-		})
+			Metrics:     m.metrics,
+		}, m.connections)
 	})
 	select {
 	case <-srv.Context().Done():
@@ -77,43 +85,80 @@ func (m *monitorServer) MonitorConnections(selector *networkservice.MonitorScope
 }
 
 func (m *monitorServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	// Pass metrics monitor, so it could be used later in chain.
+	ctx = WithServer(ctx, m)
+
+	connectionClone := proto.Clone(request.GetConnection())
 	conn, err := next.Server(ctx).Request(ctx, request)
 	if err == nil {
 		m.executor.AsyncExec(func() {
 			m.connections[conn.GetId()] = conn
-			event := &networkservice.ConnectionEvent{
-				Type:        networkservice.ConnectionEventType_UPDATE,
-				Connections: map[string]*networkservice.Connection{conn.GetId(): conn},
+
+			// Send update only if connection is updated.
+			if !proto.Equal(connectionClone, conn) {
+				event := &networkservice.ConnectionEvent{
+					Type:        networkservice.ConnectionEventType_UPDATE,
+					Connections: map[string]*networkservice.Connection{conn.GetId(): conn},
+				}
+				if err = m.send(ctx, event); err != nil {
+					logrus.Errorf("Error during sending event: %v", err)
+				}
 			}
-			m.send(ctx, event)
 		})
 	}
 	return conn, err
 }
 
 func (m *monitorServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	// Pass metrics monitor, so it could be used later in chain.
+	ctx = WithServer(ctx, m)
+
 	m.executor.AsyncExec(func() {
 		delete(m.connections, conn.GetId())
 		event := &networkservice.ConnectionEvent{
 			Type:        networkservice.ConnectionEventType_DELETE,
 			Connections: map[string]*networkservice.Connection{conn.GetId(): conn},
 		}
-		m.send(ctx, event)
+		if err := m.send(ctx, event); err != nil {
+			logrus.Errorf("Error during sending event: %v", err)
+		}
 	})
 	return next.Server(ctx).Close(ctx, conn)
 }
 
-func (m *monitorServer) send(ctx context.Context, event *networkservice.ConnectionEvent) {
-	newMonitors := make([]networkservice.MonitorConnection_MonitorConnectionsServer, len(m.monitors))
-	for _, srv := range m.monitors {
-		select {
-		case <-srv.Context().Done():
-		default:
-			if err := srv.Send(event); err != nil {
-				trace.Log(ctx).Errorf("Error sending event: %+v: %+v", event, err)
+func (m *monitorServer) Send(event *networkservice.ConnectionEvent) error {
+	m.executor.AsyncExec(func() {
+		// we need to update current metrics and connection objects
+		if event.GetType() == networkservice.ConnectionEventType_UPDATE {
+			for _, conn := range event.GetConnections() {
+				m.connections[conn.GetId()] = conn
 			}
-			newMonitors = append(newMonitors, srv)
+			for conID, metric := range event.GetMetrics() {
+				m.metrics[conID] = metric
+			}
 		}
-	}
-	m.monitors = newMonitors
+
+		if err := m.send(context.Background(), event); err != nil {
+			logrus.Errorf("Error sending event %v", err)
+		}
+	})
+	return nil
+}
+
+func (m *monitorServer) send(ctx context.Context, event *networkservice.ConnectionEvent) (err error) {
+	m.executor.AsyncExec(func() {
+		newMonitors := []*monitorFilter{}
+		for _, filter := range m.monitors {
+			select {
+			case <-filter.srv.Context().Done():
+			default:
+				if err = filter.Send(event, m.connections); err != nil {
+					trace.Log(ctx).Errorf("Error sending event: %+v: %+v", event, err)
+				}
+				newMonitors = append(newMonitors, filter)
+			}
+		}
+		m.monitors = newMonitors
+	})
+	return err
 }
