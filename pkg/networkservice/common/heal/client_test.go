@@ -66,7 +66,6 @@ func TestHealClient_Request(t *testing.T) {
 	require.Nil(t, err)
 
 	onHeal := &testOnHeal{}
-
 	healClient := heal.NewClient(monitorClient, addressof.NetworkServiceClient(onHeal))
 	healChain := chain.NewNetworkServiceClient(healClient)
 

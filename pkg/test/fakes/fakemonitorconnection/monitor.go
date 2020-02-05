@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// fakemonitorconnection contains implementation of fake monitor server for tests
+// Package fakemonitorconnection contains implementation of fake monitor server for tests
 package fakemonitorconnection
 
 import (
@@ -27,7 +27,7 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 )
 
-type fakeMonitorServer struct {
+type FakeMonitorServer struct {
 	stopCh   chan struct{}
 	streamCh chan networkservice.MonitorConnection_MonitorConnectionsServer
 
@@ -35,9 +35,9 @@ type fakeMonitorServer struct {
 	closeFuncs []func()
 }
 
-// New creates instance of fakeMonitorServer
-func New() *fakeMonitorServer {
-	rv := &fakeMonitorServer{
+// New creates instance of FakeMonitorServer
+func New() *FakeMonitorServer {
+	rv := &FakeMonitorServer{
 		stopCh:   make(chan struct{}),
 		streamCh: make(chan networkservice.MonitorConnection_MonitorConnectionsServer),
 	}
@@ -45,13 +45,13 @@ func New() *fakeMonitorServer {
 	return rv
 }
 
-func (f *fakeMonitorServer) MonitorConnections(s *networkservice.MonitorScopeSelector, stream networkservice.MonitorConnection_MonitorConnectionsServer) error {
+func (f *FakeMonitorServer) MonitorConnections(s *networkservice.MonitorScopeSelector, stream networkservice.MonitorConnection_MonitorConnectionsServer) error {
 	f.streamCh <- stream
 	<-f.stopCh
 	return nil
 }
 
-func (f *fakeMonitorServer) Stream(ctx context.Context) (networkservice.MonitorConnection_MonitorConnectionsServer, func(), error) {
+func (f *FakeMonitorServer) Stream(ctx context.Context) (networkservice.MonitorConnection_MonitorConnectionsServer, func(), error) {
 	closeFunc := func() {
 		close(f.stopCh)
 	}
@@ -64,7 +64,7 @@ func (f *fakeMonitorServer) Stream(ctx context.Context) (networkservice.MonitorC
 	}
 }
 
-func (f *fakeMonitorServer) Client(ctx context.Context) (networkservice.MonitorConnectionClient, error) {
+func (f *FakeMonitorServer) Client(ctx context.Context) (networkservice.MonitorConnectionClient, error) {
 	dialer := func(context context.Context, s string) (conn net.Conn, e error) {
 		return f.ln.Dial()
 	}
@@ -79,7 +79,7 @@ func (f *fakeMonitorServer) Client(ctx context.Context) (networkservice.MonitorC
 	return networkservice.NewMonitorConnectionClient(cc), nil
 }
 
-func (f *fakeMonitorServer) serve() {
+func (f *FakeMonitorServer) serve() {
 	srv := grpc.NewServer()
 	networkservice.RegisterMonitorConnectionServer(srv, f)
 	f.ln = bufconn.Listen(1024 * 1024)
@@ -97,11 +97,11 @@ func (f *fakeMonitorServer) serve() {
 	})
 }
 
-func (f *fakeMonitorServer) pushOnCloseFunc(h func()) {
+func (f *FakeMonitorServer) pushOnCloseFunc(h func()) {
 	f.closeFuncs = append([]func(){h}, f.closeFuncs...)
 }
 
-func (f *fakeMonitorServer) Close() {
+func (f *FakeMonitorServer) Close() {
 	for _, c := range f.closeFuncs {
 		c()
 	}
