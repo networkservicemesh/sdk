@@ -27,6 +27,7 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 )
 
+// FakeMonitorServer implements networkservice.MonitorConnectionServer for test
 type FakeMonitorServer struct {
 	stopCh   chan struct{}
 	streamCh chan networkservice.MonitorConnection_MonitorConnectionsServer
@@ -45,12 +46,15 @@ func New() *FakeMonitorServer {
 	return rv
 }
 
+// MonitorConnections is a fake implementation of MonitorConnections, pushes 'stream' to channel
+// that lately could be obtained using method Stream
 func (f *FakeMonitorServer) MonitorConnections(s *networkservice.MonitorScopeSelector, stream networkservice.MonitorConnection_MonitorConnectionsServer) error {
 	f.streamCh <- stream
 	<-f.stopCh
 	return nil
 }
 
+// Stream returns the last server 'stream' with blocking
 func (f *FakeMonitorServer) Stream(ctx context.Context) (networkservice.MonitorConnection_MonitorConnectionsServer, func(), error) {
 	closeFunc := func() {
 		close(f.stopCh)
@@ -64,6 +68,7 @@ func (f *FakeMonitorServer) Stream(ctx context.Context) (networkservice.MonitorC
 	}
 }
 
+// Client returns client for fake monitor server
 func (f *FakeMonitorServer) Client(ctx context.Context) (networkservice.MonitorConnectionClient, error) {
 	dialer := func(context context.Context, s string) (conn net.Conn, e error) {
 		return f.ln.Dial()
@@ -77,6 +82,13 @@ func (f *FakeMonitorServer) Client(ctx context.Context) (networkservice.MonitorC
 	f.pushOnCloseFunc(func() { _ = cc.Close() })
 
 	return networkservice.NewMonitorConnectionClient(cc), nil
+}
+
+// Close releases all resources
+func (f *FakeMonitorServer) Close() {
+	for _, c := range f.closeFuncs {
+		c()
+	}
 }
 
 func (f *FakeMonitorServer) serve() {
@@ -99,10 +111,4 @@ func (f *FakeMonitorServer) serve() {
 
 func (f *FakeMonitorServer) pushOnCloseFunc(h func()) {
 	f.closeFuncs = append([]func(){h}, f.closeFuncs...)
-}
-
-func (f *FakeMonitorServer) Close() {
-	for _, c := range f.closeFuncs {
-		c()
-	}
 }
