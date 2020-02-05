@@ -65,7 +65,7 @@ func TestHealClient_Request(t *testing.T) {
 
 	onHeal := &testOnHeal{}
 
-	healClient := heal.NewClient(monitorClient, addressof.NetworkServiceClient(onHeal)).(*heal.HealClient)
+	healClient := heal.NewClient(monitorClient, addressof.NetworkServiceClient(onHeal))
 	healChain := chain.NewNetworkServiceClient(healClient)
 
 	request := &networkservice.NetworkServiceRequest{
@@ -128,7 +128,7 @@ func TestHealClient_MonitorClose(t *testing.T) {
 
 	onHeal := &testOnHeal{}
 
-	healClient := heal.NewClient(monitorClient, addressof.NetworkServiceClient(onHeal)).(*heal.HealClient)
+	healClient := heal.NewClient(monitorClient, addressof.NetworkServiceClient(onHeal))
 	healChain := chain.NewNetworkServiceClient(healClient)
 
 	request := &networkservice.NetworkServiceRequest{

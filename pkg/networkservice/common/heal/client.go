@@ -36,7 +36,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type HealClient struct {
+type healClient struct {
 	requestors        map[string]func()
 	closers           map[string]func()
 	reported          map[string]*networkservice.Connection
@@ -62,7 +62,7 @@ type HealClient struct {
 //                        this constructor before we actually have a pointer to it.
 //                        If onHeal nil, onHeal will be pointed to the returned networkservice.NetworkServiceClient
 func NewClient(client networkservice.MonitorConnectionClient, onHeal *networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
-	rv := &HealClient{
+	rv := &healClient{
 		onHeal:            onHeal,
 		requestors:        make(map[string]func()),
 		closers:           make(map[string]func()),
@@ -81,7 +81,7 @@ func NewClient(client networkservice.MonitorConnectionClient, onHeal *networkser
 	return rv
 }
 
-func (f *HealClient) init() {
+func (f *healClient) init() {
 	if f.eventReceiver != nil {
 		select {
 		case <-f.eventReceiver.Context().Done():
@@ -106,7 +106,7 @@ func (f *HealClient) init() {
 	f.recvEventExecutor.AsyncExec(f.recvEvent)
 }
 
-func (f *HealClient) lazyInit(id string) {
+func (f *healClient) lazyInit(id string) {
 	f.updateExecutor.SyncExec(func() {
 		if _, ok := f.connectionIDs[id]; !ok {
 			f.connectionIDs[id] = true
@@ -115,13 +115,13 @@ func (f *HealClient) lazyInit(id string) {
 	})
 }
 
-func (f *HealClient) tearDown() {
+func (f *healClient) tearDown() {
 	if f.cancelFunc != nil {
 		f.cancelFunc()
 	}
 }
 
-func (f *HealClient) lazyTearDown(id string) {
+func (f *healClient) lazyTearDown(id string) {
 	f.updateExecutor.SyncExec(func() {
 		delete(f.connectionIDs, id)
 		if _, ok := f.connectionIDs[id]; !ok {
@@ -130,7 +130,7 @@ func (f *HealClient) lazyTearDown(id string) {
 	})
 }
 
-func (f *HealClient) recvEvent() {
+func (f *healClient) recvEvent() {
 	select {
 	case <-f.eventReceiver.Context().Done():
 		return
@@ -170,7 +170,7 @@ func (f *HealClient) recvEvent() {
 	f.recvEventExecutor.AsyncExec(f.recvEvent)
 }
 
-func (f *HealClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+func (f *healClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	f.lazyInit(request.GetConnection().GetId())
 
 	rv, err := next.Client(ctx).Request(ctx, request, opts...)
@@ -205,7 +205,7 @@ func (f *HealClient) Request(ctx context.Context, request *networkservice.Networ
 	return rv, nil
 }
 
-func (f *HealClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (f *healClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	f.lazyTearDown(conn.GetId())
 
 	rv, err := next.Client(ctx).Close(ctx, conn, opts...)
