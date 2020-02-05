@@ -66,7 +66,6 @@ func TestHealClient_Request(t *testing.T) {
 	onHeal := &testOnHeal{}
 
 	healClient := heal.NewClient(monitorClient, addressof.NetworkServiceClient(onHeal)).(*heal.HealClient)
-	defer healClient.Stop()
 	healChain := chain.NewNetworkServiceClient(healClient)
 
 	request := &networkservice.NetworkServiceRequest{
@@ -76,6 +75,8 @@ func TestHealClient_Request(t *testing.T) {
 		},
 	}
 	conn, err := healChain.Request(context.Background(), request)
+	defer func() { _, _ = healChain.Close(context.Background(), conn) }()
+
 	require.True(t, reflect.DeepEqual(conn, request.GetConnection()))
 	require.Nil(t, err)
 
@@ -128,7 +129,6 @@ func TestHealClient_MonitorClose(t *testing.T) {
 	onHeal := &testOnHeal{}
 
 	healClient := heal.NewClient(monitorClient, addressof.NetworkServiceClient(onHeal)).(*heal.HealClient)
-	defer healClient.Stop()
 	healChain := chain.NewNetworkServiceClient(healClient)
 
 	request := &networkservice.NetworkServiceRequest{
@@ -138,6 +138,8 @@ func TestHealClient_MonitorClose(t *testing.T) {
 		},
 	}
 	conn, err := healChain.Request(context.Background(), request)
+	defer func() { _, _ = healChain.Close(context.Background(), conn) }()
+
 	require.True(t, reflect.DeepEqual(conn, request.GetConnection()))
 	require.Nil(t, err)
 

@@ -46,6 +46,7 @@ type HealClient struct {
 	updateExecutor    serialize.Executor
 	recvEventExecutor serialize.Executor
 	cancelFunc        context.CancelFunc
+	connectionIDs     map[string]bool
 }
 
 // NewClient - creates a new networkservice.NetworkServiceClient chain element that implements the healing algorithm
@@ -66,6 +67,7 @@ func NewClient(client networkservice.MonitorConnectionClient, onHeal *networkser
 		requestors:        make(map[string]func()),
 		closers:           make(map[string]func()),
 		reported:          make(map[string]*networkservice.Connection),
+		connectionIDs:     make(map[string]bool),
 		client:            client,
 		updateExecutor:    serialize.NewExecutor(),
 		eventReceiver:     nil, // This is intentionally nil
@@ -76,49 +78,82 @@ func NewClient(client networkservice.MonitorConnectionClient, onHeal *networkser
 		rv.onHeal = addressof.NetworkServiceClient(rv)
 	}
 
-	rv.recvEventExecutor.AsyncExec(rv.recvEvent)
-
 	return rv
 }
 
-func (f *HealClient) recvEvent() {
-	if f.eventReceiver == nil {
-		logrus.Info("creating new eventReceiver")
-
-		ctx, cancelFunc := context.WithCancel(context.Background())
-		f.updateExecutor.AsyncExec(func() {
-			f.cancelFunc = cancelFunc
-		})
-
-		recv, err := f.client.MonitorConnections(ctx, &networkservice.MonitorScopeSelector{}, grpc.WaitForReady(true))
-		if err != nil {
-			f.recvEventExecutor.AsyncExec(f.recvEvent)
+func (f *HealClient) init() {
+	if f.eventReceiver != nil {
+		select {
+		case <-f.eventReceiver.Context().Done():
 			return
+		default:
+			f.eventReceiver = nil
 		}
-
-		f.eventReceiver = recv
 	}
 
+	logrus.Info("Creating new eventReceiver")
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	f.cancelFunc = cancelFunc
+
+	recv, err := f.client.MonitorConnections(ctx, &networkservice.MonitorScopeSelector{}, grpc.WaitForReady(true))
+	if err != nil {
+		f.updateExecutor.AsyncExec(f.init)
+		return
+	}
+
+	f.eventReceiver = recv
+	f.recvEventExecutor.AsyncExec(f.recvEvent)
+}
+
+func (f *HealClient) lazyInit(id string) {
+	f.updateExecutor.SyncExec(func() {
+		if _, ok := f.connectionIDs[id]; !ok {
+			f.connectionIDs[id] = true
+			f.updateExecutor.AsyncExec(f.init)
+		}
+	})
+}
+
+func (f *HealClient) tearDown() {
+	if f.cancelFunc != nil {
+		f.cancelFunc()
+	}
+}
+
+func (f *HealClient) lazyTearDown(id string) {
+	f.updateExecutor.SyncExec(func() {
+		delete(f.connectionIDs, id)
+		if _, ok := f.connectionIDs[id]; !ok {
+			f.updateExecutor.AsyncExec(f.tearDown)
+		}
+	})
+}
+
+func (f *HealClient) recvEvent() {
 	select {
 	case <-f.eventReceiver.Context().Done():
-		f.resetEventReceiver()
 		return
 	default:
 		event, err := f.eventReceiver.Recv()
 		f.updateExecutor.AsyncExec(func() {
-			switch {
-			case err != nil:
-				f.resetEventReceiver()
+			if err != nil {
 				for k := range f.reported {
+					f.requestors[k]()
 					delete(f.reported, k)
 				}
-			case event.GetType() == networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER:
+				f.init()
+				return
+			}
+
+			switch event.GetType() {
+			case networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER:
 				f.reported = event.GetConnections()
-			case event.GetType() == networkservice.ConnectionEventType_UPDATE:
+			case networkservice.ConnectionEventType_UPDATE:
 				for _, conn := range event.GetConnections() {
 					f.reported[conn.GetId()] = conn
 				}
-			case event.GetType() == networkservice.ConnectionEventType_DELETE:
+			case networkservice.ConnectionEventType_DELETE:
 				for _, conn := range event.GetConnections() {
 					delete(f.reported, conn.GetId())
 				}
@@ -135,13 +170,9 @@ func (f *HealClient) recvEvent() {
 	f.recvEventExecutor.AsyncExec(f.recvEvent)
 }
 
-func (f *HealClient) resetEventReceiver() {
-	f.recvEventExecutor.AsyncExec(func() {
-		f.eventReceiver = nil
-	})
-}
-
 func (f *HealClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	f.lazyInit(request.GetConnection().GetId())
+
 	rv, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Error calling next")
@@ -175,6 +206,8 @@ func (f *HealClient) Request(ctx context.Context, request *networkservice.Networ
 }
 
 func (f *HealClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	f.lazyTearDown(conn.GetId())
+
 	rv, err := next.Client(ctx).Close(ctx, conn, opts...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Error calling next")
@@ -184,12 +217,4 @@ func (f *HealClient) Close(ctx context.Context, conn *networkservice.Connection,
 		delete(f.closers, conn.GetId())
 	})
 	return rv, nil
-}
-
-func (f *HealClient) Stop() {
-	f.updateExecutor.SyncExec(func() {
-		if f.cancelFunc != nil {
-			f.cancelFunc()
-		}
-	})
 }
