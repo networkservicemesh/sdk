@@ -14,15 +14,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// fakemonitorconnection contains implementation of fake monitor server for tests
 package fakemonitorconnection
 
 import (
 	"context"
+	"net"
+	"sync"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
-	"net"
-	"sync"
 )
 
 type fakeMonitorServer struct {
@@ -33,6 +35,7 @@ type fakeMonitorServer struct {
 	closeFuncs []func()
 }
 
+// New creates instance of fakeMonitorServer
 func New() *fakeMonitorServer {
 	rv := &fakeMonitorServer{
 		stopCh:   make(chan struct{}),

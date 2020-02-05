@@ -18,17 +18,19 @@ package heal_test
 
 import (
 	"context"
+	"reflect"
+	"testing"
+	"time"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/test/fakes/fakemonitorconnection"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
-	"reflect"
-	"testing"
-	"time"
 )
 
 type clientRequest func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error)
