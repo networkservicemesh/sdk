@@ -139,9 +139,9 @@ func (f *healClient) recvEvent() {
 		event, err := f.eventReceiver.Recv()
 		f.updateExecutor.AsyncExec(func() {
 			if err != nil {
-				for k := range f.reported {
-					f.requestors[k]()
-					delete(f.reported, k)
+				for id := range f.reported {
+					f.requestors[id]()
+					delete(f.reported, id)
 				}
 				f.init()
 				return
@@ -150,20 +150,21 @@ func (f *healClient) recvEvent() {
 			switch event.GetType() {
 			case networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER:
 				f.reported = event.GetConnections()
+				if event.GetConnections() == nil {
+					f.reported = map[string]*networkservice.Connection{}
+				}
+
 			case networkservice.ConnectionEventType_UPDATE:
 				for _, conn := range event.GetConnections() {
 					f.reported[conn.GetId()] = conn
 				}
+
 			case networkservice.ConnectionEventType_DELETE:
-				for _, conn := range event.GetConnections() {
+				for id, conn := range event.GetConnections() {
+					f.requestors[id]()
 					delete(f.reported, conn.GetId())
 				}
-			}
 
-			for id, request := range f.requestors {
-				if _, ok := f.reported[id]; !ok {
-					request()
-				}
 			}
 		})
 	}
@@ -216,6 +217,7 @@ func (f *healClient) Close(ctx context.Context, conn *networkservice.Connection,
 	f.updateExecutor.AsyncExec(func() {
 		delete(f.requestors, conn.GetId())
 		delete(f.closers, conn.GetId())
+		delete(f.reported, conn.GetId())
 	})
 	return rv, nil
 }

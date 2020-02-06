@@ -19,6 +19,7 @@ package fakemonitorconnection
 
 import (
 	"context"
+	"go.uber.org/atomic"
 	"net"
 	"sync"
 
@@ -56,8 +57,11 @@ func (f *FakeMonitorServer) MonitorConnections(s *networkservice.MonitorScopeSel
 
 // Stream returns the last server 'stream' with blocking
 func (f *FakeMonitorServer) Stream(ctx context.Context) (networkservice.MonitorConnection_MonitorConnectionsServer, func(), error) {
+	closed := atomic.NewBool(false)
 	closeFunc := func() {
-		close(f.stopCh)
+		if closed.CAS(false, true) {
+			close(f.stopCh)
+		}
 	}
 
 	select {
