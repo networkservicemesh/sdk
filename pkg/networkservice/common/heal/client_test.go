@@ -17,6 +17,7 @@
 package heal_test
 
 import (
+	"context"
 	"reflect"
 	"testing"
 	"time"
@@ -142,4 +143,35 @@ func TestHealClient_EmptyInit(t *testing.T) {
 		},
 	})
 	require.Nil(t, err)
+}
+
+func TestHealClient_SeveralConnection(t *testing.T) {
+	f := &Fixture{
+		Request: &networkservice.NetworkServiceRequest{
+			Connection: &networkservice.Connection{
+				Id:             "conn-1",
+				NetworkService: "ns-1",
+			},
+		},
+	}
+	err := SetupWithSingleRequest(f)
+	defer TearDown(f)
+	require.Nil(t, err)
+	require.True(t, reflect.DeepEqual(f.Conn, f.Request.GetConnection()))
+
+	r := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id:             "conn-2",
+			NetworkService: "ns-2",
+		},
+	}
+
+	conn, err := f.Client.Request(context.Background(), r)
+	require.Nil(t, err)
+	require.True(t, reflect.DeepEqual(conn, r.GetConnection()))
+
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	_, _, err = f.MockMonitorServer.Stream(ctx)
+	require.NotNil(t, err)
+	cancelFunc()
 }

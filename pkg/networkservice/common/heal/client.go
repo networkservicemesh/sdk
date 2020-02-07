@@ -109,10 +109,10 @@ func (f *healClient) init() {
 
 func (f *healClient) lazyInit(id string) {
 	f.updateExecutor.SyncExec(func() {
-		if _, ok := f.connectionIDs[id]; !ok {
-			f.connectionIDs[id] = true
+		if len(f.connectionIDs) == 0 {
 			f.updateExecutor.AsyncExec(f.init)
 		}
+		f.connectionIDs[id] = true
 	})
 }
 
@@ -125,7 +125,7 @@ func (f *healClient) tearDown() {
 func (f *healClient) lazyTearDown(id string) {
 	f.updateExecutor.SyncExec(func() {
 		delete(f.connectionIDs, id)
-		if _, ok := f.connectionIDs[id]; !ok {
+		if len(f.connectionIDs) == 0 {
 			f.updateExecutor.AsyncExec(f.tearDown)
 		}
 	})
