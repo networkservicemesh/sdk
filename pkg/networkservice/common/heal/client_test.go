@@ -17,10 +17,11 @@
 package heal_test
 
 import (
-	. "github.com/networkservicemesh/sdk/pkg/test/fixtures/healclientfixture"
 	"reflect"
 	"testing"
 	"time"
+
+	. "github.com/networkservicemesh/sdk/pkg/test/fixtures/healclientfixture"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"

@@ -14,22 +14,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package fakemonitorconnection contains implementation of fake monitor server for tests
-package fakemonitorconnection
+// Package mockmonitorconnection contains implementation of fake monitor server for tests
+package mockmonitorconnection
 
 import (
 	"context"
-	"go.uber.org/atomic"
 	"net"
 	"sync"
+
+	"go.uber.org/atomic"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 )
 
-// FakeMonitorServer implements networkservice.MonitorConnectionServer for test
-type FakeMonitorServer struct {
+// MockMonitorServer implements networkservice.MonitorConnectionServer for test
+type MockMonitorServer struct {
 	stopCh   chan struct{}
 	streamCh chan networkservice.MonitorConnection_MonitorConnectionsServer
 
@@ -37,9 +38,9 @@ type FakeMonitorServer struct {
 	closeFuncs []func()
 }
 
-// New creates instance of FakeMonitorServer
-func New() *FakeMonitorServer {
-	rv := &FakeMonitorServer{
+// New creates instance of MockMonitorServer
+func New() *MockMonitorServer {
+	rv := &MockMonitorServer{
 		stopCh:   make(chan struct{}),
 		streamCh: make(chan networkservice.MonitorConnection_MonitorConnectionsServer),
 	}
@@ -49,14 +50,14 @@ func New() *FakeMonitorServer {
 
 // MonitorConnections is a fake implementation of MonitorConnections, pushes 'stream' to channel
 // that lately could be obtained using method Stream
-func (f *FakeMonitorServer) MonitorConnections(s *networkservice.MonitorScopeSelector, stream networkservice.MonitorConnection_MonitorConnectionsServer) error {
+func (f *MockMonitorServer) MonitorConnections(s *networkservice.MonitorScopeSelector, stream networkservice.MonitorConnection_MonitorConnectionsServer) error {
 	f.streamCh <- stream
 	<-f.stopCh
 	return nil
 }
 
 // Stream returns the last server 'stream' with blocking
-func (f *FakeMonitorServer) Stream(ctx context.Context) (networkservice.MonitorConnection_MonitorConnectionsServer, func(), error) {
+func (f *MockMonitorServer) Stream(ctx context.Context) (networkservice.MonitorConnection_MonitorConnectionsServer, func(), error) {
 	closed := atomic.NewBool(false)
 	closeFunc := func() {
 		if closed.CAS(false, true) {
@@ -73,7 +74,7 @@ func (f *FakeMonitorServer) Stream(ctx context.Context) (networkservice.MonitorC
 }
 
 // Client returns client for fake monitor server
-func (f *FakeMonitorServer) Client(ctx context.Context) (networkservice.MonitorConnectionClient, error) {
+func (f *MockMonitorServer) Client(ctx context.Context) (networkservice.MonitorConnectionClient, error) {
 	dialer := func(context context.Context, s string) (conn net.Conn, e error) {
 		return f.ln.Dial()
 	}
@@ -89,13 +90,13 @@ func (f *FakeMonitorServer) Client(ctx context.Context) (networkservice.MonitorC
 }
 
 // Close releases all resources
-func (f *FakeMonitorServer) Close() {
+func (f *MockMonitorServer) Close() {
 	for _, c := range f.closeFuncs {
 		c()
 	}
 }
 
-func (f *FakeMonitorServer) serve() {
+func (f *MockMonitorServer) serve() {
 	srv := grpc.NewServer()
 	networkservice.RegisterMonitorConnectionServer(srv, f)
 	f.ln = bufconn.Listen(1024 * 1024)
@@ -113,6 +114,6 @@ func (f *FakeMonitorServer) serve() {
 	})
 }
 
-func (f *FakeMonitorServer) pushOnCloseFunc(h func()) {
+func (f *MockMonitorServer) pushOnCloseFunc(h func()) {
 	f.closeFuncs = append([]func(){h}, f.closeFuncs...)
 }

@@ -164,7 +164,6 @@ func (f *healClient) recvEvent() {
 					f.requestors[id]()
 					delete(f.reported, conn.GetId())
 				}
-
 			}
 		})
 	}

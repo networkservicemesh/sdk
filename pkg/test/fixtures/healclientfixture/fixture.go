@@ -14,19 +14,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package healclientfixture contains auxiliary classes for 'healClient' testing
 package healclientfixture
 
 import (
 	"context"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"google.golang.org/grpc"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/test/fakes/fakemonitorconnection"
+	"github.com/networkservicemesh/sdk/pkg/test/mocks/mockmonitorconnection"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
-	"google.golang.org/grpc"
 )
 
+// ClientRequestFunc is a signature of networkservice.Request method
 type ClientRequestFunc func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error)
 
 // TestOnHeal test wrapper for 'networkservice.NetworkServiceClient' implementation
@@ -72,8 +76,8 @@ type Fixture struct {
 	// OnHealNotifierCh receives struct{}{} every time when 'OnHeal' called
 	OnHealNotifierCh chan struct{}
 
-	// FakeMonitorServer fake implementation of MonitorConnectionServer, passed to constructor of 'healClient'
-	FakeMonitorServer *fakemonitorconnection.FakeMonitorServer
+	// MockMonitorServer fake implementation of MonitorConnectionServer, passed to constructor of 'healClient'
+	MockMonitorServer *mockmonitorconnection.MockMonitorServer
 
 	// Request that passed to Request during setup
 	Request *networkservice.NetworkServiceRequest
@@ -84,9 +88,9 @@ type Fixture struct {
 
 // SetupWithSingleRequest initialize Fixture and calls Request with 'request' passed
 func SetupWithSingleRequest(f *Fixture) error {
-	f.FakeMonitorServer = fakemonitorconnection.New()
+	f.MockMonitorServer = mockmonitorconnection.New()
 
-	monitorClient, err := f.FakeMonitorServer.Client(context.Background())
+	monitorClient, err := f.MockMonitorServer.Client(context.Background())
 	if err != nil {
 		return err
 	}
@@ -103,7 +107,7 @@ func SetupWithSingleRequest(f *Fixture) error {
 		return err
 	}
 
-	f.ServerStream, f.CloseStream, err = f.FakeMonitorServer.Stream(context.Background())
+	f.ServerStream, f.CloseStream, err = f.MockMonitorServer.Stream(context.Background())
 	if err != nil {
 		return err
 	}
@@ -115,5 +119,5 @@ func SetupWithSingleRequest(f *Fixture) error {
 func TearDown(f *Fixture) {
 	_, _ = f.Client.Close(context.Background(), f.Conn)
 	f.CloseStream()
-	f.FakeMonitorServer.Close()
+	f.MockMonitorServer.Close()
 }
