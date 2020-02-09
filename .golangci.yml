@@ -183,3 +183,8 @@ issues:
       linters:
         - gocritic
       text: "ptrToRefParam"
+    # TODO - remove after deciding how to properly handle the cancel
+    - path: pkg/networkservice/common/connect/server.go
+      linters:
+        - govet
+      text: "lostcancel"

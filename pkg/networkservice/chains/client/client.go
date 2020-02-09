@@ -18,6 +18,8 @@
 package client
 
 import (
+	"context"
+
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -32,7 +34,8 @@ import (
 
 // NewClient - returns a NetworkServiceMesh client as a chain of the standard Client pieces plus whatever
 //             additional functionality is specified
-//             - name - name of the NetworkServiceMeshClient
+//             - ctx    - context for the lifecycle of the *Client* itself.  Cancel when discarding the client.
+//             - name   - name of the NetworkServiceMeshClient
 //             - onHeal - *networkservice.NetworkServiceClient.  Since networkservice.NetworkServiceClient is an interface
 //                        (and thus a pointer) *networkservice.NetworkServiceClient is a double pointer.  Meaning it
 //                        points to a place that points to a place that implements networkservice.NetworkServiceClient
@@ -45,7 +48,7 @@ import (
 //                        If onHeal nil, onHeal will be pointed to the returned networkservice.NetworkServiceClient
 //             - cc - grpc.ClientConnInterface for the endpoint to which this client should connect
 //             - additionalFunctionality - any additional NetworkServiceClient chain elements to be included in the chain
-func NewClient(name string, onHeal *networkservice.NetworkServiceClient, cc grpc.ClientConnInterface, additionalFunctionality ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
+func NewClient(ctx context.Context, name string, onHeal *networkservice.NetworkServiceClient, cc grpc.ClientConnInterface, additionalFunctionality ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	return chain.NewNetworkServiceClient(
 		append(
 			append([]networkservice.NetworkServiceClient{
@@ -73,8 +76,8 @@ func NewClient(name string, onHeal *networkservice.NetworkServiceClient, cc grpc
 //                        this constructor before we actually have a pointer to it.
 //                        If onHeal nil, onHeal will be pointed to the returned networkservice.NetworkServiceClient
 //                    - additionalFunctionality - any additional NetworkServiceClient chain elements to be included in the chain
-func NewClientFactory(name string, onHeal *networkservice.NetworkServiceClient, additionalFunctionality ...networkservice.NetworkServiceClient) func(cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-	return func(cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-		return NewClient(name, onHeal, cc, additionalFunctionality...)
+func NewClientFactory(name string, onHeal *networkservice.NetworkServiceClient, additionalFunctionality ...networkservice.NetworkServiceClient) func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+	return func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+		return NewClient(ctx, name, onHeal, cc, additionalFunctionality...)
 	}
 }
