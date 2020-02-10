@@ -19,6 +19,7 @@ package healclientfixture
 
 import (
 	"context"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/chaincontext"
 
 	"github.com/golang/protobuf/ptypes/empty"

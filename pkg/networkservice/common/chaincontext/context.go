@@ -29,7 +29,7 @@ type contextKeyType string
 // WithChainContext -
 //    Wraps 'parent' per-request Context in a new Context that has the 'chain' Context
 //    Returns wrapped per-request context
-func WithChainContext(parent context.Context, chain context.Context) context.Context {
+func WithChainContext(parent, chain context.Context) context.Context {
 	if parent == nil {
 		parent = context.TODO()
 	}

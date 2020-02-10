@@ -19,8 +19,9 @@ package heal
 
 import (
 	"context"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/chaincontext"
 	"time"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/chaincontext"
 
 	"github.com/sirupsen/logrus"
 

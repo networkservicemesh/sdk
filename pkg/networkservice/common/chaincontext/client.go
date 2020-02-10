@@ -14,14 +14,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package chaincontext contains chain element for setting chain scoped context.Context
 package chaincontext
 
 import (
 	"context"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
 type chainContextClient struct {
