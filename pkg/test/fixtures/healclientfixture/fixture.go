@@ -20,8 +20,6 @@ package healclientfixture
 import (
 	"context"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/chaincontext"
-
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
@@ -107,8 +105,7 @@ func SetupWithSingleRequest(f *Fixture) error {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	f.CancelFunc = cancelFunc
 	f.Client = chain.NewNetworkServiceClient(
-		chaincontext.NewClient(ctx),
-		heal.NewClient(monitorClient, addressof.NetworkServiceClient(f.OnHeal)))
+		heal.NewClient(ctx, monitorClient, addressof.NetworkServiceClient(f.OnHeal)))
 
 	f.Conn, err = f.Client.Request(context.Background(), f.Request)
 	if err != nil {

@@ -54,7 +54,7 @@ func NewClient(ctx context.Context, name string, onHeal *networkservice.NetworkS
 			append([]networkservice.NetworkServiceClient{
 				authorize.NewClient(),
 				setid.NewClient(name),
-				heal.NewClient(networkservice.NewMonitorConnectionClient(cc), onHeal),
+				heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc), onHeal),
 				refresh.NewClient(),
 				updatepath.NewClient(name),
 			}, additionalFunctionality...),

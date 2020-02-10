@@ -21,8 +21,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/chaincontext"
-
 	"github.com/sirupsen/logrus"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -49,10 +47,10 @@ type healClient struct {
 	updateExecutor    serialize.Executor
 	recvEventExecutor serialize.Executor
 	chainContext      context.Context
-	connectionIDs     map[string]bool
 }
 
 // NewClient - creates a new networkservice.NetworkServiceClient chain element that implements the healing algorithm
+//             - ctx    - context for the lifecycle of the *Client* itself.  Cancel when discarding the client.
 //             - client - networkservice.MonitorConnectionClient that can be used to call MonitorConnection against the endpoint
 //             - onHeal - *networkservice.NetworkServiceClient.  Since networkservice.NetworkServiceClient is an interface
 //                        (and thus a pointer) *networkservice.NetworkServiceClient is a double pointer.  Meaning it
@@ -64,22 +62,24 @@ type healClient struct {
 //                        If we are part of a larger chain or a server, we should pass the resulting chain into
 //                        this constructor before we actually have a pointer to it.
 //                        If onHeal nil, onHeal will be pointed to the returned networkservice.NetworkServiceClient
-func NewClient(client networkservice.MonitorConnectionClient, onHeal *networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
+func NewClient(ctx context.Context, client networkservice.MonitorConnectionClient, onHeal *networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	rv := &healClient{
 		onHeal:            onHeal,
 		requestors:        make(map[string]func()),
 		closers:           make(map[string]func()),
 		reported:          make(map[string]*networkservice.Connection),
-		connectionIDs:     make(map[string]bool),
 		client:            client,
 		updateExecutor:    serialize.NewExecutor(),
 		eventReceiver:     nil, // This is intentionally nil
 		recvEventExecutor: serialize.NewExecutor(),
+		chainContext:      ctx,
 	}
 
 	if rv.onHeal == nil {
 		rv.onHeal = addressof.NetworkServiceClient(rv)
 	}
+
+	rv.init()
 
 	return rv
 }
@@ -106,16 +106,6 @@ func (f *healClient) init() {
 
 	f.eventReceiver = recv
 	f.recvEventExecutor.AsyncExec(f.recvEvent)
-}
-
-func (f *healClient) lazyInit(ctx context.Context, id string) {
-	f.updateExecutor.AsyncExec(func() {
-		if len(f.connectionIDs) == 0 {
-			f.chainContext = chaincontext.ChainContext(ctx)
-			f.init()
-		}
-		f.connectionIDs[id] = true
-	})
 }
 
 func (f *healClient) recvEvent() {
@@ -159,8 +149,6 @@ func (f *healClient) recvEvent() {
 }
 
 func (f *healClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	f.lazyInit(ctx, request.GetConnection().GetId())
-
 	rv, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Error calling next")
