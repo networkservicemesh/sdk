@@ -36,7 +36,11 @@ func (c *clientMap) Delete(key string) {
 
 func (c *clientMap) Load(key string) (networkservice.NetworkServiceClient, bool) {
 	value, ok := c.internalMap.Load(key)
-	return value.(networkservice.NetworkServiceClient), ok
+	var result networkservice.NetworkServiceClient
+	if ok {
+		result = value.(networkservice.NetworkServiceClient)
+	}
+	return result, ok
 }
 
 func (c *clientMap) LoadOrStore(key string, value networkservice.NetworkServiceClient) (actual networkservice.NetworkServiceClient, loaded bool) {
