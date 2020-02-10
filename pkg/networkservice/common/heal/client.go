@@ -19,6 +19,7 @@ package heal
 
 import (
 	"context"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/chaincontext"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -46,7 +47,7 @@ type healClient struct {
 	eventReceiver     networkservice.MonitorConnection_MonitorConnectionsClient
 	updateExecutor    serialize.Executor
 	recvEventExecutor serialize.Executor
-	cancelFunc        context.CancelFunc
+	chainContext      context.Context
 	connectionIDs     map[string]bool
 }
 
@@ -94,12 +95,11 @@ func (f *healClient) init() {
 
 	logrus.Info("Creating new eventReceiver")
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	f.cancelFunc = cancelFunc
-
-	recv, err := f.client.MonitorConnections(ctx, &networkservice.MonitorScopeSelector{}, grpc.WaitForReady(true))
+	recv, err := f.client.MonitorConnections(f.chainContext, &networkservice.MonitorScopeSelector{}, grpc.WaitForReady(true))
 	if err != nil {
-		f.updateExecutor.AsyncExec(f.init)
+		f.updateExecutor.AsyncExec(func() {
+			f.init()
+		})
 		return
 	}
 
@@ -107,27 +107,13 @@ func (f *healClient) init() {
 	f.recvEventExecutor.AsyncExec(f.recvEvent)
 }
 
-func (f *healClient) lazyInit(id string) {
-	f.updateExecutor.SyncExec(func() {
+func (f *healClient) lazyInit(ctx context.Context, id string) {
+	f.updateExecutor.AsyncExec(func() {
 		if len(f.connectionIDs) == 0 {
-			f.updateExecutor.AsyncExec(f.init)
+			f.chainContext = chaincontext.ChainContext(ctx)
+			f.init()
 		}
 		f.connectionIDs[id] = true
-	})
-}
-
-func (f *healClient) tearDown() {
-	if f.cancelFunc != nil {
-		f.cancelFunc()
-	}
-}
-
-func (f *healClient) lazyTearDown(id string) {
-	f.updateExecutor.SyncExec(func() {
-		delete(f.connectionIDs, id)
-		if len(f.connectionIDs) == 0 {
-			f.updateExecutor.AsyncExec(f.tearDown)
-		}
 	})
 }
 
@@ -172,7 +158,7 @@ func (f *healClient) recvEvent() {
 }
 
 func (f *healClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	f.lazyInit(request.GetConnection().GetId())
+	f.lazyInit(ctx, request.GetConnection().GetId())
 
 	rv, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
@@ -192,14 +178,18 @@ func (f *healClient) Request(ctx context.Context, request *networkservice.Networ
 			ctx = extend.WithValuesFromContext(timeCtx, ctx)
 			// TODO wrap another span around this
 			_, err := (*f.onHeal).Request(ctx, req, opts...)
-			trace.Log(ctx).Errorf("Attempt to heal connection %s resulted in error: %+v", req.GetConnection().GetId(), err)
+			if err != nil {
+				trace.Log(ctx).Errorf("Attempt to heal connection %s resulted in error: %+v", req.GetConnection().GetId(), err)
+			}
 			cancelFunc()
 		}
 		f.closers[req.GetConnection().GetId()] = func() {
 			timeCtx, cancelFunc := context.WithTimeout(context.Background(), duration)
 			ctx = extend.WithValuesFromContext(timeCtx, ctx)
 			_, err := (*f.onHeal).Close(extend.WithValuesFromContext(timeCtx, ctx), req.GetConnection(), opts...)
-			trace.Log(ctx).Errorf("Attempt to close connection %s during heal resulted in error: %+v", req.GetConnection().GetId(), err)
+			if err != nil {
+				trace.Log(ctx).Errorf("Attempt to close connection %s during heal resulted in error: %+v", req.GetConnection().GetId(), err)
+			}
 			cancelFunc()
 		}
 	})
@@ -207,8 +197,6 @@ func (f *healClient) Request(ctx context.Context, request *networkservice.Networ
 }
 
 func (f *healClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	f.lazyTearDown(conn.GetId())
-
 	rv, err := next.Client(ctx).Close(ctx, conn, opts...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Error calling next")

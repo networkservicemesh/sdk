@@ -19,6 +19,7 @@ package healclientfixture
 
 import (
 	"context"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/chaincontext"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -51,7 +52,7 @@ func (t *TestOnHeal) Close(ctx context.Context, in *networkservice.Connection, o
 // callNotifier sends struct{}{} to notifier channel when h called
 func callNotifier(notifier chan struct{}, h ClientRequestFunc) ClientRequestFunc {
 	return func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (i *networkservice.Connection, e error) {
-		notifier <- struct{}{}
+		defer func() { notifier <- struct{}{} }()
 		if h != nil {
 			return h(ctx, in, opts...)
 		}
@@ -84,6 +85,9 @@ type Fixture struct {
 
 	// Conn is connection received as a response of Request
 	Conn *networkservice.Connection
+
+	// CancelFunc per-chain cancel function
+	CancelFunc func()
 }
 
 // SetupWithSingleRequest initialize Fixture and calls Request with 'request' passed
@@ -99,8 +103,11 @@ func SetupWithSingleRequest(f *Fixture) error {
 	f.OnHealNotifierCh = make(chan struct{})
 	f.OnHeal.r = callNotifier(f.OnHealNotifierCh, f.OnHeal.r)
 
-	healClient := heal.NewClient(monitorClient, addressof.NetworkServiceClient(f.OnHeal))
-	f.Client = chain.NewNetworkServiceClient(healClient)
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	f.CancelFunc = cancelFunc
+	f.Client = chain.NewNetworkServiceClient(
+		chaincontext.NewClient(ctx),
+		heal.NewClient(monitorClient, addressof.NetworkServiceClient(f.OnHeal)))
 
 	f.Conn, err = f.Client.Request(context.Background(), f.Request)
 	if err != nil {
@@ -117,7 +124,7 @@ func SetupWithSingleRequest(f *Fixture) error {
 
 // TearDown releases resources allocated during SetupWithSingleRequest
 func TearDown(f *Fixture) {
-	_, _ = f.Client.Close(context.Background(), f.Conn)
 	f.CloseStream()
+	f.CancelFunc()
 	f.MockMonitorServer.Close()
 }
