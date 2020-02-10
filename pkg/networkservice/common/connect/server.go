@@ -29,6 +29,7 @@ import (
 
 type connectServer struct {
 	ctx                     context.Context
+	dialOptionsSupplier     func() []grpc.DialOption
 	clientFactory           func(ctx context.Context, conn grpc.ClientConnInterface) networkservice.NetworkServiceClient
 	uRLToClientMap          clientMap // key == url as string
 	connectionIDToClientMap clientMap // key == connection.GetId()
@@ -44,11 +45,17 @@ type connectServer struct {
 //             connect presumes depends on some previous chain element having set clienturl.WithClientURL so it can know
 //             which client to address.
 func NewServer(clientFactory func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient) networkservice.NetworkServiceServer {
+	return NewServerWithDialOptions(clientFactory, func() []grpc.DialOption { return nil })
+}
+
+// NewServerWithDialOptions - returns a new connect Server with specific client dial options
+func NewServerWithDialOptions(clientFactory func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient, dialOptionsSupplier func() []grpc.DialOption) networkservice.NetworkServiceServer {
 	return &connectServer{
 		ctx:                     nil,
 		clientFactory:           clientFactory,
 		uRLToClientMap:          newClientMap(),
 		connectionIDToClientMap: newClientMap(),
+		dialOptionsSupplier:     dialOptionsSupplier,
 	}
 }
 
@@ -68,7 +75,7 @@ func (c *connectServer) Request(ctx context.Context, request *networkservice.Net
 	// TODO - fix to accept dialOptions from github.com/networkservicemesh/sdk/tools/security - the options should flow in from the top
 	// TODO - fix to accept a mockable interface we can pass in from the top other than DialContext
 	// TODO - fix to be cautious about schemes
-	cc, err := grpc.DialContext(clientCtx, u.String())
+	cc, err := grpc.DialContext(clientCtx, u.String(), c.dialOptionsSupplier()...)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +101,7 @@ func (c *connectServer) Close(ctx context.Context, conn *networkservice.Connecti
 	// TODO - fix to accept dialOptions from github.com/networkservicemesh/sdk/tools/security - the options should flow in from the top
 	// TODO - fix to accept a mockable interface we can pass in from the top other than DialContext
 	// TODO - fix to be cautious about schemes
-	cc, err := grpc.DialContext(clientCtx, u.String())
+	cc, err := grpc.DialContext(clientCtx, u.String(), c.dialOptionsSupplier()...)
 	if err != nil {
 		return nil, err
 	}
