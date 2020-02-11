@@ -15,7 +15,7 @@
 // limitations under the License.
 
 // Package monitor provides a TestMonitorClient test class to perform client monitoring based on MonitorConnection call.
-package monitor
+package test_monitor
 
 import (
 	"context"
@@ -70,7 +70,7 @@ func (t *TestMonitorClient) BeginMonitoring(server networkservice.MonitorConnect
 func (t *TestMonitorClient) WaitEvents(ctx context.Context, count int) {
 	for {
 		if len(t.Events) == count {
-			logrus.Infof("Waiting for Events %v, but has %v", count, len(t.Events))
+			logrus.Infof("Waiting for Events %v Complete", count)
 			break
 		}
 		// Wait 10ms for listeners to activate
