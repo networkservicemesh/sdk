@@ -42,9 +42,37 @@ func (t *metricMonitorHolder) Request(ctx context.Context, request *networkservi
 	t.monitor = Server(ctx)
 	t.server = monitor.Server(ctx)
 
-	request.GetConnection().Labels = make(map[string]string)
-	request.GetConnection().Labels["lastUpdate"] = fmt.Sprintf("%v %v", t.index, time.Now())
-	return request.GetConnection(), nil
+	connection := request.GetConnection()
+	if connection.Labels == nil {
+		connection.Labels = make(map[string]string)
+	}
+	connection.Labels["lastUpdate"] = fmt.Sprintf("%v %v", t.index, time.Now())
+
+	if lv, ok := connection.Labels["send_metrics"]; ok && lv == "true" {
+		monServer := monitor.Server(ctx)
+		for pos, s := range connection.GetPath().GetPathSegments() {
+			s.Metrics = map[string]string{
+				"mx:": "1",
+				"pos": fmt.Sprintf("%v", pos),
+				"dt":  fmt.Sprintf("%v %v", t.index, time.Now()),
+			}
+		}
+
+		monServer.Send(&networkservice.ConnectionEvent{
+			Type: networkservice.ConnectionEventType_UPDATE,
+			Connections: map[string]*networkservice.Connection{
+				connection.GetId(): connection,
+			},
+		})
+		monServer.Send(&networkservice.ConnectionEvent{
+			Type: networkservice.ConnectionEventType_UPDATE,
+			Connections: map[string]*networkservice.Connection{
+				connection.GetId(): connection,
+			},
+		})
+	}
+
+	return connection, nil
 }
 
 func (t *metricMonitorHolder) Close(context.Context, *networkservice.Connection) (*empty.Empty, error) {
@@ -85,11 +113,11 @@ func TestSendMetrics(t *testing.T) {
 	// Add first connection and check right listener has event
 	// After it will think connection is established.
 	nsr := &networkservice.NetworkServiceRequest{
-		Connection: createConnection("id0", 1, []string{"local-nsm", "remote-nsm"}, int64(1 * time.Millisecond)),
+		Connection: createConnection("id0", 1, []string{"local-nsm", "remote-nsm"}, int64(1*time.Millisecond)),
 	}
 
 	ctx = monitor.WithServer(ctx, holder)
-	_, _ = srv.Request(ctx, nsr)
+	conn, _ := srv.Request(ctx, nsr)
 	// Now we could check monitoring routine's are working fine.
 	require.Equal(t, len(mons.metrics), 1)
 
@@ -99,24 +127,27 @@ func TestSendMetrics(t *testing.T) {
 		"wx": "100",
 	})
 
-	holder.WaitEvents(timeoutCtx, 1)
-	require.Equal(t, len(holder.events), 1)
+	holder.WaitEvents(timeoutCtx, 2)
+	require.Equal(t, len(holder.events), 2)
 
-	require.NotNil(t, holder.events[0].Metrics)
+	require.NotNil(t, holder.events[1].Connections)
 
-	m := holder.events[0].Metrics["id0"]
-	require.Equal(t, m.MetricsSegment[0].Name, "local-nsm")
-	require.Nil(t, m.MetricsSegment[0].Metrics)
+	m := holder.events[1].Connections["id0"]
+	require.Equal(t, m.Path.PathSegments[0].Name, "local-nsm")
+	require.Nil(t, m.Path.PathSegments[0].Metrics)
 
-	require.Equal(t, m.MetricsSegment[1].Name, "remote-nsm")
-	require.NotNil(t, m.MetricsSegment[1].Metrics)
-	require.Equal(t, len(m.MetricsSegment[1].Metrics), 2)
+	require.Equal(t, m.Path.PathSegments[1].Name, "remote-nsm")
+	require.NotNil(t, m.Path.PathSegments[1].Metrics)
+	require.Equal(t, len(m.Path.PathSegments[1].Metrics), 2)
+
+	_, err := srv.Close(timeoutCtx, conn)
+	require.Nil(t, err)
 }
 
-func TestIntervalSendMetrics(t *testing.T) {
+func TestChainSendMetrics(t *testing.T) {
 	ctx := context.Background()
 
-	//timeoutCtx, _ := context.WithTimeout(context.Background(), time.Second*5)
+	timeoutCtx, _ := context.WithTimeout(context.Background(), time.Second*500)
 
 	ms := NewServer()
 	mons, ok := ms.(*metricsServer)
@@ -129,7 +160,7 @@ func TestIntervalSendMetrics(t *testing.T) {
 	// Add first connection and check right listener has event
 	// After it will think connection is established.
 	nsr := &networkservice.NetworkServiceRequest{
-		Connection: createConnection("id0", 1, []string{"local-nsm", "remote-nsm"}, int64(5 * time.Hour)),
+		Connection: createConnection("id0", 0, []string{"local-nsm", "remote-nsm"}, int64(5*time.Hour)),
 	}
 
 	ctx = monitor.WithServer(ctx, holder)
@@ -143,23 +174,30 @@ func TestIntervalSendMetrics(t *testing.T) {
 		"wx": "100",
 	})
 
+	holder.WaitEvents(timeoutCtx, 2)
+
 	// There is no event yet
-	require.Equal(t, len(holder.events), 0)
+	require.Equal(t, len(holder.events), 2)
 
 	// but if we reqest again, we will have event send.
+	nsr.Connection.Labels = map[string]string{
+		"send_metrics": "true",
+	}
 	_, _ = srv.Request(ctx, nsr)
-	<- time.After(60 * time.Second)
-	require.NotNil(t, holder.events[0].Metrics)
 
-	m := holder.events[0].Metrics["id0"]
-	require.Equal(t, m.MetricsSegment[0].Name, "local-nsm")
-	require.Nil(t, m.MetricsSegment[0].Metrics)
+	holder.WaitEvents(timeoutCtx, 5)
 
-	require.Equal(t, m.MetricsSegment[1].Name, "remote-nsm")
-	require.NotNil(t, m.MetricsSegment[1].Metrics)
-	require.Equal(t, len(m.MetricsSegment[1].Metrics), 2)
+	require.NotNil(t, holder.events[2].Connections)
+
+	m := holder.events[2].Connections["id0"]
+	require.Equal(t, m.Path.PathSegments[0].Name, "local-nsm")
+	require.NotNil(t, m.Path.PathSegments[0].Metrics)
+	require.Equal(t, len(m.Path.PathSegments[0].Metrics), 2)
+
+	require.Equal(t, m.Path.PathSegments[1].Name, "remote-nsm")
+	require.NotNil(t, m.Path.PathSegments[1].Metrics)
+	require.Equal(t, len(m.Path.PathSegments[1].Metrics), 3)
 }
-
 
 func createConnection(id string, index uint32, segments []string, interval int64) *networkservice.Connection {
 	result := &networkservice.Connection{
