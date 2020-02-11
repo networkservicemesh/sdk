@@ -32,27 +32,14 @@ func newMonitorFilter(selector *networkservice.MonitorScopeSelector, srv network
 	}
 }
 
-func (m *monitorFilter) Send(event *networkservice.ConnectionEvent, current map[string]*networkservice.Connection) error {
+func (m *monitorFilter) Send(event *networkservice.ConnectionEvent) error {
 	// Filter connections based on event passed and selector for this filter
 	rv := &networkservice.ConnectionEvent{
 		Type:        event.Type,
 		Connections: networkservice.FilterMapOnManagerScopeSelector(event.GetConnections(), m.selector),
-		Metrics:     filteredMetrics(event, networkservice.FilterMapOnManagerScopeSelector(current, m.selector)),
 	}
-	if rv.Type == networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER || len(rv.GetConnections()) > 0 || len(rv.GetMetrics()) > 0 {
+	if rv.Type == networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER || len(rv.GetConnections()) > 0  {
 		return m.srv.Send(rv)
 	}
 	return nil
-}
-
-func filteredMetrics(event *networkservice.ConnectionEvent, matchedConnections map[string]*networkservice.Connection) map[string]*networkservice.Metrics {
-	filteredMetrics := map[string]*networkservice.Metrics{}
-
-	// Put only relevant metrics
-	for k, v := range event.Metrics {
-		if _, ok := matchedConnections[k]; ok {
-			filteredMetrics[k] = v
-		}
-	}
-	return filteredMetrics
 }
