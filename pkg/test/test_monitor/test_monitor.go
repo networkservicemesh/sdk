@@ -15,7 +15,7 @@
 // limitations under the License.
 
 // Package monitor provides a TestMonitorClient test class to perform client monitoring based on MonitorConnection call.
-package monitor
+package test_monitor
 
 import (
 	"context"

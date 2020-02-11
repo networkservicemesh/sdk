@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/sdk/pkg/test/monitor"
+	"github.com/networkservicemesh/sdk/pkg/test/test_monitor"
 	"testing"
 	"time"
 
@@ -17,7 +17,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
 )
 
-type myServer struct {
+type dummyMonitorServer struct {
 	networkservice.MonitorConnectionServer
 }
 
@@ -40,24 +40,24 @@ func (t *updateConnServer) Close(context.Context, *networkservice.Connection) (*
 }
 
 func TestMonitorSendToRightClient(t *testing.T) {
-	myServer := &myServer{}
+	myServer := &dummyMonitorServer{}
 
 	ctx := context.Background()
 	ms := NewServer(&myServer.MonitorConnectionServer)
 	mons, ok := ms.(*monitorServer)
-	require.Equal(t, true, ok)
+	require.True(t, ok)
 
 	updateCounter := 0
 	updateEnv := newUpdateTailServer(updateCounter)
 
 	srv := next.NewWrappedNetworkServiceServer(trace.NewNetworkServiceServer, ms, updateEnv)
 
-	localMonitor := monitor.NewTestMonitorClient()
-	remoteMonitor := monitor.NewTestMonitorClient()
+	localMonitor := test_monitor.NewTestMonitorClient()
+	remoteMonitor := test_monitor.NewTestMonitorClient()
 	localMonitor.BeginMonitoring(myServer, "local-nsm")
 	remoteMonitor.BeginMonitoring(myServer, "remote-nsm")
 	// We need to be sure we have 2 clients waiting for Events, we could check to have initial transfers for this.
-	timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Second*6000)
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	// Wait for init messages in both monitors
 	localMonitor.WaitEvents(timeoutCtx, 1)
@@ -112,7 +112,7 @@ func newUpdateTailServer(updateCounter int) *updateConnServer {
 }
 
 func TestMonitorIsClosedProperly(t *testing.T) {
-	myServer := &myServer{}
+	myServer := &dummyMonitorServer{}
 
 	ctx := context.Background()
 	ms := NewServer(&myServer.MonitorConnectionServer)
@@ -124,7 +124,7 @@ func TestMonitorIsClosedProperly(t *testing.T) {
 
 	srv := next.NewWrappedNetworkServiceServer(trace.NewNetworkServiceServer, ms, updateEnv)
 
-	localMonitor := monitor.NewTestMonitorClient()
+	localMonitor := test_monitor.NewTestMonitorClient()
 
 	localMonitor.BeginMonitoring(myServer, "local-nsm")
 
@@ -178,7 +178,7 @@ func TestMonitorIsClosedProperly(t *testing.T) {
 }
 
 func TestChainedIntervalSend(t *testing.T) {
-	myServer := &myServer{}
+	myServer := &dummyMonitorServer{}
 
 	ctx := context.Background()
 	ms := NewServer(&myServer.MonitorConnectionServer)
@@ -190,7 +190,7 @@ func TestChainedIntervalSend(t *testing.T) {
 
 	srv := next.NewWrappedNetworkServiceServer(trace.NewNetworkServiceServer, ms, updateEnv)
 
-	localMonitor := monitor.NewTestMonitorClient()
+	localMonitor := test_monitor.NewTestMonitorClient()
 	localMonitor.BeginMonitoring(myServer, "local-nsm")
 	// We need to be sure we have 2 clients waiting for Events, we could check to have initial transfers for this.
 	timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Second*6000)

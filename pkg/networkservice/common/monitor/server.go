@@ -35,6 +35,8 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
+const defaultMetricsInterval = time.Second * 5
+
 type monitorServer struct {
 	connections map[string]*connectionInfo
 	monitors    []*monitorFilter
@@ -114,17 +116,15 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 				connInfo = m.createConnectionInfo(conn)
 			}
 			// Send update only if connection is updated or has metrics pending updates
-			needSendMetrics := m.updateMetricsInfo(connInfo, conn)
-
-			// If connection or metrics are updated or connection are updated.
-			if needSendMetrics || connectionClone.Compare(conn) != networkservice.ConnectionsEqual {
-				event := &networkservice.ConnectionEvent{
-					Type:        networkservice.ConnectionEventType_UPDATE,
-					Connections: map[string]*networkservice.Connection{conn.GetId(): conn},
-				}
-				if err = m.send(ctx, event); err != nil {
-					logrus.Errorf("Error during sending event: %v", err)
-				}
+			if !m.updateMetricsInfo(connInfo, conn) && connectionClone.Compare(conn) == networkservice.ConnectionsEqual {
+				return
+			}
+			event := &networkservice.ConnectionEvent{
+				Type:        networkservice.ConnectionEventType_UPDATE,
+				Connections: map[string]*networkservice.Connection{conn.GetId(): conn},
+			}
+			if err = m.send(ctx, event); err != nil {
+				logrus.Errorf("Error during sending event: %v", err)
 			}
 		})
 	}
@@ -134,7 +134,7 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 func (m *monitorServer) createConnectionInfo(conn *networkservice.Connection) *connectionInfo {
 	connInfo := &connectionInfo{
 		connection:      conn,
-		metricsInterval: time.Second * 5,
+		metricsInterval: defaultMetricsInterval,
 	}
 	m.connections[conn.GetId()] = connInfo
 	return connInfo
@@ -217,30 +217,30 @@ func (m *monitorServer) Send(event *networkservice.ConnectionEvent) error {
 				}
 			}
 		}
-		if len(event.GetConnections()) > 0 {
-			if err := m.send(context.Background(), event); err != nil {
-				logrus.Errorf("Error sending event %v", err)
-			}
+		if len(event.GetConnections()) == 0 {
+			return
+		}
+		if err := m.send(context.Background(), event); err != nil {
+			logrus.Errorf("Error sending event %v", err)
 		}
 	})
 	return nil
 }
 
+// send - perform a send to clients.
 func (m *monitorServer) send(ctx context.Context, event *networkservice.ConnectionEvent) (err error) {
-	m.executor.AsyncExec(func() {
-		newMonitors := []*monitorFilter{}
-		for _, filter := range m.monitors {
-			select {
-			case <-filter.srv.Context().Done():
-			default:
-				if err = filter.Send(event); err != nil {
-					trace.Log(ctx).Errorf("Error sending event: %+v: %+v", event, err)
-				}
-				newMonitors = append(newMonitors, filter)
+	newMonitors := []*monitorFilter{}
+	for _, filter := range m.monitors {
+		select {
+		case <-filter.srv.Context().Done():
+		default:
+			if err = filter.Send(event); err != nil {
+				trace.Log(ctx).Errorf("Error sending event: %+v: %+v", event, err)
 			}
+			newMonitors = append(newMonitors, filter)
 		}
-		m.monitors = newMonitors
-	})
+	}
+	m.monitors = newMonitors
 	return err
 }
 
