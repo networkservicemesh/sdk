@@ -31,11 +31,11 @@ func (a *addNamesClient) Request(ctx context.Context, request *networkservice.Ne
 		if exists {
 			oldValue, isPresent := conn.Labels[labelName]
 			if isPresent {
-				logrus.Warningf("Label %s was assigned to %s. Overwriting.", labelName, oldValue)
+				logrus.Warningf("The label %s was already assigned to %s. Overwriting.", labelName, oldValue)
 			}
 			conn.Labels[labelName] = value
 		} else {
-			logrus.Warningf("Environment variable %s is not set.", envName)
+			logrus.Warningf("Environment variable %s is not set. Skipping.", envName)
 		}
 	}
 	return next.Client(ctx).Request(ctx, request, opts...)
