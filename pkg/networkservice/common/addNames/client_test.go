@@ -3,65 +3,60 @@ package addNames
 import (
 	"context"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"os"
 	"reflect"
 	"testing"
 )
 
+type addNamesTestData struct {
+	name    string
+	envs    map[string]string
+	request *networkservice.NetworkServiceRequest
+	want    *networkservice.Connection
+}
+
+var tests = []addNamesTestData{
+	{
+		"labels not present",
+		map[string]string{
+			"NODE_NAME":    "AAA",
+			"POD_NAME":     "BBB",
+			"CLUSTER_NAME": "CCC",
+		},
+		&networkservice.NetworkServiceRequest{
+			Connection: &networkservice.Connection{},
+		},
+		&networkservice.Connection{
+			Labels: map[string]string{
+				"NodeNameKey":    "AAA",
+				"PodNameKey":     "BBB",
+				"ClusterNameKey": "CCC",
+			},
+		},
+	},
+}
+
 func Test_addNamesClient_Request(t *testing.T) {
+	server := next.NewNetworkServiceClient(NewClient())
+	for _, testData := range tests {
+		for name, value := range testData.envs {
+			err := os.Setenv(name, value)
+			if err != nil {
+				t.Errorf("%s: addNamesClient.Request() unable to set up environment variable: %v", testData.name, err)
+			}
+		}
 
-	envs := map[string]string{
-		"NODE_NAME":    "AAA",
-		"POD_NAME":     "BBB",
-		"CLUSTER_NAME": "CCC",
-	}
+		got, _ := server.Request(context.Background(), testData.request)
+		if !reflect.DeepEqual(got, testData.want) {
+			t.Errorf("%s: addNamesClient.Request() = %v, want %v", testData.name, got, testData.want)
+		}
 
-	for name, value := range envs {
-		err := os.Setenv(name, value)
-		if err != nil {
-			t.Errorf("addNamesClient.Request() unable to set up environment variable: %v", err)
+		for name := range testData.envs {
+			err := os.Unsetenv(name)
+			if err != nil {
+				t.Errorf("%s: addNamesClient.Request() unable to unset environment variable: %v", testData.name, err)
+			}
 		}
 	}
-
-	want := &networkservice.Connection{
-		Id: "1",
-		Mechanism: &networkservice.Mechanism{
-			Type: kernel.MECHANISM,
-		},
-		Context: &networkservice.ConnectionContext{
-			IpContext: &networkservice.IPContext{
-				DstIpAddr: "172.16.1.2",
-			},
-		},
-		Labels: map[string]string{
-			"NodeNameKey":    "AAA",
-			"PodNameKey":     "BBB",
-			"ClusterNameKey": "CCC",
-		},
-	}
-
-	request := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id: "1",
-			Mechanism: &networkservice.Mechanism{
-				Type: kernel.MECHANISM,
-			},
-			Context: &networkservice.ConnectionContext{
-				IpContext: &networkservice.IPContext{
-					DstIpAddr: "172.16.1.2",
-				},
-			},
-		},
-	}
-
-	server := next.NewNetworkServiceClient(NewClient())
-
-	got, _ := server.Request(context.Background(), request)
-
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("addNamesClient.Request() = %v, want %v", got, want)
-	}
-
 }
