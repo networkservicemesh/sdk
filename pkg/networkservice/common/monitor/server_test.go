@@ -3,7 +3,6 @@ package monitor
 import (
 	"context"
 	"fmt"
-	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/sdk/pkg/test/test_monitor"
 	"testing"
@@ -76,15 +75,16 @@ func TestMonitorSendToRightClient(t *testing.T) {
 	// Now we could check monitoring routine's are working fine.
 	// Wait for update message for first monitor
 	localMonitor.WaitEvents(timeoutCtx, 2)
-	require.Equal(t, 2, len(localMonitor.Events))
+	require.Equal(t, len(localMonitor.Events), 2)
 	require.Equal(t, networkservice.ConnectionEventType_UPDATE, localMonitor.Events[1].Type)
 	// Check we have connection already
-	require.Equal(t, len(mons.connections), 1)
+	require.Equal(t, 1, len(mons.connections) )
 	// Just dummy update
 	nsr.Connection.Context.IpContext.ExtraPrefixes = append(nsr.Connection.Context.IpContext.ExtraPrefixes, "10.2.3.1")
-	_, _ = srv.Request(ctx, nsr)
+	conn2, _ := srv.Request(ctx, nsr)
+	require.NotNil(t, conn2)
 	localMonitor.WaitEvents(timeoutCtx, 3)
-	require.Equal(t, 3, len(localMonitor.Events))
+	require.Equal(t, len(localMonitor.Events), 3)
 	require.Equal(t, networkservice.ConnectionEventType_UPDATE, localMonitor.Events[2].Type)
 	// check delete event is working fine.
 	_, closeErr := srv.Close(ctx, nsr.Connection)
@@ -177,88 +177,6 @@ func TestMonitorIsClosedProperly(t *testing.T) {
 	require.Equal(t, len(mons.monitors), 0)
 }
 
-func TestChainedIntervalSend(t *testing.T) {
-	myServer := &dummyMonitorServer{}
-
-	ctx := context.Background()
-	ms := NewServer(&myServer.MonitorConnectionServer)
-	mons, ok := ms.(*monitorServer)
-	require.Equal(t, true, ok)
-
-	updateCounter := 0
-	updateEnv := newUpdateTailServer(updateCounter)
-
-	srv := next.NewWrappedNetworkServiceServer(trace.NewNetworkServiceServer, ms, updateEnv)
-
-	localMonitor := test_monitor.NewTestMonitorClient()
-	localMonitor.BeginMonitoring(myServer, "local-nsm")
-	// We need to be sure we have 2 clients waiting for Events, we could check to have initial transfers for this.
-	timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Second*6000)
-	defer cancel()
-	// Wait for init messages in both monitors
-	localMonitor.WaitEvents(timeoutCtx, 1)
-	// Check we have 2 monitors
-	require.Equal(t, len(mons.monitors), 1)
-	require.Equal(t, 1, len(localMonitor.Events))
-
-	// Add first connection and check right listener has event
-	// After it will think connection is established.
-	nsr := &networkservice.NetworkServiceRequest{
-		Connection: createConnection("id0", "local-nsm"),
-	}
-
-	conn, _ := srv.Request(ctx, nsr)
-	// Now we could check monitoring routine's are working fine.
-	// Wait for update message for first monitor
-	localMonitor.WaitEvents(timeoutCtx, 2)
-
-	mons.Send(&networkservice.ConnectionEvent{
-		Type: networkservice.ConnectionEventType_UPDATE,
-		Connections: map[string]*networkservice.Connection{
-			conn.GetId(): createMetrics(conn, "mx1"),
-		},
-	})
-	mons.Send(&networkservice.ConnectionEvent{
-		Type: networkservice.ConnectionEventType_UPDATE,
-		Connections: map[string]*networkservice.Connection{
-			conn.GetId(): createMetrics(conn, "mx2"),
-		},
-	})
-	mons.Send(&networkservice.ConnectionEvent{
-		Type: networkservice.ConnectionEventType_UPDATE,
-		Connections: map[string]*networkservice.Connection{
-			conn.GetId(): createMetrics(conn, "mx3"),
-		},
-	})
-	mons.executor.SyncExec(func() { /* Dummy */ })
-
-	localMonitor.WaitEvents(timeoutCtx, 3)
-	// Check we still have 3 Events, first since never send, and 2 metrics updates are in pending state.
-	require.Equal(t, 3, len(localMonitor.Events))
-
-	require.Equal(t, "mx1", localMonitor.Events[2].Connections[conn.GetId()].GetPath().GetPathSegments()[0].Metrics["mx:"])
-
-	// Check pending update is mx3
-	require.Equal(t, "mx3", mons.connections[conn.GetId()].connection.GetPath().GetPathSegments()[0].Metrics["mx:"])
-	require.Equal(t, 2, mons.connections[conn.GetId()].pendingUpdates)
-
-	conn, _ = srv.Request(ctx, nsr)
-	localMonitor.WaitEvents(timeoutCtx, 4)
-	require.Equal(t, "mx3", localMonitor.Events[3].Connections[conn.GetId()].GetPath().GetPathSegments()[0].Metrics["mx:"])
-}
-
-func createMetrics(conn *networkservice.Connection, mx string) *networkservice.Connection {
-	cpy := proto.Clone(conn).(*networkservice.Connection)
-	for pos, s := range cpy.GetPath().GetPathSegments() {
-		s.Metrics = map[string]string{
-			"mx:": mx,
-			"pos": fmt.Sprintf("%v", pos),
-			"dt":  fmt.Sprintf("%v %v", conn.GetPath().GetIndex(), time.Now()),
-		}
-	}
-	return cpy
-}
-
 func createConnection(id, server string) *networkservice.Connection {
 	return &networkservice.Connection{
 		Id: id,
@@ -274,10 +192,6 @@ func createConnection(id, server string) *networkservice.Connection {
 			IpContext: &networkservice.IPContext{
 				SrcIpRequired: true,
 				DstIpRequired: true,
-			},
-			MetricsContext: &networkservice.MetricsContext{
-				Enabled:  true,
-				Interval: int64(1 * time.Hour),
 			},
 		},
 	}

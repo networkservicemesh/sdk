@@ -22,25 +22,24 @@ import (
 
 type monitorFilter struct {
 	selector *networkservice.MonitorScopeSelector
-	srv      networkservice.MonitorConnection_MonitorConnectionsServer
+	networkservice.MonitorConnection_MonitorConnectionsServer
 }
 
 func newMonitorFilter(selector *networkservice.MonitorScopeSelector, srv networkservice.MonitorConnection_MonitorConnectionsServer) *monitorFilter {
 	return &monitorFilter{
 		selector: selector,
-		srv:      srv,
+		MonitorConnection_MonitorConnectionsServer: srv,
 	}
 }
 
 // Send - Filter connections based on event passed and selector for this filter
 func (m *monitorFilter) Send(event *networkservice.ConnectionEvent) error {
-
 	rv := &networkservice.ConnectionEvent{
 		Type:        event.Type,
 		Connections: networkservice.FilterMapOnManagerScopeSelector(event.GetConnections(), m.selector),
 	}
-	if rv.Type == networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER || len(rv.GetConnections()) > 0  {
-		return m.srv.Send(rv)
+	if rv.Type == networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER || len(rv.GetConnections()) > 0 {
+		return m.MonitorConnection_MonitorConnectionsServer.Send(rv)
 	}
 	return nil
 }
