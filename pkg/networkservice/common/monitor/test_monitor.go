@@ -14,8 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package tests provides a TestMonitorClient test class to perform client monitoring based on MonitorConnection call and tests for monitor sdk chain components
-package tests
+package monitor
 
 import (
 	"context"
@@ -29,7 +28,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-// TestMonitorClient - implementation of monitor client.
+// TestMonitorClient - implementation of test monitor client.
 type TestMonitorClient struct {
 	Events       []*networkservice.ConnectionEvent
 	eventChannel chan *networkservice.ConnectionEvent

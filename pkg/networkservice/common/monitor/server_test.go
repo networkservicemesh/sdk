@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tests
+package monitor_test
 
 import (
 	"context"
@@ -67,8 +67,8 @@ func TestMonitorSendToRightClient(t *testing.T) {
 
 	srv := next.NewWrappedNetworkServiceServer(trace.NewNetworkServiceServer, ms, updateEnv)
 
-	localMonitor := NewTestMonitorClient()
-	remoteMonitor := NewTestMonitorClient()
+	localMonitor := monitor.NewTestMonitorClient()
+	remoteMonitor := monitor.NewTestMonitorClient()
 	localMonitor.BeginMonitoring(myServer, "local-nsm")
 	remoteMonitor.BeginMonitoring(myServer, "remote-nsm")
 	// We need to be sure we have 2 clients waiting for Events, we could check to have initial transfers for this.
@@ -133,7 +133,7 @@ func TestMonitorIsClosedProperly(t *testing.T) {
 
 	srv := next.NewWrappedNetworkServiceServer(trace.NewNetworkServiceServer, ms, updateEnv)
 
-	localMonitor := NewTestMonitorClient()
+	localMonitor := monitor.NewTestMonitorClient()
 
 	localMonitor.BeginMonitoring(myServer, "local-nsm")
 
@@ -163,7 +163,7 @@ func TestMonitorIsClosedProperly(t *testing.T) {
 	// Cancel context for monitor
 	localMonitor.Cancel()
 
-	newLocalMon := NewTestMonitorClient()
+	newLocalMon := monitor.NewTestMonitorClient()
 	newLocalMon.BeginMonitoring(myServer, "local-nsm")
 
 	// Just dummy update
