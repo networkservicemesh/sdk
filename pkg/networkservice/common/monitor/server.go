@@ -90,8 +90,8 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 				Type:        networkservice.ConnectionEventType_UPDATE,
 				Connections: map[string]*networkservice.Connection{conn.GetId(): conn},
 			}
-			if err = m.send(ctx, event); err != nil {
-				logrus.Errorf("Error during sending event: %v", err)
+			if sendErr := m.send(ctx, event); sendErr != nil {
+				logrus.Errorf("Error during sending event: %v", sendErr)
 			}
 		})
 	}

@@ -19,6 +19,8 @@ package monitor
 
 import (
 	"context"
+	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
+	"runtime"
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -33,22 +35,33 @@ type TestMonitorClient struct {
 	ctx          context.Context
 	Cancel       context.CancelFunc
 	grpc.ServerStream
+	executor  serialize.Executor
+	finalized chan struct{}
 }
 
 // NewTestMonitorClient - construct a new client.
 func NewTestMonitorClient() *TestMonitorClient {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &TestMonitorClient{
+	rv := &TestMonitorClient{
 		eventChannel: make(chan *networkservice.ConnectionEvent, 10),
 		ctx:          ctx,
 		Cancel:       cancel,
+		executor:     serialize.NewExecutor(),
+		finalized:    make(chan struct{}),
 	}
+	runtime.SetFinalizer(rv, func(server *TestMonitorClient) {
+		close(server.finalized)
+	})
+
+	return rv
 }
 
 // Send - receive event from server.
 func (t *TestMonitorClient) Send(evt *networkservice.ConnectionEvent) error {
-	t.Events = append(t.Events, evt)
-	t.eventChannel <- evt
+	t.executor.SyncExec(func() {
+		t.Events = append(t.Events, evt)
+		t.eventChannel <- evt
+	})
 	return nil
 }
 
@@ -70,7 +83,11 @@ func (t *TestMonitorClient) BeginMonitoring(server networkservice.MonitorConnect
 // WaitEvents - wait for a required number of events to be received.
 func (t *TestMonitorClient) WaitEvents(ctx context.Context, count int) {
 	for {
-		if len(t.Events) == count {
+		var curLen = 0
+		t.executor.SyncExec(func() {
+			curLen = len(t.Events)
+		})
+		if curLen == count {
 			logrus.Infof("Waiting for Events %v Complete", count)
 			break
 		}
@@ -78,7 +95,7 @@ func (t *TestMonitorClient) WaitEvents(ctx context.Context, count int) {
 		select {
 		case <-ctx.Done():
 			// Context is done, we need to exit
-			logrus.Errorf("Failed to wait for Events count %v current value is: %v", count, len(t.Events))
+			logrus.Errorf("Failed to wait for Events count %v current value is: %v", count, curLen)
 			return
 		case <-t.eventChannel:
 		case <-time.After(1 * time.Second):
