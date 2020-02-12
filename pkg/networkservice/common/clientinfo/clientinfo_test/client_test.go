@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package clientinfo_test provides a tests for clientinfo
 package clientinfo_test
 
 import (
@@ -22,9 +23,10 @@ import (
 	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/stretchr/testify/assert"
 )
 
 var testData = []struct {
@@ -106,7 +108,8 @@ var testData = []struct {
 }
 
 func Test_clientInfo_Request(t *testing.T) {
-	for _, test := range testData {
+	for _, data := range testData {
+		test := data
 		t.Run(test.name, func(t *testing.T) {
 			testRequest(t, test.envs, test.request, test.want)
 		})

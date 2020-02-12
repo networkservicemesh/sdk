@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package clientinfo provides a chain element that adds pod, node and cluster names to request
 package clientinfo
 
 import (
@@ -25,10 +26,18 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-const nodeEnv, podEnv, clusterEnv, nodeLabel, podLabel, clusterLabel = "NODE_NAME", "POD_NAME", "CLUSTER_NAME", "NodeNameKey", "PodNameKey", "ClusterNameKey"
+const (
+	nodeEnv      = "NODE_NAME"
+	podEnv       = "POD_NAME"
+	clusterEnv   = "CLUSTER_NAME"
+	nodeLabel    = "NodeNameKey"
+	podLabel     = "PodNameKey"
+	clusterLabel = "ClusterNameKey"
+)
 
 type clientInfo struct{}
 
