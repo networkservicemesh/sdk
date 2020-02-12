@@ -3,14 +3,17 @@ package monitor
 import (
 	"context"
 	"fmt"
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/sdk/pkg/test/test_monitor"
 	"testing"
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
+	"github.com/golang/protobuf/ptypes/empty"
+
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+
+	"github.com/networkservicemesh/sdk/pkg/test/monitor"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
@@ -51,8 +54,8 @@ func TestMonitorSendToRightClient(t *testing.T) {
 
 	srv := next.NewWrappedNetworkServiceServer(trace.NewNetworkServiceServer, ms, updateEnv)
 
-	localMonitor := test_monitor.NewTestMonitorClient()
-	remoteMonitor := test_monitor.NewTestMonitorClient()
+	localMonitor := monitor.NewTestMonitorClient()
+	remoteMonitor := monitor.NewTestMonitorClient()
 	localMonitor.BeginMonitoring(myServer, "local-nsm")
 	remoteMonitor.BeginMonitoring(myServer, "remote-nsm")
 	// We need to be sure we have 2 clients waiting for Events, we could check to have initial transfers for this.
@@ -78,7 +81,7 @@ func TestMonitorSendToRightClient(t *testing.T) {
 	require.Equal(t, len(localMonitor.Events), 2)
 	require.Equal(t, networkservice.ConnectionEventType_UPDATE, localMonitor.Events[1].Type)
 	// Check we have connection already
-	require.Equal(t, 1, len(mons.connections) )
+	require.Equal(t, 1, len(mons.connections))
 	// Just dummy update
 	nsr.Connection.Context.IpContext.ExtraPrefixes = append(nsr.Connection.Context.IpContext.ExtraPrefixes, "10.2.3.1")
 	conn2, _ := srv.Request(ctx, nsr)
@@ -124,7 +127,7 @@ func TestMonitorIsClosedProperly(t *testing.T) {
 
 	srv := next.NewWrappedNetworkServiceServer(trace.NewNetworkServiceServer, ms, updateEnv)
 
-	localMonitor := test_monitor.NewTestMonitorClient()
+	localMonitor := monitor.NewTestMonitorClient()
 
 	localMonitor.BeginMonitoring(myServer, "local-nsm")
 
@@ -160,6 +163,12 @@ func TestMonitorIsClosedProperly(t *testing.T) {
 	nsr.Connection.Context.IpContext.ExtraPrefixes = append(nsr.Connection.Context.IpContext.ExtraPrefixes, "10.2.3.1")
 	_, _ = srv.Request(ctx, nsr)
 
+	waitForMonitors(ctx, mons, t)
+	// Check we no have monitors anymore
+	require.Equal(t, len(mons.monitors), 0)
+}
+
+func waitForMonitors(ctx context.Context, mons *monitorServer, t *testing.T) {
 	for {
 		if len(mons.monitors) == 0 {
 			logrus.Infof("Waiting for monitors %v, but has %v", 0, len(mons.monitors))
@@ -173,8 +182,6 @@ func TestMonitorIsClosedProperly(t *testing.T) {
 		case <-time.After(time.Millisecond * 10): // Delay for channel to be activated
 		}
 	}
-	// Check we no have monitors anymore
-	require.Equal(t, len(mons.monitors), 0)
 }
 
 func createConnection(id, server string) *networkservice.Connection {

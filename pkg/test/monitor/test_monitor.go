@@ -15,14 +15,15 @@
 // limitations under the License.
 
 // Package monitor provides a TestMonitorClient test class to perform client monitoring based on MonitorConnection call.
-package test_monitor
+package monitor
 
 import (
 	"context"
+	"time"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
-	"time"
 )
 
 // TestMonitorClient - implementation of monitor client.
@@ -44,7 +45,7 @@ func NewTestMonitorClient() *TestMonitorClient {
 	}
 }
 
-// Send - recieve event from server.
+// Send - receive event from server.
 func (t *TestMonitorClient) Send(evt *networkservice.ConnectionEvent) error {
 	t.Events = append(t.Events, evt)
 	t.eventChannel <- evt
@@ -66,7 +67,7 @@ func (t *TestMonitorClient) BeginMonitoring(server networkservice.MonitorConnect
 	}()
 }
 
-// WaitEvents - wait for a required number of events to be recieved.
+// WaitEvents - wait for a required number of events to be received.
 func (t *TestMonitorClient) WaitEvents(ctx context.Context, count int) {
 	for {
 		if len(t.Events) == count {

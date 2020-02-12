@@ -21,7 +21,6 @@ package monitor
 import (
 	"context"
 	"runtime"
-	"time"
 
 	"github.com/sirupsen/logrus"
 
@@ -33,8 +32,6 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
-
-const defaultMetricsInterval = time.Second * 5
 
 type monitorServer struct {
 	connections map[string]*networkservice.Connection
