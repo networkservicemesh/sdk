@@ -2,9 +2,8 @@ package addNames
 
 import (
 	"context"
-	"github.com/pkg/errors"
-
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -22,17 +21,22 @@ func NewClient() networkservice.NetworkServiceClient {
 }
 
 func (a *addNamesClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	varNames := map[string]string{"NODE_NAME": "NodeNameKey", "POD_NAME": "PodNameKey", "CLUSTER_NAME": "ClusterNameKey"}
-	if request.GetRequestConnection().Labels == nil {
-		request.GetRequestConnection().Labels = make(map[string]string)
+	names := map[string]string{"NODE_NAME": "NodeNameKey", "POD_NAME": "PodNameKey", "CLUSTER_NAME": "ClusterNameKey"}
+	conn := request.GetRequestConnection()
+	if conn.Labels == nil {
+		conn.Labels = make(map[string]string)
 	}
-	for envName, labelName := range varNames {
-		value, isPresent := os.LookupEnv(envName)
-		if !isPresent {
-			return nil, errors.Errorf("Environment variable %s is not set", envName)
+	for envName, labelName := range names {
+		value, exists := os.LookupEnv(envName)
+		if exists {
+			oldValue, isPresent := conn.Labels[labelName]
+			if isPresent {
+				logrus.Warningf("Label %s was assigned to %s. Overwriting.", labelName, oldValue)
+			}
+			conn.Labels[labelName] = value
+		} else {
+			logrus.Warningf("Environment variable %s is not set.", envName)
 		}
-		// TODO do i need warning when overwrite values???
-		request.GetRequestConnection().Labels[labelName] = value
 	}
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
