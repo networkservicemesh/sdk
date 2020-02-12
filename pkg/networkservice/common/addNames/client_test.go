@@ -18,7 +18,7 @@ type addNamesTestData struct {
 
 var tests = []addNamesTestData{
 	{
-		"labels not present",
+		"the-labels-map-is-not-present",
 		map[string]string{
 			"NODE_NAME":    "AAA",
 			"POD_NAME":     "BBB",
@@ -32,6 +32,60 @@ var tests = []addNamesTestData{
 				"NodeNameKey":    "AAA",
 				"PodNameKey":     "BBB",
 				"ClusterNameKey": "CCC",
+			},
+		},
+	},
+	{
+		"the-labels-are-overwritten",
+		map[string]string{
+			"NODE_NAME":    "A1",
+			"POD_NAME":     "B2",
+			"CLUSTER_NAME": "C3",
+		},
+		&networkservice.NetworkServiceRequest{
+			Connection: &networkservice.Connection{
+				Labels: map[string]string{
+					"NodeNameKey":     "OLD_VAL1",
+					"PodNameKey":      "OLD_VAL2",
+					"ClusterNameKey":  "OLD_VAL3",
+					"SomeOtherLabel1": "DDD",
+					"SomeOtherLabel2": "EEE",
+				},
+			},
+		},
+		&networkservice.Connection{
+			Labels: map[string]string{
+				"NodeNameKey":     "A1",
+				"PodNameKey":      "B2",
+				"ClusterNameKey":  "C3",
+				"SomeOtherLabel1": "DDD",
+				"SomeOtherLabel2": "EEE",
+			},
+		},
+	},
+	{
+		"some-of-the-envs-are-not-present",
+		map[string]string{
+			"CLUSTER_NAME": "ABC",
+		},
+		&networkservice.NetworkServiceRequest{
+			Connection: &networkservice.Connection{
+				Labels: map[string]string{
+					"NodeNameKey":     "OLD_VAL1",
+					"PodNameKey":      "OLD_VAL2",
+					"ClusterNameKey":  "OLD_VAL3",
+					"SomeOtherLabel1": "DDD",
+					"SomeOtherLabel2": "EEE",
+				},
+			},
+		},
+		&networkservice.Connection{
+			Labels: map[string]string{
+				"NodeNameKey":     "OLD_VAL1",
+				"PodNameKey":      "OLD_VAL2",
+				"ClusterNameKey":  "ABC",
+				"SomeOtherLabel1": "DDD",
+				"SomeOtherLabel2": "EEE",
 			},
 		},
 	},
