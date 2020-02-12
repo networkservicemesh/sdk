@@ -1,27 +1,27 @@
-package addNames
+package clientinfo
 
 import (
 	"context"
+	"os"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-
-	"os"
 )
 
-type addNamesClient struct{}
+var names = map[string]string{"NODE_NAME": "NodeNameKey", "POD_NAME": "PodNameKey", "CLUSTER_NAME": "ClusterNameKey"}
+
+type clientInfo struct{}
 
 // NewClient - creates a new networkservice.NetworkServiceClient chain element that adds pod, node and cluster names to request from corresponding environment variables
 func NewClient() networkservice.NetworkServiceClient {
-	return &addNamesClient{}
+	return &clientInfo{}
 }
 
-func (a *addNamesClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	names := map[string]string{"NODE_NAME": "NodeNameKey", "POD_NAME": "PodNameKey", "CLUSTER_NAME": "ClusterNameKey"}
+func (a *clientInfo) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	conn := request.GetRequestConnection()
 	if conn.Labels == nil {
 		conn.Labels = make(map[string]string)
@@ -41,6 +41,6 @@ func (a *addNamesClient) Request(ctx context.Context, request *networkservice.Ne
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
 
-func (a *addNamesClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (a *clientInfo) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }

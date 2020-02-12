@@ -1,22 +1,23 @@
-package addNames
+package clientinfo
 
 import (
 	"context"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"os"
 	"reflect"
 	"testing"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type addNamesTestData struct {
+type clientInfoTestData struct {
 	name    string
 	envs    map[string]string
 	request *networkservice.NetworkServiceRequest
 	want    *networkservice.Connection
 }
 
-var tests = []addNamesTestData{
+var tests = []clientInfoTestData{
 	{
 		"the-labels-map-is-not-present",
 		map[string]string{
@@ -72,8 +73,7 @@ var tests = []addNamesTestData{
 			Connection: &networkservice.Connection{
 				Labels: map[string]string{
 					"NodeNameKey":     "OLD_VAL1",
-					"PodNameKey":      "OLD_VAL2",
-					"ClusterNameKey":  "OLD_VAL3",
+					"ClusterNameKey":  "OLD_VAL2",
 					"SomeOtherLabel1": "DDD",
 					"SomeOtherLabel2": "EEE",
 				},
@@ -82,7 +82,6 @@ var tests = []addNamesTestData{
 		&networkservice.Connection{
 			Labels: map[string]string{
 				"NodeNameKey":     "OLD_VAL1",
-				"PodNameKey":      "OLD_VAL2",
 				"ClusterNameKey":  "ABC",
 				"SomeOtherLabel1": "DDD",
 				"SomeOtherLabel2": "EEE",
@@ -91,25 +90,25 @@ var tests = []addNamesTestData{
 	},
 }
 
-func Test_addNamesClient_Request(t *testing.T) {
+func Test_clientInfo_Request(t *testing.T) {
 	server := next.NewNetworkServiceClient(NewClient())
 	for _, testData := range tests {
 		for name, value := range testData.envs {
 			err := os.Setenv(name, value)
 			if err != nil {
-				t.Errorf("%s: addNamesClient.Request() unable to set up environment variable: %v", testData.name, err)
+				t.Errorf("%s: clientInfo.Request() unable to set up environment variable: %v", testData.name, err)
 			}
 		}
 
 		got, _ := server.Request(context.Background(), testData.request)
 		if !reflect.DeepEqual(got, testData.want) {
-			t.Errorf("%s: addNamesClient.Request() = %v, want %v", testData.name, got, testData.want)
+			t.Errorf("%s: clientInfo.Request() = %v, want %v", testData.name, got, testData.want)
 		}
 
 		for name := range testData.envs {
 			err := os.Unsetenv(name)
 			if err != nil {
-				t.Errorf("%s: addNamesClient.Request() unable to unset environment variable: %v", testData.name, err)
+				t.Errorf("%s: clientInfo.Request() unable to unset environment variable: %v", testData.name, err)
 			}
 		}
 	}
