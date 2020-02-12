@@ -28,7 +28,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-var names = map[string]string{"NODE_NAME": "NodeNameKey", "POD_NAME": "PodNameKey", "CLUSTER_NAME": "ClusterNameKey"}
+const nodeEnv, podEnv, clusterEnv, nodeLabel, podLabel, clusterLabel = "NODE_NAME", "POD_NAME", "CLUSTER_NAME", "NodeNameKey", "PodNameKey", "ClusterNameKey"
 
 type clientInfo struct{}
 
@@ -38,6 +38,8 @@ func NewClient() networkservice.NetworkServiceClient {
 }
 
 func (a *clientInfo) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	var names = map[string]string{nodeEnv: nodeLabel, podEnv: podLabel, clusterEnv: clusterLabel}
+
 	conn := request.GetRequestConnection()
 	if conn.Labels == nil {
 		conn.Labels = make(map[string]string)

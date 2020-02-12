@@ -14,26 +14,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package clientinfo
+package clientinfo_test
 
 import (
 	"context"
 	"os"
-	"reflect"
 	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/stretchr/testify/assert"
 )
 
-type clientInfoTestData struct {
+var testData = []struct {
 	name    string
 	envs    map[string]string
 	request *networkservice.NetworkServiceRequest
 	want    *networkservice.Connection
-}
-
-var tests = []clientInfoTestData{
+}{
 	{
 		"the-labels-map-is-not-present",
 		map[string]string{
@@ -107,25 +106,29 @@ var tests = []clientInfoTestData{
 }
 
 func Test_clientInfo_Request(t *testing.T) {
-	server := next.NewNetworkServiceClient(NewClient())
-	for _, testData := range tests {
-		for name, value := range testData.envs {
-			err := os.Setenv(name, value)
-			if err != nil {
-				t.Errorf("%s: clientInfo.Request() unable to set up environment variable: %v", testData.name, err)
-			}
-		}
+	for _, test := range testData {
+		t.Run(test.name, func(t *testing.T) {
+			testRequest(t, test.envs, test.request, test.want)
+		})
+	}
+}
 
-		got, _ := server.Request(context.Background(), testData.request)
-		if !reflect.DeepEqual(got, testData.want) {
-			t.Errorf("%s: clientInfo.Request() = %v, want %v", testData.name, got, testData.want)
+func testRequest(t *testing.T, envs map[string]string, request *networkservice.NetworkServiceRequest, want *networkservice.Connection) {
+	for name, value := range envs {
+		err := os.Setenv(name, value)
+		if err != nil {
+			t.Errorf("clientInfo.Request() unable to set up environment variable: %v", err)
 		}
+	}
 
-		for name := range testData.envs {
-			err := os.Unsetenv(name)
-			if err != nil {
-				t.Errorf("%s: clientInfo.Request() unable to unset environment variable: %v", testData.name, err)
-			}
+	server := next.NewNetworkServiceClient(clientinfo.NewClient())
+	got, _ := server.Request(context.Background(), request)
+	assert.Equal(t, got, want)
+
+	for name := range envs {
+		err := os.Unsetenv(name)
+		if err != nil {
+			t.Errorf("clientInfo.Request() unable to unset environment variable: %v", err)
 		}
 	}
 }
