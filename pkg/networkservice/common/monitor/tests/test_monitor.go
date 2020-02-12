@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package monitor provides a TestMonitorClient test class to perform client monitoring based on MonitorConnection call and tests for monitor sdk chain components
-package monitor
+// Package tests provides a TestMonitorClient test class to perform client monitoring based on MonitorConnection call and tests for monitor sdk chain components
+package tests
 
 import (
 	"context"

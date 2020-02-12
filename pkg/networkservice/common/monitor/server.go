@@ -22,8 +22,6 @@ import (
 	"context"
 	"runtime"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/golang/protobuf/ptypes/empty"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -91,7 +89,7 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 				Connections: map[string]*networkservice.Connection{conn.GetId(): conn},
 			}
 			if sendErr := m.send(ctx, event); sendErr != nil {
-				logrus.Errorf("Error during sending event: %v", sendErr)
+				trace.Log(ctx).Errorf("Error during sending event: %v", sendErr)
 			}
 		})
 	}
@@ -107,7 +105,7 @@ func (m *monitorServer) Close(ctx context.Context, conn *networkservice.Connecti
 			Connections: map[string]*networkservice.Connection{conn.GetId(): conn},
 		}
 		if err := m.send(ctx, event); err != nil {
-			logrus.Errorf("Error during sending event: %v", err)
+			trace.Log(ctx).Errorf("Error during sending event: %v", err)
 		}
 	})
 	return next.Server(ctx).Close(ctx, conn)
