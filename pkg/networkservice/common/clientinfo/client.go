@@ -31,23 +31,28 @@ import (
 )
 
 const (
-	nodeEnv      = "NODE_NAME"
-	podEnv       = "POD_NAME"
-	clusterEnv   = "CLUSTER_NAME"
-	nodeLabel    = "NodeNameKey"
-	podLabel     = "PodNameKey"
-	clusterLabel = "ClusterNameKey"
+	nodeNameEnv      = "NODE_NAME"
+	podNameEnv       = "POD_NAME"
+	clusterNameEnv   = "CLUSTER_NAME"
+	nodeNameLabel    = "NodeNameKey"
+	podNameLabel     = "PodNameKey"
+	clusterNameLabel = "ClusterNameKey"
 )
 
 type clientInfo struct{}
 
-// NewClient - creates a new networkservice.NetworkServiceClient chain element that adds pod, node and cluster names to request from corresponding environment variables
+// NewClient - creates a new networkservice.NetworkServiceClient chain element that adds pod, node and cluster names
+// to request from corresponding environment variables
 func NewClient() networkservice.NetworkServiceClient {
 	return &clientInfo{}
 }
 
 func (a *clientInfo) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	var names = map[string]string{nodeEnv: nodeLabel, podEnv: podLabel, clusterEnv: clusterLabel}
+	var names = map[string]string{
+		nodeNameEnv:    nodeNameLabel,
+		podNameEnv:     podNameLabel,
+		clusterNameEnv: clusterNameLabel,
+	}
 
 	conn := request.GetRequestConnection()
 	if conn.Labels == nil {
@@ -55,15 +60,15 @@ func (a *clientInfo) Request(ctx context.Context, request *networkservice.Networ
 	}
 	for envName, labelName := range names {
 		value, exists := os.LookupEnv(envName)
-		if exists {
-			oldValue, isPresent := conn.Labels[labelName]
-			if isPresent {
-				logrus.Warningf("The label %s was already assigned to %s. Overwriting.", labelName, oldValue)
-			}
-			conn.Labels[labelName] = value
-		} else {
+		if !exists {
 			logrus.Warningf("Environment variable %s is not set. Skipping.", envName)
+			continue
 		}
+		oldValue, isPresent := conn.Labels[labelName]
+		if isPresent {
+			logrus.Warningf("The label %s was already assigned to %s. Overwriting.", labelName, oldValue)
+		}
+		conn.Labels[labelName] = value
 	}
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
