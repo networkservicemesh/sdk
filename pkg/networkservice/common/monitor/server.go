@@ -24,11 +24,11 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
 	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
 type monitorServer struct {
@@ -64,6 +64,8 @@ func (m *monitorServer) MonitorConnections(selector *networkservice.MonitorScope
 	m.executor.AsyncExec(func() {
 		monitor := newMonitorFilter(selector, srv)
 		m.monitors = append(m.monitors, monitor)
+
+		// Send initial transfer of all data available
 		_ = monitor.Send(&networkservice.ConnectionEvent{
 			Type:        networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,
 			Connections: m.connections,
@@ -81,39 +83,47 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 	if err == nil {
 		m.executor.AsyncExec(func() {
 			m.connections[conn.GetId()] = conn
+			// Send update event
 			event := &networkservice.ConnectionEvent{
 				Type:        networkservice.ConnectionEventType_UPDATE,
 				Connections: map[string]*networkservice.Connection{conn.GetId(): conn},
 			}
-			m.send(ctx, event)
+			if sendErr := m.send(ctx, event); sendErr != nil {
+				trace.Log(ctx).Errorf("Error during sending event: %v", sendErr)
+			}
 		})
 	}
 	return conn, err
 }
 
 func (m *monitorServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	// Remove connection object we have and send DELETE
 	m.executor.AsyncExec(func() {
 		delete(m.connections, conn.GetId())
 		event := &networkservice.ConnectionEvent{
 			Type:        networkservice.ConnectionEventType_DELETE,
 			Connections: map[string]*networkservice.Connection{conn.GetId(): conn},
 		}
-		m.send(ctx, event)
+		if err := m.send(ctx, event); err != nil {
+			trace.Log(ctx).Errorf("Error during sending event: %v", err)
+		}
 	})
 	return next.Server(ctx).Close(ctx, conn)
 }
 
-func (m *monitorServer) send(ctx context.Context, event *networkservice.ConnectionEvent) {
-	newMonitors := make([]networkservice.MonitorConnection_MonitorConnectionsServer, len(m.monitors))
-	for _, srv := range m.monitors {
+// send - perform a send to clients.
+func (m *monitorServer) send(ctx context.Context, event *networkservice.ConnectionEvent) (err error) {
+	newMonitors := []networkservice.MonitorConnection_MonitorConnectionsServer{}
+	for _, filter := range m.monitors {
 		select {
-		case <-srv.Context().Done():
+		case <-filter.Context().Done():
 		default:
-			if err := srv.Send(event); err != nil {
+			if err = filter.Send(event); err != nil {
 				trace.Log(ctx).Errorf("Error sending event: %+v: %+v", event, err)
 			}
-			newMonitors = append(newMonitors, srv)
+			newMonitors = append(newMonitors, filter)
 		}
 	}
 	m.monitors = newMonitors
+	return err
 }

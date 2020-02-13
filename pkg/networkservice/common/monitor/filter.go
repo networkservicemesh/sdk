@@ -32,6 +32,7 @@ func newMonitorFilter(selector *networkservice.MonitorScopeSelector, srv network
 	}
 }
 
+// Send - Filter connections based on event passed and selector for this filter
 func (m *monitorFilter) Send(event *networkservice.ConnectionEvent) error {
 	rv := &networkservice.ConnectionEvent{
 		Type:        event.Type,
