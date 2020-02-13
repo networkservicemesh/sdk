@@ -19,24 +19,15 @@ package clientinfo
 
 import (
 	"context"
-	"os"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/clientinfoutils"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-)
-
-const (
-	nodeNameEnv      = "NODE_NAME"
-	podNameEnv       = "POD_NAME"
-	clusterNameEnv   = "CLUSTER_NAME"
-	nodeNameLabel    = "NodeNameKey"
-	podNameLabel     = "PodNameKey"
-	clusterNameLabel = "ClusterNameKey"
 )
 
 type clientInfo struct{}
@@ -48,28 +39,11 @@ func NewClient() networkservice.NetworkServiceClient {
 }
 
 func (a *clientInfo) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	var names = map[string]string{
-		nodeNameEnv:    nodeNameLabel,
-		podNameEnv:     podNameLabel,
-		clusterNameEnv: clusterNameLabel,
-	}
-
 	conn := request.GetRequestConnection()
 	if conn.Labels == nil {
 		conn.Labels = make(map[string]string)
 	}
-	for envName, labelName := range names {
-		value, exists := os.LookupEnv(envName)
-		if !exists {
-			logrus.Warningf("Environment variable %s is not set. Skipping.", envName)
-			continue
-		}
-		oldValue, isPresent := conn.Labels[labelName]
-		if isPresent {
-			logrus.Warningf("The label %s was already assigned to %s. Overwriting.", labelName, oldValue)
-		}
-		conn.Labels[labelName] = value
-	}
+	clientinfoutils.AddClientInfo(conn.Labels)
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
 
