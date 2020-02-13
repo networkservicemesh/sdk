@@ -19,8 +19,14 @@ package monitor_test
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"testing"
 	"time"
+
+	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor"
 
@@ -59,18 +65,19 @@ func (t *updateConnServer) Close(context.Context, *networkservice.Connection) (*
 func TestMonitorSendToRightClient(t *testing.T) {
 	myServer := &dummyMonitorServer{}
 
-	ctx := context.Background()
 	ms := monitor.NewServer(&myServer.MonitorConnectionServer)
 
 	updateCounter := 0
 	updateEnv := newUpdateTailServer(updateCounter)
 
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelFunc()
+
 	srv := next.NewWrappedNetworkServiceServer(trace.NewNetworkServiceServer, ms, updateEnv)
 
-	localMonitor := monitor.NewTestMonitorClient()
-	remoteMonitor := monitor.NewTestMonitorClient()
-	localMonitor.BeginMonitoring(myServer, "local-nsm")
-	remoteMonitor.BeginMonitoring(myServer, "remote-nsm")
+	localMonitor := newTestMonitorClient(ctx, myServer, "local-nsm")
+	remoteMonitor := newTestMonitorClient(ctx, myServer, "remote-nsm")
+
 	// We need to be sure we have 2 clients waiting for Events, we could check to have initial transfers for this.
 	timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -125,7 +132,8 @@ func newUpdateTailServer(updateCounter int) *updateConnServer {
 func TestMonitorIsClosedProperly(t *testing.T) {
 	myServer := &dummyMonitorServer{}
 
-	ctx := context.Background()
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelFunc()
 	ms := monitor.NewServer(&myServer.MonitorConnectionServer)
 
 	updateCounter := 0
@@ -133,9 +141,7 @@ func TestMonitorIsClosedProperly(t *testing.T) {
 
 	srv := next.NewWrappedNetworkServiceServer(trace.NewNetworkServiceServer, ms, updateEnv)
 
-	localMonitor := monitor.NewTestMonitorClient()
-
-	localMonitor.BeginMonitoring(myServer, "local-nsm")
+	localMonitor := newTestMonitorClient(ctx, myServer, "local-nsm")
 
 	// We need to be sure we have 2 clients waiting for Events, we could check to have initial transfers for this.
 
@@ -161,16 +167,18 @@ func TestMonitorIsClosedProperly(t *testing.T) {
 	require.Equal(t, networkservice.ConnectionEventType_UPDATE, localMonitor.Events[1].Type)
 
 	// Cancel context for monitor
-	localMonitor.Cancel()
+	cancel()
 
-	newLocalMon := monitor.NewTestMonitorClient()
-	newLocalMon.BeginMonitoring(myServer, "local-nsm")
+	ctx, cancelFunc = context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelFunc()
+
+	newLocalMon := newTestMonitorClient(ctx, myServer, "local-nsm")
 
 	// Just dummy update
 	nsr.Connection.Context.IpContext.ExtraPrefixes = append(nsr.Connection.Context.IpContext.ExtraPrefixes, "10.2.3.1")
 	_, _ = srv.Request(ctx, nsr)
 
-	localMonitor.WaitEvents(timeoutCtx, 2)
+	newLocalMon.WaitEvents(timeoutCtx, 2)
 }
 
 func createConnection(id, server string) *networkservice.Connection {
@@ -190,5 +198,77 @@ func createConnection(id, server string) *networkservice.Connection {
 				DstIpRequired: true,
 			},
 		},
+	}
+}
+
+// testMonitorClient - implementation of test monitor client.
+type testMonitorClient struct {
+	Events       []*networkservice.ConnectionEvent
+	eventChannel chan *networkservice.ConnectionEvent
+	ctx          context.Context
+	grpc.ServerStream
+	executor  serialize.Executor
+	finalized chan struct{}
+}
+
+// newTestMonitorClient - construct a new client.
+func newTestMonitorClient(ctx context.Context, server networkservice.MonitorConnectionServer, segmentName string) *testMonitorClient {
+	rv := &testMonitorClient{
+		eventChannel: make(chan *networkservice.ConnectionEvent, 10),
+		ctx:          ctx,
+		executor:     serialize.NewExecutor(),
+		finalized:    make(chan struct{}),
+	}
+	runtime.SetFinalizer(rv, func(server *testMonitorClient) {
+		close(server.finalized)
+	})
+
+	go func() {
+		select {
+		case <-ctx.Done():
+		default:
+			_ = server.MonitorConnections(
+				&networkservice.MonitorScopeSelector{
+					PathSegments: []*networkservice.PathSegment{{Name: segmentName}},
+				}, rv)
+		}
+	}()
+
+	return rv
+}
+
+// Send - receive event from server.
+func (t *testMonitorClient) Send(evt *networkservice.ConnectionEvent) error {
+	t.executor.SyncExec(func() {
+		t.Events = append(t.Events, evt)
+		t.eventChannel <- evt
+	})
+	return nil
+}
+
+// Context - current context to perform checks.
+func (t *testMonitorClient) Context() context.Context {
+	return t.ctx
+}
+
+// WaitEvents - wait for a required number of events to be received.
+func (t *testMonitorClient) WaitEvents(ctx context.Context, count int) {
+	for {
+		var curLen = 0
+		t.executor.SyncExec(func() {
+			curLen = len(t.Events)
+		})
+		if curLen >= count {
+			logrus.Infof("Waiting for Events %v Complete", count)
+			break
+		}
+		// Wait for event to occur or timeout happen.
+		select {
+		case <-ctx.Done():
+			// Context is done, we need to exit
+			logrus.Errorf("Failed to wait for Events count %v current value is: %v", count, curLen)
+			return
+		case <-t.eventChannel:
+		}
 	}
 }

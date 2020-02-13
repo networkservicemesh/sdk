@@ -83,7 +83,7 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 	if err == nil {
 		m.executor.AsyncExec(func() {
 			m.connections[conn.GetId()] = conn
-			// Send update only if connection is updated or has metrics pending updates
+			// Send update event
 			event := &networkservice.ConnectionEvent{
 				Type:        networkservice.ConnectionEventType_UPDATE,
 				Connections: map[string]*networkservice.Connection{conn.GetId(): conn},
@@ -97,7 +97,7 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 }
 
 func (m *monitorServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	// Pass metrics monitor, so it could be used later in chain.
+	// Remove connection object we have and send DELETE
 	m.executor.AsyncExec(func() {
 		delete(m.connections, conn.GetId())
 		event := &networkservice.ConnectionEvent{
