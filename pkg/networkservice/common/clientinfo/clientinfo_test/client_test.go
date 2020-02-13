@@ -36,7 +36,7 @@ var testData = []struct {
 	want    *networkservice.Connection
 }{
 	{
-		"the-labels-map-is-not-present",
+		"labels map is not present",
 		map[string]string{
 			"NODE_NAME":    "AAA",
 			"POD_NAME":     "BBB",
@@ -54,7 +54,7 @@ var testData = []struct {
 		},
 	},
 	{
-		"the-labels-are-overwritten",
+		"labels are overwritten",
 		map[string]string{
 			"NODE_NAME":    "A1",
 			"POD_NAME":     "B2",
@@ -82,7 +82,7 @@ var testData = []struct {
 		},
 	},
 	{
-		"some-of-the-envs-are-not-present",
+		"some of the envs are not present",
 		map[string]string{
 			"CLUSTER_NAME": "ABC",
 		},
@@ -118,8 +118,7 @@ func Test_clientInfo_Request(t *testing.T) {
 
 func testRequest(t *testing.T, envs map[string]string, request *networkservice.NetworkServiceRequest, want *networkservice.Connection) {
 	for name, value := range envs {
-		err := os.Setenv(name, value)
-		if err != nil {
+		if err := os.Setenv(name, value); err != nil {
 			t.Errorf("clientInfo.Request() unable to set up environment variable: %v", err)
 		}
 	}
@@ -129,8 +128,7 @@ func testRequest(t *testing.T, envs map[string]string, request *networkservice.N
 	assert.Equal(t, got, want)
 
 	for name := range envs {
-		err := os.Unsetenv(name)
-		if err != nil {
+		if err := os.Unsetenv(name); err != nil {
 			t.Errorf("clientInfo.Request() unable to unset environment variable: %v", err)
 		}
 	}
