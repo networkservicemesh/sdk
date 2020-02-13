@@ -137,9 +137,14 @@ func (f *healClient) recvEvent() {
 				}
 
 			case networkservice.ConnectionEventType_DELETE:
-				for id, conn := range event.GetConnections() {
-					f.requestors[id]()
+				for _, conn := range event.GetConnections() {
 					delete(f.reported, conn.GetId())
+				}
+			}
+
+			for id, request := range f.requestors {
+				if _, ok := f.reported[id]; !ok {
+					request()
 				}
 			}
 		})
