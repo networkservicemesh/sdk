@@ -49,26 +49,30 @@ func NewWrappedRegistryClient(wrapper RegistryClientWrapper, clients ...registry
 
 // NewRegistryClient - chains together clients into a single registry.NetworkServiceRegistryClient
 func NewRegistryClient(clients []registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
-	return NewWrappedRegistryClient(nil, clients...)
+	return NewWrappedRegistryClient(notWrapClient, clients...)
 }
 
 func (n *nextRegistryClient) RegisterNSE(ctx context.Context, request *registry.NSERegistration, opts ...grpc.CallOption) (*registry.NSERegistration, error) {
 	if n.index+1 < len(n.clients) {
 		return n.clients[n.index].RegisterNSE(withNextRegistryClient(ctx, &nextRegistryClient{clients: n.clients, index: n.index + 1}), request)
 	}
-	return n.clients[n.index].RegisterNSE(withNextRegistryClient(ctx, nil), request, opts...)
+	return n.clients[n.index].RegisterNSE(withNextRegistryClient(ctx, &tailRegistryClient{}), request, opts...)
 }
 
 func (n *nextRegistryClient) BulkRegisterNSE(ctx context.Context, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_BulkRegisterNSEClient, error) {
 	if n.index+1 < len(n.clients) {
 		return n.clients[n.index].BulkRegisterNSE(withNextRegistryClient(ctx, &nextRegistryClient{clients: n.clients, index: n.index + 1}), opts...)
 	}
-	return n.clients[n.index].BulkRegisterNSE(withNextRegistryClient(ctx, nil), opts...)
+	return n.clients[n.index].BulkRegisterNSE(withNextRegistryClient(ctx, &tailRegistryClient{}), opts...)
 }
 
 func (n *nextRegistryClient) RemoveNSE(ctx context.Context, request *registry.RemoveNSERequest, opts ...grpc.CallOption) (*empty.Empty, error) {
 	if n.index+1 < len(n.clients) {
 		return n.clients[n.index].RemoveNSE(withNextRegistryClient(ctx, &nextRegistryClient{clients: n.clients, index: n.index + 1}), request)
 	}
-	return n.clients[n.index].RemoveNSE(withNextRegistryClient(ctx, nil), request, opts...)
+	return n.clients[n.index].RemoveNSE(withNextRegistryClient(ctx, &tailRegistryClient{}), request, opts...)
+}
+
+func notWrapClient(c registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
+	return c
 }
