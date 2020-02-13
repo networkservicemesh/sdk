@@ -187,36 +187,22 @@ func TestNewClient_MissingConnectionsInInit(t *testing.T) {
 	defer TearDown(f)
 	require.Nil(t, err)
 
-	r := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id:             "conn-1",
-			NetworkService: "ns-1",
-		},
+	conns := []*networkservice.Connection{
+		{Id: "conn-1", NetworkService: "ns-1"},
+		{Id: "conn-2", NetworkService: "ns-2"},
 	}
 
-	conn, err := f.Client.Request(context.Background(), r)
+	conn, err := f.Client.Request(context.Background(), &networkservice.NetworkServiceRequest{Connection: conns[0]})
 	require.Nil(t, err)
-	require.True(t, reflect.DeepEqual(conn, r.GetConnection()))
+	require.True(t, reflect.DeepEqual(conn, conns[0]))
 
-	r = &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id:             "conn-2",
-			NetworkService: "ns-2",
-		},
-	}
-
-	conn, err = f.Client.Request(context.Background(), r)
+	conn, err = f.Client.Request(context.Background(), &networkservice.NetworkServiceRequest{Connection: conns[1]})
 	require.Nil(t, err)
-	require.True(t, reflect.DeepEqual(conn, r.GetConnection()))
+	require.True(t, reflect.DeepEqual(conn, conns[1]))
 
 	err = f.ServerStream.Send(&networkservice.ConnectionEvent{
-		Type: networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,
-		Connections: map[string]*networkservice.Connection{
-			"conn-1": {
-				Id:             "conn-1",
-				NetworkService: "ns-1",
-			},
-		},
+		Type:        networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,
+		Connections: map[string]*networkservice.Connection{conns[0].GetId(): conns[0]},
 	})
 	require.Nil(t, err)
 
@@ -249,6 +235,6 @@ func TestNewClient_MissingConnectionsInInit(t *testing.T) {
 		return false
 	}
 
-	require.True(t, contains(healedIDs, "conn-1"))
-	require.True(t, contains(healedIDs, "conn-2"))
+	require.True(t, contains(healedIDs, conns[0].GetId()))
+	require.True(t, contains(healedIDs, conns[1].GetId()))
 }
