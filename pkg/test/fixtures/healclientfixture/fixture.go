@@ -48,10 +48,10 @@ func (t *TestOnHeal) Close(ctx context.Context, in *networkservice.Connection, o
 	panic("implement me")
 }
 
-// callNotifier sends struct{}{} to notifier channel when h called
-func callNotifier(notifier chan struct{}, h ClientRequestFunc) ClientRequestFunc {
+// callNotifier sends received networkservice.NetworkServiceRequest to notifier channel when h called
+func callNotifier(notifier chan *networkservice.NetworkServiceRequest, h ClientRequestFunc) ClientRequestFunc {
 	return func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (i *networkservice.Connection, e error) {
-		defer func() { notifier <- struct{}{} }()
+		notifier <- in
 		if h != nil {
 			return h(ctx, in, opts...)
 		}
@@ -73,8 +73,8 @@ type Fixture struct {
 	// OnHeal pointer to test chain that will be used in case of healing
 	OnHeal *TestOnHeal
 
-	// OnHealNotifierCh receives struct{}{} every time when 'OnHeal' called
-	OnHealNotifierCh chan struct{}
+	// OnHealNotifierCh receives *networkservice.NetworkServiceRequest every time when 'OnHeal' called
+	OnHealNotifierCh chan *networkservice.NetworkServiceRequest
 
 	// MockMonitorServer fake implementation of MonitorConnectionServer, passed to constructor of 'healClient'
 	MockMonitorServer *mockmonitorconnection.MockMonitorServer
@@ -89,8 +89,8 @@ type Fixture struct {
 	CancelFunc func()
 }
 
-// SetupWithSingleRequest initialize Fixture and calls Request with 'request' passed
-func SetupWithSingleRequest(f *Fixture) error {
+// Setup make some basic Fixture initialization
+func Setup(f *Fixture) error {
 	f.MockMonitorServer = mockmonitorconnection.New()
 
 	monitorClient, err := f.MockMonitorServer.Client(context.Background())
@@ -99,18 +99,13 @@ func SetupWithSingleRequest(f *Fixture) error {
 	}
 
 	f.OnHeal = &TestOnHeal{}
-	f.OnHealNotifierCh = make(chan struct{})
+	f.OnHealNotifierCh = make(chan *networkservice.NetworkServiceRequest)
 	f.OnHeal.r = callNotifier(f.OnHealNotifierCh, f.OnHeal.r)
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	f.CancelFunc = cancelFunc
 	f.Client = chain.NewNetworkServiceClient(
 		heal.NewClient(ctx, monitorClient, addressof.NetworkServiceClient(f.OnHeal)))
-
-	f.Conn, err = f.Client.Request(context.Background(), f.Request)
-	if err != nil {
-		return err
-	}
 
 	f.ServerStream, f.CloseStream, err = f.MockMonitorServer.Stream(context.Background())
 	if err != nil {
@@ -125,4 +120,19 @@ func TearDown(f *Fixture) {
 	f.CloseStream()
 	f.CancelFunc()
 	f.MockMonitorServer.Close()
+}
+
+// SetupWithSingleRequest initialize Fixture and calls Request with 'request' passed
+func SetupWithSingleRequest(f *Fixture) error {
+	err := Setup(f)
+	if err != nil {
+		return err
+	}
+
+	f.Conn, err = f.Client.Request(context.Background(), f.Request)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

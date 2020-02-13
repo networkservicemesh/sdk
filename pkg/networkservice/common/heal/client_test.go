@@ -28,6 +28,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	waitForTimeout = 5 * time.Second
+	tickTimeout    = 10 * time.Millisecond
+)
+
 func TestHealClient_Request(t *testing.T) {
 	f := &Fixture{
 		Request: &networkservice.NetworkServiceRequest{
@@ -72,7 +77,7 @@ func TestHealClient_Request(t *testing.T) {
 			return false
 		}
 	}
-	require.Eventually(t, cond, 5*time.Second, 10*time.Millisecond)
+	require.Eventually(t, cond, waitForTimeout, tickTimeout)
 }
 
 func TestHealClient_MonitorClose(t *testing.T) {
@@ -110,7 +115,7 @@ func TestHealClient_MonitorClose(t *testing.T) {
 			return false
 		}
 	}
-	require.Eventually(t, cond, 5*time.Second, 10*time.Millisecond)
+	require.Eventually(t, cond, waitForTimeout, tickTimeout)
 }
 
 func TestHealClient_EmptyInit(t *testing.T) {
@@ -172,6 +177,78 @@ func TestHealClient_SeveralConnection(t *testing.T) {
 
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	_, _, err = f.MockMonitorServer.Stream(ctx)
-	require.NotNil(t, err)
+	require.NotNil(t, err) // we expect healClient called MonitorConnections method once
 	cancelFunc()
+}
+
+func TestNewClient_MissingConnectionsInInit(t *testing.T) {
+	f := &Fixture{}
+	err := Setup(f)
+	defer TearDown(f)
+	require.Nil(t, err)
+
+	r := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id:             "conn-1",
+			NetworkService: "ns-1",
+		},
+	}
+
+	conn, err := f.Client.Request(context.Background(), r)
+	require.Nil(t, err)
+	require.True(t, reflect.DeepEqual(conn, r.GetConnection()))
+
+	r = &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id:             "conn-2",
+			NetworkService: "ns-2",
+		},
+	}
+
+	conn, err = f.Client.Request(context.Background(), r)
+	require.Nil(t, err)
+	require.True(t, reflect.DeepEqual(conn, r.GetConnection()))
+
+	err = f.ServerStream.Send(&networkservice.ConnectionEvent{
+		Type: networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,
+		Connections: map[string]*networkservice.Connection{
+			"conn-1": {
+				Id:             "conn-1",
+				NetworkService: "ns-1",
+			},
+		},
+	})
+	require.Nil(t, err)
+
+	// we emulate situation that server managed to handle only the first connection
+	// second connection should came in the UPDATE event, but we emulate server's falling down
+	f.CloseStream()
+	// at that point we expect that 'healClient' start healing both 'conn-1' and 'conn-2'
+
+	healedIDs := []string{}
+
+	cond := func() bool {
+		select {
+		case r := <-f.OnHealNotifierCh:
+			healedIDs = append(healedIDs, r.GetConnection().GetId())
+			return true
+		default:
+			return false
+		}
+	}
+
+	require.Eventually(t, cond, waitForTimeout, tickTimeout)
+	require.Eventually(t, cond, waitForTimeout, tickTimeout)
+
+	contains := func(arr []string, item string) bool {
+		for _, a := range arr {
+			if a == item {
+				return true
+			}
+		}
+		return false
+	}
+
+	require.True(t, contains(healedIDs, "conn-1"))
+	require.True(t, contains(healedIDs, "conn-2"))
 }

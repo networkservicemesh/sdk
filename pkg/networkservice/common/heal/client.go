@@ -116,8 +116,8 @@ func (f *healClient) recvEvent() {
 		event, err := f.eventReceiver.Recv()
 		f.updateExecutor.AsyncExec(func() {
 			if err != nil {
-				for id := range f.reported {
-					f.requestors[id]()
+				for id, r := range f.requestors {
+					r()
 					delete(f.reported, id)
 				}
 				f.init()
