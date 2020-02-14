@@ -1,0 +1,29 @@
+---
+name: NSMBot Automerge of go.{mod,sum} updates?
+on:
+  pull_request:
+    branches:
+      - 'master'
+    paths:
+      - 'go.mod'
+      - 'go.sum'
+jobs:
+  automerge:
+    name: automerge
+    runs-on: ubuntu-latest
+    if: ${{ github.actor == 'nsmbot' }}
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v1
+      - name: Fetch master
+        run: |
+          git remote -v
+          git fetch --depth=1 origin master
+      - name: Only allow go.mod and go.sum changes
+        run: |
+          find . -type f ! -name 'go.mod' ! -name 'go.sum' -exec git diff --exit-code origin/master -- {} +
+      - name: Automerge nsmbot PR
+        uses: ridedott/merge-me-action@master
+        with:
+          GITHUB_LOGIN: nsmbot
+          GITHUB_TOKEN: ${{ secrets.NSM_BOT_GITHUB_TOKEN }}
