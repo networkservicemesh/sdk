@@ -23,7 +23,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/clientinfoutils"
+	"github.com/networkservicemesh/sdk/pkg/tools/clientinfo"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
@@ -43,7 +43,7 @@ func (a *clientInfo) Request(ctx context.Context, request *networkservice.Networ
 	if conn.Labels == nil {
 		conn.Labels = make(map[string]string)
 	}
-	clientinfoutils.AddClientInfo(conn.Labels)
+	clientinfo.AddClientInfo(ctx, conn.Labels)
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
 

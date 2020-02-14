@@ -14,13 +14,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package clientinfoutils provides a set of utilities for adding client info to labels map
-package clientinfoutils
+// Package clientinfo provides a set of utilities for adding client info to labels map
+package clientinfo
 
 import (
+	"context"
 	"os"
 
-	"github.com/sirupsen/logrus"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/trace"
 )
 
 const (
@@ -34,7 +35,7 @@ const (
 
 // AddClientInfo adds client info (node/pod/cluster names) to provided map, taking this info from corresponding
 // environment variables
-func AddClientInfo(labels map[string]string) {
+func AddClientInfo(ctx context.Context, labels map[string]string) {
 	names := map[string]string{
 		nodeNameEnv:    nodeNameLabel,
 		podNameEnv:     podNameLabel,
@@ -43,12 +44,12 @@ func AddClientInfo(labels map[string]string) {
 	for envName, labelName := range names {
 		value, exists := os.LookupEnv(envName)
 		if !exists {
-			logrus.Warningf("Environment variable %s is not set. Skipping.", envName)
+			trace.Log(ctx).Warningf("Environment variable %s is not set. Skipping.", envName)
 			continue
 		}
 		oldValue, isPresent := labels[labelName]
 		if isPresent {
-			logrus.Warningf("The label %s was already assigned to %s. Overwriting.", labelName, oldValue)
+			trace.Log(ctx).Warningf("The label %s was already assigned to %s. Overwriting.", labelName, oldValue)
 		}
 		labels[labelName] = value
 	}
