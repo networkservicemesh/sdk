@@ -122,3 +122,8 @@ jobs:
         run: |
           grep ^replace go.mod || exit 0
           exit 1
+  captureRunEnv:
+    name: Capture CI Run Env
+    runs-on: ubuntu-latest
+    steps:
+      - run: printenv
