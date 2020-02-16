@@ -61,14 +61,14 @@ func (n *nextClient) Request(ctx context.Context, request *networkservice.Networ
 	if n.index+1 < len(n.clients) {
 		return n.clients[n.index].Request(withNextClient(ctx, &nextClient{clients: n.clients, index: n.index + 1}), request, opts...)
 	}
-	return n.clients[n.index].Request(withNextClient(ctx, newTailClient()), request, opts...)
+	return n.clients[n.index].Request(withNextClient(ctx, nil), request, opts...)
 }
 
 func (n *nextClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	if n.index+1 < len(n.clients) {
 		return n.clients[n.index].Close(withNextClient(ctx, &nextClient{clients: n.clients, index: n.index + 1}), conn, opts...)
 	}
-	return n.clients[n.index].Close(withNextClient(ctx, newTailClient()), conn, opts...)
+	return n.clients[n.index].Close(withNextClient(ctx, nil), conn, opts...)
 }
 
 func notWrapClient(c networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {

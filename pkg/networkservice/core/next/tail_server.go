@@ -28,10 +28,6 @@ import (
 // to insure that we never call a method on a nil object
 type tailServer struct{}
 
-func newTailServer() *tailServer {
-	return &tailServer{}
-}
-
 func (t *tailServer) Request(_ context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	return request.GetConnection(), nil
 }
