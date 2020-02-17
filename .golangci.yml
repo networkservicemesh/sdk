@@ -188,3 +188,8 @@ issues:
       linters:
         - govet
       text: "lostcancel"
+    # Sometimes test functions just get long :(
+    - path: pkg/networkservice/common/monitor/server_test.go
+      linters:
+        - funlen
+      text: "Function 'TestMonitor' is too long"
