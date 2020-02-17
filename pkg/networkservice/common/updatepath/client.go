@@ -39,17 +39,17 @@ func NewClient(name string) networkservice.NetworkServiceClient {
 }
 
 func (u *updatePathClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	path := request.GetConnection().GetPath()
 	// Handle zero index case
-	if int(request.GetConnection().GetPath().GetIndex()) == len(request.GetConnection().GetPath().GetPathSegments()) {
-		request.GetConnection().GetPath().PathSegments = append(request.GetConnection().GetPath().PathSegments, &networkservice.PathSegment{})
+	if int(path.GetIndex()) == len(path.GetPathSegments()) {
+		path.PathSegments = append(path.PathSegments, &networkservice.PathSegment{})
 	}
-	if int(request.GetConnection().GetPath().GetIndex()) >= len(request.GetConnection().GetPath().GetPathSegments()) {
+	if int(path.GetIndex()) >= len(path.GetPathSegments()) {
 		return nil, errors.Errorf("NetworkServiceRequest.Connection.Path.Index(%d) >= len(NetworkServiceRequest.Connection.Path.PathSegments)(%d)",
-			request.GetConnection().GetPath().GetIndex(),
-			len(request.GetConnection().GetPath().GetPathSegments()))
+			path.GetIndex(), len(path.GetPathSegments()))
 	}
-	request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].Name = u.name
-	request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].Id = request.GetConnection().GetId()
+	path.GetPathSegments()[path.GetIndex()].Name = u.name
+	path.GetPathSegments()[path.GetIndex()].Id = request.GetConnection().GetId()
 	// TODO set token and expiration
 	// request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].Token =
 	// request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].Expires =
