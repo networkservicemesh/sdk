@@ -61,7 +61,8 @@ func withNextRegistryClient(parent context.Context, next registry.NetworkService
 // RegistryClient -
 //   Returns the RegistryClient registry.NetworkServiceRegistryClient to be called in the chain from the context.Context
 func RegistryClient(ctx context.Context) registry.NetworkServiceRegistryClient {
-	if rv, ok := ctx.Value(nextRegistryClientKey).(registry.NetworkServiceRegistryClient); ok {
+	rv, ok := ctx.Value(nextRegistryClientKey).(registry.NetworkServiceRegistryClient)
+	if ok && rv != nil {
 		return rv
 	}
 	return &tailRegistryClient{}
