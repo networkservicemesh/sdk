@@ -14,58 +14,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package updatepath_test provides tests for updatePathClient and updatePathServer chain elements
 package updatepath_test
 
 import (
 	"context"
+	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-
-	"testing"
 )
 
-var clientTestData = []struct {
+var serverTestData = []struct {
 	name    string
 	nscName string
 	request *networkservice.NetworkServiceRequest
 	want    *networkservice.Connection
 }{
 	{
-		"add new segment when index == 0",
-		"nsc-1",
+		"add new segment when index was in the last position",
+		"nsc-2",
 		&networkservice.NetworkServiceRequest{
 			Connection: &networkservice.Connection{
-				Id: "conn-1",
-				Path: &networkservice.Path{
-					Index:        0,
-					PathSegments: []*networkservice.PathSegment{},
-				},
-			},
-		},
-		&networkservice.Connection{
-			Id: "conn-1",
-			Path: &networkservice.Path{
-				Index: 0,
-				PathSegments: []*networkservice.PathSegment{
-					{
-						Name: "nsc-1",
-						Id:   "conn-1",
-					},
-				},
-			},
-		},
-	},
-	{
-		"valid index in path array",
-		"nsc-1",
-		&networkservice.NetworkServiceRequest{
-			Connection: &networkservice.Connection{
-				Id: "conn-1",
+				Id: "conn-2",
 				Path: &networkservice.Path{
 					Index: 1,
 					PathSegments: []*networkservice.PathSegment{
@@ -73,20 +46,59 @@ var clientTestData = []struct {
 							Name: "nsc-0",
 							Id:   "conn-0",
 						}, {
-							Name: "nsc-name-will-be-overridden",
-							Id:   "conn-will-be-overridden",
-						}, {
-							Name: "nsc-2",
-							Id:   "conn-2",
+							Name: "nsc-1",
+							Id:   "conn-1",
 						},
 					},
 				},
 			},
 		},
 		&networkservice.Connection{
-			Id: "conn-1",
+			Id: "conn-2",
 			Path: &networkservice.Path{
-				Index: 1,
+				Index: 2,
+				PathSegments: []*networkservice.PathSegment{
+					{
+						Name: "nsc-0",
+						Id:   "conn-0",
+					}, {
+						Name: "nsc-1",
+						Id:   "conn-1",
+					}, {
+						Name: "nsc-2",
+						Id:   "conn-2",
+					},
+				},
+			},
+		},
+	},
+	{
+		"override values when index is valid in path array",
+		"nsc-2",
+		&networkservice.NetworkServiceRequest{
+			Connection: &networkservice.Connection{
+				Id: "conn-2",
+				Path: &networkservice.Path{
+					Index: 1,
+					PathSegments: []*networkservice.PathSegment{
+						{
+							Name: "nsc-0",
+							Id:   "conn-0",
+						}, {
+							Name: "nsc-1",
+							Id:   "conn-1",
+						}, {
+							Name: "nsc-will-be-overridden",
+							Id:   "conn-will-be-overridden",
+						},
+					},
+				},
+			},
+		},
+		&networkservice.Connection{
+			Id: "conn-2",
+			Path: &networkservice.Path{
+				Index: 2,
 				PathSegments: []*networkservice.PathSegment{
 					{
 						Name: "nsc-0",
@@ -126,17 +138,17 @@ var clientTestData = []struct {
 	},
 }
 
-func Test_updatePathClient_Request(t *testing.T) {
-	for _, data := range clientTestData {
+func Test_updatePathServer_Request(t *testing.T) {
+	for _, data := range serverTestData {
 		test := data
 		t.Run(test.name, func(t *testing.T) {
-			testClientRequest(t, test.nscName, test.request, test.want)
+			testServerRequest(t, test.nscName, test.request, test.want)
 		})
 	}
 }
 
-func testClientRequest(t *testing.T, nscName string, request *networkservice.NetworkServiceRequest, want *networkservice.Connection) {
-	client := next.NewNetworkServiceClient(updatepath.NewClient(nscName))
+func testServerRequest(t *testing.T, nscName string, request *networkservice.NetworkServiceRequest, want *networkservice.Connection) {
+	client := next.NewNetworkServiceServer(updatepath.NewServer(nscName))
 	got, _ := client.Request(context.Background(), request)
 	assert.Equal(t, want, got)
 }
