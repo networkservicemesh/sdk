@@ -56,21 +56,21 @@ func (n *nextRegistryClient) RegisterNSE(ctx context.Context, request *registry.
 	if n.index+1 < len(n.clients) {
 		return n.clients[n.index].RegisterNSE(withNextRegistryClient(ctx, &nextRegistryClient{clients: n.clients, index: n.index + 1}), request)
 	}
-	return n.clients[n.index].RegisterNSE(withNextRegistryClient(ctx, &tailRegistryClient{}), request, opts...)
+	return n.clients[n.index].RegisterNSE(withNextRegistryClient(ctx, nil), request, opts...)
 }
 
 func (n *nextRegistryClient) BulkRegisterNSE(ctx context.Context, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_BulkRegisterNSEClient, error) {
 	if n.index+1 < len(n.clients) {
 		return n.clients[n.index].BulkRegisterNSE(withNextRegistryClient(ctx, &nextRegistryClient{clients: n.clients, index: n.index + 1}), opts...)
 	}
-	return n.clients[n.index].BulkRegisterNSE(withNextRegistryClient(ctx, &tailRegistryClient{}), opts...)
+	return n.clients[n.index].BulkRegisterNSE(withNextRegistryClient(ctx, nil), opts...)
 }
 
 func (n *nextRegistryClient) RemoveNSE(ctx context.Context, request *registry.RemoveNSERequest, opts ...grpc.CallOption) (*empty.Empty, error) {
 	if n.index+1 < len(n.clients) {
 		return n.clients[n.index].RemoveNSE(withNextRegistryClient(ctx, &nextRegistryClient{clients: n.clients, index: n.index + 1}), request)
 	}
-	return n.clients[n.index].RemoveNSE(withNextRegistryClient(ctx, &tailRegistryClient{}), request, opts...)
+	return n.clients[n.index].RemoveNSE(withNextRegistryClient(ctx, nil), request, opts...)
 }
 
 func notWrapClient(c registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {

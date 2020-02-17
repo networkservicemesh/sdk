@@ -64,5 +64,5 @@ func RegistryClient(ctx context.Context) registry.NetworkServiceRegistryClient {
 	if rv, ok := ctx.Value(nextRegistryClientKey).(registry.NetworkServiceRegistryClient); ok {
 		return rv
 	}
-	return nil
+	return &tailRegistryClient{}
 }
