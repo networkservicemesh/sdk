@@ -39,19 +39,19 @@ func NewServer(name string) networkservice.NetworkServiceServer {
 }
 
 func (u *updatePathServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if int(request.GetConnection().GetPath().GetIndex()) >= len(request.GetConnection().GetPath().GetPathSegments()) {
+	path := request.GetConnection().GetPath()
+	if int(path.GetIndex()) >= len(path.GetPathSegments()) {
 		return nil, errors.Errorf("NetworkServiceRequest.Connection.Path.Index(%d) >= len(NetworkServiceRequest.Connection.Path.PathSegments)(%d)",
-			request.GetConnection().GetPath().GetIndex(),
-			len(request.GetConnection().GetPath().GetPathSegments()))
+			path.GetIndex(), len(path.GetPathSegments()))
 	}
 	// increment the index
-	request.GetConnection().GetPath().Index++
+	path.Index++
 	// extend the path (presuming that we need to)
-	if int(request.GetConnection().GetPath().GetIndex()) == len(request.GetConnection().GetPath().GetPathSegments()) {
-		request.GetConnection().GetPath().PathSegments = append(request.GetConnection().GetPath().PathSegments, &networkservice.PathSegment{})
+	if int(path.GetIndex()) == len(path.GetPathSegments()) {
+		path.PathSegments = append(path.PathSegments, &networkservice.PathSegment{})
 	}
-	request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].Name = u.name
-	request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].Id = request.GetConnection().GetId()
+	path.GetPathSegments()[path.GetIndex()].Name = u.name
+	path.GetPathSegments()[path.GetIndex()].Id = request.GetConnection().GetId()
 	// TODO set token and expiration
 	// request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].Token =
 	// request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].Expires =
