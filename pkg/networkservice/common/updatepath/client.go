@@ -41,7 +41,7 @@ func NewClient(name string) networkservice.NetworkServiceClient {
 func (u *updatePathClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	path := request.GetConnection().GetPath()
 	// Handle zero index case
-	if int(path.GetIndex()) == len(path.GetPathSegments()) {
+	if path.GetIndex() == 0 && len(path.GetPathSegments()) == 0 {
 		path.PathSegments = append(path.PathSegments, &networkservice.PathSegment{})
 	}
 	if int(path.GetIndex()) >= len(path.GetPathSegments()) {
