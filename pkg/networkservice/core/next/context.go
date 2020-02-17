@@ -48,13 +48,17 @@ func withNextServer(parent context.Context, next networkservice.NetworkServiceSe
 // Server -
 //   Returns the Server networkservice.NetworkServiceServer to be called in the chain from the context.Context
 func Server(ctx context.Context) networkservice.NetworkServiceServer {
-	if rv, ok := ctx.Value(nextServerKey).(networkservice.NetworkServiceServer); ok {
+	rv, ok := ctx.Value(nextServerKey).(networkservice.NetworkServiceServer)
+	if !ok {
+		client, ok := ctx.Value(nextClientKey).(networkservice.NetworkServiceClient)
+		if ok {
+			rv = adapters.NewClientToServer(client)
+		}
+	}
+	if rv != nil {
 		return rv
 	}
-	if rv, ok := ctx.Value(nextClientKey).(networkservice.NetworkServiceClient); ok {
-		return adapters.NewClientToServer(rv)
-	}
-	return nil
+	return &tailServer{}
 }
 
 // withNextClient -
@@ -70,11 +74,15 @@ func withNextClient(parent context.Context, next networkservice.NetworkServiceCl
 // Client -
 //   Returns the Client networkservice.NetworkServiceClient to be called in the chain from the context.Context
 func Client(ctx context.Context) networkservice.NetworkServiceClient {
-	if rv, ok := ctx.Value(nextClientKey).(networkservice.NetworkServiceClient); ok {
+	rv, ok := ctx.Value(nextClientKey).(networkservice.NetworkServiceClient)
+	if !ok {
+		server, ok := ctx.Value(nextServerKey).(networkservice.NetworkServiceServer)
+		if ok {
+			rv = adapters.NewServerToClient(server)
+		}
+	}
+	if rv != nil {
 		return rv
 	}
-	if rv, ok := ctx.Value(nextServerKey).(networkservice.NetworkServiceServer); ok {
-		return adapters.NewServerToClient(rv)
-	}
-	return nil
+	return &tailClient{}
 }

@@ -61,14 +61,14 @@ func (n *nextServer) Request(ctx context.Context, request *networkservice.Networ
 	if n.index+1 < len(n.servers) {
 		return n.servers[n.index].Request(withNextServer(ctx, &nextServer{servers: n.servers, index: n.index + 1}), request)
 	}
-	return n.servers[n.index].Request(withNextServer(ctx, newTailServer()), request)
+	return n.servers[n.index].Request(withNextServer(ctx, nil), request)
 }
 
 func (n *nextServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	if n.index+1 < len(n.servers) {
 		return n.servers[n.index].Close(withNextServer(ctx, &nextServer{servers: n.servers, index: n.index + 1}), conn)
 	}
-	return n.servers[n.index].Close(withNextServer(ctx, newTailServer()), conn)
+	return n.servers[n.index].Close(withNextServer(ctx, nil), conn)
 }
 
 func notWrapServer(server networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {

@@ -29,10 +29,6 @@ import (
 // to insure that we never call a method on a nil object
 type tailClient struct{}
 
-func newTailClient() *tailClient {
-	return &tailClient{}
-}
-
 func (t *tailClient) Request(_ context.Context, request *networkservice.NetworkServiceRequest, _ ...grpc.CallOption) (*networkservice.Connection, error) {
 	return request.GetConnection(), nil
 }
