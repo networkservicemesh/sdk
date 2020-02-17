@@ -45,10 +45,10 @@ func TestASyncExec(t *testing.T) {
 }
 
 func TestSyncExec(t *testing.T) {
-	exec := serialize.NewExecutor()
+	var exec serialize.Executor
 	count := 0
 	completion0 := make(chan struct{})
-	exec.SyncExec(func() {
+	<-exec.AsyncExec(func() {
 		assert.Equal(t, count, 0)
 		count = 1
 		close(completion0)
@@ -60,8 +60,8 @@ func TestSyncExec(t *testing.T) {
 	}
 }
 
-func TestAsyncExecOrder1(t *testing.T) {
-	exec := serialize.NewExecutor()
+func TestExecOrder1(t *testing.T) {
+	var exec serialize.Executor
 	count := 0
 	trigger0 := make(chan struct{})
 	completion0 := make(chan struct{})
@@ -86,9 +86,9 @@ func TestAsyncExecOrder1(t *testing.T) {
 	<-completion1
 }
 
-// Same as TestAsyncExecOrder1 but making sure out of order fails as expected
-func TestAsyncExecOrder2(t *testing.T) {
-	exec := serialize.NewExecutor()
+// Same as TestExecOrder1 but making sure out of order fails as expected
+func TestExecOrder2(t *testing.T) {
+	var exec serialize.Executor
 	count := 0
 
 	trigger1 := make(chan struct{})
@@ -115,8 +115,8 @@ func TestAsyncExecOrder2(t *testing.T) {
 	<-completion1
 }
 
-func TestAsyncExecOneAtATime(t *testing.T) {
-	exec := serialize.NewExecutor()
+func TestExecOneAtATime(t *testing.T) {
+	var exec serialize.Executor
 	start := make(chan struct{})
 	count := 100
 	finished := make([]chan struct{}, count)
@@ -136,5 +136,20 @@ func TestAsyncExecOneAtATime(t *testing.T) {
 	close(start)
 	for _, done := range finished {
 		<-done
+	}
+}
+
+func BenchmarkExecutorAsync(b *testing.B) {
+	var exec serialize.Executor
+	for i := 0; i < b.N-1; i++ {
+		exec.AsyncExec(func() {})
+	}
+	<-exec.AsyncExec(func() {})
+}
+
+func BenchmarkExecutorSync(b *testing.B) {
+	var exec serialize.Executor
+	for i := 0; i < b.N; i++ {
+		<-exec.AsyncExec(func() {})
 	}
 }

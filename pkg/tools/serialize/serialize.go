@@ -19,59 +19,50 @@
 // will be executed in order
 package serialize
 
-import "runtime"
+import (
+	"sync"
+	"sync/atomic"
+)
 
-// Executor - allows one at a time in order execution of func()s.  func()s can be queued Asynchronously or
-// Synchronously
-type Executor interface {
-	AsyncExec(func())
-	SyncExec(func())
+const (
+	channelSize = 100
+)
+
+// Executor - a struct that can be used to guarantee exclusive, in order execution of functions.
+type Executor struct {
+	execCh chan func()
+	init   sync.Once
+	count  int32
 }
 
-type executor struct {
-	execCh      chan func()
-	finalizedCh chan struct{}
-}
-
-// NewExecutor - returns a new Executor
+// NewExecutor - provides a new Executor
+// Deprecated: Please just used Executor{} in the future.  The zero value of Executor works just fine.
 func NewExecutor() Executor {
-	rv := &executor{
-		execCh:      make(chan func(), 100),
-		finalizedCh: make(chan struct{}),
-	}
-	go eventLoop(rv.execCh, rv.finalizedCh)
-	runtime.SetFinalizer(rv, func(f *executor) {
-		close(f.finalizedCh)
+	return Executor{}
+}
+
+// AsyncExec - guarantees f() will be executed Exclusively and in the Order submitted.
+//        It immediately returns a channel that will be closed when f() has completed execution.
+func (e *Executor) AsyncExec(f func()) <-chan struct{} {
+	// Initialize *once*
+	e.init.Do(func() {
+		e.execCh = make(chan func(), channelSize)
 	})
-	return rv
-}
-
-// eventLoop is intentionally written as a separate function passed channels directly
-// because if we make it a receiver on the executor{} then it will prevent garbage collection of the
-// executor.
-func eventLoop(execCh chan func(), finalizedCh chan struct{}) {
-	for {
-		select {
-		case exec := <-execCh:
-			exec()
-			continue
-		case <-finalizedCh:
-		}
-		break
+	// Start go routine if we don't have one
+	if atomic.AddInt32(&e.count, 1) == 1 {
+		go func() {
+			for g := range e.execCh {
+				g()
+				if atomic.AddInt32(&e.count, -1) == 0 {
+					return
+				}
+			}
+		}()
 	}
-}
-
-// AsyncExec - queues exec for execution and returns without waiting for exec() to run
-func (t *executor) AsyncExec(exec func()) {
-	t.execCh <- exec
-}
-
-// SyncExec - queues exec for execution and returns *after* exec() has run
-func (t *executor) SyncExec(exec func()) {
 	done := make(chan struct{})
-	t.execCh <- func() {
-		exec()
+	e.execCh <- func() {
+		f()
 		close(done)
 	}
-	<-done
+	return done
 }
