@@ -19,8 +19,9 @@ package heal
 
 import (
 	"context"
-	"runtime"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
@@ -45,10 +46,11 @@ type healClient struct {
 	eventReceiver     networkservice.MonitorConnection_MonitorConnectionsClient
 	updateExecutor    serialize.Executor
 	recvEventExecutor serialize.Executor
-	cancelFunc        context.CancelFunc
+	chainContext      context.Context
 }
 
 // NewClient - creates a new networkservice.NetworkServiceClient chain element that implements the healing algorithm
+//             - ctx    - context for the lifecycle of the *Client* itself.  Cancel when discarding the client.
 //             - client - networkservice.MonitorConnectionClient that can be used to call MonitorConnection against the endpoint
 //             - onHeal - *networkservice.NetworkServiceClient.  Since networkservice.NetworkServiceClient is an interface
 //                        (and thus a pointer) *networkservice.NetworkServiceClient is a double pointer.  Meaning it
@@ -60,7 +62,7 @@ type healClient struct {
 //                        If we are part of a larger chain or a server, we should pass the resulting chain into
 //                        this constructor before we actually have a pointer to it.
 //                        If onHeal nil, onHeal will be pointed to the returned networkservice.NetworkServiceClient
-func NewClient(client networkservice.MonitorConnectionClient, onHeal *networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
+func NewClient(ctx context.Context, client networkservice.MonitorConnectionClient, onHeal *networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	rv := &healClient{
 		onHeal:            onHeal,
 		requestors:        make(map[string]func()),
@@ -70,54 +72,76 @@ func NewClient(client networkservice.MonitorConnectionClient, onHeal *networkser
 		updateExecutor:    serialize.NewExecutor(),
 		eventReceiver:     nil, // This is intentionally nil
 		recvEventExecutor: serialize.NewExecutor(),
+		chainContext:      ctx,
 	}
+
 	if rv.onHeal == nil {
 		rv.onHeal = addressof.NetworkServiceClient(rv)
 	}
-	rv.updateExecutor.AsyncExec(func() {
-		runtime.SetFinalizer(rv, func(f *healClient) {
-			f.updateExecutor.AsyncExec(func() {
-				if f.cancelFunc != nil {
-					f.cancelFunc()
-				}
-			})
-		})
-		ctx, cancelFunc := context.WithCancel(context.Background())
-		rv.cancelFunc = cancelFunc
-		// TODO decide what to do about err here
-		recv, _ := rv.client.MonitorConnections(ctx, nil)
-		rv.eventReceiver = recv
-		rv.recvEventExecutor.AsyncExec(rv.recvEvent)
-	})
+
+	rv.init()
 
 	return rv
+}
+
+func (f *healClient) init() {
+	if f.eventReceiver != nil {
+		select {
+		case <-f.eventReceiver.Context().Done():
+			return
+		default:
+			f.eventReceiver = nil
+		}
+	}
+
+	logrus.Info("Creating new eventReceiver")
+
+	recv, err := f.client.MonitorConnections(f.chainContext, &networkservice.MonitorScopeSelector{}, grpc.WaitForReady(true))
+	if err != nil {
+		f.updateExecutor.AsyncExec(func() {
+			f.init()
+		})
+		return
+	}
+
+	f.eventReceiver = recv
+	f.recvEventExecutor.AsyncExec(f.recvEvent)
 }
 
 func (f *healClient) recvEvent() {
 	select {
 	case <-f.eventReceiver.Context().Done():
-		f.eventReceiver = nil
+		return
 	default:
 		event, err := f.eventReceiver.Recv()
-		if err != nil {
-			event = nil
-		}
 		f.updateExecutor.AsyncExec(func() {
+			if err != nil {
+				for id, r := range f.requestors {
+					r()
+					delete(f.reported, id)
+				}
+				f.init()
+				return
+			}
+
 			switch event.GetType() {
 			case networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER:
 				f.reported = event.GetConnections()
+				if event.GetConnections() == nil {
+					f.reported = map[string]*networkservice.Connection{}
+				}
+
 			case networkservice.ConnectionEventType_UPDATE:
 				for _, conn := range event.GetConnections() {
 					f.reported[conn.GetId()] = conn
 				}
+
 			case networkservice.ConnectionEventType_DELETE:
 				for _, conn := range event.GetConnections() {
 					delete(f.reported, conn.GetId())
-					if f.requestors[conn.GetId()] != nil {
-						f.requestors[conn.GetId()]()
-					}
 				}
 			}
+
 			for id, request := range f.requestors {
 				if _, ok := f.reported[id]; !ok {
 					request()
@@ -125,6 +149,7 @@ func (f *healClient) recvEvent() {
 			}
 		})
 	}
+
 	f.recvEventExecutor.AsyncExec(f.recvEvent)
 }
 
@@ -147,14 +172,18 @@ func (f *healClient) Request(ctx context.Context, request *networkservice.Networ
 			ctx = extend.WithValuesFromContext(timeCtx, ctx)
 			// TODO wrap another span around this
 			_, err := (*f.onHeal).Request(ctx, req, opts...)
-			trace.Log(ctx).Errorf("Attempt to heal connection %s resulted in error: %+v", req.GetConnection().GetId(), err)
+			if err != nil {
+				trace.Log(ctx).Errorf("Attempt to heal connection %s resulted in error: %+v", req.GetConnection().GetId(), err)
+			}
 			cancelFunc()
 		}
 		f.closers[req.GetConnection().GetId()] = func() {
 			timeCtx, cancelFunc := context.WithTimeout(context.Background(), duration)
 			ctx = extend.WithValuesFromContext(timeCtx, ctx)
 			_, err := (*f.onHeal).Close(extend.WithValuesFromContext(timeCtx, ctx), req.GetConnection(), opts...)
-			trace.Log(ctx).Errorf("Attempt to close connection %s during heal resulted in error: %+v", req.GetConnection().GetId(), err)
+			if err != nil {
+				trace.Log(ctx).Errorf("Attempt to close connection %s during heal resulted in error: %+v", req.GetConnection().GetId(), err)
+			}
 			cancelFunc()
 		}
 	})
@@ -168,6 +197,8 @@ func (f *healClient) Close(ctx context.Context, conn *networkservice.Connection,
 	}
 	f.updateExecutor.AsyncExec(func() {
 		delete(f.requestors, conn.GetId())
+		delete(f.closers, conn.GetId())
+		delete(f.reported, conn.GetId())
 	})
 	return rv, nil
 }
