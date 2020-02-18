@@ -56,19 +56,14 @@ func Test_updatePath_chained(t *testing.T) {
 			},
 		},
 	}
+	elements := []networkservice.NetworkServiceServer{
+		adapters.NewClientToServer(updatepath.NewClient("nsc-1")),
+		updatepath.NewServer("local-nsm-1"),
+		adapters.NewClientToServer(updatepath.NewClient("local-nsm-1")),
+		updatepath.NewServer("remote-nsm-1"),
+		adapters.NewClientToServer(updatepath.NewClient("remote-nsm-1"))}
 
-	nscClient := updatepath.NewClient("nsc-1")
-	localNsmServer := updatepath.NewServer("local-nsm-1")
-	localNsmClient := updatepath.NewClient("local-nsm-1")
-	remoteNsmServer := updatepath.NewServer("remote-nsm-1")
-	remoteNsmClient := updatepath.NewClient("remote-nsm-1")
-
-	server := next.NewNetworkServiceServer(
-		adapters.NewClientToServer(nscClient),
-		localNsmServer,
-		adapters.NewClientToServer(localNsmClient),
-		remoteNsmServer,
-		adapters.NewClientToServer(remoteNsmClient))
+	server := next.NewNetworkServiceServer(elements...)
 
 	got, err := server.Request(context.Background(), request)
 	assert.Equal(t, want, got)
