@@ -40,7 +40,6 @@ func (m *monitorServerToClient) MonitorConnections(ctx context.Context, selector
 	srv := eventchannel.NewMonitorConnectionMonitorConnectionsServer(ctx, eventCh)
 	go func() {
 		_ = m.server.MonitorConnections(selector, srv)
-		close(eventCh)
 	}()
 	return eventchannel.NewMonitorConnectionMonitorConnectionsClient(eventCh), nil
 }
