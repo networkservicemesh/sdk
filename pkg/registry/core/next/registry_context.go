@@ -21,6 +21,8 @@ package next
 import (
 	"context"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
+
 	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
@@ -42,10 +44,17 @@ func withNextRegistryServer(parent context.Context, next registry.NetworkService
 // RegistryServer -
 //   Returns the RegistryServer registry.NetworkServiceRegistryServer to be called in the chain from the context.Context
 func RegistryServer(ctx context.Context) registry.NetworkServiceRegistryServer {
-	if rv, ok := ctx.Value(nextRegistryServerKey).(registry.NetworkServiceRegistryServer); ok {
+	rv, ok := ctx.Value(nextRegistryServerKey).(registry.NetworkServiceRegistryServer)
+	if !ok {
+		client, ok := ctx.Value(nextRegistryClientKey).(registry.NetworkServiceRegistryClient)
+		if ok {
+			rv = adapters.NewRegistryClientToServer(client)
+		}
+	}
+	if rv != nil {
 		return rv
 	}
-	return nil
+	return &tailRegistryServer{}
 }
 
 // withNextRegistryClient -
@@ -62,7 +71,13 @@ func withNextRegistryClient(parent context.Context, next registry.NetworkService
 //   Returns the RegistryClient registry.NetworkServiceRegistryClient to be called in the chain from the context.Context
 func RegistryClient(ctx context.Context) registry.NetworkServiceRegistryClient {
 	rv, ok := ctx.Value(nextRegistryClientKey).(registry.NetworkServiceRegistryClient)
-	if ok && rv != nil {
+	if !ok {
+		server, ok := ctx.Value(nextRegistryServerKey).(registry.NetworkServiceRegistryServer)
+		if ok {
+			rv = adapters.NewRegistryServerToClient(server)
+		}
+	}
+	if rv != nil {
 		return rv
 	}
 	return &tailRegistryClient{}
