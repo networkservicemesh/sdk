@@ -48,7 +48,10 @@ func NewWrappedRegistryClient(wrapper RegistryClientWrapper, clients ...registry
 }
 
 // NewRegistryClient - chains together clients into a single registry.NetworkServiceRegistryClient
-func NewRegistryClient(clients []registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
+func NewRegistryClient(clients ...registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
+	if len(clients) == 0 {
+		return &tailRegistryClient{}
+	}
 	return NewWrappedRegistryClient(notWrapClient, clients...)
 }
 
