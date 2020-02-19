@@ -14,60 +14,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package tests contains tests for package 'next'
-package tests
+package next_test
 
 import (
 	"context"
+	"fmt"
+	"testing"
 
-	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/golang/protobuf/ptypes/empty"
+	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 
-	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"google.golang.org/grpc"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 )
-
-type contextKeyType string
-
-const (
-	visitKey contextKeyType = "visitKey"
-)
-
-func visit(ctx context.Context) context.Context {
-	if v, ok := ctx.Value(visitKey).(*int); ok {
-		*v++
-		return ctx
-	}
-	val := 0
-	return context.WithValue(ctx, visitKey, &val)
-}
-
-func visitValue(ctx context.Context) int {
-	if v, ok := ctx.Value(visitKey).(*int); ok {
-		return *v
-	}
-	return 0
-}
-
-type testVisitNetworkServiceRegistryServer struct{}
-
-func visitRegistryServer() registry.NetworkServiceRegistryServer {
-	return &testVisitNetworkServiceRegistryServer{}
-}
-
-func (t *testVisitNetworkServiceRegistryServer) RegisterNSE(ctx context.Context, r *registry.NSERegistration) (*registry.NSERegistration, error) {
-	return next.RegistryServer(visit(ctx)).RegisterNSE(ctx, r)
-}
-
-func (t *testVisitNetworkServiceRegistryServer) BulkRegisterNSE(registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
-	return nil
-}
-
-func (t *testVisitNetworkServiceRegistryServer) RemoveNSE(ctx context.Context, r *registry.RemoveNSERequest) (*empty.Empty, error) {
-	return next.RegistryServer(visit(ctx)).RemoveNSE(ctx, r)
-}
 
 type testVisitNetworkServiceRegistryClient struct{}
 
@@ -105,20 +69,38 @@ func emptyRegistryClient() registry.NetworkServiceRegistryClient {
 	return &testEmptyRegistryClient{}
 }
 
-type testEmptyRegistryServer struct{}
-
-func (t *testEmptyRegistryServer) RegisterNSE(context.Context, *registry.NSERegistration) (*registry.NSERegistration, error) {
-	return nil, nil
+func TestNewNetworkServiceRegistryClientShouldNotPanic(t *testing.T) {
+	assert.NotPanics(t, func() {
+		_, _ = next.NewRegistryClient().RegisterNSE(context.Context(nil), nil)
+	})
 }
 
-func (t *testEmptyRegistryServer) BulkRegisterNSE(registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
-	return nil
-}
+func TestRegistryClientBranches(t *testing.T) {
+	samples := [][]registry.NetworkServiceRegistryClient{
+		{visitRegistryClient()},
+		{visitRegistryClient(), visitRegistryClient()},
+		{visitRegistryClient(), visitRegistryClient(), visitRegistryClient()},
+		{emptyRegistryClient(), visitRegistryClient(), visitRegistryClient()},
+		{visitRegistryClient(), emptyRegistryClient(), visitRegistryClient()},
+		{visitRegistryClient(), visitRegistryClient(), emptyRegistryClient()},
+		{adapters.NewRegistryServerToClient(visitRegistryServer())},
+		{adapters.NewRegistryServerToClient(visitRegistryServer()), visitRegistryClient()},
+		{visitRegistryClient(), adapters.NewRegistryServerToClient(visitRegistryServer()), visitRegistryClient()},
+		{visitRegistryClient(), visitRegistryClient(), adapters.NewRegistryServerToClient(visitRegistryServer())},
+		{visitRegistryClient(), adapters.NewRegistryServerToClient(emptyRegistryServer()), visitRegistryClient()},
+		{visitRegistryClient(), adapters.NewRegistryServerToClient(visitRegistryServer()), emptyRegistryClient()},
+	}
+	expects := []int{1, 2, 3, 0, 1, 2, 1, 2, 3, 3, 1, 2}
+	for i, sample := range samples {
+		msg := fmt.Sprintf("sample index: %v", i)
+		s := next.NewRegistryClient(sample...)
 
-func (t *testEmptyRegistryServer) RemoveNSE(ctx context.Context, r *registry.RemoveNSERequest) (*empty.Empty, error) {
-	return nil, nil
-}
+		ctx := visit(context.Background())
+		_, _ = s.RegisterNSE(ctx, nil)
+		assert.Equal(t, expects[i], visitValue(ctx), msg)
 
-func emptyRegistryServer() registry.NetworkServiceRegistryServer {
-	return &testEmptyRegistryServer{}
+		ctx = visit(context.Background())
+		_, _ = s.RemoveNSE(ctx, nil)
+		assert.Equal(t, expects[i], visitValue(ctx), msg)
+	}
 }

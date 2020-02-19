@@ -16,22 +16,83 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tests
+// Package next_test contains tests for package 'next'
+package next_test
 
 import (
 	"context"
 	"fmt"
 
+	"github.com/golang/protobuf/ptypes/empty"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+
 	"github.com/stretchr/testify/assert"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 
 	"testing"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 )
+
+type contextKeyType string
+
+const (
+	visitKey contextKeyType = "visitKey"
+)
+
+func visit(ctx context.Context) context.Context {
+	if v, ok := ctx.Value(visitKey).(*int); ok {
+		*v++
+		return ctx
+	}
+	val := 0
+	return context.WithValue(ctx, visitKey, &val)
+}
+
+func visitValue(ctx context.Context) int {
+	if v, ok := ctx.Value(visitKey).(*int); ok {
+		return *v
+	}
+	return 0
+}
+
+type testVisitNetworkServiceRegistryServer struct{}
+
+func visitRegistryServer() registry.NetworkServiceRegistryServer {
+	return &testVisitNetworkServiceRegistryServer{}
+}
+
+func (t *testVisitNetworkServiceRegistryServer) RegisterNSE(ctx context.Context, r *registry.NSERegistration) (*registry.NSERegistration, error) {
+	return next.RegistryServer(visit(ctx)).RegisterNSE(ctx, r)
+}
+
+func (t *testVisitNetworkServiceRegistryServer) BulkRegisterNSE(registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
+	return nil
+}
+
+func (t *testVisitNetworkServiceRegistryServer) RemoveNSE(ctx context.Context, r *registry.RemoveNSERequest) (*empty.Empty, error) {
+	return next.RegistryServer(visit(ctx)).RemoveNSE(ctx, r)
+}
+
+type testEmptyRegistryServer struct{}
+
+func (t *testEmptyRegistryServer) RegisterNSE(context.Context, *registry.NSERegistration) (*registry.NSERegistration, error) {
+	return nil, nil
+}
+
+func (t *testEmptyRegistryServer) BulkRegisterNSE(registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
+	return nil
+}
+
+func (t *testEmptyRegistryServer) RemoveNSE(ctx context.Context, r *registry.RemoveNSERequest) (*empty.Empty, error) {
+	return nil, nil
+}
+
+func emptyRegistryServer() registry.NetworkServiceRegistryServer {
+	return &testEmptyRegistryServer{}
+}
 
 func TestNewNetworkServiceServerShouldNotPanic(t *testing.T) {
 	assert.NotPanics(t, func() {
