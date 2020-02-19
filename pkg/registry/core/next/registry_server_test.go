@@ -58,21 +58,21 @@ func visitValue(ctx context.Context) int {
 	return 0
 }
 
-type testVisitNetworkServiceRegistryServer struct{}
+type testVisitRegistryServer struct{}
 
 func visitRegistryServer() registry.NetworkServiceRegistryServer {
-	return &testVisitNetworkServiceRegistryServer{}
+	return &testVisitRegistryServer{}
 }
 
-func (t *testVisitNetworkServiceRegistryServer) RegisterNSE(ctx context.Context, r *registry.NSERegistration) (*registry.NSERegistration, error) {
+func (t *testVisitRegistryServer) RegisterNSE(ctx context.Context, r *registry.NSERegistration) (*registry.NSERegistration, error) {
 	return next.RegistryServer(visit(ctx)).RegisterNSE(ctx, r)
 }
 
-func (t *testVisitNetworkServiceRegistryServer) BulkRegisterNSE(registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
+func (t *testVisitRegistryServer) BulkRegisterNSE(registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
 	return nil
 }
 
-func (t *testVisitNetworkServiceRegistryServer) RemoveNSE(ctx context.Context, r *registry.RemoveNSERequest) (*empty.Empty, error) {
+func (t *testVisitRegistryServer) RemoveNSE(ctx context.Context, r *registry.RemoveNSERequest) (*empty.Empty, error) {
 	return next.RegistryServer(visit(ctx)).RemoveNSE(ctx, r)
 }
 
@@ -94,7 +94,7 @@ func emptyRegistryServer() registry.NetworkServiceRegistryServer {
 	return &testEmptyRegistryServer{}
 }
 
-func TestNewNetworkServiceServerShouldNotPanic(t *testing.T) {
+func TestNewRegistryServerShouldNotPanic(t *testing.T) {
 	assert.NotPanics(t, func() {
 		_, _ = next.NewRegistryServer().RegisterNSE(context.Context(nil), nil)
 	})

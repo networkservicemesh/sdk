@@ -33,21 +33,21 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 )
 
-type testVisitNetworkServiceRegistryClient struct{}
+type testVisitRegistryClient struct{}
 
 func visitRegistryClient() registry.NetworkServiceRegistryClient {
-	return &testVisitNetworkServiceRegistryClient{}
+	return &testVisitRegistryClient{}
 }
 
-func (t *testVisitNetworkServiceRegistryClient) RegisterNSE(ctx context.Context, r *registry.NSERegistration, _ ...grpc.CallOption) (*registry.NSERegistration, error) {
+func (t *testVisitRegistryClient) RegisterNSE(ctx context.Context, r *registry.NSERegistration, _ ...grpc.CallOption) (*registry.NSERegistration, error) {
 	return next.RegistryClient(visit(ctx)).RegisterNSE(ctx, r)
 }
 
-func (t *testVisitNetworkServiceRegistryClient) BulkRegisterNSE(ctx context.Context, _ ...grpc.CallOption) (registry.NetworkServiceRegistry_BulkRegisterNSEClient, error) {
+func (t *testVisitRegistryClient) BulkRegisterNSE(ctx context.Context, _ ...grpc.CallOption) (registry.NetworkServiceRegistry_BulkRegisterNSEClient, error) {
 	return next.RegistryClient(visit(ctx)).BulkRegisterNSE(ctx)
 }
 
-func (t *testVisitNetworkServiceRegistryClient) RemoveNSE(ctx context.Context, r *registry.RemoveNSERequest, _ ...grpc.CallOption) (*empty.Empty, error) {
+func (t *testVisitRegistryClient) RemoveNSE(ctx context.Context, r *registry.RemoveNSERequest, _ ...grpc.CallOption) (*empty.Empty, error) {
 	return next.RegistryClient(visit(ctx)).RemoveNSE(ctx, r)
 }
 
@@ -69,7 +69,7 @@ func emptyRegistryClient() registry.NetworkServiceRegistryClient {
 	return &testEmptyRegistryClient{}
 }
 
-func TestNewNetworkServiceRegistryClientShouldNotPanic(t *testing.T) {
+func TestNewRegistryClientShouldNotPanic(t *testing.T) {
 	assert.NotPanics(t, func() {
 		_, _ = next.NewRegistryClient().RegisterNSE(context.Context(nil), nil)
 	})
