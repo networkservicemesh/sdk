@@ -74,15 +74,17 @@ func request() *networkservice.NetworkServiceRequest {
 func permuteOverMechanismPreferenceOrder(request *networkservice.NetworkServiceRequest) []*networkservice.NetworkServiceRequest {
 	var rv []*networkservice.NetworkServiceRequest
 	numMechanism := len(request.GetMechanismPreferences())
-	permutationGenerator := combin.NewPermutationGenerator(numMechanism, numMechanism)
-	for permutationGenerator.Next() {
-		permutation := permutationGenerator.Permutation(nil)
-		req := request.Clone()
-		req.MechanismPreferences = nil
-		for _, index := range permutation {
-			req.MechanismPreferences = append(req.MechanismPreferences, request.GetMechanismPreferences()[index])
+	for k := numMechanism; k > 0; k-- {
+		permutationGenerator := combin.NewPermutationGenerator(numMechanism, numMechanism)
+		for permutationGenerator.Next() {
+			permutation := permutationGenerator.Permutation(nil)
+			req := request.Clone()
+			req.MechanismPreferences = nil
+			for _, index := range permutation {
+				req.MechanismPreferences = append(req.MechanismPreferences, request.GetMechanismPreferences()[index])
+			}
+			rv = append(rv, req)
 		}
-		rv = append(rv, req)
 	}
 	return rv
 }

@@ -42,7 +42,7 @@ func NewServer(mechanisms map[string]networkservice.NetworkServiceServer) networ
 	return &mechanismsServer{mechanisms: mechanisms}
 }
 
-func (m mechanismsServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+func (m *mechanismsServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	if request.GetConnection().GetMechanism() != nil {
 		srv, ok := m.mechanisms[request.GetConnection().GetMechanism().GetType()]
 		if ok {
@@ -70,7 +70,7 @@ func (m mechanismsServer) Request(ctx context.Context, request *networkservice.N
 	return nil, errors.Errorf("Cannot support any of the requested Mechanisms: %+v", request.GetMechanismPreferences())
 }
 
-func (m mechanismsServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+func (m *mechanismsServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	srv, ok := m.mechanisms[conn.GetMechanism().GetType()]
 	if ok {
 		_, err := srv.Close(ctx, conn)
