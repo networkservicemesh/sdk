@@ -43,7 +43,7 @@ func (n *localRegistry) RegisterNSE(ctx context.Context, request *registry.NSERe
 			Scheme: "unix",
 			Path:   p.Addr.String(),
 		}
-		n.server.sockets.LoadOrStore(request.GetNetworkServiceEndpoint(), u)
+		n.server.sockets.LoadOrStore(request.GetNetworkServiceEndpoint().GetName(), u)
 	}
 	return next.RegistryServer(ctx).RegisterNSE(ctx, request)
 }
