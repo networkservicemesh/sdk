@@ -47,8 +47,11 @@ func NewWrappedRegistryServer(wrapper RegistryServerWrapper, servers ...registry
 }
 
 // NewRegistryServer - creates a chain of servers
-func NewRegistryServer(server []registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
-	return NewWrappedRegistryServer(nil, server...)
+func NewRegistryServer(servers ...registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
+	if len(servers) == 0 {
+		return &tailRegistryServer{}
+	}
+	return NewWrappedRegistryServer(notWrapServer, servers...)
 }
 
 func (n *nextRegistryServer) RegisterNSE(ctx context.Context, request *registry.NSERegistration) (*registry.NSERegistration, error) {
@@ -67,4 +70,8 @@ func (n *nextRegistryServer) RemoveNSE(ctx context.Context, request *registry.Re
 		return n.servers[n.index].RemoveNSE(withNextRegistryServer(ctx, &nextRegistryServer{servers: n.servers, index: n.index + 1}), request)
 	}
 	return n.servers[n.index].RemoveNSE(withNextRegistryServer(ctx, nil), request)
+}
+
+func notWrapServer(c registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
+	return c
 }

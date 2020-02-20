@@ -48,8 +48,11 @@ func NewWrappedRegistryClient(wrapper RegistryClientWrapper, clients ...registry
 }
 
 // NewRegistryClient - chains together clients into a single registry.NetworkServiceRegistryClient
-func NewRegistryClient(clients []registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
-	return NewWrappedRegistryClient(nil, clients...)
+func NewRegistryClient(clients ...registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
+	if len(clients) == 0 {
+		return &tailRegistryClient{}
+	}
+	return NewWrappedRegistryClient(notWrapClient, clients...)
 }
 
 func (n *nextRegistryClient) RegisterNSE(ctx context.Context, request *registry.NSERegistration, opts ...grpc.CallOption) (*registry.NSERegistration, error) {
@@ -71,4 +74,8 @@ func (n *nextRegistryClient) RemoveNSE(ctx context.Context, request *registry.Re
 		return n.clients[n.index].RemoveNSE(withNextRegistryClient(ctx, &nextRegistryClient{clients: n.clients, index: n.index + 1}), request)
 	}
 	return n.clients[n.index].RemoveNSE(withNextRegistryClient(ctx, nil), request, opts...)
+}
+
+func notWrapClient(c registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
+	return c
 }
