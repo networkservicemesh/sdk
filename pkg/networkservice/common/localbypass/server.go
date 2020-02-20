@@ -23,6 +23,8 @@ import (
 	"net/url"
 	"sync"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
+
 	"github.com/golang/protobuf/ptypes/empty"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -46,9 +48,9 @@ type localBypassServer struct {
 //                        while maintaining the NewServer pattern for use like anything else in a chain.
 //                        The value in *server must be included in the registry.NetworkServiceRegistryServer listening
 //                        so it can capture the registrations.
-func NewServer(server *registry.NetworkServiceRegistryServer) networkservice.NetworkServiceServer {
+func NewServer(registryServer *registry.NetworkServiceRegistryServer) networkservice.NetworkServiceServer {
 	rv := &localBypassServer{}
-	*server = newRegistryServer(rv)
+	*registryServer = localbypass.NewRegistryServer(rv)
 	return rv
 }
 
@@ -68,4 +70,12 @@ func (l *localBypassServer) Close(ctx context.Context, conn *networkservice.Conn
 		}
 	}
 	return next.Server(ctx).Close(ctx, conn)
+}
+
+func (l *localBypassServer) LoadOrStore(name string, u *url.URL) (interface{}, bool) {
+	return l.sockets.LoadOrStore(name, u)
+}
+
+func (l *localBypassServer) Delete(name string) {
+	l.sockets.Delete(name)
 }
