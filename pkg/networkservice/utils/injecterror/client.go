@@ -14,7 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package testerror
+// Package injecterror provides networkservice chain elements that simply returns an error.  Useful for testing.
+package injecterror
 
 import (
 	"context"
@@ -22,19 +23,20 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
+	"google.golang.org/grpc"
 )
 
-type testErrorServer struct{}
+type testErrorClient struct{}
 
-// NewServer - returns a testerror server that always returns an error when calling Request/Close
-func NewServer() networkservice.NetworkServiceServer {
-	return &testErrorServer{}
+// NewClient - returns a testerror client that always returns an error when calling Request/Close
+func NewClient() networkservice.NetworkServiceClient {
+	return &testErrorClient{}
 }
 
-func (e testErrorServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	return nil, errors.New("error originated in testErrorServer")
+func (e *testErrorClient) Request(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	return nil, errors.New("error originates in testErrorClient")
 }
 
-func (e testErrorServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	return &empty.Empty{}, errors.New("error originated in testErrorServer")
+func (e *testErrorClient) Close(ctx context.Context, in *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	return &empty.Empty{}, errors.New("error originates in testErrorClient")
 }
