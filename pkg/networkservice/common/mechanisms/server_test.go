@@ -34,8 +34,8 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/test/null"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/test/testerror"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/injecterror"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/null"
 )
 
 func server() networkservice.NetworkServiceServer {
@@ -155,7 +155,7 @@ func TestDownstreamError(t *testing.T) {
 		Type: memif.MECHANISM,
 	}
 	server := chain.NewNetworkServiceServer(mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
-		memif.MECHANISM: testerror.NewServer(),
+		memif.MECHANISM: injecterror.NewServer(),
 	}))
 	conn, err := server.Request(context.Background(), request)
 	assert.Nil(t, conn)
