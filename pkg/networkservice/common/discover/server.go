@@ -51,7 +51,6 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 		return nil, errors.WithStack(err)
 	}
 	registryResponse.NetworkServiceEndpoints = matchEndpoint(request.GetConnection().GetLabels(), registryResponse.GetNetworkService(), registryResponse.GetNetworkServiceEndpoints())
-	// TODO handle local case
 	ctx = WithCandidates(ctx, registryResponse)
 	return next.Server(ctx).Request(ctx, request)
 }
