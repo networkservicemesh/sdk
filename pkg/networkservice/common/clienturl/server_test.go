@@ -45,7 +45,7 @@ func (c *testNetworkServiceServer) Close(ctx context.Context, _ *networkservice.
 	return &empty.Empty{}, nil
 }
 
-var serverTestData = []struct {
+var testData = []struct {
 	name  string
 	ctx   context.Context
 	given *url.URL
@@ -89,16 +89,16 @@ var serverTestData = []struct {
 	},
 }
 
-func Test_filterMechanismsServer_Request(t *testing.T) {
-	for _, data := range serverTestData {
+func Test_clientUrlServer(t *testing.T) {
+	for _, data := range testData {
 		test := data
 		t.Run(test.name, func(t *testing.T) {
-			testServerRequest(test.ctx, test.given, test.want, t)
+			testServer(test.ctx, test.given, test.want, t)
 		})
 	}
 }
 
-func testServerRequest(ctx context.Context, given, want *url.URL, t *testing.T) {
+func testServer(ctx context.Context, given, want *url.URL, t *testing.T) {
 	client := next.NewNetworkServiceServer(clienturl.NewServer(given), &testNetworkServiceServer{t: t, want: want})
 	_, _ = client.Request(ctx, &networkservice.NetworkServiceRequest{})
 	_, _ = client.Close(ctx, &networkservice.Connection{})
