@@ -131,7 +131,7 @@ func testRequest(t *testing.T, envs map[string]string, registration, want *regis
 		}
 	}
 
-	client := next.NewRegistryClient([]registry.NetworkServiceRegistryClient{clientinfo.NewRegistryClient()})
+	client := next.NewRegistryClient(clientinfo.NewRegistryClient())
 	got, _ := client.RegisterNSE(context.Background(), registration)
 	assert.Equal(t, got, want)
 

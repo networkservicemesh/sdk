@@ -25,7 +25,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/clientinfoutils"
+	"github.com/networkservicemesh/sdk/pkg/tools/clientinfo"
 )
 
 type clientInfoRegistry struct{}
@@ -41,7 +41,7 @@ func (a *clientInfoRegistry) RegisterNSE(ctx context.Context, in *registry.NSERe
 	if nse.Labels == nil {
 		nse.Labels = make(map[string]string)
 	}
-	clientinfoutils.AddClientInfo(nse.Labels)
+	clientinfo.AddClientInfo(ctx, nse.Labels)
 	return next.RegistryClient(ctx).RegisterNSE(ctx, in, opts...)
 }
 
