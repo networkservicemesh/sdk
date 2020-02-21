@@ -211,13 +211,16 @@ func TestNewClient_MissingConnectionsInInit(t *testing.T) {
 	f.CloseStream()
 	// at that point we expect that 'healClient' start healing both 'conn-1' and 'conn-2'
 
-	healedIDs := []string{}
+	healedIDs := map[string]bool{}
 
 	cond := func() bool {
 		select {
 		case r := <-f.OnHealNotifierCh:
-			healedIDs = append(healedIDs, r.GetConnection().GetId())
-			return true
+			if _, ok := healedIDs[r.GetConnection().GetId()]; !ok {
+				healedIDs[r.GetConnection().GetId()] = true
+				return true
+			}
+			return false
 		default:
 			return false
 		}
@@ -226,15 +229,6 @@ func TestNewClient_MissingConnectionsInInit(t *testing.T) {
 	require.Eventually(t, cond, waitForTimeout, tickTimeout)
 	require.Eventually(t, cond, waitForTimeout, tickTimeout)
 
-	contains := func(arr []string, item string) bool {
-		for _, a := range arr {
-			if a == item {
-				return true
-			}
-		}
-		return false
-	}
-
-	require.True(t, contains(healedIDs, conns[0].GetId()))
-	require.True(t, contains(healedIDs, conns[1].GetId()))
+	require.True(t, healedIDs[conns[0].GetId()])
+	require.True(t, healedIDs[conns[1].GetId()])
 }
