@@ -44,23 +44,12 @@ func isSubset(a, b, nsLabels map[string]string) bool {
 func matchEndpoint(nsLabels map[string]string, ns *registry.NetworkService, networkServiceEndpoints []*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
 	logrus.Infof("Matching endpoint for labels %v", nsLabels)
 
-	matchedNonEmptySelector := false
 	// Iterate through the matches
 	for _, match := range ns.GetMatches() {
 		// All match source selector labels should be present in the requested labels map
 		if !isSubset(nsLabels, match.GetSourceSelector(), nsLabels) {
 			continue
 		}
-
-		if len(match.GetSourceSelector()) != 0 {
-			matchedNonEmptySelector = true
-		}
-
-		// If we already have matched any non empty selector we shouldn't match empty selector
-		if len(match.GetSourceSelector()) == 0 && matchedNonEmptySelector {
-			continue
-		}
-
 		nseCandidates := make([]*registry.NetworkServiceEndpoint, 0)
 		// Check all Destinations in that match
 		for _, destination := range match.GetRoutes() {
@@ -71,7 +60,6 @@ func matchEndpoint(nsLabels map[string]string, ns *registry.NetworkService, netw
 				}
 			}
 		}
-
 		return nseCandidates
 	}
 	return networkServiceEndpoints
