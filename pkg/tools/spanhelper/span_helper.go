@@ -53,12 +53,20 @@ func traceDepth(ctx context.Context) int {
 
 // LogFromSpan - return a logger that has a TraceHook to also log messages to the span
 func LogFromSpan(span opentracing.Span) logrus.FieldLogger {
+	logger := logrus.Logger{
+		Out:          logrus.StandardLogger().Out,
+		Formatter:    logrus.StandardLogger().Formatter,
+		Hooks:        logrus.StandardLogger().Hooks,
+		Level:        logrus.StandardLogger().Level,
+		ExitFunc:     logrus.StandardLogger().ExitFunc,
+		ReportCaller: logrus.StandardLogger().ReportCaller,
+	}
 	if span != nil {
-		logger := logrus.New().WithField("span", span)
+		logger := logger.WithField("span", span)
 		logger.Logger.AddHook(NewTraceHook(span))
 		return logger
 	}
-	return logrus.New()
+	return &logger
 }
 
 type traceHook struct {

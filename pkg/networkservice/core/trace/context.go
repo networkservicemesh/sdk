@@ -40,8 +40,16 @@ func withLog(parent context.Context, log logrus.FieldLogger) context.Context {
 
 // Log - return FieldLogger from context
 func Log(ctx context.Context) logrus.FieldLogger {
-	if rv, ok := ctx.Value(logKey).(logrus.FieldLogger); ok {
-		return rv
+	rv, ok := ctx.Value(logKey).(logrus.FieldLogger)
+	if !ok {
+		rv = &logrus.Logger{
+			Out:          logrus.StandardLogger().Out,
+			Formatter:    logrus.StandardLogger().Formatter,
+			Hooks:        logrus.StandardLogger().Hooks,
+			Level:        logrus.StandardLogger().Level,
+			ExitFunc:     logrus.StandardLogger().ExitFunc,
+			ReportCaller: logrus.StandardLogger().ReportCaller,
+		}
 	}
-	return logrus.New()
+	return rv
 }
