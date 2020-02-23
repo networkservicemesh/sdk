@@ -26,17 +26,31 @@ import (
 	"google.golang.org/grpc"
 )
 
-type testErrorClient struct{}
+type injectErrorClient struct {
+	err *error
+}
 
 // NewClient - returns a testerror client that always returns an error when calling Request/Close
-func NewClient() networkservice.NetworkServiceClient {
-	return &testErrorClient{}
+func NewClient(errs ...error) networkservice.NetworkServiceClient {
+	var err *error
+	if len(errs) > 0 {
+		err = &(errs[0])
+	}
+	return &injectErrorClient{
+		err: err,
+	}
 }
 
-func (e *testErrorClient) Request(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	return nil, errors.New("error originates in testErrorClient")
+func (e *injectErrorClient) Request(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	if e.err != nil {
+		return nil, *(e.err)
+	}
+	return nil, errors.New("error originates in injectErrorClient")
 }
 
-func (e *testErrorClient) Close(ctx context.Context, in *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	return &empty.Empty{}, errors.New("error originates in testErrorClient")
+func (e *injectErrorClient) Close(ctx context.Context, in *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	if e.err != nil {
+		return &empty.Empty{}, *(e.err)
+	}
+	return &empty.Empty{}, errors.New("error originates in injectErrorClient")
 }

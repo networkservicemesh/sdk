@@ -24,17 +24,31 @@ import (
 	"github.com/pkg/errors"
 )
 
-type testErrorServer struct{}
+type injectErrorServer struct {
+	err *error
+}
 
 // NewServer - returns a testerror server that always returns an error when calling Request/Close
-func NewServer() networkservice.NetworkServiceServer {
-	return &testErrorServer{}
+func NewServer(errs ...error) networkservice.NetworkServiceServer {
+	var err *error
+	if len(errs) > 0 {
+		err = &errs[0]
+	}
+	return &injectErrorServer{
+		err: err,
+	}
 }
 
-func (e testErrorServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	return nil, errors.New("error originated in testErrorServer")
+func (e injectErrorServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	if e.err != nil {
+		return nil, *(e.err)
+	}
+	return nil, errors.New("error originated in injectErrorServer")
 }
 
-func (e testErrorServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	return &empty.Empty{}, errors.New("error originated in testErrorServer")
+func (e injectErrorServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	if e.err != nil {
+		return &empty.Empty{}, *(e.err)
+	}
+	return &empty.Empty{}, errors.New("error originated in injectErrorServer")
 }
