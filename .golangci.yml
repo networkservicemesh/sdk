@@ -193,3 +193,11 @@ issues:
       linters:
         - funlen
       text: "Function 'TestMonitor' is too long"
+    - path: pkg/networkservice/utils/checks/checkerror/server_test.go
+      linters:
+        - dupl
+      text: "lines are duplicate of"
+    - path: pkg/networkservice/utils/checks/checkerror/client_test.go
+      linters:
+        - dupl
+      text: "lines are duplicate of"
