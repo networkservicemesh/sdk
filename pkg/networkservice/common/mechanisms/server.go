@@ -25,6 +25,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
@@ -39,7 +40,15 @@ type mechanismsServer struct {
 //                   value:  NetworkServiceServer that only handles the work for the specified mechanismType
 //                           Note: Supplied NetworkServiceServer elements should not call next.Server(ctx).{Request,Close} themselves
 func NewServer(mechanisms map[string]networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
-	return &mechanismsServer{mechanisms: mechanisms}
+	rv := &mechanismsServer{
+		mechanisms: make(map[string]networkservice.NetworkServiceServer),
+	}
+	for mechanismType, server := range mechanisms {
+		// We wrap in a chain here to make sure that if the 'server' is calling next.Server(ctx) it doesn't
+		// skips past returning here.
+		rv.mechanisms[mechanismType] = chain.NewNetworkServiceServer(server)
+	}
+	return rv
 }
 
 func (m *mechanismsServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
