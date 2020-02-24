@@ -132,6 +132,4 @@ func (m *ClientSuite) TestContextAfter() {
 	)
 	_, err := contract.Request(m.configureContext(context.Background()), m.Request.Clone())
 	assert.Nil(m.T(), err)
-	_, err = contract.Close(m.configureContext(context.Background()), m.ConnClose)
-	assert.Nil(m.T(), err)
 }
