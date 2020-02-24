@@ -24,7 +24,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkerror"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
 )
 
 // ServerSuite - test suite to check that a NetworkServiceServer implementing a Mechanism meets basic contracts
@@ -33,6 +36,7 @@ type ServerSuite struct {
 	serverUnderTest  networkservice.NetworkServiceServer
 	configureContext func(ctx context.Context) context.Context
 	mechanismType    string
+	mechanismCheck   func(*testing.T, *networkservice.Mechanism)
 	contextCheck     func(*testing.T, context.Context)
 	Request          *networkservice.NetworkServiceRequest
 	ConnClose        *networkservice.Connection
@@ -51,6 +55,7 @@ func NewServerSuite(
 	serverUnderTest networkservice.NetworkServiceServer,
 	configureContext func(ctx context.Context) context.Context,
 	mechanismType string,
+	mechanismCheck func(*testing.T, *networkservice.Mechanism),
 	contextCheck func(*testing.T, context.Context),
 	request *networkservice.NetworkServiceRequest,
 	connClose *networkservice.Connection,
@@ -59,6 +64,7 @@ func NewServerSuite(
 		serverUnderTest:  serverUnderTest,
 		configureContext: configureContext,
 		mechanismType:    mechanismType,
+		mechanismCheck:   mechanismCheck,
 		contextCheck:     contextCheck,
 		Request:          request,
 		ConnClose:        connClose,
@@ -80,6 +86,26 @@ func (m *ServerSuite) TestContextAfter() {
 		m.serverUnderTest,
 		m.mechanismType,
 		m.contextCheck,
+	)
+	_, err := contract.Request(m.configureContext(context.Background()), m.Request.Clone())
+	assert.Nil(m.T(), err)
+	_, err = contract.Close(m.configureContext(context.Background()), m.ConnClose)
+	assert.Nil(m.T(), err)
+}
+
+// TestMechanismAfter - test to make sure that any changes the server should have made to the Request.Connection.Mechanism
+//                      before calling the next chain element have been made
+func (m *ServerSuite) TestMechanismAfter() {
+	contract := chain.NewNetworkServiceServer(
+		mechanisms.NewServer(
+			map[string]networkservice.NetworkServiceServer{
+				m.mechanismType: m.serverUnderTest,
+			},
+		),
+		checkrequest.NewServer(m.T(), func(t *testing.T, request *networkservice.NetworkServiceRequest) {
+			mechanism := request.GetConnection().GetMechanism().Clone()
+			m.mechanismCheck(t, mechanism)
+		}),
 	)
 	_, err := contract.Request(m.configureContext(context.Background()), m.Request.Clone())
 	assert.Nil(m.T(), err)
