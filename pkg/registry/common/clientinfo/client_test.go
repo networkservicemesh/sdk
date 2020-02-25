@@ -24,120 +24,125 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-
 	"github.com/stretchr/testify/assert"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientinfo"
 )
 
-var testData = []struct {
-	name string
-	envs map[string]string
-	in   *registry.NSERegistration
-	want *registry.NSERegistration
-}{
-	{
-		"labels map is not present",
-		map[string]string{
-			"NODE_NAME":    "AAA",
-			"POD_NAME":     "BBB",
-			"CLUSTER_NAME": "CCC",
-		},
-		&registry.NSERegistration{
-			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{},
-		},
-		&registry.NSERegistration{
-			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-				Labels: map[string]string{
-					"NodeNameKey":    "AAA",
-					"PodNameKey":     "BBB",
-					"ClusterNameKey": "CCC",
-				},
-			},
-		},
-	},
-	{
-		"labels are overwritten",
-		map[string]string{
-			"NODE_NAME":    "A1",
-			"POD_NAME":     "B2",
-			"CLUSTER_NAME": "C3",
-		},
-		&registry.NSERegistration{
-			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-				Labels: map[string]string{
-					"NodeNameKey":     "OLD_VAL1",
-					"PodNameKey":      "OLD_VAL2",
-					"ClusterNameKey":  "OLD_VAL3",
-					"SomeOtherLabel1": "DDD",
-					"SomeOtherLabel2": "EEE",
-				},
-			},
-		},
-		&registry.NSERegistration{
-			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-				Labels: map[string]string{
-					"NodeNameKey":     "A1",
-					"PodNameKey":      "B2",
-					"ClusterNameKey":  "C3",
-					"SomeOtherLabel1": "DDD",
-					"SomeOtherLabel2": "EEE",
-				},
-			},
-		},
-	},
-	{
-		"some of the envs are not present",
-		map[string]string{
-			"CLUSTER_NAME": "ABC",
-		},
-		&registry.NSERegistration{
-			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-				Labels: map[string]string{
-					"NodeNameKey":     "OLD_VAL1",
-					"ClusterNameKey":  "OLD_VAL2",
-					"SomeOtherLabel1": "DDD",
-					"SomeOtherLabel2": "EEE",
-				},
-			},
-		},
-		&registry.NSERegistration{
-			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-				Labels: map[string]string{
-					"NodeNameKey":     "OLD_VAL1",
-					"ClusterNameKey":  "ABC",
-					"SomeOtherLabel1": "DDD",
-					"SomeOtherLabel2": "EEE",
-				},
-			},
-		},
-	},
-}
-
-func Test_clientInfoRegistry_RegisterNSE(t *testing.T) {
-	for _, data := range testData {
-		test := data
-		t.Run(test.name, func(t *testing.T) {
-			testRequest(t, test.envs, test.in, test.want)
-		})
-	}
-}
-
-func testRequest(t *testing.T, envs map[string]string, registration, want *registry.NSERegistration) {
+func setEnvs(envs map[string]string) error {
 	for name, value := range envs {
 		if err := os.Setenv(name, value); err != nil {
-			t.Errorf("clientInfoRegistry.RegisterNSE() unable to set up environment variable: %v", err)
+			return err
 		}
 	}
+	return nil
+}
 
-	client := next.NewRegistryClient(clientinfo.NewRegistryClient())
-	got, _ := client.RegisterNSE(context.Background(), registration)
-	assert.Equal(t, got, want)
-
+func unsetEnvs(envs map[string]string) error {
 	for name := range envs {
 		if err := os.Unsetenv(name); err != nil {
-			t.Errorf("clientInfoRegistry.RegisterNSE() unable to unset environment variable: %v", err)
+			return err
 		}
 	}
+	return nil
+}
+
+func TestLabelsMapIsNotPresent(t *testing.T) {
+	envs := map[string]string{
+		"NODE_NAME":    "AAA",
+		"POD_NAME":     "BBB",
+		"CLUSTER_NAME": "CCC",
+	}
+	err := setEnvs(envs)
+	assert.Nil(t, err)
+
+	client := clientinfo.NewRegistryClient()
+	registration, err := client.RegisterNSE(context.Background(), &registry.NSERegistration{
+		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{},
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, &registry.NSERegistration{
+		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+			Labels: map[string]string{
+				"NodeNameKey":    "AAA",
+				"PodNameKey":     "BBB",
+				"ClusterNameKey": "CCC",
+			},
+		},
+	}, registration)
+
+	err = unsetEnvs(envs)
+	assert.Nil(t, err)
+}
+
+func TestLabelsAreOverwritten(t *testing.T) {
+	envs := map[string]string{
+		"NODE_NAME":    "AAA",
+		"POD_NAME":     "BBB",
+		"CLUSTER_NAME": "CCC",
+	}
+	err := setEnvs(envs)
+	assert.Nil(t, err)
+
+	client := clientinfo.NewRegistryClient()
+	registration, err := client.RegisterNSE(context.Background(), &registry.NSERegistration{
+		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+			Labels: map[string]string{
+				"NodeNameKey":     "OLD_VAL1",
+				"PodNameKey":      "OLD_VAL2",
+				"ClusterNameKey":  "OLD_VAL3",
+				"SomeOtherLabel1": "DDD",
+				"SomeOtherLabel2": "EEE",
+			},
+		},
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, &registry.NSERegistration{
+		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+			Labels: map[string]string{
+				"NodeNameKey":     "AAA",
+				"PodNameKey":      "BBB",
+				"ClusterNameKey":  "CCC",
+				"SomeOtherLabel1": "DDD",
+				"SomeOtherLabel2": "EEE",
+			},
+		},
+	}, registration)
+
+	err = unsetEnvs(envs)
+	assert.Nil(t, err)
+}
+
+func TestSomeEnvsAreNotPresent(t *testing.T) {
+	envs := map[string]string{
+		"CLUSTER_NAME": "CCC",
+	}
+	err := setEnvs(envs)
+	assert.Nil(t, err)
+
+	client := clientinfo.NewRegistryClient()
+	registration, err := client.RegisterNSE(context.Background(), &registry.NSERegistration{
+		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+			Labels: map[string]string{
+				"NodeNameKey":     "OLD_VAL1",
+				"ClusterNameKey":  "OLD_VAL2",
+				"SomeOtherLabel1": "DDD",
+				"SomeOtherLabel2": "EEE",
+			},
+		},
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, &registry.NSERegistration{
+		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+			Labels: map[string]string{
+				"NodeNameKey":     "OLD_VAL1",
+				"ClusterNameKey":  "CCC",
+				"SomeOtherLabel1": "DDD",
+				"SomeOtherLabel2": "EEE",
+			},
+		},
+	}, registration)
+
+	err = unsetEnvs(envs)
+	assert.Nil(t, err)
 }
