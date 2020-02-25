@@ -23,10 +23,11 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/peer"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
@@ -34,35 +35,74 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
+type contextKeyType string
+
+const (
+	testDataKey contextKeyType = "testData"
+)
+
+func withTestData(parent context.Context, testData *TestData) context.Context {
+	if parent == nil {
+		parent = context.TODO()
+	}
+	return context.WithValue(parent, testDataKey, testData)
+}
+
+func testData(ctx context.Context) *TestData {
+	if rv, ok := ctx.Value(testDataKey).(*TestData); ok {
+		return rv
+	}
+	return nil
+}
+
+type TestData struct {
+	clientURL *url.URL
+}
+
 type testNetworkServiceServer struct {
-	t    *testing.T
-	want *url.URL
 }
 
 func (s testNetworkServiceServer) Request(ctx context.Context, in *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	assert.Equal(s.t, s.want, clienturl.ClientURL(ctx))
+	testData(ctx).clientURL = clienturl.ClientURL(ctx)
 	return in.GetConnection(), nil
 }
 
 func (s testNetworkServiceServer) Close(ctx context.Context, _ *networkservice.Connection) (*empty.Empty, error) {
-	assert.Equal(s.t, s.want, clienturl.ClientURL(ctx))
+	testData(ctx).clientURL = clienturl.ClientURL(ctx)
 	return &empty.Empty{}, nil
 }
 
-func TestLocalBypassServer(t *testing.T) {
+func TestNewServer_NSENotPresented(t *testing.T) {
 	var localBypassRegistryServer registry.NetworkServiceRegistryServer
 	localBypassNetworkServiceServer := localbypass.NewServer(&localBypassRegistryServer)
+	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			NetworkServiceEndpointName: "nse-1",
 		},
 	}
 
-	t.Run("adds nothing when there is no such NSE in sockets map", func(t *testing.T) {
-		testRequest(t, localBypassNetworkServiceServer, request, nil)
-	})
+	ctx := withTestData(context.Background(), &TestData{})
+	_, err := server.Request(ctx, request)
+	assert.Nil(t, err)
+	assert.Nil(t, testData(ctx).clientURL)
 
-	_, _ = localBypassRegistryServer.RegisterNSE(
+	ctx = withTestData(context.Background(), &TestData{})
+	_, err = server.Close(ctx, request.GetConnection())
+	assert.Nil(t, err)
+	assert.Nil(t, testData(ctx).clientURL)
+}
+
+func TestNewServer_UnixAddressRegistered(t *testing.T) {
+	var localBypassRegistryServer registry.NetworkServiceRegistryServer
+	localBypassNetworkServiceServer := localbypass.NewServer(&localBypassRegistryServer)
+	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			NetworkServiceEndpointName: "nse-1",
+		},
+	}
+	_, err := localBypassRegistryServer.RegisterNSE(
 		peer.NewContext(context.Background(),
 			&peer.Peer{
 				Addr: &net.UnixAddr{
@@ -76,23 +116,29 @@ func TestLocalBypassServer(t *testing.T) {
 				Name: "nse-1",
 			},
 		})
-	t.Run("adds valid url after valid NSE registration with unix address type", func(t *testing.T) {
-		testRequest(t, localBypassNetworkServiceServer, request, &url.URL{
-			Scheme: "unix",
-			Path:   "/var/run/nse-1.sock",
-		})
-	})
+	assert.Nil(t, err)
 
-	_, _ = localBypassRegistryServer.RemoveNSE(
-		context.Background(),
-		&registry.RemoveNSERequest{
+	ctx := withTestData(context.Background(), &TestData{})
+	_, err = server.Request(ctx, request)
+	assert.Nil(t, err)
+	assert.Equal(t, &url.URL{Scheme: "unix", Path: "/var/run/nse-1.sock"}, testData(ctx).clientURL)
+
+	ctx = withTestData(context.Background(), &TestData{})
+	_, err = server.Close(ctx, request.GetConnection())
+	assert.Nil(t, err)
+	assert.Equal(t, &url.URL{Scheme: "unix", Path: "/var/run/nse-1.sock"}, testData(ctx).clientURL)
+}
+
+func TestNewServer_NonUnixAddressRegistered(t *testing.T) {
+	var localBypassRegistryServer registry.NetworkServiceRegistryServer
+	localBypassNetworkServiceServer := localbypass.NewServer(&localBypassRegistryServer)
+	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
 			NetworkServiceEndpointName: "nse-1",
-		})
-	t.Run("adds nothing after NSE removal", func(t *testing.T) {
-		testRequest(t, localBypassNetworkServiceServer, request, nil)
-	})
-
-	_, _ = localBypassRegistryServer.RegisterNSE(
+		},
+	}
+	_, err := localBypassRegistryServer.RegisterNSE(
 		peer.NewContext(context.Background(),
 			&peer.Peer{
 				Addr: &net.IPAddr{
@@ -105,13 +151,57 @@ func TestLocalBypassServer(t *testing.T) {
 				Name: "nse-1",
 			},
 		})
-	t.Run("adds nothing after invalid NSE registration with non-unix address", func(t *testing.T) {
-		testRequest(t, localBypassNetworkServiceServer, request, nil)
-	})
+	assert.Nil(t, err)
+
+	ctx := withTestData(context.Background(), &TestData{})
+	_, err = server.Request(ctx, request)
+	assert.Nil(t, err)
+	assert.Nil(t, testData(ctx).clientURL)
+
+	ctx = withTestData(context.Background(), &TestData{})
+	_, err = server.Close(ctx, request.GetConnection())
+	assert.Nil(t, err)
+	assert.Nil(t, testData(ctx).clientURL)
 }
 
-func testRequest(t *testing.T, s networkservice.NetworkServiceServer, request *networkservice.NetworkServiceRequest, want *url.URL) {
-	server := next.NewNetworkServiceServer(s, &testNetworkServiceServer{t, want})
-	_, _ = server.Request(context.Background(), request)
-	_, _ = server.Close(context.Background(), request.GetConnection())
+func TestNewServer_AddsNothingAfterNSERemoval(t *testing.T) {
+	var localBypassRegistryServer registry.NetworkServiceRegistryServer
+	localBypassNetworkServiceServer := localbypass.NewServer(&localBypassRegistryServer)
+	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			NetworkServiceEndpointName: "nse-1",
+		},
+	}
+	_, err := localBypassRegistryServer.RegisterNSE(
+		peer.NewContext(context.Background(),
+			&peer.Peer{
+				Addr: &net.UnixAddr{
+					Name: "/var/run/nse-1.sock",
+					Net:  "unix",
+				},
+				AuthInfo: nil,
+			}),
+		&registry.NSERegistration{
+			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+				Name: "nse-1",
+			},
+		})
+	assert.Nil(t, err)
+	_, err = localBypassRegistryServer.RemoveNSE(
+		context.Background(),
+		&registry.RemoveNSERequest{
+			NetworkServiceEndpointName: "nse-1",
+		})
+	assert.Nil(t, err)
+
+	ctx := withTestData(context.Background(), &TestData{})
+	_, err = server.Request(ctx, request)
+	assert.Nil(t, err)
+	assert.Nil(t, testData(ctx).clientURL)
+
+	ctx = withTestData(context.Background(), &TestData{})
+	_, err = server.Close(ctx, request.GetConnection())
+	assert.Nil(t, err)
+	assert.Nil(t, testData(ctx).clientURL)
 }
