@@ -21,29 +21,52 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover"
 )
 
+type contextKeyType string
+
+const (
+	testDataKey contextKeyType = "testData"
+)
+
+type TestData struct {
+	endpoints []*registry.NetworkServiceEndpoint
+}
+
+func withTestData(parent context.Context, testData *TestData) context.Context {
+	if parent == nil {
+		parent = context.TODO()
+	}
+	return context.WithValue(parent, testDataKey, testData)
+}
+
+func testData(ctx context.Context) *TestData {
+	if rv, ok := ctx.Value(testDataKey).(*TestData); ok {
+		return rv
+	}
+	return nil
+}
+
 type testNetworkServiceServer struct {
-	t    *testing.T
-	want []*registry.NetworkServiceEndpoint
 }
 
 func (s testNetworkServiceServer) Request(ctx context.Context, in *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	assert.Equal(s.t, s.want, discover.Candidates(ctx).NetworkServiceEndpoints)
-	return in.GetConnection(), nil
+	testData(ctx).endpoints = discover.Candidates(ctx).GetNetworkServiceEndpoints()
+	return next.Server(ctx).Request(ctx, in)
 }
 
-func (s testNetworkServiceServer) Close(context.Context, *networkservice.Connection) (*empty.Empty, error) {
-	return &empty.Empty{}, nil
+func (s testNetworkServiceServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	return next.Server(ctx).Close(ctx, conn)
 }
 
 type mockNetworkServiceDiscoveryClient struct {
@@ -117,100 +140,118 @@ func fromSomeMiddleAppMatch() *registry.Match {
 	}
 }
 
-var testData = []struct {
-	name    string
-	matches []*registry.Match
-	request *networkservice.NetworkServiceRequest
-	want    []*registry.NetworkServiceEndpoint
-}{
-	{
-		name:    "match empty source selector",
-		matches: []*registry.Match{fromFirewallMatch(), fromSomeMiddleAppMatch(), fromAnywhereMatch()},
-		request: &networkservice.NetworkServiceRequest{
-			Connection: &networkservice.Connection{
-				NetworkService: "secure-intranet-connectivity",
-				Labels:         map[string]string{},
-			},
-		},
-		want: []*registry.NetworkServiceEndpoint{
-			{
-				Labels: map[string]string{
-					"app": "firewall",
-				},
-			},
-		},
-	},
-	{
-		name:    "match non-empty source selector because it goes first",
-		matches: []*registry.Match{fromFirewallMatch(), fromSomeMiddleAppMatch(), fromAnywhereMatch()},
-		request: &networkservice.NetworkServiceRequest{
-			Connection: &networkservice.Connection{
-				NetworkService: "secure-intranet-connectivity",
-				Labels: map[string]string{
-					"app": "firewall",
-				},
-			},
-		},
-		want: []*registry.NetworkServiceEndpoint{
-			{
-				Labels: map[string]string{
-					"app": "some-middle-app",
-				},
-			},
-		},
-	},
-	{
-		name:    "match empty source selector because it goes first",
-		matches: []*registry.Match{fromAnywhereMatch(), fromFirewallMatch(), fromSomeMiddleAppMatch()},
-		request: &networkservice.NetworkServiceRequest{
-			Connection: &networkservice.Connection{
-				NetworkService: "secure-intranet-connectivity",
-				Labels: map[string]string{
-					"app": "firewall",
-				},
-			},
-		},
-		want: []*registry.NetworkServiceEndpoint{
-			{
-				Labels: map[string]string{
-					"app": "firewall",
-				},
-			},
-		},
-	},
-	{
-		name:    "match nothing and return all endpoints",
-		matches: []*registry.Match{fromFirewallMatch(), fromSomeMiddleAppMatch()},
-		request: &networkservice.NetworkServiceRequest{
-			Connection: &networkservice.Connection{
-				NetworkService: "secure-intranet-connectivity",
-				Labels: map[string]string{
-					"app": "unknown-app",
-				},
-			},
-		},
-		want: endpoints(),
-	},
-}
-
-func Test_discoverServer_Request(t *testing.T) {
-	for _, data := range testData {
-		test := data
-		t.Run(test.name, func(t *testing.T) {
-			testRequest(t, test.matches, test.request, test.want)
-		})
-	}
-}
-
-func testRequest(t *testing.T, matches []*registry.Match, request *networkservice.NetworkServiceRequest, want []*registry.NetworkServiceEndpoint) {
+func TestMatchEmptySourceSelector(t *testing.T) {
 	registryResponse := &registry.FindNetworkServiceResponse{
 		NetworkService: &registry.NetworkService{
 			Name:    "secure-intranet-connectivity",
-			Matches: matches,
+			Matches: []*registry.Match{fromFirewallMatch(), fromSomeMiddleAppMatch(), fromAnywhereMatch()},
 		},
 		NetworkServiceEndpoints: endpoints(),
 	}
 	discoveryClient := &mockNetworkServiceDiscoveryClient{registryResponse}
-	server := next.NewNetworkServiceServer(discover.NewServer(discoveryClient), &testNetworkServiceServer{t, want})
-	_, _ = server.Request(context.Background(), request)
+	server := next.NewNetworkServiceServer(discover.NewServer(discoveryClient), &testNetworkServiceServer{})
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			NetworkService: "secure-intranet-connectivity",
+			Labels:         map[string]string{},
+		},
+	}
+	want := []*registry.NetworkServiceEndpoint{
+		{
+			Labels: map[string]string{
+				"app": "firewall",
+			},
+		},
+	}
+	ctx := withTestData(context.Background(), &TestData{})
+	_, err := server.Request(ctx, request)
+	assert.Nil(t, err)
+	assert.Equal(t, want, testData(ctx).endpoints)
+}
+
+func TestMatchNonEmptySourceSelector(t *testing.T) {
+	registryResponse := &registry.FindNetworkServiceResponse{
+		NetworkService: &registry.NetworkService{
+			Name:    "secure-intranet-connectivity",
+			Matches: []*registry.Match{fromFirewallMatch(), fromSomeMiddleAppMatch(), fromAnywhereMatch()},
+		},
+		NetworkServiceEndpoints: endpoints(),
+	}
+	discoveryClient := &mockNetworkServiceDiscoveryClient{registryResponse}
+	server := next.NewNetworkServiceServer(discover.NewServer(discoveryClient), &testNetworkServiceServer{})
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			NetworkService: "secure-intranet-connectivity",
+			Labels: map[string]string{
+				"app": "firewall",
+			},
+		},
+	}
+	want := []*registry.NetworkServiceEndpoint{
+		{
+			Labels: map[string]string{
+				"app": "some-middle-app",
+			},
+		},
+	}
+	ctx := withTestData(context.Background(), &TestData{})
+	_, err := server.Request(ctx, request)
+	assert.Nil(t, err)
+	assert.Equal(t, want, testData(ctx).endpoints)
+}
+
+func TestMatchEmptySourceSelectorGoingFirst(t *testing.T) {
+	registryResponse := &registry.FindNetworkServiceResponse{
+		NetworkService: &registry.NetworkService{
+			Name:    "secure-intranet-connectivity",
+			Matches: []*registry.Match{fromAnywhereMatch(), fromFirewallMatch(), fromSomeMiddleAppMatch()},
+		},
+		NetworkServiceEndpoints: endpoints(),
+	}
+	discoveryClient := &mockNetworkServiceDiscoveryClient{registryResponse}
+	server := next.NewNetworkServiceServer(discover.NewServer(discoveryClient), &testNetworkServiceServer{})
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			NetworkService: "secure-intranet-connectivity",
+			Labels: map[string]string{
+				"app": "firewall",
+			},
+		},
+	}
+	want := []*registry.NetworkServiceEndpoint{
+		{
+			Labels: map[string]string{
+				"app": "firewall",
+			},
+		},
+	}
+	ctx := withTestData(context.Background(), &TestData{})
+	_, err := server.Request(ctx, request)
+	assert.Nil(t, err)
+	assert.Equal(t, want, testData(ctx).endpoints)
+}
+
+func TestMatchNothing(t *testing.T) {
+	registryResponse := &registry.FindNetworkServiceResponse{
+		NetworkService: &registry.NetworkService{
+			Name:    "secure-intranet-connectivity",
+			Matches: []*registry.Match{fromFirewallMatch(), fromSomeMiddleAppMatch()},
+		},
+		NetworkServiceEndpoints: endpoints(),
+	}
+	discoveryClient := &mockNetworkServiceDiscoveryClient{registryResponse}
+	server := next.NewNetworkServiceServer(discover.NewServer(discoveryClient), &testNetworkServiceServer{})
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			NetworkService: "secure-intranet-connectivity",
+			Labels: map[string]string{
+				"app": "unknown-app",
+			},
+		},
+	}
+	want := endpoints()
+	ctx := withTestData(context.Background(), &TestData{})
+	_, err := server.Request(ctx, request)
+	assert.Nil(t, err)
+	assert.Equal(t, want, testData(ctx).endpoints)
 }
