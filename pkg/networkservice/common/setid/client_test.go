@@ -21,36 +21,23 @@ import (
 	"context"
 	"testing"
 
-	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/setid"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type testNetworkServiceClient struct {
-	testFunc func(in *networkservice.NetworkServiceRequest)
-}
-
-func (c *testNetworkServiceClient) Request(_ context.Context, in *networkservice.NetworkServiceRequest, _ ...grpc.CallOption) (*networkservice.Connection, error) {
-	c.testFunc(in)
-	return in.GetConnection(), nil
-}
-
-func (c *testNetworkServiceClient) Close(context.Context, *networkservice.Connection, ...grpc.CallOption) (*empty.Empty, error) {
-	return &empty.Empty{}, nil
-}
-
-func testEqual(t *testing.T, id string) func(*networkservice.NetworkServiceRequest) {
-	return func(in *networkservice.NetworkServiceRequest) {
+func testEqual(id string) func(*testing.T, *networkservice.NetworkServiceRequest) {
+	return func(t *testing.T, in *networkservice.NetworkServiceRequest) {
 		assert.Equal(t, in.Connection.Id, id)
 	}
 }
 
-func testNotEqual(t *testing.T, id string) func(*networkservice.NetworkServiceRequest) {
-	return func(in *networkservice.NetworkServiceRequest) {
+func testNotEqual(id string) func(*testing.T, *networkservice.NetworkServiceRequest) {
+	return func(t *testing.T, in *networkservice.NetworkServiceRequest) {
 		assert.NotEqual(t, in.Connection.Id, id)
 	}
 }
@@ -60,7 +47,7 @@ var testData = []struct {
 	clientName       string
 	path             *networkservice.Path
 	connectionID     string
-	testFuncProvider func(t *testing.T, id string) func(*networkservice.NetworkServiceRequest)
+	testFuncProvider func(string) func(*testing.T, *networkservice.NetworkServiceRequest)
 }{
 	{"set new id for connection",
 		"nsc-2",
@@ -140,13 +127,13 @@ func Test_idClient_Request(t *testing.T) {
 	for _, data := range testData {
 		test := data
 		t.Run(test.name, func(t *testing.T) {
-			testClientRequest(test.clientName, test.path, test.connectionID, test.testFuncProvider(t, test.connectionID))
+			testClientRequest(t, test.clientName, test.path, test.connectionID, test.testFuncProvider(test.connectionID))
 		})
 	}
 }
 
-func testClientRequest(clientName string, path *networkservice.Path, connectionID string, testFunc func(*networkservice.NetworkServiceRequest)) {
-	client := next.NewNetworkServiceClient(setid.NewClient(clientName), &testNetworkServiceClient{testFunc: testFunc})
+func testClientRequest(t *testing.T, clientName string, path *networkservice.Path, connectionID string, testFunc func(*testing.T, *networkservice.NetworkServiceRequest)) {
+	client := next.NewNetworkServiceClient(setid.NewClient(clientName), checkrequest.NewClient(t, testFunc))
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id:   connectionID,

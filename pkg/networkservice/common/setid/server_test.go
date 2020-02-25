@@ -20,37 +20,25 @@ import (
 	"context"
 	"testing"
 
-	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/setid"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type testNetworkServiceServer struct {
-	testFunc func(in *networkservice.NetworkServiceRequest)
-}
-
-func (c *testNetworkServiceServer) Request(_ context.Context, in *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	c.testFunc(in)
-	return in.GetConnection(), nil
-}
-
-func (c *testNetworkServiceServer) Close(context.Context, *networkservice.Connection) (*empty.Empty, error) {
-	return &empty.Empty{}, nil
-}
-
 func Test_idServer_Request(t *testing.T) {
 	for _, data := range testData {
 		test := data
 		t.Run(test.name, func(t *testing.T) {
-			testServerRequest(test.clientName, test.path, test.connectionID, test.testFuncProvider(t, test.connectionID))
+			testServerRequest(t, test.clientName, test.path, test.connectionID, test.testFuncProvider(test.connectionID))
 		})
 	}
 }
 
-func testServerRequest(serverName string, path *networkservice.Path, connectionID string, testFunc func(*networkservice.NetworkServiceRequest)) {
-	client := next.NewNetworkServiceServer(setid.NewServer(serverName), &testNetworkServiceServer{testFunc: testFunc})
+func testServerRequest(t *testing.T, serverName string, path *networkservice.Path, connectionID string, testFunc func(*testing.T, *networkservice.NetworkServiceRequest)) {
+	client := next.NewNetworkServiceServer(setid.NewServer(serverName), checkrequest.NewServer(t, testFunc))
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id:   connectionID,
