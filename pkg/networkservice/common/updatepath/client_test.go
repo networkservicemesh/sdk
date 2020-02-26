@@ -19,92 +19,70 @@ package updatepath_test
 
 import (
 	"context"
+	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-
-	"testing"
 )
 
-var clientTestData = []struct {
-	name    string
-	nscName string
-	request *networkservice.NetworkServiceRequest
-	want    *networkservice.Connection
-}{
-	{
-		"empty path",
-		"nsc-1",
-		&networkservice.NetworkServiceRequest{
-			Connection: &networkservice.Connection{
-				Id: "conn-1",
+func TestNewClient_EmptyPathInRequest(t *testing.T) {
+	client := updatepath.NewClient("nsc-1")
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: "conn-1",
+		},
+	}
+	expected := &networkservice.Connection{
+		Id: "conn-1",
+		Path: &networkservice.Path{
+			Index: 0,
+			PathSegments: []*networkservice.PathSegment{
+				{
+					Name: "nsc-1",
+					Id:   "conn-1",
+				},
 			},
 		},
-		&networkservice.Connection{
+	}
+	conn, err := client.Request(context.Background(), request)
+	assert.Nil(t, err)
+	assert.Equal(t, expected, conn)
+}
+
+func TestNewClient_ZeroIndexAddNewSegment(t *testing.T) {
+	client := updatepath.NewClient("nsc-1")
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
 			Id: "conn-1",
 			Path: &networkservice.Path{
-				Index: 0,
-				PathSegments: []*networkservice.PathSegment{
-					{
-						Name: "nsc-1",
-						Id:   "conn-1",
-					},
+				Index:        0,
+				PathSegments: []*networkservice.PathSegment{},
+			},
+		},
+	}
+	expected := &networkservice.Connection{
+		Id: "conn-1",
+		Path: &networkservice.Path{
+			Index: 0,
+			PathSegments: []*networkservice.PathSegment{
+				{
+					Name: "nsc-1",
+					Id:   "conn-1",
 				},
 			},
 		},
-	},
-	{
-		"add new segment when index == 0",
-		"nsc-1",
-		&networkservice.NetworkServiceRequest{
-			Connection: &networkservice.Connection{
-				Id: "conn-1",
-				Path: &networkservice.Path{
-					Index:        0,
-					PathSegments: []*networkservice.PathSegment{},
-				},
-			},
-		},
-		&networkservice.Connection{
-			Id: "conn-1",
-			Path: &networkservice.Path{
-				Index: 0,
-				PathSegments: []*networkservice.PathSegment{
-					{
-						Name: "nsc-1",
-						Id:   "conn-1",
-					},
-				},
-			},
-		},
-	},
-	{
-		"valid index in path array",
-		"nsc-1",
-		&networkservice.NetworkServiceRequest{
-			Connection: &networkservice.Connection{
-				Id: "conn-1",
-				Path: &networkservice.Path{
-					Index: 1,
-					PathSegments: []*networkservice.PathSegment{
-						{
-							Name: "nsc-0",
-							Id:   "conn-0",
-						}, {
-							Name: "nsc-name-will-be-overridden",
-							Id:   "conn-will-be-overridden",
-						}, {
-							Name: "nsc-2",
-							Id:   "conn-2",
-						},
-					},
-				},
-			},
-		},
-		&networkservice.Connection{
+	}
+	conn, err := client.Request(context.Background(), request)
+	assert.Nil(t, err)
+	assert.Equal(t, expected, conn)
+}
+
+func TestNewClient_ValidIndexOverwriteValues(t *testing.T) {
+	client := updatepath.NewClient("nsc-1")
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
 			Id: "conn-1",
 			Path: &networkservice.Path{
 				Index: 1,
@@ -113,8 +91,8 @@ var clientTestData = []struct {
 						Name: "nsc-0",
 						Id:   "conn-0",
 					}, {
-						Name: "nsc-1",
-						Id:   "conn-1",
+						Name: "nsc-name-will-be-overwritten",
+						Id:   "conn-will-be-overwritten",
 					}, {
 						Name: "nsc-2",
 						Id:   "conn-2",
@@ -122,42 +100,50 @@ var clientTestData = []struct {
 				},
 			},
 		},
-	},
-	{
-		"index is greater or equal to path length",
-		"nsc-1",
-		&networkservice.NetworkServiceRequest{
-			Connection: &networkservice.Connection{
-				Id: "conn-1",
-				Path: &networkservice.Path{
-					Index: 2,
-					PathSegments: []*networkservice.PathSegment{
-						{
-							Name: "nsc-0",
-							Id:   "conn-0",
-						}, {
-							Name: "nsc-1",
-							Id:   "conn-1",
-						},
+	}
+	expected := &networkservice.Connection{
+		Id: "conn-1",
+		Path: &networkservice.Path{
+			Index: 1,
+			PathSegments: []*networkservice.PathSegment{
+				{
+					Name: "nsc-0",
+					Id:   "conn-0",
+				}, {
+					Name: "nsc-1",
+					Id:   "conn-1",
+				}, {
+					Name: "nsc-2",
+					Id:   "conn-2",
+				},
+			},
+		},
+	}
+	conn, err := client.Request(context.Background(), request)
+	assert.Nil(t, err)
+	assert.Equal(t, expected, conn)
+}
+
+func TestNewClient_IndexGreaterThanArrayLength(t *testing.T) {
+	client := updatepath.NewClient("nsc-1")
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: "conn-1",
+			Path: &networkservice.Path{
+				Index: 2,
+				PathSegments: []*networkservice.PathSegment{
+					{
+						Name: "nsc-0",
+						Id:   "conn-0",
+					}, {
+						Name: "nsc-1",
+						Id:   "conn-1",
 					},
 				},
 			},
 		},
-		nil,
-	},
-}
-
-func Test_updatePathClient_Request(t *testing.T) {
-	for _, data := range clientTestData {
-		test := data
-		t.Run(test.name, func(t *testing.T) {
-			testClientRequest(t, test.nscName, test.request, test.want)
-		})
 	}
-}
-
-func testClientRequest(t *testing.T, nscName string, request *networkservice.NetworkServiceRequest, want *networkservice.Connection) {
-	client := next.NewNetworkServiceClient(updatepath.NewClient(nscName))
-	got, _ := client.Request(context.Background(), request)
-	assert.Equal(t, want, got)
+	conn, err := client.Request(context.Background(), request)
+	assert.NotNil(t, err)
+	assert.Nil(t, conn)
 }
