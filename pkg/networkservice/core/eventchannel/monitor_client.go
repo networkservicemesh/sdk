@@ -81,10 +81,5 @@ func (m *monitorConnectionClient) eventLoop() {
 				}
 			})
 		}
-		//m.updateExecutor.AsyncExec(func() {
-		//	for _, fanoutEventCh := range m.fanoutEventChs {
-		//		close(fanoutEventCh)
-		//	}
-		//})
 	}()
 }

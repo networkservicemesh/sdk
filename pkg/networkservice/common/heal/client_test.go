@@ -18,15 +18,17 @@ package heal_test
 
 import (
 	"context"
+	"reflect"
+	"testing"
+	"time"
+
 	"github.com/golang/protobuf/ptypes/empty"
+	"google.golang.org/grpc"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/eventchannel"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
-	"google.golang.org/grpc"
-	"reflect"
-	"testing"
-	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
