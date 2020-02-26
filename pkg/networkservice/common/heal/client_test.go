@@ -18,11 +18,15 @@ package heal_test
 
 import (
 	"context"
+	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/eventchannel"
+	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
+	"google.golang.org/grpc"
 	"reflect"
 	"testing"
 	"time"
-
-	. "github.com/networkservicemesh/sdk/pkg/test/fixtures/healclientfixture"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
@@ -33,21 +37,43 @@ const (
 	tickTimeout    = 10 * time.Millisecond
 )
 
+type testOnHeal struct {
+	RequestFunc func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error)
+	CloseFunc   func(ctx context.Context, in *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error)
+}
+
+func (t *testOnHeal) Request(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	return t.RequestFunc(ctx, in, opts...)
+}
+
+func (t *testOnHeal) Close(ctx context.Context, in *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	return t.CloseFunc(ctx, in, opts...)
+}
+
 func TestHealClient_Request(t *testing.T) {
-	f := &Fixture{
-		Request: &networkservice.NetworkServiceRequest{
-			Connection: &networkservice.Connection{
-				Id:             "conn-1",
-				NetworkService: "ns-1",
-			},
+	eventCh := make(chan *networkservice.ConnectionEvent, 1)
+
+	onHealCh := make(chan struct{})
+	onHeal := &testOnHeal{
+		RequestFunc: func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (connection *networkservice.Connection, e error) {
+			close(onHealCh)
+			return &networkservice.Connection{}, nil
 		},
 	}
-	err := SetupWithSingleRequest(f)
-	defer TearDown(f)
-	require.Nil(t, err)
-	require.True(t, reflect.DeepEqual(f.Conn, f.Request.GetConnection()))
 
-	err = f.ServerStream.Send(&networkservice.ConnectionEvent{
+	client := chain.NewNetworkServiceClient(
+		heal.NewClient(context.Background(),
+			eventchannel.NewMonitorConnectionClient(eventCh), addressof.NetworkServiceClient(onHeal)))
+
+	_, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id:             "conn-1",
+			NetworkService: "ns-1",
+		},
+	})
+	require.Nil(t, err)
+
+	eventCh <- &networkservice.ConnectionEvent{
 		Type: networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,
 		Connections: map[string]*networkservice.Connection{
 			"conn-1": {
@@ -55,10 +81,9 @@ func TestHealClient_Request(t *testing.T) {
 				NetworkService: "ns-1",
 			},
 		},
-	})
-	require.Nil(t, err)
+	}
 
-	err = f.ServerStream.Send(&networkservice.ConnectionEvent{
+	eventCh <- &networkservice.ConnectionEvent{
 		Type: networkservice.ConnectionEventType_DELETE,
 		Connections: map[string]*networkservice.Connection{
 			"conn-1": {
@@ -66,12 +91,11 @@ func TestHealClient_Request(t *testing.T) {
 				NetworkService: "ns-1",
 			},
 		},
-	})
-	require.Nil(t, err)
+	}
 
 	cond := func() bool {
 		select {
-		case <-f.OnHealNotifierCh:
+		case <-onHealCh:
 			return true
 		default:
 			return false
@@ -81,20 +105,29 @@ func TestHealClient_Request(t *testing.T) {
 }
 
 func TestHealClient_MonitorClose(t *testing.T) {
-	f := &Fixture{
-		Request: &networkservice.NetworkServiceRequest{
-			Connection: &networkservice.Connection{
-				Id:             "conn-1",
-				NetworkService: "ns-1",
-			},
+	eventCh := make(chan *networkservice.ConnectionEvent, 1)
+
+	onHealCh := make(chan struct{})
+	onHeal := &testOnHeal{
+		RequestFunc: func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (connection *networkservice.Connection, e error) {
+			close(onHealCh)
+			return &networkservice.Connection{}, nil
 		},
 	}
-	err := SetupWithSingleRequest(f)
-	defer TearDown(f)
-	require.Nil(t, err)
-	require.True(t, reflect.DeepEqual(f.Conn, f.Request.GetConnection()))
 
-	err = f.ServerStream.Send(&networkservice.ConnectionEvent{
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	client := chain.NewNetworkServiceClient(
+		heal.NewClient(ctx, eventchannel.NewMonitorConnectionClient(eventCh), addressof.NetworkServiceClient(onHeal)))
+
+	_, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id:             "conn-1",
+			NetworkService: "ns-1",
+		},
+	})
+	require.Nil(t, err)
+
+	eventCh <- &networkservice.ConnectionEvent{
 		Type: networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,
 		Connections: map[string]*networkservice.Connection{
 			"conn-1": {
@@ -102,14 +135,13 @@ func TestHealClient_MonitorClose(t *testing.T) {
 				NetworkService: "ns-1",
 			},
 		},
-	})
-	require.Nil(t, err)
+	}
 
-	f.CloseStream()
+	cancelFunc()
 
 	cond := func() bool {
 		select {
-		case <-f.OnHealNotifierCh:
+		case <-onHealCh:
 			return true
 		default:
 			return false
@@ -119,26 +151,25 @@ func TestHealClient_MonitorClose(t *testing.T) {
 }
 
 func TestHealClient_EmptyInit(t *testing.T) {
-	f := &Fixture{
-		Request: &networkservice.NetworkServiceRequest{
-			Connection: &networkservice.Connection{
-				Id:             "conn-1",
-				NetworkService: "ns-1",
-			},
-		},
-	}
-	err := SetupWithSingleRequest(f)
-	defer TearDown(f)
-	require.Nil(t, err)
-	require.True(t, reflect.DeepEqual(f.Conn, f.Request.GetConnection()))
+	eventCh := make(chan *networkservice.ConnectionEvent, 1)
 
-	err = f.ServerStream.Send(&networkservice.ConnectionEvent{
-		Type:        networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,
-		Connections: make(map[string]*networkservice.Connection),
+	client := chain.NewNetworkServiceClient(
+		heal.NewClient(context.Background(), eventchannel.NewMonitorConnectionClient(eventCh), nil))
+
+	_, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id:             "conn-1",
+			NetworkService: "ns-1",
+		},
 	})
 	require.Nil(t, err)
 
-	err = f.ServerStream.Send(&networkservice.ConnectionEvent{
+	eventCh <- &networkservice.ConnectionEvent{
+		Type:        networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,
+		Connections: make(map[string]*networkservice.Connection),
+	}
+
+	eventCh <- &networkservice.ConnectionEvent{
 		Type: networkservice.ConnectionEventType_UPDATE,
 		Connections: map[string]*networkservice.Connection{
 			"conn-1": {
@@ -146,76 +177,52 @@ func TestHealClient_EmptyInit(t *testing.T) {
 				NetworkService: "ns-1",
 			},
 		},
-	})
-	require.Nil(t, err)
-}
-
-func TestHealClient_SeveralConnection(t *testing.T) {
-	f := &Fixture{
-		Request: &networkservice.NetworkServiceRequest{
-			Connection: &networkservice.Connection{
-				Id:             "conn-1",
-				NetworkService: "ns-1",
-			},
-		},
 	}
-	err := SetupWithSingleRequest(f)
-	defer TearDown(f)
-	require.Nil(t, err)
-	require.True(t, reflect.DeepEqual(f.Conn, f.Request.GetConnection()))
-
-	r := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id:             "conn-2",
-			NetworkService: "ns-2",
-		},
-	}
-
-	conn, err := f.Client.Request(context.Background(), r)
-	require.Nil(t, err)
-	require.True(t, reflect.DeepEqual(conn, r.GetConnection()))
-
-	ctx, cancelFunc := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	_, _, err = f.MockMonitorServer.Stream(ctx)
-	require.NotNil(t, err) // we expect healClient called MonitorConnections method once
-	cancelFunc()
 }
 
 func TestNewClient_MissingConnectionsInInit(t *testing.T) {
-	f := &Fixture{}
-	err := Setup(f)
-	defer TearDown(f)
-	require.Nil(t, err)
+	eventCh := make(chan *networkservice.ConnectionEvent, 1)
+
+	requestCh := make(chan *networkservice.NetworkServiceRequest)
+	onHeal := &testOnHeal{
+		RequestFunc: func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (connection *networkservice.Connection, e error) {
+			requestCh <- in
+			return &networkservice.Connection{}, nil
+		},
+	}
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	client := chain.NewNetworkServiceClient(
+		heal.NewClient(ctx, eventchannel.NewMonitorConnectionClient(eventCh), addressof.NetworkServiceClient(onHeal)))
 
 	conns := []*networkservice.Connection{
 		{Id: "conn-1", NetworkService: "ns-1"},
 		{Id: "conn-2", NetworkService: "ns-2"},
 	}
 
-	conn, err := f.Client.Request(context.Background(), &networkservice.NetworkServiceRequest{Connection: conns[0]})
+	conn, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{Connection: conns[0]})
 	require.Nil(t, err)
 	require.True(t, reflect.DeepEqual(conn, conns[0]))
 
-	conn, err = f.Client.Request(context.Background(), &networkservice.NetworkServiceRequest{Connection: conns[1]})
+	conn, err = client.Request(context.Background(), &networkservice.NetworkServiceRequest{Connection: conns[1]})
 	require.Nil(t, err)
 	require.True(t, reflect.DeepEqual(conn, conns[1]))
 
-	err = f.ServerStream.Send(&networkservice.ConnectionEvent{
+	eventCh <- &networkservice.ConnectionEvent{
 		Type:        networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,
 		Connections: map[string]*networkservice.Connection{conns[0].GetId(): conns[0]},
-	})
-	require.Nil(t, err)
+	}
 
 	// we emulate situation that server managed to handle only the first connection
 	// second connection should came in the UPDATE event, but we emulate server's falling down
-	f.CloseStream()
+	cancelFunc()
 	// at that point we expect that 'healClient' start healing both 'conn-1' and 'conn-2'
 
 	healedIDs := map[string]bool{}
 
 	cond := func() bool {
 		select {
-		case r := <-f.OnHealNotifierCh:
+		case r := <-requestCh:
 			if _, ok := healedIDs[r.GetConnection().GetId()]; !ok {
 				healedIDs[r.GetConnection().GetId()] = true
 				return true

@@ -18,7 +18,6 @@ package eventchannel
 
 import (
 	"context"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/metadata"
