@@ -62,13 +62,13 @@ func testData(ctx context.Context) *TestData {
 
 type testNetworkServiceClient struct{}
 
-func (s testNetworkServiceClient) Request(ctx context.Context, in *networkservice.NetworkServiceRequest, _ ...grpc.CallOption) (*networkservice.Connection, error) {
-	testData(ctx).mechanisms = in.GetMechanismPreferences()
-	return in.GetConnection(), nil
+func (s testNetworkServiceClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	testData(ctx).mechanisms = request.GetMechanismPreferences()
+	return next.Client(ctx).Request(ctx, request, opts...)
 }
 
-func (s testNetworkServiceClient) Close(context.Context, *networkservice.Connection, ...grpc.CallOption) (*empty.Empty, error) {
-	return &empty.Empty{}, nil
+func (s testNetworkServiceClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
 func request() *networkservice.NetworkServiceRequest {

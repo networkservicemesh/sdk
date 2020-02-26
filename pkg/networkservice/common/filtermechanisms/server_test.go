@@ -37,13 +37,13 @@ import (
 
 type testNetworkServiceServer struct{}
 
-func (s testNetworkServiceServer) Request(ctx context.Context, in *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	testData(ctx).mechanisms = in.GetMechanismPreferences()
-	return in.GetConnection(), nil
+func (s testNetworkServiceServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	testData(ctx).mechanisms = request.GetMechanismPreferences()
+	return next.Server(ctx).Request(ctx, request)
 }
 
-func (s testNetworkServiceServer) Close(context.Context, *networkservice.Connection) (*empty.Empty, error) {
-	return &empty.Empty{}, nil
+func (s testNetworkServiceServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	return next.Server(ctx).Close(ctx, conn)
 }
 
 func TestNewServer_FilterUnixType(t *testing.T) {
