@@ -26,110 +26,115 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientinfo"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-var testData = []struct {
-	name    string
-	envs    map[string]string
-	request *networkservice.NetworkServiceRequest
-	want    *networkservice.Connection
-}{
-	{
-		"labels map is not present",
-		map[string]string{
-			"NODE_NAME":    "AAA",
-			"POD_NAME":     "BBB",
-			"CLUSTER_NAME": "CCC",
-		},
-		&networkservice.NetworkServiceRequest{
-			Connection: &networkservice.Connection{},
-		},
-		&networkservice.Connection{
-			Labels: map[string]string{
-				"NodeNameKey":    "AAA",
-				"PodNameKey":     "BBB",
-				"ClusterNameKey": "CCC",
-			},
-		},
-	},
-	{
-		"labels are overwritten",
-		map[string]string{
-			"NODE_NAME":    "A1",
-			"POD_NAME":     "B2",
-			"CLUSTER_NAME": "C3",
-		},
-		&networkservice.NetworkServiceRequest{
-			Connection: &networkservice.Connection{
-				Labels: map[string]string{
-					"NodeNameKey":     "OLD_VAL1",
-					"PodNameKey":      "OLD_VAL2",
-					"ClusterNameKey":  "OLD_VAL3",
-					"SomeOtherLabel1": "DDD",
-					"SomeOtherLabel2": "EEE",
-				},
-			},
-		},
-		&networkservice.Connection{
-			Labels: map[string]string{
-				"NodeNameKey":     "A1",
-				"PodNameKey":      "B2",
-				"ClusterNameKey":  "C3",
-				"SomeOtherLabel1": "DDD",
-				"SomeOtherLabel2": "EEE",
-			},
-		},
-	},
-	{
-		"some of the envs are not present",
-		map[string]string{
-			"CLUSTER_NAME": "ABC",
-		},
-		&networkservice.NetworkServiceRequest{
-			Connection: &networkservice.Connection{
-				Labels: map[string]string{
-					"NodeNameKey":     "OLD_VAL1",
-					"ClusterNameKey":  "OLD_VAL2",
-					"SomeOtherLabel1": "DDD",
-					"SomeOtherLabel2": "EEE",
-				},
-			},
-		},
-		&networkservice.Connection{
-			Labels: map[string]string{
-				"NodeNameKey":     "OLD_VAL1",
-				"ClusterNameKey":  "ABC",
-				"SomeOtherLabel1": "DDD",
-				"SomeOtherLabel2": "EEE",
-			},
-		},
-	},
-}
-
-func Test_clientInfo_Request(t *testing.T) {
-	for _, data := range testData {
-		test := data
-		t.Run(test.name, func(t *testing.T) {
-			testRequest(t, test.envs, test.request, test.want)
-		})
-	}
-}
-
-func testRequest(t *testing.T, envs map[string]string, request *networkservice.NetworkServiceRequest, want *networkservice.Connection) {
+func setEnvs(envs map[string]string) error {
 	for name, value := range envs {
 		if err := os.Setenv(name, value); err != nil {
-			t.Errorf("clientInfo.Request() unable to set up environment variable: %v", err)
+			return err
 		}
 	}
+	return nil
+}
 
-	server := next.NewNetworkServiceClient(clientinfo.NewClient())
-	got, _ := server.Request(context.Background(), request)
-	assert.Equal(t, got, want)
-
+func unsetEnvs(envs map[string]string) error {
 	for name := range envs {
 		if err := os.Unsetenv(name); err != nil {
-			t.Errorf("clientInfo.Request() unable to unset environment variable: %v", err)
+			return err
 		}
 	}
+	return nil
+}
+
+func TestLabelsMapNotPresent(t *testing.T) {
+	envs := map[string]string{
+		"NODE_NAME":    "AAA",
+		"POD_NAME":     "BBB",
+		"CLUSTER_NAME": "CCC",
+	}
+	expected := map[string]string{
+		"NodeNameKey":    "AAA",
+		"PodNameKey":     "BBB",
+		"ClusterNameKey": "CCC",
+	}
+
+	err := setEnvs(envs)
+	assert.Nil(t, err)
+
+	client := clientinfo.NewClient()
+	conn, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{},
+	})
+	assert.Nil(t, err)
+	assert.NotNil(t, conn)
+	assert.Equal(t, expected, conn.GetLabels())
+
+	err = unsetEnvs(envs)
+	assert.Nil(t, err)
+}
+
+func TestLabelsOverwritten(t *testing.T) {
+	envs := map[string]string{
+		"NODE_NAME":    "AAA",
+		"POD_NAME":     "BBB",
+		"CLUSTER_NAME": "CCC",
+	}
+	expected := map[string]string{
+		"NodeNameKey":    "AAA",
+		"PodNameKey":     "BBB",
+		"ClusterNameKey": "CCC",
+		"SomeOtherLabel": "DDD",
+	}
+
+	err := setEnvs(envs)
+	assert.Nil(t, err)
+
+	client := clientinfo.NewClient()
+	conn, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Labels: map[string]string{
+				"NodeNameKey":    "OLD_VAL1",
+				"PodNameKey":     "OLD_VAL2",
+				"ClusterNameKey": "OLD_VAL3",
+				"SomeOtherLabel": "DDD",
+			},
+		},
+	})
+	assert.Nil(t, err)
+	assert.NotNil(t, conn)
+	assert.Equal(t, expected, conn.GetLabels())
+
+	err = unsetEnvs(envs)
+	assert.Nil(t, err)
+}
+
+func TestSomeEnvsNotPresent(t *testing.T) {
+	envs := map[string]string{
+		"CLUSTER_NAME": "CCC",
+	}
+	expected := map[string]string{
+		"NodeNameKey":    "OLD_VAL1",
+		"ClusterNameKey": "CCC",
+		"SomeOtherLabel": "DDD",
+	}
+
+	err := setEnvs(envs)
+	assert.Nil(t, err)
+
+	client := clientinfo.NewClient()
+	conn, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Labels: map[string]string{
+				"NodeNameKey":    "OLD_VAL1",
+				"ClusterNameKey": "OLD_VAL2",
+				"SomeOtherLabel": "DDD",
+			},
+		},
+	})
+	assert.Nil(t, err)
+	assert.NotNil(t, conn)
+	assert.Equal(t, expected, conn.GetLabels())
+
+	err = unsetEnvs(envs)
+	assert.Nil(t, err)
 }
