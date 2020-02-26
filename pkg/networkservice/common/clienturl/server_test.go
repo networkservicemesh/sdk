@@ -22,84 +22,108 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/stretchr/testify/assert"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type testNetworkServiceServer struct {
-	t    *testing.T
-	want *url.URL
+type contextKeyType string
+
+const testDataKey contextKeyType = "testData"
+
+type TestData struct {
+	clientURL *url.URL
 }
 
-func (c *testNetworkServiceServer) Request(ctx context.Context, in *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	assert.Equal(c.t, c.want, clienturl.ClientURL(ctx))
-	return in.GetConnection(), nil
-}
-
-func (c *testNetworkServiceServer) Close(ctx context.Context, _ *networkservice.Connection) (*empty.Empty, error) {
-	assert.Equal(c.t, c.want, clienturl.ClientURL(ctx))
-	return &empty.Empty{}, nil
-}
-
-var testData = []struct {
-	name  string
-	ctx   context.Context
-	given *url.URL
-	want  *url.URL
-}{
-	{
-		"add client url in empty context",
-		context.Background(),
-		&url.URL{
-			Scheme: "ipv4",
-			Path:   "192.168.0.1",
-		},
-		&url.URL{
-			Scheme: "ipv4",
-			Path:   "192.168.0.1",
-		},
-	},
-	{
-		"overwrite client url",
-		clienturl.WithClientURL(context.Background(), &url.URL{
-			Scheme: "unix",
-			Path:   "/var/run/nse-1.sock",
-		}),
-		&url.URL{
-			Scheme: "ipv4",
-			Path:   "192.168.0.1",
-		},
-		&url.URL{
-			Scheme: "ipv4",
-			Path:   "192.168.0.1",
-		},
-	},
-	{
-		"overwrite client url by nil",
-		clienturl.WithClientURL(context.Background(), &url.URL{
-			Scheme: "unix",
-			Path:   "/var/run/nse-1.sock",
-		}),
-		nil,
-		nil,
-	},
-}
-
-func Test_clientUrlServer(t *testing.T) {
-	for _, data := range testData {
-		test := data
-		t.Run(test.name, func(t *testing.T) {
-			testServer(test.ctx, test.given, test.want, t)
-		})
+func withTestData(parent context.Context, testData *TestData) context.Context {
+	if parent == nil {
+		parent = context.TODO()
 	}
+	return context.WithValue(parent, testDataKey, testData)
 }
 
-func testServer(ctx context.Context, given, want *url.URL, t *testing.T) {
-	client := next.NewNetworkServiceServer(clienturl.NewServer(given), &testNetworkServiceServer{t: t, want: want})
-	_, _ = client.Request(ctx, &networkservice.NetworkServiceRequest{})
-	_, _ = client.Close(ctx, &networkservice.Connection{})
+func testData(ctx context.Context) *TestData {
+	if rv, ok := ctx.Value(testDataKey).(*TestData); ok {
+		return rv
+	}
+	return nil
+}
+
+type testNetworkServiceServer struct{}
+
+func (c *testNetworkServiceServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	testData(ctx).clientURL = clienturl.ClientURL(ctx)
+	return next.Server(ctx).Request(ctx, request)
+}
+
+func (c *testNetworkServiceServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	testData(ctx).clientURL = clienturl.ClientURL(ctx)
+	return next.Server(ctx).Close(ctx, conn)
+}
+
+func TestAddURLInEmptyContext(t *testing.T) {
+	clientURL := &url.URL{
+		Scheme: "ipv4",
+		Path:   "192.168.0.1",
+	}
+	client := next.NewNetworkServiceServer(clienturl.NewServer(clientURL), &testNetworkServiceServer{})
+
+	ctx := withTestData(context.Background(), &TestData{})
+	_, err := client.Request(ctx, &networkservice.NetworkServiceRequest{})
+	assert.Nil(t, err)
+	assert.Equal(t, clientURL, testData(ctx).clientURL)
+
+	ctx = withTestData(context.Background(), &TestData{})
+	_, err = client.Close(ctx, &networkservice.Connection{})
+	assert.Nil(t, err)
+	assert.Equal(t, clientURL, testData(ctx).clientURL)
+}
+
+func TestOverwriteURL(t *testing.T) {
+	clientURL := &url.URL{
+		Scheme: "ipv4",
+		Path:   "192.168.0.1",
+	}
+	previousURL := &url.URL{
+		Scheme: "unix",
+		Path:   "/var/run/nse-1.sock",
+	}
+	client := next.NewNetworkServiceServer(clienturl.NewServer(clientURL), &testNetworkServiceServer{})
+
+	ctx := withTestData(context.Background(), &TestData{})
+	ctx = clienturl.WithClientURL(ctx, previousURL)
+	_, err := client.Request(ctx, &networkservice.NetworkServiceRequest{})
+	assert.Nil(t, err)
+	assert.Equal(t, clientURL, testData(ctx).clientURL)
+
+	ctx = withTestData(context.Background(), &TestData{})
+	ctx = clienturl.WithClientURL(ctx, previousURL)
+	_, err = client.Close(ctx, &networkservice.Connection{})
+	assert.Nil(t, err)
+	assert.Equal(t, clientURL, testData(ctx).clientURL)
+}
+
+func TestOverwriteURLByNil(t *testing.T) {
+	var clientURL *url.URL = nil
+	previousURL := &url.URL{
+		Scheme: "unix",
+		Path:   "/var/run/nse-1.sock",
+	}
+	client := next.NewNetworkServiceServer(clienturl.NewServer(clientURL), &testNetworkServiceServer{})
+
+	ctx := withTestData(context.Background(), &TestData{})
+	ctx = clienturl.WithClientURL(ctx, previousURL)
+	_, err := client.Request(ctx, &networkservice.NetworkServiceRequest{})
+	assert.Nil(t, err)
+	assert.Equal(t, clientURL, testData(ctx).clientURL)
+
+	ctx = withTestData(context.Background(), &TestData{})
+	ctx = clienturl.WithClientURL(ctx, previousURL)
+	_, err = client.Close(ctx, &networkservice.Connection{})
+	assert.Nil(t, err)
+	assert.Equal(t, clientURL, testData(ctx).clientURL)
 }
