@@ -24,4 +24,5 @@ import (
 // Provider - interface for tls.Config provider
 type Provider interface {
 	GetTLSConfig(ctx context.Context) (*tls.Config, error)
+	GetCertificate(ctx context.Context) (*tls.Certificate, error)
 }
