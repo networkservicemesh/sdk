@@ -23,6 +23,7 @@ import (
 	"time"
 )
 
+// GenerateToken generates JWT token based on tls.Certificate from security.Provider
 func GenerateToken(ctx context.Context, p Provider, expiresAt time.Duration) (string, error) {
 	crt, err := p.GetCertificate(ctx)
 	if err != nil {
@@ -36,6 +37,7 @@ func GenerateToken(ctx context.Context, p Provider, expiresAt time.Duration) (st
 	return jwt.NewWithClaims(jwt.SigningMethodES256, claims).SignedString(crt.PrivateKey)
 }
 
+// VerifyToken verifies JWT 'token' using x509.Certificate
 func VerifyToken(token string, x509crt *x509.Certificate) error {
 	_, err := new(jwt.Parser).Parse(token, func(token *jwt.Token) (interface{}, error) {
 		return x509crt.PublicKey, nil
