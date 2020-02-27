@@ -27,109 +27,60 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/setid"
 )
 
-func TestNewClient_SetNewConnectionId(t *testing.T) {
-	connectionID := "55ec76a7-d642-43ca-87bc-ab51765f575a"
-	request := &networkservice.NetworkServiceRequest{
+const (
+	pathSegmentID1 string = "36ce7f0c-9f6d-40a4-8b39-6b56ff07eea9"
+	pathSegmentID2 string = "ece490ea-dfe8-4512-a3ca-5be7b39515c5"
+	connectionID   string = "54ec76a7-d642-43ca-87bc-ab51765f575a"
+)
+
+func request(connectionID string, pathIndex uint32) *networkservice.NetworkServiceRequest {
+	return &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: connectionID,
 			Path: &networkservice.Path{
-				Index: 1,
+				Index: pathIndex,
 				PathSegments: []*networkservice.PathSegment{
 					{
 						Name: "nse-1",
-						Id:   "36ce7f0c-9f6d-40a4-8b39-6b56ff07eea9",
+						Id:   pathSegmentID1,
 					},
 					{
 						Name: "nse-2",
-						Id:   "ece490ea-dfe8-4512-a3ca-5be7b39515c5",
+						Id:   pathSegmentID2,
 					},
 				},
 			},
 		},
 	}
-	client := setid.NewClient("nsc-2")
-	conn, err := client.Request(context.Background(), request)
+}
+
+func TestNewClient_SetNewConnectionId(t *testing.T) {
+	client := setid.NewClient("nse-3")
+	conn, err := client.Request(context.Background(), request(connectionID, 1))
 	assert.NotNil(t, conn)
 	assert.Nil(t, err)
 	assert.NotEqual(t, conn.Id, connectionID)
 }
 
 func TestNewClient_PathSegmentNameEqualClientName(t *testing.T) {
-	connectionID := "54ec77a7-d645-43ca-87bc-ab51765f574a"
-	request := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id: connectionID,
-			Path: &networkservice.Path{
-				Index: 1,
-				PathSegments: []*networkservice.PathSegment{
-					{
-						Name: "nse-1",
-						Id:   "36ce7f0c-9f6d-40a4-8b39-6b56ff07eea9",
-					},
-					{
-						Name: "nsc-2",
-						Id:   "ece490ea-dfe8-4512-a3ca-5be7b39515c5",
-					},
-				},
-			},
-		},
-	}
-	client := setid.NewClient("nsc-2")
-	conn, err := client.Request(context.Background(), request)
+	client := setid.NewClient("nse-2")
+	conn, err := client.Request(context.Background(), request(connectionID, 1))
 	assert.NotNil(t, conn)
 	assert.Nil(t, err)
 	assert.Equal(t, conn.Id, connectionID)
 }
 
 func TestNewClient_PathSegmentIdEqualConnectionId(t *testing.T) {
-	connectionID := "54ed76a7-d642-43ca-87bc-ab51765f574a"
-	request := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id: connectionID,
-			Path: &networkservice.Path{
-				Index: 1,
-				PathSegments: []*networkservice.PathSegment{
-					{
-						Name: "nse-1",
-						Id:   "36ce7f0c-9f6d-40a4-8b39-6b56ff07eea9",
-					},
-					{
-						Name: "nse-2",
-						Id:   "54ed76a7-d642-43ca-87bc-ab51765f574a",
-					},
-				},
-			},
-		},
-	}
-	client := setid.NewClient("nsc-2")
-	conn, err := client.Request(context.Background(), request)
+	client := setid.NewClient("nse-3")
+	conn, err := client.Request(context.Background(), request(pathSegmentID2, 1))
 	assert.NotNil(t, conn)
 	assert.Nil(t, err)
-	assert.Equal(t, conn.Id, connectionID)
+	assert.Equal(t, conn.Id, pathSegmentID2)
 }
 
 func TestNewClient_InvalidIndex(t *testing.T) {
-	connectionID := "54ec76a7-d642-44ca-87bc-ab51765g574a"
-	request := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id: connectionID,
-			Path: &networkservice.Path{
-				Index: 2,
-				PathSegments: []*networkservice.PathSegment{
-					{
-						Name: "nse-1",
-						Id:   "36ce7f0c-9f6d-40a4-8b39-6b56ff07eea9",
-					},
-					{
-						Name: "nse-2",
-						Id:   "ece490ea-dfe8-4512-a3ca-5be7b39515c5",
-					},
-				},
-			},
-		},
-	}
-	client := setid.NewClient("nsc-2")
-	conn, err := client.Request(context.Background(), request)
+	client := setid.NewClient("nse-3")
+	conn, err := client.Request(context.Background(), request(connectionID, 2))
 	assert.NotNil(t, conn)
 	assert.Nil(t, err)
 	assert.Equal(t, conn.Id, connectionID)

@@ -20,115 +20,38 @@ import (
 	"context"
 	"testing"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/setid"
 )
 
 func TestNewServer_SetNewConnectionId(t *testing.T) {
-	server := setid.NewServer("nsc-2")
-	connectionID := "55ec76a7-d642-43ca-87bc-ab51765f574a"
-	request := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id: connectionID,
-			Path: &networkservice.Path{
-				Index: 1,
-				PathSegments: []*networkservice.PathSegment{
-					{
-						Name: "nse-1",
-						Id:   "36ce7f0c-9f6d-40a4-8b39-6b56ff07eea9",
-					},
-					{
-						Name: "nse-2",
-						Id:   "ece490ea-dfe8-4512-a3ca-5be7b39515c5",
-					},
-				},
-			},
-		},
-	}
-	conn, err := server.Request(context.Background(), request)
+	server := setid.NewServer("nse-3")
+	conn, err := server.Request(context.Background(), request(connectionID, 1))
 	assert.NotNil(t, conn)
 	assert.Nil(t, err)
 	assert.NotEqual(t, conn.Id, connectionID)
 }
 
 func TestNewServer_PathSegmentNameEqualClientName(t *testing.T) {
-	server := setid.NewServer("nsc-2")
-	connectionID := "54ec76a7-d645-43ca-87bc-ab51765f574a"
-	request := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id: connectionID,
-			Path: &networkservice.Path{
-				Index: 1,
-				PathSegments: []*networkservice.PathSegment{
-					{
-						Name: "nse-1",
-						Id:   "36ce7f0c-9f6d-40a4-8b39-6b56ff07eea9",
-					},
-					{
-						Name: "nsc-2",
-						Id:   "ece490ea-dfe8-4512-a3ca-5be7b39515c5",
-					},
-				},
-			},
-		},
-	}
-	conn, err := server.Request(context.Background(), request)
+	server := setid.NewServer("nse-2")
+	conn, err := server.Request(context.Background(), request(connectionID, 1))
 	assert.NotNil(t, conn)
 	assert.Nil(t, err)
 	assert.Equal(t, conn.Id, connectionID)
 }
 
 func TestNewServer_PathSegmentIdEqualConnectionId(t *testing.T) {
-	server := setid.NewServer("nsc-2")
-	connectionID := "54ec76a7-d642-43ca-87bc-ab51765f574a"
-	request := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id: connectionID,
-			Path: &networkservice.Path{
-				Index: 1,
-				PathSegments: []*networkservice.PathSegment{
-					{
-						Name: "nse-1",
-						Id:   "36ce7f0c-9f6d-40a4-8b39-6b56ff07eea9",
-					},
-					{
-						Name: "nse-2",
-						Id:   "54ec76a7-d642-43ca-87bc-ab51765f574a",
-					},
-				},
-			},
-		},
-	}
-	conn, err := server.Request(context.Background(), request)
+	server := setid.NewServer("nse-3")
+	conn, err := server.Request(context.Background(), request(pathSegmentID2, 1))
 	assert.NotNil(t, conn)
 	assert.Nil(t, err)
-	assert.Equal(t, conn.Id, connectionID)
+	assert.Equal(t, conn.Id, pathSegmentID2)
 }
 
 func TestNewServer_InvalidIndex(t *testing.T) {
-	server := setid.NewServer("nsc-2")
-	connectionID := "54ec76a7-d642-44ca-87bc-ab51765f574a"
-	request := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id: connectionID,
-			Path: &networkservice.Path{
-				Index: 2,
-				PathSegments: []*networkservice.PathSegment{
-					{
-						Name: "nse-1",
-						Id:   "36ce7f0c-9f6d-40a4-8b39-6b56ff07eea9",
-					},
-					{
-						Name: "nse-2",
-						Id:   "ece490ea-dfe8-4512-a3ca-5be7b39515c5",
-					},
-				},
-			},
-		},
-	}
-	conn, err := server.Request(context.Background(), request)
+	server := setid.NewServer("nse-3")
+	conn, err := server.Request(context.Background(), request(connectionID, 2))
 	assert.NotNil(t, conn)
 	assert.Nil(t, err)
 	assert.Equal(t, conn.Id, connectionID)
