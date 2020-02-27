@@ -19,8 +19,9 @@ package security
 import (
 	"context"
 	"crypto/x509"
-	"github.com/dgrijalva/jwt-go"
 	"time"
+
+	"github.com/dgrijalva/jwt-go"
 )
 
 // GenerateToken generates JWT token based on tls.Certificate from security.Provider

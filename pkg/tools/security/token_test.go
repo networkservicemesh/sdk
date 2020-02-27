@@ -26,12 +26,14 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/pem"
-	"github.com/dgrijalva/jwt-go"
-	"github.com/networkservicemesh/sdk/pkg/tools/security"
-	"github.com/stretchr/testify/require"
 	"math/big"
 	"testing"
 	"time"
+
+	"github.com/dgrijalva/jwt-go"
+	"github.com/stretchr/testify/require"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/security"
 )
 
 const (
@@ -180,9 +182,10 @@ func TestGenerateToken(t *testing.T) {
 	token, err := security.GenerateToken(context.Background(), p, 0)
 	require.Nil(t, err)
 
+	x509crt, err := x509.ParseCertificate(testTLSCertificate.Certificate[0])
+	require.Nil(t, err)
+
 	_, err = new(jwt.Parser).Parse(token, func(token *jwt.Token) (interface{}, error) {
-		x509crt, err := x509.ParseCertificate(testTLSCertificate.Certificate[0])
-		require.Nil(t, err)
 		return x509crt.PublicKey, nil
 	})
 	require.Nil(t, err)
@@ -200,9 +203,10 @@ func TestGenerateToken_Expire(t *testing.T) {
 
 	<-time.After(5 * time.Second)
 
+	x509crt, err := x509.ParseCertificate(testTLSCertificate.Certificate[0])
+	require.Nil(t, err)
+
 	_, err = new(jwt.Parser).Parse(token, func(token *jwt.Token) (interface{}, error) {
-		x509crt, err := x509.ParseCertificate(testTLSCertificate.Certificate[0])
-		require.Nil(t, err)
 		return x509crt.PublicKey, nil
 	})
 	require.NotNil(t, err)
