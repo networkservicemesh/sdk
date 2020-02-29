@@ -20,12 +20,15 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	securitytest "github.com/networkservicemesh/sdk/pkg/tools/security/test"
-	"github.com/stretchr/testify/suite"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/suite"
+
+	securitytest "github.com/networkservicemesh/sdk/pkg/tools/security/test"
+
 	"github.com/dgrijalva/jwt-go"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/security"
 )
 
@@ -39,14 +42,14 @@ type TokenTestSuite struct {
 	TestTLSCertificate tls.Certificate
 }
 
-func (suite *TokenTestSuite) SetupSuite() {
+func (s *TokenTestSuite) SetupSuite() {
 	var err error
-	suite.TestCA, err = securitytest.GenerateCA()
+	s.TestCA, err = securitytest.GenerateCA()
 	if err != nil {
 		panic(err)
 	}
 
-	suite.TestTLSCertificate, err = securitytest.GenerateKeyPair(spiffeID, "test.com", &suite.TestCA)
+	s.TestTLSCertificate, err = securitytest.GenerateKeyPair(spiffeID, "test.com", &s.TestCA)
 	if err != nil {
 		panic(err)
 	}
@@ -68,59 +71,59 @@ func (t *testProvider) GetCertificate(ctx context.Context) (*tls.Certificate, er
 	return t.GetCertificateFunc(ctx)
 }
 
-func (suite *TokenTestSuite) TestGenerateToken() {
+func (s *TokenTestSuite) TestGenerateToken() {
 	p := &testProvider{
 		GetCertificateFunc: func(ctx context.Context) (certificate *tls.Certificate, e error) {
-			return &suite.TestTLSCertificate, nil
+			return &s.TestTLSCertificate, nil
 		},
 	}
 
 	token, err := security.GenerateToken(context.Background(), p, 0)
-	suite.Nil(err)
+	s.Nil(err)
 
-	x509crt, err := x509.ParseCertificate(suite.TestTLSCertificate.Certificate[0])
-	suite.Nil(err)
+	x509crt, err := x509.ParseCertificate(s.TestTLSCertificate.Certificate[0])
+	s.Nil(err)
 
 	_, err = new(jwt.Parser).Parse(token, func(token *jwt.Token) (interface{}, error) {
 		return x509crt.PublicKey, nil
 	})
-	suite.Nil(err)
+	s.Nil(err)
 }
 
-func (suite *TokenTestSuite) TestGenerateToken_Expire() {
+func (s *TokenTestSuite) TestGenerateToken_Expire() {
 	p := &testProvider{
 		GetCertificateFunc: func(ctx context.Context) (certificate *tls.Certificate, e error) {
-			return &suite.TestTLSCertificate, nil
+			return &s.TestTLSCertificate, nil
 		},
 	}
 
 	token, err := security.GenerateToken(context.Background(), p, 3*time.Second)
-	suite.Nil(err)
+	s.Nil(err)
 
 	<-time.After(5 * time.Second)
 
-	x509crt, err := x509.ParseCertificate(suite.TestTLSCertificate.Certificate[0])
-	suite.Nil(err)
+	x509crt, err := x509.ParseCertificate(s.TestTLSCertificate.Certificate[0])
+	s.Nil(err)
 
 	_, err = new(jwt.Parser).Parse(token, func(token *jwt.Token) (interface{}, error) {
 		return x509crt.PublicKey, nil
 	})
-	suite.NotNil(err)
+	s.NotNil(err)
 }
 
-func (suite *TokenTestSuite) TestVerifyToken() {
-	token, err := jwt.New(jwt.SigningMethodES256).SignedString(suite.TestTLSCertificate.PrivateKey)
-	suite.Nil(err)
+func (s *TokenTestSuite) TestVerifyToken() {
+	token, err := jwt.New(jwt.SigningMethodES256).SignedString(s.TestTLSCertificate.PrivateKey)
+	s.Nil(err)
 
-	x509crt, err := x509.ParseCertificate(suite.TestTLSCertificate.Certificate[0])
-	suite.Nil(err)
+	x509crt, err := x509.ParseCertificate(s.TestTLSCertificate.Certificate[0])
+	s.Nil(err)
 
 	err = security.VerifyToken(token, x509crt)
-	suite.Nil(err)
+	s.Nil(err)
 
-	invalidX509crt, err := x509.ParseCertificate(suite.TestCA.Certificate[0])
-	suite.Nil(err)
+	invalidX509crt, err := x509.ParseCertificate(s.TestCA.Certificate[0])
+	s.Nil(err)
 
 	err = security.VerifyToken(token, invalidX509crt)
-	suite.NotNil(err)
+	s.NotNil(err)
 }

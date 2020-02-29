@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package securitytest contains auxiliary methods for testing security
 package securitytest
 
 import (
@@ -33,6 +34,7 @@ const (
 	nameTypeURI = 6
 )
 
+// GenerateCA generates Certificate Authority
 func GenerateCA() (tls.Certificate, error) {
 	ca := &x509.Certificate{
 		SerialNumber: big.NewInt(1653),
@@ -77,6 +79,7 @@ func marshalSAN(spiffeID string) ([]byte, error) {
 	return asn1.Marshal([]asn1.RawValue{{Tag: nameTypeURI, Class: 2, Bytes: []byte(spiffeID)}})
 }
 
+// GenerateKeyPair generates tls.Certificate for the passed 'spiffeID' and signed by 'caTLS'
 func GenerateKeyPair(spiffeID, domain string, caTLS *tls.Certificate) (tls.Certificate, error) {
 	san, err := marshalSAN(spiffeID)
 	if err != nil {

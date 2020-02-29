@@ -21,15 +21,18 @@ import (
 	"crypto/tls"
 )
 
+// Provider is a struct for testing purposes allows to pass method implementation from tests
 type Provider struct {
 	GetTLSConfigFunc   func(ctx context.Context) (*tls.Config, error)
 	GetCertificateFunc func(ctx context.Context) (*tls.Certificate, error)
 }
 
+// GetTLSConfig implements security.Provider interface
 func (t *Provider) GetTLSConfig(ctx context.Context) (*tls.Config, error) {
 	return t.GetTLSConfigFunc(ctx)
 }
 
+// GetCertificate implements security.Provider interface
 func (t *Provider) GetCertificate(ctx context.Context) (*tls.Certificate, error) {
 	return t.GetCertificateFunc(ctx)
 }
