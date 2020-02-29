@@ -201,6 +201,3 @@ issues:
       linters:
         - dupl
       text: "lines are duplicate of"
-    - path: pkg/tools/security/token_test.go
-      linters:
-        - gochecknoinits

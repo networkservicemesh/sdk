@@ -18,45 +18,42 @@ package security_test
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
-	"crypto/x509/pkix"
-	"encoding/asn1"
-	"encoding/pem"
-	"math/big"
+	securitytest "github.com/networkservicemesh/sdk/pkg/tools/security/test"
+	"github.com/stretchr/testify/suite"
 	"testing"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/stretchr/testify/require"
-
 	"github.com/networkservicemesh/sdk/pkg/tools/security"
 )
 
 const (
-	spiffeID    = "spiffe://test.com/workload"
-	nameTypeURI = 6
+	spiffeID = "spiffe://test.com/workload"
 )
 
-var (
-	testCA             tls.Certificate
-	testTLSCertificate tls.Certificate
-)
+type TokenTestSuite struct {
+	suite.Suite
+	TestCA             tls.Certificate
+	TestTLSCertificate tls.Certificate
+}
 
-func init() {
+func (suite *TokenTestSuite) SetupSuite() {
 	var err error
-	testCA, err = generateCA()
+	suite.TestCA, err = securitytest.GenerateCA()
 	if err != nil {
 		panic(err)
 	}
 
-	testTLSCertificate, err = generateKeyPair(spiffeID, "test.com", &testCA)
+	suite.TestTLSCertificate, err = securitytest.GenerateKeyPair(spiffeID, "test.com", &suite.TestCA)
 	if err != nil {
 		panic(err)
 	}
+}
+
+func TestTokenTestSuite(t *testing.T) {
+	suite.Run(t, new(TokenTestSuite))
 }
 
 type testProvider struct {
@@ -71,160 +68,59 @@ func (t *testProvider) GetCertificate(ctx context.Context) (*tls.Certificate, er
 	return t.GetCertificateFunc(ctx)
 }
 
-func generateCA() (tls.Certificate, error) {
-	ca := &x509.Certificate{
-		SerialNumber: big.NewInt(1653),
-		Subject: pkix.Name{
-			Organization:  []string{"ORGANIZATION_NAME"},
-			Country:       []string{"COUNTRY_CODE"},
-			Province:      []string{"PROVINCE"},
-			Locality:      []string{"CITY"},
-			StreetAddress: []string{"ADDRESS"},
-			PostalCode:    []string{"POSTAL_CODE"},
-		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(10, 0, 0),
-		IsCA:                  true,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
-		SignatureAlgorithm:    x509.ECDSAWithSHA256,
-		BasicConstraintsValid: true,
-	}
-
-	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return tls.Certificate{}, err
-	}
-	pub := &priv.PublicKey
-
-	certBytes, err := x509.CreateCertificate(rand.Reader, ca, ca, pub, priv)
-	if err != nil {
-		return tls.Certificate{}, err
-	}
-
-	certPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
-	keyBytes, err := x509.MarshalECPrivateKey(priv)
-	if err != nil {
-		return tls.Certificate{}, err
-	}
-	keyPem := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: keyBytes})
-	return tls.X509KeyPair(certPem, keyPem)
-}
-
-func marshalSAN(spiffeID string) ([]byte, error) {
-	return asn1.Marshal([]asn1.RawValue{{Tag: nameTypeURI, Class: 2, Bytes: []byte(spiffeID)}})
-}
-
-func generateKeyPair(spiffeID, domain string, caTLS *tls.Certificate) (tls.Certificate, error) {
-	san, err := marshalSAN(spiffeID)
-	if err != nil {
-		return tls.Certificate{}, nil
-	}
-
-	oidSanExtension := []int{2, 5, 29, 17}
-	cert := &x509.Certificate{
-		SerialNumber: big.NewInt(1658),
-		Subject: pkix.Name{
-			Organization:  []string{"ORGANIZATION_NAME"},
-			Country:       []string{"COUNTRY_CODE"},
-			Province:      []string{"PROVINCE"},
-			Locality:      []string{"CITY"},
-			StreetAddress: []string{"ADDRESS"},
-			PostalCode:    []string{"POSTAL_CODE"},
-			CommonName:    domain,
-		},
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().AddDate(10, 0, 0),
-		SubjectKeyId: []byte{1, 2, 3, 4, 6},
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		ExtraExtensions: []pkix.Extension{
-			{
-				Id:    oidSanExtension,
-				Value: san,
-			},
-		},
-		SignatureAlgorithm: x509.ECDSAWithSHA256,
-		KeyUsage:           x509.KeyUsageDigitalSignature,
-	}
-
-	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return tls.Certificate{}, nil
-	}
-	pub := &priv.PublicKey
-
-	ca, err := x509.ParseCertificate(caTLS.Certificate[0])
-	if err != nil {
-		return tls.Certificate{}, nil
-	}
-
-	certBytes, err := x509.CreateCertificate(rand.Reader, cert, ca, pub, caTLS.PrivateKey)
-	if err != nil {
-		return tls.Certificate{}, nil
-	}
-
-	certPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
-	keyBytes, err := x509.MarshalECPrivateKey(priv)
-	if err != nil {
-		return tls.Certificate{}, err
-	}
-	keyPem := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyBytes})
-	return tls.X509KeyPair(certPem, keyPem)
-}
-
-func TestGenerateToken(t *testing.T) {
+func (suite *TokenTestSuite) TestGenerateToken() {
 	p := &testProvider{
 		GetCertificateFunc: func(ctx context.Context) (certificate *tls.Certificate, e error) {
-			return &testTLSCertificate, nil
+			return &suite.TestTLSCertificate, nil
 		},
 	}
 
 	token, err := security.GenerateToken(context.Background(), p, 0)
-	require.Nil(t, err)
+	suite.Nil(err)
 
-	x509crt, err := x509.ParseCertificate(testTLSCertificate.Certificate[0])
-	require.Nil(t, err)
+	x509crt, err := x509.ParseCertificate(suite.TestTLSCertificate.Certificate[0])
+	suite.Nil(err)
 
 	_, err = new(jwt.Parser).Parse(token, func(token *jwt.Token) (interface{}, error) {
 		return x509crt.PublicKey, nil
 	})
-	require.Nil(t, err)
+	suite.Nil(err)
 }
 
-func TestGenerateToken_Expire(t *testing.T) {
+func (suite *TokenTestSuite) TestGenerateToken_Expire() {
 	p := &testProvider{
 		GetCertificateFunc: func(ctx context.Context) (certificate *tls.Certificate, e error) {
-			return &testTLSCertificate, nil
+			return &suite.TestTLSCertificate, nil
 		},
 	}
 
 	token, err := security.GenerateToken(context.Background(), p, 3*time.Second)
-	require.Nil(t, err)
+	suite.Nil(err)
 
 	<-time.After(5 * time.Second)
 
-	x509crt, err := x509.ParseCertificate(testTLSCertificate.Certificate[0])
-	require.Nil(t, err)
+	x509crt, err := x509.ParseCertificate(suite.TestTLSCertificate.Certificate[0])
+	suite.Nil(err)
 
 	_, err = new(jwt.Parser).Parse(token, func(token *jwt.Token) (interface{}, error) {
 		return x509crt.PublicKey, nil
 	})
-	require.NotNil(t, err)
+	suite.NotNil(err)
 }
 
-func TestVerifyToken(t *testing.T) {
-	token, err := jwt.New(jwt.SigningMethodES256).SignedString(testTLSCertificate.PrivateKey)
-	require.Nil(t, err)
+func (suite *TokenTestSuite) TestVerifyToken() {
+	token, err := jwt.New(jwt.SigningMethodES256).SignedString(suite.TestTLSCertificate.PrivateKey)
+	suite.Nil(err)
 
-	x509crt, err := x509.ParseCertificate(testTLSCertificate.Certificate[0])
-	require.Nil(t, err)
+	x509crt, err := x509.ParseCertificate(suite.TestTLSCertificate.Certificate[0])
+	suite.Nil(err)
 
 	err = security.VerifyToken(token, x509crt)
-	require.Nil(t, err)
+	suite.Nil(err)
 
-	invalidX509crt, err := x509.ParseCertificate(testCA.Certificate[0])
-	require.Nil(t, err)
+	invalidX509crt, err := x509.ParseCertificate(suite.TestCA.Certificate[0])
+	suite.Nil(err)
 
 	err = security.VerifyToken(token, invalidX509crt)
-	require.NotNil(t, err)
+	suite.NotNil(err)
 }
