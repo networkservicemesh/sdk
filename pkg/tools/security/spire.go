@@ -75,3 +75,11 @@ func NewSpireProvider(addr string) (Provider, error) {
 func (p *spireProvider) GetTLSConfig(ctx context.Context) (*tls.Config, error) {
 	return p.peer.GetConfig(ctx, spiffe.ExpectAnyPeer())
 }
+
+func (p *spireProvider) GetCertificate(ctx context.Context) (*tls.Certificate, error) {
+	if err := p.peer.WaitUntilReady(ctx); err != nil {
+		return nil, err
+	}
+
+	return p.peer.GetCertificate()
+}
