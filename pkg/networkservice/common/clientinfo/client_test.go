@@ -22,6 +22,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/assert"
 
@@ -61,13 +64,14 @@ func TestLabelsMapNotPresent(t *testing.T) {
 	err := setEnvs(envs)
 	assert.Nil(t, err)
 
-	client := clientinfo.NewClient()
+	client := next.NewNetworkServiceClient(clientinfo.NewClient(), checkrequest.NewClient(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
+		assert.Equal(t, expected, request.GetConnection().GetLabels())
+	}))
 	conn, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{},
 	})
 	assert.Nil(t, err)
 	assert.NotNil(t, conn)
-	assert.Equal(t, expected, conn.GetLabels())
 
 	err = unsetEnvs(envs)
 	assert.Nil(t, err)
@@ -89,7 +93,9 @@ func TestLabelsOverwritten(t *testing.T) {
 	err := setEnvs(envs)
 	assert.Nil(t, err)
 
-	client := clientinfo.NewClient()
+	client := next.NewNetworkServiceClient(clientinfo.NewClient(), checkrequest.NewClient(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
+		assert.Equal(t, expected, request.GetConnection().GetLabels())
+	}))
 	conn, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Labels: map[string]string{
@@ -102,7 +108,6 @@ func TestLabelsOverwritten(t *testing.T) {
 	})
 	assert.Nil(t, err)
 	assert.NotNil(t, conn)
-	assert.Equal(t, expected, conn.GetLabels())
 
 	err = unsetEnvs(envs)
 	assert.Nil(t, err)
@@ -121,7 +126,9 @@ func TestSomeEnvsNotPresent(t *testing.T) {
 	err := setEnvs(envs)
 	assert.Nil(t, err)
 
-	client := clientinfo.NewClient()
+	client := next.NewNetworkServiceClient(clientinfo.NewClient(), checkrequest.NewClient(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
+		assert.Equal(t, expected, request.GetConnection().GetLabels())
+	}))
 	conn, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Labels: map[string]string{
@@ -133,7 +140,6 @@ func TestSomeEnvsNotPresent(t *testing.T) {
 	})
 	assert.Nil(t, err)
 	assert.NotNil(t, conn)
-	assert.Equal(t, expected, conn.GetLabels())
 
 	err = unsetEnvs(envs)
 	assert.Nil(t, err)
