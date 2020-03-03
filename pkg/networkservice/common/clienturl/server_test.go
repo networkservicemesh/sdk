@@ -22,84 +22,68 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
+
 	"github.com/stretchr/testify/assert"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type testNetworkServiceServer struct {
-	t    *testing.T
-	want *url.URL
-}
-
-func (c *testNetworkServiceServer) Request(ctx context.Context, in *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	assert.Equal(c.t, c.want, clienturl.ClientURL(ctx))
-	return in.GetConnection(), nil
-}
-
-func (c *testNetworkServiceServer) Close(ctx context.Context, _ *networkservice.Connection) (*empty.Empty, error) {
-	assert.Equal(c.t, c.want, clienturl.ClientURL(ctx))
-	return &empty.Empty{}, nil
-}
-
-var testData = []struct {
-	name  string
-	ctx   context.Context
-	given *url.URL
-	want  *url.URL
-}{
-	{
-		"add client url in empty context",
-		context.Background(),
-		&url.URL{
-			Scheme: "ipv4",
-			Path:   "192.168.0.1",
-		},
-		&url.URL{
-			Scheme: "ipv4",
-			Path:   "192.168.0.1",
-		},
-	},
-	{
-		"overwrite client url",
-		clienturl.WithClientURL(context.Background(), &url.URL{
-			Scheme: "unix",
-			Path:   "/var/run/nse-1.sock",
-		}),
-		&url.URL{
-			Scheme: "ipv4",
-			Path:   "192.168.0.1",
-		},
-		&url.URL{
-			Scheme: "ipv4",
-			Path:   "192.168.0.1",
-		},
-	},
-	{
-		"overwrite client url by nil",
-		clienturl.WithClientURL(context.Background(), &url.URL{
-			Scheme: "unix",
-			Path:   "/var/run/nse-1.sock",
-		}),
-		nil,
-		nil,
-	},
-}
-
-func Test_clientUrlServer(t *testing.T) {
-	for _, data := range testData {
-		test := data
-		t.Run(test.name, func(t *testing.T) {
-			testServer(test.ctx, test.given, test.want, t)
-		})
+func TestAddURLInEmptyContext(t *testing.T) {
+	clientURL := &url.URL{
+		Scheme: "ipv4",
+		Path:   "192.168.0.1",
 	}
+	client := next.NewNetworkServiceServer(clienturl.NewServer(clientURL), checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+		assert.Equal(t, clientURL, clienturl.ClientURL(ctx))
+	}))
+
+	_, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{})
+	assert.Nil(t, err)
+	_, err = client.Close(context.Background(), &networkservice.Connection{})
+	assert.Nil(t, err)
 }
 
-func testServer(ctx context.Context, given, want *url.URL, t *testing.T) {
-	client := next.NewNetworkServiceServer(clienturl.NewServer(given), &testNetworkServiceServer{t: t, want: want})
-	_, _ = client.Request(ctx, &networkservice.NetworkServiceRequest{})
-	_, _ = client.Close(ctx, &networkservice.Connection{})
+func TestOverwriteURL(t *testing.T) {
+	clientURL := &url.URL{
+		Scheme: "ipv4",
+		Path:   "192.168.0.1",
+	}
+	previousURL := &url.URL{
+		Scheme: "unix",
+		Path:   "/var/run/nse-1.sock",
+	}
+	client := next.NewNetworkServiceServer(clienturl.NewServer(clientURL), checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+		assert.Equal(t, clientURL, clienturl.ClientURL(ctx))
+	}))
+
+	ctx := clienturl.WithClientURL(context.Background(), previousURL)
+	_, err := client.Request(ctx, &networkservice.NetworkServiceRequest{})
+	assert.Nil(t, err)
+
+	ctx = clienturl.WithClientURL(context.Background(), previousURL)
+	_, err = client.Close(ctx, &networkservice.Connection{})
+	assert.Nil(t, err)
+}
+
+func TestOverwriteURLByNil(t *testing.T) {
+	var clientURL *url.URL = nil
+	previousURL := &url.URL{
+		Scheme: "unix",
+		Path:   "/var/run/nse-1.sock",
+	}
+	client := next.NewNetworkServiceServer(clienturl.NewServer(clientURL), checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+		assert.Equal(t, clientURL, clienturl.ClientURL(ctx))
+	}))
+
+	ctx := clienturl.WithClientURL(context.Background(), previousURL)
+	_, err := client.Request(ctx, &networkservice.NetworkServiceRequest{})
+	assert.Nil(t, err)
+
+	ctx = clienturl.WithClientURL(context.Background(), previousURL)
+	_, err = client.Close(ctx, &networkservice.Connection{})
+	assert.Nil(t, err)
 }
