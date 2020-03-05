@@ -22,6 +22,8 @@ import (
 	"net/url"
 	"testing"
 
+	"go.uber.org/goleak"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
 
 	"github.com/stretchr/testify/assert"
@@ -33,6 +35,7 @@ import (
 )
 
 func TestAddURLInEmptyContext(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	clientURL := &url.URL{
 		Scheme: "ipv4",
 		Path:   "192.168.0.1",
@@ -48,6 +51,7 @@ func TestAddURLInEmptyContext(t *testing.T) {
 }
 
 func TestOverwriteURL(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	clientURL := &url.URL{
 		Scheme: "ipv4",
 		Path:   "192.168.0.1",
@@ -70,6 +74,7 @@ func TestOverwriteURL(t *testing.T) {
 }
 
 func TestOverwriteURLByNil(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	var clientURL *url.URL = nil
 	previousURL := &url.URL{
 		Scheme: "unix",

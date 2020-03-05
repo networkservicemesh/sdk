@@ -21,6 +21,8 @@ import (
 	"net/url"
 	"testing"
 
+	"go.uber.org/goleak"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
@@ -30,6 +32,7 @@ import (
 )
 
 func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	require.NotPanics(t, func() {
 		s := connect.NewServer(client.NewClientFactory(t.Name(), nil, next.NewNetworkServiceClient()))
 		_, _ = s.Request(clienturl.WithClientURL(context.Background(), &url.URL{}), nil)

@@ -21,13 +21,16 @@ import (
 	"context"
 	"testing"
 
+	"go.uber.org/goleak"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
 )
 
@@ -103,6 +106,7 @@ func fromSomeMiddleAppMatch() *registry.Match {
 }
 
 func TestMatchEmptySourceSelector(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	registryResponse := &registry.FindNetworkServiceResponse{
 		NetworkService: &registry.NetworkService{
 			Name:    "secure-intranet-connectivity",
@@ -135,6 +139,7 @@ func TestMatchEmptySourceSelector(t *testing.T) {
 }
 
 func TestMatchNonEmptySourceSelector(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	registryResponse := &registry.FindNetworkServiceResponse{
 		NetworkService: &registry.NetworkService{
 			Name:    "secure-intranet-connectivity",
@@ -169,6 +174,7 @@ func TestMatchNonEmptySourceSelector(t *testing.T) {
 }
 
 func TestMatchEmptySourceSelectorGoingFirst(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	registryResponse := &registry.FindNetworkServiceResponse{
 		NetworkService: &registry.NetworkService{
 			Name:    "secure-intranet-connectivity",
@@ -203,6 +209,7 @@ func TestMatchEmptySourceSelectorGoingFirst(t *testing.T) {
 }
 
 func TestMatchNothing(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	registryResponse := &registry.FindNetworkServiceResponse{
 		NetworkService: &registry.NetworkService{
 			Name:    "secure-intranet-connectivity",

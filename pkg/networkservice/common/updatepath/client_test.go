@@ -19,15 +19,16 @@ package updatepath_test
 
 import (
 	"context"
+	"go.uber.org/goleak"
 	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/stretchr/testify/assert"
-
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewClient_EmptyPathInRequest(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	client := updatepath.NewClient("nsc-1")
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -52,6 +53,7 @@ func TestNewClient_EmptyPathInRequest(t *testing.T) {
 }
 
 func TestNewClient_ZeroIndexAddNewSegment(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	client := updatepath.NewClient("nsc-1")
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -80,6 +82,7 @@ func TestNewClient_ZeroIndexAddNewSegment(t *testing.T) {
 }
 
 func TestNewClient_ValidIndexOverwriteValues(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	client := updatepath.NewClient("nsc-1")
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -125,6 +128,7 @@ func TestNewClient_ValidIndexOverwriteValues(t *testing.T) {
 }
 
 func TestNewClient_IndexGreaterThanArrayLength(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	client := updatepath.NewClient("nsc-1")
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{

@@ -22,6 +22,8 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/goleak"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
@@ -52,6 +54,7 @@ func (t *testOnHeal) Close(ctx context.Context, in *networkservice.Connection, o
 }
 
 func TestHealClient_Request(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	eventCh := make(chan *networkservice.ConnectionEvent, 1)
 	defer close(eventCh)
 
@@ -112,6 +115,7 @@ func TestHealClient_Request(t *testing.T) {
 }
 
 func TestHealClient_MonitorClose(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	eventCh := make(chan *networkservice.ConnectionEvent, 1)
 	defer close(eventCh)
 
@@ -159,6 +163,7 @@ func TestHealClient_MonitorClose(t *testing.T) {
 }
 
 func TestHealClient_EmptyInit(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	eventCh := make(chan *networkservice.ConnectionEvent, 1)
 	defer close(eventCh)
 
@@ -192,6 +197,7 @@ func TestHealClient_EmptyInit(t *testing.T) {
 }
 
 func TestNewClient_MissingConnectionsInInit(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	eventCh := make(chan *networkservice.ConnectionEvent, 1)
 
 	requestCh := make(chan *networkservice.NetworkServiceRequest)

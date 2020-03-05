@@ -25,6 +25,8 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
 
+	"go.uber.org/goleak"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/assert"
 
@@ -50,6 +52,7 @@ func unsetEnvs(envs map[string]string) error {
 }
 
 func TestLabelsMapNotPresent(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	envs := map[string]string{
 		"NODE_NAME":    "AAA",
 		"POD_NAME":     "BBB",
@@ -78,6 +81,7 @@ func TestLabelsMapNotPresent(t *testing.T) {
 }
 
 func TestLabelsOverwritten(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	envs := map[string]string{
 		"NODE_NAME":    "AAA",
 		"POD_NAME":     "BBB",
@@ -114,6 +118,7 @@ func TestLabelsOverwritten(t *testing.T) {
 }
 
 func TestSomeEnvsNotPresent(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	envs := map[string]string{
 		"CLUSTER_NAME": "CCC",
 	}

@@ -18,6 +18,7 @@ package updatepath_test
 
 import (
 	"context"
+	"go.uber.org/goleak"
 	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -27,6 +28,7 @@ import (
 )
 
 func TestNewServer_EmptyPathInRequest(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	server := updatepath.NewServer("nsc-1")
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -39,6 +41,7 @@ func TestNewServer_EmptyPathInRequest(t *testing.T) {
 }
 
 func TestNewServer_IndexInLastPositionAddNewSegment(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "conn-2",
@@ -81,6 +84,7 @@ func TestNewServer_IndexInLastPositionAddNewSegment(t *testing.T) {
 }
 
 func TestNewServer_ValidIndexOverwriteValues(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "conn-2",
@@ -126,6 +130,7 @@ func TestNewServer_ValidIndexOverwriteValues(t *testing.T) {
 }
 
 func TestNewServer_IndexGreaterThanArrayLength(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "conn-1",

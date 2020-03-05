@@ -20,6 +20,8 @@ import (
 	"context"
 	"testing"
 
+	"go.uber.org/goleak"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,6 +31,7 @@ import (
 )
 
 func TestMonitor(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	// Specify pathSegments to test
 	segmentNames := []string{"local-nsm", "remote-nsm"}
 

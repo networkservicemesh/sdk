@@ -20,6 +20,8 @@ import (
 	"context"
 	"testing"
 
+	"go.uber.org/goleak"
+
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -59,6 +61,7 @@ func requestWithToken(token string) *networkservice.NetworkServiceRequest {
 }
 
 func TestAuthzEndpoint(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	suits := []struct {
 		name     string
 		policy   string
