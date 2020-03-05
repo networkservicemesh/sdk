@@ -20,12 +20,14 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"testing"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/stretchr/testify/require"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authn"
 	"github.com/networkservicemesh/sdk/pkg/tools/security"
 	securitytest "github.com/networkservicemesh/sdk/pkg/tools/security/test"
-	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestAuthnClient_Request(t *testing.T) {

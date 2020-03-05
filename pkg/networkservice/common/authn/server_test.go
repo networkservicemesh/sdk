@@ -20,16 +20,18 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"testing"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authn"
-	"github.com/networkservicemesh/sdk/pkg/tools/security"
-	securitytest "github.com/networkservicemesh/sdk/pkg/tools/security/test"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
-	"testing"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authn"
+	"github.com/networkservicemesh/sdk/pkg/tools/security"
+	securitytest "github.com/networkservicemesh/sdk/pkg/tools/security/test"
 )
 
 type AuthnServerTestSuite struct {
@@ -66,6 +68,8 @@ func (s *AuthnServerTestSuite) TestAuthnServer_Request() {
 	srv := authn.NewServer(p)
 
 	x509crt, err := x509.ParseCertificate(s.TestTLSCertificate.Certificate[0])
+	s.Nil(err)
+
 	ctx := peer.NewContext(context.Background(), &peer.Peer{
 		AuthInfo: credentials.TLSInfo{
 			State: tls.ConnectionState{
@@ -109,6 +113,8 @@ func (s *AuthnServerTestSuite) TestAuthnServer_UnauthorizedRequest() {
 	srv := authn.NewServer(p)
 
 	wrongX509crt, err := x509.ParseCertificate(s.TestCA.Certificate[0])
+	s.Nil(err)
+
 	ctx := peer.NewContext(context.Background(), &peer.Peer{
 		AuthInfo: credentials.TLSInfo{
 			State: tls.ConnectionState{

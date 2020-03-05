@@ -14,26 +14,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package authn provides chain elements for authentication
 package authn
 
 import (
 	"context"
 	"crypto/x509"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/security"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/security"
 )
 
 type authnServer struct {
 	p security.Provider
 }
 
+// NewServer - returns a new authentication server
+//			   p - provider of TLS certificate
 func NewServer(p security.Provider) networkservice.NetworkServiceServer {
 	return &authnServer{
 		p: p,

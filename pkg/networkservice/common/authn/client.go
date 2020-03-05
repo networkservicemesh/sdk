@@ -18,12 +18,14 @@ package authn
 
 import (
 	"context"
+	"time"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"google.golang.org/grpc"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/security"
-	"google.golang.org/grpc"
-	"time"
 )
 
 const (
@@ -34,6 +36,8 @@ type authnClient struct {
 	p security.Provider
 }
 
+// NewClient - returns a new authentication client
+//			   p - provider of TLS certificate
 func NewClient(p security.Provider) networkservice.NetworkServiceClient {
 	return &authnClient{
 		p: p,
