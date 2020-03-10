@@ -39,6 +39,9 @@ func NewServer(name string) networkservice.NetworkServiceServer {
 }
 
 func (u *updatePathServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	if request.GetConnection().GetPath() == nil {
+		request.GetConnection().Path = &networkservice.Path{}
+	}
 	path := request.GetConnection().GetPath()
 	if int(path.GetIndex()) >= len(path.GetPathSegments()) {
 		return nil, errors.Errorf("NetworkServiceRequest.Connection.Path.Index(%d) >= len(NetworkServiceRequest.Connection.Path.PathSegments)(%d)",

@@ -36,6 +36,27 @@ var clientTestData = []struct {
 	want    *networkservice.Connection
 }{
 	{
+		"empty path",
+		"nsc-1",
+		&networkservice.NetworkServiceRequest{
+			Connection: &networkservice.Connection{
+				Id: "conn-1",
+			},
+		},
+		&networkservice.Connection{
+			Id: "conn-1",
+			Path: &networkservice.Path{
+				Index: 0,
+				PathSegments: []*networkservice.PathSegment{
+					{
+						Name: "nsc-1",
+						Id:   "conn-1",
+					},
+				},
+			},
+		},
+	},
+	{
 		"add new segment when index == 0",
 		"nsc-1",
 		&networkservice.NetworkServiceRequest{
