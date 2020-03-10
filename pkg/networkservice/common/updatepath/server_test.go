@@ -34,6 +34,16 @@ var serverTestData = []struct {
 	want    *networkservice.Connection
 }{
 	{
+		"empty path",
+		"nsc-1",
+		&networkservice.NetworkServiceRequest{
+			Connection: &networkservice.Connection{
+				Id: "conn-1",
+			},
+		},
+		nil,
+	},
+	{
 		"add new segment when index was in the last position",
 		"nsc-2",
 		&networkservice.NetworkServiceRequest{
