@@ -18,6 +18,7 @@
 package endpoint
 
 import (
+	"github.com/open-policy-agent/opa/rego"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -49,12 +50,12 @@ type endpoint struct {
 //             additional functionality is specified
 //             - name - name of the NetworkServiceServer
 //             - additionalFunctionality - any additional NetworkServiceServer chain elements to be included in the chain
-func NewServer(name string, additionalFunctionality ...networkservice.NetworkServiceServer) Endpoint {
+func NewServer(name string, authzPolicy *rego.PreparedEvalQuery, additionalFunctionality ...networkservice.NetworkServiceServer) Endpoint {
 	rv := &endpoint{}
 	var ns networkservice.NetworkServiceServer = rv
 	rv.NetworkServiceServer = chain.NewNetworkServiceServer(
 		append([]networkservice.NetworkServiceServer{
-			authorize.NewServer(nil),
+			authorize.NewServer(authzPolicy),
 			setid.NewServer(name),
 			monitor.NewServer(&rv.MonitorConnectionServer),
 			timeout.NewServer(&ns),
