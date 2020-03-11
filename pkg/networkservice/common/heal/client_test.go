@@ -58,14 +58,16 @@ func TestHealClient_Request(t *testing.T) {
 	onHealCh := make(chan struct{})
 	onHeal := &testOnHeal{
 		RequestFunc: func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (connection *networkservice.Connection, e error) {
-			close(onHealCh)
+			if ctx.Err() == nil {
+				close(onHealCh)
+			}
 			return &networkservice.Connection{}, nil
 		},
 	}
 
+	ctx, cancelFunc := context.WithCancel(context.Background())
 	client := chain.NewNetworkServiceClient(
-		heal.NewClient(context.Background(),
-			eventchannel.NewMonitorConnectionClient(eventCh), addressof.NetworkServiceClient(onHeal)))
+		heal.NewClient(ctx, eventchannel.NewMonitorConnectionClient(eventCh), addressof.NetworkServiceClient(onHeal)))
 
 	_, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -104,6 +106,9 @@ func TestHealClient_Request(t *testing.T) {
 		}
 	}
 	require.Eventually(t, cond, waitForTimeout, tickTimeout)
+
+	cancelFunc()
+	close(eventCh)
 }
 
 func TestHealClient_MonitorClose(t *testing.T) {
@@ -150,13 +155,16 @@ func TestHealClient_MonitorClose(t *testing.T) {
 		}
 	}
 	require.Eventually(t, cond, waitForTimeout, tickTimeout)
+
+	close(eventCh)
 }
 
 func TestHealClient_EmptyInit(t *testing.T) {
 	eventCh := make(chan *networkservice.ConnectionEvent, 1)
 
+	ctx, cancelFunc := context.WithCancel(context.Background())
 	client := chain.NewNetworkServiceClient(
-		heal.NewClient(context.Background(), eventchannel.NewMonitorConnectionClient(eventCh), nil))
+		heal.NewClient(ctx, eventchannel.NewMonitorConnectionClient(eventCh), nil))
 
 	_, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -180,6 +188,9 @@ func TestHealClient_EmptyInit(t *testing.T) {
 			},
 		},
 	}
+
+	cancelFunc()
+	close(eventCh)
 }
 
 func TestNewClient_MissingConnectionsInInit(t *testing.T) {

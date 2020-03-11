@@ -163,12 +163,11 @@ func (f *healClient) Request(ctx context.Context, request *networkservice.Networ
 	// Set its connection to the returned connection we received
 	req.Connection = rv
 
-	// TODO handle deadline err
-	deadline, _ := ctx.Deadline()
-	duration := time.Until(deadline)
+	// TODO define proper constant timeout
+	timeout := time.Minute
 	f.updateExecutor.AsyncExec(func() {
 		f.requestors[req.GetConnection().GetId()] = func() {
-			timeCtx, cancelFunc := context.WithTimeout(context.Background(), duration)
+			timeCtx, cancelFunc := context.WithTimeout(f.chainContext, timeout)
 			ctx = extend.WithValuesFromContext(timeCtx, ctx)
 			// TODO wrap another span around this
 			_, err := (*f.onHeal).Request(ctx, req, opts...)
@@ -178,9 +177,9 @@ func (f *healClient) Request(ctx context.Context, request *networkservice.Networ
 			cancelFunc()
 		}
 		f.closers[req.GetConnection().GetId()] = func() {
-			timeCtx, cancelFunc := context.WithTimeout(context.Background(), duration)
+			timeCtx, cancelFunc := context.WithTimeout(f.chainContext, timeout)
 			ctx = extend.WithValuesFromContext(timeCtx, ctx)
-			_, err := (*f.onHeal).Close(extend.WithValuesFromContext(timeCtx, ctx), req.GetConnection(), opts...)
+			_, err := (*f.onHeal).Close(ctx, req.GetConnection(), opts...)
 			if err != nil {
 				trace.Log(ctx).Errorf("Attempt to close connection %s during heal resulted in error: %+v", req.GetConnection().GetId(), err)
 			}
