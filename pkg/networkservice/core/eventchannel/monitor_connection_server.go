@@ -18,6 +18,7 @@ package eventchannel
 
 import (
 	"context"
+	"sync"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
@@ -27,6 +28,7 @@ import (
 type monitorConnectionMonitorConnectionsServer struct {
 	ctx     context.Context
 	eventCh chan<- *networkservice.ConnectionEvent
+	once    sync.Once
 }
 
 // NewMonitorConnectionMonitorConnectionsServer - returns a networkservice.MonitorConnection_MonitorConnectionsServer
@@ -39,7 +41,8 @@ func NewMonitorConnectionMonitorConnectionsServer(ctx context.Context, eventCh c
 	}
 	go func() {
 		<-ctx.Done()
-		close(eventCh)
+		// Funnel through Send here to trigger close in *one* place to avoid race conditions
+		_ = rv.Send(&networkservice.ConnectionEvent{})
 	}()
 	return rv
 }
@@ -47,6 +50,7 @@ func NewMonitorConnectionMonitorConnectionsServer(ctx context.Context, eventCh c
 func (m *monitorConnectionMonitorConnectionsServer) Send(event *networkservice.ConnectionEvent) error {
 	select {
 	case <-m.ctx.Done():
+		m.once.Do(func() { close(m.eventCh) })
 		return errors.New("Can no longer Send")
 	default:
 		m.eventCh <- event
