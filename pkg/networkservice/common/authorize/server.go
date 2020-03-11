@@ -20,9 +20,9 @@ package authorize
 import (
 	"context"
 
-	"github.com/open-policy-agent/opa/rego"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -33,63 +33,42 @@ import (
 )
 
 type authorizeServer struct {
-	p *rego.PreparedEvalQuery
+	requestPolicy func(peer *peer.Peer, conn *networkservice.NetworkServiceRequest) error
+	closePolicy   func(peer *peer.Peer, conn *networkservice.Connection) error
 }
 
 // NewServer - returns a new authorization networkservicemesh.NetworkServiceServers
-func NewServer(p *rego.PreparedEvalQuery) networkservice.NetworkServiceServer {
+//             - requestPolicy - function that takes a peer and NetworkServiceRequest and returns a non-nil error if the client is not authorized to make the request
+//             - closePolicy - function that takes a peer and a Connection and returns non-nil error if the client is not authorized to close the connection
+func NewServer(
+	requestPolicy func(peer *peer.Peer, conn *networkservice.NetworkServiceRequest) error,
+	closePolicy func(peer *peer.Peer, conn *networkservice.Connection) error) networkservice.NetworkServiceServer {
 	return &authorizeServer{
-		p: p,
+		requestPolicy: requestPolicy,
+		closePolicy:   closePolicy,
 	}
 }
 
 func (a *authorizeServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if err := check(ctx, a.p, request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].GetToken()); err != nil {
-		return nil, err
+	if a.requestPolicy == nil {
+		return nil, errors.WithStack(status.Error(codes.Unavailable, "requestPolicy is nil, request cannot be authorized"))
 	}
-
+	p, _ := peer.FromContext(ctx)
+	err := a.requestPolicy(p, request)
+	if err != nil {
+		return nil, errors.WithStack(status.Errorf(codes.PermissionDenied, "permission denied: %+v", err))
+	}
 	return next.Server(ctx).Request(ctx, request)
 }
 
 func (a *authorizeServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	if err := check(ctx, a.p, conn.GetPath().GetPathSegments()[conn.GetPath().GetIndex()].GetToken()); err != nil {
-		return nil, err
+	if a.closePolicy == nil {
+		return nil, errors.WithStack(status.Error(codes.Unavailable, "closePolicy is nil, close cannot be authorized"))
 	}
-
+	p, _ := peer.FromContext(ctx)
+	err := a.closePolicy(p, conn)
+	if err != nil {
+		return nil, errors.WithStack(status.Errorf(codes.PermissionDenied, "permission denied: %+v", err))
+	}
 	return next.Server(ctx).Close(ctx, conn)
-}
-
-func check(ctx context.Context, p *rego.PreparedEvalQuery, input interface{}) error {
-	rs, err := p.Eval(ctx, rego.EvalInput(input))
-	if err != nil {
-		return status.Error(codes.Internal, err.Error())
-	}
-
-	hasAccess, err := hasAccess(rs)
-	if err != nil {
-		return status.Error(codes.Internal, err.Error())
-	}
-
-	if !hasAccess {
-		return status.Error(codes.PermissionDenied, "no sufficient privileges to call Request")
-	}
-
-	return nil
-}
-
-func hasAccess(rs rego.ResultSet) (bool, error) {
-	for _, r := range rs {
-		for _, e := range r.Expressions {
-			t, ok := e.Value.(bool)
-			if !ok {
-				return false, errors.New("policy contains non boolean expression")
-			}
-
-			if !t {
-				return false, nil
-			}
-		}
-	}
-
-	return true, nil
 }

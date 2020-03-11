@@ -21,7 +21,9 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/peer"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
@@ -31,7 +33,9 @@ import (
 
 func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 	require.NotPanics(t, func() {
-		s := connect.NewServer(client.NewClientFactory(t.Name(), nil, next.NewNetworkServiceClient()))
+		s := connect.NewServer(client.NewClientFactory(t.Name(), func(peer *peer.Peer, conn *networkservice.Connection) error {
+			return nil
+		}, nil, next.NewNetworkServiceClient()))
 		_, _ = s.Request(clienturl.WithClientURL(context.Background(), &url.URL{}), nil)
 	})
 }

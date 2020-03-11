@@ -20,26 +20,44 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/status"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type authorizeClient struct{}
+type authorizeClient struct {
+	requestPolicy func(peer *peer.Peer, conn *networkservice.Connection) error
+}
 
 // NewClient - returns a new authorization networkservicemesh.NetworkServiceClient
-func NewClient() networkservice.NetworkServiceClient {
-	return &authorizeClient{}
+//             - requestPolicy - function that takes the peer and Connection returned from the server and returns a non-nil error if unauthorized
+func NewClient(requestPolicy func(peer *peer.Peer, conn *networkservice.Connection) error) networkservice.NetworkServiceClient {
+	return &authorizeClient{requestPolicy: requestPolicy}
 }
 
 func (a *authorizeClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	// TODO implement authorization
-	return next.Client(ctx).Request(ctx, request, opts...)
+	conn, err := next.Client(ctx).Request(ctx, request, opts...)
+	if err != nil {
+		return nil, err
+	}
+	if a.requestPolicy == nil {
+		return nil, errors.WithStack(status.Error(codes.Unavailable, "requestPolicy is nil, request cannot authorize any connection returned from server"))
+	}
+	p, _ := peer.FromContext(ctx)
+	err = a.requestPolicy(p, conn)
+	if err != nil {
+		return nil, errors.WithStack(status.Errorf(codes.PermissionDenied, "permission denied: %+v", err))
+	}
+	return conn, err
 }
 
 func (a *authorizeClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	// TODO implement authorization
+	// Note: There's no point in authorizing the return to a Close...
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }

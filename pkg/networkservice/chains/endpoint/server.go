@@ -18,8 +18,8 @@
 package endpoint
 
 import (
-	"github.com/open-policy-agent/opa/rego"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/peer"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
@@ -49,13 +49,17 @@ type endpoint struct {
 // NewServer - returns a NetworkServiceMesh client as a chain of the standard Client pieces plus whatever
 //             additional functionality is specified
 //             - name - name of the NetworkServiceServer
+//             - requestPolicy - function that takes a peer and NetworkServiceRequest and returns a non-nil error if the client is not authorized to make the request
+//             - closePolicy - function that takes a peer and a Connection and returns non-nil error if the client is not authorized to close the connection
 //             - additionalFunctionality - any additional NetworkServiceServer chain elements to be included in the chain
-func NewServer(name string, authzPolicy *rego.PreparedEvalQuery, additionalFunctionality ...networkservice.NetworkServiceServer) Endpoint {
+func NewServer(name string,
+	requestPolicy func(peer *peer.Peer, conn *networkservice.NetworkServiceRequest) error,
+	closePolicy func(peer *peer.Peer, conn *networkservice.Connection) error, additionalFunctionality ...networkservice.NetworkServiceServer) Endpoint {
 	rv := &endpoint{}
 	var ns networkservice.NetworkServiceServer = rv
 	rv.NetworkServiceServer = chain.NewNetworkServiceServer(
 		append([]networkservice.NetworkServiceServer{
-			authorize.NewServer(authzPolicy),
+			authorize.NewServer(requestPolicy, closePolicy),
 			setid.NewServer(name),
 			monitor.NewServer(&rv.MonitorConnectionServer),
 			timeout.NewServer(&ns),

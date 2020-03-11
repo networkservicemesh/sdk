@@ -18,95 +18,110 @@ package authorize_test
 
 import (
 	"context"
+	"crypto/tls"
+	"io/ioutil"
 	"testing"
 
-	"github.com/open-policy-agent/opa/rego"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/peer"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkerror"
 )
 
-const (
-	testPolicy = `
-		package test
-	
-		default allow = false
-	
-		allow {
-			input = "allowed"
-		}
-	`
-)
-
-func requestWithToken(token string) *networkservice.NetworkServiceRequest {
-	return &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Path: &networkservice.Path{
-				Index: 0,
-				PathSegments: []*networkservice.PathSegment{
-					{
-						Token: token,
-					},
-				},
-			},
-		},
-	}
+func TestAuthorizeServer_Request_NoPolicy(t *testing.T) {
+	server := authorize.NewServer(nil, nil)
+	conn, err := server.Request(context.Background(), &networkservice.NetworkServiceRequest{})
+	assert.Nil(t, conn)
+	assert.NotNil(t, err)
 }
 
-func TestAuthzEndpoint(t *testing.T) {
-	suits := []struct {
-		name     string
-		policy   string
-		request  *networkservice.NetworkServiceRequest
-		response *networkservice.Connection
-		denied   bool
-	}{
-		{
-			name:    "simple positive test",
-			policy:  testPolicy,
-			request: requestWithToken("allowed"),
-			denied:  false,
+func TestAuthorizeServer_Close_NoPolicy(t *testing.T) {
+	server := authorize.NewServer(nil, nil)
+	conn, err := server.Close(context.Background(), &networkservice.Connection{})
+	assert.Nil(t, conn)
+	assert.NotNil(t, err)
+}
+
+func TestAuthorizeServer_Request_SuccedingPolicy(t *testing.T) {
+	server := authorize.NewServer(func(peer *peer.Peer, conn *networkservice.NetworkServiceRequest) error {
+		return nil
+	}, nil)
+	ctx := peer.NewContext(context.Background(), &peer.Peer{
+		Addr: nil,
+		AuthInfo: credentials.TLSInfo{
+			State:          tls.ConnectionState{},
+			CommonAuthInfo: credentials.CommonAuthInfo{},
 		},
-		{
-			name:    "simple negative test",
-			policy:  testPolicy,
-			request: requestWithToken("not_allowed"),
-			denied:  true,
+	})
+	_, err := server.Request(ctx, &networkservice.NetworkServiceRequest{})
+	assert.Nil(t, err)
+}
+func TestAuthorizeServer_Close_SuccedingPolicy(t *testing.T) {
+	server := authorize.NewServer(nil, func(peer *peer.Peer, conn *networkservice.Connection) error {
+		return nil
+	})
+	ctx := peer.NewContext(context.Background(), &peer.Peer{
+		Addr: nil,
+		AuthInfo: credentials.TLSInfo{
+			State:          tls.ConnectionState{},
+			CommonAuthInfo: credentials.CommonAuthInfo{},
 		},
-	}
+	})
+	_, err := server.Close(ctx, &networkservice.Connection{})
+	assert.Nil(t, err)
+}
 
-	for i := range suits {
-		s := suits[i]
-		t.Run(s.name, func(t *testing.T) {
-			p, err := rego.New(
-				rego.Query("data.test.allow"),
-				rego.Module("example.com", s.policy)).PrepareForEval(context.Background())
-			require.Nilf(t, err, "failed to create new rego policy: %v", err)
+func TestAuthorizeServer_Request_FailingPolicy(t *testing.T) {
+	server := authorize.NewServer(func(peer *peer.Peer, conn *networkservice.NetworkServiceRequest) error {
+		return errors.New("Failed as expected")
+	}, nil)
+	ctx := peer.NewContext(context.Background(), &peer.Peer{
+		Addr: nil,
+		AuthInfo: credentials.TLSInfo{
+			State:          tls.ConnectionState{},
+			CommonAuthInfo: credentials.CommonAuthInfo{},
+		},
+	})
+	_, err := server.Request(ctx, &networkservice.NetworkServiceRequest{})
+	assert.NotNil(t, err)
+}
+func TestAuthorizeServer_Close_FailingPolicy(t *testing.T) {
+	server := authorize.NewServer(nil, func(peer *peer.Peer, conn *networkservice.Connection) error {
+		return errors.New("Failed as expected")
+	})
+	ctx := peer.NewContext(context.Background(), &peer.Peer{
+		Addr: nil,
+		AuthInfo: credentials.TLSInfo{
+			State:          tls.ConnectionState{},
+			CommonAuthInfo: credentials.CommonAuthInfo{},
+		},
+	})
+	_, err := server.Close(ctx, &networkservice.Connection{})
+	assert.NotNil(t, err)
+}
 
-			srv := chain.NewNetworkServiceServer(authorize.NewServer(&p))
-
-			checkResult := func(err error) {
-				if !s.denied {
-					require.Nil(t, err, "request expected to be not denied")
-					return
-				}
-
-				require.NotNil(t, err, "request expected to be denied")
-				s, ok := status.FromError(err)
-				require.True(t, ok, "error without error status code")
-				require.Equal(t, s.Code(), codes.PermissionDenied, "wrong error status code")
-			}
-
-			_, err = srv.Request(context.Background(), s.request)
-			checkResult(err)
-
-			_, err = srv.Close(context.Background(), s.request.GetConnection())
-			checkResult(err)
-		})
-	}
+func TestServerPropogatesError(t *testing.T) {
+	logrus.SetOutput(ioutil.Discard)
+	server := authorize.NewServer(func(peer *peer.Peer, conn *networkservice.NetworkServiceRequest) error {
+		return nil
+	}, func(*peer.Peer, *networkservice.Connection) error {
+		return nil
+	})
+	server = checkerror.CheckPropogatesErrorServer(t, server)
+	ctx := peer.NewContext(context.Background(), &peer.Peer{
+		Addr: nil,
+		AuthInfo: credentials.TLSInfo{
+			State:          tls.ConnectionState{},
+			CommonAuthInfo: credentials.CommonAuthInfo{},
+		},
+	})
+	conn, err := server.Request(ctx, &networkservice.NetworkServiceRequest{})
+	assert.NotNil(t, err)
+	_, err = server.Close(ctx, conn)
+	assert.NotNil(t, err)
 }
