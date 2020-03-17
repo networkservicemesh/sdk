@@ -18,8 +18,9 @@ package updatepath_test
 
 import (
 	"context"
-	"go.uber.org/goleak"
 	"testing"
+
+	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/assert"

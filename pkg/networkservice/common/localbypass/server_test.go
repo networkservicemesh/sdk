@@ -23,11 +23,11 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/goleak"
 	"google.golang.org/grpc/peer"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
@@ -73,6 +73,7 @@ func (s testNetworkServiceServer) Close(ctx context.Context, _ *networkservice.C
 }
 
 func TestNewServer_NSENotPresented(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	var localBypassRegistryServer registry.NetworkServiceRegistryServer
 	localBypassNetworkServiceServer := localbypass.NewServer(&localBypassRegistryServer)
 	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
@@ -94,6 +95,7 @@ func TestNewServer_NSENotPresented(t *testing.T) {
 }
 
 func TestNewServer_UnixAddressRegistered(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	var localBypassRegistryServer registry.NetworkServiceRegistryServer
 	localBypassNetworkServiceServer := localbypass.NewServer(&localBypassRegistryServer)
 	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
@@ -130,6 +132,7 @@ func TestNewServer_UnixAddressRegistered(t *testing.T) {
 }
 
 func TestNewServer_NonUnixAddressRegistered(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	var localBypassRegistryServer registry.NetworkServiceRegistryServer
 	localBypassNetworkServiceServer := localbypass.NewServer(&localBypassRegistryServer)
 	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
@@ -165,6 +168,7 @@ func TestNewServer_NonUnixAddressRegistered(t *testing.T) {
 }
 
 func TestNewServer_AddsNothingAfterNSERemoval(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	var localBypassRegistryServer registry.NetworkServiceRegistryServer
 	localBypassNetworkServiceServer := localbypass.NewServer(&localBypassRegistryServer)
 	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})

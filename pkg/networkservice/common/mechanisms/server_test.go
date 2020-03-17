@@ -18,11 +18,8 @@ package mechanisms_test
 
 import (
 	"context"
-	"testing"
-
-	"go.uber.org/goleak"
-
 	"io/ioutil"
+	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
@@ -32,6 +29,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/vxlan"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/goleak"
 	"gonum.org/v1/gonum/stat/combin"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"

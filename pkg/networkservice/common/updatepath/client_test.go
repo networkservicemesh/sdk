@@ -19,12 +19,13 @@ package updatepath_test
 
 import (
 	"context"
-	"go.uber.org/goleak"
 	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/goleak"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 )
 
 func TestNewClient_EmptyPathInRequest(t *testing.T) {

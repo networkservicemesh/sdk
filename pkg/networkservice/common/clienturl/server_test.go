@@ -22,16 +22,13 @@ import (
 	"net/url"
 	"testing"
 
-	"go.uber.org/goleak"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
-
-	"github.com/stretchr/testify/assert"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
 )
 
 func TestAddURLInEmptyContext(t *testing.T) {

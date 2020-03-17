@@ -20,9 +20,8 @@ import (
 	"reflect"
 	"testing"
 
-	"go.uber.org/goleak"
-
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"go.uber.org/goleak"
 )
 
 type args struct {

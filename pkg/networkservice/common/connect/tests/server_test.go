@@ -21,9 +21,8 @@ import (
 	"net/url"
 	"testing"
 
-	"go.uber.org/goleak"
-
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
