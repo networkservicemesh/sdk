@@ -194,6 +194,7 @@ func TestNewClient_MissingConnectionsInInit(t *testing.T) {
 	}
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
 	client := chain.NewNetworkServiceClient(
 		heal.NewClient(ctx, eventchannel.NewMonitorConnectionClient(eventCh), addressof.NetworkServiceClient(onHeal)))
 
@@ -241,5 +242,4 @@ func TestNewClient_MissingConnectionsInInit(t *testing.T) {
 	require.Eventually(t, cond, waitForTimeout, tickTimeout)
 	require.Equal(t, 0, healsRemaining[conns[0].GetId()])
 	require.Equal(t, 0, healsRemaining[conns[1].GetId()])
-	cancelFunc()
 }
