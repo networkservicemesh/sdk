@@ -24,141 +24,127 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-var serverTestData = []struct {
-	name    string
-	nscName string
-	request *networkservice.NetworkServiceRequest
-	want    *networkservice.Connection
-}{
-	{
-		"empty path",
-		"nsc-1",
-		&networkservice.NetworkServiceRequest{
-			Connection: &networkservice.Connection{
-				Id: "conn-1",
-			},
+func TestNewServer_EmptyPathInRequest(t *testing.T) {
+	server := updatepath.NewServer("nsc-1")
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: "conn-1",
 		},
-		nil,
-	},
-	{
-		"add new segment when index was in the last position",
-		"nsc-2",
-		&networkservice.NetworkServiceRequest{
-			Connection: &networkservice.Connection{
-				Id: "conn-2",
-				Path: &networkservice.Path{
-					Index: 1,
-					PathSegments: []*networkservice.PathSegment{
-						{
-							Name: "nsc-0",
-							Id:   "conn-0",
-						}, {
-							Name: "nsc-1",
-							Id:   "conn-1",
-						},
-					},
-				},
-			},
-		},
-		&networkservice.Connection{
-			Id: "conn-2",
-			Path: &networkservice.Path{
-				Index: 2,
-				PathSegments: []*networkservice.PathSegment{
-					{
-						Name: "nsc-0",
-						Id:   "conn-0",
-					}, {
-						Name: "nsc-1",
-						Id:   "conn-1",
-					}, {
-						Name: "nsc-2",
-						Id:   "conn-2",
-					},
-				},
-			},
-		},
-	},
-	{
-		"override values when index is valid in path array",
-		"nsc-2",
-		&networkservice.NetworkServiceRequest{
-			Connection: &networkservice.Connection{
-				Id: "conn-2",
-				Path: &networkservice.Path{
-					Index: 1,
-					PathSegments: []*networkservice.PathSegment{
-						{
-							Name: "nsc-0",
-							Id:   "conn-0",
-						}, {
-							Name: "nsc-1",
-							Id:   "conn-1",
-						}, {
-							Name: "nsc-will-be-overridden",
-							Id:   "conn-will-be-overridden",
-						},
-					},
-				},
-			},
-		},
-		&networkservice.Connection{
-			Id: "conn-2",
-			Path: &networkservice.Path{
-				Index: 2,
-				PathSegments: []*networkservice.PathSegment{
-					{
-						Name: "nsc-0",
-						Id:   "conn-0",
-					}, {
-						Name: "nsc-1",
-						Id:   "conn-1",
-					}, {
-						Name: "nsc-2",
-						Id:   "conn-2",
-					},
-				},
-			},
-		},
-	},
-	{
-		"index is greater or equal to path length",
-		"nsc-1",
-		&networkservice.NetworkServiceRequest{
-			Connection: &networkservice.Connection{
-				Id: "conn-1",
-				Path: &networkservice.Path{
-					Index: 2,
-					PathSegments: []*networkservice.PathSegment{
-						{
-							Name: "nsc-0",
-							Id:   "conn-0",
-						}, {
-							Name: "nsc-1",
-							Id:   "conn-1",
-						},
-					},
-				},
-			},
-		},
-		nil,
-	},
-}
-
-func Test_updatePathServer_Request(t *testing.T) {
-	for _, data := range serverTestData {
-		test := data
-		t.Run(test.name, func(t *testing.T) {
-			testServerRequest(t, test.nscName, test.request, test.want)
-		})
 	}
+	conn, err := server.Request(context.Background(), request)
+	assert.NotNil(t, err)
+	assert.Nil(t, conn)
 }
 
-func testServerRequest(t *testing.T, nscName string, request *networkservice.NetworkServiceRequest, want *networkservice.Connection) {
-	client := next.NewNetworkServiceServer(updatepath.NewServer(nscName))
-	got, _ := client.Request(context.Background(), request)
-	assert.Equal(t, want, got)
+func TestNewServer_IndexInLastPositionAddNewSegment(t *testing.T) {
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: "conn-2",
+			Path: &networkservice.Path{
+				Index: 1,
+				PathSegments: []*networkservice.PathSegment{
+					{
+						Name: "nsc-0",
+						Id:   "conn-0",
+					}, {
+						Name: "nsc-1",
+						Id:   "conn-1",
+					},
+				},
+			},
+		},
+	}
+	expected := &networkservice.Connection{
+		Id: "conn-2",
+		Path: &networkservice.Path{
+			Index: 2,
+			PathSegments: []*networkservice.PathSegment{
+				{
+					Name: "nsc-0",
+					Id:   "conn-0",
+				}, {
+					Name: "nsc-1",
+					Id:   "conn-1",
+				}, {
+					Name: "nsc-2",
+					Id:   "conn-2",
+				},
+			},
+		},
+	}
+	server := updatepath.NewServer("nsc-2")
+	conn, err := server.Request(context.Background(), request)
+	assert.Nil(t, err)
+	assert.Equal(t, expected, conn)
+}
+
+func TestNewServer_ValidIndexOverwriteValues(t *testing.T) {
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: "conn-2",
+			Path: &networkservice.Path{
+				Index: 1,
+				PathSegments: []*networkservice.PathSegment{
+					{
+						Name: "nsc-0",
+						Id:   "conn-0",
+					}, {
+						Name: "nsc-1",
+						Id:   "conn-1",
+					}, {
+						Name: "nsc-will-be-overwritten",
+						Id:   "conn-will-be-overwritten",
+					},
+				},
+			},
+		},
+	}
+	expected := &networkservice.Connection{
+		Id: "conn-2",
+		Path: &networkservice.Path{
+			Index: 2,
+			PathSegments: []*networkservice.PathSegment{
+				{
+					Name: "nsc-0",
+					Id:   "conn-0",
+				}, {
+					Name: "nsc-1",
+					Id:   "conn-1",
+				}, {
+					Name: "nsc-2",
+					Id:   "conn-2",
+				},
+			},
+		},
+	}
+	server := updatepath.NewServer("nsc-2")
+	conn, err := server.Request(context.Background(), request)
+	assert.Nil(t, err)
+	assert.Equal(t, expected, conn)
+}
+
+func TestNewServer_IndexGreaterThanArrayLength(t *testing.T) {
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: "conn-1",
+			Path: &networkservice.Path{
+				Index: 2,
+				PathSegments: []*networkservice.PathSegment{
+					{
+						Name: "nsc-0",
+						Id:   "conn-0",
+					}, {
+						Name: "nsc-1",
+						Id:   "conn-1",
+					},
+				},
+			},
+		},
+	}
+	server := updatepath.NewServer("nsc-2")
+	conn, err := server.Request(context.Background(), request)
+	assert.NotNil(t, err)
+	assert.Nil(t, conn)
 }

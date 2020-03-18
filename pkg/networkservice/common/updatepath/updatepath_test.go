@@ -28,7 +28,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-func Test_updatePath_chained(t *testing.T) {
+func TestChain(t *testing.T) {
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "conn-2",
