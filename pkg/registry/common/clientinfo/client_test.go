@@ -23,10 +23,11 @@ import (
 	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
-
 	"github.com/stretchr/testify/assert"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientinfo"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checkregistration"
 )
 
 func setEnvs(envs map[string]string) error {
@@ -56,20 +57,26 @@ func TestLabelsMapIsNotPresent(t *testing.T) {
 	err := setEnvs(envs)
 	assert.Nil(t, err)
 
-	client := clientinfo.NewRegistryClient()
-	registration, err := client.RegisterNSE(context.Background(), &registry.NSERegistration{
+	registr := &registry.NSERegistration{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{},
-	})
+	}
+	client := next.NewRegistryClient(
+		clientinfo.NewRegistryClient(),
+		checkregistration.NewRegistryClient(t, func(t *testing.T, registration *registry.NSERegistration) {
+			expected := &registry.NSERegistration{
+				NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+					Labels: map[string]string{
+						"NodeNameKey":    "AAA",
+						"PodNameKey":     "BBB",
+						"ClusterNameKey": "CCC",
+					},
+				},
+			}
+			assert.Equal(t, expected, registration)
+		}),
+	)
+	_, err = client.RegisterNSE(context.Background(), registr)
 	assert.Nil(t, err)
-	assert.Equal(t, &registry.NSERegistration{
-		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-			Labels: map[string]string{
-				"NodeNameKey":    "AAA",
-				"PodNameKey":     "BBB",
-				"ClusterNameKey": "CCC",
-			},
-		},
-	}, registration)
 
 	err = unsetEnvs(envs)
 	assert.Nil(t, err)
@@ -84,8 +91,7 @@ func TestLabelsAreOverwritten(t *testing.T) {
 	err := setEnvs(envs)
 	assert.Nil(t, err)
 
-	client := clientinfo.NewRegistryClient()
-	registration, err := client.RegisterNSE(context.Background(), &registry.NSERegistration{
+	registr := &registry.NSERegistration{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 			Labels: map[string]string{
 				"NodeNameKey":     "OLD_VAL1",
@@ -95,19 +101,26 @@ func TestLabelsAreOverwritten(t *testing.T) {
 				"SomeOtherLabel2": "EEE",
 			},
 		},
-	})
+	}
+	client := next.NewRegistryClient(
+		clientinfo.NewRegistryClient(),
+		checkregistration.NewRegistryClient(t, func(t *testing.T, registration *registry.NSERegistration) {
+			expected := &registry.NSERegistration{
+				NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+					Labels: map[string]string{
+						"NodeNameKey":     "AAA",
+						"PodNameKey":      "BBB",
+						"ClusterNameKey":  "CCC",
+						"SomeOtherLabel1": "DDD",
+						"SomeOtherLabel2": "EEE",
+					},
+				},
+			}
+			assert.Equal(t, expected, registration)
+		}),
+	)
+	_, err = client.RegisterNSE(context.Background(), registr)
 	assert.Nil(t, err)
-	assert.Equal(t, &registry.NSERegistration{
-		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-			Labels: map[string]string{
-				"NodeNameKey":     "AAA",
-				"PodNameKey":      "BBB",
-				"ClusterNameKey":  "CCC",
-				"SomeOtherLabel1": "DDD",
-				"SomeOtherLabel2": "EEE",
-			},
-		},
-	}, registration)
 
 	err = unsetEnvs(envs)
 	assert.Nil(t, err)
@@ -120,8 +133,7 @@ func TestSomeEnvsAreNotPresent(t *testing.T) {
 	err := setEnvs(envs)
 	assert.Nil(t, err)
 
-	client := clientinfo.NewRegistryClient()
-	registration, err := client.RegisterNSE(context.Background(), &registry.NSERegistration{
+	registr := &registry.NSERegistration{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 			Labels: map[string]string{
 				"NodeNameKey":     "OLD_VAL1",
@@ -130,18 +142,25 @@ func TestSomeEnvsAreNotPresent(t *testing.T) {
 				"SomeOtherLabel2": "EEE",
 			},
 		},
-	})
+	}
+	client := next.NewRegistryClient(
+		clientinfo.NewRegistryClient(),
+		checkregistration.NewRegistryClient(t, func(t *testing.T, registration *registry.NSERegistration) {
+			expected := &registry.NSERegistration{
+				NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+					Labels: map[string]string{
+						"NodeNameKey":     "OLD_VAL1",
+						"ClusterNameKey":  "CCC",
+						"SomeOtherLabel1": "DDD",
+						"SomeOtherLabel2": "EEE",
+					},
+				},
+			}
+			assert.Equal(t, expected, registration)
+		}),
+	)
+	_, err = client.RegisterNSE(context.Background(), registr)
 	assert.Nil(t, err)
-	assert.Equal(t, &registry.NSERegistration{
-		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-			Labels: map[string]string{
-				"NodeNameKey":     "OLD_VAL1",
-				"ClusterNameKey":  "CCC",
-				"SomeOtherLabel1": "DDD",
-				"SomeOtherLabel2": "EEE",
-			},
-		},
-	}, registration)
 
 	err = unsetEnvs(envs)
 	assert.Nil(t, err)
