@@ -201,3 +201,7 @@ issues:
       linters:
         - dupl
       text: "lines are duplicate of"
+    - path: pkg/tools/grpcoptions/grpcoptions.go
+      linters:
+        - interfacer
+      text: "can be `fmt.Stringer`"
