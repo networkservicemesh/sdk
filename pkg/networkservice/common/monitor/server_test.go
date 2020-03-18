@@ -44,7 +44,9 @@ func TestMonitor(t *testing.T) {
 	// Get Empty initial state transfers
 	for _, segmentName := range segmentNames {
 		var err error
-		receivers[segmentName], err = monitorClient.MonitorConnections(context.Background(), &networkservice.MonitorScopeSelector{
+		ctx, cancelFunc := context.WithCancel(context.Background())
+		defer cancelFunc()
+		receivers[segmentName], err = monitorClient.MonitorConnections(ctx, &networkservice.MonitorScopeSelector{
 			PathSegments: []*networkservice.PathSegment{{Name: segmentName}},
 		})
 		assert.Nil(t, err)
