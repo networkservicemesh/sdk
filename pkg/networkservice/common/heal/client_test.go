@@ -194,6 +194,7 @@ func TestNewClient_MissingConnectionsInInit(t *testing.T) {
 	}
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
 	client := chain.NewNetworkServiceClient(
 		heal.NewClient(ctx, eventchannel.NewMonitorConnectionClient(eventCh), addressof.NetworkServiceClient(onHeal)))
 
@@ -217,16 +218,18 @@ func TestNewClient_MissingConnectionsInInit(t *testing.T) {
 
 	// we emulate situation that server managed to handle only the first connection
 	// second connection should came in the UPDATE event, but we emulate server's falling down
-	cancelFunc()
+	close(eventCh)
 	// at that point we expect that 'healClient' start healing both 'conn-1' and 'conn-2'
 
-	healedIDs := map[string]bool{}
-
+	healsRemaining := map[string]int{
+		conns[0].GetId(): 1,
+		conns[1].GetId(): 2,
+	}
 	cond := func() bool {
 		select {
 		case r := <-requestCh:
-			if _, ok := healedIDs[r.GetConnection().GetId()]; !ok {
-				healedIDs[r.GetConnection().GetId()] = true
+			if val, ok := healsRemaining[r.GetConnection().GetId()]; ok && val != 0 {
+				healsRemaining[r.GetConnection().GetId()]--
 				return true
 			}
 			return false
@@ -234,10 +237,9 @@ func TestNewClient_MissingConnectionsInInit(t *testing.T) {
 			return false
 		}
 	}
-
 	require.Eventually(t, cond, waitForTimeout, tickTimeout)
 	require.Eventually(t, cond, waitForTimeout, tickTimeout)
-
-	require.True(t, healedIDs[conns[0].GetId()])
-	require.True(t, healedIDs[conns[1].GetId()])
+	require.Eventually(t, cond, waitForTimeout, tickTimeout)
+	require.Equal(t, 0, healsRemaining[conns[0].GetId()])
+	require.Equal(t, 0, healsRemaining[conns[1].GetId()])
 }
