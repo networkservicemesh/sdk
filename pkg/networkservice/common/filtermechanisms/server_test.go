@@ -21,7 +21,6 @@ import (
 	"net"
 	"testing"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
@@ -33,76 +32,58 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/filtermechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
 )
 
-type testNetworkServiceServer struct {
-	t    *testing.T
-	want []*networkservice.Mechanism
-}
-
-func (c *testNetworkServiceServer) Request(_ context.Context, in *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	assert.Equal(c.t, c.want, in.GetMechanismPreferences())
-	return in.GetConnection(), nil
-}
-
-func (c *testNetworkServiceServer) Close(context.Context, *networkservice.Connection) (*empty.Empty, error) {
-	return &empty.Empty{}, nil
-}
-
-var serverTestData = []struct {
-	name string
-	ctx  context.Context
-	want []*networkservice.Mechanism
-}{
-	{
-		"clientUrl has unix type",
-		peer.NewContext(context.Background(), &peer.Peer{
-			Addr: &net.UnixAddr{
-				Name: "/var/run/nse-1.sock",
-				Net:  "unix",
-			},
-		}),
-		[]*networkservice.Mechanism{
-			{
-				Cls:  cls.LOCAL,
-				Type: memif.MECHANISM,
-			},
-			{
-				Cls:  cls.LOCAL,
-				Type: kernel.MECHANISM,
-			},
+func TestNewServer_FilterUnixType(t *testing.T) {
+	ctx := peer.NewContext(context.Background(), &peer.Peer{
+		Addr: &net.UnixAddr{
+			Name: "/var/run/nse-1.sock",
+			Net:  "unix",
 		},
-	},
-	{
-		"clientUrl has non-unix type",
-		peer.NewContext(context.Background(), &peer.Peer{
-			Addr: &net.IPAddr{
-				IP: net.IP{192, 168, 0, 1},
-			},
+	})
+	server := next.NewNetworkServiceServer(
+		filtermechanisms.NewServer(),
+		checkrequest.NewServer(t, func(t *testing.T, serviceRequest *networkservice.NetworkServiceRequest) {
+			expected := []*networkservice.Mechanism{
+				{
+					Cls:  cls.LOCAL,
+					Type: memif.MECHANISM,
+				},
+				{
+					Cls:  cls.LOCAL,
+					Type: kernel.MECHANISM,
+				},
+			}
+			assert.Equal(t, expected, serviceRequest.GetMechanismPreferences())
 		}),
-		[]*networkservice.Mechanism{
-			{
-				Cls:  cls.REMOTE,
-				Type: srv6.MECHANISM,
-			},
-			{
-				Cls:  cls.REMOTE,
-				Type: vxlan.MECHANISM,
-			},
+	)
+	_, err := server.Request(ctx, request())
+	assert.Nil(t, err)
+}
+
+func TestNewServer_FilterNonUnixType(t *testing.T) {
+	ctx := peer.NewContext(context.Background(), &peer.Peer{
+		Addr: &net.IPAddr{
+			IP: net.IP{192, 168, 0, 1},
 		},
-	},
-}
-
-func Test_filterMechanismsServer_Request(t *testing.T) {
-	for _, data := range serverTestData {
-		test := data
-		t.Run(test.name, func(t *testing.T) {
-			testServerRequest(test.ctx, test.want, t)
-		})
-	}
-}
-
-func testServerRequest(ctx context.Context, want []*networkservice.Mechanism, t *testing.T) {
-	client := next.NewNetworkServiceServer(filtermechanisms.NewServer(), &testNetworkServiceServer{t: t, want: want})
-	_, _ = client.Request(ctx, request())
+	})
+	server := next.NewNetworkServiceServer(
+		filtermechanisms.NewServer(),
+		checkrequest.NewServer(t, func(t *testing.T, serviceRequest *networkservice.NetworkServiceRequest) {
+			expected := []*networkservice.Mechanism{
+				{
+					Cls:  cls.REMOTE,
+					Type: srv6.MECHANISM,
+				},
+				{
+					Cls:  cls.REMOTE,
+					Type: vxlan.MECHANISM,
+				},
+			}
+			assert.Equal(t, expected, serviceRequest.GetMechanismPreferences())
+		}),
+	)
+	_, err := server.Request(ctx, request())
+	assert.Nil(t, err)
 }

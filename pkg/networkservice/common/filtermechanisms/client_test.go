@@ -22,7 +22,6 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
@@ -30,26 +29,12 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/srv6"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/vxlan"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/filtermechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
 )
-
-type testNetworkServiceClient struct {
-	t    *testing.T
-	want []*networkservice.Mechanism
-}
-
-func (c *testNetworkServiceClient) Request(_ context.Context, in *networkservice.NetworkServiceRequest, _ ...grpc.CallOption) (*networkservice.Connection, error) {
-	assert.Equal(c.t, c.want, in.GetMechanismPreferences())
-	return in.GetConnection(), nil
-}
-
-func (c *testNetworkServiceClient) Close(context.Context, *networkservice.Connection, ...grpc.CallOption) (*empty.Empty, error) {
-	return &empty.Empty{}, nil
-}
 
 func request() *networkservice.NetworkServiceRequest {
 	return &networkservice.NetworkServiceRequest{
@@ -79,57 +64,52 @@ func request() *networkservice.NetworkServiceRequest {
 	}
 }
 
-var clientTestData = []struct {
-	name string
-	ctx  context.Context
-	want []*networkservice.Mechanism
-}{
-	{
-		"clientUrl has unix type",
-		clienturl.WithClientURL(context.Background(), &url.URL{
-			Scheme: "unix",
-			Path:   "/var/run/nse-1.sock",
+func TestNewClient_FilterUnixType(t *testing.T) {
+	ctx := clienturl.WithClientURL(context.Background(), &url.URL{
+		Scheme: "unix",
+		Path:   "/var/run/nse-1.sock",
+	})
+	client := next.NewNetworkServiceClient(
+		filtermechanisms.NewClient(),
+		checkrequest.NewClient(t, func(t *testing.T, serviceRequest *networkservice.NetworkServiceRequest) {
+			expected := []*networkservice.Mechanism{
+				{
+					Cls:  cls.LOCAL,
+					Type: memif.MECHANISM,
+				},
+				{
+					Cls:  cls.LOCAL,
+					Type: kernel.MECHANISM,
+				},
+			}
+			assert.Equal(t, expected, serviceRequest.GetMechanismPreferences())
 		}),
-		[]*networkservice.Mechanism{
-			{
-				Cls:  cls.LOCAL,
-				Type: memif.MECHANISM,
-			},
-			{
-				Cls:  cls.LOCAL,
-				Type: kernel.MECHANISM,
-			},
-		},
-	},
-	{
-		"clientUrl has non-unix type",
-		clienturl.WithClientURL(context.Background(), &url.URL{
-			Scheme: "ipv4",
-			Path:   "192.168.0.1",
-		}),
-		[]*networkservice.Mechanism{
-			{
-				Cls:  cls.REMOTE,
-				Type: srv6.MECHANISM,
-			},
-			{
-				Cls:  cls.REMOTE,
-				Type: vxlan.MECHANISM,
-			},
-		},
-	},
+	)
+	_, err := client.Request(ctx, request())
+	assert.Nil(t, err)
 }
 
-func Test_filterMechanismsClient_Request(t *testing.T) {
-	for _, data := range clientTestData {
-		test := data
-		t.Run(test.name, func(t *testing.T) {
-			testClientRequest(test.ctx, test.want, t)
-		})
-	}
-}
-
-func testClientRequest(ctx context.Context, want []*networkservice.Mechanism, t *testing.T) {
-	client := next.NewNetworkServiceClient(filtermechanisms.NewClient(), &testNetworkServiceClient{t: t, want: want})
-	_, _ = client.Request(ctx, request())
+func TestNewClient_FilterNonUnixType(t *testing.T) {
+	ctx := clienturl.WithClientURL(context.Background(), &url.URL{
+		Scheme: "ipv4",
+		Path:   "192.168.0.1",
+	})
+	client := next.NewNetworkServiceClient(
+		filtermechanisms.NewClient(),
+		checkrequest.NewClient(t, func(t *testing.T, serviceRequest *networkservice.NetworkServiceRequest) {
+			expected := []*networkservice.Mechanism{
+				{
+					Cls:  cls.REMOTE,
+					Type: srv6.MECHANISM,
+				},
+				{
+					Cls:  cls.REMOTE,
+					Type: vxlan.MECHANISM,
+				},
+			}
+			assert.Equal(t, expected, serviceRequest.GetMechanismPreferences())
+		}),
+	)
+	_, err := client.Request(ctx, request())
+	assert.Nil(t, err)
 }
