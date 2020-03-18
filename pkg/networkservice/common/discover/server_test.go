@@ -21,53 +21,15 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
 )
-
-type contextKeyType string
-
-const (
-	testDataKey contextKeyType = "testData"
-)
-
-type TestData struct {
-	endpoints []*registry.NetworkServiceEndpoint
-}
-
-func withTestData(parent context.Context, testData *TestData) context.Context {
-	if parent == nil {
-		parent = context.TODO()
-	}
-	return context.WithValue(parent, testDataKey, testData)
-}
-
-func testData(ctx context.Context) *TestData {
-	if rv, ok := ctx.Value(testDataKey).(*TestData); ok {
-		return rv
-	}
-	return nil
-}
-
-type testNetworkServiceServer struct {
-}
-
-func (s testNetworkServiceServer) Request(ctx context.Context, in *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	testData(ctx).endpoints = discover.Candidates(ctx).GetNetworkServiceEndpoints()
-	return next.Server(ctx).Request(ctx, in)
-}
-
-func (s testNetworkServiceServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	return next.Server(ctx).Close(ctx, conn)
-}
 
 type mockNetworkServiceDiscoveryClient struct {
 	response *registry.FindNetworkServiceResponse
@@ -149,13 +111,6 @@ func TestMatchEmptySourceSelector(t *testing.T) {
 		NetworkServiceEndpoints: endpoints(),
 	}
 	discoveryClient := &mockNetworkServiceDiscoveryClient{registryResponse}
-	server := next.NewNetworkServiceServer(discover.NewServer(discoveryClient), &testNetworkServiceServer{})
-	request := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			NetworkService: "secure-intranet-connectivity",
-			Labels:         map[string]string{},
-		},
-	}
 	want := []*registry.NetworkServiceEndpoint{
 		{
 			Labels: map[string]string{
@@ -163,10 +118,20 @@ func TestMatchEmptySourceSelector(t *testing.T) {
 			},
 		},
 	}
-	ctx := withTestData(context.Background(), &TestData{})
-	_, err := server.Request(ctx, request)
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			NetworkService: "secure-intranet-connectivity",
+			Labels:         map[string]string{},
+		},
+	}
+	server := next.NewNetworkServiceServer(
+		discover.NewServer(discoveryClient),
+		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+			assert.Equal(t, want, discover.Candidates(ctx).GetNetworkServiceEndpoints())
+		}),
+	)
+	_, err := server.Request(context.Background(), request)
 	assert.Nil(t, err)
-	assert.Equal(t, want, testData(ctx).endpoints)
 }
 
 func TestMatchNonEmptySourceSelector(t *testing.T) {
@@ -178,7 +143,6 @@ func TestMatchNonEmptySourceSelector(t *testing.T) {
 		NetworkServiceEndpoints: endpoints(),
 	}
 	discoveryClient := &mockNetworkServiceDiscoveryClient{registryResponse}
-	server := next.NewNetworkServiceServer(discover.NewServer(discoveryClient), &testNetworkServiceServer{})
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			NetworkService: "secure-intranet-connectivity",
@@ -194,10 +158,14 @@ func TestMatchNonEmptySourceSelector(t *testing.T) {
 			},
 		},
 	}
-	ctx := withTestData(context.Background(), &TestData{})
-	_, err := server.Request(ctx, request)
+	server := next.NewNetworkServiceServer(
+		discover.NewServer(discoveryClient),
+		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+			assert.Equal(t, want, discover.Candidates(ctx).GetNetworkServiceEndpoints())
+		}),
+	)
+	_, err := server.Request(context.Background(), request)
 	assert.Nil(t, err)
-	assert.Equal(t, want, testData(ctx).endpoints)
 }
 
 func TestMatchEmptySourceSelectorGoingFirst(t *testing.T) {
@@ -209,7 +177,13 @@ func TestMatchEmptySourceSelectorGoingFirst(t *testing.T) {
 		NetworkServiceEndpoints: endpoints(),
 	}
 	discoveryClient := &mockNetworkServiceDiscoveryClient{registryResponse}
-	server := next.NewNetworkServiceServer(discover.NewServer(discoveryClient), &testNetworkServiceServer{})
+	want := []*registry.NetworkServiceEndpoint{
+		{
+			Labels: map[string]string{
+				"app": "firewall",
+			},
+		},
+	}
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			NetworkService: "secure-intranet-connectivity",
@@ -218,17 +192,14 @@ func TestMatchEmptySourceSelectorGoingFirst(t *testing.T) {
 			},
 		},
 	}
-	want := []*registry.NetworkServiceEndpoint{
-		{
-			Labels: map[string]string{
-				"app": "firewall",
-			},
-		},
-	}
-	ctx := withTestData(context.Background(), &TestData{})
-	_, err := server.Request(ctx, request)
+	server := next.NewNetworkServiceServer(
+		discover.NewServer(discoveryClient),
+		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+			assert.Equal(t, want, discover.Candidates(ctx).GetNetworkServiceEndpoints())
+		}),
+	)
+	_, err := server.Request(context.Background(), request)
 	assert.Nil(t, err)
-	assert.Equal(t, want, testData(ctx).endpoints)
 }
 
 func TestMatchNothing(t *testing.T) {
@@ -240,7 +211,6 @@ func TestMatchNothing(t *testing.T) {
 		NetworkServiceEndpoints: endpoints(),
 	}
 	discoveryClient := &mockNetworkServiceDiscoveryClient{registryResponse}
-	server := next.NewNetworkServiceServer(discover.NewServer(discoveryClient), &testNetworkServiceServer{})
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			NetworkService: "secure-intranet-connectivity",
@@ -250,8 +220,12 @@ func TestMatchNothing(t *testing.T) {
 		},
 	}
 	want := endpoints()
-	ctx := withTestData(context.Background(), &TestData{})
-	_, err := server.Request(ctx, request)
+	server := next.NewNetworkServiceServer(
+		discover.NewServer(discoveryClient),
+		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+			assert.Equal(t, want, discover.Candidates(ctx).GetNetworkServiceEndpoints())
+		}),
+	)
+	_, err := server.Request(context.Background(), request)
 	assert.Nil(t, err)
-	assert.Equal(t, want, testData(ctx).endpoints)
 }
