@@ -20,16 +20,17 @@ package client
 import (
 	"context"
 
-	"google.golang.org/grpc"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/setid"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	healer "github.com/networkservicemesh/sdk/pkg/tools/heal"
 )
 
 // NewClient - returns a NetworkServiceMesh client as a chain of the standard Client pieces plus whatever
@@ -49,12 +50,15 @@ import (
 //             - cc - grpc.ClientConnInterface for the endpoint to which this client should connect
 //             - additionalFunctionality - any additional NetworkServiceClient chain elements to be included in the chain
 func NewClient(ctx context.Context, name string, onHeal *networkservice.NetworkServiceClient, cc grpc.ClientConnInterface, additionalFunctionality ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
+	var h healer.Healer
+	healClient := heal.NewClient(ctx, onHeal, &h)
 	return chain.NewNetworkServiceClient(
 		append(
 			append([]networkservice.NetworkServiceClient{
 				authorize.NewClient(),
 				setid.NewClient(name),
-				heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc), onHeal),
+				monitor.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc), h),
+				healClient,
 				refresh.NewClient(),
 				updatepath.NewClient(name),
 			}, additionalFunctionality...),
