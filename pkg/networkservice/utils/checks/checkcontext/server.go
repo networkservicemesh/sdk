@@ -47,11 +47,6 @@ func (c *checkContextAfterServer) Request(ctx context.Context, request *networks
 }
 
 func (c *checkContextAfterServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	done := make(chan struct{})
-	c.Run("Close", func(t *testing.T) {
-		defer close(done)
-		c.check(t, ctx)
-	})
-	<-done
+	c.check(c.T, ctx)
 	return next.Server(ctx).Close(ctx, conn)
 }
