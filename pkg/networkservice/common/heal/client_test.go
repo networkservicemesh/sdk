@@ -23,15 +23,14 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/eventchannel"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
-
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -71,7 +70,9 @@ func TestHealClient_Request(t *testing.T) {
 	client := chain.NewNetworkServiceClient(
 		heal.NewClient(ctx, eventchannel.NewMonitorConnectionClient(eventCh), addressof.NetworkServiceClient(onHeal)))
 
-	_, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
+	requestCtx, reqCancelFunc := context.WithTimeout(context.Background(), waitForTimeout)
+	defer reqCancelFunc()
+	_, err := client.Request(requestCtx, &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id:             "conn-1",
 			NetworkService: "ns-1",

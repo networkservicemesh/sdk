@@ -163,27 +163,28 @@ func (f *healClient) Request(ctx context.Context, request *networkservice.Networ
 	// Set its connection to the returned connection we received
 	req.Connection = rv
 
-	// TODO define proper constant timeout
-	timeout := time.Minute
+	// TODO handle deadline err
+	deadline, _ := ctx.Deadline()
+	duration := time.Until(deadline)
 	f.updateExecutor.AsyncExec(func() {
 		f.requestors[req.GetConnection().GetId()] = func() {
-			timeCtx, cancelFunc := context.WithTimeout(f.chainContext, timeout)
+			timeCtx, cancelFunc := context.WithTimeout(f.chainContext, duration)
+			defer cancelFunc()
 			ctx = extend.WithValuesFromContext(timeCtx, ctx)
 			// TODO wrap another span around this
 			_, err := (*f.onHeal).Request(ctx, req, opts...)
 			if err != nil {
 				trace.Log(ctx).Errorf("Attempt to heal connection %s resulted in error: %+v", req.GetConnection().GetId(), err)
 			}
-			cancelFunc()
 		}
 		f.closers[req.GetConnection().GetId()] = func() {
-			timeCtx, cancelFunc := context.WithTimeout(f.chainContext, timeout)
+			timeCtx, cancelFunc := context.WithTimeout(f.chainContext, duration)
+			defer cancelFunc()
 			ctx = extend.WithValuesFromContext(timeCtx, ctx)
 			_, err := (*f.onHeal).Close(ctx, req.GetConnection(), opts...)
 			if err != nil {
 				trace.Log(ctx).Errorf("Attempt to close connection %s during heal resulted in error: %+v", req.GetConnection().GetId(), err)
 			}
-			cancelFunc()
 		}
 	})
 	return rv, nil
