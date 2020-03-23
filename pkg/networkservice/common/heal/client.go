@@ -26,11 +26,11 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
-	"github.com/networkservicemesh/sdk/pkg/tools/heal"
 	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
 )
 
@@ -39,6 +39,7 @@ type healClient struct {
 	onHeal       *networkservice.NetworkServiceClient
 	requestors   map[string]func()
 	closers      map[string]func()
+	reported     map[string]*networkservice.Connection
 	executor     serialize.Executor
 }
 
@@ -54,26 +55,24 @@ type healClient struct {
 //                        If we are part of a larger chain or a server, we should pass the resulting chain into
 //                        this constructor before we actually have a pointer to it.
 //                        If onHeal nil, onHeal will be pointed to the returned networkservice.NetworkServiceClient
-//			   - healer - *heal.Healer. Used to return healClient itself but in heal.Healer form.
-//				  	      Since heal.Healer is an interface (and thus a pointer) *heal.Healer is a double pointer.
-//						  Meaning it points to a place that points to a place that implements heal.Healer
+//			   - eventHandler - is used to return healClient itself but in monitor.ConnectionEventHandler form.
 //                        This is done so that we can return a networkservice.NetworkServiceClient chain element
 //                        while maintaining the NewClient pattern for use like anything else in a chain.
-//                        The value in *healer must be included in the monitor.NetworkServiceClient
-//                        so it can call it to start healing of broken connections.
-func NewClient(ctx context.Context, onHeal *networkservice.NetworkServiceClient, healer *heal.Healer) networkservice.NetworkServiceClient {
+//                        The value in *eventHandler must be passed to the monitor.NewClient to handle connection events.
+func NewClient(ctx context.Context, onHeal *networkservice.NetworkServiceClient, eventHandler *monitor.ConnectionEventHandler) networkservice.NetworkServiceClient {
 	rv := &healClient{
 		chainContext: ctx,
 		onHeal:       onHeal,
 		requestors:   make(map[string]func()),
 		closers:      make(map[string]func()),
+		reported:     make(map[string]*networkservice.Connection),
 		executor:     serialize.Executor{},
 	}
 	if rv.onHeal == nil {
 		rv.onHeal = addressof.NetworkServiceClient(rv)
 	}
 
-	*healer = rv
+	*eventHandler = rv
 	return rv
 }
 
@@ -123,12 +122,44 @@ func (f *healClient) Close(ctx context.Context, conn *networkservice.Connection,
 	f.executor.AsyncExec(func() {
 		delete(f.requestors, conn.GetId())
 		delete(f.closers, conn.GetId())
+		delete(f.reported, conn.GetId())
 	})
 	return rv, nil
 }
 
-func (f *healClient) StartHeal(connectionID string) {
-	if f, ok := f.requestors[connectionID]; ok {
-		f()
-	}
+func (f *healClient) HandleEvent(event *networkservice.ConnectionEvent) {
+	f.executor.AsyncExec(func() {
+		switch event.GetType() {
+		case networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER:
+			f.reported = event.GetConnections()
+			if event.GetConnections() == nil {
+				f.reported = map[string]*networkservice.Connection{}
+			}
+
+		case networkservice.ConnectionEventType_UPDATE:
+			for _, conn := range event.GetConnections() {
+				f.reported[conn.GetId()] = conn
+			}
+
+		case networkservice.ConnectionEventType_DELETE:
+			for _, conn := range event.GetConnections() {
+				delete(f.reported, conn.GetId())
+			}
+		}
+
+		for id, request := range f.requestors {
+			if _, ok := f.reported[id]; !ok {
+				request()
+			}
+		}
+	})
+}
+
+func (f *healClient) HandleMonitorBreakdown() {
+	f.executor.AsyncExec(func() {
+		for id, request := range f.requestors {
+			request()
+			delete(f.reported, id)
+		}
+	})
 }

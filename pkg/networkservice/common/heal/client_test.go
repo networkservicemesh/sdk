@@ -32,7 +32,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/eventchannel"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
-	healer "github.com/networkservicemesh/sdk/pkg/tools/heal"
 )
 
 const (
@@ -65,11 +64,10 @@ func TestHealClient_Request(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	var h healer.Healer
-	healClient := heal.NewClient(ctx, addressof.NetworkServiceClient(onHeal), &h)
+	var eventHandler monitor.ConnectionEventHandler
 	client := chain.NewNetworkServiceClient(
-		monitor.NewClient(ctx, eventchannel.NewMonitorConnectionClient(eventCh), h),
-		healClient)
+		heal.NewClient(ctx, addressof.NetworkServiceClient(onHeal), &eventHandler),
+		monitor.NewClient(ctx, eventchannel.NewMonitorConnectionClient(eventCh), eventHandler))
 
 	_, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -122,11 +120,10 @@ func TestHealClient_MonitorClose(t *testing.T) {
 	}
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
-	var h healer.Healer
-	healClient := heal.NewClient(ctx, addressof.NetworkServiceClient(onHeal), &h)
+	var eventHandler monitor.ConnectionEventHandler
 	client := chain.NewNetworkServiceClient(
-		monitor.NewClient(ctx, eventchannel.NewMonitorConnectionClient(eventCh), h),
-		healClient)
+		heal.NewClient(ctx, addressof.NetworkServiceClient(onHeal), &eventHandler),
+		monitor.NewClient(ctx, eventchannel.NewMonitorConnectionClient(eventCh), eventHandler))
 
 	_, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -163,11 +160,10 @@ func TestHealClient_EmptyInit(t *testing.T) {
 	eventCh := make(chan *networkservice.ConnectionEvent, 1)
 
 	ctx := context.Background()
-	var h healer.Healer
-	healClient := heal.NewClient(ctx, nil, &h)
+	var eventHandler monitor.ConnectionEventHandler
 	client := chain.NewNetworkServiceClient(
-		monitor.NewClient(ctx, eventchannel.NewMonitorConnectionClient(eventCh), h),
-		healClient)
+		heal.NewClient(ctx, nil, &eventHandler),
+		monitor.NewClient(ctx, eventchannel.NewMonitorConnectionClient(eventCh), eventHandler))
 
 	_, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -205,11 +201,10 @@ func TestNewClient_MissingConnectionsInInit(t *testing.T) {
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
-	var h healer.Healer
-	healClient := heal.NewClient(ctx, addressof.NetworkServiceClient(onHeal), &h)
+	var eventHandler monitor.ConnectionEventHandler
 	client := chain.NewNetworkServiceClient(
-		monitor.NewClient(ctx, eventchannel.NewMonitorConnectionClient(eventCh), h),
-		healClient)
+		heal.NewClient(ctx, addressof.NetworkServiceClient(onHeal), &eventHandler),
+		monitor.NewClient(ctx, eventchannel.NewMonitorConnectionClient(eventCh), eventHandler))
 
 	conns := []*networkservice.Connection{
 		{Id: "conn-1", NetworkService: "ns-1"},

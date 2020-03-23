@@ -21,21 +21,17 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/heal"
 	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
 )
 
 type monitorClient struct {
 	grpcClient    networkservice.MonitorConnectionClient
-	healer        heal.Healer
+	eventHandler  ConnectionEventHandler
 	eventReceiver networkservice.MonitorConnection_MonitorConnectionsClient
-	monitoring    map[string]struct{}
-	reported      map[string]*networkservice.Connection
 	chainContext  context.Context
 	executor      serialize.Executor
 }
@@ -44,14 +40,12 @@ type monitorClient struct {
 //             - ctx    	- context for the lifecycle of the *Client* itself.  Cancel when discarding the client.
 //             - grpcClient - networkservice.MonitorConnectionClient that can be used to call MonitorConnection
 //            	 			  against the endpoint.
-//			   - healer 	- heal.Healer that can be used to start healing of broken connections.
-func NewClient(ctx context.Context, grpcClient networkservice.MonitorConnectionClient, healer heal.Healer) networkservice.NetworkServiceClient {
+//			   - eventHandler - monitor.ConnectionEventHandler that can be used to handle connection events.
+func NewClient(ctx context.Context, grpcClient networkservice.MonitorConnectionClient, eventHandler ConnectionEventHandler) networkservice.NetworkServiceClient {
 	mc := &monitorClient{
 		grpcClient:    grpcClient,
-		healer:        healer,
+		eventHandler:  eventHandler,
 		eventReceiver: nil,
-		monitoring:    make(map[string]struct{}),
-		reported:      make(map[string]*networkservice.Connection),
 		chainContext:  ctx,
 		executor:      serialize.Executor{},
 	}
@@ -60,25 +54,11 @@ func NewClient(ctx context.Context, grpcClient networkservice.MonitorConnectionC
 }
 
 func (m *monitorClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	rv, err := next.Client(ctx).Request(ctx, request, opts...)
-	if err != nil {
-		return nil, errors.Wrap(err, "Error calling next")
-	}
-	m.executor.AsyncExec(func() {
-		m.monitoring[rv.GetId()] = struct{}{}
-	})
-	return rv, nil
+	return next.Client(ctx).Request(ctx, request, opts...)
 }
 
 func (m *monitorClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	rv, err := next.Client(ctx).Close(ctx, conn, opts...)
-	if err != nil {
-		return nil, errors.Wrap(err, "Error calling next")
-	}
-	m.executor.AsyncExec(func() {
-		delete(m.monitoring, conn.GetId())
-	})
-	return rv, nil
+	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
 func (m *monitorClient) init() {
@@ -109,40 +89,12 @@ func (m *monitorClient) recvEvent() {
 		return
 	default:
 		event, err := m.eventReceiver.Recv()
-		m.executor.AsyncExec(func() {
-			if err != nil {
-				for id := range m.monitoring {
-					m.healer.StartHeal(id)
-					delete(m.reported, id)
-				}
-				m.init()
-				return
-			}
-
-			switch event.GetType() {
-			case networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER:
-				m.reported = event.GetConnections()
-				if event.GetConnections() == nil {
-					m.reported = make(map[string]*networkservice.Connection)
-				}
-
-			case networkservice.ConnectionEventType_UPDATE:
-				for _, conn := range event.GetConnections() {
-					m.reported[conn.GetId()] = conn
-				}
-
-			case networkservice.ConnectionEventType_DELETE:
-				for _, conn := range event.GetConnections() {
-					delete(m.reported, conn.GetId())
-				}
-			}
-
-			for id := range m.monitoring {
-				if _, ok := m.reported[id]; !ok {
-					m.healer.StartHeal(id)
-				}
-			}
-		})
+		if err != nil {
+			m.eventHandler.HandleMonitorBreakdown()
+			m.init()
+			return
+		}
+		m.eventHandler.HandleEvent(event)
 	}
 	m.executor.AsyncExec(m.recvEvent)
 }

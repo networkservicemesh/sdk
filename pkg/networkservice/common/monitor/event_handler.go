@@ -14,10 +14,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package heal provides healClient related tools
-package heal
+package monitor
 
-// Healer - interface for initiating healing process by monitorClient when it detects broken connection
-type Healer interface {
-	StartHeal(connectionID string)
+import "github.com/networkservicemesh/api/pkg/api/networkservice"
+
+// ConnectionEventHandler - interface for handling connection events received by monitor.Client
+type ConnectionEventHandler interface {
+	HandleEvent(event *networkservice.ConnectionEvent)
+	HandleMonitorBreakdown()
 }
