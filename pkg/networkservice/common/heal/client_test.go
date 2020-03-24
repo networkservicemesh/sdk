@@ -23,15 +23,14 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/eventchannel"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
-
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -54,20 +53,26 @@ func (t *testOnHeal) Close(ctx context.Context, in *networkservice.Connection, o
 
 func TestHealClient_Request(t *testing.T) {
 	eventCh := make(chan *networkservice.ConnectionEvent, 1)
+	defer close(eventCh)
 
 	onHealCh := make(chan struct{})
 	onHeal := &testOnHeal{
 		RequestFunc: func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (connection *networkservice.Connection, e error) {
-			close(onHealCh)
+			if ctx.Err() == nil {
+				close(onHealCh)
+			}
 			return &networkservice.Connection{}, nil
 		},
 	}
 
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
 	client := chain.NewNetworkServiceClient(
-		heal.NewClient(context.Background(),
-			eventchannel.NewMonitorConnectionClient(eventCh), addressof.NetworkServiceClient(onHeal)))
+		heal.NewClient(ctx, eventchannel.NewMonitorConnectionClient(eventCh), addressof.NetworkServiceClient(onHeal)))
 
-	_, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
+	requestCtx, reqCancelFunc := context.WithTimeout(context.Background(), waitForTimeout)
+	defer reqCancelFunc()
+	_, err := client.Request(requestCtx, &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id:             "conn-1",
 			NetworkService: "ns-1",
@@ -108,6 +113,7 @@ func TestHealClient_Request(t *testing.T) {
 
 func TestHealClient_MonitorClose(t *testing.T) {
 	eventCh := make(chan *networkservice.ConnectionEvent, 1)
+	defer close(eventCh)
 
 	onHealCh := make(chan struct{})
 	onHeal := &testOnHeal{
@@ -154,9 +160,12 @@ func TestHealClient_MonitorClose(t *testing.T) {
 
 func TestHealClient_EmptyInit(t *testing.T) {
 	eventCh := make(chan *networkservice.ConnectionEvent, 1)
+	defer close(eventCh)
 
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
 	client := chain.NewNetworkServiceClient(
-		heal.NewClient(context.Background(), eventchannel.NewMonitorConnectionClient(eventCh), nil))
+		heal.NewClient(ctx, eventchannel.NewMonitorConnectionClient(eventCh), nil))
 
 	_, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
