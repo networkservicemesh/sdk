@@ -28,6 +28,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/srv6"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/vxlan"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/goleak"
 	"google.golang.org/grpc/peer"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/filtermechanisms"
@@ -36,6 +37,7 @@ import (
 )
 
 func TestNewServer_FilterUnixType(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	ctx := peer.NewContext(context.Background(), &peer.Peer{
 		Addr: &net.UnixAddr{
 			Name: "/var/run/nse-1.sock",
@@ -63,6 +65,7 @@ func TestNewServer_FilterUnixType(t *testing.T) {
 }
 
 func TestNewServer_FilterNonUnixType(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	ctx := peer.NewContext(context.Background(), &peer.Peer{
 		Addr: &net.IPAddr{
 			IP: net.IP{192, 168, 0, 1},

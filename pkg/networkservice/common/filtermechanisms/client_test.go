@@ -29,6 +29,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/srv6"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/vxlan"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/filtermechanisms"
@@ -65,6 +66,7 @@ func request() *networkservice.NetworkServiceRequest {
 }
 
 func TestNewClient_FilterUnixType(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	ctx := clienturl.WithClientURL(context.Background(), &url.URL{
 		Scheme: "unix",
 		Path:   "/var/run/nse-1.sock",
@@ -90,6 +92,7 @@ func TestNewClient_FilterUnixType(t *testing.T) {
 }
 
 func TestNewClient_FilterNonUnixType(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	ctx := clienturl.WithClientURL(context.Background(), &url.URL{
 		Scheme: "ipv4",
 		Path:   "192.168.0.1",

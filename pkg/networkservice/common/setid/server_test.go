@@ -21,11 +21,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/setid"
 )
 
 func TestNewServer_SetNewConnectionId(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	server := setid.NewServer("nse-3")
 	conn, err := server.Request(context.Background(), request(connectionID, 1))
 	assert.NotNil(t, conn)
@@ -34,6 +36,7 @@ func TestNewServer_SetNewConnectionId(t *testing.T) {
 }
 
 func TestNewServer_PathSegmentNameEqualClientName(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	server := setid.NewServer("nse-2")
 	conn, err := server.Request(context.Background(), request(connectionID, 1))
 	assert.NotNil(t, conn)
@@ -42,6 +45,7 @@ func TestNewServer_PathSegmentNameEqualClientName(t *testing.T) {
 }
 
 func TestNewServer_PathSegmentIdEqualConnectionId(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	server := setid.NewServer("nse-3")
 	conn, err := server.Request(context.Background(), request(pathSegmentID2, 1))
 	assert.NotNil(t, conn)
@@ -50,6 +54,7 @@ func TestNewServer_PathSegmentIdEqualConnectionId(t *testing.T) {
 }
 
 func TestNewServer_InvalidIndex(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	server := setid.NewServer("nse-3")
 	conn, err := server.Request(context.Background(), request(connectionID, 2))
 	assert.NotNil(t, conn)

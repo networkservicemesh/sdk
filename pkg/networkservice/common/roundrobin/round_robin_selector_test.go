@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"go.uber.org/goleak"
 )
 
 type args struct {
@@ -224,6 +225,7 @@ var tests = []rrtests{
 }
 
 func Test_roundRobinSelector_SelectEndpoint(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	rr := newRoundRobinSelector()
 	for _, tt := range tests {
 		if got := rr.selectEndpoint(tt.args.ns, tt.args.networkServiceEndpoints); !reflect.DeepEqual(got, tt.want) {

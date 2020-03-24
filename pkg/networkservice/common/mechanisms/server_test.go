@@ -18,9 +18,8 @@ package mechanisms_test
 
 import (
 	"context"
-	"testing"
-
 	"io/ioutil"
+	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
@@ -30,6 +29,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/vxlan"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/goleak"
 	"gonum.org/v1/gonum/stat/combin"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
@@ -90,6 +90,7 @@ func permuteOverMechanismPreferenceOrder(request *networkservice.NetworkServiceR
 }
 
 func TestSelectMechanism(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	logrus.SetOutput(ioutil.Discard)
 	server := server()
 	for _, request := range permuteOverMechanismPreferenceOrder(request()) {
@@ -107,6 +108,7 @@ func TestSelectMechanism(t *testing.T) {
 }
 
 func TestDontSelectMechanismIfSet(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	logrus.SetOutput(ioutil.Discard)
 	server := server()
 	for _, request := range permuteOverMechanismPreferenceOrder(request()) {
@@ -121,6 +123,7 @@ func TestDontSelectMechanismIfSet(t *testing.T) {
 }
 
 func TestUnsupportedMechanismPreference(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	logrus.SetOutput(ioutil.Discard)
 	request := request()
 	request.MechanismPreferences = []*networkservice.Mechanism{
@@ -134,6 +137,7 @@ func TestUnsupportedMechanismPreference(t *testing.T) {
 }
 
 func TestUnsupportedMechanism(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	logrus.SetOutput(ioutil.Discard)
 	request := request()
 	request.GetConnection().Mechanism = &networkservice.Mechanism{
@@ -148,6 +152,7 @@ func TestUnsupportedMechanism(t *testing.T) {
 }
 
 func TestDownstreamError(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	logrus.SetOutput(ioutil.Discard)
 	request := request()
 	request.GetConnection().Mechanism = &networkservice.Mechanism{
