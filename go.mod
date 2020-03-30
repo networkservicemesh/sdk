@@ -21,7 +21,7 @@ require (
 	go.uber.org/atomic v1.5.1 // indirect
 	go.uber.org/goleak v1.0.0
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
-	golang.org/x/sys v0.0.0-20190813064441-fde4db37ae7a // indirect
+	golang.org/x/sys v0.0.0-20190813064441-fde4db37ae7a
 	golang.org/x/tools v0.0.0-20200304193943-95d2e580d8eb // indirect
 	gonum.org/v1/gonum v0.6.2
 	google.golang.org/grpc v1.27.0
