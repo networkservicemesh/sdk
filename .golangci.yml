@@ -205,3 +205,7 @@ issues:
       linters:
         - interfacer
       text: "can be `fmt.Stringer`"
+    - path: pkg/networkservice/chains/nsmgr/peertracker/server.go
+      linters:
+        - interfacer
+      text: "can be `fmt.Stringer`"
