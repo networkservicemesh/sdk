@@ -20,7 +20,6 @@ package next
 
 import (
 	"context"
-
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 
@@ -40,11 +39,9 @@ type ClientChainer func(...networkservice.NetworkServiceClient) networkservice.N
 
 // NewWrappedNetworkServiceClient chains together clients with wrapper wrapped around each one
 func NewWrappedNetworkServiceClient(wrapper ClientWrapper, clients ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
-	rv := &nextClient{
-		clients: clients,
-	}
-	for i := range rv.clients {
-		rv.clients[i] = wrapper(rv.clients[i])
+	rv := &nextClient{}
+	for _, c := range clients {
+		appendClient(rv, wrapper, c)
 	}
 	return rv
 }
@@ -54,7 +51,7 @@ func NewNetworkServiceClient(clients ...networkservice.NetworkServiceClient) net
 	if len(clients) == 0 {
 		return &tailClient{}
 	}
-	return NewWrappedNetworkServiceClient(notWrapClient, clients...)
+	return NewWrappedNetworkServiceClient(defaultWrapper, clients...)
 }
 
 func (n *nextClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
@@ -71,6 +68,16 @@ func (n *nextClient) Close(ctx context.Context, conn *networkservice.Connection,
 	return n.clients[n.index].Close(withNextClient(ctx, nil), conn, opts...)
 }
 
-func notWrapClient(c networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
+func defaultWrapper(c networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	return c
+}
+
+func appendClient(next *nextClient, wrapper ClientWrapper, client networkservice.NetworkServiceClient) {
+	if v, ok := client.(*nextClient); ok {
+		for _, c := range v.clients {
+			appendClient(next, wrapper, c)
+		}
+		return
+	}
+	next.clients = append(next.clients, wrapper(client))
 }
