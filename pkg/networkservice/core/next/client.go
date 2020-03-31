@@ -20,6 +20,7 @@ package next
 
 import (
 	"context"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 
@@ -51,7 +52,7 @@ func NewNetworkServiceClient(clients ...networkservice.NetworkServiceClient) net
 	if len(clients) == 0 {
 		return &tailClient{}
 	}
-	return NewWrappedNetworkServiceClient(defaultWrapper, clients...)
+	return NewWrappedNetworkServiceClient(notWrapClient, clients...)
 }
 
 func (n *nextClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
@@ -68,7 +69,7 @@ func (n *nextClient) Close(ctx context.Context, conn *networkservice.Connection,
 	return n.clients[n.index].Close(withNextClient(ctx, nil), conn, opts...)
 }
 
-func defaultWrapper(c networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
+func notWrapClient(c networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	return c
 }
 
