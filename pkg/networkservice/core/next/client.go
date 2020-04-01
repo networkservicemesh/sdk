@@ -41,7 +41,7 @@ type ClientChainer func(...networkservice.NetworkServiceClient) networkservice.N
 
 // NewWrappedNetworkServiceClient chains together clients with wrapper wrapped around each one
 func NewWrappedNetworkServiceClient(wrapper ClientWrapper, clients ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
-	rv := &nextClient{}
+	rv := &nextClient{clients: make([]networkservice.NetworkServiceClient, 0, len(clients))}
 	for _, c := range clients {
 		rv.clients = append(rv.clients, wrapper(c))
 	}
@@ -59,7 +59,7 @@ func NewNetworkServiceClient(clients ...networkservice.NetworkServiceClient) net
 }
 
 func (n *nextClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	if n.index == 0 {
+	if n.index == 0 && ctx != nil {
 		if nextParent := Client(ctx); nextParent != nil {
 			n.nextParent = nextParent
 		}
@@ -71,7 +71,7 @@ func (n *nextClient) Request(ctx context.Context, request *networkservice.Networ
 }
 
 func (n *nextClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	if n.index == 0 {
+	if n.index == 0 && ctx != nil {
 		if nextParent := Client(ctx); nextParent != nil {
 			n.nextParent = nextParent
 		}
