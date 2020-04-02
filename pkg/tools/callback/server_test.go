@@ -83,11 +83,12 @@ func TestServerClientInvoke(t *testing.T) {
 
 	// Connect from Client to Server
 	var client *grpc.ClientConn
-	client, err = grpc.DialContext(context.Background(), listener.Addr().String(), grpc.WithInsecure(), grpc.WithAuthority("my_client"))
+
+	client, err = grpc.DialContext(context.Background(), listener.Addr().String(), grpc.WithBlock(), grpc.WithInsecure(), grpc.WithAuthority("my_client"))
 	require.Nil(t, err)
 	// Construct a callback client.
 	callbackClient := callback.NewClient(client, clientGRPC)
-	callbackClient.Serve()
+	callbackClient.Serve(context.Background())
 
 	ids := &idHolder{
 		ids: make(chan string),
@@ -146,7 +147,7 @@ func BenchmarkServerClientInvoke(b *testing.B) {
 	require.Nil(b, err)
 	// Construct a callback client.
 	callbackClient := callback.NewClient(client, clientGRPC)
-	callbackClient.Serve()
+	callbackClient.Serve(context.Background())
 	ids := &idHolder{
 		ids: make(chan string),
 	}
@@ -201,7 +202,7 @@ func BenchmarkServerClientInvokePure(b *testing.B) {
 
 	// Connect from Client to Server
 	var client *grpc.ClientConn
-	client, err = grpc.DialContext(context.Background(), "unix:"+sockFile, grpc.WithInsecure(), grpc.WithAuthority("my_client"))
+	client, err = grpc.DialContext(context.Background(), "unix:"+sockFile, grpc.WithInsecure(), grpc.WithAuthority("my_client"), grpc.WithBlock())
 	require.Nil(b, err)
 	nsmClient := networkservice.NewNetworkServiceClient(client)
 
@@ -266,11 +267,11 @@ func TestServerClientConnectionMonitor(t *testing.T) {
 
 	// Connect from Client to Server
 	var client *grpc.ClientConn
-	client, err = grpc.DialContext(context.Background(), listener.Addr().String(), grpc.WithInsecure(), grpc.WithAuthority("my_client"))
+	client, err = grpc.DialContext(context.Background(), listener.Addr().String(), grpc.WithInsecure(), grpc.WithAuthority("my_client"), grpc.WithBlock())
 	require.Nil(t, err)
 	// Construct a callback client.
 	callbackClient := callback.NewClient(client, clientGRPC)
-	callbackClient.Serve()
+	callbackClient.Serve(context.Background())
 	ids := &idHolder{
 		ids: make(chan string),
 	}

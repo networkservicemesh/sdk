@@ -40,7 +40,7 @@ type Client interface {
 	// Stop - stop all operations
 	Stop()
 	// Server - perform opertaions on local GRPC server and call for remote server.
-	Serve()
+	Serve(ctx context.Context)
 	// ErrChan - return error stream
 	ErrChan() chan error
 }
@@ -88,8 +88,8 @@ func NewClient(clientConnInterface grpc.ClientConnInterface, clientServer *grpc.
 
 const socketMask = 0077
 
-func (c *callbackClient) Serve() {
-	ctx, cancel := context.WithCancel(context.Background())
+func (c *callbackClient) Serve(ctx context.Context) {
+	ctx, cancel := context.WithCancel(ctx)
 	c.ctx = ctx
 	c.cancel = cancel
 	var err error
@@ -116,7 +116,11 @@ func (c *callbackClient) Serve() {
 				return
 			}
 			c.clientClient, err = grpc.DialContext(ctx, addr, grpc.WithInsecure(), grpc.WithBlock())
-
+			if err != nil {
+				logrus.Errorf("Failed to start local GRPC %v", err)
+				c.errorChan <- err
+				continue
+			}
 			c.scClient = NewCallbackServiceClient(c.clientConnInterface)
 			// Client call handle to clientConnInterface
 			cl, err := c.scClient.HandleCallbacks(ctx)

@@ -53,11 +53,15 @@ type serverImpl struct {
 	identityProvider IdentityProvider
 }
 
-// IdentityProvider - A function to retrieve identity from grpc connection and create clients based on it.
-type IdentityProvider func(md metadata.MD) string
+// IdentityProvider - A function to retrieve identity from grpc connection context and create clients based on it.
+type IdentityProvider func(ctx context.Context) string
 
 // IdentityByAuthority - return identity by :authority
-func IdentityByAuthority(md metadata.MD) string {
+func IdentityByAuthority(ctx context.Context) string {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		logrus.Errorf("Not metadata provided")
+	}
 	return md.Get(":authority")[0]
 }
 
@@ -81,11 +85,7 @@ func (s *serverImpl) AddListener(listener ClientListener) {
 
 // HandleCallbacks - main entry point for server, handle client stream here.
 func (s *serverImpl) HandleCallbacks(serverClient CallbackService_HandleCallbacksServer) error {
-	md, ok := metadata.FromIncomingContext(serverClient.Context())
-	if !ok {
-		logrus.Errorf("Not metadata provided")
-	}
-	key := s.identityProvider(md)
+	key := s.identityProvider(serverClient.Context())
 	s.addConnection(key, serverClient)
 	defer s.removeConnection(key)
 
