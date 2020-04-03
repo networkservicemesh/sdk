@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -39,7 +40,8 @@ func NewDiscoveryClient(traced registry.NetworkServiceDiscoveryClient) registry.
 
 func (t *traceDiscoveryClient) FindNetworkService(ctx context.Context, request *registry.FindNetworkServiceRequest, opts ...grpc.CallOption) (*registry.FindNetworkServiceResponse, error) {
 	// Create a new span
-	span := spanhelper.FromContext(ctx, fmt.Sprintf("%s.Request", typeutils.GetTypeName(t.traced)))
+	operation := fmt.Sprintf("%s/%s.FindNetworkService", typeutils.GetPkgPath(t.traced), typeutils.GetTypeName(t.traced))
+	span := spanhelper.FromContext(ctx, operation)
 	defer span.Finish()
 
 	// Make sure we log to span
@@ -51,6 +53,9 @@ func (t *traceDiscoveryClient) FindNetworkService(ctx context.Context, request *
 	// Actually call the next
 	rv, err := t.traced.FindNetworkService(ctx, request, opts...)
 	if err != nil {
+		if _, ok := err.(stackTracer); !ok {
+			err = errors.Wrapf(err, "Error returned from %s/", operation)
+		}
 		span.LogError(err)
 		return nil, err
 	}

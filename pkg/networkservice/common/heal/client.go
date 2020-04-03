@@ -21,10 +21,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -103,7 +101,6 @@ func (f *healClient) init() {
 		})
 		return
 	}
-
 	f.eventReceiver = recv
 	f.recvEventExecutor.AsyncExec(f.recvEvent)
 }
@@ -156,7 +153,7 @@ func (f *healClient) recvEvent() {
 func (f *healClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	rv, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
-		return nil, errors.Wrap(err, "Error calling next")
+		return nil, err
 	}
 	// Clone the request
 	req := request.Clone()
@@ -193,7 +190,7 @@ func (f *healClient) Request(ctx context.Context, request *networkservice.Networ
 func (f *healClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	rv, err := next.Client(ctx).Close(ctx, conn, opts...)
 	if err != nil {
-		return nil, errors.Wrap(err, "Error calling next")
+		return nil, err
 	}
 	f.updateExecutor.AsyncExec(func() {
 		delete(f.requestors, conn.GetId())

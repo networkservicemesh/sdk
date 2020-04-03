@@ -28,7 +28,6 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 )
 
 const (
@@ -89,7 +88,7 @@ func TestAuthzEndpoint(t *testing.T) {
 				rego.Module("example.com", s.policy)).PrepareForEval(context.Background())
 			require.Nilf(t, err, "failed to create new rego policy: %v", err)
 
-			srv := chain.NewNetworkServiceServer(authorize.NewServer(&p))
+			srv := authorize.NewServer(&p)
 
 			checkResult := func(err error) {
 				if !s.denied {
