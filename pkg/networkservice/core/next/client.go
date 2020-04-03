@@ -28,8 +28,9 @@ import (
 )
 
 type nextClient struct {
-	clients []networkservice.NetworkServiceClient
-	index   int
+	clients    []networkservice.NetworkServiceClient
+	index      int
+	nextParent networkservice.NetworkServiceClient
 }
 
 // ClientWrapper - a function that wraps around a networkservice.NetworkServiceClient
@@ -40,11 +41,9 @@ type ClientChainer func(...networkservice.NetworkServiceClient) networkservice.N
 
 // NewWrappedNetworkServiceClient chains together clients with wrapper wrapped around each one
 func NewWrappedNetworkServiceClient(wrapper ClientWrapper, clients ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
-	rv := &nextClient{
-		clients: clients,
-	}
-	for i := range rv.clients {
-		rv.clients[i] = wrapper(rv.clients[i])
+	rv := &nextClient{clients: make([]networkservice.NetworkServiceClient, 0, len(clients))}
+	for _, c := range clients {
+		rv.clients = append(rv.clients, wrapper(c))
 	}
 	return rv
 }
@@ -54,23 +53,31 @@ func NewNetworkServiceClient(clients ...networkservice.NetworkServiceClient) net
 	if len(clients) == 0 {
 		return &tailClient{}
 	}
-	return NewWrappedNetworkServiceClient(notWrapClient, clients...)
+	return NewWrappedNetworkServiceClient(func(client networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
+		return client
+	}, clients...)
 }
 
 func (n *nextClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	if n.index+1 < len(n.clients) {
-		return n.clients[n.index].Request(withNextClient(ctx, &nextClient{clients: n.clients, index: n.index + 1}), request, opts...)
+	if n.index == 0 && ctx != nil {
+		if nextParent := Client(ctx); nextParent != nil {
+			n.nextParent = nextParent
+		}
 	}
-	return n.clients[n.index].Request(withNextClient(ctx, nil), request, opts...)
+	if n.index+1 < len(n.clients) {
+		return n.clients[n.index].Request(withNextClient(ctx, &nextClient{nextParent: n.nextParent, clients: n.clients, index: n.index + 1}), request, opts...)
+	}
+	return n.clients[n.index].Request(withNextClient(ctx, n.nextParent), request, opts...)
 }
 
 func (n *nextClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	if n.index+1 < len(n.clients) {
-		return n.clients[n.index].Close(withNextClient(ctx, &nextClient{clients: n.clients, index: n.index + 1}), conn, opts...)
+	if n.index == 0 && ctx != nil {
+		if nextParent := Client(ctx); nextParent != nil {
+			n.nextParent = nextParent
+		}
 	}
-	return n.clients[n.index].Close(withNextClient(ctx, nil), conn, opts...)
-}
-
-func notWrapClient(c networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
-	return c
+	if n.index+1 < len(n.clients) {
+		return n.clients[n.index].Close(withNextClient(ctx, &nextClient{nextParent: n.nextParent, clients: n.clients, index: n.index + 1}), conn, opts...)
+	}
+	return n.clients[n.index].Close(withNextClient(ctx, n.nextParent), conn, opts...)
 }

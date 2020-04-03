@@ -27,8 +27,9 @@ import (
 )
 
 type nextServer struct {
-	servers []networkservice.NetworkServiceServer
-	index   int
+	nextParent networkservice.NetworkServiceServer
+	servers    []networkservice.NetworkServiceServer
+	index      int
 }
 
 // ServerWrapper - A function that wraps a networkservice.NetworkServiceServer
@@ -39,11 +40,9 @@ type ServerChainer func(...networkservice.NetworkServiceServer) networkservice.N
 
 // NewWrappedNetworkServiceServer - chains together the servers provides with the wrapper wrapped around each one in turn.
 func NewWrappedNetworkServiceServer(wrapper ServerWrapper, servers ...networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
-	rv := &nextServer{
-		servers: servers,
-	}
-	for i := range rv.servers {
-		rv.servers[i] = wrapper(rv.servers[i])
+	rv := &nextServer{servers: make([]networkservice.NetworkServiceServer, 0, len(servers))}
+	for _, s := range servers {
+		rv.servers = append(rv.servers, wrapper(s))
 	}
 	return rv
 }
@@ -54,23 +53,31 @@ func NewNetworkServiceServer(servers ...networkservice.NetworkServiceServer) net
 	if len(servers) == 0 {
 		return &tailServer{}
 	}
-	return NewWrappedNetworkServiceServer(notWrapServer, servers...)
+	return NewWrappedNetworkServiceServer(func(server networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
+		return server
+	}, servers...)
 }
 
 func (n *nextServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if n.index+1 < len(n.servers) {
-		return n.servers[n.index].Request(withNextServer(ctx, &nextServer{servers: n.servers, index: n.index + 1}), request)
+	if n.index == 0 && ctx != nil {
+		if nextParent := Server(ctx); nextParent != nil {
+			n.nextParent = nextParent
+		}
 	}
-	return n.servers[n.index].Request(withNextServer(ctx, nil), request)
+	if n.index+1 < len(n.servers) {
+		return n.servers[n.index].Request(withNextServer(ctx, &nextServer{nextParent: n.nextParent, servers: n.servers, index: n.index + 1}), request)
+	}
+	return n.servers[n.index].Request(withNextServer(ctx, n.nextParent), request)
 }
 
 func (n *nextServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	if n.index+1 < len(n.servers) {
-		return n.servers[n.index].Close(withNextServer(ctx, &nextServer{servers: n.servers, index: n.index + 1}), conn)
+	if n.index == 0 && ctx != nil {
+		if nextParent := Server(ctx); nextParent != nil {
+			n.nextParent = nextParent
+		}
 	}
-	return n.servers[n.index].Close(withNextServer(ctx, nil), conn)
-}
-
-func notWrapServer(server networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
-	return server
+	if n.index+1 < len(n.servers) {
+		return n.servers[n.index].Close(withNextServer(ctx, &nextServer{nextParent: n.nextParent, servers: n.servers, index: n.index + 1}), conn)
+	}
+	return n.servers[n.index].Close(withNextServer(ctx, n.nextParent), conn)
 }

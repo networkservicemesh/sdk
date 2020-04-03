@@ -48,8 +48,10 @@ func TestClientBranches(t *testing.T) {
 		{visitClient(), visitClient(), adapters.NewServerToClient(visitServer())},
 		{visitClient(), adapters.NewServerToClient(emptyServer()), visitClient()},
 		{visitClient(), adapters.NewServerToClient(visitServer()), emptyClient()},
+		{visitClient(), next.NewNetworkServiceClient(next.NewNetworkServiceClient(visitClient())), visitClient()},
+		{visitClient(), next.NewNetworkServiceClient(next.NewNetworkServiceClient(emptyClient())), visitClient()},
 	}
-	expects := []int{1, 2, 3, 0, 1, 2, 1, 2, 3, 3, 1, 2}
+	expects := []int{1, 2, 3, 0, 1, 2, 1, 2, 3, 3, 1, 2, 3, 1}
 	for i, sample := range samples {
 		msg := fmt.Sprintf("sample index: %v", i)
 		ctx := visit(context.Background())
