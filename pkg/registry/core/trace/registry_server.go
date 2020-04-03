@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
@@ -39,7 +40,8 @@ func NewRegistryServer(traced registry.NetworkServiceRegistryServer) registry.Ne
 
 func (t *traceRegistryServer) RegisterNSE(ctx context.Context, request *registry.NSERegistration) (*registry.NSERegistration, error) {
 	// Create a new span
-	span := spanhelper.FromContext(ctx, fmt.Sprintf("%s.Request", typeutils.GetTypeName(t.traced)))
+	operation := fmt.Sprintf("%s/%s.RegisterNSE", typeutils.GetPkgPath(t.traced), typeutils.GetTypeName(t.traced))
+	span := spanhelper.FromContext(ctx, operation)
 	defer span.Finish()
 
 	// Make sure we log to span
@@ -51,6 +53,9 @@ func (t *traceRegistryServer) RegisterNSE(ctx context.Context, request *registry
 	// Actually call the next
 	rv, err := t.traced.RegisterNSE(ctx, request)
 	if err != nil {
+		if _, ok := err.(stackTracer); !ok {
+			err = errors.Wrapf(err, "Error returned from %s/", operation)
+		}
 		span.LogError(err)
 		return nil, err
 	}

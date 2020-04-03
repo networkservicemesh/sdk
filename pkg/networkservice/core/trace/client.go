@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -40,7 +41,8 @@ func NewNetworkServiceClient(traced networkservice.NetworkServiceClient) network
 
 func (t *traceClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	// Create a new span
-	span := spanhelper.FromContext(ctx, fmt.Sprintf("%s.Request", typeutils.GetTypeName(t.traced)))
+	operation := fmt.Sprintf("%s/%s.Request", typeutils.GetPkgPath(t.traced), typeutils.GetTypeName(t.traced))
+	span := spanhelper.FromContext(ctx, operation)
 	defer span.Finish()
 
 	// Make sure we log to span
@@ -53,6 +55,9 @@ func (t *traceClient) Request(ctx context.Context, request *networkservice.Netwo
 	rv, err := t.traced.Request(ctx, request, opts...)
 
 	if err != nil {
+		if _, ok := err.(stackTracer); !ok {
+			err = errors.Wrapf(err, "Error returned from %s", operation)
+		}
 		span.LogError(err)
 		return nil, err
 	}
@@ -62,7 +67,8 @@ func (t *traceClient) Request(ctx context.Context, request *networkservice.Netwo
 
 func (t *traceClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	// Create a new span
-	span := spanhelper.FromContext(ctx, fmt.Sprintf("%s.Close", typeutils.GetTypeName(t.traced)))
+	operation := fmt.Sprintf("%s/%s.Close", typeutils.GetPkgPath(t.traced), typeutils.GetTypeName(t.traced))
+	span := spanhelper.FromContext(ctx, operation)
 	defer span.Finish()
 	// Make sure we log to span
 	ctx = withLog(span.Context(), span.Logger())
@@ -71,6 +77,9 @@ func (t *traceClient) Close(ctx context.Context, conn *networkservice.Connection
 	rv, err := t.traced.Close(ctx, conn, opts...)
 
 	if err != nil {
+		if _, ok := err.(stackTracer); !ok {
+			err = errors.Wrapf(err, "Error returned from %s/", operation)
+		}
 		span.LogError(err)
 		return nil, err
 	}

@@ -29,3 +29,12 @@ func GetTypeName(value interface{}) string {
 	}
 	return t.Name()
 }
+
+// GetPkgPath return the package path of the underlying struct for an interface, with a * if a ptr
+func GetPkgPath(value interface{}) string {
+	t := reflect.TypeOf(value)
+	if t.Kind() == reflect.Ptr {
+		return "*" + t.Elem().Name()
+	}
+	return t.PkgPath()
+}

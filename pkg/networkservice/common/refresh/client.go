@@ -55,7 +55,7 @@ func NewClient() networkservice.NetworkServiceClient {
 func (t *refreshClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	rv, err := next.Server(ctx).Request(ctx, request)
 	if err != nil {
-		return nil, errors.Wrap(err, "Error calling next")
+		return nil, err
 	}
 	// Clone the request
 	req := request.Clone()
