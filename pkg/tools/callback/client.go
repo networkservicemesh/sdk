@@ -145,7 +145,7 @@ func (c *callbackClient) handleRecvStream(ctx context.Context, cl CallbackServic
 		var req *Request
 		req, err := cl.Recv()
 		if err != nil {
-			if ctx.Err() != nil && !strings.Contains(err.Error(), "transport is closing") {
+			if c.isShowError(ctx, err) {
 				logrus.Errorf("ClientError receive message: %v", err)
 			}
 			return
@@ -167,6 +167,10 @@ func (c *callbackClient) handleRecvStream(ctx context.Context, cl CallbackServic
 			c.handleRecv(req)
 		}
 	}
+}
+
+func (c *callbackClient) isShowError(ctx context.Context, err error) bool {
+	return ctx.Err() != nil && !strings.Contains(err.Error(), "transport is closing") && !strings.Contains(err.Error(), "context canceled")
 }
 
 // TempSocketFile - creates a temp socket file with prefix "callback.socket"

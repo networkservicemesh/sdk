@@ -54,15 +54,17 @@ type serverImpl struct {
 }
 
 // IdentityProvider - A function to retrieve identity from grpc connection context and create clients based on it.
-type IdentityProvider func(ctx context.Context) string
+type IdentityProvider func(ctx context.Context) (string, error)
 
 // IdentityByAuthority - return identity by :authority
-func IdentityByAuthority(ctx context.Context) string {
+func IdentityByAuthority(ctx context.Context) (string, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		logrus.Errorf("Not metadata provided")
+		err := errors.New("Not metadata provided")
+		logrus.Error(err)
+		return "", err
 	}
-	return md.Get(":authority")[0]
+	return md.Get(":authority")[0], nil
 }
 
 // NewServer - creates a new callback server to handle clients, should be used to create client connections back to client.
@@ -85,8 +87,16 @@ func (s *serverImpl) AddListener(listener ClientListener) {
 
 // HandleCallbacks - main entry point for server, handle client stream here.
 func (s *serverImpl) HandleCallbacks(serverClient CallbackService_HandleCallbacksServer) error {
-	key := s.identityProvider(serverClient.Context())
-	s.addConnection(key, serverClient)
+	key, err := s.identityProvider(serverClient.Context())
+	if err != nil {
+		// Return error in case we could not understand peer id
+		return err
+	}
+	addErr := s.addConnection(key, serverClient)
+	if addErr != nil {
+		// This could be duplicate connection id
+		return addErr
+	}
 	defer s.removeConnection(key)
 
 	// Wait until context will be complete.
@@ -95,9 +105,13 @@ func (s *serverImpl) HandleCallbacks(serverClient CallbackService_HandleCallback
 	return ctx.Err()
 }
 
-func (s *serverImpl) addConnection(key string, serverClient CallbackService_HandleCallbacksServer) {
+func (s *serverImpl) addConnection(key string, serverClient CallbackService_HandleCallbacksServer) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+	if _, ok := s.connections[key]; ok {
+		// Connection already defined with this ID.
+		return errors.Errorf("connection is already active, ID %v is duplicate.", key)
+	}
 	s.connections[key] = &serverClientConnImpl{
 		server:   serverClient,
 		id:       key,
@@ -105,10 +119,11 @@ func (s *serverImpl) addConnection(key string, serverClient CallbackService_Hand
 		streams:  map[string]responseChannel{},
 		messages: make(chan *Request),
 	}
-
+	// Notify listeners
 	for _, l := range s.listeners {
 		l.ClientConnected(key)
 	}
+	return nil
 }
 
 func (s *serverImpl) removeConnection(key string) {
