@@ -27,7 +27,10 @@ _ = server.Serve(listener)
 
 And then require to call client.
 ```go
-nsmClientGRPC, _ := callbackServer.NewClient(context.Background(), clientID)
+target := "callback:{client-authority}"
+// If target is not in a list of callback server targets, 
+// it will perform grpc.DialContext to connect to passed targetd
+nsmClientGRPC, err := callback.DialContext(context.Background(), target, callback.WithCallbackServer(server.callbackServer))
 nsmClient := networkservice.NewNetworkServiceClient(nsmClientGRPC)
 
 resp, _ := nsmClient.Request(context.Background(), &networkservice.NetworkServiceRequest{
@@ -39,13 +42,26 @@ resp, _ := nsmClient.Request(context.Background(), &networkservice.NetworkServic
 
 ### Client identification.
 
-Server could identify clients from passed metadata values, default identity is 
-using ":authority" passed from client to server.
+Server could identify clients from passed metadata values, clients could define how to extract
+identification from context. Servers adds "callback:" to identity, so then dial with callback 
+it is required to add "callback:{client-id}".
 
 ```go
-md, ok := metadata.FromIncomingContext(serverClient.Context())
-if !ok {
-    logrus.Errorf("Not metadata provided")
+// IdentityByAuthority - return identity by :authority
+func IdentityByPeerCertificate(ctx context.Context) (string, error) {
+	p, ok := peer.FromContext(ctx)
+	if !ok {
+		err := errors.New("No peer is provided")
+		logrus.Error(err)
+		return "", err
+	}
+	tlsInfo, tlsOk := p.AuthInfo.(credentials.TLSInfo)
+	if !tlsOk {
+		err := errors.New("No TLS info is provided")
+		logrus.Error(err)
+		return "", err
+	}
+	commonName := tlsInfo.State.PeerCertificates[0].Subject.CommonName
+	return commonName, nil
 }
-key := s.identityProvider(md)
 ```
