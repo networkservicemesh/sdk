@@ -34,13 +34,13 @@ import (
 func WithSpiffe(spiffeAgentURL *url.URL, timeout time.Duration) grpc.DialOption {
 	peer, err := spiffe.NewTLSPeer(spiffe.WithWorkloadAPIAddr(spiffeAgentURL.String()))
 	if err != nil {
-		return &grpc.EmptyDialOption{}
+		return grpc.WithInsecure()
 	}
 	ctx, cancelFunc := context.WithTimeout(context.Background(), timeout)
 	defer cancelFunc()
 	tlsConfig, err := peer.GetConfig(ctx, spiffe.ExpectAnyPeer())
 	if err != nil {
-		return &grpc.EmptyDialOption{}
+		return grpc.WithInsecure()
 	}
 	return grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig))
 }
