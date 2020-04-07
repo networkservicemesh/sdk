@@ -122,7 +122,7 @@ func (s *testCallbackServer) waitClient(server *testCallbackServer, client *test
 	case <-time.After(1 * time.Second):
 		require.Fail(t, "Timeout waiting for client")
 	case clientID = <-ids.ids:
-		require.Equal(t, "my-client", clientID)
+		require.Equal(t, "callback:my-client", clientID)
 	}
 	return clientID
 }
@@ -182,7 +182,7 @@ func TestServerClientInvoke(t *testing.T) {
 	clientID := server.waitClient(server, client, t)
 
 	// Do a normal GRPC stuff inside.
-	nsmClientGRPC, err3 := server.callbackServer.NewClient(context.Background(), clientID)
+	nsmClientGRPC, err3 := callback.DialContext(context.Background(), clientID, callback.WithCallbackServer(server.callbackServer))
 	require.Nil(t, err3)
 	nsmClient := networkservice.NewNetworkServiceClient(nsmClientGRPC)
 
@@ -260,7 +260,7 @@ func TestServerClientInvokeWithPeerAuth(t *testing.T) {
 	clientID := server.waitClient(server, client, t)
 
 	// Do a normal GRPC stuff inside.
-	nsmClientGRPC, err3 := server.callbackServer.NewClient(context.Background(), clientID)
+	nsmClientGRPC, err3 := callback.DialContext(context.Background(), clientID, callback.WithCallbackServer(server.callbackServer))
 	require.Nil(t, err3)
 	nsmClient := networkservice.NewNetworkServiceClient(nsmClientGRPC)
 
@@ -343,7 +343,7 @@ func BenchmarkServerClientInvoke(b *testing.B) {
 	clientID := server.waitClient(server, client, b)
 
 	// Do a normal GRPC stuff inside.
-	nsmClientGRPC, err3 := server.callbackServer.NewClient(context.Background(), clientID)
+	nsmClientGRPC, err3 := callback.DialContext(context.Background(), clientID, callback.WithCallbackServer(server.callbackServer))
 	require.Nil(b, err3)
 	nsmClient := networkservice.NewNetworkServiceClient(nsmClientGRPC)
 
@@ -467,7 +467,7 @@ func TestServerClientConnectionMonitor(t *testing.T) {
 	}
 	callbackServer.AddListener(ids)
 	clientID := waitClientConnected(callbackClient, t, ids)
-	nsmClientGRPC, err3 := callbackServer.NewClient(context.Background(), clientID)
+	nsmClientGRPC, err3 := callback.DialContext(context.Background(), clientID, callback.WithCallbackServer(callbackServer))
 	require.Nil(t, err3)
 	nsmClient := networkservice.NewMonitorConnectionClient(nsmClientGRPC)
 	monCtx, cancelMon := context.WithCancel(context.Background())
@@ -499,7 +499,7 @@ func waitClientConnected(callbackClient callback.Client, t *testing.T, ids *idHo
 	case <-time.After(1 * time.Second):
 		require.Fail(t, "Timeout waiting for client")
 	case clientID = <-ids.ids:
-		require.Equal(t, "my-client", clientID)
+		require.Equal(t, "callback:my-client", clientID)
 	}
 	return clientID
 }

@@ -40,8 +40,6 @@ type ClientListener interface {
 
 // Server - a callback server, hold client callback connections and allow to provide client
 type Server interface {
-	NewClient(ctx context.Context, id string) (grpc.ClientConnInterface, error)
-
 	AddListener(listener ClientListener)
 	CallbackServiceServer
 }
@@ -75,6 +73,33 @@ func NewServer(provider IdentityProvider) Server {
 	}
 }
 
+type callbackServerOption struct {
+	server *serverImpl
+	grpc.EmptyDialOption
+}
+
+// WithCallbackServer - return a grpc.DialOption with callback server inside.
+func WithCallbackServer(server Server) grpc.DialOption {
+	return &callbackServerOption{
+		server: server.(*serverImpl),
+	}
+}
+
+// DialContext - perform a dial similar to normal GRPC and handle a special target starting with "callback:{client-id}"
+func DialContext(ctx context.Context, target string, opts ...grpc.DialOption) (conn grpc.ClientConnInterface, err error) {
+	var server *serverImpl
+	for _, o := range opts {
+		if so, ok := o.(*callbackServerOption); ok {
+			server = so.server
+			break
+		}
+	}
+	if server != nil {
+		return server.newClient(ctx, target)
+	}
+	return grpc.DialContext(ctx, target, opts...)
+}
+
 // AddListener - add listener to client, to be informed abount new clients are joined.
 func (s *serverImpl) AddListener(listener ClientListener) {
 	s.lock.Lock()
@@ -87,17 +112,20 @@ func (s *serverImpl) AddListener(listener ClientListener) {
 
 // HandleCallbacks - main entry point for server, handle client stream here.
 func (s *serverImpl) HandleCallbacks(serverClient CallbackService_HandleCallbacksServer) error {
-	key, err := s.identityProvider(serverClient.Context())
+	clientID, err := s.identityProvider(serverClient.Context())
 	if err != nil {
 		// Return error in case we could not understand peer id
 		return err
 	}
-	addErr := s.addConnection(key, serverClient)
+
+	handleID := fmt.Sprintf("callback:%v", clientID)
+
+	addErr := s.addConnection(handleID, serverClient)
 	if addErr != nil {
 		// This could be duplicate connection id
 		return addErr
 	}
-	defer s.removeConnection(key)
+	defer s.removeConnection(handleID)
 
 	// Wait until context will be complete.
 	ctx := serverClient.Context()
@@ -453,7 +481,7 @@ func (s *serverClientConnImpl) NewStream(ctx context.Context, desc *grpc.StreamD
 	return result, nil
 }
 
-func (s *serverImpl) NewClient(ctx context.Context, id string) (grpc.ClientConnInterface, error) {
+func (s *serverImpl) newClient(ctx context.Context, id string) (grpc.ClientConnInterface, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
