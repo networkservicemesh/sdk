@@ -107,10 +107,11 @@ func (s *serverImpl) HandleCallbacks(serverClient CallbackService_HandleCallback
 		// This could be duplicate connection id
 		return addErr
 	}
-
+	conn.lock.Lock()
 	conn.id = handleID
 	conn.serverCtx = ctx
 	conn.cancel = cancelFunc
+	conn.lock.Unlock()
 
 	defer s.removeConnection(handleID)
 
@@ -148,11 +149,11 @@ func (s *serverImpl) removeConnection(key string) {
 
 type serverClientConnImpl struct {
 	server    CallbackService_HandleCallbacksServer
-	ctx       context.Context
 	created   bool
 	cancel    context.CancelFunc
 	serverCtx context.Context
 	id        string
+	lock      sync.Mutex
 }
 
 func (s *serverImpl) dial(target string) (func(context.Context, string) (net.Conn, error), error) {
@@ -165,7 +166,8 @@ func (s *serverImpl) dial(target string) (func(context.Context, string) (net.Con
 		}
 		srv.created = true
 		return func(ctx context.Context, target string) (net.Conn, error) {
-			srv.ctx = ctx
+			srv.lock.Lock()
+			defer srv.lock.Unlock()
 			return newConnection(ctx, srv.cancel, srv.server), nil
 		}, nil
 	}
