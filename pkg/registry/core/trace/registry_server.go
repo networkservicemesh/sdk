@@ -98,7 +98,7 @@ func (t *traceRegistryServer) BulkRegisterNSE(server registry.NetworkServiceRegi
 
 func (t *traceRegistryServer) RemoveNSE(ctx context.Context, request *registry.RemoveNSERequest) (*empty.Empty, error) {
 	// Create a new span
-	operation := fmt.Sprintf("%s/%s.RegisterNSE", typeutils.GetPkgPath(t.traced), typeutils.GetTypeName(t.traced))
+	operation := fmt.Sprintf("%s/%s.RemoveNSE", typeutils.GetPkgPath(t.traced), typeutils.GetTypeName(t.traced))
 	span := spanhelper.FromContext(ctx, operation)
 	defer span.Finish()
 
