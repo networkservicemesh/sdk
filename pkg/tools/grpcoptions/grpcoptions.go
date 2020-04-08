@@ -19,7 +19,6 @@ package grpcoptions
 
 import (
 	"context"
-	"net/url"
 	"time"
 
 	"github.com/spiffe/go-spiffe/spiffe"
@@ -27,13 +26,20 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-// WithSpiffe - returns a grpc.DialOption for using Spiffe IDs if available, grpc.EmptyDialOption otherwise
-//              spiffeAgentURL - *url.URL for the spiffe agent
+const (
+	// DefaultTimeout - default for use as timeout in spiffe grpc options
+	DefaultTimeout = time.Second
+)
+
+// WithSpiffe - returns a grpc.DialOption for using Spiffe IDs if available, grpc.WithInsecure() otherwise
+//              peer           - *spiffe.TLSPeer - spiffe TLS Peer
 //              timeout        - time.Duration to allow maximally to contacting spiffe agent before giving up and
 //                               returning grpc.EmptyDialOption
-func WithSpiffe(spiffeAgentURL *url.URL, timeout time.Duration) grpc.DialOption {
-	peer, err := spiffe.NewTLSPeer(spiffe.WithWorkloadAPIAddr(spiffeAgentURL.String()))
-	if err != nil {
+//              Example:
+//                 tlsPeer, _ := spiffe.NewTLSPeer(spiffe.WithWorkloadAPIAddr(agentUrl),spiffe.WithLogger(logrus.StandardLogger()))
+//                 conn, err := grpc.DialContext(ctx,target),grpcoptions.WithSpiffe(tlsPeer,grpcoptions.DefaultTimeout))
+func WithSpiffe(peer *spiffe.TLSPeer, timeout time.Duration) grpc.DialOption {
+	if peer == nil {
 		return grpc.WithInsecure()
 	}
 	ctx, cancelFunc := context.WithTimeout(context.Background(), timeout)
@@ -46,11 +52,14 @@ func WithSpiffe(spiffeAgentURL *url.URL, timeout time.Duration) grpc.DialOption 
 }
 
 // SpiffeCreds - returns a grpc.ServerOption for using Spiffe IDs if available, grpc.EmptyServerOption otherwise
+//              peer           - *spiffe.TLSPeer - spiffe TLS Peer
 //              timeout        - time.Duration to allow maximally to contacting spiffe agent before giving up and
 //                               returning grpc.EmptyServerOption
-func SpiffeCreds(spiffeAgentURL *url.URL, timeout time.Duration) grpc.ServerOption {
-	peer, err := spiffe.NewTLSPeer(spiffe.WithWorkloadAPIAddr(spiffeAgentURL.String()))
-	if err != nil {
+//              Example:
+//                 tlsPeer, _ := spiffe.NewTLSPeer(spiffe.WithWorkloadAPIAddr(agentUrl),spiffe.WithLogger(logrus.StandardLogger()))
+//                 server := grpc.NewServer(grpcoptions.SpiffeCreds(tlsPeer, grpcoptions.DefaultTimeout))
+func SpiffeCreds(peer *spiffe.TLSPeer, timeout time.Duration) grpc.ServerOption {
+	if peer == nil {
 		return grpc.EmptyServerOption{}
 	}
 	ctx, cancelFunc := context.WithTimeout(context.Background(), timeout)
