@@ -20,12 +20,9 @@ package callback
 import (
 	"context"
 	"fmt"
-	"strings"
+	"net"
 	"sync"
 
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/any"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -73,31 +70,13 @@ func NewServer(provider IdentityProvider) Server {
 	}
 }
 
-type callbackServerOption struct {
-	server *serverImpl
-	grpc.EmptyDialOption
-}
-
-// WithCallbackServer - return a grpc.DialOption with callback server inside.
-func WithCallbackServer(server Server) grpc.DialOption {
-	return &callbackServerOption{
-		server: server.(*serverImpl),
+// WithCallbackDialer - return a grpc.DialOption with callback server inside to perform a dial
+func WithCallbackDialer(server Server, target string) grpc.DialOption {
+	dialFunc, err := server.(*serverImpl).dial(target)
+	if err != nil {
+		logrus.Errorf("Failed to connect to callback: %v", err)
 	}
-}
-
-// DialContext - perform a dial similar to normal GRPC and handle a special target starting with "callback:{client-id}"
-func DialContext(ctx context.Context, target string, opts ...grpc.DialOption) (conn grpc.ClientConnInterface, err error) {
-	var server *serverImpl
-	for _, o := range opts {
-		if so, ok := o.(*callbackServerOption); ok {
-			server = so.server
-			break
-		}
-	}
-	if server != nil {
-		return server.newClient(ctx, target)
-	}
-	return grpc.DialContext(ctx, target, opts...)
+	return grpc.WithContextDialer(dialFunc)
 }
 
 // AddListener - add listener to client, to be informed abount new clients are joined.
@@ -118,40 +97,44 @@ func (s *serverImpl) HandleCallbacks(serverClient CallbackService_HandleCallback
 		return err
 	}
 
+	ctx, cancelFunc := context.WithCancel(serverClient.Context())
+	defer cancelFunc()
+
 	handleID := fmt.Sprintf("callback:%v", clientID)
 
-	addErr := s.addConnection(handleID, serverClient)
+	conn, addErr := s.addConnection(handleID, serverClient)
 	if addErr != nil {
 		// This could be duplicate connection id
 		return addErr
 	}
+
+	conn.id = handleID
+	conn.serverCtx = ctx
+	conn.cancel = cancelFunc
+
 	defer s.removeConnection(handleID)
 
 	// Wait until context will be complete.
-	ctx := serverClient.Context()
 	<-ctx.Done()
 	return ctx.Err()
 }
 
-func (s *serverImpl) addConnection(key string, serverClient CallbackService_HandleCallbacksServer) error {
+func (s *serverImpl) addConnection(key string, serverClient CallbackService_HandleCallbacksServer) (*serverClientConnImpl, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	if _, ok := s.connections[key]; ok {
 		// Connection already defined with this ID.
-		return errors.Errorf("connection is already active, ID %v is duplicate.", key)
+		return nil, errors.Errorf("connection is already active, ID %v is duplicate.", key)
 	}
-	s.connections[key] = &serverClientConnImpl{
-		server:   serverClient,
-		id:       key,
-		msgID:    0,
-		streams:  map[string]responseChannel{},
-		messages: make(chan *Request),
+	conn := &serverClientConnImpl{
+		server: serverClient,
 	}
+	s.connections[key] = conn
 	// Notify listeners
 	for _, l := range s.listeners {
 		l.ClientConnected(key)
 	}
-	return nil
+	return conn, nil
 }
 
 func (s *serverImpl) removeConnection(key string) {
@@ -163,338 +146,29 @@ func (s *serverImpl) removeConnection(key string) {
 	}
 }
 
-type responseChannel chan *Response
-
 type serverClientConnImpl struct {
-	server   CallbackService_HandleCallbacksServer
-	id       string
-	msgID    int64
-	lock     sync.Mutex
-	streams  map[string]responseChannel
-	messages chan *Request
-	ctx      context.Context
+	server    CallbackService_HandleCallbacksServer
+	ctx       context.Context
+	created   bool
+	cancel    context.CancelFunc
+	serverCtx context.Context
+	id        string
 }
 
-func (s *serverClientConnImpl) handleMessages() {
-	// Handle all messages from client and dispatch to required queues.
-	for {
-		select {
-		case <-s.ctx.Done():
-		default:
-			msg, err := s.server.Recv()
-			if err != nil {
-				if s.isShowError(err) {
-					logrus.Errorf("Server: Error receiving message: %v", err)
-				}
-				return
-			}
-			var msgChan responseChannel
-			ok := false
-
-			msgChan, ok = s.getStream(msg.Method, msg.OpId)
-
-			if !ok {
-				logrus.Errorf("There is no recipient for message: %v", msg)
-				continue
-			}
-			msgChan <- msg
-		}
-	}
-}
-
-func (s *serverClientConnImpl) isShowError(err error) bool {
-	return err != nil && s.ctx.Err() == nil && !strings.Contains(err.Error(), "context canceled")
-}
-
-func (s *serverClientConnImpl) getStream(method string, id int64) (responseChannel, bool) {
-	s.lock.Lock()
-	// Forward messages to required channel
-	msgChan, ok := s.streams[streamKey(method, id)]
-	s.lock.Unlock()
-	return msgChan, ok
-}
-
-func streamKey(method string, id int64) string {
-	return fmt.Sprintf("%s/%v", method, id)
-}
-
-func (s *serverClientConnImpl) sendMessages() {
-	for {
-		select {
-		case <-s.ctx.Done():
-			return
-		case msg := <-s.messages:
-			err := s.server.Send(msg)
-			if s.isShowError(err) {
-				logrus.Errorf("Failed to send message: %v err: %v", msg, err)
-			}
-		}
-	}
-}
-
-// Invoke - perform invoke from server to client.
-func (s *serverClientConnImpl) Invoke(ctx context.Context, method string, args, reply interface{}, opts ...grpc.CallOption) error {
-	//
-	msg, ok := args.(proto.Message)
-	replyMsg, okReply := reply.(proto.Message)
-	if !ok || !okReply {
-		return errors.Errorf("Arguments: %v -> %v are not complain to protobuf messages.", args, reply)
-	}
-
-	var err error
-
-	var anyArgs *any.Any
-	var anyReply *any.Any
-
-	anyArgs, err = ptypes.MarshalAny(msg)
-	if err != nil {
-		return errors.Errorf("Failed to convert %v to any cause: %v", msg, err)
-	}
-
-	anyReply, err = ptypes.MarshalAny(replyMsg)
-	if err != nil {
-		return errors.Errorf("Failed to convert %v to any cause: %v", msg, err)
-	}
-
-	req := &Request{
-		Mode:   Mode_Invoke,
-		Method: method,
-		Args:   anyArgs,
-		Reply:  anyReply,
-	}
-
-	invokeChan, id := s.registerChannel(method)
-	req.OpId = id
-
-	// Remove response channel from list
-	defer s.unregisterChannel(method, id)
-
-	// Send message
-	s.messages <- req
-
-	var response *Response
-	response, err = s.waitResponse(ctx, invokeChan, req.Method, req.OpId)
-	if err != nil {
-		return err
-	}
-	err = ptypes.UnmarshalAny(response.Response, replyMsg)
-	if err != nil {
-		return err
-	}
-	if response.Status.Code != 0 {
-		return errors.New(response.Status.Message)
-	}
-	return nil
-}
-
-func (s *serverClientConnImpl) waitResponse(ctx context.Context, invokeChan responseChannel, method string, id int64) (*Response, error) {
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case response := <-invokeChan:
-			if response.OpId != id && response.Method != method {
-				logrus.Infof("Receive some old invoke msg: %v continue to wait", response)
-				break
-			}
-			return response, nil
-		}
-	}
-}
-
-func (s *serverClientConnImpl) unregisterChannel(method string, id int64) {
+func (s *serverImpl) dial(target string) (func(context.Context, string) (net.Conn, error), error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	delete(s.streams, streamKey(method, id))
-}
-
-func (s *serverClientConnImpl) registerChannel(method string) (resultChan chan *Response, msgID int64) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	s.msgID++
-
-	resultChan = make(responseChannel)
-	msgID = s.msgID
-
-	s.streams[streamKey(method, msgID)] = resultChan
-	return
-}
-
-type clientStream struct {
-	resultChan responseChannel
-	id         int64
-	desc       *grpc.StreamDesc
-	method     string
-	ctx        context.Context
-	s          *serverClientConnImpl
-}
-
-// Header - perform request for stream Header metadata.
-func (c *clientStream) Header() (metadata.MD, error) {
-	return c.requestMD(Mode_Header)
-}
-
-func (c *clientStream) requestMD(mode Mode) (metadata.MD, error) {
-	req := &Request{
-		Mode:   mode,
-		Method: c.method,
-		OpId:   c.id,
-	}
-	c.s.messages <- req
-
-	resp, err := c.s.waitResponse(c.ctx, c.resultChan, req.Method, req.OpId)
-	if err != nil {
-		c.s.unregisterChannel(req.Method, req.OpId)
-		return nil, err
-	}
-	// Decode response.
-	md := &MD{}
-	err = ptypes.UnmarshalAny(resp.Response, md)
-	if err != nil {
-		return nil, err
-	}
-
-	resultMd := metadata.New(nil)
-
-	for _, v := range md.Mds {
-		resultMd.Append(v.Key, v.Value...)
-	}
-	return resultMd, nil
-}
-
-// Trailer - perform request for stream Trailer
-func (c *clientStream) Trailer() metadata.MD {
-	resp, _ := c.requestMD(Mode_Trailer)
-	return resp
-}
-
-// CloseSend - send CloseSend to stream
-func (c *clientStream) CloseSend() error {
-	req := &Request{
-		Mode:   Mode_Close,
-		Method: c.method,
-		OpId:   c.id,
-	}
-	c.s.messages <- req
-
-	_, err := c.s.waitResponse(c.ctx, c.resultChan, c.method, c.id)
-	return err
-}
-
-// Context - return a current client stream context
-func (c *clientStream) Context() context.Context {
-	return c.ctx
-}
-
-// SendMsg - send message from server to client
-func (c *clientStream) SendMsg(m interface{}) error {
-	msg, ok := m.(proto.Message)
-	if !ok {
-		return errors.Errorf("Failed to cast %v to proto.Message", m)
-	}
-	msgAny, err := ptypes.MarshalAny(msg)
-	if err != nil {
-		return errors.Errorf("Failed to convert %v to any cause: %v", msg, err)
-	}
-
-	req := &Request{
-		Mode:   Mode_Msg,
-		Method: c.method,
-		OpId:   c.id,
-		Args:   msgAny,
-	}
-	c.s.messages <- req
-
-	_, err = c.s.waitResponse(c.ctx, c.resultChan, c.method, c.id)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// RecvMsg - receive message from client stream
-func (c *clientStream) RecvMsg(m interface{}) error {
-	replyMsg, ok := m.(proto.Message)
-	if !ok {
-		return errors.Errorf("Failed to cast %v to proto.Message", m)
-	}
-	msgAny, err := ptypes.MarshalAny(replyMsg)
-	if err != nil {
-		return errors.Errorf("Failed to convert %v to any cause: %v", replyMsg, err)
-	}
-
-	req := &Request{
-		Mode:   Mode_Recv,
-		Method: c.method,
-		OpId:   c.id,
-		Reply:  msgAny,
-	}
-	c.s.messages <- req
-	response, err := c.s.waitResponse(c.ctx, c.resultChan, c.method, c.id)
-	if err != nil {
-		return err
-	}
-	err = ptypes.UnmarshalAny(response.Response, replyMsg)
-	if err != nil {
-		return err
-	}
-	if response.Status.Code != 0 {
-		return errors.New(response.Status.Message)
-	}
-	return nil
-}
-
-// NewStream -
-func (s *serverClientConnImpl) NewStream(ctx context.Context, desc *grpc.StreamDesc, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
-	resultChan, id := s.registerChannel(method)
-
-	result := &clientStream{
-		resultChan: resultChan,
-		id:         id,
-		desc:       desc,
-		method:     method,
-		ctx:        ctx,
-		s:          s,
-	}
-
-	descr := &StreamDescriptor{
-		ClientStreams: desc.ClientStreams,
-		ServerStreams: desc.ServerStreams,
-		StreamName:    desc.StreamName,
-	}
-
-	// Need to send new Stream request to start a real stream.
-	req := &Request{
-		Mode:   Mode_NewStream,
-		Method: method,
-		OpId:   id,
-		Descr:  descr,
-	}
-	s.messages <- req
-
-	_, err := s.waitResponse(ctx, resultChan, req.Method, req.OpId)
-	if err != nil {
-		s.unregisterChannel(req.Method, req.OpId)
-		return nil, err
-	}
-	return result, nil
-}
-
-func (s *serverImpl) newClient(ctx context.Context, id string) (grpc.ClientConnInterface, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	srv, ok := s.connections[id]
+	srv, ok := s.connections[target]
 	if ok {
-		if srv.msgID > 0 {
+		if srv.created {
 			return nil, errors.New("Client is already created")
 		}
-		srv.msgID++
-		srv.ctx = ctx
-		go srv.sendMessages()
-		go srv.handleMessages()
-		return srv, nil
+		srv.created = true
+		return func(ctx context.Context, target string) (net.Conn, error) {
+			srv.ctx = ctx
+			return newConnection(ctx, srv.cancel, srv.server), nil
+		}, nil
 	}
-	return nil, errors.New("Client not found")
+	// Fall over to default dial code.
+	return nil, nil
 }
