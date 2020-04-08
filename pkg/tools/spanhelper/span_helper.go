@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"runtime/debug"
 	"strings"
 
@@ -39,6 +40,10 @@ const (
 	maxStringLength      int               = 1000
 	dotCount             int               = 3
 )
+
+var defaultFields logrus.Fields = logrus.Fields{
+	"cmd": os.Args[0],
+}
 
 func withTraceDepth(parent context.Context, value int) context.Context {
 	return context.WithValue(parent, spanHelperTraceDepth, value)
@@ -123,7 +128,7 @@ func (s *spanHelper) LogError(err error) {
 		msg := limitString(fmt.Sprintf("%+v", err))
 		otgrpc.SetSpanTags(s.span, err, false)
 		s.span.LogFields(log.String("event", "error"), log.String("message", msg), log.String("stacktrace", d))
-		logrus.Errorf(">><<%s %s=%v span=%v", strings.Repeat("--", traceDepth(s.ctx)), "error", fmt.Sprintf("%+v", err), s.span)
+		logrus.WithFields(defaultFields).Errorf(">><<%s %s=%v span=%v", strings.Repeat("--", traceDepth(s.ctx)), "error", fmt.Sprintf("%+v", err), s.span)
 	}
 }
 
@@ -138,14 +143,14 @@ func (s *spanHelper) LogObject(attribute string, value interface{}) {
 	if s.span != nil {
 		s.span.LogFields(log.Object(attribute, limitString(msg)))
 	}
-	logrus.Infof(">><<%s %s=%v span=%v", strings.Repeat("--", traceDepth(s.ctx)), attribute, msg, s.span)
+	logrus.WithFields(defaultFields).Infof(">><<%s %s=%v span=%v", strings.Repeat("--", traceDepth(s.ctx)), attribute, msg, s.span)
 }
 
 func (s *spanHelper) LogValue(attribute string, value interface{}) {
 	if s.span != nil {
 		s.span.LogFields(log.Object(attribute, limitString(fmt.Sprint(value))))
 	}
-	logrus.Infof(">><<%s %s=%v span=%v", strings.Repeat("--", traceDepth(s.ctx)), attribute, value, s.span)
+	logrus.WithFields(defaultFields).Infof(">><<%s %s=%v span=%v", strings.Repeat("--", traceDepth(s.ctx)), attribute, value, s.span)
 }
 
 func (s *spanHelper) Finish() {
@@ -193,7 +198,7 @@ func FromContext(ctx context.Context, operation string) (result SpanHelper) {
 
 func printStart(result SpanHelper, operation string) {
 	prefix := strings.Repeat("--", traceDepth(result.Context()))
-	logrus.Infof("==%s> %v() span:%v", prefix, operation, result.Span())
+	logrus.WithFields(defaultFields).Infof("==%s> %v() span:%v", prefix, operation, result.Span())
 }
 
 // GetSpanHelper - construct a span helper object from current context span
