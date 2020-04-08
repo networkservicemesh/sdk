@@ -57,8 +57,10 @@ func (t *traceClient) Request(ctx context.Context, request *networkservice.Netwo
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
 			err = errors.Wrapf(err, "Error returned from %s", operation)
+			span.LogErrorf("%+v", err)
+			return nil, err
 		}
-		span.LogError(err)
+		span.LogErrorf("%v", err)
 		return nil, err
 	}
 	span.LogObject("response", rv)
@@ -78,9 +80,11 @@ func (t *traceClient) Close(ctx context.Context, conn *networkservice.Connection
 
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
-			err = errors.Wrapf(err, "Error returned from %s/", operation)
+			err = errors.Wrapf(err, "Error returned from %s", operation)
+			span.LogErrorf("%+v", err)
+			return nil, err
 		}
-		span.LogError(err)
+		span.LogErrorf("%v", err)
 		return nil, err
 	}
 	span.LogObject("response", rv)

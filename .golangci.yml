@@ -209,3 +209,7 @@ issues:
       linters:
         - interfacer
       text: "can be `fmt.Stringer`"
+    - path: pkg/networkservice/core/trace/client.go
+      linters:
+        - dupl
+      text: "lines are duplicate of"
