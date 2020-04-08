@@ -55,9 +55,11 @@ func (t *traceRegistryClient) RegisterNSE(ctx context.Context, request *registry
 	rv, err := t.traced.RegisterNSE(ctx, request, opts...)
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
-			err = errors.Wrapf(err, "Error returned from %s/", operation)
+			err = errors.Wrapf(err, "Error returned from %s", operation)
+			span.LogErrorf("%+v", err)
+			return nil, err
 		}
-		span.LogError(err)
+		span.LogErrorf("%v", err)
 		return nil, err
 	}
 	span.LogObject("response", rv)
