@@ -53,7 +53,7 @@ func NewClient() networkservice.NetworkServiceClient {
 }
 
 func (t *refreshClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	rv, err := next.Server(ctx).Request(ctx, request)
+	rv, err := next.Client(ctx).Request(ctx, request)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func (t *refreshClient) Close(ctx context.Context, conn *networkservice.Connecti
 			delete(t.connectionTimers, conn.GetId())
 		}
 	})
-	return next.Server(ctx).Close(ctx, conn)
+	return next.Client(ctx).Close(ctx, conn)
 }
 
 func (t *refreshClient) createTimer(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*time.Timer, error) {
