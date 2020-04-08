@@ -213,3 +213,11 @@ issues:
       linters:
         - dupl
       text: "lines are duplicate of"
+    - path: pkg/registry/core/trace/registry_client.go
+      linters:
+        - dupl
+      text: "lines are duplicate of"
+    - path: pkg/registry/core/trace/discovery_client.go
+      linters:
+        - dupl
+      text: "lines are duplicate of"

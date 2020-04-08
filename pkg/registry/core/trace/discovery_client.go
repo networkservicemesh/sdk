@@ -54,9 +54,11 @@ func (t *traceDiscoveryClient) FindNetworkService(ctx context.Context, request *
 	rv, err := t.traced.FindNetworkService(ctx, request, opts...)
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
-			err = errors.Wrapf(err, "Error returned from %s/", operation)
+			err = errors.Wrapf(err, "Error returned from %s", operation)
+			span.LogErrorf("%+v", err)
+			return nil, err
 		}
-		span.LogError(err)
+		span.LogErrorf("%v", err)
 		return nil, err
 	}
 	span.LogObject("response", rv)
