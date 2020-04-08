@@ -108,6 +108,7 @@ type SpanHelper interface {
 	LogObject(attribute string, value interface{})
 	LogValue(attribute string, value interface{})
 	LogError(err error)
+	LogErrorf(format string, err error)
 	Span() opentracing.Span
 }
 
@@ -123,12 +124,16 @@ func (s *spanHelper) Span() opentracing.Span {
 }
 
 func (s *spanHelper) LogError(err error) {
+	s.LogErrorf("%+v", err)
+}
+
+func (s *spanHelper) LogErrorf(format string, err error) {
 	if s.span != nil && err != nil {
 		d := limitString(string(debug.Stack()))
-		msg := limitString(fmt.Sprintf("%+v", err))
+		msg := limitString(fmt.Sprintf(format, err))
 		otgrpc.SetSpanTags(s.span, err, false)
 		s.span.LogFields(log.String("event", "error"), log.String("message", msg), log.String("stacktrace", d))
-		logrus.WithFields(defaultFields).Errorf(">><<%s %s=%v span=%v", strings.Repeat("--", traceDepth(s.ctx)), "error", fmt.Sprintf("%+v", err), s.span)
+		logrus.WithFields(defaultFields).Errorf(">><<%s %s=%v span=%v", strings.Repeat("--", traceDepth(s.ctx)), "error", fmt.Sprintf(format, err), s.span)
 	}
 }
 
