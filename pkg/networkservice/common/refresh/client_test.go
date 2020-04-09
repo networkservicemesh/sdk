@@ -175,7 +175,8 @@ func TestNewClient_StopRefreshAtAnotherRequest(t *testing.T) {
 		require.Eventually(t, refreshCond, waitForTimeout, tickTimeout)
 	}
 
-	conn, err := client.Request(withRequestNumber(context.Background(), 2), request)
+	requestCopy := request.Clone()
+	conn, err := client.Request(withRequestNumber(context.Background(), 2), requestCopy)
 	assert.Nil(t, err)
 
 	absence := make(chan struct{})
