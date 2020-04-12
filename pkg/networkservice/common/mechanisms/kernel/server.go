@@ -24,11 +24,10 @@ func (m mechanismsServer) Request(ctx context.Context, req *networkservice.Netwo
 	return conn, nil
 }
 
-
 func (m mechanismsServer) Close(context.Context, *networkservice.Connection) (*empty.Empty, error) {
 	panic("implement me")
 }
 
-func NewServer() networkservice.NetworkServiceServer{
+func NewServer() networkservice.NetworkServiceServer {
 	return mechanismsServer{}
 }
