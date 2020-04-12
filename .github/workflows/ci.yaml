@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code into the Go module directory
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
       - name: Setup Python
         uses: actions/setup-python@v1
       - name: Install yamllint
@@ -18,14 +18,14 @@ jobs:
     name: shellcheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - name: shellcheck
-        uses: azohra/shell-linter@v0.2.0
+        uses: fkautz/shell-linter@v1.0.1
   build:
     name: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - uses: actions/setup-go@v1
         with:
           go-version: 1.13.4
@@ -35,7 +35,7 @@ jobs:
     name: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - uses: actions/setup-go@v1
         with:
           go-version: 1.13.4
@@ -53,7 +53,7 @@ jobs:
       GOLANGCI_LINT_CONTAINER: golangci/golangci-lint:v1.23.2
     steps:
       - name: Check out code into the Go module directory
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
       - name: Pull golangci-lint docker container
         run: docker pull ${GOLANGCI_LINT_CONTAINER}
       - name: Run golangci-lint
@@ -63,7 +63,7 @@ jobs:
     name: exclude fmt.Errorf
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - name: Exclude fmt.Errorf
         run: |
           if grep -r --include=*.go fmt.Errorf . ; then
@@ -75,7 +75,7 @@ jobs:
     name: Restrict dependencies on github.com/networkservicemesh/*
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - name: Restrict dependencies on github.com/networkservicemesh/*
         run: |
           for i in $(grep github.com/networkservicemesh/ go.mod |grep -v '^module' | sed 's;.*\(github.com\/networkservicemesh\/[a-zA-z\/]*\).*;\1;g' | sort -u);do
@@ -89,7 +89,7 @@ jobs:
     name: check go.mod and go.sum
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - uses: actions/setup-go@v1
         with:
           go-version: 1.13.4
@@ -102,7 +102,7 @@ jobs:
     name: license header check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - uses: actions/setup-go@v1
         with:
           go-version: 1.13.4
@@ -117,7 +117,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out the code
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
       - name: Exclude replace in go.mod
         run: |
           grep ^replace go.mod || exit 0
@@ -136,7 +136,7 @@ jobs:
     if: github.actor == 'nsmbot' && github.base_ref == 'master' && github.event_name == 'pull_request'
     steps:
       - name: Check out the code
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
       - name: Fetch master
         run: |
           git remote -v
