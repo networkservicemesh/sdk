@@ -27,6 +27,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
 )
 
 type mechanismsServer struct {
@@ -69,11 +70,7 @@ func (m *mechanismsServer) Request(ctx context.Context, request *networkservice.
 		if ok {
 			req := request.Clone()
 			req.GetConnection().Mechanism = mechanism
-			conn, err := srv.Request(ctx, req)
-			if err == nil {
-				req.Connection = conn
-				return next.Server(ctx).Request(ctx, req)
-			}
+			return srv.Request(ctx, req)
 		}
 	}
 	return nil, errors.Errorf("Cannot support any of the requested Mechanisms: %+v", request.GetMechanismPreferences())
@@ -82,10 +79,8 @@ func (m *mechanismsServer) Request(ctx context.Context, request *networkservice.
 func (m *mechanismsServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	srv, ok := m.mechanisms[conn.GetMechanism().GetType()]
 	if ok {
-		_, err := srv.Close(ctx, conn)
-		if err == nil {
-			return next.Server(ctx).Close(ctx, conn)
-		}
+		srv = trace.NewNetworkServiceServer(srv)
+		return srv.Close(ctx, conn)
 	}
 	return nil, errors.Errorf("Cannot support any of the requested Mechanism: %+v", conn.GetMechanism())
 }
