@@ -19,11 +19,12 @@ package kernel
 
 import (
 	"context"
+	"strconv"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
 	"github.com/networkservicemesh/sdk/pkg/tools/fs"
-	"strconv"
 )
 
 type mechanismsServer struct{}
