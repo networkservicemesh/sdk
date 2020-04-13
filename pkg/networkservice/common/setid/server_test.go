@@ -41,12 +41,21 @@ func TestNewServer_PathSegmentNameEqualClientName(t *testing.T) {
 	conn, err := server.Request(context.Background(), request(connectionID, 1))
 	assert.NotNil(t, conn)
 	assert.Nil(t, err)
-	assert.Equal(t, conn.Id, connectionID)
+	assert.NotEqual(t, conn.Id, connectionID)
 }
 
 func TestNewServer_PathSegmentIdEqualConnectionId(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	server := setid.NewServer("nse-3")
+	conn, err := server.Request(context.Background(), request(pathSegmentID2, 1))
+	assert.NotNil(t, conn)
+	assert.Nil(t, err)
+	assert.NotEqual(t, conn.Id, pathSegmentID2)
+}
+
+func TestNewServer_PathSegmentNameIDEqualClientNameID(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	server := setid.NewServer("nse-2")
 	conn, err := server.Request(context.Background(), request(pathSegmentID2, 1))
 	assert.NotNil(t, conn)
 	assert.Nil(t, err)

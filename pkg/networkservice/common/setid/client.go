@@ -43,9 +43,10 @@ func NewClient(name string) networkservice.NetworkServiceClient {
 func (i *idClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	pathSegments := request.GetConnection().GetPath().GetPathSegments()
 	index := request.GetConnection().GetPath().GetIndex()
-	if len(pathSegments) > int(index) &&
-		pathSegments[index].GetName() != i.name &&
-		pathSegments[index].GetId() != request.GetConnection().GetId() {
+	if (len(pathSegments) > int(index) &&
+		!(pathSegments[index].GetName() == i.name &&
+			pathSegments[index].GetId() == request.GetConnection().GetId())) ||
+		request.GetConnection().GetId() == "" {
 		request.GetConnection().Id = uuid.New().String()
 	}
 	return next.Client(ctx).Request(ctx, request, opts...)

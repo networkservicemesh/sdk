@@ -22,6 +22,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
@@ -41,11 +42,14 @@ func NewServer(name string) networkservice.NetworkServiceServer {
 }
 
 func (i *idServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	if request.GetConnection().GetId() == "" {
+		return nil, errors.Errorf("NetworkServiceRequest.Connection.Id must be a non-zero value %q", request.GetConnection().GetId())
+	}
 	pathSegments := request.GetConnection().GetPath().GetPathSegments()
 	index := request.GetConnection().GetPath().GetIndex()
 	if len(pathSegments) > int(index) &&
-		pathSegments[index].GetName() != i.name &&
-		pathSegments[index].GetId() != request.GetConnection().GetId() {
+		!(pathSegments[index].GetName() == i.name &&
+			pathSegments[index].GetId() == request.GetConnection().GetId()) {
 		request.GetConnection().Id = uuid.New().String()
 	}
 	return next.Server(ctx).Request(ctx, request)
