@@ -22,7 +22,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
-	"github.com/networkservicemesh/sdk/pkg/tools/inodeinfo"
+	"github.com/networkservicemesh/sdk/pkg/tools/fs"
 	"strconv"
 )
 
@@ -31,7 +31,7 @@ type mechanismsServer struct{}
 func (m mechanismsServer) Request(ctx context.Context, req *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	conn := req.Connection
 	inode := uint64(0)
-	inode, err := inodeinfo.GetInode("/proc/self/net/ns")
+	inode, err := fs.GetInode("/proc/self/net/ns")
 	if err != nil {
 		return nil, err
 	}
