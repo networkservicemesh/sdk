@@ -18,9 +18,10 @@
 package fs
 
 import (
-	"github.com/pkg/errors"
 	"os"
 	"syscall"
+
+	"github.com/pkg/errors"
 )
 
 // GetInode returns Inode for file
