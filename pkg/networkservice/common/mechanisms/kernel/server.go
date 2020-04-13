@@ -42,7 +42,7 @@ func (m mechanismsServer) Request(ctx context.Context, req *networkservice.Netwo
 }
 
 func (m mechanismsServer) Close(context.Context, *networkservice.Connection) (*empty.Empty, error) {
-	panic("implement me")
+	return &empty.Empty{}, nil
 }
 
 // NewServer - creates a NetworkServiceServer that requests a kernel interface and populates the netns inode
