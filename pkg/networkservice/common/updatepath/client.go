@@ -20,45 +20,46 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/pkg/errors"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 type updatePathClient struct {
-	name string
+	commonUpdatePath
 }
 
 // NewClient - creates a NetworkServiceClient chain element to update the Connection.Path
 //             - name - the name of the NetworkServiceClient of which the chain element is part
-func NewClient(name string) networkservice.NetworkServiceClient {
-	return &updatePathClient{name: name}
+func NewClient(name string, tokenGenerator token.GeneratorFunc) networkservice.NetworkServiceClient {
+	return &updatePathClient{
+		commonUpdatePath: commonUpdatePath{
+			name:           name,
+			tokenGenerator: tokenGenerator,
+		},
+	}
 }
 
 func (u *updatePathClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	if request.GetConnection().GetPath() == nil {
-		request.GetConnection().Path = &networkservice.Path{}
+	err := u.updatePath(ctx, request.GetConnection())
+	index := request.GetConnection().GetPath().GetIndex()
+	if err != nil {
+		return nil, err
 	}
-	path := request.GetConnection().GetPath()
-	// Handle zero index case
-	if path.GetIndex() == 0 && len(path.GetPathSegments()) == 0 {
-		path.PathSegments = append(path.PathSegments, &networkservice.PathSegment{})
+	rv, err := next.Client(ctx).Request(ctx, request, opts...)
+	if err != nil {
+		return nil, err
 	}
-	if int(path.GetIndex()) >= len(path.GetPathSegments()) {
-		return nil, errors.Errorf("NetworkServiceRequest.Connection.Path.Index(%d) >= len(NetworkServiceRequest.Connection.Path.PathSegments)(%d)",
-			path.GetIndex(), len(path.GetPathSegments()))
-	}
-	path.GetPathSegments()[path.GetIndex()].Name = u.name
-	path.GetPathSegments()[path.GetIndex()].Id = request.GetConnection().GetId()
-	// TODO set token and expiration
-	// request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].Token =
-	// request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].Expires =
-	return next.Client(ctx).Request(ctx, request, opts...)
+	rv.GetPath().Index = index
+	return rv, err
 }
 
 func (u *updatePathClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	err := u.updatePath(ctx, conn)
+	if err != nil {
+		return nil, err
+	}
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }

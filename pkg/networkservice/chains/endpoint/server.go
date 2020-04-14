@@ -29,6 +29,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/timeout"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 // Endpoint - aggregates the APIs:
@@ -49,8 +50,9 @@ type endpoint struct {
 // NewServer - returns a NetworkServiceMesh client as a chain of the standard Client pieces plus whatever
 //             additional functionality is specified
 //             - name - name of the NetworkServiceServer
+//             - tokenGenerator - token.GeneratorFunc - generates tokens for use in Path
 //             - additionalFunctionality - any additional NetworkServiceServer chain elements to be included in the chain
-func NewServer(name string, authzPolicy *rego.PreparedEvalQuery, additionalFunctionality ...networkservice.NetworkServiceServer) Endpoint {
+func NewServer(name string, authzPolicy *rego.PreparedEvalQuery, tokenGenerator token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceServer) Endpoint {
 	rv := &endpoint{}
 	var ns networkservice.NetworkServiceServer = rv
 	rv.NetworkServiceServer = chain.NewNetworkServiceServer(
@@ -59,7 +61,7 @@ func NewServer(name string, authzPolicy *rego.PreparedEvalQuery, additionalFunct
 			setid.NewServer(name),
 			monitor.NewServer(&rv.MonitorConnectionServer),
 			timeout.NewServer(&ns),
-			updatepath.NewServer(name),
+			updatepath.NewServer(name, tokenGenerator),
 		}, additionalFunctionality...)...)
 	return rv
 }

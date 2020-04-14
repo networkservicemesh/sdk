@@ -41,27 +41,33 @@ func TestChain(t *testing.T) {
 	want := &networkservice.Connection{
 		Id: "conn-2",
 		Path: &networkservice.Path{
-			Index: 2,
+			Index: 0,
 			PathSegments: []*networkservice.PathSegment{
 				{
-					Name: "nsc-1",
-					Id:   "conn-2",
+					Name:    "nsc-1",
+					Id:      "conn-2",
+					Token:   Token,
+					Expires: ExpiresProto,
 				}, {
-					Name: "local-nsm-1",
-					Id:   "conn-2",
+					Name:    "local-nsm-1",
+					Id:      "conn-2",
+					Token:   Token,
+					Expires: ExpiresProto,
 				}, {
-					Name: "remote-nsm-1",
-					Id:   "conn-2",
+					Name:    "remote-nsm-1",
+					Id:      "conn-2",
+					Token:   Token,
+					Expires: ExpiresProto,
 				},
 			},
 		},
 	}
 	elements := []networkservice.NetworkServiceServer{
-		adapters.NewClientToServer(updatepath.NewClient("nsc-1")),
-		updatepath.NewServer("local-nsm-1"),
-		adapters.NewClientToServer(updatepath.NewClient("local-nsm-1")),
-		updatepath.NewServer("remote-nsm-1"),
-		adapters.NewClientToServer(updatepath.NewClient("remote-nsm-1"))}
+		adapters.NewClientToServer(updatepath.NewClient("nsc-1", TokenGenerator)),
+		updatepath.NewServer("local-nsm-1", TokenGenerator),
+		adapters.NewClientToServer(updatepath.NewClient("local-nsm-1", TokenGenerator)),
+		updatepath.NewServer("remote-nsm-1", TokenGenerator),
+		adapters.NewClientToServer(updatepath.NewClient("remote-nsm-1", TokenGenerator))}
 
 	server := next.NewNetworkServiceServer(elements...)
 

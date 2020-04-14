@@ -20,9 +20,8 @@ package client
 import (
 	"context"
 
-	"google.golang.org/grpc"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
@@ -30,7 +29,9 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/setid"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injectpeer"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 // NewClient - returns a NetworkServiceMesh client as a chain of the standard Client pieces plus whatever
@@ -49,7 +50,7 @@ import (
 //                        If onHeal nil, onHeal will be pointed to the returned networkservice.NetworkServiceClient
 //             - cc - grpc.ClientConnInterface for the endpoint to which this client should connect
 //             - additionalFunctionality - any additional NetworkServiceClient chain elements to be included in the chain
-func NewClient(ctx context.Context, name string, onHeal *networkservice.NetworkServiceClient, cc grpc.ClientConnInterface, additionalFunctionality ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
+func NewClient(ctx context.Context, name string, onHeal *networkservice.NetworkServiceClient, tokenGenerator token.GeneratorFunc, cc grpc.ClientConnInterface, additionalFunctionality ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	return chain.NewNetworkServiceClient(
 		append(
 			append([]networkservice.NetworkServiceClient{
@@ -58,7 +59,7 @@ func NewClient(ctx context.Context, name string, onHeal *networkservice.NetworkS
 				heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc), onHeal),
 				refresh.NewClient(),
 				injectpeer.NewClient(),
-				updatepath.NewClient(name),
+				updatepath.NewClient(name, tokenGenerator),
 			}, additionalFunctionality...),
 			networkservice.NewNetworkServiceClient(cc),
 		)...)
@@ -78,8 +79,8 @@ func NewClient(ctx context.Context, name string, onHeal *networkservice.NetworkS
 //                        this constructor before we actually have a pointer to it.
 //                        If onHeal nil, onHeal will be pointed to the returned networkservice.NetworkServiceClient
 //                    - additionalFunctionality - any additional NetworkServiceClient chain elements to be included in the chain
-func NewClientFactory(name string, onHeal *networkservice.NetworkServiceClient, additionalFunctionality ...networkservice.NetworkServiceClient) func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+func NewClientFactory(name string, onHeal *networkservice.NetworkServiceClient, tokenGenerator token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceClient) func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 	return func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-		return NewClient(ctx, name, onHeal, cc, additionalFunctionality...)
+		return NewClient(ctx, name, onHeal, tokenGenerator, cc, additionalFunctionality...)
 	}
 }
