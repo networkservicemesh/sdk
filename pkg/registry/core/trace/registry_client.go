@@ -18,7 +18,6 @@ package trace
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
@@ -41,7 +40,7 @@ func NewRegistryClient(traced registry.NetworkServiceRegistryClient) registry.Ne
 
 func (t *traceRegistryClient) RegisterNSE(ctx context.Context, request *registry.NSERegistration, opts ...grpc.CallOption) (*registry.NSERegistration, error) {
 	// Create a new span
-	operation := fmt.Sprintf("%s/%s.RegisterNSE", typeutils.GetPkgPath(t.traced), typeutils.GetTypeName(t.traced))
+	operation := typeutils.GetFuncName(t.traced.RegisterNSE)
 	span := spanhelper.FromContext(ctx, operation)
 	defer span.Finish()
 
@@ -87,7 +86,7 @@ func (ts *traceClient) Recv() (*registry.NSERegistration, error) {
 
 func (t *traceRegistryClient) BulkRegisterNSE(ctx context.Context, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_BulkRegisterNSEClient, error) {
 	// Create a new span
-	span := spanhelper.FromContext(ctx, fmt.Sprintf("%s.BulkRegisterNSE", typeutils.GetTypeName(t.traced)))
+	span := spanhelper.FromContext(ctx, typeutils.GetFuncName(t.traced.BulkRegisterNSE))
 	span.Finish() // Since events will be bound to span in any case
 	ctx = withLog(span.Context(), span.Logger())
 
@@ -103,7 +102,7 @@ func (t *traceRegistryClient) BulkRegisterNSE(ctx context.Context, opts ...grpc.
 
 func (t *traceRegistryClient) RemoveNSE(ctx context.Context, request *registry.RemoveNSERequest, opts ...grpc.CallOption) (*empty.Empty, error) {
 	// Create a new span
-	span := spanhelper.FromContext(ctx, fmt.Sprintf("%s.Request", typeutils.GetTypeName(t.traced)))
+	span := spanhelper.FromContext(ctx, typeutils.GetFuncName(t.traced.RemoveNSE))
 	defer span.Finish()
 
 	// Make sure we log to span
