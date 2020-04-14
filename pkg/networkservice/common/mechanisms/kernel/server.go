@@ -25,6 +25,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/fs"
 )
 
@@ -38,11 +39,11 @@ func (m mechanismsServer) Request(ctx context.Context, req *networkservice.Netwo
 		return nil, err
 	}
 	conn.Mechanism.Parameters[common.NetNSInodeKey] = strconv.FormatUint(inode, 10)
-	return conn, nil
+	return next.Server(ctx).Request(ctx, req)
 }
 
-func (m mechanismsServer) Close(context.Context, *networkservice.Connection) (*empty.Empty, error) {
-	return &empty.Empty{}, nil
+func (m mechanismsServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	return next.Server(ctx).Close(ctx, conn)
 }
 
 // NewServer - creates a NetworkServiceServer that requests a kernel interface and populates the netns inode
