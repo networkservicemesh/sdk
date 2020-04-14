@@ -24,6 +24,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
@@ -74,12 +75,16 @@ func (c *connectServer) Request(ctx context.Context, request *networkservice.Net
 	// TODO - fix to be cautious about schemes
 	cc, err := grpc.DialContext(clientCtx, u.String(), c.dialOptions...)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Unable to dial %s", u.String())
 	}
 	client = c.clientFactory(clientCtx, cc)
 	client, _ = c.uRLToClientMap.LoadOrStore(u.String(), client)
 	client, _ = c.connectionIDToClientMap.LoadOrStore(request.GetConnection().GetId(), client)
-	return client.Request(ctx, request)
+	conn, err := client.Request(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	return conn, err
 }
 
 func (c *connectServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {

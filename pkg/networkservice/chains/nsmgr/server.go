@@ -32,6 +32,7 @@ import (
 	adapter_registry "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	chain_registry "github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 // Nsmgr - A simple combintation of the Endpoint, registry.NetworkServiceRegistryServer, and registry.NetworkServiceDiscoveryServer interfaces
@@ -51,15 +52,16 @@ type nsmgr struct {
 //           name - name of the Nsmgr
 //           authzPolicy - authorization policy
 //           registryCC - client connection to reach the upstream registry
-func NewServer(name string, authzPolicy *rego.PreparedEvalQuery, registryCC grpc.ClientConnInterface) Nsmgr {
+func NewServer(name string, authzPolicy *rego.PreparedEvalQuery, tokenGenerator token.GeneratorFunc, registryCC grpc.ClientConnInterface) Nsmgr {
 	rv := &nsmgr{}
 	rv.Endpoint = endpoint.NewServer(
 		name,
 		authzPolicy,
+		tokenGenerator,
 		discover.NewServer(registry.NewNetworkServiceDiscoveryClient(registryCC)),
 		roundrobin.NewServer(),
 		localbypass.NewServer(&rv.NetworkServiceRegistryServer),
-		connect.NewServer(client.NewClientFactory(name, addressof.NetworkServiceClient(adapters.NewServerToClient(rv)))),
+		connect.NewServer(client.NewClientFactory(name, addressof.NetworkServiceClient(adapters.NewServerToClient(rv)), tokenGenerator)),
 	)
 	rv.NetworkServiceRegistryServer = chain_registry.NewRegistryServer(
 		rv.NetworkServiceRegistryServer,

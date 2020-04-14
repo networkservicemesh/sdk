@@ -21,46 +21,39 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/pkg/errors"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 type updatePathServer struct {
-	name string
+	commonUpdatePath
 }
 
 // NewServer - creates a NetworkServiceServer chain element to update the Connection.Path
 //             - name - the name of the NetworkServiceServer of which the chain element is part
-func NewServer(name string) networkservice.NetworkServiceServer {
-	return &updatePathServer{name: name}
+func NewServer(name string, tokenGenerator token.GeneratorFunc) networkservice.NetworkServiceServer {
+	return &updatePathServer{
+		commonUpdatePath{
+			name:           name,
+			tokenGenerator: tokenGenerator,
+		},
+	}
 }
 
 func (u *updatePathServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if request.GetConnection().GetPath() == nil {
-		request.GetConnection().Path = &networkservice.Path{}
+	err := u.updatePath(ctx, request.GetConnection())
+	if err != nil {
+		return nil, err
 	}
-	path := request.GetConnection().GetPath()
-	if int(path.GetIndex()) >= len(path.GetPathSegments()) {
-		return nil, errors.Errorf("NetworkServiceRequest.Connection.Path.Index(%d) >= len(NetworkServiceRequest.Connection.Path.PathSegments)(%d)",
-			path.GetIndex(), len(path.GetPathSegments()))
-	}
-	// increment the index
-	path.Index++
-	// extend the path (presuming that we need to)
-	if int(path.GetIndex()) == len(path.GetPathSegments()) {
-		path.PathSegments = append(path.PathSegments, &networkservice.PathSegment{})
-	}
-	path.GetPathSegments()[path.GetIndex()].Name = u.name
-	path.GetPathSegments()[path.GetIndex()].Id = request.GetConnection().GetId()
-	// TODO set token and expiration
-	// request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].Token =
-	// request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].Expires =
 	return next.Server(ctx).Request(ctx, request)
 }
 
-func (u *updatePathServer) Close(context.Context, *networkservice.Connection) (*empty.Empty, error) {
-	panic("implement me")
+func (u *updatePathServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	err := u.updatePath(ctx, conn)
+	if err != nil {
+		return nil, err
+	}
+	return next.Server(ctx).Close(ctx, conn)
 }

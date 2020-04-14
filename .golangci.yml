@@ -201,7 +201,7 @@ issues:
       linters:
         - dupl
       text: "lines are duplicate of"
-    - path: pkg/tools/grpcoptions/grpcoptions.go
+    - path: pkg/tools/spiffeutils/spiffeutils.go
       linters:
         - interfacer
       text: "can be `fmt.Stringer`"
@@ -225,3 +225,7 @@ issues:
       linters:
         - gosec
       text: "G402: TLS InsecureSkipVerify set true"
+    - path: pkg/networkservice/common/updatepath/server_test.go
+      linters:
+        - gochecknoinits
+      text: "don't use `init` function"

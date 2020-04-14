@@ -30,7 +30,7 @@ import (
 
 func TestNewClient_EmptyPathInRequest(t *testing.T) {
 	defer goleak.VerifyNone(t)
-	client := updatepath.NewClient("nsc-1")
+	client := updatepath.NewClient("nsc-1", TokenGenerator)
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "conn-1",
@@ -42,8 +42,10 @@ func TestNewClient_EmptyPathInRequest(t *testing.T) {
 			Index: 0,
 			PathSegments: []*networkservice.PathSegment{
 				{
-					Name: "nsc-1",
-					Id:   "conn-1",
+					Name:    "nsc-1",
+					Id:      "conn-1",
+					Token:   Token,
+					Expires: ExpiresProto,
 				},
 			},
 		},
@@ -55,7 +57,7 @@ func TestNewClient_EmptyPathInRequest(t *testing.T) {
 
 func TestNewClient_ZeroIndexAddNewSegment(t *testing.T) {
 	defer goleak.VerifyNone(t)
-	client := updatepath.NewClient("nsc-1")
+	client := updatepath.NewClient("nsc-1", TokenGenerator)
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "conn-1",
@@ -71,8 +73,10 @@ func TestNewClient_ZeroIndexAddNewSegment(t *testing.T) {
 			Index: 0,
 			PathSegments: []*networkservice.PathSegment{
 				{
-					Name: "nsc-1",
-					Id:   "conn-1",
+					Name:    "nsc-1",
+					Id:      "conn-1",
+					Token:   Token,
+					Expires: ExpiresProto,
 				},
 			},
 		},
@@ -84,12 +88,12 @@ func TestNewClient_ZeroIndexAddNewSegment(t *testing.T) {
 
 func TestNewClient_ValidIndexOverwriteValues(t *testing.T) {
 	defer goleak.VerifyNone(t)
-	client := updatepath.NewClient("nsc-1")
+	client := updatepath.NewClient("nsc-1", TokenGenerator)
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "conn-1",
 			Path: &networkservice.Path{
-				Index: 1,
+				Index: 0,
 				PathSegments: []*networkservice.PathSegment{
 					{
 						Name: "nsc-0",
@@ -114,8 +118,10 @@ func TestNewClient_ValidIndexOverwriteValues(t *testing.T) {
 					Name: "nsc-0",
 					Id:   "conn-0",
 				}, {
-					Name: "nsc-1",
-					Id:   "conn-1",
+					Name:    "nsc-1",
+					Id:      "conn-1",
+					Token:   Token,
+					Expires: ExpiresProto,
 				}, {
 					Name: "nsc-2",
 					Id:   "conn-2",
@@ -130,7 +136,7 @@ func TestNewClient_ValidIndexOverwriteValues(t *testing.T) {
 
 func TestNewClient_IndexGreaterThanArrayLength(t *testing.T) {
 	defer goleak.VerifyNone(t)
-	client := updatepath.NewClient("nsc-1")
+	client := updatepath.NewClient("nsc-1", TokenGenerator)
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "conn-1",
