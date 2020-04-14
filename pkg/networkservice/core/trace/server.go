@@ -18,7 +18,6 @@ package trace
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
@@ -40,7 +39,7 @@ func NewNetworkServiceServer(traced networkservice.NetworkServiceServer) network
 
 func (t *traceServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	// Create a new span
-	operation := fmt.Sprintf("%s/%s.Request", typeutils.GetPkgPath(t.traced), typeutils.GetTypeName(t.traced))
+	operation := typeutils.GetFuncName(t.traced.Request)
 	span := spanhelper.FromContext(ctx, operation)
 	defer span.Finish()
 
@@ -68,7 +67,7 @@ func (t *traceServer) Request(ctx context.Context, request *networkservice.Netwo
 
 func (t *traceServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	// Create a new span
-	operation := fmt.Sprintf("%s/%s.Close", typeutils.GetPkgPath(t.traced), typeutils.GetTypeName(t.traced))
+	operation := typeutils.GetFuncName(t.traced.Request)
 	span := spanhelper.FromContext(ctx, operation)
 	defer span.Finish()
 	// Make sure we log to span

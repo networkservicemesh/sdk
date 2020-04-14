@@ -19,22 +19,14 @@ package typeutils
 
 import (
 	"reflect"
+	"runtime"
 )
 
-// GetTypeName return the type of the underlying struct for an interface, with a * if a ptr
-func GetTypeName(value interface{}) string {
+// GetFuncName - returns the function name from the passed function pointer
+func GetFuncName(value interface{}) string {
 	t := reflect.TypeOf(value)
-	if t.Kind() == reflect.Ptr {
-		return "*" + t.Elem().Name()
+	if t.Kind() == reflect.Func {
+		return runtime.FuncForPC(reflect.ValueOf(value).Pointer()).Name()
 	}
-	return t.Name()
-}
-
-// GetPkgPath return the package path of the underlying struct for an interface, with a * if a ptr
-func GetPkgPath(value interface{}) string {
-	t := reflect.TypeOf(value)
-	if t.Kind() == reflect.Ptr {
-		return "*" + t.Elem().Name()
-	}
-	return t.PkgPath()
+	return ""
 }

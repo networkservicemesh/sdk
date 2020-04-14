@@ -18,7 +18,6 @@ package trace
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
@@ -40,7 +39,7 @@ func NewRegistryServer(traced registry.NetworkServiceRegistryServer) registry.Ne
 
 func (t *traceRegistryServer) RegisterNSE(ctx context.Context, request *registry.NSERegistration) (*registry.NSERegistration, error) {
 	// Create a new span
-	operation := fmt.Sprintf("%s/%s.RegisterNSE", typeutils.GetPkgPath(t.traced), typeutils.GetTypeName(t.traced))
+	operation := typeutils.GetFuncName(t.traced.RegisterNSE)
 	span := spanhelper.FromContext(ctx, operation)
 	defer span.Finish()
 
@@ -86,7 +85,7 @@ func (ts *traceServer) Recv() (*registry.NSERegistration, error) {
 
 // BulkRegisterNSE - register NSEs in a Bulk
 func (t *traceRegistryServer) BulkRegisterNSE(server registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
-	span := spanhelper.FromContext(server.Context(), fmt.Sprintf("%s.Request", typeutils.GetTypeName(t.traced)))
+	span := spanhelper.FromContext(server.Context(), typeutils.GetFuncName(t.traced.BulkRegisterNSE))
 	span.Finish()
 
 	stream := &traceServer{
@@ -98,7 +97,7 @@ func (t *traceRegistryServer) BulkRegisterNSE(server registry.NetworkServiceRegi
 
 func (t *traceRegistryServer) RemoveNSE(ctx context.Context, request *registry.RemoveNSERequest) (*empty.Empty, error) {
 	// Create a new span
-	operation := fmt.Sprintf("%s/%s.RemoveNSE", typeutils.GetPkgPath(t.traced), typeutils.GetTypeName(t.traced))
+	operation := typeutils.GetFuncName(t.traced.RemoveNSE)
 	span := spanhelper.FromContext(ctx, operation)
 	defer span.Finish()
 

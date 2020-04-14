@@ -18,7 +18,6 @@ package trace
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/pkg/errors"
@@ -38,7 +37,7 @@ func NewDiscoveryServer(traced registry.NetworkServiceDiscoveryServer) registry.
 
 func (t *traceDiscoveryServer) FindNetworkService(ctx context.Context, request *registry.FindNetworkServiceRequest) (*registry.FindNetworkServiceResponse, error) {
 	// Create a new span
-	operation := fmt.Sprintf("%s/%s.FindNetworkService", typeutils.GetPkgPath(t.traced), typeutils.GetTypeName(t.traced))
+	operation := typeutils.GetFuncName(t.traced.FindNetworkService)
 	span := spanhelper.FromContext(ctx, operation)
 	defer span.Finish()
 
