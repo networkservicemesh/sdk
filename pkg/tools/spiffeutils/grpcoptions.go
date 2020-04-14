@@ -14,8 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package grpcoptions -
-package grpcoptions
+package spiffeutils
 
 import (
 	"context"
@@ -36,9 +35,9 @@ const (
 //              timeout        - time.Duration to allow maximally to contacting spiffe agent before giving up and
 //                               returning grpc.EmptyDialOption
 //              Example:
-//                 tlsPeer, _ := spiffe.NewTLSPeer(spiffe.WithWorkloadAPIAddr(agentUrl),spiffe.WithLogger(logrus.StandardLogger()))
+//                 tlsPeer, _ := spiffeutils.NewTLSPeer(spiffe.WithWorkloadAPIAddr(agentUrl),spiffe.WithLogger(logrus.StandardLogger()))
 //                 conn, err := grpc.DialContext(ctx,target),grpcoptions.WithSpiffe(tlsPeer,grpcoptions.DefaultTimeout))
-func WithSpiffe(peer *spiffe.TLSPeer, timeout time.Duration) grpc.DialOption {
+func WithSpiffe(peer TLSPeer, timeout time.Duration) grpc.DialOption {
 	if peer == nil {
 		return grpc.WithInsecure()
 	}
@@ -56,9 +55,9 @@ func WithSpiffe(peer *spiffe.TLSPeer, timeout time.Duration) grpc.DialOption {
 //              timeout        - time.Duration to allow maximally to contacting spiffe agent before giving up and
 //                               returning grpc.EmptyServerOption
 //              Example:
-//                 tlsPeer, _ := spiffe.NewTLSPeer(spiffe.WithWorkloadAPIAddr(agentUrl),spiffe.WithLogger(logrus.StandardLogger()))
+//                 tlsPeer, _ := spiffeutils.NewTLSPeer(spiffe.WithWorkloadAPIAddr(agentUrl),spiffe.WithLogger(logrus.StandardLogger()))
 //                 server := grpc.NewServer(grpcoptions.SpiffeCreds(tlsPeer, grpcoptions.DefaultTimeout))
-func SpiffeCreds(peer *spiffe.TLSPeer, timeout time.Duration) grpc.ServerOption {
+func SpiffeCreds(peer TLSPeer, timeout time.Duration) grpc.ServerOption {
 	if peer == nil {
 		return grpc.EmptyServerOption{}
 	}
