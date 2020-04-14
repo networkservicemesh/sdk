@@ -24,10 +24,9 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
-
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
@@ -37,7 +36,6 @@ import (
 
 type refreshClient struct {
 	connectionTimers map[string]*time.Timer
-	connections      map[string]*networkservice.Connection
 	executor         serialize.Executor
 }
 
@@ -46,8 +44,7 @@ type refreshClient struct {
 func NewClient() networkservice.NetworkServiceClient {
 	rv := &refreshClient{
 		connectionTimers: make(map[string]*time.Timer),
-		connections:      make(map[string]*networkservice.Connection),
-		executor:         serialize.NewExecutor(),
+		executor:         serialize.Executor{},
 	}
 	return rv
 }
@@ -67,9 +64,10 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 		return nil, errors.Wrapf(err, "Error creating timer from Request.Connection.Path.PathSegment[%d].ExpireTime", request.GetConnection().GetPath().GetIndex())
 	}
 	t.executor.AsyncExec(func() {
-		if timer, ok := t.connectionTimers[req.GetConnection().GetId()]; !ok || timer.Stop() {
-			t.connectionTimers[req.GetConnection().GetId()] = ct
+		if timer, ok := t.connectionTimers[req.GetConnection().GetId()]; ok {
+			timer.Stop()
 		}
+		t.connectionTimers[req.GetConnection().GetId()] = ct
 	})
 	return rv, nil
 }
