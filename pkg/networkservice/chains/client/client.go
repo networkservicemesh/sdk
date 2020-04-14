@@ -30,6 +30,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/setid"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injectpeer"
 )
 
 // NewClient - returns a NetworkServiceMesh client as a chain of the standard Client pieces plus whatever
@@ -56,6 +57,7 @@ func NewClient(ctx context.Context, name string, onHeal *networkservice.NetworkS
 				setid.NewClient(name),
 				heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc), onHeal),
 				refresh.NewClient(),
+				injectpeer.NewClient(),
 				updatepath.NewClient(name),
 			}, additionalFunctionality...),
 			networkservice.NewNetworkServiceClient(cc),
