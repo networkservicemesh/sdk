@@ -58,7 +58,7 @@ func (m *mechanismsServer) Request(ctx context.Context, request *networkservice.
 		if ok {
 			conn, err := srv.Request(ctx, request)
 			if err != nil {
-				return nil, errors.WithStack(err)
+				return nil, err
 			}
 			request.Connection = conn
 			return next.Server(ctx).Request(ctx, request)
