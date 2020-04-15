@@ -35,13 +35,13 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/cidr"
 )
 
-type linkLocalServer struct {
+type pointToPointServer struct {
 	mutex    *sync.Mutex
 	prefixes []*net.IPNet
 	freeIPs  *roaring.Bitmap
 }
 
-func (srv *linkLocalServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+func (srv *pointToPointServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	srv.mutex.Lock()
 	defer srv.mutex.Unlock()
 
@@ -95,7 +95,7 @@ func (srv *linkLocalServer) Request(ctx context.Context, request *networkservice
 	return next.Server(ctx).Request(ctx, request)
 }
 
-func (srv *linkLocalServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+func (srv *pointToPointServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	srv.mutex.Lock()
 	defer srv.mutex.Unlock()
 
@@ -144,7 +144,7 @@ func NewServer(prefixes []*net.IPNet) (networkservice.NetworkServiceServer, erro
 		// freeIPs.Remove(high)
 	}
 
-	return &linkLocalServer{
+	return &pointToPointServer{
 		mutex:    &sync.Mutex{},
 		prefixes: prefixes,
 		freeIPs:  freeIPs,
