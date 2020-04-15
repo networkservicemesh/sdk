@@ -3,6 +3,7 @@ module github.com/networkservicemesh/sdk
 go 1.13
 
 require (
+	github.com/RoaringBitmap/roaring v0.4.23
 	github.com/cloudflare/cfssl v1.4.1
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
