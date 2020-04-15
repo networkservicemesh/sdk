@@ -48,16 +48,7 @@ func TestServer(t *testing.T) {
 	assert.Equal(t, "192.168.0.0/32", conn3.Context.IpContext.DstIpAddr)
 	assert.Equal(t, "192.168.0.1/32", conn3.Context.IpContext.SrcIpAddr)
 
-	conn4, err := srv.Request(context.Background(), &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id:             "id",
-			NetworkService: "ns",
-			Context: &networkservice.ConnectionContext{
-				IpContext: &networkservice.IPContext{},
-			},
-		},
-		MechanismPreferences: nil,
-	})
+	conn4, err := srv.Request(context.Background(), newRequest())
 	assert.NoError(t, err)
 
 	assert.Equal(t, "192.168.0.4/32", conn4.Context.IpContext.DstIpAddr)
@@ -77,4 +68,36 @@ func TestNilPrefixes(t *testing.T) {
 	})
 	assert.Nil(t, srv)
 	assert.Error(t, err)
+}
+
+func TestExclude32Prefix(t *testing.T) {
+	_, ipnet, _ := net.ParseCIDR("192.168.1.0/24")
+	srv, err := NewServer([]*net.IPNet{ipnet})
+	assert.NotNil(t, srv)
+	assert.NoError(t, err)
+
+	// Test center of assigned
+	req1 := newRequest()
+	req1.Connection.Context.IpContext.ExcludedPrefixes = []string{"192.168.1.1/32", "192.168.1.3/32", "192.168.1.8/32"}
+	conn1, err := srv.Request(context.Background(), req1)
+	assert.NoError(t, err)
+	assert.Equal(t, "192.168.1.0/32", conn1.Context.IpContext.DstIpAddr)
+	assert.Equal(t, "192.168.1.2/32", conn1.Context.IpContext.SrcIpAddr)
+
+	// Test exclude before assigned
+	req2 := newRequest()
+	req2.Connection.Context.IpContext.ExcludedPrefixes = []string{"192.168.1.1/32", "192.168.1.3/32", "192.168.1.8/32"}
+	conn2, err := srv.Request(context.Background(), req2)
+	assert.NoError(t, err)
+	assert.Equal(t, "192.168.1.4/32", conn2.Context.IpContext.DstIpAddr)
+	assert.Equal(t, "192.168.1.5/32", conn2.Context.IpContext.SrcIpAddr)
+
+	// Test after assigned
+	req3 := newRequest()
+	req3.Connection.Context.IpContext.ExcludedPrefixes = []string{"192.168.1.1/32", "192.168.1.3/32", "192.168.1.8/32"}
+	conn3, err := srv.Request(context.Background(), req3)
+	assert.NoError(t, err)
+	assert.Equal(t, "192.168.1.6/32", conn3.Context.IpContext.DstIpAddr)
+	assert.Equal(t, "192.168.1.7/32", conn3.Context.IpContext.SrcIpAddr)
+
 }

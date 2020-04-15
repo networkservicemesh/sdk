@@ -15,9 +15,9 @@ func NetworkAddress(ipNet *net.IPNet) net.IP {
 // BroadcastAddress returns the last IP address of an IP network
 func BroadcastAddress(ipNet *net.IPNet) net.IP {
 	first := NetworkAddress(ipNet)
-	ones, _ := ipNet.Mask.Size()
+	ones, bits := ipNet.Mask.Size()
 	var shift uint32 = 1
-	shift <<= ones
+	shift <<= bits - ones
 	intip := binary.BigEndian.Uint32(first.To4())
 	intip = intip + shift - 1
 	last := make(net.IP, 4)

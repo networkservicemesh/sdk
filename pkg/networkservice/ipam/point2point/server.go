@@ -45,13 +45,43 @@ func (srv *linkLocalServer) Request(ctx context.Context, request *networkservice
 	srv.mutex.Lock()
 	defer srv.mutex.Unlock()
 
-	dstInt := srv.freeIPs.Minimum()
+	conn := request.GetConnection()
+	if request == nil {
+		return nil, errors.New("connection missing")
+	}
+	connContext := conn.GetContext()
+	if connContext == nil {
+		return nil, errors.New("connection context missing")
+	}
+
+	ipContext := connContext.GetIpContext()
+	if ipContext == nil {
+		return nil, errors.New("ip context missing")
+	}
+
+	exclude := roaring.New()
+	excludePrefixes := ipContext.GetExcludedPrefixes()
+	for _, prefix := range excludePrefixes {
+		_, ipnet, err := net.ParseCIDR(prefix)
+		if err != nil {
+			return nil, err
+		}
+		low := binary.BigEndian.Uint32(cidr.NetworkAddress(ipnet).To4())
+		high := binary.BigEndian.Uint32(cidr.BroadcastAddress(ipnet).To4()) + 1
+
+		exclude.AddRange(uint64(low), uint64(high))
+	}
+
+	available := roaring.Xor(srv.freeIPs, exclude)
+	available = roaring.And(available, srv.freeIPs)
+
+	dstInt := available.Minimum()
+	available.Remove(dstInt)
 	srv.freeIPs.Remove(dstInt)
 
-	srcInt := srv.freeIPs.Minimum()
+	srcInt := available.Minimum()
+	available.Remove(srcInt)
 	srv.freeIPs.Remove(srcInt)
-
-	conn := request.Connection
 
 	dstIP := make(net.IP, 4)
 	srcIP := make(net.IP, 4)
@@ -106,7 +136,7 @@ func NewServer(prefixes []*net.IPNet) (networkservice.NetworkServiceServer, erro
 		broadcastAddress := cidr.BroadcastAddress(ipnet)
 
 		low := binary.BigEndian.Uint32(networkAddress)
-		high := binary.BigEndian.Uint32(broadcastAddress)
+		high := binary.BigEndian.Uint32(broadcastAddress) + 1
 		freeIPs.AddRange(uint64(low), uint64(high))
 
 		// TODO should we remove first and last (network, broadcast) addresses?
