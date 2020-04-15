@@ -99,5 +99,4 @@ func TestExclude32Prefix(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "192.168.1.6/32", conn3.Context.IpContext.DstIpAddr)
 	assert.Equal(t, "192.168.1.7/32", conn3.Context.IpContext.SrcIpAddr)
-
 }
