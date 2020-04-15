@@ -109,6 +109,7 @@ func TestOutOfIPs(t *testing.T) {
 
 	req1 := newRequest()
 	conn1, err := srv.Request(context.Background(), req1)
+	assert.NoError(t, err)
 	assert.Equal(t, "192.168.1.2/32", conn1.Context.IpContext.DstIpAddr)
 	assert.Equal(t, "192.168.1.3/32", conn1.Context.IpContext.SrcIpAddr)
 
