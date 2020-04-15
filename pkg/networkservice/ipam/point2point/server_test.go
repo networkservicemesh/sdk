@@ -100,3 +100,35 @@ func TestExclude32Prefix(t *testing.T) {
 	assert.Equal(t, "192.168.1.6/32", conn3.Context.IpContext.DstIpAddr)
 	assert.Equal(t, "192.168.1.7/32", conn3.Context.IpContext.SrcIpAddr)
 }
+
+func TestOutOfIPs(t *testing.T) {
+	_, ipnet, _ := net.ParseCIDR("192.168.1.2/31")
+	srv, err := NewServer([]*net.IPNet{ipnet})
+	assert.NotNil(t, srv)
+	assert.NoError(t, err)
+
+	req1 := newRequest()
+	conn1, err := srv.Request(context.Background(), req1)
+	assert.Equal(t, "192.168.1.2/32", conn1.Context.IpContext.DstIpAddr)
+	assert.Equal(t, "192.168.1.3/32", conn1.Context.IpContext.SrcIpAddr)
+
+	req2 := newRequest()
+	conn2, err := srv.Request(context.Background(), req2)
+	assert.Nil(t, conn2)
+	assert.Error(t, err)
+}
+
+func TestAllIPsExcluded(t *testing.T) {
+	_, ipnet, _ := net.ParseCIDR("192.168.1.2/31")
+	srv, err := NewServer([]*net.IPNet{ipnet})
+	assert.NotNil(t, srv)
+	assert.NoError(t, err)
+
+	req1 := newRequest()
+	req1.Connection.Context.IpContext.ExcludedPrefixes = []string{
+		"192.168.1.2/31",
+	}
+	conn1, err := srv.Request(context.Background(), req1)
+	assert.Nil(t, conn1)
+	assert.Error(t, err)
+}
