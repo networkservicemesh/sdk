@@ -57,7 +57,6 @@ func (srv *pointToPointServer) Request(ctx context.Context, request *networkserv
 	if connContext == nil {
 		return nil, errors.New("connection context missing")
 	}
-
 	ipContext := connContext.GetIpContext()
 	if ipContext == nil {
 		return nil, errors.New("ip context missing")
@@ -76,9 +75,7 @@ func (srv *pointToPointServer) Request(ctx context.Context, request *networkserv
 		exclude.AddRange(uint64(low), uint64(high))
 	}
 
-	available := roaring.Xor(srv.freeIPs, exclude)
-	available = roaring.And(available, srv.freeIPs)
-
+	available := roaring.And(roaring.Xor(srv.freeIPs, exclude), srv.freeIPs)
 	if available.IsEmpty() {
 		return nil, errors.New("available IP addresses excluded by request")
 	}
