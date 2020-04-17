@@ -45,6 +45,10 @@ func (srv *pointToPointServer) Request(ctx context.Context, request *networkserv
 	srv.mutex.Lock()
 	defer srv.mutex.Unlock()
 
+	if srv.freeIPs.IsEmpty() {
+		return nil, errors.New("ipam allocation pool depleted")
+	}
+
 	conn := request.GetConnection()
 	if request == nil {
 		return nil, errors.New("connection missing")
@@ -53,7 +57,6 @@ func (srv *pointToPointServer) Request(ctx context.Context, request *networkserv
 	if connContext == nil {
 		return nil, errors.New("connection context missing")
 	}
-
 	ipContext := connContext.GetIpContext()
 	if ipContext == nil {
 		return nil, errors.New("ip context missing")
@@ -72,15 +75,21 @@ func (srv *pointToPointServer) Request(ctx context.Context, request *networkserv
 		exclude.AddRange(uint64(low), uint64(high))
 	}
 
-	available := roaring.Xor(srv.freeIPs, exclude)
-	available = roaring.And(available, srv.freeIPs)
-
+	available := roaring.And(roaring.Xor(srv.freeIPs, exclude), srv.freeIPs)
+	if available.IsEmpty() {
+		return nil, errors.New("available IP addresses excluded by request")
+	}
 	dstInt := available.Minimum()
 	available.Remove(dstInt)
-	srv.freeIPs.Remove(dstInt)
 
+	// explicitly check again, panics if empty on minimum and remove calls
+	if available.IsEmpty() {
+		return nil, errors.New("available IP addresses excluded by request")
+	}
 	srcInt := available.Minimum()
 	available.Remove(srcInt)
+
+	srv.freeIPs.Remove(dstInt)
 	srv.freeIPs.Remove(srcInt)
 
 	dstIP := make(net.IP, 4)
