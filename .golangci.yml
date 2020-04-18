@@ -229,3 +229,7 @@ issues:
       linters:
         - gochecknoinits
       text: "don't use `init` function"
+    - path: pkg/tools/debug/self.go
+      linters:
+        - gosec
+      text: "G204: Subprocess launched with variable"
