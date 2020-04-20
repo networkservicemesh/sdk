@@ -1,5 +1,4 @@
 // Copyright (c) 2020 Doc.ai and/or its affiliates.
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,7 +12,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//
+
 // Package point2point provides a simple ipam appropriate for point2point.
 // point2point assigns two ip addresses out of a pool of prefixes. The IP
 // addresses assigned are not reassigned until they are released. All
