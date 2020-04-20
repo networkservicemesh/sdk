@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package signal provides a context which is canceled when an os.Signal is received
-package signal
+// Package signalctx provides a context which is canceled when an os.Signal is received
+package signalctx
 
 import (
 	"context"
@@ -23,7 +23,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 // WithSignals - returns a context that is canceled when on of the specified signals 'sig' is received.
@@ -48,7 +48,7 @@ func WithSignals(parent context.Context, sig ...os.Signal) context.Context {
 	go func() {
 		select {
 		case s := <-c:
-			trace.Log(ctx).Warnf("Caught s %+v, exiting...", s)
+			log.Entry(ctx).Warnf("Caught signal %s, exiting...", s)
 			cancel()
 		case <-parent.Done():
 		}
