@@ -34,5 +34,5 @@ func GetInode(file string) (uintptr, error) {
 	if !ok {
 		return 0, errors.New("not a stat_t")
 	}
-	return stat.Ino, nil
+	return uintptr(stat.Ino), nil
 }
