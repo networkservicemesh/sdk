@@ -13,11 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package point2point provides a simple ipam appropriate for point2point.
-// point2point assigns two ip addresses out of a pool of prefixes. The IP
+// Package point2pointipam provides a simple ipam appropriate for point2pointipam.
+// point2pointipam assigns two ip addresses out of a pool of prefixes. The IP
 // addresses assigned are not reassigned until they are released. All
 // IP addresses assigned are assigned a CIDR mask of /32
-package point2point
+package point2pointipam
 
 import (
 	"context"
