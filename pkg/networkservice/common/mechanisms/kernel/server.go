@@ -19,11 +19,10 @@ package kernel
 
 import (
 	"context"
-	"strconv"
-
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
+	"strconv"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/fs"
@@ -33,12 +32,12 @@ type mechanismsServer struct{}
 
 func (m mechanismsServer) Request(ctx context.Context, req *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	conn := req.Connection
-	inode := uint64(0)
+	inode := uintptr(0)
 	inode, err := fs.GetInode("/proc/self/net/ns")
 	if err != nil {
 		return nil, err
 	}
-	conn.Mechanism.Parameters[common.NetNSInodeKey] = strconv.FormatUint(inode, 10)
+	conn.Mechanism.Parameters[common.NetNSInodeKey] = strconv.FormatUint(uint64(inode), 10)
 	return next.Server(ctx).Request(ctx, req)
 }
 
