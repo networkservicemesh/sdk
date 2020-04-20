@@ -32,7 +32,7 @@ jobs:
       - run: |
           go build -race  ./...
   build-win:
-    name: build
+    name: build-win
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
