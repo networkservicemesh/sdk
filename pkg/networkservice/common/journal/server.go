@@ -54,7 +54,7 @@ type journalServer struct {
 	nats      stan.Conn
 }
 
-func (srv journalServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+func (srv *journalServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	conn, err := next.Server(ctx).Request(ctx, request)
 	if err != nil {
 		return conn, err
@@ -76,7 +76,7 @@ func (srv journalServer) Request(ctx context.Context, request *networkservice.Ne
 
 	return conn, err
 }
-func (srv journalServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
+func (srv *journalServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
 	src := connection.GetContext().GetIpContext().GetSrcIpAddr()
 	dst := connection.GetContext().GetIpContext().GetDstIpAddr()
 	entry := Entry{
@@ -92,7 +92,7 @@ func (srv journalServer) Close(ctx context.Context, connection *networkservice.C
 	return next.Server(ctx).Close(ctx, connection)
 }
 
-func (srv journalServer) publish(entry *Entry) error {
+func (srv *journalServer) publish(entry *Entry) error {
 	js, err := json.Marshal(entry)
 	if err != nil {
 		return err
