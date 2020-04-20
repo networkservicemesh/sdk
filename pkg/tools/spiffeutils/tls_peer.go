@@ -115,7 +115,7 @@ func NewTLSPeer(opts ...spiffe.TLSPeerOption) (TLSPeer, error) {
 	if err != nil {
 		if rv.selfSignedTLSPeer != nil {
 			rv.replacePeer()
-			return nil, err
+			return rv, nil
 		}
 	}
 	rv.TLSPeer = peer
