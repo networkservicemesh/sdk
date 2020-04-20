@@ -7,12 +7,9 @@ require (
 	github.com/cloudflare/cfssl v1.4.1
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
-	github.com/golang/protobuf v1.3.5
+	github.com/golang/protobuf v1.3.3
 	github.com/google/uuid v1.1.1
 	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645
-	github.com/nats-io/nats-server/v2 v2.1.6 // indirect
-	github.com/nats-io/nats-streaming-server v0.17.0
-	github.com/nats-io/stan.go v0.6.0
 	github.com/networkservicemesh/api v0.0.0-20200413003704-e57e43fc2237
 	github.com/open-policy-agent/opa v0.16.1
 	github.com/opentracing/opentracing-go v1.1.0
@@ -27,8 +24,8 @@ require (
 	go.uber.org/atomic v1.5.1 // indirect
 	go.uber.org/goleak v1.0.0
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
-	golang.org/x/sys v0.0.0-20200202164722-d101bd2416d5
-	golang.org/x/tools v0.0.0-20200417140056-c07e33ef3290 // indirect
+	golang.org/x/sys v0.0.0-20190813064441-fde4db37ae7a
+	golang.org/x/tools v0.0.0-20200304193943-95d2e580d8eb // indirect
 	gonum.org/v1/gonum v0.6.2
 	google.golang.org/grpc v1.27.0
 )
