@@ -20,19 +20,21 @@ package fs
 import (
 	"os"
 	"syscall"
+	"unsafe"
 
 	"github.com/pkg/errors"
 )
 
 // GetInode returns Inode for file
-func GetInode(file string) (uint64, error) {
+func GetInode(file string) (uintptr, error) {
 	fileInfo, err := os.Stat(file)
 	if err != nil {
 		return 0, errors.Wrap(err, "error stat file")
 	}
-	stat, ok := fileInfo.Sys().(*syscall.Stat_t)
+	stat, ok := fileInfo.Sys().(*syscall.Handle)
 	if !ok {
-		return 0, errors.New("not a stat_t")
+		return 0, errors.New("not a syscall.Handle")
 	}
-	return stat.Ino, nil
+	ptr := uintptr(unsafe.Pointer(stat))
+	return ptr, nil
 }
