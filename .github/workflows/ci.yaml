@@ -68,7 +68,7 @@ jobs:
           ${GOPATH}/bin/gotestsum --junitfile ~/junit/unit-tests.xml -- -race -short $(go list ./...)
   test-win:
     name: test-win
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v1
@@ -83,7 +83,7 @@ jobs:
           ${GOPATH}/bin/gotestsum --junitfile ~/junit/unit-tests.xml -- -race -short $(go list ./...)
   test-osx:
     name: test-osx
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v1
