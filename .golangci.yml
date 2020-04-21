@@ -233,3 +233,15 @@ issues:
       linters:
         - gosec
       text: "G204: Subprocess launched with variable"
+    - path: pkg/tools/executils/start.go
+      linters:
+        - gosec
+      text: "G204: Subprocess launched with variable"
+    - path: pkg/tools/executils/run.go
+      linters:
+        - gosec
+      text: "G204: Subprocess launched with variable"
+    - path: pkg/tools/executils/output.go
+      linters:
+        - gosec
+      text: "G204: Subprocess launched with variable"
