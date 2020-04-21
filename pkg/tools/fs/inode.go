@@ -1,3 +1,5 @@
+// +build darwin freebsd netbsd openbsd
+
 // Copyright (c) 2020 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
