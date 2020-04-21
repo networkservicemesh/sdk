@@ -1,4 +1,4 @@
-// +build darwin freebsd netbsd openbsd
+// +build linux darwin freebsd netbsd openbsd
 
 // Copyright (c) 2020 Cisco and/or its affiliates.
 //
