@@ -78,9 +78,9 @@ jobs:
         run: go get gotest.tools/gotestsum@v0.4.0
       - name: Run tests
         run: |
-          eval $(go env)
-          mkdir -p ~/junit/
-          ${GOPATH}/bin/gotestsum --junitfile ~/junit/unit-tests.xml -- -race -short $(go list ./...)
+          $env:Path += ";$(go env GOPATH)\bin"
+          mkdir $home/junit
+          gotestsum --junitfile $home\junit\unit-tests.xml -- -race -short $(go list .\...)
   test-osx:
     name: test-osx
     runs-on: macos-latest
