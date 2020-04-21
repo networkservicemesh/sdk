@@ -24,31 +24,20 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/errctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-type contextKeyType string
-
 const (
-	unixScheme                = "unix"
-	errorKey   contextKeyType = "Error"
+	unixScheme = "unix"
 )
-
-// Err - return the error (if any) stored by ListenAndServe in the context
-func Err(ctx context.Context) error {
-	if value := ctx.Value(errorKey); value != nil {
-		return *value.(*error)
-	}
-	return nil
-}
 
 // ListenAndServe listens on address with server.  Returns a context which will be canceled in the event that
 // server.Serve(listener) returns an error.  The resulting error can then be retrieve from the returned context with.
 // grpcutils.Err(ctx)
 func ListenAndServe(ctx context.Context, address *url.URL, server *grpc.Server) context.Context {
 	ctx, cancel := context.WithCancel(ctx)
-	var listenAndServeError error
-	ctx = context.WithValue(ctx, errorKey, &listenAndServeError)
+	ctx = errctx.WithErr(ctx)
 
 	// Serve
 	go func() {
@@ -62,13 +51,11 @@ func ListenAndServe(ctx context.Context, address *url.URL, server *grpc.Server) 
 			_ = ln.Close()
 		}()
 		err = server.Serve(ln)
-		if err != nil {
-			select {
-			case <-ctx.Done():
-			default:
-				listenAndServeError = err
-				cancel()
-			}
+		select {
+		case <-ctx.Done():
+		default:
+			errctx.SetErr(ctx, err)
+			cancel()
 		}
 	}()
 	return ctx
