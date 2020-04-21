@@ -23,7 +23,7 @@ require (
 	github.com/spf13/pflag v1.0.3
 	github.com/spf13/viper v1.6.2
 	github.com/spiffe/go-spiffe v0.0.0-20200115174642-4e401e3b85fe
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.5.1
 	github.com/uber/jaeger-client-go v2.21.1+incompatible
 	github.com/uber/jaeger-lib v2.2.0+incompatible // indirect
 	go.uber.org/atomic v1.5.1 // indirect
@@ -33,4 +33,5 @@ require (
 	golang.org/x/tools v0.0.0-20200417140056-c07e33ef3290 // indirect
 	gonum.org/v1/gonum v0.6.2
 	google.golang.org/grpc v1.27.0
+	gopkg.in/yaml.v2 v2.2.8 // indirect
 )
