@@ -1,4 +1,4 @@
-package point2point
+package point2pointipam
 
 import (
 	"context"
