@@ -35,7 +35,7 @@ import (
 
 const (
 	expireTimeout        = 100 * time.Millisecond
-	waitForTimeout       = 2 * expireTimeout
+	waitForTimeout       = 3 * expireTimeout
 	tickTimeout          = 10 * time.Millisecond
 	refreshCount         = 5
 	expectAbsenceTimeout = 5 * expireTimeout

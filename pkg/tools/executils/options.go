@@ -54,3 +54,11 @@ func WithStderr(writer io.Writer) CmdOption {
 		return nil
 	}
 }
+
+// WithEnviron - option to set exec.Cmd.Env, Combine os environ with passed values
+func WithEnviron(env []string) CmdOption {
+	return func(cmd *exec.Cmd) error {
+		cmd.Env = append(os.Environ(), env...)
+		return nil
+	}
+}
