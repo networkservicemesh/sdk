@@ -199,3 +199,57 @@ jobs:
         with:
           GITHUB_LOGIN: nsmbot
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  update-sdk-kernel:
+    name: Update sdk-kernel
+    runs-on: ubuntu-latest
+    needs:
+      - automerge
+    if: github.actor == 'nsmbot' && github.base_ref == 'master' && github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          repository: networkservicemesh/sdk-kernel
+          token: ${{ secrets.NSM_BOT_GITHUB_TOKEN }}
+      - uses: actions/setup-go@v1
+        with:
+          go-version: 1.13.4
+      - name: Update sdk locally
+        run: |
+          GOPROXY=direct go get -u github.com/networkservicemesh/sdk
+          go mod tidy
+          git diff
+      - name: Push update to sdk-kernel
+        run: |
+          git config --global user.email "nsmbot@networkservicmesh.io"
+          git config --global user.name "NSMBot"
+          git add go.mod go.sum
+          git commit -s -m "Update go.mod and go.sum to latest version from networkservicemesh/sdk@master"
+          git checkout -b update/sdk-gomod
+          git push -f origin update/sdk-gomod
+  update-sdk-vppagent:
+    name: Update sdk-vppagent
+    runs-on: ubuntu-latest
+    needs:
+      - automerge
+    if: github.actor == 'nsmbot' && github.base_ref == 'master' && github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          repository: networkservicemesh/sdk-vppagent
+          token: ${{ secrets.NSM_BOT_GITHUB_TOKEN }}
+      - uses: actions/setup-go@v1
+        with:
+          go-version: 1.13.4
+      - name: Update sdk locally
+        run: |
+          GOPROXY=direct go get -u github.com/networkservicemesh/sdk
+          go mod tidy
+          git diff
+      - name: Push update to sdk-vppagent
+        run: |
+          git config --global user.email "nsmbot@networkservicmesh.io"
+          git config --global user.name "NSMBot"
+          git add go.mod go.sum
+          git commit -s -m "Update go.mod and go.sum to latest version from networkservicemesh/sdk@master"
+          git checkout -b update/sdk-gomod
+          git push -f origin update/sdk-gomod
