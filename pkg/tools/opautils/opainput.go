@@ -17,8 +17,8 @@
 // Now we can consider the OPA input as a map with the keys:
 //    1) "connection" -- we can use all information about connection in OPA (e.g. input.connection.path.path_segments[0].token)
 //    2) "auth_info" with sub keys:
-//          -"certificate" -- is a pem encoded x509cert (access: input.auth_info.certificate)
-//			-"spiffe_id" -- is a spiffeID from SVIDX509Certificate (access: input.auth_info.spiffe_id)
+//          i) "certificate" -- is a pem encoded x509cert (access: input.auth_info.certificate)
+//			ii) "spiffe_id" -- is a spiffeID from SVIDX509Certificate (access: input.auth_info.spiffe_id)
 //    3) "operation" -- one of request/close (access: input.operation)
 //    4) "role" -- one of client/endpoint (access: input.role)
 
@@ -73,7 +73,7 @@ const (
 func PreparedOpaInput(connection *networkservice.Connection, authInfo credentials.AuthInfo, operation operation, role role) (map[string]interface{}, error) {
 	connectionAsMap, err := convertConnectionToMap(connection)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Cannot marshal the connection %v", connection)
+		return nil, errors.Wrapf(err, "Cannot convert connection %v to map", connection)
 	}
 
 	cert := parseX509Cert(authInfo)
