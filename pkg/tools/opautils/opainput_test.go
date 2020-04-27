@@ -46,7 +46,7 @@ Dk6tlURSF8ULhNbnyUxFQ33rDic2dX8jOIstV2dWErwCIDRH2yw0swTcUMQWYgHy
 aMp+T747AZGjOEfwHb9/w+7m
 -----END CERTIFICATE-----
 `
-	spiffeId = "spiffe://test.com/workload"
+	spiffeID = "spiffe://test.com/workload"
 )
 
 func getConnectionWithToken(token string) *networkservice.Connection {
@@ -88,7 +88,7 @@ func TestPreparedOpaInput(t *testing.T) {
 		},
 		"auth_info": map[string]interface{}{
 			"certificate": certPem,
-			"spiffe_id":   spiffeId,
+			"spiffe_id":   spiffeID,
 		},
 		"operation": opautils.Request,
 		"role":      opautils.Client,

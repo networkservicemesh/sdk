@@ -36,7 +36,6 @@
 //
 
 // Package opautils provides of utilities for using OPA
-
 package opautils
 
 import (
@@ -53,15 +52,21 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-
 type role string
 type operation string
 
 const (
-	Client   role      = "client"
-	Endpoint role      = "endpoint"
-	Request  operation = "request"
-	Close    operation = "close"
+	// Client is a client role
+	Client role = "client"
+
+	// Endpoint is an endpoint role
+	Endpoint role = "endpoint"
+
+	// Request is a request operation
+	Request operation = "request"
+
+	// Close is a close operation
+	Close operation = "close"
 )
 
 // PreparedOpaInput - returns a prepared input for using in OPA
@@ -84,15 +89,15 @@ func PreparedOpaInput(connection *networkservice.Connection, authInfo credential
 		"connection": connectionAsMap,
 		"auth_info": map[string]interface{}{
 			"certificate": pemcert,
-			"spiffe_id": spiffeID,
+			"spiffe_id":   spiffeID,
 		},
 		"operation": operation,
-		"role": role,
+		"role":      role,
 	}
 	return rv, nil
 }
 
-func pemEncodingX509Cert (cert *x509.Certificate) string {
+func pemEncodingX509Cert(cert *x509.Certificate) string {
 	certpem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
 	return string(certpem)
 }
@@ -113,9 +118,8 @@ func convertConnectionToMap(connection *networkservice.Connection) (map[string]i
 		return nil, err
 	}
 	rv := make(map[string]interface{})
-	if err = json.Unmarshal(jsonConn, &rv); err != nil {
+	if err := json.Unmarshal(jsonConn, &rv); err != nil {
 		return nil, err
 	}
 	return rv, nil
 }
-
