@@ -17,10 +17,10 @@
 // Now we can consider the OPA input as a map with the keys:
 //    1) "connection" -- we can use all information about connection in OPA (e.g. input.connection.path.path_segments[0].token)
 //    2) "auth_info" with sub keys:
-//          i) "certificate" -- is a pem encoded x509cert (access: input.auth_info.certificate)
-//			ii) "spiffe_id" -- is a spiffeID from SVIDX509Certificate (access: input.auth_info.spiffe_id)
-//    3) "operation" -- one of request/close (access: input.operation)
-//    4) "role" -- one of client/endpoint (access: input.role)
+//          i) "certificate" -- is a pem encoded x509cert (usage: input.auth_info.certificate)
+//			ii) "spiffe_id" -- is a spiffeID from SVIDX509Certificate (usage: input.auth_info.spiffe_id)
+//    3) "operation" -- one of request/close (usage: input.operation)
+//    4) "role" -- one of client/endpoint (usage: input.role)
 
 // An example of using OPA input for the case of token signature verification:
 //
