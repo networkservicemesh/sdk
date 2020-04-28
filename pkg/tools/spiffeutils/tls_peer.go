@@ -78,8 +78,7 @@ func (t *tlsPeerWrapper) GetConfig(ctx context.Context, expectPeer spiffe.Expect
 func (t *tlsPeerWrapper) GetCertificate() (*tls.Certificate, error) {
 	cert, err := t.TLSPeer.GetCertificate()
 	if err != nil {
-		t.replacePeer()
-		return t.TLSPeer.GetCertificate()
+		return nil, err
 	}
 	return cert, nil
 }
