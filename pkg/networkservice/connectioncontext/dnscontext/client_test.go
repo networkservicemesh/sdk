@@ -65,10 +65,14 @@ search example.com`), os.ModePerm)
 			},
 		},
 	}
-	<-time.After(time.Second)
-	b, err := ioutil.ReadFile("corefile")
-	require.Nil(t, err)
-	actual := string(b)
+	var actual string
+	for now := time.Now(); time.Since(now) < time.Second; <-time.After(time.Millisecond * 100) {
+		b, readErr := ioutil.ReadFile("corefile")
+		if readErr == nil {
+			actual = string(b)
+			break
+		}
+	}
 	require.NotContains(t, actual, "forward")
 	require.Contains(t, actual, "fanout")
 	require.Contains(t, actual, "8.8.8.8")
@@ -121,10 +125,15 @@ search example.com`), os.ModePerm)
 			"1": {},
 		},
 	}
-	<-time.After(time.Second)
-	actual, err := ioutil.ReadFile("corefile")
-	require.Nil(t, err)
-	require.Equal(t, expected, string(actual))
+	var actual string
+	for now := time.Now(); time.Since(now) < time.Second; <-time.After(time.Millisecond * 100) {
+		b, readErr := ioutil.ReadFile("corefile")
+		if readErr == nil {
+			actual = string(b)
+			break
+		}
+	}
+	require.Equal(t, expected, actual)
 	_, err = client.Close(context.Background(), &networkservice.Connection{})
 	require.Nil(t, err)
 }

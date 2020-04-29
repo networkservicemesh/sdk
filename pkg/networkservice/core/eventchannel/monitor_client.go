@@ -23,6 +23,7 @@ package eventchannel
 
 import (
 	"context"
+	"sync"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
@@ -31,6 +32,7 @@ import (
 )
 
 type monitorConnectionClient struct {
+	once           sync.Once
 	eventCh        <-chan *networkservice.ConnectionEvent
 	fanoutEventChs []chan *networkservice.ConnectionEvent
 	updateExecutor serialize.Executor
@@ -42,17 +44,15 @@ type monitorConnectionClient struct {
 //                                        returned from calling MonitorConnections receive the event.
 //                              Note: Does not perform filtering basedon MonitorScopeSelector
 func NewMonitorConnectionClient(eventCh <-chan *networkservice.ConnectionEvent) networkservice.MonitorConnectionClient {
-	rv := &monitorConnectionClient{
-		eventCh:        eventCh,
-		updateExecutor: serialize.NewExecutor(),
+	return &monitorConnectionClient{
+		eventCh: eventCh,
 	}
-	rv.eventLoop()
-	return rv
 }
 
 func (m *monitorConnectionClient) MonitorConnections(ctx context.Context, _ *networkservice.MonitorScopeSelector, _ ...grpc.CallOption) (networkservice.MonitorConnection_MonitorConnectionsClient, error) {
 	fanoutEventCh := make(chan *networkservice.ConnectionEvent, 100)
-	m.updateExecutor.AsyncExec(func() {
+	<-m.updateExecutor.AsyncExec(func() {
+		m.once.Do(m.eventLoop)
 		m.fanoutEventChs = append(m.fanoutEventChs, fanoutEventCh)
 		go func() {
 			<-ctx.Done()
