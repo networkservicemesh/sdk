@@ -17,14 +17,14 @@
 package spire
 
 const (
-	spireRunDir             = "/run/spire/"
-	spireServerConfFileName = "/etc/nsm/spire/conf/server/server.conf"
+	spireServerConfFileName = "server/server.conf"
+	spireServerRegSock      = "spire-registration.sock"
 	spireServerConfContents = `server {
     bind_address = "127.0.0.1"
     bind_port = "8081"
-    registration_uds_path = "/tmp/spire-registration.sock"
+    registration_uds_path = "%[1]s/%[2]s"
     trust_domain = "example.org"
-    data_dir = "./.data"
+    data_dir = "%[1]s/data"
     log_level = "WARN"
     upstream_bundle = true
     default_svid_ttl = "1h"
@@ -39,7 +39,7 @@ plugins {
     DataStore "sql" {
         plugin_data {
             database_type = "sqlite3"
-            connection_string = "./.data/datastore.sqlite3"
+            connection_string = "%[1]s/data/datastore.sqlite3"
         }
     }
 
