@@ -51,7 +51,7 @@ func NewMonitorConnectionClient(eventCh <-chan *networkservice.ConnectionEvent) 
 
 func (m *monitorConnectionClient) MonitorConnections(ctx context.Context, _ *networkservice.MonitorScopeSelector, _ ...grpc.CallOption) (networkservice.MonitorConnection_MonitorConnectionsClient, error) {
 	fanoutEventCh := make(chan *networkservice.ConnectionEvent, 100)
-	<-m.updateExecutor.AsyncExec(func() {
+	m.updateExecutor.AsyncExec(func() {
 		m.once.Do(m.eventLoop)
 		m.fanoutEventChs = append(m.fanoutEventChs, fanoutEventCh)
 		go func() {

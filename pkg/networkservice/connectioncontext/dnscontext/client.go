@@ -33,6 +33,7 @@ import (
 
 type dnsContextClient struct {
 	cancelMonitoring context.CancelFunc
+	chainContext     context.Context
 	monitorContext   context.Context
 	coreFilePath     string
 	getCallOptions   func() []grpc.CallOption
@@ -43,14 +44,12 @@ type dnsContextClient struct {
 
 // NewClient creates a new DNS client chain component. Setups all DNS traffic to the localhost. Monitors DNS configs from connections.
 func NewClient(chainContext context.Context, coreFilePath, resolveConfigPath string, monitorClient networkservice.MonitorConnectionClient, getMonitorCallOptions func() []grpc.CallOption) networkservice.NetworkServiceClient {
-	monitorContext, cancel := context.WithCancel(chainContext)
 	c := &dnsContextClient{
 		coreFilePath:     coreFilePath,
-		monitorClient:    monitorClient,
+		chainContext:     chainContext,
 		dnsConfigManager: dnscontext.NewManager(),
+		monitorClient:    monitorClient,
 		getCallOptions:   getMonitorCallOptions,
-		monitorContext:   monitorContext,
-		cancelMonitoring: cancel,
 	}
 	if r, err := dnscontext.OpenResolveConfig(resolveConfigPath); err != nil {
 		logrus.Errorf("DnsContextClient: can not load resolve config file. Path: %v. Error: %v", resolveConfigPath, err.Error())
@@ -72,6 +71,7 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 	if err != nil {
 		return nil, err
 	}
+	c.monitorContext, c.cancelMonitoring = context.WithCancel(c.chainContext)
 	c.executor.AsyncExec(c.monitorConfigs)
 	return rv, err
 }

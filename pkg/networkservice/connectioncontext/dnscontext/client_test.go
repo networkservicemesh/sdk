@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -34,17 +35,17 @@ import (
 )
 
 func TestDNSClient_ReceivesUpdateEvent(t *testing.T) {
+	corefilePath := path.Join(os.TempDir(), "corefile")
 	defer func() {
-		_ = os.Remove("corefile")
+		_ = os.Remove(corefilePath)
 	}()
 	resolveConfigPath := path.Join(os.TempDir(), "resolv.conf")
 	err := ioutil.WriteFile(resolveConfigPath, []byte(`
 nameserver 8.8.4.4
 search example.com`), os.ModePerm)
 	require.Nil(t, err)
-	require.Nil(t, err)
 	eventCh := make(chan *networkservice.ConnectionEvent, 2)
-	client := chain.NewNetworkServiceClient(dnscontext.NewClient(context.Background(), "corefile", resolveConfigPath, eventchannel.NewMonitorConnectionClient(eventCh), func() []grpc.CallOption {
+	client := chain.NewNetworkServiceClient(dnscontext.NewClient(context.Background(), corefilePath, resolveConfigPath, eventchannel.NewMonitorConnectionClient(eventCh), func() []grpc.CallOption {
 		return []grpc.CallOption{grpc.WaitForReady(true)}
 	}))
 	_, err = client.Request(context.Background(), &networkservice.NetworkServiceRequest{})
@@ -65,14 +66,7 @@ search example.com`), os.ModePerm)
 			},
 		},
 	}
-	var actual string
-	for now := time.Now(); time.Since(now) < time.Second; <-time.After(time.Millisecond * 100) {
-		b, readErr := ioutil.ReadFile("corefile")
-		if readErr == nil {
-			actual = string(b)
-			break
-		}
-	}
+	actual := waitCorefileUpdate(corefilePath, "")
 	require.NotContains(t, actual, "forward")
 	require.Contains(t, actual, "fanout")
 	require.Contains(t, actual, "8.8.8.8")
@@ -82,8 +76,9 @@ search example.com`), os.ModePerm)
 }
 
 func TestDNSClient_ReceivesDeleteEvent(t *testing.T) {
+	corefilePath := path.Join(os.TempDir(), "corefile")
 	defer func() {
-		_ = os.Remove("corefile")
+		_ = os.Remove(corefilePath)
 	}()
 	const expected = `. {
 	forward . 8.8.4.4
@@ -95,9 +90,8 @@ func TestDNSClient_ReceivesDeleteEvent(t *testing.T) {
 nameserver 8.8.4.4
 search example.com`), os.ModePerm)
 	require.Nil(t, err)
-	require.Nil(t, err)
 	eventCh := make(chan *networkservice.ConnectionEvent, 2)
-	client := chain.NewNetworkServiceClient(dnscontext.NewClient(context.Background(), "corefile", resolveConfigPath, eventchannel.NewMonitorConnectionClient(eventCh), func() []grpc.CallOption {
+	client := chain.NewNetworkServiceClient(dnscontext.NewClient(context.Background(), corefilePath, resolveConfigPath, eventchannel.NewMonitorConnectionClient(eventCh), func() []grpc.CallOption {
 		return []grpc.CallOption{grpc.WaitForReady(true)}
 	}))
 	_, err = client.Request(context.Background(), &networkservice.NetworkServiceRequest{})
@@ -119,21 +113,28 @@ search example.com`), os.ModePerm)
 			},
 		},
 	}
+	actual := waitCorefileUpdate(corefilePath, "")
+	require.NotEmpty(t, actual)
 	eventCh <- &networkservice.ConnectionEvent{
 		Type: networkservice.ConnectionEventType_DELETE,
 		Connections: map[string]*networkservice.Connection{
 			"1": {},
 		},
 	}
-	var actual string
-	for now := time.Now(); time.Since(now) < time.Second; <-time.After(time.Millisecond * 100) {
-		b, readErr := ioutil.ReadFile("corefile")
-		if readErr == nil {
-			actual = string(b)
-			break
-		}
-	}
-	require.Equal(t, expected, actual)
+	require.Equal(t, expected, waitCorefileUpdate(corefilePath, actual))
 	_, err = client.Close(context.Background(), &networkservice.Connection{})
 	require.Nil(t, err)
+}
+
+func waitCorefileUpdate(location, content string) string {
+	for now := time.Now(); time.Since(now) < time.Second; <-time.After(time.Millisecond * 100) {
+		b, err := ioutil.ReadFile(filepath.Clean(location))
+		r := string(b)
+		if err == nil {
+			if r != content {
+				return r
+			}
+		}
+	}
+	return content
 }
