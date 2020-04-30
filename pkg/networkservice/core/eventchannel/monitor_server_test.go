@@ -28,13 +28,44 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/eventchannel"
 )
 
+const (
+	numSenders = 10
+	numEvents  = 10
+)
+
+func TestMonitorConnectionMonitorConnectionsServer_Send(t *testing.T) {
+	testSend := func() {
+		eventsCh := make(chan *networkservice.ConnectionEvent, numEvents)
+		senderCtx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		sender := eventchannel.NewMonitorConnectionMonitorConnectionsServer(senderCtx, eventsCh)
+		go func() {
+			for i := 0; i < numEvents-1 && senderCtx.Err() == nil; i++ {
+				err := sender.Send(&networkservice.ConnectionEvent{
+					Type: networkservice.ConnectionEventType_UPDATE,
+					Connections: map[string]*networkservice.Connection{
+						"1": {
+							Id: "1",
+						},
+					},
+				})
+				if err != nil {
+					close(eventsCh)
+					return
+				}
+				<-time.After(time.Millisecond)
+			}
+		}()
+	}
+	for now := time.Now(); time.Since(now) < time.Second; {
+		testSend()
+	}
+}
 func TestMonitorConnectionServer_MonitorConnections(t *testing.T) {
-	numSenders := 10
 	senders := make([]networkservice.MonitorConnection_MonitorConnectionsServer, numSenders)
 	senderEventChs := make([]chan *networkservice.ConnectionEvent, numSenders)
 	senderCancelFunc := make([]context.CancelFunc, numSenders)
 
-	numEvents := 10
 	eventCh := make(chan *networkservice.ConnectionEvent, numEvents)
 	selector := &networkservice.MonitorScopeSelector{} // TODO
 
