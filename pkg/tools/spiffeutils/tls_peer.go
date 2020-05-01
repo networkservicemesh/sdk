@@ -21,6 +21,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"log"
 	"net/url"
 	"sync"
 	"time"
@@ -112,6 +113,26 @@ func NewTLSPeer(opts ...spiffe.TLSPeerOption) (TLSPeer, error) {
 	}
 	peer, err := spiffe.NewTLSPeer(opts...)
 	if err != nil {
+		log.Fatalf("Error attempting to create spiffeutils.TLSPeer %+v", err)
+	}
+	//ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	//defer cancel()
+	//peer.WaitUntilReady(ctx)
+	//cert, err := peer.GetCertificate()
+	//if err != nil {
+	//	log.Fatalf("Error attempting to create spiffeutils.TLSPeer %+v", err)
+	//}
+	//svid, err := SpiffeIDFromTLS(cert)
+	//if err != nil {
+	//	log.Fatalf("Error attempting to create spiffeutils.TLSPeer %+v", err)
+	//}
+	//log.Println("svid: ", svid)
+	//log.Println("tlsPeer: ", peer)
+	//log.Println("tlsPeer.GetCertificate()", cert)
+	//log.Println("peer", peer)
+	//log.Println("peer err", err)
+	if err != nil {
+		log.Println(rv.selfSignedTLSPeer)
 		if rv.selfSignedTLSPeer != nil {
 			rv.replacePeer()
 			return rv, nil

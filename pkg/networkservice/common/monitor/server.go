@@ -20,6 +20,7 @@ package monitor
 
 import (
 	"context"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"runtime"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -47,6 +48,7 @@ type monitorServer struct {
 //                        networkservice.MonitorConnectionServer that can be used either standalone or in a
 //                        networkservice.MonitorConnectionServer chain
 func NewServer(monitorServerPtr *networkservice.MonitorConnectionServer) networkservice.NetworkServiceServer {
+	log.Entry(context.Background()).Println("monitor.NewServer", monitorServerPtr)
 	rv := &monitorServer{
 		connections: make(map[string]*networkservice.Connection),
 		monitors:    nil, // Intentionally nil
@@ -61,6 +63,7 @@ func NewServer(monitorServerPtr *networkservice.MonitorConnectionServer) network
 }
 
 func (m *monitorServer) MonitorConnections(selector *networkservice.MonitorScopeSelector, srv networkservice.MonitorConnection_MonitorConnectionsServer) error {
+	log.Entry(srv.Context()).Println("monitor.MonitorConn", selector, srv)
 	m.executor.AsyncExec(func() {
 		monitor := newMonitorFilter(selector, srv)
 		m.monitors = append(m.monitors, monitor)
@@ -79,9 +82,11 @@ func (m *monitorServer) MonitorConnections(selector *networkservice.MonitorScope
 }
 
 func (m *monitorServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	log.Entry(ctx).Println("request", request)
 	conn, err := next.Server(ctx).Request(ctx, request)
 	if err == nil {
 		m.executor.AsyncExec(func() {
+			log.Entry(ctx).Println("monitor.request.async", request)
 			m.connections[conn.GetId()] = conn
 			// Send update event
 			event := &networkservice.ConnectionEvent{
@@ -97,8 +102,10 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 }
 
 func (m *monitorServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	log.Entry(ctx).Println("monitor.close", conn)
 	// Remove connection object we have and send DELETE
 	m.executor.AsyncExec(func() {
+		log.Entry(ctx).Println("monitor.close.async", conn)
 		delete(m.connections, conn.GetId())
 		event := &networkservice.ConnectionEvent{
 			Type:        networkservice.ConnectionEventType_DELETE,
@@ -113,6 +120,7 @@ func (m *monitorServer) Close(ctx context.Context, conn *networkservice.Connecti
 
 // send - perform a send to clients.
 func (m *monitorServer) send(ctx context.Context, event *networkservice.ConnectionEvent) (err error) {
+	log.Entry(ctx).Println("send", event)
 	newMonitors := []networkservice.MonitorConnection_MonitorConnectionsServer{}
 	for _, filter := range m.monitors {
 		select {

@@ -37,17 +37,23 @@ func ListenAndServe(ctx context.Context, address *url.URL, server *grpc.Server) 
 	// Serve
 	go func() {
 		// Create listener
+		log.Entry(ctx).Println("creating listener...", address)
 		network, target := urlToNetworkTarget(address)
+		log.Entry(ctx).Println("urlToNetworkTarget:", network, target)
 		ln, err := net.Listen(network, target)
+		log.Entry(ctx).Println("listen:", ln, err)
 		if err != nil {
 			errCh <- err
 			close(errCh)
 			return
 		}
 		defer func() {
+			log.Entry(ctx).Println("close:", ln, err)
 			_ = ln.Close()
 		}()
+		log.Entry(ctx).Println("serve:")
 		err = server.Serve(ln)
+		log.Entry(ctx).Println("serve err:", err)
 		select {
 		case <-ctx.Done():
 		default:
