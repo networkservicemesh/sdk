@@ -46,9 +46,11 @@ spec:
             - name: IP_ADDRESS
               value: "172.16.1.0/24"
             - name: NSM_LISTEN_ON_URL
-              value: /var/lib/networkservicemesh/nsm.client.io.sock
+              value: unix:///run/networkservicemesh/nsm.client.io.sock
             - name: NSM_CONNECT_TO_URL
-              value: /var/lib/networkservicemesh/nsm.server.io.sock
+              value: unix:///run/networkservicemesh/nsm.server.io.sock
+            - name: NSM_REGISTRY_URL
+              value: unix:///run/networkservicemesh/registry.io.sock
             - name: GRPC_GO_LOG_VERBOSITY_LEVEL
               value: "99"
             - name: GRPC_GO_LOG_SEVERITY_LEVEL
