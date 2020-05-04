@@ -61,6 +61,7 @@ func TestMonitorConnectionMonitorConnectionsServer_Send(t *testing.T) {
 		testSend()
 	}
 }
+
 func TestMonitorConnectionServer_MonitorConnections(t *testing.T) {
 	senders := make([]networkservice.MonitorConnection_MonitorConnectionsServer, numSenders)
 	senderEventChs := make([]chan *networkservice.ConnectionEvent, numSenders)
@@ -69,7 +70,9 @@ func TestMonitorConnectionServer_MonitorConnections(t *testing.T) {
 	eventCh := make(chan *networkservice.ConnectionEvent, numEvents)
 	selector := &networkservice.MonitorScopeSelector{} // TODO
 
-	server := eventchannel.NewMonitorServer(eventCh)
+	eventMonitorStartCh := make(chan int, numEvents)
+
+	server := eventchannel.NewMonitorServer(eventCh, eventMonitorStartCh)
 
 	for i := 0; i < numSenders; i++ {
 		var senderCtx context.Context
@@ -82,8 +85,14 @@ func TestMonitorConnectionServer_MonitorConnections(t *testing.T) {
 			assert.Nil(t, err)
 		}()
 	}
-	// Give the go functions calling server.MonitorConnections(selector,sender) a chance to run
-	<-time.After(time.Millisecond)
+	// Give all the go functions calling server.MonitorConnections(selector,sender) a chance to run
+	for {
+		c := <-eventMonitorStartCh
+		if c == numSenders {
+			break
+		}
+	}
+
 	senderCancelFunc[numSenders-1]()
 	eventsIn := make([]*networkservice.ConnectionEvent, numEvents)
 	for i := 0; i < numEvents; i++ {
