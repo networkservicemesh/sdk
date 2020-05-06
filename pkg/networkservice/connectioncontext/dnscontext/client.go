@@ -32,33 +32,39 @@ import (
 )
 
 type dnsContextClient struct {
-	cancelMonitoring context.CancelFunc
-	chainContext     context.Context
-	monitorContext   context.Context
-	coreFilePath     string
-	getCallOptions   func() []grpc.CallOption
-	dnsConfigManager dnscontext.Manager
-	monitorClient    networkservice.MonitorConnectionClient
-	executor         serialize.Executor
+	cancelMonitoring    context.CancelFunc
+	chainContext        context.Context
+	monitorContext      context.Context
+	coreFilePath        string
+	resolveConfigPath   string
+	defaultNameServerIP string
+	monitorCallOptions  []grpc.CallOption
+	dnsConfigManager    dnscontext.Manager
+	monitorClient       networkservice.MonitorConnectionClient
+	executor            serialize.Executor
 }
 
 // NewClient creates a new DNS client chain component. Setups all DNS traffic to the localhost. Monitors DNS configs from connections.
-func NewClient(chainContext context.Context, coreFilePath, resolveConfigPath string, monitorClient networkservice.MonitorConnectionClient, getMonitorCallOptions func() []grpc.CallOption) networkservice.NetworkServiceClient {
+func NewClient(monitorClient networkservice.MonitorConnectionClient, options ...DNSOption) networkservice.NetworkServiceClient {
 	c := &dnsContextClient{
-		coreFilePath:     coreFilePath,
-		chainContext:     chainContext,
-		dnsConfigManager: dnscontext.NewManager(),
-		monitorClient:    monitorClient,
-		getCallOptions:   getMonitorCallOptions,
+		chainContext:        context.Background(),
+		dnsConfigManager:    dnscontext.NewManager(),
+		monitorClient:       monitorClient,
+		defaultNameServerIP: "127.0.0.1",
+		resolveConfigPath:   "/etc/resolv.conf",
+		coreFilePath:        "/etc/coredns/Corefile",
 	}
-	if r, err := dnscontext.OpenResolveConfig(resolveConfigPath); err != nil {
-		logrus.Errorf("DnsContextClient: can not load resolve config file. Path: %v. Error: %v", resolveConfigPath, err.Error())
+	for _, o := range options {
+		o.apply(c)
+	}
+	if r, err := dnscontext.OpenResolveConfig(c.resolveConfigPath); err != nil {
+		logrus.Errorf("DnsContextClient: can not load resolve config file. Path: %v. Error: %v", c.resolveConfigPath, err.Error())
 	} else {
 		c.dnsConfigManager.Store("", &networkservice.DNSConfig{
 			SearchDomains: r.Value(dnscontext.AnyDomain),
 			DnsServerIps:  r.Value(dnscontext.NameserverProperty),
 		})
-		r.SetValue(dnscontext.NameserverProperty, "127.0.0.1")
+		r.SetValue(dnscontext.NameserverProperty, c.defaultNameServerIP)
 		if err := r.Save(); err != nil {
 			logrus.Errorf("DnsContextClient: can not update resolve config file. Error: %v", err.Error())
 		}
@@ -71,7 +77,6 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 	if err != nil {
 		return nil, err
 	}
-	c.monitorContext, c.cancelMonitoring = context.WithCancel(c.chainContext)
 	c.executor.AsyncExec(c.monitorConfigs)
 	return rv, err
 }
@@ -86,8 +91,10 @@ func (c *dnsContextClient) Close(ctx context.Context, conn *networkservice.Conne
 }
 
 func (c *dnsContextClient) monitorConfigs() {
-	steam, err := c.monitorClient.MonitorConnections(c.monitorContext, &networkservice.MonitorScopeSelector{}, c.getCallOptions()...)
+	c.monitorContext, c.cancelMonitoring = context.WithCancel(c.chainContext)
+	steam, err := c.monitorClient.MonitorConnections(c.monitorContext, &networkservice.MonitorScopeSelector{}, c.monitorCallOptions...)
 	if err != nil {
+		logrus.Errorf("DnsContextClient: Can not start monitor connections: %v", err)
 		c.executor.AsyncExec(c.monitorConfigs)
 		return
 	}
@@ -109,13 +116,8 @@ func (c *dnsContextClient) monitorConfigs() {
 
 func (c *dnsContextClient) handleEvent(event *networkservice.ConnectionEvent) {
 	switch event.GetType() {
-	case networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER:
+	case networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER, networkservice.ConnectionEventType_UPDATE:
 		for k, v := range event.Connections {
-			c.dnsConfigManager.Store(k, v.GetContext().GetDnsContext().GetConfigs()...)
-		}
-	case networkservice.ConnectionEventType_UPDATE:
-		for k, v := range event.Connections {
-			c.dnsConfigManager.Remove(k)
 			c.dnsConfigManager.Store(k, v.GetContext().GetDnsContext().GetConfigs()...)
 		}
 	case networkservice.ConnectionEventType_DELETE:

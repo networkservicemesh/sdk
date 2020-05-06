@@ -19,6 +19,7 @@ package dnscontext_test
 import (
 	"context"
 	"io/ioutil"
+	"net"
 	"os"
 	"path"
 	"path/filepath"
@@ -45,9 +46,12 @@ nameserver 8.8.4.4
 search example.com`), os.ModePerm)
 	require.Nil(t, err)
 	eventCh := make(chan *networkservice.ConnectionEvent, 2)
-	client := chain.NewNetworkServiceClient(dnscontext.NewClient(context.Background(), corefilePath, resolveConfigPath, eventchannel.NewMonitorConnectionClient(eventCh), func() []grpc.CallOption {
-		return []grpc.CallOption{grpc.WaitForReady(true)}
-	}))
+	client := chain.NewNetworkServiceClient(dnscontext.NewClient(eventchannel.NewMonitorConnectionClient(eventCh),
+		dnscontext.WithCorefilePath(corefilePath),
+		dnscontext.WithResolveConfigPath(resolveConfigPath),
+		dnscontext.WithDefaultNameServerIP(net.IP{}),
+		dnscontext.WithChainContext(context.Background()),
+		dnscontext.WithMonitorCallOptions(grpc.WaitForReady(true))))
 	_, err = client.Request(context.Background(), &networkservice.NetworkServiceRequest{})
 	require.Nil(t, err)
 	eventCh <- &networkservice.ConnectionEvent{
@@ -91,9 +95,12 @@ nameserver 8.8.4.4
 search example.com`), os.ModePerm)
 	require.Nil(t, err)
 	eventCh := make(chan *networkservice.ConnectionEvent, 2)
-	client := chain.NewNetworkServiceClient(dnscontext.NewClient(context.Background(), corefilePath, resolveConfigPath, eventchannel.NewMonitorConnectionClient(eventCh), func() []grpc.CallOption {
-		return []grpc.CallOption{grpc.WaitForReady(true)}
-	}))
+	client := chain.NewNetworkServiceClient(dnscontext.NewClient(eventchannel.NewMonitorConnectionClient(eventCh),
+		dnscontext.WithCorefilePath(corefilePath),
+		dnscontext.WithResolveConfigPath(resolveConfigPath),
+		dnscontext.WithDefaultNameServerIP(net.IP{}),
+		dnscontext.WithChainContext(context.Background()),
+		dnscontext.WithMonitorCallOptions(grpc.WaitForReady(true))))
 	_, err = client.Request(context.Background(), &networkservice.NetworkServiceRequest{})
 	require.Nil(t, err)
 	eventCh <- &networkservice.ConnectionEvent{
