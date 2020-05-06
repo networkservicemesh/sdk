@@ -18,8 +18,11 @@
 package endpoint
 
 import (
+	"github.com/networkservicemesh/api/pkg/api"
 	"github.com/open-policy-agent/opa/rego"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
@@ -69,4 +72,10 @@ func NewServer(name string, authzPolicy *rego.PreparedEvalQuery, tokenGenerator 
 func (e *endpoint) Register(s *grpc.Server) {
 	networkservice.RegisterNetworkServiceServer(s, e)
 	networkservice.RegisterMonitorConnectionServer(s, e)
+	// Create GRPC Health Server:
+	healthServer := health.NewServer()
+	grpc_health_v1.RegisterHealthServer(s, healthServer)
+	for _, service := range api.ServiceNames(e) {
+		healthServer.SetServingStatus(service, grpc_health_v1.HealthCheckResponse_SERVING)
+	}
 }
