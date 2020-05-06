@@ -17,14 +17,14 @@
 package spire
 
 const (
-	spireAgentConfFilename = "/etc/nsm/spire/conf/agent/agent.conf"
-	spireEndpointSocket    = "/tmp/agent.sock"
+	spireAgentConfFilename = "agent/agent.conf"
+	spireEndpointSocket    = "agent.sock"
 	spireAgentConfContents = `agent {
-    data_dir = "./.data"
+    data_dir = "%[1]s/data"
     log_level = "WARN"
     server_address = "127.0.0.1"
     server_port = "8081"
-    socket_path =%q
+    socket_path = "%[1]s/%[2]s"
     insecure_bootstrap = true
     trust_domain = "example.org"
 }
@@ -36,7 +36,7 @@ plugins {
     }
     KeyManager "disk" {
         plugin_data {
-            directory = "./.data"
+            directory = "%[1]s/data"
         }
     }
     WorkloadAttestor "unix" {

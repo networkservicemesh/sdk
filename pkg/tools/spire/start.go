@@ -27,6 +27,9 @@ import (
 	"path"
 	"strings"
 
+	"github.com/sirupsen/logrus"
+	"github.com/spiffe/go-spiffe/workload"
+
 	"github.com/matryer/try"
 	"github.com/pkg/errors"
 
@@ -35,18 +38,15 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-const (
-	// SpiffeEndpointSocketEnv - environment variable used by spire by default to find the Spiffe Agent Endpoint Unix File Socket
-	SpiffeEndpointSocketEnv = "SPIFFE_ENDPOINT_SOCKET"
-)
-
 // AddEntry - adds an entry to the spire server for parentID, spiffeID, and selector
 //            parentID is usually the same as the agentID provided to Start()
 func AddEntry(ctx context.Context, parentID, spiffeID, selector string) error {
-	cmdStr := "spire-server entry create -parentID %s -spiffeID %s -selector %s"
-	cmdStr = fmt.Sprintf(cmdStr, parentID, spiffeID, selector)
+	cmdStr := "spire-server entry create -parentID %s -spiffeID %s -selector %s -registrationUDSPath %s/spire-registration.sock"
+	cmdStr = fmt.Sprintf(cmdStr, parentID, spiffeID, selector, spireRoot)
 	return executils.Run(log.WithField(ctx, "cmd", cmdStr), cmdStr)
 }
+
+var spireRoot string = ""
 
 // Start - start a spire-server and spire-agent with the given agentId
 func Start(ctx context.Context, agentID string) (context.Context, error) {
@@ -54,20 +54,33 @@ func Start(ctx context.Context, agentID string) (context.Context, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	ctx = errctx.WithErr(ctx)
 
+	var err error
+	spireRoot, err = ioutil.TempDir("", "spire")
+	if err != nil {
+		errctx.SetErr(ctx, err)
+		cancel()
+		return nil, err
+	}
+
 	// Write the config files (if not present)
-	if err := writeDefaultConfigFiles(ctx); err != nil {
+	var spireSocketPath string
+	spireSocketPath, err = writeDefaultConfigFiles(ctx, spireRoot)
+
+	if err != nil {
 		errctx.SetErr(ctx, err)
 		cancel()
 		return ctx, err
 	}
-	if err := os.Setenv(SpiffeEndpointSocketEnv, spireEndpointSocket); err != nil {
+	logrus.Infof("Env variable %s=%s are set", workload.SocketEnv, "unix:"+spireSocketPath)
+	if err = os.Setenv(workload.SocketEnv, "unix:"+spireSocketPath); err != nil {
 		errctx.SetErr(ctx, err)
 		cancel()
 		return ctx, err
 	}
 
 	// Start the Spire Server
-	spireServerCtx, err := executils.Start(ctx, "spire-server run -config "+spireServerConfFileName, executils.WithDir(spireRunDir))
+	spireCmd := fmt.Sprintf("spire-server run -config %s", path.Join(spireRoot, spireServerConfFileName))
+	spireServerCtx, err := executils.Start(ctx, spireCmd, executils.WithDir(spireRoot))
 	if err != nil {
 		errctx.SetErr(ctx, errors.Wrap(err, "Error starting spire-server"))
 		cancel()
@@ -76,7 +89,7 @@ func Start(ctx context.Context, agentID string) (context.Context, error) {
 
 	// Healthcheck the Spire Server
 	err = try.Do(func(attempts int) (bool, error) {
-		return attempts < 10, executils.Run(ctx, "spire-server healthcheck")
+		return attempts < 10, executils.Run(ctx, fmt.Sprintf("spire-server healthcheck -registrationUDSPath %s/spire-registration.sock", spireRoot))
 	})
 	if err != nil {
 		errctx.SetErr(ctx, errors.Wrap(err, "Error starting spire-server"))
@@ -85,8 +98,8 @@ func Start(ctx context.Context, agentID string) (context.Context, error) {
 	}
 
 	// Get the SpireServers Token
-	cmdStr := "spire-server token generate -spiffeID %s"
-	cmdStr = fmt.Sprintf(cmdStr, agentID)
+	cmdStr := "spire-server token generate -spiffeID %s -registrationUDSPath %s/spire-registration.sock"
+	cmdStr = fmt.Sprintf(cmdStr, agentID, spireRoot)
 	outputBytes, err := executils.Output(log.WithField(ctx, "cmd", cmdStr), cmdStr)
 	if err != nil {
 		errctx.SetErr(ctx, errors.Wrap(err, "Error acquiring spire-server token"))
@@ -97,7 +110,8 @@ func Start(ctx context.Context, agentID string) (context.Context, error) {
 	spireToken = strings.TrimSpace(spireToken)
 
 	// Start the Spire Agent
-	spireAgentCtx, err := executils.Start(log.WithField(ctx, "cmd", "spire-agent run"), "spire-agent run"+" -config "+spireAgentConfFilename+" -joinToken "+spireToken)
+	spireAgentCtx, err := executils.Start(log.WithField(ctx, "cmd", "spire-agent run"), "spire-agent run"+" -config "+spireAgentConfFilename+" -joinToken "+spireToken,
+		executils.WithDir(spireRoot))
 	if err != nil {
 		errctx.SetErr(ctx, errors.Wrap(err, "Error starting spire-agent"))
 		cancel()
@@ -106,7 +120,7 @@ func Start(ctx context.Context, agentID string) (context.Context, error) {
 
 	// Healthcheck the Spire Agent
 	err = try.Do(func(attempts int) (bool, error) {
-		cmdStr := "spire-agent healthcheck"
+		cmdStr := fmt.Sprintf("spire-agent healthcheck -socketPath %s", spireSocketPath)
 		return attempts < 10, executils.Run(log.WithField(ctx, "cmd", cmdStr), cmdStr)
 	})
 	if err != nil {
@@ -126,25 +140,30 @@ func Start(ctx context.Context, agentID string) (context.Context, error) {
 			cancel()
 		case <-ctx.Done():
 		}
+		// Remove spire temporary folder
+		_ = os.RemoveAll(spireRoot)
 	}()
 	return ctx, nil
 }
 
-func writeDefaultConfigFiles(ctx context.Context) error {
+// writeDefaultConfigFiles - write config files into configRoot and return a spire socket file to use
+func writeDefaultConfigFiles(ctx context.Context, spireRoot string) (string, error) {
+	spireSocketName := path.Join(spireRoot, spireEndpointSocket)
 	configFiles := map[string]string{
-		spireServerConfFileName: spireServerConfContents,
-		spireAgentConfFilename:  fmt.Sprintf(spireAgentConfContents, spireEndpointSocket),
+		spireServerConfFileName: fmt.Sprintf(spireServerConfContents, spireRoot, spireServerRegSock),
+		spireAgentConfFilename:  fmt.Sprintf(spireAgentConfContents, spireRoot, spireEndpointSocket),
 	}
-	for filename, contents := range configFiles {
+	for configName, contents := range configFiles {
+		filename := path.Join(spireRoot, configName)
 		if _, err := os.Stat(filename); os.IsNotExist(err) {
 			log.Entry(ctx).Infof("Configuration file: %q not found, using defaults", filename)
 			if err := os.MkdirAll(path.Dir(filename), 0700); err != nil {
-				return err
+				return "", err
 			}
-			if err := ioutil.WriteFile(filename, []byte(contents), 0600); err != nil {
-				return err
+			if err := ioutil.WriteFile(filename, []byte(contents), 0700); err != nil {
+				return "", err
 			}
 		}
 	}
-	return nil
+	return spireSocketName, nil
 }
