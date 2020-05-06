@@ -23,21 +23,16 @@ import (
 	"net/url"
 
 	"google.golang.org/grpc"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/errctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 const (
 	unixScheme = "unix"
 )
 
-// ListenAndServe listens on address with server.  Returns a context which will be canceled in the event that
-// server.Serve(listener) returns an error.  The resulting error can then be retrieve from the returned context with.
-// grpcutils.Err(ctx)
-func ListenAndServe(ctx context.Context, address *url.URL, server *grpc.Server) context.Context {
-	ctx, cancel := context.WithCancel(ctx)
-	ctx = errctx.WithErr(ctx)
+// ListenAndServe listens on address with server.  Returns an chan err  which will
+// receive an error and then be closed in the event that server.Serve(listener) returns an error.
+func ListenAndServe(ctx context.Context, address *url.URL, server *grpc.Server) <-chan error {
+	errCh := make(chan error, 1)
 
 	// Serve
 	go func() {
@@ -45,7 +40,9 @@ func ListenAndServe(ctx context.Context, address *url.URL, server *grpc.Server) 
 		network, target := urlToNetworkTarget(address)
 		ln, err := net.Listen(network, target)
 		if err != nil {
-			log.Entry(ctx).Fatalf("failed to listen on %q: %v", address, err)
+			errCh <- err
+			close(errCh)
+			return
 		}
 		defer func() {
 			_ = ln.Close()
@@ -54,11 +51,11 @@ func ListenAndServe(ctx context.Context, address *url.URL, server *grpc.Server) 
 		select {
 		case <-ctx.Done():
 		default:
-			errctx.SetErr(ctx, err)
-			cancel()
+			errCh <- err
+			close(errCh)
 		}
 	}()
-	return ctx
+	return errCh
 }
 
 func urlToNetworkTarget(u *url.URL) (network, target string) {
