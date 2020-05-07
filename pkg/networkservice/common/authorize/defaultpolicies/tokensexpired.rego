@@ -2,13 +2,13 @@
 
 package defaultpolicies
 
-default no_any_expired_tokens = false
+default no_tokens_expired = false
 
-no_any_expired_tokens {
-    not any_expired_tokens
+no_tokens_expired {
+    not tokens_expired
 }
 
-any_expired_tokens {
+tokens_expired {
     token := input.connection.path.path_segments[_].token
     [_, payload, _] := io.jwt.decode(token) #get jwt claims
     now > payload.exp

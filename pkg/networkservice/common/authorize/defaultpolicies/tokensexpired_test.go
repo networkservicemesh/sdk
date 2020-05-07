@@ -65,7 +65,7 @@ func TestNoTokensExpiredPolicy(t *testing.T){
 	require.Nil(t, err)
 
 	p, err := rego.New(
-		rego.Query("data.defaultpolicies.no_any_expired_tokens"),
+		rego.Query("data.defaultpolicies.no_tokens_expired"),
 		rego.Module("tokensexpired.rego", string(policyBytes))).PrepareForEval(context.Background())
 	require.Nilf(t, err, "failed to create new rego policy: %v", err)
 
