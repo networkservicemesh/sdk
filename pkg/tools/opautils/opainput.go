@@ -78,13 +78,14 @@ func PreparedOpaInput(connection *networkservice.Connection, authInfo credential
 
 	cert := parseX509Cert(authInfo)
 
-	spiffeID, err := spiffeutils.SpiffeIDFromX509(cert)
-	if err != nil {
-		return nil, err
+	var spiffeID, pemcert string
+	if cert != nil {
+		spiffeID, err = spiffeutils.SpiffeIDFromX509(cert)
+		if err != nil {
+			return nil, err
+		}
+		pemcert = pemEncodingX509Cert(cert)
 	}
-
-	pemcert := pemEncodingX509Cert(cert)
-
 	rv := map[string]interface{}{
 		"connection": connectionAsMap,
 		"auth_info": map[string]interface{}{
