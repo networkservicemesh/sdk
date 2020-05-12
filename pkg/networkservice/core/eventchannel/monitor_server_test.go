@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Cisco and/or its affiliates.
 //
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,6 +23,8 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/assert"
@@ -72,7 +76,7 @@ func TestMonitorConnectionServer_MonitorConnections(t *testing.T) {
 
 	eventMonitorStartCh := make(chan int, numEvents)
 
-	server := eventchannel.NewMonitorServer(eventCh, eventMonitorStartCh)
+	server := eventchannel.NewMonitorServer(eventCh, eventchannel.WithConnectChannel(eventMonitorStartCh))
 
 	for i := 0; i < numSenders; i++ {
 		var senderCtx context.Context
@@ -85,11 +89,15 @@ func TestMonitorConnectionServer_MonitorConnections(t *testing.T) {
 			assert.Nil(t, err)
 		}()
 	}
+	deadline := time.After(time.Second)
+	var connectionCount int
 	// Give all the go functions calling server.MonitorConnections(selector,sender) a chance to run
-	for {
-		c := <-eventMonitorStartCh
-		if c == numSenders {
+	for connectionCount != numSenders {
+		select {
+		case connectionCount = <-eventMonitorStartCh:
 			break
+		case <-deadline:
+			require.Failf(t, "Deadline has been reached", "Actual: %v, Expected: %v.", connectionCount, numSenders)
 		}
 	}
 
