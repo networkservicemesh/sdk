@@ -89,18 +89,8 @@ func TestMonitorConnectionServer_MonitorConnections(t *testing.T) {
 			assert.Nil(t, err)
 		}()
 	}
-	deadline := time.After(time.Second)
-	var connectionCount int
 	// Give all the go functions calling server.MonitorConnections(selector,sender) a chance to run
-	for connectionCount != numSenders {
-		select {
-		case connectionCount = <-eventMonitorStartCh:
-			break
-		case <-deadline:
-			require.Failf(t, "Deadline has been reached", "Actual: %v, Expected: %v.", connectionCount, numSenders)
-		}
-	}
-
+	requireConnectionCount(t, numSenders, eventMonitorStartCh)
 	senderCancelFunc[numSenders-1]()
 	eventsIn := make([]*networkservice.ConnectionEvent, numEvents)
 	for i := 0; i < numEvents; i++ {
@@ -129,6 +119,18 @@ func TestMonitorConnectionServer_MonitorConnections(t *testing.T) {
 		err := server.MonitorConnections(&networkservice.MonitorScopeSelector{}, srv)
 		if err != nil {
 			break
+		}
+	}
+}
+
+func requireConnectionCount(t *testing.T, expected int, ch <-chan int) {
+	deadlineCh := time.After(time.Second)
+	var connectionCount int
+	for connectionCount != expected {
+		select {
+		case connectionCount = <-ch:
+		case <-deadlineCh:
+			require.Failf(t, "Deadline has been reached", "Actual: %v, Expected: %v.", connectionCount, numSenders)
 		}
 	}
 }
