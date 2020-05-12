@@ -21,22 +21,22 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"google.golang.org/grpc"
 )
 
-// tailRegistryClient is a simple implementation of registry.NetworkServiceRegistryClient that is called at the end
+// tailNetworkServiceRegistryServer is a simple implementation of registry.NetworkServiceRegistryServer that is called at the end
 // of a chain to ensure that we never call a method on a nil object
-type tailRegistryClient struct{}
+type tailNetworkServiceRegistryServer struct{}
 
-func (n *tailRegistryClient) RegisterNSE(ctx context.Context, request *registry.NSERegistration, opts ...grpc.CallOption) (*registry.NSERegistration, error) {
+func (n *tailNetworkServiceRegistryServer) RegisterNSE(_ context.Context, request *registry.NSERegistration) (*registry.NSERegistration, error) {
 	return request, nil
 }
 
-func (n *tailRegistryClient) BulkRegisterNSE(ctx context.Context, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_BulkRegisterNSEClient, error) {
-	// TODO implement it
-	return nil, nil
+func (n *tailNetworkServiceRegistryServer) BulkRegisterNSE(_ registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
+	return nil
 }
 
-func (n *tailRegistryClient) RemoveNSE(ctx context.Context, request *registry.RemoveNSERequest, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (n *tailNetworkServiceRegistryServer) RemoveNSE(_ context.Context, _ *registry.RemoveNSERequest) (*empty.Empty, error) {
 	return &empty.Empty{}, nil
 }
+
+var _ registry.NetworkServiceRegistryServer = &tailNetworkServiceRegistryServer{}

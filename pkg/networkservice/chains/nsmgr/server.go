@@ -63,7 +63,7 @@ func NewServer(name string, authzPolicy *rego.PreparedEvalQuery, tokenGenerator 
 		localbypass.NewServer(&rv.NetworkServiceRegistryServer),
 		connect.NewServer(client.NewClientFactory(name, addressof.NetworkServiceClient(adapters.NewServerToClient(rv)), tokenGenerator)),
 	)
-	rv.NetworkServiceRegistryServer = chain_registry.NewRegistryServer(
+	rv.NetworkServiceRegistryServer = chain_registry.NewNetworkServiceRegistryServer(
 		rv.NetworkServiceRegistryServer,
 		adapter_registry.NewRegistryClientToServer(registry.NewNetworkServiceRegistryClient(registryCC)),
 	)

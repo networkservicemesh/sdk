@@ -40,15 +40,15 @@ func visitRegistryClient() registry.NetworkServiceRegistryClient {
 }
 
 func (t *testVisitRegistryClient) RegisterNSE(ctx context.Context, r *registry.NSERegistration, _ ...grpc.CallOption) (*registry.NSERegistration, error) {
-	return next.RegistryClient(visit(ctx)).RegisterNSE(ctx, r)
+	return next.NetworkServiceRegistryClient(visit(ctx)).RegisterNSE(ctx, r)
 }
 
 func (t *testVisitRegistryClient) BulkRegisterNSE(ctx context.Context, _ ...grpc.CallOption) (registry.NetworkServiceRegistry_BulkRegisterNSEClient, error) {
-	return next.RegistryClient(visit(ctx)).BulkRegisterNSE(ctx)
+	return next.NetworkServiceRegistryClient(visit(ctx)).BulkRegisterNSE(ctx)
 }
 
 func (t *testVisitRegistryClient) RemoveNSE(ctx context.Context, r *registry.RemoveNSERequest, _ ...grpc.CallOption) (*empty.Empty, error) {
-	return next.RegistryClient(visit(ctx)).RemoveNSE(ctx, r)
+	return next.NetworkServiceRegistryClient(visit(ctx)).RemoveNSE(ctx, r)
 }
 
 type testEmptyRegistryClient struct{}
@@ -71,7 +71,7 @@ func emptyRegistryClient() registry.NetworkServiceRegistryClient {
 
 func TestNewRegistryClientShouldNotPanic(t *testing.T) {
 	assert.NotPanics(t, func() {
-		_, _ = next.NewRegistryClient().RegisterNSE(context.Context(nil), nil)
+		_, _ = next.NewNetworkServiceRegistryClient().RegisterNSE(context.Context(nil), nil)
 	})
 }
 
@@ -93,7 +93,7 @@ func TestRegistryClientBranches(t *testing.T) {
 	expects := []int{1, 2, 3, 0, 1, 2, 1, 2, 3, 3, 1, 2}
 	for i, sample := range samples {
 		msg := fmt.Sprintf("sample index: %v", i)
-		s := next.NewRegistryClient(sample...)
+		s := next.NewNetworkServiceRegistryClient(sample...)
 
 		ctx := visit(context.Background())
 		_, _ = s.RegisterNSE(ctx, nil)

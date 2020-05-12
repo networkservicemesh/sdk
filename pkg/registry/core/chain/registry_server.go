@@ -25,7 +25,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/trace"
 )
 
-// NewRegistryServer - chains together servers with chaining
-func NewRegistryServer(servers ...registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
-	return next.NewWrappedRegistryServer(trace.NewRegistryServer, servers...)
+// NewNetworkServiceRegistryServer - chains together servers with chaining
+func NewNetworkServiceRegistryServer(servers ...registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
+	return next.NewWrappedNetworkServiceRegistryServer(trace.NewNetworkServiceRegistryServer, servers...)
 }

@@ -50,7 +50,7 @@ type localBypassServer struct {
 //                        so it can capture the registrations.
 func NewServer(registryServer *registry.NetworkServiceRegistryServer) networkservice.NetworkServiceServer {
 	rv := &localBypassServer{}
-	*registryServer = localbypass.NewRegistryServer(rv)
+	*registryServer = localbypass.NewNetworkServiceRegistryServer(rv)
 	return rv
 }
 
