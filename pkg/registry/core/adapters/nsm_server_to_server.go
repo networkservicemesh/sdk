@@ -14,27 +14,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package next
+package adapters
 
 import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"google.golang.org/grpc"
+
 	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
-// tailRegistryServer is a simple implementation of registry.NetworkServiceRegistryServer that is called at the end
-// of a chain to ensure that we never call a method on a nil object
-type tailRegistryServer struct{}
-
-func (n *tailRegistryServer) RegisterNSE(ctx context.Context, request *registry.NSERegistration) (*registry.NSERegistration, error) {
-	return request, nil
+type nsmServerToClient struct {
+	server registry.NsmRegistryServer
 }
 
-func (n *tailRegistryServer) BulkRegisterNSE(srv registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
-	return nil
+func (n *nsmServerToClient) RegisterNSM(ctx context.Context, in *registry.NetworkServiceManager, opts ...grpc.CallOption) (*registry.NetworkServiceManager, error) {
+	return n.server.RegisterNSM(ctx, in)
 }
 
-func (n *tailRegistryServer) RemoveNSE(ctx context.Context, request *registry.RemoveNSERequest) (*empty.Empty, error) {
-	return &empty.Empty{}, nil
+func (n *nsmServerToClient) GetEndpoints(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*registry.NetworkServiceEndpointList, error) {
+	return n.server.GetEndpoints(ctx, in)
+}
+
+// NewNSMServerToClient - returns a registry.NsmRegistryClient wrapped around the supplied server
+func NewNSMServerToClient(client registry.NsmRegistryServer) registry.NsmRegistryClient {
+	return &nsmServerToClient{server: client}
 }

@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Cisco Systems, Inc.
 //
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,29 +33,35 @@ type DiscoveryClientWrapper func(client registry.NetworkServiceDiscoveryClient) 
 type DiscoveryClientChainer func(clients ...registry.NetworkServiceDiscoveryClient) registry.NetworkServiceDiscoveryClient
 
 type nextDiscoveryClient struct {
-	index   int
-	clients []registry.NetworkServiceDiscoveryClient
+	index      int
+	clients    []registry.NetworkServiceDiscoveryClient
+	nextParent registry.NetworkServiceDiscoveryClient
 }
 
 // NewWrappedDiscoveryClient chains together clients with wrapper wrapped around each one
 func NewWrappedDiscoveryClient(wrapper DiscoveryClientWrapper, clients ...registry.NetworkServiceDiscoveryClient) registry.NetworkServiceDiscoveryClient {
-	rv := &nextDiscoveryClient{
-		clients: clients,
-	}
-	for i := range rv.clients {
-		rv.clients[i] = wrapper(rv.clients[i])
+	rv := &nextDiscoveryClient{clients: make([]registry.NetworkServiceDiscoveryClient, 0, len(clients))}
+	for _, c := range clients {
+		rv.clients = append(rv.clients, wrapper(c))
 	}
 	return rv
 }
 
 // NewDiscoveryClient - chains together clients into a single registry.NetworkServiceDiscoveryClient
 func NewDiscoveryClient(clients []registry.NetworkServiceDiscoveryClient) registry.NetworkServiceDiscoveryClient {
-	return NewWrappedDiscoveryClient(nil, clients...)
+	return NewWrappedDiscoveryClient(func(client registry.NetworkServiceDiscoveryClient) registry.NetworkServiceDiscoveryClient {
+		return client
+	}, clients...)
 }
 
 func (n *nextDiscoveryClient) FindNetworkService(ctx context.Context, request *registry.FindNetworkServiceRequest, opts ...grpc.CallOption) (*registry.FindNetworkServiceResponse, error) {
-	if n.index+1 < len(n.clients) {
-		return n.clients[n.index].FindNetworkService(withNextDiscoveryClient(ctx, &nextDiscoveryClient{clients: n.clients, index: n.index + 1}), request, opts...)
+	if n.index == 0 && ctx != nil {
+		if nextParent := DiscoveryClient(ctx); nextParent != nil {
+			n.nextParent = nextParent
+		}
 	}
-	return n.clients[n.index].FindNetworkService(withNextDiscoveryClient(ctx, nil), request, opts...)
+	if n.index+1 < len(n.clients) {
+		return n.clients[n.index].FindNetworkService(withNextDiscoveryClient(ctx, &nextDiscoveryClient{nextParent: n.nextParent, clients: n.clients, index: n.index + 1}), request, opts...)
+	}
+	return n.clients[n.index].FindNetworkService(withNextDiscoveryClient(ctx, n.nextParent), request, opts...)
 }

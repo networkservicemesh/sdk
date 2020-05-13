@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
-//
 // Copyright (c) 2020 Cisco Systems, Inc.
+//
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -65,7 +65,7 @@ func visitRegistryServer() registry.NetworkServiceRegistryServer {
 }
 
 func (t *testVisitRegistryServer) RegisterNSE(ctx context.Context, r *registry.NSERegistration) (*registry.NSERegistration, error) {
-	return next.RegistryServer(visit(ctx)).RegisterNSE(ctx, r)
+	return next.NetworkServiceRegistryServer(visit(ctx)).RegisterNSE(ctx, r)
 }
 
 func (t *testVisitRegistryServer) BulkRegisterNSE(registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
@@ -73,7 +73,7 @@ func (t *testVisitRegistryServer) BulkRegisterNSE(registry.NetworkServiceRegistr
 }
 
 func (t *testVisitRegistryServer) RemoveNSE(ctx context.Context, r *registry.RemoveNSERequest) (*empty.Empty, error) {
-	return next.RegistryServer(visit(ctx)).RemoveNSE(ctx, r)
+	return next.NetworkServiceRegistryServer(visit(ctx)).RemoveNSE(ctx, r)
 }
 
 type testEmptyRegistryServer struct{}
@@ -96,7 +96,7 @@ func emptyRegistryServer() registry.NetworkServiceRegistryServer {
 
 func TestNewRegistryServerShouldNotPanic(t *testing.T) {
 	assert.NotPanics(t, func() {
-		_, _ = next.NewRegistryServer().RegisterNSE(context.Context(nil), nil)
+		_, _ = next.NewNetworkServiceRegistryServer().RegisterNSE(context.Context(nil), nil)
 	})
 }
 
@@ -117,7 +117,7 @@ func TestServerBranches(t *testing.T) {
 	}
 	expects := []int{1, 2, 3, 0, 1, 2, 1, 2, 3, 3, 1, 2}
 	for i, sample := range servers {
-		s := next.NewRegistryServer(sample...)
+		s := next.NewNetworkServiceRegistryServer(sample...)
 
 		ctx := visit(context.Background())
 		_, _ = s.RegisterNSE(ctx, nil)

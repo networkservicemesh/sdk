@@ -32,8 +32,8 @@ type traceRegistryServer struct {
 	traced registry.NetworkServiceRegistryServer
 }
 
-// NewRegistryServer - wraps the provided registry.NetworkServiceRegistryServer in tracing
-func NewRegistryServer(traced registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
+// NewNetworkServiceRegistryServer - wraps the provided registry.NetworkServiceRegistryServer in tracing
+func NewNetworkServiceRegistryServer(traced registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
 	return &traceRegistryServer{traced: traced}
 }
 

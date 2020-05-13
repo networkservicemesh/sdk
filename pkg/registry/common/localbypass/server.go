@@ -36,10 +36,10 @@ type localBypassRegistry struct {
 	sockets localbypass.SocketMap
 }
 
-// NewRegistryServer - creates a NetworkServiceRegistryServer that registers local Endpoints
+// NewNetworkServiceRegistryServer - creates a NetworkServiceRegistryServer that registers local Endpoints
 //				and adds them to localbypass.SocketMap
 //             - sockets - map of networkServiceEndpoint names to their unix socket addresses
-func NewRegistryServer(sockets localbypass.SocketMap) registry.NetworkServiceRegistryServer {
+func NewNetworkServiceRegistryServer(sockets localbypass.SocketMap) registry.NetworkServiceRegistryServer {
 	return &localBypassRegistry{sockets: sockets}
 }
 
@@ -52,16 +52,16 @@ func (n *localBypassRegistry) RegisterNSE(ctx context.Context, request *registry
 		}
 		n.sockets.LoadOrStore(request.GetNetworkServiceEndpoint().GetName(), u)
 	}
-	return next.RegistryServer(ctx).RegisterNSE(ctx, request)
+	return next.NetworkServiceRegistryServer(ctx).RegisterNSE(ctx, request)
 }
 
 func (n *localBypassRegistry) BulkRegisterNSE(server registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
-	return next.RegistryServer(server.Context()).BulkRegisterNSE(server)
+	return next.NetworkServiceRegistryServer(server.Context()).BulkRegisterNSE(server)
 }
 
 func (n *localBypassRegistry) RemoveNSE(ctx context.Context, request *registry.RemoveNSERequest) (*empty.Empty, error) {
 	if n.sockets != nil {
 		n.sockets.Delete(request.GetNetworkServiceEndpointName())
 	}
-	return next.RegistryServer(ctx).RemoveNSE(ctx, request)
+	return next.NetworkServiceRegistryServer(ctx).RemoveNSE(ctx, request)
 }
