@@ -21,8 +21,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/repository"
 	"github.com/stretchr/testify/require"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/repository"
 )
 
 func TestRepository_PutAndGet(t *testing.T) {

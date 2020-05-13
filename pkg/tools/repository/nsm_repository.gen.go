@@ -22,13 +22,14 @@ package repository
 
 import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
 )
 
 type memoryRegistryNetworkServiceManagerRepository struct {
 	items map[string]*registry.NetworkServiceManager
 	serialize.Executor
-	getId func(*registry.NetworkServiceManager) string
+	getID func(*registry.NetworkServiceManager) string
 }
 
 func (g *memoryRegistryNetworkServiceManagerRepository) Get(id string) *registry.NetworkServiceManager {
@@ -40,13 +41,13 @@ func (g *memoryRegistryNetworkServiceManagerRepository) Get(id string) *registry
 }
 
 func (g *memoryRegistryNetworkServiceManagerRepository) Put(item *registry.NetworkServiceManager) {
-	<-g.AsyncExec(func() {
-		g.items[g.getId(item)] = item
+	g.AsyncExec(func() {
+		g.items[g.getID(item)] = item
 	})
 }
 
 func (g *memoryRegistryNetworkServiceManagerRepository) Delete(id string) {
-	<-g.AsyncExec(func() {
+	g.AsyncExec(func() {
 		delete(g.items, id)
 	})
 }
@@ -69,18 +70,26 @@ func (g *memoryRegistryNetworkServiceManagerRepository) GetAllByFilter(filter fu
 	return items
 }
 
+// RegistryNetworkServiceManagerRepository represents API for registry.NetworkServiceManager resources
 type RegistryNetworkServiceManagerRepository interface {
+	// AsyncExec execs specific func synchronized with RegistryNetworkServiceManagerRepository
 	AsyncExec(f func()) <-chan struct{}
+	// Get gets registry.NetworkServiceManager by identity
 	Get(string) *registry.NetworkServiceManager
+	// Put stores registry.NetworkServiceManager
 	Put(*registry.NetworkServiceManager)
+	// Delete deletes registry.NetworkServiceManager by identity
 	Delete(string)
+	// GetAll gets all RegistryNetworkServiceManagers
 	GetAll() []*registry.NetworkServiceManager
+	// GetAllByFilter gets all RegistryNetworkServiceManagers by specific criterion
 	GetAllByFilter(func(service *registry.NetworkServiceManager) bool) []*registry.NetworkServiceManager
 }
 
-func NewRegistryNetworkServiceManagerMemoryRepository(getId func(*registry.NetworkServiceManager) string) RegistryNetworkServiceManagerRepository {
+// NewRegistryNetworkServiceManagerMemoryRepository creates new instance of RegistryNetworkServiceManagerRepository with specific identity func
+func NewRegistryNetworkServiceManagerMemoryRepository(getID func(*registry.NetworkServiceManager) string) RegistryNetworkServiceManagerRepository {
 	return &memoryRegistryNetworkServiceManagerRepository{
-		getId: getId,
+		getID: getID,
 		items: map[string]*registry.NetworkServiceManager{},
 	}
 }

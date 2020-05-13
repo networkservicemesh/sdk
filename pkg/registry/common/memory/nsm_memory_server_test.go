@@ -22,14 +22,15 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/stretchr/testify/require"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/stretchr/testify/require"
 )
 
 func TestNsmMemoryNetworkServerRegistry_RegisterNSM(t *testing.T) {
-	m := memory.NewMemory()
-	s := next.NewNSMRegistryServer(memory.NewNsmRegistryServer(m, "nsm-1"))
+	m := memory.NewMemoryResourceClient()
+	s := next.NewNSMRegistryServer(memory.NewNSMRegistryServer(m, "nsm-1"))
 	nsm, err := s.RegisterNSM(context.Background(), &registry.NetworkServiceManager{})
 	require.Nil(t, err)
 	require.NotNil(t, nsm)
@@ -37,7 +38,7 @@ func TestNsmMemoryNetworkServerRegistry_RegisterNSM(t *testing.T) {
 }
 
 func TestNsmMemoryNetworkServerRegistry_GetEndpoints(t *testing.T) {
-	m := memory.NewMemory()
+	m := memory.NewMemoryResourceClient()
 	nsm := &registry.NetworkServiceManager{
 		Name: "nsm-1",
 	}
@@ -58,7 +59,7 @@ func TestNsmMemoryNetworkServerRegistry_GetEndpoints(t *testing.T) {
 		m.NetworkServiceEndpoints().Put(e)
 	}
 
-	s := next.NewNSMRegistryServer(memory.NewNsmRegistryServer(m, "nsm-1"))
+	s := next.NewNSMRegistryServer(memory.NewNSMRegistryServer(m, "nsm-1"))
 	list, err := s.GetEndpoints(context.Background(), new(empty.Empty))
 	require.Nil(t, err)
 	require.NotNil(t, list)

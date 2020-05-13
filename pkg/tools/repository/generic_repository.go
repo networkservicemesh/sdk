@@ -18,15 +18,17 @@ package repository
 
 import (
 	"github.com/cheekybits/genny/generic"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
 )
 
+// Generic is an abstract model for repository
 type Generic generic.Type
 
 type memoryGenericRepository struct {
 	items map[string]*Generic
 	serialize.Executor
-	getId func(*Generic) string
+	getID func(*Generic) string
 }
 
 func (g *memoryGenericRepository) Get(id string) *Generic {
@@ -38,13 +40,13 @@ func (g *memoryGenericRepository) Get(id string) *Generic {
 }
 
 func (g *memoryGenericRepository) Put(item *Generic) {
-	<-g.AsyncExec(func() {
-		g.items[g.getId(item)] = item
+	g.AsyncExec(func() {
+		g.items[g.getID(item)] = item
 	})
 }
 
 func (g *memoryGenericRepository) Delete(id string) {
-	<-g.AsyncExec(func() {
+	g.AsyncExec(func() {
 		delete(g.items, id)
 	})
 }
@@ -67,18 +69,26 @@ func (g *memoryGenericRepository) GetAllByFilter(filter func(service *Generic) b
 	return items
 }
 
+// GenericRepository represents API for Generic resources
 type GenericRepository interface {
+	// AsyncExec execs specific func synchronized with GenericRepository
 	AsyncExec(f func()) <-chan struct{}
+	// Get gets Generic by identity
 	Get(string) *Generic
+	// Put stores Generic
 	Put(*Generic)
+	// Delete deletes Generic by identity
 	Delete(string)
+	// GetAll gets all Generics
 	GetAll() []*Generic
+	// GetAllByFilter gets all Generics by specific criterion
 	GetAllByFilter(func(service *Generic) bool) []*Generic
 }
 
-func NewGenericMemoryRepository(getId func(*Generic) string) GenericRepository {
+// NewGenericMemoryRepository creates new instance of GenericRepository with specific identity func
+func NewGenericMemoryRepository(getID func(*Generic) string) GenericRepository {
 	return &memoryGenericRepository{
-		getId: getId,
+		getID: getID,
 		items: map[string]*Generic{},
 	}
 }

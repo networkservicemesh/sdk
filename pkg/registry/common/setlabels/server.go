@@ -21,12 +21,14 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
 type setLabels struct {
 }
 
+// NewServer creates new instance of NetworkServiceRegistryServer with setting networkservicename label
 func NewServer() registry.NetworkServiceRegistryServer {
 	return &setLabels{}
 }

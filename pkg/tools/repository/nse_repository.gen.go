@@ -22,13 +22,14 @@ package repository
 
 import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
 )
 
 type memoryRegistryNetworkServiceEndpointRepository struct {
 	items map[string]*registry.NetworkServiceEndpoint
 	serialize.Executor
-	getId func(*registry.NetworkServiceEndpoint) string
+	getID func(*registry.NetworkServiceEndpoint) string
 }
 
 func (g *memoryRegistryNetworkServiceEndpointRepository) Get(id string) *registry.NetworkServiceEndpoint {
@@ -41,7 +42,7 @@ func (g *memoryRegistryNetworkServiceEndpointRepository) Get(id string) *registr
 
 func (g *memoryRegistryNetworkServiceEndpointRepository) Put(item *registry.NetworkServiceEndpoint) {
 	g.AsyncExec(func() {
-		g.items[g.getId(item)] = item
+		g.items[g.getID(item)] = item
 	})
 }
 
@@ -69,18 +70,26 @@ func (g *memoryRegistryNetworkServiceEndpointRepository) GetAllByFilter(filter f
 	return items
 }
 
+// RegistryNetworkServiceEndpointRepository represents API for registry.NetworkServiceEndpoint resources
 type RegistryNetworkServiceEndpointRepository interface {
+	// AsyncExec execs specific func synchronized with RegistryNetworkServiceEndpointRepository
 	AsyncExec(f func()) <-chan struct{}
+	// Get gets registry.NetworkServiceEndpoint by identity
 	Get(string) *registry.NetworkServiceEndpoint
+	// Put stores registry.NetworkServiceEndpoint
 	Put(*registry.NetworkServiceEndpoint)
+	// Delete deletes registry.NetworkServiceEndpoint by identity
 	Delete(string)
+	// GetAll gets all RegistryNetworkServiceEndpoints
 	GetAll() []*registry.NetworkServiceEndpoint
+	// GetAllByFilter gets all RegistryNetworkServiceEndpoints by specific criterion
 	GetAllByFilter(func(service *registry.NetworkServiceEndpoint) bool) []*registry.NetworkServiceEndpoint
 }
 
-func NewRegistryNetworkServiceEndpointMemoryRepository(getId func(*registry.NetworkServiceEndpoint) string) RegistryNetworkServiceEndpointRepository {
+// NewRegistryNetworkServiceEndpointMemoryRepository creates new instance of RegistryNetworkServiceEndpointRepository with specific identity func
+func NewRegistryNetworkServiceEndpointMemoryRepository(getID func(*registry.NetworkServiceEndpoint) string) RegistryNetworkServiceEndpointRepository {
 	return &memoryRegistryNetworkServiceEndpointRepository{
-		getId: getId,
+		getID: getID,
 		items: map[string]*registry.NetworkServiceEndpoint{},
 	}
 }

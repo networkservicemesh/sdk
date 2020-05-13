@@ -163,6 +163,13 @@ issues:
       linters:
         - gocritic
       text: "ptrToRefParam"
+    - path: pkg/tools/repository/generic_repository.go
+      linters:
+        - gocritic
+      text: "ptrToRefParam"
+    - path: \.gen\.go
+      linters:
+        - dupl
     - path: pkg/networkservice/common/timeout/server.go
       linters:
         - gocritic

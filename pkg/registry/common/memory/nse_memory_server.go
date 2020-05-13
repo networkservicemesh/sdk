@@ -21,13 +21,14 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/pkg/errors"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
 type memoryNetworkServeRegistry struct {
-	memory  Memory
-	nsmName string
+	resourceClient ResourcesClient
+	nsmName        string
 }
 
 func (m *memoryNetworkServeRegistry) RegisterNSE(ctx context.Context, registration *registry.NSERegistration) (*registry.NSERegistration, error) {
@@ -36,9 +37,9 @@ func (m *memoryNetworkServeRegistry) RegisterNSE(ctx context.Context, registrati
 	}
 	registration.NetworkServiceEndpoint.State = "RUNNING"
 	registration.NetworkServiceEndpoint.NetworkServiceManagerName = m.nsmName
-	registration.NetworkServiceManager = m.memory.NetworkServiceManagers().Get(m.nsmName)
-	m.memory.NetworkServiceEndpoints().Put(registration.NetworkServiceEndpoint)
-	m.memory.NetworkServices().Put(registration.NetworkService)
+	registration.NetworkServiceManager = m.resourceClient.NetworkServiceManagers().Get(m.nsmName)
+	m.resourceClient.NetworkServiceEndpoints().Put(registration.NetworkServiceEndpoint)
+	m.resourceClient.NetworkServices().Put(registration.NetworkService)
 	return next.NetworkServiceRegistryServer(ctx).RegisterNSE(ctx, registration)
 }
 
@@ -47,14 +48,15 @@ func (m *memoryNetworkServeRegistry) BulkRegisterNSE(s registry.NetworkServiceRe
 }
 
 func (m *memoryNetworkServeRegistry) RemoveNSE(ctx context.Context, req *registry.RemoveNSERequest) (*empty.Empty, error) {
-	m.memory.NetworkServiceEndpoints().Delete(req.NetworkServiceEndpointName)
+	m.resourceClient.NetworkServiceEndpoints().Delete(req.NetworkServiceEndpointName)
 	return next.NetworkServiceRegistryServer(ctx).RemoveNSE(ctx, req)
 }
 
-func NewNetworkServiceRegistryServer(nsmName string, memory Memory) registry.NetworkServiceRegistryServer {
+// NewNetworkServiceRegistryServer returns new NetworkServiceRegistryServer based on specific resource client
+func NewNetworkServiceRegistryServer(nsmName string, resourceClient ResourcesClient) registry.NetworkServiceRegistryServer {
 	return &memoryNetworkServeRegistry{
-		nsmName: nsmName,
-		memory:  memory,
+		nsmName:        nsmName,
+		resourceClient: resourceClient,
 	}
 }
 

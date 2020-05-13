@@ -24,7 +24,7 @@ import (
 )
 
 type memoryServiceDiscoveryServer struct {
-	memory Memory
+	memory ResourcesClient
 }
 
 func (d *memoryServiceDiscoveryServer) FindNetworkService(ctx context.Context, req *registry.FindNetworkServiceRequest) (*registry.FindNetworkServiceResponse, error) {
@@ -52,9 +52,10 @@ func (d *memoryServiceDiscoveryServer) FindNetworkService(ctx context.Context, r
 	}, nil
 }
 
-func NewNetworkServiceDiscoveryServer(memory Memory) registry.NetworkServiceDiscoveryServer {
+// NewNetworkServiceDiscoveryServer returns new instance of NetworkServiceDiscoveryServer based on resource client
+func NewNetworkServiceDiscoveryServer(resourceClient ResourcesClient) registry.NetworkServiceDiscoveryServer {
 	return &memoryServiceDiscoveryServer{
-		memory: memory,
+		memory: resourceClient,
 	}
 }
 

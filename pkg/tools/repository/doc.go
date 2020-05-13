@@ -14,8 +14,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package repository provides memory based repositories for NSM resources
 package repository
-
-//go:generate genny -in=generic_repository.go -out=nse_repository.gen.go gen "Generic=registry.NetworkServiceEndpoint"
-//go:generate genny -in=generic_repository.go -out=nsm_repository.gen.go gen "Generic=registry.NetworkServiceManager"
-//go:generate genny -in=generic_repository.go -out=ns_repository.gen.go gen "Generic=registry.NetworkService"
