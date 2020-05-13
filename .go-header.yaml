@@ -10,6 +10,7 @@ rules:
       - ".*[.]go$"
     exclude-paths:
       - ".*[.]pb"
+      - ".*gen.go"
 custom-patterns:
   - name: NSM COPYRIGHT HOLDERS
     pattern: "Copyright (c) {YEAR} {COPYRIGHT HOLDER}"
