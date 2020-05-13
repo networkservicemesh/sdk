@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Cisco and/or its affiliates.
 //
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,6 +23,8 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/assert"
@@ -61,6 +65,7 @@ func TestMonitorConnectionMonitorConnectionsServer_Send(t *testing.T) {
 		testSend()
 	}
 }
+
 func TestMonitorConnectionServer_MonitorConnections(t *testing.T) {
 	senders := make([]networkservice.MonitorConnection_MonitorConnectionsServer, numSenders)
 	senderEventChs := make([]chan *networkservice.ConnectionEvent, numSenders)
@@ -69,7 +74,9 @@ func TestMonitorConnectionServer_MonitorConnections(t *testing.T) {
 	eventCh := make(chan *networkservice.ConnectionEvent, numEvents)
 	selector := &networkservice.MonitorScopeSelector{} // TODO
 
-	server := eventchannel.NewMonitorServer(eventCh)
+	eventMonitorStartCh := make(chan int, numEvents)
+
+	server := eventchannel.NewMonitorServer(eventCh, eventchannel.WithConnectChannel(eventMonitorStartCh))
 
 	for i := 0; i < numSenders; i++ {
 		var senderCtx context.Context
@@ -82,8 +89,8 @@ func TestMonitorConnectionServer_MonitorConnections(t *testing.T) {
 			assert.Nil(t, err)
 		}()
 	}
-	// Give the go functions calling server.MonitorConnections(selector,sender) a chance to run
-	<-time.After(time.Millisecond)
+	// Give all the go functions calling server.MonitorConnections(selector,sender) a chance to run
+	requireConnectionCount(t, numSenders, eventMonitorStartCh)
 	senderCancelFunc[numSenders-1]()
 	eventsIn := make([]*networkservice.ConnectionEvent, numEvents)
 	for i := 0; i < numEvents; i++ {
@@ -112,6 +119,18 @@ func TestMonitorConnectionServer_MonitorConnections(t *testing.T) {
 		err := server.MonitorConnections(&networkservice.MonitorScopeSelector{}, srv)
 		if err != nil {
 			break
+		}
+	}
+}
+
+func requireConnectionCount(t *testing.T, expected int, ch <-chan int) {
+	deadlineCh := time.After(time.Second)
+	var connectionCount int
+	for connectionCount != expected {
+		select {
+		case connectionCount = <-ch:
+		case <-deadlineCh:
+			require.Failf(t, "Deadline has been reached", "Actual: %v, Expected: %v.", connectionCount, numSenders)
 		}
 	}
 }

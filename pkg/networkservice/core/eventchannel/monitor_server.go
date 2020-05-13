@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Cisco and/or its affiliates.
 //
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,16 +32,19 @@ type monitorConnectionServer struct {
 	servers   []networkservice.MonitorConnection_MonitorConnectionsServer
 	selectors []*networkservice.MonitorScopeSelector
 	executor  serialize.Executor
+	connectCh chan<- int
 }
 
 // NewMonitorServer - returns a networkservice.MonitorConnectionServer
 //                    eventCh - when Send() is called on any of the NewMonitorConnection_MonitorConnectionsServers
 //                              returned by a call to MonitorConnections, it is inserted into eventCh
-func NewMonitorServer(eventCh <-chan *networkservice.ConnectionEvent) networkservice.MonitorConnectionServer {
+func NewMonitorServer(eventCh <-chan *networkservice.ConnectionEvent, options ...MonitorConnectionServerOption) networkservice.MonitorConnectionServer {
 	rv := &monitorConnectionServer{
-		eventCh:  eventCh,
-		closeCh:  make(chan struct{}),
-		executor: serialize.NewExecutor(),
+		eventCh: eventCh,
+		closeCh: make(chan struct{}),
+	}
+	for _, o := range options {
+		o.apply(rv)
 	}
 	rv.eventLoop()
 	return rv
@@ -53,6 +58,9 @@ func (m *monitorConnectionServer) MonitorConnections(selector *networkservice.Mo
 		m.executor.AsyncExec(func() {
 			m.servers = append(m.servers, srv)
 			m.selectors = append(m.selectors, selector)
+			if m.connectCh != nil {
+				m.connectCh <- len(m.servers)
+			}
 		})
 		select {
 		case <-srv.Context().Done():
