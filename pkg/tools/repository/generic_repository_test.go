@@ -47,6 +47,22 @@ func TestRepository_PutAndGet(t *testing.T) {
 	require.Equal(t, g2, r.Get(fmt.Sprint(g2)))
 }
 
+func TestRepository_PutOldValue(t *testing.T) {
+	idMap := map[*repository.Generic]string{}
+	r := repository.NewGenericMemoryRepository(func(generic *repository.Generic) string {
+		return idMap[generic]
+	})
+	g1 := new(repository.Generic)
+	idMap[g1] = "1"
+	result := r.Put(g1)
+	require.Nil(t, result)
+	g2 := new(repository.Generic)
+	idMap[g2] = "1"
+	result = r.Put(g2)
+	require.Equal(t, result, g1)
+	require.Equal(t, g2, r.Get("1"))
+}
+
 func TestRepository_GetAllByFilter(t *testing.T) {
 	r := repository.NewGenericMemoryRepository(func(generic *repository.Generic) string {
 		return fmt.Sprint(generic)

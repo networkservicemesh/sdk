@@ -40,10 +40,13 @@ func (g *memoryRegistryNetworkServiceManagerRepository) Get(id string) *registry
 	return result
 }
 
-func (g *memoryRegistryNetworkServiceManagerRepository) Put(item *registry.NetworkServiceManager) {
-	g.AsyncExec(func() {
+func (g *memoryRegistryNetworkServiceManagerRepository) Put(item *registry.NetworkServiceManager) *registry.NetworkServiceManager {
+	var result *registry.NetworkServiceManager
+	<-g.AsyncExec(func() {
+		result = g.items[g.getID(item)]
 		g.items[g.getID(item)] = item
 	})
+	return result
 }
 
 func (g *memoryRegistryNetworkServiceManagerRepository) Delete(id string) {
@@ -77,7 +80,7 @@ type RegistryNetworkServiceManagerRepository interface {
 	// Get gets registry.NetworkServiceManager by identity
 	Get(string) *registry.NetworkServiceManager
 	// Put stores registry.NetworkServiceManager
-	Put(*registry.NetworkServiceManager)
+	Put(*registry.NetworkServiceManager) *registry.NetworkServiceManager
 	// Delete deletes registry.NetworkServiceManager by identity
 	Delete(string)
 	// GetAll gets all RegistryNetworkServiceManagers

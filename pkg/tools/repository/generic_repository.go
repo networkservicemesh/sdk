@@ -39,10 +39,13 @@ func (g *memoryGenericRepository) Get(id string) *Generic {
 	return result
 }
 
-func (g *memoryGenericRepository) Put(item *Generic) {
-	g.AsyncExec(func() {
+func (g *memoryGenericRepository) Put(item *Generic) *Generic {
+	var result *Generic
+	<-g.AsyncExec(func() {
+		result = g.items[g.getID(item)]
 		g.items[g.getID(item)] = item
 	})
+	return result
 }
 
 func (g *memoryGenericRepository) Delete(id string) {
@@ -76,7 +79,7 @@ type GenericRepository interface {
 	// Get gets Generic by identity
 	Get(string) *Generic
 	// Put stores Generic
-	Put(*Generic)
+	Put(*Generic) *Generic
 	// Delete deletes Generic by identity
 	Delete(string)
 	// GetAll gets all Generics
