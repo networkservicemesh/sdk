@@ -25,29 +25,43 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
-type setLabels struct {
+type setLabelsBulkRegisterNSEServer struct {
+	registry.NetworkServiceRegistry_BulkRegisterNSEServer
 }
 
-// NewServer creates new instance of NetworkServiceRegistryServer with setting networkservicename label
-func NewServer() registry.NetworkServiceRegistryServer {
-	return &setLabels{}
-}
-
-func (m *setLabels) RegisterNSE(ctx context.Context, request *registry.NSERegistration) (*registry.NSERegistration, error) {
+func (s *setLabelsBulkRegisterNSEServer) Send(request *registry.NSERegistration) error {
 	labels := request.GetNetworkServiceEndpoint().GetLabels()
 	if labels == nil {
 		labels = make(map[string]string)
+		request.GetNetworkServiceEndpoint().Labels = labels
+	}
+	labels["networkservicename"] = request.GetNetworkService().GetName()
+	return s.NetworkServiceRegistry_BulkRegisterNSEServer.Send(request)
+}
+
+type setLabelsServer struct{}
+
+// NewServer creates new instance of NetworkServiceRegistryServer with setting networkservicename label
+func NewServer() registry.NetworkServiceRegistryServer {
+	return &setLabelsServer{}
+}
+
+func (m *setLabelsServer) RegisterNSE(ctx context.Context, request *registry.NSERegistration) (*registry.NSERegistration, error) {
+	labels := request.GetNetworkServiceEndpoint().GetLabels()
+	if labels == nil {
+		labels = make(map[string]string)
+		request.GetNetworkServiceEndpoint().Labels = labels
 	}
 	labels["networkservicename"] = request.GetNetworkService().GetName()
 	return next.NetworkServiceRegistryServer(ctx).RegisterNSE(ctx, request)
 }
 
-func (m *setLabels) BulkRegisterNSE(s registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
-	return next.NetworkServiceRegistryServer(s.Context()).BulkRegisterNSE(s)
+func (m *setLabelsServer) BulkRegisterNSE(s registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
+	return next.NetworkServiceRegistryServer(s.Context()).BulkRegisterNSE(&setLabelsBulkRegisterNSEServer{s})
 }
 
-func (m *setLabels) RemoveNSE(ctx context.Context, req *registry.RemoveNSERequest) (*empty.Empty, error) {
+func (m *setLabelsServer) RemoveNSE(ctx context.Context, req *registry.RemoveNSERequest) (*empty.Empty, error) {
 	return next.NetworkServiceRegistryServer(ctx).RemoveNSE(ctx, req)
 }
 
-var _ registry.NetworkServiceRegistryServer = &setLabels{}
+var _ registry.NetworkServiceRegistryServer = &setLabelsServer{}

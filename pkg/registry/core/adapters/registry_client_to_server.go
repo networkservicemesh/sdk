@@ -45,37 +45,25 @@ func (r *registryClientToServer) BulkRegisterNSE(server registry.NetworkServiceR
 	}
 
 	// Handle server
-	for {
-		reg, err := server.Recv()
-		if err != nil {
-			logrus.Errorf("Error in BulkRegisterNSE %v", err)
-			return err
-		}
-		if reg == nil {
-			break
-		}
-		err = client.Send(reg)
-		if err != nil {
-			return err
-		}
+	if client != nil {
+		go func() {
+			for {
+				reg, err := client.Recv()
+				if err != nil {
+					logrus.Errorf("Error in BulkRegisterNSE %v", err)
+					return
+				}
+				if reg == nil {
+					break
+				}
+				err = server.Send(reg)
+				if err != nil {
+					logrus.Errorf("Error in BulkRegisterNSE %v", err)
+					return
+				}
+			}
+		}()
 	}
-	go func() {
-		for {
-			reg, err := client.Recv()
-			if err != nil {
-				logrus.Errorf("Error in BulkRegisterNSE %v", err)
-				return
-			}
-			if reg == nil {
-				break
-			}
-			err = server.Send(reg)
-			if err != nil {
-				logrus.Errorf("Error in BulkRegisterNSE %v", err)
-				return
-			}
-		}
-	}()
 	return nil
 }
 

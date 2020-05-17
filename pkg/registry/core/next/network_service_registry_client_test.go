@@ -102,5 +102,9 @@ func TestRegistryClientBranches(t *testing.T) {
 		ctx = visit(context.Background())
 		_, _ = s.RemoveNSE(ctx, nil)
 		assert.Equal(t, expects[i], visitValue(ctx), msg)
+
+		ctx = visit(context.Background())
+		_, _ = s.BulkRegisterNSE(ctx, nil)
+		assert.Equal(t, expects[i], visitValue(ctx), msg)
 	}
 }
