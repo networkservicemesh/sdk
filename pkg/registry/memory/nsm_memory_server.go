@@ -26,19 +26,19 @@ import (
 )
 
 type nsmMemoryNetworkServerRegistry struct {
-	resouceClient ResourcesClient
-	nsmName       string
+	resourceClient ResourcesClient
+	nsmName        string
 }
 
 func (n *nsmMemoryNetworkServerRegistry) RegisterNSM(ctx context.Context, nsm *registry.NetworkServiceManager) (*registry.NetworkServiceManager, error) {
 	nsm.Name = n.nsmName
-	n.resouceClient.NetworkServiceManagers().Put(nsm)
+	n.resourceClient.NetworkServiceManagers().Put(nsm)
 	return next.NSMRegistryServer(ctx).RegisterNSM(ctx, nsm)
 }
 
-func (n *nsmMemoryNetworkServerRegistry) GetEndpoints(ctx context.Context, e *empty.Empty) (*registry.NetworkServiceEndpointList, error) {
+func (n *nsmMemoryNetworkServerRegistry) GetEndpoints(context.Context, *empty.Empty) (*registry.NetworkServiceEndpointList, error) {
 	result := new(registry.NetworkServiceEndpointList)
-	result.NetworkServiceEndpoints = n.resouceClient.NetworkServiceEndpoints().GetAllByFilter(func(nsm *registry.NetworkServiceEndpoint) bool {
+	result.NetworkServiceEndpoints = n.resourceClient.NetworkServiceEndpoints().GetAllByFilter(func(nsm *registry.NetworkServiceEndpoint) bool {
 		return nsm.NetworkServiceManagerName == n.nsmName
 	})
 	return result, nil
@@ -47,8 +47,8 @@ func (n *nsmMemoryNetworkServerRegistry) GetEndpoints(ctx context.Context, e *em
 // NewNSMRegistryServer returns new instance of NsmRegistryServer based on resource client
 func NewNSMRegistryServer(resourceClient ResourcesClient, nsmName string) registry.NsmRegistryServer {
 	return &nsmMemoryNetworkServerRegistry{
-		resouceClient: resourceClient,
-		nsmName:       nsmName,
+		resourceClient: resourceClient,
+		nsmName:        nsmName,
 	}
 }
 
