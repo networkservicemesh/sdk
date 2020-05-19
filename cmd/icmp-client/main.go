@@ -132,7 +132,9 @@ func main() {
 
 	defer cc.Close()
 
-	ListenOnURL.Scheme = "unix"
+	if ListenOnURL.Scheme == "" {
+		ListenOnURL.Scheme = "unix"
+	}
 
 	time.Sleep(5 * time.Second)
 	srvCtx := grpcutils.ListenAndServe(ctx, &ListenOnURL, server)
