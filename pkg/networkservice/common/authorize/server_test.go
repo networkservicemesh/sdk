@@ -37,7 +37,7 @@ const (
 		default allow = false
 	
 		allow {
-			input = "allowed"
+			input.connection.path.path_segments[0].token = "allowed"
 		}
 	`
 )
