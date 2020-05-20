@@ -31,7 +31,7 @@ const (
 	KEY = "test"
 )
 
-func TokenGeneratorFunc(claims *jwt.StandardClaims) token.GeneratorFunc {
+func tokenGeneratorFunc(claims *jwt.StandardClaims) token.GeneratorFunc {
 	return func(_ credentials.AuthInfo) (string, time.Time, error) {
 		genToken, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(KEY))
 		return genToken, time.Time{}, nil;

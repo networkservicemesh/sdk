@@ -57,15 +57,15 @@ func TestValidChain(t *testing.T) {
 		{
 			name:  "simple positive use case with valid chain",
 			tokenGenerators: []token.GeneratorFunc{
-				TokenGeneratorFunc(&jwt.StandardClaims{
+				tokenGeneratorFunc(&jwt.StandardClaims{
 					Subject: "nsc",
 					Audience: "nsmgr1",
 				}),
-				TokenGeneratorFunc(&jwt.StandardClaims{
+				tokenGeneratorFunc(&jwt.StandardClaims{
 					Subject: "nsmgr1",
 					Audience: "nsmgr2",
 				}),
-				TokenGeneratorFunc(&jwt.StandardClaims{
+				tokenGeneratorFunc(&jwt.StandardClaims{
 					Subject: "nsmgr2",
 					Audience: "nse",
 				}),
@@ -75,15 +75,15 @@ func TestValidChain(t *testing.T) {
 		{
 			name:    "negative use case with broken chain",
 			tokenGenerators: []token.GeneratorFunc{
-				TokenGeneratorFunc(&jwt.StandardClaims{
+				tokenGeneratorFunc(&jwt.StandardClaims{
 					Subject: "nsc",
 					Audience: "nsmgr1",
 				}),
-				TokenGeneratorFunc(&jwt.StandardClaims{
+				tokenGeneratorFunc(&jwt.StandardClaims{
 					Subject: "spy subject",
 					Audience: "spy audience",
 				}),
-				TokenGeneratorFunc(&jwt.StandardClaims{
+				tokenGeneratorFunc(&jwt.StandardClaims{
 					Subject: "nsmgr2",
 					Audience: "nse",
 				}),
