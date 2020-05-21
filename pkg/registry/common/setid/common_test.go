@@ -22,16 +22,26 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/registry/memory"
 )
 
-func TestSetIDNetworkServiceRegistryServer_RegisterNSE(t *testing.T) {
-	storage := &memory.Storage{}
-	storage.NetworkServiceManagers.Store("nsm-1", &registry.NetworkServiceManager{Name: "nsm-1"})
-	chain := next.NewNetworkServiceRegistryServer(setid.NewNetworkServiceRegistryServer(), memory.NewNetworkServiceRegistryServer("nsm-1", storage))
+type emptyBulkRegisterNSEServer struct {
+	registry.NetworkServiceRegistry_BulkRegisterNSEServer
+}
+
+func (s *emptyBulkRegisterNSEServer) Send(*registry.NSERegistration) error {
+	return nil
+}
+
+func (s *emptyBulkRegisterNSEServer) Context() context.Context {
+	return context.Background()
+}
+
+type assertServer struct {
+	*testing.T
+	registry.NetworkServiceRegistryServer
+}
+
+func (n *assertServer) BulkRegisterNSE(s registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
 	nse := &registry.NetworkServiceEndpoint{
 		NetworkServiceName: "ns-1",
 		Payload:            "IP",
@@ -43,12 +53,7 @@ func TestSetIDNetworkServiceRegistryServer_RegisterNSE(t *testing.T) {
 		},
 		NetworkServiceEndpoint: nse,
 	}
-	resp, err := chain.RegisterNSE(context.Background(), registration)
-	require.Nil(t, err)
-	require.NotEmpty(t, resp.NetworkServiceEndpoint.Name)
-}
-
-func TestSetIDNetworkServiceRegistryServer_BulkRegisterNSE(t *testing.T) {
-	s := next.NewNetworkServiceRegistryServer(setid.NewNetworkServiceRegistryServer(), &assertServer{T: t})
-	require.Nil(t, s.BulkRegisterNSE(&emptyBulkRegisterNSEServer{}))
+	require.Nil(n, s.Send(registration))
+	require.NotEmpty(n, registration.NetworkServiceEndpoint.Name)
+	return nil
 }

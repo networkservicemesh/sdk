@@ -46,6 +46,7 @@ func (n networkServiceRegistryServer) RegisterNSE(ctx context.Context, r *regist
 }
 
 func (n *networkServiceRegistryServer) BulkRegisterNSE(s registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
+	s = &networkServiceRegistryBulkRegisterNSEServer{NetworkServiceRegistry_BulkRegisterNSEServer: s}
 	return next.NetworkServiceRegistryServer(s.Context()).BulkRegisterNSE(s)
 }
 
