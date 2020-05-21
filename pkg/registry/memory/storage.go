@@ -14,5 +14,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package memory provides NSM registry chain elements to building memory-based registries
 package memory
+
+import "github.com/networkservicemesh/sdk/pkg/tools/syncmap"
+
+// Storage provides memory access for NSM resources
+type Storage struct {
+	NetworkServices         syncmap.StringRegistryNetworkServiceMap
+	NetworkServiceEndpoints syncmap.StringRegistryNetworkServiceEndpointMap
+	NetworkServiceManagers  syncmap.StringRegistryNetworkServiceManagerMap
+}

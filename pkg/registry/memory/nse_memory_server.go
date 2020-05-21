@@ -27,8 +27,8 @@ import (
 )
 
 type memoryNetworkServeRegistry struct {
-	resourceClient ResourcesClient
-	nsmName        string
+	storage *Storage
+	nsmName string
 }
 
 func (m *memoryNetworkServeRegistry) RegisterNSE(ctx context.Context, registration *registry.NSERegistration) (*registry.NSERegistration, error) {
@@ -37,9 +37,14 @@ func (m *memoryNetworkServeRegistry) RegisterNSE(ctx context.Context, registrati
 	}
 	registration.NetworkServiceEndpoint.State = "RUNNING"
 	registration.NetworkServiceEndpoint.NetworkServiceManagerName = m.nsmName
-	registration.NetworkServiceManager = m.resourceClient.NetworkServiceManagers().Get(m.nsmName)
-	m.resourceClient.NetworkServiceEndpoints().Put(registration.NetworkServiceEndpoint)
-	m.resourceClient.NetworkServices().Put(registration.NetworkService)
+	nsm, ok := m.storage.NetworkServiceManagers.Load(m.nsmName)
+	if !ok {
+		return nil, errors.New("network service manager is not found")
+	}
+	registration.NetworkServiceManager = nsm
+
+	m.storage.NetworkServiceEndpoints.Store(registration.NetworkServiceEndpoint.Name, registration.NetworkServiceEndpoint)
+	m.storage.NetworkServices.Store(registration.NetworkService.Name, registration.NetworkService)
 	return next.NetworkServiceRegistryServer(ctx).RegisterNSE(ctx, registration)
 }
 
@@ -48,15 +53,15 @@ func (m *memoryNetworkServeRegistry) BulkRegisterNSE(s registry.NetworkServiceRe
 }
 
 func (m *memoryNetworkServeRegistry) RemoveNSE(ctx context.Context, req *registry.RemoveNSERequest) (*empty.Empty, error) {
-	m.resourceClient.NetworkServiceEndpoints().Delete(req.NetworkServiceEndpointName)
+	m.storage.NetworkServiceEndpoints.Delete(req.NetworkServiceEndpointName)
 	return next.NetworkServiceRegistryServer(ctx).RemoveNSE(ctx, req)
 }
 
 // NewNetworkServiceRegistryServer returns new NetworkServiceRegistryServer based on specific resource client
-func NewNetworkServiceRegistryServer(nsmName string, resourceClient ResourcesClient) registry.NetworkServiceRegistryServer {
+func NewNetworkServiceRegistryServer(nsmName string, storage *Storage) registry.NetworkServiceRegistryServer {
 	return &memoryNetworkServeRegistry{
-		nsmName:        nsmName,
-		resourceClient: resourceClient,
+		nsmName: nsmName,
+		storage: storage,
 	}
 }
 

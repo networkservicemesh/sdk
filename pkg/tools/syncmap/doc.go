@@ -14,8 +14,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package repository
-
-//go:generate genny -in=generic_repository.go -out=nse_repository.gen.go gen "Generic=registry.NetworkServiceEndpoint"
-//go:generate genny -in=generic_repository.go -out=nsm_repository.gen.go gen "Generic=registry.NetworkServiceManager"
-//go:generate genny -in=generic_repository.go -out=ns_repository.gen.go gen "Generic=registry.NetworkService"
+// Package syncmap provides typed maps
+package syncmap

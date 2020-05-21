@@ -28,11 +28,11 @@ import (
 )
 
 func TestMemoryNetworkServeRegistry_RegisterNSE(t *testing.T) {
-	m := memory.NewMemoryResourceClient()
+	m := &memory.Storage{}
 	nsm := &registry.NetworkServiceManager{
 		Name: "nsm-1",
 	}
-	m.NetworkServiceManagers().Put(nsm)
+	m.NetworkServiceManagers.Store(nsm.Name, nsm)
 	nse := &registry.NetworkServiceEndpoint{
 		Name:                      "nse-1",
 		NetworkServiceName:        "ns-1",
@@ -41,7 +41,7 @@ func TestMemoryNetworkServeRegistry_RegisterNSE(t *testing.T) {
 	ns := &registry.NetworkService{
 		Name: "ns-1",
 	}
-	m.NetworkServices().Put(ns)
+	m.NetworkServices.Store(ns.Name, ns)
 	s := next.NewNetworkServiceRegistryServer(memory.NewNetworkServiceRegistryServer("nsm-1", m))
 	resp, err := s.RegisterNSE(context.Background(), nil)
 	require.Nil(t, resp)
@@ -53,20 +53,22 @@ func TestMemoryNetworkServeRegistry_RegisterNSE(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, nsm, resp.NetworkServiceManager)
 	require.Equal(t, nsm.Name, resp.NetworkServiceEndpoint.NetworkServiceManagerName)
-	require.NotNil(t, m.NetworkServiceEndpoints().Get(nse.Name))
-	require.NotNil(t, m.NetworkServices().Get(ns.Name))
+	nse, _ = m.NetworkServiceEndpoints.Load(nse.Name)
+	require.NotNil(t, nse)
+	ns, _ = m.NetworkServices.Load(ns.Name)
+	require.NotNil(t, ns)
 }
 
 func TestMemoryNetworkServeRegistry_RemoveNSE(t *testing.T) {
-	m := memory.NewMemoryResourceClient()
+	m := &memory.Storage{}
 	nse := &registry.NetworkServiceEndpoint{
 		Name:                      "nse-1",
 		NetworkServiceName:        "ns-1",
 		NetworkServiceManagerName: "nsm-1",
 	}
-	m.NetworkServiceEndpoints().Put(nse)
+	m.NetworkServiceEndpoints.Store(nse.Name, nse)
 	s := next.NewNetworkServiceRegistryServer(memory.NewNetworkServiceRegistryServer("nsm-1", m))
 	_, err := s.RemoveNSE(context.Background(), &registry.RemoveNSERequest{NetworkServiceEndpointName: "nse-1"})
 	require.Nil(t, err)
-	require.Empty(t, m.NetworkServiceEndpoints().GetAll())
+	require.Empty(t, m.NetworkServiceEndpoints.LoadAll())
 }

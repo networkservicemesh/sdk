@@ -93,7 +93,6 @@ linters-settings:
       - octalLiteral
       - offBy1
       - paramTypeCombine
-      - ptrToRefParam
       - rangeExprCopy
       - rangeValCopy
       - regexpMust
@@ -159,37 +158,9 @@ issues:
   exclude-rules:
     # We really *do* want to pass a pointer to an interface in these cases.  See comments in file for New{Server,Client}
     # function for why
-    - path: pkg/networkservice/common/monitor/server.go
-      linters:
-        - gocritic
-      text: "ptrToRefParam"
-    - path: pkg/tools/repository/generic_repository.go
-      linters:
-        - gocritic
-      text: "ptrToRefParam"
     - path: \.gen\.go
       linters:
         - dupl
-    - path: pkg/networkservice/common/timeout/server.go
-      linters:
-        - gocritic
-      text: "ptrToRefParam"
-    - path: pkg/networkservice/common/heal/client.go
-      linters:
-        - gocritic
-      text: "ptrToRefParam"
-    - path: pkg/networkservice/chains/client/client.go
-      linters:
-        - gocritic
-      text: "ptrToRefParam"
-    - path: pkg/networkservice/common/localbypass/server.go
-      linters:
-        - gocritic
-      text: "ptrToRefParam"
-    - path: pkg/tools/addressof/networkservice_client.go
-      linters:
-        - gocritic
-      text: "ptrToRefParam"
     # TODO - remove after deciding how to properly handle the cancel
     - path: pkg/networkservice/common/connect/server.go
       linters:

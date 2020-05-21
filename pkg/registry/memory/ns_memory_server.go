@@ -24,21 +24,27 @@ import (
 )
 
 type memoryServiceDiscoveryServer struct {
-	memory ResourcesClient
+	storage *Storage
 }
 
 func (d *memoryServiceDiscoveryServer) FindNetworkService(ctx context.Context, req *registry.FindNetworkServiceRequest) (*registry.FindNetworkServiceResponse, error) {
-	service := d.memory.NetworkServices().Get(req.NetworkServiceName)
-	if service == nil {
+	service, ok := d.storage.NetworkServices.Load(req.NetworkServiceName)
+	if !ok {
 		return nil, errors.Errorf("network service %v is not found", req.NetworkServiceName)
 	}
 	NSMs := map[string]*registry.NetworkServiceManager{}
-	NSEs := d.memory.NetworkServiceEndpoints().GetAllByFilter(func(endpoint *registry.NetworkServiceEndpoint) bool {
-		return endpoint.NetworkServiceName == req.NetworkServiceName
+	var NSEs []*registry.NetworkServiceEndpoint
+	d.storage.NetworkServiceEndpoints.Range(func(_ string, v *registry.NetworkServiceEndpoint) bool {
+		if v.NetworkServiceName == req.NetworkServiceName {
+			NSEs = append(NSEs, v)
+		}
+		return true
 	})
 	for _, nse := range NSEs {
-		nsm := d.memory.NetworkServiceManagers().Get(nse.NetworkServiceManagerName)
-		NSMs[nsm.Name] = nsm
+		nsm, ok := d.storage.NetworkServiceManagers.Load(nse.NetworkServiceManagerName)
+		if ok {
+			NSMs[nsm.Name] = nsm
+		}
 	}
 	return &registry.FindNetworkServiceResponse{
 		Payload: service.GetPayload(),
@@ -53,9 +59,9 @@ func (d *memoryServiceDiscoveryServer) FindNetworkService(ctx context.Context, r
 }
 
 // NewNetworkServiceDiscoveryServer returns new instance of NetworkServiceDiscoveryServer based on resource client
-func NewNetworkServiceDiscoveryServer(resourceClient ResourcesClient) registry.NetworkServiceDiscoveryServer {
+func NewNetworkServiceDiscoveryServer(storage *Storage) registry.NetworkServiceDiscoveryServer {
 	return &memoryServiceDiscoveryServer{
-		memory: resourceClient,
+		storage: storage,
 	}
 }
 

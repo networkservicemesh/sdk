@@ -29,20 +29,21 @@ import (
 )
 
 func TestNsmMemoryNetworkServerRegistry_RegisterNSM(t *testing.T) {
-	m := memory.NewMemoryResourceClient()
+	m := &memory.Storage{}
 	s := next.NewNSMRegistryServer(memory.NewNSMRegistryServer(m, "nsm-1"))
 	nsm, err := s.RegisterNSM(context.Background(), &registry.NetworkServiceManager{})
 	require.Nil(t, err)
 	require.NotNil(t, nsm)
-	require.Equal(t, m.NetworkServiceManagers().Get("nsm-1"), nsm)
+	actual, _ := m.NetworkServiceManagers.Load("nsm-1")
+	require.Equal(t, nsm, actual)
 }
 
 func TestNsmMemoryNetworkServerRegistry_GetEndpoints(t *testing.T) {
-	m := memory.NewMemoryResourceClient()
+	m := &memory.Storage{}
 	nsm := &registry.NetworkServiceManager{
 		Name: "nsm-1",
 	}
-	m.NetworkServiceManagers().Put(nsm)
+	m.NetworkServiceManagers.Store(nsm.Name, nsm)
 	endpoints := []*registry.NetworkServiceEndpoint{
 		{
 			Name:                      "nse-1",
@@ -56,7 +57,7 @@ func TestNsmMemoryNetworkServerRegistry_GetEndpoints(t *testing.T) {
 		},
 	}
 	for _, e := range endpoints {
-		m.NetworkServiceEndpoints().Put(e)
+		m.NetworkServiceEndpoints.Store(e.Name, e)
 	}
 
 	s := next.NewNSMRegistryServer(memory.NewNSMRegistryServer(m, "nsm-1"))

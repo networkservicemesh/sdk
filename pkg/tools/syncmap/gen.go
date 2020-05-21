@@ -14,5 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package repository provides memory based repositories for NSM resources
-package repository
+package syncmap
+
+//go:generate genny -in=typed_map.go -out=nse_map.gen.go gen "K=string V=registry.NetworkServiceEndpoint"
+//go:generate genny -in=typed_map.go -out=nsm_map.gen.go gen "K=string V=registry.NetworkServiceManager"
+//go:generate genny -in=typed_map.go -out=ns_map.gen.go gen "K=string V=registry.NetworkService"

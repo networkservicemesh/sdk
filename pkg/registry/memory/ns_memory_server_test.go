@@ -28,21 +28,21 @@ import (
 )
 
 func TestMemoryNetworkServiceDiscoveryServer_FindNetworkService(t *testing.T) {
-	m := memory.NewMemoryResourceClient()
+	m := &memory.Storage{}
 	nsm := &registry.NetworkServiceManager{
 		Name: "nsm-1",
 	}
-	m.NetworkServiceManagers().Put(nsm)
+	m.NetworkServiceManagers.Store(nsm.Name, nsm)
 	nse := &registry.NetworkServiceEndpoint{
 		Name:                      "nse-1",
 		NetworkServiceName:        "ns-1",
 		NetworkServiceManagerName: "nsm-1",
 	}
-	m.NetworkServiceEndpoints().Put(nse)
+	m.NetworkServiceEndpoints.Store(nse.Name, nse)
 	ns := &registry.NetworkService{
 		Name: "ns-1",
 	}
-	m.NetworkServices().Put(ns)
+	m.NetworkServices.Store(ns.Name, ns)
 	s := next.NewDiscoveryServer(memory.NewNetworkServiceDiscoveryServer(m))
 	response, err := s.FindNetworkService(context.Background(), &registry.FindNetworkServiceRequest{NetworkServiceName: "ns-2"})
 	require.Nil(t, response)
