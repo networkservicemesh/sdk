@@ -105,7 +105,7 @@ func Self(envVariableParts ...string) error {
 // envVariable - convert the envVariableParts to a proper env variable
 func envVariable(envVariableParts ...string) string {
 	env := strings.Join(envVariableParts, envSeperator)
-	rgx := regexp.MustCompile("[[[:^alnum:]]]")
+	rgx := regexp.MustCompile("[[:^alnum:]]")
 	env = rgx.ReplaceAllString(env, envSeperator)
 	env = strings.ToUpper(env)
 	return env
