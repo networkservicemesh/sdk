@@ -70,5 +70,8 @@ func TestMemoryNetworkServeRegistry_RemoveNSE(t *testing.T) {
 	s := next.NewNetworkServiceRegistryServer(memory.NewNetworkServiceRegistryServer("nsm-1", m))
 	_, err := s.RemoveNSE(context.Background(), &registry.RemoveNSERequest{NetworkServiceEndpointName: "nse-1"})
 	require.Nil(t, err)
-	require.Empty(t, m.NetworkServiceEndpoints.LoadAll())
+	m.NetworkServiceEndpoints.Range(func(key string, value *registry.NetworkServiceEndpoint) bool {
+		require.FailNow(t, "NetworkServiceEndpoints should be empty")
+		return false
+	})
 }

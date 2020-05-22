@@ -1,7 +1,7 @@
 ---
 run:
   # concurrency: 6
-  timeout: 1m
+  timeout: 2m
   issues-exit-code: 1
   tests: true
 linters-settings:
@@ -158,9 +158,10 @@ issues:
   exclude-rules:
     # We really *do* want to pass a pointer to an interface in these cases.  See comments in file for New{Server,Client}
     # function for why
-    - path: \.gen\.go
+    - path: .*\.gen\.go
       linters:
         - dupl
+        - golint
     # TODO - remove after deciding how to properly handle the cancel
     - path: pkg/networkservice/common/connect/server.go
       linters:

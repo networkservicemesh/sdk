@@ -4,7 +4,6 @@ go 1.13
 
 require (
 	github.com/RoaringBitmap/roaring v0.4.23
-	github.com/cheekybits/genny v1.0.0
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
 	github.com/cloudflare/cfssl v1.4.1
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect

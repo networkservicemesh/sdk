@@ -16,6 +16,20 @@
 
 package syncmap
 
-//go:generate genny -in=typed_map.go -out=nse_map.gen.go gen "K=string V=registry.NetworkServiceEndpoint"
-//go:generate genny -in=typed_map.go -out=nsm_map.gen.go gen "K=string V=registry.NetworkServiceManager"
-//go:generate genny -in=typed_map.go -out=ns_map.gen.go gen "K=string V=registry.NetworkService"
+import "sync"
+
+//go:generate go-syncmap -output ns_sync_map.gen.go -type StringRegistryNetworkServiceMap<string,*github.com/networkservicemesh/api/pkg/api/registry.NetworkService>
+//go:generate go-syncmap -output nsm_sync_map.gen.go  -type StringRegistryNetworkServiceManagerMap<string,*github.com/networkservicemesh/api/pkg/api/registry.NetworkServiceManager>
+//go:generate go-syncmap -output nse_sync_map.gen.go -type StringRegistryNetworkServiceEndpointMap<string,*github.com/networkservicemesh/api/pkg/api/registry.NetworkServiceEndpoint>
+
+// StringRegistryNetworkServiceMap is like a Go map[string]*registry.NetworkService but is safe for concurrent use
+// by multiple goroutines without additional locking or coordination.
+type StringRegistryNetworkServiceMap sync.Map
+
+// StringRegistryNetworkServiceManagerMap is like a Go map[string]*registry.NetworkServiceManager but is safe for concurrent use
+// by multiple goroutines without additional locking or coordination.
+type StringRegistryNetworkServiceManagerMap sync.Map
+
+// StringRegistryNetworkServiceEndpointMap is like a Go map[string]*registry.NetworkServiceEndpoint but is safe for concurrent use
+// by multiple goroutines without additional locking or coordination.
+type StringRegistryNetworkServiceEndpointMap sync.Map
