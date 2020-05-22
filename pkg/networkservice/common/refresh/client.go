@@ -35,16 +35,18 @@ import (
 )
 
 type refreshClient struct {
-	connectionTimers map[string]*time.Timer
-	executor         serialize.Executor
+	connectionTimers       map[string]*time.Timer
+	timerContextCancellers map[string]func()
+	executor               serialize.Executor
 }
 
 // NewClient - creates new NetworkServiceClient chain element for refreshing connections before they timeout at the
 // endpoint
 func NewClient() networkservice.NetworkServiceClient {
 	rv := &refreshClient{
-		connectionTimers: make(map[string]*time.Timer),
-		executor:         serialize.Executor{},
+		connectionTimers:       make(map[string]*time.Timer),
+		timerContextCancellers: make(map[string]func()),
+		executor:               serialize.Executor{},
 	}
 	return rv
 }
@@ -59,15 +61,24 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 	// Set its connection to the returned connection we received
 	req.Connection = rv
 	// Setup the timer with the req containing the returned connection
-	ct, err := t.createTimer(ctx, req, opts...)
+
+	expire, err := t.getExpireDuration(request)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Error creating timer from Request.Connection.Path.PathSegment[%d].ExpireTime", request.GetConnection().GetPath().GetIndex())
 	}
 	t.executor.AsyncExec(func() {
+		if ctx.Err() != nil {
+			return
+		}
 		if timer, ok := t.connectionTimers[req.GetConnection().GetId()]; ok {
 			timer.Stop()
 		}
-		t.connectionTimers[req.GetConnection().GetId()] = ct
+		if canceller, ok := t.timerContextCancellers[req.GetConnection().GetId()]; ok {
+			canceller()
+		}
+		timer, cancelFunc := t.createTimer(ctx, req, expire, opts...)
+		t.connectionTimers[req.GetConnection().GetId()] = timer
+		t.timerContextCancellers[req.GetConnection().GetId()] = cancelFunc
 	})
 	return rv, nil
 }
@@ -78,23 +89,31 @@ func (t *refreshClient) Close(ctx context.Context, conn *networkservice.Connecti
 			timer.Stop()
 			delete(t.connectionTimers, conn.GetId())
 		}
+		if canceller, ok := t.timerContextCancellers[conn.GetId()]; ok {
+			canceller()
+			delete(t.timerContextCancellers, conn.GetId())
+		}
 	})
 	return next.Client(ctx).Close(ctx, conn)
 }
 
-func (t *refreshClient) createTimer(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*time.Timer, error) {
+func (t *refreshClient) getExpireDuration(request *networkservice.NetworkServiceRequest) (time.Duration, error) {
 	expireTime, err := ptypes.Timestamp(request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].GetExpires())
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	duration := time.Until(expireTime)
+	return duration, nil
+}
 
-	return time.AfterFunc(duration, func() {
+func (t *refreshClient) createTimer(ctx context.Context, request *networkservice.NetworkServiceRequest, expires time.Duration, opts ...grpc.CallOption) (timer *time.Timer, cancelFunc func()) {
+	newCtx, cancelFunc := context.WithCancel(extend.WithValuesFromContext(context.Background(), ctx))
+	timer = time.AfterFunc(expires, func() {
 		// TODO what to do about error handling?
 		// TODO what to do about expiration of context
-		newCtx := extend.WithValuesFromContext(context.Background(), ctx)
 		if _, err := t.Request(newCtx, request, opts...); err != nil {
 			trace.Log(newCtx).Errorf("Error while attempting to refresh connection %s: %+v", request.GetConnection().GetId(), err)
 		}
-	}), nil
+	})
+	return timer, cancelFunc
 }
