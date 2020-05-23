@@ -16,11 +16,9 @@
 
 package memory
 
-import "github.com/networkservicemesh/sdk/pkg/tools/syncmap"
-
 // Storage provides memory access for NSM resources
 type Storage struct {
-	NetworkServices         syncmap.StringRegistryNetworkServiceMap
-	NetworkServiceEndpoints syncmap.StringRegistryNetworkServiceEndpointMap
-	NetworkServiceManagers  syncmap.StringRegistryNetworkServiceManagerMap
+	NetworkServices         NetworkServiceSyncMap
+	NetworkServiceEndpoints NetworkServiceEndpointSyncMap
+	NetworkServiceManagers  NetworkServiceManagerSyncMap
 }
