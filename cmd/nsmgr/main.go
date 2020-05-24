@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"github.com/networkservicemesh/api/pkg/api"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/tools/flags"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
@@ -12,8 +11,6 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spiffe/go-spiffe/spiffe"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/health"
-	"google.golang.org/grpc/health/grpc_health_v1"
 	"net/url"
 	"os"
 	"strings"
@@ -49,10 +46,6 @@ func main() {
 	log.Entry(ctx).Printf("ListenOnURL: %s", ListenOnURL)
 	log.Entry(ctx).Printf("RegistryURL: %s", RegistryURL)
 
-	ConnectToURL.Scheme = "unix"
-	ListenOnURL.Scheme = "unix"
-	RegistryURL.Scheme = "unix"
-
 	for _, e := range os.Environ() {
 		pair := strings.SplitN(e, "=", 2)
 		log.Entry(ctx).Printf("ENV: %q", pair)
@@ -78,7 +71,7 @@ func main() {
 	log.Entry(ctx).Println("svid: ", svid)
 
 	// set up registry client
-	registryCC, err := grpc.DialContext(ctx, RegistryURL.String(), spiffeutils.WithSpiffe(tlsPeer, 10*time.Second), grpc.WithBlock())
+	registryCC, err := grpc.DialContext(ctx, RegistryURL.String(), spiffeutils.WithSpiffe(tlsPeer, 10*time.Minute), grpc.WithBlock())
 	if err != nil {
 		log.Entry(ctx).Fatalf("Error attempting to build ipam server %+v", err)
 	}
@@ -93,18 +86,18 @@ func main() {
 
 	nsmgrCtx := grpcutils.ListenAndServe(ctx, &ConnectToURL, server)
 
-	healthServer := health.NewServer()
-	grpc_health_v1.RegisterHealthServer(server, healthServer)
-	for _, service := range api.ServiceNames(ep) {
-		log.Entry(ctx).Println("service: ", service)
-		healthServer.SetServingStatus(service, grpc_health_v1.HealthCheckResponse_SERVING)
+	//healthServer := health.NewServer()
+	//grpc_health_v1.RegisterHealthServer(server, healthServer)
+	//for _, service := range api.ServiceNames(ep) {
+	//	log.Entry(ctx).Println("service: ", service)
+	//	healthServer.SetServingStatus(service, grpc_health_v1.HealthCheckResponse_SERVING)
+	//}
+
+	for err = range nsmgrCtx {
+		log.Entry(ctx).Println("error running nsmgr: ", err)
 	}
 
-	select {
-	case <-nsmgrCtx.Done():
-	}
-
-	log.Entry(ctx).Println(nsmgrCtx.Err())
+	log.Entry(ctx).Println("nsmgr exiting")
 }
 
 

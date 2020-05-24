@@ -49,6 +49,10 @@ spec:
               value: unix:///run/networkservicemesh/nsm.client.io.sock
             - name: NSM_CONNECT_TO_URL
               value: unix:///run/networkservicemesh/nsm.server.io.sock
+            - name: NSM_CLIENT_LISTEN_ON_URL
+              value: unix:///run/networkservicemesh/client.client.io.sock
+            - name: NSM_CLIENT_CONNECT_TO_URL
+              value: unix:///run/networkservicemesh/client.server.io.sock
             - name: NSM_REGISTRY_URL
               value: unix:///run/networkservicemesh/registry.io.sock
             - name: GRPC_GO_LOG_VERBOSITY_LEVEL

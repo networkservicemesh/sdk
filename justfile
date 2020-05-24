@@ -1,5 +1,6 @@
 
 build:
+    go generate ./pkg/imports
     docker build -t fkautz/icmp-responder:0.0.8 .
 
 load:

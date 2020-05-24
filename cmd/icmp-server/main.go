@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"github.com/networkservicemesh/api/pkg/api"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
@@ -11,7 +10,6 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spiffe/go-spiffe/spiffe"
 	"google.golang.org/grpc/health"
-	"google.golang.org/grpc/health/grpc_health_v1"
 	"net"
 	"net/url"
 	"os"
@@ -116,14 +114,6 @@ func main() {
 	)
 	endpoint.Register(server)
 
-	// Create GRPC Health Server:
-	healthServer := health.NewServer()
-	grpc_health_v1.RegisterHealthServer(server, healthServer)
-	for _, service := range api.ServiceNames(endpoint) {
-		log.Entry(ctx).Println("service: ", service)
-		healthServer.SetServingStatus(service, grpc_health_v1.HealthCheckResponse_SERVING)
-	}
-
 	cc, err := grpc.DialContext(ctx,ConnectToURL.String(),spiffeutils.WithSpiffe(tlsPeer,10 * time.Second), grpc.WithBlock())
 	//cc, err := grpc.Dial("unix://" + ConnectToURL.String())
 	if err != nil {
@@ -134,10 +124,7 @@ func main() {
 
 	ListenOnURL.Scheme = "unix"
 
-	time.Sleep(5 * time.Second)
 	srvCtx := grpcutils.ListenAndServe(ctx, &ListenOnURL, server)
-	srvCtx.Err()
-	time.Sleep(5 * time.Second)
 
 	registryClient := registry.NewNetworkServiceRegistryClient(cc)
 
@@ -156,19 +143,13 @@ func main() {
 		},
 	}
 
-
+	log.Entry(ctx).Printf("Attempting to register NSE")
 	registerNSERet, err := registryClient.RegisterNSE(ctx, nseRegistration)
 	log.Entry(ctx).Printf("nse ret: %q", registerNSERet)
 	if err != nil {
 		log.Entry(ctx).Fatalf("failed to register nse on %q: %+v", &nseRegistration, err)
 	}
 
-	go func() {
-		for {
-			log.Entry(ctx).Println("server err:", srvCtx.Err())
-			time.Sleep(5 * time.Second)
-		}
-	}()
 
 	monitor, err := grpc.DialContext(ctx,ListenOnURL.String(),spiffeutils.WithSpiffe(tlsPeer,10 * time.Second), grpc.WithBlock())
 	if err != nil {
@@ -207,8 +188,12 @@ func main() {
 		log.Entry(ctx).Println(mCC.Recv())
 	}()
 
-	<-srvCtx.Done()
-	log.Entry(srvCtx).Warnf("complete!")
+	for err = range srvCtx {
+		log.Entry(ctx).Println("server err:", err)
+		time.Sleep(5 * time.Second)
+	}
+
+	log.Entry(ctx).Warnf("complete!")
 }
 
 
