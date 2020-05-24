@@ -51,9 +51,15 @@ const (
 //                                    defaults to []string{Dlv,Listen,path.Base(os.Args[0])}
 //                                    which is DLV_PORT_<name of executable>
 func Self(envVariableParts ...string) error {
+	// Get the executable name.  Note: os.Args[0] may not be the absolute path of the executable, which is
+	// why we get it this way
+	executable, err := os.Executable()
+	if err != nil {
+		return errors.Errorf("unable to get excutable name: %+v", err)
+	}
 	// If you don't provide an env variable, we make a default choice
 	if len(envVariableParts) == 0 {
-		envVariableParts = []string{Dlv, Listen, path.Base(os.Args[0])}
+		envVariableParts = []string{Dlv, Listen, path.Base(executable)}
 	}
 	dlvPortEnvVariable := envVariable(envVariableParts...)
 
@@ -68,7 +74,7 @@ func Self(envVariableParts ...string) error {
 	if len(split) < 2 {
 		return errors.Errorf("Unable to use value %q from env variable %s as a listen: missing ':' before port", listen, dlvPortEnvVariable)
 	}
-	if _, err := strconv.ParseUint(split[1], 10, 16); err != nil {
+	if _, err = strconv.ParseUint(split[1], 10, 16); err != nil {
 		return errors.Wrapf(err, "Unable to use value %q from env variable %s as a listen", listen, dlvPortEnvVariable)
 	}
 
@@ -86,7 +92,10 @@ func Self(envVariableParts ...string) error {
 		"--api-version=2",
 		"exec",
 	}
-	args = append(args, os.Args...)
+	args = append(args, executable)
+	if len(os.Args) > 1 {
+		args = append(args, os.Args[1:]...)
+	}
 
 	// Remove the dlvPortEnvVariable from the environment variables
 	origEnvv := os.Environ()
