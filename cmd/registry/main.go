@@ -66,6 +66,7 @@ func (f *fakeRegistry) FindNetworkService(ctx context.Context, request *registry
 	log.Entry(ctx).Printf("request: %+v", request)
 
 	if entry, ok := f.registrations[request.NetworkServiceName]; ok {
+		log.Entry(ctx).Println("entry: %+v", entry)
 		payload := entry.NetworkService.Payload
 		networkService := entry.NetworkService
 		endpoints := []*registry.NetworkServiceEndpoint{entry.NetworkServiceEndpoint}
@@ -78,6 +79,10 @@ func (f *fakeRegistry) FindNetworkService(ctx context.Context, request *registry
 			NetworkServiceManagers:  networkServiceManagers,
 			NetworkServiceEndpoints: endpoints,
 		}
+		log.Entry(ctx).Printf("payload: %+v", payload)
+		log.Entry(ctx).Printf("%ns: %+v", networkService)
+		log.Entry(ctx).Printf("nse: %+v", entry.NetworkServiceEndpoint)
+		log.Entry(ctx).Printf("nsms: %+v", entry.NetworkServiceManager)
 		log.Entry(ctx).Printf("response: %+v", request)
 		return response, nil
 	}
