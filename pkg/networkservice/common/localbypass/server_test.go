@@ -105,17 +105,11 @@ func TestNewServer_UnixAddressRegistered(t *testing.T) {
 		},
 	}
 	_, err := localBypassRegistryServer.RegisterNSE(
-		peer.NewContext(context.Background(),
-			&peer.Peer{
-				Addr: &net.UnixAddr{
-					Name: "/var/run/nse-1.sock",
-					Net:  "unix",
-				},
-				AuthInfo: nil,
-			}),
+		context.Background(),
 		&registry.NSERegistration{
 			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 				Name: "nse-1",
+				Url:  "unix:///var/run/nse-1.sock",
 			},
 		})
 	assert.Nil(t, err)
@@ -142,16 +136,11 @@ func TestNewServer_NonUnixAddressRegistered(t *testing.T) {
 		},
 	}
 	_, err := localBypassRegistryServer.RegisterNSE(
-		peer.NewContext(context.Background(),
-			&peer.Peer{
-				Addr: &net.IPAddr{
-					IP: net.IP{255, 255, 255, 255},
-				},
-				AuthInfo: nil,
-			}),
+		context.Background(),
 		&registry.NSERegistration{
 			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 				Name: "nse-1",
+				Url:  "tcp://127.0.0.1:5002",
 			},
 		})
 	assert.Nil(t, err)
@@ -159,12 +148,14 @@ func TestNewServer_NonUnixAddressRegistered(t *testing.T) {
 	ctx := withTestData(context.Background(), &TestData{})
 	_, err = server.Request(ctx, request)
 	assert.Nil(t, err)
-	assert.Nil(t, testData(ctx).clientURL)
+	assert.Nil(t, err)
+	assert.Equal(t, &url.URL{Scheme: "tcp", Host: "127.0.0.1:5002"}, testData(ctx).clientURL)
 
 	ctx = withTestData(context.Background(), &TestData{})
 	_, err = server.Close(ctx, request.GetConnection())
 	assert.Nil(t, err)
-	assert.Nil(t, testData(ctx).clientURL)
+	assert.Nil(t, err)
+	assert.Equal(t, &url.URL{Scheme: "tcp", Host: "127.0.0.1:5002"}, testData(ctx).clientURL)
 }
 
 func TestNewServer_AddsNothingAfterNSERemoval(t *testing.T) {
