@@ -22,6 +22,9 @@ package next_test
 import (
 	"context"
 	"fmt"
+	"io"
+
+	"google.golang.org/grpc/metadata"
 
 	"github.com/golang/protobuf/ptypes/empty"
 
@@ -68,8 +71,8 @@ func (t *testVisitRegistryServer) RegisterNSE(ctx context.Context, r *registry.N
 	return next.NetworkServiceRegistryServer(visit(ctx)).RegisterNSE(ctx, r)
 }
 
-func (t *testVisitRegistryServer) BulkRegisterNSE(registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
-	return nil
+func (t *testVisitRegistryServer) BulkRegisterNSE(s registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
+	return next.NetworkServiceRegistryServer(visit(s.Context())).BulkRegisterNSE(s)
 }
 
 func (t *testVisitRegistryServer) RemoveNSE(ctx context.Context, r *registry.RemoveNSERequest) (*empty.Empty, error) {
@@ -92,6 +95,42 @@ func (t *testEmptyRegistryServer) RemoveNSE(ctx context.Context, r *registry.Rem
 
 func emptyRegistryServer() registry.NetworkServiceRegistryServer {
 	return &testEmptyRegistryServer{}
+}
+
+type unimplementedBulkRegisterNSEServer struct {
+	ctx context.Context
+}
+
+func (m *unimplementedBulkRegisterNSEServer) Send(*registry.NSERegistration) error {
+	panic("implement me")
+}
+
+func (m *unimplementedBulkRegisterNSEServer) Recv() (*registry.NSERegistration, error) {
+	return nil, io.EOF
+}
+
+func (m *unimplementedBulkRegisterNSEServer) SetHeader(metadata.MD) error {
+	panic("implement me")
+}
+
+func (m *unimplementedBulkRegisterNSEServer) SendHeader(metadata.MD) error {
+	panic("implement me")
+}
+
+func (m *unimplementedBulkRegisterNSEServer) SetTrailer(metadata.MD) {
+	panic("implement me")
+}
+
+func (m *unimplementedBulkRegisterNSEServer) Context() context.Context {
+	return m.ctx
+}
+
+func (m *unimplementedBulkRegisterNSEServer) SendMsg(_ interface{}) error {
+	panic("implement me")
+}
+
+func (m *unimplementedBulkRegisterNSEServer) RecvMsg(_ interface{}) error {
+	panic("implement me")
 }
 
 func TestNewRegistryServerShouldNotPanic(t *testing.T) {
@@ -125,6 +164,11 @@ func TestServerBranches(t *testing.T) {
 
 		ctx = visit(context.Background())
 		_, _ = s.RemoveNSE(ctx, nil)
+		assert.Equal(t, expects[i], visitValue(ctx), fmt.Sprintf("sample index: %v", i))
+
+		ctx = visit(context.Background())
+		_ = s.BulkRegisterNSE(&unimplementedBulkRegisterNSEServer{ctx: ctx})
+
 		assert.Equal(t, expects[i], visitValue(ctx), fmt.Sprintf("sample index: %v", i))
 	}
 }

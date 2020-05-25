@@ -46,6 +46,11 @@ type streamServer struct {
 	registry.NetworkServiceRegistry_BulkRegisterNSEServer
 	sendCh chan *regErr
 	recvCh chan *regErr
+	ctx    context.Context
+}
+
+func (ss *streamServer) Context() context.Context {
+	return ss.ctx
 }
 
 func (ts *streamClient) Send(reg *registry.NSERegistration) error {
@@ -62,14 +67,14 @@ func (ts *streamClient) Recv() (*registry.NSERegistration, error) {
 	return res.reg, res.err
 }
 
-func (ts *streamServer) Send(reg *registry.NSERegistration) error {
-	ts.sendCh <- &regErr{
+func (ss *streamServer) Send(reg *registry.NSERegistration) error {
+	ss.sendCh <- &regErr{
 		reg: reg,
 	}
 	return nil
 }
-func (ts *streamServer) Recv() (*registry.NSERegistration, error) {
-	res := <-ts.recvCh
+func (ss *streamServer) Recv() (*registry.NSERegistration, error) {
+	res := <-ss.recvCh
 	return res.reg, res.err
 }
 
@@ -83,17 +88,14 @@ func (r *registryServerToClient) RegisterNSE(ctx context.Context, registration *
 }
 
 // BulkRegisterNSE - register in bulk
-func (r *registryServerToClient) BulkRegisterNSE(ctx context.Context, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_BulkRegisterNSEClient, error) {
+func (r *registryServerToClient) BulkRegisterNSE(ctx context.Context, _ ...grpc.CallOption) (registry.NetworkServiceRegistry_BulkRegisterNSEClient, error) {
 	recv := make(chan *regErr, 1)
 	send := make(chan *regErr, 1)
 	regClient := &streamClient{sendCh: send, recvCh: recv}
 	// Reverse channels
-	regServer := &streamServer{sendCh: recv, recvCh: send}
-
-	go func() {
-		regClient.err = r.server.BulkRegisterNSE(regServer)
-	}()
-	return regClient, nil
+	regServer := &streamServer{sendCh: recv, recvCh: send, ctx: ctx}
+	regClient.err = r.server.BulkRegisterNSE(regServer)
+	return regClient, regClient.err
 }
 
 func (r *registryServerToClient) RemoveNSE(ctx context.Context, request *registry.RemoveNSERequest, _ ...grpc.CallOption) (*empty.Empty, error) {

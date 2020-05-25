@@ -26,6 +26,15 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
+type nextNetworkServiceRegistryBulkRegisterNSEServer struct {
+	registry.NetworkServiceRegistry_BulkRegisterNSEServer
+	ctx context.Context
+}
+
+func (s *nextNetworkServiceRegistryBulkRegisterNSEServer) Context() context.Context {
+	return s.ctx
+}
+
 // NetworkServiceRegistryServerWrapper - function that wraps a registry server
 type NetworkServiceRegistryServerWrapper func(server registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer
 
@@ -70,7 +79,22 @@ func (n *nextNetworkServiceRegistryServer) RegisterNSE(ctx context.Context, requ
 }
 
 func (n *nextNetworkServiceRegistryServer) BulkRegisterNSE(server registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
-	return n.servers[n.index].BulkRegisterNSE(server)
+	ctx := server.Context()
+	if n.index == 0 && ctx != nil {
+		if nextParent := NetworkServiceRegistryServer(ctx); nextParent != nil {
+			n.nextParent = nextParent
+		}
+	}
+	if n.index+1 < len(n.servers) {
+		return n.servers[n.index].BulkRegisterNSE(&nextNetworkServiceRegistryBulkRegisterNSEServer{
+			NetworkServiceRegistry_BulkRegisterNSEServer: server,
+			ctx: withNextRegistryServer(ctx, &nextNetworkServiceRegistryServer{nextParent: n.nextParent, servers: n.servers, index: n.index + 1}),
+		})
+	}
+	return n.servers[n.index].BulkRegisterNSE(&nextNetworkServiceRegistryBulkRegisterNSEServer{
+		NetworkServiceRegistry_BulkRegisterNSEServer: server,
+		ctx: withNextRegistryServer(ctx, n.nextParent),
+	})
 }
 
 func (n *nextNetworkServiceRegistryServer) RemoveNSE(ctx context.Context, request *registry.RemoveNSERequest) (*empty.Empty, error) {
