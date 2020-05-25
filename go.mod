@@ -18,7 +18,7 @@ require (
 	github.com/nats-io/nats-server/v2 v2.1.6 // indirect
 	github.com/nats-io/nats-streaming-server v0.17.0
 	github.com/nats-io/stan.go v0.6.0
-	github.com/networkservicemesh/api v0.0.0-20200522152139-c919c7427aab
+	github.com/networkservicemesh/api v0.0.0-20200525170518-89690ec70489
 	github.com/open-policy-agent/opa v0.16.1
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/pelletier/go-toml v1.7.0 // indirect
