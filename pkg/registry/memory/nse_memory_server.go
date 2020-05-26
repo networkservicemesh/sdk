@@ -32,6 +32,15 @@ type memoryNetworkServeRegistry struct {
 }
 
 func (m *memoryNetworkServeRegistry) RegisterNSE(ctx context.Context, registration *registry.NSERegistration) (*registry.NSERegistration, error) {
+	nseRegistration, err := m.processRegistration(registration)
+	if err != nil {
+		return nseRegistration, err
+	}
+
+	return next.NetworkServiceRegistryServer(ctx).RegisterNSE(ctx, registration)
+}
+
+func (m *memoryNetworkServeRegistry) processRegistration(registration *registry.NSERegistration) (*registry.NSERegistration, error) {
 	if registration == nil {
 		return nil, errors.New("can not register nil registration")
 	}
@@ -45,11 +54,36 @@ func (m *memoryNetworkServeRegistry) RegisterNSE(ctx context.Context, registrati
 
 	m.storage.NetworkServiceEndpoints.Store(registration.NetworkServiceEndpoint.Name, registration.NetworkServiceEndpoint)
 	m.storage.NetworkServices.Store(registration.NetworkService.Name, registration.NetworkService)
-	return next.NetworkServiceRegistryServer(ctx).RegisterNSE(ctx, registration)
+	return registration, nil
+}
+
+type nsmBulkRegServer struct {
+	registry.NetworkServiceRegistry_BulkRegisterNSEServer
+	server registry.NetworkServiceRegistry_BulkRegisterNSEServer
+	m      *memoryNetworkServeRegistry
+}
+
+func (ts *nsmBulkRegServer) Send(reg *registry.NSERegistration) error {
+	nseRegistration, err := ts.m.processRegistration(reg)
+	if err != nil {
+		return err
+	}
+	return ts.server.Send(nseRegistration)
+}
+func (ts *nsmBulkRegServer) Recv() (*registry.NSERegistration, error) {
+	return ts.server.Recv()
+}
+
+func (ts *nsmBulkRegServer) Context() context.Context {
+	return ts.server.Context()
 }
 
 func (m *memoryNetworkServeRegistry) BulkRegisterNSE(s registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
-	return next.NetworkServiceRegistryServer(s.Context()).BulkRegisterNSE(s)
+	bulkRegS := &nsmBulkRegServer{
+		m:      m,
+		server: s,
+	}
+	return next.NetworkServiceRegistryServer(s.Context()).BulkRegisterNSE(bulkRegS)
 }
 
 func (m *memoryNetworkServeRegistry) RemoveNSE(ctx context.Context, req *registry.RemoveNSERequest) (*empty.Empty, error) {

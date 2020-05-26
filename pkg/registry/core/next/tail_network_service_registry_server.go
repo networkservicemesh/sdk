@@ -31,7 +31,20 @@ func (n *tailNetworkServiceRegistryServer) RegisterNSE(_ context.Context, reques
 	return request, nil
 }
 
-func (n *tailNetworkServiceRegistryServer) BulkRegisterNSE(_ registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
+func (n *tailNetworkServiceRegistryServer) BulkRegisterNSE(s registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
+	// Tail should read all from Recv and Send is back.
+	go func() {
+		for {
+			reg, err := s.Recv()
+			if err != nil {
+				return
+			}
+			err = s.Send(reg)
+			if err != nil {
+				return
+			}
+		}
+	}()
 	return nil
 }
 
