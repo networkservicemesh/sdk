@@ -25,8 +25,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/localbypass"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"google.golang.org/grpc/peer"
-
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
@@ -44,14 +42,11 @@ func NewNetworkServiceRegistryServer(sockets localbypass.SocketMap) registry.Net
 }
 
 func (n *localBypassRegistry) RegisterNSE(ctx context.Context, request *registry.NSERegistration) (*registry.NSERegistration, error) {
-	p, ok := peer.FromContext(ctx)
-	if ok && p.Addr.Network() == "unix" && n.sockets != nil {
-		u := &url.URL{
-			Scheme: "unix",
-			Path:   p.Addr.String(),
-		}
-		n.sockets.LoadOrStore(request.GetNetworkServiceEndpoint().GetName(), u)
+	u, err := url.Parse(request.GetNetworkServiceEndpoint().GetUrl())
+	if err != nil {
+		return nil, err
 	}
+	n.sockets.LoadOrStore(request.GetNetworkServiceEndpoint().GetName(), u)
 	return next.NetworkServiceRegistryServer(ctx).RegisterNSE(ctx, request)
 }
 

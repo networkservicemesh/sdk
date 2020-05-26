@@ -40,7 +40,7 @@ type localBypassServer struct {
 }
 
 // NewServer - creates a NetworkServiceServer that tracks locally registered Endpoints substitutes their
-//             unix file socket as the clienturl.ClientURL(ctx) used to connect to them.
+//             passed endpoint_address with clienturl.ClientURL(ctx) used to connect to them.
 //             - server - *registry.NetworkServiceRegistryServer.  Since registry.NetworkServiceRegistryServer is an interface
 //                        (and thus a pointer) *registry.NetworkServiceRegistryServer is a double pointer.  Meaning it
 //                        points to a place that points to a place that implements registry.NetworkServiceRegistryServer
