@@ -14,7 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package refresh allows the setting of a refresh context in the context of the request
+// Package refresh allows the setting of the refresh context into the context of the request.
+// Refresh context is used to distinguish requests with the same connectionID (repeating refresh requests will have
+// refreshContext while initial request and new requests from healClient will not) and to be able
+// to guarantee refresh canceling by canceling it's refresh context
 package refresh
 
 import (
