@@ -65,6 +65,7 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 		return nil, errors.Wrapf(err, "Error creating timer from Request.Connection.Path.PathSegment[%d].ExpireTime", request.GetConnection().GetPath().GetIndex())
 	}
 	t.executor.AsyncExec(func() {
+		id := req.GetConnection().GetId()
 		// check if it is refresh request
 		if refreshCtx := refreshContext(ctx); refreshCtx != nil {
 			// refresh was canceled
@@ -73,13 +74,13 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 			}
 			// we reuse non-canceled refresh context for the next refresh request
 			timer := t.createTimer(ctx, req, expire, opts...)
-			t.connectionTimers[req.GetConnection().GetId()] = timer
+			t.connectionTimers[id] = timer
 		} else {
 			// cancel refresh of previous request if any
-			if timer, ok := t.connectionTimers[req.GetConnection().GetId()]; ok {
+			if timer, ok := t.connectionTimers[id]; ok {
 				timer.Stop()
 			}
-			if canceller, ok := t.refreshCancellers[req.GetConnection().GetId()]; ok {
+			if canceller, ok := t.refreshCancellers[id]; ok {
 				canceller()
 			}
 			// add refresh context to request context
@@ -87,8 +88,8 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 			newCtx := withRefreshContext(ctx, refreshCtx)
 
 			timer := t.createTimer(newCtx, req, expire, opts...)
-			t.connectionTimers[req.GetConnection().GetId()] = timer
-			t.refreshCancellers[req.GetConnection().GetId()] = cancelFunc
+			t.connectionTimers[id] = timer
+			t.refreshCancellers[id] = cancelFunc
 		}
 	})
 	return rv, nil
