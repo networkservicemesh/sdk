@@ -19,8 +19,6 @@
 //    2) "auth_info" with sub keys:
 //          i) "certificate" -- is a pem encoded x509cert (usage: input.auth_info.certificate)
 //			ii) "spiffe_id" -- is a spiffeID from SVIDX509Certificate (usage: input.auth_info.spiffe_id)
-//    3) "operation" -- one of request/close (usage: input.operation)
-//    4) "role" -- one of client/endpoint (usage: input.role)
 
 // An example of using OPA input for the case of token signature verification:
 //
@@ -52,25 +50,8 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-type role string
-type operation string
-
-const (
-	// Client is a client role
-	Client role = "client"
-
-	// Endpoint is an endpoint role
-	Endpoint role = "endpoint"
-
-	// Request is a request operation
-	Request operation = "request"
-
-	// Close is a close operation
-	Close operation = "close"
-)
-
 // PreparedOpaInput - returns a prepared input for using in OPA
-func PreparedOpaInput(connection *networkservice.Connection, authInfo credentials.AuthInfo, operation operation, role role) (map[string]interface{}, error) {
+func PreparedOpaInput(connection *networkservice.Connection, authInfo credentials.AuthInfo) (map[string]interface{}, error) {
 	connectionAsMap, err := convertConnectionToMap(connection)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Cannot convert connection %v to map", connection)
@@ -91,8 +72,6 @@ func PreparedOpaInput(connection *networkservice.Connection, authInfo credential
 			"certificate": pemcert,
 			"spiffe_id":   spiffeID,
 		},
-		"operation": operation,
-		"role":      role,
 	}
 	return rv, nil
 }
