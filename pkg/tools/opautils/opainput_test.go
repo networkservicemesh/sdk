@@ -90,11 +90,9 @@ func TestPreparedOpaInput(t *testing.T) {
 			"certificate": certPem,
 			"spiffe_id":   spiffeID,
 		},
-		"operation": opautils.Request,
-		"role":      opautils.Client,
 	}
 
-	realInput, err := opautils.PreparedOpaInput(conn, authInfo, opautils.Request, opautils.Client)
+	realInput, err := opautils.PreparedOpaInput(conn, authInfo)
 	assert.Nil(t, err)
 
 	assert.Equal(t, expectedInput, realInput)
