@@ -41,6 +41,7 @@ plugins {
     }
     WorkloadAttestor "unix" {
         plugin_data {
+            discover_workload_path = true
         }
     }
 }
