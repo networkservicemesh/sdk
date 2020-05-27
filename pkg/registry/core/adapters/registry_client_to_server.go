@@ -18,6 +18,7 @@ package adapters
 
 import (
 	"context"
+	"net/url"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -26,11 +27,14 @@ import (
 
 type registryClientToServer struct {
 	client registry.NetworkServiceRegistryClient
+	url    url.URL
 }
 
 // NewRegistryClientToServer - returns a registry.NetworkServiceRegistryClient wrapped around the supplied client
 func NewRegistryClientToServer(client registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryServer {
-	return &registryClientToServer{client: client}
+	return &registryClientToServer{
+		client: client,
+	}
 }
 
 func (r *registryClientToServer) RegisterNSE(ctx context.Context, registration *registry.NSERegistration) (*registry.NSERegistration, error) {

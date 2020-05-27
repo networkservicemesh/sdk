@@ -75,7 +75,7 @@ func main() {
 	if err != nil {
 		log.Entry(ctx).Fatalf("Error attempting to build ipam server %+v", err)
 	}
-	ep := nsmgr.NewServer("nsmgr-"+podName, &reg, spiffeutils.SpiffeJWTTokenGeneratorFunc(tlsPeer.GetCertificate, 10*time.Minute), registryCC)
+	ep := nsmgr.NewServer("nsmgr-"+podName, &reg, spiffeutils.SpiffeJWTTokenGeneratorFunc(tlsPeer.GetCertificate, 10*time.Minute), registryCC, ConnectToURL)
 	if err != nil {
 		log.Entry(ctx).Fatalf("Error attempting to build ipam server %+v", err)
 	}
