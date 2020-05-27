@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	expireTimeout        = 100 * time.Millisecond
+	expireTimeout        = 50 * time.Millisecond
 	waitForTimeout       = 3 * expireTimeout
 	tickTimeout          = 10 * time.Millisecond
 	refreshCount         = 5
@@ -87,6 +87,24 @@ func setExpires(conn *networkservice.Connection, expireTimeout time.Duration) {
 	}
 }
 
+func hasValue(c <-chan struct{}) bool {
+	select {
+	case <-c:
+		return true
+	default:
+		return false
+	}
+}
+
+func firstGetsValueEarlier(c1, c2 <-chan struct{}) bool {
+	select {
+	case <-c2:
+		return false
+	case <-c1:
+		return true
+	}
+}
+
 func TestNewClient_StopRefreshAtClose(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
@@ -108,17 +126,9 @@ func TestNewClient_StopRefreshAtClose(t *testing.T) {
 	conn, err := client.Request(context.Background(), request)
 	assert.Nil(t, err)
 
-	refreshCond := func() bool {
-		select {
-		case <-requestCh:
-			return true
-		default:
-			return false
-		}
-	}
-	assert.True(t, refreshCond()) // receive value from initial request
+	assert.True(t, hasValue(requestCh)) // receive value from initial request
 	for i := 0; i < refreshCount; i++ {
-		require.Eventually(t, refreshCond, waitForTimeout, tickTimeout)
+		require.Eventually(t, func() bool { return hasValue(requestCh) }, waitForTimeout, tickTimeout)
 	}
 
 	_, err = client.Close(context.Background(), conn)
@@ -128,15 +138,7 @@ func TestNewClient_StopRefreshAtClose(t *testing.T) {
 	time.AfterFunc(expectAbsenceTimeout, func() {
 		absence <- struct{}{}
 	})
-	absenceRefreshCond := func() bool {
-		select {
-		case <-requestCh:
-			return false
-		case <-absence:
-			return true
-		}
-	}
-	assert.True(t, absenceRefreshCond())
+	assert.True(t, firstGetsValueEarlier(absence, requestCh))
 }
 
 func TestNewClient_StopRefreshAtAnotherRequest(t *testing.T) {
@@ -154,44 +156,33 @@ func TestNewClient_StopRefreshAtAnotherRequest(t *testing.T) {
 	}
 
 	client := next.NewNetworkServiceClient(refresh.NewClient(), testRefresh)
-	request := &networkservice.NetworkServiceRequest{
+
+	request1 := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "conn-1",
 		},
 	}
-	_, err := client.Request(withRequestNumber(context.Background(), 1), request)
+	_, err := client.Request(withRequestNumber(context.Background(), 1), request1)
 	assert.Nil(t, err)
 
-	refreshCond := func() bool {
-		select {
-		case <-requestCh:
-			return true
-		default:
-			return false
-		}
-	}
-	assert.True(t, refreshCond()) // receive value from initial request
+	assert.True(t, hasValue(requestCh)) // receive value from initial request
 	for i := 0; i < refreshCount; i++ {
-		require.Eventually(t, refreshCond, waitForTimeout, tickTimeout)
+		require.Eventually(t, func() bool { return hasValue(requestCh) }, waitForTimeout, tickTimeout)
 	}
 
-	requestCopy := request.Clone()
-	conn, err := client.Request(withRequestNumber(context.Background(), 2), requestCopy)
+	request2 := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: "conn-1",
+		},
+	}
+	conn, err := client.Request(withRequestNumber(context.Background(), 2), request2)
 	assert.Nil(t, err)
 
 	absence := make(chan struct{})
 	time.AfterFunc(expectAbsenceTimeout, func() {
 		absence <- struct{}{}
 	})
-	absenceRefreshFirstCond := func() bool {
-		select {
-		case <-requestCh:
-			return false
-		case <-absence:
-			return true
-		}
-	}
-	assert.True(t, absenceRefreshFirstCond())
+	assert.True(t, firstGetsValueEarlier(absence, requestCh))
 
 	_, err = client.Close(context.Background(), conn)
 	assert.Nil(t, err)
