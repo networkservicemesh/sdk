@@ -28,7 +28,6 @@ import (
 )
 
 type nsmRegistryServer struct {
-	registry.NetworkServiceRegistryServer
 	serialize.Executor
 	manager *registry.NetworkServiceManager
 }
@@ -44,14 +43,10 @@ func NewServer(manager *registry.NetworkServiceManager) registry.NetworkServiceR
 // RegisterNSE - register NSE with current manager associated.
 func (n *nsmRegistryServer) RegisterNSE(ctx context.Context, registration *registry.NSERegistration) (*registry.NSERegistration, error) {
 	// update manager to be proper one.
-	<-n.AsyncExec(func() {
-		registration.NetworkServiceManager = n.manager
-	})
+	registration.NetworkServiceManager = n.manager
 	result, err := next.NetworkServiceRegistryServer(ctx).RegisterNSE(ctx, registration)
-	if result != nil {
-		<-n.AsyncExec(func() {
-			result.NetworkServiceManager = n.manager
-		})
+	if result != nil && err == nil {
+		result.NetworkServiceManager = n.manager
 	}
 	return result, err
 }
