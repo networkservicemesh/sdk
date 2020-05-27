@@ -29,10 +29,9 @@ import (
 	"sync"
 
 	"github.com/edwarnicke/exechelper"
+	"github.com/matryer/try"
 	"github.com/sirupsen/logrus"
 	"github.com/spiffe/go-spiffe/workload"
-
-	"github.com/matryer/try"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
@@ -51,7 +50,15 @@ func AddEntry(ctx context.Context, parentID, spiffeID, selector string) error {
 var spireRoot string = ""
 
 // Start - start a spire-server and spire-agent with the given agentId
-func Start(ctx context.Context, agentID string) <-chan error {
+func Start(options ...Option) <-chan error {
+	opt := &option{
+		ctx:     context.Background(),
+		agentID: "spiffe://example.org/agent",
+	}
+	for _, o := range options {
+		o(opt)
+	}
+
 	errCh := make(chan error, 4)
 	var err error
 	spireRoot, err = ioutil.TempDir("", "spire")
@@ -63,7 +70,7 @@ func Start(ctx context.Context, agentID string) <-chan error {
 
 	// Write the config files (if not present)
 	var spireSocketPath string
-	spireSocketPath, err = writeDefaultConfigFiles(ctx, spireRoot)
+	spireSocketPath, err = writeDefaultConfigFiles(opt.ctx, spireRoot)
 	if err != nil {
 		errCh <- err
 		close(errCh)
@@ -80,9 +87,9 @@ func Start(ctx context.Context, agentID string) <-chan error {
 	spireCmd := fmt.Sprintf("spire-server run -config %s", path.Join(spireRoot, spireServerConfFileName))
 	spireServerErrCh := exechelper.Start(spireCmd,
 		exechelper.WithDir(spireRoot),
-		exechelper.WithContext(ctx),
-		exechelper.WithStdout(log.Entry(ctx).WithField("cmd", "spire-server run").Writer()),
-		exechelper.WithStderr(log.Entry(ctx).WithField("cmd", "spire-server run").Writer()),
+		exechelper.WithContext(opt.ctx),
+		exechelper.WithStdout(log.Entry(opt.ctx).WithField("cmd", "spire-server run").Writer()),
+		exechelper.WithStderr(log.Entry(opt.ctx).WithField("cmd", "spire-server run").Writer()),
 	)
 	select {
 	case spireServerErr := <-spireServerErrCh:
@@ -96,8 +103,8 @@ func Start(ctx context.Context, agentID string) <-chan error {
 	err = try.Do(func(attempts int) (bool, error) {
 		return attempts < 10, exechelper.Run(
 			fmt.Sprintf("spire-server healthcheck -registrationUDSPath %s/spire-registration.sock", spireRoot),
-			exechelper.WithStdout(log.Entry(ctx).WithField("cmd", "spire-server healthcheck").Writer()),
-			exechelper.WithStderr(log.Entry(ctx).WithField("cmd", "spire-server healthcheck").Writer()),
+			exechelper.WithStdout(log.Entry(opt.ctx).WithField("cmd", "spire-server healthcheck").Writer()),
+			exechelper.WithStderr(log.Entry(opt.ctx).WithField("cmd", "spire-server healthcheck").Writer()),
 		)
 	})
 	if err != nil {
@@ -106,12 +113,21 @@ func Start(ctx context.Context, agentID string) <-chan error {
 		return errCh
 	}
 
+	// Add Entries
+	for _, entry := range opt.entries {
+		if err = AddEntry(opt.ctx, opt.agentID, entry.spiffeID, entry.selector); err != nil {
+			errCh <- err
+			close(errCh)
+			return errCh
+		}
+	}
+
 	// Get the SpireServers Token
 	cmdStr := "spire-server token generate -spiffeID %s -registrationUDSPath %s/spire-registration.sock"
-	cmdStr = fmt.Sprintf(cmdStr, agentID, spireRoot)
+	cmdStr = fmt.Sprintf(cmdStr, opt.agentID, spireRoot)
 	outputBytes, err := exechelper.Output(cmdStr,
-		exechelper.WithStdout(log.Entry(ctx).WithField("cmd", cmdStr).Writer()),
-		exechelper.WithStderr(log.Entry(ctx).WithField("cmd", cmdStr).Writer()),
+		exechelper.WithStdout(log.Entry(opt.ctx).WithField("cmd", cmdStr).Writer()),
+		exechelper.WithStderr(log.Entry(opt.ctx).WithField("cmd", cmdStr).Writer()),
 	)
 	if err != nil {
 		errCh <- err
@@ -124,9 +140,9 @@ func Start(ctx context.Context, agentID string) <-chan error {
 	// Start the Spire Agent
 	spireAgentErrCh := exechelper.Start("spire-agent run"+" -config "+spireAgentConfFilename+" -joinToken "+spireToken,
 		exechelper.WithDir(spireRoot),
-		exechelper.WithContext(ctx),
-		exechelper.WithStdout(log.Entry(ctx).WithField("cmd", "spire-agent run").Writer()),
-		exechelper.WithStderr(log.Entry(ctx).WithField("cmd", "spire-agent run").Writer()),
+		exechelper.WithContext(opt.ctx),
+		exechelper.WithStdout(log.Entry(opt.ctx).WithField("cmd", "spire-agent run").Writer()),
+		exechelper.WithStderr(log.Entry(opt.ctx).WithField("cmd", "spire-agent run").Writer()),
 	)
 	select {
 	case spireAgentErr := <-spireAgentErrCh:
@@ -140,8 +156,8 @@ func Start(ctx context.Context, agentID string) <-chan error {
 	err = try.Do(func(attempts int) (bool, error) {
 		cmdStr := fmt.Sprintf("spire-agent healthcheck -socketPath %s", spireSocketPath)
 		return attempts < 10, exechelper.Run(cmdStr,
-			exechelper.WithStdout(log.Entry(ctx).WithField("cmd", "spire-agent healthcheck").Writer()),
-			exechelper.WithStderr(log.Entry(ctx).WithField("cmd", "spire-agent healthcheck").Writer()),
+			exechelper.WithStdout(log.Entry(opt.ctx).WithField("cmd", "spire-agent healthcheck").Writer()),
+			exechelper.WithStderr(log.Entry(opt.ctx).WithField("cmd", "spire-agent healthcheck").Writer()),
 		)
 	})
 	if err != nil {
