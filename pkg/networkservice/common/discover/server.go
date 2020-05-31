@@ -56,5 +56,5 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 }
 
 func (d *discoverCandidatesServer) Close(context.Context, *networkservice.Connection) (*empty.Empty, error) {
-	panic("implement me")
+	return &empty.Empty{}, nil
 }
