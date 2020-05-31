@@ -51,7 +51,7 @@ func NewClient() networkservice.NetworkServiceClient {
 }
 
 func (t *refreshClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	rv, err := next.Client(ctx).Request(ctx, request)
+	rv, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
 		return nil, err
 	}
