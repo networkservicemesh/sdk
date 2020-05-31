@@ -18,6 +18,7 @@ package memory
 
 import (
 	"context"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -32,6 +33,7 @@ type memoryNetworkServeRegistry struct {
 }
 
 func (m *memoryNetworkServeRegistry) RegisterNSE(ctx context.Context, registration *registry.NSERegistration) (*registry.NSERegistration, error) {
+	log.Entry(ctx).Println("Register NSE: %+v", registration)
 	if registration == nil {
 		return nil, errors.New("can not register nil registration")
 	}
@@ -53,6 +55,7 @@ func (m *memoryNetworkServeRegistry) BulkRegisterNSE(s registry.NetworkServiceRe
 }
 
 func (m *memoryNetworkServeRegistry) RemoveNSE(ctx context.Context, req *registry.RemoveNSERequest) (*empty.Empty, error) {
+	log.Entry(ctx).Println("Remove NSE: %+v", req)
 	m.storage.NetworkServiceEndpoints.Delete(req.NetworkServiceEndpointName)
 	return next.NetworkServiceRegistryServer(ctx).RemoveNSE(ctx, req)
 }

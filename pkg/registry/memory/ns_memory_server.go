@@ -18,6 +18,7 @@ package memory
 
 import (
 	"context"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/pkg/errors"
@@ -28,6 +29,7 @@ type memoryServiceDiscoveryServer struct {
 }
 
 func (d *memoryServiceDiscoveryServer) FindNetworkService(ctx context.Context, req *registry.FindNetworkServiceRequest) (*registry.FindNetworkServiceResponse, error) {
+	log.Entry(ctx).Println("Find NS %+v", req)
 	service, ok := d.storage.NetworkServices.Load(req.NetworkServiceName)
 	if !ok {
 		return nil, errors.Errorf("network service %v is not found", req.NetworkServiceName)

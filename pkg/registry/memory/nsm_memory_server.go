@@ -18,9 +18,9 @@ package memory
 
 import (
 	"context"
-
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
@@ -31,12 +31,14 @@ type nsmMemoryNetworkServerRegistry struct {
 }
 
 func (n *nsmMemoryNetworkServerRegistry) RegisterNSM(ctx context.Context, nsm *registry.NetworkServiceManager) (*registry.NetworkServiceManager, error) {
+	log.Entry(ctx).Println("Register NSM: %+v", nsm)
 	nsm.Name = n.nsmName
 	n.storage.NetworkServiceManagers.Store(nsm.Name, nsm)
 	return next.NSMRegistryServer(ctx).RegisterNSM(ctx, nsm)
 }
 
-func (n *nsmMemoryNetworkServerRegistry) GetEndpoints(context.Context, *empty.Empty) (*registry.NetworkServiceEndpointList, error) {
+func (n *nsmMemoryNetworkServerRegistry) GetEndpoints(ctx context.Context, _ *empty.Empty) (*registry.NetworkServiceEndpointList, error) {
+	log.Entry(ctx).Println("Get NSM Endpoints")
 	result := new(registry.NetworkServiceEndpointList)
 	n.storage.NetworkServiceEndpoints.Range(func(_ string, v *registry.NetworkServiceEndpoint) bool {
 		if v.NetworkServiceManagerName == n.nsmName {

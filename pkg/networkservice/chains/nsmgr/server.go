@@ -18,15 +18,7 @@
 package nsmgr
 
 import (
-	"context"
-	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/open-policy-agent/opa/rego"
-	"google.golang.org/grpc"
-	"net/url"
-	"time"
-
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
@@ -38,6 +30,9 @@ import (
 	chain_registry "github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
+	"github.com/open-policy-agent/opa/rego"
+	"google.golang.org/grpc"
+	"net/url"
 )
 
 // Nsmgr - A simple combintation of the Endpoint, registry.NetworkServiceRegistryServer, and registry.NetworkServiceDiscoveryServer interfaces
@@ -53,30 +48,31 @@ type nsmgr struct {
 	registry.NetworkServiceDiscoveryServer
 }
 
-type urlInjector struct {
-	name        string
-	listenOnURL url.URL
-}
-
-func (u *urlInjector) RegisterNSE(ctx context.Context, registration *registry.NSERegistration) (*registry.NSERegistration, error) {
-	expiration := time.Now()
-	expiration.Add(24 * time.Hour)
-	expirationTimestamp, _ := ptypes.TimestampProto(expiration)
-	registration.NetworkServiceManager = &registry.NetworkServiceManager{
-		Name:                 u.name,
-		Url:                  u.listenOnURL.String(),
-		ExpirationTime:       expirationTimestamp,
-		State:                "RUNNING",
-	}
-}
-
-func (u *urlInjector) BulkRegisterNSE(server registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
-	panic("implement me")
-}
-
-func (u *urlInjector) RemoveNSE(ctx context.Context, request *registry.RemoveNSERequest) (*empty.Empty, error) {
-	panic("implement me")
-}
+//type urlInjector struct {
+//	name        string
+//	listenOnURL url.URL
+//}
+//
+//func (u *urlInjector) RegisterNSE(ctx context.Context, registration *registry.NSERegistration) (*registry.NSERegistration, error) {
+//	expiration := time.Now()
+//	expiration.Add(24 * time.Hour)
+//	expirationTimestamp, _ := ptypes.TimestampProto(expiration)
+//	registration.NetworkServiceManager = &registry.NetworkServiceManager{
+//		Name:                 u.name,
+//		Url:                  u.listenOnURL.String(),
+//		ExpirationTime:       expirationTimestamp,
+//		State:                "RUNNING",
+//	}
+//	return registration, nil
+//}
+//
+//func (u *urlInjector) BulkRegisterNSE(server registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
+//	panic("implement me")
+//}
+//
+//func (u *urlInjector) RemoveNSE(ctx context.Context, request *registry.RemoveNSERequest) (*empty.Empty, error) {
+//	panic("implement me")
+//}
 
 // NewServer - Creates a new Nsmgr
 //           name - name of the Nsmgr
@@ -95,10 +91,10 @@ func NewServer(name string, authzPolicy *rego.PreparedEvalQuery, tokenGenerator 
 	)
 	rv.NetworkServiceRegistryServer = chain_registry.NewNetworkServiceRegistryServer(
 		rv.NetworkServiceRegistryServer,
-		&urlInjector{
-			name: "nsmgr",
-			listenOnURL: listenOnURL,
-		},
+		//&urlInjector{
+		//	name:        "nsmgr",
+		//	listenOnURL: listenOnURL,
+		//},
 		adapter_registry.NewRegistryClientToServer(registry.NewNetworkServiceRegistryClient(registryCC)),
 	)
 	rv.NetworkServiceDiscoveryServer = adapter_registry.NewDiscoveryClientToServer(registry.NewNetworkServiceDiscoveryClient(registryCC))
