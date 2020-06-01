@@ -21,6 +21,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"testing"
+	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
@@ -43,7 +44,7 @@ func TestAuthnClient_Request(t *testing.T) {
 		},
 	}
 
-	client := authorize.NewClient(p)
+	client := authorize.NewClient(p, authorize.WithTokenExpiration(time.Second*10))
 
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{

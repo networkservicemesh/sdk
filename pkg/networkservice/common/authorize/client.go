@@ -33,18 +33,29 @@ import (
 )
 
 type authorizeClient struct {
-	provider security.Provider
+	provider        security.Provider
+	tokenExpiration time.Duration
 }
 
 const (
-	defaultTokenExpiration = 5 * time.Minute
+	defaultTokenExpiration = 15 * time.Minute
 )
 
 // NewClient - returns a new authorization networkservicemesh.NetworkServiceClient
-func NewClient(provider security.Provider) networkservice.NetworkServiceClient {
-	return &authorizeClient{
+func NewClient(provider security.Provider, options ...ClientOption) networkservice.NetworkServiceClient {
+	c := &authorizeClient{
 		provider: provider,
 	}
+
+	for _, o := range options {
+		o.apply(c)
+	}
+
+	if c.tokenExpiration == 0 {
+		c.tokenExpiration = defaultTokenExpiration
+	}
+
+	return c
 }
 
 func (a *authorizeClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
