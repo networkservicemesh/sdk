@@ -23,7 +23,7 @@ import (
 	"net/url"
 	"testing"
 
-	localbypass_reg "github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
+	registrylocalbypass "github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -76,7 +76,7 @@ func (s testNetworkServiceServer) Close(ctx context.Context, _ *networkservice.C
 
 func TestNewServer_NSENotPresented(t *testing.T) {
 	defer goleak.VerifyNone(t)
-	localBypassRegistryServer := localbypass_reg.NewServer()
+	localBypassRegistryServer := registrylocalbypass.NewServer()
 	localBypassNetworkServiceServer := localbypass.NewServer(localBypassRegistryServer)
 	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
 	request := &networkservice.NetworkServiceRequest{
@@ -98,7 +98,7 @@ func TestNewServer_NSENotPresented(t *testing.T) {
 
 func TestNewServer_UnixAddressRegistered(t *testing.T) {
 	defer goleak.VerifyNone(t)
-	localBypassRegistryServer := localbypass_reg.NewServer()
+	localBypassRegistryServer := registrylocalbypass.NewServer()
 	localBypassNetworkServiceServer := localbypass.NewServer(localBypassRegistryServer)
 	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
 	request := &networkservice.NetworkServiceRequest{
@@ -129,7 +129,7 @@ func TestNewServer_UnixAddressRegistered(t *testing.T) {
 
 func TestNewServer_NonUnixAddressRegistered(t *testing.T) {
 	defer goleak.VerifyNone(t)
-	localBypassRegistryServer := localbypass_reg.NewServer()
+	localBypassRegistryServer := registrylocalbypass.NewServer()
 	localBypassNetworkServiceServer := localbypass.NewServer(localBypassRegistryServer)
 	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
 	request := &networkservice.NetworkServiceRequest{
@@ -162,7 +162,7 @@ func TestNewServer_NonUnixAddressRegistered(t *testing.T) {
 
 func TestNewServer_AddsNothingAfterNSERemoval(t *testing.T) {
 	defer goleak.VerifyNone(t)
-	localBypassRegistryServer := localbypass_reg.NewServer()
+	localBypassRegistryServer := registrylocalbypass.NewServer()
 	localBypassNetworkServiceServer := localbypass.NewServer(localBypassRegistryServer)
 	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
 	request := &networkservice.NetworkServiceRequest{
