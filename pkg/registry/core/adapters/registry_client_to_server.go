@@ -29,7 +29,11 @@ type registryClientToServer struct {
 }
 
 // NewRegistryClientToServer - returns a registry.NetworkServiceRegistryClient wrapped around the supplied client
+// If client is passed as nil, return nil
 func NewRegistryClientToServer(client registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryServer {
+	if client == nil {
+		return nil
+	}
 	return &registryClientToServer{client: client}
 }
 

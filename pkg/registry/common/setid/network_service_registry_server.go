@@ -20,38 +20,31 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/custom"
+
 	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/pkg/errors"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
-type networkServiceRegistryServer struct{}
+type networkServiceRegistryServer struct {
+	registry.NetworkServiceRegistryServer
+}
 
 // NewNetworkServiceRegistryServer creates new instance of NetworkServiceRegistryServer which set the unique name for the endpoint on registration
 func NewNetworkServiceRegistryServer() registry.NetworkServiceRegistryServer {
-	return &networkServiceRegistryServer{}
-}
-
-func (n networkServiceRegistryServer) RegisterNSE(ctx context.Context, r *registry.NSERegistration) (*registry.NSERegistration, error) {
-	if r.NetworkServiceEndpoint.Name == "" {
-		if r.NetworkService.Name == "" {
-			return nil, errors.New("network service has empty name")
-		}
-		r.NetworkServiceEndpoint.Name = fmt.Sprintf("%v-%v", r.NetworkService.Name, uuid.New().String())
+	return &networkServiceRegistryServer{
+		NetworkServiceRegistryServer: custom.NewServer(
+			func(ctx context.Context, r *registry.NSERegistration) (*registry.NSERegistration, error) {
+				if r.NetworkServiceEndpoint.Name == "" {
+					if r.NetworkService.Name == "" {
+						return nil, errors.New("network service has empty name")
+					}
+					r.NetworkServiceEndpoint.Name = fmt.Sprintf("%v-%v", r.NetworkService.Name, uuid.New().String())
+				}
+				return r, nil
+			}, nil, nil),
 	}
-	return next.NetworkServiceRegistryServer(ctx).RegisterNSE(ctx, r)
-}
-
-func (n *networkServiceRegistryServer) BulkRegisterNSE(s registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
-	s = &networkServiceRegistryBulkRegisterNSEServer{NetworkServiceRegistry_BulkRegisterNSEServer: s}
-	return next.NetworkServiceRegistryServer(s.Context()).BulkRegisterNSE(s)
-}
-
-func (n networkServiceRegistryServer) RemoveNSE(ctx context.Context, r *registry.RemoveNSERequest) (*empty.Empty, error) {
-	return next.NetworkServiceRegistryServer(ctx).RemoveNSE(ctx, r)
 }
 
 var _ registry.NetworkServiceRegistryServer = &networkServiceRegistryServer{}

@@ -20,76 +20,84 @@ package nsmgr
 import (
 	"context"
 
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/registry"
+	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/custom"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
+	adapter_registry "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
+	chain_registry "github.com/networkservicemesh/sdk/pkg/registry/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/registry/memory"
+
+	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
-type nsmRegistryServer struct {
-	serialize.Executor
-	manager *registry.NetworkServiceManager
+// Registry - a registry interface combining all 3 registry interfaces
+type Registry interface {
+	registry.NetworkServiceRegistryServer
+	registry.NetworkServiceDiscoveryServer
+	registry.NsmRegistryServer
+
+	localbypass.LocalBypass
+}
+
+type nsmgrRegistrySever struct {
+	registry.NsmRegistryServer
+	registry.NetworkServiceRegistryServer
+	registry.NetworkServiceDiscoveryServer
+	localbypass.LocalBypass
+	storage memory.Storage
 }
 
 // NewServer - construct a new NSM aware NSE registry server
 // Server is using latest NSM registration and update endpoints accordingly.
-func NewServer(manager *registry.NetworkServiceManager) registry.NetworkServiceRegistryServer {
-	return &nsmRegistryServer{
-		manager: manager,
+// if registryClient, nsmRegistryClient, discoveryClient are nil, they will be skipped.
+func NewServer(manager *registry.NetworkServiceManager,
+	registryClient registry.NetworkServiceRegistryClient,
+	nsmRegistryClient registry.NsmRegistryClient,
+	discoveryClient registry.NetworkServiceDiscoveryClient) Registry {
+	rv := &nsmgrRegistrySever{}
+
+	// ----------------------------------------------------------------
+	// -----D-E-F-I-N-E----- NsmRegistryServer
+	// ----------------------------------------------------------------
+	rv.NsmRegistryServer = chain_registry.NewNSMRegistryServer(
+		adapter_registry.NewNSMClientToServer(nsmRegistryClient),
+		memory.NewNSMRegistryServer(manager.Name, &rv.storage),
+	)
+
+	// ----------------------------------------------------------------
+	// -----D-E-F-I-N-E----- NetworkServiceRegistryServer
+	// ----------------------------------------------------------------
+	localBypassRegistry := localbypass.NewServer()
+	rv.LocalBypass = localBypassRegistry
+
+	// define NSE registry server
+	updateNSM := func(ctx context.Context, registration *registry.NSERegistration) (*registry.NSERegistration, error) {
+		registration.NetworkServiceManager = manager
+		return registration, nil
 	}
+
+	rv.NetworkServiceRegistryServer = chain_registry.NewNetworkServiceRegistryServer(
+		custom.NewServer(updateNSM, updateNSM, nil), // Manager will be updated after return
+		localBypassRegistry,
+		adapter_registry.NewRegistryClientToServer(registryClient),
+		memory.NewNetworkServiceRegistryServer(&rv.storage),
+	)
+
+	// ----------------------------------------------------------------
+	// -----D-E-F-I-N-E----- NetworkServiceDiscoveryServer
+	// ----------------------------------------------------------------
+	rv.NetworkServiceDiscoveryServer = chain_registry.NewDiscoveryServer(
+		adapter_registry.NewDiscoveryClientToServer(discoveryClient),
+		memory.NewNetworkServiceDiscoveryServer(&rv.storage),
+	)
+
+	return rv
 }
 
-// RegisterNSE - register NSE with current manager associated.
-func (n *nsmRegistryServer) RegisterNSE(ctx context.Context, registration *registry.NSERegistration) (*registry.NSERegistration, error) {
-	// update manager to be proper one.
-	registration.NetworkServiceManager = n.manager
-	result, err := next.NetworkServiceRegistryServer(ctx).RegisterNSE(ctx, registration)
-	if result != nil && err == nil {
-		result.NetworkServiceManager = n.manager
-	}
-	return result, err
+// Register - register registry to GRPC server
+func (n *nsmgrRegistrySever) Register(s *grpc.Server) {
+	registry.RegisterNsmRegistryServer(s, n)
+	registry.RegisterNetworkServiceRegistryServer(s, n)
+	registry.RegisterNetworkServiceDiscoveryServer(s, n)
 }
-
-type nsmBulkRegServer struct {
-	registry.NetworkServiceRegistry_BulkRegisterNSEServer
-	server registry.NetworkServiceRegistry_BulkRegisterNSEServer
-	ctx    context.Context
-	n      *nsmRegistryServer
-}
-
-func (ts *nsmBulkRegServer) Send(reg *registry.NSERegistration) error {
-	reg.NetworkServiceManager = ts.n.manager
-	err := ts.server.Send(reg)
-	return err
-}
-func (ts *nsmBulkRegServer) Recv() (*registry.NSERegistration, error) {
-	reg, err := ts.server.Recv()
-	if reg != nil {
-		reg.NetworkServiceManager = ts.n.manager
-	}
-	return reg, err
-}
-
-func (ts *nsmBulkRegServer) Context() context.Context {
-	return ts.ctx
-}
-
-// BulkRegisterNSE - register a stream of NSEs
-func (n *nsmRegistryServer) BulkRegisterNSE(server registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
-	ctx := server.Context()
-	brs := &nsmBulkRegServer{
-		ctx:    server.Context(),
-		server: server,
-		n:      n,
-	}
-	return next.NetworkServiceRegistryServer(ctx).BulkRegisterNSE(brs)
-}
-
-// RemoveNSE - remove NSE previously registered.
-func (n *nsmRegistryServer) RemoveNSE(ctx context.Context, request *registry.RemoveNSERequest) (*empty.Empty, error) {
-	return next.NetworkServiceRegistryServer(ctx).RemoveNSE(ctx, request)
-}
-
-// Compile level checks.
-var _ registry.NetworkServiceRegistryServer = &nsmRegistryServer{}

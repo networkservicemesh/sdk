@@ -31,7 +31,7 @@ import (
 func TestSetIDNetworkServiceRegistryServer_RegisterNSE(t *testing.T) {
 	storage := &memory.Storage{}
 	storage.NetworkServiceManagers.Store("nsm-1", &registry.NetworkServiceManager{Name: "nsm-1"})
-	chain := next.NewNetworkServiceRegistryServer(setid.NewNetworkServiceRegistryServer(), memory.NewNetworkServiceRegistryServer("nsm-1", storage))
+	chain := next.NewNetworkServiceRegistryServer(setid.NewNetworkServiceRegistryServer(), memory.NewNetworkServiceRegistryServer(storage))
 	nse := &registry.NetworkServiceEndpoint{
 		NetworkServiceName: "ns-1",
 		Payload:            "IP",

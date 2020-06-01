@@ -48,7 +48,7 @@ func (n *nsmMemoryNetworkServerRegistry) GetEndpoints(context.Context, *empty.Em
 }
 
 // NewNSMRegistryServer returns new instance of NsmRegistryServer based on resource client
-func NewNSMRegistryServer(storage *Storage, nsmName string) registry.NsmRegistryServer {
+func NewNSMRegistryServer(nsmName string, storage *Storage) registry.NsmRegistryServer {
 	return &nsmMemoryNetworkServerRegistry{
 		storage: storage,
 		nsmName: nsmName,

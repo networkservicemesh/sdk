@@ -14,26 +14,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package nsmgr_test
+package custom_test
 
 import (
 	"context"
 	"testing"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/common/custom"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/registry/nsmgr"
 )
 
-func TestRegisterNSE(t *testing.T) {
+func TestRegisterCustomNSE(t *testing.T) {
 	mgr := &registry.NetworkServiceManager{
 		Name: "nsm-1",
 		Url:  "tcp://127.0.0.1:5000",
 	}
-	nseReg := chain.NewNetworkServiceRegistryServer(nsmgr.NewServer(mgr, nil, nil, nil))
+	nseReg := chain.NewNetworkServiceRegistryServer(custom.NewServer(beforeReg, afterReg, nil))
 	regEndpoint, err := nseReg.RegisterNSE(context.Background(), &registry.NSERegistration{
 		NetworkService: &registry.NetworkService{
 			Name: "my-service",
@@ -47,14 +48,25 @@ func TestRegisterNSE(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, regEndpoint)
 	require.Equal(t, mgr.Name, regEndpoint.NetworkServiceManager.Name)
+	require.Equal(t, "service-1", regEndpoint.NetworkService.Name)
 }
 
-func TestRegisterNSEStream(t *testing.T) {
+func afterReg(ctx context.Context, registration *registry.NSERegistration) (*registry.NSERegistration, error) {
+	registration.NetworkService = &registry.NetworkService{Name: "service-1"}
+	return registration, nil
+}
+
+func beforeReg(ctx context.Context, registration *registry.NSERegistration) (*registry.NSERegistration, error) {
+	registration.NetworkServiceManager = &registry.NetworkServiceManager{Name: "nsm-1"}
+	return registration, nil
+}
+
+func TestRegisterCustomNSEStream(t *testing.T) {
 	mgr := &registry.NetworkServiceManager{
 		Name: "nsm-1",
 		Url:  "tcp://127.0.0.1:5000",
 	}
-	nseReg := chain.NewNetworkServiceRegistryServer(nsmgr.NewServer(mgr, nil, nil, nil))
+	nseReg := chain.NewNetworkServiceRegistryServer(custom.NewServer(beforeReg, afterReg, nil))
 
 	client := adapters.NewRegistryServerToClient(nseReg)
 
@@ -77,4 +89,5 @@ func TestRegisterNSEStream(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, regEndpoint)
 	require.Equal(t, mgr.Name, regEndpoint.NetworkServiceManager.Name)
+	require.Equal(t, "service-1", regEndpoint.NetworkService.Name)
 }

@@ -40,7 +40,9 @@ type nextDiscoveryServer struct {
 func NewWrappedDiscoveryServer(wrapper DiscoveryServerWrapper, servers ...registry.NetworkServiceDiscoveryServer) registry.NetworkServiceDiscoveryServer {
 	rv := &nextDiscoveryServer{servers: make([]registry.NetworkServiceDiscoveryServer, 0, len(servers))}
 	for _, c := range servers {
-		rv.servers = append(rv.servers, wrapper(c))
+		if c != nil {
+			rv.servers = append(rv.servers, wrapper(c))
+		}
 	}
 	return rv
 }

@@ -20,23 +20,17 @@ package localbypass
 
 import (
 	"context"
-	"net/url"
-	"sync"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 
 	"github.com/golang/protobuf/ptypes/empty"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 )
 
 type localBypassServer struct {
-	// Map of names -> *url.URLs for local bypass to file sockets
-	sockets sync.Map
+	reg localbypass.Registry
 }
 
 // NewServer - creates a NetworkServiceServer that tracks locally registered Endpoints substitutes their
@@ -48,34 +42,23 @@ type localBypassServer struct {
 //                        while maintaining the NewServer pattern for use like anything else in a chain.
 //                        The value in *server must be included in the registry.NetworkServiceRegistryServer listening
 //                        so it can capture the registrations.
-func NewServer(registryServer *registry.NetworkServiceRegistryServer) networkservice.NetworkServiceServer {
-	rv := &localBypassServer{}
-	*registryServer = localbypass.NewNetworkServiceRegistryServer(rv)
+func NewServer(reg localbypass.Registry) networkservice.NetworkServiceServer {
+	rv := &localBypassServer{
+		reg: reg,
+	}
 	return rv
 }
 
 func (l *localBypassServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if v, ok := l.sockets.Load(request.GetConnection().GetNetworkServiceEndpointName()); ok && v != nil {
-		if u, ok := v.(*url.URL); ok {
-			ctx = clienturl.WithClientURL(ctx, u)
-		}
+	if u, ok := l.reg.LoadEndpoint(request.GetConnection().GetNetworkServiceEndpointName()); ok && u != nil {
+		ctx = clienturl.WithClientURL(ctx, u)
 	}
 	return next.Server(ctx).Request(ctx, request)
 }
 
 func (l *localBypassServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	if v, ok := l.sockets.Load(conn.GetNetworkServiceEndpointName()); ok && v != nil {
-		if u, ok := v.(*url.URL); ok {
-			ctx = clienturl.WithClientURL(ctx, u)
-		}
+	if u, ok := l.reg.LoadEndpoint(conn.GetNetworkServiceEndpointName()); ok && u != nil {
+		ctx = clienturl.WithClientURL(ctx, u)
 	}
 	return next.Server(ctx).Close(ctx, conn)
-}
-
-func (l *localBypassServer) LoadOrStore(name string, u *url.URL) (interface{}, bool) {
-	return l.sockets.LoadOrStore(name, u)
-}
-
-func (l *localBypassServer) Delete(name string) {
-	l.sockets.Delete(name)
 }

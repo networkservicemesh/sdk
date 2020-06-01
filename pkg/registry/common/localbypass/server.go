@@ -21,42 +21,56 @@ package localbypass
 import (
 	"context"
 	"net/url"
+	"sync"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/localbypass"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/custom"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
+// LocalBypass - return interafce to return localbypass endpoints URIs
+type LocalBypass interface {
+	LoadEndpoint(endpointName string) (*url.URL, bool)
+}
+
+// Registry - localbypass registry to find local registered endpoints, by it's ids.
+type Registry interface {
+	LocalBypass
+	registry.NetworkServiceRegistryServer
+}
+
 type localBypassRegistry struct {
-	sockets localbypass.SocketMap
+	// Map of names -> *url.URLs for local bypass to file sockets
+	sockets sync.Map
+	registry.NetworkServiceRegistryServer
 }
 
-// NewNetworkServiceRegistryServer - creates a NetworkServiceRegistryServer that registers local Endpoints
+// NewServer - creates a NetworkServiceRegistryServer that registers local Endpoints
 //				and adds them to localbypass.SocketMap
-//             - sockets - map of networkServiceEndpoint names to their unix socket addresses
-func NewNetworkServiceRegistryServer(sockets localbypass.SocketMap) registry.NetworkServiceRegistryServer {
-	return &localBypassRegistry{sockets: sockets}
+func NewServer() Registry {
+	result := &localBypassRegistry{}
+
+	result.NetworkServiceRegistryServer = custom.NewServer(
+		func(ctx context.Context, request *registry.NSERegistration) (*registry.NSERegistration, error) {
+			u, err := url.Parse(request.GetNetworkServiceEndpoint().GetUrl())
+			if err != nil {
+				return nil, err
+			}
+			result.sockets.LoadOrStore(request.GetNetworkServiceEndpoint().GetName(), u)
+			return request, nil
+		}, nil,
+		func(ctx context.Context, request *registry.RemoveNSERequest) (*registry.RemoveNSERequest, error) {
+			result.sockets.Delete(request.NetworkServiceEndpointName)
+			return request, nil
+		})
+	return result
 }
 
-func (n *localBypassRegistry) RegisterNSE(ctx context.Context, request *registry.NSERegistration) (*registry.NSERegistration, error) {
-	u, err := url.Parse(request.GetNetworkServiceEndpoint().GetUrl())
-	if err != nil {
-		return nil, err
+func (n *localBypassRegistry) LoadEndpoint(endpointName string) (*url.URL, bool) {
+	if v, ok := n.sockets.Load(endpointName); ok && v != nil {
+		if u, ok := v.(*url.URL); ok {
+			return u, true
+		}
 	}
-	n.sockets.LoadOrStore(request.GetNetworkServiceEndpoint().GetName(), u)
-	return next.NetworkServiceRegistryServer(ctx).RegisterNSE(ctx, request)
-}
-
-func (n *localBypassRegistry) BulkRegisterNSE(server registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
-	return next.NetworkServiceRegistryServer(server.Context()).BulkRegisterNSE(server)
-}
-
-func (n *localBypassRegistry) RemoveNSE(ctx context.Context, request *registry.RemoveNSERequest) (*empty.Empty, error) {
-	if n.sockets != nil {
-		n.sockets.Delete(request.GetNetworkServiceEndpointName())
-	}
-	return next.NetworkServiceRegistryServer(ctx).RemoveNSE(ctx, request)
+	return nil, false
 }
