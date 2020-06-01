@@ -50,14 +50,14 @@ func NewServer(reg localbypass.Registry) networkservice.NetworkServiceServer {
 }
 
 func (l *localBypassServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if u, ok := l.reg.LoadEndpoint(request.GetConnection().GetNetworkServiceEndpointName()); ok && u != nil {
+	if u, ok := l.reg.LoadEndpointURL(request.GetConnection().GetNetworkServiceEndpointName()); ok && u != nil {
 		ctx = clienturl.WithClientURL(ctx, u)
 	}
 	return next.Server(ctx).Request(ctx, request)
 }
 
 func (l *localBypassServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	if u, ok := l.reg.LoadEndpoint(conn.GetNetworkServiceEndpointName()); ok && u != nil {
+	if u, ok := l.reg.LoadEndpointURL(conn.GetNetworkServiceEndpointName()); ok && u != nil {
 		ctx = clienturl.WithClientURL(ctx, u)
 	}
 	return next.Server(ctx).Close(ctx, conn)

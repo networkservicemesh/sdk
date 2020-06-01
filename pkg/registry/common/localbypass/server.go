@@ -30,7 +30,7 @@ import (
 
 // LocalBypass - return interafce to return localbypass endpoints URIs
 type LocalBypass interface {
-	LoadEndpoint(endpointName string) (*url.URL, bool)
+	LoadEndpointURL(endpointName string) (*url.URL, bool)
 }
 
 // Registry - localbypass registry to find local registered endpoints, by it's ids.
@@ -66,7 +66,7 @@ func NewServer() Registry {
 	return result
 }
 
-func (n *localBypassRegistry) LoadEndpoint(endpointName string) (*url.URL, bool) {
+func (n *localBypassRegistry) LoadEndpointURL(endpointName string) (*url.URL, bool) {
 	if v, ok := n.sockets.Load(endpointName); ok && v != nil {
 		if u, ok := v.(*url.URL); ok {
 			return u, true
