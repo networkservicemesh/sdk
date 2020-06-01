@@ -1,3 +1,5 @@
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
+//
 // Copyright (c) 2020 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -18,6 +20,9 @@ package authorize
 
 import (
 	"context"
+	"time"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/security"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
@@ -27,19 +32,48 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type authorizeClient struct{}
+type authorizeClient struct {
+	provider        security.Provider
+	tokenExpiration time.Duration
+}
+
+const (
+	defaultTokenExpiration = 15 * time.Minute
+)
 
 // NewClient - returns a new authorization networkservicemesh.NetworkServiceClient
-func NewClient() networkservice.NetworkServiceClient {
-	return &authorizeClient{}
+func NewClient(provider security.Provider, options ...ClientOption) networkservice.NetworkServiceClient {
+	c := &authorizeClient{
+		provider: provider,
+	}
+
+	for _, o := range options {
+		o.apply(c)
+	}
+
+	if c.tokenExpiration == 0 {
+		c.tokenExpiration = defaultTokenExpiration
+	}
+
+	return c
 }
 
 func (a *authorizeClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	// TODO implement authorization
+	token, err := security.GenerateToken(ctx, a.provider, defaultTokenExpiration)
+	if err != nil {
+		return nil, err
+	}
+	index := request.GetConnection().GetPath().GetIndex()
+	request.GetConnection().GetPath().GetPathSegments()[index].Token = token
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
 
 func (a *authorizeClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	// TODO implement authorization
+	token, err := security.GenerateToken(ctx, a.provider, defaultTokenExpiration)
+	if err != nil {
+		return nil, err
+	}
+	index := conn.GetPath().GetIndex()
+	conn.GetPath().GetPathSegments()[index].Token = token
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
