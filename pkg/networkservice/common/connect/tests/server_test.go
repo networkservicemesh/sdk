@@ -39,7 +39,7 @@ func TokenGenerator(peerAuthInfo credentials.AuthInfo) (token string, expireTime
 func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	require.NotPanics(t, func() {
-		s := connect.NewServer(client.NewClientFactory(t.Name(), nil, TokenGenerator, next.NewNetworkServiceClient()))
+		s := connect.NewServer(client.NewClientFactory(t.Name(), nil, nil, TokenGenerator, next.NewNetworkServiceClient()))
 		_, _ = s.Request(clienturl.WithClientURL(context.Background(), &url.URL{}), nil)
 	})
 }
