@@ -47,6 +47,7 @@ func WithSpiffe(peer TLSPeer, timeout time.Duration) grpc.DialOption {
 	if err != nil {
 		return grpc.WithInsecure()
 	}
+	tlsConfig.InsecureSkipVerify = true
 	return grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig))
 }
 
@@ -67,5 +68,6 @@ func SpiffeCreds(peer TLSPeer, timeout time.Duration) grpc.ServerOption {
 	if err != nil {
 		return grpc.EmptyServerOption{}
 	}
+	tlsConfig.InsecureSkipVerify = true
 	return grpc.Creds(credentials.NewTLS(tlsConfig))
 }
