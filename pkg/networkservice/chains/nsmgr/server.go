@@ -19,9 +19,10 @@ package nsmgr
 
 import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/networkservicemesh/sdk/pkg/tools/security"
 	"github.com/open-policy-agent/opa/rego"
 	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/security"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
