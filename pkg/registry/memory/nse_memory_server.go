@@ -19,27 +19,18 @@ package memory
 import (
 	"context"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/pkg/errors"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/custom"
 )
 
 type memoryNetworkServeRegistry struct {
 	storage *Storage
+	registry.NetworkServiceRegistryServer
 }
 
-func (m *memoryNetworkServeRegistry) RegisterNSE(ctx context.Context, registration *registry.NSERegistration) (*registry.NSERegistration, error) {
-	nseRegistration, err := m.processRegistration(registration)
-	if err != nil {
-		return nseRegistration, err
-	}
-
-	return next.NetworkServiceRegistryServer(ctx).RegisterNSE(ctx, registration)
-}
-
-func (m *memoryNetworkServeRegistry) processRegistration(registration *registry.NSERegistration) (*registry.NSERegistration, error) {
+func (m *memoryNetworkServeRegistry) processRegistration(ctx context.Context, registration *registry.NSERegistration) (*registry.NSERegistration, error) {
 	if registration == nil {
 		return nil, errors.New("can not register nil registration")
 	}
@@ -50,45 +41,18 @@ func (m *memoryNetworkServeRegistry) processRegistration(registration *registry.
 	return registration, nil
 }
 
-type nsmBulkRegServer struct {
-	registry.NetworkServiceRegistry_BulkRegisterNSEServer
-	server registry.NetworkServiceRegistry_BulkRegisterNSEServer
-	m      *memoryNetworkServeRegistry
-}
-
-func (ts *nsmBulkRegServer) Send(reg *registry.NSERegistration) error {
-	nseRegistration, err := ts.m.processRegistration(reg)
-	if err != nil {
-		return err
-	}
-	return ts.server.Send(nseRegistration)
-}
-func (ts *nsmBulkRegServer) Recv() (*registry.NSERegistration, error) {
-	return ts.server.Recv()
-}
-
-func (ts *nsmBulkRegServer) Context() context.Context {
-	return ts.server.Context()
-}
-
-func (m *memoryNetworkServeRegistry) BulkRegisterNSE(s registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
-	bulkRegS := &nsmBulkRegServer{
-		m:      m,
-		server: s,
-	}
-	return next.NetworkServiceRegistryServer(s.Context()).BulkRegisterNSE(bulkRegS)
-}
-
-func (m *memoryNetworkServeRegistry) RemoveNSE(ctx context.Context, req *registry.RemoveNSERequest) (*empty.Empty, error) {
-	m.storage.NetworkServiceEndpoints.Delete(req.NetworkServiceEndpointName)
-	return next.NetworkServiceRegistryServer(ctx).RemoveNSE(ctx, req)
+func (m *memoryNetworkServeRegistry) removeRegistration(ctx context.Context, request *registry.RemoveNSERequest) (*registry.RemoveNSERequest, error) {
+	m.storage.NetworkServiceEndpoints.Delete(request.NetworkServiceEndpointName)
+	return request, nil
 }
 
 // NewNetworkServiceRegistryServer returns new NetworkServiceRegistryServer based on specific resource client
 func NewNetworkServiceRegistryServer(storage *Storage) registry.NetworkServiceRegistryServer {
-	return &memoryNetworkServeRegistry{
+	result := &memoryNetworkServeRegistry{
 		storage: storage,
 	}
+	result.NetworkServiceRegistryServer = custom.NewServer(result.processRegistration, nil, result.removeRegistration)
+	return result
 }
 
 var _ registry.NetworkServiceRegistryServer = &memoryNetworkServeRegistry{}
