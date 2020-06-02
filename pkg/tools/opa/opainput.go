@@ -27,8 +27,6 @@ import (
 
 	"google.golang.org/grpc/peer"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/spiffeutils"
-
 	"google.golang.org/grpc/credentials"
 )
 
@@ -43,17 +41,12 @@ func PreparedOpaInput(ctx context.Context, model interface{}) (map[string]interf
 	if ok {
 		cert = parseX509Cert(p.AuthInfo)
 	}
-	var spiffeID, pemcert string
+	var pemcert string
 	if cert != nil {
-		spiffeID, err = spiffeutils.SpiffeIDFromX509(cert)
-		if err != nil {
-			return nil, err
-		}
 		pemcert = pemEncodingX509Cert(cert)
 	}
 	result["auth_info"] = map[string]interface{}{
 		"certificate": pemcert,
-		"spiffe_id":   spiffeID,
 	}
 	return result, nil
 }
