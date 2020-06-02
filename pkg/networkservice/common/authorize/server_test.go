@@ -20,8 +20,9 @@ import (
 	"context"
 	"testing"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/opa"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/open-policy-agent/opa/rego"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc/codes"
@@ -30,17 +31,17 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 )
 
-const (
-	testPolicy = `
+func testPolicy() opa.AuthorizationPolicy {
+	return opa.WithPolicyFromSource(`
 		package test
 	
 		default allow = false
 	
 		allow {
-			input = "allowed"
+			 input.path_segments[_].token = "allowed"
 		}
-	`
-)
+`, "allow", opa.True)
+}
 
 func requestWithToken(token string) *networkservice.NetworkServiceRequest {
 	return &networkservice.NetworkServiceRequest{
@@ -61,20 +62,20 @@ func TestAuthzEndpoint(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	suits := []struct {
 		name     string
-		policy   string
+		policy   opa.AuthorizationPolicy
 		request  *networkservice.NetworkServiceRequest
 		response *networkservice.Connection
 		denied   bool
 	}{
 		{
 			name:    "simple positive test",
-			policy:  testPolicy,
+			policy:  testPolicy(),
 			request: requestWithToken("allowed"),
 			denied:  false,
 		},
 		{
 			name:    "simple negative test",
-			policy:  testPolicy,
+			policy:  testPolicy(),
 			request: requestWithToken("not_allowed"),
 			denied:  true,
 		},
@@ -83,26 +84,19 @@ func TestAuthzEndpoint(t *testing.T) {
 	for i := range suits {
 		s := suits[i]
 		t.Run(s.name, func(t *testing.T) {
-			p, err := rego.New(
-				rego.Query("data.test.allow"),
-				rego.Module("example.com", s.policy)).PrepareForEval(context.Background())
-			require.Nilf(t, err, "failed to create new rego policy: %v", err)
-
-			srv := authorize.NewServer(&p)
-
+			srv := authorize.NewServer(s.policy)
 			checkResult := func(err error) {
 				if !s.denied {
-					require.Nil(t, err, "request expected to be not denied")
+					require.Nil(t, err, "request expected to be not denied: ")
 					return
 				}
-
 				require.NotNil(t, err, "request expected to be denied")
 				s, ok := status.FromError(err)
-				require.True(t, ok, "error without error status code")
+				require.True(t, ok, "error without error status code"+err.Error())
 				require.Equal(t, s.Code(), codes.PermissionDenied, "wrong error status code")
 			}
 
-			_, err = srv.Request(context.Background(), s.request)
+			_, err := srv.Request(context.Background(), s.request)
 			checkResult(err)
 
 			_, err = srv.Close(context.Background(), s.request.GetConnection())

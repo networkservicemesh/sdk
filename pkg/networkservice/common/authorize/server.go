@@ -20,10 +20,7 @@ package authorize
 import (
 	"context"
 
-	"github.com/open-policy-agent/opa/rego"
-	"github.com/pkg/errors"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 
 	"github.com/golang/protobuf/ptypes/empty"
 
@@ -33,63 +30,35 @@ import (
 )
 
 type authorizeServer struct {
-	p *rego.PreparedEvalQuery
+	policies []opa.AuthorizationPolicy
 }
 
 // NewServer - returns a new authorization networkservicemesh.NetworkServiceServers
-func NewServer(p *rego.PreparedEvalQuery) networkservice.NetworkServiceServer {
+func NewServer(policies ...opa.AuthorizationPolicy) networkservice.NetworkServiceServer {
 	return &authorizeServer{
-		p: p,
+		policies: policies,
 	}
 }
 
 func (a *authorizeServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if err := check(ctx, a.p, request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].GetToken()); err != nil {
+	if err := a.check(ctx, request.GetConnection()); err != nil {
 		return nil, err
 	}
-
 	return next.Server(ctx).Request(ctx, request)
 }
 
 func (a *authorizeServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	if err := check(ctx, a.p, conn.GetPath().GetPathSegments()[conn.GetPath().GetIndex()].GetToken()); err != nil {
+	if err := a.check(ctx, conn); err != nil {
 		return nil, err
 	}
-
 	return next.Server(ctx).Close(ctx, conn)
 }
 
-func check(ctx context.Context, p *rego.PreparedEvalQuery, input interface{}) error {
-	rs, err := p.Eval(ctx, rego.EvalInput(input))
-	if err != nil {
-		return status.Error(codes.Internal, err.Error())
-	}
-
-	hasAccess, err := hasAccess(rs)
-	if err != nil {
-		return status.Error(codes.Internal, err.Error())
-	}
-
-	if !hasAccess {
-		return status.Error(codes.PermissionDenied, "no sufficient privileges to call Request")
-	}
-
-	return nil
-}
-
-func hasAccess(rs rego.ResultSet) (bool, error) {
-	for _, r := range rs {
-		for _, e := range r.Expressions {
-			t, ok := e.Value.(bool)
-			if !ok {
-				return false, errors.New("policy contains non boolean expression")
-			}
-
-			if !t {
-				return false, nil
-			}
+func (a *authorizeServer) check(ctx context.Context, conn *networkservice.Connection) error {
+	for _, p := range a.policies {
+		if err := p.Check(ctx, conn.GetPath()); err != nil {
+			return err
 		}
 	}
-
-	return true, nil
+	return nil
 }

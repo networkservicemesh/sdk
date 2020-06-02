@@ -14,17 +14,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package opautils_test
+package opa_test
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
 	"testing"
 
+	"google.golang.org/grpc/peer"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/opautils"
+	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 
 	"github.com/stretchr/testify/assert"
 
@@ -66,24 +69,21 @@ func TestPreparedOpaInput(t *testing.T) {
 	block, _ := pem.Decode([]byte(certPem))
 	x509cert, err := x509.ParseCertificate(block.Bytes)
 	assert.Nil(t, err)
-	authInfo := credentials.TLSInfo{
+	authInfo := &credentials.TLSInfo{
 		State: tls.ConnectionState{
 			PeerCertificates: []*x509.Certificate{
 				x509cert,
 			},
 		},
 	}
+	ctx := peer.NewContext(context.Background(), &peer.Peer{AuthInfo: authInfo})
 	testToken := "testToken"
 	conn := getConnectionWithToken(testToken)
 
 	expectedInput := map[string]interface{}{
-		"connection": map[string]interface{}{
-			"path": map[string]interface{}{
-				"path_segments": []interface{}{
-					map[string]interface{}{
-						"token": testToken,
-					},
-				},
+		"path_segments": []interface{}{
+			map[string]interface{}{
+				"token": testToken,
 			},
 		},
 		"auth_info": map[string]interface{}{
@@ -92,8 +92,7 @@ func TestPreparedOpaInput(t *testing.T) {
 		},
 	}
 
-	realInput, err := opautils.PreparedOpaInput(conn, authInfo)
+	realInput, err := opa.PreparedOpaInput(ctx, conn.GetPath())
 	assert.Nil(t, err)
-
 	assert.Equal(t, expectedInput, realInput)
 }
