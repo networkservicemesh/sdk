@@ -20,8 +20,6 @@ package client
 import (
 	"context"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/security"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
 
@@ -40,7 +38,6 @@ import (
 //             additional functionality is specified
 //             - ctx    - context for the lifecycle of the *Client* itself.  Cancel when discarding the client.
 //             - name   - name of the NetworkServiceMeshClient
-//             - provider - security provider for the client
 //             - onHeal - *networkservice.NetworkServiceClient.  Since networkservice.NetworkServiceClient is an interface
 //                        (and thus a pointer) *networkservice.NetworkServiceClient is a double pointer.  Meaning it
 //                        points to a place that points to a place that implements networkservice.NetworkServiceClient
@@ -53,11 +50,11 @@ import (
 //                        If onHeal nil, onHeal will be pointed to the returned networkservice.NetworkServiceClient
 //             - cc - grpc.ClientConnInterface for the endpoint to which this client should connect
 //             - additionalFunctionality - any additional NetworkServiceClient chain elements to be included in the chain
-func NewClient(ctx context.Context, name string, provider security.Provider, onHeal *networkservice.NetworkServiceClient, tokenGenerator token.GeneratorFunc, cc grpc.ClientConnInterface, additionalFunctionality ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
+func NewClient(ctx context.Context, name string, onHeal *networkservice.NetworkServiceClient, tokenGenerator token.GeneratorFunc, cc grpc.ClientConnInterface, additionalFunctionality ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	return chain.NewNetworkServiceClient(
 		append(
 			append([]networkservice.NetworkServiceClient{
-				authorize.NewClient(provider),
+				authorize.NewClient(),
 				setid.NewClient(name),
 				heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc), onHeal),
 				refresh.NewClient(),
@@ -71,7 +68,6 @@ func NewClient(ctx context.Context, name string, provider security.Provider, onH
 // NewClientFactory - returns a func(cc grpc.ClientConnInterface)that returns a  standard Client pieces plus whatever
 //                    additional functionality is specified
 //                    - name - name of the NetworkServiceMeshClient
-//           		  - provider - security provider for the client
 //                    - onHeal - *networkservice.NetworkServiceClient.  Since networkservice.NetworkServiceClient is an interface
 //                        (and thus a pointer) *networkservice.NetworkServiceClient is a double pointer.  Meaning it
 //                        points to a place that points to a place that implements networkservice.NetworkServiceClient
@@ -83,8 +79,8 @@ func NewClient(ctx context.Context, name string, provider security.Provider, onH
 //                        this constructor before we actually have a pointer to it.
 //                        If onHeal nil, onHeal will be pointed to the returned networkservice.NetworkServiceClient
 //                    - additionalFunctionality - any additional NetworkServiceClient chain elements to be included in the chain
-func NewClientFactory(name string, provider security.Provider, onHeal *networkservice.NetworkServiceClient, tokenGenerator token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceClient) func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+func NewClientFactory(name string, onHeal *networkservice.NetworkServiceClient, tokenGenerator token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceClient) func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 	return func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-		return NewClient(ctx, name, provider, onHeal, tokenGenerator, cc, additionalFunctionality...)
+		return NewClient(ctx, name, onHeal, tokenGenerator, cc, additionalFunctionality...)
 	}
 }
