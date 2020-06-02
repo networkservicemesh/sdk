@@ -24,10 +24,10 @@ import (
 	"encoding/pem"
 
 	"github.com/pkg/errors"
+	"github.com/spiffe/go-spiffe/v2/spiffeid"
+	"github.com/spiffe/go-spiffe/v2/svid/x509svid"
 
 	"google.golang.org/grpc/peer"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/spiffeutils"
 
 	"google.golang.org/grpc/credentials"
 )
@@ -43,9 +43,10 @@ func PreparedOpaInput(ctx context.Context, model interface{}) (map[string]interf
 	if ok {
 		cert = parseX509Cert(p.AuthInfo)
 	}
-	var spiffeID, pemcert string
+	var spiffeID spiffeid.ID
+	var pemcert string
 	if cert != nil {
-		spiffeID, err = spiffeutils.SpiffeIDFromX509(cert)
+		spiffeID, err = x509svid.IDFromCert(cert)
 		if err != nil {
 			return nil, err
 		}
@@ -53,7 +54,7 @@ func PreparedOpaInput(ctx context.Context, model interface{}) (map[string]interf
 	}
 	result["auth_info"] = map[string]interface{}{
 		"certificate": pemcert,
-		"spiffe_id":   spiffeID,
+		"spiffe_id":   spiffeID.String(),
 	}
 	return result, nil
 }
