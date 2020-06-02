@@ -15,3 +15,28 @@
 // limitations under the License.
 
 package opa
+
+const tokenExpiredPolicy = `
+package policies
+
+default tokens_expired = false
+
+tokens_expired {
+    token := input.path_segments[_].token
+    [_, payload, _] := io.jwt.decode(token)
+    now > payload.exp
+}
+
+now = t {
+	 ns := time.now_ns()
+     t := ns / 1e9
+}`
+
+// WithTokensExpiredPolicy returns default policy for checking tokens expiration
+func WithTokensExpiredPolicy() AuthorizationPolicy {
+	return &authorizationPolicy{
+		policySource: tokenExpiredPolicy,
+		query:        "tokens_expired",
+		checker:      False("tokens_expired"),
+	}
+}
