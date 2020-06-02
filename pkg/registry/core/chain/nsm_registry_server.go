@@ -14,26 +14,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package setid
+package chain
 
 import (
-	"fmt"
-
-	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/pkg/errors"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
-type networkServiceRegistryBulkRegisterNSEServer struct {
-	registry.NetworkServiceRegistry_BulkRegisterNSEServer
-}
-
-func (s *networkServiceRegistryBulkRegisterNSEServer) Send(r *registry.NSERegistration) error {
-	if r.NetworkServiceEndpoint.Name == "" {
-		if r.NetworkService.Name == "" {
-			return errors.New("network service has empty name")
-		}
-		r.NetworkServiceEndpoint.Name = fmt.Sprintf("%v-%v", r.NetworkService.Name, uuid.New().String())
-	}
-	return s.NetworkServiceRegistry_BulkRegisterNSEServer.Send(r)
+// NewNSMRegistryServer - chains together clients into a single registry.NSMRegistryServer
+func NewNSMRegistryServer(servers ...registry.NsmRegistryServer) registry.NsmRegistryServer {
+	return next.NewWrappedNSMRegistryServer(func(server registry.NsmRegistryServer) registry.NsmRegistryServer {
+		return server
+	}, servers...)
 }

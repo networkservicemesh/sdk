@@ -37,6 +37,10 @@ func (n *nsmClientToServer) GetEndpoints(ctx context.Context, e *empty.Empty) (*
 }
 
 // NewNSMClientToServer - returns a registry.NsmRegistryServer wrapped around the supplied client
+// If passed client is nil, then return nil
 func NewNSMClientToServer(client registry.NsmRegistryClient) registry.NsmRegistryServer {
+	if client == nil {
+		return nil
+	}
 	return &nsmClientToServer{client: client}
 }
