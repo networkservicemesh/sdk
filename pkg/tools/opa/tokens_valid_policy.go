@@ -17,27 +17,26 @@
 package opa
 
 // #nosec
-const tokenExpiredPolicy = `
-package policies
+const tokensValidPolicy = `
+package test	
 
-default tokens_expired = false
+default tokens_valid = false
+default index = 0
 
-tokens_expired {
-    token := input.path_segments[_].token
-    [_, payload, _] := io.jwt.decode(token)
-    now > payload.exp
+index = input.index
+
+tokens_valid {	
+	token := input.path_segments[index].token	
+	cert := input.auth_info.certificate	
+	io.jwt.verify_es256(token, cert) = true
 }
+`
 
-now = t {
-	 ns := time.now_ns()
-     t := ns / 1e9
-}`
-
-// WithTokensExpiredPolicy returns default policy for checking tokens expiration
-func WithTokensExpiredPolicy() AuthorizationPolicy {
+// WithTokensValidPolicy returns default policy for checking tokens
+func WithTokensValidPolicy() AuthorizationPolicy {
 	return &authorizationPolicy{
-		policySource: tokenExpiredPolicy,
-		query:        "tokens_expired",
-		checker:      False("tokens_expired"),
+		policySource: tokensValidPolicy,
+		query:        "tokens_valid",
+		checker:      True("tokens_valid"),
 	}
 }
