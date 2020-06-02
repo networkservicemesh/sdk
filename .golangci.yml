@@ -172,6 +172,10 @@ issues:
       linters:
         - funlen
       text: "Function 'TestMonitor' is too long"
+    - path: pkg/tools/opa/tokens_expired_policy.go
+      linters:
+        - gosec
+      text: "G101: Potential hardcoded credentials"
     - path: pkg/networkservice/utils/checks/checkerror/server_test.go
       linters:
         - dupl
