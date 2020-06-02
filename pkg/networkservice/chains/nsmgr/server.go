@@ -18,8 +18,8 @@
 package nsmgr
 
 import (
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/open-policy-agent/opa/rego"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
@@ -50,13 +50,13 @@ type nsmgr struct {
 
 // NewServer - Creates a new Nsmgr
 //           name - name of the Nsmgr
-//           authzPolicy - authorization policy
+//           authServer - authorization server chain element
 //           registryCC - client connection to reach the upstream registry
-func NewServer(name string, authzPolicy *rego.PreparedEvalQuery, tokenGenerator token.GeneratorFunc, registryCC grpc.ClientConnInterface) Nsmgr {
+func NewServer(name string, authServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, registryCC grpc.ClientConnInterface) Nsmgr {
 	rv := &nsmgr{}
 	rv.Endpoint = endpoint.NewServer(
 		name,
-		authzPolicy,
+		authServer,
 		tokenGenerator,
 		discover.NewServer(registry.NewNetworkServiceDiscoveryClient(registryCC)),
 		roundrobin.NewServer(),

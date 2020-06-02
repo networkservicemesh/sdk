@@ -19,14 +19,12 @@ package endpoint
 
 import (
 	"github.com/networkservicemesh/api/pkg/api"
-	"github.com/open-policy-agent/opa/rego"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/setid"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/timeout"
@@ -53,14 +51,15 @@ type endpoint struct {
 // NewServer - returns a NetworkServiceMesh client as a chain of the standard Client pieces plus whatever
 //             additional functionality is specified
 //             - name - name of the NetworkServiceServer
+//             - authServer authorization server chain element
 //             - tokenGenerator - token.GeneratorFunc - generates tokens for use in Path
 //             - additionalFunctionality - any additional NetworkServiceServer chain elements to be included in the chain
-func NewServer(name string, authzPolicy *rego.PreparedEvalQuery, tokenGenerator token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceServer) Endpoint {
+func NewServer(name string, authServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceServer) Endpoint {
 	rv := &endpoint{}
 	var ns networkservice.NetworkServiceServer = rv
 	rv.NetworkServiceServer = chain.NewNetworkServiceServer(
 		append([]networkservice.NetworkServiceServer{
-			authorize.NewServer(authzPolicy),
+			authServer,
 			setid.NewServer(name),
 			monitor.NewServer(&rv.MonitorConnectionServer),
 			timeout.NewServer(&ns),
