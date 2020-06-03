@@ -88,7 +88,6 @@ func TestPreparedOpaInput(t *testing.T) {
 		},
 		"auth_info": map[string]interface{}{
 			"certificate": certPem,
-			"spiffe_id":   spiffeID,
 		},
 	}
 
