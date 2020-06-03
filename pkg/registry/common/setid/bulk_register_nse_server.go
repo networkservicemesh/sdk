@@ -14,29 +14,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package adapters
+package setid
 
 import (
-	"context"
+	"fmt"
 
-	"github.com/golang/protobuf/ptypes/empty"
-
+	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/pkg/errors"
 )
 
-type nsmClientToServer struct {
-	client registry.NsmRegistryClient
+type networkServiceRegistryBulkRegisterNSEServer struct {
+	registry.NetworkServiceRegistry_BulkRegisterNSEServer
 }
 
-func (n *nsmClientToServer) RegisterNSM(ctx context.Context, r *registry.NetworkServiceManager) (*registry.NetworkServiceManager, error) {
-	return n.client.RegisterNSM(ctx, r)
-}
-
-func (n *nsmClientToServer) GetEndpoints(ctx context.Context, e *empty.Empty) (*registry.NetworkServiceEndpointList, error) {
-	return n.client.GetEndpoints(ctx, e)
-}
-
-// NewNSMClientToServer - returns a registry.NsmRegistryServer wrapped around the supplied client
-func NewNSMClientToServer(client registry.NsmRegistryClient) registry.NsmRegistryServer {
-	return &nsmClientToServer{client: client}
+func (s *networkServiceRegistryBulkRegisterNSEServer) Send(r *registry.NSERegistration) error {
+	if r.NetworkServiceEndpoint.Name == "" {
+		if r.NetworkService.Name == "" {
+			return errors.New("network service has empty name")
+		}
+		r.NetworkServiceEndpoint.Name = fmt.Sprintf("%v-%v", r.NetworkService.Name, uuid.New().String())
+	}
+	return s.NetworkServiceRegistry_BulkRegisterNSEServer.Send(r)
 }

@@ -63,9 +63,7 @@ func (n *nextNSMRegistryServer) GetEndpoints(ctx context.Context, in *empty.Empt
 func NewWrappedNSMRegistryServer(wrapper NSMRegistryServerWrapper, clients ...registry.NsmRegistryServer) registry.NsmRegistryServer {
 	rv := &nextNSMRegistryServer{servers: make([]registry.NsmRegistryServer, 0, len(clients))}
 	for _, c := range clients {
-		if c != nil {
-			rv.servers = append(rv.servers, wrapper(c))
-		}
+		rv.servers = append(rv.servers, wrapper(c))
 	}
 	return rv
 }

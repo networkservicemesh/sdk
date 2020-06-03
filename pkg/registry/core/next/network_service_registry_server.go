@@ -54,9 +54,7 @@ func NewWrappedNetworkServiceRegistryServer(wrapper NetworkServiceRegistryServer
 	}
 	rv := &nextNetworkServiceRegistryServer{servers: make([]registry.NetworkServiceRegistryServer, 0, len(servers))}
 	for _, s := range servers {
-		if s != nil {
-			rv.servers = append(rv.servers, wrapper(s))
-		}
+		rv.servers = append(rv.servers, wrapper(s))
 	}
 	return rv
 }

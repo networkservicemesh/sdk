@@ -83,10 +83,6 @@ func (ts *traceServer) Recv() (*registry.NSERegistration, error) {
 	return reg, err
 }
 
-func (ts *traceServer) Context() context.Context {
-	return ts.span.Context()
-}
-
 // BulkRegisterNSE - register NSEs in a Bulk
 func (t *traceRegistryServer) BulkRegisterNSE(server registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
 	span := spanhelper.FromContext(server.Context(), typeutils.GetFuncName(t.traced.BulkRegisterNSE))
