@@ -47,6 +47,9 @@ func (i *idClient) Request(ctx context.Context, request *networkservice.NetworkS
 		!(pathSegments[index].GetName() == i.name &&
 			pathSegments[index].GetId() == request.GetConnection().GetId())) ||
 		request.GetConnection().GetId() == "" {
+		if request.GetConnection() == nil {
+			request.Connection = &networkservice.Connection{}
+		}
 		request.GetConnection().Id = uuid.New().String()
 	}
 	return next.Client(ctx).Request(ctx, request, opts...)

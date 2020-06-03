@@ -99,3 +99,12 @@ func TestNewClient_InvalidIndex(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, conn.Id, connectionID)
 }
+
+func TestNewClient_NoConnection(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	client := setid.NewClient("nse-3")
+	conn, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{})
+	assert.NotNil(t, conn)
+	assert.Nil(t, err)
+	assert.NotEqual(t, conn.Id, connectionID)
+}
