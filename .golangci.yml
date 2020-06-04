@@ -27,6 +27,8 @@ linters-settings:
     suggest-new: true
   dupl:
     threshold: 150
+  funlen:
+    Lines: 100
   goconst:
     min-len: 2
     min-occurrences: 2
