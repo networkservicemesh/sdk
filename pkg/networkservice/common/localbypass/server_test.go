@@ -23,7 +23,7 @@ import (
 	"net/url"
 	"testing"
 
-	registrylocalbypass "github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
+	"github.com/networkservicemesh/sdk/pkg/registry/memory"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -76,8 +76,8 @@ func (s testNetworkServiceServer) Close(ctx context.Context, _ *networkservice.C
 
 func TestNewServer_NSENotPresented(t *testing.T) {
 	defer goleak.VerifyNone(t)
-	localBypassRegistryServer := registrylocalbypass.NewServer()
-	localBypassNetworkServiceServer := localbypass.NewServer(localBypassRegistryServer)
+	storage := &memory.Storage{}
+	localBypassNetworkServiceServer := localbypass.NewServer(storage)
 	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -98,8 +98,10 @@ func TestNewServer_NSENotPresented(t *testing.T) {
 
 func TestNewServer_UnixAddressRegistered(t *testing.T) {
 	defer goleak.VerifyNone(t)
-	localBypassRegistryServer := registrylocalbypass.NewServer()
-	localBypassNetworkServiceServer := localbypass.NewServer(localBypassRegistryServer)
+	storage := &memory.Storage{}
+	storage.NetworkServiceManagers.Store("nsm1", &registry.NetworkServiceManager{Name: "nsm1"})
+	localBypassRegistryServer := memory.NewNetworkServiceRegistryServer("nsm1", storage)
+	localBypassNetworkServiceServer := localbypass.NewServer(storage)
 	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -109,6 +111,7 @@ func TestNewServer_UnixAddressRegistered(t *testing.T) {
 	_, err := localBypassRegistryServer.RegisterNSE(
 		context.Background(),
 		&registry.NSERegistration{
+			NetworkService: &registry.NetworkService{Name: "my-service"},
 			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 				Name: "nse-1",
 				Url:  "unix:///var/run/nse-1.sock",
@@ -129,8 +132,10 @@ func TestNewServer_UnixAddressRegistered(t *testing.T) {
 
 func TestNewServer_NonUnixAddressRegistered(t *testing.T) {
 	defer goleak.VerifyNone(t)
-	localBypassRegistryServer := registrylocalbypass.NewServer()
-	localBypassNetworkServiceServer := localbypass.NewServer(localBypassRegistryServer)
+	storage := &memory.Storage{}
+	storage.NetworkServiceManagers.Store("nsm1", &registry.NetworkServiceManager{Name: "nsm1"})
+	localBypassRegistryServer := memory.NewNetworkServiceRegistryServer("nsm1", storage)
+	localBypassNetworkServiceServer := localbypass.NewServer(storage)
 	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -140,6 +145,7 @@ func TestNewServer_NonUnixAddressRegistered(t *testing.T) {
 	_, err := localBypassRegistryServer.RegisterNSE(
 		context.Background(),
 		&registry.NSERegistration{
+			NetworkService: &registry.NetworkService{Name: "my-service"},
 			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 				Name: "nse-1",
 				Url:  "tcp://127.0.0.1:5002",
@@ -162,8 +168,10 @@ func TestNewServer_NonUnixAddressRegistered(t *testing.T) {
 
 func TestNewServer_AddsNothingAfterNSERemoval(t *testing.T) {
 	defer goleak.VerifyNone(t)
-	localBypassRegistryServer := registrylocalbypass.NewServer()
-	localBypassNetworkServiceServer := localbypass.NewServer(localBypassRegistryServer)
+	storage := &memory.Storage{}
+	storage.NetworkServiceManagers.Store("nsm1", &registry.NetworkServiceManager{Name: "nsm1"})
+	localBypassRegistryServer := memory.NewNetworkServiceRegistryServer("nsm1", storage)
+	localBypassNetworkServiceServer := localbypass.NewServer(storage)
 	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -180,6 +188,7 @@ func TestNewServer_AddsNothingAfterNSERemoval(t *testing.T) {
 				AuthInfo: nil,
 			}),
 		&registry.NSERegistration{
+			NetworkService: &registry.NetworkService{Name: "my-service"},
 			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 				Name: "nse-1",
 			},

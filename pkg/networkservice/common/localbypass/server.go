@@ -20,45 +20,44 @@ package localbypass
 
 import (
 	"context"
+	"net/url"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/memory"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 )
 
 type localBypassServer struct {
-	reg localbypass.Registry
+	storage *memory.Storage
 }
 
 // NewServer - creates a NetworkServiceServer that tracks locally registered Endpoints substitutes their
 //             passed endpoint_address with clienturl.ClientURL(ctx) used to connect to them.
-//             - server - *registry.NetworkServiceRegistryServer.  Since registry.NetworkServiceRegistryServer is an interface
-//                        (and thus a pointer) *registry.NetworkServiceRegistryServer is a double pointer.  Meaning it
-//                        points to a place that points to a place that implements registry.NetworkServiceRegistryServer
-//                        This is done so that we can return a registry.NetworkServiceRegistryServer chain element
-//                        while maintaining the NewServer pattern for use like anything else in a chain.
-//                        The value in *server must be included in the registry.NetworkServiceRegistryServer listening
-//                        so it can capture the registrations.
-func NewServer(reg localbypass.Registry) networkservice.NetworkServiceServer {
+func NewServer(storage *memory.Storage) networkservice.NetworkServiceServer {
 	rv := &localBypassServer{
-		reg: reg,
+		storage: storage,
 	}
 	return rv
 }
 
 func (l *localBypassServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if u, ok := l.reg.LoadEndpointURL(request.GetConnection().GetNetworkServiceEndpointName()); ok && u != nil {
-		ctx = clienturl.WithClientURL(ctx, u)
+	if endpoint, ok := l.storage.NetworkServiceEndpoints.Load(request.GetConnection().GetNetworkServiceEndpointName()); ok && endpoint != nil {
+		if u, err := url.Parse(endpoint.Url); err == nil {
+			ctx = clienturl.WithClientURL(ctx, u)
+		}
 	}
 	return next.Server(ctx).Request(ctx, request)
 }
 
 func (l *localBypassServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	if u, ok := l.reg.LoadEndpointURL(conn.GetNetworkServiceEndpointName()); ok && u != nil {
-		ctx = clienturl.WithClientURL(ctx, u)
+	if endpoint, ok := l.storage.NetworkServiceEndpoints.Load(conn.GetNetworkServiceEndpointName()); ok && endpoint != nil {
+		if u, err := url.Parse(endpoint.Url); err == nil {
+			ctx = clienturl.WithClientURL(ctx, u)
+		}
 	}
 	return next.Server(ctx).Close(ctx, conn)
 }

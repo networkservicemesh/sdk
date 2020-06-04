@@ -22,7 +22,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
 
-	registrylocalbypass "github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
+	"github.com/networkservicemesh/sdk/pkg/registry/memory"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
@@ -48,6 +48,8 @@ type nsmgr struct {
 	endpoint.Endpoint
 	registry.NetworkServiceRegistryServer
 	registry.NetworkServiceDiscoveryServer
+
+	storage memory.Storage
 }
 
 // NewServer - Creates a new Nsmgr
@@ -56,7 +58,6 @@ type nsmgr struct {
 //           registryCC - client connection to reach the upstream registry
 func NewServer(name string, authzServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, registryCC grpc.ClientConnInterface) Nsmgr {
 	rv := &nsmgr{}
-	localbypassRegistry := registrylocalbypass.NewServer()
 
 	rv.Endpoint = endpoint.NewServer(
 		name,
@@ -64,13 +65,13 @@ func NewServer(name string, authzServer networkservice.NetworkServiceServer, tok
 		tokenGenerator,
 		discover.NewServer(registry.NewNetworkServiceDiscoveryClient(registryCC)),
 		roundrobin.NewServer(),
-		localbypass.NewServer(localbypassRegistry),
+		localbypass.NewServer(&rv.storage),
 		connect.NewServer(client.NewClientFactory(name, addressof.NetworkServiceClient(adapters.NewServerToClient(rv)), tokenGenerator)),
 	)
 	rv.NetworkServiceRegistryServer = chain_registry.NewNetworkServiceRegistryServer(
 		rv.NetworkServiceRegistryServer,
-		localbypassRegistry,
 		adapter_registry.NewRegistryClientToServer(registry.NewNetworkServiceRegistryClient(registryCC)),
+		memory.NewNetworkServiceRegistryServer("nsm1", &rv.storage),
 	)
 	rv.NetworkServiceDiscoveryServer = adapter_registry.NewDiscoveryClientToServer(registry.NewNetworkServiceDiscoveryClient(registryCC))
 	return rv
