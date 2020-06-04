@@ -67,10 +67,3 @@ func NewWrappedNSMRegistryServer(wrapper NSMRegistryServerWrapper, clients ...re
 	}
 	return rv
 }
-
-// NewNSMRegistryServer - chains together clients into a single registry.NSMRegistryServer
-func NewNSMRegistryServer(servers ...registry.NsmRegistryServer) registry.NsmRegistryServer {
-	return NewWrappedNSMRegistryServer(func(server registry.NsmRegistryServer) registry.NsmRegistryServer {
-		return server
-	}, servers...)
-}

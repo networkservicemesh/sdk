@@ -28,7 +28,6 @@ import (
 
 type memoryNetworkServeRegistry struct {
 	storage *Storage
-	nsmName string
 }
 
 func (m *memoryNetworkServeRegistry) RegisterNSE(ctx context.Context, registration *registry.NSERegistration) (*registry.NSERegistration, error) {
@@ -36,12 +35,6 @@ func (m *memoryNetworkServeRegistry) RegisterNSE(ctx context.Context, registrati
 		return nil, errors.New("can not register nil registration")
 	}
 	registration.NetworkServiceEndpoint.State = "RUNNING"
-	registration.NetworkServiceEndpoint.NetworkServiceManagerName = m.nsmName
-	nsm, ok := m.storage.NetworkServiceManagers.Load(m.nsmName)
-	if !ok {
-		return nil, errors.New("network service manager is not found")
-	}
-	registration.NetworkServiceManager = nsm
 
 	m.storage.NetworkServiceEndpoints.Store(registration.NetworkServiceEndpoint.Name, registration.NetworkServiceEndpoint)
 	m.storage.NetworkServices.Store(registration.NetworkService.Name, registration.NetworkService)
@@ -58,9 +51,8 @@ func (m *memoryNetworkServeRegistry) RemoveNSE(ctx context.Context, req *registr
 }
 
 // NewNetworkServiceRegistryServer returns new NetworkServiceRegistryServer based on specific resource client
-func NewNetworkServiceRegistryServer(nsmName string, storage *Storage) registry.NetworkServiceRegistryServer {
+func NewNetworkServiceRegistryServer(storage *Storage) registry.NetworkServiceRegistryServer {
 	return &memoryNetworkServeRegistry{
-		nsmName: nsmName,
 		storage: storage,
 	}
 }
