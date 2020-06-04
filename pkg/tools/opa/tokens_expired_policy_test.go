@@ -21,41 +21,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 )
-
-func genJWTWithClaimsWithYear(year int) string {
-	return genJWTWithClaims(&jwt.StandardClaims{
-		ExpiresAt: time.Date(year, 1, 1, 1, 1, 1, 1, time.UTC).Unix(),
-	})
-}
-
-func genJWTWithClaims(claims *jwt.StandardClaims) string {
-	token, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte("super secret"))
-	return token
-}
-
-func genConnectionWithTokens(tokens []string) *networkservice.Connection {
-	rv := &networkservice.Connection{
-		Path: &networkservice.Path{
-			PathSegments: []*networkservice.PathSegment{},
-		},
-	}
-
-	for _, token := range tokens {
-		rv.Path.PathSegments = append(rv.Path.PathSegments, &networkservice.PathSegment{
-			Token: token,
-		})
-	}
-
-	return rv
-}
 
 func TestNoTokensExpiredPolicy(t *testing.T) {
 	nextYear := time.Now().Year() + 1
