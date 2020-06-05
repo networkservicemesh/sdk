@@ -18,15 +18,15 @@
 package typeutils
 
 import (
+	"fmt"
 	"reflect"
-	"runtime"
 )
 
-// GetFuncName - returns the function name from the passed function pointer
-func GetFuncName(value interface{}) string {
-	t := reflect.TypeOf(value)
-	if t.Kind() == reflect.Func {
-		return runtime.FuncForPC(reflect.ValueOf(value).Pointer()).Name()
+// GetFuncName - returns the function name from the passed value (interface) and method name
+func GetFuncName(value interface{}, methodName string) string {
+	v := reflect.ValueOf(value)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
 	}
-	return ""
+	return fmt.Sprintf("%s/%s.%s", v.Type().PkgPath(), v.Type().Name(), methodName)
 }
