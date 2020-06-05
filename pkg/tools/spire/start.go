@@ -28,10 +28,11 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/spiffe/go-spiffe/v2/workloadapi"
+
 	"github.com/edwarnicke/exechelper"
 	"github.com/matryer/try"
 	"github.com/sirupsen/logrus"
-	"github.com/spiffe/go-spiffe/workload"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
@@ -76,8 +77,8 @@ func Start(options ...Option) <-chan error {
 		close(errCh)
 		return errCh
 	}
-	logrus.Infof("Env variable %s=%s are set", workload.SocketEnv, "unix:"+spireSocketPath)
-	if err = os.Setenv(workload.SocketEnv, "unix:"+spireSocketPath); err != nil {
+	logrus.Infof("Env variable %s=%s are set", workloadapi.SocketEnv, "unix:"+spireSocketPath)
+	if err = os.Setenv(workloadapi.SocketEnv, "unix:"+spireSocketPath); err != nil {
 		errCh <- err
 		close(errCh)
 		return errCh
