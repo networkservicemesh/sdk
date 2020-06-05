@@ -40,7 +40,7 @@ func NewNetworkServiceClient(traced networkservice.NetworkServiceClient) network
 
 func (t *traceClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	// Create a new span
-	operation := typeutils.GetFuncName(t.traced.Request)
+	operation := typeutils.GetFuncName(t.traced, "Request")
 	span := spanhelper.FromContext(ctx, operation)
 	defer span.Finish()
 
@@ -68,7 +68,7 @@ func (t *traceClient) Request(ctx context.Context, request *networkservice.Netwo
 
 func (t *traceClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	// Create a new span
-	operation := typeutils.GetFuncName(t.traced.Close)
+	operation := typeutils.GetFuncName(t.traced, "Close")
 	span := spanhelper.FromContext(ctx, operation)
 	defer span.Finish()
 	// Make sure we log to span
