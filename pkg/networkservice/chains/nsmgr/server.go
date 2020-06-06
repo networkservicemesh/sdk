@@ -52,7 +52,7 @@ type nsmgr struct {
 //           name - name of the Nsmgr
 //           authzServer - authorization server chain element
 //           registryCC - client connection to reach the upstream registry
-func NewServer(name string, authzServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, registryCC grpc.ClientConnInterface) Nsmgr {
+func NewServer(name string, authzServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, registryCC grpc.ClientConnInterface, dialOptions ...grpc.DialOption) Nsmgr {
 	rv := &nsmgr{}
 	rv.Endpoint = endpoint.NewServer(
 		name,
@@ -61,7 +61,7 @@ func NewServer(name string, authzServer networkservice.NetworkServiceServer, tok
 		discover.NewServer(registry.NewNetworkServiceDiscoveryClient(registryCC)),
 		roundrobin.NewServer(),
 		localbypass.NewServer(&rv.NetworkServiceRegistryServer),
-		connect.NewServer(client.NewClientFactory(name, addressof.NetworkServiceClient(adapters.NewServerToClient(rv)), tokenGenerator)),
+		connect.NewServer(client.NewClientFactory(name, addressof.NetworkServiceClient(adapters.NewServerToClient(rv)), tokenGenerator), dialOptions...),
 	)
 	rv.NetworkServiceRegistryServer = chain_registry.NewNetworkServiceRegistryServer(
 		rv.NetworkServiceRegistryServer,
