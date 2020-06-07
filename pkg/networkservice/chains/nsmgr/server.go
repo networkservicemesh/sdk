@@ -44,6 +44,7 @@ type Nsmgr interface {
 
 type nsmgr struct {
 	endpoint.Endpoint
+	registry.NsmRegistryServer
 	registry.NetworkServiceRegistryServer
 	registry.NetworkServiceDiscoveryServer
 }
@@ -62,6 +63,10 @@ func NewServer(name string, authzServer networkservice.NetworkServiceServer, tok
 		roundrobin.NewServer(),
 		localbypass.NewServer(&rv.NetworkServiceRegistryServer),
 		connect.NewServer(client.NewClientFactory(name, addressof.NetworkServiceClient(adapters.NewServerToClient(rv)), tokenGenerator), dialOptions...),
+	)
+	rv.NsmRegistryServer = chain_registry.NewNSMRegistryServer(
+		rv.NsmRegistryServer,
+		adapter_registry.NewNSMClientToServer(registry.NewNsmRegistryClient(registryCC)),
 	)
 	rv.NetworkServiceRegistryServer = chain_registry.NewNetworkServiceRegistryServer(
 		rv.NetworkServiceRegistryServer,
