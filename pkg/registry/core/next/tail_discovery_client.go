@@ -3,15 +3,21 @@ package next
 import (
 	"context"
 
+	"google.golang.org/grpc"
+
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/pkg/errors"
 )
 
 type tailDiscoveryClient struct {
 }
 
-func (t tailDiscoveryClient) FindNetworkService(context.Context, *registry.FindNetworkServiceRequest) (*registry.FindNetworkServiceResponse, error) {
-	return nil, errors.New("NetworkService is not found")
+func (t *tailDiscoveryClient) FindNetworkService(_ context.Context, request *registry.FindNetworkServiceRequest, _ ...grpc.CallOption) (*registry.FindNetworkServiceResponse, error) {
+	// Return empty
+	return &registry.FindNetworkServiceResponse{
+		NetworkService: &registry.NetworkService{
+			Name: request.NetworkServiceName,
+		},
+	}, nil
 }
 
-var _ registry.NetworkServiceDiscoveryServer = &tailDiscoveryClient{}
+var _ registry.NetworkServiceDiscoveryClient = &tailDiscoveryClient{}

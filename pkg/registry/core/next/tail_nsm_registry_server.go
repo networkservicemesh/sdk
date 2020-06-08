@@ -21,7 +21,6 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 )
 
@@ -33,7 +32,8 @@ func (t *tailRegistryNSMClient) RegisterNSM(_ context.Context, in *registry.Netw
 }
 
 func (t *tailRegistryNSMClient) GetEndpoints(_ context.Context, _ *empty.Empty, _ ...grpc.CallOption) (*registry.NetworkServiceEndpointList, error) {
-	return nil, errors.New("network service endpoints are not found")
+	//  return empty
+	return &registry.NetworkServiceEndpointList{}, nil
 }
 
 var _ registry.NsmRegistryClient = &tailRegistryNSMClient{}
