@@ -27,6 +27,7 @@ import (
 
 const (
 	unixScheme = "unix"
+	tcpScheme  = "tcp"
 )
 
 // ListenAndServe listens on address with server.  Returns an chan err  which will
@@ -34,11 +35,17 @@ const (
 func ListenAndServe(ctx context.Context, address *url.URL, server *grpc.Server) <-chan error {
 	errCh := make(chan error, 1)
 
+	// Create listener
+	network, target := urlToNetworkTarget(address)
+	ln, err := net.Listen(network, target)
+
+	if ln != nil {
+		// We need to pass a real listener address into context, since we could specify random port.
+		*address = *AddressToURL(ln.Addr())
+	}
+
 	// Serve
 	go func() {
-		// Create listener
-		network, target := urlToNetworkTarget(address)
-		ln, err := net.Listen(network, target)
 		if err != nil {
 			errCh <- err
 			close(errCh)
@@ -59,7 +66,7 @@ func ListenAndServe(ctx context.Context, address *url.URL, server *grpc.Server) 
 }
 
 func urlToNetworkTarget(u *url.URL) (network, target string) {
-	network = "tcp"
+	network = tcpScheme
 	target = u.Host
 	if u.Scheme == unixScheme {
 		network = unixScheme

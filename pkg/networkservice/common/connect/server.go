@@ -21,6 +21,9 @@ package connect
 
 import (
 	"context"
+	"net/url"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -36,6 +39,19 @@ type connectServer struct {
 	clientFactory           func(ctx context.Context, conn grpc.ClientConnInterface) networkservice.NetworkServiceClient
 	uRLToClientMap          clientMap // key == url as string
 	connectionIDToClientMap clientMap // key == connection.GetId()
+	dialOptionFactories     []func(ctx context.Context, request *networkservice.NetworkServiceRequest, clientURL *url.URL) []grpc.DialOption
+}
+
+type dialOptionFactory struct {
+	factory func(ctx context.Context, request *networkservice.NetworkServiceRequest, clientURL *url.URL) []grpc.DialOption
+	grpc.EmptyDialOption
+}
+
+// WithDialOptionFactory - define a dial option factory, will be called on moment to create dial
+func WithDialOptionFactory(factory func(ctx context.Context, request *networkservice.NetworkServiceRequest, clientURL *url.URL) []grpc.DialOption) grpc.DialOption {
+	return &dialOptionFactory{
+		factory: factory,
+	}
 }
 
 // NewServer - returns a new connect Server
@@ -48,12 +64,19 @@ type connectServer struct {
 //             connect presumes depends on some previous chain element having set clienturl.WithClientURL so it can know
 //             which client to address.
 func NewServer(clientFactory func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient, clientDialOptions ...grpc.DialOption) networkservice.NetworkServiceServer {
+	dialOptionFactories := []func(ctx context.Context, request *networkservice.NetworkServiceRequest, clientURL *url.URL) []grpc.DialOption{}
+	for _, op := range clientDialOptions {
+		if f, ok := op.(*dialOptionFactory); ok {
+			dialOptionFactories = append(dialOptionFactories, f.factory)
+		}
+	}
 	return &connectServer{
 		ctx:                     nil,
 		clientFactory:           clientFactory,
 		uRLToClientMap:          newClientMap(),
 		connectionIDToClientMap: newClientMap(),
 		dialOptions:             clientDialOptions,
+		dialOptionFactories:     dialOptionFactories,
 	}
 }
 
@@ -73,7 +96,11 @@ func (c *connectServer) Request(ctx context.Context, request *networkservice.Net
 	// TODO - fix to accept dialOptions from github.com/networkservicemesh/sdk/tools/security - the options should flow in from the top
 	// TODO - fix to accept a mockable interface we can pass in from the top other than DialContext
 	// TODO - fix to be cautious about schemes
-	cc, err := grpc.DialContext(clientCtx, u.String(), c.dialOptions...)
+	dialOptions := c.dialOptions
+	for _, dof := range c.dialOptionFactories {
+		dialOptions = append(dialOptions, dof(ctx, request, u)...)
+	}
+	cc, err := grpc.DialContext(clientCtx, grpcutils.URLToTarget(u), dialOptions...)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Unable to dial %s", u.String())
 	}

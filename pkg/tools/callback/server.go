@@ -71,7 +71,7 @@ func NewServer(provider IdentityProvider) Server {
 }
 
 // WithCallbackDialer - return a grpc.DialOption with callback server inside to perform a dial
-func WithCallbackDialer(server Server, target string) grpc.DialOption {
+func WithCallbackDialer(server CallbackServiceServer, target string) grpc.DialOption {
 	dialFunc, err := server.(*serverImpl).dial(target)
 	if err != nil {
 		logrus.Errorf("Failed to connect to callback: %v", err)
