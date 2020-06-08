@@ -32,7 +32,7 @@ last_token_signed {
 }
 `
 
-// WithLastTokenSignedPolicy returns default policy for checking tokens
+// WithLastTokenSignedPolicy returns default policy for checking that last token in path is signed.
 func WithLastTokenSignedPolicy() AuthorizationPolicy {
 	return &authorizationPolicy{
 		policySource: lastTokenSignedPolicy,

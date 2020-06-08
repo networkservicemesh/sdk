@@ -37,7 +37,7 @@ token_valid(token) = r {
 }
 `
 
-// WithLastTokenSignedPolicy returns default policy for checking tokens
+// WithAllTokensValidPolicy returns default policy for checking that all tokens in the path can be decoded.
 func WithAllTokensValidPolicy() AuthorizationPolicy {
 	return &authorizationPolicy{
 		policySource: allTokensValidPolicy,
