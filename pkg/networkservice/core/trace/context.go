@@ -42,14 +42,18 @@ func withLog(parent context.Context, log logrus.FieldLogger) context.Context {
 func Log(ctx context.Context) logrus.FieldLogger {
 	rv, ok := ctx.Value(logKey).(logrus.FieldLogger)
 	if !ok {
-		rv = &logrus.Logger{
+		logger := &logrus.Logger{
 			Out:          logrus.StandardLogger().Out,
 			Formatter:    logrus.StandardLogger().Formatter,
-			Hooks:        logrus.StandardLogger().Hooks,
+			Hooks:        make(logrus.LevelHooks),
 			Level:        logrus.StandardLogger().Level,
 			ExitFunc:     logrus.StandardLogger().ExitFunc,
 			ReportCaller: logrus.StandardLogger().ReportCaller,
 		}
+		for k, v := range logrus.StandardLogger().Hooks {
+			logger.Hooks[k] = v
+		}
+		rv = logger
 	}
 	return rv
 }

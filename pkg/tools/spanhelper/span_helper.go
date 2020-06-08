@@ -61,10 +61,13 @@ func LogFromSpan(span opentracing.Span) logrus.FieldLogger {
 	logger := logrus.Logger{
 		Out:          logrus.StandardLogger().Out,
 		Formatter:    logrus.StandardLogger().Formatter,
-		Hooks:        logrus.StandardLogger().Hooks,
+		Hooks:        make(logrus.LevelHooks),
 		Level:        logrus.StandardLogger().Level,
 		ExitFunc:     logrus.StandardLogger().ExitFunc,
 		ReportCaller: logrus.StandardLogger().ReportCaller,
+	}
+	for k, v := range logrus.StandardLogger().Hooks {
+		logger.Hooks[k] = v
 	}
 	if span != nil {
 		logger := logger.WithField("span", span)
