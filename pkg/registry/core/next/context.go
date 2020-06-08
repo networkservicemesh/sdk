@@ -25,7 +25,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next/adapters"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next/tail"
 )
 
@@ -56,7 +56,7 @@ func NetworkServiceRegistryServer(ctx context.Context) registry.NetworkServiceRe
 	if !ok {
 		client, ok := ctx.Value(nextRegistryClientKey).(registry.NetworkServiceRegistryClient)
 		if ok {
-			rv = adapters.NewRegistryClientToServer(client, NetworkServiceRegistryServer)
+			rv = adapters.NewRegistryClientToServer(client)
 		}
 	}
 	if rv != nil {
@@ -81,7 +81,7 @@ func NetworkServiceRegistryClient(ctx context.Context) registry.NetworkServiceRe
 	if !ok {
 		server, ok := ctx.Value(nextRegistryServerKey).(registry.NetworkServiceRegistryServer)
 		if ok {
-			rv = adapters.NewRegistryServerToClient(server, NetworkServiceRegistryClient)
+			rv = adapters.NewRegistryServerToClient(server)
 		}
 	}
 	if rv != nil {
@@ -106,7 +106,7 @@ func DiscoveryServer(ctx context.Context) registry.NetworkServiceDiscoveryServer
 	if !ok {
 		client, ok := ctx.Value(nextDiscoveryClientKey).(registry.NetworkServiceDiscoveryClient)
 		if ok {
-			rv = adapters.NewDiscoveryClientToServer(client, DiscoveryServer)
+			rv = adapters.NewDiscoveryClientToServer(client)
 		}
 	}
 	if rv != nil {
@@ -131,7 +131,7 @@ func DiscoveryClient(ctx context.Context) registry.NetworkServiceDiscoveryClient
 	if !ok {
 		server, ok := ctx.Value(nextDiscoveryServerKey).(registry.NetworkServiceDiscoveryServer)
 		if ok {
-			rv = adapters.NewDiscoveryServerToClient(server, DiscoveryClient)
+			rv = adapters.NewDiscoveryServerToClient(server)
 		}
 	}
 	if rv != nil {
@@ -145,9 +145,9 @@ func DiscoveryClient(ctx context.Context) registry.NetworkServiceDiscoveryClient
 func NSMRegistryClient(ctx context.Context) registry.NsmRegistryClient {
 	rv, ok := ctx.Value(nextNSMRegistryClientKey).(registry.NsmRegistryClient)
 	if !ok {
-		client, ok := ctx.Value(nextNSMRegistryServerKey).(registry.NsmRegistryServer)
+		server, ok := ctx.Value(nextNSMRegistryServerKey).(registry.NsmRegistryServer)
 		if ok {
-			rv = adapters.NewNSMServerToClient(client, NSMRegistryClient)
+			rv = adapters.NewNSMServerToClient(server)
 		}
 	}
 	if rv != nil {
@@ -172,7 +172,7 @@ func NSMRegistryServer(ctx context.Context) registry.NsmRegistryServer {
 	if !ok {
 		client, ok := ctx.Value(nextDiscoveryClientKey).(registry.NsmRegistryClient)
 		if ok {
-			rv = adapters.NewNSMClientToServer(client, NSMRegistryServer)
+			rv = adapters.NewNSMClientToServerNext(client, nil)
 		}
 	}
 	if rv != nil {

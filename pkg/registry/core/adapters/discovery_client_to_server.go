@@ -17,13 +17,42 @@
 package adapters
 
 import (
-	"github.com/networkservicemesh/api/pkg/api/registry"
+	"context"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next/adapters"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
 // NewDiscoveryClientToServer - returns a registry.NetworkServiceDiscoveryClient wrapped around the supplied client
 func NewDiscoveryClientToServer(client registry.NetworkServiceDiscoveryClient) registry.NetworkServiceDiscoveryServer {
-	return adapters.NewDiscoveryClientToServer(client, next.DiscoveryServer)
+	return NewDiscoveryClientToServerNext(client, nil)
 }
+
+type discoveryClientToServer struct {
+	client registry.NetworkServiceDiscoveryClient
+	next   func(ctx context.Context) registry.NetworkServiceDiscoveryServer
+}
+
+// NewDiscoveryClientToServerNext - returns a registry.NetworkServiceDiscoveryClient wrapped around the supplied client, and allow to call next on passed context
+func NewDiscoveryClientToServerNext(client registry.NetworkServiceDiscoveryClient, next func(ctx context.Context) registry.NetworkServiceDiscoveryServer) registry.NetworkServiceDiscoveryServer {
+	return &discoveryClientToServer{client: client, next: next}
+}
+
+func (c *discoveryClientToServer) FindNetworkService(ctx context.Context, request *registry.FindNetworkServiceRequest) (*registry.FindNetworkServiceResponse, error) {
+	result, err := c.client.FindNetworkService(ctx, request)
+	if err != nil || c.next == nil {
+		return result, err
+	}
+	var nextResult *registry.FindNetworkServiceResponse
+	nextResult, err = c.next(ctx).FindNetworkService(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	result.NetworkServiceEndpoints = append(result.NetworkServiceEndpoints, nextResult.NetworkServiceEndpoints...)
+	for k, v := range nextResult.NetworkServiceManagers {
+		result.NetworkServiceManagers[k] = v
+	}
+	return result, nil
+}
+
+// Implementation check
+var _ registry.NetworkServiceDiscoveryServer = &discoveryClientToServer{}

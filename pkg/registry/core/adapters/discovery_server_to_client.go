@@ -17,13 +17,43 @@
 package adapters
 
 import (
-	"github.com/networkservicemesh/api/pkg/api/registry"
+	"context"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next/adapters"
+	"github.com/networkservicemesh/api/pkg/api/registry"
+	"google.golang.org/grpc"
 )
 
 // NewDiscoveryServerToClient - returns a new registry.NetworkServiceDiscoveryServer that is a wrapper around server
 func NewDiscoveryServerToClient(server registry.NetworkServiceDiscoveryServer) registry.NetworkServiceDiscoveryClient {
-	return adapters.NewDiscoveryServerToClient(server, next.DiscoveryClient)
+	return NewDiscoveryServerToClientNext(server, nil)
 }
+
+type discoveryServerToClient struct {
+	server registry.NetworkServiceDiscoveryServer
+	next   func(ctx context.Context) registry.NetworkServiceDiscoveryClient
+}
+
+// NewDiscoveryServerToClientNext - returns a new registry.NetworkServiceDiscoveryServer that is a wrapper around server
+func NewDiscoveryServerToClientNext(server registry.NetworkServiceDiscoveryServer, next func(ctx context.Context) registry.NetworkServiceDiscoveryClient) registry.NetworkServiceDiscoveryClient {
+	return &discoveryServerToClient{server: server, next: next}
+}
+
+func (s *discoveryServerToClient) FindNetworkService(ctx context.Context, request *registry.FindNetworkServiceRequest, opts ...grpc.CallOption) (*registry.FindNetworkServiceResponse, error) {
+	result, err := s.server.FindNetworkService(ctx, request)
+	if err != nil || s.next == nil {
+		return result, err
+	}
+	var nextResult *registry.FindNetworkServiceResponse
+	nextResult, err = s.next(ctx).FindNetworkService(ctx, request, opts...)
+	if err != nil {
+		return nil, err
+	}
+	result.NetworkServiceEndpoints = append(result.NetworkServiceEndpoints, nextResult.NetworkServiceEndpoints...)
+	for k, v := range nextResult.NetworkServiceManagers {
+		result.NetworkServiceManagers[k] = v
+	}
+	return result, nil
+}
+
+// Implementation check
+var _ registry.NetworkServiceDiscoveryClient = &discoveryServerToClient{}
