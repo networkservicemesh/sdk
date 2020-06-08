@@ -126,10 +126,17 @@ func withNextDiscoveryClient(parent context.Context, next registry.NetworkServic
 // DiscoveryClient -
 //   Returns the DiscoveryClient registry.NetworkServiceDiscoveryClient to be called in the chain from the context.Context
 func DiscoveryClient(ctx context.Context) registry.NetworkServiceDiscoveryClient {
-	if rv, ok := ctx.Value(nextDiscoveryClientKey).(registry.NetworkServiceDiscoveryClient); ok {
+	rv, ok := ctx.Value(nextDiscoveryClientKey).(registry.NetworkServiceDiscoveryClient)
+	if !ok {
+		server, ok := ctx.Value(nextDiscoveryServerKey).(registry.NetworkServiceDiscoveryServer)
+		if ok {
+			rv = adapters.NewDiscoveryServerToClient(server)
+		}
+	}
+	if rv != nil {
 		return rv
 	}
-	return nil
+	return &tailDiscoveryClient{}
 }
 
 // NSMRegistryClient -

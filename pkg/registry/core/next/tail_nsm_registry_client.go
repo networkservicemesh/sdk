@@ -21,7 +21,6 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/pkg/errors"
 )
 
 type tailRegistryNSMServer struct{}
@@ -31,7 +30,8 @@ func (t tailRegistryNSMServer) RegisterNSM(_ context.Context, req *registry.Netw
 }
 
 func (t tailRegistryNSMServer) GetEndpoints(context.Context, *empty.Empty) (*registry.NetworkServiceEndpointList, error) {
-	return nil, errors.New("network service endpoints are not found")
+	//  return empty
+	return &registry.NetworkServiceEndpointList{}, nil
 }
 
 var _ registry.NsmRegistryServer = &tailRegistryNSMServer{}
