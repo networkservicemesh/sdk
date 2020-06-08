@@ -44,7 +44,7 @@ func TestVerifyToken(t *testing.T) {
 	x509crt, err := x509.ParseCertificate(cert.Certificate[0])
 	require.Nil(t, err)
 
-	p := opa.WithTokensValidPolicy()
+	p := opa.WithLastTokenSignedPolicy()
 
 	input := networkservice.Path{
 		PathSegments: []*networkservice.PathSegment{
