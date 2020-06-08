@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package next
+package tail
 
 import (
 	"context"
@@ -37,6 +37,11 @@ func (n *tailNetworkServiceRegistryServer) BulkRegisterNSE(_ registry.NetworkSer
 
 func (n *tailNetworkServiceRegistryServer) RemoveNSE(_ context.Context, _ *registry.RemoveNSERequest) (*empty.Empty, error) {
 	return &empty.Empty{}, nil
+}
+
+// NewTailNetworkServiceRegistryServer - creates new Tail NetworkServiceRegistryServer
+func NewTailNetworkServiceRegistryServer() registry.NetworkServiceRegistryServer {
+	return &tailNetworkServiceRegistryServer{}
 }
 
 var _ registry.NetworkServiceRegistryServer = &tailNetworkServiceRegistryServer{}

@@ -23,9 +23,10 @@ package next
 import (
 	"context"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
-
 	"github.com/networkservicemesh/api/pkg/api/registry"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next/adapters"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next/tail"
 )
 
 type contextKeyType string
@@ -55,13 +56,13 @@ func NetworkServiceRegistryServer(ctx context.Context) registry.NetworkServiceRe
 	if !ok {
 		client, ok := ctx.Value(nextRegistryClientKey).(registry.NetworkServiceRegistryClient)
 		if ok {
-			rv = adapters.NewRegistryClientToServer(client)
+			rv = adapters.NewRegistryClientToServer(client, NetworkServiceRegistryServer)
 		}
 	}
 	if rv != nil {
 		return rv
 	}
-	return &tailNetworkServiceRegistryServer{}
+	return tail.NewTailNetworkServiceRegistryServer()
 }
 
 // withNextRegistryClient -
@@ -80,13 +81,13 @@ func NetworkServiceRegistryClient(ctx context.Context) registry.NetworkServiceRe
 	if !ok {
 		server, ok := ctx.Value(nextRegistryServerKey).(registry.NetworkServiceRegistryServer)
 		if ok {
-			rv = adapters.NewRegistryServerToClient(server)
+			rv = adapters.NewRegistryServerToClient(server, NetworkServiceRegistryClient)
 		}
 	}
 	if rv != nil {
 		return rv
 	}
-	return &tailNetworkServiceRegistryClient{}
+	return tail.NewTailNetworkServiceRegistryClient()
 }
 
 // withNextDiscoveryServer -
@@ -105,13 +106,13 @@ func DiscoveryServer(ctx context.Context) registry.NetworkServiceDiscoveryServer
 	if !ok {
 		client, ok := ctx.Value(nextDiscoveryClientKey).(registry.NetworkServiceDiscoveryClient)
 		if ok {
-			rv = adapters.NewDiscoveryClientToServer(client)
+			rv = adapters.NewDiscoveryClientToServer(client, DiscoveryServer)
 		}
 	}
 	if rv != nil {
 		return rv
 	}
-	return &tailDiscoveryServer{}
+	return tail.NewTailDiscoveryServer()
 }
 
 // withNextDiscoveryClient -
@@ -139,13 +140,13 @@ func NSMRegistryClient(ctx context.Context) registry.NsmRegistryClient {
 	if !ok {
 		client, ok := ctx.Value(nextNSMRegistryServerKey).(registry.NsmRegistryServer)
 		if ok {
-			rv = adapters.NewNSMServerToClient(client)
+			rv = adapters.NewNSMServerToClient(client, NSMRegistryClient)
 		}
 	}
 	if rv != nil {
 		return rv
 	}
-	return &tailRegistryNSMClient{}
+	return tail.NewTailNSMRegistryClient()
 }
 
 // withNSMRegistryServer -
@@ -164,13 +165,13 @@ func NSMRegistryServer(ctx context.Context) registry.NsmRegistryServer {
 	if !ok {
 		client, ok := ctx.Value(nextDiscoveryClientKey).(registry.NsmRegistryClient)
 		if ok {
-			rv = adapters.NewNSMClientToServer(client)
+			rv = adapters.NewNSMClientToServer(client, NSMRegistryServer)
 		}
 	}
 	if rv != nil {
 		return rv
 	}
-	return &tailRegistryNSMServer{}
+	return tail.NewTailNSMRegistryServer()
 }
 
 // withNSMRegistryClient -

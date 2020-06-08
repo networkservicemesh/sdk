@@ -14,26 +14,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package next
+package adapters
 
 import (
-	"context"
-
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/pkg/errors"
-	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next/adapters"
 )
 
-type tailRegistryNSMClient struct {
+// NewNSMServerToClient - returns a registry.NsmRegistryClient wrapped around the supplied server
+func NewNSMServerToClient(server registry.NsmRegistryServer) registry.NsmRegistryClient {
+	return adapters.NewNSMServerToClient(server, next.NSMRegistryClient)
 }
-
-func (t *tailRegistryNSMClient) RegisterNSM(_ context.Context, in *registry.NetworkServiceManager, _ ...grpc.CallOption) (*registry.NetworkServiceManager, error) {
-	return in, nil
-}
-
-func (t *tailRegistryNSMClient) GetEndpoints(_ context.Context, _ *empty.Empty, _ ...grpc.CallOption) (*registry.NetworkServiceEndpointList, error) {
-	return nil, errors.New("network service endpoints are not found")
-}
-
-var _ registry.NsmRegistryClient = &tailRegistryNSMClient{}

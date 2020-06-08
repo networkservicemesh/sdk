@@ -17,22 +17,13 @@
 package adapters
 
 import (
-	"context"
-
-	"google.golang.org/grpc"
-
 	"github.com/networkservicemesh/api/pkg/api/registry"
-)
 
-type discoveryServerToClient struct {
-	server registry.NetworkServiceDiscoveryServer
-}
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next/adapters"
+)
 
 // NewDiscoveryServerToClient - returns a new registry.NetworkServiceDiscoveryServer that is a wrapper around server
 func NewDiscoveryServerToClient(server registry.NetworkServiceDiscoveryServer) registry.NetworkServiceDiscoveryClient {
-	return &discoveryServerToClient{server: server}
-}
-
-func (s *discoveryServerToClient) FindNetworkService(ctx context.Context, request *registry.FindNetworkServiceRequest, _ ...grpc.CallOption) (*registry.FindNetworkServiceResponse, error) {
-	return s.server.FindNetworkService(ctx, request)
+	return adapters.NewDiscoveryServerToClient(server, next.DiscoveryClient)
 }

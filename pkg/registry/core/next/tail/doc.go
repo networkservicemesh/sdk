@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Cisco Systems, Inc.
 //
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,17 +16,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package adapters provides adapters to translate between registry.{Registry,Discover}{Server,Client}
-package adapters
+// Package next provides a mechanism for chained registry.{Registry,Discovery}{Server,Client}s to call
+// the next element in the chain.
 
-import (
-	"github.com/networkservicemesh/api/pkg/api/registry"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next/adapters"
-)
-
-// NewRegistryServerToClient - returns a new registry.NetworkServiceRegistryServer that is a wrapper around server
-func NewRegistryServerToClient(server registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryClient {
-	return adapters.NewRegistryServerToClient(server, next.NetworkServiceRegistryClient)
-}
+// Package tail provide ending implementation of chain elements.
+package tail

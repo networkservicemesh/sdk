@@ -19,11 +19,11 @@ package memory
 import (
 	"context"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/pkg/errors"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
 type memoryNetworkServeRegistry struct {

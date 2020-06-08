@@ -14,24 +14,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package next
+package tail
 
 import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/pkg/errors"
+	"google.golang.org/grpc"
 )
 
-type tailRegistryNSMServer struct{}
-
-func (t tailRegistryNSMServer) RegisterNSM(_ context.Context, req *registry.NetworkServiceManager) (*registry.NetworkServiceManager, error) {
-	return req, nil
+type tailRegistryNSMClient struct {
 }
 
-func (t tailRegistryNSMServer) GetEndpoints(context.Context, *empty.Empty) (*registry.NetworkServiceEndpointList, error) {
-	return nil, errors.New("network service endpoints are not found")
+func (t *tailRegistryNSMClient) RegisterNSM(_ context.Context, in *registry.NetworkServiceManager, _ ...grpc.CallOption) (*registry.NetworkServiceManager, error) {
+	return in, nil
 }
 
-var _ registry.NsmRegistryServer = &tailRegistryNSMServer{}
+func (t *tailRegistryNSMClient) GetEndpoints(_ context.Context, _ *empty.Empty, _ ...grpc.CallOption) (*registry.NetworkServiceEndpointList, error) {
+	// Return empty
+	return &registry.NetworkServiceEndpointList{}, nil
+}
+
+// NewTailNSMRegistryClient - creates new Tail NsmRegistryServer
+func NewTailNSMRegistryClient() registry.NsmRegistryClient {
+	return &tailRegistryNSMClient{}
+}
+
+var _ registry.NsmRegistryClient = &tailRegistryNSMClient{}

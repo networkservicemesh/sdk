@@ -21,6 +21,8 @@ package next
 import (
 	"context"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next/tail"
+
 	"github.com/golang/protobuf/ptypes/empty"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -50,7 +52,7 @@ type nextNetworkServiceRegistryServer struct {
 // NewWrappedNetworkServiceRegistryServer - creates a chain of servers with each one wrapped in wrapper
 func NewWrappedNetworkServiceRegistryServer(wrapper NetworkServiceRegistryServerWrapper, servers ...registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
 	if len(servers) == 0 {
-		return &tailNetworkServiceRegistryServer{}
+		return tail.NewTailNetworkServiceRegistryServer()
 	}
 	rv := &nextNetworkServiceRegistryServer{servers: make([]registry.NetworkServiceRegistryServer, 0, len(servers))}
 	for _, s := range servers {

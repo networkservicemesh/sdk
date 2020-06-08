@@ -17,56 +17,13 @@
 package adapters
 
 import (
-	"context"
-
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/sirupsen/logrus"
-)
 
-type registryClientToServer struct {
-	client registry.NetworkServiceRegistryClient
-}
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next/adapters"
+)
 
 // NewRegistryClientToServer - returns a registry.NetworkServiceRegistryClient wrapped around the supplied client
 func NewRegistryClientToServer(client registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryServer {
-	return &registryClientToServer{client: client}
-}
-
-func (r *registryClientToServer) RegisterNSE(ctx context.Context, registration *registry.NSERegistration) (*registry.NSERegistration, error) {
-	return r.client.RegisterNSE(ctx, registration)
-}
-
-// BulkRegisterNSE - register NSEs in a Bulk
-func (r *registryClientToServer) BulkRegisterNSE(server registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
-	client, err := r.client.BulkRegisterNSE(server.Context())
-	if err != nil {
-		return err
-	}
-
-	// Handle server
-	if client != nil {
-		go func() {
-			for {
-				reg, err := client.Recv()
-				if err != nil {
-					logrus.Errorf("Error in BulkRegisterNSE %v", err)
-					return
-				}
-				if reg == nil {
-					break
-				}
-				err = server.Send(reg)
-				if err != nil {
-					logrus.Errorf("Error in BulkRegisterNSE %v", err)
-					return
-				}
-			}
-		}()
-	}
-	return nil
-}
-
-func (r *registryClientToServer) RemoveNSE(ctx context.Context, request *registry.RemoveNSERequest) (*empty.Empty, error) {
-	return r.client.RemoveNSE(ctx, request)
+	return adapters.NewRegistryClientToServer(client, next.NetworkServiceRegistryServer)
 }

@@ -17,20 +17,13 @@
 package adapters
 
 import (
-	"context"
-
 	"github.com/networkservicemesh/api/pkg/api/registry"
-)
 
-type discoveryClientToServer struct {
-	client registry.NetworkServiceDiscoveryClient
-}
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next/adapters"
+)
 
 // NewDiscoveryClientToServer - returns a registry.NetworkServiceDiscoveryClient wrapped around the supplied client
 func NewDiscoveryClientToServer(client registry.NetworkServiceDiscoveryClient) registry.NetworkServiceDiscoveryServer {
-	return &discoveryClientToServer{client: client}
-}
-
-func (c *discoveryClientToServer) FindNetworkService(ctx context.Context, request *registry.FindNetworkServiceRequest) (*registry.FindNetworkServiceResponse, error) {
-	return c.client.FindNetworkService(ctx, request)
+	return adapters.NewDiscoveryClientToServer(client, next.DiscoveryServer)
 }

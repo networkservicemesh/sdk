@@ -20,12 +20,12 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/pkg/errors"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
 type networkServiceRegistryServer struct{}

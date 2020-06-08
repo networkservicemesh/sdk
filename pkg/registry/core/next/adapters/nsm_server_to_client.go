@@ -27,17 +27,35 @@ import (
 
 type nsmServerToClient struct {
 	server registry.NsmRegistryServer
-}
-
-func (n *nsmServerToClient) RegisterNSM(ctx context.Context, in *registry.NetworkServiceManager, opts ...grpc.CallOption) (*registry.NetworkServiceManager, error) {
-	return n.server.RegisterNSM(ctx, in)
-}
-
-func (n *nsmServerToClient) GetEndpoints(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*registry.NetworkServiceEndpointList, error) {
-	return n.server.GetEndpoints(ctx, in)
+	next   func(ctx context.Context) registry.NsmRegistryClient
 }
 
 // NewNSMServerToClient - returns a registry.NsmRegistryClient wrapped around the supplied server
-func NewNSMServerToClient(client registry.NsmRegistryServer) registry.NsmRegistryClient {
-	return &nsmServerToClient{server: client}
+func NewNSMServerToClient(client registry.NsmRegistryServer, next func(ctx context.Context) registry.NsmRegistryClient) registry.NsmRegistryClient {
+	return &nsmServerToClient{server: client, next: next}
 }
+
+func (n *nsmServerToClient) RegisterNSM(ctx context.Context, in *registry.NetworkServiceManager, opts ...grpc.CallOption) (*registry.NetworkServiceManager, error) {
+	result, err := n.server.RegisterNSM(ctx, in)
+	if err != nil || n.next == nil {
+		return result, err
+	}
+	return n.next(ctx).RegisterNSM(ctx, in, opts...)
+}
+
+func (n *nsmServerToClient) GetEndpoints(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*registry.NetworkServiceEndpointList, error) {
+	result, err := n.server.GetEndpoints(ctx, in)
+	if err != nil || n.next == nil {
+		return nil, err
+	}
+	var nextResult *registry.NetworkServiceEndpointList
+	nextResult, err = n.next(ctx).GetEndpoints(ctx, in, opts...)
+	if err != nil {
+		return nil, err
+	}
+	result.NetworkServiceEndpoints = append(result.NetworkServiceEndpoints, nextResult.NetworkServiceEndpoints...)
+	return result, nil
+}
+
+// Implementation check
+var _ registry.NsmRegistryClient = &nsmServerToClient{}

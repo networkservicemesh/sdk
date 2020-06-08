@@ -17,26 +17,13 @@
 package adapters
 
 import (
-	"context"
-
-	"github.com/golang/protobuf/ptypes/empty"
-
 	"github.com/networkservicemesh/api/pkg/api/registry"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next/adapters"
 )
-
-type nsmClientToServer struct {
-	client registry.NsmRegistryClient
-}
-
-func (n *nsmClientToServer) RegisterNSM(ctx context.Context, r *registry.NetworkServiceManager) (*registry.NetworkServiceManager, error) {
-	return n.client.RegisterNSM(ctx, r)
-}
-
-func (n *nsmClientToServer) GetEndpoints(ctx context.Context, e *empty.Empty) (*registry.NetworkServiceEndpointList, error) {
-	return n.client.GetEndpoints(ctx, e)
-}
 
 // NewNSMClientToServer - returns a registry.NsmRegistryServer wrapped around the supplied client
 func NewNSMClientToServer(client registry.NsmRegistryClient) registry.NsmRegistryServer {
-	return &nsmClientToServer{client: client}
+	return adapters.NewNSMClientToServer(client, next.NSMRegistryServer)
 }

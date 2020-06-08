@@ -21,6 +21,8 @@ package next
 import (
 	"context"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next/tail"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 
@@ -42,7 +44,7 @@ type nextNetworkServiceRegistryClient struct {
 // NewWrappedNetworkServiceRegistryClient chains together clients with wrapper wrapped around each one
 func NewWrappedNetworkServiceRegistryClient(wrapper NetworkServiceRegistryClientWrapper, clients ...registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
 	if len(clients) == 0 {
-		return &tailNetworkServiceRegistryClient{}
+		return tail.NewTailNetworkServiceRegistryClient()
 	}
 	rv := &nextNetworkServiceRegistryClient{clients: make([]registry.NetworkServiceRegistryClient, 0, len(clients))}
 	for _, c := range clients {
