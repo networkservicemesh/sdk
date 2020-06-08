@@ -1,9 +1,29 @@
-package point2pointipam
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at:
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package point2pointipam_test
 
 import (
 	"context"
 	"net"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/point2pointipam"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/assert"
@@ -23,9 +43,9 @@ func newRequest() *networkservice.NetworkServiceRequest {
 }
 
 func TestServer(t *testing.T) {
-	_, ipnet, _ := net.ParseCIDR("192.168.3.4/16")
-	srv, err := NewServer([]*net.IPNet{ipnet})
-	assert.NoError(t, err)
+	_, ipnet, err := net.ParseCIDR("192.168.3.4/16")
+	require.NoError(t, err)
+	srv := point2pointipam.NewServer(ipnet)
 
 	conn1, err := srv.Request(context.Background(), newRequest())
 	assert.NoError(t, err)
@@ -56,23 +76,25 @@ func TestServer(t *testing.T) {
 }
 
 func TestNilPrefixes(t *testing.T) {
-	srv, err := NewServer(nil)
-	assert.Nil(t, srv)
-	assert.Error(t, err)
-
+	srv := point2pointipam.NewServer()
+	_, err := srv.Request(context.Background(), newRequest())
+	require.Error(t, err)
 	_, cidr1, _ := net.ParseCIDR("192.168.0.1/32")
 
-	srv, err = NewServer([]*net.IPNet{
+	srv = point2pointipam.NewServer(
+		nil,
 		cidr1,
 		nil,
-	})
-	assert.Nil(t, srv)
+	)
+	_, err = srv.Request(context.Background(), newRequest())
+
 	assert.Error(t, err)
 }
 
 func TestExclude32Prefix(t *testing.T) {
-	_, ipnet, _ := net.ParseCIDR("192.168.1.0/24")
-	srv, err := NewServer([]*net.IPNet{ipnet})
+	_, ipnet, err := net.ParseCIDR("192.168.1.0/24")
+	assert.Nil(t, err)
+	srv := point2pointipam.NewServer(ipnet)
 	assert.NotNil(t, srv)
 	assert.NoError(t, err)
 
@@ -102,10 +124,10 @@ func TestExclude32Prefix(t *testing.T) {
 }
 
 func TestOutOfIPs(t *testing.T) {
-	_, ipnet, _ := net.ParseCIDR("192.168.1.2/31")
-	srv, err := NewServer([]*net.IPNet{ipnet})
-	assert.NotNil(t, srv)
+	_, ipnet, err := net.ParseCIDR("192.168.1.2/31")
 	assert.NoError(t, err)
+	srv := point2pointipam.NewServer(ipnet)
+	assert.NotNil(t, srv)
 
 	req1 := newRequest()
 	conn1, err := srv.Request(context.Background(), req1)
@@ -120,10 +142,10 @@ func TestOutOfIPs(t *testing.T) {
 }
 
 func TestAllIPsExcluded(t *testing.T) {
-	_, ipnet, _ := net.ParseCIDR("192.168.1.2/31")
-	srv, err := NewServer([]*net.IPNet{ipnet})
-	assert.NotNil(t, srv)
+	_, ipnet, err := net.ParseCIDR("192.168.1.2/31")
 	assert.NoError(t, err)
+	srv := point2pointipam.NewServer(ipnet)
+	assert.NotNil(t, srv)
 
 	req1 := newRequest()
 	req1.Connection.Context.IpContext.ExcludedPrefixes = []string{
