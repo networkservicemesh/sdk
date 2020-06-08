@@ -17,26 +17,26 @@
 package opa
 
 // #nosec
-const tokensValidPolicy = `
+const lastTokenSignedPolicy = `
 package test	
 
-default tokens_valid = false
+default last_token_signed = false
 default index = 0
 
 index = input.index
 
-tokens_valid {	
+last_token_signed {	
 	token := input.path_segments[index].token	
 	cert := input.auth_info.certificate	
 	io.jwt.verify_es256(token, cert) = true
 }
 `
 
-// WithTokensValidPolicy returns default policy for checking tokens
-func WithTokensValidPolicy() AuthorizationPolicy {
+// WithLastTokenSignedPolicy returns default policy for checking that last token in path is signed.
+func WithLastTokenSignedPolicy() AuthorizationPolicy {
 	return &authorizationPolicy{
-		policySource: tokensValidPolicy,
-		query:        "tokens_valid",
-		checker:      True("tokens_valid"),
+		policySource: lastTokenSignedPolicy,
+		query:        "last_token_signed",
+		checker:      True("last_token_signed"),
 	}
 }
