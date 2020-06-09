@@ -22,7 +22,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 )
 
-// ClientOption is authorization option for client
+// ServerOption is authorization option for server
 type ServerOption interface {
 	apply(server *authorizeServer)
 }
