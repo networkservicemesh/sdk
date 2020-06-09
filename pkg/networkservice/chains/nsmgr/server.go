@@ -14,12 +14,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package nsmgr provides a Network Service Manager (nsmgr), but interface and implementation
+// Package nsmgr provides a Network Service Manager (nsmgrServer), but interface and implementation
 package nsmgr
 
 import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	chain_registry "github.com/networkservicemesh/sdk/pkg/registry/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/registry/memory"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
@@ -30,7 +32,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/roundrobin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	adapter_registry "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
-	chain_registry "github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
@@ -38,51 +39,70 @@ import (
 // Nsmgr - A simple combintation of the Endpoint, registry.NetworkServiceRegistryServer, and registry.NetworkServiceDiscoveryServer interfaces
 type Nsmgr interface {
 	endpoint.Endpoint
+
 	NetworkServiceRegistryServer() registry.NetworkServiceRegistryServer
 	NetworkServiceEndpointRegistryServer() registry.NetworkServiceEndpointRegistryServer
 }
 
-type nsmgr struct {
+type nsmgrServer struct {
 	endpoint.Endpoint
 	nsServer  registry.NetworkServiceRegistryServer
 	nseServer registry.NetworkServiceEndpointRegistryServer
+
+	serviceMap  memory.NetworkServiceSyncMap
+	endpointMap memory.NetworkServiceEndpointSyncMap
 }
 
-func (n *nsmgr) NetworkServiceRegistryServer() registry.NetworkServiceRegistryServer {
+func (n *nsmgrServer) NetworkServiceRegistryServer() registry.NetworkServiceRegistryServer {
 	return n.nsServer
 }
 
-func (n *nsmgr) NetworkServiceEndpointRegistryServer() registry.NetworkServiceEndpointRegistryServer {
+func (n *nsmgrServer) NetworkServiceEndpointRegistryServer() registry.NetworkServiceEndpointRegistryServer {
 	return n.nseServer
 }
 
 // NewServer - Creates a new Nsmgr
-//           name - name of the Nsmgr
+//           nsmRegistration - Nsmgr registration
 //           authzServer - authorization server chain element
-//           registryCC - client connection to reach the upstream registry
-func NewServer(name string, authzServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, registryCC grpc.ClientConnInterface, dialOptions ...grpc.DialOption) Nsmgr {
-	rv := &nsmgr{}
+//           tokenGenerator - authorization token generator
+//           registryCC - client connection to reach the upstream registry, could be nil, in this case only in memory storage will be used.
+// 			 clientDialOptions -  a grpc.DialOption's to be passed to GRPC connections.
+func NewServer(nsmRegistration *registry.NetworkServiceEndpoint, authzServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, registryCC grpc.ClientConnInterface, clientDialOptions ...grpc.DialOption) Nsmgr {
+	// Construct callback server
+	rv := &nsmgrServer{}
+Å
+	var localbypassRegistryServer registry.NetworkServiceEndpointRegistryServer
 
+	// Construct Endpoint
 	rv.Endpoint = endpoint.NewServer(
-		name,
+		nsmRegistration.Name,
 		authzServer,
 		tokenGenerator,
 		discover.NewServer(registry.NewNetworkServiceRegistryClient(registryCC), registry.NewNetworkServiceEndpointRegistryClient(registryCC)),
 		roundrobin.NewServer(),
-		localbypass.NewServer(&rv.nseServer),
-		connect.NewServer(client.NewClientFactory(name, addressof.NetworkServiceClient(adapters.NewServerToClient(rv)), tokenGenerator), dialOptions...),
+		localbypass.NewServer(&localbypassRegistryServer),
+		connect.NewServer(
+			client.NewClientFactory(nsmRegistration.Name,
+				addressof.NetworkServiceClient(
+					adapters.NewServerToClient(rv)),
+				tokenGenerator),
+			clientDialOptions...),
 	)
+
 	rv.nsServer = chain_registry.NewNetworkServiceRegistryServer(
 		adapter_registry.NetworkServiceClientToServer(registry.NewNetworkServiceRegistryClient(registryCC)),
 	)
 	rv.nseServer = chain_registry.NewNetworkServiceEndpointRegistryServer(
 		adapter_registry.NetworkServiceEndpointClientToServer(registry.NewNetworkServiceEndpointRegistryClient(registryCC)),
 	)
+
 	return rv
 }
 
-func (n *nsmgr) Register(s *grpc.Server) {
+func (n *nsmgrServer) Register(s *grpc.Server) {
 	n.Endpoint.Register(s)
+
+	// Register registry
 	registry.RegisterNetworkServiceRegistryServer(s, n.NetworkServiceRegistryServer())
 	registry.RegisterNetworkServiceEndpointRegistryServer(s, n.NetworkServiceEndpointRegistryServer())
 }
