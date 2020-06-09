@@ -90,6 +90,7 @@ func Self(envVariableParts ...string) error {
 		"--listen=" + listen,
 		"--headless=true",
 		"--api-version=2",
+		"--accept-multiclient",
 		"exec",
 	}
 	args = append(args, executable)
