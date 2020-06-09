@@ -1,4 +1,5 @@
 // Copyright (c) 2020 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,9 +23,10 @@ package point2pointipam
 import (
 	"context"
 	"encoding/binary"
-	"errors"
 	"net"
 	"sync"
+
+	"github.com/pkg/errors"
 
 	"github.com/RoaringBitmap/roaring"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -38,9 +40,15 @@ type pointToPointServer struct {
 	mutex    *sync.Mutex
 	prefixes []*net.IPNet
 	freeIPs  *roaring.Bitmap
+	once     sync.Once
+	initErr  error
 }
 
 func (srv *pointToPointServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	srv.once.Do(srv.init)
+	if srv.initErr != nil {
+		return nil, srv.initErr
+	}
 	srv.mutex.Lock()
 	defer srv.mutex.Unlock()
 
@@ -104,6 +112,10 @@ func (srv *pointToPointServer) Request(ctx context.Context, request *networkserv
 }
 
 func (srv *pointToPointServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	srv.once.Do(srv.init)
+	if srv.initErr != nil {
+		return nil, srv.initErr
+	}
 	srv.mutex.Lock()
 	defer srv.mutex.Unlock()
 
@@ -126,20 +138,21 @@ func (srv *pointToPointServer) Close(ctx context.Context, conn *networkservice.C
 	return next.Server(ctx).Close(ctx, conn)
 }
 
-// NewServer - creates a NetworkServiceServer that requests a kernel interface and populates the netns inode
-func NewServer(prefixes []*net.IPNet) (networkservice.NetworkServiceServer, error) {
-	if len(prefixes) == 0 {
-		return nil, errors.New("prefixes must not be nil")
+func (srv *pointToPointServer) init() {
+	if len(srv.prefixes) == 0 {
+		srv.initErr = errors.New("required one or more prefixes")
+		return
 	}
 
-	for _, prefix := range prefixes {
+	for _, prefix := range srv.prefixes {
 		if prefix == nil {
-			return nil, errors.New("prefix must not be nil")
+			srv.initErr = errors.Errorf("prefix must not be nil: %+v", srv.prefixes)
+			return
 		}
 	}
 
 	freeIPs := roaring.New()
-	for _, ipnet := range prefixes {
+	for _, ipnet := range srv.prefixes {
 		networkAddress := cidr.NetworkAddress(ipnet)
 		broadcastAddress := cidr.BroadcastAddress(ipnet)
 
@@ -151,10 +164,13 @@ func NewServer(prefixes []*net.IPNet) (networkservice.NetworkServiceServer, erro
 		// freeIPs.Remove(low)
 		// freeIPs.Remove(high)
 	}
+	srv.freeIPs = freeIPs
+}
 
+// NewServer - creates a NetworkServiceServer that requests a kernel interface and populates the netns inode
+func NewServer(prefixes ...*net.IPNet) networkservice.NetworkServiceServer {
 	return &pointToPointServer{
 		mutex:    &sync.Mutex{},
 		prefixes: prefixes,
-		freeIPs:  freeIPs,
-	}, nil
+	}
 }
