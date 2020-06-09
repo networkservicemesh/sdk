@@ -28,6 +28,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
 type connectServer struct {
@@ -80,11 +81,10 @@ func (c *connectServer) Request(ctx context.Context, request *networkservice.Net
 	client = c.clientFactory(clientCtx, cc)
 	client, _ = c.uRLToClientMap.LoadOrStore(u.String(), client)
 	client, _ = c.connectionIDToClientMap.LoadOrStore(request.GetConnection().GetId(), client)
-	conn, err := client.Request(ctx, request)
-	if err != nil {
+	if _, err = client.Request(ctx, request); err != nil {
 		return nil, err
 	}
-	return conn, err
+	return next.Server(ctx).Request(ctx, request)
 }
 
 func (c *connectServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
@@ -110,5 +110,8 @@ func (c *connectServer) Close(ctx context.Context, conn *networkservice.Connecti
 	client = c.clientFactory(clientCtx, cc)
 	client, _ = c.uRLToClientMap.LoadOrStore(u.String(), client)
 	client, _ = c.connectionIDToClientMap.LoadOrStore(conn.GetId(), client)
-	return client.Close(ctx, conn)
+	if _, err := client.Close(ctx, conn); err != nil {
+		return nil, err
+	}
+	return next.Server(ctx).Close(ctx, conn)
 }
