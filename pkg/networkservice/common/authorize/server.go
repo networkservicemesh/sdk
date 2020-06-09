@@ -34,10 +34,12 @@ type authorizeServer struct {
 }
 
 // NewServer - returns a new authorization networkservicemesh.NetworkServiceServers
-func NewServer(policies ...opa.AuthorizationPolicy) networkservice.NetworkServiceServer {
-	return &authorizeServer{
-		policies: policies,
+func NewServer(opts ...ServerOption) networkservice.NetworkServiceServer {
+	s := &authorizeServer{}
+	for _, o := range opts {
+		o.apply(s)
 	}
+	return s
 }
 
 func (a *authorizeServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {

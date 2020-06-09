@@ -84,7 +84,7 @@ func TestAuthzEndpoint(t *testing.T) {
 	for i := range suits {
 		s := suits[i]
 		t.Run(s.name, func(t *testing.T) {
-			srv := authorize.NewServer(s.policy)
+			srv := authorize.NewServer(authorize.WithPolicies(s.policy))
 			checkResult := func(err error) {
 				if !s.denied {
 					require.Nil(t, err, "request expected to be not denied: ")

@@ -144,7 +144,7 @@ func TestWithTokensPathValidPolicy(t *testing.T) {
 			servers = append(servers,
 				chain.NewNetworkServiceServer(
 					updatepath.NewServer(server.name, server.tokenGenerator),
-					authorize.NewServer(p)),
+					authorize.NewServer(authorize.WithPolicies(p))),
 			)
 		}
 
