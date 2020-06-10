@@ -21,6 +21,7 @@ package tests
 import (
 	"context"
 	"fmt"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -63,4 +64,13 @@ func TestServerBranches(t *testing.T) {
 		_, _ = s.Close(ctx, nil)
 		assert.Equal(t, expects[i], visitValue(ctx), fmt.Sprintf("sample index: %v", i))
 	}
+}
+
+func TestServerBranchesPrint(t *testing.T) {
+	servers := []networkservice.NetworkServiceServer{
+		visitServer(), adapters.NewClientToServer(visitClient()), visitServer(),
+	}
+
+	server := chain.NewNetworkServiceServer(servers...)
+	_, _ = server.Request(context.Background(), nil)
 }

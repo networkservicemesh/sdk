@@ -19,6 +19,7 @@ package adapters
 
 import (
 	"context"
+	"github.com/sirupsen/logrus"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
@@ -36,6 +37,7 @@ func NewServerToClient(server networkservice.NetworkServiceServer) networkservic
 }
 
 func (s *serverToClient) Request(ctx context.Context, in *networkservice.NetworkServiceRequest, _ ...grpc.CallOption) (*networkservice.Connection, error) {
+	logrus.Infof("ServerToClient:")
 	return s.server.Request(ctx, in)
 }
 

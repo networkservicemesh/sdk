@@ -19,6 +19,7 @@ package tests
 
 import (
 	"context"
+	"github.com/sirupsen/logrus"
 
 	"github.com/golang/protobuf/ptypes/empty"
 
@@ -57,6 +58,7 @@ func visitServer() networkservice.NetworkServiceServer {
 }
 
 func (t *testVisitNetworkServiceServer) Request(ctx context.Context, r *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	logrus.Infof("Visit server")
 	return next.Server(visit(ctx)).Request(ctx, r)
 }
 
@@ -71,6 +73,7 @@ func visitClient() networkservice.NetworkServiceClient {
 }
 
 func (t *testVisitNetworkServiceClient) Request(ctx context.Context, r *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	logrus.Infof("Visit client")
 	return next.Client(visit(ctx)).Request(ctx, r, opts...)
 }
 

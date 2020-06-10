@@ -19,6 +19,7 @@ package adapters
 
 import (
 	"context"
+	"github.com/sirupsen/logrus"
 
 	"github.com/golang/protobuf/ptypes/empty"
 
@@ -35,6 +36,7 @@ func NewClientToServer(client networkservice.NetworkServiceClient) networkservic
 }
 
 func (c *clientToServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	logrus.Infof("Client To Server:")
 	return c.client.Request(ctx, request)
 }
 
