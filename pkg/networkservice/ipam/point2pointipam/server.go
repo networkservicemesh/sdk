@@ -56,18 +56,20 @@ func (srv *pointToPointServer) Request(ctx context.Context, request *networkserv
 		return nil, errors.New("ipam allocation pool depleted")
 	}
 
+	if request.GetConnection() == nil {
+		request.Connection = &networkservice.Connection{}
+	}
 	conn := request.GetConnection()
-	if request == nil {
-		return nil, errors.New("connection missing")
+
+	if conn.GetContext() == nil {
+		conn.Context = &networkservice.ConnectionContext{}
 	}
 	connContext := conn.GetContext()
-	if connContext == nil {
-		return nil, errors.New("connection context missing")
+
+	if connContext.GetIpContext() == nil {
+		connContext.IpContext = &networkservice.IPContext{}
 	}
 	ipContext := connContext.GetIpContext()
-	if ipContext == nil {
-		return nil, errors.New("ip context missing")
-	}
 
 	exclude := roaring.New()
 	excludePrefixes := ipContext.GetExcludedPrefixes()
