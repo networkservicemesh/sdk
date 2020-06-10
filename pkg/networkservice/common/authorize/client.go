@@ -1,3 +1,5 @@
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
+//
 // Copyright (c) 2020 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -27,19 +29,31 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type authorizeClient struct{}
+type authorizeClient struct {
+	policies *authorizePolicies
+}
 
 // NewClient - returns a new authorization networkservicemesh.NetworkServiceClient
-func NewClient() networkservice.NetworkServiceClient {
-	return &authorizeClient{}
+func NewClient(opts ...Option) networkservice.NetworkServiceClient {
+	p := &authorizePolicies{}
+	for _, o := range opts {
+		o.apply(p)
+	}
+	return &authorizeClient{
+		policies: p,
+	}
 }
 
 func (a *authorizeClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	// TODO implement authorization
+	if err := a.policies.check(ctx, request.GetConnection()); err != nil {
+		return nil, err
+	}
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
 
 func (a *authorizeClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	// TODO implement authorization
+	if err := a.policies.check(ctx, conn); err != nil {
+		return nil, err
+	}
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }

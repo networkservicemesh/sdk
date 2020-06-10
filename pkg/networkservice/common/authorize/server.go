@@ -1,3 +1,5 @@
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
+//
 // Copyright (c) 2020 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -20,8 +22,6 @@ package authorize
 import (
 	"context"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/opa"
-
 	"github.com/golang/protobuf/ptypes/empty"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -30,37 +30,30 @@ import (
 )
 
 type authorizeServer struct {
-	policies []opa.AuthorizationPolicy
+	policies *authorizePolicies
 }
 
 // NewServer - returns a new authorization networkservicemesh.NetworkServiceServers
-func NewServer(opts ...ServerOption) networkservice.NetworkServiceServer {
-	s := &authorizeServer{}
+func NewServer(opts ...Option) networkservice.NetworkServiceServer {
+	p := &authorizePolicies{}
 	for _, o := range opts {
-		o.apply(s)
+		o.apply(p)
 	}
-	return s
+	return &authorizeServer{
+		policies: p,
+	}
 }
 
 func (a *authorizeServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if err := a.check(ctx, request.GetConnection()); err != nil {
+	if err := a.policies.check(ctx, request.GetConnection()); err != nil {
 		return nil, err
 	}
 	return next.Server(ctx).Request(ctx, request)
 }
 
 func (a *authorizeServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	if err := a.check(ctx, conn); err != nil {
+	if err := a.policies.check(ctx, conn); err != nil {
 		return nil, err
 	}
 	return next.Server(ctx).Close(ctx, conn)
-}
-
-func (a *authorizeServer) check(ctx context.Context, conn *networkservice.Connection) error {
-	for _, p := range a.policies {
-		if err := p.Check(ctx, conn.GetPath()); err != nil {
-			return err
-		}
-	}
-	return nil
 }
