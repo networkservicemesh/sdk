@@ -22,23 +22,23 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 )
 
-// ServerOption is authorization option for server
-type ServerOption interface {
-	apply(server *authorizeServer)
+// Option is authorization option for server
+type Option interface {
+	apply(*authorizePolicies)
 }
 
 // WithPolicies adds custom OPA policies
-func WithPolicies(policies ...opa.AuthorizationPolicy) ServerOption {
-	return serverOptionFunc(func(server *authorizeServer) {
-		server.policies = append(server.policies, policies...)
+func WithPolicies(policies ...opa.AuthorizationPolicy) Option {
+	return optionFunc(func(a *authorizePolicies) {
+		a.policies = append(a.policies, policies...)
 	})
 }
 
 // WithDefaultPolicies adds default OPA policies
-func WithDefaultPolicies() ServerOption {
-	return serverOptionFunc(func(server *authorizeServer) {
-		server.policies = append(
-			server.policies,
+func WithDefaultPolicies() Option {
+	return optionFunc(func(a *authorizePolicies) {
+		a.policies = append(
+			a.policies,
 			opa.WithAllTokensValidPolicy(),
 			opa.WithTokensExpiredPolicy(),
 			opa.WithTokenChainPolicy(),
@@ -47,8 +47,8 @@ func WithDefaultPolicies() ServerOption {
 	})
 }
 
-type serverOptionFunc func(server *authorizeServer)
+type optionFunc func(*authorizePolicies)
 
-func (f serverOptionFunc) apply(server *authorizeServer) {
-	f(server)
+func (f optionFunc) apply(a *authorizePolicies) {
+	f(a)
 }
