@@ -101,14 +101,10 @@ func (i *injectPeerClient) addPeerToContext(ctx context.Context) context.Context
 	return ctx
 }
 
-func (i *injectPeerClient) updatePeer(p *peer.Peer) chan *peer.Peer {
-	peerCh := make(chan *peer.Peer)
-	i.AsyncExec(func() {
+func (i *injectPeerClient) updatePeer(p *peer.Peer) <-chan struct{} {
+	return i.AsyncExec(func() {
 		if (peer.Peer{}) != *p {
 			i.peer = p
-			peerCh <- p
 		}
-		close(peerCh)
 	})
-	return peerCh
 }
