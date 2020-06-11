@@ -88,7 +88,9 @@ func (c *connectServer) Request(ctx context.Context, request *networkservice.Net
 		if err != nil {
 			return nil, err
 		}
-		request.Connection = conn
+		if conn.GetContext() != nil {
+			request.Connection.Context = conn.GetContext()
+		}
 		return next.Server(ctx).Request(ctx, request)
 	}
 	u := clienturl.ClientURL(ctx)
@@ -99,7 +101,9 @@ func (c *connectServer) Request(ctx context.Context, request *networkservice.Net
 		if err != nil {
 			return nil, err
 		}
-		request.Connection = conn
+		if conn.GetContext() != nil {
+			request.Connection.Context = conn.GetContext()
+		}
 		return next.Server(ctx).Request(ctx, request)
 	}
 
@@ -125,7 +129,9 @@ func (c *connectServer) Request(ctx context.Context, request *networkservice.Net
 		return nil, err
 	}
 
-	request.Connection = conn
+	if conn.GetContext() != nil {
+		request.Connection.Context = conn.GetContext()
+	}
 	return next.Server(ctx).Request(ctx, request)
 }
 
