@@ -84,14 +84,29 @@ func NewServer(clientFactory func(ctx context.Context, cc grpc.ClientConnInterfa
 func (c *connectServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	client, found := c.connectionIDToClientMap.Load(request.GetConnection().GetId())
 	if found {
-		return client.Request(ctx, request)
+		conn, err := client.Request(ctx, request)
+		if err != nil {
+			return nil, err
+		}
+		if conn.GetContext() != nil {
+			request.Connection.Context = conn.GetContext()
+		}
+		return next.Server(ctx).Request(ctx, request)
 	}
 	u := clienturl.ClientURL(ctx)
 	client, found = c.uRLToClientMap.Load(u.String())
 	if found {
 		c.connectionIDToClientMap.LoadOrStore(request.GetConnection().GetId(), client)
-		return client.Request(ctx, request)
+		conn, err := client.Request(ctx, request)
+		if err != nil {
+			return nil, err
+		}
+		if conn.GetContext() != nil {
+			request.Connection.Context = conn.GetContext()
+		}
+		return next.Server(ctx).Request(ctx, request)
 	}
+
 	// TODO - do something with cancelFunc to clean up uRLToClientMap when we are done with them (maybe ref counting on Close?)
 	clientCtx, _ := context.WithCancel(context.Background())
 	// TODO - fix to accept dialOptions from github.com/networkservicemesh/sdk/tools/security - the options should flow in from the top
@@ -108,8 +123,14 @@ func (c *connectServer) Request(ctx context.Context, request *networkservice.Net
 	client = c.clientFactory(clientCtx, cc)
 	client, _ = c.uRLToClientMap.LoadOrStore(u.String(), client)
 	client, _ = c.connectionIDToClientMap.LoadOrStore(request.GetConnection().GetId(), client)
-	if _, err = client.Request(ctx, request); err != nil {
+
+	conn, err := client.Request(ctx, request)
+	if err != nil {
 		return nil, err
+	}
+
+	if conn.GetContext() != nil {
+		request.Connection.Context = conn.GetContext()
 	}
 	return next.Server(ctx).Request(ctx, request)
 }
