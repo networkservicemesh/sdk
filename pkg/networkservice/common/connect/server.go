@@ -119,9 +119,13 @@ func (c *connectServer) Request(ctx context.Context, request *networkservice.Net
 	client = c.clientFactory(clientCtx, cc)
 	client, _ = c.uRLToClientMap.LoadOrStore(u.String(), client)
 	client, _ = c.connectionIDToClientMap.LoadOrStore(request.GetConnection().GetId(), client)
-	if _, err = client.Request(ctx, request); err != nil {
+
+	conn, err := client.Request(ctx, request)
+	if err != nil {
 		return nil, err
 	}
+
+	request.Connection = conn
 	return next.Server(ctx).Request(ctx, request)
 }
 
