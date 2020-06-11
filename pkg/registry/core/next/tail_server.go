@@ -18,7 +18,6 @@ package next
 
 import (
 	"context"
-
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 )
@@ -27,16 +26,16 @@ import (
 // of a chain to ensure that we never call a method on a nil object
 type tailNetworkServiceRegistryServer struct{}
 
-func (n *tailNetworkServiceRegistryServer) RegisterNSE(_ context.Context, request *registry.NSERegistration) (*registry.NSERegistration, error) {
-	return request, nil
+func (t tailNetworkServiceRegistryServer) Register(_ context.Context, in *registry.NetworkServiceEntry) (*registry.NetworkServiceEntry, error) {
+	return in, nil
 }
 
-func (n *tailNetworkServiceRegistryServer) BulkRegisterNSE(_ registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
+func (t tailNetworkServiceRegistryServer) Find(*registry.NetworkServiceQuery, registry.NetworkServiceRegistry_FindServer) error {
 	return nil
 }
 
-func (n *tailNetworkServiceRegistryServer) RemoveNSE(_ context.Context, _ *registry.RemoveNSERequest) (*empty.Empty, error) {
-	return &empty.Empty{}, nil
+func (t tailNetworkServiceRegistryServer) Unregister(context.Context, *registry.NetworkServiceEntry) (*empty.Empty, error) {
+	return new(empty.Empty), nil
 }
 
 var _ registry.NetworkServiceRegistryServer = &tailNetworkServiceRegistryServer{}

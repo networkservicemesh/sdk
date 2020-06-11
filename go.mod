@@ -30,3 +30,7 @@ require (
 	gonum.org/v1/gonum v0.6.2
 	google.golang.org/grpc v1.27.1
 )
+
+replace (
+    github.com/networkservicemesh/api => ../api
+)

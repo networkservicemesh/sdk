@@ -18,6 +18,7 @@ package next
 
 import (
 	"context"
+	"github.com/pkg/errors"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -28,17 +29,16 @@ import (
 // of a chain to ensure that we never call a method on a nil object
 type tailNetworkServiceRegistryClient struct{}
 
-func (n *tailNetworkServiceRegistryClient) RegisterNSE(_ context.Context, request *registry.NSERegistration, _ ...grpc.CallOption) (*registry.NSERegistration, error) {
-	return request, nil
+func (t *tailNetworkServiceRegistryClient) Register(ctx context.Context, in *registry.NetworkServiceEntry, opts ...grpc.CallOption) (*registry.NetworkServiceEntry, error) {
+	return in, nil
 }
 
-func (n *tailNetworkServiceRegistryClient) BulkRegisterNSE(_ context.Context, _ ...grpc.CallOption) (registry.NetworkServiceRegistry_BulkRegisterNSEClient, error) {
-	// TODO implement it
-	return nil, nil
+func (t *tailNetworkServiceRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
+	return nil, errors.New("not implemented")
 }
 
-func (n *tailNetworkServiceRegistryClient) RemoveNSE(_ context.Context, _ *registry.RemoveNSERequest, _ ...grpc.CallOption) (*empty.Empty, error) {
-	return &empty.Empty{}, nil
+func (t *tailNetworkServiceRegistryClient) Unregister(ctx context.Context, in *registry.NetworkServiceEntry, opts ...grpc.CallOption) (*empty.Empty, error) {
+	return new(empty.Empty), nil
 }
 
 var _ registry.NetworkServiceRegistryClient = &tailNetworkServiceRegistryClient{}
