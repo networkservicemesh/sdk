@@ -38,14 +38,22 @@ import (
 // Nsmgr - A simple combintation of the Endpoint, registry.NetworkServiceRegistryServer, and registry.NetworkServiceDiscoveryServer interfaces
 type Nsmgr interface {
 	endpoint.Endpoint
-	registry.NetworkServiceRegistryServer
-	registry.NetworkServiceDiscoveryServer
+	NetworkServiceRegistryServer() registry.NetworkServiceRegistryServer
+	NetworkServiceEndpointRegistryServer() registry.NetworkServiceEndpointRegistryServer
 }
 
 type nsmgr struct {
 	endpoint.Endpoint
-	registry.NetworkServiceRegistryServer
-	registry.NetworkServiceDiscoveryServer
+	nsServer  registry.NetworkServiceRegistryServer
+	nseServer registry.NetworkServiceEndpointRegistryServer
+}
+
+func (n *nsmgr) NetworkServiceRegistryServer() registry.NetworkServiceRegistryServer {
+	return n.nsServer
+}
+
+func (n *nsmgr) NetworkServiceEndpointRegistryServer() registry.NetworkServiceEndpointRegistryServer {
+	return n.nseServer
 }
 
 // NewServer - Creates a new Nsmgr
@@ -54,25 +62,27 @@ type nsmgr struct {
 //           registryCC - client connection to reach the upstream registry
 func NewServer(name string, authzServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, registryCC grpc.ClientConnInterface, dialOptions ...grpc.DialOption) Nsmgr {
 	rv := &nsmgr{}
+
 	rv.Endpoint = endpoint.NewServer(
 		name,
 		authzServer,
 		tokenGenerator,
-		discover.NewServer(registry.NewNetworkServiceDiscoveryClient(registryCC)),
+		discover.NewServer(registry.NewNetworkServiceRegistryClient(registryCC), registry.NewNetworkServiceEndpointRegistryClient(registryCC)),
 		roundrobin.NewServer(),
-		localbypass.NewServer(&rv.NetworkServiceRegistryServer),
+		localbypass.NewServer(&rv.nseServer),
 		connect.NewServer(client.NewClientFactory(name, addressof.NetworkServiceClient(adapters.NewServerToClient(rv)), tokenGenerator), dialOptions...),
 	)
-	rv.NetworkServiceRegistryServer = chain_registry.NewNetworkServiceRegistryServer(
-		rv.NetworkServiceRegistryServer,
-		adapter_registry.NewRegistryClientToServer(registry.NewNetworkServiceRegistryClient(registryCC)),
+	rv.nsServer = chain_registry.NewNetworkServiceRegistryServer(
+		adapter_registry.NetworkServiceClientToServer(registry.NewNetworkServiceRegistryClient(registryCC)),
 	)
-	rv.NetworkServiceDiscoveryServer = adapter_registry.NewDiscoveryClientToServer(registry.NewNetworkServiceDiscoveryClient(registryCC))
+	rv.nseServer = chain_registry.NewNetworkServiceEndpointRegistryServer(
+		adapter_registry.NetworkServiceEndpointClientToServer(registry.NewNetworkServiceEndpointRegistryClient(registryCC)),
+	)
 	return rv
 }
 
 func (n *nsmgr) Register(s *grpc.Server) {
 	n.Endpoint.Register(s)
-	registry.RegisterNetworkServiceRegistryServer(s, n)
-	registry.RegisterNetworkServiceDiscoveryServer(s, n)
+	registry.RegisterNetworkServiceRegistryServer(s, n.NetworkServiceRegistryServer())
+	registry.RegisterNetworkServiceEndpointRegistryServer(s, n.NetworkServiceEndpointRegistryServer())
 }

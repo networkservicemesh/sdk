@@ -62,9 +62,9 @@ func (s *selectEndpointServer) Close(ctx context.Context, conn *networkservice.C
 func (s *selectEndpointServer) withClientURL(ctx context.Context, conn *networkservice.Connection) (context.Context, error) {
 	if clienturl.ClientURL(ctx) == nil {
 		candidates := discover.Candidates(ctx)
-		endpoint := s.selector.selectEndpoint(candidates.GetNetworkService(), candidates.GetNetworkServiceEndpoints())
+		endpoint := s.selector.selectEndpoint(candidates.NetworkService, candidates.Endpoints)
 		conn.NetworkServiceEndpointName = endpoint.GetName()
-		urlString := candidates.GetNetworkServiceManagers()[endpoint.GetNetworkServiceManagerName()].GetUrl()
+		urlString := endpoint.Url
 		u, err := url.Parse(urlString)
 		if err != nil {
 			return nil, errors.WithStack(err)

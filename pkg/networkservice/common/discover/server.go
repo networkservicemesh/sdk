@@ -29,13 +29,17 @@ import (
 )
 
 type discoverCandidatesServer struct {
-	registry registry.NetworkServiceDiscoveryClient
+	nseClient registry.NetworkServiceEndpointRegistryClient
+	nsClient  registry.NetworkServiceRegistryClient
 }
 
 // NewServer - creates a new NetworkServiceServer that can discover possible candidates for providing a requested
 //             Network Service and add it to the context.Context where it can be retrieved by Candidates(ctx)
-func NewServer(reg registry.NetworkServiceDiscoveryClient) networkservice.NetworkServiceServer {
-	return &discoverCandidatesServer{registry: reg}
+func NewServer(nsClient registry.NetworkServiceRegistryClient, nseClient registry.NetworkServiceEndpointRegistryClient) networkservice.NetworkServiceServer {
+	return &discoverCandidatesServer{
+		nseClient: nseClient,
+		nsClient:  nsClient,
+	}
 }
 
 func (d *discoverCandidatesServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
@@ -43,16 +47,53 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 	// if request.GetConnection().GetNetworkServiceEndpointName() != "" {
 	//    TODO what to do in this case?
 	// }
-	registryRequest := &registry.FindNetworkServiceRequest{
-		NetworkServiceName: request.GetConnection().GetNetworkService(),
-	}
-	registryResponse, err := d.registry.FindNetworkService(ctx, registryRequest)
+
+	nseStream, err := d.nseClient.Find(ctx, &registry.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+			Name: request.GetConnection().GetNetworkService(),
+		},
+	})
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	registryResponse.NetworkServiceEndpoints = matchEndpoint(request.GetConnection().GetLabels(), registryResponse.GetNetworkService(), registryResponse.GetNetworkServiceEndpoints())
-	ctx = WithCandidates(ctx, registryResponse)
+
+	nses := readNSEsSteam(nseStream)
+
+	nsStream, err := d.nsClient.Find(ctx, &registry.NetworkServiceQuery{
+		NetworkService: &registry.NetworkService{
+			Name: request.GetConnection().GetNetworkService(),
+		},
+	})
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	nss := readNSsSteam(nsStream)
+
+	ctx = WithCandidates(ctx, nses, nss[0])
 	return next.Server(ctx).Request(ctx, request)
+}
+
+func readNSsSteam(stream registry.NetworkServiceRegistry_FindClient) []*registry.NetworkService {
+	var result []*registry.NetworkService
+	for msg, err := stream.Recv(); true; msg, err = stream.Recv() {
+		if err != nil {
+			break
+		}
+		result = append(result, msg)
+	}
+	return result
+}
+
+func readNSEsSteam(stream registry.NetworkServiceEndpointRegistry_FindClient) []*registry.NetworkServiceEndpoint {
+	var result []*registry.NetworkServiceEndpoint
+	for msg, err := stream.Recv(); true; msg, err = stream.Recv() {
+		if err != nil {
+			break
+		}
+		result = append(result, msg)
+	}
+	return result
 }
 
 func (d *discoverCandidatesServer) Close(context.Context, *networkservice.Connection) (*empty.Empty, error) {
