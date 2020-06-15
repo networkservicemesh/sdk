@@ -19,39 +19,49 @@ package setid
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
-type networkServiceRegistryServer struct{}
+type setIDNetworkServiceEndpointRegistryServer struct{}
 
-// NewNetworkServiceRegistryServer creates new instance of NetworkServiceRegistryServer which set the unique name for the endpoint on registration
-func NewNetworkServiceRegistryServer() registry.NetworkServiceRegistryServer {
-	return &networkServiceRegistryServer{}
+func (n *setIDNetworkServiceEndpointRegistryServer) Register(ctx context.Context, request *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	request.Name = nameOf(request)
+	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, request)
 }
 
-func (n networkServiceRegistryServer) RegisterNSE(ctx context.Context, r *registry.NSERegistration) (*registry.NSERegistration, error) {
-	if r.NetworkServiceEndpoint.Name == "" {
-		if r.NetworkService.Name == "" {
-			return nil, errors.New("network service has empty name")
-		}
-		r.NetworkServiceEndpoint.Name = fmt.Sprintf("%v-%v", r.NetworkService.Name, uuid.New().String())
+type setIDNetworkServiceEndpointRegistryFindServer struct {
+	registry.NetworkServiceEndpointRegistry_FindServer
+}
+
+func (s *setIDNetworkServiceEndpointRegistryFindServer) Send(request *registry.NetworkServiceEndpoint) error {
+	request.Name = nameOf(request)
+	return s.NetworkServiceEndpointRegistry_FindServer.Send(request)
+}
+
+func (n *setIDNetworkServiceEndpointRegistryServer) Find(query *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
+	return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(query, &setIDNetworkServiceEndpointRegistryFindServer{NetworkServiceEndpointRegistry_FindServer: s})
+}
+
+func (n *setIDNetworkServiceEndpointRegistryServer) Unregister(ctx context.Context, request *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, request)
+}
+
+// NewNetworkServiceEndpointRegistryServer creates new instance of NetworkServiceRegistryServer which set the unique name for the endpoint on registration
+func NewNetworkServiceEndpointRegistryServer() registry.NetworkServiceEndpointRegistryServer {
+	return &setIDNetworkServiceEndpointRegistryServer{}
+}
+
+func nameOf(endpoint *registry.NetworkServiceEndpoint) string {
+	if endpoint.Name != "" {
+		return endpoint.Name
 	}
-	return next.NetworkServiceRegistryServer(ctx).RegisterNSE(ctx, r)
+	return fmt.Sprintf("%v-%v", strings.Join(endpoint.NetworkServiceName, "-"), uuid.New().String())
 }
 
-func (n *networkServiceRegistryServer) BulkRegisterNSE(s registry.NetworkServiceRegistry_BulkRegisterNSEServer) error {
-	s = &networkServiceRegistryBulkRegisterNSEServer{NetworkServiceRegistry_BulkRegisterNSEServer: s}
-	return next.NetworkServiceRegistryServer(s.Context()).BulkRegisterNSE(s)
-}
-
-func (n networkServiceRegistryServer) RemoveNSE(ctx context.Context, r *registry.RemoveNSERequest) (*empty.Empty, error) {
-	return next.NetworkServiceRegistryServer(ctx).RemoveNSE(ctx, r)
-}
-
-var _ registry.NetworkServiceRegistryServer = &networkServiceRegistryServer{}
+var _ registry.NetworkServiceEndpointRegistryServer = &setIDNetworkServiceEndpointRegistryServer{}

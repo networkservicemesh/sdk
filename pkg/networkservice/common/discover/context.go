@@ -31,19 +31,28 @@ const (
 
 type contextKeyType string
 
+// NetworkServiceCandidates contains candidates for network service
+type NetworkServiceCandidates struct {
+	NetworkService *registry.NetworkService
+	Endpoints      []*registry.NetworkServiceEndpoint
+}
+
 // WithCandidates -
 //    Wraps 'parent' in a new Context that has the Candidates
-func WithCandidates(parent context.Context, candidates *registry.FindNetworkServiceResponse) context.Context {
+func WithCandidates(parent context.Context, candidates []*registry.NetworkServiceEndpoint, service *registry.NetworkService) context.Context {
 	if parent == nil {
 		parent = context.TODO()
 	}
-	return context.WithValue(parent, candidatesKey, candidates)
+	return context.WithValue(parent, candidatesKey, &NetworkServiceCandidates{
+		NetworkService: service,
+		Endpoints:      candidates,
+	})
 }
 
 // Candidates -
 //   Returns the Candidates
-func Candidates(ctx context.Context) *registry.FindNetworkServiceResponse {
-	if rv, ok := ctx.Value(candidatesKey).(*registry.FindNetworkServiceResponse); ok {
+func Candidates(ctx context.Context) *NetworkServiceCandidates {
+	if rv, ok := ctx.Value(candidatesKey).(*NetworkServiceCandidates); ok {
 		return rv
 	}
 	return nil

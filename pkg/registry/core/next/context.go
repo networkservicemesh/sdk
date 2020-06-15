@@ -31,31 +31,38 @@ import (
 type contextKeyType string
 
 const (
-	nextDiscoveryServerKey   contextKeyType = "NextDiscoveryServer"
-	nextDiscoveryClientKey   contextKeyType = "NextDiscoveryClient"
-	nextRegistryServerKey    contextKeyType = "NextRegistryServer"
-	nextRegistryClientKey    contextKeyType = "NextRegistryClient"
-	nextNSMRegistryServerKey contextKeyType = "NextNSMRegistryServer"
-	nextNSMRegistryClientKey contextKeyType = "NextNSMRegistryClient"
+	nextNSRegistryServerKey  contextKeyType = "NextNSRegistryServer"
+	nextNSRegistryClientKey  contextKeyType = "NextNSRegistryClient"
+	nextNSERegistryServerKey contextKeyType = "NextNSERegistryServer"
+	nextNSERegistryClientKey contextKeyType = "NextNSERegistryClient"
 )
 
-// withNextRegistryServer -
+// withNextNSRegistryServer -
 //    Wraps 'parent' in a new Context that has the DiscoveryServer registry.NetworkServiceRegistryServer to be called in the chain
-func withNextRegistryServer(parent context.Context, next registry.NetworkServiceRegistryServer) context.Context {
+func withNextNSRegistryServer(parent context.Context, next registry.NetworkServiceRegistryServer) context.Context {
 	if parent == nil {
 		parent = context.TODO()
 	}
-	return context.WithValue(parent, nextRegistryServerKey, next)
+	return context.WithValue(parent, nextNSRegistryServerKey, next)
+}
+
+// withNextNSRegistryClient -
+//    Wraps 'parent' in a new Context that has the NetworkServiceRegistryClient registry.NetworkServiceRegistryClientWrapper to be called in the chain
+func withNextNSRegistryClient(parent context.Context, next registry.NetworkServiceRegistryClient) context.Context {
+	if parent == nil {
+		parent = context.TODO()
+	}
+	return context.WithValue(parent, nextNSRegistryClientKey, next)
 }
 
 // NetworkServiceRegistryServer -
 //   Returns the NetworkServiceRegistryServer registry.NetworkServiceRegistryServer to be called in the chain from the context.Context
 func NetworkServiceRegistryServer(ctx context.Context) registry.NetworkServiceRegistryServer {
-	rv, ok := ctx.Value(nextRegistryServerKey).(registry.NetworkServiceRegistryServer)
+	rv, ok := ctx.Value(nextNSRegistryServerKey).(registry.NetworkServiceRegistryServer)
 	if !ok {
-		client, ok := ctx.Value(nextRegistryClientKey).(registry.NetworkServiceRegistryClient)
+		client, ok := ctx.Value(nextNSRegistryClientKey).(registry.NetworkServiceRegistryClient)
 		if ok {
-			rv = adapters.NewRegistryClientToServer(client)
+			rv = adapters.NetworkServiceClientToServer(client)
 		}
 	}
 	if rv != nil {
@@ -64,23 +71,14 @@ func NetworkServiceRegistryServer(ctx context.Context) registry.NetworkServiceRe
 	return &tailNetworkServiceRegistryServer{}
 }
 
-// withNextRegistryClient -
-//    Wraps 'parent' in a new Context that has the NetworkServiceRegistryClient registry.NetworkServiceRegistryClientWrapper to be called in the chain
-func withNextRegistryClient(parent context.Context, next registry.NetworkServiceRegistryClient) context.Context {
-	if parent == nil {
-		parent = context.TODO()
-	}
-	return context.WithValue(parent, nextRegistryClientKey, next)
-}
-
 // NetworkServiceRegistryClient -
 //   Returns the NetworkServiceRegistryClient registry.NetworkServiceRegistryClientWrapper to be called in the chain from the context.Context
 func NetworkServiceRegistryClient(ctx context.Context) registry.NetworkServiceRegistryClient {
-	rv, ok := ctx.Value(nextRegistryClientKey).(registry.NetworkServiceRegistryClient)
+	rv, ok := ctx.Value(nextNSRegistryClientKey).(registry.NetworkServiceRegistryClient)
 	if !ok {
-		server, ok := ctx.Value(nextRegistryServerKey).(registry.NetworkServiceRegistryServer)
+		server, ok := ctx.Value(nextNSRegistryServerKey).(registry.NetworkServiceRegistryServer)
 		if ok {
-			rv = adapters.NewRegistryServerToClient(server)
+			rv = adapters.NetworkServiceServerToClient(server)
 		}
 	}
 	if rv != nil {
@@ -89,102 +87,52 @@ func NetworkServiceRegistryClient(ctx context.Context) registry.NetworkServiceRe
 	return &tailNetworkServiceRegistryClient{}
 }
 
-// withNextDiscoveryServer -
-//    Wraps 'parent' in a new Context that has the DiscoveryServer registry.NetworkServiceDiscoveryServer to be called in the chain
-func withNextDiscoveryServer(parent context.Context, next registry.NetworkServiceDiscoveryServer) context.Context {
+// withNextNSERegistryServer -
+//    Wraps 'parent' in a new Context that has the DiscoveryServer registry.NetworkServiceEndpointRegistryServer to be called in the chain
+func withNextNSERegistryServer(parent context.Context, next registry.NetworkServiceEndpointRegistryServer) context.Context {
 	if parent == nil {
 		parent = context.TODO()
 	}
-	return context.WithValue(parent, nextDiscoveryServerKey, next)
+	return context.WithValue(parent, nextNSERegistryServerKey, next)
 }
 
-// DiscoveryServer -
-//   Returns the DiscoveryServer networkservice.NetworkServiceServer to be called in the chain from the context.Context
-func DiscoveryServer(ctx context.Context) registry.NetworkServiceDiscoveryServer {
-	rv, ok := ctx.Value(nextDiscoveryServerKey).(registry.NetworkServiceDiscoveryServer)
+// withNextNSERegistryClient -
+//    Wraps 'parent' in a new Context that has the NetworkServiceEndpointRegistryClient registry.NetworkServiceEndpointRegistryClientWrapper to be called in the chain
+func withNextNSERegistryClient(parent context.Context, next registry.NetworkServiceEndpointRegistryClient) context.Context {
+	if parent == nil {
+		parent = context.TODO()
+	}
+	return context.WithValue(parent, nextNSERegistryClientKey, next)
+}
+
+// NetworkServiceEndpointRegistryServer -
+//   Returns the NetworkServiceEndpointRegistryServer registry.NetworkServiceEndpointRegistryServer to be called in the chain from the context.Context
+func NetworkServiceEndpointRegistryServer(ctx context.Context) registry.NetworkServiceEndpointRegistryServer {
+	rv, ok := ctx.Value(nextNSERegistryServerKey).(registry.NetworkServiceEndpointRegistryServer)
 	if !ok {
-		client, ok := ctx.Value(nextDiscoveryClientKey).(registry.NetworkServiceDiscoveryClient)
+		client, ok := ctx.Value(nextNSERegistryClientKey).(registry.NetworkServiceEndpointRegistryClient)
 		if ok {
-			rv = adapters.NewDiscoveryClientToServer(client)
+			rv = adapters.NetworkServiceEndpointClientToServer(client)
 		}
 	}
 	if rv != nil {
 		return rv
 	}
-	return &tailDiscoveryServer{}
+	return &tailNetworkServiceEndpointRegistryServer{}
 }
 
-// withNextDiscoveryClient -
-//    Wraps 'parent' in a new Context that has the DiscoveryServer registry.NetworkServiceDiscoveryClient to be called in the chain
-func withNextDiscoveryClient(parent context.Context, next registry.NetworkServiceDiscoveryClient) context.Context {
-	if parent == nil {
-		parent = context.TODO()
-	}
-	return context.WithValue(parent, nextDiscoveryClientKey, next)
-}
-
-// DiscoveryClient -
-//   Returns the DiscoveryClient registry.NetworkServiceDiscoveryClient to be called in the chain from the context.Context
-func DiscoveryClient(ctx context.Context) registry.NetworkServiceDiscoveryClient {
-	rv, ok := ctx.Value(nextDiscoveryClientKey).(registry.NetworkServiceDiscoveryClient)
+// NetworkServiceEndpointRegistryClient -
+//   Returns the NetworkServiceEndpointRegistryClient registry.NetworkServiceEndpointRegistryClientWrapper to be called in the chain from the context.Context
+func NetworkServiceEndpointRegistryClient(ctx context.Context) registry.NetworkServiceEndpointRegistryClient {
+	rv, ok := ctx.Value(nextNSERegistryClientKey).(registry.NetworkServiceEndpointRegistryClient)
 	if !ok {
-		server, ok := ctx.Value(nextDiscoveryServerKey).(registry.NetworkServiceDiscoveryServer)
+		server, ok := ctx.Value(nextNSERegistryServerKey).(registry.NetworkServiceEndpointRegistryServer)
 		if ok {
-			rv = adapters.NewDiscoveryServerToClient(server)
+			rv = adapters.NetworkServiceEndpointServerToClient(server)
 		}
 	}
 	if rv != nil {
 		return rv
 	}
-	return &tailDiscoveryClient{}
-}
-
-// NSMRegistryClient -
-//   Returns the NSMRegistryClient registry.NSMRegistryClient to be called in the chain from the context.Context
-func NSMRegistryClient(ctx context.Context) registry.NsmRegistryClient {
-	rv, ok := ctx.Value(nextNSMRegistryClientKey).(registry.NsmRegistryClient)
-	if !ok {
-		client, ok := ctx.Value(nextNSMRegistryServerKey).(registry.NsmRegistryServer)
-		if ok {
-			rv = adapters.NewNSMServerToClient(client)
-		}
-	}
-	if rv != nil {
-		return rv
-	}
-	return &tailRegistryNSMClient{}
-}
-
-// withNSMRegistryServer -
-//    Wraps 'parent' in a new Context that has the NSMRegistryServer registry.NSMRegistryServer to be called in the chain
-func withNSMRegistryServer(parent context.Context, next registry.NsmRegistryServer) context.Context {
-	if parent == nil {
-		parent = context.TODO()
-	}
-	return context.WithValue(parent, nextNSMRegistryServerKey, next)
-}
-
-// NSMRegistryServer -
-//   Returns the DiscoveryServer networkservice.NSMRegistryServer to be called in the chain from the context.Context
-func NSMRegistryServer(ctx context.Context) registry.NsmRegistryServer {
-	rv, ok := ctx.Value(nextNSMRegistryServerKey).(registry.NsmRegistryServer)
-	if !ok {
-		client, ok := ctx.Value(nextDiscoveryClientKey).(registry.NsmRegistryClient)
-		if ok {
-			rv = adapters.NewNSMClientToServer(client)
-		}
-	}
-	if rv != nil {
-		return rv
-	}
-	return &tailRegistryNSMServer{}
-}
-
-// withNSMRegistryClient -
-//    Wraps 'parent' in a new Context that has the DiscoveryServer registry.NSMRegistryClient to be called in the chain
-func withNSMRegistryClient(parent context.Context, next registry.NsmRegistryClient) context.Context {
-	if parent == nil {
-		parent = context.TODO()
-	}
-	return context.WithValue(parent, nextNSMRegistryClientKey, next)
+	return &tailNetworkServiceEndpointRegistryClient{}
 }

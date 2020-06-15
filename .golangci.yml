@@ -165,6 +165,9 @@ issues:
       linters:
         - dupl
         - golint
+    - path: .*registry.*.go
+      linters:
+        - dupl
     # TODO - remove after deciding how to properly handle the cancel
     - path: pkg/networkservice/common/connect/server.go
       linters:

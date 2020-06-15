@@ -48,7 +48,7 @@ type localBypassServer struct {
 //                        while maintaining the NewServer pattern for use like anything else in a chain.
 //                        The value in *server must be included in the registry.NetworkServiceRegistryServer listening
 //                        so it can capture the registrations.
-func NewServer(registryServer *registry.NetworkServiceRegistryServer) networkservice.NetworkServiceServer {
+func NewServer(registryServer *registry.NetworkServiceEndpointRegistryServer) networkservice.NetworkServiceServer {
 	rv := &localBypassServer{}
 	*registryServer = localbypass.NewNetworkServiceRegistryServer(rv)
 	return rv

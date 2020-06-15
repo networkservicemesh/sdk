@@ -8,13 +8,13 @@ require (
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/edwarnicke/exechelper v1.0.1
-	github.com/golang/protobuf v1.3.5
+	github.com/golang/protobuf v1.4.2
 	github.com/google/uuid v1.1.1
 	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645
 	github.com/matryer/try v0.0.0-20161228173917-9ac251b645a2
 	github.com/nats-io/nats-streaming-server v0.17.0
 	github.com/nats-io/stan.go v0.6.0
-	github.com/networkservicemesh/api v0.0.0-20200525170518-89690ec70489
+	github.com/networkservicemesh/api v0.0.0-20200615142106-b237efde3f7f
 	github.com/open-policy-agent/opa v0.16.1
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/pkg/errors v0.9.1
@@ -26,7 +26,11 @@ require (
 	github.com/uber/jaeger-client-go v2.21.1+incompatible
 	github.com/uber/jaeger-lib v2.2.0+incompatible // indirect
 	go.uber.org/goleak v1.0.0
-	golang.org/x/sys v0.0.0-20200501145240-bc7a7d42d5c3
+	golang.org/x/net v0.0.0-20200602114024-627f9648deb9 // indirect
+	golang.org/x/sys v0.0.0-20200610111108-226ff32320da
+	golang.org/x/text v0.3.2 // indirect
 	gonum.org/v1/gonum v0.6.2
-	google.golang.org/grpc v1.27.1
+	google.golang.org/genproto v0.0.0-20200615140333-fd031eab31e7 // indirect
+	google.golang.org/grpc v1.29.1
+	google.golang.org/protobuf v1.24.0
 )

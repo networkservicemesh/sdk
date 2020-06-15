@@ -74,7 +74,7 @@ func (s testNetworkServiceServer) Close(ctx context.Context, _ *networkservice.C
 
 func TestNewServer_NSENotPresented(t *testing.T) {
 	defer goleak.VerifyNone(t)
-	var localBypassRegistryServer registry.NetworkServiceRegistryServer
+	var localBypassRegistryServer registry.NetworkServiceEndpointRegistryServer
 	localBypassNetworkServiceServer := localbypass.NewServer(&localBypassRegistryServer)
 	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
 	request := &networkservice.NetworkServiceRequest{
@@ -96,7 +96,7 @@ func TestNewServer_NSENotPresented(t *testing.T) {
 
 func TestNewServer_UnixAddressRegistered(t *testing.T) {
 	defer goleak.VerifyNone(t)
-	var localBypassRegistryServer registry.NetworkServiceRegistryServer
+	var localBypassRegistryServer registry.NetworkServiceEndpointRegistryServer
 	localBypassNetworkServiceServer := localbypass.NewServer(&localBypassRegistryServer)
 	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
 	request := &networkservice.NetworkServiceRequest{
@@ -104,14 +104,13 @@ func TestNewServer_UnixAddressRegistered(t *testing.T) {
 			NetworkServiceEndpointName: "nse-1",
 		},
 	}
-	_, err := localBypassRegistryServer.RegisterNSE(
+	_, err := localBypassRegistryServer.Register(
 		context.Background(),
-		&registry.NSERegistration{
-			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-				Name: "nse-1",
-				Url:  "unix:///var/run/nse-1.sock",
-			},
+		&registry.NetworkServiceEndpoint{
+			Name: "nse-1",
+			Url:  "unix:///var/run/nse-1.sock",
 		})
+
 	assert.Nil(t, err)
 
 	ctx := withTestData(context.Background(), &TestData{})
@@ -127,7 +126,7 @@ func TestNewServer_UnixAddressRegistered(t *testing.T) {
 
 func TestNewServer_NonUnixAddressRegistered(t *testing.T) {
 	defer goleak.VerifyNone(t)
-	var localBypassRegistryServer registry.NetworkServiceRegistryServer
+	var localBypassRegistryServer registry.NetworkServiceEndpointRegistryServer
 	localBypassNetworkServiceServer := localbypass.NewServer(&localBypassRegistryServer)
 	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
 	request := &networkservice.NetworkServiceRequest{
@@ -135,14 +134,13 @@ func TestNewServer_NonUnixAddressRegistered(t *testing.T) {
 			NetworkServiceEndpointName: "nse-1",
 		},
 	}
-	_, err := localBypassRegistryServer.RegisterNSE(
+	_, err := localBypassRegistryServer.Register(
 		context.Background(),
-		&registry.NSERegistration{
-			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-				Name: "nse-1",
-				Url:  "tcp://127.0.0.1:5002",
-			},
-		})
+		&registry.NetworkServiceEndpoint{
+			Name: "nse-1",
+			Url:  "tcp://127.0.0.1:5002",
+		},
+	)
 	assert.Nil(t, err)
 
 	ctx := withTestData(context.Background(), &TestData{})
@@ -160,7 +158,7 @@ func TestNewServer_NonUnixAddressRegistered(t *testing.T) {
 
 func TestNewServer_AddsNothingAfterNSERemoval(t *testing.T) {
 	defer goleak.VerifyNone(t)
-	var localBypassRegistryServer registry.NetworkServiceRegistryServer
+	var localBypassRegistryServer registry.NetworkServiceEndpointRegistryServer
 	localBypassNetworkServiceServer := localbypass.NewServer(&localBypassRegistryServer)
 	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
 	request := &networkservice.NetworkServiceRequest{
@@ -168,7 +166,7 @@ func TestNewServer_AddsNothingAfterNSERemoval(t *testing.T) {
 			NetworkServiceEndpointName: "nse-1",
 		},
 	}
-	_, err := localBypassRegistryServer.RegisterNSE(
+	_, err := localBypassRegistryServer.Register(
 		peer.NewContext(context.Background(),
 			&peer.Peer{
 				Addr: &net.UnixAddr{
@@ -177,16 +175,15 @@ func TestNewServer_AddsNothingAfterNSERemoval(t *testing.T) {
 				},
 				AuthInfo: nil,
 			}),
-		&registry.NSERegistration{
-			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-				Name: "nse-1",
-			},
-		})
+		&registry.NetworkServiceEndpoint{
+			Name: "nse-1",
+		},
+	)
 	assert.Nil(t, err)
-	_, err = localBypassRegistryServer.RemoveNSE(
+	_, err = localBypassRegistryServer.Unregister(
 		context.Background(),
-		&registry.RemoveNSERequest{
-			NetworkServiceEndpointName: "nse-1",
+		&registry.NetworkServiceEndpoint{
+			Name: "nse-1",
 		})
 	assert.Nil(t, err)
 
