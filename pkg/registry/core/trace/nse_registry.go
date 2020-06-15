@@ -131,7 +131,7 @@ func (t *traceNetworkServiceEndpointRegistryClient) Unregister(ctx context.Conte
 	return rv, err
 }
 
-// NewRegistryClient - wraps registry.NetworkServiceEndpointRegistryClient with tracing
+// NewNetworkServiceEndpointRegistryClient - wraps registry.NetworkServiceEndpointRegistryClient with tracing
 func NewNetworkServiceEndpointRegistryClient(traced registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceEndpointRegistryClient {
 	return &traceNetworkServiceEndpointRegistryClient{traced: traced}
 }

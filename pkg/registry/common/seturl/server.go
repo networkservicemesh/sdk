@@ -27,7 +27,7 @@ import (
 )
 
 type setMgrServer struct {
-	managerUrl string
+	managerURL string
 }
 
 type setNSMgrURLFindServer struct {
@@ -41,22 +41,22 @@ func (s *setNSMgrURLFindServer) Send(endpoint *registry.NetworkServiceEndpoint) 
 }
 
 func (s *setMgrServer) Register(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	endpoint.Url = s.managerUrl
+	endpoint.Url = s.managerURL
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, endpoint)
 }
 
 func (s *setMgrServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
-	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, &setNSMgrURLFindServer{url: s.managerUrl, NetworkServiceEndpointRegistry_FindServer: server})
+	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, &setNSMgrURLFindServer{url: s.managerURL, NetworkServiceEndpointRegistry_FindServer: server})
 }
 
 func (s *setMgrServer) Unregister(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	endpoint.Url = s.managerUrl
+	endpoint.Url = s.managerURL
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, endpoint)
 }
 
 // NewServer creates new instance of NetworkServiceEndpointRegistryServer which set the passed NSMgr url
 func NewServer(url string) registry.NetworkServiceEndpointRegistryServer {
 	return &setMgrServer{
-		managerUrl: url,
+		managerURL: url,
 	}
 }

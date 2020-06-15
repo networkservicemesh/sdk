@@ -112,9 +112,7 @@ func TestNSServerBranches(t *testing.T) {
 	}
 }
 
-type testVisitNSRegistryClient struct {
-	names []string
-}
+type testVisitNSRegistryClient struct{}
 
 func (t *testVisitNSRegistryClient) Register(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
 	return next.NetworkServiceRegistryClient(ctx).Register(visit(ctx), in)

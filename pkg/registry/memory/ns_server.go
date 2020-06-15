@@ -36,7 +36,7 @@ func (n *networkServiceRegistryServer) Find(query *registry.NetworkServiceQuery,
 	sendAllMatches := func(ns *registry.NetworkService) error {
 		var err error
 		n.networkServices.Range(func(key string, value *registry.NetworkService) bool {
-			if matchutils.MatchNetworkServices(query.NetworkService, value) {
+			if matchutils.MatchNetworkServices(ns, value) {
 				err = s.Send(value)
 				return err == nil
 			}
@@ -70,10 +70,8 @@ func (n *networkServiceRegistryServer) Find(query *registry.NetworkServiceQuery,
 				}
 			}
 		}()
-	} else {
-		if err := sendAllMatches(query.NetworkService); err != nil {
-			return err
-		}
+	} else if err := sendAllMatches(query.NetworkService); err != nil {
+		return err
 	}
 	return next.NetworkServiceRegistryServer(s.Context()).Find(query, s)
 }
@@ -83,6 +81,7 @@ func (n *networkServiceRegistryServer) Unregister(ctx context.Context, ns *regis
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }
 
+// NewNetworkServiceRegistryServer creates new memory based NetworkServiceRegistryServer
 func NewNetworkServiceRegistryServer() registry.NetworkServiceRegistryServer {
 	return &networkServiceRegistryServer{
 		eventChannelSize: 10,

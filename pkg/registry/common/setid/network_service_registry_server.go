@@ -33,7 +33,6 @@ type setIDNetworkServiceEndpointRegistryServer struct{}
 func (n *setIDNetworkServiceEndpointRegistryServer) Register(ctx context.Context, request *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	request.Name = nameOf(request)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, request)
-
 }
 
 type setIDNetworkServiceEndpointRegistryFindServer struct {
@@ -47,7 +46,6 @@ func (s *setIDNetworkServiceEndpointRegistryFindServer) Send(request *registry.N
 
 func (n *setIDNetworkServiceEndpointRegistryServer) Find(query *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
 	return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(query, &setIDNetworkServiceEndpointRegistryFindServer{NetworkServiceEndpointRegistry_FindServer: s})
-
 }
 
 func (n *setIDNetworkServiceEndpointRegistryServer) Unregister(ctx context.Context, request *registry.NetworkServiceEndpoint) (*empty.Empty, error) {

@@ -55,8 +55,6 @@ func (n *networkServiceRegistryServer) Find(query *registry.NetworkServiceQuery,
 			return err
 		}
 	}
-
-	return nil
 }
 
 func (n *networkServiceRegistryServer) Unregister(ctx context.Context, request *registry.NetworkService) (*empty.Empty, error) {

@@ -24,6 +24,7 @@ import (
 	"google.golang.org/grpc"
 )
 
+// NewNetworkServiceFindClient creates new NetworkServiceRegistry_FindClient
 func NewNetworkServiceFindClient(ctx context.Context, recvCh <-chan *registry.NetworkService) registry.NetworkServiceRegistry_FindClient {
 	return &networkServiceRegistryFindClient{
 		ctx:    ctx,
@@ -36,7 +37,6 @@ type networkServiceRegistryFindClient struct {
 	err    error
 	recvCh <-chan *registry.NetworkService
 	ctx    context.Context
-	cancel func()
 }
 
 func (c *networkServiceRegistryFindClient) Recv() (*registry.NetworkService, error) {
@@ -57,6 +57,7 @@ func (c *networkServiceRegistryFindClient) Context() context.Context {
 
 var _ registry.NetworkServiceRegistry_FindClient = &networkServiceRegistryFindClient{}
 
+// NewNetworkServiceFindServer creates new NetworkServiceRegistry_FindServer based on passed channel
 func NewNetworkServiceFindServer(ctx context.Context, sendCh chan<- *registry.NetworkService) registry.NetworkServiceRegistry_FindServer {
 	return &networkServiceRegistryFindServer{
 		ctx:    ctx,

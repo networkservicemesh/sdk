@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package adapters provide API to converting client to server and vise versa
 package adapters
 
 import (
@@ -54,8 +55,6 @@ func (n *networkServiceEndpointRegistryServer) Find(query *registry.NetworkServi
 			return err
 		}
 	}
-
-	return nil
 }
 
 func (n *networkServiceEndpointRegistryServer) Unregister(ctx context.Context, request *registry.NetworkServiceEndpoint) (*empty.Empty, error) {

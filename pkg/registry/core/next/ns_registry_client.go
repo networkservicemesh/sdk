@@ -72,7 +72,7 @@ func (n nextNetworkServiceRegistryClient) Unregister(ctx context.Context, in *re
 	return n.clients[n.index].Unregister(withNextNSRegistryClient(ctx, n.nextParent), in)
 }
 
-// NewWrappedNetworkServiceRegistryServer - creates a chain of servers with each one wrapped in wrapper
+// NewWrappedNetworkServiceRegistryClient - creates a chain of servers with each one wrapped in wrapper
 func NewWrappedNetworkServiceRegistryClient(wrapper NetworkServiceRegistryClientWrapper, clients ...registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
 	if len(clients) == 0 {
 		return &tailNetworkServiceRegistryClient{}
@@ -84,7 +84,7 @@ func NewWrappedNetworkServiceRegistryClient(wrapper NetworkServiceRegistryClient
 	return rv
 }
 
-// NewNetworkServiceRegistryServer - creates a chain of servers
+// NewNetworkServiceRegistryClient - creates a chain of servers
 func NewNetworkServiceRegistryClient(clients ...registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
 	return NewWrappedNetworkServiceRegistryClient(func(client registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
 		return client

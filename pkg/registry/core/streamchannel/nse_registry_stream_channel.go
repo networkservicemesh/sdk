@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package streamchannel provides find client/servers based on channels
 package streamchannel
 
 import (
@@ -24,6 +25,7 @@ import (
 	"google.golang.org/grpc"
 )
 
+// NewNetworkServiceEndpointFindClient creates NetworkServiceEndpointRegistry_FindClient based on passed channel
 func NewNetworkServiceEndpointFindClient(ctx context.Context, recvCh <-chan *registry.NetworkServiceEndpoint) registry.NetworkServiceEndpointRegistry_FindClient {
 	return &networkServiceEndpointRegistryFindClient{
 		ctx:    ctx,
@@ -56,6 +58,7 @@ func (c *networkServiceEndpointRegistryFindClient) Context() context.Context {
 
 var _ registry.NetworkServiceEndpointRegistry_FindClient = &networkServiceEndpointRegistryFindClient{}
 
+// NewNetworkServiceEndpointFindServer creates NetworkServiceEndpointRegistry_FindServer based on passed channel
 func NewNetworkServiceEndpointFindServer(ctx context.Context, sendCh chan<- *registry.NetworkServiceEndpoint) registry.NetworkServiceEndpointRegistry_FindServer {
 	return &networkServiceEndpointRegistryFindServer{
 		ctx:    ctx,

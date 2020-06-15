@@ -36,7 +36,8 @@ import (
 	registrynext "github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
-func endpoints(ns string) []*registry.NetworkServiceEndpoint {
+func endpoints() []*registry.NetworkServiceEndpoint {
+	ns := networkServiceName()
 	return []*registry.NetworkServiceEndpoint{
 		{
 			NetworkServiceName: []string{ns},
@@ -63,6 +64,10 @@ func endpoints(ns string) []*registry.NetworkServiceEndpoint {
 			),
 		},
 	}
+}
+
+func networkServiceName() string {
+	return "secure-intranet-connectivity"
 }
 
 func labels(service string, source map[string]string) map[string]*registry.NetworkServiceLabels {
@@ -116,18 +121,19 @@ func fromSomeMiddleAppMatch() *registry.Match {
 	}
 }
 
-const nsName = "secure-intranet-connectivity"
-
 func TestMatchEmptySourceSelector(t *testing.T) {
 	defer goleak.VerifyNone(t)
+	nsName := networkServiceName()
 	nsServer := memory.NewNetworkServiceRegistryServer()
-	nsServer.Register(context.Background(), &registry.NetworkService{
+	_, err := nsServer.Register(context.Background(), &registry.NetworkService{
 		Name:    nsName,
 		Matches: []*registry.Match{fromFirewallMatch(), fromSomeMiddleAppMatch(), fromAnywhereMatch()},
 	})
+	require.Nil(t, err)
 	nseServer := registrynext.NewNetworkServiceEndpointRegistryServer(setid.NewNetworkServiceEndpointRegistryServer(), memory.NewNetworkServiceEndpointRegistryServer())
-	for _, nse := range endpoints(nsName) {
-		nseServer.Register(context.Background(), nse)
+	for _, nse := range endpoints() {
+		_, err = nseServer.Register(context.Background(), nse)
+		require.Nil(t, err)
 	}
 	want := labels(nsName,
 		map[string]string{
@@ -148,20 +154,23 @@ func TestMatchEmptySourceSelector(t *testing.T) {
 			require.Equal(t, want, nses[0].NetworkServiceLabels)
 		}),
 	)
-	_, err := server.Request(context.Background(), request)
+	_, err = server.Request(context.Background(), request)
 	require.Nil(t, err)
 }
 
 func TestMatchNonEmptySourceSelector(t *testing.T) {
 	defer goleak.VerifyNone(t)
+	nsName := networkServiceName()
 	nsServer := memory.NewNetworkServiceRegistryServer()
-	nsServer.Register(context.Background(), &registry.NetworkService{
+	_, err := nsServer.Register(context.Background(), &registry.NetworkService{
 		Name:    nsName,
 		Matches: []*registry.Match{fromFirewallMatch(), fromSomeMiddleAppMatch(), fromAnywhereMatch()},
 	})
+	require.Nil(t, err)
 	nseServer := registrynext.NewNetworkServiceEndpointRegistryServer(setid.NewNetworkServiceEndpointRegistryServer(), memory.NewNetworkServiceEndpointRegistryServer())
-	for _, nse := range endpoints(nsName) {
-		nseServer.Register(context.Background(), nse)
+	for _, nse := range endpoints() {
+		_, err = nseServer.Register(context.Background(), nse)
+		require.Nil(t, err)
 	}
 
 	request := &networkservice.NetworkServiceRequest{
@@ -184,20 +193,23 @@ func TestMatchNonEmptySourceSelector(t *testing.T) {
 			require.Equal(t, want, nses[0].NetworkServiceLabels)
 		}),
 	)
-	_, err := server.Request(context.Background(), request)
+	_, err = server.Request(context.Background(), request)
 	require.Nil(t, err)
 }
 
 func TestMatchEmptySourceSelectorGoingFirst(t *testing.T) {
 	defer goleak.VerifyNone(t)
+	nsName := networkServiceName()
 	nsServer := memory.NewNetworkServiceRegistryServer()
-	nsServer.Register(context.Background(), &registry.NetworkService{
+	_, err := nsServer.Register(context.Background(), &registry.NetworkService{
 		Name:    nsName,
 		Matches: []*registry.Match{fromAnywhereMatch(), fromFirewallMatch(), fromSomeMiddleAppMatch()},
 	})
+	require.Nil(t, err)
 	nseServer := registrynext.NewNetworkServiceEndpointRegistryServer(setid.NewNetworkServiceEndpointRegistryServer(), memory.NewNetworkServiceEndpointRegistryServer())
-	for _, nse := range endpoints(nsName) {
-		nseServer.Register(context.Background(), nse)
+	for _, nse := range endpoints() {
+		_, err = nseServer.Register(context.Background(), nse)
+		require.Nil(t, err)
 	}
 	want := labels(nsName,
 		map[string]string{
@@ -219,20 +231,23 @@ func TestMatchEmptySourceSelectorGoingFirst(t *testing.T) {
 			require.Equal(t, want, nses[0].NetworkServiceLabels)
 		}),
 	)
-	_, err := server.Request(context.Background(), request)
+	_, err = server.Request(context.Background(), request)
 	require.Nil(t, err)
 }
 
 func TestMatchNothing(t *testing.T) {
 	defer goleak.VerifyNone(t)
+	nsName := networkServiceName()
 	nsServer := memory.NewNetworkServiceRegistryServer()
-	nsServer.Register(context.Background(), &registry.NetworkService{
+	_, err := nsServer.Register(context.Background(), &registry.NetworkService{
 		Name:    nsName,
 		Matches: []*registry.Match{fromFirewallMatch(), fromSomeMiddleAppMatch()},
 	})
+	require.Nil(t, err)
 	nseServer := registrynext.NewNetworkServiceEndpointRegistryServer(setid.NewNetworkServiceEndpointRegistryServer(), memory.NewNetworkServiceEndpointRegistryServer())
-	for _, nse := range endpoints(nsName) {
-		nseServer.Register(context.Background(), nse)
+	for _, nse := range endpoints() {
+		_, err = nseServer.Register(context.Background(), nse)
+		require.Nil(t, err)
 	}
 
 	request := &networkservice.NetworkServiceRequest{
@@ -251,6 +266,6 @@ func TestMatchNothing(t *testing.T) {
 			require.Len(t, nses, 3)
 		}),
 	)
-	_, err := server.Request(context.Background(), request)
+	_, err = server.Request(context.Background(), request)
 	require.Nil(t, err)
 }
