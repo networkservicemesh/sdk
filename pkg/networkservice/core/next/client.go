@@ -59,25 +59,27 @@ func NewNetworkServiceClient(clients ...networkservice.NetworkServiceClient) net
 }
 
 func (n *nextClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	nextParent := n.nextParent
 	if n.index == 0 && ctx != nil {
-		if nextParent := Client(ctx); nextParent != nil {
-			n.nextParent = nextParent
+		if np := Client(ctx); np != nil {
+			nextParent = np
 		}
 	}
 	if n.index+1 < len(n.clients) {
-		return n.clients[n.index].Request(withNextClient(ctx, &nextClient{nextParent: n.nextParent, clients: n.clients, index: n.index + 1}), request, opts...)
+		return n.clients[n.index].Request(withNextClient(ctx, &nextClient{nextParent: nextParent, clients: n.clients, index: n.index + 1}), request, opts...)
 	}
-	return n.clients[n.index].Request(withNextClient(ctx, n.nextParent), request, opts...)
+	return n.clients[n.index].Request(withNextClient(ctx, nextParent), request, opts...)
 }
 
 func (n *nextClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	nextParent := n.nextParent
 	if n.index == 0 && ctx != nil {
-		if nextParent := Client(ctx); nextParent != nil {
-			n.nextParent = nextParent
+		if np := Client(ctx); np != nil {
+			nextParent = np
 		}
 	}
 	if n.index+1 < len(n.clients) {
-		return n.clients[n.index].Close(withNextClient(ctx, &nextClient{nextParent: n.nextParent, clients: n.clients, index: n.index + 1}), conn, opts...)
+		return n.clients[n.index].Close(withNextClient(ctx, &nextClient{nextParent: nextParent, clients: n.clients, index: n.index + 1}), conn, opts...)
 	}
-	return n.clients[n.index].Close(withNextClient(ctx, n.nextParent), conn, opts...)
+	return n.clients[n.index].Close(withNextClient(ctx, nextParent), conn, opts...)
 }
