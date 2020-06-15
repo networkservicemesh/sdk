@@ -59,25 +59,27 @@ func NewNetworkServiceServer(servers ...networkservice.NetworkServiceServer) net
 }
 
 func (n *nextServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	nextParent := n.nextParent
 	if n.index == 0 && ctx != nil {
-		if nextParent := Server(ctx); nextParent != nil {
-			n.nextParent = nextParent
+		if np := Server(ctx); np != nil {
+			nextParent = np
 		}
 	}
 	if n.index+1 < len(n.servers) {
-		return n.servers[n.index].Request(withNextServer(ctx, &nextServer{nextParent: n.nextParent, servers: n.servers, index: n.index + 1}), request)
+		return n.servers[n.index].Request(withNextServer(ctx, &nextServer{nextParent: nextParent, servers: n.servers, index: n.index + 1}), request)
 	}
-	return n.servers[n.index].Request(withNextServer(ctx, n.nextParent), request)
+	return n.servers[n.index].Request(withNextServer(ctx, nextParent), request)
 }
 
 func (n *nextServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	nextParent := n.nextParent
 	if n.index == 0 && ctx != nil {
-		if nextParent := Server(ctx); nextParent != nil {
-			n.nextParent = nextParent
+		if np := Server(ctx); np != nil {
+			nextParent = np
 		}
 	}
 	if n.index+1 < len(n.servers) {
-		return n.servers[n.index].Close(withNextServer(ctx, &nextServer{nextParent: n.nextParent, servers: n.servers, index: n.index + 1}), conn)
+		return n.servers[n.index].Close(withNextServer(ctx, &nextServer{nextParent: nextParent, servers: n.servers, index: n.index + 1}), conn)
 	}
-	return n.servers[n.index].Close(withNextServer(ctx, n.nextParent), conn)
+	return n.servers[n.index].Close(withNextServer(ctx, nextParent), conn)
 }
