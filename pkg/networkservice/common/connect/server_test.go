@@ -18,11 +18,14 @@ package connect
 
 import (
 	"context"
+	"fmt"
 	"net/url"
+	"os"
+	"sync"
 	"testing"
 	"time"
 
-	"github.com/pkg/errors"
+	"google.golang.org/grpc/grpclog"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
@@ -42,66 +45,98 @@ func TokenGenerator(peerAuthInfo credentials.AuthInfo) (token string, expireTime
 	return "TestToken", time.Date(3000, 1, 1, 1, 1, 1, 1, time.UTC), nil
 }
 
-type dummyConn struct {
+type nseTest struct {
+	ctx      context.Context
+	cancel   context.CancelFunc
+	listenOn *url.URL
+	nse      networkservice.NetworkServiceServer
+	nseSrv   *grpc.Server
 }
 
-func (d *dummyConn) Invoke(ctx context.Context, method string, args, reply interface{}, opts ...grpc.CallOption) error {
-	return errors.Errorf("error is test")
+func (nseT *nseTest) Stop() {
+	nseT.cancel()
+	nseT.nseSrv.Stop()
 }
 
-func (d *dummyConn) NewStream(ctx context.Context, desc *grpc.StreamDesc, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
-	return nil, errors.Errorf("error is test")
+func (nseT *nseTest) Setup() {
+	nseT.ctx, nseT.cancel = context.WithTimeout(context.Background(), 5*time.Second)
+	nseT.listenOn = &url.URL{Scheme: "tcp", Path: "127.0.0.1:0"}
+
+	nseT.nse, nseT.nseSrv, _ = testnse.NewNSE(nseT.ctx, nseT.listenOn, func(request *networkservice.NetworkServiceRequest) {
+		request.Connection.Labels = map[string]string{"ok": "all is ok"}
+	})
 }
 
-var dummyDialer = WithDialer(func(ctx context.Context, target string, opts ...grpc.DialOption) (conn grpc.ClientConnInterface, cancelFunc func(), err error) {
-	return &dummyConn{}, func() {}, nil
-})
+func (nseT *nseTest) newNSEContext(ctx context.Context) context.Context {
+	return clienturl.WithClientURL(ctx, &url.URL{Scheme: "tcp", Path: nseT.listenOn.Path})
+}
 
 func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	listenOn := &url.URL{Scheme: "tcp", Path: "127.0.0.1:0"}
+	nseT := &nseTest{}
+	nseT.Setup()
+	defer nseT.Stop()
 
-	nse, nseSrv, _ := testnse.NewNSE(ctx, listenOn, func(request *networkservice.NetworkServiceRequest) {
-		request.Connection.Labels = map[string]string{"ok": "all is ok"}
-	})
-	defer nseSrv.Stop()
-
-	require.NotPanics(t, func() {
-		s := NewServer(func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-			return adapters.NewServerToClient(nse)
-		}, dummyDialer)
-		conn, err := s.Request(clienturl.WithClientURL(context.Background(), &url.URL{}), &networkservice.NetworkServiceRequest{
-			Connection: &networkservice.Connection{
+	t.Run("Check Request", func(t *testing.T) {
+		require.NotPanics(t, func() {
+			s := NewServer(func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+				return adapters.NewServerToClient(nseT.nse)
+			}, grpc.WithInsecure())
+			clientURLCtx := nseT.newNSEContext(context.Background())
+			conn, err := s.Request(clientURLCtx, &networkservice.NetworkServiceRequest{
+				Connection: &networkservice.Connection{
+					Id: "1",
+				},
+			})
+			require.Nil(t, err)
+			require.NotNil(t, conn)
+			require.Equal(t, "all is ok", conn.Labels["ok"])
+			_, err = s.Close(clientURLCtx, &networkservice.Connection{
 				Id: "1",
-			},
+			})
+			require.Nil(t, err)
 		})
-		require.Nil(t, err)
-		require.NotNil(t, conn)
-		require.Equal(t, "all is ok", conn.Labels["ok"])
+	})
+	t.Run("Close Id", func(t *testing.T) {
+		require.NotPanics(t, func() {
+			s := NewServer(func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+				return adapters.NewServerToClient(nseT.nse)
+			}, grpc.WithInsecure())
+			clientURLCtx := nseT.newNSEContext(context.Background())
+			conn, err := s.Request(clientURLCtx, &networkservice.NetworkServiceRequest{
+				Connection: &networkservice.Connection{
+					Id: "1",
+				},
+			})
+			require.Nil(t, err)
+			require.NotNil(t, conn)
+			require.Equal(t, "all is ok", conn.Labels["ok"])
+
+			// Do not pass clientURI
+			_, err = s.Close(context.Background(), &networkservice.Connection{
+				Id: "1",
+			})
+			require.Nil(t, err)
+		})
 	})
 }
 
 func TestDialFactoryRequest(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	listenOn := &url.URL{Scheme: "tcp", Path: "127.0.0.1:0"}
+	nseT := &nseTest{}
+	nseT.Setup()
+	defer nseT.Stop()
 
-	_, nseSrv, _ := testnse.NewNSE(ctx, listenOn, func(request *networkservice.NetworkServiceRequest) {
-		request.Connection.Labels = map[string]string{"ok": "all is ok"}
-	})
-	defer nseSrv.Stop()
+	grpclog.SetLoggerV2(grpclog.NewLoggerV2(os.Stdout, os.Stdout, os.Stderr))
 
 	require.NotPanics(t, func() {
 		s := NewServer(client.NewClientFactory("nsc", nil, TokenGenerator),
 			WithDialOptionFactory(func(ctx context.Context, clientURL *url.URL) []grpc.DialOption {
 				return []grpc.DialOption{grpc.WithInsecure()}
 			}))
-		ctx := clienturl.WithClientURL(context.Background(), &url.URL{Scheme: "tcp", Path: listenOn.Path})
+		ctx := nseT.newNSEContext(context.Background())
 		conn, err := s.Request(ctx, &networkservice.NetworkServiceRequest{
 			Connection: &networkservice.Connection{
 				Id: "1",
@@ -117,4 +152,42 @@ func TestDialFactoryRequest(t *testing.T) {
 
 		require.Nil(t, err)
 	})
+}
+func TestParallelDial(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
+	nseT := &nseTest{}
+	nseT.Setup()
+	defer nseT.Stop()
+
+	s := NewServer(client.NewClientFactory("nsc", nil, TokenGenerator),
+		WithDialOptionFactory(func(ctx context.Context, clientURL *url.URL) []grpc.DialOption {
+			return []grpc.DialOption{grpc.WithInsecure()}
+		}))
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		j := i
+		ctx := nseT.newNSEContext(context.Background())
+		go func() {
+			defer wg.Done()
+			for k := 0; k < 10; k++ {
+				conn, err := s.Request(ctx, &networkservice.NetworkServiceRequest{
+					Connection: &networkservice.Connection{
+						Id: fmt.Sprintf("%d", j),
+						Path: &networkservice.Path{
+							PathSegments: []*networkservice.PathSegment{},
+						},
+					},
+				})
+				require.Nil(t, err)
+				require.NotNil(t, conn)
+
+				_, err = s.Close(ctx, conn)
+
+				require.Nil(t, err)
+			}
+		}()
+	}
+	wg.Wait()
 }
