@@ -19,10 +19,10 @@ package spanhelper
 import (
 	"context"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	"github.com/opentracing/opentracing-go"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/jaeger"
 )

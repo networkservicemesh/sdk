@@ -32,4 +32,5 @@ require (
 	gonum.org/v1/gonum v0.6.2
 	google.golang.org/genproto v0.0.0-20200615140333-fd031eab31e7 // indirect
 	google.golang.org/grpc v1.29.1
+	google.golang.org/protobuf v1.24.0
 )
