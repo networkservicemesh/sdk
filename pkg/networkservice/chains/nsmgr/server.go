@@ -70,7 +70,7 @@ func (n *nsmgrServer) NetworkServiceEndpointRegistryServer() registry.NetworkSer
 func NewServer(nsmRegistration *registry.NetworkServiceEndpoint, authzServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, registryCC grpc.ClientConnInterface, clientDialOptions ...grpc.DialOption) Nsmgr {
 	// Construct callback server
 	rv := &nsmgrServer{}
-Å
+
 	var localbypassRegistryServer registry.NetworkServiceEndpointRegistryServer
 
 	// Construct Endpoint
