@@ -20,12 +20,9 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"os"
 	"sync"
 	"testing"
 	"time"
-
-	"google.golang.org/grpc/grpclog"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
@@ -113,7 +110,54 @@ func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 			require.NotNil(t, conn)
 			require.Equal(t, "all is ok", conn.Labels["ok"])
 
-			// Do not pass clientURI
+			// Do not pass clientURL
+			_, err = s.Close(context.Background(), &networkservice.Connection{
+				Id: "1",
+			})
+			require.Nil(t, err)
+		})
+	})
+	t.Run("Check no clientURL", func(t *testing.T) {
+		require.NotPanics(t, func() {
+			s := NewServer(func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+				return adapters.NewServerToClient(nseT.nse)
+			}, grpc.WithInsecure())
+
+			conn, err := s.Request(context.Background(), &networkservice.NetworkServiceRequest{
+				Connection: &networkservice.Connection{
+					Id: "1",
+				},
+			})
+			require.NotNil(t, err)
+			require.Nil(t, conn)
+		})
+	})
+	t.Run("Request without client URL", func(t *testing.T) {
+		require.NotPanics(t, func() {
+			s := NewServer(func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+				return adapters.NewServerToClient(nseT.nse)
+			}, grpc.WithInsecure())
+			clientURLCtx := nseT.newNSEContext(context.Background())
+			conn, err := s.Request(clientURLCtx, &networkservice.NetworkServiceRequest{
+				Connection: &networkservice.Connection{
+					Id: "1",
+				},
+			})
+			require.Nil(t, err)
+			require.NotNil(t, conn)
+			require.Equal(t, "all is ok", conn.Labels["ok"])
+
+			// Request again
+			conn, err = s.Request(context.Background(), &networkservice.NetworkServiceRequest{
+				Connection: &networkservice.Connection{
+					Id: "1",
+				},
+			})
+			require.Nil(t, err)
+			require.NotNil(t, conn)
+			require.Equal(t, "all is ok", conn.Labels["ok"])
+
+			// Do not pass clientURL
 			_, err = s.Close(context.Background(), &networkservice.Connection{
 				Id: "1",
 			})
@@ -128,9 +172,6 @@ func TestDialFactoryRequest(t *testing.T) {
 	nseT := &nseTest{}
 	nseT.Setup()
 	defer nseT.Stop()
-
-	grpclog.SetLoggerV2(grpclog.NewLoggerV2(os.Stdout, os.Stdout, os.Stderr))
-
 	require.NotPanics(t, func() {
 		s := NewServer(client.NewClientFactory("nsc", nil, TokenGenerator),
 			WithDialOptionFactory(func(ctx context.Context, clientURL *url.URL) []grpc.DialOption {

@@ -41,14 +41,13 @@ type clientEntry struct {
 	clientURI       *url.URL
 	client          networkservice.NetworkServiceClient
 	cc              grpc.ClientConnInterface
-	ready           chan bool // Flag for connection is establishing
+	ready           chan struct{} // Flag for connection is establishing
 	connections     map[string]*networkservice.Connection
 	err             error
 	closeConnection func() error
 }
 
-func (ce *clientEntry) markAsReady(state bool) {
-	ce.ready <- state
+func (ce *clientEntry) markAsReady() {
 	close(ce.ready)
 }
 
@@ -56,8 +55,8 @@ type connectServer struct {
 	ctx                 context.Context
 	dialOptions         []grpc.DialOption
 	clientFactory       func(ctx context.Context, conn grpc.ClientConnInterface) networkservice.NetworkServiceClient
-	clientMap           map[string]*clientEntry // key == url as string
-	connections         map[string]*clientEntry // Connection map is required to close using connection id.
+	clients             map[string]*clientEntry // key == url as string
+	connections         map[string]*url.URL     // Connection map is required to close using connection id.
 	dialOptionFactories []func(ctx context.Context, clientURL *url.URL) []grpc.DialOption
 	executor            serialize.Executor
 }
@@ -93,16 +92,21 @@ func NewServer(clientFactory func(ctx context.Context, cc grpc.ClientConnInterfa
 	return &connectServer{
 		ctx:                 nil,
 		clientFactory:       clientFactory,
-		clientMap:           map[string]*clientEntry{},
-		connections:         map[string]*clientEntry{},
+		clients:             map[string]*clientEntry{},
+		connections:         map[string]*url.URL{},
 		dialOptions:         clientDialOptions,
 		dialOptionFactories: dialOptionFactories,
 	}
 }
 
 func (c *connectServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	clientURL, err := c.clientURL(ctx, request.Connection)
+	if err != nil {
+		return nil, err
+	}
 	// Find or Create clientEntry, with add pending.
-	ce, err := c.findOrCreateClient(ctx, request.Connection)
+	var ce *clientEntry
+	ce, err = c.findOrCreateClient(ctx, clientURL, request.Connection)
 	if err != nil {
 		// In case of error, no pending state is propogated.
 		return nil, err
@@ -133,15 +137,20 @@ func (c *connectServer) Request(ctx context.Context, request *networkservice.Net
 		ce.connections[conn.Id] = conn
 
 		// Also update global connection map
-		c.connections[conn.Id] = ce
+		c.connections[conn.Id] = clientURL
 	})
 
 	return next.Server(ctx).Request(ctx, request)
 }
 
 func (c *connectServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	clientURL, err := c.clientURL(ctx, conn)
+	if err != nil {
+		return nil, err
+	}
 	// Find or Create clientEntry, with add pending.
-	ce, err := c.findOrCreateClient(ctx, conn)
+	var ce *clientEntry
+	ce, err = c.findOrCreateClient(ctx, clientURL, conn)
 	if err != nil {
 		// In case of error, no pending state is propogated.
 		return nil, err
@@ -168,40 +177,22 @@ func (c *connectServer) Close(ctx context.Context, conn *networkservice.Connecti
 	return &empty.Empty{}, err
 }
 
-func (c *connectServer) findOrCreateClient(ctx context.Context, conn *networkservice.Connection) (ce *clientEntry, err error) {
+func (c *connectServer) findOrCreateClient(ctx context.Context, clientURI *url.URL, conn *networkservice.Connection) (ce *clientEntry, err error) {
 	connectionExists := false
-	clientURI := clienturl.ClientURL(ctx)
 	<-c.executor.AsyncExec(func() {
-		if clientURI != nil {
-			ce, connectionExists = c.clientMap[clientURI.String()]
-		}
+		ce, connectionExists = c.clients[clientURI.String()]
 		if !connectionExists {
-			// try to find using connection id
-			ce, connectionExists = c.connections[conn.Id]
-		}
-		if !connectionExists {
-			// Since there is no connection, we need to create it and mark as pending as well
-			// We could also be sure we one who will open connection.
-			if clientURI == nil {
-				ce.err = errors.Errorf("failed to create connection %v context should contain clienturl.ClientURL", conn)
-				return
-			}
 			ce = &clientEntry{
 				clientURI:   clientURI,
-				ready:       make(chan bool, 1),
+				ready:       make(chan struct{}),
 				connections: map[string]*networkservice.Connection{},
 			}
 			// Put/Update connection
-			c.clientMap[clientURI.String()] = ce
+			c.clients[clientURI.String()] = ce
 		}
 		ce.connections[conn.Id] = conn
 	})
-	if ce.err != nil {
-		// Mark as ready but with error
-		ce.markAsReady(false)
-		c.closeClient(ctx, ce)
-		return nil, err
-	}
+
 	if connectionExists {
 		// Wait until connection is ready, or context timeout
 		select {
@@ -221,28 +212,26 @@ func (c *connectServer) findOrCreateClient(ctx context.Context, conn *networkser
 				})
 				return nil, ce.err
 			}
+			return ce, nil
 		}
-	} else {
-		// Dial and create client connection
-		if err := c.createClient(ctx, ce); err != nil {
-			// If we failed to create client, we failed to dial, so no need to close,
-			// we need to mark it as error one and all clients pending will return errors, and last one will remove entry
-			// Mark connection as ready to use
-			<-c.executor.AsyncExec(func() {
-				ce.err = err
-				// Mark as ready but with error
-				ce.markAsReady(false)
-				c.closeClient(ctx, ce)
-			})
-			return nil, err
-		}
-
+	}
+	// Dial and create client connection
+	if err := c.createClient(ctx, ce); err != nil {
+		// If we failed to create client, we failed to dial, so no need to close,
+		// we need to mark it as error one and all clients pending will return errors, and last one will remove entry
 		// Mark connection as ready to use
 		<-c.executor.AsyncExec(func() {
-			ce.markAsReady(true)
+			ce.err = err
+			// Mark as ready but with error
+			ce.markAsReady()
+			c.closeClient(ctx, ce)
 		})
+		return nil, err
 	}
-	// Return cleanup function, so pending state will be in sync.
+
+	// Mark connection as ready to use
+	ce.markAsReady()
+
 	return ce, nil
 }
 
@@ -255,7 +244,7 @@ func (c *connectServer) closeClient(ctx context.Context, ce *clientEntry) {
 				trace.Log(ctx).Errorf("error closing connection %v", err)
 			}
 		}
-		delete(c.clientMap, ce.clientURI.String())
+		delete(c.clients, ce.clientURI.String())
 	}
 }
 
@@ -278,6 +267,20 @@ func (c *connectServer) createClient(ctx context.Context, ce *clientEntry) (err 
 	// Initialize client and factory
 	ce.client = c.clientFactory(clientCtx, ce.cc)
 	return nil
+}
+
+func (c *connectServer) clientURL(ctx context.Context, connection *networkservice.Connection) (*url.URL, error) {
+	clientURL := clienturl.ClientURL(ctx)
+
+	if clientURL == nil {
+		<-c.executor.AsyncExec(func() {
+			clientURL = c.connections[connection.Id]
+		})
+	}
+	if clientURL == nil {
+		return nil, errors.Errorf("a proper clienturl.ClientURL should be passed or request.Connection should be active. Connection: %v", connection)
+	}
+	return clientURL, nil
 }
 func grpcDialer(ctx context.Context, target string, opts ...grpc.DialOption) (grpc.ClientConnInterface, func() error, error) {
 	grpcCon, err := grpc.DialContext(ctx, target, opts...)
