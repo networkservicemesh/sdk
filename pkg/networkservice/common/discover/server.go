@@ -19,8 +19,6 @@ package discover
 import (
 	"context"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/streamutils"
-
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 
@@ -59,7 +57,7 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 		return nil, errors.WithStack(err)
 	}
 
-	nseList := streamutils.ReadNetworkServiceEndpointList(nseStream)
+	nseList := registry.ReadNetworkServiceEndpointList(nseStream)
 
 	nsStream, err := d.nsClient.Find(ctx, &registry.NetworkServiceQuery{
 		NetworkService: &registry.NetworkService{
@@ -70,7 +68,7 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 		return nil, errors.WithStack(err)
 	}
 
-	nsList := streamutils.ReadNetworkServiceList(nsStream)
+	nsList := registry.ReadNetworkServiceList(nsStream)
 	nseList = matchEndpoint(request.GetConnection().GetLabels(), nsList[0], nseList)
 	ctx = WithCandidates(ctx, nseList, nsList[0])
 	return next.Server(ctx).Request(ctx, request)
