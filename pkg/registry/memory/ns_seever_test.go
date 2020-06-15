@@ -2,13 +2,15 @@ package memory_test
 
 import (
 	"context"
+	"testing"
+
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
 	"github.com/networkservicemesh/sdk/pkg/registry/memory"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
-	"testing"
 )
 
 func TestNetworkServiceRegistryServer_RegisterAndFind(t *testing.T) {
@@ -29,18 +31,19 @@ func TestNetworkServiceRegistryServer_RegisterAndFind(t *testing.T) {
 		Name: "c",
 	})
 	require.NoError(t, err)
-
+	ctx, cancel := context.WithCancel(context.Background())
 	ch := make(chan *registry.NetworkService, 1)
 	_ = s.Find(&registry.NetworkServiceQuery{
 		NetworkService: &registry.NetworkService{
 			Name: "a",
 		},
-	}, streamchannel.NewNetworkServiceFindServer(context.Background(), ch))
+	}, streamchannel.NewNetworkServiceFindServer(ctx, ch))
 
 	require.Equal(t, &registry.NetworkService{
 		Name: "a",
 	}, <-ch)
-
+	cancel()
+	close(ch)
 }
 
 func TestNetworkServiceRegistryServer_RegisterAndFindWatch(t *testing.T) {
@@ -62,13 +65,14 @@ func TestNetworkServiceRegistryServer_RegisterAndFindWatch(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	ctx, cancel := context.WithCancel(context.Background())
 	ch := make(chan *registry.NetworkService, 1)
 	_ = s.Find(&registry.NetworkServiceQuery{
 		Watch: true,
 		NetworkService: &registry.NetworkService{
 			Name: "a",
 		},
-	}, streamchannel.NewNetworkServiceFindServer(context.Background(), ch))
+	}, streamchannel.NewNetworkServiceFindServer(ctx, ch))
 
 	require.Equal(t, &registry.NetworkService{
 		Name: "a",
@@ -78,10 +82,10 @@ func TestNetworkServiceRegistryServer_RegisterAndFindWatch(t *testing.T) {
 		Name: "a",
 	})
 	require.NoError(t, err)
-
 	require.Equal(t, &registry.NetworkService{
 		Name: "a",
 	}, <-ch)
 
+	cancel()
 	close(ch)
 }

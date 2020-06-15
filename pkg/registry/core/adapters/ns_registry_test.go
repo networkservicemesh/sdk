@@ -2,13 +2,15 @@ package adapters_test
 
 import (
 	"context"
+	"testing"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
-	streamchannel "github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	"testing"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
+	streamchannel "github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
 )
 
 type echoClient struct{}

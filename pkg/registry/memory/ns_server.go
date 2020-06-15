@@ -2,12 +2,14 @@ package memory
 
 import (
 	"context"
+	"sync"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/matchutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
-	"sync"
 )
 
 type networkServiceRegistryServer struct {
@@ -54,14 +56,17 @@ func (n *networkServiceRegistryServer) Find(query *registry.NetworkServiceQuery,
 			}
 			for {
 				select {
+				case <-s.Context().Done():
+					return
 				case event := <-eventCh:
 					if matchutils.MatchNetworkServices(query.NetworkService, event) {
+						if s.Context().Err() != nil {
+							return
+						}
 						if err := s.Send(event); err != nil {
 							return
 						}
 					}
-				case <-s.Context().Done():
-					return
 				}
 			}
 		}()
@@ -79,5 +84,7 @@ func (n *networkServiceRegistryServer) Unregister(ctx context.Context, ns *regis
 }
 
 func NewNetworkServiceRegistryServer() registry.NetworkServiceRegistryServer {
-	return &networkServiceRegistryServer{}
+	return &networkServiceRegistryServer{
+		eventChannelSize: 10,
+	}
 }

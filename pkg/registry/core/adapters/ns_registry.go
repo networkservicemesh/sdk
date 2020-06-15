@@ -18,8 +18,11 @@ package adapters
 
 import (
 	"context"
-	streamchannel "github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
+	"io"
+
 	"google.golang.org/grpc"
+
+	streamchannel "github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -76,10 +79,14 @@ func (n *networkServiceRegistryClient) Register(ctx context.Context, in *registr
 }
 
 func (n networkServiceRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
-	ch := make(chan *registry.NetworkService)
+	ch := make(chan *registry.NetworkService, channelSize)
 	s := streamchannel.NewNetworkServiceFindServer(ctx, ch)
 	if err := n.server.Find(in, s); err != nil {
-		return nil, err
+		if err == io.EOF {
+			close(ch)
+		} else {
+			return nil, err
+		}
 	}
 	return streamchannel.NewNetworkServiceFindClient(s.Context(), ch), nil
 }

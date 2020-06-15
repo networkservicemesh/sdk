@@ -19,11 +19,11 @@ package setid
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
@@ -31,12 +31,7 @@ import (
 type setIDNetworkServiceEndpointRegistryServer struct{}
 
 func (n *setIDNetworkServiceEndpointRegistryServer) Register(ctx context.Context, request *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	if request.Name == "" {
-		if request.Name == "" {
-			return nil, errors.New("network service has empty name")
-		}
-		request.Name = fmt.Sprintf("%v-%v", request.Name, uuid.New().String())
-	}
+	request.Name = nameOf(request)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, request)
 
 }
@@ -46,12 +41,7 @@ type setIDNetworkServiceEndpointRegistryFindServer struct {
 }
 
 func (s *setIDNetworkServiceEndpointRegistryFindServer) Send(request *registry.NetworkServiceEndpoint) error {
-	if request.Name == "" {
-		if request.Name == "" {
-			return errors.New("network service has empty name")
-		}
-		request.Name = fmt.Sprintf("%v-%v", request.Name, uuid.New().String())
-	}
+	request.Name = nameOf(request)
 	return s.NetworkServiceEndpointRegistry_FindServer.Send(request)
 }
 
@@ -64,9 +54,16 @@ func (n *setIDNetworkServiceEndpointRegistryServer) Unregister(ctx context.Conte
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, request)
 }
 
-// NewNetworkServiceRegistryServer creates new instance of NetworkServiceRegistryServer which set the unique name for the endpoint on registration
-func NewNetworkServiceRegistryServer() registry.NetworkServiceEndpointRegistryServer {
+// NewNetworkServiceEndpointRegistryServer creates new instance of NetworkServiceRegistryServer which set the unique name for the endpoint on registration
+func NewNetworkServiceEndpointRegistryServer() registry.NetworkServiceEndpointRegistryServer {
 	return &setIDNetworkServiceEndpointRegistryServer{}
+}
+
+func nameOf(endpoint *registry.NetworkServiceEndpoint) string {
+	if endpoint.Name != "" {
+		return endpoint.Name
+	}
+	return fmt.Sprintf("%v-%v", strings.Join(endpoint.NetworkServiceName, "-"), uuid.New().String())
 }
 
 var _ registry.NetworkServiceEndpointRegistryServer = &setIDNetworkServiceEndpointRegistryServer{}

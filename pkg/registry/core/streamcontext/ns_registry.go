@@ -18,14 +18,15 @@ package streamcontext
 
 import (
 	"context"
+
 	"github.com/networkservicemesh/api/pkg/api/registry"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 )
 
 type networkServiceRegistryFindClient struct {
 	registry.NetworkServiceRegistry_FindClient
-	ctx    context.Context
-	cancel func()
+	ctx context.Context
 }
 
 func (s *networkServiceRegistryFindClient) Context() context.Context {

@@ -18,6 +18,7 @@ package streamchannel
 
 import (
 	"context"
+
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -70,8 +71,12 @@ type networkServiceRegistryFindServer struct {
 }
 
 func (s *networkServiceRegistryFindServer) Send(endpoint *registry.NetworkService) error {
-	s.sendCh <- endpoint
-	return nil
+	select {
+	case <-s.ctx.Done():
+		return s.ctx.Err()
+	case s.sendCh <- endpoint:
+		return nil
+	}
 }
 
 func (s *networkServiceRegistryFindServer) Context() context.Context {

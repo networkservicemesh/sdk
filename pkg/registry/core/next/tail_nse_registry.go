@@ -18,8 +18,9 @@ package next
 
 import (
 	"context"
-	"google.golang.org/grpc"
 	"io"
+
+	"google.golang.org/grpc"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"

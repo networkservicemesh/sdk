@@ -18,10 +18,12 @@ package trace
 
 import (
 	"context"
+
+	"github.com/pkg/errors"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamcontext"
 	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
 	"github.com/networkservicemesh/sdk/pkg/tools/typeutils"
-	"github.com/pkg/errors"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"

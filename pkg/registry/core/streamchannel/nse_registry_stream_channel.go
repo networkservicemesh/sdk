@@ -18,6 +18,7 @@ package streamchannel
 
 import (
 	"context"
+
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"

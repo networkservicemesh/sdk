@@ -19,6 +19,7 @@ package seturl
 
 import (
 	"context"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 
 	"github.com/golang/protobuf/ptypes/empty"

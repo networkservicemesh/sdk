@@ -19,6 +19,8 @@ package discover
 import (
 	"context"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/streamutils"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 
@@ -57,7 +59,7 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 		return nil, errors.WithStack(err)
 	}
 
-	nses := readNSEsSteam(nseStream)
+	nseList := streamutils.ReadNetworkServiceEndpointList(nseStream)
 
 	nsStream, err := d.nsClient.Find(ctx, &registry.NetworkServiceQuery{
 		NetworkService: &registry.NetworkService{
@@ -68,32 +70,10 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 		return nil, errors.WithStack(err)
 	}
 
-	nss := readNSsSteam(nsStream)
-
-	ctx = WithCandidates(ctx, nses, nss[0])
+	nsList := streamutils.ReadNetworkServiceList(nsStream)
+	nseList = matchEndpoint(request.GetConnection().GetLabels(), nsList[0], nseList)
+	ctx = WithCandidates(ctx, nseList, nsList[0])
 	return next.Server(ctx).Request(ctx, request)
-}
-
-func readNSsSteam(stream registry.NetworkServiceRegistry_FindClient) []*registry.NetworkService {
-	var result []*registry.NetworkService
-	for msg, err := stream.Recv(); true; msg, err = stream.Recv() {
-		if err != nil {
-			break
-		}
-		result = append(result, msg)
-	}
-	return result
-}
-
-func readNSEsSteam(stream registry.NetworkServiceEndpointRegistry_FindClient) []*registry.NetworkServiceEndpoint {
-	var result []*registry.NetworkServiceEndpoint
-	for msg, err := stream.Recv(); true; msg, err = stream.Recv() {
-		if err != nil {
-			break
-		}
-		result = append(result, msg)
-	}
-	return result
 }
 
 func (d *discoverCandidatesServer) Close(context.Context, *networkservice.Connection) (*empty.Empty, error) {

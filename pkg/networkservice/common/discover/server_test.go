@@ -17,221 +17,240 @@
 // package discover_test contains tests for package 'discover'
 package discover_test
 
-//
-//import (
-//	"context"
-//	"testing"
-//
-//	"github.com/networkservicemesh/api/pkg/api/networkservice"
-//	"github.com/networkservicemesh/api/pkg/api/registry"
-//	"github.com/stretchr/testify/assert"
-//	"go.uber.org/goleak"
-//	"google.golang.org/grpc"
-//
-//	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover"
-//	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-//	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
-//)
-//
-//type mockNetworkServiceDiscoveryClient struct {
-//	response *registry.FindNetworkServiceResponse
-//}
-//
-//func (c *mockNetworkServiceDiscoveryClient) FindNetworkService(context.Context, *registry.FindNetworkServiceRequest, ...grpc.CallOption) (*registry.FindNetworkServiceResponse, error) {
-//	return c.response, nil
-//}
-//
-//func endpoints() []*registry.NetworkServiceEndpoint {
-//	return []*registry.NetworkServiceEndpoint{
-//		{
-//			Labels: map[string]string{
-//				"app": "firewall",
-//			},
-//		},
-//		{
-//			Labels: map[string]string{
-//				"app": "some-middle-app",
-//			},
-//		},
-//		{
-//			Labels: map[string]string{
-//				"app": "vpn-gateway",
-//			},
-//		},
-//	}
-//}
-//
-//func fromAnywhereMatch() *registry.Match {
-//	return &registry.Match{
-//		SourceSelector: map[string]string{},
-//		Routes: []*registry.Destination{
-//			{
-//				DestinationSelector: map[string]string{
-//					"app": "firewall",
-//				},
-//			},
-//		},
-//	}
-//}
-//
-//func fromFirewallMatch() *registry.Match {
-//	return &registry.Match{
-//		SourceSelector: map[string]string{
-//			"app": "firewall",
-//		},
-//		Routes: []*registry.Destination{
-//			{
-//				DestinationSelector: map[string]string{
-//					"app": "some-middle-app",
-//				},
-//			},
-//		},
-//	}
-//}
-//
-//func fromSomeMiddleAppMatch() *registry.Match {
-//	return &registry.Match{
-//		SourceSelector: map[string]string{
-//			"app": "some-middle-app",
-//		},
-//		Routes: []*registry.Destination{
-//			{
-//				DestinationSelector: map[string]string{
-//					"app": "vpn-gateway",
-//				},
-//			},
-//		},
-//	}
-//}
-//
-//func TestMatchEmptySourceSelector(t *testing.T) {
-//	defer goleak.VerifyNone(t)
-//	registryResponse := &registry.FindNetworkServiceResponse{
-//		NetworkService: &registry.NetworkService{
-//			Name:    "secure-intranet-connectivity",
-//			Matches: []*registry.Match{fromFirewallMatch(), fromSomeMiddleAppMatch(), fromAnywhereMatch()},
-//		},
-//		NetworkServiceEndpoints: endpoints(),
-//	}
-//	discoveryClient := &mockNetworkServiceDiscoveryClient{registryResponse}
-//	want := []*registry.NetworkServiceEndpoint{
-//		{
-//			Labels: map[string]string{
-//				"app": "firewall",
-//			},
-//		},
-//	}
-//	request := &networkservice.NetworkServiceRequest{
-//		Connection: &networkservice.Connection{
-//			NetworkService: "secure-intranet-connectivity",
-//			Labels:         map[string]string{},
-//		},
-//	}
-//	server := next.NewNetworkServiceServer(
-//		discover.NewServer(discoveryClient),
-//		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
-//			assert.Equal(t, want, discover.Candidates(ctx).GetNetworkServiceEndpoints())
-//		}),
-//	)
-//	_, err := server.Request(context.Background(), request)
-//	assert.Nil(t, err)
-//}
-//
-//func TestMatchNonEmptySourceSelector(t *testing.T) {
-//	defer goleak.VerifyNone(t)
-//	registryResponse := &registry.FindNetworkServiceResponse{
-//		NetworkService: &registry.NetworkService{
-//			Name:    "secure-intranet-connectivity",
-//			Matches: []*registry.Match{fromFirewallMatch(), fromSomeMiddleAppMatch(), fromAnywhereMatch()},
-//		},
-//		NetworkServiceEndpoints: endpoints(),
-//	}
-//	discoveryClient := &mockNetworkServiceDiscoveryClient{registryResponse}
-//	request := &networkservice.NetworkServiceRequest{
-//		Connection: &networkservice.Connection{
-//			NetworkService: "secure-intranet-connectivity",
-//			Labels: map[string]string{
-//				"app": "firewall",
-//			},
-//		},
-//	}
-//	want := []*registry.NetworkServiceEndpoint{
-//		{
-//			Labels: map[string]string{
-//				"app": "some-middle-app",
-//			},
-//		},
-//	}
-//	server := next.NewNetworkServiceServer(
-//		discover.NewServer(discoveryClient),
-//		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
-//			assert.Equal(t, want, discover.Candidates(ctx).GetNetworkServiceEndpoints())
-//		}),
-//	)
-//	_, err := server.Request(context.Background(), request)
-//	assert.Nil(t, err)
-//}
-//
-//func TestMatchEmptySourceSelectorGoingFirst(t *testing.T) {
-//	defer goleak.VerifyNone(t)
-//	registryResponse := &registry.FindNetworkServiceResponse{
-//		NetworkService: &registry.NetworkService{
-//			Name:    "secure-intranet-connectivity",
-//			Matches: []*registry.Match{fromAnywhereMatch(), fromFirewallMatch(), fromSomeMiddleAppMatch()},
-//		},
-//		NetworkServiceEndpoints: endpoints(),
-//	}
-//	discoveryClient := &mockNetworkServiceDiscoveryClient{registryResponse}
-//	want := []*registry.NetworkServiceEndpoint{
-//		{
-//			Labels: map[string]string{
-//				"app": "firewall",
-//			},
-//		},
-//	}
-//	request := &networkservice.NetworkServiceRequest{
-//		Connection: &networkservice.Connection{
-//			NetworkService: "secure-intranet-connectivity",
-//			Labels: map[string]string{
-//				"app": "firewall",
-//			},
-//		},
-//	}
-//	server := next.NewNetworkServiceServer(
-//		discover.NewServer(discoveryClient),
-//		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
-//			assert.Equal(t, want, discover.Candidates(ctx).GetNetworkServiceEndpoints())
-//		}),
-//	)
-//	_, err := server.Request(context.Background(), request)
-//	assert.Nil(t, err)
-//}
-//
-//func TestMatchNothing(t *testing.T) {
-//	defer goleak.VerifyNone(t)
-//	registryResponse := &registry.FindNetworkServiceResponse{
-//		NetworkService: &registry.NetworkService{
-//			Name:    "secure-intranet-connectivity",
-//			Matches: []*registry.Match{fromFirewallMatch(), fromSomeMiddleAppMatch()},
-//		},
-//		NetworkServiceEndpoints: endpoints(),
-//	}
-//	discoveryClient := &mockNetworkServiceDiscoveryClient{registryResponse}
-//	request := &networkservice.NetworkServiceRequest{
-//		Connection: &networkservice.Connection{
-//			NetworkService: "secure-intranet-connectivity",
-//			Labels: map[string]string{
-//				"app": "unknown-app",
-//			},
-//		},
-//	}
-//	want := endpoints()
-//	server := next.NewNetworkServiceServer(
-//		discover.NewServer(discoveryClient),
-//		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
-//			assert.Equal(t, want, discover.Candidates(ctx).GetNetworkServiceEndpoints())
-//		}),
-//	)
-//	_, err := server.Request(context.Background(), request)
-//	assert.Nil(t, err)
-//}
+import (
+	"context"
+	"testing"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
+	"github.com/networkservicemesh/sdk/pkg/registry/memory"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
+	registrynext "github.com/networkservicemesh/sdk/pkg/registry/core/next"
+)
+
+func endpoints(ns string) []*registry.NetworkServiceEndpoint {
+	return []*registry.NetworkServiceEndpoint{
+		{
+			NetworkServiceName: []string{ns},
+			NetworkServiceLabels: labels(ns,
+				map[string]string{
+					"app": "firewall",
+				},
+			),
+		},
+		{
+			NetworkServiceName: []string{ns},
+			NetworkServiceLabels: labels(ns,
+				map[string]string{
+					"app": "some-middle-app",
+				},
+			),
+		},
+		{
+			NetworkServiceName: []string{ns},
+			NetworkServiceLabels: labels(ns,
+				map[string]string{
+					"app": "vpn-gateway",
+				},
+			),
+		},
+	}
+}
+
+func labels(service string, source map[string]string) map[string]*registry.NetworkServiceLabels {
+	return map[string]*registry.NetworkServiceLabels{
+		service: {
+			Labels: source,
+		},
+	}
+}
+
+func fromAnywhereMatch() *registry.Match {
+	return &registry.Match{
+		SourceSelector: map[string]string{},
+		Routes: []*registry.Destination{
+			{
+				DestinationSelector: map[string]string{
+					"app": "firewall",
+				},
+			},
+		},
+	}
+}
+
+func fromFirewallMatch() *registry.Match {
+	return &registry.Match{
+		SourceSelector: map[string]string{
+			"app": "firewall",
+		},
+		Routes: []*registry.Destination{
+			{
+				DestinationSelector: map[string]string{
+					"app": "some-middle-app",
+				},
+			},
+		},
+	}
+}
+
+func fromSomeMiddleAppMatch() *registry.Match {
+	return &registry.Match{
+		SourceSelector: map[string]string{
+			"app": "some-middle-app",
+		},
+		Routes: []*registry.Destination{
+			{
+				DestinationSelector: map[string]string{
+					"app": "vpn-gateway",
+				},
+			},
+		},
+	}
+}
+
+const nsName = "secure-intranet-connectivity"
+
+func TestMatchEmptySourceSelector(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	nsServer := memory.NewNetworkServiceRegistryServer()
+	nsServer.Register(context.Background(), &registry.NetworkService{
+		Name:    nsName,
+		Matches: []*registry.Match{fromFirewallMatch(), fromSomeMiddleAppMatch(), fromAnywhereMatch()},
+	})
+	nseServer := registrynext.NewNetworkServiceEndpointRegistryServer(setid.NewNetworkServiceEndpointRegistryServer(), memory.NewNetworkServiceEndpointRegistryServer())
+	for _, nse := range endpoints(nsName) {
+		nseServer.Register(context.Background(), nse)
+	}
+	want := labels(nsName,
+		map[string]string{
+			"app": "firewall",
+		})
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			NetworkService: nsName,
+			Labels:         map[string]string{},
+		},
+	}
+
+	server := next.NewNetworkServiceServer(
+		discover.NewServer(adapters.NetworkServiceServerToClient(nsServer), adapters.NetworkServiceEndpointServerToClient(nseServer)),
+		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+			nses := discover.Candidates(ctx).Endpoints
+			require.Len(t, nses, 1)
+			require.Equal(t, want, nses[0].NetworkServiceLabels)
+		}),
+	)
+	_, err := server.Request(context.Background(), request)
+	require.Nil(t, err)
+}
+
+func TestMatchNonEmptySourceSelector(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	nsServer := memory.NewNetworkServiceRegistryServer()
+	nsServer.Register(context.Background(), &registry.NetworkService{
+		Name:    nsName,
+		Matches: []*registry.Match{fromFirewallMatch(), fromSomeMiddleAppMatch(), fromAnywhereMatch()},
+	})
+	nseServer := registrynext.NewNetworkServiceEndpointRegistryServer(setid.NewNetworkServiceEndpointRegistryServer(), memory.NewNetworkServiceEndpointRegistryServer())
+	for _, nse := range endpoints(nsName) {
+		nseServer.Register(context.Background(), nse)
+	}
+
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			NetworkService: nsName,
+			Labels: map[string]string{
+				"app": "firewall",
+			},
+		},
+	}
+	want := labels(nsName,
+		map[string]string{
+			"app": "some-middle-app",
+		})
+	server := next.NewNetworkServiceServer(
+		discover.NewServer(adapters.NetworkServiceServerToClient(nsServer), adapters.NetworkServiceEndpointServerToClient(nseServer)),
+		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+			nses := discover.Candidates(ctx).Endpoints
+			require.Len(t, nses, 1)
+			require.Equal(t, want, nses[0].NetworkServiceLabels)
+		}),
+	)
+	_, err := server.Request(context.Background(), request)
+	require.Nil(t, err)
+}
+
+func TestMatchEmptySourceSelectorGoingFirst(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	nsServer := memory.NewNetworkServiceRegistryServer()
+	nsServer.Register(context.Background(), &registry.NetworkService{
+		Name:    nsName,
+		Matches: []*registry.Match{fromAnywhereMatch(), fromFirewallMatch(), fromSomeMiddleAppMatch()},
+	})
+	nseServer := registrynext.NewNetworkServiceEndpointRegistryServer(setid.NewNetworkServiceEndpointRegistryServer(), memory.NewNetworkServiceEndpointRegistryServer())
+	for _, nse := range endpoints(nsName) {
+		nseServer.Register(context.Background(), nse)
+	}
+	want := labels(nsName,
+		map[string]string{
+			"app": "firewall",
+		})
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			NetworkService: nsName,
+			Labels: map[string]string{
+				"app": "firewall",
+			},
+		},
+	}
+	server := next.NewNetworkServiceServer(
+		discover.NewServer(adapters.NetworkServiceServerToClient(nsServer), adapters.NetworkServiceEndpointServerToClient(nseServer)),
+		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+			nses := discover.Candidates(ctx).Endpoints
+			require.Len(t, nses, 1)
+			require.Equal(t, want, nses[0].NetworkServiceLabels)
+		}),
+	)
+	_, err := server.Request(context.Background(), request)
+	require.Nil(t, err)
+}
+
+func TestMatchNothing(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	nsServer := memory.NewNetworkServiceRegistryServer()
+	nsServer.Register(context.Background(), &registry.NetworkService{
+		Name:    nsName,
+		Matches: []*registry.Match{fromFirewallMatch(), fromSomeMiddleAppMatch()},
+	})
+	nseServer := registrynext.NewNetworkServiceEndpointRegistryServer(setid.NewNetworkServiceEndpointRegistryServer(), memory.NewNetworkServiceEndpointRegistryServer())
+	for _, nse := range endpoints(nsName) {
+		nseServer.Register(context.Background(), nse)
+	}
+
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			NetworkService: "secure-intranet-connectivity",
+			Labels: map[string]string{
+				"app": "unknown-app",
+			},
+		},
+	}
+
+	server := next.NewNetworkServiceServer(
+		discover.NewServer(adapters.NetworkServiceServerToClient(nsServer), adapters.NetworkServiceEndpointServerToClient(nseServer)),
+		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+			nses := discover.Candidates(ctx).Endpoints
+			require.Len(t, nses, 3)
+		}),
+	)
+	_, err := server.Request(context.Background(), request)
+	require.Nil(t, err)
+}

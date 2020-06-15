@@ -18,7 +18,9 @@ package streamcontext
 
 import (
 	"context"
+
 	"github.com/networkservicemesh/api/pkg/api/registry"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 )
 

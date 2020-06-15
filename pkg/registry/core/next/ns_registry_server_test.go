@@ -19,10 +19,11 @@ package next_test
 import (
 	"context"
 	"fmt"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/streamcontext"
 	"io"
 	"testing"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/streamcontext"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
