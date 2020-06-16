@@ -23,6 +23,9 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/seturl"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -99,12 +102,14 @@ func TestNewServer_UnixAddressRegistered(t *testing.T) {
 	var localBypassRegistryServer registry.NetworkServiceEndpointRegistryServer
 	localBypassNetworkServiceServer := localbypass.NewServer(&localBypassRegistryServer)
 	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
+
+	srv := chain.NewNetworkServiceEndpointRegistryServer(seturl.NewServer("tcp:127.0.0.1:5002"), localBypassRegistryServer)
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			NetworkServiceEndpointName: "nse-1",
 		},
 	}
-	_, err := localBypassRegistryServer.Register(
+	_, err := srv.Register(
 		context.Background(),
 		&registry.NetworkServiceEndpoint{
 			Name: "nse-1",
@@ -129,12 +134,13 @@ func TestNewServer_NonUnixAddressRegistered(t *testing.T) {
 	var localBypassRegistryServer registry.NetworkServiceEndpointRegistryServer
 	localBypassNetworkServiceServer := localbypass.NewServer(&localBypassRegistryServer)
 	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
+	srv := chain.NewNetworkServiceEndpointRegistryServer(seturl.NewServer("tcp:127.0.0.1:5002"), localBypassRegistryServer)
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			NetworkServiceEndpointName: "nse-1",
 		},
 	}
-	_, err := localBypassRegistryServer.Register(
+	_, err := srv.Register(
 		context.Background(),
 		&registry.NetworkServiceEndpoint{
 			Name: "nse-1",
@@ -161,12 +167,13 @@ func TestNewServer_AddsNothingAfterNSERemoval(t *testing.T) {
 	var localBypassRegistryServer registry.NetworkServiceEndpointRegistryServer
 	localBypassNetworkServiceServer := localbypass.NewServer(&localBypassRegistryServer)
 	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
+	srv := chain.NewNetworkServiceEndpointRegistryServer(seturl.NewServer("tcp:127.0.0.1:5002"), localBypassRegistryServer)
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			NetworkServiceEndpointName: "nse-1",
 		},
 	}
-	_, err := localBypassRegistryServer.Register(
+	_, err := srv.Register(
 		peer.NewContext(context.Background(),
 			&peer.Peer{
 				Addr: &net.UnixAddr{
