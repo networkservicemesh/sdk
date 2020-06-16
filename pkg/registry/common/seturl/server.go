@@ -19,6 +19,7 @@ package seturl
 
 import (
 	"context"
+	"net/url"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 
@@ -41,6 +42,12 @@ func (s *setNSMgrURLFindServer) Send(endpoint *registry.NetworkServiceEndpoint) 
 }
 
 func (s *setMgrServer) Register(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	u, err := url.Parse(endpoint.Url)
+	if err != nil {
+		return nil, err
+	}
+	// Store Endpoint URL for further usage.
+	ctx = WithEndpointURL(ctx, u)
 	endpoint.Url = s.managerURL
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, endpoint)
 }
@@ -55,8 +62,8 @@ func (s *setMgrServer) Unregister(ctx context.Context, endpoint *registry.Networ
 }
 
 // NewServer creates new instance of NetworkServiceEndpointRegistryServer which set the passed NSMgr url
-func NewServer(url string) registry.NetworkServiceEndpointRegistryServer {
+func NewServer(u string) registry.NetworkServiceEndpointRegistryServer {
 	return &setMgrServer{
-		managerURL: url,
+		managerURL: u,
 	}
 }

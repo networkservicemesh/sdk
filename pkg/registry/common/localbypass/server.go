@@ -20,8 +20,9 @@ package localbypass
 
 import (
 	"context"
-	"net/url"
+	"errors"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/seturl"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/localbypass"
 
@@ -34,11 +35,11 @@ type localBypassRegistry struct {
 }
 
 func (l localBypassRegistry) Register(ctx context.Context, request *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	u, err := url.Parse(request.Url)
-	if err != nil {
-		return nil, err
+	endpointURL := seturl.EndpointURL(ctx)
+	if endpointURL == nil {
+		return nil, errors.New("invalid endpoint URL passed with context")
 	}
-	l.sockets.LoadOrStore(request.Name, u)
+	l.sockets.LoadOrStore(request.Name, endpointURL)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, request)
 }
 
