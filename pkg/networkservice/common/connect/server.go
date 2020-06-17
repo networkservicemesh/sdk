@@ -134,10 +134,10 @@ func (c *connectServer) Request(ctx context.Context, request *networkservice.Net
 	}
 	// we succeed, update connection and remove pending state
 	<-c.executor.AsyncExec(func() {
-		ce.connections[conn.Id] = conn
+		ce.connections[request.GetConnection().GetId()] = conn
 
 		// Also update global connection map
-		c.connections[conn.Id] = clientURL
+		c.connections[request.GetConnection().GetId()] = clientURL
 	})
 
 	return next.Server(ctx).Request(ctx, request)
@@ -155,11 +155,9 @@ func (c *connectServer) Close(ctx context.Context, conn *networkservice.Connecti
 		// In case of error, no pending state is propogated.
 		return nil, err
 	}
-	// Call next Close before calling client Close
-	_, err = next.Server(ctx).Close(ctx, conn)
 
 	// Call client close
-	if _, closeErr := ce.client.Close(ctx, conn); closeErr != nil {
+	if _, closeErr := ce.client.Close(ctx, ce.connections[conn.GetId()]); closeErr != nil {
 		if err != nil {
 			// Combine errors
 			err = errors.Wrapf(err, "errors during close: %v", closeErr)
@@ -174,7 +172,8 @@ func (c *connectServer) Close(ctx context.Context, conn *networkservice.Connecti
 		c.closeClient(ctx, ce)
 	})
 
-	return &empty.Empty{}, err
+	// Call next Close
+	return next.Server(ctx).Close(ctx, conn)
 }
 
 func (c *connectServer) findOrCreateClient(ctx context.Context, clientURI *url.URL, conn *networkservice.Connection) (ce *clientEntry, err error) {
@@ -190,7 +189,6 @@ func (c *connectServer) findOrCreateClient(ctx context.Context, clientURI *url.U
 			// Put/Update connection
 			c.clients[clientURI.String()] = ce
 		}
-		ce.connections[conn.Id] = conn
 	})
 
 	if connectionExists {
