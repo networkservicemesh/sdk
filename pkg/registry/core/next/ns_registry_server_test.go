@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync"
 	"testing"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
@@ -165,6 +166,51 @@ func TestNewNetworkServiceRegistryClientShouldNotPanic(t *testing.T) {
 	assert.NotPanics(t, func() {
 		_, _ = next.NewNetworkServiceRegistryClient().Register(context.Context(nil), nil)
 	})
+}
+
+func TestDataRaceNetworkServiceServer(t *testing.T) {
+	s := next.NewNetworkServiceRegistryServer(emptyNSRegistryServer())
+	wg := sync.WaitGroup{}
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _ = s.Register(context.Background(), nil)
+		}()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_ = s.Find(nil, streamcontext.NetworkServiceRegistryFindServer(context.Background(), nil))
+		}()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _ = s.Unregister(context.Background(), nil)
+		}()
+	}
+	wg.Wait()
+}
+func TestDataRaceNetworkServiceClient(t *testing.T) {
+	c := next.NewNetworkServiceRegistryClient(emptyNSRegistryClient())
+	wg := sync.WaitGroup{}
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _ = c.Register(context.Background(), nil)
+		}()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _ = c.Find(context.Background(), nil)
+		}()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _ = c.Unregister(context.Background(), nil)
+		}()
+	}
+	wg.Wait()
 }
 
 func TestNetworkServiceRegistryClientBranches(t *testing.T) {
