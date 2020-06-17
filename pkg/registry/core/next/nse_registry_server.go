@@ -38,22 +38,24 @@ type nextNetworkServiceEndpointRegistryServer struct {
 	nextParent registry.NetworkServiceEndpointRegistryServer
 }
 
-func (n nextNetworkServiceEndpointRegistryServer) Register(ctx context.Context, request *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+func (n *nextNetworkServiceEndpointRegistryServer) Register(ctx context.Context, request *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	nextParent := n.nextParent
 	if n.index == 0 && ctx != nil {
-		if nextParent := NetworkServiceEndpointRegistryServer(ctx); nextParent != nil {
-			n.nextParent = nextParent
+		if nextServer := NetworkServiceEndpointRegistryServer(ctx); nextServer != nil {
+			nextParent = nextServer
 		}
 	}
 	if n.index+1 < len(n.servers) {
-		return n.servers[n.index].Register(withNextNSERegistryServer(ctx, &nextNetworkServiceEndpointRegistryServer{nextParent: n.nextParent, servers: n.servers, index: n.index + 1}), request)
+		return n.servers[n.index].Register(withNextNSERegistryServer(ctx, &nextNetworkServiceEndpointRegistryServer{nextParent: nextParent, servers: n.servers, index: n.index + 1}), request)
 	}
-	return n.servers[n.index].Register(withNextNSERegistryServer(ctx, n.nextParent), request)
+	return n.servers[n.index].Register(withNextNSERegistryServer(ctx, nextParent), request)
 }
 
-func (n nextNetworkServiceEndpointRegistryServer) Find(query *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
+func (n *nextNetworkServiceEndpointRegistryServer) Find(query *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
+	nextParent := n.nextParent
 	if n.index == 0 && s.Context() != nil {
-		if nextParent := NetworkServiceEndpointRegistryServer(s.Context()); nextParent != nil {
-			n.nextParent = nextParent
+		if nextServer := NetworkServiceEndpointRegistryServer(s.Context()); nextServer != nil {
+			nextParent = nextServer
 		}
 	}
 	if n.index+1 < len(n.servers) {
@@ -61,7 +63,7 @@ func (n nextNetworkServiceEndpointRegistryServer) Find(query *registry.NetworkSe
 			streamcontext.NetworkServiceEndpointRegistryFindServer(
 				withNextNSERegistryServer(
 					s.Context(),
-					&nextNetworkServiceEndpointRegistryServer{nextParent: n.nextParent, servers: n.servers, index: n.index + 1}),
+					&nextNetworkServiceEndpointRegistryServer{nextParent: nextParent, servers: n.servers, index: n.index + 1}),
 				s,
 			),
 		)
@@ -70,22 +72,23 @@ func (n nextNetworkServiceEndpointRegistryServer) Find(query *registry.NetworkSe
 		streamcontext.NetworkServiceEndpointRegistryFindServer(
 			withNextNSERegistryServer(
 				s.Context(),
-				n.nextParent),
+				nextParent),
 			s,
 		),
 	)
 }
 
-func (n nextNetworkServiceEndpointRegistryServer) Unregister(ctx context.Context, request *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+func (n *nextNetworkServiceEndpointRegistryServer) Unregister(ctx context.Context, request *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	nextParent := n.nextParent
 	if n.index == 0 && ctx != nil {
-		if nextParent := NetworkServiceEndpointRegistryServer(ctx); nextParent != nil {
-			n.nextParent = nextParent
+		if nextServer := NetworkServiceEndpointRegistryServer(ctx); nextServer != nil {
+			nextParent = nextServer
 		}
 	}
 	if n.index+1 < len(n.servers) {
-		return n.servers[n.index].Unregister(withNextNSERegistryServer(ctx, &nextNetworkServiceEndpointRegistryServer{nextParent: n.nextParent, servers: n.servers, index: n.index + 1}), request)
+		return n.servers[n.index].Unregister(withNextNSERegistryServer(ctx, &nextNetworkServiceEndpointRegistryServer{nextParent: nextParent, servers: n.servers, index: n.index + 1}), request)
 	}
-	return n.servers[n.index].Unregister(withNextNSERegistryServer(ctx, n.nextParent), request)
+	return n.servers[n.index].Unregister(withNextNSERegistryServer(ctx, nextParent), request)
 }
 
 // NewWrappedNetworkServiceEndpointRegistryServer - creates a chain of servers with each one wrapped in wrapper
