@@ -57,7 +57,7 @@ func (nseT *nseTest) Stop() {
 
 func (nseT *nseTest) Setup() {
 	nseT.ctx, nseT.cancel = context.WithTimeout(context.Background(), 5*time.Second)
-	nseT.listenOn = &url.URL{Scheme: "tcp", Path: "127.0.0.1:0"}
+	nseT.listenOn = &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
 
 	nseT.nse, nseT.nseSrv, _ = testnse.NewNSE(nseT.ctx, nseT.listenOn, func(request *networkservice.NetworkServiceRequest) {
 		request.Connection.Labels = map[string]string{"ok": "all is ok"}
@@ -65,7 +65,7 @@ func (nseT *nseTest) Setup() {
 }
 
 func (nseT *nseTest) newNSEContext(ctx context.Context) context.Context {
-	return clienturl.WithClientURL(ctx, &url.URL{Scheme: "tcp", Path: nseT.listenOn.Path})
+	return clienturl.WithClientURL(ctx, &url.URL{Scheme: "tcp", Host: nseT.listenOn.Host})
 }
 
 func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
