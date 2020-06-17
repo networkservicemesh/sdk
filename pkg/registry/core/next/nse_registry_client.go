@@ -37,15 +37,16 @@ type nextNetworkServiceEndpointRegistryClient struct {
 }
 
 func (n *nextNetworkServiceEndpointRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
+	nextParent := n.nextParent
 	if n.index == 0 && ctx != nil {
-		if nextParent := NetworkServiceEndpointRegistryClient(ctx); nextParent != nil {
-			n.nextParent = nextParent
+		if nextClient := NetworkServiceEndpointRegistryClient(ctx); nextClient != nil {
+			nextParent = nextClient
 		}
 	}
 	if n.index+1 < len(n.clients) {
-		return n.clients[n.index].Find(withNextNSERegistryClient(ctx, &nextNetworkServiceEndpointRegistryClient{nextParent: n.nextParent, clients: n.clients, index: n.index + 1}), in, opts...)
+		return n.clients[n.index].Find(withNextNSERegistryClient(ctx, &nextNetworkServiceEndpointRegistryClient{nextParent: nextParent, clients: n.clients, index: n.index + 1}), in, opts...)
 	}
-	return n.clients[n.index].Find(withNextNSERegistryClient(ctx, n.nextParent), in)
+	return n.clients[n.index].Find(withNextNSERegistryClient(ctx, nextParent), in)
 }
 
 func (n *nextNetworkServiceEndpointRegistryClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
