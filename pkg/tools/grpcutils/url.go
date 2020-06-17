@@ -28,7 +28,7 @@ func URLToTarget(u *url.URL) (target string) {
 	case unixScheme:
 		return u.String()
 	case tcpScheme:
-		return u.Path
+		return u.Host
 	}
 	// assume other variants converters just fine.
 	return u.String()
@@ -41,5 +41,5 @@ func AddressToURL(addr net.Addr) *url.URL {
 			return &url.URL{Scheme: addr.Network(), Path: fmt.Sprintf("127.0.0.1:%v", tcpAddr.Port)}
 		}
 	}
-	return &url.URL{Scheme: addr.Network(), Path: addr.String()}
+	return &url.URL{Scheme: addr.Network(), Host: addr.String()}
 }
