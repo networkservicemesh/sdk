@@ -21,6 +21,8 @@ import (
 	"context"
 	"io"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/core/aggregate"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
@@ -41,14 +43,18 @@ func (r *nextNetworkServiceWrappedClient) Register(ctx context.Context, in *regi
 }
 
 func (r *nextNetworkServiceWrappedClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
-	client, err := r.client.Find(ctx, in, opts...)
+	c1, err := r.client.Find(ctx, in, opts...)
 	if err != nil && err != io.EOF {
 		return nil, err
 	}
-	if client != nil {
-		return client, nil
+
+	c2, err := next.NetworkServiceRegistryClient(ctx).Find(ctx, in, opts...)
+
+	if err != nil && err != io.EOF {
+		return nil, err
 	}
-	return next.NetworkServiceRegistryClient(ctx).Find(ctx, in, opts...)
+
+	return aggregate.NewNetworkServiceFindClient(c1, c2), nil
 }
 
 func (r *nextNetworkServiceWrappedClient) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
