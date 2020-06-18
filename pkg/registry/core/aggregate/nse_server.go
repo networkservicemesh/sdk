@@ -72,10 +72,21 @@ func (c *nseAggregateClient) Context() context.Context {
 func NewNetworkServiceEndpointFindClient(clients ...registry.NetworkServiceEndpointRegistry_FindClient) registry.NetworkServiceEndpointRegistry_FindClient {
 	d := int32(0)
 	r := &nseAggregateClient{
-		clients: clients,
+		clients: filterNetworkServiceEndpointClients(clients),
 		ch:      make(chan *registry.NetworkServiceEndpoint),
 		done:    &d,
 	}
 	r.ctx, r.cancel = context.WithCancel(context.Background())
 	return r
+}
+
+func filterNetworkServiceEndpointClients(clients []registry.NetworkServiceEndpointRegistry_FindClient) []registry.NetworkServiceEndpointRegistry_FindClient {
+	var result []registry.NetworkServiceEndpointRegistry_FindClient
+	for _, c := range clients {
+		if c == nil {
+			continue
+		}
+		result = append(result, c)
+	}
+	return result
 }
