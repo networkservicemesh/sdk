@@ -18,12 +18,14 @@ package aggregate_test
 
 import (
 	"context"
+	"testing"
+
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/aggregate"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
-	"testing"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/core/aggregate"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
 )
 
 func TestNewNetworkServiceEndpointFindClient(t *testing.T) {
