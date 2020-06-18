@@ -21,6 +21,7 @@ import (
 	"context"
 	"io"
 	"sync"
+	"sync/atomic"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
@@ -33,6 +34,7 @@ type nseAggregateClient struct {
 	clients []registry.NetworkServiceEndpointRegistry_FindClient
 	once    sync.Once
 	ch      chan *registry.NetworkServiceEndpoint
+	done    *int32
 }
 
 func (c *nseAggregateClient) initMonitoring() {
@@ -42,29 +44,37 @@ func (c *nseAggregateClient) initMonitoring() {
 			for ns := range registry.ReadNetworkServiceEndpointChannel(client) {
 				c.ch <- ns
 			}
+			if atomic.AddInt32(c.done, 1) == int32(len(c.clients)) {
+				c.cancel()
+			}
 		}()
 	}
 }
 
 func (c *nseAggregateClient) Recv() (*registry.NetworkServiceEndpoint, error) {
 	c.once.Do(c.initMonitoring)
-	v, ok := <-c.ch
-	if !ok {
-		c.cancel()
+	select {
+	case <-c.ctx.Done():
 		return nil, io.EOF
+	case v, ok := <-c.ch:
+		if !ok {
+			return nil, io.EOF
+		}
+		return v, nil
 	}
-	return v, nil
 }
 
 func (c *nseAggregateClient) Context() context.Context {
 	return c.ctx
 }
 
-// NewNetworkServiceEndpointFindClient aggregates few NetworkServiceRegistry_FindClient to single NewNetworkServiceEndpointFindClient
+// NewNetworkServiceEndpointFindClient aggregates few NetworkServiceEndpointRegistry_FindClient to single  NetworkServiceEndpointRegistry_FindClient
 func NewNetworkServiceEndpointFindClient(clients ...registry.NetworkServiceEndpointRegistry_FindClient) registry.NetworkServiceEndpointRegistry_FindClient {
+	d := int32(0)
 	r := &nseAggregateClient{
 		clients: clients,
 		ch:      make(chan *registry.NetworkServiceEndpoint),
+		done:    &d,
 	}
 	r.ctx, r.cancel = context.WithCancel(context.Background())
 	return r
