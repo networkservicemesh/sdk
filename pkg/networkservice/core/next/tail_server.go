@@ -28,10 +28,12 @@ import (
 // to insure that we never call a method on a nil object
 type tailServer struct{}
 
-func (t *tailServer) Request(_ context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+func (t *tailServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	done(ctx)
 	return request.GetConnection(), nil
 }
 
-func (t *tailServer) Close(context.Context, *networkservice.Connection) (*empty.Empty, error) {
+func (t *tailServer) Close(ctx context.Context, _ *networkservice.Connection) (*empty.Empty, error) {
+	done(ctx)
 	return &empty.Empty{}, nil
 }

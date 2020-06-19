@@ -22,6 +22,8 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
@@ -35,9 +37,27 @@ func NewClientToServer(client networkservice.NetworkServiceClient) networkservic
 }
 
 func (c *clientToServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	return c.client.Request(ctx, request)
+	conn, err := c.client.Request(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	if request == nil {
+		request = &networkservice.NetworkServiceRequest{}
+	}
+	request.Connection = conn
+	if !next.Done(ctx) {
+		return conn, nil
+	}
+	return next.Server(ctx).Request(ctx, request)
 }
 
 func (c *clientToServer) Close(ctx context.Context, request *networkservice.Connection) (*empty.Empty, error) {
-	return c.client.Close(ctx, request)
+	conn, err := c.client.Close(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	if !next.Done(ctx) {
+		return conn, nil
+	}
+	return next.Server(ctx).Close(ctx, request)
 }

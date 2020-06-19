@@ -24,13 +24,12 @@ import (
 	"context"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 )
 
 const (
 	nextServerKey contextKeyType = "NextServer"
 	nextClientKey contextKeyType = "NextClient"
+	nextDone      contextKeyType = "NextDone"
 )
 
 type contextKeyType string
@@ -42,20 +41,14 @@ func withNextServer(parent context.Context, next networkservice.NetworkServiceSe
 	if parent == nil {
 		parent = context.TODO()
 	}
-	return context.WithValue(parent, nextServerKey, next)
+	return withDone(context.WithValue(parent, nextServerKey, next))
 }
 
 // Server -
 //   Returns the Server networkservice.NetworkServiceServer to be called in the chain from the context.Context
 func Server(ctx context.Context) networkservice.NetworkServiceServer {
 	rv, ok := ctx.Value(nextServerKey).(networkservice.NetworkServiceServer)
-	if !ok {
-		client, ok := ctx.Value(nextClientKey).(networkservice.NetworkServiceClient)
-		if ok {
-			rv = adapters.NewClientToServer(client)
-		}
-	}
-	if rv != nil {
+	if ok && rv != nil {
 		return rv
 	}
 	return &tailServer{}
@@ -68,21 +61,42 @@ func withNextClient(parent context.Context, next networkservice.NetworkServiceCl
 	if parent == nil {
 		parent = context.TODO()
 	}
-	return context.WithValue(parent, nextClientKey, next)
+	return withDone(context.WithValue(parent, nextClientKey, next))
 }
 
 // Client -
 //   Returns the Client networkservice.NetworkServiceClient to be called in the chain from the context.Context
 func Client(ctx context.Context) networkservice.NetworkServiceClient {
 	rv, ok := ctx.Value(nextClientKey).(networkservice.NetworkServiceClient)
-	if !ok {
-		server, ok := ctx.Value(nextServerKey).(networkservice.NetworkServiceServer)
-		if ok {
-			rv = adapters.NewServerToClient(server)
-		}
-	}
-	if rv != nil {
+	if ok && rv != nil {
 		return rv
 	}
 	return &tailClient{}
+}
+
+func withDone(ctx context.Context) context.Context {
+	if v := ctx.Value(nextDone); v != nil {
+		if b, ok := v.(*bool); ok {
+			*b = false
+			return ctx
+		}
+	}
+	d := false
+	return context.WithValue(ctx, nextDone, &d)
+}
+
+func Done(ctx context.Context) bool {
+	if val, ok := ctx.Value(nextDone).(*bool); ok {
+		return *val
+	}
+	return false
+}
+
+func done(ctx context.Context) {
+	if ctx == nil {
+		return
+	}
+	if val, ok := ctx.Value(nextDone).(*bool); ok {
+		*val = true
+	}
 }
