@@ -85,6 +85,7 @@ func withDone(ctx context.Context) context.Context {
 	return context.WithValue(ctx, nextDone, &d)
 }
 
+// Done returns true if tail element in the chain has been called
 func Done(ctx context.Context) bool {
 	if val, ok := ctx.Value(nextDone).(*bool); ok {
 		return *val
