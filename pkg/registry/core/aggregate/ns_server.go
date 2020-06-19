@@ -49,6 +49,9 @@ func (c *nsAggregateClient) initMonitoring() {
 			}
 		}()
 	}
+	if len(c.clients) == 0 {
+		c.cancel()
+	}
 }
 
 func (c *nsAggregateClient) Recv() (*registry.NetworkService, error) {

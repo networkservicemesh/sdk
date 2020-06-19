@@ -21,6 +21,8 @@ import (
 	"io"
 	"testing"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/core/streamsource"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
@@ -59,7 +61,7 @@ func (n *nonEmptyNSEClient) Register(ctx context.Context, in *registry.NetworkSe
 }
 
 func (n *nonEmptyNSEClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	return &nseFindClient{}, nil
+	return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, in, opts...)
 }
 
 func (n *nonEmptyNSEClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
@@ -69,21 +71,12 @@ func (n *nonEmptyNSEClient) Unregister(ctx context.Context, in *registry.Network
 func TestWrapEmptyNetworkServiceEndpointClient(t *testing.T) {
 	c := next.NewNetworkServiceEndpointRegistryClient(
 		nextwrap.NewNetworkServiceEndpointRegistryClient(&emptyNSEClient{}),
-		&nonEmptyNSEClient{})
+		&nonEmptyNSEClient{},
+		streamsource.NewNetworkServiceEndpointRegistryClient())
 
 	result, err := c.Register(context.Background(), nil)
 	require.Nil(t, err)
 	require.NotNil(t, result)
-
-	client, err := c.Find(context.Background(), nil, nil)
-	require.Nil(t, err)
-	require.NotNil(t, client)
-}
-
-func TestWrapNonEmptyNetworkServiceEndpointClient(t *testing.T) {
-	c := next.NewNetworkServiceEndpointRegistryClient(
-		nextwrap.NewNetworkServiceEndpointRegistryClient(&nonEmptyNSEClient{}),
-		&emptyNSEClient{})
 
 	client, err := c.Find(context.Background(), nil, nil)
 	require.Nil(t, err)

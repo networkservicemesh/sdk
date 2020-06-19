@@ -49,6 +49,9 @@ func (c *nseAggregateClient) initMonitoring() {
 			}
 		}()
 	}
+	if len(c.clients) == 0 {
+		c.cancel()
+	}
 }
 
 func (c *nseAggregateClient) Recv() (*registry.NetworkServiceEndpoint, error) {
