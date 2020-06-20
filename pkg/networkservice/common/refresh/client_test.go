@@ -35,7 +35,7 @@ import (
 )
 
 const (
-	expireTimeout        = 50 * time.Millisecond
+	expireTimeout        = 100 * time.Millisecond
 	waitForTimeout       = 3 * expireTimeout
 	tickTimeout          = 10 * time.Millisecond
 	refreshCount         = 5
@@ -142,6 +142,7 @@ func TestNewClient_StopRefreshAtClose(t *testing.T) {
 			Id: "conn-1",
 		},
 	}
+	logrus.Info("Initial Request()")
 	conn, err := client.Request(context.Background(), request)
 	assert.Nil(t, err)
 
