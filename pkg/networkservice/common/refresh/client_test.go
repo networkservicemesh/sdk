@@ -18,6 +18,7 @@ package refresh_test
 
 import (
 	"context"
+	"github.com/sirupsen/logrus"
 	"testing"
 	"time"
 
@@ -90,6 +91,7 @@ func setExpires(conn *networkservice.Connection, expireTimeout time.Duration) {
 func hasValue(c <-chan struct{}) bool {
 	select {
 	case <-c:
+		logrus.Info("taken value from <-requestCh")
 		return true
 	default:
 		return false
@@ -99,15 +101,19 @@ func hasValue(c <-chan struct{}) bool {
 func firstGetsValueEarlier(c1, c2 <-chan struct{}) bool {
 	select {
 	case <-c2:
+		logrus.Info("taken value from <-requestCh")
 		return false
 	case <-c1:
+		logrus.Info("taken value from <-absence")
 		return true
 	}
 }
 
 func TestNewClient_RunTests100Times(t *testing.T) {
-	for i := 0; i < 100; i++ {
-		TestNewClient_StopRefreshAtAnotherRequest(t)
+	for i := 0; i < 400; i++ {
+		logrus.Info("-------------------------------------------------------------")
+		logrus.Infof("Iteration %d", i)
+		//TestNewClient_StopRefreshAtAnotherRequest(t)
 		TestNewClient_StopRefreshAtClose(t)
 	}
 }
@@ -119,6 +125,12 @@ func TestNewClient_StopRefreshAtClose(t *testing.T) {
 	testRefresh := &testRefresh{
 		RequestFunc: func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (connection *networkservice.Connection, err error) {
 			setExpires(in.GetConnection(), expireTimeout)
+			if refreshCtx := refresh.RefreshContext(ctx); refreshCtx != nil {
+				refreshNumber := refresh.GetRefreshNumber(refreshCtx)
+				logrus.Infof("pushed refresh #%d value to requestCh<-", refreshNumber.Number)
+			} else {
+				logrus.Info("pushed initial request value to requestCh<-")
+			}
 			requestCh <- struct{}{}
 			return in.GetConnection(), nil
 		},
@@ -134,10 +146,13 @@ func TestNewClient_StopRefreshAtClose(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.True(t, hasValue(requestCh)) // receive value from initial request
+	logrus.Info("Got value from initial request")
 	for i := 0; i < refreshCount; i++ {
 		require.Eventually(t, func() bool { return hasValue(requestCh) }, waitForTimeout, tickTimeout)
+		logrus.Infof("Got value from POTENTIAL refresh %d", i+1)
 	}
 
+	logrus.Info("Close()")
 	_, err = client.Close(context.Background(), conn)
 	assert.Nil(t, err)
 
@@ -145,6 +160,7 @@ func TestNewClient_StopRefreshAtClose(t *testing.T) {
 	time.AfterFunc(expectAbsenceTimeout, func() {
 		absence <- struct{}{}
 	})
+	logrus.Info("expect no refreshes...")
 	assert.True(t, firstGetsValueEarlier(absence, requestCh))
 }
 

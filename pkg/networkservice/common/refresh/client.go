@@ -20,6 +20,7 @@ package refresh
 
 import (
 	"context"
+	"github.com/sirupsen/logrus"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
@@ -51,6 +52,7 @@ func NewClient() networkservice.NetworkServiceClient {
 }
 
 func (t *refreshClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	logrus.Info("refreshClient.Request()")
 	rv, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
 		return nil, err
@@ -67,15 +69,20 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 	t.executor.AsyncExec(func() {
 		id := req.GetConnection().GetId()
 		// check if it is refresh request
-		if refreshCtx := refreshContext(ctx); refreshCtx != nil {
+		if refreshCtx := RefreshContext(ctx); refreshCtx != nil {
+			refreshNumber := GetRefreshNumber(refreshCtx)
 			// refresh was canceled
 			if refreshCtx.Err() != nil {
+				logrus.Infof("refresh #%d was cancelled -- return", refreshNumber.Number)
 				return
 			}
+			refreshNumber.Number++
+			logrus.Infof("reuse previous refresh context for next refresh #%d", refreshNumber.Number)
 			// we reuse non-canceled refresh context for the next refresh request
 			timer := t.createTimer(ctx, req, expire, opts...)
 			t.connectionTimers[id] = timer
 		} else {
+			logrus.Info("Create new refresh context")
 			// cancel refresh of previous request if any
 			if timer, ok := t.connectionTimers[id]; ok {
 				timer.Stop()
@@ -84,7 +91,8 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 				canceller()
 			}
 			// add refresh context to request context
-			refreshCtx, cancelFunc := context.WithCancel(context.Background())
+			refreshNumberCtx := withRefreshNumber(context.Background(), &RefreshNumber{Number: 1})
+			refreshCtx, cancelFunc := context.WithCancel(refreshNumberCtx)
 			newCtx := withRefreshContext(ctx, refreshCtx)
 
 			timer := t.createTimer(newCtx, req, expire, opts...)
@@ -97,6 +105,7 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 
 func (t *refreshClient) Close(ctx context.Context, conn *networkservice.Connection, _ ...grpc.CallOption) (*empty.Empty, error) {
 	t.executor.AsyncExec(func() {
+		logrus.Info("closing connection")
 		if timer, ok := t.connectionTimers[conn.GetId()]; ok {
 			timer.Stop()
 			delete(t.connectionTimers, conn.GetId())
@@ -123,6 +132,9 @@ func (t *refreshClient) createTimer(ctx context.Context, request *networkservice
 	return time.AfterFunc(expires, func() {
 		// TODO what to do about error handling?
 		// TODO what to do about expiration of context
+		refreshCtx := RefreshContext(ctx)
+		refreshNumber := GetRefreshNumber(refreshCtx)
+		logrus.Infof("calling Request() by refresh #%d", refreshNumber.Number)
 		if _, err := t.Request(newCtx, request, opts...); err != nil {
 			trace.Log(newCtx).Errorf("Error while attempting to refresh connection %s: %+v", request.GetConnection().GetId(), err)
 		}
