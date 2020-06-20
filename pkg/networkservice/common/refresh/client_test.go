@@ -155,6 +155,7 @@ func TestNewClient_StopRefreshAtClose(t *testing.T) {
 	assert.True(t, hasValue(requestCh)) // receive value from initial request
 	logrus.Info("Got value from initial request")
 	for i := 0; i < refreshCount; i++ {
+		logrus.Infof("Await value from POTENTIAL refresh %d", i+1)
 		require.Eventually(t, func() bool { return hasValue(requestCh) }, waitForTimeout, tickTimeout)
 		logrus.Infof("Got value from POTENTIAL refresh %d", i+1)
 	}
