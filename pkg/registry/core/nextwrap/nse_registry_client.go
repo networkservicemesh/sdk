@@ -19,6 +19,7 @@ package nextwrap
 
 import (
 	"context"
+	"io"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -40,9 +41,12 @@ func (r *nextNetworkServiceEndpointWrappedClient) Register(ctx context.Context, 
 }
 
 func (r *nextNetworkServiceEndpointWrappedClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	_, err := r.client.Find(ctx, in, opts...)
-	if err != nil {
+	client, err := r.client.Find(ctx, in, opts...)
+	if err != nil && err != io.EOF {
 		return nil, err
+	}
+	if client != nil {
+		return client, nil
 	}
 	return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, in, opts...)
 }

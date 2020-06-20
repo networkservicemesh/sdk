@@ -18,6 +18,7 @@ package nextwrap_test
 
 import (
 	"context"
+	"io"
 	"testing"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -43,26 +44,49 @@ func (e *emptyNSClient) Unregister(ctx context.Context, in *registry.NetworkServ
 	return nil, nil
 }
 
-type nonemptyNSClient struct{}
+type nonEmptyNSClient struct{}
 
-func (n *nonemptyNSClient) Register(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
+func (n *nonEmptyNSClient) Register(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
 	return &registry.NetworkService{}, nil
 }
 
-func (n *nonemptyNSClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
-	return nil, nil
+type nsFindClient struct {
+	grpc.ClientStream
 }
 
-func (n *nonemptyNSClient) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (n *nsFindClient) Recv() (*registry.NetworkService, error) {
+	return nil, io.EOF
+}
+
+func (n *nonEmptyNSClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
+	return &nsFindClient{}, nil
+}
+
+func (n *nonEmptyNSClient) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
 	return nil, nil
 }
 
 func TestWrapEmptyNetworkServiceClient(t *testing.T) {
 	c := next.NewNetworkServiceRegistryClient(
 		nextwrap.NewNetworkServiceRegistryClient(&emptyNSClient{}),
-		&nonemptyNSClient{})
+		&nonEmptyNSClient{})
 
 	result, err := c.Register(context.Background(), nil)
 	require.Nil(t, err)
 	require.NotNil(t, result)
+
+	client, err := c.Find(context.Background(), nil, nil)
+	require.Nil(t, err)
+	require.NotNil(t, client)
+}
+
+func TestWrapNonEmptyNetworkServiceClient(t *testing.T) {
+	c := next.NewNetworkServiceRegistryClient(
+		nextwrap.NewNetworkServiceRegistryClient(&nonEmptyNSClient{}),
+		&emptyNSClient{},
+	)
+
+	client, err := c.Find(context.Background(), nil, nil)
+	require.Nil(t, err)
+	require.NotNil(t, client)
 }

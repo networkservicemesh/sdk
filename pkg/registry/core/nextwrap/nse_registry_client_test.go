@@ -18,6 +18,7 @@ package nextwrap_test
 
 import (
 	"context"
+	"io"
 	"testing"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -29,40 +30,62 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/nextwrap"
 )
 
-type emptyClient struct{}
+type emptyNSEClient struct{}
 
-func (e *emptyClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+func (e *emptyNSEClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
 	return nil, nil
 }
 
-func (e *emptyClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
+func (e *emptyNSEClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
 	return nil, nil
 }
 
-func (e *emptyClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (e *emptyNSEClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
 	return nil, nil
 }
 
-type nonemptyClient struct{}
+type nseFindClient struct {
+	grpc.ClientStream
+}
 
-func (n *nonemptyClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+func (n *nseFindClient) Recv() (*registry.NetworkServiceEndpoint, error) {
+	return nil, io.EOF
+}
+
+type nonEmptyNSEClient struct{}
+
+func (n *nonEmptyNSEClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
 	return &registry.NetworkServiceEndpoint{}, nil
 }
 
-func (n *nonemptyClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	return nil, nil
+func (n *nonEmptyNSEClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
+	return &nseFindClient{}, nil
 }
 
-func (n *nonemptyClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (n *nonEmptyNSEClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
 	return nil, nil
 }
 
 func TestWrapEmptyNetworkServiceEndpointClient(t *testing.T) {
 	c := next.NewNetworkServiceEndpointRegistryClient(
-		nextwrap.NewNetworkServiceEndpointRegistryClient(&emptyClient{}),
-		&nonemptyClient{})
+		nextwrap.NewNetworkServiceEndpointRegistryClient(&emptyNSEClient{}),
+		&nonEmptyNSEClient{})
 
 	result, err := c.Register(context.Background(), nil)
 	require.Nil(t, err)
 	require.NotNil(t, result)
+
+	client, err := c.Find(context.Background(), nil, nil)
+	require.Nil(t, err)
+	require.NotNil(t, client)
+}
+
+func TestWrapNonEmptyNetworkServiceEndpointClient(t *testing.T) {
+	c := next.NewNetworkServiceEndpointRegistryClient(
+		nextwrap.NewNetworkServiceEndpointRegistryClient(&nonEmptyNSEClient{}),
+		&emptyNSEClient{})
+
+	client, err := c.Find(context.Background(), nil, nil)
+	require.Nil(t, err)
+	require.NotNil(t, client)
 }
