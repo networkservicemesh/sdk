@@ -61,10 +61,11 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 	// Set its connection to the returned connection we received
 	req.Connection = rv
 
-	expire, err := t.getExpireDuration(request)
+	expire, err := t.getExpire(request)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Error creating timer from Request.Connection.Path.PathSegment[%d].ExpireTime", request.GetConnection().GetPath().GetIndex())
 	}
+	duration := time.Until(*expire)
 	t.executor.AsyncExec(func() {
 		id := req.GetConnection().GetId()
 		// check if it is refresh request
@@ -76,9 +77,9 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 				return
 			}
 			refreshNumber.Number++
-			//logrus.Infof("reuse previous refresh context for next refresh #%d", refreshNumber.Number)
+			logrus.Infof("reuse previous refresh context for next refresh #%d, that will run at %s", refreshNumber.Number, expire.Format("2006-01-02 15:04:05.999999999"))
 			// we reuse non-canceled refresh context for the next refresh request
-			timer := t.createTimer(ctx, req, expire, opts...)
+			timer := t.createTimer(ctx, req, duration, opts...)
 			t.connectionTimers[id] = timer
 		} else {
 			logrus.Info("Create new refresh context")
@@ -94,7 +95,7 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 			refreshCtx, cancelFunc := context.WithCancel(refreshNumberCtx)
 			newCtx := withRefreshContext(ctx, refreshCtx)
 
-			timer := t.createTimer(newCtx, req, expire, opts...)
+			timer := t.createTimer(newCtx, req, duration, opts...)
 			t.connectionTimers[id] = timer
 			t.refreshCancellers[id] = cancelFunc
 		}
@@ -117,13 +118,12 @@ func (t *refreshClient) Close(ctx context.Context, conn *networkservice.Connecti
 	return next.Client(ctx).Close(ctx, conn)
 }
 
-func (t *refreshClient) getExpireDuration(request *networkservice.NetworkServiceRequest) (time.Duration, error) {
+func (t *refreshClient) getExpire(request *networkservice.NetworkServiceRequest) (*time.Time, error) {
 	expireTime, err := ptypes.Timestamp(request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].GetExpires())
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	duration := time.Until(expireTime)
-	return duration, nil
+	return &expireTime, nil
 }
 
 func (t *refreshClient) createTimer(ctx context.Context, request *networkservice.NetworkServiceRequest, expires time.Duration, opts ...grpc.CallOption) *time.Timer {
