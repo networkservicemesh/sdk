@@ -105,6 +105,13 @@ func firstGetsValueEarlier(c1, c2 <-chan struct{}) bool {
 	}
 }
 
+func TestNewClient_RunTests100Times(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		TestNewClient_StopRefreshAtAnotherRequest(t)
+		TestNewClient_StopRefreshAtClose(t)
+	}
+}
+
 func TestNewClient_StopRefreshAtClose(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
