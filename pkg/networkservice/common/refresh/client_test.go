@@ -145,6 +145,7 @@ func TestNewClient_StopRefreshAtClose(t *testing.T) {
 	client := next.NewNetworkServiceClient(refresh.NewClient(), testRefresh)
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
+
 			Id: "conn-1",
 		},
 	}

@@ -82,7 +82,6 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 			timer := t.createTimer(ctx, req, duration, opts...)
 			t.connectionTimers[id] = timer
 		} else {
-			logrus.Info("Create new refresh context")
 			// cancel refresh of previous request if any
 			if timer, ok := t.connectionTimers[id]; ok {
 				timer.Stop()
@@ -95,6 +94,7 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 			refreshCtx, cancelFunc := context.WithCancel(refreshNumberCtx)
 			newCtx := withRefreshContext(ctx, refreshCtx)
 
+			logrus.Infof("create new refresh context for first refresh, that will run at %s", expire.Format("2006-01-02 15:04:05.999999999"))
 			timer := t.createTimer(newCtx, req, duration, opts...)
 			t.connectionTimers[id] = timer
 			t.refreshCancellers[id] = cancelFunc
