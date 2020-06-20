@@ -21,12 +21,13 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/goleak"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
@@ -106,8 +107,8 @@ func firstGetsValueEarlier(c1, c2 <-chan struct{}) bool {
 }
 
 func TestNewClient_StopRefreshAtClose(t *testing.T) {
+	t.Skip("https://github.com/networkservicemesh/sdk/issues/237")
 	defer goleak.VerifyNone(t)
-
 	requestCh := make(chan struct{}, 1)
 	testRefresh := &testRefresh{
 		RequestFunc: func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (connection *networkservice.Connection, err error) {
@@ -142,8 +143,8 @@ func TestNewClient_StopRefreshAtClose(t *testing.T) {
 }
 
 func TestNewClient_StopRefreshAtAnotherRequest(t *testing.T) {
+	t.Skip("https://github.com/networkservicemesh/sdk/issues/260")
 	defer goleak.VerifyNone(t)
-
 	requestCh := make(chan struct{}, 1)
 	testRefresh := &testRefresh{
 		RequestFunc: func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (connection *networkservice.Connection, err error) {
