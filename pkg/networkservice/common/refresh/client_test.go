@@ -35,7 +35,8 @@ import (
 )
 
 const (
-	expireTimeout        = 100 * time.Millisecond
+	//expireTimeout        = 100 * time.Millisecond
+	expireTimeout        = 50 * time.Millisecond
 	waitForTimeout       = 3 * expireTimeout
 	tickTimeout          = 10 * time.Millisecond
 	refreshCount         = 5
@@ -120,6 +121,11 @@ func TestNewClient_RunTests100Times(t *testing.T) {
 
 func TestNewClient_StopRefreshAtClose(t *testing.T) {
 	defer goleak.VerifyNone(t)
+
+	customFormatter := new(logrus.TextFormatter)
+	customFormatter.TimestampFormat = "2006-01-02 15:04:05.999999999"
+	logrus.SetFormatter(customFormatter)
+	customFormatter.FullTimestamp = true
 
 	requestCh := make(chan struct{}, 1)
 	testRefresh := &testRefresh{

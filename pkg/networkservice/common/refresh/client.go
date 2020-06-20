@@ -76,7 +76,7 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 				return
 			}
 			refreshNumber.Number++
-			logrus.Infof("reuse previous refresh context for next refresh #%d", refreshNumber.Number)
+			//logrus.Infof("reuse previous refresh context for next refresh #%d", refreshNumber.Number)
 			// we reuse non-canceled refresh context for the next refresh request
 			timer := t.createTimer(ctx, req, expire, opts...)
 			t.connectionTimers[id] = timer
