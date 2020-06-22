@@ -18,6 +18,7 @@ package nextwrap_test
 
 import (
 	"context"
+	"io"
 	"testing"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamsource"
@@ -51,8 +52,16 @@ func (n *nonEmptyNSClient) Register(ctx context.Context, in *registry.NetworkSer
 	return &registry.NetworkService{}, nil
 }
 
+type findNSClient struct {
+	grpc.ClientStream
+}
+
+func (f *findNSClient) Recv() (*registry.NetworkService, error) {
+	return nil, io.EOF
+}
+
 func (n *nonEmptyNSClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
-	return next.NetworkServiceRegistryClient(ctx).Find(ctx, in, opts...)
+	return next.NetworkServiceRegistryClient(ctx).Find(streamsource.WithNetworkServiceStream(ctx, &findNSClient{}), in, opts...)
 }
 
 func (n *nonEmptyNSClient) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {

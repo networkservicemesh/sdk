@@ -54,6 +54,14 @@ func (n *nseFindClient) Recv() (*registry.NetworkServiceEndpoint, error) {
 	return nil, io.EOF
 }
 
+type findNSEClient struct {
+	grpc.ClientStream
+}
+
+func (f *findNSEClient) Recv() (*registry.NetworkServiceEndpoint, error) {
+	return nil, io.EOF
+}
+
 type nonEmptyNSEClient struct{}
 
 func (n *nonEmptyNSEClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
@@ -61,7 +69,7 @@ func (n *nonEmptyNSEClient) Register(ctx context.Context, in *registry.NetworkSe
 }
 
 func (n *nonEmptyNSEClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, in, opts...)
+	return next.NetworkServiceEndpointRegistryClient(ctx).Find(streamsource.WithNetworkServiceEndpointStream(ctx, &findNSEClient{}), in, opts...)
 }
 
 func (n *nonEmptyNSEClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
