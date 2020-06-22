@@ -1,3 +1,19 @@
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at:
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package memory
 
 import (
@@ -45,31 +61,29 @@ func (n *networkServiceRegistryServer) Find(query *registry.NetworkServiceQuery,
 		return err
 	}
 	if query.Watch {
-		go func() {
-			eventCh := make(chan *registry.NetworkService, n.eventChannelSize)
-			n.eventChannelsLocker.Lock()
-			n.eventChannels = append(n.eventChannels, eventCh)
-			n.eventChannelsLocker.Unlock()
-			err := sendAllMatches(query.NetworkService)
-			if err != nil {
-				return
-			}
-			for {
-				select {
-				case <-s.Context().Done():
-					return
-				case event := <-eventCh:
-					if matchutils.MatchNetworkServices(query.NetworkService, event) {
-						if s.Context().Err() != nil {
-							return
-						}
-						if err := s.Send(event); err != nil {
-							return
-						}
+		eventCh := make(chan *registry.NetworkService, n.eventChannelSize)
+		n.eventChannelsLocker.Lock()
+		n.eventChannels = append(n.eventChannels, eventCh)
+		n.eventChannelsLocker.Unlock()
+		err := sendAllMatches(query.NetworkService)
+		if err != nil {
+			return err
+		}
+		for {
+			select {
+			case <-s.Context().Done():
+				return s.Context().Err()
+			case event := <-eventCh:
+				if matchutils.MatchNetworkServices(query.NetworkService, event) {
+					if s.Context().Err() != nil {
+						return err
+					}
+					if err := s.Send(event); err != nil {
+						return err
 					}
 				}
 			}
-		}()
+		}
 	} else if err := sendAllMatches(query.NetworkService); err != nil {
 		return err
 	}

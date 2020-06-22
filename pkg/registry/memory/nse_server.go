@@ -1,3 +1,19 @@
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at:
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package memory
 
 import (
@@ -45,28 +61,29 @@ func (n *networkServiceEndpointRegistryServer) Find(query *registry.NetworkServi
 		return err
 	}
 	if query.Watch {
-		go func() {
-			eventCh := make(chan *registry.NetworkServiceEndpoint, n.eventChannelSize)
-			n.eventChannelsLocker.Lock()
-			n.eventChannels = append(n.eventChannels, eventCh)
-			n.eventChannelsLocker.Unlock()
-			err := sendAllMatches(query.NetworkServiceEndpoint)
-			if err != nil {
-				return
-			}
-			for {
-				select {
-				case event := <-eventCh:
-					if matchutils.MatchNetworkServiceEndpoints(query.NetworkServiceEndpoint, event) {
-						if err := s.Send(event); err != nil {
-							return
-						}
+		eventCh := make(chan *registry.NetworkServiceEndpoint, n.eventChannelSize)
+		n.eventChannelsLocker.Lock()
+		n.eventChannels = append(n.eventChannels, eventCh)
+		n.eventChannelsLocker.Unlock()
+		err := sendAllMatches(query.NetworkServiceEndpoint)
+		if err != nil {
+			return err
+		}
+		for {
+			select {
+			case <-s.Context().Done():
+				return err
+			case event := <-eventCh:
+				if matchutils.MatchNetworkServiceEndpoints(query.NetworkServiceEndpoint, event) {
+					if s.Context().Err() != nil {
+						return err
 					}
-				case <-s.Context().Done():
-					return
+					if err := s.Send(event); err != nil {
+						return err
+					}
 				}
 			}
-		}()
+		}
 	} else if err := sendAllMatches(query.NetworkServiceEndpoint); err != nil {
 		return err
 	}
@@ -74,15 +91,7 @@ func (n *networkServiceEndpointRegistryServer) Find(query *registry.NetworkServi
 }
 
 func (n *networkServiceEndpointRegistryServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	nse.ExpirationTime.Seconds = 0
 	n.networkServiceEndpoints.Delete(nse.Name)
-	n.executor.AsyncExec(func() {
-		n.eventChannelsLocker.Lock()
-		for _, ch := range n.eventChannels {
-			ch <- nse
-		}
-		n.eventChannelsLocker.Unlock()
-	})
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }
 
