@@ -30,7 +30,7 @@ And then require to call client.
 target := "callback:{client-authority}"
 // If target is not in a list of callback server targets, 
 // it will perform grpc.DialContext to connect to passed target
-nsmClientGRPC, err := grpc.DialContext(context.Background(), target, callback.WithCallbackDialer(server.callbackServer, target), grpc.WithInsecure())
+nsmClientGRPC, err := grpc.DialContext(context.Background(), target, callbackServer.WithCallbackDialer(), grpc.WithInsecure())
 nsmClient := networkservice.NewNetworkServiceClient(nsmClientGRPC)
 
 resp, _ := nsmClient.Request(context.Background(), &networkservice.NetworkServiceRequest{

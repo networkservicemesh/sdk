@@ -27,6 +27,9 @@ import (
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 // ClientListener - inform server about new client is arrived or disconnected.
@@ -38,6 +41,7 @@ type ClientListener interface {
 // Server - a callback server, hold client callback connections and allow to provide client
 type Server interface {
 	AddListener(listener ClientListener)
+	WithCallbackDialer() grpc.DialOption
 	CallbackServiceServer
 }
 
@@ -71,12 +75,8 @@ func NewServer(provider IdentityProvider) Server {
 }
 
 // WithCallbackDialer - return a grpc.DialOption with callback server inside to perform a dial
-func WithCallbackDialer(server CallbackServiceServer, target string) grpc.DialOption {
-	dialFunc, err := server.(*serverImpl).dial(target)
-	if err != nil {
-		logrus.Errorf("Failed to connect to callback: %v", err)
-	}
-	return grpc.WithContextDialer(dialFunc)
+func WithCallbackDialer(server Server, target string) grpc.DialOption {
+	return server.WithCallbackDialer()
 }
 
 // AddListener - add listener to client, to be informed abount new clients are joined.
@@ -156,21 +156,20 @@ type serverClientConnImpl struct {
 	lock      sync.Mutex
 }
 
-func (s *serverImpl) dial(target string) (func(context.Context, string) (net.Conn, error), error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	srv, ok := s.connections[target]
-	if ok {
-		if srv.created {
-			return nil, errors.New("Client is already created")
-		}
-		srv.created = true
-		return func(ctx context.Context, target string) (net.Conn, error) {
-			srv.lock.Lock()
-			defer srv.lock.Unlock()
+// WithCallbackDialer - return a grpc.DialOption with callback server inside to perform a dial
+func (s *serverImpl) WithCallbackDialer() grpc.DialOption {
+	return grpc.WithContextDialer(func(ctx context.Context, target string) (net.Conn, error) {
+		s.lock.Lock()
+		defer s.lock.Unlock()
+		srv, ok := s.connections[target]
+		if ok {
+			if srv.created {
+				log.Entry(ctx).Errorf("Failed to connect to callback: %v", errors.New("Client is already created"))
+			}
+			srv.created = true
 			return newConnection(ctx, srv.cancel, srv.server), nil
-		}, nil
-	}
-	// Fall over to default dial code.
-	return nil, nil
+		}
+		network, addr := grpcutils.TargetToNetAddr(target)
+		return (&net.Dialer{}).DialContext(ctx, network, addr)
+	})
 }
