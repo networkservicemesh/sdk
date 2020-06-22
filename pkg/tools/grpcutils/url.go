@@ -41,5 +41,8 @@ func AddressToURL(addr net.Addr) *url.URL {
 			return &url.URL{Scheme: addr.Network(), Path: fmt.Sprintf("127.0.0.1:%v", tcpAddr.Port)}
 		}
 	}
+	if addr.Network() == unixScheme {
+		return &url.URL{Scheme: addr.Network(), Path: addr.String()}
+	}
 	return &url.URL{Scheme: addr.Network(), Host: addr.String()}
 }
