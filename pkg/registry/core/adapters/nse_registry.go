@@ -19,7 +19,6 @@ package adapters
 
 import (
 	"context"
-	"io"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -76,20 +75,18 @@ func (n *networkServiceEndpointRegistryClient) Register(ctx context.Context, in 
 	return n.server.Register(ctx, in)
 }
 
-func (n networkServiceEndpointRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
+func (n *networkServiceEndpointRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
 	ch := make(chan *registry.NetworkServiceEndpoint, channelSize)
 	s := streamchannel.NewNetworkServiceEndpointFindServer(ctx, ch)
-	if err := n.server.Find(in, s); err != nil {
-		if err == io.EOF {
-			close(ch)
-		} else {
-			return nil, err
-		}
+	err := n.server.Find(in, s)
+	close(ch)
+	if err != nil {
+		return nil, err
 	}
 	return streamchannel.NewNetworkServiceEndpointFindClient(s.Context(), ch), nil
 }
 
-func (n networkServiceEndpointRegistryClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (n *networkServiceEndpointRegistryClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
 	return n.server.Unregister(ctx, in)
 }
 

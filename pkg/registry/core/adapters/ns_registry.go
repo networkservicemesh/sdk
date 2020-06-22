@@ -18,7 +18,6 @@ package adapters
 
 import (
 	"context"
-	"io"
 
 	"google.golang.org/grpc"
 
@@ -76,20 +75,18 @@ func (n *networkServiceRegistryClient) Register(ctx context.Context, in *registr
 	return n.server.Register(ctx, in)
 }
 
-func (n networkServiceRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
+func (n *networkServiceRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
 	ch := make(chan *registry.NetworkService, channelSize)
 	s := streamchannel.NewNetworkServiceFindServer(ctx, ch)
-	if err := n.server.Find(in, s); err != nil {
-		if err == io.EOF {
-			close(ch)
-		} else {
-			return nil, err
-		}
+	err := n.server.Find(in, s)
+	close(ch)
+	if err != nil {
+		return nil, err
 	}
 	return streamchannel.NewNetworkServiceFindClient(s.Context(), ch), nil
 }
 
-func (n networkServiceRegistryClient) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (n *networkServiceRegistryClient) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
 	return n.server.Unregister(ctx, in)
 }
 

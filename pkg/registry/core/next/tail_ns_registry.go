@@ -34,8 +34,8 @@ func (t *tailNetworkServiceRegistryServer) Register(_ context.Context, r *regist
 	return r, nil
 }
 
-func (t *tailNetworkServiceRegistryServer) Find(*registry.NetworkServiceQuery, registry.NetworkServiceRegistry_FindServer) error {
-	return io.EOF
+func (t *tailNetworkServiceRegistryServer) Find(_ *registry.NetworkServiceQuery, s registry.NetworkServiceRegistry_FindServer) error {
+	return nil
 }
 
 func (t *tailNetworkServiceRegistryServer) Unregister(context.Context, *registry.NetworkService) (*empty.Empty, error) {
@@ -44,19 +44,34 @@ func (t *tailNetworkServiceRegistryServer) Unregister(context.Context, *registry
 
 var _ registry.NetworkServiceRegistryServer = &tailNetworkServiceRegistryServer{}
 
-// tailNetworkServiceRegistryClient is a simple implementation of registry.NetworkServiceRegistryClient that is called at the end
+// tailNetworkServiceRegistryClient is a simple implementation of registry.NetworkServiceRegistryServer that is called at the end
 // of a chain to ensure that we never call a method on a nil object
 type tailNetworkServiceRegistryClient struct{}
 
-func (t tailNetworkServiceRegistryClient) Register(_ context.Context, in *registry.NetworkService, _ ...grpc.CallOption) (*registry.NetworkService, error) {
+func (t *tailNetworkServiceRegistryClient) Register(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
 	return in, nil
 }
 
-func (t tailNetworkServiceRegistryClient) Find(context.Context, *registry.NetworkServiceQuery, ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
+type tailNetworkServiceRegistryFindClient struct {
+	grpc.ClientStream
+	ctx context.Context
+}
+
+func (t *tailNetworkServiceRegistryFindClient) Context() context.Context {
+	return t.ctx
+}
+
+func (t *tailNetworkServiceRegistryFindClient) Recv() (*registry.NetworkService, error) {
 	return nil, io.EOF
 }
 
-func (t tailNetworkServiceRegistryClient) Unregister(context.Context, *registry.NetworkService, ...grpc.CallOption) (*empty.Empty, error) {
+func (t *tailNetworkServiceRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	cancel()
+	return &tailNetworkServiceRegistryFindClient{ctx: ctx}, nil
+}
+
+func (t *tailNetworkServiceRegistryClient) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
 	return new(empty.Empty), nil
 }
 
