@@ -27,21 +27,21 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type clientURL struct {
+type clientURLServer struct {
 	u *url.URL
 }
 
 // NewServer - returns a new server that will set the request context to return url u when ClientURL(ctx) is called
 func NewServer(u *url.URL) networkservice.NetworkServiceServer {
-	return &clientURL{u: u}
+	return &clientURLServer{u: u}
 }
 
-func (c *clientURL) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+func (c *clientURLServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	ctx = WithClientURL(ctx, c.u)
 	return next.Server(ctx).Request(ctx, request)
 }
 
-func (c *clientURL) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+func (c *clientURLServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	ctx = WithClientURL(ctx, c.u)
 	return next.Server(ctx).Close(ctx, conn)
 }
