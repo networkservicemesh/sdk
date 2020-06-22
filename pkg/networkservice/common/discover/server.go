@@ -50,7 +50,7 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 
 	nseStream, err := d.nseClient.Find(ctx, &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-			Name: request.GetConnection().GetNetworkService(),
+			NetworkServiceName: []string{request.GetConnection().GetNetworkService()},
 		},
 	})
 	if err != nil {
