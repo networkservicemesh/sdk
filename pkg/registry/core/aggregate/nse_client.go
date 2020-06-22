@@ -27,21 +27,21 @@ import (
 	"google.golang.org/grpc"
 )
 
-type nsAggregateClient struct {
+type nseAggregateClient struct {
 	grpc.ClientStream
 	ctx     context.Context
 	cancel  func()
-	clients []registry.NetworkServiceRegistry_FindClient
+	clients []registry.NetworkServiceEndpointRegistry_FindClient
 	once    sync.Once
-	ch      chan *registry.NetworkService
+	ch      chan *registry.NetworkServiceEndpoint
 	done    *int32
 }
 
-func (c *nsAggregateClient) initMonitoring() {
+func (c *nseAggregateClient) initMonitoring() {
 	for i := 0; i < len(c.clients); i++ {
 		client := c.clients[i]
 		go func() {
-			for ns := range registry.ReadNetworkServiceChannel(client) {
+			for ns := range registry.ReadNetworkServiceEndpointChannel(client) {
 				c.ch <- ns
 			}
 			if atomic.AddInt32(c.done, 1) == int32(len(c.clients)) {
@@ -54,7 +54,7 @@ func (c *nsAggregateClient) initMonitoring() {
 	}
 }
 
-func (c *nsAggregateClient) Recv() (*registry.NetworkService, error) {
+func (c *nseAggregateClient) Recv() (*registry.NetworkServiceEndpoint, error) {
 	c.once.Do(c.initMonitoring)
 	select {
 	case <-c.ctx.Done():
@@ -67,24 +67,31 @@ func (c *nsAggregateClient) Recv() (*registry.NetworkService, error) {
 	}
 }
 
-func (c *nsAggregateClient) Context() context.Context {
+func (c *nseAggregateClient) Context() context.Context {
 	return c.ctx
 }
 
-// NewNetworkServiceFindClient aggregates few NetworkServiceRegistry_FindClient to single  NetworkServiceRegistry_FindClient
-func NewNetworkServiceFindClient(clients ...registry.NetworkServiceRegistry_FindClient) registry.NetworkServiceRegistry_FindClient {
+// NewNetworkServiceEndpointFindClient aggregates few NetworkServiceEndpointRegistry_FindClient to single  NetworkServiceEndpointRegistry_FindClient
+func NewNetworkServiceEndpointFindClient(clients ...registry.NetworkServiceEndpointRegistry_FindClient) registry.NetworkServiceEndpointRegistry_FindClient {
+	clients = filterNetworkServiceEndpointClients(clients)
+	if len(clients) == 0 {
+		return nil
+	}
+	if len(clients) == 1 {
+		return clients[0]
+	}
 	d := int32(0)
-	r := &nsAggregateClient{
-		clients: filterNetworkServiceClients(clients),
-		ch:      make(chan *registry.NetworkService),
+	r := &nseAggregateClient{
+		clients: filterNetworkServiceEndpointClients(clients),
+		ch:      make(chan *registry.NetworkServiceEndpoint),
 		done:    &d,
 	}
 	r.ctx, r.cancel = context.WithCancel(context.Background())
 	return r
 }
 
-func filterNetworkServiceClients(clients []registry.NetworkServiceRegistry_FindClient) []registry.NetworkServiceRegistry_FindClient {
-	var result []registry.NetworkServiceRegistry_FindClient
+func filterNetworkServiceEndpointClients(clients []registry.NetworkServiceEndpointRegistry_FindClient) []registry.NetworkServiceEndpointRegistry_FindClient {
+	var result []registry.NetworkServiceEndpointRegistry_FindClient
 	for _, c := range clients {
 		if c == nil {
 			continue
