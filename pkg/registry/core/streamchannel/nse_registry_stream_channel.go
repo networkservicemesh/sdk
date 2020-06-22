@@ -19,6 +19,7 @@ package streamchannel
 
 import (
 	"context"
+	"io"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/pkg/errors"
@@ -43,7 +44,7 @@ type networkServiceEndpointRegistryFindClient struct {
 func (c *networkServiceEndpointRegistryFindClient) Recv() (*registry.NetworkServiceEndpoint, error) {
 	res, ok := <-c.recvCh
 	if !ok {
-		err := errors.New("recv channel has been closed")
+		err := io.EOF
 		if c.err == nil {
 			return nil, err
 		}
