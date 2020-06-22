@@ -19,6 +19,8 @@ package adapters
 
 import (
 	"context"
+	"io"
+	"strings"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -47,6 +49,9 @@ func (n *networkServiceEndpointRegistryServer) Find(query *registry.NetworkServi
 		}
 		msg, err := client.Recv()
 		if err != nil {
+			if strings.HasSuffix(err.Error(), io.EOF.Error()) {
+				return nil
+			}
 			return err
 		}
 		err = s.Send(msg)
