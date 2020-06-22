@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"strings"
 )
 
 // URLToTarget - convert *net.URL to acceptable grpc target value.
@@ -45,4 +46,39 @@ func AddressToURL(addr net.Addr) *url.URL {
 		return &url.URL{Scheme: addr.Network(), Path: addr.String()}
 	}
 	return &url.URL{Scheme: addr.Network(), Host: addr.String()}
+}
+
+// TargetToNetAddr returns the network and address from a GRPC target
+func TargetToNetAddr(target string) (network, addr string) {
+	// Borrowed with love from grpc.parseDialTarget https://github.com/grpc/grpc-go/blob/9aa97f9/rpc_util.go#L821
+	network = "tcp"
+
+	m1 := strings.Index(target, ":")
+	m2 := strings.Index(target, ":/")
+
+	// handle unix:addr which will fail with url.Parse
+	if m1 >= 0 && m2 < 0 {
+		if n := target[0:m1]; n == unixScheme {
+			network = n
+			addr = target[m1+1:]
+			return network, addr
+		}
+	}
+	if m2 >= 0 {
+		t, err := url.Parse(target)
+		if err != nil {
+			return network, target
+		}
+		scheme := t.Scheme
+		addr = t.Path
+		if scheme == unixScheme {
+			network = scheme
+			if addr == "" {
+				addr = t.Host
+			}
+			return network, addr
+		}
+	}
+
+	return network, target
 }
