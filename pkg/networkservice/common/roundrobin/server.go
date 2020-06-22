@@ -63,6 +63,9 @@ func (s *selectEndpointServer) withClientURL(ctx context.Context, conn *networks
 	if clienturl.ClientURL(ctx) == nil {
 		candidates := discover.Candidates(ctx)
 		endpoint := s.selector.selectEndpoint(candidates.NetworkService, candidates.Endpoints)
+		if endpoint == nil {
+			return nil, errors.Errorf("failed to find endpoint for Network Service: %v %v", candidates.NetworkService, candidates.Endpoints)
+		}
 		conn.NetworkServiceEndpointName = endpoint.GetName()
 		urlString := endpoint.Url
 		u, err := url.Parse(urlString)
