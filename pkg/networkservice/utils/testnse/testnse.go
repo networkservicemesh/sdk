@@ -59,6 +59,9 @@ func NewNSE(ctx context.Context, listenOn *url.URL, update func(request *network
 }
 
 func (d *nseImpl) Request(_ context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	if request.GetConnection() == nil {
+		request.Connection = &networkservice.Connection{}
+	}
 	request.Connection.Labels = map[string]string{}
 	if d.update != nil {
 		d.update(request)
