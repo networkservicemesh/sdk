@@ -48,6 +48,9 @@ func (m mechanismsServer) Request(ctx context.Context, req *networkservice.Netwo
 			Parameters: make(map[string]string),
 		}
 	}
+	if conn.GetMechanism().GetParameters() == nil {
+		conn.GetMechanism().Parameters = make(map[string]string)
+	}
 
 	conn.Mechanism.Parameters[common.NetNSInodeKey] = strconv.FormatUint(uint64(inode), 10)
 	return next.Server(ctx).Request(ctx, req)
