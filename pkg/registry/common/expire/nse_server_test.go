@@ -31,9 +31,10 @@ import (
 )
 
 func TestNewNetworkServiceEndpointRegistryServer(t *testing.T) {
+	now := testNowFunc()
 	s := expire.NewNetworkServiceEndpointRegistryServer(memory.NewNetworkServiceEndpointRegistryServer(), expire.WithGetTimeFunc(testNowFunc()), expire.WithPeriod(testPeriod))
 	_, err := s.Register(context.Background(), &registry.NetworkServiceEndpoint{
-		ExpirationTime: &timestamp.Timestamp{Seconds: time.Now().Add(time.Millisecond * 100).UnixNano()},
+		ExpirationTime: &timestamp.Timestamp{Seconds: now() + int64(testPeriod*2)},
 	})
 	require.Nil(t, err)
 	c := adapters.NetworkServiceEndpointServerToClient(s)
@@ -43,7 +44,7 @@ func TestNewNetworkServiceEndpointRegistryServer(t *testing.T) {
 	require.Nil(t, err)
 	list := registry.ReadNetworkServiceEndpointList(stream)
 	require.NotEmpty(t, list)
-	<-time.After(time.Millisecond * 150)
+	<-time.After(testPeriod * 3)
 	stream, err = c.Find(context.Background(), &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{},
 	})
