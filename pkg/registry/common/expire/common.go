@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -22,13 +22,21 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
-func removeExpiredNSEs(nseMap map[string]*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
+const defaultPeriod = time.Second * 5
+
+func defaultNowFunc() func() int64 {
+	return func() int64 {
+		return time.Now().Unix()
+	}
+}
+
+func getExpiredNSEs(nseMap map[string]*registry.NetworkServiceEndpoint, now int64) []*registry.NetworkServiceEndpoint {
 	var list []*registry.NetworkServiceEndpoint
 	for _, v := range nseMap {
 		if v.ExpirationTime == nil {
 			continue
 		}
-		if time.Now().UnixNano() >= v.ExpirationTime.Seconds {
+		if now >= v.ExpirationTime.Seconds {
 			list = append(list, v)
 		}
 	}

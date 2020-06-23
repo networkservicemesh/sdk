@@ -14,5 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package expire provides wrappers for handling resources time expiration
-package expire
+package memory
+
+const defaultEventChannelSize = 10

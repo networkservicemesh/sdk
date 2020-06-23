@@ -14,5 +14,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package expire provides wrappers for handling resources time expiration
-package expire
+package memory
+
+type configurable interface {
+	setEventChannelSize(int)
+}
+
+type option interface {
+	apply(configurable)
+}
+
+type applierFunc func(configurable)
+
+func (f applierFunc) apply(c configurable) {
+	f(c)
+}
+
+// WithEventChannelSize sets specific size of event channels
+func WithEventChannelSize(l int) option {
+	return applierFunc(func(c configurable) {
+		c.setEventChannelSize(l)
+	})
+}

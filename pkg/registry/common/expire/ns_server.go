@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -24,8 +24,6 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
 )
 
 type nsServer struct {
@@ -37,7 +35,16 @@ type nsServer struct {
 	nses       map[string]*registry.NetworkServiceEndpoint
 	nsCounter  map[string]int
 	nss        map[string]*registry.NetworkService
-	executor   serialize.Executor
+	now        func() int64
+	sync.Mutex
+}
+
+func (n *nsServer) setGetTimeFunc(f func() int64) {
+	n.now = f
+}
+
+func (n *nsServer) setPeriod(d time.Duration) {
+	n.period = d
 }
 
 func (n *nsServer) monitor() {
@@ -52,38 +59,35 @@ func (n *nsServer) monitor() {
 		}
 		for event := range registry.ReadNetworkServiceEndpointChannel(c) {
 			nse := event
-			n.executor.AsyncExec(func() {
-				n.nses[nse.Name] = nse
-				for _, service := range nse.NetworkServiceName {
-					n.nsCounter[service]++
-				}
-			})
+			n.Lock()
+			n.nses[nse.Name] = nse
+			for _, service := range nse.NetworkServiceName {
+				n.nsCounter[service]++
+			}
+			n.Unlock()
 		}
 	}()
 	go func() {
 		for {
 			var list []*registry.NetworkService
-			n.executor.AsyncExec(func() {
-				for _, nse := range removeExpiredNSEs(n.nses) {
-					for _, service := range nse.NetworkServiceName {
-						n.nsCounter[service]--
-						if n.nsCounter[service] == 0 {
-							ns, ok := n.nss[service]
-							if ok {
-								list = append(list, ns)
-							}
+			n.Lock()
+			for _, nse := range getExpiredNSEs(n.nses, n.now()) {
+				for _, service := range nse.NetworkServiceName {
+					n.nsCounter[service]--
+					if n.nsCounter[service] == 0 {
+						ns, ok := n.nss[service]
+						if ok {
+							list = append(list, ns)
 						}
 					}
 				}
-			})
-
-			n.executor.AsyncExec(func() {
-				for _, ns := range list {
-					delete(n.nsCounter, ns.Name)
-					delete(n.nss, ns.Name)
-					_, _ = n.server.Unregister(context.Background(), ns)
-				}
-			})
+			}
+			for _, ns := range list {
+				delete(n.nsCounter, ns.Name)
+				delete(n.nss, ns.Name)
+				_, _ = n.server.Unregister(context.Background(), ns)
+			}
+			n.Unlock()
 			<-time.After(n.period)
 		}
 	}()
@@ -94,10 +98,14 @@ func (n *nsServer) Register(ctx context.Context, request *registry.NetworkServic
 	if n.monitorErr != nil {
 		return nil, n.monitorErr
 	}
-	<-n.executor.AsyncExec(func() {
-		n.nss[request.Name] = request
-	})
-	return n.server.Register(ctx, request)
+	r, err := n.server.Register(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	n.Lock()
+	n.nss[request.Name] = r
+	n.Unlock()
+	return r, nil
 }
 
 func (n *nsServer) Find(query *registry.NetworkServiceQuery, s registry.NetworkServiceRegistry_FindServer) error {
@@ -111,26 +119,28 @@ func (n *nsServer) Unregister(ctx context.Context, request *registry.NetworkServ
 	if n.monitorErr != nil {
 		return nil, n.monitorErr
 	}
-	canDelete := false
-	<-n.executor.AsyncExec(func() {
-		n.nss[request.Name] = request
-		if n.nsCounter[request.Name] == 0 {
-			canDelete = true
-		}
-	})
-	if canDelete {
+	n.Lock()
+	defer n.Unlock()
+	if n.nsCounter[request.Name] == 0 {
 		return n.server.Unregister(ctx, request)
 	}
 	return new(empty.Empty), errors.New("can not delete ns cause of already in use")
 }
 
 // NewNetworkServiceServer wraps passed NetworkServiceRegistryServer and monitor NetworkServiceEndpoints via passed NetworkServiceEndpointRegistryClient
-func NewNetworkServiceServer(s registry.NetworkServiceRegistryServer, nseClient registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceRegistryServer {
-	return &nsServer{
+func NewNetworkServiceServer(s registry.NetworkServiceRegistryServer, nseClient registry.NetworkServiceEndpointRegistryClient, options ...option) registry.NetworkServiceRegistryServer {
+	r := &nsServer{
 		server:    s,
 		nseClient: nseClient,
+		now:       defaultNowFunc(),
 		nsCounter: make(map[string]int),
 		nss:       map[string]*registry.NetworkService{},
 		nses:      map[string]*registry.NetworkServiceEndpoint{},
 	}
+
+	for _, o := range options {
+		o.apply(r)
+	}
+
+	return r
 }

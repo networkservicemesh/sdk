@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -31,7 +31,7 @@ import (
 )
 
 func TestNewNetworkServiceEndpointRegistryServer(t *testing.T) {
-	s := expire.NewNetworkServiceEndpointRegistryServer(memory.NewNetworkServiceEndpointRegistryServer())
+	s := expire.NewNetworkServiceEndpointRegistryServer(memory.NewNetworkServiceEndpointRegistryServer(), expire.WithGetTimeFunc(testNowFunc()), expire.WithPeriod(testPeriod))
 	_, err := s.Register(context.Background(), &registry.NetworkServiceEndpoint{
 		ExpirationTime: &timestamp.Timestamp{Seconds: time.Now().Add(time.Millisecond * 100).UnixNano()},
 	})

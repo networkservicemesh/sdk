@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -44,7 +44,7 @@ func TestNewNetworkServiceRegistryServer(t *testing.T) {
 	require.Nil(t, err)
 	nseClient := adapters.NetworkServiceEndpointServerToClient(nseMem)
 	nsMem := memory.NewNetworkServiceRegistryServer()
-	s := expire.NewNetworkServiceServer(nsMem, nseClient)
+	s := expire.NewNetworkServiceServer(nsMem, nseClient, expire.WithGetTimeFunc(testNowFunc()), expire.WithPeriod(testPeriod))
 	_, err = s.Register(context.Background(), &registry.NetworkService{
 		Name: "IP terminator",
 	})

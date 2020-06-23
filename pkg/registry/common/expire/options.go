@@ -14,5 +14,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package expire provides wrappers for handling resources time expiration
 package expire
+
+import "time"
+
+type configurable interface {
+	setGetTimeFunc(func() int64)
+	setPeriod(time.Duration)
+}
+
+type option interface {
+	apply(configurable)
+}
+
+type applierFunc func(configurable)
+
+func (f applierFunc) apply(c configurable) {
+	f(c)
+}
+
+// WithGetTimeFunc sets specific function to get current time
+func WithGetTimeFunc(f func() int64) option {
+	return applierFunc(func(c configurable) {
+		c.setGetTimeFunc(f)
+	})
+}
+
+// WithPeriod sets specific period to checking expiration
+func WithPeriod(duration time.Duration) option {
+	return applierFunc(func(c configurable) {
+		c.setPeriod(duration)
+	})
+}

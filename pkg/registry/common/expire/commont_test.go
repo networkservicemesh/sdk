@@ -14,5 +14,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package expire provides wrappers for handling resources time expiration
-package expire
+package expire_test
+
+import "time"
+
+const testPeriod = time.Millisecond * 50
+
+func testNowFunc() func() int64 {
+	return func() int64 {
+		return time.Now().UnixNano()
+	}
+}
