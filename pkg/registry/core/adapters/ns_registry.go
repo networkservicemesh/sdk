@@ -18,8 +18,8 @@ package adapters
 
 import (
 	"context"
+	"errors"
 	"io"
-	"strings"
 
 	"google.golang.org/grpc"
 
@@ -49,7 +49,7 @@ func (n *networkServiceRegistryServer) Find(query *registry.NetworkServiceQuery,
 		}
 		msg, err := client.Recv()
 		if err != nil {
-			if strings.HasSuffix(err.Error(), io.EOF.Error()) {
+			if errors.Is(err, io.EOF) {
 				return nil
 			}
 			return err
