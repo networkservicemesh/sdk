@@ -29,7 +29,6 @@ import (
 const (
 	nextServerKey contextKeyType = "NextServer"
 	nextClientKey contextKeyType = "NextClient"
-	nextDone      contextKeyType = "NextDone"
 )
 
 type contextKeyType string
@@ -41,7 +40,7 @@ func withNextServer(parent context.Context, next networkservice.NetworkServiceSe
 	if parent == nil {
 		parent = context.TODO()
 	}
-	return withDone(context.WithValue(parent, nextServerKey, next))
+	return context.WithValue(parent, nextServerKey, next)
 }
 
 // Server -
@@ -61,7 +60,7 @@ func withNextClient(parent context.Context, next networkservice.NetworkServiceCl
 	if parent == nil {
 		parent = context.TODO()
 	}
-	return withDone(context.WithValue(parent, nextClientKey, next))
+	return context.WithValue(parent, nextClientKey, next)
 }
 
 // Client -
@@ -72,32 +71,4 @@ func Client(ctx context.Context) networkservice.NetworkServiceClient {
 		return rv
 	}
 	return &tailClient{}
-}
-
-func withDone(ctx context.Context) context.Context {
-	if v := ctx.Value(nextDone); v != nil {
-		if b, ok := v.(*bool); ok {
-			*b = false
-			return ctx
-		}
-	}
-	d := false
-	return context.WithValue(ctx, nextDone, &d)
-}
-
-// Done returns true if tail element in the chain has been called
-func Done(ctx context.Context) bool {
-	if val, ok := ctx.Value(nextDone).(*bool); ok {
-		return *val
-	}
-	return false
-}
-
-func done(ctx context.Context) {
-	if ctx == nil {
-		return
-	}
-	if val, ok := ctx.Value(nextDone).(*bool); ok {
-		*val = true
-	}
 }

@@ -30,11 +30,9 @@ import (
 type tailClient struct{}
 
 func (t *tailClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, _ ...grpc.CallOption) (*networkservice.Connection, error) {
-	done(ctx)
 	return request.GetConnection(), nil
 }
 
 func (t *tailClient) Close(ctx context.Context, _ *networkservice.Connection, _ ...grpc.CallOption) (*empty.Empty, error) {
-	done(ctx)
 	return &empty.Empty{}, nil
 }

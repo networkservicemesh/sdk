@@ -33,11 +33,12 @@ type clientToServer struct {
 
 // NewClientToServer - returns a networkservice.NetworkServiceServer wrapped around the supplied client
 func NewClientToServer(client networkservice.NetworkServiceClient) networkservice.NetworkServiceServer {
-	return &clientToServer{client: client}
+	return &clientToServer{client: next.NewNetworkServiceClient(client, &doneClient{})}
 }
 
 func (c *clientToServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	conn, err := c.client.Request(ctx, request)
+	doneCtx := withDone(ctx)
+	conn, err := c.client.Request(doneCtx, request)
 	if err != nil {
 		return nil, err
 	}
@@ -45,18 +46,19 @@ func (c *clientToServer) Request(ctx context.Context, request *networkservice.Ne
 		request = &networkservice.NetworkServiceRequest{}
 	}
 	request.Connection = conn
-	if !next.Done(ctx) {
+	if !isDone(doneCtx) {
 		return conn, nil
 	}
 	return next.Server(ctx).Request(ctx, request)
 }
 
 func (c *clientToServer) Close(ctx context.Context, request *networkservice.Connection) (*empty.Empty, error) {
-	conn, err := c.client.Close(ctx, request)
+	doneCtx := withDone(ctx)
+	conn, err := c.client.Close(doneCtx, request)
 	if err != nil {
 		return nil, err
 	}
-	if !next.Done(ctx) {
+	if !isDone(doneCtx) {
 		return conn, nil
 	}
 	return next.Server(ctx).Close(ctx, request)
