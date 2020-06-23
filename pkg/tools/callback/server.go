@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -30,6 +31,10 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
+)
+
+const (
+	callbackPrefix = "callback:"
 )
 
 // ClientListener - inform server about new client is arrived or disconnected.
@@ -74,11 +79,6 @@ func NewServer(provider IdentityProvider) Server {
 	}
 }
 
-// WithCallbackDialer - return a grpc.DialOption with callback server inside to perform a dial
-func WithCallbackDialer(server Server, target string) grpc.DialOption {
-	return server.WithCallbackDialer()
-}
-
 // AddListener - add listener to client, to be informed abount new clients are joined.
 func (s *serverImpl) AddListener(listener ClientListener) {
 	s.lock.Lock()
@@ -99,8 +99,7 @@ func (s *serverImpl) HandleCallbacks(serverClient CallbackService_HandleCallback
 
 	ctx, cancelFunc := context.WithCancel(serverClient.Context())
 	defer cancelFunc()
-
-	handleID := fmt.Sprintf("callback:%v", clientID)
+	handleID := fmt.Sprintf("%s%v", callbackPrefix, clientID)
 
 	conn, addErr := s.addConnection(handleID, serverClient)
 	if addErr != nil {
@@ -164,10 +163,15 @@ func (s *serverImpl) WithCallbackDialer() grpc.DialOption {
 		srv, ok := s.connections[target]
 		if ok {
 			if srv.created {
-				log.Entry(ctx).Errorf("Failed to connect to callback: %v", errors.New("Client is already created"))
+				err := errors.New("Client is already created")
+				log.Entry(ctx).Errorf("Failed to connect to callback: %v", err)
+				return nil, err
 			}
 			srv.created = true
 			return newConnection(ctx, srv.cancel, srv.server), nil
+		}
+		if strings.HasPrefix(target, callbackPrefix) {
+			return nil, errors.New("no callback connection is registred")
 		}
 		network, addr := grpcutils.TargetToNetAddr(target)
 		return (&net.Dialer{}).DialContext(ctx, network, addr)

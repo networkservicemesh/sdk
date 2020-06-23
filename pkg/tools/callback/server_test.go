@@ -197,7 +197,7 @@ func TestServerClientInvoke(t *testing.T) {
 	clientID := server.waitClient(server, client, t)
 
 	// Do a normal GRPC stuff inside.
-	nsmClientGRPC, err3 := grpc.DialContext(context.Background(), clientID, callback.WithCallbackDialer(server.callbackServer, clientID), grpc.WithInsecure(), grpc.WithBlock())
+	nsmClientGRPC, err3 := grpc.DialContext(context.Background(), clientID, server.callbackServer.WithCallbackDialer(), grpc.WithInsecure(), grpc.WithBlock())
 	require.Nil(t, err3)
 	defer func() { _ = nsmClientGRPC.Close() }()
 	nsmClient := networkservice.NewNetworkServiceClient(nsmClientGRPC)
@@ -227,7 +227,7 @@ func TestServerClientInvokeNoSecurity(t *testing.T) {
 	clientID := server.waitClient(server, client, t)
 
 	// Do a normal GRPC stuff inside.
-	nsmClientGRPC, err3 := grpc.DialContext(context.Background(), clientID, callback.WithCallbackDialer(server.callbackServer, clientID))
+	nsmClientGRPC, err3 := grpc.DialContext(context.Background(), clientID, server.callbackServer.WithCallbackDialer())
 	require.NotNil(t, err3)
 	require.Nil(t, nsmClientGRPC)
 }
@@ -247,7 +247,7 @@ func TestServerClientInvokeClose(t *testing.T) {
 	clientID := server.waitClient(server, client, t)
 
 	// Do a normal GRPC stuff inside.
-	nsmClientGRPC, err3 := grpc.DialContext(context.Background(), clientID, callback.WithCallbackDialer(server.callbackServer, clientID), grpc.WithInsecure())
+	nsmClientGRPC, err3 := grpc.DialContext(context.Background(), clientID, server.callbackServer.WithCallbackDialer(), grpc.WithInsecure())
 	require.NotNil(t, nsmClientGRPC)
 	require.Nil(t, err3)
 	err4 := nsmClientGRPC.Close()
@@ -317,7 +317,7 @@ func TestServerClientInvokeWithPeerAuth(t *testing.T) {
 	clientID := server.waitClient(server, client, t)
 
 	// Do a normal GRPC stuff inside.
-	nsmClientGRPC, err3 := grpc.DialContext(context.Background(), clientID, callback.WithCallbackDialer(server.callbackServer, clientID), grpc.WithInsecure())
+	nsmClientGRPC, err3 := grpc.DialContext(context.Background(), clientID, server.callbackServer.WithCallbackDialer(), grpc.WithInsecure())
 	defer func() { _ = nsmClientGRPC.Close() }()
 	require.Nil(t, err3)
 	nsmClient := networkservice.NewNetworkServiceClient(nsmClientGRPC)
@@ -401,7 +401,7 @@ func BenchmarkServerClientInvoke(b *testing.B) {
 	clientID := server.waitClient(server, client, b)
 
 	// Do a normal GRPC stuff inside.
-	nsmClientGRPC, err3 := grpc.DialContext(context.Background(), clientID, callback.WithCallbackDialer(server.callbackServer, clientID), grpc.WithInsecure())
+	nsmClientGRPC, err3 := grpc.DialContext(context.Background(), clientID, server.callbackServer.WithCallbackDialer(), grpc.WithInsecure())
 	require.Nil(b, err3)
 	nsmClient := networkservice.NewNetworkServiceClient(nsmClientGRPC)
 
@@ -525,7 +525,7 @@ func TestServerClientConnectionMonitor(t *testing.T) {
 	}
 	callbackServer.AddListener(ids)
 	clientID := waitClientConnected(callbackClient, t, ids)
-	nsmClientGRPC, err3 := grpc.DialContext(context.Background(), clientID, callback.WithCallbackDialer(callbackServer, clientID), grpc.WithInsecure())
+	nsmClientGRPC, err3 := grpc.DialContext(context.Background(), clientID, callbackServer.WithCallbackDialer(), grpc.WithInsecure())
 	defer func() { _ = nsmClientGRPC.Close() }()
 	require.Nil(t, err3)
 	nsmClient := networkservice.NewMonitorConnectionClient(nsmClientGRPC)
