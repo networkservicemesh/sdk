@@ -44,10 +44,10 @@ func (d *nseImpl) MonitorConnections(selector *networkservice.MonitorScopeSelect
 }
 
 // NewNSE construct a new NSE with callback up and running on grpc server, listenOn is updated if :0 port is passed.
-func NewNSE(ctx context.Context, listenOn *url.URL, update func(request *networkservice.NetworkServiceRequest)) (networkservice.NetworkServiceServer, *grpc.Server, <-chan error) {
+func NewNSE(ctx context.Context, listenOn *url.URL, update func(request *networkservice.NetworkServiceRequest), opt ...grpc.ServerOption) (networkservice.NetworkServiceServer, *grpc.Server, <-chan error) {
 	nse := &nseImpl{
 		listenOn: listenOn,
-		server:   grpc.NewServer(),
+		server:   grpc.NewServer(opt...),
 		update:   update,
 	}
 	networkservice.RegisterNetworkServiceServer(nse.server, nse)
