@@ -61,8 +61,8 @@ func (s *setMgrServer) Unregister(ctx context.Context, endpoint *registry.Networ
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, endpoint)
 }
 
-// NewServer creates new instance of NetworkServiceEndpointRegistryServer which set the passed NSMgr url
-func NewServer(u string) registry.NetworkServiceEndpointRegistryServer {
+// NewNetworkServiceEndpointRegistryServer creates new instance of NetworkServiceEndpointRegistryServer which set the passed NSMgr url
+func NewNetworkServiceEndpointRegistryServer(u string) registry.NetworkServiceEndpointRegistryServer {
 	return &setMgrServer{
 		managerURL: u,
 	}
