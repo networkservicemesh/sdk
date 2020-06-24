@@ -39,8 +39,8 @@ func TestNewNetworkServiceRegistryServer(t *testing.T) {
 		memory.NewNetworkServiceEndpointRegistryServer(),
 	)
 	_, err := nseMem.Register(context.Background(), &registry.NetworkServiceEndpoint{
-		NetworkServiceName: []string{"IP terminator"},
-		ExpirationTime:     &timestamp.Timestamp{Seconds: now() + int64(testPeriod*2)},
+		NetworkServiceNames: []string{"IP terminator"},
+		ExpirationTime:      &timestamp.Timestamp{Seconds: now() + int64(testPeriod*2)},
 	})
 	require.Nil(t, err)
 	nseClient := adapters.NetworkServiceEndpointServerToClient(nseMem)

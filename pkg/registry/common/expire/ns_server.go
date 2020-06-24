@@ -61,7 +61,7 @@ func (n *nsServer) monitor() {
 			nse := event
 			n.Lock()
 			n.nses[nse.Name] = nse
-			for _, service := range nse.NetworkServiceName {
+			for _, service := range nse.NetworkServiceNames {
 				n.nsCounter[service]++
 			}
 			n.Unlock()
@@ -72,7 +72,7 @@ func (n *nsServer) monitor() {
 			var list []*registry.NetworkService
 			n.Lock()
 			for _, nse := range getExpiredNSEs(n.nses, n.now()) {
-				for _, service := range nse.NetworkServiceName {
+				for _, service := range nse.NetworkServiceNames {
 					n.nsCounter[service]--
 					if n.nsCounter[service] == 0 {
 						ns, ok := n.nss[service]
