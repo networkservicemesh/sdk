@@ -33,19 +33,19 @@ import (
 )
 
 func TestNewNetworkServiceRegistryServer(t *testing.T) {
-	now := testNowFunc()
+	nowFunc := testNowFunc()
 	nseMem := next.NewNetworkServiceEndpointRegistryServer(
 		setid.NewNetworkServiceEndpointRegistryServer(),
 		memory.NewNetworkServiceEndpointRegistryServer(),
 	)
 	_, err := nseMem.Register(context.Background(), &registry.NetworkServiceEndpoint{
 		NetworkServiceNames: []string{"IP terminator"},
-		ExpirationTime:      &timestamp.Timestamp{Seconds: now() + int64(testPeriod*2)},
+		ExpirationTime:      &timestamp.Timestamp{Seconds: nowFunc() + int64(testPeriod*2)},
 	})
 	require.Nil(t, err)
 	nseClient := adapters.NetworkServiceEndpointServerToClient(nseMem)
 	nsMem := memory.NewNetworkServiceRegistryServer()
-	s := expire.NewNetworkServiceServer(nsMem, nseClient, expire.WithGetTimeFunc(testNowFunc()), expire.WithPeriod(testPeriod))
+	s := expire.NewNetworkServiceServer(nsMem, nseClient, expire.WithGetTimeFunc(nowFunc), expire.WithPeriod(testPeriod))
 	_, err = s.Register(context.Background(), &registry.NetworkService{
 		Name: "IP terminator",
 	})

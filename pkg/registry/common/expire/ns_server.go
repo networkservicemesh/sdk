@@ -33,7 +33,7 @@ type nsServer struct {
 	period     time.Duration
 	monitorErr error
 	nses       map[string]*registry.NetworkServiceEndpoint
-	nsCounter  map[string]int
+	nsCounter  map[string]int64
 	nss        map[string]*registry.NetworkService
 	now        func() int64
 	sync.Mutex
@@ -47,8 +47,8 @@ func (n *nsServer) setPeriod(d time.Duration) {
 	n.period = d
 }
 
-func (n *nsServer) monitor() {
-	go func() {
+func (n *nsServer) monitorUpdates() {
+	for {
 		c, err := n.nseClient.Find(context.Background(), &registry.NetworkServiceEndpointQuery{
 			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{},
 			Watch:                  true,
@@ -60,36 +60,49 @@ func (n *nsServer) monitor() {
 		for event := range registry.ReadNetworkServiceEndpointChannel(c) {
 			nse := event
 			n.Lock()
+			_, exist := n.nses[nse.Name]
 			n.nses[nse.Name] = nse
-			for _, service := range nse.NetworkServiceNames {
-				n.nsCounter[service]++
+			if !exist {
+				for _, service := range nse.NetworkServiceNames {
+					n.nsCounter[service]++
+				}
 			}
 			n.Unlock()
 		}
-	}()
-	go func() {
-		for {
-			var list []*registry.NetworkService
-			n.Lock()
-			for _, nse := range getExpiredNSEs(n.nses, n.now()) {
-				for _, service := range nse.NetworkServiceNames {
-					n.nsCounter[service]--
-					if n.nsCounter[service] == 0 {
-						ns, ok := n.nss[service]
-						if ok {
-							list = append(list, ns)
-						}
+	}
+}
+
+func (n *nsServer) monitorNSEsExpiration() {
+	for {
+		var list []*registry.NetworkService
+		n.Lock()
+		for _, nse := range getExpiredNSEs(n.nses, n.now()) {
+			for _, service := range nse.NetworkServiceNames {
+				n.nsCounter[service]--
+				if n.nsCounter[service] == 0 {
+					ns, ok := n.nss[service]
+					if ok {
+						list = append(list, ns)
 					}
 				}
 			}
-			for _, ns := range list {
-				delete(n.nsCounter, ns.Name)
-				delete(n.nss, ns.Name)
-				_, _ = n.server.Unregister(context.Background(), ns)
-			}
-			n.Unlock()
-			<-time.After(n.period)
 		}
+		for _, ns := range list {
+			delete(n.nsCounter, ns.Name)
+			delete(n.nss, ns.Name)
+			_, _ = n.server.Unregister(context.Background(), ns)
+		}
+		n.Unlock()
+		<-time.After(n.period)
+	}
+}
+
+func (n *nsServer) monitor() {
+	go func() {
+		n.monitorUpdates()
+	}()
+	go func() {
+		n.monitorNSEsExpiration()
 	}()
 }
 
@@ -133,7 +146,7 @@ func NewNetworkServiceServer(s registry.NetworkServiceRegistryServer, nseClient 
 		server:    s,
 		nseClient: nseClient,
 		now:       defaultNowFunc(),
-		nsCounter: make(map[string]int),
+		nsCounter: map[string]int64{},
 		nss:       map[string]*registry.NetworkService{},
 		nses:      map[string]*registry.NetworkServiceEndpoint{},
 	}

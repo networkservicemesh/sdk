@@ -31,10 +31,10 @@ import (
 )
 
 func TestNewNetworkServiceEndpointRegistryServer(t *testing.T) {
-	now := testNowFunc()
-	s := expire.NewNetworkServiceEndpointRegistryServer(memory.NewNetworkServiceEndpointRegistryServer(), expire.WithGetTimeFunc(testNowFunc()), expire.WithPeriod(testPeriod))
+	nowFunc := testNowFunc()
+	s := expire.NewNetworkServiceEndpointRegistryServer(memory.NewNetworkServiceEndpointRegistryServer(), expire.WithGetTimeFunc(nowFunc), expire.WithPeriod(testPeriod))
 	_, err := s.Register(context.Background(), &registry.NetworkServiceEndpoint{
-		ExpirationTime: &timestamp.Timestamp{Seconds: now() + int64(testPeriod*2)},
+		ExpirationTime: &timestamp.Timestamp{Seconds: nowFunc() + int64(testPeriod*2)},
 	})
 	require.Nil(t, err)
 	c := adapters.NetworkServiceEndpointServerToClient(s)
