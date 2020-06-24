@@ -36,7 +36,7 @@ func MatchNetworkServiceEndpoints(left, right *registry.NetworkServiceEndpoint) 
 	return (left.Name == "" || matchString(right.Name, left.Name)) &&
 		(left.NetworkServiceLabels == nil || reflect.DeepEqual(left.NetworkServiceLabels, right.NetworkServiceLabels)) &&
 		(left.ExpirationTime == nil || left.ExpirationTime.Seconds == right.ExpirationTime.Seconds) &&
-		(left.NetworkServiceName == nil || reflect.DeepEqual(left.NetworkServiceName, right.NetworkServiceName)) &&
+		(left.NetworkServiceNames == nil || reflect.DeepEqual(left.NetworkServiceNames, right.NetworkServiceNames)) &&
 		(left.Url == "" || matchString(right.Url, left.Url))
 }
 

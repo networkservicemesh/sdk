@@ -61,7 +61,7 @@ func nameOf(endpoint *registry.NetworkServiceEndpoint) string {
 	if endpoint.Name != "" {
 		return endpoint.Name
 	}
-	return fmt.Sprintf("%v-%v", strings.Join(endpoint.NetworkServiceName, "-"), uuid.New().String())
+	return fmt.Sprintf("%v-%v", strings.Join(endpoint.NetworkServiceNames, "-"), uuid.New().String())
 }
 
 var _ registry.NetworkServiceEndpointRegistryServer = &setIDNetworkServiceEndpointRegistryServer{}

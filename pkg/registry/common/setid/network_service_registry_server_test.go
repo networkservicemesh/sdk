@@ -29,7 +29,7 @@ import (
 func TestSetIDNetworkServiceRegistryServer_RegisterNSE(t *testing.T) {
 	s := setid.NewNetworkServiceEndpointRegistryServer()
 	nse := &registry.NetworkServiceEndpoint{
-		NetworkServiceName: []string{"ns-1"},
+		NetworkServiceNames: []string{"ns-1"},
 	}
 	resp, err := s.Register(context.Background(), nse)
 	require.Nil(t, err)
