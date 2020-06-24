@@ -103,7 +103,7 @@ func TestNewServer_UnixAddressRegistered(t *testing.T) {
 	localBypassNetworkServiceServer := localbypass.NewServer(&localBypassRegistryServer)
 	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
 
-	srv := chain.NewNetworkServiceEndpointRegistryServer(seturl.NewServer("tcp:127.0.0.1:5002"), localBypassRegistryServer)
+	srv := chain.NewNetworkServiceEndpointRegistryServer(seturl.NewNetworkServiceEndpointRegistryServer("tcp:127.0.0.1:5002"), localBypassRegistryServer)
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			NetworkServiceEndpointName: "nse-1",
@@ -134,7 +134,7 @@ func TestNewServer_NonUnixAddressRegistered(t *testing.T) {
 	var localBypassRegistryServer registry.NetworkServiceEndpointRegistryServer
 	localBypassNetworkServiceServer := localbypass.NewServer(&localBypassRegistryServer)
 	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
-	srv := chain.NewNetworkServiceEndpointRegistryServer(seturl.NewServer("tcp:127.0.0.1:5002"), localBypassRegistryServer)
+	srv := chain.NewNetworkServiceEndpointRegistryServer(seturl.NewNetworkServiceEndpointRegistryServer("tcp:127.0.0.1:5002"), localBypassRegistryServer)
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			NetworkServiceEndpointName: "nse-1",
@@ -167,7 +167,7 @@ func TestNewServer_AddsNothingAfterNSERemoval(t *testing.T) {
 	var localBypassRegistryServer registry.NetworkServiceEndpointRegistryServer
 	localBypassNetworkServiceServer := localbypass.NewServer(&localBypassRegistryServer)
 	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
-	srv := chain.NewNetworkServiceEndpointRegistryServer(seturl.NewServer("tcp:127.0.0.1:5002"), localBypassRegistryServer)
+	srv := chain.NewNetworkServiceEndpointRegistryServer(seturl.NewNetworkServiceEndpointRegistryServer("tcp:127.0.0.1:5002"), localBypassRegistryServer)
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			NetworkServiceEndpointName: "nse-1",
