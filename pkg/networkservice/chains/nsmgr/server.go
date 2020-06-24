@@ -101,8 +101,8 @@ func NewServer(nsmRegistration *registryapi.NetworkServiceEndpoint, authzServer 
 	nsChain := chain_registry.NewNetworkServiceRegistryServer(nsRegistry)
 	nseChain := chain_registry.NewNetworkServiceEndpointRegistryServer(
 		seturl.NewNetworkServiceEndpointRegistryServer(nsmRegistration.Url), // Remember endpoint URL
-		nseRegistry,                           // Register NSE inside Remote registry with ID assigned
-		localbypassRegistryServer,             // Store endpoint Id to EndpointURL for local access.
+		nseRegistry,               // Register NSE inside Remote registry with ID assigned
+		localbypassRegistryServer, // Store endpoint Id to EndpointURL for local access.
 	)
 	rv.Registry = registry.NewServer(nsChain, nseChain)
 
