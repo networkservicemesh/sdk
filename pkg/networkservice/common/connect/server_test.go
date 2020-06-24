@@ -166,34 +166,6 @@ func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 	})
 }
 
-func TestDialFactoryRequest(t *testing.T) {
-	defer goleak.VerifyNone(t)
-
-	nseT := &nseTest{}
-	nseT.Setup()
-	defer nseT.Stop()
-	require.NotPanics(t, func() {
-		s := NewServer(client.NewClientFactory("nsc", nil, TokenGenerator),
-			WithDialOptionFactory(func(ctx context.Context, clientURL *url.URL) []grpc.DialOption {
-				return []grpc.DialOption{grpc.WithInsecure()}
-			}))
-		ctx := nseT.newNSEContext(context.Background())
-		conn, err := s.Request(ctx, &networkservice.NetworkServiceRequest{
-			Connection: &networkservice.Connection{
-				Id: "1",
-				Path: &networkservice.Path{
-					PathSegments: []*networkservice.PathSegment{},
-				},
-			},
-		})
-		require.Nil(t, err)
-		require.NotNil(t, conn)
-
-		_, err = s.Close(ctx, conn)
-
-		require.Nil(t, err)
-	})
-}
 func TestParallelDial(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
@@ -201,10 +173,7 @@ func TestParallelDial(t *testing.T) {
 	nseT.Setup()
 	defer nseT.Stop()
 
-	s := NewServer(client.NewClientFactory("nsc", nil, TokenGenerator),
-		WithDialOptionFactory(func(ctx context.Context, clientURL *url.URL) []grpc.DialOption {
-			return []grpc.DialOption{grpc.WithInsecure()}
-		}))
+	s := NewServer(client.NewClientFactory("nsc", nil, TokenGenerator), grpc.WithInsecure())
 	var wg sync.WaitGroup
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
