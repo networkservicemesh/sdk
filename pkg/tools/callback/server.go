@@ -21,12 +21,20 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+)
+
+const (
+	callbackPrefix = "callback:"
 )
 
 // ClientListener - inform server about new client is arrived or disconnected.
@@ -38,6 +46,7 @@ type ClientListener interface {
 // Server - a callback server, hold client callback connections and allow to provide client
 type Server interface {
 	AddListener(listener ClientListener)
+	WithCallbackDialer() grpc.DialOption
 	CallbackServiceServer
 }
 
@@ -70,15 +79,6 @@ func NewServer(provider IdentityProvider) Server {
 	}
 }
 
-// WithCallbackDialer - return a grpc.DialOption with callback server inside to perform a dial
-func WithCallbackDialer(server CallbackServiceServer, target string) grpc.DialOption {
-	dialFunc, err := server.(*serverImpl).dial(target)
-	if err != nil {
-		logrus.Errorf("Failed to connect to callback: %v", err)
-	}
-	return grpc.WithContextDialer(dialFunc)
-}
-
 // AddListener - add listener to client, to be informed abount new clients are joined.
 func (s *serverImpl) AddListener(listener ClientListener) {
 	s.lock.Lock()
@@ -99,8 +99,7 @@ func (s *serverImpl) HandleCallbacks(serverClient CallbackService_HandleCallback
 
 	ctx, cancelFunc := context.WithCancel(serverClient.Context())
 	defer cancelFunc()
-
-	handleID := fmt.Sprintf("callback:%v", clientID)
+	handleID := fmt.Sprintf("%s%v", callbackPrefix, clientID)
 
 	conn, addErr := s.addConnection(handleID, serverClient)
 	if addErr != nil {
@@ -156,21 +155,25 @@ type serverClientConnImpl struct {
 	lock      sync.Mutex
 }
 
-func (s *serverImpl) dial(target string) (func(context.Context, string) (net.Conn, error), error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	srv, ok := s.connections[target]
-	if ok {
-		if srv.created {
-			return nil, errors.New("Client is already created")
-		}
-		srv.created = true
-		return func(ctx context.Context, target string) (net.Conn, error) {
-			srv.lock.Lock()
-			defer srv.lock.Unlock()
+// WithCallbackDialer - return a grpc.DialOption with callback server inside to perform a dial
+func (s *serverImpl) WithCallbackDialer() grpc.DialOption {
+	return grpc.WithContextDialer(func(ctx context.Context, target string) (net.Conn, error) {
+		s.lock.Lock()
+		defer s.lock.Unlock()
+		srv, ok := s.connections[target]
+		if ok {
+			if srv.created {
+				err := errors.New("Client is already created")
+				log.Entry(ctx).Errorf("Failed to connect to callback: %v", err)
+				return nil, err
+			}
+			srv.created = true
 			return newConnection(ctx, srv.cancel, srv.server), nil
-		}, nil
-	}
-	// Fall over to default dial code.
-	return nil, nil
+		}
+		if strings.HasPrefix(target, callbackPrefix) {
+			return nil, errors.New("no callback connection is registred")
+		}
+		network, addr := grpcutils.TargetToNetAddr(target)
+		return (&net.Dialer{}).DialContext(ctx, network, addr)
+	})
 }
