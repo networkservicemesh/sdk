@@ -14,7 +14,7 @@ require (
 	github.com/matryer/try v0.0.0-20161228173917-9ac251b645a2
 	github.com/nats-io/nats-streaming-server v0.17.0
 	github.com/nats-io/stan.go v0.6.0
-	github.com/networkservicemesh/api v0.0.0-20200616160323-8c25fb122dcc
+	github.com/networkservicemesh/api v0.0.0-20200624081808-b4345390d693
 	github.com/open-policy-agent/opa v0.16.1
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/pkg/errors v0.9.1

@@ -103,8 +103,8 @@ func TestNSmgrEndpointCallback(t *testing.T) {
 	// Register Endpoint
 	var nseReg *registry.NetworkServiceEndpoint
 	nseReg, err = mgr.NetworkServiceEndpointRegistryServer().Register(context.Background(), &registry.NetworkServiceEndpoint{
-		NetworkServiceName: []string{nsService.Name},
-		Url:                nseURL.String(),
+		NetworkServiceNames: []string{nsService.Name},
+		Url:                 nseURL.String(),
 	})
 	require.Nil(t, err)
 	require.NotEqual(t, "", nseReg.Name)
