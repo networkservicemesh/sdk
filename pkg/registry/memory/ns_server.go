@@ -18,6 +18,8 @@ package memory
 
 import (
 	"context"
+	"errors"
+	"io"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -62,26 +64,41 @@ func (n *networkServiceRegistryServer) Find(query *registry.NetworkServiceQuery,
 	}
 	if query.Watch {
 		eventCh := make(chan *registry.NetworkService, n.eventChannelSize)
+		var index int
 		n.executor.AsyncExec(func() {
+			index = len(n.eventChannels)
 			n.eventChannels = append(n.eventChannels, eventCh)
+		})
+		defer n.executor.AsyncExec(func() {
+			n.eventChannels = append(n.eventChannels[0:index], n.eventChannels[index+1:]...)
 		})
 		err := sendAllMatches(query.NetworkService)
 		if err != nil {
 			return err
 		}
-		for {
+		notifyChannel := func() error {
 			select {
 			case <-s.Context().Done():
-				return s.Context().Err()
+				return io.EOF
 			case event := <-eventCh:
 				if matchutils.MatchNetworkServices(query.NetworkService, event) {
 					if s.Context().Err() != nil {
-						return err
+						return io.EOF
 					}
 					if err := s.Send(event); err != nil {
 						return err
 					}
 				}
+				return nil
+			}
+		}
+		for {
+			err := notifyChannel()
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			if err != nil {
+				return err
 			}
 		}
 	} else if err := sendAllMatches(query.NetworkService); err != nil {
