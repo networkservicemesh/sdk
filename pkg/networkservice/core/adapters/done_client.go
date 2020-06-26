@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,24 +14,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package next
+package adapters
 
 import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-// tailServer is a simple implementation of networkservice.NetworkServiceServer that is called at the end of a chain
-// to insure that we never call a method on a nil object
-type tailServer struct{}
+type doneServer struct{}
 
-func (t *tailServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	return request.GetConnection(), nil
+func (d *doneServer) Request(ctx context.Context, in *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	markDone(ctx)
+	return next.Server(ctx).Request(ctx, in)
 }
 
-func (t *tailServer) Close(ctx context.Context, _ *networkservice.Connection) (*empty.Empty, error) {
-	return &empty.Empty{}, nil
+func (d *doneServer) Close(ctx context.Context, in *networkservice.Connection) (*empty.Empty, error) {
+	markDone(ctx)
+	return next.Server(ctx).Close(ctx, in)
 }
+
+var _ networkservice.NetworkServiceServer = &doneServer{}

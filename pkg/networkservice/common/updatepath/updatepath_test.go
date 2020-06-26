@@ -41,7 +41,7 @@ func TestChain(t *testing.T) {
 	want := &networkservice.Connection{
 		Id: "conn-2",
 		Path: &networkservice.Path{
-			Index: 0,
+			Index: 2,
 			PathSegments: []*networkservice.PathSegment{
 				{
 					Name:    "nsc-1",
@@ -73,5 +73,5 @@ func TestChain(t *testing.T) {
 
 	got, err := server.Request(context.Background(), request)
 	assert.Equal(t, want, got)
-	assert.Equal(t, nil, err)
+	assert.NoError(t, err)
 }

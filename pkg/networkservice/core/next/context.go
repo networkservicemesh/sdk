@@ -24,8 +24,6 @@ import (
 	"context"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 )
 
 const (
@@ -49,13 +47,7 @@ func withNextServer(parent context.Context, next networkservice.NetworkServiceSe
 //   Returns the Server networkservice.NetworkServiceServer to be called in the chain from the context.Context
 func Server(ctx context.Context) networkservice.NetworkServiceServer {
 	rv, ok := ctx.Value(nextServerKey).(networkservice.NetworkServiceServer)
-	if !ok {
-		client, ok := ctx.Value(nextClientKey).(networkservice.NetworkServiceClient)
-		if ok {
-			rv = adapters.NewClientToServer(client)
-		}
-	}
-	if rv != nil {
+	if ok && rv != nil {
 		return rv
 	}
 	return &tailServer{}
@@ -75,13 +67,7 @@ func withNextClient(parent context.Context, next networkservice.NetworkServiceCl
 //   Returns the Client networkservice.NetworkServiceClient to be called in the chain from the context.Context
 func Client(ctx context.Context) networkservice.NetworkServiceClient {
 	rv, ok := ctx.Value(nextClientKey).(networkservice.NetworkServiceClient)
-	if !ok {
-		server, ok := ctx.Value(nextServerKey).(networkservice.NetworkServiceServer)
-		if ok {
-			rv = adapters.NewServerToClient(server)
-		}
-	}
-	if rv != nil {
+	if ok && rv != nil {
 		return rv
 	}
 	return &tailClient{}
