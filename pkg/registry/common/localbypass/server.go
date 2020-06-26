@@ -21,8 +21,8 @@ package localbypass
 import (
 	"context"
 	"errors"
+	"net/url"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/seturl"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/localbypass"
 
@@ -34,22 +34,34 @@ type localBypassRegistry struct {
 	sockets localbypass.SocketMap
 }
 
-func (l localBypassRegistry) Register(ctx context.Context, request *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	endpointURL := seturl.EndpointURL(ctx)
+func (l *localBypassRegistry) Register(ctx context.Context, request *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	endpointURL, err := url.Parse(request.Url)
+	if err != nil {
+		return nil, err
+	}
 	if endpointURL == nil {
 		return nil, errors.New("invalid endpoint URL passed with context")
 	}
-	l.sockets.LoadOrStore(request.Name, endpointURL)
-	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, request)
+	endpoint, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, request)
+	if err != nil {
+		return endpoint, err
+	}
+
+	l.sockets.LoadOrStore(endpoint.Name, endpointURL)
+	return endpoint, err
 }
 
-func (l localBypassRegistry) Find(query *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
+func (l *localBypassRegistry) Find(query *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
 	return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(query, s)
 }
 
-func (l localBypassRegistry) Unregister(ctx context.Context, request *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+func (l *localBypassRegistry) Unregister(ctx context.Context, request *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	resp, err := next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, request)
+	if err != nil {
+		return resp, err
+	}
 	l.sockets.Delete(request.Name)
-	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, request)
+	return resp, nil
 }
 
 // NewNetworkServiceRegistryServer - creates a NetworkServiceRegistryServer that registers local Endpoints
