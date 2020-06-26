@@ -24,19 +24,13 @@ import (
 
 const defaultPeriod = time.Second * 5
 
-func defaultNowFunc() func() int64 {
-	return func() int64 {
-		return time.Now().Unix()
-	}
-}
-
-func getExpiredNSEs(nseMap map[string]*registry.NetworkServiceEndpoint, now int64) []*registry.NetworkServiceEndpoint {
+func getExpiredNSEs(nseMap map[string]*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
 	var list []*registry.NetworkServiceEndpoint
 	for _, v := range nseMap {
 		if v.ExpirationTime == nil {
 			continue
 		}
-		if now >= v.ExpirationTime.Seconds {
+		if time.Until(time.Unix(v.ExpirationTime.Seconds, int64(v.ExpirationTime.Nanos))) <= 0 {
 			list = append(list, v)
 		}
 	}

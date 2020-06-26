@@ -31,11 +31,6 @@ type nseServer struct {
 	period    time.Duration
 	once      sync.Once
 	server    registry.NetworkServiceEndpointRegistryServer
-	now       func() int64
-}
-
-func (n *nseServer) setGetTimeFunc(f func() int64) {
-	n.now = f
 }
 
 func (n *nseServer) setPeriod(d time.Duration) {
@@ -59,17 +54,21 @@ func (n *nseServer) Find(query *registry.NetworkServiceEndpointQuery, s registry
 }
 
 func (n *nseServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	resp, err := n.server.Unregister(ctx, nse)
+	if err != nil {
+		return nil, err
+	}
 	n.nsesMutex.Lock()
 	delete(n.nses, nse.Name)
 	n.nsesMutex.Unlock()
-	return n.server.Unregister(ctx, nse)
+	return resp, nil
 }
 
 func (n *nseServer) monitor() {
 	go func() {
 		for {
 			n.nsesMutex.Lock()
-			for _, nse := range getExpiredNSEs(n.nses, n.now()) {
+			for _, nse := range getExpiredNSEs(n.nses) {
 				delete(n.nses, nse.Name)
 				_, _ = n.server.Unregister(context.Background(), nse)
 			}
@@ -81,12 +80,11 @@ func (n *nseServer) monitor() {
 }
 
 // NewNetworkServiceEndpointRegistryServer wraps passed NetworkServiceEndpointRegistryServer and monitor Network service endpoints
-func NewNetworkServiceEndpointRegistryServer(server registry.NetworkServiceEndpointRegistryServer, options ...option) registry.NetworkServiceEndpointRegistryServer {
+func NewNetworkServiceEndpointRegistryServer(server registry.NetworkServiceEndpointRegistryServer, options ...Option) registry.NetworkServiceEndpointRegistryServer {
 	r := &nseServer{
 		server: server,
 		period: defaultPeriod,
 		nses:   map[string]*registry.NetworkServiceEndpoint{},
-		now:    defaultNowFunc(),
 	}
 
 	for _, o := range options {

@@ -35,12 +35,7 @@ type nsServer struct {
 	nses       map[string]*registry.NetworkServiceEndpoint
 	nsCounter  map[string]int64
 	nss        map[string]*registry.NetworkService
-	now        func() int64
 	sync.Mutex
-}
-
-func (n *nsServer) setGetTimeFunc(f func() int64) {
-	n.now = f
 }
 
 func (n *nsServer) setPeriod(d time.Duration) {
@@ -76,7 +71,7 @@ func (n *nsServer) monitorNSEsExpiration() {
 	for {
 		var list []*registry.NetworkService
 		n.Lock()
-		for _, nse := range getExpiredNSEs(n.nses, n.now()) {
+		for _, nse := range getExpiredNSEs(n.nses) {
 			for _, service := range nse.NetworkServiceNames {
 				n.nsCounter[service]--
 				if n.nsCounter[service] == 0 {
@@ -141,11 +136,10 @@ func (n *nsServer) Unregister(ctx context.Context, request *registry.NetworkServ
 }
 
 // NewNetworkServiceServer wraps passed NetworkServiceRegistryServer and monitor NetworkServiceEndpoints via passed NetworkServiceEndpointRegistryClient
-func NewNetworkServiceServer(s registry.NetworkServiceRegistryServer, nseClient registry.NetworkServiceEndpointRegistryClient, options ...option) registry.NetworkServiceRegistryServer {
+func NewNetworkServiceServer(s registry.NetworkServiceRegistryServer, nseClient registry.NetworkServiceEndpointRegistryClient, options ...Option) registry.NetworkServiceRegistryServer {
 	r := &nsServer{
 		server:    s,
 		nseClient: nseClient,
-		now:       defaultNowFunc(),
 		nsCounter: map[string]int64{},
 		nss:       map[string]*registry.NetworkService{},
 		nses:      map[string]*registry.NetworkServiceEndpoint{},

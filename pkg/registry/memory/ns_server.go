@@ -117,7 +117,7 @@ func (n *networkServiceRegistryServer) setEventChannelSize(l int) {
 }
 
 // NewNetworkServiceRegistryServer creates new memory based NetworkServiceRegistryServer
-func NewNetworkServiceRegistryServer(options ...option) registry.NetworkServiceRegistryServer {
+func NewNetworkServiceRegistryServer(options ...Option) registry.NetworkServiceRegistryServer {
 	r := &networkServiceRegistryServer{eventChannelSize: defaultEventChannelSize}
 	for _, o := range options {
 		o.apply(r)

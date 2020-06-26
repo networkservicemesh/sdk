@@ -33,19 +33,22 @@ import (
 )
 
 func TestNewNetworkServiceRegistryServer(t *testing.T) {
-	nowFunc := testNowFunc()
 	nseMem := next.NewNetworkServiceEndpointRegistryServer(
 		setid.NewNetworkServiceEndpointRegistryServer(),
 		memory.NewNetworkServiceEndpointRegistryServer(),
 	)
+	expiration := time.Now().Add(testPeriod * 2)
 	_, err := nseMem.Register(context.Background(), &registry.NetworkServiceEndpoint{
 		NetworkServiceNames: []string{"IP terminator"},
-		ExpirationTime:      &timestamp.Timestamp{Seconds: nowFunc() + int64(testPeriod*2)},
+		ExpirationTime: &timestamp.Timestamp{
+			Seconds: expiration.Unix(),
+			Nanos:   int32(expiration.Nanosecond()),
+		},
 	})
 	require.Nil(t, err)
 	nseClient := adapters.NetworkServiceEndpointServerToClient(nseMem)
 	nsMem := memory.NewNetworkServiceRegistryServer()
-	s := expire.NewNetworkServiceServer(nsMem, nseClient, expire.WithGetTimeFunc(nowFunc), expire.WithPeriod(testPeriod))
+	s := expire.NewNetworkServiceServer(nsMem, nseClient, expire.WithPeriod(testPeriod))
 	_, err = s.Register(context.Background(), &registry.NetworkService{
 		Name: "IP terminator",
 	})
@@ -57,6 +60,46 @@ func TestNewNetworkServiceRegistryServer(t *testing.T) {
 	require.Nil(t, err)
 	list := registry.ReadNetworkServiceList(stream)
 	require.NotEmpty(t, list)
+	<-time.After(testPeriod * 3)
+	stream, err = nsClient.Find(context.Background(), &registry.NetworkServiceQuery{
+		NetworkService: &registry.NetworkService{},
+	})
+	require.Nil(t, err)
+	list = registry.ReadNetworkServiceList(stream)
+	require.Empty(t, list)
+}
+
+func TestNewNetworkServiceRegistryServer_NSEUnregister(t *testing.T) {
+	nseMem := next.NewNetworkServiceEndpointRegistryServer(
+		setid.NewNetworkServiceEndpointRegistryServer(),
+		memory.NewNetworkServiceEndpointRegistryServer(),
+	)
+	expiration := time.Now().Add(time.Hour)
+	nse, err := nseMem.Register(context.Background(), &registry.NetworkServiceEndpoint{
+		NetworkServiceNames: []string{"IP terminator"},
+		ExpirationTime: &timestamp.Timestamp{
+			Seconds: expiration.Unix(),
+			Nanos:   int32(expiration.Nanosecond()),
+		},
+	})
+	require.Nil(t, err)
+	nseClient := adapters.NetworkServiceEndpointServerToClient(nseMem)
+	nsMem := memory.NewNetworkServiceRegistryServer()
+	s := expire.NewNetworkServiceServer(nsMem, nseClient, expire.WithPeriod(testPeriod))
+	_, err = s.Register(context.Background(), &registry.NetworkService{
+		Name: "IP terminator",
+	})
+	require.Nil(t, err)
+	nsClient := adapters.NetworkServiceServerToClient(s)
+	stream, err := nsClient.Find(context.Background(), &registry.NetworkServiceQuery{
+		NetworkService: &registry.NetworkService{},
+	})
+	require.Nil(t, err)
+	list := registry.ReadNetworkServiceList(stream)
+	require.NotEmpty(t, list)
+	<-time.After(testPeriod * 2)
+	_, err = nseClient.Unregister(context.Background(), nse)
+	require.Nil(t, err)
 	<-time.After(testPeriod * 3)
 	stream, err = nsClient.Find(context.Background(), &registry.NetworkServiceQuery{
 		NetworkService: &registry.NetworkService{},

@@ -19,9 +19,3 @@ package expire_test
 import "time"
 
 const testPeriod = time.Millisecond * 50
-
-func testNowFunc() func() int64 {
-	return func() int64 {
-		return time.Now().UnixNano()
-	}
-}

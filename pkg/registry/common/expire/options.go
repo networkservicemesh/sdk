@@ -19,11 +19,11 @@ package expire
 import "time"
 
 type configurable interface {
-	setGetTimeFunc(func() int64)
 	setPeriod(time.Duration)
 }
 
-type option interface {
+// Option is expire registry configuration option
+type Option interface {
 	apply(configurable)
 }
 
@@ -33,15 +33,8 @@ func (f applierFunc) apply(c configurable) {
 	f(c)
 }
 
-// WithGetTimeFunc sets specific function to get current time
-func WithGetTimeFunc(f func() int64) option {
-	return applierFunc(func(c configurable) {
-		c.setGetTimeFunc(f)
-	})
-}
-
 // WithPeriod sets specific period to checking expiration
-func WithPeriod(duration time.Duration) option {
+func WithPeriod(duration time.Duration) Option {
 	return applierFunc(func(c configurable) {
 		c.setPeriod(duration)
 	})

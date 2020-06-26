@@ -123,7 +123,7 @@ func (n *networkServiceEndpointRegistryServer) sendEvent(nse *registry.NetworkSe
 }
 
 // NewNetworkServiceEndpointRegistryServer creates new memory based NetworkServiceEndpointRegistryServer
-func NewNetworkServiceEndpointRegistryServer(options ...option) registry.NetworkServiceEndpointRegistryServer {
+func NewNetworkServiceEndpointRegistryServer(options ...Option) registry.NetworkServiceEndpointRegistryServer {
 	r := &networkServiceEndpointRegistryServer{eventChannelSize: defaultEventChannelSize}
 	for _, o := range options {
 		o.apply(r)
