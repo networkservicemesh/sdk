@@ -52,25 +52,12 @@ func (ce *clientEntry) markAsReady() {
 }
 
 type connectServer struct {
-	ctx                 context.Context
-	dialOptions         []grpc.DialOption
-	clientFactory       func(ctx context.Context, conn grpc.ClientConnInterface) networkservice.NetworkServiceClient
-	clients             map[string]*clientEntry // key == url as string
-	connections         map[string]*url.URL     // Connection map is required to close using connection id.
-	dialOptionFactories []func(ctx context.Context, clientURL *url.URL) []grpc.DialOption
-	executor            serialize.Executor
-}
-
-type dialOptionFactory struct {
-	factory func(ctx context.Context, clientURL *url.URL) []grpc.DialOption
-	grpc.EmptyDialOption
-}
-
-// WithDialOptionFactory - define a dial option factory, will be called on moment to create dial
-func WithDialOptionFactory(factory func(ctx context.Context, clientURL *url.URL) []grpc.DialOption) grpc.DialOption {
-	return &dialOptionFactory{
-		factory: factory,
-	}
+	ctx           context.Context
+	dialOptions   []grpc.DialOption
+	clientFactory func(ctx context.Context, conn grpc.ClientConnInterface) networkservice.NetworkServiceClient
+	clients       map[string]*clientEntry // key == url as string
+	connections   map[string]*url.URL     // Connection map is required to close using connection id.
+	executor      serialize.Executor
 }
 
 // NewServer - returns a new connect Server
@@ -83,19 +70,12 @@ func WithDialOptionFactory(factory func(ctx context.Context, clientURL *url.URL)
 //             connect presumes depends on some previous chain element having set clienturl.WithClientURL so it can know
 //             which client to address.
 func NewServer(clientFactory func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient, clientDialOptions ...grpc.DialOption) networkservice.NetworkServiceServer {
-	dialOptionFactories := []func(ctx context.Context, clientURL *url.URL) []grpc.DialOption{}
-	for _, op := range clientDialOptions {
-		if f, ok := op.(*dialOptionFactory); ok {
-			dialOptionFactories = append(dialOptionFactories, f.factory)
-		}
-	}
 	return &connectServer{
-		ctx:                 nil,
-		clientFactory:       clientFactory,
-		clients:             map[string]*clientEntry{},
-		connections:         map[string]*url.URL{},
-		dialOptions:         clientDialOptions,
-		dialOptionFactories: dialOptionFactories,
+		ctx:           nil,
+		clientFactory: clientFactory,
+		clients:       map[string]*clientEntry{},
+		connections:   map[string]*url.URL{},
+		dialOptions:   clientDialOptions,
 	}
 }
 
@@ -216,7 +196,7 @@ func (c *connectServer) findOrCreateClient(ctx context.Context, clientURI *url.U
 		}
 	}
 	// Dial and create client connection
-	if err := c.createClient(ctx, ce); err != nil {
+	if err := c.createClient(ce); err != nil {
 		// If we failed to create client, we failed to dial, so no need to close,
 		// we need to mark it as error one and all clients pending will return errors, and last one will remove entry
 		// Mark connection as ready to use
@@ -248,15 +228,12 @@ func (c *connectServer) closeClient(ctx context.Context, ce *clientEntry) {
 	}
 }
 
-func (c *connectServer) createClient(ctx context.Context, ce *clientEntry) (err error) {
+func (c *connectServer) createClient(ce *clientEntry) (err error) {
 	// Opening GPRC connection
 	// we should open a connecton with specified server, and we should be sure we do this once.
 	clientCtx, _ := context.WithCancel(context.Background())
 
 	dialOptions := c.dialOptions
-	for _, dof := range c.dialOptionFactories {
-		dialOptions = append(dialOptions, dof(ctx, ce.clientURI)...)
-	}
 
 	// Dial with connection
 	ce.cc, ce.closeConnection, err = grpcDialer(clientCtx, grpcutils.URLToTarget(ce.clientURI), dialOptions...)
