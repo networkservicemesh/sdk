@@ -71,11 +71,11 @@ func TestNewNetworkServiceRegistryServer(t *testing.T) {
 
 func TestNewNetworkServiceRegistryServer_NSEUnregister(t *testing.T) {
 	nseMem := next.NewNetworkServiceEndpointRegistryServer(
-		setid.NewNetworkServiceEndpointRegistryServer(),
 		memory.NewNetworkServiceEndpointRegistryServer(),
 	)
 	expiration := time.Now().Add(time.Hour)
-	nse, err := nseMem.Register(context.Background(), &registry.NetworkServiceEndpoint{
+	_, err := nseMem.Register(context.Background(), &registry.NetworkServiceEndpoint{
+		Name:                "nse-1",
 		NetworkServiceNames: []string{"IP terminator"},
 		ExpirationTime: &timestamp.Timestamp{
 			Seconds: expiration.Unix(),
@@ -98,7 +98,10 @@ func TestNewNetworkServiceRegistryServer_NSEUnregister(t *testing.T) {
 	list := registry.ReadNetworkServiceList(stream)
 	require.NotEmpty(t, list)
 	<-time.After(testPeriod * 2)
-	_, err = nseClient.Unregister(context.Background(), nse)
+	_, err = nseClient.Unregister(context.Background(), &registry.NetworkServiceEndpoint{
+		Name:                "nse-1",
+		NetworkServiceNames: []string{"IP terminator"},
+	})
 	require.Nil(t, err)
 	<-time.After(testPeriod * 3)
 	stream, err = nsClient.Find(context.Background(), &registry.NetworkServiceQuery{

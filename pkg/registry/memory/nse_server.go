@@ -21,6 +21,8 @@ import (
 	"errors"
 	"io"
 
+	"github.com/golang/protobuf/ptypes/timestamp"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
@@ -105,6 +107,9 @@ func (n *networkServiceEndpointRegistryServer) Find(query *registry.NetworkServi
 
 func (n *networkServiceEndpointRegistryServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
 	n.networkServiceEndpoints.Delete(nse.Name)
+	if nse.ExpirationTime == nil {
+		nse.ExpirationTime = &timestamp.Timestamp{}
+	}
 	nse.ExpirationTime.Seconds = -1
 	n.sendEvent(nse)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
