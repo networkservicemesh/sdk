@@ -135,17 +135,9 @@ func (c *connectServer) Close(ctx context.Context, conn *networkservice.Connecti
 		// In case of error, no pending state is propogated.
 		return nil, err
 	}
-	// Call next Close before calling client Close
-	_, err = next.Server(ctx).Close(ctx, conn)
 
 	// Call client close
-	if _, closeErr := ce.client.Close(ctx, conn); closeErr != nil {
-		if err != nil {
-			// Combine errors
-			err = errors.Wrapf(err, "errors during close: %v", closeErr)
-		}
-	}
-
+	_, clientErr := ce.client.Close(ctx, conn)
 	// remove connection from list
 	<-c.executor.AsyncExec(func() {
 		delete(ce.connections, conn.Id)
@@ -153,8 +145,15 @@ func (c *connectServer) Close(ctx context.Context, conn *networkservice.Connecti
 		// Close client if there is no more users for it.
 		c.closeClient(ctx, ce)
 	})
+	rv, err := next.Server(ctx).Close(ctx, conn)
+	if clientErr != nil && err != nil {
+		return rv, errors.Wrapf(err, "errors during client close: %v", clientErr)
+	}
+	if clientErr != nil {
+		return rv, errors.Wrap(clientErr, "errors during client close")
+	}
 
-	return &empty.Empty{}, err
+	return rv, err
 }
 
 func (c *connectServer) findOrCreateClient(ctx context.Context, clientURI *url.URL, conn *networkservice.Connection) (ce *clientEntry, err error) {
