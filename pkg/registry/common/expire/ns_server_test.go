@@ -60,7 +60,7 @@ func TestNewNetworkServiceRegistryServer(t *testing.T) {
 	require.Nil(t, err)
 	list := registry.ReadNetworkServiceList(stream)
 	require.NotEmpty(t, list)
-	<-time.After(testPeriod * 3)
+	<-time.After(testPeriod * 4)
 	stream, err = nsClient.Find(context.Background(), &registry.NetworkServiceQuery{
 		NetworkService: &registry.NetworkService{},
 	})
@@ -103,7 +103,7 @@ func TestNewNetworkServiceRegistryServer_NSEUnregister(t *testing.T) {
 		NetworkServiceNames: []string{"IP terminator"},
 	})
 	require.Nil(t, err)
-	<-time.After(testPeriod * 3)
+	<-time.After(testPeriod * 4)
 	stream, err = nsClient.Find(context.Background(), &registry.NetworkServiceQuery{
 		NetworkService: &registry.NetworkService{},
 	})

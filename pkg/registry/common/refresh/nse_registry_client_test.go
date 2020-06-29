@@ -54,7 +54,10 @@ func (t *testNSEClient) Unregister(ctx context.Context, in *registry.NetworkServ
 func TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	testClient := testNSEClient{}
-	refreshClient := refresh.NewNetworkServiceEndpointRegistryClient(&testClient, refresh.WithRetryPeriod(time.Millisecond*100), refresh.WithDefaultExpiration(time.Millisecond*100))
+	refreshClient := refresh.NewNetworkServiceEndpointRegistryClient(&testClient,
+		refresh.WithRetryPeriod(time.Millisecond*100),
+		refresh.WithDefaultExpiration(time.Millisecond*100),
+	)
 	_, err := refreshClient.Register(context.Background(), &registry.NetworkServiceEndpoint{
 		Name: "nse-1",
 	})
@@ -70,7 +73,10 @@ func TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {
 func TestNewNetworkServiceEndpointRegistryClient_CalledRegisterTwice(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	testClient := testNSEClient{}
-	refreshClient := refresh.NewNetworkServiceEndpointRegistryClient(&testClient, refresh.WithRetryPeriod(time.Millisecond*100), refresh.WithDefaultExpiration(time.Millisecond*100))
+	refreshClient := refresh.NewNetworkServiceEndpointRegistryClient(&testClient,
+		refresh.WithRetryPeriod(time.Millisecond*100),
+		refresh.WithDefaultExpiration(time.Millisecond*100),
+	)
 	_, err := refreshClient.Register(context.Background(), &registry.NetworkServiceEndpoint{
 		Name: "nse-1",
 	})

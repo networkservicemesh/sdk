@@ -33,7 +33,7 @@ import (
 type refreshNSEClient struct {
 	client                    registry.NetworkServiceEndpointRegistryClient
 	nsesMutex                 sync.Mutex
-	nses                      map[string]func()
+	nseCancels                map[string]context.CancelFunc
 	retryDelay                time.Duration
 	defaultExpirationDuration time.Duration
 }
@@ -84,11 +84,11 @@ func (c *refreshNSEClient) Register(ctx context.Context, in *registry.NetworkSer
 			Nanos:   int32(expirationTime.Nanosecond()),
 		}
 	}
-	if v, ok := c.nses[resp.Name]; ok {
+	if v, ok := c.nseCancels[resp.Name]; ok {
 		v()
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	c.nses[resp.Name] = cancel
+	c.nseCancels[resp.Name] = cancel
 	c.startRefresh(ctx, resp)
 	return resp, err
 }
@@ -104,10 +104,10 @@ func (c *refreshNSEClient) Unregister(ctx context.Context, in *registry.NetworkS
 	}
 	c.nsesMutex.Lock()
 	defer c.nsesMutex.Unlock()
-	cancel, ok := c.nses[in.Name]
+	cancel, ok := c.nseCancels[in.Name]
 	if ok {
 		cancel()
-		delete(c.nses, in.Name)
+		delete(c.nseCancels, in.Name)
 	}
 	return resp, nil
 }
@@ -116,7 +116,7 @@ func (c *refreshNSEClient) Unregister(ctx context.Context, in *registry.NetworkS
 func NewNetworkServiceEndpointRegistryClient(client registry.NetworkServiceEndpointRegistryClient, options ...Option) registry.NetworkServiceEndpointRegistryClient {
 	c := &refreshNSEClient{
 		client:                    client,
-		nses:                      map[string]func(){},
+		nseCancels:                map[string]context.CancelFunc{},
 		retryDelay:                time.Second * 5,
 		defaultExpirationDuration: time.Minute * 30,
 	}
