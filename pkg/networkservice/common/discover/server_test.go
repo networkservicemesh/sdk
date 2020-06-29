@@ -21,6 +21,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/memory"
@@ -264,6 +266,36 @@ func TestMatchNothing(t *testing.T) {
 		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
 			nses := discover.Candidates(ctx).Endpoints
 			require.Len(t, nses, 3)
+		}),
+	)
+	_, err = server.Request(context.Background(), request)
+	require.Nil(t, err)
+}
+
+func TestMatchSelectedNSE(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	nsName := networkServiceName()
+	nsServer := memory.NewNetworkServiceRegistryServer()
+	_, err := nsServer.Register(context.Background(), &registry.NetworkService{
+		Name:    nsName,
+		Matches: []*registry.Match{fromAnywhereMatch(), fromFirewallMatch(), fromSomeMiddleAppMatch()},
+	})
+	require.Nil(t, err)
+	nseServer := registrynext.NewNetworkServiceEndpointRegistryServer(setid.NewNetworkServiceEndpointRegistryServer(), memory.NewNetworkServiceEndpointRegistryServer())
+	var last *registry.NetworkServiceEndpoint
+	for _, nse := range endpoints() {
+		last, err = nseServer.Register(context.Background(), nse)
+		require.Nil(t, err)
+	}
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			NetworkServiceEndpointName: last.Name,
+		},
+	}
+	server := next.NewNetworkServiceServer(
+		discover.NewServer(adapters.NetworkServiceServerToClient(nsServer), adapters.NetworkServiceEndpointServerToClient(nseServer)),
+		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+			require.NotNil(t, clienturl.ClientURL(ctx))
 		}),
 	)
 	_, err = server.Request(context.Background(), request)
