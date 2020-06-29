@@ -20,6 +20,7 @@ import "time"
 
 type configurable interface {
 	setRetryPeriod(time.Duration)
+	setDefaultExpiration(duration time.Duration)
 }
 
 // Option is expire registry configuration option
@@ -37,5 +38,12 @@ func (f applierFunc) apply(c configurable) {
 func WithRetryPeriod(duration time.Duration) Option {
 	return applierFunc(func(c configurable) {
 		c.setRetryPeriod(duration)
+	})
+}
+
+// WithDefaultExpiration sets a default expiration to NSE if expiration was not set
+func WithDefaultExpiration(duration time.Duration) Option {
+	return applierFunc(func(c configurable) {
+		c.setDefaultExpiration(duration)
 	})
 }

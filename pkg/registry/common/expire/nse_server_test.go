@@ -47,11 +47,12 @@ func TestNewNetworkServiceEndpointRegistryServer(t *testing.T) {
 	require.Nil(t, err)
 	list := registry.ReadNetworkServiceEndpointList(stream)
 	require.NotEmpty(t, list)
-	<-time.After(testPeriod * 3)
-	stream, err = c.Find(context.Background(), &registry.NetworkServiceEndpointQuery{
-		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{},
-	})
-	require.Nil(t, err)
-	list = registry.ReadNetworkServiceEndpointList(stream)
-	require.Empty(t, list)
+	require.Eventually(t, func() bool {
+		stream, err = c.Find(context.Background(), &registry.NetworkServiceEndpointQuery{
+			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{},
+		})
+		require.Nil(t, err)
+		list = registry.ReadNetworkServiceEndpointList(stream)
+		return len(list) == 0
+	}, time.Second, time.Millisecond*100)
 }

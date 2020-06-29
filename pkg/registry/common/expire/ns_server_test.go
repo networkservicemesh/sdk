@@ -60,13 +60,15 @@ func TestNewNetworkServiceRegistryServer(t *testing.T) {
 	require.Nil(t, err)
 	list := registry.ReadNetworkServiceList(stream)
 	require.NotEmpty(t, list)
-	<-time.After(testPeriod * 3)
-	stream, err = nsClient.Find(context.Background(), &registry.NetworkServiceQuery{
-		NetworkService: &registry.NetworkService{},
-	})
-	require.Nil(t, err)
-	list = registry.ReadNetworkServiceList(stream)
-	require.Empty(t, list)
+
+	require.Eventually(t, func() bool {
+		stream, err = nsClient.Find(context.Background(), &registry.NetworkServiceQuery{
+			NetworkService: &registry.NetworkService{},
+		})
+		require.Nil(t, err)
+		list = registry.ReadNetworkServiceList(stream)
+		return len(list) == 0
+	}, time.Second, time.Millisecond*100)
 }
 
 func TestNewNetworkServiceRegistryServer_NSEUnregister(t *testing.T) {
@@ -103,11 +105,12 @@ func TestNewNetworkServiceRegistryServer_NSEUnregister(t *testing.T) {
 		NetworkServiceNames: []string{"IP terminator"},
 	})
 	require.Nil(t, err)
-	<-time.After(testPeriod * 3)
-	stream, err = nsClient.Find(context.Background(), &registry.NetworkServiceQuery{
-		NetworkService: &registry.NetworkService{},
-	})
-	require.Nil(t, err)
-	list = registry.ReadNetworkServiceList(stream)
-	require.Empty(t, list)
+	require.Eventually(t, func() bool {
+		stream, err = nsClient.Find(context.Background(), &registry.NetworkServiceQuery{
+			NetworkService: &registry.NetworkService{},
+		})
+		require.Nil(t, err)
+		list = registry.ReadNetworkServiceList(stream)
+		return len(list) == 0
+	}, time.Second, time.Millisecond*100)
 }
