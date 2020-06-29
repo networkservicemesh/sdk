@@ -29,9 +29,14 @@ import (
 )
 
 type refreshNSEClient struct {
-	client    registry.NetworkServiceEndpointRegistryClient
-	nsesMutex sync.Mutex
-	nses      map[string]func()
+	client     registry.NetworkServiceEndpointRegistryClient
+	nsesMutex  sync.Mutex
+	nses       map[string]func()
+	retryDelay time.Duration
+}
+
+func (c *refreshNSEClient) setRetryPeriod(p time.Duration) {
+	c.retryDelay = p
 }
 
 func (c *refreshNSEClient) startRefresh(ctx context.Context, nse *registry.NetworkServiceEndpoint) {
@@ -49,6 +54,7 @@ func (c *refreshNSEClient) startRefresh(ctx context.Context, nse *registry.Netwo
 				var err error
 				nse, err = c.client.Register(ctx, nse)
 				if err != nil {
+					<-time.After(c.retryDelay)
 					continue
 				}
 				t = t1
@@ -90,9 +96,16 @@ func (c *refreshNSEClient) Unregister(ctx context.Context, in *registry.NetworkS
 }
 
 // NewNetworkServiceEndpointRegistryClient creates new NetworkServiceEndpointRegistryClient that will refresh expiration time for registered NSEs
-func NewNetworkServiceEndpointRegistryClient(client registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceEndpointRegistryClient {
-	return &refreshNSEClient{
-		client: client,
-		nses:   map[string]func(){},
+func NewNetworkServiceEndpointRegistryClient(client registry.NetworkServiceEndpointRegistryClient, options ...Option) registry.NetworkServiceEndpointRegistryClient {
+	c := &refreshNSEClient{
+		client:     client,
+		nses:       map[string]func(){},
+		retryDelay: time.Second * 5,
 	}
+
+	for _, o := range options {
+		o.apply(c)
+	}
+
+	return c
 }
