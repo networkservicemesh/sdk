@@ -31,6 +31,8 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
 )
 
+const testExpirationDuration = time.Millisecond * 100
+
 type testNSEClient struct {
 	sync.Mutex
 	requestCount int
@@ -56,18 +58,19 @@ func TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {
 	testClient := testNSEClient{}
 	refreshClient := refresh.NewNetworkServiceEndpointRegistryClient(&testClient,
 		refresh.WithRetryPeriod(time.Millisecond*100),
-		refresh.WithDefaultExpiration(time.Millisecond*100),
+		refresh.WithDefaultExpiration(testExpirationDuration),
 	)
 	_, err := refreshClient.Register(context.Background(), &registry.NetworkServiceEndpoint{
 		Name: "nse-1",
 	})
 	require.Nil(t, err)
-	<-time.After(time.Millisecond * 100)
+	require.Eventually(t, func() bool {
+		testClient.Lock()
+		defer testClient.Unlock()
+		return testClient.requestCount == 1
+	}, testExpirationDuration*2, testExpirationDuration/4)
 	_, err = refreshClient.Unregister(context.Background(), &registry.NetworkServiceEndpoint{Name: "nse-1"})
 	require.Nil(t, err)
-	testClient.Lock()
-	defer testClient.Unlock()
-	require.Equal(t, 1, testClient.requestCount)
 }
 
 func TestNewNetworkServiceEndpointRegistryClient_CalledRegisterTwice(t *testing.T) {
@@ -85,10 +88,11 @@ func TestNewNetworkServiceEndpointRegistryClient_CalledRegisterTwice(t *testing.
 		Name: "nse-1",
 	})
 	require.Nil(t, err)
-	<-time.After(time.Millisecond * 100)
+	require.Eventually(t, func() bool {
+		testClient.Lock()
+		defer testClient.Unlock()
+		return testClient.requestCount == 1
+	}, testExpirationDuration*2, testExpirationDuration/4)
 	_, err = refreshClient.Unregister(context.Background(), &registry.NetworkServiceEndpoint{Name: "nse-1"})
 	require.Nil(t, err)
-	testClient.Lock()
-	defer testClient.Unlock()
-	require.Equal(t, 1, testClient.requestCount)
 }
