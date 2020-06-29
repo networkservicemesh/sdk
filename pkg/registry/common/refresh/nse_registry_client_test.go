@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
@@ -55,14 +54,29 @@ func (t *testNSEClient) Unregister(ctx context.Context, in *registry.NetworkServ
 func TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	testClient := testNSEClient{}
-	refreshClient := refresh.NewNetworkServiceEndpointRegistryClient(&testClient, refresh.WithRetryPeriod(time.Millisecond*100))
-	expirationTime := time.Now().Add(time.Millisecond * 100)
+	refreshClient := refresh.NewNetworkServiceEndpointRegistryClient(&testClient, refresh.WithRetryPeriod(time.Millisecond*100), refresh.WithDefaultExpiration(time.Millisecond*100))
 	_, err := refreshClient.Register(context.Background(), &registry.NetworkServiceEndpoint{
 		Name: "nse-1",
-		ExpirationTime: &timestamp.Timestamp{
-			Seconds: expirationTime.Unix(),
-			Nanos:   int32(expirationTime.Nanosecond()),
-		},
+	})
+	require.Nil(t, err)
+	<-time.After(time.Millisecond * 100)
+	_, err = refreshClient.Unregister(context.Background(), &registry.NetworkServiceEndpoint{Name: "nse-1"})
+	require.Nil(t, err)
+	testClient.Lock()
+	defer testClient.Unlock()
+	require.Equal(t, 1, testClient.requestCount)
+}
+
+func TestNewNetworkServiceEndpointRegistryClient_CalledRegisterTwice(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	testClient := testNSEClient{}
+	refreshClient := refresh.NewNetworkServiceEndpointRegistryClient(&testClient, refresh.WithRetryPeriod(time.Millisecond*100), refresh.WithDefaultExpiration(time.Millisecond*100))
+	_, err := refreshClient.Register(context.Background(), &registry.NetworkServiceEndpoint{
+		Name: "nse-1",
+	})
+	require.Nil(t, err)
+	_, err = refreshClient.Register(context.Background(), &registry.NetworkServiceEndpoint{
+		Name: "nse-1",
 	})
 	require.Nil(t, err)
 	<-time.After(time.Millisecond * 100)
