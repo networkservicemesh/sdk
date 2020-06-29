@@ -18,7 +18,8 @@ package memory
 
 import (
 	"context"
-	"sync"
+	"errors"
+	"io"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -29,23 +30,24 @@ import (
 )
 
 type networkServiceRegistryServer struct {
-	networkServices     NetworkServiceSyncMap
-	executor            serialize.Executor
-	eventChannels       []chan *registry.NetworkService
-	eventChannelSize    int
-	eventChannelsLocker sync.Mutex
+	networkServices  NetworkServiceSyncMap
+	executor         serialize.Executor
+	eventChannels    []chan *registry.NetworkService
+	eventChannelSize int
 }
 
 func (n *networkServiceRegistryServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
-	n.networkServices.Store(ns.Name, ns)
+	r, err := next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
+	if err != nil {
+		return nil, err
+	}
+	n.networkServices.Store(r.Name, r)
 	n.executor.AsyncExec(func() {
-		n.eventChannelsLocker.Lock()
 		for _, ch := range n.eventChannels {
-			ch <- ns
+			ch <- r
 		}
-		n.eventChannelsLocker.Unlock()
 	})
-	return next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
+	return r, nil
 }
 
 func (n *networkServiceRegistryServer) Find(query *registry.NetworkServiceQuery, s registry.NetworkServiceRegistry_FindServer) error {
@@ -62,26 +64,41 @@ func (n *networkServiceRegistryServer) Find(query *registry.NetworkServiceQuery,
 	}
 	if query.Watch {
 		eventCh := make(chan *registry.NetworkService, n.eventChannelSize)
-		n.eventChannelsLocker.Lock()
-		n.eventChannels = append(n.eventChannels, eventCh)
-		n.eventChannelsLocker.Unlock()
+		var index int
+		n.executor.AsyncExec(func() {
+			index = len(n.eventChannels)
+			n.eventChannels = append(n.eventChannels, eventCh)
+		})
+		defer n.executor.AsyncExec(func() {
+			n.eventChannels = append(n.eventChannels[0:index], n.eventChannels[index+1:]...)
+		})
 		err := sendAllMatches(query.NetworkService)
 		if err != nil {
 			return err
 		}
-		for {
+		notifyChannel := func() error {
 			select {
 			case <-s.Context().Done():
-				return s.Context().Err()
+				return io.EOF
 			case event := <-eventCh:
 				if matchutils.MatchNetworkServices(query.NetworkService, event) {
 					if s.Context().Err() != nil {
-						return err
+						return io.EOF
 					}
 					if err := s.Send(event); err != nil {
 						return err
 					}
 				}
+				return nil
+			}
+		}
+		for {
+			err := notifyChannel()
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			if err != nil {
+				return err
 			}
 		}
 	} else if err := sendAllMatches(query.NetworkService); err != nil {
@@ -95,9 +112,15 @@ func (n *networkServiceRegistryServer) Unregister(ctx context.Context, ns *regis
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }
 
+func (n *networkServiceRegistryServer) setEventChannelSize(l int) {
+	n.eventChannelSize = l
+}
+
 // NewNetworkServiceRegistryServer creates new memory based NetworkServiceRegistryServer
-func NewNetworkServiceRegistryServer() registry.NetworkServiceRegistryServer {
-	return &networkServiceRegistryServer{
-		eventChannelSize: 10,
+func NewNetworkServiceRegistryServer(options ...Option) registry.NetworkServiceRegistryServer {
+	r := &networkServiceRegistryServer{eventChannelSize: defaultEventChannelSize}
+	for _, o := range options {
+		o.apply(r)
 	}
+	return r
 }

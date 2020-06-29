@@ -74,8 +74,12 @@ type networkServiceEndpointRegistryFindServer struct {
 }
 
 func (s *networkServiceEndpointRegistryFindServer) Send(endpoint *registry.NetworkServiceEndpoint) error {
-	s.sendCh <- endpoint
-	return nil
+	select {
+	case <-s.ctx.Done():
+		return s.ctx.Err()
+	case s.sendCh <- endpoint:
+		return nil
+	}
 }
 
 func (s *networkServiceEndpointRegistryFindServer) Context() context.Context {

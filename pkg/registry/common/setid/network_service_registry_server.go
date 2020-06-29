@@ -18,7 +18,6 @@ package setid
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -61,7 +60,7 @@ func nameOf(endpoint *registry.NetworkServiceEndpoint) string {
 	if endpoint.Name != "" {
 		return endpoint.Name
 	}
-	return fmt.Sprintf("%v-%v", strings.Join(endpoint.NetworkServiceNames, "-"), uuid.New().String())
+	return strings.Join(append(endpoint.NetworkServiceNames, uuid.New().String()), "-")
 }
 
 var _ registry.NetworkServiceEndpointRegistryServer = &setIDNetworkServiceEndpointRegistryServer{}
