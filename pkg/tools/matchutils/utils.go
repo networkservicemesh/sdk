@@ -1,3 +1,5 @@
+// Copyright (c) 2018-2020 VMware, Inc.
+//
 // Copyright (c) 2020 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -18,8 +20,12 @@
 package matchutils
 
 import (
+	"bytes"
+	"html/template"
 	"reflect"
 	"strings"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 )
@@ -42,4 +48,59 @@ func MatchNetworkServiceEndpoints(left, right *registry.NetworkServiceEndpoint) 
 
 func matchString(left, right string) bool {
 	return strings.Contains(left, right)
+}
+
+func isSubset(a, b, nsLabels map[string]string) bool {
+	if len(a) < len(b) {
+		return false
+	}
+	for k, v := range b {
+		if a[k] != v {
+			result := processLabels(v, nsLabels)
+			if a[k] != result {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// SelectEndpoints selects suitable endpoints by labels and network service
+func SelectEndpoints(nsLabels map[string]string, ns *registry.NetworkService, networkServiceEndpoints []*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
+	logrus.Infof("Matching endpoint for labels %v", nsLabels)
+
+	// Iterate through the matches
+	for _, match := range ns.GetMatches() {
+		// All match source selector labels should be present in the requested labels map
+		if !isSubset(nsLabels, match.GetSourceSelector(), nsLabels) {
+			continue
+		}
+		nseCandidates := make([]*registry.NetworkServiceEndpoint, 0)
+		// Check all Destinations in that match
+		for _, destination := range match.GetRoutes() {
+			// Each NSE should be matched against that destination
+			for _, nse := range networkServiceEndpoints {
+				if isSubset(nse.GetNetworkServiceLabels()[ns.Name].Labels, destination.GetDestinationSelector(), nsLabels) {
+					nseCandidates = append(nseCandidates, nse)
+				}
+			}
+		}
+		return nseCandidates
+	}
+	return networkServiceEndpoints
+}
+
+// processLabels generates matches based on destination label selectors that specify templating.
+func processLabels(str string, vars interface{}) string {
+	tmpl, err := template.New("tmpl").Parse(str)
+
+	if err != nil {
+		panic(err)
+	}
+	var tmplBytes bytes.Buffer
+	err = tmpl.Execute(&tmplBytes, vars)
+	if err != nil {
+		panic(err)
+	}
+	return tmplBytes.String()
 }
