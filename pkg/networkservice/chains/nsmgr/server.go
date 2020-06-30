@@ -20,6 +20,8 @@
 package nsmgr
 
 import (
+	"context"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
@@ -63,7 +65,7 @@ type nsmgrServer struct {
 //           tokenGenerator - authorization token generator
 //           registryCC - client connection to reach the upstream registry, could be nil, in this case only in memory storage will be used.
 // 			 clientDialOptions -  a grpc.DialOption's to be passed to GRPC connections.
-func NewServer(nsmRegistration *registryapi.NetworkServiceEndpoint, authzServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, registryCC grpc.ClientConnInterface, clientDialOptions ...grpc.DialOption) Nsmgr {
+func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceEndpoint, authzServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, registryCC grpc.ClientConnInterface, clientDialOptions ...grpc.DialOption) Nsmgr {
 	rv := &nsmgrServer{}
 
 	var localbypassRegistryServer registryapi.NetworkServiceEndpointRegistryServer
@@ -91,6 +93,7 @@ func NewServer(nsmRegistration *registryapi.NetworkServiceEndpoint, authzServer 
 		roundrobin.NewServer(),
 		localbypass.NewServer(&localbypassRegistryServer),
 		connect.NewServer(
+			ctx,
 			client.NewClientFactory(nsmRegistration.Name,
 				addressof.NetworkServiceClient(
 					adapters.NewServerToClient(rv)),
