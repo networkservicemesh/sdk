@@ -38,14 +38,6 @@ type refreshNSEClient struct {
 	defaultExpiryDuration time.Duration
 }
 
-func (c *refreshNSEClient) setDefaultExpiryDuration(duration time.Duration) {
-	c.defaultExpiryDuration = duration
-}
-
-func (c *refreshNSEClient) setRetryPeriod(p time.Duration) {
-	c.retryDelay = p
-}
-
 func (c *refreshNSEClient) startRefresh(ctx context.Context, nse *registry.NetworkServiceEndpoint) {
 	t := time.Unix(nse.ExpirationTime.Seconds, int64(nse.ExpirationTime.Nanos))
 	delta := time.Until(t)

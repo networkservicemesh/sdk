@@ -18,32 +18,27 @@ package refresh
 
 import "time"
 
-type configurable interface {
-	setRetryPeriod(time.Duration)
-	setDefaultExpiryDuration(duration time.Duration)
-}
-
 // Option is expire registry configuration option
 type Option interface {
-	apply(configurable)
+	apply(client *refreshNSEClient)
 }
 
-type applierFunc func(configurable)
+type applierFunc func(*refreshNSEClient)
 
-func (f applierFunc) apply(c configurable) {
+func (f applierFunc) apply(c *refreshNSEClient) {
 	f(c)
 }
 
 // WithRetryPeriod sets a specific period to reconnect in case of a server returning an error
 func WithRetryPeriod(duration time.Duration) Option {
-	return applierFunc(func(c configurable) {
-		c.setRetryPeriod(duration)
+	return applierFunc(func(c *refreshNSEClient) {
+		c.retryDelay = duration
 	})
 }
 
 // WithDefaultExpiryDuration sets a default expiration_time if it is nil on NSE registration
 func WithDefaultExpiryDuration(duration time.Duration) Option {
-	return applierFunc(func(c configurable) {
-		c.setDefaultExpiryDuration(duration)
+	return applierFunc(func(c *refreshNSEClient) {
+		c.defaultExpiryDuration = duration
 	})
 }
