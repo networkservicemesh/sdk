@@ -85,7 +85,7 @@ func TestNSmgrEndpointCallback(t *testing.T) {
 	}
 
 	// Server NSMGR, Use in memory registry server
-	mgr := nsmgr.NewServer(nsmgrReg, authorize.NewServer(), TokenGenerator, nil, grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)))
+	mgr := nsmgr.NewServer(ctx, nsmgrReg, authorize.NewServer(), TokenGenerator, nil, grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)))
 	nsmURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
 	mgrGrpcSrv, mgrGrpcCancel, mgrErr := serverNSM(ctx, nsmURL, mgr)
 	require.NotNil(t, mgrGrpcSrv)

@@ -1,5 +1,4 @@
 // Copyright (c) 2020 Doc.ai and/or its affiliates.
-//
 // Copyright (c) 2020 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -21,11 +20,6 @@ package connect
 
 import (
 	"context"
-	"net/url"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
-	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -33,118 +27,55 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
+	"github.com/networkservicemesh/sdk/pkg/tools/clientmap"
 )
 
-// Contain grpc connection and client connection associated
-type clientEntry struct {
-	clientURI       *url.URL
-	client          networkservice.NetworkServiceClient
-	cc              grpc.ClientConnInterface
-	ready           chan struct{} // Flag for connection is establishing
-	connections     map[string]*networkservice.Connection
-	err             error
-	closeConnection func() error
-}
-
-func (ce *clientEntry) markAsReady() {
-	close(ce.ready)
-}
-
 type connectServer struct {
-	ctx           context.Context
-	dialOptions   []grpc.DialOption
-	clientFactory func(ctx context.Context, conn grpc.ClientConnInterface) networkservice.NetworkServiceClient
-	clients       map[string]*clientEntry // key == url as string
-	connections   map[string]*url.URL     // Connection map is required to close using connection id.
-	executor      serialize.Executor
+	ctx               context.Context
+	clientFactory     func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient
+	clientDialOptions []grpc.DialOption
+	clientsByURL      clientmap.RefcountMap // key == clientURL.String()
+	clientsByID       clientmap.Map         // key == client connection ID
 }
 
-// NewServer - returns a new connect Server
-//             clientFactory - a function which takes a ctx that governs the lifecycle of the client and
-//                             a cc grpc.ClientConnInterface and returns a networkservice.NetworkServiceClient
-//                             The returned client will be called with the same inputs that were passed to the connect Server.
-//                             This means that the client returned by clientFactory is responsible for any mutations to that
-//                             request (setting a new id, setting different Mechanism Preferences etc) and any mutations
-//                             before returning to the server.
-//             connect presumes depends on some previous chain element having set clienturl.WithClientURL so it can know
-//             which client to address.
-func NewServer(clientFactory func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient, clientDialOptions ...grpc.DialOption) networkservice.NetworkServiceServer {
+// NewServer - chain element that
+func NewServer(ctx context.Context, clientFactory func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient, clientDialOptions ...grpc.DialOption) networkservice.NetworkServiceServer {
 	return &connectServer{
-		ctx:           nil,
-		clientFactory: clientFactory,
-		clients:       map[string]*clientEntry{},
-		connections:   map[string]*url.URL{},
-		dialOptions:   clientDialOptions,
+		ctx:               ctx,
+		clientFactory:     clientFactory,
+		clientDialOptions: clientDialOptions,
 	}
 }
 
 func (c *connectServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	clientURL, err := c.clientURL(ctx, request.Connection)
+	clientConn, clientErr := c.client(ctx, request.GetConnection()).Request(ctx, request)
+
+	if clientErr != nil {
+		return nil, clientErr
+	}
+	// Carry on with next.Server
+	conn, err := next.Server(ctx).Request(ctx, request)
 	if err != nil {
 		return nil, err
 	}
-	// Find or Create clientEntry, with add pending.
-	var ce *clientEntry
-	ce, err = c.findOrCreateClient(ctx, clientURL, request.Connection)
-	if err != nil {
-		// In case of error, no pending state is propogated.
-		return nil, err
-	}
+	// Copy Context and Path from client to response from server
+	conn.Context = clientConn.Context
+	conn.Path = clientConn.Path
 
-	// We have connection ready,
-	var conn *networkservice.Connection
-	conn, err = ce.client.Request(ctx, request)
-	if err != nil {
-		// We not succeed, just remove connection by id, if it was existing one.
-		<-c.executor.AsyncExec(func() {
-			if request.Connection.Id != "" {
-				// Delete from CE
-				delete(ce.connections, request.Connection.Id)
-				// Delete from global list
-				delete(c.connections, request.Connection.Id)
-			}
-		})
-		return nil, err
-	}
-
-	// Copy conn to request and pass to next one
-	if conn.GetContext() != nil {
-		request.Connection.Context = conn.GetContext()
-	}
-	// we succeed, update connection and remove pending state
-	<-c.executor.AsyncExec(func() {
-		ce.connections[conn.Id] = conn
-
-		// Also update global connection map
-		c.connections[conn.Id] = clientURL
-	})
-
-	return next.Server(ctx).Request(ctx, request)
+	// Return result
+	return conn, err
 }
 
 func (c *connectServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	clientURL, err := c.clientURL(ctx, conn)
-	if err != nil {
-		return nil, err
+	var clientErr error
+	client, _ := c.clientsByID.Load(conn.GetId())
+	if client == nil {
+		return &empty.Empty{}, nil
 	}
-	// Find or Create clientEntry, with add pending.
-	var ce *clientEntry
-	ce, err = c.findOrCreateClient(ctx, clientURL, conn)
-	if err != nil {
-		// In case of error, no pending state is propogated.
-		return nil, err
-	}
-
-	// Call client close
-	_, clientErr := ce.client.Close(ctx, conn)
-	// remove connection from list
-	<-c.executor.AsyncExec(func() {
-		delete(ce.connections, conn.Id)
-		delete(c.connections, conn.Id)
-		// Close client if there is no more users for it.
-		c.closeClient(ctx, ce)
-	})
+	_, clientErr = client.Close(ctx, conn)
 	rv, err := next.Server(ctx).Close(ctx, conn)
 	if clientErr != nil && err != nil {
 		return rv, errors.Wrapf(err, "errors during client close: %v", clientErr)
@@ -152,116 +83,56 @@ func (c *connectServer) Close(ctx context.Context, conn *networkservice.Connecti
 	if clientErr != nil {
 		return rv, errors.Wrap(clientErr, "errors during client close")
 	}
-
 	return rv, err
 }
 
-func (c *connectServer) findOrCreateClient(ctx context.Context, clientURI *url.URL, conn *networkservice.Connection) (ce *clientEntry, err error) {
-	connectionExists := false
-	<-c.executor.AsyncExec(func() {
-		ce, connectionExists = c.clients[clientURI.String()]
-		if !connectionExists {
-			ce = &clientEntry{
-				clientURI:   clientURI,
-				ready:       make(chan struct{}),
-				connections: map[string]*networkservice.Connection{},
-			}
-			// Put/Update connection
-			c.clients[clientURI.String()] = ce
+func (c *connectServer) client(ctx context.Context, conn *networkservice.Connection) networkservice.NetworkServiceClient {
+	// Fast path, if we have a client for this conn.GetId(), use it
+	client, _ := c.clientsByID.Load(conn.GetId())
+
+	// If we didn't find a client, we fall back to clientURL
+	if client == nil {
+		clientURL := clienturl.ClientURL(ctx)
+		// If we don't have a clientURL, all we can do is return errors
+		if clientURL == nil {
+			clientErr := errors.Errorf("clientURL not found for incoming connection: %+v", conn)
+			return injecterror.NewClient(clientErr)
 		}
-		ce.connections[conn.Id] = conn
-	})
-
-	if connectionExists {
-		// Wait until connection is ready, or context timeout
-		select {
-		case <-ctx.Done():
-			// We failed, we need to remove pending state and close connection if we are last one.
-			<-c.executor.AsyncExec(func() {
-				delete(ce.connections, conn.Id)
-				c.closeClient(ctx, ce)
-			})
-			return nil, errors.Errorf("context timeout")
-		case <-ce.ready:
-			// all is fine, just return
-			if ce.err != nil {
-				<-c.executor.AsyncExec(func() {
-					delete(ce.connections, conn.Id)
-					c.closeClient(ctx, ce)
-				})
-				return nil, ce.err
-			}
-			return ce, nil
-		}
-	}
-	// Dial and create client connection
-	if err := c.createClient(ce); err != nil {
-		// If we failed to create client, we failed to dial, so no need to close,
-		// we need to mark it as error one and all clients pending will return errors, and last one will remove entry
-		// Mark connection as ready to use
-		<-c.executor.AsyncExec(func() {
-			ce.err = err
-			// Mark as ready but with error
-			ce.markAsReady()
-			c.closeClient(ctx, ce)
-		})
-		return nil, err
-	}
-
-	// Mark connection as ready to use
-	ce.markAsReady()
-
-	return ce, nil
-}
-
-// Should be called insice executor
-func (c *connectServer) closeClient(ctx context.Context, ce *clientEntry) {
-	if len(ce.connections) == 0 {
-		if ce.cc != nil {
-			// Close connection
-			if err := ce.closeConnection(); err != nil {
-				trace.Log(ctx).Errorf("error closing connection %v", err)
+		// Fast path: load the client by URL.  In the unfortunate event someone has poorly chosen
+		// a clientFactory or dialOptions that take time, this will be faster than
+		// creating a new one and doing a LoadOrStore
+		client, _ = c.clientsByURL.Load(clientURL.String())
+		// If we still don't have a client, create one, and LoadOrStore it
+		// Note: It is possible for multiple nearly simultaneous initial Requests to race this client == nil check
+		// and both enter into the body of the if block.  However, if that occurs, when they call call clientByID.LoadAndStore
+		// only one of them will Store, the rest will Load.
+		// The return of load == true from the clientById.LoadAndStore(conn.GetId()) indicates that there has been
+		// a race, and those receiving it must then call clientByURL.Delete(clientURL) to clean up the Refcount, so
+		// we only get one refcount increment per conn.GetId().  In this way correctness is preserved, even in the
+		// unlikely case of multiple nearly simultaneous initial Requests racing this client == nil
+		if client == nil {
+			// Note: clienturl.NewClient(...) will get properly cleaned up when dereferences
+			client = clienturl.NewClient(clienturl.WithClientURL(c.ctx, clientURL), c.clientFactory, c.clientDialOptions...)
+			client, _ = c.clientsByURL.LoadOrStore(clientURL.String(), client)
+			// Wrap the client in a per-connection connect.NewClient(...)
+			// when this client receive a 'Close' it will call the cancelFunc provided deleting it from the various
+			// maps.
+			client = chain.NewNetworkServiceClient(
+				NewClient(func() {
+					c.clientsByID.Delete(conn.GetId())
+					c.clientsByURL.Delete(clientURL.String())
+				}),
+				client,
+			)
+			var loaded bool
+			client, loaded = c.clientsByID.LoadOrStore(conn.GetId(), client)
+			if loaded {
+				// If loaded == true, then another Request for the same conn.GetId() was being processed in parallel
+				// since both of those called c.clientsByURL.LoadOrStore, the refcount for this one conn.GetId()
+				// got incremented *twice*.  Correct for that here by decrementing
+				c.clientsByURL.Delete(conn.GetId())
 			}
 		}
-		delete(c.clients, ce.clientURI.String())
 	}
-}
-
-func (c *connectServer) createClient(ce *clientEntry) (err error) {
-	// Opening GPRC connection
-	// we should open a connecton with specified server, and we should be sure we do this once.
-	clientCtx, _ := context.WithCancel(context.Background())
-
-	dialOptions := c.dialOptions
-
-	// Dial with connection
-	ce.cc, ce.closeConnection, err = grpcDialer(clientCtx, grpcutils.URLToTarget(ce.clientURI), dialOptions...)
-	if err != nil {
-		return errors.Wrapf(err, "unable to dial %s", ce.clientURI.String())
-	}
-
-	// Initialize client and factory
-	ce.client = c.clientFactory(clientCtx, ce.cc)
-	return nil
-}
-
-func (c *connectServer) clientURL(ctx context.Context, connection *networkservice.Connection) (*url.URL, error) {
-	clientURL := clienturl.ClientURL(ctx)
-
-	if clientURL == nil {
-		<-c.executor.AsyncExec(func() {
-			clientURL = c.connections[connection.Id]
-		})
-	}
-	if clientURL == nil {
-		return nil, errors.Errorf("a proper clienturl.ClientURL should be passed or request.Connection should be active. Connection: %v", connection)
-	}
-	return clientURL, nil
-}
-func grpcDialer(ctx context.Context, target string, opts ...grpc.DialOption) (grpc.ClientConnInterface, func() error, error) {
-	grpcCon, err := grpc.DialContext(ctx, target, opts...)
-	if err != nil {
-		return nil, nil, err
-	}
-	return grpcCon, grpcCon.Close, err
+	return client
 }

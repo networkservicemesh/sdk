@@ -19,10 +19,13 @@ package connect
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net/url"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
@@ -56,11 +59,14 @@ func (nseT *nseTest) Stop() {
 }
 
 func (nseT *nseTest) Setup() {
+	logrus.SetOutput(ioutil.Discard)
 	nseT.ctx, nseT.cancel = context.WithTimeout(context.Background(), 5*time.Second)
 	nseT.listenOn = &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
 
 	nseT.nse, nseT.nseSrv, _ = testnse.NewNSE(nseT.ctx, nseT.listenOn, func(request *networkservice.NetworkServiceRequest) {
-		request.Connection.Labels = map[string]string{"ok": "all is ok"}
+		request.Connection.Context = &networkservice.ConnectionContext{
+			ExtraContext: map[string]string{"ok": "all is ok"},
+		}
 	})
 }
 
@@ -77,7 +83,9 @@ func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 
 	t.Run("Check Request", func(t *testing.T) {
 		require.NotPanics(t, func() {
-			s := NewServer(func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+			serverCtx, serverCancel := context.WithCancel(context.Background())
+			defer serverCancel()
+			s := NewServer(serverCtx, func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 				return adapters.NewServerToClient(nseT.nse)
 			}, grpc.WithInsecure())
 			clientURLCtx := nseT.newNSEContext(context.Background())
@@ -88,7 +96,7 @@ func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 			})
 			require.Nil(t, err)
 			require.NotNil(t, conn)
-			require.Equal(t, "all is ok", conn.Labels["ok"])
+			require.Equal(t, "all is ok", conn.GetContext().GetExtraContext()["ok"])
 			_, err = s.Close(clientURLCtx, &networkservice.Connection{
 				Id: "1",
 			})
@@ -97,7 +105,9 @@ func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 	})
 	t.Run("Close Id", func(t *testing.T) {
 		require.NotPanics(t, func() {
-			s := NewServer(func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+			serverCtx, serverCancel := context.WithCancel(context.Background())
+			defer serverCancel()
+			s := NewServer(serverCtx, func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 				return adapters.NewServerToClient(nseT.nse)
 			}, grpc.WithInsecure())
 			clientURLCtx := nseT.newNSEContext(context.Background())
@@ -108,7 +118,7 @@ func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 			})
 			require.Nil(t, err)
 			require.NotNil(t, conn)
-			require.Equal(t, "all is ok", conn.Labels["ok"])
+			require.Equal(t, "all is ok", conn.GetContext().GetExtraContext()["ok"])
 
 			// Do not pass clientURL
 			_, err = s.Close(context.Background(), &networkservice.Connection{
@@ -119,7 +129,9 @@ func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 	})
 	t.Run("Check no clientURL", func(t *testing.T) {
 		require.NotPanics(t, func() {
-			s := NewServer(func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+			serverCtx, serverCancel := context.WithCancel(context.Background())
+			defer serverCancel()
+			s := NewServer(serverCtx, func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 				return adapters.NewServerToClient(nseT.nse)
 			}, grpc.WithInsecure())
 
@@ -134,7 +146,9 @@ func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 	})
 	t.Run("Request without client URL", func(t *testing.T) {
 		require.NotPanics(t, func() {
-			s := NewServer(func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+			serverCtx, serverCancel := context.WithCancel(context.Background())
+			defer serverCancel()
+			s := NewServer(serverCtx, func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 				return adapters.NewServerToClient(nseT.nse)
 			}, grpc.WithInsecure())
 			clientURLCtx := nseT.newNSEContext(context.Background())
@@ -145,7 +159,7 @@ func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 			})
 			require.Nil(t, err)
 			require.NotNil(t, conn)
-			require.Equal(t, "all is ok", conn.Labels["ok"])
+			require.Equal(t, "all is ok", conn.GetContext().GetExtraContext()["ok"])
 
 			// Request again
 			conn, err = s.Request(context.Background(), &networkservice.NetworkServiceRequest{
@@ -155,7 +169,7 @@ func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 			})
 			require.Nil(t, err)
 			require.NotNil(t, conn)
-			require.Equal(t, "all is ok", conn.Labels["ok"])
+			require.Equal(t, "all is ok", conn.GetContext().GetExtraContext()["ok"])
 
 			// Do not pass clientURL
 			_, err = s.Close(context.Background(), &networkservice.Connection{
@@ -173,7 +187,10 @@ func TestParallelDial(t *testing.T) {
 	nseT.Setup()
 	defer nseT.Stop()
 
-	s := NewServer(client.NewClientFactory("nsc", nil, TokenGenerator), grpc.WithInsecure())
+	serverCtx, serverCancel := context.WithCancel(context.Background())
+	defer serverCancel()
+
+	s := NewServer(serverCtx, client.NewClientFactory("nsc", nil, TokenGenerator), grpc.WithInsecure())
 	var wg sync.WaitGroup
 	for i := 0; i < 10; i++ {
 		wg.Add(1)

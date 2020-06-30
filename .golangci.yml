@@ -178,6 +178,10 @@ issues:
       linters:
         - funlen
       text: "Function 'TestMonitor' is too long"
+    - path: pkg/networkservice/common/connect/server_test.go
+      linters:
+        - funlen
+      text: "Function 'TestConnectServerShouldNotPanicOnRequest' is too long"
     - path: pkg/networkservice/utils/checks/checkerror/server_test.go
       linters:
         - dupl
