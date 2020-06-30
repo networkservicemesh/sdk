@@ -18,6 +18,9 @@ package discover
 
 import (
 	"context"
+	"net/url"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
@@ -43,11 +46,26 @@ func NewServer(nsClient registry.NetworkServiceRegistryClient, nseClient registr
 }
 
 func (d *discoverCandidatesServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	// TODO - handle case where NetworkServiceEndpoint is already set
-	// if request.GetConnection().GetNetworkServiceEndpointName() != "" {
-	//    TODO what to do in this case?
-	// }
-
+	nseName := request.GetConnection().GetNetworkServiceEndpointName()
+	if nseName != "" {
+		nseStream, err := d.nseClient.Find(context.Background(), &registry.NetworkServiceEndpointQuery{
+			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+				Name: nseName,
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
+		nseList := registry.ReadNetworkServiceEndpointList(nseStream)
+		if len(nseList) == 0 {
+			return nil, errors.Errorf("network service endpoint %s is not found", nseName)
+		}
+		u, err := url.Parse(nseList[0].Url)
+		if err != nil {
+			return nil, err
+		}
+		return next.Server(ctx).Request(clienturl.WithClientURL(ctx, u), request)
+	}
 	nseStream, err := d.nseClient.Find(ctx, &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 			NetworkServiceNames: []string{request.GetConnection().GetNetworkService()},
