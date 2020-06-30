@@ -56,14 +56,14 @@ func (c *connectServer) Request(ctx context.Context, request *networkservice.Net
 	if clientErr != nil {
 		return nil, clientErr
 	}
+	// Copy Context from client to response from server
+	request.GetConnection().Context = clientConn.Context
+
 	// Carry on with next.Server
 	conn, err := next.Server(ctx).Request(ctx, request)
 	if err != nil {
 		return nil, err
 	}
-	// Copy Context and Path from client to response from server
-	conn.Context = clientConn.Context
-	conn.Path = clientConn.Path
 
 	// Return result
 	return conn, err
