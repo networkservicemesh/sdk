@@ -41,6 +41,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 )
 
+const (
+	timeout = 1 * time.Second
+)
+
 func TokenGenerator(peerAuthInfo credentials.AuthInfo) (token string, expireTime time.Time, err error) {
 	return "TestToken", time.Date(3000, 1, 1, 1, 1, 1, 1, time.UTC), nil
 }
@@ -88,7 +92,9 @@ func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 			s := NewServer(serverCtx, func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 				return adapters.NewServerToClient(nseT.nse)
 			}, grpc.WithInsecure())
-			clientURLCtx := nseT.newNSEContext(context.Background())
+			clientURLCtx, clientCancel := context.WithTimeout(context.Background(), timeout)
+			defer clientCancel()
+			clientURLCtx = nseT.newNSEContext(clientURLCtx)
 			conn, err := s.Request(clientURLCtx, &networkservice.NetworkServiceRequest{
 				Connection: &networkservice.Connection{
 					Id: "1",
@@ -110,7 +116,9 @@ func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 			s := NewServer(serverCtx, func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 				return adapters.NewServerToClient(nseT.nse)
 			}, grpc.WithInsecure())
-			clientURLCtx := nseT.newNSEContext(context.Background())
+			clientURLCtx, clientCancel := context.WithTimeout(context.Background(), timeout)
+			defer clientCancel()
+			clientURLCtx = nseT.newNSEContext(clientURLCtx)
 			conn, err := s.Request(clientURLCtx, &networkservice.NetworkServiceRequest{
 				Connection: &networkservice.Connection{
 					Id: "1",
@@ -151,7 +159,9 @@ func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 			s := NewServer(serverCtx, func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 				return adapters.NewServerToClient(nseT.nse)
 			}, grpc.WithInsecure())
-			clientURLCtx := nseT.newNSEContext(context.Background())
+			clientURLCtx, clientCancel := context.WithTimeout(context.Background(), timeout)
+			defer clientCancel()
+			clientURLCtx = nseT.newNSEContext(clientURLCtx)
 			conn, err := s.Request(clientURLCtx, &networkservice.NetworkServiceRequest{
 				Connection: &networkservice.Connection{
 					Id: "1",
@@ -195,11 +205,13 @@ func TestParallelDial(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		j := i
-		ctx := nseT.newNSEContext(context.Background())
+		clientURLCtx, clientCancel := context.WithTimeout(context.Background(), timeout)
+		defer clientCancel()
+		clientURLCtx = nseT.newNSEContext(clientURLCtx)
 		go func() {
 			defer wg.Done()
 			for k := 0; k < 10; k++ {
-				conn, err := s.Request(ctx, &networkservice.NetworkServiceRequest{
+				conn, err := s.Request(clientURLCtx, &networkservice.NetworkServiceRequest{
 					Connection: &networkservice.Connection{
 						Id: fmt.Sprintf("%d", j),
 						Path: &networkservice.Path{
@@ -210,7 +222,7 @@ func TestParallelDial(t *testing.T) {
 				require.Nil(t, err)
 				require.NotNil(t, conn)
 
-				_, err = s.Close(ctx, conn)
+				_, err = s.Close(clientURLCtx, conn)
 
 				require.Nil(t, err)
 			}
