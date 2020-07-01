@@ -25,7 +25,6 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -35,17 +34,19 @@ import (
 )
 
 type refreshClient struct {
-	connectionTimers  map[string]*time.Timer
-	refreshCancellers map[string]func()
-	executor          serialize.Executor
+	ctx      context.Context
+	timers   map[string]*time.Timer        // key == request.GetConnection.GetId()
+	cancels  map[string]context.CancelFunc // key == request.GetConnection.GetId()
+	executor serialize.Executor
 }
 
 // NewClient - creates new NetworkServiceClient chain element for refreshing connections before they timeout at the
 // endpoint
-func NewClient() networkservice.NetworkServiceClient {
+func NewClient(ctx context.Context) networkservice.NetworkServiceClient {
 	rv := &refreshClient{
-		connectionTimers:  make(map[string]*time.Timer),
-		refreshCancellers: make(map[string]func()),
+		ctx:     ctx,
+		timers:  make(map[string]*time.Timer),
+		cancels: make(map[string]context.CancelFunc),
 	}
 	return rv
 }
@@ -55,76 +56,72 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 	if err != nil {
 		return nil, err
 	}
-	// Clone the request
-	req := request.Clone()
-	// Set its connection to the returned connection we received
-	req.Connection = rv
-
-	expire, err := t.getExpireDuration(request)
+	expireTime, err := ptypes.Timestamp(request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].GetExpires())
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error creating timer from Request.Connection.Path.PathSegment[%d].ExpireTime", request.GetConnection().GetPath().GetIndex())
+		return nil, err
 	}
-	t.executor.AsyncExec(func() {
-		id := req.GetConnection().GetId()
-		// check if it is refresh request
-		if refreshCtx := refreshContext(ctx); refreshCtx != nil {
-			// refresh was canceled
-			if refreshCtx.Err() != nil {
-				return
-			}
-			// we reuse non-canceled refresh context for the next refresh request
-			timer := t.createTimer(ctx, req, expire, opts...)
-			t.connectionTimers[id] = timer
-		} else {
-			// cancel refresh of previous request if any
-			if timer, ok := t.connectionTimers[id]; ok {
-				timer.Stop()
-			}
-			if canceller, ok := t.refreshCancellers[id]; ok {
-				canceller()
-			}
-			// add refresh context to request context
-			refreshCtx, cancelFunc := context.WithCancel(context.Background())
-			newCtx := withRefreshContext(ctx, refreshCtx)
 
-			timer := t.createTimer(newCtx, req, expire, opts...)
-			t.connectionTimers[id] = timer
-			t.refreshCancellers[id] = cancelFunc
+	// Create refreshRequest
+	refreshRequest := request.Clone()
+	refreshRequest.GetConnection().Context = rv.Context
+	refreshRequest.GetConnection().Mechanism = rv.Mechanism
+	refreshRequest.GetConnection().NetworkServiceEndpointName = rv.NetworkServiceEndpointName
+
+	// TODO - introduce random noise into duration avoid timer lock
+	duration := time.Until(expireTime) / 3
+	t.executor.AsyncExec(func() {
+		// Create the refresh context
+		var cancel context.CancelFunc
+		refreshCtx, cancel := context.WithCancel(extend.WithValuesFromContext(t.ctx, ctx))
+		if deadline, ok := ctx.Deadline(); ok {
+			refreshCtx, cancel = context.WithDeadline(refreshCtx, deadline.Add(duration))
 		}
+
+		// Stop any existing timers
+		if timer, ok := t.timers[request.GetConnection().GetId()]; ok {
+			timer.Stop()
+		}
+
+		// Set new timer
+		var timer *time.Timer
+		timer = time.AfterFunc(duration, func() {
+			<-t.executor.AsyncExec(func() {
+				// Check to see if we've been superseded by another timer, if so, do nothing
+				currentTimer, ok := t.timers[refreshRequest.GetConnection().GetId()]
+				if ok && currentTimer != timer {
+					cancel()
+					return
+				}
+			})
+			// Resend request if the refreshCtx is not Done.  Note: refreshCtx should only be done if
+			// t.ctx has been canceled (usually because the clientCtx has been canceled
+			select {
+			case <-refreshCtx.Done():
+			default:
+				if _, err := t.Request(refreshCtx, refreshRequest, opts...); err != nil {
+					// TODO - do we want to retry at 2/3 and 3/3 if we fail here?
+					trace.Log(refreshCtx).Errorf("Error while attempting to refresh connection %s: %+v", request.GetConnection().GetId(), err)
+				}
+			}
+			// Set timer to nil to be really really sure we don't have a circular reference that precludes garbage collection
+			timer = nil
+		})
+		t.timers[request.GetConnection().GetId()] = timer
+		t.cancels[request.GetConnection().GetId()] = cancel
 	})
 	return rv, nil
 }
 
 func (t *refreshClient) Close(ctx context.Context, conn *networkservice.Connection, _ ...grpc.CallOption) (*empty.Empty, error) {
 	t.executor.AsyncExec(func() {
-		if timer, ok := t.connectionTimers[conn.GetId()]; ok {
-			timer.Stop()
-			delete(t.connectionTimers, conn.GetId())
+		if cancel, ok := t.cancels[conn.GetId()]; ok {
+			cancel()
+			delete(t.cancels, conn.GetId())
 		}
-		if canceller, ok := t.refreshCancellers[conn.GetId()]; ok {
-			canceller()
-			delete(t.refreshCancellers, conn.GetId())
+		if timer, ok := t.timers[conn.GetId()]; ok {
+			timer.Stop()
+			delete(t.timers, conn.GetId())
 		}
 	})
 	return next.Client(ctx).Close(ctx, conn)
-}
-
-func (t *refreshClient) getExpireDuration(request *networkservice.NetworkServiceRequest) (time.Duration, error) {
-	expireTime, err := ptypes.Timestamp(request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].GetExpires())
-	if err != nil {
-		return 0, err
-	}
-	duration := time.Until(expireTime)
-	return duration, nil
-}
-
-func (t *refreshClient) createTimer(ctx context.Context, request *networkservice.NetworkServiceRequest, expires time.Duration, opts ...grpc.CallOption) *time.Timer {
-	newCtx := extend.WithValuesFromContext(context.Background(), ctx)
-	return time.AfterFunc(expires, func() {
-		// TODO what to do about error handling?
-		// TODO what to do about expiration of context
-		if _, err := t.Request(newCtx, request, opts...); err != nil {
-			trace.Log(newCtx).Errorf("Error while attempting to refresh connection %s: %+v", request.GetConnection().GetId(), err)
-		}
-	})
 }
