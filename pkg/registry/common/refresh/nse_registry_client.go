@@ -31,19 +31,11 @@ import (
 )
 
 type refreshNSEClient struct {
-	client                    registry.NetworkServiceEndpointRegistryClient
-	nsesMutex                 sync.Mutex
-	nseCancels                map[string]context.CancelFunc
-	retryDelay                time.Duration
-	defaultExpirationDuration time.Duration
-}
-
-func (c *refreshNSEClient) setDefaultExpiration(duration time.Duration) {
-	c.defaultExpirationDuration = duration
-}
-
-func (c *refreshNSEClient) setRetryPeriod(p time.Duration) {
-	c.retryDelay = p
+	client                registry.NetworkServiceEndpointRegistryClient
+	nsesMutex             sync.Mutex
+	nseCancels            map[string]context.CancelFunc
+	retryDelay            time.Duration
+	defaultExpiryDuration time.Duration
 }
 
 func (c *refreshNSEClient) startRefresh(ctx context.Context, nse *registry.NetworkServiceEndpoint) {
@@ -71,19 +63,19 @@ func (c *refreshNSEClient) startRefresh(ctx context.Context, nse *registry.Netwo
 }
 
 func (c *refreshNSEClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+	if in.ExpirationTime == nil {
+		expirationTime := time.Now().Add(c.defaultExpiryDuration)
+		in.ExpirationTime = &timestamp.Timestamp{
+			Seconds: expirationTime.Unix(),
+			Nanos:   int32(expirationTime.Nanosecond()),
+		}
+	}
 	resp, err := next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)
 	if err != nil {
 		return nil, err
 	}
 	c.nsesMutex.Lock()
 	defer c.nsesMutex.Unlock()
-	if resp.ExpirationTime == nil {
-		expirationTime := time.Now().Add(c.defaultExpirationDuration)
-		resp.ExpirationTime = &timestamp.Timestamp{
-			Seconds: expirationTime.Unix(),
-			Nanos:   int32(expirationTime.Nanosecond()),
-		}
-	}
 	if v, ok := c.nseCancels[resp.Name]; ok {
 		v()
 	}
@@ -115,10 +107,10 @@ func (c *refreshNSEClient) Unregister(ctx context.Context, in *registry.NetworkS
 // NewNetworkServiceEndpointRegistryClient creates new NetworkServiceEndpointRegistryClient that will refresh expiration time for registered NSEs
 func NewNetworkServiceEndpointRegistryClient(client registry.NetworkServiceEndpointRegistryClient, options ...Option) registry.NetworkServiceEndpointRegistryClient {
 	c := &refreshNSEClient{
-		client:                    client,
-		nseCancels:                map[string]context.CancelFunc{},
-		retryDelay:                time.Second * 5,
-		defaultExpirationDuration: time.Minute * 30,
+		client:                client,
+		nseCancels:            map[string]context.CancelFunc{},
+		retryDelay:            time.Second * 5,
+		defaultExpiryDuration: time.Minute * 30,
 	}
 
 	for _, o := range options {
