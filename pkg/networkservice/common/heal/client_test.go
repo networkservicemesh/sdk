@@ -18,12 +18,14 @@ package heal_test
 
 import (
 	"context"
+	"io/ioutil"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
@@ -54,6 +56,7 @@ func (t *testOnHeal) Close(ctx context.Context, in *networkservice.Connection, o
 
 func TestHealClient_Request(t *testing.T) {
 	defer goleak.VerifyNone(t)
+	logrus.SetOutput(ioutil.Discard)
 	eventCh := make(chan *networkservice.ConnectionEvent, 1)
 	defer close(eventCh)
 
@@ -115,6 +118,7 @@ func TestHealClient_Request(t *testing.T) {
 
 func TestHealClient_EmptyInit(t *testing.T) {
 	defer goleak.VerifyNone(t)
+	logrus.SetOutput(ioutil.Discard)
 	eventCh := make(chan *networkservice.ConnectionEvent, 1)
 	defer close(eventCh)
 
@@ -151,6 +155,7 @@ func TestHealClient_EmptyInit(t *testing.T) {
 
 func TestNewClient_MissingConnectionsInInit(t *testing.T) {
 	defer goleak.VerifyNone(t)
+	logrus.SetOutput(ioutil.Discard)
 	eventCh := make(chan *networkservice.ConnectionEvent, 1)
 
 	requestCh := make(chan *networkservice.NetworkServiceRequest)
