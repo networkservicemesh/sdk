@@ -35,8 +35,8 @@ import (
 )
 
 const (
-	expireTimeout        = 50 * time.Millisecond
-	waitForTimeout       = 3 * expireTimeout
+	expireTimeout        = 100 * time.Millisecond
+	waitForTimeout       = expireTimeout
 	tickTimeout          = 10 * time.Millisecond
 	refreshCount         = 5
 	expectAbsenceTimeout = 5 * expireTimeout
@@ -107,7 +107,6 @@ func firstGetsValueEarlier(c1, c2 <-chan struct{}) bool {
 }
 
 func TestNewClient_StopRefreshAtClose(t *testing.T) {
-	t.Skip("https://github.com/networkservicemesh/sdk/issues/237")
 	defer goleak.VerifyNone(t)
 	requestCh := make(chan struct{}, 1)
 	testRefresh := &testRefresh{
@@ -117,8 +116,9 @@ func TestNewClient_StopRefreshAtClose(t *testing.T) {
 			return in.GetConnection(), nil
 		},
 	}
-
-	client := next.NewNetworkServiceClient(refresh.NewClient(), testRefresh)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	client := next.NewNetworkServiceClient(refresh.NewClient(ctx), testRefresh)
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "conn-1",
@@ -143,7 +143,6 @@ func TestNewClient_StopRefreshAtClose(t *testing.T) {
 }
 
 func TestNewClient_StopRefreshAtAnotherRequest(t *testing.T) {
-	t.Skip("https://github.com/networkservicemesh/sdk/issues/260")
 	defer goleak.VerifyNone(t)
 	requestCh := make(chan struct{}, 1)
 	testRefresh := &testRefresh{
@@ -155,8 +154,9 @@ func TestNewClient_StopRefreshAtAnotherRequest(t *testing.T) {
 			return in.GetConnection(), nil
 		},
 	}
-
-	client := next.NewNetworkServiceClient(refresh.NewClient(), testRefresh)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	client := next.NewNetworkServiceClient(refresh.NewClient(ctx), testRefresh)
 
 	request1 := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{

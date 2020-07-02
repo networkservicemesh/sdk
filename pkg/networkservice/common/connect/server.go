@@ -58,6 +58,7 @@ func (c *connectServer) Request(ctx context.Context, request *networkservice.Net
 	}
 	// Copy Context from client to response from server
 	request.GetConnection().Context = clientConn.Context
+	request.GetConnection().Path = clientConn.Path
 
 	// Carry on with next.Server
 	conn, err := next.Server(ctx).Request(ctx, request)
