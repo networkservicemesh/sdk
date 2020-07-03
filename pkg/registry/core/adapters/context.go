@@ -16,25 +16,36 @@
 
 package adapters
 
-import (
-	"context"
+import "context"
 
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
+type contextKeyType string
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-)
+const nextDone contextKeyType = "NextDone"
 
-type doneServer struct{}
-
-func (d *doneServer) Request(ctx context.Context, in *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	markDone(ctx)
-	return next.Server(ctx).Request(ctx, in)
+func withDone(ctx context.Context) context.Context {
+	if v := ctx.Value(nextDone); v != nil {
+		if b, ok := v.(*bool); ok {
+			*b = false
+			return ctx
+		}
+	}
+	d := false
+	return context.WithValue(ctx, nextDone, &d)
 }
 
-func (d *doneServer) Close(ctx context.Context, in *networkservice.Connection) (*empty.Empty, error) {
-	markDone(ctx)
-	return next.Server(ctx).Close(ctx, in)
+// isDone returns true if tail element in the chain has been called
+func isDone(ctx context.Context) bool {
+	if val, ok := ctx.Value(nextDone).(*bool); ok {
+		return *val
+	}
+	return false
 }
 
-var _ networkservice.NetworkServiceServer = &doneServer{}
+func markDone(ctx context.Context) {
+	if ctx == nil {
+		return
+	}
+	if val, ok := ctx.Value(nextDone).(*bool); ok {
+		*val = true
+	}
+}

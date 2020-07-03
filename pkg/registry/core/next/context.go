@@ -23,8 +23,6 @@ package next
 import (
 	"context"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
-
 	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
@@ -59,13 +57,7 @@ func withNextNSRegistryClient(parent context.Context, next registry.NetworkServi
 //   Returns the NetworkServiceRegistryServer registry.NetworkServiceRegistryServer to be called in the chain from the context.Context
 func NetworkServiceRegistryServer(ctx context.Context) registry.NetworkServiceRegistryServer {
 	rv, ok := ctx.Value(nextNSRegistryServerKey).(registry.NetworkServiceRegistryServer)
-	if !ok {
-		client, ok := ctx.Value(nextNSRegistryClientKey).(registry.NetworkServiceRegistryClient)
-		if ok {
-			rv = adapters.NetworkServiceClientToServer(client)
-		}
-	}
-	if rv != nil {
+	if ok && rv != nil {
 		return rv
 	}
 	return &tailNetworkServiceRegistryServer{}
@@ -75,13 +67,7 @@ func NetworkServiceRegistryServer(ctx context.Context) registry.NetworkServiceRe
 //   Returns the NetworkServiceRegistryClient registry.NetworkServiceRegistryClientWrapper to be called in the chain from the context.Context
 func NetworkServiceRegistryClient(ctx context.Context) registry.NetworkServiceRegistryClient {
 	rv, ok := ctx.Value(nextNSRegistryClientKey).(registry.NetworkServiceRegistryClient)
-	if !ok {
-		server, ok := ctx.Value(nextNSRegistryServerKey).(registry.NetworkServiceRegistryServer)
-		if ok {
-			rv = adapters.NetworkServiceServerToClient(server)
-		}
-	}
-	if rv != nil {
+	if ok && rv != nil {
 		return rv
 	}
 	return &tailNetworkServiceRegistryClient{}
@@ -109,13 +95,7 @@ func withNextNSERegistryClient(parent context.Context, next registry.NetworkServ
 //   Returns the NetworkServiceEndpointRegistryServer registry.NetworkServiceEndpointRegistryServer to be called in the chain from the context.Context
 func NetworkServiceEndpointRegistryServer(ctx context.Context) registry.NetworkServiceEndpointRegistryServer {
 	rv, ok := ctx.Value(nextNSERegistryServerKey).(registry.NetworkServiceEndpointRegistryServer)
-	if !ok {
-		client, ok := ctx.Value(nextNSERegistryClientKey).(registry.NetworkServiceEndpointRegistryClient)
-		if ok {
-			rv = adapters.NetworkServiceEndpointClientToServer(client)
-		}
-	}
-	if rv != nil {
+	if ok && rv != nil {
 		return rv
 	}
 	return &tailNetworkServiceEndpointRegistryServer{}
@@ -125,13 +105,7 @@ func NetworkServiceEndpointRegistryServer(ctx context.Context) registry.NetworkS
 //   Returns the NetworkServiceEndpointRegistryClient registry.NetworkServiceEndpointRegistryClientWrapper to be called in the chain from the context.Context
 func NetworkServiceEndpointRegistryClient(ctx context.Context) registry.NetworkServiceEndpointRegistryClient {
 	rv, ok := ctx.Value(nextNSERegistryClientKey).(registry.NetworkServiceEndpointRegistryClient)
-	if !ok {
-		server, ok := ctx.Value(nextNSERegistryServerKey).(registry.NetworkServiceEndpointRegistryServer)
-		if ok {
-			rv = adapters.NetworkServiceEndpointServerToClient(server)
-		}
-	}
-	if rv != nil {
+	if ok && rv != nil {
 		return rv
 	}
 	return &tailNetworkServiceEndpointRegistryClient{}

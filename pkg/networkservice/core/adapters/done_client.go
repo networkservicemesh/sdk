@@ -21,20 +21,21 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type doneServer struct{}
+type doneClient struct{}
 
-func (d *doneServer) Request(ctx context.Context, in *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+func (d *doneClient) Request(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	markDone(ctx)
-	return next.Server(ctx).Request(ctx, in)
+	return next.Client(ctx).Request(ctx, in, opts...)
 }
 
-func (d *doneServer) Close(ctx context.Context, in *networkservice.Connection) (*empty.Empty, error) {
+func (d *doneClient) Close(ctx context.Context, in *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	markDone(ctx)
-	return next.Server(ctx).Close(ctx, in)
+	return next.Client(ctx).Close(ctx, in, opts...)
 }
 
-var _ networkservice.NetworkServiceServer = &doneServer{}
+var _ networkservice.NetworkServiceClient = &doneClient{}
