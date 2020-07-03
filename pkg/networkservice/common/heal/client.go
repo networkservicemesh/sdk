@@ -19,10 +19,11 @@ package heal
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/sirupsen/logrus"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -36,15 +37,13 @@ import (
 )
 
 type healClient struct {
-	requestors        map[string]func()
-	closers           map[string]func()
-	reported          map[string]*networkservice.Connection
-	onHeal            *networkservice.NetworkServiceClient
-	client            networkservice.MonitorConnectionClient
-	eventReceiver     networkservice.MonitorConnection_MonitorConnectionsClient
-	updateExecutor    serialize.Executor
-	recvEventExecutor serialize.Executor
-	chainContext      context.Context
+	ctx            context.Context
+	client         networkservice.MonitorConnectionClient
+	onHeal         *networkservice.NetworkServiceClient
+	heals          map[string]func()
+	connections    map[string]*networkservice.Connection
+	updateExecutor serialize.Executor
+	eventLoopOnce  sync.Once
 }
 
 // NewClient - creates a new networkservice.NetworkServiceClient chain element that implements the healing algorithm
@@ -62,95 +61,86 @@ type healClient struct {
 //                        If onHeal nil, onHeal will be pointed to the returned networkservice.NetworkServiceClient
 func NewClient(ctx context.Context, client networkservice.MonitorConnectionClient, onHeal *networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	rv := &healClient{
-		onHeal:            onHeal,
-		requestors:        make(map[string]func()),
-		closers:           make(map[string]func()),
-		reported:          make(map[string]*networkservice.Connection),
-		client:            client,
-		updateExecutor:    serialize.NewExecutor(),
-		eventReceiver:     nil, // This is intentionally nil
-		recvEventExecutor: serialize.NewExecutor(),
-		chainContext:      ctx,
+		ctx:            ctx,
+		client:         client,
+		onHeal:         onHeal,
+		heals:          make(map[string]func()),
+		connections:    make(map[string]*networkservice.Connection),
+		updateExecutor: serialize.NewExecutor(),
 	}
 
 	if rv.onHeal == nil {
 		rv.onHeal = addressof.NetworkServiceClient(rv)
 	}
 
-	rv.init()
-
 	return rv
 }
 
-func (f *healClient) init() {
-	if f.eventReceiver != nil {
-		select {
-		case <-f.eventReceiver.Context().Done():
-			return
-		default:
-			f.eventReceiver = nil
+func (f *healClient) monitorLoop() {
+	go f.eventLoopOnce.Do(func() {
+		for {
+			select {
+			case <-f.ctx.Done():
+				return
+			default:
+			}
+			recv, err := f.client.MonitorConnections(f.ctx, &networkservice.MonitorScopeSelector{}, grpc.WaitForReady(true))
+			if err != nil {
+				continue
+			}
+			f.eventloop(recv)
 		}
-	}
-
-	logrus.Info("Creating new eventReceiver")
-
-	recv, err := f.client.MonitorConnections(f.chainContext, &networkservice.MonitorScopeSelector{}, grpc.WaitForReady(true))
-	if err != nil {
-		f.updateExecutor.AsyncExec(func() {
-			f.init()
-		})
-		return
-	}
-	f.eventReceiver = recv
-	f.recvEventExecutor.AsyncExec(f.recvEvent)
+	})
 }
 
-func (f *healClient) recvEvent() {
-	select {
-	case <-f.eventReceiver.Context().Done():
-		return
-	default:
-		event, err := f.eventReceiver.Recv()
-		f.updateExecutor.AsyncExec(func() {
-			if err != nil {
-				for id, r := range f.requestors {
-					r()
-					delete(f.reported, id)
+// Should only be called inside monitorLoop
+func (f *healClient) eventloop(recv networkservice.MonitorConnection_MonitorConnectionsClient) {
+	for {
+		select {
+		case <-f.ctx.Done():
+			return
+		default:
+		}
+		event, err := recv.Recv()
+		if err != nil {
+			f.updateExecutor.AsyncExec(func() {
+				for id, heal := range f.heals {
+					heal()
+					delete(f.connections, id)
 				}
-				f.init()
-				return
-			}
-
+			})
+			break
+		}
+		f.updateExecutor.AsyncExec(func() {
 			switch event.GetType() {
 			case networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER:
-				f.reported = event.GetConnections()
+				f.connections = event.GetConnections()
 				if event.GetConnections() == nil {
-					f.reported = map[string]*networkservice.Connection{}
+					f.connections = map[string]*networkservice.Connection{}
 				}
 
 			case networkservice.ConnectionEventType_UPDATE:
 				for _, conn := range event.GetConnections() {
-					f.reported[conn.GetId()] = conn
+					f.connections[conn.GetId()] = conn
 				}
 
 			case networkservice.ConnectionEventType_DELETE:
 				for _, conn := range event.GetConnections() {
-					delete(f.reported, conn.GetId())
+					delete(f.connections, conn.GetId())
 				}
 			}
 
-			for id, request := range f.requestors {
-				if _, ok := f.reported[id]; !ok {
-					request()
+			for id, heal := range f.heals {
+				if _, ok := f.connections[id]; !ok {
+					heal()
 				}
 			}
 		})
 	}
-
-	f.recvEventExecutor.AsyncExec(f.recvEvent)
 }
 
 func (f *healClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	f.monitorLoop()
 	rv, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
 		return nil, err
@@ -160,27 +150,27 @@ func (f *healClient) Request(ctx context.Context, request *networkservice.Networ
 	// Set its connection to the returned connection we received
 	req.Connection = rv
 
-	// TODO handle deadline err
-	deadline, _ := ctx.Deadline()
+	// TODO handle deadline ok
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		// If we don't have a deadline, we can literally deadlock on our attempts to heal (or make initial requests)
+		return nil, errors.Errorf("all requests require a context with a deadline")
+	}
 	duration := time.Until(deadline)
 	f.updateExecutor.AsyncExec(func() {
-		f.requestors[req.GetConnection().GetId()] = func() {
-			timeCtx, cancelFunc := context.WithTimeout(f.chainContext, duration)
-			defer cancelFunc()
-			ctx = extend.WithValuesFromContext(timeCtx, ctx)
-			// TODO wrap another span around this
-			_, err := (*f.onHeal).Request(ctx, req, opts...)
-			if err != nil {
-				trace.Log(ctx).Errorf("Attempt to heal connection %s resulted in error: %+v", req.GetConnection().GetId(), err)
+		f.heals[req.GetConnection().GetId()] = func() {
+			healCtx, cancel := context.WithTimeout(f.ctx, duration)
+			defer cancel()
+			healCtx = extend.WithValuesFromContext(healCtx, ctx)
+			select {
+			case <-healCtx.Done():
+				return
+			default:
 			}
-		}
-		f.closers[req.GetConnection().GetId()] = func() {
-			timeCtx, cancelFunc := context.WithTimeout(f.chainContext, duration)
-			defer cancelFunc()
-			ctx = extend.WithValuesFromContext(timeCtx, ctx)
-			_, err := (*f.onHeal).Close(ctx, req.GetConnection(), opts...)
+			// TODO wrap another span around this
+			_, err := (*f.onHeal).Request(healCtx, req, opts...)
 			if err != nil {
-				trace.Log(ctx).Errorf("Attempt to close connection %s during heal resulted in error: %+v", req.GetConnection().GetId(), err)
+				trace.Log(healCtx).Errorf("Attempt to heal connection %s resulted in error: %+v", req.GetConnection().GetId(), err)
 			}
 		}
 	})
@@ -188,14 +178,14 @@ func (f *healClient) Request(ctx context.Context, request *networkservice.Networ
 }
 
 func (f *healClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	f.monitorLoop()
 	rv, err := next.Client(ctx).Close(ctx, conn, opts...)
 	if err != nil {
 		return nil, err
 	}
 	f.updateExecutor.AsyncExec(func() {
-		delete(f.requestors, conn.GetId())
-		delete(f.closers, conn.GetId())
-		delete(f.reported, conn.GetId())
+		delete(f.heals, conn.GetId())
+		delete(f.connections, conn.GetId())
 	})
 	return rv, nil
 }

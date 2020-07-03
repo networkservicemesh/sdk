@@ -62,12 +62,13 @@ func (m *monitorConnectionClient) MonitorConnections(ctx context.Context, _ *net
 				}
 				var newFanoutEventChs []chan *networkservice.ConnectionEvent
 				for _, ch := range m.fanoutEventChs {
-					if ch != fanoutEventCh {
-						newFanoutEventChs = append(newFanoutEventChs, ch)
+					if ch == fanoutEventCh {
+						close(fanoutEventCh)
+						continue
 					}
+					newFanoutEventChs = append(newFanoutEventChs, ch)
 				}
 				m.fanoutEventChs = newFanoutEventChs
-				close(fanoutEventCh)
 			})
 		}()
 	})
