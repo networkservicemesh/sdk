@@ -37,14 +37,15 @@ type networkServiceRegistryServer struct {
 }
 
 func (n *networkServiceRegistryServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
+	store := *ns
 	r, err := next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
 	if err != nil {
 		return nil, err
 	}
-	n.networkServices.Store(r.Name, r)
+	n.networkServices.Store(r.Name, &store)
 	n.executor.AsyncExec(func() {
 		for _, ch := range n.eventChannels {
-			ch <- r
+			ch <- &store
 		}
 	})
 	return r, nil

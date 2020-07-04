@@ -26,13 +26,12 @@ import (
 // URLToTarget - convert *net.URL to acceptable grpc target value.
 func URLToTarget(u *url.URL) (target string) {
 	switch u.Scheme {
-	case unixScheme:
-		return u.String()
 	case tcpScheme:
 		return u.Host
+	default:
+		// assume other variants converters just fine.
+		return u.String()
 	}
-	// assume other variants converters just fine.
-	return u.String()
 }
 
 // AddressToURL - convert net.Addr to a proper URL object

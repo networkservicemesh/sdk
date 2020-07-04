@@ -39,11 +39,12 @@ type networkServiceEndpointRegistryServer struct {
 }
 
 func (n *networkServiceEndpointRegistryServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	store := *nse
 	r, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	if err != nil {
 		return nil, err
 	}
-	n.networkServiceEndpoints.Store(r.Name, r)
+	n.networkServiceEndpoints.Store(r.Name, &store)
 	n.sendEvent(r)
 	return r, err
 }
