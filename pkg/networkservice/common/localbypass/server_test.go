@@ -23,6 +23,8 @@ import (
 	"net/url"
 	"testing"
 
+	clienturl2 "github.com/networkservicemesh/sdk/pkg/tools/clienturl"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/common/seturl"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 
@@ -33,7 +35,6 @@ import (
 	"go.uber.org/goleak"
 	"google.golang.org/grpc/peer"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/localbypass"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
@@ -66,12 +67,12 @@ type testNetworkServiceServer struct {
 }
 
 func (s testNetworkServiceServer) Request(ctx context.Context, in *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	testData(ctx).clientURL = clienturl.ClientURL(ctx)
+	testData(ctx).clientURL = clienturl2.ClientURL(ctx)
 	return in.GetConnection(), nil
 }
 
 func (s testNetworkServiceServer) Close(ctx context.Context, _ *networkservice.Connection) (*empty.Empty, error) {
-	testData(ctx).clientURL = clienturl.ClientURL(ctx)
+	testData(ctx).clientURL = clienturl2.ClientURL(ctx)
 	return &empty.Empty{}, nil
 }
 

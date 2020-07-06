@@ -21,6 +21,8 @@ package connect
 import (
 	"context"
 
+	clienturl2 "github.com/networkservicemesh/sdk/pkg/tools/clienturl"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
@@ -93,7 +95,7 @@ func (c *connectServer) client(ctx context.Context, conn *networkservice.Connect
 
 	// If we didn't find a client, we fall back to clientURL
 	if client == nil {
-		clientURL := clienturl.ClientURL(ctx)
+		clientURL := clienturl2.ClientURL(ctx)
 		// If we don't have a clientURL, all we can do is return errors
 		if clientURL == nil {
 			clientErr := errors.Errorf("clientURL not found for incoming connection: %+v", conn)
@@ -113,7 +115,7 @@ func (c *connectServer) client(ctx context.Context, conn *networkservice.Connect
 		// unlikely case of multiple nearly simultaneous initial Requests racing this client == nil
 		if client == nil {
 			// Note: clienturl.NewClient(...) will get properly cleaned up when dereferences
-			client = clienturl.NewClient(clienturl.WithClientURL(c.ctx, clientURL), c.clientFactory, c.clientDialOptions...)
+			client = clienturl.NewClient(clienturl2.WithClientURL(c.ctx, clientURL), c.clientFactory, c.clientDialOptions...)
 			client, _ = c.clientsByURL.LoadOrStore(clientURL.String(), client)
 			// Wrap the client in a per-connection connect.NewClient(...)
 			// when this client receive a 'Close' it will call the cancelFunc provided deleting it from the various
