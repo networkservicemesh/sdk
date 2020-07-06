@@ -23,7 +23,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
+
+	"google.golang.org/grpc/credentials"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
@@ -32,17 +38,19 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/grpclog"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
-func TokenGenerator(peerAuthInfo credentials.AuthInfo) (token string, expireTime time.Time, err error) {
+func TokenGenerator(peerAuthInfo credentials.AuthInfo) (tokenValue string, expireTime time.Time, err error) {
 	return "TestToken", time.Date(3000, 1, 1, 1, 1, 1, 1, time.UTC), nil
 }
 
@@ -62,7 +70,42 @@ func newClient(ctx context.Context, u *url.URL) (*grpc.ClientConn, error) {
 		grpc.WithInsecure(),
 		grpc.WithBlock())
 }
-func TestNSmgrEndpointCallback(t *testing.T) {
+
+
+// NewCrossNSE construct a new Cross connect test NSE
+func newCrossNSE(ctx context.Context, name string, connectTo *url.URL, tokenGenerator token.GeneratorFunc, clientDialOptions ...grpc.DialOption) endpoint.Endpoint {
+	var crossNSe endpoint.Endpoint
+	crossNSe = endpoint.NewServer(
+		name,
+		authorize.NewServer(),
+		tokenGenerator,
+		// Statically set the url we use to the unix file socket for the NSMgr
+		clienturl.NewServer(connectTo),
+		connect.NewServer(
+			ctx,
+			client.NewClientFactory(
+				name,
+				// What to call onHeal
+				addressof.NetworkServiceClient(adapters.NewServerToClient(crossNSe)),
+				tokenGenerator,
+			),
+			clientDialOptions...,
+		),
+	)
+	return crossNSe
+}
+
+// serve  - serves passed Endpoint on grpc
+func serve(ctx context.Context, listenOn *url.URL, ep endpoint.Endpoint, opt ...grpc.ServerOption) {
+	server := grpc.NewServer(opt...)
+	ep.Register(server)
+
+	_ = grpcutils.ListenAndServe(ctx, listenOn, server)
+}
+
+func TestNSmgrCrossNSETest(t *testing.T) {
+	grpclog.SetLoggerV2(grpclog.NewLoggerV2(os.Stdout, os.Stdout, os.Stderr))
+
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
@@ -76,7 +119,7 @@ func TestNSmgrEndpointCallback(t *testing.T) {
 		Url:  "tcp://127.0.0.1:5001",
 	}
 
-	// Server NSMGR, Use in memory registry server
+	// Serve NSMGR, Use in memory registry server
 	mgr := nsmgr.NewServer(ctx, nsmgrReg, authorize.NewServer(), TokenGenerator, nil, grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)))
 	nsmURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
 	mgrGrpcSrv, mgrGrpcCancel, mgrErr := serverNSM(ctx, nsmURL, mgr)
@@ -86,21 +129,42 @@ func TestNSmgrEndpointCallback(t *testing.T) {
 	nsmgrReg.Url = nsmURL.String()
 	logrus.Infof("NSMGR listenON: %v", nsmURL.String())
 
+	// Serve endpoint
+	nseURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
+	serve(ctx, nseURL,
+		endpoint.NewServer(
+			"final-endpoint",
+			authorize.NewServer(),
+			TokenGenerator),
+	)
+	logrus.Infof("NSE listenON: %v", nseURL.String())
+
+	// Serve Cross Connect NSE
+	crossNSEURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
+	serve(ctx, crossNSEURL, newCrossNSE(ctx, crossnse.CrossNSEName, nsmURL, TokenGenerator, grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true))))
+	logrus.Infof("Cross NSE listenON: %v", crossNSEURL.String())
+
 	// Register network service.
-	nsService, err := mgr.NetworkServiceRegistryServer().Register(context.Background(), &registry.NetworkService{
+	serviceReg, err := mgr.NetworkServiceRegistryServer().Register(context.Background(), &registry.NetworkService{
 		Name: "my-service",
 	})
 	require.Nil(t, err)
 
-	// Register Endpoint
-	var nseReg *registry.NetworkServiceEndpoint
-	nseReg, err = mgr.NetworkServiceEndpointRegistryServer().Register(context.Background(), &registry.NetworkServiceEndpoint{
-		NetworkServiceNames: []string{nsService.Name},
+	// Register endpoints
+
+	// Register NSE
+	_, err = mgr.NetworkServiceEndpointRegistryServer().Register(context.Background(), &registry.NetworkServiceEndpoint{
 		Url:                 nseURL.String(),
+		NetworkServiceNames: []string{serviceReg.Name},
 	})
 	require.Nil(t, err)
-	require.NotEqual(t, "", nseReg.Name)
-	require.NotNil(t, nseReg)
+
+	// Register Cross NSE
+	_, err = mgr.NetworkServiceEndpointRegistryServer().Register(context.Background(), &registry.NetworkServiceEndpoint{
+		Url:  crossNSEURL.String(),
+		Name: crossnse.CrossNSEName,
+	})
+	require.Nil(t, err)
 
 	var nsmClient grpc.ClientConnInterface
 	nsmClient, err = newClient(ctx, nsmURL)
@@ -109,7 +173,7 @@ func TestNSmgrEndpointCallback(t *testing.T) {
 
 	var connection *networkservice.Connection
 
-	connection, err = cl.Request(ctx, &networkservice.NetworkServiceRequest{
+	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
 			{Cls: cls.LOCAL, Type: kernel.MECHANISM},
 		},
@@ -118,8 +182,23 @@ func TestNSmgrEndpointCallback(t *testing.T) {
 			NetworkService: "my-service",
 			Context:        &networkservice.ConnectionContext{},
 		},
-	})
+	}
+	connection, err = cl.Request(ctx, request)
 	require.Nil(t, err)
 	require.NotNil(t, connection)
-	require.Equal(t, 3, len(connection.Path.PathSegments))
+
+	require.Equal(t, 5, len(connection.Path.PathSegments))
+
+	// Simulate refresh from client.
+
+	refreshRequest := request.Clone()
+	refreshRequest.GetConnection().Context = connection.Context
+	refreshRequest.GetConnection().Mechanism = connection.Mechanism
+	refreshRequest.GetConnection().NetworkServiceEndpointName = connection.NetworkServiceEndpointName
+
+	var connection2 *networkservice.Connection
+	connection2, err = cl.Request(ctx, refreshRequest)
+	require.Nil(t, err)
+	require.NotNil(t, connection2)
+	require.Equal(t, 5, len(connection.Path.PathSegments))
 }

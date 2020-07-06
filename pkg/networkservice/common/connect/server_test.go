@@ -19,21 +19,22 @@ package connect
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net/url"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/setextracontext"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/testnse"
+	"github.com/sirupsen/logrus"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
@@ -41,7 +42,7 @@ import (
 )
 
 const (
-	timeout = 10 * time.Second
+	timeout = 1 * time.Second
 )
 
 func TokenGenerator(peerAuthInfo credentials.AuthInfo) (token string, expireTime time.Time, err error) {
@@ -52,9 +53,8 @@ type nseTest struct {
 	ctx      context.Context
 	cancel   context.CancelFunc
 	listenOn *url.URL
-	t        *testing.T
-	nse      endpoint.Endpoint
-	errCh    <-chan error
+	nse      networkservice.NetworkServiceServer
+	nseSrv   *grpc.Server
 }
 
 func (nseT *nseTest) Stop() {
@@ -79,13 +79,18 @@ func (e *endpointImpl) Register(s *grpc.Server) {
 }
 
 func (nseT *nseTest) Setup() {
-	nseT.ctx, nseT.cancel = context.WithTimeout(context.Background(), 50*time.Second)
+	logrus.SetOutput(ioutil.Discard)
+	nseT.ctx, nseT.cancel = context.WithTimeout(context.Background(), 5*time.Second)
 	nseT.listenOn = &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
 	nseT.nse = &endpointImpl{
 		NetworkServiceServer: setextracontext.NewServer(map[string]string{"ok": "all is ok"}),
 	}
 
-	nseT.errCh = endpoint.Serve(nseT.ctx, nseT.listenOn, nseT.nse)
+	nseT.nse, nseT.nseSrv, _ = testnse.NewNSE(nseT.ctx, nseT.listenOn, func(request *networkservice.NetworkServiceRequest) {
+		request.Connection.Context = &networkservice.ConnectionContext{
+			ExtraContext: map[string]string{"ok": "all is ok"},
+		}
+	})
 }
 
 func (nseT *nseTest) newNSEContext(ctx context.Context) context.Context {
@@ -95,9 +100,7 @@ func (nseT *nseTest) newNSEContext(ctx context.Context) context.Context {
 func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	nseT := &nseTest{
-		t: t,
-	}
+	nseT := &nseTest{}
 	nseT.Setup()
 	defer nseT.Stop()
 
@@ -106,7 +109,7 @@ func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 			serverCtx, serverCancel := context.WithCancel(context.Background())
 			defer serverCancel()
 			s := NewServer(serverCtx, func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-				return networkservice.NewNetworkServiceClient(cc)
+				return adapters.NewServerToClient(nseT.nse)
 			}, grpc.WithInsecure())
 			clientURLCtx, clientCancel := context.WithTimeout(context.Background(), timeout)
 			defer clientCancel()
@@ -120,7 +123,7 @@ func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 			require.NotNil(t, conn)
 			require.Equal(t, "all is ok", conn.GetContext().GetExtraContext()["ok"])
 			_, err = s.Close(clientURLCtx, &networkservice.Connection{
-				Id: conn.Id,
+				Id: "1",
 			})
 			require.Nil(t, err)
 		})
@@ -130,7 +133,7 @@ func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 			serverCtx, serverCancel := context.WithCancel(context.Background())
 			defer serverCancel()
 			s := NewServer(serverCtx, func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-				return networkservice.NewNetworkServiceClient(cc)
+				return adapters.NewServerToClient(nseT.nse)
 			}, grpc.WithInsecure())
 			clientURLCtx, clientCancel := context.WithTimeout(context.Background(), timeout)
 			defer clientCancel()
@@ -156,7 +159,7 @@ func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 			serverCtx, serverCancel := context.WithCancel(context.Background())
 			defer serverCancel()
 			s := NewServer(serverCtx, func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-				return networkservice.NewNetworkServiceClient(cc)
+				return adapters.NewServerToClient(nseT.nse)
 			}, grpc.WithInsecure())
 
 			conn, err := s.Request(context.Background(), &networkservice.NetworkServiceRequest{
@@ -173,7 +176,7 @@ func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 			serverCtx, serverCancel := context.WithCancel(context.Background())
 			defer serverCancel()
 			s := NewServer(serverCtx, func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-				return networkservice.NewNetworkServiceClient(cc)
+				return adapters.NewServerToClient(nseT.nse)
 			}, grpc.WithInsecure())
 			clientURLCtx, clientCancel := context.WithTimeout(context.Background(), timeout)
 			defer clientCancel()
