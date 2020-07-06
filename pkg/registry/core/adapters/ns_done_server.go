@@ -18,6 +18,7 @@ package adapters
 
 import (
 	"context"
+
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/golang/protobuf/ptypes/empty"

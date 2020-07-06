@@ -19,8 +19,9 @@ package adapters
 import (
 	"context"
 	"errors"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"io"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 
 	"google.golang.org/grpc"
 
@@ -36,15 +37,12 @@ type networkServiceRegistryServer struct {
 
 func (n *networkServiceRegistryServer) Register(ctx context.Context, request *registry.NetworkService) (*registry.NetworkService, error) {
 	doneCtx := withDone(ctx)
-	service, err := n.client.Register(doneCtx, request)
+	ns, err := n.client.Register(doneCtx, request)
 	if err != nil {
 		return nil, err
 	}
-	if request == nil {
-		request = &registry.NetworkService{}
-	}
 	if !isDone(doneCtx) {
-		return service, nil
+		return ns, nil
 	}
 	return next.NetworkServiceRegistryServer(ctx).Register(ctx, request)
 }
@@ -60,12 +58,12 @@ func (n *networkServiceRegistryServer) Find(query *registry.NetworkServiceQuery,
 	}
 	for {
 		if err := client.Context().Err(); err != nil {
-			return err
+			break
 		}
 		msg, err := client.Recv()
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				return nil
+				break
 			}
 			return err
 		}
@@ -74,20 +72,20 @@ func (n *networkServiceRegistryServer) Find(query *registry.NetworkServiceQuery,
 			return err
 		}
 	}
-	return next.NetworkServiceRegistryServer(s.Context()).Find(query, s)
+	if isDone(doneCtx) {
+		return next.NetworkServiceRegistryServer(doneCtx).Find(query, s)
+	}
+	return nil
 }
 
 func (n *networkServiceRegistryServer) Unregister(ctx context.Context, request *registry.NetworkService) (*empty.Empty, error) {
 	doneCtx := withDone(ctx)
-	service, err := n.client.Unregister(doneCtx, request)
+	ns, err := n.client.Unregister(doneCtx, request)
 	if err != nil {
 		return nil, err
 	}
-	if request == nil {
-		request = &registry.NetworkService{}
-	}
 	if !isDone(doneCtx) {
-		return service, nil
+		return ns, nil
 	}
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, request)
 }
@@ -105,15 +103,12 @@ type networkServiceRegistryClient struct {
 
 func (n *networkServiceRegistryClient) Register(ctx context.Context, in *registry.NetworkService, _ ...grpc.CallOption) (*registry.NetworkService, error) {
 	doneCtx := withDone(ctx)
-	service, err := n.server.Register(doneCtx, in)
+	ns, err := n.server.Register(doneCtx, in)
 	if err != nil {
 		return nil, err
 	}
-	if in == nil {
-		in = &registry.NetworkService{}
-	}
 	if !isDone(doneCtx) {
-		return service, nil
+		return ns, nil
 	}
 	return next.NetworkServiceRegistryClient(ctx).Register(ctx, in)
 }
@@ -133,20 +128,23 @@ func (n *networkServiceRegistryClient) Find(ctx context.Context, in *registry.Ne
 			return nil, err
 		}
 	}
-	if !isDone(doneCtx) {
-		return streamchannel.NewNetworkServiceFindClient(s.Context(), ch), nil
+	if isDone(doneCtx) {
+		_, err := next.NetworkServiceRegistryClient(ctx).Find(ctx, in)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return next.NetworkServiceRegistryClient(ctx).Find(ctx, in, opts...)
+	return streamchannel.NewNetworkServiceFindClient(ctx, ch), nil
 }
 
 func (n *networkServiceRegistryClient) Unregister(ctx context.Context, in *registry.NetworkService, _ ...grpc.CallOption) (*empty.Empty, error) {
 	doneCtx := withDone(ctx)
-	service, err := n.server.Unregister(doneCtx, in)
+	ns, err := n.server.Unregister(doneCtx, in)
 	if err != nil {
 		return nil, err
 	}
 	if !isDone(doneCtx) {
-		return service, nil
+		return ns, nil
 	}
 	return next.NetworkServiceRegistryClient(ctx).Unregister(ctx, in)
 }
