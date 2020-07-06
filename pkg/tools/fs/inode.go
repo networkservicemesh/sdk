@@ -1,5 +1,3 @@
-// +build linux darwin freebsd netbsd openbsd
-
 // Copyright (c) 2020 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -15,6 +13,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// +build linux darwin freebsd netbsd openbsd
 
 // Package fs provides common filesystem functions and utilities
 package fs

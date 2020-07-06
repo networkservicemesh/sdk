@@ -100,7 +100,7 @@ jobs:
     name: golangci-lint
     runs-on: ubuntu-latest
     env:
-      GOLANGCI_LINT_CONTAINER: golangci/golangci-lint:v1.27.0
+      GOLANGCI_LINT_CONTAINER: golangci/golangci-lint:v1.28.1
     steps:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
@@ -170,21 +170,6 @@ jobs:
         run: |
           git diff -- '*.pb.go' || ( echo "Rerun go generate ./... locally and resubmit" && false )
           git diff -- '*.gen.go' || ( echo "Rerun go generate ./... locally and resubmit" && false )
-
-  license:
-    name: license header check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-go@v1
-        with:
-          go-version: 1.13.4
-      - name: Install go-header
-        run: 'go get github.com/denis-tingajkin/go-header@v0.2.2'
-      - name: Run go-header
-        run: |
-          eval $(go env)
-          ${GOPATH}/bin/go-header
   excludereplace:
     name: Exclude Replace in go.mod
     runs-on: ubuntu-latest
