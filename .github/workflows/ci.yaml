@@ -100,7 +100,7 @@ jobs:
     name: golangci-lint
     runs-on: ubuntu-latest
     env:
-      GOLANGCI_LINT_CONTAINER: golangci/golangci-lint:v1.27.0
+      GOLANGCI_LINT_CONTAINER: golangci/golangci-lint:v1.28.1
     steps:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
