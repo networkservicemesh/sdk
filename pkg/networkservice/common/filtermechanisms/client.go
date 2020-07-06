@@ -23,13 +23,14 @@ package filtermechanisms
 import (
 	"context"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 

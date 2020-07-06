@@ -25,6 +25,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
+
 	"github.com/sirupsen/logrus"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
@@ -37,8 +39,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc/credentials"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 )
 
 const (

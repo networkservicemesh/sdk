@@ -23,6 +23,8 @@ import (
 	"net/url"
 	"sync"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -30,7 +32,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 

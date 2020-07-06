@@ -23,6 +23,8 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/common/seturl"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 
@@ -33,7 +35,6 @@ import (
 	"go.uber.org/goleak"
 	"google.golang.org/grpc/peer"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/localbypass"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
