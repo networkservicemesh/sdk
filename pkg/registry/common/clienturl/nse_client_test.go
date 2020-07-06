@@ -29,7 +29,6 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/memory"
-	clienturl2 "github.com/networkservicemesh/sdk/pkg/tools/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
@@ -50,7 +49,7 @@ func TestClientURL_NewNetworkServiceEndpointRegistryClient(t *testing.T) {
 	}()
 	u, err := url.Parse("tcp://" + l.Addr().String())
 	require.Nil(t, err)
-	ctx := clienturl2.WithClientURL(context.Background(), u)
+	ctx := clienturl.WithClientURL(context.Background(), u)
 	client := clienturl.NewNetworkServiceEndpointRegistryClient(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient {
 		return registry.NewNetworkServiceEndpointRegistryClient(cc)
 	}, grpc.WithInsecure())

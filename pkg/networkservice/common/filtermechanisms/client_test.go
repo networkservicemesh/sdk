@@ -22,7 +22,7 @@ import (
 	"net/url"
 	"testing"
 
-	clienturl2 "github.com/networkservicemesh/sdk/pkg/tools/clienturl"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
@@ -68,7 +68,7 @@ func request() *networkservice.NetworkServiceRequest {
 
 func TestNewClient_FilterUnixType(t *testing.T) {
 	defer goleak.VerifyNone(t)
-	ctx := clienturl2.WithClientURL(context.Background(), &url.URL{
+	ctx := clienturl.WithClientURL(context.Background(), &url.URL{
 		Scheme: "unix",
 		Path:   "/var/run/nse-1.sock",
 	})
@@ -94,7 +94,7 @@ func TestNewClient_FilterUnixType(t *testing.T) {
 
 func TestNewClient_FilterNonUnixType(t *testing.T) {
 	defer goleak.VerifyNone(t)
-	ctx := clienturl2.WithClientURL(context.Background(), &url.URL{
+	ctx := clienturl.WithClientURL(context.Background(), &url.URL{
 		Scheme: "ipv4",
 		Path:   "192.168.0.1",
 	})

@@ -23,7 +23,7 @@ import (
 	"net/url"
 	"testing"
 
-	clienturl2 "github.com/networkservicemesh/sdk/pkg/tools/clienturl"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/seturl"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
@@ -67,12 +67,12 @@ type testNetworkServiceServer struct {
 }
 
 func (s testNetworkServiceServer) Request(ctx context.Context, in *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	testData(ctx).clientURL = clienturl2.ClientURL(ctx)
+	testData(ctx).clientURL = clienturl.ClientURL(ctx)
 	return in.GetConnection(), nil
 }
 
 func (s testNetworkServiceServer) Close(ctx context.Context, _ *networkservice.Connection) (*empty.Empty, error) {
-	testData(ctx).clientURL = clienturl2.ClientURL(ctx)
+	testData(ctx).clientURL = clienturl.ClientURL(ctx)
 	return &empty.Empty{}, nil
 }
 

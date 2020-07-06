@@ -23,12 +23,11 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturl"
-
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
@@ -90,7 +89,7 @@ func NewNetworkServiceRegistryClient(ctx context.Context, clientFactory func(ctx
 
 func (u *nsRegistryURLClient) init() error {
 	u.initOnce.Do(func() {
-		clientURL := clienturl.ClientURL(u.ctx)
+		clientURL := ClientURL(u.ctx)
 		if clientURL == nil {
 			u.dialErr = errors.New("cannot dial nil clienturl.ClientURL(ctx)")
 			return

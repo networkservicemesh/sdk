@@ -25,7 +25,7 @@ import (
 	"testing"
 	"time"
 
-	clienturl2 "github.com/networkservicemesh/sdk/pkg/tools/clienturl"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 
 	"github.com/sirupsen/logrus"
 
@@ -75,7 +75,7 @@ func (nseT *nseTest) Setup() {
 }
 
 func (nseT *nseTest) newNSEContext(ctx context.Context) context.Context {
-	return clienturl2.WithClientURL(ctx, &url.URL{Scheme: "tcp", Host: nseT.listenOn.Host})
+	return clienturl.WithClientURL(ctx, &url.URL{Scheme: "tcp", Host: nseT.listenOn.Host})
 }
 
 func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {

@@ -23,7 +23,7 @@ package filtermechanisms
 import (
 	"context"
 
-	clienturl2 "github.com/networkservicemesh/sdk/pkg/tools/clienturl"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
@@ -43,8 +43,8 @@ func NewClient() networkservice.NetworkServiceClient {
 }
 
 func (f *filterMechanismsClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	u := clienturl2.ClientURL(ctx)
-	if u.Scheme == clienturl2.UnixURLScheme {
+	u := clienturl.ClientURL(ctx)
+	if u.Scheme == clienturl.UnixURLScheme {
 		var mechanisms []*networkservice.Mechanism
 		for _, mechanism := range request.GetMechanismPreferences() {
 			if mechanism.Cls == cls.LOCAL {

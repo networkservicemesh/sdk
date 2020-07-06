@@ -23,7 +23,7 @@ import (
 	"net/url"
 	"sync"
 
-	clienturl2 "github.com/networkservicemesh/sdk/pkg/tools/clienturl"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 
@@ -58,7 +58,7 @@ func NewServer(registryServer *registry.NetworkServiceEndpointRegistryServer) ne
 func (l *localBypassServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	if v, ok := l.sockets.Load(request.GetConnection().GetNetworkServiceEndpointName()); ok && v != nil {
 		if u, ok := v.(*url.URL); ok {
-			ctx = clienturl2.WithClientURL(ctx, u)
+			ctx = clienturl.WithClientURL(ctx, u)
 		}
 	}
 	return next.Server(ctx).Request(ctx, request)
@@ -67,7 +67,7 @@ func (l *localBypassServer) Request(ctx context.Context, request *networkservice
 func (l *localBypassServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	if v, ok := l.sockets.Load(conn.GetNetworkServiceEndpointName()); ok && v != nil {
 		if u, ok := v.(*url.URL); ok {
-			ctx = clienturl2.WithClientURL(ctx, u)
+			ctx = clienturl.WithClientURL(ctx, u)
 		}
 	}
 	return next.Server(ctx).Close(ctx, conn)
