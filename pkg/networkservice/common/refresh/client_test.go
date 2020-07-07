@@ -107,6 +107,7 @@ func firstGetsValueEarlier(c1, c2 <-chan struct{}) bool {
 }
 
 func TestNewClient_StopRefreshAtClose(t *testing.T) {
+	t.Skip("https://github.com/networkservicemesh/sdk/issues/237")
 	defer goleak.VerifyNone(t)
 	requestCh := make(chan struct{}, 1)
 	testRefresh := &testRefresh{
