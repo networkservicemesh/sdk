@@ -26,7 +26,7 @@ import (
 
 // MatchNetworkServices returns true if two network services are matched
 func MatchNetworkServices(left, right *registry.NetworkService) bool {
-	return (left.Name == "" || left.Name == right.Name) &&
+	return (left.Name == "" || matchString(right.Name, left.Name)) &&
 		(left.Payload == "" || left.Payload == right.Payload) &&
 		(left.Matches == nil || reflect.DeepEqual(left.Matches, right.Matches))
 }
