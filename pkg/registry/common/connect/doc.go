@@ -14,5 +14,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package connect is intended to allow registry connect to other registries such as proxy registry of floating registry
+// Package connect is intended to allow registry connect to other registries such as proxy registry or floating registry
 package connect
