@@ -93,23 +93,24 @@ func TestNSServerBranches(t *testing.T) {
 		{visitNSRegistryServer(), visitNSRegistryServer(), adapters.NetworkServiceClientToServer(visitNSRegistryClient())},
 		{visitNSRegistryServer(), adapters.NetworkServiceClientToServer(emptyNSRegistryClient()), visitNSRegistryServer()},
 		{visitNSRegistryServer(), adapters.NetworkServiceClientToServer(visitNSRegistryClient()), emptyNSRegistryServer()},
+		{adapters.NetworkServiceClientToServer(visitNSRegistryClient()), adapters.NetworkServiceClientToServer(emptyNSRegistryClient()), visitNSRegistryServer()},
 	}
-	expects := []int{1, 2, 3, 0, 1, 2, 2, 2, 3, 3, 1, 2}
+	expects := []int{1, 2, 3, 0, 1, 2, 2, 2, 3, 3, 1, 2, 1}
 	for i, sample := range servers {
 		s := next.NewNetworkServiceRegistryServer(sample...)
 
 		ctx := visit(context.Background())
 		_, _ = s.Register(ctx, nil)
-		assert.Equal(t, expects[i], visitValue(ctx), fmt.Sprintf("sample index: %v", i))
+		assert.Equal(t, expects[i], visitValue(ctx), fmt.Sprintf("reg sample index: %v", i))
 
 		ctx = visit(context.Background())
 		_, _ = s.Unregister(ctx, nil)
-		assert.Equal(t, expects[i], visitValue(ctx), fmt.Sprintf("sample index: %v", i))
+		assert.Equal(t, expects[i], visitValue(ctx), fmt.Sprintf("unreg sample index: %v", i))
 
 		ctx = visit(context.Background())
 		_ = s.Find(nil, streamcontext.NetworkServiceRegistryFindServer(ctx, nil))
 
-		assert.Equal(t, expects[i], visitValue(ctx), fmt.Sprintf("sample index: %v", i))
+		assert.Equal(t, expects[i], visitValue(ctx), fmt.Sprintf("find sample index: %v", i))
 	}
 }
 
@@ -227,8 +228,9 @@ func TestNetworkServiceRegistryClientBranches(t *testing.T) {
 		{visitNSRegistryClient(), visitNSRegistryClient(), adapters.NetworkServiceServerToClient(visitNSRegistryServer())},
 		{visitNSRegistryClient(), adapters.NetworkServiceServerToClient(emptyNSRegistryServer()), visitNSRegistryClient()},
 		{visitNSRegistryClient(), adapters.NetworkServiceServerToClient(visitNSRegistryServer()), emptyNSRegistryClient()},
+		{adapters.NetworkServiceServerToClient(visitNSRegistryServer()), adapters.NetworkServiceServerToClient(emptyNSRegistryServer()), visitNSRegistryClient()},
 	}
-	expects := []int{1, 2, 3, 0, 1, 2, 2, 2, 3, 3, 1, 2}
+	expects := []int{1, 2, 3, 0, 1, 2, 2, 2, 3, 3, 1, 2, 1}
 	for i, sample := range samples {
 		msg := fmt.Sprintf("sample index: %v", i)
 		s := next.NewNetworkServiceRegistryClient(sample...)

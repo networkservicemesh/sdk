@@ -19,6 +19,7 @@ package adapters
 import (
 	"context"
 	"errors"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/streamcontext"
 	"io"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
@@ -36,19 +37,19 @@ type networkServiceRegistryServer struct {
 }
 
 func (n *networkServiceRegistryServer) Register(ctx context.Context, request *registry.NetworkService) (*registry.NetworkService, error) {
-	doneCtx := withDone(ctx)
+	doneCtx := withDoneContext(ctx)
 	ns, err := n.client.Register(doneCtx, request)
 	if err != nil {
 		return nil, err
 	}
-	if !isDone(doneCtx) {
+	if !isDoneContext(doneCtx) {
 		return ns, nil
 	}
-	return next.NetworkServiceRegistryServer(ctx).Register(ctx, request)
+	return next.NetworkServiceRegistryServer(ctx).Register(lastContext(doneCtx), request)
 }
 
 func (n *networkServiceRegistryServer) Find(query *registry.NetworkServiceQuery, s registry.NetworkServiceRegistry_FindServer) error {
-	doneCtx := withDone(s.Context())
+	doneCtx := withDoneContext(s.Context())
 	client, err := n.client.Find(doneCtx, query)
 	if err != nil {
 		return err
@@ -72,22 +73,22 @@ func (n *networkServiceRegistryServer) Find(query *registry.NetworkServiceQuery,
 			return err
 		}
 	}
-	if isDone(doneCtx) {
-		return next.NetworkServiceRegistryServer(doneCtx).Find(query, s)
+	if isDoneContext(doneCtx) {
+		return next.NetworkServiceRegistryServer(s.Context()).Find(query, streamcontext.NetworkServiceRegistryFindServer(lastContext(doneCtx), s))
 	}
 	return nil
 }
 
 func (n *networkServiceRegistryServer) Unregister(ctx context.Context, request *registry.NetworkService) (*empty.Empty, error) {
-	doneCtx := withDone(ctx)
+	doneCtx := withDoneContext(ctx)
 	ns, err := n.client.Unregister(doneCtx, request)
 	if err != nil {
 		return nil, err
 	}
-	if !isDone(doneCtx) {
+	if !isDoneContext(doneCtx) {
 		return ns, nil
 	}
-	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, request)
+	return next.NetworkServiceRegistryServer(ctx).Unregister(lastContext(doneCtx), request)
 }
 
 // NetworkServiceClientToServer - returns a registry.NetworkServiceRegistryClient wrapped around the supplied client
@@ -102,20 +103,20 @@ type networkServiceRegistryClient struct {
 }
 
 func (n *networkServiceRegistryClient) Register(ctx context.Context, in *registry.NetworkService, _ ...grpc.CallOption) (*registry.NetworkService, error) {
-	doneCtx := withDone(ctx)
+	doneCtx := withDoneContext(ctx)
 	ns, err := n.server.Register(doneCtx, in)
 	if err != nil {
 		return nil, err
 	}
-	if !isDone(doneCtx) {
+	if !isDoneContext(doneCtx) {
 		return ns, nil
 	}
-	return next.NetworkServiceRegistryClient(ctx).Register(ctx, in)
+	return next.NetworkServiceRegistryClient(ctx).Register(lastContext(doneCtx), in)
 }
 
 func (n *networkServiceRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
 	ch := make(chan *registry.NetworkService, channelSize)
-	doneCtx := withDone(ctx)
+	doneCtx := withDoneContext(ctx)
 	s := streamchannel.NewNetworkServiceFindServer(doneCtx, ch)
 	if in != nil && in.Watch {
 		go func() {
@@ -128,8 +129,8 @@ func (n *networkServiceRegistryClient) Find(ctx context.Context, in *registry.Ne
 			return nil, err
 		}
 	}
-	if isDone(doneCtx) {
-		_, err := next.NetworkServiceRegistryClient(ctx).Find(ctx, in)
+	if isDoneContext(doneCtx) {
+		_, err := next.NetworkServiceRegistryClient(ctx).Find(lastContext(doneCtx), in)
 		if err != nil {
 			return nil, err
 		}
@@ -138,15 +139,15 @@ func (n *networkServiceRegistryClient) Find(ctx context.Context, in *registry.Ne
 }
 
 func (n *networkServiceRegistryClient) Unregister(ctx context.Context, in *registry.NetworkService, _ ...grpc.CallOption) (*empty.Empty, error) {
-	doneCtx := withDone(ctx)
+	doneCtx := withDoneContext(ctx)
 	ns, err := n.server.Unregister(doneCtx, in)
 	if err != nil {
 		return nil, err
 	}
-	if !isDone(doneCtx) {
+	if !isDoneContext(doneCtx) {
 		return ns, nil
 	}
-	return next.NetworkServiceRegistryClient(ctx).Unregister(ctx, in)
+	return next.NetworkServiceRegistryClient(ctx).Unregister(lastContext(doneCtx), in)
 }
 
 var _ registry.NetworkServiceRegistryClient = &networkServiceRegistryClient{}

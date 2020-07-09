@@ -22,30 +22,36 @@ type contextKeyType string
 
 const nextDone contextKeyType = "NextDone"
 
-func withDone(ctx context.Context) context.Context {
+func withDoneContext(ctx context.Context) context.Context {
 	if v := ctx.Value(nextDone); v != nil {
-		if b, ok := v.(*bool); ok {
-			*b = false
+		if b, ok := v.(*context.Context); ok {
+			*b = nil
 			return ctx
 		}
 	}
-	d := false
+	var d context.Context = nil
 	return context.WithValue(ctx, nextDone, &d)
 }
 
-// isDone returns true if tail element in the chain has been called
-func isDone(ctx context.Context) bool {
-	if val, ok := ctx.Value(nextDone).(*bool); ok {
+// isDoneContext returns true if tail element in the chain has been called
+func isDoneContext(ctx context.Context) bool {
+	val, ok := ctx.Value(nextDone).(*context.Context)
+	return ok && *val != nil
+}
+
+// lastContext returns final context from last chain
+func lastContext(ctx context.Context) context.Context {
+	if val, ok := ctx.Value(nextDone).(*context.Context); ok {
 		return *val
 	}
-	return false
+	return nil
 }
 
 func markDone(ctx context.Context) {
 	if ctx == nil {
 		return
 	}
-	if val, ok := ctx.Value(nextDone).(*bool); ok {
-		*val = true
+	if val, ok := ctx.Value(nextDone).(*context.Context); ok {
+		*val = ctx
 	}
 }

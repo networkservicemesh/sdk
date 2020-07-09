@@ -93,8 +93,9 @@ func TestNSEServerBranches(t *testing.T) {
 		{visitNSERegistryServer(), visitNSERegistryServer(), adapters.NetworkServiceEndpointClientToServer(visitNSERegistryClient())},
 		{visitNSERegistryServer(), adapters.NetworkServiceEndpointClientToServer(emptyNSERegistryClient()), visitNSERegistryServer()},
 		{visitNSERegistryServer(), adapters.NetworkServiceEndpointClientToServer(visitNSERegistryClient()), emptyNSERegistryServer()},
+		{adapters.NetworkServiceEndpointClientToServer(visitNSERegistryClient()), adapters.NetworkServiceEndpointClientToServer(emptyNSERegistryClient()), visitNSERegistryServer()},
 	}
-	expects := []int{1, 2, 3, 0, 1, 2, 2, 2, 3, 3, 1, 2}
+	expects := []int{1, 2, 3, 0, 1, 2, 2, 2, 3, 3, 1, 2, 1}
 	for i, sample := range servers {
 		s := next.NewNetworkServiceEndpointRegistryServer(sample...)
 
@@ -182,8 +183,9 @@ func TestNetworkServiceEndpointRegistryClientBranches(t *testing.T) {
 		{visitNSERegistryClient(), visitNSERegistryClient(), adapters.NetworkServiceEndpointServerToClient(visitNSERegistryServer())},
 		{visitNSERegistryClient(), adapters.NetworkServiceEndpointServerToClient(emptyNSERegistryServer()), visitNSERegistryClient()},
 		{visitNSERegistryClient(), adapters.NetworkServiceEndpointServerToClient(visitNSERegistryServer()), emptyNSERegistryClient()},
+		{adapters.NetworkServiceEndpointServerToClient(visitNSERegistryServer()), adapters.NetworkServiceEndpointServerToClient(emptyNSERegistryServer()), visitNSERegistryClient()},
 	}
-	expects := []int{1, 2, 3, 0, 1, 2, 2, 2, 3, 3, 1, 2}
+	expects := []int{1, 2, 3, 0, 1, 2, 2, 2, 3, 3, 1, 2, 1}
 	for i, sample := range samples {
 		msg := fmt.Sprintf("sample index: %v", i)
 		s := next.NewNetworkServiceEndpointRegistryClient(sample...)
