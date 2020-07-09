@@ -29,14 +29,19 @@ import (
 )
 
 type dnsNSEResolveServer struct {
-	resolver      Resolver
-	defaultDomain *Domain
+	resolver Resolver
+	service  string
+}
+
+func (d *dnsNSEResolveServer) setService(service string) {
+	d.service = service
 }
 
 // NewNetworkServiceEndpointRegistryServer creates new NetworkServiceRegistryServer that can resolve passed domain to clienturl
 func NewNetworkServiceEndpointRegistryServer(options ...Option) registry.NetworkServiceEndpointRegistryServer {
 	r := &dnsNSEResolveServer{
 		resolver: net.DefaultResolver,
+		service:  NSMRegistryService,
 	}
 
 	for _, o := range options {
@@ -47,11 +52,11 @@ func NewNetworkServiceEndpointRegistryServer(options ...Option) registry.Network
 }
 
 func (d *dnsNSEResolveServer) Register(ctx context.Context, ns *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	domain, err := domainOrDefault(ctx, d.defaultDomain)
+	domain, err := domain(ctx)
 	if err != nil {
 		return nil, err
 	}
-	url, err := resolveDomain(ctx, domain, d.resolver)
+	url, err := resolveDomain(ctx, d.service, domain, d.resolver)
 	if err != nil {
 		return nil, err
 	}
@@ -61,11 +66,11 @@ func (d *dnsNSEResolveServer) Register(ctx context.Context, ns *registry.Network
 
 func (d *dnsNSEResolveServer) Find(q *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
 	ctx := s.Context()
-	domain, err := domainOrDefault(ctx, d.defaultDomain)
+	domain, err := domain(ctx)
 	if err != nil {
 		return err
 	}
-	url, err := resolveDomain(ctx, domain, d.resolver)
+	url, err := resolveDomain(ctx, d.service, domain, d.resolver)
 	if err != nil {
 		return err
 	}
@@ -75,11 +80,11 @@ func (d *dnsNSEResolveServer) Find(q *registry.NetworkServiceEndpointQuery, s re
 }
 
 func (d *dnsNSEResolveServer) Unregister(ctx context.Context, ns *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	domain, err := domainOrDefault(ctx, d.defaultDomain)
+	domain, err := domain(ctx)
 	if err != nil {
 		return nil, err
 	}
-	url, err := resolveDomain(ctx, domain, d.resolver)
+	url, err := resolveDomain(ctx, d.service, domain, d.resolver)
 	if err != nil {
 		return nil, err
 	}
@@ -90,9 +95,3 @@ func (d *dnsNSEResolveServer) Unregister(ctx context.Context, ns *registry.Netwo
 func (d *dnsNSEResolveServer) setResolver(r Resolver) {
 	d.resolver = r
 }
-
-func (d *dnsNSEResolveServer) setDomain(domain *Domain) {
-	d.defaultDomain = domain
-}
-
-var _ Resolver = (*net.Resolver)(nil)

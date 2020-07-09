@@ -25,15 +25,6 @@ const (
 )
 
 // WithDomain put wanted domain into context
-func WithDomain(ctx context.Context, domain Domain) context.Context {
-	return context.WithValue(ctx, domainKey, &domain)
-}
-
-func domainOf(ctx context.Context) *Domain {
-	if v := ctx.Value(domainKey); v != nil {
-		if val, ok := v.(*Domain); ok {
-			return val
-		}
-	}
-	return nil
+func WithDomain(ctx context.Context, domain string) context.Context {
+	return context.WithValue(ctx, domainKey, domain)
 }

@@ -29,14 +29,15 @@ import (
 )
 
 type dnsNSResolveServer struct {
-	resolver      Resolver
-	defaultDomain *Domain
+	resolver Resolver
+	service  string
 }
 
 // NewNetworkServiceRegistryServer creates new NetworkServiceRegistryServer that can resolve passed domain to clienturl
 func NewNetworkServiceRegistryServer(options ...Option) registry.NetworkServiceRegistryServer {
 	r := &dnsNSResolveServer{
 		resolver: net.DefaultResolver,
+		service:  NSMRegistryService,
 	}
 
 	for _, o := range options {
@@ -47,11 +48,11 @@ func NewNetworkServiceRegistryServer(options ...Option) registry.NetworkServiceR
 }
 
 func (d *dnsNSResolveServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
-	domain, err := domainOrDefault(ctx, d.defaultDomain)
+	domain, err := domain(ctx)
 	if err != nil {
 		return nil, err
 	}
-	url, err := resolveDomain(ctx, domain, d.resolver)
+	url, err := resolveDomain(ctx, d.service, domain, d.resolver)
 	if err != nil {
 		return nil, err
 	}
@@ -61,11 +62,11 @@ func (d *dnsNSResolveServer) Register(ctx context.Context, ns *registry.NetworkS
 
 func (d *dnsNSResolveServer) Find(q *registry.NetworkServiceQuery, s registry.NetworkServiceRegistry_FindServer) error {
 	ctx := s.Context()
-	domain, err := domainOrDefault(ctx, d.defaultDomain)
+	domain, err := domain(ctx)
 	if err != nil {
 		return err
 	}
-	url, err := resolveDomain(ctx, domain, d.resolver)
+	url, err := resolveDomain(ctx, d.service, domain, d.resolver)
 	if err != nil {
 		return err
 	}
@@ -75,11 +76,11 @@ func (d *dnsNSResolveServer) Find(q *registry.NetworkServiceQuery, s registry.Ne
 }
 
 func (d *dnsNSResolveServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
-	domain, err := domainOrDefault(ctx, d.defaultDomain)
+	domain, err := domain(ctx)
 	if err != nil {
 		return nil, err
 	}
-	url, err := resolveDomain(ctx, domain, d.resolver)
+	url, err := resolveDomain(ctx, d.service, domain, d.resolver)
 	if err != nil {
 		return nil, err
 	}
@@ -91,8 +92,6 @@ func (d *dnsNSResolveServer) setResolver(r Resolver) {
 	d.resolver = r
 }
 
-func (d *dnsNSResolveServer) setDomain(domain *Domain) {
-	d.defaultDomain = domain
+func (d *dnsNSResolveServer) setService(service string) {
+	d.service = service
 }
-
-var _ Resolver = (*net.Resolver)(nil)

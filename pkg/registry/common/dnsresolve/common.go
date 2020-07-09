@@ -24,14 +24,6 @@ import (
 	"net/url"
 )
 
-// Domain represents wanted domain and service
-type Domain struct {
-	// Name is name of wanted domain
-	Name string
-	// Service is name of wanted service
-	Service string
-}
-
 // Resolver is DNS resolver
 type Resolver interface {
 	// LookupSRV tries to resolve an SRV query of the given service,
@@ -44,8 +36,8 @@ type Resolver interface {
 	LookupIPAddr(ctx context.Context, host string) ([]net.IPAddr, error)
 }
 
-func resolveDomain(ctx context.Context, domain *Domain, r Resolver) (*url.URL, error) {
-	_, records, err := r.LookupSRV(ctx, domain.Service, "tcp", domain.Name)
+func resolveDomain(ctx context.Context, service, domain string, r Resolver) (*url.URL, error) {
+	_, records, err := r.LookupSRV(ctx, service, "tcp", domain)
 
 	if err != nil {
 		return nil, err
@@ -74,13 +66,13 @@ func resolveDomain(ctx context.Context, domain *Domain, r Resolver) (*url.URL, e
 	return u, nil
 }
 
-func domainOrDefault(ctx context.Context, defaultDomain *Domain) (*Domain, error) {
-	r := domainOf(ctx)
-	if r == nil {
-		if defaultDomain == nil {
-			return nil, errors.New("defaultDomain has not passed")
+func domain(ctx context.Context) (string, error) {
+	if v := ctx.Value(domainKey); v != nil {
+		if val, ok := v.(string); ok {
+			return val, nil
 		}
-		r = defaultDomain
 	}
-	return r, nil
+	return "", errors.New("domain to resolve has not passed into context")
 }
+
+var _ Resolver = (*net.Resolver)(nil)

@@ -16,32 +16,5 @@
 
 package dnsresolve
 
-type configurable interface {
-	setResolver(Resolver)
-	setService(string)
-}
-
-// Option is option to configure dnsresovle chain elements
-type Option interface {
-	apply(configurable)
-}
-
-type optionApplyFunc func(configurable)
-
-func (f optionApplyFunc) apply(c configurable) {
-	f(c)
-}
-
-// WithResolver sets DNS resolver by default used net.DefaultResolver
-func WithResolver(r Resolver) Option {
-	return optionApplyFunc(func(c configurable) {
-		c.setResolver(r)
-	})
-}
-
-// WithService sets default service to lookup DNS SRV records
-func WithService(service string) Option {
-	return optionApplyFunc(func(c configurable) {
-		c.setService(service)
-	})
-}
+// NSMRegistryService is default service to lookup SRV records
+const NSMRegistryService = "nsm-registry-svc"

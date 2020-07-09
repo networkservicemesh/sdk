@@ -49,38 +49,8 @@ func (c *checkNSContext) Unregister(ctx context.Context, ns *registry.NetworkSer
 }
 
 func TestDNSResolve_NewNetworkServiceRegistryServer(t *testing.T) {
-	s := dnsresolve.NewNetworkServiceRegistryServer(dnsresolve.WithResolver(&testResolver{
-		srvRecords: map[string][]*net.SRV{
-			"_service1._tcp.domain1": {{
-				Port:   80,
-				Target: "domain1",
-			}},
-		},
-		hostRecords: map[string][]net.IPAddr{
-			"domain1": {{
-				IP: net.ParseIP("127.0.0.1"),
-			}},
-		},
-	}))
-
-	s = next.NewNetworkServiceRegistryServer(s, &checkNSContext{t})
-
-	ctx := dnsresolve.WithDomain(context.Background(), dnsresolve.Domain{
-		Name:    "domain1",
-		Service: "service1",
-	})
-
-	_, err := s.Register(ctx, nil)
-	require.Nil(t, err)
-	err = s.Find(nil, streamchannel.NewNetworkServiceFindServer(ctx, nil))
-	require.Nil(t, err)
-	_, err = s.Unregister(ctx, nil)
-	require.Nil(t, err)
-}
-
-func TestDNSResolveDefault_NewNetworkServiceRegistryServer(t *testing.T) {
 	s := dnsresolve.NewNetworkServiceRegistryServer(
-		dnsresolve.WithDefaultDomain(dnsresolve.Domain{Name: "domain1", Service: "service1"}),
+		dnsresolve.WithService("service1"),
 		dnsresolve.WithResolver(&testResolver{
 			srvRecords: map[string][]*net.SRV{
 				"_service1._tcp.domain1": {{
@@ -97,7 +67,35 @@ func TestDNSResolveDefault_NewNetworkServiceRegistryServer(t *testing.T) {
 
 	s = next.NewNetworkServiceRegistryServer(s, &checkNSContext{t})
 
-	ctx := context.Background()
+	ctx := dnsresolve.WithDomain(context.Background(), "domain1")
+
+	_, err := s.Register(ctx, nil)
+	require.Nil(t, err)
+	err = s.Find(nil, streamchannel.NewNetworkServiceFindServer(ctx, nil))
+	require.Nil(t, err)
+	_, err = s.Unregister(ctx, nil)
+	require.Nil(t, err)
+}
+
+func TestDNSResolveDefault_NewNetworkServiceRegistryServer(t *testing.T) {
+	s := dnsresolve.NewNetworkServiceRegistryServer(
+		dnsresolve.WithResolver(&testResolver{
+			srvRecords: map[string][]*net.SRV{
+				"_" + dnsresolve.NSMRegistryService + "._tcp.domain1": {{
+					Port:   80,
+					Target: "domain1",
+				}},
+			},
+			hostRecords: map[string][]net.IPAddr{
+				"domain1": {{
+					IP: net.ParseIP("127.0.0.1"),
+				}},
+			},
+		}))
+
+	s = next.NewNetworkServiceRegistryServer(s, &checkNSContext{t})
+
+	ctx := dnsresolve.WithDomain(context.Background(), "domain1")
 
 	_, err := s.Register(ctx, nil)
 	require.Nil(t, err)
