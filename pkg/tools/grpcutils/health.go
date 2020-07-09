@@ -17,9 +17,6 @@
 package grpcutils
 
 import (
-	"context"
-	"time"
-
 	"github.com/networkservicemesh/api/pkg/api"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -35,23 +32,4 @@ func RegisterHealthServices(s *grpc.Server, services ...interface{}) {
 			healthServer.SetServingStatus(serviceName, grpc_health_v1.HealthCheckResponse_SERVING)
 		}
 	}
-}
-
-// WaitStatusServing wait status serving for each passed service
-func WaitStatusServing(ctx context.Context, client grpc_health_v1.HealthClient, services ...interface{}) error {
-	for _, service := range services {
-		for _, serviceName := range api.ServiceNames(service) {
-			for {
-				response, err := client.Check(ctx, &grpc_health_v1.HealthCheckRequest{Service: serviceName})
-				if err != nil {
-					return err
-				}
-				if response.Status == grpc_health_v1.HealthCheckResponse_SERVING {
-					break
-				}
-				time.Sleep(time.Millisecond * 100)
-			}
-		}
-	}
-	return nil
 }

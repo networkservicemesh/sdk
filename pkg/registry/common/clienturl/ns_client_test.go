@@ -22,8 +22,6 @@ import (
 	"net/url"
 	"testing"
 
-	"google.golang.org/grpc/health/grpc_health_v1"
-
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -51,16 +49,11 @@ func TestClientURL_NewNetworkServiceRegistryClient(t *testing.T) {
 	}()
 	u, err := url.Parse("tcp://" + l.Addr().String())
 	require.Nil(t, err)
-	conn, err := grpc.Dial(grpcutils.URLToTarget(u), grpc.WithInsecure())
-	require.Nil(t, err)
-	c := grpc_health_v1.NewHealthClient(conn)
-	require.Nil(t, grpcutils.WaitStatusServing(context.Background(), c, serverChain))
 	ctx := clienturl.WithClientURL(context.Background(), u)
 	client := clienturl.NewNetworkServiceRegistryClient(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
 		return registry.NewNetworkServiceRegistryClient(cc)
 	}, grpc.WithInsecure())
-
-	stream, err := client.Find(context.Background(), &registry.NetworkServiceQuery{NetworkService: &registry.NetworkService{Name: "ns-1"}})
+	stream, err := client.Find(context.Background(), &registry.NetworkServiceQuery{NetworkService: &registry.NetworkService{Name: "ns-1"}}, grpc.WaitForReady(true))
 	require.Nil(t, err)
 	list := registry.ReadNetworkServiceList(stream)
 	require.NotEmpty(t, list)

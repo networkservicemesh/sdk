@@ -18,8 +18,9 @@ package connect
 
 import (
 	"context"
-	"sync"
 	"time"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -38,13 +39,12 @@ type connectNSEServer struct {
 	dialOptions       []grpc.DialOption
 	clientFactory     func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient
 	cache             map[string]*nseCacheEntry
-	cacheLock         sync.Mutex
 	ctx               context.Context
-	once              sync.Once
 	connectExpiration time.Duration
+	executor          serialize.Executor
 }
 
-// NewNetworkServiceEndpointRegistryServer creates new connect NetworkServiceEndpointRegistryServer with specific chain context, registry client factory and options
+// NewNetworkServiceEndpointRegistryServer creates new connect NetworkServiceEndpointEndpointRegistryServer with specific chain context, registry client factory and options
 // that allows connecting to other registries via passed clienturl.
 func NewNetworkServiceEndpointRegistryServer(
 	chainContext context.Context,
@@ -63,62 +63,50 @@ func NewNetworkServiceEndpointRegistryServer(
 }
 
 func (c *connectNSEServer) Register(ctx context.Context, ns *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	c.once.Do(c.init)
 	return c.connect(ctx).Register(ctx, ns)
 }
 
 func (c *connectNSEServer) Find(q *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
-	c.once.Do(c.init)
 	return adapters.NetworkServiceEndpointClientToServer(c.connect(s.Context())).Find(q, s)
 }
 
 func (c *connectNSEServer) Unregister(ctx context.Context, ns *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	c.once.Do(c.init)
 	return c.connect(ctx).Unregister(ctx, ns)
 }
 
-func (c *connectNSEServer) init() {
-	go func() {
-		defer func() {
-			c.cacheLock.Lock()
-			c.cache = nil
-			c.cacheLock.Unlock()
-		}()
-		for {
-			select {
-			case <-c.ctx.Done():
-				return
-			case <-time.After(c.connectExpiration):
-				c.cacheLock.Lock()
-				var deleteList []string
-				for k, v := range c.cache {
-					if time.Until(v.expiryTime) <= 0 {
-						deleteList = append(deleteList, k)
-					}
-				}
-				for _, item := range deleteList {
-					delete(c.cache, item)
-				}
-				c.cacheLock.Unlock()
-			}
+func (c *connectNSEServer) cleanup() {
+	var deleteList []string
+	for k, v := range c.cache {
+		if time.Until(v.expiryTime) <= 0 {
+			deleteList = append(deleteList, k)
 		}
-	}()
+	}
+	for _, item := range deleteList {
+		delete(c.cache, item)
+	}
 }
 
 func (c *connectNSEServer) connect(ctx context.Context) registry.NetworkServiceEndpointRegistryClient {
+	defer c.executor.AsyncExec(c.cleanup)
 	key := ""
 	if url := clienturl.ClientURL(ctx); url != nil {
 		key = url.String()
 	}
-	c.cacheLock.Lock()
-	defer c.cacheLock.Unlock()
-	if v, ok := c.cache[key]; ok && v != nil {
-		v.expiryTime = time.Now().Add(c.connectExpiration)
-		return v.client
+	var result registry.NetworkServiceEndpointRegistryClient
+	<-c.executor.AsyncExec(func() {
+		if v, ok := c.cache[key]; ok && v != nil {
+			v.expiryTime = time.Now().Add(c.connectExpiration)
+			result = v.client
+		}
+	})
+	if result != nil {
+		return result
 	}
-	r := clienturl.NewNetworkServiceEndpointRegistryClient(ctx, c.clientFactory, c.dialOptions...)
-	c.cache[key] = &nseCacheEntry{client: r, expiryTime: time.Now().Add(c.connectExpiration)}
-	return r
+	result = clienturl.NewNetworkServiceEndpointRegistryClient(ctx, c.clientFactory, c.dialOptions...)
+	c.executor.AsyncExec(func() {
+		c.cache[key] = &nseCacheEntry{client: result, expiryTime: time.Now().Add(c.connectExpiration)}
+	})
+	return result
 }
 
 func (c *connectNSEServer) setExpirationDuration(d time.Duration) {
