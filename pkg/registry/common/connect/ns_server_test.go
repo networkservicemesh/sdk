@@ -66,7 +66,7 @@ func TestConnect_NewNetworkServiceRegistryServer(t *testing.T) {
 	defer cancel()
 	s := connect.NewNetworkServiceRegistryServer(ctx, func(_ context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
 		return registry.NewNetworkServiceRegistryClient(cc)
-	}, connect.WithExpirationDuration(time.Second), connect.WithClientDialOptions(grpc.WithInsecure()))
+	}, time.Second, grpc.WithInsecure())
 
 	_, err := s.Register(clienturl.WithClientURL(context.Background(), url1), &registry.NetworkService{Name: "ns-1"})
 	require.Nil(t, err)

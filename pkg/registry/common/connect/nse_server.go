@@ -39,7 +39,6 @@ type connectNSEServer struct {
 	dialOptions       []grpc.DialOption
 	clientFactory     func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient
 	cache             map[string]*nseCacheEntry
-	ctx               context.Context
 	connectExpiration time.Duration
 	executor          serialize.Executor
 }
@@ -49,17 +48,14 @@ type connectNSEServer struct {
 func NewNetworkServiceEndpointRegistryServer(
 	chainContext context.Context,
 	clientFactory func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient,
-	options ...Option) registry.NetworkServiceEndpointRegistryServer {
-	r := &connectNSEServer{
+	connectExpiration time.Duration,
+	clientDialOptions ...grpc.DialOption) registry.NetworkServiceEndpointRegistryServer {
+	return &connectNSEServer{
 		clientFactory:     clientFactory,
 		cache:             map[string]*nseCacheEntry{},
-		ctx:               chainContext,
-		connectExpiration: time.Minute,
+		connectExpiration: connectExpiration,
+		dialOptions:       clientDialOptions,
 	}
-	for _, o := range options {
-		o.apply(r)
-	}
-	return r
 }
 
 func (c *connectNSEServer) Register(ctx context.Context, ns *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
@@ -107,14 +103,6 @@ func (c *connectNSEServer) connect(ctx context.Context) registry.NetworkServiceE
 		c.cache[key] = &nseCacheEntry{client: result, expiryTime: time.Now().Add(c.connectExpiration)}
 	})
 	return result
-}
-
-func (c *connectNSEServer) setExpirationDuration(d time.Duration) {
-	c.connectExpiration = d
-}
-
-func (c *connectNSEServer) setClientDialOptions(opts []grpc.DialOption) {
-	c.dialOptions = opts
 }
 
 var _ registry.NetworkServiceEndpointRegistryServer = (*connectNSEServer)(nil)

@@ -49,17 +49,15 @@ type connectNSServer struct {
 func NewNetworkServiceRegistryServer(
 	chainContext context.Context,
 	clientFactory func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient,
-	options ...Option) registry.NetworkServiceRegistryServer {
-	r := &connectNSServer{
+	connectExpiration time.Duration,
+	clientDialOptions ...grpc.DialOption) registry.NetworkServiceRegistryServer {
+	return &connectNSServer{
 		clientFactory:     clientFactory,
 		cache:             map[string]*nsCacheEntry{},
 		ctx:               chainContext,
-		connectExpiration: time.Minute,
+		connectExpiration: connectExpiration,
+		dialOptions:       clientDialOptions,
 	}
-	for _, o := range options {
-		o.apply(r)
-	}
-	return r
 }
 
 func (c *connectNSServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
@@ -107,14 +105,6 @@ func (c *connectNSServer) connect(ctx context.Context) registry.NetworkServiceRe
 		c.cache[key] = &nsCacheEntry{client: result, expiryTime: time.Now().Add(c.connectExpiration)}
 	})
 	return result
-}
-
-func (c *connectNSServer) setExpirationDuration(d time.Duration) {
-	c.connectExpiration = d
-}
-
-func (c *connectNSServer) setClientDialOptions(opts []grpc.DialOption) {
-	c.dialOptions = opts
 }
 
 var _ registry.NetworkServiceRegistryServer = (*connectNSServer)(nil)
