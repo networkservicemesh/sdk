@@ -14,17 +14,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dnsresolve
+package interdomain
 
-import "context"
+import "strings"
 
-type contextKey string
+const identifier = "@"
 
-const (
-	domainKey contextKey = "dnsresolve.Domain"
-)
-
-// WithDomain put wanted domain into context
-func WithDomain(ctx context.Context, domain string) context.Context {
-	return context.WithValue(ctx, domainKey, domain)
+// Domain returns domain name from interdomain query
+func Domain(s string) string {
+	pieces := strings.SplitN(s, identifier, 2)
+	if len(pieces) < 2 {
+		return ""
+	}
+	return pieces[1]
 }

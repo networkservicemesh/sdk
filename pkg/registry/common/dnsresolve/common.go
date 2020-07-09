@@ -66,13 +66,4 @@ func resolveDomain(ctx context.Context, service, domain string, r Resolver) (*ur
 	return u, nil
 }
 
-func domain(ctx context.Context) (string, error) {
-	if v := ctx.Value(domainKey); v != nil {
-		if val, ok := v.(string); ok {
-			return val, nil
-		}
-	}
-	return "", errors.New("domain to resolve has not passed into context")
-}
-
 var _ Resolver = (*net.Resolver)(nil)

@@ -20,6 +20,8 @@ import (
 	"context"
 	"net"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
@@ -52,10 +54,7 @@ func NewNetworkServiceEndpointRegistryServer(options ...Option) registry.Network
 }
 
 func (d *dnsNSEResolveServer) Register(ctx context.Context, ns *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	domain, err := domain(ctx)
-	if err != nil {
-		return nil, err
-	}
+	domain := interdomain.Domain(ns.Name)
 	url, err := resolveDomain(ctx, d.service, domain, d.resolver)
 	if err != nil {
 		return nil, err
@@ -66,10 +65,7 @@ func (d *dnsNSEResolveServer) Register(ctx context.Context, ns *registry.Network
 
 func (d *dnsNSEResolveServer) Find(q *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
 	ctx := s.Context()
-	domain, err := domain(ctx)
-	if err != nil {
-		return err
-	}
+	domain := interdomain.Domain(q.NetworkServiceEndpoint.Name)
 	url, err := resolveDomain(ctx, d.service, domain, d.resolver)
 	if err != nil {
 		return err
@@ -80,10 +76,7 @@ func (d *dnsNSEResolveServer) Find(q *registry.NetworkServiceEndpointQuery, s re
 }
 
 func (d *dnsNSEResolveServer) Unregister(ctx context.Context, ns *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	domain, err := domain(ctx)
-	if err != nil {
-		return nil, err
-	}
+	domain := interdomain.Domain(ns.Name)
 	url, err := resolveDomain(ctx, d.service, domain, d.resolver)
 	if err != nil {
 		return nil, err

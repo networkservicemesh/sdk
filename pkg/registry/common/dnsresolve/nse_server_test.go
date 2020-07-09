@@ -67,13 +67,12 @@ func TestDNSEResolve_NewNetworkServiceEndpointRegistryServer(t *testing.T) {
 
 	s = next.NewNetworkServiceEndpointRegistryServer(s, &checkNSEContext{t})
 
-	ctx := dnsresolve.WithDomain(context.Background(), "domain1")
-
-	_, err := s.Register(ctx, nil)
+	ctx := context.Background()
+	_, err := s.Register(ctx, &registry.NetworkServiceEndpoint{Name: "ns-1@domain1"})
 	require.Nil(t, err)
-	err = s.Find(nil, streamchannel.NewNetworkServiceEndpointFindServer(ctx, nil))
+	err = s.Find(&registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: "ns-1@domain1"}}, streamchannel.NewNetworkServiceEndpointFindServer((ctx), nil))
 	require.Nil(t, err)
-	_, err = s.Unregister(ctx, nil)
+	_, err = s.Unregister(ctx, &registry.NetworkServiceEndpoint{Name: "ns-1@domain1"})
 	require.Nil(t, err)
 }
 
@@ -95,11 +94,11 @@ func TestDNSEResolveDefault_NewNetworkServiceEndpointRegistryServer(t *testing.T
 
 	s = next.NewNetworkServiceEndpointRegistryServer(s, &checkNSEContext{t})
 
-	ctx := dnsresolve.WithDomain(context.Background(), "domain1")
-	_, err := s.Register(ctx, nil)
+	ctx := context.Background()
+	_, err := s.Register(ctx, &registry.NetworkServiceEndpoint{Name: "ns-1@domain1"})
 	require.Nil(t, err)
-	err = s.Find(nil, streamchannel.NewNetworkServiceEndpointFindServer(ctx, nil))
+	err = s.Find(&registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: "ns-1@domain1"}}, streamchannel.NewNetworkServiceEndpointFindServer(ctx, nil))
 	require.Nil(t, err)
-	_, err = s.Unregister(ctx, nil)
+	_, err = s.Unregister(ctx, &registry.NetworkServiceEndpoint{Name: "ns-1@domain1"})
 	require.Nil(t, err)
 }
