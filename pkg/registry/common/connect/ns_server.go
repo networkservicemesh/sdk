@@ -20,8 +20,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
-
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
@@ -31,17 +29,15 @@ import (
 )
 
 type nsCacheEntry struct {
-	expiryTime time.Time
-	client     registry.NetworkServiceRegistryClient
+	expirationTimer *time.Timer
+	client          registry.NetworkServiceRegistryClient
 }
 
 type connectNSServer struct {
 	dialOptions       []grpc.DialOption
 	clientFactory     func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient
-	cache             map[string]*nsCacheEntry
-	ctx               context.Context
+	cache             nsClientMap
 	connectExpiration time.Duration
-	executor          serialize.Executor
 }
 
 // NewNetworkServiceRegistryServer creates new connect NetworkServiceEndpointRegistryServer with specific chain context, registry client factory and options
@@ -53,8 +49,6 @@ func NewNetworkServiceRegistryServer(
 	clientDialOptions ...grpc.DialOption) registry.NetworkServiceRegistryServer {
 	return &connectNSServer{
 		clientFactory:     clientFactory,
-		cache:             map[string]*nsCacheEntry{},
-		ctx:               chainContext,
 		connectExpiration: connectExpiration,
 		dialOptions:       clientDialOptions,
 	}
@@ -72,39 +66,25 @@ func (c *connectNSServer) Unregister(ctx context.Context, ns *registry.NetworkSe
 	return c.connect(ctx).Unregister(ctx, ns)
 }
 
-func (c *connectNSServer) cleanup() {
-	var deleteList []string
-	for k, v := range c.cache {
-		if time.Until(v.expiryTime) <= 0 {
-			deleteList = append(deleteList, k)
-		}
-	}
-	for _, item := range deleteList {
-		delete(c.cache, item)
-	}
-}
-
 func (c *connectNSServer) connect(ctx context.Context) registry.NetworkServiceRegistryClient {
-	defer c.executor.AsyncExec(c.cleanup)
 	key := ""
 	if url := clienturl.ClientURL(ctx); url != nil {
 		key = url.String()
 	}
-	var result registry.NetworkServiceRegistryClient
-	<-c.executor.AsyncExec(func() {
-		if v, ok := c.cache[key]; ok && v != nil {
-			v.expiryTime = time.Now().Add(c.connectExpiration)
-			result = v.client
+	if v, ok := c.cache.Load(key); v != nil && ok {
+		if v.expirationTimer.Stop() {
+			v.expirationTimer.Reset(c.connectExpiration)
 		}
-	})
-	if result != nil {
-		return result
+		return v.client
 	}
-	result = clienturl.NewNetworkServiceRegistryClient(ctx, c.clientFactory, c.dialOptions...)
-	c.executor.AsyncExec(func() {
-		c.cache[key] = &nsCacheEntry{client: result, expiryTime: time.Now().Add(c.connectExpiration)}
+	client := clienturl.NewNetworkServiceRegistryClient(ctx, c.clientFactory, c.dialOptions...)
+	cached, _ := c.cache.LoadOrStore(key, &nsCacheEntry{
+		expirationTimer: time.AfterFunc(c.connectExpiration, func() {
+			c.cache.Delete(key)
+		}),
+		client: client,
 	})
-	return result
+	return cached.client
 }
 
 var _ registry.NetworkServiceRegistryServer = (*connectNSServer)(nil)

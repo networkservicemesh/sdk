@@ -21,7 +21,6 @@ import (
 	"net"
 	"net/url"
 	"testing"
-	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
@@ -66,7 +65,7 @@ func TestConnect_NewNetworkServiceEndpointRegistryServer(t *testing.T) {
 	defer cancel()
 	s := connect.NewNetworkServiceEndpointRegistryServer(ctx, func(_ context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient {
 		return registry.NewNetworkServiceEndpointRegistryClient(cc)
-	}, time.Second, grpc.WithInsecure())
+	}, 0, grpc.WithInsecure())
 
 	_, err := s.Register(clienturl.WithClientURL(context.Background(), url1), &registry.NetworkServiceEndpoint{Name: "ns-1"})
 	require.Nil(t, err)
