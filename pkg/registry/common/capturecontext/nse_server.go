@@ -28,17 +28,17 @@ import (
 type contextNSEServer struct{}
 
 func (c *contextNSEServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	markDoneContext(ctx)
+	captureContext(ctx)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
 }
 
 func (c *contextNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
-	markDoneContext(server.Context())
+	captureContext(server.Context())
 	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
 }
 
 func (c *contextNSEServer) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	markDoneContext(ctx)
+	captureContext(ctx)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 }
 

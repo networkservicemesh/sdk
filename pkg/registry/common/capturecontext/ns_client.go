@@ -29,17 +29,17 @@ import (
 type contextNSClient struct{}
 
 func (c *contextNSClient) Register(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
-	markDoneContext(ctx)
+	captureContext(ctx)
 	return next.NetworkServiceRegistryClient(ctx).Register(ctx, in, opts...)
 }
 
 func (c *contextNSClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
-	markDoneContext(ctx)
+	captureContext(ctx)
 	return next.NetworkServiceRegistryClient(ctx).Find(ctx, in, opts...)
 }
 
 func (c *contextNSClient) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
-	markDoneContext(ctx)
+	captureContext(ctx)
 	return next.NetworkServiceRegistryClient(ctx).Unregister(ctx, in, opts...)
 }
 
