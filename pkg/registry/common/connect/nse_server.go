@@ -43,15 +43,16 @@ type connectNSEServer struct {
 // NewNetworkServiceEndpointRegistryServer creates new connect NetworkServiceEndpointEndpointRegistryServer with specific chain context, registry client factory and options
 // that allows connecting to other registries via passed clienturl.
 func NewNetworkServiceEndpointRegistryServer(
-	chainContext context.Context,
 	clientFactory func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient,
-	connectExpiration time.Duration,
-	clientDialOptions ...grpc.DialOption) registry.NetworkServiceEndpointRegistryServer {
-	return &connectNSEServer{
+	options ...Option) registry.NetworkServiceEndpointRegistryServer {
+	r := &connectNSEServer{
 		clientFactory:     clientFactory,
-		connectExpiration: connectExpiration,
-		dialOptions:       clientDialOptions,
+		connectExpiration: defaultConnectExpiration,
 	}
+	for _, o := range options {
+		o.apply(r)
+	}
+	return r
 }
 
 func (c *connectNSEServer) Register(ctx context.Context, ns *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
@@ -85,6 +86,14 @@ func (c *connectNSEServer) connect(ctx context.Context) registry.NetworkServiceE
 		client: client,
 	})
 	return cached.client
+}
+
+func (c *connectNSEServer) setExpirationDuration(d time.Duration) {
+	c.connectExpiration = d
+}
+
+func (c *connectNSEServer) setClientDialOptions(opts []grpc.DialOption) {
+	c.dialOptions = opts
 }
 
 var _ registry.NetworkServiceEndpointRegistryServer = (*connectNSEServer)(nil)

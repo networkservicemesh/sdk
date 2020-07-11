@@ -61,11 +61,9 @@ func TestConnect_NewNetworkServiceRegistryServer(t *testing.T) {
 	defer close1()
 	url2, close2 := startNSServer(t)
 	defer close2()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	s := connect.NewNetworkServiceRegistryServer(ctx, func(_ context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
+	s := connect.NewNetworkServiceRegistryServer(func(_ context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
 		return registry.NewNetworkServiceRegistryClient(cc)
-	}, 0, grpc.WithInsecure())
+	}, connect.WithExpirationDuration(0), connect.WithClientDialOptions(grpc.WithInsecure()))
 
 	_, err := s.Register(clienturl.WithClientURL(context.Background(), url1), &registry.NetworkService{Name: "ns-1"})
 	require.Nil(t, err)
