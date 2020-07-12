@@ -38,9 +38,9 @@ func (c *contextClient) Close(ctx context.Context, in *networkservice.Connection
 	return next.Client(ctx).Close(ctx, in, opts...)
 }
 
-// NewClient - creates a new networkservice.NetworkServiceClient chain element that store context
-// from the adapter server/client and pass it to the next client/server to avoid the problem with losing
-// values from adapted server/client context.
+// NewClient - creates a new networkservice.NetworkServiceClient chain element that can store
+// current context for further use with CapturedContext function.
+// For this purpose it's need to use WithCapturedContext in one of the previous chain element.
 func NewClient() networkservice.NetworkServiceClient {
 	return &contextClient{}
 }

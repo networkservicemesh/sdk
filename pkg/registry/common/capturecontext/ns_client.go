@@ -43,9 +43,9 @@ func (c *contextNSClient) Unregister(ctx context.Context, in *registry.NetworkSe
 	return next.NetworkServiceRegistryClient(ctx).Unregister(ctx, in, opts...)
 }
 
-// NewNSRegistryClient - creates a new registry.NetworkServiceRegistryClient chain element that store context
-// from the adapter server/client and pass it to the next client/server to avoid the problem with losing
-// values from adapted server/client context.
-func NewNSRegistryClient() registry.NetworkServiceRegistryClient {
+// NewNetworkServiceRegistryClient - creates a new registry.NetworkServiceRegistryClient chain element that can store
+// current context for further use with CapturedContext function.
+// For this purpose it's need to use WithCapturedContext in one of the previous chain element.
+func NewNetworkServiceRegistryClient() registry.NetworkServiceRegistryClient {
 	return &contextNSClient{}
 }

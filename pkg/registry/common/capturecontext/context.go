@@ -43,7 +43,7 @@ func CapturedContext(ctx context.Context) context.Context {
 	if val, ok := ctx.Value(capturedContext).(*context.Context); ok && *val != nil {
 		return *val
 	}
-	return ctx
+	return nil
 }
 
 // captureContext - adds reference on current context in context record

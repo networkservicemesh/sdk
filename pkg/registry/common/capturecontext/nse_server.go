@@ -42,9 +42,9 @@ func (c *contextNSEServer) Unregister(ctx context.Context, in *registry.NetworkS
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 }
 
-// NewNSERegistryServer - creates a new registry.NetworkServiceEndpointRegistryServer chain element that store context
-// from the adapter server/client and pass it to the next client/server to avoid the problem with losing
-// values from adapted server/client context.
-func NewNSERegistryServer() registry.NetworkServiceEndpointRegistryServer {
+// NewNetworkServiceEndpointRegistryServer - creates a new registry.NetworkServiceEndpointRegistryServer chain element that can store
+// current context for further use with CapturedContext function.
+// For this purpose it's need to use WithCapturedContext in one of the previous chain element.
+func NewNetworkServiceEndpointRegistryServer() registry.NetworkServiceEndpointRegistryServer {
 	return &contextNSEServer{}
 }
