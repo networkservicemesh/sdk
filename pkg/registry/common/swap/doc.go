@@ -14,28 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package interdomain
-
-import "strings"
-
-const identifier = "@"
-
-// Join concatenates strings with intedomain identifier
-func Join(s ...string) string {
-	return strings.Join(s, identifier)
-}
-
-// Domain returns domain name from interdomain query
-func Domain(s string) string {
-	pieces := strings.SplitN(s, identifier, 2)
-	if len(pieces) < 2 {
-		return ""
-	}
-	return pieces[1]
-}
-
-// Target returns target name from interdomain query
-func Target(s string) string {
-	pieces := strings.SplitN(s, identifier, 2)
-	return pieces[0]
-}
+// Package swap provides registry servers which can swap local information of outgoing ns/nse to interdomain variant
+// and also can update incoming nse information for proxy network service manager.
+package swap
