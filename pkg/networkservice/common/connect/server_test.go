@@ -191,6 +191,7 @@ func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 }
 
 func TestParallelDial(t *testing.T) {
+	t.Skip("https://github.com/networkservicemesh/sdk/issues/377")
 	defer goleak.VerifyNone(t)
 
 	nseT := &nseTest{}

@@ -144,6 +144,7 @@ func TestNewClient_StopRefreshAtClose(t *testing.T) {
 }
 
 func TestNewClient_StopRefreshAtAnotherRequest(t *testing.T) {
+	t.Skip("https://github.com/networkservicemesh/sdk/issues/260")
 	defer goleak.VerifyNone(t)
 	requestCh := make(chan struct{}, 1)
 	testRefresh := &testRefresh{

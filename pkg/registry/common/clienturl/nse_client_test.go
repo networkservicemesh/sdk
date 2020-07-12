@@ -41,11 +41,11 @@ func TestClientURL_NewNetworkServiceEndpointRegistryClient(t *testing.T) {
 	grpcutils.RegisterHealthServices(s, serverChain)
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	require.Nil(t, err)
-	go func() {
-		_ = s.Serve(l)
-	}()
 	defer func() {
 		_ = l.Close()
+	}()
+	go func() {
+		_ = s.Serve(l)
 	}()
 	u, err := url.Parse("tcp://" + l.Addr().String())
 	require.Nil(t, err)
@@ -54,7 +54,7 @@ func TestClientURL_NewNetworkServiceEndpointRegistryClient(t *testing.T) {
 		return registry.NewNetworkServiceEndpointRegistryClient(cc)
 	}, grpc.WithInsecure())
 
-	stream, err := client.Find(context.Background(), &registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: "ns-1"}})
+	stream, err := client.Find(context.Background(), &registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: "ns-1"}}, grpc.WaitForReady(true))
 	require.Nil(t, err)
 	list := registry.ReadNetworkServiceEndpointList(stream)
 	require.NotEmpty(t, list)
