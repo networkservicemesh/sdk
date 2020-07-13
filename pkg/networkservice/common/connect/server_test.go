@@ -24,11 +24,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/setextracontext"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/setextra"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 
@@ -43,7 +41,7 @@ import (
 )
 
 const (
-	timeout = 10000 * time.Second
+	timeout = 10 * time.Second
 )
 
 func TokenGenerator(peerAuthInfo credentials.AuthInfo) (token string, expireTime time.Time, err error) {
@@ -62,9 +60,7 @@ type nseTest struct {
 func (nseT *nseTest) Stop() {
 	nseT.cancel()
 	// try read value from err channel, with this we will wait for cancel to be processed and all go routines will exit
-	logrus.Infof("Endpoint stopping...")
 	<-nseT.errCh
-	logrus.Infof("Endpoint stopped")
 }
 
 type endpointImpl struct {
@@ -86,7 +82,7 @@ func (nseT *nseTest) Setup() {
 	nseT.ctx, nseT.cancel = context.WithTimeout(context.Background(), 50*time.Second)
 	nseT.listenOn = &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
 	nseT.nse = &endpointImpl{
-		NetworkServiceServer: setextra.NewServer(map[string]string{"ok": "all is ok"}),
+		NetworkServiceServer: setextracontext.NewServer(map[string]string{"ok": "all is ok"}),
 	}
 
 	nseT.errCh = endpoint.Serve(nseT.ctx, nseT.listenOn, nseT.nse)

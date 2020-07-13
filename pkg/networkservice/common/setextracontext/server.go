@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package setextra define a chain element to set some extra context values
-package setextra
+// Package setextracontext define a chain element to set some extra context values
+package setextracontext
 
 import (
 	"context"
