@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/setextracontext"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
