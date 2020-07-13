@@ -43,9 +43,14 @@ func (c *clientToServer) Request(ctx context.Context, request *networkservice.Ne
 		return nil, err
 	}
 	if request == nil {
-		request = &networkservice.NetworkServiceRequest{}
+		request = &networkservice.NetworkServiceRequest{
+			Connection: &networkservice.Connection{},
+		}
 	}
-	request.Connection = conn
+	if conn != nil {
+		request.Connection.Context = conn.Context
+		request.Connection.Path = conn.Path
+	}
 	if !isDone(doneCtx) {
 		return conn, nil
 	}
