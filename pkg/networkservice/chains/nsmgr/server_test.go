@@ -24,6 +24,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/setextra"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
@@ -37,7 +40,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/testnse"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
@@ -65,19 +67,13 @@ func newClient(ctx context.Context, u *url.URL) (*grpc.ClientConn, error) {
 func TestNSmgrEndpointCallback(t *testing.T) {
 	grpclog.SetLoggerV2(grpclog.NewLoggerV2(os.Stdout, os.Stdout, os.Stderr))
 
-	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Second)
 	defer cancel()
 
 	// Serve endpoint
 	nseURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
-	nseServer, nseGrpcServer, nseErrChan := testnse.NewNSE(ctx, nseURL, func(request *networkservice.NetworkServiceRequest) {
-		// Update labels to be sure all code is executed.
-		request.GetConnection().Labels = map[string]string{"perform": "ok"}
-	})
+	_ = endpoint.Serve(ctx, nseURL, endpoint.NewServer("test-nse", authorize.NewServer(), TokenGenerator, setextra.NewServer(map[string]string{"perform": "ok"})))
 	logrus.Infof("NSE listenON: %v", nseURL.String())
-	require.NotNil(t, nseServer)
-	require.NotNil(t, nseErrChan)
-	require.NotNil(t, nseGrpcServer)
 
 	nsmgrReg := &registry.NetworkServiceEndpoint{
 		Name: "nsmgr",
@@ -129,5 +125,5 @@ func TestNSmgrEndpointCallback(t *testing.T) {
 	})
 	require.Nil(t, err)
 	require.NotNil(t, connection)
-	require.Equal(t, 2, len(connection.Path.PathSegments))
+	require.Equal(t, 3, len(connection.Path.PathSegments))
 }
