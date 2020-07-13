@@ -20,6 +20,11 @@ import "strings"
 
 const identifier = "@"
 
+// Is returns true if passed string can be represented as interdomain URL
+func Is(s string) bool {
+	return strings.Contains(s, identifier)
+}
+
 // Join concatenates strings with intedomain identifier
 func Join(s ...string) string {
 	return strings.Join(s, identifier)

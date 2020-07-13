@@ -20,11 +20,14 @@ import (
 	"context"
 	"net"
 	"net/url"
+	"runtime"
 	"testing"
+	"time"
+
+	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
@@ -56,14 +59,12 @@ func startNSServer(t *testing.T) (u *url.URL, closeFunc func()) {
 }
 
 func TestConnect_NewNetworkServiceRegistryServer(t *testing.T) {
-	defer goleak.VerifyNone(t)
-	url1, close1 := startNSServer(t)
-	defer close1()
-	url2, close2 := startNSServer(t)
-	defer close2()
+	url1, closeServer1 := startNSServer(t)
+	url2, closeServer2 := startNSServer(t)
+
 	s := connect.NewNetworkServiceRegistryServer(func(_ context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
 		return registry.NewNetworkServiceRegistryClient(cc)
-	}, connect.WithExpirationDuration(0), connect.WithClientDialOptions(grpc.WithInsecure()))
+	}, connect.WithExpirationDuration(time.Millisecond*100), connect.WithClientDialOptions(grpc.WithInsecure()))
 
 	_, err := s.Register(clienturl.WithClientURL(context.Background(), url1), &registry.NetworkService{Name: "ns-1"})
 	require.Nil(t, err)
@@ -82,4 +83,12 @@ func TestConnect_NewNetworkServiceRegistryServer(t *testing.T) {
 	}}, findSrv)
 	require.Nil(t, err)
 	require.Equal(t, (<-ch).Name, "ns-1-1")
+
+	closeServer1()
+	closeServer2()
+
+	require.Eventually(t, func() bool {
+		runtime.GC()
+		return goleak.Find() != nil
+	}, time.Second, time.Microsecond*100)
 }
