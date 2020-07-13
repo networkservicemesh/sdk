@@ -64,9 +64,10 @@ func (t *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 	if err != nil {
 		return nil, err
 	}
+	connID := request.GetConnection().GetId()
 	t.executor.AsyncExec(func() {
-		if timer, ok := t.connections[request.GetConnection().GetId()]; !ok || timer.Stop() {
-			t.connections[request.GetConnection().GetId()] = ct
+		if timer, ok := t.connections[connID]; !ok || timer.Stop() {
+			t.connections[connID] = ct
 		}
 	})
 	return next.Server(ctx).Request(ctx, request)
