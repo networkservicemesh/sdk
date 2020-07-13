@@ -22,10 +22,12 @@ import (
 	"sync/atomic"
 )
 
+// IndexedDecider contains index
 type IndexedDecider struct {
 	index int32
 }
 
+// Decide selected item from options
 func (d *IndexedDecider) Decide(options ...interface{}) (interface{}, error) {
 	if len(options) == 0 {
 		return "", errors.New("no options provided")

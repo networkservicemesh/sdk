@@ -17,19 +17,23 @@
 // Package selector provides a selection by any algorithm any item
 package selector
 
+// Decider interface provides selection from options
 type Decider interface {
 	Decide(options ...interface{}) (interface{}, error)
 }
 
+// OptionsProvider provides options for Decider
 type OptionsProvider interface {
 	GetOptions() ([]interface{}, error)
 }
 
+// Selector provides item selection via some Decider and OptionsProvider
 type Selector struct {
 	decider         Decider
 	optionsProvider OptionsProvider
 }
 
+// Select return selected item
 func (s *Selector) Select() (interface{}, error) {
 	options, err := s.optionsProvider.GetOptions()
 	if err != nil {
@@ -38,6 +42,7 @@ func (s *Selector) Select() (interface{}, error) {
 	return s.decider.Decide(options...)
 }
 
+// New construct new Selector
 func New(decider Decider, optionsProvider OptionsProvider) *Selector {
 	return &Selector{
 		decider:         decider,

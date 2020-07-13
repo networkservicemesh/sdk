@@ -18,16 +18,19 @@
 package selector
 
 import (
-	"github.com/networkservicemesh/sdk/pkg/tools/algorithm/roundrobin"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/algorithm/roundrobin"
 )
 
-type StringArray struct {
+//
+type stringArray struct {
 	items []string
 }
 
-func (a StringArray) GetOptions() ([]interface{}, error) {
+func (a stringArray) GetOptions() ([]interface{}, error) {
 	result := make([]interface{}, 0)
 	for _, item := range a.items {
 		result = append(result, item)
@@ -35,13 +38,13 @@ func (a StringArray) GetOptions() ([]interface{}, error) {
 	return result, nil
 }
 
-func NewStringArray(strs []string) OptionsProvider {
-	return &StringArray{items: strs}
+func newStringArray(strs []string) OptionsProvider {
+	return &stringArray{items: strs}
 }
 
 func TestSelector(t *testing.T) {
 	str := []string{"1", "2"}
-	selector := New(&roundrobin.IndexedDecider{}, NewStringArray(str))
+	selector := New(&roundrobin.IndexedDecider{}, newStringArray(str))
 	tmp, _ := selector.Select()
 	require.Equal(t, "2", tmp)
 	tmp, _ = selector.Select()
