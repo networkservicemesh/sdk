@@ -20,7 +20,9 @@ import (
 	"context"
 	"net"
 	"net/url"
+	"runtime"
 	"testing"
+	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
@@ -56,14 +58,12 @@ func startNSEServer(t *testing.T) (u *url.URL, closeFunc func()) {
 }
 
 func TestConnect_NewNetworkServiceEndpointRegistryServer(t *testing.T) {
-	defer goleak.VerifyNone(t)
-	url1, close1 := startNSEServer(t)
-	defer close1()
-	url2, close2 := startNSEServer(t)
-	defer close2()
+	url1, closeServer1 := startNSEServer(t)
+	url2, closeServer2 := startNSEServer(t)
+
 	s := connect.NewNetworkServiceEndpointRegistryServer(func(_ context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient {
 		return registry.NewNetworkServiceEndpointRegistryClient(cc)
-	}, connect.WithExpirationDuration(0), connect.WithClientDialOptions(grpc.WithInsecure()))
+	}, connect.WithExpirationDuration(time.Millisecond*100), connect.WithClientDialOptions(grpc.WithInsecure()))
 
 	_, err := s.Register(clienturl.WithClientURL(context.Background(), url1), &registry.NetworkServiceEndpoint{Name: "ns-1"})
 	require.Nil(t, err)
@@ -82,4 +82,12 @@ func TestConnect_NewNetworkServiceEndpointRegistryServer(t *testing.T) {
 	}}, findSrv)
 	require.Nil(t, err)
 	require.Equal(t, (<-ch).Name, "ns-1-1")
+
+	closeServer1()
+	closeServer2()
+
+	require.Eventually(t, func() bool {
+		runtime.GC()
+		return goleak.Find() != nil
+	}, time.Second, time.Microsecond*100)
 }

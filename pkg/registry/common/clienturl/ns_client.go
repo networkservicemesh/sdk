@@ -70,11 +70,11 @@ func (u *nsRegistryURLClient) Unregister(ctx context.Context, in *registry.Netwo
 	if err := u.init(); err != nil {
 		return nil, err
 	}
-	resp, err := u.client.Register(ctx, in, opts...)
+	_, err := u.client.Unregister(ctx, in, opts...)
 	if err != nil {
 		return nil, err
 	}
-	return next.NetworkServiceRegistryClient(ctx).Unregister(ctx, resp, opts...)
+	return next.NetworkServiceRegistryClient(ctx).Unregister(ctx, in, opts...)
 }
 
 // NewNetworkServiceRegistryClient - creates a Client that will using clienturl.ClientUrl(ctx) to extract a url, dial it to a cc, use that cc with the clientFactory to produce a new
