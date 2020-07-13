@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package prefix_pool
+package prefixpool
 
 import (
 	"github.com/fsnotify/fsnotify"
@@ -22,26 +22,29 @@ import (
 	"github.com/spf13/viper"
 )
 
+/* These variables set default path to the config file */
 const (
 	PrefixesFile            = "excluded_prefixes.yaml"
-	NsmConfigDir            = "/var/lib/networkservicemesh/config"
-	PrefixesFilePathDefault = NsmConfigDir + "/" + PrefixesFile
+	NSMConfigDir            = "/var/lib/networkservicemesh/config"
+	PrefixesFilePathDefault = NSMConfigDir + "/" + PrefixesFile
 )
 
-type prefixPoolReader struct {
-	prefixPool
+type PrefixPoolReader struct {
+	PrefixPool
 	prefixesConfig *viper.Viper
 	configPath     string
 }
 
-func (ph *prefixPoolReader) init(prefixes []string) {
+func (ph *PrefixPoolReader) init(prefixes []string) {
 	ph.prefixes = prefixes
 	ph.basePrefixes = prefixes
 	ph.connections = map[string]*connectionRecord{}
 }
 
-func NewPrefixPoolReader(path string) *prefixPoolReader {
-	ph := &prefixPoolReader{
+/* Gets list of excluded prefixes from config file. Starts config file monitoring.
+Returns pointer to a struct that contains all information */
+func NewPrefixPoolReader(path string) *PrefixPoolReader {
+	ph := &PrefixPoolReader{
 		prefixesConfig: viper.New(),
 		configPath:     path,
 	}
@@ -49,14 +52,14 @@ func NewPrefixPoolReader(path string) *prefixPoolReader {
 	// setup watching the prefixes config file
 	ph.prefixesConfig.SetDefault("prefixes", []string{})
 	ph.prefixesConfig.SetConfigFile(ph.configPath)
-	ph.prefixesConfig.ReadInConfig()
+	_ = ph.prefixesConfig.ReadInConfig()
 
 	readPrefixes := func() {
 		logrus.Infof("Reading excluded prefixes config file: %s", ph.configPath)
 		prefixes := ph.prefixesConfig.GetStringSlice("prefixes")
 		logrus.Infof("Excluded prefixes: %v", prefixes)
-		ph.Lock()
-		defer ph.Unlock()
+		ph.mutex.Lock()
+		defer ph.mutex.Unlock()
 		ph.init(prefixes)
 	}
 

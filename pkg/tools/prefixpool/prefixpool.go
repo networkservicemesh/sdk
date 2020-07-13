@@ -1,4 +1,20 @@
-package prefix_pool
+// Copyright (c) 2020 Cisco Systems, Inc.
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at:
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package prefixpool
 
 import (
 	"math/big"
@@ -12,31 +28,14 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
-/**
-All in one interface for managing prefixes.
-*/
-//type PrefixPool interface {
-//	/*
-//		Process ExtraPrefixesRequest and provide a list of prefixes for clients to use.
-//	*/
-//	Extract(connectionId string, family networkservice.IpFamily_Family, requests ...*networkservice.ExtraPrefixRequest) (srcIP *net.IPNet, dstIP *net.IPNet, requested []string, err error)
-//	Release(connectionId string) error
-//	GetConnectionInformation(connectionId string) (string, []string, error)
-//	GetPrefixes() []string
-//	Intersect(prefix string) (bool, error)
-//	ExcludePrefixes(excludedPrefixes []string) ([]string, error)
-//	ReleaseExcludedPrefixes(excludedPrefixes []string) error
-//}
-
-type prefixPool struct {
-	sync.RWMutex
-
+type PrefixPool struct {
+	mutex        sync.RWMutex
 	basePrefixes []string // Just to know where we start from
 	prefixes     []string
 	connections  map[string]*connectionRecord
 }
 
-func (impl *prefixPool) GetPrefixes() []string {
+func (impl *PrefixPool) GetPrefixes() []string {
 	return impl.prefixes
 }
 
@@ -45,9 +44,10 @@ type connectionRecord struct {
 	prefixes []string
 }
 
-func NewPrefixPool(prefixes ...string) (*prefixPool, error) {
+/* PrefixPool constructor */
+func NewPrefixPool(prefixes ...string) (*PrefixPool, error) {
 	//TODO: Add validation of input prefixes.
-	return &prefixPool{
+	return &PrefixPool{
 		basePrefixes: prefixes,
 		prefixes:     prefixes,
 		connections:  map[string]*connectionRecord{},
@@ -55,9 +55,9 @@ func NewPrefixPool(prefixes ...string) (*prefixPool, error) {
 }
 
 /* Release excluded prefixes back the pool of available ones */
-func (impl *prefixPool) ReleaseExcludedPrefixes(excludedPrefixes []string) error {
-	impl.Lock()
-	defer impl.Unlock()
+func (impl *PrefixPool) ReleaseExcludedPrefixes(excludedPrefixes []string) error {
+	impl.mutex.Lock()
+	defer impl.mutex.Unlock()
 
 	remaining, err := ReleasePrefixes(impl.prefixes, excludedPrefixes...)
 	if err != nil {
@@ -70,9 +70,9 @@ func (impl *prefixPool) ReleaseExcludedPrefixes(excludedPrefixes []string) error
 }
 
 /* Exclude prefixes from the pool of available prefixes */
-func (impl *prefixPool) ExcludePrefixes(excludedPrefixes []string) ([]string, error) {
-	impl.Lock()
-	defer impl.Unlock()
+func (impl *PrefixPool) ExcludePrefixes(excludedPrefixes []string) ([]string, error) {
+	impl.mutex.Lock()
+	defer impl.mutex.Unlock()
 	/* Use a working copy for the available prefixes */
 	copyPrefixes := append([]string{}, impl.prefixes...)
 
@@ -162,22 +162,23 @@ func extractSubnet(wider, smaller *net.IPNet) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		if sub1.Contains(smaller.IP) {
+		switch {
+		case sub1.Contains(smaller.IP):
 			rightParts = append(rightParts, sub2.String())
 			root = sub1
-		} else if sub2.Contains(smaller.IP) {
+		case sub2.Contains(smaller.IP):
 			leftParts = append(leftParts, sub1.String())
 			root = sub2
-		} else {
+		default:
 			return nil, errors.New("split failed")
 		}
 	}
 	return append(leftParts, rightParts...), nil
 }
 
-func (impl *prefixPool) Extract(connectionId string, family networkservice.IpFamily_Family, requests ...*networkservice.ExtraPrefixRequest) (srcIP *net.IPNet, dstIP *net.IPNet, requested []string, err error) {
-	impl.Lock()
-	defer impl.Unlock()
+func (impl *PrefixPool) Extract(connectionId string, family networkservice.IpFamily_Family, requests ...*networkservice.ExtraPrefixRequest) (srcIP, dstIP *net.IPNet, requested []string, err error) {
+	impl.mutex.Lock()
+	defer impl.mutex.Unlock()
 
 	prefixLen := 30 // At lest 4 addresses
 	if family == networkservice.IpFamily_IPV6 {
@@ -224,15 +225,15 @@ func (impl *prefixPool) Extract(connectionId string, family networkservice.IpFam
 	return &net.IPNet{IP: src, Mask: ipNet.Mask}, &net.IPNet{IP: dst, Mask: ipNet.Mask}, requested, nil
 }
 
-func (impl *prefixPool) Release(connectionId string) error {
-	impl.Lock()
-	defer impl.Unlock()
+func (impl *PrefixPool) Release(connectionID string) error {
+	impl.mutex.Lock()
+	defer impl.mutex.Unlock()
 
-	conn := impl.connections[connectionId]
+	conn := impl.connections[connectionID]
 	if conn == nil {
-		return errors.Errorf("Failed to release connection infomration: %s", connectionId)
+		return errors.Errorf("Failed to release connection infomration: %s", connectionID)
 	}
-	delete(impl.connections, connectionId)
+	delete(impl.connections, connectionID)
 
 	remaining, err := ReleasePrefixes(impl.prefixes, conn.prefixes...)
 	if err != nil {
@@ -248,9 +249,9 @@ func (impl *prefixPool) Release(connectionId string) error {
 	return nil
 }
 
-func (impl *prefixPool) GetConnectionInformation(connectionId string) (string, []string, error) {
-	impl.RLock()
-	defer impl.RUnlock()
+func (impl *PrefixPool) GetConnectionInformation(connectionId string) (ipNet string, prefixes []string, err error) {
+	impl.mutex.RLock()
+	defer impl.mutex.RUnlock()
 	conn := impl.connections[connectionId]
 	if conn == nil {
 		return "", nil, errors.Errorf("No connection with id: %s is found", connectionId)
@@ -258,7 +259,7 @@ func (impl *prefixPool) GetConnectionInformation(connectionId string) (string, [
 	return conn.ipNet.String(), conn.prefixes, nil
 }
 
-func (impl *prefixPool) Intersect(prefix string) (bool, error) {
+func (impl *PrefixPool) Intersect(prefix string) (intersection bool, err error) {
 	_, subnet, err := net.ParseCIDR(prefix)
 	if err != nil {
 		return false, err
@@ -289,7 +290,7 @@ func intersect(first, second *net.IPNet) (bool, bool) {
 	return widerRange.Contains(narrowerRange.IP), firstIsBigger
 }
 
-func ExtractPrefixes(prefixes []string, requests ...*networkservice.ExtraPrefixRequest) (requested []string, remaining []string, err error) {
+func ExtractPrefixes(prefixes []string, requests ...*networkservice.ExtraPrefixRequest) (requested, remaining []string, err error) {
 	// Check if requests are valid.
 	for _, request := range requests {
 		err := request.IsValid()
@@ -298,7 +299,7 @@ func ExtractPrefixes(prefixes []string, requests ...*networkservice.ExtraPrefixR
 		}
 	}
 
-	//1 find prefix of desired prefix len and return it
+	// 1 find prefix of desired prefix len and return it
 	result := []string{}
 
 	// Make a copy since we need to fit all prefixes before we could finish.
@@ -336,8 +337,8 @@ func ExtractPrefixes(prefixes []string, requests ...*networkservice.ExtraPrefixR
 
 func ExtractPrefix(prefixes []string, prefixLen uint32) (string, []string, error) {
 	// Check if we already have required CIDR
-	max_prefix := 0
-	max_prefix_idx := -1
+	maxPrefix := 0
+	maxPrefixIdx := -1
 
 	// Check if we already have required prefix,
 	for idx, prefix := range prefixes {
@@ -353,22 +354,20 @@ func ExtractPrefix(prefixes []string, prefixLen uint32) (string, []string, error
 			resultPrefixes := append(prefixes[:idx], prefixes[idx+1:]...)
 			// Lets remove from list and return
 			return resultPrefix, resultPrefixes, nil
-		} else {
+		} else if uint32(parentLen) < prefixLen && (parentLen > maxPrefix || maxPrefix == 0) {
 			// Update minimal root for split
-			if uint32(parentLen) < prefixLen && (parentLen > max_prefix || max_prefix == 0) {
-				max_prefix = parentLen
-				max_prefix_idx = idx
-			}
+			maxPrefix = parentLen
+			maxPrefixIdx = idx
 		}
 	}
 	// Not found, lets split minimal found prefix
-	if max_prefix_idx == -1 {
+	if maxPrefixIdx == -1 {
 		// There is no room to split
 		return "", prefixes, errors.Errorf("Failed to find room to have prefix len %d at %v", prefixLen, prefixes)
 	}
 
-	resultPrefixRoot := prefixes[max_prefix_idx]
-	right_parts := []string{}
+	resultPrefixRoot := prefixes[maxPrefixIdx]
+	rightParts := []string{}
 
 	_, rootCIDRNet, _ := net.ParseCIDR(resultPrefixRoot)
 	for {
@@ -386,13 +385,13 @@ func ExtractPrefix(prefixes []string, prefixLen uint32) (string, []string, error
 		if err != nil {
 			return "", prefixes, err
 		}
-		right_parts = append(right_parts, sub2.String())
+		rightParts = append(rightParts, sub2.String())
 		rootCIDRNet = sub1
 	}
 	var resultPrefixes []string = nil
-	resultPrefixes = append(resultPrefixes, prefixes[:max_prefix_idx]...)
-	resultPrefixes = append(resultPrefixes, reverse(right_parts)...)
-	resultPrefixes = append(resultPrefixes, prefixes[max_prefix_idx+1:]...)
+	resultPrefixes = append(resultPrefixes, prefixes[:maxPrefixIdx]...)
+	resultPrefixes = append(resultPrefixes, reverse(rightParts)...)
+	resultPrefixes = append(resultPrefixes, prefixes[maxPrefixIdx+1:]...)
 
 	// return result
 	return rootCIDRNet.String(), resultPrefixes, nil
@@ -415,20 +414,20 @@ func reverse(values []string) []string {
 	newValues := make([]string, len(values))
 
 	for i, j := 0, len(values)-1; i <= j; i, j = i+1, j-1 {
-		newValues[i] = values[j]
-		if i != j {
-			newValues[j] = values[i]
+		if i == j {
+			continue
 		}
+		newValues[i], newValues[j] = values[j], values[i]
 	}
 	return newValues
 }
 
+/* Releases prefixes after usage */
 func ReleasePrefixes(prefixes []string, released ...string) (remaining []string, err error) {
-	result := []string{}
 	if len(released) == 0 {
 		return prefixes, nil
 	}
-	result = removeDuplicates(append(prefixes, released...))
+	result := removeDuplicates(append(prefixes, released...))
 
 	prefixByPrefixLen := map[int][]*net.IPNet{}
 
@@ -456,21 +455,21 @@ func ReleasePrefixes(prefixes []string, released ...string) (remaining []string,
 				continue
 			}
 			for _, netValue := range cvalue {
-				baseIp := &net.IPNet{
+				baseIP := &net.IPNet{
 					IP:   clearNetIndexInIP(netValue.IP, basePrefix),
 					Mask: netValue.Mask,
 				}
-				parentLen, addrLen := baseIp.Mask.Size()
-				bv := base[baseIp.String()]
+				parentLen, addrLen := baseIP.Mask.Size()
+				bv := base[baseIP.String()]
 				if bv == nil {
-					base[baseIp.String()] = netValue
+					base[baseIP.String()] = netValue
 				} else {
 					// We found item with same base IP, we we could join this two networks into one.
 					// Remove from current level
-					delete(base, baseIp.String())
+					delete(base, baseIP.String())
 					// And put to next level
 					parentPrefix = append(parentPrefix, &net.IPNet{
-						IP:   baseIp.IP,
+						IP:   baseIP.IP,
 						Mask: net.CIDRMask(parentLen-1, addrLen),
 					})
 					changes++
@@ -498,7 +497,7 @@ func ReleasePrefixes(prefixes []string, released ...string) (remaining []string,
 	}
 }
 
-func subnet(ipnet *net.IPNet, subnet_index int) (*net.IPNet, error) {
+func subnet(ipnet *net.IPNet, subnetIndex int) (*net.IPNet, error) {
 	mask := ipnet.Mask
 
 	parentLen, addrLen := mask.Size()
@@ -507,16 +506,17 @@ func subnet(ipnet *net.IPNet, subnet_index int) (*net.IPNet, error) {
 		return nil, errors.Errorf("insufficient address space to extend prefix of %d", parentLen)
 	}
 
-	if uint64(subnet_index) > 2 {
-		return nil, errors.Errorf("prefix extension does not accommodate a subnet numbered %d", subnet_index)
+	if uint64(subnetIndex) > 2 {
+		return nil, errors.Errorf("prefix extension does not accommodate a subnet numbered %d", subnetIndex)
 	}
 
 	return &net.IPNet{
-		IP:   setNetIndexInIP(ipnet.IP, subnet_index, newPrefixLen),
+		IP:   setNetIndexInIP(ipnet.IP, subnetIndex, newPrefixLen),
 		Mask: net.CIDRMask(newPrefixLen, addrLen),
 	}, nil
 }
 
+/* AddressCount Iterates through the list of prefixes and returns amount of addresses */
 func AddressCount(prefixes ...string) uint64 {
 	var c uint64 = 0
 	for _, pr := range prefixes {
@@ -531,7 +531,7 @@ func addressCount(pr string) uint64 {
 	return 1 << (uint64(bits) - uint64(prefixLen))
 }
 
-func setNetIndexInIP(ip net.IP, num int, prefixLen int) net.IP {
+func setNetIndexInIP(ip net.IP, num, prefixLen int) net.IP {
 	ipInt, totalBits := fromIP(ip)
 	bigNum := big.NewInt(int64(num))
 	bigNum.Lsh(bigNum, uint(totalBits-prefixLen))
@@ -556,7 +556,7 @@ func toIP(ipInt *big.Int, bits int) net.IP {
 	return net.IP(ret)
 }
 
-func fromIP(ip net.IP) (*big.Int, int) {
+func fromIP(ip net.IP) (ipVal *big.Int, ipLen int) {
 	val := &big.Int{}
 	val.SetBytes([]byte(ip))
 	i := len(ip)
@@ -573,12 +573,13 @@ func min(a, b int) int {
 	return b
 }
 
+/* MaxCommonPrefixSubnet Compares two IP masks and returns max common prefix subnet */
 func MaxCommonPrefixSubnet(s1, s2 *net.IPNet) *net.IPNet {
-	rawIp1, n1 := fromIP(s1.IP)
-	rawIp2, _ := fromIP(s2.IP)
+	rawIP1, n1 := fromIP(s1.IP)
+	rawIP2, _ := fromIP(s2.IP)
 
 	xored := &big.Int{}
-	xored.Xor(rawIp1, rawIp2)
+	xored.Xor(rawIP1, rawIP2)
 	maskSize := leadingZeros(xored, n1)
 
 	m1, bits := s1.Mask.Size()
@@ -591,6 +592,7 @@ func MaxCommonPrefixSubnet(s1, s2 *net.IPNet) *net.IPNet {
 	}
 }
 
+/* IpToNet converts ip address to the net */
 func IpToNet(ipAddr net.IP) *net.IPNet {
 	mask := net.CIDRMask(len(ipAddr)*8, len(ipAddr)*8)
 	return &net.IPNet{IP: ipAddr, Mask: mask}
@@ -606,7 +608,7 @@ func leadingZeros(n *big.Int, size int) int {
 /**
 AddressRange returns the first and last addresses in the given CIDR range.
 */
-func AddressRange(network *net.IPNet) (net.IP, net.IP) {
+func AddressRange(network *net.IPNet) (firstIPRet net.IP, lastIPRet net.IP) {
 	firstIP := network.IP
 	// the last IP is the network address OR NOT the mask address
 	prefixLen, bits := network.Mask.Size()

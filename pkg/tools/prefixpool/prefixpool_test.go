@@ -1,4 +1,20 @@
-package prefix_pool
+// Copyright (c) 2020 Cisco Systems, Inc.
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at:
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package prefixpool
 
 import (
 	"net"
@@ -28,14 +44,14 @@ func TestPrefixPoolSubnet1(t *testing.T) {
 	require.Equal(t, "10.10.1.127", e.String())
 	require.Equal(t, uint64(128), addressCount(sn1.String()))
 
-	lastIp := s
+	lastIP := s
 	for i := uint64(0); i < addressCount(sn1.String())-1; i++ {
-		ip, err := IncrementIP(lastIp, sn1)
-		require.Nil(t, err)
-		lastIp = ip
+		ip, incr_err := IncrementIP(lastIP, sn1)
+		require.Nil(t, incr_err)
+		lastIP = ip
 	}
 
-	_, err = IncrementIP(lastIp, sn1)
+	_, err = IncrementIP(lastIP, sn1)
 	require.Equal(t, "Overflowed CIDR while incrementing IP", err.Error())
 
 	sn2, err := subnet(snet1, 1)
@@ -72,7 +88,6 @@ func testNetExtract(t *testing.T, inPool, srcDesired, dstDesired string, family 
 }
 
 func TestExtract1(t *testing.T) {
-
 	newPrefixes, err := ReleasePrefixes([]string{"10.10.1.0/25"}, "10.10.1.127/25")
 	require.Nil(t, err)
 	require.Equal(t, []string{"10.10.1.0/24"}, newPrefixes)
@@ -95,7 +110,6 @@ func TestExtractPrefixes_1_ipv4(t *testing.T) {
 }
 
 func TestExtractPrefixes_1_ipv6(t *testing.T) {
-
 	newPrefixes, prefixes, err := ExtractPrefixes([]string{"100::/64"},
 		&networkservice.ExtraPrefixRequest{
 			AddrFamily:      &networkservice.IpFamily{Family: networkservice.IpFamily_IPV6},
@@ -254,8 +268,8 @@ func TestRelease1(t *testing.T) {
 
 func TestRelease2(t *testing.T) {
 	_, snet, _ := net.ParseCIDR("10.10.1.0/25")
-	sn1, err := subnet(snet, 0)
-	sn2, err := subnet(snet, 1)
+	sn1, _ := subnet(snet, 0)
+	sn2, _ := subnet(snet, 1)
 	logrus.Printf("%v %v", sn1.String(), sn2.String())
 
 	sn10 := clearNetIndexInIP(sn1.IP, 26)
@@ -381,7 +395,7 @@ func TestExcludePrefixesNoOverlap(t *testing.T) {
 	require.Nil(t, err)
 	excludedPrefix := []string{"10.32.1.0/16"}
 
-	_, err = pool.ExcludePrefixes(excludedPrefix)
+	_, _ = pool.ExcludePrefixes(excludedPrefix)
 
 	require.Equal(t, []string{"10.20.0.0/16"}, pool.GetPrefixes())
 }
@@ -391,7 +405,7 @@ func TestExcludePrefixesFullOverlap(t *testing.T) {
 	require.Nil(t, err)
 	excludedPrefix := []string{"10.20.1.0/16"}
 
-	_, err = pool.ExcludePrefixes(excludedPrefix)
+	_, _ = pool.ExcludePrefixes(excludedPrefix)
 
 	require.Equal(t, "IPAM: The available address pool is empty, probably intersected by excludedPrefix", err.Error())
 }
@@ -404,8 +418,10 @@ func TestNewPrefixPoolReader(t *testing.T) {
 	f, err := os.Create(configPath)
 	require.Nil(t, err)
 	defer os.Remove(configPath)
-	f.WriteString(testConfig)
-	f.Close()
+	_, err = f.WriteString(testConfig)
+	require.Nil(t, err)
+	err = f.Close()
+	require.Nil(t, err)
 
 	prefixPool := NewPrefixPoolReader(configPath)
 
