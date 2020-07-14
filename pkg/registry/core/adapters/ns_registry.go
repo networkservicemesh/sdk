@@ -42,7 +42,9 @@ func (n *networkServiceRegistryServer) Find(query *registry.NetworkServiceQuery,
 	if err != nil {
 		return err
 	}
-
+	if client == nil {
+		return nil
+	}
 	for {
 		if err := client.Context().Err(); err != nil {
 			return err
@@ -80,7 +82,7 @@ func (n *networkServiceRegistryClient) Register(ctx context.Context, in *registr
 	return n.server.Register(ctx, in)
 }
 
-func (n *networkServiceRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
+func (n *networkServiceRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, _ ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
 	ch := make(chan *registry.NetworkService, channelSize)
 	s := streamchannel.NewNetworkServiceFindServer(ctx, ch)
 	if in != nil && in.Watch {
@@ -97,7 +99,7 @@ func (n *networkServiceRegistryClient) Find(ctx context.Context, in *registry.Ne
 	return streamchannel.NewNetworkServiceFindClient(s.Context(), ch), nil
 }
 
-func (n *networkServiceRegistryClient) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (n *networkServiceRegistryClient) Unregister(ctx context.Context, in *registry.NetworkService, _ ...grpc.CallOption) (*empty.Empty, error) {
 	return n.server.Unregister(ctx, in)
 }
 
