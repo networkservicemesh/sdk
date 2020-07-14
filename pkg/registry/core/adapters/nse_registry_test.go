@@ -20,6 +20,10 @@ import (
 	"context"
 	"testing"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/streamcontext"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checkcontext"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
@@ -31,7 +35,7 @@ import (
 
 type echoNetworkServiceEndpointClient struct{}
 
-func (t *echoNetworkServiceEndpointClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+func (t *echoNetworkServiceEndpointClient) Register(_ context.Context, in *registry.NetworkServiceEndpoint, _ ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
 	return in, nil
 }
 
@@ -95,4 +99,74 @@ func adaptNetworkServiceEndpointClientToServerFewTimes(n int, client registry.Ne
 	}
 
 	return s
+}
+
+type writeNSEServer struct {
+}
+
+func (w *writeNSEServer) Register(ctx context.Context, service *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	ctx = context.WithValue(ctx, testKey, true)
+	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, service)
+}
+
+func (w *writeNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
+	ctx := context.WithValue(server.Context(), testKey, true)
+	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, streamcontext.NetworkServiceEndpointRegistryFindServer(ctx, server))
+}
+
+func (w *writeNSEServer) Unregister(ctx context.Context, service *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	ctx = context.WithValue(ctx, testKey, true)
+	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, service)
+}
+
+func TestNSEClientPassingContext(t *testing.T) {
+	n := next.NewNetworkServiceEndpointRegistryClient(adapters.NetworkServiceEndpointServerToClient(&writeNSEServer{}), checkcontext.NewNSEClient(t, func(t *testing.T, ctx context.Context) {
+		if _, ok := ctx.Value(testKey).(bool); !ok {
+			t.Error("Context ignored")
+		}
+	}))
+
+	_, err := n.Register(context.Background(), nil)
+	require.NoError(t, err)
+
+	_, err = n.Find(context.Background(), nil)
+	require.NoError(t, err)
+
+	_, err = n.Unregister(context.Background(), nil)
+	require.NoError(t, err)
+}
+
+type writeNSEClient struct {
+}
+
+func (s *writeNSEClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+	ctx = context.WithValue(ctx, testKey, true)
+	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)
+}
+
+func (s *writeNSEClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
+	ctx = context.WithValue(ctx, testKey, true)
+	return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, in, opts...)
+}
+
+func (s *writeNSEClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
+	ctx = context.WithValue(ctx, testKey, true)
+	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
+}
+
+func TestNSEPassingContext(t *testing.T) {
+	n := next.NewNetworkServiceEndpointRegistryServer(adapters.NetworkServiceEndpointClientToServer(&writeNSEClient{}), checkcontext.NewNSEServer(t, func(t *testing.T, ctx context.Context) {
+		if _, ok := ctx.Value(testKey).(bool); !ok {
+			t.Error("Context ignored")
+		}
+	}))
+
+	_, err := n.Register(context.Background(), nil)
+	require.NoError(t, err)
+
+	err = n.Find(nil, streamcontext.NetworkServiceEndpointRegistryFindServer(context.Background(), nil))
+	require.NoError(t, err)
+
+	_, err = n.Unregister(context.Background(), nil)
+	require.NoError(t, err)
 }

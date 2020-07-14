@@ -101,16 +101,16 @@ func TestNSServerBranches(t *testing.T) {
 
 		ctx := visit(context.Background())
 		_, _ = s.Register(ctx, nil)
-		assert.Equal(t, expects[i], visitValue(ctx), fmt.Sprintf("reg sample index: %v", i))
+		assert.Equal(t, expects[i], visitValue(ctx), fmt.Sprintf("sample index: %v", i))
 
 		ctx = visit(context.Background())
 		_, _ = s.Unregister(ctx, nil)
-		assert.Equal(t, expects[i], visitValue(ctx), fmt.Sprintf("unreg sample index: %v", i))
+		assert.Equal(t, expects[i], visitValue(ctx), fmt.Sprintf("sample index: %v", i))
 
 		ctx = visit(context.Background())
 		_ = s.Find(nil, streamcontext.NetworkServiceRegistryFindServer(ctx, nil))
 
-		assert.Equal(t, expects[i], visitValue(ctx), fmt.Sprintf("find sample index: %v", i))
+		assert.Equal(t, expects[i], visitValue(ctx), fmt.Sprintf("sample index: %v", i))
 	}
 }
 

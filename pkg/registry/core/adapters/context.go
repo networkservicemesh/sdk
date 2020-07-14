@@ -16,42 +16,40 @@
 
 package adapters
 
-import "context"
+import (
+	"context"
+)
 
 type contextKeyType string
 
-const nextDone contextKeyType = "NextDone"
+const capturedContext contextKeyType = "capturedContext"
 
-func withDoneContext(ctx context.Context) context.Context {
-	if v := ctx.Value(nextDone); v != nil {
+// withCapturedContext - adds record with nil reference into context or nullifies it
+func withCapturedContext(ctx context.Context) context.Context {
+	if v := ctx.Value(capturedContext); v != nil {
 		if b, ok := v.(*context.Context); ok {
 			*b = nil
 			return ctx
 		}
 	}
 	var d context.Context = nil
-	return context.WithValue(ctx, nextDone, &d)
+	return context.WithValue(ctx, capturedContext, &d)
 }
 
-// isDoneContext returns true if tail element in the chain has been called
-func isDoneContext(ctx context.Context) bool {
-	val, ok := ctx.Value(nextDone).(*context.Context)
-	return ok && *val != nil
-}
-
-// lastContext returns final context from last chain
-func lastContext(ctx context.Context) context.Context {
-	if val, ok := ctx.Value(nextDone).(*context.Context); ok {
+// getCapturedContext - returns context previously written by reported key
+func getCapturedContext(ctx context.Context) context.Context {
+	if val, ok := ctx.Value(capturedContext).(*context.Context); ok && *val != nil {
 		return *val
 	}
 	return nil
 }
 
-func markDone(ctx context.Context) {
+// captureContext - adds reference on current context in context record
+func captureContext(ctx context.Context) {
 	if ctx == nil {
 		return
 	}
-	if val, ok := ctx.Value(nextDone).(*context.Context); ok {
+	if val, ok := ctx.Value(capturedContext).(*context.Context); ok {
 		*val = ctx
 	}
 }

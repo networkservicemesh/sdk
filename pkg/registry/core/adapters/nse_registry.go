@@ -20,8 +20,9 @@ package adapters
 import (
 	"context"
 	"errors"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/streamcontext"
 	"io"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/core/streamcontext"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 
@@ -37,19 +38,20 @@ type networkServiceEndpointRegistryServer struct {
 }
 
 func (n *networkServiceEndpointRegistryServer) Register(ctx context.Context, request *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	doneCtx := withDoneContext(ctx)
+	doneCtx := withCapturedContext(ctx)
 	nse, err := n.client.Register(doneCtx, request)
 	if err != nil {
 		return nil, err
 	}
-	if !isDoneContext(doneCtx) {
+	lastCtx := getCapturedContext(doneCtx)
+	if lastCtx == nil {
 		return nse, nil
 	}
-	return next.NetworkServiceEndpointRegistryServer(ctx).Register(lastContext(doneCtx), request)
+	return next.NetworkServiceEndpointRegistryServer(ctx).Register(lastCtx, request)
 }
 
 func (n *networkServiceEndpointRegistryServer) Find(query *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
-	doneCtx := withDoneContext(s.Context())
+	doneCtx := withCapturedContext(s.Context())
 	client, err := n.client.Find(doneCtx, query)
 	if err != nil {
 		return err
@@ -73,14 +75,15 @@ func (n *networkServiceEndpointRegistryServer) Find(query *registry.NetworkServi
 			return err
 		}
 	}
-	if isDoneContext(doneCtx) {
-		return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(query, streamcontext.NetworkServiceEndpointRegistryFindServer(lastContext(doneCtx), s))
+	lastCtx := getCapturedContext(doneCtx)
+	if lastCtx != nil {
+		return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(query, streamcontext.NetworkServiceEndpointRegistryFindServer(lastCtx, s))
 	}
 	return nil
 }
 
 func (n *networkServiceEndpointRegistryServer) Unregister(ctx context.Context, request *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	doneCtx := withDoneContext(ctx)
+	doneCtx := withCapturedContext(ctx)
 	nse, err := n.client.Unregister(doneCtx, request)
 	if err != nil {
 		return nil, err
@@ -88,15 +91,16 @@ func (n *networkServiceEndpointRegistryServer) Unregister(ctx context.Context, r
 	if request == nil {
 		request = &registry.NetworkServiceEndpoint{}
 	}
-	if !isDoneContext(doneCtx) {
+	lastCtx := getCapturedContext(doneCtx)
+	if lastCtx == nil {
 		return nse, nil
 	}
-	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(lastContext(doneCtx), request)
+	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(lastCtx, request)
 }
 
 // NetworkServiceEndpointClientToServer - returns a registry.NetworkServiceEndpointRegistryClient wrapped around the supplied client
 func NetworkServiceEndpointClientToServer(client registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceEndpointRegistryServer {
-	return &networkServiceEndpointRegistryServer{client: next.NewNetworkServiceEndpointRegistryClient(client, &nseDoneClient{})}
+	return &networkServiceEndpointRegistryServer{client: next.NewNetworkServiceEndpointRegistryClient(client, NewNetworkServiceEndpointRegistryClient())}
 }
 
 var _ registry.NetworkServiceEndpointRegistryServer = &networkServiceEndpointRegistryServer{}
@@ -106,20 +110,21 @@ type networkServiceEndpointRegistryClient struct {
 }
 
 func (n *networkServiceEndpointRegistryClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, _ ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	doneCtx := withDoneContext(ctx)
+	doneCtx := withCapturedContext(ctx)
 	nse, err := n.server.Register(doneCtx, in)
 	if err != nil {
 		return nil, err
 	}
-	if !isDoneContext(doneCtx) {
+	lastCtx := getCapturedContext(doneCtx)
+	if lastCtx == nil {
 		return nse, nil
 	}
-	return next.NetworkServiceEndpointRegistryClient(ctx).Register(lastContext(doneCtx), in)
+	return next.NetworkServiceEndpointRegistryClient(ctx).Register(lastCtx, in)
 }
 
 func (n *networkServiceEndpointRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
 	ch := make(chan *registry.NetworkServiceEndpoint, channelSize)
-	doneCtx := withDoneContext(ctx)
+	doneCtx := withCapturedContext(ctx)
 	s := streamchannel.NewNetworkServiceEndpointFindServer(doneCtx, ch)
 	if in != nil && in.Watch {
 		go func() {
@@ -132,8 +137,9 @@ func (n *networkServiceEndpointRegistryClient) Find(ctx context.Context, in *reg
 			return nil, err
 		}
 	}
-	if isDoneContext(doneCtx) {
-		_, err := next.NetworkServiceEndpointRegistryClient(ctx).Find(lastContext(doneCtx), in, opts...)
+	lastCtx := getCapturedContext(doneCtx)
+	if lastCtx != nil {
+		_, err := next.NetworkServiceEndpointRegistryClient(ctx).Find(lastCtx, in, opts...)
 		if err != nil {
 			return nil, err
 		}
@@ -142,20 +148,21 @@ func (n *networkServiceEndpointRegistryClient) Find(ctx context.Context, in *reg
 }
 
 func (n *networkServiceEndpointRegistryClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, _ ...grpc.CallOption) (*empty.Empty, error) {
-	doneCtx := withDoneContext(ctx)
+	doneCtx := withCapturedContext(ctx)
 	nse, err := n.server.Unregister(doneCtx, in)
 	if err != nil {
 		return nil, err
 	}
-	if !isDoneContext(doneCtx) {
+	lastCtx := getCapturedContext(doneCtx)
+	if lastCtx == nil {
 		return nse, nil
 	}
-	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(lastContext(doneCtx), in)
+	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(lastCtx, in)
 }
 
 var _ registry.NetworkServiceEndpointRegistryClient = &networkServiceEndpointRegistryClient{}
 
 // NetworkServiceEndpointServerToClient - returns a registry.NetworkServiceEndpointRegistryServer wrapped around the supplied server
 func NetworkServiceEndpointServerToClient(server registry.NetworkServiceEndpointRegistryServer) registry.NetworkServiceEndpointRegistryClient {
-	return &networkServiceEndpointRegistryClient{server: next.NewNetworkServiceEndpointRegistryServer(server, &nseDoneServer{})}
+	return &networkServiceEndpointRegistryClient{server: next.NewNetworkServiceEndpointRegistryServer(server, NewNetworkServiceEndpointRegistryServer())}
 }

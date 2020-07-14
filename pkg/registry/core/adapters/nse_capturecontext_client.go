@@ -26,21 +26,26 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
-type nseDoneClient struct{}
+type contextNSEClient struct{}
 
-func (d *nseDoneClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	markDone(ctx)
+func (c *contextNSEClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+	captureContext(ctx)
 	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)
 }
 
-func (d *nseDoneClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	markDone(ctx)
+func (c *contextNSEClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
+	captureContext(ctx)
 	return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, in, opts...)
 }
 
-func (d *nseDoneClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
-	markDone(ctx)
+func (c *contextNSEClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
+	captureContext(ctx)
 	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
 }
 
-var _ registry.NetworkServiceEndpointRegistryClient = &nseDoneClient{}
+// NewNetworkServiceEndpointRegistryClient - creates a new registry.NetworkServiceEndpointRegistryClient chain element
+// that adds into context reference to current context for passing it from the adapter server/client to the next
+// client/server to avoid the problem with losing values from adapted server/client context.
+func NewNetworkServiceEndpointRegistryClient() registry.NetworkServiceEndpointRegistryClient {
+	return &contextNSEClient{}
+}
