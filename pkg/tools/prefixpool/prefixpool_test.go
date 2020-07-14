@@ -17,7 +17,6 @@
 package prefixpool_test
 
 import (
-	"github.com/stretchr/testify/assert"
 	"net"
 	"os"
 	"path"
@@ -25,9 +24,11 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/prefixpool"
 )
 
