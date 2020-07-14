@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Cisco Systems, Inc.
+// Copyright (c) 2020 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -29,22 +29,23 @@ const (
 	PrefixesFilePathDefault = NSMConfigDir + "/" + PrefixesFile
 )
 
-type PrefixPoolReader struct {
+// Reader contains prefix pool structure and config file monitoring
+type Reader struct {
 	PrefixPool
 	prefixesConfig *viper.Viper
 	configPath     string
 }
 
-func (ph *PrefixPoolReader) init(prefixes []string) {
+func (ph *Reader) init(prefixes []string) {
 	ph.prefixes = prefixes
 	ph.basePrefixes = prefixes
 	ph.connections = map[string]*connectionRecord{}
 }
 
-/* Gets list of excluded prefixes from config file. Starts config file monitoring.
-Returns pointer to a struct that contains all information */
-func NewPrefixPoolReader(path string) *PrefixPoolReader {
-	ph := &PrefixPoolReader{
+// NewPrefixPoolReader gets list of excluded prefixes from config file. Starts config file monitoring.
+// Returns pointer to a struct that contains all information
+func NewPrefixPoolReader(path string) *Reader {
+	ph := &Reader{
 		prefixesConfig: viper.New(),
 		configPath:     path,
 	}

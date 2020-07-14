@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package prefixpool provides service for prefix managing
 package prefixpool
 
 import (
@@ -28,6 +29,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
+// PrefixPool is a structure that contains information about prefixes
 type PrefixPool struct {
 	mutex        sync.RWMutex
 	basePrefixes []string // Just to know where we start from
@@ -35,6 +37,7 @@ type PrefixPool struct {
 	connections  map[string]*connectionRecord
 }
 
+// GetPrefixes returns the list of saved prefixes
 func (impl *PrefixPool) GetPrefixes() []string {
 	return impl.prefixes
 }
@@ -44,8 +47,14 @@ type connectionRecord struct {
 	prefixes []string
 }
 
-/* PrefixPool constructor */
+// NewPrefixPool is a PrefixPool constructor
 func NewPrefixPool(prefixes ...string) (*PrefixPool, error) {
+	for _, prefix := range prefixes {
+		_, _, err := net.ParseCIDR(prefix)
+		if err != nil {
+			return nil, err
+		}
+	}
 	//TODO: Add validation of input prefixes.
 	return &PrefixPool{
 		basePrefixes: prefixes,
@@ -54,12 +63,12 @@ func NewPrefixPool(prefixes ...string) (*PrefixPool, error) {
 	}, nil
 }
 
-/* Release excluded prefixes back the pool of available ones */
+// ReleaseExcludedPrefixes releases excluded prefixes back the pool of available ones
 func (impl *PrefixPool) ReleaseExcludedPrefixes(excludedPrefixes []string) error {
 	impl.mutex.Lock()
 	defer impl.mutex.Unlock()
 
-	remaining, err := ReleasePrefixes(impl.prefixes, excludedPrefixes...)
+	remaining, err := releasePrefixes(impl.prefixes, excludedPrefixes...)
 	if err != nil {
 		return err
 	}
@@ -69,8 +78,8 @@ func (impl *PrefixPool) ReleaseExcludedPrefixes(excludedPrefixes []string) error
 	return nil
 }
 
-/* Exclude prefixes from the pool of available prefixes */
-func (impl *PrefixPool) ExcludePrefixes(excludedPrefixes []string) ([]string, error) {
+// ExcludePrefixes excludes prefixes from the pool of available prefixes
+func (impl *PrefixPool) ExcludePrefixes(excludedPrefixes []string) (removedPrefixesList []string, retErr error) {
 	impl.mutex.Lock()
 	defer impl.mutex.Unlock()
 	/* Use a working copy for the available prefixes */
@@ -144,7 +153,7 @@ func (impl *PrefixPool) ExcludePrefixes(excludedPrefixes []string) ([]string, er
 }
 
 /* Split the wider range removing the avoided smaller range from it */
-func extractSubnet(wider, smaller *net.IPNet) ([]string, error) {
+func extractSubnet(wider, smaller *net.IPNet) (retSubnets []string, retErr error) {
 	root := wider
 	prefixLen, _ := smaller.Mask.Size()
 	leftParts, rightParts := []string{}, []string{}
@@ -176,7 +185,8 @@ func extractSubnet(wider, smaller *net.IPNet) ([]string, error) {
 	return append(leftParts, rightParts...), nil
 }
 
-func (impl *PrefixPool) Extract(connectionId string, family networkservice.IpFamily_Family, requests ...*networkservice.ExtraPrefixRequest) (srcIP, dstIP *net.IPNet, requested []string, err error) {
+// Extract extracts source and destination from the given connection
+func (impl *PrefixPool) Extract(connectionID string, family networkservice.IpFamily_Family, requests ...*networkservice.ExtraPrefixRequest) (srcIP, dstIP *net.IPNet, requested []string, err error) {
 	impl.mutex.Lock()
 	defer impl.mutex.Unlock()
 
@@ -199,12 +209,12 @@ func (impl *PrefixPool) Extract(connectionId string, family networkservice.IpFam
 		return nil, nil, nil, err
 	}
 
-	src, err := IncrementIP(ip, ipNet)
+	src, err := incrementIP(ip, ipNet)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	dst, err := IncrementIP(src, ipNet)
+	dst, err := incrementIP(src, ipNet)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -218,13 +228,14 @@ func (impl *PrefixPool) Extract(connectionId string, family networkservice.IpFam
 
 	impl.prefixes = remaining
 
-	impl.connections[connectionId] = &connectionRecord{
+	impl.connections[connectionID] = &connectionRecord{
 		ipNet:    ipNet,
 		prefixes: requested,
 	}
 	return &net.IPNet{IP: src, Mask: ipNet.Mask}, &net.IPNet{IP: dst, Mask: ipNet.Mask}, requested, nil
 }
 
+// Release releases prefixes from the connection
 func (impl *PrefixPool) Release(connectionID string) error {
 	impl.mutex.Lock()
 	defer impl.mutex.Unlock()
@@ -235,12 +246,12 @@ func (impl *PrefixPool) Release(connectionID string) error {
 	}
 	delete(impl.connections, connectionID)
 
-	remaining, err := ReleasePrefixes(impl.prefixes, conn.prefixes...)
+	remaining, err := releasePrefixes(impl.prefixes, conn.prefixes...)
 	if err != nil {
 		return err
 	}
 
-	remaining, err = ReleasePrefixes(remaining, conn.ipNet.String())
+	remaining, err = releasePrefixes(remaining, conn.ipNet.String())
 	if err != nil {
 		return err
 	}
@@ -249,16 +260,18 @@ func (impl *PrefixPool) Release(connectionID string) error {
 	return nil
 }
 
-func (impl *PrefixPool) GetConnectionInformation(connectionId string) (ipNet string, prefixes []string, err error) {
+// GetConnectionInformation returns information about connection
+func (impl *PrefixPool) GetConnectionInformation(connectionID string) (ipNet string, prefixes []string, err error) {
 	impl.mutex.RLock()
 	defer impl.mutex.RUnlock()
-	conn := impl.connections[connectionId]
+	conn := impl.connections[connectionID]
 	if conn == nil {
-		return "", nil, errors.Errorf("No connection with id: %s is found", connectionId)
+		return "", nil, errors.Errorf("No connection with id: %s is found", connectionID)
 	}
 	return conn.ipNet.String(), conn.prefixes, nil
 }
 
+// Intersect returns is there any intersection with existing prefixes
 func (impl *PrefixPool) Intersect(prefix string) (intersection bool, err error) {
 	_, subnet, err := net.ParseCIDR(prefix)
 	if err != nil {
@@ -274,7 +287,7 @@ func (impl *PrefixPool) Intersect(prefix string) (intersection bool, err error) 
 	return false, nil
 }
 
-func intersect(first, second *net.IPNet) (bool, bool) {
+func intersect(first, second *net.IPNet) (contains, isFirstBigger bool) {
 	f, _ := first.Mask.Size()
 	s, _ := second.Mask.Size()
 	firstIsBigger := false
@@ -290,6 +303,7 @@ func intersect(first, second *net.IPNet) (bool, bool) {
 	return widerRange.Contains(narrowerRange.IP), firstIsBigger
 }
 
+// ExtractPrefixes extracts prefixes from given requests
 func ExtractPrefixes(prefixes []string, requests ...*networkservice.ExtraPrefixRequest) (requested, remaining []string, err error) {
 	// Check if requests are valid.
 	for _, request := range requests {
@@ -309,7 +323,7 @@ func ExtractPrefixes(prefixes []string, requests ...*networkservice.ExtraPrefixR
 	// We need to firstly find required prefixes available.
 	for _, request := range requests {
 		for i := uint32(0); i < request.RequiredNumber; i++ {
-			prefix, leftPrefixes, err := ExtractPrefix(newPrefixes, request.PrefixLen)
+			prefix, leftPrefixes, err := extractPrefix(newPrefixes, request.PrefixLen)
 			if err != nil {
 				return nil, prefixes, err
 			}
@@ -317,10 +331,10 @@ func ExtractPrefixes(prefixes []string, requests ...*networkservice.ExtraPrefixR
 			newPrefixes = leftPrefixes
 		}
 	}
-	// We need to fit some more prefies up to Requested ones
+	// We need to fit some more prefixes up to Requested ones
 	for _, request := range requests {
 		for i := request.RequiredNumber; i < request.RequestedNumber; i++ {
-			prefix, leftPrefixes, err := ExtractPrefix(newPrefixes, request.PrefixLen)
+			prefix, leftPrefixes, err := extractPrefix(newPrefixes, request.PrefixLen)
 			if err != nil {
 				// It seems there is no more prefixes available, but since we have all Required already we could go.
 				break
@@ -335,7 +349,7 @@ func ExtractPrefixes(prefixes []string, requests ...*networkservice.ExtraPrefixR
 	return result, newPrefixes, nil
 }
 
-func ExtractPrefix(prefixes []string, prefixLen uint32) (string, []string, error) {
+func extractPrefix(prefixes []string, prefixLen uint32) (retPrefix string, retLeftPrefixes []string, retError error) {
 	// Check if we already have required CIDR
 	maxPrefix := 0
 	maxPrefixIdx := -1
@@ -414,16 +428,12 @@ func reverse(values []string) []string {
 	newValues := make([]string, len(values))
 
 	for i, j := 0, len(values)-1; i <= j; i, j = i+1, j-1 {
-		if i == j {
-			continue
-		}
 		newValues[i], newValues[j] = values[j], values[i]
 	}
 	return newValues
 }
 
-/* Releases prefixes after usage */
-func ReleasePrefixes(prefixes []string, released ...string) (remaining []string, err error) {
+func releasePrefixes(prefixes []string, released ...string) (remaining []string, err error) {
 	if len(released) == 0 {
 		return prefixes, nil
 	}
@@ -497,7 +507,7 @@ func ReleasePrefixes(prefixes []string, released ...string) (remaining []string,
 	}
 }
 
-func subnet(ipnet *net.IPNet, subnetIndex int) (*net.IPNet, error) {
+func subnet(ipnet *net.IPNet, subnetIndex int) (retNet *net.IPNet, reterr error) {
 	mask := ipnet.Mask
 
 	parentLen, addrLen := mask.Size()
@@ -514,21 +524,6 @@ func subnet(ipnet *net.IPNet, subnetIndex int) (*net.IPNet, error) {
 		IP:   setNetIndexInIP(ipnet.IP, subnetIndex, newPrefixLen),
 		Mask: net.CIDRMask(newPrefixLen, addrLen),
 	}, nil
-}
-
-/* AddressCount Iterates through the list of prefixes and returns amount of addresses */
-func AddressCount(prefixes ...string) uint64 {
-	var c uint64 = 0
-	for _, pr := range prefixes {
-		c += addressCount(pr)
-	}
-	return c
-}
-
-func addressCount(pr string) uint64 {
-	_, network, _ := net.ParseCIDR(pr)
-	prefixLen, bits := network.Mask.Size()
-	return 1 << (uint64(bits) - uint64(prefixLen))
 }
 
 func setNetIndexInIP(ip net.IP, num, prefixLen int) net.IP {
@@ -566,71 +561,9 @@ func fromIP(ip net.IP) (ipVal *big.Int, ipLen int) {
 	return val, 128
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-/* MaxCommonPrefixSubnet Compares two IP masks and returns max common prefix subnet */
-func MaxCommonPrefixSubnet(s1, s2 *net.IPNet) *net.IPNet {
-	rawIP1, n1 := fromIP(s1.IP)
-	rawIP2, _ := fromIP(s2.IP)
-
-	xored := &big.Int{}
-	xored.Xor(rawIP1, rawIP2)
-	maskSize := leadingZeros(xored, n1)
-
-	m1, bits := s1.Mask.Size()
-	m2, _ := s2.Mask.Size()
-
-	mask := net.CIDRMask(min(min(m1, m2), maskSize), bits)
-	return &net.IPNet{
-		IP:   s1.IP.Mask(mask),
-		Mask: mask,
-	}
-}
-
-/* IpToNet converts ip address to the net */
-func IpToNet(ipAddr net.IP) *net.IPNet {
-	mask := net.CIDRMask(len(ipAddr)*8, len(ipAddr)*8)
-	return &net.IPNet{IP: ipAddr, Mask: mask}
-}
-
-func leadingZeros(n *big.Int, size int) int {
-	i := size - 1
-	for ; n.Bit(i) == 0 && i > 0; i-- {
-	}
-	return size - 1 - i
-}
-
-/**
-AddressRange returns the first and last addresses in the given CIDR range.
-*/
-func AddressRange(network *net.IPNet) (firstIPRet net.IP, lastIPRet net.IP) {
-	firstIP := network.IP
-	// the last IP is the network address OR NOT the mask address
-	prefixLen, bits := network.Mask.Size()
-	if prefixLen == bits {
-		lastIP := make([]byte, len(firstIP))
-		copy(lastIP, firstIP)
-		return firstIP, lastIP
-	}
-
-	firstIPInt, bits := fromIP(firstIP)
-	hostLen := uint(bits) - uint(prefixLen)
-	lastIPInt := big.NewInt(1)
-	lastIPInt.Lsh(lastIPInt, hostLen)
-	lastIPInt.Sub(lastIPInt, big.NewInt(1))
-	lastIPInt.Or(lastIPInt, firstIPInt)
-
-	return firstIP, toIP(lastIPInt, bits)
-}
-
-func IncrementIP(sourceIp net.IP, ipNet *net.IPNet) (net.IP, error) {
-	ip := make([]byte, len(sourceIp))
-	copy(ip, sourceIp)
+func incrementIP(sourceIP net.IP, ipNet *net.IPNet) (incrIP net.IP, retErr error) {
+	ip := make([]byte, len(sourceIP))
+	copy(ip, sourceIP)
 	for i := len(ip) - 1; i >= 0; i-- {
 		ip[i]++
 		if ip[i] != 0 {
