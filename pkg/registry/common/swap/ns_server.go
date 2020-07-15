@@ -42,8 +42,22 @@ func (n *nsSwapRegistryServer) Register(ctx context.Context, ns *registry.Networ
 	return next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
 }
 
+type nsSwapFindServer struct {
+	registry.NetworkServiceRegistry_FindServer
+	remoteDomain string
+}
+
+func (s *nsSwapFindServer) Send(ns *registry.NetworkService) error {
+	if !interdomain.Is(ns.Name) {
+		ns.Name = interdomain.Join(ns.Name, s.remoteDomain)
+	}
+	return s.NetworkServiceRegistry_FindServer.Send(ns)
+}
+
 func (n *nsSwapRegistryServer) Find(q *registry.NetworkServiceQuery, s registry.NetworkServiceRegistry_FindServer) error {
-	return next.NetworkServiceRegistryServer(s.Context()).Find(q, s)
+	domain := interdomain.Domain(q.NetworkService.Name)
+	q.NetworkService.Name = interdomain.Target(q.NetworkService.Name)
+	return next.NetworkServiceRegistryServer(s.Context()).Find(q, &nsSwapFindServer{NetworkServiceRegistry_FindServer: s, remoteDomain: domain})
 }
 
 func (n *nsSwapRegistryServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {

@@ -43,10 +43,10 @@ func NewNetworkServiceEndpointRegistryServer(domain string, proxyNSMgrURL, publi
 	}
 }
 
-func (n *nseSwapRegistryServer) Register(ctx context.Context, ns *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	ns.Name = interdomain.Join(interdomain.Target(ns.Name), n.domain)
-	ns.Url = n.publicNSMgrURL.String()
-	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, ns)
+func (n *nseSwapRegistryServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	nse.Name = interdomain.Join(interdomain.Target(nse.Name), n.domain)
+	nse.Url = n.publicNSMgrURL.String()
+	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 }
 
 type findNSESwapServer struct {
@@ -61,6 +61,7 @@ func (s *findNSESwapServer) Send(nse *registry.NetworkServiceEndpoint) error {
 }
 
 func (n *nseSwapRegistryServer) Find(q *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
+	q.NetworkServiceEndpoint.Name = interdomain.Target(q.NetworkServiceEndpoint.Name)
 	return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(q, &findNSESwapServer{NetworkServiceEndpointRegistry_FindServer: s, proxyNSMgrURL: n.proxyNSMgrURL})
 }
 
