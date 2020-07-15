@@ -415,11 +415,12 @@ func removeDuplicates(elements []string) []string {
 	encountered := map[string]bool{}
 	result := []string{}
 
-	for v := range elements {
-		if !encountered[elements[v]] {
-			encountered[elements[v]] = true
-			result = append(result, elements[v])
+	for index := range elements {
+		if encountered[elements[index]] {
+			continue
 		}
+		encountered[elements[index]] = true
+		result = append(result, elements[index])
 	}
 	return result
 }
