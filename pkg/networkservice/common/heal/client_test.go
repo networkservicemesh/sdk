@@ -37,8 +37,9 @@ import (
 )
 
 const (
-	waitForTimeout = 50 * time.Millisecond
-	tickTimeout    = 10 * time.Millisecond
+	waitForTimeout  = 50 * time.Millisecond
+	waitHealTimeout = 500 * time.Millisecond
+	tickTimeout     = 10 * time.Millisecond
 )
 
 type testOnHeal struct {
@@ -95,6 +96,7 @@ func TestHealClient_Request(t *testing.T) {
 		},
 	}
 
+	t1 := time.Now()
 	eventCh <- &networkservice.ConnectionEvent{
 		Type: networkservice.ConnectionEventType_DELETE,
 		Connections: map[string]*networkservice.Connection{
@@ -104,16 +106,17 @@ func TestHealClient_Request(t *testing.T) {
 			},
 		},
 	}
-
-	cond := func() bool {
-		select {
-		case <-onHealCh:
-			return true
-		default:
-			return false
-		}
+	ctx, cancel := context.WithTimeout(context.Background(), waitHealTimeout)
+	defer cancel()
+	select {
+	case <-ctx.Done():
+		require.FailNow(t, "timeout waiting for Heal event %v", time.Since(t1))
+		return
+	case <-onHealCh:
+		// All is fine, test is passed
+		break
 	}
-	require.Eventually(t, cond, waitForTimeout, tickTimeout)
+	logrus.Infof("passed with total time: %v", time.Since(t1))
 }
 
 func TestHealClient_EmptyInit(t *testing.T) {
