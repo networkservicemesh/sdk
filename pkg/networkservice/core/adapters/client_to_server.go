@@ -33,33 +33,35 @@ type clientToServer struct {
 
 // NewClientToServer - returns a networkservice.NetworkServiceServer wrapped around the supplied client
 func NewClientToServer(client networkservice.NetworkServiceClient) networkservice.NetworkServiceServer {
-	return &clientToServer{client: next.NewNetworkServiceClient(client, &doneClient{})}
+	return &clientToServer{client: next.NewNetworkServiceClient(client, &contextClient{})}
 }
 
 func (c *clientToServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	doneCtx := withDone(ctx)
+	doneCtx := withCapturedContext(ctx)
 	conn, err := c.client.Request(doneCtx, request)
 	if err != nil {
 		return nil, err
+	}
+	lastCtx := getCapturedContext(doneCtx)
+	if lastCtx == nil {
+		return conn, nil
 	}
 	if request == nil {
 		request = &networkservice.NetworkServiceRequest{}
 	}
 	request.Connection = conn
-	if !isDone(doneCtx) {
-		return conn, nil
-	}
-	return next.Server(ctx).Request(ctx, request)
+	return next.Server(ctx).Request(lastCtx, request)
 }
 
 func (c *clientToServer) Close(ctx context.Context, request *networkservice.Connection) (*empty.Empty, error) {
-	doneCtx := withDone(ctx)
+	doneCtx := withCapturedContext(ctx)
 	conn, err := c.client.Close(doneCtx, request)
 	if err != nil {
 		return nil, err
 	}
-	if !isDone(doneCtx) {
+	lastCtx := getCapturedContext(doneCtx)
+	if lastCtx == nil {
 		return conn, nil
 	}
-	return next.Server(ctx).Close(ctx, request)
+	return next.Server(ctx).Close(lastCtx, request)
 }

@@ -100,7 +100,7 @@ func (n *networkServiceEndpointRegistryServer) Unregister(ctx context.Context, r
 
 // NetworkServiceEndpointClientToServer - returns a registry.NetworkServiceEndpointRegistryClient wrapped around the supplied client
 func NetworkServiceEndpointClientToServer(client registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceEndpointRegistryServer {
-	return &networkServiceEndpointRegistryServer{client: next.NewNetworkServiceEndpointRegistryClient(client, NewNetworkServiceEndpointRegistryClient())}
+	return &networkServiceEndpointRegistryServer{client: next.NewNetworkServiceEndpointRegistryClient(client, &contextNSEClient{})}
 }
 
 var _ registry.NetworkServiceEndpointRegistryServer = &networkServiceEndpointRegistryServer{}
@@ -164,5 +164,5 @@ var _ registry.NetworkServiceEndpointRegistryClient = &networkServiceEndpointReg
 
 // NetworkServiceEndpointServerToClient - returns a registry.NetworkServiceEndpointRegistryServer wrapped around the supplied server
 func NetworkServiceEndpointServerToClient(server registry.NetworkServiceEndpointRegistryServer) registry.NetworkServiceEndpointRegistryClient {
-	return &networkServiceEndpointRegistryClient{server: next.NewNetworkServiceEndpointRegistryServer(server, NewNetworkServiceEndpointRegistryServer())}
+	return &networkServiceEndpointRegistryClient{server: next.NewNetworkServiceEndpointRegistryServer(server, &contextNSEServer{})}
 }

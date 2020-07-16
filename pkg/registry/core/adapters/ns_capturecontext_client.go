@@ -43,9 +43,4 @@ func (c *contextNSClient) Unregister(ctx context.Context, in *registry.NetworkSe
 	return next.NetworkServiceRegistryClient(ctx).Unregister(ctx, in, opts...)
 }
 
-// NewNetworkServiceRegistryClient - creates a new registry.NetworkServiceRegistryClient chain element that adds
-// into context reference to current context for passing it from the adapter server/client to the next client/server
-// to avoid the problem with losing values from adapted server/client context.
-func NewNetworkServiceRegistryClient() registry.NetworkServiceRegistryClient {
-	return &contextNSClient{}
-}
+var _ registry.NetworkServiceRegistryClient = &contextNSClient{}

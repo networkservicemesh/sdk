@@ -20,32 +20,34 @@ import "context"
 
 type contextKeyType string
 
-const nextDone contextKeyType = "NextDone"
+const capturedContext contextKeyType = "capturedContext"
 
-func withDone(ctx context.Context) context.Context {
-	if v := ctx.Value(nextDone); v != nil {
-		if b, ok := v.(*bool); ok {
-			*b = false
+// withCapturedContext - adds record with nil reference into context or nullifies it
+func withCapturedContext(ctx context.Context) context.Context {
+	if v := ctx.Value(capturedContext); v != nil {
+		if b, ok := v.(*context.Context); ok {
+			*b = nil
 			return ctx
 		}
 	}
-	d := false
-	return context.WithValue(ctx, nextDone, &d)
+	var d context.Context = nil
+	return context.WithValue(ctx, capturedContext, &d)
 }
 
-// isDone returns true if tail element in the chain has been called
-func isDone(ctx context.Context) bool {
-	if val, ok := ctx.Value(nextDone).(*bool); ok {
+// getCapturedContext - returns context previously written by reported key
+func getCapturedContext(ctx context.Context) context.Context {
+	if val, ok := ctx.Value(capturedContext).(*context.Context); ok && *val != nil {
 		return *val
 	}
-	return false
+	return nil
 }
 
-func markDone(ctx context.Context) {
+// captureContext - adds reference on current context in context record
+func captureContext(ctx context.Context) {
 	if ctx == nil {
 		return
 	}
-	if val, ok := ctx.Value(nextDone).(*bool); ok {
-		*val = true
+	if val, ok := ctx.Value(capturedContext).(*context.Context); ok {
+		*val = ctx
 	}
 }
