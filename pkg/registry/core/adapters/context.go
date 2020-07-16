@@ -14,9 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package capturecontext provides a chain element that adds into context reference to current context for passing it
-// from the adapter server/client to the next client/server to avoid the problem with losing values from adapted server/client context.
-package capturecontext
+package adapters
 
 import (
 	"context"
@@ -26,8 +24,8 @@ type contextKeyType string
 
 const capturedContext contextKeyType = "capturedContext"
 
-// WithCapturedContext - adds record with nil reference into context or nullifies it
-func WithCapturedContext(ctx context.Context) context.Context {
+// withCapturedContext - adds record with nil reference into context or nullifies it
+func withCapturedContext(ctx context.Context) context.Context {
 	if v := ctx.Value(capturedContext); v != nil {
 		if b, ok := v.(*context.Context); ok {
 			*b = nil
@@ -38,8 +36,8 @@ func WithCapturedContext(ctx context.Context) context.Context {
 	return context.WithValue(ctx, capturedContext, &d)
 }
 
-// CapturedContext - returns previously written context
-func CapturedContext(ctx context.Context) context.Context {
+// getCapturedContext - returns context previously written by reported key
+func getCapturedContext(ctx context.Context) context.Context {
 	if val, ok := ctx.Value(capturedContext).(*context.Context); ok && *val != nil {
 		return *val
 	}

@@ -34,7 +34,7 @@ func (t *tailNetworkServiceEndpointRegistryServer) Register(_ context.Context, r
 	return r, nil
 }
 
-func (t *tailNetworkServiceEndpointRegistryServer) Find(_ *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
+func (t *tailNetworkServiceEndpointRegistryServer) Find(_ *registry.NetworkServiceEndpointQuery, _ registry.NetworkServiceEndpointRegistry_FindServer) error {
 	return nil
 }
 
@@ -48,7 +48,7 @@ var _ registry.NetworkServiceEndpointRegistryServer = &tailNetworkServiceEndpoin
 // of a chain to ensure that we never call a method on a nil object
 type tailNetworkServiceEndpointRegistryClient struct{}
 
-func (t *tailNetworkServiceEndpointRegistryClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+func (t *tailNetworkServiceEndpointRegistryClient) Register(_ context.Context, in *registry.NetworkServiceEndpoint, _ ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
 	return in, nil
 }
 
@@ -65,13 +65,13 @@ func (t *tailNetworkServiceEndpointRegistryFindClient) Recv() (*registry.Network
 	return nil, io.EOF
 }
 
-func (t *tailNetworkServiceEndpointRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
+func (t *tailNetworkServiceEndpointRegistryClient) Find(ctx context.Context, _ *registry.NetworkServiceEndpointQuery, _ ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	cancel()
 	return &tailNetworkServiceEndpointRegistryFindClient{ctx: ctx}, nil
 }
 
-func (t *tailNetworkServiceEndpointRegistryClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (t *tailNetworkServiceEndpointRegistryClient) Unregister(_ context.Context, _ *registry.NetworkServiceEndpoint, _ ...grpc.CallOption) (*empty.Empty, error) {
 	return new(empty.Empty), nil
 }
 
