@@ -78,8 +78,7 @@ func (s testNetworkServiceServer) Close(ctx context.Context, _ *networkservice.C
 
 func TestNewServer_NSENotPresented(t *testing.T) {
 	defer goleak.VerifyNone(t)
-	var localBypassRegistryServer registry.NetworkServiceEndpointRegistryServer
-	localBypassNetworkServiceServer := localbypass.NewServer(&localBypassRegistryServer)
+	localBypassNetworkServiceServer := localbypass.NewServer()
 	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -100,11 +99,10 @@ func TestNewServer_NSENotPresented(t *testing.T) {
 
 func TestNewServer_UnixAddressRegistered(t *testing.T) {
 	defer goleak.VerifyNone(t)
-	var localBypassRegistryServer registry.NetworkServiceEndpointRegistryServer
-	localBypassNetworkServiceServer := localbypass.NewServer(&localBypassRegistryServer)
+	localBypassNetworkServiceServer := localbypass.NewServer()
 	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
 
-	srv := chain.NewNetworkServiceEndpointRegistryServer(localBypassRegistryServer, seturl.NewNetworkServiceEndpointRegistryServer("tcp:127.0.0.1:5002"))
+	srv := chain.NewNetworkServiceEndpointRegistryServer(localBypassNetworkServiceServer.Endpoints(), seturl.NewNetworkServiceEndpointRegistryServer("tcp:127.0.0.1:5002"))
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			NetworkServiceEndpointName: "nse-1",
@@ -132,10 +130,9 @@ func TestNewServer_UnixAddressRegistered(t *testing.T) {
 
 func TestNewServer_NonUnixAddressRegistered(t *testing.T) {
 	defer goleak.VerifyNone(t)
-	var localBypassRegistryServer registry.NetworkServiceEndpointRegistryServer
-	localBypassNetworkServiceServer := localbypass.NewServer(&localBypassRegistryServer)
+	localBypassNetworkServiceServer := localbypass.NewServer()
 	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
-	srv := chain.NewNetworkServiceEndpointRegistryServer(localBypassRegistryServer, seturl.NewNetworkServiceEndpointRegistryServer("tcp:127.0.0.1:5002"))
+	srv := chain.NewNetworkServiceEndpointRegistryServer(localBypassNetworkServiceServer.Endpoints(), seturl.NewNetworkServiceEndpointRegistryServer("tcp:127.0.0.1:5002"))
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			NetworkServiceEndpointName: "nse-1",
@@ -165,10 +162,9 @@ func TestNewServer_NonUnixAddressRegistered(t *testing.T) {
 
 func TestNewServer_AddsNothingAfterNSERemoval(t *testing.T) {
 	defer goleak.VerifyNone(t)
-	var localBypassRegistryServer registry.NetworkServiceEndpointRegistryServer
-	localBypassNetworkServiceServer := localbypass.NewServer(&localBypassRegistryServer)
+	localBypassNetworkServiceServer := localbypass.NewServer()
 	server := next.NewNetworkServiceServer(localBypassNetworkServiceServer, &testNetworkServiceServer{})
-	srv := chain.NewNetworkServiceEndpointRegistryServer(localBypassRegistryServer, seturl.NewNetworkServiceEndpointRegistryServer("tcp:127.0.0.1:5002"))
+	srv := chain.NewNetworkServiceEndpointRegistryServer(localBypassNetworkServiceServer.Endpoints(), seturl.NewNetworkServiceEndpointRegistryServer("tcp:127.0.0.1:5002"))
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			NetworkServiceEndpointName: "nse-1",
@@ -188,7 +184,7 @@ func TestNewServer_AddsNothingAfterNSERemoval(t *testing.T) {
 		},
 	)
 	assert.Nil(t, err)
-	_, err = localBypassRegistryServer.Unregister(
+	_, err = localBypassNetworkServiceServer.Endpoints().Unregister(
 		context.Background(),
 		&registry.NetworkServiceEndpoint{
 			Name: "nse-1",

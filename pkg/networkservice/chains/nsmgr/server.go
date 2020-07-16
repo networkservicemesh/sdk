@@ -67,9 +67,6 @@ type nsmgrServer struct {
 // 			 clientDialOptions -  a grpc.DialOption's to be passed to GRPC connections.
 func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceEndpoint, authzServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, registryCC grpc.ClientConnInterface, clientDialOptions ...grpc.DialOption) Nsmgr {
 	rv := &nsmgrServer{}
-
-	var localbypassRegistryServer registryapi.NetworkServiceEndpointRegistryServer
-
 	nsRegistry := newRemoteNSServer(registryCC)
 	if nsRegistry == nil {
 		// Use memory registry if no registry is passed
@@ -83,7 +80,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 			memory.NewNetworkServiceEndpointRegistryServer(), // Memory registry to store result inside.
 		)
 	}
-
+	localbypassServer := localbypass.NewServer()
 	// Construct Endpoint
 	rv.Endpoint = endpoint.NewServer(
 		nsmRegistration.Name,
@@ -91,7 +88,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 		tokenGenerator,
 		discover.NewServer(adapter_registry.NetworkServiceServerToClient(nsRegistry), adapter_registry.NetworkServiceEndpointServerToClient(nseRegistry)),
 		roundrobin.NewServer(),
-		localbypass.NewServer(&localbypassRegistryServer),
+		localbypassServer,
 		connect.NewServer(
 			ctx,
 			client.NewClientFactory(nsmRegistration.Name,
@@ -103,7 +100,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 
 	nsChain := chain_registry.NewNetworkServiceRegistryServer(nsRegistry)
 	nseChain := chain_registry.NewNetworkServiceEndpointRegistryServer(
-		localbypassRegistryServer, // Store endpoint Id to EndpointURL for local access.
+		localbypassServer.Endpoints(),                                       // Store endpoint Id to EndpointURL for local access.
 		seturl.NewNetworkServiceEndpointRegistryServer(nsmRegistration.Url), // Remember endpoint URL
 		nseRegistry, // Register NSE inside Remote registry with ID assigned
 	)

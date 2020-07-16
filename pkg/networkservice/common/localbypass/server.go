@@ -20,12 +20,11 @@ package localbypass
 
 import (
 	"context"
-	"net/url"
-	"sync"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
+	localbypasstools "github.com/networkservicemesh/sdk/pkg/tools/localbypass"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 
 	"github.com/golang/protobuf/ptypes/empty"
 
@@ -35,48 +34,40 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type localBypassServer struct {
+// Server is  NetworkServiceServer chain element that tracks local Endpoints and substitutes their unix file socket as the clienturl.ClientURL(ctx) used to connect to them.
+type Server struct {
 	// Map of names -> *url.URLs for local bypass to file sockets
-	sockets sync.Map
+	sockets        localbypasstools.Map
+	registryServer registry.NetworkServiceEndpointRegistryServer
 }
 
 // NewServer - creates a NetworkServiceServer that tracks locally registered Endpoints substitutes their
 //             passed endpoint_address with clienturl.ClientURL(ctx) used to connect to them.
-//             - server - *registry.NetworkServiceRegistryServer.  Since registry.NetworkServiceRegistryServer is an interface
-//                        (and thus a pointer) *registry.NetworkServiceRegistryServer is a double pointer.  Meaning it
-//                        points to a place that points to a place that implements registry.NetworkServiceRegistryServer
-//                        This is done so that we can return a registry.NetworkServiceRegistryServer chain element
-//                        while maintaining the NewServer pattern for use like anything else in a chain.
-//                        The value in *server must be included in the registry.NetworkServiceRegistryServer listening
-//                        so it can capture the registrations.
-func NewServer(registryServer *registry.NetworkServiceEndpointRegistryServer) networkservice.NetworkServiceServer {
-	rv := &localBypassServer{}
-	*registryServer = localbypass.NewNetworkServiceRegistryServer(rv)
+func NewServer() *Server {
+	rv := &Server{}
+	rv.registryServer = localbypass.NewNetworkServiceRegistryServer(&rv.sockets)
 	return rv
 }
 
-func (l *localBypassServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if v, ok := l.sockets.Load(request.GetConnection().GetNetworkServiceEndpointName()); ok && v != nil {
-		if u, ok := v.(*url.URL); ok {
-			ctx = clienturl.WithClientURL(ctx, u)
-		}
+// Request finds endpoint URL in sockets map and pass it into context
+func (l *Server) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	if u, ok := l.sockets.Load(request.GetConnection().GetNetworkServiceEndpointName()); ok && u != nil {
+		ctx = clienturl.WithClientURL(ctx, u)
 	}
 	return next.Server(ctx).Request(ctx, request)
 }
 
-func (l *localBypassServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	if v, ok := l.sockets.Load(conn.GetNetworkServiceEndpointName()); ok && v != nil {
-		if u, ok := v.(*url.URL); ok {
-			ctx = clienturl.WithClientURL(ctx, u)
-		}
+// Close finds endpoint URL in sockets map and pass it into context
+func (l *Server) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	if u, ok := l.sockets.Load(conn.GetNetworkServiceEndpointName()); ok && u != nil {
+		ctx = clienturl.WithClientURL(ctx, u)
 	}
 	return next.Server(ctx).Close(ctx, conn)
 }
 
-func (l *localBypassServer) LoadOrStore(name string, u *url.URL) (interface{}, bool) {
-	return l.sockets.LoadOrStore(name, u)
+// Endpoints returns localbypass.NetworkServiceEndpointRegistryServer
+func (l *Server) Endpoints() registry.NetworkServiceEndpointRegistryServer {
+	return l.registryServer
 }
 
-func (l *localBypassServer) Delete(name string) {
-	l.sockets.Delete(name)
-}
+var _ networkservice.NetworkServiceServer = (*Server)(nil)
