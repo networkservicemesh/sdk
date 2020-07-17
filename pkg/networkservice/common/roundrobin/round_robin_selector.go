@@ -19,35 +19,28 @@
 package roundrobin
 
 import (
-	"sync"
-
 	"github.com/networkservicemesh/api/pkg/api/registry"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/algorithm/roundrobin"
 )
 
 type roundRobinSelector struct {
-	// TODO - replace this with something like a sync.Map that doesn't require us to lock all requests for a simple
-	// selection
-	sync.Mutex
-	roundRobin map[string]int
+	roundRobin *roundRobinMap
 }
 
 func newRoundRobinSelector() *roundRobinSelector {
 	return &roundRobinSelector{
-		roundRobin: make(map[string]int),
+		roundRobin: &roundRobinMap{},
 	}
 }
 
-func (rr *roundRobinSelector) selectEndpoint(ns *registry.NetworkService, networkServiceEndpoints []*registry.NetworkServiceEndpoint) *registry.NetworkServiceEndpoint {
-	if rr == nil || len(networkServiceEndpoints) == 0 {
+func (s *roundRobinSelector) selectEndpoint(ns *registry.NetworkService, networkServiceEndpoints []*registry.NetworkServiceEndpoint) *registry.NetworkServiceEndpoint {
+	if s == nil || len(networkServiceEndpoints) == 0 {
 		return nil
 	}
-	rr.Lock()
-	defer rr.Unlock()
-	idx := rr.roundRobin[ns.GetName()] % len(networkServiceEndpoints)
-	endpoint := networkServiceEndpoints[idx]
-	if endpoint == nil {
-		return nil
-	}
-	rr.roundRobin[ns.GetName()] = rr.roundRobin[ns.GetName()] + 1
-	return endpoint
+
+	rr, _ := s.roundRobin.LoadOrStore(ns.GetName(), &roundrobin.RoundRobin{})
+	idx := rr.Index(len(networkServiceEndpoints))
+
+	return networkServiceEndpoints[idx]
 }
