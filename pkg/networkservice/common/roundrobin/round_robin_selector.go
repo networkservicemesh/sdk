@@ -25,13 +25,7 @@ import (
 )
 
 type roundRobinSelector struct {
-	roundRobin *roundRobinMap
-}
-
-func newRoundRobinSelector() *roundRobinSelector {
-	return &roundRobinSelector{
-		roundRobin: &roundRobinMap{},
-	}
+	nsRoundRobins roundRobinMap
 }
 
 func (s *roundRobinSelector) selectEndpoint(ns *registry.NetworkService, networkServiceEndpoints []*registry.NetworkServiceEndpoint) *registry.NetworkServiceEndpoint {
@@ -39,7 +33,7 @@ func (s *roundRobinSelector) selectEndpoint(ns *registry.NetworkService, network
 		return nil
 	}
 
-	rr, _ := s.roundRobin.LoadOrStore(ns.GetName(), &roundrobin.RoundRobin{})
+	rr, _ := s.nsRoundRobins.LoadOrStore(ns.GetName(), &roundrobin.RoundRobin{})
 	idx := rr.Index(len(networkServiceEndpoints))
 
 	return networkServiceEndpoints[idx]

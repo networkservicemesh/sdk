@@ -39,7 +39,7 @@ type selectEndpointServer struct {
 // discover.Candidate(ctx) in the context.
 func NewServer() networkservice.NetworkServiceServer {
 	return &selectEndpointServer{
-		selector: newRoundRobinSelector(),
+		selector: &roundRobinSelector{},
 	}
 }
 
