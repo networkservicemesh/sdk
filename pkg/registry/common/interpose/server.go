@@ -14,15 +14,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package crossnse provides NetworkServiceRegistryServer that registers local Endpoints
+// Package interpose provides NetworkServiceRegistryServer that registers local Endpoints
 // and adds them to Map
-package crossnse
+package interpose
 
 import (
 	"context"
 	"errors"
 	"net/url"
 	"strings"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/interpose"
 
 	"github.com/google/uuid"
 
@@ -32,21 +34,15 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
-// CrossNSEName - a common prefix for all registered cross NSEs
-const CrossNSEName = "cross-connect-nse#"
+// InterposeNSEName - a common prefix for all registered cross NSEs
+const InterposeNSEName = "cross-connect-nse#"
 
-// Map - interface for map from networkServiceEndpoint names to cross connect NSE registrations
-type Map interface {
-	LoadOrStore(name string, request *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, bool)
-	Delete(name string)
+type interposeRegistry struct {
+	endpoints *interpose.Map
 }
 
-type localBypassRegistry struct {
-	nses Map
-}
-
-func (l *localBypassRegistry) Register(ctx context.Context, request *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	if strings.HasSuffix(request.Name, CrossNSEName) {
+func (l *interposeRegistry) Register(ctx context.Context, request *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	if strings.HasSuffix(request.Name, InterposeNSEName) {
 		endpointURL, err := url.Parse(request.Url)
 		if err != nil {
 			return nil, err
@@ -55,25 +51,25 @@ func (l *localBypassRegistry) Register(ctx context.Context, request *registry.Ne
 			return nil, errors.New("invalid endpoint URL passed with context")
 		}
 
-		if request.Name == CrossNSEName {
-			// Generate uniq name only if full equal to nses prefix.
-			request.Name = CrossNSEName + uuid.New().String()
+		if request.Name == InterposeNSEName {
+			// Generate uniq name only if full equal to endpoints prefix.
+			request.Name = InterposeNSEName + uuid.New().String()
 		}
-		l.nses.LoadOrStore(request.Name, request)
+		l.endpoints.LoadOrStore(request.Name, request)
 		return request, nil
 	}
 
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, request)
 }
 
-func (l *localBypassRegistry) Find(query *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
+func (l *interposeRegistry) Find(query *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
 	// No need to modify find logic.
 	return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(query, s)
 }
 
-func (l *localBypassRegistry) Unregister(ctx context.Context, request *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	if strings.HasSuffix(request.Name, CrossNSEName) {
-		l.nses.Delete(request.Name)
+func (l *interposeRegistry) Unregister(ctx context.Context, request *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	if strings.HasSuffix(request.Name, InterposeNSEName) {
+		l.endpoints.Delete(request.Name)
 		return &empty.Empty{}, nil
 	}
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, request)
@@ -81,6 +77,6 @@ func (l *localBypassRegistry) Unregister(ctx context.Context, request *registry.
 
 // NewNetworkServiceRegistryServer - creates a NetworkServiceRegistryServer that registers local Cross connect Endpoints
 //				and adds them to Map
-func NewNetworkServiceRegistryServer(nses Map) registry.NetworkServiceEndpointRegistryServer {
-	return &localBypassRegistry{nses: nses}
+func NewNetworkServiceRegistryServer(nses *interpose.Map) registry.NetworkServiceEndpointRegistryServer {
+	return &interposeRegistry{endpoints: nses}
 }

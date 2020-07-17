@@ -27,7 +27,7 @@ calls a 'cancel' function provided to it at its construction.
 
 ## connectServer
 
-connectServer keeps clientsByID [clientmap.Map](https://github.com/networkservicemesh/sdk/blob/master/pkg/tools/clientmap/gen.go#L27) mapping incoming server Connection.ID
+connectServer keeps clientsByID [clientmap.Map](https://github.com/networkservicemesh/sdk/blob/master/pkg/tools/#L27) mapping incoming server Connection.ID
 to a chain consisting of the corresponding connectClient and a 
 [clienturl.NewClient(...)](https://github.com/networkservicemesh/sdk/blob/master/pkg/networkservice/common/clienturl/client.go#L44)
 which handles the instantiation and management of the client connection from the clienturl.ClientURL(ctx) of the server 

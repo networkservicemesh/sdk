@@ -14,59 +14,58 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package crossnse_test define a tests for cross connect NSE chain element
-package crossnse_test
+// Package interpose_test define a tests for cross connect NSE chain element
+package interpose_test
 
 import (
 	"context"
-	"sync"
 	"sync/atomic"
 	"testing"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
+	interpose_tools "github.com/networkservicemesh/sdk/pkg/tools/interpose"
+
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/common/crossnse"
 )
 
 type crossNSEMap struct {
-	nses  sync.Map
-	count int64
+	endpoints interpose_tools.Map
+	count     int64
 }
 
 func (c *crossNSEMap) LoadOrStore(name string, request *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, bool) {
-	val, loaded := c.nses.LoadOrStore(name, request)
+	val, loaded := c.endpoints.LoadOrStore(name, request)
 	if !loaded {
 		atomic.AddInt64(&c.count, 1)
 	}
-	return val.(*registry.NetworkServiceEndpoint), loaded
+	return val, loaded
 }
 
 func (c *crossNSEMap) Delete(name string) {
-	c.nses.Delete(name)
+	c.endpoints.Delete(name)
 }
 
 func TestCrossNSERegister(t *testing.T) {
 	crossMap := &crossNSEMap{}
-	server := crossnse.NewNetworkServiceRegistryServer(crossMap)
+	server := interpose.NewNetworkServiceRegistryServer(&crossMap.endpoints)
 
 	reg, err := server.Register(context.Background(), &registry.NetworkServiceEndpoint{
-		Name: crossnse.CrossNSEName,
+		Name: interpose.InterposeNSEName,
 		Url:  "test",
 	})
 	require.Nil(t, err)
-	require.Greater(t, len(reg.Name), len(crossnse.CrossNSEName))
-	require.Equal(t, int64(1), crossMap.count)
+	require.Greater(t, len(reg.Name), len(interpose.InterposeNSEName))
 
 	_, err = server.Unregister(context.Background(), reg)
 	require.Nil(t, err)
 }
 func TestCrossNSERegisterInvalidURL(t *testing.T) {
 	crossMap := &crossNSEMap{}
-	server := crossnse.NewNetworkServiceRegistryServer(crossMap)
+	server := interpose.NewNetworkServiceRegistryServer(&crossMap.endpoints)
 
 	req, err := server.Register(context.Background(), &registry.NetworkServiceEndpoint{
-		Name: crossnse.CrossNSEName,
+		Name: interpose.InterposeNSEName,
 		Url:  "ht% 20", // empty URL error
 	})
 	require.NotNil(t, err)

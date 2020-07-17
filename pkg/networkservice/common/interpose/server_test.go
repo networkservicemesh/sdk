@@ -15,10 +15,12 @@
 // limitations under the License.
 
 // Package crossnse_test define a full nsmgr + cross connect NSE + Endpoint GRPC based test
-package crossnse_test
+package interpose_test
 
 import (
 	"context"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interpose"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -28,7 +30,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/crossnse"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/setid"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
@@ -44,7 +45,7 @@ import (
 	"google.golang.org/grpc/credentials"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injectpeer"
-	crossnse_reg "github.com/networkservicemesh/sdk/pkg/registry/common/crossnse"
+	interpose_reg "github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
 )
 
 func TokenGenerator(peerAuthInfo credentials.AuthInfo) (token string, expireTime time.Time, err error) {
@@ -78,14 +79,14 @@ func TestCrossNSERequest(t *testing.T) {
 	server := endpoint.NewServer("nsmgr",
 		authorize.NewServer(),
 		TokenGenerator,
-		crossnse.NewServer(&regServer))
+		interpose.NewServer("nsmgr", &regServer))
 
-	crossNSE := endpoint.NewServer(crossnse_reg.CrossNSEName,
+	crossNSE := endpoint.NewServer(interpose_reg.InterposeNSEName,
 		authorize.NewServer(),
 		TokenGenerator)
 
 	reg, err := regServer.Register(context.Background(), &registry.NetworkServiceEndpoint{
-		Name: crossnse_reg.CrossNSEName,
+		Name: interpose_reg.InterposeNSEName,
 		Url:  crossURL,
 	})
 	require.Nil(t, err)
@@ -128,6 +129,6 @@ func TestCrossNSERequest(t *testing.T) {
 	require.Equal(t, 4, len(copyClient.requests))
 	require.Equal(t, 4, len(segments))
 	require.Equal(t, "nsmgr", segments[1].Name)
-	require.Equal(t, crossnse_reg.CrossNSEName, segments[2].Name)
+	require.Equal(t, interpose_reg.InterposeNSEName, segments[2].Name)
 	require.Equal(t, "nsmgr", segments[3].Name)
 }

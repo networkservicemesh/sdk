@@ -54,13 +54,19 @@ func ListenAndServe(ctx context.Context, address *url.URL, server *grpc.Server) 
 		defer func() {
 			_ = ln.Close()
 		}()
+
+		// We need to montior context in separate goroutine to be able to stop server
+		go func() {
+			<-ctx.Done()
+			server.Stop()
+		}()
+
 		err = server.Serve(ln)
-		select {
-		case <-ctx.Done():
-		default:
+
+		if err != nil {
 			errCh <- err
-			close(errCh)
 		}
+		close(errCh)
 	}()
 	return errCh
 }

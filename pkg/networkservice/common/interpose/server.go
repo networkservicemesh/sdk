@@ -14,21 +14,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package crossnse provides a NetworkServiceServer chain element that tracks local Cross connect Endpoints and call them first
+// Package interpose provides a NetworkServiceServer chain element that tracks local Cross connect Endpoints and call them first
 // their unix file socket as the clienturl.ClientURL(ctx) used to connect to them.
-package crossnse
+package interpose
 
 import (
 	"context"
 	"net/url"
 	"sync"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
+	interpose_tools "github.com/networkservicemesh/sdk/pkg/tools/interpose"
+
 	"github.com/pkg/errors"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/crossnse"
-
 	"github.com/golang/protobuf/ptypes/empty"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -37,14 +39,13 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type crossConnectNSEServer struct {
-	// Map of names -> *registry.NetworkServiceEndpoint for local bypass to file crossNSEs
-	crossNSEs sync.Map
+type interposeServer struct {
+	// Map of names -> *registry.NetworkServiceEndpoint for local bypass to file endpoints
+	endpoints interpose_tools.Map
 
 	activeConnection sync.Map
 
-	nsmgrName string
-	nsmgrInit sync.Once
+	name string
 }
 
 type connectionInfo struct {
@@ -62,13 +63,15 @@ type connectionInfo struct {
 //                        while maintaining the NewServer pattern for use like anything else in a chain.
 //                        The value in *server must be included in the registry.NetworkServiceRegistryServer listening
 //                        so it can capture the registrations.
-func NewServer(registryServer *registry.NetworkServiceEndpointRegistryServer) networkservice.NetworkServiceServer {
-	rv := &crossConnectNSEServer{}
-	*registryServer = crossnse.NewNetworkServiceRegistryServer(rv)
+func NewServer(name string, registryServer *registry.NetworkServiceEndpointRegistryServer) networkservice.NetworkServiceServer {
+	rv := &interposeServer{
+		name: name,
+	}
+	*registryServer = interpose.NewNetworkServiceRegistryServer(&rv.endpoints)
 	return rv
 }
 
-func (l *crossConnectNSEServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (result *networkservice.Connection, err error) {
+func (l *interposeServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (result *networkservice.Connection, err error) {
 	// Check if there is no active connection, we need to replace endpoint url with forwarder url
 	conn := request.GetConnection()
 	ind := conn.GetPath().GetIndex() // It is designed to be used inside Endpoint, so current index is Endpoint already
@@ -77,11 +80,6 @@ func (l *crossConnectNSEServer) Request(ctx context.Context, request *networkser
 	if len(conn.GetPath().GetPathSegments()) == 0 || ind <= 0 {
 		return nil, errors.Errorf("path segment doesn't have a client or cross connect nse identity")
 	}
-	// Remember current segment Name if not yet.
-	l.nsmgrInit.Do(func() {
-		l.nsmgrName = conn.GetPath().GetPathSegments()[ind].Name
-	})
-
 	// We need to find an Id from path to match active connection request.
 	clientConnID := l.getConnectionID(conn)
 
@@ -95,26 +93,22 @@ func (l *crossConnectNSEServer) Request(ctx context.Context, request *networkser
 
 		// Iterate over all cross connect NSEs to check one with passed state.
 
-		l.crossNSEs.Range(func(key, value interface{}) bool {
-			crossNSE, ok := value.(*registry.NetworkServiceEndpoint)
-			if ok {
-				crossNSEURL, _ := url.Parse(crossNSE.Url)
-				crossCTX := clienturl.WithClientURL(ctx, crossNSEURL)
+		l.endpoints.Range(func(key string, value *registry.NetworkServiceEndpoint) bool {
+			crossNSEURL, _ := url.Parse(value.Url)
+			crossCTX := clienturl.WithClientURL(ctx, crossNSEURL)
 
-				// Store client connection and selected cross connection URL.
-				_, _ = l.activeConnection.LoadOrStore(conn.Id, &connectionInfo{
-					endpointURL: clientURL,
-					crossNSEURL: crossNSEURL,
-				})
-				result, err = next.Server(crossCTX).Request(crossCTX, request)
-				if err != nil {
-					trace.Log(ctx).Errorf("failed to request cross NSE %v err: %v", crossNSEURL, err)
-				} else {
-					// If all is ok, stop iterating.
-					return false
-				}
+			// Store client connection and selected cross connection URL.
+			_, _ = l.activeConnection.LoadOrStore(conn.Id, &connectionInfo{
+				endpointURL: clientURL,
+				crossNSEURL: crossNSEURL,
+			})
+			result, err = next.Server(crossCTX).Request(crossCTX, request)
+			if err != nil {
+				trace.Log(ctx).Errorf("failed to request cross NSE %v err: %v", crossNSEURL, err)
+				return true
 			}
-			return true
+			// If all is ok, stop iterating.
+			return false
 		})
 		if result != nil {
 			return result, nil
@@ -128,17 +122,17 @@ func (l *crossConnectNSEServer) Request(ctx context.Context, request *networkser
 	return next.Server(crossCTX).Request(crossCTX, request)
 }
 
-func (l *crossConnectNSEServer) getConnectionID(conn *networkservice.Connection) string {
+func (l *interposeServer) getConnectionID(conn *networkservice.Connection) string {
 	id := ""
 	for i := conn.GetPath().GetIndex(); i > 0; i-- {
-		if conn.GetPath().GetPathSegments()[i].Name == l.nsmgrName {
+		if conn.GetPath().GetPathSegments()[i].Name == l.name {
 			id = conn.GetPath().GetPathSegments()[i].Id
 		}
 	}
 	return id
 }
 
-func (l *crossConnectNSEServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+func (l *interposeServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	// We need to find an Id from path to match active connection request.
 	id := l.getConnectionID(conn)
 
@@ -159,14 +153,14 @@ func (l *crossConnectNSEServer) Close(ctx context.Context, conn *networkservice.
 	return next.Server(crossCTX).Close(crossCTX, conn)
 }
 
-func (l *crossConnectNSEServer) LoadOrStore(name string, endpoint *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, bool) {
-	r, ok := l.crossNSEs.LoadOrStore(name, endpoint)
+func (l *interposeServer) LoadOrStore(name string, endpoint *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, bool) {
+	r, ok := l.endpoints.LoadOrStore(name, endpoint)
 	if ok {
-		return r.(*registry.NetworkServiceEndpoint), true
+		return r, true
 	}
 	return nil, false
 }
 
-func (l *crossConnectNSEServer) Delete(name string) {
-	l.crossNSEs.Delete(name)
+func (l *interposeServer) Delete(name string) {
+	l.endpoints.Delete(name)
 }

@@ -22,7 +22,7 @@ package nsmgr
 import (
 	"context"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/crossnse"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interpose"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
@@ -88,7 +88,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 		)
 	}
 
-	var crossNSERegistry registryapi.NetworkServiceEndpointRegistryServer
+	var interposeRegistry registryapi.NetworkServiceEndpointRegistryServer
 
 	// Construct Endpoint
 	rv.Endpoint = endpoint.NewServer(ctx,
@@ -99,7 +99,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 		roundrobin.NewServer(),
 		localbypass.NewServer(&localbypassRegistryServer),
 		excludedprefixes.NewServer(ctx),
-		crossnse.NewServer(&crossNSERegistry),
+		interpose.NewServer(nsmRegistration.Name, &interposeRegistry),
 		connect.NewServer(
 			ctx,
 			client.NewClientFactory(nsmRegistration.Name,
@@ -111,7 +111,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 
 	nsChain := chain_registry.NewNetworkServiceRegistryServer(nsRegistry)
 	nseChain := chain_registry.NewNetworkServiceEndpointRegistryServer(
-		crossNSERegistry,          // Store cross connect NSEs
+		interposeRegistry,         // Store cross connect NSEs
 		localbypassRegistryServer, // Store endpoint Id to EndpointURL for local access.
 		seturl.NewNetworkServiceEndpointRegistryServer(nsmRegistration.Url), // Remember endpoint URL
 		nseRegistry, // Register NSE inside Remote registry with ID assigned

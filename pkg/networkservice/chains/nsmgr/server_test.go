@@ -20,8 +20,11 @@ package nsmgr_test
 import (
 	"context"
 	"net/url"
+	"os"
 	"testing"
 	"time"
+
+	interpose_reg "github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
@@ -39,8 +42,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/grpclog"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
@@ -95,24 +96,12 @@ func newCrossNSE(ctx context.Context, name string, connectTo *url.URL, tokenGene
 	return crossNSe
 }
 
-// serve  - serves passed Endpoint on grpc
-func serve(ctx context.Context, listenOn *url.URL, ep endpoint.Endpoint, opt ...grpc.ServerOption) {
-	server := grpc.NewServer(opt...)
-	ep.Register(server)
-
-	_ = grpcutils.ListenAndServe(ctx, listenOn, server)
-}
-
 func TestNSmgrCrossNSETest(t *testing.T) {
 	grpclog.SetLoggerV2(grpclog.NewLoggerV2(os.Stdout, os.Stdout, os.Stderr))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	// Serve endpoint
-	nseURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
-	_ = endpoint.Serve(ctx, nseURL, endpoint.NewServer(ctx, "test-nse", authorize.NewServer(), TokenGenerator, setextracontext.NewServer(map[string]string{"perform": "ok"})))
-	logrus.Infof("NSE listenON: %v", nseURL.String())
 
 	nsmgrReg := &registry.NetworkServiceEndpoint{
 		Name: "nsmgr",
@@ -131,7 +120,7 @@ func TestNSmgrCrossNSETest(t *testing.T) {
 
 	// Serve endpoint
 	nseURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
-	serve(ctx, nseURL,
+	endpoint.Serve(ctx, nseURL,
 		endpoint.NewServer(
 			"final-endpoint",
 			authorize.NewServer(),
@@ -141,7 +130,7 @@ func TestNSmgrCrossNSETest(t *testing.T) {
 
 	// Serve Cross Connect NSE
 	crossNSEURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
-	serve(ctx, crossNSEURL, newCrossNSE(ctx, crossnse.CrossNSEName, nsmURL, TokenGenerator, grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true))))
+	endpoint.Serve(ctx, crossNSEURL, newCrossNSE(ctx, interpose_reg.InterposeNSEName, nsmURL, TokenGenerator, grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true))))
 	logrus.Infof("Cross NSE listenON: %v", crossNSEURL.String())
 
 	// Register network service.
@@ -162,7 +151,7 @@ func TestNSmgrCrossNSETest(t *testing.T) {
 	// Register Cross NSE
 	_, err = mgr.NetworkServiceEndpointRegistryServer().Register(context.Background(), &registry.NetworkServiceEndpoint{
 		Url:  crossNSEURL.String(),
-		Name: crossnse.CrossNSEName,
+		Name: interpose_reg.InterposeNSEName,
 	})
 	require.Nil(t, err)
 
