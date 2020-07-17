@@ -18,25 +18,15 @@
 package roundrobin
 
 import (
-	"sync"
+	"sync/atomic"
 )
 
 // RoundRobin contains index
 type RoundRobin struct {
-	sync.Mutex
-	index int
+	index uint32
 }
 
 // Index returns a new index for the given size
 func (r *RoundRobin) Index(size int) int {
-	r.Lock()
-	defer r.Unlock()
-
-	if r.index < 0 || size <= r.index {
-		r.index = 1
-	} else {
-		r.index++
-	}
-
-	return r.index - 1
+	return int((atomic.AddUint32(&r.index, 1) - 1) % uint32(size))
 }

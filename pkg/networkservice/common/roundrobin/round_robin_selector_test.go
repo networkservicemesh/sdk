@@ -219,7 +219,7 @@ var tests = []rrtests{
 			},
 		},
 		want: &registry.NetworkServiceEndpoint{
-			Name: "NSE-3",
+			Name: "NSE-2",
 		},
 	},
 }

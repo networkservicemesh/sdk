@@ -17,43 +17,104 @@
 package roundrobin
 
 import (
+	"sync/atomic"
 	"testing"
 
-	"go.uber.org/goleak"
+	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 )
 
-type rrtests struct {
-	name  string
-	size  []int
-	index []int
-}
-
-var tests = []rrtests{
+var tests = []struct {
+	size int
+}{
 	{
-		name:  "same size",
-		size:  []int{3, 3, 3, 3, 3, 3},
-		index: []int{0, 1, 2, 0, 1, 2},
+		size: 0,
 	},
 	{
-		name:  "increase size",
-		size:  []int{3, 3, 3, 3, 4, 4},
-		index: []int{0, 1, 2, 0, 1, 2},
+		size: 10,
 	},
 	{
-		name:  "decrease size",
-		size:  []int{4, 4, 4, 4, 3, 3},
-		index: []int{0, 1, 2, 3, 0, 1},
+		size: 20,
+	},
+	{
+		size: 50,
+	},
+	{
+		size: 100,
 	},
 }
 
 func Test_RoundRobin_Index(t *testing.T) {
-	defer goleak.VerifyNone(t)
-	for _, tt := range tests {
+	for i := range tests {
+		test := &tests[i]
+		logrus.Infof("simple (%v)", test.size)
+
 		rr := &RoundRobin{}
-		for i := range tt.index {
-			if idx := rr.Index(tt.size[i]); idx != tt.index[i] {
-				t.Errorf("%s[%d]: RoundRobin.Index() = %v, want %v", tt.name, i, idx, tt.index[i])
+		for i := 0; i < 10; i++ {
+			for k := 0; k < test.size; k++ {
+				assert.Equal(t, k, rr.Index(test.size))
 			}
 		}
 	}
+}
+
+var testsConcurrent = []struct {
+	size  int
+	limit int
+}{
+	{
+		size:  10,
+		limit: 1,
+	},
+	{
+		size:  10,
+		limit: 5,
+	},
+	{
+		size:  10,
+		limit: 10,
+	},
+	{
+		size:  100,
+		limit: 50,
+	},
+	{
+		size:  100,
+		limit: 100,
+	},
+}
+
+func Test_RoundRobin_IndexConcurrent(t *testing.T) {
+	for i := range testsConcurrent {
+		test := &testsConcurrent[i]
+		logrus.Infof("concurrent (%v of %v)", test.limit, test.size)
+
+		rr := &RoundRobin{}
+		flags := make([]bool, test.size)
+		limit := int32(test.limit)
+		ready := make(chan bool, 10)
+		for k := 0; k < 10; k++ {
+			go flagPicker(t, rr, flags, &limit, ready)
+		}
+		for k := 0; k < 10; k++ {
+			<-ready
+		}
+
+		for k, flag := range flags {
+			if k < test.limit {
+				assert.True(t, flag, "haven't selected index = %v", k)
+			} else {
+				assert.False(t, flag, "selected index = %v", k)
+			}
+		}
+	}
+}
+
+func flagPicker(t *testing.T, rr *RoundRobin, flags []bool, limit *int32, ready chan<- bool) {
+	for atomic.AddInt32(limit, -1) >= 0 {
+		idx := rr.Index(len(flags))
+		assert.False(t, flags[idx], "double selected index = %v", idx)
+		flags[idx] = true
+	}
+	ready <- true
 }
