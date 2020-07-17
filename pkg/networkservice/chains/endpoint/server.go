@@ -20,6 +20,9 @@
 package endpoint
 
 import (
+	"context"
+	"net/url"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
 
@@ -72,4 +75,12 @@ func (e *endpoint) Register(s *grpc.Server) {
 	grpcutils.RegisterHealthServices(s, e)
 	networkservice.RegisterNetworkServiceServer(s, e)
 	networkservice.RegisterMonitorConnectionServer(s, e)
+}
+
+// Serve  - serves passed Endpoint on grpc
+func Serve(ctx context.Context, listenOn *url.URL, endpoint Endpoint, opt ...grpc.ServerOption) <-chan error {
+	server := grpc.NewServer(opt...)
+	endpoint.Register(server)
+
+	return grpcutils.ListenAndServe(ctx, listenOn, server)
 }
