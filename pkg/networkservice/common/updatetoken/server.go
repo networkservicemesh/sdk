@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package updatepath provides a chain element that sets the id of an incoming or outgoing request
-package updatepath
+// Package updatetoken provides chain elements to update Connection.Path
+package updatetoken
 
 import (
 	"context"
@@ -24,30 +24,31 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-type idServer struct {
-	name string
+type updatePathServer struct {
+	tokenGenerator token.GeneratorFunc
 }
 
-// NewServer - creates a new setId server.
-//             name - name of the client
-//             Iff the current pathSegment name != name && pathsegment.id != networkservice.Id, set a new uuid for
-//             connection id
-func NewServer(name string) networkservice.NetworkServiceServer {
-	return &idServer{name: name}
+// NewServer - creates a NetworkServiceServer chain element to update the Connection.Path
+//             - name - the name of the NetworkServiceServer of which the chain element is part
+func NewServer(tokenGenerator token.GeneratorFunc) networkservice.NetworkServiceServer {
+	return &updatePathServer{
+		tokenGenerator: tokenGenerator,
+	}
 }
 
-func (i *idServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (_ *networkservice.Connection, err error) {
-	request.Connection, err = updatePath(request.Connection, i.name)
+func (u *updatePathServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	err := updateToken(ctx, request.GetConnection(), u.tokenGenerator)
 	if err != nil {
 		return nil, err
 	}
 	return next.Server(ctx).Request(ctx, request)
 }
 
-func (i *idServer) Close(ctx context.Context, conn *networkservice.Connection) (_ *empty.Empty, err error) {
-	conn, err = updatePath(conn, i.name)
+func (u *updatePathServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	err := updateToken(ctx, conn, u.tokenGenerator)
 	if err != nil {
 		return nil, err
 	}

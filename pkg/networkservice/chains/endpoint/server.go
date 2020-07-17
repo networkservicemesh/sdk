@@ -26,10 +26,11 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/setid"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/timeout"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
@@ -63,10 +64,10 @@ func NewServer(ctx context.Context, name string, authzServer networkservice.Netw
 	rv.NetworkServiceServer = chain.NewNetworkServiceServer(
 		append([]networkservice.NetworkServiceServer{
 			authzServer,
-			setid.NewServer(name),
+			updatepath.NewServer(name),
 			monitor.NewServer(ctx, &rv.MonitorConnectionServer),
 			timeout.NewServer(&ns),
-			updatepath.NewServer(name, tokenGenerator),
+			updatetoken.NewServer(tokenGenerator),
 		}, additionalFunctionality...)...)
 	return rv
 }
