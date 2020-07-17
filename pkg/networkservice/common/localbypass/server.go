@@ -58,7 +58,6 @@ func NewServer(registryServer *registry.NetworkServiceEndpointRegistryServer) ne
 func (l *localBypassServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	if u, ok := l.sockets.Load(request.GetConnection().GetNetworkServiceEndpointName()); ok && u != nil {
 		ctx = clienturl.WithClientURL(ctx, u)
-
 	}
 	return next.Server(ctx).Request(ctx, request)
 }
