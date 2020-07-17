@@ -31,7 +31,7 @@ import (
 )
 
 type localBypassRegistry struct {
-	sockets localbypass.SocketMap
+	sockets *localbypass.Map
 }
 
 func (l *localBypassRegistry) Register(ctx context.Context, request *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
@@ -67,6 +67,6 @@ func (l *localBypassRegistry) Unregister(ctx context.Context, request *registry.
 // NewNetworkServiceRegistryServer - creates a NetworkServiceRegistryServer that registers local Endpoints
 //				and adds them to localbypass.SocketMap
 //             - sockets - map of networkServiceEndpoint names to their unix socket addresses
-func NewNetworkServiceRegistryServer(sockets localbypass.SocketMap) registry.NetworkServiceEndpointRegistryServer {
+func NewNetworkServiceRegistryServer(sockets *localbypass.Map) registry.NetworkServiceEndpointRegistryServer {
 	return &localBypassRegistry{sockets: sockets}
 }

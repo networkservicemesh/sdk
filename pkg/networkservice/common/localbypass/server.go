@@ -20,8 +20,8 @@ package localbypass
 
 import (
 	"context"
-	"net/url"
-	"sync"
+
+	localbypasstools "github.com/networkservicemesh/sdk/pkg/tools/localbypass"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 
@@ -37,7 +37,7 @@ import (
 
 type localBypassServer struct {
 	// Map of names -> *url.URLs for local bypass to file sockets
-	sockets sync.Map
+	sockets localbypasstools.Map
 }
 
 // NewServer - creates a NetworkServiceServer that tracks locally registered Endpoints substitutes their
@@ -51,32 +51,21 @@ type localBypassServer struct {
 //                        so it can capture the registrations.
 func NewServer(registryServer *registry.NetworkServiceEndpointRegistryServer) networkservice.NetworkServiceServer {
 	rv := &localBypassServer{}
-	*registryServer = localbypass.NewNetworkServiceRegistryServer(rv)
+	*registryServer = localbypass.NewNetworkServiceRegistryServer(&rv.sockets)
 	return rv
 }
 
 func (l *localBypassServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if v, ok := l.sockets.Load(request.GetConnection().GetNetworkServiceEndpointName()); ok && v != nil {
-		if u, ok := v.(*url.URL); ok {
-			ctx = clienturl.WithClientURL(ctx, u)
-		}
+	if u, ok := l.sockets.Load(request.GetConnection().GetNetworkServiceEndpointName()); ok && u != nil {
+		ctx = clienturl.WithClientURL(ctx, u)
+
 	}
 	return next.Server(ctx).Request(ctx, request)
 }
 
 func (l *localBypassServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	if v, ok := l.sockets.Load(conn.GetNetworkServiceEndpointName()); ok && v != nil {
-		if u, ok := v.(*url.URL); ok {
-			ctx = clienturl.WithClientURL(ctx, u)
-		}
+	if u, ok := l.sockets.Load(conn.GetNetworkServiceEndpointName()); ok && u != nil {
+		ctx = clienturl.WithClientURL(ctx, u)
 	}
 	return next.Server(ctx).Close(ctx, conn)
-}
-
-func (l *localBypassServer) LoadOrStore(name string, u *url.URL) (interface{}, bool) {
-	return l.sockets.LoadOrStore(name, u)
-}
-
-func (l *localBypassServer) Delete(name string) {
-	l.sockets.Delete(name)
 }
