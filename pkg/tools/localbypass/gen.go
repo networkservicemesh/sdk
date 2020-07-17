@@ -17,11 +17,10 @@
 // Package localbypass provides localBypassServer and localBypassServer related tools
 package localbypass
 
-import "net/url"
+import "sync"
 
-// SocketMap - interface for map from networkServiceEndpoint names to their unix socket addresses used by
-// localBypassServer and localBypassRegistry
-type SocketMap interface {
-	LoadOrStore(name string, url *url.URL) (interface{}, bool)
-	Delete(name string)
-}
+//go:generate go-syncmap -output sync_map.gen.go -type Map<string,*net/url.URL>
+
+// Map is like a Go map[string]*url.URL but is safe for concurrent use
+// by multiple goroutines without additional locking or coordination
+type Map sync.Map
