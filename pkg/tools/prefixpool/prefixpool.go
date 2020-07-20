@@ -55,7 +55,6 @@ func NewPrefixPool(prefixes ...string) (*PrefixPool, error) {
 			return nil, err
 		}
 	}
-	//TODO: Add validation of input prefixes.
 	return &PrefixPool{
 		basePrefixes: prefixes,
 		prefixes:     prefixes,

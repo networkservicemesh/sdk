@@ -44,7 +44,7 @@ func (ph *Reader) init(prefixes []string) {
 
 // NewPrefixPoolReader gets list of excluded prefixes from config file. Starts config file monitoring.
 // Returns pointer to a struct that contains all information
-func NewPrefixPoolReader(path string) *Reader {
+func NewPrefixPoolReader(path string) *PrefixPool {
 	ph := &Reader{
 		prefixesConfig: viper.New(),
 		configPath:     path,
@@ -71,5 +71,5 @@ func NewPrefixPoolReader(path string) *Reader {
 	ph.prefixesConfig.WatchConfig()
 	readPrefixes()
 
-	return ph
+	return &ph.PrefixPool
 }
