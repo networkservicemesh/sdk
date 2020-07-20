@@ -18,7 +18,6 @@ package refresh
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/timestamp"
@@ -32,8 +31,7 @@ import (
 
 type refreshNSEClient struct {
 	client                registry.NetworkServiceEndpointRegistryClient
-	nsesMutex             sync.Mutex
-	nseCancels            map[string]context.CancelFunc
+	nseCancelers          cancelersMap
 	retryDelay            time.Duration
 	defaultExpiryDuration time.Duration
 }
@@ -74,13 +72,11 @@ func (c *refreshNSEClient) Register(ctx context.Context, in *registry.NetworkSer
 	if err != nil {
 		return nil, err
 	}
-	c.nsesMutex.Lock()
-	defer c.nsesMutex.Unlock()
-	if v, ok := c.nseCancels[resp.Name]; ok {
-		v()
+	if cancel, ok := c.nseCancelers.Load(resp.Name); ok {
+		cancel()
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	c.nseCancels[resp.Name] = cancel
+	c.nseCancelers.Store(resp.Name, cancel)
 	c.startRefresh(ctx, resp)
 	return resp, err
 }
@@ -94,13 +90,10 @@ func (c *refreshNSEClient) Unregister(ctx context.Context, in *registry.NetworkS
 	if err != nil {
 		return nil, err
 	}
-	c.nsesMutex.Lock()
-	defer c.nsesMutex.Unlock()
-	cancel, ok := c.nseCancels[in.Name]
-	if ok {
+	if cancel, ok := c.nseCancelers.Load(in.Name); ok {
 		cancel()
-		delete(c.nseCancels, in.Name)
 	}
+	c.nseCancelers.Delete(in.Name)
 	return resp, nil
 }
 
@@ -108,7 +101,6 @@ func (c *refreshNSEClient) Unregister(ctx context.Context, in *registry.NetworkS
 func NewNetworkServiceEndpointRegistryClient(client registry.NetworkServiceEndpointRegistryClient, options ...Option) registry.NetworkServiceEndpointRegistryClient {
 	c := &refreshNSEClient{
 		client:                client,
-		nseCancels:            map[string]context.CancelFunc{},
 		retryDelay:            time.Second * 5,
 		defaultExpiryDuration: time.Minute * 30,
 	}

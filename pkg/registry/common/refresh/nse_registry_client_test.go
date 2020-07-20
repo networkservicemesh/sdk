@@ -84,7 +84,7 @@ func TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {
 	require.Eventually(t, func() bool {
 		testClient.Lock()
 		defer testClient.Unlock()
-		return testClient.requestCount == 1
+		return testClient.requestCount > 0
 	}, testExpiryDuraiton*2, testExpiryDuraiton/4)
 	_, err = refreshClient.Unregister(context.Background(), &registry.NetworkServiceEndpoint{Name: "nse-1"})
 	require.Nil(t, err)
@@ -122,7 +122,7 @@ func TestNewNetworkServiceEndpointRegistryClient_CalledRegisterTwice(t *testing.
 	require.Eventually(t, func() bool {
 		testClient.Lock()
 		defer testClient.Unlock()
-		return testClient.requestCount == 1
+		return testClient.requestCount > 0
 	}, testExpiryDuraiton*2, testExpiryDuraiton/4)
 	_, err = refreshClient.Unregister(context.Background(), &registry.NetworkServiceEndpoint{Name: "nse-1"})
 	require.Nil(t, err)
