@@ -26,9 +26,10 @@ require (
 	github.com/uber/jaeger-client-go v2.21.1+incompatible
 	github.com/uber/jaeger-lib v2.2.0+incompatible // indirect
 	go.uber.org/atomic v1.6.0 // indirect
-	go.uber.org/goleak v1.0.0
-	golang.org/x/net v0.0.0-20200602114024-627f9648deb9 // indirect
+	go.uber.org/goleak v1.0.1-0.20200717213025-100c34bdc9d6
+	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
 	golang.org/x/sys v0.0.0-20200610111108-226ff32320da
+	golang.org/x/tools v0.0.0-20200717024301-6ddee64345a6 // indirect
 	gonum.org/v1/gonum v0.6.2
 	google.golang.org/genproto v0.0.0-20200615140333-fd031eab31e7 // indirect
 	google.golang.org/grpc v1.29.1

@@ -30,7 +30,7 @@ import (
 )
 
 func TestMonitor(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	// Specify pathSegments to test
 	segmentNames := []string{"local-nsm", "remote-nsm"}
 

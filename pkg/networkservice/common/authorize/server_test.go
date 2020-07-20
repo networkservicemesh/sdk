@@ -59,7 +59,7 @@ func requestWithToken(token string) *networkservice.NetworkServiceRequest {
 }
 
 func TestAuthzEndpoint(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	suits := []struct {
 		name     string
 		policy   opa.AuthorizationPolicy

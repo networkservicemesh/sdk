@@ -56,7 +56,7 @@ func request(connectionID string, pathIndex uint32) *networkservice.NetworkServi
 }
 
 func TestNewClient_SetNewConnectionId(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	client := setid.NewClient("nse-3")
 	conn, err := client.Request(context.Background(), request(connectionID, 1))
 	assert.NotNil(t, conn)
@@ -65,7 +65,7 @@ func TestNewClient_SetNewConnectionId(t *testing.T) {
 }
 
 func TestNewClient_PathSegmentNameEqualClientName(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	client := setid.NewClient("nse-2")
 	conn, err := client.Request(context.Background(), request(connectionID, 1))
 	assert.NotNil(t, conn)
@@ -74,7 +74,7 @@ func TestNewClient_PathSegmentNameEqualClientName(t *testing.T) {
 }
 
 func TestNewClient_PathSegmentIdEqualConnectionId(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	client := setid.NewClient("nse-3")
 	conn, err := client.Request(context.Background(), request(pathSegmentID2, 1))
 	assert.NotNil(t, conn)
@@ -83,7 +83,7 @@ func TestNewClient_PathSegmentIdEqualConnectionId(t *testing.T) {
 }
 
 func TestNewClient_PathSegmentNameAndIDEqualClientNameAndID(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	client := setid.NewClient("nse-2")
 	conn, err := client.Request(context.Background(), request(pathSegmentID2, 1))
 	assert.NotNil(t, conn)
@@ -92,7 +92,7 @@ func TestNewClient_PathSegmentNameAndIDEqualClientNameAndID(t *testing.T) {
 }
 
 func TestNewClient_InvalidIndex(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	client := setid.NewClient("nse-3")
 	conn, err := client.Request(context.Background(), request(connectionID, 2))
 	assert.NotNil(t, conn)
@@ -101,7 +101,7 @@ func TestNewClient_InvalidIndex(t *testing.T) {
 }
 
 func TestNewClient_NoConnection(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	client := setid.NewClient("nse-3")
 	conn, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{})
 	assert.NotNil(t, conn)

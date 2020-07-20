@@ -90,7 +90,7 @@ func permuteOverMechanismPreferenceOrder(request *networkservice.NetworkServiceR
 }
 
 func TestSelectMechanism(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	logrus.SetOutput(ioutil.Discard)
 	server := server()
 	for _, request := range permuteOverMechanismPreferenceOrder(request()) {
@@ -108,7 +108,7 @@ func TestSelectMechanism(t *testing.T) {
 }
 
 func TestDontSelectMechanismIfSet(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	logrus.SetOutput(ioutil.Discard)
 	server := server()
 	for _, request := range permuteOverMechanismPreferenceOrder(request()) {
@@ -123,7 +123,7 @@ func TestDontSelectMechanismIfSet(t *testing.T) {
 }
 
 func TestUnsupportedMechanismPreference(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	logrus.SetOutput(ioutil.Discard)
 	request := request()
 	request.MechanismPreferences = []*networkservice.Mechanism{
@@ -137,7 +137,7 @@ func TestUnsupportedMechanismPreference(t *testing.T) {
 }
 
 func TestUnsupportedMechanism(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	logrus.SetOutput(ioutil.Discard)
 	request := request()
 	request.GetConnection().Mechanism = &networkservice.Mechanism{
@@ -152,7 +152,7 @@ func TestUnsupportedMechanism(t *testing.T) {
 }
 
 func TestDownstreamError(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	logrus.SetOutput(ioutil.Discard)
 	request := request()
 	request.GetConnection().Mechanism = &networkservice.Mechanism{

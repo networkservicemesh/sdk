@@ -32,7 +32,7 @@ import (
 )
 
 func TestAddURLInEmptyContext(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	clientURL := &url.URL{
 		Scheme: "ipv4",
 		Path:   "192.168.0.1",
@@ -48,7 +48,7 @@ func TestAddURLInEmptyContext(t *testing.T) {
 }
 
 func TestOverwriteURL(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	clientURL := &url.URL{
 		Scheme: "ipv4",
 		Path:   "192.168.0.1",
@@ -71,7 +71,7 @@ func TestOverwriteURL(t *testing.T) {
 }
 
 func TestOverwriteURLByNil(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	var clientURL *url.URL = nil
 	previousURL := &url.URL{
 		Scheme: "unix",
