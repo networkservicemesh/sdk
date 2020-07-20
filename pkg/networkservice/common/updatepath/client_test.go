@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package setid_test provides a tests for package 'setid'
+// Package updatepath_test provides a tests for package 'setid'
 package updatepath_test
 
 import (
@@ -62,7 +62,7 @@ func TestNewClient_SetNewConnectionId(t *testing.T) {
 	client := updatepath.NewClient("nse-3")
 	conn, err := client.Request(context.Background(), request(connectionID, 1))
 	require.NotNil(t, conn)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Equal(t, 3, len(conn.Path.PathSegments))
 	require.Equal(t, "nse-3", conn.Path.PathSegments[2].Name)
 	require.NotEqual(t, conn.Id, connectionID)
@@ -73,7 +73,7 @@ func TestNewClient_SetNewConnectionId2(t *testing.T) {
 	client := updatepath.NewClient("nse-2")
 	conn, err := client.Request(context.Background(), request(connectionID, 0))
 	require.NotNil(t, conn)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Equal(t, 1, int(conn.Path.Index))
 	require.Equal(t, conn.Id, pathSegmentID2)
 }
@@ -83,7 +83,7 @@ func TestNewClient_SetNewConnectionIdSecondReq(t *testing.T) {
 	client := updatepath.NewClient("nse-1")
 	conn, err := client.Request(context.Background(), request(connectionID, 0))
 	assert.NotNil(t, conn)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, conn.Id, pathSegmentID1)
 
 	firstConnID := conn.Id
@@ -93,7 +93,7 @@ func TestNewClient_SetNewConnectionIdSecondReq(t *testing.T) {
 		Connection: conn,
 	})
 	assert.NotNil(t, conn)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, firstConnID, conn.Id)
 }
 
@@ -102,7 +102,7 @@ func TestNewClient_PathSegmentNameEqualClientName(t *testing.T) {
 	client := updatepath.NewClient("nse-2")
 	conn, err := client.Request(context.Background(), request(connectionID, 1))
 	assert.NotNil(t, conn)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotEqual(t, conn.Id, connectionID)
 }
 
@@ -111,7 +111,7 @@ func TestNewClient_PathSegmentIdEqualConnectionId(t *testing.T) {
 	client := updatepath.NewClient("nse-2")
 	conn, err := client.Request(context.Background(), request(pathSegmentID2, 1))
 	assert.NotNil(t, conn)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, conn.Id, pathSegmentID2)
 }
 
@@ -120,7 +120,7 @@ func TestNewClient_PathSegmentNameAndIDEqualClientNameAndID(t *testing.T) {
 	client := updatepath.NewClient("nse-2")
 	conn, err := client.Request(context.Background(), request(pathSegmentID2, 1))
 	assert.NotNil(t, conn)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, conn.Id, pathSegmentID2)
 }
 
@@ -137,6 +137,6 @@ func TestNewClient_NoConnection(t *testing.T) {
 	client := updatepath.NewClient("nse-3")
 	conn, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{})
 	assert.NotNil(t, conn)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotEqual(t, conn.Id, connectionID)
 }

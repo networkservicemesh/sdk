@@ -27,18 +27,21 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-type updatePathClient struct {
+type updateTokenClient struct {
 	tokenGenerator token.GeneratorFunc
 }
 
-// NewClient - creates a NetworkServiceClient chain element to update the Connection.Path
+// NewClient - creates a NetworkServiceClient chain element to update the Connection token information
 func NewClient(tokenGenerator token.GeneratorFunc) networkservice.NetworkServiceClient {
-	return &updatePathClient{
+	return &updateTokenClient{
 		tokenGenerator: tokenGenerator,
 	}
 }
 
-func (u *updatePathClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+func (u *updateTokenClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	if request.Connection == nil {
+		request.Connection = &networkservice.Connection{}
+	}
 	err := updateToken(ctx, request.GetConnection(), u.tokenGenerator)
 	index := request.GetConnection().GetPath().GetIndex()
 	if err != nil {
@@ -52,7 +55,7 @@ func (u *updatePathClient) Request(ctx context.Context, request *networkservice.
 	return rv, err
 }
 
-func (u *updatePathClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (u *updateTokenClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	err := updateToken(ctx, conn, u.tokenGenerator)
 	if err != nil {
 		return nil, err

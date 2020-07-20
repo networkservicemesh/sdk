@@ -32,28 +32,38 @@ func TestNewServer_SetNewConnectionId(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	server := updatepath.NewServer("nse-3")
 	conn, err := server.Request(context.Background(), request(connectionID, 1))
-	assert.NotNil(t, conn)
-	assert.Nil(t, err)
-	assert.NotEqual(t, conn.Id, connectionID)
+	require.NotNil(t, conn)
+	require.NoError(t, err)
+	require.NotEqual(t, conn.Id, connectionID)
+}
+
+func TestNewServer_SetNewPathId(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	server := updatepath.NewServer("nse-3")
+	conn, err := server.Request(context.Background(), request(connectionID, 0))
+	require.NotNil(t, conn)
+	require.NoError(t, err)
+	require.Equal(t, conn.Path.PathSegments[1].Name, "nse-3") // Check name is replaced.
+	require.Equal(t, conn.Id, pathSegmentID2)
 }
 
 func TestNewServer_PathSegmentNameEqualClientName(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	server := updatepath.NewServer("nse-2")
 	conn, err := server.Request(context.Background(), request(connectionID, 1))
-	assert.NotNil(t, conn)
-	assert.Nil(t, err)
-	assert.NotEqual(t, conn.Id, connectionID)
+	require.NotNil(t, conn)
+	require.NoError(t, err)
+	require.NotEqual(t, conn.Id, connectionID)
 }
 
 func TestNewServer_PathSegmentIdEqualConnectionId(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	server := updatepath.NewServer("nse-3")
 	conn, err := server.Request(context.Background(), request(pathSegmentID2, 1))
-	assert.NotNil(t, conn)
+	require.NotNil(t, conn)
 
-	assert.Nil(t, err)
-	assert.NotEqual(t, conn.Id, pathSegmentID2)
+	require.NoError(t, err)
+	require.NotEqual(t, conn.Id, pathSegmentID2)
 }
 
 func TestNewServer_PathSegmentNameIDEqualClientNameID(t *testing.T) {
@@ -62,8 +72,8 @@ func TestNewServer_PathSegmentNameIDEqualClientNameID(t *testing.T) {
 	conn, err := server.Request(context.Background(), request(pathSegmentID2, 1))
 	assert.NotNil(t, conn)
 
-	assert.Nil(t, err)
-	assert.Equal(t, conn.Id, pathSegmentID2)
+	require.NoError(t, err)
+	require.Equal(t, conn.Id, pathSegmentID2)
 }
 
 func TestNewServer_InvalidIndex(t *testing.T) {

@@ -33,23 +33,21 @@ import (
 	3. if Index == 0, and there is no current segment will add one.
 */
 func updatePath(conn *networkservice.Connection, segmentName string) (*networkservice.Connection, error) {
-	if conn == nil {
-		conn = &networkservice.Connection{}
+	if conn.Path == nil {
+		conn.Path = &networkservice.Path{}
 	}
-
 	// If we don't have a Path, add one
-	if conn.GetPath() == nil || len(conn.GetPath().GetPathSegments()) == 0 {
-		if conn.Path == nil {
-			conn.Path = &networkservice.Path{}
-		}
+	if len(conn.GetPath().GetPathSegments()) == 0 {
 		conn.Path.Index = 0
-		// Replace path for first segment.
-		conn.Path.PathSegments = []*networkservice.PathSegment{
-			{
-				Name: segmentName,
-				Id:   conn.Id,
-			},
+		if conn.Id == "" {
+			// Generate new ID for connection and segment.
+			conn.Id = uuid.New().String()
 		}
+		// Add current segment to list
+		conn.Path.PathSegments = append(conn.Path.PathSegments, &networkservice.PathSegment{
+			Name: segmentName,
+			Id:   conn.Id,
+		})
 		return conn, nil
 	}
 
@@ -70,24 +68,25 @@ func updatePath(conn *networkservice.Connection, segmentName string) (*networkse
 			nextIndex, len(path.GetPathSegments()))
 	}
 	if nextIndex < len(path.GetPathSegments()) && path.GetPathSegments()[nextIndex].Name != segmentName {
-		// We have next, but name is different
-		return nil, errors.Errorf("NetworkServiceRequest.Connection.Path.PathSegement[%d].Name should be %s, but it is %s",
-			nextIndex, segmentName, path.GetPathSegments()[nextIndex].Name)
+		// We have next, but name is different, so let's update Path segment in this case.
+		// Id should be same, since next chain elements may depend on it.
+		path.PathSegments[nextIndex].Name = segmentName
 	}
 
-	if nextIndex >= len(path.GetPathSegments()) {
-		// Generate new Id for Path segment and connection Id.
+	// Increment index to be accurate to current chain element
+	conn.Path.Index++
+
+	if int(conn.Path.Index) >= len(path.GetPathSegments()) {
+		// Generate new Id for Path segment and connection Id if there is no one.
 		conn.Id = uuid.New().String()
 		path.PathSegments = append(path.PathSegments, &networkservice.PathSegment{
 			Name: segmentName,
 			Id:   conn.Id,
 		})
 	} else {
-		// Just update ID from next segment.
-		conn.Id = path.GetPathSegments()[nextIndex].Id
+		// Set connection ID from current path Id, since we have current segment setup already.
+		conn.Id = path.GetPathSegments()[conn.Path.Index].Id
 	}
-	// Increment index
-	conn.Path.Index++
 
 	return conn, nil
 }

@@ -27,19 +27,23 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type idClient struct {
+type updatePathClient struct {
 	name string
 }
 
-// NewClient - creates a new setId client.
+// NewClient - creates a new updatePath client to update connection path.
 //             name - name of the client
-//             Iff the current pathSegment name != name && pathSegment.id != networkservice.Id, set a new uuid for
-//             connection id
+//
+// Workflow are documented in common.go
 func NewClient(name string) networkservice.NetworkServiceClient {
-	return &idClient{name: name}
+	return &updatePathClient{name: name}
 }
 
-func (i *idClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
+func (i *updatePathClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
+	if request.Connection == nil {
+		request.Connection = &networkservice.Connection{}
+	}
+
 	request.Connection, err = updatePath(request.Connection, i.name)
 	if err != nil {
 		return nil, err
@@ -47,7 +51,7 @@ func (i *idClient) Request(ctx context.Context, request *networkservice.NetworkS
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
 
-func (i *idClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (_ *empty.Empty, err error) {
+func (i *updatePathClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (_ *empty.Empty, err error) {
 	conn, err = updatePath(conn, i.name)
 	if err != nil {
 		return nil, err

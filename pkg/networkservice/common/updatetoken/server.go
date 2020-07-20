@@ -27,19 +27,22 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-type updatePathServer struct {
+type updateTokenServer struct {
 	tokenGenerator token.GeneratorFunc
 }
 
-// NewServer - creates a NetworkServiceServer chain element to update the Connection.Path
+// NewServer - creates a NetworkServiceServer chain element to update the Connection token information
 //             - name - the name of the NetworkServiceServer of which the chain element is part
 func NewServer(tokenGenerator token.GeneratorFunc) networkservice.NetworkServiceServer {
-	return &updatePathServer{
+	return &updateTokenServer{
 		tokenGenerator: tokenGenerator,
 	}
 }
 
-func (u *updatePathServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+func (u *updateTokenServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	if request.Connection == nil {
+		request.Connection = &networkservice.Connection{}
+	}
 	err := updateToken(ctx, request.GetConnection(), u.tokenGenerator)
 	if err != nil {
 		return nil, err
@@ -47,7 +50,7 @@ func (u *updatePathServer) Request(ctx context.Context, request *networkservice.
 	return next.Server(ctx).Request(ctx, request)
 }
 
-func (u *updatePathServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+func (u *updateTokenServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	err := updateToken(ctx, conn, u.tokenGenerator)
 	if err != nil {
 		return nil, err

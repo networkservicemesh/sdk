@@ -26,19 +26,22 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type idServer struct {
+type updatePathServer struct {
 	name string
 }
 
-// NewServer - creates a new setId server.
+// NewServer - creates a new updatePath client to update connection path.
 //             name - name of the client
-//             Iff the current pathSegment name != name && pathsegment.id != networkservice.Id, set a new uuid for
-//             connection id
+//
+// Workflow are documented in common.go
 func NewServer(name string) networkservice.NetworkServiceServer {
-	return &idServer{name: name}
+	return &updatePathServer{name: name}
 }
 
-func (i *idServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (_ *networkservice.Connection, err error) {
+func (i *updatePathServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (_ *networkservice.Connection, err error) {
+	if request.Connection == nil {
+		request.Connection = &networkservice.Connection{}
+	}
 	request.Connection, err = updatePath(request.Connection, i.name)
 	if err != nil {
 		return nil, err
@@ -46,7 +49,7 @@ func (i *idServer) Request(ctx context.Context, request *networkservice.NetworkS
 	return next.Server(ctx).Request(ctx, request)
 }
 
-func (i *idServer) Close(ctx context.Context, conn *networkservice.Connection) (_ *empty.Empty, err error) {
+func (i *updatePathServer) Close(ctx context.Context, conn *networkservice.Connection) (_ *empty.Empty, err error) {
 	conn, err = updatePath(conn, i.name)
 	if err != nil {
 		return nil, err

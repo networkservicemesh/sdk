@@ -31,11 +31,6 @@ import (
 )
 
 func updateToken(ctx context.Context, conn *networkservice.Connection, tokenGenerator token.GeneratorFunc) error {
-	// We need a real path if we don't have one
-	if conn == nil {
-		return errors.New("NetworkServiceRequest.Connection must not be nil")
-	}
-
 	path := conn.GetPath()
 
 	// Make sure index isn't out of bound

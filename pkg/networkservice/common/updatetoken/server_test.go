@@ -44,7 +44,7 @@ func TokenGenerator(peerAuthInfo credentials.AuthInfo) (token string, expireTime
 	return "TestToken", time.Date(3000, 1, 1, 1, 1, 1, 1, time.UTC), nil
 }
 
-type updatePathServerSuite struct {
+type updateTokenServerSuite struct {
 	suite.Suite
 
 	Token        string
@@ -52,14 +52,14 @@ type updatePathServerSuite struct {
 	ExpiresProto *timestamp.Timestamp
 }
 
-func (f *updatePathServerSuite) SetupSuite() {
+func (f *updateTokenServerSuite) SetupSuite() {
 	f.Token, f.Expires, _ = TokenGenerator(nil)
 	f.ExpiresProto, _ = ptypes.TimestampProto(f.Expires)
 }
 
-func (f *updatePathServerSuite) TestNewServer_EmptyPathInRequest() {
+func (f *updateTokenServerSuite) TestNewServer_EmptyPathInRequest() {
 	t := f.T()
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	server := next.NewNetworkServiceServer(updatepath.NewServer("nsc-1"), updatetoken.NewServer(TokenGenerator))
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -68,13 +68,13 @@ func (f *updatePathServerSuite) TestNewServer_EmptyPathInRequest() {
 	}
 	conn, err := server.Request(context.Background(), request)
 	// Note: Its up to authorization to decide that we won't accept requests without a Path from the client
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.NotNil(t, conn)
 }
 
-func (f *updatePathServerSuite) TestNewServer_IndexInLastPositionAddNewSegment() {
+func (f *updateTokenServerSuite) TestNewServer_IndexInLastPositionAddNewSegment() {
 	t := f.T()
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "conn-2",
@@ -94,7 +94,7 @@ func (f *updatePathServerSuite) TestNewServer_IndexInLastPositionAddNewSegment()
 	}
 	server := next.NewNetworkServiceServer(updatepath.NewServer("nsc-2"), updatetoken.NewServer(TokenGenerator))
 	conn, err := server.Request(context.Background(), request)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Equal(t, 3, len(conn.Path.PathSegments))
 	require.Equal(t, "nsc-2", conn.Path.PathSegments[2].Name)
 	require.Equal(t, conn.Id, conn.Path.PathSegments[2].Id)
@@ -102,9 +102,9 @@ func (f *updatePathServerSuite) TestNewServer_IndexInLastPositionAddNewSegment()
 	equalJSON(t, f.ExpiresProto, conn.Path.PathSegments[2].Expires)
 }
 
-func (f *updatePathServerSuite) TestNewServer_ValidIndexOverwriteValues() {
+func (f *updateTokenServerSuite) TestNewServer_ValidIndexOverwriteValues() {
 	t := f.T()
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "conn-2",
@@ -147,12 +147,12 @@ func (f *updatePathServerSuite) TestNewServer_ValidIndexOverwriteValues() {
 	}
 	server := next.NewNetworkServiceServer(updatepath.NewServer("nsc-2"), updatetoken.NewServer(TokenGenerator))
 	conn, err := server.Request(context.Background(), request)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	equalJSON(t, expected, conn)
 }
 
 func TestNewServer_IndexGreaterThanArrayLength(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "conn-1",
@@ -176,7 +176,7 @@ func TestNewServer_IndexGreaterThanArrayLength(t *testing.T) {
 	assert.Nil(t, conn)
 }
 
-func (f *updatePathServerSuite) TestChain() {
+func (f *updateTokenServerSuite) TestChain() {
 	t := f.T()
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -236,5 +236,5 @@ func (f *updatePathServerSuite) TestChain() {
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
 func TestUpdateTokenServerTestSuite(t *testing.T) {
-	suite.Run(t, new(updatePathServerSuite))
+	suite.Run(t, new(updateTokenServerSuite))
 }

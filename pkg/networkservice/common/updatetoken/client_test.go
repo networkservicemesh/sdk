@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package updatepath_test provides tests for updatePathClient and updatePathServer chain elements
+// Package updatetoken_test provides tests for updateTokenClient and updateTokenServer chain elements
 package updatetoken_test
 
 import (
@@ -75,7 +75,7 @@ func (f *updatePathClientSuite) TestNewClient_EmptyPathInRequest() {
 		},
 	}
 	conn, err := client.Request(context.Background(), request)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	equalJSON(t, expected, conn)
 }
 
@@ -107,7 +107,7 @@ func (f *updatePathClientSuite) TestNewClient_ZeroIndexAddNewSegment() {
 		},
 	}
 	conn, err := client.Request(context.Background(), request)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	equalJSON(t, expected, conn)
 }
 
@@ -156,16 +156,16 @@ func (f *updatePathClientSuite) TestNewClient_ValidIndexOverwriteValues() {
 		},
 	}
 	conn, err := client.Request(context.Background(), request)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	equalJSON(t, expected, conn)
 }
 
 func equalJSON(t require.TestingT, expected, actual interface{}) {
 	json1, err1 := json.MarshalIndent(expected, "", "\t")
-	require.Nil(t, err1)
+	require.NoError(t, err1)
 
 	json2, err2 := json.MarshalIndent(actual, "", "\t")
-	require.Nil(t, err2)
+	require.NoError(t, err2)
 	require.Equal(t, string(json1), string(json2))
 }
 
