@@ -108,7 +108,7 @@ func firstGetsValueEarlier(c1, c2 <-chan struct{}) bool {
 
 func TestNewClient_StopRefreshAtClose(t *testing.T) {
 	t.Skip("https://github.com/networkservicemesh/sdk/issues/237")
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	requestCh := make(chan struct{}, 1)
 	testRefresh := &testRefresh{
 		RequestFunc: func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (connection *networkservice.Connection, err error) {
@@ -145,7 +145,7 @@ func TestNewClient_StopRefreshAtClose(t *testing.T) {
 
 func TestNewClient_StopRefreshAtAnotherRequest(t *testing.T) {
 	t.Skip("https://github.com/networkservicemesh/sdk/issues/260")
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	requestCh := make(chan struct{}, 1)
 	testRefresh := &testRefresh{
 		RequestFunc: func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (connection *networkservice.Connection, err error) {

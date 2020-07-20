@@ -93,7 +93,7 @@ func (nseT *nseTest) newNSEContext(ctx context.Context) context.Context {
 }
 
 func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	nseT := &nseTest{
 		t: t,
@@ -208,7 +208,7 @@ func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 
 func TestParallelDial(t *testing.T) {
 	t.Skip("https://github.com/networkservicemesh/sdk/issues/377")
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	nseT := &nseTest{}
 	nseT.Setup()

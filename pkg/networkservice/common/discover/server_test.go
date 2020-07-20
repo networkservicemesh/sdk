@@ -124,7 +124,7 @@ func fromSomeMiddleAppMatch() *registry.Match {
 }
 
 func TestMatchEmptySourceSelector(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	nsName := networkServiceName()
 	nsServer := memory.NewNetworkServiceRegistryServer()
 	_, err := nsServer.Register(context.Background(), &registry.NetworkService{
@@ -161,7 +161,7 @@ func TestMatchEmptySourceSelector(t *testing.T) {
 }
 
 func TestMatchNonEmptySourceSelector(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	nsName := networkServiceName()
 	nsServer := memory.NewNetworkServiceRegistryServer()
 	_, err := nsServer.Register(context.Background(), &registry.NetworkService{
@@ -200,7 +200,7 @@ func TestMatchNonEmptySourceSelector(t *testing.T) {
 }
 
 func TestMatchEmptySourceSelectorGoingFirst(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	nsName := networkServiceName()
 	nsServer := memory.NewNetworkServiceRegistryServer()
 	_, err := nsServer.Register(context.Background(), &registry.NetworkService{
@@ -238,7 +238,7 @@ func TestMatchEmptySourceSelectorGoingFirst(t *testing.T) {
 }
 
 func TestMatchNothing(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	nsName := networkServiceName()
 	nsServer := memory.NewNetworkServiceRegistryServer()
 	_, err := nsServer.Register(context.Background(), &registry.NetworkService{
@@ -273,7 +273,7 @@ func TestMatchNothing(t *testing.T) {
 }
 
 func TestMatchSelectedNSE(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	nsName := networkServiceName()
 	nsServer := memory.NewNetworkServiceRegistryServer()
 	_, err := nsServer.Register(context.Background(), &registry.NetworkService{

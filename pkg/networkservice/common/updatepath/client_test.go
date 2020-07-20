@@ -29,7 +29,7 @@ import (
 )
 
 func TestNewClient_EmptyPathInRequest(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	client := updatepath.NewClient("nsc-1", TokenGenerator)
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -56,7 +56,7 @@ func TestNewClient_EmptyPathInRequest(t *testing.T) {
 }
 
 func TestNewClient_ZeroIndexAddNewSegment(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	client := updatepath.NewClient("nsc-1", TokenGenerator)
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -87,7 +87,7 @@ func TestNewClient_ZeroIndexAddNewSegment(t *testing.T) {
 }
 
 func TestNewClient_ValidIndexOverwriteValues(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	client := updatepath.NewClient("nsc-1", TokenGenerator)
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -135,7 +135,7 @@ func TestNewClient_ValidIndexOverwriteValues(t *testing.T) {
 }
 
 func TestNewClient_IndexGreaterThanArrayLength(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	client := updatepath.NewClient("nsc-1", TokenGenerator)
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{

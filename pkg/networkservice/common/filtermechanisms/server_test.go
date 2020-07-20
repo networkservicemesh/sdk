@@ -37,7 +37,7 @@ import (
 )
 
 func TestNewServer_FilterUnixType(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	ctx := peer.NewContext(context.Background(), &peer.Peer{
 		Addr: &net.UnixAddr{
 			Name: "/var/run/nse-1.sock",
@@ -65,7 +65,7 @@ func TestNewServer_FilterUnixType(t *testing.T) {
 }
 
 func TestNewServer_FilterNonUnixType(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	ctx := peer.NewContext(context.Background(), &peer.Peer{
 		Addr: &net.IPAddr{
 			IP: net.IP{192, 168, 0, 1},

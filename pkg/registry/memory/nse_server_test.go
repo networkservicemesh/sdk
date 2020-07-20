@@ -30,7 +30,7 @@ import (
 )
 
 func TestNetworkServiceEndpointRegistryServer_RegisterAndFind(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	s := next.NewNetworkServiceEndpointRegistryServer(memory.NewNetworkServiceEndpointRegistryServer())
 
 	_, err := s.Register(context.Background(), &registry.NetworkServiceEndpoint{
@@ -63,7 +63,7 @@ func TestNetworkServiceEndpointRegistryServer_RegisterAndFind(t *testing.T) {
 }
 
 func TestNetworkServiceEndpointRegistryServer_RegisterAndFindWatch(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	s := next.NewNetworkServiceEndpointRegistryServer(memory.NewNetworkServiceEndpointRegistryServer())
 
 	_, err := s.Register(context.Background(), &registry.NetworkServiceEndpoint{
