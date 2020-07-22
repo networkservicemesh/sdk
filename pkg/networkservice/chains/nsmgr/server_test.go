@@ -74,11 +74,10 @@ func newClient(ctx context.Context, u *url.URL) (*grpc.ClientConn, error) {
 		grpc.WithBlock())
 }
 
-
 // NewCrossNSE construct a new Cross connect test NSE
 func newCrossNSE(ctx context.Context, name string, connectTo *url.URL, tokenGenerator token.GeneratorFunc, clientDialOptions ...grpc.DialOption) endpoint.Endpoint {
 	var crossNSe endpoint.Endpoint
-	crossNSe = endpoint.NewServer(
+	crossNSe = endpoint.NewServer(ctx,
 		name,
 		authorize.NewServer(),
 		tokenGenerator,
@@ -104,7 +103,6 @@ func TestNSmgrCrossNSETest(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-
 	nsmgrReg := &registry.NetworkServiceEndpoint{
 		Name: "nsmgr",
 		Url:  "tcp://127.0.0.1:5001",
@@ -123,7 +121,7 @@ func TestNSmgrCrossNSETest(t *testing.T) {
 	// Serve endpoint
 	nseURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
 	endpoint.Serve(ctx, nseURL,
-		endpoint.NewServer(
+		endpoint.NewServer(ctx,
 			"final-endpoint",
 			authorize.NewServer(),
 			TokenGenerator),

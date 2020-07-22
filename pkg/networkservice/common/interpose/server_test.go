@@ -79,12 +79,14 @@ func TestCrossNSERequest(t *testing.T) {
 		Scheme: "unix",
 		Path:   "/var/run/nse-1.sock",
 	}
-	server := endpoint.NewServer("nsmgr",
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	server := endpoint.NewServer(ctx, "nsmgr",
 		authorize.NewServer(),
 		TokenGenerator,
 		interpose.NewServer("nsmgr", &regServer))
 
-	crossNSE := endpoint.NewServer("cross-nse",
+	crossNSE := endpoint.NewServer(ctx, "cross-nse",
 		authorize.NewServer(),
 		TokenGenerator)
 
