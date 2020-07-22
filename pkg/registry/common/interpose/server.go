@@ -34,15 +34,15 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
-// InterposeNSEName - a common prefix for all registered cross NSEs
-const InterposeNSEName = "cross-connect-nse#"
+// interposeNSEName - a common prefix for all registered cross NSEs
+const interposeNSEName = "cross-connect-nse#"
 
 type interposeRegistry struct {
 	endpoints *interpose.Map
 }
 
 func (l *interposeRegistry) Register(ctx context.Context, request *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	if strings.HasSuffix(request.Name, InterposeNSEName) {
+	if strings.HasSuffix(request.Name, interposeNSEName) {
 		endpointURL, err := url.Parse(request.Url)
 		if err != nil {
 			return nil, err
@@ -51,9 +51,9 @@ func (l *interposeRegistry) Register(ctx context.Context, request *registry.Netw
 			return nil, errors.New("invalid endpoint URL passed with context")
 		}
 
-		if request.Name == InterposeNSEName {
+		if request.Name == interposeNSEName {
 			// Generate uniq name only if full equal to endpoints prefix.
-			request.Name = InterposeNSEName + uuid.New().String()
+			request.Name = interposeNSEName + uuid.New().String()
 		}
 		l.endpoints.LoadOrStore(request.Name, request)
 		return request, nil
@@ -68,7 +68,7 @@ func (l *interposeRegistry) Find(query *registry.NetworkServiceEndpointQuery, s 
 }
 
 func (l *interposeRegistry) Unregister(ctx context.Context, request *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	if strings.HasSuffix(request.Name, InterposeNSEName) {
+	if strings.HasSuffix(request.Name, interposeNSEName) {
 		l.endpoints.Delete(request.Name)
 		return &empty.Empty{}, nil
 	}

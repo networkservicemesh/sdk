@@ -22,6 +22,9 @@ import (
 	"sync/atomic"
 	"testing"
 
+	adapters2 "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
+	next_reg "github.com/networkservicemesh/sdk/pkg/registry/core/next"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
 	interpose_tools "github.com/networkservicemesh/sdk/pkg/tools/interpose"
 
@@ -50,12 +53,13 @@ func TestCrossNSERegister(t *testing.T) {
 	crossMap := &crossNSEMap{}
 	server := interpose.NewNetworkServiceRegistryServer(&crossMap.endpoints)
 
-	reg, err := server.Register(context.Background(), &registry.NetworkServiceEndpoint{
-		Name: interpose.InterposeNSEName,
+	regClient := next_reg.NewNetworkServiceEndpointRegistryClient(interpose.NewNetworkServiceEndpointRegistryClient(), adapters2.NetworkServiceEndpointServerToClient(server))
+	reg, err := regClient.Register(context.Background(), &registry.NetworkServiceEndpoint{
+		Name: "cross-nse",
 		Url:  "test",
 	})
 	require.Nil(t, err)
-	require.Greater(t, len(reg.Name), len(interpose.InterposeNSEName))
+	require.Greater(t, len(reg.Name), len("cross-connect-nse#"))
 
 	_, err = server.Unregister(context.Background(), reg)
 	require.Nil(t, err)
@@ -64,8 +68,9 @@ func TestCrossNSERegisterInvalidURL(t *testing.T) {
 	crossMap := &crossNSEMap{}
 	server := interpose.NewNetworkServiceRegistryServer(&crossMap.endpoints)
 
-	req, err := server.Register(context.Background(), &registry.NetworkServiceEndpoint{
-		Name: interpose.InterposeNSEName,
+	regClient := next_reg.NewNetworkServiceEndpointRegistryClient(interpose.NewNetworkServiceEndpointRegistryClient(), adapters2.NetworkServiceEndpointServerToClient(server))
+	req, err := regClient.Register(context.Background(), &registry.NetworkServiceEndpoint{
+		Name: "cross-nse",
 		Url:  "ht% 20", // empty URL error
 	})
 	require.NotNil(t, err)

@@ -20,6 +20,9 @@ package interpose_test
 import (
 	"context"
 
+	adapters2 "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
+	next_reg "github.com/networkservicemesh/sdk/pkg/registry/core/next"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interpose"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -81,12 +84,14 @@ func TestCrossNSERequest(t *testing.T) {
 		TokenGenerator,
 		interpose.NewServer("nsmgr", &regServer))
 
-	crossNSE := endpoint.NewServer(interpose_reg.InterposeNSEName,
+	crossNSE := endpoint.NewServer("cross-nse",
 		authorize.NewServer(),
 		TokenGenerator)
 
-	reg, err := regServer.Register(context.Background(), &registry.NetworkServiceEndpoint{
-		Name: interpose_reg.InterposeNSEName,
+	regClient := next_reg.NewNetworkServiceEndpointRegistryClient(interpose_reg.NewNetworkServiceEndpointRegistryClient(), adapters2.NetworkServiceEndpointServerToClient(regServer))
+
+	reg, err := regClient.Register(context.Background(), &registry.NetworkServiceEndpoint{
+		Name: "cross-nse",
 		Url:  crossURL,
 	})
 	require.Nil(t, err)
@@ -129,6 +134,6 @@ func TestCrossNSERequest(t *testing.T) {
 	require.Equal(t, 4, len(copyClient.requests))
 	require.Equal(t, 4, len(segments))
 	require.Equal(t, "nsmgr", segments[1].Name)
-	require.Equal(t, interpose_reg.InterposeNSEName, segments[2].Name)
+	require.Equal(t, "cross-nse", segments[2].Name)
 	require.Equal(t, "nsmgr", segments[3].Name)
 }

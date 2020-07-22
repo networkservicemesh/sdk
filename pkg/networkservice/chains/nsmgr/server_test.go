@@ -25,6 +25,8 @@ import (
 	"time"
 
 	interpose_reg "github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
+	adapters2 "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
+	next_reg "github.com/networkservicemesh/sdk/pkg/registry/core/next"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
@@ -130,7 +132,7 @@ func TestNSmgrCrossNSETest(t *testing.T) {
 
 	// Serve Cross Connect NSE
 	crossNSEURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
-	endpoint.Serve(ctx, crossNSEURL, newCrossNSE(ctx, interpose_reg.InterposeNSEName, nsmURL, TokenGenerator, grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true))))
+	endpoint.Serve(ctx, crossNSEURL, newCrossNSE(ctx, "cross-nse", nsmURL, TokenGenerator, grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true))))
 	logrus.Infof("Cross NSE listenON: %v", crossNSEURL.String())
 
 	// Register network service.
@@ -149,9 +151,10 @@ func TestNSmgrCrossNSETest(t *testing.T) {
 	require.Nil(t, err)
 
 	// Register Cross NSE
-	_, err = mgr.NetworkServiceEndpointRegistryServer().Register(context.Background(), &registry.NetworkServiceEndpoint{
+	crossRegClient := next_reg.NewNetworkServiceEndpointRegistryClient(interpose_reg.NewNetworkServiceEndpointRegistryClient(), adapters2.NetworkServiceEndpointServerToClient(mgr.NetworkServiceEndpointRegistryServer()))
+	_, err = crossRegClient.Register(context.Background(), &registry.NetworkServiceEndpoint{
 		Url:  crossNSEURL.String(),
-		Name: interpose_reg.InterposeNSEName,
+		Name: "cross-nse",
 	})
 	require.Nil(t, err)
 
