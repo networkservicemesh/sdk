@@ -44,7 +44,7 @@ func TestNewServer_SetNewPathId(t *testing.T) {
 	require.NotNil(t, conn)
 	require.NoError(t, err)
 	require.Equal(t, conn.Path.PathSegments[1].Name, "nse-3") // Check name is replaced.
-	require.Equal(t, conn.Id, pathSegmentID2)
+	require.Equal(t, conn.Id, conn.Path.PathSegments[1].Id)
 }
 
 func TestNewServer_PathSegmentNameEqualClientName(t *testing.T) {

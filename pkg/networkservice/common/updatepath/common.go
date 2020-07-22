@@ -68,9 +68,9 @@ func updatePath(conn *networkservice.Connection, segmentName string) (*networkse
 			nextIndex, len(path.GetPathSegments()))
 	}
 	if nextIndex < len(path.GetPathSegments()) && path.GetPathSegments()[nextIndex].Name != segmentName {
-		// We have next, but name is different, so let's update Path segment in this case.
-		// Id should be same, since next chain elements may depend on it.
+		// We have next, but name is different, so let's update Both Path segment.{Id,Name} and Connection.Id
 		path.PathSegments[nextIndex].Name = segmentName
+		path.PathSegments[nextIndex].Id = uuid.New().String()
 	}
 
 	// Increment index to be accurate to current chain element
