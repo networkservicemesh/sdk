@@ -20,6 +20,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/extend"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
@@ -38,14 +40,14 @@ type connectNSServer struct {
 	clientFactory     func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient
 	cache             nsClientMap
 	connectExpiration time.Duration
+	ctx               context.Context
 }
 
 // NewNetworkServiceRegistryServer creates new connect NetworkServiceEndpointRegistryServer with specific chain context, registry client factory and options
 // that allows connecting to other registries via passed clienturl.
-func NewNetworkServiceRegistryServer(
-	clientFactory func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient,
-	options ...Option) registry.NetworkServiceRegistryServer {
+func NewNetworkServiceRegistryServer(ctx context.Context, clientFactory func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient, options ...Option) registry.NetworkServiceRegistryServer {
 	r := &connectNSServer{
+		ctx:               ctx,
 		clientFactory:     clientFactory,
 		connectExpiration: defaultConnectExpiration,
 	}
@@ -78,6 +80,9 @@ func (c *connectNSServer) connect(ctx context.Context) registry.NetworkServiceRe
 		}
 		return v.client
 	}
+
+	// Use new context with longer lifetime to use with client
+	ctx = extend.WithValuesFromContext(c.ctx, ctx)
 	client := clienturl.NewNetworkServiceRegistryClient(ctx, c.clientFactory, c.dialOptions...)
 	cached, _ := c.cache.LoadOrStore(key, &nsCacheEntry{
 		expirationTimer: time.AfterFunc(c.connectExpiration, func() {

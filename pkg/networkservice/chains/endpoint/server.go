@@ -57,14 +57,14 @@ type endpoint struct {
 //             - authzServer authorization server chain element
 //             - tokenGenerator - token.GeneratorFunc - generates tokens for use in Path
 //             - additionalFunctionality - any additional NetworkServiceServer chain elements to be included in the chain
-func NewServer(name string, authzServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceServer) Endpoint {
+func NewServer(ctx context.Context, name string, authzServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceServer) Endpoint {
 	rv := &endpoint{}
 	var ns networkservice.NetworkServiceServer = rv
 	rv.NetworkServiceServer = chain.NewNetworkServiceServer(
 		append([]networkservice.NetworkServiceServer{
 			authzServer,
 			setid.NewServer(name),
-			monitor.NewServer(&rv.MonitorConnectionServer),
+			monitor.NewServer(ctx, &rv.MonitorConnectionServer),
 			timeout.NewServer(&ns),
 			updatepath.NewServer(name, tokenGenerator),
 		}, additionalFunctionality...)...)

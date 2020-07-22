@@ -18,7 +18,6 @@ package clienturl
 
 import (
 	"context"
-	"runtime"
 	"sync"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -35,18 +34,18 @@ type clientURLClient struct {
 	dialOptions   []grpc.DialOption
 	initOnce      sync.Once
 	dialErr       error
-	cancel        context.CancelFunc
 	client        networkservice.NetworkServiceClient
 }
 
 // NewClient - creates a Client that will using clienturl.ClientUrl(ctx) to extract a url, dial it to a cc, use that cc with the clientFactory to produce a new
 //             client to which it passes through any Request or Close calls
+// 	ctx	- is full lifecycle context, any started clients will be terminated by this context done.
 func NewClient(ctx context.Context, clientFactory func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient, dialOptions ...grpc.DialOption) networkservice.NetworkServiceClient {
 	rv := &clientURLClient{
+		ctx:           ctx,
 		clientFactory: clientFactory,
 		dialOptions:   dialOptions,
 	}
-	rv.ctx, rv.cancel = context.WithCancel(ctx)
 	return rv
 }
 
@@ -77,10 +76,10 @@ func (u *clientURLClient) init() error {
 			return
 		}
 		u.client = u.clientFactory(u.ctx, cc)
-		runtime.SetFinalizer(u, func(u *clientURLClient) {
-			u.cancel()
+		go func() {
+			<-u.ctx.Done()
 			_ = cc.Close()
-		})
+		}()
 	})
 	return u.dialErr
 }

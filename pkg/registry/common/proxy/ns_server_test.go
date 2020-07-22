@@ -34,7 +34,9 @@ func TestNewProxyNetworkServiceRegistryServer_Register(t *testing.T) {
 	m := memory.NewNetworkServiceRegistryServer()
 	u, closeServer := startNSServer(t, m)
 
-	chain := testingNSServerChain(u)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	chain := testingNSServerChain(ctx, u)
 
 	_, err := chain.Register(context.Background(), &registry.NetworkService{Name: "nse-1"})
 	require.NoError(t, err)
@@ -65,7 +67,10 @@ func TestNewProxyNetworkServiceRegistryServer_Unregister(t *testing.T) {
 	require.Nil(t, err)
 	u, closeServer := startNSServer(t, m)
 
-	chain := testingNSServerChain(u)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	chain := testingNSServerChain(ctx, u)
 
 	checkLen := func(expected int) {
 		client := adapters.NetworkServiceServerToClient(m)
@@ -101,8 +106,9 @@ func TestNewProxyNetworkServiceRegistryServer_Find(t *testing.T) {
 	_, err := m.Register(context.Background(), &registry.NetworkService{Name: "nse-1@domain1"})
 	require.Nil(t, err)
 	u, closeServer := startNSServer(t, m)
-
-	chain := testingNSServerChain(u)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	chain := testingNSServerChain(ctx, u)
 
 	checkLen := func(nseName string, expected int) {
 		client := adapters.NetworkServiceServerToClient(chain)

@@ -35,21 +35,21 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/memory"
 )
 
-func localNSRegistryServer(proxyRegistryURL *url.URL) registry.NetworkServiceRegistryServer {
+func localNSRegistryServer(ctx context.Context, proxyRegistryURL *url.URL) registry.NetworkServiceRegistryServer {
 	return next.NewNetworkServiceRegistryServer(
 		memory.NewNetworkServiceRegistryServer(),
 		proxy.NewNetworkServiceRegistryServer(proxyRegistryURL),
-		connect.NewNetworkServiceRegistryServer(func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
+		connect.NewNetworkServiceRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
 			return registry.NewNetworkServiceRegistryClient(cc)
 		}, connect.WithExpirationDuration(time.Millisecond*500), connect.WithClientDialOptions(grpc.WithInsecure())),
 	)
 }
 
-func proxyNSRegistryServer(currentDomain string, resolver dnsresolve.Resolver) registry.NetworkServiceRegistryServer {
+func proxyNSRegistryServer(ctx context.Context, currentDomain string, resolver dnsresolve.Resolver) registry.NetworkServiceRegistryServer {
 	return next.NewNetworkServiceRegistryServer(
 		dnsresolve.NewNetworkServiceRegistryServer(dnsresolve.WithResolver(resolver)),
 		swap.NewNetworkServiceRegistryServer(currentDomain),
-		connect.NewNetworkServiceRegistryServer(func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
+		connect.NewNetworkServiceRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
 			return registry.NewNetworkServiceRegistryClient(cc)
 		}, connect.WithExpirationDuration(time.Millisecond*500), connect.WithClientDialOptions(grpc.WithInsecure())),
 	)
@@ -78,8 +78,11 @@ func TestInterdomainNetworkServiceRegistry(t *testing.T) {
 	const proxyRegistryDomain = "domain1.proxy.registry"
 	const remoteRegistryDomain = "domain2.local.registry"
 
-	proxyRegistryURL := tool.startNetworkServiceRegistryServerAsync(proxyRegistryDomain, proxyNSRegistryServer(localRegistryDomain, tool))
-	tool.startNetworkServiceRegistryServerAsync(localRegistryDomain, localNSRegistryServer(proxyRegistryURL))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	proxyRegistryURL := tool.startNetworkServiceRegistryServerAsync(proxyRegistryDomain, proxyNSRegistryServer(ctx, localRegistryDomain, tool))
+	tool.startNetworkServiceRegistryServerAsync(localRegistryDomain, localNSRegistryServer(ctx, proxyRegistryURL))
 
 	remoteMem := memory.NewNetworkServiceRegistryServer()
 	_, err := remoteMem.Register(context.Background(), &registry.NetworkService{Name: "ns-1"})
@@ -130,12 +133,14 @@ func TestInterdomainFloatingNetworkServiceRegistry(t *testing.T) {
 	const floatingRegistryDomain = "domain2.floating.registry"
 
 	fMem := memory.NewNetworkServiceRegistryServer()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	proxyRegistryURL1 := tool.startNetworkServiceRegistryServerAsync(proxyRegistryDomain, proxyNSRegistryServer(localRegistryDomain, tool))
-	tool.startNetworkServiceRegistryServerAsync(localRegistryDomain, localNSRegistryServer(proxyRegistryURL1))
+	proxyRegistryURL1 := tool.startNetworkServiceRegistryServerAsync(proxyRegistryDomain, proxyNSRegistryServer(ctx, localRegistryDomain, tool))
+	tool.startNetworkServiceRegistryServerAsync(localRegistryDomain, localNSRegistryServer(ctx, proxyRegistryURL1))
 
-	proxyRegistryURL2 := tool.startNetworkServiceRegistryServerAsync(remoteProxyRegistryDomain, proxyNSRegistryServer(remoteRegistryDomain, tool))
-	tool.startNetworkServiceRegistryServerAsync(remoteRegistryDomain, localNSRegistryServer(proxyRegistryURL2))
+	proxyRegistryURL2 := tool.startNetworkServiceRegistryServerAsync(remoteProxyRegistryDomain, proxyNSRegistryServer(ctx, remoteRegistryDomain, tool))
+	tool.startNetworkServiceRegistryServerAsync(remoteRegistryDomain, localNSRegistryServer(ctx, proxyRegistryURL2))
 
 	tool.startNetworkServiceRegistryServerAsync(floatingRegistryDomain, fMem)
 

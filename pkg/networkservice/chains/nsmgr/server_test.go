@@ -20,7 +20,6 @@ package nsmgr_test
 import (
 	"context"
 	"net/url"
-	"os"
 	"testing"
 	"time"
 
@@ -34,7 +33,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/grpclog"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 
@@ -64,16 +62,13 @@ func newClient(ctx context.Context, u *url.URL) (*grpc.ClientConn, error) {
 		grpc.WithInsecure(),
 		grpc.WithBlock())
 }
-
 func TestNSmgrEndpointCallback(t *testing.T) {
-	grpclog.SetLoggerV2(grpclog.NewLoggerV2(os.Stdout, os.Stdout, os.Stderr))
-
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	// Serve endpoint
 	nseURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
-	_ = endpoint.Serve(ctx, nseURL, endpoint.NewServer("test-nse", authorize.NewServer(), TokenGenerator, setextracontext.NewServer(map[string]string{"perform": "ok"})))
+	_ = endpoint.Serve(ctx, nseURL, endpoint.NewServer(ctx, "test-nse", authorize.NewServer(), TokenGenerator, setextracontext.NewServer(map[string]string{"perform": "ok"})))
 	logrus.Infof("NSE listenON: %v", nseURL.String())
 
 	nsmgrReg := &registry.NetworkServiceEndpoint{
