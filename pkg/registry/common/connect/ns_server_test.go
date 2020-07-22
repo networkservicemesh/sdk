@@ -62,7 +62,10 @@ func TestConnect_NewNetworkServiceRegistryServer(t *testing.T) {
 	url1, closeServer1 := startNSServer(t)
 	url2, closeServer2 := startNSServer(t)
 
-	s := connect.NewNetworkServiceRegistryServer(func(_ context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	s := connect.NewNetworkServiceRegistryServer(ctx, func(_ context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
 		return registry.NewNetworkServiceRegistryClient(cc)
 	}, connect.WithExpirationDuration(time.Millisecond*100), connect.WithClientDialOptions(grpc.WithInsecure()))
 

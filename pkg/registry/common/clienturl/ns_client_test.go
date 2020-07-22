@@ -49,7 +49,11 @@ func TestClientURL_NewNetworkServiceRegistryClient(t *testing.T) {
 	}()
 	u, err := url.Parse("tcp://" + l.Addr().String())
 	require.Nil(t, err)
-	ctx := clienturl.WithClientURL(context.Background(), u)
+
+	ctx, clientCancel := context.WithCancel(context.Background())
+	defer clientCancel()
+	ctx = clienturl.WithClientURL(ctx, u)
+
 	client := clienturl.NewNetworkServiceRegistryClient(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
 		return registry.NewNetworkServiceRegistryClient(cc)
 	}, grpc.WithInsecure())

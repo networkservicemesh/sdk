@@ -47,6 +47,7 @@ func TestClientURL_NewNetworkServiceEndpointRegistryClient(t *testing.T) {
 	go func() {
 		_ = s.Serve(l)
 	}()
+	defer s.Stop()
 	u, err := url.Parse("tcp://" + l.Addr().String())
 	require.Nil(t, err)
 	ctx := clienturl.WithClientURL(context.Background(), u)

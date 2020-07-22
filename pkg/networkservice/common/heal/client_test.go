@@ -157,7 +157,6 @@ func TestHealClient_EmptyInit(t *testing.T) {
 }
 
 func TestNewClient_MissingConnectionsInInit(t *testing.T) {
-	t.Skip("https://github.com/networkservicemesh/sdk/issues/375")
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	logrus.SetOutput(ioutil.Discard)
 	eventCh := make(chan *networkservice.ConnectionEvent, 1)

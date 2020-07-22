@@ -85,7 +85,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 	}
 
 	// Construct Endpoint
-	rv.Endpoint = endpoint.NewServer(
+	rv.Endpoint = endpoint.NewServer(ctx,
 		nsmRegistration.Name,
 		authzServer,
 		tokenGenerator,

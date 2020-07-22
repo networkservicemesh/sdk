@@ -20,7 +20,6 @@ package monitor
 
 import (
 	"context"
-	"runtime"
 
 	"github.com/golang/protobuf/ptypes/empty"
 
@@ -35,7 +34,7 @@ type monitorServer struct {
 	connections map[string]*networkservice.Connection
 	monitors    []networkservice.MonitorConnection_MonitorConnectionsServer
 	executor    serialize.Executor
-	finalized   chan struct{}
+	ctx         context.Context
 }
 
 // NewServer - creates a NetworkServiceServer chain element that will properly update a MonitorConnectionServer
@@ -46,16 +45,13 @@ type monitorServer struct {
 //                        NewServer(...) as any other chain element constructor, but also get back a
 //                        networkservice.MonitorConnectionServer that can be used either standalone or in a
 //                        networkservice.MonitorConnectionServer chain
-func NewServer(monitorServerPtr *networkservice.MonitorConnectionServer) networkservice.NetworkServiceServer {
+//             ctx - context for lifecycle management
+func NewServer(ctx context.Context, monitorServerPtr *networkservice.MonitorConnectionServer) networkservice.NetworkServiceServer {
 	rv := &monitorServer{
+		ctx:         ctx,
 		connections: make(map[string]*networkservice.Connection),
 		monitors:    nil, // Intentionally nil
-		executor:    serialize.NewExecutor(),
-		finalized:   make(chan struct{}),
 	}
-	runtime.SetFinalizer(rv, func(server *monitorServer) {
-		close(server.finalized)
-	})
 	*monitorServerPtr = rv
 	return rv
 }
@@ -73,7 +69,7 @@ func (m *monitorServer) MonitorConnections(selector *networkservice.MonitorScope
 	})
 	select {
 	case <-srv.Context().Done():
-	case <-m.finalized:
+	case <-m.ctx.Done():
 	}
 	return nil
 }

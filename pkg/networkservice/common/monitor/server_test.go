@@ -33,10 +33,11 @@ func TestMonitor(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	// Specify pathSegments to test
 	segmentNames := []string{"local-nsm", "remote-nsm"}
-
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	// Create monitorServer, monitorClient, and server.
 	var monitorServer networkservice.MonitorConnectionServer
-	server := monitor.NewServer(&monitorServer)
+	server := monitor.NewServer(ctx, &monitorServer)
 	monitorClient := adapters.NewMonitorServerToClient(monitorServer)
 
 	// Create maps to hold returned connections and receivers

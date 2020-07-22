@@ -18,7 +18,6 @@ package clienturl
 
 import (
 	"context"
-	"runtime"
 	"sync"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -100,9 +99,10 @@ func (u *nseRegistryURLClient) init() error {
 			return
 		}
 		u.client = u.clientFactory(u.ctx, cc)
-		runtime.SetFinalizer(u, func(u *nseRegistryURLClient) {
+		go func() {
+			<-u.ctx.Done()
 			_ = cc.Close()
-		})
+		}()
 	})
 	return u.dialErr
 }

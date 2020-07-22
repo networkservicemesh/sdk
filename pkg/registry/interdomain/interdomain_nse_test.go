@@ -35,21 +35,21 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/memory"
 )
 
-func localNSERegistryServer(proxyRegistryURL *url.URL) registry.NetworkServiceEndpointRegistryServer {
+func localNSERegistryServer(ctx context.Context, proxyRegistryURL *url.URL) registry.NetworkServiceEndpointRegistryServer {
 	return next.NewNetworkServiceEndpointRegistryServer(
 		memory.NewNetworkServiceEndpointRegistryServer(),
 		proxy.NewNetworkServiceEndpointRegistryServer(proxyRegistryURL),
-		connect.NewNetworkServiceEndpointRegistryServer(func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient {
+		connect.NewNetworkServiceEndpointRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient {
 			return registry.NewNetworkServiceEndpointRegistryClient(cc)
 		}, connect.WithExpirationDuration(time.Millisecond*500), connect.WithClientDialOptions(grpc.WithInsecure())),
 	)
 }
 
-func proxyNSERegistryServer(currentDomain string, resolver dnsresolve.Resolver) registry.NetworkServiceEndpointRegistryServer {
+func proxyNSERegistryServer(ctx context.Context, currentDomain string, resolver dnsresolve.Resolver) registry.NetworkServiceEndpointRegistryServer {
 	return next.NewNetworkServiceEndpointRegistryServer(
 		dnsresolve.NewNetworkServiceEndpointRegistryServer(dnsresolve.WithResolver(resolver)),
 		swap.NewNetworkServiceEndpointRegistryServer(currentDomain, &url.URL{Scheme: "test", Host: "proxyNSMGRurl"}, &url.URL{Scheme: "test", Host: "publicNSMGRurl"}),
-		connect.NewNetworkServiceEndpointRegistryServer(func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient {
+		connect.NewNetworkServiceEndpointRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient {
 			return registry.NewNetworkServiceEndpointRegistryClient(cc)
 		}, connect.WithExpirationDuration(time.Millisecond*500), connect.WithClientDialOptions(grpc.WithInsecure())),
 	)
@@ -77,9 +77,11 @@ func TestInterdomainNetworkServiceEndpointRegistry(t *testing.T) {
 	const localRegistryDomain = "domain1.local.registry"
 	const proxyRegistryDomain = "domain1.proxy.registry"
 	const remoteRegistryDomain = "domain2.local.registry"
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	proxyRegistryURL := tool.startNetworkServiceEndpointRegistryServerAsync(proxyRegistryDomain, proxyNSERegistryServer(localRegistryDomain, tool))
-	tool.startNetworkServiceEndpointRegistryServerAsync(localRegistryDomain, localNSERegistryServer(proxyRegistryURL))
+	proxyRegistryURL := tool.startNetworkServiceEndpointRegistryServerAsync(proxyRegistryDomain, proxyNSERegistryServer(ctx, localRegistryDomain, tool))
+	tool.startNetworkServiceEndpointRegistryServerAsync(localRegistryDomain, localNSERegistryServer(ctx, proxyRegistryURL))
 
 	remoteMem := memory.NewNetworkServiceEndpointRegistryServer()
 	_, err := remoteMem.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: "nse-1", Url: "nsmgr-url"})
@@ -131,11 +133,14 @@ func TestInterdomainFloatingNetworkServiceEndpointRegistry(t *testing.T) {
 
 	fMem := memory.NewNetworkServiceEndpointRegistryServer()
 
-	proxyRegistryURL1 := tool.startNetworkServiceEndpointRegistryServerAsync(proxyRegistryDomain, proxyNSERegistryServer(localRegistryDomain, tool))
-	tool.startNetworkServiceEndpointRegistryServerAsync(localRegistryDomain, localNSERegistryServer(proxyRegistryURL1))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	proxyRegistryURL2 := tool.startNetworkServiceEndpointRegistryServerAsync(remoteProxyRegistryDomain, proxyNSERegistryServer(remoteRegistryDomain, tool))
-	tool.startNetworkServiceEndpointRegistryServerAsync(remoteRegistryDomain, localNSERegistryServer(proxyRegistryURL2))
+	proxyRegistryURL1 := tool.startNetworkServiceEndpointRegistryServerAsync(proxyRegistryDomain, proxyNSERegistryServer(ctx, localRegistryDomain, tool))
+	tool.startNetworkServiceEndpointRegistryServerAsync(localRegistryDomain, localNSERegistryServer(ctx, proxyRegistryURL1))
+
+	proxyRegistryURL2 := tool.startNetworkServiceEndpointRegistryServerAsync(remoteProxyRegistryDomain, proxyNSERegistryServer(ctx, remoteRegistryDomain, tool))
+	tool.startNetworkServiceEndpointRegistryServerAsync(remoteRegistryDomain, localNSERegistryServer(ctx, proxyRegistryURL2))
 
 	tool.startNetworkServiceEndpointRegistryServerAsync(floatingRegistryDomain, fMem)
 

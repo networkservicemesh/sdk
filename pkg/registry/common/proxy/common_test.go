@@ -73,19 +73,19 @@ func startNSServer(t *testing.T, chain registry.NetworkServiceRegistryServer) (u
 	return u, closeFunc
 }
 
-func testingNSEServerChain(u *url.URL) registry.NetworkServiceEndpointRegistryServer {
+func testingNSEServerChain(ctx context.Context, u *url.URL) registry.NetworkServiceEndpointRegistryServer {
 	return next.NewNetworkServiceEndpointRegistryServer(
 		proxy.NewNetworkServiceEndpointRegistryServer(u),
-		connect.NewNetworkServiceEndpointRegistryServer(func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient {
+		connect.NewNetworkServiceEndpointRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient {
 			return registry.NewNetworkServiceEndpointRegistryClient(cc)
 		}, connect.WithExpirationDuration(time.Millisecond*100), connect.WithClientDialOptions(grpc.WithInsecure())),
 	)
 }
 
-func testingNSServerChain(u *url.URL) registry.NetworkServiceRegistryServer {
+func testingNSServerChain(ctx context.Context, u *url.URL) registry.NetworkServiceRegistryServer {
 	return next.NewNetworkServiceRegistryServer(
 		proxy.NewNetworkServiceRegistryServer(u),
-		connect.NewNetworkServiceRegistryServer(func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
+		connect.NewNetworkServiceRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
 			return registry.NewNetworkServiceRegistryClient(cc)
 		}, connect.WithExpirationDuration(time.Millisecond*100), connect.WithClientDialOptions(grpc.WithInsecure())),
 	)

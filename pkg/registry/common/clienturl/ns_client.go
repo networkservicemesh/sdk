@@ -18,7 +18,6 @@ package clienturl
 
 import (
 	"context"
-	"runtime"
 	"sync"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -79,6 +78,7 @@ func (u *nsRegistryURLClient) Unregister(ctx context.Context, in *registry.Netwo
 
 // NewNetworkServiceRegistryClient - creates a Client that will using clienturl.ClientUrl(ctx) to extract a url, dial it to a cc, use that cc with the clientFactory to produce a new
 //             client to which it passes through any Request or Close calls
+// 	ctx - context be alive all lifetime for client exists, canceling of it means client should terminate
 func NewNetworkServiceRegistryClient(ctx context.Context, clientFactory func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient, dialOptions ...grpc.DialOption) registry.NetworkServiceRegistryClient {
 	return &nsRegistryURLClient{
 		clientFactory: clientFactory,
@@ -100,9 +100,10 @@ func (u *nsRegistryURLClient) init() error {
 			return
 		}
 		u.client = u.clientFactory(u.ctx, cc)
-		runtime.SetFinalizer(u, func(u *nsRegistryURLClient) {
+		go func() {
+			<-u.ctx.Done()
 			_ = cc.Close()
-		})
+		}()
 	})
 	return u.dialErr
 }
