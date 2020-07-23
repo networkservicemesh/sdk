@@ -39,6 +39,9 @@ func (eps *excludedPrefixesServer) Request(ctx context.Context, request *network
 	logger := trace.Log(ctx)
 
 	conn := request.Connection
+	if conn.Context.IpContext == nil {
+		conn.Context.IpContext = &networkservice.IPContext{}
+	}
 	prefixes := eps.prefixes.GetPrefixes()
 	logger.Infof("ExcludedPrefixesService: adding excluded prefixes to connection: %v", prefixes)
 	ipCtx := conn.Context.IpContext

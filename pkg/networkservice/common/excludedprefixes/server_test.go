@@ -53,9 +53,7 @@ func TestNewExcludedPrefixesService(t *testing.T) {
 	}))
 	req := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
-			Context: &networkservice.ConnectionContext{
-				IpContext: &networkservice.IPContext{},
-			},
+			Context: &networkservice.ConnectionContext{},
 		},
 	}
 
@@ -86,9 +84,7 @@ func TestCheckReloadedPrefixes(t *testing.T) {
 	}))
 	req := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
-			Context: &networkservice.ConnectionContext{
-				IpContext: &networkservice.IPContext{},
-			},
+			Context: &networkservice.ConnectionContext{},
 		},
 	}
 
