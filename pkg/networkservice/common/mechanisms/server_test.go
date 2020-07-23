@@ -21,6 +21,10 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/golang/protobuf/ptypes/empty"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
@@ -37,6 +41,21 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/null"
 )
+
+type countRequestsNetworkServiceServer struct {
+	requestCh chan struct{}
+	closeCh   chan struct{}
+}
+
+func (c countRequestsNetworkServiceServer) Request(ctx context.Context, serviceRequest *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	c.requestCh <- struct{}{}
+	return next.Server(ctx).Request(ctx, serviceRequest)
+}
+
+func (c countRequestsNetworkServiceServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
+	c.closeCh <- struct{}{}
+	return next.Server(ctx).Close(ctx, connection)
+}
 
 func server() networkservice.NetworkServiceServer {
 	return chain.NewNetworkServiceServer(mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
@@ -167,4 +186,29 @@ func TestDownstreamError(t *testing.T) {
 	assert.NotNil(t, err)
 	_, err = server.Close(context.Background(), &networkservice.Connection{Mechanism: &networkservice.Mechanism{Cls: "NOT_A_CLS", Type: "NOT_A_TYPE"}})
 	assert.NotNil(t, err)
+}
+
+func TestDontCallNextByItself(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	logrus.SetOutput(ioutil.Discard)
+
+	requestCh := make(chan struct{}, 10)
+	closeCh := make(chan struct{}, 10)
+	server := next.NewNetworkServiceServer(server(), countRequestsNetworkServiceServer{requestCh: requestCh, closeCh: closeCh})
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Mechanism: &networkservice.Mechanism{
+				Type: memif.MECHANISM,
+			},
+		},
+	}
+
+	conn, err := server.Request(context.Background(), request)
+	assert.Nil(t, err)
+	assert.NotNil(t, conn)
+	assert.Equal(t, 1, len(requestCh))
+
+	_, err = server.Close(context.Background(), conn)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(closeCh))
 }
