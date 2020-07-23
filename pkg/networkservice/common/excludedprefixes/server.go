@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2020 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,20 +33,21 @@ import (
 )
 
 type excludedPrefixesServer struct {
-	prefixes *prefixpool.PrefixPool
+	prefixes   *prefixpool.PrefixPool
+	configPath string
 }
 
-// Note: request.Connection, Connection.Context and Context.IpContext should not be nil
+// Note: request.Connection and Connection.Context should not be nil
 func (eps *excludedPrefixesServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	logger := trace.Log(ctx)
 
-	conn := request.Connection
-	if conn.Context.IpContext == nil {
+	conn := request.GetConnection()
+	if conn.GetContext().GetIpContext() == nil {
 		conn.Context.IpContext = &networkservice.IPContext{}
 	}
 	prefixes := eps.prefixes.GetPrefixes()
 	logger.Infof("ExcludedPrefixesService: adding excluded prefixes to connection: %v", prefixes)
-	ipCtx := conn.Context.IpContext
+	ipCtx := conn.GetContext().GetIpContext()
 	ipCtx.ExcludedPrefixes = removeDuplicates(append(ipCtx.GetExcludedPrefixes(), prefixes...))
 
 	conn, err := next.Server(ctx).Request(ctx, request)
@@ -68,16 +71,16 @@ func (eps *excludedPrefixesServer) Close(ctx context.Context, connection *networ
 
 // NewServer -  creates a networkservice.NetworkServiceServer chain element that can read excluded prefixes from config
 // map and add them to request to avoid repeated usage.
-// Note: request.Connection, Connection.Context and Context.IpContext should not be nil when calling Request
-func NewServer() networkservice.NetworkServiceServer {
-	return NewServerFromPath(prefixpool.PrefixesFilePathDefault)
-}
-
-// NewServerFromPath -  creates a networkservice.NetworkServiceServer chain element with excluded prefixes from config map.
-func NewServerFromPath(configPath string) networkservice.NetworkServiceServer {
-	return &excludedPrefixesServer{
-		prefixes: &prefixpool.NewPrefixPoolReader(configPath).PrefixPool,
+// Note: request.Connection and Connection.Context should not be nil when calling Request
+func NewServer(setters ...ServerOption) networkservice.NetworkServiceServer {
+	server := &excludedPrefixesServer{
+		configPath: prefixpool.PrefixesFilePathDefault,
 	}
+	for _, setter := range setters {
+		setter(server)
+	}
+	server.prefixes = &prefixpool.NewPrefixPoolReader(server.configPath).PrefixPool
+	return server
 }
 
 func (eps *excludedPrefixesServer) validateConnection(conn *networkservice.Connection) error {
@@ -105,18 +108,4 @@ func (eps *excludedPrefixesServer) validateIPAddress(ip, ipName string) error {
 		return errors.Errorf("%s '%s' intersects excluded prefixes list %v", ipName, ip, eps.prefixes.GetPrefixes())
 	}
 	return nil
-}
-
-func removeDuplicates(elements []string) []string {
-	encountered := map[string]bool{}
-	result := []string{}
-
-	for index := range elements {
-		if encountered[elements[index]] {
-			continue
-		}
-		encountered[elements[index]] = true
-		result = append(result, elements[index])
-	}
-	return result
 }
