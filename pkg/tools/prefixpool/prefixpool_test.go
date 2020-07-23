@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //

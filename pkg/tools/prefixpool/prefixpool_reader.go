@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -37,14 +37,15 @@ type Reader struct {
 }
 
 func (ph *Reader) init(prefixes []string) {
+	ph.mutex.Lock()
 	ph.prefixes = prefixes
-	ph.basePrefixes = prefixes
+	ph.mutex.Unlock()
 	ph.connections = map[string]*connectionRecord{}
 }
 
 // NewPrefixPoolReader gets list of excluded prefixes from config file. Starts config file monitoring.
 // Returns pointer to a struct that contains all information
-func NewPrefixPoolReader(path string) *PrefixPool {
+func NewPrefixPoolReader(path string) *Reader {
 	ph := &Reader{
 		prefixesConfig: viper.New(),
 		configPath:     path,
@@ -59,8 +60,6 @@ func NewPrefixPoolReader(path string) *PrefixPool {
 		logrus.Infof("Reading excluded prefixes config file: %s", ph.configPath)
 		prefixes := ph.prefixesConfig.GetStringSlice("prefixes")
 		logrus.Infof("Excluded prefixes: %v", prefixes)
-		ph.mutex.Lock()
-		defer ph.mutex.Unlock()
 		ph.init(prefixes)
 	}
 
@@ -71,5 +70,5 @@ func NewPrefixPoolReader(path string) *PrefixPool {
 	ph.prefixesConfig.WatchConfig()
 	readPrefixes()
 
-	return &ph.PrefixPool
+	return ph
 }

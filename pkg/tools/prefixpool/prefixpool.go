@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -31,15 +31,18 @@ import (
 
 // PrefixPool is a structure that contains information about prefixes
 type PrefixPool struct {
-	mutex        sync.RWMutex
-	basePrefixes []string // Just to know where we start from
-	prefixes     []string
-	connections  map[string]*connectionRecord
+	mutex       sync.RWMutex
+	prefixes    []string
+	connections map[string]*connectionRecord
 }
 
 // GetPrefixes returns the list of saved prefixes
 func (impl *PrefixPool) GetPrefixes() []string {
-	return impl.prefixes
+	impl.mutex.Lock()
+	copyArray := make([]string, len(impl.prefixes))
+	copy(copyArray, impl.prefixes)
+	impl.mutex.Unlock()
+	return copyArray
 }
 
 type connectionRecord struct {
@@ -56,9 +59,8 @@ func NewPrefixPool(prefixes ...string) (*PrefixPool, error) {
 		}
 	}
 	return &PrefixPool{
-		basePrefixes: prefixes,
-		prefixes:     prefixes,
-		connections:  map[string]*connectionRecord{},
+		prefixes:    prefixes,
+		connections: map[string]*connectionRecord{},
 	}, nil
 }
 
