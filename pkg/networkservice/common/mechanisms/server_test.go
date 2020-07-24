@@ -21,6 +21,10 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
@@ -167,4 +171,33 @@ func TestDownstreamError(t *testing.T) {
 	assert.NotNil(t, err)
 	_, err = server.Close(context.Background(), &networkservice.Connection{Mechanism: &networkservice.Mechanism{Cls: "NOT_A_CLS", Type: "NOT_A_TYPE"}})
 	assert.NotNil(t, err)
+}
+
+func TestDontCallNextByItself(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	logrus.SetOutput(ioutil.Discard)
+
+	ch := make(chan struct{}, 10)
+	server := next.NewNetworkServiceServer(
+		server(),
+		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+			ch <- struct{}{}
+		}),
+	)
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Mechanism: &networkservice.Mechanism{
+				Type: memif.MECHANISM,
+			},
+		},
+	}
+
+	conn, err := server.Request(context.Background(), request)
+	assert.Nil(t, err)
+	assert.NotNil(t, conn)
+	assert.Equal(t, 1, len(ch))
+
+	_, err = server.Close(context.Background(), conn)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(ch))
 }

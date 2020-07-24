@@ -26,7 +26,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
 )
 
@@ -56,12 +55,7 @@ func (m *mechanismsServer) Request(ctx context.Context, request *networkservice.
 	if request.GetConnection().GetMechanism() != nil {
 		srv, ok := m.mechanisms[request.GetConnection().GetMechanism().GetType()]
 		if ok {
-			conn, err := srv.Request(ctx, request)
-			if err != nil {
-				return nil, err
-			}
-			request.Connection = conn
-			return next.Server(ctx).Request(ctx, request)
+			return srv.Request(ctx, request)
 		}
 		return nil, errors.Errorf("Unsupported Mechanism: %+v", request.GetConnection().GetMechanism())
 	}
