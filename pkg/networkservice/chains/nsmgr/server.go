@@ -94,7 +94,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 		discover.NewServer(adapter_registry.NetworkServiceServerToClient(nsRegistry), adapter_registry.NetworkServiceEndpointServerToClient(nseRegistry)),
 		roundrobin.NewServer(),
 		localbypass.NewServer(&localbypassRegistryServer),
-		excludedprefixes.NewServer(),
+		excludedprefixes.NewServer(ctx),
 		connect.NewServer(
 			ctx,
 			client.NewClientFactory(nsmRegistration.Name,
