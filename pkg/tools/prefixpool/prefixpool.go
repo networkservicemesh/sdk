@@ -52,8 +52,8 @@ type connectionRecord struct {
 	prefixes []string
 }
 
-// NewPrefixPool is a PrefixPool constructor
-func NewPrefixPool(prefixes ...string) (*PrefixPool, error) {
+// New is a PrefixPool constructor
+func New(prefixes ...string) (*PrefixPool, error) {
 	for _, prefix := range prefixes {
 		_, _, err := net.ParseCIDR(prefix)
 		if err != nil {

@@ -16,7 +16,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package excludedprefixes
+package excludedprefixes_test
 
 import (
 	"context"
@@ -27,6 +27,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
@@ -44,7 +46,7 @@ func TestNewExcludedPrefixesService(t *testing.T) {
 	writingToFile(t, testConfig, configPath)
 	defer func() { _ = os.Remove(configPath) }()
 
-	chain := next.NewNetworkServiceServer(NewServer(WithConfigPath(configPath)), checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
+	chain := next.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)), checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
 		require.Equal(t, request.Connection.Context.IpContext.ExcludedPrefixes, prefixes)
 	}))
 	req := &networkservice.NetworkServiceRequest{
@@ -65,7 +67,7 @@ func TestCheckReloadedPrefixes(t *testing.T) {
 	writingToFile(t, "", configPath)
 	defer func() { _ = os.Remove(configPath) }()
 
-	chain := next.NewNetworkServiceServer(NewServer(WithConfigPath(configPath)))
+	chain := next.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)))
 	req := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Context: &networkservice.ConnectionContext{},
@@ -79,7 +81,7 @@ func TestCheckReloadedPrefixes(t *testing.T) {
 		_, err = chain.Request(context.Background(), req)
 		require.NoError(t, err)
 		return reflect.DeepEqual(req.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes(), prefixes)
-	}, time.Second, time.Millisecond*100)
+	}, time.Second*15, time.Millisecond*100)
 }
 
 func TestUniqueRequestPrefixes(t *testing.T) {
@@ -92,7 +94,7 @@ func TestUniqueRequestPrefixes(t *testing.T) {
 	writingToFile(t, testConfig, configPath)
 	defer func() { _ = os.Remove(configPath) }()
 
-	chain := next.NewNetworkServiceServer(NewServer(WithConfigPath(configPath)), checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
+	chain := next.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)), checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
 		require.Equal(t, uniquePrefixes, request.Connection.Context.IpContext.ExcludedPrefixes)
 	}))
 	req := &networkservice.NetworkServiceRequest{

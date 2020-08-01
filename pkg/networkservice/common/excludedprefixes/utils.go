@@ -18,15 +18,15 @@
 
 package excludedprefixes
 
-// ServerOption - method for excludedPrefixesServer
-type ServerOption func(server *excludedPrefixesServer)
+import (
+	"context"
+	"io/ioutil"
+	"path/filepath"
 
-// WithConfigPath - returns method that set configPath in excludedPrefixesServer
-func WithConfigPath(s string) ServerOption {
-	return func(args *excludedPrefixesServer) {
-		args.configPath = s
-	}
-}
+	"github.com/fsnotify/fsnotify"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
+)
 
 func removeDuplicates(elements []string) []string {
 	encountered := map[string]bool{}
@@ -40,4 +40,34 @@ func removeDuplicates(elements []string) []string {
 		result = append(result, elements[index])
 	}
 	return result
+}
+
+func watchFile(ctx context.Context, path string, onChanged func([]byte)) error {
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return err
+	}
+	if err := watcher.Add(path); err != nil {
+		return err
+	}
+
+	defer func() {
+		_ = watcher.Close()
+	}()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-watcher.Events:
+			data, err := ioutil.ReadFile(filepath.Clean(path))
+			if err != nil {
+				trace.Log(ctx).Errorf("An error during read file %v, error: %v", path, err.Error())
+				return err
+			}
+			onChanged(data)
+		case err := <-watcher.Errors:
+			trace.Log(ctx).Errorf("Watch %v, error: %v", path, err.Error())
+			return err
+		}
+	}
 }

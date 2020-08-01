@@ -22,10 +22,13 @@ package excludedprefixes
 
 import (
 	"context"
+	"io/ioutil"
+	"sync"
+	"sync/atomic"
 
+	"github.com/ghodss/yaml"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/trace"
@@ -33,36 +36,55 @@ import (
 )
 
 type excludedPrefixesServer struct {
-	prefixes   *prefixpool.PrefixPool
+	ctx        context.Context
+	prefixPool atomic.Value
+	once       sync.Once
 	configPath string
+}
+
+func (eps *excludedPrefixesServer) init() {
+	logger := trace.Log(eps.ctx)
+	updatePrefixes := func(bytes []byte) {
+		source := struct {
+			Prefixes []string
+		}{}
+		err := yaml.Unmarshal(bytes, &source)
+		if err != nil {
+			logger.Errorf("Can not create unmarshal prefixes, err: %v", err.Error())
+			return
+		}
+		pool, err := prefixpool.New(source.Prefixes...)
+		if err != nil {
+			logger.Errorf("Can not create prefixpool with prefixes: %+v, err: %v", pool.GetPrefixes(), err.Error())
+			return
+		}
+		eps.prefixPool.Store(pool)
+	}
+	bytes, _ := ioutil.ReadFile(eps.configPath)
+	updatePrefixes(bytes)
+	go func() {
+		err := watchFile(eps.ctx, eps.configPath, updatePrefixes)
+		if err != nil {
+			logger.Errorf("An error during watch file: %v", err.Error())
+		}
+	}()
 }
 
 // Note: request.Connection and Connection.Context should not be nil
 func (eps *excludedPrefixesServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	eps.once.Do(eps.init)
 	logger := trace.Log(ctx)
 
 	conn := request.GetConnection()
 	if conn.GetContext().GetIpContext() == nil {
 		conn.Context.IpContext = &networkservice.IPContext{}
 	}
-	prefixes := eps.prefixes.GetPrefixes()
+	prefixes := eps.prefixPool.Load().(*prefixpool.PrefixPool).GetPrefixes()
 	logger.Infof("ExcludedPrefixesService: adding excluded prefixes to connection: %v", prefixes)
 	ipCtx := conn.GetContext().GetIpContext()
 	ipCtx.ExcludedPrefixes = removeDuplicates(append(ipCtx.GetExcludedPrefixes(), prefixes...))
 
-	conn, err := next.Server(ctx).Request(ctx, request)
-	if err != nil {
-		return nil, err
-	}
-
-	if err = eps.validateConnection(conn); err != nil {
-		logger.Errorf("ExcludedPrefixesService: connection is invalid: %v", err)
-		_, err = next.Server(ctx).Close(ctx, conn)
-		logger.Errorf("ExcludedPrefixesService: Close: %v", err)
-		return nil, err
-	}
-
-	return conn, nil
+	return next.Server(ctx).Request(ctx, request)
 }
 
 func (eps *excludedPrefixesServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
@@ -72,40 +94,14 @@ func (eps *excludedPrefixesServer) Close(ctx context.Context, connection *networ
 // NewServer -  creates a networkservice.NetworkServiceServer chain element that can read excluded prefixes from config
 // map and add them to request to avoid repeated usage.
 // Note: request.Connection and Connection.Context should not be nil when calling Request
-func NewServer(setters ...ServerOption) networkservice.NetworkServiceServer {
+func NewServer(ctx context.Context, setters ...ServerOption) networkservice.NetworkServiceServer {
 	server := &excludedPrefixesServer{
-		configPath: prefixpool.PrefixesFilePathDefault,
+		configPath: prefixesFilePathDefault,
+		ctx:        ctx,
 	}
 	for _, setter := range setters {
 		setter(server)
 	}
-	server.prefixes = &prefixpool.NewPrefixPoolReader(server.configPath).PrefixPool
+
 	return server
-}
-
-func (eps *excludedPrefixesServer) validateConnection(conn *networkservice.Connection) error {
-	if err := conn.IsComplete(); err != nil {
-		return err
-	}
-
-	ipCtx := conn.GetContext().GetIpContext()
-	if err := eps.validateIPAddress(ipCtx.GetSrcIpAddr(), "srcIP"); err != nil {
-		return err
-	}
-
-	return eps.validateIPAddress(ipCtx.GetDstIpAddr(), "dstIP")
-}
-
-func (eps *excludedPrefixesServer) validateIPAddress(ip, ipName string) error {
-	if ip == "" {
-		return nil
-	}
-	intersect, err := eps.prefixes.Intersect(ip)
-	if err != nil {
-		return err
-	}
-	if intersect {
-		return errors.Errorf("%s '%s' intersects excluded prefixes list %v", ipName, ip, eps.prefixes.GetPrefixes())
-	}
-	return nil
 }
