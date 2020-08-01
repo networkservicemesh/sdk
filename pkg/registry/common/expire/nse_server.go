@@ -21,16 +21,19 @@ import (
 	"sync"
 	"time"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
 type nseServer struct {
-	nses      map[string]*registry.NetworkServiceEndpoint
-	nsesMutex sync.Mutex
-	period    time.Duration
-	once      sync.Once
-	server    registry.NetworkServiceEndpointRegistryServer
+	nses     map[string]*registry.NetworkServiceEndpoint
+	executor serialize.Executor
+	period   time.Duration
+	once     sync.Once
+	server   registry.NetworkServiceEndpointRegistryServer
 }
 
 func (n *nseServer) setPeriod(d time.Duration) {
@@ -38,14 +41,17 @@ func (n *nseServer) setPeriod(d time.Duration) {
 }
 
 func (n *nseServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	n.once.Do(n.monitor)
-	r, err := n.server.Register(ctx, nse)
+	n.once.Do(func() {
+		n.server = next.NetworkServiceEndpointRegistryServer(ctx)
+		n.monitor()
+	})
+	r, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	if err != nil {
 		return nil, err
 	}
-	n.nsesMutex.Lock()
-	n.nses[nse.Name] = r
-	n.nsesMutex.Unlock()
+	n.executor.AsyncExec(func() {
+		n.nses[nse.Name] = r
+	})
 	return r, nil
 }
 
@@ -58,31 +64,29 @@ func (n *nseServer) Unregister(ctx context.Context, nse *registry.NetworkService
 	if err != nil {
 		return nil, err
 	}
-	n.nsesMutex.Lock()
-	delete(n.nses, nse.Name)
-	n.nsesMutex.Unlock()
+	n.executor.AsyncExec(func() {
+		delete(n.nses, nse.Name)
+	})
 	return resp, nil
 }
 
 func (n *nseServer) monitor() {
 	go func() {
 		for {
-			n.nsesMutex.Lock()
-			for _, nse := range getExpiredNSEs(n.nses) {
-				delete(n.nses, nse.Name)
-				_, _ = n.server.Unregister(context.Background(), nse)
-			}
-			n.nsesMutex.Unlock()
-
+			<-n.executor.AsyncExec(func() {
+				for _, nse := range getExpiredNSEs(n.nses) {
+					delete(n.nses, nse.Name)
+					_, _ = n.server.Unregister(context.Background(), nse)
+				}
+			})
 			<-time.After(n.period)
 		}
 	}()
 }
 
 // NewNetworkServiceEndpointRegistryServer wraps passed NetworkServiceEndpointRegistryServer and monitor Network service endpoints
-func NewNetworkServiceEndpointRegistryServer(server registry.NetworkServiceEndpointRegistryServer, options ...Option) registry.NetworkServiceEndpointRegistryServer {
+func NewNetworkServiceEndpointRegistryServer(options ...Option) registry.NetworkServiceEndpointRegistryServer {
 	r := &nseServer{
-		server: server,
 		period: defaultPeriod,
 		nses:   map[string]*registry.NetworkServiceEndpoint{},
 	}

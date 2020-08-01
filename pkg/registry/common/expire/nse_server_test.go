@@ -21,17 +21,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/memory"
+
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
-	"github.com/networkservicemesh/sdk/pkg/registry/memory"
 )
 
 func TestNewNetworkServiceEndpointRegistryServer(t *testing.T) {
-	s := expire.NewNetworkServiceEndpointRegistryServer(memory.NewNetworkServiceEndpointRegistryServer(), expire.WithPeriod(testPeriod))
+	s := next.NewNetworkServiceEndpointRegistryServer(expire.NewNetworkServiceEndpointRegistryServer(expire.WithPeriod(testPeriod)), memory.NewNetworkServiceEndpointRegistryServer())
 	expiration := time.Now().Add(testPeriod * 2)
 	_, err := s.Register(context.Background(), &registry.NetworkServiceEndpoint{
 		ExpirationTime: &timestamp.Timestamp{

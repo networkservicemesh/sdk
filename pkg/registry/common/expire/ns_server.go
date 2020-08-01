@@ -22,6 +22,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 )
@@ -35,7 +38,7 @@ type nsServer struct {
 	nses       map[string]*registry.NetworkServiceEndpoint
 	nsCounter  map[string]int64
 	nss        map[string]*registry.NetworkService
-	sync.Mutex
+	executor   serialize.Executor
 }
 
 func (n *nsServer) setPeriod(d time.Duration) {
@@ -54,15 +57,15 @@ func (n *nsServer) monitorUpdates() {
 		}
 		for event := range registry.ReadNetworkServiceEndpointChannel(c) {
 			nse := event
-			n.Lock()
-			_, exist := n.nses[nse.Name]
-			n.nses[nse.Name] = nse
-			if !exist {
-				for _, service := range nse.NetworkServiceNames {
-					n.nsCounter[service]++
+			n.executor.AsyncExec(func() {
+				_, exist := n.nses[nse.Name]
+				n.nses[nse.Name] = nse
+				if !exist {
+					for _, service := range nse.NetworkServiceNames {
+						n.nsCounter[service]++
+					}
 				}
-			}
-			n.Unlock()
+			})
 		}
 	}
 }
@@ -70,24 +73,24 @@ func (n *nsServer) monitorUpdates() {
 func (n *nsServer) monitorNSEsExpiration() {
 	for {
 		var list []*registry.NetworkService
-		n.Lock()
-		for _, nse := range getExpiredNSEs(n.nses) {
-			for _, service := range nse.NetworkServiceNames {
-				n.nsCounter[service]--
-				if n.nsCounter[service] == 0 {
-					ns, ok := n.nss[service]
-					if ok {
-						list = append(list, ns)
+		n.executor.AsyncExec(func() {
+			for _, nse := range getExpiredNSEs(n.nses) {
+				for _, service := range nse.NetworkServiceNames {
+					n.nsCounter[service]--
+					if n.nsCounter[service] == 0 {
+						ns, ok := n.nss[service]
+						if ok {
+							list = append(list, ns)
+						}
 					}
 				}
 			}
-		}
-		for _, ns := range list {
-			delete(n.nsCounter, ns.Name)
-			delete(n.nss, ns.Name)
-			_, _ = n.server.Unregister(context.Background(), ns)
-		}
-		n.Unlock()
+			for _, ns := range list {
+				delete(n.nsCounter, ns.Name)
+				delete(n.nss, ns.Name)
+				_, _ = n.server.Unregister(context.Background(), ns)
+			}
+		})
 		<-time.After(n.period)
 	}
 }
@@ -102,17 +105,20 @@ func (n *nsServer) monitor() {
 }
 
 func (n *nsServer) Register(ctx context.Context, request *registry.NetworkService) (*registry.NetworkService, error) {
-	n.once.Do(n.monitor)
+	n.once.Do(func() {
+		n.server = next.NetworkServiceRegistryServer(ctx)
+		n.monitor()
+	})
 	if n.monitorErr != nil {
 		return nil, n.monitorErr
 	}
-	r, err := n.server.Register(ctx, request)
+	r, err := next.NetworkServiceRegistryServer(ctx).Register(ctx, request)
 	if err != nil {
 		return nil, err
 	}
-	n.Lock()
-	n.nss[request.Name] = r
-	n.Unlock()
+	n.executor.AsyncExec(func() {
+		n.nss[request.Name] = r
+	})
 	return r, nil
 }
 
@@ -127,18 +133,21 @@ func (n *nsServer) Unregister(ctx context.Context, request *registry.NetworkServ
 	if n.monitorErr != nil {
 		return nil, n.monitorErr
 	}
-	n.Lock()
-	defer n.Unlock()
-	if n.nsCounter[request.Name] == 0 {
-		return n.server.Unregister(ctx, request)
+	canClose := false
+	n.executor.AsyncExec(func() {
+		if n.nsCounter[request.Name] == 0 {
+			canClose = true
+		}
+	})
+	if !canClose {
+		return new(empty.Empty), errors.New("can not delete ns cause of already in use")
 	}
-	return new(empty.Empty), errors.New("can not delete ns cause of already in use")
+	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, request)
 }
 
 // NewNetworkServiceServer wraps passed NetworkServiceRegistryServer and monitor NetworkServiceEndpoints via passed NetworkServiceEndpointRegistryClient
-func NewNetworkServiceServer(s registry.NetworkServiceRegistryServer, nseClient registry.NetworkServiceEndpointRegistryClient, options ...Option) registry.NetworkServiceRegistryServer {
+func NewNetworkServiceServer(nseClient registry.NetworkServiceEndpointRegistryClient, options ...Option) registry.NetworkServiceRegistryServer {
 	r := &nsServer{
-		server:    s,
 		nseClient: nseClient,
 		nsCounter: map[string]int64{},
 		nss:       map[string]*registry.NetworkService{},
