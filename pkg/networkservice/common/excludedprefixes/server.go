@@ -37,13 +37,9 @@ import (
 
 type excludedPrefixesServer struct {
 	ctx        context.Context
-	value      atomic.Value
+	prefixPool atomic.Value
 	once       sync.Once
 	configPath string
-}
-
-func (eps *excludedPrefixesServer) prefixPool() *prefixpool.PrefixPool {
-	return eps.value.Load().(*prefixpool.PrefixPool)
 }
 
 func (eps *excludedPrefixesServer) init() {
@@ -62,7 +58,7 @@ func (eps *excludedPrefixesServer) init() {
 			logger.Errorf("Can not create prefixpool with prefixes: %+v, err: %v", pool.GetPrefixes(), err.Error())
 			return
 		}
-		eps.value.Store(pool)
+		eps.prefixPool.Store(pool)
 	}
 	bytes, _ := ioutil.ReadFile(eps.configPath)
 	updatePrefixes(bytes)
@@ -83,7 +79,7 @@ func (eps *excludedPrefixesServer) Request(ctx context.Context, request *network
 	if conn.GetContext().GetIpContext() == nil {
 		conn.Context.IpContext = &networkservice.IPContext{}
 	}
-	prefixes := eps.prefixPool().GetPrefixes()
+	prefixes := eps.prefixPool.Load().(*prefixpool.PrefixPool).GetPrefixes()
 	logger.Infof("ExcludedPrefixesService: adding excluded prefixes to connection: %v", prefixes)
 	ipCtx := conn.GetContext().GetIpContext()
 	ipCtx.ExcludedPrefixes = removeDuplicates(append(ipCtx.GetExcludedPrefixes(), prefixes...))
