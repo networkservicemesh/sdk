@@ -14,147 +14,129 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package updatepath_test provides tests for updatePathClient and updatePathServer chain elements
+// Package updatepath_test provides a tests for package 'setid'
 package updatepath_test
 
 import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 )
 
-func TestNewClient_EmptyPathInRequest(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	client := updatepath.NewClient("nsc-1", TokenGenerator)
-	request := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id: "conn-1",
-		},
-	}
-	expected := &networkservice.Connection{
-		Id: "conn-1",
-		Path: &networkservice.Path{
-			Index: 0,
-			PathSegments: []*networkservice.PathSegment{
-				{
-					Name:    "nsc-1",
-					Id:      "conn-1",
-					Token:   Token,
-					Expires: ExpiresProto,
-				},
-			},
-		},
-	}
-	conn, err := client.Request(context.Background(), request)
-	assert.Nil(t, err)
-	assert.Equal(t, expected, conn)
-}
+const (
+	pathSegmentID1 string = "36ce7f0c-9f6d-40a4-8b39-6b56ff07eea9"
+	pathSegmentID2 string = "ece490ea-dfe8-4512-a3ca-5be7b39515c5"
+	connectionID   string = "54ec76a7-d642-43ca-87bc-ab51765f575a"
+)
 
-func TestNewClient_ZeroIndexAddNewSegment(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	client := updatepath.NewClient("nsc-1", TokenGenerator)
-	request := &networkservice.NetworkServiceRequest{
+func request(connectionID string, pathIndex uint32) *networkservice.NetworkServiceRequest {
+	return &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
-			Id: "conn-1",
+			Id: connectionID,
 			Path: &networkservice.Path{
-				Index:        0,
-				PathSegments: []*networkservice.PathSegment{},
-			},
-		},
-	}
-	expected := &networkservice.Connection{
-		Id: "conn-1",
-		Path: &networkservice.Path{
-			Index: 0,
-			PathSegments: []*networkservice.PathSegment{
-				{
-					Name:    "nsc-1",
-					Id:      "conn-1",
-					Token:   Token,
-					Expires: ExpiresProto,
-				},
-			},
-		},
-	}
-	conn, err := client.Request(context.Background(), request)
-	assert.Nil(t, err)
-	assert.Equal(t, expected, conn)
-}
-
-func TestNewClient_ValidIndexOverwriteValues(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	client := updatepath.NewClient("nsc-1", TokenGenerator)
-	request := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id: "conn-1",
-			Path: &networkservice.Path{
-				Index: 0,
+				Index: pathIndex,
 				PathSegments: []*networkservice.PathSegment{
 					{
-						Name: "nsc-0",
-						Id:   "conn-0",
-					}, {
-						Name: "nsc-name-will-be-overwritten",
-						Id:   "conn-will-be-overwritten",
-					}, {
-						Name: "nsc-2",
-						Id:   "conn-2",
+						Name: "nse-1",
+						Id:   pathSegmentID1,
+					},
+					{
+						Name: "nse-2",
+						Id:   pathSegmentID2,
 					},
 				},
 			},
 		},
 	}
-	expected := &networkservice.Connection{
-		Id: "conn-1",
-		Path: &networkservice.Path{
-			Index: 1,
-			PathSegments: []*networkservice.PathSegment{
-				{
-					Name: "nsc-0",
-					Id:   "conn-0",
-				}, {
-					Name:    "nsc-1",
-					Id:      "conn-1",
-					Token:   Token,
-					Expires: ExpiresProto,
-				}, {
-					Name: "nsc-2",
-					Id:   "conn-2",
-				},
-			},
-		},
-	}
-	conn, err := client.Request(context.Background(), request)
-	assert.Nil(t, err)
-	assert.Equal(t, expected, conn)
 }
 
-func TestNewClient_IndexGreaterThanArrayLength(t *testing.T) {
+func TestNewClient_SetNewConnectionId(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	client := updatepath.NewClient("nsc-1", TokenGenerator)
-	request := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id: "conn-1",
-			Path: &networkservice.Path{
-				Index: 2,
-				PathSegments: []*networkservice.PathSegment{
-					{
-						Name: "nsc-0",
-						Id:   "conn-0",
-					}, {
-						Name: "nsc-1",
-						Id:   "conn-1",
-					},
-				},
-			},
-		},
-	}
-	conn, err := client.Request(context.Background(), request)
-	assert.NotNil(t, err)
-	assert.Nil(t, conn)
+	client := updatepath.NewClient("nse-3")
+	conn, err := client.Request(context.Background(), request(connectionID, 1))
+	require.NotNil(t, conn)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(conn.Path.PathSegments))
+	require.Equal(t, "nse-3", conn.Path.PathSegments[2].Name)
+	require.NotEqual(t, conn.Id, connectionID)
+}
+
+func TestNewClient_SetNewConnectionId2(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	client := updatepath.NewClient("nse-2")
+	conn, err := client.Request(context.Background(), request(connectionID, 0))
+	require.NotNil(t, conn)
+	require.NoError(t, err)
+	require.Equal(t, 1, int(conn.Path.Index))
+	require.Equal(t, conn.Id, pathSegmentID2)
+}
+
+func TestNewClient_SetNewConnectionIdSecondReq(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	client := updatepath.NewClient("nse-1")
+	conn, err := client.Request(context.Background(), request(connectionID, 0))
+	assert.NotNil(t, conn)
+	assert.NoError(t, err)
+	assert.Equal(t, conn.Id, pathSegmentID1)
+
+	firstConnID := conn.Id
+
+	conn.GetPath().Index = 0
+	conn, err = client.Request(context.Background(), &networkservice.NetworkServiceRequest{
+		Connection: conn,
+	})
+	assert.NotNil(t, conn)
+	assert.NoError(t, err)
+	assert.Equal(t, firstConnID, conn.Id)
+}
+
+func TestNewClient_PathSegmentNameEqualClientName(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	client := updatepath.NewClient("nse-2")
+	conn, err := client.Request(context.Background(), request(connectionID, 1))
+	assert.NotNil(t, conn)
+	assert.NoError(t, err)
+	assert.NotEqual(t, conn.Id, connectionID)
+}
+
+func TestNewClient_PathSegmentIdEqualConnectionId(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	client := updatepath.NewClient("nse-2")
+	conn, err := client.Request(context.Background(), request(pathSegmentID2, 1))
+	assert.NotNil(t, conn)
+	assert.NoError(t, err)
+	assert.Equal(t, conn.Id, pathSegmentID2)
+}
+
+func TestNewClient_PathSegmentNameAndIDEqualClientNameAndID(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	client := updatepath.NewClient("nse-2")
+	conn, err := client.Request(context.Background(), request(pathSegmentID2, 1))
+	assert.NotNil(t, conn)
+	assert.NoError(t, err)
+	assert.Equal(t, conn.Id, pathSegmentID2)
+}
+
+func TestNewClient_InvalidIndex(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	client := updatepath.NewClient("nse-3")
+	conn, err := client.Request(context.Background(), request(connectionID, 2))
+	require.NotNil(t, err)
+	require.Nil(t, conn)
+}
+
+func TestNewClient_NoConnection(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	client := updatepath.NewClient("nse-3")
+	conn, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{})
+	assert.NotNil(t, conn)
+	assert.NoError(t, err)
+	assert.NotEqual(t, conn.Id, connectionID)
 }

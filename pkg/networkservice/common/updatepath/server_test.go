@@ -19,160 +19,67 @@ package updatepath_test
 import (
 	"context"
 	"testing"
-	"time"
 
-	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/timestamp"
-	"go.uber.org/goleak"
-	"google.golang.org/grpc/credentials"
-
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
+
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/goleak"
 )
 
-func TokenGenerator(peerAuthInfo credentials.AuthInfo) (token string, expireTime time.Time, err error) {
-	return "TestToken", time.Date(3000, 1, 1, 1, 1, 1, 1, time.UTC), nil
+func TestNewServer_SetNewConnectionId(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	server := updatepath.NewServer("nse-3")
+	conn, err := server.Request(context.Background(), request(connectionID, 1))
+	require.NotNil(t, conn)
+	require.NoError(t, err)
+	require.NotEqual(t, conn.Id, connectionID)
 }
 
-var Token string
-var Expires time.Time
-var ExpiresProto *timestamp.Timestamp
-
-func init() {
-	Token, Expires, _ = TokenGenerator(nil)
-	ExpiresProto, _ = ptypes.TimestampProto(Expires)
+func TestNewServer_SetNewPathId(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	server := updatepath.NewServer("nse-3")
+	conn, err := server.Request(context.Background(), request(connectionID, 0))
+	require.NotNil(t, conn)
+	require.NoError(t, err)
+	require.Equal(t, conn.Path.PathSegments[1].Name, "nse-3") // Check name is replaced.
+	require.Equal(t, conn.Id, conn.Path.PathSegments[1].Id)
 }
 
-func TestNewServer_EmptyPathInRequest(t *testing.T) {
+func TestNewServer_PathSegmentNameEqualClientName(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	server := updatepath.NewServer("nsc-1", TokenGenerator)
-	request := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id: "conn-1",
-		},
-	}
-	conn, err := server.Request(context.Background(), request)
-	// Note: Its up to authorization to decide that we won't accept requests without a Path from the client
-	assert.Nil(t, err)
+	server := updatepath.NewServer("nse-2")
+	conn, err := server.Request(context.Background(), request(connectionID, 1))
+	require.NotNil(t, conn)
+	require.NoError(t, err)
+	require.NotEqual(t, conn.Id, connectionID)
+}
+
+func TestNewServer_PathSegmentIdEqualConnectionId(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	server := updatepath.NewServer("nse-3")
+	conn, err := server.Request(context.Background(), request(pathSegmentID2, 1))
+	require.NotNil(t, conn)
+
+	require.NoError(t, err)
+	require.NotEqual(t, conn.Id, pathSegmentID2)
+}
+
+func TestNewServer_PathSegmentNameIDEqualClientNameID(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	server := updatepath.NewServer("nse-2")
+	conn, err := server.Request(context.Background(), request(pathSegmentID2, 1))
 	assert.NotNil(t, conn)
+
+	require.NoError(t, err)
+	require.Equal(t, conn.Id, pathSegmentID2)
 }
 
-func TestNewServer_IndexInLastPositionAddNewSegment(t *testing.T) {
+func TestNewServer_InvalidIndex(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	request := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id: "conn-2",
-			Path: &networkservice.Path{
-				Index: 1,
-				PathSegments: []*networkservice.PathSegment{
-					{
-						Name: "nsc-0",
-						Id:   "conn-0",
-					}, {
-						Name: "nsc-1",
-						Id:   "conn-1",
-					},
-				},
-			},
-		},
-	}
-	expected := &networkservice.Connection{
-		Id: "conn-2",
-		Path: &networkservice.Path{
-			Index: 2,
-			PathSegments: []*networkservice.PathSegment{
-				{
-					Name: "nsc-0",
-					Id:   "conn-0",
-				}, {
-					Name: "nsc-1",
-					Id:   "conn-1",
-				}, {
-					Name:    "nsc-2",
-					Id:      "conn-2",
-					Token:   Token,
-					Expires: ExpiresProto,
-				},
-			},
-		},
-	}
-	server := updatepath.NewServer("nsc-2", TokenGenerator)
-	conn, err := server.Request(context.Background(), request)
-	assert.Nil(t, err)
-	assert.Equal(t, expected, conn)
-}
-
-func TestNewServer_ValidIndexOverwriteValues(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	request := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id: "conn-2",
-			Path: &networkservice.Path{
-				Index: 1,
-				PathSegments: []*networkservice.PathSegment{
-					{
-						Name: "nsc-0",
-						Id:   "conn-0",
-					}, {
-						Name: "nsc-1",
-						Id:   "conn-1",
-					}, {
-						Name: "nsc-will-be-overwritten",
-						Id:   "conn-will-be-overwritten",
-					},
-				},
-			},
-		},
-	}
-	expected := &networkservice.Connection{
-		Id: "conn-2",
-		Path: &networkservice.Path{
-			Index: 2,
-			PathSegments: []*networkservice.PathSegment{
-				{
-					Name: "nsc-0",
-					Id:   "conn-0",
-				}, {
-					Name: "nsc-1",
-					Id:   "conn-1",
-				}, {
-					Name:    "nsc-2",
-					Id:      "conn-2",
-					Token:   Token,
-					Expires: ExpiresProto,
-				},
-			},
-		},
-	}
-	server := updatepath.NewServer("nsc-2", TokenGenerator)
-	conn, err := server.Request(context.Background(), request)
-	assert.Nil(t, err)
-	assert.Equal(t, expected, conn)
-}
-
-func TestNewServer_IndexGreaterThanArrayLength(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	request := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id: "conn-1",
-			Path: &networkservice.Path{
-				Index: 2,
-				PathSegments: []*networkservice.PathSegment{
-					{
-						Name: "nsc-0",
-						Id:   "conn-0",
-					}, {
-						Name: "nsc-1",
-						Id:   "conn-1",
-					},
-				},
-			},
-		},
-	}
-	server := updatepath.NewServer("nsc-2", TokenGenerator)
-	conn, err := server.Request(context.Background(), request)
-	assert.NotNil(t, err)
-	assert.Nil(t, conn)
+	server := updatepath.NewServer("nse-3")
+	conn, err := server.Request(context.Background(), request(connectionID, 2))
+	require.Nil(t, conn)
+	require.NotNil(t, err)
 }

@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package updatepath provides a chain element that sets the id of an incoming or outgoing request
-package updatepath
+// Package updatetoken provides chain elements to update Connection.Path
+package updatetoken
 
 import (
 	"context"
@@ -24,33 +24,34 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-type updatePathServer struct {
-	name string
+type updateTokenServer struct {
+	tokenGenerator token.GeneratorFunc
 }
 
-// NewServer - creates a new updatePath client to update connection path.
-//             name - name of the client
-//
-// Workflow are documented in common.go
-func NewServer(name string) networkservice.NetworkServiceServer {
-	return &updatePathServer{name: name}
+// NewServer - creates a NetworkServiceServer chain element to update the Connection token information
+//             - name - the name of the NetworkServiceServer of which the chain element is part
+func NewServer(tokenGenerator token.GeneratorFunc) networkservice.NetworkServiceServer {
+	return &updateTokenServer{
+		tokenGenerator: tokenGenerator,
+	}
 }
 
-func (i *updatePathServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (_ *networkservice.Connection, err error) {
+func (u *updateTokenServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	if request.Connection == nil {
 		request.Connection = &networkservice.Connection{}
 	}
-	request.Connection, err = updatePath(request.Connection, i.name)
+	err := updateToken(ctx, request.GetConnection(), u.tokenGenerator)
 	if err != nil {
 		return nil, err
 	}
 	return next.Server(ctx).Request(ctx, request)
 }
 
-func (i *updatePathServer) Close(ctx context.Context, conn *networkservice.Connection) (_ *empty.Empty, err error) {
-	conn, err = updatePath(conn, i.name)
+func (u *updateTokenServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	err := updateToken(ctx, conn, u.tokenGenerator)
 	if err != nil {
 		return nil, err
 	}

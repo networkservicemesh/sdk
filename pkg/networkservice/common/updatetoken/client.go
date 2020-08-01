@@ -14,45 +14,49 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package updatepath
+package updatetoken
 
 import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-type updatePathClient struct {
-	name string
+type updateTokenClient struct {
+	tokenGenerator token.GeneratorFunc
 }
 
-// NewClient - creates a new updatePath client to update connection path.
-//             name - name of the client
-//
-// Workflow are documented in common.go
-func NewClient(name string) networkservice.NetworkServiceClient {
-	return &updatePathClient{name: name}
+// NewClient - creates a NetworkServiceClient chain element to update the Connection token information
+func NewClient(tokenGenerator token.GeneratorFunc) networkservice.NetworkServiceClient {
+	return &updateTokenClient{
+		tokenGenerator: tokenGenerator,
+	}
 }
 
-func (i *updatePathClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
+func (u *updateTokenClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	if request.Connection == nil {
 		request.Connection = &networkservice.Connection{}
 	}
-
-	request.Connection, err = updatePath(request.Connection, i.name)
+	err := updateToken(ctx, request.GetConnection(), u.tokenGenerator)
+	index := request.GetConnection().GetPath().GetIndex()
 	if err != nil {
 		return nil, err
 	}
-	return next.Client(ctx).Request(ctx, request, opts...)
+	rv, err := next.Client(ctx).Request(ctx, request, opts...)
+	if err != nil {
+		return nil, err
+	}
+	rv.GetPath().Index = index
+	return rv, err
 }
 
-func (i *updatePathClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (_ *empty.Empty, err error) {
-	conn, err = updatePath(conn, i.name)
+func (u *updateTokenClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	err := updateToken(ctx, conn, u.tokenGenerator)
 	if err != nil {
 		return nil, err
 	}

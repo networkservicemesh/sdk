@@ -20,6 +20,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
+
 	"github.com/dgrijalva/jwt-go"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
@@ -143,7 +145,8 @@ func TestWithTokensPathValidPolicy(t *testing.T) {
 		for _, server := range s.server {
 			servers = append(servers,
 				chain.NewNetworkServiceServer(
-					updatepath.NewServer(server.name, server.tokenGenerator),
+					updatepath.NewServer(server.name),
+					updatetoken.NewServer(server.tokenGenerator),
 					authorize.NewServer(authorize.WithPolicies(p))),
 			)
 		}

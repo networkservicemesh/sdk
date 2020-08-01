@@ -20,13 +20,14 @@ package client
 import (
 	"context"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/setid"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 
@@ -55,11 +56,11 @@ func NewClient(ctx context.Context, name string, onHeal *networkservice.NetworkS
 		append(
 			append([]networkservice.NetworkServiceClient{
 				authorize.NewClient(),
-				setid.NewClient(name),
+				updatepath.NewClient(name),
 				heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc), onHeal),
 				refresh.NewClient(ctx),
 				injectpeer.NewClient(),
-				updatepath.NewClient(name, tokenGenerator),
+				updatetoken.NewClient(tokenGenerator),
 			}, additionalFunctionality...),
 			networkservice.NewNetworkServiceClient(cc),
 		)...)
