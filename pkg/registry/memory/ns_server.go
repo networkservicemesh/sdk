@@ -70,6 +70,10 @@ func (n *networkServiceRegistryServer) Find(query *registry.NetworkServiceQuery,
 			n.eventChannels = append(n.eventChannels, eventCh)
 		})
 		defer n.executor.AsyncExec(func() {
+			if index == len(n.eventChannels) {
+				n.eventChannels = n.eventChannels[0:index]
+				return
+			}
 			n.eventChannels = append(n.eventChannels[0:index], n.eventChannels[index+1:]...)
 		})
 		err := sendAllMatches(query.NetworkService)
