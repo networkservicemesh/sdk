@@ -20,6 +20,8 @@ package interpose_test
 import (
 	"context"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
+
 	adapters2 "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	next_reg "github.com/networkservicemesh/sdk/pkg/registry/core/next"
 
@@ -33,7 +35,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/setid"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
@@ -86,7 +87,7 @@ func TestCrossNSERequest(t *testing.T) {
 		TokenGenerator,
 		interpose.NewServer("nsmgr", &regServer))
 
-	crossNSE := endpoint.NewServer(ctx, "cross-nse",
+	interposeNSE := endpoint.NewServer(ctx, "interpose-nse",
 		authorize.NewServer(),
 		TokenGenerator)
 
@@ -102,9 +103,9 @@ func TestCrossNSERequest(t *testing.T) {
 	copyClient := &copyClient{}
 
 	client := chain.NewNetworkServiceClient(authorize.NewClient(),
-		setid.NewClient("client"),
+		updatepath.NewClient("client"),
 		injectpeer.NewClient(),
-		updatepath.NewClient("client", TokenGenerator),
+		updatetoken.NewClient(TokenGenerator),
 		copyClient, // Now we go into server
 
 		adapters.NewServerToClient(
@@ -114,11 +115,11 @@ func TestCrossNSERequest(t *testing.T) {
 		copyClient, // Now we go into server
 		// We need to call cross nse server here
 		// Add one more path with cross NSE
-		adapters.NewServerToClient(crossNSE),
+		adapters.NewServerToClient(interposeNSE),
 
 		copyClient, // Now we go into server
 		// Go again on server
-		adapters.NewServerToClient(next.NewNetworkServiceServer(server, checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+		adapters.NewServerToClient(next.NewNetworkServiceServer(clienturl.NewServer(clientURL), server, checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
 			require.Equal(t, clientURL.String(), clienturl.ClientURL(ctx).String())
 		}))),
 		copyClient, // Now we go into server
@@ -136,6 +137,6 @@ func TestCrossNSERequest(t *testing.T) {
 	require.Equal(t, 4, len(copyClient.requests))
 	require.Equal(t, 4, len(segments))
 	require.Equal(t, "nsmgr", segments[1].Name)
-	require.Equal(t, "cross-nse", segments[2].Name)
+	require.Equal(t, "interpose-nse", segments[2].Name)
 	require.Equal(t, "nsmgr", segments[3].Name)
 }

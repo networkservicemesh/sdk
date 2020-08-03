@@ -49,9 +49,9 @@ type interposeServer struct {
 }
 
 type connectionInfo struct {
-	endpointURL *url.URL
-	crossNSEURL *url.URL
-	closingNSE  bool
+	endpointURL     *url.URL
+	interposeNSEURL *url.URL
+	closingNSE      bool
 }
 
 // NewServer - creates a NetworkServiceServer that tracks locally registered CrossConnect Endpoints and on first Request forward to cross conenct nse
@@ -83,13 +83,14 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 	// We need to find an Id from path to match active connection request.
 	clientConnID := l.getConnectionID(conn)
 
+	// We came from client, so select cross nse and go to it.
+	clientURL := clienturl.ClientURL(ctx)
+
 	connInfoRaw, ok := l.activeConnection.Load(clientConnID)
 	if !ok {
 		if connID != clientConnID {
 			return nil, errors.Errorf("connection id should match current path segment id")
 		}
-		// We came from client, so select cross nse and go to it.
-		clientURL := clienturl.ClientURL(ctx)
 
 		// Iterate over all cross connect NSEs to check one with passed state.
 
@@ -99,8 +100,8 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 
 			// Store client connection and selected cross connection URL.
 			_, _ = l.activeConnection.LoadOrStore(conn.Id, &connectionInfo{
-				endpointURL: clientURL,
-				crossNSEURL: crossNSEURL,
+				endpointURL:     clientURL,
+				interposeNSEURL: crossNSEURL,
 			})
 			result, err = next.Server(crossCTX).Request(crossCTX, request)
 			if err != nil {
@@ -116,8 +117,11 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 		return nil, errors.Errorf("all cross NSE failed to connect to endpoint %v connection: %v", clientURL, conn)
 	}
 
-	// Go to endpoint URL
+	// Go to endpoint URL if it matches one we had on previous step.
 	connInfo := connInfoRaw.(*connectionInfo)
+	if clientURL != connInfo.endpointURL {
+		return nil, errors.Errorf("new selected endpoint URL %v doesn't match endpoint URL selected before interpose NSE %v", clientURL, connInfo.endpointURL)
+	}
 	crossCTX := clienturl.WithClientURL(ctx, connInfo.endpointURL)
 	return next.Server(crossCTX).Request(crossCTX, request)
 }
@@ -145,7 +149,7 @@ func (l *interposeServer) Close(ctx context.Context, conn *networkservice.Connec
 	if !connInfo.closingNSE {
 		// If not closing NSE go to cross connect
 		connInfo.closingNSE = true
-		crossCTX := clienturl.WithClientURL(ctx, connInfo.crossNSEURL)
+		crossCTX := clienturl.WithClientURL(ctx, connInfo.interposeNSEURL)
 		return next.Server(crossCTX).Close(crossCTX, conn)
 	}
 	// We are closing NSE, go to endpoint here.

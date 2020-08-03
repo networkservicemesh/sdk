@@ -35,14 +35,14 @@ import (
 )
 
 // interposeNSEName - a common prefix for all registered cross NSEs
-const interposeNSEName = "cross-connect-nse#"
+const interposeNSEName = "interpose-nse#"
 
 type interposeRegistry struct {
 	endpoints *interpose.Map
 }
 
 func (l *interposeRegistry) Register(ctx context.Context, request *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	if strings.HasSuffix(request.Name, interposeNSEName) {
+	if strings.HasPrefix(request.Name, interposeNSEName) {
 		endpointURL, err := url.Parse(request.Url)
 		if err != nil {
 			return nil, err
@@ -68,7 +68,7 @@ func (l *interposeRegistry) Find(query *registry.NetworkServiceEndpointQuery, s 
 }
 
 func (l *interposeRegistry) Unregister(ctx context.Context, request *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	if strings.HasSuffix(request.Name, interposeNSEName) {
+	if strings.HasPrefix(request.Name, interposeNSEName) {
 		l.endpoints.Delete(request.Name)
 		return &empty.Empty{}, nil
 	}

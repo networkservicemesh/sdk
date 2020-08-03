@@ -20,6 +20,7 @@ package interpose
 
 import (
 	"context"
+	"strings"
 
 	"google.golang.org/grpc"
 
@@ -33,7 +34,9 @@ type interposeClient struct {
 }
 
 func (u *interposeClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	in.Name = interposeNSEName
+	if !strings.HasPrefix(in.Name, interposeNSEName) {
+		in.Name = interposeNSEName + in.Name
+	}
 	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)
 }
 
@@ -42,6 +45,9 @@ func (u *interposeClient) Find(ctx context.Context, in *registry.NetworkServiceE
 }
 
 func (u *interposeClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
+	if !strings.HasPrefix(in.Name, interposeNSEName) {
+		in.Name = interposeNSEName + in.Name
+	}
 	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
 }
 
