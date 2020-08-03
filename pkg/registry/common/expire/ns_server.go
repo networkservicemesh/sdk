@@ -20,143 +20,95 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
 type nsServer struct {
-	server     registry.NetworkServiceRegistryServer
 	nseClient  registry.NetworkServiceEndpointRegistryClient
-	once       sync.Once
-	period     time.Duration
 	monitorErr error
-	nses       map[string]*registry.NetworkServiceEndpoint
-	nsCounter  map[string]int64
-	nss        map[string]*registry.NetworkService
-	executor   serialize.Executor
+	timers     timerMap
+	nsCounts   intMap
+	contexts   contextMap
+	once       sync.Once
 }
 
-func (n *nsServer) setPeriod(d time.Duration) {
-	n.period = d
-}
-
-func (n *nsServer) monitorUpdates() {
-	for {
-		c, err := n.nseClient.Find(context.Background(), &registry.NetworkServiceEndpointQuery{
-			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{},
-			Watch:                  true,
-		})
-		if err != nil {
-			n.monitorErr = err
-			return
-		}
-		for event := range registry.ReadNetworkServiceEndpointChannel(c) {
-			nse := event
-			n.executor.AsyncExec(func() {
-				_, exist := n.nses[nse.Name]
-				n.nses[nse.Name] = nse
-				if !exist {
-					for _, service := range nse.NetworkServiceNames {
-						n.nsCounter[service]++
+func (n *nsServer) checkUpdates() {
+	c, err := n.nseClient.Find(context.Background(), &registry.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{},
+		Watch:                  true,
+	})
+	if err != nil {
+		n.monitorErr = err
+		return
+	}
+	for nse := range registry.ReadNetworkServiceEndpointChannel(c) {
+		for i := range nse.NetworkServiceNames {
+			ns := nse.NetworkServiceNames[i]
+			var value int32
+			stored, _ := n.nsCounts.LoadOrStore(ns, &value)
+			if nse.ExpirationTime != nil && nse.ExpirationTime.Seconds < 0 {
+				atomic.AddInt32(stored, -1)
+			} else {
+				atomic.AddInt32(stored, 1)
+			}
+			duration := time.Until(time.Unix(nse.ExpirationTime.Seconds, int64(nse.ExpirationTime.Nanos)))
+			timer := time.AfterFunc(duration, func() {
+				if atomic.AddInt32(stored, -1) <= 0 {
+					if ctx, ok := n.contexts.Load(ns); ok {
+						_, _ = n.Unregister(ctx, &registry.NetworkService{Name: ns})
 					}
 				}
 			})
+			if v, loaded := n.timers.LoadOrStore(nse.Name, timer); loaded {
+				timer.Stop()
+				v.Reset(duration)
+			}
 		}
 	}
-}
-
-func (n *nsServer) monitorNSEsExpiration() {
-	for {
-		var list []*registry.NetworkService
-		n.executor.AsyncExec(func() {
-			for _, nse := range getExpiredNSEs(n.nses) {
-				for _, service := range nse.NetworkServiceNames {
-					n.nsCounter[service]--
-					if n.nsCounter[service] == 0 {
-						ns, ok := n.nss[service]
-						if ok {
-							list = append(list, ns)
-						}
-					}
-				}
-			}
-			for _, ns := range list {
-				delete(n.nsCounter, ns.Name)
-				delete(n.nss, ns.Name)
-				_, _ = n.server.Unregister(context.Background(), ns)
-			}
-		})
-		<-time.After(n.period)
-	}
-}
-
-func (n *nsServer) monitor() {
-	go func() {
-		n.monitorUpdates()
-	}()
-	go func() {
-		n.monitorNSEsExpiration()
-	}()
 }
 
 func (n *nsServer) Register(ctx context.Context, request *registry.NetworkService) (*registry.NetworkService, error) {
 	n.once.Do(func() {
-		n.server = next.NetworkServiceRegistryServer(ctx)
-		n.monitor()
+		go func() {
+			for n.monitorErr == nil {
+				n.checkUpdates()
+			}
+		}()
 	})
 	if n.monitorErr != nil {
 		return nil, n.monitorErr
 	}
-	r, err := next.NetworkServiceRegistryServer(ctx).Register(ctx, request)
-	if err != nil {
-		return nil, err
-	}
-	n.executor.AsyncExec(func() {
-		n.nss[request.Name] = r
-	})
-	return r, nil
+	n.contexts.Store(request.Name, ctx)
+	return next.NetworkServiceRegistryServer(ctx).Register(ctx, request)
 }
 
 func (n *nsServer) Find(query *registry.NetworkServiceQuery, s registry.NetworkServiceRegistry_FindServer) error {
 	if n.monitorErr != nil {
 		return n.monitorErr
 	}
-	return n.server.Find(query, s)
+	return next.NetworkServiceRegistryServer(s.Context()).Find(query, s)
 }
 
 func (n *nsServer) Unregister(ctx context.Context, request *registry.NetworkService) (*empty.Empty, error) {
 	if n.monitorErr != nil {
 		return nil, n.monitorErr
 	}
-	canClose := false
-	n.executor.AsyncExec(func() {
-		if n.nsCounter[request.Name] == 0 {
-			canClose = true
+	if v, ok := n.nsCounts.Load(request.Name); ok {
+		if atomic.LoadInt32(v) > 0 {
+			return nil, errors.New("cannot delete network service: resource already in use")
 		}
-	})
-	if !canClose {
-		return new(empty.Empty), errors.New("can not delete ns cause of already in use")
 	}
+	n.contexts.Delete(request.Name)
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, request)
 }
 
 // NewNetworkServiceServer wraps passed NetworkServiceRegistryServer and monitor NetworkServiceEndpoints via passed NetworkServiceEndpointRegistryClient
-func NewNetworkServiceServer(nseClient registry.NetworkServiceEndpointRegistryClient, options ...Option) registry.NetworkServiceRegistryServer {
-	r := &nsServer{
-		nseClient: nseClient,
-		nsCounter: map[string]int64{},
-		nss:       map[string]*registry.NetworkService{},
-		nses:      map[string]*registry.NetworkServiceEndpoint{},
-	}
-
-	for _, o := range options {
-		o.apply(r)
-	}
-
-	return r
+func NewNetworkServiceServer(nseClient registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceRegistryServer {
+	return &nsServer{nseClient: nseClient}
 }

@@ -33,7 +33,7 @@ import (
 )
 
 func TestNewNetworkServiceEndpointRegistryServer(t *testing.T) {
-	s := next.NewNetworkServiceEndpointRegistryServer(expire.NewNetworkServiceEndpointRegistryServer(expire.WithPeriod(testPeriod)), memory.NewNetworkServiceEndpointRegistryServer())
+	s := next.NewNetworkServiceEndpointRegistryServer(expire.NewNetworkServiceEndpointRegistryServer(), memory.NewNetworkServiceEndpointRegistryServer())
 	expiration := time.Now().Add(testPeriod * 2)
 	_, err := s.Register(context.Background(), &registry.NetworkServiceEndpoint{
 		ExpirationTime: &timestamp.Timestamp{

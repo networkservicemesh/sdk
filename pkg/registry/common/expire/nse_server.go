@@ -18,82 +18,50 @@ package expire
 
 import (
 	"context"
-	"sync"
 	"time"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
 type nseServer struct {
-	nses     map[string]*registry.NetworkServiceEndpoint
-	executor serialize.Executor
-	period   time.Duration
-	once     sync.Once
-	server   registry.NetworkServiceEndpointRegistryServer
-}
-
-func (n *nseServer) setPeriod(d time.Duration) {
-	n.period = d
+	timers timerMap
 }
 
 func (n *nseServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	n.once.Do(func() {
-		n.server = next.NetworkServiceEndpointRegistryServer(ctx)
-		n.monitor()
-	})
 	r, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	if err != nil {
 		return nil, err
 	}
-	n.executor.AsyncExec(func() {
-		n.nses[nse.Name] = r
+	duration := time.Until(time.Unix(nse.ExpirationTime.Seconds, int64(nse.ExpirationTime.Nanos)))
+	timer := time.AfterFunc(duration, func() {
+		_, _ = next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 	})
+	if t, load := n.timers.LoadOrStore(nse.Name, timer); load {
+		timer.Stop()
+		t.Reset(duration)
+	}
 	return r, nil
 }
 
 func (n *nseServer) Find(query *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
-	return n.server.Find(query, s)
+	return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(query, s)
 }
 
 func (n *nseServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	resp, err := n.server.Unregister(ctx, nse)
+	resp, err := next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 	if err != nil {
 		return nil, err
 	}
-	n.executor.AsyncExec(func() {
-		delete(n.nses, nse.Name)
-	})
+	if timer, ok := n.timers.Load(nse.Name); ok {
+		timer.Stop()
+	}
 	return resp, nil
 }
 
-func (n *nseServer) monitor() {
-	go func() {
-		for {
-			<-n.executor.AsyncExec(func() {
-				for _, nse := range getExpiredNSEs(n.nses) {
-					delete(n.nses, nse.Name)
-					_, _ = n.server.Unregister(context.Background(), nse)
-				}
-			})
-			<-time.After(n.period)
-		}
-	}()
-}
-
 // NewNetworkServiceEndpointRegistryServer wraps passed NetworkServiceEndpointRegistryServer and monitor Network service endpoints
-func NewNetworkServiceEndpointRegistryServer(options ...Option) registry.NetworkServiceEndpointRegistryServer {
-	r := &nseServer{
-		period: defaultPeriod,
-		nses:   map[string]*registry.NetworkServiceEndpoint{},
-	}
-
-	for _, o := range options {
-		o.apply(r)
-	}
-
-	return r
+func NewNetworkServiceEndpointRegistryServer() registry.NetworkServiceEndpointRegistryServer {
+	return &nseServer{}
 }
