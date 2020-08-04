@@ -22,14 +22,16 @@ import (
 	"strconv"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
 	mkernel "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/fs"
+
 	"github.com/golang/protobuf/ptypes/empty"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/fs"
 )
 
 type mechanismsServer struct{}
@@ -53,6 +55,7 @@ func (m mechanismsServer) Request(ctx context.Context, req *networkservice.Netwo
 	}
 
 	conn.Mechanism.Parameters[common.NetNSInodeKey] = strconv.FormatUint(uint64(inode), 10)
+	mkernel.ToMechanism(conn.GetMechanism()).SetNetNSURL("unix:///proc/self/ns/net")
 	return next.Server(ctx).Request(ctx, req)
 }
 
