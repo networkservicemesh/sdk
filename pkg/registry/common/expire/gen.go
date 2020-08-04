@@ -14,8 +14,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package expire_test
+package expire
 
-import "time"
+import "sync"
 
-const testPeriod = time.Millisecond * 50
+//go:generate go-syncmap -output timer_sync_map.gen.go -type timerMap<string,*time.Timer>
+//go:generate go-syncmap -output int_sync_map.gen.go -type intMap<string,*int32>
+//go:generate go-syncmap -output context_sync_map.gen.go -type contextMap<string,context.Context>
+
+type timerMap sync.Map
+type contextMap sync.Map
+type intMap sync.Map

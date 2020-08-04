@@ -32,11 +32,14 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/memory"
 )
 
+const testPeriod = time.Millisecond * 50
+
 func TestNewNetworkServiceRegistryServer(t *testing.T) {
 	nseMem := next.NewNetworkServiceEndpointRegistryServer(
 		setid.NewNetworkServiceEndpointRegistryServer(),
 		memory.NewNetworkServiceEndpointRegistryServer(),
 	)
+
 	expiration := time.Now().Add(testPeriod * 2)
 	_, err := nseMem.Register(context.Background(), &registry.NetworkServiceEndpoint{
 		NetworkServiceNames: []string{"IP terminator"},
@@ -48,7 +51,7 @@ func TestNewNetworkServiceRegistryServer(t *testing.T) {
 	require.Nil(t, err)
 	nseClient := adapters.NetworkServiceEndpointServerToClient(nseMem)
 	nsMem := memory.NewNetworkServiceRegistryServer()
-	s := expire.NewNetworkServiceServer(nsMem, nseClient, expire.WithPeriod(testPeriod))
+	s := next.NewNetworkServiceRegistryServer(expire.NewNetworkServiceServer(nseClient), nsMem)
 	_, err = s.Register(context.Background(), &registry.NetworkService{
 		Name: "IP terminator",
 	})
@@ -87,7 +90,7 @@ func TestNewNetworkServiceRegistryServer_NSEUnregister(t *testing.T) {
 	require.Nil(t, err)
 	nseClient := adapters.NetworkServiceEndpointServerToClient(nseMem)
 	nsMem := memory.NewNetworkServiceRegistryServer()
-	s := expire.NewNetworkServiceServer(nsMem, nseClient, expire.WithPeriod(testPeriod))
+	s := next.NewNetworkServiceRegistryServer(expire.NewNetworkServiceServer(nseClient), nsMem)
 	_, err = s.Register(context.Background(), &registry.NetworkService{
 		Name: "IP terminator",
 	})
