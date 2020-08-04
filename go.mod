@@ -8,6 +8,7 @@ require (
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/edwarnicke/exechelper v1.0.1
+	github.com/edwarnicke/grpcfd v0.0.0-20200803222316-dd18d0d4c179
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/protobuf v1.4.2
@@ -36,7 +37,7 @@ require (
 	golang.org/x/tools v0.0.0-20200717024301-6ddee64345a6 // indirect
 	gonum.org/v1/gonum v0.6.2
 	google.golang.org/genproto v0.0.0-20200615140333-fd031eab31e7 // indirect
-	google.golang.org/grpc v1.29.1
+	google.golang.org/grpc v1.30.0
 	google.golang.org/protobuf v1.24.0
 	gopkg.in/yaml.v2 v2.2.4 // indirect
 )
