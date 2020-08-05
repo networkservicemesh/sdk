@@ -21,6 +21,10 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/require"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -41,6 +45,18 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/null"
 )
+
+type unsupportedMechanismServer struct{}
+
+func (u *unsupportedMechanismServer) Request(context.Context, *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	return nil, errors.New("unsupported")
+}
+
+func (u *unsupportedMechanismServer) Close(context.Context, *networkservice.Connection) (*empty.Empty, error) {
+	return nil, errors.New("unsupported")
+}
+
+var _ networkservice.NetworkServiceServer = (*unsupportedMechanismServer)(nil)
 
 func server() networkservice.NetworkServiceServer {
 	return chain.NewNetworkServiceServer(mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
@@ -171,6 +187,43 @@ func TestDownstreamError(t *testing.T) {
 	assert.NotNil(t, err)
 	_, err = server.Close(context.Background(), &networkservice.Connection{Mechanism: &networkservice.Mechanism{Cls: "NOT_A_CLS", Type: "NOT_A_TYPE"}})
 	assert.NotNil(t, err)
+}
+
+func TestFewWrongMechanisms(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	logrus.SetOutput(ioutil.Discard)
+
+	ch := make(chan struct{}, 10)
+	server := next.NewNetworkServiceServer(
+		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
+			"mech1": &unsupportedMechanismServer{},
+			"mech2": &unsupportedMechanismServer{},
+			"mech3": null.NewServer(),
+		}),
+		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+			ch <- struct{}{}
+		}),
+	)
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{},
+		MechanismPreferences: []*networkservice.Mechanism{
+			{
+				Type: "mech1",
+			},
+			{
+				Type: "mech2",
+			},
+			{
+				Type: "mech3",
+			},
+		},
+	}
+
+	conn, err := server.Request(context.Background(), request)
+	require.Nil(t, err)
+
+	_, err = server.Close(context.Background(), conn)
+	require.Nil(t, err)
 }
 
 func TestDontCallNextByItself(t *testing.T) {

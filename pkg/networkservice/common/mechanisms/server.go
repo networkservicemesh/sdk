@@ -64,7 +64,11 @@ func (m *mechanismsServer) Request(ctx context.Context, request *networkservice.
 		if ok {
 			req := request.Clone()
 			req.GetConnection().Mechanism = mechanism
-			return srv.Request(ctx, req)
+			resp, err := srv.Request(ctx, req)
+			if err == nil {
+				return resp, err
+			}
+			trace.Log(ctx).Error(err.Error())
 		}
 	}
 	return nil, errors.Errorf("Cannot support any of the requested Mechanisms: %+v", request.GetMechanismPreferences())
