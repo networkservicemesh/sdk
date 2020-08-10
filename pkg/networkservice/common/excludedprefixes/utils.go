@@ -23,9 +23,8 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
-	"github.com/fsnotify/fsnotify"
-
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
+	"github.com/networkservicemesh/sdk/pkg/tools/fswatcher"
 )
 
 func removeDuplicates(elements []string) []string {
@@ -43,17 +42,12 @@ func removeDuplicates(elements []string) []string {
 }
 
 func watchFile(ctx context.Context, path string, onChanged func([]byte)) error {
-	watcher, err := fsnotify.NewWatcher()
+	watcher, err := fswatcher.WatchOn(path)
 	if err != nil {
 		return err
 	}
-	if err := watcher.Add(path); err != nil {
-		return err
-	}
+	defer func() { _ = watcher.Close() }()
 
-	defer func() {
-		_ = watcher.Close()
-	}()
 	for {
 		select {
 		case <-ctx.Done():
