@@ -10,7 +10,7 @@ jobs:
     strategy:
       matrix:
         repository: [cmd-registry-memory, cmd-registry-proxy-dns, sdk-kernel, sdk-vppagent, cmd-nsmgr]
-    name: Update dependent repositories
+    name: Update ${{ matrix.repository }}
     runs-on: ubuntu-latest
     if: github.repository == 'networkservicemesh/sdk'
     steps:
@@ -26,7 +26,7 @@ jobs:
           GOPROXY=direct go get -u github.com/networkservicemesh/sdk
           go mod tidy
           git diff
-      - name: Push update to the repository
+      - name: Push update to the ${{ matrix.repository }}
         run: |
           echo Starting to update reposiotry ${repository}
           git config --global user.email "nsmbot@networkservicmesh.io"
