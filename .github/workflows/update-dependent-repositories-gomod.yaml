@@ -19,7 +19,6 @@ jobs:
           repository: ${{ github.repository }}
           token: ${{ secrets.NSM_BOT_GITHUB_TOKEN }}
       - name: Find merged PR
-        working-directory: ${{ github.repository }}
         uses: jwalton/gh-find-current-pr@v1
         id: findPr
         with:
