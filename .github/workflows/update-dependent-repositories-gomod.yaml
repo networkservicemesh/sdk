@@ -44,6 +44,7 @@ jobs:
         with:
           go-version: 1.13.4
       - name: Update ${{ github.repository }} locally
+        working-directory: networkservicemesh/${{ matrix.repository }}
         run: |
           GOPROXY=direct go get -u github.com/${{ github.repository }}
           go mod tidy
@@ -51,7 +52,7 @@ jobs:
       - name: Push update to the ${{ matrix.repository }}
         working-directory: networkservicemesh/${{ matrix.repository }}
         run: |
-          echo Starting to update reposiotry ${repository}
+          echo Starting to update repositotry ${repository}
           git config --global user.email "nsmbot@networkservicmesh.io"
           git config --global user.name "NSMBot"
           git add go.mod go.sum
