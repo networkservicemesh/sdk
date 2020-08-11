@@ -23,15 +23,18 @@ package excludedprefixes
 import (
 	"context"
 	"io/ioutil"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/ghodss/yaml"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/trace"
+	"github.com/networkservicemesh/sdk/pkg/tools/fswatcher"
 	"github.com/networkservicemesh/sdk/pkg/tools/prefixpool"
 )
 
@@ -44,26 +47,34 @@ type excludedPrefixesServer struct {
 
 func (eps *excludedPrefixesServer) init() {
 	logger := trace.Log(eps.ctx)
-	updatePrefixes := func(bytes []byte) {
+	onUpdate := func(_ fsnotify.Event) error {
+		bytes, err := ioutil.ReadFile(filepath.Clean(eps.configPath))
+		if err != nil {
+			logger.Errorf("An error during read file %v, error: %v", eps.configPath, err.Error())
+			return err
+		}
 		source := struct {
 			Prefixes []string
 		}{}
-		err := yaml.Unmarshal(bytes, &source)
+		err = yaml.Unmarshal(bytes, &source)
 		if err != nil {
 			logger.Errorf("Can not create unmarshal prefixes, err: %v", err.Error())
-			return
+			return err
 		}
 		pool, err := prefixpool.New(source.Prefixes...)
 		if err != nil {
 			logger.Errorf("Can not create prefixpool with prefixes: %+v, err: %v", pool.GetPrefixes(), err.Error())
-			return
+			return err
 		}
 		eps.prefixPool.Store(pool)
+		return nil
 	}
-	bytes, _ := ioutil.ReadFile(eps.configPath)
-	updatePrefixes(bytes)
+	err := onUpdate(fsnotify.Event{})
+	if err != nil {
+		logger.Errorf("An error during watch file: %v", err.Error())
+	}
 	go func() {
-		err := watchFile(eps.ctx, eps.configPath, updatePrefixes)
+		err := fswatcher.WatchOn(eps.ctx, onUpdate, eps.configPath)
 		if err != nil {
 			logger.Errorf("An error during watch file: %v", err.Error())
 		}

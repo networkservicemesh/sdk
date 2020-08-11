@@ -18,15 +18,6 @@
 
 package excludedprefixes
 
-import (
-	"context"
-	"io/ioutil"
-	"path/filepath"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
-	"github.com/networkservicemesh/sdk/pkg/tools/fswatcher"
-)
-
 func removeDuplicates(elements []string) []string {
 	encountered := map[string]bool{}
 	result := []string{}
@@ -39,29 +30,4 @@ func removeDuplicates(elements []string) []string {
 		result = append(result, elements[index])
 	}
 	return result
-}
-
-func watchFile(ctx context.Context, path string, onChanged func([]byte)) error {
-	watcher, err := fswatcher.WatchOn(path)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = watcher.Close() }()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-watcher.Events:
-			data, err := ioutil.ReadFile(filepath.Clean(path))
-			if err != nil {
-				trace.Log(ctx).Errorf("An error during read file %v, error: %v", path, err.Error())
-				return err
-			}
-			onChanged(data)
-		case err := <-watcher.Errors:
-			trace.Log(ctx).Errorf("Watch %v, error: %v", path, err.Error())
-			return err
-		}
-	}
 }

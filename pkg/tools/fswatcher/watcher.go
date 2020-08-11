@@ -17,21 +17,39 @@
 // Package fswatcher provide common tools for FS watching
 package fswatcher
 
-import "github.com/fsnotify/fsnotify"
+import (
+	"context"
 
-// WatchOn creates a FS watcher on given ...paths
-func WatchOn(paths ...string) (*fsnotify.Watcher, error) {
+	"github.com/fsnotify/fsnotify"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
+)
+
+// WatchOn watches for events on given ...paths
+func WatchOn(ctx context.Context, onEvent func(event fsnotify.Event) error, paths ...string) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		return nil, err
+		return err
 	}
+	defer func() { _ = watcher.Close() }()
 
 	for _, path := range paths {
 		if err := watcher.Add(path); err != nil {
-			_ = watcher.Close()
-			return nil, err
+			return err
 		}
 	}
 
-	return watcher, nil
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case event := <-watcher.Events:
+			if err := onEvent(event); err != nil {
+				return err
+			}
+		case err := <-watcher.Errors:
+			trace.Log(ctx).Errorf("Watch %+v, error: %v", paths, err.Error())
+			return err
+		}
+	}
 }
