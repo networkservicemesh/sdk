@@ -1,19 +1,22 @@
 ---
-name: Update cmd-registry-memory
+name: Update dependent repositories
 on:
   push:
     branches:
       - master
 
 jobs:
-  update-cmd-registry-memory:
-    name: Update cmd-registry-memory
+  update-dependent-repositories:
+    strategy:
+      matrix:
+        repository: [cmd-registry-memory, cmd-registry-proxy-dns, sdk-kernel, sdk-vppagent, cmd-nsmgr]
+    name: Update dependent repositories
     runs-on: ubuntu-latest
     if: github.repository == 'networkservicemesh/sdk'
     steps:
       - uses: actions/checkout@v2
         with:
-          repository: networkservicemesh/cmd-registry-memory
+          repository: networkservicemesh/${{ matrix.repository }}
           token: ${{ secrets.NSM_BOT_GITHUB_TOKEN }}
       - uses: actions/setup-go@v1
         with:
@@ -23,8 +26,9 @@ jobs:
           GOPROXY=direct go get -u github.com/networkservicemesh/sdk
           go mod tidy
           git diff
-      - name: Push update to cmd-registry-memory
+      - name: Push update to the repository
         run: |
+          echo Starting to update reposiotry ${repository}
           git config --global user.email "nsmbot@networkservicmesh.io"
           git config --global user.name "NSMBot"
           git add go.mod go.sum
