@@ -71,7 +71,8 @@ func (eps *excludedPrefixesServer) init() {
 	}
 	err := onUpdate(fsnotify.Event{})
 	if err != nil {
-		logger.Errorf("An error during watch file: %v", err.Error())
+		pool, _ := prefixpool.New()
+		eps.prefixPool.Store(pool)
 	}
 	go func() {
 		err := fswatcher.WatchOn(eps.ctx, onUpdate, eps.configPath)
