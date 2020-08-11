@@ -7,13 +7,16 @@ on:
 
 jobs:
   update-dependent-repositories:
+    strategy:
+      matrix:
+        repository: [cmd-registry-memory, cmd-registry-proxy-dns, sdk-kernel, sdk-vppagent, cmd-nsmgr]
     name: Update dependent repositories
     runs-on: ubuntu-latest
     if: github.repository == 'networkservicemesh/sdk'
     steps:
       - uses: actions/checkout@v2
         with:
-          repository: [networkservicemesh/cmd-registry-memory, networkservicemesh/cmd-registry-proxy-dns, networkservicemesh/sdk-kernel, networkservicemesh/sdk-vppagent, networkservicemesh/cmd-nsmgr]
+          repository: networkservicemesh/${{ matrix.repository }}
           token: ${{ secrets.NSM_BOT_GITHUB_TOKEN }}
       - uses: actions/setup-go@v1
         with:
