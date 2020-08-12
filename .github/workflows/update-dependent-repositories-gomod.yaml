@@ -52,10 +52,10 @@ jobs:
       - name: Push update to the ${{ matrix.repository }}
         working-directory: networkservicemesh/${{ matrix.repository }}
         run: |
-          echo Starting to update repositotry ${repository}
+          echo Starting to update repositotry ${{ matrix.repository }}
           git config --global user.email "nsmbot@networkservicmesh.io"
           git config --global user.name "NSMBot"
           git add go.mod go.sum
           git commit -s -F /tmp/commit-message
-          git checkout -b update/sdk-gomod
-          git push -f origin update/sdk-gomod
+          git checkout -b update/${{ github.repository }}
+          git push -f origin update/${{ github.repository }}
