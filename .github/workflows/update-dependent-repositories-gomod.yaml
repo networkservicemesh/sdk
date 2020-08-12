@@ -13,7 +13,8 @@ jobs:
     name: Update ${{ matrix.repository }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout ${{ github.repository }}
+        uses: actions/checkout@v2
         with:
           path: ${{ github.repository }}
           repository: ${{ github.repository }}
@@ -35,7 +36,8 @@ jobs:
           echo "Commit Message:"
           cat /tmp/commit-message
 
-      - uses: actions/checkout@v2
+      - name: Checkout networkservicemesh/${{ matrix.repository }}
+        uses: actions/checkout@v2
         with:
           path: networkservicemesh/${{ matrix.repository }}
           repository: networkservicemesh/${{ matrix.repository }}
