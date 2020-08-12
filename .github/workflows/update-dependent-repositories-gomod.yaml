@@ -56,6 +56,6 @@ jobs:
           git config --global user.email "nsmbot@networkservicmesh.io"
           git config --global user.name "NSMBot"
           git add go.mod go.sum
-          git commit -F /tmp/commit-message
+          git commit -s -F /tmp/commit-message
           git checkout -b update/sdk-gomod
           git push -f origin update/sdk-gomod
