@@ -200,3 +200,61 @@ jobs:
         with:
           GITHUB_LOGIN: nsmbot
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  update-dependent-repositories:
+    strategy:
+      matrix:
+        repository: [cmd-registry-memory, cmd-registry-proxy-dns, sdk-kernel, sdk-vppagent, cmd-nsmgr]
+    name: Update ${{ matrix.repository }}
+    runs-on: ubuntu-latest
+    needs:
+      - automerge
+    if: github.actor == 'nsmbot' && github.base_ref == 'master' && github.event_name == 'pull_request'
+    steps:
+      - name: Checkout ${{ github.repository }}
+        uses: actions/checkout@v2
+        with:
+          path: ${{ github.repository }}
+          repository: ${{ github.repository }}
+          token: ${{ secrets.NSM_BOT_GITHUB_TOKEN }}
+      - name: Find merged PR
+        uses: jwalton/gh-find-current-pr@v1
+        id: findPr
+        with:
+          github-token: ${{ github.token }}
+      - name: Create commit message
+        working-directory: ${{ github.repository }}
+        run: |
+          echo "Update go.mod and go.sum to latest version from ${{ github.repository }}@master ${{ github.repository }}#${{ steps.findPr.outputs.pr }}" >> /tmp/commit-message
+          echo "" >> /tmp/commit-message
+          echo "${{ github.repository }} PR link: https://github.com/${{ github.repository }}/pull/${{ steps.findPr.outputs.pr }}" >> /tmp/commit-message
+          echo "" >> /tmp/commit-message
+          echo "${{ github.repository }} commit message:" >> /tmp/commit-message
+          git log -1 >> /tmp/commit-message
+          echo "Commit Message:"
+          cat /tmp/commit-message
+
+      - name: Checkout networkservicemesh/${{ matrix.repository }}
+        uses: actions/checkout@v2
+        with:
+          path: networkservicemesh/${{ matrix.repository }}
+          repository: networkservicemesh/${{ matrix.repository }}
+          token: ${{ secrets.NSM_BOT_GITHUB_TOKEN }}
+      - uses: actions/setup-go@v1
+        with:
+          go-version: 1.13.4
+      - name: Update ${{ github.repository }} locally
+        working-directory: networkservicemesh/${{ matrix.repository }}
+        run: |
+          GOPROXY=direct go get -u github.com/${{ github.repository }}
+          go mod tidy
+          git diff
+      - name: Push update to the ${{ matrix.repository }}
+        working-directory: networkservicemesh/${{ matrix.repository }}
+        run: |
+          echo Starting to update repositotry ${{ matrix.repository }}
+          git config --global user.email "nsmbot@networkservicmesh.io"
+          git config --global user.name "NSMBot"
+          git add go.mod go.sum
+          git commit -s -F /tmp/commit-message
+          git checkout -b update/${{ github.repository }}
+          git push -f origin update/${{ github.repository }}
