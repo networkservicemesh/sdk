@@ -33,7 +33,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
 )
 
-const testExpiryDuraiton = time.Millisecond * 100
+const testExpiryDuration = time.Millisecond * 100
 
 type testNSEClient struct {
 	sync.Mutex
@@ -74,8 +74,8 @@ func TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	testClient := testNSEClient{}
 	refreshClient := refresh.NewNetworkServiceEndpointRegistryClient(&testClient,
-		refresh.WithRetryPeriod(time.Millisecond*100),
-		refresh.WithDefaultExpiryDuration(testExpiryDuraiton),
+		refresh.WithRetryPeriod(testExpiryDuration),
+		refresh.WithDefaultExpiryDuration(testExpiryDuration),
 	)
 	_, err := refreshClient.Register(context.Background(), &registry.NetworkServiceEndpoint{
 		Name: "nse-1",
@@ -85,7 +85,7 @@ func TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {
 		testClient.Lock()
 		defer testClient.Unlock()
 		return testClient.requestCount > 0
-	}, testExpiryDuraiton*2, testExpiryDuraiton/4)
+	}, time.Second, testExpiryDuration/4)
 	_, err = refreshClient.Unregister(context.Background(), &registry.NetworkServiceEndpoint{Name: "nse-1"})
 	require.Nil(t, err)
 }
@@ -108,8 +108,8 @@ func TestNewNetworkServiceEndpointRegistryClient_CalledRegisterTwice(t *testing.
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	testClient := testNSEClient{}
 	refreshClient := refresh.NewNetworkServiceEndpointRegistryClient(&testClient,
-		refresh.WithRetryPeriod(time.Millisecond*100),
-		refresh.WithDefaultExpiryDuration(time.Millisecond*100),
+		refresh.WithRetryPeriod(testExpiryDuration),
+		refresh.WithDefaultExpiryDuration(testExpiryDuration),
 	)
 	_, err := refreshClient.Register(context.Background(), &registry.NetworkServiceEndpoint{
 		Name: "nse-1",
@@ -123,7 +123,7 @@ func TestNewNetworkServiceEndpointRegistryClient_CalledRegisterTwice(t *testing.
 		testClient.Lock()
 		defer testClient.Unlock()
 		return testClient.requestCount > 0
-	}, testExpiryDuraiton*2, testExpiryDuraiton/4)
+	}, time.Second, testExpiryDuration/4)
 	_, err = refreshClient.Unregister(context.Background(), &registry.NetworkServiceEndpoint{Name: "nse-1"})
 	require.Nil(t, err)
 }

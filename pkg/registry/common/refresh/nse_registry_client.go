@@ -31,7 +31,7 @@ import (
 
 type refreshNSEClient struct {
 	client                registry.NetworkServiceEndpointRegistryClient
-	nseCancelers          cancelersMap
+	nseCancels            cancelsMap
 	retryDelay            time.Duration
 	defaultExpiryDuration time.Duration
 }
@@ -72,11 +72,11 @@ func (c *refreshNSEClient) Register(ctx context.Context, in *registry.NetworkSer
 	if err != nil {
 		return nil, err
 	}
-	if cancel, ok := c.nseCancelers.Load(resp.Name); ok {
+	if cancel, ok := c.nseCancels.Load(resp.Name); ok {
 		cancel()
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	c.nseCancelers.Store(resp.Name, cancel)
+	c.nseCancels.Store(resp.Name, cancel)
 	c.startRefresh(ctx, resp)
 	return resp, err
 }
@@ -90,10 +90,10 @@ func (c *refreshNSEClient) Unregister(ctx context.Context, in *registry.NetworkS
 	if err != nil {
 		return nil, err
 	}
-	if cancel, ok := c.nseCancelers.Load(in.Name); ok {
+	if cancel, ok := c.nseCancels.Load(in.Name); ok {
 		cancel()
 	}
-	c.nseCancelers.Delete(in.Name)
+	c.nseCancels.Delete(in.Name)
 	return resp, nil
 }
 
