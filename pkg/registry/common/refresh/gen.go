@@ -18,8 +18,8 @@ package refresh
 
 import "sync"
 
-//go:generate go-syncmap -output sync_map.gen.go -type cancelersMap<string,context.CancelFunc>
+//go:generate go-syncmap -output sync_map.gen.go -type cancelsMap<string,context.CancelFunc>
 
-// cancelersMap is like a Go map[string]context.CancelFunc but is safe for concurrent use
+// cancelsMap is like a Go map[string]context.CancelFunc but is safe for concurrent use
 // by multiple goroutines without additional locking or coordination
-type cancelersMap sync.Map
+type cancelsMap sync.Map
