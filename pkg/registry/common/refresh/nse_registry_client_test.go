@@ -70,24 +70,6 @@ func (c *checkExpirationTimeClient) Unregister(ctx context.Context, in *registry
 	return new(empty.Empty), nil
 }
 
-func TestIsStable_TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {
-	for i := 0; i < 100; i++ {
-		TestNewNetworkServiceEndpointRegistryClient(t)
-	}
-}
-
-func TestIsStable_TestNewNetworkServiceEndpointRegistryClient_CalledRegisterTwice(t *testing.T) {
-	for i := 0; i < 100; i++ {
-		TestNewNetworkServiceEndpointRegistryClient_CalledRegisterTwice(t)
-	}
-}
-
-func TestIsStable_TestRefreshNSEClient_ShouldSetExpirationTime_BeforeCallNext(t *testing.T) {
-	for i := 0; i < 100; i++ {
-		TestRefreshNSEClient_ShouldSetExpirationTime_BeforeCallNext(t)
-	}
-}
-
 func TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	testClient := testNSEClient{}
