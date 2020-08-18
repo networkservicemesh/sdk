@@ -47,30 +47,15 @@ type excludedPrefixesServer struct {
 
 func (eps *excludedPrefixesServer) init() {
 	logger := trace.Log(eps.ctx)
-	onUpdate := func(_ fsnotify.Event) error {
-		bytes, err := ioutil.ReadFile(filepath.Clean(eps.configPath))
+	onUpdate := func(event fsnotify.Event) error {
+		configPath, err := filepath.Abs(event.Name)
 		if err != nil {
-			logger.Errorf("An error during read file %v, error: %v", eps.configPath, err.Error())
-			return err
+			logger.Warnf("error getting config path from the event, try to use the stored path")
+			return eps.updatePrefixPool(eps.configPath)
 		}
-		source := struct {
-			Prefixes []string
-		}{}
-		err = yaml.Unmarshal(bytes, &source)
-		if err != nil {
-			logger.Errorf("Can not create unmarshal prefixes, err: %v", err.Error())
-			return err
-		}
-		pool, err := prefixpool.New(source.Prefixes...)
-		if err != nil {
-			logger.Errorf("Can not create prefixpool with prefixes: %+v, err: %v", pool.GetPrefixes(), err.Error())
-			return err
-		}
-		eps.prefixPool.Store(pool)
-		return nil
+		return eps.updatePrefixPool(configPath)
 	}
-	err := onUpdate(fsnotify.Event{})
-	if err != nil {
+	if err := eps.updatePrefixPool(eps.configPath); err != nil {
 		pool, _ := prefixpool.New()
 		eps.prefixPool.Store(pool)
 	}
@@ -80,6 +65,30 @@ func (eps *excludedPrefixesServer) init() {
 			logger.Errorf("An error during watch file: %v", err.Error())
 		}
 	}()
+}
+
+func (eps *excludedPrefixesServer) updatePrefixPool(configPath string) error {
+	logger := trace.Log(eps.ctx)
+	bytes, err := ioutil.ReadFile(filepath.Clean(configPath))
+	if err != nil {
+		logger.Errorf("An error during read file %v, error: %v", configPath, err.Error())
+		return err
+	}
+	source := struct {
+		Prefixes []string
+	}{}
+	err = yaml.Unmarshal(bytes, &source)
+	if err != nil {
+		logger.Errorf("Can not create unmarshal prefixes, err: %v", err.Error())
+		return err
+	}
+	pool, err := prefixpool.New(source.Prefixes...)
+	if err != nil {
+		logger.Errorf("Can not create prefixpool with prefixes: %+v, err: %v", source.Prefixes, err.Error())
+		return err
+	}
+	eps.prefixPool.Store(pool)
+	return nil
 }
 
 // Note: request.Connection and Connection.Context should not be nil
