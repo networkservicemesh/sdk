@@ -47,7 +47,7 @@ func ListenAndServe(ctx context.Context, address *url.URL, server *grpc.Server) 
 
 	if network == unixScheme {
 		err := os.Remove(target)
-		if !errors.Is(err, os.ErrNotExist) {
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			errCh <- errors.Wrap(err, "Cannot delete exist socket file")
 			close(errCh)
 			return errCh
