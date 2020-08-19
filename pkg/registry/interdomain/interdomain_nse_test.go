@@ -106,6 +106,55 @@ func TestInterdomainNetworkServiceEndpointRegistry(t *testing.T) {
 }
 
 /*
+TestLocalDomain_NetworkServiceEndpointRegistry covers the next scenario:
+	1. nsmgr from domain1 calls find with query "nse-1@domain1"
+	2. local registry proxies query to proxy registry
+	3. proxy registry proxies query to local registry removes interdomain symbol
+	4. local registry finds nse-1 with local nsmgr URL
+
+Expected: nsmgr found nse
+domain1
+ ____________________________________
+|                                    |
+| local registry <--> proxy registry |
+|                                    |
+_____________________________________
+*/
+func TestLocalDomain_NetworkServiceEndpointRegistry(t *testing.T) {
+	tool := newInterdomainTestingTool(t)
+	defer tool.verifyNoneLeaks()
+	defer tool.cleanup()
+
+	const localRegistryDomain = "domain1.local.registry"
+	const proxyRegistryDomain = "domain1.proxy.registry"
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	proxyRegistryURL := tool.startNetworkServiceEndpointRegistryServerAsync(proxyRegistryDomain, proxyNSERegistryServer(ctx, localRegistryDomain, tool))
+	tool.startNetworkServiceEndpointRegistryServerAsync(localRegistryDomain, localNSERegistryServer(ctx, proxyRegistryURL))
+
+	client := registry.NewNetworkServiceEndpointRegistryClient(tool.dialDomain(localRegistryDomain))
+
+	expected, err := client.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: "nse-1"})
+	require.NoError(t, err)
+
+	stream, err := client.Find(context.Background(), &registry.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+			Name: expected.Name + "@" + localRegistryDomain,
+		},
+	})
+
+	require.Nil(t, err)
+
+	list := registry.ReadNetworkServiceEndpointList(stream)
+
+	require.Len(t, list, 1)
+	require.Equal(t, expected.Name, list[0].Name)
+	require.Equal(t, "test://publicNSMGRurl", list[0].Url)
+}
+
+/*
 	TestInterdomainFloatingNetworkServiceEndpointRegistry covers the next scenario:
 		1. local registry from domain3 registers entry "ns-1"
 		2. proxy registry from domain3 proxies entry "ns-1" to floating registry

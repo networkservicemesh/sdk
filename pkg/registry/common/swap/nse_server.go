@@ -50,19 +50,36 @@ func (n *nseSwapRegistryServer) Register(ctx context.Context, nse *registry.Netw
 }
 
 type findNSESwapServer struct {
-	proxyNSMgrURL *url.URL
+	proxyNSMgrURL  *url.URL
+	publicNSMgrURL *url.URL
+	localDomain    string
+	remoteDomain   string
 	registry.NetworkServiceEndpointRegistry_FindServer
 }
 
 func (s *findNSESwapServer) Send(nse *registry.NetworkServiceEndpoint) error {
-	nse.Name = interdomain.Join(interdomain.Target(nse.Name), nse.Url)
-	nse.Url = s.proxyNSMgrURL.String()
+	if s.remoteDomain == s.localDomain {
+		nse.Name = interdomain.Target(nse.Name)
+		nse.Url = s.publicNSMgrURL.String()
+	} else {
+		nse.Name = interdomain.Join(interdomain.Target(nse.Name), nse.Url)
+		nse.Url = s.proxyNSMgrURL.String()
+	}
 	return s.NetworkServiceEndpointRegistry_FindServer.Send(nse)
 }
 
 func (n *nseSwapRegistryServer) Find(q *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
+	remoteDomain := interdomain.Domain(q.NetworkServiceEndpoint.Name)
 	q.NetworkServiceEndpoint.Name = interdomain.Target(q.NetworkServiceEndpoint.Name)
-	return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(q, &findNSESwapServer{NetworkServiceEndpointRegistry_FindServer: s, proxyNSMgrURL: n.proxyNSMgrURL})
+	return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(
+		q,
+		&findNSESwapServer{
+			NetworkServiceEndpointRegistry_FindServer: s,
+			proxyNSMgrURL:  n.proxyNSMgrURL,
+			publicNSMgrURL: n.publicNSMgrURL,
+			localDomain:    n.domain,
+			remoteDomain:   remoteDomain,
+		})
 }
 
 func (n *nseSwapRegistryServer) Unregister(ctx context.Context, ns *registry.NetworkServiceEndpoint) (*empty.Empty, error) {

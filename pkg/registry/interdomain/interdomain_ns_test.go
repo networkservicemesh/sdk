@@ -56,6 +56,54 @@ func proxyNSRegistryServer(ctx context.Context, currentDomain string, resolver d
 }
 
 /*
+TestLocalDomain_NetworkServiceRegistry covers the next scenario:
+	1. nsmgr from domain1 calls find with query "ns-1@domain1"
+	2. local registry proxies query to proxy registry
+	3. proxy registry proxies query to local registry removes interdomain symbol
+	4. local registry finds ns-1
+
+Expected: nsmgr found ns
+domain1
+ ____________________________________
+|                                    |
+| local registry <--> proxy registry |
+|                                    |
+_____________________________________
+*/
+func TestLocalDomain_NetworkServiceRegistry(t *testing.T) {
+	tool := newInterdomainTestingTool(t)
+	defer tool.verifyNoneLeaks()
+	defer tool.cleanup()
+
+	const localRegistryDomain = "domain1.local.registry"
+	const proxyRegistryDomain = "domain1.proxy.registry"
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	proxyRegistryURL := tool.startNetworkServiceRegistryServerAsync(proxyRegistryDomain, proxyNSRegistryServer(ctx, localRegistryDomain, tool))
+	tool.startNetworkServiceRegistryServerAsync(localRegistryDomain, localNSRegistryServer(ctx, proxyRegistryURL))
+
+	client := registry.NewNetworkServiceRegistryClient(tool.dialDomain(localRegistryDomain))
+
+	expected, err := client.Register(context.Background(), &registry.NetworkService{Name: "ns-1"})
+	require.NoError(t, err)
+
+	stream, err := client.Find(context.Background(), &registry.NetworkServiceQuery{
+		NetworkService: &registry.NetworkService{
+			Name: "ns-1@" + localRegistryDomain,
+		},
+	})
+
+	require.Nil(t, err)
+
+	list := registry.ReadNetworkServiceList(stream)
+
+	require.Len(t, list, 1)
+	require.Equal(t, expected.Name, list[0].Name)
+}
+
+/*
 TestInterdomainNetworkServiceRegistry covers the next scenario:
 	1. local registry from domain2 has entry "ns-1"
 	2. nsmgr from domain1 call find with query "ns-1@domain2"
