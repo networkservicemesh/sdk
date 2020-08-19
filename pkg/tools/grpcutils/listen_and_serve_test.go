@@ -56,7 +56,7 @@ func TestListenAndServe_ExistSocket(t *testing.T) {
 		_ = os.RemoveAll(dir)
 	}()
 	socket := path.Join(dir, "test.sock")
-	_, err = os.Create(socket)
+	err = ioutil.WriteFile(socket, []byte("..."), os.ModePerm)
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	ch := grpcutils.ListenAndServe(ctx, &url.URL{Scheme: "unix", Path: socket}, grpc.NewServer())
