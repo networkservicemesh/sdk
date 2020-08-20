@@ -71,7 +71,7 @@ func (u *clientURLClient) init() error {
 			return
 		}
 		var cc *grpc.ClientConn
-		cc, u.dialErr = grpc.DialContext(u.ctx, grpcutils.URLToTarget(clientURL), u.dialOptions...)
+		cc, u.dialErr = grpcutils.DialContext(u.ctx, grpcutils.URLToTarget(clientURL), u.dialOptions...)
 		if u.dialErr != nil {
 			return
 		}
