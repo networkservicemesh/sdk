@@ -20,6 +20,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/golang/protobuf/ptypes/timestamp"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
@@ -35,13 +37,18 @@ func (n *nseServer) Register(ctx context.Context, nse *registry.NetworkServiceEn
 	if err != nil {
 		return nil, err
 	}
-	duration := time.Until(time.Unix(nse.ExpirationTime.Seconds, int64(nse.ExpirationTime.Nanos)))
-	timer := time.AfterFunc(duration, func() {
-		_, _ = next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
-	})
-	if t, load := n.timers.LoadOrStore(nse.Name, timer); load {
-		timer.Stop()
-		t.Reset(duration)
+	if nse.ExpirationTime == nil {
+		nse.ExpirationTime = &timestamp.Timestamp{}
+	}
+	if nse.ExpirationTime.Seconds != 0 || nse.ExpirationTime.Nanos != 0 {
+		duration := time.Until(time.Unix(nse.ExpirationTime.Seconds, int64(nse.ExpirationTime.Nanos)))
+		timer := time.AfterFunc(duration, func() {
+			_, _ = next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
+		})
+		if t, load := n.timers.LoadOrStore(nse.Name, timer); load {
+			timer.Stop()
+			t.Reset(duration)
+		}
 	}
 	return r, nil
 }
