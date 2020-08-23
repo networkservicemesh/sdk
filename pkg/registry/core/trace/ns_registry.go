@@ -45,7 +45,7 @@ func (t *traceNetworkServiceRegistryFindClient) Recv() (*registry.NetworkService
 	defer span.Finish()
 
 	ctx := withLog(span.Context(), span.Logger())
-	s := streamcontext.NetworkServiceRegistryFindClient(ctx, t)
+	s := streamcontext.NetworkServiceRegistryFindClient(ctx, t.NetworkServiceRegistry_FindClient)
 	rv, err := s.Recv()
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
@@ -227,7 +227,7 @@ func (t *traceNetworkServiceRegistryFindServer) Send(ns *registry.NetworkService
 	defer span.Finish()
 	span.LogObject("network service", ns)
 	ctx := withLog(span.Context(), span.Logger())
-	s := streamcontext.NetworkServiceRegistryFindServer(ctx, t)
+	s := streamcontext.NetworkServiceRegistryFindServer(ctx, t.NetworkServiceRegistry_FindServer)
 	err := s.Send(ns)
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
