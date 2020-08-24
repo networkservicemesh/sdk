@@ -51,7 +51,7 @@ func WithField(parent context.Context, key string, value interface{}) context.Co
 //         to that context (so context values can be used in logrus.Hooks)
 func Entry(ctx context.Context) *logrus.Entry {
 	if ctx == nil {
-		ctx = context.TODO()
+		panic("cannot create context from nil parent")
 	}
 	if entryValue := ctx.Value(logrusEntry); entryValue != nil {
 		if entry := entryValue.(*logrus.Entry); entry != nil {

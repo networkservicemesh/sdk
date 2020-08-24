@@ -47,7 +47,7 @@ const (
 
 func withTestData(parent context.Context, testData *TestData) context.Context {
 	if parent == nil {
-		parent = context.TODO()
+		panic("cannot create context from nil parent")
 	}
 	return context.WithValue(parent, testDataKey, testData)
 }

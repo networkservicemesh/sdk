@@ -38,7 +38,7 @@ type contextKeyType string
 //    Should only be set in CompositeEndpoint.Request/Close
 func withNextServer(parent context.Context, next networkservice.NetworkServiceServer) context.Context {
 	if parent == nil {
-		parent = context.TODO()
+		parent = context.Background()
 	}
 	return context.WithValue(parent, nextServerKey, next)
 }
@@ -58,7 +58,7 @@ func Server(ctx context.Context) networkservice.NetworkServiceServer {
 //    Should only be set in CompositeEndpoint.Request/Close
 func withNextClient(parent context.Context, next networkservice.NetworkServiceClient) context.Context {
 	if parent == nil {
-		parent = context.TODO()
+		panic("cannot create context from nil parent")
 	}
 	return context.WithValue(parent, nextClientKey, next)
 }
