@@ -31,12 +31,12 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/proxy"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/swap"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/registry/memory"
 )
 
 func localNSRegistryServer(ctx context.Context, proxyRegistryURL *url.URL) registry.NetworkServiceRegistryServer {
-	return next.NewNetworkServiceRegistryServer(
+	return chain.NewNetworkServiceRegistryServer(
 		memory.NewNetworkServiceRegistryServer(),
 		proxy.NewNetworkServiceRegistryServer(proxyRegistryURL),
 		connect.NewNetworkServiceRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
@@ -46,7 +46,7 @@ func localNSRegistryServer(ctx context.Context, proxyRegistryURL *url.URL) regis
 }
 
 func proxyNSRegistryServer(ctx context.Context, currentDomain string, resolver dnsresolve.Resolver) registry.NetworkServiceRegistryServer {
-	return next.NewNetworkServiceRegistryServer(
+	return chain.NewNetworkServiceRegistryServer(
 		dnsresolve.NewNetworkServiceRegistryServer(dnsresolve.WithResolver(resolver)),
 		swap.NewNetworkServiceRegistryServer(currentDomain),
 		connect.NewNetworkServiceRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
