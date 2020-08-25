@@ -48,7 +48,7 @@ type contextKeyType string
 
 func withRequestNumber(parent context.Context, number int) context.Context {
 	if parent == nil {
-		parent = context.TODO()
+		panic("cannot create context from nil parent")
 	}
 	return context.WithValue(parent, requestNumber, number)
 }

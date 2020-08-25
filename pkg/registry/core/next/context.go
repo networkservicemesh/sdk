@@ -39,7 +39,7 @@ const (
 //    Wraps 'parent' in a new Context that has the DiscoveryServer registry.NetworkServiceRegistryServer to be called in the chain
 func withNextNSRegistryServer(parent context.Context, next registry.NetworkServiceRegistryServer) context.Context {
 	if parent == nil {
-		parent = context.TODO()
+		panic("cannot create context from nil parent")
 	}
 	return context.WithValue(parent, nextNSRegistryServerKey, next)
 }
@@ -48,7 +48,7 @@ func withNextNSRegistryServer(parent context.Context, next registry.NetworkServi
 //    Wraps 'parent' in a new Context that has the NetworkServiceRegistryClient registry.NetworkServiceRegistryClientWrapper to be called in the chain
 func withNextNSRegistryClient(parent context.Context, next registry.NetworkServiceRegistryClient) context.Context {
 	if parent == nil {
-		parent = context.TODO()
+		panic("cannot create context from nil parent")
 	}
 	return context.WithValue(parent, nextNSRegistryClientKey, next)
 }
@@ -77,7 +77,7 @@ func NetworkServiceRegistryClient(ctx context.Context) registry.NetworkServiceRe
 //    Wraps 'parent' in a new Context that has the DiscoveryServer registry.NetworkServiceEndpointRegistryServer to be called in the chain
 func withNextNSERegistryServer(parent context.Context, next registry.NetworkServiceEndpointRegistryServer) context.Context {
 	if parent == nil {
-		parent = context.TODO()
+		panic("cannot create context from nil parent")
 	}
 	return context.WithValue(parent, nextNSERegistryServerKey, next)
 }
@@ -86,7 +86,7 @@ func withNextNSERegistryServer(parent context.Context, next registry.NetworkServ
 //    Wraps 'parent' in a new Context that has the NetworkServiceEndpointRegistryClient registry.NetworkServiceEndpointRegistryClientWrapper to be called in the chain
 func withNextNSERegistryClient(parent context.Context, next registry.NetworkServiceEndpointRegistryClient) context.Context {
 	if parent == nil {
-		parent = context.TODO()
+		panic("cannot create context from nil parent")
 	}
 	return context.WithValue(parent, nextNSERegistryClientKey, next)
 }

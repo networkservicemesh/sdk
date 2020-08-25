@@ -34,7 +34,7 @@ type contextKeyType string
 //    Wraps 'parent' in a new Context that has the ClientURL
 func WithClientURL(parent context.Context, clientURL *url.URL) context.Context {
 	if parent == nil {
-		parent = context.TODO()
+		panic("cannot create context from nil parent")
 	}
 	return context.WithValue(parent, clientURLKey, clientURL)
 }

@@ -41,7 +41,7 @@ type NetworkServiceCandidates struct {
 //    Wraps 'parent' in a new Context that has the Candidates
 func WithCandidates(parent context.Context, candidates []*registry.NetworkServiceEndpoint, service *registry.NetworkService) context.Context {
 	if parent == nil {
-		parent = context.TODO()
+		panic("cannot create context from nil parent")
 	}
 	return context.WithValue(parent, candidatesKey, &NetworkServiceCandidates{
 		NetworkService: service,

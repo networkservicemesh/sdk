@@ -34,7 +34,7 @@ type contextKeyType string
 // WithFilenamePtr - store a *string in the context to be populated by the recvnetns.Client
 func WithFilenamePtr(parent context.Context, filenamePtr *string) context.Context {
 	if parent == nil {
-		parent = context.TODO()
+		panic("cannot create context from nil parent")
 	}
 	return context.WithValue(parent, netNSFileNamePtr, filenamePtr)
 }
@@ -50,7 +50,7 @@ func FilenamePtr(ctx context.Context) *string {
 // WithFilename - store the filename of the netns in the context
 func WithFilename(parent context.Context, filename string) context.Context {
 	if parent == nil {
-		parent = context.TODO()
+		panic("cannot create context from nil parent")
 	}
 	return context.WithValue(parent, netNSFileName, filename)
 }
