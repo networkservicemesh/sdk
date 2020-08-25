@@ -18,6 +18,7 @@ package dnsresolve_test
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"testing"
 
@@ -49,17 +50,18 @@ func (c *checkNSEContext) Unregister(ctx context.Context, ns *registry.NetworkSe
 }
 
 func TestDNSEResolve_NewNetworkServiceEndpointRegistryServer(t *testing.T) {
+	const srv = "service1"
 	s := dnsresolve.NewNetworkServiceEndpointRegistryServer(
-		dnsresolve.WithService("service1"),
+		dnsresolve.WithService(srv),
 		dnsresolve.WithResolver(&testResolver{
 			srvRecords: map[string][]*net.SRV{
-				"_service1._tcp.domain1": {{
+				fmt.Sprintf("_%v._tcp.%v.domain1", srv, srv): {{
 					Port:   80,
 					Target: "domain1",
 				}},
 			},
 			hostRecords: map[string][]net.IPAddr{
-				"domain1": {{
+				fmt.Sprintf("%v.domain1", srv): {{
 					IP: net.ParseIP("127.0.0.1"),
 				}},
 			},
@@ -80,13 +82,13 @@ func TestDNSEResolveDefault_NewNetworkServiceEndpointRegistryServer(t *testing.T
 	s := dnsresolve.NewNetworkServiceEndpointRegistryServer(
 		dnsresolve.WithResolver(&testResolver{
 			srvRecords: map[string][]*net.SRV{
-				"_" + dnsresolve.NSMRegistryService + "._tcp.domain1": {{
+				fmt.Sprintf("_%v._tcp.%v.domain1", dnsresolve.NSMRegistryService, dnsresolve.NSMRegistryService): {{
 					Port:   80,
 					Target: "domain1",
 				}},
 			},
 			hostRecords: map[string][]net.IPAddr{
-				"domain1": {{
+				dnsresolve.NSMRegistryService + ".domain1": {{
 					IP: net.ParseIP("127.0.0.1"),
 				}},
 			},

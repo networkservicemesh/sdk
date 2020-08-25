@@ -37,7 +37,8 @@ type Resolver interface {
 }
 
 func resolveDomain(ctx context.Context, service, domain string, r Resolver) (*url.URL, error) {
-	_, records, err := r.LookupSRV(ctx, service, "tcp", domain)
+	serviceDomain := fmt.Sprintf("%v.%v", service, domain)
+	_, records, err := r.LookupSRV(ctx, service, "tcp", serviceDomain)
 
 	if err != nil {
 		return nil, err
@@ -47,7 +48,7 @@ func resolveDomain(ctx context.Context, service, domain string, r Resolver) (*ur
 		return nil, errors.New("resolver.LookupSERV return empty result")
 	}
 
-	ips, err := r.LookupIPAddr(ctx, records[0].Target)
+	ips, err := r.LookupIPAddr(ctx, serviceDomain)
 
 	if err != nil {
 		return nil, err
