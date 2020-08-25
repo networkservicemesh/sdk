@@ -74,6 +74,7 @@ func (t *interdomainTestingTool) LookupIPAddr(_ context.Context, host string) ([
 }
 
 func (t *interdomainTestingTool) dialDomain(domain string) *grpc.ClientConn {
+	domain = fmt.Sprintf("%v.%v", dnsresolve.NSMRegistryService, domain)
 	_, srvs, err := t.LookupSRV(context.Background(), "", "tcp", domain)
 	require.Nil(t, err)
 	require.NotEmpty(t, srvs)
@@ -99,6 +100,7 @@ func (t *interdomainTestingTool) startNetworkServiceEndpointRegistryServerAsync(
 }
 
 func (t *interdomainTestingTool) startServerAsync(domain string, registerFunc func(server *grpc.Server)) *url.URL {
+	domain = fmt.Sprintf("%v.%v", dnsresolve.NSMRegistryService, domain)
 	s := grpc.NewServer()
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	require.Nil(t, err)
