@@ -96,7 +96,7 @@ func (eps *excludedPrefixesServer) Close(ctx context.Context, connection *networ
 // Note: request.Connection and Connection.Context should not be nil when calling Request
 func NewServer(ctx context.Context, setters ...ServerOption) networkservice.NetworkServiceServer {
 	server := &excludedPrefixesServer{
-		configPath: prefixesFilePathDefault,
+		configPath: PrefixesFilePathDefault,
 		ctx:        ctx,
 	}
 	for _, setter := range setters {
