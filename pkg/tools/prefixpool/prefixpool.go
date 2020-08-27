@@ -427,15 +427,18 @@ func releasePrefixes(prefixes []string, released ...string) (remaining []string,
 	if len(released) == 0 {
 		return prefixes, nil
 	}
-	result, err := removeNestedNetworks(append(prefixes, released...))
+
+	allPrefixes := append(prefixes, released...)
+	subnets, err := getSubnets(allPrefixes)
 	if err != nil {
 		return nil, err
 	}
 
+	result := removeNestedNetworks(allPrefixes, subnets)
 	prefixByPrefixLen := map[int][]*net.IPNet{}
 
 	for _, prefix := range result {
-		_, ipnet, _ := net.ParseCIDR(prefix)
+		ipnet := subnets[prefix]
 		parentLen, _ := ipnet.Mask.Size()
 		nets := prefixByPrefixLen[parentLen]
 		nets = append(nets, ipnet)
@@ -510,12 +513,8 @@ func getSubnets(prefixes []string) (map[string]*net.IPNet, error) {
 	return subnets, nil
 }
 
-func removeNestedNetworks(prefixes []string) ([]string, error) {
+func removeNestedNetworks(prefixes []string, subnets map[string]*net.IPNet) []string {
 	newPrefixes := make(map[string]struct{})
-	subnets, err := getSubnets(prefixes)
-	if err != nil {
-		return nil, err
-	}
 
 	for newPrefixIndex, newPrefix := range prefixes {
 		intersected := false
@@ -542,7 +541,7 @@ func removeNestedNetworks(prefixes []string) ([]string, error) {
 		prefixesList = append(prefixesList, key)
 	}
 
-	return prefixesList, nil
+	return prefixesList
 }
 
 func subnet(ipnet *net.IPNet, subnetIndex int) (retNet *net.IPNet, reterr error) {
