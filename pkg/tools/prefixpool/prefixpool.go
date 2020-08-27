@@ -435,10 +435,7 @@ func releasePrefixes(prefixes []string, released ...string) (remaining []string,
 	prefixByPrefixLen := map[int][]*net.IPNet{}
 
 	for _, prefix := range result {
-		_, ipnet, err := net.ParseCIDR(prefix)
-		if err != nil {
-			return nil, err
-		}
+		_, ipnet, _ := net.ParseCIDR(prefix)
 		parentLen, _ := ipnet.Mask.Size()
 		nets := prefixByPrefixLen[parentLen]
 		nets = append(nets, ipnet)
