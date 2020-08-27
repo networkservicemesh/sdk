@@ -505,10 +505,48 @@ func releasePrefixes(prefixes []string, released ...string) (remaining []string,
 					result = append(result, v.String())
 				}
 			}
+			result, _ = removeNestedNetworks(result)
 			return result, nil
 		}
 		prefixByPrefixLen = newPrefixByPrefixLen
 	}
+}
+
+func removeNestedNetworks(prefixes []string) ([]string, error) {
+	newPrefixes := make(map[string]struct{})
+	intersected := false
+	for newPrefixIndex, newPrefix := range prefixes {
+		intersected = false
+		_, newPrefixSubnet, err := net.ParseCIDR(newPrefix)
+		if err != nil {
+			logrus.Errorf("Wrong CIDR: %v", newPrefix)
+			return nil, err
+		}
+		for prefixIndex, prefix := range prefixes {
+			if prefixIndex == newPrefixIndex {
+				continue
+			}
+			_, prefixSubnet, _ := net.ParseCIDR(prefix)
+			if intersect, firstIsWider := intersect(prefixSubnet, newPrefixSubnet); intersect {
+				intersected = true
+				if !firstIsWider {
+					delete(newPrefixes, prefix)
+					newPrefixes[newPrefix] = struct{}{}
+				}
+			}
+		}
+
+		if !intersected {
+			newPrefixes[newPrefix] = struct{}{}
+		}
+	}
+
+	prefixesList := make([]string, 0, len(newPrefixes))
+	for key := range newPrefixes {
+		prefixesList = append(prefixesList, key)
+	}
+
+	return prefixesList, nil
 }
 
 func subnet(ipnet *net.IPNet, subnetIndex int) (retNet *net.IPNet, reterr error) {
