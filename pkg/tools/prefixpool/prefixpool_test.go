@@ -140,9 +140,17 @@ func TestReleaseExcludePrefixes(t *testing.T) {
 func TestReleaseExcludePrefixesNestedNetworks(t *testing.T) {
 	pool, err := prefixpool.New("10.20.4.1/22", "127.0.0.1/22")
 	require.Nil(t, err)
-	err = pool.ReleaseExcludedPrefixes([]string{"10.20.0.1/21", "10.20.2.1/21", "10.20.2.1/16"})
+
+	prefixesToRelease := []string{"10.20.0.1/21", "10.20.2.1/21", "10.20.2.1/16"}
+	expectedPrefixes := []string{"10.20.0.0/16", "127.0.0.0/22"}
+
+	err = pool.ReleaseExcludedPrefixes(prefixesToRelease)
 	require.Nil(t, err)
-	require.Equal(t, []string{"10.20.0.0/16", "127.0.0.0/22"}, pool.GetPrefixes())
+	require.Equal(t, expectedPrefixes, pool.GetPrefixes())
+
+	err = pool.ReleaseExcludedPrefixes(prefixesToRelease)
+	require.Nil(t, err)
+	require.Equal(t, expectedPrefixes, pool.GetPrefixes())
 }
 
 func TestReleaseExcludePrefixesNoOverlap(t *testing.T) {

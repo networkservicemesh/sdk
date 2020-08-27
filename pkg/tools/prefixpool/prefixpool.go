@@ -414,20 +414,6 @@ func extractPrefix(prefixes []string, prefixLen uint32) (retPrefix string, retLe
 	return rootCIDRNet.String(), resultPrefixes, nil
 }
 
-func removeDuplicates(elements []string) []string {
-	encountered := map[string]bool{}
-	result := []string{}
-
-	for index := range elements {
-		if encountered[elements[index]] {
-			continue
-		}
-		encountered[elements[index]] = true
-		result = append(result, elements[index])
-	}
-	return result
-}
-
 func reverse(values []string) []string {
 	newValues := make([]string, len(values))
 
@@ -441,7 +427,10 @@ func releasePrefixes(prefixes []string, released ...string) (remaining []string,
 	if len(released) == 0 {
 		return prefixes, nil
 	}
-	result := removeDuplicates(append(prefixes, released...))
+	result, err := removeNestedNetworks(append(prefixes, released...))
+	if err != nil {
+		return nil, err
+	}
 
 	prefixByPrefixLen := map[int][]*net.IPNet{}
 
@@ -505,29 +494,39 @@ func releasePrefixes(prefixes []string, released ...string) (remaining []string,
 					result = append(result, v.String())
 				}
 			}
-			result, _ = removeNestedNetworks(result)
 			return result, nil
 		}
 		prefixByPrefixLen = newPrefixByPrefixLen
 	}
 }
 
+func getSubnets(prefixes []string) (map[string]*net.IPNet, error) {
+	subnets := make(map[string]*net.IPNet)
+	for _, prefix := range prefixes {
+		_, subnet, err := net.ParseCIDR(prefix)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Wrong CIDR: %v", prefix)
+		}
+		subnets[prefix] = subnet
+	}
+
+	return subnets, nil
+}
+
 func removeNestedNetworks(prefixes []string) ([]string, error) {
 	newPrefixes := make(map[string]struct{})
-	intersected := false
+	subnets, err := getSubnets(prefixes)
+	if err != nil {
+		return nil, err
+	}
+
 	for newPrefixIndex, newPrefix := range prefixes {
-		intersected = false
-		_, newPrefixSubnet, err := net.ParseCIDR(newPrefix)
-		if err != nil {
-			logrus.Errorf("Wrong CIDR: %v", newPrefix)
-			return nil, err
-		}
+		intersected := false
 		for prefixIndex, prefix := range prefixes {
 			if prefixIndex == newPrefixIndex {
 				continue
 			}
-			_, prefixSubnet, _ := net.ParseCIDR(prefix)
-			if intersect, firstIsWider := intersect(prefixSubnet, newPrefixSubnet); intersect {
+			if intersect, firstIsWider := intersect(subnets[prefix], subnets[newPrefix]); intersect {
 				intersected = true
 				if !firstIsWider {
 					delete(newPrefixes, prefix)
