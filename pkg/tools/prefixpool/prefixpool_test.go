@@ -141,8 +141,8 @@ func TestReleaseExcludePrefixesNestedNetworks(t *testing.T) {
 	pool, err := prefixpool.New("10.20.4.1/22", "127.0.0.1/22")
 	require.Nil(t, err)
 
-	prefixesToRelease := []string{"10.20.0.1/21", "10.20.2.1/21", "10.20.2.1/16"}
 	expectedPrefixes := []string{"10.20.0.0/16", "127.0.0.0/22"}
+	prefixesToRelease := []string{"10.20.0.1/21", "10.20.2.1/21", "10.20.2.1/16"}
 
 	err = pool.ReleaseExcludedPrefixes(prefixesToRelease)
 	require.Nil(t, err)
