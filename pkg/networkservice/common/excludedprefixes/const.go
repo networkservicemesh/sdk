@@ -18,10 +18,10 @@ package excludedprefixes
 
 /* These variables set default path to the config file */
 const (
-	// PrefixesFile - excluded prefixes file name
-	PrefixesFile = "excluded_prefixes.yaml"
-	// NsmConfigDir - excluded prefixes file directory name
-	NsmConfigDir = "/var/lib/networkservicemesh/config"
+	// prefixesFile - excluded prefixes file name
+	prefixesFile = "excluded_prefixes.yaml"
+	// NSMConfigDir - excluded prefixes file directory name
+	NSMConfigDir = "/var/lib/networkservicemesh/config"
 	// PrefixesFilePathDefault - excluded prefixes file absolute path
-	PrefixesFilePathDefault = NsmConfigDir + "/" + PrefixesFile
+	PrefixesFilePathDefault = NSMConfigDir + "/" + prefixesFile
 )
