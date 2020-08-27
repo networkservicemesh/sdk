@@ -414,20 +414,6 @@ func extractPrefix(prefixes []string, prefixLen uint32) (retPrefix string, retLe
 	return rootCIDRNet.String(), resultPrefixes, nil
 }
 
-func removeDuplicates(elements []string) []string {
-	encountered := map[string]bool{}
-	result := []string{}
-
-	for index := range elements {
-		if encountered[elements[index]] {
-			continue
-		}
-		encountered[elements[index]] = true
-		result = append(result, elements[index])
-	}
-	return result
-}
-
 func reverse(values []string) []string {
 	newValues := make([]string, len(values))
 
@@ -441,15 +427,18 @@ func releasePrefixes(prefixes []string, released ...string) (remaining []string,
 	if len(released) == 0 {
 		return prefixes, nil
 	}
-	result := removeDuplicates(append(prefixes, released...))
 
+	allPrefixes := append(prefixes, released...)
+	subnets, err := getSubnets(allPrefixes)
+	if err != nil {
+		return nil, err
+	}
+
+	result := removeNestedNetworks(allPrefixes, subnets)
 	prefixByPrefixLen := map[int][]*net.IPNet{}
 
 	for _, prefix := range result {
-		_, ipnet, err := net.ParseCIDR(prefix)
-		if err != nil {
-			return nil, err
-		}
+		ipnet := subnets[prefix]
 		parentLen, _ := ipnet.Mask.Size()
 		nets := prefixByPrefixLen[parentLen]
 		nets = append(nets, ipnet)
@@ -509,6 +498,50 @@ func releasePrefixes(prefixes []string, released ...string) (remaining []string,
 		}
 		prefixByPrefixLen = newPrefixByPrefixLen
 	}
+}
+
+func getSubnets(prefixes []string) (map[string]*net.IPNet, error) {
+	subnets := make(map[string]*net.IPNet)
+	for _, prefix := range prefixes {
+		_, subnet, err := net.ParseCIDR(prefix)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Wrong CIDR: %v", prefix)
+		}
+		subnets[prefix] = subnet
+	}
+
+	return subnets, nil
+}
+
+func removeNestedNetworks(prefixes []string, subnets map[string]*net.IPNet) []string {
+	newPrefixes := make(map[string]struct{})
+
+	for newPrefixIndex, newPrefix := range prefixes {
+		intersected := false
+		for prefixIndex, prefix := range prefixes {
+			if prefixIndex == newPrefixIndex {
+				continue
+			}
+			if intersect, firstIsWider := intersect(subnets[prefix], subnets[newPrefix]); intersect {
+				intersected = true
+				if !firstIsWider {
+					delete(newPrefixes, prefix)
+					newPrefixes[newPrefix] = struct{}{}
+				}
+			}
+		}
+
+		if !intersected {
+			newPrefixes[newPrefix] = struct{}{}
+		}
+	}
+
+	prefixesList := make([]string, 0, len(newPrefixes))
+	for key := range newPrefixes {
+		prefixesList = append(prefixesList, key)
+	}
+
+	return prefixesList
 }
 
 func subnet(ipnet *net.IPNet, subnetIndex int) (retNet *net.IPNet, reterr error) {
