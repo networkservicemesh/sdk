@@ -17,6 +17,7 @@
 package eventchannel_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -34,8 +35,8 @@ func TestMonitorConnection_MonitorConnectionsClient_Recv(t *testing.T) {
 		eventsIn[i] = &networkservice.ConnectionEvent{
 			Type: networkservice.ConnectionEventType_UPDATE,
 			Connections: map[string]*networkservice.Connection{
-				string(i): {
-					Id: (string(i)),
+				fmt.Sprintf("%d", i): {
+					Id: fmt.Sprintf("%d", i),
 				},
 			},
 		}
