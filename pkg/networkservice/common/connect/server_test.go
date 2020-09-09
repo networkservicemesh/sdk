@@ -113,7 +113,8 @@ func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 			clientURLCtx = nseT.newNSEContext(clientURLCtx)
 			conn, err := s.Request(clientURLCtx, &networkservice.NetworkServiceRequest{
 				Connection: &networkservice.Connection{
-					Id: "1",
+					Id:      "1",
+					Context: &networkservice.ConnectionContext{},
 				},
 			})
 			require.Nil(t, err)
@@ -137,7 +138,8 @@ func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 			clientURLCtx = nseT.newNSEContext(clientURLCtx)
 			conn, err := s.Request(clientURLCtx, &networkservice.NetworkServiceRequest{
 				Connection: &networkservice.Connection{
-					Id: "1",
+					Id:      "1",
+					Context: &networkservice.ConnectionContext{},
 				},
 			})
 			require.Nil(t, err)
@@ -161,7 +163,8 @@ func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 
 			conn, err := s.Request(context.Background(), &networkservice.NetworkServiceRequest{
 				Connection: &networkservice.Connection{
-					Id: "1",
+					Id:      "1",
+					Context: &networkservice.ConnectionContext{},
 				},
 			})
 			require.NotNil(t, err)
@@ -180,7 +183,8 @@ func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 			clientURLCtx = nseT.newNSEContext(clientURLCtx)
 			conn, err := s.Request(clientURLCtx, &networkservice.NetworkServiceRequest{
 				Connection: &networkservice.Connection{
-					Id: "1",
+					Id:      "1",
+					Context: &networkservice.ConnectionContext{},
 				},
 			})
 			require.Nil(t, err)
@@ -190,7 +194,8 @@ func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 			// Request again
 			conn, err = s.Request(context.Background(), &networkservice.NetworkServiceRequest{
 				Connection: &networkservice.Connection{
-					Id: "1",
+					Id:      "1",
+					Context: &networkservice.ConnectionContext{},
 				},
 			})
 			require.Nil(t, err)
@@ -199,7 +204,8 @@ func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
 
 			// Do not pass clientURL
 			_, err = s.Close(context.Background(), &networkservice.Connection{
-				Id: "1",
+				Id:      "1",
+				Context: &networkservice.ConnectionContext{},
 			})
 			require.Nil(t, err)
 		})
@@ -234,6 +240,7 @@ func TestParallelDial(t *testing.T) {
 						Path: &networkservice.Path{
 							PathSegments: []*networkservice.PathSegment{},
 						},
+						Context: &networkservice.ConnectionContext{},
 					},
 				})
 				require.Nil(t, err)

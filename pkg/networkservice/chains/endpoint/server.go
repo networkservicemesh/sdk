@@ -23,6 +23,8 @@ import (
 	"context"
 	"net/url"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/requestcontext"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
 
@@ -63,6 +65,7 @@ func NewServer(ctx context.Context, name string, authzServer networkservice.Netw
 	var ns networkservice.NetworkServiceServer = rv
 	rv.NetworkServiceServer = chain.NewNetworkServiceServer(
 		append([]networkservice.NetworkServiceServer{
+			requestcontext.NewServer(),
 			authzServer,
 			updatepath.NewServer(name),
 			monitor.NewServer(ctx, &rv.MonitorConnectionServer),

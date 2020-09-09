@@ -56,9 +56,6 @@ func (srv *pointToPointServer) Request(ctx context.Context, request *networkserv
 		return nil, errors.New("ipam allocation pool depleted")
 	}
 
-	if request.GetConnection() == nil {
-		request.Connection = &networkservice.Connection{}
-	}
 	conn := request.GetConnection()
 
 	if conn.GetContext() == nil {

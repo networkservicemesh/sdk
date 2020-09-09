@@ -40,9 +40,6 @@ func NewServer(tokenGenerator token.GeneratorFunc) networkservice.NetworkService
 }
 
 func (u *updateTokenServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if request.Connection == nil {
-		request.Connection = &networkservice.Connection{}
-	}
 	err := updateToken(ctx, request.GetConnection(), u.tokenGenerator)
 	if err != nil {
 		return nil, err

@@ -22,6 +22,8 @@ package nsmgr
 import (
 	"context"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/requestcontext"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interpose"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -95,6 +97,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 		nsmRegistration.Name,
 		authzServer,
 		tokenGenerator,
+		requestcontext.NewServer(),
 		discover.NewServer(adapter_registry.NetworkServiceServerToClient(nsRegistry), adapter_registry.NetworkServiceEndpointServerToClient(nseRegistry)),
 		roundrobin.NewServer(),
 		localbypass.NewServer(&localbypassRegistryServer),

@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,43 +14,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package updatepath
+// Package requestcontext provides a NetworkServiceClient to fill all required client request fields.
+package requestcontext
 
 import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"google.golang.org/grpc"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type updatePathClient struct {
-	name string
+type requestClient struct {
 }
 
-// NewClient - creates a new updatePath client to update connection path.
-//             name - name of the client
-//
-// Workflow are documented in common.go
-func NewClient(name string) networkservice.NetworkServiceClient {
-	return &updatePathClient{name: name}
+// NewClient - creates a Client that will fill all required connection request fields
+func NewClient() networkservice.NetworkServiceClient {
+	return &requestClient{}
 }
 
-func (i *updatePathClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
-	request.Connection, err = updatePath(request.Connection, i.name)
-	if err != nil {
-		return nil, err
+func (u *requestClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	if request.Connection == nil {
+		request.Connection = &networkservice.Connection{}
 	}
+	if request.Connection.Context == nil {
+		request.Connection.Context = &networkservice.ConnectionContext{}
+	}
+
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
 
-func (i *updatePathClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (_ *empty.Empty, err error) {
-	conn, err = updatePath(conn, i.name)
-	if err != nil {
-		return nil, err
-	}
+func (u *requestClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }

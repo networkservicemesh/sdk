@@ -39,9 +39,6 @@ func NewServer(name string) networkservice.NetworkServiceServer {
 }
 
 func (i *updatePathServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (_ *networkservice.Connection, err error) {
-	if request.Connection == nil {
-		request.Connection = &networkservice.Connection{}
-	}
 	request.Connection, err = updatePath(request.Connection, i.name)
 	if err != nil {
 		return nil, err

@@ -38,12 +38,6 @@ func NewServer(values map[string]string) networkservice.NetworkServiceServer {
 }
 
 func (s *setLabelsImpl) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if request.Connection == nil {
-		request.Connection = &networkservice.Connection{}
-	}
-	if request.Connection.Context == nil {
-		request.Connection.Context = &networkservice.ConnectionContext{}
-	}
 	if request.Connection.Context.ExtraContext == nil {
 		request.Connection.Context.ExtraContext = map[string]string{}
 	}

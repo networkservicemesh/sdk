@@ -135,7 +135,9 @@ func TestNewClient_InvalidIndex(t *testing.T) {
 func TestNewClient_NoConnection(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	client := updatepath.NewClient("nse-3")
-	conn, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{})
+	conn, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{},
+	})
 	assert.NotNil(t, conn)
 	assert.NoError(t, err)
 	assert.NotEqual(t, conn.Id, connectionID)

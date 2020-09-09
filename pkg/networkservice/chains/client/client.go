@@ -20,6 +20,8 @@ package client
 import (
 	"context"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/requestcontext"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -55,6 +57,7 @@ func NewClient(ctx context.Context, name string, onHeal *networkservice.NetworkS
 	return chain.NewNetworkServiceClient(
 		append(
 			append([]networkservice.NetworkServiceClient{
+				requestcontext.NewClient(),
 				authorize.NewClient(),
 				updatepath.NewClient(name),
 				heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc), onHeal),
