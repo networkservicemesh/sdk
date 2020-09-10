@@ -100,10 +100,15 @@ func TestWaitForFile(t *testing.T) {
 		},
 	}
 
-	time.AfterFunc(time.Millisecond*300, func() {
-		writingToFile(t, testConfig, configPath)
-		t.Logf("File was created")
-	})
+	if _, err := os.Open(configPath); err == nil {
+		require.Nil(t, os.Remove(configPath))
+	}
+
+	_, err := chain.Request(context.Background(), req)
+	require.NoError(t, err)
+	require.ElementsMatch(t, req.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes(), []string{})
+
+	writingToFile(t, testConfig, configPath)
 
 	require.Eventually(t, func() bool {
 		_, err := chain.Request(context.Background(), req)
