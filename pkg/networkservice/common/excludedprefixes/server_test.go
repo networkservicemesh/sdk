@@ -22,7 +22,7 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -43,7 +43,7 @@ func TestNewExcludedPrefixesService(t *testing.T) {
 	prefixes := []string{"172.16.1.0/24", "10.32.0.0/12", "10.96.0.0/12"}
 
 	testConfig := strings.Join(append([]string{"prefixes:"}, prefixes...), "\n- ")
-	configPath := path.Join(os.TempDir(), "excluded_prefixes.yaml")
+	configPath := filepath.Join(os.TempDir(), "excluded_prefixes.yaml")
 	writingToFile(t, testConfig, configPath)
 	defer func() { _ = os.Remove(configPath) }()
 
@@ -64,7 +64,7 @@ func TestCheckReloadedPrefixes(t *testing.T) {
 	prefixes := []string{"172.16.1.0/24", "10.32.0.0/12", "10.96.0.0/12"}
 
 	testConfig := strings.Join(append([]string{"prefixes:"}, prefixes...), "\n- ")
-	configPath := path.Join(os.TempDir(), "excluded_prefixes.yaml")
+	configPath := filepath.Join(os.TempDir(), "excluded_prefixes.yaml")
 	writingToFile(t, "", configPath)
 	defer func() { _ = os.Remove(configPath) }()
 
@@ -89,7 +89,7 @@ func TestWaitForFile(t *testing.T) {
 	prefixes := []string{"172.16.1.0/24", "10.96.0.0/12"}
 
 	testConfig := strings.Join(append([]string{"prefixes:"}, prefixes...), "\n- ")
-	configPath := path.Join(os.TempDir(), "excluded_prefixes.yaml")
+	configPath := filepath.Join(os.TempDir(), "excluded_pr2efixes.yaml")
 	defer func() { _ = os.Remove(configPath) }()
 
 	chain := next.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(),
@@ -118,7 +118,7 @@ func TestUniqueRequestPrefixes(t *testing.T) {
 	uniquePrefixes := []string{"100.1.1.0/13", "10.32.0.0/12", "10.96.0.0/12", "10.20.0.0/24", "10.20.128.0/17", "10.20.64.0/18", "10.20.16.0/20", "10.20.2.0/23", "172.16.1.0/24", "10.20.8.0/21", "10.20.4.0/22"}
 
 	testConfig := strings.Join(append([]string{"prefixes:"}, prefixes...), "\n- ")
-	configPath := path.Join(os.TempDir(), "excluded_prefixes.yaml")
+	configPath := filepath.Join(os.TempDir(), "excluded_prefixes.yaml")
 	writingToFile(t, testConfig, configPath)
 	defer func() { _ = os.Remove(configPath) }()
 
