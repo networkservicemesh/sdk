@@ -89,7 +89,7 @@ func TestWaitForFile(t *testing.T) {
 	prefixes := []string{"172.16.1.0/24", "10.96.0.0/12"}
 
 	testConfig := strings.Join(append([]string{"prefixes:"}, prefixes...), "\n- ")
-	configPath := filepath.Join(os.TempDir(), "excluded_prefixes.yaml")
+	configPath := filepath.Join(os.TempDir(), "e1x2cwludedwef_prefixes.yaml")
 	defer func() { _ = os.Remove(configPath) }()
 
 	chain := next.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(),
@@ -100,8 +100,9 @@ func TestWaitForFile(t *testing.T) {
 		},
 	}
 
-	if _, err := os.Open(configPath); err == nil {
-		require.Nil(t, os.Remove(configPath))
+	clean := filepath.Clean(configPath)
+	if _, err := os.Open(clean); err == nil {
+		require.Nil(t, os.Remove(clean))
 	}
 
 	_, err := chain.Request(context.Background(), req)
