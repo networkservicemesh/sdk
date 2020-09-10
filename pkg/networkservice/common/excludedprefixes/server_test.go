@@ -100,10 +100,6 @@ func TestWaitForFile(t *testing.T) {
 		},
 	}
 
-	if _, err := os.Open(filepath.Clean(configPath)); err == nil {
-		require.Nil(t, os.Remove(configPath))
-	}
-
 	_, err := chain.Request(context.Background(), req)
 	require.NoError(t, err)
 	require.ElementsMatch(t, req.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes(), []string{})
