@@ -30,8 +30,9 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
 
@@ -82,6 +83,33 @@ func TestCheckReloadedPrefixes(t *testing.T) {
 		require.NoError(t, err)
 		return reflect.DeepEqual(req.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes(), prefixes)
 	}, time.Second*15, time.Millisecond*100)
+}
+
+func TestWaitForFile(t *testing.T) {
+	prefixes := []string{"172.16.1.0/24", "10.96.0.0/12"}
+
+	testConfig := strings.Join(append([]string{"prefixes:"}, prefixes...), "\n- ")
+	configPath := path.Join(os.TempDir(), "excluded_prefixes.yaml")
+	defer func() { _ = os.Remove(configPath) }()
+
+	chain := next.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(),
+		excludedprefixes.WithConfigPath(configPath), excludedprefixes.WithConfigDirectoryPath(os.TempDir())))
+	req := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Context: &networkservice.ConnectionContext{},
+		},
+	}
+
+	time.AfterFunc(time.Second*3, func() {
+		writingToFile(t, testConfig, configPath)
+		t.Logf("File was created")
+	})
+
+	require.Eventually(t, func() bool {
+		_, err := chain.Request(context.Background(), req)
+		require.NoError(t, err)
+		return reflect.DeepEqual(req.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes(), prefixes)
+	}, time.Second*15, time.Second*1)
 }
 
 func TestUniqueRequestPrefixes(t *testing.T) {

@@ -42,12 +42,12 @@ func removeDuplicates(elements []string) []string {
 	return result
 }
 
-func watchFile(ctx context.Context, path string, onChanged func([]byte)) error {
+func watchFile(ctx context.Context, directoryPath, filePath string, onChanged func([]byte)) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return err
 	}
-	if err := watcher.Add(path); err != nil {
+	if err := watcher.Add(directoryPath); err != nil {
 		return err
 	}
 
@@ -58,15 +58,21 @@ func watchFile(ctx context.Context, path string, onChanged func([]byte)) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-watcher.Events:
-			data, err := ioutil.ReadFile(filepath.Clean(path))
+		case e := <-watcher.Events:
+			if !(e.Name == filePath ||
+				e.Op&fsnotify.Create == fsnotify.Create ||
+				e.Op&fsnotify.Write == fsnotify.Write) {
+				continue
+			}
+
+			data, err := ioutil.ReadFile(filepath.Clean(filePath))
 			if err != nil {
-				trace.Log(ctx).Errorf("An error during read file %v, error: %v", path, err.Error())
+				trace.Log(ctx).Errorf("An error during read file %v, error: %v", filePath, err.Error())
 				return err
 			}
 			onChanged(data)
 		case err := <-watcher.Errors:
-			trace.Log(ctx).Errorf("Watch %v, error: %v", path, err.Error())
+			trace.Log(ctx).Errorf("Watch %v, error: %v", filePath, err.Error())
 			return err
 		}
 	}
