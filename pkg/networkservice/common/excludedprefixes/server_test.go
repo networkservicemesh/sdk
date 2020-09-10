@@ -100,7 +100,7 @@ func TestWaitForFile(t *testing.T) {
 		},
 	}
 
-	time.AfterFunc(time.Second*3, func() {
+	time.AfterFunc(time.Millisecond*300, func() {
 		writingToFile(t, testConfig, configPath)
 		t.Logf("File was created")
 	})
@@ -109,7 +109,7 @@ func TestWaitForFile(t *testing.T) {
 		_, err := chain.Request(context.Background(), req)
 		require.NoError(t, err)
 		return reflect.DeepEqual(req.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes(), prefixes)
-	}, time.Second*15, time.Second*1)
+	}, time.Second, time.Millisecond*100)
 }
 
 func TestUniqueRequestPrefixes(t *testing.T) {
