@@ -25,10 +25,3 @@ func WithConfigPath(s string) ServerOption {
 		args.configPath = s
 	}
 }
-
-// WithConfigDirectoryPath - returns method that set configDirPath in excludedPrefixesServer
-func WithConfigDirectoryPath(s string) ServerOption {
-	return func(args *excludedPrefixesServer) {
-		args.configDirPath = s
-	}
-}

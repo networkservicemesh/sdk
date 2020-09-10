@@ -89,11 +89,11 @@ func TestWaitForFile(t *testing.T) {
 	prefixes := []string{"172.16.1.0/24", "10.96.0.0/12"}
 
 	testConfig := strings.Join(append([]string{"prefixes:"}, prefixes...), "\n- ")
-	configPath := filepath.Join(os.TempDir(), "excluded_pr2efixes.yaml")
+	configPath := filepath.Join(os.TempDir(), "excluded_prefixes.yaml")
 	defer func() { _ = os.Remove(configPath) }()
 
 	chain := next.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(),
-		excludedprefixes.WithConfigPath(configPath), excludedprefixes.WithConfigDirectoryPath(os.TempDir())))
+		excludedprefixes.WithConfigPath(configPath)))
 	req := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Context: &networkservice.ConnectionContext{},

@@ -42,11 +42,13 @@ func removeDuplicates(elements []string) []string {
 	return result
 }
 
-func watchFile(ctx context.Context, directoryPath, filePath string, onChanged func([]byte)) error {
+func watchFile(ctx context.Context, filePath string, onChanged func([]byte)) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return err
 	}
+
+	directoryPath, fileName := filepath.Split(filePath)
 	if err := watcher.Add(directoryPath); err != nil {
 		return err
 	}
@@ -59,7 +61,7 @@ func watchFile(ctx context.Context, directoryPath, filePath string, onChanged fu
 		case <-ctx.Done():
 			return ctx.Err()
 		case e := <-watcher.Events:
-			if !(e.Name == filePath ||
+			if !(fileName == filepath.Base(e.Name) ||
 				e.Op&fsnotify.Create == fsnotify.Create ||
 				e.Op&fsnotify.Write == fsnotify.Write) {
 				continue

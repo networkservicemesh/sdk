@@ -37,11 +37,10 @@ import (
 )
 
 type excludedPrefixesServer struct {
-	ctx           context.Context
-	prefixPool    atomic.Value
-	once          sync.Once
-	configPath    string
-	configDirPath string
+	ctx        context.Context
+	prefixPool atomic.Value
+	once       sync.Once
+	configPath string
 }
 
 func (eps *excludedPrefixesServer) init() {
@@ -57,7 +56,7 @@ func (eps *excludedPrefixesServer) init() {
 		}
 		pool, err := prefixpool.New(source.Prefixes...)
 		if err != nil {
-			logger.Errorf("Can not create prefixpool with prefixes: %+v, err: %v", pool.GetPrefixes(), err.Error())
+			logger.Errorf("Can not create prefixpool with prefixes: %+v, err: %v", source.Prefixes, err.Error())
 			return
 		}
 		eps.prefixPool.Store(pool)
@@ -65,7 +64,7 @@ func (eps *excludedPrefixesServer) init() {
 	bytes, _ := ioutil.ReadFile(eps.configPath)
 	updatePrefixes(bytes)
 	go func() {
-		err := watchFile(eps.ctx, eps.configDirPath, eps.configPath, updatePrefixes)
+		err := watchFile(eps.ctx, eps.configPath, updatePrefixes)
 		if err != nil {
 			logger.Errorf("An error during watch file: %v", err.Error())
 		}
@@ -98,9 +97,8 @@ func (eps *excludedPrefixesServer) Close(ctx context.Context, connection *networ
 // Note: request.Connection and Connection.Context should not be nil when calling Request
 func NewServer(ctx context.Context, setters ...ServerOption) networkservice.NetworkServiceServer {
 	server := &excludedPrefixesServer{
-		configDirPath: nsmConfigDir,
-		configPath:    PrefixesFilePathDefault,
-		ctx:           ctx,
+		configPath: PrefixesFilePathDefault,
+		ctx:        ctx,
 	}
 	for _, setter := range setters {
 		setter(server)
