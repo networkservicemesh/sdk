@@ -80,7 +80,7 @@ func TestCheckReloadedPrefixes(t *testing.T) {
 }
 
 func TestExcludedPrefixesServer(t *testing.T) {
-	t.Run("Work correctly before prefixes file creation", func(t *testing.T) {
+	t.Run("Handle not created yet prefixes file", func(t *testing.T) {
 		filePath := filepath.Join(os.TempDir(), defaultPrefixesFileName)
 		testWaitForFile(t, filePath)
 	})
@@ -118,7 +118,7 @@ func TestUniqueRequestPrefixes(t *testing.T) {
 }
 
 func testWaitForFile(t *testing.T, filePath string) {
-	prefixes := []string{"172.16.1.0/24", "10.96.0.0/12"}
+	prefixes := []string{"172.16.1.0/24", "10.95.0.0/12"}
 
 	testConfig := strings.Join(append([]string{"prefixes:"}, prefixes...), "\n- ")
 
