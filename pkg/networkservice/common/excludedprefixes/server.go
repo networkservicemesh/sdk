@@ -22,6 +22,8 @@ package excludedprefixes
 
 import (
 	"context"
+	"io/ioutil"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 
@@ -60,9 +62,8 @@ func (eps *excludedPrefixesServer) init() {
 		}
 		eps.prefixPool.Store(pool)
 	}
-	pool, _ := prefixpool.New()
-	eps.prefixPool.Store(pool)
-
+	bytes, _ := ioutil.ReadFile(filepath.Clean(eps.configPath))
+	updatePrefixes(bytes)
 	go func() {
 		err := watchFile(eps.ctx, eps.configPath, updatePrefixes)
 		if err != nil {
