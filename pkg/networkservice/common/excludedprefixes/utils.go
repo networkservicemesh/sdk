@@ -60,15 +60,19 @@ func watchFile(ctx context.Context, filePath string, onChanged func([]byte)) err
 	// to be sure, that we didn't miss Create event before watcher creation
 	bytes, _ := ioutil.ReadFile(filepath.Clean(filePath))
 	onChanged(bytes)
-
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case e := <-watcher.Events:
-			if !(fileName == filepath.Base(e.Name) ||
-				e.Op&fsnotify.Create == fsnotify.Create ||
-				e.Op&fsnotify.Write == fsnotify.Write) {
+			if fileName != filepath.Base(e.Name) ||
+				e.Op&fsnotify.Chmod == fsnotify.Chmod ||
+				e.Op&fsnotify.Rename == fsnotify.Rename {
+				continue
+			}
+
+			if e.Op&fsnotify.Remove == fsnotify.Remove {
+				onChanged([]byte(nil))
 				continue
 			}
 

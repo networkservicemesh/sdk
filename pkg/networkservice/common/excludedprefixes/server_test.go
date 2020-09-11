@@ -52,11 +52,7 @@ func TestNewExcludedPrefixesService(t *testing.T) {
 	chain := next.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)), checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
 		require.Equal(t, request.Connection.Context.IpContext.ExcludedPrefixes, prefixes)
 	}))
-	req := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Context: &networkservice.ConnectionContext{},
-		},
-	}
+	req := request()
 
 	_, err := chain.Request(context.Background(), req)
 	require.NoError(t, err)
@@ -71,11 +67,7 @@ func TestCheckReloadedPrefixes(t *testing.T) {
 	defer func() { _ = os.Remove(configPath) }()
 
 	chain := next.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)))
-	req := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Context: &networkservice.ConnectionContext{},
-		},
-	}
+	req := request()
 
 	err := ioutil.WriteFile(configPath, []byte(testConfig), 0600)
 	require.NoError(t, err)
@@ -87,13 +79,13 @@ func TestCheckReloadedPrefixes(t *testing.T) {
 	}, time.Second*15, time.Millisecond*100)
 }
 
-func TestWaitForFile(t *testing.T) {
-	t.Run("TestWaitForFile", func(t *testing.T) {
+func TestExcludedPrefixesServer(t *testing.T) {
+	t.Run("Work correctly before prefixes file creation", func(t *testing.T) {
 		filePath := filepath.Join(os.TempDir(), defaultPrefixesFileName)
 		testWaitForFile(t, filePath)
 	})
 
-	t.Run("TestWatchDirectoryWithEmptyPath", func(t *testing.T) {
+	t.Run("Handle prefixes file with empty directory path", func(t *testing.T) {
 		testWaitForFile(t, defaultPrefixesFileName)
 	})
 }
@@ -129,16 +121,11 @@ func testWaitForFile(t *testing.T, filePath string) {
 	prefixes := []string{"172.16.1.0/24", "10.96.0.0/12"}
 
 	testConfig := strings.Join(append([]string{"prefixes:"}, prefixes...), "\n- ")
-	defer func() { _ = os.Remove(filePath) }()
 
 	chain := next.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(),
 		excludedprefixes.WithConfigPath(filePath)))
-	req := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Context: &networkservice.ConnectionContext{},
-		},
-	}
 
+	req := request()
 	_, err := chain.Request(context.Background(), req)
 	require.NoError(t, err)
 	require.Empty(t, req.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes())
@@ -150,6 +137,24 @@ func testWaitForFile(t *testing.T, filePath string) {
 		require.NoError(t, err)
 		return reflect.DeepEqual(req.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes(), prefixes)
 	}, time.Second, time.Millisecond*100)
+
+	err = os.Remove(filePath)
+	require.Nil(t, err)
+
+	require.Eventually(t, func() bool {
+		req := request()
+		_, err := chain.Request(context.Background(), req)
+		require.NoError(t, err)
+		return len(req.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes()) == 0
+	}, time.Second, time.Millisecond*100)
+}
+
+func request() *networkservice.NetworkServiceRequest {
+	return &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Context: &networkservice.ConnectionContext{},
+		},
+	}
 }
 
 func writingToFile(t *testing.T, text, configPath string) {
