@@ -133,8 +133,8 @@ func testWaitForFile(t *testing.T, filePath string) {
 	writingToFile(t, testConfig, filePath)
 
 	require.Eventually(t, func() bool {
-		_, err := chain.Request(context.Background(), req)
-		require.NoError(t, err)
+		_, reqErr := chain.Request(context.Background(), req)
+		require.NoError(t, reqErr)
 		return reflect.DeepEqual(req.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes(), prefixes)
 	}, time.Second, time.Millisecond*100)
 
@@ -143,8 +143,8 @@ func testWaitForFile(t *testing.T, filePath string) {
 
 	require.Eventually(t, func() bool {
 		req := request()
-		_, err := chain.Request(context.Background(), req)
-		require.NoError(t, err)
+		_, reqErr := chain.Request(context.Background(), req)
+		require.NoError(t, reqErr)
 		return len(req.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes()) == 0
 	}, time.Second, time.Millisecond*100)
 }
