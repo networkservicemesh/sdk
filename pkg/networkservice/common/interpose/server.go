@@ -119,7 +119,7 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 
 	// Go to endpoint URL if it matches one we had on previous step.
 	connInfo := connInfoRaw.(*connectionInfo)
-	if clientURL != connInfo.endpointURL {
+	if clientURL != connInfo.endpointURL && *clientURL != *connInfo.endpointURL {
 		return nil, errors.Errorf("new selected endpoint URL %v doesn't match endpoint URL selected before interpose NSE %v", clientURL, connInfo.endpointURL)
 	}
 	crossCTX := clienturl.WithClientURL(ctx, connInfo.endpointURL)
