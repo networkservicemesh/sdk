@@ -1,3 +1,19 @@
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at:
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package nsmgr_test
 
 import (
@@ -26,7 +42,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	interpose_reg "github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
-	adapters2 "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
+	adapter_registry "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/registry/memory"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
@@ -89,7 +105,7 @@ func (t *NSMGRSuite) setupCluster(ctx context.Context, nodesCount int) {
 		node.Forwarder, node.ForwarderURL = t.NewCrossConnectNSE(ctx, forwarderName, node.NSMgrURL)
 		forwarderRegistrationClient := chain.NewNetworkServiceEndpointRegistryClient(
 			interpose_reg.NewNetworkServiceEndpointRegistryClient(),
-			adapters2.NetworkServiceEndpointServerToClient(node.NSMgr.NetworkServiceEndpointRegistryServer()),
+			adapter_registry.NetworkServiceEndpointServerToClient(node.NSMgr.NetworkServiceEndpointRegistryServer()),
 		)
 		_, err := forwarderRegistrationClient.Register(context.Background(), &api_registry.NetworkServiceEndpoint{
 			Url:  node.ForwarderURL.String(),
@@ -97,28 +113,27 @@ func (t *NSMGRSuite) setupCluster(ctx context.Context, nodesCount int) {
 		})
 		t.NoError(err)
 	}
-
 }
 
 func (t *NSMGRSuite) NewClient(ctx context.Context, connectTO *url.URL) networkservice.NetworkServiceClient {
 	return client.NewClient(ctx, "nsc-1", nil, tokenGenerator, t.DialContext(ctx, connectTO))
 }
 
-func (t *NSMGRSuite) NewEndpoint(ctx context.Context, registration *api_registry.NetworkServiceEndpoint, nsmgr nsmgr.Nsmgr) (endpoint.Endpoint, *url.URL) {
+func (t *NSMGRSuite) NewEndpoint(ctx context.Context, registration *api_registry.NetworkServiceEndpoint, mgr nsmgr.Nsmgr) (endpoint.Endpoint, *url.URL) {
 	result := endpoint.NewServer(ctx,
 		registration.Name,
 		authorize.NewServer(),
 		tokenGenerator)
 	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
 	t.serve(ctx, serveURL, result.Register)
-	_, err := nsmgr.NetworkServiceEndpointRegistryServer().Register(context.Background(), &api_registry.NetworkServiceEndpoint{
+	_, err := mgr.NetworkServiceEndpointRegistryServer().Register(context.Background(), &api_registry.NetworkServiceEndpoint{
 		Name:                registration.Name,
 		Url:                 serveURL.String(),
 		NetworkServiceNames: registration.NetworkServiceNames,
 	})
 	t.NoError(err)
 	for _, service := range registration.NetworkServiceNames {
-		_, err = nsmgr.NetworkServiceRegistryServer().Register(ctx, &api_registry.NetworkService{
+		_, err = mgr.NetworkServiceRegistryServer().Register(ctx, &api_registry.NetworkService{
 			Name:    service,
 			Payload: "IP",
 		})
@@ -178,34 +193,34 @@ func (t *NSMGRSuite) NewNSMgr(ctx context.Context, registryURL *url.URL) (nsmgr.
 	if registryURL != nil {
 		registryCC = t.DialContext(ctx, registryURL)
 	}
-	listener, err := net.Listen("tcp", ":0")
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	t.NoError(err)
 	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:" + fmt.Sprint(listener.Addr().(*net.TCPAddr).Port)}
 	t.NoError(listener.Close())
 
 	nsmgrReg := &api_registry.NetworkServiceEndpoint{
-		Name: "nsmgr-" + uuid.New().String(),
+		Name: "mgr-" + uuid.New().String(),
 		Url:  serveURL.String(),
 	}
 	// Serve NSMGR, Use in memory registry server
-	nsmgr := nsmgr.NewServer(ctx, nsmgrReg, authorize.NewServer(), tokenGenerator, registryCC, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)))
+	mgr := nsmgr.NewServer(ctx, nsmgrReg, authorize.NewServer(), tokenGenerator, registryCC, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)))
 
-	t.serve(ctx, serveURL, nsmgr.Register)
+	t.serve(ctx, serveURL, mgr.Register)
 	log.Entry(ctx).Infof("NSMgr listen on: %v", serveURL)
-	return nsmgr, serveURL
+	return mgr, serveURL
 }
 
-func (t *NSMGRSuite) serve(ctx context.Context, url *url.URL, register func(server *grpc.Server), opts ...grpc.ServerOption) {
-	server := grpc.NewServer(opts...)
+func (t *NSMGRSuite) serve(ctx context.Context, u *url.URL, register func(server *grpc.Server)) {
+	server := grpc.NewServer()
 	register(server)
-	errCh := grpcutils.ListenAndServe(ctx, url, server)
+	errCh := grpcutils.ListenAndServe(ctx, u, server)
 	go func() {
 		select {
 		case <-ctx.Done():
-			log.Entry(ctx).Infof("Stop serve: %v", url.String())
+			log.Entry(ctx).Infof("Stop serve: %v", u.String())
 			return
 		case err := <-errCh:
-			t.NoError(err, "Received error from the serve of url: ", url.String())
+			t.NoError(err, "Received error from the serve of u: ", u.String())
 		}
 	}()
 }

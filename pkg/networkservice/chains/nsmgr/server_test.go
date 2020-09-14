@@ -33,14 +33,15 @@ import (
 func (t *NSMGRSuite) TestRemoteNSMGR() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
+
+	nsc := t.NewClient(context.Background(), t.Cluster().Nodes[1].NSMgrURL)
+
 	t.NewEndpoint(ctx, &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint",
-		NetworkServiceNames: []string{"my-service"},
+		NetworkServiceNames: []string{"my-service-remote"},
 	}, t.Cluster().Nodes[0].NSMgr)
 
-	cl := t.NewClient(context.Background(), t.Cluster().Nodes[1].NSMgrURL)
-
-	var connection *networkservice.Connection
+	var conn *networkservice.Connection
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -48,25 +49,25 @@ func (t *NSMGRSuite) TestRemoteNSMGR() {
 		},
 		Connection: &networkservice.Connection{
 			Id:             "1",
-			NetworkService: "my-service",
+			NetworkService: "my-service-remote",
 			Context:        &networkservice.ConnectionContext{},
 		},
 	}
-	connection, err := cl.Request(ctx, request)
+	conn, err := nsc.Request(ctx, request)
 	t.NoError(err)
-	t.NotNil(connection)
+	t.NotNil(conn)
 
-	t.Equal(8, len(connection.Path.PathSegments))
+	t.Equal(8, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client.
 
 	refreshRequest := request.Clone()
-	refreshRequest.GetConnection().Context = connection.Context
-	refreshRequest.GetConnection().Mechanism = connection.Mechanism
-	refreshRequest.GetConnection().NetworkServiceEndpointName = connection.NetworkServiceEndpointName
+	refreshRequest.GetConnection().Context = conn.Context
+	refreshRequest.GetConnection().Mechanism = conn.Mechanism
+	refreshRequest.GetConnection().NetworkServiceEndpointName = conn.NetworkServiceEndpointName
 
 	var connection2 *networkservice.Connection
-	connection2, err = cl.Request(ctx, refreshRequest)
+	connection2, err = nsc.Request(ctx, refreshRequest)
 	t.NoError(err)
 	t.NotNil(connection2)
 	t.Equal(8, len(connection2.Path.PathSegments))
