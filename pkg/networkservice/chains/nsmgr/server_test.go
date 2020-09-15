@@ -18,28 +18,27 @@
 package nsmgr_test
 
 import (
-	"context"
 	"testing"
-
-	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/stretchr/testify/suite"
+	"github.com/stretchr/testify/require"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/chainstest"
 )
 
-func (t *NSMGRSuite) TestRemoteNSMGR() {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
-	defer cancel()
+func TestRemoteNSMGRUsecase(t *testing.T) {
+	r := require.New(t)
+	domain, supplier := chainstest.NewDomainBuilder(t).SetNodesCount(2).Build()
+	defer supplier.Cleanup()
 
-	nsc := t.NewClient(context.Background(), t.Cluster().Nodes[1].NSMgrURL)
-
-	t.NewEndpoint(ctx, &registry.NetworkServiceEndpoint{
+	nsc := supplier.SupplyNSC("nsc-1", domain.Nodes[0].NSMgr.URL)
+	supplier.SupplyNSE(&registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint",
 		NetworkServiceNames: []string{"my-service-remote"},
-	}, t.Cluster().Nodes[0].NSMgr)
+	}, domain.Nodes[1].NSMgr)
 
 	var conn *networkservice.Connection
 
@@ -53,11 +52,11 @@ func (t *NSMGRSuite) TestRemoteNSMGR() {
 			Context:        &networkservice.ConnectionContext{},
 		},
 	}
-	conn, err := nsc.Request(ctx, request)
-	t.NoError(err)
-	t.NotNil(conn)
+	conn, err := nsc.Request(supplier.Context(), request)
+	r.NoError(err)
+	r.NotNil(conn)
 
-	t.Equal(8, len(conn.Path.PathSegments))
+	r.Equal(8, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client.
 
@@ -67,27 +66,25 @@ func (t *NSMGRSuite) TestRemoteNSMGR() {
 	refreshRequest.GetConnection().NetworkServiceEndpointName = conn.NetworkServiceEndpointName
 
 	var connection2 *networkservice.Connection
-	connection2, err = nsc.Request(ctx, refreshRequest)
-	t.NoError(err)
-	t.NotNil(connection2)
-	t.Equal(8, len(connection2.Path.PathSegments))
+	connection2, err = nsc.Request(supplier.Context(), refreshRequest)
+	r.NoError(err)
+	r.NotNil(connection2)
+	r.Equal(8, len(connection2.Path.PathSegments))
 }
 
-func TestNSMGRSuite(t *testing.T) {
-	suite.Run(t, new(NSMGRSuite))
-}
+func TestLocalNSMGRUsecase(t *testing.T) {
+	r := require.New(t)
+	domain, supplier := chainstest.NewDomainBuilder(t).SetNodesCount(1).Build()
+	defer supplier.Cleanup()
 
-func (t *NSMGRSuite) TestNSMGR_LocalCase() {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
-	defer cancel()
-	t.NewEndpoint(ctx, &registry.NetworkServiceEndpoint{
+	supplier.SupplyNSE(&registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint",
-		NetworkServiceNames: []string{"my-service"},
-	}, t.Cluster().Nodes[0].NSMgr)
+		NetworkServiceNames: []string{"my-service-remote"},
+	}, domain.Nodes[0].NSMgr)
 
-	cl := t.NewClient(context.Background(), t.Cluster().Nodes[0].NSMgrURL)
+	nsc := supplier.SupplyNSC("nsc-1", domain.Nodes[0].NSMgr.URL)
 
-	var connection *networkservice.Connection
+	var conn *networkservice.Connection
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -95,26 +92,26 @@ func (t *NSMGRSuite) TestNSMGR_LocalCase() {
 		},
 		Connection: &networkservice.Connection{
 			Id:             "1",
-			NetworkService: "my-service",
+			NetworkService: "my-service-remote",
 			Context:        &networkservice.ConnectionContext{},
 		},
 	}
-	connection, err := cl.Request(ctx, request)
-	t.NoError(err)
-	t.NotNil(connection)
+	conn, err := nsc.Request(supplier.Context(), request)
+	r.NoError(err)
+	r.NotNil(conn)
 
-	t.Equal(5, len(connection.Path.PathSegments))
+	r.Equal(5, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client.
 
 	refreshRequest := request.Clone()
-	refreshRequest.GetConnection().Context = connection.Context
-	refreshRequest.GetConnection().Mechanism = connection.Mechanism
-	refreshRequest.GetConnection().NetworkServiceEndpointName = connection.NetworkServiceEndpointName
+	refreshRequest.GetConnection().Context = conn.Context
+	refreshRequest.GetConnection().Mechanism = conn.Mechanism
+	refreshRequest.GetConnection().NetworkServiceEndpointName = conn.NetworkServiceEndpointName
 
 	var connection2 *networkservice.Connection
-	connection2, err = cl.Request(ctx, refreshRequest)
-	t.NoError(err)
-	t.NotNil(connection2)
-	t.Equal(5, len(connection2.Path.PathSegments))
+	connection2, err = nsc.Request(supplier.Context(), refreshRequest)
+	r.NoError(err)
+	r.NotNil(connection2)
+	r.Equal(5, len(connection2.Path.PathSegments))
 }
