@@ -41,11 +41,6 @@ type Supplier struct {
 	dialContext  func(ctx context.Context, u *url.URL) *grpc.ClientConn
 }
 
-// Context returns using context.Context
-func (s *Supplier) Context() context.Context {
-	return s.ctx
-}
-
 // Cleanup cleanups all used resources
 func (s *Supplier) Cleanup() {
 	for _, f := range s.resources {
@@ -54,12 +49,12 @@ func (s *Supplier) Cleanup() {
 	s.resources = nil
 }
 
-// SupplyNSC supplies NSC
+// SupplyNSC creates new networkservice.NetworkServiceClient that connects to passed url
 func (s *Supplier) SupplyNSC(name string, connectTo *url.URL) networkservice.NetworkServiceClient {
 	return s.supplyNSC(s.ctx, name, nil, s.tokenGenFunc, s.dialContext(s.ctx, connectTo))
 }
 
-// SupplyNSE supplies NSE
+// SupplyNSE creates new NSE for passed network service manager
 func (s *Supplier) SupplyNSE(registration *registryapi.NetworkServiceEndpoint, mgr nsmgr.Nsmgr) *EndpointEntry {
 	nse := s.supplyNSE(s.ctx, registration, s.tokenGenFunc)
 	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
@@ -77,6 +72,6 @@ func (s *Supplier) SupplyNSE(registration *registryapi.NetworkServiceEndpoint, m
 		})
 		s.require.NoError(err)
 	}
-	log.Entry(s.ctx).Infof("Endpoint listen on: %v", serveURL)
+	log.Entry(s.ctx).Infof("Endpoint %v listen on: %v", registration.Name, serveURL)
 	return &EndpointEntry{Endpoint: nse, URL: serveURL}
 }

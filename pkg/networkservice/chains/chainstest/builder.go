@@ -59,7 +59,7 @@ type DomainBuilder struct {
 	supplyNSE         SupplyEndpointFunc
 	supplyNSC         SupplyClientFunc
 	generateTokenFunc token.GeneratorFunc
-	timeout           time.Duration
+	ctx               context.Context
 }
 
 // NewDomainBuilder creates new DomainBuilder
@@ -73,14 +73,17 @@ func NewDomainBuilder(t *testing.T) *DomainBuilder {
 		supplyNSE:         supplyDummyNSE,
 		supplyNSC:         client.NewClient,
 		generateTokenFunc: tokenGenerator,
-		timeout:           time.Second * 15,
 	}
 }
 
 // Build builds Domain and Supplier
 func (b *DomainBuilder) Build() (*Domain, *Supplier) {
-	ctx, cancel := context.WithTimeout(context.Background(), b.timeout)
-	b.resources = append(b.resources, cancel)
+	ctx := b.ctx
+	if ctx == nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), time.Second)
+		b.resources = append(b.resources, cancel)
+	}
 	domain := &Domain{}
 	reg, u := b.newRegistry(ctx, b.supplyRegistry)
 	domain.Registry = &RegistryEntry{
@@ -124,9 +127,9 @@ func (b *DomainBuilder) Build() (*Domain, *Supplier) {
 	return domain, supplier
 }
 
-// SetTimeout sets timeout for test
-func (b *DomainBuilder) SetTimeout(timeout time.Duration) *DomainBuilder {
-	b.timeout = timeout
+// SetContext sets context for all chains
+func (b *DomainBuilder) SetContext(ctx context.Context) *DomainBuilder {
+	b.ctx = ctx
 	return b
 }
 
@@ -142,19 +145,19 @@ func (b *DomainBuilder) SetTokenGenerateFunc(f token.GeneratorFunc) *DomainBuild
 	return b
 }
 
-// SetRegistrySupplier sets registry supplier
+// SetRegistrySupplier replaces default memory registry supplier to custom function
 func (b *DomainBuilder) SetRegistrySupplier(f SupplyRegistryFunc) *DomainBuilder {
 	b.supplyRegistry = f
 	return b
 }
 
-// SetForwarderSupplier sets forwarder supplier
+// SetForwarderSupplier replaces default dummy forwarder supplier to custom function
 func (b *DomainBuilder) SetForwarderSupplier(f SupplyForwarderFunc) *DomainBuilder {
 	b.supplyForwarder = f
 	return b
 }
 
-// SetNSMgrSupplier sets SupplyNSMgrFunc
+// SetNSMgrSupplier replaces default nsmgr supplier to custom function
 func (b *DomainBuilder) SetNSMgrSupplier(f SupplyNSMgrFunc) *DomainBuilder {
 	b.supplyNSMgr = f
 	return b

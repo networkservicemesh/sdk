@@ -18,7 +18,9 @@
 package nsmgr_test
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
@@ -29,9 +31,13 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/chainstest"
 )
 
-func TestRemoteNSMGRUsecase(t *testing.T) {
-	r := require.New(t)
-	domain, supplier := chainstest.NewDomainBuilder(t).SetNodesCount(2).Build()
+func TestNSMGR_RemoteUsecase(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	domain, supplier := chainstest.NewDomainBuilder(t).
+		SetNodesCount(2).
+		SetContext(ctx).
+		Build()
 	defer supplier.Cleanup()
 
 	nsc := supplier.SupplyNSC("nsc-1", domain.Nodes[0].NSMgr.URL)
@@ -52,11 +58,11 @@ func TestRemoteNSMGRUsecase(t *testing.T) {
 			Context:        &networkservice.ConnectionContext{},
 		},
 	}
-	conn, err := nsc.Request(supplier.Context(), request)
-	r.NoError(err)
-	r.NotNil(conn)
+	conn, err := nsc.Request(ctx, request)
+	require.NoError(t, err)
+	require.NotNil(t, conn)
 
-	r.Equal(8, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client.
 
@@ -66,15 +72,19 @@ func TestRemoteNSMGRUsecase(t *testing.T) {
 	refreshRequest.GetConnection().NetworkServiceEndpointName = conn.NetworkServiceEndpointName
 
 	var connection2 *networkservice.Connection
-	connection2, err = nsc.Request(supplier.Context(), refreshRequest)
-	r.NoError(err)
-	r.NotNil(connection2)
-	r.Equal(8, len(connection2.Path.PathSegments))
+	connection2, err = nsc.Request(ctx, refreshRequest)
+	require.NoError(t, err)
+	require.NotNil(t, connection2)
+	require.Equal(t, 8, len(connection2.Path.PathSegments))
 }
 
-func TestLocalNSMGRUsecase(t *testing.T) {
-	r := require.New(t)
-	domain, supplier := chainstest.NewDomainBuilder(t).SetNodesCount(1).Build()
+func TestNSMGR_LocalUsecase(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	domain, supplier := chainstest.NewDomainBuilder(t).
+		SetNodesCount(1).
+		SetContext(ctx).
+		Build()
 	defer supplier.Cleanup()
 
 	supplier.SupplyNSE(&registry.NetworkServiceEndpoint{
@@ -96,11 +106,11 @@ func TestLocalNSMGRUsecase(t *testing.T) {
 			Context:        &networkservice.ConnectionContext{},
 		},
 	}
-	conn, err := nsc.Request(supplier.Context(), request)
-	r.NoError(err)
-	r.NotNil(conn)
+	conn, err := nsc.Request(ctx, request)
+	require.NoError(t, err)
+	require.NotNil(t, conn)
 
-	r.Equal(5, len(conn.Path.PathSegments))
+	require.Equal(t, 5, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client.
 
@@ -110,8 +120,8 @@ func TestLocalNSMGRUsecase(t *testing.T) {
 	refreshRequest.GetConnection().NetworkServiceEndpointName = conn.NetworkServiceEndpointName
 
 	var connection2 *networkservice.Connection
-	connection2, err = nsc.Request(supplier.Context(), refreshRequest)
-	r.NoError(err)
-	r.NotNil(connection2)
-	r.Equal(5, len(connection2.Path.PathSegments))
+	connection2, err = nsc.Request(ctx, refreshRequest)
+	require.NoError(t, err)
+	require.NotNil(t, connection2)
+	require.Equal(t, 5, len(connection2.Path.PathSegments))
 }
