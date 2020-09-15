@@ -18,7 +18,6 @@ package chainstest
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"net/url"
 	"testing"
@@ -47,6 +46,8 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
+
+const defaultContextTimeout = time.Second * 15
 
 // DomainBuilder implements builder pattern for building Domain and Supplier
 type DomainBuilder struct {
@@ -81,7 +82,7 @@ func (b *DomainBuilder) Build() (*Domain, *Supplier) {
 	ctx := b.ctx
 	if ctx == nil {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(context.Background(), time.Second)
+		ctx, cancel = context.WithTimeout(context.Background(), defaultContextTimeout)
 		b.resources = append(b.resources, cancel)
 	}
 	domain := &Domain{}
@@ -182,7 +183,7 @@ func (b *DomainBuilder) newNSMgr(ctx context.Context, registryURL *url.URL) (nsm
 	}
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	b.require.NoError(err)
-	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:" + fmt.Sprint(listener.Addr().(*net.TCPAddr).Port)}
+	serveURL := grpcutils.AddressToURL(listener.Addr())
 	b.require.NoError(listener.Close())
 
 	nsmgrReg := &registryapi.NetworkServiceEndpoint{
