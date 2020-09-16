@@ -32,21 +32,21 @@ import (
 )
 
 func TestNSMGR_RemoteUsecase(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*10)
 	defer cancel()
-	domain, supplier := chainstest.NewDomainBuilder(t).
+	domain := chainstest.NewDomainBuilder(t).
 		SetNodesCount(2).
 		SetContext(ctx).
 		Build()
-	defer supplier.Cleanup()
+	defer domain.Cleanup()
 
-	nsc := supplier.SupplyNSC("nsc-1", domain.Nodes[0].NSMgr.URL)
-	supplier.SupplyNSE(&registry.NetworkServiceEndpoint{
+	nseReg := &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint",
 		NetworkServiceNames: []string{"my-service-remote"},
-	}, domain.Nodes[1].NSMgr)
+	}
 
-	var conn *networkservice.Connection
+	_, err := chainstest.NewEndpoint(ctx, nseReg, chainstest.GenerateTestToken, domain.Nodes[0].NSMgr)
+	require.NoError(t, err)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -58,6 +58,10 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 			Context:        &networkservice.ConnectionContext{},
 		},
 	}
+
+	nsc, err := chainstest.NewClient(ctx, chainstest.GenerateTestToken, domain.Nodes[1].NSMgr.URL)
+	require.NoError(t, err)
+
 	conn, err := nsc.Request(ctx, request)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
@@ -71,30 +75,30 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 	refreshRequest.GetConnection().Mechanism = conn.Mechanism
 	refreshRequest.GetConnection().NetworkServiceEndpointName = conn.NetworkServiceEndpointName
 
-	var connection2 *networkservice.Connection
-	connection2, err = nsc.Request(ctx, refreshRequest)
+	conn, err = nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
-	require.NotNil(t, connection2)
-	require.Equal(t, 8, len(connection2.Path.PathSegments))
+	require.NotNil(t, conn)
+	require.Equal(t, 8, len(conn.Path.PathSegments))
 }
 
 func TestNSMGR_LocalUsecase(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
-	domain, supplier := chainstest.NewDomainBuilder(t).
+	domain := chainstest.NewDomainBuilder(t).
 		SetNodesCount(1).
 		SetContext(ctx).
 		Build()
-	defer supplier.Cleanup()
+	defer domain.Cleanup()
 
-	supplier.SupplyNSE(&registry.NetworkServiceEndpoint{
+	nseReg := &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint",
 		NetworkServiceNames: []string{"my-service-remote"},
-	}, domain.Nodes[0].NSMgr)
+	}
+	_, err := chainstest.NewEndpoint(ctx, nseReg, chainstest.GenerateTestToken, domain.Nodes[0].NSMgr)
+	require.NoError(t, err)
 
-	nsc := supplier.SupplyNSC("nsc-1", domain.Nodes[0].NSMgr.URL)
-
-	var conn *networkservice.Connection
+	nsc, err := chainstest.NewClient(ctx, chainstest.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
+	require.NoError(t, err)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -119,9 +123,8 @@ func TestNSMGR_LocalUsecase(t *testing.T) {
 	refreshRequest.GetConnection().Mechanism = conn.Mechanism
 	refreshRequest.GetConnection().NetworkServiceEndpointName = conn.NetworkServiceEndpointName
 
-	var connection2 *networkservice.Connection
-	connection2, err = nsc.Request(ctx, refreshRequest)
+	conn2, err := nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
-	require.NotNil(t, connection2)
-	require.Equal(t, 5, len(connection2.Path.PathSegments))
+	require.NotNil(t, conn2)
+	require.Equal(t, 5, len(conn2.Path.PathSegments))
 }

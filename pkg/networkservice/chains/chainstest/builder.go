@@ -57,8 +57,6 @@ type DomainBuilder struct {
 	supplyForwarder   SupplyForwarderFunc
 	supplyNSMgr       SupplyNSMgrFunc
 	supplyRegistry    SupplyRegistryFunc
-	supplyNSE         SupplyEndpointFunc
-	supplyNSC         SupplyClientFunc
 	generateTokenFunc token.GeneratorFunc
 	ctx               context.Context
 }
@@ -71,14 +69,12 @@ func NewDomainBuilder(t *testing.T) *DomainBuilder {
 		supplyNSMgr:       nsmgr.NewServer,
 		supplyForwarder:   supplyDummyForwarder,
 		supplyRegistry:    supplyMemoryRegistry,
-		supplyNSE:         supplyDummyNSE,
-		supplyNSC:         client.NewClient,
-		generateTokenFunc: tokenGenerator,
+		generateTokenFunc: GenerateTestToken,
 	}
 }
 
 // Build builds Domain and Supplier
-func (b *DomainBuilder) Build() (*Domain, *Supplier) {
+func (b *DomainBuilder) Build() *Domain {
 	ctx := b.ctx
 	if ctx == nil {
 		var cancel context.CancelFunc
@@ -115,17 +111,8 @@ func (b *DomainBuilder) Build() (*Domain, *Supplier) {
 		b.require.NoError(err)
 		domain.Nodes = append(domain.Nodes, node)
 	}
-	supplier := &Supplier{
-		resources:    b.resources,
-		supplyNSC:    b.supplyNSC,
-		supplyNSE:    b.supplyNSE,
-		tokenGenFunc: b.generateTokenFunc,
-		require:      b.require,
-		dialContext:  b.dialContext,
-		ctx:          ctx,
-	}
-	b.resources = nil
-	return domain, supplier
+	domain.resources, b.resources = b.resources, nil
+	return domain
 }
 
 // SetContext sets context for all chains
@@ -208,7 +195,9 @@ func serve(ctx context.Context, u *url.URL, register func(server *grpc.Server)) 
 			log.Entry(ctx).Infof("Stop serve: %v", u.String())
 			return
 		case err := <-errCh:
-			log.Entry(ctx).Fatalf("An error during serve: %v", err.Error())
+			if err != nil {
+				log.Entry(ctx).Fatalf("An error during serve: %v", err.Error())
+			}
 		}
 	}()
 }
@@ -228,16 +217,11 @@ func (b *DomainBuilder) newRegistry(ctx context.Context, supply SupplyRegistryFu
 	return result, serveURL
 }
 
-func tokenGenerator(_ credentials.AuthInfo) (tokenValue string, expireTime time.Time, err error) {
+// GenerateTestToken generates test token
+func GenerateTestToken(_ credentials.AuthInfo) (tokenValue string, expireTime time.Time, err error) {
 	return "TestToken", time.Date(3000, 1, 1, 1, 1, 1, 1, time.UTC), nil
 }
 
-func supplyDummyNSE(ctx context.Context, registration *registryapi.NetworkServiceEndpoint, genToken token.GeneratorFunc) endpoint.Endpoint {
-	return endpoint.NewServer(ctx,
-		registration.Name,
-		authorize.NewServer(),
-		genToken)
-}
 func supplyMemoryRegistry() registry.Registry {
 	return registry.NewServer(chain.NewNetworkServiceRegistryServer(memory.NewNetworkServiceRegistryServer()), chain.NewNetworkServiceEndpointRegistryServer(memory.NewNetworkServiceEndpointRegistryServer()))
 }
@@ -256,7 +240,7 @@ func supplyDummyForwarder(ctx context.Context, name string, generateToken token.
 				name,
 				// What to call onHeal
 				addressof.NetworkServiceClient(adapters.NewServerToClient(result)),
-				tokenGenerator,
+				GenerateTestToken,
 			),
 			grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)),
 		))

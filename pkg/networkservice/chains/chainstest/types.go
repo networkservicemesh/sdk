@@ -39,12 +39,6 @@ type SupplyForwarderFunc func(context.Context, string, token.GeneratorFunc, *url
 // SupplyRegistryFunc supplies Registry
 type SupplyRegistryFunc func() registry.Registry
 
-// SupplyEndpointFunc supplies NSE
-type SupplyEndpointFunc func(context.Context, *registryapi.NetworkServiceEndpoint, token.GeneratorFunc) endpoint.Endpoint
-
-// SupplyClientFunc supplies NSC
-type SupplyClientFunc func(ctx context.Context, name string, onHeal *networkservice.NetworkServiceClient, tokenGenerator token.GeneratorFunc, cc grpc.ClientConnInterface, additionalFunctionality ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient
-
 // Node is pair of Forwarder and NSMgr
 type Node struct {
 	Forwarder *EndpointEntry
@@ -71,7 +65,15 @@ type EndpointEntry struct {
 
 // Domain contains attached to domain nodes, registry
 type Domain struct {
-	Nodes    []*Node
-	Registry *RegistryEntry
-	Name     string
+	Nodes     []*Node
+	Registry  *RegistryEntry
+	Name      string
+	resources []context.CancelFunc
+}
+
+// Cleanup frees all resources related to the domain
+func (d *Domain) Cleanup() {
+	for _, r := range d.resources {
+		r()
+	}
 }
