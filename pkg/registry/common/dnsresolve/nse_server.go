@@ -18,6 +18,7 @@ package dnsresolve
 
 import (
 	"context"
+	"errors"
 	"net"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
@@ -66,6 +67,9 @@ func (d *dnsNSEResolveServer) Register(ctx context.Context, ns *registry.Network
 func (d *dnsNSEResolveServer) Find(q *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
 	ctx := s.Context()
 	domain := interdomain.Domain(q.NetworkServiceEndpoint.Name)
+	if domain == "" {
+		return errors.New("domain cannot be empty")
+	}
 	url, err := resolveDomain(ctx, d.service, domain, d.resolver)
 	if err != nil {
 		return err

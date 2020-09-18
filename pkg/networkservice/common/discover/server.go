@@ -19,8 +19,10 @@ package discover
 import (
 	"context"
 	"net/url"
+	"sync"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
+	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
@@ -32,6 +34,7 @@ import (
 )
 
 type discoverCandidatesServer struct {
+	choices   sync.Map
 	nseClient registry.NetworkServiceEndpointRegistryClient
 	nsClient  registry.NetworkServiceRegistryClient
 }
@@ -48,27 +51,46 @@ func NewServer(nsClient registry.NetworkServiceRegistryClient, nseClient registr
 func (d *discoverCandidatesServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	nseName := request.GetConnection().GetNetworkServiceEndpointName()
 	if nseName != "" {
-		nseStream, err := d.nseClient.Find(context.Background(), &registry.NetworkServiceEndpointQuery{
-			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-				Name: nseName,
-			},
-		})
-		if err != nil {
-			return nil, err
+		var nses []*registry.NetworkServiceEndpoint
+		if interdomain.Is(request.GetConnection().NetworkService) {
+			if v, ok := d.choices.Load(request.Connection.GetPath().PathSegments[request.Connection.GetPath().Index-2].Id); ok {
+				nses = v.([]*registry.NetworkServiceEndpoint)
+				d.choices.Delete(request.Connection.GetPath().PathSegments[request.Connection.GetPath().Index-2].Id)
+			} else {
+				return nil, errors.New("request has wrong nse")
+			}
+		} else {
+			stream, err := d.nseClient.Find(ctx, &registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: nseName}})
+			if err != nil {
+				return nil, err
+			}
+			nses = registry.ReadNetworkServiceEndpointList(stream)
 		}
-		nseList := registry.ReadNetworkServiceEndpointList(nseStream)
-		if len(nseList) == 0 {
-			return nil, errors.Errorf("network service endpoint %s is not found", nseName)
+		var selected *registry.NetworkServiceEndpoint
+		for _, nse := range nses {
+			if interdomain.Target(nse.Name) == interdomain.Target(nseName) {
+				selected = nse
+				break
+			}
 		}
-		u, err := url.Parse(nseList[0].Url)
+		if selected == nil {
+			return nil, errors.New("request has wrong nse")
+		}
+		u, err := url.Parse(selected.Url)
 		if err != nil {
 			return nil, err
 		}
 		return next.Server(ctx).Request(clienturl.WithClientURL(ctx, u), request)
 	}
+	nseName = ""
+	nsName := request.GetConnection().GetNetworkService()
+	if interdomain.Is(nsName) {
+		nseName = "@" + interdomain.Domain(nsName)
+	}
 	nseStream, err := d.nseClient.Find(ctx, &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-			NetworkServiceNames: []string{request.GetConnection().GetNetworkService()},
+			Name:                nseName,
+			NetworkServiceNames: []string{interdomain.Target(request.GetConnection().GetNetworkService())},
 		},
 	})
 	if err != nil {
@@ -97,6 +119,9 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 	}
 
 	ctx = WithCandidates(ctx, nseList, nsList[0])
+	if interdomain.Is(nsName) {
+		d.choices.Store(request.Connection.GetPath().PathSegments[request.Connection.GetPath().Index].Id, nseList)
+	}
 	return next.Server(ctx).Request(ctx, request)
 }
 

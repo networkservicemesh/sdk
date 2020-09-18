@@ -28,13 +28,13 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/chainstest"
+	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
 func TestNSMGR_RemoteUsecase(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
-	domain := chainstest.NewDomainBuilder(t).
+	domain := sandbox.NewBuilder(t).
 		SetNodesCount(2).
 		SetContext(ctx).
 		Build()
@@ -45,7 +45,7 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 		NetworkServiceNames: []string{"my-service-remote"},
 	}
 
-	_, err := chainstest.NewEndpoint(ctx, nseReg, chainstest.GenerateTestToken, domain.Nodes[0].NSMgr)
+	_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr)
 	require.NoError(t, err)
 
 	request := &networkservice.NetworkServiceRequest{
@@ -59,7 +59,7 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 		},
 	}
 
-	nsc, err := chainstest.NewClient(ctx, chainstest.GenerateTestToken, domain.Nodes[1].NSMgr.URL)
+	nsc, err := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[1].NSMgr.URL)
 	require.NoError(t, err)
 
 	conn, err := nsc.Request(ctx, request)
@@ -82,9 +82,9 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 }
 
 func TestNSMGR_LocalUsecase(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
-	domain := chainstest.NewDomainBuilder(t).
+	domain := sandbox.NewBuilder(t).
 		SetNodesCount(1).
 		SetContext(ctx).
 		Build()
@@ -94,10 +94,10 @@ func TestNSMGR_LocalUsecase(t *testing.T) {
 		Name:                "final-endpoint",
 		NetworkServiceNames: []string{"my-service-remote"},
 	}
-	_, err := chainstest.NewEndpoint(ctx, nseReg, chainstest.GenerateTestToken, domain.Nodes[0].NSMgr)
+	_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr)
 	require.NoError(t, err)
 
-	nsc, err := chainstest.NewClient(ctx, chainstest.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
+	nsc, err := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
 	require.NoError(t, err)
 
 	request := &networkservice.NetworkServiceRequest{

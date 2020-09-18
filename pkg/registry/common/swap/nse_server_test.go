@@ -32,24 +32,21 @@ import (
 )
 
 func TestNewSwapNetworkServiceEndpointRegistryServer_RegisterUnregister(t *testing.T) {
-	expected := &url.URL{Path: "test"}
-	s := swap.NewNetworkServiceEndpointRegistryServer("my.cluster", nil, expected)
+	s := swap.NewNetworkServiceEndpointRegistryServer("my.cluster", nil)
 	response, err := s.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: "my-nse@floating.registry.domain"})
 	require.Nil(t, err)
 	require.Equal(t, response.Name, "my-nse@my.cluster")
-	require.Equal(t, expected.String(), response.Url)
 	request := &registry.NetworkServiceEndpoint{Name: "my-nse@floating.registry.domain"}
 	_, err = s.Unregister(context.Background(), request)
 	require.Nil(t, err)
 	require.Equal(t, "my-nse@my.cluster", request.Name)
-	require.Equal(t, expected.String(), request.Url)
 }
 
 func TestNewSwapNetworkServiceEndpointRegistryServer_Find(t *testing.T) {
 	proxyNSMgr := &url.URL{Path: "proxy"}
 	mem := memory.NewNetworkServiceEndpointRegistryServer()
 	s := next.NewNetworkServiceEndpointRegistryServer(
-		swap.NewNetworkServiceEndpointRegistryServer("my.cluster", proxyNSMgr, nil),
+		swap.NewNetworkServiceEndpointRegistryServer("my.cluster", proxyNSMgr),
 		mem,
 	)
 	_, err := mem.Register(context.Background(), &registry.NetworkServiceEndpoint{

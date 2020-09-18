@@ -23,6 +23,7 @@ import (
 	"context"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interpose"
+	"github.com/networkservicemesh/sdk/pkg/registry"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
@@ -30,7 +31,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/registry"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"

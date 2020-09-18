@@ -18,42 +18,18 @@ package interdomain_test
 
 import (
 	"context"
-	"net/url"
 	"testing"
 	"time"
 
+	"github.com/golang/protobuf/ptypes"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/proxy"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/swap"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/registry/memory"
+	floating_memory "github.com/networkservicemesh/sdk/pkg/registry/chains/memory-floating"
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
+	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
-
-func localNSERegistryServer(ctx context.Context, proxyRegistryURL *url.URL) registry.NetworkServiceEndpointRegistryServer {
-	return chain.NewNetworkServiceEndpointRegistryServer(
-		memory.NewNetworkServiceEndpointRegistryServer(),
-		proxy.NewNetworkServiceEndpointRegistryServer(proxyRegistryURL),
-		connect.NewNetworkServiceEndpointRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient {
-			return registry.NewNetworkServiceEndpointRegistryClient(cc)
-		}, connect.WithExpirationDuration(time.Millisecond*500), connect.WithClientDialOptions(grpc.WithInsecure())),
-	)
-}
-
-func proxyNSERegistryServer(ctx context.Context, currentDomain string, resolver dnsresolve.Resolver) registry.NetworkServiceEndpointRegistryServer {
-	return chain.NewNetworkServiceEndpointRegistryServer(
-		dnsresolve.NewNetworkServiceEndpointRegistryServer(dnsresolve.WithResolver(resolver)),
-		swap.NewNetworkServiceEndpointRegistryServer(currentDomain, &url.URL{Scheme: "test", Host: "proxyNSMGRurl"}, &url.URL{Scheme: "test", Host: "publicNSMGRurl"}),
-		connect.NewNetworkServiceEndpointRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient {
-			return registry.NewNetworkServiceEndpointRegistryClient(cc)
-		}, connect.WithExpirationDuration(time.Millisecond*500), connect.WithClientDialOptions(grpc.WithInsecure())),
-	)
-}
 
 /*
 	TestInterdomainNetworkServiceEndpointRegistry covers the next scenario:
@@ -70,28 +46,47 @@ func proxyNSERegistryServer(ctx context.Context, currentDomain string, resolver 
 	____________________________________         ___________________
 */
 func TestInterdomainNetworkServiceEndpointRegistry(t *testing.T) {
-	tool := newInterdomainTestingTool(t)
-	defer tool.verifyNoneLeaks()
-	defer tool.cleanup()
-
-	const localRegistryDomain = "domain1.local.registry"
-	const proxyRegistryDomain = "domain1.proxy.registry"
 	const remoteRegistryDomain = "domain2.local.registry"
-	ctx, cancel := context.WithCancel(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	proxyRegistryURL := tool.startNetworkServiceEndpointRegistryServerAsync(proxyRegistryDomain, proxyNSERegistryServer(ctx, localRegistryDomain, tool))
-	tool.startNetworkServiceEndpointRegistryServerAsync(localRegistryDomain, localNSERegistryServer(ctx, proxyRegistryURL))
+	dnsServer := new(sandbox.FakeDNSResolver)
 
-	remoteMem := memory.NewNetworkServiceEndpointRegistryServer()
-	_, err := remoteMem.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: "nse-1", Url: "nsmgr-url"})
+	domain1 := sandbox.NewBuilder(t).
+		SetContext(ctx).
+		SetNodesCount(0).
+		SetDNSResolver(dnsServer).
+		Build()
+	defer domain1.Cleanup()
+
+	domain2 := sandbox.NewBuilder(t).
+		SetContext(ctx).
+		SetNodesCount(0).
+		SetDNSResolver(dnsServer).
+		Build()
+	defer domain2.Cleanup()
+
+	dnsServer.Register(remoteRegistryDomain, domain2.Registry.URL)
+
+	expirationTime, _ := ptypes.TimestampProto(time.Now().Add(time.Hour))
+
+	_, err := domain2.Registry.NetworkServiceEndpointRegistryServer().Register(
+		context.Background(),
+		&registry.NetworkServiceEndpoint{
+			Name:           "nse-1",
+			Url:            "nsmgr-url",
+			ExpirationTime: expirationTime,
+		},
+	)
 	require.Nil(t, err)
 
-	tool.startNetworkServiceEndpointRegistryServerAsync(remoteRegistryDomain, remoteMem)
+	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(domain1.Registry.URL), grpc.WithBlock(), grpc.WithInsecure())
+	require.Nil(t, err)
 
-	client := registry.NewNetworkServiceEndpointRegistryClient(tool.dialDomain(localRegistryDomain))
+	client := registry.NewNetworkServiceEndpointRegistryClient(cc)
 
-	stream, err := client.Find(context.Background(), &registry.NetworkServiceEndpointQuery{
+	stream, err := client.Find(ctx, &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 			Name: "nse-1@" + remoteRegistryDomain,
 		},
@@ -121,23 +116,39 @@ domain1
 _____________________________________
 */
 func TestLocalDomain_NetworkServiceEndpointRegistry(t *testing.T) {
-	tool := newInterdomainTestingTool(t)
-	defer tool.verifyNoneLeaks()
-	defer tool.cleanup()
-
 	const localRegistryDomain = "domain1.local.registry"
-	const proxyRegistryDomain = "domain1.proxy.registry"
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	proxyRegistryURL := tool.startNetworkServiceEndpointRegistryServerAsync(proxyRegistryDomain, proxyNSERegistryServer(ctx, localRegistryDomain, tool))
-	tool.startNetworkServiceEndpointRegistryServerAsync(localRegistryDomain, localNSERegistryServer(ctx, proxyRegistryURL))
+	dnsServer := new(sandbox.FakeDNSResolver)
 
-	client := registry.NewNetworkServiceEndpointRegistryClient(tool.dialDomain(localRegistryDomain))
+	domain1 := sandbox.NewBuilder(t).
+		SetContext(ctx).
+		SetNodesCount(0).
+		SetDNSDomainName(localRegistryDomain).
+		SetDNSResolver(dnsServer).
+		Build()
+	defer domain1.Cleanup()
 
-	expected, err := client.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: "nse-1"})
-	require.NoError(t, err)
+	dnsServer.Register(localRegistryDomain, domain1.Registry.URL)
+
+	expirationTime, _ := ptypes.TimestampProto(time.Now().Add(time.Hour))
+
+	expected, err := domain1.Registry.NetworkServiceEndpointRegistryServer().Register(
+		context.Background(),
+		&registry.NetworkServiceEndpoint{
+			Name:           "nse-1",
+			Url:            "test://publicNSMGRurl",
+			ExpirationTime: expirationTime,
+		},
+	)
+	require.Nil(t, err)
+
+	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(domain1.Registry.URL), grpc.WithBlock(), grpc.WithInsecure())
+	require.Nil(t, err)
+
+	client := registry.NewNetworkServiceEndpointRegistryClient(cc)
 
 	stream, err := client.Find(context.Background(), &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
@@ -171,41 +182,56 @@ func TestLocalDomain_NetworkServiceEndpointRegistry(t *testing.T) {
 */
 
 func TestInterdomainFloatingNetworkServiceEndpointRegistry(t *testing.T) {
-	tool := newInterdomainTestingTool(t)
-	defer tool.verifyNoneLeaks()
-	defer tool.cleanup()
-	const localRegistryDomain = "domain1.local.registry"
-	const proxyRegistryDomain = "domain1.proxy.registry"
 	const remoteRegistryDomain = "domain3.local.registry"
 	const remoteProxyRegistryDomain = "domain3.proxy.registry"
 	const floatingRegistryDomain = "domain2.floating.registry"
 
-	fMem := memory.NewNetworkServiceEndpointRegistryServer()
-
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	proxyRegistryURL1 := tool.startNetworkServiceEndpointRegistryServerAsync(proxyRegistryDomain, proxyNSERegistryServer(ctx, localRegistryDomain, tool))
-	tool.startNetworkServiceEndpointRegistryServerAsync(localRegistryDomain, localNSERegistryServer(ctx, proxyRegistryURL1))
+	dnsServer := new(sandbox.FakeDNSResolver)
 
-	proxyRegistryURL2 := tool.startNetworkServiceEndpointRegistryServerAsync(remoteProxyRegistryDomain, proxyNSERegistryServer(ctx, remoteRegistryDomain, tool))
-	tool.startNetworkServiceEndpointRegistryServerAsync(remoteRegistryDomain, localNSERegistryServer(ctx, proxyRegistryURL2))
+	domain1 := sandbox.NewBuilder(t).
+		SetContext(ctx).
+		SetNodesCount(0).
+		SetDNSResolver(dnsServer).
+		Build()
+	defer domain1.Cleanup()
 
-	tool.startNetworkServiceEndpointRegistryServerAsync(floatingRegistryDomain, fMem)
+	domain2 := sandbox.NewBuilder(t).
+		SetContext(ctx).
+		SetNodesCount(0).
+		SetDNSResolver(dnsServer).
+		Build()
+	defer domain2.Cleanup()
 
-	domain2Client := registry.NewNetworkServiceEndpointRegistryClient(tool.dialDomain(remoteRegistryDomain))
-	_, err := domain2Client.Register(context.Background(), &registry.NetworkServiceEndpoint{
-		Name: "nse-1@" + floatingRegistryDomain,
-	})
+	domain3 := sandbox.NewBuilder(t).
+		SetEmpty().
+		SetRegistryFloatingSupplier(floating_memory.NewServer).
+		Build()
+
+	dnsServer.Register(remoteRegistryDomain, domain2.Registry.URL)
+	dnsServer.Register(remoteProxyRegistryDomain, domain2.RegistryProxy.URL)
+	dnsServer.Register(floatingRegistryDomain, domain3.RegistryFloating.URL)
+
+	expirationTime, _ := ptypes.TimestampProto(time.Now().Add(time.Hour))
+
+	_, err := domain2.Registry.NetworkServiceEndpointRegistryServer().Register(
+		context.Background(),
+		&registry.NetworkServiceEndpoint{
+			Name:           "nse-1@" + floatingRegistryDomain,
+			Url:            "test://publicNSMGRurl",
+			ExpirationTime: expirationTime,
+		},
+	)
 	require.Nil(t, err)
 
-	fStream, err := adapters.NetworkServiceEndpointServerToClient(fMem).Find(context.Background(), &registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{}})
+	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(domain1.Registry.URL), grpc.WithBlock(), grpc.WithInsecure())
 	require.Nil(t, err)
-	require.Len(t, registry.ReadNetworkServiceEndpointList(fStream), 1)
 
-	domain1Client := registry.NewNetworkServiceEndpointRegistryClient(tool.dialDomain(localRegistryDomain))
+	client := registry.NewNetworkServiceEndpointRegistryClient(cc)
 
-	stream, err := domain1Client.Find(context.Background(), &registry.NetworkServiceEndpointQuery{
+	stream, err := client.Find(ctx, &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 			Name: "nse-1@" + floatingRegistryDomain,
 		},

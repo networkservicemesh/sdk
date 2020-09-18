@@ -15,4 +15,4 @@
 // limitations under the License.
 
 // Package chainstest provides API for testing NSM chains such as Forwarder, NSC, NSMGR, NSE.
-package chainstest
+package sandbox
