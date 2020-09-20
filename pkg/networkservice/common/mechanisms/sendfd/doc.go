@@ -14,13 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package recvnetns
-
-import (
-	"sync"
-)
-
-//go:generate go-syncmap -output filemap.gen.go -type FileMap<string,*os.File>
-
-// FileMap - sync.Map with key == string and value == *os.File
-type FileMap sync.Map
+// Package sendfd provides a NetworkService{Client,Server} chain element that looks at the Connection.Mechanism
+// and Request.MechanismPreferences and if they have the Parameters[common.InodeURL] with scheme 'file'
+// converts them to scheme inode and sends them over the connection as fds if possible.
+package sendfd
