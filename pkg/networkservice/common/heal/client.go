@@ -148,7 +148,7 @@ func (f *healClient) Request(ctx context.Context, request *networkservice.Networ
 	// Clone the request
 	req := request.Clone()
 	// Set its connection to the returned connection we received
-	req.Connection = rv
+	req.Connection = rv.Clone()
 
 	// TODO handle deadline ok
 	deadline, ok := ctx.Deadline()
