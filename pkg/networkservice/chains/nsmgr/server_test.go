@@ -36,6 +36,8 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 	defer cancel()
 	domain := sandbox.NewBuilder(t).
 		SetNodesCount(2).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
 		SetContext(ctx).
 		Build()
 	defer domain.Cleanup()
@@ -87,6 +89,8 @@ func TestNSMGR_LocalUsecase(t *testing.T) {
 	domain := sandbox.NewBuilder(t).
 		SetNodesCount(1).
 		SetContext(ctx).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
 		Build()
 	defer domain.Cleanup()
 

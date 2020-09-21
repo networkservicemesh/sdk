@@ -62,11 +62,11 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 		}
 		nseList := registry.ReadNetworkServiceEndpointList(nseStream)
 		if len(nseList) == 0 {
-			return nil, errors.New("bad network service name")
+			return nil, errors.Errorf("network service endpoint %s is not found", nseName)
 		}
 		u, err := url.Parse(nseList[0].Url)
 		if err != nil {
-			return nil, errors.Wrap(err, "cannot parse network service endpoint url")
+			return nil, errors.Wrapf(err, "cannot parse network service endpoint url.URL: %v", nseList[0].Url)
 		}
 		return next.Server(ctx).Request(clienturl.WithClientURL(ctx, u), request)
 	}
