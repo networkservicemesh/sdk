@@ -14,7 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package proxy_dns
+// Package proxydns provides default chain for stateless proxy registries based on DNS
+package proxydns
 
 import (
 	"context"
@@ -30,6 +31,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 )
 
+// NewServer creates new stateless registry server that proxies queries to the second registries by DNS domains
 func NewServer(ctx context.Context, dnsResolver dnsresolve.Resolver, handlingDNSDomain string, proxyNSMgrURL *url.URL, options ...grpc.DialOption) registry.Registry {
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
 		dnsresolve.NewNetworkServiceEndpointRegistryServer(dnsresolve.WithResolver(dnsResolver)),

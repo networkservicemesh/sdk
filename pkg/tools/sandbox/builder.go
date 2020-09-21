@@ -31,7 +31,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
-	nsmgr_proxy "github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr-proxy"
+	nsmgrproxy "github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgrproxy"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
@@ -39,7 +39,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/memory"
-	proxy_dns "github.com/networkservicemesh/sdk/pkg/registry/chains/proxy-dns"
+	proxydns "github.com/networkservicemesh/sdk/pkg/registry/chains/proxydns"
 	interpose_reg "github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
 	adapter_registry "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
@@ -51,37 +51,35 @@ import (
 
 const defaultContextTimeout = time.Second * 15
 
-// SandboxBuilder implements builder pattern for building Domain and Supplier
+// Builder implements builder pattern for building NSM Domain
 type Builder struct {
-	require                *require.Assertions
-	resources              []context.CancelFunc
-	nodesCount             int
-	DNSDomainName          string
-	Resolver               dnsresolve.Resolver
-	supplyForwarder        SupplyForwarderFunc
-	supplyNSMgr            SupplyNSMgrFunc
-	supplyNSMgrProxy       SupplyNSMgrProxyFunc
-	supplyRegistryFloating SupplyRegistryFloatingFunc
-	supplyRegistry         SupplyRegistryFunc
-	supplyRegistryProxy    SupplyRegistryProxyFunc
-	generateTokenFunc      token.GeneratorFunc
-	ctx                    context.Context
+	require             *require.Assertions
+	resources           []context.CancelFunc
+	nodesCount          int
+	DNSDomainName       string
+	Resolver            dnsresolve.Resolver
+	supplyForwarder     SupplyForwarderFunc
+	supplyNSMgr         SupplyNSMgrFunc
+	supplyNSMgrProxy    SupplyNSMgrProxyFunc
+	supplyRegistry      SupplyRegistryFunc
+	supplyRegistryProxy SupplyRegistryProxyFunc
+	generateTokenFunc   token.GeneratorFunc
+	ctx                 context.Context
 }
 
 // NewBuilder creates new SandboxBuilder
 func NewBuilder(t *testing.T) *Builder {
 	return &Builder{
-		nodesCount:             1,
-		require:                require.New(t),
-		Resolver:               net.DefaultResolver,
-		supplyNSMgr:            nsmgr.NewServer,
-		supplyForwarder:        supplyDummyForwarder,
-		DNSDomainName:          "cluster.local",
-		supplyRegistry:         memory.NewServer,
-		supplyRegistryProxy:    proxy_dns.NewServer,
-		supplyNSMgrProxy:       nsmgr_proxy.NewServer,
-		supplyRegistryFloating: nil,
-		generateTokenFunc:      GenerateTestToken,
+		nodesCount:          1,
+		require:             require.New(t),
+		Resolver:            net.DefaultResolver,
+		supplyNSMgr:         nsmgr.NewServer,
+		supplyForwarder:     supplyDummyForwarder,
+		DNSDomainName:       "cluster.local",
+		supplyRegistry:      memory.NewServer,
+		supplyRegistryProxy: proxydns.NewServer,
+		supplyNSMgrProxy:    nsmgrproxy.NewServer,
+		generateTokenFunc:   GenerateTestToken,
 	}
 }
 
@@ -94,7 +92,6 @@ func (b *Builder) Build() *Domain {
 		b.resources = append(b.resources, cancel)
 	}
 	domain := &Domain{}
-	domain.RegistryFloating = b.newRegistryFloating(ctx)
 	domain.NSMgrProxy = b.newNSMgrProxy(ctx)
 	if domain.NSMgrProxy == nil {
 		domain.RegistryProxy = b.newRegistryProxy(ctx, nil)
@@ -138,18 +135,7 @@ func (b *Builder) SetNodesCount(nodesCount int) *Builder {
 	return b
 }
 
-// SetEmpty sets parameters to build empty domain
-func (b *Builder) SetEmpty() *Builder {
-	b.supplyRegistryProxy = nil
-	b.supplyRegistry = nil
-	b.supplyRegistryFloating = nil
-	b.supplyNSMgrProxy = nil
-	b.nodesCount = 0
-	b.DNSDomainName = ""
-	b.Resolver = nil
-	return b
-}
-
+// SetDNSResolver sets DNS resolver for proxy registries
 func (b *Builder) SetDNSResolver(d dnsresolve.Resolver) *Builder {
 	b.Resolver = d
 	return b
@@ -161,13 +147,8 @@ func (b *Builder) SetTokenGenerateFunc(f token.GeneratorFunc) *Builder {
 	return b
 }
 
-func (b *Builder) SetRegistryFloatingSupplier(f SupplyRegistryFloatingFunc) *Builder {
-	b.supplyRegistryFloating = f
-	return b
-}
-
-// SetRegistrySupplier replaces default memory registry supplier to custom function
-func (b *Builder) SetProxyRegistrySupplier(f SupplyRegistryProxyFunc) *Builder {
+// SetRegistryProxySupplier replaces default memory registry supplier to custom function
+func (b *Builder) SetRegistryProxySupplier(f SupplyRegistryProxyFunc) *Builder {
 	b.supplyRegistryProxy = f
 	return b
 }
@@ -187,6 +168,12 @@ func (b *Builder) SetDNSDomainName(name string) *Builder {
 // SetForwarderSupplier replaces default dummy forwarder supplier to custom function
 func (b *Builder) SetForwarderSupplier(f SupplyForwarderFunc) *Builder {
 	b.supplyForwarder = f
+	return b
+}
+
+// SetNSMgrProxySupplier replaces default nsmgr-proxy supplier to custom function
+func (b *Builder) SetNSMgrProxySupplier(f SupplyNSMgrProxyFunc) *Builder {
+	b.supplyNSMgrProxy = f
 	return b
 }
 
@@ -291,19 +278,6 @@ func (b *Builder) newRegistryProxy(ctx context.Context, nsmgrProxyURL *url.URL) 
 	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
 	serve(ctx, serveURL, result.Register)
 	log.Entry(ctx).Infof("registry-proxy-dns listen on: %v", serveURL)
-	return &RegistryEntry{
-		URL:      serveURL,
-		Registry: result,
-	}
-}
-func (b *Builder) newRegistryFloating(ctx context.Context) *RegistryEntry {
-	if b.supplyRegistryFloating == nil {
-		return nil
-	}
-	result := b.supplyRegistryFloating()
-	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
-	serve(ctx, serveURL, result.Register)
-	log.Entry(ctx).Infof("registry-floating listen on: %v", serveURL)
 	return &RegistryEntry{
 		URL:      serveURL,
 		Registry: result,

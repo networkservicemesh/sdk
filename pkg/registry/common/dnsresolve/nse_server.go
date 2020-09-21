@@ -66,7 +66,7 @@ func (d *dnsNSEResolveServer) Register(ctx context.Context, ns *registry.Network
 
 func (d *dnsNSEResolveServer) Find(q *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
 	ctx := s.Context()
-	domain := interdomain.Domain(q.NetworkServiceEndpoint.Name)
+	domain := findDomain(q.NetworkServiceEndpoint)
 	if domain == "" {
 		return errors.New("domain cannot be empty")
 	}
@@ -91,4 +91,17 @@ func (d *dnsNSEResolveServer) Unregister(ctx context.Context, ns *registry.Netwo
 
 func (d *dnsNSEResolveServer) setResolver(r Resolver) {
 	d.resolver = r
+}
+
+func findDomain(nse *registry.NetworkServiceEndpoint) string {
+	domain := interdomain.Domain(nse.Name)
+	if domain != "" {
+		return domain
+	}
+	for _, service := range nse.NetworkServiceNames {
+		if domain = interdomain.Domain(service); domain != "" {
+			return domain
+		}
+	}
+	return ""
 }

@@ -14,11 +14,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package nsmgr_proxy
+// Package nsmgrproxy provides chain of networkservice.NetworkServiceServer chain elements to creating NSMgrProxy
+package nsmgrproxy
 
 import (
 	"context"
-	"net"
+	"fmt"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
@@ -35,6 +36,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
+// NSMgrProxy is extended networkservice.NetworkServiceServer interface with additional method Register
 type NSMgrProxy interface {
 	networkservice.NetworkServiceServer
 	Register(s *grpc.Server)
@@ -49,7 +51,8 @@ func (n *nsmgrProxy) Register(s *grpc.Server) {
 	networkservice.RegisterNetworkServiceServer(s, n)
 }
 
-func NewServer(ctx context.Context, name string, externalIP net.IP, generatorFunc token.GeneratorFunc, options ...grpc.DialOption) NSMgrProxy {
+// NewServer creates new proxy NSMgr
+func NewServer(ctx context.Context, name string, externalIP fmt.Stringer, generatorFunc token.GeneratorFunc, options ...grpc.DialOption) NSMgrProxy {
 	result := new(nsmgrProxy)
 
 	result.Endpoint = endpoint.NewServer(ctx,

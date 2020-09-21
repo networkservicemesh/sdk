@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package memory provides registry chain based on memory chain elements
 package memory
 
 import (
@@ -23,7 +24,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
 
-	registry2 "github.com/networkservicemesh/sdk/pkg/registry"
+	registryserver "github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/proxy"
@@ -33,7 +34,8 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/memory"
 )
 
-func NewServer(ctx context.Context, proxyRegistryURL *url.URL, options ...grpc.DialOption) registry2.Registry {
+// NewServer creates new registry server based on memory storage
+func NewServer(ctx context.Context, proxyRegistryURL *url.URL, options ...grpc.DialOption) registryserver.Registry {
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
 		setid.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(),
@@ -56,5 +58,5 @@ func NewServer(ctx context.Context, proxyRegistryURL *url.URL, options ...grpc.D
 		}, connect.WithClientDialOptions(options...)),
 	)
 
-	return registry2.NewServer(nsChain, nseChain)
+	return registryserver.NewServer(nsChain, nseChain)
 }

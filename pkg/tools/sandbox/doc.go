@@ -14,5 +14,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package chainstest provides API for testing NSM chains such as Forwarder, NSC, NSMGR, NSE.
+// Package sandbox provides API for testing NSM chains such as Forwarder, NSC, NSMgrs, Registries, NSE.
 package sandbox

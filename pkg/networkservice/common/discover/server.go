@@ -19,10 +19,6 @@ package discover
 import (
 	"context"
 	"net/url"
-	"sync"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
-	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
@@ -30,11 +26,12 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
 )
 
 type discoverCandidatesServer struct {
-	choices   sync.Map
 	nseClient registry.NetworkServiceEndpointRegistryClient
 	nsClient  registry.NetworkServiceRegistryClient
 }
@@ -49,48 +46,33 @@ func NewServer(nsClient registry.NetworkServiceRegistryClient, nseClient registr
 }
 
 func (d *discoverCandidatesServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	nseName := request.GetConnection().GetNetworkServiceEndpointName()
-	if nseName != "" {
-		var nses []*registry.NetworkServiceEndpoint
-		if interdomain.Is(request.GetConnection().NetworkService) {
-			if v, ok := d.choices.Load(request.Connection.GetPath().PathSegments[request.Connection.GetPath().Index-2].Id); ok {
-				nses = v.([]*registry.NetworkServiceEndpoint)
-				d.choices.Delete(request.Connection.GetPath().PathSegments[request.Connection.GetPath().Index-2].Id)
-			} else {
-				return nil, errors.New("request has wrong nse")
-			}
-		} else {
-			stream, err := d.nseClient.Find(ctx, &registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: nseName}})
-			if err != nil {
-				return nil, err
-			}
-			nses = registry.ReadNetworkServiceEndpointList(stream)
+	if nseName := request.GetConnection().NetworkServiceEndpointName; nseName != "" {
+		nseName := interdomain.Target(request.GetConnection().NetworkServiceEndpointName)
+		query := &registry.NetworkServiceEndpointQuery{
+			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+				Name: nseName,
+			},
 		}
-		var selected *registry.NetworkServiceEndpoint
-		for _, nse := range nses {
-			if interdomain.Target(nse.Name) == interdomain.Target(nseName) {
-				selected = nse
-				break
-			}
+		if request.Connection.GetNetworkService() != "" {
+			query.NetworkServiceEndpoint.NetworkServiceNames = []string{request.GetConnection().GetNetworkService()}
 		}
-		if selected == nil {
-			return nil, errors.New("request has wrong nse")
-		}
-		u, err := url.Parse(selected.Url)
+		nseStream, err := d.nseClient.Find(ctx, query)
 		if err != nil {
 			return nil, err
 		}
+		nseList := registry.ReadNetworkServiceEndpointList(nseStream)
+		if len(nseList) == 0 {
+			return nil, errors.New("bad network service name")
+		}
+		u, err := url.Parse(nseList[0].Url)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot parse network service endpoint url")
+		}
 		return next.Server(ctx).Request(clienturl.WithClientURL(ctx, u), request)
-	}
-	nseName = ""
-	nsName := request.GetConnection().GetNetworkService()
-	if interdomain.Is(nsName) {
-		nseName = "@" + interdomain.Domain(nsName)
 	}
 	nseStream, err := d.nseClient.Find(ctx, &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-			Name:                nseName,
-			NetworkServiceNames: []string{interdomain.Target(request.GetConnection().GetNetworkService())},
+			NetworkServiceNames: []string{request.GetConnection().GetNetworkService()},
 		},
 	})
 	if err != nil {
@@ -117,11 +99,7 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 	if len(nseList) == 0 {
 		return nil, errors.Errorf("network service endpoint for service %s is not found", request.GetConnection().GetNetworkService())
 	}
-
 	ctx = WithCandidates(ctx, nseList, nsList[0])
-	if interdomain.Is(nsName) {
-		d.choices.Store(request.Connection.GetPath().PathSegments[request.Connection.GetPath().Index].Id, nseList)
-	}
 	return next.Server(ctx).Request(ctx, request)
 }
 

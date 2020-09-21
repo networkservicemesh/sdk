@@ -18,7 +18,7 @@ package sandbox
 
 import (
 	"context"
-	"net"
+	"fmt"
 	"net/url"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -27,13 +27,14 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
-	nsmgr_proxy "github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr-proxy"
+	nsmgr_proxy "github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgrproxy"
 	"github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-type SupplyNSMgrProxyFunc func(context.Context, string, net.IP, token.GeneratorFunc, ...grpc.DialOption) nsmgr_proxy.NSMgrProxy
+// SupplyNSMgrProxyFunc nsmgr proxy
+type SupplyNSMgrProxyFunc func(context.Context, string, fmt.Stringer, token.GeneratorFunc, ...grpc.DialOption) nsmgr_proxy.NSMgrProxy
 
 // SupplyNSMgrFunc supplies NSMGR
 type SupplyNSMgrFunc func(context.Context, *registryapi.NetworkServiceEndpoint, networkservice.NetworkServiceServer, token.GeneratorFunc, grpc.ClientConnInterface, ...grpc.DialOption) nsmgr.Nsmgr
@@ -46,9 +47,6 @@ type SupplyRegistryFunc func(ctx context.Context, proxyRegistryURL *url.URL, opt
 
 // SupplyRegistryProxyFunc supplies registry proxy
 type SupplyRegistryProxyFunc func(ctx context.Context, dnsResolver dnsresolve.Resolver, handlingDNSDomain string, proxyNSMgrURL *url.URL, options ...grpc.DialOption) registry.Registry
-
-// SupplyRegistryFloatingFunc supplies floating registry
-type SupplyRegistryFloatingFunc func() registry.Registry
 
 // Node is pair of Forwarder and NSMgr
 type Node struct {
@@ -82,14 +80,13 @@ type EndpointEntry struct {
 
 // Domain contains attached to domain nodes, registry
 type Domain struct {
-	Nodes            []*Node
-	NSMgrProxy       *NSMgrProxyEntry
-	Registry         *RegistryEntry
-	RegistryProxy    *RegistryEntry
-	RegistryFloating *RegistryEntry
-	DNSResolver      dnsresolve.Resolver
-	Name             string
-	resources        []context.CancelFunc
+	Nodes         []*Node
+	NSMgrProxy    *NSMgrProxyEntry
+	Registry      *RegistryEntry
+	RegistryProxy *RegistryEntry
+	DNSResolver   dnsresolve.Resolver
+	Name          string
+	resources     []context.CancelFunc
 }
 
 // Cleanup frees all resources related to the domain

@@ -1,4 +1,20 @@
-package nsmgr_proxy_test
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at:
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package nsmgrproxy_test
 
 import (
 	"context"
@@ -36,7 +52,7 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 		Build()
 	defer domain2.Cleanup()
 
-	dnsServer.Register(remoteRegistryDomain, domain2.Registry.URL)
+	require.NoError(t, dnsServer.Register(remoteRegistryDomain, domain2.Registry.URL))
 
 	nseReg := &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint",
@@ -68,13 +84,13 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 
 	// Simulate refresh from client.
 
-	// refreshRequest := request.Clone()
-	// refreshRequest.GetConnection().Context = conn.Context
-	// refreshRequest.GetConnection().Mechanism = conn.Mechanism
-	// refreshRequest.GetConnection().NetworkServiceEndpointName = conn.NetworkServiceEndpointName
+	refreshRequest := request.Clone()
+	refreshRequest.GetConnection().Context = conn.Context
+	refreshRequest.GetConnection().Mechanism = conn.Mechanism
+	refreshRequest.GetConnection().NetworkServiceEndpointName = conn.NetworkServiceEndpointName
 
-	// conn, err = nsc.Request(ctx, refreshRequest)
-	// require.NoError(t, err)
-	// require.NotNil(t, conn)
-	//	require.Equal(t, 8, len(conn.Path.PathSegments))
+	conn, err = nsc.Request(ctx, refreshRequest)
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+	require.Equal(t, 9, len(conn.Path.PathSegments))
 }

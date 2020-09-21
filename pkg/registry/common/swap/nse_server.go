@@ -47,10 +47,9 @@ func (n *nseSwapRegistryServer) Register(ctx context.Context, nse *registry.Netw
 }
 
 type findNSESwapServer struct {
-	proxyNSMgrURL  *url.URL
-	publicNSMgrURL *url.URL
-	localDomain    string
-	remoteDomain   string
+	proxyNSMgrURL *url.URL
+	localDomain   string
+	remoteDomain  string
 	registry.NetworkServiceEndpointRegistry_FindServer
 }
 
@@ -61,11 +60,16 @@ func (s *findNSESwapServer) Send(nse *registry.NetworkServiceEndpoint) error {
 		nse.Name = interdomain.Join(interdomain.Target(nse.Name), nse.Url)
 		nse.Url = s.proxyNSMgrURL.String()
 	}
+	for i, service := range nse.NetworkServiceNames {
+		if domain := interdomain.Domain(service); domain == s.remoteDomain {
+			nse.NetworkServiceNames[i] = interdomain.Target(service)
+		}
+	}
 	return s.NetworkServiceEndpointRegistry_FindServer.Send(nse)
 }
 
 func (n *nseSwapRegistryServer) Find(q *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
-	remoteDomain := interdomain.Domain(q.NetworkServiceEndpoint.Name)
+	remoteDomain := extractDomain(q.NetworkServiceEndpoint)
 	q.NetworkServiceEndpoint.Name = interdomain.Target(q.NetworkServiceEndpoint.Name)
 	return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(
 		q,
@@ -80,6 +84,21 @@ func (n *nseSwapRegistryServer) Find(q *registry.NetworkServiceEndpointQuery, s 
 func (n *nseSwapRegistryServer) Unregister(ctx context.Context, ns *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
 	ns.Name = interdomain.Join(interdomain.Target(ns.Name), n.domain)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, ns)
+}
+
+func extractDomain(nse *registry.NetworkServiceEndpoint) string {
+	domain := interdomain.Domain(nse.Name)
+	if domain != "" {
+		nse.Name = interdomain.Target(nse.Name)
+		return domain
+	}
+	for i, service := range nse.NetworkServiceNames {
+		if domain = interdomain.Domain(service); domain != "" {
+			nse.NetworkServiceNames[i] = interdomain.Target(service)
+			return domain
+		}
+	}
+	return ""
 }
 
 var _ registry.NetworkServiceEndpointRegistryServer = (*nseSwapRegistryServer)(nil)

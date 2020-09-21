@@ -18,6 +18,7 @@ package interdomain_test
 
 import (
 	"context"
+	"net/url"
 	"testing"
 	"time"
 
@@ -25,7 +26,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
-	floating_memory "github.com/networkservicemesh/sdk/pkg/registry/chains/memory-floating"
+	registry2 "github.com/networkservicemesh/sdk/pkg/registry"
+	"github.com/networkservicemesh/sdk/pkg/registry/memory"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
@@ -68,9 +70,9 @@ func TestInterdomainNetworkServiceRegistry(t *testing.T) {
 		Build()
 	defer domain2.Cleanup()
 
-	dnsServer.Register(localRegistryDomain, domain1.Registry.URL)
-	dnsServer.Register(proxyRegistryDomain, domain1.RegistryProxy.URL)
-	dnsServer.Register(remoteRegistryDomain, domain2.Registry.URL)
+	require.NoError(t, dnsServer.Register(localRegistryDomain, domain1.Registry.URL))
+	require.NoError(t, dnsServer.Register(proxyRegistryDomain, domain1.RegistryProxy.URL))
+	require.NoError(t, dnsServer.Register(remoteRegistryDomain, domain2.Registry.URL))
 
 	_, err := domain2.Registry.NetworkServiceRegistryServer().Register(
 		context.Background(),
@@ -130,7 +132,7 @@ func TestLocalDomain_NetworkServiceRegistry(t *testing.T) {
 		Build()
 	defer domain1.Cleanup()
 
-	dnsServer.Register(localRegistryDomain, domain1.Registry.URL)
+	require.NoError(t, dnsServer.Register(localRegistryDomain, domain1.Registry.URL))
 
 	expected, err := domain1.Registry.NetworkServiceRegistryServer().Register(
 		context.Background(),
@@ -202,15 +204,19 @@ func TestInterdomainFloatingNetworkServiceRegistry(t *testing.T) {
 	defer domain2.Cleanup()
 
 	domain3 := sandbox.NewBuilder(t).
-		SetEmpty().
-		SetRegistryFloatingSupplier(floating_memory.NewServer).
+		SetNodesCount(0).
+		SetRegistrySupplier(func(context.Context, *url.URL, ...grpc.DialOption) registry2.Registry {
+			return registry2.NewServer(memory.NewNetworkServiceRegistryServer(), memory.NewNetworkServiceEndpointRegistryServer())
+		}).
+		SetRegistryProxySupplier(nil).
+		SetNSMgrProxySupplier(nil).
 		Build()
 
-	dnsServer.Register(localRegistryDomain, domain1.Registry.URL)
-	dnsServer.Register(proxyRegistryDomain, domain1.RegistryProxy.URL)
-	dnsServer.Register(remoteRegistryDomain, domain2.Registry.URL)
-	dnsServer.Register(remoteProxyRegistryDomain, domain2.RegistryProxy.URL)
-	dnsServer.Register(floatingRegistryDomain, domain3.RegistryFloating.URL)
+	require.NoError(t, dnsServer.Register(localRegistryDomain, domain1.Registry.URL))
+	require.NoError(t, dnsServer.Register(proxyRegistryDomain, domain1.RegistryProxy.URL))
+	require.NoError(t, dnsServer.Register(remoteRegistryDomain, domain2.Registry.URL))
+	require.NoError(t, dnsServer.Register(remoteProxyRegistryDomain, domain2.RegistryProxy.URL))
+	require.NoError(t, dnsServer.Register(floatingRegistryDomain, domain3.Registry.URL))
 
 	_, err := domain2.Registry.NetworkServiceRegistryServer().Register(
 		context.Background(),
