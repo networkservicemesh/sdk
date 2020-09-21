@@ -228,7 +228,7 @@ func (t *traceNetworkServiceEndpointRegistryFindServer) Send(nse *registry.Netwo
 	span.LogObject("network service endpoint", nse)
 	ctx := withLog(span.Context(), span.Logger())
 	s := streamcontext.NetworkServiceEndpointRegistryFindServer(ctx, t.NetworkServiceEndpointRegistry_FindServer)
-	err := s.Send(nse)
+	err := s.Send(nse.Clone())
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
 			err = errors.Wrapf(err, "Error returned from %s", operation)

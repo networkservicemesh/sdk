@@ -201,7 +201,7 @@ func (b *Builder) newNSMgrProxy(ctx context.Context) *NSMgrProxyEntry {
 	}
 	name := "nsmgr-proxy-" + uuid.New().String()
 	ip := net.ParseIP("127.0.0.1")
-	mgr := b.supplyNSMgrProxy(ctx, name, ip, b.generateTokenFunc, grpc.WithBlock(), grpc.WithInsecure(), grpc.WithBlock())
+	mgr := b.supplyNSMgrProxy(ctx, name, ip, b.generateTokenFunc, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)))
 	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
 	serve(ctx, serveURL, mgr.Register)
 	log.Entry(ctx).Infof("%v listen on: %v", name, serveURL)

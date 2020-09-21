@@ -52,13 +52,13 @@ func (n *nsmgrProxy) Register(s *grpc.Server) {
 }
 
 // NewServer creates new proxy NSMgr
-func NewServer(ctx context.Context, name string, externalIP fmt.Stringer, generatorFunc token.GeneratorFunc, options ...grpc.DialOption) NSMgrProxy {
+func NewServer(ctx context.Context, name string, externalIP fmt.Stringer, tokenGenerator token.GeneratorFunc, options ...grpc.DialOption) NSMgrProxy {
 	result := new(nsmgrProxy)
 
 	result.Endpoint = endpoint.NewServer(ctx,
 		name,
 		authorize.NewServer(),
-		generatorFunc,
+		tokenGenerator,
 		interdomainurl.NewServer(),
 		swap.NewServer(externalIP),
 		connect.NewServer(
@@ -66,7 +66,7 @@ func NewServer(ctx context.Context, name string, externalIP fmt.Stringer, genera
 			client.NewClientFactory(name,
 				addressof.NetworkServiceClient(
 					adapters.NewServerToClient(result)),
-				generatorFunc),
+				tokenGenerator),
 			options...,
 		),
 	)

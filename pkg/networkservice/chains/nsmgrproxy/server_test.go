@@ -32,8 +32,7 @@ import (
 
 func TestNSMGR_InterdomainUseCase(t *testing.T) {
 	const remoteRegistryDomain = "domain2.local.registry"
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*15)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
 
 	dnsServer := new(sandbox.FakeDNSResolver)
