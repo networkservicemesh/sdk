@@ -21,19 +21,24 @@ import (
 	"net/url"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"google.golang.org/grpc"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
-	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type kernelMechanismClient struct{}
+type kernelMechanismClient struct {
+	interfaceName string
+}
 
 // NewClient - returns client that sets kernel preferred mechanism
-func NewClient() networkservice.NetworkServiceClient {
-	return &kernelMechanismClient{}
+func NewClient(interfaceName string) networkservice.NetworkServiceClient {
+	return &kernelMechanismClient{
+		interfaceName: interfaceName,
+	}
 }
 
 func (k *kernelMechanismClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
@@ -42,7 +47,8 @@ func (k *kernelMechanismClient) Request(ctx context.Context, request *networkser
 		Cls:  cls.LOCAL,
 		Type: kernel.MECHANISM,
 		Parameters: map[string]string{
-			kernel.NetNSURL: (&url.URL{Scheme: "file", Path: netNSFilename}).String(),
+			kernel.NetNSURL:         (&url.URL{Scheme: "file", Path: netNSFilename}).String(),
+			kernel.InterfaceNameKey: k.interfaceName,
 		},
 	}
 	request.MechanismPreferences = append(request.GetMechanismPreferences(), preferredMechanism)
