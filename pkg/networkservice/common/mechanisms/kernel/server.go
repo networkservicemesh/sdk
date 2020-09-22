@@ -19,51 +19,30 @@ package kernel
 
 import (
 	"context"
-	"strconv"
-
-	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
-	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
-	mkernel "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/fs"
+	"net/url"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type mechanismsServer struct{}
-
-func (m mechanismsServer) Request(ctx context.Context, req *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	conn := req.Connection
-	inode := uintptr(0)
-	inode, err := fs.GetInode("/proc/self/ns/net")
-	if err != nil {
-		return nil, err
-	}
-	if conn.GetMechanism() == nil {
-		conn.Mechanism = &networkservice.Mechanism{
-			Cls:        cls.LOCAL,
-			Type:       mkernel.MECHANISM,
-			Parameters: make(map[string]string),
-		}
-	}
-	if conn.GetMechanism().GetParameters() == nil {
-		conn.GetMechanism().Parameters = make(map[string]string)
-	}
-
-	conn.Mechanism.Parameters[common.NetNSInodeKey] = strconv.FormatUint(uint64(inode), 10)
-	mkernel.ToMechanism(conn.GetMechanism()).SetNetNSURL("unix:///proc/self/ns/net")
-	return next.Server(ctx).Request(ctx, req)
-}
-
-func (m mechanismsServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	return next.Server(ctx).Close(ctx, conn)
-}
+type kernelMechanismServer struct{}
 
 // NewServer - creates a NetworkServiceServer that requests a kernel interface and populates the netns inode
 func NewServer() networkservice.NetworkServiceServer {
-	return mechanismsServer{}
+	return &kernelMechanismServer{}
+}
+
+func (m *kernelMechanismServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	if mechanism := kernel.ToMechanism(request.GetConnection().GetMechanism()); mechanism != nil {
+		mechanism.SetNetNSURL((&url.URL{Scheme: "file", Path: netNSFilename}).String())
+	}
+	return next.Server(ctx).Request(ctx, request)
+}
+
+func (m *kernelMechanismServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	return next.Server(ctx).Close(ctx, conn)
 }

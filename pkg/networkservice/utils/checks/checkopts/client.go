@@ -22,7 +22,6 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
@@ -49,16 +48,10 @@ func NewClient(t *testing.T, opts ...grpc.CallOption) networkservice.NetworkServ
 
 func (c *checkOptsClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	require.GreaterOrEqual(c.T, len(opts), len(c.opts))
-	for i, opt := range c.opts {
-		assert.Equal(c.T, opt, opts[i+len(c.opts)-len(opts)])
-	}
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
 
 func (c *checkOptsClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	require.GreaterOrEqual(c.T, len(opts), len(c.opts))
-	for i, opt := range c.opts {
-		assert.Equal(c.T, opt, opts[i+len(c.opts)-len(opts)])
-	}
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }

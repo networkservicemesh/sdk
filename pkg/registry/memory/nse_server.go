@@ -43,7 +43,7 @@ func (n *networkServiceEndpointRegistryServer) Register(ctx context.Context, nse
 	if err != nil {
 		return nil, err
 	}
-	n.networkServiceEndpoints.Store(r.Name, r)
+	n.networkServiceEndpoints.Store(r.Name, r.Clone())
 	n.sendEvent(r)
 	return r, err
 }
@@ -110,7 +110,9 @@ func (n *networkServiceEndpointRegistryServer) Unregister(ctx context.Context, n
 	if nse.ExpirationTime == nil {
 		nse.ExpirationTime = &timestamp.Timestamp{}
 	}
-	nse.ExpirationTime.Seconds = -1
+	<-n.executor.AsyncExec(func() {
+		nse.ExpirationTime.Seconds = -1
+	})
 	n.sendEvent(nse)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }

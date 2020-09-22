@@ -23,11 +23,13 @@ package excludedprefixes
 import (
 	"context"
 	"io/ioutil"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 
 	"github.com/ghodss/yaml"
 	"github.com/golang/protobuf/ptypes/empty"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -55,12 +57,12 @@ func (eps *excludedPrefixesServer) init() {
 		}
 		pool, err := prefixpool.New(source.Prefixes...)
 		if err != nil {
-			logger.Errorf("Can not create prefixpool with prefixes: %+v, err: %v", pool.GetPrefixes(), err.Error())
+			logger.Errorf("Can not create prefixpool with prefixes: %+v, err: %v", source.Prefixes, err.Error())
 			return
 		}
 		eps.prefixPool.Store(pool)
 	}
-	bytes, _ := ioutil.ReadFile(eps.configPath)
+	bytes, _ := ioutil.ReadFile(filepath.Clean(eps.configPath))
 	updatePrefixes(bytes)
 	go func() {
 		err := watchFile(eps.ctx, eps.configPath, updatePrefixes)
