@@ -54,7 +54,10 @@ func watchFile(ctx context.Context, filePath string, onChanged func([]byte)) err
 	}
 
 	defer func() {
-		_ = watcher.Close()
+		trace.Log(ctx).Infof("Closing %v watcher", filePath)
+		if err := watcher.Close(); err != nil {
+			trace.Log(ctx).Errorf("Error closing %v watcher: %v", filePath, err)
+		}
 	}()
 
 	// to be sure, that we didn't miss Create event before watcher creation
