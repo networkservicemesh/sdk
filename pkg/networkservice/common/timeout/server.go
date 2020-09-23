@@ -84,6 +84,7 @@ func (t *timeoutServer) Close(ctx context.Context, conn *networkservice.Connecti
 }
 
 func (t *timeoutServer) createTimer(ctx context.Context, request *networkservice.NetworkServiceRequest) (*time.Timer, error) {
+	request = request.Clone()
 	expireTime, err := ptypes.Timestamp(request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()-1].GetExpires())
 	if err != nil {
 		return nil, err
