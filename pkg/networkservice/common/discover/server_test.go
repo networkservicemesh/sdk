@@ -301,3 +301,70 @@ func TestMatchSelectedNSE(t *testing.T) {
 	_, err = server.Request(context.Background(), request)
 	require.Nil(t, err)
 }
+
+func TestNoMatchServiceFound(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	nsName := networkServiceName()
+	nsServer := memory.NewNetworkServiceRegistryServer()
+
+	nseServer := registrynext.NewNetworkServiceEndpointRegistryServer(setid.NewNetworkServiceEndpointRegistryServer(), memory.NewNetworkServiceEndpointRegistryServer())
+	for _, nse := range endpoints() {
+		_, err := nseServer.Register(context.Background(), nse)
+		require.Nil(t, err)
+	}
+	want := labels(nsName,
+		map[string]string{
+			"app": "firewall",
+		})
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			NetworkService: nsName,
+			Labels:         map[string]string{},
+		},
+	}
+
+	server := next.NewNetworkServiceServer(
+		discover.NewServer(adapters.NetworkServiceServerToClient(nsServer), adapters.NetworkServiceEndpointServerToClient(nseServer)),
+		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+			nses := discover.Candidates(ctx).Endpoints
+			require.Len(t, nses, 1)
+			require.Equal(t, want, nses[0].NetworkServiceLabels)
+		}),
+	)
+	_, err := server.Request(context.Background(), request)
+	require.Equal(t, "network service secure-intranet-connectivity is not found", err.Error())
+}
+func TestNoMatchServiceEndpointFound(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	nsName := networkServiceName()
+	nsServer := memory.NewNetworkServiceRegistryServer()
+	_, err := nsServer.Register(context.Background(), &registry.NetworkService{
+		Name:    nsName,
+		Matches: []*registry.Match{fromFirewallMatch(), fromSomeMiddleAppMatch(), fromAnywhereMatch()},
+	})
+	require.Nil(t, err)
+
+	nseServer := registrynext.NewNetworkServiceEndpointRegistryServer(setid.NewNetworkServiceEndpointRegistryServer(), memory.NewNetworkServiceEndpointRegistryServer())
+
+	want := labels(nsName,
+		map[string]string{
+			"app": "firewall",
+		})
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			NetworkService: nsName,
+			Labels:         map[string]string{},
+		},
+	}
+
+	server := next.NewNetworkServiceServer(
+		discover.NewServer(adapters.NetworkServiceServerToClient(nsServer), adapters.NetworkServiceEndpointServerToClient(nseServer)),
+		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+			nses := discover.Candidates(ctx).Endpoints
+			require.Len(t, nses, 1)
+			require.Equal(t, want, nses[0].NetworkServiceLabels)
+		}),
+	)
+	_, err = server.Request(context.Background(), request)
+	require.Equal(t, "network service endpoint for service secure-intranet-connectivity is not found", err.Error())
+}

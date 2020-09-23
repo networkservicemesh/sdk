@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,14 +14,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package excludedprefixes
+package recvfd
 
-/* These variables set default path to the config file */
-const (
-	// prefixesFile - excluded prefixes file name
-	prefixesFile = "excluded_prefixes.yaml"
-	// nsmConfigDir - excluded prefixes file directory name
-	nsmConfigDir = "/var/lib/networkservicemesh/config"
-	// PrefixesFilePathDefault - excluded prefixes file absolute path
-	PrefixesFilePathDefault = nsmConfigDir + "/" + prefixesFile
+import (
+	"net/url"
+	"os"
+	"sync"
+
+	"github.com/edwarnicke/serialize"
 )
+
+//go:generate go-syncmap -output per_connection_file_map.gen.go -type perConnectionFileMapMap<string,*perConnectionFileMap>
+
+// PerConnectionFileMap - sync.Map with key == string and value == *perConnectionFileMap
+type perConnectionFileMapMap sync.Map
+
+type perConnectionFileMap struct {
+	executor           serialize.Executor
+	filesByInodeURL    map[string]*os.File
+	inodeURLbyFilename map[string]*url.URL
+}

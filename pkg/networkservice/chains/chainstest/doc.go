@@ -14,14 +14,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package excludedprefixes
-
-/* These variables set default path to the config file */
-const (
-	// prefixesFile - excluded prefixes file name
-	prefixesFile = "excluded_prefixes.yaml"
-	// nsmConfigDir - excluded prefixes file directory name
-	nsmConfigDir = "/var/lib/networkservicemesh/config"
-	// PrefixesFilePathDefault - excluded prefixes file absolute path
-	PrefixesFilePathDefault = nsmConfigDir + "/" + prefixesFile
-)
+// Package chainstest provides API for testing NSM chains such as Forwarder, NSC, NSMGR, NSE.
+package chainstest

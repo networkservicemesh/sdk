@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,14 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package excludedprefixes
-
-/* These variables set default path to the config file */
-const (
-	// prefixesFile - excluded prefixes file name
-	prefixesFile = "excluded_prefixes.yaml"
-	// nsmConfigDir - excluded prefixes file directory name
-	nsmConfigDir = "/var/lib/networkservicemesh/config"
-	// PrefixesFilePathDefault - excluded prefixes file absolute path
-	PrefixesFilePathDefault = nsmConfigDir + "/" + prefixesFile
-)
+// Package recvfd provides a NetworkService{Client,Server} chain element that looks at
+// Connection.Mechanism.Parameters[common.InodeURL] with scheme 'inode' and receives the fds (if possible) and
+// converts them to scheme file.
+package recvfd

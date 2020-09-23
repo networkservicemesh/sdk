@@ -14,5 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package recvnetns provides client/server for receiving NetNS from upstream/downstream for kernel mechanism
-package recvnetns
+package kernel
+
+const (
+	netNSFilename = "/proc/thread-self/ns/net"
+)

@@ -148,7 +148,7 @@ func (f *healClient) Request(ctx context.Context, request *networkservice.Networ
 	// Clone the request
 	req := request.Clone()
 	// Set its connection to the returned connection we received
-	req.Connection = rv
+	req.Connection = rv.Clone()
 
 	// TODO handle deadline ok
 	deadline, ok := ctx.Deadline()
@@ -179,13 +179,13 @@ func (f *healClient) Request(ctx context.Context, request *networkservice.Networ
 
 func (f *healClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	f.monitorLoop()
-	rv, err := next.Client(ctx).Close(ctx, conn, opts...)
-	if err != nil {
-		return nil, err
-	}
 	f.updateExecutor.AsyncExec(func() {
 		delete(f.heals, conn.GetId())
 		delete(f.connections, conn.GetId())
 	})
+	rv, err := next.Client(ctx).Close(ctx, conn, opts...)
+	if err != nil {
+		return nil, err
+	}
 	return rv, nil
 }
