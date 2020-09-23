@@ -21,7 +21,7 @@ package interpose
 import (
 	"context"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturlmap"
+	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 
 	"net/url"
 	"strings"
@@ -39,7 +39,7 @@ import (
 const interposeNSEName = "interpose-nse#"
 
 type interposeRegistry struct {
-	endpoints *clienturlmap.Map
+	endpoints *stringurl.Map
 }
 
 func (l *interposeRegistry) Register(ctx context.Context, request *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
@@ -82,6 +82,6 @@ func (l *interposeRegistry) Unregister(ctx context.Context, request *registry.Ne
 
 // NewNetworkServiceRegistryServer - creates a NetworkServiceRegistryServer that registers local Cross connect Endpoints
 //				and adds them to Map
-func NewNetworkServiceRegistryServer(nses *clienturlmap.Map) registry.NetworkServiceEndpointRegistryServer {
+func NewNetworkServiceRegistryServer(nses *stringurl.Map) registry.NetworkServiceEndpointRegistryServer {
 	return &interposeRegistry{endpoints: nses}
 }

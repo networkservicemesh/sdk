@@ -24,7 +24,7 @@ import (
 	"sync"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturlmap"
+	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
 
@@ -41,7 +41,7 @@ import (
 )
 
 type interposeServer struct {
-	endpoints        clienturlmap.Map
+	endpoints        stringurl.Map
 	activeConnection sync.Map
 	name             string
 }

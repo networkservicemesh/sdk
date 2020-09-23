@@ -21,7 +21,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturlmap"
+	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 
 	adapters2 "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	next_reg "github.com/networkservicemesh/sdk/pkg/registry/core/next"
@@ -33,7 +33,7 @@ import (
 )
 
 func TestCrossNSERegister(t *testing.T) {
-	var crossMap clienturlmap.Map
+	var crossMap stringurl.Map
 	server := interpose.NewNetworkServiceRegistryServer(&crossMap)
 
 	regClient := next_reg.NewNetworkServiceEndpointRegistryClient(interpose.NewNetworkServiceEndpointRegistryClient(), adapters2.NetworkServiceEndpointServerToClient(server))
@@ -49,7 +49,7 @@ func TestCrossNSERegister(t *testing.T) {
 }
 
 func TestCrossNSERegisterInvalidURL(t *testing.T) {
-	var crossMap clienturlmap.Map
+	var crossMap stringurl.Map
 	server := interpose.NewNetworkServiceRegistryServer(&crossMap)
 
 	regClient := next_reg.NewNetworkServiceEndpointRegistryClient(interpose.NewNetworkServiceEndpointRegistryClient(), adapters2.NetworkServiceEndpointServerToClient(server))

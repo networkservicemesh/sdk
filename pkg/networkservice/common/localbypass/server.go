@@ -21,8 +21,9 @@ package localbypass
 import (
 	"context"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturlmap"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 
@@ -36,7 +37,7 @@ import (
 
 type localBypassServer struct {
 	// Map of names -> *url.URLs for local bypass to file sockets
-	sockets clienturlmap.Map
+	sockets stringurl.Map
 }
 
 // NewServer - creates a NetworkServiceServer that tracks locally registered Endpoints substitutes their
