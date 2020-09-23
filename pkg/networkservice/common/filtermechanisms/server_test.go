@@ -18,7 +18,7 @@ package filtermechanisms_test
 
 import (
 	"context"
-	"net"
+	"net/url"
 	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -27,54 +27,17 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/memif"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/srv6"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/vxlan"
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/goleak"
-	"google.golang.org/grpc/peer"
+	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/filtermechanisms"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 )
 
-func TestNewServer_FilterUnixType(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	ctx := peer.NewContext(context.Background(), &peer.Peer{
-		Addr: &net.UnixAddr{
-			Name: "/var/run/nse-1.sock",
-			Net:  "unix",
-		},
-	})
-	server := next.NewNetworkServiceServer(
-		filtermechanisms.NewServer(),
-		checkrequest.NewServer(t, func(t *testing.T, serviceRequest *networkservice.NetworkServiceRequest) {
-			expected := []*networkservice.Mechanism{
-				{
-					Cls:  cls.LOCAL,
-					Type: memif.MECHANISM,
-				},
-				{
-					Cls:  cls.LOCAL,
-					Type: kernel.MECHANISM,
-				},
-			}
-			assert.Equal(t, expected, serviceRequest.GetMechanismPreferences())
-		}),
-	)
-	_, err := server.Request(ctx, request())
-	assert.Nil(t, err)
-}
-
-func TestNewServer_FilterNonUnixType(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	ctx := peer.NewContext(context.Background(), &peer.Peer{
-		Addr: &net.IPAddr{
-			IP: net.IP{192, 168, 0, 1},
-		},
-	})
-	server := next.NewNetworkServiceServer(
-		filtermechanisms.NewServer(),
-		checkrequest.NewServer(t, func(t *testing.T, serviceRequest *networkservice.NetworkServiceRequest) {
-			expected := []*networkservice.Mechanism{
+func TestFilterMechanismsServer_Request(t *testing.T) {
+	request := func() *networkservice.NetworkServiceRequest {
+		return &networkservice.NetworkServiceRequest{
+			MechanismPreferences: []*networkservice.Mechanism{
 				{
 					Cls:  cls.REMOTE,
 					Type: srv6.MECHANISM,
@@ -83,10 +46,57 @@ func TestNewServer_FilterNonUnixType(t *testing.T) {
 					Cls:  cls.REMOTE,
 					Type: vxlan.MECHANISM,
 				},
-			}
-			assert.Equal(t, expected, serviceRequest.GetMechanismPreferences())
-		}),
-	)
-	_, err := server.Request(ctx, request())
-	assert.Nil(t, err)
+				{
+					Cls:  cls.LOCAL,
+					Type: kernel.MECHANISM,
+				},
+				{
+					Cls:  cls.LOCAL,
+					Type: memif.MECHANISM,
+				},
+			},
+		}
+	}
+	samples := []struct {
+		Name         string
+		ClientURL    *url.URL
+		RegisterURLs []url.URL
+		ClsResult    string
+	}{
+		{
+			Name:      "Local mechanisms",
+			ClientURL: &url.URL{Scheme: "tcp", Host: "localhost:5000"},
+			RegisterURLs: []url.URL{
+				{
+					Scheme: "tcp",
+					Host:   "localhost:5000",
+				},
+			},
+			ClsResult: cls.LOCAL,
+		},
+		{
+			Name:      "Remote mechanisms",
+			ClientURL: &url.URL{Scheme: "tcp", Host: "localhost:5000"},
+			ClsResult: cls.REMOTE,
+		},
+	}
+
+	for _, sample := range samples {
+		var registryServer registry.NetworkServiceEndpointRegistryServer
+		s := filtermechanisms.NewServer(&registryServer)
+		for _, u := range sample.RegisterURLs {
+			_, err := registryServer.Register(context.Background(), &registry.NetworkServiceEndpoint{
+				Url: u.String(),
+			})
+			require.NoError(t, err)
+		}
+		ctx := clienturlctx.WithClientURL(context.Background(), sample.ClientURL)
+		req := request()
+		_, err := s.Request(ctx, req)
+		require.NoError(t, err)
+		require.NotEmpty(t, req.MechanismPreferences)
+		for _, m := range req.MechanismPreferences {
+			require.Equal(t, sample.ClsResult, m.Cls, "filtermechanisms chain element should properly filter mechanisms")
+		}
+	}
 }
