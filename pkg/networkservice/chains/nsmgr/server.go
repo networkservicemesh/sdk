@@ -22,6 +22,7 @@ package nsmgr
 import (
 	"context"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/filtermechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interpose"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -72,6 +73,7 @@ type nsmgrServer struct {
 func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceEndpoint, authzServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, registryCC grpc.ClientConnInterface, clientDialOptions ...grpc.DialOption) Nsmgr {
 	rv := &nsmgrServer{}
 
+	var urlsRegistryServer registryapi.NetworkServiceEndpointRegistryServer
 	var localbypassRegistryServer registryapi.NetworkServiceEndpointRegistryServer
 
 	nsRegistry := newRemoteNSServer(registryCC)
@@ -100,6 +102,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 		localbypass.NewServer(&localbypassRegistryServer),
 		excludedprefixes.NewServer(ctx),
 		interpose.NewServer(nsmRegistration.Name, &interposeRegistry),
+		filtermechanisms.NewServer(&urlsRegistryServer),
 		connect.NewServer(
 			ctx,
 			client.NewClientFactory(nsmRegistration.Name,
@@ -111,6 +114,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 
 	nsChain := chain_registry.NewNetworkServiceRegistryServer(nsRegistry)
 	nseChain := chain_registry.NewNetworkServiceEndpointRegistryServer(
+		urlsRegistryServer,
 		interposeRegistry,         // Store cross connect NSEs
 		localbypassRegistryServer, // Store endpoint Id to EndpointURL for local access.
 		seturl.NewNetworkServiceEndpointRegistryServer(nsmRegistration.Url), // Remember endpoint URL
