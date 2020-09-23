@@ -23,6 +23,8 @@ package filtermechanisms
 import (
 	"context"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 
@@ -30,7 +32,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturl"
 )
 
 type filterMechanismsClient struct{}
@@ -42,8 +43,8 @@ func NewClient() networkservice.NetworkServiceClient {
 }
 
 func (f *filterMechanismsClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	u := clienturl.ClientURL(ctx)
-	if u.Scheme == clienturl.UnixURLScheme {
+	u := clienturlctx.ClientURL(ctx)
+	if u.Scheme == clienturlctx.UnixURLScheme {
 		var mechanisms []*networkservice.Mechanism
 		for _, mechanism := range request.GetMechanismPreferences() {
 			if mechanism.Cls == cls.LOCAL {

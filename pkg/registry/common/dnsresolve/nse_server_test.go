@@ -22,6 +22,8 @@ import (
 	"net"
 	"testing"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
@@ -29,23 +31,22 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturl"
 )
 
 type checkNSEContext struct{ *testing.T }
 
 func (c *checkNSEContext) Register(ctx context.Context, ns *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	require.NotNil(c, clienturl.ClientURL(ctx))
+	require.NotNil(c, clienturlctx.ClientURL(ctx))
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, ns)
 }
 
 func (c *checkNSEContext) Find(q *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
-	require.NotNil(c, clienturl.ClientURL(s.Context()))
+	require.NotNil(c, clienturlctx.ClientURL(s.Context()))
 	return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(q, s)
 }
 
 func (c *checkNSEContext) Unregister(ctx context.Context, ns *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	require.NotNil(c, clienturl.ClientURL(ctx))
+	require.NotNil(c, clienturlctx.ClientURL(ctx))
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, ns)
 }
 

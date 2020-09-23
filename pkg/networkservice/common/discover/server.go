@@ -20,7 +20,7 @@ import (
 	"context"
 	"net/url"
 
-	clienturl "github.com/networkservicemesh/sdk/pkg/tools/clienturl"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
@@ -64,7 +64,7 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 		if err != nil {
 			return nil, err
 		}
-		return next.Server(ctx).Request(clienturl.WithClientURL(ctx, u), request)
+		return next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request)
 	}
 	nseStream, err := d.nseClient.Find(ctx, &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{

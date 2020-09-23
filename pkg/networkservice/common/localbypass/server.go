@@ -21,7 +21,8 @@ package localbypass
 import (
 	"context"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturl"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlmap"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 
@@ -35,7 +36,7 @@ import (
 
 type localBypassServer struct {
 	// Map of names -> *url.URLs for local bypass to file sockets
-	sockets clienturl.Map
+	sockets clienturlmap.Map
 }
 
 // NewServer - creates a NetworkServiceServer that tracks locally registered Endpoints substitutes their
@@ -55,14 +56,14 @@ func NewServer(registryServer *registry.NetworkServiceEndpointRegistryServer) ne
 
 func (l *localBypassServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	if u, ok := l.sockets.Load(request.GetConnection().GetNetworkServiceEndpointName()); ok && u != nil {
-		ctx = clienturl.WithClientURL(ctx, u)
+		ctx = clienturlctx.WithClientURL(ctx, u)
 	}
 	return next.Server(ctx).Request(ctx, request)
 }
 
 func (l *localBypassServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	if u, ok := l.sockets.Load(conn.GetNetworkServiceEndpointName()); ok && u != nil {
-		ctx = clienturl.WithClientURL(ctx, u)
+		ctx = clienturlctx.WithClientURL(ctx, u)
 	}
 	return next.Server(ctx).Close(ctx, conn)
 }

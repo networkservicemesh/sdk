@@ -24,10 +24,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/setextracontext"
-	clienturl "github.com/networkservicemesh/sdk/pkg/tools/clienturl"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/setextracontext"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
@@ -88,7 +88,7 @@ func (nseT *nseTest) Setup() {
 }
 
 func (nseT *nseTest) newNSEContext(ctx context.Context) context.Context {
-	return clienturl.WithClientURL(ctx, &url.URL{Scheme: "tcp", Host: nseT.listenOn.Host})
+	return clienturlctx.WithClientURL(ctx, &url.URL{Scheme: "tcp", Host: nseT.listenOn.Host})
 }
 
 func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {

@@ -20,10 +20,10 @@ package interpose_test
 import (
 	"context"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
-	clienturltools "github.com/networkservicemesh/sdk/pkg/tools/clienturl"
-
 	adapters2 "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	next_reg "github.com/networkservicemesh/sdk/pkg/registry/core/next"
 
@@ -111,7 +111,7 @@ func TestCrossNSERequest(t *testing.T) {
 
 		adapters.NewServerToClient(
 			next.NewNetworkServiceServer(server, checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
-				require.Equal(t, crossURL, clienturltools.ClientURL(ctx).String())
+				require.Equal(t, crossURL, clienturlctx.ClientURL(ctx).String())
 			}))),
 		copyClient, // Now we go into server
 		// We need to call cross nse server here
@@ -121,13 +121,13 @@ func TestCrossNSERequest(t *testing.T) {
 		copyClient, // Now we go into server
 		// Go again on server
 		adapters.NewServerToClient(next.NewNetworkServiceServer(clienturl.NewServer(clientURL), server, checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
-			require.Equal(t, clientURL.String(), clienturltools.ClientURL(ctx).String())
+			require.Equal(t, clientURL.String(), clienturlctx.ClientURL(ctx).String())
 		}))),
 		copyClient, // Now we go into server
 	)
 
 	var conn *networkservice.Connection
-	conn, err = client.Request(clienturltools.WithClientURL(context.Background(), clientURL), &networkservice.NetworkServiceRequest{
+	conn, err = client.Request(clienturlctx.WithClientURL(context.Background(), clientURL), &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			NetworkServiceEndpointName: "my-service",
 		},

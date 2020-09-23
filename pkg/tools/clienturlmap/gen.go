@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package clienturl provides context functions and clienturl.Map
-package clienturl
+// Package clienturlmap sync map like a Go map[string]*url.URL but is safe for concurrent using
+package clienturlmap
 
 import "sync"
 

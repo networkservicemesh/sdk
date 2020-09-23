@@ -23,8 +23,10 @@ import (
 	"net/url"
 	"sync"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlmap"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturl"
 
 	"github.com/pkg/errors"
 
@@ -39,7 +41,7 @@ import (
 )
 
 type interposeServer struct {
-	endpoints        clienturl.Map
+	endpoints        clienturlmap.Map
 	activeConnection sync.Map
 	name             string
 }
@@ -81,7 +83,7 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 	clientConnID := l.getConnectionID(conn)
 
 	// We came from client, so select cross nse and go to it.
-	clientURL := clienturl.ClientURL(ctx)
+	clientURL := clienturlctx.ClientURL(ctx)
 
 	connInfoRaw, ok := l.activeConnection.Load(clientConnID)
 	if !ok {
@@ -92,7 +94,7 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 		// Iterate over all cross connect NSEs to check one with passed state.
 
 		l.endpoints.Range(func(key string, crossNSEURL *url.URL) bool {
-			crossCTX := clienturl.WithClientURL(ctx, crossNSEURL)
+			crossCTX := clienturlctx.WithClientURL(ctx, crossNSEURL)
 
 			// Store client connection and selected cross connection URL.
 			connInfoRaw, _ = l.activeConnection.LoadOrStore(clientConnID, &connectionInfo{
@@ -120,7 +122,7 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 
 	var crossCTX context.Context
 	if !connInfo.requestingNSE {
-		crossCTX = clienturl.WithClientURL(ctx, connInfo.interposeNSEURL)
+		crossCTX = clienturlctx.WithClientURL(ctx, connInfo.interposeNSEURL)
 	} else {
 		// Go to endpoint URL if it matches one we had on previous step.
 		if clientURL != connInfo.endpointURL && *clientURL != *connInfo.endpointURL {
@@ -157,7 +159,7 @@ func (l *interposeServer) Close(ctx context.Context, conn *networkservice.Connec
 	var crossCTX context.Context
 	if !connInfo.closingNSE {
 		connInfo.closingNSE = true
-		crossCTX = clienturl.WithClientURL(ctx, connInfo.interposeNSEURL)
+		crossCTX = clienturlctx.WithClientURL(ctx, connInfo.interposeNSEURL)
 	} else {
 		l.activeConnection.Delete(id)
 		crossCTX = ctx

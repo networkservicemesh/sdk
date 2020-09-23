@@ -20,6 +20,8 @@ import (
 	"context"
 	"net"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -27,7 +29,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamcontext"
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturl"
 )
 
 type dnsNSResolveServer struct {
@@ -55,7 +56,7 @@ func (d *dnsNSResolveServer) Register(ctx context.Context, ns *registry.NetworkS
 	if err != nil {
 		return nil, err
 	}
-	ctx = clienturl.WithClientURL(ctx, url)
+	ctx = clienturlctx.WithClientURL(ctx, url)
 	return next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
 }
 
@@ -66,7 +67,7 @@ func (d *dnsNSResolveServer) Find(q *registry.NetworkServiceQuery, s registry.Ne
 	if err != nil {
 		return err
 	}
-	ctx = clienturl.WithClientURL(s.Context(), url)
+	ctx = clienturlctx.WithClientURL(s.Context(), url)
 	s = streamcontext.NetworkServiceRegistryFindServer(ctx, s)
 	return next.NetworkServiceRegistryServer(s.Context()).Find(q, s)
 }
@@ -77,7 +78,7 @@ func (d *dnsNSResolveServer) Unregister(ctx context.Context, ns *registry.Networ
 	if err != nil {
 		return nil, err
 	}
-	ctx = clienturl.WithClientURL(ctx, url)
+	ctx = clienturlctx.WithClientURL(ctx, url)
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }
 

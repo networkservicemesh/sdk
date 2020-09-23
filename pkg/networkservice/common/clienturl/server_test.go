@@ -22,6 +22,8 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
@@ -29,7 +31,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
-	clienturltools "github.com/networkservicemesh/sdk/pkg/tools/clienturl"
 )
 
 func TestAddURLInEmptyContext(t *testing.T) {
@@ -39,7 +40,7 @@ func TestAddURLInEmptyContext(t *testing.T) {
 		Path:   "192.168.0.1",
 	}
 	client := next.NewNetworkServiceServer(clienturl.NewServer(clientURL), checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
-		assert.Equal(t, clientURL, clienturltools.ClientURL(ctx))
+		assert.Equal(t, clientURL, clienturlctx.ClientURL(ctx))
 	}))
 
 	_, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{})
@@ -59,14 +60,14 @@ func TestOverwriteURL(t *testing.T) {
 		Path:   "/var/run/nse-1.sock",
 	}
 	client := next.NewNetworkServiceServer(clienturl.NewServer(clientURL), checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
-		assert.Equal(t, clientURL, clienturltools.ClientURL(ctx))
+		assert.Equal(t, clientURL, clienturlctx.ClientURL(ctx))
 	}))
 
-	ctx := clienturltools.WithClientURL(context.Background(), previousURL)
+	ctx := clienturlctx.WithClientURL(context.Background(), previousURL)
 	_, err := client.Request(ctx, &networkservice.NetworkServiceRequest{})
 	assert.Nil(t, err)
 
-	ctx = clienturltools.WithClientURL(context.Background(), previousURL)
+	ctx = clienturlctx.WithClientURL(context.Background(), previousURL)
 	_, err = client.Close(ctx, &networkservice.Connection{})
 	assert.Nil(t, err)
 }
@@ -79,14 +80,14 @@ func TestOverwriteURLByNil(t *testing.T) {
 		Path:   "/var/run/nse-1.sock",
 	}
 	client := next.NewNetworkServiceServer(clienturl.NewServer(clientURL), checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
-		assert.Equal(t, clientURL, clienturltools.ClientURL(ctx))
+		assert.Equal(t, clientURL, clienturlctx.ClientURL(ctx))
 	}))
 
-	ctx := clienturltools.WithClientURL(context.Background(), previousURL)
+	ctx := clienturlctx.WithClientURL(context.Background(), previousURL)
 	_, err := client.Request(ctx, &networkservice.NetworkServiceRequest{})
 	assert.Nil(t, err)
 
-	ctx = clienturltools.WithClientURL(context.Background(), previousURL)
+	ctx = clienturlctx.WithClientURL(context.Background(), previousURL)
 	_, err = client.Close(ctx, &networkservice.Connection{})
 	assert.Nil(t, err)
 }

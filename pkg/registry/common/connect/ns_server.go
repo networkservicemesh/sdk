@@ -20,8 +20,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
-	clienturltools "github.com/networkservicemesh/sdk/pkg/tools/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -72,7 +73,7 @@ func (c *connectNSServer) Unregister(ctx context.Context, ns *registry.NetworkSe
 
 func (c *connectNSServer) connect(ctx context.Context) registry.NetworkServiceRegistryClient {
 	key := ""
-	if url := clienturltools.ClientURL(ctx); url != nil {
+	if url := clienturlctx.ClientURL(ctx); url != nil {
 		key = url.String()
 	}
 	if v, ok := c.cache.Load(key); v != nil && ok {
