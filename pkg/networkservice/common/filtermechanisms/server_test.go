@@ -1,3 +1,19 @@
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at:
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package filtermechanisms_test
 
 import (
@@ -49,19 +65,19 @@ func TestFilterMechanismsServer_Request(t *testing.T) {
 	}{
 		{
 			Name:      "Local mechanisms",
-			ClientURL: &url.URL{Scheme: "tcp", Host: "test1"},
+			ClientURL: &url.URL{Scheme: "tcp", Host: "localhost:5000"},
 			RegisterURLs: []url.URL{
 				{
 					Scheme: "tcp",
-					Host:   "test1",
+					Host:   "localhost:5000",
 				},
 			},
 			ClsResult: cls.LOCAL,
 		},
 		{
 			Name:      "Remote mechanisms",
-			ClientURL: &url.URL{Scheme: "tcp", Host: "test1"},
-			ClsResult: cls.LOCAL,
+			ClientURL: &url.URL{Scheme: "tcp", Host: "localhost:5000"},
+			ClsResult: cls.REMOTE,
 		},
 	}
 
@@ -69,14 +85,16 @@ func TestFilterMechanismsServer_Request(t *testing.T) {
 		var registryServer registry.NetworkServiceEndpointRegistryServer
 		s := filtermechanisms.NewServer(&registryServer)
 		for _, u := range sample.RegisterURLs {
-			registryServer.Register(context.Background(), &registry.NetworkServiceEndpoint{
+			_, err := registryServer.Register(context.Background(), &registry.NetworkServiceEndpoint{
 				Url: u.String(),
 			})
+			require.NoError(t, err)
 		}
 		ctx := clienturlctx.WithClientURL(context.Background(), sample.ClientURL)
 		req := request()
 		_, err := s.Request(ctx, req)
 		require.NoError(t, err)
+		require.NotEmpty(t, req.MechanismPreferences)
 		for _, m := range req.MechanismPreferences {
 			require.Equal(t, sample.ClsResult, m.Cls, "filtermechanisms chain element should properly filter mechanisms")
 		}

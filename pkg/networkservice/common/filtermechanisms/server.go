@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package filtermechanisms filters out remote mechanisms if communicating by remote url
+// filters out local mechanisms otherwise.
 package filtermechanisms
 
 import (
@@ -55,11 +57,12 @@ func (f *filterMechanismsServer) Request(ctx context.Context, request *networkse
 func (f *filterMechanismsServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	return next.Server(ctx).Close(ctx, conn)
 }
+
 func filterMechanismsByCls(mechanisms []*networkservice.Mechanism, mechanismCls string) []*networkservice.Mechanism {
 	var result []*networkservice.Mechanism
 	for _, mechanism := range mechanisms {
 		if mechanism.Cls == mechanismCls {
-			mechanisms = append(mechanisms, mechanism)
+			result = append(result, mechanism)
 		}
 	}
 	return result
