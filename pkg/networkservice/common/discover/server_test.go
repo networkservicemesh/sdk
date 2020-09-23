@@ -21,7 +21,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
@@ -295,7 +295,7 @@ func TestMatchSelectedNSE(t *testing.T) {
 	server := next.NewNetworkServiceServer(
 		discover.NewServer(adapters.NetworkServiceServerToClient(nsServer), adapters.NetworkServiceEndpointServerToClient(nseServer)),
 		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
-			require.NotNil(t, clienturl.ClientURL(ctx))
+			require.NotNil(t, clienturlctx.ClientURL(ctx))
 		}),
 	)
 	_, err = server.Request(context.Background(), request)

@@ -20,6 +20,8 @@ import (
 	"context"
 	"net/url"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+
 	"github.com/golang/protobuf/ptypes/empty"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -37,11 +39,11 @@ func NewServer(u *url.URL) networkservice.NetworkServiceServer {
 }
 
 func (c *clientURLServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	ctx = WithClientURL(ctx, c.u)
+	ctx = clienturlctx.WithClientURL(ctx, c.u)
 	return next.Server(ctx).Request(ctx, request)
 }
 
 func (c *clientURLServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	ctx = WithClientURL(ctx, c.u)
+	ctx = clienturlctx.WithClientURL(ctx, c.u)
 	return next.Server(ctx).Close(ctx, conn)
 }

@@ -24,12 +24,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
 	"github.com/networkservicemesh/sdk/pkg/registry/memory"
@@ -68,18 +69,18 @@ func TestConnect_NewNetworkServiceEndpointRegistryServer(t *testing.T) {
 		return registry.NewNetworkServiceEndpointRegistryClient(cc)
 	}, connect.WithExpirationDuration(time.Millisecond*100), connect.WithClientDialOptions(grpc.WithInsecure()))
 
-	_, err := s.Register(clienturl.WithClientURL(context.Background(), url1), &registry.NetworkServiceEndpoint{Name: "ns-1"})
+	_, err := s.Register(clienturlctx.WithClientURL(context.Background(), url1), &registry.NetworkServiceEndpoint{Name: "ns-1"})
 	require.Nil(t, err)
-	_, err = s.Register(clienturl.WithClientURL(context.Background(), url2), &registry.NetworkServiceEndpoint{Name: "ns-1-1"})
+	_, err = s.Register(clienturlctx.WithClientURL(context.Background(), url2), &registry.NetworkServiceEndpoint{Name: "ns-1-1"})
 	require.Nil(t, err)
 	ch := make(chan *registry.NetworkServiceEndpoint, 1)
-	findSrv := streamchannel.NewNetworkServiceEndpointFindServer(clienturl.WithClientURL(context.Background(), url1), ch)
+	findSrv := streamchannel.NewNetworkServiceEndpointFindServer(clienturlctx.WithClientURL(context.Background(), url1), ch)
 	err = s.Find(&registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 		Name: "ns-1",
 	}}, findSrv)
 	require.Nil(t, err)
 	require.Equal(t, (<-ch).Name, "ns-1")
-	findSrv = streamchannel.NewNetworkServiceEndpointFindServer(clienturl.WithClientURL(context.Background(), url2), ch)
+	findSrv = streamchannel.NewNetworkServiceEndpointFindServer(clienturlctx.WithClientURL(context.Background(), url2), ch)
 	err = s.Find(&registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 		Name: "ns-1",
 	}}, findSrv)

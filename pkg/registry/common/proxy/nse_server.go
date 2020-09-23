@@ -20,10 +20,11 @@ import (
 	"context"
 	"net/url"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamcontext"
 	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
@@ -40,7 +41,7 @@ func (n *nseServer) Register(ctx context.Context, nse *registry.NetworkServiceEn
 	if n.proxyRegistryURL == nil {
 		return nil, urlToProxyNotPassedErr
 	}
-	ctx = clienturl.WithClientURL(ctx, n.proxyRegistryURL)
+	ctx = clienturlctx.WithClientURL(ctx, n.proxyRegistryURL)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 }
 
@@ -51,7 +52,7 @@ func (n nseServer) Find(q *registry.NetworkServiceEndpointQuery, s registry.Netw
 	if n.proxyRegistryURL == nil {
 		return urlToProxyNotPassedErr
 	}
-	ctx := clienturl.WithClientURL(s.Context(), n.proxyRegistryURL)
+	ctx := clienturlctx.WithClientURL(s.Context(), n.proxyRegistryURL)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Find(q, streamcontext.NetworkServiceEndpointRegistryFindServer(ctx, s))
 }
 
@@ -62,7 +63,7 @@ func (n *nseServer) Unregister(ctx context.Context, nse *registry.NetworkService
 	if n.proxyRegistryURL == nil {
 		return nil, urlToProxyNotPassedErr
 	}
-	ctx = clienturl.WithClientURL(ctx, n.proxyRegistryURL)
+	ctx = clienturlctx.WithClientURL(ctx, n.proxyRegistryURL)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }
 

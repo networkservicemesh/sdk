@@ -23,15 +23,16 @@ import (
 	"errors"
 	"net/url"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/localbypass"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
 type localBypassRegistry struct {
-	sockets *localbypass.Map
+	sockets *stringurl.Map
 }
 
 func (l *localBypassRegistry) Register(ctx context.Context, request *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
@@ -67,6 +68,6 @@ func (l *localBypassRegistry) Unregister(ctx context.Context, request *registry.
 // NewNetworkServiceRegistryServer - creates a NetworkServiceRegistryServer that registers local Endpoints
 //				and adds them to localbypass.SocketMap
 //             - sockets - map of networkServiceEndpoint names to their unix socket addresses
-func NewNetworkServiceRegistryServer(sockets *localbypass.Map) registry.NetworkServiceEndpointRegistryServer {
+func NewNetworkServiceRegistryServer(sockets *stringurl.Map) registry.NetworkServiceEndpointRegistryServer {
 	return &localBypassRegistry{sockets: sockets}
 }

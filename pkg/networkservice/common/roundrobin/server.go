@@ -20,7 +20,7 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
@@ -61,7 +61,7 @@ func (s *selectEndpointServer) Close(ctx context.Context, conn *networkservice.C
 }
 
 func (s *selectEndpointServer) withClientURL(ctx context.Context, conn *networkservice.Connection) (context.Context, error) {
-	if clienturl.ClientURL(ctx) == nil {
+	if clienturlctx.ClientURL(ctx) == nil {
 		candidates := discover.Candidates(ctx)
 		endpoint := s.selector.selectEndpoint(candidates.NetworkService, candidates.Endpoints)
 		if endpoint == nil {
@@ -73,7 +73,7 @@ func (s *selectEndpointServer) withClientURL(ctx context.Context, conn *networks
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
-		ctx = clienturl.WithClientURL(ctx, u)
+		ctx = clienturlctx.WithClientURL(ctx, u)
 		return ctx, nil
 	}
 	return ctx, nil

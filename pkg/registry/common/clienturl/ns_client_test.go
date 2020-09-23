@@ -22,11 +22,13 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/memory"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
@@ -52,7 +54,7 @@ func TestClientURL_NewNetworkServiceRegistryClient(t *testing.T) {
 
 	ctx, clientCancel := context.WithCancel(context.Background())
 	defer clientCancel()
-	ctx = clienturl.WithClientURL(ctx, u)
+	ctx = clienturlctx.WithClientURL(ctx, u)
 
 	client := clienturl.NewNetworkServiceRegistryClient(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
 		return registry.NewNetworkServiceRegistryClient(cc)

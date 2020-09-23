@@ -14,12 +14,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package interpose provides localBypassServer and localBypassServer related tools
-package interpose
+// Package stringurl provides sync map like a Go map[string]*url.URL but is safe for concurrent using
+package stringurl
 
 import "sync"
 
-//go:generate go-syncmap -output sync_map.gen.go -type Map<string,*github.com/networkservicemesh/api/pkg/api/registry.NetworkServiceEndpoint>
+//go:generate go-syncmap -output sync_map.gen.go -type Map<string,*net/url.URL>
 
 // Map is like a Go map[string]*url.URL but is safe for concurrent use
 // by multiple goroutines without additional locking or coordination

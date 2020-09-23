@@ -21,9 +21,9 @@ package localbypass
 import (
 	"context"
 
-	localbypasstools "github.com/networkservicemesh/sdk/pkg/tools/localbypass"
+	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 
@@ -37,12 +37,12 @@ import (
 
 type localBypassServer struct {
 	// Map of names -> *url.URLs for local bypass to file sockets
-	sockets localbypasstools.Map
+	sockets stringurl.Map
 }
 
 // NewServer - creates a NetworkServiceServer that tracks locally registered Endpoints substitutes their
 //             passed endpoint_address with clienturl.ClientURL(ctx) used to connect to them.
-//             - server - *registry.NetworkServiceRegistryServer.  Since registry.NetworkServiceRegistryServer is an interface
+//             - registryServer - *registry.NetworkServiceRegistryServer.  Since registry.NetworkServiceRegistryServer is an interface
 //                        (and thus a pointer) *registry.NetworkServiceRegistryServer is a double pointer.  Meaning it
 //                        points to a place that points to a place that implements registry.NetworkServiceRegistryServer
 //                        This is done so that we can return a registry.NetworkServiceRegistryServer chain element
@@ -57,14 +57,14 @@ func NewServer(registryServer *registry.NetworkServiceEndpointRegistryServer) ne
 
 func (l *localBypassServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	if u, ok := l.sockets.Load(request.GetConnection().GetNetworkServiceEndpointName()); ok && u != nil {
-		ctx = clienturl.WithClientURL(ctx, u)
+		ctx = clienturlctx.WithClientURL(ctx, u)
 	}
 	return next.Server(ctx).Request(ctx, request)
 }
 
 func (l *localBypassServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	if u, ok := l.sockets.Load(conn.GetNetworkServiceEndpointName()); ok && u != nil {
-		ctx = clienturl.WithClientURL(ctx, u)
+		ctx = clienturlctx.WithClientURL(ctx, u)
 	}
 	return next.Server(ctx).Close(ctx, conn)
 }
