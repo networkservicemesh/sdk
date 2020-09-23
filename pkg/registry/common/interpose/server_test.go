@@ -19,44 +19,26 @@ package interpose_test
 
 import (
 	"context"
-	"sync/atomic"
 	"testing"
 
 	adapters2 "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	next_reg "github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturl"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
-	interpose_tools "github.com/networkservicemesh/sdk/pkg/tools/interpose"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 )
 
-type crossNSEMap struct {
-	endpoints interpose_tools.Map
-	count     int64
-}
-
-func (c *crossNSEMap) LoadOrStore(name string, request *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, bool) {
-	val, loaded := c.endpoints.LoadOrStore(name, request)
-	if !loaded {
-		atomic.AddInt64(&c.count, 1)
-	}
-	return val, loaded
-}
-
-func (c *crossNSEMap) Delete(name string) {
-	c.endpoints.Delete(name)
-}
-
 func TestCrossNSERegister(t *testing.T) {
-	crossMap := &crossNSEMap{}
-	server := interpose.NewNetworkServiceRegistryServer(&crossMap.endpoints)
+	var crossMap clienturl.Map
+	server := interpose.NewNetworkServiceRegistryServer(&crossMap)
 
 	regClient := next_reg.NewNetworkServiceEndpointRegistryClient(interpose.NewNetworkServiceEndpointRegistryClient(), adapters2.NetworkServiceEndpointServerToClient(server))
 	reg, err := regClient.Register(context.Background(), &registry.NetworkServiceEndpoint{
 		Name: "cross-nse",
-		Url:  "test",
+		Url:  "test:0",
 	})
 	require.Nil(t, err)
 	require.Greater(t, len(reg.Name), len("cross-connect-nse#"))
@@ -64,9 +46,10 @@ func TestCrossNSERegister(t *testing.T) {
 	_, err = server.Unregister(context.Background(), reg)
 	require.Nil(t, err)
 }
+
 func TestCrossNSERegisterInvalidURL(t *testing.T) {
-	crossMap := &crossNSEMap{}
-	server := interpose.NewNetworkServiceRegistryServer(&crossMap.endpoints)
+	var crossMap clienturl.Map
+	server := interpose.NewNetworkServiceRegistryServer(&crossMap)
 
 	regClient := next_reg.NewNetworkServiceEndpointRegistryClient(interpose.NewNetworkServiceEndpointRegistryClient(), adapters2.NetworkServiceEndpointServerToClient(server))
 	req, err := regClient.Register(context.Background(), &registry.NetworkServiceEndpoint{

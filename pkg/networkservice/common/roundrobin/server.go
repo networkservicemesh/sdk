@@ -20,7 +20,7 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
+	clienturl "github.com/networkservicemesh/sdk/pkg/tools/clienturl"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"

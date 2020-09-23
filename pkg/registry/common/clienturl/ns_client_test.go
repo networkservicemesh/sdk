@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
+	clienturltools "github.com/networkservicemesh/sdk/pkg/tools/clienturl"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
@@ -52,7 +53,7 @@ func TestClientURL_NewNetworkServiceRegistryClient(t *testing.T) {
 
 	ctx, clientCancel := context.WithCancel(context.Background())
 	defer clientCancel()
-	ctx = clienturl.WithClientURL(ctx, u)
+	ctx = clienturltools.WithClientURL(ctx, u)
 
 	client := clienturl.NewNetworkServiceRegistryClient(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
 		return registry.NewNetworkServiceRegistryClient(cc)

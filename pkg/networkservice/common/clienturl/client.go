@@ -25,6 +25,7 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
@@ -65,7 +66,7 @@ func (u *clientURLClient) Close(ctx context.Context, conn *networkservice.Connec
 
 func (u *clientURLClient) init() error {
 	u.initOnce.Do(func() {
-		clientURL := ClientURL(u.ctx)
+		clientURL := clienturl.ClientURL(u.ctx)
 		if clientURL == nil {
 			u.dialErr = errors.New("cannot dial nil clienturl.ClientURL(ctx)")
 			return

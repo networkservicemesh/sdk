@@ -25,6 +25,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturl"
 )
 
 type clientURLServer struct {
@@ -37,11 +38,11 @@ func NewServer(u *url.URL) networkservice.NetworkServiceServer {
 }
 
 func (c *clientURLServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	ctx = WithClientURL(ctx, c.u)
+	ctx = clienturl.WithClientURL(ctx, c.u)
 	return next.Server(ctx).Request(ctx, request)
 }
 
 func (c *clientURLServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	ctx = WithClientURL(ctx, c.u)
+	ctx = clienturl.WithClientURL(ctx, c.u)
 	return next.Server(ctx).Close(ctx, conn)
 }

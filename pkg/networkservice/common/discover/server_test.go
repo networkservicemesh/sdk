@@ -21,7 +21,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturl"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"

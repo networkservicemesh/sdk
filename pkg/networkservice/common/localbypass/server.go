@@ -21,9 +21,7 @@ package localbypass
 import (
 	"context"
 
-	localbypasstools "github.com/networkservicemesh/sdk/pkg/tools/localbypass"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturl"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 
@@ -37,12 +35,12 @@ import (
 
 type localBypassServer struct {
 	// Map of names -> *url.URLs for local bypass to file sockets
-	sockets localbypasstools.Map
+	sockets clienturl.Map
 }
 
 // NewServer - creates a NetworkServiceServer that tracks locally registered Endpoints substitutes their
 //             passed endpoint_address with clienturl.ClientURL(ctx) used to connect to them.
-//             - server - *registry.NetworkServiceRegistryServer.  Since registry.NetworkServiceRegistryServer is an interface
+//             - registryServer - *registry.NetworkServiceRegistryServer.  Since registry.NetworkServiceRegistryServer is an interface
 //                        (and thus a pointer) *registry.NetworkServiceRegistryServer is a double pointer.  Meaning it
 //                        points to a place that points to a place that implements registry.NetworkServiceRegistryServer
 //                        This is done so that we can return a registry.NetworkServiceRegistryServer chain element

@@ -20,15 +20,15 @@ package interpose
 
 import (
 	"context"
-	"errors"
+
 	"net/url"
 	"strings"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/interpose"
-
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturl"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -38,7 +38,7 @@ import (
 const interposeNSEName = "interpose-nse#"
 
 type interposeRegistry struct {
-	endpoints *interpose.Map
+	endpoints *clienturl.Map
 }
 
 func (l *interposeRegistry) Register(ctx context.Context, request *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
@@ -55,7 +55,11 @@ func (l *interposeRegistry) Register(ctx context.Context, request *registry.Netw
 			// Generate uniq name only if full equal to endpoints prefix.
 			request.Name = interposeNSEName + uuid.New().String()
 		}
-		l.endpoints.LoadOrStore(request.Name, request)
+		u, err := url.Parse(request.Url)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Cannot register cross nse with passed URL")
+		}
+		l.endpoints.LoadOrStore(request.Name, u)
 		return request, nil
 	}
 
@@ -77,6 +81,6 @@ func (l *interposeRegistry) Unregister(ctx context.Context, request *registry.Ne
 
 // NewNetworkServiceRegistryServer - creates a NetworkServiceRegistryServer that registers local Cross connect Endpoints
 //				and adds them to Map
-func NewNetworkServiceRegistryServer(nses *interpose.Map) registry.NetworkServiceEndpointRegistryServer {
+func NewNetworkServiceRegistryServer(nses *clienturl.Map) registry.NetworkServiceEndpointRegistryServer {
 	return &interposeRegistry{endpoints: nses}
 }

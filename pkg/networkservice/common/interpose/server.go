@@ -24,7 +24,7 @@ import (
 	"sync"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
-	interpose_tools "github.com/networkservicemesh/sdk/pkg/tools/interpose"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturl"
 
 	"github.com/pkg/errors"
 
@@ -35,17 +35,13 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
 type interposeServer struct {
-	// Map of names -> *registry.NetworkServiceEndpoint for local bypass to file endpoints
-	endpoints interpose_tools.Map
-
+	endpoints        clienturl.Map
 	activeConnection sync.Map
-
-	name string
+	name             string
 }
 
 type connectionInfo struct {
@@ -95,8 +91,7 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 
 		// Iterate over all cross connect NSEs to check one with passed state.
 
-		l.endpoints.Range(func(key string, value *registry.NetworkServiceEndpoint) bool {
-			crossNSEURL, _ := url.Parse(value.Url)
+		l.endpoints.Range(func(key string, crossNSEURL *url.URL) bool {
 			crossCTX := clienturl.WithClientURL(ctx, crossNSEURL)
 
 			// Store client connection and selected cross connection URL.
@@ -169,16 +164,4 @@ func (l *interposeServer) Close(ctx context.Context, conn *networkservice.Connec
 	}
 
 	return next.Server(crossCTX).Close(crossCTX, conn)
-}
-
-func (l *interposeServer) LoadOrStore(name string, endpoint *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, bool) {
-	r, ok := l.endpoints.LoadOrStore(name, endpoint)
-	if ok {
-		return r, true
-	}
-	return nil, false
-}
-
-func (l *interposeServer) Delete(name string) {
-	l.endpoints.Delete(name)
 }

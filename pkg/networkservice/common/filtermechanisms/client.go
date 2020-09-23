@@ -23,8 +23,6 @@ package filtermechanisms
 import (
 	"context"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
-
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 
@@ -32,6 +30,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturl"
 )
 
 type filterMechanismsClient struct{}

@@ -23,7 +23,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
+	clienturl "github.com/networkservicemesh/sdk/pkg/tools/clienturl"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/seturl"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"

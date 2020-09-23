@@ -25,10 +25,9 @@ import (
 	"time"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/setextracontext"
+	clienturl "github.com/networkservicemesh/sdk/pkg/tools/clienturl"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
