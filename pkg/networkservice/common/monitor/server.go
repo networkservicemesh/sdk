@@ -93,6 +93,7 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 }
 
 func (m *monitorServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	_, closeErr := next.Server(ctx).Close(ctx, conn)
 	// Remove connection object we have and send DELETE
 	m.executor.AsyncExec(func() {
 		delete(m.connections, conn.GetId())
@@ -104,7 +105,7 @@ func (m *monitorServer) Close(ctx context.Context, conn *networkservice.Connecti
 			trace.Log(ctx).Errorf("Error during sending event: %v", err)
 		}
 	})
-	return next.Server(ctx).Close(ctx, conn)
+	return &empty.Empty{}, closeErr
 }
 
 // send - perform a send to clients.
