@@ -22,16 +22,20 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/goleak"
+
+	"github.com/stretchr/testify/require"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/chainstest"
 )
 
 func TestNSMGR_RemoteUsecase(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*10)
 	defer cancel()
 	domain := chainstest.NewDomainBuilder(t).
@@ -82,6 +86,7 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 }
 
 func TestNSMGR_LocalUsecase(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	domain := chainstest.NewDomainBuilder(t).
