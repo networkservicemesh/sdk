@@ -35,6 +35,7 @@ import (
 )
 
 func TestNSMGR_RemoteUsecase(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*10)
 	defer cancel()
 	domain := chainstest.NewDomainBuilder(t).

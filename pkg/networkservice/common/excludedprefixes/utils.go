@@ -48,17 +48,14 @@ func watchFile(ctx context.Context, filePath string, onChanged func([]byte)) err
 		return err
 	}
 
+	defer func() {
+		_ = watcher.Close()
+	}()
+
 	directoryPath, fileName := filepath.Split(filePath)
 	if err := watcher.Add(directoryPath); err != nil {
 		return err
 	}
-
-	defer func() {
-		trace.Log(ctx).Infof("Closing %v watcher", filePath)
-		if err := watcher.Close(); err != nil {
-			trace.Log(ctx).Errorf("Error closing %v watcher: %v", filePath, err)
-		}
-	}()
 
 	// to be sure, that we didn't miss Create event before watcher creation
 	bytes, _ := ioutil.ReadFile(filepath.Clean(filePath))
