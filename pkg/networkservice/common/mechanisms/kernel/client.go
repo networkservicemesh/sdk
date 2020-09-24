@@ -35,9 +35,14 @@ type kernelMechanismClient struct {
 }
 
 // NewClient - returns client that sets kernel preferred mechanism
-func NewClient(interfaceName string) networkservice.NetworkServiceClient {
+func NewClient(options ...Option) networkservice.NetworkServiceClient {
+	opt := &option{}
+	for _, o := range options {
+		o(opt)
+	}
+
 	return &kernelMechanismClient{
-		interfaceName: interfaceName,
+		interfaceName: opt.interfaceName,
 	}
 }
 
