@@ -26,7 +26,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/registry"
+	"github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
