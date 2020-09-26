@@ -36,10 +36,11 @@ type nsServer struct {
 	nsCounts   intMap
 	contexts   contextMap
 	once       sync.Once
+	ctx        context.Context
 }
 
 func (n *nsServer) checkUpdates() {
-	c, err := n.nseClient.Find(context.Background(), &registry.NetworkServiceEndpointQuery{
+	c, err := n.nseClient.Find(n.ctx, &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{},
 		Watch:                  true,
 	})
@@ -76,7 +77,7 @@ func (n *nsServer) checkUpdates() {
 func (n *nsServer) Register(ctx context.Context, request *registry.NetworkService) (*registry.NetworkService, error) {
 	n.once.Do(func() {
 		go func() {
-			for n.monitorErr == nil {
+			for n.monitorErr == nil && n.ctx.Err() == nil {
 				n.checkUpdates()
 			}
 		}()
@@ -109,6 +110,6 @@ func (n *nsServer) Unregister(ctx context.Context, request *registry.NetworkServ
 }
 
 // NewNetworkServiceServer wraps passed NetworkServiceRegistryServer and monitor NetworkServiceEndpoints via passed NetworkServiceEndpointRegistryClient
-func NewNetworkServiceServer(nseClient registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceRegistryServer {
-	return &nsServer{nseClient: nseClient}
+func NewNetworkServiceServer(ctx context.Context, nseClient registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceRegistryServer {
+	return &nsServer{nseClient: nseClient, ctx: ctx}
 }

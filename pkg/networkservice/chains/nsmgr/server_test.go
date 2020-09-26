@@ -19,8 +19,11 @@ package nsmgr_test
 
 import (
 	"context"
+	"io/ioutil"
 	"testing"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"go.uber.org/goleak"
 
@@ -30,11 +33,13 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
 func TestNSMGR_RemoteUsecase(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	logrus.SetOutput(ioutil.Discard)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*10)
 	defer cancel()
 	domain := sandbox.NewBuilder(t).
@@ -87,6 +92,7 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 
 func TestNSMGR_LocalUsecase(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	logrus.SetOutput(ioutil.Discard)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	domain := sandbox.NewBuilder(t).

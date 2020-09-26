@@ -48,7 +48,7 @@ func NewServer(ctx context.Context, proxyRegistryURL *url.URL, options ...grpc.D
 		}, connect.WithClientDialOptions(options...)),
 	)
 	nsChain := chain.NewNetworkServiceRegistryServer(
-		expire.NewNetworkServiceServer(adapters.NetworkServiceEndpointServerToClient(nseChain)),
+		expire.NewNetworkServiceServer(ctx, adapters.NetworkServiceEndpointServerToClient(nseChain)),
 		memory.NewNetworkServiceRegistryServer(),
 		proxy.NewNetworkServiceRegistryServer(proxyRegistryURL),
 		connect.NewNetworkServiceRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
