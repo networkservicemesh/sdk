@@ -249,3 +249,7 @@ issues:
       linters:
         - funlen
         - gocyclo
+    - path: pkg/networkservice/common/heal/client.go
+      linters:
+        - gocyclo
+      text: "processEvent"

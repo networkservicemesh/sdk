@@ -44,6 +44,7 @@ func (u *updateTokenClient) Request(ctx context.Context, request *networkservice
 	}
 	err := updateToken(ctx, request.GetConnection(), u.tokenGenerator)
 	index := request.GetConnection().GetPath().GetIndex()
+	id := request.GetConnection().GetId()
 	if err != nil {
 		return nil, err
 	}
@@ -52,6 +53,7 @@ func (u *updateTokenClient) Request(ctx context.Context, request *networkservice
 		return nil, err
 	}
 	rv.GetPath().Index = index
+	rv.Id = id
 	return rv, err
 }
 
