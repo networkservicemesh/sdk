@@ -53,7 +53,7 @@ func (n *networkServiceEndpointRegistryServer) Find(query *registry.NetworkServi
 		var err error
 		n.networkServiceEndpoints.Range(func(key string, value *registry.NetworkServiceEndpoint) bool {
 			if matchutils.MatchNetworkServiceEndpoints(ns, value) {
-				err = s.Send(value)
+				err = s.Send(value.Clone())
 				return err == nil
 			}
 			return true

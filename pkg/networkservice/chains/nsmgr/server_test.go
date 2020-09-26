@@ -19,8 +19,11 @@ package nsmgr_test
 
 import (
 	"context"
+	"io/ioutil"
 	"testing"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"go.uber.org/goleak"
 
@@ -31,15 +34,17 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/chainstest"
+	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
 func TestNSMGR_RemoteUsecase(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	logrus.SetOutput(ioutil.Discard)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*10)
 	defer cancel()
-	domain := chainstest.NewDomainBuilder(t).
+	domain := sandbox.NewBuilder(t).
 		SetNodesCount(2).
+		SetRegistryProxySupplier(nil).
 		SetContext(ctx).
 		Build()
 	defer domain.Cleanup()
@@ -49,7 +54,7 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 		NetworkServiceNames: []string{"my-service-remote"},
 	}
 
-	_, err := chainstest.NewEndpoint(ctx, nseReg, chainstest.GenerateTestToken, domain.Nodes[0].NSMgr)
+	_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr)
 	require.NoError(t, err)
 
 	request := &networkservice.NetworkServiceRequest{
@@ -63,7 +68,7 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 		},
 	}
 
-	nsc, err := chainstest.NewClient(ctx, chainstest.GenerateTestToken, domain.Nodes[1].NSMgr.URL)
+	nsc, err := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[1].NSMgr.URL)
 	require.NoError(t, err)
 
 	conn, err := nsc.Request(ctx, request)
@@ -87,11 +92,13 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 
 func TestNSMGR_LocalUsecase(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	logrus.SetOutput(ioutil.Discard)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
-	domain := chainstest.NewDomainBuilder(t).
+	domain := sandbox.NewBuilder(t).
 		SetNodesCount(1).
 		SetContext(ctx).
+		SetRegistryProxySupplier(nil).
 		Build()
 	defer domain.Cleanup()
 
@@ -99,10 +106,10 @@ func TestNSMGR_LocalUsecase(t *testing.T) {
 		Name:                "final-endpoint",
 		NetworkServiceNames: []string{"my-service-remote"},
 	}
-	_, err := chainstest.NewEndpoint(ctx, nseReg, chainstest.GenerateTestToken, domain.Nodes[0].NSMgr)
+	_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr)
 	require.NoError(t, err)
 
-	nsc, err := chainstest.NewClient(ctx, chainstest.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
+	nsc, err := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
 	require.NoError(t, err)
 
 	request := &networkservice.NetworkServiceRequest{

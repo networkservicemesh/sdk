@@ -21,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/goleak"
+
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
@@ -35,13 +37,16 @@ import (
 const testPeriod = time.Millisecond * 50
 
 func TestNewNetworkServiceRegistryServer(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	nseMem := next.NewNetworkServiceEndpointRegistryServer(
 		setid.NewNetworkServiceEndpointRegistryServer(),
 		memory.NewNetworkServiceEndpointRegistryServer(),
 	)
 
 	expiration := time.Now().Add(testPeriod * 2)
-	_, err := nseMem.Register(context.Background(), &registry.NetworkServiceEndpoint{
+	_, err := nseMem.Register(ctx, &registry.NetworkServiceEndpoint{
 		NetworkServiceNames: []string{"IP terminator"},
 		ExpirationTime: &timestamp.Timestamp{
 			Seconds: expiration.Unix(),
@@ -51,13 +56,13 @@ func TestNewNetworkServiceRegistryServer(t *testing.T) {
 	require.Nil(t, err)
 	nseClient := adapters.NetworkServiceEndpointServerToClient(nseMem)
 	nsMem := memory.NewNetworkServiceRegistryServer()
-	s := next.NewNetworkServiceRegistryServer(expire.NewNetworkServiceServer(nseClient), nsMem)
-	_, err = s.Register(context.Background(), &registry.NetworkService{
+	s := next.NewNetworkServiceRegistryServer(expire.NewNetworkServiceServer(ctx, nseClient), nsMem)
+	_, err = s.Register(ctx, &registry.NetworkService{
 		Name: "IP terminator",
 	})
 	require.Nil(t, err)
 	nsClient := adapters.NetworkServiceServerToClient(s)
-	stream, err := nsClient.Find(context.Background(), &registry.NetworkServiceQuery{
+	stream, err := nsClient.Find(ctx, &registry.NetworkServiceQuery{
 		NetworkService: &registry.NetworkService{},
 	})
 	require.Nil(t, err)
@@ -65,7 +70,7 @@ func TestNewNetworkServiceRegistryServer(t *testing.T) {
 	require.NotEmpty(t, list)
 
 	require.Eventually(t, func() bool {
-		stream, err = nsClient.Find(context.Background(), &registry.NetworkServiceQuery{
+		stream, err = nsClient.Find(ctx, &registry.NetworkServiceQuery{
 			NetworkService: &registry.NetworkService{},
 		})
 		require.Nil(t, err)
@@ -75,11 +80,14 @@ func TestNewNetworkServiceRegistryServer(t *testing.T) {
 }
 
 func TestNewNetworkServiceRegistryServer_NSEUnregister(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	nseMem := next.NewNetworkServiceEndpointRegistryServer(
 		memory.NewNetworkServiceEndpointRegistryServer(),
 	)
 	expiration := time.Now().Add(time.Hour)
-	_, err := nseMem.Register(context.Background(), &registry.NetworkServiceEndpoint{
+	_, err := nseMem.Register(ctx, &registry.NetworkServiceEndpoint{
 		Name:                "nse-1",
 		NetworkServiceNames: []string{"IP terminator"},
 		ExpirationTime: &timestamp.Timestamp{
@@ -90,26 +98,26 @@ func TestNewNetworkServiceRegistryServer_NSEUnregister(t *testing.T) {
 	require.Nil(t, err)
 	nseClient := adapters.NetworkServiceEndpointServerToClient(nseMem)
 	nsMem := memory.NewNetworkServiceRegistryServer()
-	s := next.NewNetworkServiceRegistryServer(expire.NewNetworkServiceServer(nseClient), nsMem)
-	_, err = s.Register(context.Background(), &registry.NetworkService{
+	s := next.NewNetworkServiceRegistryServer(expire.NewNetworkServiceServer(ctx, nseClient), nsMem)
+	_, err = s.Register(ctx, &registry.NetworkService{
 		Name: "IP terminator",
 	})
 	require.Nil(t, err)
 	nsClient := adapters.NetworkServiceServerToClient(s)
-	stream, err := nsClient.Find(context.Background(), &registry.NetworkServiceQuery{
+	stream, err := nsClient.Find(ctx, &registry.NetworkServiceQuery{
 		NetworkService: &registry.NetworkService{},
 	})
 	require.Nil(t, err)
 	list := registry.ReadNetworkServiceList(stream)
 	require.NotEmpty(t, list)
 	<-time.After(testPeriod * 2)
-	_, err = nseClient.Unregister(context.Background(), &registry.NetworkServiceEndpoint{
+	_, err = nseClient.Unregister(ctx, &registry.NetworkServiceEndpoint{
 		Name:                "nse-1",
 		NetworkServiceNames: []string{"IP terminator"},
 	})
 	require.Nil(t, err)
 	require.Eventually(t, func() bool {
-		stream, err = nsClient.Find(context.Background(), &registry.NetworkServiceQuery{
+		stream, err = nsClient.Find(ctx, &registry.NetworkServiceQuery{
 			NetworkService: &registry.NetworkService{},
 		})
 		require.Nil(t, err)

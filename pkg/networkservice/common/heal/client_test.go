@@ -23,10 +23,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/chainstest"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
@@ -80,12 +81,12 @@ func TestHealClient_Request(t *testing.T) {
 	server := chain.NewNetworkServiceServer(
 		updatepath.NewServer("testServer"),
 		monitor.NewServer(ctx, &monitorServer),
-		updatetoken.NewServer(chainstest.GenerateTestToken),
+		updatetoken.NewServer(sandbox.GenerateTestToken),
 	)
 	client := chain.NewNetworkServiceClient(
 		updatepath.NewClient("testClient"),
 		heal.NewClient(ctx, adapters.NewMonitorServerToClient(monitorServer), addressof.NetworkServiceClient(onHeal)),
-		updatetoken.NewClient(chainstest.GenerateTestToken),
+		updatetoken.NewClient(sandbox.GenerateTestToken),
 		adapters.NewServerToClient(server),
 	)
 
@@ -147,10 +148,10 @@ func TestHealClient_EmptyInit(t *testing.T) {
 	client := chain.NewNetworkServiceClient(
 		updatepath.NewClient("testClient"),
 		heal.NewClient(ctx, eventchannel.NewMonitorConnectionClient(eventCh), addressof.NetworkServiceClient(onHeal)),
-		updatetoken.NewClient(chainstest.GenerateTestToken),
+		updatetoken.NewClient(sandbox.GenerateTestToken),
 		updatepath.NewClient("testServer"),
 		eventTrigger,
-		updatetoken.NewClient(chainstest.GenerateTestToken),
+		updatetoken.NewClient(sandbox.GenerateTestToken),
 	)
 
 	requestCtx, reqCancelFunc := context.WithTimeout(ctx, waitForTimeout)
