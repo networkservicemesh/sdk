@@ -35,7 +35,7 @@ import (
 func NewServer(ctx context.Context, dnsResolver dnsresolve.Resolver, handlingDNSDomain string, proxyNSMgrURL *url.URL, options ...grpc.DialOption) registry.Registry {
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
 		dnsresolve.NewNetworkServiceEndpointRegistryServer(dnsresolve.WithResolver(dnsResolver)),
-		swap.NewNetworkServiceEndpointRegistryServer(handlingDNSDomain, proxyNSMgrURL, nil),
+		swap.NewNetworkServiceEndpointRegistryServer(handlingDNSDomain, proxyNSMgrURL),
 		connect.NewNetworkServiceEndpointRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registryapi.NetworkServiceEndpointRegistryClient {
 			return registryapi.NewNetworkServiceEndpointRegistryClient(cc)
 		}, connect.WithClientDialOptions(options...)))

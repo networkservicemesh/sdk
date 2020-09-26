@@ -46,7 +46,7 @@ func (n *nseServer) Register(ctx context.Context, nse *registry.NetworkServiceEn
 }
 
 func (n nseServer) Find(q *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
-	if !interdomain.Is(q.NetworkServiceEndpoint.Name) {
+	if !isInterdomain(q.NetworkServiceEndpoint) {
 		return nil
 	}
 	if n.proxyRegistryURL == nil {
@@ -72,4 +72,16 @@ func NewNetworkServiceEndpointRegistryServer(proxyRegistryURL *url.URL) registry
 	return &nseServer{
 		proxyRegistryURL: proxyRegistryURL,
 	}
+}
+
+func isInterdomain(nse *registry.NetworkServiceEndpoint) bool {
+	if interdomain.Is(nse.Name) {
+		return true
+	}
+	for _, ns := range nse.NetworkServiceNames {
+		if interdomain.Is(ns) {
+			return true
+		}
+	}
+	return false
 }

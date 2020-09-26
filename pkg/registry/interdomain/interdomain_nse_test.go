@@ -48,7 +48,7 @@ func localNSERegistryServer(ctx context.Context, proxyRegistryURL *url.URL) regi
 func proxyNSERegistryServer(ctx context.Context, currentDomain string, resolver dnsresolve.Resolver) registry.NetworkServiceEndpointRegistryServer {
 	return chain.NewNetworkServiceEndpointRegistryServer(
 		dnsresolve.NewNetworkServiceEndpointRegistryServer(dnsresolve.WithResolver(resolver)),
-		swap.NewNetworkServiceEndpointRegistryServer(currentDomain, &url.URL{Scheme: "test", Host: "proxyNSMGRurl"}, &url.URL{Scheme: "test", Host: "publicNSMGRurl"}),
+		swap.NewNetworkServiceEndpointRegistryServer(currentDomain, &url.URL{Scheme: "test", Host: "proxyNSMGRurl"}),
 		connect.NewNetworkServiceEndpointRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient {
 			return registry.NewNetworkServiceEndpointRegistryClient(cc)
 		}, connect.WithExpirationDuration(time.Millisecond*500), connect.WithClientDialOptions(grpc.WithInsecure())),
@@ -136,7 +136,7 @@ func TestLocalDomain_NetworkServiceEndpointRegistry(t *testing.T) {
 
 	client := registry.NewNetworkServiceEndpointRegistryClient(tool.dialDomain(localRegistryDomain))
 
-	expected, err := client.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: "nse-1"})
+	expected, err := client.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: "nse-1", Url: "test://publicNSMGRurl"})
 	require.NoError(t, err)
 
 	stream, err := client.Find(context.Background(), &registry.NetworkServiceEndpointQuery{
@@ -196,6 +196,7 @@ func TestInterdomainFloatingNetworkServiceEndpointRegistry(t *testing.T) {
 	domain2Client := registry.NewNetworkServiceEndpointRegistryClient(tool.dialDomain(remoteRegistryDomain))
 	_, err := domain2Client.Register(context.Background(), &registry.NetworkServiceEndpoint{
 		Name: "nse-1@" + floatingRegistryDomain,
+		Url:  "test://publicNSMGRurl",
 	})
 	require.Nil(t, err)
 
