@@ -36,10 +36,21 @@ func MatchNetworkServiceEndpoints(left, right *registry.NetworkServiceEndpoint) 
 	return (left.Name == "" || matchString(right.Name, left.Name)) &&
 		(left.NetworkServiceLabels == nil || reflect.DeepEqual(left.NetworkServiceLabels, right.NetworkServiceLabels)) &&
 		(left.ExpirationTime == nil || left.ExpirationTime.Seconds == right.ExpirationTime.Seconds) &&
-		(left.NetworkServiceNames == nil || reflect.DeepEqual(left.NetworkServiceNames, right.NetworkServiceNames)) &&
+		(left.NetworkServiceNames == nil || contains(right.NetworkServiceNames, left.NetworkServiceNames)) &&
 		(left.Url == "" || matchString(right.Url, left.Url))
 }
 
 func matchString(left, right string) bool {
 	return strings.Contains(left, right)
+}
+
+func contains(what, where []string) bool {
+	set := make(map[string]struct{})
+	for _, s := range what {
+		set[s] = struct{}{}
+	}
+	for _, s := range where {
+		delete(set, s)
+	}
+	return len(set) == 0
 }
