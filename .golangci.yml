@@ -6,7 +6,7 @@ run:
   tests: true
 linters-settings:
   goheader:
-    template-path: ".license/template.txt"
+    template-path: ".ci/license/template.txt"
     values:
       const:
         year: 2020
