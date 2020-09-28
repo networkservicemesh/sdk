@@ -22,6 +22,9 @@ package nsmgr
 import (
 	"context"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/querycache"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/filtermechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interpose"
 	"github.com/networkservicemesh/sdk/pkg/registry"
@@ -90,6 +93,8 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 		)
 	}
 
+	nseClient := next.NewNetworkServiceEndpointRegistryClient(querycache.NewClient(), adapter_registry.NetworkServiceEndpointServerToClient(nseRegistry))
+	nsClient := adapter_registry.NetworkServiceServerToClient(nsRegistry)
 	var interposeRegistry registryapi.NetworkServiceEndpointRegistryServer
 
 	// Construct Endpoint
@@ -97,7 +102,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 		nsmRegistration.Name,
 		authzServer,
 		tokenGenerator,
-		discover.NewServer(adapter_registry.NetworkServiceServerToClient(nsRegistry), adapter_registry.NetworkServiceEndpointServerToClient(nseRegistry)),
+		discover.NewServer(nsClient, nseClient),
 		roundrobin.NewServer(),
 		localbypass.NewServer(&localbypassRegistryServer),
 		excludedprefixes.NewServer(ctx),

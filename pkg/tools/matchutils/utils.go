@@ -26,22 +26,18 @@ import (
 
 // MatchNetworkServices returns true if two network services are matched
 func MatchNetworkServices(left, right *registry.NetworkService) bool {
-	return (left.Name == "" || matchString(right.Name, left.Name)) &&
+	return (left.Name == "" || strings.Contains(right.Name, left.Name)) &&
 		(left.Payload == "" || left.Payload == right.Payload) &&
 		(left.Matches == nil || reflect.DeepEqual(left.Matches, right.Matches))
 }
 
 // MatchNetworkServiceEndpoints  returns true if two network service endpoints are matched
 func MatchNetworkServiceEndpoints(left, right *registry.NetworkServiceEndpoint) bool {
-	return (left.Name == "" || matchString(right.Name, left.Name)) &&
+	return (left.Name == "" || strings.Contains(right.Name, left.Name)) &&
 		(left.NetworkServiceLabels == nil || reflect.DeepEqual(left.NetworkServiceLabels, right.NetworkServiceLabels)) &&
 		(left.ExpirationTime == nil || left.ExpirationTime.Seconds == right.ExpirationTime.Seconds) &&
 		(left.NetworkServiceNames == nil || contains(right.NetworkServiceNames, left.NetworkServiceNames)) &&
-		(left.Url == "" || matchString(right.Url, left.Url))
-}
-
-func matchString(left, right string) bool {
-	return strings.Contains(left, right)
+		(left.Url == "" || strings.Contains(right.Url, left.Url))
 }
 
 func contains(what, where []string) bool {

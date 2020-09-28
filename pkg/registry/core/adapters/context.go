@@ -18,6 +18,7 @@ package adapters
 
 import (
 	"context"
+	"sync/atomic"
 )
 
 type contextKeyType string
@@ -33,13 +34,15 @@ func withCapturedContext(ctx context.Context) context.Context {
 		}
 	}
 	var d context.Context = nil
-	return context.WithValue(ctx, capturedContext, &d)
+	var v = new(atomic.Value)
+	v.Store(&d)
+	return context.WithValue(ctx, capturedContext, v)
 }
 
 // getCapturedContext - returns context previously written by reported key
 func getCapturedContext(ctx context.Context) context.Context {
-	if val, ok := ctx.Value(capturedContext).(*context.Context); ok && *val != nil {
-		return *val
+	if val, ok := ctx.Value(capturedContext).(*atomic.Value); ok {
+		return *val.Load().(*context.Context)
 	}
 	return nil
 }
@@ -49,7 +52,7 @@ func captureContext(ctx context.Context) {
 	if ctx == nil {
 		return
 	}
-	if val, ok := ctx.Value(capturedContext).(*context.Context); ok {
-		*val = ctx
+	if val, ok := ctx.Value(capturedContext).(*atomic.Value); ok {
+		val.Store(&ctx)
 	}
 }
