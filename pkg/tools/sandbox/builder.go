@@ -89,7 +89,7 @@ func (b *Builder) Build() *Domain {
 		b.resources = append(b.resources, cancel)
 	}
 	domain := &Domain{}
-	domain.RegistryProxy = b.newRegistryProxy(ctx, nil)
+	domain.RegistryProxy = b.newRegistryProxy(ctx, &url.URL{})
 	if domain.RegistryProxy == nil {
 		domain.Registry = b.newRegistry(ctx, nil)
 	} else {
