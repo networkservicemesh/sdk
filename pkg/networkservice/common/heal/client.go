@@ -148,8 +148,8 @@ func (f *healClient) healAsNeeded(ctx context.Context, request *networkservice.N
 		return
 	}
 
-	// Set the ctx Deadline to expireTime based on the heal servers context
-	ctx, cancel := context.WithDeadline(f.ctx, expireTime)
+	// Set the healCtx Deadline to expireTime based on the heal servers context
+	healCtx, cancel := context.WithDeadline(f.ctx, expireTime)
 	defer cancel()
 	id := request.GetConnection().GetId()
 	f.cancelHealMapExecutor.AsyncExec(func() {
@@ -168,15 +168,15 @@ func (f *healClient) healAsNeeded(ctx context.Context, request *networkservice.N
 	// Start looping over events
 	for {
 		select {
-		case <-ctx.Done():
+		case <-healCtx.Done():
 			return
 		default:
 		}
 		event, err := recv.Recv()
 		if err != nil {
 			// If we get an error, try to get a new recv ... if that fails, loop around and try again until
-			// we succeed or the ctx is canceled or expires
-			newRecv, newRecvErr := f.client.MonitorConnections(ctx, &networkservice.MonitorScopeSelector{
+			// we succeed or the healCtx is canceled or expires
+			newRecv, newRecvErr := f.client.MonitorConnections(healCtx, &networkservice.MonitorScopeSelector{
 				PathSegments: []*networkservice.PathSegment{
 					pathSegment,
 				},
@@ -188,11 +188,11 @@ func (f *healClient) healAsNeeded(ctx context.Context, request *networkservice.N
 			continue
 		}
 		select {
-		case <-ctx.Done():
+		case <-healCtx.Done():
 			return
 		default:
 		}
-		if err := f.processEvent(ctx, request, event, opts...); err != nil {
+		if err := f.processEvent(healCtx, request, event, opts...); err != nil {
 			if err != nil {
 				return
 			}

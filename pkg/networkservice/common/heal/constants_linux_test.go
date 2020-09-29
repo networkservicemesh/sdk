@@ -14,14 +14,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build windows
+// +build linux
 
 package heal_test
 
-import "time"
+import (
+	"time"
+)
 
 const (
-	waitForTimeout  = 50 * time.Millisecond
-	waitHealTimeout = 500 * time.Millisecond
-	tickTimeout     = 10 * time.Millisecond
+	waitForTimeout  = 100 * time.Millisecond
+	waitHealTimeout = 1000 * time.Millisecond
+	tickTimeout     = 20 * time.Millisecond
 )

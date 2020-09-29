@@ -61,16 +61,17 @@ func (t *testOnHeal) Close(ctx context.Context, in *networkservice.Connection, o
 func TestHealClient_Request(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	logrus.SetOutput(ioutil.Discard)
-	eventCh := make(chan *networkservice.ConnectionEvent, 1)
+	eventCh := make(chan *networkservice.ConnectionEvent, 100)
 	defer close(eventCh)
 
-	onHealCh := make(chan struct{})
+	onHealErrCh := make(chan error, 1)
 	// TODO for tomorrow... check on how to work onHeal into the new chain I've built
 	onHeal := &testOnHeal{
 		RequestFunc: func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (connection *networkservice.Connection, e error) {
-			if ctx.Err() == nil {
-				close(onHealCh)
+			if ctx.Err() != nil {
+				onHealErrCh <- ctx.Err()
 			}
+			close(onHealErrCh)
 			return &networkservice.Connection{}, nil
 		},
 	}
@@ -97,19 +98,19 @@ func TestHealClient_Request(t *testing.T) {
 			NetworkService: "ns-1",
 		},
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
+	require.NotNil(t, conn)
 	t1 := time.Now()
 	_, err = server.Close(requestCtx, conn.Clone())
 	require.NoError(t, err)
-	ctx, cancel := context.WithTimeout(context.Background(), waitHealTimeout)
-	defer cancel()
 	select {
-	case <-ctx.Done():
-		require.FailNow(t, "timeout waiting for Heal event %v", time.Since(t1))
-		return
-	case <-onHealCh:
-		// All is fine, test is passed
+	case healErr, ok := <-onHealErrCh:
+		require.False(t, ok)
+		require.NoError(t, healErr)
 		break
+	case <-time.After(waitHealTimeout):
+		require.FailNowf(t, "", "timeout waiting for Heal event %v", time.Since(t1))
+		return
 	}
 	_, err = client.Close(requestCtx, conn)
 	require.NoError(t, err)
@@ -119,7 +120,7 @@ func TestHealClient_Request(t *testing.T) {
 func TestHealClient_EmptyInit(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	logrus.SetOutput(ioutil.Discard)
-	eventCh := make(chan *networkservice.ConnectionEvent, 1)
+	eventCh := make(chan *networkservice.ConnectionEvent, 100)
 	defer close(eventCh)
 
 	onHealCh := make(chan struct{})
@@ -169,7 +170,7 @@ func TestNewClient_MissingConnectionsInInit(t *testing.T) {
 	t.Skip("https://github.com/networkservicemesh/sdk/issues/375")
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	logrus.SetOutput(ioutil.Discard)
-	eventCh := make(chan *networkservice.ConnectionEvent, 1)
+	eventCh := make(chan *networkservice.ConnectionEvent, 100)
 
 	requestCh := make(chan *networkservice.NetworkServiceRequest)
 	onHeal := &testOnHeal{
