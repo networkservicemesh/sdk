@@ -29,7 +29,6 @@ import (
 	"sync"
 
 	"github.com/edwarnicke/exechelper"
-	"github.com/matryer/try"
 	"github.com/sirupsen/logrus"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 
@@ -99,20 +98,22 @@ func Start(options ...Option) <-chan error {
 	default:
 	}
 
-	try.MaxRetries = 30
-
 	// Healthcheck the Spire Server
-	cmdStr := fmt.Sprintf("spire-server healthcheck -registrationUDSPath %s/spire-registration.sock", spireRoot)
-	err = try.Do(func(attempts int) (bool, error) {
-		return attempts < 30, exechelper.Run(cmdStr,
+	healthCheck := func() error {
+		return exechelper.Run(
+			fmt.Sprintf("spire-server healthcheck -registrationUDSPath %s/spire-registration.sock", spireRoot),
 			exechelper.WithStdout(log.Entry(opt.ctx).WithField("cmd", "spire-server healthcheck").WriterLevel(logrus.InfoLevel)),
 			exechelper.WithStderr(log.Entry(opt.ctx).WithField("cmd", "spire-server healthcheck").WriterLevel(logrus.WarnLevel)),
 		)
-	})
-	if err != nil {
-		errCh <- err
-		close(errCh)
-		return errCh
+	}
+	for err = healthCheck(); err != nil; err = healthCheck() {
+		select {
+		case <-opt.ctx.Done():
+			errCh <- opt.ctx.Err()
+			close(errCh)
+			return errCh
+		default:
+		}
 	}
 
 	// Add Entries
@@ -125,7 +126,7 @@ func Start(options ...Option) <-chan error {
 	}
 
 	// Get the SpireServers Token
-	cmdStr = "spire-server token generate -spiffeID %s -registrationUDSPath %s/spire-registration.sock"
+	cmdStr := "spire-server token generate -spiffeID %s -registrationUDSPath %s/spire-registration.sock"
 	cmdStr = fmt.Sprintf(cmdStr, opt.agentID, spireRoot)
 	outputBytes, err := exechelper.Output(cmdStr,
 		exechelper.WithStdout(log.Entry(opt.ctx).WithField("cmd", cmdStr).WriterLevel(logrus.InfoLevel)),
@@ -155,17 +156,21 @@ func Start(options ...Option) <-chan error {
 	}
 
 	// Healthcheck the Spire Agent
-	cmdStr = fmt.Sprintf("spire-agent healthcheck -socketPath %s", spireSocketPath)
-	err = try.Do(func(attempts int) (bool, error) {
-		return attempts < 30, exechelper.Run(cmdStr,
+	healthCheck = func() error {
+		return exechelper.Run(
+			fmt.Sprintf("spire-agent healthcheck -socketPath %s", spireSocketPath),
 			exechelper.WithStdout(log.Entry(opt.ctx).WithField("cmd", "spire-agent healthcheck").WriterLevel(logrus.InfoLevel)),
 			exechelper.WithStderr(log.Entry(opt.ctx).WithField("cmd", "spire-agent healthcheck").WriterLevel(logrus.WarnLevel)),
 		)
-	})
-	if err != nil {
-		errCh <- err
-		close(errCh)
-		return errCh
+	}
+	for err = healthCheck(); err != nil; err = healthCheck() {
+		select {
+		case <-opt.ctx.Done():
+			errCh <- opt.ctx.Err()
+			close(errCh)
+			return errCh
+		default:
+		}
 	}
 
 	// Cleanup if either server we spawned dies
