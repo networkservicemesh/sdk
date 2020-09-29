@@ -27,19 +27,13 @@ import (
 	"path"
 	"strings"
 	"sync"
-	"time"
-
-	"github.com/spiffe/go-spiffe/v2/workloadapi"
 
 	"github.com/edwarnicke/exechelper"
 	"github.com/matryer/try"
 	"github.com/sirupsen/logrus"
+	"github.com/spiffe/go-spiffe/v2/workloadapi"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
-)
-
-const (
-	healthCheckTimeout = 100 * time.Millisecond
 )
 
 // AddEntry - adds an entry to the spire server for parentID, spiffeID, and selector
@@ -105,17 +99,15 @@ func Start(options ...Option) <-chan error {
 	default:
 	}
 
+	try.MaxRetries = 30
+
 	// Healthcheck the Spire Server
 	cmdStr := fmt.Sprintf("spire-server healthcheck -registrationUDSPath %s/spire-registration.sock", spireRoot)
-	_ = try.Do(func(attempts int) (bool, error) {
-		err = exechelper.Run(cmdStr,
+	err = try.Do(func(attempts int) (bool, error) {
+		return attempts < 30, exechelper.Run(cmdStr,
 			exechelper.WithStdout(log.Entry(opt.ctx).WithField("cmd", "spire-server healthcheck").WriterLevel(logrus.InfoLevel)),
 			exechelper.WithStderr(log.Entry(opt.ctx).WithField("cmd", "spire-server healthcheck").WriterLevel(logrus.WarnLevel)),
 		)
-		if err != nil {
-			<-time.After(healthCheckTimeout)
-		}
-		return true, err
 	})
 	if err != nil {
 		errCh <- err
@@ -164,15 +156,11 @@ func Start(options ...Option) <-chan error {
 
 	// Healthcheck the Spire Agent
 	cmdStr = fmt.Sprintf("spire-agent healthcheck -socketPath %s", spireSocketPath)
-	_ = try.Do(func(attempts int) (bool, error) {
-		err = exechelper.Run(cmdStr,
+	err = try.Do(func(attempts int) (bool, error) {
+		return attempts < 30, exechelper.Run(cmdStr,
 			exechelper.WithStdout(log.Entry(opt.ctx).WithField("cmd", "spire-agent healthcheck").WriterLevel(logrus.InfoLevel)),
 			exechelper.WithStderr(log.Entry(opt.ctx).WithField("cmd", "spire-agent healthcheck").WriterLevel(logrus.WarnLevel)),
 		)
-		if err != nil {
-			<-time.After(healthCheckTimeout)
-		}
-		return true, err
 	})
 	if err != nil {
 		errCh <- err
