@@ -21,7 +21,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
@@ -30,31 +29,12 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interdomainurl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/swap"
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-// NSMgrProxy is extended networkservice.NetworkServiceServer interface with additional method Register
-type NSMgrProxy interface {
-	networkservice.NetworkServiceServer
-	Register(s *grpc.Server)
-}
-
-type nsmgrProxy struct {
-	endpoint.Endpoint
-}
-
-func (n *nsmgrProxy) Register(s *grpc.Server) {
-	grpcutils.RegisterHealthServices(s, n)
-	networkservice.RegisterNetworkServiceServer(s, n)
-	networkservice.RegisterMonitorConnectionServer(s, n)
-}
-
 // NewServer creates new proxy NSMgr
-func NewServer(ctx context.Context, name string, externalIP fmt.Stringer, tokenGenerator token.GeneratorFunc, options ...grpc.DialOption) NSMgrProxy {
-	result := new(nsmgrProxy)
-
-	result.Endpoint = endpoint.NewServer(ctx,
+func NewServer(ctx context.Context, name string, externalIP fmt.Stringer, tokenGenerator token.GeneratorFunc, options ...grpc.DialOption) endpoint.Endpoint {
+	return endpoint.NewServer(ctx,
 		name,
 		authorize.NewServer(),
 		tokenGenerator,
@@ -68,5 +48,4 @@ func NewServer(ctx context.Context, name string, externalIP fmt.Stringer, tokenG
 			options...,
 		),
 	)
-	return &nsmgrProxy{Endpoint: result}
 }

@@ -195,7 +195,7 @@ func (b *Builder) dialContext(ctx context.Context, u *url.URL) *grpc.ClientConn 
 	return conn
 }
 
-func (b *Builder) newNSMgrProxy(ctx context.Context) *NSMgrProxyEntry {
+func (b *Builder) newNSMgrProxy(ctx context.Context) *EndpointEntry {
 	if b.supplyRegistryProxy == nil {
 		return nil
 	}
@@ -205,9 +205,9 @@ func (b *Builder) newNSMgrProxy(ctx context.Context) *NSMgrProxyEntry {
 	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
 	serve(ctx, serveURL, mgr.Register)
 	log.Entry(ctx).Infof("%v listen on: %v", name, serveURL)
-	return &NSMgrProxyEntry{
-		NSMgrProxy: mgr,
-		URL:        serveURL,
+	return &EndpointEntry{
+		Endpoint: mgr,
+		URL:      serveURL,
 	}
 }
 
