@@ -30,7 +30,8 @@ import (
 )
 
 type queryCacheNSEClient struct {
-	cache memory.NetworkServiceEndpointSyncMap
+	chainCtx context.Context
+	cache    memory.NetworkServiceEndpointSyncMap
 }
 
 func (q *queryCacheNSEClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
@@ -65,9 +66,9 @@ func (q *queryCacheNSEClient) Find(ctx context.Context, in *registry.NetworkServ
 		go func() {
 			defer q.cache.Delete(key)
 			nseQuery.Watch = true
-			stream, err := next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, nseQuery, opts...)
+			stream, err := next.NetworkServiceEndpointRegistryClient(ctx).Find(q.chainCtx, nseQuery, opts...)
 			if err != nil {
-				q.cache.Delete(key)
+				return
 			}
 			for update, err := stream.Recv(); err == nil; update, err = stream.Recv() {
 				if update.Name != nseQuery.NetworkServiceEndpoint.Name {
@@ -90,6 +91,6 @@ func (q *queryCacheNSEClient) Unregister(ctx context.Context, in *registry.Netwo
 
 // NewClient creates new querycache registry.NetworkServiceEndpointRegistryClient that caches all resolved NSEs
 // All cached NSE is
-func NewClient() registry.NetworkServiceEndpointRegistryClient {
-	return &queryCacheNSEClient{}
+func NewClient(chainCtx context.Context) registry.NetworkServiceEndpointRegistryClient {
+	return &queryCacheNSEClient{chainCtx: chainCtx}
 }

@@ -68,7 +68,7 @@ func Test_QueryCacheServer_ShouldCacheNSEs(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	client := next.NewNetworkServiceEndpointRegistryClient(querycache.NewClient(), adapters.NetworkServiceEndpointServerToClient(mem))
+	client := next.NewNetworkServiceEndpointRegistryClient(querycache.NewClient(ctx), adapters.NetworkServiceEndpointServerToClient(mem))
 	_, err := client.Find(ctx, &registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{}})
 	require.NoError(t, err)
 

@@ -18,6 +18,7 @@ package sandbox
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -26,10 +27,14 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
+	nsmgr_proxy "github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgrproxy"
 	"github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
+
+// SupplyNSMgrProxyFunc nsmgr proxy
+type SupplyNSMgrProxyFunc func(context.Context, string, fmt.Stringer, token.GeneratorFunc, ...grpc.DialOption) nsmgr_proxy.NSMgrProxy
 
 // SupplyNSMgrFunc supplies NSMGR
 type SupplyNSMgrFunc func(context.Context, *registryapi.NetworkServiceEndpoint, networkservice.NetworkServiceServer, token.GeneratorFunc, grpc.ClientConnInterface, ...grpc.DialOption) nsmgr.Nsmgr
@@ -61,6 +66,12 @@ type NSMgrEntry struct {
 	URL *url.URL
 }
 
+// NSMgrProxyEntry is pair of nsmgr_proxy.NSMgrProxy and url.URL
+type NSMgrProxyEntry struct {
+	nsmgr_proxy.NSMgrProxy
+	URL *url.URL
+}
+
 // EndpointEntry is pair of endpoint.Endpoint and url.URL
 type EndpointEntry struct {
 	endpoint.Endpoint
@@ -70,6 +81,7 @@ type EndpointEntry struct {
 // Domain contains attached to domain nodes, registry
 type Domain struct {
 	Nodes         []*Node
+	NSMgrProxy    *NSMgrProxyEntry
 	Registry      *RegistryEntry
 	RegistryProxy *RegistryEntry
 	DNSResolver   dnsresolve.Resolver

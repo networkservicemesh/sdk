@@ -31,6 +31,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgrproxy"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
@@ -59,6 +60,7 @@ type Builder struct {
 	Resolver            dnsresolve.Resolver
 	supplyForwarder     SupplyForwarderFunc
 	supplyNSMgr         SupplyNSMgrFunc
+	supplyNSMgrProxy    SupplyNSMgrProxyFunc
 	supplyRegistry      SupplyRegistryFunc
 	supplyRegistryProxy SupplyRegistryProxyFunc
 	generateTokenFunc   token.GeneratorFunc
@@ -76,6 +78,7 @@ func NewBuilder(t *testing.T) *Builder {
 		DNSDomainName:       "cluster.local",
 		supplyRegistry:      memory.NewServer,
 		supplyRegistryProxy: proxydns.NewServer,
+		supplyNSMgrProxy:    nsmgrproxy.NewServer,
 		generateTokenFunc:   GenerateTestToken,
 	}
 }
@@ -89,7 +92,12 @@ func (b *Builder) Build() *Domain {
 		b.resources = append(b.resources, cancel)
 	}
 	domain := &Domain{}
-	domain.RegistryProxy = b.newRegistryProxy(ctx, &url.URL{})
+	domain.NSMgrProxy = b.newNSMgrProxy(ctx)
+	if domain.NSMgrProxy == nil {
+		domain.RegistryProxy = b.newRegistryProxy(ctx, &url.URL{})
+	} else {
+		domain.RegistryProxy = b.newRegistryProxy(ctx, domain.NSMgrProxy.URL)
+	}
 	if domain.RegistryProxy == nil {
 		domain.Registry = b.newRegistry(ctx, nil)
 	} else {
@@ -163,6 +171,12 @@ func (b *Builder) SetForwarderSupplier(f SupplyForwarderFunc) *Builder {
 	return b
 }
 
+// SetNSMgrProxySupplier replaces default nsmgr-proxy supplier to custom function
+func (b *Builder) SetNSMgrProxySupplier(f SupplyNSMgrProxyFunc) *Builder {
+	b.supplyNSMgrProxy = f
+	return b
+}
+
 // SetNSMgrSupplier replaces default nsmgr supplier to custom function
 func (b *Builder) SetNSMgrSupplier(f SupplyNSMgrFunc) *Builder {
 	b.supplyNSMgr = f
@@ -179,6 +193,22 @@ func (b *Builder) dialContext(ctx context.Context, u *url.URL) *grpc.ClientConn 
 	})
 	b.require.NoError(err, "Can not dial to", u)
 	return conn
+}
+
+func (b *Builder) newNSMgrProxy(ctx context.Context) *NSMgrProxyEntry {
+	if b.supplyRegistryProxy == nil {
+		return nil
+	}
+	name := "nsmgr-proxy-" + uuid.New().String()
+	ip := net.ParseIP("127.0.0.1")
+	mgr := b.supplyNSMgrProxy(ctx, name, ip, b.generateTokenFunc, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)))
+	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
+	serve(ctx, serveURL, mgr.Register)
+	log.Entry(ctx).Infof("%v listen on: %v", name, serveURL)
+	return &NSMgrProxyEntry{
+		NSMgrProxy: mgr,
+		URL:        serveURL,
+	}
 }
 
 func (b *Builder) newNSMgr(ctx context.Context, registryURL *url.URL) *NSMgrEntry {
