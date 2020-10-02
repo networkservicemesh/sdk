@@ -40,7 +40,7 @@ import (
 func TestNSMGR_RemoteUsecase(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	logrus.SetOutput(ioutil.Discard)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	domain := sandbox.NewBuilder(t).
 		SetNodesCount(2).
@@ -93,7 +93,7 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 func TestNSMGR_LocalUsecase(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	logrus.SetOutput(ioutil.Discard)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	domain := sandbox.NewBuilder(t).
 		SetNodesCount(1).
