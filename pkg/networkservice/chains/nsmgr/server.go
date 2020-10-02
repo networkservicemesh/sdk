@@ -67,6 +67,8 @@ type nsmgrServer struct {
 	registry.Registry
 }
 
+var _ Nsmgr = (*nsmgrServer)(nil)
+
 // NewServer - Creates a new Nsmgr
 //           nsmRegistration - Nsmgr registration
 //           authzServer - authorization server chain element
@@ -93,7 +95,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 		)
 	}
 
-	nseClient := next.NewNetworkServiceEndpointRegistryClient(querycache.NewClient(), adapter_registry.NetworkServiceEndpointServerToClient(nseRegistry))
+	nseClient := next.NewNetworkServiceEndpointRegistryClient(querycache.NewClient(ctx), adapter_registry.NetworkServiceEndpointServerToClient(nseRegistry))
 	nsClient := adapter_registry.NetworkServiceServerToClient(nsRegistry)
 	var interposeRegistry registryapi.NetworkServiceEndpointRegistryServer
 
