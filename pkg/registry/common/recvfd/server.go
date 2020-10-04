@@ -23,56 +23,62 @@ package recvfd
 
 import (
 	"context"
-	"fmt"
+	"net/url"
 	"os"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"google.golang.org/grpc/peer"
+	"github.com/pkg/errors"
 
 	"github.com/edwarnicke/grpcfd"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
 )
 
 type recvfdNseServer struct {
-	filesByNSEName map[string]*os.File
-	executor       serialize.Executor
+	fileMaps perEndpointFileMapMap
 }
 
 // NewNetworkServiceEndpointRegistryServer - creates new NSE registry chain element that will:
 //  1. Receive and fd over a unix file socket if the nse.URL is an inode://${dev}/${inode} url
 //  2. Rewrite the nse.URL to unix:///proc/${pid}/fd/${fd} so it can be used by a normal dialer
 func NewNetworkServiceEndpointRegistryServer() registry.NetworkServiceEndpointRegistryServer {
-	return &recvfdNseServer{
-		filesByNSEName: make(map[string]*os.File),
-	}
+	return &recvfdNseServer{}
 }
 
 func (r *recvfdNseServer) Register(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	p, ok := peer.FromContext(ctx)
-	_, _, err := grpcfd.URLStringToDevIno(endpoint.Url)
-	if ok && p.Addr != nil && err == nil {
-		if recv, ok := p.Addr.(grpcfd.FDRecver); ok {
-			fileCh, err := recv.RecvFileByURL(endpoint.Url)
-			if err != nil {
-				return nil, err
-			}
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case file := <-fileCh:
-				r.executor.AsyncExec(func() {
-					r.filesByNSEName[endpoint.Name] = file
-				})
-				endpoint = endpoint.Clone()
-				endpoint.Url = fmt.Sprintf("unix://%s", file.Name())
-			}
-		}
+	recv, ok := grpcfd.FromContext(ctx)
+	if !ok {
+		return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, endpoint)
 	}
-	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, endpoint)
+
+	// Get the fileMap
+	fileMap, _ := r.fileMaps.LoadOrStore(endpoint.GetName(), &perEndpointFileMap{
+		filesByInodeURL:    make(map[string]*os.File),
+		inodeURLbyFilename: make(map[string]*url.URL),
+	})
+
+	// Recv the FD and Swap the Inode for a file in InodeURL in Parameters
+	endpoint = endpoint.Clone()
+	err := recvFDAndSwapInodeToUnix(ctx, fileMap, endpoint, recv)
+	if err != nil {
+		return nil, err
+	}
+
+	// Call the next server in the chain
+	returnedEndpoint, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, endpoint)
+	if err != nil {
+		return nil, err
+	}
+	returnedEndpoint = returnedEndpoint.Clone()
+
+	// Swap back from File to Inode in the InodeURL in the Parameters
+	err = swapFileToInode(fileMap, returnedEndpoint, false)
+	if err != nil {
+		return nil, err
+	}
+	return returnedEndpoint, nil
 }
 
 func (r *recvfdNseServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
@@ -80,11 +86,115 @@ func (r *recvfdNseServer) Find(query *registry.NetworkServiceEndpointQuery, serv
 }
 
 func (r *recvfdNseServer) Unregister(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	r.executor.AsyncExec(func() {
-		// Note: intentionally not closing the file here as it will be closed by its finalizer when its no longer referenced
-		//       and GC runs.  Since we *only* kept the file reference here to prevent the file being GCed and Closed... we don't
-		//       need to protect it anymore
-		delete(r.filesByNSEName, endpoint.Name)
+	// Get the grpcfd.FDRecver
+	recv, ok := grpcfd.FromContext(ctx)
+	if !ok {
+		return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, endpoint)
+	}
+	// Get the fileMap
+	fileMap, _ := r.fileMaps.LoadOrStore(endpoint.GetName(), &perEndpointFileMap{
+		filesByInodeURL:    make(map[string]*os.File),
+		inodeURLbyFilename: make(map[string]*url.URL),
 	})
-	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, endpoint)
+	// Clean up the fileMap no matter what happens
+	defer r.fileMaps.Delete(endpoint.GetName())
+
+	// Recv the FD and Swap the Inode for a file in InodeURL in Parameters
+	endpoint = endpoint.Clone()
+	err := recvFDAndSwapInodeToUnix(ctx, fileMap, endpoint, recv)
+	if err != nil {
+		return nil, err
+	}
+
+	// Call the next server in the chain
+	_, err = next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, endpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	// Swap back from File to Inode in the InodeURL in the Parameters
+	endpoint = endpoint.Clone()
+	err = swapFileToInode(fileMap, endpoint, true)
+	if err != nil {
+		return nil, err
+	}
+	return &empty.Empty{}, nil
+}
+
+func recvFDAndSwapInodeToUnix(ctx context.Context, fileMap *perEndpointFileMap, endpoint *registry.NetworkServiceEndpoint, recv grpcfd.FDRecver) error {
+	inodeURL, err := url.Parse(endpoint.GetUrl())
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	// Is it an inode?
+	if inodeURL.Scheme != "inode" {
+		return nil
+	}
+
+	<-fileMap.executor.AsyncExec(func() {
+		file, ok := fileMap.filesByInodeURL[endpoint.GetUrl()]
+		if !ok {
+			// If we don't have a file for that inode... get it from the grpcfd.FDRecver
+			var fileCh <-chan *os.File
+			fileCh, err = recv.RecvFileByURL(endpoint.GetUrl())
+			if err != nil {
+				err = errors.WithStack(err)
+				return
+			}
+			// Wait for the file to arrive on the fileCh or the context to expire
+			select {
+			case <-ctx.Done():
+				err = ctx.Err()
+				return
+			case file = <-fileCh:
+				// If we get the file, remember it in the fileMap so we can reuse it later
+				// Note: This is done because we want to present a single consistent filename to
+				// any of the other chain elements using the information, and since that filename will be
+				// file:///proc/${pid}/fd/${fd} we need to remember it because each time we get it from the
+				// grpcfd.Recver it will be a *different* fd and thus a different filename
+				fileMap.filesByInodeURL[inodeURL.String()] = file
+			}
+		}
+		// Swap out the inodeURL for a fileURL in the parameters
+		unixURL := &url.URL{Scheme: "unix", Path: file.Name()}
+		endpoint.Url = unixURL.String()
+
+		// Remember the swap so we can undo it later
+		fileMap.inodeURLbyFilename[file.Name()] = inodeURL
+	})
+	return err
+}
+
+func swapFileToInode(fileMap *perEndpointFileMap, endpoint *registry.NetworkServiceEndpoint, closeAllFiles bool) error {
+	// Transform string to URL for correctness checking and ease of use
+	unixURL, err := url.Parse(endpoint.GetUrl())
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	// Is it a file?
+	if unixURL.Scheme != "unix" {
+		return nil
+	}
+	<-fileMap.executor.AsyncExec(func() {
+		// Do we have an inodeURL to translate it back to?
+		inodeURL, ok := fileMap.inodeURLbyFilename[unixURL.Path]
+		if !ok {
+			return
+		}
+		// Swap the fileURL for the inodeURL in parameters
+		endpoint.Url = inodeURL.String()
+
+		// If closeAllFiles == true, close any files we may have open for any other inodes
+		// This is used to clean up files sent by MechanismPreferences that were *not* selected to be the
+		// connection mechanism
+		for inodeURLStr, file := range fileMap.filesByInodeURL {
+			if closeAllFiles || inodeURLStr != inodeURL.String() {
+				delete(fileMap.filesByInodeURL, inodeURLStr)
+				_ = file.Close()
+			}
+		}
+	})
+	return nil
 }
