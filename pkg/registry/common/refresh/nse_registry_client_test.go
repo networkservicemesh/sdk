@@ -72,11 +72,13 @@ func (c *checkExpirationTimeClient) Unregister(ctx context.Context, in *registry
 
 func TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	testClient := testNSEClient{}
-	refreshClient := refresh.NewNetworkServiceEndpointRegistryClient(&testClient,
-		refresh.WithRetryPeriod(testExpiryDuration),
-		refresh.WithDefaultExpiryDuration(testExpiryDuration),
-	)
+	testClient := &testNSEClient{}
+
+	refreshClient := next.NewNetworkServiceEndpointRegistryClient(
+		refresh.NewNetworkServiceEndpointRegistryClient(
+			refresh.WithRetryPeriod(testExpiryDuration),
+			refresh.WithDefaultExpiryDuration(testExpiryDuration)),
+		testClient)
 	_, err := refreshClient.Register(context.Background(), &registry.NetworkServiceEndpoint{
 		Name: "nse-1",
 	})
@@ -93,7 +95,8 @@ func TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {
 func TestRefreshNSEClient_ShouldSetExpirationTime_BeforeCallNext(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	c := next.NewNetworkServiceEndpointRegistryClient(
-		refresh.NewNetworkServiceEndpointRegistryClient(&testNSEClient{}, refresh.WithDefaultExpiryDuration(time.Hour)),
+		&testNSEClient{},
+		refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithDefaultExpiryDuration(time.Hour)),
 		&checkExpirationTimeClient{T: t},
 	)
 
@@ -106,11 +109,12 @@ func TestRefreshNSEClient_ShouldSetExpirationTime_BeforeCallNext(t *testing.T) {
 
 func TestNewNetworkServiceEndpointRegistryClient_CalledRegisterTwice(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	testClient := testNSEClient{}
-	refreshClient := refresh.NewNetworkServiceEndpointRegistryClient(&testClient,
-		refresh.WithRetryPeriod(testExpiryDuration),
-		refresh.WithDefaultExpiryDuration(testExpiryDuration),
-	)
+	testClient := &testNSEClient{}
+	refreshClient := next.NewNetworkServiceEndpointRegistryClient(
+		refresh.NewNetworkServiceEndpointRegistryClient(
+			refresh.WithRetryPeriod(testExpiryDuration),
+			refresh.WithDefaultExpiryDuration(testExpiryDuration)),
+		testClient)
 	_, err := refreshClient.Register(context.Background(), &registry.NetworkServiceEndpoint{
 		Name: "nse-1",
 	})
