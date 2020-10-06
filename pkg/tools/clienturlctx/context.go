@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package clienturl allows the setting of a client url in the context of the request
-package clienturl
+// Package clienturlctx allows the setting of a client url in the context of the request
+package clienturlctx
 
 import (
 	"context"

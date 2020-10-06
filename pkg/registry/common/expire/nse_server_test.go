@@ -21,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/goleak"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/memory"
 
@@ -33,6 +35,7 @@ import (
 )
 
 func TestNewNetworkServiceEndpointRegistryServer(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	s := next.NewNetworkServiceEndpointRegistryServer(expire.NewNetworkServiceEndpointRegistryServer(), memory.NewNetworkServiceEndpointRegistryServer())
 	expiration := time.Now().Add(testPeriod * 2)
 	_, err := s.Register(context.Background(), &registry.NetworkServiceEndpoint{

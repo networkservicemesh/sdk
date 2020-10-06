@@ -23,8 +23,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
@@ -34,12 +43,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/eventchannel"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
-)
-
-const (
-	waitForTimeout  = 50 * time.Millisecond
-	waitHealTimeout = 500 * time.Millisecond
-	tickTimeout     = 10 * time.Millisecond
 )
 
 type testOnHeal struct {
@@ -62,6 +65,7 @@ func TestHealClient_Request(t *testing.T) {
 	defer close(eventCh)
 
 	onHealCh := make(chan struct{})
+	// TODO for tomorrow... check on how to work onHeal into the new chain I've built
 	onHeal := &testOnHeal{
 		RequestFunc: func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (connection *networkservice.Connection, e error) {
 			if ctx.Err() == nil {
@@ -73,39 +77,30 @@ func TestHealClient_Request(t *testing.T) {
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
+	monitorServer := eventchannel.NewMonitorServer(eventCh)
+	server := chain.NewNetworkServiceServer(
+		updatepath.NewServer("testServer"),
+		monitor.NewServer(ctx, &monitorServer),
+		updatetoken.NewServer(sandbox.GenerateTestToken),
+	)
 	client := chain.NewNetworkServiceClient(
-		heal.NewClient(ctx, eventchannel.NewMonitorConnectionClient(eventCh), addressof.NetworkServiceClient(onHeal)))
+		updatepath.NewClient("testClient"),
+		heal.NewClient(ctx, adapters.NewMonitorServerToClient(monitorServer), addressof.NetworkServiceClient(onHeal)),
+		updatetoken.NewClient(sandbox.GenerateTestToken),
+		adapters.NewServerToClient(server),
+	)
 
-	requestCtx, reqCancelFunc := context.WithTimeout(context.Background(), waitForTimeout)
+	requestCtx, reqCancelFunc := context.WithTimeout(ctx, waitForTimeout)
 	defer reqCancelFunc()
-	_, err := client.Request(requestCtx, &networkservice.NetworkServiceRequest{
+	conn, err := client.Request(requestCtx, &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
-			Id:             "conn-1",
 			NetworkService: "ns-1",
 		},
 	})
 	require.Nil(t, err)
-
-	eventCh <- &networkservice.ConnectionEvent{
-		Type: networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,
-		Connections: map[string]*networkservice.Connection{
-			"conn-1": {
-				Id:             "conn-1",
-				NetworkService: "ns-1",
-			},
-		},
-	}
-
 	t1 := time.Now()
-	eventCh <- &networkservice.ConnectionEvent{
-		Type: networkservice.ConnectionEventType_DELETE,
-		Connections: map[string]*networkservice.Connection{
-			"conn-1": {
-				Id:             "conn-1",
-				NetworkService: "ns-1",
-			},
-		},
-	}
+	_, err = server.Close(requestCtx, conn.Clone())
+	require.NoError(t, err)
 	ctx, cancel := context.WithTimeout(context.Background(), waitHealTimeout)
 	defer cancel()
 	select {
@@ -116,6 +111,8 @@ func TestHealClient_Request(t *testing.T) {
 		// All is fine, test is passed
 		break
 	}
+	_, err = client.Close(requestCtx, conn)
+	require.NoError(t, err)
 	logrus.Infof("passed with total time: %v", time.Since(t1))
 }
 
@@ -125,35 +122,47 @@ func TestHealClient_EmptyInit(t *testing.T) {
 	eventCh := make(chan *networkservice.ConnectionEvent, 1)
 	defer close(eventCh)
 
+	onHealCh := make(chan struct{})
+	// TODO for tomorrow... check on how to work onHeal into the new chain I've built
+	onHeal := &testOnHeal{
+		RequestFunc: func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (connection *networkservice.Connection, e error) {
+			if ctx.Err() == nil {
+				close(onHealCh)
+			}
+			return &networkservice.Connection{}, nil
+		},
+	}
+
+	eventTrigger := &testOnHeal{
+		RequestFunc: func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+			eventCh <- &networkservice.ConnectionEvent{
+				Type:        networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,
+				Connections: make(map[string]*networkservice.Connection),
+			}
+			return next.Client(ctx).Request(ctx, in)
+		},
+	}
+
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 	client := chain.NewNetworkServiceClient(
-		heal.NewClient(ctx, eventchannel.NewMonitorConnectionClient(eventCh), nil))
+		updatepath.NewClient("testClient"),
+		heal.NewClient(ctx, eventchannel.NewMonitorConnectionClient(eventCh), addressof.NetworkServiceClient(onHeal)),
+		updatetoken.NewClient(sandbox.GenerateTestToken),
+		updatepath.NewClient("testServer"),
+		eventTrigger,
+		updatetoken.NewClient(sandbox.GenerateTestToken),
+	)
 
-	ctx, cancel := context.WithTimeout(ctx, waitForTimeout)
-	defer cancel()
-	_, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
+	requestCtx, reqCancelFunc := context.WithTimeout(ctx, waitForTimeout)
+	defer reqCancelFunc()
+
+	_, err := client.Request(requestCtx, &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
-			Id:             "conn-1",
 			NetworkService: "ns-1",
 		},
 	})
-	require.Nil(t, err)
-
-	eventCh <- &networkservice.ConnectionEvent{
-		Type:        networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,
-		Connections: make(map[string]*networkservice.Connection),
-	}
-
-	eventCh <- &networkservice.ConnectionEvent{
-		Type: networkservice.ConnectionEventType_UPDATE,
-		Connections: map[string]*networkservice.Connection{
-			"conn-1": {
-				Id:             "conn-1",
-				NetworkService: "ns-1",
-			},
-		},
-	}
+	require.Error(t, err)
 }
 
 func TestNewClient_MissingConnectionsInInit(t *testing.T) {

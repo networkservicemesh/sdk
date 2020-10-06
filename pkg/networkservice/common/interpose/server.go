@@ -21,10 +21,11 @@ package interpose
 import (
 	"context"
 	"net/url"
-	"sync"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
-	interpose_tools "github.com/networkservicemesh/sdk/pkg/tools/interpose"
 
 	"github.com/pkg/errors"
 
@@ -35,17 +36,13 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
 type interposeServer struct {
-	// Map of names -> *registry.NetworkServiceEndpoint for local bypass to file endpoints
-	endpoints interpose_tools.Map
-
-	activeConnection sync.Map
-
-	name string
+	endpoints        stringurl.Map
+	activeConnection connectionInfoMap // key == connectionId
+	name             string
 }
 
 type connectionInfo struct {
@@ -85,9 +82,9 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 	clientConnID := l.getConnectionID(conn)
 
 	// We came from client, so select cross nse and go to it.
-	clientURL := clienturl.ClientURL(ctx)
+	clientURL := clienturlctx.ClientURL(ctx)
 
-	connInfoRaw, ok := l.activeConnection.Load(clientConnID)
+	connInfo, ok := l.activeConnection.Load(clientConnID)
 	if !ok {
 		if connID != clientConnID {
 			return nil, errors.Errorf("connection id should match current path segment id")
@@ -95,12 +92,11 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 
 		// Iterate over all cross connect NSEs to check one with passed state.
 
-		l.endpoints.Range(func(key string, value *registry.NetworkServiceEndpoint) bool {
-			crossNSEURL, _ := url.Parse(value.Url)
-			crossCTX := clienturl.WithClientURL(ctx, crossNSEURL)
+		l.endpoints.Range(func(key string, crossNSEURL *url.URL) bool {
+			crossCTX := clienturlctx.WithClientURL(ctx, crossNSEURL)
 
 			// Store client connection and selected cross connection URL.
-			connInfoRaw, _ = l.activeConnection.LoadOrStore(clientConnID, &connectionInfo{
+			connInfo, _ = l.activeConnection.LoadOrStore(clientConnID, connectionInfo{
 				endpointURL:     clientURL,
 				interposeNSEURL: crossNSEURL,
 				requestingNSE:   true,
@@ -121,11 +117,10 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 
 		return nil, errors.Errorf("all cross NSE failed to connect to endpoint %v connection: %v", clientURL, conn)
 	}
-	connInfo := connInfoRaw.(*connectionInfo)
 
 	var crossCTX context.Context
 	if !connInfo.requestingNSE {
-		crossCTX = clienturl.WithClientURL(ctx, connInfo.interposeNSEURL)
+		crossCTX = clienturlctx.WithClientURL(ctx, connInfo.interposeNSEURL)
 	} else {
 		// Go to endpoint URL if it matches one we had on previous step.
 		if clientURL != connInfo.endpointURL && *clientURL != *connInfo.endpointURL {
@@ -153,32 +148,19 @@ func (l *interposeServer) Close(ctx context.Context, conn *networkservice.Connec
 	id := l.getConnectionID(conn)
 
 	// We came from cross nse, we need to go to proper endpoint
-	connInfoRaw, ok := l.activeConnection.Load(id)
+	connInfo, ok := l.activeConnection.Load(id)
 	if !ok {
 		return nil, errors.Errorf("no active connection found but we called from cross NSE %v", conn)
 	}
-	connInfo := connInfoRaw.(*connectionInfo)
 
 	var crossCTX context.Context
 	if !connInfo.closingNSE {
 		connInfo.closingNSE = true
-		crossCTX = clienturl.WithClientURL(ctx, connInfo.interposeNSEURL)
+		crossCTX = clienturlctx.WithClientURL(ctx, connInfo.interposeNSEURL)
 	} else {
 		l.activeConnection.Delete(id)
 		crossCTX = ctx
 	}
 
 	return next.Server(crossCTX).Close(crossCTX, conn)
-}
-
-func (l *interposeServer) LoadOrStore(name string, endpoint *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, bool) {
-	r, ok := l.endpoints.LoadOrStore(name, endpoint)
-	if ok {
-		return r, true
-	}
-	return nil, false
-}
-
-func (l *interposeServer) Delete(name string) {
-	l.endpoints.Delete(name)
 }

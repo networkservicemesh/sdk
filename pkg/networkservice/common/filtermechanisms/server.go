@@ -14,52 +14,56 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package filtermechanisms filters out remote mechanisms if communicating by remote url
+// filters out local mechanisms otherwise.
 package filtermechanisms
 
 import (
 	"context"
 
-	"github.com/golang/protobuf/ptypes/empty"
-	"google.golang.org/grpc/peer"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/endpointurls"
 )
 
-type filterMechanismsServer struct{}
+type filterMechanismsServer struct {
+	urls endpointurls.Set
+}
 
 // NewServer - filters out remote mechanisms if connection is received from a unix file socket, otherwise filters
 // out local mechanisms
-func NewServer() networkservice.NetworkServiceServer {
-	return &filterMechanismsServer{}
+func NewServer(registryServer *registry.NetworkServiceEndpointRegistryServer) networkservice.NetworkServiceServer {
+	result := &filterMechanismsServer{}
+	*registryServer = endpointurls.NewNetworkServiceEndpointRegistryServer(&result.urls)
+	return result
 }
 
 func (f *filterMechanismsServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	p, ok := peer.FromContext(ctx)
-	if ok {
-		if p.Addr.Network() == "unix" {
-			var mechanisms []*networkservice.Mechanism
-			for _, mechanism := range request.GetMechanismPreferences() {
-				if mechanism.Cls == cls.LOCAL {
-					mechanisms = append(mechanisms, mechanism)
-				}
-			}
-			request.MechanismPreferences = mechanisms
-			return next.Server(ctx).Request(ctx, request)
-		}
-		var mechanisms []*networkservice.Mechanism
-		for _, mechanism := range request.GetMechanismPreferences() {
-			if mechanism.Cls == cls.REMOTE {
-				mechanisms = append(mechanisms, mechanism)
-			}
-		}
-		request.MechanismPreferences = mechanisms
+	u := clienturlctx.ClientURL(ctx)
+	if _, ok := f.urls.Load(*u); ok {
+		request.MechanismPreferences = filterMechanismsByCls(request.GetMechanismPreferences(), cls.LOCAL)
+	} else {
+		request.MechanismPreferences = filterMechanismsByCls(request.GetMechanismPreferences(), cls.REMOTE)
 	}
 	return next.Server(ctx).Request(ctx, request)
 }
 
 func (f *filterMechanismsServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	return next.Server(ctx).Close(ctx, conn)
+}
+
+func filterMechanismsByCls(mechanisms []*networkservice.Mechanism, mechanismCls string) []*networkservice.Mechanism {
+	var result []*networkservice.Mechanism
+	for _, mechanism := range mechanisms {
+		if mechanism.Cls == mechanismCls {
+			result = append(result, mechanism)
+		}
+	}
+	return result
 }

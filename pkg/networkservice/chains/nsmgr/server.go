@@ -22,7 +22,12 @@ package nsmgr
 import (
 	"context"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/querycache"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/filtermechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interpose"
+	"github.com/networkservicemesh/sdk/pkg/registry"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
@@ -30,7 +35,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/registry"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
@@ -63,6 +67,8 @@ type nsmgrServer struct {
 	registry.Registry
 }
 
+var _ Nsmgr = (*nsmgrServer)(nil)
+
 // NewServer - Creates a new Nsmgr
 //           nsmRegistration - Nsmgr registration
 //           authzServer - authorization server chain element
@@ -72,6 +78,7 @@ type nsmgrServer struct {
 func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceEndpoint, authzServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, registryCC grpc.ClientConnInterface, clientDialOptions ...grpc.DialOption) Nsmgr {
 	rv := &nsmgrServer{}
 
+	var urlsRegistryServer registryapi.NetworkServiceEndpointRegistryServer
 	var localbypassRegistryServer registryapi.NetworkServiceEndpointRegistryServer
 
 	nsRegistry := newRemoteNSServer(registryCC)
@@ -88,6 +95,8 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 		)
 	}
 
+	nseClient := next.NewNetworkServiceEndpointRegistryClient(querycache.NewClient(ctx), adapter_registry.NetworkServiceEndpointServerToClient(nseRegistry))
+	nsClient := adapter_registry.NetworkServiceServerToClient(nsRegistry)
 	var interposeRegistry registryapi.NetworkServiceEndpointRegistryServer
 
 	// Construct Endpoint
@@ -95,11 +104,12 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 		nsmRegistration.Name,
 		authzServer,
 		tokenGenerator,
-		discover.NewServer(adapter_registry.NetworkServiceServerToClient(nsRegistry), adapter_registry.NetworkServiceEndpointServerToClient(nseRegistry)),
+		discover.NewServer(nsClient, nseClient),
 		roundrobin.NewServer(),
 		localbypass.NewServer(&localbypassRegistryServer),
 		excludedprefixes.NewServer(ctx),
 		interpose.NewServer(nsmRegistration.Name, &interposeRegistry),
+		filtermechanisms.NewServer(&urlsRegistryServer),
 		connect.NewServer(
 			ctx,
 			client.NewClientFactory(nsmRegistration.Name,
@@ -111,6 +121,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 
 	nsChain := chain_registry.NewNetworkServiceRegistryServer(nsRegistry)
 	nseChain := chain_registry.NewNetworkServiceEndpointRegistryServer(
+		urlsRegistryServer,
 		interposeRegistry,         // Store cross connect NSEs
 		localbypassRegistryServer, // Store endpoint Id to EndpointURL for local access.
 		seturl.NewNetworkServiceEndpointRegistryServer(nsmRegistration.Url), // Remember endpoint URL

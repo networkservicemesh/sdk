@@ -14,10 +14,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package chainstest
+package sandbox
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -26,9 +27,13 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/registry"
+	"github.com/networkservicemesh/sdk/pkg/registry"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
+
+// SupplyNSMgrProxyFunc nsmgr proxy
+type SupplyNSMgrProxyFunc func(context.Context, string, fmt.Stringer, token.GeneratorFunc, ...grpc.DialOption) endpoint.Endpoint
 
 // SupplyNSMgrFunc supplies NSMGR
 type SupplyNSMgrFunc func(context.Context, *registryapi.NetworkServiceEndpoint, networkservice.NetworkServiceServer, token.GeneratorFunc, grpc.ClientConnInterface, ...grpc.DialOption) nsmgr.Nsmgr
@@ -37,7 +42,10 @@ type SupplyNSMgrFunc func(context.Context, *registryapi.NetworkServiceEndpoint, 
 type SupplyForwarderFunc func(context.Context, string, token.GeneratorFunc, *url.URL, ...grpc.DialOption) endpoint.Endpoint
 
 // SupplyRegistryFunc supplies Registry
-type SupplyRegistryFunc func() registry.Registry
+type SupplyRegistryFunc func(ctx context.Context, proxyRegistryURL *url.URL, options ...grpc.DialOption) registry.Registry
+
+// SupplyRegistryProxyFunc supplies registry proxy
+type SupplyRegistryProxyFunc func(ctx context.Context, dnsResolver dnsresolve.Resolver, handlingDNSDomain string, proxyNSMgrURL *url.URL, options ...grpc.DialOption) registry.Registry
 
 // Node is pair of Forwarder and NSMgr
 type Node struct {
@@ -65,10 +73,13 @@ type EndpointEntry struct {
 
 // Domain contains attached to domain nodes, registry
 type Domain struct {
-	Nodes     []*Node
-	Registry  *RegistryEntry
-	Name      string
-	resources []context.CancelFunc
+	Nodes         []*Node
+	NSMgrProxy    *EndpointEntry
+	Registry      *RegistryEntry
+	RegistryProxy *RegistryEntry
+	DNSResolver   dnsresolve.Resolver
+	Name          string
+	resources     []context.CancelFunc
 }
 
 // Cleanup frees all resources related to the domain

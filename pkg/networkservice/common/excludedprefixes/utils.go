@@ -48,14 +48,14 @@ func watchFile(ctx context.Context, filePath string, onChanged func([]byte)) err
 		return err
 	}
 
+	defer func() {
+		_ = watcher.Close()
+	}()
+
 	directoryPath, fileName := filepath.Split(filePath)
 	if err := watcher.Add(directoryPath); err != nil {
 		return err
 	}
-
-	defer func() {
-		_ = watcher.Close()
-	}()
 
 	// to be sure, that we didn't miss Create event before watcher creation
 	bytes, _ := ioutil.ReadFile(filepath.Clean(filePath))

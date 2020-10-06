@@ -56,16 +56,14 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 	if err != nil {
 		return nil, err
 	}
-	expireTime, err := ptypes.Timestamp(request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].GetExpires())
+	expireTime, err := ptypes.Timestamp(rv.GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].GetExpires())
 	if err != nil {
 		return nil, err
 	}
 
 	// Create refreshRequest
 	refreshRequest := request.Clone()
-	refreshRequest.GetConnection().Context = rv.Context
-	refreshRequest.GetConnection().Mechanism = rv.Mechanism
-	refreshRequest.GetConnection().NetworkServiceEndpointName = rv.NetworkServiceEndpointName
+	request.Connection = rv.Clone()
 
 	// TODO - introduce random noise into duration avoid timer lock
 	duration := time.Until(expireTime) / 3

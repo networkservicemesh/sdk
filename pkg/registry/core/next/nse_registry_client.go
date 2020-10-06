@@ -46,7 +46,7 @@ func (n *nextNetworkServiceEndpointRegistryClient) Find(ctx context.Context, in 
 	if n.index+1 < len(n.clients) {
 		return n.clients[n.index].Find(withNextNSERegistryClient(ctx, &nextNetworkServiceEndpointRegistryClient{nextParent: nextParent, clients: n.clients, index: n.index + 1}), in, opts...)
 	}
-	return n.clients[n.index].Find(withNextNSERegistryClient(ctx, nextParent), in)
+	return n.clients[n.index].Find(withNextNSERegistryClient(ctx, nextParent), in, opts...)
 }
 
 func (n *nextNetworkServiceEndpointRegistryClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
@@ -59,7 +59,7 @@ func (n *nextNetworkServiceEndpointRegistryClient) Register(ctx context.Context,
 	if n.index+1 < len(n.clients) {
 		return n.clients[n.index].Register(withNextNSERegistryClient(ctx, &nextNetworkServiceEndpointRegistryClient{nextParent: nextParent, clients: n.clients, index: n.index + 1}), in, opts...)
 	}
-	return n.clients[n.index].Register(withNextNSERegistryClient(ctx, nextParent), in)
+	return n.clients[n.index].Register(withNextNSERegistryClient(ctx, nextParent), in, opts...)
 }
 
 func (n *nextNetworkServiceEndpointRegistryClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
@@ -72,7 +72,7 @@ func (n *nextNetworkServiceEndpointRegistryClient) Unregister(ctx context.Contex
 	if n.index+1 < len(n.clients) {
 		return n.clients[n.index].Unregister(withNextNSERegistryClient(ctx, &nextNetworkServiceEndpointRegistryClient{nextParent: nextParent, clients: n.clients, index: n.index + 1}), in, opts...)
 	}
-	return n.clients[n.index].Unregister(withNextNSERegistryClient(ctx, nextParent), in)
+	return n.clients[n.index].Unregister(withNextNSERegistryClient(ctx, nextParent), in, opts...)
 }
 
 // NewWrappedNetworkServiceEndpointRegistryClient - creates a chain of servers with each one wrapped in wrapper

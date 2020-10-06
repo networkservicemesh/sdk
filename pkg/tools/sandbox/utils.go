@@ -14,17 +14,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package chainstest
+package sandbox
 
 import (
 	"context"
 	"fmt"
 	"net/url"
+	"time"
 
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
@@ -34,6 +37,11 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
+
+// GenerateTestToken generates test token
+func GenerateTestToken(_ credentials.AuthInfo) (tokenValue string, expireTime time.Time, err error) {
+	return "TestToken", time.Date(3000, 1, 1, 1, 1, 1, 1, time.UTC), nil
+}
 
 // NewEndpoint creates endpoint and registers it into passed NSMgr.
 func NewEndpoint(ctx context.Context, nse *registry.NetworkServiceEndpoint, generatorFunc token.GeneratorFunc, mgr nsmgr.Nsmgr, additionalFunctionality ...networkservice.NetworkServiceServer) (*EndpointEntry, error) {
@@ -49,6 +57,14 @@ func NewEndpoint(ctx context.Context, nse *registry.NetworkServiceEndpoint, gene
 	serve(ctx, u, ep.Register)
 	if nse.Url == "" {
 		nse.Url = u.String()
+	}
+	if nse.ExpirationTime == nil {
+		deadline := time.Now().Add(time.Hour)
+		expirationTime, err := ptypes.TimestampProto(deadline)
+		if err != nil {
+			return nil, err
+		}
+		nse.ExpirationTime = expirationTime
 	}
 	if _, err := mgr.NetworkServiceEndpointRegistryServer().Register(ctx, nse); err != nil {
 		return nil, err

@@ -14,13 +14,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package localbypass provides localBypassServer and localBypassServer related tools
-package localbypass
+package endpointurls
 
-import "sync"
+import (
+	"sync"
+)
 
-//go:generate go-syncmap -output sync_map.gen.go -type Map<string,*net/url.URL>
+//go:generate go-syncmap -output sync_set.gen.go -type Set<net/url.URL,struct{}>
 
-// Map is like a Go map[string]*url.URL but is safe for concurrent use
+// Set is like a Go map[url.URL]struct{} but is safe for concurrent use
 // by multiple goroutines without additional locking or coordination
-type Map sync.Map
+type Set sync.Map

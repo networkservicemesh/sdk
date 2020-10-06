@@ -48,10 +48,11 @@ func (c *connectClient) Request(ctx context.Context, request *networkservice.Net
 	clientRequest.GetConnection().Mechanism = nil
 	if c.connection != nil {
 		clientRequest.Connection = c.connection
+		clientRequest.Connection.NetworkService = request.GetConnection().NetworkService
+		clientRequest.Connection.NetworkServiceEndpointName = request.GetConnection().NetworkServiceEndpointName
 	}
 	conn, err := next.Client(ctx).Request(ctx, clientRequest)
 	c.connection = conn
-
 	return conn, err
 }
 

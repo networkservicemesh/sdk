@@ -17,6 +17,7 @@
 package eventchannel_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -29,7 +30,7 @@ import (
 func TestMonitorConnection_MonitorConnectionsClient_Recv(t *testing.T) {
 	numEvents := 50
 	eventCh := make(chan *networkservice.ConnectionEvent, numEvents)
-	mcc := eventchannel.NewMonitorConnectionMonitorConnectionsClient(eventCh)
+	mcc := eventchannel.NewMonitorConnectionMonitorConnectionsClient(context.Background(), eventCh)
 	eventsIn := make([]*networkservice.ConnectionEvent, numEvents)
 	for i := 0; i < numEvents; i++ {
 		eventsIn[i] = &networkservice.ConnectionEvent{
@@ -59,7 +60,7 @@ func TestMonitorConnection_MonitorConnectionsClient_Recv(t *testing.T) {
 
 func TestMonitorConnection_MonitorConnectionsClient_RecvMsg(t *testing.T) {
 	eventCh := make(chan *networkservice.ConnectionEvent, 100)
-	mcc := eventchannel.NewMonitorConnectionMonitorConnectionsClient(eventCh)
+	mcc := eventchannel.NewMonitorConnectionMonitorConnectionsClient(context.Background(), eventCh)
 
 	var wrongTypeEvent struct{}
 	err := mcc.RecvMsg(wrongTypeEvent)
@@ -91,13 +92,13 @@ func TestMonitorConnection_MonitorConnectionsClient_RecvMsg(t *testing.T) {
 
 func TestMonitorConnection_MonitorConnectionsClient_CloseSend(t *testing.T) {
 	eventCh := make(chan *networkservice.ConnectionEvent)
-	mcc := eventchannel.NewMonitorConnectionMonitorConnectionsClient(eventCh)
+	mcc := eventchannel.NewMonitorConnectionMonitorConnectionsClient(context.Background(), eventCh)
 	assert.Nil(t, mcc.CloseSend())
 }
 
 func TestMonitorConnection_MonitorConnectionsClient_Header(t *testing.T) {
 	eventCh := make(chan *networkservice.ConnectionEvent)
-	mcc := eventchannel.NewMonitorConnectionMonitorConnectionsClient(eventCh)
+	mcc := eventchannel.NewMonitorConnectionMonitorConnectionsClient(context.Background(), eventCh)
 	header, err := mcc.Header()
 	assert.Nil(t, err)
 	assert.NotNil(t, header)
@@ -105,12 +106,12 @@ func TestMonitorConnection_MonitorConnectionsClient_Header(t *testing.T) {
 
 func TestMonitorConnection_MonitorConnectionsClient_SendMsg(t *testing.T) {
 	eventCh := make(chan *networkservice.ConnectionEvent)
-	mcc := eventchannel.NewMonitorConnectionMonitorConnectionsClient(eventCh)
+	mcc := eventchannel.NewMonitorConnectionMonitorConnectionsClient(context.Background(), eventCh)
 	assert.Nil(t, mcc.SendMsg(nil))
 }
 
 func TestMonitorConnection_MonitorConnectionsClient_Trailer(t *testing.T) {
 	eventCh := make(chan *networkservice.ConnectionEvent)
-	mcc := eventchannel.NewMonitorConnectionMonitorConnectionsClient(eventCh)
+	mcc := eventchannel.NewMonitorConnectionMonitorConnectionsClient(context.Background(), eventCh)
 	assert.NotNil(t, mcc.Trailer())
 }

@@ -24,13 +24,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+
 	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
 	"github.com/networkservicemesh/sdk/pkg/registry/memory"
@@ -69,18 +70,18 @@ func TestConnect_NewNetworkServiceRegistryServer(t *testing.T) {
 		return registry.NewNetworkServiceRegistryClient(cc)
 	}, connect.WithExpirationDuration(time.Millisecond*100), connect.WithClientDialOptions(grpc.WithInsecure()))
 
-	_, err := s.Register(clienturl.WithClientURL(context.Background(), url1), &registry.NetworkService{Name: "ns-1"})
+	_, err := s.Register(clienturlctx.WithClientURL(context.Background(), url1), &registry.NetworkService{Name: "ns-1"})
 	require.Nil(t, err)
-	_, err = s.Register(clienturl.WithClientURL(context.Background(), url2), &registry.NetworkService{Name: "ns-1-1"})
+	_, err = s.Register(clienturlctx.WithClientURL(context.Background(), url2), &registry.NetworkService{Name: "ns-1-1"})
 	require.Nil(t, err)
 	ch := make(chan *registry.NetworkService, 1)
-	findSrv := streamchannel.NewNetworkServiceFindServer(clienturl.WithClientURL(context.Background(), url1), ch)
+	findSrv := streamchannel.NewNetworkServiceFindServer(clienturlctx.WithClientURL(context.Background(), url1), ch)
 	err = s.Find(&registry.NetworkServiceQuery{NetworkService: &registry.NetworkService{
 		Name: "ns-1",
 	}}, findSrv)
 	require.Nil(t, err)
 	require.Equal(t, (<-ch).Name, "ns-1")
-	findSrv = streamchannel.NewNetworkServiceFindServer(clienturl.WithClientURL(context.Background(), url2), ch)
+	findSrv = streamchannel.NewNetworkServiceFindServer(clienturlctx.WithClientURL(context.Background(), url2), ch)
 	err = s.Find(&registry.NetworkServiceQuery{NetworkService: &registry.NetworkService{
 		Name: "ns-1",
 	}}, findSrv)

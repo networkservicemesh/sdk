@@ -31,10 +31,11 @@ type monitorConnectionMonitorConnectionsClient struct {
 }
 
 // NewMonitorConnectionMonitorConnectionsClient - returns a networkservice.MonitorConnection_MonitorConnectionsClient
+//                                                 ctx - context which if Done will cause Recv to return.
 //                                                 eventCh - when an event is sent on eventCh, it is returned by the
 //                                                 call to Recv on the networkservice.MonitorConnection_MonitorConnectionsClient
-func NewMonitorConnectionMonitorConnectionsClient(eventCh <-chan *networkservice.ConnectionEvent) networkservice.MonitorConnection_MonitorConnectionsClient {
-	ctx, cancelFunc := context.WithCancel(context.Background())
+func NewMonitorConnectionMonitorConnectionsClient(ctx context.Context, eventCh <-chan *networkservice.ConnectionEvent) networkservice.MonitorConnection_MonitorConnectionsClient {
+	ctx, cancelFunc := context.WithCancel(ctx)
 	return &monitorConnectionMonitorConnectionsClient{
 		eventCh:    eventCh,
 		ctx:        ctx,
@@ -43,12 +44,16 @@ func NewMonitorConnectionMonitorConnectionsClient(eventCh <-chan *networkservice
 }
 
 func (m *monitorConnectionMonitorConnectionsClient) Recv() (*networkservice.ConnectionEvent, error) {
-	event, ok := <-m.eventCh
-	if !ok {
-		m.cancelFunc()
-		return nil, errors.New("No more events, chan closed by sender")
+	select {
+	case <-m.ctx.Done():
+		return nil, m.ctx.Err()
+	case event, ok := <-m.eventCh:
+		if !ok {
+			m.cancelFunc()
+			return nil, errors.New("No more events, chan closed by sender")
+		}
+		return event, nil
 	}
-	return event, nil
 }
 
 func (m *monitorConnectionMonitorConnectionsClient) Header() (metadata.MD, error) {

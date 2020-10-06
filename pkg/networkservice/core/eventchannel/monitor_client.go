@@ -72,7 +72,7 @@ func (m *monitorConnectionClient) MonitorConnections(ctx context.Context, _ *net
 			})
 		}()
 	})
-	return NewMonitorConnectionMonitorConnectionsClient(fanoutEventCh), nil
+	return NewMonitorConnectionMonitorConnectionsClient(ctx, fanoutEventCh), nil
 }
 
 func (m *monitorConnectionClient) eventLoop() {

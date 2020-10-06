@@ -20,6 +20,8 @@ import (
 	"context"
 	"sync"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
@@ -65,7 +67,7 @@ func (u *clientURLClient) Close(ctx context.Context, conn *networkservice.Connec
 
 func (u *clientURLClient) init() error {
 	u.initOnce.Do(func() {
-		clientURL := ClientURL(u.ctx)
+		clientURL := clienturlctx.ClientURL(u.ctx)
 		if clientURL == nil {
 			u.dialErr = errors.New("cannot dial nil clienturl.ClientURL(ctx)")
 			return
