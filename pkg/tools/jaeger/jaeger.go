@@ -70,7 +70,8 @@ func InitJaeger(service string) io.Closer {
 	}
 	cfg, err := config.FromEnv()
 	if err != nil {
-		panic(fmt.Sprintf("ERROR: cannot create Jaeger configuration: %v\n", err))
+		logrus.Errorf("ERROR: cannot create Jaeger configuration: %v\n", err)
+		return &emptyCloser{}
 	}
 
 	if cfg.ServiceName == "" {
@@ -87,9 +88,6 @@ func InitJaeger(service string) io.Closer {
 	}
 	if cfg.Sampler.Param == 0 {
 		cfg.Sampler.Param = 1
-	}
-	if !cfg.Reporter.LogSpans {
-		cfg.Reporter.LogSpans = true
 	}
 
 	logrus.Infof("Creating logger from config: %v", cfg)

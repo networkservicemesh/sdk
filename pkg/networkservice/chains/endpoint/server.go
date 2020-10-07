@@ -30,6 +30,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/initjaeger"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/timeout"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
@@ -63,6 +64,7 @@ func NewServer(ctx context.Context, name string, authzServer networkservice.Netw
 	var ns networkservice.NetworkServiceServer = rv
 	rv.NetworkServiceServer = chain.NewNetworkServiceServer(
 		append([]networkservice.NetworkServiceServer{
+			initjaeger.NewServer(name),
 			authzServer,
 			updatepath.NewServer(name),
 			monitor.NewServer(ctx, &rv.MonitorConnectionServer),
