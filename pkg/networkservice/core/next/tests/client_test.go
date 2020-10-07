@@ -31,6 +31,9 @@ import (
 func TestNewNetworkServiceClientShouldNotPanic(t *testing.T) {
 	assert.NotPanics(t, func() {
 		_, _ = next.NewNetworkServiceClient().Request(context.Context(nil), nil)
+		_, _ = next.NewWrappedNetworkServiceClient(func(client networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
+			return client
+		}).Request(context.Context(nil), nil)
 	})
 }
 
