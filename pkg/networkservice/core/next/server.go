@@ -40,6 +40,9 @@ type ServerChainer func(...networkservice.NetworkServiceServer) networkservice.N
 
 // NewWrappedNetworkServiceServer - chains together the servers provides with the wrapper wrapped around each one in turn.
 func NewWrappedNetworkServiceServer(wrapper ServerWrapper, servers ...networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
+	if len(servers) == 0 {
+		return &tailServer{}
+	}
 	rv := &nextServer{servers: make([]networkservice.NetworkServiceServer, 0, len(servers))}
 	for _, s := range servers {
 		rv.servers = append(rv.servers, wrapper(s))
@@ -50,9 +53,6 @@ func NewWrappedNetworkServiceServer(wrapper ServerWrapper, servers ...networkser
 // NewNetworkServiceServer - chains together servers while providing them with the correct next.Server(ctx) to call to
 // invoke the next element in the chain.
 func NewNetworkServiceServer(servers ...networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
-	if len(servers) == 0 {
-		return &tailServer{}
-	}
 	return NewWrappedNetworkServiceServer(func(server networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
 		return server
 	}, servers...)
