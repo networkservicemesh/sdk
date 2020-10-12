@@ -76,6 +76,9 @@ func emptyNSERegistryServer() registry.NetworkServiceEndpointRegistryServer {
 func TestNewNetworkServiceEndpointRegistryServerShouldNotPanic(t *testing.T) {
 	assert.NotPanics(t, func() {
 		_, _ = next.NewNetworkServiceEndpointRegistryServer().Register(context.Context(nil), nil)
+		_, _ = next.NewWrappedNetworkServiceEndpointRegistryServer(func(server registry.NetworkServiceEndpointRegistryServer) registry.NetworkServiceEndpointRegistryServer {
+			return server
+		}).Register(context.Context(nil), nil)
 	})
 }
 
@@ -166,6 +169,9 @@ func emptyNSERegistryClient() registry.NetworkServiceEndpointRegistryClient {
 func TestNewNetworkServiceEndpointRegistryClientShouldNotPanic(t *testing.T) {
 	assert.NotPanics(t, func() {
 		_, _ = next.NewNetworkServiceEndpointRegistryClient().Register(context.Context(nil), nil)
+		_, _ = next.NewWrappedNetworkServiceEndpointRegistryClient(func(client registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceEndpointRegistryClient {
+			return client
+		}).Register(context.Context(nil), nil)
 	})
 }
 
