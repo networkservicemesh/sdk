@@ -20,7 +20,6 @@
 package serialize
 
 import (
-	"container/list"
 	"sync"
 	"sync/atomic"
 )
@@ -28,7 +27,7 @@ import (
 // Executor - a struct that can be used to guarantee exclusive, in order execution of functions.
 type Executor struct {
 	mutex sync.Mutex
-	queue list.List
+	queue []func()
 	count int32
 }
 
@@ -43,7 +42,7 @@ func NewExecutor() Executor {
 func (e *Executor) AsyncExec(f func()) <-chan struct{} {
 	done := make(chan struct{})
 	e.mutex.Lock()
-	e.queue.PushBack(func() {
+	e.queue = append(e.queue, func() {
 		f()
 		close(done)
 	})
@@ -53,10 +52,10 @@ func (e *Executor) AsyncExec(f func()) <-chan struct{} {
 		go func() {
 			for {
 				e.mutex.Lock()
-				first := e.queue.Front()
-				e.queue.Remove(first)
+				f := e.queue[0]
+				e.queue = e.queue[1:]
 				e.mutex.Unlock()
-				first.Value.(func())()
+				f()
 				if atomic.AddInt32(&e.count, -1) == 0 {
 					return
 				}
