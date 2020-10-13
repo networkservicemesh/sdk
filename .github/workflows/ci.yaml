@@ -147,6 +147,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           path: ${{ github.repository }}
+          fetch-depth: '0'
       - name: Create commit message
         working-directory: ${{ github.repository }}
         run: |
