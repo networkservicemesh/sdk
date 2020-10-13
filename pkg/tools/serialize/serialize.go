@@ -42,10 +42,12 @@ func NewExecutor() Executor {
 //        It immediately returns a channel that will be closed when f() has completed execution.
 func (e *Executor) AsyncExec(f func()) <-chan struct{} {
 	done := make(chan struct{})
+	e.mutex.Lock()
 	e.queue.PushBack(func() {
 		f()
 		close(done)
 	})
+	e.mutex.Unlock()
 	// Start go routine if we don't have one
 	if atomic.AddInt32(&e.count, 1) == 1 {
 		go func() {
