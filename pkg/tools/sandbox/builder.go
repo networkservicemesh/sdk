@@ -312,7 +312,7 @@ func supplyDummyForwarder(ctx context.Context, name string, generateToken token.
 				name,
 				// What to call onHeal
 				addressof.NetworkServiceClient(adapters.NewServerToClient(result)),
-				GenerateTestToken,
+				generateToken,
 			),
 			grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)),
 		))
