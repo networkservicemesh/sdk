@@ -78,7 +78,10 @@ func monitorFile(ctx context.Context, filePath string, watcher *fsnotify.Watcher
 	logger := log.Entry(ctx).WithField("fs.monitorFile", filePath)
 
 	bytes, _ := ioutil.ReadFile(filepath.Clean(filePath))
-	notifyCh <- bytes
+	if !sendOrClose(ctx, notifyCh, bytes) {
+		return
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -94,7 +97,9 @@ func monitorFile(ctx context.Context, filePath string, watcher *fsnotify.Watcher
 				continue
 			case fsnotify.Remove, fsnotify.Rename:
 				logger.Warn("Removed")
-				notifyCh <- nil
+				if !sendOrClose(ctx, notifyCh, nil) {
+					return
+				}
 			}
 			data, err := ioutil.ReadFile(filepath.Clean(filePath))
 			for err != nil && ctx.Err() == nil {
@@ -104,9 +109,7 @@ func monitorFile(ctx context.Context, filePath string, watcher *fsnotify.Watcher
 				continue
 			}
 			logger.Info(uint32(e.Op))
-			select {
-			case notifyCh <- data:
-			case <-ctx.Done():
+			if !sendOrClose(ctx, notifyCh, data) {
 				return
 			}
 		case err := <-watcher.Errors:
@@ -116,5 +119,15 @@ func monitorFile(ctx context.Context, filePath string, watcher *fsnotify.Watcher
 				return
 			}
 		}
+	}
+}
+
+func sendOrClose(ctx context.Context, notifyCh chan<- []byte, data []byte) bool {
+	select {
+	case notifyCh <- data:
+		return true
+	case <-ctx.Done():
+		close(notifyCh)
+		return false
 	}
 }

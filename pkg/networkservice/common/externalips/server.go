@@ -20,6 +20,7 @@ package externalips
 import (
 	"context"
 	"net"
+	"sync/atomic"
 
 	"github.com/ghodss/yaml"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -32,22 +33,22 @@ import (
 )
 
 type externalIPsServer struct {
-	internalToExternal map[string]string
-	externalToInternal map[string]string
-	updateCh           <-chan map[string]string
-	chainCtx           context.Context
+	internalToExternalMap atomic.Value
+	externalToInternalMap atomic.Value
+	updateCh              <-chan map[string]string
+	chainCtx              context.Context
 }
 
 func (e *externalIPsServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	ctx = withExternalReplacer(ctx, replaceFunc(e.externalToInternal))
-	ctx = withInternalReplacer(ctx, replaceFunc(e.internalToExternal))
+	ctx = withExternalReplacer(ctx, replaceFunc(e.externalToInternalMap))
+	ctx = withInternalReplacer(ctx, replaceFunc(e.internalToExternalMap))
 
 	return next.Server(ctx).Request(ctx, request)
 }
 
 func (e *externalIPsServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
-	ctx = withExternalReplacer(ctx, replaceFunc(e.externalToInternal))
-	ctx = withInternalReplacer(ctx, replaceFunc(e.internalToExternal))
+	ctx = withExternalReplacer(ctx, replaceFunc(e.externalToInternalMap))
+	ctx = withInternalReplacer(ctx, replaceFunc(e.internalToExternalMap))
 
 	return next.Server(ctx).Close(ctx, connection)
 }
@@ -58,6 +59,8 @@ func NewServer(chainCtx context.Context, options ...Option) networkservice.Netwo
 	result := &externalIPsServer{
 		chainCtx: chainCtx,
 	}
+	result.externalToInternalMap.Store(&stringMap{})
+	result.internalToExternalMap.Store(&stringMap{})
 	for _, o := range options {
 		o(result)
 	}
@@ -80,10 +83,11 @@ func NewServer(chainCtx context.Context, options ...Option) networkservice.Netwo
 	return result
 }
 
-func replaceFunc(m map[string]string) func(ip net.IP) net.IP {
+func replaceFunc(v atomic.Value) func(ip net.IP) net.IP {
+	m := v.Load().(*stringMap)
 	return func(ip net.IP) net.IP {
 		key := ip.String()
-		value := m[key]
+		value, _ := m.Load(key)
 		return net.ParseIP(value)
 	}
 }
@@ -103,12 +107,13 @@ func (e *externalIPsServer) build(ips map[string]string) error {
 			return err
 		}
 	}
-	e.internalToExternal = ips
-	externalIPs := make(map[string]string)
+	internalIPs, externalIPs := &stringMap{}, &stringMap{}
 	for k, v := range ips {
-		externalIPs[v] = k
+		internalIPs.Store(k, v)
+		externalIPs.Store(v, k)
 	}
-	e.externalToInternal = externalIPs
+	e.internalToExternalMap.Store(internalIPs)
+	e.externalToInternalMap.Store(externalIPs)
 	return nil
 }
 
