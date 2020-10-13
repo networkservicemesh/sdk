@@ -22,8 +22,6 @@ package excludedprefixes
 
 import (
 	"context"
-	"io/ioutil"
-	"path/filepath"
 	"sync"
 	"sync/atomic"
 
@@ -34,6 +32,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/trace"
+	"github.com/networkservicemesh/sdk/pkg/tools/fs"
 	"github.com/networkservicemesh/sdk/pkg/tools/prefixpool"
 )
 
@@ -46,7 +45,12 @@ type excludedPrefixesServer struct {
 
 func (eps *excludedPrefixesServer) init() {
 	logger := trace.Log(eps.ctx)
+	zeroPool, _ := prefixpool.New()
+	eps.prefixPool.Store(zeroPool)
 	updatePrefixes := func(bytes []byte) {
+		if bytes == nil {
+			eps.prefixPool.Store(zeroPool)
+		}
 		source := struct {
 			Prefixes []string
 		}{}
@@ -62,12 +66,11 @@ func (eps *excludedPrefixesServer) init() {
 		}
 		eps.prefixPool.Store(pool)
 	}
-	bytes, _ := ioutil.ReadFile(filepath.Clean(eps.configPath))
-	updatePrefixes(bytes)
+	updateCh := fs.WatchFile(eps.ctx, eps.configPath)
+	updatePrefixes(<-updateCh)
 	go func() {
-		err := watchFile(eps.ctx, eps.configPath, updatePrefixes)
-		if err != nil {
-			logger.Errorf("An error during watch file: %v", err.Error())
+		for update := range updateCh {
+			updatePrefixes(update)
 		}
 	}()
 }

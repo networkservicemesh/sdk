@@ -82,10 +82,12 @@ func TestCheckReloadedPrefixes(t *testing.T) {
 func TestExcludedPrefixesServer(t *testing.T) {
 	t.Run("Handle not created yet prefixes file", func(t *testing.T) {
 		filePath := filepath.Join(os.TempDir(), defaultPrefixesFileName)
+		_ = os.Remove(filePath)
 		testWaitForFile(t, filePath)
 	})
 
 	t.Run("Handle prefixes file with empty directory path", func(t *testing.T) {
+		_ = os.Remove(defaultPrefixesFileName)
 		testWaitForFile(t, defaultPrefixesFileName)
 	})
 }
@@ -131,7 +133,7 @@ func testWaitForFile(t *testing.T, filePath string) {
 	require.Empty(t, req.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes())
 
 	writingToFile(t, testConfig, filePath)
-
+	defer func() { _ = os.Remove(filePath) }()
 	require.Eventually(t, func() bool {
 		_, reqErr := chain.Request(context.Background(), req)
 		require.NoError(t, reqErr)
