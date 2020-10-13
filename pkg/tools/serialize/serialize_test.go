@@ -22,11 +22,32 @@ package serialize_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
 )
+
+func TestNestedAsyncExec(t *testing.T) {
+	var exec serialize.Executor
+
+	exec.AsyncExec(func() {
+		time.Sleep(time.Millisecond * 50)
+		exec.AsyncExec(func() {
+			time.Sleep(time.Millisecond * 50)
+			exec.AsyncExec(func() {
+				time.Sleep(time.Millisecond * 50)
+			})
+		})
+	})
+
+	for i := 0; i < 1e3; i++ {
+		exec.AsyncExec(func() {})
+	}
+
+	<-exec.AsyncExec(func() {})
+}
 
 func TestASyncExec(t *testing.T) {
 	exec := serialize.NewExecutor()

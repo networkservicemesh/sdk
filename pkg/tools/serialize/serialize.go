@@ -20,19 +20,16 @@
 package serialize
 
 import (
+	"container/list"
 	"sync"
 	"sync/atomic"
 )
 
-const (
-	channelSize = 100
-)
-
 // Executor - a struct that can be used to guarantee exclusive, in order execution of functions.
 type Executor struct {
-	execCh chan func()
-	init   sync.Once
-	count  int32
+	mutex sync.Mutex
+	queue list.List
+	count int32
 }
 
 // NewExecutor - provides a new Executor
@@ -44,25 +41,26 @@ func NewExecutor() Executor {
 // AsyncExec - guarantees f() will be executed Exclusively and in the Order submitted.
 //        It immediately returns a channel that will be closed when f() has completed execution.
 func (e *Executor) AsyncExec(f func()) <-chan struct{} {
-	// Initialize *once*
-	e.init.Do(func() {
-		e.execCh = make(chan func(), channelSize)
+	done := make(chan struct{})
+	e.queue.PushBack(func() {
+		f()
+		close(done)
 	})
 	// Start go routine if we don't have one
 	if atomic.AddInt32(&e.count, 1) == 1 {
 		go func() {
-			for g := range e.execCh {
-				g()
+			for {
+				e.mutex.Lock()
+				first := e.queue.Front()
+				e.queue.Remove(first)
+				e.mutex.Unlock()
+				first.Value.(func())()
 				if atomic.AddInt32(&e.count, -1) == 0 {
 					return
 				}
 			}
 		}()
 	}
-	done := make(chan struct{})
-	e.execCh <- func() {
-		f()
-		close(done)
-	}
+
 	return done
 }
