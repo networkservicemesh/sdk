@@ -18,7 +18,6 @@ package sandbox
 
 import (
 	"context"
-	"fmt"
 	"net/url"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -33,7 +32,7 @@ import (
 )
 
 // SupplyNSMgrProxyFunc nsmgr proxy
-type SupplyNSMgrProxyFunc func(context.Context, string, fmt.Stringer, token.GeneratorFunc, ...grpc.DialOption) endpoint.Endpoint
+type SupplyNSMgrProxyFunc func(context.Context, string, token.GeneratorFunc, ...grpc.DialOption) endpoint.Endpoint
 
 // SupplyNSMgrFunc supplies NSMGR
 type SupplyNSMgrFunc func(context.Context, *registryapi.NetworkServiceEndpoint, networkservice.NetworkServiceServer, token.GeneratorFunc, grpc.ClientConnInterface, ...grpc.DialOption) nsmgr.Nsmgr

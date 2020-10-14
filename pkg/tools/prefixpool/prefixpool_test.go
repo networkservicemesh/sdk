@@ -31,6 +31,16 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/prefixpool"
 )
 
+func TestEmptryPrefixPoolIsNotPanics(t *testing.T) {
+	var p *prefixpool.PrefixPool
+	var err error
+	require.NotPanics(t, func() {
+		p, err = prefixpool.New()
+	})
+	require.Nil(t, err)
+	require.NotNil(t, p)
+}
+
 func TestNetExtractIPv4(t *testing.T) {
 	testNetExtract(t, "10.10.1.0/24", "10.10.1.1/30", "10.10.1.2/30", networkservice.IpFamily_IPV4)
 }

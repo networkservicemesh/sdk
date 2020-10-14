@@ -14,14 +14,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package swap provides chain element to swapping fields of remote mechanisms such as common.SrcIP and common.DstIP
+// Package swapip provides chain element to swapping fields of remote mechanisms such as common.SrcIP and common.DstIP
 // from internal to external and vice versa on response.
-package swap
+package swapip
 
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -29,14 +28,13 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/externalips"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
 )
 
-type swapIPServer struct {
-	externalIP string
-}
+type swapIPServer struct{}
 
 func (i *swapIPServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	url := clienturlctx.ClientURL(ctx)
@@ -49,12 +47,18 @@ func (i *swapIPServer) Request(ctx context.Context, request *networkservice.Netw
 	}
 	for _, m := range request.MechanismPreferences {
 		if m.Cls == cls.REMOTE {
-			m.Parameters[common.SrcIP] = i.externalIP
+			if externalIP := externalips.FromInternal(ctx, net.ParseIP(m.Parameters[common.SrcIP])); externalIP != nil {
+				m.Parameters[common.SrcIP] = externalIP.String()
+			}
 		}
 	}
+
 	if request.Connection.Mechanism != nil {
-		request.Connection.Mechanism.Parameters[common.SrcIP] = i.externalIP
+		if externalIP := externalips.FromInternal(ctx, net.ParseIP(request.Connection.Mechanism.Parameters[common.SrcIP])); externalIP != nil {
+			request.Connection.Mechanism.Parameters[common.SrcIP] = externalIP.String()
+		}
 	}
+
 	nsName, nseName := request.Connection.NetworkService, request.Connection.NetworkServiceEndpointName
 	request.Connection.NetworkServiceEndpointName, request.Connection.NetworkService = interdomain.Target(request.Connection.NetworkServiceEndpointName), interdomain.Target(request.Connection.NetworkService)
 	response, err := next.Server(ctx).Request(ctx, request)
@@ -74,11 +78,6 @@ func (i *swapIPServer) Close(ctx context.Context, connection *networkservice.Con
 }
 
 // NewServer creates new swap chain element. Expects public IP address of node
-func NewServer(externalIP fmt.Stringer) networkservice.NetworkServiceServer {
-	if externalIP == nil {
-		panic("externalIP should not be empty")
-	}
-	return &swapIPServer{
-		externalIP: externalIP.String(),
-	}
+func NewServer() networkservice.NetworkServiceServer {
+	return &swapIPServer{}
 }

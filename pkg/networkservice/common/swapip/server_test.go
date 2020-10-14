@@ -14,20 +14,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package swap_test
+package swapip_test
 
 import (
 	"context"
-	"net"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
 	"github.com/stretchr/testify/require"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/swap"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/externalips"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/swapip"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
@@ -38,8 +39,15 @@ func TestSwapIPServer_Request(t *testing.T) {
 	const localIP = "127.0.0.1"
 	const remoteIP = "172.16.1.1"
 	const externalIP = "180.16.1.1"
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch := make(chan map[string]string, 1)
+	ch <- map[string]string{
+		localIP: externalIP,
+	}
 	s := next.NewNetworkServiceServer(
-		swap.NewServer(net.ParseIP(externalIP)),
+		externalips.NewServer(ctx, externalips.WithUpdateChannel(ch)),
+		swapip.NewServer(),
 		checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
 			for _, m := range request.MechanismPreferences {
 				require.Equal(t, m.GetParameters()[common.SrcIP], externalIP)
@@ -49,8 +57,10 @@ func TestSwapIPServer_Request(t *testing.T) {
 			require.False(t, interdomain.Is(request.GetConnection().NetworkServiceEndpointName))
 			require.False(t, interdomain.Is(request.GetConnection().NetworkService))
 		}))
-
-	ctx := clienturlctx.WithClientURL(context.Background(), &url.URL{Scheme: "tcp", Host: remoteIP + ":5001"})
+	require.Eventually(t, func() bool {
+		return len(ch) == 0
+	}, time.Second, time.Millisecond*100)
+	ctx = clienturlctx.WithClientURL(context.Background(), &url.URL{Scheme: "tcp", Host: remoteIP + ":5001"})
 	response, err := s.Request(ctx, &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
 			{
