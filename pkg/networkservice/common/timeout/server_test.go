@@ -18,12 +18,12 @@ package timeout_test
 
 import (
 	"context"
-	"fmt"
-	"sync/atomic"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/credentials"
 
@@ -47,8 +47,19 @@ const (
 
 func TestTimeoutServer_Request(t *testing.T) {
 	connServer := &connectionsServer{
-		connections: map[string]struct{}{},
+		connections: map[string]*connectionInfo{},
 	}
+
+	server := struct {
+		networkservice.NetworkServiceServer
+	}{}
+	server.NetworkServiceServer = chain.NewNetworkServiceServer(
+		updatepath.NewServer("server"),
+		timeout.NewServer(&server.NetworkServiceServer),
+		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
+			kernelmech.MECHANISM: connServer,
+		}),
+	)
 
 	client := chain.NewNetworkServiceClient(
 		updatepath.NewClient("client"),
@@ -57,41 +68,82 @@ func TestTimeoutServer_Request(t *testing.T) {
 		}),
 		kernel.NewClient(),
 		adapters.NewServerToClient(
-			chain.NewNetworkServiceServer(
-				updatepath.NewServer("server"),
-				timeout.NewServer(nil),
-				mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
-					kernelmech.MECHANISM: connServer,
-				}),
-			),
+			server,
 		),
 	)
 
 	_, err := client.Request(context.TODO(), &networkservice.NetworkServiceRequest{})
 	require.NoError(t, err)
-	require.Equal(t, int32(1), atomic.LoadInt32(&connServer.size))
+	require.True(t, connServer.validate(t, 1, 0))
 
 	require.Eventually(t, func() bool {
-		return atomic.LoadInt32(&connServer.size) == 0
-	}, closeTimeout, tokenTimeout, fmt.Sprintf("Not equal: \n"+
-		"expected: %v\n"+
-		"actual  : %v", 0, atomic.LoadInt32(&connServer.size)),
-	)
+		return connServer.validate(t, 0, 1)
+	}, closeTimeout, 2*tokenTimeout)
 }
 
 type connectionsServer struct {
-	connections map[string]struct{}
-	size        int32
+	lock        sync.Mutex
+	connections map[string]*connectionInfo
+}
+
+type connectionInfo struct {
+	requestCount int
+	closeCount   int
+}
+
+func (s *connectionsServer) validate(t *testing.T, open, closed int) bool {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	var connsOpen, connsClosed int
+	for connID, connInfo := range s.connections {
+		switch delta := connInfo.requestCount - connInfo.closeCount; {
+		case delta > 1:
+			require.Fail(t, "connection is double requested: %v", connID)
+		case delta == 1:
+			connsOpen++
+		case delta == 0:
+			connsClosed++
+		case delta < 0:
+			require.Fail(t, "connection is double closed %v", connID)
+		}
+	}
+
+	if connsOpen != open {
+		logrus.Warnf("open count is not equal: expected %v != actual %v", open, connsOpen)
+		return false
+	}
+	if connsClosed != closed {
+		logrus.Warnf("closed count is not equal: expected %v != actual %v", closed, connsClosed)
+		return false
+	}
+	return true
 }
 
 func (s *connectionsServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	s.connections[request.GetConnection().GetId()] = struct{}{}
-	atomic.StoreInt32(&s.size, int32(len(s.connections)))
+	s.lock.Lock()
+
+	connID := request.GetConnection().GetId()
+	if _, ok := s.connections[connID]; !ok {
+		s.connections[connID] = &connectionInfo{}
+	}
+	s.connections[connID].requestCount++
+
+	s.lock.Unlock()
+
 	return next.Server(ctx).Request(ctx, request)
 }
 
 func (s *connectionsServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	delete(s.connections, conn.GetId())
-	atomic.StoreInt32(&s.size, int32(len(s.connections)))
+	s.lock.Lock()
+
+	connID := conn.GetId()
+	if _, ok := s.connections[connID]; !ok {
+		s.connections[connID] = &connectionInfo{}
+	}
+	s.connections[connID].closeCount++
+
+	s.lock.Unlock()
+
 	return next.Server(ctx).Close(ctx, conn)
 }

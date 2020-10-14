@@ -50,7 +50,7 @@ func Server(ctx context.Context) networkservice.NetworkServiceServer {
 	if ok && rv != nil {
 		return rv
 	}
-	return &tailServer{}
+	return TailServer()
 }
 
 // withNextClient -
@@ -70,5 +70,5 @@ func Client(ctx context.Context) networkservice.NetworkServiceClient {
 	if ok && rv != nil {
 		return rv
 	}
-	return &tailClient{}
+	return TailClient()
 }
