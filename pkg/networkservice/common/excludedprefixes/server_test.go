@@ -44,10 +44,12 @@ const defaultPrefixesFileName = "excluded_prefixes.yaml"
 func TestNewExcludedPrefixesService(t *testing.T) {
 	prefixes := []string{"172.16.1.0/24", "10.32.0.0/12", "10.96.0.0/12"}
 
+	dir := filepath.Join(os.TempDir(), t.Name())
+	defer func() { _ = os.RemoveAll(dir) }()
+	require.NoError(t, os.MkdirAll(dir, os.ModePerm))
 	testConfig := strings.Join(append([]string{"prefixes:"}, prefixes...), "\n- ")
-	configPath := filepath.Join(os.TempDir(), defaultPrefixesFileName)
-	writingToFile(t, testConfig, configPath)
-	defer func() { _ = os.Remove(configPath) }()
+	configPath := filepath.Join(dir, defaultPrefixesFileName)
+	require.NoError(t, ioutil.WriteFile(configPath, []byte(testConfig), os.ModePerm))
 
 	chain := next.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)), checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
 		require.Equal(t, request.Connection.Context.IpContext.ExcludedPrefixes, prefixes)
@@ -61,9 +63,14 @@ func TestNewExcludedPrefixesService(t *testing.T) {
 func TestCheckReloadedPrefixes(t *testing.T) {
 	prefixes := []string{"172.16.1.0/24", "10.32.0.0/12", "10.96.0.0/12"}
 
+	dir := filepath.Join(os.TempDir(), t.Name())
+	defer func() { _ = os.RemoveAll(dir) }()
+	require.NoError(t, os.MkdirAll(dir, os.ModePerm))
+
 	testConfig := strings.Join(append([]string{"prefixes:"}, prefixes...), "\n- ")
-	configPath := filepath.Join(os.TempDir(), defaultPrefixesFileName)
-	writingToFile(t, "", configPath)
+	configPath := filepath.Join(dir, defaultPrefixesFileName)
+	require.NoError(t, ioutil.WriteFile(configPath, []byte(""), os.ModePerm))
+
 	defer func() { _ = os.Remove(configPath) }()
 
 	chain := next.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)))
@@ -81,7 +88,10 @@ func TestCheckReloadedPrefixes(t *testing.T) {
 
 func TestExcludedPrefixesServer(t *testing.T) {
 	t.Run("Handle not created yet prefixes file", func(t *testing.T) {
-		filePath := filepath.Join(os.TempDir(), defaultPrefixesFileName)
+		dir := filepath.Join(os.TempDir(), t.Name())
+		defer func() { _ = os.RemoveAll(dir) }()
+		require.NoError(t, os.MkdirAll(dir, os.ModePerm))
+		filePath := filepath.Join(dir, defaultPrefixesFileName)
 		_ = os.Remove(filePath)
 		testWaitForFile(t, filePath)
 	})
@@ -97,9 +107,13 @@ func TestUniqueRequestPrefixes(t *testing.T) {
 	reqPrefixes := []string{"100.1.1.0/13", "10.32.0.0/12", "10.96.0.0/12", "10.20.0.0/24", "10.20.128.0/17", "10.20.64.0/18", "10.20.16.0/20", "10.20.2.0/23"}
 	uniquePrefixes := []string{"100.1.1.0/13", "10.32.0.0/12", "10.96.0.0/12", "10.20.0.0/24", "10.20.128.0/17", "10.20.64.0/18", "10.20.16.0/20", "10.20.2.0/23", "172.16.1.0/24", "10.20.8.0/21", "10.20.4.0/22"}
 
+	dir := filepath.Join(os.TempDir(), t.Name())
+	defer func() { _ = os.RemoveAll(dir) }()
+	require.NoError(t, os.MkdirAll(dir, os.ModePerm))
+
 	testConfig := strings.Join(append([]string{"prefixes:"}, prefixes...), "\n- ")
-	configPath := filepath.Join(os.TempDir(), defaultPrefixesFileName)
-	writingToFile(t, testConfig, configPath)
+	configPath := filepath.Join(dir, defaultPrefixesFileName)
+	require.NoError(t, ioutil.WriteFile(configPath, []byte(testConfig), os.ModePerm))
 	defer func() { _ = os.Remove(configPath) }()
 
 	chain := next.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)), checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
@@ -132,7 +146,8 @@ func testWaitForFile(t *testing.T, filePath string) {
 	require.NoError(t, err)
 	require.Empty(t, req.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes())
 
-	writingToFile(t, testConfig, filePath)
+	require.NoError(t, ioutil.WriteFile(filePath, []byte(testConfig), os.ModePerm))
+
 	defer func() { _ = os.Remove(filePath) }()
 	require.Eventually(t, func() bool {
 		_, reqErr := chain.Request(context.Background(), req)
@@ -157,13 +172,4 @@ func request() *networkservice.NetworkServiceRequest {
 			Context: &networkservice.ConnectionContext{},
 		},
 	}
-}
-
-func writingToFile(t *testing.T, text, configPath string) {
-	f, err := os.Create(configPath)
-	require.NoError(t, err)
-	_, err = f.WriteString(text)
-	require.NoError(t, err)
-	err = f.Close()
-	require.NoError(t, err)
 }

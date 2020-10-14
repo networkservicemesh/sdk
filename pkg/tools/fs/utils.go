@@ -85,7 +85,7 @@ func monitorFile(ctx context.Context, filePath string, watcher *fsnotify.Watcher
 	for {
 		select {
 		case <-ctx.Done():
-			logger.Warn(ctx.Err().Error())
+			logger.Error(ctx.Err().Error())
 			close(notifyCh)
 			return
 		case e := <-watcher.Events:
@@ -93,7 +93,7 @@ func monitorFile(ctx context.Context, filePath string, watcher *fsnotify.Watcher
 				continue
 			}
 			switch e.Op {
-			case fsnotify.Create, fsnotify.Chmod:
+			case fsnotify.Chmod:
 				continue
 			case fsnotify.Remove, fsnotify.Rename:
 				logger.Warn("Removed")

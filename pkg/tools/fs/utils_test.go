@@ -21,6 +21,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
+	"runtime/debug"
 	"testing"
 	"time"
 
@@ -47,6 +49,7 @@ func Test_WatchFile(t *testing.T) {
 	expectEvent := func(assertFunc func(require.TestingT, interface{}, ...interface{})) {
 		select {
 		case <-time.After(time.Second):
+			debug.PrintStack()
 			t.Fatal("no events")
 		case update := <-ch:
 			assertFunc(t, update)
@@ -58,6 +61,11 @@ func Test_WatchFile(t *testing.T) {
 	require.Nil(t, ioutil.WriteFile(filePath, []byte("data"), os.ModePerm))
 
 	expectEvent(require.NotNil)
+
+	// https://github.com/fsnotify/fsnotify/issues/11
+	if runtime.GOOS != "darwin" {
+		expectEvent(require.NotNil)
+	}
 
 	_ = os.RemoveAll(root)
 
