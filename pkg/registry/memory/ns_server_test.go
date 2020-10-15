@@ -48,6 +48,7 @@ func TestNetworkServiceRegistryServer_RegisterAndFind(t *testing.T) {
 	})
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	ch := make(chan *registry.NetworkService, 1)
 	_ = s.Find(&registry.NetworkServiceQuery{
 		NetworkService: &registry.NetworkService{
@@ -58,7 +59,6 @@ func TestNetworkServiceRegistryServer_RegisterAndFind(t *testing.T) {
 	require.Equal(t, &registry.NetworkService{
 		Name: "a",
 	}, <-ch)
-	cancel()
 	close(ch)
 }
 
@@ -96,13 +96,11 @@ func TestNetworkServiceRegistryServer_RegisterAndFindWatch(t *testing.T) {
 		Name: "a",
 	}, <-ch)
 
-	_, err = s.Register(context.Background(), &registry.NetworkService{
+	expected, err := s.Register(context.Background(), &registry.NetworkService{
 		Name: "a",
 	})
 	require.NoError(t, err)
-	require.Equal(t, &registry.NetworkService{
-		Name: "a",
-	}, <-ch)
+	require.Equal(t, expected, <-ch)
 
 	cancel()
 	close(ch)
