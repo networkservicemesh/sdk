@@ -28,7 +28,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chainbreak"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
@@ -107,8 +107,7 @@ func (t *timeoutServer) createTimer(ctx context.Context, conn *networkservice.Co
 
 	duration := time.Until(expireTime)
 	return time.AfterFunc(duration, func() {
-		closeServer := chain.NewNetworkServiceServer(*t.onTimeout, next.TailServer())
-		if _, err := closeServer.Close(ctx, conn); err != nil {
+		if _, err := chainbreak.NewNetworkServiceServer(*t.onTimeout).Close(ctx, conn); err != nil {
 			trace.Log(ctx).Errorf("Error attempting to close timed out connection: %s: %+v", conn.GetId(), err)
 		}
 	}), nil

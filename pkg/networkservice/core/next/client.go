@@ -42,7 +42,7 @@ type ClientChainer func(...networkservice.NetworkServiceClient) networkservice.N
 // NewWrappedNetworkServiceClient chains together clients with wrapper wrapped around each one
 func NewWrappedNetworkServiceClient(wrapper ClientWrapper, clients ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	if len(clients) == 0 {
-		return TailClient()
+		return &tailClient{}
 	}
 	rv := &nextClient{clients: make([]networkservice.NetworkServiceClient, 0, len(clients))}
 	for _, c := range clients {
