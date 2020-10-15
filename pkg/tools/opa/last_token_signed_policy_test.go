@@ -46,7 +46,7 @@ func TestVerifyToken(t *testing.T) {
 
 	p := opa.WithLastTokenSignedPolicy()
 
-	input := networkservice.Path{
+	input := &networkservice.Path{
 		PathSegments: []*networkservice.PathSegment{
 			{
 				Token: token,

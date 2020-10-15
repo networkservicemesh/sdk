@@ -1,7 +1,5 @@
 // Copyright (c) 2020 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2020 Cisco and/or its affiliates.
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,18 +14,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package excludedprefixes
+package externalips
 
-func removeDuplicates(elements []string) []string {
-	encountered := map[string]bool{}
-	var result []string
+import "sync"
 
-	for index := range elements {
-		if encountered[elements[index]] {
-			continue
-		}
-		encountered[elements[index]] = true
-		result = append(result, elements[index])
-	}
-	return result
-}
+//go:generate go-syncmap -output string_map.gen.go -type stringMap<string,string>
+
+// stringMap is like a Go map[string]string but is safe for concurrent use
+// by multiple goroutines without additional locking or coordination.
+type stringMap sync.Map

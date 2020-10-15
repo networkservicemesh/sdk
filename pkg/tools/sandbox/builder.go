@@ -200,8 +200,7 @@ func (b *Builder) newNSMgrProxy(ctx context.Context) *EndpointEntry {
 		return nil
 	}
 	name := "nsmgr-proxy-" + uuid.New().String()
-	ip := net.ParseIP("127.0.0.1")
-	mgr := b.supplyNSMgrProxy(ctx, name, ip, b.generateTokenFunc, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)))
+	mgr := b.supplyNSMgrProxy(ctx, name, b.generateTokenFunc, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)))
 	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
 	serve(ctx, serveURL, mgr.Register)
 	log.Entry(ctx).Infof("%v listen on: %v", name, serveURL)
@@ -312,7 +311,7 @@ func supplyDummyForwarder(ctx context.Context, name string, generateToken token.
 				name,
 				// What to call onHeal
 				addressof.NetworkServiceClient(adapters.NewServerToClient(result)),
-				GenerateTestToken,
+				generateToken,
 			),
 			grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)),
 		))
