@@ -24,12 +24,12 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
 // NewNetworkServiceServer wraps given chain element to execute Request, Close out of the chain
 func NewNetworkServiceServer(wrapped networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
-	return chain.NewNetworkServiceServer(wrapped, &breakServer{})
+	return next.NewNetworkServiceServer(wrapped, &breakServer{})
 }
 
 type breakServer struct{}

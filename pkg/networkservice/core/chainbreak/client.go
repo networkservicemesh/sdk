@@ -24,12 +24,12 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
 // NewNetworkServiceClient wraps given chain element to execute Request, Close out of the chain
 func NewNetworkServiceClient(wrapped networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
-	return chain.NewNetworkServiceClient(wrapped, &breakClient{})
+	return next.NewNetworkServiceClient(wrapped, &breakClient{})
 }
 
 type breakClient struct{}
