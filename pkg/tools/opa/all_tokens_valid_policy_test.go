@@ -28,7 +28,7 @@ import (
 )
 
 func TestWithAllTokensValidPolicy(t *testing.T) {
-	validPath := networkservice.Path{
+	validPath := &networkservice.Path{
 		PathSegments: []*networkservice.PathSegment{
 			{
 				Token: genJWTWithClaimsWithYear(time.Now().Year() + 10),
@@ -42,7 +42,7 @@ func TestWithAllTokensValidPolicy(t *testing.T) {
 		},
 	}
 
-	invalidPath := networkservice.Path{
+	invalidPath := &networkservice.Path{
 		PathSegments: []*networkservice.PathSegment{
 			{
 				Token: genJWTWithClaimsWithYear(time.Now().Year() + 10),
