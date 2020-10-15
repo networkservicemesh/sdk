@@ -103,6 +103,5 @@ func TestNetworkServiceEndpointRegistryServer_RegisterAndFindWatch(t *testing.T)
 	require.NoError(t, err)
 	require.Equal(t, expected, <-ch)
 
-
 	close(ch)
 }
