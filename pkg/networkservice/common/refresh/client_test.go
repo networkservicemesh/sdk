@@ -18,58 +18,129 @@ package refresh_test
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
-	"go.uber.org/goleak"
-
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/golang/protobuf/ptypes/timestamp"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/stretchr/testify/assert"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
 const (
-	expireTimeout        = 100 * time.Millisecond
-	waitForTimeout       = expireTimeout
-	tickTimeout          = 10 * time.Millisecond
-	refreshCount         = 5
-	expectAbsenceTimeout = 5 * expireTimeout
-
-	requestNumber contextKeyType = "RequestNumber"
+	expireTimeout     = 100 * time.Millisecond
+	eventuallyTimeout = expireTimeout
+	tickTimeout       = 10 * time.Millisecond
+	neverTimeout      = 5 * expireTimeout
+	endpointName      = "endpoint-name"
 )
 
-type contextKeyType string
+func TestRefreshClient_StopRefreshAtClose(t *testing.T) {
+	t.Skip("https://github.com/networkservicemesh/sdk/issues/237")
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-func withRequestNumber(parent context.Context, number int) context.Context {
-	if parent == nil {
-		panic("cannot create context from nil parent")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	cloneClient := &countClient{
+		t: t,
 	}
-	return context.WithValue(parent, requestNumber, number)
+	client := chain.NewNetworkServiceClient(
+		refresh.NewClient(ctx),
+		cloneClient,
+	)
+
+	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: "id",
+		},
+	})
+	require.NoError(t, err)
+	require.Condition(t, cloneClient.validator(1))
+
+	require.Eventually(t, cloneClient.validator(2), eventuallyTimeout, tickTimeout)
+
+	_, err = client.Close(ctx, conn)
+	require.NoError(t, err)
+
+	require.Never(t, cloneClient.validator(3), neverTimeout, tickTimeout)
 }
 
-func getRequestNumber(ctx context.Context) int {
-	if rv, ok := ctx.Value(requestNumber).(int); ok {
-		return rv
+func TestRefreshClient_StopRefreshAtAnotherRequest(t *testing.T) {
+	t.Skip("https://github.com/networkservicemesh/sdk/issues/260")
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	refreshClient := refresh.NewClient(ctx)
+	cloneClient := &countClient{
+		t: t,
 	}
-	return -1
+	client := chain.NewNetworkServiceClient(
+		refreshClient,
+		cloneClient,
+	)
+
+	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: "id",
+		},
+	})
+	require.NoError(t, err)
+	require.Condition(t, cloneClient.validator(1))
+
+	require.Eventually(t, cloneClient.validator(2), eventuallyTimeout, tickTimeout)
+
+	_, err = refreshClient.Request(ctx, &networkservice.NetworkServiceRequest{
+		Connection: conn,
+	})
+	require.NoError(t, err)
+
+	require.Never(t, cloneClient.validator(3), neverTimeout, tickTimeout)
 }
 
-type testRefresh struct {
-	RequestFunc func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error)
+type countClient struct {
+	t     *testing.T
+	count int32
 }
 
-func (t *testRefresh) Request(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	return t.RequestFunc(ctx, in, opts...)
+func (c *countClient) validator(atLeast int32) func() bool {
+	return func() bool {
+		if count := atomic.LoadInt32(&c.count); count < atLeast {
+			logrus.Warnf("count %v < atLeast %v", count, atLeast)
+			return false
+		}
+		return true
+	}
 }
 
-func (t *testRefresh) Close(context.Context, *networkservice.Connection, ...grpc.CallOption) (*empty.Empty, error) {
-	return &empty.Empty{}, nil
+func (c *countClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	request = request.Clone()
+	conn := request.GetConnection()
+
+	if atomic.AddInt32(&c.count, 1) == 1 {
+		conn.NetworkServiceEndpointName = endpointName
+	} else {
+		require.Equal(c.t, endpointName, conn.NetworkServiceEndpointName)
+	}
+
+	setExpires(conn, expireTimeout)
+
+	return next.Client(ctx).Request(ctx, request, opts...)
+}
+
+func (c *countClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
 func setExpires(conn *networkservice.Connection, expireTimeout time.Duration) {
@@ -86,107 +157,4 @@ func setExpires(conn *networkservice.Connection, expireTimeout time.Duration) {
 			},
 		},
 	}
-}
-
-func hasValue(c <-chan struct{}) bool {
-	select {
-	case <-c:
-		return true
-	default:
-		return false
-	}
-}
-
-func firstGetsValueEarlier(c1, c2 <-chan struct{}) bool {
-	select {
-	case <-c2:
-		return false
-	case <-c1:
-		return true
-	}
-}
-
-func TestNewClient_StopRefreshAtClose(t *testing.T) {
-	t.Skip("https://github.com/networkservicemesh/sdk/issues/237")
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	requestCh := make(chan struct{}, 1)
-	testRefresh := &testRefresh{
-		RequestFunc: func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (connection *networkservice.Connection, err error) {
-			setExpires(in.GetConnection(), expireTimeout)
-			requestCh <- struct{}{}
-			return in.GetConnection(), nil
-		},
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	client := next.NewNetworkServiceClient(refresh.NewClient(ctx), testRefresh)
-	request := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id: "conn-1",
-		},
-	}
-	conn, err := client.Request(context.Background(), request)
-	assert.Nil(t, err)
-
-	assert.True(t, hasValue(requestCh)) // receive value from initial request
-	for i := 0; i < refreshCount; i++ {
-		require.Eventually(t, func() bool { return hasValue(requestCh) }, waitForTimeout, tickTimeout)
-	}
-
-	_, err = client.Close(context.Background(), conn)
-	assert.Nil(t, err)
-
-	absence := make(chan struct{})
-	time.AfterFunc(expectAbsenceTimeout, func() {
-		absence <- struct{}{}
-	})
-	assert.True(t, firstGetsValueEarlier(absence, requestCh))
-}
-
-func TestNewClient_StopRefreshAtAnotherRequest(t *testing.T) {
-	t.Skip("https://github.com/networkservicemesh/sdk/issues/260")
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	requestCh := make(chan struct{}, 1)
-	testRefresh := &testRefresh{
-		RequestFunc: func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (connection *networkservice.Connection, err error) {
-			setExpires(in.GetConnection(), expireTimeout)
-			if getRequestNumber(ctx) == 1 {
-				requestCh <- struct{}{}
-			}
-			return in.GetConnection(), nil
-		},
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	client := next.NewNetworkServiceClient(refresh.NewClient(ctx), testRefresh)
-
-	request1 := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id: "conn-1",
-		},
-	}
-	_, err := client.Request(withRequestNumber(context.Background(), 1), request1)
-	assert.Nil(t, err)
-
-	assert.True(t, hasValue(requestCh)) // receive value from initial request
-	for i := 0; i < refreshCount; i++ {
-		require.Eventually(t, func() bool { return hasValue(requestCh) }, waitForTimeout, tickTimeout)
-	}
-
-	request2 := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id: "conn-1",
-		},
-	}
-	conn, err := client.Request(withRequestNumber(context.Background(), 2), request2)
-	assert.Nil(t, err)
-
-	absence := make(chan struct{})
-	time.AfterFunc(expectAbsenceTimeout, func() {
-		absence <- struct{}{}
-	})
-	assert.True(t, firstGetsValueEarlier(absence, requestCh))
-
-	_, err = client.Close(context.Background(), conn)
-	assert.Nil(t, err)
 }
