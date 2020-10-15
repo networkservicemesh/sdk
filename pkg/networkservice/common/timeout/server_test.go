@@ -41,8 +41,9 @@ import (
 )
 
 const (
-	tokenTimeout = 100 * time.Millisecond
-	closeTimeout = 10 * tokenTimeout
+	tokenTimeout      = 100 * time.Millisecond
+	eventuallyTimeout = 10 * tokenTimeout
+	tickTimeout       = 10 * time.Millisecond
 )
 
 func TestTimeoutServer_Request(t *testing.T) {
@@ -74,11 +75,9 @@ func TestTimeoutServer_Request(t *testing.T) {
 
 	_, err := client.Request(context.TODO(), &networkservice.NetworkServiceRequest{})
 	require.NoError(t, err)
-	require.True(t, connServer.validate(t, 1, 0))
+	require.Condition(t, connServer.validator(t, 1, 0))
 
-	require.Eventually(t, func() bool {
-		return connServer.validate(t, 0, 1)
-	}, closeTimeout, 2*tokenTimeout)
+	require.Eventually(t, connServer.validator(t, 0, 1), eventuallyTimeout, tickTimeout)
 }
 
 type connectionsServer struct {
@@ -91,33 +90,35 @@ type connectionInfo struct {
 	closeCount   int
 }
 
-func (s *connectionsServer) validate(t *testing.T, open, closed int) bool {
-	s.lock.Lock()
-	defer s.lock.Unlock()
+func (s *connectionsServer) validator(t *testing.T, open, closed int) func() bool {
+	return func() bool {
+		s.lock.Lock()
+		defer s.lock.Unlock()
 
-	var connsOpen, connsClosed int
-	for connID, connInfo := range s.connections {
-		switch delta := connInfo.requestCount - connInfo.closeCount; {
-		case delta > 1:
-			require.Fail(t, "connection is double requested: %v", connID)
-		case delta == 1:
-			connsOpen++
-		case delta == 0:
-			connsClosed++
-		case delta < 0:
-			require.Fail(t, "connection is double closed %v", connID)
+		var connsOpen, connsClosed int
+		for connID, connInfo := range s.connections {
+			switch delta := connInfo.requestCount - connInfo.closeCount; {
+			case delta > 1:
+				require.Fail(t, "connection is double requested: %v", connID)
+			case delta == 1:
+				connsOpen++
+			case delta == 0:
+				connsClosed++
+			case delta < 0:
+				require.Fail(t, "connection is double closed %v", connID)
+			}
 		}
-	}
 
-	if connsOpen != open {
-		logrus.Warnf("open count is not equal: expected %v != actual %v", open, connsOpen)
-		return false
+		if connsOpen != open {
+			logrus.Warnf("open count is not equal: expected %v != actual %v", open, connsOpen)
+			return false
+		}
+		if connsClosed != closed {
+			logrus.Warnf("closed count is not equal: expected %v != actual %v", closed, connsClosed)
+			return false
+		}
+		return true
 	}
-	if connsClosed != closed {
-		logrus.Warnf("closed count is not equal: expected %v != actual %v", closed, connsClosed)
-		return false
-	}
-	return true
 }
 
 func (s *connectionsServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
