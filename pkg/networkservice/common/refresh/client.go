@@ -63,7 +63,7 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 
 	// Create refreshRequest
 	refreshRequest := request.Clone()
-	request.Connection = rv.Clone()
+	refreshRequest.Connection = rv.Clone()
 
 	// TODO - introduce random noise into duration avoid timer lock
 	duration := time.Until(expireTime) / 3
@@ -75,8 +75,10 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 			refreshCtx, cancel = context.WithDeadline(refreshCtx, deadline.Add(duration))
 		}
 
+		connID := refreshRequest.GetConnection().GetId()
+
 		// Stop any existing timers
-		if timer, ok := t.timers[request.GetConnection().GetId()]; ok {
+		if timer, ok := t.timers[connID]; ok {
 			timer.Stop()
 		}
 
@@ -85,7 +87,7 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 		timer = time.AfterFunc(duration, func() {
 			<-t.executor.AsyncExec(func() {
 				// Check to see if we've been superseded by another timer, if so, do nothing
-				currentTimer, ok := t.timers[refreshRequest.GetConnection().GetId()]
+				currentTimer, ok := t.timers[connID]
 				if ok && currentTimer != timer {
 					cancel()
 					return
@@ -98,14 +100,14 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 			default:
 				if _, err := t.Request(refreshCtx, refreshRequest, opts...); err != nil {
 					// TODO - do we want to retry at 2/3 and 3/3 if we fail here?
-					trace.Log(refreshCtx).Errorf("Error while attempting to refresh connection %s: %+v", request.GetConnection().GetId(), err)
+					trace.Log(refreshCtx).Errorf("Error while attempting to refresh connection %s: %+v", connID, err)
 				}
 			}
 			// Set timer to nil to be really really sure we don't have a circular reference that precludes garbage collection
 			timer = nil
 		})
-		t.timers[request.GetConnection().GetId()] = timer
-		t.cancels[request.GetConnection().GetId()] = cancel
+		t.timers[connID] = timer
+		t.cancels[connID] = cancel
 	})
 	return rv, nil
 }
