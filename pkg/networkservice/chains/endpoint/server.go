@@ -61,13 +61,12 @@ type endpoint struct {
 //             - additionalFunctionality - any additional NetworkServiceServer chain elements to be included in the chain
 func NewServer(ctx context.Context, name string, authzServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceServer) Endpoint {
 	rv := &endpoint{}
-	var ns networkservice.NetworkServiceServer = rv
 	rv.NetworkServiceServer = chain.NewNetworkServiceServer(
 		append([]networkservice.NetworkServiceServer{
 			authzServer,
 			updatepath.NewServer(name),
+			timeout.NewServer(),
 			monitor.NewServer(ctx, &rv.MonitorConnectionServer),
-			timeout.NewServer(&ns),
 			updatetoken.NewServer(tokenGenerator),
 		}, additionalFunctionality...)...)
 	return rv

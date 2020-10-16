@@ -28,31 +28,20 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chainbreak"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 )
 
 type timeoutServer struct {
-	onTimeout   *networkservice.NetworkServiceServer
 	connections map[string]*time.Timer
 	executor    serialize.Executor
 }
 
-// NewServer - creates a new NetworkServiceServer chain element that implements timeout of expired connections
-//             - onTimeout - *networkservice.NetworkServiceServer.  Since networkservice.NetworkServiceServer is an interface
-//                        (and thus a pointer) *networkservice.NetworkServiceServer is a double pointer.  Meaning it
-//                        points to a place that points to a place that implements networkservice.NetworkServiceServer
-//                        This is done because when we use timeout.NewServer as part of a chain, we may not *have*
-//                        a pointer to this server used 'onTimeout'.  If we detect we need to heal, onHeal.Request is used to heal.
-//                        If onTimeout is nil, then we simply set onTimeout to this server chain element
-//                        If we are part of a larger chain, we should pass the resulting chain into
-//                        this constructor before we actually have a pointer to it.
-func NewServer(onTimeout *networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
+// NewServer - creates a new NetworkServiceServer chain element that implements timeout of expired connections.
+func NewServer() networkservice.NetworkServiceServer {
 	return &timeoutServer{
 		connections: make(map[string]*time.Timer),
-		onTimeout:   onTimeout,
 	}
 }
 
@@ -102,13 +91,7 @@ func (t *timeoutServer) createTimer(ctx context.Context, conn *networkservice.Co
 
 	duration := time.Until(expireTime)
 	return time.AfterFunc(duration, func() {
-		var onTimeout networkservice.NetworkServiceServer
-		if t.onTimeout == nil {
-			onTimeout = t
-		} else {
-			onTimeout = chainbreak.NewNetworkServiceServer(*t.onTimeout)
-		}
-		if _, err := onTimeout.Close(ctx, conn); err != nil {
+		if _, err := t.Close(ctx, conn); err != nil {
 			trace.Log(ctx).Errorf("Error attempting to close timed out connection: %s: %+v", conn.GetId(), err)
 		}
 	}), nil
