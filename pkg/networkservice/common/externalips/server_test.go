@@ -59,8 +59,16 @@ func TestExternalIPsServer_NoFile(t *testing.T) {
 	require.Eventually(t, func() bool {
 		var result bool
 		checkChain = next.NewNetworkServiceServer(server, checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
-			result = externalips.FromInternal(ctx, internalIP).Equal(externalIP) &&
-				externalips.ToInternal(ctx, externalIP).Equal(internalIP)
+			actualExternal := externalips.FromInternal(ctx, internalIP)
+			if actualExternal == nil {
+				return
+			}
+			actualInternal := externalips.ToInternal(ctx, externalIP)
+			if actualInternal == nil {
+				return
+			}
+			result = actualExternal.Equal(externalIP) &&
+				actualInternal.Equal(internalIP)
 		}))
 		_, err = checkChain.Request(context.Background(), &networkservice.NetworkServiceRequest{})
 		require.NoError(t, err)
