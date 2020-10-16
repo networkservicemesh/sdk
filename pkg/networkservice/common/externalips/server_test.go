@@ -35,6 +35,48 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
 )
 
+func TestExternalIPsServer_SourceModifying(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	timeout := time.After(time.Second)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	updateCh := make(chan map[string]string)
+	server := externalips.NewServer(ctx, externalips.WithUpdateChannel(updateCh))
+
+	sendUpdate := func(update map[string]string) {
+		select {
+		case <-timeout:
+			t.Fatal("timeout while sending update")
+		case updateCh <- update:
+			return
+		}
+	}
+	checkUpdate := func(internal, external string) {
+		done := false
+		for !done {
+			select {
+			case <-timeout:
+				t.Fatal("timeout during wait changes from update")
+			default:
+			}
+			_, _ = next.NewNetworkServiceServer(server, checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+				if externalips.FromInternal(ctx, net.ParseIP(internal)).Equal(net.ParseIP(external)) {
+					done = true
+				}
+			})).Request(ctx, &networkservice.NetworkServiceRequest{})
+		}
+	}
+
+	sendUpdate(map[string]string{"172.16.1.1": "180.17.2.1"})
+	checkUpdate("172.16.1.1", "180.17.2.1")
+
+	sendUpdate(map[string]string{"172.16.1.1": "180.17.2.1", "127.0.0.1": "180.17.2.2"})
+	checkUpdate("127.0.0.1", "180.17.2.2")
+
+	sendUpdate(map[string]string{})
+	checkUpdate("127.0.0.1", "")
+}
+
 func TestExternalIPsServer_NoFile(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	ctx, cancel := context.WithCancel(context.Background())

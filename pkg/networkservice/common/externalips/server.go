@@ -59,8 +59,8 @@ func NewServer(chainCtx context.Context, options ...Option) networkservice.Netwo
 	result := &externalIPsServer{
 		chainCtx: chainCtx,
 	}
-	result.externalToInternalMap.Store(&stringMap{})
-	result.internalToExternalMap.Store(&stringMap{})
+	result.externalToInternalMap.Store(new(stringMap))
+	result.internalToExternalMap.Store(new(stringMap))
 	for _, o := range options {
 		o(result)
 	}
@@ -69,14 +69,16 @@ func NewServer(chainCtx context.Context, options ...Option) networkservice.Netwo
 	}
 	go func() {
 		logger := log.Entry(chainCtx).WithField("externalIPsServer", "build")
-		select {
-		case <-chainCtx.Done():
-			return
-		case update := <-result.updateCh:
-			if err := result.build(update); err != nil {
-				logger.Error(err.Error())
-			} else {
-				logger.Info("rebuilt internal and external ips map")
+		for {
+			select {
+			case <-chainCtx.Done():
+				return
+			case update := <-result.updateCh:
+				if err := result.build(update); err != nil {
+					logger.Error(err.Error())
+				} else {
+					logger.Info("rebuilt internal and external ips map")
+				}
 			}
 		}
 	}()
@@ -107,7 +109,7 @@ func (e *externalIPsServer) build(ips map[string]string) error {
 			return err
 		}
 	}
-	internalIPs, externalIPs := &stringMap{}, &stringMap{}
+	internalIPs, externalIPs := new(stringMap), new(stringMap)
 	for k, v := range ips {
 		internalIPs.Store(k, v)
 		externalIPs.Store(v, k)
