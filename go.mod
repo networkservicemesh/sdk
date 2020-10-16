@@ -8,7 +8,7 @@ require (
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/edwarnicke/exechelper v1.0.1
 	github.com/edwarnicke/grpcfd v0.0.0-20200920223154-d5b6e1f19bd0
-	github.com/edwarnicke/serialize v1.0.0
+	github.com/edwarnicke/serialize v1.0.1
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/protobuf v1.4.2
@@ -26,7 +26,7 @@ require (
 	github.com/uber/jaeger-client-go v2.21.1+incompatible
 	github.com/uber/jaeger-lib v2.2.0+incompatible // indirect
 	go.uber.org/atomic v1.7.0 // indirect
-	go.uber.org/goleak v1.0.1-0.20200717213025-100c34bdc9d6
+	go.uber.org/goleak v1.1.10
 	golang.org/x/net v0.0.0-20201010224723-4f7140c49acb // indirect
 	golang.org/x/sys v0.0.0-20201014080544-cc95f250f6bc
 	gonum.org/v1/gonum v0.6.2
