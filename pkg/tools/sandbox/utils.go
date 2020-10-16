@@ -22,6 +22,8 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
+
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
@@ -81,23 +83,16 @@ func NewEndpoint(ctx context.Context, nse *registry.NetworkServiceEndpoint, gene
 	return &EndpointEntry{Endpoint: ep, URL: u}, nil
 }
 
-// NewClient is a client.NewClient over *url.URL with some fields preset for testing
-func NewClient(ctx context.Context, generatorFunc token.GeneratorFunc, connectTo *url.URL, additionalFunctionality ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
-	return clienturl.NewClient(
-		clienturlctx.WithClientURL(ctx, connectTo),
-		client.NewClientFactory(
-			fmt.Sprintf("nsc-%v", uuid.New().String()),
-			nil,
-			generatorFunc,
-			additionalFunctionality...),
+// NewClient creates new networkservice.NetworkServiceClient configured to connect to the passed URL.
+func NewClient(ctx context.Context, generatorFunc token.GeneratorFunc, connectTo *url.URL, additionalFunctionality ...networkservice.NetworkServiceClient) (networkservice.NetworkServiceClient, error) {
+	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(connectTo),
 		append(spanhelper.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...)
-}
-
-// NewCrossConnectClientFactory is a client.NewCrossConnectClientFactory with some fields preset for testing
-func NewCrossConnectClientFactory(generatorFunc token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceClient) func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-	return client.NewCrossConnectClientFactory(
-		fmt.Sprintf("nsc-%v", uuid.New().String()),
-		nil,
-		generatorFunc,
-		additionalFunctionality...)
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		<-ctx.Done()
+		_ = cc.Close()
+	}()
+	return client.NewClient(ctx, fmt.Sprintf("nsc-%v", uuid.New().String()), nil, generatorFunc, cc, additionalFunctionality...), nil
 }

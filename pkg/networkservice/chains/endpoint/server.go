@@ -23,9 +23,13 @@ import (
 	"context"
 	"net/url"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
+
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
@@ -87,7 +91,7 @@ func (e *endpoint) Register(s *grpc.Server) {
 
 // Serve  - serves passed Endpoint on grpc
 func Serve(ctx context.Context, listenOn *url.URL, endpoint Endpoint, opt ...grpc.ServerOption) <-chan error {
-	server := grpc.NewServer(opt...)
+	server := grpc.NewServer(append(spanhelper.WithTracing(), opt...)...)
 	endpoint.Register(server)
 
 	return grpcutils.ListenAndServe(ctx, listenOn, server)
