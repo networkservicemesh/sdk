@@ -46,6 +46,19 @@ const (
 	tickTimeout       = 10 * time.Millisecond
 )
 
+func testClient(server networkservice.NetworkServiceServer) networkservice.NetworkServiceClient {
+	return chain.NewNetworkServiceClient(
+		updatepath.NewClient("client"),
+		updatetoken.NewClient(func(_ credentials.AuthInfo) (string, time.Time, error) {
+			return "token", time.Now().Add(tokenTimeout), nil
+		}),
+		kernel.NewClient(),
+		adapters.NewServerToClient(
+			server,
+		),
+	)
+}
+
 func TestTimeoutServer_Request(t *testing.T) {
 	connServer := &connectionsServer{
 		connections: map[string]*connectionInfo{},
@@ -62,18 +75,27 @@ func TestTimeoutServer_Request(t *testing.T) {
 		}),
 	)
 
-	client := chain.NewNetworkServiceClient(
-		updatepath.NewClient("client"),
-		updatetoken.NewClient(func(_ credentials.AuthInfo) (string, time.Time, error) {
-			return "token", time.Now().Add(tokenTimeout), nil
+	_, err := testClient(server).Request(context.TODO(), &networkservice.NetworkServiceRequest{})
+	require.NoError(t, err)
+	require.Condition(t, connServer.validator(t, 1, 0))
+
+	require.Eventually(t, connServer.validator(t, 0, 1), eventuallyTimeout, tickTimeout)
+}
+
+func TestTimeoutServer_Request_Self(t *testing.T) {
+	connServer := &connectionsServer{
+		connections: map[string]*connectionInfo{},
+	}
+
+	server := chain.NewNetworkServiceServer(
+		updatepath.NewServer("server"),
+		timeout.NewServer(nil),
+		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
+			kernelmech.MECHANISM: connServer,
 		}),
-		kernel.NewClient(),
-		adapters.NewServerToClient(
-			server,
-		),
 	)
 
-	_, err := client.Request(context.TODO(), &networkservice.NetworkServiceRequest{})
+	_, err := testClient(server).Request(context.TODO(), &networkservice.NetworkServiceRequest{})
 	require.NoError(t, err)
 	require.Condition(t, connServer.validator(t, 1, 0))
 

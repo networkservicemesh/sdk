@@ -50,15 +50,10 @@ type timeoutServer struct {
 //                        If we are part of a larger chain, we should pass the resulting chain into
 //                        this constructor before we actually have a pointer to it.
 func NewServer(onTimeout *networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
-	rv := &timeoutServer{
+	return &timeoutServer{
 		connections: make(map[string]*time.Timer),
 		onTimeout:   onTimeout,
 	}
-	if rv.onTimeout == nil {
-		var actualOnTimeout networkservice.NetworkServiceServer = rv
-		rv.onTimeout = &actualOnTimeout
-	}
-	return rv
 }
 
 func (t *timeoutServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
@@ -107,7 +102,13 @@ func (t *timeoutServer) createTimer(ctx context.Context, conn *networkservice.Co
 
 	duration := time.Until(expireTime)
 	return time.AfterFunc(duration, func() {
-		if _, err := chainbreak.NewNetworkServiceServer(*t.onTimeout).Close(ctx, conn); err != nil {
+		var onTimeout networkservice.NetworkServiceServer
+		if t.onTimeout == nil {
+			onTimeout = t
+		} else {
+			onTimeout = chainbreak.NewNetworkServiceServer(*t.onTimeout)
+		}
+		if _, err := onTimeout.Close(ctx, conn); err != nil {
 			trace.Log(ctx).Errorf("Error attempting to close timed out connection: %s: %+v", conn.GetId(), err)
 		}
 	}), nil
