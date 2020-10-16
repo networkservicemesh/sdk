@@ -92,14 +92,13 @@ func monitorFile(ctx context.Context, filePath string, watcher *fsnotify.Watcher
 			if !strings.HasSuffix(filePath, filepath.Clean(e.Name)) {
 				continue
 			}
-			switch e.Op {
-			case fsnotify.Chmod:
-				continue
-			case fsnotify.Remove, fsnotify.Rename:
+			if e.Op&(fsnotify.Remove|fsnotify.Rename) > 0 {
 				logger.Warn("Removed")
 				if !sendOrClose(ctx, notifyCh, nil) {
 					return
 				}
+			} else if e.Op&(fsnotify.Write|fsnotify.Create) == 0 {
+				continue
 			}
 			data, err := ioutil.ReadFile(filepath.Clean(filePath))
 			for err != nil && ctx.Err() == nil {
@@ -108,7 +107,6 @@ func monitorFile(ctx context.Context, filePath string, watcher *fsnotify.Watcher
 				data, err = ioutil.ReadFile(filepath.Clean(filePath))
 				continue
 			}
-			logger.Info(uint32(e.Op))
 			if !sendOrClose(ctx, notifyCh, data) {
 				return
 			}
