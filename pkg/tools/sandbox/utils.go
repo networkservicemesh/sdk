@@ -22,12 +22,15 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
+
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/uuid"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
@@ -80,7 +83,8 @@ func NewEndpoint(ctx context.Context, nse *registry.NetworkServiceEndpoint, gene
 
 // NewClient creates new networkservice.NetworkServiceClient configured to connect to the passed URL.
 func NewClient(ctx context.Context, generatorFunc token.GeneratorFunc, connectTo *url.URL, additionalFunctionality ...networkservice.NetworkServiceClient) (networkservice.NetworkServiceClient, error) {
-	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(connectTo), grpc.WithBlock(), grpc.WithInsecure())
+	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(connectTo),
+		append(spanhelper.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...)
 	if err != nil {
 		return nil, err
 	}

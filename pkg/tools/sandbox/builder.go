@@ -23,10 +23,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
+
 	"github.com/google/uuid"
-	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+
+	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
@@ -239,7 +242,7 @@ func (b *Builder) newNSMgr(ctx context.Context, registryURL *url.URL) *NSMgrEntr
 }
 
 func serve(ctx context.Context, u *url.URL, register func(server *grpc.Server)) {
-	server := grpc.NewServer()
+	server := grpc.NewServer(spanhelper.WithTracing()...)
 	register(server)
 	errCh := grpcutils.ListenAndServe(ctx, u, server)
 	go func() {
