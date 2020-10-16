@@ -34,13 +34,13 @@ import (
 //          *networkservice.NetworkServiceClient - go complains about it.
 //          This does not work:
 //               impl := &clientImpl{}
-//               var onHeal *networkservice.NetworkServiceClient = &impl
+//               var onHeal *networkservice.NetworkServiceClient = &cl
 //          This also doesn't work:
 //               impl := &clientImpl{}
-//               var ptr *networkservice.NetworkServiceClient = &(impl.(networkservice.NetworkServiceClient)
+//               var ptr *networkservice.NetworkServiceClient = &(cl.(networkservice.NetworkServiceClient)
 //          Using this function does:
 //               impl := &clientImpl{}
-//               var ptr *networkservice.NetworkServiceClient = NetworkServiceClient(impl)
+//               var ptr *networkservice.NetworkServiceClient =NetworkServiceClient(cl)
 func NetworkServiceClient(client networkservice.NetworkServiceClient) *networkservice.NetworkServiceClient {
 	return &client
 }

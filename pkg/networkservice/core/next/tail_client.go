@@ -25,14 +25,14 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
-// tailClient is a simple implementation of networkservice.NetworkServiceClient that is called at the end of a chain
+// tailServer is a simple implementation of networkservice.NetworkServiceServer that is called at the end of a chain
 // to insure that we never call a method on a nil object
 type tailClient struct{}
 
-func (t *tailClient) Request(_ context.Context, request *networkservice.NetworkServiceRequest, _ ...grpc.CallOption) (*networkservice.Connection, error) {
+func (t *tailClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, _ ...grpc.CallOption) (*networkservice.Connection, error) {
 	return request.GetConnection(), nil
 }
 
-func (t *tailClient) Close(_ context.Context, _ *networkservice.Connection, _ ...grpc.CallOption) (*empty.Empty, error) {
+func (t *tailClient) Close(ctx context.Context, _ *networkservice.Connection, _ ...grpc.CallOption) (*empty.Empty, error) {
 	return &empty.Empty{}, nil
 }
