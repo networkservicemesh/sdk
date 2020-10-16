@@ -92,12 +92,12 @@ func monitorFile(ctx context.Context, filePath string, watcher *fsnotify.Watcher
 			if !strings.HasSuffix(filePath, filepath.Clean(e.Name)) {
 				continue
 			}
-			if e.Op&fsnotify.Remove+e.Op&fsnotify.Rename > 0 {
+			if e.Op&(fsnotify.Remove|fsnotify.Rename) > 0 {
 				logger.Warn("Removed")
 				if !sendOrClose(ctx, notifyCh, nil) {
 					return
 				}
-			} else if e.Op&fsnotify.Write == 0 && e.Op&fsnotify.Create == 0 {
+			} else if e.Op&(fsnotify.Write|fsnotify.Create) == 0 {
 				continue
 			}
 			data, err := ioutil.ReadFile(filepath.Clean(filePath))

@@ -67,7 +67,6 @@ func TestExternalIPsServer_NoFile(t *testing.T) {
 			if actualInternal == nil {
 				return
 			}
-			require.NotNil(t, actualInternal)
 			result = actualExternal.Equal(externalIP) &&
 				actualInternal.Equal(internalIP)
 		}))
