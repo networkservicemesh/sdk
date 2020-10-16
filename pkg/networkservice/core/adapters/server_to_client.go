@@ -14,55 +14,54 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package adapters provides adapters to translate between networkservice.NetworkService{Server,Client}
 package adapters
 
 import (
 	"context"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type serverToClient struct {
-	server networkservice.NetworkServiceServer
-}
+const serverContextKey contextKeyType = "server"
+
+type (
+	serverToClient struct {
+		server networkservice.NetworkServiceServer
+	}
+	ctxServer     struct{}
+	nextClientCtx struct {
+		next networkservice.NetworkServiceClient
+		old  *nextClientCtx
+	}
+)
 
 // NewServerToClient - returns a new networkservice.NetworkServiceClient that is a wrapper around server
 func NewServerToClient(server networkservice.NetworkServiceServer) networkservice.NetworkServiceClient {
-	return &serverToClient{server: next.NewNetworkServiceServer(server, &contextServer{})}
+	return &serverToClient{server: next.NewNetworkServiceServer(server, &ctxServer{})}
 }
 
 func (s *serverToClient) Request(ctx context.Context, in *networkservice.NetworkServiceRequest, _ ...grpc.CallOption) (*networkservice.Connection, error) {
-	doneCtx := withCapturedContext(ctx)
-	conn, err := s.server.Request(doneCtx, in)
-	if err != nil {
-		return nil, err
-	}
-	lastCtx := getCapturedContext(doneCtx)
-	if lastCtx == nil {
-		return conn, nil
-	}
-	if in == nil {
-		in = &networkservice.NetworkServiceRequest{}
-	}
-	in.Connection = conn
-	return next.Client(ctx).Request(lastCtx, in)
+	old, _ := ctx.Value(serverContextKey).(*nextClientCtx)
+	nextCtx := context.WithValue(ctx, serverContextKey, &nextClientCtx{next: next.Client(ctx), old: old})
+	return s.server.Request(nextCtx, in)
 }
 
 func (s *serverToClient) Close(ctx context.Context, in *networkservice.Connection, _ ...grpc.CallOption) (*empty.Empty, error) {
-	doneCtx := withCapturedContext(ctx)
-	conn, err := s.server.Close(doneCtx, in)
-	if err != nil {
-		return nil, err
-	}
-	lastCtx := getCapturedContext(doneCtx)
-	if lastCtx == nil {
-		return conn, nil
-	}
-	return next.Client(ctx).Close(lastCtx, in)
+	old, _ := ctx.Value(serverContextKey).(*nextClientCtx)
+	nextCtx := context.WithValue(ctx, serverContextKey, &nextClientCtx{next: next.Client(ctx), old: old})
+	return s.server.Close(nextCtx, in)
+}
+
+func (s *ctxServer) Request(ctx context.Context, in *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	ctx2 := ctx.Value(serverContextKey).(*nextClientCtx)
+	return ctx2.next.Request(context.WithValue(ctx, serverContextKey, ctx2.old), in)
+}
+
+func (s *ctxServer) Close(ctx context.Context, in *networkservice.Connection) (*empty.Empty, error) {
+	ctx2 := ctx.Value(serverContextKey).(*nextClientCtx)
+	return ctx2.next.Close(context.WithValue(ctx, serverContextKey, ctx2.old), in)
 }
