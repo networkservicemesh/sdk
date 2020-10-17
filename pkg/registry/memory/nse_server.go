@@ -28,9 +28,10 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/edwarnicke/serialize"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/matchutils"
-	"github.com/edwarnicke/serialize"
 )
 
 type networkServiceEndpointRegistryServer struct {

@@ -23,9 +23,10 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 
+	"github.com/edwarnicke/serialize"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
-	"github.com/edwarnicke/serialize"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )

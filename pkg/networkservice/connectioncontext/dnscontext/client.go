@@ -26,9 +26,10 @@ import (
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
+	"github.com/edwarnicke/serialize"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnscontext"
-	"github.com/edwarnicke/serialize"
 )
 
 type dnsContextClient struct {

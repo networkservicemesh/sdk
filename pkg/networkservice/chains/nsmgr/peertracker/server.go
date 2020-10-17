@@ -26,8 +26,9 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc/peer"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/edwarnicke/serialize"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 )
 
 const (

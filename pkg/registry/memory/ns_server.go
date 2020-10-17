@@ -25,9 +25,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/edwarnicke/serialize"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/matchutils"
-	"github.com/edwarnicke/serialize"
 )
 
 type networkServiceRegistryServer struct {
