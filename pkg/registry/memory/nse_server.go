@@ -30,7 +30,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/matchutils"
-	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
+	"github.com/edwarnicke/serialize"
 )
 
 type networkServiceEndpointRegistryServer struct {

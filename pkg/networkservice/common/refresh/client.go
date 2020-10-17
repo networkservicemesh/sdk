@@ -30,7 +30,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
-	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
+	"github.com/edwarnicke/serialize"
 )
 
 type refreshClient struct {

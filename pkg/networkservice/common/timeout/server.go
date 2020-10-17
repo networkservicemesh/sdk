@@ -28,7 +28,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
-	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
+	"github.com/edwarnicke/serialize"
 )
 
 type timeoutServer struct {
@@ -49,7 +49,6 @@ type timeoutServer struct {
 func NewServer(onTimout *networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
 	rv := &timeoutServer{
 		connections: make(map[string]*time.Timer),
-		executor:    serialize.NewExecutor(),
 		onTimeout:   onTimout,
 	}
 	if rv.onTimeout == nil {

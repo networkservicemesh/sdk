@@ -28,7 +28,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnscontext"
-	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
+	"github.com/edwarnicke/serialize"
 )
 
 type dnsContextClient struct {
