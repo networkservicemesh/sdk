@@ -29,9 +29,11 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
+	"github.com/edwarnicke/serialize"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
+	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 )
 
 type timeoutServer struct {
@@ -40,12 +42,22 @@ type timeoutServer struct {
 }
 
 // NewServer - creates a new NetworkServiceServer chain element that implements timeout of expired connections
-//             for the subsequent chain elements.
-// WARNING: `timeout` uses ctx as a context for the Close, so if there are any chain elements setting some data
-//          in context in chain before the `timeout`, these changes won't appear in the Close context.
-func NewServer(ctx context.Context) networkservice.NetworkServiceServer {
-	return &timeoutServer{
-		ctx: ctx,
+//             - onTimeout - *networkservice.NetworkServiceServer.  Since networkservice.NetworkServiceServer is an interface
+//                        (and thus a pointer) *networkservice.NetworkServiceServer is a double pointer.  Meaning it
+//                        points to a place that points to a place that implements networkservice.NetworkServiceServer
+//                        This is done because when we use timeout.NewServer as part of a chain, we may not *have*
+//                        a pointer to this server used 'onTimeout'.  If we detect we need to heal, onHeal.Request is used to heal.
+//                        If onTimeout is nil, then we simply set onTimeout to this server chain element
+//                        If we are part of a larger chain, we should pass the resulting chain into
+//                        this constructor before we actually have a pointer to it.
+func NewServer(onTimout *networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
+	rv := &timeoutServer{
+		connections: make(map[string]*time.Timer),
+		onTimeout:   onTimout,
+	}
+	if rv.onTimeout == nil {
+		var actualOnTimeout networkservice.NetworkServiceServer = rv
+		rv.onTimeout = &actualOnTimeout
 	}
 }
 

@@ -3,13 +3,14 @@ module github.com/networkservicemesh/sdk
 go 1.15
 
 require (
-	github.com/HdrHistogram/hdrhistogram-go v1.0.0 // indirect
+	github.com/HdrHistogram/hdrhistogram-go v0.9.0 // indirect
 	github.com/RoaringBitmap/roaring v0.4.23
+	github.com/codahale/hdrhistogram v0.9.0 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/edwarnicke/exechelper v1.0.2
 	github.com/edwarnicke/grpcfd v0.0.0-20200920223154-d5b6e1f19bd0
-	github.com/edwarnicke/serialize v1.0.7
-	github.com/fsnotify/fsnotify v1.4.9
+	github.com/edwarnicke/serialize v1.0.2-0.20201017171944-cf1114ca2f6f
+	github.com/fsnotify/fsnotify v1.4.7
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/protobuf v1.4.3
 	github.com/google/go-cmp v0.5.2
@@ -29,8 +30,8 @@ require (
 	github.com/uber/jaeger-lib v2.4.0+incompatible // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/goleak v1.1.10
-	golang.org/x/sys v0.0.0-20200602225109-6fdc65e7d980
+	golang.org/x/sys v0.0.0-20201014080544-cc95f250f6bc
 	gonum.org/v1/gonum v0.6.2
-	google.golang.org/grpc v1.33.2
+	google.golang.org/grpc v1.32.0
 	google.golang.org/protobuf v1.25.0
 )
