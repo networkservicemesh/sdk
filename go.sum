@@ -28,14 +28,12 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible h1:7qlOGliEKZXTDg6OTjfoBKDXWrumCAMpl/TFQ4/5kLM=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
-github.com/edwarnicke/exechelper v1.0.1 h1:0FwYHBKyLK2Ce97u86BXI3tnD6Dwlt9Qj2XkPgfP1Bg=
-github.com/edwarnicke/exechelper v1.0.1/go.mod h1:/T271jtNX/ND4De6pa2aRy2+8sNtyCDB1A2pp4M+fUs=
+github.com/edwarnicke/exechelper v1.0.2 h1:dD49Ui2U0FBFxxhalnKw6vLS0P0TkgnXBRvKL/xmC5w=
+github.com/edwarnicke/exechelper v1.0.2/go.mod h1:/T271jtNX/ND4De6pa2aRy2+8sNtyCDB1A2pp4M+fUs=
 github.com/edwarnicke/grpcfd v0.0.0-20200920223154-d5b6e1f19bd0 h1:FHjcIM6YU8DnCw94+29EZX0bUqh016oqrtJrO8ZYiIY=
 github.com/edwarnicke/grpcfd v0.0.0-20200920223154-d5b6e1f19bd0/go.mod h1:rHihB9YvNMixz8rS+ZbwosI2kj65VLkeyYAI2M+/cGA=
 github.com/edwarnicke/serialize v0.0.0-20200705214914-ebc43080eecf h1:/lViRfaDxKINb2X6kOR3EJKJGR+MxUvqfgtYt5nh+qc=
 github.com/edwarnicke/serialize v0.0.0-20200705214914-ebc43080eecf/go.mod h1:XvbCO/QGsl3X8RzjBMoRpkm54FIAZH5ChK2j+aox7pw=
-github.com/edwarnicke/serialize v1.0.2-0.20201017171944-cf1114ca2f6f h1:7pWVVIVMlL8pvc6jonUWcPcWKqPn5Vb2wX5gGyLdbtM=
-github.com/edwarnicke/serialize v1.0.2-0.20201017171944-cf1114ca2f6f/go.mod h1:bJ8sBYQExvfyOBt41jVY2soYHCe6q1O1siZDhyjp/CQ=
 github.com/envoyproxy/go-control-plane v0.9.0/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
 github.com/envoyproxy/go-control-plane v0.9.1-0.20191026205805-5f8ba28d4473/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
 github.com/envoyproxy/go-control-plane v0.9.4/go.mod h1:6rpuAdCZL397s3pYoYcLgu1mIlRU8Am5FuJP05cCM98=
