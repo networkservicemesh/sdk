@@ -7,9 +7,9 @@ require (
 	github.com/RoaringBitmap/roaring v0.4.23
 	github.com/codahale/hdrhistogram v0.9.0 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
-	github.com/edwarnicke/exechelper v1.0.1
+	github.com/edwarnicke/exechelper v1.0.2
 	github.com/edwarnicke/grpcfd v0.0.0-20200920223154-d5b6e1f19bd0
-	github.com/edwarnicke/serialize v1.0.2-0.20201017171944-cf1114ca2f6f
+	github.com/edwarnicke/serialize v0.0.0-20200705214914-ebc43080eecf
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/protobuf v1.4.2
