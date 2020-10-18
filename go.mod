@@ -3,12 +3,13 @@ module github.com/networkservicemesh/sdk
 go 1.15
 
 require (
+	github.com/HdrHistogram/hdrhistogram-go v0.9.0 // indirect
 	github.com/RoaringBitmap/roaring v0.4.23
-	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
+	github.com/codahale/hdrhistogram v0.9.0 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/edwarnicke/exechelper v1.0.1
 	github.com/edwarnicke/grpcfd v0.0.0-20200920223154-d5b6e1f19bd0
-	github.com/edwarnicke/serialize v1.0.0
+	github.com/edwarnicke/serialize v1.0.2-0.20201017171944-cf1114ca2f6f
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/protobuf v1.4.2
@@ -24,13 +25,11 @@ require (
 	github.com/spiffe/go-spiffe/v2 v2.0.0-alpha.4.0.20200528145730-dc11d0c74e85
 	github.com/stretchr/testify v1.5.1
 	github.com/uber/jaeger-client-go v2.21.1+incompatible
-	github.com/uber/jaeger-lib v2.2.0+incompatible // indirect
+	github.com/uber/jaeger-lib v2.4.0+incompatible // indirect
 	go.uber.org/atomic v1.7.0 // indirect
-	go.uber.org/goleak v1.0.1-0.20200717213025-100c34bdc9d6
-	golang.org/x/net v0.0.0-20201010224723-4f7140c49acb // indirect
+	go.uber.org/goleak v1.1.10
 	golang.org/x/sys v0.0.0-20201014080544-cc95f250f6bc
 	gonum.org/v1/gonum v0.6.2
-	google.golang.org/genproto v0.0.0-20201014134559-03b6142f0dc9 // indirect
 	google.golang.org/grpc v1.32.0
 	google.golang.org/protobuf v1.25.0
 )
