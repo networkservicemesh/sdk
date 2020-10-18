@@ -28,7 +28,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
+	"github.com/edwarnicke/serialize"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 

@@ -36,8 +36,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
 
+	"github.com/edwarnicke/serialize"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/serialize"
 )
 
 type injectPeerClient struct {
