@@ -9,7 +9,7 @@ jobs:
   update-dependent-repositories:
     strategy:
       matrix:
-        repository: [cmd-registry-memory, cmd-registry-proxy-dns, sdk-kernel, sdk-vppagent, cmd-nsmgr]
+        repository: [cmd-registry-memory, cmd-registry-proxy-dns, sdk-kernel, sdk-vppagent, cmd-nsmgr, cmd-nsmgr-proxy]
     name: Update ${{ matrix.repository }}
     runs-on: ubuntu-latest
     steps:
