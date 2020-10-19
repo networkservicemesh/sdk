@@ -41,17 +41,13 @@ import (
 )
 
 const (
-	tokenTimeout      = 100 * time.Millisecond
-	eventuallyTimeout = 10 * tokenTimeout
-	tickTimeout       = 10 * time.Millisecond
+	tokenTimeout = 100 * time.Millisecond
+	waitFor      = 10 * tokenTimeout
+	tick         = 10 * time.Millisecond
 )
 
-func TestTimeoutServer_Request_Self(t *testing.T) {
-	connServer := &connectionsServer{
-		connections: map[string]*connectionInfo{},
-	}
-
-	client := chain.NewNetworkServiceClient(
+func testClient(connServer *connectionsServer) networkservice.NetworkServiceClient {
+	return chain.NewNetworkServiceClient(
 		updatepath.NewClient("client"),
 		updatetoken.NewClient(func(_ credentials.AuthInfo) (string, time.Time, error) {
 			return "token", time.Now().Add(tokenTimeout), nil
@@ -67,12 +63,56 @@ func TestTimeoutServer_Request_Self(t *testing.T) {
 			),
 		),
 	)
+}
 
-	_, err := client.Request(context.TODO(), &networkservice.NetworkServiceRequest{})
+func TestTimeoutServer_Request(t *testing.T) {
+	connServer := &connectionsServer{
+		connections: map[string]*connectionInfo{},
+	}
+
+	_, err := testClient(connServer).Request(context.TODO(), &networkservice.NetworkServiceRequest{})
 	require.NoError(t, err)
 	require.Condition(t, connServer.validator(t, 1, 0))
 
-	require.Eventually(t, connServer.validator(t, 0, 1), eventuallyTimeout, tickTimeout)
+	require.Eventually(t, connServer.validator(t, 0, 1), waitFor, tick)
+}
+
+func TestTimeoutServer_Close_BeforeTimeout(t *testing.T) {
+	connServer := &connectionsServer{
+		connections: map[string]*connectionInfo{},
+	}
+
+	client := testClient(connServer)
+
+	conn, err := client.Request(context.TODO(), &networkservice.NetworkServiceRequest{})
+	require.NoError(t, err)
+	require.Condition(t, connServer.validator(t, 1, 0))
+
+	_, err = client.Close(context.TODO(), conn)
+	require.NoError(t, err)
+	require.Condition(t, connServer.validator(t, 0, 1))
+
+	require.Never(t, func() bool {
+		return !connServer.validator(t, 0, 1)()
+	}, waitFor, tick)
+}
+
+func TestTimeoutServer_Close_AfterTimeout(t *testing.T) {
+	connServer := &connectionsServer{
+		connections: map[string]*connectionInfo{},
+	}
+
+	client := testClient(connServer)
+
+	conn, err := client.Request(context.TODO(), &networkservice.NetworkServiceRequest{})
+	require.NoError(t, err)
+	require.Condition(t, connServer.validator(t, 1, 0))
+
+	require.Eventually(t, connServer.validator(t, 0, 1), waitFor, tick)
+
+	_, err = client.Close(context.TODO(), conn)
+	require.NoError(t, err)
+	require.Condition(t, connServer.validator(t, 0, 1))
 }
 
 type connectionsServer struct {
