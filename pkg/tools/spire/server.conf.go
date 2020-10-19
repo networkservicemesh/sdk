@@ -26,7 +26,7 @@ const (
     trust_domain = "example.org"
     data_dir = "%[1]s/data"
     log_level = "WARN"
-    upstream_bundle = true
+    ca_key_type = "rsa-2048"
     default_svid_ttl = "1h"
     ca_subject = {
         country = ["US"],
