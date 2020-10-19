@@ -29,10 +29,10 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
-	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 )
 
 type timeoutServer struct {
+	ctx         context.Context
 	onTimeout   *networkservice.NetworkServiceServer
 	connections map[string]*time.Timer
 	executor    serialize.Executor
@@ -47,8 +47,9 @@ type timeoutServer struct {
 //                        If onTimeout is nil, then we simply set onTimeout to this server chain element
 //                        If we are part of a larger chain, we should pass the resulting chain into
 //                        this constructor before we actually have a pointer to it.
-func NewServer(onTimout *networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
+func NewServer(ctx context.Context, onTimout *networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
 	rv := &timeoutServer{
+		ctx:         ctx,
 		connections: make(map[string]*time.Timer),
 		onTimeout:   onTimout,
 	}
@@ -60,17 +61,20 @@ func NewServer(onTimout *networkservice.NetworkServiceServer) networkservice.Net
 }
 
 func (t *timeoutServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	ct, err := t.createTimer(ctx, request)
+	conn, err := next.Server(ctx).Request(ctx, request)
 	if err != nil {
 		return nil, err
 	}
-	connID := request.GetConnection().GetId()
+	ct, err := t.createTimer(ctx, request.GetConnection())
+	if err != nil {
+		return nil, err
+	}
 	t.executor.AsyncExec(func() {
-		if timer, ok := t.connections[connID]; !ok || timer.Stop() {
-			t.connections[connID] = ct
+		if timer, ok := t.connections[conn.GetId()]; !ok || timer.Stop() {
+			t.connections[conn.GetId()] = ct
 		}
 	})
-	return next.Server(ctx).Request(ctx, request)
+	return conn, nil
 }
 
 func (t *timeoutServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
@@ -83,18 +87,22 @@ func (t *timeoutServer) Close(ctx context.Context, conn *networkservice.Connecti
 	return next.Server(ctx).Close(ctx, conn)
 }
 
-func (t *timeoutServer) createTimer(ctx context.Context, request *networkservice.NetworkServiceRequest) (*time.Timer, error) {
-	request = request.Clone()
-	expireTime, err := ptypes.Timestamp(request.GetConnection().GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()-1].GetExpires())
+func (t *timeoutServer) createTimer(ctx context.Context, conn *networkservice.Connection) (*time.Timer, error) {
+	conn = conn.Clone()
+	expireTime, err := ptypes.Timestamp(conn.GetCurrentPathSegment().GetExpires())
 	if err != nil {
 		return nil, err
 	}
-	duration := time.Until(expireTime)
-	conn := request.GetConnection().Clone()
-	return time.AfterFunc(duration, func() {
-		newCtx := extend.WithValuesFromContext(context.Background(), ctx)
+	now := time.Now()
+	return time.AfterFunc(time.Until(expireTime), func() {
+		newCtx := t.ctx
+		if deadline, ok := ctx.Deadline(); ok {
+			var cancel context.CancelFunc
+			newCtx, cancel = context.WithTimeout(context.Background(), deadline.Sub(now))
+			defer cancel()
+		}
 		if _, err := (*t.onTimeout).Close(newCtx, conn); err != nil {
-			trace.Log(newCtx).Errorf("Error attempting to close timed out connection: %s: %+v", request.GetConnection().GetId(), err)
+			trace.Log(newCtx).Errorf("Error attempting to close timed out connection: %s: %+v", conn.GetId(), err)
 		}
 	}), nil
 }
