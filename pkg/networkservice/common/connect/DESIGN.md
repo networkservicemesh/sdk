@@ -1,7 +1,7 @@
 # Functional requirements
 
 Upon receipt of a Request, the connect Server chain element must send, as a client, a corresponding request to 
-another Server.  For clarity we will refer to the incoming Request to the server as the 'server Request'.
+another Server.  For clarity, we will refer to the incoming Request to the server as the 'server Request'.
 
 If the server request.GetConnection.GetId() is not associated to an existing client Connection, a new Connection
 must be established by sending a Request to the Server indicated by the clienturl.ClientURL(ctx).
@@ -19,10 +19,10 @@ return without error.
 # Implementation
 
 ## connectClient
-Each incoming server Connection must be tranlated to its corresponding client Connection for subsequent server Request and Server Close
-calls. For this reason connectClient is implemented, to manage that translation.  This results in one 'client' per server Connection.
+Each incoming server Connection must be translated to its corresponding client Connection for subsequent server Request and Server Close
+calls. For this reason, connectClient is implemented, to manage that translation.  This results in one 'client' per server Connection.
 Each connectClient processes maximally one Request/Close at a time, enforced with an executor.  The connectClient performs
-the proper translation (or storage) of the client Connection and then calls the next.Client(ctx).  Upon recieving a Close, connectClient,
+the proper translation (or storage) of the client Connection and then calls the next.Client(ctx).  Upon receiving a Close, connectClient,
 calls a 'cancel' function provided to it at its construction.
 
 ## connectServer
@@ -41,11 +41,11 @@ connectServer also keeps a clientsByURL
 [clienturl.NewClient(...)](https://github.com/networkservicemesh/sdk/blob/master/pkg/networkservice/common/clienturl/client.go#L44).
 
 Care is taken to make sure that each connectClient results in one increment of the refcount on its creation, and one decrement when
-it receives a Close.  In this way we can be sure that:
+it receives a Close.  In this way, we can be sure that:
 
 1. clienturl.NewClient(...) is not referenced in clientsByURL after the last connectClient using it has received its Close.
 2. If for any reason the clienturl.NewClient(...) is deleted prematurely from the clientsByURL map, [which can happen](https://github.com/networkservicemesh/sdk/blob/master/pkg/tools/clientmap/refcount.go#L78),
-any connectClients actively using it retain their pointer to it, and can continue to utilize it throughout there lifetime.
+any connectClients actively using it retain their pointer to it, and can continue to utilize it throughout their lifetime.
 
 The overall result is that usually, connectServer will have no more than one clienturl.NewClient(...) per clientURL.
 It may occasionally have more than one in a transient fashion for the lifetime of one or more Connections.  In all events
@@ -53,7 +53,7 @@ it will have zero clienturl.NewClient(...)s for a clientURL if it has no server 
 
 ## Comments on concurrency characteristics.
 
-Concurrency is primarily managed through type specific wrappers of [sync.Map](https://golang.org/pkg/sync/#Map):
+Concurrency is primarily managed through type-specific wrappers of [sync.Map](https://golang.org/pkg/sync/#Map):
 > The Map type is optimized for two common use cases: (1) when the entry for a given key is only ever written once 
 > but read many times, as in caches that only grow, or (2) when multiple goroutines read, write, and overwrite entries 
 > for disjoint sets of keys. In these two cases, use of a Map may significantly reduce lock contention compared to a 
