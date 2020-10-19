@@ -65,7 +65,7 @@ func NewServer(ctx context.Context, name string, authzServer networkservice.Netw
 		append([]networkservice.NetworkServiceServer{
 			authzServer,
 			updatepath.NewServer(name),
-			timeout.NewServer(),
+			timeout.NewServer(ctx),
 			monitor.NewServer(ctx, &rv.MonitorConnectionServer),
 			updatetoken.NewServer(tokenGenerator),
 		}, additionalFunctionality...)...)

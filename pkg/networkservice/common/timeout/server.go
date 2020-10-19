@@ -30,12 +30,12 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	"github.com/networkservicemesh/sdk/pkg/tools/mapexecutor"
+	"github.com/networkservicemesh/sdk/pkg/tools/multiexecutor"
 )
 
 type timeoutServer struct {
 	connections timerMap
-	executor    mapexecutor.Executor
+	executor    *multiexecutor.Executor
 }
 
 type timer struct {
@@ -44,8 +44,10 @@ type timer struct {
 }
 
 // NewServer - creates a new NetworkServiceServer chain element that implements timeout of expired connections.
-func NewServer() networkservice.NetworkServiceServer {
-	return &timeoutServer{}
+func NewServer(ctx context.Context) networkservice.NetworkServiceServer {
+	return &timeoutServer{
+		executor: multiexecutor.NewExecutor(ctx),
+	}
 }
 
 func (t *timeoutServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (conn *networkservice.Connection, err error) {

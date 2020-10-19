@@ -46,7 +46,7 @@ const (
 	tick         = 10 * time.Millisecond
 )
 
-func testClient(connServer *connectionsServer) networkservice.NetworkServiceClient {
+func testClient(ctx context.Context, connServer *connectionsServer) networkservice.NetworkServiceClient {
 	return chain.NewNetworkServiceClient(
 		updatepath.NewClient("client"),
 		updatetoken.NewClient(func(_ credentials.AuthInfo) (string, time.Time, error) {
@@ -56,7 +56,7 @@ func testClient(connServer *connectionsServer) networkservice.NetworkServiceClie
 		adapters.NewServerToClient(
 			chain.NewNetworkServiceServer(
 				updatepath.NewServer("server"),
-				timeout.NewServer(),
+				timeout.NewServer(ctx),
 				mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
 					kernelmech.MECHANISM: connServer,
 				}),
@@ -66,11 +66,14 @@ func testClient(connServer *connectionsServer) networkservice.NetworkServiceClie
 }
 
 func TestTimeoutServer_Request(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	connServer := &connectionsServer{
 		connections: map[string]*connectionInfo{},
 	}
 
-	_, err := testClient(connServer).Request(context.TODO(), &networkservice.NetworkServiceRequest{})
+	_, err := testClient(ctx, connServer).Request(ctx, &networkservice.NetworkServiceRequest{})
 	require.NoError(t, err)
 	require.Condition(t, connServer.validator(t, 1, 0))
 
@@ -78,17 +81,20 @@ func TestTimeoutServer_Request(t *testing.T) {
 }
 
 func TestTimeoutServer_Close_BeforeTimeout(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	connServer := &connectionsServer{
 		connections: map[string]*connectionInfo{},
 	}
 
-	client := testClient(connServer)
+	client := testClient(ctx, connServer)
 
-	conn, err := client.Request(context.TODO(), &networkservice.NetworkServiceRequest{})
+	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{})
 	require.NoError(t, err)
 	require.Condition(t, connServer.validator(t, 1, 0))
 
-	_, err = client.Close(context.TODO(), conn)
+	_, err = client.Close(ctx, conn)
 	require.NoError(t, err)
 	require.Condition(t, connServer.validator(t, 0, 1))
 
@@ -98,19 +104,22 @@ func TestTimeoutServer_Close_BeforeTimeout(t *testing.T) {
 }
 
 func TestTimeoutServer_Close_AfterTimeout(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	connServer := &connectionsServer{
 		connections: map[string]*connectionInfo{},
 	}
 
-	client := testClient(connServer)
+	client := testClient(ctx, connServer)
 
-	conn, err := client.Request(context.TODO(), &networkservice.NetworkServiceRequest{})
+	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{})
 	require.NoError(t, err)
 	require.Condition(t, connServer.validator(t, 1, 0))
 
 	require.Eventually(t, connServer.validator(t, 0, 1), waitFor, tick)
 
-	_, err = client.Close(context.TODO(), conn)
+	_, err = client.Close(ctx, conn)
 	require.NoError(t, err)
 	require.Condition(t, connServer.validator(t, 0, 1))
 }

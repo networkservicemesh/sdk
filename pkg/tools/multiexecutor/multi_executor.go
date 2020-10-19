@@ -14,37 +14,80 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package mapexecutor provides serialize.Executor with multiple task queues matched by IDs
-package mapexecutor
+// Package multiexecutor provides serialize.Executor with multiple task queues matched by IDs
+package multiexecutor
 
 import (
-	"sync"
+	"context"
+	"sync/atomic"
+	"time"
 
 	"github.com/edwarnicke/serialize"
 )
 
+const (
+	cleanupTimeout = 10 * time.Millisecond
+)
+
 // Executor is a serialize.Executor with multiple task queues matched by IDs
 type Executor struct {
-	init      sync.Once
 	executor  serialize.Executor
-	executors map[string]*serialize.Executor
+	executors map[string]*executor
+	updated   int32
+}
+
+type executor struct {
+	executor serialize.Executor
+	count    int32
+}
+
+func NewExecutor(ctx context.Context) *Executor {
+	e := &Executor{
+		executors: map[string]*executor{},
+	}
+
+	go e.cleanup(ctx)
+
+	return e
+}
+
+func (e *Executor) cleanup(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(cleanupTimeout):
+			<-e.executor.AsyncExec(func() {
+				if atomic.CompareAndSwapInt32(&e.updated, 1, 0) {
+					return
+				}
+				for id, ex := range e.executors {
+					if atomic.LoadInt32(&ex.count) == 0 {
+						delete(e.executors, id)
+					}
+				}
+			})
+		}
+	}
 }
 
 // AsyncExec starts task in the queue selected by the given ID (look at serialize.Executor)
 func (e *Executor) AsyncExec(id string, f func()) <-chan struct{} {
-	e.init.Do(func() {
-		e.executors = map[string]*serialize.Executor{}
-	})
-
 	ready := make(chan struct{})
 	chanPtr := new(<-chan struct{})
 	e.executor.AsyncExec(func() {
-		executor, ok := e.executors[id]
+		ex, ok := e.executors[id]
 		if !ok {
-			executor = &serialize.Executor{}
-			e.executors[id] = executor
+			ex = &executor{}
+			e.executors[id] = ex
 		}
-		*chanPtr = executor.AsyncExec(f)
+		atomic.AddInt32(&ex.count, 1)
+
+		*chanPtr = ex.executor.AsyncExec(func() {
+			f()
+			atomic.AddInt32(&ex.count, -1)
+			atomic.CompareAndSwapInt32(&e.updated, 0, 1)
+		})
 		close(ready)
 	})
 
