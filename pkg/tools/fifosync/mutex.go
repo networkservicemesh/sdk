@@ -14,10 +14,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package serializer
+// Package fifosync provides FIFO order guaranteed synchronization primitives
+package fifosync
 
-func dummyChannel() chan struct{} {
-	ch := make(chan struct{})
-	close(ch)
-	return ch
+import "sync"
+
+// Mutex is a FIFO order guaranteed mutex
+type Mutex struct {
+	init sync.Once
+	ch   chan struct{}
+}
+
+// Lock acquires lock or blocks until it gets free
+func (m *Mutex) Lock() {
+	m.init.Do(func() {
+		m.ch = make(chan struct{}, 1)
+	})
+	m.ch <- struct{}{}
+}
+
+// Unlock frees lock
+func (m *Mutex) Unlock() {
+	<-m.ch
 }

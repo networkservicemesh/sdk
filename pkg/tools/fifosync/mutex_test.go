@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package serializer_test
+package fifosync_test
 
 import (
 	"sync"
@@ -23,16 +23,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/serializer"
+	"github.com/networkservicemesh/sdk/pkg/tools/fifosync"
 )
 
-const (
-	parallelCount = 100
-)
-
-func TestSerializer_Lock(t *testing.T) {
-	s := serializer.Serializer{}
-	globalUnlock := s.Lock("a")
+func TestMutex(t *testing.T) {
+	lock := fifosync.Mutex{}
+	lock.Lock()
 
 	wg := sync.WaitGroup{}
 	wg.Add(parallelCount * 2)
@@ -41,8 +37,9 @@ func TestSerializer_Lock(t *testing.T) {
 	for i := 0; i < parallelCount; i++ {
 		id := i
 		go func() {
-			unlock := s.Lock("a")
-			defer unlock()
+			lock.Lock()
+			defer lock.Unlock()
+
 			assert.Equal(t, id, count)
 			count++
 			wg.Done()
@@ -51,13 +48,14 @@ func TestSerializer_Lock(t *testing.T) {
 		<-time.After(time.Millisecond)
 	}
 
-	globalUnlock()
+	lock.Unlock()
 
 	// we need to be sure that new workers would not break existing FIFO order
 	for i := 0; i < parallelCount; i++ {
 		go func() {
-			unlock := s.Lock("a")
-			defer unlock()
+			lock.Lock()
+			defer lock.Unlock()
+
 			count++
 			wg.Done()
 		}()
