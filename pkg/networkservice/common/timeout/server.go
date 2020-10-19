@@ -34,7 +34,7 @@ import (
 )
 
 type timeoutServer struct {
-	connections map[string]*timer
+	connections timerMap
 	executor    mapexecutor.Executor
 }
 
@@ -45,9 +45,7 @@ type timer struct {
 
 // NewServer - creates a new NetworkServiceServer chain element that implements timeout of expired connections.
 func NewServer() networkservice.NetworkServiceServer {
-	return &timeoutServer{
-		connections: map[string]*timer{},
-	}
+	return &timeoutServer{}
 }
 
 func (t *timeoutServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (conn *networkservice.Connection, err error) {
@@ -55,12 +53,12 @@ func (t *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 
 	connID := request.GetConnection().GetId()
 	<-t.executor.AsyncExec(connID, func() {
-		if timer, ok := t.connections[connID]; ok {
+		if timer, ok := t.connections.Load(connID); ok {
 			if !timer.timer.Stop() {
 				logEntry.Warnf("connection has been timed out, re requesting: %v", connID)
 			}
 			close(timer.stopCh)
-			delete(t.connections, connID)
+			t.connections.Delete(connID)
 		}
 
 		conn, err = next.Server(ctx).Request(ctx, request)
@@ -77,7 +75,7 @@ func (t *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 			return
 		}
 
-		t.connections[connID] = timer
+		t.connections.Store(connID, timer)
 	})
 
 	return conn, err
@@ -123,7 +121,7 @@ func (t *timeoutServer) Close(ctx context.Context, conn *networkservice.Connecti
 func (t *timeoutServer) close(ctx context.Context, conn *networkservice.Connection) error {
 	logEntry := log.Entry(ctx).WithField("timeoutServer", "close")
 
-	timer, ok := t.connections[conn.GetId()]
+	timer, ok := t.connections.Load(conn.GetId())
 	if !ok {
 		logEntry.Warnf("connection has been already closed: %v", conn.GetId())
 		return nil
@@ -131,7 +129,7 @@ func (t *timeoutServer) close(ctx context.Context, conn *networkservice.Connecti
 
 	timer.timer.Stop()
 	close(timer.stopCh)
-	delete(t.connections, conn.GetId())
+	t.connections.Delete(conn.GetId())
 
 	_, err := next.Server(ctx).Close(ctx, conn)
 	return err
