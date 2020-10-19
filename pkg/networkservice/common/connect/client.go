@@ -30,15 +30,37 @@ import (
 )
 
 type connectClient struct {
-	onClose func()
+	mechanism *networkservice.Mechanism
+	cancel    context.CancelFunc
+	mu        sync.Mutex
+}
+
+// NewClient - client chain element for use with single incoming connection, translates from incoming server connection to
+//             outgoing client connection
+func NewClient(cancel context.CancelFunc) networkservice.NetworkServiceClient {
+	return &connectClient{
+		cancel: cancel,
+	}
 }
 
 func (c *connectClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	return next.Client(ctx).Request(ctx, request, opts...)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	clientRequest := request.Clone()
+	clientRequest.MechanismPreferences = nil
+	clientRequest.Connection.Mechanism = c.mechanism
+	conn, err := next.Client(ctx).Request(ctx, clientRequest)
+	c.mechanism = conn.GetMechanism()
+	return conn, err
 }
 
 func (c *connectClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	_, err := next.Client(ctx).Close(ctx, conn, opts...)
-	c.onClose()
-	return &empty.Empty{}, err
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	conn = conn.Clone()
+	conn.Mechanism = c.mechanism
+	e, err := next.Client(ctx).Close(ctx, conn)
+	c.mechanism = nil
+	c.cancel()
+	return e, err
 }
