@@ -30,6 +30,6 @@ require (
 	go.uber.org/goleak v1.1.10
 	golang.org/x/sys v0.0.0-20201018230417-eeed37f84f13
 	gonum.org/v1/gonum v0.6.2
-	google.golang.org/grpc v1.33.0
+	google.golang.org/grpc v1.32.0
 	google.golang.org/protobuf v1.25.0
 )
