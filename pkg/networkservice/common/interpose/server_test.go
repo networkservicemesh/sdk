@@ -107,23 +107,52 @@ func TestInterposeServer(t *testing.T) {
 
 	conn = conn.Clone()
 
-	touchServer.touched = false
+func TestCrossNSERequest(t *testing.T) {
+	var regServer registry.NetworkServiceEndpointRegistryServer
+	crossURL := "test://crossconnection"
+	clientURL := &url.URL{
+		Scheme: "unix",
+		Path:   "/var/run/nse-1.sock",
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	server := endpoint.NewServer(ctx, "nsmgr",
+		authorize.NewServer(),
+		TokenGenerator,
+		interpose.NewServer("nsmgr", &regServer))
 
-	_, err = client.Close(context.TODO(), conn)
-	require.NoError(t, err)
-	require.True(t, touchServer.touched)
-}
+	regClient := next_reg.NewNetworkServiceEndpointRegistryClient(interpose_reg.NewNetworkServiceEndpointRegistryClient(), adapters2.NetworkServiceEndpointServerToClient(regServer))
+
+	reg, err := regClient.Register(context.Background(), &registry.NetworkServiceEndpoint{
+		Name: "cross-nse",
+		Url:  crossURL,
+	})
+	require.Nil(t, err)
+	require.NotNil(t, reg)
+
+	interposeRegName := reg.Name
+	interposeNSE := endpoint.NewServer(ctx, interposeRegName,
+		authorize.NewServer(),
+		TokenGenerator)
+
+	copyClient := &copyClient{}
 
 type touchServer struct {
 	touched bool
 }
 
-func (s *touchServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	s.touched = true
-	return next.Server(ctx).Request(ctx, request)
-}
-
-func (s *touchServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	s.touched = true
-	return next.Server(ctx).Close(ctx, conn)
+	var conn *networkservice.Connection
+	conn, err = client.Request(clienturlctx.WithClientURL(context.Background(), clientURL), &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			NetworkServiceEndpointName: "my-service",
+		},
+	})
+	require.Nil(t, err)
+	segments := conn.GetPath().GetPathSegments()
+	require.NotNil(t, conn)
+	require.Equal(t, 4, len(copyClient.requests))
+	require.Equal(t, 4, len(segments))
+	require.Equal(t, "nsmgr", segments[1].Name)
+	require.Equal(t, interposeRegName, segments[2].Name)
+	require.Equal(t, "nsmgr", segments[3].Name)
 }
