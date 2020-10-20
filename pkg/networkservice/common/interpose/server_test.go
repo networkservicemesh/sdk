@@ -88,6 +88,10 @@ func TestCrossNSERequest(t *testing.T) {
 		TokenGenerator,
 		interpose.NewServer("nsmgr", &regServer))
 
+	interposeNSE := endpoint.NewServer(ctx, "interpose-nse",
+		authorize.NewServer(),
+		TokenGenerator)
+
 	regClient := next_reg.NewNetworkServiceEndpointRegistryClient(interpose_reg.NewNetworkServiceEndpointRegistryClient(), adapters2.NetworkServiceEndpointServerToClient(regServer))
 
 	reg, err := regClient.Register(context.Background(), &registry.NetworkServiceEndpoint{
@@ -96,11 +100,6 @@ func TestCrossNSERequest(t *testing.T) {
 	})
 	require.Nil(t, err)
 	require.NotNil(t, reg)
-
-	interposeRegName := reg.Name
-	interposeNSE := endpoint.NewServer(ctx, interposeRegName,
-		authorize.NewServer(),
-		TokenGenerator)
 
 	copyClient := &copyClient{}
 
@@ -139,6 +138,6 @@ func TestCrossNSERequest(t *testing.T) {
 	require.Equal(t, 4, len(copyClient.requests))
 	require.Equal(t, 4, len(segments))
 	require.Equal(t, "nsmgr", segments[1].Name)
-	require.Equal(t, interposeRegName, segments[2].Name)
+	require.Equal(t, "interpose-nse", segments[2].Name)
 	require.Equal(t, "nsmgr", segments[3].Name)
 }

@@ -39,7 +39,6 @@ type setIDNetworkServiceEndpointRegistryFindServer struct {
 }
 
 func (s *setIDNetworkServiceEndpointRegistryFindServer) Send(request *registry.NetworkServiceEndpoint) error {
-	request = request.Clone()
 	request.Name = nameOf(request)
 	return s.NetworkServiceEndpointRegistry_FindServer.Send(request)
 }
