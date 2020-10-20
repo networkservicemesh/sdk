@@ -11,8 +11,9 @@ require (
 	github.com/edwarnicke/serialize v0.0.0-20200705214914-ebc43080eecf
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/ghodss/yaml v1.0.0
-	github.com/golang/protobuf v1.4.3
-	github.com/google/uuid v1.1.2
+	github.com/golang/protobuf v1.4.2
+	github.com/google/go-cmp v0.5.0
+	github.com/google/uuid v1.1.1
 	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645
 	github.com/hashicorp/go-multierror v1.0.0
 	github.com/nats-io/nats-streaming-server v0.17.0
