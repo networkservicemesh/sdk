@@ -22,21 +22,16 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
-
-	"github.com/pkg/errors"
-
 	"github.com/golang/protobuf/ptypes/empty"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 )
 
 type interposeServer struct {
@@ -135,10 +130,23 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 
 func (l *interposeServer) getConnectionID(conn *networkservice.Connection) string {
 	id := ""
-	for i := conn.GetPath().GetIndex(); i > 0; i-- {
-		if conn.GetPath().GetPathSegments()[i].Name == l.name {
-			id = conn.GetPath().GetPathSegments()[i].Id
+	segmentIdx := conn.GetPath().GetIndex()
+	isCrossNSEPrev := false
+
+	l.endpoints.Range(func(key string, crossNSEURL *url.URL) bool {
+		isCrossNSEPrev =
+			conn.Path.PathSegments[segmentIdx-1].Name == key
+		return !isCrossNSEPrev
+	})
+	if isCrossNSEPrev {
+		for j := segmentIdx - 2; j > 0; j-- {
+			if conn.GetPath().GetPathSegments()[j].Name == l.name {
+				id = conn.GetPath().GetPathSegments()[j].Id
+				break
+			}
 		}
+	} else {
+		id = conn.GetPath().GetPathSegments()[segmentIdx].Id
 	}
 	return id
 }
