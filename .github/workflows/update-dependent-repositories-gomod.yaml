@@ -7,7 +7,9 @@ on:
 
 jobs:
   update-dependent-repositories:
+    continue-on-error: true
     strategy:
+      fail-fast: false
       matrix:
         repository: [cmd-registry-memory, cmd-registry-proxy-dns, sdk-kernel, sdk-vppagent, cmd-nsmgr, cmd-nsmgr-proxy]
     name: Update ${{ matrix.repository }}

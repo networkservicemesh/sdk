@@ -134,7 +134,9 @@ jobs:
           GITHUB_LOGIN: nsmbot
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   update-dependent-repositories:
+    continue-on-error: true
     strategy:
+      fail-fast: false
       matrix:
         repository: [cmd-registry-memory, cmd-registry-proxy-dns, sdk-kernel, sdk-vppagent, cmd-nsmgr]
     name: Update ${{ matrix.repository }}
