@@ -110,16 +110,11 @@ func (b *Builder) Build() *Domain {
 		var node = new(Node)
 		node.NSMgr = b.newNSMgr(ctx, domain.Registry.URL)
 		forwarderName := "cross-nse-" + uuid.New().String()
-		node.Forwarder = b.newCrossConnectNSE(ctx, forwarderName, node.NSMgr.URL)
 		forwarderRegistrationClient := chain.NewNetworkServiceEndpointRegistryClient(
 			interpose_reg.NewNetworkServiceEndpointRegistryClient(),
 			adapter_registry.NetworkServiceEndpointServerToClient(node.NSMgr.NetworkServiceEndpointRegistryServer()),
 		)
-		_, err := forwarderRegistrationClient.Register(context.Background(), &registryapi.NetworkServiceEndpoint{
-			Url:  node.Forwarder.URL.String(),
-			Name: forwarderName,
-		})
-		b.require.NoError(err)
+		node.Forwarder = b.newCrossConnectNSE(ctx, forwarderName, node.NSMgr.URL, forwarderRegistrationClient)
 		domain.Nodes = append(domain.Nodes, node)
 	}
 	domain.resources, b.resources = b.resources, nil
@@ -258,12 +253,22 @@ func serve(ctx context.Context, u *url.URL, register func(server *grpc.Server)) 
 	}()
 }
 
-func (b *Builder) newCrossConnectNSE(ctx context.Context, name string, connectTo *url.URL) *EndpointEntry {
+func (b *Builder) newCrossConnectNSE(ctx context.Context, name string, connectTo *url.URL, forwarderRegistrationClient registryapi.NetworkServiceEndpointRegistryClient) *EndpointEntry {
 	if b.supplyForwarder == nil {
 		panic("nodes without forwarder are not supported")
 	}
-	crossNSE := b.supplyForwarder(ctx, name, b.generateTokenFunc, connectTo, grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)))
-	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	b.require.NoError(err)
+	serveURL := grpcutils.AddressToURL(listener.Addr())
+	b.require.NoError(listener.Close())
+
+	regForwarder, err := forwarderRegistrationClient.Register(context.Background(), &registryapi.NetworkServiceEndpoint{
+		Url:  serveURL.String(),
+		Name: name,
+	})
+	b.require.NoError(err)
+
+	crossNSE := b.supplyForwarder(ctx, regForwarder.Name, b.generateTokenFunc, connectTo, grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)))
 	serve(ctx, serveURL, crossNSE.Register)
 	log.Entry(ctx).Infof("%v listen on: %v", name, serveURL)
 	return &EndpointEntry{
