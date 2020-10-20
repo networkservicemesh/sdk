@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package adapters provides adapters to translate between networkservice.NetworkService{Server,Client}
 package adapters
 
 import (
@@ -26,42 +27,32 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-const serverContextKey contextKeyType = "server"
-
 type (
 	serverToClient struct {
 		server networkservice.NetworkServiceServer
 	}
-	ctxServer     struct{}
-	nextClientCtx struct {
-		next networkservice.NetworkServiceClient
-		old  *nextClientCtx
+	callNextClient struct {
+		client networkservice.NetworkServiceClient
 	}
 )
 
 // NewServerToClient - returns a new networkservice.NetworkServiceClient that is a wrapper around server
 func NewServerToClient(server networkservice.NetworkServiceServer) networkservice.NetworkServiceClient {
-	return &serverToClient{server: next.NewNetworkServiceServer(server, &ctxServer{})}
+	return &serverToClient{server: server}
 }
 
 func (s *serverToClient) Request(ctx context.Context, in *networkservice.NetworkServiceRequest, _ ...grpc.CallOption) (*networkservice.Connection, error) {
-	old, _ := ctx.Value(serverContextKey).(*nextClientCtx)
-	nextCtx := context.WithValue(ctx, serverContextKey, &nextClientCtx{next: next.Client(ctx), old: old})
-	return s.server.Request(nextCtx, in)
+	return next.NewNetworkServiceServer(s.server, &callNextClient{client: next.Client(ctx)}).Request(ctx, in)
 }
 
 func (s *serverToClient) Close(ctx context.Context, in *networkservice.Connection, _ ...grpc.CallOption) (*empty.Empty, error) {
-	old, _ := ctx.Value(serverContextKey).(*nextClientCtx)
-	nextCtx := context.WithValue(ctx, serverContextKey, &nextClientCtx{next: next.Client(ctx), old: old})
-	return s.server.Close(nextCtx, in)
+	return next.NewNetworkServiceServer(s.server, &callNextClient{client: next.Client(ctx)}).Close(ctx, in)
 }
 
-func (s *ctxServer) Request(ctx context.Context, in *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	ctx2 := ctx.Value(serverContextKey).(*nextClientCtx)
-	return ctx2.next.Request(context.WithValue(ctx, serverContextKey, ctx2.old), in)
+func (s *callNextClient) Request(ctx context.Context, in *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	return s.client.Request(ctx, in)
 }
 
-func (s *ctxServer) Close(ctx context.Context, in *networkservice.Connection) (*empty.Empty, error) {
-	ctx2 := ctx.Value(serverContextKey).(*nextClientCtx)
-	return ctx2.next.Close(context.WithValue(ctx, serverContextKey, ctx2.old), in)
+func (s *callNextClient) Close(ctx context.Context, in *networkservice.Connection) (*empty.Empty, error) {
+	return s.client.Close(ctx, in)
 }
