@@ -30,6 +30,7 @@ import (
 	"github.com/edwarnicke/grpcfd"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
 )
 
 type recvFDClient struct {
@@ -81,6 +82,14 @@ func (r *recvFDClient) Close(ctx context.Context, conn *networkservice.Connectio
 		filesByInodeURL:    make(map[string]*os.File),
 		inodeURLbyFilename: make(map[string]*url.URL),
 	})
+
+	go func(fileMap *perConnectionFileMap, conn *networkservice.Connection) {
+		<-ctx.Done()
+		for _, file := range fileMap.filesByInodeURL {
+			trace.Log(ctx).Infof("Closing file %q related to closed connection %s", file.Name(), conn.GetId())
+			_ = file.Close()
+		}
+	}(fileMap, conn)
 
 	// Whatever happens, clean up the fileMap
 	defer r.fileMaps.Delete(conn.GetId())
