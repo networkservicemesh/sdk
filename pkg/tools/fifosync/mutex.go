@@ -17,7 +17,9 @@
 // Package fifosync provides FIFO order guaranteed synchronization primitives
 package fifosync
 
-import "sync"
+import (
+	"sync"
+)
 
 // Mutex is a FIFO order guaranteed mutex
 type Mutex struct {
@@ -36,4 +38,21 @@ func (m *Mutex) Lock() {
 // Unlock frees lock
 func (m *Mutex) Unlock() {
 	<-m.ch
+}
+
+// Mutate mutates 'locked' Mutex to 'next' Mutex:
+// * if 'next' mutex is free, it first locks 'next', than unlocks 'locked'
+// * if 'next' mutex is locked, it first unlocks 'locked', than locks (or starts
+//   waiting on) 'next'
+func Mutate(locked, next *Mutex) {
+	next.init.Do(func() {
+		next.ch = make(chan struct{}, 1)
+	})
+
+	select {
+	case next.ch <- struct{}{}:
+		<-locked.ch
+	default:
+		next.ch <- <-locked.ch
+	}
 }

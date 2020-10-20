@@ -26,10 +26,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/fifosync"
 )
 
-const (
-	parallelCount = 100
-)
-
 func TestMutexGroup(t *testing.T) {
 	lock := fifosync.MutexGroup{}
 	lock.Lock("a")
@@ -48,13 +44,13 @@ func TestMutexGroup(t *testing.T) {
 			count++
 			wg.Done()
 		}()
-		// workers should be locked in the same order they appear
+		// lock workers in the same order they appear
 		<-time.After(time.Millisecond)
 	}
 
 	lock.Unlock("a")
 
-	// we need to be sure that new workers would not break existing FIFO order
+	// be sure that new workers would not break existing FIFO order
 	for i := 0; i < parallelCount; i++ {
 		go func() {
 			lock.Lock("a")

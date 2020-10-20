@@ -48,14 +48,13 @@ func (g *MutexGroup) Lock(id string) {
 	}
 	lock.count++
 
-	g.lock.Unlock()
-
-	lock.mutex.Lock()
+	Mutate(&g.lock, &lock.mutex)
 }
 
 // Unlock unlocks FIFO mutex selected by the given ID
 func (g *MutexGroup) Unlock(id string) {
 	g.lock.Lock()
+	defer g.lock.Unlock()
 
 	lock, ok := g.locks[id]
 	if !ok {
@@ -65,8 +64,6 @@ func (g *MutexGroup) Unlock(id string) {
 	if lock.count == 0 {
 		delete(g.locks, id)
 	}
-
-	g.lock.Unlock()
 
 	lock.mutex.Unlock()
 }

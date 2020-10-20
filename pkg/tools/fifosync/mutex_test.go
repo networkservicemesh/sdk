@@ -27,11 +27,11 @@ import (
 )
 
 func TestMutex(t *testing.T) {
+	wg := sync.WaitGroup{}
+	wg.Add(2 * parallelCount)
+
 	lock := fifosync.Mutex{}
 	lock.Lock()
-
-	wg := sync.WaitGroup{}
-	wg.Add(parallelCount * 2)
 
 	var count int
 	for i := 0; i < parallelCount; i++ {
@@ -42,24 +42,96 @@ func TestMutex(t *testing.T) {
 
 			assert.Equal(t, id, count)
 			count++
+
 			wg.Done()
 		}()
-		// workers should be locked in the same order they appear
+		// lock workers in the same order they appear
 		<-time.After(time.Millisecond)
 	}
 
 	lock.Unlock()
 
-	// we need to be sure that new workers would not break existing FIFO order
+	// be sure that new workers would not break existing FIFO order
 	for i := 0; i < parallelCount; i++ {
 		go func() {
 			lock.Lock()
 			defer lock.Unlock()
 
 			count++
+
 			wg.Done()
 		}()
 	}
+
+	wg.Wait()
+}
+
+func TestMutate(t *testing.T) {
+	wg := sync.WaitGroup{}
+	wg.Add(3 * parallelCount)
+
+	barrier := sync.WaitGroup{}
+	barrier.Add(1)
+
+	locks := make([]fifosync.Mutex, parallelCount)
+	nextLocks := make([]fifosync.Mutex, parallelCount)
+
+	// lock nextLocks and be sure that everybody are blocked on them
+	for i := 0; i < parallelCount; i++ {
+		id := i
+		go func() {
+			nextLocks[id].Lock()
+			defer nextLocks[id].Unlock()
+
+			wg.Done()
+			barrier.Wait()
+
+			time.Sleep(time.Millisecond)
+
+			wg.Done()
+		}()
+	}
+
+	counts := make([]int, parallelCount)
+	for i := 0; i < parallelCount; i++ {
+		id := i
+		go func() {
+			locks[id].Lock()
+
+			wg.Done()
+			barrier.Wait()
+
+			fifosync.Mutate(&locks[id], &nextLocks[id])
+			defer nextLocks[id].Unlock()
+
+			assert.Equal(t, 0, counts[id])
+			counts[id]++
+
+			wg.Done()
+		}()
+	}
+
+	// try to lock both mutexes before the mutate happens
+	for i := 0; i < parallelCount; i++ {
+		id := i
+		go func() {
+			wg.Done()
+
+			locks[id].Lock()
+			nextLocks[id].Lock()
+
+			counts[id]++
+
+			locks[id].Unlock()
+			nextLocks[id].Unlock()
+
+			wg.Done()
+		}()
+	}
+
+	wg.Wait()
+	wg.Add(3 * parallelCount)
+	barrier.Done()
 
 	wg.Wait()
 }
