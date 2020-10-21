@@ -60,7 +60,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Restrict dependencies on github.com/networkservicemesh/*
         run: |
-          for i in $(grep github.com/networkservicemesh/ go.mod |grep -v '^module' | sed 's;.*\(github.com\/networkservicemesh\/[a-zA-z\/]*\).*;\1;g' | sort -u);do
+          for i in $(grep github.com/networkservicemesh/ go.mod | grep -v '^module' | sed 's;.*\(github.com\/networkservicemesh\/[^ ]*\).*;\1;g');do
             if [ "${i}" != "github.com/networkservicemesh/api" ]; then
               echo Dependency on "${i}" is forbidden
               exit 1
@@ -138,7 +138,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        repository: [cmd-registry-memory, cmd-registry-proxy-dns, sdk-kernel, sdk-vppagent, cmd-nsmgr]
+        repository:
+          - sdk-vppagent
+          - sdk-kernel
+          - sdk-sriov
+          - cmd-nsmgr
+          - cmd-nsmgr-proxy
+          - cmd-registry-memory
+          - cmd-registry-proxy-dns
+          - cmd-forwarder-vppagent
+          - cmd-forwarder-sriov
+          - cmd-nsc
     name: Update ${{ matrix.repository }}
     runs-on: ubuntu-latest
     needs:
