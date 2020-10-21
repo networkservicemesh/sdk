@@ -56,11 +56,21 @@ func (m *Map) AsyncExec(id string, f func()) <-chan struct{} {
 		f()
 		m.executor.AsyncExec(func() {
 			ex.count--
-			if ex.count == 0 {
-				delete(m.executors, id)
-			}
 		})
 	})
+}
+
+func (m *Map) Delete(id string) bool {
+	var isDeleted bool
+	<-m.executor.AsyncExec(func() {
+		ex, ok := m.executors[id]
+		if !ok || ex.count == 0 {
+			delete(m.executors, id)
+			isDeleted = true
+			return
+		}
+	})
+	return isDeleted
 }
 
 var ids = []string{
@@ -83,6 +93,7 @@ func BenchmarkMutexGroup_Lock_Same(b *testing.B) {
 		g.Lock(id)
 		g.Unlock(id)
 	}
+	g.Delete(ids[0])
 }
 
 func BenchmarkMap_AsyncExec_Same(b *testing.B) {
@@ -91,6 +102,7 @@ func BenchmarkMap_AsyncExec_Same(b *testing.B) {
 		id := ids[0]
 		m.AsyncExec(id, func() {})
 	}
+	m.Delete(ids[0])
 }
 
 func BenchmarkMutexGroup_Lock_Different(b *testing.B) {
@@ -100,6 +112,9 @@ func BenchmarkMutexGroup_Lock_Different(b *testing.B) {
 		g.Lock(id)
 		g.Unlock(id)
 	}
+	for i := 0; i < 100; i++ {
+		g.Delete(ids[i])
+	}
 }
 
 func BenchmarkMap_AsyncExec_Different(b *testing.B) {
@@ -107,6 +122,9 @@ func BenchmarkMap_AsyncExec_Different(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		id := ids[i%len(ids)]
 		m.AsyncExec(id, func() {})
+	}
+	for i := 0; i < 100; i++ {
+		m.Delete(ids[i])
 	}
 }
 
@@ -120,6 +138,7 @@ func BenchmarkMutexGroup_Lock_Same_Goroutine(b *testing.B) {
 			g.Unlock(id)
 		}
 	})
+	g.Delete(ids[0])
 }
 
 func BenchmarkMap_AsyncExec_Same_Goroutine(b *testing.B) {
@@ -131,6 +150,7 @@ func BenchmarkMap_AsyncExec_Same_Goroutine(b *testing.B) {
 			m.AsyncExec(id, func() {})
 		}
 	})
+	m.Delete(ids[0])
 }
 
 func BenchmarkMutexGroup_Lock_Different_Goroutine(b *testing.B) {
@@ -143,6 +163,9 @@ func BenchmarkMutexGroup_Lock_Different_Goroutine(b *testing.B) {
 			g.Unlock(id)
 		}
 	})
+	for i := 0; i < 100; i++ {
+		g.Delete(ids[i])
+	}
 }
 
 func BenchmarkMap_AsyncExec_Different_Goroutine(b *testing.B) {
@@ -154,4 +177,7 @@ func BenchmarkMap_AsyncExec_Different_Goroutine(b *testing.B) {
 			m.AsyncExec(id, func() {})
 		}
 	})
+	for i := 0; i < 100; i++ {
+		m.Delete(ids[i])
+	}
 }

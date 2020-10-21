@@ -61,9 +61,22 @@ func (g *MutexGroup) Unlock(id string) {
 		panic(fmt.Sprintf("id is not locked: %v", id))
 	}
 	lock.count--
-	if lock.count == 0 {
-		delete(g.locks, id)
-	}
 
 	lock.mutex.Unlock()
+}
+
+// Delete tries to delete FIFO mutex by the given ID, returns:
+// * true - if mutex doesn't exist or is not in use
+// * false - if mutex is in use
+func (g *MutexGroup) Delete(id string) bool {
+	g.lock.Lock()
+	defer g.lock.Unlock()
+
+	lock, ok := g.locks[id]
+	if !ok || lock.count == 0 {
+		delete(g.locks, id)
+		return true
+	}
+
+	return false
 }

@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/fifosync"
 )
@@ -29,6 +30,8 @@ import (
 func TestMutexGroup(t *testing.T) {
 	lock := fifosync.MutexGroup{}
 	lock.Lock("a")
+
+	require.False(t, lock.Delete("a"))
 
 	wg := sync.WaitGroup{}
 	wg.Add(parallelCount * 2)
@@ -62,4 +65,6 @@ func TestMutexGroup(t *testing.T) {
 	}
 
 	wg.Wait()
+
+	require.True(t, lock.Delete("a"))
 }
