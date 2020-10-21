@@ -22,6 +22,7 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/hashicorp/go-multierror"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 
@@ -59,17 +60,22 @@ func (m *mechanismsServer) Request(ctx context.Context, request *networkservice.
 		}
 		return nil, errors.Errorf("Unsupported Mechanism: %+v", request.GetConnection().GetMechanism())
 	}
+	var err error
 	for _, mechanism := range request.GetMechanismPreferences() {
 		srv, ok := m.mechanisms[mechanism.GetType()]
 		if ok {
 			req := request.Clone()
 			req.GetConnection().Mechanism = mechanism
-			resp, err := srv.Request(ctx, req)
+			var resp *networkservice.Connection
+			resp, err = srv.Request(ctx, req)
 			if err == nil {
 				return resp, err
 			}
-			trace.Log(ctx).Error(err.Error())
+			err = multierror.Append(err, err)
 		}
+	}
+	if err != nil {
+		return nil, errors.Wrapf(err, "Cannot support any of the requested Mechanisms: %+v", request.GetMechanismPreferences())
 	}
 	return nil, errors.Errorf("Cannot support any of the requested Mechanisms: %+v", request.GetMechanismPreferences())
 }
