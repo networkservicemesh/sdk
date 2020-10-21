@@ -52,10 +52,9 @@ func (l *interposeRegistry) Register(ctx context.Context, request *registry.Netw
 			return nil, errors.New("invalid endpoint URL passed with context")
 		}
 
-		if request.Name == interposeNSEName {
-			// Generate uniq name only if full equal to endpoints prefix.
-			request.Name = interposeNSEName + uuid.New().String()
-		}
+		// Generate uniq name for interpose endpoint, since we use it in maps.
+		request.Name = interposeNSEName + uuid.New().String()
+
 		u, err := url.Parse(request.Url)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Cannot register cross nse with passed URL")
