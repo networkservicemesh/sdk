@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,6 +18,8 @@ package tracehelper
 
 import (
 	"context"
+
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -28,10 +30,10 @@ type contextKeyType string
 
 // ConnectionInfo - struct, containing string representations of request and response, used for tracing.
 type ConnectionInfo struct {
-	// Request is string representation of networkservice.NetworkServiceRequest
-	Request string
-	// Request is string representation of networkservice.Connection
-	Response string
+	// Request is last request of NetworkService{Client, Server}
+	Request proto.Message
+	// Response is last response of NetworkService{Client, Server}
+	Response proto.Message
 }
 
 // withConnectionInfo - Provides a ConnectionInfo in context

@@ -17,29 +17,50 @@
 package trace
 
 import (
-	"github.com/google/go-cmp/cmp"
+	"reflect"
+
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/tracehelper"
 	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
 )
 
 func logRequest(span spanhelper.SpanHelper, request *networkservice.NetworkServiceRequest) {
 	connInfo, ok := tracehelper.FromContext(span.Context())
-	if ok && !cmp.Equal(request.String(), connInfo.Request) {
-		//fmt.Printf("diff: %v", cmp.Diff(request.String(), connInfo.Request))
-		span.LogObject("request updated", request)
-		connInfo.Request = request.String()
+	if ok && !proto.Equal(request, connInfo.Request) {
+		requestDiff := (&networkservice.NetworkServiceRequest{}).ProtoReflect()
+		span.LogObject("request diff", diff(connInfo.Request, request, requestDiff).Interface())
+		connInfo.Request = request.Clone()
 	}
 }
 
 func logResponse(span spanhelper.SpanHelper, response *networkservice.Connection) {
 	connInfo, ok := tracehelper.FromContext(span.Context())
-	if ok && !cmp.Equal(response.String(), connInfo.Response) {
-		//fmt.Printf("diff: %v", cmp.Diff(response.String(), connInfo.Response))
-		span.LogObject("response updated", response)
-		connInfo.Response = response.String()
+	if ok && !proto.Equal(response, connInfo.Response) {
+		responseDiff := (&networkservice.Connection{}).ProtoReflect()
+		span.LogObject("response diff", diff(connInfo.Response, response, responseDiff).Interface())
+		connInfo.Response = response.Clone()
 		return
 	}
 	span.LogValue("response", "")
+}
+
+func diff(oldMessage, newMessage proto.Message, diffStruct protoreflect.Message) protoreflect.Message {
+	if oldMessage == nil || reflect.ValueOf(oldMessage).IsNil() {
+		return newMessage.ProtoReflect()
+	}
+
+	oldReflectMessage := oldMessage.ProtoReflect()
+	newMessage.ProtoReflect().Range(func(descriptor protoreflect.FieldDescriptor, newValue protoreflect.Value) bool {
+		oldValue := oldReflectMessage.Get(descriptor)
+		if !reflect.DeepEqual(oldValue, newValue) {
+			diffStruct.Set(descriptor, newValue)
+		}
+		return true
+	})
+
+	return diffStruct
 }
