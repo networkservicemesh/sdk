@@ -145,6 +145,7 @@ jobs:
           - cmd-nsmgr-proxy
           - cmd-registry-memory
           - cmd-registry-proxy-dns
+          - cmd-nse-icmp-responder
     name: Update ${{ matrix.repository }}
     runs-on: ubuntu-latest
     needs:
