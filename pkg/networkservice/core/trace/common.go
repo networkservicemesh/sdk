@@ -22,45 +22,52 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/tracehelper"
 	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
 )
 
-func logRequest(span spanhelper.SpanHelper, request *networkservice.NetworkServiceRequest) {
+func logRequest(span spanhelper.SpanHelper, request proto.Message) {
 	connInfo, ok := tracehelper.FromContext(span.Context())
-	if ok && !proto.Equal(request, connInfo.Request) {
-		requestDiff := (&networkservice.NetworkServiceRequest{}).ProtoReflect()
-		span.LogObject("request diff", diff(connInfo.Request, request, requestDiff).Interface())
-		connInfo.Request = request.Clone()
+	if ok && !proto.Equal(connInfo.Request, request) {
+		requestDiff := diff(connInfo.Request, request)
+		span.LogObject("request diff", requestDiff.Interface())
+		connInfo.Request = proto.Clone(request)
 	}
 }
 
-func logResponse(span spanhelper.SpanHelper, response *networkservice.Connection) {
+func logResponse(span spanhelper.SpanHelper, response proto.Message) {
 	connInfo, ok := tracehelper.FromContext(span.Context())
-	if ok && !proto.Equal(response, connInfo.Response) {
-		responseDiff := (&networkservice.Connection{}).ProtoReflect()
-		span.LogObject("response diff", diff(connInfo.Response, response, responseDiff).Interface())
-		connInfo.Response = response.Clone()
+	if ok && !proto.Equal(connInfo.Response, response) {
+		responseDiff := diff(connInfo.Response, response)
+		span.LogObject("response diff", responseDiff.Interface())
+		connInfo.Response = proto.Clone(response)
 		return
 	}
 	span.LogValue("response", "")
 }
 
-func diff(oldMessage, newMessage proto.Message, diffStruct protoreflect.Message) protoreflect.Message {
+func diff(oldMessage, newMessage proto.Message) protoreflect.Message {
 	if oldMessage == nil || reflect.ValueOf(oldMessage).IsNil() {
 		return newMessage.ProtoReflect()
 	}
 
+	diffMessage := oldMessage.ProtoReflect().New()
 	oldReflectMessage := oldMessage.ProtoReflect()
+
 	newMessage.ProtoReflect().Range(func(descriptor protoreflect.FieldDescriptor, newValue protoreflect.Value) bool {
 		oldValue := oldReflectMessage.Get(descriptor)
 		if !reflect.DeepEqual(oldValue, newValue) {
-			diffStruct.Set(descriptor, newValue)
+			if fieldMessage, ok := newValue.Interface().(protoreflect.Message); ok {
+				fieldDiff := diff(
+					oldValue.Interface().(protoreflect.Message).Interface(),
+					fieldMessage.Interface(),
+				)
+				newValue = protoreflect.ValueOf(fieldDiff)
+			}
+			diffMessage.Set(descriptor, newValue)
 		}
 		return true
 	})
 
-	return diffStruct
+	return diffMessage
 }

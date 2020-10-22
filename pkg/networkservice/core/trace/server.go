@@ -71,7 +71,7 @@ func (t *traceServer) Close(ctx context.Context, conn *networkservice.Connection
 	// Make sure we log to span
 	ctx = withLog(span.Context(), span.Logger())
 
-	span.LogObject("request", conn)
+	logRequest(span, conn)
 	rv, err := t.traced.Close(ctx, conn)
 
 	if err != nil {
