@@ -28,6 +28,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
+// traceHelperServer NetworkServiceServer, that injects ConnectionInfo into context
 type traceHelperServer struct {
 }
 

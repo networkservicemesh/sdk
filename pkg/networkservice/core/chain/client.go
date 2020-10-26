@@ -28,8 +28,8 @@ import (
 // NewNetworkServiceClient - chains together a list of networkservice.NetworkServiceClient with tracing
 func NewNetworkServiceClient(clients ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	if logrus.GetLevel() == logrus.TraceLevel {
-		tracedClients := next.NewWrappedNetworkServiceClient(trace.NewNetworkServiceClient, clients...)
-		return next.NewNetworkServiceClient(tracehelper.NewClient(), tracedClients)
+		clients = append([]networkservice.NetworkServiceClient{tracehelper.NewClient()}, clients...)
+		return next.NewWrappedNetworkServiceClient(trace.NewNetworkServiceClient, clients...)
 	}
 	return next.NewNetworkServiceClient(clients...)
 }
