@@ -25,6 +25,8 @@ import (
 	"runtime/debug"
 	"strings"
 
+	toolsLog "github.com/networkservicemesh/sdk/pkg/tools/log"
+
 	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/log"
@@ -136,8 +138,16 @@ func (s *spanHelper) LogErrorf(format string, err error) {
 		msg := limitString(fmt.Sprintf(format, err))
 		otgrpc.SetSpanTags(s.span, err, false)
 		s.span.LogFields(log.String("event", "error"), log.String("message", msg), log.String("stacktrace", d))
-		logrus.WithFields(defaultFields).Errorf(">><<%s %s=%v span=%v", strings.Repeat("--", traceDepth(s.ctx)), "error", fmt.Sprintf(format, err), s.span)
+		s.logEntry().Errorf(">><<%s %s=%v span=%v", strings.Repeat("--", traceDepth(s.ctx)), "error", fmt.Sprintf(format, err), s.span)
 	}
+}
+
+func (s *spanHelper) logEntry() *logrus.Entry {
+	e := toolsLog.Entry(s.ctx)
+	if len(e.Data) > 0 {
+		return logrus.WithFields(e.Data)
+	}
+	return logrus.WithFields(defaultFields)
 }
 
 func (s *spanHelper) LogObject(attribute string, value interface{}) {
@@ -151,14 +161,14 @@ func (s *spanHelper) LogObject(attribute string, value interface{}) {
 	if s.span != nil {
 		s.span.LogFields(log.Object(attribute, limitString(msg)))
 	}
-	logrus.WithFields(defaultFields).Infof(">><<%s %s=%v span=%v", strings.Repeat("--", traceDepth(s.ctx)), attribute, msg, s.span)
+	s.logEntry().Infof(">><<%s %s=%v span=%v", strings.Repeat("--", traceDepth(s.ctx)), attribute, msg, s.span)
 }
 
 func (s *spanHelper) LogValue(attribute string, value interface{}) {
 	if s.span != nil {
 		s.span.LogFields(log.Object(attribute, limitString(fmt.Sprint(value))))
 	}
-	logrus.WithFields(defaultFields).Infof(">><<%s %s=%v span=%v", strings.Repeat("--", traceDepth(s.ctx)), attribute, value, s.span)
+	s.logEntry().Infof(">><<%s %s=%v span=%v", strings.Repeat("--", traceDepth(s.ctx)), attribute, value, s.span)
 }
 
 func (s *spanHelper) Finish() {
@@ -200,13 +210,13 @@ func FromContext(ctx context.Context, operation string) (result SpanHelper) {
 		// return just context
 		result = NewSpanHelper(ctx, nil, operation)
 	}
-	printStart(result, operation)
+	result.(*spanHelper).printStart(operation)
 	return result
 }
 
-func printStart(result SpanHelper, operation string) {
-	prefix := strings.Repeat("--", traceDepth(result.Context()))
-	logrus.WithFields(defaultFields).Infof("==%s> %v() span:%v", prefix, operation, result.Span())
+func (s *spanHelper) printStart(operation string) {
+	prefix := strings.Repeat("--", traceDepth(s.Context()))
+	s.logEntry().Infof("==%s> %v() span:%v", prefix, operation, s.Span())
 }
 
 // GetSpanHelper - construct a span helper object from current context span
@@ -238,7 +248,7 @@ func WithSpan(ctx context.Context, span opentracing.Span, operation string) (res
 	} else {
 		result = NewSpanHelper(ctx, nil, operation)
 	}
-	printStart(result, operation)
+	result.(*spanHelper).printStart(operation)
 	return result
 }
 
