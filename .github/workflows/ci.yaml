@@ -141,7 +141,6 @@ jobs:
       fail-fast: false
       matrix:
         repository:
-          - sdk-vpp
           - sdk-vppagent
           - sdk-kernel
           - cmd-nsmgr
