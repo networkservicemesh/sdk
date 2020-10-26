@@ -52,6 +52,32 @@ func (t *echoNetworkServiceEndpointClient) Unregister(_ context.Context, _ *regi
 	return new(empty.Empty), nil
 }
 
+type echoNetworkServiceEndpointServer struct{}
+
+func (e echoNetworkServiceEndpointServer) Register(ctx context.Context, service *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	return service, nil
+}
+
+func (e echoNetworkServiceEndpointServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
+	return server.Send(query.NetworkServiceEndpoint)
+}
+
+func (e echoNetworkServiceEndpointServer) Unregister(ctx context.Context, service *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	return &empty.Empty{}, nil
+}
+
+type ignoreNSEFindServer struct {
+	grpc.ServerStream
+}
+
+func (*ignoreNSEFindServer) Send(_ *registry.NetworkServiceEndpoint) error {
+	return nil
+}
+
+func (*ignoreNSEFindServer) Context() context.Context {
+	return context.Background()
+}
+
 func TestNetworkServiceEndpointClientToServer_Register(t *testing.T) {
 	expected := &registry.NetworkServiceEndpoint{
 		Name: "echo",
@@ -169,4 +195,42 @@ func TestNSEPassingContext(t *testing.T) {
 
 	_, err = n.Unregister(context.Background(), nil)
 	require.NoError(t, err)
+}
+
+func BenchmarkNSEServer_Register(b *testing.B) {
+	server := adapters.NetworkServiceEndpointClientToServer(&echoNetworkServiceEndpointClient{})
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = server.Register(context.Background(), nil)
+	}
+}
+
+func BenchmarkNSEServer_Find(b *testing.B) {
+	server := adapters.NetworkServiceEndpointClientToServer(&echoNetworkServiceEndpointClient{})
+	query := &registry.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: "test"},
+		Watch:                  true,
+	}
+	findServer := &ignoreNSEFindServer{}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = server.Find(query, findServer)
+	}
+}
+
+func BenchmarkNSEClient_Find(b *testing.B) {
+	client := adapters.NetworkServiceEndpointServerToClient(&echoNetworkServiceEndpointServer{})
+	query := &registry.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: "test"},
+		Watch:                  true,
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		c, _ := client.Find(context.Background(), query)
+		_, _ = c.Recv() // the only result
+		_, _ = c.Recv() // EOF
+	}
 }
