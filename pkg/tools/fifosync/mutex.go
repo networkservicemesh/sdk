@@ -19,40 +19,86 @@ package fifosync
 
 import (
 	"sync"
+	"sync/atomic"
+)
+
+const (
+	closestCount = 30
 )
 
 // Mutex is a FIFO order guaranteed mutex
 type Mutex struct {
-	init sync.Once
-	ch   chan struct{}
+	init         sync.Once
+	ticket       int32
+	ticketInUse  int32
+	closest      int32
+	closestCount int32
+	queueLock    sync.RWMutex
+	queueCond    *sync.Cond
+	closestLock  sync.RWMutex
+	closestCond  *sync.Cond
+	mainLock     sync.Mutex
 }
 
 // Lock acquires lock or blocks until it gets free
 func (m *Mutex) Lock() {
+	m.lock(atomic.AddInt32(&m.ticket, 1) - 1)
+}
+
+func (m *Mutex) lock(ticket int32) {
 	m.init.Do(func() {
-		m.ch = make(chan struct{}, 1)
+		m.closest = closestCount
+		m.closestCount = closestCount
+		m.queueCond = sync.NewCond(m.queueLock.RLocker())
+		m.closestCond = sync.NewCond(m.closestLock.RLocker())
 	})
-	m.ch <- struct{}{}
+
+	// wait queue for all waiters exclude the closest
+	m.queueLock.RLock()
+	for ticket > m.closest {
+		m.queueCond.Wait()
+	}
+	m.queueLock.RUnlock()
+
+	// wait queue for the closest waiters
+	m.closestLock.RLock()
+	for ticket != m.ticketInUse {
+		m.closestCond.Wait()
+	}
+	m.closestLock.RUnlock()
+
+	m.mainLock.Lock()
+
+	// update actual ticket in use
+	m.closestLock.Lock()
+	m.ticketInUse++
+	m.closestLock.Unlock()
+
+	// update closest count
+	m.closestCount--
+	if m.closestCount == 0 {
+		m.closestCount = closestCount
+
+		// update closest
+		m.queueLock.Lock()
+		m.closest += closestCount
+		m.queueLock.Unlock()
+
+		m.queueCond.Broadcast()
+	}
 }
 
 // Unlock frees lock
 func (m *Mutex) Unlock() {
-	<-m.ch
+	m.mainLock.Unlock()
+	m.closestCond.Broadcast()
 }
 
-// Mutate mutates 'locked' Mutex to 'next' Mutex:
-// * if 'next' mutex is free, it first locks 'next', than unlocks 'locked'
-// * if 'next' mutex is locked, it first unlocks 'locked', than locks (or starts
-//   waiting on) 'next'
+// Mutate mutates 'locked' Mutex to 'next' Mutex
 func Mutate(locked, next *Mutex) {
-	next.init.Do(func() {
-		next.ch = make(chan struct{}, 1)
-	})
+	ticket := atomic.AddInt32(&next.ticket, 1) - 1
 
-	select {
-	case next.ch <- struct{}{}:
-		<-locked.ch
-	default:
-		next.ch <- <-locked.ch
-	}
+	locked.Unlock()
+
+	next.lock(ticket)
 }
