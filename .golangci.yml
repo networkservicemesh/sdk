@@ -253,3 +253,7 @@ issues:
       linters:
         - gocyclo
       text: "processEvent"
+    - path: pkg/tools/fifosync/mutex_bench_test.go
+      linters:
+        - staticcheck
+      text: "SA2001: empty critical section"

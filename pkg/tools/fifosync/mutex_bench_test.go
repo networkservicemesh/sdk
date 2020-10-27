@@ -28,32 +28,28 @@ import (
 func BenchmarkMutex_Lock(b *testing.B) {
 	var m sync.Mutex
 	for i := 0; i < b.N; i++ {
-		m.Lock()
-		m.Unlock()
+		testLocker(&m)
 	}
 }
 
 func BenchmarkChannelMutex_Lock(b *testing.B) {
 	var m fifosync.ChannelMutex
 	for i := 0; i < b.N; i++ {
-		m.Lock()
-		m.Unlock()
+		testLocker(&m)
 	}
 }
 
 func BenchmarkFIFOMutex_Lock(b *testing.B) {
 	var m fifosync.Mutex
 	for i := 0; i < b.N; i++ {
-		m.Lock()
-		m.Unlock()
+		testLocker(&m)
 	}
 }
 
 func BenchmarkNaiveMutex_Lock(b *testing.B) {
 	var m fifosync.NaiveMutex
 	for i := 0; i < b.N; i++ {
-		m.Lock()
-		m.Unlock()
+		testLocker(&m)
 	}
 }
 
@@ -69,8 +65,7 @@ func BenchmarkMutex_Lock_Goroutine(b *testing.B) {
 	b.SetParallelism(100)
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			m.Lock()
-			m.Unlock()
+			testLocker(&m)
 		}
 	})
 }
@@ -80,8 +75,7 @@ func BenchmarkChannelMutex_Lock_Goroutine(b *testing.B) {
 	b.SetParallelism(100)
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			m.Lock()
-			m.Unlock()
+			testLocker(&m)
 		}
 	})
 }
@@ -91,8 +85,7 @@ func BenchmarkFIFOMutex_Lock_Goroutine(b *testing.B) {
 	b.SetParallelism(100)
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			m.Lock()
-			m.Unlock()
+			testLocker(&m)
 		}
 	})
 }
@@ -102,8 +95,7 @@ func BenchmarkNaiveMutex_Lock_Goroutine(b *testing.B) {
 	b.SetParallelism(100)
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			m.Lock()
-			m.Unlock()
+			testLocker(&m)
 		}
 	})
 }
@@ -116,4 +108,9 @@ func BenchmarkExecutor_AsyncExec_Goroutine(b *testing.B) {
 			<-e.AsyncExec(func() {})
 		}
 	})
+}
+
+func testLocker(l sync.Locker) {
+	l.Lock()
+	l.Unlock()
 }
