@@ -20,22 +20,24 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type contextClient struct{}
-
-func (d *contextClient) Request(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	captureContext(ctx)
-	return next.Client(ctx).Request(ctx, in, opts...)
+type callNextNSServer struct {
+	server registry.NetworkServiceRegistryServer
 }
 
-func (d *contextClient) Close(ctx context.Context, in *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	captureContext(ctx)
-	return next.Client(ctx).Close(ctx, in, opts...)
+func (c *callNextNSServer) Register(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
+	return c.server.Register(ctx, in)
 }
 
-var _ networkservice.NetworkServiceClient = &contextClient{}
+func (c *callNextNSServer) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
+	return nsFindServerToClient(ctx, c.server, in)
+}
+
+func (c *callNextNSServer) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
+	return c.server.Unregister(ctx, in)
+}
+
+var _ registry.NetworkServiceRegistryClient = &callNextNSServer{}

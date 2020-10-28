@@ -20,49 +20,39 @@ package adapters
 import (
 	"context"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type serverToClient struct {
-	server networkservice.NetworkServiceServer
-}
+type (
+	serverToClient struct {
+		server networkservice.NetworkServiceServer
+	}
+	callNextClient struct {
+		client networkservice.NetworkServiceClient
+	}
+)
 
 // NewServerToClient - returns a new networkservice.NetworkServiceClient that is a wrapper around server
 func NewServerToClient(server networkservice.NetworkServiceServer) networkservice.NetworkServiceClient {
-	return &serverToClient{server: next.NewNetworkServiceServer(server, &contextServer{})}
+	return &serverToClient{server: server}
 }
 
 func (s *serverToClient) Request(ctx context.Context, in *networkservice.NetworkServiceRequest, _ ...grpc.CallOption) (*networkservice.Connection, error) {
-	doneCtx := withCapturedContext(ctx)
-	conn, err := s.server.Request(doneCtx, in)
-	if err != nil {
-		return nil, err
-	}
-	lastCtx := getCapturedContext(doneCtx)
-	if lastCtx == nil {
-		return conn, nil
-	}
-	if in == nil {
-		in = &networkservice.NetworkServiceRequest{}
-	}
-	in.Connection = conn
-	return next.Client(ctx).Request(lastCtx, in)
+	return next.NewNetworkServiceServer(s.server, &callNextClient{client: next.Client(ctx)}).Request(ctx, in)
 }
 
 func (s *serverToClient) Close(ctx context.Context, in *networkservice.Connection, _ ...grpc.CallOption) (*empty.Empty, error) {
-	doneCtx := withCapturedContext(ctx)
-	conn, err := s.server.Close(doneCtx, in)
-	if err != nil {
-		return nil, err
-	}
-	lastCtx := getCapturedContext(doneCtx)
-	if lastCtx == nil {
-		return conn, nil
-	}
-	return next.Client(ctx).Close(lastCtx, in)
+	return next.NewNetworkServiceServer(s.server, &callNextClient{client: next.Client(ctx)}).Close(ctx, in)
+}
+
+func (s *callNextClient) Request(ctx context.Context, in *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	return s.client.Request(ctx, in)
+}
+
+func (s *callNextClient) Close(ctx context.Context, in *networkservice.Connection) (*empty.Empty, error) {
+	return s.client.Close(ctx, in)
 }
