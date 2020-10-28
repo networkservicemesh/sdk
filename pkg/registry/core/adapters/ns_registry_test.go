@@ -52,6 +52,32 @@ func (t *echoNetworkServiceClient) Unregister(_ context.Context, _ *registry.Net
 	return new(empty.Empty), nil
 }
 
+type echoNetworkServiceServer struct{}
+
+func (e echoNetworkServiceServer) Register(ctx context.Context, service *registry.NetworkService) (*registry.NetworkService, error) {
+	return service, nil
+}
+
+func (e echoNetworkServiceServer) Find(query *registry.NetworkServiceQuery, server registry.NetworkServiceRegistry_FindServer) error {
+	return server.Send(query.NetworkService)
+}
+
+func (e echoNetworkServiceServer) Unregister(ctx context.Context, service *registry.NetworkService) (*empty.Empty, error) {
+	return &empty.Empty{}, nil
+}
+
+type ignoreNSFindServer struct {
+	grpc.ServerStream
+}
+
+func (*ignoreNSFindServer) Send(_ *registry.NetworkService) error {
+	return nil
+}
+
+func (*ignoreNSFindServer) Context() context.Context {
+	return context.Background()
+}
+
 func TestNetworkServiceClientToServer_Register(t *testing.T) {
 	expected := &registry.NetworkService{
 		Name: "echo",
@@ -173,4 +199,42 @@ func TestNSServerPassingContext(t *testing.T) {
 
 	_, err = n.Unregister(context.Background(), nil)
 	require.NoError(t, err)
+}
+
+func BenchmarkNSServer_Register(b *testing.B) {
+	server := adapters.NetworkServiceClientToServer(&echoNetworkServiceClient{})
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = server.Register(context.Background(), nil)
+	}
+}
+
+func BenchmarkNSServer_Find(b *testing.B) {
+	server := adapters.NetworkServiceClientToServer(&echoNetworkServiceClient{})
+	query := &registry.NetworkServiceQuery{
+		NetworkService: &registry.NetworkService{Name: "test"},
+		Watch:          true,
+	}
+	findServer := &ignoreNSFindServer{}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = server.Find(query, findServer)
+	}
+}
+
+func BenchmarkNSClient_Find(b *testing.B) {
+	client := adapters.NetworkServiceServerToClient(&echoNetworkServiceServer{})
+	query := &registry.NetworkServiceQuery{
+		NetworkService: &registry.NetworkService{Name: "test"},
+		Watch:          true,
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		c, _ := client.Find(context.Background(), query)
+		_, _ = c.Recv() // the only result
+		_, _ = c.Recv() // EOF
+	}
 }

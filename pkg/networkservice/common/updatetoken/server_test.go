@@ -224,7 +224,7 @@ func (f *updateTokenServerSuite) TestChain() {
 
 	got, err := server.Request(context.Background(), request)
 	require.Equal(t, 3, len(got.Path.PathSegments))
-	require.Equal(t, 2, int(got.Path.Index))
+	require.Equal(t, 0, int(got.Path.Index))
 	for i, s := range got.Path.PathSegments {
 		require.Equal(t, want.Path.PathSegments[i].Name, s.Name)
 		require.Equal(t, want.Path.PathSegments[i].Token, s.Token)

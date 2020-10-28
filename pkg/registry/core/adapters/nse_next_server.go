@@ -21,25 +21,23 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"google.golang.org/grpc"
 )
 
-type contextNSServer struct{}
-
-func (c *contextNSServer) Register(ctx context.Context, in *registry.NetworkService) (*registry.NetworkService, error) {
-	captureContext(ctx)
-	return next.NetworkServiceRegistryServer(ctx).Register(ctx, in)
+type callNextNSEServer struct {
+	server registry.NetworkServiceEndpointRegistryServer
 }
 
-func (c *contextNSServer) Find(query *registry.NetworkServiceQuery, server registry.NetworkServiceRegistry_FindServer) error {
-	captureContext(server.Context())
-	return next.NetworkServiceRegistryServer(server.Context()).Find(query, server)
+func (c *callNextNSEServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, _ ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+	return c.server.Register(ctx, in)
 }
 
-func (c *contextNSServer) Unregister(ctx context.Context, in *registry.NetworkService) (*empty.Empty, error) {
-	captureContext(ctx)
-	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, in)
+func (c *callNextNSEServer) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, _ ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
+	return nseFindServerToClient(ctx, c.server, in)
 }
 
-var _ registry.NetworkServiceRegistryServer = &contextNSServer{}
+func (c *callNextNSEServer) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, _ ...grpc.CallOption) (*empty.Empty, error) {
+	return c.server.Unregister(ctx, in)
+}
+
+var _ registry.NetworkServiceEndpointRegistryClient = &callNextNSEServer{}
