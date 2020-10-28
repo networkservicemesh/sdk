@@ -24,4 +24,13 @@ import (
 //go:generate go-syncmap -output executor_map.gen.go -type executorMap<string,*github.com/edwarnicke/serialize.Executor>
 
 type timerMap sync.Map
+
+func (m *timerMap) LoadAndDelete(key string) (*timer, bool) {
+	value, loaded := (*sync.Map)(m).LoadAndDelete(key)
+	if value == nil {
+		return nil, loaded
+	}
+	return value.(*timer), loaded
+}
+
 type executorMap sync.Map
