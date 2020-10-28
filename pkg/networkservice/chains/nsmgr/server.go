@@ -22,7 +22,9 @@ package nsmgr
 import (
 	"context"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/querycache"
+	recvfdreg "github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/filtermechanisms"
@@ -108,6 +110,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 		roundrobin.NewServer(),
 		localbypass.NewServer(&localbypassRegistryServer),
 		excludedprefixes.NewServer(ctx),
+		recvfd.NewServer(), // Receive any files passed
 		interpose.NewServer(nsmRegistration.Name, &interposeRegistry),
 		filtermechanisms.NewServer(&urlsRegistryServer),
 		connect.NewServer(
@@ -115,13 +118,15 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 			client.NewClientFactory(nsmRegistration.Name,
 				addressof.NetworkServiceClient(
 					adapters.NewServerToClient(rv)),
-				tokenGenerator),
+				tokenGenerator,
+			),
 			clientDialOptions...),
 	)
 
 	nsChain := chain_registry.NewNetworkServiceRegistryServer(nsRegistry)
 	nseChain := chain_registry.NewNetworkServiceEndpointRegistryServer(
 		urlsRegistryServer,
+		recvfdreg.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
 		interposeRegistry,         // Store cross connect NSEs
 		localbypassRegistryServer, // Store endpoint Id to EndpointURL for local access.
 		seturl.NewNetworkServiceEndpointRegistryServer(nsmRegistration.Url), // Remember endpoint URL
