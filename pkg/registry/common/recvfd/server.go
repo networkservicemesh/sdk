@@ -54,10 +54,15 @@ func (r *recvfdNseServer) Register(ctx context.Context, endpoint *registry.Netwo
 	}
 
 	// Get the fileMap
-	fileMap, _ := r.fileMaps.LoadOrStore(endpoint.GetName(), &perEndpointFileMap{
+	fileMap := &perEndpointFileMap{
 		filesByInodeURL:    make(map[string]*os.File),
 		inodeURLbyFilename: make(map[string]*url.URL),
-	})
+	}
+	endpointName := endpoint.Name
+	// If name is specified, let's use it, since it could be heal/update request
+	if endpointName != "" {
+		fileMap, _ = r.fileMaps.LoadOrStore(endpoint.GetName(), fileMap)
+	}
 
 	// Recv the FD and Swap the Inode for a file in InodeURL in Parameters
 	endpoint = endpoint.Clone()
@@ -73,6 +78,10 @@ func (r *recvfdNseServer) Register(ctx context.Context, endpoint *registry.Netwo
 	}
 	returnedEndpoint = returnedEndpoint.Clone()
 
+	if endpointName != returnedEndpoint.Name {
+		// We need to store new value
+		r.fileMaps.Store(endpoint.GetName(), fileMap)
+	}
 	// Swap back from File to Inode in the InodeURL in the Parameters
 	err = swapFileToInode(fileMap, returnedEndpoint, false)
 	if err != nil {
@@ -86,6 +95,9 @@ func (r *recvfdNseServer) Find(query *registry.NetworkServiceEndpointQuery, serv
 }
 
 func (r *recvfdNseServer) Unregister(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	if endpoint.GetName() == "" {
+		return nil, errors.New("invalid endpoint specified")
+	}
 	// Get the grpcfd.FDRecver
 	recv, ok := grpcfd.FromContext(ctx)
 	if !ok {
