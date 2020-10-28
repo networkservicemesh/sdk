@@ -16,8 +16,12 @@
 
 package timeout
 
-import "sync"
+import (
+	"sync"
+)
 
 //go:generate go-syncmap -output timer_map.gen.go -type timerMap<string,*timer>
+//go:generate go-syncmap -output executor_map.gen.go -type executorMap<string,*github.com/edwarnicke/serialize.Executor>
 
 type timerMap sync.Map
+type executorMap sync.Map

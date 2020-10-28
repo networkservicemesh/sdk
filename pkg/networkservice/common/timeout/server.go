@@ -21,6 +21,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/edwarnicke/serialize"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
@@ -30,12 +31,12 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	"github.com/networkservicemesh/sdk/pkg/tools/multiexecutor"
 )
 
 type timeoutServer struct {
+	ctx         context.Context
 	connections timerMap
-	executor    *multiexecutor.Executor
+	executors   executorMap
 }
 
 type timer struct {
@@ -46,7 +47,7 @@ type timer struct {
 // NewServer - creates a new NetworkServiceServer chain element that implements timeout of expired connections.
 func NewServer(ctx context.Context) networkservice.NetworkServiceServer {
 	return &timeoutServer{
-		executor: multiexecutor.NewExecutor(ctx),
+		ctx: ctx,
 	}
 }
 
@@ -54,7 +55,16 @@ func (t *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 	logEntry := log.Entry(ctx).WithField("timeoutServer", "Request")
 
 	connID := request.GetConnection().GetId()
-	<-t.executor.AsyncExec(connID, func() {
+
+	executor, _ := t.executors.LoadOrStore(connID, &serialize.Executor{})
+	<-executor.AsyncExec(func() {
+		// executor was possibly removed by `t.close()` at this moment, we need to store it back
+		exec, _ := t.executors.LoadOrStore(connID, executor)
+		if exec != executor {
+			err = errors.Errorf("race condition, parallel request execution: %v", connID)
+			return
+		}
+
 		if timer, ok := t.connections.Load(connID); ok {
 			if !timer.timer.Stop() {
 				logEntry.Warnf("connection has been timed out, re requesting: %v", connID)
@@ -92,18 +102,23 @@ func (t *timeoutServer) createTimer(ctx context.Context, conn *networkservice.Co
 	}
 
 	conn = conn.Clone()
-	ctx = extend.WithValuesFromContext(context.Background(), ctx)
+	timerCtx := extend.WithValuesFromContext(context.Background(), t.ctx)
 
 	timer := &timer{
-		stopCh: make(chan struct{}, 1),
+		stopCh: make(chan struct{}),
 	}
 	timer.timer = time.AfterFunc(time.Until(expireTime), func() {
-		t.executor.AsyncExec(conn.GetId(), func() {
+		executor, ok := t.executors.Load(conn.GetId())
+		if !ok {
+			return
+		}
+
+		executor.AsyncExec(func() {
 			select {
 			case <-timer.stopCh:
 				logEntry.Warnf("timer has been already stopped: %v", conn.GetId())
 			default:
-				if err := t.close(ctx, conn); err != nil {
+				if err := t.close(timerCtx, conn, next.Server(ctx)); err != nil {
 					logEntry.Errorf("failed to close timed out connection: %v %+v", conn.GetId(), err)
 				}
 			}
@@ -114,13 +129,22 @@ func (t *timeoutServer) createTimer(ctx context.Context, conn *networkservice.Co
 }
 
 func (t *timeoutServer) Close(ctx context.Context, conn *networkservice.Connection) (_ *empty.Empty, err error) {
-	<-t.executor.AsyncExec(conn.GetId(), func() {
-		err = t.close(ctx, conn)
+	logEntry := log.Entry(ctx).WithField("timeoutServer", "Close")
+
+	executor, ok := t.executors.Load(conn.GetId())
+	if !ok {
+		logEntry.Warnf("connection has been already closed: %v", conn.GetId())
+		return &empty.Empty{}, nil
+	}
+
+	<-executor.AsyncExec(func() {
+		err = t.close(ctx, conn, next.Server(ctx))
 	})
+
 	return &empty.Empty{}, err
 }
 
-func (t *timeoutServer) close(ctx context.Context, conn *networkservice.Connection) error {
+func (t *timeoutServer) close(ctx context.Context, conn *networkservice.Connection, nextServer networkservice.NetworkServiceServer) error {
 	logEntry := log.Entry(ctx).WithField("timeoutServer", "close")
 
 	timer, ok := t.connections.Load(conn.GetId())
@@ -133,6 +157,9 @@ func (t *timeoutServer) close(ctx context.Context, conn *networkservice.Connecti
 	close(timer.stopCh)
 	t.connections.Delete(conn.GetId())
 
-	_, err := next.Server(ctx).Close(ctx, conn)
+	_, err := nextServer.Close(ctx, conn)
+
+	t.executors.Delete(conn.GetId())
+
 	return err
 }
