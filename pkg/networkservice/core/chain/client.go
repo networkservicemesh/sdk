@@ -20,6 +20,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/sirupsen/logrus"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/tracehelper"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
 )
@@ -27,6 +28,7 @@ import (
 // NewNetworkServiceClient - chains together a list of networkservice.NetworkServiceClient with tracing
 func NewNetworkServiceClient(clients ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	if logrus.GetLevel() == logrus.TraceLevel {
+		clients = append([]networkservice.NetworkServiceClient{tracehelper.NewClient()}, clients...)
 		return next.NewWrappedNetworkServiceClient(trace.NewNetworkServiceClient, clients...)
 	}
 	return next.NewNetworkServiceClient(clients...)
