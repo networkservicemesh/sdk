@@ -22,8 +22,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
-
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
 	recvfdreg "github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
 )
@@ -31,11 +29,6 @@ import (
 // newRecvFD - construct a recvfd server
 func newRecvFD() networkservice.NetworkServiceServer {
 	return recvfd.NewServer()
-}
-
-// newSendFDClient - construct a sendfd server
-func newSendFDClient() networkservice.NetworkServiceClient {
-	return sendfd.NewClient()
 }
 
 // newRecvFDEndpointRegistry - construct a registry server
