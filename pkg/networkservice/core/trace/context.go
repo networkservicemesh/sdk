@@ -21,7 +21,6 @@ import (
 	"context"
 
 	"github.com/sirupsen/logrus"
-	"google.golang.org/protobuf/proto"
 )
 
 type contextKeyType string
@@ -30,14 +29,6 @@ const (
 	logKey       contextKeyType = "Log"
 	traceInfoKey contextKeyType = "ConnectionInfo"
 )
-
-// ConnectionInfo - struct, containing string representations of request and response, used for tracing.
-type traceInfo struct {
-	// Request is last request of NetworkService{Client, Server}
-	Request proto.Message
-	// Response is last response of NetworkService{Client, Server}
-	Response proto.Message
-}
 
 // withLog - Provides a FieldLogger in context
 func withLog(parent context.Context, log logrus.FieldLogger) context.Context {
