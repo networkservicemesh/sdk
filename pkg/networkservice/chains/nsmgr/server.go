@@ -95,7 +95,10 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 		)
 	}
 
-	nseClient := next.NewNetworkServiceEndpointRegistryClient(querycache.NewClient(ctx), adapter_registry.NetworkServiceEndpointServerToClient(nseRegistry))
+	nseClient := next.NewNetworkServiceEndpointRegistryClient(
+		querycache.NewClient(ctx),
+		adapter_registry.NetworkServiceEndpointServerToClient(nseRegistry))
+
 	nsClient := adapter_registry.NetworkServiceServerToClient(nsRegistry)
 	var interposeRegistry registryapi.NetworkServiceEndpointRegistryServer
 
@@ -104,32 +107,59 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 		nsmRegistration.Name,
 		authzServer,
 		tokenGenerator,
-		discover.NewServer(nsClient, nseClient),
-		roundrobin.NewServer(),
-		localbypass.NewServer(&localbypassRegistryServer),
-		excludedprefixes.NewServer(ctx),
-		interpose.NewServer(nsmRegistration.Name, &interposeRegistry),
-		filtermechanisms.NewServer(&urlsRegistryServer),
-		connect.NewServer(
-			ctx,
-			client.NewClientFactory(nsmRegistration.Name,
-				addressof.NetworkServiceClient(
-					adapters.NewServerToClient(rv)),
-				tokenGenerator),
-			clientDialOptions...),
+		nilFilter(
+			discover.NewServer(nsClient, nseClient),
+			roundrobin.NewServer(),
+			localbypass.NewServer(&localbypassRegistryServer),
+			excludedprefixes.NewServer(ctx),
+			newRecvFD(), // Receive any files passed
+			interpose.NewServer(nsmRegistration.Name, &interposeRegistry),
+			filtermechanisms.NewServer(&urlsRegistryServer),
+			connect.NewServer(
+				ctx,
+				client.NewClientFactory(nsmRegistration.Name,
+					addressof.NetworkServiceClient(
+						adapters.NewServerToClient(rv)),
+					tokenGenerator,
+				),
+				clientDialOptions...),
+		)...,
 	)
 
 	nsChain := chain_registry.NewNetworkServiceRegistryServer(nsRegistry)
 	nseChain := chain_registry.NewNetworkServiceEndpointRegistryServer(
-		urlsRegistryServer,
-		interposeRegistry,         // Store cross connect NSEs
-		localbypassRegistryServer, // Store endpoint Id to EndpointURL for local access.
-		seturl.NewNetworkServiceEndpointRegistryServer(nsmRegistration.Url), // Remember endpoint URL
-		nseRegistry, // Register NSE inside Remote registry with ID assigned
+		nilEndpointFilter(
+			urlsRegistryServer,
+			newRecvFDEndpointRegistry(), // Allow to receive a passed files
+			interposeRegistry,           // Store cross connect NSEs
+			localbypassRegistryServer,   // Store endpoint Id to EndpointURL for local access.
+			seturl.NewNetworkServiceEndpointRegistryServer(nsmRegistration.Url), // Remember endpoint URL
+			nseRegistry, // Register NSE inside Remote registry with ID assigned
+		)...,
 	)
 	rv.Registry = registry.NewServer(nsChain, nseChain)
 
 	return rv
+}
+
+func nilEndpointFilter(servers ...registryapi.NetworkServiceEndpointRegistryServer) []registryapi.NetworkServiceEndpointRegistryServer {
+	result := []registryapi.NetworkServiceEndpointRegistryServer{}
+	for _, s := range servers {
+		if s != nil {
+			result = append(result, s)
+		}
+	}
+	return result
+}
+
+func nilFilter(servers ...networkservice.NetworkServiceServer) []networkservice.NetworkServiceServer {
+	result := []networkservice.NetworkServiceServer{}
+	for _, s := range servers {
+		if s != nil {
+			result = append(result, s)
+		}
+	}
+	return result
 }
 
 func newRemoteNSServer(cc grpc.ClientConnInterface) registryapi.NetworkServiceRegistryServer {
