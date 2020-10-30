@@ -83,6 +83,6 @@ func (t *traceServer) Close(ctx context.Context, conn *networkservice.Connection
 		span.LogErrorf("%v", err)
 		return nil, err
 	}
-	span.LogObject("response", rv)
+	logResponse(span, rv)
 	return rv, err
 }

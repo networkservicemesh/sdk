@@ -29,8 +29,10 @@ import (
 func logRequest(span spanhelper.SpanHelper, request proto.Message) {
 	connInfo, ok := tracehelper.FromContext(span.Context())
 	if ok && !proto.Equal(connInfo.Request, request) {
-		requestDiff := diff(connInfo.Request, request)
-		span.LogObject("request diff", requestDiff.Interface())
+		requestDiff, hadChanges := diff(connInfo.Request, request)
+		if hadChanges {
+			span.LogObject("request", requestDiff.Interface())
+		}
 		connInfo.Request = proto.Clone(request)
 	}
 }
@@ -38,36 +40,48 @@ func logRequest(span spanhelper.SpanHelper, request proto.Message) {
 func logResponse(span spanhelper.SpanHelper, response proto.Message) {
 	connInfo, ok := tracehelper.FromContext(span.Context())
 	if ok && !proto.Equal(connInfo.Response, response) {
-		responseDiff := diff(connInfo.Response, response)
-		span.LogObject("response diff", responseDiff.Interface())
+		responseDiff, changed := diff(connInfo.Response, response)
+		if changed {
+			span.LogObject("response", responseDiff.Interface())
+		}
 		connInfo.Response = proto.Clone(response)
 		return
 	}
-	span.LogValue("response", "")
 }
 
-func diff(oldMessage, newMessage proto.Message) protoreflect.Message {
+func diff(oldMessage, newMessage proto.Message) (protoreflect.Message, bool) {
 	if oldMessage == nil || reflect.ValueOf(oldMessage).IsNil() {
-		return newMessage.ProtoReflect()
+		return newMessage.ProtoReflect(), true
 	}
 
 	diffMessage := oldMessage.ProtoReflect().New()
 	oldReflectMessage := oldMessage.ProtoReflect()
 
+	// Marker we had any changes
+	fieldChanged := false
+
 	newMessage.ProtoReflect().Range(func(descriptor protoreflect.FieldDescriptor, newValue protoreflect.Value) bool {
 		oldValue := oldReflectMessage.Get(descriptor)
-		if !reflect.DeepEqual(oldValue, newValue) {
+		if descriptor.Kind() == protoreflect.MessageKind {
+			// A pointer to message, we do not need to compare
 			if fieldMessage, ok := newValue.Interface().(protoreflect.Message); ok {
-				fieldDiff := diff(
+				fieldDiff, childFieldChanged := diff(
 					oldValue.Interface().(protoreflect.Message).Interface(),
 					fieldMessage.Interface(),
 				)
 				newValue = protoreflect.ValueOf(fieldDiff)
+				if childFieldChanged {
+					diffMessage.Set(descriptor, newValue)
+					fieldChanged = true
+				}
 			}
+		}
+		if !reflect.DeepEqual(oldValue, newValue) {
+			// Primitive value is not equal, set new value
 			diffMessage.Set(descriptor, newValue)
 		}
 		return true
 	})
 
-	return diffMessage
+	return diffMessage, fieldChanged
 }
