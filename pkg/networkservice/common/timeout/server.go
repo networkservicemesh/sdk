@@ -29,7 +29,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
@@ -44,7 +43,10 @@ type timer struct {
 	stopCh chan struct{}
 }
 
-// NewServer - creates a new NetworkServiceServer chain element that implements timeout of expired connections.
+// NewServer - creates a new NetworkServiceServer chain element that implements timeout of expired connections
+//             for the subsequent chain elements.
+// WARNING: `timeout` uses ctx as a context for the Close, so if there are any chain elements setting some data
+//          in context in chain before the `timeout`, these changes won't appear in the Close context.
 func NewServer(ctx context.Context) networkservice.NetworkServiceServer {
 	return &timeoutServer{
 		ctx: ctx,
@@ -58,17 +60,34 @@ func (t *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 
 	executor, _ := t.executors.LoadOrStore(connID, new(serialize.Executor))
 	<-executor.AsyncExec(func() {
-		// executor was possibly removed by `t.close()` at this moment, we need to store it back
+		// Executor has been possibly removed by `t.close()` at this moment, we need to store it back.
 		exec, _ := t.executors.LoadOrStore(connID, executor)
 		if exec != executor {
+			// It can happen in such situation:
+			//     1. -> timeout close  : locking `executor`
+			//     2. -> request-1      : waiting on `executor`
+			//     3. timeout close ->  : unlocking `executor`, removing it from `executors`
+			//     4. -> request-2      : creating `exec`, storing into `executors`, locking `exec`
+			//     5. -request-1->      : locking `executor`, trying to store it into `executors`
+			// at 5. we get `request-1` locking `executor`, `request-2` locking `exec` and only `exec` stored
+			// in `executors`. It means that `request-2` and all subsequent events will be executed in parallel
+			// with `request-1`.
 			err = errors.Errorf("race condition, parallel request execution: %v", connID)
 			return
 		}
 
 		if timer, ok := t.connections.LoadAndDelete(connID); ok {
 			if !timer.timer.Stop() {
+				// Even if we failed to stop the timer, we should execute. It does mean that the timeout action
+				// is waiting on `executor.AsyncExec()` until we will finish.
+				// Since timer is being deleted under the `executor.AsyncExec()` this can't be a situation when
+				// the Request is executing after the timeout Close. Such case cannot be distinguished with the
+				// first-request case.
 				logEntry.Warnf("connection has been timed out, re requesting: %v", connID)
 			}
+			// We need `timer.stopCh`, because timer is not running under the `executor.AsyncExec()` and it can fires
+			// in any time. So the first thing the timeout action will do after is calls `executor.AsyncExec()` is
+			// checking the `timer.stopCh` and breaking the execution if it has been already closed.
 			close(timer.stopCh)
 		}
 
@@ -101,7 +120,6 @@ func (t *timeoutServer) createTimer(ctx context.Context, conn *networkservice.Co
 	}
 
 	conn = conn.Clone()
-	timerCtx := extend.WithValuesFromContext(context.Background(), t.ctx)
 
 	timer := &timer{
 		stopCh: make(chan struct{}),
@@ -116,9 +134,11 @@ func (t *timeoutServer) createTimer(ctx context.Context, conn *networkservice.Co
 		executor.AsyncExec(func() {
 			select {
 			case <-timer.stopCh:
+				// It means that the timer has fired while a Request or Close has been already processing for the
+				// Connection, so there is no more need to process a timeout.
 				logEntry.Warnf("timer has been already stopped: %v", conn.GetId())
 			default:
-				if err := t.close(timerCtx, conn, next.Server(ctx)); err != nil {
+				if err := t.close(t.ctx, conn, next.Server(ctx)); err != nil {
 					logEntry.Errorf("failed to close timed out connection: %v %+v", conn.GetId(), err)
 				}
 			}
@@ -148,17 +168,23 @@ func (t *timeoutServer) close(ctx context.Context, conn *networkservice.Connecti
 	logEntry := log.Entry(ctx).WithField("timeoutServer", "close")
 
 	timer, ok := t.connections.LoadAndDelete(conn.GetId())
-	if !ok {
+	if ok {
+		// We really don't need to check `timer.timer.Stop()` results because we are already closing the Connection
+		// even if it has been timed out.
+		timer.timer.Stop()
+		close(timer.stopCh)
+	} else {
+		// We have been already trying to close the Connection but something went wrong.
 		logEntry.Warnf("connection has been already closed: %v", conn.GetId())
-		return nil
 	}
-
-	timer.timer.Stop()
-	close(timer.stopCh)
 
 	_, err := nextServer.Close(ctx, conn)
 
-	t.executors.Delete(conn.GetId())
+	if err == nil {
+		// If `nextServer.Close()` returns an error, the Connection is not truly closed, so we don't want to delete
+		// the related executor.
+		t.executors.Delete(conn.GetId())
+	}
 
 	return err
 }
