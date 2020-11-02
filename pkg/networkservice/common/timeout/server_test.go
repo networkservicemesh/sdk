@@ -24,6 +24,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/credentials"
 
@@ -41,11 +42,13 @@ import (
 )
 
 const (
-	clientName   = "client"
-	serverName   = "server"
-	tokenTimeout = 100 * time.Millisecond
-	waitFor      = 10 * tokenTimeout
-	tick         = 10 * time.Millisecond
+	clientName    = "client"
+	serverName    = "server"
+	tokenTimeout  = 100 * time.Millisecond
+	waitFor       = 10 * tokenTimeout
+	tick          = 10 * time.Millisecond
+	serverID      = "server-id"
+	parallelCount = 1000
 )
 
 func testClient(ctx context.Context, server networkservice.NetworkServiceServer, duration time.Duration) networkservice.NetworkServiceClient {
@@ -71,10 +74,7 @@ func TestTimeoutServer_Request(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	connServer := &connectionsServer{
-		t:           t,
-		connections: map[string]bool{},
-	}
+	connServer := newConnectionsServer(t)
 
 	_, err := testClient(ctx, connServer, tokenTimeout).Request(ctx, &networkservice.NetworkServiceRequest{})
 	require.NoError(t, err)
@@ -87,10 +87,7 @@ func TestTimeoutServer_Close_BeforeTimeout(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	connServer := &connectionsServer{
-		t:           t,
-		connections: map[string]bool{},
-	}
+	connServer := newConnectionsServer(t)
 
 	client := testClient(ctx, connServer, tokenTimeout)
 
@@ -110,10 +107,7 @@ func TestTimeoutServer_Close_AfterTimeout(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	connServer := &connectionsServer{
-		t:           t,
-		connections: map[string]bool{},
-	}
+	connServer := newConnectionsServer(t)
 
 	client := testClient(ctx, connServer, tokenTimeout)
 
@@ -128,18 +122,8 @@ func TestTimeoutServer_Close_AfterTimeout(t *testing.T) {
 	require.Condition(t, connServer.validator(0, 1))
 }
 
-func TestTimeoutServer_CloseCh(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	connServer := &connectionsServer{
-		t:           t,
-		connections: map[string]bool{},
-	}
-
-	client := testClient(ctx, connServer, 0)
-
-	request := &networkservice.NetworkServiceRequest{
+func stressTestRequest() *networkservice.NetworkServiceRequest {
+	return &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Path: &networkservice.Path{
 				PathSegments: []*networkservice.PathSegment{
@@ -149,31 +133,59 @@ func TestTimeoutServer_CloseCh(t *testing.T) {
 					},
 					{
 						Name: serverName,
-						Id:   "server-id",
+						Id:   serverID,
 					},
 				},
 			},
 		},
 	}
+}
+
+func TestTimeoutServer_StressTest_DoubleClose(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	logLevel := logrus.GetLevel()
+	logrus.SetLevel(logrus.WarnLevel)
+	defer logrus.SetLevel(logLevel)
+
+	connServer := newConnectionsServer(t)
+
+	client := testClient(ctx, connServer, 0)
 
 	wg := new(sync.WaitGroup)
-	for i := 0; i < 100; i++ {
-		wg.Add(1)
+	wg.Add(parallelCount)
+	for i := 0; i < parallelCount; i++ {
 		go func() {
-			_, err := client.Request(ctx, request.Clone())
-			require.NoError(t, err)
-			wg.Done()
+			defer wg.Done()
+			conn, err := client.Request(ctx, stressTestRequest())
+			if err != nil {
+				assert.EqualError(t, err, "race condition, parallel request execution: server-id")
+				return
+			}
+			_, err = client.Close(ctx, conn)
+			assert.NoError(t, err)
 		}()
 	}
 	wg.Wait()
-
-	require.Eventually(t, connServer.validator(0, 1), waitFor, tick)
 }
 
 type connectionsServer struct {
 	t           *testing.T
 	lock        sync.Mutex
-	connections map[string]bool
+	connections map[string]*connectionInfo
+}
+
+type connectionInfo struct {
+	state      bool
+	closeCount int
+}
+
+func newConnectionsServer(t *testing.T) *connectionsServer {
+	return &connectionsServer{
+		t:           t,
+		connections: map[string]*connectionInfo{},
+	}
 }
 
 func (s *connectionsServer) validator(open, closed int) func() bool {
@@ -182,8 +194,8 @@ func (s *connectionsServer) validator(open, closed int) func() bool {
 		defer s.lock.Unlock()
 
 		var connsOpen, connsClosed int
-		for _, isOpened := range s.connections {
-			if isOpened {
+		for _, connInfo := range s.connections {
+			if connInfo.state {
 				connsOpen++
 			} else {
 				connsClosed++
@@ -198,6 +210,27 @@ func (s *connectionsServer) validator(open, closed int) func() bool {
 			logrus.Warnf("closed count is not equal: expected %v != actual %v", closed, connsClosed)
 			return false
 		}
+
+		return true
+	}
+}
+
+func (s *connectionsServer) connValidator(connID string, state bool, closeCount int) func() bool {
+	return func() bool {
+		s.lock.Lock()
+		defer s.lock.Unlock()
+
+		connInfo, ok := s.connections[connID]
+		if !ok {
+			logrus.Warnf("connection doesn't exist: %v", connID)
+			return false
+		}
+		if connInfo.state != state || connInfo.closeCount != closeCount {
+			logrus.Warnf("expected connectionInfo = { state: %v, closeCount: %v }, got: { state: %v, closeCount: %v }",
+				state, closeCount, connInfo.state, connInfo.closeCount)
+			return false
+		}
+
 		return true
 	}
 }
@@ -206,7 +239,13 @@ func (s *connectionsServer) Request(ctx context.Context, request *networkservice
 	s.lock.Lock()
 
 	connID := request.GetConnection().GetId()
-	s.connections[connID] = true
+
+	connInfo, ok := s.connections[connID]
+	if !ok {
+		connInfo = new(connectionInfo)
+		s.connections[connID] = connInfo
+	}
+	connInfo.state = true
 
 	s.lock.Unlock()
 
@@ -217,10 +256,14 @@ func (s *connectionsServer) Close(ctx context.Context, conn *networkservice.Conn
 	s.lock.Lock()
 
 	connID := conn.GetId()
-	if !s.connections[connID] {
-		require.Fail(s.t, "closing not opened connection: %v", connID)
+
+	connInfo, ok := s.connections[connID]
+	if !ok || !connInfo.state {
+		assert.Fail(s.t, "closing not opened connection: %v", connID)
+	} else {
+		connInfo.state = false
+		connInfo.closeCount++
 	}
-	s.connections[connID] = false
 
 	s.lock.Unlock()
 

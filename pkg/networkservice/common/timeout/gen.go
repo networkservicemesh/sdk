@@ -18,19 +18,20 @@ package timeout
 
 import (
 	"sync"
+	"time"
 )
 
-//go:generate go-syncmap -output timer_map.gen.go -type timerMap<string,*timer>
+//go:generate go-syncmap -output timer_map.gen.go -type timerMap<string,*time.Timer>
 //go:generate go-syncmap -output executor_map.gen.go -type executorMap<string,*github.com/edwarnicke/serialize.Executor>
 
 type timerMap sync.Map
 
-func (m *timerMap) LoadAndDelete(key string) (*timer, bool) {
+func (m *timerMap) LoadAndDelete(key string) (*time.Timer, bool) {
 	value, loaded := (*sync.Map)(m).LoadAndDelete(key)
 	if value == nil {
 		return nil, loaded
 	}
-	return value.(*timer), loaded
+	return value.(*time.Timer), loaded
 }
 
 type executorMap sync.Map

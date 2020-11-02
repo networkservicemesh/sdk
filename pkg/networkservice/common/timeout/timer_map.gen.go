@@ -2,39 +2,42 @@
 
 package timeout
 
-import "sync"
+import (
+	"sync"
+	"time"
+)
 
 func _() {
 	// An "cannot convert timerMap literal (type timerMap) to type sync.Map" compiler error signifies that the base type have changed.
 	// Re-run the go-syncmap command to generate them again.
 	_ = (sync.Map)(timerMap{})
 }
-func (m *timerMap) Store(key string, value *timer) {
+func (m *timerMap) Store(key string, value *time.Timer) {
 	(*sync.Map)(m).Store(key, value)
 }
 
-func (m *timerMap) LoadOrStore(key string, value *timer) (*timer, bool) {
+func (m *timerMap) LoadOrStore(key string, value *time.Timer) (*time.Timer, bool) {
 	actual, loaded := (*sync.Map)(m).LoadOrStore(key, value)
 	if actual == nil {
 		return nil, loaded
 	}
-	return actual.(*timer), loaded
+	return actual.(*time.Timer), loaded
 }
 
-func (m *timerMap) Load(key string) (*timer, bool) {
+func (m *timerMap) Load(key string) (*time.Timer, bool) {
 	value, ok := (*sync.Map)(m).Load(key)
 	if value == nil {
 		return nil, ok
 	}
-	return value.(*timer), ok
+	return value.(*time.Timer), ok
 }
 
 func (m *timerMap) Delete(key string) {
 	(*sync.Map)(m).Delete(key)
 }
 
-func (m *timerMap) Range(f func(key string, value *timer) bool) {
+func (m *timerMap) Range(f func(key string, value *time.Timer) bool) {
 	(*sync.Map)(m).Range(func(key, value interface{}) bool {
-		return f(key.(string), value.(*timer))
+		return f(key.(string), value.(*time.Timer))
 	})
 }

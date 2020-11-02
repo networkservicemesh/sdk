@@ -7,10 +7,10 @@ previous NSM-based application. For such case connection should be closed.
 
 ## timeoutServer
 
-timeoutServer keeps timers [timeout.timerMap](https://github.com/networkservicemesh/sdk/blob/master/pkg/networkservice/common/timeout/gen.go#L26)
+timeoutServer keeps timers [timeout.timerMap](https://github.com/networkservicemesh/sdk/blob/master/pkg/networkservice/common/timeout/gen.go#L27)
 mapping incoming request Connection.ID to a timeout timer firing Close on the subsequent chain after the connection previous
 path element expires. To prevent simultaneous execution of multiple Request, Close event for the same Connection.ID in parallel
-it also keeps executors [timeout.executorMap](https://github.com/networkservicemesh/sdk/blob/master/pkg/networkservice/common/timeout/gen.go#L36)
+it also keeps executors [timeout.executorMap](https://github.com/networkservicemesh/sdk/blob/master/pkg/networkservice/common/timeout/gen.go#L37)
 mapping request Connection.ID to an executor for serializing all Request, Close event for the mapped Connection.ID.
 
 timeoutServer closes only subsequent chain elements and uses base context for the Close. So all the chain elements in
@@ -34,17 +34,6 @@ Concurrency is managed through type specific wrappers of [sync.Map](https://gola
 per-connection [serialize.Executor](https://github.com/edwarnicke/serialize/blob/master/serialize.go) which are created on
 Request and deleted on Close.
 
-Since timer is fired in the different goroutine, we use [stopCh](https://github.com/networkservicemesh/sdk/blob/master/pkg/networkservice/common/timeout/server.go#L45)
-channel which is closed in addition to [timer.Stop()](https://golang.org/pkg/time/#Timer.Stop). It is the guard for the
-following case:
-```
-1. -> request        : locking executor
-2. -> timeout close  : waiting on executor
-3. -request->        : stopping timer (oops! it is too late), closing stopCh
-4. request ->        : unlocking executor
-5. -timeout close->  : locking executor, checking stopCh - it is closed, returning without actual Close
-```
-
 Since we are deleting the per-connection executor on connection Close, there possibly can be a race condition:
 ```
 1. -> timeout close  : locking executor
@@ -55,4 +44,4 @@ Since we are deleting the per-connection executor on connection Close, there pos
 ```
 at 5. we get request-1 locking executor, request-2 locking exec and only exec stored in executors. It means that
 request-2 and all subsequent events will be executed in parallel with request-1.
-So we check for this [here](https://github.com/networkservicemesh/sdk/blob/master/pkg/networkservice/common/timeout/server.go#L67).
+So we check for this [here](https://github.com/networkservicemesh/sdk/blob/master/pkg/networkservice/common/timeout/server.go#L68).
