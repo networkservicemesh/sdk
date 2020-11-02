@@ -41,24 +41,26 @@ import (
 )
 
 const (
+	clientName   = "client"
+	serverName   = "server"
 	tokenTimeout = 100 * time.Millisecond
 	waitFor      = 10 * tokenTimeout
 	tick         = 10 * time.Millisecond
 )
 
-func testClient(ctx context.Context, connServer *connectionsServer) networkservice.NetworkServiceClient {
+func testClient(ctx context.Context, server networkservice.NetworkServiceServer, duration time.Duration) networkservice.NetworkServiceClient {
 	return chain.NewNetworkServiceClient(
-		updatepath.NewClient("client"),
+		updatepath.NewClient(clientName),
 		updatetoken.NewClient(func(_ credentials.AuthInfo) (string, time.Time, error) {
-			return "token", time.Now().Add(tokenTimeout), nil
+			return "token", time.Now().Add(duration), nil
 		}),
 		kernel.NewClient(),
 		adapters.NewServerToClient(
 			chain.NewNetworkServiceServer(
-				updatepath.NewServer("server"),
+				updatepath.NewServer(serverName),
 				timeout.NewServer(ctx),
 				mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
-					kernelmech.MECHANISM: connServer,
+					kernelmech.MECHANISM: server,
 				}),
 			),
 		),
@@ -70,14 +72,15 @@ func TestTimeoutServer_Request(t *testing.T) {
 	defer cancel()
 
 	connServer := &connectionsServer{
-		connections: map[string]*connectionInfo{},
+		t:           t,
+		connections: map[string]bool{},
 	}
 
-	_, err := testClient(ctx, connServer).Request(ctx, &networkservice.NetworkServiceRequest{})
+	_, err := testClient(ctx, connServer, tokenTimeout).Request(ctx, &networkservice.NetworkServiceRequest{})
 	require.NoError(t, err)
-	require.Condition(t, connServer.validator(t, 1, 0))
+	require.Condition(t, connServer.validator(1, 0))
 
-	require.Eventually(t, connServer.validator(t, 0, 1), waitFor, tick)
+	require.Eventually(t, connServer.validator(0, 1), waitFor, tick)
 }
 
 func TestTimeoutServer_Close_BeforeTimeout(t *testing.T) {
@@ -85,22 +88,22 @@ func TestTimeoutServer_Close_BeforeTimeout(t *testing.T) {
 	defer cancel()
 
 	connServer := &connectionsServer{
-		connections: map[string]*connectionInfo{},
+		t:           t,
+		connections: map[string]bool{},
 	}
 
-	client := testClient(ctx, connServer)
+	client := testClient(ctx, connServer, tokenTimeout)
 
 	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{})
 	require.NoError(t, err)
-	require.Condition(t, connServer.validator(t, 1, 0))
+	require.Condition(t, connServer.validator(1, 0))
 
 	_, err = client.Close(ctx, conn)
 	require.NoError(t, err)
-	require.Condition(t, connServer.validator(t, 0, 1))
+	require.Condition(t, connServer.validator(0, 1))
 
-	require.Never(t, func() bool {
-		return !connServer.validator(t, 0, 1)()
-	}, waitFor, tick)
+	// ensure there will be no double Close
+	<-time.After(waitFor)
 }
 
 func TestTimeoutServer_Close_AfterTimeout(t *testing.T) {
@@ -108,48 +111,82 @@ func TestTimeoutServer_Close_AfterTimeout(t *testing.T) {
 	defer cancel()
 
 	connServer := &connectionsServer{
-		connections: map[string]*connectionInfo{},
+		t:           t,
+		connections: map[string]bool{},
 	}
 
-	client := testClient(ctx, connServer)
+	client := testClient(ctx, connServer, tokenTimeout)
 
 	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{})
 	require.NoError(t, err)
-	require.Condition(t, connServer.validator(t, 1, 0))
+	require.Condition(t, connServer.validator(1, 0))
 
-	require.Eventually(t, connServer.validator(t, 0, 1), waitFor, tick)
+	require.Eventually(t, connServer.validator(0, 1), waitFor, tick)
 
 	_, err = client.Close(ctx, conn)
 	require.NoError(t, err)
-	require.Condition(t, connServer.validator(t, 0, 1))
+	require.Condition(t, connServer.validator(0, 1))
+}
+
+func TestTimeoutServer_CloseCh(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	connServer := &connectionsServer{
+		t:           t,
+		connections: map[string]bool{},
+	}
+
+	client := testClient(ctx, connServer, 0)
+
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Path: &networkservice.Path{
+				PathSegments: []*networkservice.PathSegment{
+					{
+						Name: clientName,
+						Id:   "client-id",
+					},
+					{
+						Name: serverName,
+						Id:   "server-id",
+					},
+				},
+			},
+		},
+	}
+
+	wg := new(sync.WaitGroup)
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func() {
+			_, err := client.Request(ctx, request.Clone())
+			require.NoError(t, err)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+
+	require.Eventually(t, connServer.validator(0, 1), waitFor, tick)
 }
 
 type connectionsServer struct {
+	t           *testing.T
 	lock        sync.Mutex
-	connections map[string]*connectionInfo
+	connections map[string]bool
 }
 
-type connectionInfo struct {
-	requestCount int
-	closeCount   int
-}
-
-func (s *connectionsServer) validator(t *testing.T, open, closed int) func() bool {
+func (s *connectionsServer) validator(open, closed int) func() bool {
 	return func() bool {
 		s.lock.Lock()
 		defer s.lock.Unlock()
 
 		var connsOpen, connsClosed int
-		for connID, connInfo := range s.connections {
-			switch delta := connInfo.requestCount - connInfo.closeCount; {
-			case delta > 1:
-				require.Fail(t, "connection is double requested: %v", connID)
-			case delta == 1:
+		for _, isOpened := range s.connections {
+			if isOpened {
 				connsOpen++
-			case delta == 0:
+			} else {
 				connsClosed++
-			case delta < 0:
-				require.Fail(t, "connection is double closed %v", connID)
 			}
 		}
 
@@ -169,10 +206,7 @@ func (s *connectionsServer) Request(ctx context.Context, request *networkservice
 	s.lock.Lock()
 
 	connID := request.GetConnection().GetId()
-	if _, ok := s.connections[connID]; !ok {
-		s.connections[connID] = &connectionInfo{}
-	}
-	s.connections[connID].requestCount++
+	s.connections[connID] = true
 
 	s.lock.Unlock()
 
@@ -183,10 +217,10 @@ func (s *connectionsServer) Close(ctx context.Context, conn *networkservice.Conn
 	s.lock.Lock()
 
 	connID := conn.GetId()
-	if _, ok := s.connections[connID]; !ok {
-		s.connections[connID] = &connectionInfo{}
+	if !s.connections[connID] {
+		require.Fail(s.t, "closing not opened connection: %v", connID)
 	}
-	s.connections[connID].closeCount++
+	s.connections[connID] = false
 
 	s.lock.Unlock()
 
