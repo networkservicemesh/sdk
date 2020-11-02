@@ -1,3 +1,5 @@
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
+//
 // Copyright (c) 2020 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -33,9 +35,9 @@ import (
 )
 
 type timeoutServer struct {
-	ctx         context.Context
-	connections timerMap
-	executors   executorMap
+	ctx       context.Context
+	timers    timerMap
+	executors executorMap
 }
 
 type timer struct {
@@ -76,7 +78,7 @@ func (t *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 			return
 		}
 
-		if timer, ok := t.connections.LoadAndDelete(connID); ok {
+		if timer, ok := t.timers.LoadAndDelete(connID); ok {
 			if !timer.timer.Stop() {
 				// Even if we failed to stop the timer, we should execute. It does mean that the timeout action
 				// is waiting on `executor.AsyncExec()` until we will finish.
@@ -105,7 +107,7 @@ func (t *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 			return
 		}
 
-		t.connections.Store(connID, timer)
+		t.timers.Store(connID, timer)
 	})
 
 	return conn, err
@@ -167,7 +169,7 @@ func (t *timeoutServer) Close(ctx context.Context, conn *networkservice.Connecti
 func (t *timeoutServer) close(ctx context.Context, conn *networkservice.Connection, nextServer networkservice.NetworkServiceServer) error {
 	logEntry := log.Entry(ctx).WithField("timeoutServer", "close")
 
-	timer, ok := t.connections.LoadAndDelete(conn.GetId())
+	timer, ok := t.timers.LoadAndDelete(conn.GetId())
 	if ok {
 		// We really don't need to check `timer.timer.Stop()` results because we are already closing the Connection
 		// even if it has been timed out.
