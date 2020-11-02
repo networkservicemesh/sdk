@@ -7,10 +7,10 @@ previous NSM-based application. For such case connection should be closed.
 
 ## timeoutServer
 
-timeoutServer keeps timers [timeout.timerMap](https://github.com/networkservicemesh/sdk/blob/master/pkg/networkservice/common/timeout/gen.go#L27)
+timeoutServer keeps timers [timeout.timerMap](https://github.com/networkservicemesh/sdk/blob/master/pkg/networkservice/common/timeout/gen.go#L26)
 mapping incoming request Connection.ID to a timeout timer firing Close on the subsequent chain after the connection previous
 path element expires. To prevent simultaneous execution of multiple Request, Close event for the same Connection.ID in parallel
-it also keeps executors [timeout.executorMap](https://github.com/networkservicemesh/sdk/blob/master/pkg/networkservice/common/timeout/gen.go#L37)
+it also keeps executors [timeout.executorMap](https://github.com/networkservicemesh/sdk/blob/master/pkg/networkservice/common/timeout/gen.go#L27)
 mapping request Connection.ID to an executor for serializing all Request, Close event for the mapped Connection.ID.
 
 timeoutServer closes only subsequent chain elements and uses base context for the Close. So all the chain elements in
