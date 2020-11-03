@@ -33,7 +33,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/timeout"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
@@ -62,7 +61,6 @@ func testClient(ctx context.Context, server networkservice.NetworkServiceServer,
 		adapters.NewServerToClient(
 			chain.NewNetworkServiceServer(
 				updatepath.NewServer(serverName),
-				serialize.NewServer(),
 				timeout.NewServer(ctx),
 				mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
 					kernelmech.MECHANISM: server,
@@ -143,7 +141,7 @@ func stressTestRequest() *networkservice.NetworkServiceRequest {
 	}
 }
 
-func TestTimeoutServer_StressTest(t *testing.T) {
+func TestTimeoutServer_StressTest_DoubleClose(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -161,7 +159,10 @@ func TestTimeoutServer_StressTest(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			conn, err := client.Request(ctx, stressTestRequest())
-			assert.NoError(t, err)
+			if err != nil {
+				assert.EqualError(t, err, "race condition, parallel request execution: server-id")
+				return
+			}
 			_, err = client.Close(ctx, conn)
 			assert.NoError(t, err)
 		}()
@@ -172,13 +173,18 @@ func TestTimeoutServer_StressTest(t *testing.T) {
 type connectionsServer struct {
 	t           *testing.T
 	lock        sync.Mutex
-	connections map[string]bool
+	connections map[string]*connectionInfo
+}
+
+type connectionInfo struct {
+	state      bool
+	closeCount int
 }
 
 func newConnectionsServer(t *testing.T) *connectionsServer {
 	return &connectionsServer{
 		t:           t,
-		connections: map[string]bool{},
+		connections: map[string]*connectionInfo{},
 	}
 }
 
@@ -188,8 +194,8 @@ func (s *connectionsServer) validator(open, closed int) func() bool {
 		defer s.lock.Unlock()
 
 		var connsOpen, connsClosed int
-		for _, isOpen := range s.connections {
-			if isOpen {
+		for _, connInfo := range s.connections {
+			if connInfo.state {
 				connsOpen++
 			} else {
 				connsClosed++
@@ -209,12 +215,37 @@ func (s *connectionsServer) validator(open, closed int) func() bool {
 	}
 }
 
+func (s *connectionsServer) connValidator(connID string, state bool, closeCount int) func() bool {
+	return func() bool {
+		s.lock.Lock()
+		defer s.lock.Unlock()
+
+		connInfo, ok := s.connections[connID]
+		if !ok {
+			logrus.Warnf("connection doesn't exist: %v", connID)
+			return false
+		}
+		if connInfo.state != state || connInfo.closeCount != closeCount {
+			logrus.Warnf("expected connectionInfo = { state: %v, closeCount: %v }, got: { state: %v, closeCount: %v }",
+				state, closeCount, connInfo.state, connInfo.closeCount)
+			return false
+		}
+
+		return true
+	}
+}
+
 func (s *connectionsServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	s.lock.Lock()
 
 	connID := request.GetConnection().GetId()
 
-	s.connections[connID] = true
+	connInfo, ok := s.connections[connID]
+	if !ok {
+		connInfo = new(connectionInfo)
+		s.connections[connID] = connInfo
+	}
+	connInfo.state = true
 
 	s.lock.Unlock()
 
@@ -226,10 +257,12 @@ func (s *connectionsServer) Close(ctx context.Context, conn *networkservice.Conn
 
 	connID := conn.GetId()
 
-	if !s.connections[connID] {
+	connInfo, ok := s.connections[connID]
+	if !ok || !connInfo.state {
 		assert.Fail(s.t, "closing not opened connection: %v", connID)
 	} else {
-		s.connections[connID] = false
+		connInfo.state = false
+		connInfo.closeCount++
 	}
 
 	s.lock.Unlock()
