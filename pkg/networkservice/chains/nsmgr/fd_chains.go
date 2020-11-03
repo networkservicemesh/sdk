@@ -28,6 +28,11 @@ func newRecvFD() networkservice.NetworkServiceServer {
 	return nil
 }
 
+// newSendFDClient - construct a sendfd server
+func newSendFDClient() networkservice.NetworkServiceClient {
+	return nil
+}
+
 // newRecvFDEndpointRegistry - construct a registry server
 func newRecvFDEndpointRegistry() registry.NetworkServiceEndpointRegistryServer {
 	return nil
