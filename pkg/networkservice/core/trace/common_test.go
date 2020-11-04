@@ -23,14 +23,76 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
 )
 
-func TestDiffConnection(t *testing.T) {
-	c1 := &networkservice.NetworkServiceRequest{
+func TestDiffMechanism(t *testing.T) {
+	c1 := newConnection()
+	c2 := newConnection()
+	c2.MechanismPreferences[1].Type = "MEMIF"
+	diffMsg, diff := trace.Diff(c1.ProtoReflect(), c2.ProtoReflect())
+	jsonOut, _ := json.Marshal(diffMsg)
+	require.Equal(t, `{"mechanism_preferences":{"1":{"type":"MEMIF"}}}`, string(jsonOut))
+	require.True(t, diff)
+}
+
+func TestDiffLabels(t *testing.T) {
+	c1 := newConnection()
+	c2 := newConnection()
+	c2.MechanismPreferences[1].Parameters = map[string]string{
+		"label":  "v3",
+		"label2": "v4",
+	}
+	diffMsg, diff := trace.Diff(c1.ProtoReflect(), c2.ProtoReflect())
+	jsonOut, _ := json.Marshal(diffMsg)
+	require.Equal(t, `{"mechanism_preferences":{"1":{"parameters":{"+label2":"v4","label":"v3"}}}}`, string(jsonOut))
+	require.True(t, diff)
+}
+func TestDiffPath(t *testing.T) {
+	c1 := newConnection()
+	c2 := newConnection()
+
+	c1.Connection.Path = &networkservice.Path{
+		Index: 0,
+		PathSegments: []*networkservice.PathSegment{
+			{Id: "id1", Token: "t1"},
+		},
+	}
+
+	diffMsg, diff := trace.Diff(c1.ProtoReflect(), c2.ProtoReflect())
+	jsonOut, _ := json.Marshal(diffMsg)
+	require.Equal(t, `{"connection":{"path":{"path_segments":{"-0":{"id":"id1","token":"t1"}}}}}`, string(jsonOut))
+	require.True(t, diff)
+}
+
+func TestDiffPathAdd(t *testing.T) {
+	c1 := newConnection()
+	c2 := newConnection()
+
+	c1.Connection.Path = &networkservice.Path{
+		Index: 0,
+		PathSegments: []*networkservice.PathSegment{
+			{Id: "id1", Token: "t1"},
+		},
+	}
+	c2.Connection.Path = &networkservice.Path{
+		Index: 0,
+		PathSegments: []*networkservice.PathSegment{
+			{Id: "id1", Token: "t1"},
+			{Id: "id2", Token: "t2"},
+		},
+	}
+
+	diffMsg, diff := trace.Diff(c1.ProtoReflect(), c2.ProtoReflect())
+	jsonOut, _ := json.Marshal(diffMsg)
+	require.Equal(t, `{"connection":{"path":{"path_segments":{"+1":{"id":"id2","token":"t2"}}}}}`, string(jsonOut))
+	require.True(t, diff)
+}
+
+func newConnection() *networkservice.NetworkServiceRequest {
+	return &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "conn-1",
 			Context: &networkservice.ConnectionContext{
@@ -53,33 +115,4 @@ func TestDiffConnection(t *testing.T) {
 			},
 		},
 	}
-	c2 := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id: "conn-2",
-			Context: &networkservice.ConnectionContext{
-				IpContext: &networkservice.IPContext{
-					SrcIpRequired: true,
-				},
-			},
-		},
-		MechanismPreferences: []*networkservice.Mechanism{
-			{
-				Type: "KERNEL",
-				Cls:  cls.LOCAL,
-			},
-			{
-				Type: "MEMIF",
-				Cls:  cls.LOCAL,
-				Parameters: map[string]string{
-					"label":  "v3",
-					"label2": "v4",
-				},
-			},
-		},
-	}
-	diffMsg, diff := trace.Diff(c1.ProtoReflect(), c2.ProtoReflect())
-	jsonOut, _ := json.Marshal(diffMsg)
-	logrus.Infof("diff: %v", string(jsonOut))
-	logrus.Infof("new original: %v", c2)
-	require.True(t, diff)
 }

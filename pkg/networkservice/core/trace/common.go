@@ -17,8 +17,8 @@
 package trace
 
 import (
-	"fmt"
 	"reflect"
+	"strconv"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -59,67 +59,58 @@ func logResponse(span spanhelper.SpanHelper, response proto.Message) {
 
 // Diff - calculate a protobuf messge diff
 func Diff(oldMessage, newMessage protoreflect.Message) (map[string]interface{}, bool) {
-	if oldMessage == nil || reflect.ValueOf(oldMessage).IsNil() {
-		return nil, true
-	}
-
 	diffMessage := map[string]interface{}{}
 	oldReflectMessage := oldMessage
 
 	// Marker we had any changes
 	changes := 0
-
-	newMessage.Range(func(descriptor protoreflect.FieldDescriptor, newRefValue protoreflect.Value) bool {
+	fields := newMessage.Descriptor().Fields()
+	for fi := 0; fi < fields.Len(); fi++ {
+		descriptor := fields.Get(fi)
+		newRefValue := newMessage.Get(descriptor)
 		rawOldValue := oldReflectMessage.Get(descriptor)
 		oldValue := rawOldValue.Interface()
 		newValue := newRefValue.Interface()
 
 		if descriptor.Cardinality() == protoreflect.Repeated {
-			if newList, ok := newValue.(protoreflect.List); ok {
+			originMap := map[string]protoreflect.Value{}
+			targetMap := map[string]protoreflect.Value{}
+
+			switch val := newValue.(type) {
+			case protoreflect.List:
+				// Convert list to MAP with indexes
 				oldList := oldValue.(protoreflect.List)
 
-				originMap := map[string]protoreflect.Value{}
 				for i := 0; i < oldList.Len(); i++ {
-					originMap[fmt.Sprintf("%d", i)] = oldList.Get(i)
+					originMap[strconv.Itoa(i)] = oldList.Get(i)
 				}
-				targetMap := map[string]protoreflect.Value{}
-				for i := 0; i < newList.Len(); i++ {
-					targetMap[fmt.Sprintf("%d", i)] = newList.Get(i)
+				for i := 0; i < val.Len(); i++ {
+					targetMap[strconv.Itoa(i)] = val.Get(i)
 				}
-				if resultMap, mapChanged := mapDiff(descriptor, originMap, targetMap); mapChanged {
-					changes++
-					diffMessage[string(descriptor.Name())] = resultMap
-				}
-			}
-			if newMap, ok := newValue.(protoreflect.Map); ok {
+			case protoreflect.Map:
 				oldMap := oldValue.(protoreflect.Map)
-
-				originMap := map[string]protoreflect.Value{}
-				targetMap := map[string]protoreflect.Value{}
 
 				oldMap.Range(func(key protoreflect.MapKey, value protoreflect.Value) bool {
 					originMap[key.String()] = value
 					return true
 				})
-				newMap.Range(func(key protoreflect.MapKey, value protoreflect.Value) bool {
+				val.Range(func(key protoreflect.MapKey, value protoreflect.Value) bool {
 					targetMap[key.String()] = value
 					return true
 				})
-
-				if resultMap, mapChanged := mapDiff(descriptor, originMap, targetMap); mapChanged {
-					changes++
-					diffMessage[string(descriptor.Name())] = resultMap
-				}
 			}
-			return true
+			if resultMap, mapChanged := mapDiff(descriptor, originMap, targetMap); mapChanged {
+				changes++
+				diffMessage[string(descriptor.Name())] = resultMap
+			}
+			continue
 		}
-		val, diff := diffField(descriptor, newValue, oldValue)
+		val, diff := diffField(descriptor, oldValue, newValue)
 		if diff {
 			changes++
 			diffMessage[string(descriptor.Name())] = val
 		}
-		return true
-	})
+	}
 
 	return diffMessage, changes > 0
 }
@@ -131,7 +122,8 @@ func mapDiff(descriptor protoreflect.FieldDescriptor, originMap, targetMap map[s
 		oldVal, ok := originMap[key]
 		if !ok {
 			// No old value,
-			resultMap["+"+key] = value.String()
+			putToMappDif(value, resultMap, "+"+key)
+			lchanged++
 			continue
 		}
 		val, diff := diffField(descriptor, oldVal.Interface(), value.Interface())
@@ -146,22 +138,40 @@ func mapDiff(descriptor protoreflect.FieldDescriptor, originMap, targetMap map[s
 		_, ok := targetMap[key]
 		if !ok {
 			// No new value, mark as deleted
-			resultMap["-"+key] = value.String()
+			putToMappDif(value, resultMap, "-"+key)
+			lchanged++
 		}
 	}
 	return resultMap, lchanged > 0
+}
+
+func putToMappDif(value protoreflect.Value, resultMap map[string]interface{}, key string) {
+	if msg, ok := value.Interface().(protoreflect.Message); ok {
+		smsg := msg.Interface()
+		resultMap[key] = smsg
+	} else {
+		resultMap[key] = value.String()
+	}
 }
 
 func diffField(descriptor protoreflect.FieldDescriptor, oldValue, newValue interface{}) (interface{}, bool) {
 	if descriptor.Kind() == protoreflect.MessageKind {
 		// A pointer to message, we do not need to compare
 		if newMsg, ok := newValue.(protoreflect.Message); ok {
-			oldMsg := oldValue.(protoreflect.Message)
+			oldMsg, oldOk := oldValue.(protoreflect.Message)
+			if !oldOk {
+				// No old message defined
+				return newMsg.Interface(), true
+			}
 			fieldDiff, childFieldChanged := Diff(oldMsg, newMsg)
 			if childFieldChanged {
 				return fieldDiff, true
 			}
 			return "=", false
+		} else if oldMsg, ok := oldValue.(protoreflect.Message); ok {
+			// No new message defined
+			// No old message defined
+			return oldMsg.Interface(), true
 		}
 	}
 	if !reflect.DeepEqual(oldValue, newValue) {
