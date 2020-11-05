@@ -121,6 +121,9 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 					addressof.NetworkServiceClient(
 						adapters.NewServerToClient(rv)),
 					tokenGenerator,
+					nilClientFilter(
+						newSendFDClient(), // Send passed files.
+					)...,
 				),
 				clientDialOptions...),
 		)...,
@@ -140,6 +143,16 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 	rv.Registry = registry.NewServer(nsChain, nseChain)
 
 	return rv
+}
+
+func nilClientFilter(clients ...networkservice.NetworkServiceClient) []networkservice.NetworkServiceClient {
+	result := []networkservice.NetworkServiceClient{}
+	for _, s := range clients {
+		if s != nil {
+			result = append(result, s)
+		}
+	}
+	return result
 }
 
 func nilEndpointFilter(servers ...registryapi.NetworkServiceEndpointRegistryServer) []registryapi.NetworkServiceEndpointRegistryServer {
