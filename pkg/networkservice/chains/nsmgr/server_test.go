@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -62,7 +63,8 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 		NetworkServiceNames: []string{"my-service-remote"},
 	}
 
-	_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr)
+	counter := &counterServer{}
+	_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, counter)
 	require.NoError(t, err)
 
 	request := &networkservice.NetworkServiceRequest{
@@ -79,7 +81,7 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 	nsc, err := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[1].NSMgr.URL)
 	require.NoError(t, err)
 
-	conn, err := nsc.Request(ctx, request)
+	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
@@ -88,14 +90,18 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 	// Simulate refresh from client.
 
 	refreshRequest := request.Clone()
-	refreshRequest.GetConnection().Context = conn.Context
-	refreshRequest.GetConnection().Mechanism = conn.Mechanism
-	refreshRequest.GetConnection().NetworkServiceEndpointName = conn.NetworkServiceEndpointName
+	refreshRequest.Connection = conn.Clone()
 
 	conn, err = nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 8, len(conn.Path.PathSegments))
+
+	// Close.
+	e, err := nsc.Close(ctx, conn)
+	require.NoError(t, err)
+	require.NotNil(t, e)
+	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Closes))
 }
 
 func TestNSMGR_LocalUsecase(t *testing.T) {
@@ -114,7 +120,8 @@ func TestNSMGR_LocalUsecase(t *testing.T) {
 		Name:                "final-endpoint",
 		NetworkServiceNames: []string{"my-service-remote"},
 	}
-	_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr)
+	counter := &counterServer{}
+	_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, counter)
 	require.NoError(t, err)
 
 	nsc, err := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
@@ -130,7 +137,7 @@ func TestNSMGR_LocalUsecase(t *testing.T) {
 			Context:        &networkservice.ConnectionContext{},
 		},
 	}
-	conn, err := nsc.Request(ctx, request)
+	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
@@ -139,14 +146,18 @@ func TestNSMGR_LocalUsecase(t *testing.T) {
 	// Simulate refresh from client.
 
 	refreshRequest := request.Clone()
-	refreshRequest.GetConnection().Context = conn.Context
-	refreshRequest.GetConnection().Mechanism = conn.Mechanism
-	refreshRequest.GetConnection().NetworkServiceEndpointName = conn.NetworkServiceEndpointName
+	refreshRequest.Connection = conn.Clone()
 
 	conn2, err := nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
 	require.NotNil(t, conn2)
 	require.Equal(t, 5, len(conn2.Path.PathSegments))
+
+	// Close.
+	e, err := nsc.Close(ctx, conn)
+	require.NoError(t, err)
+	require.NotNil(t, e)
+	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Closes))
 }
 
 func TestNSMGR_PassThroughRemote(t *testing.T) {
@@ -317,4 +328,18 @@ func (p *passThroughClient) Request(ctx context.Context, request *networkservice
 func (p *passThroughClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	conn = conn.Clone()
 	return next.Client(ctx).Close(ctx, conn, opts...)
+}
+
+type counterServer struct {
+	Requests, Closes int32
+}
+
+func (c *counterServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	atomic.AddInt32(&c.Requests, 1)
+	return next.Server(ctx).Request(ctx, request)
+}
+
+func (c *counterServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
+	atomic.AddInt32(&c.Closes, 1)
+	return next.Server(ctx).Close(ctx, connection)
 }

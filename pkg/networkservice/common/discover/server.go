@@ -48,19 +48,7 @@ func NewServer(nsClient registry.NetworkServiceRegistryClient, nseClient registr
 func (d *discoverCandidatesServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	nseName := request.GetConnection().GetNetworkServiceEndpointName()
 	if nseName != "" {
-		nseStream, err := d.nseClient.Find(context.Background(), &registry.NetworkServiceEndpointQuery{
-			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-				Name: nseName,
-			},
-		})
-		if err != nil {
-			return nil, err
-		}
-		nseList := registry.ReadNetworkServiceEndpointList(nseStream)
-		if len(nseList) == 0 {
-			return nil, errors.Errorf("network service endpoint %s is not found", nseName)
-		}
-		u, err := url.Parse(nseList[0].Url)
+		u, err := d.urlByNseName(nseName)
 		if err != nil {
 			return nil, err
 		}
@@ -100,6 +88,35 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 	return next.Server(ctx).Request(ctx, request)
 }
 
-func (d *discoverCandidatesServer) Close(context.Context, *networkservice.Connection) (*empty.Empty, error) {
-	return &empty.Empty{}, nil
+func (d *discoverCandidatesServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	nseName := conn.GetNetworkServiceEndpointName()
+	if nseName == "" {
+		// If it's an existing connection, the NSE name should be set. Otherwise, it's probably an API misuse.
+		return nil, errors.Errorf("network_service_endpoint_name is not set")
+	}
+	u, err := d.urlByNseName(nseName)
+	if err != nil {
+		return nil, err
+	}
+	return next.Server(ctx).Close(clienturlctx.WithClientURL(ctx, u), conn)
+}
+
+func (d *discoverCandidatesServer) urlByNseName(nseName string) (*url.URL, error) {
+	nseStream, err := d.nseClient.Find(context.Background(), &registry.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+			Name: nseName,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	nseList := registry.ReadNetworkServiceEndpointList(nseStream)
+	if len(nseList) == 0 {
+		return nil, errors.Errorf("network service endpoint %s is not found", nseName)
+	}
+	u, err := url.Parse(nseList[0].Url)
+	if err != nil {
+		return nil, err
+	}
+	return u, nil
 }
