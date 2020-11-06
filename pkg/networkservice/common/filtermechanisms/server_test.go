@@ -21,6 +21,8 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
@@ -33,6 +35,72 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/filtermechanisms"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 )
+
+func TestFilterMechanisms_RemoteExternal(t *testing.T) {
+	request := &networkservice.NetworkServiceRequest{
+		MechanismPreferences: []*networkservice.Mechanism{
+			{
+				Cls:  cls.REMOTE,
+				Type: vxlan.MECHANISM,
+			},
+			{
+				Cls:  cls.LOCAL,
+				Type: kernel.MECHANISM,
+			},
+		},
+		Connection: &networkservice.Connection{
+			Path: &networkservice.Path{
+				PathSegments: make([]*networkservice.PathSegment, 3),
+			},
+		},
+	}
+
+	var localRegistryServer registry.NetworkServiceEndpointRegistryServer
+	localServer := filtermechanisms.NewServer(&localRegistryServer)
+	var remoteRegistryServer registry.NetworkServiceEndpointRegistryServer
+	remoteServer := filtermechanisms.NewServer(&remoteRegistryServer, filtermechanisms.WithExternalThreshold())
+	u := &url.URL{Path: "test"}
+	_, _ = remoteRegistryServer.Register(context.Background(), &registry.NetworkServiceEndpoint{
+		Url: u.String(),
+	})
+	_, err := next.NewNetworkServiceServer(localServer, remoteServer).Request(clienturlctx.WithClientURL(context.Background(), u), request)
+	require.NoError(t, err)
+	require.Len(t, request.MechanismPreferences, 1)
+	require.Equal(t, cls.REMOTE, request.MechanismPreferences[0].Cls)
+}
+
+func TestFilterMechanisms_Remote(t *testing.T) {
+	request := &networkservice.NetworkServiceRequest{
+		MechanismPreferences: []*networkservice.Mechanism{
+			{
+				Cls:  cls.REMOTE,
+				Type: vxlan.MECHANISM,
+			},
+			{
+				Cls:  cls.LOCAL,
+				Type: kernel.MECHANISM,
+			},
+		},
+		Connection: &networkservice.Connection{
+			Path: &networkservice.Path{
+				PathSegments: make([]*networkservice.PathSegment, 5),
+			},
+		},
+	}
+
+	var localRegistryServer registry.NetworkServiceEndpointRegistryServer
+	localServer := filtermechanisms.NewServer(&localRegistryServer)
+	var remoteRegistryServer registry.NetworkServiceEndpointRegistryServer
+	remoteServer := filtermechanisms.NewServer(&remoteRegistryServer)
+	u := &url.URL{Path: "test"}
+	_, _ = remoteRegistryServer.Register(context.Background(), &registry.NetworkServiceEndpoint{
+		Url: u.String(),
+	})
+	_, err := next.NewNetworkServiceServer(localServer, remoteServer).Request(clienturlctx.WithClientURL(context.Background(), u), request)
+	require.NoError(t, err)
+	require.Len(t, request.MechanismPreferences, 1)
+	require.Equal(t, cls.REMOTE, request.MechanismPreferences[0].Cls)
+}
 
 func TestFilterMechanismsServer_Request(t *testing.T) {
 	request := func() *networkservice.NetworkServiceRequest {
