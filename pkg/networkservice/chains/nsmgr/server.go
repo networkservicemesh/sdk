@@ -128,11 +128,11 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 	nsChain := chain_registry.NewNetworkServiceRegistryServer(nsRegistry)
 	nseChain := chain_registry.NewNetworkServiceEndpointRegistryServer(
 		newRecvFDEndpointRegistry(), // Allow to receive a passed files
-			urlsRegistryServer,
-			interposeRegistry,         // Store cross connect NSEs
-			localbypassRegistryServer, // Store endpoint Id to EndpointURL for local access.
-			seturl.NewNetworkServiceEndpointRegistryServer(nsmRegistration.Url), // Remember endpoint URL
-			nseRegistry, // Register NSE inside Remote registry with ID assigned
+		urlsRegistryServer,
+		interposeRegistry,         // Store cross connect NSEs
+		localbypassRegistryServer, // Store endpoint Id to EndpointURL for local access.
+		seturl.NewNetworkServiceEndpointRegistryServer(nsmRegistration.Url), // Remember endpoint URL
+		nseRegistry, // Register NSE inside Remote registry with ID assigned
 	)
 	rv.Registry = registry.NewServer(nsChain, nseChain)
 
