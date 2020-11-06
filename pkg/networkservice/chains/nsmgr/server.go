@@ -132,10 +132,10 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 	nsChain := chain_registry.NewNetworkServiceRegistryServer(nsRegistry)
 	nseChain := chain_registry.NewNetworkServiceEndpointRegistryServer(
 		nilEndpointFilter(
-			urlsRegistryServer,
 			newRecvFDEndpointRegistry(), // Allow to receive a passed files
-			interposeRegistry,           // Store cross connect NSEs
-			localbypassRegistryServer,   // Store endpoint Id to EndpointURL for local access.
+			urlsRegistryServer,
+			interposeRegistry,         // Store cross connect NSEs
+			localbypassRegistryServer, // Store endpoint Id to EndpointURL for local access.
 			seturl.NewNetworkServiceEndpointRegistryServer(nsmRegistration.Url), // Remember endpoint URL
 			nseRegistry, // Register NSE inside Remote registry with ID assigned
 		)...,
