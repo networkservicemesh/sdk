@@ -21,19 +21,22 @@ package nsmgr
 import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
+	null_registry "github.com/networkservicemesh/sdk/pkg/registry/common/null"
 )
 
 // newRecvFD - construct a recvfd server
 func newRecvFD() networkservice.NetworkServiceServer {
-	return nil
+	return null.NewServer()
 }
 
 // newSendFDClient - construct a sendfd server
 func newSendFDClient() networkservice.NetworkServiceClient {
-	return nil
+	return null.NewClient()
 }
 
 // newRecvFDEndpointRegistry - construct a registry server
 func newRecvFDEndpointRegistry() registry.NetworkServiceEndpointRegistryServer {
-	return nil
+	return null_registry.NewNetworkServiceEndpointRegistryServer()
 }
