@@ -23,11 +23,11 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontextonreturn"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/null"
 )
 
 // CheckClientContextOnReturn - returns a NetworkServiceClient that will check the state of the context.Context

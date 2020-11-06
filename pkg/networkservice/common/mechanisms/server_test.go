@@ -41,9 +41,9 @@ import (
 	"gonum.org/v1/gonum/stat/combin"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/null"
 )
 
 type unsupportedMechanismServer struct{}
