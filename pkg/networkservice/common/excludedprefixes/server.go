@@ -81,6 +81,9 @@ func (eps *excludedPrefixesServer) Request(ctx context.Context, request *network
 	logger := trace.Log(ctx)
 
 	conn := request.GetConnection()
+	if conn.GetContext() == nil {
+		conn.Context = &networkservice.ConnectionContext{}
+	}
 	if conn.GetContext().GetIpContext() == nil {
 		conn.Context.IpContext = &networkservice.IPContext{}
 	}
