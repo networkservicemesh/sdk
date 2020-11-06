@@ -26,10 +26,10 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkerror"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/null"
 )
 
 func TestCheckErrorClient_Nil(t *testing.T) {

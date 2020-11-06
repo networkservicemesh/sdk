@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Cisco and/or its affiliates.
 //
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +17,8 @@
 // limitations under the License.
 
 // Package null provides simple networkservice chain elements that do nothing by call next and returns what comes
-// back.  This can be very useful in testing.
+// back.
+// This can be very useful in testing or writing os specific code.
 package null
 
 import (

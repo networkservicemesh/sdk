@@ -26,10 +26,10 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/null"
 )
 
 type checkClientSetsMechanismPreferences struct {
