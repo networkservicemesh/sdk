@@ -17,7 +17,7 @@ require (
 	github.com/hashicorp/go-multierror v1.0.0
 	github.com/nats-io/nats-streaming-server v0.17.0
 	github.com/nats-io/stan.go v0.6.0
-	github.com/networkservicemesh/api v0.0.0-20201026112722-9b20186587a5
+	github.com/networkservicemesh/api v0.0.0-20201108204718-89d65b3605cf
 	github.com/open-policy-agent/opa v0.16.1
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/pkg/errors v0.9.1
