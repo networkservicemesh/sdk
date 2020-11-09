@@ -21,8 +21,6 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
@@ -35,72 +33,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/filtermechanisms"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 )
-
-func TestFilterMechanisms_RemoteExternal(t *testing.T) {
-	request := &networkservice.NetworkServiceRequest{
-		MechanismPreferences: []*networkservice.Mechanism{
-			{
-				Cls:  cls.REMOTE,
-				Type: vxlan.MECHANISM,
-			},
-			{
-				Cls:  cls.LOCAL,
-				Type: kernel.MECHANISM,
-			},
-		},
-		Connection: &networkservice.Connection{
-			Path: &networkservice.Path{
-				PathSegments: make([]*networkservice.PathSegment, 3),
-			},
-		},
-	}
-
-	var localRegistryServer registry.NetworkServiceEndpointRegistryServer
-	localServer := filtermechanisms.NewServer(&localRegistryServer)
-	var remoteRegistryServer registry.NetworkServiceEndpointRegistryServer
-	remoteServer := filtermechanisms.NewServer(&remoteRegistryServer, filtermechanisms.WithExternalThreshold())
-	u := &url.URL{Path: "test"}
-	_, _ = remoteRegistryServer.Register(context.Background(), &registry.NetworkServiceEndpoint{
-		Url: u.String(),
-	})
-	_, err := next.NewNetworkServiceServer(localServer, remoteServer).Request(clienturlctx.WithClientURL(context.Background(), u), request)
-	require.NoError(t, err)
-	require.Len(t, request.MechanismPreferences, 1)
-	require.Equal(t, cls.REMOTE, request.MechanismPreferences[0].Cls)
-}
-
-func TestFilterMechanisms_Remote(t *testing.T) {
-	request := &networkservice.NetworkServiceRequest{
-		MechanismPreferences: []*networkservice.Mechanism{
-			{
-				Cls:  cls.REMOTE,
-				Type: vxlan.MECHANISM,
-			},
-			{
-				Cls:  cls.LOCAL,
-				Type: kernel.MECHANISM,
-			},
-		},
-		Connection: &networkservice.Connection{
-			Path: &networkservice.Path{
-				PathSegments: make([]*networkservice.PathSegment, 5),
-			},
-		},
-	}
-
-	var localRegistryServer registry.NetworkServiceEndpointRegistryServer
-	localServer := filtermechanisms.NewServer(&localRegistryServer)
-	var remoteRegistryServer registry.NetworkServiceEndpointRegistryServer
-	remoteServer := filtermechanisms.NewServer(&remoteRegistryServer)
-	u := &url.URL{Path: "test"}
-	_, _ = remoteRegistryServer.Register(context.Background(), &registry.NetworkServiceEndpoint{
-		Url: u.String(),
-	})
-	_, err := next.NewNetworkServiceServer(localServer, remoteServer).Request(clienturlctx.WithClientURL(context.Background(), u), request)
-	require.NoError(t, err)
-	require.Len(t, request.MechanismPreferences, 1)
-	require.Equal(t, cls.REMOTE, request.MechanismPreferences[0].Cls)
-}
 
 func TestFilterMechanismsServer_Request(t *testing.T) {
 	request := func() *networkservice.NetworkServiceRequest {
@@ -127,6 +59,7 @@ func TestFilterMechanismsServer_Request(t *testing.T) {
 	}
 	samples := []struct {
 		Name         string
+		EndpointName string
 		ClientURL    *url.URL
 		RegisterURLs []url.URL
 		ClsResult    string
@@ -140,12 +73,25 @@ func TestFilterMechanismsServer_Request(t *testing.T) {
 					Host:   "localhost:5000",
 				},
 			},
-			ClsResult: cls.LOCAL,
+			EndpointName: "nse-1",
+			ClsResult:    cls.LOCAL,
 		},
 		{
-			Name:      "Remote mechanisms",
-			ClientURL: &url.URL{Scheme: "tcp", Host: "localhost:5000"},
-			ClsResult: cls.REMOTE,
+			Name:         "Remote mechanisms",
+			ClientURL:    &url.URL{Scheme: "tcp", Host: "localhost:5000"},
+			EndpointName: "nse-1",
+			ClsResult:    cls.REMOTE,
+		},
+		{
+			Name:         "Pass mechanisms to forwarder",
+			ClientURL:    &url.URL{Scheme: "tcp", Host: "localhost:5000"},
+			EndpointName: "interpose-nse#nse-1",
+			RegisterURLs: []url.URL{
+				{
+					Scheme: "tcp",
+					Host:   "localhost:5000",
+				},
+			},
 		},
 	}
 
@@ -154,7 +100,8 @@ func TestFilterMechanismsServer_Request(t *testing.T) {
 		s := filtermechanisms.NewServer(&registryServer)
 		for _, u := range sample.RegisterURLs {
 			_, err := registryServer.Register(context.Background(), &registry.NetworkServiceEndpoint{
-				Url: u.String(),
+				Name: sample.EndpointName,
+				Url:  u.String(),
 			})
 			require.NoError(t, err)
 		}
@@ -163,8 +110,13 @@ func TestFilterMechanismsServer_Request(t *testing.T) {
 		_, err := s.Request(ctx, req)
 		require.NoError(t, err)
 		require.NotEmpty(t, req.MechanismPreferences)
-		for _, m := range req.MechanismPreferences {
-			require.Equal(t, sample.ClsResult, m.Cls, "filtermechanisms chain element should properly filter mechanisms")
+
+		if sample.ClsResult != "" {
+			for _, m := range req.MechanismPreferences {
+				require.Equal(t, sample.ClsResult, m.Cls, "filtermechanisms chain element should properly filter mechanisms")
+			}
+		} else {
+			require.Equal(t, request().String(), req.String())
 		}
 	}
 }
