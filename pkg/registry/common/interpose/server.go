@@ -42,7 +42,7 @@ type interposeRegistry struct {
 	endpoints *stringurl.Map
 }
 
-// Is returns true if passed nama contains interpose identity
+// Is returns true if passed name contains interpose identity
 func Is(name string) bool {
 	return strings.HasPrefix(name, interposeNSEName)
 }
