@@ -33,31 +33,21 @@ import (
 )
 
 type filterMechanismsServer struct {
-	urls           endpointurls.Set
-	localThreshold int
+	urls endpointurls.Set
 }
 
 // NewServer - filters out remote mechanisms if connection is received from a unix file socket, otherwise filters
-// out local mechanisms.
-func NewServer(registryServer *registry.NetworkServiceEndpointRegistryServer, options ...Option) networkservice.NetworkServiceServer {
-	result := &filterMechanismsServer{
-		localThreshold: defaultThreshold,
-	}
-	for _, applyOption := range options {
-		applyOption(result)
-	}
+// out local mechanisms
+func NewServer(registryServer *registry.NetworkServiceEndpointRegistryServer) networkservice.NetworkServiceServer {
+	result := &filterMechanismsServer{}
 	*registryServer = endpointurls.NewNetworkServiceEndpointRegistryServer(&result.urls)
 	return result
 }
 
 func (f *filterMechanismsServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	u := clienturlctx.ClientURL(ctx)
-
 	if _, ok := f.urls.Load(*u); ok {
-		filteredMechanisms := filterMechanismsByCls(request.GetMechanismPreferences(), cls.LOCAL)
-		if len(filteredMechanisms) > 0 {
-			request.MechanismPreferences = filteredMechanisms
-		}
+		request.MechanismPreferences = filterMechanismsByCls(request.GetMechanismPreferences(), cls.LOCAL)
 	} else {
 		request.MechanismPreferences = filterMechanismsByCls(request.GetMechanismPreferences(), cls.REMOTE)
 	}
