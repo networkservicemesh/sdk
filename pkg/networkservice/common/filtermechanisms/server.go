@@ -21,6 +21,8 @@ package filtermechanisms
 import (
 	"context"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -33,21 +35,23 @@ import (
 )
 
 type filterMechanismsServer struct {
-	urls endpointurls.Set
+	nses endpointurls.Map
 }
 
 // NewServer - filters out remote mechanisms if connection is received from a unix file socket, otherwise filters
 // out local mechanisms
 func NewServer(registryServer *registry.NetworkServiceEndpointRegistryServer) networkservice.NetworkServiceServer {
 	result := &filterMechanismsServer{}
-	*registryServer = endpointurls.NewNetworkServiceEndpointRegistryServer(&result.urls)
+	*registryServer = endpointurls.NewNetworkServiceEndpointRegistryServer(&result.nses)
 	return result
 }
 
 func (f *filterMechanismsServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	u := clienturlctx.ClientURL(ctx)
-	if _, ok := f.urls.Load(*u); ok {
-		request.MechanismPreferences = filterMechanismsByCls(request.GetMechanismPreferences(), cls.LOCAL)
+	if name, ok := f.nses.Load(*u); ok {
+		if !interpose.Is(name) {
+			request.MechanismPreferences = filterMechanismsByCls(request.GetMechanismPreferences(), cls.LOCAL)
+		}
 	} else {
 		request.MechanismPreferences = filterMechanismsByCls(request.GetMechanismPreferences(), cls.REMOTE)
 	}

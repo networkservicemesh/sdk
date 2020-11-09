@@ -59,6 +59,7 @@ func TestFilterMechanismsServer_Request(t *testing.T) {
 	}
 	samples := []struct {
 		Name         string
+		EndpointName string
 		ClientURL    *url.URL
 		RegisterURLs []url.URL
 		ClsResult    string
@@ -72,12 +73,25 @@ func TestFilterMechanismsServer_Request(t *testing.T) {
 					Host:   "localhost:5000",
 				},
 			},
-			ClsResult: cls.LOCAL,
+			EndpointName: "nse-1",
+			ClsResult:    cls.LOCAL,
 		},
 		{
-			Name:      "Remote mechanisms",
-			ClientURL: &url.URL{Scheme: "tcp", Host: "localhost:5000"},
-			ClsResult: cls.REMOTE,
+			Name:         "Remote mechanisms",
+			ClientURL:    &url.URL{Scheme: "tcp", Host: "localhost:5000"},
+			EndpointName: "nse-1",
+			ClsResult:    cls.REMOTE,
+		},
+		{
+			Name:         "Pass mechanisms to forwarder",
+			ClientURL:    &url.URL{Scheme: "tcp", Host: "localhost:5000"},
+			EndpointName: "interpose-nse#nse-1",
+			RegisterURLs: []url.URL{
+				{
+					Scheme: "tcp",
+					Host:   "localhost:5000",
+				},
+			},
 		},
 	}
 
@@ -86,7 +100,8 @@ func TestFilterMechanismsServer_Request(t *testing.T) {
 		s := filtermechanisms.NewServer(&registryServer)
 		for _, u := range sample.RegisterURLs {
 			_, err := registryServer.Register(context.Background(), &registry.NetworkServiceEndpoint{
-				Url: u.String(),
+				Name: sample.EndpointName,
+				Url:  u.String(),
 			})
 			require.NoError(t, err)
 		}
@@ -95,8 +110,13 @@ func TestFilterMechanismsServer_Request(t *testing.T) {
 		_, err := s.Request(ctx, req)
 		require.NoError(t, err)
 		require.NotEmpty(t, req.MechanismPreferences)
-		for _, m := range req.MechanismPreferences {
-			require.Equal(t, sample.ClsResult, m.Cls, "filtermechanisms chain element should properly filter mechanisms")
+
+		if sample.ClsResult != "" {
+			for _, m := range req.MechanismPreferences {
+				require.Equal(t, sample.ClsResult, m.Cls, "filtermechanisms chain element should properly filter mechanisms")
+			}
+		} else {
+			require.Equal(t, request().String(), req.String())
 		}
 	}
 }

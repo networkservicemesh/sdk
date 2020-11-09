@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package endpointurls provides registry.NetworkServiceEndpointRegistryServer that can be injected in the chain of registry.NetworkServiceEndpointRegistryServer to get an actual set of registry.NetworkServiceEndpoint URLs.
+// Package endpointurls provides registry.NetworkServiceEndpointRegistryServer that can be injected in the chain of registry.NetworkServiceEndpointRegistryServer to get an actual nses of registry.NetworkServiceEndpoint URLs.
 package endpointurls
 
 import (
@@ -28,12 +28,12 @@ import (
 )
 
 type endpointURLsServer struct {
-	set *Set
+	nses *Map
 }
 
 func (e *endpointURLsServer) Register(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	if u, err := url.Parse(endpoint.Url); err == nil {
-		e.set.Store(*u, struct{}{})
+		e.nses.Store(*u, endpoint.Name)
 	}
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, endpoint)
 }
@@ -44,12 +44,12 @@ func (e *endpointURLsServer) Find(query *registry.NetworkServiceEndpointQuery, s
 
 func (e *endpointURLsServer) Unregister(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
 	if u, err := url.Parse(endpoint.Url); err == nil {
-		e.set.Delete(*u)
+		e.nses.Delete(*u)
 	}
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, endpoint)
 }
 
-// NewNetworkServiceEndpointRegistryServer returns new registry.NetworkServiceEndpointRegistryServer with injected endpoint urls set
-func NewNetworkServiceEndpointRegistryServer(set *Set) registry.NetworkServiceEndpointRegistryServer {
-	return &endpointURLsServer{set: set}
+// NewNetworkServiceEndpointRegistryServer returns new registry.NetworkServiceEndpointRegistryServer with injected endpoint urls nses
+func NewNetworkServiceEndpointRegistryServer(m *Map) registry.NetworkServiceEndpointRegistryServer {
+	return &endpointURLsServer{nses: m}
 }

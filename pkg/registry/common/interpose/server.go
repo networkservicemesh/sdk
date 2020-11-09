@@ -42,8 +42,13 @@ type interposeRegistry struct {
 	endpoints *stringurl.Map
 }
 
+// Is returns true if passed nama contains interpose identity
+func Is(name string) bool {
+	return strings.HasPrefix(name, interposeNSEName)
+}
+
 func (l *interposeRegistry) Register(ctx context.Context, request *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	if strings.HasPrefix(request.Name, interposeNSEName) {
+	if Is(request.Name) {
 		endpointURL, err := url.Parse(request.Url)
 		if err != nil {
 			return nil, err

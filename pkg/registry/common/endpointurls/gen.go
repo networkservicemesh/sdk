@@ -20,8 +20,8 @@ import (
 	"sync"
 )
 
-//go:generate go-syncmap -output sync_set.gen.go -type Set<net/url.URL,struct{}>
+//go:generate go-syncmap -output sync_map.gen.go -type Map<net/url.URL,string>
 
-// Set is like a Go map[url.URL]struct{} but is safe for concurrent use
+// Map is like a Go map[url.URL]string but is safe for concurrent use
 // by multiple goroutines without additional locking or coordination
-type Set sync.Map
+type Map sync.Map
