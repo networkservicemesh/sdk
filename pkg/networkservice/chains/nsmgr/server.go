@@ -127,7 +127,10 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 			clientDialOptions...),
 	)
 
-	nsChain := chain_registry.NewNetworkServiceRegistryServer(nsRegistry)
+	nsChain := setlogoption_reg.NewNetworkServiceRegistryServer(
+		map[string]string{"chain": fmt.Sprintf("%s:Registry", nsmRegistration.Name)},
+		chain_registry.NewNetworkServiceRegistryServer(nsRegistry),
+	)
 	nseChain := setlogoption_reg.NewNetworkServiceEndpointRegistryServer(
 		map[string]string{"chain": fmt.Sprintf("%s:Registry", nsmRegistration.Name)},
 		chain_registry.NewNetworkServiceEndpointRegistryServer(

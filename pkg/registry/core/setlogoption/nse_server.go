@@ -61,7 +61,7 @@ func (s *setLogOption) Unregister(ctx context.Context, endpoint *registry.Networ
 	return s.server.Unregister(ctx, endpoint)
 }
 
-// NewNetworkServiceEndpointRegistryServer creates new instance of NetworkServiceEndpointRegistryServer which set the passed NSMgr url
+// NewNetworkServiceEndpointRegistryServer creates new instance of NetworkServiceEndpointRegistryServer which sets the passed options
 func NewNetworkServiceEndpointRegistryServer(options map[string]string, server registry.NetworkServiceEndpointRegistryServer) registry.NetworkServiceEndpointRegistryServer {
 	return &setLogOption{
 		options: options,
