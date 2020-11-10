@@ -23,6 +23,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/translatemechanism"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
 
 	"github.com/google/uuid"
@@ -320,6 +322,7 @@ func supplyDummyForwarder(ctx context.Context, name string, generateToken token.
 				// What to call onHeal
 				addressof.NetworkServiceClient(adapters.NewServerToClient(result)),
 				generateToken,
+				translatemechanism.NewClient(),
 			),
 			grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)),
 		))
