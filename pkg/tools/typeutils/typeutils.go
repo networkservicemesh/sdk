@@ -20,6 +20,7 @@ package typeutils
 import (
 	"fmt"
 	"reflect"
+	"strings"
 )
 
 // GetFuncName - returns the function name from the passed value (interface) and method name
@@ -28,5 +29,6 @@ func GetFuncName(value interface{}, methodName string) string {
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
-	return fmt.Sprintf("%s/%s.%s", v.Type().PkgPath(), v.Type().Name(), methodName)
+	pkgPath := strings.TrimPrefix(v.Type().PkgPath(), "github.com/networkservicemesh/")
+	return fmt.Sprintf("%s/%s.%s", pkgPath, v.Type().Name(), methodName)
 }
