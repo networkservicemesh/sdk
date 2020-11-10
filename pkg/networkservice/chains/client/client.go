@@ -22,7 +22,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injectpeer"
-	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
@@ -55,7 +54,7 @@ import (
 func NewClient(ctx context.Context, name string, onHeal *networkservice.NetworkServiceClient, tokenGenerator token.GeneratorFunc, cc grpc.ClientConnInterface, additionalFunctionality ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	var rv networkservice.NetworkServiceClient
 	if onHeal == nil {
-		onHeal = addressof.NetworkServiceClient(rv)
+		onHeal = &rv
 	}
 	rv = chain.NewNetworkServiceClient(
 		append(
