@@ -14,7 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package setlogoption implements a chain element to set log options before full chain
 package setlogoption
 
 import (
@@ -22,6 +21,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -30,42 +30,40 @@ import (
 
 type setNSLogOption struct {
 	options map[string]string
-	server  registry.NetworkServiceRegistryServer
 }
 
-type setNSLogOptionFindServer struct {
+type setLogOptionFindServer struct {
 	registry.NetworkServiceRegistry_FindServer
 	ctx context.Context
 }
 
-func (s *setNSLogOptionFindServer) Send(service *registry.NetworkService) error {
-	return s.NetworkServiceRegistry_FindServer.Send(service)
+func (s *setLogOptionFindServer) Send(ns *registry.NetworkService) error {
+	return s.NetworkServiceRegistry_FindServer.Send(ns)
 }
 
-func (s *setNSLogOptionFindServer) Context() context.Context {
+func (s *setLogOptionFindServer) Context() context.Context {
 	return s.ctx
 }
 
-func (s *setNSLogOption) Register(ctx context.Context, service *registry.NetworkService) (*registry.NetworkService, error) {
+func (s *setNSLogOption) Register(ctx context.Context, endpoint *registry.NetworkService) (*registry.NetworkService, error) {
 	ctx = s.withFields(ctx)
-	return s.server.Register(ctx, service)
+	return next.NetworkServiceRegistryServer(ctx).Register(ctx, endpoint)
 }
 
 func (s *setNSLogOption) Find(query *registry.NetworkServiceQuery, server registry.NetworkServiceRegistry_FindServer) error {
 	ctx := s.withFields(server.Context())
-	return s.server.Find(query, &setNSLogOptionFindServer{ctx: ctx, NetworkServiceRegistry_FindServer: server})
+	return next.NetworkServiceRegistryServer(ctx).Find(query, &setLogOptionFindServer{ctx: ctx, NetworkServiceRegistry_FindServer: server})
 }
 
-func (s *setNSLogOption) Unregister(ctx context.Context, service *registry.NetworkService) (*empty.Empty, error) {
+func (s *setNSLogOption) Unregister(ctx context.Context, endpoint *registry.NetworkService) (*empty.Empty, error) {
 	ctx = s.withFields(ctx)
-	return s.server.Unregister(ctx, service)
+	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, endpoint)
 }
 
-// NewNetworkServiceRegistryServer creates new instance of NewNetworkServiceRegistryServer which sets the passed options
-func NewNetworkServiceRegistryServer(options map[string]string, server registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
+// NewNetworkServiceRegistryServer creates new instance of NetworkServiceRegistryServer which sets the passed options
+func NewNetworkServiceRegistryServer(options map[string]string) registry.NetworkServiceRegistryServer {
 	return &setNSLogOption{
 		options: options,
-		server:  server,
 	}
 }
 
