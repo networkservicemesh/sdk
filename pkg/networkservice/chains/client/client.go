@@ -20,7 +20,8 @@ package client
 import (
 	"context"
 
-	"google.golang.org/grpc"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injectpeer"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
