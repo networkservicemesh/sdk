@@ -45,9 +45,9 @@ func (s *setLogOptionFindServer) Context() context.Context {
 	return s.ctx
 }
 
-func (s *setNSLogOption) Register(ctx context.Context, endpoint *registry.NetworkService) (*registry.NetworkService, error) {
+func (s *setNSLogOption) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
 	ctx = s.withFields(ctx)
-	return next.NetworkServiceRegistryServer(ctx).Register(ctx, endpoint)
+	return next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
 }
 
 func (s *setNSLogOption) Find(query *registry.NetworkServiceQuery, server registry.NetworkServiceRegistry_FindServer) error {
@@ -55,9 +55,9 @@ func (s *setNSLogOption) Find(query *registry.NetworkServiceQuery, server regist
 	return next.NetworkServiceRegistryServer(ctx).Find(query, &setLogOptionFindServer{ctx: ctx, NetworkServiceRegistry_FindServer: server})
 }
 
-func (s *setNSLogOption) Unregister(ctx context.Context, endpoint *registry.NetworkService) (*empty.Empty, error) {
+func (s *setNSLogOption) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
 	ctx = s.withFields(ctx)
-	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, endpoint)
+	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }
 
 // NewNetworkServiceRegistryServer creates new instance of NetworkServiceRegistryServer which sets the passed options
