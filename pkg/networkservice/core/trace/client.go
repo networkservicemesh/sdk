@@ -35,10 +35,14 @@ type traceClient struct {
 
 // NewNetworkServiceClient - wraps tracing around the supplied networkservice.NetworkServiceClient
 func NewNetworkServiceClient(traced networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
+	if traced == nil {
+		return &traceClient{traced: traced}
+	}
 	return &traceClient{traced: traced}
 }
 
 func (t *traceClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	ctx = withTrace(ctx)
 	// Create a new span
 	operation := typeutils.GetFuncName(t.traced, "Request")
 	span := spanhelper.FromContext(ctx, operation)
@@ -65,6 +69,7 @@ func (t *traceClient) Request(ctx context.Context, request *networkservice.Netwo
 }
 
 func (t *traceClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	ctx = withTrace(ctx)
 	// Create a new span
 	operation := typeutils.GetFuncName(t.traced, "Close")
 	span := spanhelper.FromContext(ctx, operation)
@@ -84,6 +89,5 @@ func (t *traceClient) Close(ctx context.Context, conn *networkservice.Connection
 		span.LogErrorf("%v", err)
 		return nil, err
 	}
-	span.LogObject("response", rv)
 	return rv, err
 }

@@ -21,9 +21,11 @@ package nsmgr
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/querycache"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	setlogoption_reg "github.com/networkservicemesh/sdk/pkg/registry/core/setlogoption"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/filtermechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interpose"
@@ -125,15 +127,20 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 			clientDialOptions...),
 	)
 
-	nsChain := chain_registry.NewNetworkServiceRegistryServer(nsRegistry)
-	nseChain := chain_registry.NewNetworkServiceEndpointRegistryServer(
-		newRecvFDEndpointRegistry(), // Allow to receive a passed files
-		urlsRegistryServer,
-		interposeRegistry,         // Store cross connect NSEs
-		localbypassRegistryServer, // Store endpoint Id to EndpointURL for local access.
-		seturl.NewNetworkServiceEndpointRegistryServer(nsmRegistration.Url), // Remember endpoint URL
-		nseRegistry, // Register NSE inside Remote registry with ID assigned
+	nsChain := setlogoption_reg.NewNetworkServiceRegistryServer(
+		map[string]string{"chain": fmt.Sprintf("%s:Registry", nsmRegistration.Name)},
+		chain_registry.NewNetworkServiceRegistryServer(nsRegistry),
 	)
+	nseChain := setlogoption_reg.NewNetworkServiceEndpointRegistryServer(
+		map[string]string{"chain": fmt.Sprintf("%s:Registry", nsmRegistration.Name)},
+		chain_registry.NewNetworkServiceEndpointRegistryServer(
+			newRecvFDEndpointRegistry(), // Allow to receive a passed files
+			urlsRegistryServer,
+			interposeRegistry,         // Store cross connect NSEs
+			localbypassRegistryServer, // Store endpoint Id to EndpointURL for local access.
+			seturl.NewNetworkServiceEndpointRegistryServer(nsmRegistration.Url), // Remember endpoint URL
+			nseRegistry, // Register NSE inside Remote registry with ID assigned
+		))
 	rv.Registry = registry.NewServer(nsChain, nseChain)
 
 	return rv

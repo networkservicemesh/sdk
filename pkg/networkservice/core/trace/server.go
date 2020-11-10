@@ -38,6 +38,7 @@ func NewNetworkServiceServer(traced networkservice.NetworkServiceServer) network
 }
 
 func (t *traceServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	ctx = withTrace(ctx)
 	// Create a new span
 	operation := typeutils.GetFuncName(t.traced, "Request")
 	span := spanhelper.FromContext(ctx, operation)
@@ -64,6 +65,7 @@ func (t *traceServer) Request(ctx context.Context, request *networkservice.Netwo
 }
 
 func (t *traceServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	ctx = withTrace(ctx)
 	// Create a new span
 	operation := typeutils.GetFuncName(t.traced, "Close")
 	span := spanhelper.FromContext(ctx, operation)
@@ -83,6 +85,5 @@ func (t *traceServer) Close(ctx context.Context, conn *networkservice.Connection
 		span.LogErrorf("%v", err)
 		return nil, err
 	}
-	span.LogObject("response", rv)
 	return rv, err
 }

@@ -21,9 +21,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"runtime/debug"
 	"strings"
+	"sync"
+
+	"github.com/google/uuid"
+	"google.golang.org/grpc/metadata"
 
 	toolsLog "github.com/networkservicemesh/sdk/pkg/tools/log"
 
@@ -41,21 +44,60 @@ const (
 	spanHelperTraceDepth spanHelperKeyType = "spanHelperTraceDepth"
 	maxStringLength      int               = 1000
 	dotCount             int               = 3
+	separator            string            = " "
+	startSeparator       string            = " "
 )
 
-var defaultFields logrus.Fields = logrus.Fields{
-	"cmd": os.Args[0],
+var localTraceInfo sync.Map
+
+type traceCtxInfo struct {
+	level      int
+	childCount int
+	id         string
 }
 
-func withTraceDepth(parent context.Context, value int) context.Context {
-	return context.WithValue(parent, spanHelperTraceDepth, value)
+func (i *traceCtxInfo) incInfo() string {
+	i.childCount++
+	if i.childCount > 1 {
+		return fmt.Sprintf("(%d.%d)", i.level, i.childCount-1)
+	}
+	return fmt.Sprintf("(%d)", i.level)
 }
 
-func traceDepth(ctx context.Context) int {
-	if rv, ok := ctx.Value(spanHelperTraceDepth).(int); ok {
+func withTraceInfo(parent context.Context) (context.Context, *traceCtxInfo) {
+	info := fromContext(parent)
+
+	newInfo := &traceCtxInfo{
+		level:      1,
+		childCount: 0,
+		id:         uuid.New().String(),
+	}
+	ctx := parent
+	if info != nil {
+		newInfo.level = info.level + 1
+	}
+
+	ctx = metadata.AppendToOutgoingContext(ctx, "spanhelper-parent", newInfo.id)
+	// Update
+	return context.WithValue(ctx, spanHelperTraceDepth, newInfo), newInfo
+}
+
+func fromContext(ctx context.Context) *traceCtxInfo {
+	if rv, ok := ctx.Value(spanHelperTraceDepth).(*traceCtxInfo); ok {
 		return rv
 	}
-	return 0
+
+	// Check metdata incoming for parent span and return it
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		value := md.Get("spanhelper-parent")
+		if len(value) > 0 {
+			if rv, ok := localTraceInfo.Load(value[len(value)-1]); ok {
+				return rv.(*traceCtxInfo)
+			}
+		}
+	}
+
+	return nil
 }
 
 // LogFromSpan - return a logger that has a TraceHook to also log messages to the span
@@ -122,6 +164,7 @@ type spanHelper struct {
 	span      opentracing.Span
 	ctx       context.Context
 	logger    logrus.FieldLogger
+	info      *traceCtxInfo
 }
 
 func (s *spanHelper) Span() opentracing.Span {
@@ -138,7 +181,7 @@ func (s *spanHelper) LogErrorf(format string, err error) {
 		msg := limitString(fmt.Sprintf(format, err))
 		otgrpc.SetSpanTags(s.span, err, false)
 		s.span.LogFields(log.String("event", "error"), log.String("message", msg), log.String("stacktrace", d))
-		s.logEntry().Errorf(">><<%s %s=%v span=%v", strings.Repeat("--", traceDepth(s.ctx)), "error", fmt.Sprintf(format, err), s.span)
+		s.logEntry().Errorf("%v %s %s=%v%v", s.info.incInfo(), strings.Repeat(separator, s.info.level), "error", fmt.Sprintf(format, err), s.getSpan())
 	}
 }
 
@@ -147,7 +190,15 @@ func (s *spanHelper) logEntry() *logrus.Entry {
 	if len(e.Data) > 0 {
 		return logrus.WithFields(e.Data)
 	}
-	return logrus.WithFields(defaultFields)
+	return e
+}
+
+func (s *spanHelper) getSpan() string {
+	spanStr := fmt.Sprintf("%v", s.span)
+	if len(spanStr) > 0 && spanStr != "{}" && s.span != nil {
+		return fmt.Sprintf(" span=%v", spanStr)
+	}
+	return ""
 }
 
 func (s *spanHelper) LogObject(attribute string, value interface{}) {
@@ -161,14 +212,14 @@ func (s *spanHelper) LogObject(attribute string, value interface{}) {
 	if s.span != nil {
 		s.span.LogFields(log.Object(attribute, limitString(msg)))
 	}
-	s.logEntry().Infof(">><<%s %s=%v span=%v", strings.Repeat("--", traceDepth(s.ctx)), attribute, msg, s.span)
+	s.logEntry().Infof("%v %s %s=%v%v", s.info.incInfo(), strings.Repeat(separator, s.info.level), attribute, msg, s.getSpan())
 }
 
 func (s *spanHelper) LogValue(attribute string, value interface{}) {
 	if s.span != nil {
 		s.span.LogFields(log.Object(attribute, limitString(fmt.Sprint(value))))
 	}
-	s.logEntry().Infof(">><<%s %s=%v span=%v", strings.Repeat("--", traceDepth(s.ctx)), attribute, value, s.span)
+	s.logEntry().Infof("%v %s %s=%v%v", s.info.incInfo(), strings.Repeat(separator, s.info.level), attribute, value, s.getSpan())
 }
 
 func (s *spanHelper) Finish() {
@@ -176,6 +227,7 @@ func (s *spanHelper) Finish() {
 		s.span.Finish()
 		s.span = nil
 	}
+	localTraceInfo.Delete(s.info.id)
 }
 
 func (s *spanHelper) Logger() logrus.FieldLogger {
@@ -190,10 +242,16 @@ func (s *spanHelper) Logger() logrus.FieldLogger {
 
 // NewSpanHelper - constructs a span helper from context/snap and operation name.
 func NewSpanHelper(ctx context.Context, span opentracing.Span, operation string) SpanHelper {
+	var info *traceCtxInfo
+	ctx, info = withTraceInfo(ctx)
+
+	localTraceInfo.Store(info.id, info)
+
 	return &spanHelper{
-		ctx:       withTraceDepth(ctx, traceDepth(ctx)+1),
+		ctx:       ctx,
 		span:      span,
 		operation: operation,
+		info:      info,
 	}
 }
 
@@ -215,8 +273,8 @@ func FromContext(ctx context.Context, operation string) (result SpanHelper) {
 }
 
 func (s *spanHelper) printStart(operation string) {
-	prefix := strings.Repeat("--", traceDepth(s.Context()))
-	s.logEntry().Infof("==%s> %v() span:%v", prefix, operation, s.Span())
+	prefix := strings.Repeat(startSeparator, s.info.level)
+	s.logEntry().Infof("%v%s⎆ %v()%v", s.info.incInfo(), prefix, operation, s.getSpan())
 }
 
 // GetSpanHelper - construct a span helper object from current context span
