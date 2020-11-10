@@ -28,9 +28,8 @@ import (
 )
 
 type connectClient struct {
-	mechanism *networkservice.Mechanism
-	cancel    context.CancelFunc
-	mu        sync.Mutex
+	cancel context.CancelFunc
+	mu     sync.Mutex
 }
 
 // NewClient - client chain element for use with single incoming connection, translates from incoming server connection to
@@ -44,21 +43,14 @@ func NewClient(cancel context.CancelFunc) networkservice.NetworkServiceClient {
 func (c *connectClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	clientRequest := request.Clone()
-	clientRequest.MechanismPreferences = nil
-	clientRequest.Connection.Mechanism = c.mechanism
-	conn, err := next.Client(ctx).Request(ctx, clientRequest)
-	c.mechanism = conn.GetMechanism()
+	conn, err := next.Client(ctx).Request(ctx, request)
 	return conn, err
 }
 
 func (c *connectClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	conn = conn.Clone()
-	conn.Mechanism = c.mechanism
 	e, err := next.Client(ctx).Close(ctx, conn)
-	c.mechanism = nil
 	c.cancel()
 	return e, err
 }
