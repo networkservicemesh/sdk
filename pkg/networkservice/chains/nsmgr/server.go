@@ -125,9 +125,9 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 			clientDialOptions...),
 	)
 
-	nsChain := chain_registry.NewNetworkServiceRegistryServerWithName(nsmRegistration.Name+".NetworkServiceRegistry", nsRegistry)
+	nsChain := chain_registry.NewNamedNetworkServiceRegistryServer(nsmRegistration.Name+".NetworkServiceRegistry", nsRegistry)
 
-	nseChain := chain_registry.NewNetworkServiceEndpointRegistryServerWithName(
+	nseChain := chain_registry.NewNamedNetworkServiceEndpointRegistryServer(
 		nsmRegistration.Name+".NetworkServiceEndpointRegistry",
 		newRecvFDEndpointRegistry(), // Allow to receive a passed files
 		urlsRegistryServer,

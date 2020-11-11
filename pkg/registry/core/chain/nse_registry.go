@@ -36,8 +36,8 @@ func NewNetworkServiceEndpointRegistryServer(servers ...registry.NetworkServiceE
 	return next.NewNetworkServiceEndpointRegistryServer(servers...)
 }
 
-// NewNetworkServiceEndpointRegistryServerWithName - creates a chain of servers with name log option if tracing enabled
-func NewNetworkServiceEndpointRegistryServerWithName(name string, servers ...registry.NetworkServiceEndpointRegistryServer) registry.NetworkServiceEndpointRegistryServer {
+// NewNamedNetworkServiceEndpointRegistryServer - creates a chain of servers with name log option if tracing enabled
+func NewNamedNetworkServiceEndpointRegistryServer(name string, servers ...registry.NetworkServiceEndpointRegistryServer) registry.NetworkServiceEndpointRegistryServer {
 	if logrus.GetLevel() == logrus.TraceLevel {
 		return next.NewNetworkServiceEndpointRegistryServer(
 			setlogoption.NewNetworkServiceEndpointRegistryServer(map[string]string{"name": name}),

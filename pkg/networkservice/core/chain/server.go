@@ -35,8 +35,8 @@ func NewNetworkServiceServer(servers ...networkservice.NetworkServiceServer) net
 	return next.NewNetworkServiceServer(servers...)
 }
 
-// NewNetworkServiceServerWithName - chains together a list of networkservice.Servers with tracing and name log option
-func NewNetworkServiceServerWithName(name string, servers ...networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
+// NewNamedNetworkServiceServer - chains together a list of networkservice.Servers with tracing and name log option
+func NewNamedNetworkServiceServer(name string, servers ...networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
 	if logrus.GetLevel() == logrus.TraceLevel {
 		return next.NewNetworkServiceServer(
 			setlogoption.NewServer(map[string]string{"name": name}),
