@@ -33,6 +33,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/timeout"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
@@ -61,6 +62,7 @@ func testClient(ctx context.Context, server networkservice.NetworkServiceServer,
 		adapters.NewServerToClient(
 			chain.NewNetworkServiceServer(
 				updatepath.NewServer(serverName),
+				serialize.NewServer(),
 				timeout.NewServer(ctx),
 				mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
 					kernelmech.MECHANISM: server,
