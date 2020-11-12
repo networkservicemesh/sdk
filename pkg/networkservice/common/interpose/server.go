@@ -80,13 +80,13 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 	// We came from client, so select cross nse and go to it.
 	clientURL := clienturlctx.ClientURL(ctx)
 
-	connInfo, ok := l.activeConnection.Load(activeConnID)
+	connInfo, ok := l.activeConnection.Load(clientConnID)
 	if ok {
-		if connID != activeConnID {
+		if connID != clientConnID {
 			l.activeConnection.Store(connID, connInfo)
 		}
 	} else {
-		if connID != activeConnID {
+		if connID != clientConnID {
 			return nil, errors.Errorf("connection id should match current path segment id")
 		}
 
@@ -95,8 +95,8 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 			crossCTX := clienturlctx.WithClientURL(ctx, crossNSEURL)
 
 			// Store client connection and selected cross connection URL.
-			connInfo, _ = l.activeConnection.LoadOrStore(activeConnID, connectionInfo{
-				clientConnID:    activeConnID,
+			connInfo, _ = l.activeConnection.LoadOrStore(clientConnID, connectionInfo{
+				clientConnID:    clientConnID,
 				endpointURL:     clientURL,
 				interposeNSEURL: crossNSEURL,
 			})
@@ -134,17 +134,19 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 func (l *interposeServer) getConnectionID(conn *networkservice.Connection) string {
 	id := conn.Id
 	for i := conn.GetPath().GetIndex(); i > 0; i-- {
-		lid := conn.GetPath().GetPathSegments()[i].Id
-		_, ok := l.activeConnection.Load(lid)
-		if ok {
-			return lid
+		clientConnID := conn.GetPath().GetPathSegments()[i].Id
+		if connInfo, ok := l.activeConnection.Load(clientConnID); ok {
+			if clientConnID == connInfo.clientConnID {
+				id = clientConnID
+			}
+			break
 		}
 	}
 	return id
 }
 
 func (l *interposeServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	// If we came from NSMgr, we need to go to proper interpose NSE
+	// We came from cross nse, we need to go to proper endpoint
 	connInfo, ok := l.activeConnection.Load(conn.GetId())
 	if !ok {
 		return nil, errors.Errorf("no active connection found: %v", conn)
