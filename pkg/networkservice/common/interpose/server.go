@@ -46,6 +46,7 @@ type interposeServer struct {
 }
 
 type connectionInfo struct {
+	clientConnID    string
 	endpointURL     *url.URL
 	interposeNSEURL *url.URL
 	requestingNSE   bool
@@ -85,7 +86,11 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 	clientURL := clienturlctx.ClientURL(ctx)
 
 	connInfo, ok := l.activeConnection.Load(clientConnID)
-	if !ok {
+	if ok {
+		if connID != clientConnID {
+			l.activeConnection.Store(connID, connInfo)
+		}
+	} else {
 		if connID != clientConnID {
 			return nil, errors.Errorf("connection id should match current path segment id")
 		}
@@ -97,6 +102,7 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 
 			// Store client connection and selected cross connection URL.
 			connInfo, _ = l.activeConnection.LoadOrStore(clientConnID, connectionInfo{
+				clientConnID:    clientConnID,
 				endpointURL:     clientURL,
 				interposeNSEURL: crossNSEURL,
 				requestingNSE:   true,
@@ -136,21 +142,20 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 func (l *interposeServer) getConnectionID(conn *networkservice.Connection) string {
 	id := conn.Id
 	for i := conn.GetPath().GetIndex(); i > 0; i-- {
-		lid := conn.GetPath().GetPathSegments()[i].Id
-		_, ok := l.activeConnection.Load(lid)
-		if ok {
-			return lid
+		clientConnID := conn.GetPath().GetPathSegments()[i].Id
+		if connInfo, ok := l.activeConnection.Load(clientConnID); ok {
+			if clientConnID == connInfo.clientConnID {
+				id = clientConnID
+			}
+			break
 		}
 	}
 	return id
 }
 
 func (l *interposeServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	// We need to find an Id from path to match active connection request.
-	id := l.getConnectionID(conn)
-
 	// We came from cross nse, we need to go to proper endpoint
-	connInfo, ok := l.activeConnection.Load(id)
+	connInfo, ok := l.activeConnection.Load(conn.GetId())
 	if !ok {
 		return nil, errors.Errorf("no active connection found but we called from cross NSE %v", conn)
 	}
@@ -160,9 +165,10 @@ func (l *interposeServer) Close(ctx context.Context, conn *networkservice.Connec
 		connInfo.closingNSE = true
 		crossCTX = clienturlctx.WithClientURL(ctx, connInfo.interposeNSEURL)
 	} else {
-		l.activeConnection.Delete(id)
 		crossCTX = ctx
 	}
+
+	l.activeConnection.Delete(conn.GetId())
 
 	return next.Server(crossCTX).Close(crossCTX, conn)
 }
