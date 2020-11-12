@@ -300,6 +300,7 @@ func (p *passThroughClient) Request(ctx context.Context, request *networkservice
 		Connection: &networkservice.Connection{
 			NetworkService:             p.networkService,
 			NetworkServiceEndpointName: p.networkServiceEndpointName,
+			Path:                       request.Connection.Path.Clone(),
 			Context:                    &networkservice.ConnectionContext{},
 		},
 	}
@@ -308,8 +309,7 @@ func (p *passThroughClient) Request(ctx context.Context, request *networkservice
 		return nil, err
 	}
 
-	request.Connection.Path.Index += conn.Path.Index
-	request.Connection.Path.PathSegments = append(request.Connection.Path.PathSegments, conn.Path.PathSegments...)
+	request.Connection.Path.PathSegments = conn.Path.PathSegments
 
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
