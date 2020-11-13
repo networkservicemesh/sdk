@@ -14,131 +14,109 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package crossnse_test define a full nsmgr + cross connect NSE + Endpoint GRPC based test
 package interpose_test
 
 import (
 	"context"
+	"net/url"
+	"testing"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
-	adapters2 "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
-	next_reg "github.com/networkservicemesh/sdk/pkg/registry/core/next"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interpose"
+	"github.com/stretchr/testify/require"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interpose"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
-
-	"net/url"
-	"testing"
-	"time"
-
-	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc/credentials"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injectpeer"
-	interpose_reg "github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 )
 
-func TokenGenerator(peerAuthInfo credentials.AuthInfo) (token string, expireTime time.Time, err error) {
-	return "TestToken", time.Date(3000, 1, 1, 1, 1, 1, 1, time.UTC), nil
-}
+func TestInterposeServer(t *testing.T) {
+	nseURL := url.URL{Scheme: "tcp", Host: "nse.test"}
+	crossNSEURL := url.URL{Scheme: "tcp", Host: "cross-nse.test"}
 
-type copyClient struct {
-	requests []*networkservice.NetworkServiceRequest
-}
+	var interposeRegistry registry.NetworkServiceEndpointRegistryServer
+	interposeServer := interpose.NewServer(&interposeRegistry)
 
-func (c *copyClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	request = request.Clone()
-	c.requests = append(c.requests, request)
-	// To be sure it is not modified after and we could check contents.
-	request = request.Clone()
-	return next.Client(ctx).Request(ctx, request)
-}
-
-func (c *copyClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	conn = conn.Clone()
-	return next.Client(ctx).Close(ctx, conn)
-}
-
-func TestCrossNSERequest(t *testing.T) {
-	var regServer registry.NetworkServiceEndpointRegistryServer
-	crossURL := "test://crossconnection"
-	clientURL := &url.URL{
-		Scheme: "unix",
-		Path:   "/var/run/nse-1.sock",
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	server := endpoint.NewServer(ctx, "nsmgr",
-		authorize.NewServer(),
-		TokenGenerator,
-		interpose.NewServer("nsmgr", &regServer))
-
-	regClient := next_reg.NewNetworkServiceEndpointRegistryClient(interpose_reg.NewNetworkServiceEndpointRegistryClient(), adapters2.NetworkServiceEndpointServerToClient(regServer))
-
-	reg, err := regClient.Register(context.Background(), &registry.NetworkServiceEndpoint{
-		Name: "cross-nse",
-		Url:  crossURL,
+	_, err := interposeRegistry.Register(context.TODO(), &registry.NetworkServiceEndpoint{
+		Name: "interpose-nse#",
+		Url:  crossNSEURL.String(),
 	})
-	require.Nil(t, err)
-	require.NotNil(t, reg)
+	require.NoError(t, err)
 
-	interposeRegName := reg.Name
-	interposeNSE := endpoint.NewServer(ctx, interposeRegName,
-		authorize.NewServer(),
-		TokenGenerator)
-
-	copyClient := &copyClient{}
-
-	client := chain.NewNetworkServiceClient(authorize.NewClient(),
+	client := next.NewNetworkServiceClient(
 		updatepath.NewClient("client"),
-		injectpeer.NewClient(),
-		updatetoken.NewClient(TokenGenerator),
-		copyClient, // Now we go into server
-
-		adapters.NewServerToClient(
-			next.NewNetworkServiceServer(server, checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
-				require.Equal(t, crossURL, clienturlctx.ClientURL(ctx).String())
-			}))),
-		copyClient, // Now we go into server
-		// We need to call cross nse server here
-		// Add one more path with cross NSE
-		adapters.NewServerToClient(interposeNSE),
-
-		copyClient, // Now we go into server
-		// Go again on server
-		adapters.NewServerToClient(next.NewNetworkServiceServer(clienturl.NewServer(clientURL), server, checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
-			require.Equal(t, clientURL.String(), clienturlctx.ClientURL(ctx).String())
-		}))),
-		copyClient, // Now we go into server
+		adapters.NewServerToClient(next.NewNetworkServiceServer(
+			// actual `connect.NewServer()` should not update `request.Connection.Path.PathIndex`
+			new(restorePathServer),
+			updatepath.NewServer("nsmgr"),
+			clienturl.NewServer(&nseURL),
+			interposeServer,
+			checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+				clientURL := clienturlctx.ClientURL(ctx)
+				require.NotNil(t, clientURL)
+				require.Equal(t, crossNSEURL, *clientURL)
+			}),
+		)),
+		adapters.NewServerToClient(next.NewNetworkServiceServer(
+			new(restorePathServer),
+			updatepath.NewServer("interpose-nse"),
+		)),
+		adapters.NewServerToClient(next.NewNetworkServiceServer(
+			new(restorePathServer),
+			updatepath.NewServer("nsmgr"),
+			clienturl.NewServer(&nseURL),
+			interposeServer,
+			checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+				clientURL := clienturlctx.ClientURL(ctx)
+				require.NotNil(t, clientURL)
+				require.Equal(t, nseURL, *clientURL)
+			}),
+		)),
 	)
 
-	var conn *networkservice.Connection
-	conn, err = client.Request(clienturlctx.WithClientURL(context.Background(), clientURL), &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			NetworkServiceEndpointName: "my-service",
-		},
-	})
-	require.Nil(t, err)
-	segments := conn.GetPath().GetPathSegments()
-	require.NotNil(t, conn)
-	require.Equal(t, 4, len(copyClient.requests))
-	require.Equal(t, 4, len(segments))
-	require.Equal(t, "nsmgr", segments[1].Name)
-	require.Equal(t, interposeRegName, segments[2].Name)
-	require.Equal(t, "nsmgr", segments[3].Name)
+	// 1. Request
+
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{},
+	}
+
+	conn, err := client.Request(context.TODO(), request)
+	require.NoError(t, err)
+
+	// 2. Refresh
+
+	request = request.Clone()
+	request.Connection = conn.Clone()
+
+	conn, err = client.Request(context.TODO(), request)
+	require.NoError(t, err)
+
+	// 3. Close
+
+	conn = conn.Clone()
+
+	_, err = client.Close(context.TODO(), conn)
+	require.NoError(t, err)
+}
+
+type restorePathServer struct{}
+
+func (s *restorePathServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	pathIndex := request.Connection.Path.Index
+	conn, err := next.Server(ctx).Request(ctx, request)
+	request.Connection.Path.Index = pathIndex
+	return conn, err
+}
+
+func (s *restorePathServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	pathIndex := conn.Path.Index
+	_, err := next.Server(ctx).Close(ctx, conn)
+	conn.Path.Index = pathIndex
+	return &empty.Empty{}, err
 }
