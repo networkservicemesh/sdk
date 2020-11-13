@@ -54,6 +54,8 @@ func TestInterposeServer(t *testing.T) {
 	client := next.NewNetworkServiceClient(
 		updatepath.NewClient("client"),
 		adapters.NewServerToClient(next.NewNetworkServiceServer(
+			// actual `connect.NewServer()` should not update `request.Connection.Path.PathIndex`
+			new(restorePathServer),
 			updatepath.NewServer("nsmgr"),
 			clienturl.NewServer(&nseURL),
 			interposeServer,
@@ -64,9 +66,11 @@ func TestInterposeServer(t *testing.T) {
 			}),
 		)),
 		adapters.NewServerToClient(next.NewNetworkServiceServer(
+			new(restorePathServer),
 			updatepath.NewServer("interpose-nse"),
 		)),
 		adapters.NewServerToClient(next.NewNetworkServiceServer(
+			new(restorePathServer),
 			updatepath.NewServer("nsmgr"),
 			clienturl.NewServer(&nseURL),
 			interposeServer,
@@ -77,6 +81,7 @@ func TestInterposeServer(t *testing.T) {
 			}),
 		)),
 		adapters.NewServerToClient(next.NewNetworkServiceServer(
+			new(restorePathServer),
 			updatepath.NewServer("endpoint"),
 			touchServer,
 		)),
@@ -107,52 +112,39 @@ func TestInterposeServer(t *testing.T) {
 
 	conn = conn.Clone()
 
-func TestCrossNSERequest(t *testing.T) {
-	var regServer registry.NetworkServiceEndpointRegistryServer
-	crossURL := "test://crossconnection"
-	clientURL := &url.URL{
-		Scheme: "unix",
-		Path:   "/var/run/nse-1.sock",
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	server := endpoint.NewServer(ctx, "nsmgr",
-		authorize.NewServer(),
-		TokenGenerator,
-		interpose.NewServer("nsmgr", &regServer))
+	touchServer.touched = false
 
-	regClient := next_reg.NewNetworkServiceEndpointRegistryClient(interpose_reg.NewNetworkServiceEndpointRegistryClient(), adapters2.NetworkServiceEndpointServerToClient(regServer))
+	_, err = client.Close(context.TODO(), conn)
+	require.NoError(t, err)
+	require.True(t, touchServer.touched)
+}
 
-	reg, err := regClient.Register(context.Background(), &registry.NetworkServiceEndpoint{
-		Name: "cross-nse",
-		Url:  crossURL,
-	})
-	require.Nil(t, err)
-	require.NotNil(t, reg)
+type restorePathServer struct{}
 
-	interposeRegName := reg.Name
-	interposeNSE := endpoint.NewServer(ctx, interposeRegName,
-		authorize.NewServer(),
-		TokenGenerator)
+func (s *restorePathServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	pathIndex := request.Connection.Path.Index
+	conn, err := next.Server(ctx).Request(ctx, request)
+	request.Connection.Path.Index = pathIndex
+	return conn, err
+}
 
-	copyClient := &copyClient{}
+func (s *restorePathServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	pathIndex := conn.Path.Index
+	_, err := next.Server(ctx).Close(ctx, conn)
+	conn.Path.Index = pathIndex
+	return &empty.Empty{}, err
+}
 
 type touchServer struct {
 	touched bool
 }
 
-	var conn *networkservice.Connection
-	conn, err = client.Request(clienturlctx.WithClientURL(context.Background(), clientURL), &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			NetworkServiceEndpointName: "my-service",
-		},
-	})
-	require.Nil(t, err)
-	segments := conn.GetPath().GetPathSegments()
-	require.NotNil(t, conn)
-	require.Equal(t, 4, len(copyClient.requests))
-	require.Equal(t, 4, len(segments))
-	require.Equal(t, "nsmgr", segments[1].Name)
-	require.Equal(t, interposeRegName, segments[2].Name)
-	require.Equal(t, "nsmgr", segments[3].Name)
+func (s *touchServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	s.touched = true
+	return next.Server(ctx).Request(ctx, request)
+}
+
+func (s *touchServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	s.touched = true
+	return next.Server(ctx).Close(ctx, conn)
 }

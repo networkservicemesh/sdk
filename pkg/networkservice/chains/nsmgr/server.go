@@ -114,7 +114,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 		localbypass.NewServer(&localbypassRegistryServer),
 		excludedprefixes.NewServer(ctx),
 		newRecvFD(), // Receive any files passed
-		interpose.NewServer(nsmRegistration.Name, &interposeRegistry),
+		interpose.NewServer(&interposeRegistry),
 		filtermechanisms.NewServer(&urlsRegistryServer),
 		connect.NewServer(
 			ctx,
