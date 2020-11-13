@@ -49,6 +49,8 @@ func TestInterposeServer(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	touchServer := new(touchServer)
+
 	client := next.NewNetworkServiceClient(
 		updatepath.NewClient("client"),
 		adapters.NewServerToClient(next.NewNetworkServiceServer(
@@ -78,6 +80,11 @@ func TestInterposeServer(t *testing.T) {
 				require.Equal(t, nseURL, *clientURL)
 			}),
 		)),
+		adapters.NewServerToClient(next.NewNetworkServiceServer(
+			new(restorePathServer),
+			updatepath.NewServer("endpoint"),
+			touchServer,
+		)),
 	)
 
 	// 1. Request
@@ -88,21 +95,28 @@ func TestInterposeServer(t *testing.T) {
 
 	conn, err := client.Request(context.TODO(), request)
 	require.NoError(t, err)
+	require.True(t, touchServer.touched)
 
 	// 2. Refresh
 
 	request = request.Clone()
 	request.Connection = conn.Clone()
 
+	touchServer.touched = false
+
 	conn, err = client.Request(context.TODO(), request)
 	require.NoError(t, err)
+	require.True(t, touchServer.touched)
 
 	// 3. Close
 
 	conn = conn.Clone()
 
+	touchServer.touched = false
+
 	_, err = client.Close(context.TODO(), conn)
 	require.NoError(t, err)
+	require.True(t, touchServer.touched)
 }
 
 type restorePathServer struct{}
@@ -119,4 +133,18 @@ func (s *restorePathServer) Close(ctx context.Context, conn *networkservice.Conn
 	_, err := next.Server(ctx).Close(ctx, conn)
 	conn.Path.Index = pathIndex
 	return &empty.Empty{}, err
+}
+
+type touchServer struct {
+	touched bool
+}
+
+func (s *touchServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	s.touched = true
+	return next.Server(ctx).Request(ctx, request)
+}
+
+func (s *touchServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	s.touched = true
+	return next.Server(ctx).Close(ctx, conn)
 }
