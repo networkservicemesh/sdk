@@ -28,8 +28,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/setlogoption"
-
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor"
@@ -62,18 +60,18 @@ type endpoint struct {
 //             - additionalFunctionality - any additional NetworkServiceServer chain elements to be included in the chain
 func NewServer(ctx context.Context, name string, authzServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceServer) Endpoint {
 	rv := &endpoint{}
-	rv.NetworkServiceServer = setlogoption.NewServer(map[string]string{"chain": name},
-		chain.NewNetworkServiceServer(
-			append([]networkservice.NetworkServiceServer{
-				authzServer,
-				updatepath.NewServer(name),
-				// `timeout` uses ctx as a context for the timeout Close and it closes only the subsequent chain, so
-				// chain elements before the `timeout` in chain shouldn't make any updates to the Close context and
-				// shouldn't be closed on Connection Close.
-				timeout.NewServer(ctx),
-				monitor.NewServer(ctx, &rv.MonitorConnectionServer),
-				updatetoken.NewServer(tokenGenerator),
-			}, additionalFunctionality...)...))
+	rv.NetworkServiceServer = chain.NewNamedNetworkServiceServer(
+		name,
+		append([]networkservice.NetworkServiceServer{
+			authzServer,
+			updatepath.NewServer(name),
+			// `timeout` uses ctx as a context for the timeout Close and it closes only the subsequent chain, so
+			// chain elements before the `timeout` in chain shouldn't make any updates to the Close context and
+			// shouldn't be closed on Connection Close.
+			timeout.NewServer(ctx),
+			monitor.NewServer(ctx, &rv.MonitorConnectionServer),
+			updatetoken.NewServer(tokenGenerator),
+		}, additionalFunctionality...)...)
 	return rv
 }
 
