@@ -75,6 +75,15 @@ func (r *RefcountMap) Load(key string) (networkservice.NetworkServiceClient, boo
 	return rv, loaded
 }
 
+// LoadUnsafe returns the value stored in the map for a key, or nil if no value is present. The ok result indicates whether value was found in the map.
+func (r *RefcountMap) LoadUnsafe(key string) (networkservice.NetworkServiceClient, bool) {
+	rv, loaded := r.Map.Load(key)
+	if client, ok := rv.(*refcountClient); ok {
+		return client.client, loaded
+	}
+	return rv, loaded
+}
+
 // Delete decrements the refcount and deletes the value for a key if refcount is zero.
 func (r *RefcountMap) Delete(key string) {
 	rv, _ := r.Map.Load(key)
