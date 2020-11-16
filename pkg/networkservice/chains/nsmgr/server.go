@@ -21,12 +21,10 @@ package nsmgr
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/querycache"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	setlogoption_reg "github.com/networkservicemesh/sdk/pkg/registry/core/setlogoption"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/filtermechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interpose"
@@ -127,20 +125,17 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 			clientDialOptions...),
 	)
 
-	nsChain := setlogoption_reg.NewNetworkServiceRegistryServer(
-		map[string]string{"chain": fmt.Sprintf("%s:Registry", nsmRegistration.Name)},
-		chain_registry.NewNetworkServiceRegistryServer(nsRegistry),
+	nsChain := chain_registry.NewNamedNetworkServiceRegistryServer(nsmRegistration.Name+".NetworkServiceRegistry", nsRegistry)
+
+	nseChain := chain_registry.NewNamedNetworkServiceEndpointRegistryServer(
+		nsmRegistration.Name+".NetworkServiceEndpointRegistry",
+		newRecvFDEndpointRegistry(), // Allow to receive a passed files
+		urlsRegistryServer,
+		interposeRegistry,         // Store cross connect NSEs
+		localbypassRegistryServer, // Store endpoint Id to EndpointURL for local access.
+		seturl.NewNetworkServiceEndpointRegistryServer(nsmRegistration.Url), // Remember endpoint URL
+		nseRegistry, // Register NSE inside Remote registry with ID assigned
 	)
-	nseChain := setlogoption_reg.NewNetworkServiceEndpointRegistryServer(
-		map[string]string{"chain": fmt.Sprintf("%s:Registry", nsmRegistration.Name)},
-		chain_registry.NewNetworkServiceEndpointRegistryServer(
-			newRecvFDEndpointRegistry(), // Allow to receive a passed files
-			urlsRegistryServer,
-			interposeRegistry,         // Store cross connect NSEs
-			localbypassRegistryServer, // Store endpoint Id to EndpointURL for local access.
-			seturl.NewNetworkServiceEndpointRegistryServer(nsmRegistration.Url), // Remember endpoint URL
-			nseRegistry, // Register NSE inside Remote registry with ID assigned
-		))
 	rv.Registry = registry.NewServer(nsChain, nseChain)
 
 	return rv
