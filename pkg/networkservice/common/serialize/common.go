@@ -22,8 +22,6 @@ import (
 
 	"github.com/edwarnicke/serialize"
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/pkg/errors"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
@@ -42,34 +40,38 @@ func requestConnection(
 	//                      a retry Close case (but it isn't), double closing the Connection
 	newExecutor := new(serialize.Executor)
 	<-newExecutor.AsyncExec(func() {
-		executor, loaded := executors.LoadOrStore(connID, newExecutor)
-		// We should set `requestExecutor`, `closeExecutor` into the request context so the following chain elements
-		// can generate new Request, Close events and insert them into the chain in a serial way.
-		requestExecutor := newRequestExecutor(executor, connID, executors)
-		closeExecutor := newCloseExecutor(executor, connID, executors)
-		if loaded {
-			<-executor.AsyncExec(func() {
-				// Executor has been possibly removed at this moment, we need to store it back.
-				exec, _ := executors.LoadOrStore(connID, executor)
-				if exec != executor {
-					// It can happen in such situation:
-					//     1. -> close      : locking `executor`
-					//     2. -> request-1  : waiting on `executor`
-					//     3. close ->      : unlocking `executor`, removing it from `executors`
-					//     4. -> request-2  : creating `exec`, storing into `executors`, locking `exec`
-					//     5. -request-1->  : locking `executor`, trying to store it into `executors`
-					// at 5. we get `request-1` locking `executor`, `request-2` locking `exec` and only `exec` stored
-					// in `executors`. It means that `request-2` and all subsequent events will be executed in parallel
-					// with `request-1`.
-					err = errors.Errorf("race condition, parallel request execution: %v", connID)
-					return
-				}
-				if conn, err = requestConn(withExecutors(ctx, requestExecutor, closeExecutor)); err != nil {
-					executors.Delete(connID)
-				}
-			})
-		} else if conn, err = requestConn(withExecutors(ctx, requestExecutor, closeExecutor)); err != nil {
-			executors.Delete(connID)
+		for shouldRetry := true; shouldRetry; {
+			shouldRetry = false
+
+			executor, loaded := executors.LoadOrStore(connID, newExecutor)
+			// We should set `requestExecutor`, `closeExecutor` into the request context so the following chain elements
+			// can generate new Request, Close events and insert them into the chain in a serial way.
+			requestExecutor := newRequestExecutor(executor, connID, executors)
+			closeExecutor := newCloseExecutor(executor, connID, executors)
+			if loaded {
+				<-executor.AsyncExec(func() {
+					// Executor has been possibly removed at this moment, we need to store it back.
+					exec, _ := executors.LoadOrStore(connID, executor)
+					if exec != executor {
+						// It can happen in such situation:
+						//     1. -> close      : locking `executor`
+						//     2. -> request-1  : waiting on `executor`
+						//     3. close ->      : unlocking `executor`, removing it from `executors`
+						//     4. -> request-2  : creating `exec`, storing into `executors`, locking `exec`
+						//     5. -request-1->  : locking `executor`, trying to store it into `executors`
+						// at 5. we get `request-1` locking `executor`, `request-2` locking `exec` and only `exec` stored
+						// in `executors`. It means that `request-2` and all subsequent events will be executed in parallel
+						// with `request-1`.
+						shouldRetry = true
+						return
+					}
+					if conn, err = requestConn(withExecutors(ctx, requestExecutor, closeExecutor)); err != nil {
+						executors.Delete(connID)
+					}
+				})
+			} else if conn, err = requestConn(withExecutors(ctx, requestExecutor, closeExecutor)); err != nil {
+				executors.Delete(connID)
+			}
 		}
 	})
 

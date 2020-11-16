@@ -64,10 +64,7 @@ func TestSerializeServer_StressTest(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			conn, err := server.Request(ctx, request)
-			if err != nil {
-				assert.EqualError(t, err, "race condition, parallel request execution: id")
-				return
-			}
+			assert.NoError(t, err)
 			_, err = server.Close(ctx, conn)
 			assert.NoError(t, err)
 		}()

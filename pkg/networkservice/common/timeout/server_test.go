@@ -161,10 +161,7 @@ func TestTimeoutServer_StressTest_DoubleClose(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			conn, err := client.Request(ctx, stressTestRequest())
-			if err != nil {
-				assert.EqualError(t, err, "race condition, parallel request execution: server-id")
-				return
-			}
+			assert.NoError(t, err)
 			_, err = client.Close(ctx, conn)
 			assert.NoError(t, err)
 		}()
