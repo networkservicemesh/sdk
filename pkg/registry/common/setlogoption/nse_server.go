@@ -22,54 +22,53 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
-type setLogOption struct {
+type setNSELogOption struct {
 	options map[string]string
-	server  registry.NetworkServiceEndpointRegistryServer
 }
 
-type setLogOptionFindServer struct {
+type setNSELogOptionFindServer struct {
 	registry.NetworkServiceEndpointRegistry_FindServer
 	ctx context.Context
 }
 
-func (s *setLogOptionFindServer) Send(endpoint *registry.NetworkServiceEndpoint) error {
+func (s *setNSELogOptionFindServer) Send(endpoint *registry.NetworkServiceEndpoint) error {
 	return s.NetworkServiceEndpointRegistry_FindServer.Send(endpoint)
 }
 
-func (s *setLogOptionFindServer) Context() context.Context {
+func (s *setNSELogOptionFindServer) Context() context.Context {
 	return s.ctx
 }
 
-func (s *setLogOption) Register(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+func (s *setNSELogOption) Register(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	ctx = s.withFields(ctx)
-	return s.server.Register(ctx, endpoint)
+	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, endpoint)
 }
 
-func (s *setLogOption) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
+func (s *setNSELogOption) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
 	ctx := s.withFields(server.Context())
-	return s.server.Find(query, &setLogOptionFindServer{ctx: ctx, NetworkServiceEndpointRegistry_FindServer: server})
+	return next.NetworkServiceEndpointRegistryServer(ctx).Find(query, &setNSELogOptionFindServer{ctx: ctx, NetworkServiceEndpointRegistry_FindServer: server})
 }
 
-func (s *setLogOption) Unregister(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+func (s *setNSELogOption) Unregister(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
 	ctx = s.withFields(ctx)
-	return s.server.Unregister(ctx, endpoint)
+	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, endpoint)
 }
 
 // NewNetworkServiceEndpointRegistryServer creates new instance of NetworkServiceEndpointRegistryServer which sets the passed options
-func NewNetworkServiceEndpointRegistryServer(options map[string]string, server registry.NetworkServiceEndpointRegistryServer) registry.NetworkServiceEndpointRegistryServer {
-	return &setLogOption{
+func NewNetworkServiceEndpointRegistryServer(options map[string]string) registry.NetworkServiceEndpointRegistryServer {
+	return &setNSELogOption{
 		options: options,
-		server:  server,
 	}
 }
 
-func (s *setLogOption) withFields(ctx context.Context) context.Context {
+func (s *setNSELogOption) withFields(ctx context.Context) context.Context {
 	fields := make(logrus.Fields)
 	for k, v := range s.options {
 		fields[k] = v
