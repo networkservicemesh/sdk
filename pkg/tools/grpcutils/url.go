@@ -39,7 +39,7 @@ func URLToTarget(u *url.URL) (target string) {
 func AddressToURL(addr net.Addr) *url.URL {
 	if tcpAddr, ok := addr.(*net.TCPAddr); ok {
 		if tcpAddr.IP.IsUnspecified() {
-			return &url.URL{Scheme: addr.Network(), Host: fmt.Sprintf("127.0.0.1:%v", tcpAddr.Port)}
+			return &url.URL{Scheme: addr.Network(), Host: fmt.Sprintf(":%v", tcpAddr.Port)}
 		}
 	}
 	if addr.Network() == unixScheme {
