@@ -28,23 +28,27 @@ import (
 )
 
 type serializeClient struct {
-	executors executorMap
+	serializer
 }
 
 // NewClient returns a new serialize client chain element
 func NewClient() networkservice.NetworkServiceClient {
-	return new(serializeClient)
+	return &serializeClient{
+		serializer{
+			executors: map[string]*executor{},
+		},
+	}
 }
 
 func (c *serializeClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
 	connID := request.GetConnection().GetId()
-	return requestConnection(ctx, &c.executors, connID, func(requestCtx context.Context) (*networkservice.Connection, error) {
+	return c.requestConnection(ctx, connID, func(requestCtx context.Context) (*networkservice.Connection, error) {
 		return next.Client(ctx).Request(requestCtx, request, opts...)
 	})
 }
 
 func (c *serializeClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (_ *empty.Empty, err error) {
-	return closeConnection(ctx, &c.executors, conn.GetId(), func(closeCtx context.Context) (*empty.Empty, error) {
+	return c.closeConnection(ctx, conn.GetId(), func(closeCtx context.Context) (*empty.Empty, error) {
 		return next.Client(ctx).Close(closeCtx, conn, opts...)
 	})
 }

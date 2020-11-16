@@ -103,37 +103,26 @@ func (t *timeoutServer) createTimer(ctx context.Context, conn *networkservice.Co
 
 	timerPtr := new(*time.Timer)
 	*timerPtr = time.AfterFunc(time.Until(expireTime), func() {
-		if err := <-executor.AsyncExec(func() {
-			if timer, ok := t.timers.Load(conn.GetId()); !ok || timer != *timerPtr {
-				logEntry.Warnf("timer has been already stopped: %v", conn.GetId())
-				return
+		if err := <-executor.AsyncExec(func() error {
+			if timer, _ := t.timers.Load(conn.GetId()); timer != *timerPtr {
+				return errors.Errorf("timer has been already stopped: %v", conn.GetId())
 			}
-			if err := t.close(t.ctx, conn, next.Server(ctx)); err != nil {
+			t.timers.Delete(conn.GetId())
+			if _, err := next.Server(ctx).Close(t.ctx, conn); err != nil {
 				logEntry.Errorf("failed to close timed out connection: %v %+v", conn.GetId(), err)
 			}
+			return nil
 		}); err != nil {
-			logEntry.Warnf("connection has been already closed: %v", conn.GetId())
+			logEntry.Warn(err)
 		}
 	})
 
 	return *timerPtr, nil
 }
 
-func (t *timeoutServer) Close(ctx context.Context, conn *networkservice.Connection) (_ *empty.Empty, err error) {
-	return &empty.Empty{}, t.close(ctx, conn, next.Server(ctx))
-}
-
-func (t *timeoutServer) close(ctx context.Context, conn *networkservice.Connection, nextServer networkservice.NetworkServiceServer) error {
-	logEntry := log.Entry(ctx).WithField("timeoutServer", "close")
-
-	timer, ok := t.timers.LoadAndDelete(conn.GetId())
-	if !ok {
-		logEntry.Warnf("connection has been already closed: %v", conn.GetId())
-		return nil
-	}
+func (t *timeoutServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	timer, _ := t.timers.LoadAndDelete(conn.GetId())
 	timer.Stop()
 
-	_, err := nextServer.Close(ctx, conn)
-
-	return err
+	return next.Server(ctx).Close(ctx, conn)
 }

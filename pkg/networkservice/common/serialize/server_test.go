@@ -77,8 +77,9 @@ type requestServer struct{}
 func (s *requestServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	executor := serialize.RequestExecutor(ctx)
 	go func() {
-		executor.AsyncExec(func() {
-			_, _ = next.Server(ctx).Request(serialize.WithExecutorsFromContext(context.TODO(), ctx), request)
+		executor.AsyncExec(func() error {
+			_, err := next.Server(ctx).Request(serialize.WithExecutorsFromContext(context.TODO(), ctx), request)
+			return err
 		})
 	}()
 
@@ -99,8 +100,9 @@ func (s *closeServer) Request(ctx context.Context, request *networkservice.Netwo
 
 	executor := serialize.CloseExecutor(ctx)
 	go func() {
-		executor.AsyncExec(func() {
-			_, _ = next.Server(ctx).Close(context.TODO(), conn)
+		executor.AsyncExec(func() error {
+			_, err = next.Server(ctx).Close(context.TODO(), conn)
+			return err
 		})
 	}()
 

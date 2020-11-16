@@ -17,42 +17,52 @@
 package serialize
 
 import (
-	"github.com/edwarnicke/serialize"
+	"sync/atomic"
+
 	"github.com/pkg/errors"
 )
 
 // Executor is same as serialize.Executor except that it returns error channel
 type Executor interface {
-	AsyncExec(f func()) <-chan error
+	AsyncExec(f func() error) <-chan error
 }
 
-type executorFunc func(f func()) <-chan error
+type executorFunc func(f func() error) <-chan error
 
-func (ef executorFunc) AsyncExec(f func()) <-chan error {
+func (ef executorFunc) AsyncExec(f func() error) <-chan error {
 	return ef(f)
 }
 
-func newRequestExecutor(executor *serialize.Executor, id string, executors *executorMap) Executor {
-	return executorFunc(func(f func()) <-chan error {
-		errCh := make(chan error, 1)
-		executor.AsyncExec(func() {
-			if exec, ok := executors.Load(id); !ok || exec != executor {
-				errCh <- errors.Errorf("connection is already closed: %v", id)
-				return
+func newRequestExecutor(exec *executor, id string) Executor {
+	return newExecutor(exec, exec.state, id)
+}
+
+func newCloseExecutor(exec *executor, id string, clean func()) Executor {
+	state := exec.state
+	return executorFunc(func(f func() error) <-chan error {
+		executor := newExecutor(exec, state, id)
+		return executor.AsyncExec(func() error {
+			if err := f(); err != nil {
+				return err
 			}
-			f()
-			close(errCh)
+			atomic.StoreUint32(&exec.state, 0)
+			clean()
+			return nil
 		})
-		return errCh
 	})
 }
 
-func newCloseExecutor(executor *serialize.Executor, id string, executors *executorMap) Executor {
-	return executorFunc(func(f func()) <-chan error {
-		exec := newRequestExecutor(executor, id, executors)
-		return exec.AsyncExec(func() {
-			f()
-			executors.Delete(id)
+func newExecutor(exec *executor, state uint32, id string) Executor {
+	return executorFunc(func(f func() error) <-chan error {
+		errCh := make(chan error, 1)
+		exec.executor.AsyncExec(func() {
+			if exec.state != state {
+				errCh <- errors.Errorf("connection is already closed: %v", id)
+				return
+			}
+			errCh <- f()
+			close(errCh)
 		})
+		return errCh
 	})
 }

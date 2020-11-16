@@ -4,25 +4,29 @@
 
 # Implementation
 
-## serializeServer, serializeClient
+## serializer
 
-serialize chain elements keep [serialize.executorMap](https://github.com/networkservicemesh/sdk/blob/master/pkg/networkservice/common/serialize/gen.go#L25)
-mapping incoming `Connection.ID` to a [serialize.Executor](https://github.com/edwarnicke/serialize/blob/master/serialize.go).
-New executors are created on Request. Close deletes existing executor for the request.
+`serializer` maps incoming `Connection.ID` to a [serialize.Executor](https://github.com/edwarnicke/serialize/blob/master/serialize.go),
+request count and state. New mappings are created on Request. If request count and state are equal 0, mapping becomes
+free and can be cleaned up. Request count is incremented with each Request before requesting the next chain element and
+decrements after. All request count modifications are performed under the `serializer.executor`. State is being changed
+in Request from 0 to random, or in Close from not 0 to 0. If state is equal 0, connection is closed so all incoming
+Close events should not be processed.
 
 To make possible a new chain element firing asynchronously with `Request`, `Close` events, serialize chain elements wraps
-per-connection executor with [request executor](https://github.com/edwarnicke/serialize/blob/master/executor.go#L35),
-[close executor](https://github.com/edwarnicke/serialize/blob/master/executor.go#L50) and inserts them into the `Request`
-context. Such thing is not performed for the `Close` context because the executor will already be cancelled by the time
-it becomes free.
+per-connection executor with [request executor](https://github.com/edwarnicke/serialize/blob/master/executor.go#L36),
+[close executor](https://github.com/edwarnicke/serialize/blob/master/executor.go#L40) and inserts them into the `Request`
+context. Such a thing is not being performed for the `Close` context because the executor will already be cancelled by
+the time it becomes free. For the generated events state should be equal the original state for the Request/CloseExecutor.
 
 Correct `Request` firing chain element example:
 ```go
 func (s *requestServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
     executor := serialize.RequestExecutor(ctx)
     go func() {
-        executor.AsyncExec(func() {
+        executor.AsyncExec(func() error {
             _, _ = next.Server(ctx).Request(serialize.WithExecutorsFromContext(context.TODO(), ctx), request)
+            return nil
         })
     }()
 
@@ -40,25 +44,18 @@ func (s *closeServer) Request(ctx context.Context, request *networkservice.Netwo
 
     executor := serialize.CloseExecutor(ctx)
     go func() {
-        executor.AsyncExec(func() {
+        executor.AsyncExec(func() error {
             _, _ = next.Server(ctx).Close(context.TODO(), conn)
+            return errors.New() // I don't want to close the chain.
+        })
+    }()
+    go func() {
+        executor.AsyncExec(func() error {
+            _, _ = next.Server(ctx).Close(context.TODO(), conn)
+            return nil // I want to close the chain.
         })
     }()
 
     return conn, err
 }
 ```
-
-# race condition case
-
-There is a possible case for the race condition:
-```
-     1. -> close      : locking `executor`
-     2. -> request-1  : waiting on `executor`
-     3. close ->      : unlocking `executor`, removing it from `executors`
-     4. -> request-2  : creating `exec`, storing into `executors`, locking `exec`
-     5. -request-1->  : locking `executor`, trying to store it into `executors`
-```
-at 5. we get `request-1` locking `executor`, `request-2` locking `exec` and only `exec` stored in `executors`. It means
-that `request-2` and all subsequent events will be executed in parallel with `request-1`. If such case happens, `request-1`
-fails with _race condition_ error.

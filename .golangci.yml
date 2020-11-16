@@ -257,7 +257,3 @@ issues:
       linters:
         - funlen
       text: "Function 'TestConnectServer_Request'"
-    - path: pkg/networkservice/common/serialize/common.go
-      linters:
-        - scopelint
-      text: "Using the variable on range scope `shouldRetry` in function literal"

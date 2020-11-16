@@ -59,9 +59,9 @@ func NewClient(ctx context.Context, name string, onHeal *networkservice.NetworkS
 	rv = chain.NewNetworkServiceClient(
 		append(
 			append([]networkservice.NetworkServiceClient{
-				serialize.NewClient(),
 				authorize.NewClient(),
 				updatepath.NewClient(name),
+				serialize.NewClient(),
 				heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc), onHeal),
 				refresh.NewClient(ctx),
 			}, additionalFunctionality...),

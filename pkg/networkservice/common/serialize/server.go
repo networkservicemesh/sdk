@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/sirupsen/logrus"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
@@ -27,23 +28,29 @@ import (
 )
 
 type serializeServer struct {
-	executors executorMap
+	serializer
 }
 
 // NewServer returns a new serialize server chain element
 func NewServer() networkservice.NetworkServiceServer {
-	return new(serializeServer)
+	return &serializeServer{
+		serializer{
+			executors: map[string]*executor{},
+		},
+	}
 }
 
 func (s *serializeServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (conn *networkservice.Connection, err error) {
 	connID := request.GetConnection().GetId()
-	return requestConnection(ctx, &s.executors, connID, func(requestCtx context.Context) (*networkservice.Connection, error) {
+	logrus.Infof("REQUEST: %v", connID)
+	return s.requestConnection(ctx, connID, func(requestCtx context.Context) (*networkservice.Connection, error) {
 		return next.Server(ctx).Request(requestCtx, request)
 	})
 }
 
 func (s *serializeServer) Close(ctx context.Context, conn *networkservice.Connection) (_ *empty.Empty, err error) {
-	return closeConnection(ctx, &s.executors, conn.GetId(), func(closeCtx context.Context) (*empty.Empty, error) {
+	logrus.Infof("CLOSE: %v", conn.GetId())
+	return s.closeConnection(ctx, conn.GetId(), func(closeCtx context.Context) (*empty.Empty, error) {
 		return next.Server(ctx).Close(closeCtx, conn)
 	})
 }
