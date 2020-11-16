@@ -21,22 +21,46 @@ import (
 )
 
 const (
-	executorKey contextKeyType = "serialize.Executor"
+	requestExecutorKey contextKeyType = "requestExecutor"
+	closeExecutorKey   contextKeyType = "closeExecutor"
 )
 
 type contextKeyType string
 
-// WithExecutor wraps `parent` in a new context with the CancellableExecutor
-func WithExecutor(parent context.Context, executor *CancellableExecutor) context.Context {
+func withExecutors(parent context.Context, requestExecutor, closeExecutor Executor) context.Context {
 	if parent == nil {
 		parent = context.TODO()
 	}
-	return context.WithValue(parent, executorKey, executor)
+	return context.WithValue(context.WithValue(parent,
+		requestExecutorKey, requestExecutor),
+		closeExecutorKey, closeExecutor)
 }
 
-// Executor returns CancellableExecutor
-func Executor(ctx context.Context) *CancellableExecutor {
-	if executor, ok := ctx.Value(executorKey).(*CancellableExecutor); ok {
+// WithExecutorsFromContext wraps `parent` in a new context with the executors from `executorsContext`
+func WithExecutorsFromContext(parent, executorsContext context.Context) context.Context {
+	if parent == nil {
+		parent = context.TODO()
+	}
+	if requestExecutor := RequestExecutor(executorsContext); requestExecutor != nil {
+		parent = context.WithValue(parent, requestExecutorKey, requestExecutor)
+	}
+	if closeExecutor := CloseExecutor(executorsContext); closeExecutor != nil {
+		parent = context.WithValue(parent, closeExecutorKey, closeExecutor)
+	}
+	return parent
+}
+
+// RequestExecutor returns Request `Executor`
+func RequestExecutor(ctx context.Context) Executor {
+	if executor, ok := ctx.Value(requestExecutorKey).(Executor); ok {
+		return executor
+	}
+	return nil
+}
+
+// CloseExecutor returns Close `Executor`
+func CloseExecutor(ctx context.Context) Executor {
+	if executor, ok := ctx.Value(closeExecutorKey).(Executor); ok {
 		return executor
 	}
 	return nil

@@ -78,10 +78,10 @@ func TestSerializeServer_StressTest(t *testing.T) {
 type requestServer struct{}
 
 func (s *requestServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	executor := serialize.Executor(ctx)
+	executor := serialize.RequestExecutor(ctx)
 	go func() {
 		executor.AsyncExec(func() {
-			_, _ = next.Server(ctx).Request(serialize.WithExecutor(context.TODO(), executor), request)
+			_, _ = next.Server(ctx).Request(serialize.WithExecutorsFromContext(context.TODO(), ctx), request)
 		})
 	}()
 
@@ -100,11 +100,10 @@ func (s *closeServer) Request(ctx context.Context, request *networkservice.Netwo
 		return nil, err
 	}
 
-	executor := serialize.Executor(ctx)
+	executor := serialize.CloseExecutor(ctx)
 	go func() {
 		executor.AsyncExec(func() {
 			_, _ = next.Server(ctx).Close(context.TODO(), conn)
-			executor.Cancel()
 		})
 	}()
 

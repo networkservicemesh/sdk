@@ -43,13 +43,10 @@ func requestConnection(
 	newExecutor := new(serialize.Executor)
 	<-newExecutor.AsyncExec(func() {
 		executor, loaded := executors.LoadOrStore(connID, newExecutor)
-		// We should set `cancellableExecutor` into the request context so the following chain elements can generate
-		// new Request, Close events and insert them into the chain in a serial way.
-		cancellableExecutor := &CancellableExecutor{
-			executors: executors,
-			id:        connID,
-			executor:  executor,
-		}
+		// We should set `requestExecutor`, `closeExecutor` into the request context so the following chain elements
+		// can generate new Request, Close events and insert them into the chain in a serial way.
+		requestExecutor := newRequestExecutor(executor, connID, executors)
+		closeExecutor := newCloseExecutor(executor, connID, executors)
 		if loaded {
 			<-executor.AsyncExec(func() {
 				// Executor has been possibly removed at this moment, we need to store it back.
@@ -67,11 +64,11 @@ func requestConnection(
 					err = errors.Errorf("race condition, parallel request execution: %v", connID)
 					return
 				}
-				if conn, err = requestConn(WithExecutor(ctx, cancellableExecutor)); err != nil {
+				if conn, err = requestConn(withExecutors(ctx, requestExecutor, closeExecutor)); err != nil {
 					executors.Delete(connID)
 				}
 			})
-		} else if conn, err = requestConn(WithExecutor(ctx, cancellableExecutor)); err != nil {
+		} else if conn, err = requestConn(withExecutors(ctx, requestExecutor, closeExecutor)); err != nil {
 			executors.Delete(connID)
 		}
 	})
@@ -92,8 +89,8 @@ func closeConnection(
 		<-executor.AsyncExec(func() {
 			var exec *serialize.Executor
 			if exec, ok = executors.Load(connID); ok && exec == executor {
-				// We don't set `cancellableExecutor` into the close context because it should be canceled by the time
-				// anything can be executed with it.
+				// We don't set `requestExecutor`, `closeExecutor` into the close context because they should be
+				// canceled by the time anything can be executed with them.
 				_, err = closeConn(ctx)
 				executors.Delete(connID)
 			} else {

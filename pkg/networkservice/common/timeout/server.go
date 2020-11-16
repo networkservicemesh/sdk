@@ -86,7 +86,7 @@ func (t *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 func (t *timeoutServer) createTimer(ctx context.Context, conn *networkservice.Connection) (*time.Timer, error) {
 	logEntry := log.Entry(ctx).WithField("timeoutServer", "createTimer")
 
-	executor := serialize.Executor(ctx)
+	executor := serialize.CloseExecutor(ctx)
 	if executor == nil {
 		return nil, errors.New("no executor provided")
 	}
@@ -111,7 +111,6 @@ func (t *timeoutServer) createTimer(ctx context.Context, conn *networkservice.Co
 			if err := t.close(t.ctx, conn, next.Server(ctx)); err != nil {
 				logEntry.Errorf("failed to close timed out connection: %v %+v", conn.GetId(), err)
 			}
-			executor.Cancel()
 		}); err != nil {
 			logEntry.Warnf("connection has been already closed: %v", conn.GetId())
 		}

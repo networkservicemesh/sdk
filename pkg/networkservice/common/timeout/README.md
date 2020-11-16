@@ -18,9 +18,9 @@ Example of correct timeoutServer usage in [endpoint.NewServer](https://github.co
 ```go
 rv.NetworkServiceServer = chain.NewNetworkServiceServer(
     append([]networkservice.NetworkServiceServer{
+        serialize.NewServer(ctx) // <-- should be before the timeoutServer
         authzServer, // <-- shouldn't be closed, don't set anything to the context
         updatepath.NewServer(name), // <-- same
-        serialize.NewServer(ctx) // <-- should be before the timeoutServer
         timeout.NewServer(ctx), // <-- timeoutServer
         monitor.NewServer(ctx, &rv.MonitorConnectionServer), // <-- should be closed
         updatetoken.NewServer(tokenGenerator), // <-- should be closed

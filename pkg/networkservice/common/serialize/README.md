@@ -11,41 +11,41 @@ mapping incoming `Connection.ID` to a [serialize.Executor](https://github.com/ed
 New executors are created on Request. Close deletes existing executor for the request.
 
 To make possible a new chain element firing asynchronously with `Request`, `Close` events, serialize chain elements wraps
-per-connection executor with [serialize.CancellableExecutor](https://github.com/networkservicemesh/sdk/blob/master/pkg/networkservice/common/serialize/cancellable_executor.go)
-and inserts it into the `Request` context. Such thing is not performed for the `Close` context because the executor will
-already be cancelled by the time it becomes free.
+per-connection executor with [request executor](https://github.com/edwarnicke/serialize/blob/master/executor.go#L35),
+[close executor](https://github.com/edwarnicke/serialize/blob/master/executor.go#L50) and inserts them into the `Request`
+context. Such thing is not performed for the `Close` context because the executor will already be cancelled by the time
+it becomes free.
 
 Correct `Request` firing chain element example:
 ```go
 func (s *requestServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	executor := serialize.Executor(ctx)
-	go func() {
-		executor.AsyncExec(func() {
-			_, _ = next.Server(ctx).Request(serialize.WithExecutor(context.TODO(), executor), request)
-		})
-	}()
+    executor := serialize.RequestExecutor(ctx)
+    go func() {
+        executor.AsyncExec(func() {
+            _, _ = next.Server(ctx).Request(serialize.WithExecutorsFromContext(context.TODO(), ctx), request)
+        })
+    }()
 
-	return next.Server(ctx).Request(ctx, request)
+    return next.Server(ctx).Request(ctx, request)
 }
 ```
 
 Correct `Close` firing chain element example:
 ```go
 func (s *closeServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	conn, err := next.Server(ctx).Request(ctx, request)
-	if err != nil {
-		return nil, err
-	}
+    conn, err := next.Server(ctx).Request(ctx, request)
+    if err != nil {
+        return nil, err
+    }
 
-	executor := serialize.Executor(ctx)
-	go func() {
-		executor.AsyncExec(func() {
-			_, _ = next.Server(ctx).Close(context.TODO(), conn)
-			executor.Cancel()
-		})
-	}()
+    executor := serialize.CloseExecutor(ctx)
+    go func() {
+        executor.AsyncExec(func() {
+            _, _ = next.Server(ctx).Close(context.TODO(), conn)
+        })
+    }()
 
-	return conn, err
+    return conn, err
 }
 ```
 
