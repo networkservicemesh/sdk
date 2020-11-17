@@ -14,10 +14,11 @@ in Request from 0 to random, or in Close from not 0 to 0. If state is equal 0, c
 Close events should not be processed.
 
 To make possible a new chain element firing asynchronously with `Request`, `Close` events, serialize chain elements wraps
-per-connection executor with [request executor](https://github.com/edwarnicke/serialize/blob/master/executor.go#L36),
-[close executor](https://github.com/edwarnicke/serialize/blob/master/executor.go#L40) and inserts them into the `Request`
-context. Such a thing is not being performed for the `Close` context because the executor will already be cancelled by
-the time it becomes free. For the generated events state should be equal the original state for the Request/CloseExecutor.
+per-connection executor with [request executor](https://github.com/networkservicemesh/sdk/blob/master/pkg/networkservice/common/serialize/executor.go#L36),
+[close executor](https://github.com/networkservicemesh/sdk/blob/master/pkg/networkservice/common/serialize/executor.go#L40)
+and inserts them into the `Request` context. Such a thing is not being performed for the `Close` context because the
+executor will already be cancelled by the time it becomes free. For the generated events state should be equal the
+original state for the Request/CloseExecutor.
 
 Correct `Request` firing chain element example:
 ```go
