@@ -26,20 +26,17 @@ clients are implemented, to manage that translation.
 
 ## connectServer
 
-`connectServer` keeps `clientURLs` [clientURLMap](https://github.com/networkservicemesh/pkg/networkservice/common/connect/gen.go#25)
-mapping incoming server `Connection.ID` to the remote server URL and `clients` [clientmap.RefcountMap](https://github.com/networkservicemesh/sdk/blob/master/pkg/tools/clientmap/refcount.go)
+`connectServer` keeps `connInfos` [connectionInfoMap](https://github.com/networkservicemesh/pkg/networkservice/common/connect/gen.go#25)
+mapping incoming server `Connection.ID` to the remote server URL and to the client chain assigned to this URL, and `clients` [clientmap.RefcountMap](https://github.com/networkservicemesh/sdk/blob/master/pkg/tools/clientmap/refcount.go)
 mapping remote server URL to a chain consisting of the corresponding translation client and a [clienturl.NewClient(...)](https://github.com/networkservicemesh/sdk/blob/master/pkg/networkservice/common/clienturl/client.go)
 which handles the instantiation and management of the client connection from the `clienturl.ClientURL(ctx)` of the server
 Request. Notably, on every [clienturl.NewClient(...)](https://github.com/networkservicemesh/sdk/blob/master/pkg/networkservice/common/clienturl/client.go)
-Close it is deleted from the `clients` map, so eventually it will be garbage collected and the corresponding `grpc.ClientConn`
+Close it is deleted from the `clients` map, so eventually its context will be canceled and the corresponding `grpc.ClientConn`
 will be closed.
 
 Care is taken to make sure that each client chain results in one increment of the refcount on its creation, and one
-decrement when it receives a Close. In this way, we can be sure that:
-
-1. `clienturl.NewClient(...)` is not referenced in `clients` after the last client chain using it has received its Close.
-2. If for any reason the `clienturl.NewClient(...)` is deleted prematurely from the `clients` map, which can happen,
-any client chain actively using it retain their pointer to it, and can continue to utilize it throughout their lifetime.
+decrement when it receives a Close. In this way, we can be sure that `clienturl.NewClient(...)` context is closed after
+the last client chain using it has received its Close.
 
 The overall result is that usually, `connectServer` will have no more than one `clienturl.NewClient(...)` per `clientURL`.
 It may occasionally have more than one in a transient fashion for the lifetime of one or more Connections.

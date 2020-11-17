@@ -21,13 +21,10 @@ import "github.com/networkservicemesh/api/pkg/api/networkservice"
 // NewNSMgrClient returns a new translation client for the NSMgr
 func NewNSMgrClient() networkservice.NetworkServiceClient {
 	return new(Builder).
-		WithRequestOptions(
-			ReplacePath(),
-		).
 		WithConnectionOptions(
 			WithMechanism(),
 			WithContext(),
-			WithPath(),
+			WithPathSegments(),
 		).
 		Build()
 }
@@ -37,12 +34,11 @@ func NewInterposeClient() networkservice.NetworkServiceClient {
 	return new(Builder).
 		WithRequestOptions(
 			ReplaceMechanism(),
-			ReplacePath(),
 			ReplaceMechanismPreferences(),
 		).
 		WithConnectionOptions(
 			WithContext(),
-			WithPath(),
+			WithPathSegments(),
 		).
 		Build()
 }
@@ -59,7 +55,7 @@ func NewPassThroughClient(networkService, networkServiceEndpointName string) net
 		).
 		WithConnectionOptions(
 			WithContext(),
-			WithPath(),
+			WithPathSegments(),
 		).
 		Build()
 }

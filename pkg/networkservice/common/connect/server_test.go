@@ -48,60 +48,29 @@ const (
 	parallelCount = 1000
 )
 
-func startServer(ctx context.Context, listenOn *url.URL, server networkservice.NetworkServiceServer) (func(), error) {
+func startServer(ctx context.Context, listenOn *url.URL, server networkservice.NetworkServiceServer) error {
 	grpcServer := grpc.NewServer()
 	networkservice.RegisterNetworkServiceServer(grpcServer, server)
 
 	errCh := grpcutils.ListenAndServe(ctx, listenOn, grpcServer)
 	select {
 	case err := <-errCh:
-		return nil, err
+		return err
 	default:
-		return grpcServer.Stop, nil
+		return nil
 	}
 }
 
 func TestConnectServer_Request(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// 1. Setup servers
-
-	urlA := &url.URL{Scheme: "tcp", Host: "127.0.0.1:10000"}
-	serverA := new(captureServer)
-
-	stopServer, err := startServer(ctx, urlA, next.NewNetworkServiceServer(
-		serverA,
-		newEditServer("a", "A", &networkservice.Mechanism{
-			Cls:  cls.LOCAL,
-			Type: kernel.MECHANISM,
-		}),
-	))
-	require.NoError(t, err)
-	defer stopServer()
-
-	urlB := &url.URL{Scheme: "tcp", Host: "127.0.0.1:10001"}
-	serverB := new(captureServer)
-
-	stopServer, err = startServer(ctx, urlB, next.NewNetworkServiceServer(
-		serverB,
-		newEditServer("b", "B", &networkservice.Mechanism{
-			Cls:  cls.LOCAL,
-			Type: memif.MECHANISM,
-		}),
-	))
-	require.NoError(t, err)
-	defer stopServer()
-
-	// 2. Create connectServer
+	// 1. Create connectServer
 
 	serverNext := new(captureServer)
 	serverClient := new(captureServer)
 
 	s := next.NewNetworkServiceServer(
-		connect.NewServer(ctx,
+		connect.NewServer(context.TODO(),
 			func() networkservice.NetworkServiceClient {
 				return new(translation.Builder).
 					WithRequestOptions(translation.ReplaceMechanism()).
@@ -118,117 +87,136 @@ func TestConnectServer_Request(t *testing.T) {
 		serverNext,
 	)
 
-	// 3. Create request
+	func() {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
-	request := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id:             "id",
-			NetworkService: "network-service",
-			Mechanism: &networkservice.Mechanism{
+		// 3. Setup servers
+
+		urlA := &url.URL{Scheme: "tcp", Host: "127.0.0.1:10000"}
+		serverA := new(captureServer)
+
+		err := startServer(ctx, urlA, next.NewNetworkServiceServer(
+			serverA,
+			newEditServer("a", "A", &networkservice.Mechanism{
 				Cls:  cls.LOCAL,
-				Type: vfio.MECHANISM,
-			},
-			Context: &networkservice.ConnectionContext{
-				ExtraContext: map[string]string{
-					"not": "empty",
+				Type: kernel.MECHANISM,
+			}),
+		))
+		require.NoError(t, err)
+
+		urlB := &url.URL{Scheme: "tcp", Host: "127.0.0.1:10001"}
+		serverB := new(captureServer)
+
+		err = startServer(ctx, urlB, next.NewNetworkServiceServer(
+			serverB,
+			newEditServer("b", "B", &networkservice.Mechanism{
+				Cls:  cls.LOCAL,
+				Type: memif.MECHANISM,
+			}),
+		))
+		require.NoError(t, err)
+
+		// 4. Create request
+
+		request := &networkservice.NetworkServiceRequest{
+			Connection: &networkservice.Connection{
+				Id:             "id",
+				NetworkService: "network-service",
+				Mechanism: &networkservice.Mechanism{
+					Cls:  cls.LOCAL,
+					Type: vfio.MECHANISM,
+				},
+				Context: &networkservice.ConnectionContext{
+					ExtraContext: map[string]string{
+						"not": "empty",
+					},
 				},
 			},
-		},
-	}
+		}
 
-	// 4. Request A
+		// 5. Request A
 
-	conn, err := s.Request(clienturlctx.WithClientURL(ctx, urlA), request.Clone())
-	require.NoError(t, err)
+		conn, err := s.Request(clienturlctx.WithClientURL(ctx, urlA), request.Clone())
+		require.NoError(t, err)
 
-	requestClient := request.Clone()
-	requestClient.Connection.Mechanism = nil
-	require.Equal(t, requestClient.String(), serverClient.capturedRequest.String())
+		requestClient := request.Clone()
+		requestClient.Connection.Mechanism = nil
+		require.Equal(t, requestClient.String(), serverClient.capturedRequest.String())
 
-	requestA := request.Clone()
-	requestA.Connection.Mechanism = nil
-	require.Equal(t, requestA.String(), serverA.capturedRequest.String())
+		requestA := request.Clone()
+		requestA.Connection.Mechanism = nil
+		require.Equal(t, requestA.String(), serverA.capturedRequest.String())
 
-	requestNext := request.Clone()
-	requestNext.Connection.Context.ExtraContext["a"] = "A"
-	require.Equal(t, requestNext.String(), serverNext.capturedRequest.String())
+		requestNext := request.Clone()
+		requestNext.Connection.Context.ExtraContext["a"] = "A"
+		require.Equal(t, requestNext.String(), serverNext.capturedRequest.String())
 
-	require.Equal(t, requestNext.Connection.String(), conn.String())
+		require.Equal(t, requestNext.Connection.String(), conn.String())
 
-	// 5. Re request A
+		// 6. Re request A
 
-	conn, err = s.Request(clienturlctx.WithClientURL(ctx, urlA), request.Clone())
-	require.NoError(t, err)
+		conn, err = s.Request(clienturlctx.WithClientURL(ctx, urlA), request.Clone())
+		require.NoError(t, err)
 
-	requestClient = request.Clone()
-	requestClient.Connection.Mechanism.Type = kernel.MECHANISM
-	require.Equal(t, requestClient.String(), serverClient.capturedRequest.String())
+		requestClient = request.Clone()
+		requestClient.Connection.Mechanism.Type = kernel.MECHANISM
+		require.Equal(t, requestClient.String(), serverClient.capturedRequest.String())
 
-	requestA = request.Clone()
-	requestA.Connection.Mechanism.Type = kernel.MECHANISM
-	require.Equal(t, requestA.String(), serverA.capturedRequest.String())
+		requestA = request.Clone()
+		requestA.Connection.Mechanism.Type = kernel.MECHANISM
+		require.Equal(t, requestA.String(), serverA.capturedRequest.String())
 
-	requestNext = request.Clone()
-	requestNext.Connection.Context.ExtraContext["a"] = "A"
-	require.Equal(t, requestNext.String(), serverNext.capturedRequest.String())
+		requestNext = request.Clone()
+		requestNext.Connection.Context.ExtraContext["a"] = "A"
+		require.Equal(t, requestNext.String(), serverNext.capturedRequest.String())
 
-	require.Equal(t, requestNext.Connection.String(), conn.String())
+		require.Equal(t, requestNext.Connection.String(), conn.String())
 
-	// 6. Request B
+		// 7. Request B
 
-	request.Connection = conn
+		request.Connection = conn
 
-	conn, err = s.Request(clienturlctx.WithClientURL(ctx, urlB), request.Clone())
-	require.NoError(t, err)
+		conn, err = s.Request(clienturlctx.WithClientURL(ctx, urlB), request.Clone())
+		require.NoError(t, err)
 
-	requestClient = request.Clone()
-	requestClient.Connection.Mechanism = nil
-	require.Equal(t, requestClient.String(), serverClient.capturedRequest.String())
+		requestClient = request.Clone()
+		requestClient.Connection.Mechanism = nil
+		require.Equal(t, requestClient.String(), serverClient.capturedRequest.String())
 
-	require.Nil(t, serverA.capturedRequest)
+		require.Nil(t, serverA.capturedRequest)
 
-	requestB := request.Clone()
-	requestB.Connection.Mechanism = nil
-	require.Equal(t, requestB.String(), serverB.capturedRequest.String())
+		requestB := request.Clone()
+		requestB.Connection.Mechanism = nil
+		require.Equal(t, requestB.String(), serverB.capturedRequest.String())
 
-	requestNext = request.Clone()
-	requestNext.Connection.Context.ExtraContext["b"] = "B"
-	require.Equal(t, requestNext.String(), serverNext.capturedRequest.String())
+		requestNext = request.Clone()
+		requestNext.Connection.Context.ExtraContext["b"] = "B"
+		require.Equal(t, requestNext.String(), serverNext.capturedRequest.String())
 
-	require.Equal(t, requestNext.Connection.String(), conn.String())
+		require.Equal(t, requestNext.Connection.String(), conn.String())
 
-	// 7. Close B
+		// 8. Close B
 
-	_, err = s.Close(ctx, conn)
-	require.NoError(t, err)
+		_, err = s.Close(ctx, conn)
+		require.NoError(t, err)
 
-	require.Nil(t, serverClient.capturedRequest)
-	require.Nil(t, serverB.capturedRequest)
-	require.Nil(t, serverNext.capturedRequest)
+		require.Nil(t, serverClient.capturedRequest)
+		require.Nil(t, serverB.capturedRequest)
+		require.Nil(t, serverNext.capturedRequest)
+	}()
 }
 
 func TestConnectServer_RequestParallel(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// 1. Setup servers
-
-	urlA := &url.URL{Scheme: "tcp", Host: "127.0.0.1:10000"}
-	serverA := new(countServer)
-
-	stopServer, err := startServer(ctx, urlA, serverA)
-	require.NoError(t, err)
-	defer stopServer()
-
-	// 2. Create connectServer
+	// 1. Create connectServer
 
 	serverNext := new(countServer)
 	serverClient := new(countServer)
 
 	s := next.NewNetworkServiceServer(
-		connect.NewServer(ctx,
+		connect.NewServer(context.TODO(),
 			func() networkservice.NetworkServiceClient {
 				return new(translation.Builder).Build()
 			}, func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
@@ -242,54 +230,67 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 		serverNext,
 	)
 
-	// 4. Request A
+	func() {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
-	wg := new(sync.WaitGroup)
-	wg.Add(parallelCount)
+		// 3. Setup servers
 
-	barrier := new(sync.WaitGroup)
-	barrier.Add(1)
+		urlA := &url.URL{Scheme: "tcp", Host: "127.0.0.1:10000"}
+		serverA := new(countServer)
 
-	for i := 0; i < parallelCount; i++ {
-		go func(k int) {
-			// 4.1. Create request
-			request := &networkservice.NetworkServiceRequest{
-				Connection: &networkservice.Connection{
-					Id: strconv.Itoa(k),
-				},
-			}
+		err := startServer(ctx, urlA, serverA)
+		require.NoError(t, err)
 
-			// 4.2. Request A
-			_, err := s.Request(clienturlctx.WithClientURL(ctx, urlA), request)
-			assert.NoError(t, err)
-			wg.Done()
+		// 4. Request A
 
-			barrier.Wait()
+		wg := new(sync.WaitGroup)
+		wg.Add(parallelCount)
 
-			// 4.3. Re request A
-			conn, err := s.Request(clienturlctx.WithClientURL(ctx, urlA), request)
-			assert.NoError(t, err)
+		barrier := new(sync.WaitGroup)
+		barrier.Add(1)
 
-			// 4.4. Close A
-			_, err = s.Close(ctx, conn)
-			assert.NoError(t, err)
-			wg.Done()
-		}(i)
-	}
+		for i := 0; i < parallelCount; i++ {
+			go func(k int) {
+				// 4.1. Create request
+				request := &networkservice.NetworkServiceRequest{
+					Connection: &networkservice.Connection{
+						Id: strconv.Itoa(k),
+					},
+				}
 
-	wg.Wait()
-	wg.Add(parallelCount)
+				// 4.2. Request A
+				_, err := s.Request(clienturlctx.WithClientURL(ctx, urlA), request)
+				assert.NoError(t, err)
+				wg.Done()
 
-	require.Equal(t, int32(parallelCount), serverClient.count)
-	require.Equal(t, int32(parallelCount), serverA.count)
-	require.Equal(t, int32(parallelCount), serverNext.count)
+				barrier.Wait()
 
-	barrier.Done()
-	wg.Wait()
+				// 4.3. Re request A
+				conn, err := s.Request(clienturlctx.WithClientURL(ctx, urlA), request)
+				assert.NoError(t, err)
 
-	require.Equal(t, int32(parallelCount), serverClient.count)
-	require.Equal(t, int32(parallelCount), serverA.count)
-	require.Equal(t, int32(parallelCount), serverNext.count)
+				// 4.4. Close A
+				_, err = s.Close(ctx, conn)
+				assert.NoError(t, err)
+				wg.Done()
+			}(i)
+		}
+
+		wg.Wait()
+		wg.Add(parallelCount)
+
+		require.Equal(t, int32(parallelCount), serverClient.count)
+		require.Equal(t, int32(parallelCount), serverA.count)
+		require.Equal(t, int32(parallelCount), serverNext.count)
+
+		barrier.Done()
+		wg.Wait()
+
+		require.Equal(t, int32(parallelCount), serverClient.count)
+		require.Equal(t, int32(parallelCount), serverA.count)
+		require.Equal(t, int32(parallelCount), serverNext.count)
+	}()
 }
 
 type editServer struct {

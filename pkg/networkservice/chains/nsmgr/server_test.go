@@ -21,33 +21,31 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"net/url"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/golang/protobuf/ptypes/empty"
-	"google.golang.org/grpc"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-
-	"go.uber.org/goleak"
-
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
+	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
-	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
+	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect/translation"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
+	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
 )
 
 func TestNSMGR_RemoteUsecase_Parallel(t *testing.T) {
@@ -66,7 +64,7 @@ func TestNSMGR_RemoteUsecase_Parallel(t *testing.T) {
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
-			{Cls: cls.LOCAL, Type: kernel.MECHANISM},
+			{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
 		},
 		Connection: &networkservice.Connection{
 			Id:             "1",
@@ -125,7 +123,7 @@ func TestNSMGR_RemoteUsecase_BusyEndpoints(t *testing.T) {
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
-			{Cls: cls.LOCAL, Type: kernel.MECHANISM},
+			{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
 		},
 		Connection: &networkservice.Connection{
 			Id:             "1",
@@ -200,7 +198,7 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
-			{Cls: cls.LOCAL, Type: kernel.MECHANISM},
+			{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
 		},
 		Connection: &networkservice.Connection{
 			Id:             "1",
@@ -230,6 +228,7 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 	require.Equal(t, 8, len(conn.Path.PathSegments))
 
 	// Close.
+
 	e, err := nsc.Close(ctx, conn)
 	require.NoError(t, err)
 	require.NotNil(t, e)
@@ -252,6 +251,7 @@ func TestNSMGR_LocalUsecase(t *testing.T) {
 		Name:                "final-endpoint",
 		NetworkServiceNames: []string{"my-service-remote"},
 	}
+
 	counter := &counterServer{}
 	_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, counter)
 	require.NoError(t, err)
@@ -261,7 +261,7 @@ func TestNSMGR_LocalUsecase(t *testing.T) {
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
-			{Cls: cls.LOCAL, Type: kernel.MECHANISM},
+			{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
 		},
 		Connection: &networkservice.Connection{
 			Id:             "1",
@@ -269,6 +269,7 @@ func TestNSMGR_LocalUsecase(t *testing.T) {
 			Context:        &networkservice.ConnectionContext{},
 		},
 	}
+
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.NotNil(t, conn)
@@ -286,6 +287,7 @@ func TestNSMGR_LocalUsecase(t *testing.T) {
 	require.Equal(t, 5, len(conn2.Path.PathSegments))
 	require.Equal(t, int32(2), atomic.LoadInt32(&counter.Requests))
 	// Close.
+
 	e, err := nsc.Close(ctx, conn)
 	require.NoError(t, err)
 	require.NotNil(t, e)
@@ -309,16 +311,19 @@ func TestNSMGR_PassThroughRemote(t *testing.T) {
 	for i := 0; i < nodesCount; i++ {
 		additionalFunctionality := []networkservice.NetworkServiceServer{}
 		if i != 0 {
+			k := i
 			// Passtrough to the node i-1
 			additionalFunctionality = []networkservice.NetworkServiceServer{
-				adapters.NewClientToServer(
-					newPassTroughClient(
-						[]*networkservice.Mechanism{
-							{Cls: cls.LOCAL, Type: kernel.MECHANISM},
-						},
-						fmt.Sprintf("my-service-remote-%v", i-1),
-						fmt.Sprintf("endpoint-%v", i-1),
-						domain.Nodes[i].NSMgr.URL)),
+				clienturl.NewServer(domain.Nodes[i].NSMgr.URL),
+				connect.NewServer(ctx,
+					func() networkservice.NetworkServiceClient {
+						return translation.NewPassThroughClient(
+							fmt.Sprintf("my-service-remote-%v", k-1),
+							fmt.Sprintf("endpoint-%v", k-1))
+					},
+					sandbox.NewClientFactory(sandbox.GenerateTestToken, kernel.NewClient()),
+					append(spanhelper.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...,
+				),
 			}
 		}
 		nseReg := &registry.NetworkServiceEndpoint{
@@ -334,7 +339,7 @@ func TestNSMGR_PassThroughRemote(t *testing.T) {
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
-			{Cls: cls.LOCAL, Type: kernel.MECHANISM},
+			{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
 		},
 		Connection: &networkservice.Connection{
 			Id:             "1",
@@ -369,15 +374,18 @@ func TestNSMGR_PassThroughLocal(t *testing.T) {
 	for i := 0; i < nsesCount; i++ {
 		additionalFunctionality := []networkservice.NetworkServiceServer{}
 		if i != 0 {
+			k := i
 			additionalFunctionality = []networkservice.NetworkServiceServer{
-				adapters.NewClientToServer(
-					newPassTroughClient(
-						[]*networkservice.Mechanism{
-							{Cls: cls.LOCAL, Type: kernel.MECHANISM},
-						},
-						fmt.Sprintf("my-service-remote-%v", i-1),
-						fmt.Sprintf("endpoint-%v", i-1),
-						domain.Nodes[0].NSMgr.URL)),
+				clienturl.NewServer(domain.Nodes[0].NSMgr.URL),
+				connect.NewServer(ctx,
+					func() networkservice.NetworkServiceClient {
+						return translation.NewPassThroughClient(
+							fmt.Sprintf("my-service-remote-%v", k-1),
+							fmt.Sprintf("endpoint-%v", k-1))
+					},
+					sandbox.NewClientFactory(sandbox.GenerateTestToken, kernel.NewClient()),
+					append(spanhelper.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...,
+				),
 			}
 		}
 		nseReg := &registry.NetworkServiceEndpoint{
@@ -393,7 +401,7 @@ func TestNSMGR_PassThroughLocal(t *testing.T) {
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
-			{Cls: cls.LOCAL, Type: kernel.MECHANISM},
+			{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
 		},
 		Connection: &networkservice.Connection{
 			Id:             "1",
@@ -409,58 +417,6 @@ func TestNSMGR_PassThroughLocal(t *testing.T) {
 	// Path length to first endpoint is 5
 	// Path length from NSE client to other local endpoint is 5
 	require.Equal(t, 5*(nsesCount-1)+5, len(conn.Path.PathSegments))
-}
-
-type passThroughClient struct {
-	mechanismPreferences       []*networkservice.Mechanism
-	networkService             string
-	networkServiceEndpointName string
-	connectTo                  *url.URL
-}
-
-func newPassTroughClient(mechanismPreferences []*networkservice.Mechanism, networkService, networkServiceEndpointName string, connectTo *url.URL) *passThroughClient {
-	return &passThroughClient{
-		mechanismPreferences:       mechanismPreferences,
-		networkService:             networkService,
-		networkServiceEndpointName: networkServiceEndpointName,
-		connectTo:                  connectTo,
-	}
-}
-
-func (p *passThroughClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	newCtx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-
-	nsc, err := sandbox.NewClient(
-		newCtx, sandbox.GenerateTestToken, p.connectTo,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	newRequest := &networkservice.NetworkServiceRequest{
-		MechanismPreferences: p.mechanismPreferences,
-		Connection: &networkservice.Connection{
-			Id:                         request.Connection.Id,
-			NetworkService:             p.networkService,
-			NetworkServiceEndpointName: p.networkServiceEndpointName,
-			Path:                       request.Connection.Path.Clone(),
-			Context:                    &networkservice.ConnectionContext{},
-		},
-	}
-	conn, err := nsc.Request(newCtx, newRequest)
-	if err != nil {
-		return nil, err
-	}
-
-	request.Connection.Path.PathSegments = conn.Path.PathSegments
-
-	return next.Client(ctx).Request(ctx, request, opts...)
-}
-
-func (p *passThroughClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	conn = conn.Clone()
-	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
 type counterServer struct {

@@ -20,6 +20,6 @@ import (
 	"sync"
 )
 
-//go:generate go-syncmap -output client_url_map.gen.go -type clientURLMap<string,*net/url.URL>
+//go:generate go-syncmap -output connection_info_map.gen.go -type connectionInfoMap<string,connectionInfo>
 
-type clientURLMap sync.Map
+type connectionInfoMap sync.Map

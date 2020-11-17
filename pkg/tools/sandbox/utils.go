@@ -94,3 +94,10 @@ func NewClient(ctx context.Context, generatorFunc token.GeneratorFunc, connectTo
 	}()
 	return client.NewClient(ctx, fmt.Sprintf("nsc-%v", uuid.New().String()), nil, generatorFunc, cc, additionalFunctionality...), nil
 }
+
+// NewClientFactory creates new client factory for connect.NewServer()
+func NewClientFactory(generatorFunc token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceClient) func(context.Context, grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+	return func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+		return client.NewClient(ctx, fmt.Sprintf("nsc-%v", uuid.New().String()), nil, generatorFunc, cc, additionalFunctionality...)
+	}
+}

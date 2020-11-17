@@ -97,9 +97,9 @@ func WithContext() ConnectionOption {
 	}
 }
 
-// WithPath copies clientConn.Path to conn
-func WithPath() ConnectionOption {
+// WithPathSegments copies clientConn.Path.PathSegments to conn
+func WithPathSegments() ConnectionOption {
 	return func(conn *networkservice.Connection, clientConn *networkservice.Connection) {
-		conn.Path = clientConn.GetPath()
+		conn.Path.PathSegments = clientConn.GetPath().GetPathSegments()
 	}
 }
