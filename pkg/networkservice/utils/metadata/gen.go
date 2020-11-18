@@ -28,3 +28,13 @@ type metaData struct {
 	client sync.Map
 	server sync.Map
 }
+
+// LoadAndDelete deletes the value for a key, returning the previous value if any.
+// The loaded result reports whether the key was present.
+func (m *metaDataMap) LoadAndDelete(key string) (value *metaData, loaded bool) {
+	actual, loaded := (*sync.Map)(m).LoadAndDelete(key)
+	if actual == nil {
+		return nil, loaded
+	}
+	return actual.(*metaData), loaded
+}

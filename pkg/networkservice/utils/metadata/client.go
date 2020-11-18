@@ -37,16 +37,12 @@ func NewClient() networkservice.NetworkServiceClient {
 }
 
 func (m *metaDataClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	connID := request.GetConnection().GetId()
-
-	ctx = store(ctx, connID, &m.Map)
-
+	ctx = store(ctx, request.GetConnection().GetId(), &m.Map)
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
-		del(ctx, connID, &m.Map)
+		del(ctx, conn.GetId(), &m.Map)
 		return nil, err
 	}
-
 	return conn, nil
 }
 
