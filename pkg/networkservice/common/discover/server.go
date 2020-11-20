@@ -66,7 +66,28 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 	if err != nil {
 		return nil, err
 	}
-	return next.Server(ctx).Request(WithCandidates(ctx, nses, ns), request)
+	visit := map[string]struct{}{}
+	for ctx.Err() == nil {
+		resp, err := next.Server(ctx).Request(WithCandidates(ctx, nses, ns), request)
+		if err == nil {
+			return resp, err
+		}
+		for _, nse := range nses {
+			visit[nse.Name] = struct{}{}
+		}
+		nses, err = d.discoverNetworkServiceEndpoints(ctx, ns, request.GetConnection().GetLabels())
+		if err != nil {
+			return nil, err
+		}
+		var newNses []*registry.NetworkServiceEndpoint
+		for _, nse := range nses {
+			if _, ok := visit[nse.Name]; !ok {
+				newNses = append(newNses, nse)
+			}
+		}
+		nses = newNses
+	}
+	return nil, errors.Wrap(ctx.Err(), "no match endpoints or all endpoints fail")
 }
 
 func (d *discoverCandidatesServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
