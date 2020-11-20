@@ -20,8 +20,6 @@ import (
 	"bytes"
 	"text/template"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
@@ -42,8 +40,6 @@ func isSubset(a, b, nsLabels map[string]string) bool {
 }
 
 func matchEndpoint(nsLabels map[string]string, ns *registry.NetworkService, networkServiceEndpoints ...*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
-	logrus.Infof("Matching endpoint for labels %v", nsLabels)
-
 	// Iterate through the matches
 	for _, match := range ns.GetMatches() {
 		// All match source selector labels should be present in the requested labels map
