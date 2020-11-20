@@ -72,5 +72,5 @@ func (s *selectEndpointServer) Close(ctx context.Context, conn *networkservice.C
 	if clienturlctx.ClientURL(ctx) != nil {
 		return next.Server(ctx).Close(ctx, conn)
 	}
-	return nil, errors.Errorf("inccorect connection: %+v", conn)
+	return nil, errors.Errorf("passed incorrect connection: %+v", conn)
 }
