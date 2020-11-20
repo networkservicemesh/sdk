@@ -20,6 +20,9 @@ package discover_test
 import (
 	"context"
 	"testing"
+	"time"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 
@@ -319,6 +322,7 @@ func TestNoMatchServiceFound(t *testing.T) {
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			NetworkService: nsName,
+			Payload:        payload.IP,
 			Labels:         map[string]string{},
 		},
 	}
@@ -331,9 +335,12 @@ func TestNoMatchServiceFound(t *testing.T) {
 			require.Equal(t, want, nses[0].NetworkServiceLabels)
 		}),
 	)
-	_, err := server.Request(context.Background(), request)
-	require.Equal(t, "network service secure-intranet-connectivity is not found", err.Error())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second/2)
+	defer cancel()
+	_, err := server.Request(ctx, request)
+	require.Equal(t, "ns:\"secure-intranet-connectivity\" with payload:\"IP\" is not found: context deadline exceeded", err.Error())
 }
+
 func TestNoMatchServiceEndpointFound(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	nsName := networkServiceName()
@@ -365,6 +372,8 @@ func TestNoMatchServiceEndpointFound(t *testing.T) {
 			require.Equal(t, want, nses[0].NetworkServiceLabels)
 		}),
 	)
-	_, err = server.Request(context.Background(), request)
-	require.Equal(t, "network service endpoint for service secure-intranet-connectivity is not found", err.Error())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second/2)
+	defer cancel()
+	_, err = server.Request(ctx, request)
+	require.Equal(t, "nse: network_service_names:\"secure-intranet-connectivity\" is not found: context deadline exceeded", err.Error())
 }

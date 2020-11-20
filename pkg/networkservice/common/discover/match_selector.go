@@ -41,7 +41,7 @@ func isSubset(a, b, nsLabels map[string]string) bool {
 	return true
 }
 
-func matchEndpoint(nsLabels map[string]string, ns *registry.NetworkService, networkServiceEndpoints []*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
+func matchEndpoint(nsLabels map[string]string, ns *registry.NetworkService, networkServiceEndpoints ...*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
 	logrus.Infof("Matching endpoint for labels %v", nsLabels)
 
 	// Iterate through the matches

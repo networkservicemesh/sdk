@@ -46,6 +46,65 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
+func TestNSMGR_RemoteUsecase_Parallel(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	logrus.SetOutput(ioutil.Discard)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	domain := sandbox.NewBuilder(t).
+		SetNodesCount(2).
+		SetRegistryProxySupplier(nil).
+		SetContext(ctx).
+		Build()
+	defer domain.Cleanup()
+
+	counter := &counterServer{}
+
+	request := &networkservice.NetworkServiceRequest{
+		MechanismPreferences: []*networkservice.Mechanism{
+			{Cls: cls.LOCAL, Type: kernel.MECHANISM},
+		},
+		Connection: &networkservice.Connection{
+			Id:             "1",
+			NetworkService: "my-service-remote",
+			Context:        &networkservice.ConnectionContext{},
+		},
+	}
+	go func() {
+		time.Sleep(time.Millisecond * 100)
+		nseReg := &registry.NetworkServiceEndpoint{
+			Name:                "final-endpoint",
+			NetworkServiceNames: []string{"my-service-remote"},
+		}
+		_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, counter)
+		require.NoError(t, err)
+	}()
+	nsc, err := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[1].NSMgr.URL)
+	require.NoError(t, err)
+
+	conn, err := nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+
+	require.Equal(t, 8, len(conn.Path.PathSegments))
+
+	// Simulate refresh from client.
+
+	refreshRequest := request.Clone()
+	refreshRequest.Connection = conn.Clone()
+
+	conn, err = nsc.Request(ctx, refreshRequest)
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+	require.Equal(t, 8, len(conn.Path.PathSegments))
+
+	// Close.
+	e, err := nsc.Close(ctx, conn)
+	require.NoError(t, err)
+	require.NotNil(t, e)
+	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Closes))
+}
+
 func TestNSMGR_RemoteUsecase(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	logrus.SetOutput(ioutil.Discard)
