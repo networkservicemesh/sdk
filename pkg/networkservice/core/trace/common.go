@@ -29,7 +29,7 @@ import (
 func logRequest(span spanhelper.SpanHelper, request proto.Message) {
 	connInfo, ok := trace(span.Context())
 	if ok && !proto.Equal(connInfo.Request, request) {
-		if connInfo.Request != nil {
+		if connInfo.Request != nil && connInfo.Request.ProtoReflect().Descriptor().FullName() == request.ProtoReflect().Descriptor().FullName() {
 			requestDiff, hadChanges := Diff(connInfo.Request.ProtoReflect(), request.ProtoReflect())
 			if hadChanges {
 				span.LogObject("request-diff", requestDiff)
