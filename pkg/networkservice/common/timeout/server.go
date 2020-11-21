@@ -125,7 +125,10 @@ func (t *timeoutServer) request(ctx context.Context, request *networkservice.Net
 func (t *timeoutServer) createTimer(ctx context.Context, conn *networkservice.Connection, executor *serialize.Executor) (*time.Timer, error) {
 	logEntry := log.Entry(ctx).WithField("timeoutServer", "createTimer")
 
-	expireTime, err := ptypes.Timestamp(conn.GetPath().GetPathSegments()[conn.GetPath().GetIndex()-1].GetExpires())
+	if conn.GetPrevPathSegment().GetExpires() == nil {
+		return nil, errors.Errorf("expiration for prev path segment cannot be nil. conn: %+v", conn)
+	}
+	expireTime, err := ptypes.Timestamp(conn.GetPrevPathSegment().GetExpires())
 	if err != nil {
 		return nil, err
 	}
