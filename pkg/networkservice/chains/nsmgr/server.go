@@ -22,7 +22,6 @@ package nsmgr
 import (
 	"context"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect/translation"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/querycache"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 
@@ -116,7 +115,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 		interpose.NewServer(&interposeRegistry),
 		filtermechanisms.NewServer(&urlsRegistryServer),
 		connect.NewServer(ctx,
-			translation.NewNSMgrClient,
+			NewTranslationClient,
 			client.NewClientFactory(
 				nsmRegistration.Name,
 				addressof.NetworkServiceClient(adapters.NewServerToClient(rv)),

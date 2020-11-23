@@ -317,7 +317,7 @@ func TestNSMGR_PassThroughRemote(t *testing.T) {
 				clienturl.NewServer(domain.Nodes[i].NSMgr.URL),
 				connect.NewServer(ctx,
 					func() networkservice.NetworkServiceClient {
-						return translation.NewPassThroughClient(
+						return newPassThroughTranslationClient(
 							fmt.Sprintf("my-service-remote-%v", k-1),
 							fmt.Sprintf("endpoint-%v", k-1))
 					},
@@ -379,7 +379,7 @@ func TestNSMGR_PassThroughLocal(t *testing.T) {
 				clienturl.NewServer(domain.Nodes[0].NSMgr.URL),
 				connect.NewServer(ctx,
 					func() networkservice.NetworkServiceClient {
-						return translation.NewPassThroughClient(
+						return newPassThroughTranslationClient(
 							fmt.Sprintf("my-service-remote-%v", k-1),
 							fmt.Sprintf("endpoint-%v", k-1))
 					},
@@ -417,6 +417,22 @@ func TestNSMGR_PassThroughLocal(t *testing.T) {
 	// Path length to first endpoint is 5
 	// Path length from NSE client to other local endpoint is 5
 	require.Equal(t, 5*(nsesCount-1)+5, len(conn.Path.PathSegments))
+}
+
+func newPassThroughTranslationClient(networkService, networkServiceEndpointName string) networkservice.NetworkServiceClient {
+	return new(translation.Builder).
+		WithRequestOptions(
+			func(request *networkservice.NetworkServiceRequest, _ *networkservice.Connection) {
+				request.Connection.NetworkService = networkService
+				request.Connection.NetworkServiceEndpointName = networkServiceEndpointName
+			},
+			translation.ReplaceMechanismPreferences(),
+		).
+		WithConnectionOptions(
+			translation.WithContext(),
+			translation.WithPathSegments(),
+		).
+		Build()
 }
 
 type counterServer struct {

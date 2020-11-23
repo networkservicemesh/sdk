@@ -23,8 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect/translation"
-
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/forwarder"
 	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
 
 	"github.com/google/uuid"
@@ -316,7 +315,7 @@ func supplyDummyForwarder(ctx context.Context, name string, generateToken token.
 		// Statically set the url we use to the unix file socket for the NSMgr
 		clienturl.NewServer(connectTo),
 		connect.NewServer(ctx,
-			translation.NewInterposeClient,
+			forwarder.NewTranslationClient,
 			client.NewClientFactory(
 				name,
 				// What to call onHeal
