@@ -18,8 +18,10 @@
 package matchutils
 
 import (
-	"reflect"
 	"strings"
+
+	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 )
@@ -28,19 +30,35 @@ import (
 func MatchNetworkServices(left, right *registry.NetworkService) bool {
 	return (left.Name == "" || strings.Contains(right.Name, left.Name)) &&
 		(left.Payload == "" || left.Payload == right.Payload) &&
-		(left.Matches == nil || reflect.DeepEqual(left.Matches, right.Matches))
+		(left.Matches == nil || cmp.Equal(left.Matches, right.Matches, cmp.Comparer(proto.Equal)))
 }
 
 // MatchNetworkServiceEndpoints  returns true if two network service endpoints are matched
 func MatchNetworkServiceEndpoints(left, right *registry.NetworkServiceEndpoint) bool {
 	return (left.Name == "" || strings.Contains(right.Name, left.Name)) &&
-		(left.NetworkServiceLabels == nil || reflect.DeepEqual(left.NetworkServiceLabels, right.NetworkServiceLabels)) &&
+		(left.NetworkServiceLabels == nil || labelsContains(right.NetworkServiceLabels, left.NetworkServiceLabels)) &&
 		(left.ExpirationTime == nil || left.ExpirationTime.Seconds == right.ExpirationTime.Seconds) &&
 		(left.NetworkServiceNames == nil || contains(right.NetworkServiceNames, left.NetworkServiceNames)) &&
 		(left.Url == "" || strings.Contains(right.Url, left.Url))
 }
 
-func contains(what, where []string) bool {
+func labelsContains(where, what map[string]*registry.NetworkServiceLabels) bool {
+	for lService, lLabels := range what {
+		rService, ok := where[lService]
+		if !ok {
+			return false
+		}
+		for lKey, lVal := range lLabels.Labels {
+			rVal, ok := rService.Labels[lKey]
+			if !ok || lVal != rVal {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func contains(where, what []string) bool {
 	set := make(map[string]struct{})
 	for _, s := range what {
 		set[s] = struct{}{}
