@@ -66,7 +66,28 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 	if err != nil {
 		return nil, err
 	}
-	return next.Server(ctx).Request(WithCandidates(ctx, nses, ns), request)
+	visit := map[string]struct{}{}
+	for ctx.Err() == nil {
+		resp, err := next.Server(ctx).Request(WithCandidates(ctx, nses, ns), request)
+		if err == nil {
+			return resp, err
+		}
+		for _, nse := range nses {
+			visit[nse.Name] = struct{}{}
+		}
+		nses, err = d.discoverNetworkServiceEndpoints(ctx, ns, request.GetConnection().GetLabels())
+		if err != nil {
+			return nil, err
+		}
+		var newNses []*registry.NetworkServiceEndpoint
+		for _, nse := range nses {
+			if _, ok := visit[nse.Name]; !ok {
+				newNses = append(newNses, nse)
+			}
+		}
+		nses = newNses
+	}
+	return nil, errors.Wrap(ctx.Err(), "no match endpoints or all endpoints fail")
 }
 
 func (d *discoverCandidatesServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
@@ -109,8 +130,11 @@ func (d *discoverCandidatesServer) discoverNetworkServiceEndpoint(ctx context.Co
 	select {
 	case <-ctx.Done():
 		return nil, errors.Wrapf(ctx.Err(), "nse: %+v is not found", query.NetworkServiceEndpoint)
-	case nse := <-nseCh:
-		return nse, nil
+	case nse, ok := <-nseCh:
+		if ok {
+			return nse, nil
+		}
+		return nil, errors.New("nse stream is closed")
 	}
 }
 func (d *discoverCandidatesServer) discoverNetworkServiceEndpoints(ctx context.Context, ns *registry.NetworkService, labels map[string]string) ([]*registry.NetworkServiceEndpoint, error) {
@@ -144,10 +168,14 @@ func (d *discoverCandidatesServer) discoverNetworkServiceEndpoints(ctx context.C
 		select {
 		case <-ctx.Done():
 			return nil, errors.Wrapf(ctx.Err(), "nse: %+v is not found", query.NetworkServiceEndpoint)
-		case nse := <-nseCh:
-			result := matchEndpoint(labels, ns, nse)
-			if len(result) != 0 {
-				return result, nil
+		case nse, ok := <-nseCh:
+			if ok {
+				result := matchEndpoint(labels, ns, nse)
+				if len(result) != 0 {
+					return result, nil
+				}
+			} else {
+				return nil, errors.New("nse stream is closed")
 			}
 		}
 	}
@@ -178,7 +206,10 @@ func (d *discoverCandidatesServer) discoverNetworkService(ctx context.Context, n
 	select {
 	case <-ctx.Done():
 		return nil, errors.Wrapf(ctx.Err(), "ns:\"%v\" with payload:\"%v\" is not found", name, payload)
-	case ns := <-registry.ReadNetworkServiceChannel(nsStream):
-		return ns, nil
+	case ns, ok := <-registry.ReadNetworkServiceChannel(nsStream):
+		if ok {
+			return ns, nil
+		}
+		return nil, errors.New("ns stream is closed")
 	}
 }

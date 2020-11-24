@@ -44,37 +44,33 @@ func NewServer() networkservice.NetworkServiceServer {
 }
 
 func (s *selectEndpointServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	ctx, err := s.withClientURL(ctx, request.GetConnection())
-	if err != nil {
-		return nil, err
+	if clienturlctx.ClientURL(ctx) != nil {
+		return next.Server(ctx).Request(ctx, request)
 	}
-	return next.Server(ctx).Request(ctx, request)
-}
+	candidates := discover.Candidates(ctx)
 
-func (s *selectEndpointServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	// TODO - we should remember the previous selection here.
-	ctx, err := s.withClientURL(ctx, conn)
-	if err != nil {
-		return nil, err
-	}
-	return next.Server(ctx).Close(ctx, conn)
-}
-
-func (s *selectEndpointServer) withClientURL(ctx context.Context, conn *networkservice.Connection) (context.Context, error) {
-	if clienturlctx.ClientURL(ctx) == nil {
-		candidates := discover.Candidates(ctx)
+	for i := 0; i < len(candidates.Endpoints); i++ {
 		endpoint := s.selector.selectEndpoint(candidates.NetworkService, candidates.Endpoints)
 		if endpoint == nil {
 			return nil, errors.Errorf("failed to find endpoint for Network Service: %v %v", candidates.NetworkService, candidates.Endpoints)
 		}
-		conn.NetworkServiceEndpointName = endpoint.GetName()
-		urlString := endpoint.Url
-		u, err := url.Parse(urlString)
+		u, err := url.Parse(endpoint.Url)
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
 		ctx = clienturlctx.WithClientURL(ctx, u)
-		return ctx, nil
+		request.GetConnection().NetworkServiceEndpointName = endpoint.Name
+		resp, err := next.Server(ctx).Request(ctx, request)
+		if err == nil {
+			return resp, err
+		}
 	}
-	return ctx, nil
+	return nil, errors.Errorf("all candidates %#v fail", candidates)
+}
+
+func (s *selectEndpointServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	if clienturlctx.ClientURL(ctx) != nil {
+		return next.Server(ctx).Close(ctx, conn)
+	}
+	return nil, errors.Errorf("passed incorrect connection: %+v", conn)
 }
