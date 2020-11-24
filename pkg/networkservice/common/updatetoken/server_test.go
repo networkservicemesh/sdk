@@ -105,6 +105,7 @@ func (f *updateTokenServerSuite) TestNewServer_IndexInLastPositionAddNewSegment(
 func (f *updateTokenServerSuite) TestNewServer_ValidIndexOverwriteValues() {
 	t := f.T()
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "conn-2",
@@ -125,26 +126,11 @@ func (f *updateTokenServerSuite) TestNewServer_ValidIndexOverwriteValues() {
 			},
 		},
 	}
-	expected := &networkservice.Connection{
-		Id: "conn-2",
-		Path: &networkservice.Path{
-			Index: 2,
-			PathSegments: []*networkservice.PathSegment{
-				{
-					Name: "nsc-0",
-					Id:   "conn-0",
-				}, {
-					Name: "nsc-1",
-					Id:   "conn-1",
-				}, {
-					Name:    "nsc-2",
-					Id:      "conn-2",
-					Token:   f.Token,
-					Expires: f.ExpiresProto,
-				},
-			},
-		},
-	}
+
+	expected := request.Connection.Clone()
+	expected.Path.PathSegments[2].Token = f.Token
+	expected.Path.PathSegments[2].Expires = f.ExpiresProto
+
 	server := next.NewNetworkServiceServer(updatepath.NewServer("nsc-2"), updatetoken.NewServer(TokenGenerator))
 	conn, err := server.Request(context.Background(), request)
 	assert.NoError(t, err)

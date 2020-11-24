@@ -20,18 +20,19 @@ import (
 	"context"
 	"testing"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
-
 	"github.com/dgrijalva/jwt-go"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
@@ -132,15 +133,16 @@ func TestWithTokensPathValidPolicy(t *testing.T) {
 		s := samples[i]
 		checkResult := func(err error) {
 			if s.isValidChain {
-				require.Nil(t, err)
+				require.NoError(t, err)
 				return
 			}
 
-			require.NotNil(t, err)
+			require.Error(t, err)
 			s, ok := status.FromError(errors.Cause(err))
 			require.True(t, ok, "error without error status code", err.Error())
 			require.Equal(t, s.Code(), codes.PermissionDenied, "wrong error status code")
 		}
+
 		var servers []networkservice.NetworkServiceServer
 		for _, server := range s.server {
 			servers = append(servers,
@@ -150,16 +152,10 @@ func TestWithTokensPathValidPolicy(t *testing.T) {
 					authorize.NewServer(authorize.WithPolicies(p))),
 			)
 		}
+		serverChain := next.NewNetworkServiceServer(servers...)
 
 		t.Run(s.name, func(t *testing.T) {
-			var err error
-			var request = genRequest()
-			for i := 0; i < len(servers); i++ {
-				request.Connection, err = servers[i].Request(context.Background(), request)
-				if err != nil {
-					break
-				}
-			}
+			_, err := serverChain.Request(context.Background(), genRequest())
 			checkResult(err)
 		})
 	}
