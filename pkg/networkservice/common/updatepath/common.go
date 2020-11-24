@@ -68,7 +68,7 @@ func updatePath(conn *networkservice.Connection, segmentName string) (*networkse
 	nextIndex := int(path.Index) + 1
 	if nextIndex > len(path.GetPathSegments()) {
 		// We have index > segments count
-		return nil, 0, errors.Errorf("Path.Index+1==%d should be less or equal len(Path.PathSegments)==%d",
+		return nil, 0, errors.Errorf("NetworkServiceRequest.Connection.Path.Index+1==%d should be less or equal len(NetworkServiceRequest.Connection.Path.PathSegement)==%d",
 			nextIndex, len(path.GetPathSegments()))
 	}
 
@@ -99,5 +99,5 @@ func updatePath(conn *networkservice.Connection, segmentName string) (*networkse
 		conn.Id = path.GetPathSegments()[conn.Path.Index].Id
 	}
 
-	return conn, conn.Path.Index - 1, nil
+	return conn, path.Index - 1, nil
 }
