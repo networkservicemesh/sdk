@@ -23,7 +23,6 @@ import (
 
 	"github.com/edwarnicke/serialize"
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/google/uuid"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
@@ -33,6 +32,7 @@ import (
 type serializer struct {
 	executors map[string]*executor
 	executor  serialize.Executor
+	state     uint32
 }
 
 type executor struct {
@@ -62,7 +62,7 @@ func (s *serializer) requestConnection(
 
 		requestCh = exec.executor.AsyncExec(func() {
 			for exec.state == 0 {
-				exec.state = uuid.New().ID()
+				exec.state = atomic.AddUint32(&s.state, 1)
 			}
 			conn, err = requestConn(withExecutors(ctx,
 				newRequestExecutor(exec, connID),
