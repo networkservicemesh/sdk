@@ -43,17 +43,18 @@ func (u *updateTokenClient) Request(ctx context.Context, request *networkservice
 		request.Connection = &networkservice.Connection{}
 	}
 	err := updateToken(ctx, request.GetConnection(), u.tokenGenerator)
-	index := request.GetConnection().GetPath().GetIndex()
-	id := request.GetConnection().GetId()
 	if err != nil {
 		return nil, err
 	}
+
+	id := request.GetConnection().GetId()
+
 	rv, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
 		return nil, err
 	}
-	rv.GetPath().Index = index
 	rv.Id = id
+
 	return rv, err
 }
 
