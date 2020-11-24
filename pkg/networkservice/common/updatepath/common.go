@@ -26,19 +26,21 @@ import (
 /*
 	Logic for Update path:
 
+	0. if Index == 0, and there is no current segment will add one.
 	1. If current path segment.Name is equal to segmentName passed, it will just update current connection.Id and exit.
 	2. If current path segment.Name is not equal to segmentName:
-		2.1 if path has next segment available and next name is segmentName, take Id from next path segment
-		2.2 if no next path segment available, it will add one more path segment and generate new Id, update connection.Id
-		2.3 if path has next segment available, but next name is not equal to segmentName, will return error.
-	3. if Index == 0, and there is no current segment will add one.
+		2.0 if current path segment.Id is not equal to current connection.Id, will return error.
+		2.1 if path has next segment available, but next name is not equal to segmentName, will update both next name and connection.Id.
+		2.2 if no next path segment available, it will add one more path segment and generate new Id, update connection.Id.
+		2.3 if path has next segment available and next name is segmentName, take Id from next path segment.
 */
 func updatePath(conn *networkservice.Connection, segmentName string) (*networkservice.Connection, uint32, error) {
 	if conn.Path == nil {
+		// If we don't have a Path, add one
 		conn.Path = &networkservice.Path{}
 	}
-	// If we don't have a Path, add one
 	if len(conn.GetPath().GetPathSegments()) == 0 {
+		// 0. Index == 0, and there is no current segment
 		conn.Path.Index = 0
 		if conn.Id == "" {
 			// Generate new ID for connection and segment.
@@ -55,21 +57,29 @@ func updatePath(conn *networkservice.Connection, segmentName string) (*networkse
 	path := conn.GetPath()
 
 	if int(path.Index) < len(path.PathSegments) && path.PathSegments[path.Index].Name == segmentName {
-		// We already in current segment, just update connection Id, no need to increment
+		// 1. current path segment.Name is equal to segmentName
 		conn.Id = path.PathSegments[path.Index].Id
 		return conn, path.Index, nil
 	}
 
+	// 2. current path segment.Name is not equal to segmentName
+
 	// We need to move to next item
 	nextIndex := int(path.Index) + 1
-
 	if nextIndex > len(path.GetPathSegments()) {
 		// We have index > segments count
-		return nil, 0, errors.Errorf("NetworkServiceRequest.Connection.Path.Index+1==%d should be less or equal len(NetworkServiceRequest.Connection.Path.PathSegement)==%d",
+		return nil, 0, errors.Errorf("Path.Index+1==%d should be less or equal len(Path.PathSegments)==%d",
 			nextIndex, len(path.GetPathSegments()))
 	}
+
+	if path.PathSegments[path.Index].Id != conn.Id {
+		// 2.0 current path segment.Id is not equal to current connection.Id
+		return nil, 0, errors.Errorf("Current PathSegment.Id==%v should be equal Connection.Id==%v",
+			path.PathSegments[path.Index].Id, conn.Id)
+	}
+
 	if nextIndex < len(path.GetPathSegments()) && path.GetPathSegments()[nextIndex].Name != segmentName {
-		// We have next, but name is different, so let's update Both Path segment.{Id,Name} and Connection.Id
+		// 2.1 path has next segment available, but next name is not equal to segmentName
 		path.PathSegments[nextIndex].Name = segmentName
 		path.PathSegments[nextIndex].Id = uuid.New().String()
 	}
@@ -78,16 +88,16 @@ func updatePath(conn *networkservice.Connection, segmentName string) (*networkse
 	conn.Path.Index++
 
 	if int(conn.Path.Index) >= len(path.GetPathSegments()) {
-		// Generate new Id for Path segment and connection Id if there is no one.
+		// 2.2 no next path segment available
 		conn.Id = uuid.New().String()
 		path.PathSegments = append(path.PathSegments, &networkservice.PathSegment{
 			Name: segmentName,
 			Id:   conn.Id,
 		})
 	} else {
-		// Set connection ID from current path Id, since we have current segment setup already.
+		// 2.3 path has next segment available and next name is segmentName
 		conn.Id = path.GetPathSegments()[conn.Path.Index].Id
 	}
 
-	return conn, path.Index - 1, nil
+	return conn, conn.Path.Index - 1, nil
 }
