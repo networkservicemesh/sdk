@@ -22,9 +22,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
+	"strconv"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
@@ -85,7 +89,7 @@ func TestNSMGR_RemoteUsecase_Parallel(t *testing.T) {
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-
+	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Requests))
 	require.Equal(t, 8, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client.
@@ -97,12 +101,80 @@ func TestNSMGR_RemoteUsecase_Parallel(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 8, len(conn.Path.PathSegments))
-
+	require.Equal(t, int32(2), atomic.LoadInt32(&counter.Requests))
 	// Close.
 	e, err := nsc.Close(ctx, conn)
 	require.NoError(t, err)
 	require.NotNil(t, e)
 	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Closes))
+}
+
+func TestNSMGR_RemoteUsecase_BusyEndpoints(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	logrus.SetOutput(ioutil.Discard)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	defer cancel()
+	domain := sandbox.NewBuilder(t).
+		SetNodesCount(2).
+		SetRegistryProxySupplier(nil).
+		SetContext(ctx).
+		Build()
+	defer domain.Cleanup()
+
+	counter := new(counterServer)
+
+	request := &networkservice.NetworkServiceRequest{
+		MechanismPreferences: []*networkservice.Mechanism{
+			{Cls: cls.LOCAL, Type: kernel.MECHANISM},
+		},
+		Connection: &networkservice.Connection{
+			Id:             "1",
+			NetworkService: "my-service-remote",
+			Context:        &networkservice.ConnectionContext{},
+		},
+	}
+	var wg sync.WaitGroup
+	for i := 0; i < 3; i++ {
+		wg.Add(1)
+		go func(id int) {
+			nseReg := &registry.NetworkServiceEndpoint{
+				Name:                "final-endpoint-" + strconv.Itoa(id),
+				NetworkServiceNames: []string{"my-service-remote"},
+			}
+			_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[1].NSMgr, newBusyEndpoint())
+			require.NoError(t, err)
+			wg.Done()
+		}(i)
+	}
+	go func() {
+		wg.Wait()
+		time.Sleep(time.Second / 2)
+		nseReg := &registry.NetworkServiceEndpoint{
+			Name:                "final-endpoint-3",
+			NetworkServiceNames: []string{"my-service-remote"},
+		}
+		_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[1].NSMgr, counter)
+		require.NoError(t, err)
+	}()
+	nsc, err := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
+	require.NoError(t, err)
+
+	conn, err := nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Requests))
+	require.Equal(t, 8, len(conn.Path.PathSegments))
+
+	// Simulate refresh from client.
+
+	refreshRequest := request.Clone()
+	refreshRequest.Connection = conn.Clone()
+
+	conn, err = nsc.Request(ctx, refreshRequest)
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+	require.Equal(t, int32(2), atomic.LoadInt32(&counter.Requests))
+	require.Equal(t, 8, len(conn.Path.PathSegments))
 }
 
 func TestNSMGR_RemoteUsecase(t *testing.T) {
@@ -143,7 +215,7 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-
+	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Requests))
 	require.Equal(t, 8, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client.
@@ -154,6 +226,7 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 	conn, err = nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
+	require.Equal(t, int32(2), atomic.LoadInt32(&counter.Requests))
 	require.Equal(t, 8, len(conn.Path.PathSegments))
 
 	// Close.
@@ -199,7 +272,7 @@ func TestNSMGR_LocalUsecase(t *testing.T) {
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-
+	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Requests))
 	require.Equal(t, 5, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client.
@@ -211,7 +284,7 @@ func TestNSMGR_LocalUsecase(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn2)
 	require.Equal(t, 5, len(conn2.Path.PathSegments))
-
+	require.Equal(t, int32(2), atomic.LoadInt32(&counter.Requests))
 	// Close.
 	e, err := nsc.Close(ctx, conn)
 	require.NoError(t, err)
@@ -401,4 +474,17 @@ func (c *counterServer) Request(ctx context.Context, request *networkservice.Net
 func (c *counterServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
 	atomic.AddInt32(&c.Closes, 1)
 	return next.Server(ctx).Close(ctx, connection)
+}
+
+type busyEndpoint struct{}
+
+func (c *busyEndpoint) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	return nil, errors.New("sorry, endpoint is busy, try again later")
+}
+
+func (c *busyEndpoint) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
+	return nil, errors.New("sorry, endpoint is busy, try again later")
+}
+func newBusyEndpoint() networkservice.NetworkServiceServer {
+	return new(busyEndpoint)
 }
