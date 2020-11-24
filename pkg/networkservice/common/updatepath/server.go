@@ -21,6 +21,7 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -38,19 +39,29 @@ func NewServer(name string) networkservice.NetworkServiceServer {
 	return &updatePathServer{name: name}
 }
 
-func (i *updatePathServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (_ *networkservice.Connection, err error) {
+func (i *updatePathServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (conn *networkservice.Connection, err error) {
 	if request.Connection == nil {
 		request.Connection = &networkservice.Connection{}
 	}
-	request.Connection, err = updatePath(request.Connection, i.name)
+
+	var index uint32
+	request.Connection, index, err = updatePath(request.Connection, i.name)
 	if err != nil {
 		return nil, err
 	}
-	return next.Server(ctx).Request(ctx, request)
+
+	conn, err = next.Server(ctx).Request(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
+	conn.Path.Index = index
+
+	return conn, err
 }
 
 func (i *updatePathServer) Close(ctx context.Context, conn *networkservice.Connection) (_ *empty.Empty, err error) {
-	conn, err = updatePath(conn, i.name)
+	conn, _, err = updatePath(conn, i.name)
 	if err != nil {
 		return nil, err
 	}

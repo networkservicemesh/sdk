@@ -54,8 +54,6 @@ func TestInterposeServer(t *testing.T) {
 	client := next.NewNetworkServiceClient(
 		updatepath.NewClient("client"),
 		adapters.NewServerToClient(next.NewNetworkServiceServer(
-			// actual `connect.NewServer()` should not update `request.Connection.Path.PathIndex`
-			new(restorePathServer),
 			updatepath.NewServer("nsmgr"),
 			clienturl.NewServer(&nseURL),
 			interposeServer,
@@ -66,11 +64,9 @@ func TestInterposeServer(t *testing.T) {
 			}),
 		)),
 		adapters.NewServerToClient(next.NewNetworkServiceServer(
-			new(restorePathServer),
 			updatepath.NewServer("interpose-nse"),
 		)),
 		adapters.NewServerToClient(next.NewNetworkServiceServer(
-			new(restorePathServer),
 			updatepath.NewServer("nsmgr"),
 			clienturl.NewServer(&nseURL),
 			interposeServer,
@@ -81,7 +77,6 @@ func TestInterposeServer(t *testing.T) {
 			}),
 		)),
 		adapters.NewServerToClient(next.NewNetworkServiceServer(
-			new(restorePathServer),
 			updatepath.NewServer("endpoint"),
 			touchServer,
 		)),
@@ -117,22 +112,6 @@ func TestInterposeServer(t *testing.T) {
 	_, err = client.Close(context.TODO(), conn)
 	require.NoError(t, err)
 	require.True(t, touchServer.touched)
-}
-
-type restorePathServer struct{}
-
-func (s *restorePathServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	pathIndex := request.Connection.Path.Index
-	conn, err := next.Server(ctx).Request(ctx, request)
-	request.Connection.Path.Index = pathIndex
-	return conn, err
-}
-
-func (s *restorePathServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	pathIndex := conn.Path.Index
-	_, err := next.Server(ctx).Close(ctx, conn)
-	conn.Path.Index = pathIndex
-	return &empty.Empty{}, err
 }
 
 type touchServer struct {

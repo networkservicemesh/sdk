@@ -18,8 +18,9 @@ package updatepath
 
 import (
 	"github.com/google/uuid"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
 /*
@@ -32,7 +33,7 @@ import (
 		2.3 if path has next segment available, but next name is not equal to segmentName, will return error.
 	3. if Index == 0, and there is no current segment will add one.
 */
-func updatePath(conn *networkservice.Connection, segmentName string) (*networkservice.Connection, error) {
+func updatePath(conn *networkservice.Connection, segmentName string) (*networkservice.Connection, uint32, error) {
 	if conn.Path == nil {
 		conn.Path = &networkservice.Path{}
 	}
@@ -48,7 +49,7 @@ func updatePath(conn *networkservice.Connection, segmentName string) (*networkse
 			Name: segmentName,
 			Id:   conn.Id,
 		})
-		return conn, nil
+		return conn, 0, nil
 	}
 
 	path := conn.GetPath()
@@ -56,7 +57,7 @@ func updatePath(conn *networkservice.Connection, segmentName string) (*networkse
 	if int(path.Index) < len(path.PathSegments) && path.PathSegments[path.Index].Name == segmentName {
 		// We already in current segment, just update connection Id, no need to increment
 		conn.Id = path.PathSegments[path.Index].Id
-		return conn, nil
+		return conn, path.Index, nil
 	}
 
 	// We need to move to next item
@@ -64,7 +65,7 @@ func updatePath(conn *networkservice.Connection, segmentName string) (*networkse
 
 	if nextIndex > len(path.GetPathSegments()) {
 		// We have index > segments count
-		return nil, errors.Errorf("NetworkServiceRequest.Connection.Path.Index+1==%d should be less or equal len(NetworkServiceRequest.Connection.Path.PathSegement)==%d",
+		return nil, 0, errors.Errorf("NetworkServiceRequest.Connection.Path.Index+1==%d should be less or equal len(NetworkServiceRequest.Connection.Path.PathSegement)==%d",
 			nextIndex, len(path.GetPathSegments()))
 	}
 	if nextIndex < len(path.GetPathSegments()) && path.GetPathSegments()[nextIndex].Name != segmentName {
@@ -88,5 +89,5 @@ func updatePath(conn *networkservice.Connection, segmentName string) (*networkse
 		conn.Id = path.GetPathSegments()[conn.Path.Index].Id
 	}
 
-	return conn, nil
+	return conn, path.Index - 1, nil
 }

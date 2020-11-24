@@ -44,15 +44,24 @@ func (i *updatePathClient) Request(ctx context.Context, request *networkservice.
 		request.Connection = &networkservice.Connection{}
 	}
 
-	request.Connection, err = updatePath(request.Connection, i.name)
+	var index uint32
+	request.Connection, index, err = updatePath(request.Connection, i.name)
 	if err != nil {
 		return nil, err
 	}
-	return next.Client(ctx).Request(ctx, request, opts...)
+
+	conn, err = next.Client(ctx).Request(ctx, request, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	conn.Path.Index = index
+
+	return conn, err
 }
 
 func (i *updatePathClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (_ *empty.Empty, err error) {
-	conn, err = updatePath(conn, i.name)
+	conn, _, err = updatePath(conn, i.name)
 	if err != nil {
 		return nil, err
 	}

@@ -135,26 +135,11 @@ func (f *updatePathClientSuite) TestNewClient_ValidIndexOverwriteValues() {
 			},
 		},
 	}
-	expected := &networkservice.Connection{
-		Id: "conn-1",
-		Path: &networkservice.Path{
-			Index: 1,
-			PathSegments: []*networkservice.PathSegment{
-				{
-					Name: "nsc-0",
-					Id:   "conn-0",
-				}, {
-					Name:    "nsc-1",
-					Id:      "conn-1",
-					Token:   f.Token,
-					Expires: f.ExpiresProto,
-				}, {
-					Name: "nsc-2",
-					Id:   "conn-2",
-				},
-			},
-		},
-	}
+
+	expected := request.Connection.Clone()
+	expected.Path.PathSegments[1].Token = f.Token
+	expected.Path.PathSegments[1].Expires = f.ExpiresProto
+
 	conn, err := client.Request(context.Background(), request)
 	assert.NoError(t, err)
 	equalJSON(t, expected, conn)
