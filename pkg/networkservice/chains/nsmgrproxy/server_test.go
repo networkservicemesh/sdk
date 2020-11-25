@@ -86,9 +86,7 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 	// Simulate refresh from client.
 
 	refreshRequest := request.Clone()
-	refreshRequest.GetConnection().Context = conn.Context
-	refreshRequest.GetConnection().Mechanism = conn.Mechanism
-	refreshRequest.GetConnection().NetworkServiceEndpointName = conn.NetworkServiceEndpointName
+	refreshRequest.Connection = conn.Clone()
 
 	conn, err = nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
