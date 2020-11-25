@@ -77,7 +77,7 @@ func (f *updateTokenServerSuite) TestNewServer_IndexInLastPositionAddNewSegment(
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
-			Id: "conn-2",
+			Id: "conn-1",
 			Path: &networkservice.Path{
 				Index: 1,
 				PathSegments: []*networkservice.PathSegment{
@@ -97,7 +97,6 @@ func (f *updateTokenServerSuite) TestNewServer_IndexInLastPositionAddNewSegment(
 	require.NoError(t, err)
 	require.Equal(t, 3, len(conn.Path.PathSegments))
 	require.Equal(t, "nsc-2", conn.Path.PathSegments[2].Name)
-	require.Equal(t, conn.Id, conn.Path.PathSegments[2].Id)
 	require.Equal(t, f.Token, conn.Path.PathSegments[2].Token)
 	equalJSON(t, f.ExpiresProto, conn.Path.PathSegments[2].Expires)
 }
@@ -108,7 +107,7 @@ func (f *updateTokenServerSuite) TestNewServer_ValidIndexOverwriteValues() {
 
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
-			Id: "conn-2",
+			Id: "conn-1",
 			Path: &networkservice.Path{
 				Index: 1,
 				PathSegments: []*networkservice.PathSegment{

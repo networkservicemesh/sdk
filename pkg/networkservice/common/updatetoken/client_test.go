@@ -117,7 +117,7 @@ func (f *updatePathClientSuite) TestNewClient_ValidIndexOverwriteValues() {
 	client := next.NewNetworkServiceClient(updatepath.NewClient("nsc-1"), updatetoken.NewClient(TokenGenerator))
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
-			Id: "conn-1",
+			Id: "conn-0",
 			Path: &networkservice.Path{
 				Index: 0,
 				PathSegments: []*networkservice.PathSegment{
