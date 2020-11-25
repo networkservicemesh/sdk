@@ -24,6 +24,7 @@ import (
 	"runtime/debug"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/google/uuid"
 	"google.golang.org/grpc/metadata"
@@ -42,13 +43,18 @@ type spanHelperKeyType string
 
 const (
 	spanHelperTraceDepth spanHelperKeyType = "spanHelperTraceDepth"
+	spanHelperState      spanHelperKeyType = "spanHelperState"
 	maxStringLength      int               = 1000
 	dotCount             int               = 3
 	separator            string            = " "
 	startSeparator       string            = " "
+
+	spanField      string = "span"
+	operationField string = "operation"
 )
 
 var localTraceInfo sync.Map
+var hookInit sync.Once
 
 type traceCtxInfo struct {
 	level      int
@@ -102,35 +108,27 @@ func fromContext(ctx context.Context) *traceCtxInfo {
 
 // LogFromSpan - return a logger that has a TraceHook to also log messages to the span
 func LogFromSpan(span opentracing.Span) logrus.FieldLogger {
-	logger := logrus.Logger{
-		Out:          logrus.StandardLogger().Out,
-		Formatter:    logrus.StandardLogger().Formatter,
-		Hooks:        make(logrus.LevelHooks),
-		Level:        logrus.StandardLogger().Level,
-		ExitFunc:     logrus.StandardLogger().ExitFunc,
-		ReportCaller: logrus.StandardLogger().ReportCaller,
+	if span == nil {
+		return logrus.StandardLogger()
 	}
-	for k, v := range logrus.StandardLogger().Hooks {
-		logger.Hooks[k] = v
-	}
-	if span != nil {
-		logger := logger.WithField("span", span)
-		logger.Logger.AddHook(NewTraceHook(span))
-		return logger
-	}
-	return &logger
+	hookInit.Do(func() {
+		logrus.AddHook(&traceHook{})
+	})
+
+	return logrus.StandardLogger().
+		WithField(spanField, span).
+		WithContext(context.WithValue(
+			context.Background(),
+			spanHelperState,
+			&traceHookState{span: span},
+		))
 }
 
-type traceHook struct {
-	index int
+type traceHook struct{}
+
+type traceHookState struct {
+	index int32
 	span  opentracing.Span
-}
-
-// NewTraceHook - create a TraceHook for also logging to a span
-func NewTraceHook(span opentracing.Span) logrus.Hook {
-	return &traceHook{
-		span: span,
-	}
 }
 
 func (h *traceHook) Levels() []logrus.Level {
@@ -138,12 +136,35 @@ func (h *traceHook) Levels() []logrus.Level {
 }
 
 func (h *traceHook) Fire(entry *logrus.Entry) error {
-	msg, err := entry.String()
-	if err != nil {
-		return err
+	if entry.Context == nil {
+		return nil
 	}
-	h.span.LogFields(log.String(fmt.Sprintf("log[%d]", h.index), msg))
-	h.index++
+	state, ok := entry.Context.Value(spanHelperState).(*traceHookState)
+	if !ok {
+		return nil
+	}
+
+	idx := atomic.AddInt32(&state.index, 1) - 1
+	fields := []log.Field{
+		log.String(
+			fmt.Sprintf("log[%v]", idx),
+			fmt.Sprintf("[%s] %s",
+				strings.ToUpper(entry.Level.String()),
+				entry.Message),
+		),
+	}
+	for key, val := range entry.Data {
+		if key == spanField || key == operationField {
+			continue
+		}
+		str, ok := val.(string)
+		if !ok {
+			str = fmt.Sprint(val)
+		}
+		fields = append(fields, log.String(key, str))
+	}
+	state.span.LogFields(fields...)
+
 	return nil
 }
 
@@ -234,7 +255,7 @@ func (s *spanHelper) Logger() logrus.FieldLogger {
 	if s.logger == nil {
 		s.logger = LogFromSpan(s.span)
 		if s.operation != "" {
-			s.logger = s.logger.WithField("operation", s.operation)
+			s.logger = s.logger.WithField(operationField, s.operation)
 		}
 	}
 	return s.logger
