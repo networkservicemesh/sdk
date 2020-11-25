@@ -212,14 +212,14 @@ func (s *spanHelper) LogObject(attribute string, value interface{}) {
 	if s.span != nil {
 		s.span.LogFields(log.Object(attribute, limitString(msg)))
 	}
-	s.logEntry().Infof("%v %s %s=%v%v", s.info.incInfo(), strings.Repeat(separator, s.info.level), attribute, msg, s.getSpan())
+	s.logEntry().Tracef("%v %s %s=%v%v", s.info.incInfo(), strings.Repeat(separator, s.info.level), attribute, msg, s.getSpan())
 }
 
 func (s *spanHelper) LogValue(attribute string, value interface{}) {
 	if s.span != nil {
 		s.span.LogFields(log.Object(attribute, limitString(fmt.Sprint(value))))
 	}
-	s.logEntry().Infof("%v %s %s=%v%v", s.info.incInfo(), strings.Repeat(separator, s.info.level), attribute, value, s.getSpan())
+	s.logEntry().Tracef("%v %s %s=%v%v", s.info.incInfo(), strings.Repeat(separator, s.info.level), attribute, value, s.getSpan())
 }
 
 func (s *spanHelper) Finish() {
@@ -274,7 +274,7 @@ func FromContext(ctx context.Context, operation string) (result SpanHelper) {
 
 func (s *spanHelper) printStart(operation string) {
 	prefix := strings.Repeat(startSeparator, s.info.level)
-	s.logEntry().Infof("%v%s⎆ %v()%v", s.info.incInfo(), prefix, operation, s.getSpan())
+	s.logEntry().Tracef("%v%s⎆ %v()%v", s.info.incInfo(), prefix, operation, s.getSpan())
 }
 
 // GetSpanHelper - construct a span helper object from current context span
