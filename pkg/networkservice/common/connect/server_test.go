@@ -37,7 +37,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/vfio"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect/translation"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
@@ -71,12 +70,7 @@ func TestConnectServer_Request(t *testing.T) {
 
 	s := next.NewNetworkServiceServer(
 		connect.NewServer(context.TODO(),
-			func() networkservice.NetworkServiceClient {
-				return new(translation.Builder).
-					WithRequestOptions(translation.ReplaceMechanism()).
-					WithConnectionOptions(translation.WithContext()).
-					Build()
-			}, func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+			func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 				return next.NewNetworkServiceClient(
 					adapters.NewServerToClient(serverClient),
 					networkservice.NewNetworkServiceClient(cc),
@@ -141,39 +135,19 @@ func TestConnectServer_Request(t *testing.T) {
 		require.NoError(t, err)
 
 		requestClient := request.Clone()
-		requestClient.Connection.Mechanism = nil
 		require.Equal(t, requestClient.String(), serverClient.capturedRequest.String())
 
 		requestA := request.Clone()
-		requestA.Connection.Mechanism = nil
 		require.Equal(t, requestA.String(), serverA.capturedRequest.String())
 
 		requestNext := request.Clone()
+		requestNext.Connection.Mechanism.Type = kernel.MECHANISM
 		requestNext.Connection.Context.ExtraContext["a"] = "A"
 		require.Equal(t, requestNext.String(), serverNext.capturedRequest.String())
 
 		require.Equal(t, requestNext.Connection.String(), conn.String())
 
-		// 6. Re request A
-
-		conn, err = s.Request(clienturlctx.WithClientURL(ctx, urlA), request.Clone())
-		require.NoError(t, err)
-
-		requestClient = request.Clone()
-		requestClient.Connection.Mechanism.Type = kernel.MECHANISM
-		require.Equal(t, requestClient.String(), serverClient.capturedRequest.String())
-
-		requestA = request.Clone()
-		requestA.Connection.Mechanism.Type = kernel.MECHANISM
-		require.Equal(t, requestA.String(), serverA.capturedRequest.String())
-
-		requestNext = request.Clone()
-		requestNext.Connection.Context.ExtraContext["a"] = "A"
-		require.Equal(t, requestNext.String(), serverNext.capturedRequest.String())
-
-		require.Equal(t, requestNext.Connection.String(), conn.String())
-
-		// 7. Request B
+		// 6. Request B
 
 		request.Connection = conn
 
@@ -181,16 +155,15 @@ func TestConnectServer_Request(t *testing.T) {
 		require.NoError(t, err)
 
 		requestClient = request.Clone()
-		requestClient.Connection.Mechanism = nil
 		require.Equal(t, requestClient.String(), serverClient.capturedRequest.String())
 
 		require.Nil(t, serverA.capturedRequest)
 
 		requestB := request.Clone()
-		requestB.Connection.Mechanism = nil
 		require.Equal(t, requestB.String(), serverB.capturedRequest.String())
 
 		requestNext = request.Clone()
+		requestNext.Connection.Mechanism.Type = memif.MECHANISM
 		requestNext.Connection.Context.ExtraContext["b"] = "B"
 		require.Equal(t, requestNext.String(), serverNext.capturedRequest.String())
 
@@ -217,9 +190,7 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 
 	s := next.NewNetworkServiceServer(
 		connect.NewServer(context.TODO(),
-			func() networkservice.NetworkServiceClient {
-				return new(translation.Builder).Build()
-			}, func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+			func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 				return next.NewNetworkServiceClient(
 					adapters.NewServerToClient(serverClient),
 					networkservice.NewNetworkServiceClient(cc),

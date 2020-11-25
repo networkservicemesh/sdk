@@ -39,12 +39,11 @@ import (
 )
 
 type connectServer struct {
-	ctx                      context.Context
-	translationClientFactory func() networkservice.NetworkServiceClient
-	clientFactory            func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient
-	clientDialOptions        []grpc.DialOption
-	connInfos                connectionInfoMap
-	clients                  clientmap.RefcountMap
+	ctx               context.Context
+	clientFactory     func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient
+	clientDialOptions []grpc.DialOption
+	connInfos         connectionInfoMap
+	clients           clientmap.RefcountMap
 }
 
 type connectionInfo struct {
@@ -55,15 +54,13 @@ type connectionInfo struct {
 // NewServer - chain element that
 func NewServer(
 	ctx context.Context,
-	translationClientFactory func() networkservice.NetworkServiceClient,
 	clientFactory func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient,
 	clientDialOptions ...grpc.DialOption,
 ) networkservice.NetworkServiceServer {
 	return &connectServer{
-		ctx:                      ctx,
-		translationClientFactory: translationClientFactory,
-		clientFactory:            clientFactory,
-		clientDialOptions:        clientDialOptions,
+		ctx:               ctx,
+		clientFactory:     clientFactory,
+		clientDialOptions: clientDialOptions,
 	}
 }
 
@@ -150,7 +147,6 @@ func (s *connectServer) newClient(clientURL *url.URL) (networkservice.NetworkSer
 
 	*clientPtr = chain.NewNetworkServiceClient(
 		&connectClient{onClose: onClose},
-		s.translationClientFactory(),
 		clienturl.NewClient(clienturlctx.WithClientURL(ctx, clientURL), s.clientFactory, s.clientDialOptions...),
 	)
 

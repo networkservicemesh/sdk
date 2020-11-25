@@ -1,7 +1,7 @@
-# Functional requirements
+# Functional requirements 
 
 Upon receipt of a Request, the connect Server chain element must send, as a client, a corresponding request to 
-another Server.  For clarity, we will refer to the incoming Request to the server as the 'server Request'.
+another Server. For clarity, we will refer to the incoming Request to the server as the 'server Request'.
 
 If the server request.GetConnection.GetId() is not associated to an existing client Connection, a new Connection
 must be established by sending a Request to the Server indicated by the clienturl.ClientURL(ctx).
@@ -18,17 +18,11 @@ return without error.
 
 # Implementation
 
-## translationClientFactory
-
-Each incoming server Connection must be translated to its corresponding client Connection for subsequent server Request and Server Close
-calls. For this reason, [translation](https://github.com/networkservicemesh/pkg/networkservice/common/connect/translation)
-clients are implemented, to manage that translation.
-
 ## connectServer
 
 `connectServer` keeps `connInfos` [connectionInfoMap](https://github.com/networkservicemesh/pkg/networkservice/common/connect/gen.go#25)
 mapping incoming server `Connection.ID` to the remote server URL and to the client chain assigned to this URL, and `clients` [clientmap.RefcountMap](https://github.com/networkservicemesh/sdk/blob/master/pkg/tools/clientmap/refcount.go)
-mapping remote server URL to a chain consisting of the corresponding translation client and a [clienturl.NewClient(...)](https://github.com/networkservicemesh/sdk/blob/master/pkg/networkservice/common/clienturl/client.go)
+mapping remote server URL to a [clienturl.NewClient(...)](https://github.com/networkservicemesh/sdk/blob/master/pkg/networkservice/common/clienturl/client.go)
 which handles the instantiation and management of the client connection from the `clienturl.ClientURL(ctx)` of the server
 Request. Notably, on every [clienturl.NewClient(...)](https://github.com/networkservicemesh/sdk/blob/master/pkg/networkservice/common/clienturl/client.go)
 Close it is deleted from the `clients` map, so eventually its context will be canceled and the corresponding `grpc.ClientConn`

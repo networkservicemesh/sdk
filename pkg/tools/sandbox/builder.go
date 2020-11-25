@@ -23,9 +23,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/forwarder"
-	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
-
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -40,16 +37,16 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
-
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/memory"
-	proxydns "github.com/networkservicemesh/sdk/pkg/registry/chains/proxydns"
+	"github.com/networkservicemesh/sdk/pkg/registry/chains/proxydns"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 	interpose_reg "github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
 	adapter_registry "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -315,15 +312,13 @@ func supplyDummyForwarder(ctx context.Context, name string, generateToken token.
 		// Statically set the url we use to the unix file socket for the NSMgr
 		clienturl.NewServer(connectTo),
 		connect.NewServer(ctx,
-			forwarder.NewTranslationClient,
-			client.NewClientFactory(
+			client.NewCrossConnectClientFactory(
 				name,
 				// What to call onHeal
 				addressof.NetworkServiceClient(adapters.NewServerToClient(result)),
-				generateToken,
-			),
-			grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)),
-		))
-
+				generateToken),
+			dialOptions...,
+		),
+	)
 	return result
 }

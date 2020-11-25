@@ -20,23 +20,22 @@ package client
 import (
 	"context"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injectpeer"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/translation"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injectpeer"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-// NewClient - returns a NetworkServiceMesh client as a chain of the standard Client pieces plus whatever
-//             additional functionality is specified
+// NewClient - returns a (1.) case NSM client.
 //             - ctx    - context for the lifecycle of the *Client* itself.  Cancel when discarding the client.
 //             - name   - name of the NetworkServiceMeshClient
 //             - onHeal - *networkservice.NetworkServiceClient.  Since networkservice.NetworkServiceClient is an interface
@@ -71,20 +70,17 @@ func NewClient(ctx context.Context, name string, onHeal *networkservice.NetworkS
 	return rv
 }
 
-// NewClientFactory - returns a func(cc grpc.ClientConnInterface)that returns a  standard Client pieces plus whatever
-//                    additional functionality is specified
-//                    - name - name of the NetworkServiceMeshClient
-//                    - onHeal - *networkservice.NetworkServiceClient.  Since networkservice.NetworkServiceClient is an interface
-//                        (and thus a pointer) *networkservice.NetworkServiceClient is a double pointer.  Meaning it
-//                        points to a place that points to a place that implements networkservice.NetworkServiceClient
-//                        This is done because when we use heal.NewClient as part of a chain, we may not *have*
-//                        a pointer to this
-//                        client used 'onHeal'.  If we detect we need to heal, onHeal.Request is used to heal.
-//                        If onHeal is nil, then we simply set onHeal to this client chain element
-//                        If we are part of a larger chain or a server, we should pass the resulting chain into
-//                        this constructor before we actually have a pointer to it.
-//                        If onHeal nil, onHeal will be pointed to the returned networkservice.NetworkServiceClient
-//                    - additionalFunctionality - any additional NetworkServiceClient chain elements to be included in the chain
+// NewCrossConnectClientFactory - returns a (2.) case func(cc grpc.ClientConnInterface) NSM client factory.
+func NewCrossConnectClientFactory(name string, onHeal *networkservice.NetworkServiceClient, tokenGenerator token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceClient) func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+	return func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+		return chain.NewNetworkServiceClient(
+			translation.NewClient(),
+			NewClient(ctx, name, onHeal, tokenGenerator, cc, additionalFunctionality...),
+		)
+	}
+}
+
+// NewClientFactory - returns a (3.) case func(cc grpc.ClientConnInterface) NSM client factory.
 func NewClientFactory(name string, onHeal *networkservice.NetworkServiceClient, tokenGenerator token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceClient) func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 	return func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 		return NewClient(ctx, name, onHeal, tokenGenerator, cc, additionalFunctionality...)

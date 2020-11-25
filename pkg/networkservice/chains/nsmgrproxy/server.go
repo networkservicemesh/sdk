@@ -24,7 +24,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/externalips"
@@ -44,7 +43,6 @@ func NewServer(ctx context.Context, name string, tokenGenerator token.GeneratorF
 		swapip.NewServer(),
 		connect.NewServer(
 			ctx,
-			nsmgr.NewTranslationClient,
 			client.NewClientFactory(name,
 				nil,
 				tokenGenerator),

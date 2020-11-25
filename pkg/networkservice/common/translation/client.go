@@ -14,53 +14,59 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package translation provides client chain element to translate server request mechanisms to client request mechanisms
+// and client connection mechanisms to server connection mechanisms
 package translation
 
 import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
 type translationClient struct {
-	requestOpts []RequestOption
-	connOpts    []ConnectionOption
-	clientConns connectionMap
+	mechs mechanismMap
+}
+
+// NewClient returns a new translation client chain element
+func NewClient() networkservice.NetworkServiceClient {
+	return new(translationClient)
 }
 
 func (c *translationClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
 	connID := request.GetConnection().GetId()
 
-	// 1. Translate request
+	// 1. Translate request mechanisms
 	clientRequest := request.Clone()
-	clientConn, _ := c.clientConns.Load(connID)
-	for _, opt := range c.requestOpts {
-		opt(clientRequest, clientConn)
-	}
+	clientRequest.MechanismPreferences = nil
+
+	mech, _ := c.mechs.Load(connID)
+	clientRequest.Connection.Mechanism = mech
 
 	// 2. Request client chain
-	clientConn, err = next.Client(ctx).Request(ctx, clientRequest, opts...)
+	clientConn, err := next.Client(ctx).Request(ctx, clientRequest, opts...)
 	if err != nil {
 		return nil, err
 	}
-	c.clientConns.Store(connID, clientConn)
+	c.mechs.Store(connID, clientConn.Mechanism)
 
-	// 3. Translate connection
-	conn = request.GetConnection()
-	for _, opt := range c.connOpts {
-		opt(conn, clientConn)
-	}
+	// 3. Translate connection mechanism
+	conn = clientConn.Clone()
+	conn.Mechanism = request.Connection.GetMechanism()
 
 	return conn, nil
 }
 
 func (c *translationClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	if clientConn, ok := c.clientConns.LoadAndDelete(conn.GetId()); ok {
-		conn = clientConn
-	}
+	// 1. Translate connection mechanism
+	mech, _ := c.mechs.LoadAndDelete(conn.GetId())
+	conn.Mechanism = mech
+
+	// 2. Close client chain
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }

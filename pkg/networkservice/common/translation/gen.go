@@ -14,21 +14,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package nsmgr
+package translation
 
 import (
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect/translation"
+	"sync"
 )
 
-// NewTranslationClient returns a new translation client for the NSMgr
-func NewTranslationClient() networkservice.NetworkServiceClient {
-	return new(translation.Builder).
-		WithConnectionOptions(
-			translation.WithMechanism(),
-			translation.WithContext(),
-			translation.WithPathSegments(),
-		).
-		Build()
-}
+//go:generate go-syncmap -output mechanism_map.gen.go -type mechanismMap<string,*github.com/networkservicemesh/api/pkg/api/networkservice.Mechanism>
+
+type mechanismMap sync.Map

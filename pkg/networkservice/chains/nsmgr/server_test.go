@@ -41,8 +41,8 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect/translation"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
@@ -81,8 +81,7 @@ func TestNSMGR_RemoteUsecase_Parallel(t *testing.T) {
 		_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, counter)
 		require.NoError(t, err)
 	}()
-	nsc, err := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[1].NSMgr.URL)
-	require.NoError(t, err)
+	nsc := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[1].NSMgr.URL)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -100,7 +99,9 @@ func TestNSMGR_RemoteUsecase_Parallel(t *testing.T) {
 	require.NotNil(t, conn)
 	require.Equal(t, 8, len(conn.Path.PathSegments))
 	require.Equal(t, int32(2), atomic.LoadInt32(&counter.Requests))
+
 	// Close.
+
 	e, err := nsc.Close(ctx, conn)
 	require.NoError(t, err)
 	require.NotNil(t, e)
@@ -154,8 +155,7 @@ func TestNSMGR_RemoteUsecase_BusyEndpoints(t *testing.T) {
 		_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[1].NSMgr, counter)
 		require.NoError(t, err)
 	}()
-	nsc, err := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
-	require.NoError(t, err)
+	nsc := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -207,8 +207,7 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 		},
 	}
 
-	nsc, err := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[1].NSMgr.URL)
-	require.NoError(t, err)
+	nsc := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[1].NSMgr.URL)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -256,8 +255,7 @@ func TestNSMGR_LocalUsecase(t *testing.T) {
 	_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, counter)
 	require.NoError(t, err)
 
-	nsc, err := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
-	require.NoError(t, err)
+	nsc := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -309,20 +307,21 @@ func TestNSMGR_PassThroughRemote(t *testing.T) {
 	defer domain.Cleanup()
 
 	for i := 0; i < nodesCount; i++ {
-		additionalFunctionality := []networkservice.NetworkServiceServer{}
+		var additionalFunctionality []networkservice.NetworkServiceServer
 		if i != 0 {
 			k := i
 			// Passtrough to the node i-1
 			additionalFunctionality = []networkservice.NetworkServiceServer{
-				clienturl.NewServer(domain.Nodes[i].NSMgr.URL),
-				connect.NewServer(ctx,
-					func() networkservice.NetworkServiceClient {
-						return newPassThroughTranslationClient(
-							fmt.Sprintf("my-service-remote-%v", k-1),
-							fmt.Sprintf("endpoint-%v", k-1))
-					},
-					sandbox.NewClientFactory(sandbox.GenerateTestToken, kernel.NewClient()),
-					append(spanhelper.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...,
+				chain.NewNetworkServiceServer(
+					clienturl.NewServer(domain.Nodes[i].NSMgr.URL),
+					connect.NewServer(ctx,
+						sandbox.NewCrossConnectClientFactory(sandbox.GenerateTestToken,
+							newPassTroughClient(
+								fmt.Sprintf("my-service-remote-%v", k-1),
+								fmt.Sprintf("endpoint-%v", k-1)),
+							kernel.NewClient()),
+						append(spanhelper.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...,
+					),
 				),
 			}
 		}
@@ -334,8 +333,7 @@ func TestNSMGR_PassThroughRemote(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	nsc, err := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[nodesCount-1].NSMgr.URL)
-	require.NoError(t, err)
+	nsc := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[nodesCount-1].NSMgr.URL)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -372,19 +370,20 @@ func TestNSMGR_PassThroughLocal(t *testing.T) {
 	defer domain.Cleanup()
 
 	for i := 0; i < nsesCount; i++ {
-		additionalFunctionality := []networkservice.NetworkServiceServer{}
+		var additionalFunctionality []networkservice.NetworkServiceServer
 		if i != 0 {
 			k := i
 			additionalFunctionality = []networkservice.NetworkServiceServer{
-				clienturl.NewServer(domain.Nodes[0].NSMgr.URL),
-				connect.NewServer(ctx,
-					func() networkservice.NetworkServiceClient {
-						return newPassThroughTranslationClient(
-							fmt.Sprintf("my-service-remote-%v", k-1),
-							fmt.Sprintf("endpoint-%v", k-1))
-					},
-					sandbox.NewClientFactory(sandbox.GenerateTestToken, kernel.NewClient()),
-					append(spanhelper.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...,
+				chain.NewNetworkServiceServer(
+					clienturl.NewServer(domain.Nodes[0].NSMgr.URL),
+					connect.NewServer(ctx,
+						sandbox.NewCrossConnectClientFactory(sandbox.GenerateTestToken,
+							newPassTroughClient(
+								fmt.Sprintf("my-service-remote-%v", k-1),
+								fmt.Sprintf("endpoint-%v", k-1)),
+							kernel.NewClient()),
+						append(spanhelper.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...,
+					),
 				),
 			}
 		}
@@ -396,8 +395,7 @@ func TestNSMGR_PassThroughLocal(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	nsc, err := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
-	require.NoError(t, err)
+	nsc := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -419,20 +417,28 @@ func TestNSMGR_PassThroughLocal(t *testing.T) {
 	require.Equal(t, 5*(nsesCount-1)+5, len(conn.Path.PathSegments))
 }
 
-func newPassThroughTranslationClient(networkService, networkServiceEndpointName string) networkservice.NetworkServiceClient {
-	return new(translation.Builder).
-		WithRequestOptions(
-			func(request *networkservice.NetworkServiceRequest, _ *networkservice.Connection) {
-				request.Connection.NetworkService = networkService
-				request.Connection.NetworkServiceEndpointName = networkServiceEndpointName
-			},
-			translation.ReplaceMechanismPreferences(),
-		).
-		WithConnectionOptions(
-			translation.WithContext(),
-			translation.WithPathSegments(),
-		).
-		Build()
+type passThroughClient struct {
+	networkService             string
+	networkServiceEndpointName string
+}
+
+func newPassTroughClient(networkService, networkServiceEndpointName string) *passThroughClient {
+	return &passThroughClient{
+		networkService:             networkService,
+		networkServiceEndpointName: networkServiceEndpointName,
+	}
+}
+
+func (c *passThroughClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	request.Connection.NetworkService = c.networkService
+	request.Connection.NetworkServiceEndpointName = c.networkServiceEndpointName
+	return next.Client(ctx).Request(ctx, request, opts...)
+}
+
+func (c *passThroughClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	conn.NetworkService = c.networkService
+	conn.NetworkServiceEndpointName = c.networkServiceEndpointName
+	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
 type counterServer struct {
