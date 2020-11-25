@@ -22,8 +22,9 @@ import (
 	"net/url"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
@@ -32,35 +33,49 @@ import (
 
 type interdomainURLServer struct{}
 
-func (i *interdomainURLServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	nseName := request.GetConnection().GetNetworkServiceEndpointName()
-	if nseName == "" {
-		return nil, errors.New("NSE is not selected")
-	}
-	remoteURL := interdomain.Domain(nseName)
-	u, err := url.Parse(remoteURL)
-	if err != nil {
-		return nil, errors.Wrap(err, "selected NSE has wrong name. Make sure that proxy-registry has handled NSE")
-	}
-	request.GetConnection().NetworkServiceEndpointName = interdomain.Target(nseName)
-	return next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request)
-}
-
-func (i *interdomainURLServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
-	nseName := connection.GetNetworkServiceEndpointName()
-	if nseName == "" {
-		return nil, errors.New("NSE is not selected")
-	}
-	remoteURL := interdomain.Domain(nseName)
-	u, err := url.Parse(remoteURL)
-	if err != nil {
-		return nil, errors.Wrap(err, "selected NSE has wrong name. Make sure that proxy-registry has handled NSE")
-	}
-	connection.NetworkServiceEndpointName = interdomain.Target(nseName)
-	return next.Server(ctx).Close(clienturlctx.WithClientURL(ctx, u), connection)
-}
-
 // NewServer creates new interdomainurl chain element
 func NewServer() networkservice.NetworkServiceServer {
 	return &interdomainURLServer{}
+}
+
+func (i *interdomainURLServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	interDomainNSEName := request.GetConnection().GetNetworkServiceEndpointName()
+	nseName, domainURL, err := parseInterDomainNSEName(interDomainNSEName)
+	if err != nil {
+		return nil, err
+	}
+	request.GetConnection().NetworkServiceEndpointName = nseName
+
+	conn, err := next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, domainURL), request)
+	if err != nil {
+		return nil, err
+	}
+	conn.NetworkServiceEndpointName = interDomainNSEName
+
+	return conn, nil
+}
+
+func (i *interdomainURLServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	interDomainNSEName := conn.GetNetworkServiceEndpointName()
+	nseName, domainURL, err := parseInterDomainNSEName(interDomainNSEName)
+	if err != nil {
+		return nil, err
+	}
+	conn.NetworkServiceEndpointName = nseName
+
+	return next.Server(ctx).Close(clienturlctx.WithClientURL(ctx, domainURL), conn)
+}
+
+func parseInterDomainNSEName(interDomainNSEName string) (string, *url.URL, error) {
+	if interDomainNSEName == "" {
+		return "", nil, errors.New("NSE is not selected")
+	}
+
+	remoteURL := interdomain.Domain(interDomainNSEName)
+	u, err := url.Parse(remoteURL)
+	if err != nil {
+		return "", nil, errors.Wrap(err, "selected NSE has wrong name. Make sure that proxy-registry has handled NSE")
+	}
+
+	return interdomain.Target(interDomainNSEName), u, nil
 }

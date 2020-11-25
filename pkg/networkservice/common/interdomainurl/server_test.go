@@ -18,6 +18,7 @@ package interdomainurl_test
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"testing"
 
@@ -27,11 +28,17 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interdomainurl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 )
 
+const (
+	nseName   = "nse1"
+	domainURL = "tcp://127.0.0.1:5000"
+)
+
 func TestInterdomainURLServer_Register(t *testing.T) {
-	expected, err := url.Parse("tcp://127.0.0.1:5000")
+	expected, err := url.Parse(domainURL)
 	require.NoError(t, err)
 
 	s := next.NewNetworkServiceServer(
@@ -39,11 +46,18 @@ func TestInterdomainURLServer_Register(t *testing.T) {
 		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
 			require.Equal(t, *expected, *clienturlctx.ClientURL(ctx))
 		}),
+		checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
+			require.Equal(t, nseName, request.Connection.NetworkServiceEndpointName)
+		}),
 	)
-	_, err = s.Request(context.Background(), &networkservice.NetworkServiceRequest{
+
+	conn, err := s.Request(context.Background(), &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
-			NetworkServiceEndpointName: "nse1@" + expected.String(),
+			NetworkServiceEndpointName: fmt.Sprintf("%s@%s", nseName, domainURL),
 		},
 	})
 	require.NoError(t, err)
+	require.NotNil(t, conn)
+
+	require.Equal(t, fmt.Sprintf("%s@%s", nseName, domainURL), conn.NetworkServiceEndpointName)
 }
