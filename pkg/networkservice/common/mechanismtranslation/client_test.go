@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package translation_test
+package mechanismtranslation_test
 
 import (
 	"context"
@@ -30,8 +30,8 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanismtranslation"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/translation"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
@@ -42,11 +42,11 @@ func kernelMechanism() *networkservice.Mechanism {
 	return request.MechanismPreferences[0]
 }
 
-func TestTranslationClient(t *testing.T) {
+func TestMechanismTranslationClient(t *testing.T) {
 	capture := new(captureClient)
 
 	client := next.NewNetworkServiceClient(
-		translation.NewClient(),
+		mechanismtranslation.NewClient(),
 		capture,
 		kernel.NewClient(),
 		adapters.NewServerToClient(

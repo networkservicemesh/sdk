@@ -14,9 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package translation provides client chain element to translate server request mechanisms to client request mechanisms
-// and client connection mechanisms to server connection mechanisms
-package translation
+// Package mechanismtranslation provides client chain element to perform serverRequest -> clientRequest and
+// clientConn -> serverConn mechanism translations
+package mechanismtranslation
 
 import (
 	"context"
@@ -29,16 +29,16 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type translationClient struct {
+type mechanismTranslationClient struct {
 	mechs mechanismMap
 }
 
 // NewClient returns a new translation client chain element
 func NewClient() networkservice.NetworkServiceClient {
-	return new(translationClient)
+	return new(mechanismTranslationClient)
 }
 
-func (c *translationClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
+func (c *mechanismTranslationClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
 	connID := request.GetConnection().GetId()
 
 	// 1. Translate request mechanisms
@@ -62,7 +62,7 @@ func (c *translationClient) Request(ctx context.Context, request *networkservice
 	return conn, nil
 }
 
-func (c *translationClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (c *mechanismTranslationClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	// 1. Translate connection mechanism
 	mech, _ := c.mechs.LoadAndDelete(conn.GetId())
 	conn.Mechanism = mech
