@@ -441,6 +441,7 @@ func (p *passThroughClient) Request(ctx context.Context, request *networkservice
 	newRequest := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: p.mechanismPreferences,
 		Connection: &networkservice.Connection{
+			Id:                         request.Connection.Id,
 			NetworkService:             p.networkService,
 			NetworkServiceEndpointName: p.networkServiceEndpointName,
 			Path:                       request.Connection.Path.Clone(),
