@@ -14,12 +14,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package timeout
+package serialize
 
-import (
-	"sync"
-)
+import "github.com/networkservicemesh/sdk/pkg/tools/multiexecutor"
 
-//go:generate go-syncmap -output timer_map.gen.go -type timerMap<string,*time.Timer>
+// ExecutorFunc is a serialize.Executor.AsyncExec func type
+type ExecutorFunc func(f func()) <-chan struct{}
 
-type timerMap sync.Map
+func newExecutorFunc(id string, executor *multiexecutor.Executor) ExecutorFunc {
+	return func(f func()) <-chan struct{} {
+		return executor.AsyncExec(id, f)
+	}
+}
+
+// AsyncExec calls ExecutorFunc
+func (e ExecutorFunc) AsyncExec(f func()) <-chan struct{} {
+	return e(f)
+}

@@ -14,43 +14,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package serialize provides chain elements for serial Request, Close event processing
 package serialize
 
 import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/sirupsen/logrus"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/multiexecutor"
 )
 
 type serializeServer struct {
-	serializer
+	executor multiexecutor.Executor
 }
 
 // NewServer returns a new serialize server chain element
 func NewServer() networkservice.NetworkServiceServer {
-	return &serializeServer{
-		serializer{
-			executors: map[string]*executor{},
-		},
-	}
+	return new(serializeServer)
 }
 
 func (s *serializeServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (conn *networkservice.Connection, err error) {
 	connID := request.GetConnection().GetId()
-	logrus.Infof("REQUEST: %v", connID)
-	return s.requestConnection(ctx, connID, func(requestCtx context.Context) (*networkservice.Connection, error) {
-		return next.Server(ctx).Request(requestCtx, request)
+	<-s.executor.AsyncExec(connID, func() {
+		conn, err = next.Server(ctx).Request(WithExecutor(ctx, newExecutorFunc(connID, &s.executor)), request)
 	})
+	return conn, err
 }
 
 func (s *serializeServer) Close(ctx context.Context, conn *networkservice.Connection) (_ *empty.Empty, err error) {
-	logrus.Infof("CLOSE: %v", conn.GetId())
-	return s.closeConnection(ctx, conn.GetId(), func(closeCtx context.Context) (*empty.Empty, error) {
-		return next.Server(ctx).Close(closeCtx, conn)
+	<-s.executor.AsyncExec(conn.GetId(), func() {
+		_, err = next.Server(ctx).Close(WithExecutor(ctx, newExecutorFunc(conn.GetId(), &s.executor)), conn)
 	})
+	return new(empty.Empty), err
 }

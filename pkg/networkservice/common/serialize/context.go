@@ -21,46 +21,22 @@ import (
 )
 
 const (
-	requestExecutorKey contextKeyType = "requestExecutor"
-	closeExecutorKey   contextKeyType = "closeExecutor"
+	executorKey contextKeyType = "executor"
 )
 
 type contextKeyType string
 
-func withExecutors(parent context.Context, requestExecutor, closeExecutor Executor) context.Context {
+// WithExecutor wraps `parent` in a new context with ExecutorFunc
+func WithExecutor(parent context.Context, executor ExecutorFunc) context.Context {
 	if parent == nil {
 		parent = context.TODO()
 	}
-	return context.WithValue(context.WithValue(parent,
-		requestExecutorKey, requestExecutor),
-		closeExecutorKey, closeExecutor)
+	return context.WithValue(parent, executorKey, executor)
 }
 
-// WithExecutorsFromContext wraps `parent` in a new context with the executors from `executorsContext`
-func WithExecutorsFromContext(parent, executorsContext context.Context) context.Context {
-	if parent == nil {
-		parent = context.TODO()
-	}
-	if requestExecutor := RequestExecutor(executorsContext); requestExecutor != nil {
-		parent = context.WithValue(parent, requestExecutorKey, requestExecutor)
-	}
-	if closeExecutor := CloseExecutor(executorsContext); closeExecutor != nil {
-		parent = context.WithValue(parent, closeExecutorKey, closeExecutor)
-	}
-	return parent
-}
-
-// RequestExecutor returns Request `Executor`
-func RequestExecutor(ctx context.Context) Executor {
-	if executor, ok := ctx.Value(requestExecutorKey).(Executor); ok {
-		return executor
-	}
-	return nil
-}
-
-// CloseExecutor returns Close `Executor`
-func CloseExecutor(ctx context.Context) Executor {
-	if executor, ok := ctx.Value(closeExecutorKey).(Executor); ok {
+// Executor returns ExecutorFunc
+func Executor(ctx context.Context) ExecutorFunc {
+	if executor, ok := ctx.Value(executorKey).(ExecutorFunc); ok {
 		return executor
 	}
 	return nil

@@ -86,7 +86,7 @@ func (t *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 func (t *timeoutServer) createTimer(ctx context.Context, conn *networkservice.Connection) (*time.Timer, error) {
 	logEntry := log.Entry(ctx).WithField("timeoutServer", "createTimer")
 
-	executor := serialize.CloseExecutor(ctx)
+	executor := serialize.Executor(ctx)
 	if executor == nil {
 		return nil, errors.New("no executor provided")
 	}
@@ -103,25 +103,29 @@ func (t *timeoutServer) createTimer(ctx context.Context, conn *networkservice.Co
 
 	timerPtr := new(*time.Timer)
 	*timerPtr = time.AfterFunc(time.Until(expireTime), func() {
-		if err := <-executor.AsyncExec(func() error {
+		<-executor.AsyncExec(func() {
 			if timer, _ := t.timers.Load(conn.GetId()); timer != *timerPtr {
-				return errors.Errorf("timer has been already stopped: %v", conn.GetId())
+				logEntry.Warnf("timer has been already stopped: %v", conn.GetId())
+				return
 			}
 			t.timers.Delete(conn.GetId())
 			if _, err := next.Server(ctx).Close(t.ctx, conn); err != nil {
 				logEntry.Errorf("failed to close timed out connection: %v %+v", conn.GetId(), err)
 			}
-			return nil
-		}); err != nil {
-			logEntry.Warn(err)
-		}
+		})
 	})
 
 	return *timerPtr, nil
 }
 
 func (t *timeoutServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	timer, _ := t.timers.LoadAndDelete(conn.GetId())
+	logEntry := log.Entry(ctx).WithField("timeoutServer", "createTimer")
+
+	timer, ok := t.timers.LoadAndDelete(conn.GetId())
+	if !ok {
+		logEntry.Warnf("connection has been already closed: %v", conn.GetId())
+		return new(empty.Empty), nil
+	}
 	timer.Stop()
 
 	return next.Server(ctx).Close(ctx, conn)

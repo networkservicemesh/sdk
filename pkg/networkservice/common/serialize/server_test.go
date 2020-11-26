@@ -23,10 +23,9 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
@@ -47,10 +46,8 @@ func TestSerializeServer_StressTest(t *testing.T) {
 
 	server := chain.NewNetworkServiceServer(
 		serialize.NewServer(),
-		new(requestServer),
-		new(closeServer),
+		new(eventServer),
 		newParallelServer(t),
-		newDoubleCloseServer(t),
 	)
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -72,44 +69,31 @@ func TestSerializeServer_StressTest(t *testing.T) {
 	wg.Wait()
 }
 
-type requestServer struct{}
+type eventServer struct{}
 
-func (s *requestServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	executor := serialize.RequestExecutor(ctx)
+func (s *eventServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	executor := serialize.Executor(ctx)
 	go func() {
-		executor.AsyncExec(func() error {
-			_, err := next.Server(ctx).Request(serialize.WithExecutorsFromContext(context.TODO(), ctx), request)
-			return err
+		executor.AsyncExec(func() {
+			_, _ = next.Server(ctx).Request(serialize.WithExecutor(context.TODO(), executor), request)
 		})
 	}()
 
-	return next.Server(ctx).Request(ctx, request)
-}
-
-func (s *requestServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	return next.Server(ctx).Close(ctx, conn)
-}
-
-type closeServer struct{}
-
-func (s *closeServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	conn, err := next.Server(ctx).Request(ctx, request)
 	if err != nil {
 		return nil, err
 	}
 
-	executor := serialize.CloseExecutor(ctx)
 	go func() {
-		executor.AsyncExec(func() error {
-			_, err = next.Server(ctx).Close(context.TODO(), conn)
-			return err
+		executor.AsyncExec(func() {
+			_, _ = next.Server(ctx).Close(serialize.WithExecutor(context.TODO(), executor), conn)
 		})
 	}()
 
-	return conn, err
+	return conn, nil
 }
 
-func (s *closeServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+func (s *eventServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	return next.Server(ctx).Close(ctx, conn)
 }
 
@@ -133,39 +117,5 @@ func (s *parallelServer) Request(ctx context.Context, request *networkservice.Ne
 func (s *parallelServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	state := atomic.LoadInt32(&s.state)
 	assert.True(s.t, atomic.CompareAndSwapInt32(&s.state, state, state+1), "state has been changed")
-	return next.Server(ctx).Close(ctx, conn)
-}
-
-type doubleCloseServer struct {
-	t           *testing.T
-	lock        sync.Mutex
-	connections map[string]bool
-}
-
-func newDoubleCloseServer(t *testing.T) *doubleCloseServer {
-	return &doubleCloseServer{
-		t:           t,
-		connections: map[string]bool{},
-	}
-}
-
-func (s *doubleCloseServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	s.lock.Lock()
-
-	s.connections[request.GetConnection().GetId()] = true
-
-	s.lock.Unlock()
-
-	return next.Server(ctx).Request(ctx, request)
-}
-
-func (s *doubleCloseServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	s.lock.Lock()
-
-	assert.True(s.t, s.connections[conn.GetId()], "closing not opened connection: %v", conn.GetId())
-	s.connections[conn.GetId()] = false
-
-	s.lock.Unlock()
-
 	return next.Server(ctx).Close(ctx, conn)
 }
