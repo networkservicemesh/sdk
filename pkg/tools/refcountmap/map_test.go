@@ -14,55 +14,55 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package clientmap_test
+package refcountmap_test
 
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
-	"github.com/networkservicemesh/sdk/pkg/tools/clientmap"
+	"github.com/networkservicemesh/sdk/pkg/tools/refcountmap"
 )
 
-func TestRefcountMap(t *testing.T) {
-	m := &clientmap.RefcountMap{}
-	client := null.NewClient()
+func TestMap(t *testing.T) {
+	var m refcountmap.Map
+	var client interface{} = null.NewClient()
 	key := "key"
 
 	m.Store(key, client)    // refcount == 1
 	client, _ = m.Load(key) // refcount == 2
-	assert.Equal(t, client, client)
+	require.Equal(t, client, client)
 	m.Delete(key) // refcount == 1
 	m.Delete(key) // refcount == 0
-	CheckRefcount(t, m, key, 0)
+	CheckRefcount(t, &m, key, 0)
 
 	m.Store(key, client) // refcount == 1
 	m.Store(key, client) // refcount == 1
-	CheckRefcount(t, m, key, 1)
+	CheckRefcount(t, &m, key, 1)
 	m.Delete(key) // refcount == 1
-	CheckRefcount(t, m, key, 0)
+	CheckRefcount(t, &m, key, 0)
 
 	for i := 0; i < 10; i++ {
 		_, loaded := m.LoadOrStore(key, client) // refcount == i
-		assert.True(t, loaded || i == 0)
+		require.True(t, loaded || i == 0)
 	}
-	CheckRefcount(t, m, key, 10)
-	CheckRefcount(t, m, key, 10)
+	CheckRefcount(t, &m, key, 10)
+	CheckRefcount(t, &m, key, 10)
 
 	// Check store resets counter
 	m.Store(key, client)
-	CheckRefcount(t, m, key, 1)
+	CheckRefcount(t, &m, key, 1)
 	m.Delete(key)
-	CheckRefcount(t, m, key, 0)
+	CheckRefcount(t, &m, key, 0)
 }
 
-func CheckRefcount(t *testing.T, m *clientmap.RefcountMap, key string, refcount int) {
+func CheckRefcount(t *testing.T, m *refcountmap.Map, key string, refcount int) {
 	var loaded bool
 	client, found := m.Load(key) // refcount + 1
 	m.Delete(key)                // refcount
 	if !found {
-		assert.Equal(t, 0, refcount)
+		require.Equal(t, 0, refcount)
 		return
 	}
 
@@ -70,13 +70,13 @@ func CheckRefcount(t *testing.T, m *clientmap.RefcountMap, key string, refcount 
 	for i := refcount; i > 0; i-- {
 		m.Delete(key)                               // refcount == i-1
 		client, loaded = m.LoadOrStore(key, client) // refcount == i
-		assert.True(t, loaded || i == 1)
+		require.True(t, loaded || i == 1)
 		m.Delete(key) // refcount == i-1
 	}
 
 	// Replace th refcount
 	for i := 0; i < refcount; i++ {
 		client, loaded = m.LoadOrStore(key, client)
-		assert.True(t, loaded || i == 0)
+		require.True(t, loaded || i == 0)
 	}
 }

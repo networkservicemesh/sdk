@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,14 +14,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package clientmap provides a sync.Map for networkservicemesh.NetworkServiceClients and a refcounted sync.Map
-package clientmap
+package connect
 
 import (
 	"sync"
 )
 
-//go:generate go-syncmap -output clientmap.gen.go -type Map<string,github.com/networkservicemesh/api/pkg/api/networkservice.NetworkServiceClient>
+//go:generate go-syncmap -output client_map.gen.go -type clientMap<string,github.com/networkservicemesh/api/pkg/api/networkservice.NetworkServiceClient>
 
-// Map - sync.Map with key == string and value == networkservice.NetworkServiceClient
-type Map sync.Map
+type clientMap sync.Map

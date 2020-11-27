@@ -32,15 +32,15 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
-	"github.com/networkservicemesh/sdk/pkg/tools/clientmap"
+	"github.com/networkservicemesh/sdk/pkg/tools/refcountmap"
 )
 
 type connectServer struct {
 	ctx               context.Context
 	clientFactory     func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient
 	clientDialOptions []grpc.DialOption
-	clientsByURL      clientmap.RefcountMap // key == clientURL.String()
-	clientsByID       clientmap.Map         // key == client connection ID
+	clientsByURL      refcountmap.SyncMap // key == clientURL.String()
+	clientsByID       clientMap           // key == client connection ID
 }
 
 // NewServer - chain element that
@@ -104,7 +104,9 @@ func (c *connectServer) client(ctx context.Context, conn *networkservice.Connect
 		// Fast path: load the client by URL.  In the unfortunate event someone has poorly chosen
 		// a clientFactory or dialOptions that take time, this will be faster than
 		// creating a new one and doing a LoadOrStore
-		client, _ = c.clientsByURL.Load(clientURL.String())
+		if clientRaw, ok := c.clientsByURL.Load(clientURL.String()); ok {
+			client = clientRaw.(networkservice.NetworkServiceClient)
+		}
 		// If we still don't have a client, create one, and LoadOrStore it
 		// Note: It is possible for multiple nearly simultaneous initial Requests to race this client == nil check
 		// and both enter into the body of the if block.  However, if that occurs, when they call call clientByID.LoadAndStore
@@ -116,7 +118,8 @@ func (c *connectServer) client(ctx context.Context, conn *networkservice.Connect
 		if client == nil {
 			// Note: clienturl.NewClient(...) will get properly cleaned up when dereferences
 			client = clienturl.NewClient(clienturlctx.WithClientURL(c.ctx, clientURL), c.clientFactory, c.clientDialOptions...)
-			client, _ = c.clientsByURL.LoadOrStore(clientURL.String(), client)
+			clientRaw, _ := c.clientsByURL.LoadOrStore(clientURL.String(), client)
+			client = clientRaw.(networkservice.NetworkServiceClient)
 			// Wrap the client in a per-connection connect.NewClient(...)
 			// when this client receive a 'Close' it will call the cancelFunc provided deleting it from the various
 			// maps.
