@@ -106,6 +106,38 @@ func TestNetworkServiceEndpointRegistryServer_RegisterAndFindWatch(t *testing.T)
 	close(ch)
 }
 
+func TestNetworkServiceEndpointRegistryServer_RegisterAndFindByLabel(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	s := next.NewNetworkServiceEndpointRegistryServer(memory.NewNetworkServiceEndpointRegistryServer())
+
+	_, err := s.Register(context.Background(), createLabeledNSE1())
+	require.NoError(t, err)
+
+	_, err = s.Register(context.Background(), createLabeledNSE2())
+	require.NoError(t, err)
+
+	_, err = s.Register(context.Background(), createLabeledNSE3())
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	ch := make(chan *registry.NetworkServiceEndpoint, 1)
+	_ = s.Find(&registry.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+			NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+				"Service1": {
+					Labels: map[string]string{
+						"c": "d",
+					},
+				},
+			},
+		},
+	}, streamchannel.NewNetworkServiceEndpointFindServer(ctx, ch))
+
+	require.Equal(t, createLabeledNSE2(), <-ch)
+	cancel()
+	close(ch)
+}
+
 func TestNetworkServiceEndpointRegistryServer_RegisterAndFindByLabelWatch(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	s := next.NewNetworkServiceEndpointRegistryServer(memory.NewNetworkServiceEndpointRegistryServer())
