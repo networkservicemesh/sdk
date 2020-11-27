@@ -12,6 +12,7 @@ require (
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/protobuf v1.4.3
+	github.com/google/go-cmp v0.5.2
 	github.com/google/uuid v1.1.2
 	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645
 	github.com/hashicorp/go-multierror v1.0.0

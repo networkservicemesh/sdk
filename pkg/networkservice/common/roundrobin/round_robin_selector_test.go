@@ -17,8 +17,9 @@
 package roundrobin
 
 import (
-	"reflect"
 	"testing"
+
+	"google.golang.org/protobuf/proto"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"go.uber.org/goleak"
@@ -228,7 +229,7 @@ func Test_roundRobinSelector_SelectEndpoint(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	rr := newRoundRobinSelector()
 	for _, tt := range tests {
-		if got := rr.selectEndpoint(tt.args.ns, tt.args.networkServiceEndpoints); !reflect.DeepEqual(got, tt.want) {
+		if got := rr.selectEndpoint(tt.args.ns, tt.args.networkServiceEndpoints); !proto.Equal(got, tt.want) {
 			t.Errorf("%s: roundRobinSelector.selectEndpoint() = %v, want %v", tt.name, got, tt.want)
 		}
 	}

@@ -19,9 +19,10 @@ package heal_test
 import (
 	"context"
 	"io/ioutil"
-	"reflect"
 	"testing"
 	"time"
+
+	"google.golang.org/protobuf/proto"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 
@@ -194,11 +195,11 @@ func TestNewClient_MissingConnectionsInInit(t *testing.T) {
 	defer cancel()
 	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{Connection: conns[0]})
 	require.Nil(t, err)
-	require.True(t, reflect.DeepEqual(conn, conns[0]))
+	require.True(t, proto.Equal(conn, conns[0]))
 
 	conn, err = client.Request(ctx, &networkservice.NetworkServiceRequest{Connection: conns[1]})
 	require.Nil(t, err)
-	require.True(t, reflect.DeepEqual(conn, conns[1]))
+	require.True(t, proto.Equal(conn, conns[1]))
 
 	eventCh <- &networkservice.ConnectionEvent{
 		Type:        networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,

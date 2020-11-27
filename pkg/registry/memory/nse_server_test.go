@@ -105,3 +105,134 @@ func TestNetworkServiceEndpointRegistryServer_RegisterAndFindWatch(t *testing.T)
 
 	close(ch)
 }
+
+func TestNetworkServiceEndpointRegistryServer_RegisterAndFindByLabel(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	s := next.NewNetworkServiceEndpointRegistryServer(memory.NewNetworkServiceEndpointRegistryServer())
+
+	_, err := s.Register(context.Background(), createLabeledNSE1())
+	require.NoError(t, err)
+
+	_, err = s.Register(context.Background(), createLabeledNSE2())
+	require.NoError(t, err)
+
+	_, err = s.Register(context.Background(), createLabeledNSE3())
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	ch := make(chan *registry.NetworkServiceEndpoint, 1)
+	_ = s.Find(&registry.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+			NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+				"Service1": {
+					Labels: map[string]string{
+						"c": "d",
+					},
+				},
+			},
+		},
+	}, streamchannel.NewNetworkServiceEndpointFindServer(ctx, ch))
+
+	require.Equal(t, createLabeledNSE2(), <-ch)
+	cancel()
+	close(ch)
+}
+
+func TestNetworkServiceEndpointRegistryServer_RegisterAndFindByLabelWatch(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	s := next.NewNetworkServiceEndpointRegistryServer(memory.NewNetworkServiceEndpointRegistryServer())
+
+	_, err := s.Register(context.Background(), createLabeledNSE1())
+	require.NoError(t, err)
+
+	_, err = s.Register(context.Background(), createLabeledNSE2())
+	require.NoError(t, err)
+
+	_, err = s.Register(context.Background(), createLabeledNSE3())
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch := make(chan *registry.NetworkServiceEndpoint, 1)
+	go func() {
+		_ = s.Find(&registry.NetworkServiceEndpointQuery{
+			Watch: true,
+			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+				NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+					"Service1": {
+						Labels: map[string]string{
+							"c": "d",
+						},
+					},
+				},
+			},
+		}, streamchannel.NewNetworkServiceEndpointFindServer(ctx, ch))
+	}()
+
+	require.Equal(t, createLabeledNSE2(), <-ch)
+
+	expected, err := s.Register(context.Background(), createLabeledNSE2())
+	require.NoError(t, err)
+	require.Equal(t, expected, <-ch)
+
+	close(ch)
+}
+
+func createLabeledNSE1() *registry.NetworkServiceEndpoint {
+	labels := map[string]*registry.NetworkServiceLabels{
+		"Service1": {
+			Labels: map[string]string{
+				"foo": "bar",
+			},
+		},
+	}
+	return &registry.NetworkServiceEndpoint{
+		Name: "nse1",
+		NetworkServiceNames: []string{
+			"Service1",
+		},
+		NetworkServiceLabels: labels,
+	}
+}
+
+func createLabeledNSE2() *registry.NetworkServiceEndpoint {
+	labels := map[string]*registry.NetworkServiceLabels{
+		"Service1": {
+			Labels: map[string]string{
+				"a": "b",
+				"c": "d",
+			},
+		},
+		"Service2": {
+			Labels: map[string]string{
+				"1": "2",
+				"3": "4",
+			},
+		},
+	}
+	return &registry.NetworkServiceEndpoint{
+		Name: "nse2",
+		NetworkServiceNames: []string{
+			"Service1", "Service2",
+		},
+		NetworkServiceLabels: labels,
+	}
+}
+
+func createLabeledNSE3() *registry.NetworkServiceEndpoint {
+	labels := map[string]*registry.NetworkServiceLabels{
+		"Service555": {
+			Labels: map[string]string{
+				"a": "b",
+				"c": "d",
+			},
+		},
+	}
+	return &registry.NetworkServiceEndpoint{
+		Name: "nse3",
+		NetworkServiceNames: []string{
+			"Service1",
+		},
+		NetworkServiceLabels: labels,
+	}
+}
