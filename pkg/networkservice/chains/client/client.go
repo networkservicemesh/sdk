@@ -20,6 +20,8 @@ package client
 import (
 	"context"
 
+	"google.golang.org/grpc"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"

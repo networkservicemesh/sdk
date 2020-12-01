@@ -21,7 +21,5 @@ import (
 )
 
 //go:generate go-syncmap -output timer_map.gen.go -type timerMap<string,*time.Timer>
-//go:generate go-syncmap -output executor_map.gen.go -type executorMap<string,*github.com/edwarnicke/serialize.Executor>
 
 type timerMap sync.Map
-type executorMap sync.Map
