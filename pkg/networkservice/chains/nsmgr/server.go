@@ -22,6 +22,7 @@ package nsmgr
 import (
 	"context"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/querycache"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 
@@ -43,7 +44,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/nextwrap"
 	"github.com/networkservicemesh/sdk/pkg/registry/memory"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover"
@@ -114,11 +114,10 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 		newRecvFD(), // Receive any files passed
 		interpose.NewServer(&interposeRegistry),
 		filtermechanisms.NewServer(&urlsRegistryServer),
-		connect.NewServer(
-			ctx,
-			client.NewClientFactory(nsmRegistration.Name,
-				addressof.NetworkServiceClient(
-					adapters.NewServerToClient(rv)),
+		connect.NewServer(ctx,
+			client.NewClientFactory(
+				nsmRegistration.Name,
+				addressof.NetworkServiceClient(adapters.NewServerToClient(rv)),
 				tokenGenerator,
 				newSendFDClient(), // Send passed files.
 			),

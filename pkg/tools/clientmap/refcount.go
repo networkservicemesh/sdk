@@ -75,10 +75,15 @@ func (r *RefcountMap) Load(key string) (networkservice.NetworkServiceClient, boo
 	return rv, loaded
 }
 
-// Delete decrements the refcount and deletes the value for a key if refcount is zero.
-func (r *RefcountMap) Delete(key string) {
-	rv, _ := r.Map.Load(key)
+// Delete decrements the refcount and deletes the value for a key if refcount is zero. Returns true if value is no (more) present.
+func (r *RefcountMap) Delete(key string) bool {
+	rv, loaded := r.Map.Load(key)
+	if !loaded {
+		return true
+	}
 	if client, ok := rv.(*refcountClient); ok && atomic.AddInt32(&client.count, -1) == 0 {
 		r.Map.Delete(key)
+		return true
 	}
+	return false
 }
