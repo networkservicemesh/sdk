@@ -92,7 +92,16 @@ type sample struct {
 	name      string
 	withValue bool
 	actions   []action
-	validator func(count int, results []bool) bool
+	validator func(count int, r []*result) bool
+}
+
+type result struct {
+	loaded  bool
+	deleted bool
+}
+
+func (r *result) test(loaded, deleted bool) bool {
+	return r.loaded == loaded && r.deleted == deleted
 }
 
 var samples = []*sample{
@@ -101,84 +110,85 @@ var samples = []*sample{
 		// 0 1 -> 2 { false, true }
 		// 1 0 -> 2 { true, false }
 		actions: []action{loadOrStore, loadOrStore},
-		validator: func(count int, results []bool) bool {
-			return (count == 2) && !results[0] && results[1] ||
-				(count == 2) && results[0] && !results[1]
+		validator: func(count int, r []*result) bool {
+			return (count == 2) && !r[0].loaded && r[1].loaded ||
+				(count == 2) && r[0].loaded && !r[1].loaded
 		},
 	},
 	{
 		name: "LoadOrStore + LoadAndDelete",
-		// 0 1 -> 0 { false, true }
-		// 1 0 -> 1 { false, false }
+		// 0 1 -> 0 { false, { true, true } }
+		// 1 0 -> 1 { false, { false, true } }
 		actions: []action{loadOrStore, loadAndDelete},
-		validator: func(count int, results []bool) bool {
-			return (count == 0) && !results[0] && results[1] ||
-				(count == 1) && !results[0] && !results[1]
+		validator: func(count int, r []*result) bool {
+			return (count == 0) && !r[0].loaded && r[1].test(true, true) ||
+				(count == 1) && !r[0].loaded && r[1].test(false, true)
 		},
 	},
 	{
 		name:      "LoadOrStore + LoadAndDelete with value",
 		withValue: true,
-		// 0 1 -> 1 { true, true }
-		// 1 0 -> 1 { false, true }
+		// 0 1 -> 1 { true, { true, false } }
+		// 1 0 -> 1 { false, { true, true } }
 		actions: []action{loadOrStore, loadAndDelete},
-		validator: func(count int, results []bool) bool {
-			return (count == 1) && results[0] && results[1] ||
-				(count == 1) && !results[0] && results[1]
+		validator: func(count int, r []*result) bool {
+			return (count == 1) && r[0].loaded && r[1].test(true, false) ||
+				(count == 1) && !r[0].loaded && r[1].test(true, true)
 		},
 	},
 	{
 		name:      "LoadAndDelete + LoadAndDelete with value",
 		withValue: true,
-		// 0 1 -> 0 { true, false }
-		// 1 0 -> 0 { false, true }
+		// 0 1 -> 0 { { true, true }, { false, true } }
+		// 1 0 -> 0 { { false, true }, { true, true } }
 		actions: []action{loadAndDelete, loadAndDelete},
-		validator: func(count int, results []bool) bool {
-			return (count == 0) && results[0] && !results[1] ||
-				(count == 0) && !results[0] && results[1]
+		validator: func(count int, r []*result) bool {
+			return (count == 0) && r[0].test(true, true) && r[1].test(false, true) ||
+				(count == 0) && r[0].test(false, true) && r[1].test(true, true)
 		},
 	},
 	{
 		name:      "LoadAndDelete + Load with value",
 		withValue: true,
-		// 0 1 -> 0 { true, false }
-		// 1 0 -> 1 { true, true }
+		// 0 1 -> 0 { { true, true }, false }
+		// 1 0 -> 1 { { true, false }, true }
 		actions: []action{loadAndDelete, load},
-		validator: func(count int, results []bool) bool {
-			return (count == 0) && results[0] && !results[1] ||
-				(count == 1) && results[0] && results[1]
+		validator: func(count int, r []*result) bool {
+			return (count == 0) && r[0].test(true, true) && !r[1].loaded ||
+				(count == 1) && r[0].test(true, false) && r[1].loaded
 		},
 	},
 	{
 		name:      "LoadAndDelete + LoadAndDelete + Load with value",
 		withValue: true,
-		// 0 1 2 -> 0 { true, false, false }
-		// 0 2 1 -> 0 { true, false, false } (same as ^)
-		// 1 0 2 -> 0 { false, true, false }
-		// 1 2 0 -> 0 { true, true, true }
-		// 2 0 1 -> 0 { false, true, false } (same as ^^)
-		// 2 1 0 -> 0 { true, true, true } (same as ^^)
+		// 0 1 2 -> 0 { { true, true }, { false, true }, false }
+		// 0 2 1 -> 0 { { true, true }, { false, true }, false } (same as ^)
+		// 1 0 2 -> 0 { { false, true }, { true, true }, false }
+		// 1 2 0 -> 0 { { true, false }, { true, true }, true }
+		// 2 0 1 -> 0 { { false, true }, { true, true }, false } (same as ^^)
+		// 2 1 0 -> 0 { { true, true }, { true, false }, true }
 		actions: []action{loadAndDelete, loadAndDelete, load},
-		validator: func(count int, results []bool) bool {
-			return (count == 0) && results[0] && !results[1] && !results[2] ||
-				(count == 0) && !results[0] && results[1] && !results[2] ||
-				(count == 0) && results[0] && results[1] && results[2]
+		validator: func(count int, r []*result) bool {
+			return (count == 0) && r[0].test(true, true) && r[1].test(false, true) && !r[2].loaded ||
+				(count == 0) && r[0].test(false, true) && r[1].test(true, true) && !r[2].loaded ||
+				(count == 0) && r[0].test(true, false) && r[1].test(true, true) && r[2].loaded ||
+				(count == 0) && r[0].test(true, true) && r[1].test(true, false) && r[2].loaded
 		},
 	},
 	{
 		name:      "LoadOrStore + LoadOrStore + LoadAndDelete with value",
 		withValue: true,
-		// 0 1 2 -> 2 { true, true, true }
-		// 0 2 1 -> 2 { true, true, true } (same as ^)
-		// 1 0 2 -> 2 { true, true, true } (same as ^)
-		// 1 2 0 -> 2 { false, true, true }
-		// 2 0 1 -> 2 { true, true, true } (same as ^^)
-		// 2 1 0 -> 2 { true, false, true }
+		// 0 1 2 -> 2 { true, true, { true, false } }
+		// 0 2 1 -> 2 { true, true, { true, false } } (same as ^)
+		// 1 0 2 -> 2 { true, true, { true, false } } (same as ^)
+		// 1 2 0 -> 2 { false, true, { true, true } }
+		// 2 0 1 -> 2 { true, true, { true, false } } (same as ^^)
+		// 2 1 0 -> 2 { true, false, { true, true } }
 		actions: []action{loadOrStore, loadOrStore, loadAndDelete},
-		validator: func(count int, results []bool) bool {
-			return (count == 2) && results[0] && results[1] && results[2] ||
-				(count == 2) && !results[0] && results[1] && results[2] ||
-				(count == 2) && results[0] && !results[1] && results[2]
+		validator: func(count int, r []*result) bool {
+			return (count == 2) && r[0].loaded && r[1].loaded && r[2].test(true, false) ||
+				(count == 2) && !r[0].loaded && r[1].loaded && r[2].test(true, true) ||
+				(count == 2) && r[0].loaded && !r[1].loaded && r[2].test(true, true)
 		},
 	},
 }
@@ -201,8 +211,14 @@ func runSample(t *testing.T, m *clientmap.RefcountMap, sample *sample) {
 			results := runActions(m, key, value, sample.actions...)
 
 			var count int
-			for _, loaded := m.LoadAndDelete(key); loaded; _, loaded = m.LoadAndDelete(key) {
-				count++
+			for {
+				_, loaded, deleted := m.LoadAndDelete(key)
+				if loaded {
+					count++
+				}
+				if deleted {
+					break
+				}
 			}
 
 			assert.True(t, sample.validator(count, results),
@@ -211,28 +227,35 @@ func runSample(t *testing.T, m *clientmap.RefcountMap, sample *sample) {
 	})
 }
 
-type action func(*clientmap.RefcountMap, string, networkservice.NetworkServiceClient) bool
+type action func(*clientmap.RefcountMap, string, networkservice.NetworkServiceClient) *result
 
-func loadOrStore(m *clientmap.RefcountMap, key string, value networkservice.NetworkServiceClient) bool {
-	_, ok := m.LoadOrStore(key, value)
-	return ok
+func loadOrStore(m *clientmap.RefcountMap, key string, value networkservice.NetworkServiceClient) *result {
+	_, loaded := m.LoadOrStore(key, value)
+	return &result{
+		loaded: loaded,
+	}
 }
 
-func load(m *clientmap.RefcountMap, key string, _ networkservice.NetworkServiceClient) bool {
-	_, ok := m.Load(key)
-	return ok
+func load(m *clientmap.RefcountMap, key string, _ networkservice.NetworkServiceClient) *result {
+	_, loaded := m.Load(key)
+	return &result{
+		loaded: loaded,
+	}
 }
 
-func loadAndDelete(m *clientmap.RefcountMap, key string, _ networkservice.NetworkServiceClient) bool {
-	_, ok := m.LoadAndDelete(key)
-	return ok
+func loadAndDelete(m *clientmap.RefcountMap, key string, _ networkservice.NetworkServiceClient) *result {
+	_, loaded, deleted := m.LoadAndDelete(key)
+	return &result{
+		loaded:  loaded,
+		deleted: deleted,
+	}
 }
 
-func runActions(m *clientmap.RefcountMap, key string, value networkservice.NetworkServiceClient, actions ...action) []bool {
+func runActions(m *clientmap.RefcountMap, key string, value networkservice.NetworkServiceClient, actions ...action) []*result {
 	wg := new(sync.WaitGroup)
 	wg.Add(len(actions))
 
-	results := make([]bool, len(actions))
+	results := make([]*result, len(actions))
 	for i := range actions {
 		go func(k int) {
 			results[k] = actions[k](m, key, value)

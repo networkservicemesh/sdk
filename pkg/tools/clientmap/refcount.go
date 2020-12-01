@@ -47,8 +47,9 @@ func (m *RefcountMap) Store(key string, value networkservice.NetworkServiceClien
 // loaded result is true if the value was loaded, false if stored.
 // store  -->  count = 1
 // load   -->  count += 1
-func (m *RefcountMap) LoadOrStore(key string, value networkservice.NetworkServiceClient) (networkservice.NetworkServiceClient, bool) {
-	raw, loaded := m.m.LoadOrStore(key, &entry{
+func (m *RefcountMap) LoadOrStore(key string, value networkservice.NetworkServiceClient) (_ networkservice.NetworkServiceClient, loaded bool) {
+	var raw interface{}
+	raw, loaded = m.m.LoadOrStore(key, &entry{
 		count: 1,
 		value: value,
 	})
@@ -73,8 +74,9 @@ func (m *RefcountMap) LoadOrStore(key string, value networkservice.NetworkServic
 // Load returns the value stored in the map for a key, or nil if no value is present. The loaded result indicates
 // whether value was found in the map.
 // count += 1
-func (m *RefcountMap) Load(key string) (networkservice.NetworkServiceClient, bool) {
-	raw, loaded := m.m.Load(key)
+func (m *RefcountMap) Load(key string) (_ networkservice.NetworkServiceClient, loaded bool) {
+	var raw interface{}
+	raw, loaded = m.m.Load(key)
 	if !loaded {
 		return nil, false
 	}
@@ -91,26 +93,15 @@ func (m *RefcountMap) Load(key string) (networkservice.NetworkServiceClient, boo
 	return entry.value, true
 }
 
-// LoadUnsafe returns the value stored in the map for a key, or nil if no value is present. The loaded result indicates
-// whether value was found in the map.
-func (m *RefcountMap) LoadUnsafe(key string) (networkservice.NetworkServiceClient, bool) {
-	raw, loaded := m.m.Load(key)
-	if !loaded {
-		return nil, false
-	}
-	entry := raw.(*entry)
-
-	return entry.value, loaded
-}
-
 // LoadAndDelete is trying to delete the value for a key, returning the previous value if any. The loaded result
 // reports whether the key was present.
 // count == 1  -->  delete
 // count > 1   -->  count -= 1
-func (m *RefcountMap) LoadAndDelete(key string) (networkservice.NetworkServiceClient, bool) {
-	raw, loaded := m.m.Load(key)
+func (m *RefcountMap) LoadAndDelete(key string) (_ networkservice.NetworkServiceClient, loaded, deleted bool) {
+	var raw interface{}
+	raw, loaded = m.m.Load(key)
 	if !loaded {
-		return nil, false
+		return nil, false, true
 	}
 	entry := raw.(*entry)
 
@@ -118,20 +109,22 @@ func (m *RefcountMap) LoadAndDelete(key string) (networkservice.NetworkServiceCl
 	defer entry.lock.Unlock()
 
 	if entry.count == 0 {
-		return nil, false
+		return nil, false, true
 	}
 	entry.count--
 
 	if entry.count == 0 {
 		m.m.Delete(key)
+		deleted = true
 	}
 
-	return entry.value, true
+	return entry.value, true, deleted
 }
 
 // Delete is trying to delete the value for a key.
 // count == 1  -->  delete
 // count > 1   -->  count -= 1
-func (m *RefcountMap) Delete(key string) {
-	m.LoadAndDelete(key)
+func (m *RefcountMap) Delete(key string) (deleted bool) {
+	_, _, deleted = m.LoadAndDelete(key)
+	return deleted
 }

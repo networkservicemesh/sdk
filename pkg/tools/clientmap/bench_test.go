@@ -64,17 +64,15 @@ func BenchmarkRefcountMap(b *testing.B) {
 		client := null.NewClient()
 		for i := 0; pb.Next(); i++ {
 			id := ids[i%len(ids)]
-			switch i % 8 {
+			switch i % 6 {
 			case 0:
 				m.Store(id, client)
 			case 1:
 				client, _ = m.LoadOrStore(id, client)
 			case 2:
 				client, _ = m.Load(id)
-			case 3:
-				client, _ = m.LoadUnsafe(id)
-			case 4, 5, 6, 7:
-				client, _ = m.LoadAndDelete(id)
+			case 3, 4, 5:
+				client, _, _ = m.LoadAndDelete(id)
 			}
 		}
 	})
