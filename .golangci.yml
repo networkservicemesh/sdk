@@ -253,3 +253,7 @@ issues:
       linters:
         - gocyclo
       text: "processEvent"
+    - path: pkg/networkservice/common/connect/server_test.go
+      linters:
+        - funlen
+      text: "Function 'TestConnectServer_Request'"

@@ -63,8 +63,7 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 	_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain2.Nodes[0].NSMgr)
 	require.NoError(t, err)
 
-	nsc, err := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain1.Nodes[0].NSMgr.URL)
-	require.NoError(t, err)
+	nsc := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain1.Nodes[0].NSMgr.URL)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{

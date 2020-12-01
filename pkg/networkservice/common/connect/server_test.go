@@ -18,216 +18,301 @@ package connect_test
 
 import (
 	"context"
-	"fmt"
 	"net/url"
+	"strconv"
 	"sync"
+	"sync/atomic"
 	"testing"
-	"time"
 
-	"github.com/google/uuid"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"google.golang.org/grpc"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/setextracontext"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injectpeer"
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
-	"github.com/networkservicemesh/sdk/pkg/tools/token"
-
+	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
+	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/memif"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/vfio"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
 const (
-	timeout = 10 * time.Second
+	parallelCount = 1000
 )
 
-type nseTest struct {
-	ctx      context.Context
-	cancel   context.CancelFunc
-	listenOn *url.URL
-	t        *testing.T
-	nse      endpoint.Endpoint
-	errCh    <-chan error
-}
+func startServer(ctx context.Context, listenOn *url.URL, server networkservice.NetworkServiceServer) error {
+	grpcServer := grpc.NewServer()
+	networkservice.RegisterNetworkServiceServer(grpcServer, server)
 
-func (nseT *nseTest) Stop() {
-	nseT.cancel()
-	// try read value from err channel, with this we will wait for cancel to be processed and all go routines will exit
-	<-nseT.errCh
-}
-
-func (nseT *nseTest) Setup() {
-	nseT.ctx, nseT.cancel = context.WithTimeout(context.Background(), 50*time.Second)
-	nseT.listenOn = &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
-	nseT.nse = endpoint.NewServer(nseT.ctx, "testServer", authorize.NewServer(),
-		sandbox.GenerateTestToken,
-		setextracontext.NewServer(map[string]string{"ok": "all is ok"}))
-
-	nseT.errCh = endpoint.Serve(nseT.ctx, nseT.listenOn, nseT.nse)
-}
-
-func (nseT *nseTest) newNSEContext(ctx context.Context) context.Context {
-	return clienturlctx.WithClientURL(ctx, &url.URL{Scheme: "tcp", Host: nseT.listenOn.Host})
-}
-
-func newClient(ctx context.Context, generatorFunc token.GeneratorFunc) networkservice.NetworkServiceClient {
-	return chain.NewNetworkServiceClient(
-		append([]networkservice.NetworkServiceClient{
-			authorize.NewClient(),
-			updatepath.NewClient("nsc-" + uuid.New().String()),
-			refresh.NewClient(ctx),
-		},
-			injectpeer.NewClient(),
-			updatetoken.NewClient(generatorFunc),
-			adapters.NewServerToClient(connect.NewServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-				return networkservice.NewNetworkServiceClient(cc)
-			}, grpc.WithBlock(), grpc.WithInsecure())),
-		)...)
-}
-
-func TestConnectServerShouldNotPanicOnRequest(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-
-	nseT := &nseTest{
-		t: t,
+	errCh := grpcutils.ListenAndServe(ctx, listenOn, grpcServer)
+	select {
+	case err := <-errCh:
+		return err
+	default:
+		return nil
 	}
-	nseT.Setup()
-	defer nseT.Stop()
-
-	t.Run("Check Request", func(t *testing.T) {
-		require.NotPanics(t, func() {
-			clientURLCtx, clientCancel := context.WithTimeout(context.Background(), timeout)
-			defer clientCancel()
-			clientURLCtx = nseT.newNSEContext(clientURLCtx)
-
-			c := newClient(clientURLCtx, sandbox.GenerateTestToken)
-			conn, err := c.Request(clientURLCtx, &networkservice.NetworkServiceRequest{
-				Connection: &networkservice.Connection{
-					Id: "1",
-				},
-			})
-			require.Nil(t, err)
-			require.NotNil(t, conn)
-			require.Equal(t, "all is ok", conn.GetContext().GetExtraContext()["ok"])
-			_, err = c.Close(clientURLCtx, &networkservice.Connection{
-				Id: conn.Id,
-			})
-			require.Nil(t, err)
-		})
-	})
-	t.Run("Close Id", func(t *testing.T) {
-		require.NotPanics(t, func() {
-			clientURLCtx, clientCancel := context.WithTimeout(context.Background(), timeout)
-			defer clientCancel()
-			clientURLCtx = nseT.newNSEContext(clientURLCtx)
-
-			c := newClient(clientURLCtx, sandbox.GenerateTestToken)
-			conn, err := c.Request(clientURLCtx, &networkservice.NetworkServiceRequest{
-				Connection: &networkservice.Connection{
-					Id: "1",
-				},
-			})
-			require.Nil(t, err)
-			require.NotNil(t, conn)
-			require.Equal(t, "all is ok", conn.GetContext().GetExtraContext()["ok"])
-
-			// Do not pass clientURL
-			_, err = c.Close(context.Background(), &networkservice.Connection{
-				Id: "1",
-			})
-			require.Nil(t, err)
-		})
-	})
-	t.Run("Check no clientURL", func(t *testing.T) {
-		require.NotPanics(t, func() {
-			clientURLCtx, clientCancel := context.WithTimeout(context.Background(), timeout)
-			defer clientCancel()
-
-			c := newClient(clientURLCtx, sandbox.GenerateTestToken)
-			conn, err := c.Request(context.Background(), &networkservice.NetworkServiceRequest{
-				Connection: &networkservice.Connection{
-					Id: "1",
-				},
-			})
-			require.NotNil(t, err)
-			require.Nil(t, conn)
-		})
-	})
-	t.Run("Request without client URL", func(t *testing.T) {
-		require.NotPanics(t, func() {
-			clientURLCtx, clientCancel := context.WithTimeout(context.Background(), timeout)
-			defer clientCancel()
-			clientURLCtx = nseT.newNSEContext(clientURLCtx)
-
-			c := newClient(clientURLCtx, sandbox.GenerateTestToken)
-			conn, err := c.Request(clientURLCtx, &networkservice.NetworkServiceRequest{
-				Connection: &networkservice.Connection{
-					Id: "1",
-				},
-			})
-			require.Nil(t, err)
-			require.NotNil(t, conn)
-			require.Equal(t, "all is ok", conn.GetContext().GetExtraContext()["ok"])
-
-			// Request again
-			conn, err = c.Request(context.Background(), &networkservice.NetworkServiceRequest{
-				Connection: &networkservice.Connection{
-					Id: "1",
-				},
-			})
-			require.Nil(t, err)
-			require.NotNil(t, conn)
-			require.Equal(t, "all is ok", conn.GetContext().GetExtraContext()["ok"])
-
-			// Do not pass clientURL
-			_, err = c.Close(context.Background(), &networkservice.Connection{
-				Id: "1",
-			})
-			require.Nil(t, err)
-		})
-	})
 }
 
-func TestParallelDial(t *testing.T) {
+func TestConnectServer_Request(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	nseT := &nseTest{}
-	nseT.Setup()
-	defer nseT.Stop()
+	// 1. Create connectServer
 
-	var wg sync.WaitGroup
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		j := i
-		clientURLCtx, clientCancel := context.WithTimeout(context.Background(), timeout)
-		defer clientCancel()
-		clientURLCtx = nseT.newNSEContext(clientURLCtx)
-		go func() {
-			defer wg.Done()
-			for k := 0; k < 10; k++ {
-				c := newClient(clientURLCtx, sandbox.GenerateTestToken)
-				conn, err := c.Request(clientURLCtx, &networkservice.NetworkServiceRequest{
-					Connection: &networkservice.Connection{
-						Id: fmt.Sprintf("%d", j),
+	serverNext := new(captureServer)
+	serverClient := new(captureServer)
+
+	s := next.NewNetworkServiceServer(
+		connect.NewServer(context.TODO(),
+			func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+				return next.NewNetworkServiceClient(
+					adapters.NewServerToClient(serverClient),
+					networkservice.NewNetworkServiceClient(cc),
+				)
+			},
+			grpc.WithInsecure(),
+		),
+		serverNext,
+	)
+
+	func() {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		// 3. Setup servers
+
+		urlA := &url.URL{Scheme: "tcp", Host: "127.0.0.1:10000"}
+		serverA := new(captureServer)
+
+		err := startServer(ctx, urlA, next.NewNetworkServiceServer(
+			serverA,
+			newEditServer("a", "A", &networkservice.Mechanism{
+				Cls:  cls.LOCAL,
+				Type: kernel.MECHANISM,
+			}),
+		))
+		require.NoError(t, err)
+
+		urlB := &url.URL{Scheme: "tcp", Host: "127.0.0.1:10001"}
+		serverB := new(captureServer)
+
+		err = startServer(ctx, urlB, next.NewNetworkServiceServer(
+			serverB,
+			newEditServer("b", "B", &networkservice.Mechanism{
+				Cls:  cls.LOCAL,
+				Type: memif.MECHANISM,
+			}),
+		))
+		require.NoError(t, err)
+
+		// 4. Create request
+
+		request := &networkservice.NetworkServiceRequest{
+			Connection: &networkservice.Connection{
+				Id:             "id",
+				NetworkService: "network-service",
+				Mechanism: &networkservice.Mechanism{
+					Cls:  cls.LOCAL,
+					Type: vfio.MECHANISM,
+				},
+				Context: &networkservice.ConnectionContext{
+					ExtraContext: map[string]string{
+						"not": "empty",
 					},
-				})
-				require.Nil(t, err)
-				require.NotNil(t, conn)
+				},
+			},
+		}
 
-				_, err = c.Close(clientURLCtx, conn)
+		// 5. Request A
 
-				require.Nil(t, err)
-			}
-		}()
+		conn, err := s.Request(clienturlctx.WithClientURL(ctx, urlA), request.Clone())
+		require.NoError(t, err)
+
+		requestClient := request.Clone()
+		require.Equal(t, requestClient.String(), serverClient.capturedRequest.String())
+
+		requestA := request.Clone()
+		require.Equal(t, requestA.String(), serverA.capturedRequest.String())
+
+		requestNext := request.Clone()
+		requestNext.Connection.Mechanism.Type = kernel.MECHANISM
+		requestNext.Connection.Context.ExtraContext["a"] = "A"
+		require.Equal(t, requestNext.String(), serverNext.capturedRequest.String())
+
+		require.Equal(t, requestNext.Connection.String(), conn.String())
+
+		// 6. Request B
+
+		request.Connection = conn
+
+		conn, err = s.Request(clienturlctx.WithClientURL(ctx, urlB), request.Clone())
+		require.NoError(t, err)
+
+		requestClient = request.Clone()
+		require.Equal(t, requestClient.String(), serverClient.capturedRequest.String())
+
+		require.Nil(t, serverA.capturedRequest)
+
+		requestB := request.Clone()
+		require.Equal(t, requestB.String(), serverB.capturedRequest.String())
+
+		requestNext = request.Clone()
+		requestNext.Connection.Mechanism.Type = memif.MECHANISM
+		requestNext.Connection.Context.ExtraContext["b"] = "B"
+		require.Equal(t, requestNext.String(), serverNext.capturedRequest.String())
+
+		require.Equal(t, requestNext.Connection.String(), conn.String())
+
+		// 8. Close B
+
+		_, err = s.Close(ctx, conn)
+		require.NoError(t, err)
+
+		require.Nil(t, serverClient.capturedRequest)
+		require.Nil(t, serverB.capturedRequest)
+		require.Nil(t, serverNext.capturedRequest)
+	}()
+}
+
+func TestConnectServer_RequestParallel(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	// 1. Create connectServer
+
+	serverNext := new(countServer)
+	serverClient := new(countServer)
+
+	s := next.NewNetworkServiceServer(
+		connect.NewServer(context.TODO(),
+			func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+				return next.NewNetworkServiceClient(
+					adapters.NewServerToClient(serverClient),
+					networkservice.NewNetworkServiceClient(cc),
+				)
+			},
+			grpc.WithInsecure(),
+		),
+		serverNext,
+	)
+
+	func() {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		// 3. Setup servers
+
+		urlA := &url.URL{Scheme: "tcp", Host: "127.0.0.1:10000"}
+		serverA := new(countServer)
+
+		err := startServer(ctx, urlA, serverA)
+		require.NoError(t, err)
+
+		// 4. Request A
+
+		wg := new(sync.WaitGroup)
+		wg.Add(parallelCount)
+
+		barrier := new(sync.WaitGroup)
+		barrier.Add(1)
+
+		for i := 0; i < parallelCount; i++ {
+			go func(k int) {
+				// 4.1. Create request
+				request := &networkservice.NetworkServiceRequest{
+					Connection: &networkservice.Connection{
+						Id: strconv.Itoa(k),
+					},
+				}
+
+				// 4.2. Request A
+				_, err := s.Request(clienturlctx.WithClientURL(ctx, urlA), request)
+				assert.NoError(t, err)
+				wg.Done()
+
+				barrier.Wait()
+
+				// 4.3. Re request A
+				conn, err := s.Request(clienturlctx.WithClientURL(ctx, urlA), request)
+				assert.NoError(t, err)
+
+				// 4.4. Close A
+				_, err = s.Close(ctx, conn)
+				assert.NoError(t, err)
+				wg.Done()
+			}(i)
+		}
+
+		wg.Wait()
+		wg.Add(parallelCount)
+
+		require.Equal(t, int32(parallelCount), serverClient.count)
+		require.Equal(t, int32(parallelCount), serverA.count)
+		require.Equal(t, int32(parallelCount), serverNext.count)
+
+		barrier.Done()
+		wg.Wait()
+
+		require.Equal(t, int32(parallelCount), serverClient.count)
+		require.Equal(t, int32(parallelCount), serverA.count)
+		require.Equal(t, int32(parallelCount), serverNext.count)
+	}()
+}
+
+type editServer struct {
+	key       string
+	value     string
+	mechanism *networkservice.Mechanism
+}
+
+func newEditServer(key, value string, mechanism *networkservice.Mechanism) *editServer {
+	return &editServer{
+		key:       key,
+		value:     value,
+		mechanism: mechanism,
 	}
-	wg.Wait()
+}
+
+func (s *editServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	request.Connection.Context.ExtraContext[s.key] = s.value
+	request.Connection.Mechanism = s.mechanism
+
+	return next.Server(ctx).Request(ctx, request)
+}
+
+func (s *editServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	return next.Server(ctx).Close(ctx, conn)
+}
+
+type captureServer struct {
+	capturedRequest *networkservice.NetworkServiceRequest
+}
+
+func (s *captureServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	s.capturedRequest = request.Clone()
+	return next.Server(ctx).Request(ctx, request)
+}
+
+func (s *captureServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	s.capturedRequest = nil
+	return next.Server(ctx).Close(ctx, conn)
+}
+
+type countServer struct {
+	count int32
+}
+
+func (s *countServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	atomic.AddInt32(&s.count, 1)
+	return next.Server(ctx).Request(ctx, request)
+}
+
+func (s *countServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	atomic.AddInt32(&s.count, -1)
+	return next.Server(ctx).Close(ctx, conn)
 }
