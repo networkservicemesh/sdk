@@ -139,8 +139,7 @@ func (s *connectServer) newClient(clientURL *url.URL) (networkservice.NetworkSer
 
 	ctx, cancel := context.WithCancel(s.ctx)
 	onClose := func() {
-		s.clients.Delete(clientURL.String())
-		if client, ok := s.clients.LoadUnsafe(clientURL.String()); !ok || client != *clientPtr {
+		if deleted := s.clients.Delete(clientURL.String()); deleted {
 			cancel()
 		}
 	}
