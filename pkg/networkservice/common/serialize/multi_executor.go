@@ -14,8 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package multiexecutor provides serial executor with multiple execution queues
-package multiexecutor
+package serialize
 
 import (
 	"sync"
@@ -23,41 +22,45 @@ import (
 	"github.com/edwarnicke/serialize"
 )
 
-// Executor is a serial executor with multiple execution queues
-type Executor struct {
-	executors map[string]*executor
+type multiExecutor struct {
+	executors map[string]*refCountExecutor
 	executor  serialize.Executor
 	once      sync.Once
 }
 
-type executor struct {
+type refCountExecutor struct {
+	count    int
 	executor serialize.Executor
-	refCount int
 }
 
-// AsyncExec executes `f` serially in the `id` queue
-func (e *Executor) AsyncExec(id string, f func()) (ch <-chan struct{}) {
+func (e *multiExecutor) AsyncExec(id string, f func()) (ch <-chan struct{}) {
 	e.once.Do(func() {
-		e.executors = make(map[string]*executor)
+		e.executors = make(map[string]*refCountExecutor)
 	})
 
 	<-e.executor.AsyncExec(func() {
 		exec, ok := e.executors[id]
 		if !ok {
-			exec = new(executor)
+			exec = new(refCountExecutor)
 			e.executors[id] = exec
 		}
-		exec.refCount++
+		exec.count++
 
 		ch = exec.executor.AsyncExec(func() {
 			f()
 			e.executor.AsyncExec(func() {
-				exec.refCount--
-				if exec.refCount == 0 {
+				exec.count--
+				if exec.count == 0 {
 					delete(e.executors, id)
 				}
 			})
 		})
 	})
 	return ch
+}
+
+func (e *multiExecutor) Executor(id string) IExecutor {
+	return executorFunc(func(f func()) <-chan struct{} {
+		return e.AsyncExec(id, f)
+	})
 }

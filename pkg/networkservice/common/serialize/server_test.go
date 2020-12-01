@@ -18,14 +18,17 @@ package serialize_test
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/goleak"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
@@ -36,7 +39,17 @@ const (
 	parallelCount = 1000
 )
 
+func testRequest(id string) *networkservice.NetworkServiceRequest {
+	return &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: id,
+		},
+	}
+}
+
 func TestSerializeServer_StressTest(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -49,22 +62,17 @@ func TestSerializeServer_StressTest(t *testing.T) {
 		new(eventServer),
 		newParallelServer(t),
 	)
-	request := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id: "id",
-		},
-	}
 
 	wg := new(sync.WaitGroup)
 	wg.Add(parallelCount)
 	for i := 0; i < parallelCount; i++ {
-		go func() {
+		go func(id string) {
 			defer wg.Done()
-			conn, err := server.Request(ctx, request)
+			conn, err := server.Request(ctx, testRequest(id))
 			assert.NoError(t, err)
 			_, err = server.Close(ctx, conn)
 			assert.NoError(t, err)
-		}()
+		}(fmt.Sprint(i % 20))
 	}
 	wg.Wait()
 }
@@ -98,8 +106,8 @@ func (s *eventServer) Close(ctx context.Context, conn *networkservice.Connection
 }
 
 type parallelServer struct {
-	t     *testing.T
-	state int32
+	t      *testing.T
+	states sync.Map
 }
 
 func newParallelServer(t *testing.T) *parallelServer {
@@ -109,13 +117,19 @@ func newParallelServer(t *testing.T) *parallelServer {
 }
 
 func (s *parallelServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	state := atomic.LoadInt32(&s.state)
-	assert.True(s.t, atomic.CompareAndSwapInt32(&s.state, state, state+1), "state has been changed")
+	raw, _ := s.states.LoadOrStore(request.Connection.Id, new(int32))
+	statePtr := raw.(*int32)
+
+	state := atomic.LoadInt32(statePtr)
+	assert.True(s.t, atomic.CompareAndSwapInt32(statePtr, state, state+1), "state has been changed")
 	return next.Server(ctx).Request(ctx, request)
 }
 
 func (s *parallelServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	state := atomic.LoadInt32(&s.state)
-	assert.True(s.t, atomic.CompareAndSwapInt32(&s.state, state, state+1), "state has been changed")
+	raw, _ := s.states.LoadOrStore(conn.Id, new(int32))
+	statePtr := raw.(*int32)
+
+	state := atomic.LoadInt32(statePtr)
+	assert.True(s.t, atomic.CompareAndSwapInt32(statePtr, state, state+1), "state has been changed")
 	return next.Server(ctx).Close(ctx, conn)
 }

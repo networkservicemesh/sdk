@@ -16,18 +16,8 @@
 
 package serialize
 
-import "github.com/networkservicemesh/sdk/pkg/tools/multiexecutor"
+type executorFunc func(f func()) <-chan struct{}
 
-// ExecutorFunc is a serialize.Executor.AsyncExec func type
-type ExecutorFunc func(f func()) <-chan struct{}
-
-func newExecutorFunc(id string, executor *multiexecutor.Executor) ExecutorFunc {
-	return func(f func()) <-chan struct{} {
-		return executor.AsyncExec(id, f)
-	}
-}
-
-// AsyncExec calls ExecutorFunc
-func (e ExecutorFunc) AsyncExec(f func()) <-chan struct{} {
+func (e executorFunc) AsyncExec(f func()) <-chan struct{} {
 	return e(f)
 }

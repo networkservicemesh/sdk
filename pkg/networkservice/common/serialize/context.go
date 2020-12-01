@@ -26,17 +26,22 @@ const (
 
 type contextKeyType string
 
-// WithExecutor wraps `parent` in a new context with ExecutorFunc
-func WithExecutor(parent context.Context, executor ExecutorFunc) context.Context {
+// IExecutor is a serialize.Executor interface type
+type IExecutor interface {
+	AsyncExec(f func()) <-chan struct{}
+}
+
+// WithExecutor wraps `parent` in a new context with IExecutor
+func WithExecutor(parent context.Context, executor IExecutor) context.Context {
 	if parent == nil {
-		parent = context.TODO()
+		panic("cannot create context from nil parent")
 	}
 	return context.WithValue(parent, executorKey, executor)
 }
 
-// Executor returns ExecutorFunc
-func Executor(ctx context.Context) ExecutorFunc {
-	if executor, ok := ctx.Value(executorKey).(ExecutorFunc); ok {
+// Executor returns IExecutor
+func Executor(ctx context.Context) IExecutor {
+	if executor, ok := ctx.Value(executorKey).(IExecutor); ok {
 		return executor
 	}
 	return nil
