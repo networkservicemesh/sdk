@@ -14,12 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package timeout
+package serialize
 
-import (
-	"sync"
-)
+type executorFunc func(f func()) <-chan struct{}
 
-//go:generate go-syncmap -output timer_map.gen.go -type timerMap<string,*time.Timer>
-
-type timerMap sync.Map
+func (e executorFunc) AsyncExec(f func()) <-chan struct{} {
+	return e(f)
+}

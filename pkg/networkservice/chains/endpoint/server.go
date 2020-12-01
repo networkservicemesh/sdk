@@ -27,6 +27,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 
@@ -65,6 +66,7 @@ func NewServer(ctx context.Context, name string, authzServer networkservice.Netw
 		append([]networkservice.NetworkServiceServer{
 			authzServer,
 			updatepath.NewServer(name),
+			serialize.NewServer(),
 			// `timeout` uses ctx as a context for the timeout Close and it closes only the subsequent chain, so
 			// chain elements before the `timeout` in chain shouldn't make any updates to the Close context and
 			// shouldn't be closed on Connection Close.
