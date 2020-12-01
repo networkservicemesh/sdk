@@ -80,7 +80,7 @@ func TestSerializeServer_StressTest(t *testing.T) {
 type eventServer struct{}
 
 func (s *eventServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	executor := serialize.Executor(ctx)
+	executor := serialize.GetExecutor(ctx)
 	go func() {
 		executor.AsyncExec(func() {
 			_, _ = next.Server(ctx).Request(serialize.WithExecutor(context.TODO(), executor), request)

@@ -86,7 +86,7 @@ func (t *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 func (t *timeoutServer) createTimer(ctx context.Context, conn *networkservice.Connection) (*time.Timer, error) {
 	logEntry := log.Entry(ctx).WithField("timeoutServer", "createTimer")
 
-	executor := serialize.Executor(ctx)
+	executor := serialize.GetExecutor(ctx)
 	if executor == nil {
 		return nil, errors.New("no executor provided")
 	}

@@ -59,7 +59,7 @@ func (e *multiExecutor) AsyncExec(id string, f func()) (ch <-chan struct{}) {
 	return ch
 }
 
-func (e *multiExecutor) Executor(id string) IExecutor {
+func (e *multiExecutor) Executor(id string) Executor {
 	return executorFunc(func(f func()) <-chan struct{} {
 		return e.AsyncExec(id, f)
 	})
