@@ -38,10 +38,10 @@ type RefcountMap struct {
 
 // Store sets the value for a key
 // count = 1.
-func (m *RefcountMap) Store(key string, value networkservice.NetworkServiceClient) {
+func (m *RefcountMap) Store(key string, newValue networkservice.NetworkServiceClient) {
 	m.m.Store(key, &entry{
 		count: 1,
-		value: value,
+		value: newValue,
 	})
 }
 
@@ -49,11 +49,11 @@ func (m *RefcountMap) Store(key string, value networkservice.NetworkServiceClien
 // loaded result is true if the value was loaded, false if stored.
 // store  -->  count = 1
 // load   -->  count += 1
-func (m *RefcountMap) LoadOrStore(key string, value networkservice.NetworkServiceClient) (_ networkservice.NetworkServiceClient, loaded bool) {
+func (m *RefcountMap) LoadOrStore(key string, newValue networkservice.NetworkServiceClient) (value networkservice.NetworkServiceClient, loaded bool) {
 	var raw interface{}
 	raw, loaded = m.m.LoadOrStore(key, &entry{
 		count: 1,
-		value: value,
+		value: newValue,
 	})
 	entry := raw.(*entry)
 	if !loaded {
@@ -64,7 +64,7 @@ func (m *RefcountMap) LoadOrStore(key string, value networkservice.NetworkServic
 
 	if entry.count == 0 {
 		entry.lock.Unlock()
-		return m.LoadOrStore(key, value)
+		return m.LoadOrStore(key, newValue)
 	}
 	entry.count++
 
@@ -76,7 +76,7 @@ func (m *RefcountMap) LoadOrStore(key string, value networkservice.NetworkServic
 // Load returns the value stored in the map for a key, or nil if no value is present. The loaded result indicates
 // whether value was found in the map.
 // count += 1
-func (m *RefcountMap) Load(key string) (_ networkservice.NetworkServiceClient, loaded bool) {
+func (m *RefcountMap) Load(key string) (value networkservice.NetworkServiceClient, loaded bool) {
 	var raw interface{}
 	raw, loaded = m.m.Load(key)
 	if !loaded {
@@ -99,7 +99,7 @@ func (m *RefcountMap) Load(key string) (_ networkservice.NetworkServiceClient, l
 // reports whether the key was present.
 // count == 1  -->  delete
 // count > 1   -->  count -= 1
-func (m *RefcountMap) LoadAndDelete(key string) (_ networkservice.NetworkServiceClient, loaded, deleted bool) {
+func (m *RefcountMap) LoadAndDelete(key string) (value networkservice.NetworkServiceClient, loaded, deleted bool) {
 	var raw interface{}
 	raw, loaded = m.m.Load(key)
 	if !loaded {
