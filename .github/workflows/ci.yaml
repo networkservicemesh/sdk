@@ -96,6 +96,8 @@ jobs:
         run: go get -u github.com/golang/protobuf/protoc-gen-go@v1.4.2
       - name: Install go-syncmap
         run: go get github.com/searKing/golang/tools/cmd/go-syncmap
+      - name: Install genny
+        run: go get github.com/cheekybits/genny
       - name: Generate files
         run: go generate ./...
       - name: Check for changes in generated code

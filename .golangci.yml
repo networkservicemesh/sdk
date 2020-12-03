@@ -176,6 +176,11 @@ issues:
       linters:
         - dupl
         - golint
+        - goheader
+    - path: .*\.template\.go
+      linters:
+        - dupl
+        - deadcode
     - path: .*registry.*.go
       linters:
         - dupl
