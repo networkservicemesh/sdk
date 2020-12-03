@@ -27,10 +27,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/cidr"
 )
 
-var (
-	p2pMask net.IPMask = []byte{0xFF, 0xFF, 0xFF, 0xFE}
-)
-
 type ipPool struct {
 	mask         net.IPMask
 	networkInt   uint32
@@ -78,22 +74,26 @@ func (p *ipPool) getP2PAddrs(exclude *roaring.Bitmap) (dstAddr, srcAddr string, 
 	p.freeIPs.Remove(dstInt)
 	p.freeIPs.Remove(srcInt)
 
-	dstIPNet := &net.IPNet{
+	dstIP := &net.IPNet{
 		IP:   make(net.IP, 4),
-		Mask: p2pMask,
+		Mask: p2pMask(),
 	}
-	binary.BigEndian.PutUint32(dstIPNet.IP, dstInt)
+	binary.BigEndian.PutUint32(dstIP.IP, dstInt)
 
-	srcIPNet := &net.IPNet{
+	srcIP := &net.IPNet{
 		IP:   make(net.IP, 4),
-		Mask: p2pMask,
+		Mask: p2pMask(),
 	}
-	binary.BigEndian.PutUint32(srcIPNet.IP, srcInt)
+	binary.BigEndian.PutUint32(srcIP.IP, srcInt)
 
-	return dstIPNet.String(), srcIPNet.String(), nil
+	return dstIP.String(), srcIP.String(), nil
 }
 
-func (p *ipPool) getIPNetAddr(exclude *roaring.Bitmap) (addr string, err error) {
+func p2pMask() net.IPMask {
+	return net.CIDRMask(31, 32) // x.x.x.x/31
+}
+
+func (p *ipPool) getIPSubnetAddr(exclude *roaring.Bitmap) (srcAddr string, err error) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
@@ -109,16 +109,16 @@ func (p *ipPool) getIPNetAddr(exclude *roaring.Bitmap) (addr string, err error) 
 		return "", errors.New("no available IP address found")
 	}
 
-	addrInt := available.Minimum()
-	p.freeIPs.Remove(addrInt)
+	srcInt := available.Minimum()
+	p.freeIPs.Remove(srcInt)
 
-	ipNet := &net.IPNet{
+	srcIP := &net.IPNet{
 		IP:   make(net.IP, 4),
 		Mask: p.mask,
 	}
-	binary.BigEndian.PutUint32(ipNet.IP, addrInt)
+	binary.BigEndian.PutUint32(srcIP.IP, srcInt)
 
-	return ipNet.String(), nil
+	return srcIP.String(), nil
 }
 
 func (p *ipPool) freeAddrs(addrs ...string) {

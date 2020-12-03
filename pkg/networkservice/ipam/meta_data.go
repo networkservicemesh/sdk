@@ -17,9 +17,20 @@
 package ipam
 
 import (
-	"sync"
+	"context"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
-//go:generate go-syncmap -output connection_info_map.gen.go -type connectionInfoMap<string,*connectionInfo>
+type keyType struct{}
 
-type connectionInfoMap sync.Map
+func storeConnInfo(ctx context.Context, connInfo *connectionInfo) {
+	metadata.Map(ctx, false).Store(keyType{}, connInfo)
+}
+
+func loadConnInfo(ctx context.Context) (*connectionInfo, bool) {
+	if raw, ok := metadata.Map(ctx, false).Load(keyType{}); ok {
+		return raw.(*connectionInfo), true
+	}
+	return nil, false
+}

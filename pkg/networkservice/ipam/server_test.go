@@ -28,6 +28,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
 func newP2PRequest() *networkservice.NetworkServiceRequest {
@@ -57,6 +58,7 @@ func newIPNetRequest() *networkservice.NetworkServiceRequest {
 func newIpamServer(prefixes ...*net.IPNet) networkservice.NetworkServiceServer {
 	return next.NewNetworkServiceServer(
 		updatepath.NewServer("ipam"),
+		metadata.NewServer(),
 		ipam.NewServer(prefixes...),
 	)
 }

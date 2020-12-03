@@ -14,12 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package ipam provides a simple ipam appropriate for:
-// * point 2 point - assigns two ip addresses out of a pool of prefixes with a CIDR mask equal /31
-// * IP net - assigns ip address out of a pool of prefixes with a CIDR mask of selected prefix
-// The IP addresses assigned are not reassigned until they are released. All subsequent requests return previously
-// assigned IP addresses except than the request type has been changed or existing IP addresses are excluded with new
-// exclude prefixes.
+// Package ipam provides an IPAM server chain element.
 package ipam
 
 import (
@@ -37,11 +32,10 @@ import (
 )
 
 type ipamServer struct {
-	ipPools   []*ipPool
-	connInfos connectionInfoMap
-	prefixes  []*net.IPNet
-	once      sync.Once
-	initErr   error
+	ipPools  []*ipPool
+	prefixes []*net.IPNet
+	once     sync.Once
+	initErr  error
 }
 
 type connectionInfo struct {
@@ -50,7 +44,13 @@ type connectionInfo struct {
 	dstAddr string
 }
 
-// NewServer - creates a NetworkServiceServer that requests a kernel interface and populates the netns inode
+func (i *connectionInfo) shouldUpdate(ipContext *networkservice.IPContext, exclude *roaring.Bitmap) bool {
+	return ((i.dstAddr != "") != (ipContext.GetDstIpRequired())) ||
+		exclude.Contains(addrToInt(i.srcAddr)) ||
+		i.dstAddr != "" && exclude.Contains(addrToInt(i.srcAddr))
+}
+
+// NewServer - creates a new NetworkServiceServer chain element that implements IPAM service.
 func NewServer(prefixes ...*net.IPNet) networkservice.NetworkServiceServer {
 	return &ipamServer{
 		prefixes: prefixes,
@@ -92,36 +92,24 @@ func (s *ipamServer) Request(ctx context.Context, request *networkservice.Networ
 		return nil, err
 	}
 
-	connInfo, ok := s.connInfos.Load(conn.GetId())
-	if ok && shouldUpdate(connInfo, ipContext, exclude) {
-		// we are requested for another { p2p, IP net } case or some of the existing addresses are excluded
-		s.delete(conn.GetId(), connInfo)
+	connInfo, ok := loadConnInfo(ctx)
+	if ok && connInfo.shouldUpdate(ipContext, exclude) {
+		// we are requested for another { p2p, IP subnet } case or some of the existing addresses are excluded
+		s.free(connInfo)
 		ok = false
 	}
 	if !ok {
-		var srcAddr, dstAddr string
-		for _, ipPool := range s.ipPools {
-			if ipContext.GetDstIpRequired() {
-				// p2p ipam case
-				if dstAddr, srcAddr, err = ipPool.getP2PAddrs(exclude); err != nil {
-					continue
-				}
-			} else {
-				// IP net ipam case
-				if srcAddr, err = ipPool.getIPNetAddr(exclude); err != nil {
-					continue
-				}
-			}
-			connInfo = &connectionInfo{
-				ipPool:  ipPool,
-				srcAddr: srcAddr,
-				dstAddr: dstAddr,
-			}
-			s.connInfos.Store(conn.GetId(), connInfo)
+		if ipContext.GetDstIpRequired() {
+			// p2p ipam case
+			connInfo, err = s.getP2PAddrs(exclude)
+		} else {
+			// IP net ipam case
+			connInfo, err = s.getIPSubnetAddr(exclude)
 		}
 		if err != nil {
 			return nil, err
 		}
+		storeConnInfo(ctx, connInfo)
 	}
 
 	ipContext.SrcIpAddr = connInfo.srcAddr
@@ -132,10 +120,31 @@ func (s *ipamServer) Request(ctx context.Context, request *networkservice.Networ
 	return next.Server(ctx).Request(ctx, request)
 }
 
-func shouldUpdate(connInfo *connectionInfo, ipContext *networkservice.IPContext, exclude *roaring.Bitmap) bool {
-	return ((connInfo.dstAddr != "") != (ipContext.GetDstIpRequired())) ||
-		exclude.Contains(addrToInt(connInfo.srcAddr)) ||
-		connInfo.dstAddr != "" && exclude.Contains(addrToInt(connInfo.srcAddr))
+func (s *ipamServer) getP2PAddrs(exclude *roaring.Bitmap) (connInfo *connectionInfo, err error) {
+	var dstAddr, srcAddr string
+	for _, ipPool := range s.ipPools {
+		if dstAddr, srcAddr, err = ipPool.getP2PAddrs(exclude); err == nil {
+			return &connectionInfo{
+				ipPool:  ipPool,
+				srcAddr: srcAddr,
+				dstAddr: dstAddr,
+			}, nil
+		}
+	}
+	return nil, err
+}
+
+func (s *ipamServer) getIPSubnetAddr(exclude *roaring.Bitmap) (connInfo *connectionInfo, err error) {
+	var srcAddr string
+	for _, ipPool := range s.ipPools {
+		if srcAddr, err = ipPool.getIPSubnetAddr(exclude); err == nil {
+			return &connectionInfo{
+				ipPool:  ipPool,
+				srcAddr: srcAddr,
+			}, nil
+		}
+	}
+	return nil, err
 }
 
 func (s *ipamServer) Close(ctx context.Context, conn *networkservice.Connection) (_ *empty.Empty, err error) {
@@ -144,17 +153,16 @@ func (s *ipamServer) Close(ctx context.Context, conn *networkservice.Connection)
 		return nil, s.initErr
 	}
 
-	if connInfo, ok := s.connInfos.Load(conn.GetId()); ok {
-		s.delete(conn.GetId(), connInfo)
+	if connInfo, ok := loadConnInfo(ctx); ok {
+		s.free(connInfo)
 	}
 
 	return next.Server(ctx).Close(ctx, conn)
 }
 
-func (s *ipamServer) delete(connID string, connInfo *connectionInfo) {
+func (s *ipamServer) free(connInfo *connectionInfo) {
 	connInfo.ipPool.freeAddrs(connInfo.srcAddr)
 	if dstAddr := connInfo.dstAddr; dstAddr != "" {
 		connInfo.ipPool.freeAddrs(dstAddr)
 	}
-	s.connInfos.Delete(connID)
 }
