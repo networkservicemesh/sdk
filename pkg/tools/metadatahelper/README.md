@@ -10,7 +10,7 @@ gen.go:
 ```go
 package connect
 
-//go:generate genny -in=../../utils/metadata/helper/meta_data.template.go -out=client_meta_data.gen.go -pkg=connect gen "prefix=client valueType=networkservice.NetworkServiceClient"
+//go:generate genny -in=../../../tools/metadatahelper/meta_data.template.go -out=client_meta_data.gen.go -pkg=connect gen "prefix=client valueType=networkservice.NetworkServiceClient"
 ```
 client_meta_data.gen.go:
 ```go

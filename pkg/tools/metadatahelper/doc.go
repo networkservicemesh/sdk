@@ -14,6 +14,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package helper
-
-//go:generate genny -in=meta_data.template.go -out=int_meta_data.gen.go gen "prefix=Int valueType=int"
+// Package metadatahelper provides template for generating metadata helpers.
+package metadatahelper

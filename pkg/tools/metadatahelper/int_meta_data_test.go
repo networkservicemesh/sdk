@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package helper_test
+package metadatahelper_test
 
 import (
 	"context"
@@ -27,7 +27,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata/helper"
+	"github.com/networkservicemesh/sdk/pkg/tools/metadatahelper"
 )
 
 type sample struct {
@@ -39,7 +39,7 @@ var samples = []*sample{
 	{
 		name: "Store + Load",
 		test: func(t *testing.T, ctx context.Context) {
-			metaData := helper.IntMetadata(ctx, false)
+			metaData := metadatahelper.IntMetadata(ctx, false)
 
 			expected := 10
 			metaData.Store(expected)
@@ -52,7 +52,7 @@ var samples = []*sample{
 	{
 		name: "Store + Delete",
 		test: func(t *testing.T, ctx context.Context) {
-			metaData := helper.IntMetadata(ctx, false)
+			metaData := metadatahelper.IntMetadata(ctx, false)
 
 			metaData.Store(10)
 			metaData.Delete()
