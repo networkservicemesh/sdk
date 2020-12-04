@@ -10,7 +10,7 @@ gen.go:
 ```go
 package connect
 
-//go:generate bash ../../../../scripts/genny.sh -in=github.com/networkservicemesh/sdk/pkg/tools/metadatahelper/meta_data.template.go -out=client_meta_data.gen.go gen "prefix=client valueType=networkservice.NetworkServiceClient"
+//go:generate bash -c "genny -in=$(go list -f '{{.Dir}} github.com/networkservicemesh/sdk/pkg/tools/metadatahelper)/meta_data.template.go -out=client_meta_data.gen.go -pkg=$GOPACKAGE gen 'prefix=client valueType=networkservice.NetworkServiceClient'"
 ```
 client_meta_data.gen.go:
 ```go

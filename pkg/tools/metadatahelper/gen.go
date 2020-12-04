@@ -16,4 +16,4 @@
 
 package metadatahelper
 
-//go:generate bash ../../../scripts/genny.sh -in=github.com/networkservicemesh/sdk/pkg/tools/metadatahelper/meta_data.template.go -out=int_meta_data.gen.go gen "prefix=Int valueType=int"
+//go:generate bash -c "genny -in=$(go list -f '{{.Dir}}' github.com/networkservicemesh/sdk/pkg/tools/metadatahelper)/meta_data.template.go -out=int_meta_data.gen.go -pkg=$GOPACKAGE gen 'prefix=Int valueType=int'"
