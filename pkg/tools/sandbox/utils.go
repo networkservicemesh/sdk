@@ -46,6 +46,14 @@ func GenerateTestToken(_ credentials.AuthInfo) (tokenValue string, expireTime ti
 	return "TestToken", time.Date(3000, 1, 1, 1, 1, 1, 1, time.UTC), nil
 }
 
+// GenerateExpiringToken returns a token generator with the specified expiration duration.
+func GenerateExpiringToken(duration time.Duration) token.GeneratorFunc {
+	value := fmt.Sprintf("TestToken-%s", duration)
+	return func(_ credentials.AuthInfo) (tokenValue string, expireTime time.Time, err error) {
+		return value, time.Now().UTC().Add(duration), nil
+	}
+}
+
 // NewEndpoint creates endpoint and registers it into passed NSMgr.
 func NewEndpoint(ctx context.Context, nse *registry.NetworkServiceEndpoint, generatorFunc token.GeneratorFunc, mgr nsmgr.Nsmgr, additionalFunctionality ...networkservice.NetworkServiceServer) (*EndpointEntry, error) {
 	ep := endpoint.NewServer(ctx, nse.Name, authorize.NewServer(), generatorFunc, additionalFunctionality...)
