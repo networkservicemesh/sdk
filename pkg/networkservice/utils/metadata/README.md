@@ -41,3 +41,22 @@ type prefixMetaDataHelper struct {
 
 prefixMetaData(ctx context.Context, isClient bool) *prefixMetaDataHelper
 ```
+
+## maphelper/template.go
+
+Provides multi-value helper. Template parameters are:
+* prefix - prefix for the metadata type and constructor;
+* keyType - key type;
+* valueType - value type.
+
+```go
+type prefixMapMetaDataHelper struct {
+    Store(key keyType, value valueType)
+    LoadOrStore(key keyType, value valueType) (valueType, bool)
+    Load(key keyType) (valueType, bool)
+    LoadAndDelete(key keyType) (valueType, bool)
+    Delete(key keyType)
+}
+
+prefixMapMetaData(ctx context.Context, isClient bool) *prefixMapMetaDataHelper
+```
