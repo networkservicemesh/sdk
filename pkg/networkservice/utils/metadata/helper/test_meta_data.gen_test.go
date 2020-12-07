@@ -18,7 +18,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package metadatahelper
+package helper_test
 
 import (
 	"context"
@@ -27,41 +27,43 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
-type _IntKeyType struct{}
+type _TestKeyType struct{}
 
-type IntMetadataHelper struct {
+var _IntNil int
+
+type testMetaDataHelper struct {
 	m *sync.Map
 }
 
-func IntMetadata(ctx context.Context, isClient bool) *IntMetadataHelper {
-	return &IntMetadataHelper{
+func testMetaData(ctx context.Context, isClient bool) *testMetaDataHelper {
+	return &testMetaDataHelper{
 		m: metadata.Map(ctx, isClient),
 	}
 }
 
-func (h *IntMetadataHelper) Store(value int) {
-	h.m.Store(_IntKeyType{}, value)
+func (h *testMetaDataHelper) Store(value int) {
+	h.m.Store(_TestKeyType{}, value)
 }
 
-func (h *IntMetadataHelper) LoadOrStore(value int) (int, bool) {
-	raw, ok := h.m.LoadOrStore(_IntKeyType{}, value)
+func (h *testMetaDataHelper) LoadOrStore(value int) (int, bool) {
+	raw, ok := h.m.LoadOrStore(_TestKeyType{}, value)
 	return raw.(int), ok
 }
 
-func (h *IntMetadataHelper) Load() (int, bool) {
-	if raw, ok := h.m.Load(_IntKeyType{}); ok {
+func (h *testMetaDataHelper) Load() (int, bool) {
+	if raw, ok := h.m.Load(_TestKeyType{}); ok {
 		return raw.(int), true
 	}
-	return func() (v int) { return }(), false
+	return _IntNil, false
 }
 
-func (h *IntMetadataHelper) LoadAndDelete() (int, bool) {
-	if raw, ok := h.m.LoadAndDelete(_IntKeyType{}); ok {
+func (h *testMetaDataHelper) LoadAndDelete() (int, bool) {
+	if raw, ok := h.m.LoadAndDelete(_TestKeyType{}); ok {
 		return raw.(int), true
 	}
-	return func() (v int) { return }(), false
+	return _IntNil, false
 }
 
-func (h *IntMetadataHelper) Delete() {
-	h.m.Delete(_IntKeyType{})
+func (h *testMetaDataHelper) Delete() {
+	h.m.Delete(_TestKeyType{})
 }

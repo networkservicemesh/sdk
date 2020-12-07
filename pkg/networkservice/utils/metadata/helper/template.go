@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package metadatahelper
+package helper
 
 import (
 	"context"
@@ -30,39 +30,41 @@ type valueType generic.Type
 
 type _prefixKeyType struct{}
 
-type prefixMetadataHelper struct {
+var _valueTypeNil valueType
+
+type prefixMetaDataHelper struct {
 	m *sync.Map
 }
 
-func prefixMetadata(ctx context.Context, isClient bool) *prefixMetadataHelper {
-	return &prefixMetadataHelper{
+func prefixMetaData(ctx context.Context, isClient bool) *prefixMetaDataHelper {
+	return &prefixMetaDataHelper{
 		m: metadata.Map(ctx, isClient),
 	}
 }
 
-func (h *prefixMetadataHelper) Store(value valueType) {
+func (h *prefixMetaDataHelper) Store(value valueType) {
 	h.m.Store(_prefixKeyType{}, value)
 }
 
-func (h *prefixMetadataHelper) LoadOrStore(value valueType) (valueType, bool) {
+func (h *prefixMetaDataHelper) LoadOrStore(value valueType) (valueType, bool) {
 	raw, ok := h.m.LoadOrStore(_prefixKeyType{}, value)
 	return raw.(valueType), ok
 }
 
-func (h *prefixMetadataHelper) Load() (valueType, bool) {
+func (h *prefixMetaDataHelper) Load() (valueType, bool) {
 	if raw, ok := h.m.Load(_prefixKeyType{}); ok {
 		return raw.(valueType), true
 	}
-	return func() (v valueType) { return }(), false
+	return _valueTypeNil, false
 }
 
-func (h *prefixMetadataHelper) LoadAndDelete() (valueType, bool) {
+func (h *prefixMetaDataHelper) LoadAndDelete() (valueType, bool) {
 	if raw, ok := h.m.LoadAndDelete(_prefixKeyType{}); ok {
 		return raw.(valueType), true
 	}
-	return func() (v valueType) { return }(), false
+	return _valueTypeNil, false
 }
 
-func (h *prefixMetadataHelper) Delete() {
+func (h *prefixMetaDataHelper) Delete() {
 	h.m.Delete(_prefixKeyType{})
 }

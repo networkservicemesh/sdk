@@ -104,6 +104,7 @@ jobs:
         run: |
           git diff -- '*.pb.go' || ( echo "Rerun go generate ./... locally and resubmit" && false )
           git diff -- '*.gen.go' || ( echo "Rerun go generate ./... locally and resubmit" && false )
+          git diff -- '*.gen_test.go' || ( echo "Rerun go generate ./... locally and resubmit" && false )
   excludereplace:
     name: Exclude Replace in go.mod
     runs-on: ubuntu-latest

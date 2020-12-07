@@ -14,20 +14,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package metadatahelper_test
+package helper_test
 
 import (
 	"context"
 	"testing"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
-	"github.com/networkservicemesh/sdk/pkg/tools/metadatahelper"
 )
 
 type sample struct {
@@ -39,7 +39,7 @@ var samples = []*sample{
 	{
 		name: "Store + Load",
 		test: func(t *testing.T, ctx context.Context) {
-			metaData := metadatahelper.IntMetadata(ctx, false)
+			metaData := testMetaData(ctx, false)
 
 			expected := 10
 			metaData.Store(expected)
@@ -52,7 +52,7 @@ var samples = []*sample{
 	{
 		name: "Store + Delete",
 		test: func(t *testing.T, ctx context.Context) {
-			metaData := metadatahelper.IntMetadata(ctx, false)
+			metaData := testMetaData(ctx, false)
 
 			metaData.Store(10)
 			metaData.Delete()
@@ -63,7 +63,7 @@ var samples = []*sample{
 	},
 }
 
-func TestMetadata(t *testing.T) {
+func TestMetaData(t *testing.T) {
 	for i := range samples {
 		sample := samples[i]
 		t.Run(sample.name, func(t *testing.T) {

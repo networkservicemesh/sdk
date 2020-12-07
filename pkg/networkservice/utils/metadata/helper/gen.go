@@ -14,5 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package metadatahelper provides template for generating metadata helpers.
-package metadatahelper
+package helper
+
+//go:generate bash -c "genny -in=$(go list -f '{{.Dir}}' github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata/helper)/template.go -out=test_meta_data.gen_test.go -pkg=${GOPACKAGE}_test gen 'prefix=test valueType=int'"
