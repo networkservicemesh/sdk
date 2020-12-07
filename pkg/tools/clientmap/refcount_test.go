@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	parallelCount = 1000
+	retriesCount = 1000
 )
 
 func TestRefcountMap(t *testing.T) {
@@ -204,7 +204,7 @@ func TestRefcountMap_Actions(t *testing.T) {
 func runSample(t *testing.T, m *clientmap.RefcountMap, sample *sample) {
 	t.Run(sample.name, func(t *testing.T) {
 		value := null.NewClient()
-		for i := 0; i < parallelCount; i++ {
+		for i := 0; i < retriesCount; i++ {
 			key := strconv.Itoa(i)
 			if sample.withValue {
 				m.Store(key, value)

@@ -17,7 +17,7 @@ if count becomes 0, value deletes.
 `clientmap.RefcountMap` is a very thin wrapper, it doesn't hardly affect the `clientmap.Map` performance:
 ```
 BenchmarkMap
-BenchmarkMap-4           	15998454	        84.6 ns/op
+BenchmarkMap-4           	20850049	        54.7 ns/op
 BenchmarkRefcountMap
-BenchmarkRefcountMap-4   	10496374	       106 ns/op
+BenchmarkRefcountMap-4   	14408266	        76.3 ns/op
 ```
