@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	parallelCount = 23
+	parallelCount = 20
 )
 
 var ids = []string{
@@ -33,20 +33,23 @@ var ids = []string{
 
 func BenchmarkMap(b *testing.B) {
 	var m clientmap.Map
+	client := null.NewClient()
 	b.SetParallelism(parallelCount)
+
+	b.ResetTimer()
+
 	b.RunParallel(func(pb *testing.PB) {
-		client := null.NewClient()
 		for i := 0; pb.Next(); i++ {
 			id := ids[i%len(ids)]
 			switch i % 6 {
 			case 0:
 				m.Store(id, client)
 			case 1:
-				client, _ = m.LoadOrStore(id, client)
+				_, _ = m.LoadOrStore(id, client)
 			case 2:
-				client, _ = m.Load(id)
+				_, _ = m.Load(id)
 			case 3, 4, 5:
-				client, _ = m.LoadAndDelete(id)
+				_, _ = m.LoadAndDelete(id)
 			}
 		}
 	})
@@ -54,20 +57,23 @@ func BenchmarkMap(b *testing.B) {
 
 func BenchmarkRefcountMap(b *testing.B) {
 	var m clientmap.RefcountMap
+	client := null.NewClient()
 	b.SetParallelism(parallelCount)
+
+	b.ResetTimer()
+
 	b.RunParallel(func(pb *testing.PB) {
-		client := null.NewClient()
 		for i := 0; pb.Next(); i++ {
 			id := ids[i%len(ids)]
 			switch i % 6 {
 			case 0:
 				m.Store(id, client)
 			case 1:
-				client, _ = m.LoadOrStore(id, client)
+				_, _ = m.LoadOrStore(id, client)
 			case 2:
-				client, _ = m.Load(id)
+				_, _ = m.Load(id)
 			case 3, 4, 5:
-				client, _, _ = m.LoadAndDelete(id)
+				_, _, _ = m.LoadAndDelete(id)
 			}
 		}
 	})
