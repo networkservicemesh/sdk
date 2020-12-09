@@ -1,3 +1,5 @@
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
+//
 // Copyright (c) 2020 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -17,73 +19,114 @@
 package clientmap
 
 import (
-	"context"
-	"sync/atomic"
+	"sync"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"google.golang.org/grpc"
 )
 
-type refcountClient struct {
-	count  int32
-	client networkservice.NetworkServiceClient
+type entry struct {
+	count int
+	lock  sync.Mutex
+	value networkservice.NetworkServiceClient
 }
 
-func (r *refcountClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	return r.client.Request(ctx, request)
-}
-
-func (r *refcountClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	return r.client.Close(ctx, conn)
-}
-
-// RefcountMap - clientmap.Map wrapped with refcounting.  Each Store,Load,LoadOrStore increments the count,
-//               each Delete decrements the count.  When the count is zero, Delete deletes.
+// RefcountMap is a sync.Map wrapped with refcounting. Each Store, Load, LoadOrStore increments the count, each
+// LoadAndDelete, Delete decrements the count. When the count == 1, LoadAndDelete, Delete deletes.
 type RefcountMap struct {
-	Map
+	m sync.Map
 }
 
-// Store sets the value for a key.
-// Increments the refcount
-func (r *RefcountMap) Store(key string, value networkservice.NetworkServiceClient) {
-	client := &refcountClient{client: value}
-	r.Map.Store(key, client)
-	atomic.AddInt32(&client.count, 1)
+// Store sets the value for a key
+// count = 1.
+func (m *RefcountMap) Store(key string, newValue networkservice.NetworkServiceClient) {
+	m.m.Store(key, &entry{
+		count: 1,
+		value: newValue,
+	})
 }
 
-// LoadOrStore returns the existing value for the key if present. Otherwise, it stores and returns the given value. The loaded result is true if the value was loaded, false if stored.
-// Increments the refcount.
-func (r *RefcountMap) LoadOrStore(key string, value networkservice.NetworkServiceClient) (networkservice.NetworkServiceClient, bool) {
-	client := &refcountClient{client: value}
-	rv, loaded := r.Map.LoadOrStore(key, client)
-	if client, ok := rv.(*refcountClient); ok {
-		atomic.AddInt32(&client.count, 1)
-		return client.client, loaded
-	}
-	return rv, loaded
-}
-
-// Load returns the value stored in the map for a key, or nil if no value is present. The ok result indicates whether value was found in the map.
-// Increments refcount.
-func (r *RefcountMap) Load(key string) (networkservice.NetworkServiceClient, bool) {
-	rv, loaded := r.Map.Load(key)
-	if client, ok := rv.(*refcountClient); ok {
-		atomic.AddInt32(&client.count, 1)
-		return client.client, loaded
-	}
-	return rv, loaded
-}
-
-// Delete decrements the refcount and deletes the value for a key if refcount is zero. Returns true if value is no (more) present.
-func (r *RefcountMap) Delete(key string) bool {
-	rv, loaded := r.Map.Load(key)
+// LoadOrStore returns the existing value for the key if present. Otherwise, it stores and returns the given value. The
+// loaded result is true if the value was loaded, false if stored.
+// store  -->  count = 1
+// load   -->  count += 1
+func (m *RefcountMap) LoadOrStore(key string, newValue networkservice.NetworkServiceClient) (value networkservice.NetworkServiceClient, loaded bool) {
+	var raw interface{}
+	raw, loaded = m.m.LoadOrStore(key, &entry{
+		count: 1,
+		value: newValue,
+	})
+	entry := raw.(*entry)
 	if !loaded {
-		return true
+		return entry.value, false
 	}
-	if client, ok := rv.(*refcountClient); ok && atomic.AddInt32(&client.count, -1) == 0 {
-		r.Map.Delete(key)
-		return true
+
+	entry.lock.Lock()
+
+	if entry.count == 0 {
+		entry.lock.Unlock()
+		return m.LoadOrStore(key, newValue)
 	}
-	return false
+	entry.count++
+
+	entry.lock.Unlock()
+
+	return entry.value, true
+}
+
+// Load returns the value stored in the map for a key, or nil if no value is present. The loaded result indicates
+// whether value was found in the map.
+// count += 1
+func (m *RefcountMap) Load(key string) (value networkservice.NetworkServiceClient, loaded bool) {
+	var raw interface{}
+	raw, loaded = m.m.Load(key)
+	if !loaded {
+		return nil, false
+	}
+	entry := raw.(*entry)
+
+	entry.lock.Lock()
+	defer entry.lock.Unlock()
+
+	if entry.count == 0 {
+		return nil, false
+	}
+	entry.count++
+
+	return entry.value, true
+}
+
+// LoadAndDelete is trying to delete the value for a key, returning the previous value if any. The loaded result
+// reports whether the key was present.
+// count == 1  -->  delete
+// count > 1   -->  count -= 1
+func (m *RefcountMap) LoadAndDelete(key string) (value networkservice.NetworkServiceClient, loaded, deleted bool) {
+	var raw interface{}
+	raw, loaded = m.m.Load(key)
+	if !loaded {
+		return nil, false, true
+	}
+	entry := raw.(*entry)
+
+	entry.lock.Lock()
+	defer entry.lock.Unlock()
+
+	if entry.count == 0 {
+		return nil, false, true
+	}
+	entry.count--
+
+	if entry.count == 0 {
+		m.m.Delete(key)
+		deleted = true
+	}
+
+	return entry.value, true, deleted
+}
+
+// Delete is trying to delete the value for a key.
+// count == 1  -->  delete
+// count > 1   -->  count -= 1
+func (m *RefcountMap) Delete(key string) (deleted bool) {
+	_, _, deleted = m.LoadAndDelete(key)
+	return deleted
 }
