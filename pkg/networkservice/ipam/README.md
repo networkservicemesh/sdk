@@ -14,14 +14,34 @@ same addresses for the same connection.
 ## ipamServer
 
 It is a server chain element implementing IPAM service. It works in 2 modes:
+
+### point to point
+
 ```go
-conn, _ := ipam.NewServer("10.0.0.0/24").Request(ctx, request)
-if request.GetConnection().GetContext().GetIPContext().GetDstIpRequired() {
-    // p2p mode
-    conn.GetConnection().GetContext().GetIPContext().GetDstIp() // <-- 10.0.0.(2x)/31
-    conn.GetConnection().GetContext().GetIPContext().GetSrcIp() // <-- 10.0.0.(2x+1)/31
-} else {
-    // IP subnet mode
-    conn.GetConnection().GetContext().GetIPContext().GetSrcIp() // <-- 10.0.0.x/24
-}
+conn, _ := ipam.NewServer("10.0.0.0/24").Request(ctx, &networkservice.NetworkServiceRequest{
+    Connection: &networkservice.Connection{
+        Context: &networkservice.ConnectionContext{
+            IpContext: &networkservice.IPContext{
+                DstIpRequired: true, // <-- p2p mode
+            },
+        },
+    },
+})
+conn.GetConnection().GetContext().GetIPContext().GetDstIp() // <-- 10.0.0.(2x)/31
+conn.GetConnection().GetContext().GetIPContext().GetSrcIp() // <-- 10.0.0.(2x+1)/31
+```
+
+### IP subnet
+
+```go
+conn, _ := ipam.NewServer("10.0.0.0/24").Request(ctx, &networkservice.NetworkServiceRequest{
+    Connection: &networkservice.Connection{
+        Context: &networkservice.ConnectionContext{
+            IpContext: &networkservice.IPContext{
+                DstIpRequired: false, // <-- IP subnet mode
+            },
+        },
+    },
+})
+conn.GetConnection().GetContext().GetIPContext().GetSrcIp() // <-- 10.0.0.x/24
 ```
