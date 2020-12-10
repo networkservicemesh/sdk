@@ -121,7 +121,7 @@ func (s *spanLogger) Logf(level loggerLevel, format string, v ...interface{}) {
 	if s.span != nil {
 		if v != nil {
 			msg := limitString(fmt.Sprintf(format, v...))
-			s.span.LogFields(log.String("event", LevelName(s.level)), log.String("message", msg))
+			s.span.LogFields(log.String("event", LevelName(level)), log.String("message", msg))
 			for k, v := range s.entries {
 				s.span.LogKV(k, v)
 			}
