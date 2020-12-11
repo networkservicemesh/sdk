@@ -82,22 +82,34 @@ func NewEndpoint(ctx context.Context, nse *registry.NetworkServiceEndpoint, gene
 }
 
 // NewClient is a client.NewClient over *url.URL with some fields preset for testing
-func NewClient(ctx context.Context, generatorFunc token.GeneratorFunc, connectTo *url.URL, additionalFunctionality ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
+func NewClient(
+	ctx context.Context,
+	generatorFunc token.GeneratorFunc,
+	connectTo *url.URL,
+	additionalFunctionality ...networkservice.NetworkServiceClient,
+) networkservice.NetworkServiceClient {
+	var generators []client.Generator
+	for _, c := range additionalFunctionality {
+		generators = append(generators, client.FromClient(c))
+	}
 	return clienturl.NewClient(
 		clienturlctx.WithClientURL(ctx, connectTo),
 		client.NewClientFactory(
 			fmt.Sprintf("nsc-%v", uuid.New().String()),
 			nil,
 			generatorFunc,
-			additionalFunctionality...),
+			generators...),
 		append(spanhelper.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...)
 }
 
-// NewCrossConnectClientFactory is a client.NewCrossConnectClientFactory with some fields preset for testing
-func NewCrossConnectClientFactory(generatorFunc token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceClient) func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-	return client.NewCrossConnectClientFactory(
+// NewClientFactory is a client.NewCrossConnectClientFactory with some fields preset for testing
+func NewClientFactory(
+	generatorFunc token.GeneratorFunc,
+	additionalFunctionalityGenerators ...client.Generator,
+) func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+	return client.NewClientFactory(
 		fmt.Sprintf("nsc-%v", uuid.New().String()),
 		nil,
 		generatorFunc,
-		additionalFunctionality...)
+		additionalFunctionalityGenerators...)
 }

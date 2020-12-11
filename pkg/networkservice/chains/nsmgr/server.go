@@ -121,7 +121,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 				nsmRegistration.Name,
 				addressof.NetworkServiceClient(adapters.NewServerToClient(rv)),
 				tokenGenerator,
-				newSendFDClient(), // Send passed files.
+				client.FromClient(newSendFDClient()), // Send passed files.
 			),
 			clientDialOptions...),
 	)

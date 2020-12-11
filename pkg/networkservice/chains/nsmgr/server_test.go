@@ -39,11 +39,14 @@ import (
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanismtranslation"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
 )
@@ -359,11 +362,12 @@ func TestNSMGR_PassThroughRemote(t *testing.T) {
 				chain.NewNetworkServiceServer(
 					clienturl.NewServer(domain.Nodes[i].NSMgr.URL),
 					connect.NewServer(ctx,
-						sandbox.NewCrossConnectClientFactory(sandbox.GenerateTestToken,
-							newPassTroughClient(
+						sandbox.NewClientFactory(sandbox.GenerateTestToken,
+							client.FromConstructor(mechanismtranslation.NewClient),
+							newPassTroughClientGenerator(
 								fmt.Sprintf("my-service-remote-%v", k-1),
 								fmt.Sprintf("endpoint-%v", k-1)),
-							kernel.NewClient()),
+							client.FromClient(kernel.NewClient())),
 						append(spanhelper.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...,
 					),
 				),
@@ -421,11 +425,12 @@ func TestNSMGR_PassThroughLocal(t *testing.T) {
 				chain.NewNetworkServiceServer(
 					clienturl.NewServer(domain.Nodes[0].NSMgr.URL),
 					connect.NewServer(ctx,
-						sandbox.NewCrossConnectClientFactory(sandbox.GenerateTestToken,
-							newPassTroughClient(
+						sandbox.NewClientFactory(sandbox.GenerateTestToken,
+							client.FromConstructor(mechanismtranslation.NewClient),
+							newPassTroughClientGenerator(
 								fmt.Sprintf("my-service-remote-%v", k-1),
 								fmt.Sprintf("endpoint-%v", k-1)),
-							kernel.NewClient()),
+							client.FromClient(kernel.NewClient())),
 						append(spanhelper.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...,
 					),
 				),
@@ -466,10 +471,12 @@ type passThroughClient struct {
 	networkServiceEndpointName string
 }
 
-func newPassTroughClient(networkService, networkServiceEndpointName string) *passThroughClient {
-	return &passThroughClient{
-		networkService:             networkService,
-		networkServiceEndpointName: networkServiceEndpointName,
+func newPassTroughClientGenerator(networkService, networkServiceEndpointName string) client.Generator {
+	return func(_ context.Context, _ grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+		return &passThroughClient{
+			networkService:             networkService,
+			networkServiceEndpointName: networkServiceEndpointName,
+		}
 	}
 }
 
@@ -517,15 +524,6 @@ func (c *restartingEndpoint) Close(ctx context.Context, connection *networkservi
 	return next.Client(ctx).Close(ctx, connection)
 }
 
-type busyEndpoint struct{}
-
-func (c *busyEndpoint) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	return nil, errors.New("sorry, endpoint is busy, try again later")
-}
-
-func (c *busyEndpoint) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
-	return nil, errors.New("sorry, endpoint is busy, try again later")
-}
 func newBusyEndpoint() networkservice.NetworkServiceServer {
-	return new(busyEndpoint)
+	return injecterror.NewServer(errors.New("sorry, endpoint is busy, try again later"))
 }
