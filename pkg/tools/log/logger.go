@@ -19,14 +19,48 @@ package log
 
 import (
 	"context"
+<<<<<<< HEAD
 	"sync/atomic"
+=======
+	"os"
+>>>>>>> Add opentelemetry support
 )
 
 type contextKeyType string
 
 const (
+<<<<<<< HEAD
 	logKey contextKeyType = "Logger"
+=======
+	logKey       contextKeyType = "Logger"
+	logFieldsKey contextKeyType = "LoggerFields"
+
+	telemetryEnv  = "TELEMETRY"
+	telemetryOT   = "opentracing"
+	telemetryOTel = "opentelemetry"
+
+	// Opentracing enabled by default
+	telemetryDefault = telemetryOTel
+>>>>>>> Add opentelemetry support
 )
+
+// IsOpentracingEnabled returns true if opentracing enabled
+func IsOpentracingEnabled() bool {
+	return telemetryOT == getTelemetryEnv()
+}
+
+// IsOpentelemetryEnabled returns true if opentelemetry enabled
+func IsOpentelemetryEnabled() bool {
+	return telemetryOTel == getTelemetryEnv()
+}
+
+func getTelemetryEnv() string {
+	val := os.Getenv(telemetryEnv)
+	if val == "" {
+		return telemetryDefault
+	}
+	return val
+}
 
 var (
 	isTracingEnabled int32 = 0
