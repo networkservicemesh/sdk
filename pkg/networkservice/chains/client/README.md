@@ -47,5 +47,5 @@ incoming request to the NSMgr over the `grpcCC`.
 
 It is a solution for the (2.), (3.) cases. We create a new GRPC client on each new client URL received from the incoming
 request. It can be used in `connect.NewServer` so `clientConnection` will be processed correctly. If we need to
-implement mechanism translation as for (3.), we can add some mechanism translation client generator as a part of
-`additionalFunctionalityGenerators`.
+implement mechanism translation as for (3.), we can add some mechanism translation client supplier as a part of
+`additionalFunctionalitySuppliers`.

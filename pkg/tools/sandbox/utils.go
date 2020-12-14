@@ -88,9 +88,9 @@ func NewClient(
 	connectTo *url.URL,
 	additionalFunctionality ...networkservice.NetworkServiceClient,
 ) networkservice.NetworkServiceClient {
-	var generators []client.Generator
+	var suppliers []client.Supplier
 	for _, c := range additionalFunctionality {
-		generators = append(generators, client.FromClient(c))
+		suppliers = append(suppliers, client.FromClient(c))
 	}
 	return clienturl.NewClient(
 		clienturlctx.WithClientURL(ctx, connectTo),
@@ -98,18 +98,18 @@ func NewClient(
 			fmt.Sprintf("nsc-%v", uuid.New().String()),
 			nil,
 			generatorFunc,
-			generators...),
+			suppliers...),
 		append(spanhelper.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...)
 }
 
 // NewClientFactory is a client.NewCrossConnectClientFactory with some fields preset for testing
 func NewClientFactory(
 	generatorFunc token.GeneratorFunc,
-	additionalFunctionalityGenerators ...client.Generator,
+	additionalFunctionalitySuppliers ...client.Supplier,
 ) func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 	return client.NewClientFactory(
 		fmt.Sprintf("nsc-%v", uuid.New().String()),
 		nil,
 		generatorFunc,
-		additionalFunctionalityGenerators...)
+		additionalFunctionalitySuppliers...)
 }

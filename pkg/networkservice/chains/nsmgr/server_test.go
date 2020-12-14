@@ -364,7 +364,7 @@ func TestNSMGR_PassThroughRemote(t *testing.T) {
 					connect.NewServer(ctx,
 						sandbox.NewClientFactory(sandbox.GenerateTestToken,
 							client.FromConstructor(mechanismtranslation.NewClient),
-							newPassTroughClientGenerator(
+							newPassTroughClientSupplier(
 								fmt.Sprintf("my-service-remote-%v", k-1),
 								fmt.Sprintf("endpoint-%v", k-1)),
 							client.FromClient(kernel.NewClient())),
@@ -427,7 +427,7 @@ func TestNSMGR_PassThroughLocal(t *testing.T) {
 					connect.NewServer(ctx,
 						sandbox.NewClientFactory(sandbox.GenerateTestToken,
 							client.FromConstructor(mechanismtranslation.NewClient),
-							newPassTroughClientGenerator(
+							newPassTroughClientSupplier(
 								fmt.Sprintf("my-service-remote-%v", k-1),
 								fmt.Sprintf("endpoint-%v", k-1)),
 							client.FromClient(kernel.NewClient())),
@@ -471,7 +471,7 @@ type passThroughClient struct {
 	networkServiceEndpointName string
 }
 
-func newPassTroughClientGenerator(networkService, networkServiceEndpointName string) client.Generator {
+func newPassTroughClientSupplier(networkService, networkServiceEndpointName string) client.Supplier {
 	return func(_ context.Context, _ grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 		return &passThroughClient{
 			networkService:             networkService,

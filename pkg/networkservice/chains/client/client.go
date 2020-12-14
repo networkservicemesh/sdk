@@ -80,34 +80,34 @@ func NewClient(
 	return rv
 }
 
-// Generator is a type for networkservice.NetworkServiceClient generator function
-type Generator func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient
+// Supplier is a type for networkservice.NetworkServiceClient supplier function
+type Supplier func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient
 
 // NewClientFactory - returns a (2.), (3.) cases func(cc grpc.ClientConnInterface) NSM client factory.
 func NewClientFactory(
 	name string,
 	onHeal *networkservice.NetworkServiceClient,
 	tokenGenerator token.GeneratorFunc,
-	additionalFunctionalityGenerators ...Generator,
+	additionalFunctionalitySuppliers ...Supplier,
 ) func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 	return func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 		var additionalFunctionality []networkservice.NetworkServiceClient
-		for _, additionalFunctionalityFactory := range additionalFunctionalityGenerators {
+		for _, additionalFunctionalityFactory := range additionalFunctionalitySuppliers {
 			additionalFunctionality = append(additionalFunctionality, additionalFunctionalityFactory(ctx, cc))
 		}
 		return NewClient(ctx, name, onHeal, tokenGenerator, cc, additionalFunctionality...)
 	}
 }
 
-// FromClient is a common networkservice.NetworkServiceClient wrapper to Generator
-func FromClient(client networkservice.NetworkServiceClient) Generator {
+// FromClient is a common networkservice.NetworkServiceClient wrapper to Supplier
+func FromClient(client networkservice.NetworkServiceClient) Supplier {
 	return func(_ context.Context, _ grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 		return client
 	}
 }
 
-// FromConstructor is a common networkservice.NetworkServiceClient constructor wrapper to Generator
-func FromConstructor(constructor func() networkservice.NetworkServiceClient) Generator {
+// FromConstructor is a common networkservice.NetworkServiceClient constructor wrapper to Supplier
+func FromConstructor(constructor func() networkservice.NetworkServiceClient) Supplier {
 	return func(_ context.Context, _ grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 		return constructor()
 	}
