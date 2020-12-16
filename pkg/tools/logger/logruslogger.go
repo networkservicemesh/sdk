@@ -83,7 +83,7 @@ func (r *logrusLogger) WithField(key, value interface{}) Logger {
 	return logger
 }
 
-//Returns context with logger and logrus entry in it
+// Returns context with logger and logrus entry in it
 func (s *logrusLogger) Context() context.Context {
 	return s.entry.Context
 }

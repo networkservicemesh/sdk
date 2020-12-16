@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package logger provides an unified interface Logger for logging
+// And also contains logrusLogger, spanLogger and traceLogger which implement it
 package logger
 
 import (
@@ -53,7 +55,7 @@ type Logger interface {
 	WithField(key, value interface{}) Logger
 }
 
-//Returns logger from context
+// Returns logger from context
 func Log(ctx context.Context) Logger {
 	if ctx != nil {
 		if value := ctx.Value(CTXKEY_LOGGER); value != nil {
