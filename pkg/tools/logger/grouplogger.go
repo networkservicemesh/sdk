@@ -20,6 +20,7 @@ type groupLogger struct {
 	loggers []Logger
 }
 
+// Creates a new GroupLogger from slice of Logger
 func GroupLogFromSlice(s []Logger) Logger {
 	loggers := make([]Logger, len(s))
 	for i, t := range s {

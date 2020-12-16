@@ -121,17 +121,17 @@ func (s *traceLogger) printStart(operation string) {
 	s.entry.Infof("%v%s⎆ %v()%v", s.info.incInfo(), prefix, operation, s.getSpan())
 }
 
-//Returns context with logger in it
+// Returns context with logger in it
 func (s *traceLogger) Context() context.Context {
 	return s.ctx
 }
 
-//Returns opentracing span for this logger
+// Returns opentracing span for this logger
 func (s *traceLogger) Span() opentracing.Span {
 	return s.span
 }
 
-//Returns operation name
+// Returns operation name
 func (s *traceLogger) Operation() string {
 	return s.operation
 }
