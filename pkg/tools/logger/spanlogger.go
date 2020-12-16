@@ -123,17 +123,17 @@ func (s *spanLogger) Close() {
 	}
 }
 
-//Returns context with logger in it
+// Returns context with logger in it
 func (s *spanLogger) Context() context.Context {
 	return s.ctx
 }
 
-//Returns opentracing span for this logger
+// Returns opentracing span for this logger
 func (s *spanLogger) Span() opentracing.Span {
 	return s.span
 }
 
-//Returns operation name
+// Returns operation name
 func (s *spanLogger) Operation() string {
 	return s.operation
 }
