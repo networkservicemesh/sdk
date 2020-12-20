@@ -23,18 +23,19 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func newLogrus(ctx context.Context, entry *logrus.Entry) Logger {
-	logger := &logrusLogger{}
-	ctx = context.WithValue(ctx, CTXKEY_LOGGER, logger)
-	logger.entry = entry.WithContext(ctx)
-	return logger
-}
-
-func NewLogrus(ctx context.Context) Logger {
-	if value, ok := ctx.Value(CTXKEY_LOGRUS_ENTRY).(*logrus.Entry); ok {
-		return newLogrus(ctx, value)
+// NewLogrus - returns a new logrusLogger based on logrus.Entry from context
+func NewLogrus(ctx context.Context) (Logger, context.Context) {
+	var fields map[string]string = nil
+	if value, ok := ctx.Value(ctxKeyLogEntry).(map[string]string); ok {
+		fields = value
 	}
-	return newLogrus(ctx, logrus.WithTime(time.Now()))
+	entry := logrus.WithTime(time.Now()).WithContext(ctx)
+	for k, v := range fields {
+		entry = entry.WithField(k, v)
+	}
+	log := &logrusLogger{entry: entry}
+	ctx = context.WithValue(ctx, ctxKeyLogger, log)
+	return log, ctx
 }
 
 type logrusLogger struct {
@@ -76,14 +77,6 @@ func (r *logrusLogger) Fatalf(format string, v ...interface{}) {
 func (r *logrusLogger) WithField(key, value interface{}) Logger {
 	entry := r.entry
 	entry = entry.WithFields(logrus.Fields{key.(string): value})
-	logger := &logrusLogger{entry: entry}
-	ctx := context.WithValue(entry.Context, CTXKEY_LOGRUS_ENTRY, entry)
-	ctx = context.WithValue(ctx, CTXKEY_LOGGER, logger)
-	entry.Context = ctx
-	return logger
-}
-
-// Returns context with logger and logrus entry in it
-func (s *logrusLogger) Context() context.Context {
-	return s.entry.Context
+	log := &logrusLogger{entry: entry}
+	return log
 }

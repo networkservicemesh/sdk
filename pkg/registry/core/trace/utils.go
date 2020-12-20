@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package trace provides a wrapper for tracing around a registry.{Registry,Discovery}{Server,Client}
 package trace
 
 import (

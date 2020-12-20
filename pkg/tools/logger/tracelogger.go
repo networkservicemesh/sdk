@@ -22,90 +22,93 @@ import (
 	"strings"
 	"time"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/jaeger"
 	"github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/jaeger"
 )
 
 type traceLogger struct {
 	operation string
 	span      opentracing.Span
-	ctx       context.Context
 	info      *traceCtxInfo
 	entry     *logrus.Entry
 }
 
 func (s *traceLogger) Info(v ...interface{}) {
-	s.log(INFO, v)
+	s.log(v)
 }
 
 func (s *traceLogger) Infof(format string, v ...interface{}) {
-	s.logf(INFO, format, v...)
+	s.logf(format, v...)
 }
 
 func (s *traceLogger) Warn(v ...interface{}) {
-	s.log(WARN, v)
+	s.log(v)
 }
 
 func (s *traceLogger) Warnf(format string, v ...interface{}) {
-	s.logf(WARN, format, v...)
+	s.logf(format, v...)
 }
 
 func (s *traceLogger) Error(v ...interface{}) {
-	s.log(ERROR, v)
+	s.log(v)
 }
 
 func (s *traceLogger) Errorf(format string, v ...interface{}) {
-	s.logf(ERROR, format, v...)
+	s.logf(format, v...)
 }
 
 func (s *traceLogger) Fatal(v ...interface{}) {
-	s.log(FATAL, v)
+	s.log(v)
 }
 
 func (s *traceLogger) Fatalf(format string, v ...interface{}) {
-	s.logf(FATAL, format, v...)
+	s.logf(format, v...)
 }
 
-func getEntry(ctx context.Context) *logrus.Entry {
-	if value, ok := ctx.Value(CTXKEY_LOGRUS_ENTRY).(*logrus.Entry); ok {
-		return value
+// NewTrace - returns a new traceLogger from context and span with given operation name
+func NewTrace(ctx context.Context, operation string, span opentracing.Span) (Logger, context.Context) {
+	var fields map[string]string = nil
+	if value, ok := ctx.Value(ctxKeyLogEntry).(map[string]string); ok {
+		fields = value
 	}
-	return logrus.WithTime(time.Now())
-}
-
-func NewTrace(ctx context.Context, operation string, span opentracing.Span) Logger {
+	entry := logrus.WithTime(time.Now()).WithContext(ctx)
+	for k, v := range fields {
+		entry = entry.WithField(k, v)
+	}
 	if jaeger.IsOpentracingEnabled() && span == nil {
 		span, ctx = opentracing.StartSpanFromContext(ctx, operation)
 	}
 	var info *traceCtxInfo
 	ctx, info = withTraceInfo(ctx)
 	localTraceInfo.Store(info.id, info)
-	logger := &traceLogger{span: span, info: info}
-	ctx = context.WithValue(ctx, CTXKEY_LOGGER, logger)
-	logger.entry = getEntry(ctx).WithContext(ctx)
-	logger.ctx = ctx
-	logger.printStart(operation)
-	return logger
+	log := &traceLogger{
+		span:      span,
+		info:      info,
+		operation: operation,
+		entry:     entry,
+	}
+	ctx = context.WithValue(ctx, ctxKeyLogger, log)
+	log.printStart(operation)
+	return log, ctx
 }
 
 func (s *traceLogger) WithField(key, value interface{}) Logger {
 	entry := s.entry
 	entry = entry.WithFields(logrus.Fields{key.(string): value})
-	logger := &traceLogger{span: s.span, entry: entry}
-	ctx := context.WithValue(entry.Context, CTXKEY_LOGRUS_ENTRY, entry)
-	ctx = context.WithValue(ctx, CTXKEY_LOGGER, logger)
-	entry.Context = ctx
-	return logger
+	log := &traceLogger{span: s.span, entry: entry, info: s.info}
+	return log
 }
 
-func (s *traceLogger) log(level loggerLevel, v ...interface{}) {
-	s.logf(level, format(v), v)
+func (s *traceLogger) log(v ...interface{}) {
+	s.logf(format(v), v)
 }
 
-func (s *traceLogger) logf(level loggerLevel, format string, v ...interface{}) {
+func (s *traceLogger) logf(format string, v ...interface{}) {
 	msg := fmt.Sprintf(format, v...)
-	s.entry.Infof("%v %s %s=%v%v", s.info.incInfo(), strings.Repeat(separator, s.info.level), levelName(level), msg, s.getSpan())
+	incInfo := s.info.incInfo()
+	s.entry.Tracef("%v %s %v%v", incInfo, strings.Repeat(" ", s.info.level), msg, s.getSpan())
 }
 
 func (s *traceLogger) getSpan() string {
@@ -117,21 +120,7 @@ func (s *traceLogger) getSpan() string {
 }
 
 func (s *traceLogger) printStart(operation string) {
-	prefix := strings.Repeat(startSeparator, s.info.level)
-	s.entry.Infof("%v%s⎆ %v()%v", s.info.incInfo(), prefix, operation, s.getSpan())
-}
-
-// Returns context with logger in it
-func (s *traceLogger) Context() context.Context {
-	return s.ctx
-}
-
-// Returns opentracing span for this logger
-func (s *traceLogger) Span() opentracing.Span {
-	return s.span
-}
-
-// Returns operation name
-func (s *traceLogger) Operation() string {
-	return s.operation
+	prefix := strings.Repeat(" ", s.info.level)
+	incInfo := s.info.incInfo()
+	s.entry.Tracef("%v%s⎆ %v()%v", incInfo, prefix, operation, s.getSpan())
 }

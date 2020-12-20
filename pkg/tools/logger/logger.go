@@ -22,26 +22,14 @@ import (
 	"context"
 )
 
-type loggerLevel int
-type entriesType map[interface{}]interface{}
 type contextKeyType string
-type traceLoggerKeyType string
 
 const (
-	INFO loggerLevel = iota
-	WARN
-	ERROR
-	FATAL
-	CTXKEY_LOGGER          contextKeyType     = "logger"
-	CTXKEY_LOGRUS_ENTRY    contextKeyType     = "logrusEntry"
-	SPANLOGGER_OP_UNTITLED string             = "Untitled operation"
-	traceLoggerTraceDepth  traceLoggerKeyType = "traceLoggerTraceDepth"
-	maxStringLength        int                = 1000
-	dotCount               int                = 3
-	separator              string             = " "
-	startSeparator         string             = " "
+	ctxKeyLogger   contextKeyType = "ctxKeyLogger"
+	ctxKeyLogEntry contextKeyType = "ctxKeyLogEntry"
 )
 
+// Logger - unified interface for logging
 type Logger interface {
 	Info(v ...interface{})
 	Infof(format string, v ...interface{})
@@ -55,12 +43,22 @@ type Logger interface {
 	WithField(key, value interface{}) Logger
 }
 
-// Returns logger from context
+// Log - returns logger from context
 func Log(ctx context.Context) Logger {
 	if ctx != nil {
-		if value := ctx.Value(CTXKEY_LOGGER); value != nil {
+		if value := ctx.Value(ctxKeyLogger); value != nil {
 			return value.(Logger)
 		}
 	}
-	return nil
+	panic("Could not return Logger from Context")
+}
+
+// WithLog - creates new context with a Logger in it
+func WithLog(ctx context.Context, log Logger) context.Context {
+	return context.WithValue(ctx, ctxKeyLogger, log)
+}
+
+// WithFields - adds fields to the context
+func WithFields(ctx context.Context, fields map[string]string) context.Context {
+	return context.WithValue(ctx, ctxKeyLogEntry, fields)
 }

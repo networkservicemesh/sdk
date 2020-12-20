@@ -29,7 +29,7 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 )
 
 const (
@@ -54,7 +54,7 @@ func ListenAndServe(ctx context.Context, address *url.URL, server *grpc.Server) 
 		}
 		basePath := path.Dir(target)
 		if _, err = os.Stat(basePath); os.IsNotExist(err) {
-			log.Entry(ctx).Infof("target folder %v not exists, Trying to create", basePath)
+			logger.Log(ctx).Infof("target folder %v not exists, Trying to create", basePath)
 			if err = os.MkdirAll(basePath, os.ModePerm); err != nil {
 				errCh <- errors.Wrapf(err, "Could not serve %v", target)
 				close(errCh)

@@ -30,8 +30,8 @@ import (
 	"github.com/edwarnicke/serialize"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 )
 
 type refreshClient struct {
@@ -101,7 +101,7 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 			default:
 				if _, err := t.Request(refreshCtx, refreshRequest, opts...); err != nil {
 					// TODO - do we want to retry at 2/3 and 3/3 if we fail here?
-					trace.Log(refreshCtx).Errorf("Error while attempting to refresh connection %s: %+v", connID, err)
+					logger.Log(refreshCtx).Errorf("Error while attempting to refresh connection %s: %+v", connID, err)
 				}
 			}
 			// Set timer to nil to be really really sure we don't have a circular reference that precludes garbage collection

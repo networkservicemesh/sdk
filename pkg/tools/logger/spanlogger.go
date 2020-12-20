@@ -19,80 +19,75 @@ package logger
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/jaeger"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/log"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/jaeger"
 )
 
 type spanLogger struct {
 	operation string
 	span      opentracing.Span
-	ctx       context.Context
-	//info      *traceCtxInfo
-	//entryPool sync.Pool
-	entries entriesType
-	level   loggerLevel
+	entries   map[interface{}]interface{}
 }
 
 func (s *spanLogger) Info(v ...interface{}) {
-	s.log(INFO, v)
+	s.log("info", v)
 }
 
 func (s *spanLogger) Infof(format string, v ...interface{}) {
-	s.logf(INFO, format, v...)
+	s.logf("info", format, v...)
 }
 
 func (s *spanLogger) Warn(v ...interface{}) {
-	s.log(WARN, v)
+	s.log("warn", v)
 }
 
 func (s *spanLogger) Warnf(format string, v ...interface{}) {
-	s.logf(WARN, format, v...)
+	s.logf("warn", format, v...)
 }
 
 func (s *spanLogger) Error(v ...interface{}) {
-	s.log(ERROR, v)
+	s.WithField("stacktrace", limitString(string(debug.Stack()))).(*spanLogger).log("error", v)
 }
 
 func (s *spanLogger) Errorf(format string, v ...interface{}) {
-	s.logf(ERROR, format, v...)
+	s.WithField("stacktrace", limitString(string(debug.Stack()))).(*spanLogger).logf("error", format, v...)
 }
 
 func (s *spanLogger) Fatal(v ...interface{}) {
-	s.log(FATAL, v)
+	s.log("fatal", v)
 }
 
 func (s *spanLogger) Fatalf(format string, v ...interface{}) {
-	s.logf(FATAL, format, v...)
+	s.logf("fatal", format, v...)
 }
 
 func (s *spanLogger) WithField(key, value interface{}) Logger {
-	data := make(entriesType, len(s.entries)+1)
+	data := make(map[interface{}]interface{}, len(s.entries)+1)
 	for k, v := range s.entries {
 		data[k] = v
 	}
 	data[key] = value
 	logger := &spanLogger{
-		ctx:       s.ctx,
 		span:      s.span,
 		operation: s.operation,
-		level:     s.level,
 		entries:   data,
 	}
-	logger.ctx = context.WithValue(s.ctx, CTXKEY_LOGGER, logger)
 	return logger
 }
 
-func (s *spanLogger) log(level loggerLevel, v ...interface{}) {
+func (s *spanLogger) log(level string, v ...interface{}) {
 	s.logf(level, format(v), v)
 }
 
-func (s *spanLogger) logf(level loggerLevel, format string, v ...interface{}) {
+func (s *spanLogger) logf(level, format string, v ...interface{}) {
 	if s.span != nil {
 		if v != nil {
 			msg := limitString(fmt.Sprintf(format, v...))
-			s.span.LogFields(log.String("event", levelName(level)), log.String("message", msg))
+			s.span.LogFields(log.String("event", level), log.String("message", msg))
 			for k, v := range s.entries {
 				s.span.LogKV(k, v)
 			}
@@ -100,8 +95,8 @@ func (s *spanLogger) logf(level loggerLevel, format string, v ...interface{}) {
 	}
 }
 
-//Creates a new spanLogger from context, operation and span
-func NewSpan(ctx context.Context, operation string) Logger {
+// NewSpan - creates a new spanLogger from context, operation and span
+func NewSpan(ctx context.Context, operation string) (Logger, context.Context) {
 	var span opentracing.Span
 	if jaeger.IsOpentracingEnabled() {
 		span, ctx = opentracing.StartSpanFromContext(ctx, operation)
@@ -109,31 +104,20 @@ func NewSpan(ctx context.Context, operation string) Logger {
 	logger := &spanLogger{
 		span:      span,
 		operation: operation,
-		entries:   make(entriesType),
+		entries:   make(map[interface{}]interface{}),
 	}
-	logger.ctx = context.WithValue(ctx, CTXKEY_LOGGER, logger)
-	return logger
+	return logger, ctx
 }
 
-//Closes spanLogger
-func (s *spanLogger) Close() {
+// Close - closes spanLogger
+func (s *spanLogger) Finish() {
 	if s.span != nil {
 		s.span.Finish()
 		s.span = nil
 	}
 }
 
-// Returns context with logger in it
-func (s *spanLogger) Context() context.Context {
-	return s.ctx
-}
-
-// Returns opentracing span for this logger
+// Span - returns opentracing span for this logger
 func (s *spanLogger) Span() opentracing.Span {
 	return s.span
-}
-
-// Returns operation name
-func (s *spanLogger) Operation() string {
-	return s.operation
 }

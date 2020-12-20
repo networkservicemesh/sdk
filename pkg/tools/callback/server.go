@@ -30,7 +30,7 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 )
 
 const (
@@ -164,7 +164,7 @@ func (s *serverImpl) WithCallbackDialer() grpc.DialOption {
 		if ok {
 			if srv.created {
 				err := errors.New("Client is already created")
-				log.Entry(ctx).Errorf("Failed to connect to callback: %v", err)
+				logger.Log(ctx).Errorf("Failed to connect to callback: %v", err)
 				return nil, err
 			}
 			srv.created = true
