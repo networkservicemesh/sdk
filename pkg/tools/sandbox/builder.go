@@ -89,7 +89,7 @@ func (b *Builder) Build() *Domain {
 	ctx := b.ctx
 	if ctx == nil {
 		var cancel context.CancelFunc
-		_, ctx := logger.NewLogrus(context.Background())
+		_, ctx = logger.NewLogrus(context.Background())
 		ctx, cancel = context.WithTimeout(ctx, defaultContextTimeout)
 		b.resources = append(b.resources, cancel)
 	}

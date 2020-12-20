@@ -27,8 +27,9 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 )
 
-func logRequest(ctx context.Context, log logger.Logger, request proto.Message) {
+func logRequest(ctx context.Context, request proto.Message) {
 	connInfo, ok := trace(ctx)
+	log := logger.Log(ctx)
 	if ok && !proto.Equal(connInfo.Request, request) {
 		if connInfo.Request != nil && connInfo.Request.ProtoReflect().Descriptor().FullName() == request.ProtoReflect().Descriptor().FullName() {
 			requestDiff, hadChanges := Diff(connInfo.Request.ProtoReflect(), request.ProtoReflect())
@@ -42,8 +43,9 @@ func logRequest(ctx context.Context, log logger.Logger, request proto.Message) {
 	}
 }
 
-func logResponse(ctx context.Context, log logger.Logger, response proto.Message) {
+func logResponse(ctx context.Context, response proto.Message) {
 	connInfo, ok := trace(ctx)
+	log := logger.Log(ctx)
 	if ok && !proto.Equal(connInfo.Response, response) {
 		if connInfo.Response != nil {
 			responseDiff, changed := Diff(connInfo.Response.ProtoReflect(), response.ProtoReflect())
