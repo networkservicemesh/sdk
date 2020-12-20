@@ -36,7 +36,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
@@ -77,7 +77,7 @@ func NewEndpoint(ctx context.Context, nse *registry.NetworkServiceEndpoint, gene
 			return nil, err
 		}
 	}
-	log.Entry(ctx).Infof("Started listen endpoint %v on %v.", nse.Name, u.String())
+	logger.Log(ctx).Infof("Started listen endpoint %v on %v.", nse.Name, u.String())
 	return &EndpointEntry{Endpoint: ep, URL: u}, nil
 }
 

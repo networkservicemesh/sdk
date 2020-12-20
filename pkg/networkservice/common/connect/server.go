@@ -35,7 +35,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/tools/clientmap"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 )
 
 type connectServer struct {
@@ -95,7 +95,7 @@ func (s *connectServer) Close(ctx context.Context, conn *networkservice.Connecti
 }
 
 func (s *connectServer) client(ctx context.Context, conn *networkservice.Connection) networkservice.NetworkServiceClient {
-	logEntry := log.Entry(ctx).WithField("connectServer", "client")
+	logEntry := logger.Log(ctx).WithField("connectServer", "client")
 
 	clientURL := clienturlctx.ClientURL(ctx)
 	if clientURL == nil {

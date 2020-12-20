@@ -29,6 +29,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/fs"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 )
 
 func Test_WatchFile(t *testing.T) {
@@ -40,7 +41,8 @@ func Test_WatchFile(t *testing.T) {
 	path := filepath.Join(root, "A")
 	_ = os.MkdirAll(path, os.ModePerm)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	_, ctx := logger.NewLogrus(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	filePath := filepath.Join(path, "file1.txt")

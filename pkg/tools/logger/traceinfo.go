@@ -27,6 +27,12 @@ import (
 
 var localTraceInfo sync.Map
 
+type traceLoggerKeyType string
+
+const (
+	traceLoggerTraceDepth traceLoggerKeyType = "traceLoggerTraceDepth"
+)
+
 type traceCtxInfo struct {
 	level      int
 	childCount int

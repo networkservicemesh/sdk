@@ -44,6 +44,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
 )
@@ -177,8 +178,9 @@ func TestNSMGR_RemoteUsecase_BusyEndpoints(t *testing.T) {
 
 func TestNSMGR_RemoteUsecase(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	logrus.SetOutput(ioutil.Discard)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	logrus.StandardLogger().SetLevel(logrus.TraceLevel)
+	_, ctx := logger.NewLogrus(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 	domain := sandbox.NewBuilder(t).
 		SetNodesCount(2).

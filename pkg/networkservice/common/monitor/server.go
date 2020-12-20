@@ -26,7 +26,7 @@ import (
 	"github.com/edwarnicke/serialize"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
@@ -87,7 +87,7 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 				Connections: map[string]*networkservice.Connection{eventConn.GetId(): eventConn},
 			}
 			if sendErr := m.send(ctx, event); sendErr != nil {
-				trace.Log(ctx).Errorf("Error during sending event: %v", sendErr)
+				logger.Log(ctx).Errorf("Error during sending event: %v", sendErr)
 			}
 		})
 	}
@@ -105,7 +105,7 @@ func (m *monitorServer) Close(ctx context.Context, conn *networkservice.Connecti
 			Connections: map[string]*networkservice.Connection{eventConn.GetId(): eventConn},
 		}
 		if err := m.send(ctx, event); err != nil {
-			trace.Log(ctx).Errorf("Error during sending event: %v", err)
+			logger.Log(ctx).Errorf("Error during sending event: %v", err)
 		}
 	})
 	return &empty.Empty{}, closeErr
@@ -119,7 +119,7 @@ func (m *monitorServer) send(ctx context.Context, event *networkservice.Connecti
 		case <-filter.Context().Done():
 		default:
 			if err = filter.Send(event.Clone()); err != nil {
-				trace.Log(ctx).Errorf("Error sending event: %+v: %+v", event, err)
+				logger.Log(ctx).Errorf("Error sending event: %+v: %+v", event, err)
 			}
 			newMonitors = append(newMonitors, filter)
 		}

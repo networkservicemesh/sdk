@@ -31,7 +31,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 )
 
 type timeoutServer struct {
@@ -50,7 +50,7 @@ func NewServer(ctx context.Context) networkservice.NetworkServiceServer {
 }
 
 func (t *timeoutServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	logEntry := log.Entry(ctx).WithField("timeoutServer", "request")
+	logEntry := logger.Log(ctx).WithField("timeoutServer", "request")
 
 	connID := request.GetConnection().GetId()
 
@@ -84,7 +84,7 @@ func (t *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 }
 
 func (t *timeoutServer) createTimer(ctx context.Context, conn *networkservice.Connection) (*time.Timer, error) {
-	logEntry := log.Entry(ctx).WithField("timeoutServer", "createTimer")
+	logEntry := logger.Log(ctx).WithField("timeoutServer", "createTimer")
 
 	executor := serialize.GetExecutor(ctx)
 	if executor == nil {
@@ -119,7 +119,7 @@ func (t *timeoutServer) createTimer(ctx context.Context, conn *networkservice.Co
 }
 
 func (t *timeoutServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	logEntry := log.Entry(ctx).WithField("timeoutServer", "createTimer")
+	logEntry := logger.Log(ctx).WithField("timeoutServer", "createTimer")
 
 	timer, ok := t.timers.LoadAndDelete(conn.GetId())
 	if !ok {
