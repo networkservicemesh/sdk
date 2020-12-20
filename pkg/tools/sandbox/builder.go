@@ -266,7 +266,6 @@ func (b *Builder) newCrossConnectNSE(ctx context.Context, name string, connectTo
 		Name: name,
 	})
 	b.require.NoError(err)
-
 	crossNSE := b.supplyForwarder(ctx, regForwarder.Name, b.generateTokenFunc, connectTo, grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)))
 	serve(ctx, serveURL, crossNSE.Register)
 	logger.Log(ctx).Infof("%v listen on: %v", name, serveURL)

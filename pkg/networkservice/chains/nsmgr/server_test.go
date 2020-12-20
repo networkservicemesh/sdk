@@ -110,6 +110,8 @@ func TestNSMGR_RemoteUsecase_Parallel(t *testing.T) {
 }
 
 func TestNSMGR_RemoteUsecase_BusyEndpoints(t *testing.T) {
+	t.Skip("https://github.com/networkservicemesh/sdk/issues/619")
+
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	logrus.SetOutput(ioutil.Discard)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
