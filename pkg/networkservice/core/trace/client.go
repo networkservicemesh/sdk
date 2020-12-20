@@ -48,7 +48,7 @@ func (t *traceClient) Request(ctx context.Context, request *networkservice.Netwo
 	log, ctx, done := logger.NewLogger(ctx, operation)
 	defer done(log)
 
-	logRequest(ctx, log, request)
+	logRequest(ctx, request)
 	// Actually call the next
 	rv, err := t.traced.Request(ctx, request, opts...)
 
@@ -62,7 +62,7 @@ func (t *traceClient) Request(ctx context.Context, request *networkservice.Netwo
 		return nil, err
 	}
 
-	logResponse(ctx, log, rv)
+	logResponse(ctx, rv)
 	return rv, err
 }
 
@@ -73,7 +73,7 @@ func (t *traceClient) Close(ctx context.Context, conn *networkservice.Connection
 	log, ctx, done := logger.NewLogger(ctx, operation)
 	defer done(log)
 	// Make sure we log to span
-	logRequest(ctx, log, conn)
+	logRequest(ctx, conn)
 	rv, err := t.traced.Close(ctx, conn, opts...)
 
 	if err != nil {
