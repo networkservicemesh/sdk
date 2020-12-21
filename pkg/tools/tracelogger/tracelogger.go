@@ -14,7 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package logger
+// Package tracelogger provides wrapper for logrus logger
+// which is consistent with Logger interface
+// and sends messages containing tracing information
+package tracelogger
 
 import (
 	"context"
@@ -26,6 +29,8 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/jaeger"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+	"github.com/networkservicemesh/sdk/pkg/tools/logruslogger"
 )
 
 type traceLogger struct {
@@ -67,10 +72,10 @@ func (s *traceLogger) Fatalf(format string, v ...interface{}) {
 	s.logf(format, v...)
 }
 
-// NewTrace - returns a new traceLogger from context and span with given operation name
-func NewTrace(ctx context.Context, operation string, span opentracing.Span) (Logger, context.Context) {
+// New - returns a new traceLogger from context and span with given operation name
+func New(ctx context.Context, operation string, span opentracing.Span) (logger.Logger, context.Context) {
 	var fields map[string]string = nil
-	if value, ok := ctx.Value(ctxKeyLogEntry).(map[string]string); ok {
+	if value, ok := ctx.Value(logruslogger.CtxKeyLogEntry).(map[string]string); ok {
 		fields = value
 	}
 	entry := logrus.WithTime(time.Now()).WithContext(ctx)
@@ -89,12 +94,12 @@ func NewTrace(ctx context.Context, operation string, span opentracing.Span) (Log
 		operation: operation,
 		entry:     entry,
 	}
-	ctx = context.WithValue(ctx, ctxKeyLogger, log)
+	ctx = logger.WithLog(ctx, log)
 	log.printStart(operation)
 	return log, ctx
 }
 
-func (s *traceLogger) WithField(key, value interface{}) Logger {
+func (s *traceLogger) WithField(key, value interface{}) logger.Logger {
 	entry := s.entry
 	entry = entry.WithFields(logrus.Fields{key.(string): value})
 	log := &traceLogger{span: s.span, entry: entry, info: s.info}

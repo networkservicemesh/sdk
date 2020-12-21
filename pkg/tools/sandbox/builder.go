@@ -46,6 +46,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+	"github.com/networkservicemesh/sdk/pkg/tools/logruslogger"
 	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
@@ -89,7 +90,7 @@ func (b *Builder) Build() *Domain {
 	ctx := b.ctx
 	if ctx == nil {
 		var cancel context.CancelFunc
-		_, ctx = logger.NewLogrus(context.Background())
+		_, ctx = logruslogger.New(context.Background())
 		ctx, cancel = context.WithTimeout(ctx, defaultContextTimeout)
 		b.resources = append(b.resources, cancel)
 	}
@@ -260,7 +261,7 @@ func (b *Builder) newCrossConnectNSE(ctx context.Context, name string, connectTo
 	b.require.NoError(err)
 	serveURL := grpcutils.AddressToURL(listener.Addr())
 	b.require.NoError(listener.Close())
-	_, regCtx := logger.NewLogrus(context.Background())
+	_, regCtx := logruslogger.New(context.Background())
 	regForwarder, err := forwarderRegistrationClient.Register(regCtx, &registryapi.NetworkServiceEndpoint{
 		Url:  serveURL.String(),
 		Name: name,
