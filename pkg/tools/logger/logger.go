@@ -54,7 +54,22 @@ func Log(ctx context.Context) Logger {
 }
 
 // WithLog - creates new context with a Logger in it
-func WithLog(ctx context.Context, log Logger) context.Context {
+func WithLog(ctx context.Context, log ...Logger) context.Context {
+	/*
+		if ctx != nil {
+			if value := ctx.Value(ctxKeyLogger); value != nil {
+				if group, ok := value.(*groupLogger); ok {
+					loggers := make([]Logger, len(group.loggers) + len(log))
+					group.loggers
+					for i := range log{
+						group
+					}
+				}
+				return value.(Logger)
+			}
+		}
+		panic("context is nil")
+	*/
 	return context.WithValue(ctx, ctxKeyLogger, log)
 }
 

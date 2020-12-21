@@ -54,7 +54,8 @@ func TestInterdomainNetworkServiceEndpointRegistry(t *testing.T) {
 
 	const remoteRegistryDomain = "domain2.local.registry"
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	_, ctx := logger.NewLogrus(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 
 	dnsServer := new(sandbox.FakeDNSResolver)
