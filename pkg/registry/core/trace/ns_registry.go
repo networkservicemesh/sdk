@@ -22,7 +22,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamcontext"
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 	"github.com/networkservicemesh/sdk/pkg/tools/typeutils"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -41,8 +40,8 @@ type traceNetworkServiceRegistryFindClient struct {
 
 func (t *traceNetworkServiceRegistryFindClient) Recv() (*registry.NetworkService, error) {
 	operation := typeutils.GetFuncName(t.NetworkServiceRegistry_FindClient, "Recv")
-	log, ctx, done := logger.NewLogger(t.Context(), operation)
-	defer done(log)
+	log, ctx, done := newLogger(t.Context(), operation)
+	defer done()
 
 	s := streamcontext.NetworkServiceRegistryFindClient(ctx, t.NetworkServiceRegistry_FindClient)
 	rv, err := s.Recv()
@@ -61,8 +60,8 @@ func (t *traceNetworkServiceRegistryFindClient) Recv() (*registry.NetworkService
 
 func (t *traceNetworkServiceRegistryClient) Register(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
 	operation := typeutils.GetFuncName(t.traced, "Register")
-	log, ctx, done := logger.NewLogger(ctx, operation)
-	defer done(log)
+	log, ctx, done := newLogger(ctx, operation)
+	defer done()
 
 	log.Info("request", in)
 
@@ -81,8 +80,8 @@ func (t *traceNetworkServiceRegistryClient) Register(ctx context.Context, in *re
 }
 func (t *traceNetworkServiceRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
 	operation := typeutils.GetFuncName(t.traced, "Find")
-	log, ctx, done := logger.NewLogger(ctx, operation)
-	defer done(log)
+	log, ctx, done := newLogger(ctx, operation)
+	defer done()
 
 	log.Info("find", in)
 
@@ -104,8 +103,8 @@ func (t *traceNetworkServiceRegistryClient) Find(ctx context.Context, in *regist
 
 func (t *traceNetworkServiceRegistryClient) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
 	operation := typeutils.GetFuncName(t.traced, "Unregister")
-	log, ctx, done := logger.NewLogger(ctx, operation)
-	defer done(log)
+	log, ctx, done := newLogger(ctx, operation)
+	defer done()
 
 	log.Info("request", in)
 
@@ -135,8 +134,8 @@ type traceNetworkServiceRegistryServer struct {
 
 func (t *traceNetworkServiceRegistryServer) Register(ctx context.Context, in *registry.NetworkService) (*registry.NetworkService, error) {
 	operation := typeutils.GetFuncName(t.traced, "Register")
-	log, ctx, done := logger.NewLogger(ctx, operation)
-	defer done(log)
+	log, ctx, done := newLogger(ctx, operation)
+	defer done()
 
 	log.Info("request", in)
 
@@ -156,8 +155,8 @@ func (t *traceNetworkServiceRegistryServer) Register(ctx context.Context, in *re
 
 func (t *traceNetworkServiceRegistryServer) Find(in *registry.NetworkServiceQuery, s registry.NetworkServiceRegistry_FindServer) error {
 	operation := typeutils.GetFuncName(t.traced, "Find")
-	log, ctx, done := logger.NewLogger(s.Context(), operation)
-	defer done(log)
+	log, ctx, done := newLogger(s.Context(), operation)
+	defer done()
 
 	s = &traceNetworkServiceRegistryFindServer{
 		NetworkServiceRegistry_FindServer: streamcontext.NetworkServiceRegistryFindServer(ctx, s),
@@ -180,8 +179,8 @@ func (t *traceNetworkServiceRegistryServer) Find(in *registry.NetworkServiceQuer
 
 func (t *traceNetworkServiceRegistryServer) Unregister(ctx context.Context, in *registry.NetworkService) (*empty.Empty, error) {
 	operation := typeutils.GetFuncName(t.traced, "Unregister")
-	log, ctx, done := logger.NewLogger(ctx, operation)
-	defer done(log)
+	log, ctx, done := newLogger(ctx, operation)
+	defer done()
 
 	log.Info("request", in)
 
@@ -211,8 +210,8 @@ type traceNetworkServiceRegistryFindServer struct {
 
 func (t *traceNetworkServiceRegistryFindServer) Send(ns *registry.NetworkService) error {
 	operation := typeutils.GetFuncName(t.NetworkServiceRegistry_FindServer, "Send")
-	log, ctx, done := logger.NewLogger(t.Context(), operation)
-	defer done(log)
+	log, ctx, done := newLogger(t.Context(), operation)
+	defer done()
 	log.Info("network service", ns)
 	s := streamcontext.NetworkServiceRegistryFindServer(ctx, t.NetworkServiceRegistry_FindServer)
 	err := s.Send(ns)

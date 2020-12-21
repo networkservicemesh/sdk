@@ -14,7 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package logger
+// Package spanlogger provides a way to log via opentracing spans
+// and is consistent with logger.Logger interface
+package spanlogger
 
 import (
 	"context"
@@ -25,6 +27,7 @@ import (
 	"github.com/opentracing/opentracing-go/log"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/jaeger"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 )
 
 type spanLogger struct {
@@ -65,18 +68,18 @@ func (s *spanLogger) Fatalf(format string, v ...interface{}) {
 	s.logf("fatal", format, v...)
 }
 
-func (s *spanLogger) WithField(key, value interface{}) Logger {
+func (s *spanLogger) WithField(key, value interface{}) logger.Logger {
 	data := make(map[interface{}]interface{}, len(s.entries)+1)
 	for k, v := range s.entries {
 		data[k] = v
 	}
 	data[key] = value
-	logger := &spanLogger{
+	newlog := &spanLogger{
 		span:      s.span,
 		operation: s.operation,
 		entries:   data,
 	}
-	return logger
+	return newlog
 }
 
 func (s *spanLogger) log(level string, v ...interface{}) {
@@ -95,18 +98,18 @@ func (s *spanLogger) logf(level, format string, v ...interface{}) {
 	}
 }
 
-// NewSpan - creates a new spanLogger from context, operation and span
-func NewSpan(ctx context.Context, operation string) (Logger, context.Context) {
+// New - creates a new spanLogger from context, operation and span
+func New(ctx context.Context, operation string) (logger.Logger, context.Context, opentracing.Span, func()) {
 	var span opentracing.Span
 	if jaeger.IsOpentracingEnabled() {
 		span, ctx = opentracing.StartSpanFromContext(ctx, operation)
 	}
-	logger := &spanLogger{
+	newLog := &spanLogger{
 		span:      span,
 		operation: operation,
 		entries:   make(map[interface{}]interface{}),
 	}
-	return logger, ctx
+	return newLog, ctx, span, func() { newLog.Finish() }
 }
 
 // Close - closes spanLogger
@@ -115,9 +118,4 @@ func (s *spanLogger) Finish() {
 		s.span.Finish()
 		s.span = nil
 	}
-}
-
-// Span - returns opentracing span for this logger
-func (s *spanLogger) Span() opentracing.Span {
-	return s.span
 }

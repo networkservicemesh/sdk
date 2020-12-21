@@ -14,19 +14,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package logger
+// Package logruslogger provides wrapper for logrus logger
+// which is consistent with Logger interface
+package logruslogger
 
 import (
 	"context"
 	"time"
 
 	"github.com/sirupsen/logrus"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 )
 
-// NewLogrus - returns a new logrusLogger based on logrus.Entry from context
-func NewLogrus(ctx context.Context) (Logger, context.Context) {
+const (
+	// CtxKeyLogEntry - context key for entries map
+	CtxKeyLogEntry logger.ContextKeyType = "ctxKeyLogEntry"
+)
+
+// New - returns a new logrusLogger based on logrus.Entry from context
+func New(ctx context.Context) (logger.Logger, context.Context) {
 	var fields map[string]string = nil
-	if value, ok := ctx.Value(ctxKeyLogEntry).(map[string]string); ok {
+	if value, ok := ctx.Value(CtxKeyLogEntry).(map[string]string); ok {
 		fields = value
 	}
 	entry := logrus.WithTime(time.Now()).WithContext(ctx)
@@ -34,7 +43,7 @@ func NewLogrus(ctx context.Context) (Logger, context.Context) {
 		entry = entry.WithField(k, v)
 	}
 	log := &logrusLogger{entry: entry}
-	ctx = context.WithValue(ctx, ctxKeyLogger, log)
+	ctx = logger.WithLog(ctx, log)
 	return log, ctx
 }
 
@@ -74,9 +83,14 @@ func (r *logrusLogger) Fatalf(format string, v ...interface{}) {
 	r.entry.Errorf(format, v...)
 }
 
-func (r *logrusLogger) WithField(key, value interface{}) Logger {
+func (r *logrusLogger) WithField(key, value interface{}) logger.Logger {
 	entry := r.entry
 	entry = entry.WithFields(logrus.Fields{key.(string): value})
 	log := &logrusLogger{entry: entry}
 	return log
+}
+
+// WithFields - adds fields to the context
+func WithFields(ctx context.Context, fields map[string]string) context.Context {
+	return context.WithValue(ctx, CtxKeyLogEntry, fields)
 }

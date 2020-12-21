@@ -29,6 +29,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
+	"github.com/networkservicemesh/sdk/pkg/tools/logruslogger"
 )
 
 func setEnvs(envs map[string]string) error {
@@ -98,7 +99,8 @@ func TestLabelsOverwritten(t *testing.T) {
 	client := next.NewNetworkServiceClient(clientinfo.NewClient(), checkrequest.NewClient(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
 		assert.Equal(t, expected, request.GetConnection().GetLabels())
 	}))
-	conn, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
+	_, ctx := logruslogger.New(context.Background())
+	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Labels: map[string]string{
 				"NodeNameKey":    "OLD_VAL1",
@@ -132,7 +134,8 @@ func TestSomeEnvsNotPresent(t *testing.T) {
 	client := next.NewNetworkServiceClient(clientinfo.NewClient(), checkrequest.NewClient(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
 		assert.Equal(t, expected, request.GetConnection().GetLabels())
 	}))
-	conn, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
+	_, ctx := logruslogger.New(context.Background())
+	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Labels: map[string]string{
 				"NodeNameKey":    "OLD_VAL1",

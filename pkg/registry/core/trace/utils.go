@@ -18,9 +18,22 @@
 package trace
 
 import (
+	"context"
+
 	"github.com/pkg/errors"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+	"github.com/networkservicemesh/sdk/pkg/tools/spanlogger"
+	"github.com/networkservicemesh/sdk/pkg/tools/tracelogger"
 )
 
 type stackTracer interface {
 	StackTrace() errors.StackTrace
+}
+
+func newLogger(ctx context.Context, operation string) (logger.Logger, context.Context, func()) {
+	span, ctx, s, done := spanlogger.New(ctx, operation)
+	trace, ctx := tracelogger.New(ctx, operation, s)
+	ctx = logger.WithLog(ctx, span, trace)
+	return logger.Log(ctx), ctx, done
 }

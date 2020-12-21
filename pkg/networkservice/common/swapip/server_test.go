@@ -33,13 +33,15 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
+	"github.com/networkservicemesh/sdk/pkg/tools/logruslogger"
 )
 
 func TestSwapIPServer_Request(t *testing.T) {
 	const localIP = "127.0.0.1"
 	const remoteIP = "172.16.1.1"
 	const externalIP = "180.16.1.1"
-	ctx, cancel := context.WithCancel(context.Background())
+	_, ctx := logruslogger.New(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	ch := make(chan map[string]string, 1)
 	ch <- map[string]string{

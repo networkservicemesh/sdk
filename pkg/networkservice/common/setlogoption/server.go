@@ -24,7 +24,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+	"github.com/networkservicemesh/sdk/pkg/tools/logruslogger"
 )
 
 type setLogOptionServer struct {
@@ -44,7 +44,7 @@ func (s *setLogOptionServer) Request(ctx context.Context, request *networkservic
 }
 
 func (s *setLogOptionServer) withFields(ctx context.Context) context.Context {
-	return logger.WithFields(ctx, s.options)
+	return logruslogger.WithFields(ctx, s.options)
 }
 
 func (s *setLogOptionServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {

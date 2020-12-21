@@ -22,11 +22,11 @@ import (
 	"context"
 )
 
-type contextKeyType string
+// ContextKeyType - alias type for context key strings
+type ContextKeyType string
 
 const (
-	ctxKeyLogger   contextKeyType = "ctxKeyLogger"
-	ctxKeyLogEntry contextKeyType = "ctxKeyLogEntry"
+	ctxKeyLogger ContextKeyType = "ctxKeyLogger"
 )
 
 // Logger - unified interface for logging
@@ -55,25 +55,8 @@ func Log(ctx context.Context) Logger {
 
 // WithLog - creates new context with a Logger in it
 func WithLog(ctx context.Context, log ...Logger) context.Context {
-	/*
-		if ctx != nil {
-			if value := ctx.Value(ctxKeyLogger); value != nil {
-				if group, ok := value.(*groupLogger); ok {
-					loggers := make([]Logger, len(group.loggers) + len(log))
-					group.loggers
-					for i := range log{
-						group
-					}
-				}
-				return value.(Logger)
-			}
-		}
-		panic("context is nil")
-	*/
-	return context.WithValue(ctx, ctxKeyLogger, log)
-}
-
-// WithFields - adds fields to the context
-func WithFields(ctx context.Context, fields map[string]string) context.Context {
-	return context.WithValue(ctx, ctxKeyLogEntry, fields)
+	if len(log) == 1 {
+		return context.WithValue(ctx, ctxKeyLogger, log[0])
+	}
+	return context.WithValue(ctx, ctxKeyLogger, newGroupFromArray(log))
 }
