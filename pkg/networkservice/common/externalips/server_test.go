@@ -33,12 +33,14 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/externalips"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
+	"github.com/networkservicemesh/sdk/pkg/tools/logruslogger"
 )
 
 func TestExternalIPsServer_SourceModifying(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	timeout := time.After(time.Second)
-	ctx, cancel := context.WithCancel(context.Background())
+	_, ctx := logruslogger.New(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	updateCh := make(chan map[string]string)
 	server := externalips.NewServer(ctx, externalips.WithUpdateChannel(updateCh))
@@ -79,7 +81,8 @@ func TestExternalIPsServer_SourceModifying(t *testing.T) {
 
 func TestExternalIPsServer_NoFile(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	ctx, cancel := context.WithCancel(context.Background())
+	_, ctx := logruslogger.New(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	tmpPath := path.Join(os.TempDir(), t.Name())
 	_ = os.MkdirAll(tmpPath, os.ModePerm)

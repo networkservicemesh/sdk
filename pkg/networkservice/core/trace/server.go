@@ -24,7 +24,6 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 	"github.com/networkservicemesh/sdk/pkg/tools/typeutils"
 )
 
@@ -41,8 +40,8 @@ func (t *traceServer) Request(ctx context.Context, request *networkservice.Netwo
 	ctx = withTrace(ctx)
 	// Create a new span
 	operation := typeutils.GetFuncName(t.traced, "Request")
-	log, ctx, done := logger.NewLogger(ctx, operation)
-	defer done(log)
+	log, ctx, done := newLogger(ctx, operation)
+	defer done()
 
 	logRequest(ctx, request)
 
@@ -67,8 +66,8 @@ func (t *traceServer) Close(ctx context.Context, conn *networkservice.Connection
 	ctx = withTrace(ctx)
 	// Create a new span
 	operation := typeutils.GetFuncName(t.traced, "Close")
-	log, ctx, done := logger.NewLogger(ctx, operation)
-	defer done(log)
+	log, ctx, done := newLogger(ctx, operation)
+	defer done()
 	// Make sure we log to span
 	logRequest(ctx, conn)
 	rv, err := t.traced.Close(ctx, conn)

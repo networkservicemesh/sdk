@@ -29,7 +29,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/fs"
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+	"github.com/networkservicemesh/sdk/pkg/tools/logruslogger"
 )
 
 func Test_WatchFile(t *testing.T) {
@@ -41,7 +41,7 @@ func Test_WatchFile(t *testing.T) {
 	path := filepath.Join(root, "A")
 	_ = os.MkdirAll(path, os.ModePerm)
 
-	_, ctx := logger.NewLogrus(context.Background())
+	_, ctx := logruslogger.New(context.Background())
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
