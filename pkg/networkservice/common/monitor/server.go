@@ -20,6 +20,7 @@ package monitor
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/golang/protobuf/ptypes/empty"
 
@@ -120,6 +121,7 @@ func (m *monitorServer) send(ctx context.Context, event *networkservice.Connecti
 		default:
 			if err = filter.Send(event.Clone()); err != nil {
 				logger.Log(ctx).Errorf("Error sending event: %+v: %+v", event, err)
+				fmt.Print(ctx)
 			}
 			newMonitors = append(newMonitors, filter)
 		}

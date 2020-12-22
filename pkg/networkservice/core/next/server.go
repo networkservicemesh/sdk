@@ -24,8 +24,6 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/logruslogger"
 )
 
 type nextServer struct {
@@ -61,7 +59,6 @@ func NewNetworkServiceServer(servers ...networkservice.NetworkServiceServer) net
 }
 
 func (n *nextServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	_, ctx = logruslogger.New(ctx)
 	nextParent := n.nextParent
 	if n.index == 0 && ctx != nil {
 		if np := Server(ctx); np != nil {
@@ -75,7 +72,6 @@ func (n *nextServer) Request(ctx context.Context, request *networkservice.Networ
 }
 
 func (n *nextServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	_, ctx = logruslogger.New(ctx)
 	nextParent := n.nextParent
 	if n.index == 0 && ctx != nil {
 		if np := Server(ctx); np != nil {

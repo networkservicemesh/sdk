@@ -14,109 +14,108 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package tracelogger provides wrapper for logrus logger
+// Package logruslogger provides wrapper for logrus logger
 // which is consistent with Logger interface
 // and sends messages containing tracing information
-package tracelogger
+package logruslogger
 
 import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/jaeger"
 	"github.com/networkservicemesh/sdk/pkg/tools/logger"
-	"github.com/networkservicemesh/sdk/pkg/tools/logruslogger"
 )
 
-type traceLogger struct {
+type logrusLogger struct {
+	mutex     *sync.Mutex
 	operation string
 	span      opentracing.Span
 	info      *traceCtxInfo
 	entry     *logrus.Entry
 }
 
-func (s *traceLogger) Info(v ...interface{}) {
+func (s *logrusLogger) Info(v ...interface{}) {
 	s.log(v)
 }
 
-func (s *traceLogger) Infof(format string, v ...interface{}) {
+func (s *logrusLogger) Infof(format string, v ...interface{}) {
 	s.logf(format, v...)
 }
 
-func (s *traceLogger) Warn(v ...interface{}) {
+func (s *logrusLogger) Warn(v ...interface{}) {
 	s.log(v)
 }
 
-func (s *traceLogger) Warnf(format string, v ...interface{}) {
+func (s *logrusLogger) Warnf(format string, v ...interface{}) {
 	s.logf(format, v...)
 }
 
-func (s *traceLogger) Error(v ...interface{}) {
+func (s *logrusLogger) Error(v ...interface{}) {
 	s.log(v)
 }
 
-func (s *traceLogger) Errorf(format string, v ...interface{}) {
+func (s *logrusLogger) Errorf(format string, v ...interface{}) {
 	s.logf(format, v...)
 }
 
-func (s *traceLogger) Fatal(v ...interface{}) {
+func (s *logrusLogger) Fatal(v ...interface{}) {
 	s.log(v)
 }
 
-func (s *traceLogger) Fatalf(format string, v ...interface{}) {
+func (s *logrusLogger) Fatalf(format string, v ...interface{}) {
 	s.logf(format, v...)
 }
 
-// New - returns a new traceLogger from context and span with given operation name
-func New(ctx context.Context, operation string, span opentracing.Span) (logger.Logger, context.Context) {
-	var fields map[string]string = nil
-	if value, ok := ctx.Value(logruslogger.CtxKeyLogEntry).(map[string]string); ok {
-		fields = value
-	}
+// New - returns a new logrusLogger from context and span with given operation name
+func New(ctx context.Context, operation string, span opentracing.Span) (logger.Logger, context.Context, func()) {
 	entry := logrus.WithTime(time.Now()).WithContext(ctx)
-	for k, v := range fields {
-		entry = entry.WithField(k, v)
-	}
-	if jaeger.IsOpentracingEnabled() && span == nil {
-		span, ctx = opentracing.StartSpanFromContext(ctx, operation)
+	if fields := logger.Fields(ctx); fields != nil {
+		for k, v := range fields {
+			entry = entry.WithField(k.(string), v)
+		}
 	}
 	var info *traceCtxInfo
 	ctx, info = withTraceInfo(ctx)
 	localTraceInfo.Store(info.id, info)
-	log := &traceLogger{
+	log := &logrusLogger{
+		mutex:     &sync.Mutex{},
 		span:      span,
 		info:      info,
 		operation: operation,
 		entry:     entry,
 	}
-	ctx = logger.WithLog(ctx, log)
 	log.printStart(operation)
-	return log, ctx
+	return log, ctx, func() { localTraceInfo.Delete(info.id) }
 }
 
-func (s *traceLogger) WithField(key, value interface{}) logger.Logger {
+func (s *logrusLogger) WithField(key, value interface{}) logger.Logger {
 	entry := s.entry
 	entry = entry.WithFields(logrus.Fields{key.(string): value})
-	log := &traceLogger{span: s.span, entry: entry, info: s.info}
+	s.mutex.Lock()
+	log := &logrusLogger{mutex: s.mutex, span: s.span, entry: entry, info: s.info}
+	s.mutex.Unlock()
 	return log
 }
 
-func (s *traceLogger) log(v ...interface{}) {
+func (s *logrusLogger) log(v ...interface{}) {
 	s.logf(format(v), v)
 }
 
-func (s *traceLogger) logf(format string, v ...interface{}) {
+func (s *logrusLogger) logf(format string, v ...interface{}) {
 	msg := fmt.Sprintf(format, v...)
+	s.mutex.Lock()
 	incInfo := s.info.incInfo()
 	s.entry.Tracef("%v %s %v%v", incInfo, strings.Repeat(" ", s.info.level), msg, s.getSpan())
+	s.mutex.Unlock()
 }
 
-func (s *traceLogger) getSpan() string {
+func (s *logrusLogger) getSpan() string {
 	spanStr := fmt.Sprintf("%v", s.span)
 	if len(spanStr) > 0 && spanStr != "{}" && s.span != nil {
 		return fmt.Sprintf(" span=%v", spanStr)
@@ -124,8 +123,17 @@ func (s *traceLogger) getSpan() string {
 	return ""
 }
 
-func (s *traceLogger) printStart(operation string) {
+func (s *logrusLogger) printStart(operation string) {
+	if operation == "" {
+		return
+	}
 	prefix := strings.Repeat(" ", s.info.level)
+	s.mutex.Lock()
 	incInfo := s.info.incInfo()
+	s.mutex.Unlock()
 	s.entry.Tracef("%v%s⎆ %v()%v", incInfo, prefix, operation, s.getSpan())
+}
+
+func format(v ...interface{}) string {
+	return strings.Trim(strings.Repeat("%+v ", len(v)), " ")
 }

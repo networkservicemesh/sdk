@@ -15,7 +15,6 @@
 // limitations under the License.
 
 // Package logger provides an unified interface Logger for logging
-// And also contains logrusLogger, spanLogger and traceLogger which implement it
 package logger
 
 import (
@@ -27,6 +26,7 @@ type ContextKeyType string
 
 const (
 	ctxKeyLogger ContextKeyType = "ctxKeyLogger"
+	ctxKeyFields ContextKeyType = "ctxKeyFields"
 )
 
 // Logger - unified interface for logging
@@ -53,10 +53,23 @@ func Log(ctx context.Context) Logger {
 	panic("Could not return Logger from Context")
 }
 
-// WithLog - creates new context with a Logger in it
+// WithLog - creates new context with `log` in it
 func WithLog(ctx context.Context, log ...Logger) context.Context {
 	if len(log) == 1 {
 		return context.WithValue(ctx, ctxKeyLogger, log[0])
 	}
-	return context.WithValue(ctx, ctxKeyLogger, newGroupFromArray(log))
+	return context.WithValue(ctx, ctxKeyLogger, newGroup(log...))
+}
+
+// Fields - returns fields from context
+func Fields(ctx context.Context) map[interface{}]interface{} {
+	if rv := ctx.Value(ctxKeyFields); rv != nil {
+		return rv.(map[interface{}]interface{})
+	}
+	return nil
+}
+
+// WithFields - adds/replaces fields to/in context
+func WithFields(ctx context.Context, fields map[interface{}]interface{}) context.Context {
+	return context.WithValue(ctx, ctxKeyFields, fields)
 }

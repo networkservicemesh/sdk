@@ -30,8 +30,8 @@ import (
 
 	registry2 "github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/memory"
+	"github.com/networkservicemesh/sdk/pkg/tools/defaultlogger"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
-	"github.com/networkservicemesh/sdk/pkg/tools/logruslogger"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -54,7 +54,8 @@ func TestInterdomainNetworkServiceEndpointRegistry(t *testing.T) {
 
 	const remoteRegistryDomain = "domain2.local.registry"
 
-	_, ctx := logruslogger.New(context.Background())
+	_, ctx, done := defaultlogger.New(context.Background(), "TestInterdomainNetworkServiceEndpointRegistry")
+	defer done()
 	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 
@@ -131,7 +132,8 @@ func TestLocalDomain_NetworkServiceEndpointRegistry(t *testing.T) {
 
 	const localRegistryDomain = "domain1.local.registry"
 
-	_, ctx := logruslogger.New(context.Background())
+	_, ctx, done := defaultlogger.New(context.Background(), "TestLocalDomain_NetworkServiceEndpointRegistry")
+	defer done()
 	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 
@@ -205,7 +207,8 @@ func TestInterdomainFloatingNetworkServiceEndpointRegistry(t *testing.T) {
 	const remoteProxyRegistryDomain = "domain3.proxy.registry"
 	const floatingRegistryDomain = "domain2.floating.registry"
 
-	_, ctx := logruslogger.New(context.Background())
+	_, ctx, done := defaultlogger.New(context.Background(), "TestInterdomainFloatingNetworkServiceEndpointRegistry")
+	defer done()
 	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 

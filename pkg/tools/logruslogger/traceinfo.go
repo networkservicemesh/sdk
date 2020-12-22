@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tracelogger
+package logruslogger
 
 import (
 	"context"
@@ -27,10 +27,10 @@ import (
 
 var localTraceInfo sync.Map
 
-type traceLoggerKeyType string
+type logrusLoggerKeyType string
 
 const (
-	traceLoggerTraceDepth traceLoggerKeyType = "traceLoggerTraceDepth"
+	logrusLoggerTraceDepth logrusLoggerKeyType = "logrusLoggerTraceDepth"
 )
 
 type traceCtxInfo struct {
@@ -60,19 +60,19 @@ func withTraceInfo(parent context.Context) (context.Context, *traceCtxInfo) {
 		newInfo.level = info.level + 1
 	}
 
-	ctx = metadata.AppendToOutgoingContext(ctx, "tracelogger-parent", newInfo.id)
+	ctx = metadata.AppendToOutgoingContext(ctx, "logruslogger-parent", newInfo.id)
 	// Update
-	return context.WithValue(ctx, traceLoggerTraceDepth, newInfo), newInfo
+	return context.WithValue(ctx, logrusLoggerTraceDepth, newInfo), newInfo
 }
 
 func fromContext(ctx context.Context) *traceCtxInfo {
-	if rv, ok := ctx.Value(traceLoggerTraceDepth).(*traceCtxInfo); ok {
+	if rv, ok := ctx.Value(logrusLoggerTraceDepth).(*traceCtxInfo); ok {
 		return rv
 	}
 
 	// Check metdata incoming for parent span and return it
 	if md, ok := metadata.FromIncomingContext(ctx); ok {
-		value := md.Get("tracelogger-parent")
+		value := md.Get("logruslogger-parent")
 		if len(value) > 0 {
 			if rv, ok := localTraceInfo.Load(value[len(value)-1]); ok {
 				return rv.(*traceCtxInfo)
