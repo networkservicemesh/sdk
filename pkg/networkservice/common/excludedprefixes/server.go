@@ -33,6 +33,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/fs"
 	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+	"github.com/networkservicemesh/sdk/pkg/tools/logruslogger"
 	"github.com/networkservicemesh/sdk/pkg/tools/prefixpool"
 )
 
@@ -78,7 +79,7 @@ func (eps *excludedPrefixesServer) init() {
 // Note: request.Connection and Connection.Context should not be nil
 func (eps *excludedPrefixesServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	eps.once.Do(eps.init)
-	log := logger.Log(ctx)
+	log, ctx := logruslogger.New(ctx)
 
 	conn := request.GetConnection()
 	if conn.GetContext() == nil {

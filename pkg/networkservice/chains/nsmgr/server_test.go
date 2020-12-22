@@ -44,7 +44,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/jaeger"
 	"github.com/networkservicemesh/sdk/pkg/tools/logruslogger"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
@@ -183,7 +182,6 @@ func TestNSMGR_RemoteUsecase_BusyEndpoints(t *testing.T) {
 
 func TestNSMGR_RemoteUsecase(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	jaeger.InitJaeger("Unify logging")
 	logrus.StandardLogger().SetLevel(logrus.TraceLevel)
 	_, ctx := logruslogger.New(context.Background())
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
