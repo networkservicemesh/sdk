@@ -30,6 +30,7 @@ import (
 
 	registry2 "github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/memory"
+	"github.com/networkservicemesh/sdk/pkg/tools/defaultlogger"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
@@ -53,7 +54,9 @@ func TestInterdomainNetworkServiceEndpointRegistry(t *testing.T) {
 
 	const remoteRegistryDomain = "domain2.local.registry"
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	_, ctx, done := defaultlogger.New(context.Background(), "TestInterdomainNetworkServiceEndpointRegistry")
+	defer done()
+	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 
 	dnsServer := new(sandbox.FakeDNSResolver)
@@ -129,7 +132,9 @@ func TestLocalDomain_NetworkServiceEndpointRegistry(t *testing.T) {
 
 	const localRegistryDomain = "domain1.local.registry"
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	_, ctx, done := defaultlogger.New(context.Background(), "TestLocalDomain_NetworkServiceEndpointRegistry")
+	defer done()
+	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 
 	dnsServer := new(sandbox.FakeDNSResolver)
@@ -202,7 +207,9 @@ func TestInterdomainFloatingNetworkServiceEndpointRegistry(t *testing.T) {
 	const remoteProxyRegistryDomain = "domain3.proxy.registry"
 	const floatingRegistryDomain = "domain2.floating.registry"
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	_, ctx, done := defaultlogger.New(context.Background(), "TestInterdomainFloatingNetworkServiceEndpointRegistry")
+	defer done()
+	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 
 	dnsServer := new(sandbox.FakeDNSResolver)

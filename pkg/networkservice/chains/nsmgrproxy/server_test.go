@@ -28,13 +28,16 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/defaultlogger"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
 func TestNSMGR_InterdomainUseCase(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	const remoteRegistryDomain = "domain2.local.registry"
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	_, ctx, done := defaultlogger.New(context.Background(), "TestNSMGR_InterdomainUseCase")
+	defer done()
+	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 
 	dnsServer := new(sandbox.FakeDNSResolver)

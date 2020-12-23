@@ -19,10 +19,8 @@ package setlogoption
 import (
 	"context"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -68,12 +66,9 @@ func NewNetworkServiceRegistryServer(options map[string]string) registry.Network
 }
 
 func (s *setNSLogOption) withFields(ctx context.Context) context.Context {
-	fields := make(logrus.Fields)
+	fields := make(map[interface{}]interface{}, len(s.options))
 	for k, v := range s.options {
 		fields[k] = v
 	}
-	if len(fields) > 0 {
-		ctx = log.WithFields(ctx, fields)
-	}
-	return ctx
+	return logger.WithFields(ctx, fields)
 }

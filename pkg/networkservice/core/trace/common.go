@@ -17,40 +17,43 @@
 package trace
 
 import (
+	"context"
 	"reflect"
 	"strconv"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 )
 
-func logRequest(span spanhelper.SpanHelper, request proto.Message) {
-	connInfo, ok := trace(span.Context())
+func logRequest(ctx context.Context, request proto.Message) {
+	connInfo, ok := trace(ctx)
+	log := logger.Log(ctx)
 	if ok && !proto.Equal(connInfo.Request, request) {
 		if connInfo.Request != nil && connInfo.Request.ProtoReflect().Descriptor().FullName() == request.ProtoReflect().Descriptor().FullName() {
 			requestDiff, hadChanges := Diff(connInfo.Request.ProtoReflect(), request.ProtoReflect())
 			if hadChanges {
-				span.LogObject("request-diff", requestDiff)
+				log.Info("request-diff", requestDiff)
 			}
 		} else {
-			span.LogObject("request", request)
+			log.Info("request", request)
 		}
 		connInfo.Request = proto.Clone(request)
 	}
 }
 
-func logResponse(span spanhelper.SpanHelper, response proto.Message) {
-	connInfo, ok := trace(span.Context())
+func logResponse(ctx context.Context, response proto.Message) {
+	connInfo, ok := trace(ctx)
+	log := logger.Log(ctx)
 	if ok && !proto.Equal(connInfo.Response, response) {
 		if connInfo.Response != nil {
 			responseDiff, changed := Diff(connInfo.Response.ProtoReflect(), response.ProtoReflect())
 			if changed {
-				span.LogObject("response-diff", responseDiff)
+				log.Info("response-diff", responseDiff)
 			}
 		} else {
-			span.LogObject("response", response)
+			log.Info("response", response)
 		}
 		connInfo.Response = proto.Clone(response)
 		return

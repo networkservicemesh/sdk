@@ -29,6 +29,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
+	"github.com/networkservicemesh/sdk/pkg/tools/defaultlogger"
 )
 
 func setEnvs(envs map[string]string) error {
@@ -98,15 +99,16 @@ func TestLabelsOverwritten(t *testing.T) {
 	client := next.NewNetworkServiceClient(clientinfo.NewClient(), checkrequest.NewClient(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
 		assert.Equal(t, expected, request.GetConnection().GetLabels())
 	}))
-	conn, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Labels: map[string]string{
-				"NodeNameKey":    "OLD_VAL1",
-				"PodNameKey":     "OLD_VAL2",
-				"ClusterNameKey": "OLD_VAL3",
-				"SomeOtherLabel": "DDD",
-			},
+	_, ctx, done := defaultlogger.New(context.Background(), "TestLabelsOverwritten")
+	defer done()
+	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{Connection: &networkservice.Connection{
+		Labels: map[string]string{
+			"NodeNameKey":    "OLD_VAL1",
+			"PodNameKey":     "OLD_VAL2",
+			"ClusterNameKey": "OLD_VAL3",
+			"SomeOtherLabel": "DDD",
 		},
+	},
 	})
 	assert.Nil(t, err)
 	assert.NotNil(t, conn)
@@ -132,14 +134,15 @@ func TestSomeEnvsNotPresent(t *testing.T) {
 	client := next.NewNetworkServiceClient(clientinfo.NewClient(), checkrequest.NewClient(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
 		assert.Equal(t, expected, request.GetConnection().GetLabels())
 	}))
-	conn, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Labels: map[string]string{
-				"NodeNameKey":    "OLD_VAL1",
-				"ClusterNameKey": "OLD_VAL2",
-				"SomeOtherLabel": "DDD",
-			},
+	_, ctx, done := defaultlogger.New(context.Background(), "TestSomeEnvsNotPresent")
+	defer done()
+	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{Connection: &networkservice.Connection{
+		Labels: map[string]string{
+			"NodeNameKey":    "OLD_VAL1",
+			"ClusterNameKey": "OLD_VAL2",
+			"SomeOtherLabel": "DDD",
 		},
+	},
 	})
 	assert.Nil(t, err)
 	assert.NotNil(t, conn)

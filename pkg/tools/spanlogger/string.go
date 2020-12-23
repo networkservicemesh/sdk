@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,13 +14,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package trace provides a wrapper for tracing around a registry.{Registry,Discovery}{Server,Client}
-package trace
+package spanlogger
 
-import (
-	"github.com/pkg/errors"
-)
+import "strings"
 
-type stackTracer interface {
-	StackTrace() errors.StackTrace
+func format(v ...interface{}) string {
+	return strings.Trim(strings.Repeat("%+v ", len(v)), " ")
+}
+func limitString(s string) string {
+	maxStringLength := 1000
+	if len(s) > maxStringLength {
+		return s[maxStringLength-3:] + "..."
+	}
+	return s
 }

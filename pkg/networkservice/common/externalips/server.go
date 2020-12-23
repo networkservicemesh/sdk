@@ -29,7 +29,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/fs"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 )
 
 type externalIPsServer struct {
@@ -68,16 +68,16 @@ func NewServer(chainCtx context.Context, options ...Option) networkservice.Netwo
 		result.updateCh = monitorMapFromFile(chainCtx, DefaultFilePath)
 	}
 	go func() {
-		logger := log.Entry(chainCtx).WithField("externalIPsServer", "build")
+		log := logger.Log(chainCtx).WithField("externalIPsServer", "build")
 		for {
 			select {
 			case <-chainCtx.Done():
 				return
 			case update := <-result.updateCh:
 				if err := result.build(update); err != nil {
-					logger.Error(err.Error())
+					log.Error(err.Error())
 				} else {
-					logger.Info("rebuilt internal and external ips map")
+					log.Info("rebuilt internal and external ips map")
 				}
 			}
 		}
@@ -126,7 +126,7 @@ func monitorMapFromFile(ctx context.Context, path string) <-chan map[string]stri
 			var m map[string]string
 			err := yaml.Unmarshal(bytes, &m)
 			if err != nil {
-				log.Entry(ctx).WithField("externalIPsServer", "yaml.Unmarshal").Error(err.Error())
+				logger.Log(ctx).WithField("externalIPsServer", "yaml.Unmarshal").Error(err.Error())
 				continue
 			}
 			select {

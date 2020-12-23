@@ -31,8 +31,8 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/trace"
 	"github.com/networkservicemesh/sdk/pkg/tools/fs"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 	"github.com/networkservicemesh/sdk/pkg/tools/prefixpool"
 )
 
@@ -44,7 +44,7 @@ type excludedPrefixesServer struct {
 }
 
 func (eps *excludedPrefixesServer) init() {
-	logger := trace.Log(eps.ctx)
+	log := logger.Log(eps.ctx)
 	zeroPool, _ := prefixpool.New()
 	eps.prefixPool.Store(zeroPool)
 	updatePrefixes := func(bytes []byte) {
@@ -56,12 +56,12 @@ func (eps *excludedPrefixesServer) init() {
 		}{}
 		err := yaml.Unmarshal(bytes, &source)
 		if err != nil {
-			logger.Errorf("Can not create unmarshal prefixes, err: %v", err.Error())
+			log.Errorf("Can not create unmarshal prefixes, err: %v", err.Error())
 			return
 		}
 		pool, err := prefixpool.New(source.Prefixes...)
 		if err != nil {
-			logger.Errorf("Can not create prefixpool with prefixes: %+v, err: %v", source.Prefixes, err.Error())
+			log.Errorf("Can not create prefixpool with prefixes: %+v, err: %v", source.Prefixes, err.Error())
 			return
 		}
 		eps.prefixPool.Store(pool)
@@ -78,7 +78,6 @@ func (eps *excludedPrefixesServer) init() {
 // Note: request.Connection and Connection.Context should not be nil
 func (eps *excludedPrefixesServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	eps.once.Do(eps.init)
-	logger := trace.Log(ctx)
 
 	conn := request.GetConnection()
 	if conn.GetContext() == nil {
@@ -88,7 +87,7 @@ func (eps *excludedPrefixesServer) Request(ctx context.Context, request *network
 		conn.Context.IpContext = &networkservice.IPContext{}
 	}
 	prefixes := eps.prefixPool.Load().(*prefixpool.PrefixPool).GetPrefixes()
-	logger.Infof("ExcludedPrefixesService: adding excluded prefixes to connection: %v", prefixes)
+	logger.Log(ctx).Infof("ExcludedPrefixesService: adding excluded prefixes to connection: %v", prefixes)
 	ipCtx := conn.GetContext().GetIpContext()
 	ipCtx.ExcludedPrefixes = removeDuplicates(append(ipCtx.GetExcludedPrefixes(), prefixes...))
 

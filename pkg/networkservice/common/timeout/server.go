@@ -31,7 +31,8 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/defaultlogger"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 )
 
 type timeoutServer struct {
@@ -50,7 +51,9 @@ func NewServer(ctx context.Context) networkservice.NetworkServiceServer {
 }
 
 func (t *timeoutServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	logEntry := log.Entry(ctx).WithField("timeoutServer", "request")
+	log, ctx, done := defaultlogger.New(ctx, "")
+	defer done()
+	log = log.WithField("timeoutServer", "request")
 
 	connID := request.GetConnection().GetId()
 
@@ -61,7 +64,7 @@ func (t *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 			// Since timer is being deleted under the `executor.AsyncExec()` this can't be a situation when
 			// the Request is executing after the timeout Close. Such case cannot be distinguished with the
 			// first-request case.
-			logEntry.Warnf("connection has been timed out, re requesting: %v", connID)
+			log.Warnf("connection has been timed out, re requesting: %v", connID)
 		}
 	}
 
@@ -84,7 +87,7 @@ func (t *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 }
 
 func (t *timeoutServer) createTimer(ctx context.Context, conn *networkservice.Connection) (*time.Timer, error) {
-	logEntry := log.Entry(ctx).WithField("timeoutServer", "createTimer")
+	logEntry := logger.Log(ctx).WithField("timeoutServer", "createTimer")
 
 	executor := serialize.GetExecutor(ctx)
 	if executor == nil {
@@ -119,7 +122,9 @@ func (t *timeoutServer) createTimer(ctx context.Context, conn *networkservice.Co
 }
 
 func (t *timeoutServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	logEntry := log.Entry(ctx).WithField("timeoutServer", "createTimer")
+	logEntry, ctx, done := defaultlogger.New(ctx, "")
+	defer done()
+	logEntry = logEntry.WithField("timeoutServer", "createTimer")
 
 	timer, ok := t.timers.LoadAndDelete(conn.GetId())
 	if !ok {

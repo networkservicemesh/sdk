@@ -25,7 +25,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
+	"github.com/networkservicemesh/sdk/pkg/tools/defaultlogger"
 	"github.com/networkservicemesh/sdk/pkg/tools/typeutils"
 )
 
@@ -45,11 +45,10 @@ func (t *traceClient) Request(ctx context.Context, request *networkservice.Netwo
 	ctx = withTrace(ctx)
 	// Create a new span
 	operation := typeutils.GetFuncName(t.traced, "Request")
-	span := spanhelper.FromContext(ctx, operation)
-	defer span.Finish()
+	log, ctx, done := defaultlogger.New(ctx, operation)
+	defer done()
 
-	ctx = withLog(span.Context(), span.Logger())
-	logRequest(span, request)
+	logRequest(ctx, request)
 
 	// Actually call the next
 	rv, err := t.traced.Request(ctx, request, opts...)
@@ -57,14 +56,14 @@ func (t *traceClient) Request(ctx context.Context, request *networkservice.Netwo
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
 			err = errors.Wrapf(err, "Error returned from %s", operation)
-			span.LogErrorf("%+v", err)
+			log.Errorf("%+v", err)
 			return nil, err
 		}
-		span.LogErrorf("%v", err)
+		log.Errorf("%v", err)
 		return nil, err
 	}
 
-	logResponse(span, rv)
+	logResponse(ctx, rv)
 	return rv, err
 }
 
@@ -72,21 +71,19 @@ func (t *traceClient) Close(ctx context.Context, conn *networkservice.Connection
 	ctx = withTrace(ctx)
 	// Create a new span
 	operation := typeutils.GetFuncName(t.traced, "Close")
-	span := spanhelper.FromContext(ctx, operation)
-	defer span.Finish()
+	log, ctx, done := defaultlogger.New(ctx, operation)
+	defer done()
 	// Make sure we log to span
-	ctx = withLog(span.Context(), span.Logger())
-
-	logRequest(span, conn)
+	logRequest(ctx, conn)
 	rv, err := t.traced.Close(ctx, conn, opts...)
 
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
 			err = errors.Wrapf(err, "Error returned from %s", operation)
-			span.LogErrorf("%+v", err)
+			log.Errorf("%+v", err)
 			return nil, err
 		}
-		span.LogErrorf("%v", err)
+		log.Errorf("%v", err)
 		return nil, err
 	}
 	return rv, err
