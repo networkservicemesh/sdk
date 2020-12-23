@@ -44,8 +44,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/jaeger"
-	"github.com/networkservicemesh/sdk/pkg/tools/logruslogger"
+	"github.com/networkservicemesh/sdk/pkg/tools/defaultlogger"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
 )
@@ -53,7 +52,8 @@ import (
 func TestNSMGR_RemoteUsecase_Parallel(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	logrus.SetOutput(ioutil.Discard)
-	_, ctx := logruslogger.New(context.Background())
+	_, ctx, done := defaultlogger.New(context.Background(), "TestNSMGR_RemoteUsecase_Parallel")
+	defer done()
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 	domain := sandbox.NewBuilder(t).
@@ -114,7 +114,8 @@ func TestNSMGR_RemoteUsecase_Parallel(t *testing.T) {
 func TestNSMGR_RemoteUsecase_BusyEndpoints(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	logrus.SetOutput(ioutil.Discard)
-	_, ctx := logruslogger.New(context.Background())
+	_, ctx, done := defaultlogger.New(context.Background(), "TestNSMGR_RemoteUsecase_BusyEndpoints")
+	defer done()
 	ctx, cancel := context.WithTimeout(ctx, time.Minute*5)
 	defer cancel()
 	domain := sandbox.NewBuilder(t).
@@ -181,9 +182,9 @@ func TestNSMGR_RemoteUsecase_BusyEndpoints(t *testing.T) {
 
 func TestNSMGR_RemoteUsecase(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	jaeger.InitJaeger("Unify logging")
-	logrus.StandardLogger().SetLevel(logrus.TraceLevel)
-	_, ctx := logruslogger.New(context.Background())
+	logrus.SetOutput(ioutil.Discard)
+	_, ctx, done := defaultlogger.New(context.Background(), "TestNSMGR_RemoteUsecase")
+	defer done()
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 	domain := sandbox.NewBuilder(t).
@@ -243,7 +244,8 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 func TestNSMGR_LocalUsecase(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	logrus.SetOutput(ioutil.Discard)
-	_, ctx := logruslogger.New(context.Background())
+	_, ctx, done := defaultlogger.New(context.Background(), "TestNSMGR_LocalUsecase")
+	defer done()
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 	domain := sandbox.NewBuilder(t).
@@ -301,10 +303,10 @@ func TestNSMGR_LocalUsecase(t *testing.T) {
 
 func TestNSMGR_PassThroughRemote(t *testing.T) {
 	nodesCount := 7
-
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	logrus.SetOutput(ioutil.Discard)
-	_, ctx := logruslogger.New(context.Background())
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	_, ctx, done := defaultlogger.New(context.Background(), "TestNSMGR_PassThroughRemote")
+	defer done()
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 	domain := sandbox.NewBuilder(t).
@@ -365,10 +367,10 @@ func TestNSMGR_PassThroughRemote(t *testing.T) {
 
 func TestNSMGR_PassThroughLocal(t *testing.T) {
 	nsesCount := 7
-
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	logrus.SetOutput(ioutil.Discard)
-	_, ctx := logruslogger.New(context.Background())
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	_, ctx, done := defaultlogger.New(context.Background(), "TestNSMGR_PassThroughLocal")
+	defer done()
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 	domain := sandbox.NewBuilder(t).

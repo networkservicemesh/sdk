@@ -44,9 +44,9 @@ import (
 	adapter_registry "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
+	"github.com/networkservicemesh/sdk/pkg/tools/defaultlogger"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/logger"
-	"github.com/networkservicemesh/sdk/pkg/tools/logruslogger"
 	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
@@ -90,7 +90,9 @@ func (b *Builder) Build() *Domain {
 	ctx := b.ctx
 	if ctx == nil {
 		var cancel context.CancelFunc
-		_, ctx = logruslogger.New(context.Background())
+		_, newCtx, done := defaultlogger.New(context.Background(), "Build")
+		ctx = newCtx
+		defer done()
 		ctx, cancel = context.WithTimeout(ctx, defaultContextTimeout)
 		b.resources = append(b.resources, cancel)
 	}
@@ -261,13 +263,13 @@ func (b *Builder) newCrossConnectNSE(ctx context.Context, name string, connectTo
 	b.require.NoError(err)
 	serveURL := grpcutils.AddressToURL(listener.Addr())
 	b.require.NoError(listener.Close())
-	_, regCtx := logruslogger.New(context.Background())
+	_, regCtx, done := defaultlogger.New(context.Background(), "newCrossConnectNSE")
+	defer done()
 	regForwarder, err := forwarderRegistrationClient.Register(regCtx, &registryapi.NetworkServiceEndpoint{
 		Url:  serveURL.String(),
 		Name: name,
 	})
 	b.require.NoError(err)
-
 	crossNSE := b.supplyForwarder(ctx, regForwarder.Name, b.generateTokenFunc, connectTo, grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)))
 	serve(ctx, serveURL, crossNSE.Register)
 	logger.Log(ctx).Infof("%v listen on: %v", name, serveURL)

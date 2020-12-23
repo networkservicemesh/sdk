@@ -78,7 +78,6 @@ func (eps *excludedPrefixesServer) init() {
 // Note: request.Connection and Connection.Context should not be nil
 func (eps *excludedPrefixesServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	eps.once.Do(eps.init)
-	log := logger.Log(ctx)
 
 	conn := request.GetConnection()
 	if conn.GetContext() == nil {
@@ -88,7 +87,7 @@ func (eps *excludedPrefixesServer) Request(ctx context.Context, request *network
 		conn.Context.IpContext = &networkservice.IPContext{}
 	}
 	prefixes := eps.prefixPool.Load().(*prefixpool.PrefixPool).GetPrefixes()
-	log.Infof("ExcludedPrefixesService: adding excluded prefixes to connection: %v", prefixes)
+	logger.Log(ctx).Infof("ExcludedPrefixesService: adding excluded prefixes to connection: %v", prefixes)
 	ipCtx := conn.GetContext().GetIpContext()
 	ipCtx.ExcludedPrefixes = removeDuplicates(append(ipCtx.GetExcludedPrefixes(), prefixes...))
 

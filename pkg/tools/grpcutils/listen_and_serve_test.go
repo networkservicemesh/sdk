@@ -28,8 +28,8 @@ import (
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/defaultlogger"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
-	"github.com/networkservicemesh/sdk/pkg/tools/logruslogger"
 )
 
 func TestListenAndServe_NotExistsFolder(t *testing.T) {
@@ -40,7 +40,8 @@ func TestListenAndServe_NotExistsFolder(t *testing.T) {
 		_ = os.RemoveAll(dir)
 	}()
 	socket := path.Join(dir, "folder", "test.sock")
-	_, ctx := logruslogger.New(context.Background())
+	_, ctx, done := defaultlogger.New(context.Background(), "TestListenAndServe_NotExistsFolder")
+	defer done()
 	ctx, cancel := context.WithCancel(ctx)
 	ch := grpcutils.ListenAndServe(ctx, &url.URL{Scheme: "unix", Path: socket}, grpc.NewServer())
 	if len(ch) > 0 {

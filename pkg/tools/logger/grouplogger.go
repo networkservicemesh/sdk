@@ -20,7 +20,7 @@ type groupLogger struct {
 	loggers []Logger
 }
 
-func newGroupFromArray(s []Logger) Logger {
+func newGroup(s ...Logger) Logger {
 	return &groupLogger{loggers: s}
 }
 

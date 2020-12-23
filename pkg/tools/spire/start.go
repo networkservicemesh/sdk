@@ -55,7 +55,7 @@ func getEntry(ctx context.Context) *logrus.Entry {
 	if ctx == nil {
 		panic("cannot create context from nil parent")
 	}
-	if entryValue := ctx.Value("LogrusEntry"); entryValue != nil {
+	if entryValue := ctx.Value("ctxKeyLogEntry"); entryValue != nil {
 		if entry := entryValue.(*logrus.Entry); entry != nil {
 			if entry.Context == ctx {
 				return entry

@@ -21,7 +21,7 @@ import (
 	"context"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/logruslogger"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -67,5 +67,9 @@ func NewNetworkServiceEndpointRegistryServer(options map[string]string) registry
 }
 
 func (s *setNSELogOption) withFields(ctx context.Context) context.Context {
-	return logruslogger.WithFields(ctx, s.options)
+	fields := make(map[interface{}]interface{}, len(s.options))
+	for k, v := range s.options {
+		fields[k] = v
+	}
+	return logger.WithFields(ctx, fields)
 }

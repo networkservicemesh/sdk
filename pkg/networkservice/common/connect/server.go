@@ -95,7 +95,8 @@ func (s *connectServer) Close(ctx context.Context, conn *networkservice.Connecti
 }
 
 func (s *connectServer) client(ctx context.Context, conn *networkservice.Connection) networkservice.NetworkServiceClient {
-	logEntry := logger.Log(ctx).WithField("connectServer", "client")
+	log := logger.Log(ctx)
+	log = log.WithField("connectServer", "client")
 
 	clientURL := clienturlctx.ClientURL(ctx)
 	if clientURL == nil {
@@ -110,7 +111,7 @@ func (s *connectServer) client(ctx context.Context, conn *networkservice.Connect
 		}
 		// For some reason we have changed the clientURL, so we need to close the existing client.
 		if _, clientErr := connInfo.client.Close(ctx, conn); clientErr != nil {
-			logEntry.Warnf("failed to close client: %+v", clientErr)
+			log.Warnf("failed to close client: %+v", clientErr)
 		}
 	}
 
