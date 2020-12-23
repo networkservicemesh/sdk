@@ -95,15 +95,38 @@ func (m *RefcountMap) Load(key string) (value networkservice.NetworkServiceClien
 	return entry.value, true
 }
 
-// Delete decrements the refcount and deletes the value for a key if refcount is zero. Returns true if value is no (more) present.
-func (r *RefcountMap) Delete(key string) bool {
-	rv, loaded := r.Map.Load(key)
+// LoadAndDelete is trying to delete the value for a key, returning the previous value if any. The loaded result
+// reports whether the key was present.
+// count == 1  -->  delete
+// count > 1   -->  count -= 1
+func (m *RefcountMap) LoadAndDelete(key string) (value networkservice.NetworkServiceClient, loaded, deleted bool) {
+	var raw interface{}
+	raw, loaded = m.m.Load(key)
 	if !loaded {
-		return true
+		return nil, false, true
 	}
-	if client, ok := rv.(*refcountClient); ok && atomic.AddInt32(&client.count, -1) == 0 {
-		r.Map.Delete(key)
-		return true
+	entry := raw.(*entry)
+
+	entry.lock.Lock()
+	defer entry.lock.Unlock()
+
+	if entry.count == 0 {
+		return nil, false, true
 	}
-	return false
+	entry.count--
+
+	if entry.count == 0 {
+		m.m.Delete(key)
+		deleted = true
+	}
+
+	return entry.value, true, deleted
+}
+
+// Delete is trying to delete the value for a key.
+// count == 1  -->  delete
+// count > 1   -->  count -= 1
+func (m *RefcountMap) Delete(key string) (deleted bool) {
+	_, _, deleted = m.LoadAndDelete(key)
+	return deleted
 }

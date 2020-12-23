@@ -21,10 +21,6 @@ import (
 	"context"
 
 	"google.golang.org/protobuf/proto"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
-	"github.com/networkservicemesh/sdk/pkg/tools/spanlogger"
-	"github.com/networkservicemesh/sdk/pkg/tools/tracelogger"
 )
 
 type contextKeyType string
@@ -58,11 +54,4 @@ func withTrace(parent context.Context) context.Context {
 func trace(ctx context.Context) (*traceInfo, bool) {
 	val, ok := ctx.Value(traceInfoKey).(*traceInfo)
 	return val, ok
-}
-
-func newLogger(ctx context.Context, operation string) (logger.Logger, context.Context, func()) {
-	span, ctx, s, done := spanlogger.New(ctx, operation)
-	trace, ctx := tracelogger.New(ctx, operation, s)
-	ctx = logger.WithLog(ctx, span, trace)
-	return logger.Log(ctx), ctx, done
 }
