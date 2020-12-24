@@ -22,7 +22,6 @@ import (
 	"context"
 	"fmt"
 	"runtime/debug"
-	"sync"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/log"
@@ -32,7 +31,6 @@ import (
 )
 
 type spanLogger struct {
-	mutex     *sync.Mutex
 	operation string
 	span      opentracing.Span
 	entries   map[interface{}]interface{}
@@ -76,14 +74,11 @@ func (s *spanLogger) WithField(key, value interface{}) logger.Logger {
 		data[k] = v
 	}
 	data[key] = value
-	s.mutex.Lock()
 	newlog := &spanLogger{
-		mutex:     s.mutex,
 		span:      s.span,
 		operation: s.operation,
 		entries:   data,
 	}
-	s.mutex.Unlock()
 	return newlog
 }
 
@@ -92,7 +87,6 @@ func (s *spanLogger) log(level string, v ...interface{}) {
 }
 
 func (s *spanLogger) logf(level, format string, v ...interface{}) {
-	s.mutex.Lock()
 	if s.span != nil {
 		if v != nil {
 			msg := limitString(fmt.Sprintf(format, v...))
@@ -102,7 +96,6 @@ func (s *spanLogger) logf(level, format string, v ...interface{}) {
 			}
 		}
 	}
-	s.mutex.Unlock()
 }
 
 // New - creates a new spanLogger from context, operation and span
@@ -112,7 +105,6 @@ func New(ctx context.Context, operation string) (logger.Logger, context.Context,
 		span, ctx = opentracing.StartSpanFromContext(ctx, operation)
 	}
 	newLog := &spanLogger{
-		mutex:     &sync.Mutex{},
 		span:      span,
 		operation: operation,
 		entries:   make(map[interface{}]interface{}),
@@ -122,10 +114,8 @@ func New(ctx context.Context, operation string) (logger.Logger, context.Context,
 
 // Close - closes spanLogger
 func (s *spanLogger) Finish() {
-	s.mutex.Lock()
 	if s.span != nil {
 		s.span.Finish()
 		s.span = nil
 	}
-	s.mutex.Unlock()
 }

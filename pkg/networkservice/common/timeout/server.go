@@ -31,7 +31,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 	"github.com/networkservicemesh/sdk/pkg/tools/logruslogger"
 )
 
@@ -87,8 +86,9 @@ func (t *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 }
 
 func (t *timeoutServer) createTimer(ctx context.Context, conn *networkservice.Connection) (*time.Timer, error) {
-	logEntry := logger.Log(ctx).WithField("timeoutServer", "createTimer")
-
+	logEntry, ctx, done := logruslogger.New(ctx)
+	logEntry = logEntry.WithField("timeoutServer", "createTimer")
+	defer done()
 	executor := serialize.GetExecutor(ctx)
 	if executor == nil {
 		return nil, errors.New("no executor provided")

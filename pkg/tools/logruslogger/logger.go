@@ -23,7 +23,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -33,7 +32,7 @@ import (
 )
 
 type logrusLogger struct {
-	mutex     *sync.Mutex
+	level     string
 	operation string
 	span      opentracing.Span
 	info      *traceCtxInfo
@@ -41,34 +40,42 @@ type logrusLogger struct {
 }
 
 func (s *logrusLogger) Info(v ...interface{}) {
+	s.level = "info"
 	s.log(v)
 }
 
 func (s *logrusLogger) Infof(format string, v ...interface{}) {
+	s.level = "info"
 	s.logf(format, v...)
 }
 
 func (s *logrusLogger) Warn(v ...interface{}) {
+	s.level = "warn"
 	s.log(v)
 }
 
 func (s *logrusLogger) Warnf(format string, v ...interface{}) {
+	s.level = "warn"
 	s.logf(format, v...)
 }
 
 func (s *logrusLogger) Error(v ...interface{}) {
+	s.level = "error"
 	s.log(v)
 }
 
 func (s *logrusLogger) Errorf(format string, v ...interface{}) {
+	s.level = "error"
 	s.logf(format, v...)
 }
 
 func (s *logrusLogger) Fatal(v ...interface{}) {
+	s.level = "fatal"
 	s.log(v)
 }
 
 func (s *logrusLogger) Fatalf(format string, v ...interface{}) {
+	s.level = "fatal"
 	s.logf(format, v...)
 }
 
@@ -84,7 +91,6 @@ func FromSpan(ctx context.Context, operation string, span opentracing.Span) (log
 	ctx, info = withTraceInfo(ctx)
 	localTraceInfo.Store(info.id, info)
 	log := &logrusLogger{
-		mutex:     &sync.Mutex{},
 		span:      span,
 		info:      info,
 		operation: operation,
@@ -94,17 +100,17 @@ func FromSpan(ctx context.Context, operation string, span opentracing.Span) (log
 	return log, ctx, func() { localTraceInfo.Delete(info.id) }
 }
 
-// New - returns a new logrusLogger from context
+// New - creates a logruslogger
+// and returns it along with context containing aforementioned logger and a function ot defer
 func New(ctx context.Context) (logger.Logger, context.Context, func()) {
-	return FromSpan(ctx, "", nil)
+	log, ctx, done := FromSpan(ctx, "", nil)
+	return log, logger.WithLog(ctx, log), done
 }
 
 func (s *logrusLogger) WithField(key, value interface{}) logger.Logger {
 	entry := s.entry
 	entry = entry.WithFields(logrus.Fields{key.(string): value})
-	s.mutex.Lock()
-	log := &logrusLogger{mutex: s.mutex, span: s.span, entry: entry, info: s.info}
-	s.mutex.Unlock()
+	log := &logrusLogger{span: s.span, entry: entry, info: s.info}
 	return log
 }
 
@@ -114,10 +120,8 @@ func (s *logrusLogger) log(v ...interface{}) {
 
 func (s *logrusLogger) logf(format string, v ...interface{}) {
 	msg := fmt.Sprintf(format, v...)
-	s.mutex.Lock()
 	incInfo := s.info.incInfo()
-	s.entry.Tracef("%v %s %v%v", incInfo, strings.Repeat(" ", s.info.level), msg, s.getSpan())
-	s.mutex.Unlock()
+	s.entry.Tracef("%v %s %s=%v%v", incInfo, strings.Repeat(" ", s.info.level), s.level, msg, s.getSpan())
 }
 
 func (s *logrusLogger) getSpan() string {
@@ -133,9 +137,7 @@ func (s *logrusLogger) printStart(operation string) {
 		return
 	}
 	prefix := strings.Repeat(" ", s.info.level)
-	s.mutex.Lock()
 	incInfo := s.info.incInfo()
-	s.mutex.Unlock()
 	s.entry.Tracef("%v%s⎆ %v()%v", incInfo, prefix, operation, s.getSpan())
 }
 

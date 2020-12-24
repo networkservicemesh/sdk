@@ -27,6 +27,7 @@ import (
 )
 
 // New - creates a composite Logger which consists of logruslogger and spanlogger
+// and returns it along with context containing aforementioned logger and a function ot defer
 func New(ctx context.Context, operation string) (logger.Logger, context.Context, func()) {
 	span, ctx, s, sdone := spanlogger.New(ctx, operation)
 	trace, ctx, tdone := logruslogger.FromSpan(ctx, operation, s)
