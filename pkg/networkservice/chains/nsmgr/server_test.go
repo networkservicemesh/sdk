@@ -54,7 +54,7 @@ func TestNSMGR_RemoteUsecase_Parallel(t *testing.T) {
 	logrus.SetOutput(ioutil.Discard)
 	_, ctx, done := defaultlogger.New(context.Background(), "TestNSMGR_RemoteUsecase_BusyEndpoints")
 	defer done()
-	ctx, cancel := context.WithTimeout(ctx, time.Minute*5)
+	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 	domain := sandbox.NewBuilder(t).
 		SetNodesCount(2).
