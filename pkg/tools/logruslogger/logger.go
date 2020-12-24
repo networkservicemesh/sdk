@@ -31,6 +31,13 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 )
 
+const (
+	lvlInfo  string = "info"
+	lvlWarn  string = "warn"
+	lvlError string = "error"
+	lvlFatal string = "fatal"
+)
+
 type logrusLogger struct {
 	level     string
 	operation string
@@ -40,42 +47,42 @@ type logrusLogger struct {
 }
 
 func (s *logrusLogger) Info(v ...interface{}) {
-	s.level = "info"
+	s.level = lvlInfo
 	s.log(v)
 }
 
 func (s *logrusLogger) Infof(format string, v ...interface{}) {
-	s.level = "info"
+	s.level = lvlInfo
 	s.logf(format, v...)
 }
 
 func (s *logrusLogger) Warn(v ...interface{}) {
-	s.level = "warn"
+	s.level = lvlWarn
 	s.log(v)
 }
 
 func (s *logrusLogger) Warnf(format string, v ...interface{}) {
-	s.level = "warn"
+	s.level = lvlWarn
 	s.logf(format, v...)
 }
 
 func (s *logrusLogger) Error(v ...interface{}) {
-	s.level = "error"
+	s.level = lvlError
 	s.log(v)
 }
 
 func (s *logrusLogger) Errorf(format string, v ...interface{}) {
-	s.level = "error"
+	s.level = lvlError
 	s.logf(format, v...)
 }
 
 func (s *logrusLogger) Fatal(v ...interface{}) {
-	s.level = "fatal"
+	s.level = lvlFatal
 	s.log(v)
 }
 
 func (s *logrusLogger) Fatalf(format string, v ...interface{}) {
-	s.level = "fatal"
+	s.level = lvlFatal
 	s.logf(format, v...)
 }
 
