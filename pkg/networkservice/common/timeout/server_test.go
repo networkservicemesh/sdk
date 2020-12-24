@@ -40,7 +40,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/defaultlogger"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 )
 
 const (
@@ -74,8 +74,7 @@ func testClient(ctx context.Context, server networkservice.NetworkServiceServer,
 }
 
 func TestTimeoutServer_Request(t *testing.T) {
-	_, ctx, done := defaultlogger.New(context.Background(), "TestTimeoutServer_Request")
-	defer done()
+	ctx := logger.WithLog(context.Background())
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -89,8 +88,7 @@ func TestTimeoutServer_Request(t *testing.T) {
 }
 
 func TestTimeoutServer_Close_BeforeTimeout(t *testing.T) {
-	_, ctx, done := defaultlogger.New(context.Background(), "TestTimeoutServer_Close_BeforeTimeout")
-	defer done()
+	ctx := logger.WithLog(context.Background())
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -111,8 +109,7 @@ func TestTimeoutServer_Close_BeforeTimeout(t *testing.T) {
 }
 
 func TestTimeoutServer_Close_AfterTimeout(t *testing.T) {
-	_, ctx, done := defaultlogger.New(context.Background(), "TestTimeoutServer_Close_AfterTimeout")
-	defer done()
+	ctx := logger.WithLog(context.Background())
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -151,8 +148,7 @@ func stressTestRequest() *networkservice.NetworkServiceRequest {
 }
 
 func TestTimeoutServer_StressTest(t *testing.T) {
-	_, ctx, done := defaultlogger.New(context.Background(), "TestTimeoutServer_StressTest")
-	defer done()
+	ctx := logger.WithLog(context.Background())
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

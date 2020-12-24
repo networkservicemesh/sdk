@@ -32,16 +32,15 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/defaultlogger"
 	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 )
 
 func TestSwapIPServer_Request(t *testing.T) {
 	const localIP = "127.0.0.1"
 	const remoteIP = "172.16.1.1"
 	const externalIP = "180.16.1.1"
-	_, ctx, done := defaultlogger.New(context.Background(), "TestSwapIPServer_Request")
-	defer done()
+	ctx := logger.WithLog(context.Background())
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	ch := make(chan map[string]string, 1)

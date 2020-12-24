@@ -29,7 +29,7 @@ import (
 	"time"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
-	"github.com/networkservicemesh/sdk/pkg/tools/defaultlogger"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 
 	"github.com/stretchr/testify/require"
 
@@ -52,8 +52,7 @@ func TestNewExcludedPrefixesService(t *testing.T) {
 	configPath := filepath.Join(dir, defaultPrefixesFileName)
 	require.NoError(t, ioutil.WriteFile(configPath, []byte(testConfig), os.ModePerm))
 
-	_, ctx, done := defaultlogger.New(context.Background(), "TestNewExcludedPrefixesService")
-	defer done()
+	ctx := logger.WithLog(context.Background())
 	chain := next.NewNetworkServiceServer(excludedprefixes.NewServer(ctx, excludedprefixes.WithConfigPath(configPath)), checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
 		require.Equal(t, request.Connection.Context.IpContext.ExcludedPrefixes, prefixes)
 	}))
@@ -76,8 +75,7 @@ func TestCheckReloadedPrefixes(t *testing.T) {
 
 	defer func() { _ = os.Remove(configPath) }()
 
-	_, ctx, done := defaultlogger.New(context.Background(), "TestCheckReloadedPrefixes")
-	defer done()
+	ctx := logger.WithLog(context.Background())
 	chain := next.NewNetworkServiceServer(excludedprefixes.NewServer(ctx, excludedprefixes.WithConfigPath(configPath)))
 	req := request()
 
@@ -121,8 +119,7 @@ func TestUniqueRequestPrefixes(t *testing.T) {
 	require.NoError(t, ioutil.WriteFile(configPath, []byte(testConfig), os.ModePerm))
 	defer func() { _ = os.Remove(configPath) }()
 
-	_, ctx, done := defaultlogger.New(context.Background(), "TestUniqueRequestPrefixes")
-	defer done()
+	ctx := logger.WithLog(context.Background())
 	chain := next.NewNetworkServiceServer(excludedprefixes.NewServer(ctx, excludedprefixes.WithConfigPath(configPath)), checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
 		require.Equal(t, uniquePrefixes, request.Connection.Context.IpContext.ExcludedPrefixes)
 	}))
@@ -145,8 +142,7 @@ func testWaitForFile(t *testing.T, filePath string) {
 
 	testConfig := strings.Join(append([]string{"prefixes:"}, prefixes...), "\n- ")
 
-	_, ctx, done := defaultlogger.New(context.Background(), "TestExcludedPrefixesServer")
-	defer done()
+	ctx := logger.WithLog(context.Background())
 	chain := next.NewNetworkServiceServer(excludedprefixes.NewServer(ctx, excludedprefixes.WithConfigPath(filePath)))
 
 	req := request()

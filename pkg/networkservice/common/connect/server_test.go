@@ -40,8 +40,8 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/defaultlogger"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 )
 
 const (
@@ -83,8 +83,7 @@ func TestConnectServer_Request(t *testing.T) {
 	)
 
 	func() {
-		_, ctx, done := defaultlogger.New(context.Background(), "TestConnectServer_Request")
-		defer done()
+		ctx := logger.WithLog(context.Background())
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 
@@ -205,8 +204,7 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 	)
 
 	func() {
-		_, ctx, done := defaultlogger.New(context.Background(), "TestConnectServer_RequestParallel")
-		defer done()
+		ctx := logger.WithLog(context.Background())
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 

@@ -29,7 +29,7 @@ import (
 // New - creates a composite Logger which consists of logruslogger and spanlogger
 func New(ctx context.Context, operation string) (logger.Logger, context.Context, func()) {
 	span, ctx, s, sdone := spanlogger.New(ctx, operation)
-	trace, ctx, tdone := logruslogger.New(ctx, operation, s)
+	trace, ctx, tdone := logruslogger.FromSpan(ctx, operation, s)
 	ctx = logger.WithLog(ctx, span, trace)
 	return logger.Log(ctx), ctx, func() {
 		sdone()

@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
-	"github.com/networkservicemesh/sdk/pkg/tools/defaultlogger"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
@@ -61,8 +61,7 @@ func TestServerBasic(t *testing.T) {
 
 func TestServerShouldNotPanicIfPassNil(t *testing.T) {
 	require.NotPanics(t, func() {
-		_, ctx, done := defaultlogger.New(context.Background(), "")
-		defer done()
+		ctx := logger.WithLog(context.Background())
 		_, _ = next.NewNetworkServiceServer(dnscontext.NewServer(nil)).Request(ctx, nil)
 	})
 }

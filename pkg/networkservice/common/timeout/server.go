@@ -31,8 +31,8 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/defaultlogger"
 	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+	"github.com/networkservicemesh/sdk/pkg/tools/logruslogger"
 )
 
 type timeoutServer struct {
@@ -51,7 +51,7 @@ func NewServer(ctx context.Context) networkservice.NetworkServiceServer {
 }
 
 func (t *timeoutServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	log, ctx, done := defaultlogger.New(ctx, "")
+	log, ctx, done := logruslogger.New(ctx)
 	defer done()
 	log = log.WithField("timeoutServer", "request")
 
@@ -122,7 +122,7 @@ func (t *timeoutServer) createTimer(ctx context.Context, conn *networkservice.Co
 }
 
 func (t *timeoutServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	logEntry, ctx, done := defaultlogger.New(ctx, "")
+	logEntry, ctx, done := logruslogger.New(ctx)
 	defer done()
 	logEntry = logEntry.WithField("timeoutServer", "createTimer")
 

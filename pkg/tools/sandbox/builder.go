@@ -44,7 +44,6 @@ import (
 	adapter_registry "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
-	"github.com/networkservicemesh/sdk/pkg/tools/defaultlogger"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
@@ -90,9 +89,7 @@ func (b *Builder) Build() *Domain {
 	ctx := b.ctx
 	if ctx == nil {
 		var cancel context.CancelFunc
-		_, newCtx, done := defaultlogger.New(context.Background(), "Build")
-		ctx = newCtx
-		defer done()
+		ctx = logger.WithLog(context.Background())
 		ctx, cancel = context.WithTimeout(ctx, defaultContextTimeout)
 		b.resources = append(b.resources, cancel)
 	}
@@ -263,8 +260,7 @@ func (b *Builder) newCrossConnectNSE(ctx context.Context, name string, connectTo
 	b.require.NoError(err)
 	serveURL := grpcutils.AddressToURL(listener.Addr())
 	b.require.NoError(listener.Close())
-	_, regCtx, done := defaultlogger.New(context.Background(), "newCrossConnectNSE")
-	defer done()
+	regCtx := logger.WithLog(context.Background())
 	regForwarder, err := forwarderRegistrationClient.Register(regCtx, &registryapi.NetworkServiceEndpoint{
 		Url:  serveURL.String(),
 		Name: name,

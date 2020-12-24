@@ -55,9 +55,6 @@ func Log(ctx context.Context) Logger {
 
 // WithLog - creates new context with `log` in it
 func WithLog(ctx context.Context, log ...Logger) context.Context {
-	if len(log) == 1 {
-		return context.WithValue(ctx, ctxKeyLogger, log[0])
-	}
 	return context.WithValue(ctx, ctxKeyLogger, newGroup(log...))
 }
 

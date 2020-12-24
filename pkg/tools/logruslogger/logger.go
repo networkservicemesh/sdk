@@ -72,8 +72,8 @@ func (s *logrusLogger) Fatalf(format string, v ...interface{}) {
 	s.logf(format, v...)
 }
 
-// New - returns a new logrusLogger from context and span with given operation name
-func New(ctx context.Context, operation string, span opentracing.Span) (logger.Logger, context.Context, func()) {
+// FromSpan - returns a new logrusLogger from context and span with given operation name
+func FromSpan(ctx context.Context, operation string, span opentracing.Span) (logger.Logger, context.Context, func()) {
 	entry := logrus.WithTime(time.Now()).WithContext(ctx)
 	if fields := logger.Fields(ctx); fields != nil {
 		for k, v := range fields {
@@ -92,6 +92,11 @@ func New(ctx context.Context, operation string, span opentracing.Span) (logger.L
 	}
 	log.printStart(operation)
 	return log, ctx, func() { localTraceInfo.Delete(info.id) }
+}
+
+// New - returns a new logrusLogger from context
+func New(ctx context.Context) (logger.Logger, context.Context, func()) {
+	return FromSpan(ctx, "", nil)
 }
 
 func (s *logrusLogger) WithField(key, value interface{}) logger.Logger {
