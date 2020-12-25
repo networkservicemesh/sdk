@@ -26,9 +26,9 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
-	"github.com/networkservicemesh/sdk/pkg/registry/memory"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"

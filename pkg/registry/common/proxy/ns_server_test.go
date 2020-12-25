@@ -26,8 +26,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
-	"github.com/networkservicemesh/sdk/pkg/registry/memory"
 )
 
 func TestNewProxyNetworkServiceRegistryServer_Register(t *testing.T) {

@@ -21,8 +21,10 @@ package nsmgr
 
 import (
 	"context"
+	"time"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/querycache"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 
@@ -38,11 +40,11 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/seturl"
 	chain_registry "github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/nextwrap"
-	"github.com/networkservicemesh/sdk/pkg/registry/memory"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
@@ -128,10 +130,11 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 
 	nseChain := chain_registry.NewNamedNetworkServiceEndpointRegistryServer(
 		nsmRegistration.Name+".NetworkServiceEndpointRegistry",
+		expire.NewNetworkServiceEndpointRegistryServer(time.Minute),
 		newRecvFDEndpointRegistry(), // Allow to receive a passed files
 		urlsRegistryServer,
-		interposeRegistry,         // Store cross connect NSEs
-		localbypassRegistryServer, // Store endpoint Id to EndpointURL for local access.
+		interposeRegistry,                                                   // Store cross connect NSEs
+		localbypassRegistryServer,                                           // Store endpoint Id to EndpointURL for local access.
 		seturl.NewNetworkServiceEndpointRegistryServer(nsmRegistration.Url), // Remember endpoint URL
 		nseRegistry, // Register NSE inside Remote registry with ID assigned
 	)

@@ -28,10 +28,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/registry/memory"
 )
 
 const testPeriod = time.Millisecond * 50

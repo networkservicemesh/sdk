@@ -24,10 +24,10 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/swap"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
-	"github.com/networkservicemesh/sdk/pkg/registry/memory"
 	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
 )
 

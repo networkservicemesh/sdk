@@ -23,10 +23,11 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
+	"google.golang.org/protobuf/proto"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
-	"github.com/networkservicemesh/sdk/pkg/registry/memory"
 )
 
 func TestNetworkServiceEndpointRegistryServer_RegisterAndFind(t *testing.T) {
@@ -48,7 +49,9 @@ func TestNetworkServiceEndpointRegistryServer_RegisterAndFind(t *testing.T) {
 	})
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	ch := make(chan *registry.NetworkServiceEndpoint, 1)
+	defer close(ch)
 	_ = s.Find(&registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 			Name: "a",
@@ -58,8 +61,6 @@ func TestNetworkServiceEndpointRegistryServer_RegisterAndFind(t *testing.T) {
 	require.Equal(t, &registry.NetworkServiceEndpoint{
 		Name: "a",
 	}, <-ch)
-	cancel()
-	close(ch)
 }
 
 func TestNetworkServiceEndpointRegistryServer_RegisterAndFindWatch(t *testing.T) {
@@ -84,6 +85,7 @@ func TestNetworkServiceEndpointRegistryServer_RegisterAndFindWatch(t *testing.T)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	ch := make(chan *registry.NetworkServiceEndpoint, 1)
+	defer close(ch)
 	go func() {
 		_ = s.Find(&registry.NetworkServiceEndpointQuery{
 			Watch: true,
@@ -101,9 +103,7 @@ func TestNetworkServiceEndpointRegistryServer_RegisterAndFindWatch(t *testing.T)
 		Name: "a",
 	})
 	require.NoError(t, err)
-	require.Equal(t, expected, <-ch)
-
-	close(ch)
+	require.True(t, proto.Equal(expected, <-ch))
 }
 
 func TestNetworkServiceEndpointRegistryServer_RegisterAndFindByLabel(t *testing.T) {
@@ -120,7 +120,9 @@ func TestNetworkServiceEndpointRegistryServer_RegisterAndFindByLabel(t *testing.
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	ch := make(chan *registry.NetworkServiceEndpoint, 1)
+	defer close(ch)
 	_ = s.Find(&registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 			NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
@@ -133,9 +135,7 @@ func TestNetworkServiceEndpointRegistryServer_RegisterAndFindByLabel(t *testing.
 		},
 	}, streamchannel.NewNetworkServiceEndpointFindServer(ctx, ch))
 
-	require.Equal(t, createLabeledNSE2(), <-ch)
-	cancel()
-	close(ch)
+	require.True(t, proto.Equal(createLabeledNSE2(), <-ch))
 }
 
 func TestNetworkServiceEndpointRegistryServer_RegisterAndFindByLabelWatch(t *testing.T) {
@@ -154,6 +154,7 @@ func TestNetworkServiceEndpointRegistryServer_RegisterAndFindByLabelWatch(t *tes
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	ch := make(chan *registry.NetworkServiceEndpoint, 1)
+	defer close(ch)
 	go func() {
 		_ = s.Find(&registry.NetworkServiceEndpointQuery{
 			Watch: true,
@@ -173,9 +174,7 @@ func TestNetworkServiceEndpointRegistryServer_RegisterAndFindByLabelWatch(t *tes
 
 	expected, err := s.Register(context.Background(), createLabeledNSE2())
 	require.NoError(t, err)
-	require.Equal(t, expected, <-ch)
-
-	close(ch)
+	require.True(t, proto.Equal(expected, <-ch))
 }
 
 func createLabeledNSE1() *registry.NetworkServiceEndpoint {

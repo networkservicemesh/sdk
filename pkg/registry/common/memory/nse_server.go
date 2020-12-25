@@ -47,7 +47,7 @@ func (n *networkServiceEndpointRegistryServer) Register(ctx context.Context, nse
 		return nil, err
 	}
 	n.networkServiceEndpoints.Store(r.Name, r.Clone())
-	n.sendEvent(r)
+	n.sendEvent(r.Clone())
 	return r, err
 }
 
