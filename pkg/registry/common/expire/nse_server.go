@@ -29,7 +29,8 @@ import (
 )
 
 type nseServer struct {
-	timers timerMap
+	timers        timerMap
+	nseExpiration time.Duration
 }
 
 func (n *nseServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
@@ -37,18 +38,14 @@ func (n *nseServer) Register(ctx context.Context, nse *registry.NetworkServiceEn
 	if err != nil {
 		return nil, err
 	}
-	if nse.ExpirationTime == nil {
-		nse.ExpirationTime = &timestamp.Timestamp{}
-	}
-	if nse.ExpirationTime.Seconds != 0 || nse.ExpirationTime.Nanos != 0 {
-		duration := time.Until(time.Unix(nse.ExpirationTime.Seconds, int64(nse.ExpirationTime.Nanos)))
-		timer := time.AfterFunc(duration, func() {
-			_, _ = next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
-		})
-		if t, load := n.timers.LoadOrStore(nse.Name, timer); load {
-			timer.Stop()
-			t.Reset(duration)
-		}
+	expirationTime := time.Now().Add(n.nseExpiration)
+	nse.ExpirationTime = &timestamp.Timestamp{Seconds: expirationTime.Unix(), Nanos: int32(expirationTime.Nanosecond())}
+	timer := time.AfterFunc(n.nseExpiration, func() {
+		_, _ = next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
+	})
+	if t, load := n.timers.LoadOrStore(nse.Name, timer); load {
+		timer.Stop()
+		t.Reset(n.nseExpiration)
 	}
 	return r, nil
 }
@@ -69,6 +66,8 @@ func (n *nseServer) Unregister(ctx context.Context, nse *registry.NetworkService
 }
 
 // NewNetworkServiceEndpointRegistryServer wraps passed NetworkServiceEndpointRegistryServer and monitor Network service endpoints
-func NewNetworkServiceEndpointRegistryServer() registry.NetworkServiceEndpointRegistryServer {
-	return &nseServer{}
+func NewNetworkServiceEndpointRegistryServer(nseExpiration time.Duration) registry.NetworkServiceEndpointRegistryServer {
+	return &nseServer{
+		nseExpiration: nseExpiration,
+	}
 }

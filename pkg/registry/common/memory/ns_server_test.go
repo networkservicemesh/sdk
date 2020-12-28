@@ -23,10 +23,11 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
+	"google.golang.org/protobuf/proto"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
-	"github.com/networkservicemesh/sdk/pkg/registry/memory"
 )
 
 func TestNetworkServiceRegistryServer_RegisterAndFind(t *testing.T) {
@@ -50,16 +51,17 @@ func TestNetworkServiceRegistryServer_RegisterAndFind(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	ch := make(chan *registry.NetworkService, 1)
+	defer close(ch)
 	_ = s.Find(&registry.NetworkServiceQuery{
 		NetworkService: &registry.NetworkService{
 			Name: "a",
 		},
 	}, streamchannel.NewNetworkServiceFindServer(ctx, ch))
 
-	require.Equal(t, &registry.NetworkService{
+	expected := &registry.NetworkService{
 		Name: "a",
-	}, <-ch)
-	close(ch)
+	}
+	require.True(t, proto.Equal(expected, <-ch))
 }
 
 func TestNetworkServiceRegistryServer_RegisterAndFindWatch(t *testing.T) {
@@ -82,7 +84,9 @@ func TestNetworkServiceRegistryServer_RegisterAndFindWatch(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	ch := make(chan *registry.NetworkService, 1)
+	defer close(ch)
 	go func() {
 		_ = s.Find(&registry.NetworkServiceQuery{
 			Watch: true,
@@ -100,8 +104,5 @@ func TestNetworkServiceRegistryServer_RegisterAndFindWatch(t *testing.T) {
 		Name: "a",
 	})
 	require.NoError(t, err)
-	require.Equal(t, expected, <-ch)
-
-	cancel()
-	close(ch)
+	require.True(t, proto.Equal(expected, <-ch))
 }

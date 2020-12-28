@@ -58,7 +58,7 @@ func (n *nsServer) checkUpdates() {
 			} else {
 				atomic.AddInt32(stored, 1)
 			}
-			duration := time.Until(time.Unix(nse.ExpirationTime.Seconds, int64(nse.ExpirationTime.Nanos)))
+			duration := time.Until(nse.ExpirationTime.AsTime())
 			timer := time.AfterFunc(duration, func() {
 				if atomic.AddInt32(stored, -1) <= 0 {
 					if ctx, ok := n.contexts.Load(ns); ok {

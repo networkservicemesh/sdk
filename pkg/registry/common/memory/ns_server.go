@@ -46,7 +46,7 @@ func (n *networkServiceRegistryServer) Register(ctx context.Context, ns *registr
 	n.networkServices.Store(r.Name, r.Clone())
 	n.executor.AsyncExec(func() {
 		for _, ch := range n.eventChannels {
-			ch <- r
+			ch <- r.Clone()
 		}
 	})
 	return r, nil

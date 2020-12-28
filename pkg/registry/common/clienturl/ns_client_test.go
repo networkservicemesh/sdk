@@ -30,7 +30,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/memory"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
