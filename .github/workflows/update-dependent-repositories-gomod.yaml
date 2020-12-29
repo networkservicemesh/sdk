@@ -20,6 +20,7 @@ jobs:
           - cmd-registry-memory
           - cmd-registry-proxy-dns
           - cmd-nse-icmp-responder
+          - cmd-nse-vfio
     name: Update ${{ matrix.repository }}
     runs-on: ubuntu-latest
     steps:
