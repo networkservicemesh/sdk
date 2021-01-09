@@ -191,6 +191,10 @@ jobs:
       - name: Push update to the ${{ matrix.repository }}
         working-directory: networkservicemesh/${{ matrix.repository }}
         run: |
+          if ! [ -n "$(git diff --cached --exit-code)" ]; then
+            echo ${{ matrix.repository }} is up to date
+            exit 0;
+          fi
           echo Starting to update repositotry ${{ matrix.repository }}
           git config --global user.email "nsmbot@networkservicmesh.io"
           git config --global user.name "NSMBot"
