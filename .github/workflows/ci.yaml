@@ -36,11 +36,12 @@ jobs:
     steps:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v2
         with:
-          version: v1.34.0
-
+          version: v1.35.0
   excludeFmtErrorf:
     name: exclude fmt.Errorf
     runs-on: ubuntu-latest
