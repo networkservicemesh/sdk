@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -89,8 +89,11 @@ func NewClient(
 	additionalFunctionality ...networkservice.NetworkServiceClient,
 ) networkservice.NetworkServiceClient {
 	var suppliers []client.Supplier
-	for _, c := range additionalFunctionality {
-		suppliers = append(suppliers, client.FromClient(c))
+	for i := range additionalFunctionality {
+		c := additionalFunctionality[i]
+		suppliers = append(suppliers, client.FromConstructor(func() networkservice.NetworkServiceClient {
+			return c
+		}))
 	}
 	return clienturl.NewClient(
 		clienturlctx.WithClientURL(ctx, connectTo),

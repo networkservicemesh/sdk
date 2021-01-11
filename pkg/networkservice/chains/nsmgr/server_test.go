@@ -367,7 +367,9 @@ func TestNSMGR_PassThroughRemote(t *testing.T) {
 							newPassTroughClientSupplier(
 								fmt.Sprintf("my-service-remote-%v", k-1),
 								fmt.Sprintf("endpoint-%v", k-1)),
-							client.FromClient(kernel.NewClient())),
+							client.FromConstructor(func() networkservice.NetworkServiceClient {
+								return kernel.NewClient()
+							})),
 						append(spanhelper.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...,
 					),
 				),
@@ -430,7 +432,9 @@ func TestNSMGR_PassThroughLocal(t *testing.T) {
 							newPassTroughClientSupplier(
 								fmt.Sprintf("my-service-remote-%v", k-1),
 								fmt.Sprintf("endpoint-%v", k-1)),
-							client.FromClient(kernel.NewClient())),
+							client.FromConstructor(func() networkservice.NetworkServiceClient {
+								return kernel.NewClient()
+							})),
 						append(spanhelper.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...,
 					),
 				),

@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2021 Cisco and/or its affiliates.
 //
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -121,7 +121,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 				nsmRegistration.Name,
 				addressof.NetworkServiceClient(adapters.NewServerToClient(rv)),
 				tokenGenerator,
-				client.FromClient(newSendFDClient()), // Send passed files.
+				client.FromConstructor(newSendFDClient), // Send passed files.
 			),
 			clientDialOptions...),
 	)

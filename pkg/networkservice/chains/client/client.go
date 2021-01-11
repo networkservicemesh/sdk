@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020-2021 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -92,17 +92,10 @@ func NewClientFactory(
 ) func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 	return func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 		var additionalFunctionality []networkservice.NetworkServiceClient
-		for _, additionalFunctionalityFactory := range additionalFunctionalitySuppliers {
-			additionalFunctionality = append(additionalFunctionality, additionalFunctionalityFactory(ctx, cc))
+		for _, supplier := range additionalFunctionalitySuppliers {
+			additionalFunctionality = append(additionalFunctionality, supplier(ctx, cc))
 		}
 		return NewClient(ctx, name, onHeal, tokenGenerator, cc, additionalFunctionality...)
-	}
-}
-
-// FromClient is a common networkservice.NetworkServiceClient wrapper to Supplier
-func FromClient(client networkservice.NetworkServiceClient) Supplier {
-	return func(_ context.Context, _ grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-		return client
 	}
 }
 
