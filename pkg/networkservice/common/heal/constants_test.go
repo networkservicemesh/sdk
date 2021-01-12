@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Cisco and/or its affiliates.
 //
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,5 +27,4 @@ import (
 const (
 	waitForTimeout  = 100 * time.Millisecond
 	waitHealTimeout = 1000 * time.Millisecond
-	tickTimeout     = 20 * time.Millisecond
 )

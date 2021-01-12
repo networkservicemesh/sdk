@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Cisco Systems, Inc.
 //
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -76,7 +78,7 @@ func (f *healClient) Request(ctx context.Context, request *networkservice.Networ
 	if err != nil {
 		return nil, err
 	}
-	err = f.startHeal(ctx, request.Clone().SetRequestConnection(conn.Clone()), opts...)
+	err = f.startHeal(request.Clone().SetRequestConnection(conn.Clone()), opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +103,7 @@ func (f *healClient) stopHeal(conn *networkservice.Connection) {
 }
 
 // startHeal - start a healAsNeeded using the request as the request for re-request if healing is needed.
-func (f *healClient) startHeal(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) error {
+func (f *healClient) startHeal(request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) error {
 	errCh := make(chan error, 1)
 	go f.healAsNeeded(request, errCh, opts...)
 	return <-errCh
