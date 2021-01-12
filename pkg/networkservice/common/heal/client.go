@@ -141,7 +141,8 @@ func (f *healClient) healAsNeeded(request *networkservice.NetworkServiceRequest,
 		}
 	})
 
-	// Monitor the pathSegment
+	// Monitor the pathSegment for the first time, so we can pass back an error
+	// if we can't confirm via monitor the other side has the expected state
 	recv, err := f.initialMonitorSegment(ctx, pathSegment)
 	if err != nil {
 		errCh <- errors.Wrapf(err, "error calling MonitorConnection_MonitorConnectionsClient.Recv to get initial confirmation server has connection: %+v", request.GetConnection())
