@@ -22,28 +22,23 @@ import (
 	"testing"
 	"time"
 
-	"google.golang.org/protobuf/proto"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
-
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/eventchannel"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
+	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
 type testOnHeal struct {
@@ -164,71 +159,4 @@ func TestHealClient_EmptyInit(t *testing.T) {
 		},
 	})
 	require.Error(t, err)
-}
-
-func TestNewClient_MissingConnectionsInInit(t *testing.T) {
-	t.Skip("https://github.com/networkservicemesh/sdk/issues/375")
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	logrus.SetOutput(ioutil.Discard)
-	eventCh := make(chan *networkservice.ConnectionEvent, 1)
-
-	requestCh := make(chan *networkservice.NetworkServiceRequest)
-	onHeal := &testOnHeal{
-		RequestFunc: func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (connection *networkservice.Connection, e error) {
-			requestCh <- in
-			return &networkservice.Connection{}, nil
-		},
-	}
-
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
-	client := chain.NewNetworkServiceClient(
-		heal.NewClient(ctx, eventchannel.NewMonitorConnectionClient(eventCh), addressof.NetworkServiceClient(onHeal)))
-
-	conns := []*networkservice.Connection{
-		{Id: "conn-1", NetworkService: "ns-1"},
-		{Id: "conn-2", NetworkService: "ns-2"},
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, waitForTimeout)
-	defer cancel()
-	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{Connection: conns[0]})
-	require.Nil(t, err)
-	require.True(t, proto.Equal(conn, conns[0]))
-
-	conn, err = client.Request(ctx, &networkservice.NetworkServiceRequest{Connection: conns[1]})
-	require.Nil(t, err)
-	require.True(t, proto.Equal(conn, conns[1]))
-
-	eventCh <- &networkservice.ConnectionEvent{
-		Type:        networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,
-		Connections: map[string]*networkservice.Connection{conns[0].GetId(): conns[0]},
-	}
-
-	// we emulate situation that server managed to handle only the first connection
-	// second connection should came in the UPDATE event, but we emulate server's falling down
-	close(eventCh)
-	// at that point we expect that 'healClient' start healing both 'conn-1' and 'conn-2'
-
-	healsRemaining := map[string]int{
-		conns[0].GetId(): 1,
-		conns[1].GetId(): 2,
-	}
-	cond := func() bool {
-		select {
-		case r := <-requestCh:
-			if val, ok := healsRemaining[r.GetConnection().GetId()]; ok && val != 0 {
-				healsRemaining[r.GetConnection().GetId()]--
-				return true
-			}
-			return false
-		default:
-			return false
-		}
-	}
-	require.Eventually(t, cond, waitForTimeout, tickTimeout)
-	require.Eventually(t, cond, waitForTimeout, tickTimeout)
-	require.Eventually(t, cond, waitForTimeout, tickTimeout)
-	require.Equal(t, 0, healsRemaining[conns[0].GetId()])
-	require.Equal(t, 0, healsRemaining[conns[1].GetId()])
 }
