@@ -140,6 +140,7 @@ jobs:
       fail-fast: false
       matrix:
         repository:
+          - sdk-k8s
           - sdk-vpp
           - sdk-vppagent
           - sdk-kernel
