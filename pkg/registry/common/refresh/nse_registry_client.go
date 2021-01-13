@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -30,6 +30,7 @@ import (
 )
 
 type refreshNSEClient struct {
+	chainContext          context.Context
 	nseCancels            cancelsMap
 	retryDelay            time.Duration
 	defaultExpiryDuration time.Duration
@@ -75,7 +76,7 @@ func (c *refreshNSEClient) Register(ctx context.Context, in *registry.NetworkSer
 	if cancel, ok := c.nseCancels.Load(resp.Name); ok {
 		cancel()
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(c.chainContext)
 	c.nseCancels.Store(resp.Name, cancel)
 	c.startRefresh(ctx, nextClient, resp)
 	return resp, err
@@ -102,6 +103,7 @@ func NewNetworkServiceEndpointRegistryClient(options ...Option) registry.Network
 	c := &refreshNSEClient{
 		retryDelay:            time.Second * 5,
 		defaultExpiryDuration: time.Minute * 30,
+		chainContext:          context.Background(),
 	}
 
 	for _, o := range options {
