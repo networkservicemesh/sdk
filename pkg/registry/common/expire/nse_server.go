@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -26,6 +26,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 )
 
 type nseServer struct {
@@ -41,7 +42,9 @@ func (n *nseServer) Register(ctx context.Context, nse *registry.NetworkServiceEn
 	expirationTime := time.Now().Add(n.nseExpiration)
 	nse.ExpirationTime = &timestamp.Timestamp{Seconds: expirationTime.Unix(), Nanos: int32(expirationTime.Nanosecond())}
 	timer := time.AfterFunc(n.nseExpiration, func() {
-		_, _ = next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
+		unregisterCtx, cancel := context.WithTimeout(extend.WithValuesFromContext(context.Background(), ctx), n.nseExpiration)
+		defer cancel()
+		_, _ = next.NetworkServiceEndpointRegistryServer(unregisterCtx).Unregister(unregisterCtx, nse)
 	})
 	if t, load := n.timers.LoadOrStore(nse.Name, timer); load {
 		timer.Stop()
