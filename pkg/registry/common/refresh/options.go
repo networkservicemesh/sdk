@@ -16,7 +16,10 @@
 
 package refresh
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 // Option is expire registry configuration option
 type Option interface {
@@ -40,5 +43,12 @@ func WithRetryPeriod(duration time.Duration) Option {
 func WithDefaultExpiryDuration(duration time.Duration) Option {
 	return applierFunc(func(c *refreshNSEClient) {
 		c.defaultExpiryDuration = duration
+	})
+}
+
+// WithChainContext sets a chain context
+func WithChainContext(ctx context.Context) Option {
+	return applierFunc(func(c *refreshNSEClient) {
+		c.chainContext = ctx
 	})
 }

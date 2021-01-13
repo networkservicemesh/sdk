@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -36,11 +37,11 @@ type nsServer struct {
 	nsCounts   intMap
 	contexts   contextMap
 	once       sync.Once
-	ctx        context.Context
+	chainCtx   context.Context
 }
 
 func (n *nsServer) checkUpdates() {
-	c, err := n.nseClient.Find(n.ctx, &registry.NetworkServiceEndpointQuery{
+	c, err := n.nseClient.Find(n.chainCtx, &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{},
 		Watch:                  true,
 	})
@@ -77,7 +78,7 @@ func (n *nsServer) checkUpdates() {
 func (n *nsServer) Register(ctx context.Context, request *registry.NetworkService) (*registry.NetworkService, error) {
 	n.once.Do(func() {
 		go func() {
-			for n.monitorErr == nil && n.ctx.Err() == nil {
+			for n.monitorErr == nil && n.chainCtx.Err() == nil {
 				n.checkUpdates()
 			}
 		}()
@@ -85,7 +86,7 @@ func (n *nsServer) Register(ctx context.Context, request *registry.NetworkServic
 	if n.monitorErr != nil {
 		return nil, n.monitorErr
 	}
-	n.contexts.Store(request.Name, ctx)
+	n.contexts.Store(request.Name, extend.WithValuesFromContext(n.chainCtx, ctx))
 	return next.NetworkServiceRegistryServer(ctx).Register(ctx, request)
 }
 
@@ -111,5 +112,5 @@ func (n *nsServer) Unregister(ctx context.Context, request *registry.NetworkServ
 
 // NewNetworkServiceServer wraps passed NetworkServiceRegistryServer and monitor NetworkServiceEndpoints via passed NetworkServiceEndpointRegistryClient
 func NewNetworkServiceServer(ctx context.Context, nseClient registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceRegistryServer {
-	return &nsServer{nseClient: nseClient, ctx: ctx}
+	return &nsServer{nseClient: nseClient, chainCtx: ctx}
 }

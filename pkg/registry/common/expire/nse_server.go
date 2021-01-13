@@ -41,10 +41,11 @@ func (n *nseServer) Register(ctx context.Context, nse *registry.NetworkServiceEn
 	}
 	expirationTime := time.Now().Add(n.nseExpiration)
 	nse.ExpirationTime = &timestamp.Timestamp{Seconds: expirationTime.Unix(), Nanos: int32(expirationTime.Nanosecond())}
+	unregisterNse := r.Clone()
 	timer := time.AfterFunc(n.nseExpiration, func() {
 		unregisterCtx, cancel := context.WithTimeout(extend.WithValuesFromContext(context.Background(), ctx), n.nseExpiration)
 		defer cancel()
-		_, _ = next.NetworkServiceEndpointRegistryServer(unregisterCtx).Unregister(unregisterCtx, nse)
+		_, _ = next.NetworkServiceEndpointRegistryServer(unregisterCtx).Unregister(unregisterCtx, unregisterNse)
 	})
 	if t, load := n.timers.LoadOrStore(nse.Name, timer); load {
 		timer.Stop()
