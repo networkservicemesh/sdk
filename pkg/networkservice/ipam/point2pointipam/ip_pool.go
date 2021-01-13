@@ -28,22 +28,19 @@ import (
 )
 
 type ipPool struct {
-	mask         net.IPMask
-	networkInt   uint32
-	broadcastInt uint32
-	freeIPs      *roaring.Bitmap
-	lock         sync.Mutex
+	freeIPs *roaring.Bitmap
+	lock    sync.Mutex
 }
 
 func newIPPool(ipNet *net.IPNet) *ipPool {
 	p := &ipPool{
-		mask:         ipNet.Mask,
-		networkInt:   binary.BigEndian.Uint32(cidr.NetworkAddress(ipNet)),
-		broadcastInt: binary.BigEndian.Uint32(cidr.BroadcastAddress(ipNet)),
-		freeIPs:      roaring.New(),
+		freeIPs: roaring.New(),
 	}
 
-	p.freeIPs.AddRange(uint64(p.networkInt), uint64(p.broadcastInt+1))
+	networkInt := binary.BigEndian.Uint32(cidr.NetworkAddress(ipNet))
+	broadcastInt := binary.BigEndian.Uint32(cidr.BroadcastAddress(ipNet))
+
+	p.freeIPs.AddRange(uint64(networkInt), uint64(broadcastInt+1))
 
 	return p
 }
@@ -57,19 +54,17 @@ func (p *ipPool) getP2PAddrs(exclude *roaring.Bitmap) (dstAddr, srcAddr string, 
 		return "", "", errors.New("IP pool is empty")
 	}
 
-	var dstInt, srcInt uint32
-	for available = roaring.AndNot(available, exclude); !available.IsEmpty(); {
-		dstInt = available.Minimum()
-		available.Remove(dstInt)
-
-		srcInt = dstInt | 1
-		if available.Contains(srcInt) {
-			break
-		}
-	}
+	available = roaring.AndNot(available, exclude)
 	if available.IsEmpty() {
-		return "", "", errors.New("no available IP address found")
+		return "", "", errors.New("all free IP addresses are excluded")
 	}
+	dstInt := available.Minimum()
+
+	available.Remove(dstInt)
+	if available.IsEmpty() {
+		return "", "", errors.New("all free IP addresses are excluded")
+	}
+	srcInt := available.Minimum()
 
 	p.freeIPs.Remove(dstInt)
 	p.freeIPs.Remove(srcInt)
@@ -90,7 +85,7 @@ func (p *ipPool) getP2PAddrs(exclude *roaring.Bitmap) (dstAddr, srcAddr string, 
 }
 
 func p2pMask() net.IPMask {
-	return net.CIDRMask(31, 32) // x.x.x.x/31
+	return net.CIDRMask(32, 32) // x.x.x.x/32
 }
 
 func (p *ipPool) freeAddrs(addrs ...string) {

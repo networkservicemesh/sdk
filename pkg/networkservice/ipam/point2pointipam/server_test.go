@@ -49,6 +49,22 @@ func newRequest() *networkservice.NetworkServiceRequest {
 	}
 }
 
+func validateConn(t *testing.T, conn *networkservice.Connection, dst, src string) {
+	require.Equal(t, conn.Context.IpContext.DstIpAddr, dst)
+	require.Equal(t, conn.Context.IpContext.DstRoutes, []*networkservice.Route{
+		{
+			Prefix: src,
+		},
+	})
+
+	require.Equal(t, conn.Context.IpContext.SrcIpAddr, src)
+	require.Equal(t, conn.Context.IpContext.SrcRoutes, []*networkservice.Route{
+		{
+			Prefix: dst,
+		},
+	})
+}
+
 func TestServer(t *testing.T) {
 	_, ipNet, err := net.ParseCIDR("192.168.3.4/16")
 	require.NoError(t, err)
@@ -57,30 +73,22 @@ func TestServer(t *testing.T) {
 
 	conn1, err := srv.Request(context.Background(), newRequest())
 	require.NoError(t, err)
-
-	require.Equal(t, "192.168.0.0/31", conn1.Context.IpContext.DstIpAddr)
-	require.Equal(t, "192.168.0.1/31", conn1.Context.IpContext.SrcIpAddr)
+	validateConn(t, conn1, "192.168.0.0/32", "192.168.0.1/32")
 
 	conn2, err := srv.Request(context.Background(), newRequest())
 	require.NoError(t, err)
-
-	require.Equal(t, "192.168.0.2/31", conn2.Context.IpContext.DstIpAddr)
-	require.Equal(t, "192.168.0.3/31", conn2.Context.IpContext.SrcIpAddr)
+	validateConn(t, conn2, "192.168.0.2/32", "192.168.0.3/32")
 
 	_, err = srv.Close(context.Background(), conn1)
 	require.NoError(t, err)
 
 	conn3, err := srv.Request(context.Background(), newRequest())
 	require.NoError(t, err)
-
-	require.Equal(t, "192.168.0.0/31", conn3.Context.IpContext.DstIpAddr)
-	require.Equal(t, "192.168.0.1/31", conn3.Context.IpContext.SrcIpAddr)
+	validateConn(t, conn3, "192.168.0.0/32", "192.168.0.1/32")
 
 	conn4, err := srv.Request(context.Background(), newRequest())
 	require.NoError(t, err)
-
-	require.Equal(t, "192.168.0.4/31", conn4.Context.IpContext.DstIpAddr)
-	require.Equal(t, "192.168.0.5/31", conn4.Context.IpContext.SrcIpAddr)
+	validateConn(t, conn4, "192.168.0.4/32", "192.168.0.5/32")
 }
 
 func TestNilPrefixes(t *testing.T) {
@@ -104,27 +112,24 @@ func TestExclude32Prefix(t *testing.T) {
 
 	// Test center of assigned
 	req1 := newRequest()
-	req1.Connection.Context.IpContext.ExcludedPrefixes = []string{"192.168.1.1/32", "192.168.1.3/32", "192.168.1.8/32"}
+	req1.Connection.Context.IpContext.ExcludedPrefixes = []string{"192.168.1.1/32", "192.168.1.3/32", "192.168.1.6/32"}
 	conn1, err := srv.Request(context.Background(), req1)
 	require.NoError(t, err)
-	require.Equal(t, "192.168.1.4/31", conn1.Context.IpContext.DstIpAddr)
-	require.Equal(t, "192.168.1.5/31", conn1.Context.IpContext.SrcIpAddr)
+	validateConn(t, conn1, "192.168.1.0/32", "192.168.1.2/32")
 
 	// Test exclude before assigned
 	req2 := newRequest()
-	req2.Connection.Context.IpContext.ExcludedPrefixes = []string{"192.168.1.1/32", "192.168.1.3/32", "192.168.1.8/32"}
+	req2.Connection.Context.IpContext.ExcludedPrefixes = []string{"192.168.1.1/32", "192.168.1.3/32", "192.168.1.6/32"}
 	conn2, err := srv.Request(context.Background(), req2)
 	require.NoError(t, err)
-	require.Equal(t, "192.168.1.6/31", conn2.Context.IpContext.DstIpAddr)
-	require.Equal(t, "192.168.1.7/31", conn2.Context.IpContext.SrcIpAddr)
+	validateConn(t, conn2, "192.168.1.4/32", "192.168.1.5/32")
 
 	// Test after assigned
 	req3 := newRequest()
-	req3.Connection.Context.IpContext.ExcludedPrefixes = []string{"192.168.1.1/32", "192.168.1.3/32", "192.168.1.8/32"}
+	req3.Connection.Context.IpContext.ExcludedPrefixes = []string{"192.168.1.1/32", "192.168.1.3/32", "192.168.1.6/32"}
 	conn3, err := srv.Request(context.Background(), req3)
 	require.NoError(t, err)
-	require.Equal(t, "192.168.1.10/31", conn3.Context.IpContext.DstIpAddr)
-	require.Equal(t, "192.168.1.11/31", conn3.Context.IpContext.SrcIpAddr)
+	validateConn(t, conn3, "192.168.1.7/32", "192.168.1.8/32")
 }
 
 func TestOutOfIPs(t *testing.T) {
@@ -136,8 +141,7 @@ func TestOutOfIPs(t *testing.T) {
 	req1 := newRequest()
 	conn1, err := srv.Request(context.Background(), req1)
 	require.NoError(t, err)
-	require.Equal(t, "192.168.1.2/31", conn1.Context.IpContext.DstIpAddr)
-	require.Equal(t, "192.168.1.3/31", conn1.Context.IpContext.SrcIpAddr)
+	validateConn(t, conn1, "192.168.1.2/32", "192.168.1.3/32")
 
 	req2 := newRequest()
 	_, err = srv.Request(context.Background(), req2)
@@ -167,20 +171,17 @@ func TestRefreshRequest(t *testing.T) {
 	req.Connection.Context.IpContext.ExcludedPrefixes = []string{"192.168.0.1/32"}
 	conn, err := srv.Request(context.Background(), req)
 	require.NoError(t, err)
-	require.Equal(t, "192.168.0.2/31", conn.Context.IpContext.DstIpAddr)
-	require.Equal(t, "192.168.0.3/31", conn.Context.IpContext.SrcIpAddr)
+	validateConn(t, conn, "192.168.0.0/32", "192.168.0.2/32")
 
 	req = newRequest()
 	req.Connection.Id = conn.Id
 	conn, err = srv.Request(context.Background(), req)
 	require.NoError(t, err)
-	require.Equal(t, "192.168.0.2/31", conn.Context.IpContext.DstIpAddr)
-	require.Equal(t, "192.168.0.3/31", conn.Context.IpContext.SrcIpAddr)
+	validateConn(t, conn, "192.168.0.0/32", "192.168.0.2/32")
 
 	req.Connection = conn.Clone()
 	req.Connection.Context.IpContext.ExcludedPrefixes = []string{"192.168.0.1/30"}
 	conn, err = srv.Request(context.Background(), req)
 	require.NoError(t, err)
-	require.Equal(t, "192.168.0.4/31", conn.Context.IpContext.DstIpAddr)
-	require.Equal(t, "192.168.0.5/31", conn.Context.IpContext.SrcIpAddr)
+	validateConn(t, conn, "192.168.0.4/32", "192.168.0.5/32")
 }

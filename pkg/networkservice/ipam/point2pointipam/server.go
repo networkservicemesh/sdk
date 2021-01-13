@@ -93,6 +93,8 @@ func (s *ipamServer) Request(ctx context.Context, request *networkservice.Networ
 	connInfo, ok := loadConnInfo(ctx)
 	if ok && connInfo.shouldUpdate(exclude) {
 		// some of the existing addresses are excluded
+		deleteRoute(&ipContext.SrcRoutes, connInfo.dstAddr)
+		deleteRoute(&ipContext.DstRoutes, connInfo.srcAddr)
 		s.free(connInfo)
 		ok = false
 	}
@@ -104,7 +106,10 @@ func (s *ipamServer) Request(ctx context.Context, request *networkservice.Networ
 	}
 
 	ipContext.SrcIpAddr = connInfo.srcAddr
+	addRoute(&ipContext.SrcRoutes, connInfo.dstAddr)
+
 	ipContext.DstIpAddr = connInfo.dstAddr
+	addRoute(&ipContext.DstRoutes, connInfo.srcAddr)
 
 	return next.Server(ctx).Request(ctx, request)
 }
@@ -123,6 +128,26 @@ func (s *ipamServer) getP2PAddrs(exclude *roaring.Bitmap) (connInfo *connectionI
 	return nil, err
 }
 
+func deleteRoute(routes *[]*networkservice.Route, prefix string) {
+	for i, route := range *routes {
+		if route.Prefix == prefix {
+			*routes = append((*routes)[:i], (*routes)[i+1:]...)
+			return
+		}
+	}
+}
+
+func addRoute(routes *[]*networkservice.Route, prefix string) {
+	for _, route := range *routes {
+		if route.Prefix == prefix {
+			return
+		}
+	}
+	*routes = append(*routes, &networkservice.Route{
+		Prefix: prefix,
+	})
+}
+
 func (s *ipamServer) Close(ctx context.Context, conn *networkservice.Connection) (_ *empty.Empty, err error) {
 	s.once.Do(s.init)
 	if s.initErr != nil {
@@ -138,7 +163,5 @@ func (s *ipamServer) Close(ctx context.Context, conn *networkservice.Connection)
 
 func (s *ipamServer) free(connInfo *connectionInfo) {
 	connInfo.ipPool.freeAddrs(connInfo.srcAddr)
-	if dstAddr := connInfo.dstAddr; dstAddr != "" {
-		connInfo.ipPool.freeAddrs(dstAddr)
-	}
+	connInfo.ipPool.freeAddrs(connInfo.dstAddr)
 }
