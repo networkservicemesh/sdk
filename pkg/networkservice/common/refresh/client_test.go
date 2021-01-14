@@ -90,6 +90,43 @@ func TestRefreshClient_StopRefreshAtClose(t *testing.T) {
 	require.Never(t, cloneClient.validator(count+1), neverTimeout, tickTimeout)
 }
 
+func TestRefreshClient_RestartsRefreshAtAnotherRequest(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	cloneClient := &countClient{
+		t: t,
+	}
+	client := chain.NewNetworkServiceClient(
+		serialize.NewClient(),
+		updatepath.NewClient("refresh"),
+		refresh.NewClient(ctx),
+		updatetoken.NewClient(sandbox.GenerateExpiringToken(expireTimeout)),
+		cloneClient,
+	)
+
+	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: "id",
+		},
+	})
+	require.NoError(t, err)
+	require.Condition(t, cloneClient.validator(1))
+
+	require.Eventually(t, cloneClient.validator(2), eventuallyTimeout, tickTimeout)
+
+	_, err = client.Request(ctx, &networkservice.NetworkServiceRequest{
+		Connection: conn,
+	})
+	require.NoError(t, err)
+
+	count := atomic.LoadInt32(&cloneClient.count)
+	require.Eventually(t, cloneClient.validator(count+1), eventuallyTimeout, tickTimeout)
+	require.Never(t, cloneClient.validator(count+5), eventuallyTimeout, tickTimeout)
+}
+
 type stressTestConfig struct {
 	name                     string
 	expireTimeout            time.Duration
