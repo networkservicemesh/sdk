@@ -19,7 +19,6 @@ package refresh_test
 import (
 	"context"
 	"io/ioutil"
-	"runtime"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -52,8 +51,6 @@ const (
 	sandboxStepDuration  = 10 * time.Second
 	sandboxRequests      = 5
 	sandboxTotalTimeout  = 80 * time.Second
-
-	linux = "linux"
 )
 
 func TestRefreshClient_StopRefreshAtClose(t *testing.T) {
@@ -133,7 +130,6 @@ type stressTestConfig struct {
 	minDuration, maxDuration time.Duration
 	tickDuration             time.Duration
 	iterations               int
-	skipIssue613             bool
 }
 
 func TestRefreshClient_Stress(t *testing.T) {
@@ -153,7 +149,6 @@ func TestRefreshClient_Stress(t *testing.T) {
 			maxDuration:   500 * time.Millisecond,
 			tickDuration:  409 * time.Millisecond,
 			iterations:    10,
-			skipIssue613:  true,
 		},
 	}
 	for i := range table {
@@ -163,11 +158,6 @@ func TestRefreshClient_Stress(t *testing.T) {
 }
 
 func runStressTest(t *testing.T, conf *stressTestConfig) {
-	if conf.skipIssue613 && runtime.GOOS != linux {
-		// This test is flaky on macOS GitHub Actions runner in rare cases.
-		t.Skip("https://github.com/networkservicemesh/sdk/issues/613")
-	}
-
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	refreshTester := newRefreshTesterServer(t, conf.minDuration, conf.maxDuration)
@@ -186,11 +176,6 @@ func runStressTest(t *testing.T, conf *stressTestConfig) {
 }
 
 func TestRefreshClient_Sandbox(t *testing.T) {
-	if runtime.GOOS != linux {
-		// This test is flaky on macOS GitHub Actions runner in rare cases (1/50 of the time).
-		t.Skip("https://github.com/networkservicemesh/sdk/issues/613")
-	}
-
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	logrus.SetOutput(ioutil.Discard)
 
