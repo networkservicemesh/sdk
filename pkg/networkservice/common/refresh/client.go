@@ -101,17 +101,15 @@ func (t *refreshClient) startTimer(connectionID string, exec serialize.Executor,
 	var timer *time.Timer
 	timer = time.AfterFunc(duration, func() {
 		exec.AsyncExec(func() {
-			oldTimer, _ := t.timers.LoadAndDelete(connectionID)
-			if oldTimer == nil {
-				return
-			}
-			if oldTimer.(*time.Timer) != timer {
-				oldTimer.(*time.Timer).Stop()
+			oldTimer, ok := t.timers.Load(connectionID)
+			if !ok || oldTimer.(*time.Timer) != timer {
 				return
 			}
 
+			t.timers.Delete(connectionID)
+
+			// Context is canceled or deadlined.
 			if t.ctx.Err() != nil {
-				// Context is canceled or deadlined.
 				return
 			}
 
@@ -124,5 +122,6 @@ func (t *refreshClient) startTimer(connectionID string, exec serialize.Executor,
 			t.startTimer(connectionID, exec, nextClient, request, opts)
 		})
 	})
+
 	t.timers.Store(connectionID, timer)
 }
