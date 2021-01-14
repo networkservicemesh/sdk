@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -259,7 +259,7 @@ func generateRequests(t *testing.T, client networkservice.NetworkServiceClient, 
 		}
 
 		if randSrc.Intn(iterations-i) < skipSleepLeft {
-			skipSleepLeft -= 1
+			skipSleepLeft--
 		} else {
 			<-time.After(tickDuration)
 		}
@@ -274,7 +274,7 @@ func generateRequests(t *testing.T, client networkservice.NetworkServiceClient, 
 			assert.Nil(t, err)
 			refreshTester.afterClose()
 			oldConn = nil
-			closeClientLeft -= 1
+			closeClientLeft--
 		}
 	}
 
