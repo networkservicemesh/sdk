@@ -67,8 +67,8 @@ func TestRefreshClient_StopRefreshAtClose(t *testing.T) {
 	}
 	client := chain.NewNetworkServiceClient(
 		serialize.NewClient(),
-		refresh.NewClient(ctx),
 		updatepath.NewClient("refresh"),
+		refresh.NewClient(ctx),
 		updatetoken.NewClient(sandbox.GenerateExpiringToken(expireTimeout)),
 		cloneClient,
 	)

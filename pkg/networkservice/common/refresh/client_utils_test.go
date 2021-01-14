@@ -243,6 +243,8 @@ func generateRequests(t *testing.T, client networkservice.NetworkServiceClient, 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	skipSleepLeft, closeClientLeft := iterations/10+1, iterations/10+1
+
 	var oldConn *networkservice.Connection
 	for i := 0; i < iterations && !t.Failed(); i++ {
 		refreshTester.beforeRequest(strconv.Itoa(i))
@@ -256,20 +258,23 @@ func generateRequests(t *testing.T, client networkservice.NetworkServiceClient, 
 			return
 		}
 
-		if randSrc.Int31n(10) != 0 {
-			time.Sleep(tickDuration)
+		if randSrc.Intn(iterations-i) < skipSleepLeft {
+			skipSleepLeft -= 1
+		} else {
+			<-time.After(tickDuration)
 		}
 
 		if t.Failed() {
 			return
 		}
 
-		if randSrc.Int31n(10) == 0 {
+		if randSrc.Intn(iterations-i) < closeClientLeft {
 			refreshTester.beforeClose()
 			_, err = client.Close(ctx, oldConn)
 			assert.Nil(t, err)
 			refreshTester.afterClose()
 			oldConn = nil
+			closeClientLeft -= 1
 		}
 	}
 
@@ -278,5 +283,5 @@ func generateRequests(t *testing.T, client networkservice.NetworkServiceClient, 
 		_, _ = client.Close(ctx, oldConn)
 		refreshTester.afterClose()
 	}
-	time.Sleep(tickDuration)
+	<-time.After(tickDuration)
 }
