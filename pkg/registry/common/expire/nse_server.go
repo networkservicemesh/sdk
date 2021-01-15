@@ -20,10 +20,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
-
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
@@ -39,18 +38,18 @@ func (n *nseServer) Register(ctx context.Context, nse *registry.NetworkServiceEn
 	if err != nil {
 		return nil, err
 	}
-	expirationTime := time.Now().Add(n.nseExpiration)
-	nse.ExpirationTime = &timestamp.Timestamp{Seconds: expirationTime.Unix(), Nanos: int32(expirationTime.Nanosecond())}
-	unregisterNse := r.Clone()
+	r.ExpirationTime = timestamppb.New(time.Now().Add(n.nseExpiration))
+
 	timer := time.AfterFunc(n.nseExpiration, func() {
 		unregisterCtx, cancel := context.WithTimeout(extend.WithValuesFromContext(context.Background(), ctx), n.nseExpiration)
 		defer cancel()
-		_, _ = next.NetworkServiceEndpointRegistryServer(unregisterCtx).Unregister(unregisterCtx, unregisterNse)
+		_, _ = next.NetworkServiceEndpointRegistryServer(unregisterCtx).Unregister(unregisterCtx, r.Clone())
 	})
 	if t, load := n.timers.LoadOrStore(nse.Name, timer); load {
 		timer.Stop()
 		t.Reset(n.nseExpiration)
 	}
+
 	return r, nil
 }
 
@@ -63,9 +62,11 @@ func (n *nseServer) Unregister(ctx context.Context, nse *registry.NetworkService
 	if err != nil {
 		return nil, err
 	}
+
 	if timer, ok := n.timers.Load(nse.Name); ok {
 		timer.Stop()
 	}
+
 	return resp, nil
 }
 
