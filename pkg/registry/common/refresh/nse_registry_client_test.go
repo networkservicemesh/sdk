@@ -18,101 +18,55 @@ package refresh_test
 
 import (
 	"context"
-	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/networkservicemesh/api/pkg/api/registry"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
-const testExpiryDuration = time.Millisecond * 100
+const (
+	testExpiryDuration = time.Millisecond * 100
+)
 
-type testNSEClient struct {
-	sync.Mutex
-	requestCount int
+func testNetworkServiceEndpointRegistryClient(ctx context.Context, durations ...time.Duration) registry.NetworkServiceEndpointRegistryClient {
+	options := []refresh.Option{refresh.WithChainContext(ctx)}
+	if len(durations) > 0 {
+		options = append(options, refresh.WithDefaultExpiryDuration(durations[0]))
+	}
+	if len(durations) > 1 {
+		options = append(options, refresh.WithRetryPeriod(durations[1]))
+	}
+	return refresh.NewNetworkServiceEndpointRegistryClient(options...)
 }
 
-func (t *testNSEClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	t.Lock()
-	defer t.Unlock()
-	t.requestCount++
-	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)
-}
-
-func (t *testNSEClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	panic("implement me")
-}
-
-func (t *testNSEClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
-	return nil, nil
-}
-
-type checkExpirationTimeClient struct{ *testing.T }
-
-func (c *checkExpirationTimeClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	require.NotNil(c, in.ExpirationTime)
-	return in, nil
-}
-
-func (c *checkExpirationTimeClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	panic("implement me")
-}
-
-func (c *checkExpirationTimeClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
-	return new(empty.Empty), nil
-}
-
-type nseExpirationServer struct {
-	expirationTime time.Duration
-}
-
-func (s *nseExpirationServer) Register(_ context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	resp := in.Clone()
-	resp.ExpirationTime = timestamppb.New(time.Now().Add(s.expirationTime))
-	return resp, nil
-}
-
-func (s *nseExpirationServer) Find(_ *registry.NetworkServiceEndpointQuery, _ registry.NetworkServiceEndpointRegistry_FindServer) error {
-	return nil
-}
-
-func (s *nseExpirationServer) Unregister(_ context.Context, _ *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	return nil, nil
-}
-
-func TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {
+func TestRefreshNSEClient(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	testClient := &testNSEClient{}
+
+	testClient := newTestNSEClient()
+	refreshClient := next.NewNetworkServiceEndpointRegistryClient(
+		testNetworkServiceEndpointRegistryClient(context.Background(), testExpiryDuration),
+		testClient,
+	)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	refreshClient := next.NewNetworkServiceEndpointRegistryClient(
-		refresh.NewNetworkServiceEndpointRegistryClient(
-			refresh.WithRetryPeriod(testExpiryDuration),
-			refresh.WithDefaultExpiryDuration(testExpiryDuration),
-			refresh.WithChainContext(ctx),
-		),
-		testClient)
-	_, err := refreshClient.Register(context.Background(), &registry.NetworkServiceEndpoint{
+	_, err := refreshClient.Register(ctx, &registry.NetworkServiceEndpoint{
 		Name: "nse-1",
 	})
-
+	cancel()
 	require.NoError(t, err)
+
 	require.Eventually(t, func() bool {
-		testClient.Lock()
-		defer testClient.Unlock()
-		return testClient.requestCount > 0
+		return atomic.LoadInt32(&testClient.requestCount) > 1
 	}, time.Second, testExpiryDuration/4)
 
 	_, err = refreshClient.Unregister(context.Background(), &registry.NetworkServiceEndpoint{Name: "nse-1"})
@@ -122,67 +76,161 @@ func TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {
 func TestRefreshNSEClient_ShouldSetExpirationTime_BeforeCallNext(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	c := next.NewNetworkServiceEndpointRegistryClient(
-		&testNSEClient{},
-		refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithDefaultExpiryDuration(time.Hour), refresh.WithChainContext(ctx)),
-		&checkExpirationTimeClient{T: t},
+		newTestNSEClient(),
+		testNetworkServiceEndpointRegistryClient(context.Background(), time.Hour),
+		newCheckExpirationTimeClient(t),
 	)
 
-	_, err := c.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: "nse-1"})
-	require.Nil(t, err)
+	ctx, cancel := context.WithCancel(context.Background())
+	_, err := c.Register(ctx, &registry.NetworkServiceEndpoint{Name: "nse-1"})
+	cancel()
+	require.NoError(t, err)
 
 	_, err = c.Unregister(context.Background(), &registry.NetworkServiceEndpoint{Name: "nse-1"})
-	require.Nil(t, err)
-}
-
-func Test_RefreshNSEClient_ShouldUseExpirationFromServer(t *testing.T) {
-	c := next.NewNetworkServiceEndpointRegistryClient(
-		refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithDefaultExpiryDuration(time.Hour)),
-		adapters.NetworkServiceEndpointServerToClient(&nseExpirationServer{expirationTime: time.Hour}),
-	)
-
-	resp, err := c.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: "nse-1"})
-
 	require.NoError(t, err)
-	require.Greater(t, time.Until(resp.ExpirationTime.AsTime()).Minutes(), float64(50))
 }
 
-func Test_RefreshNSEClient_CalledRegisterTwice(t *testing.T) {
+func TestRefreshNSEClient_CalledRegisterTwice(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	testClient := &testNSEClient{}
-
+	testClient := newTestNSEClient()
 	refreshClient := next.NewNetworkServiceEndpointRegistryClient(
-		refresh.NewNetworkServiceEndpointRegistryClient(
-			refresh.WithRetryPeriod(testExpiryDuration),
-			refresh.WithDefaultExpiryDuration(testExpiryDuration),
-			refresh.WithChainContext(ctx)),
-		testClient)
+		testNetworkServiceEndpointRegistryClient(context.Background(), testExpiryDuration),
+		testClient,
+	)
 
-	_, err := refreshClient.Register(context.Background(), &registry.NetworkServiceEndpoint{
+	ctx, cancel := context.WithCancel(context.Background())
+	_, err := refreshClient.Register(ctx, &registry.NetworkServiceEndpoint{
 		Name: "nse-1",
 	})
+	cancel()
+	require.NoError(t, err)
 
-	require.Nil(t, err)
-	_, err = refreshClient.Register(context.Background(), &registry.NetworkServiceEndpoint{
+	ctx, cancel = context.WithCancel(context.Background())
+	_, err = refreshClient.Register(ctx, &registry.NetworkServiceEndpoint{
 		Name: "nse-1",
 	})
-
-	require.Nil(t, err)
+	cancel()
+	require.NoError(t, err)
 
 	require.Eventually(t, func() bool {
-		testClient.Lock()
-		defer testClient.Unlock()
-		return testClient.requestCount > 0
+		return atomic.LoadInt32(&testClient.requestCount) > 2
 	}, time.Second, testExpiryDuration/4)
 
 	_, err = refreshClient.Unregister(context.Background(), &registry.NetworkServiceEndpoint{Name: "nse-1"})
+	require.NoError(t, err)
+}
 
-	require.Nil(t, err)
+func TestRefreshNSEClient_RefreshFailsFirstTime(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	testClient := newTestNSEClient()
+	refreshClient := next.NewNetworkServiceEndpointRegistryClient(
+		testNetworkServiceEndpointRegistryClient(context.Background(), testExpiryDuration, testExpiryDuration),
+		newFailTimesClient(1),
+		testClient,
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	_, err := refreshClient.Register(ctx, &registry.NetworkServiceEndpoint{
+		Name: "nse-1",
+	})
+	cancel()
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool {
+		return atomic.LoadInt32(&testClient.requestCount) > 1
+	}, time.Second, testExpiryDuration/4)
+
+	_, err = refreshClient.Unregister(context.Background(), &registry.NetworkServiceEndpoint{Name: "nse-1"})
+	require.NoError(t, err)
+}
+
+func TestRefreshNSEClient_RetriesShouldStop(t *testing.T) {
+	ignoreCurrent := goleak.IgnoreCurrent()
+
+	bckgCtx, bckgCancel := context.WithCancel(context.Background())
+	refreshClient := next.NewNetworkServiceEndpointRegistryClient(
+		testNetworkServiceEndpointRegistryClient(bckgCtx, testExpiryDuration, time.Hour),
+		newFailTimesClient(1, -1),
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	_, err := refreshClient.Register(ctx, &registry.NetworkServiceEndpoint{
+		Name: "nse-1",
+	})
+	cancel()
+	require.NoError(t, err)
+
+	<-time.After(testExpiryDuration)
+	bckgCancel()
+
+	require.Eventually(t, func() bool {
+		return goleak.Find(ignoreCurrent) == nil
+	}, time.Second, testExpiryDuration/4)
+}
+
+type testNSEClient struct {
+	requestCount int32
+
+	registry.NetworkServiceEndpointRegistryClient
+}
+
+func newTestNSEClient() *testNSEClient {
+	return &testNSEClient{
+		NetworkServiceEndpointRegistryClient: null.NewNetworkServiceEndpointRegistryClient(),
+	}
+}
+
+func (t *testNSEClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+	atomic.AddInt32(&t.requestCount, 1)
+
+	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)
+}
+
+type checkExpirationTimeClient struct {
+	*testing.T
+	registry.NetworkServiceEndpointRegistryClient
+}
+
+func newCheckExpirationTimeClient(t *testing.T) *checkExpirationTimeClient {
+	return &checkExpirationTimeClient{
+		T:                                    t,
+		NetworkServiceEndpointRegistryClient: null.NewNetworkServiceEndpointRegistryClient(),
+	}
+}
+
+func (c *checkExpirationTimeClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+	require.NotNil(c, in.ExpirationTime)
+
+	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)
+}
+
+type failTimesClient struct {
+	times []int
+	count int
+
+	registry.NetworkServiceEndpointRegistryClient
+}
+
+func newFailTimesClient(times ...int) *failTimesClient {
+	return &failTimesClient{
+		times:                                times,
+		NetworkServiceEndpointRegistryClient: null.NewNetworkServiceEndpointRegistryClient(),
+	}
+}
+
+func (c *failTimesClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+	defer func() { c.count++ }()
+	for _, t := range c.times {
+		if t > c.count {
+			break
+		}
+		if t == c.count || t == -1 {
+			return nil, errors.Errorf("time = %d", t)
+		}
+	}
+
+	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)
 }

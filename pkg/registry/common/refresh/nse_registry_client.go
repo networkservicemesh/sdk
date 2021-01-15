@@ -20,41 +20,54 @@ import (
 	"context"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
-
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type refreshNSEClient struct {
 	chainContext          context.Context
-	nseCancels            cancelsMap
 	retryDelay            time.Duration
 	defaultExpiryDuration time.Duration
+	nseCancels            cancelsMap
 }
 
-func (c *refreshNSEClient) startRefresh(ctx context.Context, client registry.NetworkServiceEndpointRegistryClient, nse *registry.NetworkServiceEndpoint) {
-	t := time.Unix(nse.ExpirationTime.Seconds, int64(nse.ExpirationTime.Nanos))
-	delta := time.Until(t)
+func (c *refreshNSEClient) startRefresh(
+	ctx context.Context,
+	nextClient registry.NetworkServiceEndpointRegistryClient,
+	nse *registry.NetworkServiceEndpoint,
+	opts ...grpc.CallOption,
+) {
+	logEntry := log.Entry(ctx).WithField("refreshNSEClient", "startRefresh")
+
+	t := nse.ExpirationTime.AsTime().Local()
+	delta := time.Until(nse.ExpirationTime.AsTime().Local())
 	go func() {
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case <-time.After(2 * time.Until(t) / 3):
-				t1 := time.Now().Add(delta)
-				nse.ExpirationTime.Seconds = t1.Unix()
-				nse.ExpirationTime.Nanos = int32(t1.Nanosecond())
-				var err error
-				nse, err = client.Register(ctx, nse)
-				if err != nil {
-					<-time.After(c.retryDelay)
-					continue
+			case <-time.After(time.Until(t) / 3):
+				nse.ExpirationTime = timestamppb.New(time.Now().Add(delta))
+
+				r, err := nextClient.Register(ctx, nse, opts...)
+				for err != nil {
+					logEntry.Warnf("failed to refresh registration: %s", nse.Name)
+					select {
+					case <-ctx.Done():
+						return
+					case <-time.After(c.retryDelay):
+						r, err = nextClient.Register(ctx, nse, opts...)
+					}
 				}
-				t = t1
+
+				nse = r
+				t = nse.ExpirationTime.AsTime().Local()
 			}
 		}
 	}()
@@ -62,25 +75,26 @@ func (c *refreshNSEClient) startRefresh(ctx context.Context, client registry.Net
 
 func (c *refreshNSEClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
 	if in.ExpirationTime == nil {
-		expirationTime := time.Now().Add(c.defaultExpiryDuration)
-		in.ExpirationTime = &timestamp.Timestamp{
-			Seconds: expirationTime.Unix(),
-			Nanos:   int32(expirationTime.Nanosecond()),
-		}
+		in.ExpirationTime = timestamppb.New(time.Now().Add(c.defaultExpiryDuration))
 	}
 	nse := in.Clone()
+
 	nextClient := next.NetworkServiceEndpointRegistryClient(ctx)
+
 	resp, err := nextClient.Register(ctx, in, opts...)
 	if err != nil {
 		return nil, err
 	}
+	nse.ExpirationTime = resp.ExpirationTime
+
 	if cancel, ok := c.nseCancels.Load(resp.Name); ok {
 		cancel()
 	}
+
 	ctx, cancel := context.WithCancel(c.chainContext)
 	c.nseCancels.Store(resp.Name, cancel)
-	nse.ExpirationTime = resp.ExpirationTime
-	c.startRefresh(ctx, nextClient, nse)
+	c.startRefresh(ctx, nextClient, nse, opts...)
+
 	return resp, err
 }
 
@@ -93,19 +107,20 @@ func (c *refreshNSEClient) Unregister(ctx context.Context, in *registry.NetworkS
 	if err != nil {
 		return nil, err
 	}
-	if cancel, ok := c.nseCancels.Load(in.Name); ok {
+
+	if cancel, ok := c.nseCancels.LoadAndDelete(in.Name); ok {
 		cancel()
 	}
-	c.nseCancels.Delete(in.Name)
+
 	return resp, nil
 }
 
 // NewNetworkServiceEndpointRegistryClient creates new NetworkServiceEndpointRegistryClient that will refresh expiration time for registered NSEs
 func NewNetworkServiceEndpointRegistryClient(options ...Option) registry.NetworkServiceEndpointRegistryClient {
 	c := &refreshNSEClient{
+		chainContext:          context.Background(),
 		retryDelay:            time.Second * 5,
 		defaultExpiryDuration: time.Minute * 30,
-		chainContext:          context.Background(),
 	}
 
 	for _, o := range options {
