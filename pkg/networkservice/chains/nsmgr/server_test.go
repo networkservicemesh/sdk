@@ -20,7 +20,6 @@ package nsmgr_test
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -29,7 +28,6 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
@@ -44,15 +42,15 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/opentracing"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
-	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
 )
 
 func TestNSMGR_RemoteUsecase_Parallel(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	logrus.SetOutput(ioutil.Discard)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
+
 	domain := sandbox.NewBuilder(t).
 		SetNodesCount(2).
 		SetRegistryProxySupplier(nil).
@@ -111,8 +109,6 @@ func TestNSMGR_RemoteUsecase_Parallel(t *testing.T) {
 func TestNSMGR_SelectsRestartingEndpoint(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	logrus.SetOutput(ioutil.Discard)
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
@@ -154,9 +150,9 @@ func TestNSMGR_RemoteUsecase_BusyEndpoints(t *testing.T) {
 	t.Skip("https://github.com/networkservicemesh/sdk/issues/619")
 
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	logrus.SetOutput(ioutil.Discard)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
 	defer cancel()
+
 	domain := sandbox.NewBuilder(t).
 		SetNodesCount(2).
 		SetRegistryProxySupplier(nil).
@@ -221,9 +217,9 @@ func TestNSMGR_RemoteUsecase_BusyEndpoints(t *testing.T) {
 
 func TestNSMGR_RemoteUsecase(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	logrus.SetOutput(ioutil.Discard)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
+
 	domain := sandbox.NewBuilder(t).
 		SetNodesCount(2).
 		SetRegistryProxySupplier(nil).
@@ -280,9 +276,9 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 
 func TestNSMGR_LocalUsecase(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	logrus.SetOutput(ioutil.Discard)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
+
 	domain := sandbox.NewBuilder(t).
 		SetNodesCount(1).
 		SetContext(ctx).
@@ -337,12 +333,11 @@ func TestNSMGR_LocalUsecase(t *testing.T) {
 }
 
 func TestNSMGR_PassThroughRemote(t *testing.T) {
-	nodesCount := 7
-
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	logrus.SetOutput(ioutil.Discard)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
+
+	const nodesCount = 7
 	domain := sandbox.NewBuilder(t).
 		SetNodesCount(nodesCount).
 		SetContext(ctx).
@@ -364,7 +359,7 @@ func TestNSMGR_PassThroughRemote(t *testing.T) {
 								fmt.Sprintf("my-service-remote-%v", k-1),
 								fmt.Sprintf("endpoint-%v", k-1)),
 							kernel.NewClient()),
-						append(spanhelper.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...,
+						append(opentracing.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...,
 					),
 				),
 			}
@@ -400,12 +395,11 @@ func TestNSMGR_PassThroughRemote(t *testing.T) {
 }
 
 func TestNSMGR_PassThroughLocal(t *testing.T) {
-	nsesCount := 7
-
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	logrus.SetOutput(ioutil.Discard)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
+
+	const nsesCount = 7
 	domain := sandbox.NewBuilder(t).
 		SetNodesCount(1).
 		SetContext(ctx).
@@ -426,7 +420,7 @@ func TestNSMGR_PassThroughLocal(t *testing.T) {
 								fmt.Sprintf("my-service-remote-%v", k-1),
 								fmt.Sprintf("endpoint-%v", k-1)),
 							kernel.NewClient()),
-						append(spanhelper.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...,
+						append(opentracing.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...,
 					),
 				),
 			}

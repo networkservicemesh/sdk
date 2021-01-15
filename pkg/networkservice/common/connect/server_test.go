@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -23,6 +23,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/assert"
@@ -128,6 +130,7 @@ func TestConnectServer_Request(t *testing.T) {
 				},
 			},
 		}
+		ctx = logger.WithLog(ctx)
 
 		// 5. Request A
 
@@ -221,6 +224,7 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 		barrier := new(sync.WaitGroup)
 		barrier.Add(1)
 
+		ctx = logger.WithLog(ctx)
 		for i := 0; i < parallelCount; i++ {
 			go func(k int) {
 				// 4.1. Create request

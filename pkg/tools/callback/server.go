@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -30,7 +30,6 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 const (
@@ -164,7 +163,7 @@ func (s *serverImpl) WithCallbackDialer() grpc.DialOption {
 		if ok {
 			if srv.created {
 				err := errors.New("Client is already created")
-				log.Entry(ctx).Errorf("Failed to connect to callback: %v", err)
+				logrus.Errorf("Failed to connect to callback: %v", err)
 				return nil, err
 			}
 			srv.created = true

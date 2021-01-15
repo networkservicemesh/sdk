@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -22,6 +22,8 @@ import (
 	"context"
 	"net/url"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 
@@ -30,8 +32,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/golang/protobuf/ptypes/empty"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -102,7 +102,7 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 			})
 			result, err = next.Server(crossCTX).Request(crossCTX, request)
 			if err != nil {
-				trace.Log(ctx).Errorf("failed to request cross NSE %v err: %v", crossNSEURL, err)
+				logger.Log(ctx).Errorf("failed to request cross NSE %v err: %v", crossNSEURL, err)
 				return true
 			}
 			// If all is ok, stop iterating.

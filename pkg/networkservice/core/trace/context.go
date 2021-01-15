@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Cisco Systems, Inc.
 //
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,14 +22,15 @@ package trace
 import (
 	"context"
 
-	"github.com/sirupsen/logrus"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger/tracelogger"
+
 	"google.golang.org/protobuf/proto"
 )
 
 type contextKeyType string
 
 const (
-	logKey       contextKeyType = "Log"
 	traceInfoKey contextKeyType = "ConnectionInfo"
 )
 
@@ -39,32 +42,16 @@ type traceInfo struct {
 	Response proto.Message
 }
 
-// withLog - Provides a FieldLogger in context
-func withLog(parent context.Context, log logrus.FieldLogger) context.Context {
+// withLog - provides corresponding logger in context
+func withLog(parent context.Context, operation string) (c context.Context, f func()) {
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
-	return context.WithValue(parent, logKey, log)
-}
 
-// Log - return FieldLogger from context
-func Log(ctx context.Context) logrus.FieldLogger {
-	rv, ok := ctx.Value(logKey).(logrus.FieldLogger)
-	if !ok {
-		logger := &logrus.Logger{
-			Out:          logrus.StandardLogger().Out,
-			Formatter:    logrus.StandardLogger().Formatter,
-			Hooks:        make(logrus.LevelHooks),
-			Level:        logrus.StandardLogger().Level,
-			ExitFunc:     logrus.StandardLogger().ExitFunc,
-			ReportCaller: logrus.StandardLogger().ReportCaller,
-		}
-		for k, v := range logrus.StandardLogger().Hooks {
-			logger.Hooks[k] = v
-		}
-		rv = logger
+	if logger.IsTracingEnabled() {
+		return tracelogger.WithLog(withTrace(parent), operation)
 	}
-	return rv
+	return logger.WithLog(parent), func() {}
 }
 
 // withConnectionInfo - Provides a traceInfo in context

@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
-//
 // Copyright (c) 2020 Cisco and/or its affiliates.
+//
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -25,10 +25,8 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/pkg/errors"
 )
 
 // PrefixPool is a structure that contains information about prefixes
@@ -147,7 +145,6 @@ func (impl *PrefixPool) ExcludePrefixes(excludedPrefixes []string) (removedPrefi
 	/* Raise an error, if there aren't any available prefixes left after excluding */
 	if len(copyPrefixes) == 0 {
 		err := errors.New("IPAM: The available address pool is empty, probably intersected by excludedPrefix")
-		logrus.Errorf("%v", err)
 		return nil, err
 	}
 	/* Everything should be fine, update the available prefixes with what's left */

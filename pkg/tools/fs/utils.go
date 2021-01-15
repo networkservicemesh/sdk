@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -24,9 +24,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger/logruslogger"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+
+	"github.com/fsnotify/fsnotify"
 )
 
 // WatchFile watches file changes even if the watching file does not exist or removed.
@@ -35,11 +37,13 @@ import (
 func WatchFile(ctx context.Context, filePath string) <-chan []byte {
 	result := make(chan []byte)
 
-	logger := log.Entry(ctx).WithField("fs.WatchFile", filePath)
+	logCtx, log := logruslogger.New(ctx)
+	log = log.WithField("fs.WatchFile", filePath)
+
 	watcher, err := fsnotify.NewWatcher()
 
 	if err != nil {
-		logger.Errorf("can not create node poller: %v", err.Error())
+		log.Errorf("can not create node poller: %v", err.Error())
 		_ = watcher.Close()
 		close(result)
 		return result
@@ -50,7 +54,7 @@ func WatchFile(ctx context.Context, filePath string) <-chan []byte {
 		if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
 			err = os.MkdirAll(directoryPath, os.ModePerm)
 			if err != nil {
-				logger.Errorf("can not create directory: %v", err.Error())
+				log.Errorf("can not create directory: %v", err.Error())
 				_ = watcher.Close()
 				close(result)
 				return result
@@ -59,7 +63,7 @@ func WatchFile(ctx context.Context, filePath string) <-chan []byte {
 	}
 
 	if err := watcher.Add(directoryPath); err != nil {
-		logger.Errorf("an error during add a directory \"%v\": %v", directoryPath, err.Error())
+		log.Errorf("an error during add a directory \"%v\": %v", directoryPath, err.Error())
 		_ = watcher.Close()
 		close(result)
 		return result
@@ -69,13 +73,13 @@ func WatchFile(ctx context.Context, filePath string) <-chan []byte {
 		defer func() {
 			_ = watcher.Close()
 		}()
-		monitorFile(ctx, filePath, watcher, result)
+		monitorFile(logCtx, filePath, watcher, result)
 	}()
 	return result
 }
 
 func monitorFile(ctx context.Context, filePath string, watcher *fsnotify.Watcher, notifyCh chan<- []byte) {
-	logger := log.Entry(ctx).WithField("fs.monitorFile", filePath)
+	log := logger.Log(ctx).WithField("fs.monitorFile", filePath)
 
 	bytes, _ := ioutil.ReadFile(filepath.Clean(filePath))
 	if !sendOrClose(ctx, notifyCh, bytes) {
@@ -85,7 +89,7 @@ func monitorFile(ctx context.Context, filePath string, watcher *fsnotify.Watcher
 	for {
 		select {
 		case <-ctx.Done():
-			logger.Error(ctx.Err().Error())
+			log.Error(ctx.Err().Error())
 			close(notifyCh)
 			return
 		case e := <-watcher.Events:
@@ -93,7 +97,7 @@ func monitorFile(ctx context.Context, filePath string, watcher *fsnotify.Watcher
 				continue
 			}
 			if e.Op&(fsnotify.Remove|fsnotify.Rename) > 0 {
-				logger.Warn("Removed")
+				log.Warn("Removed")
 				if !sendOrClose(ctx, notifyCh, nil) {
 					return
 				}
@@ -103,7 +107,7 @@ func monitorFile(ctx context.Context, filePath string, watcher *fsnotify.Watcher
 			data, err := ioutil.ReadFile(filepath.Clean(filePath))
 			for err != nil && ctx.Err() == nil {
 				time.Sleep(time.Millisecond * 50)
-				logger.Warn(err.Error())
+				log.Warn(err.Error())
 				data, err = ioutil.ReadFile(filepath.Clean(filePath))
 				continue
 			}
@@ -112,7 +116,7 @@ func monitorFile(ctx context.Context, filePath string, watcher *fsnotify.Watcher
 			}
 		case err := <-watcher.Errors:
 			if err != nil {
-				logger.Error(err.Error())
+				log.Error(err.Error())
 				close(notifyCh)
 				return
 			}

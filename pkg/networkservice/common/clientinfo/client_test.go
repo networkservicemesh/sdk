@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,6 +21,8 @@ import (
 	"context"
 	"os"
 	"testing"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/assert"
@@ -98,7 +100,7 @@ func TestLabelsOverwritten(t *testing.T) {
 	client := next.NewNetworkServiceClient(clientinfo.NewClient(), checkrequest.NewClient(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
 		assert.Equal(t, expected, request.GetConnection().GetLabels())
 	}))
-	conn, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
+	conn, err := client.Request(logger.WithLog(context.Background()), &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Labels: map[string]string{
 				"NodeNameKey":    "OLD_VAL1",
@@ -132,7 +134,7 @@ func TestSomeEnvsNotPresent(t *testing.T) {
 	client := next.NewNetworkServiceClient(clientinfo.NewClient(), checkrequest.NewClient(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
 		assert.Equal(t, expected, request.GetConnection().GetLabels())
 	}))
-	conn, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
+	conn, err := client.Request(logger.WithLog(context.Background()), &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Labels: map[string]string{
 				"NodeNameKey":    "OLD_VAL1",

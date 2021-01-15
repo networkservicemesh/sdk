@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,8 +21,9 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamcontext"
-	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
 	"github.com/networkservicemesh/sdk/pkg/tools/typeutils"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -41,93 +42,90 @@ type traceNetworkServiceEndpointRegistryFindClient struct {
 
 func (t *traceNetworkServiceEndpointRegistryFindClient) Recv() (*registry.NetworkServiceEndpoint, error) {
 	operation := typeutils.GetFuncName(t.NetworkServiceEndpointRegistry_FindClient, "Recv")
-	span := spanhelper.FromContext(t.Context(), operation)
-	defer span.Finish()
 
-	ctx := withLog(span.Context(), span.Logger())
+	ctx, finish := withLog(t.Context(), operation)
+	defer finish()
+
 	s := streamcontext.NetworkServiceEndpointRegistryFindClient(ctx, t.NetworkServiceEndpointRegistry_FindClient)
 	rv, err := s.Recv()
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
 			err = errors.Wrapf(err, "Error returned from %s", operation)
-			span.LogErrorf("%+v", err)
+			logger.Log(ctx).Errorf("%+v", err)
 			return nil, err
 		}
-		span.LogErrorf("%v", err)
+		logger.Log(ctx).Errorf("%v", err)
 		return nil, err
 	}
-	span.LogObject("response", rv)
+	logger.Log(ctx).Object("response", rv)
 	return rv, err
 }
 
 func (t *traceNetworkServiceEndpointRegistryClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
 	operation := typeutils.GetFuncName(t.traced, "Register")
-	span := spanhelper.FromContext(ctx, operation)
-	defer span.Finish()
 
-	ctx = withLog(span.Context(), span.Logger())
+	ctx, finish := withLog(ctx, operation)
+	defer finish()
 
-	span.LogObject("request", in)
+	logger.Log(ctx).Object("request", in)
 
 	rv, err := t.traced.Register(ctx, in, opts...)
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
 			err = errors.Wrapf(err, "Error returned from %s", operation)
-			span.LogErrorf("%+v", err)
+			logger.Log(ctx).Errorf("%+v", err)
 			return nil, err
 		}
-		span.LogErrorf("%v", err)
+		logger.Log(ctx).Errorf("%v", err)
 		return nil, err
 	}
-	span.LogObject("response", rv)
+	logger.Log(ctx).Object("response", rv)
 	return rv, err
 }
 func (t *traceNetworkServiceEndpointRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
 	operation := typeutils.GetFuncName(t.traced, "Find")
-	span := spanhelper.FromContext(ctx, operation)
-	defer span.Finish()
 
-	ctx = withLog(span.Context(), span.Logger())
+	ctx, finish := withLog(ctx, operation)
+	defer finish()
 
-	span.LogObject("find", in)
+	logger.Log(ctx).Object("find", in)
 
 	// Actually call the next
 	rv, err := t.traced.Find(ctx, in, opts...)
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
 			err = errors.Wrapf(err, "Error returned from %s", operation)
-			span.LogErrorf("%+v", err)
+			logger.Log(ctx).Errorf("%+v", err)
 			return nil, err
 		}
-		span.LogErrorf("%v", err)
+		logger.Log(ctx).Errorf("%v", err)
 		return nil, err
 	}
-	span.LogObject("response", rv)
+	logger.Log(ctx).Object("response", rv)
 
 	return &traceNetworkServiceEndpointRegistryFindClient{NetworkServiceEndpointRegistry_FindClient: rv}, nil
 }
 
 func (t *traceNetworkServiceEndpointRegistryClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
 	operation := typeutils.GetFuncName(t.traced, "Unregister")
-	span := spanhelper.FromContext(ctx, operation)
-	defer span.Finish()
 
-	ctx = withLog(span.Context(), span.Logger())
+	ctx, finish := withLog(ctx, operation)
+	defer finish()
 
-	span.LogObject("request", in)
+	logger.Log(ctx).Object("request", in)
 
 	// Actually call the next
 	rv, err := t.traced.Unregister(ctx, in, opts...)
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
 			err = errors.Wrapf(err, "Error returned from %s", operation)
-			span.LogErrorf("%+v", err)
+			logger.Log(ctx).Errorf("%+v", err)
 			return nil, err
 		}
-		span.LogErrorf("%v", err)
+		logger.Log(ctx).Errorf("%v", err)
 		return nil, err
 	}
-	span.LogObject("response", rv)
+	logger.Log(ctx).Object("response", rv)
 	return rv, err
 }
 
@@ -142,47 +140,46 @@ type traceNetworkServiceEndpointRegistryServer struct {
 
 func (t *traceNetworkServiceEndpointRegistryServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	operation := typeutils.GetFuncName(t.traced, "Register")
-	span := spanhelper.FromContext(ctx, operation)
-	defer span.Finish()
 
-	ctx = withLog(span.Context(), span.Logger())
+	ctx, finish := withLog(ctx, operation)
+	defer finish()
 
-	span.LogObject("request", in)
+	logger.Log(ctx).Object("request", in)
 
 	rv, err := t.traced.Register(ctx, in)
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
 			err = errors.Wrapf(err, "Error returned from %s", operation)
-			span.LogErrorf("%+v", err)
+			logger.Log(ctx).Errorf("%+v", err)
 			return nil, err
 		}
-		span.LogErrorf("%v", err)
+		logger.Log(ctx).Errorf("%v", err)
 		return nil, err
 	}
-	span.LogObject("response", rv)
+	logger.Log(ctx).Object("response", rv)
 	return rv, err
 }
 
 func (t *traceNetworkServiceEndpointRegistryServer) Find(in *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
 	operation := typeutils.GetFuncName(t.traced, "Find")
-	span := spanhelper.FromContext(s.Context(), operation)
-	defer span.Finish()
 
-	ctx := withLog(span.Context(), span.Logger())
+	ctx, finish := withLog(s.Context(), operation)
+	defer finish()
+
 	s = &traceNetworkServiceEndpointRegistryFindServer{
 		NetworkServiceEndpointRegistry_FindServer: streamcontext.NetworkServiceEndpointRegistryFindServer(ctx, s),
 	}
-	span.LogObject("find", in)
+	logger.Log(ctx).Object("find", in)
 
 	// Actually call the next
 	err := t.traced.Find(in, s)
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
 			err = errors.Wrapf(err, "Error returned from %s", operation)
-			span.LogErrorf("%+v", err)
+			logger.Log(ctx).Errorf("%+v", err)
 			return err
 		}
-		span.LogErrorf("%v", err)
+		logger.Log(ctx).Errorf("%v", err)
 		return err
 	}
 	return nil
@@ -190,25 +187,24 @@ func (t *traceNetworkServiceEndpointRegistryServer) Find(in *registry.NetworkSer
 
 func (t *traceNetworkServiceEndpointRegistryServer) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
 	operation := typeutils.GetFuncName(t.traced, "Unregister")
-	span := spanhelper.FromContext(ctx, operation)
-	defer span.Finish()
 
-	ctx = withLog(span.Context(), span.Logger())
+	ctx, finish := withLog(ctx, operation)
+	defer finish()
 
-	span.LogObject("request", in)
+	logger.Log(ctx).Object("request", in)
 
 	// Actually call the next
 	rv, err := t.traced.Unregister(ctx, in)
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
 			err = errors.Wrapf(err, "Error returned from %s", operation)
-			span.LogErrorf("%+v", err)
+			logger.Log(ctx).Errorf("%+v", err)
 			return nil, err
 		}
-		span.LogErrorf("%v", err)
+		logger.Log(ctx).Errorf("%v", err)
 		return nil, err
 	}
-	span.LogObject("response", rv)
+	logger.Log(ctx).Object("response", rv)
 	return rv, err
 }
 
@@ -223,19 +219,20 @@ type traceNetworkServiceEndpointRegistryFindServer struct {
 
 func (t *traceNetworkServiceEndpointRegistryFindServer) Send(nse *registry.NetworkServiceEndpoint) error {
 	operation := typeutils.GetFuncName(t.NetworkServiceEndpointRegistry_FindServer, "Send")
-	span := spanhelper.FromContext(t.Context(), operation)
-	defer span.Finish()
-	span.LogObject("network service endpoint", nse)
-	ctx := withLog(span.Context(), span.Logger())
+
+	ctx, finish := withLog(t.Context(), operation)
+	defer finish()
+
+	logger.Log(ctx).Object("network service endpoint", nse)
 	s := streamcontext.NetworkServiceEndpointRegistryFindServer(ctx, t.NetworkServiceEndpointRegistry_FindServer)
 	err := s.Send(nse)
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
 			err = errors.Wrapf(err, "Error returned from %s", operation)
-			span.LogErrorf("%+v", err)
+			logger.Log(ctx).Errorf("%+v", err)
 			return err
 		}
-		span.LogErrorf("%v", err)
+		logger.Log(ctx).Errorf("%v", err)
 		return err
 	}
 	return err

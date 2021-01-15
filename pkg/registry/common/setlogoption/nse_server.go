@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -20,13 +20,12 @@ package setlogoption
 import (
 	"context"
 
-	"github.com/sirupsen/logrus"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
 type setNSELogOption struct {
@@ -69,12 +68,12 @@ func NewNetworkServiceEndpointRegistryServer(options map[string]string) registry
 }
 
 func (s *setNSELogOption) withFields(ctx context.Context) context.Context {
-	fields := make(logrus.Fields)
+	fields := make(map[string]interface{})
 	for k, v := range s.options {
 		fields[k] = v
 	}
 	if len(fields) > 0 {
-		ctx = log.WithFields(ctx, fields)
+		ctx = logger.WithFields(ctx, fields)
 	}
 	return ctx
 }
