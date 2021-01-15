@@ -69,6 +69,7 @@ func (n *nsServer) checkUpdates() {
 			})
 			if v, loaded := n.timers.LoadOrStore(nse.Name, timer); loaded {
 				timer.Stop()
+				v.Stop()
 				v.Reset(duration)
 			}
 		}
