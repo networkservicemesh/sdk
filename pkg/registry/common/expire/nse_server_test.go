@@ -23,6 +23,8 @@ import (
 
 	"go.uber.org/goleak"
 
+	"github.com/golang/protobuf/ptypes/empty"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
@@ -34,6 +36,32 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 )
+
+type remoteNSEServer struct{}
+
+func (n *remoteNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	return nse.Clone(), nil
+}
+
+func (n *remoteNSEServer) Find(query *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
+	return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(query, s)
+}
+
+func (n *remoteNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
+}
+
+func Test_ExpireServer_ShouldCorrectlySetExpirationTime_InRemoteCase(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	s := next.NewNetworkServiceEndpointRegistryServer(expire.NewNetworkServiceEndpointRegistryServer(time.Hour), new(remoteNSEServer))
+
+	resp, err := s.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: "nse-1"})
+
+	require.NoError(t, err)
+
+	require.Greater(t, time.Until(resp.ExpirationTime.AsTime()).Minutes(), float64(50))
+}
 
 func TestNewNetworkServiceEndpointRegistryServer(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())

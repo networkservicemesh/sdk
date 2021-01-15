@@ -34,23 +34,26 @@ type nseServer struct {
 }
 
 func (n *nseServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	r, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
+	resp, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	if err != nil {
 		return nil, err
 	}
-	r.ExpirationTime = timestamppb.New(time.Now().Add(n.nseExpiration))
+	resp.ExpirationTime = timestamppb.New(time.Now().Add(n.nseExpiration))
+
+	unregisterNSE := resp.Clone()
 
 	timer := time.AfterFunc(n.nseExpiration, func() {
 		unregisterCtx, cancel := context.WithTimeout(extend.WithValuesFromContext(context.Background(), ctx), n.nseExpiration)
 		defer cancel()
-		_, _ = next.NetworkServiceEndpointRegistryServer(unregisterCtx).Unregister(unregisterCtx, r.Clone())
+		_, _ = next.NetworkServiceEndpointRegistryServer(unregisterCtx).Unregister(unregisterCtx, unregisterNSE)
 	})
 	if t, load := n.timers.LoadOrStore(nse.Name, timer); load {
 		timer.Stop()
+		t.Stop()
 		t.Reset(n.nseExpiration)
 	}
 
-	return r, nil
+	return resp, nil
 }
 
 func (n *nseServer) Find(query *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
