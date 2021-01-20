@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,46 +14,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package interpose provides NetworkServiceRegistryServer that registers local Endpoints
-// and adds them to Map
 package interpose
 
 import (
 	"context"
-	"strings"
-
-	"google.golang.org/grpc"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"google.golang.org/grpc"
+
 	"github.com/networkservicemesh/api/pkg/api/registry"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
-type interposeClient struct {
+type interposeRegistryClient struct{}
+
+// NewNetworkServiceEndpointRegistryClient - creates a Client that will replace any passed endpoint with CrossConnect NSE name for proper registration
+func NewNetworkServiceEndpointRegistryClient() registry.NetworkServiceEndpointRegistryClient {
+	return &interposeRegistryClient{}
 }
 
-func (u *interposeClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	if !strings.HasPrefix(in.Name, interposeNSEName) {
-		in.Name = interposeNSEName + in.Name
+func (rc *interposeRegistryClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+	if !Is(in.Name) {
+		in.Name = interposeName(in.Name)
 	}
 	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)
 }
 
-func (u *interposeClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
+func (rc *interposeRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
 	return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, in, opts...)
 }
 
-func (u *interposeClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
-	if !strings.HasPrefix(in.Name, interposeNSEName) {
-		in.Name = interposeNSEName + in.Name
+func (rc *interposeRegistryClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
+	if !Is(in.Name) {
+		in.Name = interposeName(in.Name)
 	}
 	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
 }
 
-// NewNetworkServiceEndpointRegistryClient - creates a Client that will replace any passed endpoint with CrossConnect NSE name for proper registration
-func NewNetworkServiceEndpointRegistryClient() registry.NetworkServiceEndpointRegistryClient {
-	return &interposeClient{}
-}
-
-var _ registry.NetworkServiceEndpointRegistryClient = (*interposeClient)(nil)
+var _ registry.NetworkServiceEndpointRegistryClient = (*interposeRegistryClient)(nil)
