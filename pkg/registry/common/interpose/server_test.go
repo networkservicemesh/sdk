@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,49 +14,113 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package interpose_test define a tests for cross connect NSE chain element
 package interpose_test
 
 import (
 	"context"
 	"testing"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
-
-	adapters2 "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
-	next_reg "github.com/networkservicemesh/sdk/pkg/registry/core/next"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
+	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/stretchr/testify/require"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 )
 
-func TestCrossNSERegister(t *testing.T) {
-	var crossMap stringurl.Map
-	server := interpose.NewNetworkServiceRegistryServer(&crossMap)
+const (
+	namePrefix     = "interpose-nse#"
+	name           = "nse"
+	url            = "tcp://0.0.0.0"
+	commonResponse = "response"
+)
 
-	regClient := next_reg.NewNetworkServiceEndpointRegistryClient(interpose.NewNetworkServiceEndpointRegistryClient(), adapters2.NetworkServiceEndpointServerToClient(server))
-	reg, err := regClient.Register(context.Background(), &registry.NetworkServiceEndpoint{
-		Name: "cross-nse",
-		Url:  "test:0",
-	})
-	require.Nil(t, err)
-	require.Greater(t, len(reg.Name), len("cross-connect-nse#"))
-
-	_, err = server.Unregister(context.Background(), reg)
-	require.Nil(t, err)
+var samples = []struct {
+	name             string
+	in, out          *registry.NetworkServiceEndpoint
+	isInMap, failure bool
+}{
+	{
+		name: "interpose NSE",
+		in: &registry.NetworkServiceEndpoint{
+			Name: namePrefix + name,
+			Url:  url,
+		},
+		out: &registry.NetworkServiceEndpoint{
+			Name: namePrefix + name,
+			Url:  url,
+		},
+		isInMap: true,
+	},
+	{
+		name: "common NSE",
+		in: &registry.NetworkServiceEndpoint{
+			Name: name,
+		},
+		out: &registry.NetworkServiceEndpoint{
+			Name: commonResponse,
+		},
+	},
+	{
+		name: "invalid NSE",
+		in: &registry.NetworkServiceEndpoint{
+			Name: namePrefix + name,
+		},
+		isInMap: false,
+		failure: true,
+	},
 }
 
-func TestCrossNSERegisterInvalidURL(t *testing.T) {
-	var crossMap stringurl.Map
-	server := interpose.NewNetworkServiceRegistryServer(&crossMap)
+func TestInterposeRegistryServer(t *testing.T) {
+	for i := range samples {
+		sample := samples[i]
+		t.Run(sample.name, func(t *testing.T) {
+			var crossMap stringurl.Map
+			server := next.NewNetworkServiceEndpointRegistryServer(
+				interpose.NewNetworkServiceRegistryServer(&crossMap),
+				new(testRegistry),
+			)
 
-	regClient := next_reg.NewNetworkServiceEndpointRegistryClient(interpose.NewNetworkServiceEndpointRegistryClient(), adapters2.NetworkServiceEndpointServerToClient(server))
-	req, err := regClient.Register(context.Background(), &registry.NetworkServiceEndpoint{
-		Name: "cross-nse",
-		Url:  "ht% 20", // empty URL error
-	})
-	require.NotNil(t, err)
-	require.Nil(t, req)
+			reg, err := server.Register(context.Background(), sample.in)
+			if sample.failure {
+				require.Error(t, err)
+
+				_, ok := crossMap.Load(sample.in.Name)
+				require.False(t, ok)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, sample.out.String(), reg.String())
+
+				if sample.isInMap {
+					u, ok := crossMap.Load(sample.in.Name)
+					require.True(t, ok)
+					require.Equal(t, sample.in.Url, u.String())
+				} else {
+					_, ok := crossMap.Load(sample.in.Name)
+					require.False(t, ok)
+				}
+
+				_, err := server.Unregister(context.Background(), reg)
+				require.NoError(t, err)
+
+				_, ok := crossMap.Load(sample.in.Name)
+				require.False(t, ok)
+			}
+		})
+	}
+}
+
+type testRegistry struct {
+	registry.NetworkServiceEndpointRegistryServer
+}
+
+func (r *testRegistry) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	in.Name = commonResponse
+	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
+}
+
+func (r *testRegistry) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 }
