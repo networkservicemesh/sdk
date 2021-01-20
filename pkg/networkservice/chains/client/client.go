@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020-2021 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -26,7 +26,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanismtranslation"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
@@ -52,7 +51,14 @@ import (
 //                        If onHeal nil, onHeal will be pointed to the returned networkservice.NetworkServiceClient
 //             - cc - grpc.ClientConnInterface for the endpoint to which this client should connect
 //             - additionalFunctionality - any additional NetworkServiceClient chain elements to be included in the chain
-func NewClient(ctx context.Context, name string, onHeal *networkservice.NetworkServiceClient, tokenGenerator token.GeneratorFunc, cc grpc.ClientConnInterface, additionalFunctionality ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
+func NewClient(
+	ctx context.Context,
+	name string,
+	onHeal *networkservice.NetworkServiceClient,
+	tokenGenerator token.GeneratorFunc,
+	cc grpc.ClientConnInterface,
+	additionalFunctionality ...networkservice.NetworkServiceClient,
+) networkservice.NetworkServiceClient {
 	var rv networkservice.NetworkServiceClient
 	if onHeal == nil {
 		onHeal = &rv
@@ -74,19 +80,28 @@ func NewClient(ctx context.Context, name string, onHeal *networkservice.NetworkS
 	return rv
 }
 
-// NewCrossConnectClientFactory - returns a (2.) case func(cc grpc.ClientConnInterface) NSM client factory.
-func NewCrossConnectClientFactory(name string, onHeal *networkservice.NetworkServiceClient, tokenGenerator token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceClient) func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+// Supplier is a type for networkservice.NetworkServiceClient supplier function
+type Supplier func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient
+
+// NewClientFactory - returns a (2.), (3.) cases func(cc grpc.ClientConnInterface) NSM client factory.
+func NewClientFactory(
+	name string,
+	onHeal *networkservice.NetworkServiceClient,
+	tokenGenerator token.GeneratorFunc,
+	additionalFunctionalitySuppliers ...Supplier,
+) func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 	return func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-		return chain.NewNetworkServiceClient(
-			mechanismtranslation.NewClient(),
-			NewClient(ctx, name, onHeal, tokenGenerator, cc, additionalFunctionality...),
-		)
+		var additionalFunctionality []networkservice.NetworkServiceClient
+		for _, supplier := range additionalFunctionalitySuppliers {
+			additionalFunctionality = append(additionalFunctionality, supplier(ctx, cc))
+		}
+		return NewClient(ctx, name, onHeal, tokenGenerator, cc, additionalFunctionality...)
 	}
 }
 
-// NewClientFactory - returns a (3.) case func(cc grpc.ClientConnInterface) NSM client factory.
-func NewClientFactory(name string, onHeal *networkservice.NetworkServiceClient, tokenGenerator token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceClient) func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-	return func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-		return NewClient(ctx, name, onHeal, tokenGenerator, cc, additionalFunctionality...)
+// FromConstructor is a common networkservice.NetworkServiceClient constructor wrapper to Supplier
+func FromConstructor(constructor func() networkservice.NetworkServiceClient) Supplier {
+	return func(_ context.Context, _ grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+		return constructor()
 	}
 }

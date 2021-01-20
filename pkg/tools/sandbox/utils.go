@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -82,22 +82,37 @@ func NewEndpoint(ctx context.Context, nse *registry.NetworkServiceEndpoint, gene
 }
 
 // NewClient is a client.NewClient over *url.URL with some fields preset for testing
-func NewClient(ctx context.Context, generatorFunc token.GeneratorFunc, connectTo *url.URL, additionalFunctionality ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
+func NewClient(
+	ctx context.Context,
+	generatorFunc token.GeneratorFunc,
+	connectTo *url.URL,
+	additionalFunctionality ...networkservice.NetworkServiceClient,
+) networkservice.NetworkServiceClient {
+	var suppliers []client.Supplier
+	for i := range additionalFunctionality {
+		c := additionalFunctionality[i]
+		suppliers = append(suppliers, client.FromConstructor(func() networkservice.NetworkServiceClient {
+			return c
+		}))
+	}
 	return clienturl.NewClient(
 		clienturlctx.WithClientURL(ctx, connectTo),
 		client.NewClientFactory(
 			fmt.Sprintf("nsc-%v", uuid.New().String()),
 			nil,
 			generatorFunc,
-			additionalFunctionality...),
+			suppliers...),
 		append(spanhelper.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...)
 }
 
-// NewCrossConnectClientFactory is a client.NewCrossConnectClientFactory with some fields preset for testing
-func NewCrossConnectClientFactory(generatorFunc token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceClient) func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-	return client.NewCrossConnectClientFactory(
+// NewClientFactory is a client.NewCrossConnectClientFactory with some fields preset for testing
+func NewClientFactory(
+	generatorFunc token.GeneratorFunc,
+	additionalFunctionalitySuppliers ...client.Supplier,
+) func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+	return client.NewClientFactory(
 		fmt.Sprintf("nsc-%v", uuid.New().String()),
 		nil,
 		generatorFunc,
-		additionalFunctionality...)
+		additionalFunctionalitySuppliers...)
 }
