@@ -73,6 +73,30 @@ func (j *groupLogger) Fatalf(format string, v ...interface{}) {
 	}
 }
 
+func (j *groupLogger) Debug(v ...interface{}) {
+	for _, l := range j.loggers {
+		l.Debug(v...)
+	}
+}
+
+func (j *groupLogger) Debugf(format string, v ...interface{}) {
+	for _, l := range j.loggers {
+		l.Debugf(format, v...)
+	}
+}
+
+func (j *groupLogger) Trace(v ...interface{}) {
+	for _, l := range j.loggers {
+		l.Trace(v...)
+	}
+}
+
+func (j *groupLogger) Tracef(format string, v ...interface{}) {
+	for _, l := range j.loggers {
+		l.Tracef(format, v...)
+	}
+}
+
 func (j *groupLogger) Object(k, v interface{}) {
 	for _, l := range j.loggers {
 		l.Object(k, v)
