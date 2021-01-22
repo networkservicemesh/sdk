@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Cisco and/or its affiliates.
 //
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,12 +20,10 @@ package checkerror_test
 
 import (
 	"context"
-	"io/ioutil"
 	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
@@ -33,7 +33,6 @@ import (
 )
 
 func TestCheckErrorServer_Nil(t *testing.T) {
-	logrus.SetOutput(ioutil.Discard)
 	request := &networkservice.NetworkServiceRequest{}
 	server := chain.NewNetworkServiceServer(
 		checkerror.NewServer(t, true),
@@ -45,7 +44,6 @@ func TestCheckErrorServer_Nil(t *testing.T) {
 }
 
 func TestCheckErrorServer_NotNil(t *testing.T) {
-	logrus.SetOutput(ioutil.Discard)
 	request := &networkservice.NetworkServiceRequest{}
 	server := chain.NewNetworkServiceServer(
 		checkerror.NewServer(t, false),
@@ -57,7 +55,6 @@ func TestCheckErrorServer_NotNil(t *testing.T) {
 }
 
 func TestCheckErrorServer_SpecificError(t *testing.T) {
-	logrus.SetOutput(ioutil.Discard)
 	request := &networkservice.NetworkServiceRequest{}
 	err := errors.New("testerror")
 	server := chain.NewNetworkServiceServer(

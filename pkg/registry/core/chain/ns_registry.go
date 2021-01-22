@@ -1,6 +1,6 @@
 // Copyright (c) 2020 Cisco Systems, Inc.
 //
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -20,7 +20,6 @@ package chain
 
 import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/sirupsen/logrus"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setlogoption"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
@@ -29,26 +28,17 @@ import (
 
 // NewNetworkServiceRegistryServer - creates a chain of servers
 func NewNetworkServiceRegistryServer(servers ...registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
-	if logrus.GetLevel() == logrus.TraceLevel {
-		return next.NewWrappedNetworkServiceRegistryServer(trace.NewNetworkServiceRegistryServer, servers...)
-	}
-	return next.NewNetworkServiceRegistryServer(servers...)
+	return next.NewWrappedNetworkServiceRegistryServer(trace.NewNetworkServiceRegistryServer, servers...)
 }
 
 // NewNamedNetworkServiceRegistryServer - creates a chain of servers with name log option if tracing enabled
 func NewNamedNetworkServiceRegistryServer(name string, servers ...registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
-	if logrus.GetLevel() == logrus.TraceLevel {
-		return next.NewNetworkServiceRegistryServer(
-			setlogoption.NewNetworkServiceRegistryServer(map[string]string{"name": name}),
-			next.NewWrappedNetworkServiceRegistryServer(trace.NewNetworkServiceRegistryServer, servers...))
-	}
-	return next.NewNetworkServiceRegistryServer(servers...)
+	return next.NewNetworkServiceRegistryServer(
+		setlogoption.NewNetworkServiceRegistryServer(map[string]string{"name": name}),
+		next.NewWrappedNetworkServiceRegistryServer(trace.NewNetworkServiceRegistryServer, servers...))
 }
 
 // NewNetworkServiceRegistryClient - creates a chain of clients
 func NewNetworkServiceRegistryClient(clients ...registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
-	if logrus.GetLevel() == logrus.TraceLevel {
-		return next.NewWrappedNetworkServiceRegistryClient(trace.NewNetworkServiceRegistryClient, clients...)
-	}
-	return next.NewNetworkServiceRegistryClient(clients...)
+	return next.NewWrappedNetworkServiceRegistryClient(trace.NewNetworkServiceRegistryClient, clients...)
 }

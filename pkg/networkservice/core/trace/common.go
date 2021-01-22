@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Cisco Systems, Inc.
 //
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,40 +19,41 @@
 package trace
 
 import (
+	"context"
 	"reflect"
 	"strconv"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
 )
 
-func logRequest(span spanhelper.SpanHelper, request proto.Message) {
-	connInfo, ok := trace(span.Context())
+func logRequest(ctx context.Context, request proto.Message) {
+	connInfo, ok := trace(ctx)
 	if ok && !proto.Equal(connInfo.Request, request) {
 		if connInfo.Request != nil && connInfo.Request.ProtoReflect().Descriptor().FullName() == request.ProtoReflect().Descriptor().FullName() {
 			requestDiff, hadChanges := Diff(connInfo.Request.ProtoReflect(), request.ProtoReflect())
 			if hadChanges {
-				span.LogObject("request-diff", requestDiff)
+				logger.Log(ctx).Object("request-diff", requestDiff)
 			}
 		} else {
-			span.LogObject("request", request)
+			logger.Log(ctx).Object("request", request)
 		}
 		connInfo.Request = proto.Clone(request)
 	}
 }
 
-func logResponse(span spanhelper.SpanHelper, response proto.Message) {
-	connInfo, ok := trace(span.Context())
+func logResponse(ctx context.Context, response proto.Message) {
+	connInfo, ok := trace(ctx)
 	if ok && !proto.Equal(connInfo.Response, response) {
 		if connInfo.Response != nil {
 			responseDiff, changed := Diff(connInfo.Response.ProtoReflect(), response.ProtoReflect())
 			if changed {
-				span.LogObject("response-diff", responseDiff)
+				logger.Log(ctx).Object("response-diff", responseDiff)
 			}
 		} else {
-			span.LogObject("response", response)
+			logger.Log(ctx).Object("response", response)
 		}
 		connInfo.Response = proto.Clone(response)
 		return

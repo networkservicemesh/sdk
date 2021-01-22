@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Cisco Systems, Inc.
 //
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,7 +27,8 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/typeutils"
 )
 
@@ -42,14 +45,12 @@ func NewNetworkServiceClient(traced networkservice.NetworkServiceClient) network
 }
 
 func (t *traceClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	ctx = withTrace(ctx)
-	// Create a new span
+	// Create a new logger
 	operation := typeutils.GetFuncName(t.traced, "Request")
-	span := spanhelper.FromContext(ctx, operation)
-	defer span.Finish()
+	ctx, finish := withLog(ctx, operation)
+	defer finish()
 
-	ctx = withLog(span.Context(), span.Logger())
-	logRequest(span, request)
+	logRequest(ctx, request)
 
 	// Actually call the next
 	rv, err := t.traced.Request(ctx, request, opts...)
@@ -57,36 +58,33 @@ func (t *traceClient) Request(ctx context.Context, request *networkservice.Netwo
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
 			err = errors.Wrapf(err, "Error returned from %s", operation)
-			span.LogErrorf("%+v", err)
+			logger.Log(ctx).Errorf("%+v", err)
 			return nil, err
 		}
-		span.LogErrorf("%v", err)
+		logger.Log(ctx).Errorf("%v", err)
 		return nil, err
 	}
 
-	logResponse(span, rv)
+	logResponse(ctx, rv)
 	return rv, err
 }
 
 func (t *traceClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	ctx = withTrace(ctx)
-	// Create a new span
+	// Create a new logger
 	operation := typeutils.GetFuncName(t.traced, "Close")
-	span := spanhelper.FromContext(ctx, operation)
-	defer span.Finish()
-	// Make sure we log to span
-	ctx = withLog(span.Context(), span.Logger())
+	ctx, finish := withLog(ctx, operation)
+	defer finish()
 
-	logRequest(span, conn)
+	logRequest(ctx, conn)
 	rv, err := t.traced.Close(ctx, conn, opts...)
 
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
 			err = errors.Wrapf(err, "Error returned from %s", operation)
-			span.LogErrorf("%+v", err)
+			logger.Log(ctx).Errorf("%+v", err)
 			return nil, err
 		}
-		span.LogErrorf("%v", err)
+		logger.Log(ctx).Errorf("%v", err)
 		return nil, err
 	}
 	return rv, err

@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -22,8 +22,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/credentials"
@@ -78,7 +79,7 @@ func TestTimeoutServer_Request(t *testing.T) {
 
 	connServer := newConnectionsServer(t)
 
-	_, err := testClient(ctx, connServer, tokenTimeout).Request(ctx, &networkservice.NetworkServiceRequest{})
+	_, err := testClient(ctx, connServer, tokenTimeout).Request(logger.WithLog(ctx), &networkservice.NetworkServiceRequest{})
 	require.NoError(t, err)
 	require.Condition(t, connServer.validator(1, 0))
 
@@ -93,6 +94,7 @@ func TestTimeoutServer_Close_BeforeTimeout(t *testing.T) {
 
 	client := testClient(ctx, connServer, tokenTimeout)
 
+	ctx = logger.WithLog(ctx)
 	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{})
 	require.NoError(t, err)
 	require.Condition(t, connServer.validator(1, 0))
@@ -113,6 +115,7 @@ func TestTimeoutServer_Close_AfterTimeout(t *testing.T) {
 
 	client := testClient(ctx, connServer, tokenTimeout)
 
+	ctx = logger.WithLog(ctx)
 	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{})
 	require.NoError(t, err)
 	require.Condition(t, connServer.validator(1, 0))
@@ -147,14 +150,11 @@ func TestTimeoutServer_StressTest(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	logLevel := logrus.GetLevel()
-	logrus.SetLevel(logrus.WarnLevel)
-	defer logrus.SetLevel(logLevel)
-
 	connServer := newConnectionsServer(t)
 
 	client := testClient(ctx, connServer, 0)
 
+	ctx = logger.WithLog(ctx)
 	wg := new(sync.WaitGroup)
 	wg.Add(parallelCount)
 	for i := 0; i < parallelCount; i++ {
@@ -196,12 +196,7 @@ func (s *connectionsServer) validator(open, closed int) func() bool {
 			}
 		}
 
-		if connsOpen != open {
-			logrus.Warnf("open count is not equal: expected %v != actual %v", open, connsOpen)
-			return false
-		}
-		if connsClosed != closed {
-			logrus.Warnf("closed count is not equal: expected %v != actual %v", closed, connsClosed)
+		if connsOpen != open || connsClosed != closed {
 			return false
 		}
 

@@ -22,10 +22,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
@@ -34,6 +35,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -68,6 +70,7 @@ func TestRefreshClient_StopRefreshAtClose(t *testing.T) {
 		cloneClient,
 	)
 
+	ctx = logger.WithLog(ctx)
 	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "id",
@@ -102,6 +105,7 @@ func TestRefreshClient_RestartsRefreshAtAnotherRequest(t *testing.T) {
 		cloneClient,
 	)
 
+	ctx = logger.WithLog(ctx)
 	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "id",

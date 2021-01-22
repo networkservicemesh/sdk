@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
-//
 // Copyright (c) 2020 Cisco and/or its affiliates.
+//
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -28,6 +28,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
 
 	"github.com/stretchr/testify/require"
@@ -35,8 +39,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
 const defaultPrefixesFileName = "excluded_prefixes.yaml"
@@ -51,12 +53,12 @@ func TestNewExcludedPrefixesService(t *testing.T) {
 	configPath := filepath.Join(dir, defaultPrefixesFileName)
 	require.NoError(t, ioutil.WriteFile(configPath, []byte(testConfig), os.ModePerm))
 
-	chain := next.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)), checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
+	server := chain.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)), checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
 		require.Equal(t, request.Connection.Context.IpContext.ExcludedPrefixes, prefixes)
 	}))
 	req := request()
 
-	_, err := chain.Request(context.Background(), req)
+	_, err := server.Request(logger.WithLog(context.Background()), req)
 	require.NoError(t, err)
 }
 
@@ -73,14 +75,14 @@ func TestCheckReloadedPrefixes(t *testing.T) {
 
 	defer func() { _ = os.Remove(configPath) }()
 
-	chain := next.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)))
+	server := chain.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)))
 	req := request()
 
 	err := ioutil.WriteFile(configPath, []byte(testConfig), 0600)
 	require.NoError(t, err)
 
 	require.Eventually(t, func() bool {
-		_, err = chain.Request(context.Background(), req)
+		_, err = server.Request(logger.WithLog(context.Background()), req)
 		require.NoError(t, err)
 		return reflect.DeepEqual(req.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes(), prefixes)
 	}, time.Second*15, time.Millisecond*100)
@@ -116,7 +118,7 @@ func TestUniqueRequestPrefixes(t *testing.T) {
 	require.NoError(t, ioutil.WriteFile(configPath, []byte(testConfig), os.ModePerm))
 	defer func() { _ = os.Remove(configPath) }()
 
-	chain := next.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)), checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
+	server := chain.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)), checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
 		require.Equal(t, uniquePrefixes, request.Connection.Context.IpContext.ExcludedPrefixes)
 	}))
 	req := &networkservice.NetworkServiceRequest{
@@ -129,7 +131,7 @@ func TestUniqueRequestPrefixes(t *testing.T) {
 		},
 	}
 
-	_, err := chain.Request(context.Background(), req)
+	_, err := server.Request(logger.WithLog(context.Background()), req)
 	require.NoError(t, err)
 }
 
@@ -138,11 +140,11 @@ func testWaitForFile(t *testing.T, filePath string) {
 
 	testConfig := strings.Join(append([]string{"prefixes:"}, prefixes...), "\n- ")
 
-	chain := next.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(),
+	server := chain.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(),
 		excludedprefixes.WithConfigPath(filePath)))
 
 	req := request()
-	_, err := chain.Request(context.Background(), req)
+	_, err := server.Request(logger.WithLog(context.Background()), req)
 	require.NoError(t, err)
 	require.Empty(t, req.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes())
 
@@ -150,7 +152,7 @@ func testWaitForFile(t *testing.T, filePath string) {
 
 	defer func() { _ = os.Remove(filePath) }()
 	require.Eventually(t, func() bool {
-		_, reqErr := chain.Request(context.Background(), req)
+		_, reqErr := server.Request(logger.WithLog(context.Background()), req)
 		require.NoError(t, reqErr)
 		return reflect.DeepEqual(req.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes(), prefixes)
 	}, time.Second, time.Millisecond*100)
@@ -160,7 +162,7 @@ func testWaitForFile(t *testing.T, filePath string) {
 
 	require.Eventually(t, func() bool {
 		req := request()
-		_, reqErr := chain.Request(context.Background(), req)
+		_, reqErr := server.Request(logger.WithLog(context.Background()), req)
 		require.NoError(t, reqErr)
 		return len(req.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes()) == 0
 	}, time.Second, time.Millisecond*100)

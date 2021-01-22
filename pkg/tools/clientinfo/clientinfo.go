@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,7 +21,7 @@ import (
 	"context"
 	"os"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/core/trace"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 )
 
 const (
@@ -44,12 +44,12 @@ func AddClientInfo(ctx context.Context, labels map[string]string) {
 	for envName, labelName := range names {
 		value, exists := os.LookupEnv(envName)
 		if !exists {
-			trace.Log(ctx).Warningf("Environment variable %s is not set. Skipping.", envName)
+			logger.Log(ctx).Warnf("Environment variable %s is not set. Skipping.", envName)
 			continue
 		}
 		oldValue, isPresent := labels[labelName]
 		if isPresent {
-			trace.Log(ctx).Warningf("The label %s was already assigned to %s. Overwriting.", labelName, oldValue)
+			logger.Log(ctx).Warnf("The label %s was already assigned to %s. Overwriting.", labelName, oldValue)
 		}
 		labels[labelName] = value
 	}

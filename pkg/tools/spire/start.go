@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Cisco and/or its affiliates.
 //
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,13 +34,29 @@ import (
 	"github.com/edwarnicke/exechelper"
 	"github.com/sirupsen/logrus"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
+
+type contextKeyType string
 
 const (
+	logrusEntryKey contextKeyType = "LogrusEntry"
+
 	healthCheckTimeout = 10 * time.Second
 )
+
+func withLog(parent context.Context) context.Context {
+	entry := logrus.WithTime(time.Now())
+	return context.WithValue(parent, logrusEntryKey, entry)
+}
+
+func logrusEntry(ctx context.Context) *logrus.Entry {
+	if entryValue := ctx.Value(logrusEntryKey); entryValue != nil {
+		if entry := entryValue.(*logrus.Entry); entry != nil {
+			return entry
+		}
+	}
+	return logrus.WithTime(time.Now())
+}
 
 // AddEntry - adds an entry to the spire server for parentID, spiffeID, and selector
 //            parentID is usually the same as the agentID provided to Start()
@@ -46,8 +64,8 @@ func AddEntry(ctx context.Context, parentID, spiffeID, selector string) error {
 	cmdStr := "spire-server entry create -parentID %s -spiffeID %s -selector %s -registrationUDSPath %s/spire-registration.sock"
 	cmdStr = fmt.Sprintf(cmdStr, parentID, spiffeID, selector, spireRoot)
 	return exechelper.Run(cmdStr,
-		exechelper.WithStdout(log.Entry(ctx).WithField("cmd", cmdStr).WriterLevel(logrus.InfoLevel)),
-		exechelper.WithStderr(log.Entry(ctx).WithField("cmd", cmdStr).WriterLevel(logrus.WarnLevel)),
+		exechelper.WithStdout(logrusEntry(ctx).WithField("cmd", cmdStr).WriterLevel(logrus.InfoLevel)),
+		exechelper.WithStderr(logrusEntry(ctx).WithField("cmd", cmdStr).WriterLevel(logrus.WarnLevel)),
 	)
 }
 
@@ -56,7 +74,7 @@ var spireRoot string = ""
 // Start - start a spire-server and spire-agent with the given agentId
 func Start(options ...Option) <-chan error {
 	opt := &option{
-		ctx:     context.Background(),
+		ctx:     withLog(context.Background()),
 		agentID: "spiffe://example.org/agent",
 	}
 	for _, o := range options {
@@ -92,8 +110,8 @@ func Start(options ...Option) <-chan error {
 	spireServerErrCh := exechelper.Start(spireCmd,
 		exechelper.WithDir(spireRoot),
 		exechelper.WithContext(opt.ctx),
-		exechelper.WithStdout(log.Entry(opt.ctx).WithField("cmd", "spire-server run").WriterLevel(logrus.InfoLevel)),
-		exechelper.WithStderr(log.Entry(opt.ctx).WithField("cmd", "spire-server run").WriterLevel(logrus.WarnLevel)),
+		exechelper.WithStdout(logrusEntry(opt.ctx).WithField("cmd", "spire-server run").WriterLevel(logrus.InfoLevel)),
+		exechelper.WithStderr(logrusEntry(opt.ctx).WithField("cmd", "spire-server run").WriterLevel(logrus.WarnLevel)),
 	)
 	select {
 	case spireServerErr := <-spireServerErrCh:
@@ -106,8 +124,8 @@ func Start(options ...Option) <-chan error {
 	// Health check the Spire Server
 	if err = execHealthCheck(opt.ctx,
 		fmt.Sprintf("spire-server healthcheck -registrationUDSPath %s/spire-registration.sock", spireRoot),
-		exechelper.WithStdout(log.Entry(opt.ctx).WithField("cmd", "spire-server healthcheck").WriterLevel(logrus.InfoLevel)),
-		exechelper.WithStderr(log.Entry(opt.ctx).WithField("cmd", "spire-server healthcheck").WriterLevel(logrus.WarnLevel)),
+		exechelper.WithStdout(logrusEntry(opt.ctx).WithField("cmd", "spire-server healthcheck").WriterLevel(logrus.InfoLevel)),
+		exechelper.WithStderr(logrusEntry(opt.ctx).WithField("cmd", "spire-server healthcheck").WriterLevel(logrus.WarnLevel)),
 	); err != nil {
 		errCh <- err
 		close(errCh)
@@ -127,8 +145,8 @@ func Start(options ...Option) <-chan error {
 	cmdStr := "spire-server token generate -spiffeID %s -registrationUDSPath %s/spire-registration.sock"
 	cmdStr = fmt.Sprintf(cmdStr, opt.agentID, spireRoot)
 	outputBytes, err := exechelper.Output(cmdStr,
-		exechelper.WithStdout(log.Entry(opt.ctx).WithField("cmd", cmdStr).WriterLevel(logrus.InfoLevel)),
-		exechelper.WithStderr(log.Entry(opt.ctx).WithField("cmd", cmdStr).WriterLevel(logrus.WarnLevel)),
+		exechelper.WithStdout(logrusEntry(opt.ctx).WithField("cmd", cmdStr).WriterLevel(logrus.InfoLevel)),
+		exechelper.WithStderr(logrusEntry(opt.ctx).WithField("cmd", cmdStr).WriterLevel(logrus.WarnLevel)),
 	)
 	if err != nil {
 		errCh <- err
@@ -142,8 +160,8 @@ func Start(options ...Option) <-chan error {
 	spireAgentErrCh := exechelper.Start("spire-agent run"+" -config "+spireAgentConfFilename+" -joinToken "+spireToken,
 		exechelper.WithDir(spireRoot),
 		exechelper.WithContext(opt.ctx),
-		exechelper.WithStdout(log.Entry(opt.ctx).WithField("cmd", "spire-agent run").WriterLevel(logrus.InfoLevel)),
-		exechelper.WithStderr(log.Entry(opt.ctx).WithField("cmd", "spire-agent run").WriterLevel(logrus.WarnLevel)),
+		exechelper.WithStdout(logrusEntry(opt.ctx).WithField("cmd", "spire-agent run").WriterLevel(logrus.InfoLevel)),
+		exechelper.WithStderr(logrusEntry(opt.ctx).WithField("cmd", "spire-agent run").WriterLevel(logrus.WarnLevel)),
 	)
 	select {
 	case spireAgentErr := <-spireAgentErrCh:
@@ -156,8 +174,8 @@ func Start(options ...Option) <-chan error {
 	// Health check the Spire Agent
 	if err = execHealthCheck(opt.ctx,
 		fmt.Sprintf("spire-agent healthcheck -socketPath %s", spireSocketPath),
-		exechelper.WithStdout(log.Entry(opt.ctx).WithField("cmd", "spire-agent healthcheck").WriterLevel(logrus.InfoLevel)),
-		exechelper.WithStderr(log.Entry(opt.ctx).WithField("cmd", "spire-agent healthcheck").WriterLevel(logrus.WarnLevel)),
+		exechelper.WithStdout(logrusEntry(opt.ctx).WithField("cmd", "spire-agent healthcheck").WriterLevel(logrus.InfoLevel)),
+		exechelper.WithStderr(logrusEntry(opt.ctx).WithField("cmd", "spire-agent healthcheck").WriterLevel(logrus.WarnLevel)),
 	); err != nil {
 		errCh <- err
 		close(errCh)
@@ -206,7 +224,7 @@ func writeDefaultConfigFiles(ctx context.Context, spireRoot string) (string, err
 	for configName, contents := range configFiles {
 		filename := path.Join(spireRoot, configName)
 		if _, err := os.Stat(filename); os.IsNotExist(err) {
-			log.Entry(ctx).Infof("Configuration file: %q not found, using defaults", filename)
+			logrusEntry(ctx).Infof("Configuration file: %q not found, using defaults", filename)
 			if err := os.MkdirAll(path.Dir(filename), 0700); err != nil {
 				return "", err
 			}

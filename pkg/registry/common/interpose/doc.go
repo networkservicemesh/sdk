@@ -1,5 +1,3 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
-//
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -16,23 +14,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trace
-
-import (
-	"context"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
-	"github.com/networkservicemesh/sdk/pkg/tools/logger/tracelogger"
-)
-
-// withLog - provides corresponding logger in context
-func withLog(parent context.Context, operation string) (c context.Context, f func()) {
-	if parent == nil {
-		panic("cannot create context from nil parent")
-	}
-
-	if logger.IsTracingEnabled() {
-		return tracelogger.WithLog(parent, operation)
-	}
-	return logger.WithLog(parent), func() {}
-}
+// Package interpose provides NSE Registry Server, Client for registering interpose NSE
+package interpose

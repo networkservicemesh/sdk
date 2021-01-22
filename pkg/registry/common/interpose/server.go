@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,78 +14,62 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package interpose provides NetworkServiceRegistryServer that registers local Endpoints
-// and adds them to Map
 package interpose
 
 import (
 	"context"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
-
 	"net/url"
-	"strings"
-
-	"github.com/google/uuid"
-	"github.com/pkg/errors"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
+
 	"github.com/networkservicemesh/api/pkg/api/registry"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 )
 
-// interposeNSEName - a common prefix for all registered cross NSEs
-const interposeNSEName = "interpose-nse#"
-
-type interposeRegistry struct {
+type interposeRegistryServer struct {
 	endpoints *stringurl.Map
-}
-
-// Is returns true if passed name contains interpose identity
-func Is(name string) bool {
-	return strings.HasPrefix(name, interposeNSEName)
-}
-
-func (l *interposeRegistry) Register(ctx context.Context, request *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	if Is(request.Name) {
-		endpointURL, err := url.Parse(request.Url)
-		if err != nil {
-			return nil, err
-		}
-		if endpointURL == nil {
-			return nil, errors.New("invalid endpoint URL passed with context")
-		}
-
-		// Generate uniq name for interpose endpoint, since we use it in maps.
-		request.Name = interposeNSEName + uuid.New().String()
-
-		u, err := url.Parse(request.Url)
-		if err != nil {
-			return nil, errors.Wrapf(err, "Cannot register cross nse with passed URL")
-		}
-		l.endpoints.LoadOrStore(request.Name, u)
-		return request, nil
-	}
-
-	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, request)
-}
-
-func (l *interposeRegistry) Find(query *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
-	// No need to modify find logic.
-	return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(query, s)
-}
-
-func (l *interposeRegistry) Unregister(ctx context.Context, request *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	if strings.HasPrefix(request.Name, interposeNSEName) {
-		l.endpoints.Delete(request.Name)
-		return &empty.Empty{}, nil
-	}
-	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, request)
 }
 
 // NewNetworkServiceRegistryServer - creates a NetworkServiceRegistryServer that registers local Cross connect Endpoints
 //				and adds them to Map
 func NewNetworkServiceRegistryServer(nses *stringurl.Map) registry.NetworkServiceEndpointRegistryServer {
-	return &interposeRegistry{endpoints: nses}
+	return &interposeRegistryServer{endpoints: nses}
 }
+
+func (rs *interposeRegistryServer) Register(ctx context.Context, request *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	if !Is(request.Name) {
+		return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, request)
+	}
+
+	u, err := url.Parse(request.Url)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot register cross NSE with passed URL: %s", request.Url)
+	}
+	if u.String() == "" {
+		return nil, errors.Errorf("cannot register cross NSE with passed URL: %s", request.Url)
+	}
+
+	rs.endpoints.LoadOrStore(request.Name, u)
+
+	return request, nil
+}
+
+func (rs *interposeRegistryServer) Find(query *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
+	// No need to modify find logic.
+	return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(query, s)
+}
+
+func (rs *interposeRegistryServer) Unregister(ctx context.Context, request *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	if !Is(request.Name) {
+		return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, request)
+	}
+
+	rs.endpoints.Delete(request.Name)
+
+	return new(empty.Empty), nil
+}
+
+var _ registry.NetworkServiceEndpointRegistryServer = (*interposeRegistryServer)(nil)

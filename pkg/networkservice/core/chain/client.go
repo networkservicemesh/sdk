@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Cisco Systems, Inc.
 //
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +20,6 @@ package chain
 
 import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/sirupsen/logrus"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
@@ -26,8 +27,5 @@ import (
 
 // NewNetworkServiceClient - chains together a list of networkservice.NetworkServiceClient with tracing
 func NewNetworkServiceClient(clients ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
-	if logrus.GetLevel() == logrus.TraceLevel {
-		return next.NewWrappedNetworkServiceClient(trace.NewNetworkServiceClient, clients...)
-	}
-	return next.NewNetworkServiceClient(clients...)
+	return next.NewWrappedNetworkServiceClient(trace.NewNetworkServiceClient, clients...)
 }

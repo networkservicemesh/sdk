@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
-//
 // Copyright (c) 2020 Cisco and/or its affiliates.
+//
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -22,7 +22,6 @@ import (
 	"net"
 	"testing"
 
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -76,7 +75,6 @@ func TestExtractPrefixes_1_ipv4(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, 20, len(newPrefixes))
 	require.Equal(t, 4, len(prefixes))
-	logrus.Printf("%v", newPrefixes)
 }
 
 func TestExtractPrefixes_1_ipv6(t *testing.T) {
@@ -91,7 +89,6 @@ func TestExtractPrefixes_1_ipv6(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, 200, len(newPrefixes))
 	require.Equal(t, 59, len(prefixes))
-	logrus.Printf("%v", newPrefixes)
 }
 
 func TestIntersect1(t *testing.T) {

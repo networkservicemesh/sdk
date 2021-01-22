@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Cisco Systems, Inc.
 //
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,13 +20,15 @@
 package jaeger
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"strconv"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/logger/logruslogger"
+
 	"github.com/opentracing/opentracing-go"
-	"github.com/sirupsen/logrus"
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/config"
 )
@@ -65,8 +69,9 @@ func InitJaeger(service string) io.Closer {
 	if !IsOpentracingEnabled() {
 		return &emptyCloser{}
 	}
+	_, log := logruslogger.New(context.Background())
 	if opentracing.IsGlobalTracerRegistered() {
-		logrus.Warningf("global opentracer is already initialized")
+		log.Warnf("global opentracer is already initialized")
 	}
 	cfg, err := config.FromEnv()
 	if err != nil {
@@ -92,10 +97,10 @@ func InitJaeger(service string) io.Closer {
 		cfg.Reporter.LogSpans = true
 	}
 
-	logrus.Infof("Creating logger from config: %v", cfg)
+	log.Infof("Creating logger from config: %v", cfg)
 	tracer, closer, err := cfg.NewTracer(config.Logger(jaeger.StdLogger))
 	if err != nil {
-		logrus.Errorf("ERROR: cannot init Jaeger: %v\n", err)
+		log.Errorf("ERROR: cannot init Jaeger: %v\n", err)
 		return &emptyCloser{}
 	}
 	opentracing.SetGlobalTracer(tracer)
