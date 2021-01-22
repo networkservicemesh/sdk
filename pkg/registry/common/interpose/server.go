@@ -34,9 +34,9 @@ type interposeRegistryServer struct {
 	nses *stringurl.Map
 }
 
-// NewNetworkServiceRegistryServer - creates a NetworkServiceRegistryServer that registers local Cross connect Endpoints
-//				and adds them to Map
-func NewNetworkServiceRegistryServer(nses *stringurl.Map) registry.NetworkServiceEndpointRegistryServer {
+// NewNetworkServiceEndpointRegistryServer - creates a NetworkServiceRegistryServer that registers local
+//                                           Cross connect Endpoints and adds them to Map
+func NewNetworkServiceEndpointRegistryServer(nses *stringurl.Map) registry.NetworkServiceEndpointRegistryServer {
 	return &interposeRegistryServer{
 		nses: nses,
 	}

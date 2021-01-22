@@ -61,7 +61,7 @@ type connectionInfo struct {
 //                        so it can capture the registrations.
 func NewServer(registryServer *registry.NetworkServiceEndpointRegistryServer) networkservice.NetworkServiceServer {
 	rv := new(interposeServer)
-	*registryServer = interpose.NewNetworkServiceRegistryServer(&rv.endpoints)
+	*registryServer = interpose.NewNetworkServiceEndpointRegistryServer(&rv.endpoints)
 	return rv
 }
 

@@ -39,7 +39,7 @@ const (
 
 func testServer() (*stringurl.Map, registry.NetworkServiceEndpointRegistryServer) {
 	var crossMap stringurl.Map
-	server := interpose.NewNetworkServiceRegistryServer(&crossMap)
+	server := interpose.NewNetworkServiceEndpointRegistryServer(&crossMap)
 	return &crossMap, server
 }
 
