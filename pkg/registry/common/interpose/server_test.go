@@ -18,109 +18,116 @@ package interpose_test
 
 import (
 	"context"
+	"net/url"
+	"strings"
 	"testing"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 )
 
 const (
-	namePrefix     = "interpose-nse#"
-	name           = "nse"
-	url            = "tcp://0.0.0.0"
-	commonResponse = "response"
+	namePrefix = "interpose-nse#"
+	name       = "nse"
+	validURL   = "tcp://0.0.0.0"
 )
 
-var samples = []struct {
-	name             string
-	in, out          *registry.NetworkServiceEndpoint
-	isInMap, failure bool
-}{
-	{
-		name: "interpose NSE",
-		in: &registry.NetworkServiceEndpoint{
-			Name: namePrefix + name,
-			Url:  url,
-		},
-		out: &registry.NetworkServiceEndpoint{
-			Name: namePrefix + name,
-			Url:  url,
-		},
-		isInMap: true,
-	},
-	{
-		name: "common NSE",
-		in: &registry.NetworkServiceEndpoint{
-			Name: name,
-		},
-		out: &registry.NetworkServiceEndpoint{
-			Name: commonResponse,
-		},
-	},
-	{
-		name: "invalid NSE",
-		in: &registry.NetworkServiceEndpoint{
-			Name: namePrefix + name,
-		},
-		isInMap: false,
-		failure: true,
-	},
+func testServer() (*stringurl.Map, registry.NetworkServiceEndpointRegistryServer) {
+	var crossMap stringurl.Map
+	server := interpose.NewNetworkServiceRegistryServer(&crossMap)
+	return &crossMap, server
 }
 
-func TestInterposeRegistryServer(t *testing.T) {
-	for i := range samples {
-		sample := samples[i]
-		t.Run(sample.name, func(t *testing.T) {
-			var crossMap stringurl.Map
-			server := next.NewNetworkServiceEndpointRegistryServer(
-				interpose.NewNetworkServiceRegistryServer(&crossMap),
-				new(testRegistry),
-			)
-
-			reg, err := server.Register(context.Background(), sample.in)
-			if sample.failure {
-				require.Error(t, err)
-
-				_, ok := crossMap.Load(sample.in.Name)
-				require.False(t, ok)
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, sample.out.String(), reg.String())
-
-				if sample.isInMap {
-					u, ok := crossMap.Load(sample.in.Name)
-					require.True(t, ok)
-					require.Equal(t, sample.in.Url, u.String())
-				} else {
-					_, ok := crossMap.Load(sample.in.Name)
-					require.False(t, ok)
-				}
-
-				_, err := server.Unregister(context.Background(), reg)
-				require.NoError(t, err)
-
-				_, ok := crossMap.Load(sample.in.Name)
-				require.False(t, ok)
-			}
-		})
+func testNSE(name, u string) *registry.NetworkServiceEndpoint {
+	return &registry.NetworkServiceEndpoint{
+		Name: name,
+		Url:  u,
 	}
 }
 
-type testRegistry struct {
-	registry.NetworkServiceEndpointRegistryServer
+func TestInterposeRegistryServer_InterposeNSE(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	crossMap, server := testServer()
+
+	reg, err := server.Register(context.Background(), testNSE(namePrefix+name, validURL))
+	require.NoError(t, err)
+	require.True(t, strings.HasPrefix(reg.Name, namePrefix))
+
+	requireCrossMapEqual(t, map[string]string{
+		reg.Name: validURL,
+	}, crossMap)
+
+	_, err = server.Unregister(context.Background(), reg.Clone())
+	require.NoError(t, err)
+
+	requireCrossMapEqual(t, map[string]string{}, crossMap)
 }
 
-func (r *testRegistry) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	in.Name = commonResponse
-	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
+func TestInterposeRegistryServer_CommonNSE(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	crossMap, server := testServer()
+
+	reg, err := server.Register(context.Background(), testNSE(name, ""))
+	require.NoError(t, err)
+	require.Equal(t, name, reg.Name)
+
+	requireCrossMapEqual(t, map[string]string{}, crossMap)
+
+	_, err = server.Unregister(context.Background(), reg.Clone())
+	require.NoError(t, err)
 }
 
-func (r *testRegistry) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
+func TestInterposeRegistryServer_InvalidNSE(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	crossMap, server := testServer()
+
+	_, err := server.Register(context.Background(), testNSE(namePrefix+name, ""))
+	require.Error(t, err)
+
+	requireCrossMapEqual(t, map[string]string{}, crossMap)
+}
+
+func TestInterposeRegistryServer_RefreshInterposeNSE(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	crossMap, server := testServer()
+
+	reg, err := server.Register(context.Background(), testNSE(namePrefix+name, validURL))
+	require.NoError(t, err)
+
+	requireCrossMapEqual(t, map[string]string{
+		reg.Name: validURL,
+	}, crossMap)
+
+	name := reg.Name
+
+	reg, err = server.Register(context.Background(), reg)
+	require.NoError(t, err)
+	require.Equal(t, name, reg.Name)
+
+	requireCrossMapEqual(t, map[string]string{
+		reg.Name: validURL,
+	}, crossMap)
+
+	_, err = server.Unregister(context.Background(), reg.Clone())
+	require.NoError(t, err)
+
+	requireCrossMapEqual(t, map[string]string{}, crossMap)
+}
+
+func requireCrossMapEqual(t *testing.T, expected map[string]string, crossMap *stringurl.Map) {
+	actual := map[string]string{}
+	crossMap.Range(func(key string, value *url.URL) bool {
+		actual[key] = value.String()
+		return true
+	})
+	require.Equal(t, expected, actual)
 }
