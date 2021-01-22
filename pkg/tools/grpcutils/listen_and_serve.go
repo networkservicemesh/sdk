@@ -1,6 +1,6 @@
 // Copyright (c) 2020 Cisco and/or its affiliates.
 //
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -26,10 +26,10 @@ import (
 	"os"
 	"path"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/logger/logruslogger"
+
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 const (
@@ -54,7 +54,8 @@ func ListenAndServe(ctx context.Context, address *url.URL, server *grpc.Server) 
 		}
 		basePath := path.Dir(target)
 		if _, err = os.Stat(basePath); os.IsNotExist(err) {
-			log.Entry(ctx).Infof("target folder %v not exists, Trying to create", basePath)
+			_, log := logruslogger.New(ctx)
+			log.Infof("target folder %v not exists, Trying to create", basePath)
 			if err = os.MkdirAll(basePath, os.ModePerm); err != nil {
 				errCh <- errors.Wrapf(err, "Could not serve %v", target)
 				close(errCh)

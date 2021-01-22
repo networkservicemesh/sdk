@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Cisco and/or its affiliates.
 //
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,7 +25,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger/logruslogger"
 )
 
 // WithSignals - returns a context that is canceled when on of the specified signals 'sig' is received.
@@ -45,10 +47,11 @@ func WithSignals(parent context.Context, sig ...os.Signal) context.Context {
 	signal.Notify(c, sig...)
 	// Prepare a master context for the command, and be prepared to cancel it when we get a signal
 	ctx, cancel := context.WithCancel(parent)
+	_, log := logruslogger.New(ctx)
 	go func() {
 		select {
 		case s := <-c:
-			log.Entry(ctx).Warnf("Caught signal %s, exiting...", s)
+			log.Warnf("Caught signal %s, exiting...", s)
 			cancel()
 		case <-parent.Done():
 		}

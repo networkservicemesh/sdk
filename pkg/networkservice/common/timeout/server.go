@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
-//
 // Copyright (c) 2020 Cisco Systems, Inc.
+//
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -23,6 +23,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
@@ -31,7 +33,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type timeoutServer struct {
@@ -50,7 +51,7 @@ func NewServer(ctx context.Context) networkservice.NetworkServiceServer {
 }
 
 func (t *timeoutServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	logEntry := log.Entry(ctx).WithField("timeoutServer", "request")
+	logEntry := logger.Log(ctx).WithField("timeoutServer", "request")
 
 	connID := request.GetConnection().GetId()
 
@@ -84,7 +85,7 @@ func (t *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 }
 
 func (t *timeoutServer) createTimer(ctx context.Context, conn *networkservice.Connection) (*time.Timer, error) {
-	logEntry := log.Entry(ctx).WithField("timeoutServer", "createTimer")
+	logEntry := logger.Log(ctx).WithField("timeoutServer", "createTimer")
 
 	executor := serialize.GetExecutor(ctx)
 	if executor == nil {
@@ -119,7 +120,7 @@ func (t *timeoutServer) createTimer(ctx context.Context, conn *networkservice.Co
 }
 
 func (t *timeoutServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	logEntry := log.Entry(ctx).WithField("timeoutServer", "createTimer")
+	logEntry := logger.Log(ctx).WithField("timeoutServer", "close")
 
 	timer, ok := t.timers.LoadAndDelete(conn.GetId())
 	if !ok {

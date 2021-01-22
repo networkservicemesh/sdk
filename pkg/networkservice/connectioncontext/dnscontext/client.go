@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,9 +21,12 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/logger/logruslogger"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
 	"github.com/edwarnicke/serialize"
@@ -36,6 +39,7 @@ type dnsContextClient struct {
 	cancelMonitoring    context.CancelFunc
 	chainContext        context.Context
 	monitorContext      context.Context
+	requestContext      context.Context
 	coreFilePath        string
 	resolveConfigPath   string
 	defaultNameServerIP string
@@ -58,8 +62,9 @@ func NewClient(monitorClient networkservice.MonitorConnectionClient, options ...
 	for _, o := range options {
 		o.apply(c)
 	}
+	_, log := logruslogger.New(context.Background())
 	if r, err := dnscontext.OpenResolveConfig(c.resolveConfigPath); err != nil {
-		logrus.Errorf("DnsContextClient: can not load resolve config file. Path: %v. Error: %v", c.resolveConfigPath, err.Error())
+		log.Errorf("DnsContextClient: can not load resolve config file. Path: %v. Error: %v", c.resolveConfigPath, err.Error())
 	} else {
 		c.dnsConfigManager.Store("", &networkservice.DNSConfig{
 			SearchDomains: r.Value(dnscontext.AnyDomain),
@@ -67,7 +72,7 @@ func NewClient(monitorClient networkservice.MonitorConnectionClient, options ...
 		})
 		r.SetValue(dnscontext.NameserverProperty, c.defaultNameServerIP)
 		if err := r.Save(); err != nil {
-			logrus.Errorf("DnsContextClient: can not update resolve config file. Error: %v", err.Error())
+			log.Errorf("DnsContextClient: can not update resolve config file. Error: %v", err.Error())
 		}
 	}
 	return c
@@ -78,6 +83,7 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 	if err != nil {
 		return nil, err
 	}
+	c.requestContext = ctx
 	c.executor.AsyncExec(c.monitorConfigs)
 	return rv, err
 }
@@ -95,7 +101,7 @@ func (c *dnsContextClient) monitorConfigs() {
 	c.monitorContext, c.cancelMonitoring = context.WithCancel(c.chainContext)
 	steam, err := c.monitorClient.MonitorConnections(c.monitorContext, &networkservice.MonitorScopeSelector{}, c.monitorCallOptions...)
 	if err != nil {
-		logrus.Errorf("DnsContextClient: Can not start monitor connections: %v", err)
+		logger.Log(c.requestContext).Errorf("DnsContextClient: Can not start monitor connections: %v", err)
 		c.executor.AsyncExec(c.monitorConfigs)
 		return
 	}
@@ -110,7 +116,7 @@ func (c *dnsContextClient) monitorConfigs() {
 		}
 		c.handleEvent(event)
 		v := c.dnsConfigManager.String()
-		logrus.Info(v)
+		logger.Log(c.requestContext).Info(v)
 		_ = ioutil.WriteFile(c.coreFilePath, []byte(v), os.ModePerm)
 	}
 }

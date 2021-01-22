@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
-//
 // Copyright (c) 2020 Cisco and/or its affiliates.
+//
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -23,6 +23,8 @@ import (
 	"context"
 	"net/url"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -35,7 +37,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/tools/clientmap"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type connectServer struct {
@@ -95,7 +96,7 @@ func (s *connectServer) Close(ctx context.Context, conn *networkservice.Connecti
 }
 
 func (s *connectServer) client(ctx context.Context, conn *networkservice.Connection) networkservice.NetworkServiceClient {
-	logEntry := log.Entry(ctx).WithField("connectServer", "client")
+	logEntry := logger.Log(ctx).WithField("connectServer", "client")
 
 	clientURL := clienturlctx.ClientURL(ctx)
 	if clientURL == nil {

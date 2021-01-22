@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -23,6 +23,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -45,8 +47,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
+	"github.com/networkservicemesh/sdk/pkg/tools/opentracing"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -92,6 +93,7 @@ func (b *Builder) Build() *Domain {
 		ctx, cancel = context.WithTimeout(context.Background(), defaultContextTimeout)
 		b.resources = append(b.resources, cancel)
 	}
+	ctx = logger.WithLog(ctx)
 	domain := &Domain{}
 	domain.NSMgrProxy = b.newNSMgrProxy(ctx)
 	if domain.NSMgrProxy == nil {
@@ -199,7 +201,7 @@ func (b *Builder) newNSMgrProxy(ctx context.Context) *EndpointEntry {
 	mgr := b.supplyNSMgrProxy(ctx, name, b.generateTokenFunc, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)))
 	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
 	serve(ctx, serveURL, mgr.Register)
-	log.Entry(ctx).Infof("%v listen on: %v", name, serveURL)
+	logger.Log(ctx).Infof("%v listen on: %v", name, serveURL)
 	return &EndpointEntry{
 		Endpoint: mgr,
 		URL:      serveURL,
@@ -227,7 +229,7 @@ func (b *Builder) newNSMgr(ctx context.Context, registryURL *url.URL) *NSMgrEntr
 	mgr := b.supplyNSMgr(ctx, nsmgrReg, authorize.NewServer(), b.generateTokenFunc, registryCC, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)))
 
 	serve(ctx, serveURL, mgr.Register)
-	log.Entry(ctx).Infof("%v listen on: %v", nsmgrReg.Name, serveURL)
+	logger.Log(ctx).Infof("%v listen on: %v", nsmgrReg.Name, serveURL)
 	return &NSMgrEntry{
 		URL:   serveURL,
 		Nsmgr: mgr,
@@ -235,17 +237,17 @@ func (b *Builder) newNSMgr(ctx context.Context, registryURL *url.URL) *NSMgrEntr
 }
 
 func serve(ctx context.Context, u *url.URL, register func(server *grpc.Server)) {
-	server := grpc.NewServer(spanhelper.WithTracing()...)
+	server := grpc.NewServer(opentracing.WithTracing()...)
 	register(server)
 	errCh := grpcutils.ListenAndServe(ctx, u, server)
 	go func() {
 		select {
 		case <-ctx.Done():
-			log.Entry(ctx).Infof("Stop serve: %v", u.String())
+			logger.Log(ctx).Infof("Stop serve: %v", u.String())
 			return
 		case err := <-errCh:
 			if err != nil {
-				log.Entry(ctx).Fatalf("An error during serve: %v", err.Error())
+				logger.Log(ctx).Fatalf("An error during serve: %v", err.Error())
 			}
 		}
 	}()
@@ -268,7 +270,7 @@ func (b *Builder) newCrossConnectNSE(ctx context.Context, name string, connectTo
 
 	crossNSE := b.supplyForwarder(ctx, regForwarder.Name, b.generateTokenFunc, connectTo, grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)))
 	serve(ctx, serveURL, crossNSE.Register)
-	log.Entry(ctx).Infof("%v listen on: %v", name, serveURL)
+	logger.Log(ctx).Infof("%v listen on: %v", name, serveURL)
 	return &EndpointEntry{
 		Endpoint: crossNSE,
 		URL:      serveURL,
@@ -282,7 +284,7 @@ func (b *Builder) newRegistryProxy(ctx context.Context, nsmgrProxyURL *url.URL) 
 	result := b.supplyRegistryProxy(ctx, b.Resolver, b.DNSDomainName, nsmgrProxyURL, grpc.WithInsecure(), grpc.WithBlock())
 	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
 	serve(ctx, serveURL, result.Register)
-	log.Entry(ctx).Infof("registry-proxy-dns listen on: %v", serveURL)
+	logger.Log(ctx).Infof("registry-proxy-dns listen on: %v", serveURL)
 	return &RegistryEntry{
 		URL:      serveURL,
 		Registry: result,
@@ -296,7 +298,7 @@ func (b *Builder) newRegistry(ctx context.Context, proxyRegistryURL *url.URL) *R
 	result := b.supplyRegistry(ctx, proxyRegistryURL, grpc.WithInsecure(), grpc.WithBlock())
 	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
 	serve(ctx, serveURL, result.Register)
-	log.Entry(ctx).Infof("Registry listen on: %v", serveURL)
+	logger.Log(ctx).Infof("Registry listen on: %v", serveURL)
 	return &RegistryEntry{
 		URL:      serveURL,
 		Registry: result,

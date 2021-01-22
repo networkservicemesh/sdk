@@ -1,5 +1,3 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
-//
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -16,23 +14,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trace
+// Package tracelogger allows to create a composite Logger
+// for traces
+package tracelogger
 
 import (
 	"context"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/logger"
-	"github.com/networkservicemesh/sdk/pkg/tools/logger/tracelogger"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger/logruslogger"
 )
 
-// withLog - provides corresponding logger in context
-func withLog(parent context.Context, operation string) (c context.Context, f func()) {
-	if parent == nil {
-		panic("cannot create context from nil parent")
+// WithLog - creates a composite Logger which consists of logruslogger and spanlogger
+// and returns context with it and a function to defer
+func WithLog(ctx context.Context, operation string) (c context.Context, f func()) {
+	ctx, sLogger, span, sFinish := newSpanLogger(ctx, operation)
+	ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation)
+	return logger.WithLog(ctx, sLogger, lLogger), func() {
+		sFinish()
+		lFinish()
 	}
-
-	if logger.IsTracingEnabled() {
-		return tracelogger.WithLog(parent, operation)
-	}
-	return logger.WithLog(parent), func() {}
 }

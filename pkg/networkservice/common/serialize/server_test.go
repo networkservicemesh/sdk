@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -24,7 +24,6 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 
@@ -52,10 +51,6 @@ func TestSerializeServer_StressTest(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	logLevel := logrus.GetLevel()
-	logrus.SetLevel(logrus.WarnLevel)
-	defer logrus.SetLevel(logLevel)
 
 	server := chain.NewNetworkServiceServer(
 		serialize.NewServer(),

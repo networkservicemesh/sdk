@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Cisco and/or its affiliates.
 //
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +20,6 @@ package mechanisms_test
 
 import (
 	"context"
-	"io/ioutil"
 	"testing"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -35,7 +36,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/memif"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/srv6"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/vxlan"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 	"gonum.org/v1/gonum/stat/combin"
@@ -111,7 +111,6 @@ func permuteOverMechanismPreferenceOrder(request *networkservice.NetworkServiceR
 
 func TestSelectMechanism(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	logrus.SetOutput(ioutil.Discard)
 	server := server()
 	for _, request := range permuteOverMechanismPreferenceOrder(request()) {
 		assert.Nil(t, request.GetConnection().GetMechanism(), "SelectMechanismContract requires request.GetConnection().GetMechanism() nil")
@@ -129,7 +128,6 @@ func TestSelectMechanism(t *testing.T) {
 
 func TestDontSelectMechanismIfSet(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	logrus.SetOutput(ioutil.Discard)
 	server := server()
 	for _, request := range permuteOverMechanismPreferenceOrder(request()) {
 		request.Connection = &networkservice.Connection{Mechanism: request.GetMechanismPreferences()[len(request.GetMechanismPreferences())-1]}
@@ -144,7 +142,6 @@ func TestDontSelectMechanismIfSet(t *testing.T) {
 
 func TestUnsupportedMechanismPreference(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	logrus.SetOutput(ioutil.Discard)
 	request := request()
 	request.MechanismPreferences = []*networkservice.Mechanism{
 		{Cls: "NOT_A_CLS", Type: "NOT_A_TYPE"},
@@ -158,7 +155,6 @@ func TestUnsupportedMechanismPreference(t *testing.T) {
 
 func TestUnsupportedMechanism(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	logrus.SetOutput(ioutil.Discard)
 	request := request()
 	request.GetConnection().Mechanism = &networkservice.Mechanism{
 		Cls:  "NOT_A_CLS",
@@ -173,7 +169,6 @@ func TestUnsupportedMechanism(t *testing.T) {
 
 func TestDownstreamError(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	logrus.SetOutput(ioutil.Discard)
 	request := request()
 	request.GetConnection().Mechanism = &networkservice.Mechanism{
 		Cls:  cls.LOCAL,
@@ -191,7 +186,6 @@ func TestDownstreamError(t *testing.T) {
 
 func TestFewWrongMechanisms(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	logrus.SetOutput(ioutil.Discard)
 
 	ch := make(chan struct{}, 10)
 	server := next.NewNetworkServiceServer(
@@ -228,7 +222,6 @@ func TestFewWrongMechanisms(t *testing.T) {
 
 func TestDontCallNextByItself(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	logrus.SetOutput(ioutil.Discard)
 
 	ch := make(chan struct{}, 10)
 	server := next.NewNetworkServiceServer(

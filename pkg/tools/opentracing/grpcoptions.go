@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Cisco Systems, Inc.
 //
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +16,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package spanhelper
+// Package opentracing provides a set of utilities to assist in working with opentracing
+package opentracing
 
 import (
 	"context"

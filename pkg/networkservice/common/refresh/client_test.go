@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -22,9 +22,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/golang/protobuf/ptypes/timestamp"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
@@ -59,6 +60,7 @@ func TestRefreshClient_StopRefreshAtClose(t *testing.T) {
 		cloneClient,
 	)
 
+	ctx = logger.WithLog(ctx)
 	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "id",
@@ -91,6 +93,7 @@ func TestRefreshClient_StopRefreshAtAnotherRequest(t *testing.T) {
 		cloneClient,
 	)
 
+	ctx = logger.WithLog(ctx)
 	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "id",
@@ -117,7 +120,6 @@ type countClient struct {
 func (c *countClient) validator(atLeast int32) func() bool {
 	return func() bool {
 		if count := atomic.LoadInt32(&c.count); count < atLeast {
-			logrus.Warnf("count %v < atLeast %v", count, atLeast)
 			return false
 		}
 		return true

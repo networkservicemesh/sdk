@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -22,6 +22,8 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
@@ -36,8 +38,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	"github.com/networkservicemesh/sdk/pkg/tools/spanhelper"
+	"github.com/networkservicemesh/sdk/pkg/tools/opentracing"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -49,6 +50,7 @@ func GenerateTestToken(_ credentials.AuthInfo) (tokenValue string, expireTime ti
 // NewEndpoint creates endpoint and registers it into passed NSMgr.
 func NewEndpoint(ctx context.Context, nse *registry.NetworkServiceEndpoint, generatorFunc token.GeneratorFunc, mgr nsmgr.Nsmgr, additionalFunctionality ...networkservice.NetworkServiceServer) (*EndpointEntry, error) {
 	ep := endpoint.NewServer(ctx, nse.Name, authorize.NewServer(), generatorFunc, additionalFunctionality...)
+	ctx = logger.WithLog(ctx)
 	u := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
 	var err error
 	if nse.Url != "" {
@@ -77,7 +79,7 @@ func NewEndpoint(ctx context.Context, nse *registry.NetworkServiceEndpoint, gene
 			return nil, err
 		}
 	}
-	log.Entry(ctx).Infof("Started listen endpoint %v on %v.", nse.Name, u.String())
+	logger.Log(ctx).Infof("Started listen endpoint %v on %v.", nse.Name, u.String())
 	return &EndpointEntry{Endpoint: ep, URL: u}, nil
 }
 
@@ -90,7 +92,7 @@ func NewClient(ctx context.Context, generatorFunc token.GeneratorFunc, connectTo
 			nil,
 			generatorFunc,
 			additionalFunctionality...),
-		append(spanhelper.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...)
+		append(opentracing.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...)
 }
 
 // NewCrossConnectClientFactory is a client.NewCrossConnectClientFactory with some fields preset for testing
