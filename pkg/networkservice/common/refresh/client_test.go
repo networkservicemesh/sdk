@@ -18,14 +18,12 @@ package refresh_test
 
 import (
 	"context"
-	"io/ioutil"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
@@ -177,7 +175,6 @@ func runStressTest(t *testing.T, conf *stressTestConfig) {
 
 func TestRefreshClient_Sandbox(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	logrus.SetOutput(ioutil.Discard)
 
 	ctx, cancel := context.WithTimeout(context.Background(), sandboxTotalTimeout)
 	defer cancel()
