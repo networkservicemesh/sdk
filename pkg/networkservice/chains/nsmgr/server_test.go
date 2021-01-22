@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -106,6 +106,48 @@ func TestNSMGR_RemoteUsecase_Parallel(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, e)
 	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Closes))
+}
+
+func TestNSMGR_SelectsRestartingEndpoint(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	logrus.SetOutput(ioutil.Discard)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(t).
+		SetNodesCount(1).
+		SetRegistryProxySupplier(nil).
+		SetContext(ctx).
+		Build()
+	defer domain.Cleanup()
+
+	request := &networkservice.NetworkServiceRequest{
+		MechanismPreferences: []*networkservice.Mechanism{
+			{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
+		},
+		Connection: &networkservice.Connection{
+			Id:             "1",
+			NetworkService: "ns-1",
+			Context:        &networkservice.ConnectionContext{},
+		},
+	}
+
+	nseReg := &registry.NetworkServiceEndpoint{
+		Name:                "nse-1",
+		NetworkServiceNames: []string{"ns-1"},
+	}
+
+	_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, &restartingEndpoint{startTime: time.Now().Add(time.Second * 2)})
+	require.NoError(t, err)
+
+	nsc := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
+
+	conn, err := nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+	require.Equal(t, 5, len(conn.Path.PathSegments))
 }
 
 func TestNSMGR_RemoteUsecase_BusyEndpoints(t *testing.T) {
@@ -455,6 +497,24 @@ func (c *counterServer) Request(ctx context.Context, request *networkservice.Net
 func (c *counterServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
 	atomic.AddInt32(&c.Closes, 1)
 	return next.Server(ctx).Close(ctx, connection)
+}
+
+type restartingEndpoint struct {
+	startTime time.Time
+}
+
+func (c *restartingEndpoint) Request(ctx context.Context, req *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	if time.Now().Before(c.startTime) {
+		return nil, errors.New("endpoint is restarting")
+	}
+	return next.Client(ctx).Request(ctx, req)
+}
+
+func (c *restartingEndpoint) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
+	if time.Now().Before(c.startTime) {
+		return nil, errors.New("endpoint is restarting")
+	}
+	return next.Client(ctx).Close(ctx, connection)
 }
 
 type busyEndpoint struct{}

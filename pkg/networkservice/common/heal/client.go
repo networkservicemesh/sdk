@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Cisco Systems, Inc.
 //
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -76,7 +78,7 @@ func (f *healClient) Request(ctx context.Context, request *networkservice.Networ
 	if err != nil {
 		return nil, err
 	}
-	err = f.startHeal(ctx, request.Clone().SetRequestConnection(conn.Clone()), opts...)
+	err = f.startHeal(request.Clone().SetRequestConnection(conn.Clone()), opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -101,22 +103,9 @@ func (f *healClient) stopHeal(conn *networkservice.Connection) {
 }
 
 // startHeal - start a healAsNeeded using the request as the request for re-request if healing is needed.
-func (f *healClient) startHeal(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) error {
-	id := request.GetConnection().GetId()
-
-	ctx, cancel := context.WithCancel(ctx)
-
+func (f *healClient) startHeal(request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) error {
 	errCh := make(chan error, 1)
-	f.cancelHealMapExecutor.AsyncExec(func() {
-		if cancel, ok := f.cancelHealMap[id]; ok {
-			go cancel() // TODO - what to do with the errCh here?
-		}
-		f.cancelHealMap[id] = func() <-chan error {
-			cancel()
-			return errCh
-		}
-	})
-	go f.healAsNeeded(ctx, request, errCh, opts...)
+	go f.healAsNeeded(request, errCh, opts...)
 	return <-errCh
 }
 
@@ -127,19 +116,11 @@ func (f *healClient) startHeal(ctx context.Context, request *networkservice.Netw
 // healAsNeeded will then continue to monitor the servers opinions about the state of the connection until either
 // expireTime has passed or stopHeal is called (as in Close) or a different pathSegment is found via monitoring
 // indicating that a later Request has occurred and in doing so created its own healAsNeeded and so we can stop this one
-func (f *healClient) healAsNeeded(ctx context.Context, request *networkservice.NetworkServiceRequest, errCh chan error, opts ...grpc.CallOption) {
+func (f *healClient) healAsNeeded(request *networkservice.NetworkServiceRequest, errCh chan error, opts ...grpc.CallOption) {
 	// When we are done, close the errCh
 	defer close(errCh)
 
 	pathSegment := request.GetConnection().GetNextPathSegment()
-
-	// Monitor the pathSegment - the first time with the calls context, so we can pass back and error
-	// if we can't confirm via monitor the other side has the expected state
-	recv, err := f.initialMonitorSegment(ctx, pathSegment)
-	if err != nil {
-		errCh <- errors.Wrapf(err, "error calling MonitorConnection_MonitorConnectionsClient.Recv to get initial confirmation server has connection: %+v", request.GetConnection())
-		return
-	}
 
 	// Make sure we have a valid expireTime to work with
 	expireTime, err := ptypes.Timestamp(pathSegment.GetExpires())
@@ -161,6 +142,14 @@ func (f *healClient) healAsNeeded(ctx context.Context, request *networkservice.N
 			return errCh
 		}
 	})
+
+	// Monitor the pathSegment for the first time, so we can pass back an error
+	// if we can't confirm via monitor the other side has the expected state
+	recv, err := f.initialMonitorSegment(ctx, pathSegment)
+	if err != nil {
+		errCh <- errors.Wrapf(err, "error calling MonitorConnection_MonitorConnectionsClient.Recv to get initial confirmation server has connection: %+v", request.GetConnection())
+		return
+	}
 
 	// Tell the caller all is well by sending them a nil err so the call can continue
 	errCh <- nil

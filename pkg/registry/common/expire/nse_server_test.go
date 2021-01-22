@@ -23,8 +23,9 @@ import (
 
 	"go.uber.org/goleak"
 
+	"github.com/golang/protobuf/ptypes/empty"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -34,58 +35,59 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 )
 
+type remoteNSEServer struct{}
+
+func (n *remoteNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse.Clone())
+}
+
+func (n *remoteNSEServer) Find(query *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
+	return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(query, s)
+}
+
+func (n *remoteNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
+}
+
+func Test_ExpireServer_ShouldCorrectlySetExpirationTime_InRemoteCase(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	s := next.NewNetworkServiceEndpointRegistryServer(expire.NewNetworkServiceEndpointRegistryServer(time.Hour), new(remoteNSEServer))
+
+	resp, err := s.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: "nse-1"})
+
+	require.NoError(t, err)
+
+	require.Greater(t, time.Until(resp.ExpirationTime.AsTime()).Minutes(), float64(50))
+}
+
 func TestNewNetworkServiceEndpointRegistryServer(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	s := next.NewNetworkServiceEndpointRegistryServer(expire.NewNetworkServiceEndpointRegistryServer(testPeriod*2), memory.NewNetworkServiceEndpointRegistryServer())
+
+	s := next.NewNetworkServiceEndpointRegistryServer(
+		expire.NewNetworkServiceEndpointRegistryServer(testPeriod*2),
+		new(remoteNSEServer), // <-- GRPC invocation
+		memory.NewNetworkServiceEndpointRegistryServer(),
+	)
+
 	_, err := s.Register(context.Background(), &registry.NetworkServiceEndpoint{})
-	require.Nil(t, err)
+	require.NoError(t, err)
+
 	c := adapters.NetworkServiceEndpointServerToClient(s)
 	stream, err := c.Find(context.Background(), &registry.NetworkServiceEndpointQuery{
-		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{},
+		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
+
 	list := registry.ReadNetworkServiceEndpointList(stream)
 	require.NotEmpty(t, list)
+
 	require.Eventually(t, func() bool {
 		stream, err = c.Find(context.Background(), &registry.NetworkServiceEndpointQuery{
-			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{},
+			NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
 		})
 		require.Nil(t, err)
 		list = registry.ReadNetworkServiceEndpointList(stream)
-		return len(list) == 0
-	}, time.Second, time.Millisecond*100)
-}
-
-func Test_ExpireEndpointRegistryServer_ShouldCorrectlyRescheduleTimer(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-
-	ctx, cancel := context.WithCancel(context.Background())
-
-	s := next.NewNetworkServiceEndpointRegistryServer(expire.NewNetworkServiceEndpointRegistryServer(testPeriod*2), memory.NewNetworkServiceEndpointRegistryServer())
-	c := next.NewNetworkServiceEndpointRegistryClient(refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithChainContext(ctx)), adapters.NetworkServiceEndpointServerToClient(s))
-
-	_, err := c.Register(context.Background(), &registry.NetworkServiceEndpoint{})
-	require.NoError(t, err)
-
-	deadline := time.Now().Add(time.Second)
-
-	for time.Until(deadline) > 0 {
-		stream, err := c.Find(context.Background(), &registry.NetworkServiceEndpointQuery{
-			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{},
-		})
-		require.NoError(t, err)
-		list := registry.ReadNetworkServiceEndpointList(stream)
-		require.Len(t, list, 1)
-	}
-
-	cancel()
-
-	require.Eventually(t, func() bool {
-		stream, err := c.Find(context.Background(), &registry.NetworkServiceEndpointQuery{
-			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{},
-		})
-		require.Nil(t, err)
-		list := registry.ReadNetworkServiceEndpointList(stream)
 		return len(list) == 0
 	}, time.Second, time.Millisecond*100)
 }

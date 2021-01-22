@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,165 +14,154 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package point2pointipam provides a simple ipam appropriate for point2pointipam.
-// point2pointipam assigns two ip addresses out of a pool of prefixes. The IP
-// addresses assigned are not reassigned until they are released. All
-// IP addresses assigned are assigned a CIDR mask of /32
+// Package point2pointipam provides a p2p IPAM server chain element.
 package point2pointipam
 
 import (
 	"context"
-	"encoding/binary"
 	"net"
 	"sync"
 
-	"github.com/pkg/errors"
-
 	"github.com/RoaringBitmap/roaring"
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/cidr"
 )
 
-type pointToPointServer struct {
-	mutex    *sync.Mutex
+type ipamServer struct {
+	ipPools  []*ipPool
 	prefixes []*net.IPNet
-	freeIPs  *roaring.Bitmap
 	once     sync.Once
 	initErr  error
 }
 
-func (srv *pointToPointServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	srv.once.Do(srv.init)
-	if srv.initErr != nil {
-		return nil, srv.initErr
-	}
-	srv.mutex.Lock()
-	defer srv.mutex.Unlock()
+type connectionInfo struct {
+	ipPool  *ipPool
+	srcAddr string
+	dstAddr string
+}
 
-	if srv.freeIPs.IsEmpty() {
-		return nil, errors.New("ipam allocation pool depleted")
+func (i *connectionInfo) shouldUpdate(exclude *roaring.Bitmap) bool {
+	return exclude.Contains(addrToInt(i.srcAddr)) || exclude.Contains(addrToInt(i.dstAddr))
+}
+
+// NewServer - creates a new NetworkServiceServer chain element that implements IPAM service.
+func NewServer(prefixes ...*net.IPNet) networkservice.NetworkServiceServer {
+	return &ipamServer{
+		prefixes: prefixes,
+	}
+}
+
+func (s *ipamServer) init() {
+	if len(s.prefixes) == 0 {
+		s.initErr = errors.New("required one or more prefixes")
+		return
 	}
 
-	if request.GetConnection() == nil {
-		request.Connection = &networkservice.Connection{}
+	for _, prefix := range s.prefixes {
+		if prefix == nil {
+			s.initErr = errors.Errorf("prefix must not be nil: %+v", s.prefixes)
+			return
+		}
+		s.ipPools = append(s.ipPools, newIPPool(prefix))
 	}
+}
+
+func (s *ipamServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	s.once.Do(s.init)
+	if s.initErr != nil {
+		return nil, s.initErr
+	}
+
 	conn := request.GetConnection()
-
 	if conn.GetContext() == nil {
 		conn.Context = &networkservice.ConnectionContext{}
 	}
-	connContext := conn.GetContext()
-
-	if connContext.GetIpContext() == nil {
-		connContext.IpContext = &networkservice.IPContext{}
+	if conn.GetContext().GetIpContext() == nil {
+		conn.GetContext().IpContext = &networkservice.IPContext{}
 	}
-	ipContext := connContext.GetIpContext()
+	ipContext := conn.GetContext().GetIpContext()
 
-	exclude := roaring.New()
-	excludePrefixes := ipContext.GetExcludedPrefixes()
-	for _, prefix := range excludePrefixes {
-		_, ipnet, err := net.ParseCIDR(prefix)
-		if err != nil {
+	exclude, err := exclude(ipContext.GetExcludedPrefixes()...)
+	if err != nil {
+		return nil, err
+	}
+
+	connInfo, ok := loadConnInfo(ctx)
+	if ok && connInfo.shouldUpdate(exclude) {
+		// some of the existing addresses are excluded
+		deleteRoute(&ipContext.SrcRoutes, connInfo.dstAddr)
+		deleteRoute(&ipContext.DstRoutes, connInfo.srcAddr)
+		s.free(connInfo)
+		ok = false
+	}
+	if !ok {
+		if connInfo, err = s.getP2PAddrs(exclude); err != nil {
 			return nil, err
 		}
-		low := binary.BigEndian.Uint32(cidr.NetworkAddress(ipnet).To4())
-		high := binary.BigEndian.Uint32(cidr.BroadcastAddress(ipnet).To4()) + 1
-
-		exclude.AddRange(uint64(low), uint64(high))
+		storeConnInfo(ctx, connInfo)
 	}
 
-	available := roaring.And(roaring.Xor(srv.freeIPs, exclude), srv.freeIPs)
-	if available.IsEmpty() {
-		return nil, errors.New("available IP addresses excluded by request")
-	}
-	dstInt := available.Minimum()
-	available.Remove(dstInt)
+	ipContext.SrcIpAddr = connInfo.srcAddr
+	addRoute(&ipContext.SrcRoutes, connInfo.dstAddr)
 
-	// explicitly check again, panics if empty on minimum and remove calls
-	if available.IsEmpty() {
-		return nil, errors.New("available IP addresses excluded by request")
-	}
-	srcInt := available.Minimum()
-	available.Remove(srcInt)
-
-	srv.freeIPs.Remove(dstInt)
-	srv.freeIPs.Remove(srcInt)
-
-	dstIP := make(net.IP, 4)
-	srcIP := make(net.IP, 4)
-
-	binary.BigEndian.PutUint32(dstIP, dstInt)
-	binary.BigEndian.PutUint32(srcIP, srcInt)
-
-	conn.Context.IpContext.DstIpAddr = dstIP.String() + "/32"
-	conn.Context.IpContext.SrcIpAddr = srcIP.String() + "/32"
+	ipContext.DstIpAddr = connInfo.dstAddr
+	addRoute(&ipContext.DstRoutes, connInfo.srcAddr)
 
 	return next.Server(ctx).Request(ctx, request)
 }
 
-func (srv *pointToPointServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	srv.once.Do(srv.init)
-	if srv.initErr != nil {
-		return nil, srv.initErr
+func (s *ipamServer) getP2PAddrs(exclude *roaring.Bitmap) (connInfo *connectionInfo, err error) {
+	var dstAddr, srcAddr string
+	for _, ipPool := range s.ipPools {
+		if dstAddr, srcAddr, err = ipPool.getP2PAddrs(exclude); err == nil {
+			return &connectionInfo{
+				ipPool:  ipPool,
+				srcAddr: srcAddr,
+				dstAddr: dstAddr,
+			}, nil
+		}
 	}
-	srv.mutex.Lock()
-	defer srv.mutex.Unlock()
+	return nil, err
+}
 
-	dstIP, _, err := net.ParseCIDR(conn.Context.IpContext.DstIpAddr)
-	if err != nil {
-		return nil, err
+func deleteRoute(routes *[]*networkservice.Route, prefix string) {
+	for i, route := range *routes {
+		if route.Prefix == prefix {
+			*routes = append((*routes)[:i], (*routes)[i+1:]...)
+			return
+		}
+	}
+}
+
+func addRoute(routes *[]*networkservice.Route, prefix string) {
+	for _, route := range *routes {
+		if route.Prefix == prefix {
+			return
+		}
+	}
+	*routes = append(*routes, &networkservice.Route{
+		Prefix: prefix,
+	})
+}
+
+func (s *ipamServer) Close(ctx context.Context, conn *networkservice.Connection) (_ *empty.Empty, err error) {
+	s.once.Do(s.init)
+	if s.initErr != nil {
+		return nil, s.initErr
 	}
 
-	srcIP, _, err := net.ParseCIDR(conn.Context.IpContext.SrcIpAddr)
-	if err != nil {
-		return nil, err
+	if connInfo, ok := loadConnInfo(ctx); ok {
+		s.free(connInfo)
 	}
-
-	intip := binary.BigEndian.Uint32(dstIP.To4())
-	srv.freeIPs.Add(intip)
-
-	intip = binary.BigEndian.Uint32(srcIP.To4())
-	srv.freeIPs.Add(intip)
 
 	return next.Server(ctx).Close(ctx, conn)
 }
 
-func (srv *pointToPointServer) init() {
-	if len(srv.prefixes) == 0 {
-		srv.initErr = errors.New("required one or more prefixes")
-		return
-	}
-
-	for _, prefix := range srv.prefixes {
-		if prefix == nil {
-			srv.initErr = errors.Errorf("prefix must not be nil: %+v", srv.prefixes)
-			return
-		}
-	}
-
-	freeIPs := roaring.New()
-	for _, ipnet := range srv.prefixes {
-		networkAddress := cidr.NetworkAddress(ipnet)
-		broadcastAddress := cidr.BroadcastAddress(ipnet)
-
-		low := binary.BigEndian.Uint32(networkAddress)
-		high := binary.BigEndian.Uint32(broadcastAddress) + 1
-		freeIPs.AddRange(uint64(low), uint64(high))
-
-		// TODO should we remove first and last (network, broadcast) addresses?
-		// freeIPs.Remove(low)
-		// freeIPs.Remove(high)
-	}
-	srv.freeIPs = freeIPs
-}
-
-// NewServer - creates a NetworkServiceServer that requests a kernel interface and populates the netns inode
-func NewServer(prefixes ...*net.IPNet) networkservice.NetworkServiceServer {
-	return &pointToPointServer{
-		mutex:    &sync.Mutex{},
-		prefixes: prefixes,
-	}
+func (s *ipamServer) free(connInfo *connectionInfo) {
+	connInfo.ipPool.freeAddrs(connInfo.srcAddr)
+	connInfo.ipPool.freeAddrs(connInfo.dstAddr)
 }

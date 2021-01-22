@@ -1,5 +1,3 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
-//
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -16,15 +14,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build !windows
-
-package heal_test
+package point2pointipam
 
 import (
-	"time"
+	"context"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
-const (
-	waitForTimeout  = 100 * time.Millisecond
-	waitHealTimeout = 1000 * time.Millisecond
-)
+type keyType struct{}
+
+func storeConnInfo(ctx context.Context, connInfo *connectionInfo) {
+	metadata.Map(ctx, false).Store(keyType{}, connInfo)
+}
+
+func loadConnInfo(ctx context.Context) (*connectionInfo, bool) {
+	if raw, ok := metadata.Map(ctx, false).Load(keyType{}); ok {
+		return raw.(*connectionInfo), true
+	}
+	return nil, false
+}

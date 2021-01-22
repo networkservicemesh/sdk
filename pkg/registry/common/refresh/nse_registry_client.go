@@ -68,6 +68,7 @@ func (c *refreshNSEClient) Register(ctx context.Context, in *registry.NetworkSer
 			Nanos:   int32(expirationTime.Nanosecond()),
 		}
 	}
+	nse := in.Clone()
 	nextClient := next.NetworkServiceEndpointRegistryClient(ctx)
 	resp, err := nextClient.Register(ctx, in, opts...)
 	if err != nil {
@@ -78,7 +79,8 @@ func (c *refreshNSEClient) Register(ctx context.Context, in *registry.NetworkSer
 	}
 	ctx, cancel := context.WithCancel(c.chainContext)
 	c.nseCancels.Store(resp.Name, cancel)
-	c.startRefresh(ctx, nextClient, resp)
+	nse.ExpirationTime = resp.ExpirationTime
+	c.startRefresh(ctx, nextClient, nse)
 	return resp, err
 }
 
