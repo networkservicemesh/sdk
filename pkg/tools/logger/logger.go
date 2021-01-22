@@ -42,6 +42,10 @@ type Logger interface {
 	Errorf(format string, v ...interface{})
 	Fatal(v ...interface{})
 	Fatalf(format string, v ...interface{})
+	Debug(v ...interface{})
+	Debugf(format string, v ...interface{})
+	Trace(v ...interface{})
+	Tracef(format string, v ...interface{})
 
 	Object(k, v interface{})
 

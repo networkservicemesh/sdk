@@ -74,6 +74,22 @@ func (s *spanLogger) Fatalf(format string, v ...interface{}) {
 	s.logf("fatal", format, v...)
 }
 
+func (s *spanLogger) Debug(v ...interface{}) {
+	s.log("debug", v...)
+}
+
+func (s *spanLogger) Debugf(format string, v ...interface{}) {
+	s.logf("debug", format, v...)
+}
+
+func (s *spanLogger) Trace(v ...interface{}) {
+	s.log("trace", v...)
+}
+
+func (s *spanLogger) Tracef(format string, v ...interface{}) {
+	s.logf("trace", format, v...)
+}
+
 func (s *spanLogger) Object(k, v interface{}) {
 	if s.span != nil {
 		if v != nil {

@@ -146,6 +146,22 @@ func (s *logrusLogger) Fatalf(format string, v ...interface{}) {
 	s.logf("[FATAL]", format, v...)
 }
 
+func (s *logrusLogger) Debug(v ...interface{}) {
+	s.log("[DEBUG]", v...)
+}
+
+func (s *logrusLogger) Debugf(format string, v ...interface{}) {
+	s.logf("[DEBUG]", format, v...)
+}
+
+func (s *logrusLogger) Trace(v ...interface{}) {
+	s.log("[TRACE]", v...)
+}
+
+func (s *logrusLogger) Tracef(format string, v ...interface{}) {
+	s.logf("[TRACE]", format, v...)
+}
+
 func (s *logrusLogger) Object(k, v interface{}) {
 	msg := ""
 	cc, err := json.Marshal(v)
