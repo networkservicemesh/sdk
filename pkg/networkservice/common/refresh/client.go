@@ -21,7 +21,6 @@ package refresh
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
@@ -36,15 +35,14 @@ import (
 
 type refreshClient struct {
 	ctx    context.Context
-	timers sync.Map
+	timers timerMap
 }
 
 // NewClient - creates new NetworkServiceClient chain element for refreshing
 // connections before they timeout at the endpoint.
 func NewClient(ctx context.Context) networkservice.NetworkServiceClient {
 	return &refreshClient{
-		ctx:    ctx,
-		timers: sync.Map{},
+		ctx: ctx,
 	}
 }
 
@@ -73,17 +71,12 @@ func (t *refreshClient) Close(ctx context.Context, conn *networkservice.Connecti
 func (t *refreshClient) stopTimer(connectionID string) {
 	value, loaded := t.timers.LoadAndDelete(connectionID)
 	if loaded {
-		value.(*time.Timer).Stop()
+		value.Stop()
 	}
 }
 
 func (t *refreshClient) startTimer(connectionID string, exec serialize.Executor, nextClient networkservice.NetworkServiceClient, request *networkservice.NetworkServiceRequest, opts []grpc.CallOption) {
-	path := request.GetConnection().GetPath()
-	if path == nil || path.PathSegments == nil || len(path.PathSegments) == 0 ||
-		path.Index >= uint32(len(path.PathSegments)) {
-		return
-	}
-	expireTime, err := ptypes.Timestamp(path.PathSegments[path.Index].GetExpires())
+	expireTime, err := ptypes.Timestamp(request.GetConnection().GetCurrentPathSegment().GetExpires())
 	if err != nil {
 		return
 	}
@@ -93,6 +86,7 @@ func (t *refreshClient) startTimer(connectionID string, exec serialize.Executor,
 	// chain elements refresh slightly faster than inner ones.
 	// Update interval is within 0.2*expirationTime .. 0.4*expirationTime
 	scale := 1. / 3.
+	path := request.GetConnection().GetPath()
 	if len(path.PathSegments) > 1 {
 		scale = 0.2 + 0.2*float64(path.Index)/float64(len(path.PathSegments))
 	}
@@ -102,7 +96,7 @@ func (t *refreshClient) startTimer(connectionID string, exec serialize.Executor,
 	timer = time.AfterFunc(duration, func() {
 		exec.AsyncExec(func() {
 			oldTimer, ok := t.timers.Load(connectionID)
-			if !ok || oldTimer.(*time.Timer) != timer {
+			if !ok || oldTimer != timer {
 				return
 			}
 
