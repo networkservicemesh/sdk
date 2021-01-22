@@ -70,7 +70,7 @@ func (c *refreshNSEClient) startRefresh(
 
 				res, err := client.Register(ctx, nse.Clone())
 				if err != nil {
-					logEntry.Warnf("failed to update registration: %s", err.Error())
+					logEntry.Errorf("failed to update registration: %s", err.Error())
 					return
 				}
 
@@ -133,10 +133,5 @@ func (c *refreshNSEClient) Unregister(
 	}
 	c.nseCancels.Delete(nse.Name)
 
-	resp, err := next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, nse, opts...)
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
+	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, nse, opts...)
 }

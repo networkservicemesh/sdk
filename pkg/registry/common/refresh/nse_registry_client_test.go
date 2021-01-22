@@ -34,13 +34,14 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checknse"
 )
 
 const testExpiryDuration = time.Millisecond * 100
 
-func testNSE(name string) *registry.NetworkServiceEndpoint {
+func testNSE() *registry.NetworkServiceEndpoint {
 	return &registry.NetworkServiceEndpoint{
-		Name: name,
+		Name: "nse-1",
 	}
 }
 
@@ -62,7 +63,7 @@ func TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {
 		return atomic.LoadInt32(&countClient.requestCount) > 1
 	}, time.Second, testExpiryDuration/4)
 
-	_, err = client.Unregister(context.Background(), testNSE("nse-1"))
+	_, err = client.Unregister(context.Background(), testNSE())
 	require.NoError(t, err)
 }
 
@@ -72,18 +73,15 @@ func TestRefreshNSEClient_ShouldSetExpirationTime_BeforeCallNext(t *testing.T) {
 	client := next.NewNetworkServiceEndpointRegistryClient(
 		new(requestCountClient),
 		refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithDefaultExpiryDuration(time.Hour)),
-		&checkNSEClient{
-			t: t,
-			check: func(t *testing.T, nse *registry.NetworkServiceEndpoint) {
-				require.NotNil(t, nse.ExpirationTime)
-			},
-		},
+		checknse.NewClient(t, func(t *testing.T, nse *registry.NetworkServiceEndpoint) {
+			require.NotNil(t, nse.ExpirationTime)
+		}),
 	)
 
-	_, err := client.Register(context.Background(), testNSE("nse-1"))
+	reg, err := client.Register(context.Background(), testNSE())
 	require.NoError(t, err)
 
-	_, err = client.Unregister(context.Background(), testNSE("nse-1"))
+	_, err = client.Unregister(context.Background(), reg)
 	require.Nil(t, err)
 }
 
@@ -96,17 +94,17 @@ func Test_RefreshNSEClient_CalledRegisterTwice(t *testing.T) {
 		countClient,
 	)
 
-	_, err := client.Register(context.Background(), testNSE("nse-1"))
+	_, err := client.Register(context.Background(), testNSE())
 	require.NoError(t, err)
 
-	_, err = client.Register(context.Background(), testNSE("nse-1"))
+	reg, err := client.Register(context.Background(), testNSE())
 	require.NoError(t, err)
 
 	require.Eventually(t, func() bool {
 		return atomic.LoadInt32(&countClient.requestCount) > 2
 	}, time.Second, testExpiryDuration/4)
 
-	_, err = client.Unregister(context.Background(), testNSE("nse-1"))
+	_, err = client.Unregister(context.Background(), reg)
 	require.NoError(t, err)
 }
 
@@ -124,27 +122,24 @@ func Test_RefreshNSEClient_ShouldOverrideNameAndDuration(t *testing.T) {
 	}
 	client := next.NewNetworkServiceEndpointRegistryClient(
 		refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithDefaultExpiryDuration(time.Hour)),
-		&checkNSEClient{
-			t: t,
-			check: func(t *testing.T, nse *registry.NetworkServiceEndpoint) {
-				if countClient.requestCount > 0 {
-					require.Equal(t, registryServer.name, nse.Name)
-					require.Equal(t, endpoint.Url, nse.Url)
-				}
-			},
-		},
+		checknse.NewClient(t, func(t *testing.T, nse *registry.NetworkServiceEndpoint) {
+			if countClient.requestCount > 0 {
+				require.Equal(t, registryServer.name, nse.Name)
+				require.Equal(t, endpoint.Url, nse.Url)
+			}
+		}),
 		countClient,
 		adapters.NetworkServiceEndpointServerToClient(registryServer),
 	)
 
-	resp, err := client.Register(context.Background(), endpoint.Clone())
+	reg, err := client.Register(context.Background(), endpoint.Clone())
 	require.NoError(t, err)
 
 	require.Eventually(t, func() bool {
 		return atomic.LoadInt32(&countClient.requestCount) > 3
 	}, time.Second, testExpiryDuration/4)
 
-	_, err = client.Unregister(context.Background(), testNSE(resp.Name))
+	_, err = client.Unregister(context.Background(), reg)
 	require.NoError(t, err)
 }
 
@@ -161,23 +156,6 @@ func (t *requestCountClient) Register(ctx context.Context, nse *registry.Network
 }
 
 func (t *requestCountClient) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
-	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, nse, opts...)
-}
-
-type checkNSEClient struct {
-	t     *testing.T
-	check func(t *testing.T, nse *registry.NetworkServiceEndpoint)
-
-	registry.NetworkServiceEndpointRegistryClient
-}
-
-func (c *checkNSEClient) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	c.check(c.t, nse)
-
-	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, nse, opts...)
-}
-
-func (c *checkNSEClient) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
 	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, nse, opts...)
 }
 
