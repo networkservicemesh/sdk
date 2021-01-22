@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,24 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package setid_test
+package setid
 
-import (
-	"context"
-	"testing"
+import "sync"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
+//go:generate go-syncmap -output names_set.gen.go -type namesSet<string,struct{}>
 
-	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/stretchr/testify/require"
-)
-
-func TestSetIDNetworkServiceRegistryServer_RegisterNSE(t *testing.T) {
-	s := setid.NewNetworkServiceEndpointRegistryServer()
-	nse := &registry.NetworkServiceEndpoint{
-		NetworkServiceNames: []string{"ns-1"},
-	}
-	resp, err := s.Register(context.Background(), nse)
-	require.Nil(t, err)
-	require.NotEmpty(t, resp.Name)
-}
+type namesSet sync.Map
