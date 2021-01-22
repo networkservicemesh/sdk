@@ -55,15 +55,25 @@ func TestInterposeRegistryServer_InterposeNSE(t *testing.T) {
 
 	crossMap, server := testServer()
 
-	reg, err := server.Register(context.Background(), testNSE(namePrefix+name, validURL))
+	reg1, err := server.Register(context.Background(), testNSE(namePrefix+name, validURL))
 	require.NoError(t, err)
-	require.True(t, strings.HasPrefix(reg.Name, namePrefix))
+	require.True(t, strings.HasPrefix(reg1.Name, namePrefix))
+
+	reg2, err := server.Register(context.Background(), testNSE(namePrefix+name, validURL))
+	require.NoError(t, err)
+	require.True(t, strings.HasPrefix(reg2.Name, namePrefix))
+
+	require.NotEqual(t, reg1.Name, reg2.Name)
 
 	requireCrossMapEqual(t, map[string]string{
-		reg.Name: validURL,
+		reg1.Name: validURL,
+		reg2.Name: validURL,
 	}, crossMap)
 
-	_, err = server.Unregister(context.Background(), reg.Clone())
+	_, err = server.Unregister(context.Background(), reg1)
+	require.NoError(t, err)
+
+	_, err = server.Unregister(context.Background(), reg2)
 	require.NoError(t, err)
 
 	requireCrossMapEqual(t, map[string]string{}, crossMap)
