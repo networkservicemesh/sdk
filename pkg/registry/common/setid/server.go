@@ -39,11 +39,21 @@ func NewNetworkServiceEndpointRegistryServer() registry.NetworkServiceEndpointRe
 }
 
 func (s *setIDServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	if _, ok := s.names.Load(nse.Name); !ok {
-		nse.Name = strings.Join(append(nse.NetworkServiceNames, uuid.New().String()), "-")
-		s.names.Store(nse.Name, struct{}{})
+	name, suffix := interDomainName(nse.Name)
+	if _, ok := s.names.Load(name); !ok {
+		name = strings.Join(append(nse.NetworkServiceNames, uuid.New().String()), "-")
 	}
-	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
+	nse.Name = name + suffix
+
+	reg, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
+	if err != nil {
+		return nil, err
+	}
+
+	name, _ = interDomainName(reg.Name)
+	s.names.Store(name, struct{}{})
+
+	return reg, nil
 }
 
 func (s *setIDServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
@@ -51,8 +61,18 @@ func (s *setIDServer) Find(query *registry.NetworkServiceEndpointQuery, server r
 }
 
 func (s *setIDServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	s.names.Delete(nse.Name)
+	name, _ := interDomainName(nse.Name)
+	s.names.Delete(name)
+
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
+}
+
+func interDomainName(rawName string) (name, suffix string) {
+	split := strings.Split(rawName, "@")
+	if len(split) == 1 {
+		return rawName, ""
+	}
+	return split[0], "@" + strings.Join(split[1:], "@")
 }
 
 var _ registry.NetworkServiceEndpointRegistryServer = &setIDServer{}

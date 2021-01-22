@@ -108,19 +108,19 @@ func TestInterdomainNetworkServiceRegistry(t *testing.T) {
 }
 
 /*
-TestLocalDomain_NetworkServiceRegistry covers the next scenario:
-	1. nsmgr from domain1 calls find with query "ns-1@domain1"
-	2. local registry proxies query to proxy registry
-	3. proxy registry proxies query to local registry removes interdomain symbol
-	4. local registry finds ns-1 with local nsmgr URL
+	TestLocalDomain_NetworkServiceRegistry covers the next scenario:
+		1. nsmgr from domain1 calls find with query "ns-1@domain1"
+		2. local registry proxies query to proxy registry
+		3. proxy registry proxies query to local registry removes interdomain symbol
+		4. local registry finds ns-1 with local nsmgr URL
 
-Expected: nsmgr found ns
-domain1
- ____________________________________
-|                                    |
-| local registry <--> proxy registry |
-|                                    |
-_____________________________________
+	Expected: nsmgr found ns
+	domain1
+	 ____________________________________
+	|                                    |
+	| local registry <--> proxy registry |
+	|                                    |
+	_____________________________________
 */
 func TestLocalDomain_NetworkServiceRegistry(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
