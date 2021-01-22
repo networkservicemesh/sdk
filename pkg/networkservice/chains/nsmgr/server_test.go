@@ -42,6 +42,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/tools/opentracing"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
@@ -412,9 +413,7 @@ func TestNSMGR_PassThroughRemote(t *testing.T) {
 					clienturl.NewServer(domain.Nodes[i].NSMgr.URL),
 					connect.NewServer(ctx,
 						sandbox.NewCrossConnectClientFactory(sandbox.GenerateTestToken,
-							newPassTroughClient(
-								fmt.Sprintf("my-service-remote-%v", k-1),
-								fmt.Sprintf("endpoint-%v", k-1)),
+							newPassTroughClient(fmt.Sprintf("my-service-remote-%v", k-1)),
 							kernel.NewClient()),
 						append(opentracing.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...,
 					),
@@ -474,9 +473,7 @@ func TestNSMGR_PassThroughLocal(t *testing.T) {
 					clienturl.NewServer(domain.Nodes[0].NSMgr.URL),
 					connect.NewServer(ctx,
 						sandbox.NewCrossConnectClientFactory(sandbox.GenerateTestToken,
-							newPassTroughClient(
-								fmt.Sprintf("my-service-remote-%v", k-1),
-								fmt.Sprintf("endpoint-%v", k-1)),
+							newPassTroughClient(fmt.Sprintf("my-service-remote-%v", k-1)),
 							kernel.NewClient()),
 						append(opentracing.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...,
 					),
@@ -588,26 +585,24 @@ func testNSEAndClient(
 }
 
 type passThroughClient struct {
-	networkService             string
-	networkServiceEndpointName string
+	networkService string
 }
 
-func newPassTroughClient(networkService, networkServiceEndpointName string) *passThroughClient {
+func newPassTroughClient(networkService string) *passThroughClient {
 	return &passThroughClient{
-		networkService:             networkService,
-		networkServiceEndpointName: networkServiceEndpointName,
+		networkService: networkService,
 	}
 }
 
 func (c *passThroughClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	request.Connection.NetworkService = c.networkService
-	request.Connection.NetworkServiceEndpointName = c.networkServiceEndpointName
+	request.Connection.NetworkServiceEndpointName = ""
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
 
 func (c *passThroughClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	conn.NetworkService = c.networkService
-	conn.NetworkServiceEndpointName = c.networkServiceEndpointName
+	conn.NetworkServiceEndpointName = ""
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
@@ -643,15 +638,6 @@ func (c *restartingEndpoint) Close(ctx context.Context, connection *networkservi
 	return next.Client(ctx).Close(ctx, connection)
 }
 
-type busyEndpoint struct{}
-
-func (c *busyEndpoint) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	return nil, errors.New("sorry, endpoint is busy, try again later")
-}
-
-func (c *busyEndpoint) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
-	return nil, errors.New("sorry, endpoint is busy, try again later")
-}
 func newBusyEndpoint() networkservice.NetworkServiceServer {
-	return new(busyEndpoint)
+	return injecterror.NewServer(errors.New("sorry, endpoint is busy, try again later"))
 }
