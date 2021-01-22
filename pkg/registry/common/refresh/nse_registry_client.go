@@ -74,7 +74,6 @@ func (c *refreshNSEClient) startRefresh(
 					return
 				}
 
-				nse.Name = res.Name
 				nse.ExpirationTime = res.ExpirationTime
 
 				t = nse.ExpirationTime.AsTime().Local()

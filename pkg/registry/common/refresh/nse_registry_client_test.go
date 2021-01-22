@@ -118,6 +118,7 @@ func Test_RefreshNSEClient_ShouldOverrideNameAndDuration(t *testing.T) {
 
 	countClient := new(requestCountClient)
 	registryServer := &nseRegistryServer{
+		name:           uuid.New().String(),
 		expiryDuration: testExpiryDuration,
 	}
 	client := next.NewNetworkServiceEndpointRegistryClient(
@@ -138,6 +139,8 @@ func Test_RefreshNSEClient_ShouldOverrideNameAndDuration(t *testing.T) {
 	require.Eventually(t, func() bool {
 		return atomic.LoadInt32(&countClient.requestCount) > 3
 	}, time.Second, testExpiryDuration/4)
+
+	reg.Url = endpoint.Url
 
 	_, err = client.Unregister(context.Background(), reg)
 	require.NoError(t, err)
@@ -167,8 +170,6 @@ type nseRegistryServer struct {
 }
 
 func (s *nseRegistryServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	s.name = uuid.New().String()
-
 	nse = nse.Clone()
 	nse.Name = s.name
 	nse.Url = uuid.New().String()
