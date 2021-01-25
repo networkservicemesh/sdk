@@ -20,14 +20,14 @@ import (
 	"context"
 	"time"
 
+	"github.com/golang/protobuf/ptypes/empty"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger/logruslogger"
 )
 
 type refreshNSEClient struct {
@@ -56,7 +56,8 @@ func (c *refreshNSEClient) startRefresh(
 	client registry.NetworkServiceEndpointRegistryClient,
 	nse *registry.NetworkServiceEndpoint,
 ) {
-	logEntry := log.Entry(ctx).WithField("refreshNSEClient", "startRefresh")
+	_, logEntry := logruslogger.New(ctx)
+	logEntry = logEntry.WithField("refreshNSEClient", "startRefresh")
 
 	t := time.Unix(nse.ExpirationTime.Seconds, int64(nse.ExpirationTime.Nanos))
 	delta := time.Until(t)
