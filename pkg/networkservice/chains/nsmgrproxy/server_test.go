@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,36 +21,45 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
+func testDomain(ctx context.Context, t *testing.T, dnsServer dnsresolve.Resolver) *sandbox.Domain {
+	domain := sandbox.NewBuilder(t).
+		SetNodesCount(1).
+		SetContext(ctx).
+		SetDNSResolver(dnsServer).
+		Build()
+
+	_, err := domain.Nodes[0].NewForwarder(ctx, new(registry.NetworkServiceEndpoint), sandbox.GenerateTestToken)
+	require.NoError(t, err)
+
+	return domain
+}
+
 func TestNSMGR_InterdomainUseCase(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
 	const remoteRegistryDomain = "domain2.local.registry"
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	dnsServer := new(sandbox.FakeDNSResolver)
 
-	domain1 := sandbox.NewBuilder(t).
-		SetNodesCount(1).
-		SetContext(ctx).
-		SetDNSResolver(dnsServer).
-		Build()
+	domain1 := testDomain(ctx, t, dnsServer)
 	defer domain1.Cleanup()
 
-	domain2 := sandbox.NewBuilder(t).
-		SetNodesCount(1).
-		SetDNSResolver(dnsServer).
-		SetContext(ctx).
-		Build()
+	domain2 := testDomain(ctx, t, dnsServer)
 	defer domain2.Cleanup()
 
 	require.NoError(t, dnsServer.Register(remoteRegistryDomain, domain2.Registry.URL))
@@ -60,10 +69,10 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 		NetworkServiceNames: []string{"my-service-interdomain"},
 	}
 
-	_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain2.Nodes[0].NSMgr)
+	_, err := domain2.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
 	require.NoError(t, err)
 
-	nsc := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain1.Nodes[0].NSMgr.URL)
+	nsc := domain1.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{

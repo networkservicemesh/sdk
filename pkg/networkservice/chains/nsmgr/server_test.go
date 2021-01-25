@@ -47,16 +47,28 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
-func TestNSMGR_RemoteUsecase_Parallel(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-
+func testDomain(ctx context.Context, t *testing.T, nodesCount int) *sandbox.Domain {
 	domain := sandbox.NewBuilder(t).
-		SetNodesCount(2).
+		SetNodesCount(nodesCount).
 		SetRegistryProxySupplier(nil).
 		SetContext(ctx).
 		Build()
+
+	for _, node := range domain.Nodes {
+		_, err := node.NewForwarder(ctx, new(registry.NetworkServiceEndpoint), sandbox.GenerateTestToken)
+		require.NoError(t, err)
+	}
+
+	return domain
+}
+
+func TestNSMGR_RemoteUsecase_Parallel(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	domain := testDomain(ctx, t, 2)
 	defer domain.Cleanup()
 
 	counter := &counterServer{}
@@ -77,10 +89,10 @@ func TestNSMGR_RemoteUsecase_Parallel(t *testing.T) {
 			Name:                "final-endpoint",
 			NetworkServiceNames: []string{"my-service-remote"},
 		}
-		_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, counter)
+		_, err := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 		require.NoError(t, err)
 	}()
-	nsc := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[1].NSMgr.URL)
+	nsc := domain.Nodes[1].NewClient(ctx, sandbox.GenerateTestToken)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -113,11 +125,7 @@ func TestNSMGR_SelectsRestartingEndpoint(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	domain := sandbox.NewBuilder(t).
-		SetNodesCount(1).
-		SetRegistryProxySupplier(nil).
-		SetContext(ctx).
-		Build()
+	domain := testDomain(ctx, t, 1)
 	defer domain.Cleanup()
 
 	request := &networkservice.NetworkServiceRequest{
@@ -136,10 +144,10 @@ func TestNSMGR_SelectsRestartingEndpoint(t *testing.T) {
 		NetworkServiceNames: []string{"ns-1"},
 	}
 
-	_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, &restartingEndpoint{startTime: time.Now().Add(time.Second * 2)})
+	_, err := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, &restartingEndpoint{startTime: time.Now().Add(time.Second * 2)})
 	require.NoError(t, err)
 
-	nsc := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -151,14 +159,11 @@ func TestNSMGR_SelectsRestartingEndpoint(t *testing.T) {
 
 func TestNSMGR_RemoteUsecase_BusyEndpoints(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	domain := sandbox.NewBuilder(t).
-		SetNodesCount(2).
-		SetRegistryProxySupplier(nil).
-		SetContext(ctx).
-		Build()
+	domain := testDomain(ctx, t, 2)
 	defer domain.Cleanup()
 
 	counter := new(counterServer)
@@ -181,7 +186,7 @@ func TestNSMGR_RemoteUsecase_BusyEndpoints(t *testing.T) {
 				Name:                "final-endpoint-" + strconv.Itoa(id),
 				NetworkServiceNames: []string{"my-service-remote"},
 			}
-			_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[1].NSMgr, newBusyEndpoint())
+			_, err := domain.Nodes[1].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, newBusyEndpoint())
 			require.NoError(t, err)
 			wg.Done()
 		}(i)
@@ -193,10 +198,10 @@ func TestNSMGR_RemoteUsecase_BusyEndpoints(t *testing.T) {
 			Name:                "final-endpoint-3",
 			NetworkServiceNames: []string{"my-service-remote"},
 		}
-		_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[1].NSMgr, counter)
+		_, err := domain.Nodes[1].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 		require.NoError(t, err)
 	}()
-	nsc := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -218,14 +223,11 @@ func TestNSMGR_RemoteUsecase_BusyEndpoints(t *testing.T) {
 
 func TestNSMGR_RemoteUsecase(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	domain := sandbox.NewBuilder(t).
-		SetNodesCount(2).
-		SetRegistryProxySupplier(nil).
-		SetContext(ctx).
-		Build()
+	domain := testDomain(ctx, t, 2)
 	defer domain.Cleanup()
 
 	nseReg := &registry.NetworkServiceEndpoint{
@@ -234,7 +236,7 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 	}
 
 	counter := &counterServer{}
-	_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, counter)
+	_, err := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 	require.NoError(t, err)
 
 	request := &networkservice.NetworkServiceRequest{
@@ -248,7 +250,7 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 		},
 	}
 
-	nsc := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[1].NSMgr.URL)
+	nsc := domain.Nodes[1].NewClient(ctx, sandbox.GenerateTestToken)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -295,10 +297,10 @@ func TestNSMGR_ConnectToDeadNSE(t *testing.T) {
 	counter := &counterServer{}
 
 	nseCtx, killNse := context.WithCancel(ctx)
-	_, err := sandbox.NewEndpoint(nseCtx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, counter)
+	_, err := domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.GenerateTestToken, counter)
 	require.NoError(t, err)
 
-	nsc := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -329,14 +331,11 @@ func TestNSMGR_ConnectToDeadNSE(t *testing.T) {
 
 func TestNSMGR_LocalUsecase(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	domain := sandbox.NewBuilder(t).
-		SetNodesCount(1).
-		SetContext(ctx).
-		SetRegistryProxySupplier(nil).
-		Build()
+	domain := testDomain(ctx, t, 1)
 	defer domain.Cleanup()
 
 	nseReg := &registry.NetworkServiceEndpoint{
@@ -345,10 +344,10 @@ func TestNSMGR_LocalUsecase(t *testing.T) {
 	}
 
 	counter := &counterServer{}
-	_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, counter)
+	_, err := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 	require.NoError(t, err)
 
-	nsc := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -387,15 +386,12 @@ func TestNSMGR_LocalUsecase(t *testing.T) {
 
 func TestNSMGR_PassThroughRemote(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	const nodesCount = 7
-	domain := sandbox.NewBuilder(t).
-		SetNodesCount(nodesCount).
-		SetContext(ctx).
-		SetRegistryProxySupplier(nil).
-		Build()
+	domain := testDomain(ctx, t, nodesCount)
 	defer domain.Cleanup()
 
 	for i := 0; i < nodesCount; i++ {
@@ -421,11 +417,11 @@ func TestNSMGR_PassThroughRemote(t *testing.T) {
 			Name:                fmt.Sprintf("endpoint-%v", i),
 			NetworkServiceNames: []string{fmt.Sprintf("my-service-remote-%v", i)},
 		}
-		_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[i].NSMgr, additionalFunctionality...)
+		_, err := domain.Nodes[i].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, additionalFunctionality...)
 		require.NoError(t, err)
 	}
 
-	nsc := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[nodesCount-1].NSMgr.URL)
+	nsc := domain.Nodes[nodesCount-1].NewClient(ctx, sandbox.GenerateTestToken)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -449,15 +445,12 @@ func TestNSMGR_PassThroughRemote(t *testing.T) {
 
 func TestNSMGR_PassThroughLocal(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	const nsesCount = 7
-	domain := sandbox.NewBuilder(t).
-		SetNodesCount(1).
-		SetContext(ctx).
-		SetRegistryProxySupplier(nil).
-		Build()
+	domain := testDomain(ctx, t, 1)
 	defer domain.Cleanup()
 
 	for i := 0; i < nsesCount; i++ {
@@ -482,11 +475,11 @@ func TestNSMGR_PassThroughLocal(t *testing.T) {
 			Name:                fmt.Sprintf("endpoint-%v", i),
 			NetworkServiceNames: []string{fmt.Sprintf("my-service-remote-%v", i)},
 		}
-		_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, additionalFunctionality...)
+		_, err := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, additionalFunctionality...)
 		require.NoError(t, err)
 	}
 
-	nsc := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -552,10 +545,10 @@ func testNSEAndClient(
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr)
+	_, err := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
 	require.NoError(t, err)
 
-	nsc := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
 	conn, err := nsc.Request(ctx, &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
