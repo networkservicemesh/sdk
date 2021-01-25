@@ -142,7 +142,6 @@ jobs:
         repository:
           - sdk-k8s
           - sdk-vpp
-          - sdk-vppagent
           - sdk-kernel
           - cmd-nsmgr
           - cmd-nsmgr-proxy
