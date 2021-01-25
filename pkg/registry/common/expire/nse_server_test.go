@@ -21,47 +21,63 @@ import (
 	"testing"
 	"time"
 
-	"go.uber.org/goleak"
-
 	"github.com/golang/protobuf/ptypes/empty"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
-type remoteNSEServer struct{}
-
-func (n *remoteNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse.Clone())
-}
-
-func (n *remoteNSEServer) Find(query *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
-	return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(query, s)
-}
-
-func (n *remoteNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
-}
-
-func Test_ExpireServer_ShouldCorrectlySetExpirationTime_InRemoteCase(t *testing.T) {
+func TestExpireNSEServer_ShouldCorrectlySetExpirationTime_InRemoteCase(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	s := next.NewNetworkServiceEndpointRegistryServer(expire.NewNetworkServiceEndpointRegistryServer(time.Hour), new(remoteNSEServer))
+	s := next.NewNetworkServiceEndpointRegistryServer(
+		expire.NewNetworkServiceEndpointRegistryServer(time.Hour),
+		new(remoteNSEServer),
+	)
 
 	resp, err := s.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: "nse-1"})
-
 	require.NoError(t, err)
 
 	require.Greater(t, time.Until(resp.ExpirationTime.AsTime()).Minutes(), float64(50))
 }
 
-func TestNewNetworkServiceEndpointRegistryServer(t *testing.T) {
+func TestExpireNSEServer_ShouldUseLessExpirationTimeFromInput(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	s := expire.NewNetworkServiceEndpointRegistryServer(time.Hour)
+
+	resp, err := s.Register(context.Background(), &registry.NetworkServiceEndpoint{
+		Name:           "nse-1",
+		ExpirationTime: timestamppb.New(time.Now().Add(10 * time.Minute)),
+	})
+	require.NoError(t, err)
+
+	require.Less(t, time.Until(resp.ExpirationTime.AsTime()).Minutes(), float64(11))
+}
+
+func TestExpireNSEServer_ShouldUseLessExpirationTimeFromResponse(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	s := next.NewNetworkServiceEndpointRegistryServer(
+		expire.NewNetworkServiceEndpointRegistryServer(time.Hour),
+		new(remoteNSEServer), // <-- GRPC invocation
+		expire.NewNetworkServiceEndpointRegistryServer(10*time.Minute),
+	)
+
+	resp, err := s.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: "nse-1"})
+	require.NoError(t, err)
+
+	require.Less(t, time.Until(resp.ExpirationTime.AsTime()).Minutes(), float64(11))
+}
+
+func TestExpireNSEServer_ShouldRemoveNSEAfterExpirationTime(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
@@ -86,8 +102,25 @@ func TestNewNetworkServiceEndpointRegistryServer(t *testing.T) {
 		stream, err = c.Find(context.Background(), &registry.NetworkServiceEndpointQuery{
 			NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
 		})
-		require.Nil(t, err)
+		require.NoError(t, err)
+
 		list = registry.ReadNetworkServiceEndpointList(stream)
 		return len(list) == 0
 	}, time.Second, time.Millisecond*100)
+}
+
+type remoteNSEServer struct {
+	registry.NetworkServiceEndpointRegistryServer
+}
+
+func (s *remoteNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse.Clone())
+}
+
+func (s *remoteNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
+	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
+}
+
+func (s *remoteNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }

@@ -28,39 +28,46 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 )
 
-type nseServer struct {
+type expireNSEServer struct {
 	timers        timerMap
 	nseExpiration time.Duration
 }
 
-func (n *nseServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+func (n *expireNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	resp, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	if err != nil {
 		return nil, err
 	}
-	resp.ExpirationTime = timestamppb.New(time.Now().Add(n.nseExpiration))
+
+	expirationTime := time.Now().Add(n.nseExpiration)
+	if resp.ExpirationTime != nil {
+		if respExpirationTime := resp.ExpirationTime.AsTime().Local(); respExpirationTime.Before(expirationTime) {
+			expirationTime = respExpirationTime
+		}
+	}
+	resp.ExpirationTime = timestamppb.New(expirationTime)
 
 	unregisterNSE := resp.Clone()
 
 	timer := time.AfterFunc(n.nseExpiration, func() {
-		unregisterCtx, cancel := context.WithTimeout(extend.WithValuesFromContext(context.Background(), ctx), n.nseExpiration)
+		unregisterCtx, cancel := context.WithTimeout(extend.WithValuesFromContext(context.Background(), ctx), time.Until(expirationTime))
 		defer cancel()
 		_, _ = next.NetworkServiceEndpointRegistryServer(unregisterCtx).Unregister(unregisterCtx, unregisterNSE)
 	})
-	if t, load := n.timers.LoadOrStore(nse.Name, timer); load {
+	if t, load := n.timers.LoadOrStore(resp.Name, timer); load {
 		timer.Stop()
 		t.Stop()
-		t.Reset(n.nseExpiration)
+		t.Reset(time.Until(expirationTime))
 	}
 
 	return resp, nil
 }
 
-func (n *nseServer) Find(query *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
+func (n *expireNSEServer) Find(query *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
 	return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(query, s)
 }
 
-func (n *nseServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+func (n *expireNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
 	resp, err := next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 	if err != nil {
 		return nil, err
@@ -75,7 +82,7 @@ func (n *nseServer) Unregister(ctx context.Context, nse *registry.NetworkService
 
 // NewNetworkServiceEndpointRegistryServer wraps passed NetworkServiceEndpointRegistryServer and monitor Network service endpoints
 func NewNetworkServiceEndpointRegistryServer(nseExpiration time.Duration) registry.NetworkServiceEndpointRegistryServer {
-	return &nseServer{
+	return &expireNSEServer{
 		nseExpiration: nseExpiration,
 	}
 }
