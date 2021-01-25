@@ -23,35 +23,28 @@ import (
 	"testing"
 	"time"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
-
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgrproxy"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/proxydns"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
-	interpose_reg "github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
-	adapter_registry "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 	"github.com/networkservicemesh/sdk/pkg/tools/opentracing"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-const defaultContextTimeout = time.Second * 15
+const (
+	defaultContextTimeout         = time.Second * 15
+	defaultRegistryExpiryDuration = 100 * time.Millisecond
+)
 
 // Builder implements builder pattern for building NSM Domain
 type Builder struct {
@@ -60,13 +53,13 @@ type Builder struct {
 	nodesCount          int
 	DNSDomainName       string
 	Resolver            dnsresolve.Resolver
-	supplyForwarder     SupplyForwarderFunc
 	supplyNSMgr         SupplyNSMgrFunc
 	supplyNSMgrProxy    SupplyNSMgrProxyFunc
 	supplyRegistry      SupplyRegistryFunc
 	supplyRegistryProxy SupplyRegistryProxyFunc
 	generateTokenFunc   token.GeneratorFunc
 	ctx                 context.Context
+	log                 logger.Logger
 }
 
 // NewBuilder creates new SandboxBuilder
@@ -76,12 +69,12 @@ func NewBuilder(t *testing.T) *Builder {
 		require:             require.New(t),
 		Resolver:            net.DefaultResolver,
 		supplyNSMgr:         nsmgr.NewServer,
-		supplyForwarder:     supplyDummyForwarder,
 		DNSDomainName:       "cluster.local",
 		supplyRegistry:      memory.NewServer,
 		supplyRegistryProxy: proxydns.NewServer,
 		supplyNSMgrProxy:    nsmgrproxy.NewServer,
 		generateTokenFunc:   GenerateTestToken,
+		log:                 log(),
 	}
 }
 
@@ -93,7 +86,6 @@ func (b *Builder) Build() *Domain {
 		ctx, cancel = context.WithTimeout(context.Background(), defaultContextTimeout)
 		b.resources = append(b.resources, cancel)
 	}
-	ctx = logger.WithLog(ctx)
 	domain := &Domain{}
 	domain.NSMgrProxy = b.newNSMgrProxy(ctx)
 	if domain.NSMgrProxy == nil {
@@ -107,15 +99,10 @@ func (b *Builder) Build() *Domain {
 		domain.Registry = b.newRegistry(ctx, domain.RegistryProxy.URL)
 	}
 	for i := 0; i < b.nodesCount; i++ {
-		var node = new(Node)
-		node.NSMgr = b.newNSMgr(ctx, domain.Registry.URL)
-		forwarderName := "cross-nse-" + uuid.New().String()
-		forwarderRegistrationClient := chain.NewNetworkServiceEndpointRegistryClient(
-			interpose_reg.NewNetworkServiceEndpointRegistryClient(),
-			adapter_registry.NetworkServiceEndpointServerToClient(node.NSMgr.NetworkServiceEndpointRegistryServer()),
-		)
-		node.Forwarder = b.newCrossConnectNSE(ctx, forwarderName, node.NSMgr.URL, forwarderRegistrationClient)
-		domain.Nodes = append(domain.Nodes, node)
+		domain.Nodes = append(domain.Nodes, &Node{
+			NSMgr: b.newNSMgr(ctx, domain.Registry.URL),
+			log:   b.log,
+		})
 	}
 	domain.resources, b.resources = b.resources, nil
 	return domain
@@ -163,12 +150,6 @@ func (b *Builder) SetDNSDomainName(name string) *Builder {
 	return b
 }
 
-// SetForwarderSupplier replaces default dummy forwarder supplier to custom function
-func (b *Builder) SetForwarderSupplier(f SupplyForwarderFunc) *Builder {
-	b.supplyForwarder = f
-	return b
-}
-
 // SetNSMgrProxySupplier replaces default nsmgr-proxy supplier to custom function
 func (b *Builder) SetNSMgrProxySupplier(f SupplyNSMgrProxyFunc) *Builder {
 	b.supplyNSMgrProxy = f
@@ -179,6 +160,17 @@ func (b *Builder) SetNSMgrProxySupplier(f SupplyNSMgrProxyFunc) *Builder {
 func (b *Builder) SetNSMgrSupplier(f SupplyNSMgrFunc) *Builder {
 	b.supplyNSMgr = f
 	return b
+}
+
+// SetLogger sets builder logger
+func (b *Builder) SetLogger(log logger.Logger) *Builder {
+	b.log = log
+	return b
+}
+
+func log() logger.Logger {
+	ctx := logger.WithLog(context.Background())
+	return logger.Log(ctx)
 }
 
 func (b *Builder) dialContext(ctx context.Context, u *url.URL) *grpc.ClientConn {
@@ -200,8 +192,8 @@ func (b *Builder) newNSMgrProxy(ctx context.Context) *EndpointEntry {
 	name := "nsmgr-proxy-" + uuid.New().String()
 	mgr := b.supplyNSMgrProxy(ctx, name, b.generateTokenFunc, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)))
 	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
-	serve(ctx, serveURL, mgr.Register)
-	logger.Log(ctx).Infof("%v listen on: %v", name, serveURL)
+	serve(logger.WithLog(ctx, b.log), serveURL, mgr.Register)
+	b.log.Infof("%v listen on: %v", name, serveURL)
 	return &EndpointEntry{
 		Endpoint: mgr,
 		URL:      serveURL,
@@ -228,8 +220,8 @@ func (b *Builder) newNSMgr(ctx context.Context, registryURL *url.URL) *NSMgrEntr
 
 	mgr := b.supplyNSMgr(ctx, nsmgrReg, authorize.NewServer(), b.generateTokenFunc, registryCC, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)))
 
-	serve(ctx, serveURL, mgr.Register)
-	logger.Log(ctx).Infof("%v listen on: %v", nsmgrReg.Name, serveURL)
+	serve(logger.WithLog(ctx, b.log), serveURL, mgr.Register)
+	b.log.Infof("%v listen on: %v", nsmgrReg.Name, serveURL)
 	return &NSMgrEntry{
 		URL:   serveURL,
 		Nsmgr: mgr,
@@ -253,38 +245,14 @@ func serve(ctx context.Context, u *url.URL, register func(server *grpc.Server)) 
 	}()
 }
 
-func (b *Builder) newCrossConnectNSE(ctx context.Context, name string, connectTo *url.URL, forwarderRegistrationClient registryapi.NetworkServiceEndpointRegistryClient) *EndpointEntry {
-	if b.supplyForwarder == nil {
-		panic("nodes without forwarder are not supported")
-	}
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	b.require.NoError(err)
-	serveURL := grpcutils.AddressToURL(listener.Addr())
-	b.require.NoError(listener.Close())
-
-	regForwarder, err := forwarderRegistrationClient.Register(context.Background(), &registryapi.NetworkServiceEndpoint{
-		Url:  serveURL.String(),
-		Name: name,
-	})
-	b.require.NoError(err)
-
-	crossNSE := b.supplyForwarder(ctx, regForwarder.Name, b.generateTokenFunc, connectTo, grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)))
-	serve(ctx, serveURL, crossNSE.Register)
-	logger.Log(ctx).Infof("%v listen on: %v", name, serveURL)
-	return &EndpointEntry{
-		Endpoint: crossNSE,
-		URL:      serveURL,
-	}
-}
-
 func (b *Builder) newRegistryProxy(ctx context.Context, nsmgrProxyURL *url.URL) *RegistryEntry {
 	if b.supplyRegistryProxy == nil {
 		return nil
 	}
 	result := b.supplyRegistryProxy(ctx, b.Resolver, b.DNSDomainName, nsmgrProxyURL, grpc.WithInsecure(), grpc.WithBlock())
 	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
-	serve(ctx, serveURL, result.Register)
-	logger.Log(ctx).Infof("registry-proxy-dns listen on: %v", serveURL)
+	serve(logger.WithLog(ctx, b.log), serveURL, result.Register)
+	b.log.Infof("registry-proxy-dns listen on: %v", serveURL)
 	return &RegistryEntry{
 		URL:      serveURL,
 		Registry: result,
@@ -295,32 +263,12 @@ func (b *Builder) newRegistry(ctx context.Context, proxyRegistryURL *url.URL) *R
 	if b.supplyRegistry == nil {
 		return nil
 	}
-	result := b.supplyRegistry(ctx, proxyRegistryURL, grpc.WithInsecure(), grpc.WithBlock())
+	result := b.supplyRegistry(ctx, defaultRegistryExpiryDuration, proxyRegistryURL, grpc.WithInsecure(), grpc.WithBlock())
 	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
-	serve(ctx, serveURL, result.Register)
-	logger.Log(ctx).Infof("Registry listen on: %v", serveURL)
+	serve(logger.WithLog(ctx, b.log), serveURL, result.Register)
+	b.log.Infof("Registry listen on: %v", serveURL)
 	return &RegistryEntry{
 		URL:      serveURL,
 		Registry: result,
 	}
-}
-
-func supplyDummyForwarder(ctx context.Context, name string, generateToken token.GeneratorFunc, connectTo *url.URL, dialOptions ...grpc.DialOption) endpoint.Endpoint {
-	var result endpoint.Endpoint
-	result = endpoint.NewServer(ctx,
-		name,
-		authorize.NewServer(),
-		generateToken,
-		// Statically set the url we use to the unix file socket for the NSMgr
-		clienturl.NewServer(connectTo),
-		connect.NewServer(ctx,
-			client.NewCrossConnectClientFactory(
-				name,
-				// What to call onHeal
-				addressof.NetworkServiceClient(adapters.NewServerToClient(result)),
-				generateToken),
-			dialOptions...,
-		),
-	)
-	return result
 }

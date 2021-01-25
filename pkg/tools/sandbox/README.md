@@ -28,8 +28,10 @@ Solution:
 		SetRegistryProxySupplier(nil).
 		Build()
 	defer localDomain.Cleanup()
-	registerMyNewEndpoint(localDomain.Nodes[0].NSMgr.URL)
-    ...
+	localDomain.Nodes[0].NewForwarder(ctx, new(registry.Endpoint), sandbox.GenerateTestToken)
+	localDomain.Nodes[0].NewEndpoint(ctx, &registry.Endpoint{...}, sandbox.GenerateTestToken, ...myNewEndpointChain)
+	client := localDomain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, ...clientChain)
+	...
 ```
 
 Problem: setup my external NSMgr and Forwarder to checking my external NSMgr.\
@@ -43,7 +45,7 @@ Solution:
 		SetNSMgrSupplier(myExternalNSMgrFunc)
 		Build()
 	defer localDomain.Cleanup()
-    ...
+	...
 ```
 
 Problem: setup my NSMgr and new Forwarder to checking my Forwarder chain.\
@@ -54,9 +56,9 @@ Solution:
 		SetNodesCount(1).
 		SetNSMgrProxySupplier(nil).
 		SetRegistryProxySupplier(nil).
-		SetForwarderSupplier(myNewForwarderFunc)
 		Build()
 	defer localDomain.Cleanup()
+	localDomain.Nodes[0].NewForwarder(ctx, new(registry.Endpoint), sandbox.GenerateTestToken, ...myNewForwarderChain)
 	...
 ```
 
@@ -70,8 +72,11 @@ Solution:
 		SetNodesCount(2).
 		Build()
 	defer localDomain.Cleanup()
-	urlForNSERegistration := localDomain.Nodes[1].NSMgr.URL
-    ...
+	for _, node := range localDomain.Nodes {
+		node.NewForwarder(ctx, new(registry.Endpoint), sandbox.GenerateTestToken)
+	}
+	localDomain.Nodes[1].NewEndpoint(ctx, &registry.Endpoint{...}, sandbox.GenerateTestToken, ...remoteEndpointChain)
+	...
 ```
 
 ### Setup only local registry
@@ -97,7 +102,7 @@ Problem: setup NSMgrs, Forwarders, Registries to checking interdomain use-case v
 Solution:
 ```go
 	...
-        fakeServer := new(sandbox.FakeDNSResolver)
+	fakeServer := new(sandbox.FakeDNSResolver)
 	domain1 := sandbox.NewBuilder(t).
 		SetContext(ctx).
 		SetNodesCount(1).
