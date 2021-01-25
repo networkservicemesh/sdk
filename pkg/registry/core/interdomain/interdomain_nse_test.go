@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -223,7 +223,7 @@ func TestInterdomainFloatingNetworkServiceEndpointRegistry(t *testing.T) {
 
 	domain3 := sandbox.NewBuilder(t).
 		SetNodesCount(0).
-		SetRegistrySupplier(func(context.Context, *url.URL, ...grpc.DialOption) registry2.Registry {
+		SetRegistrySupplier(func(context.Context, time.Duration, *url.URL, ...grpc.DialOption) registry2.Registry {
 			return registry2.NewServer(memory.NewNetworkServiceRegistryServer(), memory.NewNetworkServiceEndpointRegistryServer())
 		}).
 		SetRegistryProxySupplier(nil).
