@@ -38,6 +38,11 @@ func newSendFDClient() networkservice.NetworkServiceClient {
 	return sendfd.NewClient()
 }
 
+// newSendFDServer - construct a sendfd server
+func newSendFDServer() networkservice.NetworkServiceServer {
+	return sendfd.NewServer()
+}
+
 // newRecvFDEndpointRegistry - construct a registry server
 func newRecvFDEndpointRegistry() registry.NetworkServiceEndpointRegistryServer {
 	return recvfdreg.NewNetworkServiceEndpointRegistryServer()

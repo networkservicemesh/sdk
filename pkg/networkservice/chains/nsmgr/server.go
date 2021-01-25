@@ -124,6 +124,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 				newSendFDClient(), // Send passed files.
 			),
 			clientDialOptions...),
+		newSendFDServer(),
 	)
 
 	nsChain := chain_registry.NewNamedNetworkServiceRegistryServer(nsmRegistration.Name+".NetworkServiceRegistry", nsRegistry)

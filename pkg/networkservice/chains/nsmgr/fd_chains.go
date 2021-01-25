@@ -31,6 +31,11 @@ func newRecvFD() networkservice.NetworkServiceServer {
 	return null.NewServer()
 }
 
+// newSendFDServer - construct a sendfd server
+func newSendFDServer() networkservice.NetworkServiceServer {
+	return null.NewServer()
+}
+
 // newSendFDClient - construct a sendfd server
 func newSendFDClient() networkservice.NetworkServiceClient {
 	return null.NewClient()
