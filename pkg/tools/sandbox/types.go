@@ -38,14 +38,14 @@ type SupplyNSMgrProxyFunc func(context.Context, string, token.GeneratorFunc, ...
 // SupplyNSMgrFunc supplies NSMGR
 type SupplyNSMgrFunc func(context.Context, *registryapi.NetworkServiceEndpoint, networkservice.NetworkServiceServer, token.GeneratorFunc, grpc.ClientConnInterface, ...grpc.DialOption) nsmgr.Nsmgr
 
-// SupplyForwarderFunc supplies Forwarder
-type SupplyForwarderFunc func(context.Context, string, token.GeneratorFunc, *url.URL, ...grpc.DialOption) endpoint.Endpoint
-
 // SupplyRegistryFunc supplies Registry
 type SupplyRegistryFunc func(ctx context.Context, expiryDuration time.Duration, proxyRegistryURL *url.URL, options ...grpc.DialOption) registry.Registry
 
 // SupplyRegistryProxyFunc supplies registry proxy
 type SupplyRegistryProxyFunc func(ctx context.Context, dnsResolver dnsresolve.Resolver, handlingDNSDomain string, proxyNSMgrURL *url.URL, options ...grpc.DialOption) registry.Registry
+
+// SetupNodeFunc setups each node on Builder.Build() stage
+type SetupNodeFunc func(ctx context.Context, node *Node)
 
 // RegistryEntry is pair of registry.Registry and url.URL
 type RegistryEntry struct {

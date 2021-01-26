@@ -57,6 +57,7 @@ type Builder struct {
 	supplyNSMgrProxy    SupplyNSMgrProxyFunc
 	supplyRegistry      SupplyRegistryFunc
 	supplyRegistryProxy SupplyRegistryProxyFunc
+	setupNode           SetupNodeFunc
 	generateTokenFunc   token.GeneratorFunc
 	ctx                 context.Context
 }
@@ -72,6 +73,7 @@ func NewBuilder(t *testing.T) *Builder {
 		supplyRegistry:      memory.NewServer,
 		supplyRegistryProxy: proxydns.NewServer,
 		supplyNSMgrProxy:    nsmgrproxy.NewServer,
+		setupNode:           defaultSetupNode(t),
 		generateTokenFunc:   GenerateTestToken,
 	}
 }
@@ -85,7 +87,8 @@ func (b *Builder) Build() *Domain {
 		b.resources = append(b.resources, cancel)
 	}
 	ctx = logger.WithLog(ctx)
-	domain := &Domain{}
+
+	domain := new(Domain)
 	domain.NSMgrProxy = b.newNSMgrProxy(ctx)
 	if domain.NSMgrProxy == nil {
 		domain.RegistryProxy = b.newRegistryProxy(ctx, &url.URL{})
@@ -97,12 +100,13 @@ func (b *Builder) Build() *Domain {
 	} else {
 		domain.Registry = b.newRegistry(ctx, domain.RegistryProxy.URL)
 	}
+
 	for i := 0; i < b.nodesCount; i++ {
-		domain.Nodes = append(domain.Nodes, &Node{
-			NSMgr: b.newNSMgr(ctx, domain.Registry.URL),
-		})
+		domain.Nodes = append(domain.Nodes, b.newNode(ctx, domain.Registry.URL))
 	}
+
 	domain.resources, b.resources = b.resources, nil
+
 	return domain
 }
 
@@ -157,6 +161,12 @@ func (b *Builder) SetNSMgrProxySupplier(f SupplyNSMgrProxyFunc) *Builder {
 // SetNSMgrSupplier replaces default nsmgr supplier to custom function
 func (b *Builder) SetNSMgrSupplier(f SupplyNSMgrFunc) *Builder {
 	b.supplyNSMgr = f
+	return b
+}
+
+// SetNodeSetup replaces default node setup to custom function
+func (b *Builder) SetNodeSetup(f SetupNodeFunc) *Builder {
+	b.setupNode = f
 	return b
 }
 
@@ -257,5 +267,24 @@ func (b *Builder) newRegistry(ctx context.Context, proxyRegistryURL *url.URL) *R
 	return &RegistryEntry{
 		URL:      serveURL,
 		Registry: result,
+	}
+}
+
+func (b *Builder) newNode(ctx context.Context, registryURL *url.URL) *Node {
+	node := &Node{
+		NSMgr: b.newNSMgr(ctx, registryURL),
+	}
+
+	if b.setupNode != nil {
+		b.setupNode(ctx, node)
+	}
+
+	return node
+}
+
+func defaultSetupNode(t *testing.T) SetupNodeFunc {
+	return func(ctx context.Context, node *Node) {
+		_, err := node.NewForwarder(ctx, new(registryapi.NetworkServiceEndpoint), GenerateTestToken)
+		require.NoError(t, err)
 	}
 }
