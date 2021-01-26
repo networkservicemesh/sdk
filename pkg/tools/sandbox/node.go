@@ -45,14 +45,7 @@ import (
 
 // Node is a NSMgr with resources
 type Node struct {
-	NSMgr     *NSMgrEntry
-	resources []context.CancelFunc
-}
-
-func (n *Node) cleanup() {
-	for _, r := range n.resources {
-		r()
-	}
+	NSMgr *NSMgrEntry
 }
 
 // NewForwarder starts a new forwarder and registers it on the node NSMgr
@@ -128,6 +121,8 @@ func (n *Node) newEndpoint(
 	// 3. Register to the node NSMgr
 	cc := n.dialNSMgr(ctx)
 
+	var resources []context.CancelFunc
+
 	nsClient := registry.NewNetworkServiceRegistryClient(cc)
 	for _, name := range nse.NetworkServiceNames {
 		var service *registry.NetworkService
@@ -138,7 +133,7 @@ func (n *Node) newEndpoint(
 		if err != nil {
 			return nil, err
 		}
-		n.resources = append(n.resources, func() {
+		resources = append(resources, func() {
 			_, _ = nsClient.Unregister(ctx, service)
 		})
 	}
@@ -160,9 +155,16 @@ func (n *Node) newEndpoint(
 	if err != nil {
 		return nil, err
 	}
-	n.resources = append(n.resources, func() {
+	resources = append(resources, func() {
 		_, _ = nseClient.Unregister(ctx, nse)
 	})
+
+	go func() {
+		<-ctx.Done()
+		for _, resource := range resources {
+			resource()
+		}
+	}()
 
 	if isForwarder {
 		logger.Log(ctx).Infof("Started listen forwarder %v on %v.", nse.Name, u.String())
@@ -199,9 +201,10 @@ func (n *Node) dialNSMgr(ctx context.Context) grpc.ClientConnInterface {
 		panic("failed to dial node NSMgr")
 	}
 
-	n.resources = append(n.resources, func() {
+	go func() {
+		<-ctx.Done()
 		_ = cc.Close()
-	})
+	}()
 
 	return cc
 }

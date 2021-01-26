@@ -78,9 +78,6 @@ type Domain struct {
 
 // Cleanup frees all resources related to the domain
 func (d *Domain) Cleanup() {
-	for _, node := range d.Nodes {
-		node.cleanup()
-	}
 	for _, r := range d.resources {
 		r()
 	}
