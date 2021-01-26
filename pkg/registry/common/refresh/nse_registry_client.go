@@ -20,23 +20,44 @@ import (
 	"context"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
-
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 )
 
 type refreshNSEClient struct {
 	chainContext          context.Context
 	nseCancels            cancelsMap
-	retryDelay            time.Duration
 	defaultExpiryDuration time.Duration
 }
 
-func (c *refreshNSEClient) startRefresh(ctx context.Context, client registry.NetworkServiceEndpointRegistryClient, nse *registry.NetworkServiceEndpoint) {
+// NewNetworkServiceEndpointRegistryClient creates new NetworkServiceEndpointRegistryClient that will refresh expiration
+// time for registered NSEs
+func NewNetworkServiceEndpointRegistryClient(options ...Option) registry.NetworkServiceEndpointRegistryClient {
+	c := &refreshNSEClient{
+		defaultExpiryDuration: time.Minute * 30,
+		chainContext:          logger.WithLog(context.Background()),
+	}
+
+	for _, o := range options {
+		o.apply(c)
+	}
+
+	return c
+}
+
+func (c *refreshNSEClient) startRefresh(
+	ctx context.Context,
+	client registry.NetworkServiceEndpointRegistryClient,
+	nse *registry.NetworkServiceEndpoint,
+) {
+	logEntry := logger.Log(ctx).WithField("refreshNSEClient", "startRefresh")
+
 	t := time.Unix(nse.ExpirationTime.Seconds, int64(nse.ExpirationTime.Nanos))
 	delta := time.Until(t)
 	go func() {
@@ -45,72 +66,71 @@ func (c *refreshNSEClient) startRefresh(ctx context.Context, client registry.Net
 			case <-ctx.Done():
 				return
 			case <-time.After(2 * time.Until(t) / 3):
-				t1 := time.Now().Add(delta)
-				nse.ExpirationTime.Seconds = t1.Unix()
-				nse.ExpirationTime.Nanos = int32(t1.Nanosecond())
-				var err error
-				nse, err = client.Register(ctx, nse)
+				nse.ExpirationTime = timestamppb.New(time.Now().Add(delta))
+
+				res, err := client.Register(ctx, nse.Clone())
 				if err != nil {
-					<-time.After(c.retryDelay)
-					continue
+					logEntry.Errorf("failed to update registration: %s", err.Error())
+					return
 				}
-				t = t1
+
+				nse.ExpirationTime = res.ExpirationTime
+
+				t = nse.ExpirationTime.AsTime().Local()
 			}
 		}
 	}()
 }
 
-func (c *refreshNSEClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	if in.ExpirationTime == nil {
-		expirationTime := time.Now().Add(c.defaultExpiryDuration)
-		in.ExpirationTime = &timestamp.Timestamp{
-			Seconds: expirationTime.Unix(),
-			Nanos:   int32(expirationTime.Nanosecond()),
-		}
+func (c *refreshNSEClient) Register(
+	ctx context.Context,
+	nse *registry.NetworkServiceEndpoint,
+	opts ...grpc.CallOption,
+) (*registry.NetworkServiceEndpoint, error) {
+	if nse.ExpirationTime == nil {
+		nse.ExpirationTime = timestamppb.New(time.Now().Add(c.defaultExpiryDuration))
 	}
-	nse := in.Clone()
+
+	refreshNSE := nse.Clone()
+
 	nextClient := next.NetworkServiceEndpointRegistryClient(ctx)
-	resp, err := nextClient.Register(ctx, in, opts...)
+
+	resp, err := nextClient.Register(ctx, nse, opts...)
 	if err != nil {
 		return nil, err
 	}
 	if cancel, ok := c.nseCancels.Load(resp.Name); ok {
 		cancel()
 	}
+
+	refreshNSE.Name = resp.Name
+	refreshNSE.ExpirationTime = resp.ExpirationTime
+
 	ctx, cancel := context.WithCancel(c.chainContext)
 	c.nseCancels.Store(resp.Name, cancel)
-	nse.ExpirationTime = resp.ExpirationTime
-	c.startRefresh(ctx, nextClient, nse)
+
+	c.startRefresh(ctx, nextClient, refreshNSE)
+
 	return resp, err
 }
 
-func (c *refreshNSEClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, in, opts...)
+func (c *refreshNSEClient) Find(
+	ctx context.Context,
+	query *registry.NetworkServiceEndpointQuery,
+	opts ...grpc.CallOption,
+) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
+	return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, query, opts...)
 }
 
-func (c *refreshNSEClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
-	resp, err := next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
-	if err != nil {
-		return nil, err
-	}
-	if cancel, ok := c.nseCancels.Load(in.Name); ok {
+func (c *refreshNSEClient) Unregister(
+	ctx context.Context,
+	nse *registry.NetworkServiceEndpoint,
+	opts ...grpc.CallOption,
+) (*empty.Empty, error) {
+	if cancel, ok := c.nseCancels.Load(nse.Name); ok {
 		cancel()
 	}
-	c.nseCancels.Delete(in.Name)
-	return resp, nil
-}
+	c.nseCancels.Delete(nse.Name)
 
-// NewNetworkServiceEndpointRegistryClient creates new NetworkServiceEndpointRegistryClient that will refresh expiration time for registered NSEs
-func NewNetworkServiceEndpointRegistryClient(options ...Option) registry.NetworkServiceEndpointRegistryClient {
-	c := &refreshNSEClient{
-		retryDelay:            time.Second * 5,
-		defaultExpiryDuration: time.Minute * 30,
-		chainContext:          context.Background(),
-	}
-
-	for _, o := range options {
-		o.apply(c)
-	}
-
-	return c
+	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, nse, opts...)
 }

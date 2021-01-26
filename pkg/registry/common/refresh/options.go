@@ -32,13 +32,6 @@ func (f applierFunc) apply(c *refreshNSEClient) {
 	f(c)
 }
 
-// WithRetryPeriod sets a specific period to reconnect in case of a server returning an error
-func WithRetryPeriod(duration time.Duration) Option {
-	return applierFunc(func(c *refreshNSEClient) {
-		c.retryDelay = duration
-	})
-}
-
 // WithDefaultExpiryDuration sets a default expiration_time if it is nil on NSE registration
 func WithDefaultExpiryDuration(duration time.Duration) Option {
 	return applierFunc(func(c *refreshNSEClient) {
