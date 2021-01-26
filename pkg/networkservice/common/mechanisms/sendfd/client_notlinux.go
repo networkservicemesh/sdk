@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -16,27 +16,15 @@
 
 // +build !linux
 
-package nsmgr
+package sendfd
 
 import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
-	null_registry "github.com/networkservicemesh/sdk/pkg/registry/common/null"
 )
 
-// newRecvFD - construct a recvfd server
-func newRecvFD() networkservice.NetworkServiceServer {
-	return null.NewServer()
-}
-
-// newSendFDClient - construct a sendfd server
-func newSendFDClient() networkservice.NetworkServiceClient {
+// NewClient - returns client which sends any "file://" Mechanism.Parameters[common.InodeURLs]s across the connection as fds (if possible) to the server
+func NewClient() networkservice.NetworkServiceClient {
 	return null.NewClient()
-}
-
-// newRecvFDEndpointRegistry - construct a registry server
-func newRecvFDEndpointRegistry() registry.NetworkServiceEndpointRegistryServer {
-	return null_registry.NewNetworkServiceEndpointRegistryServer()
 }
