@@ -27,7 +27,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/logger/logruslogger"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 )
 
 type refreshNSEClient struct {
@@ -41,7 +41,7 @@ type refreshNSEClient struct {
 func NewNetworkServiceEndpointRegistryClient(options ...Option) registry.NetworkServiceEndpointRegistryClient {
 	c := &refreshNSEClient{
 		defaultExpiryDuration: time.Minute * 30,
-		chainContext:          context.Background(),
+		chainContext:          logger.WithLog(context.Background()),
 	}
 
 	for _, o := range options {
@@ -56,8 +56,7 @@ func (c *refreshNSEClient) startRefresh(
 	client registry.NetworkServiceEndpointRegistryClient,
 	nse *registry.NetworkServiceEndpoint,
 ) {
-	_, logEntry := logruslogger.New(ctx)
-	logEntry = logEntry.WithField("refreshNSEClient", "startRefresh")
+	logEntry := logger.Log(ctx).WithField("refreshNSEClient", "startRefresh")
 
 	t := time.Unix(nse.ExpirationTime.Seconds, int64(nse.ExpirationTime.Nanos))
 	delta := time.Until(t)
