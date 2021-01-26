@@ -37,6 +37,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+	"github.com/networkservicemesh/sdk/pkg/tools/mergectx"
 	"github.com/networkservicemesh/sdk/pkg/tools/opentracing"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
@@ -60,7 +61,6 @@ type Builder struct {
 	setupNode           SetupNodeFunc
 	generateTokenFunc   token.GeneratorFunc
 	ctx                 context.Context
-	log                 logger.Logger
 }
 
 // NewBuilder creates new SandboxBuilder
@@ -76,7 +76,6 @@ func NewBuilder(t *testing.T) *Builder {
 		supplyNSMgrProxy:    nsmgrproxy.NewServer,
 		setupNode:           defaultSetupNode(t),
 		generateTokenFunc:   GenerateTestToken,
-		log:                 log(),
 	}
 }
 
@@ -88,9 +87,8 @@ func (b *Builder) Build() *Domain {
 		ctx, cancel = context.WithTimeout(context.Background(), defaultContextTimeout)
 		b.resources = append(b.resources, cancel)
 	}
-
-	domain := new(Domain)
-
+	ctx = mergectx.WithValuesFromContext(ctx, logger.WithLog(context.Background()))
+	domain := &Domain{}
 	domain.NSMgrProxy = b.newNSMgrProxy(ctx)
 	if domain.NSMgrProxy == nil {
 		domain.RegistryProxy = b.newRegistryProxy(ctx, &url.URL{})
@@ -102,13 +100,10 @@ func (b *Builder) Build() *Domain {
 	} else {
 		domain.Registry = b.newRegistry(ctx, domain.RegistryProxy.URL)
 	}
-
 	for i := 0; i < b.nodesCount; i++ {
 		domain.Nodes = append(domain.Nodes, b.newNode(ctx, domain.Registry.URL))
 	}
-
 	domain.resources, b.resources = b.resources, nil
-
 	return domain
 }
 
@@ -172,17 +167,6 @@ func (b *Builder) SetNodeSetup(f SetupNodeFunc) *Builder {
 	return b
 }
 
-// SetLogger sets builder logger
-func (b *Builder) SetLogger(log logger.Logger) *Builder {
-	b.log = log
-	return b
-}
-
-func log() logger.Logger {
-	ctx := logger.WithLog(context.Background())
-	return logger.Log(ctx)
-}
-
 func (b *Builder) dialContext(ctx context.Context, u *url.URL) *grpc.ClientConn {
 	conn, err := grpc.DialContext(ctx, grpcutils.URLToTarget(u),
 		grpc.WithInsecure(),
@@ -202,8 +186,8 @@ func (b *Builder) newNSMgrProxy(ctx context.Context) *EndpointEntry {
 	name := "nsmgr-proxy-" + uuid.New().String()
 	mgr := b.supplyNSMgrProxy(ctx, name, b.generateTokenFunc, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)))
 	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
-	serve(logger.WithLog(ctx, b.log), serveURL, mgr.Register)
-	b.log.Infof("%v listen on: %v", name, serveURL)
+	serve(ctx, serveURL, mgr.Register)
+	logger.Log(ctx).Infof("%v listen on: %v", name, serveURL)
 	return &EndpointEntry{
 		Endpoint: mgr,
 		URL:      serveURL,
@@ -230,8 +214,8 @@ func (b *Builder) newNSMgr(ctx context.Context, registryURL *url.URL) *NSMgrEntr
 
 	mgr := b.supplyNSMgr(ctx, nsmgrReg, authorize.NewServer(), b.generateTokenFunc, registryCC, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)))
 
-	serve(logger.WithLog(ctx, b.log), serveURL, mgr.Register)
-	b.log.Infof("%v listen on: %v", nsmgrReg.Name, serveURL)
+	serve(ctx, serveURL, mgr.Register)
+	logger.Log(ctx).Infof("%v listen on: %v", nsmgrReg.Name, serveURL)
 	return &NSMgrEntry{
 		URL:   serveURL,
 		Nsmgr: mgr,
@@ -261,8 +245,8 @@ func (b *Builder) newRegistryProxy(ctx context.Context, nsmgrProxyURL *url.URL) 
 	}
 	result := b.supplyRegistryProxy(ctx, b.Resolver, b.DNSDomainName, nsmgrProxyURL, grpc.WithInsecure(), grpc.WithBlock())
 	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
-	serve(logger.WithLog(ctx, b.log), serveURL, result.Register)
-	b.log.Infof("registry-proxy-dns listen on: %v", serveURL)
+	serve(ctx, serveURL, result.Register)
+	logger.Log(ctx).Infof("registry-proxy-dns listen on: %v", serveURL)
 	return &RegistryEntry{
 		URL:      serveURL,
 		Registry: result,
@@ -275,8 +259,8 @@ func (b *Builder) newRegistry(ctx context.Context, proxyRegistryURL *url.URL) *R
 	}
 	result := b.supplyRegistry(ctx, defaultRegistryExpiryDuration, proxyRegistryURL, grpc.WithInsecure(), grpc.WithBlock())
 	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
-	serve(logger.WithLog(ctx, b.log), serveURL, result.Register)
-	b.log.Infof("Registry listen on: %v", serveURL)
+	serve(ctx, serveURL, result.Register)
+	logger.Log(ctx).Infof("Registry listen on: %v", serveURL)
 	return &RegistryEntry{
 		URL:      serveURL,
 		Registry: result,
@@ -286,13 +270,10 @@ func (b *Builder) newRegistry(ctx context.Context, proxyRegistryURL *url.URL) *R
 func (b *Builder) newNode(ctx context.Context, registryURL *url.URL) *Node {
 	node := &Node{
 		NSMgr: b.newNSMgr(ctx, registryURL),
-		log:   b.log,
 	}
-
 	if b.setupNode != nil {
 		b.setupNode(ctx, node)
 	}
-
 	return node
 }
 

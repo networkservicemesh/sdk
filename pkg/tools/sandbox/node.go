@@ -40,13 +40,13 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+	"github.com/networkservicemesh/sdk/pkg/tools/mergectx"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 // Node is a NSMgr with resources
 type Node struct {
 	NSMgr     *NSMgrEntry
-	log       logger.Logger
 	resources []context.CancelFunc
 }
 
@@ -101,6 +101,8 @@ func (n *Node) newEndpoint(
 	isForwarder bool,
 	additionalFunctionality ...networkservice.NetworkServiceServer,
 ) (_ *EndpointEntry, err error) {
+	ctx = mergectx.WithValuesFromContext(ctx, logger.WithLog(context.Background()))
+
 	// 1. Create endpoint server
 	ep := endpoint.NewServer(
 		ctx,
@@ -119,7 +121,7 @@ func (n *Node) newEndpoint(
 		}
 	}
 
-	serve(logger.WithLog(ctx, n.log), u, ep.Register)
+	serve(ctx, u, ep.Register)
 
 	if nse.Url == "" {
 		nse.Url = u.String()
@@ -165,9 +167,9 @@ func (n *Node) newEndpoint(
 	})
 
 	if isForwarder {
-		n.log.Infof("Started listen forwarder %v on %v.", nse.Name, u.String())
+		logger.Log(ctx).Infof("Started listen forwarder %v on %v.", nse.Name, u.String())
 	} else {
-		n.log.Infof("Started listen endpoint %v on %v.", nse.Name, u.String())
+		logger.Log(ctx).Infof("Started listen endpoint %v on %v.", nse.Name, u.String())
 	}
 
 	return &EndpointEntry{Endpoint: ep, URL: u}, nil
