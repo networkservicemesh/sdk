@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -23,6 +23,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
@@ -42,34 +43,51 @@ func (q *queryCacheNSEClient) Find(ctx context.Context, in *registry.NetworkServ
 	if in.Watch {
 		return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, in, opts...)
 	}
+
 	if nse, ok := q.cache.Load(in.String()); ok {
 		resultCh := make(chan *registry.NetworkServiceEndpoint, 1)
 		resultCh <- nse
 		close(resultCh)
 		return streamchannel.NewNetworkServiceEndpointFindClient(ctx, resultCh), nil
 	}
+
 	client, err := next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, in, opts...)
 	if err != nil {
 		return nil, err
 	}
+
 	nses := registry.ReadNetworkServiceEndpointList(client)
+
 	resultCh := make(chan *registry.NetworkServiceEndpoint, len(nses))
 	for _, nse := range nses {
+		resultCh <- nse
+
 		nseQuery := &registry.NetworkServiceEndpointQuery{
 			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 				Name: nse.Name,
 			},
 		}
-		resultCh <- nse
+
 		key := nseQuery.String()
 		q.cache.Store(key, nse)
+
 		go func() {
 			defer q.cache.Delete(key)
+
+			findCtx, findCancel := context.WithCancel(q.chainCtx)
+			defer findCancel()
+
 			nseQuery.Watch = true
-			stream, err := next.NetworkServiceEndpointRegistryClient(ctx).Find(q.chainCtx, nseQuery, opts...)
+
+			stream, err := next.NetworkServiceEndpointRegistryClient(ctx).Find(findCtx, nseQuery, opts...)
 			if err != nil {
 				return
 			}
+
+			if q.checkQuery(ctx, nseQuery, opts...) != nil {
+				return
+			}
+
 			for update, err := stream.Recv(); err == nil; update, err = stream.Recv() {
 				if update.Name != nseQuery.NetworkServiceEndpoint.Name {
 					continue
@@ -82,7 +100,25 @@ func (q *queryCacheNSEClient) Find(ctx context.Context, in *registry.NetworkServ
 		}()
 	}
 	close(resultCh)
+
 	return streamchannel.NewNetworkServiceEndpointFindClient(ctx, resultCh), nil
+}
+
+func (q *queryCacheNSEClient) checkQuery(ctx context.Context, nseQuery *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) error {
+	nseQuery = proto.Clone(nseQuery).(*registry.NetworkServiceEndpointQuery)
+	nseQuery.Watch = false
+
+	findCtx, findCancel := context.WithCancel(q.chainCtx)
+	defer findCancel()
+
+	client, err := next.NetworkServiceEndpointRegistryClient(ctx).Find(findCtx, nseQuery, opts...)
+	if err != nil {
+		return err
+	}
+
+	_, err = client.Recv()
+
+	return err
 }
 
 func (q *queryCacheNSEClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
