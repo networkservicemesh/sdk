@@ -46,28 +46,17 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
-func testDomain(ctx context.Context, t *testing.T, nodesCount int) *sandbox.Domain {
-	domain := sandbox.NewBuilder(t).
-		SetNodesCount(nodesCount).
-		SetRegistryProxySupplier(nil).
-		SetContext(ctx).
-		Build()
-
-	for _, node := range domain.Nodes {
-		_, err := node.NewForwarder(ctx, new(registry.NetworkServiceEndpoint), sandbox.GenerateTestToken)
-		require.NoError(t, err)
-	}
-
-	return domain
-}
-
 func TestNSMGR_RemoteUsecase_Parallel(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	domain := testDomain(ctx, t, 2)
+	domain := sandbox.NewBuilder(t).
+		SetNodesCount(2).
+		SetRegistryProxySupplier(nil).
+		SetContext(ctx).
+		Build()
 	defer domain.Cleanup()
 
 	counter := &counterServer{}
@@ -124,7 +113,11 @@ func TestNSMGR_SelectsRestartingEndpoint(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	domain := testDomain(ctx, t, 1)
+	domain := sandbox.NewBuilder(t).
+		SetNodesCount(1).
+		SetRegistryProxySupplier(nil).
+		SetContext(ctx).
+		Build()
 	defer domain.Cleanup()
 
 	request := &networkservice.NetworkServiceRequest{
@@ -162,7 +155,11 @@ func TestNSMGR_RemoteUsecase_BusyEndpoints(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	domain := testDomain(ctx, t, 2)
+	domain := sandbox.NewBuilder(t).
+		SetNodesCount(2).
+		SetRegistryProxySupplier(nil).
+		SetContext(ctx).
+		Build()
 	defer domain.Cleanup()
 
 	counter := new(counterServer)
@@ -226,7 +223,11 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	domain := testDomain(ctx, t, 2)
+	domain := sandbox.NewBuilder(t).
+		SetNodesCount(2).
+		SetRegistryProxySupplier(nil).
+		SetContext(ctx).
+		Build()
 	defer domain.Cleanup()
 
 	nseReg := &registry.NetworkServiceEndpoint{
@@ -334,7 +335,11 @@ func TestNSMGR_LocalUsecase(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	domain := testDomain(ctx, t, 1)
+	domain := sandbox.NewBuilder(t).
+		SetNodesCount(1).
+		SetContext(ctx).
+		SetRegistryProxySupplier(nil).
+		Build()
 	defer domain.Cleanup()
 
 	nseReg := &registry.NetworkServiceEndpoint{
@@ -390,7 +395,11 @@ func TestNSMGR_PassThroughRemote(t *testing.T) {
 	defer cancel()
 
 	const nodesCount = 7
-	domain := testDomain(ctx, t, nodesCount)
+	domain := sandbox.NewBuilder(t).
+		SetNodesCount(nodesCount).
+		SetContext(ctx).
+		SetRegistryProxySupplier(nil).
+		Build()
 	defer domain.Cleanup()
 
 	for i := 0; i < nodesCount; i++ {
@@ -449,7 +458,11 @@ func TestNSMGR_PassThroughLocal(t *testing.T) {
 	defer cancel()
 
 	const nsesCount = 7
-	domain := testDomain(ctx, t, 1)
+	domain := sandbox.NewBuilder(t).
+		SetNodesCount(1).
+		SetContext(ctx).
+		SetRegistryProxySupplier(nil).
+		Build()
 	defer domain.Cleanup()
 
 	for i := 0; i < nsesCount; i++ {

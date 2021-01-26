@@ -29,22 +29,8 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
-
-func testDomain(ctx context.Context, t *testing.T, dnsServer dnsresolve.Resolver) *sandbox.Domain {
-	domain := sandbox.NewBuilder(t).
-		SetNodesCount(1).
-		SetContext(ctx).
-		SetDNSResolver(dnsServer).
-		Build()
-
-	_, err := domain.Nodes[0].NewForwarder(ctx, new(registry.NetworkServiceEndpoint), sandbox.GenerateTestToken)
-	require.NoError(t, err)
-
-	return domain
-}
 
 func TestNSMGR_InterdomainUseCase(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
@@ -56,10 +42,18 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 
 	dnsServer := new(sandbox.FakeDNSResolver)
 
-	domain1 := testDomain(ctx, t, dnsServer)
+	domain1 := sandbox.NewBuilder(t).
+		SetNodesCount(1).
+		SetContext(ctx).
+		SetDNSResolver(dnsServer).
+		Build()
 	defer domain1.Cleanup()
 
-	domain2 := testDomain(ctx, t, dnsServer)
+	domain2 := sandbox.NewBuilder(t).
+		SetNodesCount(1).
+		SetDNSResolver(dnsServer).
+		SetContext(ctx).
+		Build()
 	defer domain2.Cleanup()
 
 	require.NoError(t, dnsServer.Register(remoteRegistryDomain, domain2.Registry.URL))
