@@ -14,7 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tracelogger
+// Package spanlogger provides a set of utilities to assist in working with opentracing spans
+package spanlogger
 
 import (
 	"context"
@@ -24,10 +25,10 @@ import (
 	"strings"
 
 	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/log"
+	opentracinglog "github.com/opentracing/opentracing-go/log"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/jaeger"
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 const (
@@ -37,9 +38,8 @@ const (
 
 // spanlogger - provides a way to log via opentracing spans
 type spanLogger struct {
-	operation string
-	span      opentracing.Span
-	entries   map[interface{}]interface{}
+	span    opentracing.Span
+	entries map[interface{}]interface{}
 }
 
 func (s *spanLogger) Info(v ...interface{}) {
@@ -101,7 +101,7 @@ func (s *spanLogger) Object(k, v interface{}) {
 				msg = fmt.Sprint(v)
 			}
 
-			s.span.LogFields(log.Object(k.(string), limitString(msg)))
+			s.span.LogFields(opentracinglog.Object(k.(string), limitString(msg)))
 			for k, v := range s.entries {
 				s.span.LogKV(k, v)
 			}
@@ -109,16 +109,15 @@ func (s *spanLogger) Object(k, v interface{}) {
 	}
 }
 
-func (s *spanLogger) WithField(key, value interface{}) logger.Logger {
+func (s *spanLogger) WithField(key, value interface{}) log.Logger {
 	data := make(map[interface{}]interface{}, len(s.entries)+1)
 	for k, v := range s.entries {
 		data[k] = v
 	}
 	data[key] = value
 	newlog := &spanLogger{
-		span:      s.span,
-		operation: s.operation,
-		entries:   data,
+		span:    s.span,
+		entries: data,
 	}
 	return newlog
 }
@@ -130,7 +129,7 @@ func (s *spanLogger) log(level string, v ...interface{}) {
 func (s *spanLogger) logf(level, format string, v ...interface{}) {
 	if s.span != nil {
 		if v != nil {
-			s.span.LogFields(log.String("event", level), log.String("message", fmt.Sprintf(format, v...)))
+			s.span.LogFields(opentracinglog.String("event", level), opentracinglog.String("message", fmt.Sprintf(format, v...)))
 			for k, v := range s.entries {
 				s.span.LogKV(k, v)
 			}
@@ -138,18 +137,17 @@ func (s *spanLogger) logf(level, format string, v ...interface{}) {
 	}
 }
 
-// newSpanLogger - creates a new spanLogger from context and operation
-func newSpanLogger(ctx context.Context, operation string) (context.Context, logger.Logger, opentracing.Span, func()) {
+// FromContext - creates a new spanLogger from context and operation
+func FromContext(ctx context.Context, operation string) (context.Context, log.Logger, opentracing.Span, func()) {
 	var span opentracing.Span
 	if jaeger.IsOpentracingEnabled() {
 		span, ctx = opentracing.StartSpanFromContext(ctx, operation)
 	}
 	newLog := &spanLogger{
-		span:      span,
-		operation: operation,
-		entries:   make(map[interface{}]interface{}),
+		span:    span,
+		entries: make(map[interface{}]interface{}),
 	}
-	return logger.WithLog(ctx, newLog), newLog, span, func() { newLog.finish() }
+	return ctx, newLog, span, func() { newLog.finish() }
 }
 
 // finish - closes spanLogger

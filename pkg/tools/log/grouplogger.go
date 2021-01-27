@@ -14,7 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package logger
+package log
+
+import "os"
 
 // groupLogger - combines multiple loggers
 type groupLogger struct {
@@ -65,12 +67,14 @@ func (j *groupLogger) Fatal(v ...interface{}) {
 	for _, l := range j.loggers {
 		l.Fatal(v...)
 	}
+	os.Exit(1)
 }
 
 func (j *groupLogger) Fatalf(format string, v ...interface{}) {
 	for _, l := range j.loggers {
 		l.Fatalf(format, v...)
 	}
+	os.Exit(1)
 }
 
 func (j *groupLogger) Debug(v ...interface{}) {

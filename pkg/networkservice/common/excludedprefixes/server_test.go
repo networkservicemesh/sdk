@@ -28,16 +28,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
 )
 
@@ -58,7 +54,7 @@ func TestNewExcludedPrefixesService(t *testing.T) {
 	}))
 	req := request()
 
-	_, err := server.Request(logger.WithLog(context.Background()), req)
+	_, err := server.Request(context.Background(), req)
 	require.NoError(t, err)
 }
 
@@ -82,7 +78,7 @@ func TestCheckReloadedPrefixes(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Eventually(t, func() bool {
-		_, err = server.Request(logger.WithLog(context.Background()), req)
+		_, err = server.Request(context.Background(), req)
 		require.NoError(t, err)
 		return reflect.DeepEqual(req.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes(), prefixes)
 	}, time.Second*15, time.Millisecond*100)
@@ -131,7 +127,7 @@ func TestUniqueRequestPrefixes(t *testing.T) {
 		},
 	}
 
-	_, err := server.Request(logger.WithLog(context.Background()), req)
+	_, err := server.Request(context.Background(), req)
 	require.NoError(t, err)
 }
 
@@ -144,7 +140,7 @@ func testWaitForFile(t *testing.T, filePath string) {
 		excludedprefixes.WithConfigPath(filePath)))
 
 	req := request()
-	_, err := server.Request(logger.WithLog(context.Background()), req)
+	_, err := server.Request(context.Background(), req)
 	require.NoError(t, err)
 	require.Empty(t, req.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes())
 
@@ -152,7 +148,7 @@ func testWaitForFile(t *testing.T, filePath string) {
 
 	defer func() { _ = os.Remove(filePath) }()
 	require.Eventually(t, func() bool {
-		_, reqErr := server.Request(logger.WithLog(context.Background()), req)
+		_, reqErr := server.Request(context.Background(), req)
 		require.NoError(t, reqErr)
 		return reflect.DeepEqual(req.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes(), prefixes)
 	}, time.Second, time.Millisecond*100)
@@ -162,7 +158,7 @@ func testWaitForFile(t *testing.T, filePath string) {
 
 	require.Eventually(t, func() bool {
 		req := request()
-		_, reqErr := server.Request(logger.WithLog(context.Background()), req)
+		_, reqErr := server.Request(context.Background(), req)
 		require.NoError(t, reqErr)
 		return len(req.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes()) == 0
 	}, time.Second, time.Millisecond*100)

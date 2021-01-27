@@ -23,7 +23,7 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -35,10 +35,10 @@ func logRequest(ctx context.Context, request proto.Message) {
 		if connInfo.Request != nil && connInfo.Request.ProtoReflect().Descriptor().FullName() == request.ProtoReflect().Descriptor().FullName() {
 			requestDiff, hadChanges := Diff(connInfo.Request.ProtoReflect(), request.ProtoReflect())
 			if hadChanges {
-				logger.Log(ctx).Object("request-diff", requestDiff)
+				log.FromContext(ctx).Object("request-diff", requestDiff)
 			}
 		} else {
-			logger.Log(ctx).Object("request", request)
+			log.FromContext(ctx).Object("request", request)
 		}
 		connInfo.Request = proto.Clone(request)
 	}
@@ -50,10 +50,10 @@ func logResponse(ctx context.Context, response proto.Message) {
 		if connInfo.Response != nil {
 			responseDiff, changed := Diff(connInfo.Response.ProtoReflect(), response.ProtoReflect())
 			if changed {
-				logger.Log(ctx).Object("response-diff", responseDiff)
+				log.FromContext(ctx).Object("response-diff", responseDiff)
 			}
 		} else {
-			logger.Log(ctx).Object("response", response)
+			log.FromContext(ctx).Object("response", response)
 		}
 		connInfo.Response = proto.Clone(response)
 		return
