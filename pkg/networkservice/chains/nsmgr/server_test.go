@@ -327,7 +327,9 @@ func TestNSMGR_ConnectToDeadNSE(t *testing.T) {
 }
 
 func TestNSMGR_LocalUsecase(t *testing.T) {
-	ctx := context.Background()
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
 
 	domain := sandbox.NewBuilder(t).
 		SetNodesCount(1).
@@ -341,15 +343,11 @@ func TestNSMGR_LocalUsecase(t *testing.T) {
 		NetworkServiceNames: []string{"my-service-remote"},
 	}
 
-	nseCtx, nseCancel := context.WithCancel(ctx)
-
 	counter := &counterServer{}
-	_, err := sandbox.NewEndpoint(nseCtx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, counter)
+	_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, counter)
 	require.NoError(t, err)
 
-	clientCtx, clientCancel := context.WithCancel(ctx)
-
-	nsc := sandbox.NewClient(clientCtx, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
+	nsc := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -362,31 +360,28 @@ func TestNSMGR_LocalUsecase(t *testing.T) {
 		},
 	}
 
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-
-	requestCtx, cancel := context.WithCancel(ctx)
-
-	conn, err := nsc.Request(requestCtx, request.Clone())
+	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Requests))
 	require.Equal(t, 5, len(conn.Path.PathSegments))
 
-	cancel()
+	// Simulate refresh from client.
 
-	requestCtx, cancel = context.WithCancel(ctx)
+	refreshRequest := request.Clone()
+	refreshRequest.Connection = conn.Clone()
 
-	e, err := nsc.Close(requestCtx, conn)
+	conn2, err := nsc.Request(ctx, refreshRequest)
+	require.NoError(t, err)
+	require.NotNil(t, conn2)
+	require.Equal(t, 5, len(conn2.Path.PathSegments))
+	require.Equal(t, int32(2), atomic.LoadInt32(&counter.Requests))
+	// Close.
+
+	e, err := nsc.Close(ctx, conn)
 	require.NoError(t, err)
 	require.NotNil(t, e)
 	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Closes))
-
-	cancel()
-
-	clientCancel()
-	nseCancel()
-
-	<-time.After(2 * time.Second)
 }
 
 func TestNSMGR_PassThroughRemote(t *testing.T) {

@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/logger"
@@ -75,7 +76,10 @@ func NewEndpoint(ctx context.Context, nse *registry.NetworkServiceEndpoint, gene
 	}
 
 	for _, service := range nse.NetworkServiceNames {
-		if _, err := mgr.NetworkServiceRegistryServer().Register(ctx, &registry.NetworkService{Name: service, Payload: "IP"}); err != nil {
+		if _, err := mgr.NetworkServiceRegistryServer().Register(ctx, &registry.NetworkService{
+			Name:    service,
+			Payload: payload.IP,
+		}); err != nil {
 			return nil, err
 		}
 	}
@@ -83,7 +87,10 @@ func NewEndpoint(ctx context.Context, nse *registry.NetworkServiceEndpoint, gene
 	go func() {
 		<-ctx.Done()
 		for _, service := range nse.NetworkServiceNames {
-			_, _ = mgr.NetworkServiceRegistryServer().Unregister(context.Background(), &registry.NetworkService{Name: service, Payload: "IP"})
+			_, _ = mgr.NetworkServiceRegistryServer().Unregister(context.Background(), &registry.NetworkService{
+				Name:    service,
+				Payload: payload.IP,
+			})
 		}
 		_, _ = mgr.NetworkServiceEndpointRegistryServer().Unregister(context.Background(), nse)
 	}()
