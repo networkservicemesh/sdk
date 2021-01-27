@@ -520,20 +520,44 @@ func TestNSMGR_ShouldCleanAllClientAndEndpointGoroutines(t *testing.T) {
 		Build()
 	defer domain.Cleanup()
 
-	nseCtx, nseCancel := context.WithCancel(ctx)
+	// We have lazy initialization in some chain elements in both networkservice, registry chains. So registering an
+	// endpoint and requesting it from client can result in new endless NSMgr goroutines.
 
-	nseReg := &registry.NetworkServiceEndpoint{
-		Name:                "final-endpoint",
-		NetworkServiceNames: []string{"my-service"},
-	}
+	testNSEAndClient(ctx, t, domain, &registry.NetworkServiceEndpoint{
+		Name:                "endpoint-init",
+		NetworkServiceNames: []string{"service-init"},
+	})
+
+	// At this moment all possible endless NSMgr goroutines have been started. So we expect all newly created goroutines
+	// to be canceled no later than some of these events:
+	//   1. GRPC request context cancel
+	//   2. NSC connection close
+	//   3. NSE unregister
+
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	testNSEAndClient(ctx, t, domain, &registry.NetworkServiceEndpoint{
+		Name:                "endpoint-final",
+		NetworkServiceNames: []string{"service-final"},
+	})
+}
+
+func testNSEAndClient(
+	ctx context.Context,
+	t *testing.T,
+	domain *sandbox.Domain,
+	nseReg *registry.NetworkServiceEndpoint,
+) {
+	nseCtx, nseCancel := context.WithCancel(ctx)
+	defer nseCancel()
+
 	_, err := sandbox.NewEndpoint(nseCtx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr)
 	require.NoError(t, err)
 
 	clientCtx, clientCancel := context.WithCancel(ctx)
+	defer clientCancel()
 
 	nsc := sandbox.NewClient(clientCtx, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
-
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	conn, err := func() (*networkservice.Connection, error) {
 		requestCtx, requestCancel := context.WithCancel(ctx)
@@ -544,7 +568,7 @@ func TestNSMGR_ShouldCleanAllClientAndEndpointGoroutines(t *testing.T) {
 				{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
 			},
 			Connection: &networkservice.Connection{
-				NetworkService: "my-service",
+				NetworkService: nseReg.NetworkServiceNames[0],
 			},
 		})
 	}()
@@ -557,9 +581,6 @@ func TestNSMGR_ShouldCleanAllClientAndEndpointGoroutines(t *testing.T) {
 		return nsc.Close(closeCtx, conn)
 	}()
 	require.NoError(t, err)
-
-	clientCancel()
-	nseCancel()
 }
 
 type passThroughClient struct {
