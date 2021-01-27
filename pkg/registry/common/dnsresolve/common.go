@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,10 +18,11 @@ package dnsresolve
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"net/url"
+
+	"github.com/pkg/errors"
 )
 
 // Resolver is DNS resolver
@@ -36,30 +37,49 @@ type Resolver interface {
 	LookupIPAddr(ctx context.Context, host string) ([]net.IPAddr, error)
 }
 
+func parseIPPort(domain string) (ip, port interface{}) {
+	u, err := url.Parse(domain)
+	if err != nil {
+		return nil, nil
+	}
+
+	ip = net.ParseIP(u.Hostname())
+	if ip == nil {
+		return nil, nil
+	}
+
+	if port = u.Port(); port == "" {
+		return nil, nil
+	}
+
+	return ip, port
+}
+
 func resolveDomain(ctx context.Context, service, domain string, r Resolver) (*url.URL, error) {
-	serviceDomain := fmt.Sprintf("%v.%v", service, domain)
-	_, records, err := r.LookupSRV(ctx, service, "tcp", serviceDomain)
+	ip, port := parseIPPort(domain)
+	if ip == nil || port == nil {
+		serviceDomain := fmt.Sprintf("%v.%v", service, domain)
 
-	if err != nil {
-		return nil, err
+		_, records, err := r.LookupSRV(ctx, service, "tcp", serviceDomain)
+		if err != nil {
+			return nil, err
+		}
+		if len(records) == 0 {
+			return nil, errors.New("resolver.LookupSERV return empty result")
+		}
+		port = records[0].Port
+
+		ips, err := r.LookupIPAddr(ctx, serviceDomain)
+		if err != nil {
+			return nil, err
+		}
+		if len(ips) == 0 {
+			return nil, errors.New("resolver.LookupIPAddr return empty result")
+		}
+		ip = ips[0].IP
 	}
 
-	if len(records) == 0 {
-		return nil, errors.New("resolver.LookupSERV return empty result")
-	}
-
-	ips, err := r.LookupIPAddr(ctx, serviceDomain)
-
-	if err != nil {
-		return nil, err
-	}
-
-	if len(ips) == 0 {
-		return nil, errors.New("resolver.LookupIPAddr return empty result")
-	}
-
-	u, err := url.Parse(fmt.Sprintf("tcp://%v:%v", ips[0].IP, records[0].Port))
-
+	u, err := url.Parse(fmt.Sprintf("tcp://%v:%v", ip, port))
 	if err != nil {
 		return nil, err
 	}
