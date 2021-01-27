@@ -49,8 +49,10 @@ func (n *expireNSEServer) Register(ctx context.Context, nse *registry.NetworkSer
 
 	unregisterNSE := resp.Clone()
 
-	timer := time.AfterFunc(n.nseExpiration, func() {
-		unregisterCtx, cancel := context.WithTimeout(extend.WithValuesFromContext(context.Background(), ctx), time.Until(expirationTime))
+	exipreDuration := time.Until(expirationTime)
+
+	timer := time.AfterFunc(exipreDuration, func() {
+		unregisterCtx, cancel := context.WithTimeout(extend.WithValuesFromContext(context.Background(), ctx), exipreDuration)
 		defer cancel()
 		_, _ = next.NetworkServiceEndpointRegistryServer(unregisterCtx).Unregister(unregisterCtx, unregisterNSE)
 	})
