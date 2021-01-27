@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"regexp"
 )
 
 // Resolver is DNS resolver
@@ -37,34 +38,48 @@ type Resolver interface {
 }
 
 func resolveDomain(ctx context.Context, service, domain string, r Resolver) (*url.URL, error) {
-	serviceDomain := fmt.Sprintf("%v.%v", service, domain)
-	_, records, err := r.LookupSRV(ctx, service, "tcp", serviceDomain)
+	var resolved string
+	if isResolved(domain) {
+		resolved = domain
+	} else {
+		serviceDomain := fmt.Sprintf("%v.%v", service, domain)
+		_, records, err := r.LookupSRV(ctx, service, "tcp", serviceDomain)
+		if err != nil {
+			return nil, err
+		}
+		if len(records) == 0 {
+			return nil, errors.New("resolver.LookupSERV return empty result")
+		}
 
-	if err != nil {
-		return nil, err
+		ips, err := r.LookupIPAddr(ctx, serviceDomain)
+		if err != nil {
+			return nil, err
+		}
+		if len(ips) == 0 {
+			return nil, errors.New("resolver.LookupIPAddr return empty result")
+		}
+
+		resolved = fmt.Sprintf("tcp://%v:%v", ips[0].IP, records[0].Port)
 	}
 
-	if len(records) == 0 {
-		return nil, errors.New("resolver.LookupSERV return empty result")
-	}
-
-	ips, err := r.LookupIPAddr(ctx, serviceDomain)
-
-	if err != nil {
-		return nil, err
-	}
-
-	if len(ips) == 0 {
-		return nil, errors.New("resolver.LookupIPAddr return empty result")
-	}
-
-	u, err := url.Parse(fmt.Sprintf("tcp://%v:%v", ips[0].IP, records[0].Port))
-
+	u, err := url.Parse(resolved)
 	if err != nil {
 		return nil, err
 	}
 
 	return u, nil
+}
+
+var resolvedPattern = regexp.MustCompile("tcp://(?P<addr>[0-9.:]+):(?P<port>[0-9]+)?")
+
+func isResolved(domain string) bool {
+	if !resolvedPattern.MatchString(domain) {
+		return false
+	}
+
+	addr := resolvedPattern.FindAllStringSubmatch(domain, -1)[0][resolvedPattern.SubexpIndex("addr")]
+
+	return net.ParseIP(addr) != nil
 }
 
 var _ Resolver = (*net.Resolver)(nil)
