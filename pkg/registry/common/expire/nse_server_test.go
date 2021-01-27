@@ -72,7 +72,6 @@ func TestExpireNSEServer_ShouldUseLessExpirationTimeFromInput_AndWork(t *testing
 		list := registry.ReadNetworkServiceEndpointList(stream)
 		return len(list) == 0
 	}, time.Second, time.Millisecond*100)
-
 }
 
 func TestExpireNSEServer_ShouldUseLessExpirationTimeFromResponse(t *testing.T) {
