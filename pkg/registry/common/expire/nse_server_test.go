@@ -48,18 +48,30 @@ func TestExpireNSEServer_ShouldCorrectlySetExpirationTime_InRemoteCase(t *testin
 	require.Greater(t, time.Until(resp.ExpirationTime.AsTime()).Minutes(), float64(50))
 }
 
-func TestExpireNSEServer_ShouldUseLessExpirationTimeFromInput(t *testing.T) {
+func TestExpireNSEServer_ShouldUseLessExpirationTimeFromInput_AndWork(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	s := expire.NewNetworkServiceEndpointRegistryServer(time.Hour)
+	s := next.NewNetworkServiceEndpointRegistryServer(expire.NewNetworkServiceEndpointRegistryServer(time.Hour), memory.NewNetworkServiceEndpointRegistryServer())
 
 	resp, err := s.Register(context.Background(), &registry.NetworkServiceEndpoint{
 		Name:           "nse-1",
-		ExpirationTime: timestamppb.New(time.Now().Add(10 * time.Minute)),
+		ExpirationTime: timestamppb.New(time.Now().Add(time.Millisecond * 200)),
 	})
 	require.NoError(t, err)
 
-	require.Less(t, time.Until(resp.ExpirationTime.AsTime()).Minutes(), float64(11))
+	require.Less(t, time.Until(resp.ExpirationTime.AsTime()).Seconds(), float64(65))
+
+	c := adapters.NetworkServiceEndpointServerToClient(s)
+
+	require.Eventually(t, func() bool {
+		stream, err := c.Find(context.Background(), &registry.NetworkServiceEndpointQuery{
+			NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
+		})
+		require.NoError(t, err)
+
+		list := registry.ReadNetworkServiceEndpointList(stream)
+		return len(list) == 0
+	}, time.Second, time.Millisecond*100)
 }
 
 func TestExpireNSEServer_ShouldUseLessExpirationTimeFromResponse(t *testing.T) {
