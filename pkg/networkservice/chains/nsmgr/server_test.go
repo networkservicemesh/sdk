@@ -274,6 +274,57 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Closes))
 }
 
+func TestNSMGR_ConnectToDeadNSE(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(t).
+		SetNodesCount(1).
+		SetContext(ctx).
+		SetRegistryProxySupplier(nil).
+		Build()
+	defer domain.Cleanup()
+
+	nseReg := &registry.NetworkServiceEndpoint{
+		Name:                "final-endpoint",
+		NetworkServiceNames: []string{"my-service-remote"},
+	}
+
+	counter := &counterServer{}
+
+	nseCtx, killNse := context.WithCancel(ctx)
+	_, err := sandbox.NewEndpoint(nseCtx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, counter)
+	require.NoError(t, err)
+
+	nsc := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
+
+	request := &networkservice.NetworkServiceRequest{
+		MechanismPreferences: []*networkservice.Mechanism{
+			{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
+		},
+		Connection: &networkservice.Connection{
+			Id:             "1",
+			NetworkService: "my-service-remote",
+			Context:        &networkservice.ConnectionContext{},
+		},
+	}
+
+	conn, err := nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Requests))
+	require.Equal(t, 5, len(conn.Path.PathSegments))
+
+	killNse()
+	// Simulate refresh from client.
+	refreshRequest := request.Clone()
+	refreshRequest.Connection = conn.Clone()
+
+	_, err = nsc.Request(ctx, refreshRequest)
+	require.Error(t, err)
+}
+
 func TestNSMGR_LocalUsecase(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
