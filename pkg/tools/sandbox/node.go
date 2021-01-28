@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 
@@ -33,10 +34,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/logger"
@@ -45,6 +42,7 @@ import (
 
 // Node is a NSMgr with resources
 type Node struct {
+	ctx   context.Context
 	NSMgr *NSMgrEntry
 }
 
@@ -120,59 +118,58 @@ func (n *Node) newEndpoint(
 
 	// 3. Register to the node NSMgr
 	cc := n.dialNSMgr(ctx)
-
-	var resources []context.CancelFunc
-
-	nsClient := registry.NewNetworkServiceRegistryClient(cc)
-	for _, name := range nse.NetworkServiceNames {
-		var service *registry.NetworkService
-		service, err = nsClient.Register(ctx, &registry.NetworkService{
-			Name:    name,
-			Payload: "IP",
-		})
-		if err != nil {
-			return nil, err
-		}
-		resources = append(resources, func() {
-			_, _ = nsClient.Unregister(ctx, service)
-		})
-	}
-
-	var interposeClient registry.NetworkServiceEndpointRegistryClient
-	if isForwarder {
-		interposeClient = interpose.NewNetworkServiceEndpointRegistryClient()
-	} else {
-		interposeClient = null.NewNetworkServiceEndpointRegistryClient()
-	}
-
-	nseClient := chain.NewNetworkServiceEndpointRegistryClient(
-		refresh.NewNetworkServiceEndpointRegistryClient(
-			refresh.WithChainContext(ctx)),
-		interposeClient,
-		registry.NewNetworkServiceEndpointRegistryClient(cc),
-	)
-	nse, err = nseClient.Register(ctx, nse)
-	if err != nil {
-		return nil, err
-	}
-	resources = append(resources, func() {
-		_, _ = nseClient.Unregister(ctx, nse)
-	})
+	registryClient := NewRegistryClient(ctx, cc, isForwarder)
 
 	go func() {
+		defer func() { _ = cc.Close() }()
 		<-ctx.Done()
-		for _, resource := range resources {
-			resource()
+
+		// Domain is closing, no need to clean up
+		if n.ctx.Err() != nil {
+			return
+		}
+
+		if nse != nil {
+			if _, unregisterErr := n.unregisterEndpoint(context.Background(), nse, registryClient); unregisterErr != nil {
+				logger.Log(ctx).Infof("Failed to unregister endpoint %s: %s", nse.Name, unregisterErr.Error())
+			}
 		}
 	}()
 
+	nse, err = n.registerEndpoint(ctx, nse, registryClient)
+	if err != nil {
+		return nil, err
+	}
+
 	if isForwarder {
-		logger.Log(ctx).Infof("Started listen forwarder %v on %v.", nse.Name, u.String())
+		logger.Log(ctx).Infof("Started listen forwarder %s on %s.", nse.Name, u.String())
 	} else {
-		logger.Log(ctx).Infof("Started listen endpoint %v on %v.", nse.Name, u.String())
+		logger.Log(ctx).Infof("Started listen endpoint %s on %s.", nse.Name, u.String())
 	}
 
 	return &EndpointEntry{Endpoint: ep, URL: u}, nil
+}
+
+func (n *Node) registerEndpoint(
+	ctx context.Context,
+	nse *registry.NetworkServiceEndpoint,
+	registryClient registry.NetworkServiceEndpointRegistryClient,
+) (*registry.NetworkServiceEndpoint, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	return registryClient.Register(ctx, nse)
+}
+
+func (n *Node) unregisterEndpoint(
+	ctx context.Context,
+	nse *registry.NetworkServiceEndpoint,
+	registryClient registry.NetworkServiceEndpointRegistryClient,
+) (*empty.Empty, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	return registryClient.Unregister(ctx, nse)
 }
 
 // NewClient starts a new client and connects it to the node NSMgr
@@ -181,17 +178,23 @@ func (n *Node) NewClient(
 	generatorFunc token.GeneratorFunc,
 	additionalFunctionality ...networkservice.NetworkServiceClient,
 ) networkservice.NetworkServiceClient {
+	cc := n.dialNSMgr(ctx)
+	go func() {
+		defer func() { _ = cc.Close() }()
+		<-ctx.Done()
+	}()
+
 	return client.NewClient(
 		ctx,
 		fmt.Sprintf("nsc-%v", uuid.New().String()),
 		nil,
 		generatorFunc,
-		n.dialNSMgr(ctx),
+		cc,
 		additionalFunctionality...,
 	)
 }
 
-func (n *Node) dialNSMgr(ctx context.Context) grpc.ClientConnInterface {
+func (n *Node) dialNSMgr(ctx context.Context) *grpc.ClientConn {
 	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(n.NSMgr.URL),
 		grpc.WithInsecure(),
 		grpc.WithBlock(),
@@ -200,11 +203,5 @@ func (n *Node) dialNSMgr(ctx context.Context) grpc.ClientConnInterface {
 	if err != nil {
 		panic("failed to dial node NSMgr")
 	}
-
-	go func() {
-		<-ctx.Done()
-		_ = cc.Close()
-	}()
-
 	return cc
 }
