@@ -269,6 +269,7 @@ func (b *Builder) newRegistry(ctx context.Context, proxyRegistryURL *url.URL) *R
 
 func (b *Builder) newNode(ctx context.Context, registryURL *url.URL) *Node {
 	node := &Node{
+		ctx:   b.ctx,
 		NSMgr: b.newNSMgr(ctx, registryURL),
 	}
 	if b.setupNode != nil {
