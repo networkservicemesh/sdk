@@ -144,6 +144,8 @@ func TestNSMGR_SelectsRestartingEndpoint(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 5, len(conn.Path.PathSegments))
+
+	require.NoError(t, ctx.Err())
 }
 
 func TestNSMGR_RemoteUsecase_BusyEndpoints(t *testing.T) {
@@ -323,6 +325,7 @@ func TestNSMGR_ConnectToDeadNSE(t *testing.T) {
 
 	_, err = nsc.Request(ctx, refreshRequest)
 	require.Error(t, err)
+	require.NoError(t, ctx.Err())
 }
 
 func TestNSMGR_LocalUsecase(t *testing.T) {
