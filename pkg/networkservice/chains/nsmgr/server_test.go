@@ -513,6 +513,88 @@ func TestNSMGR_PassThroughLocal(t *testing.T) {
 	require.Equal(t, 5*(nsesCount-1)+5, len(conn.Path.PathSegments))
 }
 
+func TestNSMGR_ShouldCleanAllClientAndEndpointGoroutines(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(t).
+		SetNodesCount(1).
+		SetRegistryProxySupplier(nil).
+		SetContext(ctx).
+		Build()
+	defer domain.Cleanup()
+
+	// We have lazy initialization in some chain elements in both networkservice, registry chains. So registering an
+	// endpoint and requesting it from client can result in new endless NSMgr goroutines.
+
+	testNSEAndClient(ctx, t, domain, &registry.NetworkServiceEndpoint{
+		Name:                "endpoint-init",
+		NetworkServiceNames: []string{"service-init"},
+	})
+
+	// At this moment all possible endless NSMgr goroutines have been started. So we expect all newly created goroutines
+	// to be canceled no later than some of these events:
+	//   1. GRPC request context cancel
+	//   2. NSC connection close
+	//   3. NSE unregister
+
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	testNSEAndClient(ctx, t, domain, &registry.NetworkServiceEndpoint{
+		Name:                "endpoint-final",
+		NetworkServiceNames: []string{"service-final"},
+	})
+}
+
+func testNSEAndClient(
+	ctx context.Context,
+	t *testing.T,
+	domain *sandbox.Domain,
+	nseReg *registry.NetworkServiceEndpoint,
+) {
+	// 1. Create an endpoint
+	nseCtx, nseCancel := context.WithCancel(ctx)
+	defer nseCancel()
+
+	_, err := domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.GenerateTestToken)
+	require.NoError(t, err)
+
+	// 2. Create a client
+	clientCtx, clientCancel := context.WithCancel(ctx)
+	defer clientCancel()
+
+	nsc := domain.Nodes[0].NewClient(clientCtx, sandbox.GenerateTestToken)
+
+	// 3. Request endpoint
+	requestCtx, requestCancel := context.WithCancel(ctx)
+
+	conn, err := nsc.Request(requestCtx, &networkservice.NetworkServiceRequest{
+		MechanismPreferences: []*networkservice.Mechanism{
+			{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
+		},
+		Connection: &networkservice.Connection{
+			NetworkService: nseReg.NetworkServiceNames[0],
+		},
+	})
+	require.NoError(t, err)
+
+	requestCancel()
+
+	// 4. Close connection
+	closeCtx, closeCancel := context.WithCancel(ctx)
+
+	_, err = nsc.Close(closeCtx, conn)
+	require.NoError(t, err)
+
+	closeCancel()
+
+	// 5. Unregister endpoint
+	_, err = domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
+	require.NoError(t, err)
+}
+
 type passThroughClient struct {
 	networkService             string
 	networkServiceEndpointName string
