@@ -50,7 +50,7 @@ func GenerateTestToken(_ credentials.AuthInfo) (tokenValue string, expireTime ti
 }
 
 // NewEndpoint creates endpoint and registers it into passed NSMgr.
-func NewEndpoint(ctx context.Context, nse *registry.NetworkServiceEndpoint, generatorFunc token.GeneratorFunc, mgr nsmgr.Nsmgr, additionalFunctionality ...networkservice.NetworkServiceServer) (*EndpointEntry, error) {
+func NewEndpoint(ctx context.Context, nse *registry.NetworkServiceEndpoint, generatorFunc token.GeneratorFunc, mgr nsmgr.Nsmgr, additionalFunctionality ...networkservice.NetworkServiceServer) (*EndpointEntry, context.CancelFunc, error) {
 	ep := endpoint.NewServer(ctx, nse.Name, authorize.NewServer(), generatorFunc, additionalFunctionality...)
 
 	ctx = logger.WithLog(ctx)
@@ -60,7 +60,7 @@ func NewEndpoint(ctx context.Context, nse *registry.NetworkServiceEndpoint, gene
 	if nse.Url != "" {
 		u, err = url.Parse(nse.Url)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	serve(ctx, u, ep.Register)
@@ -72,7 +72,7 @@ func NewEndpoint(ctx context.Context, nse *registry.NetworkServiceEndpoint, gene
 		nse.ExpirationTime = timestamppb.New(time.Now().Add(time.Hour))
 	}
 	if nse, err = mgr.NetworkServiceEndpointRegistryServer().Register(ctx, nse); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	for _, service := range nse.NetworkServiceNames {
@@ -80,24 +80,23 @@ func NewEndpoint(ctx context.Context, nse *registry.NetworkServiceEndpoint, gene
 			Name:    service,
 			Payload: payload.IP,
 		}); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
-	go func() {
-		<-ctx.Done()
+	logger.Log(ctx).Infof("Started listen endpoint %v on %v.", nse.Name, u.String())
+
+	unregister := func() {
+		_, _ = mgr.NetworkServiceEndpointRegistryServer().Unregister(context.Background(), nse)
 		for _, service := range nse.NetworkServiceNames {
 			_, _ = mgr.NetworkServiceRegistryServer().Unregister(context.Background(), &registry.NetworkService{
 				Name:    service,
 				Payload: payload.IP,
 			})
 		}
-		_, _ = mgr.NetworkServiceEndpointRegistryServer().Unregister(context.Background(), nse)
-	}()
+	}
 
-	logger.Log(ctx).Infof("Started listen endpoint %v on %v.", nse.Name, u.String())
-
-	return &EndpointEntry{Endpoint: ep, URL: u}, nil
+	return &EndpointEntry{Endpoint: ep, URL: u}, unregister, nil
 }
 
 // NewClient is a client.NewClient over *url.URL with some fields preset for testing

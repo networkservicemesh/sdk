@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -60,7 +60,7 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 		NetworkServiceNames: []string{"my-service-interdomain"},
 	}
 
-	_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain2.Nodes[0].NSMgr)
+	_, _, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain2.Nodes[0].NSMgr)
 	require.NoError(t, err)
 
 	nsc := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain1.Nodes[0].NSMgr.URL)

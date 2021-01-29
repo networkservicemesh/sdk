@@ -76,7 +76,7 @@ func TestNSMGR_RemoteUsecase_Parallel(t *testing.T) {
 			Name:                "final-endpoint",
 			NetworkServiceNames: []string{"my-service-remote"},
 		}
-		_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, counter)
+		_, _, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, counter)
 		require.NoError(t, err)
 	}()
 	nsc := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[1].NSMgr.URL)
@@ -135,7 +135,7 @@ func TestNSMGR_SelectsRestartingEndpoint(t *testing.T) {
 		NetworkServiceNames: []string{"ns-1"},
 	}
 
-	_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, &restartingEndpoint{startTime: time.Now().Add(time.Second * 2)})
+	_, _, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, &restartingEndpoint{startTime: time.Now().Add(time.Second * 2)})
 	require.NoError(t, err)
 
 	nsc := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
@@ -180,7 +180,7 @@ func TestNSMGR_RemoteUsecase_BusyEndpoints(t *testing.T) {
 				Name:                "final-endpoint-" + strconv.Itoa(id),
 				NetworkServiceNames: []string{"my-service-remote"},
 			}
-			_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[1].NSMgr, newBusyEndpoint())
+			_, _, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[1].NSMgr, newBusyEndpoint())
 			require.NoError(t, err)
 			wg.Done()
 		}(i)
@@ -192,7 +192,7 @@ func TestNSMGR_RemoteUsecase_BusyEndpoints(t *testing.T) {
 			Name:                "final-endpoint-3",
 			NetworkServiceNames: []string{"my-service-remote"},
 		}
-		_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[1].NSMgr, counter)
+		_, _, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[1].NSMgr, counter)
 		require.NoError(t, err)
 	}()
 	nsc := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
@@ -233,7 +233,7 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 	}
 
 	counter := &counterServer{}
-	_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, counter)
+	_, _, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, counter)
 	require.NoError(t, err)
 
 	request := &networkservice.NetworkServiceRequest{
@@ -294,7 +294,7 @@ func TestNSMGR_ConnectToDeadNSE(t *testing.T) {
 	counter := &counterServer{}
 
 	nseCtx, killNse := context.WithCancel(ctx)
-	_, err := sandbox.NewEndpoint(nseCtx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, counter)
+	_, _, err := sandbox.NewEndpoint(nseCtx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, counter)
 	require.NoError(t, err)
 
 	nsc := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
@@ -344,7 +344,7 @@ func TestNSMGR_LocalUsecase(t *testing.T) {
 	}
 
 	counter := &counterServer{}
-	_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, counter)
+	_, _, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, counter)
 	require.NoError(t, err)
 
 	nsc := sandbox.NewClient(ctx, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
@@ -420,7 +420,7 @@ func TestNSMGR_PassThroughRemote(t *testing.T) {
 			Name:                fmt.Sprintf("endpoint-%v", i),
 			NetworkServiceNames: []string{fmt.Sprintf("my-service-remote-%v", i)},
 		}
-		_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[i].NSMgr, additionalFunctionality...)
+		_, _, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[i].NSMgr, additionalFunctionality...)
 		require.NoError(t, err)
 	}
 
@@ -481,7 +481,7 @@ func TestNSMGR_PassThroughLocal(t *testing.T) {
 			Name:                fmt.Sprintf("endpoint-%v", i),
 			NetworkServiceNames: []string{fmt.Sprintf("my-service-remote-%v", i)},
 		}
-		_, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, additionalFunctionality...)
+		_, _, err := sandbox.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr, additionalFunctionality...)
 		require.NoError(t, err)
 	}
 
@@ -552,8 +552,9 @@ func testNSEAndClient(
 	nseCtx, nseCancel := context.WithCancel(ctx)
 	defer nseCancel()
 
-	_, err := sandbox.NewEndpoint(nseCtx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr)
+	_, unregister, err := sandbox.NewEndpoint(nseCtx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr)
 	require.NoError(t, err)
+	defer unregister()
 
 	// 2. Create a client
 	clientCtx, clientCancel := context.WithCancel(ctx)
