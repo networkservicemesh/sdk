@@ -548,39 +548,41 @@ func testNSEAndClient(
 	domain *sandbox.Domain,
 	nseReg *registry.NetworkServiceEndpoint,
 ) {
+	// 1. Create an endpoint
 	nseCtx, nseCancel := context.WithCancel(ctx)
 	defer nseCancel()
 
 	_, err := sandbox.NewEndpoint(nseCtx, nseReg, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr)
 	require.NoError(t, err)
 
+	// 2. Create a client
 	clientCtx, clientCancel := context.WithCancel(ctx)
 	defer clientCancel()
 
 	nsc := sandbox.NewClient(clientCtx, sandbox.GenerateTestToken, domain.Nodes[0].NSMgr.URL)
 
-	conn, err := func() (*networkservice.Connection, error) {
-		requestCtx, requestCancel := context.WithCancel(ctx)
-		defer requestCancel()
+	// 3. Request endpoint
+	requestCtx, requestCancel := context.WithCancel(ctx)
 
-		return nsc.Request(requestCtx, &networkservice.NetworkServiceRequest{
-			MechanismPreferences: []*networkservice.Mechanism{
-				{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
-			},
-			Connection: &networkservice.Connection{
-				NetworkService: nseReg.NetworkServiceNames[0],
-			},
-		})
-	}()
+	conn, err := nsc.Request(requestCtx, &networkservice.NetworkServiceRequest{
+		MechanismPreferences: []*networkservice.Mechanism{
+			{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
+		},
+		Connection: &networkservice.Connection{
+			NetworkService: nseReg.NetworkServiceNames[0],
+		},
+	})
 	require.NoError(t, err)
 
-	_, err = func() (interface{}, error) {
-		closeCtx, closeCancel := context.WithCancel(ctx)
-		defer closeCancel()
+	requestCancel()
 
-		return nsc.Close(closeCtx, conn)
-	}()
+	// 4. Close connection
+	closeCtx, closeCancel := context.WithCancel(ctx)
+
+	_, err = nsc.Close(closeCtx, conn)
 	require.NoError(t, err)
+
+	closeCancel()
 }
 
 type passThroughClient struct {

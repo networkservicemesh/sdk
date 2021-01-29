@@ -132,26 +132,26 @@ func Test_QueryCacheServer_ShouldCleanupGoroutinesOnNSEUnregister(t *testing.T) 
 
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	_, err = func() (interface{}, error) {
-		findCtx, findCancel := context.WithCancel(ctx)
-		defer findCancel()
+	// 1. Find
+	findCtx, findCancel := context.WithCancel(ctx)
 
-		return client.Find(findCtx, &registry.NetworkServiceEndpointQuery{
-			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-				Name: reg.Name,
-			},
-		})
-	}()
+	_, err = client.Find(findCtx, &registry.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+			Name: reg.Name,
+		},
+	})
 	require.NoError(t, err)
 
-	// Wait a bit for the (cache -> registry) stream to start
+	findCancel()
+
+	// 2. Wait a bit for the (cache -> registry) stream to start
 	<-time.After(1 * time.Millisecond)
 
-	_, err = func() (interface{}, error) {
-		unregisterCtx, unregisterCancel := context.WithCancel(ctx)
-		defer unregisterCancel()
+	// 3. Unregister
+	unregisterCtx, unregisterCancel := context.WithCancel(ctx)
 
-		return mem.Unregister(unregisterCtx, reg)
-	}()
+	_, err = mem.Unregister(unregisterCtx, reg)
 	require.NoError(t, err)
+
+	unregisterCancel()
 }
