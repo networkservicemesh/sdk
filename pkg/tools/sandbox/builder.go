@@ -271,9 +271,14 @@ func (b *Builder) newRegistry(ctx context.Context, proxyRegistryURL *url.URL) *R
 }
 
 func (b *Builder) newNode(ctx context.Context, registryURL *url.URL) *Node {
+	nsmgrEntry := b.newNSMgr(ctx, registryURL)
+	nsmgrCC := b.dialContext(ctx, nsmgrEntry.URL)
+
 	node := &Node{
-		ctx:   b.ctx,
-		NSMgr: b.newNSMgr(ctx, registryURL),
+		ctx:                     b.ctx,
+		NSMgr:                   nsmgrEntry,
+		ForwarderRegistryClient: NewRegistryClient(ctx, nsmgrCC, true),
+		EndpointRegistryClient:  NewRegistryClient(ctx, nsmgrCC, false),
 	}
 
 	if b.setupNode != nil {
@@ -285,7 +290,10 @@ func (b *Builder) newNode(ctx context.Context, registryURL *url.URL) *Node {
 
 func defaultSetupNode(t *testing.T) SetupNodeFunc {
 	return func(ctx context.Context, node *Node) {
-		_, err := node.NewForwarder(ctx, new(registryapi.NetworkServiceEndpoint), GenerateTestToken)
+		nseReg := &registryapi.NetworkServiceEndpoint{
+			Name: uuid.New().String(),
+		}
+		_, err := node.NewForwarder(ctx, nseReg, GenerateTestToken)
 		require.NoError(t, err)
 	}
 }

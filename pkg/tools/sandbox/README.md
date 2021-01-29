@@ -58,7 +58,7 @@ Solution:
 		SetNodeSetup(nil).
 		Build()
 	defer localDomain.Cleanup()
-	localDomain.Nodes[0].NewForwarder(ctx, new(registry.Endpoint), sandbox.GenerateTestToken, ...myNewForwarderChain)
+	localDomain.Nodes[0].NewForwarder(ctx, &registry.Endpoint{...}, sandbox.GenerateTestToken, ...myNewForwarderChain)
 	...
 ```
 
@@ -85,7 +85,7 @@ Solution:
 		SetNSMgrProxySupplier(nil).
 		SetRegistryProxySupplier(nil).
 		SetNodeSetup(func(ctx context.Context, node *sandbox.Node) {
-			node.NewForwarder(ctx, new(registry.Endpoint), sandbox.GenerateTestToken, ...forwarderChain)
+			node.NewForwarder(ctx, &registry.Endpoint{...}, sandbox.GenerateTestToken, ...forwarderChain)
 			node.NewEndpoint(ctx, &registry.Endpoint{...}, sandbox.GenerateTestToken, ...endpointChain)
 		}).
 		Build()
