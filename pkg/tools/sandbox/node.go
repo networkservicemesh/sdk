@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 
@@ -43,8 +42,10 @@ import (
 
 // Node is a NSMgr with resources
 type Node struct {
-	ctx   context.Context
-	NSMgr *NSMgrEntry
+	ctx                     context.Context
+	NSMgr                   *NSMgrEntry
+	ForwarderRegistryClient registry.NetworkServiceEndpointRegistryClient
+	EndpointRegistryClient  registry.NetworkServiceEndpointRegistryClient
 }
 
 // NewForwarder starts a new forwarder and registers it on the node NSMgr
@@ -114,34 +115,23 @@ func (n *Node) newEndpoint(
 
 	serve(ctx, u, ep.Register)
 
-	if nse.Url == "" {
-		nse.Url = u.String()
+	nse.Url = u.String()
+
+	// 3. Register with the node registry client
+	var registryClient registry.NetworkServiceEndpointRegistryClient
+	if isForwarder {
+		registryClient = n.ForwarderRegistryClient
+	} else {
+		registryClient = n.EndpointRegistryClient
 	}
 
-	// 3. Register to the node NSMgr
-	cc := n.dialNSMgr(ctx)
-	registryClient := NewRegistryClient(ctx, cc, isForwarder)
-
-	go func() {
-		defer func() { _ = cc.Close() }()
-		<-ctx.Done()
-
-		// Domain is closing, no need to clean up
-		if n.ctx.Err() != nil {
-			return
-		}
-
-		if nse != nil {
-			if _, unregisterErr := n.unregisterEndpoint(context.Background(), nse, registryClient); unregisterErr != nil {
-				logger.Log(ctx).Infof("Failed to unregister endpoint %s: %s", nse.Name, unregisterErr.Error())
-			}
-		}
-	}()
-
-	nse, err = n.registerEndpoint(ctx, nse, registryClient)
-	if err != nil {
+	var reg *registry.NetworkServiceEndpoint
+	if reg, err = registryClient.Register(ctx, nse); err != nil {
 		return nil, err
 	}
+
+	nse.Name = reg.Name
+	nse.ExpirationTime = reg.ExpirationTime
 
 	if isForwarder {
 		logger.Log(ctx).Infof("Started listen forwarder %s on %s.", nse.Name, u.String())
@@ -152,35 +142,21 @@ func (n *Node) newEndpoint(
 	return &EndpointEntry{Endpoint: ep, URL: u}, nil
 }
 
-func (n *Node) registerEndpoint(
-	ctx context.Context,
-	nse *registry.NetworkServiceEndpoint,
-	registryClient registry.NetworkServiceEndpointRegistryClient,
-) (*registry.NetworkServiceEndpoint, error) {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	return registryClient.Register(ctx, nse)
-}
-
-func (n *Node) unregisterEndpoint(
-	ctx context.Context,
-	nse *registry.NetworkServiceEndpoint,
-	registryClient registry.NetworkServiceEndpointRegistryClient,
-) (*empty.Empty, error) {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	return registryClient.Unregister(ctx, nse)
-}
-
 // NewClient starts a new client and connects it to the node NSMgr
 func (n *Node) NewClient(
 	ctx context.Context,
 	generatorFunc token.GeneratorFunc,
 	additionalFunctionality ...networkservice.NetworkServiceClient,
 ) networkservice.NetworkServiceClient {
-	cc := n.dialNSMgr(ctx)
+	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(n.NSMgr.URL),
+		grpc.WithInsecure(),
+		grpc.WithBlock(),
+		grpc.WithDefaultCallOptions(grpc.WaitForReady(true)),
+	)
+	if err != nil {
+		logger.Log(ctx).Fatalf("Failed to dial node NSMgr: %s", err.Error())
+	}
+
 	go func() {
 		defer func() { _ = cc.Close() }()
 		<-ctx.Done()
@@ -194,16 +170,4 @@ func (n *Node) NewClient(
 		cc,
 		additionalFunctionality...,
 	)
-}
-
-func (n *Node) dialNSMgr(ctx context.Context) *grpc.ClientConn {
-	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(n.NSMgr.URL),
-		grpc.WithInsecure(),
-		grpc.WithBlock(),
-		grpc.WithDefaultCallOptions(grpc.WaitForReady(true)),
-	)
-	if err != nil {
-		panic("failed to dial node NSMgr")
-	}
-	return cc
 }
