@@ -149,8 +149,6 @@ func TestNSMGR_SelectsRestartingEndpoint(t *testing.T) {
 }
 
 func TestNSMGR_RemoteUsecase_BusyEndpoints(t *testing.T) {
-	t.Skip("https://github.com/networkservicemesh/sdk/issues/619")
-
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
 	defer cancel()

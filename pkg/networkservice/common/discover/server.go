@@ -102,70 +102,62 @@ func (d *discoverCandidatesServer) discoverNetworkServiceEndpoint(ctx context.Co
 			Name: nseName,
 		},
 	}
+
 	nseStream, err := d.nseClient.Find(ctx, query)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 	nseList := registry.ReadNetworkServiceEndpointList(nseStream)
+
 	if len(nseList) != 0 {
 		return nseList[0], nil
 	}
+
 	query.Watch = true
+
 	nseStream, err = d.nseClient.Find(ctx, query)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	nseCh := registry.ReadNetworkServiceEndpointChannel(nseStream)
-	select {
-	case <-ctx.Done():
-		return nil, errors.Wrapf(ctx.Err(), "nse: %+v is not found", query.NetworkServiceEndpoint)
-	case nse, ok := <-nseCh:
-		if ok {
-			return nse, nil
-		}
-		return nil, errors.New("nse stream is closed")
-	}
+	return nseStream.Recv()
 }
+
 func (d *discoverCandidatesServer) discoverNetworkServiceEndpoints(ctx context.Context, ns *registry.NetworkService, labels map[string]string) ([]*registry.NetworkServiceEndpoint, error) {
 	query := &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 			NetworkServiceNames: []string{ns.Name},
 		},
 	}
+
 	nseStream, err := d.nseClient.Find(ctx, query)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 	nseList := registry.ReadNetworkServiceEndpointList(nseStream)
 
-	nseList = matchEndpoint(labels, ns, nseList...)
-
-	if len(nseList) != 0 {
-		return nseList, nil
+	result := matchEndpoint(labels, ns, nseList...)
+	if len(result) != 0 {
+		return result, nil
 	}
 
 	query.Watch = true
 
 	ctx, cancelFind := context.WithCancel(ctx)
 	defer cancelFind()
+
 	nseStream, err = d.nseClient.Find(ctx, query)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	nseCh := registry.ReadNetworkServiceEndpointChannel(nseStream)
 	for {
-		select {
-		case <-ctx.Done():
-			return nil, errors.Wrapf(ctx.Err(), "nse: %+v is not found", query.NetworkServiceEndpoint)
-		case nse, ok := <-nseCh:
-			if ok {
-				result := matchEndpoint(labels, ns, nse)
-				if len(result) != 0 {
-					return result, nil
-				}
-			} else {
-				return nil, errors.New("nse stream is closed")
-			}
+		var nse *registry.NetworkServiceEndpoint
+		if nse, err = nseStream.Recv(); err != nil {
+			return nil, err
+		}
+
+		result = matchEndpoint(labels, ns, nse)
+		if len(result) != 0 {
+			return result, nil
 		}
 	}
 }
@@ -177,28 +169,25 @@ func (d *discoverCandidatesServer) discoverNetworkService(ctx context.Context, n
 			Payload: payload,
 		},
 	}
+
 	nsStream, err := d.nsClient.Find(ctx, query)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 	nsList := registry.ReadNetworkServiceList(nsStream)
+
 	if len(nsList) != 0 {
 		return nsList[0], nil
 	}
+
 	ctx, cancelFind := context.WithCancel(ctx)
 	defer cancelFind()
+
 	query.Watch = true
+
 	nsStream, err = d.nsClient.Find(ctx, query)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	select {
-	case <-ctx.Done():
-		return nil, errors.Wrapf(ctx.Err(), "ns:\"%v\" with payload:\"%v\" is not found", name, payload)
-	case ns, ok := <-registry.ReadNetworkServiceChannel(nsStream):
-		if ok {
-			return ns, nil
-		}
-		return nil, errors.New("ns stream is closed")
-	}
+	return nsStream.Recv()
 }
