@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
+	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/logger"
@@ -64,16 +65,21 @@ func NewEndpoint(ctx context.Context, nse *registry.NetworkServiceEndpoint, gene
 		}
 	}
 	serve(ctx, u, ep.Register)
+
 	if nse.Url == "" {
 		nse.Url = u.String()
 	}
-
 	if nse.ExpirationTime == nil {
 		nse.ExpirationTime = timestamppb.New(time.Now().Add(time.Hour))
 	}
-	if nse, err = mgr.NetworkServiceEndpointRegistryServer().Register(ctx, nse); err != nil {
+
+	var reg *registry.NetworkServiceEndpoint
+	if reg, err = mgr.NetworkServiceEndpointRegistryServer().Register(ctx, nse); err != nil {
 		return nil, err
 	}
+
+	nse.Name = reg.Name
+	nse.ExpirationTime = reg.ExpirationTime
 
 	for _, service := range nse.NetworkServiceNames {
 		if _, err := mgr.NetworkServiceRegistryServer().Register(ctx, &registry.NetworkService{
@@ -84,20 +90,25 @@ func NewEndpoint(ctx context.Context, nse *registry.NetworkServiceEndpoint, gene
 		}
 	}
 
-	go func() {
-		<-ctx.Done()
-		for _, service := range nse.NetworkServiceNames {
-			_, _ = mgr.NetworkServiceRegistryServer().Unregister(context.Background(), &registry.NetworkService{
-				Name:    service,
-				Payload: payload.IP,
-			})
-		}
-		_, _ = mgr.NetworkServiceEndpointRegistryServer().Unregister(context.Background(), nse)
-	}()
-
 	logger.Log(ctx).Infof("Started listen endpoint %v on %v.", nse.Name, u.String())
 
 	return &EndpointEntry{Endpoint: ep, URL: u}, nil
+}
+
+// UnregisterEndpoint unregisters endpoint from NSMgr
+func UnregisterEndpoint(ctx context.Context, nse *registry.NetworkServiceEndpoint, mgr nsmgr.Nsmgr) (err error) {
+	if _, unregisterErr := mgr.NetworkServiceEndpointRegistryServer().Unregister(ctx, nse); unregisterErr != nil {
+		err = errors.Wrapf(unregisterErr, "%v\n", err)
+	}
+	for _, name := range nse.NetworkServiceNames {
+		if _, unregisterErr := mgr.NetworkServiceRegistryServer().Unregister(ctx, &registry.NetworkService{
+			Name:    name,
+			Payload: payload.IP,
+		}); unregisterErr != nil {
+			err = errors.Wrapf(unregisterErr, "%v\n", err)
+		}
+	}
+	return err
 }
 
 // NewClient is a client.NewClient over *url.URL with some fields preset for testing
