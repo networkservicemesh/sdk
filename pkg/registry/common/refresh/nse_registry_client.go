@@ -38,10 +38,10 @@ type refreshNSEClient struct {
 
 // NewNetworkServiceEndpointRegistryClient creates new NetworkServiceEndpointRegistryClient that will refresh expiration
 // time for registered NSEs
-func NewNetworkServiceEndpointRegistryClient(options ...Option) registry.NetworkServiceEndpointRegistryClient {
+func NewNetworkServiceEndpointRegistryClient(ctx context.Context, options ...Option) registry.NetworkServiceEndpointRegistryClient {
 	c := &refreshNSEClient{
 		defaultExpiryDuration: time.Minute * 30,
-		chainContext:          logger.WithLog(context.Background()),
+		chainContext:          logger.WithLog(ctx),
 	}
 
 	for _, o := range options {

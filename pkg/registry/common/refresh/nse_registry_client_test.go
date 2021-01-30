@@ -48,9 +48,12 @@ func testNSE() *registry.NetworkServiceEndpoint {
 func TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	countClient := new(requestCountClient)
 	client := next.NewNetworkServiceEndpointRegistryClient(
-		refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithDefaultExpiryDuration(testExpiryDuration)),
+		refresh.NewNetworkServiceEndpointRegistryClient(ctx, refresh.WithDefaultExpiryDuration(testExpiryDuration)),
 		countClient,
 	)
 
@@ -70,9 +73,12 @@ func TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {
 func TestRefreshNSEClient_ShouldSetExpirationTime_BeforeCallNext(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	client := next.NewNetworkServiceEndpointRegistryClient(
 		new(requestCountClient),
-		refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithDefaultExpiryDuration(time.Hour)),
+		refresh.NewNetworkServiceEndpointRegistryClient(ctx, refresh.WithDefaultExpiryDuration(time.Hour)),
 		checknse.NewClient(t, func(t *testing.T, nse *registry.NetworkServiceEndpoint) {
 			require.NotNil(t, nse.ExpirationTime)
 		}),
@@ -88,9 +94,12 @@ func TestRefreshNSEClient_ShouldSetExpirationTime_BeforeCallNext(t *testing.T) {
 func Test_RefreshNSEClient_CalledRegisterTwice(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	countClient := new(requestCountClient)
 	client := next.NewNetworkServiceEndpointRegistryClient(
-		refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithDefaultExpiryDuration(testExpiryDuration)),
+		refresh.NewNetworkServiceEndpointRegistryClient(ctx, refresh.WithDefaultExpiryDuration(testExpiryDuration)),
 		countClient,
 	)
 
@@ -116,13 +125,16 @@ func Test_RefreshNSEClient_ShouldOverrideNameAndDuration(t *testing.T) {
 		Url:  "url",
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	countClient := new(requestCountClient)
 	registryServer := &nseRegistryServer{
 		name:           uuid.New().String(),
 		expiryDuration: testExpiryDuration,
 	}
 	client := next.NewNetworkServiceEndpointRegistryClient(
-		refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithDefaultExpiryDuration(time.Hour)),
+		refresh.NewNetworkServiceEndpointRegistryClient(ctx, refresh.WithDefaultExpiryDuration(time.Hour)),
 		checknse.NewClient(t, func(t *testing.T, nse *registry.NetworkServiceEndpoint) {
 			if countClient.requestCount > 0 {
 				require.Equal(t, registryServer.name, nse.Name)
