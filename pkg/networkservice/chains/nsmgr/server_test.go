@@ -513,6 +513,63 @@ func TestNSMGR_PassThroughLocal(t *testing.T) {
 	require.Equal(t, 5*(nsesCount-1)+5, len(conn.Path.PathSegments))
 }
 
+func TestNSMGR_ShouldCorrectlyAddForwardersWithSameNames(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(t).
+		SetNodesCount(1).
+		SetRegistryProxySupplier(nil).
+		SetNodeSetup(nil).
+		SetContext(ctx).
+		Build()
+	defer domain.Cleanup()
+
+	forwarderReg := &registry.NetworkServiceEndpoint{
+		Name: "forwarder",
+	}
+
+	nseReg := &registry.NetworkServiceEndpoint{
+		Name:                "endpoint",
+		NetworkServiceNames: []string{"service"},
+	}
+
+	// 1. Add forwarders
+	forwarder1Reg := forwarderReg.Clone()
+	_, err := domain.Nodes[0].NewForwarder(ctx, forwarder1Reg, sandbox.GenerateTestToken)
+	require.NoError(t, err)
+
+	forwarder2Reg := forwarderReg.Clone()
+	_, err = domain.Nodes[0].NewForwarder(ctx, forwarder2Reg, sandbox.GenerateTestToken)
+	require.NoError(t, err)
+
+	forwarder3Reg := forwarderReg.Clone()
+	_, err = domain.Nodes[0].NewForwarder(ctx, forwarder3Reg, sandbox.GenerateTestToken)
+	require.NoError(t, err)
+
+	// 2. Wait for refresh
+	<-time.After(sandbox.DefaultRegistryExpiryDuration)
+
+	testNSEAndClient(ctx, t, domain, nseReg.Clone())
+
+	// 3. Delete first forwarder
+	_, err = domain.Nodes[0].ForwarderRegistryClient.Unregister(ctx, forwarder1Reg)
+	require.NoError(t, err)
+
+	testNSEAndClient(ctx, t, domain, nseReg.Clone())
+
+	// 4. Delete last forwarder
+	_, err = domain.Nodes[0].ForwarderRegistryClient.Unregister(ctx, forwarder3Reg)
+	require.NoError(t, err)
+
+	testNSEAndClient(ctx, t, domain, nseReg.Clone())
+
+	_, err = domain.Nodes[0].ForwarderRegistryClient.Unregister(ctx, forwarder2Reg)
+	require.NoError(t, err)
+}
+
 func TestNSMGR_ShouldCleanAllClientAndEndpointGoroutines(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 

@@ -43,8 +43,9 @@ import (
 )
 
 const (
-	defaultContextTimeout         = time.Second * 15
-	defaultRegistryExpiryDuration = 500 * time.Millisecond
+	defaultContextTimeout = time.Second * 15
+	// DefaultRegistryExpiryDuration is a default expiry duration for registry
+	DefaultRegistryExpiryDuration = 500 * time.Millisecond
 )
 
 // Builder implements builder pattern for building NSM Domain
@@ -261,7 +262,7 @@ func (b *Builder) newRegistry(ctx context.Context, proxyRegistryURL *url.URL) *R
 	if b.supplyRegistry == nil {
 		return nil
 	}
-	result := b.supplyRegistry(ctx, defaultRegistryExpiryDuration, proxyRegistryURL, grpc.WithInsecure(), grpc.WithBlock())
+	result := b.supplyRegistry(ctx, DefaultRegistryExpiryDuration, proxyRegistryURL, grpc.WithInsecure(), grpc.WithBlock())
 	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
 	serve(ctx, serveURL, result.Register)
 	logger.Log(ctx).Infof("Registry listen on: %v", serveURL)
