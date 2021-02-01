@@ -76,12 +76,10 @@ func (n *expireNSServer) checkUpdates(eventCh <-chan *registry.NetworkServiceEnd
 			if expirationDuration < 0 {
 				delete(state.Timers, nse.Name)
 				if timer.Stop() {
-					if len(state.Timers) == 0 {
-						ctx := state.Context
-						state.Unlock()
-						_, _ = n.Unregister(ctx, &registry.NetworkService{Name: ns})
-						return
-					}
+					ctx := state.Context
+					state.Unlock()
+					_, _ = n.Unregister(ctx, &registry.NetworkService{Name: ns})
+					return
 				}
 				state.Unlock()
 				continue
