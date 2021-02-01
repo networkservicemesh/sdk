@@ -510,6 +510,62 @@ func TestNSMGR_PassThroughLocal(t *testing.T) {
 	require.Equal(t, 5*(nsesCount-1)+5, len(conn.Path.PathSegments))
 }
 
+func TestNSMGR_ShouldCorrectlyAddEndpointsWithSameNames(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(t).
+		SetNodesCount(1).
+		SetRegistryProxySupplier(nil).
+		SetContext(ctx).
+		Build()
+	defer domain.Cleanup()
+
+	nseReg := &registry.NetworkServiceEndpoint{
+		Name: "endpoint",
+	}
+
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	// 1. Add endpoints
+	nse1Reg := nseReg.Clone()
+	nse1Reg.NetworkServiceNames = []string{"service-1"}
+	_, err := domain.Nodes[0].NewEndpoint(ctx, nse1Reg, sandbox.GenerateTestToken)
+	require.NoError(t, err)
+
+	nse2Reg := nseReg.Clone()
+	nse2Reg.NetworkServiceNames = []string{"service-2"}
+	_, err = domain.Nodes[0].NewEndpoint(ctx, nse2Reg, sandbox.GenerateTestToken)
+	require.NoError(t, err)
+
+	// 2. Wait for refresh
+	<-time.After(sandbox.DefaultRegistryExpiryDuration)
+
+	// 3. Request
+	_, err = nsc.Request(ctx, &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			NetworkService: "service-1",
+		},
+	})
+	require.NoError(t, err)
+
+	_, err = nsc.Request(ctx, &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			NetworkService: "service-2",
+		},
+	})
+	require.NoError(t, err)
+
+	// 3. Delete endpoints
+	_, err = domain.Nodes[0].ForwarderRegistryClient.Unregister(ctx, nse1Reg)
+	require.NoError(t, err)
+
+	_, err = domain.Nodes[0].ForwarderRegistryClient.Unregister(ctx, nse2Reg)
+	require.NoError(t, err)
+}
+
 func TestNSMGR_ShouldCleanAllClientAndEndpointGoroutines(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
