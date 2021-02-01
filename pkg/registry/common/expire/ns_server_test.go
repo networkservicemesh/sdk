@@ -144,7 +144,7 @@ func TestExpireNSServer_NSEServerSendsExpirationUpdate(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	nseMem := next.NewNetworkServiceEndpointRegistryServer(
-		expire.NewNetworkServiceEndpointRegistryServer(time.Second),
+		expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Second),
 		memory.NewNetworkServiceEndpointRegistryServer(),
 	)
 

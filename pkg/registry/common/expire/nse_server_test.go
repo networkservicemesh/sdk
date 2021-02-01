@@ -30,6 +30,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/seturl"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
@@ -38,7 +39,7 @@ func TestExpireNSEServer_ShouldCorrectlySetExpirationTime_InRemoteCase(t *testin
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
-		expire.NewNetworkServiceEndpointRegistryServer(time.Hour),
+		expire.NewNetworkServiceEndpointRegistryServer(context.Background(), time.Hour),
 		new(remoteNSEServer),
 	)
 
@@ -51,7 +52,10 @@ func TestExpireNSEServer_ShouldCorrectlySetExpirationTime_InRemoteCase(t *testin
 func TestExpireNSEServer_ShouldUseLessExpirationTimeFromInput_AndWork(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	s := next.NewNetworkServiceEndpointRegistryServer(expire.NewNetworkServiceEndpointRegistryServer(time.Hour), memory.NewNetworkServiceEndpointRegistryServer())
+	s := next.NewNetworkServiceEndpointRegistryServer(
+		expire.NewNetworkServiceEndpointRegistryServer(context.Background(), time.Hour),
+		memory.NewNetworkServiceEndpointRegistryServer(),
+	)
 
 	resp, err := s.Register(context.Background(), &registry.NetworkServiceEndpoint{
 		Name:           "nse-1",
@@ -78,9 +82,9 @@ func TestExpireNSEServer_ShouldUseLessExpirationTimeFromResponse(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
-		expire.NewNetworkServiceEndpointRegistryServer(time.Hour),
+		expire.NewNetworkServiceEndpointRegistryServer(context.Background(), time.Hour),
 		new(remoteNSEServer), // <-- GRPC invocation
-		expire.NewNetworkServiceEndpointRegistryServer(10*time.Minute),
+		expire.NewNetworkServiceEndpointRegistryServer(context.Background(), 10*time.Minute),
 	)
 
 	resp, err := s.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: "nse-1"})
@@ -93,7 +97,7 @@ func TestExpireNSEServer_ShouldRemoveNSEAfterExpirationTime(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
-		expire.NewNetworkServiceEndpointRegistryServer(testPeriod*2),
+		expire.NewNetworkServiceEndpointRegistryServer(context.Background(), testPeriod*2),
 		new(remoteNSEServer), // <-- GRPC invocation
 		memory.NewNetworkServiceEndpointRegistryServer(),
 	)
@@ -119,6 +123,35 @@ func TestExpireNSEServer_ShouldRemoveNSEAfterExpirationTime(t *testing.T) {
 		list = registry.ReadNetworkServiceEndpointList(stream)
 		return len(list) == 0
 	}, time.Second, time.Millisecond*100)
+}
+
+func TestExpireNSEServer_DataRace(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	mem := memory.NewNetworkServiceEndpointRegistryServer()
+
+	s := next.NewNetworkServiceEndpointRegistryServer(
+		expire.NewNetworkServiceEndpointRegistryServer(context.Background(), 0),
+		seturl.NewNetworkServiceEndpointRegistryServer("tcp://0.0.0.0"),
+		mem,
+	)
+
+	for i := 0; i < 1000; i++ {
+		_, err := s.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: "nse-1"})
+		require.NoError(t, err)
+	}
+
+	c := adapters.NetworkServiceEndpointServerToClient(mem)
+
+	require.Eventually(t, func() bool {
+		stream, err := c.Find(context.Background(), &registry.NetworkServiceEndpointQuery{
+			NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
+		})
+		require.NoError(t, err)
+
+		list := registry.ReadNetworkServiceEndpointList(stream)
+		return len(list) == 0
+	}, time.Millisecond*100, time.Millisecond*10)
 }
 
 type remoteNSEServer struct {
