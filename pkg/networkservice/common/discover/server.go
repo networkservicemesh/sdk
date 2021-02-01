@@ -109,8 +109,10 @@ func (d *discoverCandidatesServer) discoverNetworkServiceEndpoint(ctx context.Co
 	}
 	nseList := registry.ReadNetworkServiceEndpointList(nseStream)
 
-	if len(nseList) != 0 {
-		return nseList[0], nil
+	for _, nse := range nseList {
+		if nse.Name == nseName {
+			return nse, nil
+		}
 	}
 
 	query.Watch = true
@@ -119,7 +121,16 @@ func (d *discoverCandidatesServer) discoverNetworkServiceEndpoint(ctx context.Co
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	return nseStream.Recv()
+	for {
+		var nse *registry.NetworkServiceEndpoint
+		if nse, err = nseStream.Recv(); err != nil {
+			return nil, errors.WithStack(err)
+		}
+
+		if nse.Name == nseName {
+			return nse, nil
+		}
+	}
 }
 
 func (d *discoverCandidatesServer) discoverNetworkServiceEndpoints(ctx context.Context, ns *registry.NetworkService, labels map[string]string) ([]*registry.NetworkServiceEndpoint, error) {
@@ -152,7 +163,7 @@ func (d *discoverCandidatesServer) discoverNetworkServiceEndpoints(ctx context.C
 	for {
 		var nse *registry.NetworkServiceEndpoint
 		if nse, err = nseStream.Recv(); err != nil {
-			return nil, err
+			return nil, errors.WithStack(err)
 		}
 
 		result = matchEndpoint(labels, ns, nse)
@@ -176,8 +187,10 @@ func (d *discoverCandidatesServer) discoverNetworkService(ctx context.Context, n
 	}
 	nsList := registry.ReadNetworkServiceList(nsStream)
 
-	if len(nsList) != 0 {
-		return nsList[0], nil
+	for _, ns := range nsList {
+		if ns.Name == name {
+			return ns, nil
+		}
 	}
 
 	ctx, cancelFind := context.WithCancel(ctx)
@@ -189,5 +202,14 @@ func (d *discoverCandidatesServer) discoverNetworkService(ctx context.Context, n
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	return nsStream.Recv()
+	for {
+		var ns *registry.NetworkService
+		if ns, err = nsStream.Recv(); err != nil {
+			return nil, errors.WithStack(err)
+		}
+
+		if ns.Name == name {
+			return ns, nil
+		}
+	}
 }
