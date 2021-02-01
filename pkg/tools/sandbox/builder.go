@@ -43,7 +43,7 @@ import (
 
 const (
 	defaultContextTimeout         = time.Second * 15
-	defaultRegistryExpiryDuration = 100 * time.Millisecond
+	defaultRegistryExpiryDuration = 500 * time.Millisecond
 )
 
 // Builder implements builder pattern for building NSM Domain
