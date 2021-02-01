@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -46,8 +46,11 @@ func (n *networkServiceEndpointRegistryServer) Register(ctx context.Context, nse
 	if err != nil {
 		return nil, err
 	}
+
 	n.networkServiceEndpoints.Store(r.Name, r.Clone())
-	n.sendEvent(r.Clone())
+
+	n.sendEvent(r)
+
 	return r, err
 }
 
@@ -109,13 +112,12 @@ func (n *networkServiceEndpointRegistryServer) Find(query *registry.NetworkServi
 
 func (n *networkServiceEndpointRegistryServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
 	n.networkServiceEndpoints.Delete(nse.Name)
-	if nse.ExpirationTime == nil {
-		nse.ExpirationTime = &timestamp.Timestamp{}
+
+	nse.ExpirationTime = &timestamp.Timestamp{
+		Seconds: -1,
 	}
-	<-n.executor.AsyncExec(func() {
-		nse.ExpirationTime.Seconds = -1
-	})
 	n.sendEvent(nse)
+
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }
 
@@ -124,9 +126,10 @@ func (n *networkServiceEndpointRegistryServer) setEventChannelSize(l int) {
 }
 
 func (n *networkServiceEndpointRegistryServer) sendEvent(nse *registry.NetworkServiceEndpoint) {
+	nse = nse.Clone()
 	n.executor.AsyncExec(func() {
 		for _, ch := range n.eventChannels {
-			ch <- nse
+			ch <- nse.Clone()
 		}
 	})
 }
