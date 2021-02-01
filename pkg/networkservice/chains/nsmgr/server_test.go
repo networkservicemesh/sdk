@@ -35,6 +35,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
@@ -569,8 +570,16 @@ func testNSEAndClient(
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
 
-	err = sandbox.UnregisterEndpoint(ctx, nseReg, domain.Nodes[0].NSMgr)
+	_, err = domain.Nodes[0].NSMgr.NetworkServiceEndpointRegistryServer().Unregister(ctx, nseReg)
 	require.NoError(t, err)
+
+	for _, name := range nseReg.NetworkServiceNames {
+		_, err = domain.Nodes[0].NSMgr.NetworkServiceRegistryServer().Unregister(ctx, &registry.NetworkService{
+			Name:    name,
+			Payload: payload.IP,
+		})
+		require.NoError(t, err)
+	}
 }
 
 type passThroughClient struct {

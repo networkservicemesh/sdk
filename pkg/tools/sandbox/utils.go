@@ -22,17 +22,14 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
-	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/timestamppb"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
@@ -41,6 +38,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 	"github.com/networkservicemesh/sdk/pkg/tools/opentracing"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
@@ -93,22 +91,6 @@ func NewEndpoint(ctx context.Context, nse *registry.NetworkServiceEndpoint, gene
 	logger.Log(ctx).Infof("Started listen endpoint %v on %v.", nse.Name, u.String())
 
 	return &EndpointEntry{Endpoint: ep, URL: u}, nil
-}
-
-// UnregisterEndpoint unregisters endpoint from NSMgr
-func UnregisterEndpoint(ctx context.Context, nse *registry.NetworkServiceEndpoint, mgr nsmgr.Nsmgr) (err error) {
-	if _, unregisterErr := mgr.NetworkServiceEndpointRegistryServer().Unregister(ctx, nse); unregisterErr != nil {
-		err = errors.Wrapf(unregisterErr, "%v\n", err)
-	}
-	for _, name := range nse.NetworkServiceNames {
-		if _, unregisterErr := mgr.NetworkServiceRegistryServer().Unregister(ctx, &registry.NetworkService{
-			Name:    name,
-			Payload: payload.IP,
-		}); unregisterErr != nil {
-			err = errors.Wrapf(unregisterErr, "%v\n", err)
-		}
-	}
-	return err
 }
 
 // NewClient is a client.NewClient over *url.URL with some fields preset for testing
