@@ -32,6 +32,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgrproxy"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
+	"github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/proxydns"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
@@ -277,8 +278,9 @@ func (b *Builder) newNode(ctx context.Context, registryURL *url.URL) *Node {
 	node := &Node{
 		ctx:                     b.ctx,
 		NSMgr:                   nsmgrEntry,
-		ForwarderRegistryClient: NewRegistryClient(ctx, nsmgrCC, true),
-		EndpointRegistryClient:  NewRegistryClient(ctx, nsmgrCC, false),
+		ForwarderRegistryClient: client.NewNetworkServiceEndpointRegistryInterposeClient(ctx, nsmgrCC),
+		EndpointRegistryClient:  client.NewNetworkServiceEndpointRegistryClient(ctx, nsmgrCC),
+		NSRegistryClient:        client.NewNetworkServiceRegistryClient(nsmgrCC),
 	}
 
 	if b.setupNode != nil {

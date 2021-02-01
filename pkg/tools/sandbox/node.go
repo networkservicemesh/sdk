@@ -25,7 +25,8 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
+	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
@@ -43,14 +44,15 @@ import (
 type Node struct {
 	ctx                     context.Context
 	NSMgr                   *NSMgrEntry
-	ForwarderRegistryClient registry.NetworkServiceEndpointRegistryClient
-	EndpointRegistryClient  registry.NetworkServiceEndpointRegistryClient
+	ForwarderRegistryClient registryapi.NetworkServiceEndpointRegistryClient
+	EndpointRegistryClient  registryapi.NetworkServiceEndpointRegistryClient
+	NSRegistryClient        registryapi.NetworkServiceRegistryClient
 }
 
 // NewForwarder starts a new forwarder and registers it on the node NSMgr
 func (n *Node) NewForwarder(
 	ctx context.Context,
-	nse *registry.NetworkServiceEndpoint,
+	nse *registryapi.NetworkServiceEndpoint,
 	generatorFunc token.GeneratorFunc,
 	additionalFunctionality ...networkservice.NetworkServiceServer,
 ) (*EndpointEntry, error) {
@@ -66,7 +68,7 @@ func (n *Node) NewForwarder(
 			grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)),
 		))
 
-	entry, err := n.newEndpoint(ctx, nse, generatorFunc, true, additionalFunctionality...)
+	entry, err := n.newEndpoint(ctx, nse, generatorFunc, n.ForwarderRegistryClient, additionalFunctionality...)
 	if err != nil {
 		return nil, err
 	}
@@ -78,18 +80,18 @@ func (n *Node) NewForwarder(
 // NewEndpoint starts a new endpoint and registers it on the node NSMgr
 func (n *Node) NewEndpoint(
 	ctx context.Context,
-	nse *registry.NetworkServiceEndpoint,
+	nse *registryapi.NetworkServiceEndpoint,
 	generatorFunc token.GeneratorFunc,
 	additionalFunctionality ...networkservice.NetworkServiceServer,
 ) (*EndpointEntry, error) {
-	return n.newEndpoint(ctx, nse, generatorFunc, false, additionalFunctionality...)
+	return n.newEndpoint(ctx, nse, generatorFunc, n.EndpointRegistryClient, additionalFunctionality...)
 }
 
 func (n *Node) newEndpoint(
 	ctx context.Context,
-	nse *registry.NetworkServiceEndpoint,
+	nse *registryapi.NetworkServiceEndpoint,
 	generatorFunc token.GeneratorFunc,
-	isForwarder bool,
+	registryClient registryapi.NetworkServiceEndpointRegistryClient,
 	additionalFunctionality ...networkservice.NetworkServiceServer,
 ) (_ *EndpointEntry, err error) {
 	// 1. Create endpoint server
@@ -116,14 +118,7 @@ func (n *Node) newEndpoint(
 	nse.Url = u.String()
 
 	// 3. Register with the node registry client
-	var registryClient registry.NetworkServiceEndpointRegistryClient
-	if isForwarder {
-		registryClient = n.ForwarderRegistryClient
-	} else {
-		registryClient = n.EndpointRegistryClient
-	}
-
-	var reg *registry.NetworkServiceEndpoint
+	var reg *registryapi.NetworkServiceEndpoint
 	if reg, err = registryClient.Register(ctx, nse); err != nil {
 		return nil, err
 	}
@@ -131,11 +126,16 @@ func (n *Node) newEndpoint(
 	nse.Name = reg.Name
 	nse.ExpirationTime = reg.ExpirationTime
 
-	if isForwarder {
-		logger.Log(ctx).Infof("Started listen forwarder %s on %s.", nse.Name, u.String())
-	} else {
-		logger.Log(ctx).Infof("Started listen endpoint %s on %s.", nse.Name, u.String())
+	for _, nsName := range nse.NetworkServiceNames {
+		if _, err = n.NSRegistryClient.Register(ctx, &registryapi.NetworkService{
+			Name:    nsName,
+			Payload: payload.IP,
+		}); err != nil {
+			return nil, err
+		}
 	}
+
+	logger.Log(ctx).Infof("Started listen endpoint %s on %s.", nse.Name, u.String())
 
 	return &EndpointEntry{Endpoint: ep, URL: u}, nil
 }
