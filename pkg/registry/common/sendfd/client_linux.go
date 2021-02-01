@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Cisco and/or its affiliates.
 //
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +16,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build !windows
+// +build linux
 
 // Package sendfd provides a registry.NetworkServiceEndpointRegistryClient chain element to convert any unix file socket
 // endpoint.URLs into 'inode://${dev}/${ino}' urls and send the fd over the unix file socket.
@@ -40,7 +42,7 @@ func NewNetworkServiceEndpointRegistryClient() registry.NetworkServiceEndpointRe
 	return &sendFDNSEClient{}
 }
 
-func (s sendFDNSEClient) Register(ctx context.Context, endpoint *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+func (s *sendFDNSEClient) Register(ctx context.Context, endpoint *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
 	// Get the grpcfd.FDSender
 	rpcCredentials := grpcfd.PerRPCCredentials(grpcfd.PerRPCCredentialsFromCallOptions(opts...))
 	opts = append(opts, grpc.PerRPCCredentials(rpcCredentials))
@@ -64,11 +66,11 @@ func (s sendFDNSEClient) Register(ctx context.Context, endpoint *registry.Networ
 	return returnedEndpoint, nil
 }
 
-func (s sendFDNSEClient) Find(ctx context.Context, query *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
+func (s *sendFDNSEClient) Find(ctx context.Context, query *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
 	return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, query, opts...)
 }
 
-func (s sendFDNSEClient) Unregister(ctx context.Context, endpoint *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (s *sendFDNSEClient) Unregister(ctx context.Context, endpoint *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
 	// Get the grpcfd.FDSender
 	rpcCredentials := grpcfd.PerRPCCredentials(grpcfd.PerRPCCredentialsFromCallOptions(opts...))
 	opts = append(opts, grpc.PerRPCCredentials(rpcCredentials))
