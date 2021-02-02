@@ -54,7 +54,7 @@ func (n *expireNSServer) checkUpdates(eventCh <-chan *registry.NetworkServiceEnd
 			ns := nse.NetworkServiceNames[i]
 			state, ok := n.nsStates.Load(ns)
 			if !ok {
-				return
+				continue
 			}
 			state.Lock()
 			timer, ok := state.Timers[nse.Name]
@@ -68,8 +68,8 @@ func (n *expireNSServer) checkUpdates(eventCh <-chan *registry.NetworkServiceEnd
 						state.Unlock()
 						_, _ = n.Unregister(ctx, &registry.NetworkService{Name: ns})
 					})
-					state.Unlock()
 				}
+				state.Unlock()
 				continue
 			}
 
@@ -79,7 +79,7 @@ func (n *expireNSServer) checkUpdates(eventCh <-chan *registry.NetworkServiceEnd
 					ctx := state.Context
 					state.Unlock()
 					_, _ = n.Unregister(ctx, &registry.NetworkService{Name: ns})
-					return
+					continue
 				}
 				state.Unlock()
 				continue
