@@ -22,10 +22,11 @@ package trace
 import (
 	"context"
 
+	"google.golang.org/protobuf/proto"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 	"github.com/networkservicemesh/sdk/pkg/tools/logger/tracelogger"
-
-	"google.golang.org/protobuf/proto"
 )
 
 type contextKeyType string
@@ -48,7 +49,11 @@ func withLog(parent context.Context, operation string) (c context.Context, f fun
 		panic("cannot create context from nil parent")
 	}
 
-	if logger.IsTracingEnabled() {
+	// Update outgoing grpc context
+	parent = grpcutils.PassTraceToOutgoing(parent)
+
+	if grpcTraceState := grpcutils.TraceFromContext(parent); (grpcTraceState == grpcutils.TraceOn) ||
+		(grpcTraceState == grpcutils.TraceUndefined && logger.IsTracingEnabled()) {
 		return tracelogger.WithLog(withTrace(parent), operation)
 	}
 	return logger.WithLog(parent), func() {}
