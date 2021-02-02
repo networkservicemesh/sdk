@@ -14,19 +14,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package nsmlabel_test
+package nsurl_test
 
 import (
 	"net/url"
-	"strings"
 	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/memif"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/vfio"
 	"github.com/stretchr/testify/require"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/nsmlabel"
+	"github.com/networkservicemesh/sdk/pkg/tools/nsurl"
 )
 
 func must(u *url.URL, err error) *url.URL {
@@ -35,7 +35,7 @@ func must(u *url.URL, err error) *url.URL {
 	}
 	return u
 }
-func Test_ParseNSMLabel(t *testing.T) {
+func Test_NSURL(t *testing.T) {
 	var samples = []struct {
 		u              *url.URL
 		interfaceName  string
@@ -67,16 +67,21 @@ func Test_ParseNSMLabel(t *testing.T) {
 				"C": "3",
 			},
 		},
+		{
+			u:              must(url.Parse("kernel://my-service@dc.example.com/ms1")),
+			networkService: "my-service@dc.example.com",
+			mechanism:      kernel.MECHANISM,
+			interfaceName:  "ms1",
+		},
 	}
 
 	for _, sample := range samples {
-		m, ns, labels := nsmlabel.Parse(sample.u)
-		require.Equal(t, cls.LOCAL, m.Cls)
-		require.Equal(t, strings.ToLower(sample.mechanism), m.Type)
-		require.Equal(t, sample.networkService, ns)
-		require.Len(t, labels, len(sample.labels))
+		require.Equal(t, cls.LOCAL, (*nsurl.NSURL)(sample.u).Mechanism().Cls)
+		require.Equal(t, sample.mechanism, (*nsurl.NSURL)(sample.u).Mechanism().Type)
+		require.Equal(t, sample.networkService, (*nsurl.NSURL)(sample.u).NetworkService())
+		require.Len(t, (*nsurl.NSURL)(sample.u).Labels(), len(sample.labels))
 		if len(sample.labels) > 0 {
-			require.Equal(t, sample.labels, labels)
+			require.Equal(t, sample.labels, (*nsurl.NSURL)(sample.u).Labels())
 		}
 	}
 }
