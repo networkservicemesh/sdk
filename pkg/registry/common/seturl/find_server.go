@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,16 +14,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package interpose
+package seturl
 
-import "strings"
+import (
+	"github.com/networkservicemesh/api/pkg/api/registry"
 
-const nameSuffix = "#interpose-nse"
+	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
+)
 
-func interposeName(name string) string {
-	return name + nameSuffix
+type setURLNSEFindServer struct {
+	nseURLs *stringurl.Map
+
+	registry.NetworkServiceEndpointRegistry_FindServer
 }
 
-func isInterposeName(name string) bool {
-	return strings.HasSuffix(name, nameSuffix)
+func (s *setURLNSEFindServer) Send(endpoint *registry.NetworkServiceEndpoint) error {
+	if u, ok := s.nseURLs.Load(endpoint.Name); ok {
+		endpoint.Url = u.String()
+	}
+	return s.NetworkServiceEndpointRegistry_FindServer.Send(endpoint)
 }

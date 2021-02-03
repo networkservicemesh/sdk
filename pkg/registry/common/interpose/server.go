@@ -25,49 +25,56 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/endpointurls"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 )
 
 type interposeRegistryServer struct {
-	endpoints *stringurl.Map
+	interposeNSEs *endpointurls.Map
+	interposeURLs stringurl.Map
 }
 
-// NewNetworkServiceRegistryServer - creates a NetworkServiceRegistryServer that registers local Cross connect Endpoints
+// NewNetworkServiceEndpointRegistryServer - creates a NetworkServiceRegistryServer that registers local Cross connect Endpoints
 //				and adds them to Map
-func NewNetworkServiceRegistryServer(nses *stringurl.Map) registry.NetworkServiceEndpointRegistryServer {
-	return &interposeRegistryServer{endpoints: nses}
+func NewNetworkServiceEndpointRegistryServer(interposeNSEs *endpointurls.Map) registry.NetworkServiceEndpointRegistryServer {
+	return &interposeRegistryServer{
+		interposeNSEs: interposeNSEs,
+	}
 }
 
-func (rs *interposeRegistryServer) Register(ctx context.Context, request *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	if !Is(request.Name) {
-		return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, request)
+func (s *interposeRegistryServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	if !isInterposeName(nse.Name) {
+		return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	}
 
-	u, err := url.Parse(request.Url)
+	u, err := url.Parse(nse.Url)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot register cross NSE with passed URL: %s", request.Url)
+		return nil, errors.Wrapf(err, "cannot register cross NSE with passed URL: %s", nse.Url)
 	}
 	if u.String() == "" {
-		return nil, errors.Errorf("cannot register cross NSE with passed URL: %s", request.Url)
+		return nil, errors.Errorf("cannot register cross NSE with passed URL: %s", nse.Url)
 	}
 
-	rs.endpoints.LoadOrStore(request.Name, u)
+	s.interposeURLs.LoadOrStore(nse.Name, u)
+	s.interposeNSEs.LoadOrStore(*u, nse.Name)
 
-	return request, nil
+	return nse, nil
 }
 
-func (rs *interposeRegistryServer) Find(query *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
+func (s *interposeRegistryServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
 	// No need to modify find logic.
-	return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(query, s)
+	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
 }
 
-func (rs *interposeRegistryServer) Unregister(ctx context.Context, request *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	if !Is(request.Name) {
-		return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, request)
+func (s *interposeRegistryServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	if !isInterposeName(nse.Name) {
+		return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 	}
 
-	rs.endpoints.Delete(request.Name)
+	if u, ok := s.interposeURLs.LoadAndDelete(nse.Name); ok {
+		s.interposeNSEs.Delete(*u)
+	}
 
 	return new(empty.Empty), nil
 }

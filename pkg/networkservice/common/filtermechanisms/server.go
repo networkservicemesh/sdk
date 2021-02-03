@@ -1,4 +1,6 @@
-// Copyright (c) 2019-2020 VMware, Inc.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2019-2021 VMware, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,39 +23,38 @@ package filtermechanisms
 import (
 	"context"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
-
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
-	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/endpointurls"
 )
 
 type filterMechanismsServer struct {
-	nses endpointurls.Map
+	interposeURLs *endpointurls.Map
+	nseURLs       *endpointurls.Map
 }
 
 // NewServer - filters out remote mechanisms if connection is received from a unix file socket, otherwise filters
 // out local mechanisms
-func NewServer(registryServer *registry.NetworkServiceEndpointRegistryServer) networkservice.NetworkServiceServer {
-	result := &filterMechanismsServer{}
-	*registryServer = endpointurls.NewNetworkServiceEndpointRegistryServer(&result.nses)
-	return result
+func NewServer(interposeURLs, nseURLs *endpointurls.Map) networkservice.NetworkServiceServer {
+	return &filterMechanismsServer{
+		interposeURLs: interposeURLs,
+		nseURLs:       nseURLs,
+	}
 }
 
 func (f *filterMechanismsServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	u := clienturlctx.ClientURL(ctx)
-	if name, ok := f.nses.Load(*u); ok {
-		if !interpose.Is(name) {
+	if _, ok := f.interposeURLs.Load(*u); !ok {
+		if _, ok = f.nseURLs.Load(*u); ok {
 			request.MechanismPreferences = filterMechanismsByCls(request.GetMechanismPreferences(), cls.LOCAL)
+		} else {
+			request.MechanismPreferences = filterMechanismsByCls(request.GetMechanismPreferences(), cls.REMOTE)
 		}
-	} else {
-		request.MechanismPreferences = filterMechanismsByCls(request.GetMechanismPreferences(), cls.REMOTE)
 	}
 	return next.Server(ctx).Request(ctx, request)
 }

@@ -23,40 +23,37 @@ import (
 	"context"
 	"time"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/querycache"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/filtermechanisms"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interpose"
-	"github.com/networkservicemesh/sdk/pkg/registry"
+	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
-	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
-	registry_recvfd "github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/seturl"
-	chain_registry "github.com/networkservicemesh/sdk/pkg/registry/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/nextwrap"
-
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/localbypass"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/filtermechanisms"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interpose"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/roundrobin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
-	adapter_registry "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
+	"github.com/networkservicemesh/sdk/pkg/registry"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/endpointurls"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
+	registryinterpose "github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/querycache"
+	registryrecvfd "github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/seturl"
+	registryadapter "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
+	registrychain "github.com/networkservicemesh/sdk/pkg/registry/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/nextwrap"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -83,8 +80,7 @@ var _ Nsmgr = (*nsmgrServer)(nil)
 func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceEndpoint, authzServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, registryCC grpc.ClientConnInterface, clientDialOptions ...grpc.DialOption) Nsmgr {
 	rv := &nsmgrServer{}
 
-	var urlsRegistryServer registryapi.NetworkServiceEndpointRegistryServer
-	var localbypassRegistryServer registryapi.NetworkServiceEndpointRegistryServer
+	var interposeNSEs, nses endpointurls.Map
 
 	nsRegistry := newRemoteNSServer(registryCC)
 	if nsRegistry == nil {
@@ -97,12 +93,16 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 		nseRegistry = memory.NewNetworkServiceEndpointRegistryServer() // Memory registry to store result inside.
 	}
 
+	setURLRegistryServer := seturl.NewNetworkServiceEndpointRegistryServer(nsmRegistration.Url, &nses)
+
 	nseClient := next.NewNetworkServiceEndpointRegistryClient(
 		querycache.NewClient(ctx),
-		adapter_registry.NetworkServiceEndpointServerToClient(nseRegistry))
+		registryadapter.NetworkServiceEndpointServerToClient(next.NewNetworkServiceEndpointRegistryServer(
+			setURLRegistryServer,
+			nseRegistry)),
+	)
 
-	nsClient := adapter_registry.NetworkServiceServerToClient(nsRegistry)
-	var interposeRegistry registryapi.NetworkServiceEndpointRegistryServer
+	nsClient := registryadapter.NetworkServiceServerToClient(nsRegistry)
 
 	// Construct Endpoint
 	rv.Endpoint = endpoint.NewServer(ctx,
@@ -111,11 +111,10 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 		tokenGenerator,
 		discover.NewServer(nsClient, nseClient),
 		roundrobin.NewServer(),
-		localbypass.NewServer(&localbypassRegistryServer),
 		excludedprefixes.NewServer(ctx),
 		recvfd.NewServer(), // Receive any files passed
-		interpose.NewServer(&interposeRegistry),
-		filtermechanisms.NewServer(&urlsRegistryServer),
+		interpose.NewServer(&interposeNSEs),
+		filtermechanisms.NewServer(&interposeNSEs, &nses),
 		connect.NewServer(ctx,
 			client.NewClientFactory(
 				nsmRegistration.Name,
@@ -128,18 +127,16 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 		sendfd.NewServer(),
 	)
 
-	nsChain := chain_registry.NewNamedNetworkServiceRegistryServer(nsmRegistration.Name+".NetworkServiceRegistry", nsRegistry)
+	nsChain := registrychain.NewNamedNetworkServiceRegistryServer(nsmRegistration.Name+".NetworkServiceRegistry", nsRegistry)
 
-	nseChain := chain_registry.NewNamedNetworkServiceEndpointRegistryServer(
+	nseChain := registrychain.NewNamedNetworkServiceEndpointRegistryServer(
 		nsmRegistration.Name+".NetworkServiceEndpointRegistry",
 		expire.NewNetworkServiceEndpointRegistryServer(time.Minute),
 		setid.NewNetworkServiceEndpointRegistryServer(),           // Assign ID
-		registry_recvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
-		urlsRegistryServer,
-		interposeRegistry,         // Store cross connect NSEs
-		localbypassRegistryServer, // Store endpoint Id to EndpointURL for local access.
-		seturl.NewNetworkServiceEndpointRegistryServer(nsmRegistration.Url), // Remember endpoint URL
-		nseRegistry, // Register NSE inside Remote registry with ID assigned
+		registryrecvfd.NewNetworkServiceEndpointRegistryServer(),                  // Allow to receive a passed files
+		registryinterpose.NewNetworkServiceEndpointRegistryServer(&interposeNSEs), // Store cross connect NSEs
+		setURLRegistryServer, // Perform URL transformations
+		nseRegistry,          // Register NSE inside Remote registry with ID assigned
 	)
 	rv.Registry = registry.NewServer(nsChain, nseChain)
 
@@ -148,7 +145,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 
 func newRemoteNSServer(cc grpc.ClientConnInterface) registryapi.NetworkServiceRegistryServer {
 	if cc != nil {
-		return adapter_registry.NetworkServiceClientToServer(
+		return registryadapter.NetworkServiceClientToServer(
 			nextwrap.NewNetworkServiceRegistryClient(
 				registryapi.NewNetworkServiceRegistryClient(cc)))
 	}
@@ -156,7 +153,7 @@ func newRemoteNSServer(cc grpc.ClientConnInterface) registryapi.NetworkServiceRe
 }
 func newRemoteNSEServer(cc grpc.ClientConnInterface) registryapi.NetworkServiceEndpointRegistryServer {
 	if cc != nil {
-		return adapter_registry.NetworkServiceEndpointClientToServer(
+		return registryadapter.NetworkServiceEndpointClientToServer(
 			nextwrap.NewNetworkServiceEndpointRegistryClient(
 				registryapi.NewNetworkServiceEndpointRegistryClient(cc)))
 	}

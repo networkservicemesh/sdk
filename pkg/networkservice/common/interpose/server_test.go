@@ -25,7 +25,6 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interpose"
@@ -33,9 +32,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
-	registryinterpose "github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
-	registryadapters "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
-	registrynext "github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/endpointurls"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 )
 
@@ -43,17 +40,10 @@ func TestInterposeServer(t *testing.T) {
 	nseURL := url.URL{Scheme: "tcp", Host: "nse.test"}
 	crossNSEURL := url.URL{Scheme: "tcp", Host: "cross-nse.test"}
 
-	var interposeRegistry registry.NetworkServiceEndpointRegistryServer
-	interposeServer := interpose.NewServer(&interposeRegistry)
+	var interposeNSEs endpointurls.Map
+	interposeServer := interpose.NewServer(&interposeNSEs)
 
-	_, err := registrynext.NewNetworkServiceEndpointRegistryClient(
-		registryinterpose.NewNetworkServiceEndpointRegistryClient(),
-		registryadapters.NetworkServiceEndpointServerToClient(interposeRegistry),
-	).Register(context.TODO(), &registry.NetworkServiceEndpoint{
-		Name: "forwarder",
-		Url:  crossNSEURL.String(),
-	})
-	require.NoError(t, err)
+	interposeNSEs.Store(crossNSEURL, "#interpose-nse")
 
 	touchServer := new(touchServer)
 

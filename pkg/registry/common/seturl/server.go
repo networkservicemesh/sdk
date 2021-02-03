@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -19,44 +19,73 @@ package seturl
 
 import (
 	"context"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"net/url"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
+
 	"github.com/networkservicemesh/api/pkg/api/registry"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/common/endpointurls"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 )
 
-type setMgrServer struct {
-	url string
-}
-
-type setNSMgrURLFindServer struct {
-	registry.NetworkServiceEndpointRegistry_FindServer
-	url string
-}
-
-func (s *setNSMgrURLFindServer) Send(endpoint *registry.NetworkServiceEndpoint) error {
-	endpoint.Url = s.url
-	return s.NetworkServiceEndpointRegistry_FindServer.Send(endpoint)
-}
-
-func (s *setMgrServer) Register(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	endpoint.Url = s.url
-	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, endpoint)
-}
-
-func (s *setMgrServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
-	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, &setNSMgrURLFindServer{url: s.url, NetworkServiceEndpointRegistry_FindServer: server})
-}
-
-func (s *setMgrServer) Unregister(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	endpoint.Url = s.url
-	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, endpoint)
+type setURLNSEServer struct {
+	url     string
+	nses    *endpointurls.Map
+	nseURLs stringurl.Map
 }
 
 // NewNetworkServiceEndpointRegistryServer creates new instance of NetworkServiceEndpointRegistryServer which set the passed NSMgr url
-func NewNetworkServiceEndpointRegistryServer(u string) registry.NetworkServiceEndpointRegistryServer {
-	return &setMgrServer{
-		url: u,
+func NewNetworkServiceEndpointRegistryServer(u string, nses *endpointurls.Map) registry.NetworkServiceEndpointRegistryServer {
+	return &setURLNSEServer{
+		url:  u,
+		nses: nses,
 	}
+}
+
+func (s *setURLNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	u, err := url.Parse(nse.Url)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot register NSE with passed URL: %s", nse.Url)
+	}
+	if u.String() == "" {
+		return nil, errors.Errorf("cannot register NSE with passed URL: %s", nse.Url)
+	}
+
+	nse.Url = s.url
+
+	nse, err = next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
+	if err != nil {
+		return nil, err
+	}
+
+	nse.Url = u.String()
+
+	s.nseURLs.LoadOrStore(nse.Name, u)
+	s.nses.LoadOrStore(*u, nse.Name)
+
+	return nse, nil
+}
+
+func (s *setURLNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
+	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, s.findServer(server))
+}
+
+func (s *setURLNSEServer) findServer(server registry.NetworkServiceEndpointRegistry_FindServer) registry.NetworkServiceEndpointRegistry_FindServer {
+	return &setURLNSEFindServer{
+		nseURLs: &s.nseURLs,
+		NetworkServiceEndpointRegistry_FindServer: server,
+	}
+}
+
+func (s *setURLNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	if u, ok := s.nseURLs.LoadAndDelete(nse.Name); ok {
+		s.nses.Delete(*u)
+	}
+
+	nse.Url = s.url
+
+	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }
