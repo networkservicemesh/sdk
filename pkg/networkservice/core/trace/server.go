@@ -22,25 +22,29 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/logger"
-
 	"github.com/networkservicemesh/sdk/pkg/tools/typeutils"
 )
 
-type traceServer struct {
+type beginTraceServer struct {
 	traced networkservice.NetworkServiceServer
 }
 
+type endTraceServer struct{}
+
 // NewNetworkServiceServer - wraps tracing around the supplied traced
 func NewNetworkServiceServer(traced networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
-	return &traceServer{traced: traced}
+	return next.NewNetworkServiceServer(
+		&beginTraceServer{traced: traced},
+		&endTraceServer{},
+	)
 }
 
-func (t *traceServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+func (t *beginTraceServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	// Create a new logger
 	operation := typeutils.GetFuncName(t.traced, "Request")
 	ctx, finish := withLog(ctx, operation)
@@ -65,7 +69,7 @@ func (t *traceServer) Request(ctx context.Context, request *networkservice.Netwo
 	return rv, err
 }
 
-func (t *traceServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+func (t *beginTraceServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	// Create a new logger
 	operation := typeutils.GetFuncName(t.traced, "Close")
 	ctx, finish := withLog(ctx, operation)
@@ -83,5 +87,20 @@ func (t *traceServer) Close(ctx context.Context, conn *networkservice.Connection
 		logger.Log(ctx).Errorf("%v", err)
 		return nil, err
 	}
+	logResponse(ctx, conn)
 	return rv, err
+}
+
+func (t *endTraceServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	logRequest(ctx, request)
+	conn, err := next.Server(ctx).Request(ctx, request)
+	logResponse(ctx, conn)
+	return conn, err
+}
+
+func (t *endTraceServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	logRequest(ctx, conn)
+	r, err := next.Server(ctx).Close(ctx, conn)
+	logResponse(ctx, conn)
+	return r, err
 }
