@@ -19,7 +19,6 @@ package connect_test
 import (
 	"context"
 	"net/url"
-	"runtime"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -255,8 +254,6 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 				// 4.3. Re request A
 				conn, err := s.Request(clienturlctx.WithClientURL(ctx, urlA), request)
 				assert.NoError(t, err)
-
-				runtime.Gosched()
 
 				// 4.4. Close A
 				_, err = s.Close(ctx, conn)
