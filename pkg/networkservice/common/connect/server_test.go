@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package connect
+package connect_test
 
 import (
 	"context"
@@ -24,6 +24,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/assert"
@@ -37,6 +38,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/memif"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/vfio"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
@@ -70,17 +72,16 @@ func TestConnectServer_Request(t *testing.T) {
 	serverNext := new(captureServer)
 	serverClient := new(captureServer)
 
-	cs := NewServer(context.TODO(),
-		func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-			return next.NewNetworkServiceClient(
-				adapters.NewServerToClient(serverClient),
-				networkservice.NewNetworkServiceClient(cc),
-			)
-		},
-		grpc.WithInsecure(),
-	).(*connectServer)
 	s := next.NewNetworkServiceServer(
-		cs,
+		connect.NewServer(context.TODO(),
+			func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+				return next.NewNetworkServiceClient(
+					adapters.NewServerToClient(serverClient),
+					networkservice.NewNetworkServiceClient(cc),
+				)
+			},
+			grpc.WithInsecure(),
+		),
 		serverNext,
 	)
 
@@ -113,6 +114,10 @@ func TestConnectServer_Request(t *testing.T) {
 			}),
 		))
 		require.NoError(t, err)
+
+		// Time for servers to start listening
+		<-time.After(10 * time.Millisecond)
+		ignoreCurrentGoroutines := goleak.IgnoreCurrent()
 
 		// 4. Create request
 
@@ -150,9 +155,6 @@ func TestConnectServer_Request(t *testing.T) {
 
 		require.Equal(t, requestNext.Connection.String(), conn.String())
 
-		require.Equal(t, 1, len(cs.clientsCloseFuncs))
-		require.Equal(t, 1, connInfoMapLen(&cs.connInfos))
-
 		// 6. Request B
 
 		request.Connection = conn
@@ -175,9 +177,6 @@ func TestConnectServer_Request(t *testing.T) {
 
 		require.Equal(t, requestNext.Connection.String(), conn.String())
 
-		require.Equal(t, 1, len(cs.clientsCloseFuncs))
-		require.Equal(t, 1, connInfoMapLen(&cs.connInfos))
-
 		// 8. Close B
 
 		_, err = s.Close(ctx, conn)
@@ -187,8 +186,7 @@ func TestConnectServer_Request(t *testing.T) {
 		require.Nil(t, serverB.capturedRequest)
 		require.Nil(t, serverNext.capturedRequest)
 
-		require.Equal(t, 0, len(cs.clientsCloseFuncs))
-		require.Equal(t, 0, connInfoMapLen(&cs.connInfos))
+		goleak.VerifyNone(t, ignoreCurrentGoroutines)
 	}()
 }
 
@@ -200,17 +198,16 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 	serverNext := new(countServer)
 	serverClient := new(countServer)
 
-	cs := NewServer(context.TODO(),
-		func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-			return next.NewNetworkServiceClient(
-				adapters.NewServerToClient(serverClient),
-				networkservice.NewNetworkServiceClient(cc),
-			)
-		},
-		grpc.WithInsecure(),
-	).(*connectServer)
 	s := next.NewNetworkServiceServer(
-		cs,
+		connect.NewServer(context.TODO(),
+			func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+				return next.NewNetworkServiceClient(
+					adapters.NewServerToClient(serverClient),
+					networkservice.NewNetworkServiceClient(cc),
+				)
+			},
+			grpc.WithInsecure(),
+		),
 		serverNext,
 	)
 
@@ -226,6 +223,10 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 
 		err := startServer(ctx, urlA, serverA)
 		require.NoError(t, err)
+
+		// Time for servers to start listening
+		<-time.After(10 * time.Millisecond)
+		ignoreCurrentGoroutines := goleak.IgnoreCurrent()
 
 		// 4. Request A
 
@@ -277,10 +278,9 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 		require.Equal(t, int32(parallelCount), serverClient.count)
 		require.Equal(t, int32(parallelCount), serverA.count)
 		require.Equal(t, int32(parallelCount), serverNext.count)
-	}()
 
-	require.Equal(t, 0, len(cs.clientsCloseFuncs))
-	require.Equal(t, 0, connInfoMapLen(&cs.connInfos))
+		goleak.VerifyNone(t, ignoreCurrentGoroutines)
+	}()
 }
 
 func TestConnectServer_RequestFail(t *testing.T) {
@@ -288,7 +288,7 @@ func TestConnectServer_RequestFail(t *testing.T) {
 
 	// 1. Create connectServer
 
-	s := NewServer(context.TODO(),
+	s := connect.NewServer(context.TODO(),
 		func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 			return injecterror.NewClient()
 		},
@@ -313,7 +313,9 @@ func TestConnectServer_RequestFail(t *testing.T) {
 		))
 		require.NoError(t, err)
 
-		// 3. Create request
+		// Time for servers to start listening
+		<-time.After(10 * time.Millisecond)
+		ignoreCurrentGoroutines := goleak.IgnoreCurrent()
 
 		request := &networkservice.NetworkServiceRequest{
 			Connection: &networkservice.Connection{
@@ -331,14 +333,12 @@ func TestConnectServer_RequestFail(t *testing.T) {
 			},
 		}
 
+		goleak.VerifyNone(t, ignoreCurrentGoroutines)
+
 		// 4. Request A
 
 		_, err = s.Request(clienturlctx.WithClientURL(ctx, urlA), request.Clone())
 		require.Error(t, err)
-
-		cs := s.(*connectServer)
-		require.Equal(t, 0, len(cs.clientsCloseFuncs))
-		require.Equal(t, 0, connInfoMapLen(&cs.connInfos))
 	}()
 }
 
@@ -393,13 +393,4 @@ func (s *countServer) Request(ctx context.Context, request *networkservice.Netwo
 func (s *countServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	atomic.AddInt32(&s.count, -1)
 	return next.Server(ctx).Close(ctx, conn)
-}
-
-func connInfoMapLen(connMap *connectionInfoMap) int {
-	size := 0
-	connMap.Range(func(key string, value connectionInfo) bool {
-		size++
-		return true
-	})
-	return size
 }
