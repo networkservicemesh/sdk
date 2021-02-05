@@ -35,7 +35,7 @@ func NewNetworkServiceEndpointRegistryClient() registry.NetworkServiceEndpointRe
 }
 
 func (rc *interposeRegistryClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	if !isInterposeName(in.Name) {
+	if !Is(in.Name) {
 		in.Name = interposeName(in.Name)
 	}
 	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)
@@ -46,7 +46,7 @@ func (rc *interposeRegistryClient) Find(ctx context.Context, in *registry.Networ
 }
 
 func (rc *interposeRegistryClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
-	if !isInterposeName(in.Name) {
+	if !Is(in.Name) {
 		in.Name = interposeName(in.Name)
 	}
 	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)

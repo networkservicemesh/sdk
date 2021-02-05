@@ -26,19 +26,18 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/endpointurls"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 )
 
 type setURLNSEServer struct {
 	url     string
-	nses    *endpointurls.Map
+	nses    *Map
 	nseURLs stringurl.Map
 }
 
 // NewNetworkServiceEndpointRegistryServer creates new instance of NetworkServiceEndpointRegistryServer which set the passed NSMgr url
-func NewNetworkServiceEndpointRegistryServer(u string, nses *endpointurls.Map) registry.NetworkServiceEndpointRegistryServer {
+func NewNetworkServiceEndpointRegistryServer(u string, nses *Map) registry.NetworkServiceEndpointRegistryServer {
 	return &setURLNSEServer{
 		url:  u,
 		nses: nses,

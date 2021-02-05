@@ -25,7 +25,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/endpointurls"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/seturl"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
@@ -41,7 +40,7 @@ const (
 func TestSetURLNSEServer(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	var nses endpointurls.Map
+	var nses seturl.Map
 	mem := memory.NewNetworkServiceEndpointRegistryServer()
 
 	server := next.NewNetworkServiceEndpointRegistryServer(

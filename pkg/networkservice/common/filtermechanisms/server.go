@@ -23,43 +23,43 @@ package filtermechanisms
 import (
 	"context"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-
 	"github.com/golang/protobuf/ptypes/empty"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/endpointurls"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/seturl"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 )
 
 type filterMechanismsServer struct {
-	interposeURLs *endpointurls.Map
-	nseURLs       *endpointurls.Map
+	nses seturl.Map
 }
 
 // NewServer - filters out remote mechanisms if connection is received from a unix file socket, otherwise filters
 // out local mechanisms
-func NewServer(interposeURLs, nseURLs *endpointurls.Map) networkservice.NetworkServiceServer {
-	return &filterMechanismsServer{
-		interposeURLs: interposeURLs,
-		nseURLs:       nseURLs,
-	}
+func NewServer(nsmgrURL string, registryServer *registry.NetworkServiceEndpointRegistryServer) networkservice.NetworkServiceServer {
+	s := &filterMechanismsServer{}
+	*registryServer = seturl.NewNetworkServiceEndpointRegistryServer(nsmgrURL, &s.nses)
+	return s
 }
 
-func (f *filterMechanismsServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+func (s *filterMechanismsServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	u := clienturlctx.ClientURL(ctx)
-	if _, ok := f.interposeURLs.Load(*u); !ok {
-		if _, ok = f.nseURLs.Load(*u); ok {
+	if name, ok := s.nses.Load(*u); ok {
+		if !interpose.Is(name) {
 			request.MechanismPreferences = filterMechanismsByCls(request.GetMechanismPreferences(), cls.LOCAL)
-		} else {
-			request.MechanismPreferences = filterMechanismsByCls(request.GetMechanismPreferences(), cls.REMOTE)
 		}
+	} else {
+		request.MechanismPreferences = filterMechanismsByCls(request.GetMechanismPreferences(), cls.REMOTE)
 	}
 	return next.Server(ctx).Request(ctx, request)
 }
 
-func (f *filterMechanismsServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+func (s *filterMechanismsServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	return next.Server(ctx).Close(ctx, conn)
 }
 

@@ -27,10 +27,10 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/memif"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/srv6"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/vxlan"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/filtermechanisms"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/endpointurls"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 )
 
@@ -58,45 +58,53 @@ func TestFilterMechanismsServer_Request(t *testing.T) {
 		}
 	}
 	samples := []struct {
-		Name          string
-		InterposeNSEs map[url.URL]string
-		NSEs          map[url.URL]string
-		ClientURL     *url.URL
-		ClsResult     string
+		Name         string
+		EndpointName string
+		ClientURL    *url.URL
+		RegisterURLs []url.URL
+		ClsResult    string
 	}{
 		{
 			Name:      "Local mechanisms",
 			ClientURL: &url.URL{Scheme: "tcp", Host: "localhost:5000"},
-			NSEs: map[url.URL]string{
-				{Scheme: "tcp", Host: "localhost:5000"}: "nse-1",
+			RegisterURLs: []url.URL{
+				{
+					Scheme: "tcp",
+					Host:   "localhost:5000",
+				},
 			},
-			ClsResult: cls.LOCAL,
+			EndpointName: "nse-1",
+			ClsResult:    cls.LOCAL,
 		},
 		{
-			Name:      "Remote mechanisms",
-			ClientURL: &url.URL{Scheme: "tcp", Host: "localhost:5000"},
-			ClsResult: cls.REMOTE,
+			Name:         "Remote mechanisms",
+			ClientURL:    &url.URL{Scheme: "tcp", Host: "localhost:5000"},
+			EndpointName: "nse-1",
+			ClsResult:    cls.REMOTE,
 		},
 		{
-			Name:      "Pass mechanisms to forwarder",
-			ClientURL: &url.URL{Scheme: "tcp", Host: "localhost:5000"},
-			InterposeNSEs: map[url.URL]string{
-				{Scheme: "tcp", Host: "localhost:5000"}: "nse-1#interpose-nse",
+			Name:         "Pass mechanisms to forwarder",
+			ClientURL:    &url.URL{Scheme: "tcp", Host: "localhost:5000"},
+			EndpointName: "nse-1#interpose-nse",
+			RegisterURLs: []url.URL{
+				{
+					Scheme: "tcp",
+					Host:   "localhost:5000",
+				},
 			},
 		},
 	}
 
 	for _, sample := range samples {
-		var interposeURLs, nseURLs endpointurls.Map
-		s := filtermechanisms.NewServer(&interposeURLs, &nseURLs)
-
-		for u, name := range sample.InterposeNSEs {
-			interposeURLs.Store(u, name)
+		var registryServer registry.NetworkServiceEndpointRegistryServer
+		s := filtermechanisms.NewServer("", &registryServer)
+		for _, u := range sample.RegisterURLs {
+			_, err := registryServer.Register(context.Background(), &registry.NetworkServiceEndpoint{
+				Name: sample.EndpointName,
+				Url:  u.String(),
+			})
+			require.NoError(t, err)
 		}
-		for u, name := range sample.NSEs {
-			nseURLs.Store(u, name)
-		}
-
 		ctx := clienturlctx.WithClientURL(context.Background(), sample.ClientURL)
 		req := request()
 		_, err := s.Request(ctx, req)

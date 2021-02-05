@@ -26,15 +26,17 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/endpointurls"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 )
 
 type interposeServer struct {
-	interposeNSEs    *endpointurls.Map
+	interposeNSEs    stringurl.Map
 	activeConnection connectionInfoMap // key == connectionId
 }
 
@@ -53,10 +55,10 @@ type connectionInfo struct {
 //                        while maintaining the NewServer pattern for use like anything else in a chain.
 //                        The value in *server must be included in the registry.NetworkServiceRegistryServer listening
 //                        so it can capture the registrations.
-func NewServer(interposeNSEs *endpointurls.Map) networkservice.NetworkServiceServer {
-	return &interposeServer{
-		interposeNSEs: interposeNSEs,
-	}
+func NewServer(registryServer *registry.NetworkServiceEndpointRegistryServer) networkservice.NetworkServiceServer {
+	rv := new(interposeServer)
+	*registryServer = interpose.NewNetworkServiceEndpointRegistryServer(&rv.interposeNSEs)
+	return rv
 }
 
 func (l *interposeServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (result *networkservice.Connection, err error) {
@@ -85,14 +87,14 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 		}
 
 		// Iterate over all cross connect NSEs to check one with passed state.
-		l.interposeNSEs.Range(func(crossNSEURL url.URL, _ string) bool {
-			crossCTX := clienturlctx.WithClientURL(ctx, &crossNSEURL)
+		l.interposeNSEs.Range(func(_ string, crossNSEURL *url.URL) bool {
+			crossCTX := clienturlctx.WithClientURL(ctx, crossNSEURL)
 
 			// Store client connection and selected cross connection URL.
 			connInfo, _ = l.activeConnection.LoadOrStore(activeConnID, connectionInfo{
 				clientConnID:    activeConnID,
 				endpointURL:     clientURL,
-				interposeNSEURL: &crossNSEURL,
+				interposeNSEURL: crossNSEURL,
 			})
 			result, err = next.Server(crossCTX).Request(crossCTX, request)
 			if err != nil {

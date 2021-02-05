@@ -40,14 +40,11 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/roundrobin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/endpointurls"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
-	registryinterpose "github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/querycache"
 	registryrecvfd "github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/seturl"
 	registryadapter "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	registrychain "github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
@@ -80,7 +77,9 @@ var _ Nsmgr = (*nsmgrServer)(nil)
 func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceEndpoint, authzServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, registryCC grpc.ClientConnInterface, clientDialOptions ...grpc.DialOption) Nsmgr {
 	rv := &nsmgrServer{}
 
-	var interposeNSEs, nses endpointurls.Map
+	var setURLRegistryServer, interposeRegistryServer registryapi.NetworkServiceEndpointRegistryServer
+
+	filterMechanismsServer := filtermechanisms.NewServer(nsmRegistration.Url, &setURLRegistryServer)
 
 	nsRegistry := newRemoteNSServer(registryCC)
 	if nsRegistry == nil {
@@ -92,8 +91,6 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 	if nseRegistry == nil {
 		nseRegistry = memory.NewNetworkServiceEndpointRegistryServer() // Memory registry to store result inside.
 	}
-
-	setURLRegistryServer := seturl.NewNetworkServiceEndpointRegistryServer(nsmRegistration.Url, &nses)
 
 	nseClient := next.NewNetworkServiceEndpointRegistryClient(
 		querycache.NewClient(ctx),
@@ -113,8 +110,8 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 		roundrobin.NewServer(),
 		excludedprefixes.NewServer(ctx),
 		recvfd.NewServer(), // Receive any files passed
-		interpose.NewServer(&interposeNSEs),
-		filtermechanisms.NewServer(&interposeNSEs, &nses),
+		interpose.NewServer(&interposeRegistryServer),
+		filterMechanismsServer,
 		connect.NewServer(ctx,
 			client.NewClientFactory(
 				nsmRegistration.Name,
@@ -132,11 +129,11 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 	nseChain := registrychain.NewNamedNetworkServiceEndpointRegistryServer(
 		nsmRegistration.Name+".NetworkServiceEndpointRegistry",
 		expire.NewNetworkServiceEndpointRegistryServer(time.Minute),
-		setid.NewNetworkServiceEndpointRegistryServer(),           // Assign ID
-		registryrecvfd.NewNetworkServiceEndpointRegistryServer(),                  // Allow to receive a passed files
-		registryinterpose.NewNetworkServiceEndpointRegistryServer(&interposeNSEs), // Store cross connect NSEs
-		setURLRegistryServer, // Perform URL transformations
-		nseRegistry,          // Register NSE inside Remote registry with ID assigned
+		setid.NewNetworkServiceEndpointRegistryServer(),          // Assign ID
+		registryrecvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
+		interposeRegistryServer,                                  // Store cross connect NSEs
+		setURLRegistryServer,                                     // Perform URL transformations
+		nseRegistry,                                              // Register NSE inside Remote registry with ID assigned
 	)
 	rv.Registry = registry.NewServer(nsChain, nseChain)
 

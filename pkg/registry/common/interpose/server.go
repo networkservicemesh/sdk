@@ -25,26 +25,24 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/endpointurls"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 )
 
 type interposeRegistryServer struct {
-	interposeNSEs *endpointurls.Map
-	interposeURLs stringurl.Map
+	interposeURLs *stringurl.Map
 }
 
 // NewNetworkServiceEndpointRegistryServer - creates a NetworkServiceRegistryServer that registers local Cross connect Endpoints
 //				and adds them to Map
-func NewNetworkServiceEndpointRegistryServer(interposeNSEs *endpointurls.Map) registry.NetworkServiceEndpointRegistryServer {
+func NewNetworkServiceEndpointRegistryServer(interposeURLs *stringurl.Map) registry.NetworkServiceEndpointRegistryServer {
 	return &interposeRegistryServer{
-		interposeNSEs: interposeNSEs,
+		interposeURLs: interposeURLs,
 	}
 }
 
 func (s *interposeRegistryServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	if !isInterposeName(nse.Name) {
+	if !Is(nse.Name) {
 		return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	}
 
@@ -57,7 +55,6 @@ func (s *interposeRegistryServer) Register(ctx context.Context, nse *registry.Ne
 	}
 
 	s.interposeURLs.LoadOrStore(nse.Name, u)
-	s.interposeNSEs.LoadOrStore(*u, nse.Name)
 
 	return nse, nil
 }
@@ -68,13 +65,11 @@ func (s *interposeRegistryServer) Find(query *registry.NetworkServiceEndpointQue
 }
 
 func (s *interposeRegistryServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	if !isInterposeName(nse.Name) {
+	if !Is(nse.Name) {
 		return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 	}
 
-	if u, ok := s.interposeURLs.LoadAndDelete(nse.Name); ok {
-		s.interposeNSEs.Delete(*u)
-	}
+	s.interposeURLs.Delete(nse.Name)
 
 	return new(empty.Empty), nil
 }

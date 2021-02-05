@@ -24,6 +24,7 @@ func interposeName(name string) string {
 	return name + nameSuffix
 }
 
-func isInterposeName(name string) bool {
+// Is returns true if passed name contains interpose identity
+func Is(name string) bool {
 	return strings.HasSuffix(name, nameSuffix)
 }

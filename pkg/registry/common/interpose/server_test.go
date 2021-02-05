@@ -26,9 +26,9 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/endpointurls"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 )
 
 const (
@@ -78,7 +78,7 @@ func TestInterposeRegistryServer(t *testing.T) {
 	for i := range samples {
 		sample := samples[i]
 		t.Run(sample.name, func(t *testing.T) {
-			var crossMap endpointurls.Map
+			var crossMap stringurl.Map
 			server := next.NewNetworkServiceEndpointRegistryServer(
 				interpose.NewNetworkServiceEndpointRegistryServer(&crossMap),
 				new(testRegistry),
@@ -95,7 +95,7 @@ func TestInterposeRegistryServer(t *testing.T) {
 
 				if sample.isInMap {
 					requireCrossMapEqual(t, map[string]string{
-						sample.in.Url: sample.in.Name,
+						sample.in.Name: sample.in.Url,
 					}, &crossMap)
 				} else {
 					requireCrossMapEqual(t, map[string]string{}, &crossMap)
@@ -110,10 +110,10 @@ func TestInterposeRegistryServer(t *testing.T) {
 	}
 }
 
-func requireCrossMapEqual(t *testing.T, expected map[string]string, crossMap *endpointurls.Map) {
+func requireCrossMapEqual(t *testing.T, expected map[string]string, crossMap *stringurl.Map) {
 	actual := map[string]string{}
-	crossMap.Range(func(key url.URL, value string) bool {
-		actual[key.String()] = value
+	crossMap.Range(func(key string, value *url.URL) bool {
+		actual[key] = value.String()
 		return true
 	})
 	require.Equal(t, expected, actual)
