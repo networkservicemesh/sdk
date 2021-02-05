@@ -18,5 +18,4 @@ package clienturl
 
 import "time"
 
-// DialTimeout is the timeout to limit grpc.Dial call
-const DialTimeout = 100 * time.Millisecond
+const dialTimeout = 100 * time.Millisecond

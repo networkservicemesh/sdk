@@ -21,7 +21,6 @@ package clienturl
 import (
 	"context"
 	"sync"
-	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
@@ -56,20 +55,20 @@ func NewClient(ctx context.Context, clientFactory func(ctx context.Context, cc g
 }
 
 func (u *clientURLClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	if err := u.init(ctx); err != nil {
+	if err := u.init(); err != nil {
 		return nil, err
 	}
 	return u.client.Request(ctx, request)
 }
 
 func (u *clientURLClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	if err := u.init(ctx); err != nil {
+	if err := u.init(); err != nil {
 		return nil, err
 	}
 	return u.client.Close(ctx, conn)
 }
 
-func (u *clientURLClient) init(requestCtx context.Context) error {
+func (u *clientURLClient) init() error {
 	u.initOnce.Do(func() {
 		clientURL := clienturlctx.ClientURL(u.ctx)
 		if clientURL == nil {
@@ -77,28 +76,12 @@ func (u *clientURLClient) init(requestCtx context.Context) error {
 			return
 		}
 
-		ctx, cancel := context.WithCancel(u.ctx)
-		errCh := make(chan error, 1)
-		var cc *grpc.ClientConn
-		go func() {
-			var dialErr error
-			cc, dialErr = grpc.DialContext(ctx, grpcutils.URLToTarget(clientURL), u.dialOptions...)
-			if dialErr != nil {
-				errCh <- dialErr
-				return
-			}
-			errCh <- nil
-		}()
+		ctx, cancel := context.WithTimeout(u.ctx, dialTimeout)
+		defer cancel()
 
-		select {
-		case u.dialErr = <-errCh:
-		case <-requestCtx.Done():
-			cancel()
-			u.dialErr = <-errCh
-			return
-		case <-time.After(DialTimeout):
-			cancel()
-			u.dialErr = <-errCh
+		var cc *grpc.ClientConn
+		cc, u.dialErr = grpc.DialContext(ctx, grpcutils.URLToTarget(clientURL), u.dialOptions...)
+		if u.dialErr != nil {
 			return
 		}
 
