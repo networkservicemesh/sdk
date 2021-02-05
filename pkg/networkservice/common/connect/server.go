@@ -85,7 +85,7 @@ func (s *connectServer) Request(ctx context.Context, request *networkservice.Net
 		// close current client chain if grpc connection was closed
 		if grpcutils.UnwrapCode(err) == codes.Canceled {
 			s.deleteClient(client)
-			s.connInfos.Delete(conn.GetId())
+			s.connInfos.Delete(request.GetConnection().GetId())
 		}
 
 		return nil, err
