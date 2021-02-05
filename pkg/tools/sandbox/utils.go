@@ -22,11 +22,10 @@ import (
 	"net/url"
 	"time"
 
-	"google.golang.org/protobuf/types/known/timestamppb"
-
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
@@ -37,7 +36,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 	"github.com/networkservicemesh/sdk/pkg/tools/opentracing"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
@@ -95,14 +97,24 @@ func NewEndpoint(ctx context.Context, nse *registry.NetworkServiceEndpoint, gene
 
 // NewClient is a client.NewClient over *url.URL with some fields preset for testing
 func NewClient(ctx context.Context, generatorFunc token.GeneratorFunc, connectTo *url.URL, additionalFunctionality ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
-	return clienturl.NewClient(
-		clienturlctx.WithClientURL(ctx, connectTo),
-		client.NewClientFactory(
-			fmt.Sprintf("nsc-%v", uuid.New().String()),
-			nil,
-			generatorFunc,
-			additionalFunctionality...),
-		append(opentracing.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...)
+	type nsServer struct {
+		networkservice.NetworkServiceServer
+	}
+	rv := &nsServer{}
+	name := fmt.Sprintf("nsc-%v", uuid.New().String())
+	rv.NetworkServiceServer = chain.NewNamedNetworkServiceServer(
+		name,
+		clienturl.NewServer(connectTo),
+		connect.NewServer(ctx,
+			client.NewClientFactory(
+				name,
+				addressof.NetworkServiceClient(adapters.NewServerToClient(rv)),
+				generatorFunc,
+				additionalFunctionality...),
+			append(opentracing.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...,
+		),
+	)
+	return adapters.NewServerToClient(rv)
 }
 
 // NewCrossConnectClientFactory is a client.NewCrossConnectClientFactory with some fields preset for testing
