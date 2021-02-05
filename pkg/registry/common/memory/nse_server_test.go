@@ -240,17 +240,13 @@ func TestNetworkServiceEndpointRegistryServer_SlowReceiver(t *testing.T) {
 	findCtx, findCancel := context.WithCancel(ctx)
 
 	stream, err := c.Find(findCtx, &registry.NetworkServiceEndpointQuery{
-		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: "nse-1"},
+		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: "nse"},
 		Watch:                  true,
 	})
 	require.NoError(t, err)
 
-	for i := 0; i < 100; i++ {
-		var nse *registry.NetworkServiceEndpoint
-		nse, err = s.Register(ctx, &registry.NetworkServiceEndpoint{Name: "nse-1"})
-		require.NoError(t, err)
-
-		_, err = s.Unregister(ctx, nse)
+	for i := 0; i < 200; i++ {
+		_, err = s.Register(ctx, &registry.NetworkServiceEndpoint{Name: fmt.Sprintf("nse-%d", i)})
 		require.NoError(t, err)
 	}
 
