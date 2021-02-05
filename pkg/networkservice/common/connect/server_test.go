@@ -14,11 +14,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package connect_test
+package connect
 
 import (
 	"context"
 	"net/url"
+	"runtime"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -36,9 +37,9 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/memif"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/vfio"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
@@ -69,22 +70,22 @@ func TestConnectServer_Request(t *testing.T) {
 	serverNext := new(captureServer)
 	serverClient := new(captureServer)
 
+	cs := NewServer(context.TODO(),
+		func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+			return next.NewNetworkServiceClient(
+				adapters.NewServerToClient(serverClient),
+				networkservice.NewNetworkServiceClient(cc),
+			)
+		},
+		grpc.WithInsecure(),
+	).(*connectServer)
 	s := next.NewNetworkServiceServer(
-		connect.NewServer(context.TODO(),
-			func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-				return next.NewNetworkServiceClient(
-					adapters.NewServerToClient(serverClient),
-					networkservice.NewNetworkServiceClient(cc),
-				)
-			},
-			grpc.WithInsecure(),
-		),
+		cs,
 		serverNext,
 	)
 
 	func() {
 		ctx, cancel := context.WithCancel(context.Background())
-		ctx = log.WithLog(ctx)
 		defer cancel()
 
 		// 3. Setup servers
@@ -149,6 +150,9 @@ func TestConnectServer_Request(t *testing.T) {
 
 		require.Equal(t, requestNext.Connection.String(), conn.String())
 
+		require.Equal(t, 1, len(cs.clientsCloseFuncs))
+		require.Equal(t, 1, connInfoMapLen(&cs.connInfos))
+
 		// 6. Request B
 
 		request.Connection = conn
@@ -171,6 +175,9 @@ func TestConnectServer_Request(t *testing.T) {
 
 		require.Equal(t, requestNext.Connection.String(), conn.String())
 
+		require.Equal(t, 1, len(cs.clientsCloseFuncs))
+		require.Equal(t, 1, connInfoMapLen(&cs.connInfos))
+
 		// 8. Close B
 
 		_, err = s.Close(ctx, conn)
@@ -179,6 +186,9 @@ func TestConnectServer_Request(t *testing.T) {
 		require.Nil(t, serverClient.capturedRequest)
 		require.Nil(t, serverB.capturedRequest)
 		require.Nil(t, serverNext.capturedRequest)
+
+		require.Equal(t, 0, len(cs.clientsCloseFuncs))
+		require.Equal(t, 0, connInfoMapLen(&cs.connInfos))
 	}()
 }
 
@@ -190,16 +200,17 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 	serverNext := new(countServer)
 	serverClient := new(countServer)
 
+	cs := NewServer(context.TODO(),
+		func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+			return next.NewNetworkServiceClient(
+				adapters.NewServerToClient(serverClient),
+				networkservice.NewNetworkServiceClient(cc),
+			)
+		},
+		grpc.WithInsecure(),
+	).(*connectServer)
 	s := next.NewNetworkServiceServer(
-		connect.NewServer(context.TODO(),
-			func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-				return next.NewNetworkServiceClient(
-					adapters.NewServerToClient(serverClient),
-					networkservice.NewNetworkServiceClient(cc),
-				)
-			},
-			grpc.WithInsecure(),
-		),
+		cs,
 		serverNext,
 	)
 
@@ -244,6 +255,8 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 				conn, err := s.Request(clienturlctx.WithClientURL(ctx, urlA), request)
 				assert.NoError(t, err)
 
+				runtime.Gosched()
+
 				// 4.4. Close A
 				_, err = s.Close(ctx, conn)
 				assert.NoError(t, err)
@@ -264,6 +277,68 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 		require.Equal(t, int32(parallelCount), serverClient.count)
 		require.Equal(t, int32(parallelCount), serverA.count)
 		require.Equal(t, int32(parallelCount), serverNext.count)
+	}()
+
+	require.Equal(t, 0, len(cs.clientsCloseFuncs))
+	require.Equal(t, 0, connInfoMapLen(&cs.connInfos))
+}
+
+func TestConnectServer_RequestFail(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	// 1. Create connectServer
+
+	s := NewServer(context.TODO(),
+		func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+			return injecterror.NewClient()
+		},
+		grpc.WithInsecure(),
+	)
+
+	func() {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		// 2. Setup servers
+
+		urlA := &url.URL{Scheme: "tcp", Host: "127.0.0.1:10000"}
+		serverA := new(captureServer)
+
+		err := startServer(ctx, urlA, next.NewNetworkServiceServer(
+			serverA,
+			newEditServer("a", "A", &networkservice.Mechanism{
+				Cls:  cls.LOCAL,
+				Type: kernel.MECHANISM,
+			}),
+		))
+		require.NoError(t, err)
+
+		// 3. Create request
+
+		request := &networkservice.NetworkServiceRequest{
+			Connection: &networkservice.Connection{
+				Id:             "id",
+				NetworkService: "network-service",
+				Mechanism: &networkservice.Mechanism{
+					Cls:  cls.LOCAL,
+					Type: vfio.MECHANISM,
+				},
+				Context: &networkservice.ConnectionContext{
+					ExtraContext: map[string]string{
+						"not": "empty",
+					},
+				},
+			},
+		}
+
+		// 4. Request A
+
+		_, err = s.Request(clienturlctx.WithClientURL(ctx, urlA), request.Clone())
+		require.Error(t, err)
+
+		cs := s.(*connectServer)
+		require.Equal(t, 0, len(cs.clientsCloseFuncs))
+		require.Equal(t, 0, connInfoMapLen(&cs.connInfos))
 	}()
 }
 
@@ -318,4 +393,13 @@ func (s *countServer) Request(ctx context.Context, request *networkservice.Netwo
 func (s *countServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	atomic.AddInt32(&s.count, -1)
 	return next.Server(ctx).Close(ctx, conn)
+}
+
+func connInfoMapLen(connMap *connectionInfoMap) int {
+	size := 0
+	connMap.Range(func(key string, value connectionInfo) bool {
+		size++
+		return true
+	})
+	return size
 }

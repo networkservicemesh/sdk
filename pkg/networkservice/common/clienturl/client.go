@@ -21,16 +21,17 @@ package clienturl
 import (
 	"context"
 	"sync"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
@@ -56,36 +57,58 @@ func NewClient(ctx context.Context, clientFactory client.Factory, dialOptions ..
 }
 
 func (u *clientURLClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	if err := u.init(); err != nil {
+	if err := u.init(ctx); err != nil {
 		return nil, err
 	}
 	return u.client.Request(ctx, request, opts...)
 }
 
 func (u *clientURLClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	if err := u.init(); err != nil {
+	if err := u.init(ctx); err != nil {
 		return nil, err
 	}
 	return u.client.Close(ctx, conn, opts...)
 }
 
-func (u *clientURLClient) init() error {
+func (u *clientURLClient) init(requestCtx context.Context) error {
 	u.initOnce.Do(func() {
 		clientURL := clienturlctx.ClientURL(u.ctx)
 		if clientURL == nil {
 			u.dialErr = errors.New("cannot dial nil clienturl.ClientURL(ctx)")
 			return
 		}
+
+		ctx, cancel := context.WithCancel(u.ctx)
+		errCh := make(chan error, 1)
 		var cc *grpc.ClientConn
-		cc, u.dialErr = grpc.DialContext(u.ctx, grpcutils.URLToTarget(clientURL), u.dialOptions...)
-		if u.dialErr != nil {
+		go func() {
+			var dialErr error
+			cc, dialErr = grpc.DialContext(ctx, grpcutils.URLToTarget(clientURL), u.dialOptions...)
+			if dialErr != nil {
+				errCh <- dialErr
+				return
+			}
+			errCh <- nil
+		}()
+
+		select {
+		case u.dialErr = <-errCh:
+		case <-requestCtx.Done():
+			cancel()
+			u.dialErr = <-errCh
+			return
+		case <-time.After(DialTimeout):
+			cancel()
+			u.dialErr = <-errCh
 			return
 		}
+
 		u.client = u.clientFactory(u.ctx, cc)
 
 		go func() {
 			defer func() {
 				_ = cc.Close()
+				cancel()
 			}()
 			for cc.WaitForStateChange(u.ctx, cc.GetState()) {
 				switch cc.GetState() {
@@ -97,5 +120,6 @@ func (u *clientURLClient) init() error {
 			}
 		}()
 	})
+
 	return u.dialErr
 }

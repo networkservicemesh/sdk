@@ -22,22 +22,26 @@ package connect
 import (
 	"context"
 	"net/url"
+	"sync"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/tools/clientmap"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
+
+type closeFunc func() bool
 
 type connectServer struct {
 	ctx               context.Context
@@ -45,6 +49,8 @@ type connectServer struct {
 	clientDialOptions []grpc.DialOption
 	connInfos         connectionInfoMap
 	clients           clientmap.RefcountMap
+	clientsMutex      sync.Mutex
+	clientsCloseFuncs map[networkservice.NetworkServiceClient]closeFunc
 }
 
 type connectionInfo struct {
@@ -62,17 +68,36 @@ func NewServer(
 		ctx:               ctx,
 		clientFactory:     clientFactory,
 		clientDialOptions: clientDialOptions,
+		clientsCloseFuncs: make(map[networkservice.NetworkServiceClient]closeFunc),
 	}
 }
 
 func (s *connectServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	conn, err := s.client(ctx, request.GetConnection()).Request(ctx, request.Clone())
+	clientURL := clienturlctx.ClientURL(ctx)
+
+	client, onClose := s.client(ctx, request.GetConnection())
+	conn, err := client.Request(ctx, request.Clone())
 	if err != nil {
+		if _, ok := s.connInfos.Load(request.GetConnection().GetId()); !ok && onClose != nil {
+			s.closeClient(client)
+		}
+
+		// close current client chain if grpc connection was closed
+		if grpcutils.UnwrapCode(err) == codes.Canceled {
+			s.deleteClient(client)
+			s.connInfos.Delete(conn.GetId())
+		}
+
 		return nil, err
 	}
 
 	// Update request.Connection
 	request.Connection = conn
+
+	s.connInfos.Store(conn.GetId(), connectionInfo{
+		clientURL: clientURL,
+		client:    client,
+	})
 
 	// Carry on with next.Server
 	return next.Server(ctx).Request(ctx, request)
@@ -82,6 +107,7 @@ func (s *connectServer) Close(ctx context.Context, conn *networkservice.Connecti
 	var clientErr error
 	if connInfo, ok := s.connInfos.LoadAndDelete(conn.GetId()); ok {
 		_, clientErr = connInfo.client.Close(ctx, conn)
+		s.closeClient(connInfo.client)
 	}
 
 	_, err := next.Server(ctx).Close(ctx, conn)
@@ -95,60 +121,97 @@ func (s *connectServer) Close(ctx context.Context, conn *networkservice.Connecti
 	return &empty.Empty{}, err
 }
 
-func (s *connectServer) client(ctx context.Context, conn *networkservice.Connection) networkservice.NetworkServiceClient {
+func (s *connectServer) client(ctx context.Context, conn *networkservice.Connection) (networkservice.NetworkServiceClient, closeFunc) {
+	s.clientsMutex.Lock()
+	defer s.clientsMutex.Unlock()
+
 	logger := log.FromContext(ctx).WithField("connectServer", "client")
 
 	clientURL := clienturlctx.ClientURL(ctx)
 	if clientURL == nil {
 		err := errors.Errorf("clientURL not found for incoming connection: %+v", conn)
-		return injecterror.NewClient(err)
+		return injecterror.NewClient(err), nil
 	}
 
 	// First check if we have already requested some clientURL with this conn.GetID().
 	if connInfo, ok := s.connInfos.Load(conn.GetId()); ok {
 		if *connInfo.clientURL == *clientURL {
-			return connInfo.client
+			return connInfo.client, nil
 		}
-		// For some reason we have changed the clientURL, so we need to close the existing client.
+		// For some reason we have changed the clientURL, so we need to close and delete the existing client.
 		if _, clientErr := connInfo.client.Close(ctx, conn); clientErr != nil {
 			logger.Warnf("failed to close client: %+v", clientErr)
 		}
-	}
 
-	// Fast path if we already have client for the clientURL, use it.
-	c, loaded := s.clients.Load(clientURL.String())
-	if !loaded {
-		// If not, create and LoadOrStore a new one.
-		newClient, cancel := s.newClient(clientURL)
-		c, loaded = s.clients.LoadOrStore(clientURL.String(), newClient)
-		if loaded {
-			// No one will use `newClient`, it should be canceled.
-			cancel()
+		if onClose, ok := s.clientsCloseFuncs[connInfo.client]; ok {
+			onClose()
+		} else {
+			logger.Warnf("failed to delete client connected to %s", connInfo.clientURL.String())
 		}
 	}
 
-	s.connInfos.Store(conn.GetId(), connectionInfo{
-		clientURL: clientURL,
-		client:    c,
-	})
+	// Fast path if we already have client for the clientURL and we chould not reconnect, use it.
+	c, loaded := s.clients.Load(clientURL.String())
+	var onClose closeFunc
+	if !loaded {
+		// If not, create and LoadOrStore a new one.
+		c, onClose = s.newClient(clientURL)
+		s.clients.Store(clientURL.String(), c)
+		s.clientsCloseFuncs[c] = onClose
+	}
 
-	return c
+	return c, onClose
 }
 
-func (s *connectServer) newClient(clientURL *url.URL) (networkservice.NetworkServiceClient, context.CancelFunc) {
+// newClient has to be called under clientsMutex protection
+func (s *connectServer) newClient(clientURL *url.URL) (networkservice.NetworkServiceClient, closeFunc) {
 	clientPtr := new(networkservice.NetworkServiceClient)
 
 	ctx, cancel := context.WithCancel(s.ctx)
-	onClose := func() {
+	onClose := func() bool {
+		c, ok := s.clients.Load(clientURL.String())
+		if ok {
+			s.clients.Delete(clientURL.String())
+		}
+
+		if c != *clientPtr {
+			cancel()
+			delete(s.clientsCloseFuncs, *clientPtr)
+			return true
+		}
+
 		if deleted := s.clients.Delete(clientURL.String()); deleted {
 			cancel()
+			delete(s.clientsCloseFuncs, *clientPtr)
+			return true
 		}
+
+		return false
 	}
 
-	*clientPtr = chain.NewNetworkServiceClient(
-		&connectClient{onClose: onClose},
-		clienturl.NewClient(clienturlctx.WithClientURL(ctx, clientURL), s.clientFactory, s.clientDialOptions...),
-	)
+	*clientPtr = clienturl.NewClient(clienturlctx.WithClientURL(ctx, clientURL), s.clientFactory, s.clientDialOptions...)
 
-	return *clientPtr, cancel
+	return *clientPtr, onClose
+}
+
+func (s *connectServer) closeClient(client networkservice.NetworkServiceClient) {
+	s.clientsMutex.Lock()
+	defer s.clientsMutex.Unlock()
+
+	if onClose, ok := s.clientsCloseFuncs[client]; ok {
+		onClose()
+	}
+}
+
+func (s *connectServer) deleteClient(client networkservice.NetworkServiceClient) {
+	s.clientsMutex.Lock()
+	defer s.clientsMutex.Unlock()
+
+	if onClose, ok := s.clientsCloseFuncs[client]; ok {
+		for {
+			if onClose() {
+				return
+			}
+		}
+	}
 }
