@@ -118,13 +118,6 @@ func (n *Node) newEndpoint(
 	nse.Url = u.String()
 
 	// 3. Register with the node registry client
-	var reg *registryapi.NetworkServiceEndpoint
-	if reg, err = registryClient.Register(ctx, nse); err != nil {
-		return nil, err
-	}
-
-	nse.Name = reg.Name
-	nse.ExpirationTime = reg.ExpirationTime
 
 	for _, nsName := range nse.NetworkServiceNames {
 		if _, err = n.NSRegistryClient.Register(ctx, &registryapi.NetworkService{
@@ -134,6 +127,14 @@ func (n *Node) newEndpoint(
 			return nil, err
 		}
 	}
+
+	var reg *registryapi.NetworkServiceEndpoint
+	if reg, err = registryClient.Register(ctx, nse); err != nil {
+		return nil, err
+	}
+
+	nse.Name = reg.Name
+	nse.ExpirationTime = reg.ExpirationTime
 
 	logger.Log(ctx).Infof("Started listen endpoint %s on %s.", nse.Name, u.String())
 

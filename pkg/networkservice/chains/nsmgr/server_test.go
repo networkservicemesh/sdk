@@ -578,12 +578,13 @@ func testNSEAndClient(
 	_, err = domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
 	require.NoError(t, err)
 
-	for _, nsName := range nseReg.NetworkServiceNames {
-		_, err = domain.Nodes[0].NSRegistryClient.Unregister(ctx, &registry.NetworkService{
-			Name: nsName,
+	require.Eventually(t, func() bool {
+		stream, err := domain.Nodes[0].NSRegistryClient.Find(ctx, &registry.NetworkServiceQuery{
+			NetworkService: new(registry.NetworkService),
 		})
 		require.NoError(t, err)
-	}
+		return len(registry.ReadNetworkServiceList(stream)) == 0
+	}, 100*time.Millisecond, 10*time.Millisecond)
 }
 
 type passThroughClient struct {
