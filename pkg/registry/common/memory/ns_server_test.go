@@ -121,32 +121,31 @@ func TestNetworkServiceRegistryServer_DataRace(t *testing.T) {
 
 	s := memory.NewNetworkServiceRegistryServer()
 
-	go func() {
-		for ctx.Err() == nil {
-			ns, err := s.Register(ctx, &registry.NetworkService{Name: "ns-1"})
-			require.NoError(t, err)
-
-			_, err = s.Unregister(ctx, ns)
-			require.NoError(t, err)
-		}
-	}()
+	_, err := s.Register(ctx, &registry.NetworkService{Name: "ns"})
+	require.NoError(t, err)
 
 	c := adapters.NetworkServiceServerToClient(s)
 
-	wg := new(sync.WaitGroup)
+	var wgStart, wgEnd sync.WaitGroup
 	for i := 0; i < 10; i++ {
-		wg.Add(1)
+		wgStart.Add(1)
+		wgEnd.Add(1)
 		go func() {
-			defer wg.Done()
+			defer wgEnd.Done()
 
 			findCtx, findCancel := context.WithTimeout(ctx, time.Second)
 			defer findCancel()
 
 			stream, err := c.Find(findCtx, &registry.NetworkServiceQuery{
-				NetworkService: &registry.NetworkService{Name: "ns-1"},
+				NetworkService: &registry.NetworkService{Name: "ns"},
 				Watch:          true,
 			})
 			assert.NoError(t, err)
+
+			_, err = stream.Recv()
+			assert.NoError(t, err)
+
+			wgStart.Done()
 
 			for j := 0; j < 100; j++ {
 				ns, err := stream.Recv()
@@ -156,8 +155,14 @@ func TestNetworkServiceRegistryServer_DataRace(t *testing.T) {
 			}
 		}()
 	}
+	wgStart.Wait()
 
-	wg.Wait()
+	for i := 0; i < 100; i++ {
+		_, err := s.Register(ctx, &registry.NetworkService{Name: fmt.Sprintf("ns-%d", i)})
+		require.NoError(t, err)
+	}
+
+	wgEnd.Wait()
 }
 
 func TestNetworkServiceRegistryServer_SlowReceiver(t *testing.T) {
@@ -178,17 +183,21 @@ func TestNetworkServiceRegistryServer_SlowReceiver(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	for i := 0; i < 200; i++ {
+	for i := 0; i < 1000; i++ {
 		_, err = s.Register(ctx, &registry.NetworkService{Name: fmt.Sprintf("ns-%d", i)})
 		require.NoError(t, err)
 	}
 
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	ignoreCurrent := goleak.IgnoreCurrent()
 
 	_, err = stream.Recv()
 	require.NoError(t, err)
 
 	findCancel()
+
+	require.Eventually(t, func() bool {
+		return goleak.Find(ignoreCurrent) == nil
+	}, 100*time.Millisecond, time.Millisecond)
 }
 
 func TestNetworkServiceRegistryServer_ShouldReceiveAllRegisters(t *testing.T) {
@@ -201,8 +210,8 @@ func TestNetworkServiceRegistryServer_ShouldReceiveAllRegisters(t *testing.T) {
 
 	c := adapters.NetworkServiceServerToClient(s)
 
-	wg := new(sync.WaitGroup)
-	for i := 0; i < 200; i++ {
+	var wg sync.WaitGroup
+	for i := 0; i < 300; i++ {
 		wg.Add(1)
 		name := fmt.Sprintf("ns-%d", i)
 
