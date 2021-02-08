@@ -23,12 +23,12 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
-	"github.com/networkservicemesh/api/pkg/api/registry"
+	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 
-	registry2 "github.com/networkservicemesh/sdk/pkg/registry"
+	"github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
@@ -78,7 +78,7 @@ func TestInterdomainNetworkServiceEndpointRegistry(t *testing.T) {
 
 	_, err := domain2.Registry.NetworkServiceEndpointRegistryServer().Register(
 		context.Background(),
-		&registry.NetworkServiceEndpoint{
+		&registryapi.NetworkServiceEndpoint{
 			Name:           "nse-1",
 			Url:            "nsmgr-url",
 			ExpirationTime: expirationTime,
@@ -93,17 +93,17 @@ func TestInterdomainNetworkServiceEndpointRegistry(t *testing.T) {
 		_ = cc.Close()
 	}()
 
-	client := registry.NewNetworkServiceEndpointRegistryClient(cc)
+	client := registryapi.NewNetworkServiceEndpointRegistryClient(cc)
 
-	stream, err := client.Find(ctx, &registry.NetworkServiceEndpointQuery{
-		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+	stream, err := client.Find(ctx, &registryapi.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: &registryapi.NetworkServiceEndpoint{
 			Name: "nse-1@" + remoteRegistryDomain,
 		},
 	})
 
 	require.Nil(t, err)
 
-	list := registry.ReadNetworkServiceEndpointList(stream)
+	list := registryapi.ReadNetworkServiceEndpointList(stream)
 
 	require.Len(t, list, 1)
 	require.Equal(t, "nse-1@nsmgr-url", list[0].Name)
@@ -148,7 +148,7 @@ func TestLocalDomain_NetworkServiceEndpointRegistry(t *testing.T) {
 
 	expected, err := domain1.Registry.NetworkServiceEndpointRegistryServer().Register(
 		context.Background(),
-		&registry.NetworkServiceEndpoint{
+		&registryapi.NetworkServiceEndpoint{
 			Name:           "nse-1",
 			Url:            "test://publicNSMGRurl",
 			ExpirationTime: expirationTime,
@@ -162,17 +162,17 @@ func TestLocalDomain_NetworkServiceEndpointRegistry(t *testing.T) {
 		_ = cc.Close()
 	}()
 
-	client := registry.NewNetworkServiceEndpointRegistryClient(cc)
+	client := registryapi.NewNetworkServiceEndpointRegistryClient(cc)
 
-	stream, err := client.Find(context.Background(), &registry.NetworkServiceEndpointQuery{
-		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+	stream, err := client.Find(context.Background(), &registryapi.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: &registryapi.NetworkServiceEndpoint{
 			Name: expected.Name + "@" + localRegistryDomain,
 		},
 	})
 
 	require.Nil(t, err)
 
-	list := registry.ReadNetworkServiceEndpointList(stream)
+	list := registryapi.ReadNetworkServiceEndpointList(stream)
 
 	require.Len(t, list, 1)
 	require.Equal(t, expected.Name, list[0].Name)
@@ -223,8 +223,8 @@ func TestInterdomainFloatingNetworkServiceEndpointRegistry(t *testing.T) {
 
 	domain3 := sandbox.NewBuilder(t).
 		SetNodesCount(0).
-		SetRegistrySupplier(func(context.Context, time.Duration, *url.URL, ...grpc.DialOption) registry2.Registry {
-			return registry2.NewServer(memory.NewNetworkServiceRegistryServer(), memory.NewNetworkServiceEndpointRegistryServer())
+		SetRegistrySupplier(func(context.Context, time.Duration, *url.URL, ...grpc.DialOption) registry.Registry {
+			return registry.NewServer(memory.NewNetworkServiceRegistryServer(), memory.NewNetworkServiceEndpointRegistryServer())
 		}).
 		SetRegistryProxySupplier(nil).
 		Build()
@@ -238,7 +238,7 @@ func TestInterdomainFloatingNetworkServiceEndpointRegistry(t *testing.T) {
 
 	_, err := domain2.Registry.NetworkServiceEndpointRegistryServer().Register(
 		context.Background(),
-		&registry.NetworkServiceEndpoint{
+		&registryapi.NetworkServiceEndpoint{
 			Name:           "nse-1@" + floatingRegistryDomain,
 			Url:            "test://publicNSMGRurl",
 			ExpirationTime: expirationTime,
@@ -252,17 +252,17 @@ func TestInterdomainFloatingNetworkServiceEndpointRegistry(t *testing.T) {
 		_ = cc.Close()
 	}()
 
-	client := registry.NewNetworkServiceEndpointRegistryClient(cc)
+	client := registryapi.NewNetworkServiceEndpointRegistryClient(cc)
 
-	stream, err := client.Find(ctx, &registry.NetworkServiceEndpointQuery{
-		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+	stream, err := client.Find(ctx, &registryapi.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: &registryapi.NetworkServiceEndpoint{
 			Name: "nse-1@" + floatingRegistryDomain,
 		},
 	})
 
 	require.Nil(t, err)
 
-	list := registry.ReadNetworkServiceEndpointList(stream)
+	list := registryapi.ReadNetworkServiceEndpointList(stream)
 
 	require.Len(t, list, 1)
 	require.Equal(t, "nse-1@test://publicNSMGRurl", list[0].Name)
