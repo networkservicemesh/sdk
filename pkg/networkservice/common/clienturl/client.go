@@ -91,7 +91,6 @@ func (u *clientURLClient) init() error {
 		go func() {
 			defer func() {
 				_ = cc.Close()
-				cancel()
 			}()
 			for cc.WaitForStateChange(u.ctx, cc.GetState()) {
 				switch cc.GetState() {
