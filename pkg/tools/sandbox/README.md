@@ -28,8 +28,9 @@ Solution:
 		SetRegistryProxySupplier(nil).
 		Build()
 	defer localDomain.Cleanup()
-	registerMyNewEndpoint(localDomain.Nodes[0].NSMgr.URL)
-    ...
+	localDomain.Nodes[0].NewEndpoint(ctx, &registry.Endpoint{...}, sandbox.GenerateTestToken, ...myNewEndpointChain)
+	client := localDomain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, ...clientChain)
+	...
 ```
 
 Problem: setup my external NSMgr and Forwarder to checking my external NSMgr.\
@@ -43,7 +44,7 @@ Solution:
 		SetNSMgrSupplier(myExternalNSMgrFunc)
 		Build()
 	defer localDomain.Cleanup()
-    ...
+	...
 ```
 
 Problem: setup my NSMgr and new Forwarder to checking my Forwarder chain.\
@@ -54,9 +55,10 @@ Solution:
 		SetNodesCount(1).
 		SetNSMgrProxySupplier(nil).
 		SetRegistryProxySupplier(nil).
-		SetForwarderSupplier(myNewForwarderFunc)
+		SetNodeSetup(nil).
 		Build()
 	defer localDomain.Cleanup()
+	localDomain.Nodes[0].NewForwarder(ctx, &registry.Endpoint{...}, sandbox.GenerateTestToken, ...myNewForwarderChain)
 	...
 ```
 
@@ -70,13 +72,30 @@ Solution:
 		SetNodesCount(2).
 		Build()
 	defer localDomain.Cleanup()
-	urlForNSERegistration := localDomain.Nodes[1].NSMgr.URL
-    ...
+	localDomain.Nodes[1].NewEndpoint(ctx, &registry.Endpoint{...}, sandbox.GenerateTestToken, ...remoteEndpointChain)
+	...
+```
+
+Problem: setup NSMgr, set of Forwarders and set of Endpoints on each node to checking complex scenarios.\
+Solution:
+```go
+	...
+	localDomain := sandbox.NewBuilder(t).
+		SetNodesCount(nodesCount).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		SetNodeSetup(func(ctx context.Context, node *sandbox.Node) {
+			node.NewForwarder(ctx, &registry.Endpoint{...}, sandbox.GenerateTestToken, ...forwarderChain)
+			node.NewEndpoint(ctx, &registry.Endpoint{...}, sandbox.GenerateTestToken, ...endpointChain)
+		}).
+		Build()
+	defer localDomain.Cleanup()
+	...
 ```
 
 ### Setup only local registry
 
-Problem: setup registry and to check API\
+Problem: setup registry and to check API.\
 Solution: 
 ```go
 	...
@@ -97,7 +116,7 @@ Problem: setup NSMgrs, Forwarders, Registries to checking interdomain use-case v
 Solution:
 ```go
 	...
-        fakeServer := new(sandbox.FakeDNSResolver)
+	fakeServer := new(sandbox.FakeDNSResolver)
 	domain1 := sandbox.NewBuilder(t).
 		SetContext(ctx).
 		SetNodesCount(1).
