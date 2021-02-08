@@ -14,19 +14,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package seturl_test
+package localbypass_test
 
 import (
 	"context"
 	"net/url"
 	"testing"
 
-	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
+	"github.com/networkservicemesh/api/pkg/api/registry"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/seturl"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
@@ -37,14 +38,14 @@ const (
 	nseName  = "nse-1"
 )
 
-func TestSetURLNSEServer(t *testing.T) {
+func TestLocalBypassNSEServer(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	var nses seturl.Map
+	var nses localbypass.Map
 	mem := memory.NewNetworkServiceEndpointRegistryServer()
 
 	server := next.NewNetworkServiceEndpointRegistryServer(
-		seturl.NewNetworkServiceEndpointRegistryServer(nsmgrURL, &nses),
+		localbypass.NewNetworkServiceEndpointRegistryServer(nsmgrURL, &nses),
 		mem,
 	)
 

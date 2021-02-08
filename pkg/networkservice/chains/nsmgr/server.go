@@ -77,9 +77,9 @@ var _ Nsmgr = (*nsmgrServer)(nil)
 func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceEndpoint, authzServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, registryCC grpc.ClientConnInterface, clientDialOptions ...grpc.DialOption) Nsmgr {
 	rv := &nsmgrServer{}
 
-	var setURLRegistryServer, interposeRegistryServer registryapi.NetworkServiceEndpointRegistryServer
+	var localBypassRegistryServer, interposeRegistryServer registryapi.NetworkServiceEndpointRegistryServer
 
-	filterMechanismsServer := filtermechanisms.NewServer(nsmRegistration.Url, &setURLRegistryServer)
+	filterMechanismsServer := filtermechanisms.NewServer(nsmRegistration.Url, &localBypassRegistryServer)
 
 	nsRegistry := newRemoteNSServer(registryCC)
 	if nsRegistry == nil {
@@ -95,7 +95,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 	nseClient := next.NewNetworkServiceEndpointRegistryClient(
 		querycache.NewClient(ctx),
 		registryadapter.NetworkServiceEndpointServerToClient(next.NewNetworkServiceEndpointRegistryServer(
-			setURLRegistryServer,
+			localBypassRegistryServer,
 			nseRegistry)),
 	)
 
@@ -132,7 +132,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 		setid.NewNetworkServiceEndpointRegistryServer(),          // Assign ID
 		registryrecvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
 		interposeRegistryServer,                                  // Store cross connect NSEs
-		setURLRegistryServer,                                     // Perform URL transformations
+		localBypassRegistryServer,                                // Perform URL transformations
 		nseRegistry,                                              // Register NSE inside Remote registry with ID assigned
 	)
 	rv.Registry = registry.NewServer(nsChain, nseChain)
