@@ -47,14 +47,8 @@ func TestSendFDNSEClient_CallsNextUnregister(t *testing.T) {
 
 type unregisterNSEClient struct {
 	isUnregistered bool
-}
 
-func (c *unregisterNSEClient) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, nse, opts...)
-}
-
-func (c *unregisterNSEClient) Find(ctx context.Context, query *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, query, opts...)
+	registry.NetworkServiceEndpointRegistryClient
 }
 
 func (c *unregisterNSEClient) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
