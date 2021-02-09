@@ -18,6 +18,7 @@ package connect_test
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"strconv"
 	"sync"
@@ -30,6 +31,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health/grpc_health_v1"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
@@ -53,6 +55,7 @@ const (
 func startServer(ctx context.Context, listenOn *url.URL, server networkservice.NetworkServiceServer) error {
 	grpcServer := grpc.NewServer()
 	networkservice.RegisterNetworkServiceServer(grpcServer, server)
+	grpcutils.RegisterHealthServices(grpcServer, server)
 
 	errCh := grpcutils.ListenAndServe(ctx, listenOn, grpcServer)
 	select {
@@ -63,7 +66,7 @@ func startServer(ctx context.Context, listenOn *url.URL, server networkservice.N
 	}
 }
 
-func checkServer(target *url.URL) error {
+func checkServer(target *url.URL, server networkservice.NetworkServiceServer) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
@@ -71,7 +74,28 @@ func checkServer(target *url.URL) error {
 	defer func() {
 		_ = cc.Close()
 	}()
-	return err
+	if err != nil {
+		return err
+	}
+
+	serviceNames := networkservice.ServiceNames(server)
+	if len(serviceNames) == 0 {
+		return fmt.Errorf("grpc Service Name was not found")
+	}
+	serviceName := serviceNames[0]
+
+	client := grpc_health_v1.NewHealthClient(cc)
+	for ctx.Err() == nil {
+		response, err := client.Check(ctx, &grpc_health_v1.HealthCheckRequest{Service: serviceName})
+		if err != nil {
+			return err
+		}
+		if response.Status == grpc_health_v1.HealthCheckResponse_SERVING {
+			return nil
+		}
+	}
+
+	return ctx.Err()
 }
 
 func TestConnectServer_Request(t *testing.T) {
@@ -103,29 +127,29 @@ func TestConnectServer_Request(t *testing.T) {
 
 		urlA := &url.URL{Scheme: "tcp", Host: "127.0.0.1:10000"}
 		serverA := new(captureServer)
-
-		err := startServer(ctx, urlA, next.NewNetworkServiceServer(
+		nsServerA := next.NewNetworkServiceServer(
 			serverA,
 			newEditServer("a", "A", &networkservice.Mechanism{
 				Cls:  cls.LOCAL,
 				Type: kernel.MECHANISM,
 			}),
-		))
+		)
+		err := startServer(ctx, urlA, nsServerA)
 		require.NoError(t, err)
-		require.NoError(t, checkServer(urlA))
+		require.NoError(t, checkServer(urlA, nsServerA))
 
 		urlB := &url.URL{Scheme: "tcp", Host: "127.0.0.1:10001"}
 		serverB := new(captureServer)
-
-		err = startServer(ctx, urlB, next.NewNetworkServiceServer(
+		nsServerB := next.NewNetworkServiceServer(
 			serverB,
 			newEditServer("b", "B", &networkservice.Mechanism{
 				Cls:  cls.LOCAL,
 				Type: memif.MECHANISM,
 			}),
-		))
+		)
+		err = startServer(ctx, urlB, nsServerB)
 		require.NoError(t, err)
-		require.NoError(t, checkServer(urlB))
+		require.NoError(t, checkServer(urlB, nsServerB))
 
 		ignoreCurrentGoroutines := goleak.IgnoreCurrent()
 
@@ -233,7 +257,7 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 
 		err := startServer(ctx, urlA, serverA)
 		require.NoError(t, err)
-		require.NoError(t, checkServer(urlA))
+		require.NoError(t, checkServer(urlA, serverA))
 
 		ignoreCurrentGoroutines := goleak.IgnoreCurrent()
 
