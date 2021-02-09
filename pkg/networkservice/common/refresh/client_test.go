@@ -22,8 +22,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
-
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/require"
@@ -60,7 +58,6 @@ func TestRefreshClient_StopRefreshAtClose(t *testing.T) {
 		cloneClient,
 	)
 
-	ctx = logger.WithLog(ctx)
 	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "id",
@@ -93,7 +90,6 @@ func TestRefreshClient_StopRefreshAtAnotherRequest(t *testing.T) {
 		cloneClient,
 	)
 
-	ctx = logger.WithLog(ctx)
 	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "id",

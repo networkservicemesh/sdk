@@ -36,7 +36,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -112,7 +112,7 @@ func (n *Node) newEndpoint(
 		}
 	}
 
-	ctx = logger.WithLog(ctx)
+	ctx = log.Join(ctx, log.Empty())
 	serve(ctx, u, ep.Register)
 
 	nse.Url = u.String()
@@ -136,7 +136,7 @@ func (n *Node) newEndpoint(
 	nse.Name = reg.Name
 	nse.ExpirationTime = reg.ExpirationTime
 
-	logger.Log(ctx).Infof("Started listen endpoint %s on %s.", nse.Name, u.String())
+	log.FromContext(ctx).Infof("Started listen endpoint %s on %s.", nse.Name, u.String())
 
 	return &EndpointEntry{Endpoint: ep, URL: u}, nil
 }
@@ -147,13 +147,14 @@ func (n *Node) NewClient(
 	generatorFunc token.GeneratorFunc,
 	additionalFunctionality ...networkservice.NetworkServiceClient,
 ) networkservice.NetworkServiceClient {
+	ctx = log.Join(ctx, log.Empty())
 	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(n.NSMgr.URL),
 		grpc.WithInsecure(),
 		grpc.WithBlock(),
 		grpc.WithDefaultCallOptions(grpc.WaitForReady(true)),
 	)
 	if err != nil {
-		logger.Log(ctx).Fatalf("Failed to dial node NSMgr: %s", err.Error())
+		log.FromContext(ctx).Fatalf("Failed to dial node NSMgr: %s", err.Error())
 	}
 
 	go func() {

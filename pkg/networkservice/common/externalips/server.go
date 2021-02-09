@@ -22,10 +22,6 @@ import (
 	"net"
 	"sync/atomic"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/logger/logruslogger"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
-
 	"github.com/ghodss/yaml"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -33,6 +29,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/fs"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type externalIPsServer struct {
@@ -59,7 +56,6 @@ func (e *externalIPsServer) Close(ctx context.Context, connection *networkservic
 // NewServer creates networkservice.NetworkServiceServer which provides to context possible to resolve internal IP to external or vise versa.
 // By default watches file by DefaultFilePath.
 func NewServer(chainCtx context.Context, options ...Option) networkservice.NetworkServiceServer {
-	chainCtx, log := logruslogger.New(chainCtx)
 	result := &externalIPsServer{
 		chainCtx: chainCtx,
 	}
@@ -72,16 +68,16 @@ func NewServer(chainCtx context.Context, options ...Option) networkservice.Netwo
 		result.updateCh = monitorMapFromFile(chainCtx, DefaultFilePath)
 	}
 	go func() {
-		log = log.WithField("externalIPsServer", "build")
+		logger := log.FromContext(chainCtx).WithField("externalIPsServer", "build")
 		for {
 			select {
 			case <-chainCtx.Done():
 				return
 			case update := <-result.updateCh:
 				if err := result.build(update); err != nil {
-					log.Error(err.Error())
+					logger.Error(err.Error())
 				} else {
-					log.Info("rebuilt internal and external ips map")
+					logger.Info("rebuilt internal and external ips map")
 				}
 			}
 		}
@@ -130,7 +126,7 @@ func monitorMapFromFile(ctx context.Context, path string) <-chan map[string]stri
 			var m map[string]string
 			err := yaml.Unmarshal(bytes, &m)
 			if err != nil {
-				logger.Log(ctx).WithField("externalIPsServer", "yaml.Unmarshal").Error(err.Error())
+				log.FromContext(ctx).WithField("externalIPsServer", "yaml.Unmarshal").Error(err.Error())
 				continue
 			}
 			select {

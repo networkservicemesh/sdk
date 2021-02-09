@@ -26,7 +26,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/logger/logruslogger"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -54,8 +54,7 @@ func ListenAndServe(ctx context.Context, address *url.URL, server *grpc.Server) 
 		}
 		basePath := path.Dir(target)
 		if _, err = os.Stat(basePath); os.IsNotExist(err) {
-			_, log := logruslogger.New(ctx)
-			log.Infof("target folder %v not exists, Trying to create", basePath)
+			log.FromContext(ctx).Infof("target folder %v not exists, Trying to create", basePath)
 			if err = os.MkdirAll(basePath, os.ModePerm); err != nil {
 				errCh <- errors.Wrapf(err, "Could not serve %v", target)
 				close(errCh)

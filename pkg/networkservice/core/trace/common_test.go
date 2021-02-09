@@ -35,7 +35,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 func TestDiffMechanism(t *testing.T) {
@@ -109,7 +109,7 @@ func TestTraceOutput(t *testing.T) {
 	logrus.SetFormatter(&logrus.TextFormatter{
 		DisableTimestamp: true,
 	})
-	logger.EnableTracing(true)
+	log.EnableTracing(true)
 
 	// Create a chain with modifying elements
 	ch := chain.NewNamedNetworkServiceServer(
@@ -129,28 +129,28 @@ func TestTraceOutput(t *testing.T) {
 	require.NotNil(t, e)
 
 	expectedOutput :=
-		"level=trace msg=\"[INFO] (1) ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerFirstServer.Request()\" name=TestTraceOutput\n" +
-			"level=trace msg=\"[INFO] (1.1)   request={\\\"connection\\\":{\\\"id\\\":\\\"conn-1\\\",\\\"context\\\":" +
+		"level=info msg=\"(1) ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerFirstServer.Request()\" name=TestTraceOutput\n" +
+			"level=info msg=\"(1.1)   request={\\\"connection\\\":{\\\"id\\\":\\\"conn-1\\\",\\\"context\\\":" +
 			"{\\\"ip_context\\\":{\\\"src_ip_required\\\":true}}},\\\"mechanism_preferences\\\":[{\\\"cls\\\":\\\"LOCAL\\\"," +
 			"\\\"type\\\":\\\"KERNEL\\\"},{\\\"cls\\\":\\\"LOCAL\\\",\\\"type\\\":\\\"KERNEL\\\",\\\"parameters\\\":{\\\"label\\\"" +
 			":\\\"v2\\\"}}]}\" name=TestTraceOutput\n" +
-			"level=trace msg=\"[INFO] (1.2)   request-diff={\\\"connection\\\":{\\\"labels\\\":{\\\"+Label\\\":\\\"A\\\"}}}\" name=TestTraceOutput\n" +
-			"level=trace msg=\"[INFO] (2)  ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerSecondServer.Request()\" name=TestTraceOutput\n" +
-			"level=trace msg=\"[INFO] (2.1)    request-diff={\\\"connection\\\":{\\\"labels\\\":{\\\"Label\\\":\\\"B\\\"}}}\" name=TestTraceOutput\n" +
-			"level=trace msg=\"[INFO] (2.2)    response={\\\"id\\\":\\\"conn-1\\\",\\\"context\\\":{\\\"ip_context\\\":{\\\"src_ip_required\\\":true}}," +
+			"level=info msg=\"(1.2)   request-diff={\\\"connection\\\":{\\\"labels\\\":{\\\"+Label\\\":\\\"A\\\"}}}\" name=TestTraceOutput\n" +
+			"level=info msg=\"(2)  ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerSecondServer.Request()\" name=TestTraceOutput\n" +
+			"level=info msg=\"(2.1)    request-diff={\\\"connection\\\":{\\\"labels\\\":{\\\"Label\\\":\\\"B\\\"}}}\" name=TestTraceOutput\n" +
+			"level=info msg=\"(2.2)    response={\\\"id\\\":\\\"conn-1\\\",\\\"context\\\":{\\\"ip_context\\\":{\\\"src_ip_required\\\":true}}," +
 			"\\\"labels\\\":{\\\"Label\\\":\\\"B\\\"}}\" name=TestTraceOutput\n" +
-			"level=trace msg=\"[INFO] (2.3)    response-diff={\\\"labels\\\":{\\\"Label\\\":\\\"C\\\"}}\" name=TestTraceOutput\n" +
-			"level=trace msg=\"[INFO] (1.3)   response-diff={\\\"labels\\\":{\\\"Label\\\":\\\"D\\\"}}\" name=TestTraceOutput\n" +
-			"level=trace msg=\"[INFO] (1) ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerFirstServer.Close()\" name=TestTraceOutput\n" +
-			"level=trace msg=\"[INFO] (1.1)   request={\\\"id\\\":\\\"conn-1\\\",\\\"context\\\":{\\\"ip_context\\\":{\\\"src_ip_required\\\":true}}," +
+			"level=info msg=\"(2.3)    response-diff={\\\"labels\\\":{\\\"Label\\\":\\\"C\\\"}}\" name=TestTraceOutput\n" +
+			"level=info msg=\"(1.3)   response-diff={\\\"labels\\\":{\\\"Label\\\":\\\"D\\\"}}\" name=TestTraceOutput\n" +
+			"level=info msg=\"(1) ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerFirstServer.Close()\" name=TestTraceOutput\n" +
+			"level=info msg=\"(1.1)   request={\\\"id\\\":\\\"conn-1\\\",\\\"context\\\":{\\\"ip_context\\\":{\\\"src_ip_required\\\":true}}," +
 			"\\\"labels\\\":{\\\"Label\\\":\\\"D\\\"}}\" name=TestTraceOutput\n" +
-			"level=trace msg=\"[INFO] (1.2)   request-diff={\\\"labels\\\":{\\\"Label\\\":\\\"W\\\"}}\" name=TestTraceOutput\n" +
-			"level=trace msg=\"[INFO] (2)  ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerSecondServer.Close()\" name=TestTraceOutput\n" +
-			"level=trace msg=\"[INFO] (2.1)    request-diff={\\\"labels\\\":{\\\"Label\\\":\\\"X\\\"}}\" name=TestTraceOutput\n" +
-			"level=trace msg=\"[INFO] (2.2)    response={\\\"id\\\":\\\"conn-1\\\",\\\"context\\\":{\\\"ip_context\\\":{\\\"src_ip_required\\\"" +
+			"level=info msg=\"(1.2)   request-diff={\\\"labels\\\":{\\\"Label\\\":\\\"W\\\"}}\" name=TestTraceOutput\n" +
+			"level=info msg=\"(2)  ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerSecondServer.Close()\" name=TestTraceOutput\n" +
+			"level=info msg=\"(2.1)    request-diff={\\\"labels\\\":{\\\"Label\\\":\\\"X\\\"}}\" name=TestTraceOutput\n" +
+			"level=info msg=\"(2.2)    response={\\\"id\\\":\\\"conn-1\\\",\\\"context\\\":{\\\"ip_context\\\":{\\\"src_ip_required\\\"" +
 			":true}},\\\"labels\\\":{\\\"Label\\\":\\\"X\\\"}}\" name=TestTraceOutput\n" +
-			"level=trace msg=\"[INFO] (2.3)    response-diff={\\\"labels\\\":{\\\"Label\\\":\\\"Y\\\"}}\" name=TestTraceOutput\n" +
-			"level=trace msg=\"[INFO] (1.3)   response-diff={\\\"labels\\\":{\\\"Label\\\":\\\"Z\\\"}}\" name=TestTraceOutput\n"
+			"level=info msg=\"(2.3)    response-diff={\\\"labels\\\":{\\\"Label\\\":\\\"Y\\\"}}\" name=TestTraceOutput\n" +
+			"level=info msg=\"(1.3)   response-diff={\\\"labels\\\":{\\\"Label\\\":\\\"Z\\\"}}\" name=TestTraceOutput\n"
 
 	require.Equal(t, expectedOutput, buff.String())
 }

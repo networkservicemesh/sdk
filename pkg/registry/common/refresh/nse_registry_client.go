@@ -27,7 +27,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type refreshNSEClient struct {
@@ -41,7 +41,7 @@ type refreshNSEClient struct {
 func NewNetworkServiceEndpointRegistryClient(options ...Option) registry.NetworkServiceEndpointRegistryClient {
 	c := &refreshNSEClient{
 		defaultExpiryDuration: time.Minute * 30,
-		chainContext:          logger.WithLog(context.Background()),
+		chainContext:          context.Background(),
 	}
 
 	for _, o := range options {
@@ -56,7 +56,7 @@ func (c *refreshNSEClient) startRefresh(
 	client registry.NetworkServiceEndpointRegistryClient,
 	nse *registry.NetworkServiceEndpoint,
 ) {
-	logEntry := logger.Log(ctx).WithField("refreshNSEClient", "startRefresh")
+	logger := log.FromContext(ctx).WithField("refreshNSEClient", "startRefresh")
 
 	t := time.Unix(nse.ExpirationTime.Seconds, int64(nse.ExpirationTime.Nanos))
 	delta := time.Until(t)
@@ -70,7 +70,7 @@ func (c *refreshNSEClient) startRefresh(
 
 				res, err := client.Register(ctx, nse.Clone())
 				if err != nil {
-					logEntry.Errorf("failed to update registration: %s", err.Error())
+					logger.Errorf("failed to update registration: %s", err.Error())
 					return
 				}
 

@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package logger provides an unified interface Logger for logging
-package logger
+// Package log provides an unified interface Logger for logging
+package log
 
 import (
 	"context"
@@ -52,16 +52,26 @@ type Logger interface {
 	WithField(key, value interface{}) Logger
 }
 
-// Log - returns logger from context
-func Log(ctx context.Context) Logger {
+// FromContext - returns logger from context
+func FromContext(ctx context.Context) Logger {
 	rv, ok := ctx.Value(logKey).(Logger)
 	if ok {
 		return rv
 	}
-	panic("Could not return Logger from Context")
+	println("No logger in context")
+	return Empty()
 }
 
-// WithLog - creates new context with `log` in it
+// Join - concatenates new logger with existing loggers
+func Join(ctx context.Context, log Logger) context.Context {
+	rv, ok := ctx.Value(logKey).(Logger)
+	if ok {
+		return WithLog(ctx, rv, log)
+	}
+	return WithLog(ctx, log)
+}
+
+// WithLog - creates new context with `log` inside
 func WithLog(ctx context.Context, log ...Logger) context.Context {
 	return context.WithValue(ctx, logKey, newGroup(log...))
 }
@@ -74,7 +84,7 @@ func Fields(ctx context.Context) map[string]interface{} {
 	return nil
 }
 
-// WithFields - adds/replaces fields to/in context
+// WithFields - adds fields to context
 func WithFields(ctx context.Context, fields map[string]interface{}) context.Context {
 	return context.WithValue(ctx, logFieldsKey, fields)
 }

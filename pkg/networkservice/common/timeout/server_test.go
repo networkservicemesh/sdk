@@ -22,8 +22,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
-
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -79,7 +77,7 @@ func TestTimeoutServer_Request(t *testing.T) {
 
 	connServer := newConnectionsServer(t)
 
-	_, err := testClient(ctx, connServer, tokenTimeout).Request(logger.WithLog(ctx), &networkservice.NetworkServiceRequest{})
+	_, err := testClient(ctx, connServer, tokenTimeout).Request(ctx, &networkservice.NetworkServiceRequest{})
 	require.NoError(t, err)
 	require.Condition(t, connServer.validator(1, 0))
 
@@ -94,7 +92,6 @@ func TestTimeoutServer_Close_BeforeTimeout(t *testing.T) {
 
 	client := testClient(ctx, connServer, tokenTimeout)
 
-	ctx = logger.WithLog(ctx)
 	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{})
 	require.NoError(t, err)
 	require.Condition(t, connServer.validator(1, 0))
@@ -115,7 +112,6 @@ func TestTimeoutServer_Close_AfterTimeout(t *testing.T) {
 
 	client := testClient(ctx, connServer, tokenTimeout)
 
-	ctx = logger.WithLog(ctx)
 	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{})
 	require.NoError(t, err)
 	require.Condition(t, connServer.validator(1, 0))
@@ -154,7 +150,6 @@ func TestTimeoutServer_StressTest(t *testing.T) {
 
 	client := testClient(ctx, connServer, 0)
 
-	ctx = logger.WithLog(ctx)
 	wg := new(sync.WaitGroup)
 	wg.Add(parallelCount)
 	for i := 0; i < parallelCount; i++ {

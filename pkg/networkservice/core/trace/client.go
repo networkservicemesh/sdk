@@ -28,7 +28,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/typeutils"
 )
 
@@ -60,10 +60,10 @@ func (t *beginTraceClient) Request(ctx context.Context, request *networkservice.
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
 			err = errors.Wrapf(err, "Error returned from %s", operation)
-			logger.Log(ctx).Errorf("%+v", err)
+			log.FromContext(ctx).Errorf("%+v", err)
 			return nil, err
 		}
-		logger.Log(ctx).Errorf("%v", err)
+		log.FromContext(ctx).Errorf("%v", err)
 		return nil, err
 	}
 
@@ -83,10 +83,10 @@ func (t *beginTraceClient) Close(ctx context.Context, conn *networkservice.Conne
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
 			err = errors.Wrapf(err, "Error returned from %s", operation)
-			logger.Log(ctx).Errorf("%+v", err)
+			log.FromContext(ctx).Errorf("%+v", err)
 			return nil, err
 		}
-		logger.Log(ctx).Errorf("%v", err)
+		log.FromContext(ctx).Errorf("%v", err)
 		return nil, err
 	}
 

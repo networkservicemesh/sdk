@@ -22,8 +22,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
@@ -100,7 +98,7 @@ func TestLabelsOverwritten(t *testing.T) {
 	client := next.NewNetworkServiceClient(clientinfo.NewClient(), checkrequest.NewClient(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
 		assert.Equal(t, expected, request.GetConnection().GetLabels())
 	}))
-	conn, err := client.Request(logger.WithLog(context.Background()), &networkservice.NetworkServiceRequest{
+	conn, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Labels: map[string]string{
 				"NodeNameKey":    "OLD_VAL1",
@@ -134,7 +132,7 @@ func TestSomeEnvsNotPresent(t *testing.T) {
 	client := next.NewNetworkServiceClient(clientinfo.NewClient(), checkrequest.NewClient(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
 		assert.Equal(t, expected, request.GetConnection().GetLabels())
 	}))
-	conn, err := client.Request(logger.WithLog(context.Background()), &networkservice.NetworkServiceRequest{
+	conn, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Labels: map[string]string{
 				"NodeNameKey":    "OLD_VAL1",

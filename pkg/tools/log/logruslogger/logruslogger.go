@@ -31,7 +31,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/metadata"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type loggerKeyType string
@@ -115,51 +115,51 @@ func (s *logrusLogger) getTraceInfo() string {
 }
 
 func (s *logrusLogger) Info(v ...interface{}) {
-	s.log("[INFO]", v...)
+	s.entry.Info(s.format("%s", v...))
 }
 
 func (s *logrusLogger) Infof(format string, v ...interface{}) {
-	s.logf("[INFO]", format, v...)
+	s.entry.Info(s.format(format, v...))
 }
 
 func (s *logrusLogger) Warn(v ...interface{}) {
-	s.log("[WARN]", v...)
+	s.entry.Warn(s.format("%s", v...))
 }
 
 func (s *logrusLogger) Warnf(format string, v ...interface{}) {
-	s.logf("[WARN]", format, v...)
+	s.entry.Warn(s.format(format, v...))
 }
 
 func (s *logrusLogger) Error(v ...interface{}) {
-	s.log("[ERROR]", v...)
+	s.entry.Error(s.format("%s", v...))
 }
 
 func (s *logrusLogger) Errorf(format string, v ...interface{}) {
-	s.logf("[ERROR]", format, v...)
+	s.entry.Error(s.format(format, v...))
 }
 
 func (s *logrusLogger) Fatal(v ...interface{}) {
-	s.log("[FATAL]", v...)
+	s.entry.Fatal(s.format("%s", v...))
 }
 
 func (s *logrusLogger) Fatalf(format string, v ...interface{}) {
-	s.logf("[FATAL]", format, v...)
+	s.entry.Fatal(s.format(format, v...))
 }
 
 func (s *logrusLogger) Debug(v ...interface{}) {
-	s.log("[DEBUG]", v...)
+	s.entry.Debug(s.format("%s", v...))
 }
 
 func (s *logrusLogger) Debugf(format string, v ...interface{}) {
-	s.logf("[DEBUG]", format, v...)
+	s.entry.Debug(s.format(format, v...))
 }
 
 func (s *logrusLogger) Trace(v ...interface{}) {
-	s.log("[TRACE]", v...)
+	s.entry.Trace(s.format("%s", v...))
 }
 
 func (s *logrusLogger) Tracef(format string, v ...interface{}) {
-	s.logf("[TRACE]", format, v...)
+	s.entry.Trace(s.format(format, v...))
 }
 
 func (s *logrusLogger) Object(k, v interface{}) {
@@ -173,40 +173,30 @@ func (s *logrusLogger) Object(k, v interface{}) {
 	s.Infof("%v=%s", k, msg)
 }
 
-func (s *logrusLogger) log(level string, v ...interface{}) {
-	s.logf(level, "%s", fmt.Sprint(v...))
-}
-
-func (s *logrusLogger) logf(level, format string, v ...interface{}) {
-	s.entry.Tracef("%s %s%s%v", level, s.getTraceInfo(), fmt.Sprintf(format, v...), s.getSpan())
-}
-
-func (s *logrusLogger) WithField(key, value interface{}) logger.Logger {
+func (s *logrusLogger) WithField(key, value interface{}) log.Logger {
 	newLog := s.entry.WithField(key.(string), value)
-	log := &logrusLogger{
+	logger := &logrusLogger{
 		entry:     newLog,
 		span:      s.span,
 		operation: s.operation,
 		info:      s.info,
 	}
-	return log
+	return logger
 }
 
-// New - creates a logruslogger and returns context with it
-func New(ctx context.Context) (context.Context, logger.Logger) {
-	logrus.SetLevel(logrus.TraceLevel)
-	entry := logrus.WithTime(time.Now()).WithFields(logger.Fields(ctx))
+// New - creates a logruslogger and returns it
+func New(ctx context.Context) log.Logger {
+	entry := logrus.WithTime(time.Now()).WithFields(log.Fields(ctx))
 	newLog := &logrusLogger{
 		entry: entry,
 	}
-	return logger.WithLog(ctx, newLog), newLog
+	return newLog
 }
 
 // FromSpan - creates a new logruslogger from context, operation and span
 // and returns context with it, logger, and a function to defer
-func FromSpan(ctx context.Context, span opentracing.Span, operation string) (context.Context, logger.Logger, func()) {
-	logrus.SetLevel(logrus.TraceLevel)
-	entry := logrus.WithTime(time.Now()).WithFields(logger.Fields(ctx))
+func FromSpan(ctx context.Context, span opentracing.Span, operation string) (context.Context, log.Logger, func()) {
+	entry := logrus.WithTime(time.Now()).WithFields(log.Fields(ctx))
 
 	var info *traceCtxInfo
 	ctx, info = withTraceInfo(ctx)
@@ -220,10 +210,14 @@ func FromSpan(ctx context.Context, span opentracing.Span, operation string) (con
 	}
 
 	newLog.printStart()
-	return logger.WithLog(ctx, newLog), newLog, func() { localTraceInfo.Delete(info.id) }
+	return ctx, newLog, func() { localTraceInfo.Delete(info.id) }
 }
 
 func (s *logrusLogger) printStart() {
 	prefix := strings.Repeat(separator, s.info.level)
-	s.entry.Tracef("%s %v%s⎆ %v()%v", "[INFO]", s.info.incInfo(), prefix, s.operation, s.getSpan())
+	s.entry.Infof("%v%s⎆ %v()%v", s.info.incInfo(), prefix, s.operation, s.getSpan())
+}
+
+func (s *logrusLogger) format(format string, v ...interface{}) string {
+	return fmt.Sprintf("%s%s%s", s.getTraceInfo(), fmt.Sprintf(format, v...), s.getSpan())
 }

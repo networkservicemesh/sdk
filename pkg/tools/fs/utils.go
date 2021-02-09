@@ -24,9 +24,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/logger/logruslogger"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"github.com/fsnotify/fsnotify"
 )
@@ -36,14 +34,12 @@ import (
 // Closes channel due to unexpected os error or context is done.
 func WatchFile(ctx context.Context, filePath string) <-chan []byte {
 	result := make(chan []byte)
-
-	logCtx, log := logruslogger.New(ctx)
-	log = log.WithField("fs.WatchFile", filePath)
+	logger := log.FromContext(ctx).WithField("fs.WatchFile", filePath)
 
 	watcher, err := fsnotify.NewWatcher()
 
 	if err != nil {
-		log.Errorf("can not create node poller: %v", err.Error())
+		logger.Errorf("can not create node poller: %v", err.Error())
 		_ = watcher.Close()
 		close(result)
 		return result
@@ -54,7 +50,7 @@ func WatchFile(ctx context.Context, filePath string) <-chan []byte {
 		if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
 			err = os.MkdirAll(directoryPath, os.ModePerm)
 			if err != nil {
-				log.Errorf("can not create directory: %v", err.Error())
+				logger.Errorf("can not create directory: %v", err.Error())
 				_ = watcher.Close()
 				close(result)
 				return result
@@ -63,7 +59,7 @@ func WatchFile(ctx context.Context, filePath string) <-chan []byte {
 	}
 
 	if err := watcher.Add(directoryPath); err != nil {
-		log.Errorf("an error during add a directory \"%v\": %v", directoryPath, err.Error())
+		logger.Errorf("an error during add a directory \"%v\": %v", directoryPath, err.Error())
 		_ = watcher.Close()
 		close(result)
 		return result
@@ -73,13 +69,13 @@ func WatchFile(ctx context.Context, filePath string) <-chan []byte {
 		defer func() {
 			_ = watcher.Close()
 		}()
-		monitorFile(logCtx, filePath, watcher, result)
+		monitorFile(ctx, filePath, watcher, result)
 	}()
 	return result
 }
 
 func monitorFile(ctx context.Context, filePath string, watcher *fsnotify.Watcher, notifyCh chan<- []byte) {
-	log := logger.Log(ctx).WithField("fs.monitorFile", filePath)
+	logger := log.FromContext(ctx).WithField("fs.monitorFile", filePath)
 
 	bytes, _ := ioutil.ReadFile(filepath.Clean(filePath))
 	if !sendOrClose(ctx, notifyCh, bytes) {
@@ -89,7 +85,7 @@ func monitorFile(ctx context.Context, filePath string, watcher *fsnotify.Watcher
 	for {
 		select {
 		case <-ctx.Done():
-			log.Error(ctx.Err().Error())
+			logger.Error(ctx.Err().Error())
 			close(notifyCh)
 			return
 		case e := <-watcher.Events:
@@ -97,7 +93,7 @@ func monitorFile(ctx context.Context, filePath string, watcher *fsnotify.Watcher
 				continue
 			}
 			if e.Op&(fsnotify.Remove|fsnotify.Rename) > 0 {
-				log.Warn("Removed")
+				logger.Warn("Removed")
 				if !sendOrClose(ctx, notifyCh, nil) {
 					return
 				}
@@ -107,7 +103,7 @@ func monitorFile(ctx context.Context, filePath string, watcher *fsnotify.Watcher
 			data, err := ioutil.ReadFile(filepath.Clean(filePath))
 			for err != nil && ctx.Err() == nil {
 				time.Sleep(time.Millisecond * 50)
-				log.Warn(err.Error())
+				logger.Warn(err.Error())
 				data, err = ioutil.ReadFile(filepath.Clean(filePath))
 				continue
 			}
@@ -116,7 +112,7 @@ func monitorFile(ctx context.Context, filePath string, watcher *fsnotify.Watcher
 			}
 		case err := <-watcher.Errors:
 			if err != nil {
-				log.Error(err.Error())
+				logger.Error(err.Error())
 				close(notifyCh)
 				return
 			}
