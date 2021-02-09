@@ -18,7 +18,6 @@ package connect_test
 
 import (
 	"context"
-	"fmt"
 	"net/url"
 	"strconv"
 	"sync"
@@ -27,6 +26,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
@@ -80,7 +80,7 @@ func checkServer(target *url.URL, server networkservice.NetworkServiceServer) er
 
 	serviceNames := networkservice.ServiceNames(server)
 	if len(serviceNames) == 0 {
-		return fmt.Errorf("grpc Service Name was not found")
+		return errors.Errorf("grpc Service Name was not found")
 	}
 	serviceName := serviceNames[0]
 
