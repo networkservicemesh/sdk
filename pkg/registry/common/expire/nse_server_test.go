@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -30,9 +31,11 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/seturl"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 )
 
 func TestExpireNSEServer_ShouldCorrectlySetExpirationTime_InRemoteCase(t *testing.T) {
@@ -151,7 +154,38 @@ func TestExpireNSEServer_DataRace(t *testing.T) {
 
 		list := registry.ReadNetworkServiceEndpointList(stream)
 		return len(list) == 0
-	}, time.Millisecond*100, time.Millisecond*10)
+	}, time.Second, time.Millisecond*100)
+}
+
+func TestExpireNSEServer_RefreshFailure(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ctx = logger.WithLog(ctx)
+
+	c := next.NewNetworkServiceEndpointRegistryClient(
+		refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithChainContext(ctx)),
+		adapters.NetworkServiceEndpointServerToClient(next.NewNetworkServiceEndpointRegistryServer(
+			new(remoteNSEServer), // <-- GRPC invocation
+			expire.NewNetworkServiceEndpointRegistryServer(ctx, testPeriod),
+			newFailureNSEServer(1, -1),
+			memory.NewNetworkServiceEndpointRegistryServer(),
+		)),
+	)
+
+	_, err := c.Register(ctx, &registry.NetworkServiceEndpoint{Name: "nse-1"})
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool {
+		stream, err := c.Find(context.Background(), &registry.NetworkServiceEndpointQuery{
+			NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
+		})
+		require.NoError(t, err)
+
+		list := registry.ReadNetworkServiceEndpointList(stream)
+		return len(list) == 0
+	}, time.Second, time.Millisecond*100)
 }
 
 type remoteNSEServer struct {
@@ -167,5 +201,37 @@ func (s *remoteNSEServer) Find(query *registry.NetworkServiceEndpointQuery, serv
 }
 
 func (s *remoteNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse.Clone())
+}
+
+type failureNSEServer struct {
+	count        int
+	failureTimes []int
+}
+
+func newFailureNSEServer(failureTimes ...int) *failureNSEServer {
+	return &failureNSEServer{
+		failureTimes: failureTimes,
+	}
+}
+
+func (s *failureNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	defer func() { s.count++ }()
+	for _, failureTime := range s.failureTimes {
+		if failureTime > s.count {
+			break
+		}
+		if failureTime == s.count || failureTime == -1 {
+			return nil, errors.New("failure")
+		}
+	}
+	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
+}
+
+func (s *failureNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
+	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
+}
+
+func (s *failureNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }

@@ -37,6 +37,7 @@ type expireNSEServer struct {
 
 type unregisterTimer struct {
 	expirationTime time.Time
+	cancel         context.CancelFunc
 	timer          *time.Timer
 	executor       *serialize.Executor
 }
@@ -50,26 +51,20 @@ func NewNetworkServiceEndpointRegistryServer(ctx context.Context, nseExpiration 
 }
 
 func (n *expireNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	t, loaded := n.timers.Load(nse.Name)
+	t, loaded := n.timers.LoadAndDelete(nse.Name)
 	stopped := loaded && t.timer.Stop()
 
 	var expirationTime time.Time
 	if stopped {
 		expirationTime = t.expirationTime
-		defer func() {
-			t.timer.Reset(time.Until(expirationTime))
-		}()
+	} else if loaded {
+		<-t.executor.AsyncExec(t.cancel)
 	}
 
 	resp, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	if err != nil {
+		t.timer.Reset(time.Until(expirationTime))
 		return nil, err
-	}
-
-	if loaded && !stopped {
-		defer t.executor.AsyncExec(func() {
-			t.timer.Reset(time.Until(expirationTime))
-		})
 	}
 
 	expirationTime = time.Now().Add(n.nseExpiration)
@@ -80,10 +75,8 @@ func (n *expireNSEServer) Register(ctx context.Context, nse *registry.NetworkSer
 	}
 	resp.ExpirationTime = timestamppb.New(expirationTime)
 
-	if !loaded {
-		t = n.newTimer(ctx, expirationTime, resp.Clone())
-		n.timers.Store(resp.Name, t)
-	}
+	t = n.newTimer(ctx, expirationTime, resp.Clone())
+	n.timers.Store(resp.Name, t)
 
 	return resp, nil
 }
@@ -93,17 +86,17 @@ func (n *expireNSEServer) newTimer(
 	expirationTime time.Time,
 	nse *registry.NetworkServiceEndpoint,
 ) *unregisterTimer {
+	unregisterCtx, cancel := context.WithCancel(n.ctx)
 	executor := new(serialize.Executor)
 	return &unregisterTimer{
 		expirationTime: expirationTime,
+		cancel:         cancel,
 		executor:       executor,
 		timer: time.AfterFunc(time.Until(expirationTime), func() {
 			executor.AsyncExec(func() {
-				if n.ctx.Err() != nil {
+				if unregisterCtx.Err() != nil {
 					return
 				}
-
-				unregisterCtx, cancel := context.WithCancel(n.ctx)
 				defer cancel()
 
 				_, _ = next.NetworkServiceEndpointRegistryServer(ctx).Unregister(unregisterCtx, nse)
@@ -118,7 +111,9 @@ func (n *expireNSEServer) Find(query *registry.NetworkServiceEndpointQuery, s re
 
 func (n *expireNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
 	if t, ok := n.timers.LoadAndDelete(nse.Name); ok {
-		t.timer.Stop()
+		if !t.timer.Stop() {
+			<-t.executor.AsyncExec(t.cancel)
+		}
 	}
 
 	resp, err := next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
