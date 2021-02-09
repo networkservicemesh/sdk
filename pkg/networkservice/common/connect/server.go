@@ -32,7 +32,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
@@ -76,8 +75,7 @@ func NewServer(
 func (s *connectServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	clientURL := clienturlctx.ClientURL(ctx)
 	if clientURL == nil {
-		err := errors.Errorf("clientURL not found for incoming connection: %+v", request.GetConnection())
-		return injecterror.NewServer(err).Request(ctx, request)
+		return nil, errors.Errorf("clientURL not found for incoming connection: %+v", request.GetConnection())
 	}
 
 	clientInfo := s.client(ctx, request.GetConnection())
