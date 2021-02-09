@@ -39,8 +39,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/multiexecutor"
 )
 
-type closeFunc func()
-
 type connectServer struct {
 	ctx               context.Context
 	clientFactory     func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient
@@ -54,7 +52,7 @@ type connectServer struct {
 type clientInfo struct {
 	client  networkservice.NetworkServiceClient
 	count   int
-	onClose closeFunc
+	onClose context.CancelFunc
 }
 
 type connectionInfo struct {
@@ -77,6 +75,10 @@ func NewServer(
 
 func (s *connectServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	clientURL := clienturlctx.ClientURL(ctx)
+	if clientURL == nil {
+		err := errors.Errorf("clientURL not found for incoming connection: %+v", request.GetConnection())
+		return injecterror.NewServer(err).Request(ctx, request)
+	}
 
 	clientInfo := s.client(ctx, request.GetConnection())
 	conn, err := clientInfo.client.Request(ctx, request.Clone())
@@ -126,13 +128,7 @@ func (s *connectServer) Close(ctx context.Context, conn *networkservice.Connecti
 
 func (s *connectServer) client(ctx context.Context, conn *networkservice.Connection) *clientInfo {
 	logger := log.FromContext(ctx).WithField("connectServer", "client")
-
 	clientURL := clienturlctx.ClientURL(ctx)
-
-	if clientURL == nil {
-		err := errors.Errorf("clientURL not found for incoming connection: %+v", conn)
-		return &clientInfo{client: injecterror.NewClient(err)}
-	}
 
 	// First check if we have already requested some clientURL with this conn.GetID().
 	if connInfo, ok := s.connInfos.Load(conn.GetId()); ok {
@@ -167,15 +163,11 @@ func (s *connectServer) client(ctx context.Context, conn *networkservice.Connect
 // newClient has to be called under clientsMutex protection
 func (s *connectServer) newClient(clientURL *url.URL) *clientInfo {
 	ctx, cancel := context.WithCancel(s.ctx)
-	onClose := func() {
-		cancel()
-	}
-
 	client := clienturl.NewClient(clienturlctx.WithClientURL(ctx, clientURL), s.clientFactory, s.clientDialOptions...)
 	return &clientInfo{
 		client:  client,
 		count:   0,
-		onClose: onClose,
+		onClose: cancel,
 	}
 }
 
