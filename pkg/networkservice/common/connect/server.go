@@ -83,7 +83,7 @@ func (s *connectServer) Request(ctx context.Context, request *networkservice.Net
 
 		// close current client chain if grpc connection was closed
 		if grpcutils.UnwrapCode(err) == codes.Canceled {
-			s.deleteClient(client)
+			s.deleteClient(client, clientURL.String())
 			s.connInfos.Delete(request.GetConnection().GetId())
 		}
 
@@ -202,15 +202,17 @@ func (s *connectServer) closeClient(client networkservice.NetworkServiceClient) 
 	}
 }
 
-func (s *connectServer) deleteClient(client networkservice.NetworkServiceClient) {
+func (s *connectServer) deleteClient(client networkservice.NetworkServiceClient, clientURL string) {
 	s.clientsMutex.Lock()
 	defer s.clientsMutex.Unlock()
 
 	if onClose, ok := s.clientsCloseFuncs[client]; ok {
-		for {
-			if onClose() {
-				return
-			}
+		if loadedClient, ok := s.clients.Load(clientURL); ok && loadedClient == client {
+			s.clients.Drop(clientURL)
+		}
+
+		if onClose() {
+			return
 		}
 	}
 }
