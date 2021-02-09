@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
-//
 // Copyright (c) 2020 Cisco and/or its affiliates.
+//
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -129,4 +129,11 @@ func (m *RefcountMap) LoadAndDelete(key string) (value networkservice.NetworkSer
 func (m *RefcountMap) Delete(key string) (deleted bool) {
 	_, _, deleted = m.LoadAndDelete(key)
 	return deleted
+}
+
+// Drop is deleting value for a key for any count value
+// count == 1  -->  delete
+// count > 1   -->  delete
+func (m *RefcountMap) Drop(key string) {
+	m.m.Delete(key)
 }
