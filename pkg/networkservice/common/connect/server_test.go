@@ -63,6 +63,17 @@ func startServer(ctx context.Context, listenOn *url.URL, server networkservice.N
 	}
 }
 
+func checkServer(target *url.URL) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(target), grpc.WithBlock(), grpc.WithInsecure())
+	defer func() {
+		_ = cc.Close()
+	}()
+	return err
+}
+
 func TestConnectServer_Request(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
@@ -101,6 +112,7 @@ func TestConnectServer_Request(t *testing.T) {
 			}),
 		))
 		require.NoError(t, err)
+		require.NoError(t, checkServer(urlA))
 
 		urlB := &url.URL{Scheme: "tcp", Host: "127.0.0.1:10001"}
 		serverB := new(captureServer)
@@ -113,9 +125,8 @@ func TestConnectServer_Request(t *testing.T) {
 			}),
 		))
 		require.NoError(t, err)
+		require.NoError(t, checkServer(urlB))
 
-		// Time for servers to start listening
-		<-time.After(10 * time.Millisecond)
 		ignoreCurrentGoroutines := goleak.IgnoreCurrent()
 
 		// 4. Create request
@@ -222,9 +233,8 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 
 		err := startServer(ctx, urlA, serverA)
 		require.NoError(t, err)
+		require.NoError(t, checkServer(urlA))
 
-		// Time for servers to start listening
-		<-time.After(10 * time.Millisecond)
 		ignoreCurrentGoroutines := goleak.IgnoreCurrent()
 
 		// 4. Request A
