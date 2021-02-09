@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,7 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package serialize
+// Package multiexecutor provides a structure MultiExecutor that can be used to guarantee exclusive by ID, in order execution of functions.
+package multiexecutor
 
 import (
 	"sync"
@@ -22,7 +23,13 @@ import (
 	"github.com/edwarnicke/serialize"
 )
 
-type multiExecutor struct {
+// Executor is a serialize.Executor interface type
+type Executor interface {
+	AsyncExec(f func()) <-chan struct{}
+}
+
+// MultiExecutor - a struct that can be used to guarantee exclusive by ID, in order execution of functions.
+type MultiExecutor struct {
 	executors map[string]*refCountExecutor
 	executor  serialize.Executor
 	once      sync.Once
@@ -33,7 +40,9 @@ type refCountExecutor struct {
 	executor serialize.Executor
 }
 
-func (e *multiExecutor) AsyncExec(id string, f func()) (ch <-chan struct{}) {
+// AsyncExec - guarantees f() will be executed Exclusively for specified ID and in the Order submitted.
+//        It immediately returns a channel that will be closed when f() has completed execution.
+func (e *MultiExecutor) AsyncExec(id string, f func()) (ch <-chan struct{}) {
 	e.once.Do(func() {
 		e.executors = make(map[string]*refCountExecutor)
 	})
@@ -59,7 +68,8 @@ func (e *multiExecutor) AsyncExec(id string, f func()) (ch <-chan struct{}) {
 	return ch
 }
 
-func (e *multiExecutor) Executor(id string) Executor {
+// Executor - returns Executor by ID
+func (e *MultiExecutor) Executor(id string) Executor {
 	return executorFunc(func(f func()) <-chan struct{} {
 		return e.AsyncExec(id, f)
 	})

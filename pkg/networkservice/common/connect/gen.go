@@ -21,5 +21,7 @@ import (
 )
 
 //go:generate go-syncmap -output connection_info_map.gen.go -type connectionInfoMap<string,connectionInfo>
+//go:generate go-syncmap -output client_info_map.gen.go -type clientInfoMap<string,*clientInfo>
 
 type connectionInfoMap sync.Map
+type clientInfoMap sync.Map
