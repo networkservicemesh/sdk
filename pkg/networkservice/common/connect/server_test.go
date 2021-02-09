@@ -151,7 +151,7 @@ func TestConnectServer_Request(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, checkServer(urlB, nsServerB))
 
-		ignoreCurrentGoroutines := goleak.IgnoreCurrent()
+		defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 		// 4. Create request
 
@@ -219,8 +219,6 @@ func TestConnectServer_Request(t *testing.T) {
 		require.Nil(t, serverClient.capturedRequest)
 		require.Nil(t, serverB.capturedRequest)
 		require.Nil(t, serverNext.capturedRequest)
-
-		goleak.VerifyNone(t, ignoreCurrentGoroutines)
 	}()
 }
 
@@ -259,7 +257,7 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, checkServer(urlA, serverA))
 
-		ignoreCurrentGoroutines := goleak.IgnoreCurrent()
+		defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 		// 4. Request A
 
@@ -309,8 +307,6 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 		require.Equal(t, int32(parallelCount), serverClient.count)
 		require.Equal(t, int32(parallelCount), serverA.count)
 		require.Equal(t, int32(parallelCount), serverNext.count)
-
-		goleak.VerifyNone(t, ignoreCurrentGoroutines)
 	}()
 }
 
@@ -343,10 +339,9 @@ func TestConnectServer_RequestFail(t *testing.T) {
 			}),
 		))
 		require.NoError(t, err)
+		require.NoError(t, checkServer(urlA, serverA))
 
-		// Time for servers to start listening
-		<-time.After(10 * time.Millisecond)
-		ignoreCurrentGoroutines := goleak.IgnoreCurrent()
+		defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 		request := &networkservice.NetworkServiceRequest{
 			Connection: &networkservice.Connection{
@@ -363,8 +358,6 @@ func TestConnectServer_RequestFail(t *testing.T) {
 				},
 			},
 		}
-
-		goleak.VerifyNone(t, ignoreCurrentGoroutines)
 
 		// 4. Request A
 
