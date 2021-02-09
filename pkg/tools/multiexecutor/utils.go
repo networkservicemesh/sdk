@@ -23,11 +23,6 @@ import (
 	"github.com/edwarnicke/serialize"
 )
 
-// Executor is a serialize.Executor interface type
-type Executor interface {
-	AsyncExec(f func()) <-chan struct{}
-}
-
 // MultiExecutor - a struct that can be used to guarantee exclusive by ID, in order execution of functions.
 type MultiExecutor struct {
 	executors map[string]*refCountExecutor
@@ -69,8 +64,8 @@ func (e *MultiExecutor) AsyncExec(id string, f func()) (ch <-chan struct{}) {
 }
 
 // Executor - returns Executor by ID
-func (e *MultiExecutor) Executor(id string) Executor {
-	return executorFunc(func(f func()) <-chan struct{} {
+func (e *MultiExecutor) Executor(id string) ExecutorFunc {
+	return func(f func()) <-chan struct{} {
 		return e.AsyncExec(id, f)
-	})
+	}
 }
