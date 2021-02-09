@@ -25,7 +25,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/logger/logruslogger"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 // WithSignals - returns a context that is canceled when on of the specified signals 'sig' is received.
@@ -47,11 +47,10 @@ func WithSignals(parent context.Context, sig ...os.Signal) context.Context {
 	signal.Notify(c, sig...)
 	// Prepare a master context for the command, and be prepared to cancel it when we get a signal
 	ctx, cancel := context.WithCancel(parent)
-	_, log := logruslogger.New(ctx)
 	go func() {
 		select {
 		case s := <-c:
-			log.Warnf("Caught signal %s, exiting...", s)
+			log.FromContext(ctx).Warnf("Caught signal %s, exiting...", s)
 			cancel()
 		case <-parent.Done():
 		}

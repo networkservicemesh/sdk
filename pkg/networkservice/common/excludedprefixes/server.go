@@ -25,8 +25,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
-
 	"github.com/ghodss/yaml"
 	"github.com/golang/protobuf/ptypes/empty"
 
@@ -34,6 +32,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/fs"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/prefixpool"
 )
 
@@ -56,12 +55,12 @@ func (eps *excludedPrefixesServer) init(ctx context.Context) {
 		}{}
 		err := yaml.Unmarshal(bytes, &source)
 		if err != nil {
-			logger.Log(ctx).Errorf("Can not create unmarshal prefixes, err: %v", err.Error())
+			log.FromContext(ctx).Errorf("Can not create unmarshal prefixes, err: %v", err.Error())
 			return
 		}
 		pool, err := prefixpool.New(source.Prefixes...)
 		if err != nil {
-			logger.Log(ctx).Errorf("Can not create prefixpool with prefixes: %+v, err: %v", source.Prefixes, err.Error())
+			log.FromContext(ctx).Errorf("Can not create prefixpool with prefixes: %+v, err: %v", source.Prefixes, err.Error())
 			return
 		}
 		eps.prefixPool.Store(pool)
@@ -89,7 +88,7 @@ func (eps *excludedPrefixesServer) Request(ctx context.Context, request *network
 		conn.Context.IpContext = &networkservice.IPContext{}
 	}
 	prefixes := eps.prefixPool.Load().(*prefixpool.PrefixPool).GetPrefixes()
-	logger.Log(ctx).Infof("ExcludedPrefixesService: adding excluded prefixes to connection: %v", prefixes)
+	log.FromContext(ctx).Infof("ExcludedPrefixesService: adding excluded prefixes to connection: %v", prefixes)
 	ipCtx := conn.GetContext().GetIpContext()
 	ipCtx.ExcludedPrefixes = removeDuplicates(append(ipCtx.GetExcludedPrefixes(), prefixes...))
 

@@ -35,7 +35,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/multiexecutor"
 )
 
@@ -125,7 +125,8 @@ func (s *connectServer) Close(ctx context.Context, conn *networkservice.Connecti
 }
 
 func (s *connectServer) client(ctx context.Context, conn *networkservice.Connection) *clientInfo {
-	logEntry := logger.Log(ctx).WithField("connectServer", "client")
+	logger := log.FromContext(ctx).WithField("connectServer", "client")
+
 	clientURL := clienturlctx.ClientURL(ctx)
 
 	if clientURL == nil {
@@ -141,7 +142,7 @@ func (s *connectServer) client(ctx context.Context, conn *networkservice.Connect
 
 		// For some reason we have changed the clientURL, so we need to close and delete the existing client.
 		if _, clientErr := connInfo.client.client.Close(ctx, conn); clientErr != nil {
-			logEntry.Warnf("failed to close client: %+v", clientErr)
+			logger.Warnf("failed to close client: %+v", clientErr)
 		}
 
 		s.closeClient(connInfo.client, connInfo.clientURL.String())

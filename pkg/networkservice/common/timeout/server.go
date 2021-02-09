@@ -23,8 +23,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
-
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
@@ -33,6 +31,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type timeoutServer struct {
@@ -51,7 +50,7 @@ func NewServer(ctx context.Context) networkservice.NetworkServiceServer {
 }
 
 func (t *timeoutServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	logEntry := logger.Log(ctx).WithField("timeoutServer", "request")
+	logger := log.FromContext(ctx).WithField("timeoutServer", "request")
 
 	connID := request.GetConnection().GetId()
 
@@ -62,7 +61,7 @@ func (t *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 			// Since timer is being deleted under the `executor.AsyncExec()` this can't be a situation when
 			// the Request is executing after the timeout Close. Such case cannot be distinguished with the
 			// first-request case.
-			logEntry.Warnf("connection has been timed out, re requesting: %v", connID)
+			logger.Warnf("connection has been timed out, re requesting: %v", connID)
 		}
 	}
 
@@ -85,7 +84,7 @@ func (t *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 }
 
 func (t *timeoutServer) createTimer(ctx context.Context, conn *networkservice.Connection) (*time.Timer, error) {
-	logEntry := logger.Log(ctx).WithField("timeoutServer", "createTimer")
+	logger := log.FromContext(ctx).WithField("timeoutServer", "createTimer")
 
 	executor := serialize.GetExecutor(ctx)
 	if executor == nil {
@@ -106,12 +105,12 @@ func (t *timeoutServer) createTimer(ctx context.Context, conn *networkservice.Co
 	*timerPtr = time.AfterFunc(time.Until(expireTime), func() {
 		<-executor.AsyncExec(func() {
 			if timer, _ := t.timers.Load(conn.GetId()); timer != *timerPtr {
-				logEntry.Warnf("timer has been already stopped: %v", conn.GetId())
+				logger.Warnf("timer has been already stopped: %v", conn.GetId())
 				return
 			}
 			t.timers.Delete(conn.GetId())
 			if _, err := next.Server(ctx).Close(t.ctx, conn); err != nil {
-				logEntry.Errorf("failed to close timed out connection: %v %+v", conn.GetId(), err)
+				logger.Errorf("failed to close timed out connection: %v %+v", conn.GetId(), err)
 			}
 		})
 	})
@@ -120,11 +119,11 @@ func (t *timeoutServer) createTimer(ctx context.Context, conn *networkservice.Co
 }
 
 func (t *timeoutServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	logEntry := logger.Log(ctx).WithField("timeoutServer", "close")
+	logger := log.FromContext(ctx).WithField("timeoutServer", "close")
 
 	timer, ok := t.timers.LoadAndDelete(conn.GetId())
 	if !ok {
-		logEntry.Warnf("connection has been already closed: %v", conn.GetId())
+		logger.Warnf("connection has been already closed: %v", conn.GetId())
 		return new(empty.Empty), nil
 	}
 	timer.Stop()

@@ -22,8 +22,9 @@ import (
 	"context"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
-	"github.com/networkservicemesh/sdk/pkg/tools/logger/tracelogger"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
+	"github.com/networkservicemesh/sdk/pkg/tools/log/spanlogger"
 )
 
 // withLog - provides corresponding logger in context
@@ -36,8 +37,13 @@ func withLog(parent context.Context, operation string) (c context.Context, f fun
 	parent = grpcutils.PassTraceToOutgoing(parent)
 
 	if grpcTraceState := grpcutils.TraceFromContext(parent); (grpcTraceState == grpcutils.TraceOn) ||
-		(grpcTraceState == grpcutils.TraceUndefined && logger.IsTracingEnabled()) {
-		return tracelogger.WithLog(parent, operation)
+		(grpcTraceState == grpcutils.TraceUndefined && log.IsTracingEnabled()) {
+		ctx, sLogger, span, sFinish := spanlogger.FromContext(parent, operation)
+		ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation)
+		return log.WithLog(ctx, sLogger, lLogger), func() {
+			sFinish()
+			lFinish()
+		}
 	}
-	return logger.WithLog(parent), func() {}
+	return log.WithLog(parent), func() {}
 }

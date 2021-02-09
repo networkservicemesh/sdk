@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -19,6 +19,7 @@ package sandbox
 import (
 	"context"
 	"net/url"
+	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
@@ -37,20 +38,14 @@ type SupplyNSMgrProxyFunc func(context.Context, string, token.GeneratorFunc, ...
 // SupplyNSMgrFunc supplies NSMGR
 type SupplyNSMgrFunc func(context.Context, *registryapi.NetworkServiceEndpoint, networkservice.NetworkServiceServer, token.GeneratorFunc, grpc.ClientConnInterface, ...grpc.DialOption) nsmgr.Nsmgr
 
-// SupplyForwarderFunc supplies Forwarder
-type SupplyForwarderFunc func(context.Context, string, token.GeneratorFunc, *url.URL, ...grpc.DialOption) endpoint.Endpoint
-
 // SupplyRegistryFunc supplies Registry
-type SupplyRegistryFunc func(ctx context.Context, proxyRegistryURL *url.URL, options ...grpc.DialOption) registry.Registry
+type SupplyRegistryFunc func(ctx context.Context, expiryDuration time.Duration, proxyRegistryURL *url.URL, options ...grpc.DialOption) registry.Registry
 
 // SupplyRegistryProxyFunc supplies registry proxy
 type SupplyRegistryProxyFunc func(ctx context.Context, dnsResolver dnsresolve.Resolver, handlingDNSDomain string, proxyNSMgrURL *url.URL, options ...grpc.DialOption) registry.Registry
 
-// Node is pair of Forwarder and NSMgr
-type Node struct {
-	Forwarder *EndpointEntry
-	NSMgr     *NSMgrEntry
-}
+// SetupNodeFunc setups each node on Builder.Build() stage
+type SetupNodeFunc func(ctx context.Context, node *Node)
 
 // RegistryEntry is pair of registry.Registry and url.URL
 type RegistryEntry struct {

@@ -19,12 +19,11 @@ package setlogoption
 import (
 	"context"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
-
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type setNSLogOption struct {
@@ -72,7 +71,7 @@ func (s *setNSLogOption) withFields(ctx context.Context) context.Context {
 		fields[k] = v
 	}
 	if len(fields) > 0 {
-		ctx = logger.WithFields(ctx, fields)
+		ctx = log.WithFields(ctx, fields)
 	}
 	return ctx
 }

@@ -82,14 +82,14 @@ func (s *sendFDNSEClient) Unregister(ctx context.Context, endpoint *registry.Net
 		return nil, err
 	}
 
-	returnedEndpoint, err := next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, endpoint, opts...)
+	_, err := next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, endpoint, opts...)
 	if err != nil {
 		return nil, err
 	}
 
 	// Translate the InodeURl mechanism *back to a proper file://${path} url
-	if fileURLStr, ok := inodeURLToFileURLMap[returnedEndpoint.Url]; ok {
-		returnedEndpoint.Url = fileURLStr
+	if fileURLStr, ok := inodeURLToFileURLMap[endpoint.Url]; ok {
+		endpoint.Url = fileURLStr
 	}
 	return &empty.Empty{}, nil
 }

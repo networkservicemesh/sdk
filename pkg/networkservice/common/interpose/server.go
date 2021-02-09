@@ -22,7 +22,7 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
@@ -102,7 +102,7 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 			})
 			result, err = next.Server(crossCTX).Request(crossCTX, request)
 			if err != nil {
-				logger.Log(ctx).Errorf("failed to request cross NSE %v err: %v", crossNSEURL, err)
+				log.FromContext(ctx).Errorf("failed to request cross NSE %v err: %v", crossNSEURL, err)
 				return true
 			}
 			// If all is ok, stop iterating.

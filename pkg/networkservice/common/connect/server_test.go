@@ -45,7 +45,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 const (
@@ -121,6 +121,7 @@ func TestConnectServer_Request(t *testing.T) {
 
 	func() {
 		ctx, cancel := context.WithCancel(context.Background())
+		ctx = log.WithLog(ctx)
 		defer cancel()
 
 		// 3. Setup servers
@@ -170,7 +171,6 @@ func TestConnectServer_Request(t *testing.T) {
 				},
 			},
 		}
-		ctx = logger.WithLog(ctx)
 
 		// 5. Request A
 
@@ -248,6 +248,7 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 
 	func() {
 		ctx, cancel := context.WithCancel(context.Background())
+		ctx = log.WithLog(ctx)
 		defer cancel()
 
 		// 3. Setup servers
@@ -269,7 +270,6 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 		barrier := new(sync.WaitGroup)
 		barrier.Add(1)
 
-		ctx = logger.WithLog(ctx)
 		for i := 0; i < parallelCount; i++ {
 			go func(k int) {
 				// 4.1. Create request
@@ -364,12 +364,10 @@ func TestConnectServer_RequestFail(t *testing.T) {
 				},
 			},
 		}
-		ctx = logger.WithLog(ctx)
 
 		goleak.VerifyNone(t, ignoreCurrentGoroutines)
 
 		// 4. Request A
-
 		_, err = s.Request(clienturlctx.WithClientURL(ctx, urlA), request.Clone())
 		require.Error(t, err)
 	}()
