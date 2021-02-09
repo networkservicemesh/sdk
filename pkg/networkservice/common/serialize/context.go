@@ -18,8 +18,6 @@ package serialize
 
 import (
 	"context"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/multiexecutor"
 )
 
 const (
@@ -28,8 +26,13 @@ const (
 
 type contextKeyType string
 
+// Executor is a serialize.Executor interface type
+type Executor interface {
+	AsyncExec(f func()) <-chan struct{}
+}
+
 // WithExecutor wraps `parent` in a new context with Executor
-func WithExecutor(parent context.Context, executor multiexecutor.Executor) context.Context {
+func WithExecutor(parent context.Context, executor Executor) context.Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
@@ -37,8 +40,8 @@ func WithExecutor(parent context.Context, executor multiexecutor.Executor) conte
 }
 
 // GetExecutor returns Executor
-func GetExecutor(ctx context.Context) multiexecutor.Executor {
-	if executor, ok := ctx.Value(executorKey).(multiexecutor.Executor); ok {
+func GetExecutor(ctx context.Context) Executor {
+	if executor, ok := ctx.Value(executorKey).(Executor); ok {
 		return executor
 	}
 	return nil
