@@ -23,8 +23,9 @@ import (
 	"path"
 	"unicode"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/fs"
 	"github.com/pkg/errors"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/fs"
 )
 
 // InodeSet is an index map of inodes
