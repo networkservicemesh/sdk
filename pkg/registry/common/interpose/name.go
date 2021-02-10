@@ -18,14 +18,13 @@ package interpose
 
 import "strings"
 
-// namePrefix - a common prefix for all registered cross NSEs
-const namePrefix = "interpose-nse#"
+const nameSuffix = "#interpose-nse"
 
 func interposeName(name string) string {
-	return namePrefix + name
+	return name + nameSuffix
 }
 
 // Is returns true if passed name contains interpose identity
 func Is(name string) bool {
-	return strings.HasPrefix(name, namePrefix)
+	return strings.HasSuffix(name, nameSuffix)
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -33,6 +33,9 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
+	registryinterpose "github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
+	registryadapters "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
+	registrynext "github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 )
 
@@ -43,8 +46,11 @@ func TestInterposeServer(t *testing.T) {
 	var interposeRegistry registry.NetworkServiceEndpointRegistryServer
 	interposeServer := interpose.NewServer(&interposeRegistry)
 
-	_, err := interposeRegistry.Register(context.TODO(), &registry.NetworkServiceEndpoint{
-		Name: "interpose-nse#",
+	_, err := registrynext.NewNetworkServiceEndpointRegistryClient(
+		registryinterpose.NewNetworkServiceEndpointRegistryClient(),
+		registryadapters.NetworkServiceEndpointServerToClient(interposeRegistry),
+	).Register(context.TODO(), &registry.NetworkServiceEndpoint{
+		Name: "forwarder",
 		Url:  crossNSEURL.String(),
 	})
 	require.NoError(t, err)
@@ -64,7 +70,7 @@ func TestInterposeServer(t *testing.T) {
 			}),
 		)),
 		adapters.NewServerToClient(next.NewNetworkServiceServer(
-			updatepath.NewServer("interpose-nse"),
+			updatepath.NewServer("forwarder"),
 		)),
 		adapters.NewServerToClient(next.NewNetworkServiceServer(
 			updatepath.NewServer("nsmgr"),
