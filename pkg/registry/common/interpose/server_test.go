@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	namePrefix     = "interpose-nse#"
+	nameSuffix     = "#interpose-nse"
 	name           = "nse"
 	url            = "tcp://0.0.0.0"
 	commonResponse = "response"
@@ -45,11 +45,11 @@ var samples = []struct {
 	{
 		name: "interpose NSE",
 		in: &registry.NetworkServiceEndpoint{
-			Name: namePrefix + name,
+			Name: name + nameSuffix,
 			Url:  url,
 		},
 		out: &registry.NetworkServiceEndpoint{
-			Name: namePrefix + name,
+			Name: name + nameSuffix,
 			Url:  url,
 		},
 		isInMap: true,
@@ -66,7 +66,7 @@ var samples = []struct {
 	{
 		name: "invalid NSE",
 		in: &registry.NetworkServiceEndpoint{
-			Name: namePrefix + name,
+			Name: name + nameSuffix,
 		},
 		isInMap: false,
 		failure: true,

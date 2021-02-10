@@ -22,23 +22,21 @@ import (
 	"testing"
 	"time"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
-
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	registrynext "github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 )
 
 func endpoints() []*registry.NetworkServiceEndpoint {
@@ -444,10 +442,7 @@ func TestMatchExactService(t *testing.T) {
 func TestMatchExactEndpoint(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	nseServer := registrynext.NewNetworkServiceEndpointRegistryServer(
-		setid.NewNetworkServiceEndpointRegistryServer(),
-		memory.NewNetworkServiceEndpointRegistryServer(),
-	)
+	nseServer := memory.NewNetworkServiceEndpointRegistryServer()
 
 	nseName := "final-endpoint"
 	u := "tcp://" + nseName

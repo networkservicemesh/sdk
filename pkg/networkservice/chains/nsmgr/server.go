@@ -94,10 +94,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 
 	nseRegistry := newRemoteNSEServer(registryCC)
 	if nseRegistry == nil {
-		nseRegistry = chain_registry.NewNetworkServiceEndpointRegistryServer(
-			setid.NewNetworkServiceEndpointRegistryServer(),  // If no remote registry then assign ID.
-			memory.NewNetworkServiceEndpointRegistryServer(), // Memory registry to store result inside.
-		)
+		nseRegistry = memory.NewNetworkServiceEndpointRegistryServer() // Memory registry to store result inside.
 	}
 
 	nseClient := next.NewNetworkServiceEndpointRegistryClient(
@@ -136,6 +133,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 	nseChain := chain_registry.NewNamedNetworkServiceEndpointRegistryServer(
 		nsmRegistration.Name+".NetworkServiceEndpointRegistry",
 		expire.NewNetworkServiceEndpointRegistryServer(time.Minute),
+		setid.NewNetworkServiceEndpointRegistryServer(),           // Assign ID
 		registry_recvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
 		urlsRegistryServer,
 		interposeRegistry,         // Store cross connect NSEs

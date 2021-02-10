@@ -42,6 +42,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/tools/opentracing"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
@@ -412,9 +413,7 @@ func TestNSMGR_PassThroughRemote(t *testing.T) {
 					clienturl.NewServer(domain.Nodes[i].NSMgr.URL),
 					connect.NewServer(ctx,
 						sandbox.NewCrossConnectClientFactory(sandbox.GenerateTestToken,
-							newPassTroughClient(
-								fmt.Sprintf("my-service-remote-%v", k-1),
-								fmt.Sprintf("endpoint-%v", k-1)),
+							newPassTroughClient(fmt.Sprintf("my-service-remote-%v", k-1)),
 							kernel.NewClient()),
 						append(opentracing.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...,
 					),
@@ -474,9 +473,7 @@ func TestNSMGR_PassThroughLocal(t *testing.T) {
 					clienturl.NewServer(domain.Nodes[0].NSMgr.URL),
 					connect.NewServer(ctx,
 						sandbox.NewCrossConnectClientFactory(sandbox.GenerateTestToken,
-							newPassTroughClient(
-								fmt.Sprintf("my-service-remote-%v", k-1),
-								fmt.Sprintf("endpoint-%v", k-1)),
+							newPassTroughClient(fmt.Sprintf("my-service-remote-%v", k-1)),
 							kernel.NewClient()),
 						append(opentracing.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...,
 					),
@@ -511,6 +508,119 @@ func TestNSMGR_PassThroughLocal(t *testing.T) {
 	// Path length to first endpoint is 5
 	// Path length from NSE client to other local endpoint is 5
 	require.Equal(t, 5*(nsesCount-1)+5, len(conn.Path.PathSegments))
+}
+
+func TestNSMGR_ShouldCorrectlyAddForwardersWithSameNames(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(t).
+		SetNodesCount(1).
+		SetRegistryProxySupplier(nil).
+		SetNodeSetup(nil).
+		SetContext(ctx).
+		Build()
+	defer domain.Cleanup()
+
+	forwarderReg := &registry.NetworkServiceEndpoint{
+		Name: "forwarder",
+	}
+
+	nseReg := &registry.NetworkServiceEndpoint{
+		Name:                "endpoint",
+		NetworkServiceNames: []string{"service"},
+	}
+
+	// 1. Add forwarders
+	forwarder1Reg := forwarderReg.Clone()
+	_, err := domain.Nodes[0].NewForwarder(ctx, forwarder1Reg, sandbox.GenerateTestToken)
+	require.NoError(t, err)
+
+	forwarder2Reg := forwarderReg.Clone()
+	_, err = domain.Nodes[0].NewForwarder(ctx, forwarder2Reg, sandbox.GenerateTestToken)
+	require.NoError(t, err)
+
+	forwarder3Reg := forwarderReg.Clone()
+	_, err = domain.Nodes[0].NewForwarder(ctx, forwarder3Reg, sandbox.GenerateTestToken)
+	require.NoError(t, err)
+
+	// 2. Wait for refresh
+	<-time.After(sandbox.DefaultRegistryExpiryDuration)
+
+	testNSEAndClient(ctx, t, domain, nseReg.Clone())
+
+	// 3. Delete first forwarder
+	_, err = domain.Nodes[0].ForwarderRegistryClient.Unregister(ctx, forwarder1Reg)
+	require.NoError(t, err)
+
+	testNSEAndClient(ctx, t, domain, nseReg.Clone())
+
+	// 4. Delete last forwarder
+	_, err = domain.Nodes[0].ForwarderRegistryClient.Unregister(ctx, forwarder3Reg)
+	require.NoError(t, err)
+
+	testNSEAndClient(ctx, t, domain, nseReg.Clone())
+
+	_, err = domain.Nodes[0].ForwarderRegistryClient.Unregister(ctx, forwarder2Reg)
+	require.NoError(t, err)
+}
+
+func TestNSMGR_ShouldCorrectlyAddEndpointsWithSameNames(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(t).
+		SetNodesCount(1).
+		SetRegistryProxySupplier(nil).
+		SetContext(ctx).
+		Build()
+	defer domain.Cleanup()
+
+	nseReg := &registry.NetworkServiceEndpoint{
+		Name: "endpoint",
+	}
+
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	// 1. Add endpoints
+	nse1Reg := nseReg.Clone()
+	nse1Reg.NetworkServiceNames = []string{"service-1"}
+	_, err := domain.Nodes[0].NewEndpoint(ctx, nse1Reg, sandbox.GenerateTestToken)
+	require.NoError(t, err)
+
+	nse2Reg := nseReg.Clone()
+	nse2Reg.NetworkServiceNames = []string{"service-2"}
+	_, err = domain.Nodes[0].NewEndpoint(ctx, nse2Reg, sandbox.GenerateTestToken)
+	require.NoError(t, err)
+
+	// 2. Wait for refresh
+	<-time.After(sandbox.DefaultRegistryExpiryDuration)
+
+	// 3. Request
+	_, err = nsc.Request(ctx, &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			NetworkService: "service-1",
+		},
+	})
+	require.NoError(t, err)
+
+	_, err = nsc.Request(ctx, &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			NetworkService: "service-2",
+		},
+	})
+	require.NoError(t, err)
+
+	// 3. Delete endpoints
+	_, err = domain.Nodes[0].ForwarderRegistryClient.Unregister(ctx, nse1Reg)
+	require.NoError(t, err)
+
+	_, err = domain.Nodes[0].ForwarderRegistryClient.Unregister(ctx, nse2Reg)
+	require.NoError(t, err)
 }
 
 func TestNSMGR_ShouldCleanAllClientAndEndpointGoroutines(t *testing.T) {
@@ -588,26 +698,24 @@ func testNSEAndClient(
 }
 
 type passThroughClient struct {
-	networkService             string
-	networkServiceEndpointName string
+	networkService string
 }
 
-func newPassTroughClient(networkService, networkServiceEndpointName string) *passThroughClient {
+func newPassTroughClient(networkService string) *passThroughClient {
 	return &passThroughClient{
-		networkService:             networkService,
-		networkServiceEndpointName: networkServiceEndpointName,
+		networkService: networkService,
 	}
 }
 
 func (c *passThroughClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	request.Connection.NetworkService = c.networkService
-	request.Connection.NetworkServiceEndpointName = c.networkServiceEndpointName
+	request.Connection.NetworkServiceEndpointName = ""
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
 
 func (c *passThroughClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	conn.NetworkService = c.networkService
-	conn.NetworkServiceEndpointName = c.networkServiceEndpointName
+	conn.NetworkServiceEndpointName = ""
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
@@ -643,15 +751,6 @@ func (c *restartingEndpoint) Close(ctx context.Context, connection *networkservi
 	return next.Client(ctx).Close(ctx, connection)
 }
 
-type busyEndpoint struct{}
-
-func (c *busyEndpoint) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	return nil, errors.New("sorry, endpoint is busy, try again later")
-}
-
-func (c *busyEndpoint) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
-	return nil, errors.New("sorry, endpoint is busy, try again later")
-}
 func newBusyEndpoint() networkservice.NetworkServiceServer {
-	return new(busyEndpoint)
+	return injecterror.NewServer(errors.New("sorry, endpoint is busy, try again later"))
 }
