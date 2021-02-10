@@ -31,14 +31,12 @@ import (
 )
 
 const (
-	nseName      = "nse-1"
-	domain       = "domain.com"
-	remoteSuffix = "-remote"
+	remotePrefix = "remote-"
 )
 
-func testNSE(name string) *registry.NetworkServiceEndpoint {
+func testNSE() *registry.NetworkServiceEndpoint {
 	return &registry.NetworkServiceEndpoint{
-		Name:                name,
+		Name:                "nse-1",
 		NetworkServiceNames: []string{"ns-1"},
 	}
 }
@@ -46,10 +44,10 @@ func testNSE(name string) *registry.NetworkServiceEndpoint {
 func TestSetIDServer_NewNSE(t *testing.T) {
 	server := setid.NewNetworkServiceEndpointRegistryServer()
 
-	reg1, err := server.Register(context.Background(), testNSE(nseName))
+	reg1, err := server.Register(context.Background(), testNSE())
 	require.NoError(t, err)
 
-	reg2, err := server.Register(context.Background(), testNSE(nseName))
+	reg2, err := server.Register(context.Background(), testNSE())
 	require.NoError(t, err)
 
 	require.NotEqual(t, reg1.Name, reg2.Name)
@@ -64,7 +62,7 @@ func TestSetIDServer_NewNSE(t *testing.T) {
 func TestSetIDServer_RefreshNSE(t *testing.T) {
 	server := setid.NewNetworkServiceEndpointRegistryServer()
 
-	reg, err := server.Register(context.Background(), testNSE(nseName))
+	reg, err := server.Register(context.Background(), testNSE())
 	require.NoError(t, err)
 
 	name := reg.Name
@@ -78,25 +76,13 @@ func TestSetIDServer_RefreshNSE(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestSetIDServer_InterDomainNSE(t *testing.T) {
-	server := setid.NewNetworkServiceEndpointRegistryServer()
-
-	reg, err := server.Register(context.Background(), testNSE(nseName+"@"+domain))
-	require.NoError(t, err)
-
-	require.True(t, strings.HasSuffix(reg.Name, "@"+domain))
-
-	_, err = server.Unregister(context.Background(), reg)
-	require.NoError(t, err)
-}
-
 func TestSetIDServer_RemoteRegistry(t *testing.T) {
 	server := next.NewNetworkServiceEndpointRegistryServer(
 		setid.NewNetworkServiceEndpointRegistryServer(),
 		new(remoteRegistry),
 	)
 
-	reg, err := server.Register(context.Background(), testNSE(nseName))
+	reg, err := server.Register(context.Background(), testNSE())
 	require.NoError(t, err)
 
 	name := reg.Name
@@ -115,8 +101,9 @@ type remoteRegistry struct {
 }
 
 func (s *remoteRegistry) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	if !strings.HasSuffix(nse.Name, remoteSuffix) {
-		nse.Name += remoteSuffix
+	nse = nse.Clone()
+	if !strings.HasPrefix(nse.Name, remotePrefix) {
+		nse.Name = remotePrefix + nse.Name
 	}
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 }
