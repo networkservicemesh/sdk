@@ -27,7 +27,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 const (
@@ -77,11 +77,11 @@ func (m *netNSMonitorServer) monitorNetNSInode(period time.Duration) {
 }
 
 func (m *netNSMonitorServer) checkConnectionLiveness() {
-	logEntry := logger.Log(m.ctx).WithField("netNSMonitorServer", "checkConnectionLiveness")
+	logger := log.FromContext(m.ctx).WithField("netNSMonitorServer", "checkConnectionLiveness")
 
 	inodes, err := GetAllNetNS()
 	if err != nil {
-		logEntry.Errorf("failed to get NetNS: %+v", err)
+		logger.Errorf("Failed to get system network namespaces: %+v", err)
 		return
 	}
 
@@ -89,15 +89,15 @@ func (m *netNSMonitorServer) checkConnectionLiveness() {
 	m.connections.Range(func(id string, conn *networkservice.Connection) bool {
 		inode, err := strconv.ParseUint(kernel.ToMechanism(conn.GetMechanism()).GetNetNSInode(), 10, 64)
 		if err != nil {
-			logEntry.Errorf("failed to convert netNSInode to uint64 number")
+			logger.Errorf("Failed to convert netNSInode to uint64 number")
 			return true
 		}
 
 		if !inodeSet.Contains(inode) && conn.GetState() == networkservice.State_UP {
-			logEntry.Infof("connection is down")
+			logger.Infof("Connection is down")
 			m.connections.Delete(conn.GetId())
 			if _, err = next.Server(m.ctx).Close(m.ctx, conn); err != nil {
-				logEntry.Errorf("failed to close connection: %v %+v", conn.GetId(), err)
+				logger.Errorf("Failed to close connection: %v %+v", conn.GetId(), err)
 			}
 		}
 
