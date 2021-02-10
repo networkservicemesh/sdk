@@ -14,15 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package multiexecutor
+package serialize
 
-// ExecutorFunc - function type, simulates serialize.Executor behavior
-//		Can be used to guarantee exclusive, in order execution of functions.
-type ExecutorFunc func(f func()) <-chan struct{}
+type executorFunc func(f func()) <-chan struct{}
 
-// AsyncExec - simulates serialize.Executor AsyncExec call
-// 		Guarantees f() will be executed Exclusively and in the Order submitted.
-//		It immediately returns a channel that will be closed when f() has completed execution.
-func (e ExecutorFunc) AsyncExec(f func()) <-chan struct{} {
+func (e executorFunc) AsyncExec(f func()) <-chan struct{} {
 	return e(f)
 }

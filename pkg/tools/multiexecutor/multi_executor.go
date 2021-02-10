@@ -64,7 +64,7 @@ func (e *MultiExecutor) AsyncExec(id string, f func()) (ch <-chan struct{}) {
 }
 
 // Executor - returns Executor by ID
-func (e *MultiExecutor) Executor(id string) ExecutorFunc {
+func (e *MultiExecutor) Executor(id string) func(f func()) <-chan struct{} {
 	return func(f func()) <-chan struct{} {
 		return e.AsyncExec(id, f)
 	}

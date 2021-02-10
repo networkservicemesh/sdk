@@ -21,6 +21,7 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -39,14 +40,16 @@ func NewServer() networkservice.NetworkServiceServer {
 func (s *serializeServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (conn *networkservice.Connection, err error) {
 	connID := request.GetConnection().GetId()
 	<-s.executor.AsyncExec(connID, func() {
-		conn, err = next.Server(ctx).Request(WithExecutor(ctx, s.executor.Executor(connID)), request)
+		requestCtx := WithExecutor(ctx, executorFunc(s.executor.Executor(connID)))
+		conn, err = next.Server(ctx).Request(requestCtx, request)
 	})
 	return conn, err
 }
 
 func (s *serializeServer) Close(ctx context.Context, conn *networkservice.Connection) (_ *empty.Empty, err error) {
 	<-s.executor.AsyncExec(conn.GetId(), func() {
-		_, err = next.Server(ctx).Close(WithExecutor(ctx, s.executor.Executor(conn.GetId())), conn)
+		requestCtx := WithExecutor(ctx, executorFunc(s.executor.Executor(conn.GetId())))
+		_, err = next.Server(ctx).Close(requestCtx, conn)
 	})
 	return new(empty.Empty), err
 }
