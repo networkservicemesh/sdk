@@ -39,6 +39,7 @@ const (
 type netNSMonitorServer struct {
 	ctx         context.Context
 	connections connectionMap
+	period      time.Duration
 }
 
 // NewServer returns new NetNSMonitorServer chain item
@@ -49,10 +50,10 @@ func NewServer(ctx context.Context) networkservice.NetworkServiceServer {
 // NewServerWithPeriod returns new NetNSMonitorServer chain item
 func NewServerWithPeriod(ctx context.Context, period time.Duration) networkservice.NetworkServiceServer {
 	rv := &netNSMonitorServer{
-		ctx: ctx,
+		ctx:    ctx,
+		period: period,
 	}
 
-	go rv.monitorNetNSInode(period)
 	return rv
 }
 
@@ -60,7 +61,11 @@ func (m *netNSMonitorServer) Request(ctx context.Context, request *networkservic
 	conn, err := next.Server(ctx).Request(ctx, request)
 
 	if conn.GetMechanism().GetType() == kernel.MECHANISM {
+		wasEmpty := m.connectionsIsAbsent()
 		m.connections.Store(conn.GetId(), conn.Clone())
+		if wasEmpty {
+			go m.monitorNetNSInode()
+		}
 	}
 
 	return conn, err
@@ -71,9 +76,9 @@ func (m *netNSMonitorServer) Close(ctx context.Context, conn *networkservice.Con
 	return next.Server(ctx).Close(ctx, conn)
 }
 
-func (m *netNSMonitorServer) monitorNetNSInode(period time.Duration) {
-	for {
-		<-time.After(period)
+func (m *netNSMonitorServer) monitorNetNSInode() {
+	for !m.connectionsIsAbsent() {
+		<-time.After(m.period)
 		m.checkConnectionLiveness()
 	}
 }
@@ -105,4 +110,14 @@ func (m *netNSMonitorServer) checkConnectionLiveness() {
 
 		return true
 	})
+}
+
+func (m *netNSMonitorServer) connectionsIsAbsent() bool {
+	var emptyMap = true
+	m.connections.Range(func(_ string, _ *networkservice.Connection) bool {
+		emptyMap = false
+		return false
+	})
+
+	return emptyMap
 }
