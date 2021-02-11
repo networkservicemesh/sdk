@@ -60,7 +60,8 @@ type connectionInfo struct {
 	client    *clientInfo
 }
 
-// NewServer - chain element that
+// NewServer - server chain element that creates client subchains and requests them selecting by
+//             clienturlctx.ClientURL(ctx)
 func NewServer(
 	ctx context.Context,
 	clientFactory client.Factory,
@@ -86,7 +87,7 @@ func (s *connectServer) Request(ctx context.Context, request *networkservice.Net
 			s.closeClient(c, clientURL.String())
 		}
 
-		// close current client chain if grpc connection was closed
+		// Close current client chain if grpc connection was closed
 		if grpcutils.UnwrapCode(err) == codes.Canceled {
 			s.deleteClient(c, clientURL.String())
 			s.connInfos.Delete(request.GetConnection().GetId())
@@ -158,7 +159,6 @@ func (s *connectServer) client(ctx context.Context, conn *networkservice.Connect
 	return c
 }
 
-// newClient has to be called under clientsMutex protection
 func (s *connectServer) newClient(clientURL *url.URL) *clientInfo {
 	ctx, cancel := context.WithCancel(s.ctx)
 	c := clienturl.NewClient(clienturlctx.WithClientURL(ctx, clientURL), s.clientFactory, s.clientDialOptions...)
