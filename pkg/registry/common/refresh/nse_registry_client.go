@@ -55,18 +55,18 @@ func (c *refreshNSEClient) startRefresh(
 	ctx context.Context,
 	client registry.NetworkServiceEndpointRegistryClient,
 	nse *registry.NetworkServiceEndpoint,
+	expiryDuration time.Duration,
 ) {
 	logger := log.FromContext(ctx).WithField("refreshNSEClient", "startRefresh")
 
 	t := time.Unix(nse.ExpirationTime.Seconds, int64(nse.ExpirationTime.Nanos))
-	delta := time.Until(t)
 	go func() {
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case <-time.After(2 * time.Until(t) / 3):
-				nse.ExpirationTime = timestamppb.New(time.Now().Add(delta))
+				nse.ExpirationTime = timestamppb.New(time.Now().Add(expiryDuration))
 
 				res, err := client.Register(ctx, nse.Clone())
 				if err != nil {
@@ -87,8 +87,12 @@ func (c *refreshNSEClient) Register(
 	nse *registry.NetworkServiceEndpoint,
 	opts ...grpc.CallOption,
 ) (*registry.NetworkServiceEndpoint, error) {
+	var expiryDuration time.Duration
 	if nse.ExpirationTime == nil {
-		nse.ExpirationTime = timestamppb.New(time.Now().Add(c.defaultExpiryDuration))
+		expiryDuration = c.defaultExpiryDuration
+		nse.ExpirationTime = timestamppb.New(time.Now().Add(expiryDuration))
+	} else {
+		expiryDuration = time.Until(nse.ExpirationTime.AsTime().Local())
 	}
 
 	refreshNSE := nse.Clone()
@@ -109,7 +113,7 @@ func (c *refreshNSEClient) Register(
 	ctx, cancel := context.WithCancel(c.chainContext)
 	c.nseCancels.Store(resp.Name, cancel)
 
-	c.startRefresh(ctx, nextClient, refreshNSE)
+	c.startRefresh(ctx, nextClient, refreshNSE, expiryDuration)
 
 	return resp, err
 }

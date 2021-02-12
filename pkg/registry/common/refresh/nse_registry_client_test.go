@@ -71,7 +71,6 @@ func TestRefreshNSEClient_ShouldSetExpirationTime_BeforeCallNext(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	client := next.NewNetworkServiceEndpointRegistryClient(
-		new(requestCountClient),
 		refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithDefaultExpiryDuration(time.Hour)),
 		checknse.NewClient(t, func(t *testing.T, nse *registry.NetworkServiceEndpoint) {
 			require.NotNil(t, nse.ExpirationTime)
@@ -144,6 +143,33 @@ func Test_RefreshNSEClient_ShouldOverrideNameAndDuration(t *testing.T) {
 
 	_, err = client.Unregister(context.Background(), reg)
 	require.NoError(t, err)
+}
+
+func Test_RefreshNSEClient_SetsCorrectExpireTime(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	const expiryDuration = 100 * time.Millisecond
+	const timeoutDuration = 200 * time.Millisecond
+
+	countClient := new(requestCountClient)
+	client := next.NewNetworkServiceEndpointRegistryClient(
+		refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithDefaultExpiryDuration(expiryDuration)),
+		checknse.NewClient(t, func(t *testing.T, nse *registry.NetworkServiceEndpoint) {
+			require.Greater(t, int64(expiryDuration+timeoutDuration)/2, int64(time.Until(nse.ExpirationTime.AsTime().Local())))
+			nse.ExpirationTime = timestamppb.New(time.Now().Add(timeoutDuration))
+		}),
+		countClient,
+	)
+
+	reg, err := client.Register(context.Background(), testNSE())
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool {
+		return atomic.LoadInt32(&countClient.requestCount) > 3
+	}, time.Second, testExpiryDuration/4)
+
+	_, err = client.Unregister(context.Background(), reg)
+	require.Nil(t, err)
 }
 
 type requestCountClient struct {
