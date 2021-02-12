@@ -35,7 +35,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/seturl"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checkcontext"
 )
 
 func TestExpireNSEServer_ShouldCorrectlySetExpirationTime_InRemoteCase(t *testing.T) {
@@ -162,7 +162,6 @@ func TestExpireNSEServer_RefreshFailure(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	ctx = logger.WithLog(ctx)
 
 	c := next.NewNetworkServiceEndpointRegistryClient(
 		refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithChainContext(ctx)),
@@ -186,6 +185,46 @@ func TestExpireNSEServer_RefreshFailure(t *testing.T) {
 		list := registry.ReadNetworkServiceEndpointList(stream)
 		return len(list) == 0
 	}, time.Second, time.Millisecond*100)
+}
+
+func TestExpireNSEServer_RefreshKeepsNoUnregister(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	mem := memory.NewNetworkServiceEndpointRegistryServer()
+
+	c := next.NewNetworkServiceEndpointRegistryClient(
+		refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithChainContext(ctx)),
+		adapters.NetworkServiceEndpointServerToClient(next.NewNetworkServiceEndpointRegistryServer(
+			// NSMgr chain
+			new(remoteNSEServer), // <-- GRPC invocation
+			expire.NewNetworkServiceEndpointRegistryServer(ctx, testPeriod),
+			// Registry chain
+			new(remoteNSEServer), // <-- GRPC invocation
+			checkcontext.NewNSEServer(t, func(_ *testing.T, _ context.Context) {
+				<-time.After(testPeriod / 2)
+			}),
+			expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
+			mem,
+		)),
+	)
+
+	_, err := c.Register(ctx, &registry.NetworkServiceEndpoint{Name: "nse-1"})
+	require.NoError(t, err)
+
+	stream, err := adapters.NetworkServiceEndpointServerToClient(mem).Find(ctx, &registry.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
+		Watch:                  true,
+	})
+	require.NoError(t, err)
+
+	for start := time.Now(); time.Now().Sub(start).Seconds() < 1; {
+		nse, err := stream.Recv()
+		require.NoError(t, err)
+		require.NotEqual(t, int64(-1), nse.ExpirationTime.Seconds)
+	}
 }
 
 type remoteNSEServer struct {
