@@ -30,20 +30,20 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/endpointurls"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 )
 
 type filterMechanismsServer struct {
-	nses localbypass.Map
+	nses endpointurls.Map
 }
 
 // NewServer - filters out remote mechanisms if connection is received from a unix file socket, otherwise filters
 // out local mechanisms
-func NewServer(nsmgrURL string, registryServer *registry.NetworkServiceEndpointRegistryServer) networkservice.NetworkServiceServer {
+func NewServer(registryServer *registry.NetworkServiceEndpointRegistryServer) networkservice.NetworkServiceServer {
 	s := &filterMechanismsServer{}
-	*registryServer = localbypass.NewNetworkServiceEndpointRegistryServer(nsmgrURL, &s.nses)
+	*registryServer = endpointurls.NewNetworkServiceEndpointRegistryServer(&s.nses)
 	return s
 }
 

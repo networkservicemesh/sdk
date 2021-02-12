@@ -97,7 +97,7 @@ func TestFilterMechanismsServer_Request(t *testing.T) {
 
 	for _, sample := range samples {
 		var registryServer registry.NetworkServiceEndpointRegistryServer
-		s := filtermechanisms.NewServer("", &registryServer)
+		s := filtermechanisms.NewServer(&registryServer)
 		for _, u := range sample.RegisterURLs {
 			_, err := registryServer.Register(context.Background(), &registry.NetworkServiceEndpoint{
 				Name: sample.EndpointName,

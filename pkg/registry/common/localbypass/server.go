@@ -33,16 +33,14 @@ import (
 
 type localBypassNSEServer struct {
 	url     string
-	nses    *Map
 	nseURLs stringurl.Map
 }
 
 // NewNetworkServiceEndpointRegistryServer creates new instance of NetworkServiceEndpointRegistryServer which sets
 // NSMgr URL to endpoints on registration and sets back endpoints URLs on find
-func NewNetworkServiceEndpointRegistryServer(u string, nses *Map) registry.NetworkServiceEndpointRegistryServer {
+func NewNetworkServiceEndpointRegistryServer(u string) registry.NetworkServiceEndpointRegistryServer {
 	return &localBypassNSEServer{
-		url:  u,
-		nses: nses,
+		url: u,
 	}
 }
 
@@ -65,7 +63,6 @@ func (s *localBypassNSEServer) Register(ctx context.Context, nse *registry.Netwo
 	nse.Url = u.String()
 
 	s.nseURLs.LoadOrStore(nse.Name, u)
-	s.nses.LoadOrStore(*u, nse.Name)
 
 	return nse, nil
 }
@@ -82,9 +79,7 @@ func (s *localBypassNSEServer) findServer(server registry.NetworkServiceEndpoint
 }
 
 func (s *localBypassNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	if u, ok := s.nseURLs.LoadAndDelete(nse.Name); ok {
-		s.nses.Delete(*u)
-	}
+	s.nseURLs.Delete(nse.Name)
 
 	nse.Url = s.url
 

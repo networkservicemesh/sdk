@@ -18,7 +18,6 @@ package localbypass_test
 
 import (
 	"context"
-	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -35,32 +34,28 @@ import (
 const (
 	nsmgrURL = "tcp://0.0.0.0"
 	nseURL   = "tcp://1.1.1.1"
-	nseName  = "nse-1"
 )
 
 func TestLocalBypassNSEServer(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	var nses localbypass.Map
 	mem := memory.NewNetworkServiceEndpointRegistryServer()
 
 	server := next.NewNetworkServiceEndpointRegistryServer(
-		localbypass.NewNetworkServiceEndpointRegistryServer(nsmgrURL, &nses),
+		localbypass.NewNetworkServiceEndpointRegistryServer(nsmgrURL),
 		mem,
 	)
 
 	// 1. Register
 	nse, err := server.Register(context.Background(), &registry.NetworkServiceEndpoint{
-		Name: nseName,
+		Name: "nse-1",
 		Url:  nseURL,
 	})
 	require.NoError(t, err)
 	require.Equal(t, nseURL, nse.Url)
 
 	stream, err := adapters.NetworkServiceEndpointServerToClient(mem).Find(context.Background(), &registry.NetworkServiceEndpointQuery{
-		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-			Name: nseName,
-		},
+		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
 	})
 	require.NoError(t, err)
 
@@ -68,16 +63,9 @@ func TestLocalBypassNSEServer(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, nsmgrURL, findNSE.Url)
 
-	u, _ := url.Parse(nseURL)
-	name, ok := nses.Load(*u)
-	require.True(t, ok)
-	require.Equal(t, nseName, name)
-
 	// 2. Find
 	stream, err = adapters.NetworkServiceEndpointServerToClient(server).Find(context.Background(), &registry.NetworkServiceEndpointQuery{
-		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-			Name: nseName,
-		},
+		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
 	})
 	require.NoError(t, err)
 
@@ -90,15 +78,10 @@ func TestLocalBypassNSEServer(t *testing.T) {
 	require.NoError(t, err)
 
 	stream, err = adapters.NetworkServiceEndpointServerToClient(mem).Find(context.Background(), &registry.NetworkServiceEndpointQuery{
-		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-			Name: nseName,
-		},
+		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
 	})
 	require.NoError(t, err)
 
 	_, err = stream.Recv()
 	require.Error(t, err)
-
-	_, ok = nses.Load(*u)
-	require.False(t, ok)
 }
