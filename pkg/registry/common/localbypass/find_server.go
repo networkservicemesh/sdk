@@ -14,14 +14,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package endpointurls
+package localbypass
 
 import (
-	"sync"
+	"github.com/networkservicemesh/api/pkg/api/registry"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 )
 
-//go:generate go-syncmap -output sync_map.gen.go -type Map<net/url.URL,string>
+type localBypassNSEFindServer struct {
+	nseURLs *stringurl.Map
 
-// Map is like a Go map[url.URL]string but is safe for concurrent use
-// by multiple goroutines without additional locking or coordination
-type Map sync.Map
+	registry.NetworkServiceEndpointRegistry_FindServer
+}
+
+func (s *localBypassNSEFindServer) Send(endpoint *registry.NetworkServiceEndpoint) error {
+	if u, ok := s.nseURLs.Load(endpoint.Name); ok {
+		endpoint.Url = u.String()
+	}
+	return s.NetworkServiceEndpointRegistry_FindServer.Send(endpoint)
+}

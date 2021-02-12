@@ -22,25 +22,21 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
-
-	"github.com/pkg/errors"
-
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 )
 
 type interposeServer struct {
-	endpoints        stringurl.Map
+	interposeNSEs    stringurl.Map
 	activeConnection connectionInfoMap // key == connectionId
 }
 
@@ -61,7 +57,7 @@ type connectionInfo struct {
 //                        so it can capture the registrations.
 func NewServer(registryServer *registry.NetworkServiceEndpointRegistryServer) networkservice.NetworkServiceServer {
 	rv := new(interposeServer)
-	*registryServer = interpose.NewNetworkServiceRegistryServer(&rv.endpoints)
+	*registryServer = interpose.NewNetworkServiceEndpointRegistryServer(&rv.interposeNSEs)
 	return rv
 }
 
@@ -91,7 +87,7 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 		}
 
 		// Iterate over all cross connect NSEs to check one with passed state.
-		l.endpoints.Range(func(key string, crossNSEURL *url.URL) bool {
+		l.interposeNSEs.Range(func(_ string, crossNSEURL *url.URL) bool {
 			crossCTX := clienturlctx.WithClientURL(ctx, crossNSEURL)
 
 			// Store client connection and selected cross connection URL.
