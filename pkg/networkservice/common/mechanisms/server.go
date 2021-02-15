@@ -1,4 +1,6 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2021 Cisco and/or its affiliates.
+//
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -22,12 +24,9 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/hashicorp/go-multierror"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/pkg/errors"
-
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
+	"github.com/pkg/errors"
 )
 
 type mechanismsServer struct {
@@ -52,39 +51,35 @@ func NewServer(mechanisms map[string]networkservice.NetworkServiceServer) networ
 	return rv
 }
 
-func (m *mechanismsServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+func (ms *mechanismsServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	if request.GetConnection().GetMechanism() != nil {
-		srv, ok := m.mechanisms[request.GetConnection().GetMechanism().GetType()]
+		srv, ok := ms.mechanisms[request.GetConnection().GetMechanism().GetType()]
 		if ok {
 			return srv.Request(ctx, request)
 		}
-		return nil, errors.Errorf("Unsupported Mechanism: %+v", request.GetConnection().GetMechanism())
+		return nil, errUnsupportedMech
 	}
-	var err error
+	var err = errCannotSupportMech
 	for _, mechanism := range request.GetMechanismPreferences() {
-		srv, ok := m.mechanisms[mechanism.GetType()]
+		srv, ok := ms.mechanisms[mechanism.GetType()]
 		if ok {
 			req := request.Clone()
 			req.GetConnection().Mechanism = mechanism
 			var resp *networkservice.Connection
-			resp, err = srv.Request(ctx, req)
-			if err == nil {
-				return resp, err
+			resp, respErr := srv.Request(ctx, req)
+			if respErr == nil {
+				return resp, nil
 			}
-			err = multierror.Append(err, err)
+			err = errors.Wrap(err, respErr.Error())
 		}
 	}
-	if err != nil {
-		return nil, errors.Wrapf(err, "Cannot support any of the requested Mechanisms: %+v", request.GetMechanismPreferences())
-	}
-	return nil, errors.Errorf("Cannot support any of the requested Mechanisms: %+v", request.GetMechanismPreferences())
+	return nil, err
 }
 
-func (m *mechanismsServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	srv, ok := m.mechanisms[conn.GetMechanism().GetType()]
+func (ms *mechanismsServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	srv, ok := ms.mechanisms[conn.GetMechanism().GetType()]
 	if ok {
-		srv = trace.NewNetworkServiceServer(srv)
 		return srv.Close(ctx, conn)
 	}
-	return nil, errors.Errorf("Cannot support any of the requested Mechanism: %+v", conn.GetMechanism())
+	return nil, errCannotSupportMech
 }

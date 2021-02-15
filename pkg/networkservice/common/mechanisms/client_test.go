@@ -1,5 +1,3 @@
-// Copyright (c) 2020-2021 Cisco and/or its affiliates.
-//
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -20,10 +18,11 @@ package mechanisms_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
 
@@ -37,7 +36,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/vxlan"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
-	"gonum.org/v1/gonum/stat/combin"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
@@ -45,102 +43,59 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 )
 
-func server() networkservice.NetworkServiceServer {
-	return chain.NewNetworkServiceServer(mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
-		memif.MECHANISM:  null.NewServer(),
-		kernel.MECHANISM: null.NewServer(),
-		srv6.MECHANISM:   null.NewServer(),
-		vxlan.MECHANISM:  null.NewServer(),
+func client() networkservice.NetworkServiceClient {
+	return chain.NewNetworkServiceClient(mechanisms.NewClient(map[string]networkservice.NetworkServiceClient{
+		memif.MECHANISM:  null.NewClient(),
+		kernel.MECHANISM: null.NewClient(),
+		srv6.MECHANISM:   null.NewClient(),
+		vxlan.MECHANISM:  null.NewClient(),
 	}))
 }
-
-func request() *networkservice.NetworkServiceRequest {
-	return &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{},
-		MechanismPreferences: []*networkservice.Mechanism{
-			{
-				Cls:  cls.LOCAL,
-				Type: memif.MECHANISM,
-			},
-			{
-				Cls:  cls.LOCAL,
-				Type: kernel.MECHANISM,
-			},
-			{
-				Cls:  cls.REMOTE,
-				Type: srv6.MECHANISM,
-			},
-			{
-				Cls:  cls.REMOTE,
-				Type: vxlan.MECHANISM,
-			},
-		},
-	}
-}
-
-func permuteOverMechanismPreferenceOrder(request *networkservice.NetworkServiceRequest) []*networkservice.NetworkServiceRequest {
-	var rv []*networkservice.NetworkServiceRequest
-	numMechanism := len(request.GetMechanismPreferences())
-	for k := numMechanism; k > 0; k-- {
-		permutationGenerator := combin.NewPermutationGenerator(numMechanism, numMechanism)
-		for permutationGenerator.Next() {
-			permutation := permutationGenerator.Permutation(nil)
-			req := request.Clone()
-			req.MechanismPreferences = nil
-			for _, index := range permutation {
-				req.MechanismPreferences = append(req.MechanismPreferences, request.GetMechanismPreferences()[index])
-			}
-			rv = append(rv, req)
-		}
-	}
-	return rv
-}
-
-func TestSelectMechanism(t *testing.T) {
+func Test_Client_SelectMechanism(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	server := server()
+	c := client()
 	for _, request := range permuteOverMechanismPreferenceOrder(request()) {
 		assert.Nil(t, request.GetConnection().GetMechanism(), "SelectMechanismContract requires request.GetConnection().GetMechanism() nil")
 		assert.Greater(t, len(request.GetMechanismPreferences()), 0, "serverBasicMechanismContract requires len(request.GetMechanismPreferences()) > 0")
-		conn, err := server.Request(context.Background(), request)
+		conn, err := c.Request(context.Background(), request, grpc.WaitForReady(true))
 		assert.Nil(t, err)
 		assert.NotNil(t, conn)
 		assert.NotNil(t, conn.GetMechanism())
 		assert.Equal(t, request.GetMechanismPreferences()[0].GetCls(), conn.GetMechanism().GetCls(), "Unexpected response to request %+v", request)
 		assert.Equal(t, request.GetMechanismPreferences()[0].GetType(), conn.GetMechanism().GetType(), "Unexpected response to request %+v", request)
-		_, err = server.Close(context.Background(), conn)
+		_, err = c.Close(context.Background(), conn)
 		assert.Nil(t, err)
 	}
 }
 
-func TestDontSelectMechanismIfSet(t *testing.T) {
+func Test_Client_DontSelectMechanismIfSet(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	server := server()
+	c := client()
 	for _, request := range permuteOverMechanismPreferenceOrder(request()) {
 		request.Connection = &networkservice.Connection{Mechanism: request.GetMechanismPreferences()[len(request.GetMechanismPreferences())-1]}
 		assert.NotNil(t, request.GetConnection().GetMechanism())
 		assert.Greater(t, len(request.GetMechanismPreferences()), 0, "serverBasicMechanismContract requires len(request.GetMechanismPreferences()) > 0")
-		conn, err := server.Request(context.Background(), request)
+		conn, err := c.Request(context.Background(), request)
 		assert.Nil(t, err)
 		assert.NotNil(t, conn)
 		assert.Equal(t, request.GetConnection().GetMechanism(), conn.GetMechanism())
 	}
 }
 
-func TestUnsupportedMechanismPreference(t *testing.T) {
+func Test_Client_UnsupportedMechanismPreference(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	request := request()
 	request.MechanismPreferences = []*networkservice.Mechanism{
 		{Cls: "NOT_A_CLS", Type: "NOT_A_TYPE"},
 	}
-	conn, err := server().Request(context.Background(), request)
+	conn, err := client().Request(context.Background(), request)
 	assert.Nil(t, conn)
 	assert.NotNil(t, err)
-	_, err = server().Close(context.Background(), &networkservice.Connection{Mechanism: &networkservice.Mechanism{Cls: "NOT_A_CLS", Type: "NOT_A_TYPE"}})
+	_, err = client().Close(context.Background(), &networkservice.Connection{Mechanism: &networkservice.Mechanism{Cls: "NOT_A_CLS", Type: "NOT_A_TYPE"}})
 	assert.NotNil(t, err)
 }
 
-func TestUnsupportedMechanism(t *testing.T) {
+func Test_Client_UnsupportedMechanism(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	request := request()
 	request.GetConnection().Mechanism = &networkservice.Mechanism{
@@ -154,33 +109,33 @@ func TestUnsupportedMechanism(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestDownstreamError(t *testing.T) {
+func Test_Client_DownstreamError(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	request := request()
 	request.GetConnection().Mechanism = &networkservice.Mechanism{
 		Cls:  cls.LOCAL,
 		Type: memif.MECHANISM,
 	}
-	server := chain.NewNetworkServiceServer(mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
-		memif.MECHANISM: injecterror.NewServer(),
+	client := chain.NewNetworkServiceClient(mechanisms.NewClient(map[string]networkservice.NetworkServiceClient{
+		memif.MECHANISM: injecterror.NewClient(),
 	}))
-	conn, err := server.Request(context.Background(), request)
+	conn, err := client.Request(context.Background(), request)
 	assert.Nil(t, conn)
 	assert.NotNil(t, err)
-	_, err = server.Close(context.Background(), &networkservice.Connection{Mechanism: &networkservice.Mechanism{Cls: "NOT_A_CLS", Type: "NOT_A_TYPE"}})
+	_, err = client.Close(context.Background(), &networkservice.Connection{Mechanism: &networkservice.Mechanism{Cls: "NOT_A_CLS", Type: "NOT_A_TYPE"}})
 	assert.NotNil(t, err)
 }
 
-func TestFewWrongMechanisms(t *testing.T) {
+func Test_Client_FewWrongMechanisms(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	var unsupportedErr = errors.New("unsupported")
 
-	server := next.NewNetworkServiceServer(
-		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
-			"mech1": injecterror.NewServer(unsupportedErr),
-			"mech2": injecterror.NewServer(unsupportedErr),
-			"mech3": null.NewServer(),
+	c := next.NewNetworkServiceClient(
+		mechanisms.NewClient(map[string]networkservice.NetworkServiceClient{
+			"mech1": injecterror.NewClient(unsupportedErr),
+			"mech2": injecterror.NewClient(unsupportedErr),
+			"mech3": null.NewClient(),
 		}),
 	)
 	request := &networkservice.NetworkServiceRequest{
@@ -198,20 +153,20 @@ func TestFewWrongMechanisms(t *testing.T) {
 		},
 	}
 
-	conn, err := server.Request(context.Background(), request)
+	conn, err := c.Request(context.Background(), request)
 	require.Nil(t, err)
 
-	_, err = server.Close(context.Background(), conn)
+	_, err = c.Close(context.Background(), conn)
 	require.Nil(t, err)
 }
 
-func TestDontCallNextByItself(t *testing.T) {
+func Test_Client_DontCallNextByItself(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	ch := make(chan struct{}, 10)
-	server := next.NewNetworkServiceServer(
-		server(),
-		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+	c := next.NewNetworkServiceClient(
+		client(),
+		checkcontext.NewClient(t, func(t *testing.T, ctx context.Context) {
 			ch <- struct{}{}
 		}),
 	)
@@ -223,12 +178,12 @@ func TestDontCallNextByItself(t *testing.T) {
 		},
 	}
 
-	conn, err := server.Request(context.Background(), request)
+	conn, err := c.Request(context.Background(), request, grpc.WaitForReady(true))
 	assert.Nil(t, err)
 	assert.NotNil(t, conn)
 	assert.Equal(t, 1, len(ch))
 
-	_, err = server.Close(context.Background(), conn)
+	_, err = c.Close(context.Background(), conn, grpc.WaitForReady(true))
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(ch))
 }
