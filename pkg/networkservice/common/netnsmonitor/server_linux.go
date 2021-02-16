@@ -16,11 +16,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build linux
+
+// Package netnsmonitor provides service for tracking connection liveness using
+// system network namespace list
 package netnsmonitor
 
 import (
 	"context"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -40,6 +45,7 @@ type netNSMonitorServer struct {
 	ctx         context.Context
 	connections connectionMap
 	period      time.Duration
+	next        networkservice.NetworkServiceServer
 }
 
 // NewServer returns new NetNSMonitorServer chain item
@@ -59,6 +65,11 @@ func NewServerWithPeriod(ctx context.Context, period time.Duration) networkservi
 
 func (m *netNSMonitorServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	conn, err := next.Server(ctx).Request(ctx, request)
+
+	var once sync.Once
+	once.Do(func() {
+		m.next = next.Server(ctx)
+	})
 
 	if conn.GetMechanism().GetType() == kernel.MECHANISM {
 		wasEmpty := m.connectionsIsAbsent()
@@ -86,13 +97,13 @@ func (m *netNSMonitorServer) monitorNetNSInode() {
 func (m *netNSMonitorServer) checkConnectionLiveness() {
 	logger := log.FromContext(m.ctx).WithField("netNSMonitorServer", "checkConnectionLiveness")
 
-	inodes, err := GetAllNetNS()
+	inodes, err := getAllNetNS()
 	if err != nil {
 		logger.Errorf("Failed to get system network namespaces: %+v", err)
 		return
 	}
 
-	inodeSet := NewInodeSet(inodes)
+	inodeSet := newInodeSet(inodes)
 	m.connections.Range(func(id string, conn *networkservice.Connection) bool {
 		inode, err := strconv.ParseUint(kernel.ToMechanism(conn.GetMechanism()).GetNetNSInode(), 10, 64)
 		if err != nil {
@@ -100,10 +111,10 @@ func (m *netNSMonitorServer) checkConnectionLiveness() {
 			return true
 		}
 
-		if !inodeSet.Contains(inode) && conn.GetState() == networkservice.State_UP {
+		if !inodeSet.contains(inode) && conn.GetState() == networkservice.State_UP {
 			logger.Infof("Connection is down")
 			m.connections.Delete(conn.GetId())
-			if _, err = next.Server(m.ctx).Close(m.ctx, conn); err != nil {
+			if _, err = m.next.Close(m.ctx, conn); err != nil {
 				logger.Errorf("Failed to close connection: %v %+v", conn.GetId(), err)
 			}
 		}

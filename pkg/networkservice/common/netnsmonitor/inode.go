@@ -16,6 +16,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build linux
+
 package netnsmonitor
 
 import (
@@ -29,21 +31,21 @@ import (
 )
 
 // InodeSet is an index map of inodes
-type InodeSet struct {
+type inodeSet struct {
 	inodes map[uint64]bool
 }
 
 // NewInodeSet creates new InodeSet from array
-func NewInodeSet(inodes []uint64) *InodeSet {
+func newInodeSet(inodes []uint64) *inodeSet {
 	set := map[uint64]bool{}
 	for _, inode := range inodes {
 		set[inode] = true
 	}
-	return &InodeSet{inodes: set}
+	return &inodeSet{inodes: set}
 }
 
 // Contains checks inode in IndexSet
-func (i *InodeSet) Contains(inode uint64) bool {
+func (i *inodeSet) contains(inode uint64) bool {
 	_, contains := i.inodes[inode]
 	return contains
 }
@@ -57,8 +59,8 @@ func isDigits(s string) bool {
 	return true
 }
 
-// GetAllNetNS returns all NetNS Inodes of all processes
-func GetAllNetNS() ([]uint64, error) {
+// getAllNetNS returns all NetNS Inodes of all processes
+func getAllNetNS() ([]uint64, error) {
 	files, err := ioutil.ReadDir("/proc")
 	if err != nil {
 		return nil, errors.Wrap(err, "can't read /proc directory")
