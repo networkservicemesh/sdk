@@ -123,7 +123,7 @@ func Test_RefreshNSEClient_ShouldOverrideNameAndDuration(t *testing.T) {
 	client := next.NewNetworkServiceEndpointRegistryClient(
 		refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithDefaultExpiryDuration(time.Hour)),
 		checknse.NewClient(t, func(t *testing.T, nse *registry.NetworkServiceEndpoint) {
-			if countClient.requestCount > 0 {
+			if atomic.LoadInt32(&countClient.requestCount) > 0 {
 				require.Equal(t, registryServer.name, nse.Name)
 				require.Equal(t, endpoint.Url, nse.Url)
 			}
