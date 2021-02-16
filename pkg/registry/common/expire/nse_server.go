@@ -94,7 +94,12 @@ func (n *expireNSEServer) Register(ctx context.Context, nse *registry.NetworkSer
 	resp.ExpirationTime = timestamppb.New(expirationTime)
 
 	t = n.newTimer(ctx, expirationTime, resp.Clone())
-	n.timers.Store(resp.Name, t)
+	if _, ok := n.timers.LoadOrStore(resp.Name, t); ok {
+		t.timer.Stop()
+		t.executor.AsyncExec(func() {
+			t.canceled = true
+		})
+	}
 
 	return resp, nil
 }
