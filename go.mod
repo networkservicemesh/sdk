@@ -26,6 +26,7 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/uber/jaeger-client-go v2.21.1+incompatible
 	github.com/uber/jaeger-lib v2.4.0+incompatible // indirect
+	github.com/vishvananda/netns v0.0.0-20210104183010-2eb08e3e575f
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/goleak v1.1.10
 	gonum.org/v1/gonum v0.6.2
