@@ -77,8 +77,8 @@ func (n *expireNSEServer) Register(ctx context.Context, nse *registry.NetworkSer
 			t.executor.AsyncExec(func() {
 				t.canceled = false
 				if t.started {
-					// Timer function has been already finished, we need to reset the timer.
-					t.timer.Reset(time.Until(expirationTime))
+					// Timer function has been already finished, we need to reset the timer right now.
+					t.timer.Reset(0)
 				}
 			})
 		}
