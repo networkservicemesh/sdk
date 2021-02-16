@@ -63,7 +63,9 @@ func (n *expireNSEServer) Register(ctx context.Context, nse *registry.NetworkSer
 
 	resp, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	if err != nil {
-		t.timer.Reset(time.Until(expirationTime))
+		if stopped {
+			t.timer.Reset(time.Until(expirationTime))
+		}
 		return nil, err
 	}
 

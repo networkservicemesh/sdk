@@ -30,9 +30,9 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/seturl"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checkcontext"
@@ -135,12 +135,15 @@ func TestExpireNSEServer_DataRace(t *testing.T) {
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
 		expire.NewNetworkServiceEndpointRegistryServer(context.Background(), 0),
-		seturl.NewNetworkServiceEndpointRegistryServer("tcp://0.0.0.0"),
+		localbypass.NewNetworkServiceEndpointRegistryServer("tcp://0.0.0.0"),
 		mem,
 	)
 
 	for i := 0; i < 1000; i++ {
-		_, err := s.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: "nse-1"})
+		_, err := s.Register(context.Background(), &registry.NetworkServiceEndpoint{
+			Name: "nse-1",
+			Url:  "tcp://1.1.1.1",
+		})
 		require.NoError(t, err)
 	}
 
@@ -220,7 +223,7 @@ func TestExpireNSEServer_RefreshKeepsNoUnregister(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	for start := time.Now(); time.Now().Sub(start).Seconds() < 1; {
+	for start := time.Now(); time.Since(start).Seconds() < 1; {
 		nse, err := stream.Recv()
 		require.NoError(t, err)
 		require.NotEqual(t, int64(-1), nse.ExpirationTime.Seconds)
