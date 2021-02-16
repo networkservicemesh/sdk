@@ -33,7 +33,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
-const testPeriod = time.Millisecond * 50
+const testPeriod = time.Millisecond * 100
 
 func TestExpireNSServer_NSE_Expired(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())

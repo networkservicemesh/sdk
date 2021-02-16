@@ -203,11 +203,11 @@ func TestExpireNSEServer_RefreshKeepsNoUnregister(t *testing.T) {
 		adapters.NetworkServiceEndpointServerToClient(next.NewNetworkServiceEndpointRegistryServer(
 			// NSMgr chain
 			new(remoteNSEServer), // <-- GRPC invocation
-			expire.NewNetworkServiceEndpointRegistryServer(ctx, testPeriod),
+			expire.NewNetworkServiceEndpointRegistryServer(ctx, 2*testPeriod),
 			// Registry chain
 			new(remoteNSEServer), // <-- GRPC invocation
 			checkcontext.NewNSEServer(t, func(_ *testing.T, _ context.Context) {
-				<-time.After(testPeriod / 2)
+				<-time.After(testPeriod)
 			}),
 			expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
 			mem,
