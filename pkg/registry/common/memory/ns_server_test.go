@@ -211,7 +211,7 @@ func TestNetworkServiceRegistryServer_ShouldReceiveAllRegisters(t *testing.T) {
 	c := adapters.NetworkServiceServerToClient(s)
 
 	var wg sync.WaitGroup
-	for i := 0; i < 300; i++ {
+	for i := 0; i < 200; i++ {
 		wg.Add(1)
 		name := fmt.Sprintf("ns-%d", i)
 
@@ -223,7 +223,7 @@ func TestNetworkServiceRegistryServer_ShouldReceiveAllRegisters(t *testing.T) {
 		go func() {
 			defer wg.Done()
 
-			findCtx, findCancel := context.WithTimeout(ctx, time.Second)
+			findCtx, findCancel := context.WithTimeout(ctx, 2*time.Second)
 			defer findCancel()
 
 			stream, err := c.Find(findCtx, &registry.NetworkServiceQuery{
