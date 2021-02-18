@@ -273,7 +273,7 @@ func TestNetworkServiceEndpointRegistryServer_SlowReceiver(t *testing.T) {
 func TestNetworkServiceEndpointRegistryServer_ShouldReceiveAllRegisters(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	s := memory.NewNetworkServiceEndpointRegistryServer()
@@ -281,7 +281,7 @@ func TestNetworkServiceEndpointRegistryServer_ShouldReceiveAllRegisters(t *testi
 	c := adapters.NetworkServiceEndpointServerToClient(s)
 
 	var wg sync.WaitGroup
-	for i := 0; i < 200; i++ {
+	for i := 0; i < 250; i++ {
 		wg.Add(1)
 		name := fmt.Sprintf("nse-%d", i)
 
@@ -293,7 +293,7 @@ func TestNetworkServiceEndpointRegistryServer_ShouldReceiveAllRegisters(t *testi
 		go func() {
 			defer wg.Done()
 
-			findCtx, findCancel := context.WithTimeout(ctx, 2*time.Second)
+			findCtx, findCancel := context.WithCancel(ctx)
 			defer findCancel()
 
 			stream, err := c.Find(findCtx, &registry.NetworkServiceEndpointQuery{
@@ -312,12 +312,12 @@ func TestNetworkServiceEndpointRegistryServer_ShouldReceiveAllRegisters(t *testi
 func TestNetworkServiceEndpointRegistryServer_ShouldReceiveAllUnregisters(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	s := memory.NewNetworkServiceEndpointRegistryServer()
 
-	for i := 0; i < 200; i++ {
+	for i := 0; i < 250; i++ {
 		_, err := s.Register(ctx, &registry.NetworkServiceEndpoint{Name: fmt.Sprintf("nse-%d", i)})
 		require.NoError(t, err)
 	}
@@ -325,7 +325,7 @@ func TestNetworkServiceEndpointRegistryServer_ShouldReceiveAllUnregisters(t *tes
 	c := adapters.NetworkServiceEndpointServerToClient(s)
 
 	var wg sync.WaitGroup
-	for i := 0; i < 200; i++ {
+	for i := 0; i < 250; i++ {
 		wg.Add(1)
 		name := fmt.Sprintf("nse-%d", i)
 
@@ -337,7 +337,7 @@ func TestNetworkServiceEndpointRegistryServer_ShouldReceiveAllUnregisters(t *tes
 		go func() {
 			defer wg.Done()
 
-			findCtx, findCancel := context.WithTimeout(ctx, 2*time.Second)
+			findCtx, findCancel := context.WithCancel(ctx)
 			defer findCancel()
 
 			stream, err := c.Find(findCtx, &registry.NetworkServiceEndpointQuery{
