@@ -516,13 +516,11 @@ func TestNSMGR_ShouldCorrectlyAddForwardersWithSameNames(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	const registryExpiryDuration = time.Second
-
 	domain := sandbox.NewBuilder(t).
 		SetNodesCount(1).
 		SetRegistryProxySupplier(nil).
 		SetNodeSetup(nil).
-		SetRegistryExpiryDuration(registryExpiryDuration).
+		SetRegistryExpiryDuration(sandbox.RegistryExpiryDuration).
 		SetContext(ctx).
 		Build()
 	defer domain.Cleanup()
@@ -550,7 +548,7 @@ func TestNSMGR_ShouldCorrectlyAddForwardersWithSameNames(t *testing.T) {
 	require.NoError(t, err)
 
 	// 2. Wait for refresh
-	<-time.After(registryExpiryDuration)
+	<-time.After(sandbox.RegistryExpiryDuration)
 
 	testNSEAndClient(ctx, t, domain, nseReg.Clone())
 
@@ -576,12 +574,10 @@ func TestNSMGR_ShouldCorrectlyAddEndpointsWithSameNames(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	const registryExpiryDuration = time.Second
-
 	domain := sandbox.NewBuilder(t).
 		SetNodesCount(1).
 		SetRegistryProxySupplier(nil).
-		SetRegistryExpiryDuration(registryExpiryDuration).
+		SetRegistryExpiryDuration(sandbox.RegistryExpiryDuration).
 		SetContext(ctx).
 		Build()
 	defer domain.Cleanup()
@@ -604,7 +600,7 @@ func TestNSMGR_ShouldCorrectlyAddEndpointsWithSameNames(t *testing.T) {
 	require.NoError(t, err)
 
 	// 2. Wait for refresh
-	<-time.After(registryExpiryDuration)
+	<-time.After(sandbox.RegistryExpiryDuration)
 
 	// 3. Request
 	_, err = nsc.Request(ctx, &networkservice.NetworkServiceRequest{
