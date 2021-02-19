@@ -42,11 +42,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-const (
-	defaultContextTimeout         = time.Second * 5
-	defaultRegistryExpiryDuration = time.Minute
-)
-
 // Builder implements builder pattern for building NSM Domain
 type Builder struct {
 	require                *require.Assertions
@@ -77,7 +72,7 @@ func NewBuilder(t *testing.T) *Builder {
 		supplyNSMgrProxy:       nsmgrproxy.NewServer,
 		setupNode:              defaultSetupNode(t),
 		generateTokenFunc:      GenerateTestToken,
-		registryExpiryDuration: defaultRegistryExpiryDuration,
+		registryExpiryDuration: time.Minute,
 	}
 }
 
@@ -86,7 +81,7 @@ func (b *Builder) Build() *Domain {
 	ctx := b.ctx
 	if ctx == nil {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(context.Background(), defaultContextTimeout)
+		ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 		b.resources = append(b.resources, cancel)
 	}
 	ctx = log.Join(ctx, log.Empty())
