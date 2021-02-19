@@ -43,7 +43,7 @@ import (
 )
 
 const (
-	defaultContextTimeout         = time.Second * 15
+	defaultContextTimeout         = time.Second * 5
 	defaultRegistryExpiryDuration = time.Minute
 )
 
