@@ -143,10 +143,10 @@ func (s *memoryNSEServer) receiveEvent(
 		return io.EOF
 	case event := <-eventCh:
 		if matchutils.MatchNetworkServiceEndpoints(query.NetworkServiceEndpoint, event) {
-			if server.Context().Err() != nil {
-				return io.EOF
-			}
 			if err := server.Send(event); err != nil {
+				if server.Context().Err() != nil {
+					return io.EOF
+				}
 				return err
 			}
 		}

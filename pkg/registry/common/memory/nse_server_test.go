@@ -31,7 +31,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
 )
@@ -186,15 +185,13 @@ func TestNetworkServiceEndpointRegistryServer_RegisterAndFindByLabelWatch(t *tes
 func TestNetworkServiceEndpointRegistryServer_DataRace(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	s := memory.NewNetworkServiceEndpointRegistryServer()
 
 	_, err := s.Register(ctx, &registry.NetworkServiceEndpoint{Name: "nse"})
 	require.NoError(t, err)
-
-	c := adapters.NetworkServiceEndpointServerToClient(s)
 
 	var wgStart, wgEnd sync.WaitGroup
 	for i := 0; i < 10; i++ {
@@ -203,64 +200,70 @@ func TestNetworkServiceEndpointRegistryServer_DataRace(t *testing.T) {
 		go func() {
 			defer wgEnd.Done()
 
-			findCtx, findCancel := context.WithTimeout(ctx, time.Second)
+			findCtx, findCancel := context.WithCancel(ctx)
 			defer findCancel()
 
-			stream, err := c.Find(findCtx, &registry.NetworkServiceEndpointQuery{
-				NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: "nse"},
-				Watch:                  true,
-			})
-			assert.NoError(t, err)
+			ch := make(chan *registry.NetworkServiceEndpoint, 10)
+			go func() {
+				defer close(ch)
+				findErr := s.Find(&registry.NetworkServiceEndpointQuery{
+					NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: "nse"},
+					Watch:                  true,
+				}, streamchannel.NewNetworkServiceEndpointFindServer(findCtx, ch))
+				assert.NoError(t, findErr)
+			}()
 
-			_, err = stream.Recv()
-			assert.NoError(t, err)
+			_, receiveErr := receiveNSE(findCtx, ch)
+			assert.NoError(t, receiveErr)
 
 			wgStart.Done()
 
-			for j := 0; j < 100; j++ {
-				nse, err := stream.Recv()
-				assert.NoError(t, err)
+			for j := 0; j < 50; j++ {
+				nse, receiveErr := receiveNSE(findCtx, ch)
+				assert.NoError(t, receiveErr)
 
 				nse.Name = ""
 			}
 		}()
 	}
-	wgStart.Wait()
+	wgWait(ctx, t, &wgStart)
 
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 50; i++ {
 		_, err := s.Register(ctx, &registry.NetworkServiceEndpoint{Name: fmt.Sprintf("nse-%d", i)})
 		require.NoError(t, err)
 	}
 
-	wgEnd.Wait()
+	wgWait(ctx, t, &wgEnd)
 }
 
 func TestNetworkServiceEndpointRegistryServer_SlowReceiver(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	s := memory.NewNetworkServiceEndpointRegistryServer()
 
-	c := adapters.NetworkServiceEndpointServerToClient(s)
-
 	findCtx, findCancel := context.WithCancel(ctx)
 
-	stream, err := c.Find(findCtx, &registry.NetworkServiceEndpointQuery{
-		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: "nse"},
-		Watch:                  true,
-	})
-	require.NoError(t, err)
+	ch := make(chan *registry.NetworkServiceEndpoint, 10)
+	go func() {
+		defer close(ch)
+		findErr := s.Find(&registry.NetworkServiceEndpointQuery{
+			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: "nse"},
+			Watch:                  true,
+		}, streamchannel.NewNetworkServiceEndpointFindServer(findCtx, ch))
+		require.NoError(t, findErr)
+	}()
 
-	for i := 0; i < 1000; i++ {
-		_, err = s.Register(ctx, &registry.NetworkServiceEndpoint{Name: fmt.Sprintf("nse-%d", i)})
+	for i := 0; i < 50; i++ {
+		_, err := s.Register(ctx, &registry.NetworkServiceEndpoint{Name: fmt.Sprintf("nse-%d", i)})
 		require.NoError(t, err)
 	}
 
 	ignoreCurrent := goleak.IgnoreCurrent()
 
-	_, err = stream.Recv()
+	_, err := receiveNSE(findCtx, ch)
 	require.NoError(t, err)
 
 	findCancel()
@@ -273,15 +276,13 @@ func TestNetworkServiceEndpointRegistryServer_SlowReceiver(t *testing.T) {
 func TestNetworkServiceEndpointRegistryServer_ShouldReceiveAllRegisters(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	s := memory.NewNetworkServiceEndpointRegistryServer()
 
-	c := adapters.NetworkServiceEndpointServerToClient(s)
-
 	var wg sync.WaitGroup
-	for i := 0; i < 300; i++ {
+	for i := 0; i < 50; i++ {
 		wg.Add(1)
 		name := fmt.Sprintf("nse-%d", i)
 
@@ -293,40 +294,40 @@ func TestNetworkServiceEndpointRegistryServer_ShouldReceiveAllRegisters(t *testi
 		go func() {
 			defer wg.Done()
 
-			findCtx, findCancel := context.WithTimeout(ctx, time.Second)
+			findCtx, findCancel := context.WithCancel(ctx)
 			defer findCancel()
 
-			stream, err := c.Find(findCtx, &registry.NetworkServiceEndpointQuery{
-				NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: name},
-				Watch:                  true,
-			})
-			assert.NoError(t, err)
+			ch := make(chan *registry.NetworkServiceEndpoint, 10)
+			go func() {
+				defer close(ch)
+				err := s.Find(&registry.NetworkServiceEndpointQuery{
+					NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: name},
+					Watch:                  true,
+				}, streamchannel.NewNetworkServiceEndpointFindServer(findCtx, ch))
+				assert.NoError(t, err)
+			}()
 
-			_, err = stream.Recv()
+			_, err := receiveNSE(findCtx, ch)
 			assert.NoError(t, err)
 		}()
 	}
-	wg.Wait()
+	wgWait(ctx, t, &wg)
 }
 
 func TestNetworkServiceEndpointRegistryServer_ShouldReceiveAllUnregisters(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	s := memory.NewNetworkServiceEndpointRegistryServer()
 
-	for i := 0; i < 300; i++ {
+	for i := 0; i < 50; i++ {
 		_, err := s.Register(ctx, &registry.NetworkServiceEndpoint{Name: fmt.Sprintf("nse-%d", i)})
 		require.NoError(t, err)
 	}
 
-	c := adapters.NetworkServiceEndpointServerToClient(s)
-
-	var wg sync.WaitGroup
-	for i := 0; i < 300; i++ {
-		wg.Add(1)
+	for i := 0; i < 50; i++ {
 		name := fmt.Sprintf("nse-%d", i)
 
 		go func() {
@@ -335,21 +336,24 @@ func TestNetworkServiceEndpointRegistryServer_ShouldReceiveAllUnregisters(t *tes
 		}()
 
 		go func() {
-			defer wg.Done()
-
-			findCtx, findCancel := context.WithTimeout(ctx, time.Second)
+			findCtx, findCancel := context.WithCancel(ctx)
 			defer findCancel()
 
-			stream, err := c.Find(findCtx, &registry.NetworkServiceEndpointQuery{
-				NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: name},
-				Watch:                  true,
-			})
-			assert.NoError(t, err)
+			ch := make(chan *registry.NetworkServiceEndpoint, 10)
+			go func() {
+				defer close(ch)
+				err := s.Find(&registry.NetworkServiceEndpointQuery{
+					NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: name},
+					Watch:                  true,
+				}, streamchannel.NewNetworkServiceEndpointFindServer(findCtx, ch))
+				assert.NoError(t, err)
+			}()
 
+			var err error
 			exists := false
 			for err == nil {
 				var nse *registry.NetworkServiceEndpoint
-				nse, err = stream.Recv()
+				nse, err = receiveNSE(findCtx, ch)
 				switch {
 				case err != nil:
 					assert.Equal(t, io.EOF, err)
@@ -362,7 +366,7 @@ func TestNetworkServiceEndpointRegistryServer_ShouldReceiveAllUnregisters(t *tes
 			assert.False(t, exists)
 		}()
 	}
-	wg.Wait()
+	<-ctx.Done()
 }
 
 func createLabeledNSE1() *registry.NetworkServiceEndpoint {
@@ -421,5 +425,17 @@ func createLabeledNSE3() *registry.NetworkServiceEndpoint {
 			"Service1",
 		},
 		NetworkServiceLabels: labels,
+	}
+}
+
+func receiveNSE(ctx context.Context, ch <-chan *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	select {
+	case <-ctx.Done():
+		return nil, io.EOF
+	case nse, ok := <-ch:
+		if !ok {
+			return nil, io.EOF
+		}
+		return nse, nil
 	}
 }

@@ -19,6 +19,7 @@ package memory_test
 import (
 	"context"
 	"fmt"
+	"io"
 	"sync"
 	"testing"
 	"time"
@@ -31,7 +32,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
 )
@@ -116,15 +116,13 @@ func TestNetworkServiceRegistryServer_RegisterAndFindWatch(t *testing.T) {
 func TestNetworkServiceRegistryServer_DataRace(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	s := memory.NewNetworkServiceRegistryServer()
 
 	_, err := s.Register(ctx, &registry.NetworkService{Name: "ns"})
 	require.NoError(t, err)
-
-	c := adapters.NetworkServiceServerToClient(s)
 
 	var wgStart, wgEnd sync.WaitGroup
 	for i := 0; i < 10; i++ {
@@ -133,64 +131,70 @@ func TestNetworkServiceRegistryServer_DataRace(t *testing.T) {
 		go func() {
 			defer wgEnd.Done()
 
-			findCtx, findCancel := context.WithTimeout(ctx, time.Second)
+			findCtx, findCancel := context.WithCancel(ctx)
 			defer findCancel()
 
-			stream, err := c.Find(findCtx, &registry.NetworkServiceQuery{
-				NetworkService: &registry.NetworkService{Name: "ns"},
-				Watch:          true,
-			})
-			assert.NoError(t, err)
+			ch := make(chan *registry.NetworkService, 10)
+			go func() {
+				defer close(ch)
+				findErr := s.Find(&registry.NetworkServiceQuery{
+					NetworkService: &registry.NetworkService{Name: "ns"},
+					Watch:          true,
+				}, streamchannel.NewNetworkServiceFindServer(findCtx, ch))
+				assert.NoError(t, findErr)
+			}()
 
-			_, err = stream.Recv()
-			assert.NoError(t, err)
+			_, receiveErr := receiveNS(findCtx, ch)
+			assert.NoError(t, receiveErr)
 
 			wgStart.Done()
 
-			for j := 0; j < 100; j++ {
-				ns, err := stream.Recv()
-				assert.NoError(t, err)
+			for j := 0; j < 50; j++ {
+				nse, receiveErr := receiveNS(findCtx, ch)
+				assert.NoError(t, receiveErr)
 
-				ns.Name = ""
+				nse.Name = ""
 			}
 		}()
 	}
-	wgStart.Wait()
+	wgWait(ctx, t, &wgStart)
 
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 50; i++ {
 		_, err := s.Register(ctx, &registry.NetworkService{Name: fmt.Sprintf("ns-%d", i)})
 		require.NoError(t, err)
 	}
 
-	wgEnd.Wait()
+	wgWait(ctx, t, &wgEnd)
 }
 
 func TestNetworkServiceRegistryServer_SlowReceiver(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	s := memory.NewNetworkServiceRegistryServer()
 
-	c := adapters.NetworkServiceServerToClient(s)
-
 	findCtx, findCancel := context.WithCancel(ctx)
 
-	stream, err := c.Find(findCtx, &registry.NetworkServiceQuery{
-		NetworkService: &registry.NetworkService{Name: "ns"},
-		Watch:          true,
-	})
-	require.NoError(t, err)
+	ch := make(chan *registry.NetworkService, 10)
+	go func() {
+		defer close(ch)
+		findErr := s.Find(&registry.NetworkServiceQuery{
+			NetworkService: &registry.NetworkService{Name: "ns"},
+			Watch:          true,
+		}, streamchannel.NewNetworkServiceFindServer(findCtx, ch))
+		require.NoError(t, findErr)
+	}()
 
-	for i := 0; i < 1000; i++ {
-		_, err = s.Register(ctx, &registry.NetworkService{Name: fmt.Sprintf("ns-%d", i)})
+	for i := 0; i < 50; i++ {
+		_, err := s.Register(ctx, &registry.NetworkService{Name: fmt.Sprintf("ns-%d", i)})
 		require.NoError(t, err)
 	}
 
 	ignoreCurrent := goleak.IgnoreCurrent()
 
-	_, err = stream.Recv()
+	_, err := receiveNS(findCtx, ch)
 	require.NoError(t, err)
 
 	findCancel()
@@ -203,15 +207,13 @@ func TestNetworkServiceRegistryServer_SlowReceiver(t *testing.T) {
 func TestNetworkServiceRegistryServer_ShouldReceiveAllRegisters(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	s := memory.NewNetworkServiceRegistryServer()
 
-	c := adapters.NetworkServiceServerToClient(s)
-
 	var wg sync.WaitGroup
-	for i := 0; i < 300; i++ {
+	for i := 0; i < 50; i++ {
 		wg.Add(1)
 		name := fmt.Sprintf("ns-%d", i)
 
@@ -223,18 +225,34 @@ func TestNetworkServiceRegistryServer_ShouldReceiveAllRegisters(t *testing.T) {
 		go func() {
 			defer wg.Done()
 
-			findCtx, findCancel := context.WithTimeout(ctx, time.Second)
+			findCtx, findCancel := context.WithCancel(ctx)
 			defer findCancel()
 
-			stream, err := c.Find(findCtx, &registry.NetworkServiceQuery{
-				NetworkService: &registry.NetworkService{Name: name},
-				Watch:          true,
-			})
-			assert.NoError(t, err)
+			ch := make(chan *registry.NetworkService, 10)
+			go func() {
+				defer close(ch)
+				err := s.Find(&registry.NetworkServiceQuery{
+					NetworkService: &registry.NetworkService{Name: name},
+					Watch:          true,
+				}, streamchannel.NewNetworkServiceFindServer(findCtx, ch))
+				assert.NoError(t, err)
+			}()
 
-			_, err = stream.Recv()
+			_, err := receiveNS(findCtx, ch)
 			assert.NoError(t, err)
 		}()
 	}
-	wg.Wait()
+	wgWait(ctx, t, &wg)
+}
+
+func receiveNS(ctx context.Context, ch <-chan *registry.NetworkService) (*registry.NetworkService, error) {
+	select {
+	case <-ctx.Done():
+		return nil, io.EOF
+	case ns, ok := <-ch:
+		if !ok {
+			return nil, io.EOF
+		}
+		return ns, nil
+	}
 }
