@@ -31,6 +31,9 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
+// RegistryExpiryDuration is a duration that should be used for expire tests
+const RegistryExpiryDuration = time.Second
+
 // GenerateTestToken generates test token
 func GenerateTestToken(_ credentials.AuthInfo) (tokenValue string, expireTime time.Time, err error) {
 	return "TestToken", time.Date(3000, 1, 1, 1, 1, 1, 1, time.UTC), nil

@@ -42,41 +42,37 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-const (
-	defaultContextTimeout = time.Second * 15
-	// DefaultRegistryExpiryDuration is a default expiry duration for registry
-	DefaultRegistryExpiryDuration = 500 * time.Millisecond
-)
-
 // Builder implements builder pattern for building NSM Domain
 type Builder struct {
-	require             *require.Assertions
-	resources           []context.CancelFunc
-	nodesCount          int
-	DNSDomainName       string
-	Resolver            dnsresolve.Resolver
-	supplyNSMgr         SupplyNSMgrFunc
-	supplyNSMgrProxy    SupplyNSMgrProxyFunc
-	supplyRegistry      SupplyRegistryFunc
-	supplyRegistryProxy SupplyRegistryProxyFunc
-	setupNode           SetupNodeFunc
-	generateTokenFunc   token.GeneratorFunc
-	ctx                 context.Context
+	require                *require.Assertions
+	resources              []context.CancelFunc
+	nodesCount             int
+	DNSDomainName          string
+	Resolver               dnsresolve.Resolver
+	supplyNSMgr            SupplyNSMgrFunc
+	supplyNSMgrProxy       SupplyNSMgrProxyFunc
+	supplyRegistry         SupplyRegistryFunc
+	supplyRegistryProxy    SupplyRegistryProxyFunc
+	setupNode              SetupNodeFunc
+	generateTokenFunc      token.GeneratorFunc
+	registryExpiryDuration time.Duration
+	ctx                    context.Context
 }
 
 // NewBuilder creates new SandboxBuilder
 func NewBuilder(t *testing.T) *Builder {
 	return &Builder{
-		nodesCount:          1,
-		require:             require.New(t),
-		Resolver:            net.DefaultResolver,
-		supplyNSMgr:         nsmgr.NewServer,
-		DNSDomainName:       "cluster.local",
-		supplyRegistry:      memory.NewServer,
-		supplyRegistryProxy: proxydns.NewServer,
-		supplyNSMgrProxy:    nsmgrproxy.NewServer,
-		setupNode:           defaultSetupNode(t),
-		generateTokenFunc:   GenerateTestToken,
+		nodesCount:             1,
+		require:                require.New(t),
+		Resolver:               net.DefaultResolver,
+		supplyNSMgr:            nsmgr.NewServer,
+		DNSDomainName:          "cluster.local",
+		supplyRegistry:         memory.NewServer,
+		supplyRegistryProxy:    proxydns.NewServer,
+		supplyNSMgrProxy:       nsmgrproxy.NewServer,
+		setupNode:              defaultSetupNode(t),
+		generateTokenFunc:      GenerateTestToken,
+		registryExpiryDuration: time.Minute,
 	}
 }
 
@@ -85,7 +81,7 @@ func (b *Builder) Build() *Domain {
 	ctx := b.ctx
 	if ctx == nil {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(context.Background(), defaultContextTimeout)
+		ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 		b.resources = append(b.resources, cancel)
 	}
 	ctx = log.Join(ctx, log.Empty())
@@ -169,6 +165,12 @@ func (b *Builder) SetNSMgrSupplier(f SupplyNSMgrFunc) *Builder {
 // SetNodeSetup replaces default node setup to custom function
 func (b *Builder) SetNodeSetup(f SetupNodeFunc) *Builder {
 	b.setupNode = f
+	return b
+}
+
+// SetRegistryExpiryDuration replaces registry expiry duration to custom
+func (b *Builder) SetRegistryExpiryDuration(registryExpiryDuration time.Duration) *Builder {
+	b.registryExpiryDuration = registryExpiryDuration
 	return b
 }
 
@@ -262,7 +264,7 @@ func (b *Builder) newRegistry(ctx context.Context, proxyRegistryURL *url.URL) *R
 	if b.supplyRegistry == nil {
 		return nil
 	}
-	result := b.supplyRegistry(ctx, DefaultRegistryExpiryDuration, proxyRegistryURL, grpc.WithInsecure(), grpc.WithBlock())
+	result := b.supplyRegistry(ctx, b.registryExpiryDuration, proxyRegistryURL, grpc.WithInsecure(), grpc.WithBlock())
 	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
 	serve(ctx, serveURL, result.Register)
 	log.FromContext(ctx).Infof("Registry listen on: %v", serveURL)
