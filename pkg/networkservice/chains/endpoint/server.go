@@ -65,8 +65,8 @@ func NewServer(ctx context.Context, name string, authzServer networkservice.Netw
 	rv.NetworkServiceServer = chain.NewNamedNetworkServiceServer(
 		name,
 		append([]networkservice.NetworkServiceServer{
-			authzServer,
 			updatepath.NewServer(name),
+			authzServer,
 			serialize.NewServer(),
 			// `timeout` uses ctx as a context for the timeout Close and it closes only the subsequent chain, so
 			// chain elements before the `timeout` in chain shouldn't make any updates to the Close context and

@@ -58,14 +58,14 @@ func (u *clientURLClient) Request(ctx context.Context, request *networkservice.N
 	if err := u.init(); err != nil {
 		return nil, err
 	}
-	return u.client.Request(ctx, request)
+	return u.client.Request(ctx, request, opts...)
 }
 
 func (u *clientURLClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	if err := u.init(); err != nil {
 		return nil, err
 	}
-	return u.client.Close(ctx, conn)
+	return u.client.Close(ctx, conn, opts...)
 }
 
 func (u *clientURLClient) init() error {

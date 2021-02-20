@@ -43,7 +43,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
-	"github.com/networkservicemesh/sdk/pkg/tools/opentracing"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -339,8 +338,10 @@ func TestNSMGR_LocalUsecase(t *testing.T) {
 	domain := sandbox.NewBuilder(t).
 		SetNodesCount(1).
 		SetContext(ctx).
+		SetNSMgrProxySupplier(nil).
 		SetRegistryProxySupplier(nil).
 		Build()
+
 	defer domain.Cleanup()
 
 	nseReg := &registry.NetworkServiceEndpoint{
@@ -406,16 +407,15 @@ func TestNSMGR_PassThroughRemote(t *testing.T) {
 	for i := 0; i < nodesCount; i++ {
 		var additionalFunctionality []networkservice.NetworkServiceServer
 		if i != 0 {
-			k := i
 			// Passtrough to the node i-1
 			additionalFunctionality = []networkservice.NetworkServiceServer{
 				chain.NewNetworkServiceServer(
 					clienturl.NewServer(domain.Nodes[i].NSMgr.URL),
 					connect.NewServer(ctx,
 						sandbox.NewCrossConnectClientFactory(sandbox.GenerateTestToken,
-							newPassTroughClient(fmt.Sprintf("my-service-remote-%v", k-1)),
+							newPassTroughClient(fmt.Sprintf("my-service-remote-%v", i-1)),
 							kernel.NewClient()),
-						append(opentracing.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...,
+						sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...,
 					),
 				),
 			}
@@ -467,15 +467,14 @@ func TestNSMGR_PassThroughLocal(t *testing.T) {
 	for i := 0; i < nsesCount; i++ {
 		var additionalFunctionality []networkservice.NetworkServiceServer
 		if i != 0 {
-			k := i
 			additionalFunctionality = []networkservice.NetworkServiceServer{
 				chain.NewNetworkServiceServer(
 					clienturl.NewServer(domain.Nodes[0].NSMgr.URL),
 					connect.NewServer(ctx,
 						sandbox.NewCrossConnectClientFactory(sandbox.GenerateTestToken,
-							newPassTroughClient(fmt.Sprintf("my-service-remote-%v", k-1)),
+							newPassTroughClient(fmt.Sprintf("my-service-remote-%v", i-1)),
 							kernel.NewClient()),
-						append(opentracing.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...,
+						sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...,
 					),
 				),
 			}
@@ -743,14 +742,14 @@ func (c *restartingEndpoint) Request(ctx context.Context, req *networkservice.Ne
 	if time.Now().Before(c.startTime) {
 		return nil, errors.New("endpoint is restarting")
 	}
-	return next.Client(ctx).Request(ctx, req)
+	return next.Server(ctx).Request(ctx, req)
 }
 
 func (c *restartingEndpoint) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
 	if time.Now().Before(c.startTime) {
 		return nil, errors.New("endpoint is restarting")
 	}
-	return next.Client(ctx).Close(ctx, connection)
+	return next.Server(ctx).Close(ctx, connection)
 }
 
 func newBusyEndpoint() networkservice.NetworkServiceServer {

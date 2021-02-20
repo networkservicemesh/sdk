@@ -63,10 +63,10 @@ func (n *Node) NewForwarder(
 			client.NewCrossConnectClientFactory(
 				nse.Name,
 				// What to call onHeal
-				addressof.NetworkServiceClient(adapters.NewServerToClient(ep)),
-				generatorFunc),
-			grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)),
-		))
+				addressof.NetworkServiceClient(adapters.NewServerToClient(ep))),
+			DefaultDialOptions(generatorFunc)...,
+		),
+	)
 
 	entry, err := n.newEndpoint(ctx, nse, generatorFunc, n.ForwarderRegistryClient, additionalFunctionality...)
 	if err != nil {
@@ -148,10 +148,7 @@ func (n *Node) NewClient(
 	additionalFunctionality ...networkservice.NetworkServiceClient,
 ) networkservice.NetworkServiceClient {
 	ctx = log.Join(ctx, log.Empty())
-	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(n.NSMgr.URL),
-		grpc.WithInsecure(),
-		grpc.WithBlock(),
-		grpc.WithDefaultCallOptions(grpc.WaitForReady(true)),
+	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(n.NSMgr.URL), DefaultDialOptions(generatorFunc)...,
 	)
 	if err != nil {
 		log.FromContext(ctx).Fatalf("Failed to dial node NSMgr: %s", err.Error())
@@ -166,7 +163,6 @@ func (n *Node) NewClient(
 		ctx,
 		fmt.Sprintf("nsc-%v", uuid.New().String()),
 		nil,
-		generatorFunc,
 		cc,
 		additionalFunctionality...,
 	)
