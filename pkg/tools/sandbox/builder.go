@@ -175,10 +175,7 @@ func (b *Builder) SetRegistryExpiryDuration(registryExpiryDuration time.Duration
 }
 
 func (b *Builder) dialContext(ctx context.Context, u *url.URL) *grpc.ClientConn {
-	conn, err := grpc.DialContext(ctx, grpcutils.URLToTarget(u),
-		grpc.WithInsecure(),
-		grpc.WithBlock(),
-		grpc.WithDefaultCallOptions(grpc.WaitForReady(true)))
+	conn, err := grpc.DialContext(ctx, grpcutils.URLToTarget(u), DefaultDialOptions(b.generateTokenFunc)...)
 	b.resources = append(b.resources, func() {
 		_ = conn.Close()
 	})
@@ -191,7 +188,7 @@ func (b *Builder) newNSMgrProxy(ctx context.Context) *EndpointEntry {
 		return nil
 	}
 	name := "nsmgr-proxy-" + uuid.New().String()
-	mgr := b.supplyNSMgrProxy(ctx, name, b.generateTokenFunc, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)))
+	mgr := b.supplyNSMgrProxy(ctx, name, b.generateTokenFunc, DefaultDialOptions(b.generateTokenFunc)...)
 	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
 	serve(ctx, serveURL, mgr.Register)
 	log.FromContext(ctx).Infof("%v listen on: %v", name, serveURL)
@@ -219,7 +216,7 @@ func (b *Builder) newNSMgr(ctx context.Context, registryURL *url.URL) *NSMgrEntr
 		Url:  serveURL.String(),
 	}
 
-	mgr := b.supplyNSMgr(ctx, nsmgrReg, authorize.NewServer(), b.generateTokenFunc, registryCC, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithDefaultCallOptions(grpc.WaitForReady(true)))
+	mgr := b.supplyNSMgr(ctx, nsmgrReg, authorize.NewServer(), b.generateTokenFunc, registryCC, DefaultDialOptions(b.generateTokenFunc)...)
 
 	serve(ctx, serveURL, mgr.Register)
 	log.FromContext(ctx).Infof("%v listen on: %v", nsmgrReg.Name, serveURL)
@@ -250,7 +247,7 @@ func (b *Builder) newRegistryProxy(ctx context.Context, nsmgrProxyURL *url.URL) 
 	if b.supplyRegistryProxy == nil {
 		return nil
 	}
-	result := b.supplyRegistryProxy(ctx, b.Resolver, b.DNSDomainName, nsmgrProxyURL, grpc.WithInsecure(), grpc.WithBlock())
+	result := b.supplyRegistryProxy(ctx, b.Resolver, b.DNSDomainName, nsmgrProxyURL, DefaultDialOptions(b.generateTokenFunc)...)
 	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
 	serve(ctx, serveURL, result.Register)
 	log.FromContext(ctx).Infof("registry-proxy-dns listen on: %v", serveURL)
@@ -264,7 +261,7 @@ func (b *Builder) newRegistry(ctx context.Context, proxyRegistryURL *url.URL) *R
 	if b.supplyRegistry == nil {
 		return nil
 	}
-	result := b.supplyRegistry(ctx, b.registryExpiryDuration, proxyRegistryURL, grpc.WithInsecure(), grpc.WithBlock())
+	result := b.supplyRegistry(ctx, b.registryExpiryDuration, proxyRegistryURL, DefaultDialOptions(b.generateTokenFunc)...)
 	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
 	serve(ctx, serveURL, result.Register)
 	log.FromContext(ctx).Infof("Registry listen on: %v", serveURL)

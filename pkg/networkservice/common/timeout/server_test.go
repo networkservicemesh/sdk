@@ -54,9 +54,9 @@ const (
 func testClient(ctx context.Context, server networkservice.NetworkServiceServer, duration time.Duration) networkservice.NetworkServiceClient {
 	return chain.NewNetworkServiceClient(
 		updatepath.NewClient(clientName),
-		updatetoken.NewClient(func(_ credentials.AuthInfo) (string, time.Time, error) {
+		adapters.NewServerToClient(updatetoken.NewServer(func(_ credentials.AuthInfo) (string, time.Time, error) {
 			return "token", time.Now().Add(duration), nil
-		}),
+		})),
 		kernel.NewClient(),
 		adapters.NewServerToClient(
 			chain.NewNetworkServiceServer(

@@ -117,7 +117,6 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 			client.NewClientFactory(
 				nsmRegistration.Name,
 				addressof.NetworkServiceClient(adapters.NewServerToClient(rv)),
-				tokenGenerator,
 				recvfd.NewClient(),
 				sendfd.NewClient(), // Send passed files.
 			),

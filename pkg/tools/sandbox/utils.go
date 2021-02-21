@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/edwarnicke/grpcfd"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -28,15 +29,50 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/tools/opentracing"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 // RegistryExpiryDuration is a duration that should be used for expire tests
 const RegistryExpiryDuration = time.Second
 
+type insecurePerRPCCredentials struct {
+	credentials.PerRPCCredentials
+}
+
+func (i *insecurePerRPCCredentials) RequireTransportSecurity() bool {
+	return false
+}
+
+// WithInsecureRPCCredentials makes passed call option with credentials.PerRPCCredentials insecure.
+func WithInsecureRPCCredentials() grpc.DialOption {
+	return grpc.WithChainUnaryInterceptor(func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		for i := len(opts) - 1; i > -1; i-- {
+			if v, ok := opts[i].(grpc.PerRPCCredsCallOption); ok {
+				opts = append(opts, grpc.PerRPCCredentials(&insecurePerRPCCredentials{PerRPCCredentials: v.Creds}))
+				break
+			}
+		}
+		return invoker(ctx, method, req, reply, cc, opts...)
+	})
+}
+
+// WithInsecureStreamRPCCredentials makes passed call option with credentials.PerRPCCredentials insecure.
+func WithInsecureStreamRPCCredentials() grpc.DialOption {
+	return grpc.WithChainStreamInterceptor(func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+		for i := len(opts) - 1; i > -1; i-- {
+			if v, ok := opts[i].(grpc.PerRPCCredsCallOption); ok {
+				opts = append(opts, grpc.PerRPCCredentials(&insecurePerRPCCredentials{PerRPCCredentials: v.Creds}))
+				break
+			}
+		}
+		return streamer(ctx, desc, cc, method, opts...)
+	})
+}
+
 // GenerateTestToken generates test token
 func GenerateTestToken(_ credentials.AuthInfo) (tokenValue string, expireTime time.Time, err error) {
-	return "TestToken", time.Date(3000, 1, 1, 1, 1, 1, 1, time.UTC), nil
+	return "TestToken", time.Now().Add(time.Hour).Local(), nil
 }
 
 // NewCrossConnectClientFactory is a client.NewCrossConnectClientFactory with some fields preset for testing
@@ -44,6 +80,21 @@ func NewCrossConnectClientFactory(generatorFunc token.GeneratorFunc, additionalF
 	return client.NewCrossConnectClientFactory(
 		fmt.Sprintf("nsc-%v", uuid.New().String()),
 		nil,
-		generatorFunc,
 		additionalFunctionality...)
+}
+
+// DefaultDialOptions returns default dial options for sandbox testing
+func DefaultDialOptions(genTokenFunc token.GeneratorFunc) []grpc.DialOption {
+	return append([]grpc.DialOption{
+		grpc.WithInsecure(),
+		grpc.WithBlock(),
+		grpc.WithDefaultCallOptions(
+			grpc.WaitForReady(true),
+			grpc.PerRPCCredentials(token.NewPerRPCCredentials(genTokenFunc)),
+		),
+		grpcfd.WithChainStreamInterceptor(),
+		grpcfd.WithChainUnaryInterceptor(),
+		WithInsecureRPCCredentials(),
+		WithInsecureStreamRPCCredentials(),
+	}, opentracing.WithTracingDial()...)
 }

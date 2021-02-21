@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,18 +21,11 @@ import (
 	"testing"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
@@ -44,7 +37,7 @@ type serviceSample struct {
 
 type chainSample struct {
 	name         string
-	server       []serviceSample
+	services     []serviceSample
 	isValidChain bool
 }
 
@@ -52,7 +45,7 @@ func getSamples() []chainSample {
 	return []chainSample{
 		{
 			name: "Valid chain",
-			server: []serviceSample{
+			services: []serviceSample{
 				{
 					name: "nsc",
 					tokenGenerator: genTokenFunc(&jwt.StandardClaims{
@@ -79,7 +72,7 @@ func getSamples() []chainSample {
 		},
 		{
 			name: "Invalid chain",
-			server: []serviceSample{
+			services: []serviceSample{
 				{
 					name: "nsc",
 					tokenGenerator: genTokenFunc(&jwt.StandardClaims{
@@ -114,49 +107,30 @@ func getSamples() []chainSample {
 }
 
 func TestWithTokensPathValidPolicy(t *testing.T) {
-	genRequest := func() *networkservice.NetworkServiceRequest {
-		return &networkservice.NetworkServiceRequest{
-			Connection: &networkservice.Connection{
-				Id: "conn",
-				Path: &networkservice.Path{
-					Index:        0,
-					PathSegments: []*networkservice.PathSegment{},
-				},
-			},
-		}
-	}
-
 	p := opa.WithTokenChainPolicy()
 	samples := getSamples()
 
-	for i := range samples {
-		s := samples[i]
-		checkResult := func(err error) {
-			if s.isValidChain {
-				require.NoError(t, err)
-				return
-			}
-
-			require.Error(t, err)
-			s, ok := status.FromError(errors.Cause(err))
-			require.True(t, ok, "error without error status code", err.Error())
-			require.Equal(t, s.Code(), codes.PermissionDenied, "wrong error status code")
+	for i := 0; i < len(samples); i++ {
+		conn := &networkservice.Connection{
+			Path: &networkservice.Path{},
 		}
 
-		var servers []networkservice.NetworkServiceServer
-		for _, server := range s.server {
-			servers = append(servers,
-				chain.NewNetworkServiceServer(
-					updatepath.NewServer(server.name),
-					updatetoken.NewServer(server.tokenGenerator),
-					authorize.NewServer(authorize.WithPolicies(p))),
-			)
-		}
-		serverChain := next.NewNetworkServiceServer(servers...)
+		sample := &samples[i]
 
-		t.Run(s.name, func(t *testing.T) {
-			_, err := serverChain.Request(context.Background(), genRequest())
-			checkResult(err)
-		})
+		for _, srvc := range sample.services {
+			tok, expire, err := srvc.tokenGenerator(nil)
+			require.NoError(t, err)
+			conn.Path.PathSegments = append(conn.Path.PathSegments, &networkservice.PathSegment{
+				Name:    srvc.name,
+				Token:   tok,
+				Expires: timestamppb.New(expire),
+			})
+		}
+
+		if sample.isValidChain {
+			require.NoError(t, p.Check(context.Background(), conn.GetPath()), sample.name)
+		} else {
+			require.Error(t, p.Check(context.Background(), conn.GetPath()), sample.name)
+		}
 	}
 }

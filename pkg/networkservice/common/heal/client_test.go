@@ -81,7 +81,7 @@ func TestHealClient_Request(t *testing.T) {
 	client := chain.NewNetworkServiceClient(
 		updatepath.NewClient("testClient"),
 		heal.NewClient(ctx, adapters.NewMonitorServerToClient(monitorServer), addressof.NetworkServiceClient(onHeal)),
-		updatetoken.NewClient(sandbox.GenerateTestToken),
+		adapters.NewServerToClient(updatetoken.NewServer(sandbox.GenerateTestToken)),
 		adapters.NewServerToClient(server),
 	)
 
@@ -141,10 +141,10 @@ func TestHealClient_EmptyInit(t *testing.T) {
 	client := chain.NewNetworkServiceClient(
 		updatepath.NewClient("testClient"),
 		heal.NewClient(ctx, eventchannel.NewMonitorConnectionClient(eventCh), addressof.NetworkServiceClient(onHeal)),
-		updatetoken.NewClient(sandbox.GenerateTestToken),
+		adapters.NewServerToClient(updatetoken.NewServer(sandbox.GenerateTestToken)),
 		updatepath.NewClient("testServer"),
 		eventTrigger,
-		updatetoken.NewClient(sandbox.GenerateTestToken),
+		adapters.NewServerToClient(updatetoken.NewServer(sandbox.GenerateTestToken)),
 	)
 
 	requestCtx, reqCancelFunc := context.WithTimeout(ctx, waitForTimeout)

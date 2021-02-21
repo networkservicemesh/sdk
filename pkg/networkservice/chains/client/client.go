@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020-2021 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -30,11 +30,8 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injectpeer"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
-	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 // NewClient - returns a (1.) case NSM client.
@@ -52,7 +49,7 @@ import (
 //                        If onHeal nil, onHeal will be pointed to the returned networkservice.NetworkServiceClient
 //             - cc - grpc.ClientConnInterface for the endpoint to which this client should connect
 //             - additionalFunctionality - any additional NetworkServiceClient chain elements to be included in the chain
-func NewClient(ctx context.Context, name string, onHeal *networkservice.NetworkServiceClient, tokenGenerator token.GeneratorFunc, cc grpc.ClientConnInterface, additionalFunctionality ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
+func NewClient(ctx context.Context, name string, onHeal *networkservice.NetworkServiceClient, cc grpc.ClientConnInterface, additionalFunctionality ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	var rv networkservice.NetworkServiceClient
 	if onHeal == nil {
 		onHeal = &rv
@@ -60,33 +57,31 @@ func NewClient(ctx context.Context, name string, onHeal *networkservice.NetworkS
 	rv = chain.NewNetworkServiceClient(
 		append(
 			append([]networkservice.NetworkServiceClient{
-				authorize.NewClient(),
 				updatepath.NewClient(name),
+				authorize.NewClient(),
 				serialize.NewClient(),
 				heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc), onHeal),
 				refresh.NewClient(ctx),
 				metadata.NewClient(),
 			}, additionalFunctionality...),
-			injectpeer.NewClient(),
-			updatetoken.NewClient(tokenGenerator),
 			networkservice.NewNetworkServiceClient(cc),
 		)...)
 	return rv
 }
 
 // NewCrossConnectClientFactory - returns a (2.) case func(cc grpc.ClientConnInterface) NSM client factory.
-func NewCrossConnectClientFactory(name string, onHeal *networkservice.NetworkServiceClient, tokenGenerator token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceClient) func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+func NewCrossConnectClientFactory(name string, onHeal *networkservice.NetworkServiceClient, additionalFunctionality ...networkservice.NetworkServiceClient) func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 	return func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 		return chain.NewNetworkServiceClient(
 			mechanismtranslation.NewClient(),
-			NewClient(ctx, name, onHeal, tokenGenerator, cc, additionalFunctionality...),
+			NewClient(ctx, name, onHeal, cc, additionalFunctionality...),
 		)
 	}
 }
 
 // NewClientFactory - returns a (3.) case func(cc grpc.ClientConnInterface) NSM client factory.
-func NewClientFactory(name string, onHeal *networkservice.NetworkServiceClient, tokenGenerator token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceClient) func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+func NewClientFactory(name string, onHeal *networkservice.NetworkServiceClient, additionalFunctionality ...networkservice.NetworkServiceClient) func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 	return func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-		return NewClient(ctx, name, onHeal, tokenGenerator, cc, additionalFunctionality...)
+		return NewClient(ctx, name, onHeal, cc, additionalFunctionality...)
 	}
 }
