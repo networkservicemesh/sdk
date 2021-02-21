@@ -33,7 +33,7 @@ import (
 )
 
 // SupplyNSMgrProxyFunc nsmgr proxy
-type SupplyNSMgrProxyFunc func(context.Context, string, token.GeneratorFunc, ...grpc.DialOption) endpoint.Endpoint
+type SupplyNSMgrProxyFunc func(context.Context, string, networkservice.NetworkServiceServer, token.GeneratorFunc, ...grpc.DialOption) endpoint.Endpoint
 
 // SupplyNSMgrFunc supplies NSMGR
 type SupplyNSMgrFunc func(context.Context, *registryapi.NetworkServiceEndpoint, networkservice.NetworkServiceServer, token.GeneratorFunc, grpc.ClientConnInterface, ...grpc.DialOption) nsmgr.Nsmgr

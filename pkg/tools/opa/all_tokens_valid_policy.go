@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -38,8 +38,8 @@ token_valid(token) = r {
 `
 
 // WithAllTokensValidPolicy returns default policy for checking that all tokens in the path can be decoded.
-func WithAllTokensValidPolicy() AuthorizationPolicy {
-	return &authorizationPolicy{
+func WithAllTokensValidPolicy() *AuthorizationPolicy {
+	return &AuthorizationPolicy{
 		policySource: allTokensValidPolicy,
 		query:        "tokens_valid",
 		checker:      True("tokens_valid"),

@@ -188,7 +188,7 @@ func (b *Builder) newNSMgrProxy(ctx context.Context) *EndpointEntry {
 		return nil
 	}
 	name := "nsmgr-proxy-" + uuid.New().String()
-	mgr := b.supplyNSMgrProxy(ctx, name, b.generateTokenFunc, DefaultDialOptions(b.generateTokenFunc)...)
+	mgr := b.supplyNSMgrProxy(ctx, name, authorize.NewServer(authorize.Any()), b.generateTokenFunc, DefaultDialOptions(b.generateTokenFunc)...)
 	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
 	serve(ctx, serveURL, mgr.Register)
 	log.FromContext(ctx).Infof("%v listen on: %v", name, serveURL)
@@ -216,7 +216,7 @@ func (b *Builder) newNSMgr(ctx context.Context, registryURL *url.URL) *NSMgrEntr
 		Url:  serveURL.String(),
 	}
 
-	mgr := b.supplyNSMgr(ctx, nsmgrReg, authorize.NewServer(), b.generateTokenFunc, registryCC, DefaultDialOptions(b.generateTokenFunc)...)
+	mgr := b.supplyNSMgr(ctx, nsmgrReg, authorize.NewServer(authorize.Any()), b.generateTokenFunc, registryCC, DefaultDialOptions(b.generateTokenFunc)...)
 
 	serve(ctx, serveURL, mgr.Register)
 	log.FromContext(ctx).Infof("%v listen on: %v", nsmgrReg.Name, serveURL)

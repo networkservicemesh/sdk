@@ -96,7 +96,7 @@ func (n *Node) newEndpoint(
 	ep := endpoint.NewServer(
 		ctx,
 		nse.Name,
-		authorize.NewServer(),
+		authorize.NewServer(authorize.Any()),
 		generatorFunc,
 		additionalFunctionality...,
 	)
@@ -160,6 +160,7 @@ func (n *Node) NewClient(
 	return client.NewClient(
 		ctx,
 		cc,
+		client.WithAuthorizeClient(authorize.NewClient(authorize.Any())),
 		client.WithAdditionalFunctionality(additionalFunctionality...),
 	)
 }

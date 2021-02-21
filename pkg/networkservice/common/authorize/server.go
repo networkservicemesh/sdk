@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020-2021 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -30,12 +30,12 @@ import (
 )
 
 type authorizeServer struct {
-	policies *authorizePolicies
+	policies *polyciesList
 }
 
 // NewServer - returns a new authorization networkservicemesh.NetworkServiceServers
 func NewServer(opts ...Option) networkservice.NetworkServiceServer {
-	p := &authorizePolicies{}
+	p := &polyciesList{}
 	for _, o := range opts {
 		o.apply(p)
 	}
