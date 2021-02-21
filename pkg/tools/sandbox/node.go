@@ -18,10 +18,8 @@ package sandbox
 
 import (
 	"context"
-	"fmt"
 	"net/url"
 
-	"github.com/google/uuid"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -61,9 +59,9 @@ func (n *Node) NewForwarder(
 		clienturl.NewServer(n.NSMgr.URL),
 		connect.NewServer(ctx,
 			client.NewCrossConnectClientFactory(
-				nse.Name,
+				client.WithName(nse.Name),
 				// What to call onHeal
-				addressof.NetworkServiceClient(adapters.NewServerToClient(ep))),
+				client.WithHeal(addressof.NetworkServiceClient(adapters.NewServerToClient(ep)))),
 			DefaultDialOptions(generatorFunc)...,
 		),
 	)
@@ -161,9 +159,7 @@ func (n *Node) NewClient(
 
 	return client.NewClient(
 		ctx,
-		fmt.Sprintf("nsc-%v", uuid.New().String()),
-		nil,
 		cc,
-		additionalFunctionality...,
+		client.WithAdditionalFunctionality(additionalFunctionality...),
 	)
 }

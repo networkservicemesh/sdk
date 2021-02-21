@@ -76,11 +76,11 @@ func GenerateTestToken(_ credentials.AuthInfo) (tokenValue string, expireTime ti
 }
 
 // NewCrossConnectClientFactory is a client.NewCrossConnectClientFactory with some fields preset for testing
-func NewCrossConnectClientFactory(generatorFunc token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceClient) func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+func NewCrossConnectClientFactory(generatorFunc token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceClient) client.Factory {
 	return client.NewCrossConnectClientFactory(
-		fmt.Sprintf("nsc-%v", uuid.New().String()),
-		nil,
-		additionalFunctionality...)
+		client.WithName(fmt.Sprintf("nsc-%v", uuid.New().String())),
+		client.WithAdditionalFunctionality(additionalFunctionality...),
+	)
 }
 
 // DefaultDialOptions returns default dial options for sandbox testing
