@@ -1,4 +1,6 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2021 Cisco and/or its affiliates.
+//
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -35,25 +37,21 @@ type kernelMechanismClient struct {
 }
 
 // NewClient - returns client that sets kernel preferred mechanism
-func NewClient(options ...Option) networkservice.NetworkServiceClient {
-	k := &kernelMechanismClient{}
-	for _, opt := range options {
-		opt(k)
-	}
-	return k
+func NewClient() networkservice.NetworkServiceClient {
+	return new(kernelMechanismClient)
 }
 
 func (k *kernelMechanismClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	// Append the mechanism preference to the request
-	preferredMechanism := &networkservice.Mechanism{
-		Cls:  cls.LOCAL,
-		Type: kernel.MECHANISM,
-		Parameters: map[string]string{
-			kernel.NetNSURL:         (&url.URL{Scheme: "file", Path: netNSFilename}).String(),
-			kernel.InterfaceNameKey: k.interfaceName,
-		},
+	if !updateMechanismPreferences(request) {
+		request.MechanismPreferences = append(request.GetMechanismPreferences(), &networkservice.Mechanism{
+			Cls:  cls.LOCAL,
+			Type: kernel.MECHANISM,
+			Parameters: map[string]string{
+				kernel.NetNSURL:         (&url.URL{Scheme: "file", Path: netNSFilename}).String(),
+				kernel.InterfaceNameKey: k.interfaceName,
+			},
+		})
 	}
-	request.MechanismPreferences = append(request.GetMechanismPreferences(), preferredMechanism)
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
 
@@ -61,12 +59,19 @@ func (k *kernelMechanismClient) Close(ctx context.Context, conn *networkservice.
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
-// Option for kernel mechanism client
-type Option func(k *kernelMechanismClient)
+// updateMechanismPreferences returns true if MechanismPreferences has updated
+func updateMechanismPreferences(request *networkservice.NetworkServiceRequest) bool {
+	var updated = false
 
-// WithInterfaceName sets interface name
-func WithInterfaceName(interfaceName string) Option {
-	return func(k *kernelMechanismClient) {
-		k.interfaceName = interfaceName
+	for _, m := range request.GetRequestMechanismPreferences() {
+		if m.Type == kernel.MECHANISM {
+			if m.Parameters == nil {
+				m.Parameters = make(map[string]string)
+			}
+			m.Parameters[kernel.NetNSURL] = (&url.URL{Scheme: "file", Path: netNSFilename}).String()
+			updated = true
+		}
 	}
+
+	return updated
 }
