@@ -121,7 +121,6 @@ func NewCrossConnectClientFactory(clientOpts ...Option) Factory {
 func NewClientFactory(clientOpts ...Option) Factory {
 	return func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 		return chain.NewNetworkServiceClient(
-			mechanismtranslation.NewClient(),
 			NewClient(ctx, cc, clientOpts...),
 		)
 	}
