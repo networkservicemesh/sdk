@@ -23,7 +23,7 @@ type Option interface {
 	apply(*policiesList)
 }
 
-// Any means authorize any request
+// Any authorizes any call of request/close
 func Any() Option {
 	return WithPolicies(nil)
 }
