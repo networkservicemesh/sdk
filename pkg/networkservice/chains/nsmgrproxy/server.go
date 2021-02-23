@@ -22,9 +22,10 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/externalips"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interdomainurl"
@@ -33,10 +34,10 @@ import (
 )
 
 // NewServer creates new proxy NSMgr
-func NewServer(ctx context.Context, name string, tokenGenerator token.GeneratorFunc, options ...grpc.DialOption) endpoint.Endpoint {
+func NewServer(ctx context.Context, name string, authorizeServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, options ...grpc.DialOption) endpoint.Endpoint {
 	return endpoint.NewServer(ctx,
 		name,
-		authorize.NewServer(),
+		authorizeServer,
 		tokenGenerator,
 		interdomainurl.NewServer(),
 		externalips.NewServer(ctx),

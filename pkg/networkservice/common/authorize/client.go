@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020-2021 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -30,18 +30,18 @@ import (
 )
 
 type authorizeClient struct {
-	policies *authorizePolicies
+	policies policiesList
 }
 
 // NewClient - returns a new authorization networkservicemesh.NetworkServiceClient
 func NewClient(opts ...Option) networkservice.NetworkServiceClient {
-	p := &authorizePolicies{}
+	var result = &authorizeClient{
+		policies: defaultPolicies(),
+	}
 	for _, o := range opts {
-		o.apply(p)
+		o.apply(&result.policies)
 	}
-	return &authorizeClient{
-		policies: p,
-	}
+	return result
 }
 
 func (a *authorizeClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {

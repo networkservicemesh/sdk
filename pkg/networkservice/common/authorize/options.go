@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020-2021 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,37 +18,25 @@
 
 package authorize
 
-import (
-	"github.com/networkservicemesh/sdk/pkg/tools/opa"
-)
-
 // Option is authorization option for server
 type Option interface {
-	apply(*authorizePolicies)
+	apply(*policiesList)
 }
 
-// WithPolicies adds custom OPA policies
-func WithPolicies(policies ...opa.AuthorizationPolicy) Option {
-	return optionFunc(func(a *authorizePolicies) {
-		a.policies = append(a.policies, policies...)
+// Any authorizes any call of request/close
+func Any() Option {
+	return WithPolicies(nil)
+}
+
+// WithPolicies sets custom policies
+func WithPolicies(p ...Policy) Option {
+	return optionFunc(func(l *policiesList) {
+		*l = p
 	})
 }
 
-// WithDefaultPolicies adds default OPA policies
-func WithDefaultPolicies() Option {
-	return optionFunc(func(a *authorizePolicies) {
-		a.policies = append(
-			a.policies,
-			opa.WithAllTokensValidPolicy(),
-			opa.WithTokensExpiredPolicy(),
-			opa.WithTokenChainPolicy(),
-			opa.WithLastTokenSignedPolicy(),
-		)
-	})
-}
+type optionFunc func(*policiesList)
 
-type optionFunc func(*authorizePolicies)
-
-func (f optionFunc) apply(a *authorizePolicies) {
+func (f optionFunc) apply(a *policiesList) {
 	f(a)
 }

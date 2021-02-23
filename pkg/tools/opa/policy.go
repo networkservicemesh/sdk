@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -35,12 +35,6 @@ type CheckAccessFunc func(result rego.ResultSet) (bool, error)
 // CheckQueryFunc converts query string to CheckAccessFunc function
 type CheckQueryFunc func(string) CheckAccessFunc
 
-// AuthorizationPolicy represents authorization policy for network service.
-type AuthorizationPolicy interface {
-	// Check checks authorization
-	Check(ctx context.Context, input interface{}) error
-}
-
 // True is default access checker, returns true if in the result set of rego exist query and it has true value
 func True(query string) CheckAccessFunc {
 	return func(rs rego.ResultSet) (bool, error) {
@@ -72,8 +66,8 @@ func False(query string) CheckAccessFunc {
 }
 
 // WithPolicyFromSource creates custom policy based on rego source code
-func WithPolicyFromSource(source, query string, checkQuery CheckQueryFunc) AuthorizationPolicy {
-	return &authorizationPolicy{
+func WithPolicyFromSource(source, query string, checkQuery CheckQueryFunc) *AuthorizationPolicy {
+	return &AuthorizationPolicy{
 		policySource: strings.TrimSpace(source),
 		query:        query,
 		checker:      checkQuery(query),
@@ -81,15 +75,16 @@ func WithPolicyFromSource(source, query string, checkQuery CheckQueryFunc) Autho
 }
 
 // WithPolicyFromFile creates custom policy based on rego source file
-func WithPolicyFromFile(path, query string, checkQuery CheckQueryFunc) AuthorizationPolicy {
-	return &authorizationPolicy{
+func WithPolicyFromFile(path, query string, checkQuery CheckQueryFunc) *AuthorizationPolicy {
+	return &AuthorizationPolicy{
 		policyFilePath: path,
 		query:          query,
 		checker:        checkQuery(query),
 	}
 }
 
-type authorizationPolicy struct {
+// AuthorizationPolicy checks that passed tokens are valid
+type AuthorizationPolicy struct {
 	initErr        error
 	policyFilePath string
 	policySource   string
@@ -100,7 +95,8 @@ type authorizationPolicy struct {
 	once           sync.Once
 }
 
-func (d *authorizationPolicy) Check(ctx context.Context, model interface{}) error {
+// Check returns nil if passed tokens are valid
+func (d *AuthorizationPolicy) Check(ctx context.Context, model interface{}) error {
 	input, err := PreparedOpaInput(ctx, model)
 	if err != nil {
 		return err
@@ -122,7 +118,7 @@ func (d *authorizationPolicy) Check(ctx context.Context, model interface{}) erro
 	return nil
 }
 
-func (d *authorizationPolicy) init() error {
+func (d *AuthorizationPolicy) init() error {
 	d.once.Do(func() {
 		if d.query == "" {
 			d.query = strings.TrimSuffix(filepath.Base(d.policyFilePath), filepath.Ext(d.policyFilePath))
@@ -151,7 +147,7 @@ func (d *authorizationPolicy) init() error {
 	return nil
 }
 
-func (d *authorizationPolicy) loadSource() error {
+func (d *AuthorizationPolicy) loadSource() error {
 	if d.policySource != "" {
 		return nil
 	}
@@ -164,7 +160,7 @@ func (d *authorizationPolicy) loadSource() error {
 	return nil
 }
 
-func (d *authorizationPolicy) checkModule() error {
+func (d *AuthorizationPolicy) checkModule() error {
 	if d.pkg != "" {
 		return nil
 	}
@@ -178,5 +174,3 @@ func (d *authorizationPolicy) checkModule() error {
 	}
 	return errors.New("missed package")
 }
-
-var _ AuthorizationPolicy = &authorizationPolicy{}

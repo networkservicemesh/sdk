@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -24,15 +24,34 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 )
 
-type authorizePolicies struct {
-	policies []opa.AuthorizationPolicy
+// Policy represents authorization policy for network service.
+type Policy interface {
+	// Check checks authorization
+	Check(ctx context.Context, input interface{}) error
 }
 
-func (a *authorizePolicies) check(ctx context.Context, conn *networkservice.Connection) error {
-	for _, p := range a.policies {
+type policiesList []Policy
+
+func (l *policiesList) check(ctx context.Context, conn *networkservice.Connection) error {
+	if l == nil {
+		return nil
+	}
+	for _, p := range *l {
+		if p == nil {
+			continue
+		}
 		if err := p.Check(ctx, conn.GetPath()); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func defaultPolicies() policiesList {
+	return []Policy{
+		opa.WithAllTokensValidPolicy(),
+		opa.WithLastTokenSignedPolicy(),
+		opa.WithTokensExpiredPolicy(),
+		opa.WithTokenChainPolicy(),
+	}
 }

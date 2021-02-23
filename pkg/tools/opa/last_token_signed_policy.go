@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -33,8 +33,8 @@ last_token_signed {
 `
 
 // WithLastTokenSignedPolicy returns default policy for checking that last token in path is signed.
-func WithLastTokenSignedPolicy() AuthorizationPolicy {
-	return &authorizationPolicy{
+func WithLastTokenSignedPolicy() *AuthorizationPolicy {
+	return &AuthorizationPolicy{
 		policySource: lastTokenSignedPolicy,
 		query:        "last_token_signed",
 		checker:      True("last_token_signed"),
