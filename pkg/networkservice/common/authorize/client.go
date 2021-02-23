@@ -30,7 +30,7 @@ import (
 )
 
 type authorizeClient struct {
-	policies polyciesList
+	policies policiesList
 }
 
 // NewClient - returns a new authorization networkservicemesh.NetworkServiceClient

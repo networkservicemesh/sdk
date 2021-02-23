@@ -30,12 +30,12 @@ import (
 )
 
 type authorizeServer struct {
-	policies *polyciesList
+	policies *policiesList
 }
 
 // NewServer - returns a new authorization networkservicemesh.NetworkServiceServers
 func NewServer(opts ...Option) networkservice.NetworkServiceServer {
-	p := &polyciesList{}
+	p := &policiesList{}
 	for _, o := range opts {
 		o.apply(p)
 	}

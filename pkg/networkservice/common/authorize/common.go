@@ -30,9 +30,9 @@ type Policy interface {
 	Check(ctx context.Context, input interface{}) error
 }
 
-type polyciesList []Policy
+type policiesList []Policy
 
-func (l *polyciesList) check(ctx context.Context, conn *networkservice.Connection) error {
+func (l *policiesList) check(ctx context.Context, conn *networkservice.Connection) error {
 	if l == nil {
 		return nil
 	}
@@ -47,7 +47,7 @@ func (l *polyciesList) check(ctx context.Context, conn *networkservice.Connectio
 	return nil
 }
 
-func defaultPolicies() polyciesList {
+func defaultPolicies() policiesList {
 	return []Policy{
 		opa.WithAllTokensValidPolicy(),
 		opa.WithLastTokenSignedPolicy(),

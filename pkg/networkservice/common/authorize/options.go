@@ -20,7 +20,7 @@ package authorize
 
 // Option is authorization option for server
 type Option interface {
-	apply(*polyciesList)
+	apply(*policiesList)
 }
 
 // Any means authorize any request
@@ -30,13 +30,13 @@ func Any() Option {
 
 // WithPolicies sets custom policies
 func WithPolicies(p ...Policy) Option {
-	return optionFunc(func(l *polyciesList) {
+	return optionFunc(func(l *policiesList) {
 		*l = p
 	})
 }
 
-type optionFunc func(*polyciesList)
+type optionFunc func(*policiesList)
 
-func (f optionFunc) apply(a *polyciesList) {
+func (f optionFunc) apply(a *policiesList) {
 	f(a)
 }
