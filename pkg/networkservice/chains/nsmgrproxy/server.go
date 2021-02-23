@@ -43,9 +43,7 @@ func NewServer(ctx context.Context, name string, tokenGenerator token.GeneratorF
 		swapip.NewServer(),
 		connect.NewServer(
 			ctx,
-			client.NewClientFactory(name,
-				nil,
-			),
+			client.NewClientFactory(client.WithName(name)),
 			options...,
 		),
 	)

@@ -29,6 +29,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -40,7 +41,7 @@ import (
 
 type connectServer struct {
 	ctx               context.Context
-	clientFactory     func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient
+	clientFactory     client.Factory
 	clientDialOptions []grpc.DialOption
 	connInfos         connectionInfoMap
 	clients           clientmap.RefcountMap
@@ -54,7 +55,7 @@ type connectionInfo struct {
 // NewServer - chain element that
 func NewServer(
 	ctx context.Context,
-	clientFactory func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient,
+	clientFactory client.Factory,
 	clientDialOptions ...grpc.DialOption,
 ) networkservice.NetworkServiceServer {
 	return &connectServer{
@@ -115,11 +116,11 @@ func (s *connectServer) client(ctx context.Context, conn *networkservice.Connect
 	}
 
 	// Fast path if we already have client for the clientURL, use it.
-	client, loaded := s.clients.Load(clientURL.String())
+	c, loaded := s.clients.Load(clientURL.String())
 	if !loaded {
 		// If not, create and LoadOrStore a new one.
 		newClient, cancel := s.newClient(clientURL)
-		client, loaded = s.clients.LoadOrStore(clientURL.String(), newClient)
+		c, loaded = s.clients.LoadOrStore(clientURL.String(), newClient)
 		if loaded {
 			// No one will use `newClient`, it should be canceled.
 			cancel()
@@ -128,10 +129,10 @@ func (s *connectServer) client(ctx context.Context, conn *networkservice.Connect
 
 	s.connInfos.Store(conn.GetId(), connectionInfo{
 		clientURL: clientURL,
-		client:    client,
+		client:    c,
 	})
 
-	return client
+	return c
 }
 
 func (s *connectServer) newClient(clientURL *url.URL) (networkservice.NetworkServiceClient, context.CancelFunc) {

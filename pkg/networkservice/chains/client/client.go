@@ -22,11 +22,12 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanismtranslation"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
@@ -34,54 +35,93 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
+type clientOptions struct {
+	name                    string
+	onHeal                  *networkservice.NetworkServiceClient
+	additionalFunctionality []networkservice.NetworkServiceClient
+	authorizeClient         networkservice.NetworkServiceClient
+}
+
+// Option modifies default client chain values.
+type Option func(c *clientOptions)
+
+// WithHeal sets heal for the client.
+func WithHeal(onHeal *networkservice.NetworkServiceClient) Option {
+	return Option(func(c *clientOptions) {
+		c.onHeal = onHeal
+	})
+}
+
+// WithName sets name for the client.
+func WithName(name string) Option {
+	return Option(func(c *clientOptions) {
+		c.name = name
+	})
+}
+
+// WithAdditionalFunctionality sets additionalFunctionality for the client. Note: this adds into tail of the client chain.
+func WithAdditionalFunctionality(additionalFunctionality ...networkservice.NetworkServiceClient) Option {
+	return Option(func(c *clientOptions) {
+		c.additionalFunctionality = additionalFunctionality
+	})
+}
+
+// WithAuthorizeClient sets authorizeClient for the client chain.
+func WithAuthorizeClient(authorizeClient networkservice.NetworkServiceClient) Option {
+	if authorizeClient == nil {
+		panic("authorizeClient cannot be nil")
+	}
+	return Option(func(c *clientOptions) {
+		c.authorizeClient = authorizeClient
+	})
+}
+
 // NewClient - returns a (1.) case NSM client.
 //             - ctx    - context for the lifecycle of the *Client* itself.  Cancel when discarding the client.
-//             - name   - name of the NetworkServiceMeshClient
-//             - onHeal - *networkservice.NetworkServiceClient.  Since networkservice.NetworkServiceClient is an interface
-//                        (and thus a pointer) *networkservice.NetworkServiceClient is a double pointer.  Meaning it
-//                        points to a place that points to a place that implements networkservice.NetworkServiceClient
-//                        This is done because when we use heal.NewClient as part of a chain, we may not *have*
-//                        a pointer to this
-//                        client used 'onHeal'.  If we detect we need to heal, onHeal.Request is used to heal.
-//                        If onHeal is nil, then we simply set onHeal to this client chain element
-//                        If we are part of a larger chain or a server, we should pass the resulting chain into
-//                        this constructor before we actually have a pointer to it.
-//                        If onHeal nil, onHeal will be pointed to the returned networkservice.NetworkServiceClient
 //             - cc - grpc.ClientConnInterface for the endpoint to which this client should connect
-//             - additionalFunctionality - any additional NetworkServiceClient chain elements to be included in the chain
-func NewClient(ctx context.Context, name string, onHeal *networkservice.NetworkServiceClient, cc grpc.ClientConnInterface, additionalFunctionality ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
+func NewClient(ctx context.Context, cc grpc.ClientConnInterface, clientOpts ...Option) networkservice.NetworkServiceClient {
 	var rv networkservice.NetworkServiceClient
-	if onHeal == nil {
-		onHeal = &rv
+	var opts = &clientOptions{
+		name:            "client-" + uuid.New().String(),
+		authorizeClient: null.NewClient(),
+		onHeal:          &rv,
+	}
+	for _, opt := range clientOpts {
+		opt(opts)
 	}
 	rv = chain.NewNetworkServiceClient(
 		append(
 			append([]networkservice.NetworkServiceClient{
-				updatepath.NewClient(name),
-				authorize.NewClient(),
+				updatepath.NewClient(opts.name),
+				opts.authorizeClient,
 				serialize.NewClient(),
-				heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc), onHeal),
+				heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc), opts.onHeal),
 				refresh.NewClient(ctx),
 				metadata.NewClient(),
-			}, additionalFunctionality...),
+			}, opts.additionalFunctionality...),
 			networkservice.NewNetworkServiceClient(cc),
 		)...)
 	return rv
 }
 
+// Factory creates a networkservice.NetworkServiceClient by passed context.Cotnext and grpc.ClientConnInterface
+type Factory = func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient
+
 // NewCrossConnectClientFactory - returns a (2.) case func(cc grpc.ClientConnInterface) NSM client factory.
-func NewCrossConnectClientFactory(name string, onHeal *networkservice.NetworkServiceClient, additionalFunctionality ...networkservice.NetworkServiceClient) func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+func NewCrossConnectClientFactory(clientOpts ...Option) Factory {
 	return func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 		return chain.NewNetworkServiceClient(
 			mechanismtranslation.NewClient(),
-			NewClient(ctx, name, onHeal, cc, additionalFunctionality...),
+			NewClient(ctx, cc, clientOpts...),
 		)
 	}
 }
 
 // NewClientFactory - returns a (3.) case func(cc grpc.ClientConnInterface) NSM client factory.
-func NewClientFactory(name string, onHeal *networkservice.NetworkServiceClient, additionalFunctionality ...networkservice.NetworkServiceClient) func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+func NewClientFactory(clientOpts ...Option) Factory {
 	return func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-		return NewClient(ctx, name, onHeal, cc, additionalFunctionality...)
+		return chain.NewNetworkServiceClient(
+			NewClient(ctx, cc, clientOpts...),
+		)
 	}
 }

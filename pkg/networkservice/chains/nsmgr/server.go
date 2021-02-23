@@ -115,10 +115,12 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 		filtermechanisms.NewServer(&urlsRegistryServer),
 		connect.NewServer(ctx,
 			client.NewClientFactory(
-				nsmRegistration.Name,
-				addressof.NetworkServiceClient(adapters.NewServerToClient(rv)),
-				recvfd.NewClient(),
-				sendfd.NewClient(), // Send passed files.
+				client.WithName(nsmRegistration.Name),
+				client.WithHeal(addressof.NetworkServiceClient(adapters.NewServerToClient(rv))),
+				client.WithAdditionalFunctionality(
+					recvfd.NewClient(),
+					sendfd.NewClient(),
+				),
 			),
 			clientDialOptions...),
 		sendfd.NewServer(),
