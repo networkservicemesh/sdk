@@ -21,10 +21,24 @@ import (
 	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 )
+
+func Test_KernelClient_ShouldSetInterfaceName(t *testing.T) {
+	expectedIfaceName := "myiface"
+
+	c := kernel.NewClient(kernel.WithInterfaceName(expectedIfaceName))
+
+	req := &networkservice.NetworkServiceRequest{}
+	_, err := c.Request(context.Background(), req)
+	require.NoError(t, err)
+
+	require.Len(t, req.MechanismPreferences, 1)
+	require.Equal(t, expectedIfaceName, req.MechanismPreferences[0].Parameters[common.InterfaceNameKey])
+}
 
 func Test_KernelClient_ShouldNotDoublingMechanims(t *testing.T) {
 	c := kernel.NewClient()

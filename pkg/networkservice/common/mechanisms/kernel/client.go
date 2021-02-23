@@ -37,8 +37,12 @@ type kernelMechanismClient struct {
 }
 
 // NewClient - returns client that sets kernel preferred mechanism
-func NewClient() networkservice.NetworkServiceClient {
-	return new(kernelMechanismClient)
+func NewClient(options ...Option) networkservice.NetworkServiceClient {
+	k := &kernelMechanismClient{}
+	for _, opt := range options {
+		opt(k)
+	}
+	return k
 }
 
 func (k *kernelMechanismClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
@@ -74,4 +78,14 @@ func updateMechanismPreferences(request *networkservice.NetworkServiceRequest) b
 	}
 
 	return updated
+}
+
+// Option for kernel mechanism client
+type Option func(k *kernelMechanismClient)
+
+// WithInterfaceName sets interface name
+func WithInterfaceName(interfaceName string) Option {
+	return func(k *kernelMechanismClient) {
+		k.interfaceName = interfaceName
+	}
 }
