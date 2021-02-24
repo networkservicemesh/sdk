@@ -46,13 +46,16 @@ func NewClient(opts ...Option) networkservice.NetworkServiceClient {
 }
 
 func (a *authorizeClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	var p *peer.Peer
+	var p = new(peer.Peer)
 	opts = append(opts, grpc.Peer(p))
 	resp, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
 		return nil, err
 	}
-	if err := a.policies.check(peer.NewContext(ctx, p), resp); err != nil {
+	if *p != (peer.Peer{}) {
+		ctx = peer.NewContext(ctx, p)
+	}
+	if err := a.policies.check(ctx, resp); err != nil {
 		_, _ = next.Client(ctx).Close(ctx, resp, opts...)
 		return nil, err
 	}
