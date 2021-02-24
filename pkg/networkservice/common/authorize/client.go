@@ -55,12 +55,11 @@ func (a *authorizeClient) Request(ctx context.Context, request *networkservice.N
 	if *p != (peer.Peer{}) {
 		ctx = peer.NewContext(ctx, p)
 	}
-	if err := a.policies.check(ctx, resp); err != nil {
+	if err = a.policies.check(ctx, resp); err != nil {
 		_, _ = next.Client(ctx).Close(ctx, resp, opts...)
 		return nil, err
 	}
 	return resp, err
-
 }
 
 func (a *authorizeClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
