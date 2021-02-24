@@ -75,7 +75,9 @@ func (k *kernelMechanismClient) updateMechanismPreferences(request *networkservi
 			if m.Parameters[kernel.InterfaceNameKey] == "" {
 				m.Parameters[kernel.InterfaceNameKey] = k.interfaceName
 			}
-			m.Parameters[kernel.NetNSURL] = (&url.URL{Scheme: "file", Path: netNSFilename}).String()
+			if m.Parameters[kernel.NetNSURL] == "" {
+				m.Parameters[kernel.NetNSURL] = (&url.URL{Scheme: "file", Path: netNSFilename}).String()
+			}
 			updated = true
 		}
 	}
