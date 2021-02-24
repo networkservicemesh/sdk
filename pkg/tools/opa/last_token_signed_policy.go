@@ -26,10 +26,20 @@ default index = 0
 index = input.index
 
 last_token_signed {	
+	next_index = index + 1
+	next_index < count(input.path_segments)
+	token := input.path_segments[next_index].token	
+	cert := input.auth_info.certificate	
+	io.jwt.verify_es256(token, cert) = true
+}
+
+last_token_signed {
+	index < count(input.path_segments)
 	token := input.path_segments[index].token	
 	cert := input.auth_info.certificate	
 	io.jwt.verify_es256(token, cert) = true
 }
+
 `
 
 // WithLastTokenSignedPolicy returns default policy for checking that last token in path is signed.

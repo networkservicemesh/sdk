@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -31,7 +31,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 )
 
-func TestVerifyToken(t *testing.T) {
+func Test_LastTokenShouldBeSigned_Server(t *testing.T) {
 	ca, err := generateCA()
 	require.Nil(t, err)
 
@@ -41,15 +41,25 @@ func TestVerifyToken(t *testing.T) {
 	token, err := jwt.New(jwt.SigningMethodES256).SignedString(cert.PrivateKey)
 	require.Nil(t, err)
 
-	x509crt, err := x509.ParseCertificate(cert.Certificate[0])
+	validX509crt, err := x509.ParseCertificate(cert.Certificate[0])
 	require.Nil(t, err)
 
 	p := opa.WithLastTokenSignedPolicy()
 
-	input := &networkservice.Path{
-		PathSegments: []*networkservice.PathSegment{
-			{
-				Token: token,
+	samples := []*networkservice.Path{
+		{
+			PathSegments: []*networkservice.PathSegment{
+				{
+					Token: token,
+				},
+			},
+		},
+		{
+			PathSegments: []*networkservice.PathSegment{
+				{},
+				{
+					Token: token,
+				},
 			},
 		},
 	}
@@ -58,7 +68,7 @@ func TestVerifyToken(t *testing.T) {
 		AuthInfo: &credentials.TLSInfo{
 			State: tls.ConnectionState{
 				PeerCertificates: []*x509.Certificate{
-					x509crt,
+					validX509crt,
 				},
 			},
 		},
@@ -66,14 +76,18 @@ func TestVerifyToken(t *testing.T) {
 
 	ctx := peer.NewContext(context.Background(), peerAuth)
 
-	err = p.Check(ctx, input)
-	require.Nil(t, err)
+	for i, input := range samples {
+		peerAuth.AuthInfo.(*credentials.TLSInfo).State.PeerCertificates[0] = validX509crt
 
-	invalidX509crt, err := x509.ParseCertificate(ca.Certificate[0])
-	require.Nil(t, err)
+		err = p.Check(ctx, input)
+		require.NoError(t, err, i)
 
-	peerAuth.AuthInfo.(*credentials.TLSInfo).State.PeerCertificates[0] = invalidX509crt
+		invalidX509crt, err := x509.ParseCertificate(ca.Certificate[0])
+		require.NoError(t, err)
 
-	err = p.Check(ctx, input)
-	require.NotNil(t, err)
+		peerAuth.AuthInfo.(*credentials.TLSInfo).State.PeerCertificates[0] = invalidX509crt
+
+		err = p.Check(ctx, input)
+		require.Error(t, err)
+	}
 }
