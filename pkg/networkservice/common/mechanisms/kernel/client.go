@@ -1,4 +1,6 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2021 Cisco and/or its affiliates.
+//
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -44,21 +46,41 @@ func NewClient(options ...Option) networkservice.NetworkServiceClient {
 }
 
 func (k *kernelMechanismClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	// Append the mechanism preference to the request
-	preferredMechanism := &networkservice.Mechanism{
-		Cls:  cls.LOCAL,
-		Type: kernel.MECHANISM,
-		Parameters: map[string]string{
-			kernel.NetNSURL:         (&url.URL{Scheme: "file", Path: netNSFilename}).String(),
-			kernel.InterfaceNameKey: k.interfaceName,
-		},
+	if !k.updateMechanismPreferences(request) {
+		request.MechanismPreferences = append(request.GetMechanismPreferences(), &networkservice.Mechanism{
+			Cls:  cls.LOCAL,
+			Type: kernel.MECHANISM,
+			Parameters: map[string]string{
+				kernel.NetNSURL:         (&url.URL{Scheme: "file", Path: netNSFilename}).String(),
+				kernel.InterfaceNameKey: k.interfaceName,
+			},
+		})
 	}
-	request.MechanismPreferences = append(request.GetMechanismPreferences(), preferredMechanism)
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
 
 func (k *kernelMechanismClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	return next.Client(ctx).Close(ctx, conn, opts...)
+}
+
+// updateMechanismPreferences returns true if MechanismPreferences has updated
+func (k *kernelMechanismClient) updateMechanismPreferences(request *networkservice.NetworkServiceRequest) bool {
+	var updated = false
+
+	for _, m := range request.GetRequestMechanismPreferences() {
+		if m.Type == kernel.MECHANISM {
+			if m.Parameters == nil {
+				m.Parameters = make(map[string]string)
+			}
+			if m.Parameters[kernel.InterfaceNameKey] == "" {
+				m.Parameters[kernel.InterfaceNameKey] = k.interfaceName
+			}
+			m.Parameters[kernel.NetNSURL] = (&url.URL{Scheme: "file", Path: netNSFilename}).String()
+			updated = true
+		}
+	}
+
+	return updated
 }
 
 // Option for kernel mechanism client
