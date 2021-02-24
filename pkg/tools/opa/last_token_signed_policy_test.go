@@ -77,7 +77,6 @@ func Test_LastTokenShouldBeSigned_Server(t *testing.T) {
 	ctx := peer.NewContext(context.Background(), peerAuth)
 
 	for i, input := range samples {
-
 		peerAuth.AuthInfo.(*credentials.TLSInfo).State.PeerCertificates[0] = validX509crt
 
 		err = p.Check(ctx, input)
