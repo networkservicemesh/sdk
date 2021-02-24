@@ -20,6 +20,7 @@ package authorize
 
 import (
 	"context"
+	"sync/atomic"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
@@ -31,7 +32,8 @@ import (
 )
 
 type authorizeClient struct {
-	policies policiesList
+	policies   policiesList
+	serverPeer atomic.Value
 }
 
 // NewClient - returns a new authorization networkservicemesh.NetworkServiceClient
@@ -46,14 +48,15 @@ func NewClient(opts ...Option) networkservice.NetworkServiceClient {
 }
 
 func (a *authorizeClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	var p = new(peer.Peer)
-	opts = append(opts, grpc.Peer(p))
+	var p peer.Peer
+	opts = append(opts, grpc.Peer(&p))
 	resp, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
 		return nil, err
 	}
-	if *p != (peer.Peer{}) {
-		ctx = peer.NewContext(ctx, p)
+	if p != (peer.Peer{}) {
+		a.serverPeer.Store(&p)
+		ctx = peer.NewContext(ctx, &p)
 	}
 	if err = a.policies.check(ctx, resp); err != nil {
 		_, _ = next.Client(ctx).Close(ctx, resp, opts...)
@@ -63,6 +66,10 @@ func (a *authorizeClient) Request(ctx context.Context, request *networkservice.N
 }
 
 func (a *authorizeClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	p := a.serverPeer.Load().(*peer.Peer)
+	if p != nil {
+		ctx = peer.NewContext(ctx, p)
+	}
 	if err := a.policies.check(ctx, conn); err != nil {
 		return nil, err
 	}
