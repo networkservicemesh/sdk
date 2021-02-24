@@ -93,12 +93,12 @@ func NewClient(ctx context.Context, cc grpc.ClientConnInterface, clientOpts ...O
 		append(
 			append([]networkservice.NetworkServiceClient{
 				updatepath.NewClient(opts.name),
-				opts.authorizeClient,
 				serialize.NewClient(),
 				heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc), opts.onHeal),
 				refresh.NewClient(ctx),
 				metadata.NewClient(),
 			}, opts.additionalFunctionality...),
+			opts.authorizeClient,
 			networkservice.NewNetworkServiceClient(cc),
 		)...)
 	return rv
