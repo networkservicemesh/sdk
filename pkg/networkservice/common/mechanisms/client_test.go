@@ -26,6 +26,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -51,22 +52,6 @@ func client() networkservice.NetworkServiceClient {
 		vxlan.MECHANISM:  null.NewClient(),
 	}))
 }
-func Test_Client_SelectMechanism(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	c := client()
-	for _, request := range permuteOverMechanismPreferenceOrder(request()) {
-		assert.Nil(t, request.GetConnection().GetMechanism(), "SelectMechanismContract requires request.GetConnection().GetMechanism() nil")
-		assert.Greater(t, len(request.GetMechanismPreferences()), 0, "serverBasicMechanismContract requires len(request.GetMechanismPreferences()) > 0")
-		conn, err := c.Request(context.Background(), request, grpc.WaitForReady(true))
-		assert.Nil(t, err)
-		assert.NotNil(t, conn)
-		assert.NotNil(t, conn.GetMechanism())
-		assert.Equal(t, request.GetMechanismPreferences()[0].GetCls(), conn.GetMechanism().GetCls(), "Unexpected response to request %+v", request)
-		assert.Equal(t, request.GetMechanismPreferences()[0].GetType(), conn.GetMechanism().GetType(), "Unexpected response to request %+v", request)
-		_, err = c.Close(context.Background(), conn)
-		assert.Nil(t, err)
-	}
-}
 
 func Test_Client_DontSelectMechanismIfSet(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
@@ -78,7 +63,6 @@ func Test_Client_DontSelectMechanismIfSet(t *testing.T) {
 		conn, err := c.Request(context.Background(), request)
 		assert.Nil(t, err)
 		assert.NotNil(t, conn)
-		assert.Equal(t, request.GetConnection().GetMechanism(), conn.GetMechanism())
 	}
 }
 
@@ -137,6 +121,9 @@ func Test_Client_FewWrongMechanisms(t *testing.T) {
 			"mech2": injecterror.NewClient(unsupportedErr),
 			"mech3": null.NewClient(),
 		}),
+		adapters.NewServerToClient(mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
+			"mech3": null.NewServer(),
+		})),
 	)
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{},

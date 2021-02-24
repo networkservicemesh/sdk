@@ -47,7 +47,7 @@ func (mc *mechanismsClient) Request(ctx context.Context, request *networkservice
 	if request.GetConnection().GetMechanism() != nil {
 		srv, ok := mc.mechanisms[request.GetConnection().GetMechanism().GetType()]
 		if ok {
-			return srv.Request(ctx, request)
+			return srv.Request(ctx, request, opts...)
 		}
 		return nil, errUnsupportedMech
 	}
@@ -56,9 +56,8 @@ func (mc *mechanismsClient) Request(ctx context.Context, request *networkservice
 		cm, ok := mc.mechanisms[mechanism.GetType()]
 		if ok {
 			req := request.Clone()
-			req.GetConnection().Mechanism = mechanism
 			var resp *networkservice.Connection
-			resp, respErr := cm.Request(ctx, req)
+			resp, respErr := cm.Request(ctx, req, opts...)
 			if respErr == nil {
 				return resp, nil
 			}
