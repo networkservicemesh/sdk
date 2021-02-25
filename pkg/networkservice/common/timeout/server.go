@@ -54,6 +54,11 @@ func (t *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 
 	connID := request.GetConnection().GetId()
 
+	conn, err := next.Server(ctx).Request(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
 	if timer, ok := t.timers.LoadAndDelete(connID); ok {
 		if !timer.Stop() {
 			// Even if we failed to stop the timer, we should execute. It does mean that the timeout action
@@ -65,12 +70,7 @@ func (t *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 		}
 	}
 
-	conn, err := next.Server(ctx).Request(ctx, request)
-	if err != nil {
-		return nil, err
-	}
-
-	timer, err := t.createTimer(ctx, conn)
+	timer, err := t.createTimer(ctx, conn.Clone())
 	if err != nil {
 		if _, closeErr := next.Server(ctx).Close(ctx, conn); closeErr != nil {
 			err = errors.Wrapf(err, "error attempting to close failed connection %v: %+v", connID, closeErr)

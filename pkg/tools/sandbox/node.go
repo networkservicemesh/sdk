@@ -18,12 +18,13 @@ package sandbox
 
 import (
 	"context"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"net/url"
 
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
@@ -55,13 +56,14 @@ func (n *Node) NewForwarder(
 	additionalFunctionality ...networkservice.NetworkServiceServer,
 ) (*EndpointEntry, error) {
 	ep := new(EndpointEntry)
+	healServer, registerHealClient := heal.NewServer(ctx, addressof.NetworkServiceClient(adapters.NewServerToClient(ep)))
 	additionalFunctionality = append(additionalFunctionality,
 		clienturl.NewServer(n.NSMgr.URL),
+		healServer,
 		connect.NewServer(ctx,
 			client.NewCrossConnectClientFactory(
 				client.WithName(nse.Name),
-				// What to call onHeal
-				client.WithHeal(addressof.NetworkServiceClient(adapters.NewServerToClient(ep)))),
+				client.WithRegisterHealClientFunc(registerHealClient)),
 			DefaultDialOptions(generatorFunc)...,
 		),
 	)
@@ -116,27 +118,34 @@ func (n *Node) newEndpoint(
 	nse.Url = u.String()
 
 	// 3. Register with the node registry client
+	n.RegisterEndpoint(ctx, nse, registryClient)
 
+	log.FromContext(ctx).Infof("Started listen endpoint %s on %s.", nse.Name, u.String())
+
+	return &EndpointEntry{Endpoint: ep, URL: u}, nil
+}
+
+// RegisterEndpoint
+func (n *Node) RegisterEndpoint(ctx context.Context, nse *registryapi.NetworkServiceEndpoint, registryClient registryapi.NetworkServiceEndpointRegistryClient) error {
+	var err error
 	for _, nsName := range nse.NetworkServiceNames {
 		if _, err = n.NSRegistryClient.Register(ctx, &registryapi.NetworkService{
 			Name:    nsName,
 			Payload: payload.IP,
 		}); err != nil {
-			return nil, err
+			return err
 		}
 	}
 
 	var reg *registryapi.NetworkServiceEndpoint
 	if reg, err = registryClient.Register(ctx, nse); err != nil {
-		return nil, err
+		return err
 	}
 
 	nse.Name = reg.Name
 	nse.ExpirationTime = reg.ExpirationTime
 
-	log.FromContext(ctx).Infof("Started listen endpoint %s on %s.", nse.Name, u.String())
-
-	return &EndpointEntry{Endpoint: ep, URL: u}, nil
+	return nil
 }
 
 // NewClient starts a new client and connects it to the node NSMgr

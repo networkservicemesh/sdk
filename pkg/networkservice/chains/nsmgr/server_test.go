@@ -722,16 +722,55 @@ func (c *passThroughClient) Close(ctx context.Context, conn *networkservice.Conn
 
 type counterServer struct {
 	Requests, Closes int32
+	requests         map[string]int32
+	closes           map[string]int32
+	mu               sync.Mutex
 }
 
 func (c *counterServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	atomic.AddInt32(&c.Requests, 1)
+	if c.requests == nil {
+		c.requests = make(map[string]int32)
+	}
+	c.requests[request.GetConnection().GetId()]++
+
 	return next.Server(ctx).Request(ctx, request)
 }
 
 func (c *counterServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	atomic.AddInt32(&c.Closes, 1)
+	if c.closes == nil {
+		c.closes = make(map[string]int32)
+	}
+	c.closes[connection.GetId()]++
+
 	return next.Server(ctx).Close(ctx, connection)
+}
+
+func (c *counterServer) UniqueRequests() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.requests == nil {
+		return 0
+	}
+	return len(c.requests)
+}
+
+func (c *counterServer) UniqueCloses() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.closes == nil {
+		return 0
+	}
+	return len(c.closes)
 }
 
 type restartingEndpoint struct {

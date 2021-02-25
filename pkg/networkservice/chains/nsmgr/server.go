@@ -34,6 +34,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/filtermechanisms"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interpose"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
@@ -102,6 +103,8 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 
 	nsClient := registryadapter.NetworkServiceServerToClient(nsRegistry)
 
+	healServer, registerHealClient := heal.NewServer(ctx, addressof.NetworkServiceClient(adapters.NewServerToClient(rv)))
+
 	// Construct Endpoint
 	rv.Endpoint = endpoint.NewServer(ctx,
 		nsmRegistration.Name,
@@ -113,10 +116,11 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 		recvfd.NewServer(), // Receive any files passed
 		interpose.NewServer(&interposeRegistryServer),
 		filtermechanisms.NewServer(&urlsRegistryServer),
+		healServer,
 		connect.NewServer(ctx,
 			client.NewClientFactory(
 				client.WithName(nsmRegistration.Name),
-				client.WithHeal(addressof.NetworkServiceClient(adapters.NewServerToClient(rv))),
+				client.WithRegisterHealClientFunc(registerHealClient),
 				client.WithAdditionalFunctionality(
 					recvfd.NewClient(),
 					sendfd.NewClient(),

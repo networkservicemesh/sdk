@@ -28,24 +28,37 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/externalips"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interdomainurl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/swapip"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
+	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 // NewServer creates new proxy NSMgr
+
 func NewServer(ctx context.Context, name string, authorizeServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, options ...grpc.DialOption) endpoint.Endpoint {
-	return endpoint.NewServer(ctx,
+		type nsmgrProxyServer struct {
+		endpoint.Endpoint
+	}
+
+		rv := nsmgrProxyServer{}
+
+		healServer, _ := heal.NewServer(ctx, addressof.NetworkServiceClient(adapters.NewServerToClient(rv)))
+		rv.Endpoint = endpoint.NewServer(ctx,
 		name,
 		authorizeServer,
 		tokenGenerator,
 		interdomainurl.NewServer(),
 		externalips.NewServer(ctx),
 		swapip.NewServer(),
+		healServer,
 		connect.NewServer(
 			ctx,
 			client.NewClientFactory(client.WithName(name)),
 			options...,
 		),
 	)
+	return rv
 }

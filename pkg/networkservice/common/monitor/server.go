@@ -33,8 +33,12 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
+type connection struct {
+	*networkservice.Connection
+}
+
 type monitorServer struct {
-	connections map[string]*networkservice.Connection
+	connections connectionMap
 	monitors    []networkservice.MonitorConnection_MonitorConnectionsServer
 	executor    serialize.Executor
 	ctx         context.Context
@@ -51,9 +55,8 @@ type monitorServer struct {
 //             ctx - context for lifecycle management
 func NewServer(ctx context.Context, monitorServerPtr *networkservice.MonitorConnectionServer) networkservice.NetworkServiceServer {
 	rv := &monitorServer{
-		ctx:         ctx,
-		connections: make(map[string]*networkservice.Connection),
-		monitors:    nil, // Intentionally nil
+		ctx:      ctx,
+		monitors: nil, // Intentionally nil
 	}
 	*monitorServerPtr = rv
 	return rv
@@ -63,11 +66,16 @@ func (m *monitorServer) MonitorConnections(selector *networkservice.MonitorScope
 	m.executor.AsyncExec(func() {
 		monitor := newMonitorFilter(selector, srv)
 		m.monitors = append(m.monitors, monitor)
-
+		connections := make(map[string]*networkservice.Connection)
+		for _, ps := range selector.PathSegments {
+			if conn, ok := m.connections.Load(ps.GetId()); ok {
+				connections[ps.GetId()] = conn.Connection
+			}
+		}
 		// Send initial transfer of all data available
 		_ = monitor.Send(&networkservice.ConnectionEvent{
 			Type:        networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,
-			Connections: m.connections,
+			Connections: connections,
 		})
 	})
 	select {
@@ -82,7 +90,8 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 	eventConn := conn.Clone()
 	if err == nil {
 		m.executor.AsyncExec(func() {
-			m.connections[eventConn.GetId()] = eventConn
+			m.connections.Store(eventConn.GetId(), connection{eventConn})
+
 			// Send update event
 			event := &networkservice.ConnectionEvent{
 				Type:        networkservice.ConnectionEventType_UPDATE,
@@ -97,14 +106,21 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 }
 
 func (m *monitorServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	eventConn := conn.Clone()
-	_, closeErr := next.Server(ctx).Close(ctx, conn)
+	// Use more recent version of the connection
+	eventConn, ok := m.connections.Load(conn.GetId())
+	if !ok {
+		eventConn = connection{conn}
+	}
+
+	_, closeErr := next.Server(ctx).Close(ctx, eventConn.Connection)
+
 	// Remove connection object we have and send DELETE
 	m.executor.AsyncExec(func() {
-		delete(m.connections, eventConn.GetId())
+		m.connections.Delete(eventConn.GetId())
+
 		event := &networkservice.ConnectionEvent{
 			Type:        networkservice.ConnectionEventType_DELETE,
-			Connections: map[string]*networkservice.Connection{eventConn.GetId(): eventConn},
+			Connections: map[string]*networkservice.Connection{eventConn.GetId(): eventConn.Connection},
 		}
 		if err := m.send(ctx, event); err != nil {
 			log.FromContext(ctx).Errorf("Error during sending event: %v", err)
@@ -126,6 +142,7 @@ func (m *monitorServer) send(ctx context.Context, event *networkservice.Connecti
 			newMonitors = append(newMonitors, filter)
 		}
 	}
+
 	m.monitors = newMonitors
 	return err
 }

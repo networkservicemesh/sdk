@@ -75,6 +75,14 @@ func GenerateTestToken(_ credentials.AuthInfo) (tokenValue string, expireTime ti
 	return "TestToken", time.Now().Add(time.Hour).Local(), nil
 }
 
+// GenerateExpiringToken returns a token generator with the specified expiration duration.
+func GenerateExpiringToken(duration time.Duration) token.GeneratorFunc {
+	value := fmt.Sprintf("TestToken-%s", duration)
+	return func(_ credentials.AuthInfo) (tokenValue string, expireTime time.Time, err error) {
+		return value, time.Now().Add(duration).Local(), nil
+	}
+}
+
 // NewCrossConnectClientFactory is a client.NewCrossConnectClientFactory with some fields preset for testing
 func NewCrossConnectClientFactory(generatorFunc token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceClient) client.Factory {
 	return client.NewCrossConnectClientFactory(

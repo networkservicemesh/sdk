@@ -45,7 +45,7 @@ type SupplyRegistryFunc func(ctx context.Context, expiryDuration time.Duration, 
 type SupplyRegistryProxyFunc func(ctx context.Context, dnsResolver dnsresolve.Resolver, handlingDNSDomain string, proxyNSMgrURL *url.URL, options ...grpc.DialOption) registry.Registry
 
 // SetupNodeFunc setups each node on Builder.Build() stage
-type SetupNodeFunc func(ctx context.Context, node *Node)
+type SetupNodeFunc func(ctx context.Context, node *Node, config *NodeConfig)
 
 // RegistryEntry is pair of registry.Registry and url.URL
 type RegistryEntry struct {
@@ -74,6 +74,19 @@ type Domain struct {
 	DNSResolver   dnsresolve.Resolver
 	Name          string
 	resources     []context.CancelFunc
+}
+
+// NodeConfig keeps custom node configuration parameters
+type NodeConfig struct {
+	NsmgrCtx                   context.Context
+	NsmgrGenerateTokenFunc     token.GeneratorFunc
+	ForwarderCtx               context.Context
+	ForwarderGenerateTokenFunc token.GeneratorFunc
+}
+
+// AddResources appends resources to the Domain to close it later
+func (d *Domain) AddResources(resources []context.CancelFunc) {
+	d.resources = append(d.resources, resources...)
 }
 
 // Cleanup frees all resources related to the domain
