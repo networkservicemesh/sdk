@@ -198,6 +198,8 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int, customConfig []*sandbox.N
 }
 
 func TestNSMGR_HealRemoteNSMgrRestored(t *testing.T) {
+	t.Skip("Depends on https://github.com/networkservicemesh/sdk/pull/703")
+
 	nsmgrCtx, nsmgrCtxCancel := context.WithTimeout(context.Background(), time.Second)
 	defer nsmgrCtxCancel()
 
