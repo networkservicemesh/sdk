@@ -37,16 +37,15 @@ import (
 )
 
 // NewServer creates new proxy NSMgr
-
 func NewServer(ctx context.Context, name string, authorizeServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, options ...grpc.DialOption) endpoint.Endpoint {
-		type nsmgrProxyServer struct {
+	type nsmgrProxyServer struct {
 		endpoint.Endpoint
 	}
 
-		rv := nsmgrProxyServer{}
+	rv := nsmgrProxyServer{}
 
-		healServer, _ := heal.NewServer(ctx, addressof.NetworkServiceClient(adapters.NewServerToClient(rv)))
-		rv.Endpoint = endpoint.NewServer(ctx,
+	healServer, _ := heal.NewServer(ctx, addressof.NetworkServiceClient(adapters.NewServerToClient(rv)))
+	rv.Endpoint = endpoint.NewServer(ctx,
 		name,
 		authorizeServer,
 		tokenGenerator,

@@ -96,7 +96,7 @@ func TestNSMGR_HealEndpoint(t *testing.T) {
 	nseCtxCancel()
 
 	// Wait NSE expired and reconnecting to the new NSE
-	require.Eventually(t, checkRequests(2, counter.UniqueRequests), timeout, tick)
+	require.Eventually(t, checkSecondRequestsReceived(counter.UniqueRequests), timeout, tick)
 
 	// Close.
 	e, err := nsc.Close(ctx, conn)
@@ -181,12 +181,13 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int, customConfig []*sandbox.N
 	forwarderReg := &registry.NetworkServiceEndpoint{
 		Name: "forwarder-restored",
 	}
-	domain.Nodes[nodeNum].NewForwarder(ctx, forwarderReg, sandbox.GenerateTestToken)
+	_, err = domain.Nodes[nodeNum].NewForwarder(ctx, forwarderReg, sandbox.GenerateTestToken)
+	require.NoError(t, err)
 
 	forwarderCtxCancel()
 
 	// Wait Cross NSE expired and reconnecting through the new Cross NSE
-	require.Eventually(t, checkRequests(2, counter.UniqueRequests), timeout, tick)
+	require.Eventually(t, checkSecondRequestsReceived(counter.UniqueRequests), timeout, tick)
 
 	// Close.
 	e, err := nsc.Close(ctx, conn)
@@ -265,14 +266,15 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, customConfig []*sandbox.NodeC
 	forwarderReg := &registry.NetworkServiceEndpoint{
 		Name: "forwarder-restored",
 	}
-	domain.Nodes[nodeNum].NewForwarder(ctx, forwarderReg, sandbox.GenerateTestToken)
+	_, err = domain.Nodes[nodeNum].NewForwarder(ctx, forwarderReg, sandbox.GenerateTestToken)
+	require.NoError(t, err)
 
 	nseReg.Url = nse.URL.String()
 	err = domain.Nodes[nodeNum].RegisterEndpoint(ctx, nseReg, domain.Nodes[nodeNum].EndpointRegistryClient)
 	require.NoError(t, err)
 
 	// Wait Cross NSE expired and reconnecting through the new Cross NSE
-	require.Eventually(t, checkRequests(2, counter.UniqueRequests), timeout, tick)
+	require.Eventually(t, checkSecondRequestsReceived(counter.UniqueRequests), timeout, tick)
 
 	// Close.
 	closes := atomic.LoadInt32(&counter.Closes)
@@ -347,7 +349,7 @@ func TestNSMGR_HealRemoteNSMgr(t *testing.T) {
 	require.NoError(t, err)
 
 	// Wait Cross NSE expired and reconnecting through the new Cross NSE
-	require.Eventually(t, checkRequests(2, counter.UniqueRequests), timeout, tick)
+	require.Eventually(t, checkSecondRequestsReceived(counter.UniqueRequests), timeout, tick)
 
 	// Close.
 	e, err := nsc.Close(ctx, conn)
@@ -357,8 +359,8 @@ func TestNSMGR_HealRemoteNSMgr(t *testing.T) {
 	require.Equal(t, 2, counter.UniqueCloses())
 }
 
-func checkRequests(requestsRequired int, requestsDone func() int) func() bool {
+func checkSecondRequestsReceived(requestsDone func() int) func() bool {
 	return func() bool {
-		return requestsRequired == requestsDone()
+		return requestsDone() == 2
 	}
 }

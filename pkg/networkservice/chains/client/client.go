@@ -21,9 +21,10 @@ package client
 
 import (
 	"context"
-	"google.golang.org/grpc"
 
 	"github.com/google/uuid"
+	"google.golang.org/grpc"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
@@ -46,7 +47,7 @@ type clientOptions struct {
 // Option modifies default client chain values.
 type Option func(c *clientOptions)
 
-// WithHeal sets heal for the client.
+// WithRegisterHealClientFunc sets server's register client method
 func WithRegisterHealClientFunc(registerClientFunc heal.RegisterClientFunc) Option {
 	return Option(func(c *clientOptions) {
 		c.registerClientFunc = registerClientFunc

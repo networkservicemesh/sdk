@@ -18,13 +18,12 @@ package sandbox
 
 import (
 	"context"
-	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"net/url"
 
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
@@ -32,6 +31,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
@@ -118,14 +118,17 @@ func (n *Node) newEndpoint(
 	nse.Url = u.String()
 
 	// 3. Register with the node registry client
-	n.RegisterEndpoint(ctx, nse, registryClient)
+	err = n.RegisterEndpoint(ctx, nse, registryClient)
+	if err != nil {
+		return nil, err
+	}
 
 	log.FromContext(ctx).Infof("Started listen endpoint %s on %s.", nse.Name, u.String())
 
 	return &EndpointEntry{Endpoint: ep, URL: u}, nil
 }
 
-// RegisterEndpoint
+// RegisterEndpoint - registers endpoint in the registry client
 func (n *Node) RegisterEndpoint(ctx context.Context, nse *registryapi.NetworkServiceEndpoint, registryClient registryapi.NetworkServiceEndpointRegistryClient) error {
 	var err error
 	for _, nsName := range nse.NetworkServiceNames {

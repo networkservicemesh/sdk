@@ -21,7 +21,6 @@ package heal
 
 import (
 	"context"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"runtime"
 	"time"
 
@@ -37,6 +36,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type ctxWrapper struct {
