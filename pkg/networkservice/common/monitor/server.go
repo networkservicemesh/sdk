@@ -103,20 +103,10 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 }
 
 func (m *monitorServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	var eventConn *networkservice.Connection
-
-	<-m.executor.AsyncExec(func() {
-		// Use more recent version of the connection
-		var ok bool
-		eventConn, ok = m.connections[conn.GetId()]
-		if !ok {
-			eventConn = conn.Clone()
-		}
-	})
-
-	_, closeErr := next.Server(ctx).Close(ctx, eventConn)
+	_, closeErr := next.Server(ctx).Close(ctx, conn)
 
 	// Remove connection object we have and send DELETE
+	eventConn := conn.Clone()
 	m.executor.AsyncExec(func() {
 		delete(m.connections, eventConn.GetId())
 
