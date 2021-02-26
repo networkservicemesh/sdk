@@ -19,8 +19,7 @@ package discover
 import (
 	"context"
 	"net/url"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
@@ -29,6 +28,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 )
 
 type discoverCandidatesServer struct {
@@ -71,6 +71,11 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 		if err == nil {
 			return resp, err
 		}
+
+		if dd, ok := ctx.Deadline(); ctx.Err() == nil && ok {
+			<-time.After(time.Until(dd) / 10)
+		}
+
 		nses, err = d.discoverNetworkServiceEndpoints(ctx, ns, request.GetConnection().GetLabels())
 		if err != nil {
 			return nil, err
