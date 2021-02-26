@@ -69,14 +69,13 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 		return nil, err
 	}
 
-	delay := defaultDiscoverDelay / discoverDelayMultiplier
+	delay := defaultDiscoverDelay
 	for ctx.Err() == nil {
 		resp, err := next.Server(ctx).Request(WithCandidates(ctx, nses, ns), request)
 		if err == nil {
 			return resp, err
 		}
 
-		delay *= discoverDelayMultiplier
 		if deadline, ok := ctx.Deadline(); ctx.Err() == nil && ok {
 			timeout := time.Until(deadline) / 10
 			if delay > float64(timeout) {
@@ -84,6 +83,7 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 			}
 		}
 		<-time.After(time.Duration(delay))
+		delay *= discoverDelayMultiplier
 
 		nses, err = d.discoverNetworkServiceEndpoints(ctx, ns, request.GetConnection().GetLabels())
 		if err != nil {
