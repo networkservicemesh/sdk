@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Cisco Systems, Inc.
 //
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -66,15 +68,22 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 	if err != nil {
 		return nil, err
 	}
+
+	delay := defaultDiscoverDelay / discoverDelayMultiplier
 	for ctx.Err() == nil {
 		resp, err := next.Server(ctx).Request(WithCandidates(ctx, nses, ns), request)
 		if err == nil {
 			return resp, err
 		}
 
-		if dd, ok := ctx.Deadline(); ctx.Err() == nil && ok {
-			<-time.After(time.Until(dd) / 10)
+		delay *= discoverDelayMultiplier
+		if deadline, ok := ctx.Deadline(); ctx.Err() == nil && ok {
+			timeout := time.Until(deadline) / 10
+			if delay > float64(timeout) {
+				delay = float64(timeout)
+			}
 		}
+		<-time.After(time.Duration(delay))
 
 		nses, err = d.discoverNetworkServiceEndpoints(ctx, ns, request.GetConnection().GetLabels())
 		if err != nil {
