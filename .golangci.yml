@@ -262,3 +262,7 @@ issues:
       linters:
         - structcheck
       text: "is unused"
+    - path: pkg/networkservice/common/discover/server_test.go
+      linters:
+        - dupl
+      text: "lines are duplicate of"

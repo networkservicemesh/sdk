@@ -88,7 +88,10 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 
 	nseRegistry := newRemoteNSEServer(registryCC)
 	if nseRegistry == nil {
-		nseRegistry = memory.NewNetworkServiceEndpointRegistryServer() // Memory registry to store result inside.
+		nseRegistry = registrychain.NewNetworkServiceEndpointRegistryServer(
+			memory.NewNetworkServiceEndpointRegistryServer(), // Memory registry to store result inside
+			setid.NewNetworkServiceEndpointRegistryServer(),  // Assign ID
+		)
 	}
 
 	localBypassRegistryServer := localbypass.NewNetworkServiceEndpointRegistryServer(nsmRegistration.Url)
@@ -131,12 +134,11 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 	nseChain := registrychain.NewNamedNetworkServiceEndpointRegistryServer(
 		nsmRegistration.Name+".NetworkServiceEndpointRegistry",
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
-		setid.NewNetworkServiceEndpointRegistryServer(),          // Assign ID
 		registryrecvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
 		urlsRegistryServer,        // Store endpoints URLs
 		interposeRegistryServer,   // Store cross connect NSEs
 		localBypassRegistryServer, // Perform URL transformations
-		nseRegistry,               // Register NSE inside Remote registry with ID assigned
+		nseRegistry,               // Register NSE inside Remote registry
 	)
 	rv.Registry = registry.NewServer(nsChain, nseChain)
 
