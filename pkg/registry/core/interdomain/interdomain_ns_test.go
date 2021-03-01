@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -22,12 +22,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/networkservicemesh/api/pkg/api/registry"
+	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 
-	registry2 "github.com/networkservicemesh/sdk/pkg/registry"
+	"github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
@@ -79,7 +79,7 @@ func TestInterdomainNetworkServiceRegistry(t *testing.T) {
 
 	_, err := domain2.Registry.NetworkServiceRegistryServer().Register(
 		context.Background(),
-		&registry.NetworkService{
+		&registryapi.NetworkService{
 			Name: "ns-1",
 		},
 	)
@@ -91,36 +91,36 @@ func TestInterdomainNetworkServiceRegistry(t *testing.T) {
 		_ = cc.Close()
 	}()
 
-	client := registry.NewNetworkServiceRegistryClient(cc)
+	client := registryapi.NewNetworkServiceRegistryClient(cc)
 
-	stream, err := client.Find(ctx, &registry.NetworkServiceQuery{
-		NetworkService: &registry.NetworkService{
+	stream, err := client.Find(ctx, &registryapi.NetworkServiceQuery{
+		NetworkService: &registryapi.NetworkService{
 			Name: "ns-1@" + remoteRegistryDomain,
 		},
 	})
 
 	require.Nil(t, err)
 
-	list := registry.ReadNetworkServiceList(stream)
+	list := registryapi.ReadNetworkServiceList(stream)
 
 	require.Len(t, list, 1)
 	require.Equal(t, "ns-1@"+remoteRegistryDomain, list[0].Name)
 }
 
 /*
-TestLocalDomain_NetworkServiceRegistry covers the next scenario:
-	1. nsmgr from domain1 calls find with query "ns-1@domain1"
-	2. local registry proxies query to proxy registry
-	3. proxy registry proxies query to local registry removes interdomain symbol
-	4. local registry finds ns-1 with local nsmgr URL
+	TestLocalDomain_NetworkServiceRegistry covers the next scenario:
+		1. nsmgr from domain1 calls find with query "ns-1@domain1"
+		2. local registry proxies query to proxy registry
+		3. proxy registry proxies query to local registry removes interdomain symbol
+		4. local registry finds ns-1 with local nsmgr URL
 
-Expected: nsmgr found ns
-domain1
- ____________________________________
-|                                    |
-| local registry <--> proxy registry |
-|                                    |
-_____________________________________
+	Expected: nsmgr found ns
+	domain1
+	 ____________________________________
+	|                                    |
+	| local registry <--> proxy registry |
+	|                                    |
+	_____________________________________
 */
 func TestLocalDomain_NetworkServiceRegistry(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
@@ -144,7 +144,7 @@ func TestLocalDomain_NetworkServiceRegistry(t *testing.T) {
 
 	expected, err := domain1.Registry.NetworkServiceRegistryServer().Register(
 		context.Background(),
-		&registry.NetworkService{
+		&registryapi.NetworkService{
 			Name: "ns-1",
 		},
 	)
@@ -155,17 +155,17 @@ func TestLocalDomain_NetworkServiceRegistry(t *testing.T) {
 	defer func() {
 		_ = cc.Close()
 	}()
-	client := registry.NewNetworkServiceRegistryClient(cc)
+	client := registryapi.NewNetworkServiceRegistryClient(cc)
 
-	stream, err := client.Find(context.Background(), &registry.NetworkServiceQuery{
-		NetworkService: &registry.NetworkService{
+	stream, err := client.Find(context.Background(), &registryapi.NetworkServiceQuery{
+		NetworkService: &registryapi.NetworkService{
 			Name: expected.Name + "@" + localRegistryDomain,
 		},
 	})
 
 	require.Nil(t, err)
 
-	list := registry.ReadNetworkServiceList(stream)
+	list := registryapi.ReadNetworkServiceList(stream)
 
 	require.Len(t, list, 1)
 	require.Equal(t, expected.Name, list[0].Name)
@@ -217,8 +217,8 @@ func TestInterdomainFloatingNetworkServiceRegistry(t *testing.T) {
 
 	domain3 := sandbox.NewBuilder(t).
 		SetNodesCount(0).
-		SetRegistrySupplier(func(context.Context, *url.URL, ...grpc.DialOption) registry2.Registry {
-			return registry2.NewServer(memory.NewNetworkServiceRegistryServer(), memory.NewNetworkServiceEndpointRegistryServer())
+		SetRegistrySupplier(func(context.Context, time.Duration, *url.URL, ...grpc.DialOption) registry.Registry {
+			return registry.NewServer(memory.NewNetworkServiceRegistryServer(), memory.NewNetworkServiceEndpointRegistryServer())
 		}).
 		SetRegistryProxySupplier(nil).
 		Build()
@@ -232,7 +232,7 @@ func TestInterdomainFloatingNetworkServiceRegistry(t *testing.T) {
 
 	_, err := domain2.Registry.NetworkServiceRegistryServer().Register(
 		context.Background(),
-		&registry.NetworkService{
+		&registryapi.NetworkService{
 			Name: "ns-1@" + floatingRegistryDomain,
 		},
 	)
@@ -244,17 +244,17 @@ func TestInterdomainFloatingNetworkServiceRegistry(t *testing.T) {
 		_ = cc.Close()
 	}()
 
-	client := registry.NewNetworkServiceRegistryClient(cc)
+	client := registryapi.NewNetworkServiceRegistryClient(cc)
 
-	stream, err := client.Find(ctx, &registry.NetworkServiceQuery{
-		NetworkService: &registry.NetworkService{
+	stream, err := client.Find(ctx, &registryapi.NetworkServiceQuery{
+		NetworkService: &registryapi.NetworkService{
 			Name: "ns-1@" + floatingRegistryDomain,
 		},
 	})
 
 	require.Nil(t, err)
 
-	list := registry.ReadNetworkServiceList(stream)
+	list := registryapi.ReadNetworkServiceList(stream)
 
 	require.Len(t, list, 1)
 	require.Equal(t, "ns-1", list[0].Name)

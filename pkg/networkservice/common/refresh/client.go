@@ -33,6 +33,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 )
 
 type refreshClient struct {
@@ -59,8 +60,7 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 		return nil, errors.New("no executor provided")
 	}
 	request.Connection = rv.Clone()
-	nextClient := next.Client(ctx)
-	t.startTimer(connectionID, executor, nextClient, request, opts)
+	t.startTimer(ctx, connectionID, executor, request, opts)
 
 	return rv, err
 }
@@ -77,7 +77,8 @@ func (t *refreshClient) stopTimer(connectionID string) {
 	}
 }
 
-func (t *refreshClient) startTimer(connectionID string, exec serialize.Executor, nextClient networkservice.NetworkServiceClient, request *networkservice.NetworkServiceRequest, opts []grpc.CallOption) {
+func (t *refreshClient) startTimer(ctx context.Context, connectionID string, exec serialize.Executor, request *networkservice.NetworkServiceRequest, opts []grpc.CallOption) {
+	nextClient := next.Client(ctx)
 	expireTime, err := ptypes.Timestamp(request.GetConnection().GetCurrentPathSegment().GetExpires())
 	if err != nil {
 		return
@@ -109,13 +110,15 @@ func (t *refreshClient) startTimer(connectionID string, exec serialize.Executor,
 				return
 			}
 
-			rv, err := nextClient.Request(t.ctx, request.Clone(), opts...)
+			refreshCtx, cancel := context.WithCancel(extend.WithValuesFromContext(t.ctx, ctx))
+			defer cancel()
+			rv, err := nextClient.Request(refreshCtx, request.Clone(), opts...)
 
 			if err == nil && rv != nil {
 				request.Connection = rv
 			}
 
-			t.startTimer(connectionID, exec, nextClient, request, opts)
+			t.startTimer(ctx, connectionID, exec, request, opts)
 		})
 	})
 

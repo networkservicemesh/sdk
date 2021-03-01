@@ -42,9 +42,9 @@ func WithTracing() []grpc.ServerOption {
 			return otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer())(ctx, proto.Clone(req.(proto.Message)), info, handler)
 		}
 		return []grpc.ServerOption{
-			grpc.UnaryInterceptor(
+			grpc.ChainUnaryInterceptor(
 				interceptor),
-			grpc.StreamInterceptor(
+			grpc.ChainStreamInterceptor(
 				otgrpc.OpenTracingStreamServerInterceptor(opentracing.GlobalTracer())),
 		}
 	}
@@ -67,9 +67,9 @@ func WithTracingDial() []grpc.DialOption {
 			return otgrpc.OpenTracingClientInterceptor(opentracing.GlobalTracer())(ctx, method, proto.Clone(req.(proto.Message)), reply, cc, invoker, opts...)
 		}
 		return []grpc.DialOption{
-			grpc.WithUnaryInterceptor(
+			grpc.WithChainUnaryInterceptor(
 				interceptor),
-			grpc.WithStreamInterceptor(
+			grpc.WithChainStreamInterceptor(
 				otgrpc.OpenTracingStreamClientInterceptor(opentracing.GlobalTracer())),
 		}
 	}

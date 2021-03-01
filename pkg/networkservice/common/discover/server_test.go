@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -19,26 +19,26 @@ package discover_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
-
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	registrynext "github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 )
 
 func endpoints() []*registry.NetworkServiceEndpoint {
@@ -376,4 +376,191 @@ func TestNoMatchServiceEndpointFound(t *testing.T) {
 	defer cancel()
 	_, err = server.Request(ctx, request)
 	require.Error(t, err)
+}
+
+func TestMatchExactService(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	nsServer := memory.NewNetworkServiceRegistryServer()
+	nseServer := registrynext.NewNetworkServiceEndpointRegistryServer(
+		setid.NewNetworkServiceEndpointRegistryServer(),
+		memory.NewNetworkServiceEndpointRegistryServer(),
+	)
+
+	nsName := networkServiceName()
+	server := next.NewNetworkServiceServer(
+		discover.NewServer(
+			adapters.NetworkServiceServerToClient(nsServer),
+			adapters.NetworkServiceEndpointServerToClient(nseServer)),
+		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+			nses := discover.Candidates(ctx).Endpoints
+			require.Len(t, nses, 1)
+			require.Equal(t, nsName, nses[0].NetworkServiceNames[0])
+		}),
+	)
+
+	// 1. Register NS, NSE with wrong name
+	wrongNSName := nsName + "-wrong"
+	_, err := nsServer.Register(context.Background(), &registry.NetworkService{
+		Name: wrongNSName,
+	})
+	require.NoError(t, err)
+	_, err = nseServer.Register(context.Background(), &registry.NetworkServiceEndpoint{
+		NetworkServiceNames: []string{wrongNSName},
+	})
+	require.NoError(t, err)
+
+	// 2. Try to discover NSE by the right NS name
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			NetworkService: nsName,
+		},
+	}
+
+	_, err = server.Request(ctx, request.Clone())
+	require.Error(t, err)
+
+	// 3. Register NS, NSE with the right name
+	_, err = nsServer.Register(context.Background(), &registry.NetworkService{
+		Name: nsName,
+	})
+	require.NoError(t, err)
+	_, err = nseServer.Register(context.Background(), &registry.NetworkServiceEndpoint{
+		NetworkServiceNames: []string{nsName},
+	})
+	require.NoError(t, err)
+
+	// 4. Try to discover NSE by the right NS name
+	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+
+	_, err = server.Request(ctx, request.Clone())
+	require.NoError(t, err)
+}
+
+func TestMatchExactEndpoint(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	nseServer := memory.NewNetworkServiceEndpointRegistryServer()
+
+	nseName := "final-endpoint"
+	u := "tcp://" + nseName
+	server := next.NewNetworkServiceServer(
+		discover.NewServer(
+			adapters.NetworkServiceServerToClient(memory.NewNetworkServiceRegistryServer()),
+			adapters.NetworkServiceEndpointServerToClient(nseServer)),
+		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+			require.Equal(t, u, clienturlctx.ClientURL(ctx).String())
+		}),
+	)
+
+	// 1. Register NSE with wrong name
+	wrongNSEName := nseName + "-wrong"
+	wrongURL := u + "-wrong"
+	_, err := nseServer.Register(context.Background(), &registry.NetworkServiceEndpoint{
+		Name: wrongNSEName,
+		Url:  wrongURL,
+	})
+	require.NoError(t, err)
+
+	// 2. Try to discover NSE by the right name
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			NetworkServiceEndpointName: nseName,
+		},
+	}
+
+	_, err = server.Request(ctx, request.Clone())
+	require.Error(t, err)
+
+	// 3. Register NSE with the right name
+	_, err = nseServer.Register(context.Background(), &registry.NetworkServiceEndpoint{
+		Name: nseName,
+		Url:  u,
+	})
+	require.NoError(t, err)
+
+	// 4. Try to discover NSE by the right name
+	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+
+	_, err = server.Request(ctx, request.Clone())
+	require.NoError(t, err)
+}
+
+func TestMatchSelectedNSESecondAttempt(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	nsServer := memory.NewNetworkServiceRegistryServer()
+	nseServer := registrynext.NewNetworkServiceEndpointRegistryServer(
+		setid.NewNetworkServiceEndpointRegistryServer(),
+		memory.NewNetworkServiceEndpointRegistryServer(),
+	)
+
+	nsName := networkServiceName()
+	counter := 0
+	server := next.NewNetworkServiceServer(
+		discover.NewServer(
+			adapters.NetworkServiceServerToClient(nsServer),
+			adapters.NetworkServiceEndpointServerToClient(nseServer)),
+		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+			nses := discover.Candidates(ctx).Endpoints
+			require.Len(t, nses, 1)
+			require.Equal(t, nsName, nses[0].NetworkServiceNames[0])
+		}),
+		&injectConditionServer{
+			condition: func() bool {
+				counter++
+				return counter > 1
+			},
+		},
+	)
+
+	_, err := nsServer.Register(context.Background(), &registry.NetworkService{
+		Name: nsName,
+	})
+	require.NoError(t, err)
+	_, err = nseServer.Register(context.Background(), &registry.NetworkServiceEndpoint{
+		NetworkServiceNames: []string{nsName},
+	})
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			NetworkService: nsName,
+		},
+	}
+	now := time.Now()
+	_, err = server.Request(ctx, request)
+	require.NoError(t, err)
+	require.Condition(t, func() (success bool) {
+		return time.Now().After(now.Add(time.Second / 10))
+	})
+}
+
+type injectConditionServer struct {
+	condition func() bool
+}
+
+func (c *injectConditionServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	if !c.condition() {
+		return nil, errors.New("error originated by failed condition in injectConditionServer")
+	}
+	return next.Server(ctx).Request(ctx, request)
+}
+
+func (c *injectConditionServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
+	if !c.condition() {
+		return nil, errors.New("error originated by failed condition in injectConditionServer")
+	}
+	return next.Server(ctx).Close(ctx, connection)
 }

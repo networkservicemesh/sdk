@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -31,7 +31,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 )
 
-func testPolicy() opa.AuthorizationPolicy {
+func testPolicy() authorize.Policy {
 	return opa.WithPolicyFromSource(`
 		package test
 	
@@ -62,7 +62,7 @@ func TestAuthzEndpoint(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	suits := []struct {
 		name     string
-		policy   opa.AuthorizationPolicy
+		policy   authorize.Policy
 		request  *networkservice.NetworkServiceRequest
 		response *networkservice.Connection
 		denied   bool

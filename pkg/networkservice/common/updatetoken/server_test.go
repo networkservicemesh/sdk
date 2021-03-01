@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,6 +18,7 @@ package updatetoken_test
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -197,13 +198,16 @@ func (f *updateTokenServerSuite) TestChain() {
 		},
 	}
 	elements := []networkservice.NetworkServiceServer{
-		adapters.NewClientToServer(next.NewNetworkServiceClient(updatepath.NewClient("nsc-1"), updatetoken.NewClient(TokenGenerator))),
+		adapters.NewClientToServer(updatepath.NewClient("nsc-1")),
+		updatetoken.NewServer(TokenGenerator),
 		updatepath.NewServer("local-nsm-1"),
 		updatetoken.NewServer(TokenGenerator),
-		adapters.NewClientToServer(next.NewNetworkServiceClient(updatepath.NewClient("local-nsm-1"), updatetoken.NewClient(TokenGenerator))),
+		adapters.NewClientToServer(updatepath.NewClient("local-nsm-1")),
 		updatepath.NewServer("remote-nsm-1"),
 		updatetoken.NewServer(TokenGenerator),
-		adapters.NewClientToServer(next.NewNetworkServiceClient(updatepath.NewClient("remote-nsm-1"), updatetoken.NewClient(TokenGenerator)))}
+		adapters.NewClientToServer(updatepath.NewClient("remote-nsm-1")),
+		updatetoken.NewServer(TokenGenerator),
+	}
 
 	server := next.NewNetworkServiceServer(elements...)
 
@@ -222,4 +226,13 @@ func (f *updateTokenServerSuite) TestChain() {
 // a normal test function and pass our suite to suite.Run
 func TestUpdateTokenServerTestSuite(t *testing.T) {
 	suite.Run(t, new(updateTokenServerSuite))
+}
+
+func equalJSON(t require.TestingT, expected, actual interface{}) {
+	json1, err1 := json.MarshalIndent(expected, "", "\t")
+	require.NoError(t, err1)
+
+	json2, err2 := json.MarshalIndent(actual, "", "\t")
+	require.NoError(t, err2)
+	require.Equal(t, string(json1), string(json2))
 }

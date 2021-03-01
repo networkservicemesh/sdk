@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2021 Cisco and/or its affiliates.
 //
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
@@ -16,7 +16,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build !windows
+// +build linux
 
 package recvfd
 
@@ -25,8 +25,6 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
-
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
@@ -34,6 +32,7 @@ import (
 	"github.com/edwarnicke/grpcfd"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type recvFDClient struct {
@@ -89,7 +88,7 @@ func (r *recvFDClient) Close(ctx context.Context, conn *networkservice.Connectio
 	go func(fileMap *perConnectionFileMap, conn *networkservice.Connection) {
 		<-ctx.Done()
 		for _, file := range fileMap.filesByInodeURL {
-			logger.Log(ctx).Infof("Closing file %q related to closed connection %s", file.Name(), conn.GetId())
+			log.FromContext(ctx).Infof("Closing file %q related to closed connection %s", file.Name(), conn.GetId())
 			_ = file.Close()
 		}
 	}(fileMap, conn)

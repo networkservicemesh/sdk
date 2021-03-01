@@ -1,4 +1,6 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2020-2021 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -20,19 +22,21 @@ import (
 	"context"
 	"sync"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
 type clientURLClient struct {
 	ctx           context.Context
-	clientFactory func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient
+	clientFactory client.Factory
 	dialOptions   []grpc.DialOption
 	initOnce      sync.Once
 	dialErr       error
@@ -42,7 +46,7 @@ type clientURLClient struct {
 // NewClient - creates a Client that will using clienturl.ClientUrl(ctx) to extract a url, dial it to a cc, use that cc with the clientFactory to produce a new
 //             client to which it passes through any Request or Close calls
 // 	ctx	- is full lifecycle context, any started clients will be terminated by this context done.
-func NewClient(ctx context.Context, clientFactory func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient, dialOptions ...grpc.DialOption) networkservice.NetworkServiceClient {
+func NewClient(ctx context.Context, clientFactory client.Factory, dialOptions ...grpc.DialOption) networkservice.NetworkServiceClient {
 	rv := &clientURLClient{
 		ctx:           ctx,
 		clientFactory: clientFactory,
@@ -55,14 +59,14 @@ func (u *clientURLClient) Request(ctx context.Context, request *networkservice.N
 	if err := u.init(); err != nil {
 		return nil, err
 	}
-	return u.client.Request(ctx, request)
+	return u.client.Request(ctx, request, opts...)
 }
 
 func (u *clientURLClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	if err := u.init(); err != nil {
 		return nil, err
 	}
-	return u.client.Close(ctx, conn)
+	return u.client.Close(ctx, conn, opts...)
 }
 
 func (u *clientURLClient) init() error {
@@ -78,9 +82,19 @@ func (u *clientURLClient) init() error {
 			return
 		}
 		u.client = u.clientFactory(u.ctx, cc)
+
 		go func() {
-			<-u.ctx.Done()
-			_ = cc.Close()
+			defer func() {
+				_ = cc.Close()
+			}()
+			for cc.WaitForStateChange(u.ctx, cc.GetState()) {
+				switch cc.GetState() {
+				case connectivity.Connecting, connectivity.Idle, connectivity.Ready:
+					continue
+				default:
+					return
+				}
+			}
 		}()
 	})
 	return u.dialErr

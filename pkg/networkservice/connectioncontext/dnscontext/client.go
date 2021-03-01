@@ -21,9 +21,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/logger/logruslogger"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -62,9 +60,9 @@ func NewClient(monitorClient networkservice.MonitorConnectionClient, options ...
 	for _, o := range options {
 		o.apply(c)
 	}
-	_, log := logruslogger.New(context.Background())
+
 	if r, err := dnscontext.OpenResolveConfig(c.resolveConfigPath); err != nil {
-		log.Errorf("DnsContextClient: can not load resolve config file. Path: %v. Error: %v", c.resolveConfigPath, err.Error())
+		log.FromContext(c.chainContext).Errorf("DnsContextClient: can not load resolve config file. Path: %v. Error: %v", c.resolveConfigPath, err.Error())
 	} else {
 		c.dnsConfigManager.Store("", &networkservice.DNSConfig{
 			SearchDomains: r.Value(dnscontext.AnyDomain),
@@ -72,7 +70,7 @@ func NewClient(monitorClient networkservice.MonitorConnectionClient, options ...
 		})
 		r.SetValue(dnscontext.NameserverProperty, c.defaultNameServerIP)
 		if err := r.Save(); err != nil {
-			log.Errorf("DnsContextClient: can not update resolve config file. Error: %v", err.Error())
+			log.FromContext(c.chainContext).Errorf("DnsContextClient: can not update resolve config file. Error: %v", err.Error())
 		}
 	}
 	return c
@@ -101,7 +99,7 @@ func (c *dnsContextClient) monitorConfigs() {
 	c.monitorContext, c.cancelMonitoring = context.WithCancel(c.chainContext)
 	steam, err := c.monitorClient.MonitorConnections(c.monitorContext, &networkservice.MonitorScopeSelector{}, c.monitorCallOptions...)
 	if err != nil {
-		logger.Log(c.requestContext).Errorf("DnsContextClient: Can not start monitor connections: %v", err)
+		log.FromContext(c.requestContext).Errorf("DnsContextClient: Can not start monitor connections: %v", err)
 		c.executor.AsyncExec(c.monitorConfigs)
 		return
 	}
@@ -116,7 +114,7 @@ func (c *dnsContextClient) monitorConfigs() {
 		}
 		c.handleEvent(event)
 		v := c.dnsConfigManager.String()
-		logger.Log(c.requestContext).Info(v)
+		log.FromContext(c.requestContext).Info(v)
 		_ = ioutil.WriteFile(c.coreFilePath, []byte(v), os.ModePerm)
 	}
 }

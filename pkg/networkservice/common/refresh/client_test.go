@@ -35,7 +35,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -66,11 +65,10 @@ func TestRefreshClient_StopRefreshAtClose(t *testing.T) {
 		serialize.NewClient(),
 		updatepath.NewClient("refresh"),
 		refresh.NewClient(ctx),
-		updatetoken.NewClient(sandbox.GenerateExpiringToken(expireTimeout)),
+		adapters.NewServerToClient(updatetoken.NewServer(sandbox.GenerateExpiringToken(expireTimeout))),
 		cloneClient,
 	)
 
-	ctx = logger.WithLog(ctx)
 	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "id",
@@ -101,11 +99,10 @@ func TestRefreshClient_RestartsRefreshAtAnotherRequest(t *testing.T) {
 		serialize.NewClient(),
 		updatepath.NewClient("refresh"),
 		refresh.NewClient(ctx),
-		updatetoken.NewClient(sandbox.GenerateExpiringToken(expireTimeout)),
+		adapters.NewServerToClient(updatetoken.NewServer(sandbox.GenerateExpiringToken(expireTimeout))),
 		cloneClient,
 	)
 
-	ctx = logger.WithLog(ctx)
 	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "id",
@@ -170,7 +167,7 @@ func runStressTest(t *testing.T, conf *stressTestConfig) {
 		serialize.NewClient(),
 		updatepath.NewClient("foo"),
 		refresh.NewClient(ctx),
-		updatetoken.NewClient(sandbox.GenerateExpiringToken(conf.expireTimeout)),
+		adapters.NewServerToClient(updatetoken.NewServer(sandbox.GenerateExpiringToken(conf.expireTimeout))),
 		adapters.NewServerToClient(refreshTester),
 	)
 
@@ -199,10 +196,10 @@ func TestRefreshClient_Sandbox(t *testing.T) {
 	}
 
 	refreshSrv := newRefreshTesterServer(t, sandboxMinDuration, sandboxExpireTimeout)
-	_, err := sandbox.NewEndpoint(ctx, nseReg, tokenGenerator, domain.Nodes[0].NSMgr, refreshSrv)
+	_, err := domain.Nodes[0].NewEndpoint(ctx, nseReg, tokenGenerator, refreshSrv)
 	require.NoError(t, err)
 
-	nsc := sandbox.NewClient(ctx, tokenGenerator, domain.Nodes[1].NSMgr.URL)
+	nsc := domain.Nodes[1].NewClient(ctx, tokenGenerator)
 
 	generateRequests(t, nsc, refreshSrv, sandboxRequests, sandboxStepDuration)
 }

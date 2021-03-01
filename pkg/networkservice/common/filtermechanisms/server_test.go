@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -85,7 +85,7 @@ func TestFilterMechanismsServer_Request(t *testing.T) {
 		{
 			Name:         "Pass mechanisms to forwarder",
 			ClientURL:    &url.URL{Scheme: "tcp", Host: "localhost:5000"},
-			EndpointName: "interpose-nse#nse-1",
+			EndpointName: "nse-1#interpose-nse",
 			RegisterURLs: []url.URL{
 				{
 					Scheme: "tcp",

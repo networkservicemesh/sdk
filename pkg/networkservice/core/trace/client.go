@@ -27,24 +27,26 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
-
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/typeutils"
 )
 
-type traceClient struct {
+type beginTraceClient struct {
 	traced networkservice.NetworkServiceClient
 }
 
+type endTraceClient struct{}
+
 // NewNetworkServiceClient - wraps tracing around the supplied networkservice.NetworkServiceClient
 func NewNetworkServiceClient(traced networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
-	if traced == nil {
-		return &traceClient{traced: traced}
-	}
-	return &traceClient{traced: traced}
+	return next.NewNetworkServiceClient(
+		&beginTraceClient{traced: traced},
+		&endTraceClient{},
+	)
 }
 
-func (t *traceClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+func (t *beginTraceClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	// Create a new logger
 	operation := typeutils.GetFuncName(t.traced, "Request")
 	ctx, finish := withLog(ctx, operation)
@@ -58,10 +60,10 @@ func (t *traceClient) Request(ctx context.Context, request *networkservice.Netwo
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
 			err = errors.Wrapf(err, "Error returned from %s", operation)
-			logger.Log(ctx).Errorf("%+v", err)
+			log.FromContext(ctx).Errorf("%+v", err)
 			return nil, err
 		}
-		logger.Log(ctx).Errorf("%v", err)
+		log.FromContext(ctx).Errorf("%v", err)
 		return nil, err
 	}
 
@@ -69,7 +71,7 @@ func (t *traceClient) Request(ctx context.Context, request *networkservice.Netwo
 	return rv, err
 }
 
-func (t *traceClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (t *beginTraceClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	// Create a new logger
 	operation := typeutils.GetFuncName(t.traced, "Close")
 	ctx, finish := withLog(ctx, operation)
@@ -81,11 +83,27 @@ func (t *traceClient) Close(ctx context.Context, conn *networkservice.Connection
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
 			err = errors.Wrapf(err, "Error returned from %s", operation)
-			logger.Log(ctx).Errorf("%+v", err)
+			log.FromContext(ctx).Errorf("%+v", err)
 			return nil, err
 		}
-		logger.Log(ctx).Errorf("%v", err)
+		log.FromContext(ctx).Errorf("%v", err)
 		return nil, err
 	}
+
+	logResponse(ctx, conn)
 	return rv, err
+}
+
+func (t *endTraceClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	logRequest(ctx, request)
+	conn, err := next.Client(ctx).Request(ctx, request, opts...)
+	logResponse(ctx, conn)
+	return conn, err
+}
+
+func (t *endTraceClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	logRequest(ctx, conn)
+	r, err := next.Client(ctx).Close(ctx, conn, opts...)
+	logResponse(ctx, conn)
+	return r, err
 }

@@ -24,8 +24,6 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
-
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -43,6 +41,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 const (
@@ -85,6 +84,7 @@ func TestConnectServer_Request(t *testing.T) {
 
 	func() {
 		ctx, cancel := context.WithCancel(context.Background())
+		ctx = log.WithLog(ctx)
 		defer cancel()
 
 		// 3. Setup servers
@@ -130,7 +130,6 @@ func TestConnectServer_Request(t *testing.T) {
 				},
 			},
 		}
-		ctx = logger.WithLog(ctx)
 
 		// 5. Request A
 
@@ -206,6 +205,7 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 
 	func() {
 		ctx, cancel := context.WithCancel(context.Background())
+		ctx = log.WithLog(ctx)
 		defer cancel()
 
 		// 3. Setup servers
@@ -224,7 +224,6 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 		barrier := new(sync.WaitGroup)
 		barrier.Add(1)
 
-		ctx = logger.WithLog(ctx)
 		for i := 0; i < parallelCount; i++ {
 			go func(k int) {
 				// 4.1. Create request

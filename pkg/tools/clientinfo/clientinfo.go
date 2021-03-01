@@ -21,7 +21,7 @@ import (
 	"context"
 	"os"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 const (
@@ -44,12 +44,12 @@ func AddClientInfo(ctx context.Context, labels map[string]string) {
 	for envName, labelName := range names {
 		value, exists := os.LookupEnv(envName)
 		if !exists {
-			logger.Log(ctx).Warnf("Environment variable %s is not set. Skipping.", envName)
+			log.FromContext(ctx).Warnf("Environment variable %s is not set. Skipping.", envName)
 			continue
 		}
 		oldValue, isPresent := labels[labelName]
 		if isPresent {
-			logger.Log(ctx).Warnf("The label %s was already assigned to %s. Overwriting.", labelName, oldValue)
+			log.FromContext(ctx).Warnf("The label %s was already assigned to %s. Overwriting.", labelName, oldValue)
 		}
 		labels[labelName] = value
 	}

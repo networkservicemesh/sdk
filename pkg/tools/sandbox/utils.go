@@ -19,95 +19,90 @@ package sandbox
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"time"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
-
-	"github.com/golang/protobuf/ptypes"
+	"github.com/edwarnicke/grpcfd"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/opentracing"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
+// RegistryExpiryDuration is a duration that should be used for expire tests
+const RegistryExpiryDuration = time.Second
+
+type insecurePerRPCCredentials struct {
+	credentials.PerRPCCredentials
+}
+
+func (i *insecurePerRPCCredentials) RequireTransportSecurity() bool {
+	return false
+}
+
+// WithInsecureRPCCredentials makes passed call option with credentials.PerRPCCredentials insecure.
+func WithInsecureRPCCredentials() grpc.DialOption {
+	return grpc.WithChainUnaryInterceptor(func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		for i := len(opts) - 1; i > -1; i-- {
+			if v, ok := opts[i].(grpc.PerRPCCredsCallOption); ok {
+				opts = append(opts, grpc.PerRPCCredentials(&insecurePerRPCCredentials{PerRPCCredentials: v.Creds}))
+				break
+			}
+		}
+		return invoker(ctx, method, req, reply, cc, opts...)
+	})
+}
+
+// WithInsecureStreamRPCCredentials makes passed call option with credentials.PerRPCCredentials insecure.
+func WithInsecureStreamRPCCredentials() grpc.DialOption {
+	return grpc.WithChainStreamInterceptor(func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+		for i := len(opts) - 1; i > -1; i-- {
+			if v, ok := opts[i].(grpc.PerRPCCredsCallOption); ok {
+				opts = append(opts, grpc.PerRPCCredentials(&insecurePerRPCCredentials{PerRPCCredentials: v.Creds}))
+				break
+			}
+		}
+		return streamer(ctx, desc, cc, method, opts...)
+	})
+}
+
 // GenerateTestToken generates test token
 func GenerateTestToken(_ credentials.AuthInfo) (tokenValue string, expireTime time.Time, err error) {
-	return "TestToken", time.Date(3000, 1, 1, 1, 1, 1, 1, time.UTC), nil
+	return "TestToken", time.Now().Add(time.Hour).Local(), nil
 }
 
 // GenerateExpiringToken returns a token generator with the specified expiration duration.
 func GenerateExpiringToken(duration time.Duration) token.GeneratorFunc {
 	value := fmt.Sprintf("TestToken-%s", duration)
 	return func(_ credentials.AuthInfo) (tokenValue string, expireTime time.Time, err error) {
-		return value, time.Now().UTC().Add(duration), nil
+		return value, time.Now().Add(duration).Local(), nil
 	}
-}
-
-// NewEndpoint creates endpoint and registers it into passed NSMgr.
-func NewEndpoint(ctx context.Context, nse *registry.NetworkServiceEndpoint, generatorFunc token.GeneratorFunc, mgr nsmgr.Nsmgr, additionalFunctionality ...networkservice.NetworkServiceServer) (*EndpointEntry, error) {
-	ep := endpoint.NewServer(ctx, nse.Name, authorize.NewServer(), generatorFunc, additionalFunctionality...)
-	ctx = logger.WithLog(ctx)
-	u := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
-	var err error
-	if nse.Url != "" {
-		u, err = url.Parse(nse.Url)
-		if err != nil {
-			return nil, err
-		}
-	}
-	serve(ctx, u, ep.Register)
-	if nse.Url == "" {
-		nse.Url = u.String()
-	}
-	if nse.ExpirationTime == nil {
-		deadline := time.Now().Add(time.Hour)
-		expirationTime, err := ptypes.TimestampProto(deadline)
-		if err != nil {
-			return nil, err
-		}
-		nse.ExpirationTime = expirationTime
-	}
-	if _, err := mgr.NetworkServiceEndpointRegistryServer().Register(ctx, nse); err != nil {
-		return nil, err
-	}
-	for _, service := range nse.NetworkServiceNames {
-		if _, err := mgr.NetworkServiceRegistryServer().Register(ctx, &registry.NetworkService{Name: service, Payload: "IP"}); err != nil {
-			return nil, err
-		}
-	}
-	logger.Log(ctx).Infof("Started listen endpoint %v on %v.", nse.Name, u.String())
-	return &EndpointEntry{Endpoint: ep, URL: u}, nil
-}
-
-// NewClient is a client.NewClient over *url.URL with some fields preset for testing
-func NewClient(ctx context.Context, generatorFunc token.GeneratorFunc, connectTo *url.URL, additionalFunctionality ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
-	return clienturl.NewClient(
-		clienturlctx.WithClientURL(ctx, connectTo),
-		client.NewClientFactory(
-			fmt.Sprintf("nsc-%v", uuid.New().String()),
-			nil,
-			generatorFunc,
-			additionalFunctionality...),
-		append(opentracing.WithTracingDial(), grpc.WithBlock(), grpc.WithInsecure())...)
 }
 
 // NewCrossConnectClientFactory is a client.NewCrossConnectClientFactory with some fields preset for testing
-func NewCrossConnectClientFactory(generatorFunc token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceClient) func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+func NewCrossConnectClientFactory(generatorFunc token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceClient) client.Factory {
 	return client.NewCrossConnectClientFactory(
-		fmt.Sprintf("nsc-%v", uuid.New().String()),
-		nil,
-		generatorFunc,
-		additionalFunctionality...)
+		client.WithName(fmt.Sprintf("nsc-%v", uuid.New().String())),
+		client.WithAdditionalFunctionality(additionalFunctionality...),
+	)
+}
+
+// DefaultDialOptions returns default dial options for sandbox testing
+func DefaultDialOptions(genTokenFunc token.GeneratorFunc) []grpc.DialOption {
+	return append([]grpc.DialOption{
+		grpc.WithInsecure(),
+		grpc.WithBlock(),
+		grpc.WithDefaultCallOptions(
+			grpc.WaitForReady(true),
+			grpc.PerRPCCredentials(token.NewPerRPCCredentials(genTokenFunc)),
+		),
+		grpcfd.WithChainStreamInterceptor(),
+		grpcfd.WithChainUnaryInterceptor(),
+		WithInsecureRPCCredentials(),
+		WithInsecureStreamRPCCredentials(),
+	}, opentracing.WithTracingDial()...)
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2021 Cisco and/or its affiliates.
 //
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
@@ -20,10 +20,9 @@ package mechanisms_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
@@ -45,18 +44,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 )
-
-type unsupportedMechanismServer struct{}
-
-func (u *unsupportedMechanismServer) Request(context.Context, *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	return nil, errors.New("unsupported")
-}
-
-func (u *unsupportedMechanismServer) Close(context.Context, *networkservice.Connection) (*empty.Empty, error) {
-	return nil, errors.New("unsupported")
-}
-
-var _ networkservice.NetworkServiceServer = (*unsupportedMechanismServer)(nil)
 
 func server() networkservice.NetworkServiceServer {
 	return chain.NewNetworkServiceServer(mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
@@ -187,15 +174,13 @@ func TestDownstreamError(t *testing.T) {
 func TestFewWrongMechanisms(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	ch := make(chan struct{}, 10)
+	var unsupportedErr = errors.New("unsupported")
+
 	server := next.NewNetworkServiceServer(
 		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
-			"mech1": &unsupportedMechanismServer{},
-			"mech2": &unsupportedMechanismServer{},
+			"mech1": injecterror.NewServer(unsupportedErr),
+			"mech2": injecterror.NewServer(unsupportedErr),
 			"mech3": null.NewServer(),
-		}),
-		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
-			ch <- struct{}{}
 		}),
 	)
 	request := &networkservice.NetworkServiceRequest{

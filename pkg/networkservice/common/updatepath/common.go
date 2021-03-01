@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -53,7 +53,6 @@ func updatePath(conn *networkservice.Connection, segmentName string) (*networkse
 		})
 		return conn, 0, nil
 	}
-
 	path := conn.GetPath()
 
 	if int(path.Index) < len(path.PathSegments) && path.PathSegments[path.Index].Name == segmentName {

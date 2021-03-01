@@ -18,6 +18,7 @@ package interpose_test
 
 import (
 	"context"
+	"net/url"
 	"testing"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -31,9 +32,9 @@ import (
 )
 
 const (
-	namePrefix     = "interpose-nse#"
+	nameSuffix     = "#interpose-nse"
 	name           = "nse"
-	url            = "tcp://0.0.0.0"
+	validURL       = "tcp://0.0.0.0"
 	commonResponse = "response"
 )
 
@@ -45,12 +46,12 @@ var samples = []struct {
 	{
 		name: "interpose NSE",
 		in: &registry.NetworkServiceEndpoint{
-			Name: namePrefix + name,
-			Url:  url,
+			Name: name + nameSuffix,
+			Url:  validURL,
 		},
 		out: &registry.NetworkServiceEndpoint{
-			Name: namePrefix + name,
-			Url:  url,
+			Name: name + nameSuffix,
+			Url:  validURL,
 		},
 		isInMap: true,
 	},
@@ -66,7 +67,7 @@ var samples = []struct {
 	{
 		name: "invalid NSE",
 		in: &registry.NetworkServiceEndpoint{
-			Name: namePrefix + name,
+			Name: name + nameSuffix,
 		},
 		isInMap: false,
 		failure: true,
@@ -79,7 +80,7 @@ func TestInterposeRegistryServer(t *testing.T) {
 		t.Run(sample.name, func(t *testing.T) {
 			var crossMap stringurl.Map
 			server := next.NewNetworkServiceEndpointRegistryServer(
-				interpose.NewNetworkServiceRegistryServer(&crossMap),
+				interpose.NewNetworkServiceEndpointRegistryServer(&crossMap),
 				new(testRegistry),
 			)
 
@@ -87,29 +88,35 @@ func TestInterposeRegistryServer(t *testing.T) {
 			if sample.failure {
 				require.Error(t, err)
 
-				_, ok := crossMap.Load(sample.in.Name)
-				require.False(t, ok)
+				requireCrossMapEqual(t, map[string]string{}, &crossMap)
 			} else {
 				require.NoError(t, err)
 				require.Equal(t, sample.out.String(), reg.String())
 
 				if sample.isInMap {
-					u, ok := crossMap.Load(sample.in.Name)
-					require.True(t, ok)
-					require.Equal(t, sample.in.Url, u.String())
+					requireCrossMapEqual(t, map[string]string{
+						sample.in.Name: sample.in.Url,
+					}, &crossMap)
 				} else {
-					_, ok := crossMap.Load(sample.in.Name)
-					require.False(t, ok)
+					requireCrossMapEqual(t, map[string]string{}, &crossMap)
 				}
 
 				_, err := server.Unregister(context.Background(), reg)
 				require.NoError(t, err)
 
-				_, ok := crossMap.Load(sample.in.Name)
-				require.False(t, ok)
+				requireCrossMapEqual(t, map[string]string{}, &crossMap)
 			}
 		})
 	}
+}
+
+func requireCrossMapEqual(t *testing.T, expected map[string]string, crossMap *stringurl.Map) {
+	actual := map[string]string{}
+	crossMap.Range(func(key string, value *url.URL) bool {
+		actual[key] = value.String()
+		return true
+	})
+	require.Equal(t, expected, actual)
 }
 
 type testRegistry struct {

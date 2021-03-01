@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020-2021 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -20,9 +20,11 @@ package authorize
 
 import (
 	"context"
+	"sync/atomic"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/peer"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
@@ -30,28 +32,44 @@ import (
 )
 
 type authorizeClient struct {
-	policies *authorizePolicies
+	policies   policiesList
+	serverPeer atomic.Value
 }
 
 // NewClient - returns a new authorization networkservicemesh.NetworkServiceClient
 func NewClient(opts ...Option) networkservice.NetworkServiceClient {
-	p := &authorizePolicies{}
+	var result = &authorizeClient{
+		policies: defaultPolicies(),
+	}
 	for _, o := range opts {
-		o.apply(p)
+		o.apply(&result.policies)
 	}
-	return &authorizeClient{
-		policies: p,
-	}
+	return result
 }
 
 func (a *authorizeClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	if err := a.policies.check(ctx, request.GetConnection()); err != nil {
+	var p peer.Peer
+	opts = append(opts, grpc.Peer(&p))
+	resp, err := next.Client(ctx).Request(ctx, request, opts...)
+	if err != nil {
 		return nil, err
 	}
-	return next.Client(ctx).Request(ctx, request, opts...)
+	if p != (peer.Peer{}) {
+		a.serverPeer.Store(&p)
+		ctx = peer.NewContext(ctx, &p)
+	}
+	if err = a.policies.check(ctx, resp); err != nil {
+		_, _ = next.Client(ctx).Close(ctx, resp, opts...)
+		return nil, err
+	}
+	return resp, err
 }
 
 func (a *authorizeClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	p := a.serverPeer.Load().(*peer.Peer)
+	if p != nil {
+		ctx = peer.NewContext(ctx, p)
+	}
 	if err := a.policies.check(ctx, conn); err != nil {
 		return nil, err
 	}

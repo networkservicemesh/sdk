@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,113 +18,143 @@ package memory
 
 import (
 	"context"
-	"errors"
 	"io"
 
+	"github.com/edwarnicke/serialize"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
-	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/edwarnicke/serialize"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/matchutils"
 )
 
-type networkServiceRegistryServer struct {
+type memoryNSServer struct {
 	networkServices  NetworkServiceSyncMap
 	executor         serialize.Executor
 	eventChannels    map[string]chan *registry.NetworkService
 	eventChannelSize int
 }
 
-func (n *networkServiceRegistryServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
-	r, err := next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
-	if err != nil {
-		return nil, err
-	}
-	n.networkServices.Store(r.Name, r.Clone())
-	n.executor.AsyncExec(func() {
-		for _, ch := range n.eventChannels {
-			ch <- r.Clone()
-		}
-	})
-	return r, nil
-}
-
-func (n *networkServiceRegistryServer) Find(query *registry.NetworkServiceQuery, s registry.NetworkServiceRegistry_FindServer) error {
-	sendAllMatches := func(ns *registry.NetworkService) error {
-		var err error
-		n.networkServices.Range(func(key string, value *registry.NetworkService) bool {
-			if matchutils.MatchNetworkServices(ns, value) {
-				err = s.Send(value.Clone())
-				return err == nil
-			}
-			return true
-		})
-		return err
-	}
-	if query.Watch {
-		eventCh := make(chan *registry.NetworkService, n.eventChannelSize)
-		id := uuid.New().String()
-		n.executor.AsyncExec(func() {
-			n.eventChannels[id] = eventCh
-		})
-		defer n.executor.AsyncExec(func() {
-			delete(n.eventChannels, id)
-		})
-		err := sendAllMatches(query.NetworkService)
-		if err != nil {
-			return err
-		}
-		notifyChannel := func() error {
-			select {
-			case <-s.Context().Done():
-				return io.EOF
-			case event := <-eventCh:
-				if matchutils.MatchNetworkServices(query.NetworkService, event) {
-					if s.Context().Err() != nil {
-						return io.EOF
-					}
-					if err := s.Send(event); err != nil {
-						return err
-					}
-				}
-				return nil
-			}
-		}
-		for {
-			err := notifyChannel()
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			if err != nil {
-				return err
-			}
-		}
-	} else if err := sendAllMatches(query.NetworkService); err != nil {
-		return err
-	}
-	return next.NetworkServiceRegistryServer(s.Context()).Find(query, s)
-}
-
-func (n *networkServiceRegistryServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
-	n.networkServices.Delete(ns.Name)
-	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
-}
-
-func (n *networkServiceRegistryServer) setEventChannelSize(l int) {
-	n.eventChannelSize = l
-}
-
 // NewNetworkServiceRegistryServer creates new memory based NetworkServiceRegistryServer
 func NewNetworkServiceRegistryServer(options ...Option) registry.NetworkServiceRegistryServer {
-	r := &networkServiceRegistryServer{
+	s := &memoryNSServer{
 		eventChannelSize: defaultEventChannelSize,
 		eventChannels:    make(map[string]chan *registry.NetworkService),
 	}
 	for _, o := range options {
-		o.apply(r)
+		o.apply(s)
 	}
-	return r
+	return s
+}
+
+func (s *memoryNSServer) setEventChannelSize(l int) {
+	s.eventChannelSize = l
+}
+
+func (s *memoryNSServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
+	r, err := next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
+	if err != nil {
+		return nil, err
+	}
+
+	s.networkServices.Store(r.Name, r.Clone())
+
+	s.sendEvent(r)
+
+	return r, nil
+}
+
+func (s *memoryNSServer) sendEvent(event *registry.NetworkService) {
+	event = event.Clone()
+	s.executor.AsyncExec(func() {
+		for _, ch := range s.eventChannels {
+			ch <- event.Clone()
+		}
+	})
+}
+
+func (s *memoryNSServer) Find(query *registry.NetworkServiceQuery, server registry.NetworkServiceRegistry_FindServer) error {
+	if !query.Watch {
+		for _, ns := range s.allMatches(query) {
+			if err := server.Send(ns); err != nil {
+				return err
+			}
+		}
+		return next.NetworkServiceRegistryServer(server.Context()).Find(query, server)
+	}
+
+	eventCh := make(chan *registry.NetworkService, s.eventChannelSize)
+	id := uuid.New().String()
+
+	s.executor.AsyncExec(func() {
+		s.eventChannels[id] = eventCh
+		for _, entity := range s.allMatches(query) {
+			eventCh <- entity
+		}
+	})
+	defer s.closeEventChannel(id, eventCh)
+
+	var err error
+	for ; err == nil; err = s.receiveEvent(query, server, eventCh) {
+	}
+	if err != io.EOF {
+		return err
+	}
+	return next.NetworkServiceRegistryServer(server.Context()).Find(query, server)
+}
+
+func (s *memoryNSServer) allMatches(query *registry.NetworkServiceQuery) (matches []*registry.NetworkService) {
+	s.networkServices.Range(func(_ string, ns *registry.NetworkService) bool {
+		if matchutils.MatchNetworkServices(query.NetworkService, ns) {
+			matches = append(matches, ns.Clone())
+		}
+		return true
+	})
+	return matches
+}
+
+func (s *memoryNSServer) closeEventChannel(id string, eventCh <-chan *registry.NetworkService) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	s.executor.AsyncExec(func() {
+		delete(s.eventChannels, id)
+		cancel()
+	})
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-eventCh:
+		}
+	}
+}
+
+func (s *memoryNSServer) receiveEvent(
+	query *registry.NetworkServiceQuery,
+	server registry.NetworkServiceRegistry_FindServer,
+	eventCh <-chan *registry.NetworkService,
+) error {
+	select {
+	case <-server.Context().Done():
+		return io.EOF
+	case event := <-eventCh:
+		if matchutils.MatchNetworkServices(query.NetworkService, event) {
+			if err := server.Send(event); err != nil {
+				if server.Context().Err() != nil {
+					return io.EOF
+				}
+				return err
+			}
+		}
+		return nil
+	}
+}
+
+func (s *memoryNSServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
+	s.networkServices.Delete(ns.Name)
+
+	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }

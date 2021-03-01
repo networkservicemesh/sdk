@@ -254,3 +254,11 @@ issues:
       linters:
         - funlen
       text: "Function 'TestConnectServer_Request'"
+    - path: pkg/registry/common/recvfd/gen.go
+      linters:
+        - structcheck
+      text: "is unused"
+    - path: pkg/networkservice/common/mechanisms/recvfd/gen.go
+      linters:
+        - structcheck
+      text: "is unused"

@@ -22,9 +22,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
-
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamcontext"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/typeutils"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -52,13 +51,13 @@ func (t *traceNetworkServiceRegistryFindClient) Recv() (*registry.NetworkService
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
 			err = errors.Wrapf(err, "Error returned from %s", operation)
-			logger.Log(ctx).Errorf("%+v", err)
+			log.FromContext(ctx).Errorf("%+v", err)
 			return nil, err
 		}
-		logger.Log(ctx).Errorf("%v", err)
+		log.FromContext(ctx).Errorf("%v", err)
 		return nil, err
 	}
-	logger.Log(ctx).Object("response", rv)
+	log.FromContext(ctx).Object("response", rv)
 	return rv, err
 }
 
@@ -68,19 +67,19 @@ func (t *traceNetworkServiceRegistryClient) Register(ctx context.Context, in *re
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	logger.Log(ctx).Object("request", in)
+	log.FromContext(ctx).Object("request", in)
 
 	rv, err := t.traced.Register(ctx, in, opts...)
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
 			err = errors.Wrapf(err, "Error returned from %s", operation)
-			logger.Log(ctx).Errorf("%+v", err)
+			log.FromContext(ctx).Errorf("%+v", err)
 			return nil, err
 		}
-		logger.Log(ctx).Errorf("%v", err)
+		log.FromContext(ctx).Errorf("%v", err)
 		return nil, err
 	}
-	logger.Log(ctx).Object("response", rv)
+	log.FromContext(ctx).Object("response", rv)
 	return rv, err
 }
 func (t *traceNetworkServiceRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
@@ -89,20 +88,20 @@ func (t *traceNetworkServiceRegistryClient) Find(ctx context.Context, in *regist
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	logger.Log(ctx).Object("find", in)
+	log.FromContext(ctx).Object("find", in)
 
 	// Actually call the next
 	rv, err := t.traced.Find(ctx, in, opts...)
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
 			err = errors.Wrapf(err, "Error returned from %s", operation)
-			logger.Log(ctx).Errorf("%+v", err)
+			log.FromContext(ctx).Errorf("%+v", err)
 			return nil, err
 		}
-		logger.Log(ctx).Errorf("%v", err)
+		log.FromContext(ctx).Errorf("%v", err)
 		return nil, err
 	}
-	logger.Log(ctx).Object("response", rv)
+	log.FromContext(ctx).Object("response", rv)
 
 	return &traceNetworkServiceRegistryFindClient{NetworkServiceRegistry_FindClient: rv}, nil
 }
@@ -113,20 +112,20 @@ func (t *traceNetworkServiceRegistryClient) Unregister(ctx context.Context, in *
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	logger.Log(ctx).Object("request", in)
+	log.FromContext(ctx).Object("request", in)
 
 	// Actually call the next
 	rv, err := t.traced.Unregister(ctx, in, opts...)
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
 			err = errors.Wrapf(err, "Error returned from %s", operation)
-			logger.Log(ctx).Errorf("%+v", err)
+			log.FromContext(ctx).Errorf("%+v", err)
 			return nil, err
 		}
-		logger.Log(ctx).Errorf("%v", err)
+		log.FromContext(ctx).Errorf("%v", err)
 		return nil, err
 	}
-	logger.Log(ctx).Object("response", rv)
+	log.FromContext(ctx).Object("response", rv)
 	return rv, err
 }
 
@@ -145,19 +144,19 @@ func (t *traceNetworkServiceRegistryServer) Register(ctx context.Context, in *re
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	logger.Log(ctx).Object("request", in)
+	log.FromContext(ctx).Object("request", in)
 
 	rv, err := t.traced.Register(ctx, in)
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
 			err = errors.Wrapf(err, "Error returned from %s", operation)
-			logger.Log(ctx).Errorf("%+v", err)
+			log.FromContext(ctx).Errorf("%+v", err)
 			return nil, err
 		}
-		logger.Log(ctx).Errorf("%v", err)
+		log.FromContext(ctx).Errorf("%v", err)
 		return nil, err
 	}
-	logger.Log(ctx).Object("response", rv)
+	log.FromContext(ctx).Object("response", rv)
 	return rv, err
 }
 
@@ -170,17 +169,17 @@ func (t *traceNetworkServiceRegistryServer) Find(in *registry.NetworkServiceQuer
 	s = &traceNetworkServiceRegistryFindServer{
 		NetworkServiceRegistry_FindServer: streamcontext.NetworkServiceRegistryFindServer(ctx, s),
 	}
-	logger.Log(ctx).Object("find", in)
+	log.FromContext(ctx).Object("find", in)
 
 	// Actually call the next
 	err := t.traced.Find(in, s)
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
 			err = errors.Wrapf(err, "Error returned from %s", operation)
-			logger.Log(ctx).Errorf("%+v", err)
+			log.FromContext(ctx).Errorf("%+v", err)
 			return err
 		}
-		logger.Log(ctx).Errorf("%v", err)
+		log.FromContext(ctx).Errorf("%v", err)
 		return err
 	}
 	return nil
@@ -192,20 +191,20 @@ func (t *traceNetworkServiceRegistryServer) Unregister(ctx context.Context, in *
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	logger.Log(ctx).Object("request", in)
+	log.FromContext(ctx).Object("request", in)
 
 	// Actually call the next
 	rv, err := t.traced.Unregister(ctx, in)
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
 			err = errors.Wrapf(err, "Error returned from %s", operation)
-			logger.Log(ctx).Errorf("%+v", err)
+			log.FromContext(ctx).Errorf("%+v", err)
 			return nil, err
 		}
-		logger.Log(ctx).Errorf("%v", err)
+		log.FromContext(ctx).Errorf("%v", err)
 		return nil, err
 	}
-	logger.Log(ctx).Object("response", rv)
+	log.FromContext(ctx).Object("response", rv)
 	return rv, err
 }
 
@@ -224,16 +223,16 @@ func (t *traceNetworkServiceRegistryFindServer) Send(ns *registry.NetworkService
 	ctx, finish := withLog(t.Context(), operation)
 	defer finish()
 
-	logger.Log(ctx).Object("network service", ns)
+	log.FromContext(ctx).Object("network service", ns)
 	s := streamcontext.NetworkServiceRegistryFindServer(ctx, t.NetworkServiceRegistry_FindServer)
 	err := s.Send(ns)
 	if err != nil {
 		if _, ok := err.(stackTracer); !ok {
 			err = errors.Wrapf(err, "Error returned from %s", operation)
-			logger.Log(ctx).Errorf("%+v", err)
+			log.FromContext(ctx).Errorf("%+v", err)
 			return err
 		}
-		logger.Log(ctx).Errorf("%v", err)
+		log.FromContext(ctx).Errorf("%v", err)
 		return err
 	}
 	return err

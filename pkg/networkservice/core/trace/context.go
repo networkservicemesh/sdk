@@ -22,10 +22,12 @@ package trace
 import (
 	"context"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/logger"
-	"github.com/networkservicemesh/sdk/pkg/tools/logger/tracelogger"
-
 	"google.golang.org/protobuf/proto"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
+	"github.com/networkservicemesh/sdk/pkg/tools/log/spanlogger"
 )
 
 type contextKeyType string
@@ -48,10 +50,19 @@ func withLog(parent context.Context, operation string) (c context.Context, f fun
 		panic("cannot create context from nil parent")
 	}
 
-	if logger.IsTracingEnabled() {
-		return tracelogger.WithLog(withTrace(parent), operation)
+	// Update outgoing grpc context
+	parent = grpcutils.PassTraceToOutgoing(parent)
+
+	if grpcTraceState := grpcutils.TraceFromContext(parent); (grpcTraceState == grpcutils.TraceOn) ||
+		(grpcTraceState == grpcutils.TraceUndefined && log.IsTracingEnabled()) {
+		ctx, sLogger, span, sFinish := spanlogger.FromContext(parent, operation)
+		ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation)
+		return withTrace(log.WithLog(ctx, sLogger, lLogger)), func() {
+			sFinish()
+			lFinish()
+		}
 	}
-	return logger.WithLog(parent), func() {}
+	return log.WithLog(parent), func() {}
 }
 
 // withConnectionInfo - Provides a traceInfo in context

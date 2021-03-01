@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -105,4 +105,53 @@ func Test_QueryCacheServer_ShouldCacheNSEs(t *testing.T) {
 			return len(list) == 0
 		}, time.Second, time.Second/10)
 	}
+}
+
+func Test_QueryCacheServer_ShouldCleanupGoroutinesOnNSEUnregister(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	mem := memory.NewNetworkServiceEndpointRegistryServer()
+
+	reg, err := func() (*registry.NetworkServiceEndpoint, error) {
+		registerCtx, registerCancel := context.WithCancel(ctx)
+		defer registerCancel()
+
+		return mem.Register(registerCtx, &registry.NetworkServiceEndpoint{
+			Name: "nse-1",
+		})
+	}()
+	require.NoError(t, err)
+
+	client := next.NewNetworkServiceEndpointRegistryClient(
+		querycache.NewClient(ctx),
+		adapters.NetworkServiceEndpointServerToClient(mem),
+	)
+
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	// 1. Find
+	findCtx, findCancel := context.WithCancel(ctx)
+
+	_, err = client.Find(findCtx, &registry.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+			Name: reg.Name,
+		},
+	})
+	require.NoError(t, err)
+
+	findCancel()
+
+	// 2. Wait a bit for the (cache -> registry) stream to start
+	<-time.After(1 * time.Millisecond)
+
+	// 3. Unregister
+	unregisterCtx, unregisterCancel := context.WithCancel(ctx)
+
+	_, err = mem.Unregister(unregisterCtx, reg)
+	require.NoError(t, err)
+
+	unregisterCancel()
 }

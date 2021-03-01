@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -43,8 +43,8 @@ payload(token) = p {
 `
 
 // WithTokenChainPolicy returns default policy for checking tokens chain in path
-func WithTokenChainPolicy() AuthorizationPolicy {
-	return &authorizationPolicy{
+func WithTokenChainPolicy() *AuthorizationPolicy {
+	return &AuthorizationPolicy{
 		policySource: tokensPathCorrect,
 		query:        "token_chain_valid",
 		checker:      True("token_chain_valid"),

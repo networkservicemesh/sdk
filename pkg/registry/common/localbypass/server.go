@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,60 +14,74 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package localbypass provides NetworkServiceRegistryServer that registers local Endpoints
-// and adds them to localbypass.SocketMap
+// Package localbypass implements a chain element to set NSMgr URL to endpoints on registration and set back endpoints
+// URLs on find
 package localbypass
 
 import (
 	"context"
-	"errors"
 	"net/url"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
+	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
+
+	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 )
 
-type localBypassRegistry struct {
-	sockets *stringurl.Map
+type localBypassNSEServer struct {
+	url     string
+	nseURLs stringurl.Map
 }
 
-func (l *localBypassRegistry) Register(ctx context.Context, request *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	endpointURL, err := url.Parse(request.Url)
+// NewNetworkServiceEndpointRegistryServer creates new instance of NetworkServiceEndpointRegistryServer which sets
+// NSMgr URL to endpoints on registration and sets back endpoints URLs on find
+func NewNetworkServiceEndpointRegistryServer(u string) registry.NetworkServiceEndpointRegistryServer {
+	return &localBypassNSEServer{
+		url: u,
+	}
+}
+
+func (s *localBypassNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	u, err := url.Parse(nse.Url)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot register NSE with passed URL: %s", nse.Url)
+	}
+	if u.String() == "" {
+		return nil, errors.Errorf("cannot register NSE with passed URL: %s", nse.Url)
+	}
+
+	nse.Url = s.url
+
+	nse, err = next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	if err != nil {
 		return nil, err
 	}
-	if endpointURL == nil {
-		return nil, errors.New("invalid endpoint URL passed with context")
-	}
-	endpoint, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, request)
-	if err != nil {
-		return endpoint, err
-	}
 
-	l.sockets.LoadOrStore(endpoint.Name, endpointURL)
-	return endpoint, err
+	nse.Url = u.String()
+
+	s.nseURLs.LoadOrStore(nse.Name, u)
+
+	return nse, nil
 }
 
-func (l *localBypassRegistry) Find(query *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
-	return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(query, s)
+func (s *localBypassNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
+	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, s.findServer(server))
 }
 
-func (l *localBypassRegistry) Unregister(ctx context.Context, request *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	resp, err := next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, request)
-	if err != nil {
-		return resp, err
+func (s *localBypassNSEServer) findServer(server registry.NetworkServiceEndpointRegistry_FindServer) registry.NetworkServiceEndpointRegistry_FindServer {
+	return &localBypassNSEFindServer{
+		nseURLs: &s.nseURLs,
+		NetworkServiceEndpointRegistry_FindServer: server,
 	}
-	l.sockets.Delete(request.Name)
-	return resp, nil
 }
 
-// NewNetworkServiceRegistryServer - creates a NetworkServiceRegistryServer that registers local Endpoints
-//				and adds them to localbypass.SocketMap
-//             - sockets - map of networkServiceEndpoint names to their unix socket addresses
-func NewNetworkServiceRegistryServer(sockets *stringurl.Map) registry.NetworkServiceEndpointRegistryServer {
-	return &localBypassRegistry{sockets: sockets}
+func (s *localBypassNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	s.nseURLs.Delete(nse.Name)
+
+	nse.Url = s.url
+
+	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }
