@@ -37,15 +37,15 @@ import (
 )
 
 type refreshClient struct {
-	ctx    context.Context
-	timers timerMap
+	chainCtx context.Context
+	timers   timerMap
 }
 
 // NewClient - creates new NetworkServiceClient chain element for refreshing
 // connections before they timeout at the endpoint.
 func NewClient(ctx context.Context) networkservice.NetworkServiceClient {
 	return &refreshClient{
-		ctx: ctx,
+		chainCtx: ctx,
 	}
 }
 
@@ -53,14 +53,14 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 	connectionID := request.Connection.Id
 	t.stopTimer(connectionID)
 
-	rv, err := next.Client(ctx).Request(ctx, request.Clone(), opts...)
+	rv, err := next.Client(ctx).Request(ctx, request, opts...)
 
 	executor := serialize.GetExecutor(ctx)
 	if executor == nil {
 		return nil, errors.New("no executor provided")
 	}
 	request.Connection = rv.Clone()
-	t.startTimer(ctx, connectionID, executor, request, opts)
+	t.startTimer(ctx, connectionID, request, opts)
 
 	return rv, err
 }
@@ -77,7 +77,7 @@ func (t *refreshClient) stopTimer(connectionID string) {
 	}
 }
 
-func (t *refreshClient) startTimer(ctx context.Context, connectionID string, exec serialize.Executor, request *networkservice.NetworkServiceRequest, opts []grpc.CallOption) {
+func (t *refreshClient) startTimer(ctx context.Context, connectionID string, request *networkservice.NetworkServiceRequest, opts []grpc.CallOption) {
 	nextClient := next.Client(ctx)
 	expireTime, err := ptypes.Timestamp(request.GetConnection().GetCurrentPathSegment().GetExpires())
 	if err != nil {
@@ -94,6 +94,8 @@ func (t *refreshClient) startTimer(ctx context.Context, connectionID string, exe
 		scale = 0.2 + 0.2*float64(path.Index)/float64(len(path.PathSegments))
 	}
 	duration := time.Duration(float64(time.Until(expireTime)) * scale)
+	req := request.Clone()
+	exec := serialize.GetExecutor(ctx)
 
 	var timer *time.Timer
 	timer = time.AfterFunc(duration, func() {
@@ -106,21 +108,26 @@ func (t *refreshClient) startTimer(ctx context.Context, connectionID string, exe
 			t.timers.Delete(connectionID)
 
 			// Context is canceled or deadlined.
-			if t.ctx.Err() != nil {
+			if t.chainCtx.Err() != nil {
 				return
 			}
 
-			refreshCtx, cancel := context.WithCancel(extend.WithValuesFromContext(t.ctx, ctx))
+			timeout := defaultRefreshRequestTimeout
+			if timeout > duration {
+				timeout = duration
+			}
+			refreshCtx, cancel := context.WithTimeout(extend.WithValuesFromContext(t.chainCtx, ctx), timeout)
 			defer cancel()
-			rv, err := nextClient.Request(refreshCtx, request.Clone(), opts...)
+			rv, err := nextClient.Request(refreshCtx, req, opts...)
 
 			if err == nil && rv != nil {
-				request.Connection = rv
+				req.Connection = rv
 			}
 
-			t.startTimer(ctx, connectionID, exec, request, opts)
+			t.startTimer(ctx, connectionID, req, opts)
 		})
 	})
 
+	t.stopTimer(connectionID)
 	t.timers.Store(connectionID, timer)
 }

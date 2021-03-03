@@ -45,11 +45,11 @@ const (
 	neverTimeout      = 5 * expireTimeout
 	maxDuration       = 100 * time.Hour
 
-	sandboxExpireTimeout = 10 * time.Second
-	sandboxMinDuration   = 1 * time.Second
-	sandboxStepDuration  = 10 * time.Second
-	sandboxRequests      = 5
-	sandboxTotalTimeout  = 80 * time.Second
+	sandboxExpireTimeout = 1 * time.Second
+	sandboxMinDuration   = 100 * time.Millisecond
+	sandboxStepDuration  = 1 * time.Second
+	sandboxRequests      = 3
+	sandboxTotalTimeout  = 5 * time.Second
 )
 
 func TestRefreshClient_StopRefreshAtClose(t *testing.T) {
@@ -143,10 +143,10 @@ func TestRefreshClient_Stress(t *testing.T) {
 		},
 		{
 			name:          "Durations",
-			expireTimeout: 500 * time.Millisecond,
-			minDuration:   100 * time.Millisecond,
-			maxDuration:   500 * time.Millisecond,
-			tickDuration:  409 * time.Millisecond,
+			expireTimeout: 50 * time.Millisecond,
+			minDuration:   10 * time.Millisecond,
+			maxDuration:   50 * time.Millisecond,
+			tickDuration:  41 * time.Millisecond,
 			iterations:    10,
 		},
 	}
