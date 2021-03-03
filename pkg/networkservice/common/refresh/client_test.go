@@ -45,11 +45,11 @@ const (
 	neverTimeout      = 5 * expireTimeout
 	maxDuration       = 100 * time.Hour
 
-	sandboxExpireTimeout = 1 * time.Second
-	sandboxMinDuration   = 100 * time.Millisecond
-	sandboxStepDuration  = 1 * time.Second
+	sandboxExpireTimeout = 2 * time.Second
+	sandboxMinDuration   = 200 * time.Millisecond
+	sandboxStepDuration  = 2 * time.Second
 	sandboxRequests      = 3
-	sandboxTotalTimeout  = 5 * time.Second
+	sandboxTotalTimeout  = 10 * time.Second
 )
 
 func TestRefreshClient_StopRefreshAtClose(t *testing.T) {
