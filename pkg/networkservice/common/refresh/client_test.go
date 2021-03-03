@@ -45,11 +45,11 @@ const (
 	neverTimeout      = 5 * expireTimeout
 	maxDuration       = 100 * time.Hour
 
-	sandboxExpireTimeout = 2 * time.Second
-	sandboxMinDuration   = 200 * time.Millisecond
-	sandboxStepDuration  = 2 * time.Second
+	sandboxExpireTimeout = 1 * time.Second
+	sandboxMinDuration   = 100 * time.Millisecond
+	sandboxStepDuration  = 1 * time.Second
 	sandboxRequests      = 3
-	sandboxTotalTimeout  = 10 * time.Second
+	sandboxTotalTimeout  = 5 * time.Second
 )
 
 func TestRefreshClient_StopRefreshAtClose(t *testing.T) {
@@ -143,10 +143,10 @@ func TestRefreshClient_Stress(t *testing.T) {
 		},
 		{
 			name:          "Durations",
-			expireTimeout: 50 * time.Millisecond,
-			minDuration:   10 * time.Millisecond,
-			maxDuration:   50 * time.Millisecond,
-			tickDuration:  41 * time.Millisecond,
+			expireTimeout: 100 * time.Millisecond,
+			minDuration:   20 * time.Millisecond,
+			maxDuration:   100 * time.Millisecond,
+			tickDuration:  91 * time.Millisecond,
 			iterations:    10,
 		},
 	}
@@ -180,13 +180,13 @@ func TestRefreshClient_Sandbox(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), sandboxTotalTimeout)
 	defer cancel()
 
-	tokenGenerator := sandbox.GenerateExpiringToken(sandboxExpireTimeout)
+	nodeTokenGenerator := sandbox.GenerateExpiringToken(2 * sandboxExpireTimeout)
 
 	domain := sandbox.NewBuilder(t).
 		SetNodesCount(2).
 		SetContext(ctx).
 		SetRegistryProxySupplier(nil).
-		SetTokenGenerateFunc(tokenGenerator).
+		SetTokenGenerateFunc(nodeTokenGenerator).
 		Build()
 	defer domain.Cleanup()
 
@@ -196,10 +196,11 @@ func TestRefreshClient_Sandbox(t *testing.T) {
 	}
 
 	refreshSrv := newRefreshTesterServer(t, sandboxMinDuration, sandboxExpireTimeout)
-	_, err := domain.Nodes[0].NewEndpoint(ctx, nseReg, tokenGenerator, refreshSrv)
+	_, err := domain.Nodes[0].NewEndpoint(ctx, nseReg, nodeTokenGenerator, refreshSrv)
 	require.NoError(t, err)
 
-	nsc := domain.Nodes[1].NewClient(ctx, tokenGenerator)
+	nscTokenGenerator := sandbox.GenerateExpiringToken(sandboxExpireTimeout)
+	nsc := domain.Nodes[1].NewClient(ctx, nscTokenGenerator)
 
 	generateRequests(t, nsc, refreshSrv, sandboxRequests, sandboxStepDuration)
 }
