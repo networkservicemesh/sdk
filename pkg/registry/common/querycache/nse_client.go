@@ -19,39 +19,53 @@ package querycache
 
 import (
 	"context"
+	"sync"
+	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
+	"github.com/networkservicemesh/sdk/pkg/tools/after"
 )
 
 type queryCacheNSEClient struct {
-	chainCtx context.Context
-	cache    memory.NetworkServiceEndpointSyncMap
+	ctx           context.Context
+	expireTimeout time.Duration
+	cache         cacheEntryMap
 }
 
-func (q *queryCacheNSEClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)
+type cacheEntry struct {
+	nse       *registry.NetworkServiceEndpoint
+	afterFunc *after.Func
+	lock      sync.RWMutex
 }
 
-func (q *queryCacheNSEClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	if in.Watch {
-		return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, in, opts...)
+// NewClient creates new querycache NSE registry client that caches all resolved NSEs
+func NewClient(ctx context.Context, expireTimeout time.Duration) registry.NetworkServiceEndpointRegistryClient {
+	return &queryCacheNSEClient{
+		ctx:           ctx,
+		expireTimeout: expireTimeout,
+	}
+}
+
+func (q *queryCacheNSEClient) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, nse, opts...)
+}
+
+func (q *queryCacheNSEClient) Find(ctx context.Context, query *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
+	if query.Watch {
+		return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, query, opts...)
 	}
 
-	if nse, ok := q.cache.Load(in.String()); ok {
-		resultCh := make(chan *registry.NetworkServiceEndpoint, 1)
-		resultCh <- nse
-		close(resultCh)
-		return streamchannel.NewNetworkServiceEndpointFindClient(ctx, resultCh), nil
+	if client, ok := q.findInCache(ctx, query.String()); ok {
+		return client, nil
 	}
 
-	client, err := next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, in, opts...)
+	client, err := next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, query, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -61,51 +75,81 @@ func (q *queryCacheNSEClient) Find(ctx context.Context, in *registry.NetworkServ
 	resultCh := make(chan *registry.NetworkServiceEndpoint, len(nses))
 	for _, nse := range nses {
 		resultCh <- nse
-
-		nseQuery := &registry.NetworkServiceEndpointQuery{
-			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-				Name: nse.Name,
-			},
-		}
-
-		key := nseQuery.String()
-		q.cache.Store(key, nse)
-
-		go func() {
-			defer q.cache.Delete(key)
-
-			findCtx, findCancel := context.WithCancel(q.chainCtx)
-			defer findCancel()
-
-			nseQuery.Watch = true
-
-			stream, err := next.NetworkServiceEndpointRegistryClient(ctx).Find(findCtx, nseQuery, opts...)
-			if err != nil {
-				return
-			}
-
-			for update, err := stream.Recv(); err == nil; update, err = stream.Recv() {
-				if update.Name != nseQuery.NetworkServiceEndpoint.Name {
-					continue
-				}
-				if update.ExpirationTime != nil && update.ExpirationTime.Seconds < 0 {
-					break
-				}
-				q.cache.Store(key, update)
-			}
-		}()
+		q.storeInCache(ctx, nse, opts...)
 	}
 	close(resultCh)
 
 	return streamchannel.NewNetworkServiceEndpointFindClient(ctx, resultCh), nil
 }
 
-func (q *queryCacheNSEClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
-	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
+func (q *queryCacheNSEClient) findInCache(ctx context.Context, key string) (registry.NetworkServiceEndpointRegistry_FindClient, bool) {
+	entry, ok := q.cache.Load(key)
+	if !ok {
+		return nil, false
+	}
+
+	entry.lock.RLock()
+	defer entry.lock.RUnlock()
+
+	if !entry.afterFunc.Stop() {
+		return nil, false
+	}
+	entry.afterFunc.Reset(time.Now().Add(q.expireTimeout))
+
+	resultCh := make(chan *registry.NetworkServiceEndpoint, 1)
+	resultCh <- entry.nse
+	close(resultCh)
+
+	return streamchannel.NewNetworkServiceEndpointFindClient(ctx, resultCh), true
 }
 
-// NewClient creates new querycache registry.NetworkServiceEndpointRegistryClient that caches all resolved NSEs
-// All cached NSE is
-func NewClient(chainCtx context.Context) registry.NetworkServiceEndpointRegistryClient {
-	return &queryCacheNSEClient{chainCtx: chainCtx}
+func (q *queryCacheNSEClient) storeInCache(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) {
+	nseQuery := &registry.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+			Name: nse.Name,
+		},
+	}
+
+	key := nseQuery.String()
+
+	findCtx, findCancel := context.WithCancel(q.ctx)
+	entry := &cacheEntry{
+		nse:       nse,
+		afterFunc: after.NewFunc(findCtx, time.Now().Add(q.expireTimeout), findCancel),
+	}
+	q.cache.Store(key, entry)
+
+	go func() {
+		defer findCancel()
+		defer func() {
+			entry.lock.Lock()
+			entry.afterFunc.Stop()
+			entry.lock.Unlock()
+		}()
+		defer q.cache.Delete(key)
+
+		nseQuery.Watch = true
+
+		stream, err := next.NetworkServiceEndpointRegistryClient(ctx).Find(findCtx, nseQuery, opts...)
+		if err != nil {
+			return
+		}
+
+		for nse, err = stream.Recv(); err == nil; nse, err = stream.Recv() {
+			if nse.Name != nseQuery.NetworkServiceEndpoint.Name {
+				continue
+			}
+			if nse.ExpirationTime != nil && nse.ExpirationTime.Seconds < 0 {
+				break
+			}
+
+			entry.lock.Lock()
+			entry.nse = nse
+			entry.lock.Unlock()
+		}
+	}()
+}
+
+func (q *queryCacheNSEClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
+	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
 }
