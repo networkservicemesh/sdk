@@ -113,6 +113,8 @@ func (s *connectServer) Close(ctx context.Context, conn *networkservice.Connecti
 	if connInfo, ok := s.connInfos.LoadAndDelete(conn.GetId()); ok {
 		_, clientErr = connInfo.client.client.Close(ctx, conn)
 		s.closeClient(connInfo.client, connInfo.clientURL.String())
+	} else {
+		clientErr = errors.Errorf("no client found for the connection: %s", conn.GetId())
 	}
 
 	_, err := next.Server(ctx).Close(ctx, conn)
