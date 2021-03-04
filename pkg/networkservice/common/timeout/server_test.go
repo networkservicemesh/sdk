@@ -42,13 +42,11 @@ import (
 )
 
 const (
-	clientName    = "client"
-	serverName    = "server"
-	tokenTimeout  = 100 * time.Millisecond
-	waitFor       = 10 * tokenTimeout
-	tick          = 10 * time.Millisecond
-	serverID      = "server-id"
-	parallelCount = 1000
+	clientName   = "client"
+	serverName   = "server"
+	tokenTimeout = 100 * time.Millisecond
+	waitFor      = 10 * tokenTimeout
+	tick         = 10 * time.Millisecond
 )
 
 func testClient(ctx context.Context, server networkservice.NetworkServiceServer, duration time.Duration) networkservice.NetworkServiceClient {
@@ -121,47 +119,6 @@ func TestTimeoutServer_Close_AfterTimeout(t *testing.T) {
 	_, err = client.Close(ctx, conn)
 	require.NoError(t, err)
 	require.Condition(t, connServer.validator(0, 1))
-}
-
-func stressTestRequest() *networkservice.NetworkServiceRequest {
-	return &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Path: &networkservice.Path{
-				PathSegments: []*networkservice.PathSegment{
-					{
-						Name: clientName,
-						Id:   "client-id",
-					},
-					{
-						Name: serverName,
-						Id:   serverID,
-					},
-				},
-			},
-		},
-	}
-}
-
-func TestTimeoutServer_StressTest(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	connServer := newConnectionsServer(t)
-
-	client := testClient(ctx, connServer, 0)
-
-	wg := new(sync.WaitGroup)
-	wg.Add(parallelCount)
-	for i := 0; i < parallelCount; i++ {
-		go func() {
-			defer wg.Done()
-			conn, err := client.Request(ctx, stressTestRequest())
-			assert.NoError(t, err)
-			_, err = client.Close(ctx, conn)
-			assert.NoError(t, err)
-		}()
-	}
-	wg.Wait()
 }
 
 type connectionsServer struct {
