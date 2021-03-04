@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,14 +14,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package connect
+package grpcutils
 
 import (
-	"sync"
+	"errors"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
-//go:generate go-syncmap -output connection_info_map.gen.go -type connectionInfoMap<string,connectionInfo>
-//go:generate go-syncmap -output client_info_map.gen.go -type clientInfoMap<string,*clientInfo>
-
-type connectionInfoMap sync.Map
-type clientInfoMap sync.Map
+// UnwrapCode searches grpc status Code within the error
+func UnwrapCode(err error) codes.Code {
+	if err == nil {
+		return codes.OK
+	}
+	for err != nil {
+		if code := status.Code(err); code != codes.Unknown {
+			return code
+		}
+		err = errors.Unwrap(err)
+	}
+	return codes.Unknown
+}

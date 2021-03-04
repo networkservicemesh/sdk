@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -25,10 +25,11 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/multiexecutor"
 )
 
 type serializeClient struct {
-	executor multiExecutor
+	executor multiexecutor.MultiExecutor
 }
 
 // NewClient returns a new serialize client chain element
@@ -39,14 +40,16 @@ func NewClient() networkservice.NetworkServiceClient {
 func (c *serializeClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
 	connID := request.GetConnection().GetId()
 	<-c.executor.AsyncExec(connID, func() {
-		conn, err = next.Client(ctx).Request(WithExecutor(ctx, c.executor.Executor(connID)), request, opts...)
+		requestCtx := WithExecutor(ctx, executorFunc(c.executor.Executor(connID)))
+		conn, err = next.Client(ctx).Request(requestCtx, request, opts...)
 	})
 	return conn, err
 }
 
 func (c *serializeClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (_ *empty.Empty, err error) {
 	<-c.executor.AsyncExec(conn.GetId(), func() {
-		_, err = next.Client(ctx).Close(WithExecutor(ctx, c.executor.Executor(conn.GetId())), conn, opts...)
+		requestCtx := WithExecutor(ctx, executorFunc(c.executor.Executor(conn.GetId())))
+		_, err = next.Client(ctx).Close(requestCtx, conn, opts...)
 	})
 	return new(empty.Empty), err
 }
