@@ -18,8 +18,8 @@ package expire
 
 import "sync"
 
-//go:generate go-syncmap -output unregister_timer_sync_map.gen.go -type unregisterTimerMap<string,*unregisterTimer>
+//go:generate go-syncmap -output after_func_map.gen.go -type afterFuncMap<string,*github.com/networkservicemesh/sdk/pkg/tools/after.Func>
 //go:generate go-syncmap -output ns_state_sync_map.gen.go -type nsStateMap<string,*nsState>
 
-type unregisterTimerMap sync.Map
+type afterFuncMap sync.Map
 type nsStateMap sync.Map

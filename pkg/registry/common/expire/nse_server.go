@@ -20,26 +20,20 @@ import (
 	"context"
 	"time"
 
-	"github.com/edwarnicke/serialize"
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/after"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type expireNSEServer struct {
 	ctx           context.Context
 	nseExpiration time.Duration
-	timers        unregisterTimerMap
-}
-
-type unregisterTimer struct {
-	expirationTime    time.Time
-	started, canceled bool
-	timer             *time.Timer
-	executor          serialize.Executor
+	afterFuncs    afterFuncMap
 }
 
 // NewNetworkServiceEndpointRegistryServer wraps passed NetworkServiceEndpointRegistryServer and monitor Network service endpoints
@@ -51,41 +45,18 @@ func NewNetworkServiceEndpointRegistryServer(ctx context.Context, nseExpiration 
 }
 
 func (n *expireNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	t, loaded := n.timers.LoadAndDelete(nse.Name)
-	stopped := loaded && t.timer.Stop()
-
-	var expirationTime time.Time
-	var started bool
-	if stopped {
-		expirationTime = t.expirationTime
-	} else if loaded {
-		<-t.executor.AsyncExec(func() {
-			started = t.started
-			if !started {
-				t.canceled = true
-			}
-		})
-	}
+	afterFunc, loaded := n.afterFuncs.Load(nse.Name)
+	stopped := loaded && afterFunc.Stop()
 
 	resp, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	if err != nil {
 		if stopped {
-			// Timer has been stopped, we need only to reset it.
-			t.timer.Reset(time.Until(expirationTime))
-		} else if loaded && !started {
-			// Timer function has been stopped with the `canceled` flag, we need to remove the flag.
-			t.executor.AsyncExec(func() {
-				t.canceled = false
-				if t.started {
-					// Timer function has been already finished, we need to reset the timer right now.
-					t.timer.Reset(0)
-				}
-			})
+			afterFunc.Resume()
 		}
 		return nil, err
 	}
 
-	expirationTime = time.Now().Add(n.nseExpiration)
+	expirationTime := time.Now().Add(n.nseExpiration)
 	if resp.ExpirationTime != nil {
 		if respExpirationTime := resp.ExpirationTime.AsTime().Local(); respExpirationTime.Before(expirationTime) {
 			expirationTime = respExpirationTime
@@ -93,41 +64,28 @@ func (n *expireNSEServer) Register(ctx context.Context, nse *registry.NetworkSer
 	}
 	resp.ExpirationTime = timestamppb.New(expirationTime)
 
-	t = n.newTimer(ctx, expirationTime, resp.Clone())
-	if _, ok := n.timers.LoadOrStore(resp.Name, t); ok {
-		t.timer.Stop()
-		t.executor.AsyncExec(func() {
-			t.canceled = true
-		})
+	if loaded {
+		afterFunc.Reset(expirationTime)
+	} else {
+		n.startAfterFunc(ctx, resp.Clone())
 	}
 
 	return resp, nil
 }
 
-func (n *expireNSEServer) newTimer(
-	ctx context.Context,
-	expirationTime time.Time,
-	nse *registry.NetworkServiceEndpoint,
-) *unregisterTimer {
-	t := &unregisterTimer{
-		expirationTime: expirationTime,
-	}
+func (n *expireNSEServer) startAfterFunc(ctx context.Context, nse *registry.NetworkServiceEndpoint) {
+	logger := log.FromContext(ctx).WithField("expireNSEServer", "startAfterFunc")
 
-	t.timer = time.AfterFunc(time.Until(expirationTime), func() {
-		t.executor.AsyncExec(func() {
-			t.started = true
-			if t.canceled || n.ctx.Err() != nil {
-				return
-			}
+	n.afterFuncs.Store(nse.Name, after.NewFunc(n.ctx, nse.ExpirationTime.AsTime().Local(), func() {
+		n.afterFuncs.Delete(nse.Name)
 
-			unregisterCtx, cancel := context.WithCancel(n.ctx)
-			defer cancel()
+		unregisterCtx, cancel := context.WithCancel(n.ctx)
+		defer cancel()
 
-			_, _ = next.NetworkServiceEndpointRegistryServer(ctx).Unregister(unregisterCtx, nse)
-		})
-	})
-
-	return t
+		if _, err := next.NetworkServiceEndpointRegistryServer(ctx).Unregister(unregisterCtx, nse); err != nil {
+			logger.Errorf("failed to unregister expired endpoint: %s %s", nse.Name, err.Error())
+		}
+	}))
 }
 
 func (n *expireNSEServer) Find(query *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
@@ -135,18 +93,14 @@ func (n *expireNSEServer) Find(query *registry.NetworkServiceEndpointQuery, s re
 }
 
 func (n *expireNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	if t, ok := n.timers.LoadAndDelete(nse.Name); ok {
-		if !t.timer.Stop() {
-			<-t.executor.AsyncExec(func() {
-				t.canceled = true
-			})
-		}
-	}
+	logger := log.FromContext(ctx).WithField("expireNSEServer", "Unregister")
 
-	resp, err := next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
-	if err != nil {
-		return nil, err
+	afterFunc, ok := n.afterFuncs.LoadAndDelete(nse.Name)
+	if !ok {
+		logger.Warnf("endpoint has been already unregistered: %s", nse.Name)
+		return new(empty.Empty), nil
 	}
+	afterFunc.Stop()
 
-	return resp, nil
+	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }
