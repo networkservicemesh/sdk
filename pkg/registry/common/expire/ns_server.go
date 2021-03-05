@@ -43,6 +43,12 @@ type nsState struct {
 	sync.Mutex
 }
 
+// NewNetworkServiceServer monitors endpoints using passed nseClient and unregisters services on all corresponding
+// endpoints expiration
+func NewNetworkServiceServer(ctx context.Context, nseClient registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceRegistryServer {
+	return &expireNSServer{nseClient: nseClient, chainCtx: ctx}
+}
+
 func (n *expireNSServer) checkUpdates(eventCh <-chan *registry.NetworkServiceEndpoint) {
 	for event := range eventCh {
 		nse := event
@@ -153,9 +159,4 @@ func (n *expireNSServer) Unregister(ctx context.Context, request *registry.Netwo
 	}
 
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, request)
-}
-
-// NewNetworkServiceServer wraps passed NetworkServiceRegistryServer and monitor NetworkServiceEndpoints via passed NetworkServiceEndpointRegistryClient
-func NewNetworkServiceServer(ctx context.Context, nseClient registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceRegistryServer {
-	return &expireNSServer{nseClient: nseClient, chainCtx: ctx}
 }
