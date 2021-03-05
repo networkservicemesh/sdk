@@ -23,8 +23,10 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 	"google.golang.org/grpc/credentials"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -32,40 +34,44 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/timeout"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
 const (
-	clientName    = "client"
-	serverName    = "server"
-	tokenTimeout  = 100 * time.Millisecond
-	waitFor       = 10 * tokenTimeout
-	tick          = 10 * time.Millisecond
-	serverID      = "server-id"
-	parallelCount = 1000
+	clientName   = "client"
+	serverName   = "server"
+	tokenTimeout = 100 * time.Millisecond
+	waitFor      = 10 * tokenTimeout
+	tick         = tokenTimeout / 10
 )
 
-func testClient(ctx context.Context, server networkservice.NetworkServiceServer, duration time.Duration) networkservice.NetworkServiceClient {
-	return chain.NewNetworkServiceClient(
+func testClient(
+	ctx context.Context,
+	client networkservice.NetworkServiceClient,
+	server networkservice.NetworkServiceServer,
+	duration time.Duration,
+) networkservice.NetworkServiceClient {
+	return next.NewNetworkServiceClient(
 		updatepath.NewClient(clientName),
-		adapters.NewServerToClient(updatetoken.NewServer(func(_ credentials.AuthInfo) (string, time.Time, error) {
-			return "token", time.Now().Add(duration), nil
-		})),
-		kernel.NewClient(),
+		serialize.NewClient(),
+		client,
 		adapters.NewServerToClient(
-			chain.NewNetworkServiceServer(
+			next.NewNetworkServiceServer(
+				updatetoken.NewServer(func(_ credentials.AuthInfo) (string, time.Time, error) {
+					return "token", time.Now().Add(duration), nil
+				}),
+				new(remoteServer), // <-- GRPC invocation
 				updatepath.NewServer(serverName),
 				serialize.NewServer(),
 				timeout.NewServer(ctx),
-				mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
-					kernelmech.MECHANISM: server,
-				}),
+				server,
 			),
 		),
 	)
@@ -77,20 +83,34 @@ func TestTimeoutServer_Request(t *testing.T) {
 
 	connServer := newConnectionsServer(t)
 
-	_, err := testClient(ctx, connServer, tokenTimeout).Request(ctx, &networkservice.NetworkServiceRequest{})
+	client := testClient(ctx,
+		kernel.NewClient(),
+		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
+			kernelmech.MECHANISM: connServer,
+		}),
+		tokenTimeout,
+	)
+
+	_, err := client.Request(ctx, &networkservice.NetworkServiceRequest{})
 	require.NoError(t, err)
 	require.Condition(t, connServer.validator(1, 0))
 
 	require.Eventually(t, connServer.validator(0, 1), waitFor, tick)
 }
 
-func TestTimeoutServer_Close_BeforeTimeout(t *testing.T) {
+func TestTimeoutServer_CloseBeforeTimeout(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	connServer := newConnectionsServer(t)
 
-	client := testClient(ctx, connServer, tokenTimeout)
+	client := testClient(ctx,
+		kernel.NewClient(),
+		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
+			kernelmech.MECHANISM: connServer,
+		}),
+		tokenTimeout,
+	)
 
 	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{})
 	require.NoError(t, err)
@@ -104,13 +124,19 @@ func TestTimeoutServer_Close_BeforeTimeout(t *testing.T) {
 	<-time.After(waitFor)
 }
 
-func TestTimeoutServer_Close_AfterTimeout(t *testing.T) {
+func TestTimeoutServer_CloseAfterTimeout(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	connServer := newConnectionsServer(t)
 
-	client := testClient(ctx, connServer, tokenTimeout)
+	client := testClient(ctx,
+		kernel.NewClient(),
+		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
+			kernelmech.MECHANISM: connServer,
+		}),
+		tokenTimeout,
+	)
 
 	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{})
 	require.NoError(t, err)
@@ -134,7 +160,7 @@ func stressTestRequest() *networkservice.NetworkServiceRequest {
 					},
 					{
 						Name: serverName,
-						Id:   serverID,
+						Id:   "server-id",
 					},
 				},
 			},
@@ -148,11 +174,11 @@ func TestTimeoutServer_StressTest(t *testing.T) {
 
 	connServer := newConnectionsServer(t)
 
-	client := testClient(ctx, connServer, 0)
+	client := testClient(ctx, null.NewClient(), connServer, 0)
 
-	wg := new(sync.WaitGroup)
-	wg.Add(parallelCount)
-	for i := 0; i < parallelCount; i++ {
+	var wg sync.WaitGroup
+	for i := 0; i < 1000; i++ {
+		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			conn, err := client.Request(ctx, stressTestRequest())
@@ -162,6 +188,45 @@ func TestTimeoutServer_StressTest(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+}
+
+func TestTimeoutServer_RefreshFailure(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	connServer := newConnectionsServer(t)
+
+	client := testClient(
+		ctx,
+		refresh.NewClient(ctx),
+		next.NewNetworkServiceServer(
+			newFailureServer(1, -1),
+			connServer,
+		),
+		tokenTimeout,
+	)
+
+	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{})
+	require.NoError(t, err)
+	require.Condition(t, connServer.validator(1, 0))
+
+	require.Eventually(t, connServer.validator(0, 1), waitFor, tick)
+
+	_, err = client.Close(ctx, conn)
+	require.NoError(t, err)
+	require.Condition(t, connServer.validator(0, 1))
+}
+
+type remoteServer struct{}
+
+func (s *remoteServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	return next.Server(ctx).Request(ctx, request.Clone())
+}
+
+func (s *remoteServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	return next.Server(ctx).Close(ctx, conn.Clone())
 }
 
 type connectionsServer struct {
@@ -202,9 +267,7 @@ func (s *connectionsServer) validator(open, closed int) func() bool {
 func (s *connectionsServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	s.lock.Lock()
 
-	connID := request.GetConnection().GetId()
-
-	s.connections[connID] = true
+	s.connections[request.GetConnection().GetId()] = true
 
 	s.lock.Unlock()
 
@@ -214,15 +277,41 @@ func (s *connectionsServer) Request(ctx context.Context, request *networkservice
 func (s *connectionsServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	s.lock.Lock()
 
-	connID := conn.GetId()
-
-	if !s.connections[connID] {
-		assert.Fail(s.t, "closing not opened connection: %v", connID)
+	if !s.connections[conn.GetId()] {
+		assert.Fail(s.t, "closing not opened connection: %v", conn.GetId())
 	} else {
-		s.connections[connID] = false
+		s.connections[conn.GetId()] = false
 	}
 
 	s.lock.Unlock()
 
+	return next.Server(ctx).Close(ctx, conn)
+}
+
+type failureServer struct {
+	count        int
+	failureTimes []int
+}
+
+func newFailureServer(failureTimes ...int) *failureServer {
+	return &failureServer{
+		failureTimes: failureTimes,
+	}
+}
+
+func (s *failureServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	defer func() { s.count++ }()
+	for _, failureTime := range s.failureTimes {
+		if failureTime > s.count {
+			break
+		}
+		if failureTime == s.count || failureTime == -1 {
+			return nil, errors.New("failure")
+		}
+	}
+	return next.Server(ctx).Request(ctx, request)
+}
+
+func (s *failureServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	return next.Server(ctx).Close(ctx, conn)
 }
