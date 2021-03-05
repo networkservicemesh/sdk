@@ -25,8 +25,10 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
@@ -54,19 +56,55 @@ type endpoint struct {
 	networkservice.MonitorConnectionServer
 }
 
+type serverOptions struct {
+	name                    string
+	authorizeServer         networkservice.NetworkServiceServer
+	additionalFunctionality []networkservice.NetworkServiceServer
+}
+
+// Option modifies server option value
+type Option func(o *serverOptions)
+
+// WithName sets name of the NetworkServiceServer
+func WithName(name string) Option {
+	return func(o *serverOptions) {
+		o.name = name
+	}
+}
+
+// WithAuthorizeServer sets authorization server chain element
+func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Option {
+	if authorizeServer == nil {
+		panic("Authorize server cannot be nil")
+	}
+	return func(o *serverOptions) {
+		o.authorizeServer = authorizeServer
+	}
+}
+
+// WithAdditionalFunctionality sets additional NetworkServiceServer chain elements to be included in the chain
+func WithAdditionalFunctionality(additionalFunctionality ...networkservice.NetworkServiceServer) Option {
+	return func(o *serverOptions) {
+		o.additionalFunctionality = additionalFunctionality
+	}
+}
+
 // NewServer - returns a NetworkServiceMesh client as a chain of the standard Client pieces plus whatever
-//             additional functionality is specified
-//             - name - name of the NetworkServiceServer
-//             - authzServer authorization server chain element
-//             - tokenGenerator - token.GeneratorFunc - generates tokens for use in Path
-//             - additionalFunctionality - any additional NetworkServiceServer chain elements to be included in the chain
-func NewServer(ctx context.Context, name string, authzServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceServer) Endpoint {
+func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...Option) Endpoint {
+	opts := &serverOptions{
+		name:            "endpoint-" + uuid.New().String(),
+		authorizeServer: authorize.NewServer(authorize.Any()),
+	}
+	for _, opt := range options {
+		opt(opts)
+	}
+
 	rv := &endpoint{}
 	rv.NetworkServiceServer = chain.NewNamedNetworkServiceServer(
-		name,
+		opts.name,
 		append([]networkservice.NetworkServiceServer{
-			updatepath.NewServer(name),
-			authzServer,
+			updatepath.NewServer(opts.name),
+			opts.authorizeServer,
 			serialize.NewServer(),
 			// `timeout` uses ctx as a context for the timeout Close and it closes only the subsequent chain, so
 			// chain elements before the `timeout` in chain shouldn't make any updates to the Close context and
@@ -75,7 +113,7 @@ func NewServer(ctx context.Context, name string, authzServer networkservice.Netw
 			metadata.NewServer(),
 			monitor.NewServer(ctx, &rv.MonitorConnectionServer),
 			updatetoken.NewServer(tokenGenerator),
-		}, additionalFunctionality...)...)
+		}, opts.additionalFunctionality...)...)
 	return rv
 }
 
