@@ -33,7 +33,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
-const testPeriod = time.Millisecond * 50
+const testPeriod = time.Millisecond * 200
 
 func TestExpireNSServer_NSE_Expired(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
@@ -144,7 +144,7 @@ func TestExpireNSServer_NSEServerSendsExpirationUpdate(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	nseMem := next.NewNetworkServiceEndpointRegistryServer(
-		expire.NewNetworkServiceEndpointRegistryServer(time.Second),
+		expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Second),
 		memory.NewNetworkServiceEndpointRegistryServer(),
 	)
 

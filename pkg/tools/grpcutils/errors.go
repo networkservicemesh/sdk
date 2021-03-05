@@ -23,7 +23,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// UnwrapCode searches grpc error status Code within error
+// UnwrapCode searches grpc status Code within the error
 func UnwrapCode(err error) codes.Code {
 	if err == nil {
 		return codes.OK

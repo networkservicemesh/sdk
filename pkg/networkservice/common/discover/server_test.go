@@ -19,9 +19,11 @@ package discover_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
@@ -490,4 +492,75 @@ func TestMatchExactEndpoint(t *testing.T) {
 
 	_, err = server.Request(ctx, request.Clone())
 	require.NoError(t, err)
+}
+
+func TestMatchSelectedNSESecondAttempt(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	nsServer := memory.NewNetworkServiceRegistryServer()
+	nseServer := registrynext.NewNetworkServiceEndpointRegistryServer(
+		setid.NewNetworkServiceEndpointRegistryServer(),
+		memory.NewNetworkServiceEndpointRegistryServer(),
+	)
+
+	nsName := networkServiceName()
+	counter := 0
+	server := next.NewNetworkServiceServer(
+		discover.NewServer(
+			adapters.NetworkServiceServerToClient(nsServer),
+			adapters.NetworkServiceEndpointServerToClient(nseServer)),
+		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+			nses := discover.Candidates(ctx).Endpoints
+			require.Len(t, nses, 1)
+			require.Equal(t, nsName, nses[0].NetworkServiceNames[0])
+		}),
+		&injectConditionServer{
+			condition: func() bool {
+				counter++
+				return counter > 1
+			},
+		},
+	)
+
+	_, err := nsServer.Register(context.Background(), &registry.NetworkService{
+		Name: nsName,
+	})
+	require.NoError(t, err)
+	_, err = nseServer.Register(context.Background(), &registry.NetworkServiceEndpoint{
+		NetworkServiceNames: []string{nsName},
+	})
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			NetworkService: nsName,
+		},
+	}
+	now := time.Now()
+	_, err = server.Request(ctx, request)
+	require.NoError(t, err)
+	require.Condition(t, func() (success bool) {
+		return time.Now().After(now.Add(time.Second / 10))
+	})
+}
+
+type injectConditionServer struct {
+	condition func() bool
+}
+
+func (c *injectConditionServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	if !c.condition() {
+		return nil, errors.New("error originated by failed condition in injectConditionServer")
+	}
+	return next.Server(ctx).Request(ctx, request)
+}
+
+func (c *injectConditionServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
+	if !c.condition() {
+		return nil, errors.New("error originated by failed condition in injectConditionServer")
+	}
+	return next.Server(ctx).Close(ctx, connection)
 }

@@ -85,6 +85,7 @@ func (u *clientURLClient) init() error {
 		if u.dialErr != nil {
 			return
 		}
+
 		u.client = u.clientFactory(u.ctx, cc)
 
 		go func() {
@@ -101,5 +102,6 @@ func (u *clientURLClient) init() error {
 			}
 		}()
 	})
+
 	return u.dialErr
 }

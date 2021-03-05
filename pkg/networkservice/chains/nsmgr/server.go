@@ -134,7 +134,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 
 	nseChain := registrychain.NewNamedNetworkServiceEndpointRegistryServer(
 		nsmRegistration.Name+".NetworkServiceEndpointRegistry",
-		expire.NewNetworkServiceEndpointRegistryServer(time.Minute),
+		expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
 		setid.NewNetworkServiceEndpointRegistryServer(),          // Assign ID
 		registryrecvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
 		urlsRegistryServer,        // Store endpoints URLs

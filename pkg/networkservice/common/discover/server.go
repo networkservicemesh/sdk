@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Cisco Systems, Inc.
 //
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,8 +21,7 @@ package discover
 import (
 	"context"
 	"net/url"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
@@ -29,6 +30,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 )
 
 type discoverCandidatesServer struct {
@@ -66,11 +68,23 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 	if err != nil {
 		return nil, err
 	}
+
+	delay := defaultDiscoverDelay
 	for ctx.Err() == nil {
 		resp, err := next.Server(ctx).Request(WithCandidates(ctx, nses, ns), request)
 		if err == nil {
 			return resp, err
 		}
+
+		if deadline, ok := ctx.Deadline(); ctx.Err() == nil && ok {
+			timeout := time.Until(deadline) / 10
+			if delay > float64(timeout) {
+				delay = float64(timeout)
+			}
+		}
+		<-time.After(time.Duration(delay))
+		delay *= discoverDelayMultiplier
+
 		nses, err = d.discoverNetworkServiceEndpoints(ctx, ns, request.GetConnection().GetLabels())
 		if err != nil {
 			return nil, err

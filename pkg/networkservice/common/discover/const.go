@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,14 +14,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package connect
+package discover
 
-import (
-	"sync"
+import "time"
+
+const (
+	// defaultDiscoverDelay - default delay between two attempts to discover endpoints
+	defaultDiscoverDelay = float64(time.Second)
+	// discoverDelayMultiplier - multiplier to increase delay on next discover attempt
+	discoverDelayMultiplier = 1.62
 )
-
-//go:generate go-syncmap -output connection_info_map.gen.go -type connectionInfoMap<string,connectionInfo>
-//go:generate go-syncmap -output client_info_map.gen.go -type clientInfoMap<string,*clientInfo>
-
-type connectionInfoMap sync.Map
-type clientInfoMap sync.Map
