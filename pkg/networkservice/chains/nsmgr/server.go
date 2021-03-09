@@ -92,9 +92,11 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 	}
 
 	localBypassRegistryServer := localbypass.NewNetworkServiceEndpointRegistryServer(nsmRegistration.Url)
+	localBypassRegistryClient := localbypass.NewNetworkServiceEndpointRegistryClient(nsmRegistration.Url)
 
 	nseClient := next.NewNetworkServiceEndpointRegistryClient(
 		querycache.NewClient(ctx),
+		localBypassRegistryClient,
 		registryadapter.NetworkServiceEndpointServerToClient(next.NewNetworkServiceEndpointRegistryServer(
 			localBypassRegistryServer,
 			nseRegistry)),
