@@ -247,11 +247,14 @@ func (b *Builder) newNSMgrProxy(ctx context.Context) *EndpointEntry {
 }
 
 // NewNSMgr - starts new Network Service Manager
-func (b *Builder) NewNSMgr(ctx context.Context, address string, registryURL *url.URL, generateTokenFunc token.GeneratorFunc) (entry *NSMgrEntry, resources []context.CancelFunc) {
+func (b *Builder) NewNSMgr(ctx context.Context, node *Node, address string, registryURL *url.URL, generateTokenFunc token.GeneratorFunc) (entry *NSMgrEntry, resources []context.CancelFunc) {
 	nsmgrCtx, nsmgrCancel := context.WithCancel(ctx)
 	b.resources = append(b.resources, nsmgrCancel)
 
 	entry = b.newNSMgr(nsmgrCtx, address, registryURL, generateTokenFunc)
+
+	b.SetupRegistryClients(nsmgrCtx, node)
+
 	resources, b.resources = b.resources, nil
 	return
 }
@@ -331,21 +334,28 @@ func (b *Builder) newRegistry(ctx context.Context, proxyRegistryURL *url.URL) *R
 
 func (b *Builder) newNode(ctx context.Context, registryURL *url.URL, nodeConfig *NodeConfig) *Node {
 	nsmgrEntry := b.newNSMgr(nodeConfig.NsmgrCtx, "127.0.0.1:0", registryURL, nodeConfig.NsmgrGenerateTokenFunc)
-	nsmgrCC := b.dialContext(nodeConfig.NsmgrCtx, nsmgrEntry.URL)
 
 	node := &Node{
-		ctx:                     b.ctx,
-		NSMgr:                   nsmgrEntry,
-		ForwarderRegistryClient: client.NewNetworkServiceEndpointRegistryInterposeClient(ctx, nsmgrCC),
-		EndpointRegistryClient:  client.NewNetworkServiceEndpointRegistryClient(ctx, nsmgrCC),
-		NSRegistryClient:        client.NewNetworkServiceRegistryClient(nsmgrCC),
+		ctx:   b.ctx,
+		NSMgr: nsmgrEntry,
 	}
+
+	b.SetupRegistryClients(nodeConfig.NsmgrCtx, node)
 
 	if b.setupNode != nil {
 		b.setupNode(ctx, node, nodeConfig)
 	}
 
 	return node
+}
+
+// SetupRegistryClients - creates Network Service Registry Clients
+func (b *Builder) SetupRegistryClients(ctx context.Context, node *Node) {
+	nsmgrCC := b.dialContext(ctx, node.NSMgr.URL)
+
+	node.ForwarderRegistryClient = client.NewNetworkServiceEndpointRegistryInterposeClient(ctx, nsmgrCC)
+	node.EndpointRegistryClient = client.NewNetworkServiceEndpointRegistryClient(ctx, nsmgrCC)
+	node.NSRegistryClient = client.NewNetworkServiceRegistryClient(nsmgrCC)
 }
 
 func defaultSetupNode(t *testing.T) SetupNodeFunc {

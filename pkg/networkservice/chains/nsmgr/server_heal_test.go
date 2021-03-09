@@ -19,6 +19,7 @@ package nsmgr_test
 
 import (
 	"context"
+	"runtime"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -259,7 +260,9 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, customConfig []*sandbox.NodeC
 	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Requests))
 	require.Equal(t, int32(0), atomic.LoadInt32(&counter.Closes))
 
-	restoredNSMgrEntry, restoredNSMgrResources := builder.NewNSMgr(ctx, domain.Nodes[nodeNum].NSMgr.URL.Host, domain.Registry.URL, sandbox.GenerateTestToken)
+	runtime.Gosched()
+
+	restoredNSMgrEntry, restoredNSMgrResources := builder.NewNSMgr(ctx, domain.Nodes[nodeNum], domain.Nodes[nodeNum].NSMgr.URL.Host, domain.Registry.URL, sandbox.GenerateTestToken)
 	domain.Nodes[nodeNum].NSMgr = restoredNSMgrEntry
 	domain.AddResources(restoredNSMgrResources)
 
