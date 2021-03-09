@@ -274,7 +274,9 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, customConfig []*sandbox.NodeC
 	require.NoError(t, err)
 
 	// Wait Cross NSE expired and reconnecting through the new Cross NSE
-	require.Eventually(t, checkSecondRequestsReceived(counter.UniqueRequests), timeout, tick)
+	require.Eventually(t, checkSecondRequestsReceived(func() int {
+		return int(atomic.LoadInt32(&counter.Requests))
+	}), timeout, tick)
 
 	// Close.
 	closes := atomic.LoadInt32(&counter.Closes)
