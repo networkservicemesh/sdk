@@ -113,6 +113,100 @@ func waitServerStopped(target *url.URL) error {
 	return ctx.Err()
 }
 
+func TestConnectServer_RequestParallel(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	// 1. Create connectServer
+
+	serverNext := new(countServer)
+	serverClient := new(countServer)
+
+	s := next.NewNetworkServiceServer(
+		connect.NewServer(context.Background(),
+			func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+				return next.NewNetworkServiceClient(
+					adapters.NewServerToClient(serverClient),
+					networkservice.NewNetworkServiceClient(cc),
+				)
+			},
+			grpc.WithInsecure(),
+		),
+		serverNext,
+	)
+
+	// 3. Setup A
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	urlA := &url.URL{Scheme: "tcp", Host: "127.0.0.1:"}
+	serverA := new(countServer)
+
+	err := startServer(ctx, urlA, serverA)
+	require.NoError(t, err)
+
+	require.NoError(t, waitServerStarted(urlA))
+
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	// 4. Request A
+
+	wg := new(sync.WaitGroup)
+	wg.Add(parallelCount)
+
+	barrier := new(sync.WaitGroup)
+	barrier.Add(1)
+
+	for i := 0; i < parallelCount; i++ {
+		go func(k int) {
+			// 4.1. Create request
+			request := &networkservice.NetworkServiceRequest{
+				Connection: &networkservice.Connection{
+					Id: strconv.Itoa(k),
+				},
+			}
+
+			// 4.2. Request A
+			requestCtx, requestCancel := context.WithCancel(context.Background())
+
+			_, err := s.Request(clienturlctx.WithClientURL(requestCtx, urlA), request)
+			assert.NoError(t, err)
+			wg.Done()
+
+			requestCancel()
+
+			barrier.Wait()
+
+			// 4.3. Re request A
+			requestCtx, requestCancel = context.WithCancel(context.Background())
+
+			conn, err := s.Request(clienturlctx.WithClientURL(requestCtx, urlA), request)
+			assert.NoError(t, err)
+
+			requestCancel()
+
+			// 4.4. Close A
+			_, err = s.Close(ctx, conn)
+			assert.NoError(t, err)
+			wg.Done()
+		}(i)
+	}
+
+	wg.Wait()
+	wg.Add(parallelCount)
+
+	assert.Equal(t, int32(parallelCount), serverClient.count)
+	assert.Equal(t, int32(parallelCount), serverA.count)
+	assert.Equal(t, int32(parallelCount), serverNext.count)
+
+	barrier.Done()
+	wg.Wait()
+
+	require.Equal(t, int32(parallelCount), serverClient.count)
+	require.Equal(t, int32(parallelCount), serverA.count)
+	require.Equal(t, int32(parallelCount), serverNext.count)
+}
+
 func TestConnectServer_Request(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
@@ -242,100 +336,6 @@ func TestConnectServer_Request(t *testing.T) {
 	require.Nil(t, serverClient.capturedRequest)
 	require.Nil(t, serverB.capturedRequest)
 	require.Nil(t, serverNext.capturedRequest)
-}
-
-func TestConnectServer_RequestParallel(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-
-	// 1. Create connectServer
-
-	serverNext := new(countServer)
-	serverClient := new(countServer)
-
-	s := next.NewNetworkServiceServer(
-		connect.NewServer(context.Background(),
-			func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-				return next.NewNetworkServiceClient(
-					adapters.NewServerToClient(serverClient),
-					networkservice.NewNetworkServiceClient(cc),
-				)
-			},
-			grpc.WithInsecure(),
-		),
-		serverNext,
-	)
-
-	// 3. Setup A
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	urlA := &url.URL{Scheme: "tcp", Host: "127.0.0.1:"}
-	serverA := new(countServer)
-
-	err := startServer(ctx, urlA, serverA)
-	require.NoError(t, err)
-
-	require.NoError(t, waitServerStarted(urlA))
-
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-
-	// 4. Request A
-
-	wg := new(sync.WaitGroup)
-	wg.Add(parallelCount)
-
-	barrier := new(sync.WaitGroup)
-	barrier.Add(1)
-
-	for i := 0; i < parallelCount; i++ {
-		go func(k int) {
-			// 4.1. Create request
-			request := &networkservice.NetworkServiceRequest{
-				Connection: &networkservice.Connection{
-					Id: strconv.Itoa(k),
-				},
-			}
-
-			// 4.2. Request A
-			requestCtx, requestCancel := context.WithCancel(context.Background())
-
-			_, err := s.Request(clienturlctx.WithClientURL(requestCtx, urlA), request)
-			assert.NoError(t, err)
-			wg.Done()
-
-			requestCancel()
-
-			barrier.Wait()
-
-			// 4.3. Re request A
-			requestCtx, requestCancel = context.WithCancel(context.Background())
-
-			conn, err := s.Request(clienturlctx.WithClientURL(requestCtx, urlA), request)
-			assert.NoError(t, err)
-
-			requestCancel()
-
-			// 4.4. Close A
-			_, err = s.Close(ctx, conn)
-			assert.NoError(t, err)
-			wg.Done()
-		}(i)
-	}
-
-	wg.Wait()
-	wg.Add(parallelCount)
-
-	require.Equal(t, int32(parallelCount), serverClient.count)
-	require.Equal(t, int32(parallelCount), serverA.count)
-	require.Equal(t, int32(parallelCount), serverNext.count)
-
-	barrier.Done()
-	wg.Wait()
-
-	require.Equal(t, int32(parallelCount), serverClient.count)
-	require.Equal(t, int32(parallelCount), serverA.count)
-	require.Equal(t, int32(parallelCount), serverNext.count)
 }
 
 func TestConnectServer_RequestFail(t *testing.T) {
