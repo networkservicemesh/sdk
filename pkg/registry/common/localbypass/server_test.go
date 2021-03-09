@@ -31,6 +31,11 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
+const (
+	nsmgrURL = "tcp://0.0.0.0"
+	nseURL   = "tcp://1.1.1.1"
+)
+
 func TestLocalBypassNSEServer(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
