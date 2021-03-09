@@ -35,7 +35,7 @@ func ipAddressFromIP(ip net.IP) *ipAddress {
 	if len(ip) == net.IPv4len {
 		return &ipAddress{
 			high: 0,
-			low:  binary.BigEndian.Uint64(ip.To4()),
+			low:  uint64(binary.BigEndian.Uint32(ip)),
 		}
 	}
 	return &ipAddress{
