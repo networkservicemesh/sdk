@@ -17,13 +17,16 @@
 package localbypass
 
 import (
+	"errors"
+
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 )
 
 type localBypassNSEFindServer struct {
-	nseURLs *stringurl.Map
+	nseURLs  *stringurl.Map
+	nsmgrUrl string
 
 	registry.NetworkServiceEndpointRegistry_FindServer
 }
@@ -32,5 +35,9 @@ func (s *localBypassNSEFindServer) Send(endpoint *registry.NetworkServiceEndpoin
 	if u, ok := s.nseURLs.Load(endpoint.Name); ok {
 		endpoint.Url = u.String()
 	}
+	if endpoint.Url == s.nsmgrUrl {
+		return errors.New("NSMgr found unregistered endpoint")
+	}
+
 	return s.NetworkServiceEndpointRegistry_FindServer.Send(endpoint)
 }
