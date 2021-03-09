@@ -18,20 +18,16 @@ package setid_test
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/google/uuid"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
-)
-
-const (
-	remotePrefix = "remote-"
 )
 
 func testNSE() *registry.NetworkServiceEndpoint {
@@ -77,37 +73,51 @@ func TestSetIDServer_RefreshNSE(t *testing.T) {
 }
 
 func TestSetIDServer_RemoteRegistry(t *testing.T) {
+	captureName := new(captureNameRegistryServer)
+
 	server := next.NewNetworkServiceEndpointRegistryServer(
 		setid.NewNetworkServiceEndpointRegistryServer(),
-		new(remoteRegistry),
+		setid.NewNetworkServiceEndpointRegistryServer(),
+		setid.NewNetworkServiceEndpointRegistryServer(),
+		setid.NewNetworkServiceEndpointRegistryServer(),
+		captureName,
+		setid.NewNetworkServiceEndpointRegistryServer(),
 	)
 
 	reg, err := server.Register(context.Background(), testNSE())
 	require.NoError(t, err)
 
 	name := reg.Name
+	require.Less(t, len(name), 2*len(uuid.New().String()))
+	require.Equal(t, captureName.name, name)
 
 	reg, err = server.Register(context.Background(), reg)
 	require.NoError(t, err)
 
 	require.Equal(t, name, reg.Name)
+	require.Equal(t, name, captureName.name)
 
 	_, err = server.Unregister(context.Background(), reg)
 	require.NoError(t, err)
 }
 
-type remoteRegistry struct {
+type captureNameRegistryServer struct {
+	name string
+
 	registry.NetworkServiceEndpointRegistryServer
 }
 
-func (s *remoteRegistry) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	nse = nse.Clone()
-	if !strings.HasPrefix(nse.Name, remotePrefix) {
-		nse.Name = remotePrefix + nse.Name
+func (s *captureNameRegistryServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	reg, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
+	if err != nil {
+		return nil, err
 	}
-	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
+
+	s.name = reg.Name
+
+	return reg, nil
 }
 
-func (s *remoteRegistry) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+func (s *captureNameRegistryServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }
