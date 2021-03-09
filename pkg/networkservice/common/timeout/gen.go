@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -20,6 +20,6 @@ import (
 	"sync"
 )
 
-//go:generate go-syncmap -output timer_map.gen.go -type timerMap<string,*time.Timer>
+//go:generate go-syncmap -output close_timer_map.gen.go -type closeTimerMap<string,*closeTimer>
 
-type timerMap sync.Map
+type closeTimerMap sync.Map
