@@ -32,6 +32,8 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
+	registrychain "github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
@@ -226,7 +228,13 @@ func TestInterdomainFloatingNetworkServiceEndpointRegistry(t *testing.T) {
 	domain3 := sandbox.NewBuilder(t).
 		SetNodesCount(0).
 		SetRegistrySupplier(func(context.Context, time.Duration, *url.URL, ...grpc.DialOption) registry.Registry {
-			return registry.NewServer(memory.NewNetworkServiceRegistryServer(), memory.NewNetworkServiceEndpointRegistryServer())
+			return registry.NewServer(
+				memory.NewNetworkServiceRegistryServer(),
+				registrychain.NewNetworkServiceEndpointRegistryServer(
+					memory.NewNetworkServiceEndpointRegistryServer(),
+					setid.NewNetworkServiceEndpointRegistryServer(),
+				),
+			)
 		}).
 		SetRegistryProxySupplier(nil).
 		Build()
