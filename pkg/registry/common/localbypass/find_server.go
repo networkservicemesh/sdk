@@ -26,7 +26,7 @@ import (
 
 type localBypassNSEFindServer struct {
 	nseURLs  *stringurl.Map
-	nsmgrUrl string
+	nsmgrURL string
 
 	registry.NetworkServiceEndpointRegistry_FindServer
 }
@@ -35,7 +35,7 @@ func (s *localBypassNSEFindServer) Send(endpoint *registry.NetworkServiceEndpoin
 	if u, ok := s.nseURLs.Load(endpoint.Name); ok {
 		endpoint.Url = u.String()
 	}
-	if endpoint.Url == s.nsmgrUrl {
+	if endpoint.Url == s.nsmgrURL {
 		return errors.New("NSMgr found unregistered endpoint")
 	}
 

@@ -74,7 +74,7 @@ func (s *localBypassNSEServer) Find(query *registry.NetworkServiceEndpointQuery,
 func (s *localBypassNSEServer) findServer(server registry.NetworkServiceEndpointRegistry_FindServer) registry.NetworkServiceEndpointRegistry_FindServer {
 	return &localBypassNSEFindServer{
 		nseURLs:  &s.nseURLs,
-		nsmgrUrl: s.url,
+		nsmgrURL: s.url,
 		NetworkServiceEndpointRegistry_FindServer: server,
 	}
 }
