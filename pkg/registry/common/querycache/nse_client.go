@@ -19,7 +19,6 @@ package querycache
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -29,19 +28,12 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
-	"github.com/networkservicemesh/sdk/pkg/tools/timer"
 )
 
 type queryCacheNSEClient struct {
 	ctx           context.Context
 	expireTimeout time.Duration
 	cache         cacheEntryMap
-}
-
-type cacheEntry struct {
-	nse   *registry.NetworkServiceEndpoint
-	timer *timer.Timer
-	lock  sync.Mutex
 }
 
 // NewClient creates new querycache NSE registry client that caches all resolved NSEs
@@ -88,17 +80,13 @@ func (q *queryCacheNSEClient) findInCache(ctx context.Context, key string) (regi
 		return nil, false
 	}
 
-	entry.lock.Lock()
-	defer entry.lock.Unlock()
-
-	if !entry.timer.Stop() {
-		<-entry.timer.C
+	nse, ok := entry.Read()
+	if !ok {
 		return nil, false
 	}
-	entry.timer.Reset(q.expireTimeout)
 
 	resultCh := make(chan *registry.NetworkServiceEndpoint, 1)
-	resultCh <- entry.nse
+	resultCh <- nse
 	close(resultCh)
 
 	return streamchannel.NewNetworkServiceEndpointFindClient(ctx, resultCh), true
@@ -114,25 +102,14 @@ func (q *queryCacheNSEClient) storeInCache(ctx context.Context, nse *registry.Ne
 	key := nseQuery.String()
 
 	findCtx, cancel := context.WithCancel(q.ctx)
-	entry := &cacheEntry{
-		nse: nse,
-		timer: timer.AfterFunc(q.expireTimeout, func() {
-			cancel()
-			q.cache.Delete(key)
-		}),
-	}
+	entry := newCacheEntry(nse, q.expireTimeout, func() {
+		cancel()
+		q.cache.Delete(key)
+	})
 	q.cache.Store(key, entry)
 
 	go func() {
-		defer func() {
-			entry.lock.Lock()
-			defer entry.lock.Unlock()
-
-			if entry.timer.Stop() {
-				cancel()
-				q.cache.Delete(key)
-			}
-		}()
+		defer entry.Cleanup()
 
 		nseQuery.Watch = true
 
@@ -149,9 +126,7 @@ func (q *queryCacheNSEClient) storeInCache(ctx context.Context, nse *registry.Ne
 				break
 			}
 
-			entry.lock.Lock()
-			entry.nse = nse
-			entry.lock.Unlock()
+			entry.Update(nse)
 		}
 	}()
 }
