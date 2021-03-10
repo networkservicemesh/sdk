@@ -20,6 +20,7 @@ package nsmgr_test
 import (
 	"context"
 	"fmt"
+	"net"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -35,8 +36,11 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
@@ -131,14 +135,32 @@ func TestNSMGR_SelectsRestartingEndpoint(t *testing.T) {
 		},
 	}
 
-	nseReg := &registry.NetworkServiceEndpoint{
-		Name:                "nse-1",
-		NetworkServiceNames: []string{"ns-1"},
-	}
+	// 1. Start listen address and register endpoint
+	netListener, err := net.Listen("tcp", "127.0.0.1:")
+	require.NoError(t, err)
+	defer func() { _ = netListener.Close() }()
 
-	_, err := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, &restartingEndpoint{startTime: time.Now().Add(time.Second * 2)})
+	_, err = domain.Nodes[0].NSRegistryClient.Register(ctx, &registry.NetworkService{
+		Name:    "ns-1",
+		Payload: payload.IP,
+	})
 	require.NoError(t, err)
 
+	_, err = domain.Nodes[0].EndpointRegistryClient.Register(ctx, &registry.NetworkServiceEndpoint{
+		Name:                "nse-1",
+		NetworkServiceNames: []string{"ns-1"},
+		Url:                 "tcp://" + netListener.Addr().String(),
+	})
+	require.NoError(t, err)
+
+	// 2. Postpone endpoint start
+	time.AfterFunc(2*time.Second, func() {
+		s := grpc.NewServer()
+		endpoint.NewServer(ctx, "nse-1", authorize.NewServer(), sandbox.GenerateTestToken).Register(s)
+		_ = s.Serve(netListener)
+	})
+
+	// 3. Create client and request endpoint
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
 	conn, err := nsc.Request(ctx, request.Clone())
@@ -731,24 +753,6 @@ func (c *counterServer) Request(ctx context.Context, request *networkservice.Net
 
 func (c *counterServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
 	atomic.AddInt32(&c.Closes, 1)
-	return next.Server(ctx).Close(ctx, connection)
-}
-
-type restartingEndpoint struct {
-	startTime time.Time
-}
-
-func (c *restartingEndpoint) Request(ctx context.Context, req *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if time.Now().Before(c.startTime) {
-		return nil, errors.New("endpoint is restarting")
-	}
-	return next.Server(ctx).Request(ctx, req)
-}
-
-func (c *restartingEndpoint) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
-	if time.Now().Before(c.startTime) {
-		return nil, errors.New("endpoint is restarting")
-	}
 	return next.Server(ctx).Close(ctx, connection)
 }
 
