@@ -27,7 +27,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	"github.com/networkservicemesh/sdk/pkg/tools/timer"
 )
 
 type expireNSEServer struct {
@@ -38,7 +37,8 @@ type expireNSEServer struct {
 
 type unregisterTimer struct {
 	expirationTime time.Time
-	timer          *timer.Timer
+	timer          *time.Timer
+	ch             <-chan struct{}
 }
 
 // NewNetworkServiceEndpointRegistryServer creates a new NetworkServiceServer chain element that implements unregister
@@ -59,7 +59,7 @@ func (n *expireNSEServer) Register(ctx context.Context, nse *registry.NetworkSer
 	stopped := loaded && t.timer.Stop()
 
 	if loaded && !stopped {
-		<-t.timer.C
+		<-t.ch
 	}
 
 	resp, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
@@ -86,9 +86,10 @@ func (n *expireNSEServer) Register(ctx context.Context, nse *registry.NetworkSer
 func (n *expireNSEServer) newTimer(ctx context.Context, expirationTime time.Time, nse *registry.NetworkServiceEndpoint) *unregisterTimer {
 	logger := log.FromContext(ctx).WithField("expireNSEServer", "newTimer")
 
+	ch := make(chan struct{})
 	return &unregisterTimer{
 		expirationTime: expirationTime,
-		timer: timer.AfterFunc(time.Until(expirationTime), func() {
+		timer: time.AfterFunc(time.Until(expirationTime), func() {
 			unregisterCtx, cancel := context.WithCancel(n.ctx)
 			defer cancel()
 
@@ -97,7 +98,9 @@ func (n *expireNSEServer) newTimer(ctx context.Context, expirationTime time.Time
 			}
 
 			n.timers.Delete(nse.Name)
+			close(ch)
 		}),
+		ch: ch,
 	}
 }
 
@@ -112,7 +115,7 @@ func (n *expireNSEServer) Unregister(ctx context.Context, nse *registry.NetworkS
 	// TODO: this is totally incorrect if there are concurrent events for the same nse.Name, think about adding
 	//       serialize into the registry chain
 	if ok && !t.timer.Stop() {
-		<-t.timer.C
+		<-t.ch
 		ok = false
 	}
 	if !ok {
