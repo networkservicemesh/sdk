@@ -22,6 +22,7 @@ package connect
 import (
 	"context"
 	"net/url"
+	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
@@ -41,6 +42,7 @@ import (
 
 type connectServer struct {
 	ctx               context.Context
+	dialTimeout       time.Duration
 	clientFactory     client.Factory
 	clientDialOptions []grpc.DialOption
 
@@ -64,11 +66,13 @@ type connectionInfo struct {
 //             clienturlctx.ClientURL(ctx)
 func NewServer(
 	ctx context.Context,
+	dialTimeout time.Duration,
 	clientFactory client.Factory,
 	clientDialOptions ...grpc.DialOption,
 ) networkservice.NetworkServiceServer {
 	return &connectServer{
 		ctx:               ctx,
+		dialTimeout:       dialTimeout,
 		clientFactory:     clientFactory,
 		clientDialOptions: clientDialOptions,
 	}
@@ -163,7 +167,7 @@ func (s *connectServer) client(ctx context.Context, conn *networkservice.Connect
 
 func (s *connectServer) newClient(clientURL *url.URL) *clientInfo {
 	ctx, cancel := context.WithCancel(s.ctx)
-	c := clienturl.NewClient(clienturlctx.WithClientURL(ctx, clientURL), s.clientFactory, s.clientDialOptions...)
+	c := clienturl.NewClient(clienturlctx.WithClientURL(ctx, clientURL), s.dialTimeout, s.clientFactory, s.clientDialOptions...)
 	return &clientInfo{
 		client:  c,
 		count:   0,

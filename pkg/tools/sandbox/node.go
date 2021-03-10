@@ -19,6 +19,7 @@ package sandbox
 import (
 	"context"
 	"net/url"
+	"time"
 
 	"google.golang.org/grpc"
 
@@ -57,7 +58,7 @@ func (n *Node) NewForwarder(
 	ep := new(EndpointEntry)
 	additionalFunctionality = append(additionalFunctionality,
 		clienturl.NewServer(n.NSMgr.URL),
-		connect.NewServer(ctx,
+		connect.NewServer(ctx, time.Second,
 			client.NewCrossConnectClientFactory(
 				client.WithName(nse.Name),
 				// What to call onHeal

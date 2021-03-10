@@ -19,6 +19,7 @@ package nsmgrproxy
 
 import (
 	"context"
+	"time"
 
 	"google.golang.org/grpc"
 
@@ -42,8 +43,7 @@ func NewServer(ctx context.Context, name string, authorizeServer networkservice.
 			interdomainurl.NewServer(),
 			externalips.NewServer(ctx),
 			swapip.NewServer(),
-			connect.NewServer(
-				ctx,
+			connect.NewServer(ctx, 100*time.Millisecond,
 				client.NewClientFactory(client.WithName(name)),
 				options...,
 			),

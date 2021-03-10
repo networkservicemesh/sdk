@@ -411,7 +411,7 @@ func TestNSMGR_PassThroughRemote(t *testing.T) {
 			additionalFunctionality = []networkservice.NetworkServiceServer{
 				chain.NewNetworkServiceServer(
 					clienturl.NewServer(domain.Nodes[i].NSMgr.URL),
-					connect.NewServer(ctx,
+					connect.NewServer(ctx, time.Second,
 						sandbox.NewCrossConnectClientFactory(sandbox.GenerateTestToken,
 							newPassTroughClient(fmt.Sprintf("my-service-remote-%v", i-1)),
 							kernel.NewClient()),
@@ -470,7 +470,7 @@ func TestNSMGR_PassThroughLocal(t *testing.T) {
 			additionalFunctionality = []networkservice.NetworkServiceServer{
 				chain.NewNetworkServiceServer(
 					clienturl.NewServer(domain.Nodes[0].NSMgr.URL),
-					connect.NewServer(ctx,
+					connect.NewServer(ctx, time.Second,
 						sandbox.NewCrossConnectClientFactory(sandbox.GenerateTestToken,
 							newPassTroughClient(fmt.Sprintf("my-service-remote-%v", i-1)),
 							kernel.NewClient()),

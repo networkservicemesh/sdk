@@ -33,6 +33,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 )
 
+const (
+	dialTimeout = 100 * time.Millisecond
+)
+
 func TestClientURLClient_Dial(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -48,7 +52,7 @@ func TestClientURLClient_Dial(t *testing.T) {
 	u, err := url.Parse("tcp://" + listener.Addr().String())
 	require.NoError(t, err)
 
-	client := clienturl.NewClient(clienturlctx.WithClientURL(ctx, u), func(context.Context, grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+	client := clienturl.NewClient(clienturlctx.WithClientURL(ctx, u), dialTimeout, func(context.Context, grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 		return null.NewClient()
 	}, grpc.WithInsecure())
 
@@ -67,7 +71,7 @@ func TestClientURLClient_DialTimeout(t *testing.T) {
 	u, err := url.Parse("tcp://" + listener.Addr().String())
 	require.NoError(t, err)
 
-	client := clienturl.NewClient(clienturlctx.WithClientURL(ctx, u), func(context.Context, grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+	client := clienturl.NewClient(clienturlctx.WithClientURL(ctx, u), dialTimeout, func(context.Context, grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 		return null.NewClient()
 	}, grpc.WithInsecure())
 

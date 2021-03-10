@@ -21,6 +21,7 @@ package clienturl
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
@@ -36,6 +37,7 @@ import (
 
 type clientURLClient struct {
 	ctx           context.Context
+	dialTimeout   time.Duration
 	clientFactory client.Factory
 	dialOptions   []grpc.DialOption
 	initOnce      sync.Once
@@ -46,9 +48,10 @@ type clientURLClient struct {
 // NewClient - creates a Client that will using clienturl.ClientUrl(ctx) to extract a url, dial it to a cc, use that cc with the clientFactory to produce a new
 //             client to which it passes through any Request or Close calls
 // 	ctx	- is full lifecycle context, any started clients will be terminated by this context done.
-func NewClient(ctx context.Context, clientFactory client.Factory, dialOptions ...grpc.DialOption) networkservice.NetworkServiceClient {
+func NewClient(ctx context.Context, dialTimeout time.Duration, clientFactory client.Factory, dialOptions ...grpc.DialOption) networkservice.NetworkServiceClient {
 	rv := &clientURLClient{
 		ctx:           ctx,
+		dialTimeout:   dialTimeout,
 		clientFactory: clientFactory,
 		dialOptions:   dialOptions,
 	}
@@ -77,7 +80,7 @@ func (u *clientURLClient) init() error {
 			return
 		}
 
-		ctx, cancel := context.WithTimeout(u.ctx, dialTimeout)
+		ctx, cancel := context.WithTimeout(u.ctx, u.dialTimeout)
 		defer cancel()
 
 		var cc *grpc.ClientConn
