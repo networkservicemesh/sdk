@@ -90,16 +90,16 @@ func (s *ipamServer) Request(ctx context.Context, request *networkservice.Networ
 
 	excludeIP4, excludeIP6 := exclude(ipContext.GetExcludedPrefixes()...)
 
-	connInfo, ok := loadConnInfo(ctx)
+	connInfo, loaded := loadConnInfo(ctx)
 	var err error
-	if ok && (connInfo.shouldUpdate(excludeIP4) || connInfo.shouldUpdate(excludeIP6)) {
+	if loaded && (connInfo.shouldUpdate(excludeIP4) || connInfo.shouldUpdate(excludeIP6)) {
 		// some of the existing addresses are excluded
 		deleteRoute(&ipContext.SrcRoutes, connInfo.dstAddr)
 		deleteRoute(&ipContext.DstRoutes, connInfo.srcAddr)
 		s.free(connInfo)
-		ok = false
+		loaded = false
 	}
-	if !ok {
+	if !loaded {
 		if connInfo, err = s.getP2PAddrs(excludeIP4, excludeIP6); err != nil {
 			return nil, err
 		}
@@ -112,7 +112,15 @@ func (s *ipamServer) Request(ctx context.Context, request *networkservice.Networ
 	ipContext.DstIpAddr = connInfo.dstAddr
 	addRoute(&ipContext.DstRoutes, connInfo.srcAddr)
 
-	return next.Server(ctx).Request(ctx, request)
+	conn, err = next.Server(ctx).Request(ctx, request)
+	if err != nil {
+		if !loaded {
+			s.free(connInfo)
+		}
+		return nil, err
+	}
+
+	return conn, nil
 }
 
 func (s *ipamServer) getP2PAddrs(excludeIP4, excludeIP6 *ippool.IPPool) (connInfo *connectionInfo, err error) {
