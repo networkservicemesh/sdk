@@ -61,6 +61,39 @@ func NewWithNet(ipNet *net.IPNet) *IPPool {
 	return ipPool
 }
 
+// NewWithNetString instantiates a ip pool as red-black tree with the specified ip network
+func NewWithNetString(ipNetString string) *IPPool {
+	_, ipNet, err := net.ParseCIDR(ipNetString)
+	if err != nil {
+		return nil
+	}
+
+	return NewWithNet(ipNet)
+}
+
+func (tree *IPPool) Clone() *IPPool {
+	tree.lock.Lock()
+	tree.lock.Unlock()
+
+	return tree.clone()
+}
+
+func (tree *IPPool) clone() *IPPool {
+	newPool := &IPPool{
+		root:     nil,
+		size:     tree.size,
+		ipLength: tree.ipLength,
+	}
+
+	if tree.root == nil {
+		return newPool
+	}
+
+	newPool.root = tree.root.clone()
+
+	return newPool
+}
+
 func (tree *IPPool) Add(ip net.IP) {
 	if ip == nil || tree.ipLength != len(ip) {
 		return
@@ -70,6 +103,14 @@ func (tree *IPPool) Add(ip net.IP) {
 	tree.lock.Unlock()
 
 	tree.add(ipAddressFromIP(ip))
+}
+
+func (tree *IPPool) AddString(in string) {
+	ip := net.ParseIP(in)
+	if tree.ipLength == net.IPv4len {
+		ip = ip.To4()
+	}
+	tree.Add(ip)
 }
 
 func (tree *IPPool) AddNet(ipNet *net.IPNet) {
@@ -83,6 +124,31 @@ func (tree *IPPool) AddNet(ipNet *net.IPNet) {
 	tree.addRange(ipRangeFromIPNet(ipNet))
 }
 
+func (tree *IPPool) AddNetString(ipNetString string) {
+	_, ipNet, err := net.ParseCIDR(ipNetString)
+	if err != nil {
+		return
+	}
+
+	tree.AddNet(ipNet)
+}
+
+func (tree *IPPool) Contains(ip net.IP) bool {
+	if ip == nil {
+		return false
+	}
+
+	return tree.lookup(ipAddressFromIP(ip)) != nil
+}
+
+func (tree *IPPool) ContainsString(in string) bool {
+	ip := net.ParseIP(in)
+	if tree.ipLength == net.IPv4len {
+		ip = ip.To4()
+	}
+	return tree.Contains(ip)
+}
+
 func (tree *IPPool) Exclude(ipNet *net.IPNet) {
 	if ipNet == nil || tree.ipLength != len(ipNet.IP) {
 		return
@@ -94,6 +160,15 @@ func (tree *IPPool) Exclude(ipNet *net.IPNet) {
 	tree.deleteRange(ipRangeFromIPNet(ipNet))
 }
 
+func (tree *IPPool) ExcludeString(ipNetString string) {
+	_, ipNet, err := net.ParseCIDR(ipNetString)
+	if err != nil {
+		return
+	}
+
+	tree.Exclude(ipNet)
+}
+
 func (tree *IPPool) Pull() (net.IP, error) {
 	tree.lock.Lock()
 	tree.lock.Unlock()
@@ -103,6 +178,66 @@ func (tree *IPPool) Pull() (net.IP, error) {
 		return nil, errors.New("IPPool is empty")
 	}
 	return ipFromIPAddress(ip, tree.ipLength), nil
+}
+
+func (tree *IPPool) PullP2PAddrs(exclude ...*IPPool) (*net.IPNet, *net.IPNet, error) {
+	tree.lock.Lock()
+	tree.lock.Unlock()
+
+	clone := tree.clone()
+
+	for _, pool := range exclude {
+		clone.excludePool(pool)
+	}
+
+	srcIP := clone.pull()
+	if srcIP == nil {
+		return nil, nil, errors.New("IPPool is empty")
+	}
+
+	dstIP := clone.pull()
+	if dstIP == nil {
+		return nil, nil, errors.New("IPPool is empty")
+	}
+
+	tree.deleteRange(&ipRange{
+		start: srcIP.Clone(),
+		end:   srcIP.Clone(),
+	})
+	tree.deleteRange(&ipRange{
+		start: dstIP.Clone(),
+		end:   dstIP.Clone(),
+	})
+
+	srcNet := &net.IPNet{
+		IP:   ipFromIPAddress(srcIP, tree.ipLength),
+		Mask: net.CIDRMask(tree.ipLength*8, tree.ipLength*8),
+	}
+
+	dstNet := &net.IPNet{
+		IP:   ipFromIPAddress(dstIP, tree.ipLength),
+		Mask: net.CIDRMask(tree.ipLength*8, tree.ipLength*8),
+	}
+
+	return srcNet, dstNet, nil
+}
+
+func (tree *IPPool) excludePool(exclude *IPPool) {
+	if exclude == nil || tree.ipLength != exclude.ipLength {
+		return
+	}
+
+	tree.excludeNode(exclude.root)
+}
+
+func (tree *IPPool) excludeNode(exclude *treeNode) {
+	if exclude == nil {
+		return
+	}
+
+	tree.excludeNode(exclude.Left)
+	tree.deleteRange(exclude.Value)
+	tree.excludeNode(exclude.Right)
 }
 
 // Empty returns true if pool does not contain any nodes
@@ -382,6 +517,25 @@ func (tree *IPPool) insertCase5(node *treeNode) {
 	} else if node == node.Parent.Right && node.Parent == grandparent.Right {
 		tree.rotateLeft(grandparent)
 	}
+}
+
+func (node *treeNode) clone() *treeNode {
+	if node == nil {
+		return nil
+	}
+	newNode := &treeNode{
+		Value: node.Value.Clone(),
+		color: node.color,
+	}
+	if node.Right != nil {
+		newNode.Right = node.Right.clone()
+		newNode.Right.Parent = newNode
+	}
+	if node.Left != nil {
+		newNode.Left = node.Left.clone()
+		newNode.Left.Parent = newNode
+	}
+	return newNode
 }
 
 func (node *treeNode) maximumNode() *treeNode {

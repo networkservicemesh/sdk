@@ -25,41 +25,40 @@ import (
 func TestIPPoolTool_Add(t *testing.T) {
 	ipPool := New(net.IPv4len)
 
-	ipPool.Add(net.ParseIP("192.168.1.255").To4())
+	ipPool.AddString("192.168.1.255")
 	require.Equal(t, ipPool.size, uint64(1))
 
-	ipPool.Add(net.ParseIP("192.168.3.0").To4())
+	ipPool.AddString("192.168.3.0")
 	require.Equal(t, ipPool.size, uint64(2))
 
-	ipPool.Add(net.ParseIP("192.168.2.0").To4())
+	ipPool.AddString("192.168.2.0")
 	require.Equal(t, ipPool.size, uint64(2))
 
-	ipPool.Add(net.ParseIP("192.168.2.255").To4())
+	ipPool.AddString("192.168.2.255")
 	require.Equal(t, ipPool.size, uint64(2))
 }
 
 func TestIPPoolTool_AddRange(t *testing.T) {
 	ipPool := New(net.IPv4len)
 
-	_, ipNet, err := net.ParseCIDR("192.168.1.0/31")
-	require.NoError(t, err)
-	ipPool.AddNet(ipNet)
+	ipPool.AddNetString("192.168.1.0/31")
 	require.Equal(t, ipPool.size, uint64(1))
 
-	_, ipNet, err = net.ParseCIDR("192.168.10.0/24")
-	require.NoError(t, err)
-	ipPool.AddNet(ipNet)
+	ipPool.AddNetString("192.168.10.0/24")
 	require.Equal(t, ipPool.size, uint64(2))
 
-	_, ipNet, err = net.ParseCIDR("192.168.1.0/24")
-	require.NoError(t, err)
-	ipPool.AddNet(ipNet)
+	ipPool.AddNetString("192.168.1.0/24")
 	require.Equal(t, ipPool.size, uint64(2))
 
-	_, ipNet, err = net.ParseCIDR("192.168.11.0/24")
-	require.NoError(t, err)
-	ipPool.AddNet(ipNet)
+	ipPool.AddNetString("192.168.11.0/24")
 	require.Equal(t, ipPool.size, uint64(2))
+}
+
+func TestIPPoolTool_Contains(t *testing.T) {
+	ipPool := NewWithNetString("192.168.0.0/16")
+
+	require.True(t, ipPool.ContainsString("192.168.0.1"))
+	require.False(t, ipPool.ContainsString("192.167.0.1"))
 }
 
 func TestIPPoolTool_Exclude(t *testing.T) {
@@ -85,24 +84,19 @@ func TestIPPoolTool_Exclude(t *testing.T) {
 }
 
 func TestIPPoolTool_Pull(t *testing.T) {
-	_, ipNet, err := net.ParseCIDR("192.0.0.0/8")
-	require.NoError(t, err)
-	ipPool := NewWithNet(ipNet)
+	ipPool := NewWithNetString("192.0.0.0/8")
+	require.NotNil(t, ipPool)
 
 	ip, err := ipPool.Pull()
 	require.NoError(t, err)
 	require.Equal(t, ip.String(), "192.0.0.0")
 
-	_, ipNet, err = net.ParseCIDR("192.0.0.0/24")
-	require.NoError(t, err)
-	ipPool.Exclude(ipNet)
+	ipPool.ExcludeString("192.0.0.0/24")
 	ip, err = ipPool.Pull()
 	require.NoError(t, err)
 	require.Equal(t, ip.String(), "192.0.1.0")
 
-	_, ipNet, err = net.ParseCIDR("192.0.0.6/31")
-	require.NoError(t, err)
-	ipPool.AddNet(ipNet)
+	ipPool.AddNetString("192.0.0.6/31")
 	ip, err = ipPool.Pull()
 	require.NoError(t, err)
 	require.Equal(t, ip.String(), "192.0.0.6")
@@ -113,11 +107,31 @@ func TestIPPoolTool_Pull(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, ip.String(), "192.0.1.1")
 
-	_, ipNet, err = net.ParseCIDR("192.0.0.0/8")
-	require.NoError(t, err)
-	ipPool.Exclude(ipNet)
+	ipPool.ExcludeString("192.0.0.0/8")
 	ip, err = ipPool.Pull()
 	require.Error(t, err)
+}
+
+func TestIPPoolTool_PullP2PAddrs(t *testing.T) {
+	ipPool := NewWithNetString("192.0.0.0/8")
+	require.NotNil(t, ipPool)
+
+	excludedPool := NewWithNetString("192.0.0.0/32")
+	excluded2Pool := NewWithNetString("192.0.0.2/32")
+	srcIPNet, dstIPNet, err := ipPool.PullP2PAddrs(excludedPool, excluded2Pool)
+	require.NoError(t, err)
+	require.Equal(t, srcIPNet.String(), "192.0.0.1/32")
+	require.Equal(t, dstIPNet.String(), "192.0.0.3/32")
+
+	srcIPNet, dstIPNet, err = ipPool.PullP2PAddrs()
+	require.NoError(t, err)
+	require.Equal(t, srcIPNet.String(), "192.0.0.0/32")
+	require.Equal(t, dstIPNet.String(), "192.0.0.2/32")
+
+	srcIP, err := ipPool.Pull()
+	require.NoError(t, err)
+	require.Equal(t, srcIP.String(), "192.0.0.4")
+
 }
 
 func TestIPPoolTool_IPv6Add(t *testing.T) {
@@ -139,68 +153,54 @@ func TestIPPoolTool_IPv6Add(t *testing.T) {
 func TestIPPoolTool_IPv6AddRange(t *testing.T) {
 	ipPool := New(net.IPv6len)
 
-	_, ipNet, err := net.ParseCIDR("::1:0/127")
-	require.NoError(t, err)
-	ipPool.AddNet(ipNet)
+	ipPool.AddNetString("::1:0/127")
 	require.Equal(t, ipPool.size, uint64(1))
 
-	_, ipNet, err = net.ParseCIDR("::10:0/112")
-	require.NoError(t, err)
-	ipPool.AddNet(ipNet)
+	ipPool.AddNetString("::10:0/112")
 	require.Equal(t, ipPool.size, uint64(2))
 
-	_, ipNet, err = net.ParseCIDR("::1:0/112")
-	require.NoError(t, err)
-	ipPool.AddNet(ipNet)
+	ipPool.AddNetString("::1:0/112")
 	require.Equal(t, ipPool.size, uint64(2))
 
-	_, ipNet, err = net.ParseCIDR("::11:0/112")
-	require.NoError(t, err)
-	ipPool.AddNet(ipNet)
+	ipPool.AddNetString("::11:0/112")
 	require.Equal(t, ipPool.size, uint64(2))
 }
 
+func TestIPPoolTool_IPv6Contains(t *testing.T) {
+	ipPool := NewWithNetString("::/64")
+
+	require.True(t, ipPool.ContainsString("::0:1"))
+	require.False(t, ipPool.ContainsString("0:1::0:1"))
+}
+
 func TestIPPoolTool_IPv6Exclude(t *testing.T) {
-	_, ipNet, err := net.ParseCIDR("::/32")
-	require.NoError(t, err)
-	ipPool := NewWithNet(ipNet)
+	ipPool := NewWithNetString("::/32")
 	require.Equal(t, ipPool.size, uint64(1))
 
-	_, ipNet, err = net.ParseCIDR("0:0:ffff:ffff::/64")
-	require.NoError(t, err)
-	ipPool.Exclude(ipNet)
+	ipPool.ExcludeString("0:0:ffff:ffff::/64")
 	require.Equal(t, ipPool.size, uint64(1))
 
-	_, ipNet, err = net.ParseCIDR("::1:0/112")
-	require.NoError(t, err)
-	ipPool.Exclude(ipNet)
+	ipPool.ExcludeString("::1:0/112")
 	require.Equal(t, ipPool.size, uint64(2))
 
-	_, ipNet, err = net.ParseCIDR("::/64")
-	require.NoError(t, err)
-	ipPool.Exclude(ipNet)
+	ipPool.ExcludeString("::/64")
 	require.Equal(t, ipPool.size, uint64(1))
 }
 
 func TestIPPoolTool_IPv6Pull(t *testing.T) {
-	_, ipNet, err := net.ParseCIDR("::/32")
-	require.NoError(t, err)
-	ipPool := NewWithNet(ipNet)
+	ipPool := NewWithNetString("::/32")
+	require.NotNil(t, ipPool)
 
 	ip, err := ipPool.Pull()
 	require.NoError(t, err)
 	require.Equal(t, ip.String(), "::")
 
-	_, ipNet, err = net.ParseCIDR("::/112")
-	require.NoError(t, err)
-	ipPool.Exclude(ipNet)
+	ipPool.ExcludeString("::/112")
 	ip, err = ipPool.Pull()
 	require.NoError(t, err)
 	require.Equal(t, ip.String(), "::1:0")
 
-	_, ipNet, err = net.ParseCIDR("::6/127")
-	require.NoError(t, err)
-	ipPool.AddNet(ipNet)
+	ipPool.AddNetString("::6/127")
 	ip, err = ipPool.Pull()
 	require.NoError(t, err)
 	require.Equal(t, ip.String(), "::6")
@@ -211,9 +211,7 @@ func TestIPPoolTool_IPv6Pull(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, ip.String(), "::1:1")
 
-	_, ipNet, err = net.ParseCIDR("::/32")
-	require.NoError(t, err)
-	ipPool.Exclude(ipNet)
+	ipPool.ExcludeString("::/32")
 	ip, err = ipPool.Pull()
 	require.Error(t, err)
 }
