@@ -261,8 +261,9 @@ func (tree *IPPool) addRange(ipR *ipRange) {
 			case compare == -1:
 				fallthrough
 			case compare == 1:
+				value := node.Value.Clone()
 				tree.removeNode(node)
-				tree.addRange(node.Value.Unite(ipR))
+				tree.addRange(value.Unite(ipR))
 				return
 			case compare < -1:
 				if node.Left == nil {
