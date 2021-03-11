@@ -31,16 +31,15 @@ import (
 )
 
 type queryCacheNSEClient struct {
-	ctx           context.Context
-	expireTimeout time.Duration
-	cache         cacheEntryMap
+	ctx   context.Context
+	cache *cache
 }
 
 // NewClient creates new querycache NSE registry client that caches all resolved NSEs
 func NewClient(ctx context.Context, expireTimeout time.Duration) registry.NetworkServiceEndpointRegistryClient {
 	return &queryCacheNSEClient{
-		ctx:           ctx,
-		expireTimeout: expireTimeout,
+		ctx:   ctx,
+		cache: newCache(ctx, expireTimeout),
 	}
 }
 
@@ -75,12 +74,7 @@ func (q *queryCacheNSEClient) Find(ctx context.Context, query *registry.NetworkS
 }
 
 func (q *queryCacheNSEClient) findInCache(ctx context.Context, key string) (registry.NetworkServiceEndpointRegistry_FindClient, bool) {
-	entry, ok := q.cache.Load(key)
-	if !ok {
-		return nil, false
-	}
-
-	nse, ok := entry.Read()
+	nse, ok := q.cache.Load(key)
 	if !ok {
 		return nil, false
 	}
@@ -102,11 +96,12 @@ func (q *queryCacheNSEClient) storeInCache(ctx context.Context, nse *registry.Ne
 	key := nseQuery.String()
 
 	findCtx, cancel := context.WithCancel(q.ctx)
-	entry := newCacheEntry(nse, q.expireTimeout, func() {
+
+	entry, loaded := q.cache.LoadOrStore(key, nse, cancel)
+	if loaded {
 		cancel()
-		q.cache.Delete(key)
-	})
-	q.cache.Store(key, entry)
+		return
+	}
 
 	go func() {
 		defer entry.Cleanup()

@@ -1,0 +1,114 @@
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at:
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package querycache
+
+import (
+	"context"
+	"sync"
+	"time"
+
+	"github.com/networkservicemesh/api/pkg/api/registry"
+)
+
+type cache struct {
+	expireTimeout time.Duration
+	entries       cacheEntryMap
+}
+
+func newCache(ctx context.Context, expireTimeout time.Duration) *cache {
+	c := &cache{
+		expireTimeout: expireTimeout,
+	}
+
+	ticker := time.NewTicker(expireTimeout)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				c.entries.Range(func(_ string, e *cacheEntry) bool {
+					e.lock.Lock()
+					defer e.lock.Unlock()
+
+					if time.Until(e.expirationTime) < 0 {
+						e.cleanup()
+					}
+
+					return true
+				})
+			}
+		}
+	}()
+
+	return c
+}
+
+func (c *cache) LoadOrStore(key string, nse *registry.NetworkServiceEndpoint, cancel context.CancelFunc) (*cacheEntry, bool) {
+	var once sync.Once
+	return c.entries.LoadOrStore(key, &cacheEntry{
+		nse:            nse,
+		expirationTime: time.Now().Add(c.expireTimeout),
+		cleanup: func() {
+			once.Do(func() {
+				c.entries.Delete(key)
+				cancel()
+			})
+		},
+	})
+}
+
+func (c *cache) Load(key string) (*registry.NetworkServiceEndpoint, bool) {
+	e, ok := c.entries.Load(key)
+	if !ok {
+		return nil, false
+	}
+
+	e.lock.Lock()
+	defer e.lock.Unlock()
+
+	if time.Until(e.expirationTime) < 0 {
+		e.cleanup()
+		return nil, false
+	}
+
+	e.expirationTime = time.Now().Add(c.expireTimeout)
+
+	return e.nse, true
+}
+
+type cacheEntry struct {
+	nse            *registry.NetworkServiceEndpoint
+	expirationTime time.Time
+	lock           sync.Mutex
+	cleanup        func()
+}
+
+func (e *cacheEntry) Update(nse *registry.NetworkServiceEndpoint) {
+	e.lock.Lock()
+	defer e.lock.Unlock()
+
+	e.nse = nse
+}
+
+func (e *cacheEntry) Cleanup() {
+	e.lock.Lock()
+	defer e.lock.Unlock()
+
+	e.cleanup()
+}
