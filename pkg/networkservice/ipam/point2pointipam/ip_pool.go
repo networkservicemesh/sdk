@@ -96,3 +96,8 @@ func (p *ipPool) freeAddrs(addrs ...string) {
 		p.freeIPs.Add(addrToInt(addr))
 	}
 }
+
+func addrToInt(addr string) uint32 {
+	ip, _, _ := net.ParseCIDR(addr)
+	return binary.BigEndian.Uint32(ip.To4())
+}
