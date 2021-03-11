@@ -27,13 +27,13 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/cidr"
 )
 
-type ipPool struct {
+type IPPool struct {
 	freeIPs *roaring.Bitmap
 	lock    sync.Mutex
 }
 
-func newIPPool(ipNet *net.IPNet) *ipPool {
-	p := &ipPool{
+func NewIPPool(ipNet *net.IPNet) *IPPool {
+	p := &IPPool{
 		freeIPs: roaring.New(),
 	}
 
@@ -45,7 +45,7 @@ func newIPPool(ipNet *net.IPNet) *ipPool {
 	return p
 }
 
-func (p *ipPool) getP2PAddrs(exclude *roaring.Bitmap) (dstAddr, srcAddr string, err error) {
+func (p *IPPool) GetP2PAddrs(exclude *roaring.Bitmap) (dstAddr, srcAddr string, err error) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
@@ -88,7 +88,7 @@ func p2pMask() net.IPMask {
 	return net.CIDRMask(32, 32) // x.x.x.x/32
 }
 
-func (p *ipPool) freeAddrs(addrs ...string) {
+func (p *IPPool) freeAddrs(addrs ...string) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
