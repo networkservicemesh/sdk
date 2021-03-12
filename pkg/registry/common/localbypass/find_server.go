@@ -18,19 +18,32 @@ package localbypass
 
 import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 )
 
 type localBypassNSEFindServer struct {
-	nseURLs *stringurl.Map
-
+	*localBypassNSEServer
 	registry.NetworkServiceEndpointRegistry_FindServer
 }
 
-func (s *localBypassNSEFindServer) Send(endpoint *registry.NetworkServiceEndpoint) error {
-	if u, ok := s.nseURLs.Load(endpoint.Name); ok {
-		endpoint.Url = u.String()
+func (s *localBypassNSEFindServer) Send(nse *registry.NetworkServiceEndpoint) error {
+	if nse.Url == s.url {
+		u, ok := s.nseURLs.Load(nse.Name)
+		for processing := 1; !ok && processing > 0; u, ok = s.nseURLs.Load(nse.Name) {
+			if err := s.Context().Err(); err != nil {
+				return err
+			}
+
+			s.lock.RLock()
+			if processing = s.processing; processing > 0 {
+				s.cond.Wait()
+				processing = s.processing
+			}
+			s.lock.RUnlock()
+		}
+
+		if ok {
+			nse.Url = u.String()
+		}
 	}
-	return s.NetworkServiceEndpointRegistry_FindServer.Send(endpoint)
+	return s.NetworkServiceEndpointRegistry_FindServer.Send(nse)
 }

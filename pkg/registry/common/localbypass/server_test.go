@@ -19,6 +19,7 @@ package localbypass_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
@@ -29,6 +30,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checknse"
 )
 
 const (
@@ -84,4 +86,79 @@ func TestLocalBypassNSEServer(t *testing.T) {
 
 	_, err = stream.Recv()
 	require.Error(t, err)
+}
+
+func TestLocalBypassNSEServer_SlowRegistry(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	server := next.NewNetworkServiceEndpointRegistryServer(
+		localbypass.NewNetworkServiceEndpointRegistryServer(nsmgrURL),
+		checknse.NewServer(t, func(*testing.T, *registry.NetworkServiceEndpoint) {
+			time.Sleep(10 * time.Millisecond)
+		}),
+		memory.NewNetworkServiceEndpointRegistryServer(),
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// 1. Start trying to find endpoint
+	c := adapters.NetworkServiceEndpointServerToClient(server)
+	go func() {
+		for ctx.Err() == nil {
+			stream, err := c.Find(ctx, &registry.NetworkServiceEndpointQuery{
+				NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
+			})
+			if err != nil {
+				return
+			}
+
+			nse, err := stream.Recv()
+			if err != nil {
+				return
+			}
+
+			require.Equal(t, nseURL, nse.Url)
+		}
+	}()
+
+	// 2. Register
+	nse, err := server.Register(context.Background(), &registry.NetworkServiceEndpoint{
+		Name: "nse-1",
+		Url:  nseURL,
+	})
+	require.NoError(t, err)
+	require.Equal(t, nseURL, nse.Url)
+
+	// 3. Unregister
+	_, err = server.Unregister(context.Background(), nse)
+	require.NoError(t, err)
+}
+
+func TestLocalBypassNSEServer_NotExistingEndpoint(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	mem := memory.NewNetworkServiceEndpointRegistryServer()
+
+	server := next.NewNetworkServiceEndpointRegistryServer(
+		localbypass.NewNetworkServiceEndpointRegistryServer(nsmgrURL),
+		mem,
+	)
+
+	// 1. Register directly to the memory
+	_, err := mem.Register(context.Background(), &registry.NetworkServiceEndpoint{
+		Name: "nse-1",
+		Url:  nsmgrURL,
+	})
+	require.NoError(t, err)
+
+	// 2. Find
+	stream, err := adapters.NetworkServiceEndpointServerToClient(server).Find(context.Background(), &registry.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
+	})
+	require.NoError(t, err)
+
+	nse, err := stream.Recv()
+	require.NoError(t, err)
+	require.Equal(t, nsmgrURL, nse.Url)
 }
