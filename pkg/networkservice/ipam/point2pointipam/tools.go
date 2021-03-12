@@ -22,7 +22,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
 )
 
-func exclude(prefixes ...string) (ipv4exclude *ippool.IPPool, ipv6exclude *ippool.IPPool) {
+func exclude(prefixes ...string) (ipv4exclude, ipv6exclude *ippool.IPPool) {
 	ipv4exclude = ippool.New(net.IPv4len)
 	ipv6exclude = ippool.New(net.IPv6len)
 	for _, prefix := range prefixes {
