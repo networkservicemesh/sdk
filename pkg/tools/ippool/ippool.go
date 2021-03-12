@@ -73,7 +73,7 @@ func NewWithNetString(ipNetString string) *IPPool {
 
 func (tree *IPPool) Clone() *IPPool {
 	tree.lock.Lock()
-	tree.lock.Unlock()
+	defer tree.lock.Unlock()
 
 	return tree.clone()
 }
@@ -100,7 +100,7 @@ func (tree *IPPool) Add(ip net.IP) {
 	}
 
 	tree.lock.Lock()
-	tree.lock.Unlock()
+	defer tree.lock.Unlock()
 
 	tree.add(ipAddressFromIP(ip))
 }
@@ -119,7 +119,7 @@ func (tree *IPPool) AddNet(ipNet *net.IPNet) {
 	}
 
 	tree.lock.Lock()
-	tree.lock.Unlock()
+	defer tree.lock.Unlock()
 
 	tree.addRange(ipRangeFromIPNet(ipNet))
 }
@@ -155,7 +155,7 @@ func (tree *IPPool) Exclude(ipNet *net.IPNet) {
 	}
 
 	tree.lock.Lock()
-	tree.lock.Unlock()
+	defer tree.lock.Unlock()
 
 	tree.deleteRange(ipRangeFromIPNet(ipNet))
 }
@@ -171,7 +171,7 @@ func (tree *IPPool) ExcludeString(ipNetString string) {
 
 func (tree *IPPool) Pull() (net.IP, error) {
 	tree.lock.Lock()
-	tree.lock.Unlock()
+	defer tree.lock.Unlock()
 
 	ip := tree.pull()
 	if ip == nil {
@@ -182,7 +182,7 @@ func (tree *IPPool) Pull() (net.IP, error) {
 
 func (tree *IPPool) PullP2PAddrs(exclude ...*IPPool) (*net.IPNet, *net.IPNet, error) {
 	tree.lock.Lock()
-	tree.lock.Unlock()
+	defer tree.lock.Unlock()
 
 	clone := tree.clone()
 
