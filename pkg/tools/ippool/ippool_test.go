@@ -17,9 +17,17 @@
 package ippool
 
 import (
-	"github.com/stretchr/testify/require"
+	"math/rand"
 	"net"
+	"runtime"
+	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/prefixpool"
 )
 
 func TestIPPoolTool_Add(t *testing.T) {
@@ -214,4 +222,148 @@ func TestIPPoolTool_IPv6Pull(t *testing.T) {
 	ipPool.ExcludeString("::/32")
 	ip, err = ipPool.Pull()
 	require.Error(t, err)
+}
+
+func BenchmarkIPPool(b *testing.B) {
+	b.Run("IPPool", func(b *testing.B) {
+		benchmarkIPPool(b, b.N, runtime.GOMAXPROCS(0), 1000)
+	})
+	b.Run("PrefixPool", func(b *testing.B) {
+		benchmarkPrefixPool(b, b.N, runtime.GOMAXPROCS(0), 1000)
+	})
+}
+
+func benchmarkIPPool(b *testing.B, operations, threads, prefixes int) {
+	_, ipNet, err := net.ParseCIDR("192.0.0.0/8")
+	require.NoError(b, err)
+	pool := NewWithNet(ipNet)
+	ones, bits := ipNet.Mask.Size()
+
+	wg := new(sync.WaitGroup)
+	wg.Add(threads)
+	var mtx sync.RWMutex
+	mtx.Lock()
+
+	f := func(t, operations int) {
+		randSrc := rand.New(rand.NewSource(int64(t)))
+
+		var excludePrefxes []*[]string
+		for op := 0; op < operations; op++ {
+			var ex []string
+			for i := 0; i < prefixes; i++ {
+				excludeSubnet := generateSubnet(randSrc, ipNet.IP, ones, bits-8, bits)
+				ex = append(ex, excludeSubnet.String())
+			}
+			excludePrefxes = append(excludePrefxes, &ex)
+		}
+
+		wg.Done()
+		mtx.RLock()
+		defer mtx.RUnlock()
+
+		for _, iPrefixes := range excludePrefxes {
+			excludeIP4, _ := exclude(*iPrefixes...)
+			_, _, err := pool.PullP2PAddrs(excludeIP4)
+			require.NoError(b, err)
+		}
+
+		wg.Done()
+	}
+	for i := 0; i < threads; i++ {
+		ops := operations / threads
+		if i < operations%threads {
+			ops++
+		}
+		go f(i, ops)
+	}
+	wg.Wait()
+	wg.Add(threads)
+	b.ResetTimer()
+	mtx.Unlock()
+	wg.Wait()
+}
+
+func benchmarkPrefixPool(b *testing.B, operations, threads, prefixes int) {
+	_, ipNet, err := net.ParseCIDR("192.0.0.0/8")
+	require.NoError(b, err)
+	pool, err := prefixpool.New("192.0.0.0/8")
+	require.NoError(b, err)
+	ones, bits := ipNet.Mask.Size()
+
+	wg := new(sync.WaitGroup)
+	wg.Add(threads)
+	var mtx sync.RWMutex
+	mtx.Lock()
+
+	f := func(t, operations int) {
+		randSrc := rand.New(rand.NewSource(int64(t)))
+
+		var excludePrefxes []*[]string
+		for op := 0; op < operations; op++ {
+			var ex []string
+			for i := 0; i < prefixes; i++ {
+				excludeSubnet := generateSubnet(randSrc, ipNet.IP, ones, bits-8, bits)
+				ex = append(ex, excludeSubnet.String())
+			}
+			excludePrefxes = append(excludePrefxes, &ex)
+		}
+
+		wg.Done()
+		mtx.RLock()
+		defer mtx.RUnlock()
+
+		for _, prefixes := range excludePrefxes {
+			pool.ExcludePrefixes(*prefixes)
+			_, _, _, err = pool.Extract("conn", networkservice.IpFamily_IPV4)
+			require.NoError(b, err)
+		}
+
+		wg.Done()
+	}
+	for i := 0; i < threads; i++ {
+		ops := operations / threads
+		if i < operations%threads {
+			ops++
+		}
+		go f(i, ops)
+	}
+	wg.Wait()
+	wg.Add(threads)
+	b.ResetTimer()
+	mtx.Unlock()
+	wg.Wait()
+}
+
+func generateSubnet(randSrc *rand.Rand, srcIp net.IP, ones, low, high int) *net.IPNet {
+	length := low
+	if high-low > 0 {
+		length = randSrc.Intn(high-low+1) + low
+	}
+	ip := duplicateIP(srcIp)
+	for i := ones; i < length; i++ {
+		ip[i/8] >>= 8 - i%8
+		ip[i/8] <<= 1
+		ip[i/8] += byte(randSrc.Intn(2))
+		ip[i/8] <<= 8 - i%8 - 1
+	}
+	return &net.IPNet{
+		IP:   ip,
+		Mask: net.CIDRMask(length, len(ip)*8),
+	}
+}
+
+func duplicateIP(ip net.IP) net.IP {
+	dup := make(net.IP, len(ip))
+	copy(dup, ip)
+	return dup
+}
+
+func exclude(prefixes ...string) (ipv4exclude *IPPool, ipv6exclude *IPPool) {
+	ipv4exclude = New(net.IPv4len)
+	ipv6exclude = New(net.IPv6len)
+	for _, prefix := range prefixes {
+		ipv4exclude.AddNetString(prefix)
+		ipv6exclude.AddNetString(prefix)
+	}
+	return
 }
