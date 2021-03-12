@@ -122,14 +122,15 @@ func TestConnectServer_Request(t *testing.T) {
 	serverClient := new(captureServer)
 
 	s := next.NewNetworkServiceServer(
-		connect.NewServer(context.Background(), time.Second,
+		connect.NewServer(context.Background(),
 			func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 				return next.NewNetworkServiceClient(
 					adapters.NewServerToClient(serverClient),
 					networkservice.NewNetworkServiceClient(cc),
 				)
 			},
-			grpc.WithInsecure(),
+			connect.WithDialTimeout(time.Second),
+			connect.WithDialOptions(grpc.WithInsecure()),
 		),
 		serverNext,
 	)
@@ -253,14 +254,15 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 	serverClient := new(countServer)
 
 	s := next.NewNetworkServiceServer(
-		connect.NewServer(context.Background(), time.Second,
+		connect.NewServer(context.Background(),
 			func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 				return next.NewNetworkServiceClient(
 					adapters.NewServerToClient(serverClient),
 					networkservice.NewNetworkServiceClient(cc),
 				)
 			},
-			grpc.WithInsecure(),
+			connect.WithDialTimeout(time.Second),
+			connect.WithDialOptions(grpc.WithInsecure()),
 		),
 		serverNext,
 	)
@@ -343,11 +345,12 @@ func TestConnectServer_RequestFail(t *testing.T) {
 
 	// 1. Create connectServer
 
-	s := connect.NewServer(context.Background(), time.Second,
+	s := connect.NewServer(context.Background(),
 		func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 			return injecterror.NewClient()
 		},
-		grpc.WithInsecure(),
+		connect.WithDialTimeout(time.Second),
+		connect.WithDialOptions(grpc.WithInsecure()),
 	)
 
 	// 2. Setup A
@@ -386,11 +389,12 @@ func TestConnectServer_RemoteRestarted(t *testing.T) {
 
 	// 1. Create connectServer
 
-	s := connect.NewServer(context.Background(), time.Second,
+	s := connect.NewServer(context.Background(),
 		func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 			return networkservice.NewNetworkServiceClient(cc)
 		},
-		grpc.WithInsecure(),
+		connect.WithDialTimeout(time.Second),
+		connect.WithDialOptions(grpc.WithInsecure()),
 	)
 
 	// 2. Setup A

@@ -42,8 +42,8 @@ import (
 
 type connectServer struct {
 	ctx               context.Context
-	dialTimeout       time.Duration
 	clientFactory     client.Factory
+	clientDialTimeout time.Duration
 	clientDialOptions []grpc.DialOption
 
 	connInfos connectionInfoMap
@@ -66,16 +66,20 @@ type connectionInfo struct {
 //             clienturlctx.ClientURL(ctx)
 func NewServer(
 	ctx context.Context,
-	dialTimeout time.Duration,
 	clientFactory client.Factory,
-	clientDialOptions ...grpc.DialOption,
+	options ...Option,
 ) networkservice.NetworkServiceServer {
-	return &connectServer{
+	s := &connectServer{
 		ctx:               ctx,
-		dialTimeout:       dialTimeout,
 		clientFactory:     clientFactory,
-		clientDialOptions: clientDialOptions,
+		clientDialTimeout: 100 * time.Millisecond,
 	}
+
+	for _, opt := range options {
+		opt(s)
+	}
+
+	return s
 }
 
 func (s *connectServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
@@ -167,7 +171,7 @@ func (s *connectServer) client(ctx context.Context, conn *networkservice.Connect
 
 func (s *connectServer) newClient(clientURL *url.URL) *clientInfo {
 	ctx, cancel := context.WithCancel(s.ctx)
-	c := clienturl.NewClient(clienturlctx.WithClientURL(ctx, clientURL), s.dialTimeout, s.clientFactory, s.clientDialOptions...)
+	c := clienturl.NewClient(clienturlctx.WithClientURL(ctx, clientURL), s.clientDialTimeout, s.clientFactory, s.clientDialOptions...)
 	return &clientInfo{
 		client:  c,
 		count:   0,

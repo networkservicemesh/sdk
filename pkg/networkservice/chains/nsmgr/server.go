@@ -122,7 +122,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 			recvfd.NewServer(), // Receive any files passed
 			interpose.NewServer(&interposeRegistryServer),
 			filtermechanisms.NewServer(&urlsRegistryServer),
-			connect.NewServer(ctx, 100*time.Millisecond,
+			connect.NewServer(ctx,
 				client.NewClientFactory(
 					client.WithName(nsmRegistration.Name),
 					client.WithHeal(addressof.NetworkServiceClient(adapters.NewServerToClient(rv))),
@@ -131,7 +131,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 						sendfd.NewClient(),
 					),
 				),
-				clientDialOptions...),
+				connect.WithDialOptions(clientDialOptions...)),
 			sendfd.NewServer()),
 	)
 

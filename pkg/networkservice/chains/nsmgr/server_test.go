@@ -433,11 +433,11 @@ func TestNSMGR_PassThroughRemote(t *testing.T) {
 			additionalFunctionality = []networkservice.NetworkServiceServer{
 				chain.NewNetworkServiceServer(
 					clienturl.NewServer(domain.Nodes[i].NSMgr.URL),
-					connect.NewServer(ctx, time.Second,
+					connect.NewServer(ctx,
 						sandbox.NewCrossConnectClientFactory(sandbox.GenerateTestToken,
 							newPassTroughClient(fmt.Sprintf("my-service-remote-%v", i-1)),
 							kernel.NewClient()),
-						sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...,
+						connect.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...),
 					),
 				),
 			}
@@ -492,11 +492,11 @@ func TestNSMGR_PassThroughLocal(t *testing.T) {
 			additionalFunctionality = []networkservice.NetworkServiceServer{
 				chain.NewNetworkServiceServer(
 					clienturl.NewServer(domain.Nodes[0].NSMgr.URL),
-					connect.NewServer(ctx, time.Second,
+					connect.NewServer(ctx,
 						sandbox.NewCrossConnectClientFactory(sandbox.GenerateTestToken,
 							newPassTroughClient(fmt.Sprintf("my-service-remote-%v", i-1)),
 							kernel.NewClient()),
-						sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...,
+						connect.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...),
 					),
 				),
 			}
