@@ -138,12 +138,11 @@ func (b *ipRange) Unite(ipR *ipRange) *ipRange {
 }
 
 // Sub - creates two ranges including all addresses from this range and excluding ipR
-func (b *ipRange) Sub(ipR *ipRange) (*ipRange, *ipRange) {
+func (b *ipRange) Sub(ipR *ipRange) (leftR, rightR *ipRange) {
 	if b.CompareRange(ipR) != 0 {
 		return b.Clone(), nil
 	}
 
-	var leftR *ipRange
 	if b.start.Compare(ipR.start) > 0 {
 		leftR = &ipRange{
 			start: b.start.Clone(),
@@ -151,12 +150,11 @@ func (b *ipRange) Sub(ipR *ipRange) (*ipRange, *ipRange) {
 		}
 	}
 
-	var rightR *ipRange
 	if b.end.Compare(ipR.end) < 0 {
 		rightR = &ipRange{
 			start: ipR.end.Next(),
 			end:   b.end.Clone(),
 		}
 	}
-	return leftR, rightR
+	return
 }

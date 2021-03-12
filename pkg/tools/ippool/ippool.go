@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package ippool provides service for managing ip addresses
 package ippool
 
 import (
@@ -71,6 +72,7 @@ func NewWithNetString(ipNetString string) *IPPool {
 	return NewWithNet(ipNet)
 }
 
+// Clone - make a clone of the pool
 func (tree *IPPool) Clone() *IPPool {
 	tree.lock.Lock()
 	defer tree.lock.Unlock()
@@ -94,6 +96,7 @@ func (tree *IPPool) clone() *IPPool {
 	return newPool
 }
 
+// Add - adds ip address to the pool
 func (tree *IPPool) Add(ip net.IP) {
 	if ip == nil || tree.ipLength != len(ip) {
 		return
@@ -105,6 +108,7 @@ func (tree *IPPool) Add(ip net.IP) {
 	tree.add(ipAddressFromIP(ip))
 }
 
+// AddString - adds ip address to the pool by string value
 func (tree *IPPool) AddString(in string) {
 	ip := net.ParseIP(in)
 	if tree.ipLength == net.IPv4len {
@@ -113,6 +117,7 @@ func (tree *IPPool) AddString(in string) {
 	tree.Add(ip)
 }
 
+// AddNet - adds ip addresses from network to the pool
 func (tree *IPPool) AddNet(ipNet *net.IPNet) {
 	if ipNet == nil || tree.ipLength != len(ipNet.IP) {
 		return
@@ -124,6 +129,7 @@ func (tree *IPPool) AddNet(ipNet *net.IPNet) {
 	tree.addRange(ipRangeFromIPNet(ipNet))
 }
 
+// AddNetString - adds ip addresses from network to the pool by string value
 func (tree *IPPool) AddNetString(ipNetString string) {
 	_, ipNet, err := net.ParseCIDR(ipNetString)
 	if err != nil {
@@ -133,6 +139,7 @@ func (tree *IPPool) AddNetString(ipNetString string) {
 	tree.AddNet(ipNet)
 }
 
+// Contains - check the pool contains ip address
 func (tree *IPPool) Contains(ip net.IP) bool {
 	if ip == nil {
 		return false
@@ -141,6 +148,7 @@ func (tree *IPPool) Contains(ip net.IP) bool {
 	return tree.lookup(ipAddressFromIP(ip)) != nil
 }
 
+// ContainsString - check the pool contains ip by string value
 func (tree *IPPool) ContainsString(in string) bool {
 	ip := net.ParseIP(in)
 	if tree.ipLength == net.IPv4len {
@@ -149,6 +157,7 @@ func (tree *IPPool) ContainsString(in string) bool {
 	return tree.Contains(ip)
 }
 
+// Exclude - exclude network from pool
 func (tree *IPPool) Exclude(ipNet *net.IPNet) {
 	if ipNet == nil || tree.ipLength != len(ipNet.IP) {
 		return
@@ -160,6 +169,7 @@ func (tree *IPPool) Exclude(ipNet *net.IPNet) {
 	tree.deleteRange(ipRangeFromIPNet(ipNet))
 }
 
+// ExcludeString - exclude network from pool by string value
 func (tree *IPPool) ExcludeString(ipNetString string) {
 	_, ipNet, err := net.ParseCIDR(ipNetString)
 	if err != nil {
@@ -169,6 +179,7 @@ func (tree *IPPool) ExcludeString(ipNetString string) {
 	tree.Exclude(ipNet)
 }
 
+// Pull - returns next IP address from pool
 func (tree *IPPool) Pull() (net.IP, error) {
 	tree.lock.Lock()
 	defer tree.lock.Unlock()
@@ -180,7 +191,8 @@ func (tree *IPPool) Pull() (net.IP, error) {
 	return ipFromIPAddress(ip, tree.ipLength), nil
 }
 
-func (tree *IPPool) PullP2PAddrs(exclude ...*IPPool) (*net.IPNet, *net.IPNet, error) {
+// PullP2PAddrs - returns next IP addresses pair from pool for peer-to-peer connection
+func (tree *IPPool) PullP2PAddrs(exclude ...*IPPool) (srcNet, dstNet *net.IPNet, err error) {
 	tree.lock.Lock()
 	defer tree.lock.Unlock()
 
@@ -209,12 +221,12 @@ func (tree *IPPool) PullP2PAddrs(exclude ...*IPPool) (*net.IPNet, *net.IPNet, er
 		end:   dstIP.Clone(),
 	})
 
-	srcNet := &net.IPNet{
+	srcNet = &net.IPNet{
 		IP:   ipFromIPAddress(srcIP, tree.ipLength),
 		Mask: net.CIDRMask(tree.ipLength*8, tree.ipLength*8),
 	}
 
-	dstNet := &net.IPNet{
+	dstNet = &net.IPNet{
 		IP:   ipFromIPAddress(dstIP, tree.ipLength),
 		Mask: net.CIDRMask(tree.ipLength*8, tree.ipLength*8),
 	}
@@ -256,11 +268,7 @@ func (tree *IPPool) addRange(ipR *ipRange) {
 		for loop {
 			compare := node.Value.CompareRange(ipR)
 			switch {
-			case compare == 0:
-				fallthrough
-			case compare == -1:
-				fallthrough
-			case compare == 1:
+			case compare >= -1 && compare <= 1:
 				value := node.Value.Clone()
 				tree.removeNode(node)
 				tree.addRange(value.Unite(ipR))
@@ -455,18 +463,18 @@ func (tree *IPPool) rotateRight(node *treeNode) {
 	node.Parent = left
 }
 
-func (tree *IPPool) replaceNode(old *treeNode, new *treeNode) {
-	if old.Parent == nil {
-		tree.root = new
+func (tree *IPPool) replaceNode(oldNode, newNode *treeNode) {
+	if oldNode.Parent == nil {
+		tree.root = newNode
 	} else {
-		if old == old.Parent.Left {
-			old.Parent.Left = new
+		if oldNode == oldNode.Parent.Left {
+			oldNode.Parent.Left = newNode
 		} else {
-			old.Parent.Right = new
+			oldNode.Parent.Right = newNode
 		}
 	}
-	if new != nil {
-		new.Parent = old.Parent
+	if newNode != nil {
+		newNode.Parent = oldNode.Parent
 	}
 }
 

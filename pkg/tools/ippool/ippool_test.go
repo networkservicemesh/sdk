@@ -91,6 +91,7 @@ func TestIPPoolTool_Exclude(t *testing.T) {
 	require.Equal(t, ipPool.size, uint64(1))
 }
 
+//nolint:dupl
 func TestIPPoolTool_Pull(t *testing.T) {
 	ipPool := NewWithNetString("192.0.0.0/8")
 	require.NotNil(t, ipPool)
@@ -116,7 +117,7 @@ func TestIPPoolTool_Pull(t *testing.T) {
 	require.Equal(t, ip.String(), "192.0.1.1")
 
 	ipPool.ExcludeString("192.0.0.0/8")
-	ip, err = ipPool.Pull()
+	_, err = ipPool.Pull()
 	require.Error(t, err)
 }
 
@@ -139,7 +140,6 @@ func TestIPPoolTool_PullP2PAddrs(t *testing.T) {
 	srcIP, err := ipPool.Pull()
 	require.NoError(t, err)
 	require.Equal(t, srcIP.String(), "192.0.0.4")
-
 }
 
 func TestIPPoolTool_IPv6Add(t *testing.T) {
@@ -195,6 +195,7 @@ func TestIPPoolTool_IPv6Exclude(t *testing.T) {
 	require.Equal(t, ipPool.size, uint64(1))
 }
 
+//nolint:dupl
 func TestIPPoolTool_IPv6Pull(t *testing.T) {
 	ipPool := NewWithNetString("::/32")
 	require.NotNil(t, ipPool)
@@ -220,7 +221,7 @@ func TestIPPoolTool_IPv6Pull(t *testing.T) {
 	require.Equal(t, ip.String(), "::1:1")
 
 	ipPool.ExcludeString("::/32")
-	ip, err = ipPool.Pull()
+	_, err = ipPool.Pull()
 	require.Error(t, err)
 }
 
@@ -245,6 +246,7 @@ func benchmarkIPPool(b *testing.B, operations, threads, prefixes int) {
 	mtx.Lock()
 
 	f := func(t, operations int) {
+		//nolint:gosec // Predictable random number generator is OK for testing purposes.
 		randSrc := rand.New(rand.NewSource(int64(t)))
 
 		var excludePrefxes []*[]string
@@ -296,6 +298,7 @@ func benchmarkPrefixPool(b *testing.B, operations, threads, prefixes int) {
 	mtx.Lock()
 
 	f := func(t, operations int) {
+		//nolint:gosec // Predictable random number generator is OK for testing purposes.
 		randSrc := rand.New(rand.NewSource(int64(t)))
 
 		var excludePrefxes []*[]string
@@ -313,7 +316,8 @@ func benchmarkPrefixPool(b *testing.B, operations, threads, prefixes int) {
 		defer mtx.RUnlock()
 
 		for _, prefixes := range excludePrefxes {
-			pool.ExcludePrefixes(*prefixes)
+			_, err = pool.ExcludePrefixes(*prefixes)
+			require.NoError(b, err)
 			_, _, _, err = pool.Extract("conn", networkservice.IpFamily_IPV4)
 			require.NoError(b, err)
 		}
@@ -334,12 +338,12 @@ func benchmarkPrefixPool(b *testing.B, operations, threads, prefixes int) {
 	wg.Wait()
 }
 
-func generateSubnet(randSrc *rand.Rand, srcIp net.IP, ones, low, high int) *net.IPNet {
+func generateSubnet(randSrc *rand.Rand, srcIP net.IP, ones, low, high int) *net.IPNet {
 	length := low
 	if high-low > 0 {
 		length = randSrc.Intn(high-low+1) + low
 	}
-	ip := duplicateIP(srcIp)
+	ip := duplicateIP(srcIP)
 	for i := ones; i < length; i++ {
 		ip[i/8] >>= 8 - i%8
 		ip[i/8] <<= 1
@@ -358,7 +362,7 @@ func duplicateIP(ip net.IP) net.IP {
 	return dup
 }
 
-func exclude(prefixes ...string) (ipv4exclude *IPPool, ipv6exclude *IPPool) {
+func exclude(prefixes ...string) (ipv4exclude, ipv6exclude *IPPool) {
 	ipv4exclude = New(net.IPv4len)
 	ipv6exclude = New(net.IPv6len)
 	for _, prefix := range prefixes {

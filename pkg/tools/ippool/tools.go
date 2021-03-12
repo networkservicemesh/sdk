@@ -22,12 +22,9 @@ import (
 )
 
 func ipRangeFromIPNet(ipNet *net.IPNet) *ipRange {
-	startIp := getStartIp(ipNet)
-	endIp := getEndIp(ipNet)
-
 	return &ipRange{
-		start: ipAddressFromIP(startIp),
-		end:   ipAddressFromIP(endIp),
+		start: ipAddressFromIP(getStartIP(ipNet)),
+		end:   ipAddressFromIP(getEndIP(ipNet)),
 	}
 }
 
@@ -55,11 +52,11 @@ func ipFromIPAddress(addr *ipAddress, size int) net.IP {
 	return ip
 }
 
-func getStartIp(ipNet *net.IPNet) net.IP {
+func getStartIP(ipNet *net.IPNet) net.IP {
 	return ipNet.IP.Mask(ipNet.Mask)
 }
 
-func getEndIp(ipNet *net.IPNet) net.IP {
+func getEndIP(ipNet *net.IPNet) net.IP {
 	out := make(net.IP, len(ipNet.IP))
 	for i := 0; i < len(ipNet.IP); i++ {
 		out[i] = ipNet.IP[i] | ^ipNet.Mask[i]
