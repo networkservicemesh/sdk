@@ -21,7 +21,7 @@ return without error.
 ## connectServer
 
 `connectServer` keeps `connInfos` [connectionInfoMap](https://github.com/networkservicemesh/pkg/networkservice/common/connect/gen.go#25)
-mapping incoming server `Connection.ID` to the remote server URL and to the client chain assigned to this URL, and `clients` [clientmap.RefcountMap](https://github.com/networkservicemesh/sdk/blob/master/pkg/tools/clientmap/refcount.go)
+mapping incoming server `Connection.ID` to the remote server URL and to the client chain assigned to this URL
 mapping remote server URL to a [clienturl.NewClient(...)](https://github.com/networkservicemesh/sdk/blob/master/pkg/networkservice/common/clienturl/client.go)
 which handles the instantiation and management of the client connection from the `clienturl.ClientURL(ctx)` of the server
 Request. Notably, on every [clienturl.NewClient(...)](https://github.com/networkservicemesh/sdk/blob/master/pkg/networkservice/common/clienturl/client.go)
@@ -46,6 +46,3 @@ Concurrency is primarily managed through type-specific wrappers of [sync.Map](ht
 > Go map paired with a separate Mutex or RWMutex.
 
 This is precisely our case.
-
-[clientmap.RefcountMap](https://github.com/networkservicemesh/sdk/blob/master/pkg/tools/clientmap/refcount.go#L43) utilizes
-a simple atomic refcount, which is also highly performant.

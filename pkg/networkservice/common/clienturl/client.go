@@ -22,15 +22,15 @@ import (
 	"context"
 	"sync"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
@@ -76,11 +76,16 @@ func (u *clientURLClient) init() error {
 			u.dialErr = errors.New("cannot dial nil clienturl.ClientURL(ctx)")
 			return
 		}
+
+		ctx, cancel := context.WithTimeout(u.ctx, dialTimeout)
+		defer cancel()
+
 		var cc *grpc.ClientConn
-		cc, u.dialErr = grpc.DialContext(u.ctx, grpcutils.URLToTarget(clientURL), u.dialOptions...)
+		cc, u.dialErr = grpc.DialContext(ctx, grpcutils.URLToTarget(clientURL), u.dialOptions...)
 		if u.dialErr != nil {
 			return
 		}
+
 		u.client = u.clientFactory(u.ctx, cc)
 
 		go func() {
@@ -97,5 +102,6 @@ func (u *clientURLClient) init() error {
 			}
 		}()
 	})
+
 	return u.dialErr
 }

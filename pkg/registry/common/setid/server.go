@@ -39,16 +39,18 @@ func NewNetworkServiceEndpointRegistryServer() registry.NetworkServiceEndpointRe
 }
 
 func (s *setIDServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	if _, ok := s.names.Load(nse.Name); !ok {
-		if nse.Name == "" {
-			nse.Name = strings.Join(nse.NetworkServiceNames, "-")
-		}
-		nse.Name = uuid.New().String() + "-" + nse.Name
-	}
+	name := nse.Name
 
 	reg, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	if err != nil {
 		return nil, err
+	}
+
+	if _, ok := s.names.Load(reg.Name); !ok && reg.Name == name {
+		if reg.Name == "" {
+			reg.Name = strings.Join(reg.NetworkServiceNames, "-")
+		}
+		reg.Name = uuid.New().String() + "-" + reg.Name
 	}
 
 	s.names.Store(reg.Name, struct{}{})

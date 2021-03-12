@@ -21,6 +21,7 @@ import (
 	"net/url"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -44,6 +45,10 @@ func NewNetworkServiceEndpointRegistryServer(interposeURLs *stringurl.Map) regis
 func (s *interposeRegistryServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	if !Is(nse.Name) {
 		return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
+	}
+
+	if _, ok := s.interposeURLs.Load(nse.Name); !ok {
+		nse.Name = interposeName(uuid.New().String())
 	}
 
 	u, err := url.Parse(nse.Url)

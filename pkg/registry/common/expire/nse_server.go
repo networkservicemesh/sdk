@@ -115,10 +115,10 @@ func (n *expireNSEServer) newTimer(
 
 	t.timer = time.AfterFunc(time.Until(expirationTime), func() {
 		t.executor.AsyncExec(func() {
+			t.started = true
 			if t.canceled || n.ctx.Err() != nil {
 				return
 			}
-			t.started = true
 
 			unregisterCtx, cancel := context.WithCancel(n.ctx)
 			defer cancel()
