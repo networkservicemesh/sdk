@@ -154,7 +154,7 @@ func TestNSMGR_SelectsRestartingEndpoint(t *testing.T) {
 	require.NoError(t, err)
 
 	// 2. Postpone endpoint start
-	time.AfterFunc(2*time.Second, func() {
+	time.AfterFunc(time.Second, func() {
 		s := grpc.NewServer()
 		endpoint.NewServer(ctx, "nse-1", authorize.NewServer(), sandbox.GenerateTestToken).Register(s)
 		_ = s.Serve(netListener)
