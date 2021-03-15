@@ -19,7 +19,6 @@ package querycache
 
 import (
 	"context"
-	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
@@ -36,10 +35,10 @@ type queryCacheNSEClient struct {
 }
 
 // NewClient creates new querycache NSE registry client that caches all resolved NSEs
-func NewClient(ctx context.Context, expireTimeout time.Duration) registry.NetworkServiceEndpointRegistryClient {
+func NewClient(ctx context.Context, opts ...Option) registry.NetworkServiceEndpointRegistryClient {
 	return &queryCacheNSEClient{
 		ctx:   ctx,
-		cache: newCache(ctx, expireTimeout),
+		cache: newCache(ctx, opts...),
 	}
 }
 

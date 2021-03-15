@@ -29,12 +29,16 @@ type cache struct {
 	entries       cacheEntryMap
 }
 
-func newCache(ctx context.Context, expireTimeout time.Duration) *cache {
+func newCache(ctx context.Context, opts ...Option) *cache {
 	c := &cache{
-		expireTimeout: expireTimeout,
+		expireTimeout: time.Minute,
 	}
 
-	ticker := time.NewTicker(expireTimeout)
+	for _, opt := range opts {
+		opt(c)
+	}
+
+	ticker := time.NewTicker(c.expireTimeout)
 	go func() {
 		for {
 			select {

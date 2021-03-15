@@ -60,7 +60,7 @@ func Test_QueryCacheClient_ShouldCacheNSEs(t *testing.T) {
 
 	failureClient := new(failureNSEClient)
 	c := next.NewNetworkServiceEndpointRegistryClient(
-		querycache.NewClient(ctx, time.Minute),
+		querycache.NewClient(ctx, querycache.WithExpireTimeout(time.Minute)),
 		failureClient,
 		adapters.NetworkServiceEndpointServerToClient(mem),
 	)
@@ -133,7 +133,7 @@ func Test_QueryCacheClient_ShouldCleanUpOnTimeout(t *testing.T) {
 
 	failureClient := new(failureNSEClient)
 	c := next.NewNetworkServiceEndpointRegistryClient(
-		querycache.NewClient(ctx, expirationTime),
+		querycache.NewClient(ctx, querycache.WithExpireTimeout(expirationTime)),
 		failureClient,
 		adapters.NetworkServiceEndpointServerToClient(mem),
 	)
