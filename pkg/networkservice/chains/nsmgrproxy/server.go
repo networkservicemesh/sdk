@@ -35,17 +35,18 @@ import (
 
 // NewServer creates new proxy NSMgr
 func NewServer(ctx context.Context, name string, authorizeServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, options ...grpc.DialOption) endpoint.Endpoint {
-	return endpoint.NewServer(ctx,
-		name,
-		authorizeServer,
-		tokenGenerator,
-		interdomainurl.NewServer(),
-		externalips.NewServer(ctx),
-		swapip.NewServer(),
-		connect.NewServer(
-			ctx,
-			client.NewClientFactory(client.WithName(name)),
-			options...,
+	return endpoint.NewServer(ctx, tokenGenerator,
+		endpoint.WithName(name),
+		endpoint.WithAuthorizeServer(authorizeServer),
+		endpoint.WithAdditionalFunctionality(
+			interdomainurl.NewServer(),
+			externalips.NewServer(ctx),
+			swapip.NewServer(),
+			connect.NewServer(
+				ctx,
+				client.NewClientFactory(client.WithName(name)),
+				options...,
+			),
 		),
 	)
 }
