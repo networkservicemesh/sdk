@@ -241,6 +241,10 @@ func (tree *IPPool) GetPrefixes() (prefixes []string) {
 	clone := tree.clone()
 	tree.lock.Unlock()
 
+	if clone.root == nil {
+		return nil
+	}
+
 	it := iterator{
 		node: clone.root,
 	}
@@ -249,7 +253,7 @@ func (tree *IPPool) GetPrefixes() (prefixes []string) {
 	}
 
 	for node := it.Next(); node != nil; node = it.Next() {
-		prefixes = append(prefixes, node.getPrefixes(tree.ipLength)...)
+		prefixes = append(prefixes, node.getPrefixes(clone.ipLength)...)
 	}
 
 	return

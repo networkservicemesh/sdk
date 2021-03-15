@@ -40,7 +40,7 @@ import (
 const defaultPrefixesFileName = "excluded_prefixes.yaml"
 
 func TestNewExcludedPrefixesService(t *testing.T) {
-	prefixes := []string{"172.16.1.0/24", "10.32.0.0/12", "10.96.0.0/12"}
+	prefixes := []string{"10.32.0.0/12", "10.96.0.0/12", "172.16.1.0/24"}
 
 	dir := filepath.Join(os.TempDir(), t.Name())
 	defer func() { _ = os.RemoveAll(dir) }()
@@ -59,7 +59,7 @@ func TestNewExcludedPrefixesService(t *testing.T) {
 }
 
 func TestCheckReloadedPrefixes(t *testing.T) {
-	prefixes := []string{"172.16.1.0/24", "10.32.0.0/12", "10.96.0.0/12"}
+	prefixes := []string{"10.32.0.0/12", "10.96.0.0/12", "172.16.1.0/24"}
 
 	dir := filepath.Join(os.TempDir(), t.Name())
 	defer func() { _ = os.RemoveAll(dir) }()
@@ -103,7 +103,7 @@ func TestExcludedPrefixesServer(t *testing.T) {
 func TestUniqueRequestPrefixes(t *testing.T) {
 	prefixes := []string{"172.16.1.0/24", "10.32.0.0/12", "10.96.0.0/12", "10.20.128.0/17", "10.20.64.0/18", "10.20.8.0/21", "10.20.4.0/22"}
 	reqPrefixes := []string{"100.1.1.0/13", "10.32.0.0/12", "10.96.0.0/12", "10.20.0.0/24", "10.20.128.0/17", "10.20.64.0/18", "10.20.16.0/20", "10.20.2.0/23"}
-	uniquePrefixes := []string{"100.1.1.0/13", "10.32.0.0/12", "10.96.0.0/12", "10.20.0.0/24", "10.20.128.0/17", "10.20.64.0/18", "10.20.16.0/20", "10.20.2.0/23", "172.16.1.0/24", "10.20.8.0/21", "10.20.4.0/22"}
+	uniquePrefixes := []string{"100.1.1.0/13", "10.32.0.0/12", "10.96.0.0/12", "10.20.0.0/24", "10.20.128.0/17", "10.20.64.0/18", "10.20.16.0/20", "10.20.2.0/23", "10.20.4.0/22", "10.20.8.0/21", "172.16.1.0/24"}
 
 	dir := filepath.Join(os.TempDir(), t.Name())
 	defer func() { _ = os.RemoveAll(dir) }()
@@ -132,7 +132,7 @@ func TestUniqueRequestPrefixes(t *testing.T) {
 }
 
 func testWaitForFile(t *testing.T, filePath string) {
-	prefixes := []string{"172.16.1.0/24", "10.95.0.0/12"}
+	prefixes := []string{"10.80.0.0/12", "172.16.1.0/24"}
 
 	testConfig := strings.Join(append([]string{"prefixes:"}, prefixes...), "\n- ")
 
