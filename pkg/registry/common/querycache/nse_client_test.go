@@ -18,15 +18,16 @@ package querycache_test
 
 import (
 	"context"
-	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
+	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/querycache"
@@ -34,80 +35,22 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
-type FindCountServer struct{ findCount *int32 }
+const (
+	name           = "nse"
+	url1           = "tcp://1.1.1.1"
+	url2           = "tcp://2.2.2.2"
+	expirationTime = 100 * time.Millisecond
+)
 
-func (a *FindCountServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
-}
-
-func (a *FindCountServer) Find(q *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
-	if !q.Watch {
-		atomic.AddInt32(a.findCount, 1)
-	}
-	return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(q, s)
-}
-
-func (a *FindCountServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
-}
-
-func Test_QueryCacheServer_ShouldCacheNSEs(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	findsCount := new(int32)
-	const registersCount = 5
-
-	mem := next.NewNetworkServiceEndpointRegistryServer(&FindCountServer{findCount: findsCount}, memory.NewNetworkServiceEndpointRegistryServer())
-
-	for i := 0; i < registersCount; i++ {
-		_, err := mem.Register(ctx, &registry.NetworkServiceEndpoint{
-			Name: fmt.Sprintf("nse-%v", i),
-		})
-		require.NoError(t, err)
-	}
-
-	client := next.NewNetworkServiceEndpointRegistryClient(querycache.NewClient(ctx), adapters.NetworkServiceEndpointServerToClient(mem))
-	_, err := client.Find(ctx, &registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{}})
-	require.NoError(t, err)
-
-	checkCache := func() {
-		for i := 0; i < registersCount; i++ {
-			name := fmt.Sprintf("nse-%v", i)
-			stream, err := client.Find(ctx, &registry.NetworkServiceEndpointQuery{
-				NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: name},
-			})
-			require.NoError(t, err)
-			list := registry.ReadNetworkServiceEndpointList(stream)
-			require.Len(t, list, 1)
-			require.Equal(t, name, list[0].Name)
-		}
-		n := atomic.LoadInt32(findsCount)
-		require.Equal(t, int32(1), n)
-	}
-
-	for i := 0; i < 1e3; i++ {
-		checkCache()
-	}
-	for i := 0; i < registersCount; i++ {
-		name := fmt.Sprintf("nse-%v", i)
-		_, err := mem.Unregister(ctx, &registry.NetworkServiceEndpoint{
-			Name: name,
-		})
-		require.NoError(t, err)
-		require.Eventually(t, func() bool {
-			stream, err := client.Find(ctx, &registry.NetworkServiceEndpointQuery{
-				NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: name},
-			})
-			require.NoError(t, err)
-			list := registry.ReadNetworkServiceEndpointList(stream)
-			return len(list) == 0
-		}, time.Second, time.Second/10)
+func testNSEQuery(nseName string) *registry.NetworkServiceEndpointQuery {
+	return &registry.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+			Name: nseName,
+		},
 	}
 }
 
-func Test_QueryCacheServer_ShouldCleanupGoroutinesOnNSEUnregister(t *testing.T) {
+func Test_QueryCacheClient_ShouldCacheNSEs(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -115,43 +58,142 @@ func Test_QueryCacheServer_ShouldCleanupGoroutinesOnNSEUnregister(t *testing.T) 
 
 	mem := memory.NewNetworkServiceEndpointRegistryServer()
 
-	reg, err := func() (*registry.NetworkServiceEndpoint, error) {
-		registerCtx, registerCancel := context.WithCancel(ctx)
-		defer registerCancel()
-
-		return mem.Register(registerCtx, &registry.NetworkServiceEndpoint{
-			Name: "nse-1",
-		})
-	}()
-	require.NoError(t, err)
-
-	client := next.NewNetworkServiceEndpointRegistryClient(
-		querycache.NewClient(ctx),
+	failureClient := new(failureNSEClient)
+	c := next.NewNetworkServiceEndpointRegistryClient(
+		querycache.NewClient(ctx, querycache.WithExpireTimeout(time.Minute)),
+		failureClient,
 		adapters.NetworkServiceEndpointServerToClient(mem),
 	)
 
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-
-	// 1. Find
-	findCtx, findCancel := context.WithCancel(ctx)
-
-	_, err = client.Find(findCtx, &registry.NetworkServiceEndpointQuery{
-		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-			Name: reg.Name,
-		},
+	reg, err := mem.Register(ctx, &registry.NetworkServiceEndpoint{
+		Name: name,
+		Url:  url1,
 	})
 	require.NoError(t, err)
 
-	findCancel()
+	// Goroutines should be cleaned up on NSE unregister
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	// 2. Wait a bit for the (cache -> registry) stream to start
-	<-time.After(1 * time.Millisecond)
-
-	// 3. Unregister
-	unregisterCtx, unregisterCancel := context.WithCancel(ctx)
-
-	_, err = mem.Unregister(unregisterCtx, reg)
+	// 1. Find from memory
+	stream, err := c.Find(ctx, testNSEQuery(""))
 	require.NoError(t, err)
 
-	unregisterCancel()
+	nse, err := stream.Recv()
+	require.NoError(t, err)
+
+	require.Equal(t, name, nse.Name)
+	require.Equal(t, url1, nse.Url)
+
+	// 2. Find from cache
+	atomic.StoreInt32(&failureClient.shouldFail, 1)
+
+	require.Eventually(t, func() bool {
+		if stream, err = c.Find(ctx, testNSEQuery(name)); err != nil {
+			return false
+		}
+		if nse, err = stream.Recv(); err != nil {
+			return false
+		}
+		return name == nse.Name && url1 == nse.Url
+	}, 100*time.Millisecond, time.Millisecond)
+
+	// 3. Update NSE in memory
+	reg.Url = url2
+
+	reg, err = mem.Register(ctx, reg)
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool {
+		if stream, err = c.Find(ctx, testNSEQuery(name)); err != nil {
+			return false
+		}
+		if nse, err = stream.Recv(); err != nil {
+			return false
+		}
+		return name == nse.Name && url2 == nse.Url
+	}, 100*time.Millisecond, time.Millisecond)
+
+	// 4. Delete NSE from memory
+	_, err = mem.Unregister(ctx, reg)
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool {
+		_, err = c.Find(ctx, testNSEQuery(name))
+		return err != nil
+	}, 100*time.Millisecond, time.Millisecond)
+}
+
+func Test_QueryCacheClient_ShouldCleanUpOnTimeout(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	mem := memory.NewNetworkServiceEndpointRegistryServer()
+
+	failureClient := new(failureNSEClient)
+	c := next.NewNetworkServiceEndpointRegistryClient(
+		querycache.NewClient(ctx, querycache.WithExpireTimeout(expirationTime)),
+		failureClient,
+		adapters.NetworkServiceEndpointServerToClient(mem),
+	)
+
+	_, err := mem.Register(ctx, &registry.NetworkServiceEndpoint{
+		Name: name,
+	})
+	require.NoError(t, err)
+
+	// Goroutines should be cleaned up on cache entry expiration
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	// 1. Find from memory
+	stream, err := c.Find(ctx, testNSEQuery(""))
+	require.NoError(t, err)
+
+	_, err = stream.Recv()
+	require.NoError(t, err)
+
+	// 2. Find from cache
+	atomic.StoreInt32(&failureClient.shouldFail, 1)
+
+	require.Eventually(t, func() bool {
+		if stream, err = c.Find(ctx, testNSEQuery(name)); err == nil {
+			_, err = stream.Recv()
+		}
+		return err == nil
+	}, 100*time.Millisecond, time.Millisecond)
+
+	// 3. Keep finding from cache to prevent expiration
+	for start := time.Now(); time.Since(start) > 2*expirationTime; time.Sleep(expirationTime / 10) {
+		stream, err = c.Find(ctx, testNSEQuery(""))
+		require.NoError(t, err)
+
+		_, err = stream.Recv()
+		require.NoError(t, err)
+	}
+
+	// 4. Wait for the expire to happen
+	time.Sleep(expirationTime)
+
+	_, err = c.Find(ctx, testNSEQuery(""))
+	require.Error(t, err)
+}
+
+type failureNSEClient struct {
+	shouldFail int32
+}
+
+func (c *failureNSEClient) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, nse, opts...)
+}
+
+func (c *failureNSEClient) Find(ctx context.Context, query *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
+	if atomic.LoadInt32(&c.shouldFail) == 1 && !query.Watch {
+		return nil, errors.New("find error")
+	}
+	return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, query, opts...)
+}
+
+func (c *failureNSEClient) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
+	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, nse, opts...)
 }
