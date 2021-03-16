@@ -158,6 +158,13 @@ func (t *refreshTesterServer) checkUnlocked() {
 	}
 }
 
+func (t *refreshTesterServer) getState() int {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
+	return t.state
+}
+
 func (t *refreshTesterServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	t.mutex.Lock()
 	locked := true
