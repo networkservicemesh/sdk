@@ -243,7 +243,22 @@ func generateRequests(t *testing.T, client networkservice.NetworkServiceClient, 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// Generate random numbers in advance to avoid duration impact
 	skipSleepLeft, closeClientLeft := iterations/10+1, iterations/10+1
+	var sleepSteps, closeClientSteps []bool
+	for i := 0; i < iterations; i++ {
+		isSleepStepSkipped := randSrc.Intn(iterations-i) < skipSleepLeft
+		if isSleepStepSkipped {
+			skipSleepLeft--
+		}
+		sleepSteps = append(sleepSteps, !isSleepStepSkipped)
+
+		isClientCloseStep := randSrc.Intn(iterations-i) < closeClientLeft
+		if isClientCloseStep {
+			closeClientLeft--
+		}
+		closeClientSteps = append(closeClientSteps, isClientCloseStep)
+	}
 
 	var oldConn *networkservice.Connection
 	for i := 0; i < iterations && !t.Failed(); i++ {
@@ -258,9 +273,7 @@ func generateRequests(t *testing.T, client networkservice.NetworkServiceClient, 
 			return
 		}
 
-		if randSrc.Intn(iterations-i) < skipSleepLeft {
-			skipSleepLeft--
-		} else {
+		if sleepSteps[i] {
 			<-time.After(tickDuration)
 		}
 
@@ -268,13 +281,12 @@ func generateRequests(t *testing.T, client networkservice.NetworkServiceClient, 
 			return
 		}
 
-		if randSrc.Intn(iterations-i) < closeClientLeft {
+		if closeClientSteps[i] {
 			refreshTester.beforeClose()
 			_, err = client.Close(ctx, oldConn)
 			assert.Nil(t, err)
 			refreshTester.afterClose()
 			oldConn = nil
-			closeClientLeft--
 		}
 	}
 
