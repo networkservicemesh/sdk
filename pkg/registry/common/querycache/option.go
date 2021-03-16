@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,14 +14,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package connect
+package querycache
 
-import (
-	"sync"
-)
+import "time"
 
-//go:generate go-syncmap -output connection_info_map.gen.go -type connectionInfoMap<string,connectionInfo>
-//go:generate go-syncmap -output client_info_map.gen.go -type clientInfoMap<string,*clientInfo>
+// Option is an option for cache
+type Option func(c *cache)
 
-type connectionInfoMap sync.Map
-type clientInfoMap sync.Map
+// WithExpireTimeout sets cache expire timeout
+func WithExpireTimeout(expireTimeout time.Duration) Option {
+	return func(c *cache) {
+		c.expireTimeout = expireTimeout
+	}
+}

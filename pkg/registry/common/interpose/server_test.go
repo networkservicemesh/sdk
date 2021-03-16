@@ -32,82 +32,80 @@ import (
 )
 
 const (
-	nameSuffix     = "#interpose-nse"
-	name           = "nse"
-	validURL       = "tcp://0.0.0.0"
-	commonResponse = "response"
+	nameSuffix = "#interpose-nse"
+	name       = "nse"
+	validURL   = "tcp://0.0.0.0"
 )
 
-var samples = []struct {
-	name             string
-	in, out          *registry.NetworkServiceEndpoint
-	isInMap, failure bool
-}{
-	{
-		name: "interpose NSE",
-		in: &registry.NetworkServiceEndpoint{
-			Name: name + nameSuffix,
-			Url:  validURL,
-		},
-		out: &registry.NetworkServiceEndpoint{
-			Name: name + nameSuffix,
-			Url:  validURL,
-		},
-		isInMap: true,
-	},
-	{
-		name: "common NSE",
-		in: &registry.NetworkServiceEndpoint{
-			Name: name,
-		},
-		out: &registry.NetworkServiceEndpoint{
-			Name: commonResponse,
-		},
-	},
-	{
-		name: "invalid NSE",
-		in: &registry.NetworkServiceEndpoint{
-			Name: name + nameSuffix,
-		},
-		isInMap: false,
-		failure: true,
-	},
+func TestInterposeRegistryServer_Interpose(t *testing.T) {
+	captureName := new(captureNameTestRegistryServer)
+
+	var crossMap stringurl.Map
+	server := next.NewNetworkServiceEndpointRegistryServer(
+		interpose.NewNetworkServiceEndpointRegistryServer(&crossMap),
+		captureName,
+	)
+
+	reg, err := server.Register(context.Background(), &registry.NetworkServiceEndpoint{
+		Name: "nse" + nameSuffix,
+		Url:  validURL,
+	})
+	require.NoError(t, err)
+
+	require.True(t, interpose.Is(reg.Name))
+	require.Empty(t, captureName.name)
+	requireCrossMapEqual(t, map[string]string{reg.Name: validURL}, &crossMap)
+
+	_, err = server.Unregister(context.Background(), reg)
+	require.NoError(t, err)
+
+	require.Empty(t, captureName.name)
+	requireCrossMapEqual(t, map[string]string{}, &crossMap)
 }
 
-func TestInterposeRegistryServer(t *testing.T) {
-	for i := range samples {
-		sample := samples[i]
-		t.Run(sample.name, func(t *testing.T) {
-			var crossMap stringurl.Map
-			server := next.NewNetworkServiceEndpointRegistryServer(
-				interpose.NewNetworkServiceEndpointRegistryServer(&crossMap),
-				new(testRegistry),
-			)
+func TestInterposeRegistryServer_Common(t *testing.T) {
+	captureName := new(captureNameTestRegistryServer)
 
-			reg, err := server.Register(context.Background(), sample.in)
-			if sample.failure {
-				require.Error(t, err)
+	var crossMap stringurl.Map
+	server := next.NewNetworkServiceEndpointRegistryServer(
+		interpose.NewNetworkServiceEndpointRegistryServer(&crossMap),
+		captureName,
+	)
 
-				requireCrossMapEqual(t, map[string]string{}, &crossMap)
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, sample.out.String(), reg.String())
+	reg, err := server.Register(context.Background(), &registry.NetworkServiceEndpoint{
+		Name: name,
+	})
+	require.NoError(t, err)
 
-				if sample.isInMap {
-					requireCrossMapEqual(t, map[string]string{
-						sample.in.Name: sample.in.Url,
-					}, &crossMap)
-				} else {
-					requireCrossMapEqual(t, map[string]string{}, &crossMap)
-				}
+	require.Equal(t, name, reg.Name)
+	require.Equal(t, name, captureName.name)
+	requireCrossMapEqual(t, map[string]string{}, &crossMap)
 
-				_, err := server.Unregister(context.Background(), reg)
-				require.NoError(t, err)
+	captureName.name = ""
 
-				requireCrossMapEqual(t, map[string]string{}, &crossMap)
-			}
-		})
-	}
+	_, err = server.Unregister(context.Background(), reg)
+	require.NoError(t, err)
+
+	require.Equal(t, name, captureName.name)
+	requireCrossMapEqual(t, map[string]string{}, &crossMap)
+}
+
+func TestInterposeRegistryServer_Invalid(t *testing.T) {
+	captureName := new(captureNameTestRegistryServer)
+
+	var crossMap stringurl.Map
+	server := next.NewNetworkServiceEndpointRegistryServer(
+		interpose.NewNetworkServiceEndpointRegistryServer(&crossMap),
+		captureName,
+	)
+
+	_, err := server.Register(context.Background(), &registry.NetworkServiceEndpoint{
+		Name: "nse" + nameSuffix,
+	})
+	require.Error(t, err)
+
+	require.Empty(t, captureName.name)
+	requireCrossMapEqual(t, map[string]string{}, &crossMap)
 }
 
 func requireCrossMapEqual(t *testing.T, expected map[string]string, crossMap *stringurl.Map) {
@@ -119,15 +117,20 @@ func requireCrossMapEqual(t *testing.T, expected map[string]string, crossMap *st
 	require.Equal(t, expected, actual)
 }
 
-type testRegistry struct {
+type captureNameTestRegistryServer struct {
+	name string
+
 	registry.NetworkServiceEndpointRegistryServer
 }
 
-func (r *testRegistry) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	in.Name = commonResponse
+func (r *captureNameTestRegistryServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	r.name = in.Name
+
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
 }
 
-func (r *testRegistry) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+func (r *captureNameTestRegistryServer) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	r.name = in.Name
+
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 }

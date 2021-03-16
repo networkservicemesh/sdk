@@ -93,12 +93,9 @@ func (n *Node) newEndpoint(
 	additionalFunctionality ...networkservice.NetworkServiceServer,
 ) (_ *EndpointEntry, err error) {
 	// 1. Create endpoint server
-	ep := endpoint.NewServer(
-		ctx,
-		nse.Name,
-		authorize.NewServer(authorize.Any()),
-		generatorFunc,
-		additionalFunctionality...,
+	ep := endpoint.NewServer(ctx, generatorFunc,
+		endpoint.WithName(nse.Name),
+		endpoint.WithAdditionalFunctionality(additionalFunctionality...),
 	)
 
 	// 2. Start listening on URL

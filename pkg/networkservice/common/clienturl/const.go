@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,14 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package connect
+package clienturl
 
-import (
-	"sync"
-)
+import "time"
 
-//go:generate go-syncmap -output connection_info_map.gen.go -type connectionInfoMap<string,connectionInfo>
-//go:generate go-syncmap -output client_info_map.gen.go -type clientInfoMap<string,*clientInfo>
-
-type connectionInfoMap sync.Map
-type clientInfoMap sync.Map
+const dialTimeout = 100 * time.Millisecond

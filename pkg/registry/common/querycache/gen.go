@@ -14,14 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package connect
+package querycache
 
-import (
-	"sync"
-)
+import "sync"
 
-//go:generate go-syncmap -output connection_info_map.gen.go -type connectionInfoMap<string,connectionInfo>
-//go:generate go-syncmap -output client_info_map.gen.go -type clientInfoMap<string,*clientInfo>
+//go:generate go-syncmap -output cache_entry_map.gen.go -type cacheEntryMap<string,*cacheEntry>
 
-type connectionInfoMap sync.Map
-type clientInfoMap sync.Map
+type cacheEntryMap sync.Map
