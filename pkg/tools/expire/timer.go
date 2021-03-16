@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,10 +14,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package expire provide algorithm and tools for creating expire servers
 package expire
 
-import "sync"
+import (
+	"time"
 
-//go:generate go-syncmap -output unregister_timer_sync_map.gen.go -type unregisterTimerMap<string,*unregisterTimer>
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
+)
 
-type unregisterTimerMap sync.Map
+// Timer is a wrapper around the *time.Timer with expiration time
+type Timer struct {
+	ExpirationTime time.Time
+
+	clock.Timer
+}

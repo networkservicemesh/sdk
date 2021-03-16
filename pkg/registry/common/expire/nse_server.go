@@ -21,32 +21,27 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
+	"github.com/networkservicemesh/sdk/pkg/tools/expire"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/serializectx"
 )
 
-// TODO: rework with serialize (#749)
 type expireNSEServer struct {
 	ctx           context.Context
 	nseExpiration time.Duration
-	timers        unregisterTimerMap
-}
-
-type unregisterTimer struct {
-	expirationTime time.Time
-	timer          clock.Timer
-	ch             <-chan struct{}
+	timers        expire.TimerMap
 }
 
 // NewNetworkServiceEndpointRegistryServer creates a new NetworkServiceServer chain element that implements unregister
 // of expired connections for the subsequent chain elements.
-// WARNING: `expire` uses ctx as a context for the Unregister, so if there are any chain elements setting some data in
-// context in chain before the `expire`, these changes won't appear in the Unregister context.
+// For the algorithm please see /pkg/tools/expire/README.md.
 func NewNetworkServiceEndpointRegistryServer(ctx context.Context, nseExpiration time.Duration) registry.NetworkServiceEndpointRegistryServer {
 	return &expireNSEServer{
 		ctx:           ctx,
@@ -54,79 +49,116 @@ func NewNetworkServiceEndpointRegistryServer(ctx context.Context, nseExpiration 
 	}
 }
 
-func (n *expireNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+func (s *expireNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	clockTime := clock.FromContext(ctx)
+	logger := log.FromContext(ctx).WithField("expireNSEServer", "Register")
 
-	t, loaded := n.timers.Load(nse.Name)
-	// TODO: this is totally incorrect if there are concurrent events for the same nse.Name, think about adding
-	//       serialize into the registry chain
-	stopped := loaded && t.timer.Stop()
+	// 1. Try to load and stop timer.
+	t, loaded := s.timers.Load(nse.Name)
+	stopped := loaded && t.Stop()
 
-	if loaded && !stopped {
-		<-t.ch
+	expirationTime := clockTime.Now().Add(s.nseExpiration)
+	if nse.ExpirationTime != nil {
+		if nseExpirationTime := nse.ExpirationTime.AsTime().Local(); nseExpirationTime.Before(expirationTime) {
+			expirationTime = nseExpirationTime
+		}
 	}
+	nse.ExpirationTime = timestamppb.New(expirationTime)
 
-	resp, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
+	// 2. Send Register event.
+	reg, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	if err != nil {
 		if stopped {
-			t.timer.Reset(clockTime.Until(t.expirationTime))
+			// 2.1. Reset timer if Register event has failed and timer has been successfully stopped.
+			t.Reset(clockTime.Until(t.ExpirationTime))
 		}
 		return nil, err
 	}
 
-	expirationTime := clockTime.Now().Add(n.nseExpiration)
-	if resp.ExpirationTime != nil {
-		if respExpirationTime := resp.ExpirationTime.AsTime().Local(); respExpirationTime.Before(expirationTime) {
-			expirationTime = respExpirationTime
+	// 3. Delete the old timer.
+	s.timers.Delete(nse.Name)
+
+	// 4. Create a new timer.
+	t, err = s.newTimer(ctx, reg.Clone())
+	if err != nil {
+		// 4.1. If we have failed to create a new timer, Unregister the endpoint.
+		if _, unregisterErr := next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, reg); unregisterErr != nil {
+			logger.Errorf("failed to unregister endpoint on error: %s %s", reg.Name, unregisterErr.Error())
 		}
+		return nil, err
 	}
-	resp.ExpirationTime = timestamppb.New(expirationTime)
 
-	n.timers.Store(resp.Name, n.newTimer(ctx, expirationTime, resp.Clone()))
+	// 5. Store timer.
+	s.timers.Store(reg.Name, t)
 
-	return resp, nil
+	return reg, nil
 }
 
-func (n *expireNSEServer) newTimer(ctx context.Context, expirationTime time.Time, nse *registry.NetworkServiceEndpoint) *unregisterTimer {
+func (s *expireNSEServer) newTimer(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*expire.Timer, error) {
 	clockTime := clock.FromContext(ctx)
 	logger := log.FromContext(ctx).WithField("expireNSEServer", "newTimer")
 
-	ch := make(chan struct{})
-	return &unregisterTimer{
-		expirationTime: expirationTime,
-		timer: clockTime.AfterFunc(clockTime.Until(expirationTime), func() {
-			unregisterCtx, cancel := context.WithCancel(n.ctx)
-			defer cancel()
-
-			if _, err := next.NetworkServiceEndpointRegistryServer(ctx).Unregister(unregisterCtx, nse); err != nil {
-				logger.Errorf("failed to unregister expired endpoint: %s %s", nse.Name, err.Error())
-			}
-
-			n.timers.Delete(nse.Name)
-			close(ch)
-		}),
-		ch: ch,
+	// 1. Try to get executor from the context.
+	executor := serializectx.GetExecutor(ctx, nse.Name)
+	if executor == nil {
+		// 1.1. Fail if there is no executor.
+		return nil, errors.Errorf("failed to get executor from context")
 	}
+
+	// 2. Compute expiration time.
+	expirationTime := nse.ExpirationTime.AsTime().Local()
+
+	// 3. Create timer.
+	var t *expire.Timer
+	t = &expire.Timer{
+		ExpirationTime: expirationTime,
+		Timer: clockTime.AfterFunc(clockTime.Until(expirationTime), func() {
+			// 3.1. All the timer action should be executed under the `executor.AsyncExec`.
+			executor.AsyncExec(func() {
+				// 3.2. Timer has probably been stopped and deleted or replaced with a new one, so we need to check it
+				// before deleting.
+				if tt, ok := s.timers.Load(nse.Name); !ok || tt != t {
+					// 3.2.1. This timer has been stopped, nothing to do.
+					return
+				}
+
+				// 3.3. Delete timer.
+				s.timers.Delete(nse.Name)
+
+				// 3.4. Since `s.ctx` lives with the application, we need to create a new context with event scope
+				// lifetime to prevent leaks.
+				unregisterCtx, cancel := context.WithCancel(s.ctx)
+				defer cancel()
+
+				// 3.5. Unregister expired endpoint.
+				if _, err := next.NetworkServiceEndpointRegistryServer(ctx).Unregister(unregisterCtx, nse); err != nil {
+					logger.Errorf("failed to unregister expired endpoint: %s %s", nse.Name, err.Error())
+				}
+			})
+		}),
+	}
+
+	return t, nil
 }
 
-func (n *expireNSEServer) Find(query *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
-	return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(query, s)
+func (s *expireNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
+	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
 }
 
-func (n *expireNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+func (s *expireNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
 	logger := log.FromContext(ctx).WithField("expireNSEServer", "Unregister")
 
-	t, ok := n.timers.LoadAndDelete(nse.Name)
-	// TODO: this is totally incorrect if there are concurrent events for the same nse.Name, think about adding
-	//       serialize into the registry chain
-	if ok && !t.timer.Stop() {
-		<-t.ch
-		ok = false
-	}
+	// 1. Check if we have a timer.
+	t, ok := s.timers.LoadAndDelete(nse.Name)
 	if !ok {
+		// 1.1. If there is no timer, there is nothing to do.
 		logger.Warnf("endpoint has been already unregistered: %s", nse.Name)
 		return new(empty.Empty), nil
 	}
 
+	// 2. Stop it.
+	t.Stop()
+
+	// 3. Unregister endpoint.
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }

@@ -14,12 +14,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package timeout
+package expire
 
-import (
-	"sync"
-)
+import "sync"
 
-//go:generate go-syncmap -output close_timer_map.gen.go -type closeTimerMap<string,*closeTimer>
+//go:generate go-syncmap -output timer_map.gen.go -type TimerMap<string,*Timer>
 
-type closeTimerMap sync.Map
+// TimerMap is a typed sync.Map with string key type and *Timer value type
+type TimerMap sync.Map

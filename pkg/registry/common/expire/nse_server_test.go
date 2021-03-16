@@ -36,9 +36,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checkcontext"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checknse"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
 )
@@ -57,6 +58,7 @@ func TestExpireNSEServer_ShouldCorrectlySetExpirationTime_InRemoteCase(t *testin
 	ctx := clock.WithClock(context.Background(), clockMock)
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
+		serialize.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
 		new(remoteNSEServer),
 	)
@@ -78,6 +80,7 @@ func TestExpireNSEServer_ShouldUseLessExpirationTimeFromInput_AndWork(t *testing
 	mem := memory.NewNetworkServiceEndpointRegistryServer()
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
+		serialize.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
 		mem,
 	)
@@ -111,8 +114,10 @@ func TestExpireNSEServer_ShouldUseLessExpirationTimeFromResponse(t *testing.T) {
 	ctx := clock.WithClock(context.Background(), clockMock)
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
+		serialize.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
 		new(remoteNSEServer), // <-- GRPC invocation
+		serialize.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout/2),
 	)
 
@@ -131,6 +136,7 @@ func TestExpireNSEServer_ShouldRemoveNSEAfterExpirationTime(t *testing.T) {
 	mem := memory.NewNetworkServiceEndpointRegistryServer()
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
+		serialize.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
 		new(remoteNSEServer), // <-- GRPC invocation
 		mem,
@@ -170,6 +176,7 @@ func TestExpireNSEServer_DataRace(t *testing.T) {
 	mem := memory.NewNetworkServiceEndpointRegistryServer()
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
+		serialize.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(context.Background(), 0),
 		localbypass.NewNetworkServiceEndpointRegistryServer("tcp://0.0.0.0"),
 		mem,
@@ -209,6 +216,7 @@ func TestExpireNSEServer_RefreshFailure(t *testing.T) {
 		refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithChainContext(ctx)),
 		adapters.NetworkServiceEndpointServerToClient(next.NewNetworkServiceEndpointRegistryServer(
 			new(remoteNSEServer), // <-- GRPC invocation
+			serialize.NewNetworkServiceEndpointRegistryServer(),
 			expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
 			newFailureNSEServer(1, -1),
 			memory.NewNetworkServiceEndpointRegistryServer(),
@@ -246,13 +254,11 @@ func TestExpireNSEServer_RefreshKeepsNoUnregister(t *testing.T) {
 		adapters.NetworkServiceEndpointServerToClient(next.NewNetworkServiceEndpointRegistryServer(
 			// NSMgr chain
 			new(remoteNSEServer), // <-- GRPC invocation
+			serialize.NewNetworkServiceEndpointRegistryServer(),
 			expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
-			// Registry chain
-			new(remoteNSEServer), // <-- GRPC invocation
-			checkcontext.NewNSEServer(t, func(_ *testing.T, _ context.Context) {
+			checknse.NewServer(t, func(*testing.T, *registry.NetworkServiceEndpoint) {
 				clockMock.Add(expireTimeout / 2)
 			}),
-			expire.NewNetworkServiceEndpointRegistryServer(ctx, 10*expireTimeout),
 			unregisterServer,
 		)),
 	)
@@ -263,7 +269,8 @@ func TestExpireNSEServer_RefreshKeepsNoUnregister(t *testing.T) {
 	require.NoError(t, err)
 
 	for i := 0; i < 3; i++ {
-		clockMock.Add(expireTimeout / 10 * 9)
+		println(i)
+		clockMock.Add(expireTimeout / 2 - 1)
 		require.Never(t, func() bool {
 			return atomic.LoadInt32(&unregisterServer.unregisterCount) > 0
 		}, testWait, testTick)
