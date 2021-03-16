@@ -40,7 +40,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
@@ -156,7 +155,7 @@ func TestNSMGR_SelectsRestartingEndpoint(t *testing.T) {
 	// 2. Postpone endpoint start
 	time.AfterFunc(time.Second, func() {
 		s := grpc.NewServer()
-		endpoint.NewServer(ctx, "nse-1", authorize.NewServer(), sandbox.GenerateTestToken).Register(s)
+		endpoint.NewServer(ctx, sandbox.GenerateTestToken).Register(s)
 		_ = s.Serve(netListener)
 	})
 
