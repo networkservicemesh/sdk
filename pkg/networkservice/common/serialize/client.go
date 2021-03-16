@@ -26,6 +26,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/multiexecutor"
+	"github.com/networkservicemesh/sdk/pkg/tools/serializectx"
 )
 
 type serializeClient struct {
@@ -40,7 +41,7 @@ func NewClient() networkservice.NetworkServiceClient {
 func (c *serializeClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
 	connID := request.GetConnection().GetId()
 	<-c.executor.AsyncExec(connID, func() {
-		requestCtx := WithExecutor(ctx, executorFunc(c.executor.Executor(connID)))
+		requestCtx := serializectx.WithExecutor(ctx, serializectx.NewExecutor(&c.executor, connID))
 		conn, err = next.Client(ctx).Request(requestCtx, request, opts...)
 	})
 	return conn, err
@@ -48,8 +49,7 @@ func (c *serializeClient) Request(ctx context.Context, request *networkservice.N
 
 func (c *serializeClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (_ *empty.Empty, err error) {
 	<-c.executor.AsyncExec(conn.GetId(), func() {
-		requestCtx := WithExecutor(ctx, executorFunc(c.executor.Executor(conn.GetId())))
-		_, err = next.Client(ctx).Close(requestCtx, conn, opts...)
+		_, err = next.Client(ctx).Close(ctx, conn, opts...)
 	})
 	return new(empty.Empty), err
 }

@@ -30,6 +30,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
+// TODO: rework to serialize
 type refreshNSEClient struct {
 	chainContext          context.Context
 	nseCancels            cancelsMap

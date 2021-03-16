@@ -29,6 +29,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
+// TODO: rework with serialize (#749)
 type expireNSEServer struct {
 	ctx           context.Context
 	nseExpiration time.Duration

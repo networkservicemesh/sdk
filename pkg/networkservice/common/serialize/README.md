@@ -6,16 +6,18 @@
 
 ## serializeServer, serializeClient
 
-Serialize chain elements use [multi executor](https://github.com/networkservicemesh/sdk/blob/master/pkg/tools/multiexecutor/multi_executor.go)
-and stores per-id executor in the context.
+Serialize chain elements uses [multi executor](https://github.com/networkservicemesh/sdk/blob/master/pkg/tools/multiexecutor/multi_executor.go)
+and stores per-id executor in the `Request` context.\
+**NOTE:** we don't pass executor to the `Close` context because it is very strange to plan events on already closed
+connection. Please don't do it.
 
 Correct event firing chain element example:
 ```go
 func (s *eventServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	executor := serialize.Executor(ctx)
+	executor := serializectx.Executor(ctx, request.GetConnection().GetId())
 	go func() {
 		executor.AsyncExec(func() {
-			_, _ = next.Server(ctx).Request(serialize.WithExecutor(context.TODO(), executor), request)
+			_, _ = next.Server(ctx).Request(serializectx.WithExecutor(context.TODO(), executor), request)
 		})
 	}()
 
@@ -26,7 +28,8 @@ func (s *eventServer) Request(ctx context.Context, request *networkservice.Netwo
 
 	go func() {
 		executor.AsyncExec(func() {
-			_, _ = next.Server(ctx).Close(serialize.WithExecutor(context.TODO(), executor), conn)
+			// We don't pass executor to the Close context. Please don't do it.
+			_, _ = next.Server(ctx).Close(context.TODO(), conn)
 		})
 	}()
 

@@ -29,6 +29,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
+// TODO: rework with serialize (#749)
 type expireNSServer struct {
 	nseClient  registry.NetworkServiceEndpointRegistryClient
 	monitorErr error
