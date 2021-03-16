@@ -41,7 +41,7 @@ func NewServer() networkservice.NetworkServiceServer {
 func (s *serializeServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (conn *networkservice.Connection, err error) {
 	connID := request.GetConnection().GetId()
 	<-s.executor.AsyncExec(connID, func() {
-		requestCtx := serializectx.WithExecutor(ctx, serializectx.NewExecutor(&s.executor, connID))
+		requestCtx := serializectx.WithMultiExecutor(ctx, &s.executor)
 		conn, err = next.Server(ctx).Request(requestCtx, request)
 	})
 	return conn, err

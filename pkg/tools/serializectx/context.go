@@ -52,7 +52,12 @@ func GetExecutor(ctx context.Context, id string) *Executor {
 		return executor
 	}
 	if multiExecutor, ok := ctx.Value(multiExecutorKey).(*multiexecutor.MultiExecutor); ok {
-		return NewExecutor(multiExecutor, id)
+		return &Executor{
+			id: id,
+			asyncExec: func(f func()) <-chan struct{} {
+				return multiExecutor.AsyncExec(id, f)
+			},
+		}
 	}
 	return nil
 }

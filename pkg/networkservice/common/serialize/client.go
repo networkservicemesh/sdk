@@ -41,7 +41,7 @@ func NewClient() networkservice.NetworkServiceClient {
 func (c *serializeClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
 	connID := request.GetConnection().GetId()
 	<-c.executor.AsyncExec(connID, func() {
-		requestCtx := serializectx.WithExecutor(ctx, serializectx.NewExecutor(&c.executor, connID))
+		requestCtx := serializectx.WithMultiExecutor(ctx, &c.executor)
 		conn, err = next.Client(ctx).Request(requestCtx, request, opts...)
 	})
 	return conn, err

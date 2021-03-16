@@ -38,20 +38,20 @@ func NewNetworkServiceRegistryClient() registry.NetworkServiceRegistryClient {
 	return new(serializeNSClient)
 }
 
-func (s *serializeNSClient) Register(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (reg *registry.NetworkService, err error) {
-	<-s.executor.AsyncExec(ns.Name, func() {
-		registerCtx := serializectx.WithExecutor(ctx, serializectx.NewExecutor(&s.executor, ns.Name))
+func (c *serializeNSClient) Register(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (reg *registry.NetworkService, err error) {
+	<-c.executor.AsyncExec(ns.Name, func() {
+		registerCtx := serializectx.WithMultiExecutor(ctx, &c.executor)
 		reg, err = next.NetworkServiceRegistryClient(ctx).Register(registerCtx, ns, opts...)
 	})
 	return reg, err
 }
 
-func (s *serializeNSClient) Find(ctx context.Context, query *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
+func (c *serializeNSClient) Find(ctx context.Context, query *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
 	return next.NetworkServiceRegistryClient(ctx).Find(ctx, query, opts...)
 }
 
-func (s *serializeNSClient) Unregister(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (_ *empty.Empty, err error) {
-	<-s.executor.AsyncExec(ns.Name, func() {
+func (c *serializeNSClient) Unregister(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (_ *empty.Empty, err error) {
+	<-c.executor.AsyncExec(ns.Name, func() {
 		_, err = next.NetworkServiceRegistryClient(ctx).Unregister(ctx, ns, opts...)
 	})
 	return new(empty.Empty), err

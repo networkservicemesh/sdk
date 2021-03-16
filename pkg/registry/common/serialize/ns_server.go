@@ -39,7 +39,7 @@ func NewNetworkServiceRegistryServer() registry.NetworkServiceRegistryServer {
 
 func (s *serializeNSServer) Register(ctx context.Context, ns *registry.NetworkService) (reg *registry.NetworkService, err error) {
 	<-s.executor.AsyncExec(ns.Name, func() {
-		registerCtx := serializectx.WithExecutor(ctx, serializectx.NewExecutor(&s.executor, ns.Name))
+		registerCtx := serializectx.WithMultiExecutor(ctx, &s.executor)
 		reg, err = next.NetworkServiceRegistryServer(ctx).Register(registerCtx, ns)
 	})
 	return reg, err

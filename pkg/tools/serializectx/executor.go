@@ -16,22 +16,10 @@
 
 package serializectx
 
-import "github.com/networkservicemesh/sdk/pkg/tools/multiexecutor"
-
 // Executor is a wrapper around `serialize.Executor.AsyncExec` + ID
 type Executor struct {
 	id        string
 	asyncExec func(f func()) <-chan struct{}
-}
-
-// NewExecutor creates a new Executor from given multiexecutor.MultiExecutor and ID
-func NewExecutor(multiExecutor *multiexecutor.MultiExecutor, id string) *Executor {
-	return &Executor{
-		id: id,
-		asyncExec: func(f func()) <-chan struct{} {
-			return multiExecutor.AsyncExec(id, f)
-		},
-	}
 }
 
 // AsyncExec is a `serialize.Executor.AsyncExec`
