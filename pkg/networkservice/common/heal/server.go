@@ -51,6 +51,7 @@ type clientConnInfo struct {
 
 type connection struct {
 	*networkservice.Connection
+	ctx context.Context
 }
 
 type healServer struct {
@@ -104,12 +105,17 @@ func (f *healServer) Request(ctx context.Context, request *networkservice.Networ
 		return conn, nil
 	}
 
+	ctx = f.applyStoredCandidates(ctx, conn)
+
 	err = f.startHeal(ctx, request.Clone().SetRequestConnection(conn.Clone()))
 	if err != nil {
 		return nil, err
 	}
 
-	f.conns.Store(conn.GetId(), connection{conn.Clone()})
+	f.conns.Store(conn.GetId(), connection{
+		Connection: conn.Clone(),
+		ctx:        ctx,
+	})
 
 	return conn, nil
 }
@@ -416,4 +422,17 @@ func (f *healServer) replaceConnectionPath(conn *networkservice.Connection) {
 			path.PathSegments = append(path.PathSegments, storedConn.Path.PathSegments[path.Index+1:]...)
 		}
 	}
+}
+
+func (f *healServer) applyStoredCandidates(ctx context.Context, conn *networkservice.Connection) context.Context {
+	if candidates := discover.Candidates(ctx); candidates != nil && len(candidates.Endpoints) > 0 {
+		return ctx
+	}
+
+	if info, ok := f.conns.Load(conn.Id); ok {
+		if candidates := discover.Candidates(info.ctx); candidates != nil {
+			ctx = discover.WithCandidates(ctx, candidates.Endpoints, candidates.NetworkService)
+		}
+	}
+	return ctx
 }
