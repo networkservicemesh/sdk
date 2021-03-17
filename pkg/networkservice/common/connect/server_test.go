@@ -18,6 +18,7 @@ package connect_test
 
 import (
 	"context"
+	"net"
 	"net/url"
 	"strconv"
 	"sync"
@@ -466,6 +467,49 @@ func TestConnectServer_RemoteRestarted(t *testing.T) {
 
 	_, err = s.Close(ctx, conn)
 	require.NoError(t, err)
+}
+
+func TestConnectServer_DialTimeout(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	// 1. Create connectServer
+
+	s := connect.NewServer(context.Background(),
+		func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+			return networkservice.NewNetworkServiceClient(cc)
+		},
+		connect.WithDialTimeout(100*time.Millisecond),
+		connect.WithDialOptions(grpc.WithInsecure()),
+	)
+
+	// 2. Setup fake A
+
+	listener, err := net.Listen("tcp", "127.0.0.1:")
+	require.NoError(t, err)
+	defer func() { _ = listener.Close() }()
+
+	urlA, err := url.Parse("tcp://" + listener.Addr().String())
+	require.NoError(t, err)
+
+	// 3. Create request
+
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: "id",
+		},
+	}
+
+	// 3. Request A
+
+	timer := time.AfterFunc(time.Second/2, t.FailNow)
+
+	requestCtx, requestCancel := context.WithTimeout(context.Background(), time.Second)
+	defer requestCancel()
+
+	_, err = s.Request(clienturlctx.WithClientURL(requestCtx, urlA), request.Clone())
+	require.Error(t, err)
+
+	timer.Stop()
 }
 
 type editServer struct {

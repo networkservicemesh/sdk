@@ -32,7 +32,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
@@ -171,9 +170,13 @@ func (s *connectServer) client(ctx context.Context, conn *networkservice.Connect
 
 func (s *connectServer) newClient(clientURL *url.URL) *clientInfo {
 	ctx, cancel := context.WithCancel(s.ctx)
-	c := clienturl.NewClient(clienturlctx.WithClientURL(ctx, clientURL), s.clientDialTimeout, s.clientFactory, s.clientDialOptions...)
 	return &clientInfo{
-		client:  c,
+		client: &connectClient{
+			ctx:           clienturlctx.WithClientURL(ctx, clientURL),
+			dialTimeout:   s.clientDialTimeout,
+			clientFactory: s.clientFactory,
+			dialOptions:   s.clientDialOptions,
+		},
 		count:   0,
 		onClose: cancel,
 	}
