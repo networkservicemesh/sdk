@@ -24,13 +24,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
@@ -52,9 +53,7 @@ func TestNSMGR_HealEndpoint(t *testing.T) {
 		Build()
 	defer domain.Cleanup()
 
-	expireTime, err := ptypes.TimestampProto(time.Now().Add(time.Second))
-	require.NoError(t, err)
-
+	expireTime := timestamppb.New(time.Now().Add(time.Second))
 	nseReg := &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint",
 		NetworkServiceNames: []string{"my-service-remote"},
@@ -65,7 +64,7 @@ func TestNSMGR_HealEndpoint(t *testing.T) {
 	nseCtx, nseCtxCancel := context.WithTimeout(context.Background(), time.Second)
 	defer nseCtxCancel()
 
-	_, err = domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.GenerateExpiringToken(time.Second), counter)
+	_, err := domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.GenerateExpiringToken(time.Second), counter)
 	require.NoError(t, err)
 
 	request := &networkservice.NetworkServiceRequest{
