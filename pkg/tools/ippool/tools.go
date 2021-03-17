@@ -29,12 +29,6 @@ func ipRangeFromIPNet(ipNet *net.IPNet) *ipRange {
 }
 
 func ipAddressFromIP(ip net.IP) *ipAddress {
-	if len(ip) == net.IPv4len {
-		return &ipAddress{
-			high: 0,
-			low:  uint64(binary.BigEndian.Uint32(ip)),
-		}
-	}
 	return &ipAddress{
 		high: binary.BigEndian.Uint64(ip.To16()[:8]),
 		low:  binary.BigEndian.Uint64(ip.To16()[8:]),
@@ -42,12 +36,11 @@ func ipAddressFromIP(ip net.IP) *ipAddress {
 }
 
 func ipFromIPAddress(addr *ipAddress, size int) net.IP {
-	ip := make(net.IP, size)
+	ip := make(net.IP, net.IPv6len)
+	binary.BigEndian.PutUint64(ip, addr.high)
+	binary.BigEndian.PutUint64(ip[8:], addr.low)
 	if size == net.IPv4len {
-		binary.BigEndian.PutUint32(ip, uint32(addr.low))
-	} else {
-		binary.BigEndian.PutUint64(ip, addr.high)
-		binary.BigEndian.PutUint64(ip[8:], addr.low)
+		return ip.To4()
 	}
 	return ip
 }

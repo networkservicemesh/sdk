@@ -137,6 +137,21 @@ func (b *ipRange) Unite(ipR *ipRange) *ipRange {
 	return r
 }
 
+// Intersect - creates a combine range including IP addresses from both source ranges at the same time
+func (b *ipRange) Intersect(ipR *ipRange) *ipRange {
+	if b.CompareRange(ipR) != 0 {
+		return nil
+	}
+	r := b.Clone()
+	if r.Compare(ipR.start) > 0 {
+		r.start = ipR.start.Clone()
+	}
+	if r.Compare(ipR.end) < 0 {
+		r.end = ipR.end.Clone()
+	}
+	return r
+}
+
 // Sub - creates two ranges including all addresses from this range and excluding ipR
 func (b *ipRange) Sub(ipR *ipRange) (leftR, rightR *ipRange) {
 	if b.CompareRange(ipR) != 0 {
