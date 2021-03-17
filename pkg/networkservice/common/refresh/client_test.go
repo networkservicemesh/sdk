@@ -131,6 +131,8 @@ type stressTestConfig struct {
 }
 
 func TestRefreshClient_Stress(t *testing.T) {
+	t.Skip("https://github.com/networkservicemesh/sdk/issues/774")
+
 	table := []stressTestConfig{
 		{
 			name:          "RaceConditions",
