@@ -150,16 +150,12 @@ func (tree *IPPool) Contains(ip net.IP) bool {
 
 // ContainsString - check the pool contains ip by string value
 func (tree *IPPool) ContainsString(in string) bool {
-	ip := net.ParseIP(in)
-	if tree.ipLength == net.IPv4len {
-		ip = ip.To4()
-	}
-	return tree.Contains(ip)
+	return tree.Contains(net.ParseIP(in))
 }
 
 // Exclude - exclude network from pool
 func (tree *IPPool) Exclude(ipNet *net.IPNet) {
-	if ipNet == nil || tree.ipLength != len(ipNet.IP) {
+	if ipNet == nil {
 		return
 	}
 
@@ -235,7 +231,7 @@ func (tree *IPPool) PullP2PAddrs(exclude ...*IPPool) (srcNet, dstNet *net.IPNet,
 }
 
 func (tree *IPPool) excludePool(exclude *IPPool) {
-	if exclude == nil || tree.ipLength != exclude.ipLength {
+	if exclude == nil {
 		return
 	}
 

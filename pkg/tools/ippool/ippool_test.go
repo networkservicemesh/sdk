@@ -66,6 +66,7 @@ func TestIPPoolTool_Contains(t *testing.T) {
 	ipPool := NewWithNetString("192.168.0.0/16")
 
 	require.True(t, ipPool.ContainsString("192.168.0.1"))
+	require.True(t, ipPool.ContainsString("::ffff:192.168.0.1"))
 	require.False(t, ipPool.ContainsString("192.167.0.1"))
 }
 
@@ -89,6 +90,11 @@ func TestIPPoolTool_Exclude(t *testing.T) {
 	require.NoError(t, err)
 	ipPool.Exclude(ipNet)
 	require.Equal(t, ipPool.size, uint64(1))
+
+	_, ipNet, err = net.ParseCIDR("::ffff:192.2.0.0/112")
+	require.NoError(t, err)
+	ipPool.Exclude(ipNet)
+	require.Equal(t, ipPool.size, uint64(2))
 }
 
 //nolint:dupl
@@ -116,11 +122,17 @@ func TestIPPoolTool_Pull(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, ip.String(), "192.0.1.1")
 
+	ipPool.ExcludeString("::ffff:192.0.1.0/120")
+	ip, err = ipPool.Pull()
+	require.NoError(t, err)
+	require.Equal(t, ip.String(), "192.0.2.0")
+
 	ipPool.ExcludeString("192.0.0.0/8")
 	_, err = ipPool.Pull()
 	require.Error(t, err)
 }
 
+//nolint:dupl
 func TestIPPoolTool_PullP2PAddrs(t *testing.T) {
 	ipPool := NewWithNetString("192.0.0.0/8")
 	require.NotNil(t, ipPool)
@@ -140,6 +152,13 @@ func TestIPPoolTool_PullP2PAddrs(t *testing.T) {
 	srcIP, err := ipPool.Pull()
 	require.NoError(t, err)
 	require.Equal(t, srcIP.String(), "192.0.0.4")
+
+	excludedPool = NewWithNetString("::ffff:192.0.0.0/120")
+	excluded2Pool = NewWithNetString("192.0.1.1/32")
+	srcIPNet, dstIPNet, err = ipPool.PullP2PAddrs(excludedPool, excluded2Pool)
+	require.NoError(t, err)
+	require.Equal(t, srcIPNet.String(), "192.0.1.0/32")
+	require.Equal(t, dstIPNet.String(), "192.0.1.2/32")
 }
 
 func TestIPPoolTool_IPv6Add(t *testing.T) {
@@ -223,6 +242,28 @@ func TestIPPoolTool_IPv6Pull(t *testing.T) {
 	ipPool.ExcludeString("::/32")
 	_, err = ipPool.Pull()
 	require.Error(t, err)
+}
+
+//nolint:dupl
+func TestIPPoolTool_IPv6PullP2PAddrs(t *testing.T) {
+	ipPool := NewWithNetString("::/32")
+	require.NotNil(t, ipPool)
+
+	excludedPool := NewWithNetString("::/128")
+	excluded2Pool := NewWithNetString("::2/128")
+	srcIPNet, dstIPNet, err := ipPool.PullP2PAddrs(excludedPool, excluded2Pool)
+	require.NoError(t, err)
+	require.Equal(t, srcIPNet.String(), "::1/128")
+	require.Equal(t, dstIPNet.String(), "::3/128")
+
+	srcIPNet, dstIPNet, err = ipPool.PullP2PAddrs()
+	require.NoError(t, err)
+	require.Equal(t, srcIPNet.String(), "::/128")
+	require.Equal(t, dstIPNet.String(), "::2/128")
+
+	srcIP, err := ipPool.Pull()
+	require.NoError(t, err)
+	require.Equal(t, srcIP.String(), "::4")
 }
 
 func BenchmarkIPPool(b *testing.B) {
