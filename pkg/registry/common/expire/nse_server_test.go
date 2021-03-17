@@ -269,8 +269,7 @@ func TestExpireNSEServer_RefreshKeepsNoUnregister(t *testing.T) {
 	require.NoError(t, err)
 
 	for i := 0; i < 3; i++ {
-		println(i)
-		clockMock.Add(expireTimeout / 2 - 1)
+		clockMock.Add(expireTimeout/2 - time.Millisecond)
 		require.Never(t, func() bool {
 			return atomic.LoadInt32(&unregisterServer.unregisterCount) > 0
 		}, testWait, testTick)

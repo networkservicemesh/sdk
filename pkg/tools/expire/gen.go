@@ -18,7 +18,6 @@ package expire
 
 import "sync"
 
-//go:generate go-syncmap -output timer_map.gen.go -type TimerMap<string,*Timer>
+//go:generate go-syncmap -output timer_map.gen.go -type timerMap<string,*timer>
 
-// TimerMap is a typed sync.Map with string key type and *Timer value type
-type TimerMap sync.Map
+type timerMap sync.Map
