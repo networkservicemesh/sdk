@@ -19,6 +19,7 @@ package ippool
 
 import (
 	"errors"
+	"math"
 	"net"
 	"sync"
 )
@@ -44,6 +45,10 @@ type treeNode struct {
 	Left   *treeNode
 	Right  *treeNode
 	Parent *treeNode
+}
+
+type iterator struct {
+	node *treeNode
 }
 
 // New instantiates a ip pool as red-black tree with the specified ip length.
@@ -228,6 +233,26 @@ func (tree *IPPool) PullP2PAddrs(exclude ...*IPPool) (srcNet, dstNet *net.IPNet,
 	}
 
 	return srcNet, dstNet, nil
+}
+
+// GetPrefixes returns the list of saved prefixes
+func (tree *IPPool) GetPrefixes() (prefixes []string) {
+	tree.lock.Lock()
+	clone := tree.clone()
+	tree.lock.Unlock()
+
+	it := iterator{
+		node: clone.root,
+	}
+	for it.node.Left != nil {
+		it.node = it.node.Left
+	}
+
+	for node := it.Next(); node != nil; node = it.Next() {
+		prefixes = append(prefixes, node.getPrefixes(tree.ipLength)...)
+	}
+
+	return
 }
 
 func (tree *IPPool) excludePool(exclude *IPPool) {
@@ -553,6 +578,102 @@ func (node *treeNode) maximumNode() *treeNode {
 	return node
 }
 
+func (node *treeNode) getPrefixes(ipLength int) (result []string) {
+	start := node.Value.start.Clone()
+	end := node.Value.end.Clone()
+
+	// if interval has a few available prefixes on /64 and higher
+	if start.high != end.high {
+		// get available prefixes from the first /64 network
+		if start.low != 0 {
+			for start.low != 0 {
+				z := trailingZeros(start.low)
+
+				ipNet := &net.IPNet{
+					IP:   ipFromIPAddress(start, ipLength),
+					Mask: net.CIDRMask(ipLength*8-z, ipLength*8),
+				}
+				result = append(result, ipNet.String())
+				start.low += uint64(1) << z
+			}
+
+			start.low = 0
+			start.high++
+		}
+
+		// exclude the last /64 network if it is not full
+		if end.low != math.MaxUint64 {
+			end.high--
+		}
+
+		// get available prefixes bigger than /64
+		for start.high <= end.high {
+			z := trailingZeros(start.high)
+
+			if z == 64 {
+				if end.high == math.MaxUint64 {
+					ipNet := &net.IPNet{
+						IP:   ipFromIPAddress(start, ipLength),
+						Mask: net.CIDRMask(0, ipLength*8),
+					}
+					result = append(result, ipNet.String())
+					return
+				}
+				z--
+			}
+
+			for z > 0 && end.high-start.high+1 < uint64(1)<<z {
+				z--
+			}
+
+			ipNet := &net.IPNet{
+				IP:   ipFromIPAddress(start, ipLength),
+				Mask: net.CIDRMask(ipLength*8-z-64, ipLength*8),
+			}
+			result = append(result, ipNet.String())
+			start.high += uint64(1) << z
+		}
+
+		if end.low == math.MaxUint64 {
+			return result
+		}
+
+		end.high++
+		start.high = end.high
+		start.low = 0
+	}
+
+	// get available prefixes from the last /64 network
+	for start.low <= end.low {
+		z := trailingZeros(start.low)
+
+		if z == 64 {
+			if end.low == math.MaxUint64 {
+				ipNet := &net.IPNet{
+					IP:   ipFromIPAddress(start, ipLength),
+					Mask: net.CIDRMask(ipLength*8-64, ipLength*8),
+				}
+				result = append(result, ipNet.String())
+				return
+			}
+			z--
+		}
+
+		for z > 0 && end.low-start.low+1 < uint64(1)<<z {
+			z--
+		}
+
+		ipNet := &net.IPNet{
+			IP:   ipFromIPAddress(start, ipLength),
+			Mask: net.CIDRMask(ipLength*8-z, ipLength*8),
+		}
+		result = append(result, ipNet.String())
+		start.low += uint64(1) << z
+	}
+
+	return result
+}
+
 func (tree *IPPool) deleteCase1(node *treeNode) {
 	if node.Parent == nil {
 		return
@@ -638,4 +759,39 @@ func nodeColor(node *treeNode) color {
 		return black
 	}
 	return node.color
+}
+
+func (it *iterator) Next() *treeNode {
+	if it.node == nil {
+		return nil
+	}
+
+	result := it.node
+
+	if it.node.Right == nil {
+		for it.node.Parent != nil && it.node.Parent.Right == it.node {
+			it.node = it.node.Parent
+		}
+		it.node = it.node.Parent
+		return result
+	}
+
+	it.node = it.node.Right
+	for it.node.Left != nil {
+		it.node = it.node.Left
+	}
+
+	return result
+}
+
+func trailingZeros(num uint64) int {
+	if num == 0 {
+		return 64
+	}
+	power := 1
+	for num != 0 && num%2 == 0 {
+		num /= 2
+		power++
+	}
+	return power - 1
 }

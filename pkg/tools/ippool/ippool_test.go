@@ -133,6 +133,34 @@ func TestIPPoolTool_Pull(t *testing.T) {
 }
 
 //nolint:dupl
+func TestIPPoolTool_GetPrefixes(t *testing.T) {
+	ipPool := NewWithNetString("192.0.0.0/16")
+	require.NotNil(t, ipPool)
+
+	prefixes := ipPool.GetPrefixes()
+	require.Equal(t, len(prefixes), 1)
+	require.Equal(t, prefixes[0], "192.0.0.0/16")
+
+	ipPool.AddNetString("192.1.0.0/16")
+	prefixes = ipPool.GetPrefixes()
+	require.Equal(t, len(prefixes), 1)
+	require.Equal(t, prefixes[0], "192.0.0.0/15")
+
+	ipPool.AddNetString("192.2.0.0/31")
+	prefixes = ipPool.GetPrefixes()
+	require.Equal(t, len(prefixes), 2)
+	require.Equal(t, prefixes[0], "192.0.0.0/15")
+	require.Equal(t, prefixes[1], "192.2.0.0/31")
+
+	ipPool.AddString("192.15.0.0")
+	prefixes = ipPool.GetPrefixes()
+	require.Equal(t, len(prefixes), 3)
+	require.Equal(t, prefixes[0], "192.0.0.0/15")
+	require.Equal(t, prefixes[1], "192.2.0.0/31")
+	require.Equal(t, prefixes[2], "192.15.0.0/32")
+}
+
+//nolint:dupl
 func TestIPPoolTool_PullP2PAddrs(t *testing.T) {
 	ipPool := NewWithNetString("192.0.0.0/8")
 	require.NotNil(t, ipPool)
@@ -264,6 +292,70 @@ func TestIPPoolTool_IPv6PullP2PAddrs(t *testing.T) {
 	srcIP, err := ipPool.Pull()
 	require.NoError(t, err)
 	require.Equal(t, srcIP.String(), "::4")
+}
+
+//nolint:dupl
+func TestIPPoolTool_IPv6GetPrefixes(t *testing.T) {
+	ipPool := NewWithNetString("fe80::/112")
+	require.NotNil(t, ipPool)
+
+	prefixes := ipPool.GetPrefixes()
+	require.Equal(t, len(prefixes), 1)
+	require.Equal(t, prefixes[0], "fe80::/112")
+
+	ipPool.AddNetString("fe80::1:0/112")
+	prefixes = ipPool.GetPrefixes()
+	require.Equal(t, len(prefixes), 1)
+	require.Equal(t, prefixes[0], "fe80::/111")
+
+	ipPool.AddNetString("fe80::3:0/112")
+	prefixes = ipPool.GetPrefixes()
+	require.Equal(t, len(prefixes), 2)
+	require.Equal(t, prefixes[0], "fe80::/111")
+	require.Equal(t, prefixes[1], "fe80::3:0/112")
+
+	ipPool.AddString("fe80::15:0")
+	prefixes = ipPool.GetPrefixes()
+	require.Equal(t, len(prefixes), 3)
+	require.Equal(t, prefixes[0], "fe80::/111")
+	require.Equal(t, prefixes[1], "fe80::3:0/112")
+	require.Equal(t, prefixes[2], "fe80::15:0/128")
+
+	ipPool.AddNetString("fe80::/64")
+	prefixes = ipPool.GetPrefixes()
+	require.Equal(t, len(prefixes), 1)
+	require.Equal(t, prefixes[0], "fe80::/64")
+
+	ipPool.AddNetString("fe80:0:0:1::/64")
+	prefixes = ipPool.GetPrefixes()
+	require.Equal(t, len(prefixes), 1)
+	require.Equal(t, prefixes[0], "fe80::/63")
+
+	ipPool.AddNetString("fe80:0:0:2::/112")
+	prefixes = ipPool.GetPrefixes()
+	require.Equal(t, len(prefixes), 2)
+	require.Equal(t, prefixes[0], "fe80::/63")
+	require.Equal(t, prefixes[1], "fe80:0:0:2::/112")
+
+	ipPool.AddNetString("fe7f:ffff:ffff:ffff:ffff:ffff:ffff:0/112")
+	prefixes = ipPool.GetPrefixes()
+	require.Equal(t, len(prefixes), 3)
+	require.Equal(t, prefixes[0], "fe7f:ffff:ffff:ffff:ffff:ffff:ffff:0/112")
+	require.Equal(t, prefixes[1], "fe80::/63")
+	require.Equal(t, prefixes[2], "fe80:0:0:2::/112")
+	ipPool.ExcludeString("fe7f:ffff:ffff:ffff:ffff:ffff:ffff:0/112")
+
+	ipPool.AddString("fe80:0:0:15::")
+	prefixes = ipPool.GetPrefixes()
+	require.Equal(t, len(prefixes), 3)
+	require.Equal(t, prefixes[0], "fe80::/63")
+	require.Equal(t, prefixes[1], "fe80:0:0:2::/112")
+	require.Equal(t, prefixes[2], "fe80:0:0:15::/128")
+
+	ipPool.AddNetString("::/0")
+	prefixes = ipPool.GetPrefixes()
+	require.Equal(t, len(prefixes), 1)
+	require.Equal(t, prefixes[0], "::/0")
 }
 
 func BenchmarkIPPool(b *testing.B) {

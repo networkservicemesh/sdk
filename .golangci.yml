@@ -266,3 +266,6 @@ issues:
       linters:
         - dupl
       text: "lines are duplicate of"
+    - path: pkg/tools/ippool/ippool.go
+      linters:
+        - gocyclo
