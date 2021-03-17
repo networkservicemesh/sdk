@@ -225,7 +225,8 @@ func TestExpireNSEServer_RefreshFailure(t *testing.T) {
 	ctx = clock.WithClock(ctx, clockMock)
 
 	c := next.NewNetworkServiceEndpointRegistryClient(
-		refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithChainContext(ctx)),
+		serialize.NewNetworkServiceEndpointRegistryClient(),
+		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
 		adapters.NetworkServiceEndpointServerToClient(next.NewNetworkServiceEndpointRegistryServer(
 			new(remoteNSEServer), // <-- GRPC invocation
 			serialize.NewNetworkServiceEndpointRegistryServer(),
@@ -262,7 +263,8 @@ func TestExpireNSEServer_RefreshKeepsNoUnregister(t *testing.T) {
 	unregisterServer := new(unregisterNSEServer)
 
 	c := next.NewNetworkServiceEndpointRegistryClient(
-		refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithChainContext(ctx)),
+		serialize.NewNetworkServiceEndpointRegistryClient(),
+		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
 		adapters.NetworkServiceEndpointServerToClient(next.NewNetworkServiceEndpointRegistryServer(
 			// NSMgr chain
 			new(remoteNSEServer), // <-- GRPC invocation

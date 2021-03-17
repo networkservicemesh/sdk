@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
@@ -32,7 +31,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checknse"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
@@ -40,14 +39,15 @@ import (
 )
 
 const (
-	expireTimeout = time.Minute
+	expireTimeout = 3 * time.Minute
 	testWait      = 100 * time.Millisecond
 	testTick      = testWait / 100
 )
 
-func testNSE() *registry.NetworkServiceEndpoint {
+func testNSE(clockTime clock.Clock) *registry.NetworkServiceEndpoint {
 	return &registry.NetworkServiceEndpoint{
-		Name: "nse-1",
+		Name:           "nse-1",
+		ExpirationTime: timestamppb.New(clockTime.Now().Add(expireTimeout)),
 	}
 }
 
@@ -62,42 +62,21 @@ func TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {
 
 	countClient := new(requestCountClient)
 	client := next.NewNetworkServiceEndpointRegistryClient(
-		refresh.NewNetworkServiceEndpointRegistryClient(
-			refresh.WithChainContext(ctx),
-			refresh.WithDefaultExpiryDuration(expireTimeout)),
+		serialize.NewNetworkServiceEndpointRegistryClient(),
+		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
 		countClient,
 	)
 
-	_, err := client.Register(ctx, testNSE())
+	reg, err := client.Register(ctx, testNSE(clockMock))
 	require.NoError(t, err)
-
-	// Wait for the Refresh goroutine to start
-	time.Sleep(testTick)
 
 	clockMock.Add(expireTimeout)
 	require.Eventually(t, func() bool {
 		return atomic.LoadInt32(&countClient.requestCount) > 1
 	}, testWait, testTick)
 
-	_, err = client.Unregister(ctx, testNSE())
+	_, err = client.Unregister(ctx, reg)
 	require.NoError(t, err)
-}
-
-func TestRefreshNSEClient_ShouldSetExpirationTime_BeforeCallNext(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-
-	client := next.NewNetworkServiceEndpointRegistryClient(
-		refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithDefaultExpiryDuration(time.Hour)),
-		checknse.NewClient(t, func(t *testing.T, nse *registry.NetworkServiceEndpoint) {
-			require.NotNil(t, nse.ExpirationTime)
-		}),
-	)
-
-	reg, err := client.Register(context.Background(), testNSE())
-	require.NoError(t, err)
-
-	_, err = client.Unregister(context.Background(), reg)
-	require.Nil(t, err)
 }
 
 func Test_RefreshNSEClient_CalledRegisterTwice(t *testing.T) {
@@ -111,79 +90,21 @@ func Test_RefreshNSEClient_CalledRegisterTwice(t *testing.T) {
 
 	countClient := new(requestCountClient)
 	client := next.NewNetworkServiceEndpointRegistryClient(
-		refresh.NewNetworkServiceEndpointRegistryClient(
-			refresh.WithChainContext(ctx),
-			refresh.WithDefaultExpiryDuration(expireTimeout)),
+		serialize.NewNetworkServiceEndpointRegistryClient(),
+		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
 		countClient,
 	)
 
-	_, err := client.Register(ctx, testNSE())
+	reg, err := client.Register(context.Background(), testNSE(clockMock))
 	require.NoError(t, err)
 
-	reg, err := client.Register(ctx, testNSE())
+	reg, err = client.Register(context.Background(), reg)
 	require.NoError(t, err)
-
-	// Wait for the Refresh goroutine to start
-	time.Sleep(testTick)
 
 	clockMock.Add(expireTimeout)
 	require.Eventually(t, func() bool {
 		return atomic.LoadInt32(&countClient.requestCount) > 2
 	}, testWait, testTick)
-
-	_, err = client.Unregister(ctx, reg)
-	require.NoError(t, err)
-}
-
-func Test_RefreshNSEClient_ShouldOverrideNameAndDuration(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	clockMock := clockmock.New(ctx)
-	ctx = clock.WithClock(ctx, clockMock)
-
-	endpoint := &registry.NetworkServiceEndpoint{
-		Name: "nse-1",
-		Url:  "url",
-	}
-
-	countClient := new(requestCountClient)
-	registryServer := &nseRegistryServer{
-		name:           uuid.New().String(),
-		expiryDuration: expireTimeout,
-	}
-	client := next.NewNetworkServiceEndpointRegistryClient(
-		refresh.NewNetworkServiceEndpointRegistryClient(
-			refresh.WithChainContext(ctx),
-			refresh.WithDefaultExpiryDuration(10*expireTimeout)),
-		checknse.NewClient(t, func(t *testing.T, nse *registry.NetworkServiceEndpoint) {
-			if atomic.LoadInt32(&countClient.requestCount) > 0 {
-				require.Equal(t, registryServer.name, nse.Name)
-				require.Equal(t, endpoint.Url, nse.Url)
-			}
-		}),
-		countClient,
-		adapters.NetworkServiceEndpointServerToClient(registryServer),
-	)
-
-	reg, err := client.Register(ctx, endpoint.Clone())
-	require.NoError(t, err)
-
-	// Wait for the Refresh goroutine to start
-	time.Sleep(testTick)
-
-	for i := 1; i <= 3; i++ {
-		count := int32(i)
-
-		clockMock.Add(expireTimeout)
-		require.Eventually(t, func() bool {
-			return atomic.LoadInt32(&countClient.requestCount) > count
-		}, testWait, testTick)
-	}
-
-	reg.Url = endpoint.Url
 
 	_, err = client.Unregister(ctx, reg)
 	require.NoError(t, err)
@@ -200,35 +121,33 @@ func Test_RefreshNSEClient_SetsCorrectExpireTime(t *testing.T) {
 
 	countClient := new(requestCountClient)
 	client := next.NewNetworkServiceEndpointRegistryClient(
-		refresh.NewNetworkServiceEndpointRegistryClient(
-			refresh.WithChainContext(ctx),
-			refresh.WithDefaultExpiryDuration(expireTimeout)),
+		serialize.NewNetworkServiceEndpointRegistryClient(),
+		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
 		checknse.NewClient(t, func(t *testing.T, nse *registry.NetworkServiceEndpoint) {
 			require.Equal(t, expireTimeout, clockMock.Until(nse.ExpirationTime.AsTime().Local()))
-			nse.ExpirationTime = timestamppb.New(clockMock.Now().Add(10 * expireTimeout))
 		}),
 		countClient,
 	)
 
-	reg, err := client.Register(ctx, testNSE())
+	reg, err := client.Register(ctx, testNSE(clockMock))
 	require.NoError(t, err)
-
-	// Wait for the Refresh goroutine to start
-	time.Sleep(testTick)
 
 	for i := 1; i <= 3; i++ {
 		count := int32(i)
 
-		clockMock.Add(10 * expireTimeout)
+		clockMock.Add(expireTimeout / 3 * 2)
 		require.Eventually(t, func() bool {
 			return atomic.LoadInt32(&countClient.requestCount) > count
 		}, testWait, testTick)
+
+		// Wait for the Refresh to fully happen
+		time.Sleep(testWait)
 	}
 
 	reg.ExpirationTime = timestamppb.New(clockMock.Now().Add(expireTimeout))
 
 	_, err = client.Unregister(ctx, reg)
-	require.Nil(t, err)
+	require.NoError(t, err)
 }
 
 type requestCountClient struct {
@@ -245,24 +164,4 @@ func (t *requestCountClient) Register(ctx context.Context, nse *registry.Network
 
 func (t *requestCountClient) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
 	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, nse, opts...)
-}
-
-type nseRegistryServer struct {
-	expiryDuration time.Duration
-	name           string
-
-	registry.NetworkServiceEndpointRegistryServer
-}
-
-func (s *nseRegistryServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	nse = nse.Clone()
-	nse.Name = s.name
-	nse.Url = uuid.New().String()
-	nse.ExpirationTime = timestamppb.New(clock.FromContext(ctx).Now().Add(s.expiryDuration))
-
-	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
-}
-
-func (s *nseRegistryServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }
