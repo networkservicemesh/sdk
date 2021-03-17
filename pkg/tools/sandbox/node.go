@@ -118,7 +118,7 @@ func (n *Node) newEndpoint(
 	nse.Url = u.String()
 
 	// 3. Register with the node registry client
-	err = n.RegisterEndpoint(ctx, nse, registryClient)
+	err = n.registerEndpoint(ctx, nse, registryClient)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +129,11 @@ func (n *Node) newEndpoint(
 }
 
 // RegisterEndpoint - registers endpoint in the registry client
-func (n *Node) RegisterEndpoint(ctx context.Context, nse *registryapi.NetworkServiceEndpoint, registryClient registryapi.NetworkServiceEndpointRegistryClient) error {
+func (n *Node) RegisterEndpoint(ctx context.Context, nse *registryapi.NetworkServiceEndpoint) error {
+	return n.registerEndpoint(ctx, nse, n.EndpointRegistryClient)
+}
+
+func (n *Node) registerEndpoint(ctx context.Context, nse *registryapi.NetworkServiceEndpoint, registryClient registryapi.NetworkServiceEndpointRegistryClient) error {
 	var err error
 	for _, nsName := range nse.NetworkServiceNames {
 		if _, err = n.NSRegistryClient.Register(ctx, &registryapi.NetworkService{

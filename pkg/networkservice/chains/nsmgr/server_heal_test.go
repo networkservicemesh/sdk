@@ -273,7 +273,7 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, customConfig []*sandbox.NodeC
 	require.NoError(t, err)
 
 	nseReg.Url = nse.URL.String()
-	err = domain.Nodes[nodeNum].RegisterEndpoint(ctx, nseReg, domain.Nodes[nodeNum].EndpointRegistryClient)
+	err = domain.Nodes[nodeNum].RegisterEndpoint(ctx, nseReg)
 	require.NoError(t, err)
 
 	// Wait Cross NSE expired and reconnecting through the new Cross NSE
