@@ -28,9 +28,9 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/serializectx"
 )
 
 type timeoutServer struct {
@@ -79,12 +79,15 @@ func (s *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 }
 
 func (s *timeoutServer) validateRequest(ctx context.Context, request *networkservice.NetworkServiceRequest) error {
-	if request.GetConnection().GetPrevPathSegment().GetExpires() == nil {
+	conn := request.GetConnection()
+
+	if conn.GetPrevPathSegment().GetExpires() == nil {
 		return errors.Errorf("expiration for prev path segment cannot be nil. conn: %+v", request.GetConnection())
 	}
-	if serialize.GetExecutor(ctx) == nil {
+	if serializectx.GetExecutor(ctx, conn.GetId()) == nil {
 		return errors.New("no executor provided")
 	}
+
 	return nil
 }
 
@@ -95,7 +98,7 @@ func (s *timeoutServer) newTimer(ctx context.Context, expirationTime time.Time, 
 	*tPtr = &closeTimer{
 		expirationTime: expirationTime,
 		timer: time.AfterFunc(time.Until(expirationTime), func() {
-			<-serialize.GetExecutor(ctx).AsyncExec(func() {
+			<-serializectx.GetExecutor(ctx, conn.GetId()).AsyncExec(func() {
 				if t, ok := s.timers.LoadAndDelete(conn.GetId()); !ok || t != *tPtr {
 					// this timer has been stopped
 					return

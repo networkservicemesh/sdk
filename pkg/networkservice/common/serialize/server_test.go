@@ -32,6 +32,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/serializectx"
 )
 
 const (
@@ -63,8 +64,10 @@ func TestSerializeServer_StressTest(t *testing.T) {
 	for i := 0; i < parallelCount; i++ {
 		go func(id string) {
 			defer wg.Done()
+
 			conn, err := server.Request(ctx, testRequest(id))
 			assert.NoError(t, err)
+
 			_, err = server.Close(ctx, conn)
 			assert.NoError(t, err)
 		}(fmt.Sprint(i % 20))
@@ -75,10 +78,10 @@ func TestSerializeServer_StressTest(t *testing.T) {
 type eventServer struct{}
 
 func (s *eventServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	executor := serialize.GetExecutor(ctx)
+	executor := serializectx.GetExecutor(ctx, request.GetConnection().GetId())
 	go func() {
 		executor.AsyncExec(func() {
-			_, _ = next.Server(ctx).Request(serialize.WithExecutor(context.TODO(), executor), request)
+			_, _ = next.Server(ctx).Request(serializectx.WithExecutor(context.TODO(), executor), request)
 		})
 	}()
 
@@ -89,7 +92,7 @@ func (s *eventServer) Request(ctx context.Context, request *networkservice.Netwo
 
 	go func() {
 		executor.AsyncExec(func() {
-			_, _ = next.Server(ctx).Close(serialize.WithExecutor(context.TODO(), executor), conn)
+			_, _ = next.Server(ctx).Close(context.TODO(), conn)
 		})
 	}()
 
@@ -117,6 +120,7 @@ func (s *parallelServer) Request(ctx context.Context, request *networkservice.Ne
 
 	state := atomic.LoadInt32(statePtr)
 	assert.True(s.t, atomic.CompareAndSwapInt32(statePtr, state, state+1), "state has been changed")
+
 	return next.Server(ctx).Request(ctx, request)
 }
 
@@ -126,5 +130,6 @@ func (s *parallelServer) Close(ctx context.Context, conn *networkservice.Connect
 
 	state := atomic.LoadInt32(statePtr)
 	assert.True(s.t, atomic.CompareAndSwapInt32(statePtr, state, state+1), "state has been changed")
+
 	return next.Server(ctx).Close(ctx, conn)
 }

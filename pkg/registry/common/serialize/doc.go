@@ -14,10 +14,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package serialize provides NSE, NS registry chain elements for serial Register, Unregister event processing
 package serialize
-
-type executorFunc func(f func()) <-chan struct{}
-
-func (e executorFunc) AsyncExec(f func()) <-chan struct{} {
-	return e(f)
-}
