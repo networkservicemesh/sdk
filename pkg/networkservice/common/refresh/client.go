@@ -1,4 +1,5 @@
 // Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
@@ -16,8 +17,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package refresh periodically resends NetworkServiceMesh.Request for an existing connection
-// so that the Endpoint doesn't 'expire' the networkservice.
+// Package refresh periodically resends NetworkServiceMesh.Request for an
+// existing connection so that the Endpoint doesn't 'expire' the networkservice.
 package refresh
 
 import (
@@ -27,104 +28,106 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
-	"github.com/edwarnicke/serialize"
-
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type refreshClient struct {
-	ctx      context.Context
-	timers   map[string]*time.Timer        // key == request.GetConnection.GetId()
-	cancels  map[string]context.CancelFunc // key == request.GetConnection.GetId()
-	executor serialize.Executor
+	chainCtx context.Context
+	timers   timerMap
 }
 
-// NewClient - creates new NetworkServiceClient chain element for refreshing connections before they timeout at the
-// endpoint
+// NewClient - creates new NetworkServiceClient chain element for refreshing
+// connections before they timeout at the endpoint.
 func NewClient(ctx context.Context) networkservice.NetworkServiceClient {
-	rv := &refreshClient{
-		ctx:     ctx,
-		timers:  make(map[string]*time.Timer),
-		cancels: make(map[string]context.CancelFunc),
+	return &refreshClient{
+		chainCtx: ctx,
 	}
-	return rv
 }
 
 func (t *refreshClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	connectionID := request.Connection.Id
+	t.stopTimer(connectionID)
+
 	rv, err := next.Client(ctx).Request(ctx, request, opts...)
-	if err != nil {
-		return nil, err
+
+	executor := serialize.GetExecutor(ctx)
+	if executor == nil {
+		return nil, errors.New("no executor provided")
 	}
-	expireTime, err := ptypes.Timestamp(rv.GetPath().GetPathSegments()[request.GetConnection().GetPath().GetIndex()].GetExpires())
-	if err != nil {
-		return nil, err
-	}
+	request.Connection = rv.Clone()
+	t.startTimer(ctx, connectionID, request, opts)
 
-	// Create refreshRequest
-	refreshRequest := request.Clone()
-	refreshRequest.Connection = rv.Clone()
-
-	// TODO - introduce random noise into duration avoid timer lock
-	duration := time.Until(expireTime) / 3
-	t.executor.AsyncExec(func() {
-		// Create the refresh context
-		var cancel context.CancelFunc
-		refreshCtx, cancel := context.WithCancel(extend.WithValuesFromContext(t.ctx, ctx))
-		if deadline, ok := ctx.Deadline(); ok {
-			refreshCtx, cancel = context.WithDeadline(refreshCtx, deadline.Add(duration))
-		}
-
-		connID := refreshRequest.GetConnection().GetId()
-
-		// Stop any existing timers
-		if timer, ok := t.timers[connID]; ok {
-			timer.Stop()
-		}
-
-		// Set new timer
-		var timer *time.Timer
-		timer = time.AfterFunc(duration, func() {
-			<-t.executor.AsyncExec(func() {
-				// Check to see if we've been superseded by another timer, if so, do nothing
-				currentTimer, ok := t.timers[connID]
-				if ok && currentTimer != timer {
-					cancel()
-					return
-				}
-			})
-			// Resend request if the refreshCtx is not Done.  Note: refreshCtx should only be done if
-			// t.ctx has been canceled (usually because the clientCtx has been canceled
-			select {
-			case <-refreshCtx.Done():
-			default:
-				if _, err := t.Request(refreshCtx, refreshRequest, opts...); err != nil {
-					// TODO - do we want to retry at 2/3 and 3/3 if we fail here?
-					log.FromContext(refreshCtx).Errorf("Error while attempting to refresh connection %s: %+v", connID, err)
-				}
-			}
-			// Set timer to nil to be really really sure we don't have a circular reference that precludes garbage collection
-			timer = nil
-		})
-		t.timers[connID] = timer
-		t.cancels[connID] = cancel
-	})
-	return rv, nil
+	return rv, err
 }
 
-func (t *refreshClient) Close(ctx context.Context, conn *networkservice.Connection, _ ...grpc.CallOption) (*empty.Empty, error) {
-	t.executor.AsyncExec(func() {
-		if cancel, ok := t.cancels[conn.GetId()]; ok {
-			cancel()
-			delete(t.cancels, conn.GetId())
-		}
-		if timer, ok := t.timers[conn.GetId()]; ok {
-			timer.Stop()
-			delete(t.timers, conn.GetId())
-		}
+func (t *refreshClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (e *empty.Empty, err error) {
+	t.stopTimer(conn.Id)
+	return next.Client(ctx).Close(ctx, conn, opts...)
+}
+
+func (t *refreshClient) stopTimer(connectionID string) {
+	value, loaded := t.timers.LoadAndDelete(connectionID)
+	if loaded {
+		value.Stop()
+	}
+}
+
+func (t *refreshClient) startTimer(ctx context.Context, connectionID string, request *networkservice.NetworkServiceRequest, opts []grpc.CallOption) {
+	nextClient := next.Client(ctx)
+	expireTime, err := ptypes.Timestamp(request.GetConnection().GetCurrentPathSegment().GetExpires())
+	if err != nil {
+		return
+	}
+
+	// A heuristic to reduce the number of redundant requests in a chain
+	// made of refreshing clients with the same expiration time: let outer
+	// chain elements refresh slightly faster than inner ones.
+	// Update interval is within 0.2*expirationTime .. 0.4*expirationTime
+	scale := 1. / 3.
+	path := request.GetConnection().GetPath()
+	if len(path.PathSegments) > 1 {
+		scale = 0.2 + 0.2*float64(path.Index)/float64(len(path.PathSegments))
+	}
+	duration := time.Duration(float64(time.Until(expireTime)) * scale)
+	req := request.Clone()
+	exec := serialize.GetExecutor(ctx)
+
+	var timer *time.Timer
+	timer = time.AfterFunc(duration, func() {
+		exec.AsyncExec(func() {
+			oldTimer, ok := t.timers.Load(connectionID)
+			if !ok || oldTimer != timer {
+				return
+			}
+
+			t.timers.Delete(connectionID)
+
+			// Context is canceled or deadlined.
+			if t.chainCtx.Err() != nil {
+				return
+			}
+
+			timeout := defaultRefreshRequestTimeout
+			if timeout > duration {
+				timeout = duration
+			}
+			refreshCtx, cancel := context.WithTimeout(extend.WithValuesFromContext(t.chainCtx, ctx), timeout)
+			defer cancel()
+			rv, err := nextClient.Request(refreshCtx, req, opts...)
+
+			if err == nil && rv != nil {
+				req.Connection = rv
+			}
+
+			t.startTimer(ctx, connectionID, req, opts)
+		})
 	})
-	return next.Client(ctx).Close(ctx, conn)
+
+	t.stopTimer(connectionID)
+	t.timers.Store(connectionID, timer)
 }
