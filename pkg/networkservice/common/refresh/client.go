@@ -31,9 +31,9 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
+	"github.com/networkservicemesh/sdk/pkg/tools/serializectx"
 )
 
 type refreshClient struct {
@@ -55,7 +55,7 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 
 	rv, err := next.Client(ctx).Request(ctx, request, opts...)
 
-	executor := serialize.GetExecutor(ctx)
+	executor := serializectx.GetExecutor(ctx, connectionID)
 	if executor == nil {
 		return nil, errors.New("no executor provided")
 	}
@@ -95,7 +95,7 @@ func (t *refreshClient) startTimer(ctx context.Context, connectionID string, req
 	}
 	duration := time.Duration(float64(time.Until(expireTime)) * scale)
 	req := request.Clone()
-	exec := serialize.GetExecutor(ctx)
+	exec := serializectx.GetExecutor(ctx, connectionID)
 
 	var timer *time.Timer
 	timer = time.AfterFunc(duration, func() {
