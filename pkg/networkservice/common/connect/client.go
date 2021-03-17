@@ -16,11 +16,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package clienturl
+package connect
 
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
@@ -34,8 +35,9 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
-type clientURLClient struct {
+type connectClient struct {
 	ctx           context.Context
+	dialTimeout   time.Duration
 	clientFactory client.Factory
 	dialOptions   []grpc.DialOption
 	initOnce      sync.Once
@@ -43,33 +45,7 @@ type clientURLClient struct {
 	client        networkservice.NetworkServiceClient
 }
 
-// NewClient - creates a Client that will using clienturl.ClientUrl(ctx) to extract a url, dial it to a cc, use that cc with the clientFactory to produce a new
-//             client to which it passes through any Request or Close calls
-// 	ctx	- is full lifecycle context, any started clients will be terminated by this context done.
-func NewClient(ctx context.Context, clientFactory client.Factory, dialOptions ...grpc.DialOption) networkservice.NetworkServiceClient {
-	rv := &clientURLClient{
-		ctx:           ctx,
-		clientFactory: clientFactory,
-		dialOptions:   dialOptions,
-	}
-	return rv
-}
-
-func (u *clientURLClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	if err := u.init(); err != nil {
-		return nil, err
-	}
-	return u.client.Request(ctx, request, opts...)
-}
-
-func (u *clientURLClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	if err := u.init(); err != nil {
-		return nil, err
-	}
-	return u.client.Close(ctx, conn, opts...)
-}
-
-func (u *clientURLClient) init() error {
+func (u *connectClient) init() error {
 	u.initOnce.Do(func() {
 		clientURL := clienturlctx.ClientURL(u.ctx)
 		if clientURL == nil {
@@ -77,11 +53,11 @@ func (u *clientURLClient) init() error {
 			return
 		}
 
-		ctx, cancel := context.WithTimeout(u.ctx, dialTimeout)
+		ctx, cancel := context.WithTimeout(u.ctx, u.dialTimeout)
 		defer cancel()
 
 		var cc *grpc.ClientConn
-		cc, u.dialErr = grpc.DialContext(ctx, grpcutils.URLToTarget(clientURL), u.dialOptions...)
+		cc, u.dialErr = grpc.DialContext(ctx, grpcutils.URLToTarget(clientURL), append(u.dialOptions, grpc.WithReturnConnectionError())...)
 		if u.dialErr != nil {
 			return
 		}
@@ -104,4 +80,18 @@ func (u *clientURLClient) init() error {
 	})
 
 	return u.dialErr
+}
+
+func (u *connectClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	if err := u.init(); err != nil {
+		return nil, err
+	}
+	return u.client.Request(ctx, request, opts...)
+}
+
+func (u *connectClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	if err := u.init(); err != nil {
+		return nil, err
+	}
+	return u.client.Close(ctx, conn, opts...)
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,5 +14,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package clienturl contains chain elements allows to connect to remote server by URL from context
-package clienturl
+package connect
+
+import (
+	"time"
+
+	"google.golang.org/grpc"
+)
+
+// Option is an option for the connect server
+type Option func(s *connectServer)
+
+// WithDialTimeout sets connect server client dial timeout
+func WithDialTimeout(dialTimeout time.Duration) Option {
+	return func(s *connectServer) {
+		s.clientDialTimeout = dialTimeout
+	}
+}
+
+// WithDialOptions sets connect server client dial options
+func WithDialOptions(opts ...grpc.DialOption) Option {
+	return func(s *connectServer) {
+		s.clientDialOptions = opts
+	}
+}

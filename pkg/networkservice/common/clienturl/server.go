@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020-2021 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package clienturl provides server chain element that sets client URL in context
 package clienturl
 
 import (
@@ -33,7 +34,7 @@ type clientURLServer struct {
 	u *url.URL
 }
 
-// NewServer - returns a new server that will set the request context to return url u when ClientURL(ctx) is called
+// NewServer - returns a new server chain element that sets client URL in context
 func NewServer(u *url.URL) networkservice.NetworkServiceServer {
 	return &clientURLServer{u: u}
 }

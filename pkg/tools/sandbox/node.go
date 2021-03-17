@@ -62,7 +62,7 @@ func (n *Node) NewForwarder(
 				client.WithName(nse.Name),
 				// What to call onHeal
 				client.WithHeal(addressof.NetworkServiceClient(adapters.NewServerToClient(ep)))),
-			DefaultDialOptions(generatorFunc)...,
+			connect.WithDialOptions(DefaultDialOptions(generatorFunc)...),
 		),
 	)
 

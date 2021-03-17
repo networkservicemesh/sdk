@@ -42,10 +42,9 @@ func NewServer(ctx context.Context, name string, authorizeServer networkservice.
 			interdomainurl.NewServer(),
 			externalips.NewServer(ctx),
 			swapip.NewServer(),
-			connect.NewServer(
-				ctx,
+			connect.NewServer(ctx,
 				client.NewClientFactory(client.WithName(name)),
-				options...,
+				connect.WithDialOptions(options...),
 			),
 		),
 	)

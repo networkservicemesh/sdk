@@ -131,7 +131,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 						sendfd.NewClient(),
 					),
 				),
-				clientDialOptions...),
+				connect.WithDialOptions(clientDialOptions...)),
 			sendfd.NewServer()),
 	)
 
