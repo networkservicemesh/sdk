@@ -19,7 +19,7 @@ package nsmgr_test
 
 import (
 	"context"
-	"runtime"
+	"net"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -42,6 +42,14 @@ const (
 )
 
 func TestNSMGR_HealEndpoint(t *testing.T) {
+	testNSMGRHealEndpoint(t, false)
+}
+
+func TestNSMGR_HealEndpointRestored(t *testing.T) {
+	testNSMGRHealEndpoint(t, true)
+}
+
+func testNSMGRHealEndpoint(t *testing.T, restored bool) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
@@ -64,7 +72,7 @@ func TestNSMGR_HealEndpoint(t *testing.T) {
 	nseCtx, nseCtxCancel := context.WithTimeout(context.Background(), time.Second)
 	defer nseCtxCancel()
 
-	_, err := domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.GenerateExpiringToken(time.Second), counter)
+	nse, err := domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.GenerateExpiringToken(time.Second), counter)
 	require.NoError(t, err)
 
 	request := &networkservice.NetworkServiceRequest{
@@ -86,14 +94,20 @@ func TestNSMGR_HealEndpoint(t *testing.T) {
 	require.Equal(t, 1, counter.UniqueRequests())
 	require.Equal(t, 8, len(conn.Path.PathSegments))
 
+	nseCtxCancel()
+
+	// Wait grpc unblock the port
+	require.Eventually(t, checkURLFree(nse.URL.Host), timeout, tick)
+
 	nseReg2 := &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint2",
 		NetworkServiceNames: []string{"my-service-remote"},
 	}
+	if restored {
+		nseReg2.Url = nse.URL.String()
+	}
 	_, err = domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter)
 	require.NoError(t, err)
-
-	nseCtxCancel()
 
 	// Wait NSE expired and reconnecting to the new NSE
 	require.Eventually(t, checkSecondRequestsReceived(counter.UniqueRequests), timeout, tick)
@@ -118,7 +132,22 @@ func TestNSMGR_HealLocalForwarder(t *testing.T) {
 		},
 	}
 
-	testNSMGRHealForwarder(t, 1, customConfig, forwarderCtxCancel)
+	testNSMGRHealForwarder(t, 1, false, customConfig, forwarderCtxCancel)
+}
+
+func TestNSMGR_HealLocalForwarderRestored(t *testing.T) {
+	forwarderCtx, forwarderCtxCancel := context.WithTimeout(context.Background(), time.Second)
+	defer forwarderCtxCancel()
+
+	customConfig := []*sandbox.NodeConfig{
+		nil,
+		{
+			ForwarderCtx:               forwarderCtx,
+			ForwarderGenerateTokenFunc: sandbox.GenerateExpiringToken(time.Second),
+		},
+	}
+
+	testNSMGRHealForwarder(t, 1, true, customConfig, forwarderCtxCancel)
 }
 
 func TestNSMGR_HealRemoteForwarder(t *testing.T) {
@@ -132,10 +161,24 @@ func TestNSMGR_HealRemoteForwarder(t *testing.T) {
 		},
 	}
 
-	testNSMGRHealForwarder(t, 0, customConfig, forwarderCtxCancel)
+	testNSMGRHealForwarder(t, 0, false, customConfig, forwarderCtxCancel)
 }
 
-func testNSMGRHealForwarder(t *testing.T, nodeNum int, customConfig []*sandbox.NodeConfig, forwarderCtxCancel context.CancelFunc) {
+func TestNSMGR_HealRemoteForwarderRestored(t *testing.T) {
+	forwarderCtx, forwarderCtxCancel := context.WithTimeout(context.Background(), time.Second)
+	defer forwarderCtxCancel()
+
+	customConfig := []*sandbox.NodeConfig{
+		{
+			ForwarderCtx:               forwarderCtx,
+			ForwarderGenerateTokenFunc: sandbox.GenerateExpiringToken(time.Second),
+		},
+	}
+
+	testNSMGRHealForwarder(t, 0, true, customConfig, forwarderCtxCancel)
+}
+
+func testNSMGRHealForwarder(t *testing.T, nodeNum int, restored bool, customConfig []*sandbox.NodeConfig, forwarderCtxCancel context.CancelFunc) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*100)
 	defer cancel()
@@ -177,24 +220,44 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int, customConfig []*sandbox.N
 	require.Equal(t, 1, counter.UniqueRequests())
 	require.Equal(t, 8, len(conn.Path.PathSegments))
 
+	forwarderCtxCancel()
+
+	// Wait grpc unblock the port
+	require.GreaterOrEqual(t, 1, len(domain.Nodes[nodeNum].Forwarder))
+	require.Eventually(t, checkURLFree(domain.Nodes[nodeNum].Forwarder[0].URL.Host), timeout, tick)
+
 	nseReg.Name = "cross-nse-restored"
 	forwarderReg := &registry.NetworkServiceEndpoint{
 		Name: "forwarder-restored",
 	}
+	if restored {
+		forwarderReg.Url = domain.Nodes[nodeNum].Forwarder[0].URL.String()
+	}
 	_, err = domain.Nodes[nodeNum].NewForwarder(ctx, forwarderReg, sandbox.GenerateTestToken)
 	require.NoError(t, err)
 
-	forwarderCtxCancel()
-
 	// Wait Cross NSE expired and reconnecting through the new Cross NSE
-	require.Eventually(t, checkSecondRequestsReceived(counter.UniqueRequests), timeout, tick)
+	if restored {
+		require.Eventually(t, checkSecondRequestsReceived(func() int {
+			return int(atomic.LoadInt32(&counter.Requests))
+		}), timeout, tick)
+	} else {
+		require.Eventually(t, checkSecondRequestsReceived(counter.UniqueRequests), timeout, tick)
+	}
 
 	// Close.
+	closes := atomic.LoadInt32(&counter.Closes)
 	e, err := nsc.Close(ctx, conn)
 	require.NoError(t, err)
 	require.NotNil(t, e)
-	require.Equal(t, 2, counter.UniqueRequests())
-	require.Equal(t, 2, counter.UniqueCloses())
+
+	if restored {
+		require.Equal(t, int32(2), atomic.LoadInt32(&counter.Requests))
+		require.Equal(t, closes+1, atomic.LoadInt32(&counter.Closes))
+	} else {
+		require.Equal(t, 2, counter.UniqueRequests())
+		require.Equal(t, 2, counter.UniqueCloses())
+	}
 }
 
 func TestNSMGR_HealRemoteNSMgrRestored(t *testing.T) {
@@ -259,7 +322,7 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, customConfig []*sandbox.NodeC
 	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Requests))
 	require.Equal(t, int32(0), atomic.LoadInt32(&counter.Closes))
 
-	runtime.Gosched()
+	require.Eventually(t, checkURLFree(domain.Nodes[nodeNum].NSMgr.URL.Host), timeout, tick)
 
 	restoredNSMgrEntry, restoredNSMgrResources := builder.NewNSMgr(ctx, domain.Nodes[nodeNum], domain.Nodes[nodeNum].NSMgr.URL.Host, domain.Registry.URL, sandbox.GenerateTestToken)
 	domain.Nodes[nodeNum].NSMgr = restoredNSMgrEntry
@@ -366,5 +429,16 @@ func TestNSMGR_HealRemoteNSMgr(t *testing.T) {
 func checkSecondRequestsReceived(requestsDone func() int) func() bool {
 	return func() bool {
 		return requestsDone() == 2
+	}
+}
+
+func checkURLFree(url string) func() bool {
+	return func() bool {
+		ln, err := net.Listen("tcp", url)
+		if err != nil {
+			return false
+		}
+		err = ln.Close()
+		return err == nil
 	}
 }

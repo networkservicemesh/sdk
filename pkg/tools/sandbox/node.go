@@ -43,6 +43,7 @@ import (
 type Node struct {
 	ctx                     context.Context
 	NSMgr                   *NSMgrEntry
+	Forwarder               []*EndpointEntry
 	ForwarderRegistryClient registryapi.NetworkServiceEndpointRegistryClient
 	EndpointRegistryClient  registryapi.NetworkServiceEndpointRegistryClient
 	NSRegistryClient        registryapi.NetworkServiceRegistryClient
@@ -73,7 +74,7 @@ func (n *Node) NewForwarder(
 		return nil, err
 	}
 	*ep = *entry
-
+	n.Forwarder = append(n.Forwarder, ep)
 	return ep, nil
 }
 
