@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/opentracing/opentracing-go"
@@ -186,7 +185,7 @@ func (s *logrusLogger) WithField(key, value interface{}) log.Logger {
 
 // New - creates a logruslogger and returns it
 func New(ctx context.Context) log.Logger {
-	entry := logrus.WithTime(time.Now()).WithFields(log.Fields(ctx))
+	entry := logrus.WithFields(log.Fields(ctx))
 	newLog := &logrusLogger{
 		entry: entry,
 	}
@@ -196,7 +195,7 @@ func New(ctx context.Context) log.Logger {
 // FromSpan - creates a new logruslogger from context, operation and span
 // and returns context with it, logger, and a function to defer
 func FromSpan(ctx context.Context, span opentracing.Span, operation string) (context.Context, log.Logger, func()) {
-	entry := logrus.WithTime(time.Now()).WithFields(log.Fields(ctx))
+	entry := logrus.WithFields(log.Fields(ctx))
 
 	var info *traceCtxInfo
 	ctx, info = withTraceInfo(ctx)

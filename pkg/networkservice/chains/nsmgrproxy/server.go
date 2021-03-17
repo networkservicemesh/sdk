@@ -45,18 +45,19 @@ func NewServer(ctx context.Context, name string, authorizeServer networkservice.
 	rv := nsmgrProxyServer{}
 
 	healServer, _ := heal.NewServer(ctx, addressof.NetworkServiceClient(adapters.NewServerToClient(rv)))
-	rv.Endpoint = endpoint.NewServer(ctx,
-		name,
-		authorizeServer,
-		tokenGenerator,
-		interdomainurl.NewServer(),
-		externalips.NewServer(ctx),
-		swapip.NewServer(),
-		healServer,
-		connect.NewServer(
-			ctx,
-			client.NewClientFactory(client.WithName(name)),
-			options...,
+	rv.Endpoint = endpoint.NewServer(ctx, tokenGenerator,
+		endpoint.WithName(name),
+		endpoint.WithAuthorizeServer(authorizeServer),
+		endpoint.WithAdditionalFunctionality(
+			interdomainurl.NewServer(),
+			externalips.NewServer(ctx),
+			swapip.NewServer(),
+			healServer,
+			connect.NewServer(
+				ctx,
+				client.NewClientFactory(client.WithName(name)),
+				options...,
+			),
 		),
 	)
 	return rv

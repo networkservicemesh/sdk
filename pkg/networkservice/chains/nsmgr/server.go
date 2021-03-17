@@ -109,28 +109,28 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 	healServer, registerHealClient := heal.NewServer(ctx, addressof.NetworkServiceClient(adapters.NewServerToClient(rv)))
 
 	// Construct Endpoint
-	rv.Endpoint = endpoint.NewServer(ctx,
-		nsmRegistration.Name,
-		authzServer,
-		tokenGenerator,
-		discover.NewServer(nsClient, nseClient),
-		roundrobin.NewServer(),
-		excludedprefixes.NewServer(ctx),
-		recvfd.NewServer(), // Receive any files passed
-		interpose.NewServer(&interposeRegistryServer),
-		filtermechanisms.NewServer(&urlsRegistryServer),
-		healServer,
-		connect.NewServer(ctx,
-			client.NewClientFactory(
-				client.WithName(nsmRegistration.Name),
-				client.WithRegisterHealClientFunc(registerHealClient),
-				client.WithAdditionalFunctionality(
-					recvfd.NewClient(),
-					sendfd.NewClient(),
+	rv.Endpoint = endpoint.NewServer(ctx, tokenGenerator,
+		endpoint.WithName(nsmRegistration.Name),
+		endpoint.WithAuthorizeServer(authzServer),
+		endpoint.WithAdditionalFunctionality(
+			discover.NewServer(nsClient, nseClient),
+			roundrobin.NewServer(),
+			excludedprefixes.NewServer(ctx),
+			recvfd.NewServer(), // Receive any files passed
+			interpose.NewServer(&interposeRegistryServer),
+			filtermechanisms.NewServer(&urlsRegistryServer),
+			healServer,
+			connect.NewServer(ctx,
+				client.NewClientFactory(
+					client.WithName(nsmRegistration.Name),
+					client.WithRegisterHealClientFunc(registerHealClient),
+					client.WithAdditionalFunctionality(
+						recvfd.NewClient(),
+						sendfd.NewClient(),
+					),
 				),
-			),
-			clientDialOptions...),
-		sendfd.NewServer(),
+				clientDialOptions...),
+			sendfd.NewServer()),
 	)
 
 	nsChain := registrychain.NewNamedNetworkServiceRegistryServer(nsmRegistration.Name+".NetworkServiceRegistry", nsRegistry)
