@@ -20,12 +20,14 @@ package client
 import (
 	"context"
 
-	"github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 )
 
@@ -34,6 +36,7 @@ func NewNetworkServiceEndpointRegistryClient(ctx context.Context, cc grpc.Client
 	return chain.NewNetworkServiceEndpointRegistryClient(
 		append(
 			append([]registry.NetworkServiceEndpointRegistryClient{
+				serialize.NewNetworkServiceEndpointRegistryClient(),
 				refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithChainContext(ctx)),
 				sendfd.NewNetworkServiceEndpointRegistryClient(),
 			}, additionalFunctionality...),
@@ -46,7 +49,9 @@ func NewNetworkServiceEndpointRegistryClient(ctx context.Context, cc grpc.Client
 func NewNetworkServiceRegistryClient(cc grpc.ClientConnInterface, additionalFunctionality ...registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
 	return chain.NewNetworkServiceRegistryClient(
 		append(
-			additionalFunctionality,
+			append([]registry.NetworkServiceRegistryClient{
+				serialize.NewNetworkServiceRegistryClient(),
+			}, additionalFunctionality...),
 			registry.NewNetworkServiceRegistryClient(cc),
 		)...,
 	)
@@ -58,6 +63,7 @@ func NewNetworkServiceEndpointRegistryInterposeClient(ctx context.Context, cc gr
 		append(
 			append([]registry.NetworkServiceEndpointRegistryClient{
 				interpose.NewNetworkServiceEndpointRegistryClient(),
+				serialize.NewNetworkServiceEndpointRegistryClient(),
 				refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithChainContext(ctx)),
 				sendfd.NewNetworkServiceEndpointRegistryClient(),
 			}, additionalFunctionality...),

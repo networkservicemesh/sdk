@@ -22,6 +22,7 @@ package connect
 import (
 	"context"
 	"net/url"
+	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
@@ -31,7 +32,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
@@ -42,6 +42,7 @@ import (
 type connectServer struct {
 	ctx               context.Context
 	clientFactory     client.Factory
+	clientDialTimeout time.Duration
 	clientDialOptions []grpc.DialOption
 
 	connInfos connectionInfoMap
@@ -65,13 +66,19 @@ type connectionInfo struct {
 func NewServer(
 	ctx context.Context,
 	clientFactory client.Factory,
-	clientDialOptions ...grpc.DialOption,
+	options ...Option,
 ) networkservice.NetworkServiceServer {
-	return &connectServer{
+	s := &connectServer{
 		ctx:               ctx,
 		clientFactory:     clientFactory,
-		clientDialOptions: clientDialOptions,
+		clientDialTimeout: 100 * time.Millisecond,
 	}
+
+	for _, opt := range options {
+		opt(s)
+	}
+
+	return s
 }
 
 func (s *connectServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
@@ -163,9 +170,13 @@ func (s *connectServer) client(ctx context.Context, conn *networkservice.Connect
 
 func (s *connectServer) newClient(clientURL *url.URL) *clientInfo {
 	ctx, cancel := context.WithCancel(s.ctx)
-	c := clienturl.NewClient(clienturlctx.WithClientURL(ctx, clientURL), s.clientFactory, s.clientDialOptions...)
 	return &clientInfo{
-		client:  c,
+		client: &connectClient{
+			ctx:           clienturlctx.WithClientURL(ctx, clientURL),
+			dialTimeout:   s.clientDialTimeout,
+			clientFactory: s.clientFactory,
+			dialOptions:   s.clientDialOptions,
+		},
 		count:   0,
 		onClose: cancel,
 	}

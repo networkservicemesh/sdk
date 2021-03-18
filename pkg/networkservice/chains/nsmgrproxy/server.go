@@ -53,10 +53,9 @@ func NewServer(ctx context.Context, name string, authorizeServer networkservice.
 			externalips.NewServer(ctx),
 			swapip.NewServer(),
 			healServer,
-			connect.NewServer(
-				ctx,
+			connect.NewServer(ctx,
 				client.NewClientFactory(client.WithName(name)),
-				options...,
+				connect.WithDialOptions(options...),
 			),
 		),
 	)

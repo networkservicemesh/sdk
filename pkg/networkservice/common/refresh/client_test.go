@@ -22,17 +22,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
-	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
 const (
@@ -40,11 +43,15 @@ const (
 	eventuallyTimeout = expireTimeout
 	tickTimeout       = 10 * time.Millisecond
 	neverTimeout      = 5 * expireTimeout
-	endpointName      = "endpoint-name"
+	maxDuration       = 100 * time.Hour
+
+	sandboxExpireTimeout = 300 * time.Millisecond
+	sandboxMinDuration   = 5 * time.Millisecond
+	sandboxStepDuration  = 50 * time.Millisecond
+	sandboxTotalTimeout  = 300 * time.Millisecond
 )
 
 func TestRefreshClient_StopRefreshAtClose(t *testing.T) {
-	t.Skip("https://github.com/networkservicemesh/sdk/issues/237")
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -54,7 +61,10 @@ func TestRefreshClient_StopRefreshAtClose(t *testing.T) {
 		t: t,
 	}
 	client := chain.NewNetworkServiceClient(
+		serialize.NewClient(),
+		updatepath.NewClient("refresh"),
 		refresh.NewClient(ctx),
+		adapters.NewServerToClient(updatetoken.NewServer(sandbox.GenerateExpiringToken(expireTimeout))),
 		cloneClient,
 	)
 
@@ -71,22 +81,24 @@ func TestRefreshClient_StopRefreshAtClose(t *testing.T) {
 	_, err = client.Close(ctx, conn)
 	require.NoError(t, err)
 
-	require.Never(t, cloneClient.validator(3), neverTimeout, tickTimeout)
+	count := atomic.LoadInt32(&cloneClient.count)
+	require.Never(t, cloneClient.validator(count+1), neverTimeout, tickTimeout)
 }
 
-func TestRefreshClient_StopRefreshAtAnotherRequest(t *testing.T) {
-	t.Skip("https://github.com/networkservicemesh/sdk/issues/260")
+func TestRefreshClient_RestartsRefreshAtAnotherRequest(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	refreshClient := refresh.NewClient(ctx)
 	cloneClient := &countClient{
 		t: t,
 	}
 	client := chain.NewNetworkServiceClient(
-		refreshClient,
+		serialize.NewClient(),
+		updatepath.NewClient("refresh"),
+		refresh.NewClient(ctx),
+		adapters.NewServerToClient(updatetoken.NewServer(sandbox.GenerateExpiringToken(expireTimeout))),
 		cloneClient,
 	)
 
@@ -100,59 +112,102 @@ func TestRefreshClient_StopRefreshAtAnotherRequest(t *testing.T) {
 
 	require.Eventually(t, cloneClient.validator(2), eventuallyTimeout, tickTimeout)
 
-	_, err = refreshClient.Request(ctx, &networkservice.NetworkServiceRequest{
+	_, err = client.Request(ctx, &networkservice.NetworkServiceRequest{
 		Connection: conn,
 	})
 	require.NoError(t, err)
 
-	require.Never(t, cloneClient.validator(3), neverTimeout, tickTimeout)
+	count := atomic.LoadInt32(&cloneClient.count)
+	require.Eventually(t, cloneClient.validator(count+1), eventuallyTimeout, tickTimeout)
+	require.Never(t, cloneClient.validator(count+5), eventuallyTimeout, tickTimeout)
 }
 
-type countClient struct {
-	t     *testing.T
-	count int32
+type stressTestConfig struct {
+	name                     string
+	expireTimeout            time.Duration
+	minDuration, maxDuration time.Duration
+	tickDuration             time.Duration
+	iterations               int
 }
 
-func (c *countClient) validator(atLeast int32) func() bool {
-	return func() bool {
-		if count := atomic.LoadInt32(&c.count); count < atLeast {
-			return false
-		}
-		return true
-	}
-}
+func TestRefreshClient_Stress(t *testing.T) {
+	t.Skip("https://github.com/networkservicemesh/sdk/issues/774")
 
-func (c *countClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	request = request.Clone()
-	conn := request.GetConnection()
-
-	if atomic.AddInt32(&c.count, 1) == 1 {
-		conn.NetworkServiceEndpointName = endpointName
-	} else {
-		require.Equal(c.t, endpointName, conn.NetworkServiceEndpointName)
-	}
-
-	setExpires(conn, expireTimeout)
-
-	return next.Client(ctx).Request(ctx, request, opts...)
-}
-
-func (c *countClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	return next.Client(ctx).Close(ctx, conn, opts...)
-}
-
-func setExpires(conn *networkservice.Connection, expireTimeout time.Duration) {
-	expireTime := time.Now().Add(expireTimeout)
-	expires := &timestamp.Timestamp{
-		Seconds: expireTime.Unix(),
-		Nanos:   int32(expireTime.Nanosecond()),
-	}
-	conn.Path = &networkservice.Path{
-		Index: 0,
-		PathSegments: []*networkservice.PathSegment{
-			{
-				Expires: expires,
-			},
+	table := []stressTestConfig{
+		{
+			name:          "RaceConditions",
+			expireTimeout: 2 * time.Millisecond,
+			minDuration:   0,
+			maxDuration:   maxDuration,
+			tickDuration:  8100 * time.Microsecond,
+			iterations:    100,
+		},
+		{
+			name:          "Durations",
+			expireTimeout: 50 * time.Millisecond,
+			minDuration:   10 * time.Millisecond,
+			maxDuration:   50 * time.Millisecond,
+			tickDuration:  25 * time.Millisecond,
+			iterations:    10,
 		},
 	}
+	for i := range table {
+		it := &table[i]
+		t.Run(it.name, func(t *testing.T) { runStressTest(t, it) })
+	}
+}
+
+func runStressTest(t *testing.T, conf *stressTestConfig) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	refreshTester := newRefreshTesterServer(t, conf.minDuration, conf.maxDuration)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	client := next.NewNetworkServiceClient(
+		serialize.NewClient(),
+		updatepath.NewClient("foo"),
+		refresh.NewClient(ctx),
+		adapters.NewServerToClient(updatetoken.NewServer(sandbox.GenerateExpiringToken(conf.expireTimeout))),
+		adapters.NewServerToClient(refreshTester),
+	)
+
+	generateRequests(t, client, refreshTester, conf.iterations, conf.tickDuration)
+}
+
+func TestRefreshClient_Sandbox(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	ctx, cancel := context.WithTimeout(context.Background(), sandboxTotalTimeout)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(t).
+		SetNodesCount(2).
+		SetContext(ctx).
+		SetRegistryProxySupplier(nil).
+		SetTokenGenerateFunc(sandbox.GenerateTestToken).
+		Build()
+	defer domain.Cleanup()
+
+	nseReg := &registry.NetworkServiceEndpoint{
+		Name:                "final-endpoint",
+		NetworkServiceNames: []string{"my-service-remote"},
+	}
+
+	refreshSrv := newRefreshTesterServer(t, sandboxMinDuration, sandboxExpireTimeout)
+	_, err := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, refreshSrv)
+	require.NoError(t, err)
+
+	nscTokenGenerator := sandbox.GenerateExpiringToken(sandboxExpireTimeout)
+	nsc := domain.Nodes[1].NewClient(ctx, nscTokenGenerator)
+
+	refreshSrv.beforeRequest("test-conn")
+	_, err = nsc.Request(ctx, mkRequest("test-conn", nil))
+	require.NoError(t, err)
+	refreshSrv.afterRequest()
+
+	refreshSrv.beforeRequest("test-conn")
+	require.Eventually(t, func() bool {
+		return refreshSrv.getState() == testRefreshStateDoneRequest
+	}, sandboxTotalTimeout, sandboxStepDuration)
 }

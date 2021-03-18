@@ -65,7 +65,7 @@ func (n *Node) NewForwarder(
 			client.NewCrossConnectClientFactory(
 				client.WithName(nse.Name),
 				client.WithRegisterHealClientFunc(registerHealClient)),
-			DefaultDialOptions(generatorFunc)...,
+			connect.WithDialOptions(DefaultDialOptions(generatorFunc)...),
 		),
 	)
 

@@ -46,6 +46,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/querycache"
 	registryrecvfd "github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
+	registryserialize "github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
 	registryadapter "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	registrychain "github.com/networkservicemesh/sdk/pkg/registry/core/chain"
@@ -84,24 +85,29 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 	nsRegistry := newRemoteNSServer(registryCC)
 	if nsRegistry == nil {
 		// Use memory registry if no registry is passed
-		nsRegistry = memory.NewNetworkServiceRegistryServer()
+		nsRegistry = registrychain.NewNetworkServiceRegistryServer(
+			registryserialize.NewNetworkServiceRegistryServer(),
+			memory.NewNetworkServiceRegistryServer(),
+		)
 	}
 
 	nseRegistry := newRemoteNSEServer(registryCC)
 	if nseRegistry == nil {
+		// Use memory registry if no registry is passed
 		nseRegistry = registrychain.NewNetworkServiceEndpointRegistryServer(
-			memory.NewNetworkServiceEndpointRegistryServer(), // Memory registry to store result inside
-			setid.NewNetworkServiceEndpointRegistryServer(),  // Assign ID
+			registryserialize.NewNetworkServiceEndpointRegistryServer(),
+			memory.NewNetworkServiceEndpointRegistryServer(),
+			setid.NewNetworkServiceEndpointRegistryServer(),
 		)
 	}
 
 	localBypassRegistryServer := localbypass.NewNetworkServiceEndpointRegistryServer(nsmRegistration.Url)
 
 	nseClient := next.NewNetworkServiceEndpointRegistryClient(
+		registryserialize.NewNetworkServiceEndpointRegistryClient(),
+		registryadapter.NetworkServiceEndpointServerToClient(localBypassRegistryServer),
 		querycache.NewClient(ctx),
-		registryadapter.NetworkServiceEndpointServerToClient(next.NewNetworkServiceEndpointRegistryServer(
-			localBypassRegistryServer,
-			nseRegistry)),
+		registryadapter.NetworkServiceEndpointServerToClient(nseRegistry),
 	)
 
 	nsClient := registryadapter.NetworkServiceServerToClient(nsRegistry)
@@ -129,7 +135,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 						sendfd.NewClient(),
 					),
 				),
-				clientDialOptions...),
+				connect.WithDialOptions(clientDialOptions...)),
 			sendfd.NewServer()),
 	)
 
@@ -137,6 +143,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 
 	nseChain := registrychain.NewNamedNetworkServiceEndpointRegistryServer(
 		nsmRegistration.Name+".NetworkServiceEndpointRegistry",
+		registryserialize.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
 		registryrecvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
 		urlsRegistryServer,        // Store endpoints URLs

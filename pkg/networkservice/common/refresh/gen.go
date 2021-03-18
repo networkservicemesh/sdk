@@ -14,8 +14,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package clienturl
+package refresh
 
-import "time"
+import (
+	"sync"
+)
 
-const dialTimeout = 100 * time.Millisecond
+//go:generate go-syncmap -output timer_map.gen.go -type timerMap<string,*time.Timer>
+
+type timerMap sync.Map

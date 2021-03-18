@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,5 +14,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package clienturl contains chain elements allows to connect to remote server by URL from context
-package clienturl
+package refresh
+
+import "time"
+
+const (
+	// defaultRefreshRequestTimeout - default timeout for refresh request
+	defaultRefreshRequestTimeout = time.Minute
+)
