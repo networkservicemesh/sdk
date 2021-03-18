@@ -39,17 +39,57 @@ import (
 )
 
 const (
-	expireTimeout     = 100 * time.Millisecond
+	expireTimeout     = 300 * time.Millisecond
 	eventuallyTimeout = expireTimeout
 	tickTimeout       = 10 * time.Millisecond
-	neverTimeout      = 5 * expireTimeout
+	neverTimeout      = expireTimeout
 	maxDuration       = 100 * time.Hour
 
 	sandboxExpireTimeout = 300 * time.Millisecond
-	sandboxMinDuration   = 5 * time.Millisecond
-	sandboxStepDuration  = 50 * time.Millisecond
-	sandboxTotalTimeout  = 300 * time.Millisecond
+	sandboxMinDuration   = 50 * time.Millisecond
+	sandboxStepDuration  = 10 * time.Millisecond
+	sandboxTotalTimeout  = 800 * time.Millisecond
 )
+
+func TestRefreshClient_ValidRefresh(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	cloneClient := &countClient{
+		t: t,
+	}
+	client := chain.NewNetworkServiceClient(
+		serialize.NewClient(),
+		updatepath.NewClient("refresh"),
+		refresh.NewClient(ctx),
+		adapters.NewServerToClient(updatetoken.NewServer(sandbox.GenerateExpiringToken(expireTimeout))),
+		cloneClient,
+	)
+
+	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: "id",
+		},
+	})
+
+	require.NoError(t, err)
+	require.Condition(t, cloneClient.validator(1))
+
+	require.Eventually(t, cloneClient.validator(2), eventuallyTimeout, tickTimeout)
+
+	lastRequestConn := cloneClient.GetLastRequest().GetConnection()
+	require.Equal(t, conn.Id, lastRequestConn.Id)
+	require.Equal(t, len(conn.Path.PathSegments), len(lastRequestConn.Path.PathSegments))
+	for i := 0; i < len(conn.Path.PathSegments); i++ {
+		connSegment := conn.Path.PathSegments[i]
+		lastRequestSegment := lastRequestConn.Path.PathSegments[i]
+		require.Condition(t, func() (success bool) {
+			return connSegment.Expires.AsTime().Before(lastRequestSegment.Expires.AsTime())
+		})
+	}
+}
 
 func TestRefreshClient_StopRefreshAtClose(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
@@ -113,7 +153,7 @@ func TestRefreshClient_RestartsRefreshAtAnotherRequest(t *testing.T) {
 	require.Eventually(t, cloneClient.validator(2), eventuallyTimeout, tickTimeout)
 
 	_, err = client.Request(ctx, &networkservice.NetworkServiceRequest{
-		Connection: conn,
+		Connection: conn.Clone(),
 	})
 	require.NoError(t, err)
 
@@ -130,35 +170,17 @@ type stressTestConfig struct {
 	iterations               int
 }
 
-func TestRefreshClient_Stress(t *testing.T) {
-	t.Skip("https://github.com/networkservicemesh/sdk/issues/774")
-
-	table := []stressTestConfig{
-		{
-			name:          "RaceConditions",
-			expireTimeout: 2 * time.Millisecond,
-			minDuration:   0,
-			maxDuration:   maxDuration,
-			tickDuration:  8100 * time.Microsecond,
-			iterations:    100,
-		},
-		{
-			name:          "Durations",
-			expireTimeout: 50 * time.Millisecond,
-			minDuration:   10 * time.Millisecond,
-			maxDuration:   50 * time.Millisecond,
-			tickDuration:  25 * time.Millisecond,
-			iterations:    10,
-		},
-	}
-	for i := range table {
-		it := &table[i]
-		t.Run(it.name, func(t *testing.T) { runStressTest(t, it) })
-	}
-}
-
-func runStressTest(t *testing.T, conf *stressTestConfig) {
+func TestRefreshClient_CheckRaceConditions(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	conf := &stressTestConfig{
+		name:          "RaceConditions",
+		expireTimeout: 2 * time.Millisecond,
+		minDuration:   0,
+		maxDuration:   maxDuration,
+		tickDuration:  8100 * time.Microsecond,
+		iterations:    100,
+	}
 
 	refreshTester := newRefreshTesterServer(t, conf.minDuration, conf.maxDuration)
 
