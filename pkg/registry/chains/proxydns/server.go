@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -31,19 +31,57 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 )
 
+type serverOptions struct {
+	dnsResolver       dnsresolve.Resolver
+	handlingDNSDomain string
+	dialOptions       []grpc.DialOption
+}
+
+// Option modifies default server chain values
+type Option func(o *serverOptions)
+
+// WithDNSResolver sets resolver for the server
+func WithDNSResolver(resolver dnsresolve.Resolver) Option {
+	return func(o *serverOptions) {
+		o.dnsResolver = resolver
+	}
+}
+
+// WithHandlingDNSDomain sets handling domain name for the server
+func WithHandlingDNSDomain(domain string) Option {
+	return func(o *serverOptions) {
+		o.handlingDNSDomain = domain
+	}
+}
+
+// WithDialOptions sets gRPC Dial Options for the server
+func WithDialOptions(opts ...grpc.DialOption) Option {
+	return func(o *serverOptions) {
+		o.dialOptions = opts
+	}
+}
+
 // NewServer creates new stateless registry server that proxies queries to the second registries by DNS domains
-func NewServer(ctx context.Context, dnsResolver dnsresolve.Resolver, handlingDNSDomain string, proxyNSMgrURL *url.URL, options ...grpc.DialOption) registry.Registry {
+func NewServer(ctx context.Context, proxyNSMgrURL *url.URL, options ...Option) registry.Registry {
+	opts := &serverOptions{}
+
+	for _, opt := range options {
+		opt(opts)
+	}
+
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
-		dnsresolve.NewNetworkServiceEndpointRegistryServer(dnsresolve.WithResolver(dnsResolver)),
-		swap.NewNetworkServiceEndpointRegistryServer(handlingDNSDomain, proxyNSMgrURL),
+		dnsresolve.NewNetworkServiceEndpointRegistryServer(dnsresolve.WithResolver(opts.dnsResolver)),
+		swap.NewNetworkServiceEndpointRegistryServer(opts.handlingDNSDomain, proxyNSMgrURL),
 		connect.NewNetworkServiceEndpointRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registryapi.NetworkServiceEndpointRegistryClient {
 			return registryapi.NewNetworkServiceEndpointRegistryClient(cc)
-		}, connect.WithClientDialOptions(options...)))
+		}, connect.WithClientDialOptions(opts.dialOptions...)))
+
 	nsChain := chain.NewNetworkServiceRegistryServer(
-		dnsresolve.NewNetworkServiceRegistryServer(dnsresolve.WithResolver(dnsResolver)),
-		swap.NewNetworkServiceRegistryServer(handlingDNSDomain),
+		dnsresolve.NewNetworkServiceRegistryServer(dnsresolve.WithResolver(opts.dnsResolver)),
+		swap.NewNetworkServiceRegistryServer(opts.handlingDNSDomain),
 		connect.NewNetworkServiceRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registryapi.NetworkServiceRegistryClient {
 			return chain.NewNetworkServiceRegistryClient(registryapi.NewNetworkServiceRegistryClient(cc))
-		}, connect.WithClientDialOptions(options...)))
+		}, connect.WithClientDialOptions(opts.dialOptions...)))
+
 	return registry.NewServer(nsChain, nseChain)
 }
