@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2021 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -71,6 +71,7 @@ func TestMonitor(t *testing.T) {
 					PathSegments: []*networkservice.PathSegment{
 						{
 							Name: segmentName,
+							Id:   segmentName,
 						},
 					},
 				},

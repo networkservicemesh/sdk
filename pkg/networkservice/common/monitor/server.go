@@ -24,6 +24,7 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
 
 	"github.com/edwarnicke/serialize"
 
@@ -60,10 +61,9 @@ func NewServer(ctx context.Context, monitorServerPtr *networkservice.MonitorConn
 }
 
 func (m *monitorServer) MonitorConnections(selector *networkservice.MonitorScopeSelector, srv networkservice.MonitorConnection_MonitorConnectionsServer) error {
+	monitor := newMonitorFilter(selector, srv)
 	m.executor.AsyncExec(func() {
-		monitor := newMonitorFilter(selector, srv)
 		m.monitors = append(m.monitors, monitor)
-
 		// Send initial transfer of all data available
 		_ = monitor.Send(&networkservice.ConnectionEvent{
 			Type:        networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,
@@ -79,14 +79,20 @@ func (m *monitorServer) MonitorConnections(selector *networkservice.MonitorScope
 
 func (m *monitorServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	conn, err := next.Server(ctx).Request(ctx, request)
-	eventConn := conn.Clone()
 	if err == nil {
+		if len(conn.GetPath().PathSegments) == 0 {
+			return nil, errors.New("resp.Path.PathSegments has inccorect lengrh = 0")
+		}
+		eventConn := conn.Clone()
 		m.executor.AsyncExec(func() {
-			m.connections[eventConn.GetId()] = eventConn
+			id := eventConn.GetPath().PathSegments[0].GetId()
+			m.connections[id] = eventConn
 			// Send update event
 			event := &networkservice.ConnectionEvent{
-				Type:        networkservice.ConnectionEventType_UPDATE,
-				Connections: map[string]*networkservice.Connection{eventConn.GetId(): eventConn},
+				Type: networkservice.ConnectionEventType_UPDATE,
+				Connections: map[string]*networkservice.Connection{
+					id: eventConn,
+				},
 			}
 			if sendErr := m.send(ctx, event); sendErr != nil {
 				log.FromContext(ctx).Errorf("Error during sending event: %v", sendErr)
@@ -100,11 +106,17 @@ func (m *monitorServer) Close(ctx context.Context, conn *networkservice.Connecti
 	eventConn := conn.Clone()
 	_, closeErr := next.Server(ctx).Close(ctx, conn)
 	// Remove connection object we have and send DELETE
+	if len(eventConn.GetPath().PathSegments) == 0 {
+		return nil, errors.New("conn.Path.PathSegments has inccorect lengrh = 0")
+	}
 	m.executor.AsyncExec(func() {
-		delete(m.connections, eventConn.GetId())
+		id := eventConn.GetPath().PathSegments[0].GetId()
+		delete(m.connections, id)
 		event := &networkservice.ConnectionEvent{
-			Type:        networkservice.ConnectionEventType_DELETE,
-			Connections: map[string]*networkservice.Connection{eventConn.GetId(): eventConn},
+			Type: networkservice.ConnectionEventType_DELETE,
+			Connections: map[string]*networkservice.Connection{
+				id: eventConn,
+			},
 		}
 		if err := m.send(ctx, event); err != nil {
 			log.FromContext(ctx).Errorf("Error during sending event: %v", err)
@@ -118,6 +130,8 @@ func (m *monitorServer) send(ctx context.Context, event *networkservice.Connecti
 	newMonitors := []networkservice.MonitorConnection_MonitorConnectionsServer{}
 	for _, filter := range m.monitors {
 		select {
+		case <-m.ctx.Done():
+			return m.ctx.Err()
 		case <-filter.Context().Done():
 		default:
 			if err = filter.Send(event.Clone()); err != nil {

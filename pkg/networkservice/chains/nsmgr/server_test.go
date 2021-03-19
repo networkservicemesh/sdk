@@ -32,6 +32,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
@@ -46,6 +47,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -348,6 +350,67 @@ func TestNSMGR_ConnectToDeadNSE(t *testing.T) {
 	_, err = nsc.Request(ctx, refreshRequest)
 	require.Error(t, err)
 	require.NoError(t, ctx.Err())
+}
+
+func TestNSMGR_LocalMonitorUsecase(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(t).
+		SetNodesCount(1).
+		SetContext(ctx).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		Build()
+
+	defer domain.Cleanup()
+
+	nseReg := &registry.NetworkServiceEndpoint{
+		Name:                "final-endpoint",
+		NetworkServiceNames: []string{"my-db-service"},
+	}
+
+	_, err := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
+	require.NoError(t, err)
+
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	request := &networkservice.NetworkServiceRequest{
+		MechanismPreferences: []*networkservice.Mechanism{
+			{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
+		},
+		Connection: &networkservice.Connection{
+			Id:             "nsc-1",
+			NetworkService: "my-db-service",
+			Context:        &networkservice.ConnectionContext{},
+		},
+	}
+
+	conn, err := nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+
+	cc, err := grpc.Dial(grpcutils.URLToTarget(domain.Nodes[0].NSMgr.URL), sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...)
+	require.NoError(t, err)
+	defer func() {
+		_ = cc.Close()
+	}()
+
+	montiorClient := networkservice.NewMonitorConnectionClient(cc)
+
+	stream, err := montiorClient.MonitorConnections(ctx, &networkservice.MonitorScopeSelector{
+		PathSegments: conn.Path.PathSegments,
+	})
+	require.NoError(t, err)
+	require.NoError(t, ctx.Err())
+
+	msg, err := stream.Recv()
+	require.NoError(t, err)
+
+	require.Len(t, msg.Connections, 1)
+	require.True(t, proto.Equal(msg.Connections[conn.Id].GetPath().GetPathSegments()[0], conn.GetPath().GetPathSegments()[0]))
 }
 
 func TestNSMGR_LocalUsecase(t *testing.T) {
