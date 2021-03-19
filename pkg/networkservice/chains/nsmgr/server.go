@@ -30,6 +30,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
@@ -68,20 +69,57 @@ type nsmgrServer struct {
 	registry.Registry
 }
 
+type serverOptions struct {
+	authorizeServer networkservice.NetworkServiceServer
+	dialOptions     []grpc.DialOption
+	registryCC      grpc.ClientConnInterface
+}
+
+// Option modifies server option value
+type Option func(o *serverOptions)
+
+// WithDialOptions sets gRPC Dial Options for the server
+func WithDialOptions(dialOptions ...grpc.DialOption) Option {
+	return func(o *serverOptions) {
+		o.dialOptions = dialOptions
+	}
+}
+
+// WithAuthorizeServer sets authorization server chain element
+func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Option {
+	if authorizeServer == nil {
+		panic("Authorize server cannot be nil")
+	}
+	return func(o *serverOptions) {
+		o.authorizeServer = authorizeServer
+	}
+}
+
+// WithRegistryCC sets client connection to reach the upstream registry, could be nil, in this case only in memory storage will be used.
+func WithRegistryCC(registryCC grpc.ClientConnInterface) Option {
+	return func(o *serverOptions) {
+		o.registryCC = registryCC
+	}
+}
+
 var _ Nsmgr = (*nsmgrServer)(nil)
 
 // NewServer - Creates a new Nsmgr
 //           nsmRegistration - Nsmgr registration
-//           authzServer - authorization server chain element
 //           tokenGenerator - authorization token generator
-//           registryCC - client connection to reach the upstream registry, could be nil, in this case only in memory storage will be used.
-// 			 clientDialOptions -  a grpc.DialOption's to be passed to GRPC connections.
-func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceEndpoint, authzServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, registryCC grpc.ClientConnInterface, clientDialOptions ...grpc.DialOption) Nsmgr {
+func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceEndpoint, tokenGenerator token.GeneratorFunc, options ...Option) Nsmgr {
+	opts := &serverOptions{
+		authorizeServer: authorize.NewServer(authorize.Any()),
+	}
+	for _, opt := range options {
+		opt(opts)
+	}
+
 	rv := &nsmgrServer{}
 
 	var urlsRegistryServer, interposeRegistryServer registryapi.NetworkServiceEndpointRegistryServer
 
-	nsRegistry := newRemoteNSServer(registryCC)
+	nsRegistry := newRemoteNSServer(opts.registryCC)
 	if nsRegistry == nil {
 		// Use memory registry if no registry is passed
 		nsRegistry = registrychain.NewNetworkServiceRegistryServer(
@@ -90,7 +128,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 		)
 	}
 
-	nseRegistry := newRemoteNSEServer(registryCC)
+	nseRegistry := newRemoteNSEServer(opts.registryCC)
 	if nseRegistry == nil {
 		// Use memory registry if no registry is passed
 		nseRegistry = registrychain.NewNetworkServiceEndpointRegistryServer(
@@ -114,7 +152,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 	// Construct Endpoint
 	rv.Endpoint = endpoint.NewServer(ctx, tokenGenerator,
 		endpoint.WithName(nsmRegistration.Name),
-		endpoint.WithAuthorizeServer(authzServer),
+		endpoint.WithAuthorizeServer(opts.authorizeServer),
 		endpoint.WithAdditionalFunctionality(
 			discover.NewServer(nsClient, nseClient),
 			roundrobin.NewServer(),
@@ -131,7 +169,7 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 						sendfd.NewClient(),
 					),
 				),
-				connect.WithDialOptions(clientDialOptions...)),
+				connect.WithDialOptions(opts.dialOptions...)),
 			sendfd.NewServer()),
 	)
 

@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
@@ -65,7 +66,7 @@ func NewBuilder(t *testing.T) *Builder {
 		nodesCount:             1,
 		require:                require.New(t),
 		Resolver:               net.DefaultResolver,
-		supplyNSMgr:            nsmgr.NewServer,
+		supplyNSMgr:            nsmgrServer(),
 		DNSDomainName:          "cluster.local",
 		supplyRegistry:         memory.NewServer,
 		supplyRegistryProxy:    proxydns.NewServer,
@@ -299,5 +300,15 @@ func defaultSetupNode(t *testing.T) SetupNodeFunc {
 		}
 		_, err := node.NewForwarder(ctx, nseReg, GenerateTestToken)
 		require.NoError(t, err)
+	}
+}
+
+func nsmgrServer() SupplyNSMgrFunc {
+	return func(ctx context.Context, nsmRegistration *registryapi.NetworkServiceEndpoint, authzServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, registryCC grpc.ClientConnInterface, clientDialOptions ...grpc.DialOption) nsmgr.Nsmgr {
+		return nsmgr.NewServer(ctx, nsmRegistration, tokenGenerator,
+			nsmgr.WithAuthorizeServer(authzServer),
+			nsmgr.WithRegistryCC(registryCC),
+			nsmgr.WithDialOptions(clientDialOptions...),
+		)
 	}
 }
