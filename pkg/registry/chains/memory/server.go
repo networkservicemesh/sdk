@@ -36,11 +36,41 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 )
 
+type serverOptions struct {
+	expiryDuration time.Duration
+	dialOptions    []grpc.DialOption
+}
+
+// Option modifies option values
+type Option func(o *serverOptions)
+
+// WithExpiryDuration sets expire duration time for the server
+func WithExpiryDuration(duration time.Duration) Option {
+	return func(o *serverOptions) {
+		o.expiryDuration = duration
+	}
+}
+
+// WithDialOptions sets gRPC Dial Options for the server
+func WithDialOptions(options ...grpc.DialOption) Option {
+	return func(o *serverOptions) {
+		o.dialOptions = options
+	}
+}
+
 // NewServer creates new registry server based on memory storage
-func NewServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryURL *url.URL, options ...grpc.DialOption) registryserver.Registry {
+func NewServer(ctx context.Context, proxyRegistryURL *url.URL, options ...Option) registryserver.Registry {
+	opts := &serverOptions{
+		expiryDuration: time.Minute,
+	}
+
+	for _, opt := range options {
+		opt(opts)
+	}
+
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
 		serialize.NewNetworkServiceEndpointRegistryServer(),
-		expire.NewNetworkServiceEndpointRegistryServer(ctx, expiryDuration),
+		expire.NewNetworkServiceEndpointRegistryServer(ctx, opts.expiryDuration),
 		memory.NewNetworkServiceEndpointRegistryServer(),
 		setid.NewNetworkServiceEndpointRegistryServer(),
 		proxy.NewNetworkServiceEndpointRegistryServer(proxyRegistryURL),
@@ -48,8 +78,9 @@ func NewServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryU
 			return chain.NewNetworkServiceEndpointRegistryClient(
 				registry.NewNetworkServiceEndpointRegistryClient(cc),
 			)
-		}, connect.WithClientDialOptions(options...)),
+		}, connect.WithClientDialOptions(opts.dialOptions...)),
 	)
+
 	nsChain := chain.NewNetworkServiceRegistryServer(
 		serialize.NewNetworkServiceRegistryServer(),
 		expire.NewNetworkServiceServer(ctx, adapters.NetworkServiceEndpointServerToClient(nseChain)),
@@ -59,7 +90,7 @@ func NewServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryU
 			return chain.NewNetworkServiceRegistryClient(
 				registry.NewNetworkServiceRegistryClient(cc),
 			)
-		}, connect.WithClientDialOptions(options...)),
+		}, connect.WithClientDialOptions(opts.dialOptions...)),
 	)
 
 	return registryserver.NewServer(nsChain, nseChain)
