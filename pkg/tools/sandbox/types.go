@@ -27,13 +27,14 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgrproxy"
 	"github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 // SupplyNSMgrProxyFunc nsmgr proxy
-type SupplyNSMgrProxyFunc func(context.Context, string, networkservice.NetworkServiceServer, token.GeneratorFunc, ...grpc.DialOption) endpoint.Endpoint
+type SupplyNSMgrProxyFunc func(context.Context, token.GeneratorFunc, ...nsmgrproxy.Option) endpoint.Endpoint
 
 // SupplyNSMgrFunc supplies NSMGR
 type SupplyNSMgrFunc func(context.Context, *registryapi.NetworkServiceEndpoint, networkservice.NetworkServiceServer, token.GeneratorFunc, grpc.ClientConnInterface, ...grpc.DialOption) nsmgr.Nsmgr

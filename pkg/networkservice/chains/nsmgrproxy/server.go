@@ -22,10 +22,12 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/externalips"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
@@ -36,26 +38,67 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
+type serverOptions struct {
+	name            string
+	authorizeServer networkservice.NetworkServiceServer
+	dialOptions     []grpc.DialOption
+}
+
+// Option modifies option value
+type Option func(o *serverOptions)
+
+// WithName sets name for the server
+func WithName(name string) Option {
+	return func(o *serverOptions) {
+		o.name = name
+	}
+}
+
+// WithAuthorizeServer sets authorize server for the server
+func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Option {
+	if authorizeServer == nil {
+		panic("Authorize server cannot be nil")
+	}
+
+	return func(o *serverOptions) {
+		o.authorizeServer = authorizeServer
+	}
+}
+
+// WithDialOptions sets gRPC Dial Options for the server
+func WithDialOptions(options ...grpc.DialOption) Option {
+	return func(o *serverOptions) {
+		o.dialOptions = options
+	}
+}
+
 // NewServer creates new proxy NSMgr
-func NewServer(ctx context.Context, name string, authorizeServer networkservice.NetworkServiceServer, tokenGenerator token.GeneratorFunc, options ...grpc.DialOption) endpoint.Endpoint {
+func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...Option) endpoint.Endpoint {
 	type nsmgrProxyServer struct {
 		endpoint.Endpoint
 	}
-
 	rv := nsmgrProxyServer{}
-
 	healServer, _ := heal.NewServer(ctx, addressof.NetworkServiceClient(adapters.NewServerToClient(rv)))
+
+	opts := &serverOptions{
+		name:            "nsmgr-proxy-" + uuid.New().String(),
+		authorizeServer: authorize.NewServer(authorize.Any()),
+	}
+	for _, opt := range options {
+		opt(opts)
+	}
+
 	rv.Endpoint = endpoint.NewServer(ctx, tokenGenerator,
-		endpoint.WithName(name),
-		endpoint.WithAuthorizeServer(authorizeServer),
+		endpoint.WithName(opts.name),
+		endpoint.WithAuthorizeServer(opts.authorizeServer),
 		endpoint.WithAdditionalFunctionality(
 			interdomainurl.NewServer(),
 			externalips.NewServer(ctx),
 			swapip.NewServer(),
 			healServer,
 			connect.NewServer(ctx,
-				client.NewClientFactory(client.WithName(name)),
-				connect.WithDialOptions(options...),
+				client.NewClientFactory(client.WithName(opts.name)),
+				connect.WithDialOptions(opts.dialOptions...),
 			),
 		),
 	)
