@@ -420,6 +420,7 @@ func (f *healServer) replaceConnectionPath(conn *networkservice.Connection) {
 		if storedConn, ok := f.conns.Load(conn.GetId()); ok {
 			path.PathSegments = path.PathSegments[:path.Index+1]
 			path.PathSegments = append(path.PathSegments, storedConn.Path.PathSegments[path.Index+1:]...)
+			conn.NetworkServiceEndpointName = storedConn.NetworkServiceEndpointName
 		}
 	}
 }

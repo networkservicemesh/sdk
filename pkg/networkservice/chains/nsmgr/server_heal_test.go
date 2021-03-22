@@ -111,6 +111,12 @@ func testNSMGRHealEndpoint(t *testing.T, restored bool) {
 
 	// Wait NSE expired and reconnecting to the new NSE
 	require.Eventually(t, checkSecondRequestsReceived(counter.UniqueRequests), timeout, tick)
+	require.Equal(t, 2, counter.UniqueRequests())
+
+	// Check refresh
+	request.Connection = conn
+	_, err = nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
 
 	// Close.
 	e, err := nsc.Close(ctx, conn)
@@ -244,6 +250,16 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int, restored bool, customConf
 	} else {
 		require.Eventually(t, checkSecondRequestsReceived(counter.UniqueRequests), timeout, tick)
 	}
+	if restored {
+		require.Equal(t, int32(2), atomic.LoadInt32(&counter.Requests))
+	} else {
+		require.Equal(t, 2, counter.UniqueRequests())
+	}
+
+	// Check refresh
+	request.Connection = conn
+	_, err = nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
 
 	// Close.
 	closes := atomic.LoadInt32(&counter.Closes)
@@ -252,7 +268,7 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int, restored bool, customConf
 	require.NotNil(t, e)
 
 	if restored {
-		require.Equal(t, int32(2), atomic.LoadInt32(&counter.Requests))
+		require.Equal(t, int32(3), atomic.LoadInt32(&counter.Requests))
 		require.Equal(t, closes+1, atomic.LoadInt32(&counter.Closes))
 	} else {
 		require.Equal(t, 2, counter.UniqueRequests())
@@ -345,6 +361,11 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, customConfig []*sandbox.NodeC
 		return int(atomic.LoadInt32(&counter.Requests))
 	}), timeout, tick)
 
+	// Check refresh
+	request.Connection = conn
+	_, err = nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+
 	// Close.
 	closes := atomic.LoadInt32(&counter.Closes)
 	e, err := nsc.Close(ctx, conn)
@@ -419,6 +440,12 @@ func TestNSMGR_HealRemoteNSMgr(t *testing.T) {
 
 	// Wait Cross NSE expired and reconnecting through the new Cross NSE
 	require.Eventually(t, checkSecondRequestsReceived(counter.UniqueRequests), timeout, tick)
+	require.Equal(t, 2, counter.UniqueRequests())
+
+	// Check refresh
+	request.Connection = conn
+	_, err = nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
 
 	// Close.
 	e, err := nsc.Close(ctx, conn)
