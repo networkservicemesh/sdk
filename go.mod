@@ -4,7 +4,6 @@ go 1.15
 
 require (
 	github.com/HdrHistogram/hdrhistogram-go v1.0.1 // indirect
-	github.com/RoaringBitmap/roaring v0.4.23
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/edwarnicke/exechelper v1.0.2
 	github.com/edwarnicke/grpcfd v0.0.0-20210219150442-10fb469a6976
