@@ -170,9 +170,6 @@ func (f *healServer) startHeal(ctx context.Context, request *networkservice.Netw
 // expireTime has passed or stopHeal is called (as in Close) or a different pathSegment is found via monitoring
 // indicating that a later Request has occurred and in doing so created its own healAsNeeded and so we can stop this one
 func (f *healServer) healAsNeeded(baseCtx context.Context, request *networkservice.NetworkServiceRequest, errCh chan error, opts ...grpc.CallOption) {
-	// When we are done, close the errCh
-	defer close(errCh)
-
 	pathSegment := request.GetConnection().GetNextPathSegment()
 
 	// Make sure we have a valid expireTime to work with
@@ -205,7 +202,7 @@ func (f *healServer) healAsNeeded(baseCtx context.Context, request *networkservi
 	}
 
 	// Tell the caller all is well by sending them a nil err so the call can continue
-	errCh <- nil
+	close(errCh)
 
 	// Start looping over events
 	for {
