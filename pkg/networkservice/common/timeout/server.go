@@ -29,6 +29,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/serializectx"
 )
@@ -40,7 +41,7 @@ type timeoutServer struct {
 
 type closeTimer struct {
 	expirationTime time.Time
-	timer          *time.Timer
+	timer          clock.Timer
 }
 
 // NewServer - creates a new NetworkServiceServer chain element that implements timeout of expired connections
@@ -54,6 +55,8 @@ func NewServer(ctx context.Context) networkservice.NetworkServiceServer {
 }
 
 func (s *timeoutServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	clockTime := clock.FromContext(ctx)
+
 	if err := s.validateRequest(ctx, request); err != nil {
 		return nil, err
 	}
@@ -68,7 +71,7 @@ func (s *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 	conn, err := next.Server(ctx).Request(ctx, request)
 	if err != nil {
 		if stopped {
-			t.timer.Reset(time.Until(t.expirationTime))
+			t.timer.Reset(clockTime.Until(t.expirationTime))
 		}
 		return nil, err
 	}
@@ -94,10 +97,12 @@ func (s *timeoutServer) validateRequest(ctx context.Context, request *networkser
 func (s *timeoutServer) newTimer(ctx context.Context, expirationTime time.Time, conn *networkservice.Connection) *closeTimer {
 	logger := log.FromContext(ctx).WithField("timeoutServer", "newTimer")
 
+	clockTime := clock.FromContext(ctx)
+
 	tPtr := new(*closeTimer)
 	*tPtr = &closeTimer{
 		expirationTime: expirationTime,
-		timer: time.AfterFunc(time.Until(expirationTime), func() {
+		timer: clockTime.AfterFunc(clockTime.Until(expirationTime), func() {
 			<-serializectx.GetExecutor(ctx, conn.GetId()).AsyncExec(func() {
 				if t, ok := s.timers.LoadAndDelete(conn.GetId()); !ok || t != *tPtr {
 					// this timer has been stopped

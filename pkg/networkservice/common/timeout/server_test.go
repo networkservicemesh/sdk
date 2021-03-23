@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
@@ -42,14 +41,17 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/failure"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
+	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
 )
 
 const (
 	clientName   = "client"
 	serverName   = "server"
-	tokenTimeout = 100 * time.Millisecond
-	waitFor      = 10 * tokenTimeout
-	tick         = tokenTimeout / 10
+	tokenTimeout = 15 * time.Minute
+	testWait     = 100 * time.Millisecond
+	testTick     = testWait / 100
 )
 
 func testClient(
@@ -65,7 +67,7 @@ func testClient(
 		adapters.NewServerToClient(
 			next.NewNetworkServiceServer(
 				updatetoken.NewServer(func(_ credentials.AuthInfo) (string, time.Time, error) {
-					return "token", time.Now().Add(duration), nil
+					return "token", clock.FromContext(ctx).Now().Add(duration), nil
 				}),
 				new(remoteServer), // <-- GRPC invocation
 				updatepath.NewServer(serverName),
@@ -81,6 +83,9 @@ func TestTimeoutServer_Request(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	clockMock := clockmock.NewMock()
+	ctx = clock.WithClock(ctx, clockMock)
+
 	connServer := newConnectionsServer(t)
 
 	client := testClient(ctx,
@@ -93,14 +98,20 @@ func TestTimeoutServer_Request(t *testing.T) {
 
 	_, err := client.Request(ctx, &networkservice.NetworkServiceRequest{})
 	require.NoError(t, err)
-	require.Condition(t, connServer.validator(1, 0))
 
-	require.Eventually(t, connServer.validator(0, 1), waitFor, tick)
+	clockMock.Add(tokenTimeout / 2)
+	require.Eventually(t, connServer.validator(1, 0), testWait, testTick)
+
+	clockMock.Add(tokenTimeout / 2)
+	require.Eventually(t, connServer.validator(0, 1), testWait, testTick)
 }
 
 func TestTimeoutServer_CloseBeforeTimeout(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	clockMock := clockmock.NewMock()
+	ctx = clock.WithClock(ctx, clockMock)
 
 	connServer := newConnectionsServer(t)
 
@@ -121,12 +132,16 @@ func TestTimeoutServer_CloseBeforeTimeout(t *testing.T) {
 	require.Condition(t, connServer.validator(0, 1))
 
 	// ensure there will be no double Close
-	<-time.After(waitFor)
+	clockMock.Add(tokenTimeout)
+	time.Sleep(testWait)
 }
 
 func TestTimeoutServer_CloseAfterTimeout(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	clockMock := clockmock.NewMock()
+	ctx = clock.WithClock(ctx, clockMock)
 
 	connServer := newConnectionsServer(t)
 
@@ -142,14 +157,15 @@ func TestTimeoutServer_CloseAfterTimeout(t *testing.T) {
 	require.NoError(t, err)
 	require.Condition(t, connServer.validator(1, 0))
 
-	require.Eventually(t, connServer.validator(0, 1), waitFor, tick)
+	clockMock.Add(tokenTimeout)
+	require.Eventually(t, connServer.validator(0, 1), testWait, testTick)
 
 	_, err = client.Close(ctx, conn)
 	require.NoError(t, err)
-	require.Condition(t, connServer.validator(0, 1))
+	require.Eventually(t, connServer.validator(0, 1), testWait, testTick)
 }
 
-func stressTestRequest() *networkservice.NetworkServiceRequest {
+func raceTestRequest() *networkservice.NetworkServiceRequest {
 	return &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Path: &networkservice.Path{
@@ -168,7 +184,7 @@ func stressTestRequest() *networkservice.NetworkServiceRequest {
 	}
 }
 
-func TestTimeoutServer_StressTest(t *testing.T) {
+func TestTimeoutServer_RaceTest(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -181,8 +197,10 @@ func TestTimeoutServer_StressTest(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			conn, err := client.Request(ctx, stressTestRequest())
+
+			conn, err := client.Request(ctx, raceTestRequest())
 			assert.NoError(t, err)
+
 			_, err = client.Close(ctx, conn)
 			assert.NoError(t, err)
 		}()
@@ -196,13 +214,16 @@ func TestTimeoutServer_RefreshFailure(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	clockMock := clockmock.NewMock()
+	ctx = clock.WithClock(ctx, clockMock)
+
 	connServer := newConnectionsServer(t)
 
 	client := testClient(
 		ctx,
 		refresh.NewClient(ctx),
 		next.NewNetworkServiceServer(
-			newFailureServer(1, -1),
+			failure.NewServer(1, -1),
 			connServer,
 		),
 		tokenTimeout,
@@ -212,7 +233,8 @@ func TestTimeoutServer_RefreshFailure(t *testing.T) {
 	require.NoError(t, err)
 	require.Condition(t, connServer.validator(1, 0))
 
-	require.Eventually(t, connServer.validator(0, 1), waitFor, tick)
+	clockMock.Add(tokenTimeout)
+	require.Eventually(t, connServer.validator(0, 1), testWait, testTick)
 
 	_, err = client.Close(ctx, conn)
 	require.NoError(t, err)
@@ -285,33 +307,5 @@ func (s *connectionsServer) Close(ctx context.Context, conn *networkservice.Conn
 
 	s.lock.Unlock()
 
-	return next.Server(ctx).Close(ctx, conn)
-}
-
-type failureServer struct {
-	count        int
-	failureTimes []int
-}
-
-func newFailureServer(failureTimes ...int) *failureServer {
-	return &failureServer{
-		failureTimes: failureTimes,
-	}
-}
-
-func (s *failureServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	defer func() { s.count++ }()
-	for _, failureTime := range s.failureTimes {
-		if failureTime > s.count {
-			break
-		}
-		if failureTime == s.count || failureTime == -1 {
-			return nil, errors.New("failure")
-		}
-	}
-	return next.Server(ctx).Request(ctx, request)
-}
-
-func (s *failureServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	return next.Server(ctx).Close(ctx, conn)
 }
