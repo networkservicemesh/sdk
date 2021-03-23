@@ -43,7 +43,7 @@ func isSubset(a, b, nsLabels map[string]string) bool {
 }
 
 func matchEndpoint(nsLabels map[string]string, ns *registry.NetworkService, networkServiceEndpoints ...*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
-	validNetworkServiceEndpoints := make([]*registry.NetworkServiceEndpoint, 0)
+	var validNetworkServiceEndpoints []*registry.NetworkServiceEndpoint
 	for _, nse := range networkServiceEndpoints {
 		if nse.GetExpirationTime() == nil || nse.GetExpirationTime().AsTime().After(time.Now()) {
 			validNetworkServiceEndpoints = append(validNetworkServiceEndpoints, nse)

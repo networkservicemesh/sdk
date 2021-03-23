@@ -112,8 +112,6 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 
 	nsClient := registryadapter.NetworkServiceServerToClient(nsRegistry)
 
-	healServer, registerHealClient := heal.NewServer(ctx, addressof.NetworkServiceClient(adapters.NewServerToClient(rv)))
-
 	// Construct Endpoint
 	rv.Endpoint = endpoint.NewServer(ctx, tokenGenerator,
 		endpoint.WithName(nsmRegistration.Name),
@@ -125,11 +123,10 @@ func NewServer(ctx context.Context, nsmRegistration *registryapi.NetworkServiceE
 			recvfd.NewServer(), // Receive any files passed
 			interpose.NewServer(&interposeRegistryServer),
 			filtermechanisms.NewServer(&urlsRegistryServer),
-			healServer,
+			heal.NewServer(ctx, addressof.NetworkServiceClient(adapters.NewServerToClient(rv))),
 			connect.NewServer(ctx,
 				client.NewClientFactory(
 					client.WithName(nsmRegistration.Name),
-					client.WithRegisterHealClientFunc(registerHealClient),
 					client.WithAdditionalFunctionality(
 						recvfd.NewClient(),
 						sendfd.NewClient(),

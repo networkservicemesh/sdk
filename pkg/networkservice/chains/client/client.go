@@ -41,18 +41,10 @@ type clientOptions struct {
 	name                    string
 	additionalFunctionality []networkservice.NetworkServiceClient
 	authorizeClient         networkservice.NetworkServiceClient
-	registerClientFunc      heal.RegisterClientFunc
 }
 
 // Option modifies default client chain values.
 type Option func(c *clientOptions)
-
-// WithRegisterHealClientFunc sets server's register client method
-func WithRegisterHealClientFunc(registerClientFunc heal.RegisterClientFunc) Option {
-	return Option(func(c *clientOptions) {
-		c.registerClientFunc = registerClientFunc
-	})
-}
 
 // WithName sets name for the client.
 func WithName(name string) Option {
@@ -95,7 +87,7 @@ func NewClient(ctx context.Context, cc grpc.ClientConnInterface, clientOpts ...O
 			append([]networkservice.NetworkServiceClient{
 				updatepath.NewClient(opts.name),
 				serialize.NewClient(),
-				heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc), opts.registerClientFunc),
+				heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc)),
 				refresh.NewClient(ctx),
 				metadata.NewClient(),
 			}, opts.additionalFunctionality...),

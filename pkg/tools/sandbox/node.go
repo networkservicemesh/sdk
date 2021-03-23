@@ -57,14 +57,13 @@ func (n *Node) NewForwarder(
 	additionalFunctionality ...networkservice.NetworkServiceServer,
 ) (*EndpointEntry, error) {
 	ep := new(EndpointEntry)
-	healServer, registerHealClient := heal.NewServer(ctx, addressof.NetworkServiceClient(adapters.NewServerToClient(ep)))
 	additionalFunctionality = append(additionalFunctionality,
 		clienturl.NewServer(n.NSMgr.URL),
-		healServer,
+		heal.NewServer(ctx, addressof.NetworkServiceClient(adapters.NewServerToClient(ep))),
 		connect.NewServer(ctx,
 			client.NewCrossConnectClientFactory(
 				client.WithName(nse.Name),
-				client.WithRegisterHealClientFunc(registerHealClient)),
+			),
 			connect.WithDialOptions(DefaultDialOptions(generatorFunc)...),
 		),
 	)

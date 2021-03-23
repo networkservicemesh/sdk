@@ -78,7 +78,6 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		endpoint.Endpoint
 	}
 	rv := nsmgrProxyServer{}
-	healServer, _ := heal.NewServer(ctx, addressof.NetworkServiceClient(adapters.NewServerToClient(rv)))
 
 	opts := &serverOptions{
 		name:            "nsmgr-proxy-" + uuid.New().String(),
@@ -95,7 +94,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			interdomainurl.NewServer(),
 			externalips.NewServer(ctx),
 			swapip.NewServer(),
-			healServer,
+			heal.NewServer(ctx, addressof.NetworkServiceClient(adapters.NewServerToClient(rv))),
 			connect.NewServer(ctx,
 				client.NewClientFactory(client.WithName(opts.name)),
 				connect.WithDialOptions(opts.dialOptions...),

@@ -76,7 +76,7 @@ type healServer struct {
 //                        If we are part of a larger chain or a server, we should pass the resulting chain into
 //                        this constructor before we actually have a pointer to it.
 //                        If onHeal nil, onHeal will be pointed to the returned networkservice.NetworkServiceClient
-func NewServer(ctx context.Context, onHeal *networkservice.NetworkServiceClient) (networkservice.NetworkServiceServer, RegisterClientFunc) {
+func NewServer(ctx context.Context, onHeal *networkservice.NetworkServiceClient) networkservice.NetworkServiceServer {
 	rv := &healServer{
 		ctx:           ctx,
 		onHeal:        onHeal,
@@ -87,13 +87,14 @@ func NewServer(ctx context.Context, onHeal *networkservice.NetworkServiceClient)
 		rv.onHeal = addressof.NetworkServiceClient(adapters.NewServerToClient(rv))
 	}
 
-	return rv, rv.RegisterClient
+	return rv
 }
 
 func (f *healServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	// Replace path within connection to the healed one
 	f.replaceConnectionPath(request.GetConnection())
 
+	ctx = withRegisterClientFunc(ctx, f.RegisterClient)
 	conn, err := next.Server(ctx).Request(ctx, request)
 	if err != nil {
 		return nil, err

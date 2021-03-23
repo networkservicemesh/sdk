@@ -32,24 +32,24 @@ import (
 type RegisterClientFunc func(context.Context, *networkservice.Connection, networkservice.MonitorConnectionClient)
 
 type healClient struct {
-	ctx            context.Context
-	cc             networkservice.MonitorConnectionClient
-	registerClient RegisterClientFunc
+	ctx context.Context
+	cc  networkservice.MonitorConnectionClient
 }
 
 // NewClient - creates a new networkservice.NetworkServiceClient chain element that inform healServer about new client connection
-func NewClient(ctx context.Context, cc networkservice.MonitorConnectionClient, registerClient RegisterClientFunc) networkservice.NetworkServiceClient {
+func NewClient(ctx context.Context, cc networkservice.MonitorConnectionClient) networkservice.NetworkServiceClient {
 	return &healClient{
-		ctx:            ctx,
-		cc:             cc,
-		registerClient: registerClient,
+		ctx: ctx,
+		cc:  cc,
 	}
 }
 
 func (u *healClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
-	if err == nil && u.registerClient != nil {
-		u.registerClient(u.ctx, conn, u.cc)
+
+	registerClient := registerClientFunc(ctx)
+	if err == nil && registerClient != nil {
+		registerClient(u.ctx, conn, u.cc)
 	}
 	return conn, err
 }
