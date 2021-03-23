@@ -79,7 +79,7 @@ func (q *queryCacheNSEClient) findInCache(ctx context.Context, key string) (regi
 	}
 
 	resultCh := make(chan *registry.NetworkServiceEndpoint, 1)
-	resultCh <- nse
+	resultCh <- nse.Clone()
 	close(resultCh)
 
 	return streamchannel.NewNetworkServiceEndpointFindClient(ctx, resultCh), true

@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Cisco Systems, Inc.
 //
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,9 +22,9 @@ package client
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"google.golang.org/grpc"
 
-	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
@@ -37,20 +39,12 @@ import (
 
 type clientOptions struct {
 	name                    string
-	onHeal                  *networkservice.NetworkServiceClient
 	additionalFunctionality []networkservice.NetworkServiceClient
 	authorizeClient         networkservice.NetworkServiceClient
 }
 
 // Option modifies default client chain values.
 type Option func(c *clientOptions)
-
-// WithHeal sets heal for the client.
-func WithHeal(onHeal *networkservice.NetworkServiceClient) Option {
-	return Option(func(c *clientOptions) {
-		c.onHeal = onHeal
-	})
-}
 
 // WithName sets name for the client.
 func WithName(name string) Option {
@@ -84,7 +78,6 @@ func NewClient(ctx context.Context, cc grpc.ClientConnInterface, clientOpts ...O
 	var opts = &clientOptions{
 		name:            "client-" + uuid.New().String(),
 		authorizeClient: null.NewClient(),
-		onHeal:          &rv,
 	}
 	for _, opt := range clientOpts {
 		opt(opts)
@@ -94,7 +87,7 @@ func NewClient(ctx context.Context, cc grpc.ClientConnInterface, clientOpts ...O
 			append([]networkservice.NetworkServiceClient{
 				updatepath.NewClient(opts.name),
 				serialize.NewClient(),
-				heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc), opts.onHeal),
+				heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc)),
 				refresh.NewClient(ctx),
 				metadata.NewClient(),
 			}, opts.additionalFunctionality...),

@@ -1,5 +1,7 @@
 // Copyright (c) 2018-2020 VMware, Inc.
 //
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,6 +21,7 @@ package discover
 import (
 	"bytes"
 	"text/template"
+	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 )
@@ -40,6 +43,13 @@ func isSubset(a, b, nsLabels map[string]string) bool {
 }
 
 func matchEndpoint(nsLabels map[string]string, ns *registry.NetworkService, networkServiceEndpoints ...*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
+	var validNetworkServiceEndpoints []*registry.NetworkServiceEndpoint
+	for _, nse := range networkServiceEndpoints {
+		if nse.GetExpirationTime() == nil || nse.GetExpirationTime().AsTime().After(time.Now()) {
+			validNetworkServiceEndpoints = append(validNetworkServiceEndpoints, nse)
+		}
+	}
+
 	// Iterate through the matches
 	for _, match := range ns.GetMatches() {
 		// All match source selector labels should be present in the requested labels map
@@ -50,7 +60,7 @@ func matchEndpoint(nsLabels map[string]string, ns *registry.NetworkService, netw
 		// Check all Destinations in that match
 		for _, destination := range match.GetRoutes() {
 			// Each NSE should be matched against that destination
-			for _, nse := range networkServiceEndpoints {
+			for _, nse := range validNetworkServiceEndpoints {
 				if isSubset(nse.GetNetworkServiceLabels()[ns.Name].Labels, destination.GetDestinationSelector(), nsLabels) {
 					nseCandidates = append(nseCandidates, nse)
 				}
@@ -58,7 +68,8 @@ func matchEndpoint(nsLabels map[string]string, ns *registry.NetworkService, netw
 		}
 		return nseCandidates
 	}
-	return networkServiceEndpoints
+
+	return validNetworkServiceEndpoints
 }
 
 // ProcessLabels generates matches based on destination label selectors that specify templating.

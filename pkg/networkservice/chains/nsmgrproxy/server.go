@@ -30,8 +30,11 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/externalips"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interdomainurl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/swapip"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
+	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -71,6 +74,11 @@ func WithDialOptions(options ...grpc.DialOption) Option {
 
 // NewServer creates new proxy NSMgr
 func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...Option) endpoint.Endpoint {
+	type nsmgrProxyServer struct {
+		endpoint.Endpoint
+	}
+	rv := nsmgrProxyServer{}
+
 	opts := &serverOptions{
 		name:            "nsmgr-proxy-" + uuid.New().String(),
 		authorizeServer: authorize.NewServer(authorize.Any()),
@@ -79,17 +87,19 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		opt(opts)
 	}
 
-	return endpoint.NewServer(ctx, tokenGenerator,
+	rv.Endpoint = endpoint.NewServer(ctx, tokenGenerator,
 		endpoint.WithName(opts.name),
 		endpoint.WithAuthorizeServer(opts.authorizeServer),
 		endpoint.WithAdditionalFunctionality(
 			interdomainurl.NewServer(),
 			externalips.NewServer(ctx),
 			swapip.NewServer(),
+			heal.NewServer(ctx, addressof.NetworkServiceClient(adapters.NewServerToClient(rv))),
 			connect.NewServer(ctx,
 				client.NewClientFactory(client.WithName(opts.name)),
 				connect.WithDialOptions(opts.dialOptions...),
 			),
 		),
 	)
+	return rv
 }
