@@ -27,11 +27,13 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 	"github.com/networkservicemesh/sdk/pkg/tools/serializectx"
 )
@@ -78,6 +80,8 @@ func (t *refreshClient) stopTimer(connectionID string) {
 }
 
 func (t *refreshClient) startTimer(ctx context.Context, connectionID string, request *networkservice.NetworkServiceRequest, opts []grpc.CallOption) {
+	clockTime := clock.FromContext(ctx)
+
 	nextClient := next.Client(ctx)
 	expireTime, err := ptypes.Timestamp(request.GetConnection().GetCurrentPathSegment().GetExpires())
 	if err != nil {
@@ -93,12 +97,12 @@ func (t *refreshClient) startTimer(ctx context.Context, connectionID string, req
 	if len(path.PathSegments) > 1 {
 		scale = 0.2 + 0.2*float64(path.Index)/float64(len(path.PathSegments))
 	}
-	duration := time.Duration(float64(time.Until(expireTime)) * scale)
+	duration := time.Duration(float64(clockTime.Until(expireTime)) * scale)
 	req := request.Clone()
 	exec := serializectx.GetExecutor(ctx, connectionID)
 
-	var timer *time.Timer
-	timer = time.AfterFunc(duration, func() {
+	var timer clock.Timer
+	timer = clockTime.AfterFunc(duration, func() {
 		exec.AsyncExec(func() {
 			oldTimer, ok := t.timers.Load(connectionID)
 			if !ok || oldTimer != timer {
@@ -116,7 +120,7 @@ func (t *refreshClient) startTimer(ctx context.Context, connectionID string, req
 			if timeout > duration {
 				timeout = duration
 			}
-			refreshCtx, cancel := context.WithTimeout(extend.WithValuesFromContext(t.chainCtx, ctx), timeout)
+			refreshCtx, cancel := clockTime.WithTimeout(extend.WithValuesFromContext(t.chainCtx, ctx), timeout)
 			defer cancel()
 			rv, err := nextClient.Request(refreshCtx, req, opts...)
 
