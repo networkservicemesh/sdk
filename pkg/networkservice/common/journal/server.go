@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -31,6 +31,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 )
 
 // ActionRequest indicates that the event seen is a connection request.
@@ -55,6 +56,8 @@ type journalServer struct {
 }
 
 func (srv *journalServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	clockTime := clock.FromContext(ctx)
+
 	conn, err := next.Server(ctx).Request(ctx, request)
 	if err != nil {
 		return conn, err
@@ -65,7 +68,7 @@ func (srv *journalServer) Request(ctx context.Context, request *networkservice.N
 	path := conn.GetPath()
 
 	entry := Entry{
-		Time:        time.Now().UTC(),
+		Time:        clockTime.Now().UTC(),
 		Source:      src,
 		Destination: dst,
 		Action:      ActionRequest,
@@ -77,10 +80,13 @@ func (srv *journalServer) Request(ctx context.Context, request *networkservice.N
 	return conn, err
 }
 func (srv *journalServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
+	clockTime := clock.FromContext(ctx)
+
 	src := connection.GetContext().GetIpContext().GetSrcIpAddr()
 	dst := connection.GetContext().GetIpContext().GetDstIpAddr()
+
 	entry := Entry{
-		Time:        time.Now().UTC(),
+		Time:        clockTime.Now().UTC(),
 		Source:      src,
 		Destination: dst,
 		Action:      ActionClose,

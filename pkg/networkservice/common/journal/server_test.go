@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -13,7 +13,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package journal
+package journal_test
 
 import (
 	"context"
@@ -26,6 +26,10 @@ import (
 	"github.com/nats-io/stan.go"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/journal"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
+	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
 )
 
 func TestConnect(t *testing.T) {
@@ -45,7 +49,7 @@ func TestConnect(t *testing.T) {
 		_ = testConn.Close()
 	}()
 
-	srv, err := NewServer("foo", conn)
+	srv, err := journal.NewServer("foo", conn)
 	assert.NoError(t, err)
 
 	req := &networkservice.NetworkServiceRequest{
@@ -63,18 +67,22 @@ func TestConnect(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 
+	clockMock := clockmock.NewMock()
+	ctx := clock.WithClock(context.Background(), clockMock)
+
 	ts := time.Now()
+	clockMock.Set(ts)
 
 	sub, err := testConn.Subscribe("foo", func(msg *stan.Msg) {
 		data := msg.Data
-		entry := Entry{}
+		entry := journal.Entry{}
 		subErr := json.Unmarshal(data, &entry)
 		assert.NoError(t, subErr)
 
-		assert.GreaterOrEqual(t, entry.Time.Unix(), ts.Unix())
+		assert.Equal(t, entry.Time.Unix(), ts.Unix())
 		assert.Equal(t, "10.0.0.1/32", entry.Source)
 		assert.Equal(t, "10.0.0.2/32", entry.Destination)
-		assert.Equal(t, ActionRequest, entry.Action)
+		assert.Equal(t, journal.ActionRequest, entry.Action)
 		assert.NotNil(t, entry.Path)
 
 		wg.Done()
@@ -84,7 +92,7 @@ func TestConnect(t *testing.T) {
 		_ = sub.Close()
 	}()
 
-	_, err = srv.Request(context.Background(), req)
+	_, err = srv.Request(ctx, req)
 	assert.NoError(t, err)
 
 	wg.Wait()
