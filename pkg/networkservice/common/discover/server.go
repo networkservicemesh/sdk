@@ -31,6 +31,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 )
 
 type discoverCandidatesServer struct {
@@ -48,6 +49,8 @@ func NewServer(nsClient registry.NetworkServiceRegistryClient, nseClient registr
 }
 
 func (d *discoverCandidatesServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	clockTime := clock.FromContext(ctx)
+
 	nseName := request.GetConnection().GetNetworkServiceEndpointName()
 	if nseName != "" {
 		nse, err := d.discoverNetworkServiceEndpoint(ctx, nseName)
@@ -79,12 +82,12 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 		}
 
 		if deadline, ok := ctx.Deadline(); ctx.Err() == nil && ok {
-			timeout := time.Until(deadline) / 10
+			timeout := clockTime.Until(deadline) / 10
 			if delay > float64(timeout) {
 				delay = float64(timeout)
 			}
 		}
-		<-time.After(time.Duration(delay))
+		clockTime.Sleep(time.Duration(delay))
 		delay *= discoverDelayMultiplier
 
 		nses, err = d.discoverNetworkServiceEndpoints(ctx, ns, request.GetConnection().GetLabels())
@@ -150,6 +153,8 @@ func (d *discoverCandidatesServer) discoverNetworkServiceEndpoint(ctx context.Co
 }
 
 func (d *discoverCandidatesServer) discoverNetworkServiceEndpoints(ctx context.Context, ns *registry.NetworkService, labels map[string]string) ([]*registry.NetworkServiceEndpoint, error) {
+	clockTime := clock.FromContext(ctx)
+
 	query := &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 			NetworkServiceNames: []string{ns.Name},
@@ -162,7 +167,7 @@ func (d *discoverCandidatesServer) discoverNetworkServiceEndpoints(ctx context.C
 	}
 	nseList := registry.ReadNetworkServiceEndpointList(nseStream)
 
-	result := matchEndpoint(labels, ns, nseList...)
+	result := matchEndpoint(clockTime, labels, ns, nseList...)
 	if len(result) != 0 {
 		return result, nil
 	}
@@ -182,7 +187,7 @@ func (d *discoverCandidatesServer) discoverNetworkServiceEndpoints(ctx context.C
 			return nil, errors.WithStack(err)
 		}
 
-		result = matchEndpoint(labels, ns, nse)
+		result = matchEndpoint(clockTime, labels, ns, nse)
 		if len(result) != 0 {
 			return result, nil
 		}

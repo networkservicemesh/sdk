@@ -19,11 +19,11 @@ package discover_test
 
 import (
 	"context"
-	"errors"
+	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
@@ -34,11 +34,19 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/failure"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
 	registryadapters "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	registrynext "github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
+	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
+)
+
+const (
+	testWait = 100 * time.Millisecond
+	testTick = testWait / 100
 )
 
 func endpoints() []*registry.NetworkServiceEndpoint {
@@ -173,7 +181,9 @@ func TestMatchEmptySourceSelector(t *testing.T) {
 	}
 
 	server := next.NewNetworkServiceServer(
-		discover.NewServer(registryadapters.NetworkServiceServerToClient(nsServer), registryadapters.NetworkServiceEndpointServerToClient(nseServer)),
+		discover.NewServer(
+			registryadapters.NetworkServiceServerToClient(nsServer),
+			registryadapters.NetworkServiceEndpointServerToClient(nseServer)),
 		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
 			nses := discover.Candidates(ctx).Endpoints
 			require.Len(t, nses, 1)
@@ -217,7 +227,7 @@ func TestMatchNonEmptySourceSelector(t *testing.T) {
 	)
 
 	_, err := server.Request(context.Background(), request)
-	require.Nil(t, err)
+	require.NoError(t, err)
 }
 
 func TestMatchEmptySourceSelectorGoingFirst(t *testing.T) {
@@ -342,7 +352,7 @@ func TestNoMatchServiceFound(t *testing.T) {
 		}),
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second/2)
+	ctx, cancel := context.WithTimeout(context.Background(), testWait)
 	defer cancel()
 
 	_, err := server.Request(ctx, request)
@@ -378,7 +388,7 @@ func TestNoMatchServiceEndpointFound(t *testing.T) {
 		}),
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second/2)
+	ctx, cancel := context.WithTimeout(context.Background(), testWait)
 	defer cancel()
 
 	_, err := server.Request(ctx, request)
@@ -414,7 +424,7 @@ func TestMatchExactService(t *testing.T) {
 	require.NoError(t, err)
 
 	// 2. Try to discover NSE by the right NS name
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), testWait)
 	defer cancel()
 
 	request := &networkservice.NetworkServiceRequest{
@@ -438,7 +448,7 @@ func TestMatchExactService(t *testing.T) {
 	require.NoError(t, err)
 
 	// 4. Try to discover NSE by the right NS name
-	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Millisecond)
+	ctx, cancel = context.WithTimeout(context.Background(), testWait)
 	defer cancel()
 
 	conn, err := server.Request(ctx, request.Clone())
@@ -472,7 +482,7 @@ func TestMatchExactEndpoint(t *testing.T) {
 	require.NoError(t, err)
 
 	// 2. Try to discover NSE by the right name
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), testWait)
 	defer cancel()
 
 	request := &networkservice.NetworkServiceRequest{
@@ -492,7 +502,7 @@ func TestMatchExactEndpoint(t *testing.T) {
 	require.NoError(t, err)
 
 	// 4. Try to discover NSE by the right name
-	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Millisecond)
+	ctx, cancel = context.WithTimeout(context.Background(), testWait)
 	defer cancel()
 
 	_, err = server.Request(ctx, request.Clone())
@@ -502,14 +512,18 @@ func TestMatchExactEndpoint(t *testing.T) {
 func TestMatchSelectedNSESecondAttempt(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	nsServer := memory.NewNetworkServiceRegistryServer()
-	nseServer := registrynext.NewNetworkServiceEndpointRegistryServer(
-		registryadapters.NetworkServiceEndpointClientToServer(setid.NewNetworkServiceEndpointRegistryClient()),
-		memory.NewNetworkServiceEndpointRegistryServer(),
-	)
+	clockMock := clockmock.NewMock()
+	ctx := clock.WithClock(context.Background(), clockMock)
+
+	const requestTimeout = time.Second
+	const tick = requestTimeout / 10
 
 	nsName := networkServiceName()
-	counter := 0
+
+	nsServer, nseServer := testServers(t, nsName, []*registry.NetworkServiceEndpoint{{
+		NetworkServiceNames: []string{nsName},
+	}})
+
 	server := next.NewNetworkServiceServer(
 		discover.NewServer(
 			registryadapters.NetworkServiceServerToClient(nsServer),
@@ -519,53 +533,37 @@ func TestMatchSelectedNSESecondAttempt(t *testing.T) {
 			require.Len(t, nses, 1)
 			require.Equal(t, nsName, nses[0].NetworkServiceNames[0])
 		}),
-		&injectConditionServer{
-			condition: func() bool {
-				counter++
-				return counter > 1
-			},
-		},
+		failure.NewServer(0),
 	)
-
-	_, err := nsServer.Register(context.Background(), &registry.NetworkService{
-		Name: nsName,
-	})
-	require.NoError(t, err)
-	_, err = nseServer.Register(context.Background(), &registry.NetworkServiceEndpoint{
-		NetworkServiceNames: []string{nsName},
-	})
-	require.NoError(t, err)
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
 
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			NetworkService: nsName,
 		},
 	}
-	now := time.Now()
-	_, err = server.Request(ctx, request)
-	require.NoError(t, err)
-	require.Condition(t, func() (success bool) {
-		return time.Now().After(now.Add(time.Second / 10))
-	})
-}
 
-type injectConditionServer struct {
-	condition func() bool
-}
+	requestCtx, cancel := clockMock.WithTimeout(ctx, requestTimeout)
+	defer cancel()
 
-func (c *injectConditionServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if !c.condition() {
-		return nil, errors.New("error originated by failed condition in injectConditionServer")
-	}
-	return next.Server(ctx).Request(ctx, request)
-}
+	var flag int32
+	go func() {
+		defer atomic.StoreInt32(&flag, 1)
 
-func (c *injectConditionServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
-	if !c.condition() {
-		return nil, errors.New("error originated by failed condition in injectConditionServer")
-	}
-	return next.Server(ctx).Close(ctx, connection)
+		_, err := server.Request(requestCtx, request)
+		assert.NoError(t, err)
+	}()
+
+	time.Sleep(testWait)
+
+	clockMock.Add(tick / 2)
+
+	require.Never(t, func() bool {
+		return atomic.LoadInt32(&flag) == 1
+	}, testWait, testTick)
+
+	clockMock.Add(tick / 2)
+
+	require.Eventually(t, func() bool {
+		return atomic.LoadInt32(&flag) == 1
+	}, testWait, testTick)
 }
