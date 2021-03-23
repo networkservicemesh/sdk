@@ -36,8 +36,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/proxydns"
 	registryconnect "github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 // Builder implements builder pattern for building NSM Domain
@@ -68,14 +70,16 @@ type Builder struct {
 // NewBuilder creates new SandboxBuilder
 func NewBuilder(ctx context.Context, t *testing.T) *Builder {
 	b := &Builder{
-		t:                      t,
-		ctx:                    ctx,
-		nodesCount:             1,
-		supplyNSMgr:            nsmgr.NewServer,
-		supplyNSMgrProxy:       nsmgrproxy.NewServer,
-		supplyRegistry:         memory.NewServer,
-		supplyRegistryProxy:    proxydns.NewServer,
-		supplyTokenGenerator:   GenerateExpiringToken,
+		t:                   t,
+		ctx:                 ctx,
+		nodesCount:          1,
+		supplyNSMgr:         nsmgr.NewServer,
+		supplyNSMgrProxy:    nsmgrproxy.NewServer,
+		supplyRegistry:      memory.NewServer,
+		supplyRegistryProxy: proxydns.NewServer,
+		supplyTokenGenerator: func(tokenTimeout time.Duration) token.GeneratorFunc {
+			return GenerateExpiringToken(clock.FromContext(ctx), tokenTimeout)
+		},
 		name:                   "cluster.local",
 		dnsResolver:            new(FakeDNSResolver),
 		tokenTimeout:           DefaultTokenTimeout,

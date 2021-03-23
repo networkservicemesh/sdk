@@ -47,6 +47,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -170,7 +171,7 @@ func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 	// 2. Postpone endpoint start
 	time.AfterFunc(time.Second, func() {
 		serv := grpc.NewServer()
-		endpoint.NewServer(ctx, sandbox.GenerateTestToken).Register(serv)
+		endpoint.NewServer(ctx, sandbox.GenerateTestToken(clock.FromContext(ctx))).Register(serv)
 		_ = serv.Serve(netListener)
 	})
 

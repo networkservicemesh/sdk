@@ -23,11 +23,13 @@ import (
 
 	"github.com/edwarnicke/grpcfd"
 	"github.com/google/uuid"
-	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
+	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/opentracing"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
@@ -76,15 +78,17 @@ func WithInsecureStreamRPCCredentials() grpc.DialOption {
 }
 
 // GenerateTestToken generates test token
-func GenerateTestToken(_ credentials.AuthInfo) (tokenValue string, expireTime time.Time, err error) {
-	return "TestToken", time.Now().Add(time.Hour).Local(), nil
+func GenerateTestToken(clockTime clock.Clock) token.GeneratorFunc {
+	return func(credentials.AuthInfo) (token string, expireTime time.Time, err error) {
+		return "TestToken", clockTime.Now().Add(time.Hour).Local(), nil
+	}
 }
 
 // GenerateExpiringToken returns a token generator with the specified expiration duration.
-func GenerateExpiringToken(duration time.Duration) token.GeneratorFunc {
+func GenerateExpiringToken(clockTime clock.Clock, duration time.Duration) token.GeneratorFunc {
 	value := fmt.Sprintf("TestToken-%s", duration)
 	return func(_ credentials.AuthInfo) (tokenValue string, expireTime time.Time, err error) {
-		return value, time.Now().Add(duration).Local(), nil
+		return value, clockTime.Now().Add(duration).Local(), nil
 	}
 }
 

@@ -216,8 +216,12 @@ func TestRefreshClient_CheckRaceConditions(t *testing.T) {
 		serialize.NewClient(),
 		updatepath.NewClient("foo"),
 		refresh.NewClient(ctx),
-		adapters.NewServerToClient(updatetoken.NewServer(sandbox.GenerateExpiringToken(conf.expireTimeout))),
-		adapters.NewServerToClient(refreshTester),
+		adapters.NewServerToClient(
+			chain.NewNetworkServiceServer(
+				updatetoken.NewServer(sandbox.GenerateExpiringToken(clock.FromContext(ctx), conf.expireTimeout)),
+				refreshTester,
+			),
+		),
 	)
 
 	generateRequests(t, client, refreshTester, conf.iterations, conf.tickDuration)
