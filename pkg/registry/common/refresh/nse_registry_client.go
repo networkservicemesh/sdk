@@ -27,6 +27,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
@@ -54,6 +55,7 @@ func NewNetworkServiceEndpointRegistryClient(options ...Option) registry.Network
 
 func (c *refreshNSEClient) startRefresh(
 	ctx context.Context,
+	clockTime clock.Clock,
 	client registry.NetworkServiceEndpointRegistryClient,
 	nse *registry.NetworkServiceEndpoint,
 	expiryDuration time.Duration,
@@ -66,8 +68,8 @@ func (c *refreshNSEClient) startRefresh(
 			select {
 			case <-ctx.Done():
 				return
-			case <-time.After(2 * time.Until(t) / 3):
-				nse.ExpirationTime = timestamppb.New(time.Now().Add(expiryDuration))
+			case <-clockTime.After(2 * clockTime.Until(t) / 3):
+				nse.ExpirationTime = timestamppb.New(clockTime.Now().Add(expiryDuration))
 
 				res, err := client.Register(ctx, nse.Clone())
 				if err != nil {
@@ -88,12 +90,14 @@ func (c *refreshNSEClient) Register(
 	nse *registry.NetworkServiceEndpoint,
 	opts ...grpc.CallOption,
 ) (*registry.NetworkServiceEndpoint, error) {
+	clockTime := clock.FromContext(ctx)
+
 	var expiryDuration time.Duration
 	if nse.ExpirationTime == nil {
 		expiryDuration = c.defaultExpiryDuration
-		nse.ExpirationTime = timestamppb.New(time.Now().Add(expiryDuration))
+		nse.ExpirationTime = timestamppb.New(clockTime.Now().Add(expiryDuration))
 	} else {
-		expiryDuration = time.Until(nse.ExpirationTime.AsTime().Local())
+		expiryDuration = clockTime.Until(nse.ExpirationTime.AsTime().Local())
 	}
 
 	refreshNSE := nse.Clone()
@@ -114,7 +118,7 @@ func (c *refreshNSEClient) Register(
 	ctx, cancel := context.WithCancel(c.chainContext)
 	c.nseCancels.Store(resp.Name, cancel)
 
-	c.startRefresh(ctx, nextClient, refreshNSE, expiryDuration)
+	c.startRefresh(ctx, clockTime, nextClient, refreshNSE, expiryDuration)
 
 	return resp, err
 }
