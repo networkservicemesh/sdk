@@ -20,9 +20,9 @@ import (
 	"context"
 	"errors"
 	"sync"
-	"time"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -39,12 +39,14 @@ type expireNSServer struct {
 }
 
 type nsState struct {
-	Timers  map[string]*time.Timer
+	Timers  map[string]clock.Timer
 	Context context.Context
 	sync.Mutex
 }
 
 func (n *expireNSServer) checkUpdates(eventCh <-chan *registry.NetworkServiceEndpoint) {
+	clockTime := clock.FromContext(n.chainCtx)
+
 	for event := range eventCh {
 		nse := event
 		if nse.ExpirationTime == nil {
@@ -59,10 +61,10 @@ func (n *expireNSServer) checkUpdates(eventCh <-chan *registry.NetworkServiceEnd
 			}
 			state.Lock()
 			timer, ok := state.Timers[nse.Name]
-			expirationDuration := time.Until(nse.ExpirationTime.AsTime().Local())
+			expirationDuration := clockTime.Until(nse.ExpirationTime.AsTime().Local())
 			if !ok {
 				if expirationDuration > 0 {
-					state.Timers[nse.Name] = time.AfterFunc(expirationDuration, func() {
+					state.Timers[nse.Name] = clockTime.AfterFunc(expirationDuration, func() {
 						state.Lock()
 						ctx := state.Context
 						delete(state.Timers, nse.Name)
@@ -119,7 +121,7 @@ func (n *expireNSServer) Register(ctx context.Context, request *registry.Network
 	valuesCtx := extend.WithValuesFromContext(n.chainCtx, ctx)
 
 	v, _ := n.nsStates.LoadOrStore(request.Name, &nsState{
-		Timers: make(map[string]*time.Timer),
+		Timers: make(map[string]clock.Timer),
 	})
 
 	v.Lock()
