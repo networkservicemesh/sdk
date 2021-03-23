@@ -65,6 +65,7 @@ func validateConn(t *testing.T, conn *networkservice.Connection, dst, src string
 	})
 }
 
+//nolint:dupl
 func TestServer(t *testing.T) {
 	_, ipNet, err := net.ParseCIDR("192.168.3.4/16")
 	require.NoError(t, err)
@@ -91,6 +92,33 @@ func TestServer(t *testing.T) {
 	validateConn(t, conn4, "192.168.0.4/32", "192.168.0.5/32")
 }
 
+//nolint:dupl
+func TestServerIPv6(t *testing.T) {
+	_, ipNet, err := net.ParseCIDR("fe80::/64")
+	require.NoError(t, err)
+
+	srv := newIpamServer(ipNet)
+
+	conn1, err := srv.Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn1, "fe80::/128", "fe80::1/128")
+
+	conn2, err := srv.Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn2, "fe80::2/128", "fe80::3/128")
+
+	_, err = srv.Close(context.Background(), conn1)
+	require.NoError(t, err)
+
+	conn3, err := srv.Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn3, "fe80::/128", "fe80::1/128")
+
+	conn4, err := srv.Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn4, "fe80::4/128", "fe80::5/128")
+}
+
 func TestNilPrefixes(t *testing.T) {
 	srv := newIpamServer()
 	_, err := srv.Request(context.Background(), newRequest())
@@ -104,6 +132,20 @@ func TestNilPrefixes(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestNilPrefixesIPv6(t *testing.T) {
+	srv := newIpamServer()
+	_, err := srv.Request(context.Background(), newRequest())
+	require.Error(t, err)
+
+	_, ipNet, err := net.ParseCIDR("fe80::/128")
+	require.NoError(t, err)
+
+	srv = newIpamServer(nil, ipNet, nil)
+	_, err = srv.Request(context.Background(), newRequest())
+	require.Error(t, err)
+}
+
+//nolint:dupl
 func TestExclude32Prefix(t *testing.T) {
 	_, ipNet, err := net.ParseCIDR("192.168.1.0/24")
 	require.NoError(t, err)
@@ -132,6 +174,35 @@ func TestExclude32Prefix(t *testing.T) {
 	validateConn(t, conn3, "192.168.1.7/32", "192.168.1.8/32")
 }
 
+//nolint:dupl
+func TestExclude128PrefixIPv6(t *testing.T) {
+	_, ipNet, err := net.ParseCIDR("fe80::1:0/112")
+	require.NoError(t, err)
+
+	srv := newIpamServer(ipNet)
+
+	// Test center of assigned
+	req1 := newRequest()
+	req1.Connection.Context.IpContext.ExcludedPrefixes = []string{"fe80::1:1/128", "fe80::1:3/128", "fe80::1:6/128"}
+	conn1, err := srv.Request(context.Background(), req1)
+	require.NoError(t, err)
+	validateConn(t, conn1, "fe80::1:0/128", "fe80::1:2/128")
+
+	// Test exclude before assigned
+	req2 := newRequest()
+	req2.Connection.Context.IpContext.ExcludedPrefixes = []string{"fe80::1:1/128", "fe80::1:3/128", "fe80::1:6/128"}
+	conn2, err := srv.Request(context.Background(), req2)
+	require.NoError(t, err)
+	validateConn(t, conn2, "fe80::1:4/128", "fe80::1:5/128")
+
+	// Test after assigned
+	req3 := newRequest()
+	req3.Connection.Context.IpContext.ExcludedPrefixes = []string{"fe80::1:1/128", "fe80::1:3/128", "fe80::1:6/128"}
+	conn3, err := srv.Request(context.Background(), req3)
+	require.NoError(t, err)
+	validateConn(t, conn3, "fe80::1:7/128", "fe80::1:8/128")
+}
+
 func TestOutOfIPs(t *testing.T) {
 	_, ipNet, err := net.ParseCIDR("192.168.1.2/31")
 	require.NoError(t, err)
@@ -142,6 +213,22 @@ func TestOutOfIPs(t *testing.T) {
 	conn1, err := srv.Request(context.Background(), req1)
 	require.NoError(t, err)
 	validateConn(t, conn1, "192.168.1.2/32", "192.168.1.3/32")
+
+	req2 := newRequest()
+	_, err = srv.Request(context.Background(), req2)
+	require.Error(t, err)
+}
+
+func TestOutOfIPsIPv6(t *testing.T) {
+	_, ipNet, err := net.ParseCIDR("fe80::1:2/127")
+	require.NoError(t, err)
+
+	srv := newIpamServer(ipNet)
+
+	req1 := newRequest()
+	conn1, err := srv.Request(context.Background(), req1)
+	require.NoError(t, err)
+	validateConn(t, conn1, "fe80::1:2/128", "fe80::1:3/128")
 
 	req2 := newRequest()
 	_, err = srv.Request(context.Background(), req2)
@@ -161,6 +248,20 @@ func TestAllIPsExcluded(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestAllIPsExcludedIPv6(t *testing.T) {
+	_, ipNet, err := net.ParseCIDR("fe80::1:2/127")
+	require.NoError(t, err)
+
+	srv := newIpamServer(ipNet)
+
+	req1 := newRequest()
+	req1.Connection.Context.IpContext.ExcludedPrefixes = []string{"fe80::1:2/127"}
+	conn1, err := srv.Request(context.Background(), req1)
+	require.Nil(t, conn1)
+	require.Error(t, err)
+}
+
+//nolint:dupl
 func TestRefreshRequest(t *testing.T) {
 	_, ipNet, err := net.ParseCIDR("192.168.3.4/16")
 	require.NoError(t, err)
@@ -184,4 +285,30 @@ func TestRefreshRequest(t *testing.T) {
 	conn, err = srv.Request(context.Background(), req)
 	require.NoError(t, err)
 	validateConn(t, conn, "192.168.0.4/32", "192.168.0.5/32")
+}
+
+//nolint:dupl
+func TestRefreshRequestIPv6(t *testing.T) {
+	_, ipNet, err := net.ParseCIDR("fe80::/64")
+	require.NoError(t, err)
+
+	srv := newIpamServer(ipNet)
+
+	req := newRequest()
+	req.Connection.Context.IpContext.ExcludedPrefixes = []string{"fe80::1/128"}
+	conn, err := srv.Request(context.Background(), req)
+	require.NoError(t, err)
+	validateConn(t, conn, "fe80::/128", "fe80::2/128")
+
+	req = newRequest()
+	req.Connection.Id = conn.Id
+	conn, err = srv.Request(context.Background(), req)
+	require.NoError(t, err)
+	validateConn(t, conn, "fe80::/128", "fe80::2/128")
+
+	req.Connection = conn.Clone()
+	req.Connection.Context.IpContext.ExcludedPrefixes = []string{"fe80::/126"}
+	conn, err = srv.Request(context.Background(), req)
+	require.NoError(t, err)
+	validateConn(t, conn, "fe80::4/128", "fe80::5/128")
 }

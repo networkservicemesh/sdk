@@ -17,30 +17,17 @@
 package point2pointipam
 
 import (
-	"encoding/binary"
 	"net"
 
-	"github.com/RoaringBitmap/roaring"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/cidr"
+	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
 )
 
-func exclude(prefixes ...string) (*roaring.Bitmap, error) {
-	exclude := roaring.New()
+func exclude(prefixes ...string) (ipv4exclude, ipv6exclude *ippool.IPPool) {
+	ipv4exclude = ippool.New(net.IPv4len)
+	ipv6exclude = ippool.New(net.IPv6len)
 	for _, prefix := range prefixes {
-		_, ipNet, err := net.ParseCIDR(prefix)
-		if err != nil {
-			return nil, err
-		}
-		low := binary.BigEndian.Uint32(cidr.NetworkAddress(ipNet).To4())
-		high := binary.BigEndian.Uint32(cidr.BroadcastAddress(ipNet).To4()) + 1
-
-		exclude.AddRange(uint64(low), uint64(high))
+		ipv4exclude.AddNetString(prefix)
+		ipv6exclude.AddNetString(prefix)
 	}
-	return exclude, nil
-}
-
-func addrToInt(addr string) uint32 {
-	ip, _, _ := net.ParseCIDR(addr)
-	return binary.BigEndian.Uint32(ip.To4())
+	return
 }

@@ -22,30 +22,33 @@ import (
 	"net"
 	"sync"
 
-	"github.com/RoaringBitmap/roaring"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
 )
 
 type ipamServer struct {
-	ipPools  []*ipPool
+	ipPools  []*ippool.IPPool
 	prefixes []*net.IPNet
 	once     sync.Once
 	initErr  error
 }
 
 type connectionInfo struct {
-	ipPool  *ipPool
+	ipPool  *ippool.IPPool
 	srcAddr string
 	dstAddr string
 }
 
-func (i *connectionInfo) shouldUpdate(exclude *roaring.Bitmap) bool {
-	return exclude.Contains(addrToInt(i.srcAddr)) || exclude.Contains(addrToInt(i.dstAddr))
+func (i *connectionInfo) shouldUpdate(exclude *ippool.IPPool) bool {
+	srcIP, _, srcErr := net.ParseCIDR(i.srcAddr)
+	dstIP, _, dstErr := net.ParseCIDR(i.dstAddr)
+
+	return srcErr == nil && exclude.ContainsString(srcIP.String()) || dstErr == nil && exclude.ContainsString(dstIP.String())
 }
 
 // NewServer - creates a new NetworkServiceServer chain element that implements IPAM service.
@@ -66,7 +69,7 @@ func (s *ipamServer) init() {
 			s.initErr = errors.Errorf("prefix must not be nil: %+v", s.prefixes)
 			return
 		}
-		s.ipPools = append(s.ipPools, newIPPool(prefix))
+		s.ipPools = append(s.ipPools, ippool.NewWithNet(prefix))
 	}
 }
 
@@ -85,13 +88,11 @@ func (s *ipamServer) Request(ctx context.Context, request *networkservice.Networ
 	}
 	ipContext := conn.GetContext().GetIpContext()
 
-	exclude, err := exclude(ipContext.GetExcludedPrefixes()...)
-	if err != nil {
-		return nil, err
-	}
+	excludeIP4, excludeIP6 := exclude(ipContext.GetExcludedPrefixes()...)
 
 	connInfo, ok := loadConnInfo(ctx)
-	if ok && connInfo.shouldUpdate(exclude) {
+	var err error
+	if ok && (connInfo.shouldUpdate(excludeIP4) || connInfo.shouldUpdate(excludeIP6)) {
 		// some of the existing addresses are excluded
 		deleteRoute(&ipContext.SrcRoutes, connInfo.dstAddr)
 		deleteRoute(&ipContext.DstRoutes, connInfo.srcAddr)
@@ -99,7 +100,7 @@ func (s *ipamServer) Request(ctx context.Context, request *networkservice.Networ
 		ok = false
 	}
 	if !ok {
-		if connInfo, err = s.getP2PAddrs(exclude); err != nil {
+		if connInfo, err = s.getP2PAddrs(excludeIP4, excludeIP6); err != nil {
 			return nil, err
 		}
 		storeConnInfo(ctx, connInfo)
@@ -114,14 +115,14 @@ func (s *ipamServer) Request(ctx context.Context, request *networkservice.Networ
 	return next.Server(ctx).Request(ctx, request)
 }
 
-func (s *ipamServer) getP2PAddrs(exclude *roaring.Bitmap) (connInfo *connectionInfo, err error) {
-	var dstAddr, srcAddr string
+func (s *ipamServer) getP2PAddrs(excludeIP4, excludeIP6 *ippool.IPPool) (connInfo *connectionInfo, err error) {
+	var dstAddr, srcAddr *net.IPNet
 	for _, ipPool := range s.ipPools {
-		if dstAddr, srcAddr, err = ipPool.getP2PAddrs(exclude); err == nil {
+		if dstAddr, srcAddr, err = ipPool.PullP2PAddrs(excludeIP4, excludeIP6); err == nil {
 			return &connectionInfo{
 				ipPool:  ipPool,
-				srcAddr: srcAddr,
-				dstAddr: dstAddr,
+				srcAddr: srcAddr.String(),
+				dstAddr: dstAddr.String(),
 			}, nil
 		}
 	}
@@ -162,6 +163,6 @@ func (s *ipamServer) Close(ctx context.Context, conn *networkservice.Connection)
 }
 
 func (s *ipamServer) free(connInfo *connectionInfo) {
-	connInfo.ipPool.freeAddrs(connInfo.srcAddr)
-	connInfo.ipPool.freeAddrs(connInfo.dstAddr)
+	connInfo.ipPool.AddNetString(connInfo.srcAddr)
+	connInfo.ipPool.AddNetString(connInfo.dstAddr)
 }
