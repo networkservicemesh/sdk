@@ -47,6 +47,7 @@ type Builder struct {
 	require                *require.Assertions
 	resources              []context.CancelFunc
 	nodesCount             int
+	nodesConfig            []*NodeConfig
 	DNSDomainName          string
 	Resolver               dnsresolve.Resolver
 	supplyNSMgr            SupplyNSMgrFunc
@@ -100,7 +101,7 @@ func (b *Builder) Build() *Domain {
 	}
 
 	for i := 0; i < b.nodesCount; i++ {
-		domain.Nodes = append(domain.Nodes, b.newNode(ctx, domain.Registry.URL))
+		domain.Nodes = append(domain.Nodes, b.newNode(ctx, domain.Registry.URL, b.nodesConfig[i]))
 	}
 
 	domain.resources, b.resources = b.resources, nil
@@ -108,15 +109,62 @@ func (b *Builder) Build() *Domain {
 	return domain
 }
 
-// SetContext sets context for all chains
+// SetContext sets default context for all chains
 func (b *Builder) SetContext(ctx context.Context) *Builder {
 	b.ctx = ctx
+	b.SetCustomConfig([]*NodeConfig{})
+	return b
+}
+
+// SetCustomConfig sets custom configuration for nodes
+func (b *Builder) SetCustomConfig(config []*NodeConfig) *Builder {
+	oldConfig := b.nodesConfig
+	b.nodesConfig = nil
+
+	for i := 0; i < b.nodesCount; i++ {
+		nodeConfig := &NodeConfig{}
+		if i < len(config) && config[i] != nil {
+			*nodeConfig = *oldConfig[i]
+		}
+
+		customConfig := &NodeConfig{}
+		if i < len(config) && config[i] != nil {
+			*customConfig = *config[i]
+		}
+
+		if customConfig.NsmgrCtx != nil {
+			nodeConfig.NsmgrCtx = customConfig.NsmgrCtx
+		} else if nodeConfig.NsmgrCtx == nil {
+			nodeConfig.NsmgrCtx = b.ctx
+		}
+
+		if customConfig.NsmgrGenerateTokenFunc != nil {
+			nodeConfig.NsmgrGenerateTokenFunc = customConfig.NsmgrGenerateTokenFunc
+		} else if nodeConfig.NsmgrGenerateTokenFunc == nil {
+			nodeConfig.NsmgrGenerateTokenFunc = b.generateTokenFunc
+		}
+
+		if customConfig.ForwarderCtx != nil {
+			nodeConfig.ForwarderCtx = customConfig.ForwarderCtx
+		} else if nodeConfig.ForwarderCtx == nil {
+			nodeConfig.ForwarderCtx = b.ctx
+		}
+
+		if customConfig.ForwarderGenerateTokenFunc != nil {
+			nodeConfig.ForwarderGenerateTokenFunc = customConfig.ForwarderGenerateTokenFunc
+		} else if nodeConfig.ForwarderGenerateTokenFunc == nil {
+			nodeConfig.ForwarderGenerateTokenFunc = b.generateTokenFunc
+		}
+
+		b.nodesConfig = append(b.nodesConfig, nodeConfig)
+	}
 	return b
 }
 
 // SetNodesCount sets nodes count
 func (b *Builder) SetNodesCount(nodesCount int) *Builder {
 	b.nodesCount = nodesCount
+	b.SetCustomConfig([]*NodeConfig{})
 	return b
 }
 
@@ -200,7 +248,20 @@ func (b *Builder) newNSMgrProxy(ctx context.Context) *EndpointEntry {
 	}
 }
 
-func (b *Builder) newNSMgr(ctx context.Context, registryURL *url.URL) *NSMgrEntry {
+// NewNSMgr - starts new Network Service Manager
+func (b *Builder) NewNSMgr(ctx context.Context, node *Node, address string, registryURL *url.URL, generateTokenFunc token.GeneratorFunc) (entry *NSMgrEntry, resources []context.CancelFunc) {
+	nsmgrCtx, nsmgrCancel := context.WithCancel(ctx)
+	b.resources = append(b.resources, nsmgrCancel)
+
+	entry = b.newNSMgr(nsmgrCtx, address, registryURL, generateTokenFunc)
+
+	b.SetupRegistryClients(nsmgrCtx, node)
+
+	resources, b.resources = b.resources, nil
+	return
+}
+
+func (b *Builder) newNSMgr(ctx context.Context, address string, registryURL *url.URL, generateTokenFunc token.GeneratorFunc) *NSMgrEntry {
 	if b.supplyNSMgr == nil {
 		panic("nodes without managers are not supported")
 	}
@@ -208,7 +269,7 @@ func (b *Builder) newNSMgr(ctx context.Context, registryURL *url.URL) *NSMgrEntr
 	if registryURL != nil {
 		registryCC = b.dialContext(ctx, registryURL)
 	}
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := net.Listen("tcp", address)
 	b.require.NoError(err)
 	serveURL := grpcutils.AddressToURL(listener.Addr())
 	b.require.NoError(listener.Close())
@@ -218,7 +279,7 @@ func (b *Builder) newNSMgr(ctx context.Context, registryURL *url.URL) *NSMgrEntr
 		Url:  serveURL.String(),
 	}
 
-	mgr := b.supplyNSMgr(ctx, nsmgrReg, authorize.NewServer(authorize.Any()), b.generateTokenFunc, registryCC, DefaultDialOptions(b.generateTokenFunc)...)
+	mgr := b.supplyNSMgr(ctx, nsmgrReg, authorize.NewServer(authorize.Any()), generateTokenFunc, registryCC, DefaultDialOptions(generateTokenFunc)...)
 
 	serve(ctx, serveURL, mgr.Register)
 	log.FromContext(ctx).Infof("%v listen on: %v", nsmgrReg.Name, serveURL)
@@ -273,31 +334,38 @@ func (b *Builder) newRegistry(ctx context.Context, proxyRegistryURL *url.URL) *R
 	}
 }
 
-func (b *Builder) newNode(ctx context.Context, registryURL *url.URL) *Node {
-	nsmgrEntry := b.newNSMgr(ctx, registryURL)
-	nsmgrCC := b.dialContext(ctx, nsmgrEntry.URL)
+func (b *Builder) newNode(ctx context.Context, registryURL *url.URL, nodeConfig *NodeConfig) *Node {
+	nsmgrEntry := b.newNSMgr(nodeConfig.NsmgrCtx, "127.0.0.1:0", registryURL, nodeConfig.NsmgrGenerateTokenFunc)
 
 	node := &Node{
-		ctx:                     b.ctx,
-		NSMgr:                   nsmgrEntry,
-		ForwarderRegistryClient: client.NewNetworkServiceEndpointRegistryInterposeClient(ctx, nsmgrCC),
-		EndpointRegistryClient:  client.NewNetworkServiceEndpointRegistryClient(ctx, nsmgrCC),
-		NSRegistryClient:        client.NewNetworkServiceRegistryClient(nsmgrCC),
+		ctx:   b.ctx,
+		NSMgr: nsmgrEntry,
 	}
 
+	b.SetupRegistryClients(nodeConfig.NsmgrCtx, node)
+
 	if b.setupNode != nil {
-		b.setupNode(ctx, node)
+		b.setupNode(ctx, node, nodeConfig)
 	}
 
 	return node
 }
 
+// SetupRegistryClients - creates Network Service Registry Clients
+func (b *Builder) SetupRegistryClients(ctx context.Context, node *Node) {
+	nsmgrCC := b.dialContext(ctx, node.NSMgr.URL)
+
+	node.ForwarderRegistryClient = client.NewNetworkServiceEndpointRegistryInterposeClient(ctx, nsmgrCC)
+	node.EndpointRegistryClient = client.NewNetworkServiceEndpointRegistryClient(ctx, nsmgrCC)
+	node.NSRegistryClient = client.NewNetworkServiceRegistryClient(nsmgrCC)
+}
+
 func defaultSetupNode(t *testing.T) SetupNodeFunc {
-	return func(ctx context.Context, node *Node) {
+	return func(ctx context.Context, node *Node, nodeConfig *NodeConfig) {
 		nseReg := &registryapi.NetworkServiceEndpoint{
-			Name: uuid.New().String(),
+			Name: "forwarder-" + uuid.New().String(),
 		}
-		_, err := node.NewForwarder(ctx, nseReg, GenerateTestToken)
+		_, err := node.NewForwarder(nodeConfig.ForwarderCtx, nseReg, nodeConfig.ForwarderGenerateTokenFunc)
 		require.NoError(t, err)
 	}
 }

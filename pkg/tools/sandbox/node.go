@@ -31,6 +31,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
@@ -42,6 +43,7 @@ import (
 type Node struct {
 	ctx                     context.Context
 	NSMgr                   *NSMgrEntry
+	Forwarder               []*EndpointEntry
 	ForwarderRegistryClient registryapi.NetworkServiceEndpointRegistryClient
 	EndpointRegistryClient  registryapi.NetworkServiceEndpointRegistryClient
 	NSRegistryClient        registryapi.NetworkServiceRegistryClient
@@ -57,11 +59,11 @@ func (n *Node) NewForwarder(
 	ep := new(EndpointEntry)
 	additionalFunctionality = append(additionalFunctionality,
 		clienturl.NewServer(n.NSMgr.URL),
+		heal.NewServer(ctx, addressof.NetworkServiceClient(adapters.NewServerToClient(ep))),
 		connect.NewServer(ctx,
 			client.NewCrossConnectClientFactory(
 				client.WithName(nse.Name),
-				// What to call onHeal
-				client.WithHeal(addressof.NetworkServiceClient(adapters.NewServerToClient(ep)))),
+			),
 			connect.WithDialOptions(DefaultDialOptions(generatorFunc)...),
 		),
 	)
@@ -71,7 +73,7 @@ func (n *Node) NewForwarder(
 		return nil, err
 	}
 	*ep = *entry
-
+	n.Forwarder = append(n.Forwarder, ep)
 	return ep, nil
 }
 
@@ -113,27 +115,41 @@ func (n *Node) newEndpoint(
 	nse.Url = u.String()
 
 	// 3. Register with the node registry client
+	err = n.registerEndpoint(ctx, nse, registryClient)
+	if err != nil {
+		return nil, err
+	}
 
+	log.FromContext(ctx).Infof("Started listen endpoint %s on %s.", nse.Name, u.String())
+
+	return &EndpointEntry{Endpoint: ep, URL: u}, nil
+}
+
+// RegisterEndpoint - registers endpoint in the registry client
+func (n *Node) RegisterEndpoint(ctx context.Context, nse *registryapi.NetworkServiceEndpoint) error {
+	return n.registerEndpoint(ctx, nse, n.EndpointRegistryClient)
+}
+
+func (n *Node) registerEndpoint(ctx context.Context, nse *registryapi.NetworkServiceEndpoint, registryClient registryapi.NetworkServiceEndpointRegistryClient) error {
+	var err error
 	for _, nsName := range nse.NetworkServiceNames {
 		if _, err = n.NSRegistryClient.Register(ctx, &registryapi.NetworkService{
 			Name:    nsName,
 			Payload: payload.IP,
 		}); err != nil {
-			return nil, err
+			return err
 		}
 	}
 
 	var reg *registryapi.NetworkServiceEndpoint
 	if reg, err = registryClient.Register(ctx, nse); err != nil {
-		return nil, err
+		return err
 	}
 
 	nse.Name = reg.Name
 	nse.ExpirationTime = reg.ExpirationTime
 
-	log.FromContext(ctx).Infof("Started listen endpoint %s on %s.", nse.Name, u.String())
-
-	return &EndpointEntry{Endpoint: ep, URL: u}, nil
+	return nil
 }
 
 // NewClient starts a new client and connects it to the node NSMgr

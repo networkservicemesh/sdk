@@ -71,13 +71,13 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 		return nil, errors.Errorf("path segment doesn't have a client or cross connect nse identity")
 	}
 	// We need to find an Id from path to match active connection request.
-	activeConnID := l.getConnectionID(conn)
+	activeConnID, fromPath := l.getConnectionID(conn)
 
 	// We came from client, so select cross nse and go to it.
 	clientURL := clienturlctx.ClientURL(ctx)
 
 	connInfo, ok := l.activeConnection.Load(activeConnID)
-	if ok {
+	if ok && (fromPath || int(conn.Path.Index) < len(conn.Path.PathSegments)-1) {
 		if connID != activeConnID {
 			l.activeConnection.Store(connID, connInfo)
 		}
@@ -91,7 +91,7 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 			crossCTX := clienturlctx.WithClientURL(ctx, crossNSEURL)
 
 			// Store client connection and selected cross connection URL.
-			connInfo, _ = l.activeConnection.LoadOrStore(activeConnID, connectionInfo{
+			l.activeConnection.Store(activeConnID, connectionInfo{
 				clientConnID:    activeConnID,
 				endpointURL:     clientURL,
 				interposeNSEURL: crossNSEURL,
@@ -127,18 +127,18 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 	return next.Server(crossCTX).Request(crossCTX, request)
 }
 
-func (l *interposeServer) getConnectionID(conn *networkservice.Connection) string {
+func (l *interposeServer) getConnectionID(conn *networkservice.Connection) (string, bool) {
 	id := conn.Id
-	for i := conn.GetPath().GetIndex(); i > 0; i-- {
+	for i := conn.GetPath().GetIndex() - 1; i > 0; i-- {
 		activeConnID := conn.GetPath().GetPathSegments()[i].Id
 		if connInfo, ok := l.activeConnection.Load(activeConnID); ok {
 			if activeConnID == connInfo.clientConnID {
-				id = activeConnID
+				return activeConnID, true
 			}
 			break
 		}
 	}
-	return id
+	return id, false
 }
 
 func (l *interposeServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {

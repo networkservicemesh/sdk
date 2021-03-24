@@ -63,11 +63,16 @@ func (m *monitorServer) MonitorConnections(selector *networkservice.MonitorScope
 	m.executor.AsyncExec(func() {
 		monitor := newMonitorFilter(selector, srv)
 		m.monitors = append(m.monitors, monitor)
-
+		connections := make(map[string]*networkservice.Connection)
+		for _, ps := range selector.PathSegments {
+			if conn, ok := m.connections[ps.GetId()]; ok {
+				connections[ps.GetId()] = conn
+			}
+		}
 		// Send initial transfer of all data available
 		_ = monitor.Send(&networkservice.ConnectionEvent{
 			Type:        networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,
-			Connections: m.connections,
+			Connections: connections,
 		})
 	})
 	select {
@@ -83,6 +88,7 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 	if err == nil {
 		m.executor.AsyncExec(func() {
 			m.connections[eventConn.GetId()] = eventConn
+
 			// Send update event
 			event := &networkservice.ConnectionEvent{
 				Type:        networkservice.ConnectionEventType_UPDATE,
@@ -97,11 +103,19 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 }
 
 func (m *monitorServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	eventConn := conn.Clone()
+	<-m.executor.AsyncExec(func() {
+		if c, ok := m.connections[conn.GetId()]; ok {
+			conn = c.Clone()
+		}
+	})
+
 	_, closeErr := next.Server(ctx).Close(ctx, conn)
+
 	// Remove connection object we have and send DELETE
+	eventConn := conn.Clone()
 	m.executor.AsyncExec(func() {
 		delete(m.connections, eventConn.GetId())
+
 		event := &networkservice.ConnectionEvent{
 			Type:        networkservice.ConnectionEventType_DELETE,
 			Connections: map[string]*networkservice.Connection{eventConn.GetId(): eventConn},
@@ -126,6 +140,7 @@ func (m *monitorServer) send(ctx context.Context, event *networkservice.Connecti
 			newMonitors = append(newMonitors, filter)
 		}
 	}
+
 	m.monitors = newMonitors
 	return err
 }

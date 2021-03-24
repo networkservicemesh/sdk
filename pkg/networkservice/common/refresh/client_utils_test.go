@@ -26,12 +26,13 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
-	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
@@ -42,8 +43,10 @@ const (
 )
 
 type countClient struct {
-	t     *testing.T
-	count int32
+	t           *testing.T
+	count       int32
+	lastRequest *networkservice.NetworkServiceRequest
+	mutex       sync.Mutex
 }
 
 func (c *countClient) validator(atLeast int32) func() bool {
@@ -67,11 +70,21 @@ func (c *countClient) Request(ctx context.Context, request *networkservice.Netwo
 		assert.Equal(c.t, endpointName, conn.NetworkServiceEndpointName)
 	}
 
+	c.mutex.Lock()
+	c.lastRequest = request.Clone()
+	c.mutex.Unlock()
+
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
 
 func (c *countClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	return next.Client(ctx).Close(ctx, conn, opts...)
+}
+
+func (c *countClient) GetLastRequest() *networkservice.NetworkServiceRequest {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	return c.lastRequest.Clone()
 }
 
 // refreshTestServer is a helper endpoint to check that the Request()/Close()
