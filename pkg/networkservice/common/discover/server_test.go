@@ -416,7 +416,8 @@ func TestMatchExactService(t *testing.T) {
 
 	// 3. Register NS, NSE with the right name
 	_, err = nsServer.Register(context.Background(), &registry.NetworkService{
-		Name: nsName,
+		Name:    nsName,
+		Payload: payload.IP,
 	})
 	require.NoError(t, err)
 	_, err = nseServer.Register(context.Background(), &registry.NetworkServiceEndpoint{
@@ -428,8 +429,9 @@ func TestMatchExactService(t *testing.T) {
 	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Millisecond)
 	defer cancel()
 
-	_, err = server.Request(ctx, request.Clone())
+	conn, err := server.Request(ctx, request.Clone())
 	require.NoError(t, err)
+	require.Equal(t, payload.IP, conn.Payload)
 }
 
 func TestMatchExactEndpoint(t *testing.T) {

@@ -69,6 +69,8 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 		return nil, err
 	}
 
+	request.GetConnection().Payload = ns.Payload
+
 	delay := defaultDiscoverDelay
 	for ctx.Err() == nil {
 		resp, err := next.Server(ctx).Request(WithCandidates(ctx, nses, ns), request)
