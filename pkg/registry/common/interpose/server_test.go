@@ -47,7 +47,7 @@ func TestInterposeRegistryServer_Interpose(t *testing.T) {
 	)
 
 	reg, err := server.Register(context.Background(), &registry.NetworkServiceEndpoint{
-		Name: "nse" + nameSuffix,
+		Name: name + nameSuffix,
 		Url:  validURL,
 	})
 	require.NoError(t, err)
@@ -100,7 +100,7 @@ func TestInterposeRegistryServer_Invalid(t *testing.T) {
 	)
 
 	_, err := server.Register(context.Background(), &registry.NetworkServiceEndpoint{
-		Name: "nse" + nameSuffix,
+		Name: name + nameSuffix,
 	})
 	require.Error(t, err)
 

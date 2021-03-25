@@ -40,9 +40,9 @@ import (
 func NewServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryURL *url.URL, options ...grpc.DialOption) registryserver.Registry {
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
 		serialize.NewNetworkServiceEndpointRegistryServer(),
+		setid.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, expiryDuration),
 		memory.NewNetworkServiceEndpointRegistryServer(),
-		setid.NewNetworkServiceEndpointRegistryServer(),
 		proxy.NewNetworkServiceEndpointRegistryServer(proxyRegistryURL),
 		connect.NewNetworkServiceEndpointRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient {
 			return chain.NewNetworkServiceEndpointRegistryClient(

@@ -639,10 +639,10 @@ func TestNSMGR_ShouldCorrectlyAddEndpointsWithSameNames(t *testing.T) {
 	require.NoError(t, err)
 
 	// 3. Delete endpoints
-	_, err = domain.Nodes[0].ForwarderRegistryClient.Unregister(ctx, nse1Reg)
+	_, err = domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nse1Reg)
 	require.NoError(t, err)
 
-	_, err = domain.Nodes[0].ForwarderRegistryClient.Unregister(ctx, nse2Reg)
+	_, err = domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nse2Reg)
 	require.NoError(t, err)
 }
 

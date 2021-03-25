@@ -150,10 +150,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 				registryapi.NewNetworkServiceRegistryClient(*opts.regClientConn)))
 	} else {
 		// Use memory registry if no registry is passed
-		nsRegistry = registrychain.NewNetworkServiceRegistryServer(
-			registryserialize.NewNetworkServiceRegistryServer(),
-			memory.NewNetworkServiceRegistryServer(),
-		)
+		nsRegistry = memory.NewNetworkServiceRegistryServer()
 	}
 
 	var nseRegistry registryapi.NetworkServiceEndpointRegistryServer
@@ -164,11 +161,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 				registryapi.NewNetworkServiceEndpointRegistryClient(*opts.regClientConn)))
 	} else {
 		// Use memory registry if no registry is passed
-		nseRegistry = registrychain.NewNetworkServiceEndpointRegistryServer(
-			registryserialize.NewNetworkServiceEndpointRegistryServer(),
-			memory.NewNetworkServiceEndpointRegistryServer(),
-			setid.NewNetworkServiceEndpointRegistryServer(),
-		)
+		nseRegistry = memory.NewNetworkServiceEndpointRegistryServer()
 	}
 
 	localBypassRegistryServer := localbypass.NewNetworkServiceEndpointRegistryServer(opts.url)
@@ -206,11 +199,16 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			sendfd.NewServer()),
 	)
 
-	nsChain := registrychain.NewNamedNetworkServiceRegistryServer(opts.name+".NetworkServiceRegistry", nsRegistry)
+	nsChain := registrychain.NewNamedNetworkServiceRegistryServer(
+		opts.name+".NetworkServiceRegistry",
+		registryserialize.NewNetworkServiceRegistryServer(),
+		nsRegistry,
+	)
 
 	nseChain := registrychain.NewNamedNetworkServiceEndpointRegistryServer(
 		opts.name+".NetworkServiceEndpointRegistry",
 		registryserialize.NewNetworkServiceEndpointRegistryServer(),
+		setid.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
 		registryrecvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
 		urlsRegistryServer,        // Store endpoints URLs
@@ -218,6 +216,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		localBypassRegistryServer, // Perform URL transformations
 		nseRegistry,               // Register NSE inside Remote registry
 	)
+
 	rv.Registry = registry.NewServer(nsChain, nseChain)
 
 	return rv

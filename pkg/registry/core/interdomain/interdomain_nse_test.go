@@ -33,6 +33,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
+	registryadapters "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	registrychain "github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
@@ -231,8 +232,8 @@ func TestInterdomainFloatingNetworkServiceEndpointRegistry(t *testing.T) {
 			return registry.NewServer(
 				memory.NewNetworkServiceRegistryServer(),
 				registrychain.NewNetworkServiceEndpointRegistryServer(
+					registryadapters.NetworkServiceEndpointClientToServer(setid.NewNetworkServiceEndpointRegistryClient()),
 					memory.NewNetworkServiceEndpointRegistryServer(),
-					setid.NewNetworkServiceEndpointRegistryServer(),
 				),
 			)
 		}).

@@ -419,7 +419,7 @@ func (b *Builder) newAddress(prefix string) string {
 func defaultSetupNode(t *testing.T) SetupNodeFunc {
 	return func(ctx context.Context, node *Node, nodeConfig *NodeConfig) {
 		nseReg := &registryapi.NetworkServiceEndpoint{
-			Name: "forwarder-" + uuid.New().String(),
+			Name: "forwarder",
 		}
 		_, err := node.NewForwarder(nodeConfig.ForwarderCtx, nseReg, nodeConfig.ForwarderGenerateTokenFunc)
 		require.NoError(t, err)
