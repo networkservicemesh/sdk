@@ -19,105 +19,146 @@ package setid_test
 import (
 	"context"
 	"testing"
-
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/google/uuid"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
 )
 
-func testNSE() *registry.NetworkServiceEndpoint {
+const (
+	nseName      = "nse"
+	nseURL       = "tcp://0.0.0.0"
+	duplicateURL = "tcp://1.1.1.1"
+)
+
+func testNSE(u string) *registry.NetworkServiceEndpoint {
 	return &registry.NetworkServiceEndpoint{
-		Name:                "nse-1",
-		NetworkServiceNames: []string{"ns-1"},
+		Name: nseName,
+		Url:  u,
 	}
 }
 
-func TestSetIDServer_NewNSE(t *testing.T) {
-	server := setid.NewNetworkServiceEndpointRegistryServer()
+func TestSetIDServer_Register(t *testing.T) {
+	mem := memory.NewNetworkServiceEndpointRegistryServer()
 
-	reg1, err := server.Register(context.Background(), testNSE())
-	require.NoError(t, err)
-
-	reg2, err := server.Register(context.Background(), testNSE())
-	require.NoError(t, err)
-
-	require.NotEqual(t, reg1.Name, reg2.Name)
-
-	_, err = server.Unregister(context.Background(), reg1)
-	require.NoError(t, err)
-
-	_, err = server.Unregister(context.Background(), reg2)
-	require.NoError(t, err)
-}
-
-func TestSetIDServer_RefreshNSE(t *testing.T) {
-	server := setid.NewNetworkServiceEndpointRegistryServer()
-
-	reg, err := server.Register(context.Background(), testNSE())
-	require.NoError(t, err)
-
-	name := reg.Name
-
-	reg, err = server.Register(context.Background(), reg)
-	require.NoError(t, err)
-
-	require.Equal(t, name, reg.Name)
-
-	_, err = server.Unregister(context.Background(), reg)
-	require.NoError(t, err)
-}
-
-func TestSetIDServer_RemoteRegistry(t *testing.T) {
-	captureName := new(captureNameRegistryServer)
-
-	server := next.NewNetworkServiceEndpointRegistryServer(
+	s := next.NewNetworkServiceEndpointRegistryServer(
 		setid.NewNetworkServiceEndpointRegistryServer(),
-		setid.NewNetworkServiceEndpointRegistryServer(),
-		setid.NewNetworkServiceEndpointRegistryServer(),
-		setid.NewNetworkServiceEndpointRegistryServer(),
-		captureName,
-		setid.NewNetworkServiceEndpointRegistryServer(),
+		mem,
 	)
 
-	reg, err := server.Register(context.Background(), testNSE())
+	// 1. Register
+	reg, err := s.Register(context.Background(), testNSE(nseURL))
+	require.NoError(t, err)
+	require.Equal(t, nseName, reg.Name)
+	require.Equal(t, nseURL, reg.Url)
+
+	nses := find(t, mem, &registry.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
+	})
+
+	require.Len(t, nses, 1)
+	require.Equal(t, nseName, nses[0].Name)
+	require.Equal(t, nseURL, nses[0].Url)
+
+	// 2. Refresh
+	reg, err = s.Register(context.Background(), reg.Clone())
+	require.NoError(t, err)
+	require.Equal(t, nseName, reg.Name)
+	require.Equal(t, nseURL, reg.Url)
+
+	nses = find(t, mem, &registry.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
+	})
+
+	require.Len(t, nses, 1)
+	require.Equal(t, nseName, nses[0].Name)
+	require.Equal(t, nseURL, nses[0].Url)
+
+	// 3. Unregister
+	_, err = s.Unregister(context.Background(), reg.Clone())
 	require.NoError(t, err)
 
-	name := reg.Name
-	require.Less(t, len(name), 2*len(uuid.New().String()))
-	require.Equal(t, captureName.name, name)
+	nses = find(t, mem, &registry.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
+	})
 
-	reg, err = server.Register(context.Background(), reg)
+	require.Empty(t, nses)
+
+	// 4. Register duplicate
+	reg, err = s.Register(context.Background(), testNSE(duplicateURL))
 	require.NoError(t, err)
+	require.Equal(t, nseName, reg.Name)
+	require.Equal(t, duplicateURL, reg.Url)
 
-	require.Equal(t, name, reg.Name)
-	require.Equal(t, name, captureName.name)
+	nses = find(t, mem, &registry.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
+	})
 
-	_, err = server.Unregister(context.Background(), reg)
-	require.NoError(t, err)
+	require.Len(t, nses, 1)
+	require.Equal(t, nseName, nses[0].Name)
+	require.Equal(t, duplicateURL, nses[0].Url)
 }
 
-type captureNameRegistryServer struct {
-	name string
+func TestSetIDServer_Duplicate(t *testing.T) {
+	mem := memory.NewNetworkServiceEndpointRegistryServer()
 
-	registry.NetworkServiceEndpointRegistryServer
+	s := next.NewNetworkServiceEndpointRegistryServer(
+		setid.NewNetworkServiceEndpointRegistryServer(),
+		mem,
+	)
+
+	// 1. Register
+	reg, err := s.Register(context.Background(), testNSE(nseURL))
+	require.NoError(t, err)
+	require.Equal(t, nseName, reg.Name)
+	require.Equal(t, nseURL, reg.Url)
+
+	// 2. Register duplicate
+	_, err = s.Register(context.Background(), testNSE(duplicateURL))
+	require.Error(t, err)
+
+	_, ok := err.(*setid.DuplicateError)
+	require.True(t, ok)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	ch := make(chan *registry.NetworkServiceEndpoint, 1)
+	go func() {
+		err = s.Find(&registry.NetworkServiceEndpointQuery{
+			NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
+		}, streamchannel.NewNetworkServiceEndpointFindServer(ctx, ch))
+		require.NoError(t, err)
+	}()
+
+	var nse *registry.NetworkServiceEndpoint
+	select {
+	case nse = <-ch:
+		require.Equal(t, nseName, nse.Name)
+		require.Equal(t, nseURL, nse.Url)
+	case <-ctx.Done():
+		require.FailNow(t, "no endpoint found")
+	}
 }
 
-func (s *captureNameRegistryServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	reg, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
-	if err != nil {
-		return nil, err
+func find(t *testing.T, mem registry.NetworkServiceEndpointRegistryServer, query *registry.NetworkServiceEndpointQuery) (nses []*registry.NetworkServiceEndpoint) {
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	ch := make(chan *registry.NetworkServiceEndpoint)
+	go func() {
+		defer close(ch)
+		require.NoError(t, mem.Find(query, streamchannel.NewNetworkServiceEndpointFindServer(ctx, ch)))
+	}()
+
+	for nse := range ch {
+		nses = append(nses, nse)
 	}
 
-	s.name = reg.Name
-
-	return reg, nil
-}
-
-func (s *captureNameRegistryServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
+	return nses
 }

@@ -18,44 +18,49 @@ package setid
 
 import (
 	"context"
-	"strings"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/google/uuid"
-
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
 type setIDServer struct {
-	names namesSet
+	namesUrls namesUrlsMap
 }
 
-// NewNetworkServiceEndpointRegistryServer creates new instance of NetworkServiceRegistryServer which set the unique
-// name for the endpoint on registration
+// NewNetworkServiceEndpointRegistryServer creates a new NSE server chain element checking for nse.Name collisions
 func NewNetworkServiceEndpointRegistryServer() registry.NetworkServiceEndpointRegistryServer {
 	return new(setIDServer)
 }
 
-func (s *setIDServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	name := nse.Name
+func (s *setIDServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (reg *registry.NetworkServiceEndpoint, err error) {
+	if nse.Name == "" || nse.Url == "" {
+		return nil, errors.Errorf("nse.Name and nse.Url should be not empty: %v", nse)
+	}
 
-	reg, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
+	u, loaded := s.namesUrls.Load(nse.Name)
+	if loaded && u != nse.Url {
+		return nil, &DuplicateError{
+			name:     nse.Name,
+			expected: u,
+			actual:   nse.Url,
+		}
+	}
+
+	name, u := nse.Name, nse.Url
+
+	reg, err = next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	if err != nil {
 		return nil, err
 	}
 
-	if _, ok := s.names.Load(reg.Name); !ok && reg.Name == name {
-		if reg.Name == "" {
-			reg.Name = strings.Join(reg.NetworkServiceNames, "-")
-		}
-		reg.Name = uuid.New().String() + "-" + reg.Name
+	if !loaded {
+		s.namesUrls.Store(name, u)
 	}
 
-	s.names.Store(reg.Name, struct{}{})
-
-	return reg, nil
+	return reg, err
 }
 
 func (s *setIDServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
@@ -63,9 +68,8 @@ func (s *setIDServer) Find(query *registry.NetworkServiceEndpointQuery, server r
 }
 
 func (s *setIDServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	s.names.Delete(nse.Name)
-
+	if _, ok := s.namesUrls.LoadAndDelete(nse.Name); !ok {
+		return new(empty.Empty), nil
+	}
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }
-
-var _ registry.NetworkServiceEndpointRegistryServer = &setIDServer{}

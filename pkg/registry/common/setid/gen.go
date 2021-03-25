@@ -19,5 +19,7 @@ package setid
 import "sync"
 
 //go:generate go-syncmap -output names_set.gen.go -type namesSet<string,struct{}>
+//go:generate go-syncmap -output names_urls_map.gen.go -type namesUrlsMap<string,string>
 
 type namesSet sync.Map
+type namesUrlsMap sync.Map

@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,5 +14,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package setid provides NSE chain elements for setting nse.Name
 package setid
+
+import "fmt"
+
+// DuplicateError is an error type for the duplicate name error
+type DuplicateError struct {
+	name, expected, actual string
+}
+
+func (e *DuplicateError) Error() string {
+	return fmt.Sprintf("duplicate URL for the name %s: expected=[%s], actual=[%s]", e.name, e.expected, e.actual)
+}
+
+func isDuplicateError(e error) bool {
+	duplicateErr, ok := e.(*DuplicateError)
+	return ok && duplicateErr != nil
+}
