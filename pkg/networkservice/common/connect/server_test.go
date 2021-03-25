@@ -370,6 +370,8 @@ func TestConnectServer_RequestFail(t *testing.T) {
 
 	// 3. Create request
 
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "id",

@@ -116,7 +116,7 @@ func (s *connectServer) Request(ctx context.Context, request *networkservice.Net
 	conn, err = next.Server(ctx).Request(ctx, request)
 	// Close connection if next.Server Request finished with error
 	if err != nil && !refreshRequest {
-		_, cErr := c.client.Close(ctx, request.Connection.Clone())
+		_, cErr := s.Close(ctx, request.Connection.Clone())
 		if cErr != nil {
 			err = errors.Wrapf(cErr, "connection closed with error: %v", cErr)
 		}
