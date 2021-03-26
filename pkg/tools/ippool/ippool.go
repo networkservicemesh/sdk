@@ -237,7 +237,7 @@ func (tree *IPPool) PullP2PAddrs(exclude ...*IPPool) (srcNet, dstNet *net.IPNet,
 }
 
 // GetPrefixes returns the list of saved prefixes
-func (tree *IPPool) GetPrefixes() (prefixes []string) {
+func (tree *IPPool) GetPrefixes() []string {
 	tree.lock.Lock()
 	clone := tree.clone()
 	tree.lock.Unlock()
@@ -253,11 +253,12 @@ func (tree *IPPool) GetPrefixes() (prefixes []string) {
 		it.node = it.node.Left
 	}
 
+	var prefixes []string
 	for node := it.Next(); node != nil; node = it.Next() {
 		prefixes = append(prefixes, node.getPrefixes(clone.ipLength)...)
 	}
 
-	return
+	return prefixes
 }
 
 func (tree *IPPool) excludePool(exclude *IPPool) {
