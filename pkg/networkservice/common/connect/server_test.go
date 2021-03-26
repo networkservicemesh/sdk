@@ -370,6 +370,8 @@ func TestConnectServer_RequestFail(t *testing.T) {
 
 	// 3. Create request
 
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "id",
@@ -383,6 +385,73 @@ func TestConnectServer_RequestFail(t *testing.T) {
 
 	_, err = s.Request(clienturlctx.WithClientURL(requestCtx, urlA), request.Clone())
 	require.Error(t, err)
+}
+
+func TestConnectServer_RequestNextServerError(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	// 1. Create connectServer
+
+	serverClient := new(captureServer)
+
+	s := next.NewNetworkServiceServer(
+		connect.NewServer(context.Background(),
+			func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+				return next.NewNetworkServiceClient(
+					adapters.NewServerToClient(serverClient),
+					networkservice.NewNetworkServiceClient(cc),
+				)
+			},
+			connect.WithDialTimeout(time.Second),
+			connect.WithDialOptions(grpc.WithInsecure()),
+		),
+		injecterror.NewServer(),
+	)
+
+	// 2. Setup servers
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	urlA := &url.URL{Scheme: "tcp", Host: "127.0.0.1:"}
+	serverA := new(captureServer)
+
+	err := startServer(ctx, urlA, next.NewNetworkServiceServer(
+		serverA,
+		newEditServer("a", "A", &networkservice.Mechanism{
+			Cls:  cls.LOCAL,
+			Type: kernel.MECHANISM,
+		}),
+	))
+	require.NoError(t, err)
+	require.NoError(t, waitServerStarted(urlA))
+
+	// 3. Create request
+
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id:             "id",
+			NetworkService: "network-service",
+			Mechanism: &networkservice.Mechanism{
+				Cls:  cls.LOCAL,
+				Type: vfio.MECHANISM,
+			},
+			Context: &networkservice.ConnectionContext{
+				ExtraContext: map[string]string{
+					"not": "empty",
+				},
+			},
+		},
+	}
+
+	// 4. Make Request
+
+	requestCtx, requestCancel := context.WithCancel(context.Background())
+	defer requestCancel()
+
+	_, err = s.Request(clienturlctx.WithClientURL(requestCtx, urlA), request.Clone())
+	require.Error(t, err)
+	require.Nil(t, serverClient.capturedRequest)
 }
 
 func TestConnectServer_RemoteRestarted(t *testing.T) {
