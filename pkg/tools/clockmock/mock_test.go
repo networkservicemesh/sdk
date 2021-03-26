@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package clock_test
+package clockmock_test
 
 import (
 	"context"
@@ -25,7 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/clock"
+	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
 )
 
 const (
@@ -37,7 +37,7 @@ const (
 func TestMock_Timer(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	m := clock.NewMock()
+	m := clockmock.NewMock()
 
 	timer := m.Timer(timeout)
 
@@ -67,7 +67,7 @@ func TestMock_Timer(t *testing.T) {
 func TestMock_Timer_Stop(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	m := clock.NewMock()
+	m := clockmock.NewMock()
 
 	timer := m.Timer(timeout)
 
@@ -86,7 +86,7 @@ func TestMock_Timer_Stop(t *testing.T) {
 func TestMock_Timer_StopResult(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	m := clock.NewMock()
+	m := clockmock.NewMock()
 
 	timer := m.Timer(timeout)
 
@@ -99,7 +99,7 @@ func TestMock_Timer_StopResult(t *testing.T) {
 func TestMock_Timer_Reset(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	m := clock.NewMock()
+	m := clockmock.NewMock()
 
 	timer := m.Timer(timeout)
 
@@ -128,7 +128,7 @@ func TestMock_Timer_Reset(t *testing.T) {
 func TestMock_Timer_ResetExpired(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	m := clock.NewMock()
+	m := clockmock.NewMock()
 
 	timer := m.Timer(timeout)
 
@@ -158,7 +158,7 @@ func TestMock_Timer_ResetExpired(t *testing.T) {
 func TestMock_AfterFunc(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	m := clock.NewMock()
+	m := clockmock.NewMock()
 
 	var count int32
 	for i := time.Duration(0); i < 10; i++ {
@@ -187,7 +187,7 @@ func TestMock_AfterFunc(t *testing.T) {
 func TestMock_AfterFunc_Ticker(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	m := clock.NewMock()
+	m := clockmock.NewMock()
 
 	ticker := m.Ticker(timeout)
 
@@ -219,7 +219,7 @@ func TestMock_AfterFunc_Ticker(t *testing.T) {
 func TestMock_WithDeadline(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	m := clock.NewMock()
+	m := clockmock.NewMock()
 
 	ctx, cancel := m.WithDeadline(context.Background(), m.Now().Add(timeout))
 	defer cancel()
@@ -244,7 +244,7 @@ func TestMock_WithDeadline(t *testing.T) {
 func TestMock_WithDeadline_Expired(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	m := clock.NewMock()
+	m := clockmock.NewMock()
 
 	ctx, cancel := m.WithDeadline(context.Background(), m.Now())
 	defer cancel()
@@ -260,7 +260,7 @@ func TestMock_WithDeadline_Expired(t *testing.T) {
 func TestMock_WithDeadline_ParentCanceled(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	m := clock.NewMock()
+	m := clockmock.NewMock()
 
 	parentCtx, parentCancel := context.WithCancel(context.Background())
 
@@ -287,7 +287,7 @@ func TestMock_WithDeadline_ParentCanceled(t *testing.T) {
 func TestMock_WithTimeout(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	m := clock.NewMock()
+	m := clockmock.NewMock()
 
 	ctx, cancel := m.WithTimeout(context.Background(), timeout)
 	defer cancel()

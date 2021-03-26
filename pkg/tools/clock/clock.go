@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package clock provides tools for accessing and mocking time functions
+// Package clock provides tools for accessing time functions
 package clock
 
 import (

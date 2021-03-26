@@ -26,6 +26,8 @@ const (
 
 type contextKeyType string
 
+var clock = new(clockImpl)
+
 // WithClock wraps parent in a new context with Clock
 func WithClock(parent context.Context, clock Clock) context.Context {
 	if parent == nil {
@@ -34,10 +36,10 @@ func WithClock(parent context.Context, clock Clock) context.Context {
 	return context.WithValue(parent, clockKey, clock)
 }
 
-// GetClock returns Clock from context
-func GetClock(ctx context.Context) Clock {
+// FromContext returns Clock from context
+func FromContext(ctx context.Context) Clock {
 	if rv, ok := ctx.Value(clockKey).(Clock); ok {
 		return rv
 	}
-	return new(clockImpl)
+	return clock
 }

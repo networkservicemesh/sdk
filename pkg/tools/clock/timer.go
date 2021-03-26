@@ -18,8 +18,6 @@ package clock
 
 import (
 	"time"
-
-	"github.com/benbjohnson/clock"
 )
 
 // Timer is a time.Timer interface
@@ -35,16 +33,4 @@ type realTimer struct {
 
 func (t *realTimer) C() <-chan time.Time {
 	return t.Timer.C
-}
-
-type mockTimer struct {
-	*clock.Timer
-}
-
-func (t *mockTimer) C() <-chan time.Time {
-	return t.Timer.C
-}
-
-func (t *mockTimer) Reset(d time.Duration) bool {
-	return t.Timer.Reset(safeDuration(d))
 }

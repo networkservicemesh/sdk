@@ -14,23 +14,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package clock
+package clockmock
 
 import (
 	"time"
+
+	libclock "github.com/benbjohnson/clock"
 )
 
-// Ticker is a time.Ticker interface
-type Ticker interface {
-	C() <-chan time.Time
-	Stop()
-	Reset(d time.Duration)
+type mockTimer struct {
+	*libclock.Timer
 }
 
-type realTicker struct {
-	*time.Ticker
+func (t *mockTimer) C() <-chan time.Time {
+	return t.Timer.C
 }
 
-func (t *realTicker) C() <-chan time.Time {
-	return t.Ticker.C
+func (t *mockTimer) Reset(d time.Duration) bool {
+	return t.Timer.Reset(safeDuration(d))
 }

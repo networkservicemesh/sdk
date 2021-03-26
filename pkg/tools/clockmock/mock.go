@@ -14,26 +14,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package clock
+// Package clockmock provides tools for mocking time functions
+package clockmock
 
 import (
 	"context"
 	"sync"
 	"time"
 
-	"github.com/benbjohnson/clock"
+	libclock "github.com/benbjohnson/clock"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 )
+
+var _ clock.Clock = (*Mock)(nil)
 
 // Mock is a mock implementation of the Clock
 type Mock struct {
 	lock sync.RWMutex
-	mock *clock.Mock
+	mock *libclock.Mock
 }
 
 // NewMock returns a new mocked clock
 func NewMock() *Mock {
 	return &Mock{
-		mock: clock.NewMock(),
+		mock: libclock.NewMock(),
 	}
 }
 
@@ -76,7 +81,7 @@ func (m *Mock) Sleep(d time.Duration) {
 }
 
 // Timer returns a timer that will fire when the mock current time becomes > m.Now().Add(d)
-func (m *Mock) Timer(d time.Duration) Timer {
+func (m *Mock) Timer(d time.Duration) clock.Timer {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
@@ -91,14 +96,14 @@ func (m *Mock) After(d time.Duration) <-chan time.Time {
 }
 
 // AfterFunc returns a timer that will call f when the mock current time becomes > m.Now().Add(d)
-func (m *Mock) AfterFunc(d time.Duration, f func()) Timer {
+func (m *Mock) AfterFunc(d time.Duration, f func()) clock.Timer {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
 	return m.afterFunc(d, f)
 }
 
-func (m *Mock) afterFunc(d time.Duration, f func()) Timer {
+func (m *Mock) afterFunc(d time.Duration, f func()) clock.Timer {
 	return &mockTimer{
 		Timer: m.mock.AfterFunc(safeDuration(d), func() {
 			go f()
@@ -107,7 +112,7 @@ func (m *Mock) afterFunc(d time.Duration, f func()) Timer {
 }
 
 // Ticker returns a ticker that will fire every time when the mock current time becomes > mock previous time + d
-func (m *Mock) Ticker(d time.Duration) Ticker {
+func (m *Mock) Ticker(d time.Duration) clock.Ticker {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
@@ -153,7 +158,7 @@ func (m *Mock) WithTimeout(parent context.Context, timeout time.Duration) (conte
 
 type timerCtx struct {
 	deadline time.Time
-	timer    Timer
+	timer    clock.Timer
 
 	context.Context
 }
