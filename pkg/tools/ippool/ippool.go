@@ -27,7 +27,8 @@ import (
 type color bool
 
 const (
-	black, red color = true, false
+	black, red     color = true, false
+	prefixBitsSize       = 64
 )
 
 // IPPool holds available ip addresses in the structure of red-black tree
@@ -614,7 +615,7 @@ func (node *treeNode) getPrefixes(ipLength int) (result []string) {
 		for start.high <= end.high {
 			z := trailingZeros(start.high)
 
-			if z == 64 {
+			if z == prefixBitsSize {
 				if end.high == math.MaxUint64 {
 					ipNet := &net.IPNet{
 						IP:   ipFromIPAddress(start, ipLength),
@@ -651,7 +652,7 @@ func (node *treeNode) getPrefixes(ipLength int) (result []string) {
 	for start.low <= end.low {
 		z := trailingZeros(start.low)
 
-		if z == 64 {
+		if z == prefixBitsSize {
 			if end.low == math.MaxUint64 {
 				ipNet := &net.IPNet{
 					IP:   ipFromIPAddress(start, ipLength),
@@ -790,7 +791,7 @@ func (it *iterator) Next() *treeNode {
 
 func trailingZeros(num uint64) int {
 	if num == 0 {
-		return 64
+		return prefixBitsSize
 	}
 	power := 1
 	for num != 0 && num%2 == 0 {
