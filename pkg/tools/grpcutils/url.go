@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -42,10 +42,21 @@ func AddressToURL(addr net.Addr) *url.URL {
 			return &url.URL{Scheme: addr.Network(), Host: fmt.Sprintf(":%v", tcpAddr.Port)}
 		}
 	}
-	if addr.Network() == unixScheme {
-		return &url.URL{Scheme: addr.Network(), Path: addr.String()}
+	return NetworkAddressToURL(addr.Network(), addr.String())
+}
+
+// NetworkAddressToURL - convert a network + address to proper URL object
+func NetworkAddressToURL(network, address string) *url.URL {
+	if network == unixScheme {
+		return &url.URL{Scheme: network, Path: address}
 	}
-	return &url.URL{Scheme: addr.Network(), Host: addr.String()}
+	return &url.URL{Scheme: network, Host: address}
+}
+
+// TargetToURL - convert target to a proper URL object
+func TargetToURL(address string) *url.URL {
+	network, addr := TargetToNetAddr(address)
+	return NetworkAddressToURL(network, addr)
 }
 
 // TargetToNetAddr returns the network and address from a GRPC target

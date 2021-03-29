@@ -18,10 +18,16 @@ package sandbox
 
 import (
 	"context"
+	"fmt"
+	"io/ioutil"
 	"net"
 	"net/url"
+	"os"
+	"runtime"
 	"testing"
 	"time"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -31,7 +37,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgrproxy"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/proxydns"
@@ -58,6 +63,10 @@ type Builder struct {
 	generateTokenFunc      token.GeneratorFunc
 	registryExpiryDuration time.Duration
 	ctx                    context.Context
+
+	useUnixSockets bool
+	addressID      int
+	sockPath       string
 }
 
 // NewBuilder creates new SandboxBuilder
@@ -74,6 +83,9 @@ func NewBuilder(t *testing.T) *Builder {
 		setupNode:              defaultSetupNode(t),
 		generateTokenFunc:      GenerateTestToken,
 		registryExpiryDuration: time.Minute,
+
+		useUnixSockets: false,
+		addressID:      0,
 	}
 }
 
@@ -88,6 +100,14 @@ func (b *Builder) Build() *Domain {
 	ctx = log.Join(ctx, log.Empty())
 
 	domain := new(Domain)
+
+	if b.useUnixSockets {
+		var err error
+		b.sockPath, err = ioutil.TempDir(os.TempDir(), "nsm-domain-temp")
+		b.require.NoError(err)
+		domain.domainTemp = b.sockPath
+	}
+
 	domain.NSMgrProxy = b.newNSMgrProxy(ctx)
 	if domain.NSMgrProxy == nil {
 		domain.RegistryProxy = b.newRegistryProxy(ctx, &url.URL{})
@@ -168,6 +188,16 @@ func (b *Builder) SetNodesCount(nodesCount int) *Builder {
 	return b
 }
 
+// UseUnixSockets sets 1 node and mark it to use unix socket to listen on.
+func (b *Builder) UseUnixSockets() *Builder {
+	if runtime.GOOS == "windows" {
+		panic("Unix sockets are not available for windows")
+	}
+	b.useUnixSockets = true
+
+	return b
+}
+
 // SetDNSResolver sets DNS resolver for proxy registries
 func (b *Builder) SetDNSResolver(d dnsresolve.Resolver) *Builder {
 	b.Resolver = d
@@ -227,7 +257,7 @@ func (b *Builder) dialContext(ctx context.Context, u *url.URL) *grpc.ClientConn 
 	b.resources = append(b.resources, func() {
 		_ = conn.Close()
 	})
-	b.require.NoError(err, "Can not dial to", u)
+	b.require.NoError(err, "Can not dial to %v", u)
 	return conn
 }
 
@@ -239,7 +269,8 @@ func (b *Builder) newNSMgrProxy(ctx context.Context) *EndpointEntry {
 	mgr := b.supplyNSMgrProxy(ctx, b.generateTokenFunc,
 		nsmgrproxy.WithName(name),
 		nsmgrproxy.WithDialOptions(DefaultDialOptions(b.generateTokenFunc)...))
-	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
+	serveURL := grpcutils.TargetToURL(b.newAddress("nsmgr-proxy"))
+
 	serve(ctx, serveURL, mgr.Register)
 	log.FromContext(ctx).Infof("%v listen on: %v", name, serveURL)
 	return &EndpointEntry{
@@ -269,20 +300,37 @@ func (b *Builder) newNSMgr(ctx context.Context, address string, registryURL *url
 	if registryURL != nil {
 		registryCC = b.dialContext(ctx, registryURL)
 	}
-	listener, err := net.Listen("tcp", address)
-	b.require.NoError(err)
-	serveURL := grpcutils.AddressToURL(listener.Addr())
-	b.require.NoError(listener.Close())
 
-	nsmgrReg := &registryapi.NetworkServiceEndpoint{
-		Name: "nsmgr-" + uuid.New().String(),
-		Url:  serveURL.String(),
+	var serveURL *url.URL
+	if b.useUnixSockets {
+		serveURL = grpcutils.TargetToURL(address)
+	} else {
+		listener, err := net.Listen("tcp", address)
+		b.require.NoError(err)
+		serveURL = grpcutils.AddressToURL(listener.Addr())
+		b.require.NoError(listener.Close())
 	}
 
-	mgr := b.supplyNSMgr(ctx, nsmgrReg, authorize.NewServer(authorize.Any()), generateTokenFunc, registryCC, DefaultDialOptions(generateTokenFunc)...)
+	nsmgrName := "nsmgr-" + uuid.New().String()
+
+	options := []nsmgr.Option{
+		nsmgr.WithName(nsmgrName),
+		nsmgr.WithAuthorizeServer(authorize.NewServer(authorize.Any())),
+		nsmgr.WithDialOptions(DefaultDialOptions(generateTokenFunc)...),
+	}
+
+	if registryURL != nil {
+		options = append(options, nsmgr.WithRegistryClientConn(registryCC))
+	}
+
+	if serveURL.Scheme == "tcp" {
+		options = append(options, nsmgr.WithURL(serveURL.String()))
+	}
+
+	mgr := b.supplyNSMgr(ctx, generateTokenFunc, options...)
 
 	serve(ctx, serveURL, mgr.Register)
-	log.FromContext(ctx).Infof("%v listen on: %v", nsmgrReg.Name, serveURL)
+	log.FromContext(ctx).Infof("%v listen on: %v", nsmgrName, serveURL)
 	return &NSMgrEntry{
 		URL:   serveURL,
 		Nsmgr: mgr,
@@ -311,7 +359,7 @@ func (b *Builder) newRegistryProxy(ctx context.Context, nsmgrProxyURL *url.URL) 
 		return nil
 	}
 	result := b.supplyRegistryProxy(ctx, b.Resolver, b.DNSDomainName, nsmgrProxyURL, DefaultDialOptions(b.generateTokenFunc)...)
-	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
+	serveURL := grpcutils.TargetToURL(b.newAddress("reg-proxy"))
 	serve(ctx, serveURL, result.Register)
 	log.FromContext(ctx).Infof("registry-proxy-dns listen on: %v", serveURL)
 	return &RegistryEntry{
@@ -325,7 +373,7 @@ func (b *Builder) newRegistry(ctx context.Context, proxyRegistryURL *url.URL) *R
 		return nil
 	}
 	result := b.supplyRegistry(ctx, b.registryExpiryDuration, proxyRegistryURL, DefaultDialOptions(b.generateTokenFunc)...)
-	serveURL := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
+	serveURL := grpcutils.TargetToURL(b.newAddress("reg"))
 	serve(ctx, serveURL, result.Register)
 	log.FromContext(ctx).Infof("Registry listen on: %v", serveURL)
 	return &RegistryEntry{
@@ -335,7 +383,8 @@ func (b *Builder) newRegistry(ctx context.Context, proxyRegistryURL *url.URL) *R
 }
 
 func (b *Builder) newNode(ctx context.Context, registryURL *url.URL, nodeConfig *NodeConfig) *Node {
-	nsmgrEntry := b.newNSMgr(nodeConfig.NsmgrCtx, "127.0.0.1:0", registryURL, nodeConfig.NsmgrGenerateTokenFunc)
+	address := b.newAddress("nsmgr")
+	nsmgrEntry := b.newNSMgr(nodeConfig.NsmgrCtx, address, registryURL, nodeConfig.NsmgrGenerateTokenFunc)
 
 	node := &Node{
 		ctx:   b.ctx,
@@ -358,6 +407,16 @@ func (b *Builder) SetupRegistryClients(ctx context.Context, node *Node) {
 	node.ForwarderRegistryClient = client.NewNetworkServiceEndpointRegistryInterposeClient(ctx, nsmgrCC)
 	node.EndpointRegistryClient = client.NewNetworkServiceEndpointRegistryClient(ctx, nsmgrCC)
 	node.NSRegistryClient = client.NewNetworkServiceRegistryClient(nsmgrCC)
+}
+
+// newAddress - will return a new public address, if unixSockets are used prefix will be used to make uniq files.
+func (b *Builder) newAddress(prefix string) string {
+	if !b.useUnixSockets {
+		return "127.0.0.1:0"
+	}
+
+	b.addressID++
+	return fmt.Sprintf("unix:%s/%s_%d.sock", b.sockPath, prefix, b.addressID)
 }
 
 func defaultSetupNode(t *testing.T) SetupNodeFunc {

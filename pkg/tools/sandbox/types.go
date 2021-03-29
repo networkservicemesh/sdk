@@ -19,10 +19,9 @@ package sandbox
 import (
 	"context"
 	"net/url"
+	"os"
 	"time"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
@@ -37,7 +36,7 @@ import (
 type SupplyNSMgrProxyFunc func(context.Context, token.GeneratorFunc, ...nsmgrproxy.Option) endpoint.Endpoint
 
 // SupplyNSMgrFunc supplies NSMGR
-type SupplyNSMgrFunc func(context.Context, *registryapi.NetworkServiceEndpoint, networkservice.NetworkServiceServer, token.GeneratorFunc, grpc.ClientConnInterface, ...grpc.DialOption) nsmgr.Nsmgr
+type SupplyNSMgrFunc func(context.Context, token.GeneratorFunc, ...nsmgr.Option) nsmgr.Nsmgr
 
 // SupplyRegistryFunc supplies Registry
 type SupplyRegistryFunc func(ctx context.Context, expiryDuration time.Duration, proxyRegistryURL *url.URL, options ...grpc.DialOption) registry.Registry
@@ -75,6 +74,7 @@ type Domain struct {
 	DNSResolver   dnsresolve.Resolver
 	Name          string
 	resources     []context.CancelFunc
+	domainTemp    string
 }
 
 // NodeConfig keeps custom node configuration parameters
@@ -94,5 +94,10 @@ func (d *Domain) AddResources(resources []context.CancelFunc) {
 func (d *Domain) Cleanup() {
 	for _, r := range d.resources {
 		r()
+	}
+
+	// Remove Nsmgr local unix socket file if exists.
+	if d.domainTemp != "" {
+		_ = os.RemoveAll(d.domainTemp)
 	}
 }
