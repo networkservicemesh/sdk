@@ -65,8 +65,8 @@ type Builder struct {
 	ctx                    context.Context
 
 	useUnixSockets bool
-	addressID      int
 	sockPath       string
+	usedAddress    int
 }
 
 // NewBuilder creates new SandboxBuilder
@@ -85,7 +85,6 @@ func NewBuilder(t *testing.T) *Builder {
 		registryExpiryDuration: time.Minute,
 
 		useUnixSockets: false,
-		addressID:      0,
 	}
 }
 
@@ -119,7 +118,6 @@ func (b *Builder) Build() *Domain {
 	} else {
 		domain.Registry = b.newRegistry(ctx, domain.RegistryProxy.URL)
 	}
-
 	for i := 0; i < b.nodesCount; i++ {
 		domain.Nodes = append(domain.Nodes, b.newNode(ctx, domain.Registry.URL, b.nodesConfig[i]))
 	}
@@ -194,7 +192,6 @@ func (b *Builder) UseUnixSockets() *Builder {
 		panic("Unix sockets are not available for windows")
 	}
 	b.useUnixSockets = true
-
 	return b
 }
 
@@ -415,8 +412,8 @@ func (b *Builder) newAddress(prefix string) string {
 		return "127.0.0.1:0"
 	}
 
-	b.addressID++
-	return fmt.Sprintf("unix:%s/%s_%d.sock", b.sockPath, prefix, b.addressID)
+	b.usedAddress++
+	return fmt.Sprintf("unix:%s/%s_%d.sock", b.sockPath, prefix, b.usedAddress)
 }
 
 func defaultSetupNode(t *testing.T) SetupNodeFunc {
