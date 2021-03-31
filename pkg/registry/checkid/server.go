@@ -14,7 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package setid
+// Package checkid provides NSE server chain element for checking for nse.Name duplicates
+package checkid
 
 import (
 	"context"

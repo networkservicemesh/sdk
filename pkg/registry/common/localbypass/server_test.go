@@ -27,6 +27,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/checkid"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
@@ -47,7 +48,7 @@ func TestLocalBypassNSEServer(t *testing.T) {
 	server := next.NewNetworkServiceEndpointRegistryServer(
 		adapters.NetworkServiceEndpointClientToServer(setid.NewNetworkServiceEndpointRegistryClient()),
 		localbypass.NewNetworkServiceEndpointRegistryServer(nsmgrURL),
-		setid.NewNetworkServiceEndpointRegistryServer(),
+		checkid.NewNetworkServiceEndpointRegistryServer(),
 		mem,
 	)
 
@@ -96,7 +97,7 @@ func TestLocalBypassNSEServer_SlowRegistryFind(t *testing.T) {
 	server := next.NewNetworkServiceEndpointRegistryServer(
 		adapters.NetworkServiceEndpointClientToServer(setid.NewNetworkServiceEndpointRegistryClient()),
 		localbypass.NewNetworkServiceEndpointRegistryServer(nsmgrURL),
-		setid.NewNetworkServiceEndpointRegistryServer(),
+		checkid.NewNetworkServiceEndpointRegistryServer(),
 		&slowRegistry{
 			delay:                                100 * time.Millisecond,
 			NetworkServiceEndpointRegistryServer: memory.NewNetworkServiceEndpointRegistryServer(),
@@ -144,7 +145,7 @@ func TestLocalBypassNSEServer_SlowRegistryFindWatch(t *testing.T) {
 	server := next.NewNetworkServiceEndpointRegistryServer(
 		adapters.NetworkServiceEndpointClientToServer(setid.NewNetworkServiceEndpointRegistryClient()),
 		localbypass.NewNetworkServiceEndpointRegistryServer(nsmgrURL),
-		setid.NewNetworkServiceEndpointRegistryServer(),
+		checkid.NewNetworkServiceEndpointRegistryServer(),
 		&slowRegistry{
 			delay:                                100 * time.Millisecond,
 			NetworkServiceEndpointRegistryServer: memory.NewNetworkServiceEndpointRegistryServer(),

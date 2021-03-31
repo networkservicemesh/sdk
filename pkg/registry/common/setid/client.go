@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package setid provides NSE client chain element for setting nse.Name
 package setid
 
 import (
@@ -26,6 +27,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/checkid"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
@@ -49,7 +51,7 @@ func (c *setIDClient) Register(ctx context.Context, nse *registry.NetworkService
 	}
 	nameSuffix = "-" + nameSuffix
 
-	err = new(DuplicateError)
+	err = new(checkid.DuplicateError)
 	for isDuplicateError(err) {
 		name := uuid.New().String() + nameSuffix
 
@@ -60,6 +62,11 @@ func (c *setIDClient) Register(ctx context.Context, nse *registry.NetworkService
 	}
 
 	return reg, err
+}
+
+func isDuplicateError(e error) bool {
+	duplicateErr, ok := e.(*checkid.DuplicateError)
+	return ok && duplicateErr != nil
 }
 
 func (c *setIDClient) Find(ctx context.Context, query *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {

@@ -26,12 +26,12 @@ import (
 	"google.golang.org/grpc"
 
 	registryserver "github.com/networkservicemesh/sdk/pkg/registry"
+	"github.com/networkservicemesh/sdk/pkg/registry/checkid"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/proxy"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 )
@@ -40,7 +40,7 @@ import (
 func NewServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryURL *url.URL, options ...grpc.DialOption) registryserver.Registry {
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
 		serialize.NewNetworkServiceEndpointRegistryServer(),
-		setid.NewNetworkServiceEndpointRegistryServer(),
+		checkid.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, expiryDuration),
 		memory.NewNetworkServiceEndpointRegistryServer(),
 		proxy.NewNetworkServiceEndpointRegistryServer(proxyRegistryURL),

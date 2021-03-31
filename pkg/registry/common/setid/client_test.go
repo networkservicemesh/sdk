@@ -27,6 +27,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/checkid"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
@@ -90,7 +91,7 @@ func TestSetIDClient_Duplicate(t *testing.T) {
 		setid.NewNetworkServiceEndpointRegistryClient(),
 		&errorClient{
 			expected: 3,
-			err:      new(setid.DuplicateError),
+			err:      new(checkid.DuplicateError),
 		},
 	)
 

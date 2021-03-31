@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package setid_test
+package checkid_test
 
 import (
 	"context"
@@ -24,8 +24,8 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/checkid"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
 )
@@ -47,7 +47,7 @@ func TestSetIDServer_Register(t *testing.T) {
 	mem := memory.NewNetworkServiceEndpointRegistryServer()
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
-		setid.NewNetworkServiceEndpointRegistryServer(),
+		checkid.NewNetworkServiceEndpointRegistryServer(),
 		mem,
 	)
 
@@ -108,7 +108,7 @@ func TestSetIDServer_Duplicate(t *testing.T) {
 	mem := memory.NewNetworkServiceEndpointRegistryServer()
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
-		setid.NewNetworkServiceEndpointRegistryServer(),
+		checkid.NewNetworkServiceEndpointRegistryServer(),
 		mem,
 	)
 
@@ -122,7 +122,7 @@ func TestSetIDServer_Duplicate(t *testing.T) {
 	_, err = s.Register(context.Background(), testNSE(duplicateURL))
 	require.Error(t, err)
 
-	_, ok := err.(*setid.DuplicateError)
+	_, ok := err.(*checkid.DuplicateError)
 	require.True(t, ok)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)

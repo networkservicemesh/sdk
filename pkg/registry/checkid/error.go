@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,10 +14,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package setid
+package checkid
 
-import "sync"
+import "fmt"
 
-//go:generate go-syncmap -output names_set.gen.go -type namesSet<string,struct{}>
+// DuplicateError is an error type for the duplicate name error
+type DuplicateError struct {
+	name, expected, actual string
+}
 
-type namesSet sync.Map
+func (e *DuplicateError) Error() string {
+	return fmt.Sprintf("duplicate URL for the name %s: expected=[%s], actual=[%s]", e.name, e.expected, e.actual)
+}

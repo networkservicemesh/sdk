@@ -44,13 +44,13 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/roundrobin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry"
+	"github.com/networkservicemesh/sdk/pkg/registry/checkid"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/querycache"
 	registryrecvfd "github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
 	registryserialize "github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
 	registryadapter "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	registrychain "github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
@@ -208,7 +208,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	nseChain := registrychain.NewNamedNetworkServiceEndpointRegistryServer(
 		opts.name+".NetworkServiceEndpointRegistry",
 		registryserialize.NewNetworkServiceEndpointRegistryServer(),
-		setid.NewNetworkServiceEndpointRegistryServer(),
+		checkid.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
 		registryrecvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
 		urlsRegistryServer,        // Store endpoints URLs
