@@ -127,18 +127,23 @@ func testNSMGRHealEndpoint(t *testing.T, restored bool) {
 }
 
 func TestNSMGR_HealLocalForwarder(t *testing.T) {
-	forwarderCtx, forwarderCtxCancel := context.WithTimeout(context.Background(), time.Second)
-	defer forwarderCtxCancel()
+	for i := 0; i < 100; i++ {
+		println("---", i, "---")
+		func() {
+			forwarderCtx, forwarderCtxCancel := context.WithTimeout(context.Background(), time.Second)
+			defer forwarderCtxCancel()
 
-	customConfig := []*sandbox.NodeConfig{
-		nil,
-		{
-			ForwarderCtx:               forwarderCtx,
-			ForwarderGenerateTokenFunc: sandbox.GenerateExpiringToken(time.Second),
-		},
+			customConfig := []*sandbox.NodeConfig{
+				nil,
+				{
+					ForwarderCtx:               forwarderCtx,
+					ForwarderGenerateTokenFunc: sandbox.GenerateExpiringToken(time.Second),
+				},
+			}
+
+			testNSMGRHealForwarder(t, 1, false, customConfig, forwarderCtxCancel)
+		}()
 	}
-
-	testNSMGRHealForwarder(t, 1, false, customConfig, forwarderCtxCancel)
 }
 
 func TestNSMGR_HealLocalForwarderRestored(t *testing.T) {
