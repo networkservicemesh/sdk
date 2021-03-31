@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"runtime"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -814,4 +815,70 @@ func (c *restartingEndpoint) Close(ctx context.Context, connection *networkservi
 
 func newBusyEndpoint() networkservice.NetworkServiceServer {
 	return injecterror.NewServer(errors.New("sorry, endpoint is busy, try again later"))
+}
+
+func TestNSMGR_LocalUsecaseNoURL(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix sockets are not supported under windows, skipping")
+		return
+	}
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(t).
+		SetNodesCount(1).
+		UseUnixSockets().
+		SetContext(ctx).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		Build()
+
+	defer domain.Cleanup()
+
+	nseReg := &registry.NetworkServiceEndpoint{
+		Name:                "final-endpoint",
+		NetworkServiceNames: []string{"my-service-remote"},
+	}
+
+	counter := &counterServer{}
+	_, err := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
+	require.NoError(t, err)
+
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	request := &networkservice.NetworkServiceRequest{
+		MechanismPreferences: []*networkservice.Mechanism{
+			{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
+		},
+		Connection: &networkservice.Connection{
+			Id:             "1",
+			NetworkService: "my-service-remote",
+			Context:        &networkservice.ConnectionContext{},
+		},
+	}
+
+	conn, err := nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Requests))
+	require.Equal(t, 5, len(conn.Path.PathSegments))
+
+	// Simulate refresh from client.
+
+	refreshRequest := request.Clone()
+	refreshRequest.Connection = conn.Clone()
+
+	conn2, err := nsc.Request(ctx, refreshRequest)
+	require.NoError(t, err)
+	require.NotNil(t, conn2)
+	require.Equal(t, 5, len(conn2.Path.PathSegments))
+	require.Equal(t, int32(2), atomic.LoadInt32(&counter.Requests))
+	// Close.
+
+	e, err := nsc.Close(ctx, conn)
+	require.NoError(t, err)
+	require.NotNil(t, e)
+	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Closes))
 }
