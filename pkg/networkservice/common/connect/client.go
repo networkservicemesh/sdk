@@ -56,8 +56,10 @@ func (u *connectClient) init() error {
 		ctx, cancel := context.WithTimeout(u.ctx, u.dialTimeout)
 		defer cancel()
 
+		dialOptions := append(append([]grpc.DialOption{}, u.dialOptions...), grpc.WithReturnConnectionError())
+
 		var cc *grpc.ClientConn
-		cc, u.dialErr = grpc.DialContext(ctx, grpcutils.URLToTarget(clientURL), append(u.dialOptions, grpc.WithReturnConnectionError())...)
+		cc, u.dialErr = grpc.DialContext(ctx, grpcutils.URLToTarget(clientURL), dialOptions...)
 		if u.dialErr != nil {
 			return
 		}
