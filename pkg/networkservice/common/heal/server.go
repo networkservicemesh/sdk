@@ -369,9 +369,7 @@ func (f *healServer) restoreConnection(ctx context.Context, request *networkserv
 		}
 	}
 
-	if err != nil {
-		f.processHeal(ctx, request.Clone(), opts...)
-	}
+	f.processHeal(ctx, request.Clone(), opts...)
 }
 
 func (f *healServer) processHeal(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) {
