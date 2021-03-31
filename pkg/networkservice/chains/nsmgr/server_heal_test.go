@@ -186,7 +186,7 @@ func TestNSMGR_HealRemoteForwarderRestored(t *testing.T) {
 
 func testNSMGRHealForwarder(t *testing.T, nodeNum int, restored bool, customConfig []*sandbox.NodeConfig, forwarderCtxCancel context.CancelFunc) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*100)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	builder := sandbox.NewBuilder(t)
@@ -296,7 +296,7 @@ func TestNSMGR_HealRemoteNSMgrRestored(t *testing.T) {
 
 func testNSMGRHealNSMgr(t *testing.T, nodeNum int, customConfig []*sandbox.NodeConfig, nsmgrCtxCancel context.CancelFunc) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	builder := sandbox.NewBuilder(t)
@@ -389,7 +389,7 @@ func TestNSMGR_HealRemoteNSMgr(t *testing.T) {
 		},
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	builder := sandbox.NewBuilder(t)
@@ -453,6 +453,71 @@ func TestNSMGR_HealRemoteNSMgr(t *testing.T) {
 	require.NotNil(t, e)
 	require.Equal(t, 2, counter.UniqueRequests())
 	require.Equal(t, 2, counter.UniqueCloses())
+}
+
+func TestNSMGR_CloseHeal(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(t).
+		SetNodesCount(1).
+		SetRegistryProxySupplier(nil).
+		SetContext(ctx).
+		Build()
+	defer domain.Cleanup()
+
+	nseReg := &registry.NetworkServiceEndpoint{
+		Name:                "final-endpoint",
+		NetworkServiceNames: []string{"my-service"},
+	}
+
+	nseCtx, nseCtxCancel := context.WithCancel(ctx)
+
+	_, err := domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.GenerateTestToken)
+	require.NoError(t, err)
+
+	request := &networkservice.NetworkServiceRequest{
+		MechanismPreferences: []*networkservice.Mechanism{
+			{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
+		},
+		Connection: &networkservice.Connection{
+			Id:             "1",
+			NetworkService: "my-service",
+			Context:        &networkservice.ConnectionContext{},
+		},
+	}
+
+	nscCtx, nscCtxCancel := context.WithCancel(ctx)
+
+	nsc := domain.Nodes[0].NewClient(nscCtx, sandbox.GenerateTestToken)
+
+	// 1. Request
+	conn, err := nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+
+	ignoreCurrent := goleak.IgnoreCurrent()
+
+	// 2. Refresh
+	request.Connection = conn
+
+	conn, err = nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+
+	// 3. Stop endpoint
+	nseCtxCancel()
+
+	// 4. Close connection
+	_, _ = nsc.Close(nscCtx, conn.Clone())
+
+	nscCtxCancel()
+
+	require.Eventually(t, func() bool {
+		return goleak.Find(ignoreCurrent) == nil
+	}, timeout, tick)
+
+	require.NoError(t, ctx.Err())
 }
 
 func checkSecondRequestsReceived(requestsDone func() int) func() bool {
