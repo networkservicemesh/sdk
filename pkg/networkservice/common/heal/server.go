@@ -179,7 +179,7 @@ func (f *healServer) healAsNeeded(baseCtx context.Context, request *networkservi
 		return
 	}
 
-	ctx, cancel := context.WithCancel(f.ctx)
+	ctx, cancel := f.healContext(baseCtx)
 	defer cancel()
 	id := request.GetConnection().GetId()
 	<-f.cancelHealMapExecutor.AsyncExec(func() {
@@ -215,7 +215,7 @@ func (f *healServer) healAsNeeded(baseCtx context.Context, request *networkservi
 			if newRecvErr == nil {
 				recv = newRecv
 			} else {
-				f.restoreConnection(ctx, baseCtx, request, opts...)
+				f.restoreConnection(ctx, request, opts...)
 				return
 			}
 			runtime.Gosched()
@@ -224,10 +224,20 @@ func (f *healServer) healAsNeeded(baseCtx context.Context, request *networkservi
 		if ctx.Err() != nil {
 			return
 		}
-		if err := f.processEvent(ctx, baseCtx, request, event, opts...); err != nil {
+		if err := f.processEvent(ctx, request, event, opts...); err != nil {
 			return
 		}
 	}
+}
+
+func (f *healServer) healContext(baseCtx context.Context) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(f.ctx)
+
+	if candidates := discover.Candidates(baseCtx); candidates != nil {
+		ctx = discover.WithCandidates(ctx, candidates.Endpoints, candidates.NetworkService)
+	}
+
+	return ctx, cancel
 }
 
 // initialMonitorSegment - monitors for pathSegment and returns a recv and an error if the server does not have
@@ -298,7 +308,7 @@ func (f *healServer) initialMonitorSegment(ctx context.Context, conn *networkser
 
 // processEvent - process event, calling (*f.OnHeal).Request(ctx,request,opts...) if the server does not have our connection.
 // returns a non-nil error if the event is such that we should no longer to continue to attempt to heal.
-func (f *healServer) processEvent(ctx, baseCtx context.Context, request *networkservice.NetworkServiceRequest, event *networkservice.ConnectionEvent, opts ...grpc.CallOption) error {
+func (f *healServer) processEvent(ctx context.Context, request *networkservice.NetworkServiceRequest, event *networkservice.ConnectionEvent, opts ...grpc.CallOption) error {
 	pathSegment := request.GetConnection().GetNextPathSegment()
 
 	switch event.GetType() {
@@ -320,13 +330,13 @@ func (f *healServer) processEvent(ctx, baseCtx context.Context, request *network
 		fallthrough
 	case networkservice.ConnectionEventType_DELETE:
 		if event.Connections != nil && event.Connections[pathSegment.GetId()] != nil {
-			f.processHeal(ctx, baseCtx, request, opts...)
+			f.processHeal(ctx, request, opts...)
 		}
 	}
 	return nil
 }
 
-func (f *healServer) restoreConnection(ctx, baseCtx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) {
+func (f *healServer) restoreConnection(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) {
 	id := request.GetConnection().GetId()
 
 	var healMapCtx context.Context
@@ -360,15 +370,15 @@ func (f *healServer) restoreConnection(ctx, baseCtx context.Context, request *ne
 	}
 
 	if err != nil {
-		f.processHeal(ctx, baseCtx, request.Clone(), opts...)
+		f.processHeal(ctx, request.Clone(), opts...)
 	}
 }
 
-func (f *healServer) processHeal(ctx, baseCtx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) {
+func (f *healServer) processHeal(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) {
 	logEntry := log.FromContext(ctx).WithField("healServer", "processHeal")
 	conn := request.GetConnection()
 
-	candidates := discover.Candidates(baseCtx)
+	candidates := discover.Candidates(ctx)
 	if candidates != nil || conn.GetPath().GetIndex() == 0 {
 		logEntry.Infof("Starting heal process for %s", conn.GetId())
 
