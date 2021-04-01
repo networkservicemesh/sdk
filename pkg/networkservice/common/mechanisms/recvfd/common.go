@@ -60,7 +60,7 @@ func recvFDAndSwapInodeToFile(ctx context.Context, fileMap *perConnectionFileMap
 			// Wait for the file to arrive on the fileCh or the context to expire
 			select {
 			case <-ctx.Done():
-				err = ctx.Err()
+				err = errors.Wrapf(ctx.Err(), "timeout in recvfd waiting for %s", inodeURLStr)
 				return
 			case file = <-fileCh:
 				// If we get the file, remember it in the fileMap so we can reuse it later
