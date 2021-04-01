@@ -833,6 +833,7 @@ func TestNSMGR_LocalUsecaseNoURL(t *testing.T) {
 		SetContext(ctx).
 		SetNSMgrProxySupplier(nil).
 		SetRegistryProxySupplier(nil).
+		SetRegistrySupplier(nil).
 		Build()
 
 	defer domain.Cleanup()
