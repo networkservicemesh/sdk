@@ -63,12 +63,7 @@ func (m *monitorServer) MonitorConnections(selector *networkservice.MonitorScope
 	m.executor.AsyncExec(func() {
 		monitor := newMonitorFilter(selector, srv)
 		m.monitors = append(m.monitors, monitor)
-		connections := make(map[string]*networkservice.Connection)
-		for _, ps := range selector.PathSegments {
-			if conn, ok := m.connections[ps.GetId()]; ok {
-				connections[ps.GetId()] = conn
-			}
-		}
+		connections := networkservice.FilterMapOnManagerScopeSelector(m.connections, selector)
 		// Send initial transfer of all data available
 		_ = monitor.Send(&networkservice.ConnectionEvent{
 			Type:        networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,
@@ -84,8 +79,8 @@ func (m *monitorServer) MonitorConnections(selector *networkservice.MonitorScope
 
 func (m *monitorServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	conn, err := next.Server(ctx).Request(ctx, request)
-	eventConn := conn.Clone()
 	if err == nil {
+		eventConn := conn.Clone()
 		m.executor.AsyncExec(func() {
 			m.connections[eventConn.GetId()] = eventConn
 
