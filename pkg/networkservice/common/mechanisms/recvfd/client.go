@@ -87,8 +87,8 @@ func (r *recvFDClient) Close(ctx context.Context, conn *networkservice.Connectio
 
 	go func(fileMap *perConnectionFileMap, conn *networkservice.Connection) {
 		<-ctx.Done()
-		for _, file := range fileMap.filesByInodeURL {
-			log.FromContext(ctx).Infof("Closing file %q related to closed connection %s", file.Name(), conn.GetId())
+		for i, file := range fileMap.filesByInodeURL {
+			log.FromContext(ctx).Infof("Closing file %q (%q) related to closed connection %s", file.Name(), i, conn.GetId())
 			_ = file.Close()
 		}
 	}(fileMap, conn)

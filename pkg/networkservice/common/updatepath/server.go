@@ -64,7 +64,7 @@ func (i *updatePathServer) Request(ctx context.Context, request *networkservice.
 		tok, expireTime, err = token.FromContext(ctx)
 
 		if err != nil {
-			log.FromContext(ctx).Warnf("an error during getting token from the context: %v", err.Error())
+			log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", err)
 		} else {
 			var expires *timestamp.Timestamp
 			expires, err = ptypes.TimestampProto(expireTime.Local())
