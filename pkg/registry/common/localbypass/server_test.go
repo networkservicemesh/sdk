@@ -37,7 +37,7 @@ const (
 )
 
 func TestLocalBypassNSEServer(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	mem := memory.NewNetworkServiceEndpointRegistryServer()
 

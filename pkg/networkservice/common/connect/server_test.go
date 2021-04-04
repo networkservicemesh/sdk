@@ -115,7 +115,7 @@ func waitServerStopped(target *url.URL) error {
 }
 
 func TestConnectServer_Request(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	// 1. Create connectServer
 
@@ -168,7 +168,7 @@ func TestConnectServer_Request(t *testing.T) {
 	require.NoError(t, waitServerStarted(urlA))
 	require.NoError(t, waitServerStarted(urlB))
 
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	// 4. Create request
 
@@ -247,7 +247,7 @@ func TestConnectServer_Request(t *testing.T) {
 }
 
 func TestConnectServer_RequestParallel(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	// 1. Create connectServer
 
@@ -281,7 +281,7 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 
 	require.NoError(t, waitServerStarted(urlA))
 
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	// 4. Request A
 
@@ -342,7 +342,7 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 }
 
 func TestConnectServer_RequestFail(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	// 1. Create connectServer
 
@@ -366,11 +366,11 @@ func TestConnectServer_RequestFail(t *testing.T) {
 
 	require.NoError(t, waitServerStarted(urlA))
 
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	// 3. Create request
 
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -388,7 +388,7 @@ func TestConnectServer_RequestFail(t *testing.T) {
 }
 
 func TestConnectServer_RequestNextServerError(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	// 1. Create connectServer
 
@@ -455,7 +455,7 @@ func TestConnectServer_RequestNextServerError(t *testing.T) {
 }
 
 func TestConnectServer_RemoteRestarted(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	// 1. Create connectServer
 
@@ -539,7 +539,7 @@ func TestConnectServer_RemoteRestarted(t *testing.T) {
 }
 
 func TestConnectServer_DialTimeout(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	// 1. Create connectServer
 

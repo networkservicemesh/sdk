@@ -50,7 +50,7 @@ import (
 	____________________________________         ___________________
 */
 func TestInterdomainNetworkServiceRegistry(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	const localRegistryDomain = "domain1.local.registry"
 	const proxyRegistryDomain = "domain1.local.registry.proxy"
@@ -66,14 +66,12 @@ func TestInterdomainNetworkServiceRegistry(t *testing.T) {
 		SetNodesCount(0).
 		SetDNSResolver(dnsServer).
 		Build()
-	defer domain1.Cleanup()
 
 	domain2 := sandbox.NewBuilder(t).
 		SetContext(ctx).
 		SetNodesCount(0).
 		SetDNSResolver(dnsServer).
 		Build()
-	defer domain2.Cleanup()
 
 	require.NoError(t, dnsServer.Register(localRegistryDomain, domain1.Registry.URL))
 	require.NoError(t, dnsServer.Register(proxyRegistryDomain, domain1.RegistryProxy.URL))
@@ -125,7 +123,7 @@ func TestInterdomainNetworkServiceRegistry(t *testing.T) {
 	_____________________________________
 */
 func TestLocalDomain_NetworkServiceRegistry(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	const localRegistryDomain = "domain1.local.registry"
 
@@ -140,7 +138,6 @@ func TestLocalDomain_NetworkServiceRegistry(t *testing.T) {
 		SetDNSDomainName(localRegistryDomain).
 		SetDNSResolver(dnsServer).
 		Build()
-	defer domain1.Cleanup()
 
 	require.NoError(t, dnsServer.Register(localRegistryDomain, domain1.Registry.URL))
 
@@ -190,7 +187,7 @@ func TestLocalDomain_NetworkServiceRegistry(t *testing.T) {
 */
 
 func TestInterdomainFloatingNetworkServiceRegistry(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	const localRegistryDomain = "domain1.local.registry"
 	const proxyRegistryDomain = "domain1.proxy.registry"
@@ -208,14 +205,12 @@ func TestInterdomainFloatingNetworkServiceRegistry(t *testing.T) {
 		SetNodesCount(0).
 		SetDNSResolver(dnsServer).
 		Build()
-	defer domain1.Cleanup()
 
 	domain2 := sandbox.NewBuilder(t).
 		SetContext(ctx).
 		SetNodesCount(0).
 		SetDNSResolver(dnsServer).
 		Build()
-	defer domain2.Cleanup()
 
 	domain3 := sandbox.NewBuilder(t).
 		SetNodesCount(0).
@@ -230,7 +225,6 @@ func TestInterdomainFloatingNetworkServiceRegistry(t *testing.T) {
 		}).
 		SetRegistryProxySupplier(nil).
 		Build()
-	defer domain3.Cleanup()
 
 	require.NoError(t, dnsServer.Register(localRegistryDomain, domain1.Registry.URL))
 	require.NoError(t, dnsServer.Register(proxyRegistryDomain, domain1.RegistryProxy.URL))

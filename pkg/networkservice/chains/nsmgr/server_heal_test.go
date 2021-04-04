@@ -50,7 +50,7 @@ func TestNSMGR_HealEndpointRestored(t *testing.T) {
 }
 
 func testNSMGRHealEndpoint(t *testing.T, restored bool) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
 	defer cancel()
@@ -59,7 +59,6 @@ func testNSMGRHealEndpoint(t *testing.T, restored bool) {
 		SetRegistryProxySupplier(nil).
 		SetContext(ctx).
 		Build()
-	defer domain.Cleanup()
 
 	expireTime := timestamppb.New(time.Now().Add(time.Second))
 	nseReg := &registry.NetworkServiceEndpoint{
@@ -185,7 +184,7 @@ func TestNSMGR_HealRemoteForwarderRestored(t *testing.T) {
 }
 
 func testNSMGRHealForwarder(t *testing.T, nodeNum int, restored bool, customConfig []*sandbox.NodeConfig, forwarderCtxCancel context.CancelFunc) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
@@ -196,7 +195,6 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int, restored bool, customConf
 		SetContext(ctx).
 		SetCustomConfig(customConfig).
 		Build()
-	defer domain.Cleanup()
 
 	nseReg := &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint",
@@ -295,7 +293,7 @@ func TestNSMGR_HealRemoteNSMgrRestored(t *testing.T) {
 }
 
 func testNSMGRHealNSMgr(t *testing.T, nodeNum int, customConfig []*sandbox.NodeConfig, nsmgrCtxCancel context.CancelFunc) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
@@ -306,7 +304,6 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, customConfig []*sandbox.NodeC
 		SetContext(ctx).
 		SetCustomConfig(customConfig).
 		Build()
-	defer domain.Cleanup()
 
 	nseReg := &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint",
@@ -376,7 +373,7 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, customConfig []*sandbox.NodeC
 }
 
 func TestNSMGR_HealRemoteNSMgr(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	nsmgrCtx, nsmgrCtxCancel := context.WithTimeout(context.Background(), time.Second)
 	defer nsmgrCtxCancel()
@@ -399,7 +396,6 @@ func TestNSMGR_HealRemoteNSMgr(t *testing.T) {
 		SetContext(ctx).
 		SetCustomConfig(customConfig).
 		Build()
-	defer domain.Cleanup()
 
 	nseReg := &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint",
@@ -456,7 +452,7 @@ func TestNSMGR_HealRemoteNSMgr(t *testing.T) {
 }
 
 func TestNSMGR_CloseHeal(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -466,7 +462,6 @@ func TestNSMGR_CloseHeal(t *testing.T) {
 		SetRegistryProxySupplier(nil).
 		SetContext(ctx).
 		Build()
-	defer domain.Cleanup()
 
 	nseReg := &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint",

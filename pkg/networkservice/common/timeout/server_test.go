@@ -191,7 +191,7 @@ func TestTimeoutServer_StressTest(t *testing.T) {
 }
 
 func TestTimeoutServer_RefreshFailure(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

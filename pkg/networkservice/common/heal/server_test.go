@@ -55,7 +55,7 @@ func (t *testOnHeal) Close(ctx context.Context, in *networkservice.Connection, o
 }
 
 func TestHealClient_Request(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 	eventCh := make(chan *networkservice.ConnectionEvent, 1)
 	defer close(eventCh)
 
@@ -113,7 +113,7 @@ func TestHealClient_Request(t *testing.T) {
 }
 
 func TestHealClient_EmptyInit(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 	eventCh := make(chan *networkservice.ConnectionEvent, 1)
 	defer close(eventCh)
 

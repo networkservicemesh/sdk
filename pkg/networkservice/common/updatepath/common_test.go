@@ -97,7 +97,9 @@ var samples = []*sample{
 	{
 		name: "NoPathNoID",
 		test: func(t *testing.T, newUpdatePathServer func(name string) networkservice.NetworkServiceServer) {
-			defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+			t.Cleanup(func() {
+				goleak.VerifyNone(t)
+			})
 
 			server := newUpdatePathServer(nse1)
 
@@ -113,7 +115,9 @@ var samples = []*sample{
 	{
 		name: "NoPath",
 		test: func(t *testing.T, newUpdatePathServer func(name string) networkservice.NetworkServiceServer) {
-			defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+			t.Cleanup(func() {
+				goleak.VerifyNone(t)
+			})
 
 			server := newUpdatePathServer(nse1)
 
@@ -131,7 +135,9 @@ var samples = []*sample{
 	{
 		name: "SameNameDifferentID",
 		test: func(t *testing.T, newUpdatePathServer func(name string) networkservice.NetworkServiceServer) {
-			defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+			t.Cleanup(func() {
+				goleak.VerifyNone(t)
+			})
 
 			server := newUpdatePathServer(nse2)
 
@@ -147,7 +153,9 @@ var samples = []*sample{
 	{
 		name: "DifferentNameInvalidID",
 		test: func(t *testing.T, newUpdatePathServer func(name string) networkservice.NetworkServiceServer) {
-			defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+			t.Cleanup(func() {
+				goleak.VerifyNone(t)
+			})
 
 			server := newUpdatePathServer(nse3)
 
@@ -158,7 +166,9 @@ var samples = []*sample{
 	{
 		name: "InvalidIndex",
 		test: func(t *testing.T, newUpdatePathServer func(name string) networkservice.NetworkServiceServer) {
-			defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+			t.Cleanup(func() {
+				goleak.VerifyNone(t)
+			})
 
 			server := newUpdatePathServer(nse3)
 
@@ -169,7 +179,9 @@ var samples = []*sample{
 	{
 		name: "DifferentNextName",
 		test: func(t *testing.T, newUpdatePathServer func(name string) networkservice.NetworkServiceServer) {
-			defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+			t.Cleanup(func() {
+				goleak.VerifyNone(t)
+			})
 
 			var connPath *networkservice.Path
 			server := next.NewNetworkServiceServer(
@@ -198,7 +210,9 @@ var samples = []*sample{
 	{
 		name: "NoNextAvailable",
 		test: func(t *testing.T, newUpdatePathServer func(name string) networkservice.NetworkServiceServer) {
-			defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+			t.Cleanup(func() {
+				goleak.VerifyNone(t)
+			})
 
 			var connPath *networkservice.Path
 			server := next.NewNetworkServiceServer(
@@ -224,7 +238,9 @@ var samples = []*sample{
 	{
 		name: "SameNextName",
 		test: func(t *testing.T, newUpdatePathServer func(name string) networkservice.NetworkServiceServer) {
-			defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+			t.Cleanup(func() {
+				goleak.VerifyNone(t)
+			})
 
 			server := next.NewNetworkServiceServer(
 				newUpdatePathServer(nse3),

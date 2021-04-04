@@ -155,7 +155,7 @@ func testServers(
 }
 
 func TestMatchEmptySourceSelector(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	nsName := networkServiceName()
 
@@ -186,7 +186,7 @@ func TestMatchEmptySourceSelector(t *testing.T) {
 }
 
 func TestMatchNonEmptySourceSelector(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	nsName := networkServiceName()
 
@@ -219,7 +219,7 @@ func TestMatchNonEmptySourceSelector(t *testing.T) {
 }
 
 func TestMatchEmptySourceSelectorGoingFirst(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	nsName := networkServiceName()
 
@@ -252,7 +252,7 @@ func TestMatchEmptySourceSelectorGoingFirst(t *testing.T) {
 }
 
 func TestMatchNothing(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	nsName := networkServiceName()
 
@@ -280,7 +280,7 @@ func TestMatchNothing(t *testing.T) {
 }
 
 func TestMatchSelectedNSE(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	nsName := networkServiceName()
 	nses := endpoints()
@@ -305,7 +305,7 @@ func TestMatchSelectedNSE(t *testing.T) {
 }
 
 func TestNoMatchServiceFound(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	nsName := networkServiceName()
 
@@ -340,7 +340,7 @@ func TestNoMatchServiceFound(t *testing.T) {
 }
 
 func TestNoMatchServiceEndpointFound(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	nsName := networkServiceName()
 
@@ -374,7 +374,7 @@ func TestNoMatchServiceEndpointFound(t *testing.T) {
 }
 
 func TestMatchExactService(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	nsServer, nseServer := testServers(t, "", []*registry.NetworkServiceEndpoint{})
 
@@ -435,7 +435,7 @@ func TestMatchExactService(t *testing.T) {
 }
 
 func TestMatchExactEndpoint(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	nseServer := memory.NewNetworkServiceEndpointRegistryServer()
 
@@ -488,7 +488,7 @@ func TestMatchExactEndpoint(t *testing.T) {
 }
 
 func TestMatchSelectedNSESecondAttempt(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	nsServer := memory.NewNetworkServiceRegistryServer()
 	nseServer := registrynext.NewNetworkServiceEndpointRegistryServer(

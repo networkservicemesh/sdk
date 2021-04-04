@@ -91,7 +91,7 @@ func (d *Domain) AddResources(resources []context.CancelFunc) {
 }
 
 // Cleanup frees all resources related to the domain
-func (d *Domain) Cleanup() {
+func (d *Domain) cleanup() {
 	for _, r := range d.resources {
 		r()
 	}

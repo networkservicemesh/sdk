@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -32,7 +32,7 @@ import (
 )
 
 func TestListenAndServe_NotExistsFolder(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 	dir, err := ioutil.TempDir(os.TempDir(), t.Name())
 	require.NoError(t, err)
 	defer func() {
@@ -49,7 +49,7 @@ func TestListenAndServe_NotExistsFolder(t *testing.T) {
 }
 
 func TestListenAndServe_ExistSocket(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 	dir, err := ioutil.TempDir(os.TempDir(), t.Name())
 	require.NoError(t, err)
 	defer func() {

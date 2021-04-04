@@ -63,6 +63,7 @@ type Builder struct {
 	generateTokenFunc      token.GeneratorFunc
 	registryExpiryDuration time.Duration
 	ctx                    context.Context
+	t                      *testing.T
 
 	useUnixSockets bool
 	sockPath       string
@@ -83,6 +84,7 @@ func NewBuilder(t *testing.T) *Builder {
 		setupNode:              defaultSetupNode(t),
 		generateTokenFunc:      GenerateTestToken,
 		registryExpiryDuration: time.Minute,
+		t:                      t,
 
 		useUnixSockets: false,
 	}
@@ -123,6 +125,8 @@ func (b *Builder) Build() *Domain {
 	}
 
 	domain.resources, b.resources = b.resources, nil
+
+	b.t.Cleanup(domain.cleanup)
 
 	return domain
 }
