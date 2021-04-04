@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020 VMware, Inc.
+// Copyright (c) 2019-2021 VMware, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -226,7 +226,7 @@ var tests = []rrtests{
 }
 
 func Test_roundRobinSelector_SelectEndpoint(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 	rr := newRoundRobinSelector()
 	for _, tt := range tests {
 		if got := rr.selectEndpoint(tt.args.ns, tt.args.networkServiceEndpoints); !proto.Equal(got, tt.want) {

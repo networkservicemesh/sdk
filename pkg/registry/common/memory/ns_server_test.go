@@ -37,7 +37,7 @@ import (
 )
 
 func TestNetworkServiceRegistryServer_RegisterAndFind(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 	s := next.NewNetworkServiceRegistryServer(memory.NewNetworkServiceRegistryServer())
 
 	_, err := s.Register(context.Background(), &registry.NetworkService{
@@ -71,7 +71,7 @@ func TestNetworkServiceRegistryServer_RegisterAndFind(t *testing.T) {
 }
 
 func TestNetworkServiceRegistryServer_RegisterAndFindWatch(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 	s := next.NewNetworkServiceRegistryServer(memory.NewNetworkServiceRegistryServer())
 
 	_, err := s.Register(context.Background(), &registry.NetworkService{
@@ -114,7 +114,7 @@ func TestNetworkServiceRegistryServer_RegisterAndFindWatch(t *testing.T) {
 }
 
 func TestNetworkServiceRegistryServer_DataRace(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -168,7 +168,7 @@ func TestNetworkServiceRegistryServer_DataRace(t *testing.T) {
 }
 
 func TestNetworkServiceRegistryServer_SlowReceiver(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -205,7 +205,7 @@ func TestNetworkServiceRegistryServer_SlowReceiver(t *testing.T) {
 }
 
 func TestNetworkServiceRegistryServer_ShouldReceiveAllRegisters(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()

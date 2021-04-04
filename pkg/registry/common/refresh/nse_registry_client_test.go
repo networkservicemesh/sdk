@@ -46,7 +46,7 @@ func testNSE() *registry.NetworkServiceEndpoint {
 }
 
 func TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	countClient := new(requestCountClient)
 	client := next.NewNetworkServiceEndpointRegistryClient(
@@ -68,7 +68,7 @@ func TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {
 }
 
 func TestRefreshNSEClient_ShouldSetExpirationTime_BeforeCallNext(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	client := next.NewNetworkServiceEndpointRegistryClient(
 		refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithDefaultExpiryDuration(time.Hour)),
@@ -85,7 +85,7 @@ func TestRefreshNSEClient_ShouldSetExpirationTime_BeforeCallNext(t *testing.T) {
 }
 
 func Test_RefreshNSEClient_CalledRegisterTwice(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	countClient := new(requestCountClient)
 	client := next.NewNetworkServiceEndpointRegistryClient(
@@ -108,7 +108,7 @@ func Test_RefreshNSEClient_CalledRegisterTwice(t *testing.T) {
 }
 
 func Test_RefreshNSEClient_ShouldOverrideNameAndDuration(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	endpoint := &registry.NetworkServiceEndpoint{
 		Name: "nse-1",
@@ -146,7 +146,7 @@ func Test_RefreshNSEClient_ShouldOverrideNameAndDuration(t *testing.T) {
 }
 
 func Test_RefreshNSEClient_SetsCorrectExpireTime(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	const expiryDuration = 100 * time.Millisecond
 	const timeoutDuration = 200 * time.Millisecond

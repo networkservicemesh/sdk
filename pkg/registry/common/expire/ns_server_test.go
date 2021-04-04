@@ -36,7 +36,7 @@ import (
 const testPeriod = time.Millisecond * 200
 
 func TestExpireNSServer_NSE_Expired(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -86,7 +86,7 @@ func TestExpireNSServer_NSE_Expired(t *testing.T) {
 }
 
 func TestExpireNSServer_NSE_UnregisterdBeforeExpired(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -140,7 +140,7 @@ func TestExpireNSServer_NSE_UnregisterdBeforeExpired(t *testing.T) {
 }
 
 func TestExpireNSServer_NSEServerSendsExpirationUpdate(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	nseMem := next.NewNetworkServiceEndpointRegistryServer(

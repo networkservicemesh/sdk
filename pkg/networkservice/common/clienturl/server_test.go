@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -34,7 +34,7 @@ import (
 )
 
 func TestAddURLInEmptyContext(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 	clientURL := &url.URL{
 		Scheme: "ipv4",
 		Path:   "192.168.0.1",
@@ -50,7 +50,7 @@ func TestAddURLInEmptyContext(t *testing.T) {
 }
 
 func TestOverwriteURL(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 	clientURL := &url.URL{
 		Scheme: "ipv4",
 		Path:   "192.168.0.1",
@@ -73,7 +73,7 @@ func TestOverwriteURL(t *testing.T) {
 }
 
 func TestOverwriteURLByNil(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 	var clientURL *url.URL = nil
 	previousURL := &url.URL{
 		Scheme: "unix",

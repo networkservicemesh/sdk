@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -36,7 +36,7 @@ import (
 )
 
 func TestExternalIPsServer_SourceModifying(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 	timeout := time.After(time.Second)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -78,7 +78,7 @@ func TestExternalIPsServer_SourceModifying(t *testing.T) {
 }
 
 func TestExternalIPsServer_NoFile(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	tmpPath := path.Join(os.TempDir(), t.Name())

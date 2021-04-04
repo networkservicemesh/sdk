@@ -52,7 +52,7 @@ const (
 )
 
 func TestRefreshClient_ValidRefresh(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -92,7 +92,7 @@ func TestRefreshClient_ValidRefresh(t *testing.T) {
 }
 
 func TestRefreshClient_StopRefreshAtClose(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -126,7 +126,7 @@ func TestRefreshClient_StopRefreshAtClose(t *testing.T) {
 }
 
 func TestRefreshClient_RestartsRefreshAtAnotherRequest(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -171,7 +171,7 @@ type stressTestConfig struct {
 }
 
 func TestRefreshClient_CheckRaceConditions(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	conf := &stressTestConfig{
 		name:          "RaceConditions",
@@ -198,7 +198,7 @@ func TestRefreshClient_CheckRaceConditions(t *testing.T) {
 }
 
 func TestRefreshClient_Sandbox(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), sandboxTotalTimeout)
 	defer cancel()
@@ -209,7 +209,6 @@ func TestRefreshClient_Sandbox(t *testing.T) {
 		SetRegistryProxySupplier(nil).
 		SetTokenGenerateFunc(sandbox.GenerateTestToken).
 		Build()
-	defer domain.Cleanup()
 
 	nseReg := &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint",

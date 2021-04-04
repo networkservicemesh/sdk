@@ -48,7 +48,7 @@ func testRequest(id string) *networkservice.NetworkServiceRequest {
 }
 
 func TestSerializeServer_StressTest(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

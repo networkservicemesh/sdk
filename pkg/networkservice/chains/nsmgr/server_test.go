@@ -51,7 +51,7 @@ import (
 )
 
 func TestNSMGR_RemoteUsecase_Parallel(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -61,7 +61,6 @@ func TestNSMGR_RemoteUsecase_Parallel(t *testing.T) {
 		SetRegistryProxySupplier(nil).
 		SetContext(ctx).
 		Build()
-	defer domain.Cleanup()
 
 	counter := &counterServer{}
 
@@ -112,7 +111,7 @@ func TestNSMGR_RemoteUsecase_Parallel(t *testing.T) {
 }
 
 func TestNSMGR_SelectsRestartingEndpoint(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -122,7 +121,6 @@ func TestNSMGR_SelectsRestartingEndpoint(t *testing.T) {
 		SetRegistryProxySupplier(nil).
 		SetContext(ctx).
 		Build()
-	defer domain.Cleanup()
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -172,7 +170,7 @@ func TestNSMGR_SelectsRestartingEndpoint(t *testing.T) {
 }
 
 func TestNSMGR_RemoteUsecase_BusyEndpoints(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -182,7 +180,6 @@ func TestNSMGR_RemoteUsecase_BusyEndpoints(t *testing.T) {
 		SetRegistryProxySupplier(nil).
 		SetContext(ctx).
 		Build()
-	defer domain.Cleanup()
 
 	counter := new(counterServer)
 
@@ -240,7 +237,7 @@ func TestNSMGR_RemoteUsecase_BusyEndpoints(t *testing.T) {
 }
 
 func TestNSMGR_RemoteUsecase(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -250,7 +247,6 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 		SetRegistryProxySupplier(nil).
 		SetContext(ctx).
 		Build()
-	defer domain.Cleanup()
 
 	nseReg := &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint",
@@ -300,7 +296,7 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 }
 
 func TestNSMGR_ConnectToDeadNSE(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
@@ -309,7 +305,6 @@ func TestNSMGR_ConnectToDeadNSE(t *testing.T) {
 		SetContext(ctx).
 		SetRegistryProxySupplier(nil).
 		Build()
-	defer domain.Cleanup()
 
 	nseReg := &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint",
@@ -352,7 +347,7 @@ func TestNSMGR_ConnectToDeadNSE(t *testing.T) {
 }
 
 func TestNSMGR_LocalUsecase(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -363,8 +358,6 @@ func TestNSMGR_LocalUsecase(t *testing.T) {
 		SetNSMgrProxySupplier(nil).
 		SetRegistryProxySupplier(nil).
 		Build()
-
-	defer domain.Cleanup()
 
 	nseReg := &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint",
@@ -413,7 +406,7 @@ func TestNSMGR_LocalUsecase(t *testing.T) {
 }
 
 func TestNSMGR_PassThroughRemote(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -424,7 +417,6 @@ func TestNSMGR_PassThroughRemote(t *testing.T) {
 		SetContext(ctx).
 		SetRegistryProxySupplier(nil).
 		Build()
-	defer domain.Cleanup()
 
 	for i := 0; i < nodesCount; i++ {
 		var additionalFunctionality []networkservice.NetworkServiceServer
@@ -473,7 +465,7 @@ func TestNSMGR_PassThroughRemote(t *testing.T) {
 }
 
 func TestNSMGR_PassThroughLocal(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -484,7 +476,6 @@ func TestNSMGR_PassThroughLocal(t *testing.T) {
 		SetContext(ctx).
 		SetRegistryProxySupplier(nil).
 		Build()
-	defer domain.Cleanup()
 
 	for i := 0; i < nsesCount; i++ {
 		var additionalFunctionality []networkservice.NetworkServiceServer
@@ -532,7 +523,7 @@ func TestNSMGR_PassThroughLocal(t *testing.T) {
 }
 
 func TestNSMGR_ShouldCorrectlyAddForwardersWithSameNames(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -544,7 +535,6 @@ func TestNSMGR_ShouldCorrectlyAddForwardersWithSameNames(t *testing.T) {
 		SetRegistryExpiryDuration(sandbox.RegistryExpiryDuration).
 		SetContext(ctx).
 		Build()
-	defer domain.Cleanup()
 
 	forwarderReg := &registry.NetworkServiceEndpoint{
 		Name: "forwarder",
@@ -590,7 +580,7 @@ func TestNSMGR_ShouldCorrectlyAddForwardersWithSameNames(t *testing.T) {
 }
 
 func TestNSMGR_ShouldCorrectlyAddEndpointsWithSameNames(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -601,7 +591,6 @@ func TestNSMGR_ShouldCorrectlyAddEndpointsWithSameNames(t *testing.T) {
 		SetRegistryExpiryDuration(sandbox.RegistryExpiryDuration).
 		SetContext(ctx).
 		Build()
-	defer domain.Cleanup()
 
 	nseReg := &registry.NetworkServiceEndpoint{
 		Name: "endpoint",
@@ -647,7 +636,7 @@ func TestNSMGR_ShouldCorrectlyAddEndpointsWithSameNames(t *testing.T) {
 }
 
 func TestNSMGR_ShouldCleanAllClientAndEndpointGoroutines(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -657,11 +646,9 @@ func TestNSMGR_ShouldCleanAllClientAndEndpointGoroutines(t *testing.T) {
 		SetRegistryProxySupplier(nil).
 		SetContext(ctx).
 		Build()
-	defer domain.Cleanup()
 
 	// We have lazy initialization in some chain elements in both networkservice, registry chains. So registering an
 	// endpoint and requesting it from client can result in new endless NSMgr goroutines.
-
 	testNSEAndClient(ctx, t, domain, &registry.NetworkServiceEndpoint{
 		Name:                "endpoint-init",
 		NetworkServiceNames: []string{"service-init"},
@@ -672,9 +659,6 @@ func TestNSMGR_ShouldCleanAllClientAndEndpointGoroutines(t *testing.T) {
 	//   1. GRPC request context cancel
 	//   2. NSC connection close
 	//   3. NSE unregister
-
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-
 	testNSEAndClient(ctx, t, domain, &registry.NetworkServiceEndpoint{
 		Name:                "endpoint-final",
 		NetworkServiceNames: []string{"service-final"},
@@ -822,7 +806,7 @@ func TestNSMGR_LocalUsecaseNoURL(t *testing.T) {
 		t.Skip("Unix sockets are not supported under windows, skipping")
 		return
 	}
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -834,8 +818,6 @@ func TestNSMGR_LocalUsecaseNoURL(t *testing.T) {
 		SetNSMgrProxySupplier(nil).
 		SetRegistryProxySupplier(nil).
 		Build()
-
-	defer domain.Cleanup()
 
 	nseReg := &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint",

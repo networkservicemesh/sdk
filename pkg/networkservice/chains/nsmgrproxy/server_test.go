@@ -33,7 +33,7 @@ import (
 )
 
 func TestNSMGR_InterdomainUseCase(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	const remoteRegistryDomain = "domain2.local.registry"
 
@@ -47,14 +47,12 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 		SetContext(ctx).
 		SetDNSResolver(dnsServer).
 		Build()
-	defer domain1.Cleanup()
 
 	domain2 := sandbox.NewBuilder(t).
 		SetNodesCount(1).
 		SetDNSResolver(dnsServer).
 		SetContext(ctx).
 		Build()
-	defer domain2.Cleanup()
 
 	require.NoError(t, dnsServer.Register(remoteRegistryDomain, domain2.Registry.URL))
 
