@@ -19,16 +19,18 @@ package checkid
 
 import (
 	"context"
+	"net/url"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 )
 
 type setIDServer struct {
-	namesUrls namesUrlsMap
+	urls stringurl.Map
 }
 
 // NewNetworkServiceEndpointRegistryServer creates a new NSE server chain element checking for nse.Name collisions
@@ -41,27 +43,32 @@ func (s *setIDServer) Register(ctx context.Context, nse *registry.NetworkService
 		return nil, errors.Errorf("nse.Name and nse.Url should be not empty: %v", nse)
 	}
 
-	u, loaded := s.namesUrls.Load(nse.Name)
-	if loaded && u != nse.Url {
+	u, loaded := s.urls.Load(nse.Name)
+	if loaded && u.String() != nse.Url {
 		return nil, &DuplicateError{
 			name:     nse.Name,
-			expected: u,
+			expected: u.String(),
 			actual:   nse.Url,
 		}
 	}
 
-	name, u := nse.Name, nse.Url
+	var name string
+	if !loaded {
+		name = nse.Name
+		if u, err = url.Parse(nse.Url); err != nil {
+			return nil, errors.Wrapf(err, "invalid nse.Url: %s", nse.Url)
+		}
+	}
 
-	reg, err = next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
-	if err != nil {
+	if reg, err = next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse); err != nil {
 		return nil, err
 	}
 
 	if !loaded {
-		s.namesUrls.Store(name, u)
+		s.urls.Store(name, u)
 	}
 
-	return reg, err
+	return reg, nil
 }
 
 func (s *setIDServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
@@ -69,7 +76,7 @@ func (s *setIDServer) Find(query *registry.NetworkServiceEndpointQuery, server r
 }
 
 func (s *setIDServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	if _, ok := s.namesUrls.LoadAndDelete(nse.Name); !ok {
+	if _, ok := s.urls.LoadAndDelete(nse.Name); !ok {
 		return new(empty.Empty), nil
 	}
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
