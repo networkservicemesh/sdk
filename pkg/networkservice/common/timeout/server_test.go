@@ -41,7 +41,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/failure"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
 )
@@ -223,7 +223,9 @@ func TestTimeoutServer_RefreshFailure(t *testing.T) {
 		ctx,
 		refresh.NewClient(ctx),
 		next.NewNetworkServiceServer(
-			failure.NewServer(1, -1),
+			injecterror.NewServer(
+				injecterror.WithRequestErrorTimes(1, -1),
+				injecterror.WithCloseErrorTimes()),
 			connServer,
 		),
 		tokenTimeout,

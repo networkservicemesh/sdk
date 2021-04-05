@@ -34,7 +34,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/failure"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
 	registryadapters "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
@@ -533,7 +533,9 @@ func TestMatchSelectedNSESecondAttempt(t *testing.T) {
 			require.Len(t, nses, 1)
 			require.Equal(t, nsName, nses[0].NetworkServiceNames[0])
 		}),
-		failure.NewServer(0),
+		injecterror.NewServer(
+			injecterror.WithRequestErrorTimes(0),
+		),
 	)
 
 	request := &networkservice.NetworkServiceRequest{
