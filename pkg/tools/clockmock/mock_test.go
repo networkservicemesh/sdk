@@ -22,10 +22,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
+	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
+	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
 const (
@@ -504,4 +512,97 @@ func TestMock_WithTimeout(t *testing.T) {
 	case <-time.After(testWait):
 		require.FailNow(t, "too late")
 	}
+}
+
+func TestMock_Sandbox(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	deadline, _ := ctx.Deadline()
+
+	m := clockmock.New(ctx)
+	ctx = clock.WithClock(ctx, m)
+
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		SetTokenGeneratorSupplier(sandbox.GenerateTestToken).
+		Build()
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg, err := nsRegistryClient.Register(ctx, &registry.NetworkService{
+		Name: "ns",
+	})
+	require.NoError(t, err)
+
+	nseReg := &registry.NetworkServiceEndpoint{
+		Name:                "nse",
+		NetworkServiceNames: []string{nsReg.Name},
+	}
+
+	counter := new(counterServer)
+	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
+
+	const tokenTimeout = time.Hour
+
+	nscCtx, nscCancel := context.WithCancel(ctx)
+	nsc := domain.Nodes[0].NewClient(nscCtx, sandbox.GenerateExpiringToken(tokenTimeout))
+
+	request := &networkservice.NetworkServiceRequest{
+		MechanismPreferences: []*networkservice.Mechanism{
+			{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
+		},
+		Connection: &networkservice.Connection{
+			Id:             "1",
+			NetworkService: nsReg.Name,
+			Context:        &networkservice.ConnectionContext{},
+		},
+	}
+
+	conn, err := nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.Equal(t, int32(1), atomic.LoadInt32(&counter.requests))
+
+	// 1. Simulate refresh from client
+	refreshRequest := request.Clone()
+	refreshRequest.Connection = conn.Clone()
+
+	_, err = nsc.Request(ctx, refreshRequest)
+	require.NoError(t, err)
+	require.Equal(t, int32(2), atomic.LoadInt32(&counter.requests))
+
+	// 2. Wait for refresh from client
+	m.Add(tokenTimeout / 5)
+	require.Eventually(t, func() bool {
+		return atomic.LoadInt32(&counter.requests) >= 3
+	}, time.Until(deadline), testTick)
+
+	// 3. Wait for timeout
+	nscCancel()
+	time.Sleep(testWait)
+
+	m.Add(tokenTimeout)
+	require.Eventually(t, func() bool {
+		return atomic.LoadInt32(&counter.closes) >= 1
+	}, time.Until(deadline), testTick)
+}
+
+type counterServer struct {
+	requests, closes int32
+}
+
+func (c *counterServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	atomic.AddInt32(&c.requests, 1)
+
+	return next.Server(ctx).Request(ctx, request)
+}
+
+func (c *counterServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	atomic.AddInt32(&c.closes, 1)
+
+	return next.Server(ctx).Close(ctx, conn)
 }

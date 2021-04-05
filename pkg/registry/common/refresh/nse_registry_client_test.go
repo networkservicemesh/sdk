@@ -95,10 +95,10 @@ func Test_RefreshNSEClient_CalledRegisterTwice(t *testing.T) {
 		countClient,
 	)
 
-	reg, err := client.Register(context.Background(), testNSE(clockMock))
+	reg, err := client.Register(ctx, testNSE(clockMock))
 	require.NoError(t, err)
 
-	reg, err = client.Register(context.Background(), reg)
+	reg, err = client.Register(ctx, reg)
 	require.NoError(t, err)
 
 	clockMock.Add(expireTimeout)
