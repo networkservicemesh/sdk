@@ -28,6 +28,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/point2pointipam"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
@@ -311,4 +312,38 @@ func TestRefreshRequestIPv6(t *testing.T) {
 	conn, err = srv.Request(context.Background(), req)
 	require.NoError(t, err)
 	validateConn(t, conn, "fe80::4/128", "fe80::5/128")
+}
+
+func TestNextError(t *testing.T) {
+	_, ipNet, err := net.ParseCIDR("192.168.3.4/16")
+	require.NoError(t, err)
+
+	srv := newIpamServer(ipNet)
+
+	_, err = next.NewNetworkServiceServer(srv, injecterror.NewServer()).Request(context.Background(), newRequest())
+	require.Error(t, err)
+
+	conn, err := srv.Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn, "192.168.0.0/32", "192.168.0.1/32")
+}
+
+func TestRefreshNextError(t *testing.T) {
+	_, ipNet, err := net.ParseCIDR("192.168.3.4/16")
+	require.NoError(t, err)
+
+	srv := newIpamServer(ipNet)
+
+	req := newRequest()
+	conn, err := srv.Request(context.Background(), req)
+	require.NoError(t, err)
+	validateConn(t, conn, "192.168.0.0/32", "192.168.0.1/32")
+
+	req.Connection = conn.Clone()
+	_, err = next.NewNetworkServiceServer(srv, injecterror.NewServer()).Request(context.Background(), newRequest())
+	require.Error(t, err)
+
+	conn, err = srv.Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn, "192.168.0.2/32", "192.168.0.3/32")
 }
