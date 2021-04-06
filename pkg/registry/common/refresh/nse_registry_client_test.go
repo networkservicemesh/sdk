@@ -69,7 +69,7 @@ func TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {
 	require.NoError(t, err)
 
 	// Wait for the Refresh goroutine to start
-	require.Eventually(t, clockMock.IsTimerSet, testWait, testTick)
+	time.Sleep(testTick)
 
 	clockMock.Add(expireTimeout)
 	require.Eventually(t, func() bool {
@@ -118,7 +118,7 @@ func Test_RefreshNSEClient_CalledRegisterTwice(t *testing.T) {
 	require.NoError(t, err)
 
 	// Wait for the Refresh goroutine to start
-	require.Eventually(t, clockMock.IsTimerSet, testWait, testTick)
+	time.Sleep(testTick)
 
 	clockMock.Add(expireTimeout)
 	require.Eventually(t, func() bool {
@@ -163,7 +163,7 @@ func Test_RefreshNSEClient_ShouldOverrideNameAndDuration(t *testing.T) {
 	require.NoError(t, err)
 
 	// Wait for the Refresh goroutine to start
-	require.Eventually(t, clockMock.IsTimerSet, testWait, testTick)
+	time.Sleep(testTick)
 
 	for i := 1; i <= 3; i++ {
 		count := int32(i)
@@ -202,7 +202,7 @@ func Test_RefreshNSEClient_SetsCorrectExpireTime(t *testing.T) {
 	require.NoError(t, err)
 
 	// Wait for the Refresh goroutine to start
-	require.Eventually(t, clockMock.IsTimerSet, testWait, testTick)
+	time.Sleep(testTick)
 
 	for i := 1; i <= 3; i++ {
 		count := int32(i)

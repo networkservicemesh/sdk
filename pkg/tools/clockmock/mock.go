@@ -20,7 +20,6 @@ package clockmock
 import (
 	"context"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	libclock "github.com/benbjohnson/clock"
@@ -34,7 +33,6 @@ var _ clock.Clock = (*Mock)(nil)
 type Mock struct {
 	lock sync.RWMutex
 	mock *libclock.Mock
-	flag int32
 }
 
 // NewMock returns a new mocked clock
@@ -42,11 +40,6 @@ func NewMock() *Mock {
 	return &Mock{
 		mock: libclock.NewMock(),
 	}
-}
-
-// IsTimerSet returns if any timer/ticker has ever been set on mock.
-func (m *Mock) IsTimerSet() bool {
-	return atomic.LoadInt32(&m.flag) != 0
 }
 
 // Set sets the current time of the mock clock to a specific one.
@@ -89,8 +82,6 @@ func (m *Mock) Sleep(d time.Duration) {
 
 // Timer returns a timer that will fire when the mock current time becomes > m.Now().Add(d)
 func (m *Mock) Timer(d time.Duration) clock.Timer {
-	defer atomic.StoreInt32(&m.flag, 1)
-
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
@@ -113,8 +104,6 @@ func (m *Mock) AfterFunc(d time.Duration, f func()) clock.Timer {
 }
 
 func (m *Mock) afterFunc(d time.Duration, f func()) clock.Timer {
-	defer atomic.StoreInt32(&m.flag, 1)
-
 	return &mockTimer{
 		Timer: m.mock.AfterFunc(safeDuration(d), func() {
 			go f()
@@ -124,8 +113,6 @@ func (m *Mock) afterFunc(d time.Duration, f func()) clock.Timer {
 
 // Ticker returns a ticker that will fire every time when the mock current time becomes > mock previous time + d
 func (m *Mock) Ticker(d time.Duration) clock.Ticker {
-	defer atomic.StoreInt32(&m.flag, 1)
-
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
