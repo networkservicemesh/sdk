@@ -19,13 +19,14 @@ package expire_test
 import (
 	"context"
 	"io"
+	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -234,7 +235,7 @@ func TestExpireNSEServer_RefreshKeepsNoUnregister(t *testing.T) {
 	clockMock := clockmock.NewMock()
 	ctx = clock.WithClock(ctx, clockMock)
 
-	mem := memory.NewNetworkServiceEndpointRegistryServer()
+	unregisterServer := new(unregisterNSEServer)
 
 	c := next.NewNetworkServiceEndpointRegistryClient(
 		refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithChainContext(ctx)),
@@ -248,7 +249,7 @@ func TestExpireNSEServer_RefreshKeepsNoUnregister(t *testing.T) {
 				clockMock.Add(expireTimeout / 2)
 			}),
 			expire.NewNetworkServiceEndpointRegistryServer(ctx, 10*expireTimeout),
-			mem,
+			unregisterServer,
 		)),
 	)
 
@@ -257,19 +258,11 @@ func TestExpireNSEServer_RefreshKeepsNoUnregister(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	stream, err := adapters.NetworkServiceEndpointServerToClient(mem).Find(ctx, &registry.NetworkServiceEndpointQuery{
-		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
-		Watch:                  true,
-	})
-	require.NoError(t, err)
-
 	for i := 0; i < 3; i++ {
 		clockMock.Add(expireTimeout / 10 * 9)
-		time.Sleep(testWait)
-
-		nse, err := stream.Recv()
-		require.NoError(t, err)
-		require.NotEqual(t, int64(-1), nse.ExpirationTime.Seconds)
+		require.Never(t, func() bool {
+			return atomic.LoadInt32(&unregisterServer.unregisterCount) > 0
+		}, testWait, testTick)
 	}
 }
 
@@ -318,5 +311,22 @@ func (s *failureNSEServer) Find(query *registry.NetworkServiceEndpointQuery, ser
 }
 
 func (s *failureNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
+}
+
+type unregisterNSEServer struct {
+	unregisterCount int32
+}
+
+func (s *unregisterNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
+}
+
+func (s *unregisterNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
+	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
+}
+
+func (s *unregisterNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*emptypb.Empty, error) {
+	atomic.AddInt32(&s.unregisterCount, 1)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }

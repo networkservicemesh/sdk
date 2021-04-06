@@ -185,7 +185,6 @@ func Test_QueryCacheClient_ShouldCleanUpOnTimeout(t *testing.T) {
 
 	// 4. Wait for the expire to happen
 	clockMock.Add(expireTimeout)
-	time.Sleep(testWait)
 
 	_, err = c.Find(ctx, testNSEQuery(name))
 	require.Errorf(t, err, "find error")

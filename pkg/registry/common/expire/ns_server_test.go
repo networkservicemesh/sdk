@@ -20,10 +20,12 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync"
 	"testing"
 	"time"
 
 	"go.uber.org/goleak"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -56,10 +58,15 @@ func TestExpireNSServer_NSE_Expired(t *testing.T) {
 	nseMem := memory.NewNetworkServiceEndpointRegistryServer()
 	nsMem := memory.NewNetworkServiceRegistryServer()
 
+	updateServer := new(updateNSEServer)
+
 	s := next.NewNetworkServiceRegistryServer(
 		expire.NewNetworkServiceServer(
 			ctx,
-			adapters.NetworkServiceEndpointServerToClient(nseMem)),
+			adapters.NetworkServiceEndpointServerToClient(next.NewNetworkServiceEndpointRegistryServer(
+				updateServer,
+				nseMem,
+			))),
 		nsMem,
 	)
 
@@ -68,9 +75,11 @@ func TestExpireNSServer_NSE_Expired(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	for i := 0; i < 10; i++ {
+	names := make([]string, 10)
+	for i := 0; i < len(names); i++ {
+		names[i] = fmt.Sprint("nse-", i)
 		_, err = nseMem.Register(ctx, &registry.NetworkServiceEndpoint{
-			Name:                fmt.Sprint("nse-", i),
+			Name:                names[i],
 			NetworkServiceNames: []string{nsName},
 			ExpirationTime:      timestamppb.New(clockMock.Now().Add(expireTimeout)),
 		})
@@ -78,7 +87,14 @@ func TestExpireNSServer_NSE_Expired(t *testing.T) {
 	}
 
 	// Wait for the update from nseMem
-	time.Sleep(testWait)
+	require.Eventually(t, func() bool {
+		for _, name := range names {
+			if _, ok := updateServer.updates.Load(name); !ok {
+				return false
+			}
+		}
+		return true
+	}, testWait, testTick)
 
 	c := adapters.NetworkServiceServerToClient(nsMem)
 
@@ -115,10 +131,15 @@ func TestExpireNSServer_NSE_Unregistered(t *testing.T) {
 	nseMem := memory.NewNetworkServiceEndpointRegistryServer()
 	nsMem := memory.NewNetworkServiceRegistryServer()
 
+	updateServer := new(updateNSEServer)
+
 	s := next.NewNetworkServiceRegistryServer(
 		expire.NewNetworkServiceServer(
 			ctx,
-			adapters.NetworkServiceEndpointServerToClient(nseMem)),
+			adapters.NetworkServiceEndpointServerToClient(next.NewNetworkServiceEndpointRegistryServer(
+				updateServer,
+				nseMem,
+			))),
 		nsMem,
 	)
 
@@ -127,9 +148,11 @@ func TestExpireNSServer_NSE_Unregistered(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	for i := 0; i < 10; i++ {
+	names := make([]string, 10)
+	for i := 0; i < len(names); i++ {
+		names[i] = fmt.Sprint("nse-", i)
 		_, err = nseMem.Register(ctx, &registry.NetworkServiceEndpoint{
-			Name:                fmt.Sprint("nse-", i),
+			Name:                names[i],
 			NetworkServiceNames: []string{nsName},
 			ExpirationTime:      timestamppb.New(clockMock.Now().Add(expireTimeout)),
 		})
@@ -137,7 +160,14 @@ func TestExpireNSServer_NSE_Unregistered(t *testing.T) {
 	}
 
 	// Wait for the update from nseMem
-	time.Sleep(testWait)
+	require.Eventually(t, func() bool {
+		for _, name := range names {
+			if _, ok := updateServer.updates.Load(name); !ok {
+				return false
+			}
+		}
+		return true
+	}, testWait, testTick)
 
 	c := adapters.NetworkServiceServerToClient(nsMem)
 
@@ -181,10 +211,15 @@ func TestExpireNSServer_NSE_Update(t *testing.T) {
 	nseMem := memory.NewNetworkServiceEndpointRegistryServer()
 	nsMem := memory.NewNetworkServiceRegistryServer()
 
+	updateServer := new(updateNSEServer)
+
 	s := next.NewNetworkServiceRegistryServer(
 		expire.NewNetworkServiceServer(
 			ctx,
-			adapters.NetworkServiceEndpointServerToClient(nseMem)),
+			adapters.NetworkServiceEndpointServerToClient(next.NewNetworkServiceEndpointRegistryServer(
+				updateServer,
+				nseMem,
+			))),
 		nsMem,
 	)
 
@@ -194,6 +229,8 @@ func TestExpireNSServer_NSE_Update(t *testing.T) {
 	require.NoError(t, err)
 
 	for i := 0; i < 3; i++ {
+		updateServer.updates = sync.Map{}
+
 		_, err = nseMem.Register(ctx, &registry.NetworkServiceEndpoint{
 			Name:                nseName,
 			NetworkServiceNames: []string{nsName},
@@ -202,7 +239,10 @@ func TestExpireNSServer_NSE_Update(t *testing.T) {
 		require.NoError(t, err)
 
 		// Wait for the update from nseMem
-		time.Sleep(testWait)
+		require.Eventually(t, func() bool {
+			_, ok := updateServer.updates.Load(nseName)
+			return ok
+		}, testWait, testTick)
 
 		c := adapters.NetworkServiceServerToClient(nsMem)
 
@@ -217,4 +257,33 @@ func TestExpireNSServer_NSE_Update(t *testing.T) {
 
 		clockMock.Add(expireTimeout / 2)
 	}
+}
+
+type updateNSEServer struct {
+	updates sync.Map
+}
+
+func (s *updateNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
+}
+
+func (s *updateNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
+	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, &updateNSEFindServer{
+		updateNSEServer: s,
+		NetworkServiceEndpointRegistry_FindServer: server,
+	})
+}
+
+func (s *updateNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*emptypb.Empty, error) {
+	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
+}
+
+type updateNSEFindServer struct {
+	*updateNSEServer
+	registry.NetworkServiceEndpointRegistry_FindServer
+}
+
+func (s *updateNSEFindServer) Send(nse *registry.NetworkServiceEndpoint) error {
+	s.updates.Store(nse.Name, struct{}{})
+	return s.NetworkServiceEndpointRegistry_FindServer.Send(nse)
 }
