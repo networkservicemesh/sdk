@@ -555,7 +555,7 @@ func TestMatchSelectedNSESecondAttempt(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	time.Sleep(testWait)
+	require.Eventually(t, clockMock.IsTimerSet, testWait, testTick)
 
 	clockMock.Add(tick / 2)
 

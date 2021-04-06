@@ -99,8 +99,10 @@ func TestTimeoutServer_Request(t *testing.T) {
 	_, err := client.Request(ctx, &networkservice.NetworkServiceRequest{})
 	require.NoError(t, err)
 
-	clockMock.Add(tokenTimeout / 2)
 	require.Eventually(t, connServer.validator(1, 0), testWait, testTick)
+
+	clockMock.Add(tokenTimeout / 2)
+	require.Never(t, connServer.validator(0, 1), testWait, testTick)
 
 	clockMock.Add(tokenTimeout / 2)
 	require.Eventually(t, connServer.validator(0, 1), testWait, testTick)
@@ -133,7 +135,9 @@ func TestTimeoutServer_CloseBeforeTimeout(t *testing.T) {
 
 	// ensure there will be no double Close
 	clockMock.Add(tokenTimeout)
-	time.Sleep(testWait)
+	require.Never(t, func() bool {
+		return !connServer.validator(0, 1)()
+	}, testWait, testTick)
 }
 
 func TestTimeoutServer_CloseAfterTimeout(t *testing.T) {
@@ -162,7 +166,7 @@ func TestTimeoutServer_CloseAfterTimeout(t *testing.T) {
 
 	_, err = client.Close(ctx, conn)
 	require.NoError(t, err)
-	require.Eventually(t, connServer.validator(0, 1), testWait, testTick)
+	require.Condition(t, connServer.validator(0, 1))
 }
 
 func raceTestRequest() *networkservice.NetworkServiceRequest {
