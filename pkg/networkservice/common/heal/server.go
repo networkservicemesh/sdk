@@ -91,7 +91,9 @@ func (f *healServer) Request(ctx context.Context, request *networkservice.Networ
 	ctx, cancel := f.healContext(ctx)
 	<-f.contextHealMapExecutor.AsyncExec(func() {
 		id := request.GetConnection().GetId()
-		// todo should we do anything special when f.contextHealMap already contains this id?
+		if entry, ok := f.contextHealMap[id]; ok {
+			entry.cancel()
+		}
 		f.contextHealMap[id] = &ctxWrapper{
 			conn:    conn.Clone(),
 			request: request.Clone().SetRequestConnection(request.GetConnection().Clone()),
@@ -116,17 +118,19 @@ func (f *healServer) Close(ctx context.Context, conn *networkservice.Connection)
 	return rv, nil
 }
 
-func (f *healServer) healRequest(connIds []string) {
-	for _, id := range connIds {
-		var ctx context.Context
-		var request *networkservice.NetworkServiceRequest
-		<-f.contextHealMapExecutor.AsyncExec(func() {
-			s := f.contextHealMap[id]
-			ctx = s.ctx
-			request = s.request
-		})
+func (f *healServer) healRequest(id string, restoreConnection bool) {
+	var ctx context.Context
+	var request *networkservice.NetworkServiceRequest
+	<-f.contextHealMapExecutor.AsyncExec(func() {
+		s := f.contextHealMap[id]
+		ctx = s.ctx
+		request = s.request
+	})
 
-		// TODO create context for each heal?
+	// TODO create context for each heal?
+	if restoreConnection {
+		go f.restoreConnection(ctx, request)
+	} else {
 		go f.processHeal(ctx, request)
 	}
 }
@@ -232,7 +236,6 @@ func (f *healServer) processHeal(ctx context.Context, request *networkservice.Ne
 func (f *healServer) replaceConnectionPath(conn *networkservice.Connection) {
 	path := conn.GetPath()
 	if path != nil && int(path.Index) < len(path.PathSegments)-1 {
-		// TODO what was the point of async executor? Would it be better to use mutex or something?
 		var storedConn *networkservice.Connection
 		<-f.contextHealMapExecutor.AsyncExec(func() {
 			if cw, ok := f.contextHealMap[conn.GetId()]; ok {
