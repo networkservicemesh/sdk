@@ -231,9 +231,8 @@ func TestRefreshClient_Sandbox(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), sandboxTotalTimeout)
 	defer cancel()
 
-	domain := sandbox.NewBuilder(t).
+	domain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(2).
-		SetContext(ctx).
 		SetRegistryProxySupplier(nil).
 		SetTokenGenerateFunc(sandbox.GenerateTestToken).
 		Build()
@@ -251,8 +250,7 @@ func TestRefreshClient_Sandbox(t *testing.T) {
 	}
 
 	refreshSrv := newRefreshTesterServer(t, sandboxMinDuration, sandboxExpireTimeout)
-	_, err = domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, refreshSrv)
-	require.NoError(t, err)
+	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, refreshSrv)
 
 	nscTokenGenerator := sandbox.GenerateExpiringToken(sandboxExpireTimeout)
 	nsc := domain.Nodes[1].NewClient(ctx, nscTokenGenerator)

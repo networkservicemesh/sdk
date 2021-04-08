@@ -51,10 +51,9 @@ func TestConnect_CancelDuringRequest(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	domain := sandbox.NewBuilder(t).
+	domain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
 		SetRegistryProxySupplier(nil).
-		SetContext(ctx).
 		Build()
 
 	service1Name := "my-service-endpoint"
@@ -75,12 +74,11 @@ func TestConnect_CancelDuringRequest(t *testing.T) {
 	}
 	nscCtx, nscCancel := context.WithCancel(ctx)
 	var flag atomic.Bool
-	_, err = domain.Nodes[0].NewEndpoint(ctx, nseReg1, sandbox.GenerateTestToken, checkrequest.NewServer(t, func(*testing.T, *networkservice.NetworkServiceRequest) {
+	domain.Nodes[0].NewEndpoint(ctx, nseReg1, sandbox.GenerateTestToken, checkrequest.NewServer(t, func(*testing.T, *networkservice.NetworkServiceRequest) {
 		if flag.Load() {
 			nscCancel()
 		}
 	}))
-	require.NoError(t, err)
 
 	var counter atomic.Int32
 	clientName := fmt.Sprintf("connectClient-%v", uuid.New().String())
@@ -100,7 +98,7 @@ func TestConnect_CancelDuringRequest(t *testing.T) {
 		Name:                "endpoint-2",
 		NetworkServiceNames: []string{service2Name},
 	}
-	_, err = domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken,
+	domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken,
 		chain.NewNetworkServiceServer(
 			clienturl.NewServer(domain.Nodes[0].NSMgr.URL),
 			connect.NewServer(ctx,
@@ -110,7 +108,6 @@ func TestConnect_CancelDuringRequest(t *testing.T) {
 			),
 		),
 	)
-	require.NoError(t, err)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{

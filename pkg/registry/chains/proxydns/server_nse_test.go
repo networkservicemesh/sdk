@@ -57,14 +57,12 @@ func TestInterdomainNetworkServiceEndpointRegistry(t *testing.T) {
 
 	dnsServer := new(sandbox.FakeDNSResolver)
 
-	domain1 := sandbox.NewBuilder(t).
-		SetContext(ctx).
+	domain1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(0).
 		SetDNSResolver(dnsServer).
 		Build()
 
-	domain2 := sandbox.NewBuilder(t).
-		SetContext(ctx).
+	domain2 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(0).
 		SetDNSResolver(dnsServer).
 		SetDNSDomainName("domain2").
@@ -128,8 +126,7 @@ func TestLocalDomain_NetworkServiceEndpointRegistry(t *testing.T) {
 
 	dnsServer := new(sandbox.FakeDNSResolver)
 
-	domain1 := sandbox.NewBuilder(t).
-		SetContext(ctx).
+	domain1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(0).
 		SetDNSDomainName("cluster.local").
 		SetDNSResolver(dnsServer).
@@ -193,20 +190,17 @@ func TestInterdomainFloatingNetworkServiceEndpointRegistry(t *testing.T) {
 
 	dnsServer := new(sandbox.FakeDNSResolver)
 
-	domain1 := sandbox.NewBuilder(t).
-		SetContext(ctx).
+	domain1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(0).
 		SetDNSResolver(dnsServer).
 		Build()
 
-	domain2 := sandbox.NewBuilder(t).
-		SetContext(ctx).
+	domain2 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(0).
 		SetDNSResolver(dnsServer).
 		Build()
 
-	domain3 := sandbox.NewBuilder(t).
-		SetContext(ctx).
+	domain3 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(0).
 		SetDNSResolver(dnsServer).
 		SetNSMgrProxySupplier(nil).
