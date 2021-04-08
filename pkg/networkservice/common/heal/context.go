@@ -27,7 +27,7 @@ const (
 type contextKeyType string
 
 // heal client uses this function to inform heal server about events on connections
-type HealRequestFunc func([]string)
+type HealRequestFunc func(id string, restoreConnection bool)
 
 func withHealRequestFunc(parent context.Context, monitorEventFunc HealRequestFunc) context.Context {
 	if parent == nil {

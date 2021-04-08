@@ -31,8 +31,8 @@ import (
 )
 
 type successVerifyRequest struct {
-	ch         chan *networkservice.PathSegment
-	prefixConn *networkservice.Connection
+	connectionSuccessCh chan *networkservice.PathSegment
+	stopCh              chan struct{}
 }
 
 type healClient struct {
@@ -64,7 +64,7 @@ func (u *healClient) Request(ctx context.Context, request *networkservice.Networ
 	u.initOnce.Do(func() {
 		errCh := make(chan error, 1)
 		pushFunc := healRequestFunc(ctx)
-		go u.listenToConnectionChanges(pushFunc, errCh)
+		go u.listenToConnectionChanges(pushFunc, request.GetConnection().GetCurrentPathSegment(), errCh)
 		u.initErr = <-errCh
 	})
 	// if initialization failed, then we want for all subsequent calls to Request() on this object to also fail
@@ -72,49 +72,36 @@ func (u *healClient) Request(ctx context.Context, request *networkservice.Networ
 		return nil, u.initErr
 	}
 
-	// TODO what if this is a second call to Request() with this conn id?
-	//  will we receive a new event with this channel?
-	//  If not, then we will block on waiting and return an error eventually
-	verifySuccessCh, err := u.addToExpectedConnections(request.GetConnection())
+	req, err := u.addToExpectedConnections(request.GetConnection())
+	if req != nil {
+		defer close(req.stopCh) // TODO try closing earlier?
+	}
 	if err != nil {
 		return nil, err
 	}
 
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
-		return conn, err
+		return nil, err
 	}
 
-	// Make sure we have a valid expireTime to work with
-	//pathSegment := request.GetConnection().GetNextPathSegment()
-	//expireTime, err := ptypes.Timestamp(pathSegment.GetExpires())
-	//if err != nil {
-	//	return conn, errors.Wrapf(err, "error converting pathSegment.GetExpires() to time.Time: %+v", pathSegment.GetExpires())
-	//}
-
-successVerifyLoop:
-	for {
-		select {
-		case <-u.ctx.Done():
-			u.removeFromExpectedConnections(conn)
-			return conn, errors.Errorf("can't wait for connection %v (segment %v) verification: chain context was canceled", conn.GetId(), conn.GetNextPathSegment())
-		case segment := <-verifySuccessCh:
-			if conn.GetNextPathSegment().Equal(segment) {
-				u.removeFromExpectedConnections(conn)
-				u.addConnectionToMonitor(conn)
-				break successVerifyLoop
+	if req != nil {
+	successVerifyLoop:
+		for {
+			select {
+			case segment := <-req.connectionSuccessCh:
+				if conn.GetNextPathSegment().Equal(segment) {
+					u.addConnectionToMonitor(conn)
+					break successVerifyLoop
+				}
+			case <-time.After(time.Millisecond * 100):
+				return nil, errors.Errorf("healClient: timeout expired but we couldn't verify that connection was established, connection id: %v", conn.GetId())
 			}
-
-			// TODO
-			//  original code used expire time for waiting but it didn't matter because
-			//  originally we created a monitor and received INITIAL_STATE_TRANSFER event which always was instantaneous,
-			//  regardless if there were errors
-			//  now it's unclear how long we should wait
-		//case <-time.After(time.Until(expireTime)):
-		case <-time.After(time.Second):
-			u.removeFromExpectedConnections(conn)
-			return conn, errors.New("timeout expired but we couldn't verify that connection was established")
 		}
+	} else {
+		u.connCacheMutex.Lock()
+		u.connCache[conn.GetId()] = conn.Clone()
+		u.connCacheMutex.Unlock()
 	}
 
 	return conn, nil
@@ -130,46 +117,34 @@ func (u *healClient) Close(ctx context.Context, conn *networkservice.Connection,
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
-func (u *healClient) listenToConnectionChanges(heal HealRequestFunc, errCh chan error) {
-	monitorClient, err := u.cc.MonitorConnections(u.ctx, &networkservice.MonitorScopeSelector{})
+func (u *healClient) listenToConnectionChanges(heal HealRequestFunc, currentPathSegment *networkservice.PathSegment, errCh chan error) {
+	monitorClient, err := u.cc.MonitorConnections(u.ctx, &networkservice.MonitorScopeSelector{
+		PathSegments: []*networkservice.PathSegment{{Name: currentPathSegment.Name}, {Name: ""}},
+	})
 	if err != nil {
 		errCh <- errors.Wrap(err, "MonitorConnections failed")
 		return
 	}
 	close(errCh)
 
-	// TODO should we really compare paths from the beginning?
-	pathStartsWith := func(c *networkservice.Connection, reference *networkservice.Connection) bool {
-		if uint32(len(c.GetPath().GetPathSegments())) <= reference.GetPath().GetIndex() {
-			return false
-		}
-		for i := uint32(0); i < reference.GetPath().GetIndex(); i++ {
-			if !c.GetPath().PathSegments[i].Equal(reference.GetPath().GetPathSegments()[i]) {
-				return false
-			}
-		}
-		return true
-	}
-
-	for u.ctx.Err() == nil {
+	for {
 		event, err := monitorClient.Recv()
 		if err != nil {
-			if u.ctx.Err() != nil {
-				return
+			if heal != nil {
+				u.connCacheMutex.Lock()
+				for id := range u.connCache {
+					heal(id, true)
+				}
+				u.connCacheMutex.Unlock()
 			}
-			monitorClient, err = u.cc.MonitorConnections(u.ctx, &networkservice.MonitorScopeSelector{})
-			if err != nil {
-				// TODO can we handle this?
-				return
-			}
-			continue
+			return
 		}
 
 		var connsToHeal []string
 
 		switch event.GetType() {
-		case networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER: // TODO is this case special?
-			fallthrough
+		case networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER:
+			continue
 		case networkservice.ConnectionEventType_UPDATE:
 			// TODO adapt this code, copied from server, to client
 			// If the server has a pathSegment for this Connection.Id, but its not the one we
@@ -188,10 +163,17 @@ func (u *healClient) listenToConnectionChanges(heal HealRequestFunc, errCh chan 
 			u.connCacheMutex.Unlock()
 
 			u.expectedConnsMutex.Lock()
+		tmp_label:
 			for _, conn := range event.GetConnections() {
-				for _, svReq := range u.expectedConns {
-					if pathStartsWith(conn, svReq.prefixConn) {
-						svReq.ch <- conn.GetPath().GetPathSegments()[svReq.prefixConn.GetPath().GetIndex()+1]
+				for reqId, reqChs := range u.expectedConns {
+					if reqId == conn.GetPrevPathSegment().GetId() {
+						select {
+						case <-reqChs.stopCh:
+							delete(u.expectedConns, reqId)
+							break tmp_label
+						case reqChs.connectionSuccessCh <- conn.GetCurrentPathSegment():
+							break
+						}
 					}
 				}
 			}
@@ -210,30 +192,38 @@ func (u *healClient) listenToConnectionChanges(heal HealRequestFunc, errCh chan 
 		}
 
 		if heal != nil {
-			heal(connsToHeal)
+			for _, id := range connsToHeal {
+				heal(id, false)
+			}
 		}
 	}
 }
 
-func (u *healClient) addToExpectedConnections(conn *networkservice.Connection) (chan *networkservice.PathSegment, error) {
-	u.expectedConnsMutex.Lock()
-	defer u.expectedConnsMutex.Unlock()
+func (u *healClient) addToExpectedConnections(conn *networkservice.Connection) (*successVerifyRequest, error) {
+	connectionWasEstablishedPreviously := false
+	u.connCacheMutex.Lock()
+	if cachedConn, ok := u.connCache[conn.GetId()]; ok {
+		if cachedConn.GetCurrentPathSegment().GetId() == conn.GetCurrentPathSegment().GetId() {
+			connectionWasEstablishedPreviously = true
+		}
+	}
+	u.connCacheMutex.Unlock()
 
-	ch := make(chan *networkservice.PathSegment)
-	u.expectedConns[conn.GetId()] = successVerifyRequest{
-		ch:         ch,
-		prefixConn: conn.Clone(),
+	if connectionWasEstablishedPreviously {
+		return nil, nil
 	}
 
-	return ch, nil
-}
+	req := successVerifyRequest{
+		connectionSuccessCh: make(chan *networkservice.PathSegment, 10),
+		stopCh:              make(chan struct{}),
+	}
 
-func (u *healClient) removeFromExpectedConnections(conn *networkservice.Connection) {
 	u.expectedConnsMutex.Lock()
 	defer u.expectedConnsMutex.Unlock()
 
-	// TODO this is not a reliable code. Monitor thread could be waiting to write into channel in expectedConns
-	delete(u.expectedConns, conn.GetId())
+	u.expectedConns[conn.GetId()] = req
+
+	return &req, nil
 }
 
 func (u *healClient) addConnectionToMonitor(conn *networkservice.Connection) {
