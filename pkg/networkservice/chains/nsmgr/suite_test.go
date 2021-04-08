@@ -75,11 +75,10 @@ func (s *nsmgrSuite) SetupSuite() {
 	})
 
 	// Create default domain with nodesCount nodes, which will be enough for any test
-	s.domain = sandbox.NewBuilder(t).
+	s.domain = sandbox.NewBuilder(ctx, t).
 		SetNodesCount(nodesCount).
 		SetRegistryProxySupplier(nil).
 		SetNSMgrProxySupplier(nil).
-		SetContext(ctx).
 		Build()
 }
 
@@ -101,8 +100,7 @@ func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
 		defer unregisterWG.Done()
 
 		time.Sleep(time.Millisecond * 100)
-		_, epErr := s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
-		require.NoError(t, epErr)
+		s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 	}()
 	nsc := s.domain.Nodes[1].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -206,8 +204,7 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 			nsesReg[id] = defaultRegistryEndpoint(nsReg.Name)
 			nsesReg[id].Name += strconv.Itoa(id)
 
-			_, epErr := s.domain.Nodes[1].NewEndpoint(ctx, nsesReg[id], sandbox.GenerateTestToken, injecterror.NewServer())
-			require.NoError(t, epErr)
+			s.domain.Nodes[1].NewEndpoint(ctx, nsesReg[id], sandbox.GenerateTestToken, injecterror.NewServer())
 			wg.Done()
 		}(i)
 	}
@@ -222,8 +219,7 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 		nsesReg[3] = defaultRegistryEndpoint(nsReg.Name)
 		nsesReg[3].Name += strconv.Itoa(3)
 
-		_, epErr := s.domain.Nodes[1].NewEndpoint(ctx, nsesReg[3], sandbox.GenerateTestToken, counter)
-		require.NoError(t, epErr)
+		s.domain.Nodes[1].NewEndpoint(ctx, nsesReg[3], sandbox.GenerateTestToken, counter)
 	}()
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -270,8 +266,7 @@ func (s *nsmgrSuite) Test_RemoteUsecase() {
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	counter := &counterServer{}
 
-	_, err = s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
-	require.NoError(t, err)
+	s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
 	nsc := s.domain.Nodes[1].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -316,8 +311,7 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	counter := &counterServer{}
 
-	_, err = s.domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.GenerateTestToken, counter)
-	require.NoError(t, err)
+	s.domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.GenerateTestToken, counter)
 
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -359,8 +353,7 @@ func (s *nsmgrSuite) Test_LocalUsecase() {
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	counter := &counterServer{}
 
-	_, err = s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
-	require.NoError(t, err)
+	s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -708,8 +701,7 @@ func newPassThroughEndpoint(ctx context.Context, t *testing.T, s *nsmgrSuite, la
 		additionalFunctionality = append(additionalFunctionality, counter)
 	}
 
-	_, err := s.domain.Nodes[nodeIndex].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, additionalFunctionality...)
-	require.NoError(t, err)
+	s.domain.Nodes[nodeIndex].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, additionalFunctionality...)
 
 	return nseReg
 }

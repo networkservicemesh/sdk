@@ -22,12 +22,11 @@ Problem: setup NSMgr and Forwarder to checking new endpoint chain element.\
 Solution:
 ```go
 	...
-	localDomain := sandbox.NewBuilder(t).
+	localDomain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
 		SetNSMgrProxySupplier(nil).
 		SetRegistryProxySupplier(nil).
 		Build()
-	defer localDomain.Cleanup()
 	localDomain.Nodes[0].NewEndpoint(ctx, &registry.Endpoint{...}, sandbox.GenerateTestToken, ...myNewEndpointChain)
 	client := localDomain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, ...clientChain)
 	...
@@ -37,7 +36,7 @@ Problem: setup my external NSMgr and Forwarder to checking my external NSMgr.\
 Solution:
 ```go
 	...
-	localDomain := sandbox.NewBuilder(t).
+	localDomain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
 		SetNSMgrProxySupplier(nil).
 		SetRegistryProxySupplier(nil).
@@ -51,14 +50,16 @@ Problem: setup my NSMgr and new Forwarder to checking my Forwarder chain.\
 Solution:
 ```go
 	...
-	localDomain := sandbox.NewBuilder(t).
+	localDomain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
 		SetNSMgrProxySupplier(nil).
 		SetRegistryProxySupplier(nil).
-		SetNodeSetup(nil).
+		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, _ int) {
+			node.NewNSMgr(ctx, sandbox.Name("nsmgr"), nil, sandbox.GenerateTestToken, nsmgr.NewServer)
+			node.NewForwarder(ctx, &registry.Endpoint{...}, sandbox.GenerateTestToken, ...myNewForwarderChain)
+		}).
 		Build()
 	defer localDomain.Cleanup()
-	localDomain.Nodes[0].NewForwarder(ctx, &registry.Endpoint{...}, sandbox.GenerateTestToken, ...myNewForwarderChain)
 	...
 ```
 
@@ -68,8 +69,10 @@ Problem: setup NSMgr and Forwarder to checking remote use-case.\
 Solution:
 ```go
 	...
-	localDomain := sandbox.NewBuilder(t).
+	localDomain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(2).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
 		Build()
 	defer localDomain.Cleanup()
 	localDomain.Nodes[1].NewEndpoint(ctx, &registry.Endpoint{...}, sandbox.GenerateTestToken, ...remoteEndpointChain)
@@ -80,7 +83,7 @@ Problem: setup NSMgr, set of Forwarders and set of Endpoints on each node to che
 Solution:
 ```go
 	...
-	localDomain := sandbox.NewBuilder(t).
+	localDomain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(nodesCount).
 		SetNSMgrProxySupplier(nil).
 		SetRegistryProxySupplier(nil).
@@ -99,7 +102,7 @@ Problem: setup registry and to check API.\
 Solution: 
 ```go
 	...
-	localDomain := sandbox.NewBuilder(t).
+	localDomain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(0).
 		SetNSMgrProxySupplier(nil).
 		SetRegistryProxySupplier(nil).
@@ -117,16 +120,14 @@ Solution:
 ```go
 	...
 	fakeServer := new(sandbox.FakeDNSResolver)
-	domain1 := sandbox.NewBuilder(t).
-		SetContext(ctx).
+	domain1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
 		SetDNSDomainName("domain1").
 		SetDNSResolver(fakeServer).
 		Build()
 	defer domain1.Cleanup()
 	fakeServer.Register("domain1", domain1.Registry.URL)
-	domain2 := sandbox.NewBuilder(t).
-		SetContext(ctx).
+	domain2 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
 		SetDNSDomainName("domain2").
 		SetDNSResolver(fakeServer).

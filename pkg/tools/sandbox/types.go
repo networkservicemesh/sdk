@@ -19,7 +19,6 @@ package sandbox
 import (
 	"context"
 	"net/url"
-	"os"
 	"time"
 
 	"google.golang.org/grpc"
@@ -33,10 +32,10 @@ import (
 )
 
 // SupplyNSMgrProxyFunc nsmgr proxy
-type SupplyNSMgrProxyFunc func(context.Context, token.GeneratorFunc, ...nsmgrproxy.Option) endpoint.Endpoint
+type SupplyNSMgrProxyFunc func(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...nsmgrproxy.Option) endpoint.Endpoint
 
 // SupplyNSMgrFunc supplies NSMGR
-type SupplyNSMgrFunc func(context.Context, token.GeneratorFunc, ...nsmgr.Option) nsmgr.Nsmgr
+type SupplyNSMgrFunc func(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...nsmgr.Option) nsmgr.Nsmgr
 
 // SupplyRegistryFunc supplies Registry
 type SupplyRegistryFunc func(ctx context.Context, expiryDuration time.Duration, proxyRegistryURL *url.URL, options ...grpc.DialOption) registry.Registry
@@ -45,7 +44,7 @@ type SupplyRegistryFunc func(ctx context.Context, expiryDuration time.Duration, 
 type SupplyRegistryProxyFunc func(ctx context.Context, dnsResolver dnsresolve.Resolver, handlingDNSDomain string, proxyNSMgrURL *url.URL, options ...grpc.DialOption) registry.Registry
 
 // SetupNodeFunc setups each node on Builder.Build() stage
-type SetupNodeFunc func(ctx context.Context, node *Node, config *NodeConfig)
+type SetupNodeFunc func(ctx context.Context, node *Node, i int)
 
 // RegistryEntry is pair of registry.Registry and url.URL
 type RegistryEntry struct {
@@ -56,13 +55,15 @@ type RegistryEntry struct {
 // NSMgrEntry is pair of nsmgr.Nsmgr and url.URL
 type NSMgrEntry struct {
 	nsmgr.Nsmgr
-	URL *url.URL
+	Name string
+	URL  *url.URL
 }
 
 // EndpointEntry is pair of endpoint.Endpoint and url.URL
 type EndpointEntry struct {
 	endpoint.Endpoint
-	URL *url.URL
+	Name string
+	URL  *url.URL
 }
 
 // Domain contains attached to domain nodes, registry
@@ -73,8 +74,7 @@ type Domain struct {
 	RegistryProxy *RegistryEntry
 	DNSResolver   dnsresolve.Resolver
 	Name          string
-	resources     []context.CancelFunc
-	domainTemp    string
+	supplyURL     func(prefix string) *url.URL
 }
 
 // NodeConfig keeps custom node configuration parameters
@@ -83,21 +83,4 @@ type NodeConfig struct {
 	NsmgrGenerateTokenFunc     token.GeneratorFunc
 	ForwarderCtx               context.Context
 	ForwarderGenerateTokenFunc token.GeneratorFunc
-}
-
-// AddResources appends resources to the Domain to close it later
-func (d *Domain) AddResources(resources []context.CancelFunc) {
-	d.resources = append(d.resources, resources...)
-}
-
-// Cleanup frees all resources related to the domain
-func (d *Domain) cleanup() {
-	for _, r := range d.resources {
-		r()
-	}
-
-	// Remove Nsmgr local unix socket file if exists.
-	if d.domainTemp != "" {
-		_ = os.RemoveAll(d.domainTemp)
-	}
 }

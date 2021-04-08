@@ -22,8 +22,11 @@ import (
 	"time"
 
 	"github.com/edwarnicke/grpcfd"
+	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+
+	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/opentracing"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
@@ -97,4 +100,18 @@ func DefaultDialOptions(genTokenFunc token.GeneratorFunc) []grpc.DialOption {
 		WithInsecureRPCCredentials(),
 		WithInsecureStreamRPCCredentials(),
 	}, opentracing.WithTracingDial()...)
+}
+
+// Name creates unique name with the given prefix
+func Name(prefix string) string {
+	return prefix + "-" + uuid.New().String()
+}
+
+// SetupDefaultNode setups NSMgr and default Forwarder on the given node
+func SetupDefaultNode(ctx context.Context, node *Node, supplyNSMgr SupplyNSMgrFunc) {
+	node.NewNSMgr(ctx, Name("nsmgr"), nil, GenerateTestToken, supplyNSMgr)
+
+	node.NewForwarder(ctx, &registryapi.NetworkServiceEndpoint{
+		Name: Name("forwarder"),
+	}, GenerateTestToken)
 }

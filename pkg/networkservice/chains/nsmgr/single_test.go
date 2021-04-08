@@ -31,6 +31,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
 	"github.com/networkservicemesh/sdk/pkg/tools/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
@@ -42,11 +43,10 @@ func Test_DNSUsecase(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	domain := sandbox.NewBuilder(t).
+	domain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
 		SetNSMgrProxySupplier(nil).
 		SetRegistryProxySupplier(nil).
-		SetContext(ctx).
 		Build()
 
 	nsReg, err := domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
@@ -54,7 +54,7 @@ func Test_DNSUsecase(t *testing.T) {
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 
-	_, err = domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, dnscontext.NewServer(
+	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, dnscontext.NewServer(
 		&networkservice.DNSConfig{
 			DnsServerIps:  []string{"8.8.8.8"},
 			SearchDomains: []string{"my.domain1"},
@@ -64,7 +64,6 @@ func Test_DNSUsecase(t *testing.T) {
 			SearchDomains: []string{"my.domain1"},
 		},
 	))
-	require.NoError(t, err)
 
 	corefilePath := filepath.Join(t.TempDir(), "corefile")
 	resolveConfigPath := filepath.Join(t.TempDir(), "resolv.conf")
@@ -105,12 +104,13 @@ func Test_ShouldCorrectlyAddForwardersWithSameNames(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	domain := sandbox.NewBuilder(t).
+	domain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
 		SetRegistryProxySupplier(nil).
-		SetNodeSetup(nil).
+		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, _ int) {
+			node.NewNSMgr(ctx, "nsmgr", nil, sandbox.GenerateTestToken, nsmgr.NewServer)
+		}).
 		SetRegistryExpiryDuration(sandbox.RegistryExpiryDuration).
-		SetContext(ctx).
 		Build()
 
 	nsReg, err := domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
@@ -122,16 +122,13 @@ func Test_ShouldCorrectlyAddForwardersWithSameNames(t *testing.T) {
 
 	// 1. Add forwarders
 	forwarder1Reg := forwarderReg.Clone()
-	_, err = domain.Nodes[0].NewForwarder(ctx, forwarder1Reg, sandbox.GenerateTestToken)
-	require.NoError(t, err)
+	domain.Nodes[0].NewForwarder(ctx, forwarder1Reg, sandbox.GenerateTestToken)
 
 	forwarder2Reg := forwarderReg.Clone()
-	_, err = domain.Nodes[0].NewForwarder(ctx, forwarder2Reg, sandbox.GenerateTestToken)
-	require.NoError(t, err)
+	domain.Nodes[0].NewForwarder(ctx, forwarder2Reg, sandbox.GenerateTestToken)
 
 	forwarder3Reg := forwarderReg.Clone()
-	_, err = domain.Nodes[0].NewForwarder(ctx, forwarder3Reg, sandbox.GenerateTestToken)
-	require.NoError(t, err)
+	domain.Nodes[0].NewForwarder(ctx, forwarder3Reg, sandbox.GenerateTestToken)
 
 	// 2. Wait for refresh
 	<-time.After(sandbox.RegistryExpiryDuration)
@@ -162,11 +159,10 @@ func Test_ShouldCorrectlyAddEndpointsWithSameNames(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	domain := sandbox.NewBuilder(t).
+	domain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
 		SetRegistryProxySupplier(nil).
 		SetRegistryExpiryDuration(sandbox.RegistryExpiryDuration).
-		SetContext(ctx).
 		Build()
 
 	// 1. Add endpoints
@@ -178,8 +174,7 @@ func Test_ShouldCorrectlyAddEndpointsWithSameNames(t *testing.T) {
 		nseRegs[i] = defaultRegistryEndpoint(nsReg.Name)
 		nseRegs[i].NetworkServiceNames[0] = nsReg.Name
 
-		_, err = domain.Nodes[0].NewEndpoint(ctx, nseRegs[i], sandbox.GenerateTestToken)
-		require.NoError(t, err)
+		domain.Nodes[0].NewEndpoint(ctx, nseRegs[i], sandbox.GenerateTestToken)
 
 		nseRegs = append(nseRegs, nseRegs[i])
 	}
@@ -212,10 +207,9 @@ func Test_Local_NoURLUsecase(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	domain := sandbox.NewBuilder(t).
+	domain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
 		UseUnixSockets().
-		SetContext(ctx).
 		SetNSMgrProxySupplier(nil).
 		SetRegistryProxySupplier(nil).
 		SetRegistrySupplier(nil).
@@ -228,8 +222,7 @@ func Test_Local_NoURLUsecase(t *testing.T) {
 	request := defaultRequest(nsReg.Name)
 	counter := &counterServer{}
 
-	_, err = domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
-	require.NoError(t, err)
+	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 

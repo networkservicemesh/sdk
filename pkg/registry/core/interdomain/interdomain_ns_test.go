@@ -62,14 +62,12 @@ func TestInterdomainNetworkServiceRegistry(t *testing.T) {
 
 	dnsServer := new(sandbox.FakeDNSResolver)
 
-	domain1 := sandbox.NewBuilder(t).
-		SetContext(ctx).
+	domain1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(0).
 		SetDNSResolver(dnsServer).
 		Build()
 
-	domain2 := sandbox.NewBuilder(t).
-		SetContext(ctx).
+	domain2 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(0).
 		SetDNSResolver(dnsServer).
 		Build()
@@ -133,8 +131,7 @@ func TestLocalDomain_NetworkServiceRegistry(t *testing.T) {
 
 	dnsServer := new(sandbox.FakeDNSResolver)
 
-	domain1 := sandbox.NewBuilder(t).
-		SetContext(ctx).
+	domain1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(0).
 		SetDNSDomainName(localRegistryDomain).
 		SetDNSResolver(dnsServer).
@@ -201,19 +198,17 @@ func TestInterdomainFloatingNetworkServiceRegistry(t *testing.T) {
 
 	dnsServer := new(sandbox.FakeDNSResolver)
 
-	domain1 := sandbox.NewBuilder(t).
-		SetContext(ctx).
+	domain1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(0).
 		SetDNSResolver(dnsServer).
 		Build()
 
-	domain2 := sandbox.NewBuilder(t).
-		SetContext(ctx).
+	domain2 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(0).
 		SetDNSResolver(dnsServer).
 		Build()
 
-	domain3 := sandbox.NewBuilder(t).
+	domain3 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(0).
 		SetRegistrySupplier(func(context.Context, time.Duration, *url.URL, ...grpc.DialOption) registry.Registry {
 			return registry.NewServer(
