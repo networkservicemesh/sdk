@@ -24,10 +24,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/checkid"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
@@ -91,7 +92,7 @@ func TestSetIDClient_Duplicate(t *testing.T) {
 		setid.NewNetworkServiceEndpointRegistryClient(),
 		&errorClient{
 			expected: 3,
-			err:      new(checkid.DuplicateError),
+			err:      status.Error(codes.AlreadyExists, ""),
 		},
 	)
 

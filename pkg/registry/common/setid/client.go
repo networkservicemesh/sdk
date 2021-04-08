@@ -24,10 +24,11 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/checkid"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
@@ -51,8 +52,7 @@ func (c *setIDClient) Register(ctx context.Context, nse *registry.NetworkService
 	}
 	nameSuffix = "-" + nameSuffix
 
-	err = new(checkid.DuplicateError)
-	for isDuplicateError(err) {
+	for err = status.Error(codes.AlreadyExists, ""); err != nil && isAlreadyExistsError(err); {
 		name := uuid.New().String() + nameSuffix
 
 		nse.Name = name
@@ -64,9 +64,9 @@ func (c *setIDClient) Register(ctx context.Context, nse *registry.NetworkService
 	return reg, err
 }
 
-func isDuplicateError(e error) bool {
-	duplicateErr, ok := e.(*checkid.DuplicateError)
-	return ok && duplicateErr != nil
+func isAlreadyExistsError(e error) bool {
+	grpcStatus, ok := status.FromError(e)
+	return ok && grpcStatus.Code() == codes.AlreadyExists
 }
 
 func (c *setIDClient) Find(ctx context.Context, query *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {

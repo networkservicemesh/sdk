@@ -18,16 +18,21 @@ package checkid_test
 
 import (
 	"context"
+	"net/url"
 	"testing"
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/checkid"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
 const (
@@ -43,7 +48,7 @@ func testNSE(u string) *registry.NetworkServiceEndpoint {
 	}
 }
 
-func TestSetIDServer_Register(t *testing.T) {
+func TestCheckIDServer_Register(t *testing.T) {
 	mem := memory.NewNetworkServiceEndpointRegistryServer()
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
@@ -104,7 +109,7 @@ func TestSetIDServer_Register(t *testing.T) {
 	require.Equal(t, duplicateURL, nses[0].Url)
 }
 
-func TestSetIDServer_Duplicate(t *testing.T) {
+func TestCheckIDServer_Duplicate(t *testing.T) {
 	mem := memory.NewNetworkServiceEndpointRegistryServer()
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
@@ -122,28 +127,51 @@ func TestSetIDServer_Duplicate(t *testing.T) {
 	_, err = s.Register(context.Background(), testNSE(duplicateURL))
 	require.Error(t, err)
 
-	_, ok := err.(*checkid.DuplicateError)
+	grpcStatus, ok := status.FromError(err)
 	require.True(t, ok)
+	require.Equal(t, codes.AlreadyExists, grpcStatus.Code())
 
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	nses := find(t, mem, &registry.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
+	})
+
+	require.Len(t, nses, 1)
+	require.Equal(t, nseName, nses[0].Name)
+	require.Equal(t, nseURL, nses[0].Url)
+}
+
+func TestCheckIDServer_RemoteDuplicate(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	ch := make(chan *registry.NetworkServiceEndpoint, 1)
-	go func() {
-		err = s.Find(&registry.NetworkServiceEndpointQuery{
-			NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
-		}, streamchannel.NewNetworkServiceEndpointFindServer(ctx, ch))
-		require.NoError(t, err)
-	}()
+	server := grpc.NewServer()
+	registry.RegisterNetworkServiceEndpointRegistryServer(server, checkid.NewNetworkServiceEndpointRegistryServer())
 
-	var nse *registry.NetworkServiceEndpoint
+	u := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
+
+	errCh := grpcutils.ListenAndServe(ctx, u, server)
 	select {
-	case nse = <-ch:
-		require.Equal(t, nseName, nse.Name)
-		require.Equal(t, nseURL, nse.Url)
-	case <-ctx.Done():
-		require.FailNow(t, "no endpoint found")
+	case err := <-errCh:
+		require.NoError(t, err)
+	default:
 	}
+
+	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(u), grpc.WithInsecure())
+	require.NoError(t, err)
+
+	c := registry.NewNetworkServiceEndpointRegistryClient(cc)
+
+	// 1. Register
+	_, err = c.Register(context.Background(), testNSE(nseURL))
+	require.NoError(t, err)
+
+	// 2. Register duplicate
+	_, err = c.Register(context.Background(), testNSE(duplicateURL))
+	require.Error(t, err)
+
+	grpcStatus, ok := status.FromError(err)
+	require.True(t, ok)
+	require.Equal(t, codes.AlreadyExists, grpcStatus.Code())
 }
 
 func find(t *testing.T, mem registry.NetworkServiceEndpointRegistryServer, query *registry.NetworkServiceEndpointQuery) (nses []*registry.NetworkServiceEndpoint) {

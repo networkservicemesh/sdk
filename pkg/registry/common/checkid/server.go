@@ -24,6 +24,8 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/pkg/errors"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
@@ -45,11 +47,10 @@ func (s *setIDServer) Register(ctx context.Context, nse *registry.NetworkService
 
 	u, loaded := s.urls.Load(nse.Name)
 	if loaded && u.String() != nse.Url {
-		return nil, &DuplicateError{
-			name:     nse.Name,
-			expected: u.String(),
-			actual:   nse.Url,
-		}
+		return nil, status.Errorf(
+			codes.AlreadyExists,
+			"duplicate URL for the name %s: expected=[%s], actual=[%s]", nse.Name, u.String(), nse.Url,
+		)
 	}
 
 	var name string
