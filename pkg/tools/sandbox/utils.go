@@ -23,6 +23,7 @@ import (
 
 	"github.com/edwarnicke/grpcfd"
 	"github.com/google/uuid"
+	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
@@ -84,7 +85,7 @@ func GenerateExpiringToken(duration time.Duration) token.GeneratorFunc {
 }
 
 // NewCrossConnectClientFactory is a client.NewCrossConnectClientFactory with some fields preset for testing
-func NewCrossConnectClientFactory(generatorFunc token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceClient) client.Factory {
+func NewCrossConnectClientFactory(additionalFunctionality ...networkservice.NetworkServiceClient) client.Factory {
 	return client.NewCrossConnectClientFactory(
 		client.WithName(fmt.Sprintf("nsc-%v", uuid.New().String())),
 		client.WithAdditionalFunctionality(additionalFunctionality...),
@@ -105,4 +106,18 @@ func DefaultDialOptions(genTokenFunc token.GeneratorFunc) []grpc.DialOption {
 		WithInsecureRPCCredentials(),
 		WithInsecureStreamRPCCredentials(),
 	}, opentracing.WithTracingDial()...)
+}
+
+// Name creates unique name with the given prefix
+func Name(prefix string) string {
+	return prefix + "-" + uuid.New().String()
+}
+
+// SetupDefaultNode setups NSMgr and default Forwarder on the given node
+func SetupDefaultNode(ctx context.Context, node *Node, supplyNSMgr SupplyNSMgrFunc) {
+	node.NewNSMgr(ctx, Name("nsmgr"), nil, GenerateTestToken, supplyNSMgr)
+
+	node.NewForwarder(ctx, &registryapi.NetworkServiceEndpoint{
+		Name: Name("forwarder"),
+	}, GenerateTestToken)
 }
