@@ -21,20 +21,23 @@ import (
 )
 
 const (
-	registerClientFuncKey contextKeyType = "RegisterFunc"
+	healRequestFuncKey contextKeyType = "HealRequestFuncKey"
 )
 
 type contextKeyType string
 
-func withRegisterClientFunc(parent context.Context, registerClientFunc RegisterClientFunc) context.Context {
+// heal client uses this function to inform heal server about events on connections
+type HealRequestFunc func([]string)
+
+func withHealRequestFunc(parent context.Context, monitorEventFunc HealRequestFunc) context.Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
-	return context.WithValue(parent, registerClientFuncKey, registerClientFunc)
+	return context.WithValue(parent, healRequestFuncKey, monitorEventFunc)
 }
 
-func registerClientFunc(ctx context.Context) RegisterClientFunc {
-	if rv, ok := ctx.Value(registerClientFuncKey).(RegisterClientFunc); ok {
+func healRequestFunc(ctx context.Context) HealRequestFunc {
+	if rv, ok := ctx.Value(healRequestFuncKey).(HealRequestFunc); ok {
 		return rv
 	}
 	return nil
