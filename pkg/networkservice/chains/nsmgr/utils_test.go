@@ -71,8 +71,7 @@ func testNSEAndClient(
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	_, err := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
-	require.NoError(t, err)
+	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 

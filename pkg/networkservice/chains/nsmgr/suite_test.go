@@ -71,11 +71,10 @@ func (s *nsmgrSuite) SetupSuite() {
 	})
 
 	// Create default domain with nodesCount nodes, which will be enough for any test
-	s.domain = sandbox.NewBuilder(t).
+	s.domain = sandbox.NewBuilder(ctx, t).
 		SetNodesCount(nodesCount).
 		SetRegistryProxySupplier(nil).
 		SetNSMgrProxySupplier(nil).
-		SetContext(ctx).
 		Build()
 }
 
@@ -97,8 +96,7 @@ func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
 		defer unregisterWG.Done()
 
 		time.Sleep(time.Millisecond * 100)
-		_, epErr := s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
-		require.NoError(t, epErr)
+		s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 	}()
 	nsc := s.domain.Nodes[1].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -202,8 +200,7 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 			nsesReg[id] = defaultRegistryEndpoint(nsReg.Name)
 			nsesReg[id].Name += strconv.Itoa(id)
 
-			_, epErr := s.domain.Nodes[1].NewEndpoint(ctx, nsesReg[id], sandbox.GenerateTestToken, injecterror.NewServer())
-			require.NoError(t, epErr)
+			s.domain.Nodes[1].NewEndpoint(ctx, nsesReg[id], sandbox.GenerateTestToken, injecterror.NewServer())
 			wg.Done()
 		}(i)
 	}
@@ -218,8 +215,7 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 		nsesReg[3] = defaultRegistryEndpoint(nsReg.Name)
 		nsesReg[3].Name += strconv.Itoa(3)
 
-		_, epErr := s.domain.Nodes[1].NewEndpoint(ctx, nsesReg[3], sandbox.GenerateTestToken, counter)
-		require.NoError(t, epErr)
+		s.domain.Nodes[1].NewEndpoint(ctx, nsesReg[3], sandbox.GenerateTestToken, counter)
 	}()
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -266,8 +262,7 @@ func (s *nsmgrSuite) Test_RemoteUsecase() {
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	counter := &counterServer{}
 
-	_, err = s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
-	require.NoError(t, err)
+	s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
 	nsc := s.domain.Nodes[1].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -312,8 +307,7 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	counter := &counterServer{}
 
-	_, err = s.domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.GenerateTestToken, counter)
-	require.NoError(t, err)
+	s.domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.GenerateTestToken, counter)
 
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -355,8 +349,7 @@ func (s *nsmgrSuite) Test_LocalUsecase() {
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	counter := &counterServer{}
 
-	_, err = s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
-	require.NoError(t, err)
+	s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -403,7 +396,7 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 				chain.NewNetworkServiceServer(
 					clienturl.NewServer(s.domain.Nodes[i].NSMgr.URL),
 					connect.NewServer(ctx,
-						sandbox.NewCrossConnectClientFactory(sandbox.GenerateTestToken,
+						sandbox.NewCrossConnectClientFactory(
 							newPassTroughClient(fmt.Sprintf("my-service-remote-%v", i-1)),
 							kernel.NewClient()),
 						connect.WithDialTimeout(sandbox.DialTimeout),
@@ -422,8 +415,7 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 			Name:                fmt.Sprintf("endpoint-%v", i),
 			NetworkServiceNames: []string{nsReg.Name},
 		}
-		_, err = s.domain.Nodes[i].NewEndpoint(ctx, nsesReg[i], sandbox.GenerateTestToken, additionalFunctionality...)
-		require.NoError(t, err)
+		s.domain.Nodes[i].NewEndpoint(ctx, nsesReg[i], sandbox.GenerateTestToken, additionalFunctionality...)
 	}
 
 	nsc := s.domain.Nodes[nodesCount-1].NewClient(ctx, sandbox.GenerateTestToken)
@@ -464,7 +456,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 				chain.NewNetworkServiceServer(
 					clienturl.NewServer(s.domain.Nodes[0].NSMgr.URL),
 					connect.NewServer(ctx,
-						sandbox.NewCrossConnectClientFactory(sandbox.GenerateTestToken,
+						sandbox.NewCrossConnectClientFactory(
 							newPassTroughClient(fmt.Sprintf("my-service-remote-%v", i-1)),
 							kernel.NewClient()),
 						connect.WithDialTimeout(sandbox.DialTimeout),
@@ -483,8 +475,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 			Name:                fmt.Sprintf("endpoint-%v", i),
 			NetworkServiceNames: []string{nsReg.Name},
 		}
-		_, err = s.domain.Nodes[0].NewEndpoint(ctx, nsesReg[i], sandbox.GenerateTestToken, additionalFunctionality...)
-		require.NoError(t, err)
+		s.domain.Nodes[0].NewEndpoint(ctx, nsesReg[i], sandbox.GenerateTestToken, additionalFunctionality...)
 	}
 
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)

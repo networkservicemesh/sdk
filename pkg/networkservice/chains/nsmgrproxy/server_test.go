@@ -43,16 +43,14 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 
 	dnsServer := new(sandbox.FakeDNSResolver)
 
-	domain1 := sandbox.NewBuilder(t).
+	domain1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
-		SetContext(ctx).
 		SetDNSResolver(dnsServer).
 		Build()
 
-	domain2 := sandbox.NewBuilder(t).
+	domain2 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
 		SetDNSResolver(dnsServer).
-		SetContext(ctx).
 		Build()
 
 	require.NoError(t, dnsServer.Register(remoteRegistryDomain, domain2.Registry.URL))
@@ -69,8 +67,7 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 		NetworkServiceNames: []string{nsReg.Name},
 	}
 
-	_, err = domain2.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
-	require.NoError(t, err)
+	domain2.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
 
 	nsc := domain1.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
