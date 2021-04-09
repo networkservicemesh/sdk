@@ -59,9 +59,9 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 		NetworkServiceNames: []string{"my-service-interdomain"},
 	}
 
-	domain2.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
+	domain2.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.DefaultTokenTimeout)
 
-	nsc := domain1.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+	nsc := domain1.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{

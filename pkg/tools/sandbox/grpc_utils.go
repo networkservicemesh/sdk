@@ -23,7 +23,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/credentials"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
@@ -31,9 +31,9 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-func serve(ctx context.Context, t *testing.T, u *url.URL, register func(server *grpc.Server)) {
+func serve(ctx context.Context, t *testing.T, u *url.URL, serverTC credentials.TransportCredentials, register func(server *grpc.Server)) {
 	server := grpc.NewServer(append([]grpc.ServerOption{
-		grpc.Creds(grpcfdTransportCredentials(insecure.NewCredentials())),
+		grpc.Creds(grpcfdTransportCredentials(serverTC)),
 	}, opentracing.WithTracing()...)...)
 	register(server)
 
@@ -49,8 +49,8 @@ func serve(ctx context.Context, t *testing.T, u *url.URL, register func(server *
 	}()
 }
 
-func dial(ctx context.Context, t *testing.T, u *url.URL, tokenGenerator token.GeneratorFunc) *grpc.ClientConn {
-	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(u), DefaultDialOptions(tokenGenerator)...)
+func dial(ctx context.Context, t *testing.T, u *url.URL, clientTC credentials.TransportCredentials, tokenGenerator token.GeneratorFunc) *grpc.ClientConn {
+	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(u), DefaultSecureDialOptions(clientTC, tokenGenerator)...)
 	require.NoError(t, err)
 
 	go func() {

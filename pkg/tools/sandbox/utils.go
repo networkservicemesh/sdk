@@ -23,58 +23,26 @@ import (
 
 	"github.com/edwarnicke/grpcfd"
 	"github.com/google/uuid"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
-
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/tools/opentracing"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-// RegistryExpiryDuration is a duration that should be used for expire tests
-const RegistryExpiryDuration = time.Second
-
-type insecurePerRPCCredentials struct {
-	credentials.PerRPCCredentials
-}
-
-func (i *insecurePerRPCCredentials) RequireTransportSecurity() bool {
-	return false
-}
-
-// WithInsecureRPCCredentials makes passed call option with credentials.PerRPCCredentials insecure.
-func WithInsecureRPCCredentials() grpc.DialOption {
-	return grpc.WithChainUnaryInterceptor(func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		for i := len(opts) - 1; i > -1; i-- {
-			if v, ok := opts[i].(grpc.PerRPCCredsCallOption); ok {
-				opts = append(opts, grpc.PerRPCCredentials(&insecurePerRPCCredentials{PerRPCCredentials: v.Creds}))
-				break
-			}
-		}
-		return invoker(ctx, method, req, reply, cc, opts...)
-	})
-}
-
-// WithInsecureStreamRPCCredentials makes passed call option with credentials.PerRPCCredentials insecure.
-func WithInsecureStreamRPCCredentials() grpc.DialOption {
-	return grpc.WithChainStreamInterceptor(func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
-		for i := len(opts) - 1; i > -1; i-- {
-			if v, ok := opts[i].(grpc.PerRPCCredsCallOption); ok {
-				opts = append(opts, grpc.PerRPCCredentials(&insecurePerRPCCredentials{PerRPCCredentials: v.Creds}))
-				break
-			}
-		}
-		return streamer(ctx, desc, cc, method, opts...)
-	})
-}
+const (
+	// RegistryExpiryDuration is a duration that should be used for expire tests
+	RegistryExpiryDuration = time.Second
+	// DefaultTokenTimeout is a default token timeout for sandbox testing
+	DefaultTokenTimeout = time.Hour
+)
 
 // GenerateTestToken generates test token
 func GenerateTestToken(_ credentials.AuthInfo) (tokenValue string, expireTime time.Time, err error) {
-	return "TestToken", time.Now().Add(time.Hour).Local(), nil
+	return "TestToken", time.Now().Add(DefaultTokenTimeout).Local(), nil
 }
 
 // GenerateExpiringToken returns a token generator with the specified expiration duration.
@@ -94,9 +62,14 @@ func NewCrossConnectClientFactory(additionalFunctionality ...networkservice.Netw
 }
 
 // DefaultDialOptions returns default dial options for sandbox testing
-func DefaultDialOptions(genTokenFunc token.GeneratorFunc) []grpc.DialOption {
+func DefaultDialOptions(tokenTimeout time.Duration) []grpc.DialOption {
+	return DefaultSecureDialOptions(newInsecureTC(), GenerateExpiringToken(tokenTimeout))
+}
+
+// DefaultSecureDialOptions returns default secure dial options for sandbox testing
+func DefaultSecureDialOptions(clientTC credentials.TransportCredentials, genTokenFunc token.GeneratorFunc) []grpc.DialOption {
 	return append([]grpc.DialOption{
-		grpc.WithTransportCredentials(grpcfdTransportCredentials(insecure.NewCredentials())),
+		grpc.WithTransportCredentials(grpcfdTransportCredentials(clientTC)),
 		grpc.WithBlock(),
 		grpc.WithDefaultCallOptions(
 			grpc.WaitForReady(true),
@@ -104,8 +77,6 @@ func DefaultDialOptions(genTokenFunc token.GeneratorFunc) []grpc.DialOption {
 		),
 		grpcfd.WithChainStreamInterceptor(),
 		grpcfd.WithChainUnaryInterceptor(),
-		WithInsecureRPCCredentials(),
-		WithInsecureStreamRPCCredentials(),
 	}, opentracing.WithTracingDial()...)
 }
 
@@ -116,9 +87,9 @@ func Name(prefix string) string {
 
 // SetupDefaultNode setups NSMgr and default Forwarder on the given node
 func SetupDefaultNode(ctx context.Context, node *Node, supplyNSMgr SupplyNSMgrFunc) {
-	node.NewNSMgr(ctx, Name("nsmgr"), nil, GenerateTestToken, supplyNSMgr)
+	node.NewNSMgr(ctx, Name("nsmgr"), nil, DefaultTokenTimeout, supplyNSMgr)
 
 	node.NewForwarder(ctx, &registryapi.NetworkServiceEndpoint{
 		Name: Name("forwarder"),
-	}, GenerateTestToken)
+	}, DefaultTokenTimeout)
 }

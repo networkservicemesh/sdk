@@ -36,7 +36,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 // Builder implements builder pattern for building NSM Domain
@@ -52,9 +51,13 @@ type Builder struct {
 	supplyRegistryProxy SupplyRegistryProxyFunc
 	setupNode           SetupNodeFunc
 
+	supplyURL            supplyURLFunc
+	supplyServerTC       SupplyTransportCredentialsFunc
+	supplyClientTC       SupplyTransportCredentialsFunc
+	supplyTokenGenerator SupplyTokenGeneratorFunc
+
 	dnsDomainName          string
 	dnsResolver            dnsresolve.Resolver
-	generateTokenFunc      token.GeneratorFunc
 	registryExpiryDuration time.Duration
 
 	useUnixSockets bool
@@ -72,9 +75,12 @@ func NewBuilder(ctx context.Context, t *testing.T) *Builder {
 		supplyNSMgrProxy:       nsmgrproxy.NewServer,
 		supplyRegistry:         memory.NewServer,
 		supplyRegistryProxy:    proxydns.NewServer,
+		supplyURL:              supplyTCPURL(t),
+		supplyServerTC:         newInsecureTC,
+		supplyClientTC:         newInsecureTC,
+		supplyTokenGenerator:   GenerateExpiringToken,
 		dnsDomainName:          "cluster.local",
 		dnsResolver:            net.DefaultResolver,
-		generateTokenFunc:      GenerateTestToken,
 		registryExpiryDuration: time.Minute,
 	}
 
@@ -135,9 +141,21 @@ func (b *Builder) SetDNSResolver(d dnsresolve.Resolver) *Builder {
 	return b
 }
 
-// SetTokenGenerateFunc sets function for the token generation
-func (b *Builder) SetTokenGenerateFunc(f token.GeneratorFunc) *Builder {
-	b.generateTokenFunc = f
+// SetServerTransportCredentialsSupplier replaces default server transport credentials supplier to custom func
+func (b *Builder) SetServerTransportCredentialsSupplier(f SupplyTransportCredentialsFunc) *Builder {
+	b.supplyServerTC = f
+	return b
+}
+
+// SetClientTransportCredentialsSupplier replaces default client transport credentials supplier to custom func
+func (b *Builder) SetClientTransportCredentialsSupplier(f SupplyTransportCredentialsFunc) *Builder {
+	b.supplyClientTC = f
+	return b
+}
+
+// SetTokenGeneratorSupplier replaces default token generator supplier to custom func
+func (b *Builder) SetTokenGeneratorSupplier(f SupplyTokenGeneratorFunc) *Builder {
+	b.supplyTokenGenerator = f
 	return b
 }
 
@@ -151,17 +169,32 @@ func (b *Builder) SetRegistryExpiryDuration(registryExpiryDuration time.Duration
 func (b *Builder) UseUnixSockets() *Builder {
 	require.NotEqual(b.t, "windows", runtime.GOOS, "Unix sockets are not available for windows")
 
+	sockPath, err := ioutil.TempDir(os.TempDir(), "nsm-domain-temp")
+	require.NoError(b.t, err)
+
+	go func() {
+		<-b.ctx.Done()
+		_ = os.RemoveAll(sockPath)
+	}()
+
 	b.nodesCount = 1
 	b.supplyNSMgrProxy = nil
 	b.supplyRegistry = nil
 	b.supplyRegistryProxy = nil
+	b.supplyURL = supplyUnixURL(sockPath, new(int))
 	b.useUnixSockets = true
+
 	return b
 }
 
 // Build builds Domain and Supplier
 func (b *Builder) Build() *Domain {
-	b.domain = new(Domain)
+	b.domain = &Domain{
+		supplyURL:            b.supplyURL,
+		supplyTokenGenerator: b.supplyTokenGenerator,
+		supplyServerTC:       b.supplyServerTC,
+		supplyClientTC:       b.supplyClientTC,
+	}
 
 	if b.useUnixSockets {
 		msg := "Unix sockets are available only for local tests with no external registry"
@@ -169,18 +202,6 @@ func (b *Builder) Build() *Domain {
 		require.Nil(b.t, b.supplyNSMgrProxy, msg)
 		require.Nil(b.t, b.supplyRegistry, msg)
 		require.Nil(b.t, b.supplyRegistryProxy, msg)
-
-		sockPath, err := ioutil.TempDir(os.TempDir(), "nsm-domain-temp")
-		require.NoError(b.t, err)
-
-		go func() {
-			<-b.ctx.Done()
-			_ = os.RemoveAll(sockPath)
-		}()
-
-		b.domain.supplyURL = b.supplyUnixAddress(sockPath, new(int))
-	} else {
-		b.domain.supplyURL = b.supplyTCPAddress()
 	}
 
 	b.newNSMgrProxy()
@@ -193,38 +214,20 @@ func (b *Builder) Build() *Domain {
 	return b.domain
 }
 
-func (b *Builder) supplyUnixAddress(sockPath string, usedAddress *int) func(prefix string) *url.URL {
-	return func(prefix string) *url.URL {
-		defer func() { *usedAddress++ }()
-		return &url.URL{
-			Scheme: "unix",
-			Path:   fmt.Sprintf("%s/%s_%d.sock", sockPath, prefix, *usedAddress),
-		}
-	}
-}
-
-func (b *Builder) supplyTCPAddress() func(prefix string) *url.URL {
-	return func(_ string) *url.URL {
-		l, err := net.Listen("tcp", "127.0.0.1:0")
-		require.NoError(b.t, err)
-		defer func() { _ = l.Close() }()
-
-		return grpcutils.AddressToURL(l.Addr())
-	}
-}
-
 func (b *Builder) newNSMgrProxy() {
 	if b.supplyRegistryProxy == nil {
 		return
 	}
 
-	name := Name("nsmgr-proxy")
-	mgr := b.supplyNSMgrProxy(b.ctx, b.generateTokenFunc,
-		nsmgrproxy.WithName(name),
-		nsmgrproxy.WithDialOptions(DefaultDialOptions(b.generateTokenFunc)...))
-	serveURL := b.domain.supplyURL("nsmgr-proxy")
+	tokenGenerator := b.supplyTokenGenerator(DefaultTokenTimeout)
 
-	serve(b.ctx, b.t, serveURL, mgr.Register)
+	name := Name("nsmgr-proxy")
+	mgr := b.supplyNSMgrProxy(b.ctx, tokenGenerator,
+		nsmgrproxy.WithName(name),
+		nsmgrproxy.WithDialOptions(DefaultSecureDialOptions(b.supplyClientTC(), tokenGenerator)...))
+	serveURL := b.supplyURL("nsmgr-proxy")
+
+	serve(b.ctx, b.t, serveURL, b.supplyServerTC(), mgr.Register)
 
 	log.FromContext(b.ctx).Infof("Started listening NSMgr proxy %v on: %v", name, serveURL)
 
@@ -246,10 +249,12 @@ func (b *Builder) newRegistryProxy() {
 		nsmgrProxyURL = b.domain.NSMgrProxy.URL
 	}
 
-	registryProxy := b.supplyRegistryProxy(b.ctx, b.dnsResolver, b.dnsDomainName, nsmgrProxyURL, DefaultDialOptions(b.generateTokenFunc)...)
-	serveURL := b.domain.supplyURL("reg-proxy")
+	tokenGenerator := b.supplyTokenGenerator(DefaultTokenTimeout)
 
-	serve(b.ctx, b.t, serveURL, registryProxy.Register)
+	registryProxy := b.supplyRegistryProxy(b.ctx, b.dnsResolver, b.dnsDomainName, nsmgrProxyURL, DefaultSecureDialOptions(b.supplyClientTC(), tokenGenerator)...)
+	serveURL := b.supplyURL("reg-proxy")
+
+	serve(b.ctx, b.t, serveURL, b.supplyServerTC(), registryProxy.Register)
 
 	log.FromContext(b.ctx).Infof("Started listening registry-proxy-dns on: %v", serveURL)
 
@@ -269,10 +274,12 @@ func (b *Builder) newRegistry() {
 		registryProxyURL = b.domain.RegistryProxy.URL
 	}
 
-	registry := b.supplyRegistry(b.ctx, b.registryExpiryDuration, registryProxyURL, DefaultDialOptions(b.generateTokenFunc)...)
-	serveURL := b.domain.supplyURL("reg")
+	tokenGenerator := b.supplyTokenGenerator(DefaultTokenTimeout)
 
-	serve(b.ctx, b.t, serveURL, registry.Register)
+	registry := b.supplyRegistry(b.ctx, b.registryExpiryDuration, registryProxyURL, DefaultSecureDialOptions(b.supplyClientTC(), tokenGenerator)...)
+	serveURL := b.supplyURL("reg")
+
+	serve(b.ctx, b.t, serveURL, b.supplyServerTC(), registry.Register)
 
 	log.FromContext(b.ctx).Infof("Started listening Registry on: %v", serveURL)
 
@@ -293,4 +300,24 @@ func (b *Builder) newNode(nodeNum int) {
 	require.NotNil(b.t, node.NSMgr, "NSMgr should be set for the node")
 
 	b.domain.Nodes = append(b.domain.Nodes, node)
+}
+
+func supplyTCPURL(t *testing.T) supplyURLFunc {
+	return func(_ string) *url.URL {
+		l, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		defer func() { _ = l.Close() }()
+
+		return grpcutils.AddressToURL(l.Addr())
+	}
+}
+
+func supplyUnixURL(sockPath string, usedAddress *int) supplyURLFunc {
+	return func(prefix string) *url.URL {
+		defer func() { *usedAddress++ }()
+		return &url.URL{
+			Scheme: "unix",
+			Path:   fmt.Sprintf("%s/%s_%d.sock", sockPath, prefix, *usedAddress),
+		}
+	}
 }

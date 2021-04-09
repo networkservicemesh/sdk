@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
@@ -45,6 +46,14 @@ type SupplyRegistryProxyFunc func(ctx context.Context, dnsResolver dnsresolve.Re
 
 // SetupNodeFunc setups each node on Builder.Build() stage
 type SetupNodeFunc func(ctx context.Context, node *Node, i int)
+
+type supplyURLFunc func(prefix string) *url.URL
+
+// SupplyTokenGeneratorFunc supplies token generator func
+type SupplyTokenGeneratorFunc func(timeout time.Duration) token.GeneratorFunc
+
+// SupplyTransportCredentialsFunc supplies transport credentials
+type SupplyTransportCredentialsFunc func() credentials.TransportCredentials
 
 // RegistryEntry is pair of registry.Registry and url.URL
 type RegistryEntry struct {
@@ -73,7 +82,10 @@ type Domain struct {
 	Registry      *RegistryEntry
 	RegistryProxy *RegistryEntry
 
-	supplyURL func(prefix string) *url.URL
+	supplyURL            supplyURLFunc
+	supplyServerTC       SupplyTransportCredentialsFunc
+	supplyClientTC       SupplyTransportCredentialsFunc
+	supplyTokenGenerator SupplyTokenGeneratorFunc
 }
 
 // NodeConfig keeps custom node configuration parameters

@@ -100,7 +100,7 @@ func testNSMGRHealEndpoint(t *testing.T, nodeNum int, restored bool) {
 	nseCtx, nseCtxCancel := context.WithTimeout(context.Background(), time.Second)
 	defer nseCtxCancel()
 
-	nse := domain.Nodes[nodeNum].NewEndpoint(nseCtx, nseReg, sandbox.GenerateExpiringToken(time.Second), counter)
+	nse := domain.Nodes[nodeNum].NewEndpoint(nseCtx, nseReg, time.Second, counter)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -113,7 +113,7 @@ func testNSMGRHealEndpoint(t *testing.T, nodeNum int, restored bool) {
 		},
 	}
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -134,7 +134,7 @@ func testNSMGRHealEndpoint(t *testing.T, nodeNum int, restored bool) {
 		nseReg2.Name = nse.Name
 		nseReg2.Url = nse.URL.String()
 	}
-	domain.Nodes[nodeNum].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter)
+	domain.Nodes[nodeNum].NewEndpoint(ctx, nseReg2, sandbox.DefaultTokenTimeout, counter)
 
 	if restored {
 		require.Eventually(t, checkSecondRequestsReceived(func() int {
@@ -225,7 +225,7 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int, restored bool) {
 	}
 
 	counter := &counterServer{}
-	domain.Nodes[1].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
+	domain.Nodes[1].NewEndpoint(ctx, nseReg, sandbox.DefaultTokenTimeout, counter)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -238,7 +238,7 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int, restored bool) {
 		},
 	}
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -258,7 +258,7 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int, restored bool) {
 		forwarderReg.Name = forwarder.Name
 		forwarderReg.Url = forwarder.URL.String()
 	}
-	domain.Nodes[nodeNum].NewForwarder(ctx, forwarderReg, sandbox.GenerateTestToken)
+	domain.Nodes[nodeNum].NewForwarder(ctx, forwarderReg, sandbox.DefaultTokenTimeout)
 
 	if restored {
 		require.Eventually(t, checkSecondRequestsReceived(func() int {
@@ -291,13 +291,13 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int, restored bool) {
 }
 
 func setupCancelableForwarderNode(ctx context.Context, node *sandbox.Node) (context.CancelFunc, *sandbox.EndpointEntry) {
-	node.NewNSMgr(ctx, sandbox.Name("nsmgr"), nil, sandbox.GenerateTestToken, nsmgr.NewServer)
+	node.NewNSMgr(ctx, sandbox.Name("nsmgr"), nil, sandbox.DefaultTokenTimeout, nsmgr.NewServer)
 
 	forwarderCtx, forwarderCtxCancel := context.WithTimeout(ctx, time.Second)
 
 	forwarder := node.NewForwarder(forwarderCtx, &registry.NetworkServiceEndpoint{
 		Name: sandbox.Name("forwarder"),
-	}, sandbox.GenerateExpiringToken(time.Second))
+	}, time.Second)
 
 	return forwarderCtxCancel, forwarder
 }
@@ -363,7 +363,7 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 	}
 
 	counter := &counterServer{}
-	domain.Nodes[1].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
+	domain.Nodes[1].NewEndpoint(ctx, nseReg, sandbox.DefaultTokenTimeout, counter)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -376,7 +376,7 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 		},
 	}
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -390,7 +390,7 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 		mgr := domain.Nodes[nodeNum].NSMgr
 		require.Eventually(t, checkURLFree(mgr.URL), timeout, tick)
 
-		domain.Nodes[nodeNum].NewNSMgr(ctx, mgr.Name, mgr.URL, sandbox.GenerateTestToken, nsmgr.NewServer)
+		domain.Nodes[nodeNum].NewNSMgr(ctx, mgr.Name, mgr.URL, sandbox.DefaultTokenTimeout, nsmgr.NewServer)
 		// TODO: https://github.com/networkservicemesh/sdk/issues/713
 		domain.Nodes[nodeNum].RegisterForwarder(ctx, forwarderReg)
 		if nodeNum == 1 {
@@ -401,7 +401,7 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 			Name:                "nse-2",
 			NetworkServiceNames: []string{"ns"},
 		}
-		domain.Nodes[2].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter)
+		domain.Nodes[2].NewEndpoint(ctx, nseReg2, sandbox.DefaultTokenTimeout, counter)
 	}
 
 	if restored {
@@ -437,12 +437,12 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 func setupCancellableNSMgrNode(ctx context.Context, node *sandbox.Node) (context.CancelFunc, *registry.NetworkServiceEndpoint) {
 	nsmgrCtx, nsmgrCtxCancel := context.WithTimeout(ctx, time.Second)
 
-	node.NewNSMgr(nsmgrCtx, sandbox.Name("nsmgr"), nil, sandbox.GenerateExpiringToken(time.Second), nsmgr.NewServer)
+	node.NewNSMgr(nsmgrCtx, sandbox.Name("nsmgr"), nil, time.Second, nsmgr.NewServer)
 
 	forwarderReg := &registry.NetworkServiceEndpoint{
 		Name: sandbox.Name("forwarder"),
 	}
-	node.NewForwarder(ctx, forwarderReg, sandbox.GenerateTestToken)
+	node.NewForwarder(ctx, forwarderReg, sandbox.DefaultTokenTimeout)
 
 	return nsmgrCtxCancel, forwarderReg
 }
@@ -466,7 +466,7 @@ func TestNSMGR_CloseHeal(t *testing.T) {
 
 	nseCtx, nseCtxCancel := context.WithCancel(ctx)
 
-	domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.GenerateTestToken)
+	domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.DefaultTokenTimeout)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -481,7 +481,7 @@ func TestNSMGR_CloseHeal(t *testing.T) {
 
 	nscCtx, nscCtxCancel := context.WithCancel(ctx)
 
-	nsc := domain.Nodes[0].NewClient(nscCtx, sandbox.GenerateTestToken)
+	nsc := domain.Nodes[0].NewClient(nscCtx, sandbox.DefaultTokenTimeout)
 
 	// 1. Request
 	conn, err := nsc.Request(ctx, request.Clone())
