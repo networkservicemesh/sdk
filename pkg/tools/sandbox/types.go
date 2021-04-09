@@ -72,9 +72,8 @@ type Domain struct {
 	NSMgrProxy    *EndpointEntry
 	Registry      *RegistryEntry
 	RegistryProxy *RegistryEntry
-	DNSResolver   dnsresolve.Resolver
-	Name          string
-	supplyURL     func(prefix string) *url.URL
+
+	supplyURL func(prefix string) *url.URL
 }
 
 // NodeConfig keeps custom node configuration parameters

@@ -52,9 +52,8 @@ type Builder struct {
 	supplyRegistryProxy SupplyRegistryProxyFunc
 	setupNode           SetupNodeFunc
 
-	DNSDomainName string
-	Resolver      dnsresolve.Resolver
-
+	dnsDomainName          string
+	dnsResolver            dnsresolve.Resolver
 	generateTokenFunc      token.GeneratorFunc
 	registryExpiryDuration time.Duration
 
@@ -73,8 +72,8 @@ func NewBuilder(ctx context.Context, t *testing.T) *Builder {
 		supplyNSMgrProxy:       nsmgrproxy.NewServer,
 		supplyRegistry:         memory.NewServer,
 		supplyRegistryProxy:    proxydns.NewServer,
-		DNSDomainName:          "cluster.local",
-		Resolver:               net.DefaultResolver,
+		dnsDomainName:          "cluster.local",
+		dnsResolver:            net.DefaultResolver,
 		generateTokenFunc:      GenerateTestToken,
 		registryExpiryDuration: time.Minute,
 	}
@@ -126,13 +125,13 @@ func (b *Builder) SetNodeSetup(f SetupNodeFunc) *Builder {
 
 // SetDNSDomainName sets DNS domain name for the building NSM domain
 func (b *Builder) SetDNSDomainName(name string) *Builder {
-	b.DNSDomainName = name
+	b.dnsDomainName = name
 	return b
 }
 
 // SetDNSResolver sets DNS resolver for proxy registries
 func (b *Builder) SetDNSResolver(d dnsresolve.Resolver) *Builder {
-	b.Resolver = d
+	b.dnsResolver = d
 	return b
 }
 
@@ -247,7 +246,7 @@ func (b *Builder) newRegistryProxy() {
 		nsmgrProxyURL = b.domain.NSMgrProxy.URL
 	}
 
-	registryProxy := b.supplyRegistryProxy(b.ctx, b.Resolver, b.DNSDomainName, nsmgrProxyURL, DefaultDialOptions(b.generateTokenFunc)...)
+	registryProxy := b.supplyRegistryProxy(b.ctx, b.dnsResolver, b.dnsDomainName, nsmgrProxyURL, DefaultDialOptions(b.generateTokenFunc)...)
 	serveURL := b.domain.supplyURL("reg-proxy")
 
 	serve(b.ctx, b.t, serveURL, registryProxy.Register)

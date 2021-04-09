@@ -26,6 +26,7 @@ import (
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
@@ -95,7 +96,7 @@ func NewCrossConnectClientFactory(additionalFunctionality ...networkservice.Netw
 // DefaultDialOptions returns default dial options for sandbox testing
 func DefaultDialOptions(genTokenFunc token.GeneratorFunc) []grpc.DialOption {
 	return append([]grpc.DialOption{
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(grpcfdTransportCredentials(insecure.NewCredentials())),
 		grpc.WithBlock(),
 		grpc.WithDefaultCallOptions(
 			grpc.WaitForReady(true),

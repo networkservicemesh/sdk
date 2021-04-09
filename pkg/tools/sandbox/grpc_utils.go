@@ -23,6 +23,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
@@ -31,7 +32,9 @@ import (
 )
 
 func serve(ctx context.Context, t *testing.T, u *url.URL, register func(server *grpc.Server)) {
-	server := grpc.NewServer(opentracing.WithTracing()...)
+	server := grpc.NewServer(append([]grpc.ServerOption{
+		grpc.Creds(grpcfdTransportCredentials(insecure.NewCredentials())),
+	}, opentracing.WithTracing()...)...)
 	register(server)
 
 	errCh := grpcutils.ListenAndServe(ctx, u, server)
