@@ -25,6 +25,7 @@ import (
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 
@@ -89,7 +90,7 @@ func GenerateExpiringToken(duration time.Duration) token.GeneratorFunc {
 // DefaultDialOptions returns default dial options for sandbox testing
 func DefaultDialOptions(genTokenFunc token.GeneratorFunc) []grpc.DialOption {
 	return append([]grpc.DialOption{
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(grpcfdTransportCredentials(insecure.NewCredentials())),
 		grpc.WithBlock(),
 		grpc.WithDefaultCallOptions(
 			grpc.WaitForReady(true),
