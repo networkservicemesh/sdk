@@ -105,7 +105,7 @@ func DefaultDialOptions(genTokenFunc token.GeneratorFunc) []grpc.DialOption {
 
 // Name creates unique name with the given prefix
 func Name(prefix string) string {
-	return prefix + "-" + uuid.New().String()
+	return fmt.Sprintf("%s-%s", prefix, uuid.New().String())
 }
 
 // SetupDefaultNode setups NSMgr and default Forwarder on the given node
