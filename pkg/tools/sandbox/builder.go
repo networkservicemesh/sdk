@@ -196,14 +196,6 @@ func (b *Builder) Build() *Domain {
 		supplyClientTC:       b.supplyClientTC,
 	}
 
-	if b.useUnixSockets {
-		msg := "Unix sockets are available only for local tests with no external registry"
-		require.Equal(b.t, b.nodesCount, 1, msg)
-		require.Nil(b.t, b.supplyNSMgrProxy, msg)
-		require.Nil(b.t, b.supplyRegistry, msg)
-		require.Nil(b.t, b.supplyRegistryProxy, msg)
-	}
-
 	b.newNSMgrProxy()
 	b.newRegistryProxy()
 	b.newRegistry()
@@ -225,7 +217,7 @@ func (b *Builder) newNSMgrProxy() {
 	mgr := b.supplyNSMgrProxy(b.ctx, tokenGenerator,
 		nsmgrproxy.WithName(name),
 		nsmgrproxy.WithDialOptions(DefaultSecureDialOptions(b.supplyClientTC(), tokenGenerator)...))
-	serveURL := b.supplyURL("nsmgr-proxy")
+	serveURL := supplyTCPURL(b.t)("nsmgr-proxy")
 
 	serve(b.ctx, b.t, serveURL, b.supplyServerTC(), mgr.Register)
 
@@ -252,7 +244,7 @@ func (b *Builder) newRegistryProxy() {
 	tokenGenerator := b.supplyTokenGenerator(DefaultTokenTimeout)
 
 	registryProxy := b.supplyRegistryProxy(b.ctx, b.dnsResolver, b.dnsDomainName, nsmgrProxyURL, DefaultSecureDialOptions(b.supplyClientTC(), tokenGenerator)...)
-	serveURL := b.supplyURL("reg-proxy")
+	serveURL := supplyTCPURL(b.t)("reg-proxy")
 
 	serve(b.ctx, b.t, serveURL, b.supplyServerTC(), registryProxy.Register)
 
@@ -277,7 +269,7 @@ func (b *Builder) newRegistry() {
 	tokenGenerator := b.supplyTokenGenerator(DefaultTokenTimeout)
 
 	registry := b.supplyRegistry(b.ctx, b.registryExpiryDuration, registryProxyURL, DefaultSecureDialOptions(b.supplyClientTC(), tokenGenerator)...)
-	serveURL := b.supplyURL("reg")
+	serveURL := supplyTCPURL(b.t)("reg")
 
 	serve(b.ctx, b.t, serveURL, b.supplyServerTC(), registry.Register)
 

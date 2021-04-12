@@ -74,13 +74,13 @@ func (n *Node) NewNSMgr(
 		nsmgr.WithDialOptions(DefaultSecureDialOptions(clientTC, tokenGenerator)...),
 	}
 
-	if n.Registry != nil {
-		registryCC := dial(ctx, n.t, n.Registry.URL, clientTC, tokenGenerator)
-		options = append(options, nsmgr.WithRegistryClientConn(registryCC))
-	}
-
 	if serveURL.Scheme != "unix" {
 		options = append(options, nsmgr.WithURL(serveURL.String()))
+
+		if n.Registry != nil {
+			registryCC := dial(ctx, n.t, n.Registry.URL, clientTC, tokenGenerator)
+			options = append(options, nsmgr.WithRegistryClientConn(registryCC))
+		}
 	}
 
 	entry := &NSMgrEntry{
