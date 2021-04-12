@@ -292,7 +292,7 @@ func (b *Builder) newRegistry() {
 func (b *Builder) newNode(nodeNum int) {
 	node := &Node{
 		t:      b.t,
-		domain: b.domain,
+		Domain: b.domain,
 	}
 
 	b.setupNode(b.ctx, node, nodeNum)

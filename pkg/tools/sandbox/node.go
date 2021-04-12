@@ -43,13 +43,14 @@ import (
 
 // Node is a NSMgr with Forwarder, NSE registry clients
 type Node struct {
-	t      *testing.T
-	domain *Domain
+	t *testing.T
 
 	NSMgr                   *NSMgrEntry
 	ForwarderRegistryClient registryapi.NetworkServiceEndpointRegistryClient
 	EndpointRegistryClient  registryapi.NetworkServiceEndpointRegistryClient
 	NSRegistryClient        registryapi.NetworkServiceRegistryClient
+
+	*Domain
 }
 
 // NewNSMgr creates a new NSMgr
@@ -61,11 +62,11 @@ func (n *Node) NewNSMgr(
 	supplyNSMgr SupplyNSMgrFunc,
 ) *NSMgrEntry {
 	if serveURL == nil {
-		serveURL = n.domain.supplyURL("nsmgr")
+		serveURL = n.supplyURL("nsmgr")
 	}
 
-	clientTC := n.domain.supplyClientTC() // NSMgr -> (...)
-	tokenGenerator := n.domain.supplyTokenGenerator(tokenTimeout)
+	clientTC := n.supplyClientTC() // NSMgr -> (...)
+	tokenGenerator := n.supplyTokenGenerator(tokenTimeout)
 
 	options := []nsmgr.Option{
 		nsmgr.WithName(name),
@@ -73,8 +74,8 @@ func (n *Node) NewNSMgr(
 		nsmgr.WithDialOptions(DefaultSecureDialOptions(clientTC, tokenGenerator)...),
 	}
 
-	if n.domain.Registry != nil {
-		registryCC := dial(ctx, n.t, n.domain.Registry.URL, clientTC, tokenGenerator)
+	if n.Registry != nil {
+		registryCC := dial(ctx, n.t, n.Registry.URL, clientTC, tokenGenerator)
 		options = append(options, nsmgr.WithRegistryClientConn(registryCC))
 	}
 
@@ -88,8 +89,8 @@ func (n *Node) NewNSMgr(
 		URL:   serveURL,
 	}
 
-	serve(ctx, n.t, serveURL, n.domain.supplyServerTC(), entry.Register)
-	cc := dial(ctx, n.t, serveURL, n.domain.supplyClientTC(), tokenGenerator) // (...) -> NSMgr
+	serve(ctx, n.t, serveURL, n.supplyServerTC(), entry.Register)
+	cc := dial(ctx, n.t, serveURL, n.supplyClientTC(), tokenGenerator) // (...) -> NSMgr
 
 	log.FromContext(ctx).Infof("Started listening NSMgr %s on %s", name, serveURL.String())
 
@@ -109,11 +110,11 @@ func (n *Node) NewForwarder(
 	additionalFunctionality ...networkservice.NetworkServiceServer,
 ) *EndpointEntry {
 	if nse.Url == "" {
-		nse.Url = n.domain.supplyURL("forwarder").String()
+		nse.Url = n.supplyURL("forwarder").String()
 	}
 
-	clientTC := n.domain.supplyClientTC()
-	tokenGenerator := n.domain.supplyTokenGenerator(tokenTimeout)
+	clientTC := n.supplyClientTC()
+	tokenGenerator := n.supplyTokenGenerator(tokenTimeout)
 
 	entry := new(EndpointEntry)
 	additionalFunctionality = append(additionalFunctionality,
@@ -140,10 +141,10 @@ func (n *Node) NewEndpoint(
 	additionalFunctionality ...networkservice.NetworkServiceServer,
 ) *EndpointEntry {
 	if nse.Url == "" {
-		nse.Url = n.domain.supplyURL("nse").String()
+		nse.Url = n.supplyURL("nse").String()
 	}
 
-	tokenGenerator := n.domain.supplyTokenGenerator(tokenTimeout)
+	tokenGenerator := n.supplyTokenGenerator(tokenTimeout)
 
 	return n.newEndpoint(ctx, nse, tokenGenerator, n.EndpointRegistryClient, additionalFunctionality...)
 }
@@ -164,7 +165,7 @@ func (n *Node) newEndpoint(
 	serveURL, err := url.Parse(nse.Url)
 	require.NoError(n.t, err)
 
-	serve(ctx, n.t, serveURL, n.domain.supplyServerTC(), entry.Register)
+	serve(ctx, n.t, serveURL, n.supplyServerTC(), entry.Register)
 
 	n.registerEndpoint(ctx, nse, registryClient)
 
@@ -215,7 +216,7 @@ func (n *Node) NewClient(
 ) networkservice.NetworkServiceClient {
 	return client.NewClient(
 		ctx,
-		dial(ctx, n.t, n.NSMgr.URL, n.domain.supplyClientTC(), n.domain.supplyTokenGenerator(tokenTimeout)),
+		dial(ctx, n.t, n.NSMgr.URL, n.supplyClientTC(), n.supplyTokenGenerator(tokenTimeout)),
 		client.WithAuthorizeClient(authorize.NewClient(authorize.Any())),
 		client.WithAdditionalFunctionality(additionalFunctionality...),
 	)
