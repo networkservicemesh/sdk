@@ -26,18 +26,17 @@ const (
 
 type contextKeyType string
 
-// heal client uses this function to inform heal server about events on connections
-type HealRequestFunc func(id string, restoreConnection bool)
+type healRequestFuncType func(id string, restoreConnection bool)
 
-func withHealRequestFunc(parent context.Context, monitorEventFunc HealRequestFunc) context.Context {
+func withHealRequestFunc(parent context.Context, fun healRequestFuncType) context.Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
-	return context.WithValue(parent, healRequestFuncKey, monitorEventFunc)
+	return context.WithValue(parent, healRequestFuncKey, fun)
 }
 
-func healRequestFunc(ctx context.Context) HealRequestFunc {
-	if rv, ok := ctx.Value(healRequestFuncKey).(HealRequestFunc); ok {
+func healRequestFunc(ctx context.Context) healRequestFuncType {
+	if rv, ok := ctx.Value(healRequestFuncKey).(healRequestFuncType); ok {
 		return rv
 	}
 	return nil
