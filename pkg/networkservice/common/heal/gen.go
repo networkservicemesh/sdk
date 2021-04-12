@@ -19,17 +19,15 @@
 package heal
 
 import (
-	"context"
 	"sync"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
-type connection struct {
-	*networkservice.Connection
-	ctx context.Context
+type connVerificationRequest struct {
+	connectionSuccessCh chan *networkservice.PathSegment
+	stopCh              chan struct{}
 }
 
-//go:generate go-syncmap -output connection_map.gen.go -type connectionMap<string,connection>
-
-type connectionMap sync.Map
+//go:generate go-syncmap -output verification_request_map.gen.go -type verificationRequestMap<string,connVerificationRequest>
+type verificationRequestMap sync.Map

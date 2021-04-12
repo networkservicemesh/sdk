@@ -88,17 +88,20 @@ func (f *healServer) Request(ctx context.Context, request *networkservice.Networ
 	}
 
 	ctx = f.applyStoredCandidates(ctx, conn)
-	ctx, cancel := f.healContext(ctx)
+	healCtx := f.ctx
+	if candidates := discover.Candidates(ctx); candidates != nil {
+		healCtx = discover.WithCandidates(healCtx, candidates.Endpoints, candidates.NetworkService)
+	}
 	<-f.contextHealMapExecutor.AsyncExec(func() {
 		id := request.GetConnection().GetId()
-		if entry, ok := f.contextHealMap[id]; ok {
+		if entry, ok := f.contextHealMap[id]; ok && entry.cancel != nil {
 			entry.cancel()
 		}
+		connCopy := conn.Clone()
 		f.contextHealMap[id] = &ctxWrapper{
-			conn:    conn.Clone(),
-			request: request.Clone().SetRequestConnection(request.GetConnection().Clone()),
-			ctx:     ctx,
-			cancel:  cancel,
+			conn:    connCopy,
+			request: request.Clone().SetRequestConnection(connCopy),
+			ctx:     healCtx,
 		}
 	})
 
@@ -119,33 +122,42 @@ func (f *healServer) Close(ctx context.Context, conn *networkservice.Connection)
 }
 
 func (f *healServer) healRequest(id string, restoreConnection bool) {
-	var ctx context.Context
+	var healCtx context.Context
 	var request *networkservice.NetworkServiceRequest
 	<-f.contextHealMapExecutor.AsyncExec(func() {
-		s := f.contextHealMap[id]
-		ctx = s.ctx
+		s, ok := f.contextHealMap[id]
+		if !ok {
+			return
+		}
+		if s.cancel != nil {
+			s.cancel()
+		}
+		ctx, cancel := context.WithCancel(s.ctx)
+		s.cancel = cancel
+		healCtx = ctx
 		request = s.request
 	})
 
-	// TODO create context for each heal?
+	if request == nil {
+		return
+	}
+
 	if restoreConnection {
-		go f.restoreConnection(ctx, request)
+		go f.restoreConnection(healCtx, request)
 	} else {
-		go f.processHeal(ctx, request)
+		go f.processHeal(healCtx, request)
 	}
 }
 
 func (f *healServer) stopHeal(conn *networkservice.Connection) {
-	var cancelHeal func()
 	<-f.contextHealMapExecutor.AsyncExec(func() {
 		if cancelHealEntry, ok := f.contextHealMap[conn.GetId()]; ok {
-			cancelHeal = cancelHealEntry.cancel
+			if cancelHealEntry.cancel != nil {
+				cancelHealEntry.cancel()
+			}
 			delete(f.contextHealMap, conn.GetId())
 		}
 	})
-	if cancelHeal != nil {
-		cancelHeal()
-	}
 }
 
 func (f *healServer) healContext(baseCtx context.Context) (context.Context, context.CancelFunc) {
@@ -158,18 +170,8 @@ func (f *healServer) healContext(baseCtx context.Context) (context.Context, cont
 	return ctx, cancel
 }
 
-// TODO when is this function needed?
-//  previously it was called when connections monitor broke
 func (f *healServer) restoreConnection(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) {
-	id := request.GetConnection().GetId()
-
-	var healMapCtx context.Context
-	<-f.contextHealMapExecutor.AsyncExec(func() {
-		if entry, ok := f.contextHealMap[id]; ok {
-			healMapCtx = entry.ctx
-		}
-	})
-	if healMapCtx != ctx || ctx.Err() != nil {
+	if ctx.Err() != nil {
 		return
 	}
 
