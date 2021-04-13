@@ -28,7 +28,7 @@ jobs:
           - cmd-nsc-init
     name: Update ${{ matrix.repository }}
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.actor == 'nsmbot' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.actor == 'nsmbot' || github.ref == 'refs/heads/master' }}
     steps:
       - name: Checkout ${{ github.repository }}
         uses: actions/checkout@v2
