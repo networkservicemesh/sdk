@@ -41,7 +41,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
@@ -80,9 +79,11 @@ func TestNSMGR_RemoteUsecase_Parallel(t *testing.T) {
 			Name:                "final-endpoint",
 			NetworkServiceNames: []string{"my-service-remote"},
 		}
-		domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.DefaultTokenTimeout, counter)
+		domain.Nodes[0].NewEndpoint(ctx, nseReg,
+			sandbox.WithEndpointAdditionalFunctionality(counter),
+		)
 	}()
-	nsc := domain.Nodes[1].NewClient(ctx, sandbox.DefaultTokenTimeout)
+	nsc := domain.Nodes[1].NewClient(ctx)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -157,7 +158,7 @@ func TestNSMGR_SelectsRestartingEndpoint(t *testing.T) {
 	})
 
 	// 3. Create client and request endpoint
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
+	nsc := domain.Nodes[0].NewClient(ctx)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -198,7 +199,9 @@ func TestNSMGR_RemoteUsecase_BusyEndpoints(t *testing.T) {
 				Name:                "final-endpoint-" + strconv.Itoa(id),
 				NetworkServiceNames: []string{"my-service-remote"},
 			}
-			domain.Nodes[1].NewEndpoint(ctx, nseReg, sandbox.DefaultTokenTimeout, newBusyEndpoint())
+			domain.Nodes[1].NewEndpoint(ctx, nseReg,
+				sandbox.WithEndpointAdditionalFunctionality(newBusyEndpoint()),
+			)
 			wg.Done()
 		}(i)
 	}
@@ -209,9 +212,11 @@ func TestNSMGR_RemoteUsecase_BusyEndpoints(t *testing.T) {
 			Name:                "final-endpoint-3",
 			NetworkServiceNames: []string{"my-service-remote"},
 		}
-		domain.Nodes[1].NewEndpoint(ctx, nseReg, sandbox.DefaultTokenTimeout, counter)
+		domain.Nodes[1].NewEndpoint(ctx, nseReg,
+			sandbox.WithEndpointAdditionalFunctionality(counter),
+		)
 	}()
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
+	nsc := domain.Nodes[0].NewClient(ctx)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -248,7 +253,9 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 	}
 
 	counter := &counterServer{}
-	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.DefaultTokenTimeout, counter)
+	domain.Nodes[0].NewEndpoint(ctx, nseReg,
+		sandbox.WithEndpointAdditionalFunctionality(counter),
+	)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -261,7 +268,7 @@ func TestNSMGR_RemoteUsecase(t *testing.T) {
 		},
 	}
 
-	nsc := domain.Nodes[1].NewClient(ctx, sandbox.DefaultTokenTimeout)
+	nsc := domain.Nodes[1].NewClient(ctx)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -306,9 +313,11 @@ func TestNSMGR_ConnectToDeadNSE(t *testing.T) {
 	counter := &counterServer{}
 
 	nseCtx, killNse := context.WithCancel(ctx)
-	domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.DefaultTokenTimeout, counter)
+	domain.Nodes[0].NewEndpoint(nseCtx, nseReg,
+		sandbox.WithEndpointAdditionalFunctionality(counter),
+	)
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
+	nsc := domain.Nodes[0].NewClient(ctx)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -355,9 +364,11 @@ func TestNSMGR_LocalUsecase(t *testing.T) {
 	}
 
 	counter := &counterServer{}
-	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.DefaultTokenTimeout, counter)
+	domain.Nodes[0].NewEndpoint(ctx, nseReg,
+		sandbox.WithEndpointAdditionalFunctionality(counter),
+	)
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
+	nsc := domain.Nodes[0].NewClient(ctx)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -426,10 +437,12 @@ func TestNSMGR_PassThroughRemote(t *testing.T) {
 			Name:                fmt.Sprintf("endpoint-%v", i),
 			NetworkServiceNames: []string{fmt.Sprintf("my-service-remote-%v", i)},
 		}
-		domain.Nodes[i].NewEndpoint(ctx, nseReg, sandbox.DefaultTokenTimeout, additionalFunctionality...)
+		domain.Nodes[i].NewEndpoint(ctx, nseReg,
+			sandbox.WithEndpointAdditionalFunctionality(additionalFunctionality...),
+		)
 	}
 
-	nsc := domain.Nodes[nodesCount-1].NewClient(ctx, sandbox.DefaultTokenTimeout)
+	nsc := domain.Nodes[nodesCount-1].NewClient(ctx)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -482,10 +495,12 @@ func TestNSMGR_PassThroughLocal(t *testing.T) {
 			Name:                fmt.Sprintf("endpoint-%v", i),
 			NetworkServiceNames: []string{fmt.Sprintf("my-service-remote-%v", i)},
 		}
-		domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.DefaultTokenTimeout, additionalFunctionality...)
+		domain.Nodes[0].NewEndpoint(ctx, nseReg,
+			sandbox.WithEndpointAdditionalFunctionality(additionalFunctionality...),
+		)
 	}
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
+	nsc := domain.Nodes[0].NewClient(ctx)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -517,7 +532,7 @@ func TestNSMGR_ShouldCorrectlyAddForwardersWithSameNames(t *testing.T) {
 		SetNodesCount(1).
 		SetRegistryProxySupplier(nil).
 		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, _ int) {
-			node.NewNSMgr(ctx, sandbox.Name("nsmgr"), nil, sandbox.DefaultTokenTimeout, nsmgr.NewServer)
+			node.NewNSMgr(ctx, sandbox.Name("nsmgr"))
 		}).
 		SetRegistryExpiryDuration(sandbox.RegistryExpiryDuration).
 		Build()
@@ -533,13 +548,13 @@ func TestNSMGR_ShouldCorrectlyAddForwardersWithSameNames(t *testing.T) {
 
 	// 1. Add forwarders
 	forwarder1Reg := forwarderReg.Clone()
-	domain.Nodes[0].NewForwarder(ctx, forwarder1Reg, sandbox.DefaultTokenTimeout)
+	domain.Nodes[0].NewForwarder(ctx, forwarder1Reg)
 
 	forwarder2Reg := forwarderReg.Clone()
-	domain.Nodes[0].NewForwarder(ctx, forwarder2Reg, sandbox.DefaultTokenTimeout)
+	domain.Nodes[0].NewForwarder(ctx, forwarder2Reg)
 
 	forwarder3Reg := forwarderReg.Clone()
-	domain.Nodes[0].NewForwarder(ctx, forwarder3Reg, sandbox.DefaultTokenTimeout)
+	domain.Nodes[0].NewForwarder(ctx, forwarder3Reg)
 
 	// 2. Wait for refresh
 	<-time.After(sandbox.RegistryExpiryDuration)
@@ -578,16 +593,16 @@ func TestNSMGR_ShouldCorrectlyAddEndpointsWithSameNames(t *testing.T) {
 		Name: "endpoint",
 	}
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
+	nsc := domain.Nodes[0].NewClient(ctx)
 
 	// 1. Add endpoints
 	nse1Reg := nseReg.Clone()
 	nse1Reg.NetworkServiceNames = []string{"service-1"}
-	domain.Nodes[0].NewEndpoint(ctx, nse1Reg, sandbox.DefaultTokenTimeout)
+	domain.Nodes[0].NewEndpoint(ctx, nse1Reg)
 
 	nse2Reg := nseReg.Clone()
 	nse2Reg.NetworkServiceNames = []string{"service-2"}
-	domain.Nodes[0].NewEndpoint(ctx, nse2Reg, sandbox.DefaultTokenTimeout)
+	domain.Nodes[0].NewEndpoint(ctx, nse2Reg)
 
 	// 2. Wait for refresh
 	<-time.After(sandbox.RegistryExpiryDuration)
@@ -653,9 +668,9 @@ func testNSEAndClient(
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.DefaultTokenTimeout)
+	domain.Nodes[0].NewEndpoint(ctx, nseReg)
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
+	nsc := domain.Nodes[0].NewClient(ctx)
 
 	conn, err := nsc.Request(ctx, &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -799,9 +814,11 @@ func TestNSMGR_LocalUsecaseNoURL(t *testing.T) {
 	}
 
 	counter := &counterServer{}
-	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.DefaultTokenTimeout, counter)
+	domain.Nodes[0].NewEndpoint(ctx, nseReg,
+		sandbox.WithEndpointAdditionalFunctionality(counter),
+	)
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
+	nsc := domain.Nodes[0].NewClient(ctx)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{

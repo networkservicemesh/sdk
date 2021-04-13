@@ -214,9 +214,13 @@ func TestRefreshClient_Sandbox(t *testing.T) {
 	}
 
 	refreshSrv := newRefreshTesterServer(t, sandboxMinDuration, sandboxExpireTimeout)
-	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.DefaultTokenTimeout, refreshSrv)
+	domain.Nodes[0].NewEndpoint(ctx, nseReg,
+		sandbox.WithEndpointAdditionalFunctionality(refreshSrv),
+	)
 
-	nsc := domain.Nodes[1].NewClient(ctx, sandboxExpireTimeout)
+	nsc := domain.Nodes[1].NewClient(ctx,
+		sandbox.WithClientTokenTimeout(sandboxExpireTimeout),
+	)
 
 	refreshSrv.beforeRequest("test-conn")
 	_, err := nsc.Request(ctx, mkRequest("test-conn", nil))

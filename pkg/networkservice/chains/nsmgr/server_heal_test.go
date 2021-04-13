@@ -100,7 +100,10 @@ func testNSMGRHealEndpoint(t *testing.T, nodeNum int, restored bool) {
 	nseCtx, nseCtxCancel := context.WithTimeout(context.Background(), time.Second)
 	defer nseCtxCancel()
 
-	nse := domain.Nodes[nodeNum].NewEndpoint(nseCtx, nseReg, time.Second, counter)
+	nse := domain.Nodes[nodeNum].NewEndpoint(nseCtx, nseReg,
+		sandbox.WithEndpointTokenTimeout(time.Second),
+		sandbox.WithEndpointAdditionalFunctionality(counter),
+	)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -113,7 +116,7 @@ func testNSMGRHealEndpoint(t *testing.T, nodeNum int, restored bool) {
 		},
 	}
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
+	nsc := domain.Nodes[0].NewClient(ctx)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -134,7 +137,9 @@ func testNSMGRHealEndpoint(t *testing.T, nodeNum int, restored bool) {
 		nseReg2.Name = nse.Name
 		nseReg2.Url = nse.URL.String()
 	}
-	domain.Nodes[nodeNum].NewEndpoint(ctx, nseReg2, sandbox.DefaultTokenTimeout, counter)
+	domain.Nodes[nodeNum].NewEndpoint(ctx, nseReg2,
+		sandbox.WithEndpointAdditionalFunctionality(counter),
+	)
 
 	if restored {
 		require.Eventually(t, checkSecondRequestsReceived(func() int {
@@ -225,7 +230,9 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int, restored bool) {
 	}
 
 	counter := &counterServer{}
-	domain.Nodes[1].NewEndpoint(ctx, nseReg, sandbox.DefaultTokenTimeout, counter)
+	domain.Nodes[1].NewEndpoint(ctx, nseReg,
+		sandbox.WithEndpointAdditionalFunctionality(counter),
+	)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -238,7 +245,7 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int, restored bool) {
 		},
 	}
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
+	nsc := domain.Nodes[0].NewClient(ctx)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -258,7 +265,7 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int, restored bool) {
 		forwarderReg.Name = forwarder.Name
 		forwarderReg.Url = forwarder.URL.String()
 	}
-	domain.Nodes[nodeNum].NewForwarder(ctx, forwarderReg, sandbox.DefaultTokenTimeout)
+	domain.Nodes[nodeNum].NewForwarder(ctx, forwarderReg)
 
 	if restored {
 		require.Eventually(t, checkSecondRequestsReceived(func() int {
@@ -291,13 +298,16 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int, restored bool) {
 }
 
 func setupCancelableForwarderNode(ctx context.Context, node *sandbox.Node) (context.CancelFunc, *sandbox.EndpointEntry) {
-	node.NewNSMgr(ctx, sandbox.Name("nsmgr"), nil, sandbox.DefaultTokenTimeout, nsmgr.NewServer)
+	node.NewNSMgr(ctx, sandbox.Name("nsmgr"))
 
 	forwarderCtx, forwarderCtxCancel := context.WithTimeout(ctx, time.Second)
 
-	forwarder := node.NewForwarder(forwarderCtx, &registry.NetworkServiceEndpoint{
+	forwarderReg := &registry.NetworkServiceEndpoint{
 		Name: sandbox.Name("forwarder"),
-	}, time.Second)
+	}
+	forwarder := node.NewForwarder(forwarderCtx, forwarderReg,
+		sandbox.WithForwarderTokenTimeout(time.Second),
+	)
 
 	return forwarderCtxCancel, forwarder
 }
@@ -363,7 +373,9 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 	}
 
 	counter := &counterServer{}
-	domain.Nodes[1].NewEndpoint(ctx, nseReg, sandbox.DefaultTokenTimeout, counter)
+	domain.Nodes[1].NewEndpoint(ctx, nseReg,
+		sandbox.WithEndpointAdditionalFunctionality(counter),
+	)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -376,7 +388,7 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 		},
 	}
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
+	nsc := domain.Nodes[0].NewClient(ctx)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -390,7 +402,9 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 		mgr := domain.Nodes[nodeNum].NSMgr
 		require.Eventually(t, checkURLFree(mgr.URL), timeout, tick)
 
-		domain.Nodes[nodeNum].NewNSMgr(ctx, mgr.Name, mgr.URL, sandbox.DefaultTokenTimeout, nsmgr.NewServer)
+		domain.Nodes[nodeNum].NewNSMgr(ctx, mgr.Name,
+			sandbox.WithNSMgrURL(mgr.URL),
+		)
 		// TODO: https://github.com/networkservicemesh/sdk/issues/713
 		domain.Nodes[nodeNum].RegisterForwarder(ctx, forwarderReg)
 		if nodeNum == 1 {
@@ -401,7 +415,9 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 			Name:                "nse-2",
 			NetworkServiceNames: []string{"ns"},
 		}
-		domain.Nodes[2].NewEndpoint(ctx, nseReg2, sandbox.DefaultTokenTimeout, counter)
+		domain.Nodes[2].NewEndpoint(ctx, nseReg2,
+			sandbox.WithEndpointAdditionalFunctionality(counter),
+		)
 	}
 
 	if restored {
@@ -437,12 +453,14 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 func setupCancellableNSMgrNode(ctx context.Context, node *sandbox.Node) (context.CancelFunc, *registry.NetworkServiceEndpoint) {
 	nsmgrCtx, nsmgrCtxCancel := context.WithTimeout(ctx, time.Second)
 
-	node.NewNSMgr(nsmgrCtx, sandbox.Name("nsmgr"), nil, time.Second, nsmgr.NewServer)
+	node.NewNSMgr(nsmgrCtx, sandbox.Name("nsmgr"),
+		sandbox.WithNSMgrTokenTimeout(time.Second),
+	)
 
 	forwarderReg := &registry.NetworkServiceEndpoint{
 		Name: sandbox.Name("forwarder"),
 	}
-	node.NewForwarder(ctx, forwarderReg, sandbox.DefaultTokenTimeout)
+	node.NewForwarder(ctx, forwarderReg)
 
 	return nsmgrCtxCancel, forwarderReg
 }
@@ -466,7 +484,7 @@ func TestNSMGR_CloseHeal(t *testing.T) {
 
 	nseCtx, nseCtxCancel := context.WithCancel(ctx)
 
-	domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.DefaultTokenTimeout)
+	domain.Nodes[0].NewEndpoint(nseCtx, nseReg)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -481,7 +499,7 @@ func TestNSMGR_CloseHeal(t *testing.T) {
 
 	nscCtx, nscCtxCancel := context.WithCancel(ctx)
 
-	nsc := domain.Nodes[0].NewClient(nscCtx, sandbox.DefaultTokenTimeout)
+	nsc := domain.Nodes[0].NewClient(nscCtx)
 
 	// 1. Request
 	conn, err := nsc.Request(ctx, request.Clone())

@@ -176,20 +176,15 @@ issues:
     - path: .*registry.*.go
       linters:
         - dupl
+    # Sometimes test functions just get long :(
+    - path: .*_test.go
+      linters:
+        - funlen
     # TODO - remove after deciding how to properly handle the cancel
     - path: pkg/networkservice/common/connect/server.go
       linters:
         - govet
       text: "lostcancel"
-    # Sometimes test functions just get long :(
-    - path: pkg/networkservice/common/monitor/server_test.go
-      linters:
-        - funlen
-      text: "Function 'TestMonitor' is too long"
-    - path: pkg/networkservice/common/connect/server_test.go
-      linters:
-        - funlen
-      text: "Function 'TestConnectServerShouldNotPanicOnRequest' is too long"
     - path: pkg/networkservice/utils/checks/checkerror/server_test.go
       linters:
         - dupl

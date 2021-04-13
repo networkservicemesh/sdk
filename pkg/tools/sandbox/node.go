@@ -22,10 +22,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
@@ -53,20 +54,58 @@ type Node struct {
 	*Domain
 }
 
+// -----------------
+// NSMgr
+// -----------------
+
+type nsmgrOptions struct {
+	url          *url.URL
+	tokenTimeout time.Duration
+	supplyNSMgr  SupplyNSMgrFunc
+}
+
+// NSMgrOption is an option pattern for NewNSMgr
+type NSMgrOption func(nsmgrOpts *nsmgrOptions)
+
+// WithNSMgrURL sets NewNSMgr serve URL
+func WithNSMgrURL(u *url.URL) NSMgrOption {
+	return func(nsmgrOpts *nsmgrOptions) {
+		nsmgrOpts.url = u
+	}
+}
+
+// WithNSMgrTokenTimeout sets NewNSMgr token timeout
+func WithNSMgrTokenTimeout(tokenTimeout time.Duration) NSMgrOption {
+	return func(nsmgrOpts *nsmgrOptions) {
+		nsmgrOpts.tokenTimeout = tokenTimeout
+	}
+}
+
+// WithNSMgrSupplier sets NewNSMgr NSMgr supplier
+func WithNSMgrSupplier(supplyNSMgr SupplyNSMgrFunc) NSMgrOption {
+	return func(nsmgrOpts *nsmgrOptions) {
+		nsmgrOpts.supplyNSMgr = supplyNSMgr
+	}
+}
+
 // NewNSMgr creates a new NSMgr
 func (n *Node) NewNSMgr(
 	ctx context.Context,
 	name string,
-	serveURL *url.URL,
-	tokenTimeout time.Duration,
-	supplyNSMgr SupplyNSMgrFunc,
+	opts ...NSMgrOption,
 ) *NSMgrEntry {
-	if serveURL == nil {
-		serveURL = n.supplyURL("nsmgr")
+	nsmgrOpts := &nsmgrOptions{
+		url:          n.supplyURL("nsmgr"),
+		tokenTimeout: DefaultTokenTimeout,
+		supplyNSMgr:  nsmgr.NewServer,
+	}
+
+	for _, opt := range opts {
+		opt(nsmgrOpts)
 	}
 
 	clientTC := n.supplyClientTC() // NSMgr -> (...)
-	tokenGenerator := n.supplyTokenGenerator(tokenTimeout)
+	tokenGenerator := n.supplyTokenGenerator(nsmgrOpts.tokenTimeout)
 
 	options := []nsmgr.Option{
 		nsmgr.WithName(name),
@@ -74,8 +113,8 @@ func (n *Node) NewNSMgr(
 		nsmgr.WithDialOptions(DefaultSecureDialOptions(clientTC, tokenGenerator)...),
 	}
 
-	if serveURL.Scheme != "unix" {
-		options = append(options, nsmgr.WithURL(serveURL.String()))
+	if nsmgrOpts.url.Scheme != "unix" {
+		options = append(options, nsmgr.WithURL(nsmgrOpts.url.String()))
 
 		if n.Registry != nil {
 			registryCC := dial(ctx, n.t, n.Registry.URL, clientTC, tokenGenerator)
@@ -84,15 +123,15 @@ func (n *Node) NewNSMgr(
 	}
 
 	entry := &NSMgrEntry{
-		Nsmgr: supplyNSMgr(ctx, tokenGenerator, options...),
+		Nsmgr: nsmgrOpts.supplyNSMgr(ctx, tokenGenerator, options...),
 		Name:  name,
-		URL:   serveURL,
+		URL:   nsmgrOpts.url,
 	}
 
-	serve(ctx, n.t, serveURL, n.supplyServerTC(), entry.Register)
-	cc := dial(ctx, n.t, serveURL, n.supplyClientTC(), tokenGenerator) // (...) -> NSMgr
+	serve(ctx, n.t, nsmgrOpts.url, n.supplyServerTC(), entry.Register)
+	cc := dial(ctx, n.t, nsmgrOpts.url, n.supplyClientTC(), tokenGenerator) // (...) -> NSMgr
 
-	log.FromContext(ctx).Infof("Started listening NSMgr %s on %s", name, serveURL.String())
+	log.FromContext(ctx).Infof("Started listening NSMgr %s on %s", name, nsmgrOpts.url.String())
 
 	n.NSMgr = entry
 	n.ForwarderRegistryClient = registryclient.NewNetworkServiceEndpointRegistryInterposeClient(ctx, cc)
@@ -102,51 +141,122 @@ func (n *Node) NewNSMgr(
 	return entry
 }
 
+// -----------------
+// Forwarder
+// -----------------
+
+type forwarderOptions struct {
+	tokenTimeout                  time.Duration
+	additionalServerFunctionality []networkservice.NetworkServiceServer
+	additionalClientFunctionality []networkservice.NetworkServiceClient
+}
+
+// ForwarderOption is an option pattern for NewForwarder
+type ForwarderOption func(forwarderOpts *forwarderOptions)
+
+// WithForwarderTokenTimeout sets NewForwarder token timeout
+func WithForwarderTokenTimeout(tokenTimeout time.Duration) ForwarderOption {
+	return func(forwarderOpts *forwarderOptions) {
+		forwarderOpts.tokenTimeout = tokenTimeout
+	}
+}
+
+// WithForwarderAdditionalServerFunctionality sets NewForwarder additional server functionality
+func WithForwarderAdditionalServerFunctionality(servers ...networkservice.NetworkServiceServer) ForwarderOption {
+	return func(forwarderOpts *forwarderOptions) {
+		forwarderOpts.additionalServerFunctionality = servers
+	}
+}
+
+// WithForwarderAdditionalClientFunctionality sets NewForwarder additional client functionality
+func WithForwarderAdditionalClientFunctionality(clients ...networkservice.NetworkServiceClient) ForwarderOption {
+	return func(forwarderOpts *forwarderOptions) {
+		forwarderOpts.additionalClientFunctionality = clients
+	}
+}
+
 // NewForwarder starts a new forwarder and registers it on the node NSMgr
 func (n *Node) NewForwarder(
 	ctx context.Context,
 	nse *registryapi.NetworkServiceEndpoint,
-	tokenTimeout time.Duration,
-	additionalFunctionality ...networkservice.NetworkServiceServer,
+	opts ...ForwarderOption,
 ) *EndpointEntry {
+	forwarderOpts := &forwarderOptions{
+		tokenTimeout: DefaultTokenTimeout,
+	}
+
+	for _, opt := range opts {
+		opt(forwarderOpts)
+	}
+
 	if nse.Url == "" {
 		nse.Url = n.supplyURL("forwarder").String()
 	}
 
 	clientTC := n.supplyClientTC()
-	tokenGenerator := n.supplyTokenGenerator(tokenTimeout)
+	tokenGenerator := n.supplyTokenGenerator(forwarderOpts.tokenTimeout)
 
 	entry := new(EndpointEntry)
-	additionalFunctionality = append(additionalFunctionality,
+	*entry = *n.newEndpoint(ctx, nse, tokenGenerator, n.ForwarderRegistryClient, append(forwarderOpts.additionalServerFunctionality,
 		clienturl.NewServer(n.NSMgr.URL),
 		heal.NewServer(ctx, addressof.NetworkServiceClient(adapters.NewServerToClient(entry))),
 		connect.NewServer(ctx,
 			client.NewCrossConnectClientFactory(
 				client.WithName(nse.Name),
-			),
-			connect.WithDialOptions(DefaultSecureDialOptions(clientTC, tokenGenerator)...),
-		),
-	)
-
-	*entry = *n.newEndpoint(ctx, nse, tokenGenerator, n.ForwarderRegistryClient, additionalFunctionality...)
+				client.WithAdditionalFunctionality(forwarderOpts.additionalClientFunctionality...)),
+			connect.WithDialOptions(DefaultSecureDialOptions(clientTC, tokenGenerator)...)),
+	)...)
 
 	return entry
+}
+
+// -----------------
+// Endpoint
+// -----------------
+
+type endpointOptions struct {
+	tokenTimeout            time.Duration
+	additionalFunctionality []networkservice.NetworkServiceServer
+}
+
+// EndpointOption is an option pattern for NewEndpoint
+type EndpointOption func(endpointOpts *endpointOptions)
+
+// WithEndpointTokenTimeout sets NewEndpoint token timeout
+func WithEndpointTokenTimeout(tokenTimeout time.Duration) EndpointOption {
+	return func(endpointOpts *endpointOptions) {
+		endpointOpts.tokenTimeout = tokenTimeout
+	}
+}
+
+// WithEndpointAdditionalFunctionality sets NewEndpoint additional functionality
+func WithEndpointAdditionalFunctionality(servers ...networkservice.NetworkServiceServer) EndpointOption {
+	return func(endpointOpts *endpointOptions) {
+		endpointOpts.additionalFunctionality = servers
+	}
 }
 
 // NewEndpoint starts a new endpoint and registers it on the node NSMgr
 func (n *Node) NewEndpoint(
 	ctx context.Context,
 	nse *registryapi.NetworkServiceEndpoint,
-	tokenTimeout time.Duration,
-	additionalFunctionality ...networkservice.NetworkServiceServer,
+	opts ...EndpointOption,
 ) *EndpointEntry {
+	endpointOpts := &endpointOptions{
+		tokenTimeout: DefaultTokenTimeout,
+	}
+
+	for _, opt := range opts {
+		opt(endpointOpts)
+	}
+
 	if nse.Url == "" {
 		nse.Url = n.supplyURL("nse").String()
 	}
 
-	tokenGenerator := n.supplyTokenGenerator(tokenTimeout)
+	tokenGenerator := n.supplyTokenGenerator(endpointOpts.tokenTimeout)
 
-	return n.newEndpoint(ctx, nse, tokenGenerator, n.EndpointRegistryClient, additionalFunctionality...)
+	return n.newEndpoint(ctx, nse, tokenGenerator, n.EndpointRegistryClient, endpointOpts.additionalFunctionality...)
 }
 
 func (n *Node) newEndpoint(
@@ -208,16 +318,49 @@ func (n *Node) registerEndpoint(
 	nse.ExpirationTime = reg.ExpirationTime
 }
 
+// -----------------
+// Client
+// -----------------
+
+type clientOptions struct {
+	tokenTimeout            time.Duration
+	additionalFunctionality []networkservice.NetworkServiceClient
+}
+
+// ClientOption is an option pattern for NewClient
+type ClientOption func(endpointOpts *clientOptions)
+
+// WithClientTokenTimeout sets NewClient token timeout
+func WithClientTokenTimeout(tokenTimeout time.Duration) ClientOption {
+	return func(clientOpts *clientOptions) {
+		clientOpts.tokenTimeout = tokenTimeout
+	}
+}
+
+// WithClientAdditionalFunctionality sets NewClient additional functionality
+func WithClientAdditionalFunctionality(clients ...networkservice.NetworkServiceClient) ClientOption {
+	return func(clientOpts *clientOptions) {
+		clientOpts.additionalFunctionality = clients
+	}
+}
+
 // NewClient starts a new client and connects it to the node NSMgr
 func (n *Node) NewClient(
 	ctx context.Context,
-	tokenTimeout time.Duration,
-	additionalFunctionality ...networkservice.NetworkServiceClient,
+	opts ...ClientOption,
 ) networkservice.NetworkServiceClient {
+	clientOpts := &clientOptions{
+		tokenTimeout: DefaultTokenTimeout,
+	}
+
+	for _, opt := range opts {
+		opt(clientOpts)
+	}
+
 	return client.NewClient(
 		ctx,
-		dial(ctx, n.t, n.NSMgr.URL, n.supplyClientTC(), n.supplyTokenGenerator(tokenTimeout)),
+		dial(ctx, n.t, n.NSMgr.URL, n.supplyClientTC(), n.supplyTokenGenerator(clientOpts.tokenTimeout)),
 		client.WithAuthorizeClient(authorize.NewClient(authorize.Any())),
-		client.WithAdditionalFunctionality(additionalFunctionality...),
+		client.WithAdditionalFunctionality(clientOpts.additionalFunctionality...),
 	)
 }

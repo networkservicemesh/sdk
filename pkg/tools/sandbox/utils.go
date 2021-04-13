@@ -87,9 +87,11 @@ func Name(prefix string) string {
 
 // SetupDefaultNode setups NSMgr and default Forwarder on the given node
 func SetupDefaultNode(ctx context.Context, node *Node, supplyNSMgr SupplyNSMgrFunc) {
-	node.NewNSMgr(ctx, Name("nsmgr"), nil, DefaultTokenTimeout, supplyNSMgr)
+	node.NewNSMgr(ctx, Name("nsmgr"),
+		WithNSMgrSupplier(supplyNSMgr),
+	)
 
 	node.NewForwarder(ctx, &registryapi.NetworkServiceEndpoint{
 		Name: Name("forwarder"),
-	}, DefaultTokenTimeout)
+	})
 }
