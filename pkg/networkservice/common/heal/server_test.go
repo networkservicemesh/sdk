@@ -136,6 +136,9 @@ func TestHealClient_EmptyInit(t *testing.T) {
 			}
 			return next.Client(ctx).Request(ctx, in)
 		},
+		CloseFunc: func(ctx context.Context, in *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+			return &empty.Empty{}, nil
+		},
 	}
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
