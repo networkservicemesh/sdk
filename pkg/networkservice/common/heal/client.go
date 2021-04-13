@@ -103,6 +103,7 @@ func (u *healClient) listenToConnectionChanges(heal healRequestFuncType, current
 		errCh <- errors.Wrap(err, "MonitorConnections failed")
 		return
 	}
+
 	close(errCh)
 
 	for {
@@ -119,9 +120,11 @@ func (u *healClient) listenToConnectionChanges(heal healRequestFuncType, current
 		}
 
 		switch event.GetType() {
-		case networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER:
-			continue
-		case networkservice.ConnectionEventType_UPDATE:
+		// Sometimes we start polling events too late, and when we wait for confirmation of success of some connection,
+		// this connection is in the INITIAL_STATE_TRANSFER event, so we must treat these events the same as UPDATE.
+		// We can't just try to skip first event right after monitor client creation,
+		// because sometimes we don't get INITIAL_STATE_TRANSFER and therefore we hang indefinitely on Recv().
+		case networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER, networkservice.ConnectionEventType_UPDATE:
 			<-u.conCacheExecutor.AsyncExec(func() {
 				for _, conn := range event.GetConnections() {
 					if _, ok := u.connCache[conn.GetId()]; ok {
