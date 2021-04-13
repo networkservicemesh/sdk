@@ -24,12 +24,10 @@ import (
 
 	"github.com/edwarnicke/serialize"
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/pkg/errors"
-	"google.golang.org/grpc"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/pkg/errors"
+	"google.golang.org/grpc"
 )
 
 type healClient struct {
@@ -76,6 +74,7 @@ func (u *healClient) Request(ctx context.Context, request *networkservice.Networ
 	if verificationRequest != nil {
 		err = u.confirmConnectionSuccess(conn, verificationRequest)
 		if err != nil {
+			_, _ = next.Client(ctx).Close(ctx, request.GetConnection(), opts...)
 			return nil, err
 		}
 	} else {
@@ -89,7 +88,7 @@ func (u *healClient) Close(ctx context.Context, conn *networkservice.Connection,
 	if cachedConn, ok := u.removeConnectionFromMonitor(conn); ok {
 		conn = cachedConn
 	} else {
-		log.FromContext(ctx).WithField("healClient", "Close").Warnf("can't find connection in cache, id=%v", conn.GetId())
+		return &empty.Empty{}, nil
 	}
 
 	return next.Client(ctx).Close(ctx, conn, opts...)
@@ -120,13 +119,15 @@ func (u *healClient) listenToConnectionChanges(heal healRequestFuncType, current
 		}
 
 		switch event.GetType() {
-		// Sometimes we start polling events too late, and when we wait for confirmation of success of some connection,
-		// this connection is in the INITIAL_STATE_TRANSFER event, so we must treat these events the same as UPDATE.
-		// We can't just try to skip first event right after monitor client creation,
-		// because sometimes we don't get INITIAL_STATE_TRANSFER and therefore we hang indefinitely on Recv().
+		// Why both INITIAL_STATE_TRANSFER and UPDATE:
+		// 1. Sometimes we start polling events too late, and when we wait for confirmation of success of some connection,
+		//    this connection is in the INITIAL_STATE_TRANSFER event, so we must treat these events the same as UPDATE.
+		// 2. We can't just try to skip first event right after monitor client creation,
+		//    because sometimes we don't get INITIAL_STATE_TRANSFER and therefore we hang indefinitely on Recv().
 		case networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER, networkservice.ConnectionEventType_UPDATE:
 			<-u.conCacheExecutor.AsyncExec(func() {
 				for _, conn := range event.GetConnections() {
+					// Here we check if our own connections were updated
 					if _, ok := u.connCache[conn.GetId()]; ok {
 						u.connCache[conn.GetId()] = conn.Clone()
 					}
@@ -140,6 +141,7 @@ func (u *healClient) listenToConnectionChanges(heal healRequestFuncType, current
 				var connsToHeal []string
 				<-u.conCacheExecutor.AsyncExec(func() {
 					for _, eventConn := range event.GetConnections() {
+						// Here we check if something happened to connections that are coming from us, therefore we use GetPrevPathSegment()
 						if conn, ok := u.connCache[eventConn.GetPrevPathSegment().GetId()]; ok {
 							connsToHeal = append(connsToHeal, conn.GetId())
 						}
@@ -174,7 +176,7 @@ func (u *healClient) addToExpectedConnections(conn *networkservice.Connection) *
 	connAlreadyExists := false
 	<-u.conCacheExecutor.AsyncExec(func() {
 		if cachedConn, ok := u.connCache[conn.GetId()]; ok {
-			if cachedConn.GetCurrentPathSegment().GetId() == conn.GetCurrentPathSegment().GetId() {
+			if cachedConn.GetId() == conn.GetId() {
 				connAlreadyExists = true
 			}
 		}
