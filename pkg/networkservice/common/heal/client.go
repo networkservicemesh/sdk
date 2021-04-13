@@ -127,10 +127,15 @@ func (u *healClient) listenToConnectionChanges(heal healRequestFuncType, current
 		//    because sometimes we don't get INITIAL_STATE_TRANSFER and therefore we hang indefinitely on Recv().
 		case networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER, networkservice.ConnectionEventType_UPDATE:
 			<-u.conCacheExecutor.AsyncExec(func() {
-				for _, conn := range event.GetConnections() {
+				for _, eventConn := range event.GetConnections() {
 					// Here we check if our own connections were updated
-					if _, ok := u.connCache[conn.GetId()]; ok {
-						u.connCache[conn.GetId()] = conn.Clone()
+					if conn, ok := u.connCache[eventConn.GetPrevPathSegment().GetId()]; ok {
+						eventConn = eventConn.Clone()
+						if conn.Path == nil {
+							conn.Path = eventConn.Path
+						} else {
+							conn.Path.PathSegments = eventConn.Clone().Path.PathSegments
+						}
 					}
 				}
 			})
