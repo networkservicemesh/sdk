@@ -121,11 +121,11 @@ func (f *healServer) Close(ctx context.Context, conn *networkservice.Connection)
 	return rv, nil
 }
 
-func (f *healServer) healRequest(id string, restoreConnection bool) {
+func (f *healServer) healRequest(conn *networkservice.Connection, restoreConnection bool) {
 	var healCtx context.Context
 	var request *networkservice.NetworkServiceRequest
 	<-f.contextHealMapExecutor.AsyncExec(func() {
-		s, ok := f.contextHealMap[id]
+		s, ok := f.contextHealMap[conn.GetId()]
 		if !ok {
 			return
 		}
@@ -141,6 +141,8 @@ func (f *healServer) healRequest(id string, restoreConnection bool) {
 	if request == nil {
 		return
 	}
+
+	request.SetRequestConnection(conn.Clone())
 
 	if restoreConnection {
 		go f.restoreConnection(healCtx, request)
