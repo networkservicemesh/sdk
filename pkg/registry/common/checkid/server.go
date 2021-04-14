@@ -14,46 +14,60 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package setid
+// Package checkid provides NSE server chain element for checking for nse.Name duplicates
+package checkid
 
 import (
 	"context"
-	"strings"
+	"net/url"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/google/uuid"
-
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/pkg/errors"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 )
 
 type setIDServer struct {
-	names namesSet
+	urls stringurl.Map
 }
 
-// NewNetworkServiceEndpointRegistryServer creates new instance of NetworkServiceRegistryServer which set the unique
-// name for the endpoint on registration
+// NewNetworkServiceEndpointRegistryServer creates a new NSE server chain element checking for nse.Name collisions
 func NewNetworkServiceEndpointRegistryServer() registry.NetworkServiceEndpointRegistryServer {
 	return new(setIDServer)
 }
 
-func (s *setIDServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	name := nse.Name
+func (s *setIDServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (reg *registry.NetworkServiceEndpoint, err error) {
+	if nse.Name == "" || nse.Url == "" {
+		return nil, errors.Errorf("nse.Name and nse.Url should be not empty: %v", nse)
+	}
 
-	reg, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
-	if err != nil {
+	u, loaded := s.urls.Load(nse.Name)
+	if loaded && u.String() != nse.Url {
+		return nil, status.Errorf(
+			codes.AlreadyExists,
+			"duplicate URL for the name %s: expected=[%s], actual=[%s]", nse.Name, u.String(), nse.Url,
+		)
+	}
+
+	var name string
+	if !loaded {
+		name = nse.Name
+		if u, err = url.Parse(nse.Url); err != nil {
+			return nil, errors.Wrapf(err, "invalid nse.Url: %s", nse.Url)
+		}
+	}
+
+	if reg, err = next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse); err != nil {
 		return nil, err
 	}
 
-	if _, ok := s.names.Load(reg.Name); !ok && reg.Name == name {
-		if reg.Name == "" {
-			reg.Name = strings.Join(reg.NetworkServiceNames, "-")
-		}
-		reg.Name = uuid.New().String() + "-" + reg.Name
+	if !loaded {
+		s.urls.Store(name, u)
 	}
-
-	s.names.Store(reg.Name, struct{}{})
 
 	return reg, nil
 }
@@ -63,9 +77,8 @@ func (s *setIDServer) Find(query *registry.NetworkServiceEndpointQuery, server r
 }
 
 func (s *setIDServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	s.names.Delete(nse.Name)
-
+	if _, ok := s.urls.LoadAndDelete(nse.Name); !ok {
+		return new(empty.Empty), nil
+	}
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }
-
-var _ registry.NetworkServiceEndpointRegistryServer = &setIDServer{}

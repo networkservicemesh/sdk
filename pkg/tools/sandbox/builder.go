@@ -120,8 +120,14 @@ func (b *Builder) Build() *Domain {
 	} else {
 		domain.Registry = b.newRegistry(ctx, domain.RegistryProxy.URL)
 	}
+
+	var registryURL *url.URL
+	if domain.Registry != nil {
+		registryURL = domain.Registry.URL
+	}
+
 	for i := 0; i < b.nodesCount; i++ {
-		domain.Nodes = append(domain.Nodes, b.newNode(ctx, domain.Registry.URL, b.nodesConfig[i]))
+		domain.Nodes = append(domain.Nodes, b.newNode(ctx, registryURL, b.nodesConfig[i]))
 	}
 
 	domain.resources, b.resources = b.resources, nil
@@ -423,7 +429,7 @@ func (b *Builder) newAddress(prefix string) string {
 func defaultSetupNode(t *testing.T) SetupNodeFunc {
 	return func(ctx context.Context, node *Node, nodeConfig *NodeConfig) {
 		nseReg := &registryapi.NetworkServiceEndpoint{
-			Name: "forwarder-" + uuid.New().String(),
+			Name: "forwarder",
 		}
 		_, err := node.NewForwarder(nodeConfig.ForwarderCtx, nseReg, nodeConfig.ForwarderGenerateTokenFunc)
 		require.NoError(t, err)

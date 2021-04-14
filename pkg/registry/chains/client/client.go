@@ -28,6 +28,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 )
 
@@ -36,6 +37,7 @@ func NewNetworkServiceEndpointRegistryClient(ctx context.Context, cc grpc.Client
 	return chain.NewNetworkServiceEndpointRegistryClient(
 		append(
 			append([]registry.NetworkServiceEndpointRegistryClient{
+				setid.NewNetworkServiceEndpointRegistryClient(),
 				serialize.NewNetworkServiceEndpointRegistryClient(),
 				refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithChainContext(ctx)),
 				sendfd.NewNetworkServiceEndpointRegistryClient(),
@@ -62,6 +64,7 @@ func NewNetworkServiceEndpointRegistryInterposeClient(ctx context.Context, cc gr
 	return chain.NewNetworkServiceEndpointRegistryClient(
 		append(
 			append([]registry.NetworkServiceEndpointRegistryClient{
+				setid.NewNetworkServiceEndpointRegistryClient(),
 				interpose.NewNetworkServiceEndpointRegistryClient(),
 				serialize.NewNetworkServiceEndpointRegistryClient(),
 				refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithChainContext(ctx)),
