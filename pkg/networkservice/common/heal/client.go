@@ -68,7 +68,7 @@ func (u *healClient) Request(ctx context.Context, request *networkservice.Networ
 		errCh := make(chan error, 1)
 		pushFunc := healRequestFunc(ctx)
 		if pushFunc == nil {
-			pushFunc = func(id string, restoreConnection bool) {}
+			pushFunc = func(conn *networkservice.Connection, restoreConnection bool) {}
 		}
 		go u.listenToConnectionChanges(pushFunc, request.GetConnection().GetCurrentPathSegment(), errCh)
 		u.initErr = <-errCh
@@ -127,8 +127,8 @@ func (u *healClient) listenToConnectionChanges(heal healRequestFuncType, current
 		event, err := monitorClient.Recv()
 		if err != nil {
 			<-u.connsExecutor.AsyncExec(func() {
-				for id := range u.conns {
-					heal(id, true)
+				for _, connInfo := range u.conns {
+					heal(connInfo.conn, true)
 				}
 			})
 			return
@@ -160,7 +160,7 @@ func (u *healClient) listenToConnectionChanges(heal healRequestFuncType, current
 					id := eventConn.GetPrevPathSegment().GetId()
 					if connInfo, ok := u.conns[id]; ok {
 						if connInfo.state == connectionstateReady {
-							heal(id, false)
+							heal(connInfo.conn, false)
 						}
 						connInfo.state = connectionstateBroken
 						u.conns[id] = connInfo

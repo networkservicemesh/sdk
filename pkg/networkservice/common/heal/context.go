@@ -18,6 +18,8 @@ package heal
 
 import (
 	"context"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
 const (
@@ -26,7 +28,7 @@ const (
 
 type contextKeyType string
 
-type healRequestFuncType func(id string, restoreConnection bool)
+type healRequestFuncType func(conn *networkservice.Connection, restoreConnection bool)
 
 func withHealRequestFunc(parent context.Context, fun healRequestFuncType) context.Context {
 	if parent == nil {
