@@ -21,7 +21,6 @@ import (
 	"net/url"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -47,8 +46,8 @@ func (s *interposeRegistryServer) Register(ctx context.Context, nse *registry.Ne
 		return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	}
 
-	if _, ok := s.interposeURLs.Load(nse.Name); !ok {
-		nse.Name = interposeName(uuid.New().String())
+	if _, ok := s.interposeURLs.Load(nse.Name); ok {
+		return nse, nil
 	}
 
 	u, err := url.Parse(nse.Url)
@@ -59,7 +58,7 @@ func (s *interposeRegistryServer) Register(ctx context.Context, nse *registry.Ne
 		return nil, errors.Errorf("cannot register cross NSE with passed URL: %s", nse.Url)
 	}
 
-	s.interposeURLs.LoadOrStore(nse.Name, u)
+	s.interposeURLs.Store(nse.Name, u)
 
 	return nse, nil
 }

@@ -36,7 +36,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
+	registryadapters "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	registrynext "github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 )
@@ -142,8 +142,8 @@ func testServers(
 	}
 
 	nseServer := registrynext.NewNetworkServiceEndpointRegistryServer(
+		registryadapters.NetworkServiceEndpointClientToServer(setid.NewNetworkServiceEndpointRegistryClient()),
 		memory.NewNetworkServiceEndpointRegistryServer(),
-		setid.NewNetworkServiceEndpointRegistryServer(),
 	)
 	for i, nse := range nses {
 		var err error
@@ -173,7 +173,7 @@ func TestMatchEmptySourceSelector(t *testing.T) {
 	}
 
 	server := next.NewNetworkServiceServer(
-		discover.NewServer(adapters.NetworkServiceServerToClient(nsServer), adapters.NetworkServiceEndpointServerToClient(nseServer)),
+		discover.NewServer(registryadapters.NetworkServiceServerToClient(nsServer), registryadapters.NetworkServiceEndpointServerToClient(nseServer)),
 		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
 			nses := discover.Candidates(ctx).Endpoints
 			require.Len(t, nses, 1)
@@ -206,7 +206,9 @@ func TestMatchNonEmptySourceSelector(t *testing.T) {
 	}
 
 	server := next.NewNetworkServiceServer(
-		discover.NewServer(adapters.NetworkServiceServerToClient(nsServer), adapters.NetworkServiceEndpointServerToClient(nseServer)),
+		discover.NewServer(
+			registryadapters.NetworkServiceServerToClient(nsServer),
+			registryadapters.NetworkServiceEndpointServerToClient(nseServer)),
 		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
 			nses := discover.Candidates(ctx).Endpoints
 			require.Len(t, nses, 1)
@@ -239,7 +241,9 @@ func TestMatchEmptySourceSelectorGoingFirst(t *testing.T) {
 	}
 
 	server := next.NewNetworkServiceServer(
-		discover.NewServer(adapters.NetworkServiceServerToClient(nsServer), adapters.NetworkServiceEndpointServerToClient(nseServer)),
+		discover.NewServer(
+			registryadapters.NetworkServiceServerToClient(nsServer),
+			registryadapters.NetworkServiceEndpointServerToClient(nseServer)),
 		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
 			nses := discover.Candidates(ctx).Endpoints
 			require.Len(t, nses, 1)
@@ -268,7 +272,9 @@ func TestMatchNothing(t *testing.T) {
 	}
 
 	server := next.NewNetworkServiceServer(
-		discover.NewServer(adapters.NetworkServiceServerToClient(nsServer), adapters.NetworkServiceEndpointServerToClient(nseServer)),
+		discover.NewServer(
+			registryadapters.NetworkServiceServerToClient(nsServer),
+			registryadapters.NetworkServiceEndpointServerToClient(nseServer)),
 		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
 			nses := discover.Candidates(ctx).Endpoints
 			require.Len(t, nses, 3)
@@ -294,7 +300,9 @@ func TestMatchSelectedNSE(t *testing.T) {
 	}
 
 	server := next.NewNetworkServiceServer(
-		discover.NewServer(adapters.NetworkServiceServerToClient(nsServer), adapters.NetworkServiceEndpointServerToClient(nseServer)),
+		discover.NewServer(
+			registryadapters.NetworkServiceServerToClient(nsServer),
+			registryadapters.NetworkServiceEndpointServerToClient(nseServer)),
 		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
 			require.NotNil(t, clienturlctx.ClientURL(ctx))
 		}),
@@ -324,7 +332,9 @@ func TestNoMatchServiceFound(t *testing.T) {
 	}
 
 	server := next.NewNetworkServiceServer(
-		discover.NewServer(adapters.NetworkServiceServerToClient(nsServer), adapters.NetworkServiceEndpointServerToClient(nseServer)),
+		discover.NewServer(
+			registryadapters.NetworkServiceServerToClient(nsServer),
+			registryadapters.NetworkServiceEndpointServerToClient(nseServer)),
 		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
 			nses := discover.Candidates(ctx).Endpoints
 			require.Len(t, nses, 1)
@@ -358,7 +368,9 @@ func TestNoMatchServiceEndpointFound(t *testing.T) {
 	}
 
 	server := next.NewNetworkServiceServer(
-		discover.NewServer(adapters.NetworkServiceServerToClient(nsServer), adapters.NetworkServiceEndpointServerToClient(nseServer)),
+		discover.NewServer(
+			registryadapters.NetworkServiceServerToClient(nsServer),
+			registryadapters.NetworkServiceEndpointServerToClient(nseServer)),
 		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
 			nses := discover.Candidates(ctx).Endpoints
 			require.Len(t, nses, 1)
@@ -381,8 +393,8 @@ func TestMatchExactService(t *testing.T) {
 	nsName := networkServiceName()
 	server := next.NewNetworkServiceServer(
 		discover.NewServer(
-			adapters.NetworkServiceServerToClient(nsServer),
-			adapters.NetworkServiceEndpointServerToClient(nseServer)),
+			registryadapters.NetworkServiceServerToClient(nsServer),
+			registryadapters.NetworkServiceEndpointServerToClient(nseServer)),
 		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
 			nses := discover.Candidates(ctx).Endpoints
 			require.Len(t, nses, 1)
@@ -443,8 +455,8 @@ func TestMatchExactEndpoint(t *testing.T) {
 	u := "tcp://" + nseName
 	server := next.NewNetworkServiceServer(
 		discover.NewServer(
-			adapters.NetworkServiceServerToClient(memory.NewNetworkServiceRegistryServer()),
-			adapters.NetworkServiceEndpointServerToClient(nseServer)),
+			registryadapters.NetworkServiceServerToClient(memory.NewNetworkServiceRegistryServer()),
+			registryadapters.NetworkServiceEndpointServerToClient(nseServer)),
 		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
 			require.Equal(t, u, clienturlctx.ClientURL(ctx).String())
 		}),
@@ -492,7 +504,7 @@ func TestMatchSelectedNSESecondAttempt(t *testing.T) {
 
 	nsServer := memory.NewNetworkServiceRegistryServer()
 	nseServer := registrynext.NewNetworkServiceEndpointRegistryServer(
-		setid.NewNetworkServiceEndpointRegistryServer(),
+		registryadapters.NetworkServiceEndpointClientToServer(setid.NewNetworkServiceEndpointRegistryClient()),
 		memory.NewNetworkServiceEndpointRegistryServer(),
 	)
 
@@ -500,8 +512,8 @@ func TestMatchSelectedNSESecondAttempt(t *testing.T) {
 	counter := 0
 	server := next.NewNetworkServiceServer(
 		discover.NewServer(
-			adapters.NetworkServiceServerToClient(nsServer),
-			adapters.NetworkServiceEndpointServerToClient(nseServer)),
+			registryadapters.NetworkServiceServerToClient(nsServer),
+			registryadapters.NetworkServiceEndpointServerToClient(nseServer)),
 		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
 			nses := discover.Candidates(ctx).Endpoints
 			require.Len(t, nses, 1)
