@@ -21,9 +21,9 @@ import (
 	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/setpayload"
-
 	"github.com/networkservicemesh/api/pkg/api/registry"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/common/setpayload"
 	"github.com/stretchr/testify/require"
 )
 
