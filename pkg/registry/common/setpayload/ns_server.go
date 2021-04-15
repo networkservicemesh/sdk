@@ -29,7 +29,7 @@ import (
 type setPayload struct{}
 
 func (s *setPayload) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
-	if len(ns.Payload) == 0 {
+	if ns.Payload == "" {
 		ns.Payload = payload.IP
 	}
 
