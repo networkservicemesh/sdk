@@ -34,7 +34,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/proxydns"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
@@ -165,7 +164,7 @@ func (b *Builder) SetRegistryExpiryDuration(registryExpiryDuration time.Duration
 	return b
 }
 
-// UseUnixSockets sets 1 node and mark it to use unix socket to listen on.
+// UseUnixSockets marks domain to use unix sockets to listen on.
 func (b *Builder) UseUnixSockets() *Builder {
 	require.NotEqual(b.t, "windows", runtime.GOOS, "Unix sockets are not available for windows")
 
@@ -177,10 +176,6 @@ func (b *Builder) UseUnixSockets() *Builder {
 		_ = os.RemoveAll(sockPath)
 	}()
 
-	b.nodesCount = 1
-	b.supplyNSMgrProxy = nil
-	b.supplyRegistry = nil
-	b.supplyRegistryProxy = nil
 	b.supplyURL = supplyUnixURL(sockPath, new(int))
 	b.useUnixSockets = true
 
@@ -217,7 +212,7 @@ func (b *Builder) newNSMgrProxy() {
 	mgr := b.supplyNSMgrProxy(b.ctx, tokenGenerator,
 		nsmgrproxy.WithName(name),
 		nsmgrproxy.WithDialOptions(DefaultSecureDialOptions(b.supplyClientTC(), tokenGenerator)...))
-	serveURL := supplyTCPURL(b.t)("nsmgr-proxy")
+	serveURL := TCPURL(b.t)
 
 	serve(b.ctx, b.t, serveURL, b.supplyServerTC(), mgr.Register)
 
@@ -244,7 +239,7 @@ func (b *Builder) newRegistryProxy() {
 	tokenGenerator := b.supplyTokenGenerator(DefaultTokenTimeout)
 
 	registryProxy := b.supplyRegistryProxy(b.ctx, b.dnsResolver, b.dnsDomainName, nsmgrProxyURL, DefaultSecureDialOptions(b.supplyClientTC(), tokenGenerator)...)
-	serveURL := supplyTCPURL(b.t)("reg-proxy")
+	serveURL := TCPURL(b.t)
 
 	serve(b.ctx, b.t, serveURL, b.supplyServerTC(), registryProxy.Register)
 
@@ -269,7 +264,7 @@ func (b *Builder) newRegistry() {
 	tokenGenerator := b.supplyTokenGenerator(DefaultTokenTimeout)
 
 	registry := b.supplyRegistry(b.ctx, b.registryExpiryDuration, registryProxyURL, DefaultSecureDialOptions(b.supplyClientTC(), tokenGenerator)...)
-	serveURL := supplyTCPURL(b.t)("reg")
+	serveURL := TCPURL(b.t)
 
 	serve(b.ctx, b.t, serveURL, b.supplyServerTC(), registry.Register)
 
@@ -296,11 +291,7 @@ func (b *Builder) newNode(nodeNum int) {
 
 func supplyTCPURL(t *testing.T) supplyURLFunc {
 	return func(_ string) *url.URL {
-		l, err := net.Listen("tcp", "127.0.0.1:0")
-		require.NoError(t, err)
-		defer func() { _ = l.Close() }()
-
-		return grpcutils.AddressToURL(l.Addr())
+		return TCPURL(t)
 	}
 }
 

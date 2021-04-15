@@ -19,16 +19,21 @@ package sandbox
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/url"
+	"testing"
 	"time"
 
 	"github.com/edwarnicke/grpcfd"
 	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/opentracing"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
@@ -94,4 +99,13 @@ func SetupDefaultNode(ctx context.Context, node *Node, supplyNSMgr SupplyNSMgrFu
 	node.NewForwarder(ctx, &registryapi.NetworkServiceEndpoint{
 		Name: Name("forwarder"),
 	})
+}
+
+// TCPURL returns a new free localhost TCP URL for serving
+func TCPURL(t *testing.T) *url.URL {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer func() { _ = l.Close() }()
+
+	return grpcutils.AddressToURL(l.Addr())
 }

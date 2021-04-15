@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
@@ -59,31 +60,38 @@ type Node struct {
 // -----------------
 
 type nsmgrOptions struct {
-	url          *url.URL
-	tokenTimeout time.Duration
-	supplyNSMgr  SupplyNSMgrFunc
+	unixURL, tcpURL *url.URL
+	tokenTimeout    time.Duration
+	supplyNSMgr     SupplyNSMgrFunc
 }
 
 // NSMgrOption is an option pattern for NewNSMgr
-type NSMgrOption func(nsmgrOpts *nsmgrOptions)
+type NSMgrOption func(t *testing.T, nsmgrOpts *nsmgrOptions)
 
 // WithNSMgrURL sets NewNSMgr serve URL
 func WithNSMgrURL(u *url.URL) NSMgrOption {
-	return func(nsmgrOpts *nsmgrOptions) {
-		nsmgrOpts.url = u
+	return func(t *testing.T, nsmgrOpts *nsmgrOptions) {
+		switch u.Scheme {
+		case "unix":
+			nsmgrOpts.unixURL = u
+		case "tcp":
+			nsmgrOpts.tcpURL = u
+		default:
+			require.FailNow(t, "expected one of [unix, tcp] URL scheme, got: "+u.Scheme)
+		}
 	}
 }
 
 // WithNSMgrTokenTimeout sets NewNSMgr token timeout
 func WithNSMgrTokenTimeout(tokenTimeout time.Duration) NSMgrOption {
-	return func(nsmgrOpts *nsmgrOptions) {
+	return func(_ *testing.T, nsmgrOpts *nsmgrOptions) {
 		nsmgrOpts.tokenTimeout = tokenTimeout
 	}
 }
 
 // WithNSMgrSupplier sets NewNSMgr NSMgr supplier
 func WithNSMgrSupplier(supplyNSMgr SupplyNSMgrFunc) NSMgrOption {
-	return func(nsmgrOpts *nsmgrOptions) {
+	return func(_ *testing.T, nsmgrOpts *nsmgrOptions) {
 		nsmgrOpts.supplyNSMgr = supplyNSMgr
 	}
 }
@@ -95,13 +103,14 @@ func (n *Node) NewNSMgr(
 	opts ...NSMgrOption,
 ) *NSMgrEntry {
 	nsmgrOpts := &nsmgrOptions{
-		url:          n.supplyURL("nsmgr"),
+		tcpURL:       TCPURL(n.t),
 		tokenTimeout: DefaultTokenTimeout,
 		supplyNSMgr:  nsmgr.NewServer,
 	}
+	WithNSMgrURL(n.supplyURL("nsmgr"))(n.t, nsmgrOpts)
 
 	for _, opt := range opts {
-		opt(nsmgrOpts)
+		opt(n.t, nsmgrOpts)
 	}
 
 	clientTC := n.supplyClientTC() // NSMgr -> (...)
@@ -109,29 +118,35 @@ func (n *Node) NewNSMgr(
 
 	options := []nsmgr.Option{
 		nsmgr.WithName(name),
+		nsmgr.WithURL(nsmgrOpts.tcpURL.String()),
 		nsmgr.WithAuthorizeServer(authorize.NewServer(authorize.Any())),
 		nsmgr.WithDialOptions(DefaultSecureDialOptions(clientTC, tokenGenerator)...),
 	}
 
-	if nsmgrOpts.url.Scheme != "unix" {
-		options = append(options, nsmgr.WithURL(nsmgrOpts.url.String()))
-
-		if n.Registry != nil {
-			registryCC := dial(ctx, n.t, n.Registry.URL, clientTC, tokenGenerator)
-			options = append(options, nsmgr.WithRegistryClientConn(registryCC))
-		}
+	if n.Registry != nil {
+		registryCC := dial(ctx, n.t, n.Registry.URL, clientTC, tokenGenerator)
+		options = append(options, nsmgr.WithRegistryClientConn(registryCC))
 	}
 
 	entry := &NSMgrEntry{
 		Nsmgr: nsmgrOpts.supplyNSMgr(ctx, tokenGenerator, options...),
 		Name:  name,
-		URL:   nsmgrOpts.url,
 	}
 
-	serve(ctx, n.t, nsmgrOpts.url, n.supplyServerTC(), entry.Register)
-	cc := dial(ctx, n.t, nsmgrOpts.url, n.supplyClientTC(), tokenGenerator) // (...) -> NSMgr
+	serve(ctx, n.t, nsmgrOpts.tcpURL, n.supplyServerTC(), entry.Register)
+	log.FromContext(ctx).Infof("Started listening NSMgr %s on %s", name, nsmgrOpts.tcpURL.String())
 
-	log.FromContext(ctx).Infof("Started listening NSMgr %s on %s", name, nsmgrOpts.url.String())
+	var cc grpc.ClientConnInterface
+	if nsmgrOpts.unixURL != nil {
+		entry.URL = nsmgrOpts.unixURL
+
+		serve(ctx, n.t, nsmgrOpts.unixURL, n.supplyServerTC(), entry.Register)
+		log.FromContext(ctx).Infof("Started listening NSMgr %s on %s", name, nsmgrOpts.unixURL.String())
+	} else {
+		entry.URL = nsmgrOpts.tcpURL
+	}
+
+	cc = dial(ctx, n.t, entry.URL, n.supplyClientTC(), tokenGenerator) // (...) -> NSMgr
 
 	n.NSMgr = entry
 	n.ForwarderRegistryClient = registryclient.NewNetworkServiceEndpointRegistryInterposeClient(ctx, cc)
