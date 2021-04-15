@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -24,6 +24,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setpayload"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -48,19 +49,6 @@ func TestSetPayload_Ethernet(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, payload.Ethernet, ns.Payload)
-
-	_, err = server.Unregister(context.Background(), reg)
-	require.NoError(t, err)
-}
-
-func TestSetPayload_SonethingElse(t *testing.T) {
-	server := setpayload.NewNetworkServiceRegistryServer()
-	ns := &registry.NetworkService{Payload: "someRandomString"}
-
-	reg, err := server.Register(context.Background(), ns)
-	require.NoError(t, err)
-
-	require.NotEqual(t, payload.IP, ns.Payload)
 
 	_, err = server.Unregister(context.Background(), reg)
 	require.NoError(t, err)
