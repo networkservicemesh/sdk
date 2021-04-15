@@ -169,6 +169,64 @@ func TestNSMGR_SelectsRestartingEndpoint(t *testing.T) {
 	require.NoError(t, ctx.Err())
 }
 
+func TestNSMGR_SettingPayload(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(t).
+		SetNodesCount(1).
+		SetRegistryProxySupplier(nil).
+		SetContext(ctx).
+		Build()
+
+	request := &networkservice.NetworkServiceRequest{
+		MechanismPreferences: []*networkservice.Mechanism{
+			{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
+		},
+		Connection: &networkservice.Connection{
+			Id:             "1",
+			NetworkService: "ns-1",
+			Context:        &networkservice.ConnectionContext{},
+		},
+	}
+
+	// 1. Start listen address and register endpoint
+	netListener, err := net.Listen("tcp", "127.0.0.1:")
+	require.NoError(t, err)
+	defer func() { _ = netListener.Close() }()
+
+	_, err = domain.Nodes[0].NSRegistryClient.Register(ctx, &registry.NetworkService{
+		Name: "ns-1",
+	})
+	require.NoError(t, err)
+
+	_, err = domain.Nodes[0].EndpointRegistryClient.Register(ctx, &registry.NetworkServiceEndpoint{
+		Name:                "nse-1",
+		NetworkServiceNames: []string{"ns-1"},
+		Url:                 "tcp://" + netListener.Addr().String(),
+	})
+	require.NoError(t, err)
+
+	// 2. Postpone endpoint start
+	time.AfterFunc(time.Second, func() {
+		s := grpc.NewServer()
+		endpoint.NewServer(ctx, sandbox.GenerateTestToken).Register(s)
+		_ = s.Serve(netListener)
+	})
+
+	// 3. Create client and request endpoint
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	conn, err := nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+	require.Equal(t, payload.IP, conn.Payload)
+
+	require.NoError(t, ctx.Err())
+}
+
 func TestNSMGR_RemoteUsecase_BusyEndpoints(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 

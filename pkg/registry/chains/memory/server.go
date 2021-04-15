@@ -32,6 +32,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/proxy"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/setpayload"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 )
@@ -53,6 +54,7 @@ func NewServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryU
 	nsChain := chain.NewNetworkServiceRegistryServer(
 		serialize.NewNetworkServiceRegistryServer(),
 		expire.NewNetworkServiceServer(ctx, adapters.NetworkServiceEndpointServerToClient(nseChain)),
+		setpayload.NewNetworkServiceRegistryServer(),
 		memory.NewNetworkServiceRegistryServer(),
 		proxy.NewNetworkServiceRegistryServer(proxyRegistryURL),
 		connect.NewNetworkServiceRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
