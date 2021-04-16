@@ -275,8 +275,6 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int, restored bool, customConf
 }
 
 func TestNSMGR_HealRemoteNSMgrRestored(t *testing.T) {
-	t.Skip("https://github.com/networkservicemesh/sdk/issues/770")
-
 	nsmgrCtx, nsmgrCtxCancel := context.WithTimeout(context.Background(), time.Second)
 	defer nsmgrCtxCancel()
 
@@ -368,7 +366,7 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, customConfig []*sandbox.NodeC
 	e, err := nsc.Close(ctx, conn)
 	require.NoError(t, err)
 	require.NotNil(t, e)
-	require.Equal(t, int32(2), atomic.LoadInt32(&counter.Requests))
+	require.Equal(t, int32(3), atomic.LoadInt32(&counter.Requests))
 	require.Equal(t, closes+1, atomic.LoadInt32(&counter.Closes))
 }
 
