@@ -72,6 +72,7 @@ func (u *healClient) Request(ctx context.Context, request *networkservice.Networ
 	}
 
 	var successVerificationCh chan struct{}
+	closeOnError := false
 	u.conns.applyLockedOrNew(request.GetConnection().GetId(), func(created bool, info *connectionInfo) {
 		conn := request.GetConnection()
 		if created {
@@ -80,12 +81,17 @@ func (u *healClient) Request(ctx context.Context, request *networkservice.Networ
 			info.conn = conn.Clone()
 			info.state = connectionstateAwaitingConfirmation
 			info.successVerificationCh = successVerificationCh
+			closeOnError = true
 		} else if conn.Path != nil && int(conn.Path.Index) < len(conn.Path.PathSegments)-1 {
 			storedConn := info.conn
 			path := request.GetConnection().Path
 			path.PathSegments = path.PathSegments[:path.Index+1]
 			path.PathSegments = append(path.PathSegments, storedConn.Path.PathSegments[path.Index+1:]...)
 			conn.NetworkServiceEndpointName = storedConn.NetworkServiceEndpointName
+			if info.state == connectionstateBroken {
+				successVerificationCh = make(chan struct{}, 1)
+				info.successVerificationCh = successVerificationCh
+			}
 		}
 	})
 
@@ -97,8 +103,10 @@ func (u *healClient) Request(ctx context.Context, request *networkservice.Networ
 	if successVerificationCh != nil {
 		err = u.confirmConnectionSuccess(conn, successVerificationCh)
 		if err != nil {
-			u.removeConnectionFromMonitor(conn)
-			_, _ = next.Client(ctx).Close(ctx, request.GetConnection(), opts...)
+			if closeOnError {
+				u.removeConnectionFromMonitor(conn)
+				_, _ = next.Client(ctx).Close(ctx, request.GetConnection(), opts...)
+			}
 			return nil, err
 		}
 	}
@@ -154,8 +162,9 @@ func (u *healClient) listenToConnectionChanges(heal requestHealFuncType, current
 				// Sometimes we start polling events too late, and when we wait for confirmation of success of some connection,
 				// this connection is in the INITIAL_STATE_TRANSFER event, so we must treat these events the same as UPDATE.
 				case networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER, networkservice.ConnectionEventType_UPDATE:
-					if info.state == connectionstateAwaitingConfirmation {
-						info.successVerificationCh <- struct{}{}
+					if info.successVerificationCh != nil {
+						close(info.successVerificationCh)
+						info.successVerificationCh = nil
 					}
 					info.state = connectionstateReady
 					info.conn.Path.PathSegments = eventConn.Clone().Path.PathSegments
