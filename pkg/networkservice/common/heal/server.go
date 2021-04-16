@@ -42,18 +42,16 @@ type healServer struct {
 }
 
 // NewServer - creates a new networkservice.NetworkServiceServer chain element that implements the healing algorithm
-//             - ctx    - context for the lifecycle of the *Client* itself.  Cancel when discarding the client.
-//             - client - networkservice.MonitorConnectionClient that can be used to call MonitorConnection against the endpoint
-//             - onHeal - *networkservice.NetworkServiceClient.  Since networkservice.NetworkServiceClient is an interface
-//                        (and thus a pointer) *networkservice.NetworkServiceClient is a double pointer.  Meaning it
+//             - ctx    - context for the lifecycle of the *Server* itself. Cancel when discarding the server.
+//             - onHeal - client used 'onHeal'.
+//                        If we detect we need to heal, onHeal.Request is used to heal.
+//                        If we can't heal connection, onHeal.Close will be called.
+//                        If onHeal is nil, then we simply set onHeal to this client chain element
+//                        Since networkservice.NetworkServiceClient is an interface (and thus a pointer)
+//                        *networkservice.NetworkServiceClient is a double pointer.  Meaning it
 //                        points to a place that points to a place that implements networkservice.NetworkServiceClient
 //                        This is done because when we use heal.NewClient as part of a chain, we may not *have*
 //                        a pointer to this
-//                        client used 'onHeal'.  If we detect we need to heal, onHeal.Request is used to heal.
-//                        If onHeal is nil, then we simply set onHeal to this client chain element
-//                        If we are part of a larger chain or a server, we should pass the resulting chain into
-//                        this constructor before we actually have a pointer to it.
-//                        If onHeal nil, onHeal will be pointed to the returned networkservice.NetworkServiceClient
 func NewServer(ctx context.Context, onHeal *networkservice.NetworkServiceClient) networkservice.NetworkServiceServer {
 	rv := &healServer{
 		ctx:    ctx,
@@ -68,7 +66,7 @@ func NewServer(ctx context.Context, onHeal *networkservice.NetworkServiceClient)
 }
 
 func (f *healServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	ctx = withHealRequestFunc(ctx, f.healRequest)
+	ctx = withRequestHealFunc(ctx, f.requestHeal)
 	conn, err := next.Server(ctx).Request(ctx, request)
 	if err != nil {
 		return nil, err
@@ -98,7 +96,8 @@ func (f *healServer) Close(ctx context.Context, conn *networkservice.Connection)
 	return rv, nil
 }
 
-func (f *healServer) healRequest(conn *networkservice.Connection, restoreConnection bool) {
+// requestHeal - heals requested connection. Returns immediately, heal is asynchronous.
+func (f *healServer) requestHeal(conn *networkservice.Connection, restoreConnection bool) {
 	var healCtx context.Context
 	var request *networkservice.NetworkServiceRequest
 	f.healContextMap.applyLocked(conn.GetId(), func(cw *ctxWrapper) {
@@ -201,6 +200,8 @@ func (f *healServer) processHeal(ctx context.Context, request *networkservice.Ne
 	}
 }
 
+// createHealContext - create context to be used on heal.
+//                     Uses f.ctx as base and inserts Candidates from requestCtx or cachedCtx into it, if there are any.
 func (f *healServer) createHealContext(requestCtx, cachedCtx context.Context) context.Context {
 	ctx := requestCtx
 	if cachedCtx != nil {
@@ -216,6 +217,8 @@ func (f *healServer) createHealContext(requestCtx, cachedCtx context.Context) co
 	return healCtx
 }
 
+// applyLocked - searches the map for entry with key id and runs provided function while entry mutex is locked.
+//               If map doesn't contain this key, does nothing.
 func (m *ctxWrapperMap) applyLocked(id string, fun func(cw *ctxWrapper)) {
 	cw, ok := m.Load(id)
 	if !ok {
@@ -226,6 +229,9 @@ func (m *ctxWrapperMap) applyLocked(id string, fun func(cw *ctxWrapper)) {
 	fun(cw)
 }
 
+// applyLocked - searches the map for entry with key id and runs provided function while entry mutex is locked.
+//               If map doesn't contain this creates new key.
+//               Function is informed whether it receives new key or already created key via first argument.
 func (m *ctxWrapperMap) applyLockedOrNew(id string, fun func(created bool, cw *ctxWrapper)) {
 	newCw := &ctxWrapper{}
 	// we need to lock this before storing in map to prevent potential race with other threads that can read this map

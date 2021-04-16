@@ -46,7 +46,9 @@ type healClient struct {
 	conns    connectionInfoMap
 }
 
-// NewClient - creates a new networkservice.NetworkServiceClient chain element that inform healServer about new client connection
+// NewClient - creates a new networkservice.NetworkServiceClient chain element
+//             - ctx - context for the lifecycle of the *Client* itself.  Cancel when discarding the client.
+//             - cc  - MonitorConnectionClient that will be used to watch for connection confirmations and breakages.
 func NewClient(ctx context.Context, cc networkservice.MonitorConnectionClient) networkservice.NetworkServiceClient {
 	return &healClient{
 		ctx: ctx,
@@ -57,7 +59,7 @@ func NewClient(ctx context.Context, cc networkservice.MonitorConnectionClient) n
 func (u *healClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	u.initOnce.Do(func() {
 		errCh := make(chan error, 1)
-		pushFunc := healRequestFunc(ctx)
+		pushFunc := requestHealFunc(ctx)
 		if pushFunc == nil {
 			pushFunc = func(conn *networkservice.Connection, restoreConnection bool) {}
 		}
@@ -117,7 +119,10 @@ func (u *healClient) Close(ctx context.Context, conn *networkservice.Connection,
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
-func (u *healClient) listenToConnectionChanges(heal healRequestFuncType, currentPathSegment *networkservice.PathSegment, errCh chan error) {
+// listenToConnectionChanges - loops on events from MonitorConnectionClient while the monitor client is alive.
+//                             Updates connection cache and broadcasts events of successful connections.
+//                             Calls heal when something breaks.
+func (u *healClient) listenToConnectionChanges(heal requestHealFuncType, currentPathSegment *networkservice.PathSegment, errCh chan error) {
 	monitorClient, err := u.cc.MonitorConnections(u.ctx, &networkservice.MonitorScopeSelector{
 		PathSegments: []*networkservice.PathSegment{{Name: currentPathSegment.Name}, {Name: ""}},
 	})
@@ -165,6 +170,7 @@ func (u *healClient) listenToConnectionChanges(heal healRequestFuncType, current
 	}
 }
 
+// confirmConnectionSuccess - waits for monitor thread to receive event confirming successful connection to next node
 func (u *healClient) confirmConnectionSuccess(conn *networkservice.Connection, successVerificationCh chan struct{}) error {
 	timeoutCh := time.After(time.Millisecond * 100)
 	select {
@@ -185,6 +191,8 @@ func (u *healClient) removeConnectionFromMonitor(conn *networkservice.Connection
 	return info.conn, true
 }
 
+// applyLocked - searches the map for entry with key=id and runs provided function while entry mutex is locked.
+//               If map doesn't contain this key, does nothing.
 func (m *connectionInfoMap) applyLocked(id string, fun func(info *connectionInfo)) {
 	info, ok := m.Load(id)
 	if !ok {
@@ -195,6 +203,9 @@ func (m *connectionInfoMap) applyLocked(id string, fun func(info *connectionInfo
 	fun(info)
 }
 
+// applyLocked - searches the map for entry with key=id and runs provided function while entry mutex is locked.
+//               If map doesn't have entry with this key creates a new entry.
+//               Function is informed whether it receives new key or already existing key via first argument.
 func (m *connectionInfoMap) applyLockedOrNew(id string, fun func(created bool, info *connectionInfo)) {
 	newInfo := &connectionInfo{}
 	// we need to lock this before storing in map to prevent potential race with other threads that can read this map
