@@ -78,9 +78,6 @@ func NewServer(ctx context.Context, onHeal *networkservice.NetworkServiceClient)
 }
 
 func (f *healServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	// Replace path within connection to the healed one
-	f.replaceConnectionPath(request.GetConnection())
-
 	ctx = withHealRequestFunc(ctx, f.healRequest)
 	conn, err := next.Server(ctx).Request(ctx, request)
 	if err != nil {
@@ -109,9 +106,6 @@ func (f *healServer) Request(ctx context.Context, request *networkservice.Networ
 }
 
 func (f *healServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	// Replace path within connection to the healed one
-	f.replaceConnectionPath(conn)
-
 	f.stopHeal(conn)
 
 	rv, err := next.Server(ctx).Close(ctx, conn)
@@ -233,24 +227,6 @@ func (f *healServer) processHeal(ctx context.Context, request *networkservice.Ne
 		_, err := (*f.onHeal).Close(closeCtx, request.GetConnection().Clone(), opts...)
 		if err != nil {
 			logEntry.Errorf("Failed to close connection %s: %v", request.GetConnection().GetId(), err)
-		}
-	}
-}
-
-func (f *healServer) replaceConnectionPath(conn *networkservice.Connection) {
-	path := conn.GetPath()
-	if path != nil && int(path.Index) < len(path.PathSegments)-1 {
-		var storedConn *networkservice.Connection
-		<-f.contextHealMapExecutor.AsyncExec(func() {
-			if cw, ok := f.contextHealMap[conn.GetId()]; ok {
-				storedConn = cw.conn
-			}
-		})
-
-		if storedConn != nil {
-			path.PathSegments = path.PathSegments[:path.Index+1]
-			path.PathSegments = append(path.PathSegments, storedConn.Path.PathSegments[path.Index+1:]...)
-			conn.NetworkServiceEndpointName = storedConn.NetworkServiceEndpointName
 		}
 	}
 }

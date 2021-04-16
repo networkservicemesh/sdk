@@ -78,7 +78,25 @@ func (u *healClient) Request(ctx context.Context, request *networkservice.Networ
 		return nil, u.initErr
 	}
 
-	successVerificationCh := u.addToExpectedConnections(request.GetConnection())
+	var successVerificationCh chan struct{}
+	<-u.connsExecutor.AsyncExec(func() {
+		conn := request.GetConnection()
+		if connInfo, ok := u.conns[conn.GetId()]; !ok {
+			successVerificationCh = make(chan struct{}, 1)
+			u.conns[conn.GetId()] = connectionInfo{
+				conn:                  conn.Clone(),
+				state:                 connectionstateAwaitingConfirmation,
+				successVerificationCh: successVerificationCh,
+			}
+			_ = connInfo.conn
+		} else if conn.GetPath() != nil && int(conn.GetPath().Index) < len(conn.GetPath().GetPathSegments())-1 {
+			storedConn := connInfo.conn
+			path := conn.GetPath()
+			path.PathSegments = path.PathSegments[:path.Index+1]
+			path.PathSegments = append(path.PathSegments, storedConn.Path.PathSegments[path.Index+1:]...)
+			conn.NetworkServiceEndpointName = storedConn.NetworkServiceEndpointName
+		}
+	})
 
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
@@ -169,22 +187,6 @@ func (u *healClient) listenToConnectionChanges(heal healRequestFuncType, current
 			})
 		}
 	}
-}
-
-func (u *healClient) addToExpectedConnections(conn *networkservice.Connection) chan struct{} {
-	var successVerificationCh chan struct{}
-	<-u.connsExecutor.AsyncExec(func() {
-		if _, ok := u.conns[conn.GetId()]; !ok {
-			successVerificationCh = make(chan struct{}, 1)
-			u.conns[conn.GetId()] = connectionInfo{
-				conn:                  conn.Clone(),
-				state:                 connectionstateAwaitingConfirmation,
-				successVerificationCh: successVerificationCh,
-			}
-		}
-	})
-
-	return successVerificationCh
 }
 
 func (u *healClient) confirmConnectionSuccess(conn *networkservice.Connection, successVerificationCh chan struct{}) error {
