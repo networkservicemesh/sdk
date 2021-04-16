@@ -141,6 +141,7 @@ func (u *healClient) listenToConnectionChanges(heal healRequestFuncType, current
 		}
 
 		for _, eventConn := range event.GetConnections() {
+			eventConn := eventConn
 			id := eventConn.GetPrevPathSegment().GetId()
 			u.conns.applyLocked(id, func(info *connectionInfo) {
 				switch event.GetType() {
