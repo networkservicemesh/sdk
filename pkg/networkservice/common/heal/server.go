@@ -23,7 +23,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/edwarnicke/serialize"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -36,18 +35,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-type ctxWrapper struct {
-	conn    *networkservice.Connection
-	request *networkservice.NetworkServiceRequest
-	ctx     context.Context
-	cancel  func()
-}
-
 type healServer struct {
-	ctx                    context.Context
-	onHeal                 *networkservice.NetworkServiceClient
-	contextHealMap         map[string]*ctxWrapper
-	contextHealMapExecutor serialize.Executor
+	ctx            context.Context
+	onHeal         *networkservice.NetworkServiceClient
+	healContextMap ctxWrapperMap
 }
 
 // NewServer - creates a new networkservice.NetworkServiceServer chain element that implements the healing algorithm
@@ -65,9 +56,8 @@ type healServer struct {
 //                        If onHeal nil, onHeal will be pointed to the returned networkservice.NetworkServiceClient
 func NewServer(ctx context.Context, onHeal *networkservice.NetworkServiceClient) networkservice.NetworkServiceServer {
 	rv := &healServer{
-		ctx:            ctx,
-		onHeal:         onHeal,
-		contextHealMap: make(map[string]*ctxWrapper),
+		ctx:    ctx,
+		onHeal: onHeal,
 	}
 
 	if rv.onHeal == nil {
@@ -81,25 +71,18 @@ func (f *healServer) Request(ctx context.Context, request *networkservice.Networ
 	ctx = withHealRequestFunc(ctx, f.healRequest)
 	conn, err := next.Server(ctx).Request(ctx, request)
 	if err != nil {
-		return conn, err
+		return nil, err
 	}
 
-	ctx = f.applyStoredCandidates(ctx, conn)
-	healCtx := f.ctx
-	if candidates := discover.Candidates(ctx); candidates != nil {
-		healCtx = discover.WithCandidates(healCtx, candidates.Endpoints, candidates.NetworkService)
-	}
-	<-f.contextHealMapExecutor.AsyncExec(func() {
-		id := request.GetConnection().GetId()
-		if entry, ok := f.contextHealMap[id]; ok && entry.cancel != nil {
-			entry.cancel()
+	f.healContextMap.applyLockedOrNew(request.GetConnection().GetId(), func(created bool, cw *ctxWrapper) {
+		if !created {
+			if cw.cancel != nil {
+				cw.cancel()
+				cw.cancel = nil
+			}
 		}
-		connCopy := conn.Clone()
-		f.contextHealMap[id] = &ctxWrapper{
-			conn:    connCopy,
-			request: request.Clone().SetRequestConnection(connCopy),
-			ctx:     healCtx,
-		}
+		cw.request = request.Clone().SetRequestConnection(conn.Clone())
+		cw.ctx = f.createHealContext(ctx, cw.ctx)
 	})
 
 	return conn, nil
@@ -118,18 +101,14 @@ func (f *healServer) Close(ctx context.Context, conn *networkservice.Connection)
 func (f *healServer) healRequest(conn *networkservice.Connection, restoreConnection bool) {
 	var healCtx context.Context
 	var request *networkservice.NetworkServiceRequest
-	<-f.contextHealMapExecutor.AsyncExec(func() {
-		s, ok := f.contextHealMap[conn.GetId()]
-		if !ok {
-			return
+	f.healContextMap.applyLocked(conn.GetId(), func(cw *ctxWrapper) {
+		if cw.cancel != nil {
+			cw.cancel()
 		}
-		if s.cancel != nil {
-			s.cancel()
-		}
-		ctx, cancel := context.WithCancel(s.ctx)
-		s.cancel = cancel
+		ctx, cancel := context.WithCancel(cw.ctx)
+		cw.cancel = cancel
 		healCtx = ctx
-		request = s.request
+		request = cw.request
 	})
 
 	if request == nil {
@@ -146,24 +125,15 @@ func (f *healServer) healRequest(conn *networkservice.Connection, restoreConnect
 }
 
 func (f *healServer) stopHeal(conn *networkservice.Connection) {
-	<-f.contextHealMapExecutor.AsyncExec(func() {
-		if cancelHealEntry, ok := f.contextHealMap[conn.GetId()]; ok {
-			if cancelHealEntry.cancel != nil {
-				cancelHealEntry.cancel()
-			}
-			delete(f.contextHealMap, conn.GetId())
-		}
-	})
-}
-
-func (f *healServer) healContext(baseCtx context.Context) (context.Context, context.CancelFunc) {
-	ctx, cancel := context.WithCancel(f.ctx)
-
-	if candidates := discover.Candidates(baseCtx); candidates != nil {
-		ctx = discover.WithCandidates(ctx, candidates.Endpoints, candidates.NetworkService)
+	cw, loaded := f.healContextMap.LoadAndDelete(conn.GetId())
+	if !loaded {
+		return
 	}
-
-	return ctx, cancel
+	cw.mut.Lock()
+	defer cw.mut.Unlock()
+	if cw.cancel != nil {
+		cw.cancel()
+	}
 }
 
 func (f *healServer) restoreConnection(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) {
@@ -231,21 +201,40 @@ func (f *healServer) processHeal(ctx context.Context, request *networkservice.Ne
 	}
 }
 
-func (f *healServer) applyStoredCandidates(ctx context.Context, conn *networkservice.Connection) context.Context {
-	if candidates := discover.Candidates(ctx); candidates != nil && len(candidates.Endpoints) > 0 {
-		return ctx
+func (f *healServer) createHealContext(requestCtx, cachedCtx context.Context) context.Context {
+	ctx := requestCtx
+	if cachedCtx != nil {
+		if candidates := discover.Candidates(ctx); candidates == nil || len(candidates.Endpoints) > 0 {
+			ctx = cachedCtx
+		}
+	}
+	healCtx := f.ctx
+	if candidates := discover.Candidates(ctx); candidates != nil {
+		healCtx = discover.WithCandidates(healCtx, candidates.Endpoints, candidates.NetworkService)
 	}
 
-	var storedCtx context.Context
-	<-f.contextHealMapExecutor.AsyncExec(func() {
-		if cw, ok := f.contextHealMap[conn.GetId()]; ok {
-			storedCtx = cw.ctx
-		}
-	})
-	if storedCtx != nil {
-		if candidates := discover.Candidates(storedCtx); candidates != nil {
-			ctx = discover.WithCandidates(ctx, candidates.Endpoints, candidates.NetworkService)
-		}
+	return healCtx
+}
+
+func (m *ctxWrapperMap) applyLocked(id string, fun func(cw *ctxWrapper)) {
+	cw, ok := m.Load(id)
+	if !ok {
+		return
 	}
-	return ctx
+	cw.mut.Lock()
+	defer cw.mut.Unlock()
+	fun(cw)
+}
+
+func (m *ctxWrapperMap) applyLockedOrNew(id string, fun func(created bool, cw *ctxWrapper)) {
+	newCw := &ctxWrapper{}
+	// we need to lock this before storing in map to prevent potential race with other threads that can read this map
+	newCw.mut.Lock()
+	defer newCw.mut.Unlock()
+	cw, loaded := m.LoadOrStore(id, newCw)
+	if loaded {
+		cw.mut.Lock()
+		defer cw.mut.Unlock()
+	}
+	fun(!loaded, cw)
 }
