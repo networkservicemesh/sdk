@@ -19,6 +19,7 @@
 package heal
 
 import (
+	"context"
 	"sync"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -34,3 +35,14 @@ type connectionInfo struct {
 //go:generate go-syncmap -output connection_info_map.gen.go -type connectionInfoMap<string,*connectionInfo>
 
 type connectionInfoMap sync.Map
+
+type ctxWrapper struct {
+	mut     sync.Mutex
+	request *networkservice.NetworkServiceRequest
+	ctx     context.Context
+	cancel  func()
+}
+
+//go:generate go-syncmap -output context_wrapper_map.gen.go -type ctxWrapperMap<string,*ctxWrapper>
+
+type ctxWrapperMap sync.Map
