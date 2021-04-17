@@ -3,7 +3,7 @@ name: Update dependent repositories
 on:
   push:
     branches:
-      - master
+      - main
   workflow_run:
     types:
       - completed
@@ -28,7 +28,7 @@ jobs:
           - cmd-nsc-init
     name: Update ${{ matrix.repository }}
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.actor == 'nsmbot' || github.ref == 'refs/heads/master' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.actor == 'nsmbot' || github.ref == 'refs/heads/main' }}
     steps:
       - name: Checkout ${{ github.repository }}
         uses: actions/checkout@v2
@@ -44,7 +44,7 @@ jobs:
       - name: Create commit message
         working-directory: ${{ github.repository }}
         run: |
-          echo "Update go.mod and go.sum to latest version from ${{ github.repository }}@master ${{ github.repository }}#${{ steps.findPr.outputs.pr }}" >> /tmp/commit-message
+          echo "Update go.mod and go.sum to latest version from ${{ github.repository }}@main ${{ github.repository }}#${{ steps.findPr.outputs.pr }}" >> /tmp/commit-message
           echo "" >> /tmp/commit-message
           echo "${{ github.repository }} PR link: https://github.com/${{ github.repository }}/pull/${{ steps.findPr.outputs.pr }}" >> /tmp/commit-message
           echo "" >> /tmp/commit-message
