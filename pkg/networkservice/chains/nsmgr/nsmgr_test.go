@@ -281,6 +281,8 @@ func (s *nsmgrSuite) Test_RemoteUsecase() {
 func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	t := s.T()
 
+	t.Skip("unstable")
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	nseCtx, killNse := context.WithCancel(ctx)
 	defer cancel()
