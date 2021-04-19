@@ -19,12 +19,12 @@ package memory_test
 
 import (
 	"context"
-	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"testing"
 	"time"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 	"github.com/stretchr/testify/require"
 
@@ -45,10 +45,10 @@ func Test_SettingPayload(t *testing.T) {
 		SetContext(ctx).
 		Build()
 
-	//start grpc client connection and register it
+	// start grpc client connection and register it
 	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(domain.Registry.URL), sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...)
 	require.NoError(t, err)
-	defer cc.Close()
+	defer func() {_ = cc.Close()}()
 
 	nsrc := registry.NewNetworkServiceRegistryClient(cc)
 	ns, err := nsrc.Register(ctx, &registry.NetworkService{
