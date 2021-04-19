@@ -482,6 +482,8 @@ func (s *nsmgrSuite) Test_ShouldCleanAllClientAndEndpointGoroutines() {
 		NetworkServiceNames: []string{"service-init"},
 	})
 
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
 	// At this moment all possible endless NSMgr goroutines have been started. So we expect all newly created goroutines
 	// to be canceled no later than some of these events:
 	//   1. GRPC request context cancel
