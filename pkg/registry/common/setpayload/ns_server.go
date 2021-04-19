@@ -26,7 +26,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
-type setPayloadServer struct{
+type setPayloadServer struct {
 	defaultPayload string
 }
 
