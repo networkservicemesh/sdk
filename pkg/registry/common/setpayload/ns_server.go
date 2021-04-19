@@ -18,33 +18,37 @@ package setpayload
 
 import (
 	"context"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
-type setPayload struct{}
 
-func (s *setPayload) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
+type setPayloadServer struct{
+	defaultPayload string
+}
+
+func (s *setPayloadServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
 	if ns.Payload == "" {
-		ns.Payload = payload.IP
+		ns.Payload = s.defaultPayload
 	}
 
 	return next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
 }
 
-func (s *setPayload) Find(query *registry.NetworkServiceQuery, server registry.NetworkServiceRegistry_FindServer) error {
+func (s *setPayloadServer) Find(query *registry.NetworkServiceQuery, server registry.NetworkServiceRegistry_FindServer) error {
 	return next.NetworkServiceRegistryServer(server.Context()).Find(query, server)
 }
 
-func (s *setPayload) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
+func (s *setPayloadServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }
 
 // NewNetworkServiceRegistryServer creates new instance of NetworkServiceRegistryServer which sets the passed options
 func NewNetworkServiceRegistryServer() registry.NetworkServiceRegistryServer {
-	return new(setPayload)
+	payloadServer := &setPayloadServer{defaultPayload: payload.IP}
+	return payloadServer
 }
