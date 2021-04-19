@@ -128,6 +128,8 @@ func testNSMGRHealEndpoint(t *testing.T, restored bool) {
 }
 
 func TestNSMGR_HealLocalForwarder(t *testing.T) {
+	t.Skip("https://github.com/networkservicemesh/sdk/issues/845")
+
 	forwarderCtx, forwarderCtxCancel := context.WithTimeout(context.Background(), time.Second)
 	defer forwarderCtxCancel()
 
@@ -160,6 +162,8 @@ func TestNSMGR_HealLocalForwarderRestored(t *testing.T) {
 }
 
 func TestNSMGR_HealRemoteForwarder(t *testing.T) {
+	t.Skip("https://github.com/networkservicemesh/sdk/issues/845")
+
 	forwarderCtx, forwarderCtxCancel := context.WithTimeout(context.Background(), time.Second)
 	defer forwarderCtxCancel()
 
