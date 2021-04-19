@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -32,6 +32,8 @@ import (
 )
 
 func Test_WatchFile(t *testing.T) {
+	t.Skip("https://github.com/networkservicemesh/sdk/issues/848")
+
 	root := filepath.Join(os.TempDir(), t.Name())
 	defer func() {
 		_ = os.RemoveAll(root)
