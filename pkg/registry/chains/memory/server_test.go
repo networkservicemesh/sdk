@@ -22,8 +22,10 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
+
 	"github.com/stretchr/testify/require"
 
 	"go.uber.org/goleak"
@@ -69,4 +71,3 @@ func Test_SettingPayload(t *testing.T) {
 
 	require.NoError(t, ctx.Err())
 }
-
