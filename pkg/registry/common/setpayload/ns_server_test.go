@@ -41,22 +41,6 @@ func TestSetPayload_Empty(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestSetPayload_Find_Empty(t *testing.T) {
-	server := setpayload.NewNetworkServiceRegistryServer()
-	ns := &registry.NetworkService{}
-
-	reg, err := server.Register(context.Background(), ns)
-	require.NoError(t, err)
-
-	registry.NewNetworkServiceRegistryClient(cc)
-	server.Find(&registry.NetworkServiceQuery{NetworkService: reg}, setpayload.ne)
-
-	require.Equal(t, payload.IP, ns.Payload)
-
-	_, err = server.Unregister(context.Background(), reg)
-	require.NoError(t, err)
-}
-
 func TestSetPayload_Ethernet(t *testing.T) {
 	server := setpayload.NewNetworkServiceRegistryServer()
 	ns := &registry.NetworkService{Payload: payload.Ethernet}
