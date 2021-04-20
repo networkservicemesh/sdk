@@ -29,7 +29,7 @@ import (
 )
 
 func TestSetPayload_Empty(t *testing.T) {
-	server := setpayload.NewNetworkServiceRegistryServer("")
+	server := setpayload.NewNetworkServiceRegistryServer()
 	ns := &registry.NetworkService{}
 
 	reg, err := server.Register(context.Background(), ns)
@@ -42,13 +42,27 @@ func TestSetPayload_Empty(t *testing.T) {
 }
 
 func TestSetPayload_Ethernet(t *testing.T) {
-	server := setpayload.NewNetworkServiceRegistryServer("")
+	server := setpayload.NewNetworkServiceRegistryServer()
 	ns := &registry.NetworkService{Payload: payload.Ethernet}
 
 	reg, err := server.Register(context.Background(), ns)
 	require.NoError(t, err)
 
 	require.Equal(t, payload.Ethernet, ns.Payload)
+
+	_, err = server.Unregister(context.Background(), reg)
+	require.NoError(t, err)
+}
+
+func TestSetPayload_WithCustomPayload(t *testing.T) {
+	testPayload := "some payload"
+	server := setpayload.NewNetworkServiceRegistryServer(setpayload.WithPayload(testPayload))
+	ns := &registry.NetworkService{Payload: ""}
+
+	reg, err := server.Register(context.Background(), ns)
+	require.NoError(t, err)
+
+	require.Equal(t, testPayload, reg.Payload)
 
 	_, err = server.Unregister(context.Background(), reg)
 	require.NoError(t, err)

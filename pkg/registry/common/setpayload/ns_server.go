@@ -47,12 +47,17 @@ func (s *setPayloadNSServer) Unregister(ctx context.Context, ns *registry.Networ
 }
 
 // NewNetworkServiceRegistryServer creates new instance of NetworkServiceRegistryServer which sets the passed options
-func NewNetworkServiceRegistryServer(altDefaultPayload string) registry.NetworkServiceRegistryServer {
-	payloadServer := &setPayloadNSServer{defaultPayload: payload.IP}
+func NewNetworkServiceRegistryServer(options ...Option) registry.NetworkServiceRegistryServer {
+	payloadServer := &setPayloadNSServer{ defaultPayload: payload.IP}
 
-	if altDefaultPayload != "" {
-		payloadServer.defaultPayload = altDefaultPayload
+	for _, o := range options {
+		o.apply(payloadServer)
 	}
 
 	return payloadServer
 }
+
+func (s *setPayloadNSServer) setPayload(defaultPayload string) {
+	s.defaultPayload = defaultPayload
+}
+
