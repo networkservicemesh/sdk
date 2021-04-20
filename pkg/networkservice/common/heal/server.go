@@ -21,6 +21,7 @@ package heal
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
@@ -34,6 +35,13 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
+
+type ctxWrapper struct {
+	mut     sync.Mutex
+	request *networkservice.NetworkServiceRequest
+	ctx     context.Context
+	cancel  func()
+}
 
 type healServer struct {
 	ctx            context.Context
@@ -73,16 +81,21 @@ func (f *healServer) Request(ctx context.Context, request *networkservice.Networ
 		return nil, err
 	}
 
-	f.healContextMap.applyLockedOrNew(request.GetConnection().GetId(), func(created bool, cw *ctxWrapper) {
-		if !created {
-			if cw.cancel != nil {
-				cw.cancel()
-				cw.cancel = nil
-			}
+	cw, loaded := f.healContextMap.LoadOrStore(request.GetConnection().GetId(), &ctxWrapper{
+		request: request.Clone().SetRequestConnection(conn.Clone()),
+		ctx:     f.createHealContext(ctx, nil),
+	})
+	if loaded {
+		cw.mut.Lock()
+		defer cw.mut.Unlock()
+
+		if cw.cancel != nil {
+			cw.cancel()
+			cw.cancel = nil
 		}
 		cw.request = request.Clone().SetRequestConnection(conn.Clone())
 		cw.ctx = f.createHealContext(ctx, cw.ctx)
-	})
+	}
 
 	return conn, nil
 }
@@ -100,15 +113,23 @@ func (f *healServer) Close(ctx context.Context, conn *networkservice.Connection)
 func (f *healServer) getHealContext(conn *networkservice.Connection) (*networkservice.NetworkServiceRequest, context.Context) {
 	var healCtx context.Context
 	var request *networkservice.NetworkServiceRequest
-	f.healContextMap.applyLocked(conn.GetId(), func(cw *ctxWrapper) {
-		if cw.cancel != nil {
-			cw.cancel()
-		}
-		ctx, cancel := context.WithCancel(cw.ctx)
-		cw.cancel = cancel
-		healCtx = ctx
-		request = cw.request
-	})
+
+	cw, ok := f.healContextMap.Load(conn.GetId())
+	if !ok {
+		return nil, nil
+	}
+
+	cw.mut.Lock()
+	defer cw.mut.Unlock()
+
+	if cw.cancel != nil {
+		cw.cancel()
+	}
+	ctx, cancel := context.WithCancel(cw.ctx)
+	cw.cancel = cancel
+	healCtx = ctx
+	request = cw.request
+
 	return request, healCtx
 }
 
@@ -228,32 +249,4 @@ func (f *healServer) createHealContext(requestCtx, cachedCtx context.Context) co
 	}
 
 	return healCtx
-}
-
-// applyLocked - searches the map for entry with key id and runs provided function while entry mutex is locked.
-//               If map doesn't contain this key, does nothing.
-func (m *ctxWrapperMap) applyLocked(id string, fun func(cw *ctxWrapper)) {
-	cw, ok := m.Load(id)
-	if !ok {
-		return
-	}
-	cw.mut.Lock()
-	defer cw.mut.Unlock()
-	fun(cw)
-}
-
-// applyLocked - searches the map for entry with key id and runs provided function while entry mutex is locked.
-//               If map doesn't contain this creates new key.
-//               Function is informed whether it receives new key or already created key via first argument.
-func (m *ctxWrapperMap) applyLockedOrNew(id string, fun func(created bool, cw *ctxWrapper)) {
-	newCw := &ctxWrapper{}
-	// we need to lock this before storing in map to prevent potential race with other threads that can read this map
-	newCw.mut.Lock()
-	defer newCw.mut.Unlock()
-	cw, loaded := m.LoadOrStore(id, newCw)
-	if loaded {
-		cw.mut.Lock()
-		defer cw.mut.Unlock()
-	}
-	fun(!loaded, cw)
 }
