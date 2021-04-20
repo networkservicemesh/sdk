@@ -24,6 +24,8 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
+
 	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -58,6 +60,10 @@ func NewServer(ctx context.Context, notify func(), options ...Option) networkser
 
 	for _, opt := range options {
 		opt(t)
+	}
+
+	if t.timeout == 0 {
+		return null.NewServer()
 	}
 
 	t.timer = clockTime.AfterFunc(t.timeout, func() {

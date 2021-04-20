@@ -38,6 +38,25 @@ const (
 	testTick = testWait / 100
 )
 
+func TestIdleNotifier_Disable(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	clockMock := clockmock.New(ctx)
+	ctx = clock.WithClock(ctx, clockMock)
+
+	var flag atomic.Bool
+
+	_ = onidle.NewServer(ctx, func() {
+		flag.Store(true)
+	}, onidle.WithTimeout(0))
+
+	clockMock.Add(time.Hour * 100)
+	require.Never(t, flag.Load, testWait, testTick)
+}
+
 func TestIdleNotifier_NoRequests(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
