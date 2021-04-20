@@ -24,16 +24,13 @@ import (
 
 const (
 	requestHealFuncKey contextKeyType = "requestHealFuncKey"
+	requestRestoreConnectionFuncKey contextKeyType = "requestRestoreConnectionFuncKey"
 )
 
 type contextKeyType string
 
-// requestHealFuncType - function used to inform heal server that connection should be healed
-//                       - conn              - connection to be healed
-//                       - restoreConnection - flag to specify whether what to heal.
-//                                             When false, only heals this particular connection.
-//                                             When true also tries to heal physical connection to next hop.
-type requestHealFuncType func(conn *networkservice.Connection, restoreConnection bool)
+type requestHealFuncType func(conn *networkservice.Connection)
+type requestRestoreConnectionFuncType func(conn *networkservice.Connection)
 
 func withRequestHealFunc(parent context.Context, fun requestHealFuncType) context.Context {
 	if parent == nil {
@@ -44,6 +41,20 @@ func withRequestHealFunc(parent context.Context, fun requestHealFuncType) contex
 
 func requestHealFunc(ctx context.Context) requestHealFuncType {
 	if rv, ok := ctx.Value(requestHealFuncKey).(requestHealFuncType); ok {
+		return rv
+	}
+	return nil
+}
+
+func withRequestRestoreConnectionFunc(parent context.Context, fun requestRestoreConnectionFuncType) context.Context {
+	if parent == nil {
+		panic("cannot create context from nil parent")
+	}
+	return context.WithValue(parent, requestRestoreConnectionFuncKey, fun)
+}
+
+func requestRestoreConnectionFunc(ctx context.Context) requestRestoreConnectionFuncType {
+	if rv, ok := ctx.Value(requestRestoreConnectionFuncKey).(requestRestoreConnectionFuncType); ok {
 		return rv
 	}
 	return nil

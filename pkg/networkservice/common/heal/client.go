@@ -69,11 +69,18 @@ func (u *healClient) init(ctx context.Context, conn *networkservice.Connection) 
 	if err != nil {
 		return errors.Wrap(err, "MonitorConnections failed")
 	}
-	pushFunc := requestHealFunc(ctx)
-	if pushFunc == nil {
-		pushFunc = func(conn *networkservice.Connection, restoreConnection bool) {}
+
+	requestHeal := requestHealFunc(ctx)
+	if requestHeal == nil {
+		requestHeal = func(conn *networkservice.Connection) {}
 	}
-	go u.listenToConnectionChanges(pushFunc, monitorClient)
+	requestRestoreConnection := requestRestoreConnectionFunc(ctx)
+	if requestRestoreConnection == nil {
+		requestRestoreConnection = func(conn *networkservice.Connection) {}
+	}
+
+	go u.listenToConnectionChanges(requestHeal, requestRestoreConnection, monitorClient)
+
 	return nil
 }
 
@@ -136,14 +143,14 @@ func (u *healClient) Close(ctx context.Context, conn *networkservice.Connection,
 // listenToConnectionChanges - loops on events from MonitorConnectionClient while the monitor client is alive.
 //                             Updates connection cache and broadcasts events of successful connections.
 //                             Calls heal when something breaks.
-func (u *healClient) listenToConnectionChanges(heal requestHealFuncType, monitorClient networkservice.MonitorConnection_MonitorConnectionsClient) {
+func (u *healClient) listenToConnectionChanges(heal requestHealFuncType, restoreConnection requestRestoreConnectionFuncType, monitorClient networkservice.MonitorConnection_MonitorConnectionsClient) {
 	for {
 		event, err := monitorClient.Recv()
 		if err != nil {
 			u.conns.Range(func(id string, info *connectionInfo) bool {
 				info.cond.L.Lock()
 				defer info.cond.L.Unlock()
-				heal(info.conn, true)
+				restoreConnection(info.conn)
 				return true
 			})
 			return
@@ -167,7 +174,7 @@ func (u *healClient) listenToConnectionChanges(heal requestHealFuncType, monitor
 				connInfo.cond.Broadcast()
 			case networkservice.ConnectionEventType_DELETE:
 				if connInfo.state == connStateReady {
-					heal(connInfo.conn, false)
+					heal(connInfo.conn)
 				}
 				connInfo.state = connStateBroken
 			}
