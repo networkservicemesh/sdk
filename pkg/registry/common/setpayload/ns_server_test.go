@@ -29,7 +29,7 @@ import (
 )
 
 func TestSetPayload_Empty(t *testing.T) {
-	server := setpayload.NewNetworkServiceRegistryServer()
+	server := setpayload.NewNetworkServiceRegistryServer("")
 	ns := &registry.NetworkService{}
 
 	reg, err := server.Register(context.Background(), ns)
@@ -42,7 +42,7 @@ func TestSetPayload_Empty(t *testing.T) {
 }
 
 func TestSetPayload_Ethernet(t *testing.T) {
-	server := setpayload.NewNetworkServiceRegistryServer()
+	server := setpayload.NewNetworkServiceRegistryServer("")
 	ns := &registry.NetworkService{Payload: payload.Ethernet}
 
 	reg, err := server.Register(context.Background(), ns)
