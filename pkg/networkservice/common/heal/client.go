@@ -30,13 +30,20 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type connectionState int
+type connState int
 
 const (
-	connectionstateAwaitingConfirmation connectionState = iota
-	connectionstateReady
-	connectionstateBroken
+	connStateInitial connState = iota
+	connStateReady
+	connStateBroken
 )
+
+type connectionInfo struct {
+	mut                   sync.Mutex
+	conn                  *networkservice.Connection
+	state                 connState
+	successVerificationCh chan struct{}
+}
 
 type healClient struct {
 	ctx      context.Context
@@ -56,15 +63,25 @@ func NewClient(ctx context.Context, cc networkservice.MonitorConnectionClient) n
 	}
 }
 
+func (u *healClient) init(ctx context.Context, conn *networkservice.Connection) error {
+	monitorClient, err := u.cc.MonitorConnections(u.ctx, &networkservice.MonitorScopeSelector{
+		PathSegments: []*networkservice.PathSegment{{Name: conn.GetCurrentPathSegment().Name}, {Name: ""}},
+	})
+	if err != nil {
+		return errors.Wrap(err, "MonitorConnections failed")
+	}
+	pushFunc := requestHealFunc(ctx)
+	if pushFunc == nil {
+		pushFunc = func(conn *networkservice.Connection, restoreConnection bool) {}
+	}
+	go u.listenToConnectionChanges(pushFunc, monitorClient)
+	return nil
+}
+
 func (u *healClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	conn := request.GetConnection()
 	u.initOnce.Do(func() {
-		errCh := make(chan error, 1)
-		pushFunc := requestHealFunc(ctx)
-		if pushFunc == nil {
-			pushFunc = func(conn *networkservice.Connection, restoreConnection bool) {}
-		}
-		go u.listenToConnectionChanges(pushFunc, request.GetConnection().GetCurrentPathSegment(), errCh)
-		u.initErr = <-errCh
+		u.initErr = u.init(ctx, conn)
 	})
 	// if initialization failed, then we want for all subsequent calls to Request() on this object to also fail
 	if u.initErr != nil {
@@ -74,21 +91,16 @@ func (u *healClient) Request(ctx context.Context, request *networkservice.Networ
 	var successVerificationCh chan struct{}
 	closeOnError := false
 	u.conns.applyLockedOrNew(request.GetConnection().GetId(), func(created bool, info *connectionInfo) {
-		conn := request.GetConnection()
 		if created {
 			successVerificationCh = make(chan struct{}, 1)
 
 			info.conn = conn.Clone()
-			info.state = connectionstateAwaitingConfirmation
+			info.state = connStateInitial
 			info.successVerificationCh = successVerificationCh
 			closeOnError = true
 		} else if conn.Path != nil && int(conn.Path.Index) < len(conn.Path.PathSegments)-1 {
-			storedConn := info.conn
-			path := request.GetConnection().Path
-			path.PathSegments = path.PathSegments[:path.Index+1]
-			path.PathSegments = append(path.PathSegments, storedConn.Path.PathSegments[path.Index+1:]...)
-			conn.NetworkServiceEndpointName = storedConn.NetworkServiceEndpointName
-			if info.state == connectionstateBroken {
+			u.replaceConnectionPath(conn, info.conn)
+			if info.state == connStateBroken {
 				successVerificationCh = make(chan struct{}, 1)
 				info.successVerificationCh = successVerificationCh
 			}
@@ -130,17 +142,7 @@ func (u *healClient) Close(ctx context.Context, conn *networkservice.Connection,
 // listenToConnectionChanges - loops on events from MonitorConnectionClient while the monitor client is alive.
 //                             Updates connection cache and broadcasts events of successful connections.
 //                             Calls heal when something breaks.
-func (u *healClient) listenToConnectionChanges(heal requestHealFuncType, currentPathSegment *networkservice.PathSegment, errCh chan error) {
-	monitorClient, err := u.cc.MonitorConnections(u.ctx, &networkservice.MonitorScopeSelector{
-		PathSegments: []*networkservice.PathSegment{{Name: currentPathSegment.Name}, {Name: ""}},
-	})
-	if err != nil {
-		errCh <- errors.Wrap(err, "MonitorConnections failed")
-		return
-	}
-
-	close(errCh)
-
+func (u *healClient) listenToConnectionChanges(heal requestHealFuncType, monitorClient networkservice.MonitorConnection_MonitorConnectionsClient) {
 	for {
 		event, err := monitorClient.Recv()
 		if err != nil {
@@ -166,14 +168,14 @@ func (u *healClient) listenToConnectionChanges(heal requestHealFuncType, current
 						close(info.successVerificationCh)
 						info.successVerificationCh = nil
 					}
-					info.state = connectionstateReady
+					info.state = connStateReady
 					info.conn.Path.PathSegments = eventConn.Clone().Path.PathSegments
 					info.conn.NetworkServiceEndpointName = eventConn.NetworkServiceEndpointName
 				case networkservice.ConnectionEventType_DELETE:
-					if info.state == connectionstateReady {
+					if info.state == connStateReady {
 						heal(info.conn, false)
 					}
-					info.state = connectionstateBroken
+					info.state = connStateBroken
 				}
 			})
 		}
@@ -227,4 +229,12 @@ func (m *connectionInfoMap) applyLockedOrNew(id string, fun func(created bool, i
 		defer info.mut.Unlock()
 	}
 	fun(!loaded, info)
+}
+func (u *healClient) replaceConnectionPath(conn, storedConn *networkservice.Connection) {
+	path := conn.GetPath()
+	if path != nil && int(path.Index) < len(path.PathSegments)-1 {
+		path.PathSegments = path.PathSegments[:path.Index+1]
+		path.PathSegments = append(path.PathSegments, storedConn.Path.PathSegments[path.Index+1:]...)
+		conn.NetworkServiceEndpointName = storedConn.NetworkServiceEndpointName
+	}
 }

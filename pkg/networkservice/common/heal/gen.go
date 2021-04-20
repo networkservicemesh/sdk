@@ -25,13 +25,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
-type connectionInfo struct {
-	mut                   sync.Mutex
-	conn                  *networkservice.Connection
-	state                 connectionState
-	successVerificationCh chan struct{}
-}
-
 //go:generate go-syncmap -output connection_info_map.gen.go -type connectionInfoMap<string,*connectionInfo>
 
 type connectionInfoMap sync.Map
