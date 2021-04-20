@@ -54,7 +54,7 @@ func NewServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryU
 	nsChain := chain.NewNetworkServiceRegistryServer(
 		serialize.NewNetworkServiceRegistryServer(),
 		expire.NewNetworkServiceServer(ctx, adapters.NetworkServiceEndpointServerToClient(nseChain)),
-		setpayload.NewNetworkServiceRegistryServer(),
+		setpayload.NewNetworkServiceRegistryServer(""),
 		memory.NewNetworkServiceRegistryServer(),
 		proxy.NewNetworkServiceRegistryServer(proxyRegistryURL),
 		connect.NewNetworkServiceRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
