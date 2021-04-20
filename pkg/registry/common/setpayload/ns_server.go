@@ -26,11 +26,11 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
-type setPayloadServer struct {
+type setPayloadNSServer struct {
 	defaultPayload string
 }
 
-func (s *setPayloadServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
+func (s *setPayloadNSServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
 	if ns.Payload == "" {
 		ns.Payload = s.defaultPayload
 	}
@@ -38,16 +38,21 @@ func (s *setPayloadServer) Register(ctx context.Context, ns *registry.NetworkSer
 	return next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
 }
 
-func (s *setPayloadServer) Find(query *registry.NetworkServiceQuery, server registry.NetworkServiceRegistry_FindServer) error {
+func (s *setPayloadNSServer) Find(query *registry.NetworkServiceQuery, server registry.NetworkServiceRegistry_FindServer) error {
 	return next.NetworkServiceRegistryServer(server.Context()).Find(query, server)
 }
 
-func (s *setPayloadServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
+func (s *setPayloadNSServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }
 
 // NewNetworkServiceRegistryServer creates new instance of NetworkServiceRegistryServer which sets the passed options
-func NewNetworkServiceRegistryServer() registry.NetworkServiceRegistryServer {
-	payloadServer := &setPayloadServer{defaultPayload: payload.IP}
+func NewNetworkServiceRegistryServer(altDefaultPayload string) registry.NetworkServiceRegistryServer {
+	payloadServer := &setPayloadNSServer{defaultPayload: payload.IP}
+
+	if altDefaultPayload != "" {
+		payloadServer.defaultPayload = altDefaultPayload
+	}
+
 	return payloadServer
 }
