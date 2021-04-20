@@ -27,14 +27,16 @@ import (
 	"github.com/edwarnicke/serialize"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
@@ -170,6 +172,8 @@ func (f *healServer) startHeal(ctx context.Context, request *networkservice.Netw
 // expireTime has passed or stopHeal is called (as in Close) or a different pathSegment is found via monitoring
 // indicating that a later Request has occurred and in doing so created its own healAsNeeded and so we can stop this one
 func (f *healServer) healAsNeeded(baseCtx context.Context, request *networkservice.NetworkServiceRequest, errCh chan error, opts ...grpc.CallOption) {
+	clockTime := clock.FromContext(baseCtx)
+
 	pathSegment := request.GetConnection().GetNextPathSegment()
 
 	// Make sure we have a valid expireTime to work with
@@ -194,7 +198,7 @@ func (f *healServer) healAsNeeded(baseCtx context.Context, request *networkservi
 
 	// Monitor the pathSegment for the first time, so we can pass back an error
 	// if we can't confirm via monitor the other side has the expected state
-	recv, err := f.initialMonitorSegment(ctx, request.GetConnection(), time.Until(expireTime))
+	recv, err := f.initialMonitorSegment(ctx, request.GetConnection(), clockTime.Until(expireTime))
 	if err != nil {
 		errCh <- errors.Wrapf(err, "error calling MonitorConnection_MonitorConnectionsClient.Recv to get initial confirmation server has connection: %+v", request.GetConnection())
 		return
@@ -207,11 +211,11 @@ func (f *healServer) healAsNeeded(baseCtx context.Context, request *networkservi
 	for ctx.Err() == nil {
 		event, err := recv.Recv()
 		if err != nil {
-			deadline := time.Now().Add(time.Minute)
+			deadline := clockTime.Now().Add(time.Minute)
 			if deadline.After(expireTime) {
 				deadline = expireTime
 			}
-			newRecv, newRecvErr := f.initialMonitorSegment(ctx, request.GetConnection(), time.Until(deadline))
+			newRecv, newRecvErr := f.initialMonitorSegment(ctx, request.GetConnection(), clockTime.Until(deadline))
 			if newRecvErr == nil {
 				recv = newRecv
 			} else {
@@ -243,6 +247,8 @@ func (f *healServer) healContext(baseCtx context.Context) (context.Context, cont
 // initialMonitorSegment - monitors for pathSegment and returns a recv and an error if the server does not have
 // a record for the connection matching our expectations
 func (f *healServer) initialMonitorSegment(ctx context.Context, conn *networkservice.Connection, timeout time.Duration) (networkservice.MonitorConnection_MonitorConnectionsClient, error) {
+	clockTime := clock.FromContext(ctx)
+
 	errCh := make(chan error, 1)
 	var recv networkservice.MonitorConnection_MonitorConnectionsClient
 	pathSegment := conn.GetNextPathSegment()
@@ -299,7 +305,7 @@ func (f *healServer) initialMonitorSegment(ctx context.Context, conn *networkser
 	case err := <-errCh:
 		// nolint:govet
 		return recv, err
-	case <-time.After(timeout):
+	case <-clockTime.After(timeout):
 		cancel()
 		err := <-errCh
 		return recv, err
@@ -337,6 +343,8 @@ func (f *healServer) processEvent(ctx context.Context, request *networkservice.N
 }
 
 func (f *healServer) restoreConnection(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) {
+	clockTime := clock.FromContext(ctx)
+
 	id := request.GetConnection().GetId()
 
 	var healMapCtx context.Context
@@ -356,11 +364,11 @@ func (f *healServer) restoreConnection(ctx context.Context, request *networkserv
 		return
 	}
 
-	deadline := time.Now().Add(time.Minute)
+	deadline := clockTime.Now().Add(time.Minute)
 	if deadline.After(expireTime) {
 		deadline = expireTime
 	}
-	requestCtx, requestCancel := context.WithDeadline(ctx, deadline)
+	requestCtx, requestCancel := clockTime.WithDeadline(ctx, deadline)
 	defer requestCancel()
 
 	for requestCtx.Err() == nil {
@@ -373,7 +381,9 @@ func (f *healServer) restoreConnection(ctx context.Context, request *networkserv
 }
 
 func (f *healServer) processHeal(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) {
+	clockTime := clock.FromContext(ctx)
 	logEntry := log.FromContext(ctx).WithField("healServer", "processHeal")
+
 	conn := request.GetConnection()
 
 	candidates := discover.Candidates(ctx)
@@ -399,7 +409,7 @@ func (f *healServer) processHeal(ctx context.Context, request *networkservice.Ne
 		}
 	} else {
 		// Huge timeout is not required to close connection on a current path segment
-		closeCtx, closeCancel := context.WithTimeout(ctx, time.Second)
+		closeCtx, closeCancel := clockTime.WithTimeout(ctx, time.Second)
 		defer closeCancel()
 
 		_, err := (*f.onHeal).Close(closeCtx, request.GetConnection().Clone(), opts...)

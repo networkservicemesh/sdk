@@ -59,7 +59,9 @@ func TestCheckErrorServer_SpecificError(t *testing.T) {
 	err := errors.New("testerror")
 	server := chain.NewNetworkServiceServer(
 		checkerror.NewServer(t, false, err),
-		injecterror.NewServer(err),
+		injecterror.NewServer(
+			injecterror.WithError(err),
+		),
 	)
 	conn, _ := server.Request(context.Background(), request)
 	_, returnedErr := server.Close(context.Background(), conn)

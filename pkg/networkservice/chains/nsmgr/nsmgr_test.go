@@ -785,5 +785,7 @@ func (c *counterServer) UniqueCloses() int {
 }
 
 func newBusyEndpoint() networkservice.NetworkServiceServer {
-	return injecterror.NewServer(errors.New("sorry, endpoint is busy, try again later"))
+	return injecterror.NewServer(
+		injecterror.WithError(errors.New("sorry, endpoint is busy, try again later")),
+	)
 }

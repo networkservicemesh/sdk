@@ -1,4 +1,6 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2020-2021 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -20,35 +22,51 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
 type injectErrorServer struct {
-	err *error
+	requestErrorSupplier, closeErrorSupplier *errorSupplier
 }
 
-// NewServer - returns a testerror server that always returns an error when calling Request/Close
-func NewServer(errs ...error) networkservice.NetworkServiceServer {
-	var err *error
-	if len(errs) > 0 {
-		err = &errs[0]
+// NewServer returns a server chain element returning error on Close/Request on given times
+func NewServer(opts ...Option) networkservice.NetworkServiceServer {
+	o := &options{
+		err:               errors.New("error originates in injectErrorServer"),
+		requestErrorTimes: []int{-1},
+		closeErrorTimes:   []int{-1},
 	}
+
+	for _, opt := range opts {
+		opt(o)
+	}
+
 	return &injectErrorServer{
-		err: err,
+		requestErrorSupplier: &errorSupplier{
+			err:        o.err,
+			errorTimes: o.requestErrorTimes,
+		},
+		closeErrorSupplier: &errorSupplier{
+			err:        o.err,
+			errorTimes: o.closeErrorTimes,
+		},
 	}
 }
 
-func (e injectErrorServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if e.err != nil {
-		return nil, *(e.err)
+func (s injectErrorServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	if err := s.requestErrorSupplier.supply(); err != nil {
+		return nil, err
 	}
-	return nil, errors.New("error originated in injectErrorServer")
+	return next.Server(ctx).Request(ctx, request)
 }
 
-func (e injectErrorServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	if e.err != nil {
-		return &empty.Empty{}, *(e.err)
+func (s injectErrorServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	if err := s.closeErrorSupplier.supply(); err != nil {
+		return nil, err
 	}
-	return &empty.Empty{}, errors.New("error originated in injectErrorServer")
+	return next.Server(ctx).Close(ctx, conn)
 }
