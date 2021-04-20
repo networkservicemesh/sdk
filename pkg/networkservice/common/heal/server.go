@@ -67,6 +67,7 @@ func NewServer(ctx context.Context, onHeal *networkservice.NetworkServiceClient)
 
 func (f *healServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	ctx = withRequestHealFunc(ctx, f.requestHeal)
+	ctx = withRequestRestoreConnectionFunc(ctx, f.requestRestoreConnection)
 	conn, err := next.Server(ctx).Request(ctx, request)
 	if err != nil {
 		return nil, err
@@ -96,8 +97,7 @@ func (f *healServer) Close(ctx context.Context, conn *networkservice.Connection)
 	return rv, nil
 }
 
-// requestHeal - heals requested connection. Returns immediately, heal is asynchronous.
-func (f *healServer) requestHeal(conn *networkservice.Connection, restoreConnection bool) {
+func (f *healServer) getHealContext(conn *networkservice.Connection) (*networkservice.NetworkServiceRequest, context.Context) {
 	var healCtx context.Context
 	var request *networkservice.NetworkServiceRequest
 	f.healContextMap.applyLocked(conn.GetId(), func(cw *ctxWrapper) {
@@ -109,18 +109,31 @@ func (f *healServer) requestHeal(conn *networkservice.Connection, restoreConnect
 		healCtx = ctx
 		request = cw.request
 	})
+	return request, healCtx
+}
 
+// requestHeal - heals requested connection. Returns immediately, heal is asynchronous.
+func (f *healServer) requestHeal(conn *networkservice.Connection) {
+	request, healCtx := f.getHealContext(conn)
 	if request == nil {
 		return
 	}
 
 	request.SetRequestConnection(conn.Clone())
 
-	if restoreConnection {
-		go f.restoreConnection(healCtx, request)
-	} else {
-		go f.processHeal(healCtx, request)
+	go f.processHeal(healCtx, request)
+}
+
+// requestHeal - heals requested connection. Returns immediately, heal is asynchronous.
+func (f *healServer) requestRestoreConnection(conn *networkservice.Connection) {
+	request, healCtx := f.getHealContext(conn)
+	if request == nil {
+		return
 	}
+
+	request.SetRequestConnection(conn.Clone())
+
+	go f.restoreConnection(healCtx, request)
 }
 
 func (f *healServer) stopHeal(conn *networkservice.Connection) {
