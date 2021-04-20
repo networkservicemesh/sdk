@@ -60,4 +60,3 @@ func NewNetworkServiceRegistryServer(options ...Option) registry.NetworkServiceR
 func (s *setPayloadNSServer) setPayload(defaultPayload string) {
 	s.defaultPayload = defaultPayload
 }
-
