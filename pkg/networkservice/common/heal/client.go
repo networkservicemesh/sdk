@@ -20,7 +20,6 @@ package heal
 import (
 	"context"
 	"sync"
-	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -100,34 +99,12 @@ func (u *healClient) Request(ctx context.Context, request *networkservice.Networ
 	})
 	u.replaceConnectionPath(conn, connInfo)
 
-	conn, err := next.Client(ctx).Request(ctx, request, opts...)
+	resp, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
+		u.conns.Delete(conn.GetId())
 		return nil, err
 	}
-
-	connInfo.cond.L.Lock()
-	defer connInfo.cond.L.Unlock()
-	connInfo.conn = conn.Clone()
-	if connInfo.state != connStateReady {
-		ch := make(chan struct{})
-		go func() {
-			connInfo.cond.Wait()
-			close(ch)
-		}()
-		select {
-		case <-ch:
-		case <-time.After(100 * time.Millisecond):
-			connInfo.cond.Broadcast()
-			<-ch
-			if connInfo.state == connStateInitial {
-				u.conns.Delete(conn.GetId())
-			}
-			_, _ = next.Client(ctx).Close(ctx, conn, opts...)
-			return nil, errors.Errorf("couldn't verify that connection: %v was established", conn.GetId())
-		}
-	}
-
-	return conn, nil
+	return resp, err
 }
 
 func (u *healClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {

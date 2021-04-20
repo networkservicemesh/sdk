@@ -81,21 +81,10 @@ func (f *healServer) Request(ctx context.Context, request *networkservice.Networ
 		return nil, err
 	}
 
-	cw, loaded := f.healContextMap.LoadOrStore(request.GetConnection().GetId(), &ctxWrapper{
+	_, _ = f.healContextMap.LoadOrStore(request.GetConnection().GetId(), &ctxWrapper{
 		request: request.Clone().SetRequestConnection(conn.Clone()),
 		ctx:     f.createHealContext(ctx, nil),
 	})
-	if loaded {
-		cw.mut.Lock()
-		defer cw.mut.Unlock()
-
-		if cw.cancel != nil {
-			cw.cancel()
-			cw.cancel = nil
-		}
-		cw.request = request.Clone().SetRequestConnection(conn.Clone())
-		cw.ctx = f.createHealContext(ctx, cw.ctx)
-	}
 
 	return conn, nil
 }
