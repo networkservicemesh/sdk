@@ -37,6 +37,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgrproxy"
+	"github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/proxydns"
@@ -79,7 +80,7 @@ func NewBuilder(t *testing.T) *Builder {
 		supplyNSMgr:            nsmgr.NewServer,
 		DNSDomainName:          "cluster.local",
 		supplyRegistry:         memory.NewServer,
-		supplyRegistryProxy:    proxydns.NewServer,
+		supplyRegistryProxy:    supplyRegistryProxyDNS(),
 		supplyNSMgrProxy:       nsmgrproxy.NewServer,
 		setupNode:              defaultSetupNode(t),
 		generateTokenFunc:      GenerateTestToken,
@@ -433,5 +434,14 @@ func defaultSetupNode(t *testing.T) SetupNodeFunc {
 		}
 		_, err := node.NewForwarder(nodeConfig.ForwarderCtx, nseReg, nodeConfig.ForwarderGenerateTokenFunc)
 		require.NoError(t, err)
+	}
+}
+
+func supplyRegistryProxyDNS() SupplyRegistryProxyFunc {
+	return func(ctx context.Context, dnsResolver dnsresolve.Resolver, handlingDNSDomain string, proxyNSMgrURL *url.URL, options ...grpc.DialOption) registry.Registry {
+		return proxydns.NewServer(ctx, proxyNSMgrURL,
+			proxydns.WithDNSResolver(dnsResolver),
+			proxydns.WithHandlingDNSDomain(handlingDNSDomain),
+			proxydns.WithDialOptions(options...))
 	}
 }
