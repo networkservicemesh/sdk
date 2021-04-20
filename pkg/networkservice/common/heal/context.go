@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	requestHealFuncKey contextKeyType = "requestHealFuncKey"
+	requestHealFuncKey              contextKeyType = "requestHealFuncKey"
 	requestRestoreConnectionFuncKey contextKeyType = "requestRestoreConnectionFuncKey"
 )
 
