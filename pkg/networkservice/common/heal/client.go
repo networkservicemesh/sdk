@@ -123,7 +123,7 @@ func (u *healClient) Request(ctx context.Context, request *networkservice.Networ
 				u.conns.Delete(conn.GetId())
 			}
 			_, _ = next.Client(ctx).Close(ctx, conn, opts...)
-			return nil, errors.Errorf("healClient: timeout expired but we couldn't verify that connection was established, connection id: %v", conn.GetId())
+			return nil, errors.Errorf("couldn't verify that connection: %v was established", conn.GetId())
 		}
 	}
 
