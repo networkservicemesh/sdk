@@ -36,7 +36,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/eventchannel"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
@@ -110,58 +109,4 @@ func TestHealClient_Request(t *testing.T) {
 	}
 	_, err = client.Close(requestCtx, conn)
 	require.NoError(t, err)
-}
-
-func TestHealClient_EmptyInit(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-	eventCh := make(chan *networkservice.ConnectionEvent, 1)
-	defer close(eventCh)
-
-	onHealCh := make(chan struct{})
-	// TODO for tomorrow... check on how to work onHeal into the new chain I've built
-	onHeal := &testOnHeal{
-		RequestFunc: func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (connection *networkservice.Connection, e error) {
-			if ctx.Err() == nil {
-				close(onHealCh)
-			}
-			return &networkservice.Connection{}, nil
-		},
-	}
-
-	eventTrigger := &testOnHeal{
-		RequestFunc: func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-			eventCh <- &networkservice.ConnectionEvent{
-				Type:        networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,
-				Connections: make(map[string]*networkservice.Connection),
-			}
-			return next.Client(ctx).Request(ctx, in)
-		},
-		CloseFunc: func(ctx context.Context, in *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-			return &empty.Empty{}, nil
-		},
-	}
-
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
-
-	healServer := heal.NewServer(ctx, addressof.NetworkServiceClient(onHeal))
-	client := chain.NewNetworkServiceClient(
-		updatepath.NewClient("testClient"),
-		adapters.NewServerToClient(healServer),
-		heal.NewClient(ctx, eventchannel.NewMonitorConnectionClient(eventCh)),
-		adapters.NewServerToClient(updatetoken.NewServer(sandbox.GenerateTestToken)),
-		updatepath.NewClient("testServer"),
-		eventTrigger,
-		adapters.NewServerToClient(updatetoken.NewServer(sandbox.GenerateTestToken)),
-	)
-
-	requestCtx, reqCancelFunc := context.WithTimeout(ctx, waitForTimeout)
-	defer reqCancelFunc()
-
-	_, err := client.Request(requestCtx, &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			NetworkService: "ns-1",
-		},
-	})
-	require.Error(t, err)
 }

@@ -20,7 +20,6 @@ package heal
 import (
 	"context"
 	"sync"
-	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -28,7 +27,6 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 )
 
 type connState int
@@ -86,8 +84,6 @@ func (u *healClient) init(ctx context.Context, conn *networkservice.Connection) 
 }
 
 func (u *healClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	clockTime := clock.FromContext(ctx)
-
 	conn := request.GetConnection()
 	u.initOnce.Do(func() {
 		u.initErr = u.init(ctx, conn)
@@ -111,24 +107,6 @@ func (u *healClient) Request(ctx context.Context, request *networkservice.Networ
 	connInfo.cond.L.Lock()
 	defer connInfo.cond.L.Unlock()
 	connInfo.conn = conn.Clone()
-	if connInfo.state != connStateReady {
-		ch := make(chan struct{})
-		go func() {
-			connInfo.cond.Wait()
-			close(ch)
-		}()
-		select {
-		case <-ch:
-		case <-clockTime.After(100 * time.Millisecond):
-			connInfo.cond.Broadcast()
-			<-ch
-			if connInfo.state == connStateInitial {
-				u.conns.Delete(conn.GetId())
-			}
-			_, _ = next.Client(ctx).Close(ctx, conn, opts...)
-			return nil, errors.Errorf("couldn't verify that connection: %v was established", conn.GetId())
-		}
-	}
 
 	return conn, nil
 }
