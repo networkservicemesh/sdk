@@ -74,8 +74,8 @@ func NewServer(ctx context.Context, onHeal *networkservice.NetworkServiceClient)
 }
 
 func (f *healServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	ctx = withRequestHealFunc(ctx, f.requestHeal)
-	ctx = withRequestRestoreConnectionFunc(ctx, f.requestRestoreConnection)
+	ctx = withRequestHealConnectionFunc(ctx, f.handleHealConnectionRequest)
+	ctx = withRequestRestoreConnectionFunc(ctx, f.handleRestoreConnectionRequest)
 	conn, err := next.Server(ctx).Request(ctx, request)
 	if err != nil {
 		return nil, err
@@ -133,8 +133,8 @@ func (f *healServer) getHealContext(conn *networkservice.Connection) (*networkse
 	return request, healCtx
 }
 
-// requestHeal - heals requested connection. Returns immediately, heal is asynchronous.
-func (f *healServer) requestHeal(conn *networkservice.Connection) {
+// handleHealConnectionRequest - heals requested connection. Returns immediately, heal is asynchronous.
+func (f *healServer) handleHealConnectionRequest(conn *networkservice.Connection) {
 	request, healCtx := f.getHealContext(conn)
 	if request == nil {
 		return
@@ -145,8 +145,8 @@ func (f *healServer) requestHeal(conn *networkservice.Connection) {
 	go f.processHeal(healCtx, request)
 }
 
-// requestHeal - heals requested connection. Returns immediately, heal is asynchronous.
-func (f *healServer) requestRestoreConnection(conn *networkservice.Connection) {
+// handleRestoreConnectionRequest - recreates connection. Returns immediately, heal is asynchronous.
+func (f *healServer) handleRestoreConnectionRequest(conn *networkservice.Connection) {
 	request, healCtx := f.getHealContext(conn)
 	if request == nil {
 		return

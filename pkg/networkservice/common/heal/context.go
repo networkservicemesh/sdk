@@ -23,38 +23,37 @@ import (
 )
 
 const (
-	requestHealFuncKey              contextKeyType = "requestHealFuncKey"
+	requestHealConnectionFuncKey    contextKeyType = "requestHealConnectionFuncKey"
 	requestRestoreConnectionFuncKey contextKeyType = "requestRestoreConnectionFuncKey"
 )
 
 type contextKeyType string
 
 type requestHealFuncType func(conn *networkservice.Connection)
-type requestRestoreConnectionFuncType func(conn *networkservice.Connection)
 
-func withRequestHealFunc(parent context.Context, fun requestHealFuncType) context.Context {
+func withRequestHealConnectionFunc(parent context.Context, fun requestHealFuncType) context.Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
-	return context.WithValue(parent, requestHealFuncKey, fun)
+	return context.WithValue(parent, requestHealConnectionFuncKey, fun)
 }
 
-func requestHealFunc(ctx context.Context) requestHealFuncType {
-	if rv, ok := ctx.Value(requestHealFuncKey).(requestHealFuncType); ok {
+func requestHealConnectionFunc(ctx context.Context) requestHealFuncType {
+	if rv, ok := ctx.Value(requestHealConnectionFuncKey).(requestHealFuncType); ok {
 		return rv
 	}
 	return nil
 }
 
-func withRequestRestoreConnectionFunc(parent context.Context, fun requestRestoreConnectionFuncType) context.Context {
+func withRequestRestoreConnectionFunc(parent context.Context, fun requestHealFuncType) context.Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
 	return context.WithValue(parent, requestRestoreConnectionFuncKey, fun)
 }
 
-func requestRestoreConnectionFunc(ctx context.Context) requestRestoreConnectionFuncType {
-	if rv, ok := ctx.Value(requestRestoreConnectionFuncKey).(requestRestoreConnectionFuncType); ok {
+func requestRestoreConnectionFunc(ctx context.Context) requestHealFuncType {
+	if rv, ok := ctx.Value(requestRestoreConnectionFuncKey).(requestHealFuncType); ok {
 		return rv
 	}
 	return nil
