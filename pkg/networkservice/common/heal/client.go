@@ -29,18 +29,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type connState int
-
-const (
-	connStateInitial connState = iota
-	connStateReady
-	connStateBroken
-)
-
 type connectionInfo struct {
-	cond  *sync.Cond
-	conn  *networkservice.Connection
-	state connState
+	cond   *sync.Cond
+	conn   *networkservice.Connection
+	active bool
 }
 
 type healClient struct {
@@ -149,15 +141,15 @@ func (u *healClient) listenToConnectionChanges(healConnection, restoreConnection
 			// Sometimes we start polling events too late, and when we wait for confirmation of success of some connection,
 			// this connection is in the INITIAL_STATE_TRANSFER event, so we must treat these events the same as UPDATE.
 			case networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER, networkservice.ConnectionEventType_UPDATE:
-				connInfo.state = connStateReady
+				connInfo.active = true
 				connInfo.conn.Path.PathSegments = eventConn.Clone().Path.PathSegments
 				connInfo.conn.NetworkServiceEndpointName = eventConn.NetworkServiceEndpointName
 				connInfo.cond.Broadcast()
 			case networkservice.ConnectionEventType_DELETE:
-				if connInfo.state == connStateReady {
+				if connInfo.active == true {
 					healConnection(connInfo.conn)
 				}
-				connInfo.state = connStateBroken
+				connInfo.active = false
 			}
 			connInfo.cond.L.Unlock()
 		}
