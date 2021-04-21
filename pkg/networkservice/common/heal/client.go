@@ -146,7 +146,7 @@ func (u *healClient) Close(ctx context.Context, conn *networkservice.Connection,
 // listenToConnectionChanges - loops on events from MonitorConnectionClient while the monitor client is alive.
 //                             Updates connection cache and broadcasts events of successful connections.
 //                             Calls heal when something breaks.
-func (u *healClient) listenToConnectionChanges(healConnection requestHealFuncType, restoreConnection requestHealFuncType, monitorClient networkservice.MonitorConnection_MonitorConnectionsClient) {
+func (u *healClient) listenToConnectionChanges(healConnection, restoreConnection requestHealFuncType, monitorClient networkservice.MonitorConnection_MonitorConnectionsClient) {
 	for {
 		event, err := monitorClient.Recv()
 		if err != nil {
