@@ -178,8 +178,12 @@ func TestFewWrongMechanisms(t *testing.T) {
 
 	server := next.NewNetworkServiceServer(
 		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
-			"mech1": injecterror.NewServer(unsupportedErr),
-			"mech2": injecterror.NewServer(unsupportedErr),
+			"mech1": injecterror.NewServer(
+				injecterror.WithError(unsupportedErr),
+			),
+			"mech2": injecterror.NewServer(
+				injecterror.WithError(unsupportedErr),
+			),
 			"mech3": null.NewServer(),
 		}),
 	)

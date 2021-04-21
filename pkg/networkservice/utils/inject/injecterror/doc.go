@@ -14,12 +14,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package refresh
-
-import (
-	"sync"
-)
-
-//go:generate go-syncmap -output timer_map.gen.go -type timerMap<string,github.com/networkservicemesh/sdk/pkg/tools/clock.Timer>
-
-type timerMap sync.Map
+// Package injecterror provides chain elements returning given error on Request, Close on given times
+package injecterror

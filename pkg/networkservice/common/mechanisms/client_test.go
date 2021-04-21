@@ -117,8 +117,12 @@ func Test_Client_FewWrongMechanisms(t *testing.T) {
 
 	c := next.NewNetworkServiceClient(
 		mechanisms.NewClient(map[string]networkservice.NetworkServiceClient{
-			"mech1": injecterror.NewClient(unsupportedErr),
-			"mech2": injecterror.NewClient(unsupportedErr),
+			"mech1": injecterror.NewClient(
+				injecterror.WithError(unsupportedErr),
+			),
+			"mech2": injecterror.NewClient(
+				injecterror.WithError(unsupportedErr),
+			),
 			"mech3": null.NewClient(),
 		}),
 		adapters.NewServerToClient(mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{

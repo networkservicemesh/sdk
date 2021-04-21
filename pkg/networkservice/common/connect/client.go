@@ -32,6 +32,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
@@ -47,13 +48,15 @@ type connectClient struct {
 
 func (u *connectClient) init() error {
 	u.initOnce.Do(func() {
+		clockTime := clock.FromContext(u.ctx)
+
 		clientURL := clienturlctx.ClientURL(u.ctx)
 		if clientURL == nil {
 			u.dialErr = errors.New("cannot dial nil clienturl.ClientURL(ctx)")
 			return
 		}
 
-		ctx, cancel := context.WithTimeout(u.ctx, u.dialTimeout)
+		ctx, cancel := clockTime.WithTimeout(u.ctx, u.dialTimeout)
 		defer cancel()
 
 		dialOptions := append(append([]grpc.DialOption{}, u.dialOptions...), grpc.WithReturnConnectionError())
