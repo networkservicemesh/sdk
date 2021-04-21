@@ -146,7 +146,7 @@ func (u *healClient) listenToConnectionChanges(healConnection, restoreConnection
 				connInfo.conn.Path.PathSegments = eventConn.Clone().Path.PathSegments
 				connInfo.conn.NetworkServiceEndpointName = eventConn.NetworkServiceEndpointName
 			case networkservice.ConnectionEventType_DELETE:
-				if connInfo.active == true {
+				if connInfo.active {
 					healConnection(connInfo.conn)
 				}
 				connInfo.active = false
