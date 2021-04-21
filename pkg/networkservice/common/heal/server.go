@@ -33,6 +33,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
@@ -170,6 +171,8 @@ func (f *healServer) stopHeal(conn *networkservice.Connection) {
 }
 
 func (f *healServer) restoreConnection(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) {
+	clockTime := clock.FromContext(ctx)
+
 	if ctx.Err() != nil {
 		return
 	}
@@ -181,7 +184,7 @@ func (f *healServer) restoreConnection(ctx context.Context, request *networkserv
 		return
 	}
 
-	deadline := time.Now().Add(time.Minute)
+	deadline := clockTime.Now().Add(time.Minute)
 	if deadline.After(expireTime) {
 		deadline = expireTime
 	}

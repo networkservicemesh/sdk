@@ -28,6 +28,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 )
 
 type connState int
@@ -85,6 +86,8 @@ func (u *healClient) init(ctx context.Context, conn *networkservice.Connection) 
 }
 
 func (u *healClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	clockTime := clock.FromContext(ctx)
+
 	conn := request.GetConnection()
 	u.initOnce.Do(func() {
 		u.initErr = u.init(ctx, conn)
@@ -116,7 +119,7 @@ func (u *healClient) Request(ctx context.Context, request *networkservice.Networ
 		}()
 		select {
 		case <-ch:
-		case <-time.After(100 * time.Millisecond):
+		case <-clockTime.After(100 * time.Millisecond):
 			connInfo.cond.Broadcast()
 			<-ch
 			if connInfo.state == connStateInitial {

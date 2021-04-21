@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
@@ -90,7 +89,7 @@ var samples = []*sample{
 		test: func(t *testing.T, server networkservice.NetworkServiceServer, _ bool) {
 			chainServer := next.NewNetworkServiceServer(
 				testServer(server),
-				injecterror.NewServer(errors.New("error")),
+				injecterror.NewServer(),
 			)
 			_, err := chainServer.Request(context.TODO(), testRequest(nil))
 			require.Error(t, err)
