@@ -56,6 +56,7 @@ func TestSetPayload_Ethernet(t *testing.T) {
 
 func TestSetPayload_WithCustomPayload(t *testing.T) {
 	testPayload := "some payload"
+
 	server := setpayload.NewNetworkServiceRegistryServer(setpayload.WithPayload(testPayload))
 	ns := &registry.NetworkService{Payload: ""}
 

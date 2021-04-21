@@ -16,24 +16,12 @@
 
 package setpayload
 
-type configurable interface {
-	setPayload(payload string)
-}
+// Option setpayload registry configuration option
+type Option func(*setPayloadNSServer)
 
-// Option configures connect servers
-type Option interface {
-	apply(configurable)
-}
-
-type applyOptionFunc func(configurable)
-
-func (a applyOptionFunc) apply(c configurable) {
-	a(c)
-}
-
-// WithPayload sets default payload in case of empty payload
+// WithPayload sets specific payload as default for registry with empty payload
 func WithPayload(payload string) Option {
-	return applyOptionFunc(func(c configurable) {
-		c.setPayload(payload)
-	})
+	return func(s *setPayloadNSServer) {
+		s.defaultPayload = payload
+	}
 }

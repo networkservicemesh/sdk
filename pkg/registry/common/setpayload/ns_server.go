@@ -51,12 +51,8 @@ func NewNetworkServiceRegistryServer(options ...Option) registry.NetworkServiceR
 	payloadServer := &setPayloadNSServer{defaultPayload: payload.IP}
 
 	for _, o := range options {
-		o.apply(payloadServer)
+		o(payloadServer)
 	}
 
 	return payloadServer
-}
-
-func (s *setPayloadNSServer) setPayload(defaultPayload string) {
-	s.defaultPayload = defaultPayload
 }
