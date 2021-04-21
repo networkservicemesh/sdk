@@ -30,7 +30,7 @@ import (
 )
 
 type connectionInfo struct {
-	cond   *sync.Cond
+	mut    sync.Mutex
 	conn   *networkservice.Connection
 	active bool
 }
@@ -43,7 +43,8 @@ type healClient struct {
 	conns    connectionInfoMap
 }
 
-// NewClient - creates a new networkservice.NetworkServiceClient chain element
+// NewClient - creates a new networkservice.NetworkServiceClient chain element that monitors its connections' state
+//             and calls heal server in case connection breaks if heal server is present in the chain
 //             - ctx - context for the lifecycle of the *Client* itself.  Cancel when discarding the client.
 //             - cc  - MonitorConnectionClient that will be used to watch for connection confirmations and breakages.
 func NewClient(ctx context.Context, cc networkservice.MonitorConnectionClient) networkservice.NetworkServiceClient {
@@ -87,7 +88,7 @@ func (u *healClient) Request(ctx context.Context, request *networkservice.Networ
 
 	connInfo, _ := u.conns.LoadOrStore(conn.GetId(), &connectionInfo{
 		conn: conn.Clone(),
-		cond: sync.NewCond(&sync.Mutex{}),
+		mut:  sync.Mutex{},
 	})
 	u.replaceConnectionPath(conn, connInfo)
 
@@ -96,8 +97,8 @@ func (u *healClient) Request(ctx context.Context, request *networkservice.Networ
 		return nil, err
 	}
 
-	connInfo.cond.L.Lock()
-	defer connInfo.cond.L.Unlock()
+	connInfo.mut.Lock()
+	defer connInfo.mut.Unlock()
 	connInfo.conn = conn.Clone()
 
 	return conn, nil
@@ -121,8 +122,8 @@ func (u *healClient) listenToConnectionChanges(healConnection, restoreConnection
 		event, err := monitorClient.Recv()
 		if err != nil {
 			u.conns.Range(func(id string, info *connectionInfo) bool {
-				info.cond.L.Lock()
-				defer info.cond.L.Unlock()
+				info.mut.Lock()
+				defer info.mut.Unlock()
 				restoreConnection(info.conn)
 				return true
 			})
@@ -135,7 +136,7 @@ func (u *healClient) listenToConnectionChanges(healConnection, restoreConnection
 			if !ok {
 				continue
 			}
-			connInfo.cond.L.Lock()
+			connInfo.mut.Lock()
 			switch event.GetType() {
 			// Why both INITIAL_STATE_TRANSFER and UPDATE:
 			// Sometimes we start polling events too late, and when we wait for confirmation of success of some connection,
@@ -144,14 +145,13 @@ func (u *healClient) listenToConnectionChanges(healConnection, restoreConnection
 				connInfo.active = true
 				connInfo.conn.Path.PathSegments = eventConn.Clone().Path.PathSegments
 				connInfo.conn.NetworkServiceEndpointName = eventConn.NetworkServiceEndpointName
-				connInfo.cond.Broadcast()
 			case networkservice.ConnectionEventType_DELETE:
 				if connInfo.active == true {
 					healConnection(connInfo.conn)
 				}
 				connInfo.active = false
 			}
-			connInfo.cond.L.Unlock()
+			connInfo.mut.Unlock()
 		}
 	}
 }
@@ -159,8 +159,8 @@ func (u *healClient) listenToConnectionChanges(healConnection, restoreConnection
 func (u *healClient) replaceConnectionPath(conn *networkservice.Connection, connInfo *connectionInfo) {
 	path := conn.GetPath()
 	if path != nil && int(path.Index) < len(path.PathSegments)-1 {
-		connInfo.cond.L.Lock()
-		defer connInfo.cond.L.Unlock()
+		connInfo.mut.Lock()
+		defer connInfo.mut.Unlock()
 		path.PathSegments = path.PathSegments[:path.Index+1]
 		path.PathSegments = append(path.PathSegments, connInfo.conn.Path.PathSegments[path.Index+1:]...)
 		conn.NetworkServiceEndpointName = connInfo.conn.NetworkServiceEndpointName
