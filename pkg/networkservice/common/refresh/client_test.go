@@ -24,6 +24,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
+	"google.golang.org/grpc/credentials"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -35,15 +36,16 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
+	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 const (
-	expireTimeout     = 300 * time.Millisecond
-	eventuallyTimeout = expireTimeout
-	tickTimeout       = 10 * time.Millisecond
-	neverTimeout      = expireTimeout
-	maxDuration       = 100 * time.Hour
+	expireTimeout = 15 * time.Minute
+	testWait      = 100 * time.Millisecond
+	testTick      = testWait / 100
 
 	sandboxExpireTimeout = 300 * time.Millisecond
 	sandboxMinDuration   = 50 * time.Millisecond
@@ -51,11 +53,20 @@ const (
 	sandboxTotalTimeout  = 800 * time.Millisecond
 )
 
+func testTokenFunc(clockTime clock.Clock, timeout time.Duration) token.GeneratorFunc {
+	return func(_ credentials.AuthInfo) (token string, expireTime time.Time, err error) {
+		return "", clockTime.Now().Add(timeout), err
+	}
+}
+
 func TestRefreshClient_ValidRefresh(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	clockMock := clockmock.NewMock()
+	ctx = clock.WithClock(ctx, clockMock)
 
 	cloneClient := &countClient{
 		t: t,
@@ -64,7 +75,7 @@ func TestRefreshClient_ValidRefresh(t *testing.T) {
 		serialize.NewClient(),
 		updatepath.NewClient("refresh"),
 		refresh.NewClient(ctx),
-		adapters.NewServerToClient(updatetoken.NewServer(sandbox.GenerateExpiringToken(expireTimeout))),
+		adapters.NewServerToClient(updatetoken.NewServer(testTokenFunc(clockMock, expireTimeout))),
 		cloneClient,
 	)
 
@@ -77,7 +88,8 @@ func TestRefreshClient_ValidRefresh(t *testing.T) {
 	require.NoError(t, err)
 	require.Condition(t, cloneClient.validator(1))
 
-	require.Eventually(t, cloneClient.validator(2), eventuallyTimeout, tickTimeout)
+	clockMock.Add(expireTimeout)
+	require.Eventually(t, cloneClient.validator(2), testWait, testTick)
 
 	lastRequestConn := cloneClient.GetLastRequest().GetConnection()
 	require.Equal(t, conn.Id, lastRequestConn.Id)
@@ -97,6 +109,9 @@ func TestRefreshClient_StopRefreshAtClose(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	clockMock := clockmock.NewMock()
+	ctx = clock.WithClock(ctx, clockMock)
+
 	cloneClient := &countClient{
 		t: t,
 	}
@@ -104,7 +119,7 @@ func TestRefreshClient_StopRefreshAtClose(t *testing.T) {
 		serialize.NewClient(),
 		updatepath.NewClient("refresh"),
 		refresh.NewClient(ctx),
-		adapters.NewServerToClient(updatetoken.NewServer(sandbox.GenerateExpiringToken(expireTimeout))),
+		adapters.NewServerToClient(updatetoken.NewServer(testTokenFunc(clockMock, expireTimeout))),
 		cloneClient,
 	)
 
@@ -116,13 +131,16 @@ func TestRefreshClient_StopRefreshAtClose(t *testing.T) {
 	require.NoError(t, err)
 	require.Condition(t, cloneClient.validator(1))
 
-	require.Eventually(t, cloneClient.validator(2), eventuallyTimeout, tickTimeout)
+	clockMock.Add(expireTimeout)
+	require.Eventually(t, cloneClient.validator(2), testWait, testTick)
 
 	_, err = client.Close(ctx, conn)
 	require.NoError(t, err)
 
 	count := atomic.LoadInt32(&cloneClient.count)
-	require.Never(t, cloneClient.validator(count+1), neverTimeout, tickTimeout)
+
+	clockMock.Add(2 * expireTimeout)
+	require.Never(t, cloneClient.validator(count+1), testWait, testTick)
 }
 
 func TestRefreshClient_RestartsRefreshAtAnotherRequest(t *testing.T) {
@@ -131,6 +149,9 @@ func TestRefreshClient_RestartsRefreshAtAnotherRequest(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	clockMock := clockmock.NewMock()
+	ctx = clock.WithClock(ctx, clockMock)
+
 	cloneClient := &countClient{
 		t: t,
 	}
@@ -138,7 +159,7 @@ func TestRefreshClient_RestartsRefreshAtAnotherRequest(t *testing.T) {
 		serialize.NewClient(),
 		updatepath.NewClient("refresh"),
 		refresh.NewClient(ctx),
-		adapters.NewServerToClient(updatetoken.NewServer(sandbox.GenerateExpiringToken(expireTimeout))),
+		adapters.NewServerToClient(updatetoken.NewServer(testTokenFunc(clockMock, expireTimeout))),
 		cloneClient,
 	)
 
@@ -150,7 +171,8 @@ func TestRefreshClient_RestartsRefreshAtAnotherRequest(t *testing.T) {
 	require.NoError(t, err)
 	require.Condition(t, cloneClient.validator(1))
 
-	require.Eventually(t, cloneClient.validator(2), eventuallyTimeout, tickTimeout)
+	clockMock.Add(expireTimeout)
+	require.Eventually(t, cloneClient.validator(2), testWait, testTick)
 
 	_, err = client.Request(ctx, &networkservice.NetworkServiceRequest{
 		Connection: conn.Clone(),
@@ -158,8 +180,12 @@ func TestRefreshClient_RestartsRefreshAtAnotherRequest(t *testing.T) {
 	require.NoError(t, err)
 
 	count := atomic.LoadInt32(&cloneClient.count)
-	require.Eventually(t, cloneClient.validator(count+1), eventuallyTimeout, tickTimeout)
-	require.Never(t, cloneClient.validator(count+5), eventuallyTimeout, tickTimeout)
+
+	for i := 0; i < 10; i++ {
+		clockMock.Add(expireTimeout / 10)
+	}
+	require.Eventually(t, cloneClient.validator(count+1), testWait, testTick)
+	require.Never(t, cloneClient.validator(count+5), testWait, testTick)
 }
 
 type stressTestConfig struct {
@@ -177,7 +203,7 @@ func TestRefreshClient_CheckRaceConditions(t *testing.T) {
 		name:          "RaceConditions",
 		expireTimeout: 2 * time.Millisecond,
 		minDuration:   0,
-		maxDuration:   maxDuration,
+		maxDuration:   100 * time.Hour,
 		tickDuration:  8100 * time.Microsecond,
 		iterations:    100,
 	}

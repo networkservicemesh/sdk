@@ -21,9 +21,10 @@ package discover
 import (
 	"bytes"
 	"text/template"
-	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 )
 
 // isSubset checks if B is a subset of A. TODO: reconsider this as a part of "tools"
@@ -42,10 +43,10 @@ func isSubset(a, b, nsLabels map[string]string) bool {
 	return true
 }
 
-func matchEndpoint(nsLabels map[string]string, ns *registry.NetworkService, networkServiceEndpoints ...*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
+func matchEndpoint(clockTime clock.Clock, nsLabels map[string]string, ns *registry.NetworkService, nses ...*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
 	var validNetworkServiceEndpoints []*registry.NetworkServiceEndpoint
-	for _, nse := range networkServiceEndpoints {
-		if nse.GetExpirationTime() == nil || nse.GetExpirationTime().AsTime().After(time.Now()) {
+	for _, nse := range nses {
+		if nse.GetExpirationTime() == nil || nse.GetExpirationTime().AsTime().After(clockTime.Now()) {
 			validNetworkServiceEndpoints = append(validNetworkServiceEndpoints, nse)
 		}
 	}
