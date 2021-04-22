@@ -86,7 +86,7 @@ func (u *healClient) Request(ctx context.Context, request *networkservice.Networ
 		return nil, u.initErr
 	}
 
-	connInfo, _ := u.conns.LoadOrStore(conn.GetId(), &connectionInfo{
+	connInfo, loaded := u.conns.LoadOrStore(conn.GetId(), &connectionInfo{
 		conn: conn.Clone(),
 		mut:  sync.Mutex{},
 	})
@@ -94,6 +94,9 @@ func (u *healClient) Request(ctx context.Context, request *networkservice.Networ
 
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
+		if !loaded {
+			u.conns.Delete(request.GetConnection().GetId())
+		}
 		return nil, err
 	}
 
