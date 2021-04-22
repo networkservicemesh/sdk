@@ -18,23 +18,42 @@ package heal
 
 import (
 	"context"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
 const (
-	registerClientFuncKey contextKeyType = "RegisterFunc"
+	requestHealConnectionFuncKey    contextKeyType = "requestHealConnectionFuncKey"
+	requestRestoreConnectionFuncKey contextKeyType = "requestRestoreConnectionFuncKey"
 )
 
 type contextKeyType string
 
-func withRegisterClientFunc(parent context.Context, registerClientFunc RegisterClientFunc) context.Context {
+type requestHealFuncType func(conn *networkservice.Connection)
+
+func withRequestHealConnectionFunc(parent context.Context, fun requestHealFuncType) context.Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
-	return context.WithValue(parent, registerClientFuncKey, registerClientFunc)
+	return context.WithValue(parent, requestHealConnectionFuncKey, fun)
 }
 
-func registerClientFunc(ctx context.Context) RegisterClientFunc {
-	if rv, ok := ctx.Value(registerClientFuncKey).(RegisterClientFunc); ok {
+func requestHealConnectionFunc(ctx context.Context) requestHealFuncType {
+	if rv, ok := ctx.Value(requestHealConnectionFuncKey).(requestHealFuncType); ok {
+		return rv
+	}
+	return nil
+}
+
+func withRequestRestoreConnectionFunc(parent context.Context, fun requestHealFuncType) context.Context {
+	if parent == nil {
+		panic("cannot create context from nil parent")
+	}
+	return context.WithValue(parent, requestRestoreConnectionFuncKey, fun)
+}
+
+func requestRestoreConnectionFunc(ctx context.Context) requestHealFuncType {
+	if rv, ok := ctx.Value(requestRestoreConnectionFuncKey).(requestHealFuncType); ok {
 		return rv
 	}
 	return nil

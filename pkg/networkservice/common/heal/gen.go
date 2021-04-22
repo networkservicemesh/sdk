@@ -22,8 +22,10 @@ import (
 	"sync"
 )
 
-//go:generate go-syncmap -output connection_map.gen.go -type connectionMap<string,connection>
-//go:generate go-syncmap -output client_connection_map.gen.go -type clientConnMap<string,clientConnInfo>
+//go:generate go-syncmap -output connection_info_map.gen.go -type connectionInfoMap<string,*connectionInfo>
 
-type connectionMap sync.Map
-type clientConnMap sync.Map
+type connectionInfoMap sync.Map
+
+//go:generate go-syncmap -output context_wrapper_map.gen.go -type ctxWrapperMap<string,*ctxWrapper>
+
+type ctxWrapperMap sync.Map
