@@ -41,11 +41,10 @@ func Test_RegistryMemory_ShouldSetDefaultPayload(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	domain := sandbox.NewBuilder(t).
+	domain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(0).
 		SetRegistryProxySupplier(nil).
 		SetNSMgrProxySupplier(nil).
-		SetContext(ctx).
 		Build()
 
 	// start grpc client connection and register it
