@@ -188,7 +188,7 @@ func (f *healServer) restoreConnection(ctx context.Context, request *networkserv
 	if deadline.After(expireTime) {
 		deadline = expireTime
 	}
-	requestCtx, requestCancel := context.WithDeadline(ctx, deadline)
+	requestCtx, requestCancel := clockTime.WithDeadline(ctx, deadline)
 	defer requestCancel()
 
 	for requestCtx.Err() == nil {
@@ -227,7 +227,7 @@ func (f *healServer) processHeal(ctx context.Context, request *networkservice.Ne
 		}
 	} else {
 		// Huge timeout is not required to close connection on a current path segment
-		closeCtx, closeCancel := context.WithTimeout(ctx, time.Second)
+		closeCtx, closeCancel := clock.FromContext(ctx).WithTimeout(ctx, time.Second)
 		defer closeCancel()
 
 		_, err := (*f.onHeal).Close(closeCtx, request.GetConnection().Clone(), opts...)
