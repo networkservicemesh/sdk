@@ -33,13 +33,17 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/querycache"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
+	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
 )
 
 const (
-	name           = "nse"
-	url1           = "tcp://1.1.1.1"
-	url2           = "tcp://2.2.2.2"
-	expirationTime = 100 * time.Millisecond
+	expireTimeout = time.Minute
+	name          = "nse"
+	url1          = "tcp://1.1.1.1"
+	url2          = "tcp://2.2.2.2"
+	testWait      = 100 * time.Millisecond
+	testTick      = testWait / 100
 )
 
 func testNSEQuery(nseName string) *registry.NetworkServiceEndpointQuery {
@@ -60,7 +64,7 @@ func Test_QueryCacheClient_ShouldCacheNSEs(t *testing.T) {
 
 	failureClient := new(failureNSEClient)
 	c := next.NewNetworkServiceEndpointRegistryClient(
-		querycache.NewClient(ctx, querycache.WithExpireTimeout(time.Minute)),
+		querycache.NewClient(ctx, querycache.WithExpireTimeout(expireTimeout)),
 		failureClient,
 		adapters.NetworkServiceEndpointServerToClient(mem),
 	)
@@ -75,6 +79,8 @@ func Test_QueryCacheClient_ShouldCacheNSEs(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	// 1. Find from memory
+	atomic.StoreInt32(&failureClient.shouldFail, 0)
+
 	stream, err := c.Find(ctx, testNSEQuery(""))
 	require.NoError(t, err)
 
@@ -95,7 +101,7 @@ func Test_QueryCacheClient_ShouldCacheNSEs(t *testing.T) {
 			return false
 		}
 		return name == nse.Name && url1 == nse.Url
-	}, 100*time.Millisecond, time.Millisecond)
+	}, testWait, testTick)
 
 	// 3. Update NSE in memory
 	reg.Url = url2
@@ -111,7 +117,7 @@ func Test_QueryCacheClient_ShouldCacheNSEs(t *testing.T) {
 			return false
 		}
 		return name == nse.Name && url2 == nse.Url
-	}, 100*time.Millisecond, time.Millisecond)
+	}, testWait, testTick)
 
 	// 4. Delete NSE from memory
 	_, err = mem.Unregister(ctx, reg)
@@ -120,7 +126,7 @@ func Test_QueryCacheClient_ShouldCacheNSEs(t *testing.T) {
 	require.Eventually(t, func() bool {
 		_, err = c.Find(ctx, testNSEQuery(name))
 		return err != nil
-	}, 100*time.Millisecond, time.Millisecond)
+	}, testWait, testTick)
 }
 
 func Test_QueryCacheClient_ShouldCleanUpOnTimeout(t *testing.T) {
@@ -129,11 +135,14 @@ func Test_QueryCacheClient_ShouldCleanUpOnTimeout(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	clockMock := clockmock.NewMock()
+	ctx = clock.WithClock(ctx, clockMock)
+
 	mem := memory.NewNetworkServiceEndpointRegistryServer()
 
 	failureClient := new(failureNSEClient)
 	c := next.NewNetworkServiceEndpointRegistryClient(
-		querycache.NewClient(ctx, querycache.WithExpireTimeout(expirationTime)),
+		querycache.NewClient(ctx, querycache.WithExpireTimeout(expireTimeout)),
 		failureClient,
 		adapters.NetworkServiceEndpointServerToClient(mem),
 	)
@@ -147,6 +156,8 @@ func Test_QueryCacheClient_ShouldCleanUpOnTimeout(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	// 1. Find from memory
+	atomic.StoreInt32(&failureClient.shouldFail, 0)
+
 	stream, err := c.Find(ctx, testNSEQuery(""))
 	require.NoError(t, err)
 
@@ -161,11 +172,11 @@ func Test_QueryCacheClient_ShouldCleanUpOnTimeout(t *testing.T) {
 			_, err = stream.Recv()
 		}
 		return err == nil
-	}, 100*time.Millisecond, time.Millisecond)
+	}, testWait, testTick)
 
 	// 3. Keep finding from cache to prevent expiration
-	for start := time.Now(); time.Since(start) > 2*expirationTime; time.Sleep(expirationTime / 10) {
-		stream, err = c.Find(ctx, testNSEQuery(""))
+	for start := clockMock.Now(); clockMock.Since(start) < 2*expireTimeout; clockMock.Add(expireTimeout / 3) {
+		stream, err = c.Find(ctx, testNSEQuery(name))
 		require.NoError(t, err)
 
 		_, err = stream.Recv()
@@ -173,10 +184,10 @@ func Test_QueryCacheClient_ShouldCleanUpOnTimeout(t *testing.T) {
 	}
 
 	// 4. Wait for the expire to happen
-	time.Sleep(expirationTime)
+	clockMock.Add(expireTimeout)
 
-	_, err = c.Find(ctx, testNSEQuery(""))
-	require.Error(t, err)
+	_, err = c.Find(ctx, testNSEQuery(name))
+	require.Errorf(t, err, "find error")
 }
 
 type failureNSEClient struct {

@@ -22,35 +22,39 @@ import (
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 )
 
 type cache struct {
 	expireTimeout time.Duration
 	entries       cacheEntryMap
+	clockTime     clock.Clock
 }
 
 func newCache(ctx context.Context, opts ...Option) *cache {
 	c := &cache{
 		expireTimeout: time.Minute,
+		clockTime:     clock.FromContext(ctx),
 	}
 
 	for _, opt := range opts {
 		opt(c)
 	}
 
-	ticker := time.NewTicker(c.expireTimeout)
+	ticker := c.clockTime.Ticker(c.expireTimeout)
 	go func() {
 		for {
 			select {
 			case <-ctx.Done():
 				ticker.Stop()
 				return
-			case <-ticker.C:
+			case <-ticker.C():
 				c.entries.Range(func(_ string, e *cacheEntry) bool {
 					e.lock.Lock()
 					defer e.lock.Unlock()
 
-					if time.Until(e.expirationTime) < 0 {
+					if c.clockTime.Until(e.expirationTime) < 0 {
 						e.cleanup()
 					}
 
@@ -67,7 +71,7 @@ func (c *cache) LoadOrStore(key string, nse *registry.NetworkServiceEndpoint, ca
 	var once sync.Once
 	return c.entries.LoadOrStore(key, &cacheEntry{
 		nse:            nse,
-		expirationTime: time.Now().Add(c.expireTimeout),
+		expirationTime: c.clockTime.Now().Add(c.expireTimeout),
 		cleanup: func() {
 			once.Do(func() {
 				c.entries.Delete(key)
@@ -86,12 +90,12 @@ func (c *cache) Load(key string) (*registry.NetworkServiceEndpoint, bool) {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 
-	if time.Until(e.expirationTime) < 0 {
+	if c.clockTime.Until(e.expirationTime) < 0 {
 		e.cleanup()
 		return nil, false
 	}
 
-	e.expirationTime = time.Now().Add(c.expireTimeout)
+	e.expirationTime = c.clockTime.Now().Add(c.expireTimeout)
 
 	return e.nse, true
 }

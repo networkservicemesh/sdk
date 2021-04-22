@@ -155,12 +155,12 @@ func (s *memoryNSEServer) receiveEvent(
 }
 
 func (s *memoryNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	s.networkServiceEndpoints.Delete(nse.Name)
-
-	nse.ExpirationTime = &timestamp.Timestamp{
-		Seconds: -1,
+	if unregisterNSE, ok := s.networkServiceEndpoints.LoadAndDelete(nse.Name); ok {
+		unregisterNSE = unregisterNSE.Clone()
+		unregisterNSE.ExpirationTime = &timestamp.Timestamp{
+			Seconds: -1,
+		}
+		s.sendEvent(unregisterNSE)
 	}
-	s.sendEvent(nse)
-
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }
