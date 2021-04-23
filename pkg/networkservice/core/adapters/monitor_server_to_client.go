@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Cisco and/or its affiliates.
 //
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +20,7 @@ package adapters
 
 import (
 	"context"
+	"runtime"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
@@ -41,5 +44,8 @@ func (m *monitorServerToClient) MonitorConnections(ctx context.Context, selector
 	go func() {
 		_ = m.server.MonitorConnections(selector, srv)
 	}()
+	for len(eventCh) == 0 {
+		runtime.Gosched()
+	}
 	return eventchannel.NewMonitorConnectionMonitorConnectionsClient(ctx, eventCh), nil
 }
