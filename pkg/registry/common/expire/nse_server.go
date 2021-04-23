@@ -27,6 +27,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 )
 
 // TODO: rework with serialize (#749)
@@ -39,7 +40,7 @@ type expireNSEServer struct {
 type unregisterTimer struct {
 	expirationTime    time.Time
 	started, canceled bool
-	timer             *time.Timer
+	timer             clock.Timer
 	executor          serialize.Executor
 }
 
@@ -52,6 +53,8 @@ func NewNetworkServiceEndpointRegistryServer(ctx context.Context, nseExpiration 
 }
 
 func (n *expireNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	clockTime := clock.FromContext(ctx)
+
 	t, loaded := n.timers.LoadAndDelete(nse.Name)
 	stopped := loaded && t.timer.Stop()
 
@@ -72,7 +75,7 @@ func (n *expireNSEServer) Register(ctx context.Context, nse *registry.NetworkSer
 	if err != nil {
 		if stopped {
 			// Timer has been stopped, we need only to reset it.
-			t.timer.Reset(time.Until(expirationTime))
+			t.timer.Reset(clockTime.Until(expirationTime))
 		} else if loaded && !started {
 			// Timer function has been stopped with the `canceled` flag, we need to remove the flag.
 			t.executor.AsyncExec(func() {
@@ -86,7 +89,7 @@ func (n *expireNSEServer) Register(ctx context.Context, nse *registry.NetworkSer
 		return nil, err
 	}
 
-	expirationTime = time.Now().Add(n.nseExpiration)
+	expirationTime = clockTime.Now().Add(n.nseExpiration)
 	if resp.ExpirationTime != nil {
 		if respExpirationTime := resp.ExpirationTime.AsTime().Local(); respExpirationTime.Before(expirationTime) {
 			expirationTime = respExpirationTime
@@ -110,11 +113,13 @@ func (n *expireNSEServer) newTimer(
 	expirationTime time.Time,
 	nse *registry.NetworkServiceEndpoint,
 ) *unregisterTimer {
+	clockTime := clock.FromContext(ctx)
+
 	t := &unregisterTimer{
 		expirationTime: expirationTime,
 	}
 
-	t.timer = time.AfterFunc(time.Until(expirationTime), func() {
+	t.timer = clockTime.AfterFunc(clockTime.Until(expirationTime), func() {
 		t.executor.AsyncExec(func() {
 			t.started = true
 			if t.canceled || n.ctx.Err() != nil {

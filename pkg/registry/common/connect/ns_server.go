@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
@@ -33,7 +34,7 @@ import (
 )
 
 type nsCacheEntry struct {
-	expirationTimer *time.Timer
+	expirationTimer clock.Timer
 	client          registry.NetworkServiceRegistryClient
 }
 
@@ -43,6 +44,7 @@ type connectNSServer struct {
 	cache             nsClientMap
 	connectExpiration time.Duration
 	ctx               context.Context
+	clock             clock.Clock
 }
 
 // NewNetworkServiceRegistryServer creates new connect NetworkServiceEndpointRegistryServer with specific chain context, registry client factory and options
@@ -52,6 +54,7 @@ func NewNetworkServiceRegistryServer(ctx context.Context, clientFactory func(ctx
 		ctx:               ctx,
 		clientFactory:     clientFactory,
 		connectExpiration: defaultConnectExpiration,
+		clock:             clock.FromContext(ctx),
 	}
 	for _, o := range options {
 		o.apply(r)
@@ -87,7 +90,7 @@ func (c *connectNSServer) connect(ctx context.Context) registry.NetworkServiceRe
 	ctx = extend.WithValuesFromContext(c.ctx, ctx)
 	client := clienturl.NewNetworkServiceRegistryClient(ctx, c.clientFactory, c.dialOptions...)
 	cached, _ := c.cache.LoadOrStore(key, &nsCacheEntry{
-		expirationTimer: time.AfterFunc(c.connectExpiration, func() {
+		expirationTimer: c.clock.AfterFunc(c.connectExpiration, func() {
 			c.cache.Delete(key)
 		}),
 		client: client,
