@@ -33,8 +33,6 @@ import (
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -164,9 +162,9 @@ func TestNSMGR_HealLocalForwarderRestored(t *testing.T) {
 }
 
 func TestNSMGR_HealRemoteForwarderMultiple(t *testing.T) {
-	logger := logruslogger.New(context.Background())
-	log.WithLog(context.Background(), logger)
-	log.EnableTracing(true)
+	// logger := logruslogger.New(context.Background())
+	// log.WithLog(context.Background(), logger)
+	// log.EnableTracing(true)
 
 	for i := 0; i < 100; i++ {
 		t.Run("TestNSMGR_HealRemoteForwarder", TestNSMGR_HealRemoteForwarder)
