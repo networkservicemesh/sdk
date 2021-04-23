@@ -18,6 +18,7 @@ package adapters
 
 import (
 	"context"
+	"runtime"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
@@ -41,5 +42,8 @@ func (m *monitorServerToClient) MonitorConnections(ctx context.Context, selector
 	go func() {
 		_ = m.server.MonitorConnections(selector, srv)
 	}()
+	for len(eventCh) == 0 {
+		runtime.Gosched()
+	}
 	return eventchannel.NewMonitorConnectionMonitorConnectionsClient(ctx, eventCh), nil
 }
