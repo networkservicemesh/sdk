@@ -135,7 +135,7 @@ func Test_QueryCacheClient_ShouldCleanUpOnTimeout(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	clockMock := clockmock.NewMock()
+	clockMock := clockmock.NewMock(ctx)
 	ctx = clock.WithClock(ctx, clockMock)
 
 	mem := memory.NewNetworkServiceEndpointRegistryServer()

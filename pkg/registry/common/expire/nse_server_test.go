@@ -53,8 +53,11 @@ const (
 func TestExpireNSEServer_ShouldCorrectlySetExpirationTime_InRemoteCase(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	clockMock := clockmock.NewMock()
-	ctx := clock.WithClock(context.Background(), clockMock)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	clockMock := clockmock.NewMock(ctx)
+	ctx = clock.WithClock(ctx, clockMock)
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
@@ -72,8 +75,11 @@ func TestExpireNSEServer_ShouldCorrectlySetExpirationTime_InRemoteCase(t *testin
 func TestExpireNSEServer_ShouldUseLessExpirationTimeFromInput_AndWork(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	clockMock := clockmock.NewMock()
-	ctx := clock.WithClock(context.Background(), clockMock)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	clockMock := clockmock.NewMock(ctx)
+	ctx = clock.WithClock(ctx, clockMock)
 
 	mem := memory.NewNetworkServiceEndpointRegistryServer()
 
@@ -107,8 +113,11 @@ func TestExpireNSEServer_ShouldUseLessExpirationTimeFromInput_AndWork(t *testing
 func TestExpireNSEServer_ShouldUseLessExpirationTimeFromResponse(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	clockMock := clockmock.NewMock()
-	ctx := clock.WithClock(context.Background(), clockMock)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	clockMock := clockmock.NewMock(ctx)
+	ctx = clock.WithClock(ctx, clockMock)
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
@@ -125,8 +134,11 @@ func TestExpireNSEServer_ShouldUseLessExpirationTimeFromResponse(t *testing.T) {
 func TestExpireNSEServer_ShouldRemoveNSEAfterExpirationTime(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	clockMock := clockmock.NewMock()
-	ctx := clock.WithClock(context.Background(), clockMock)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	clockMock := clockmock.NewMock(ctx)
+	ctx = clock.WithClock(ctx, clockMock)
 
 	mem := memory.NewNetworkServiceEndpointRegistryServer()
 
@@ -202,7 +214,7 @@ func TestExpireNSEServer_RefreshFailure(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	clockMock := clockmock.NewMock()
+	clockMock := clockmock.NewMock(ctx)
 	ctx = clock.WithClock(ctx, clockMock)
 
 	c := next.NewNetworkServiceEndpointRegistryClient(
@@ -236,7 +248,7 @@ func TestExpireNSEServer_RefreshKeepsNoUnregister(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	clockMock := clockmock.NewMock()
+	clockMock := clockmock.NewMock(ctx)
 	ctx = clock.WithClock(ctx, clockMock)
 
 	unregisterServer := new(unregisterNSEServer)

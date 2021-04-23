@@ -36,10 +36,25 @@ type Mock struct {
 }
 
 // NewMock returns a new mocked clock
-func NewMock() *Mock {
-	return &Mock{
+func NewMock(ctx context.Context) *Mock {
+	m := &Mock{
 		mock: libclock.NewMock(),
 	}
+
+	// Timers added with zero or negative duration will never run if time stands still. So mocked time
+	// should be slowed down (~100000 times) but never frozen.
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(100 * time.Microsecond):
+				m.Add(time.Nanosecond)
+			}
+		}
+	}()
+
+	return m
 }
 
 // Set sets the current time of the mock clock to a specific one.
