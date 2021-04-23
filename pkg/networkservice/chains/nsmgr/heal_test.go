@@ -290,7 +290,7 @@ func setupCancelableForwarderNode(ctx context.Context, node *sandbox.Node, resto
 	return forwarderCtxCancel, forwarder
 }
 
-func TestNSMGR_HealRemoteNSMgrRestored(t *testing.T) {
+func TestNSMGR_HealNSMgr(t *testing.T) {
 	var samples = []struct {
 		name     string
 		nodeNum  int
