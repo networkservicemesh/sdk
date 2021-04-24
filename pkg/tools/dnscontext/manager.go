@@ -57,6 +57,7 @@ func (m *Manager) String() string {
 		if conflict[k] {
 			plugin = conflictResolverPlugin
 		}
+		sort.Strings(v)
 		if k == "" {
 			_, _ = sb.WriteString(fmt.Sprintf(serverBlockTemplate, AnyDomain, plugin, strings.Join(v, " "), "log\n\treload"))
 		} else {
