@@ -20,6 +20,7 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/edwarnicke/serialize"
@@ -77,6 +78,8 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 }
 
 func (c *dnsContextClient) updateCorefile() {
+	dir := filepath.Dir(c.coreFilePath)
+	_ = os.MkdirAll(dir, os.ModePerm)
 	err := ioutil.WriteFile(c.coreFilePath, []byte(c.dnsConfigManager.String()), os.ModePerm)
 	if err != nil {
 		log.FromContext(c.chainContext).Errorf("An error during update corefile: %v", err.Error())
