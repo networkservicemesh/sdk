@@ -33,7 +33,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
@@ -42,7 +41,6 @@ type clientOptions struct {
 	name                    string
 	additionalFunctionality []networkservice.NetworkServiceClient
 	authorizeClient         networkservice.NetworkServiceClient
-	dnsClient               networkservice.NetworkServiceClient
 }
 
 // Option modifies default client chain values.
@@ -53,13 +51,6 @@ func WithName(name string) Option {
 	return Option(func(c *clientOptions) {
 		c.name = name
 	})
-}
-
-// WithDNSOptions sets custom DNS options for the client
-func WithDNSOptions(opts ...dnscontext.DNSOption) Option {
-	return func(c *clientOptions) {
-		c.dnsClient = dnscontext.NewClient(opts...)
-	}
 }
 
 // WithAdditionalFunctionality sets additionalFunctionality for the client. Note: this adds into tail of the client chain.
@@ -87,7 +78,6 @@ func NewClient(ctx context.Context, cc grpc.ClientConnInterface, clientOpts ...O
 	var opts = &clientOptions{
 		name:            "client-" + uuid.New().String(),
 		authorizeClient: null.NewClient(),
-		dnsClient:       dnscontext.NewClient(dnscontext.WithChainContext(ctx)),
 	}
 	for _, opt := range clientOpts {
 		opt(opts)
@@ -101,7 +91,6 @@ func NewClient(ctx context.Context, cc grpc.ClientConnInterface, clientOpts ...O
 				refresh.NewClient(ctx),
 				metadata.NewClient(),
 			}, opts.additionalFunctionality...),
-			opts.dnsClient,
 			opts.authorizeClient,
 			networkservice.NewNetworkServiceClient(cc),
 		)...)

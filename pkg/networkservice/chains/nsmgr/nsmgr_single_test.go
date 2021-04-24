@@ -72,8 +72,13 @@ func Test_DNSUsecase(t *testing.T) {
 		ctx,
 		cc,
 		client.WithAuthorizeClient(authorize.NewClient(authorize.Any())),
-		client.WithAdditionalFunctionality(),
-		client.WithDNSOptions(dnscontext.WithChainContext(ctx), dnscontext.WithCorefilePath(corefilePath), dnscontext.WithResolveConfigPath(resolveConfigPath)),
+		client.WithAdditionalFunctionality(
+			dnscontext.NewClient(
+				dnscontext.WithChainContext(ctx),
+				dnscontext.WithCorefilePath(corefilePath),
+				dnscontext.WithResolveConfigPath(resolveConfigPath),
+			),
+		),
 	)
 
 	resp, err := c.Request(ctx, defaultRequest())
