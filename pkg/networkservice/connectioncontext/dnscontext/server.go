@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -31,28 +31,22 @@ import (
 type GetDNSConfigsFunc func() []*networkservice.DNSConfig
 
 type dnsContextServer struct {
-	getDNSConfigs GetDNSConfigsFunc
+	configs []*networkservice.DNSConfig
 }
 
 // NewServer creates dns context chain server element.
-func NewServer(getter GetDNSConfigsFunc) networkservice.NetworkServiceServer {
-	return &dnsContextServer{getDNSConfigs: getter}
+func NewServer(configs ...*networkservice.DNSConfig) networkservice.NetworkServiceServer {
+	return &dnsContextServer{configs: configs}
 }
 
 func (d *dnsContextServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if d.getDNSConfigs != nil {
-		request.GetConnection().GetContext().DnsContext = &networkservice.DNSContext{
-			Configs: d.getDNSConfigs(),
-		}
+	if request.GetConnection().GetContext().GetDnsContext() == nil {
+		request.GetConnection().GetContext().DnsContext = new(networkservice.DNSContext)
 	}
+	request.GetConnection().GetContext().GetDnsContext().Configs = append(request.GetConnection().GetContext().GetDnsContext().Configs, d.configs...)
 	return next.Server(ctx).Request(ctx, request)
 }
 
 func (d *dnsContextServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	if d.getDNSConfigs != nil {
-		conn.GetContext().DnsContext = &networkservice.DNSContext{
-			Configs: d.getDNSConfigs(),
-		}
-	}
 	return next.Server(ctx).Close(ctx, conn)
 }

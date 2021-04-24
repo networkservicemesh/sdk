@@ -159,8 +159,7 @@ func (n *Node) NewClient(
 	additionalFunctionality ...networkservice.NetworkServiceClient,
 ) networkservice.NetworkServiceClient {
 	ctx = log.Join(ctx, log.Empty())
-	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(n.NSMgr.URL), DefaultDialOptions(generatorFunc)...,
-	)
+	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(n.NSMgr.URL), DefaultDialOptions(generatorFunc)...)
 	if err != nil {
 		log.FromContext(ctx).Fatalf("Failed to dial node NSMgr: %s", err.Error())
 	}

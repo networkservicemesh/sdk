@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,25 +18,21 @@ package dnscontext
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
-// Manager provides API for storing/deleting dnsConfigs. Can represent the configs in caddyfile format.
-// Can be used from different goroutines
-type Manager interface {
-	Remove(string)
-	Store(string, ...*networkservice.DNSConfig)
-	fmt.Stringer
-}
-
-type manager struct {
+// Manager can store, remove []dnscontext.Config and also present it as corefile.
+// See what is corefile here: https://coredns.io/2017/07/23/corefile-explained/
+type Manager struct {
 	configs sync.Map
 }
 
-func (m *manager) String() string {
+func (m *Manager) String() string {
+	var keys []string
 	result := map[string][]string{}
 	conflict := map[string]bool{}
 	m.configs.Range(func(_, value interface{}) bool {
@@ -45,14 +41,18 @@ func (m *manager) String() string {
 			k := strings.Join(c.SearchDomains, " ")
 			if len(result[k]) != 0 {
 				conflict[k] = true
+			} else {
+				keys = append(keys, k)
 			}
 			result[k] = removeDuplicates(append(result[k], c.DnsServerIps...))
 		}
 		return true
 	})
+	sort.Strings(keys)
 	sb := strings.Builder{}
 	i := 0
-	for k, v := range result {
+	for _, k := range keys {
+		v := result[k]
 		plugin := defaultPlugin
 		if conflict[k] {
 			plugin = conflictResolverPlugin
@@ -70,18 +70,13 @@ func (m *manager) String() string {
 	return sb.String()
 }
 
-// NewManager creates new config manager
-func NewManager() Manager {
-	return &manager{}
-}
-
 // Store stores new config with specific id
-func (m *manager) Store(id string, configs ...*networkservice.DNSConfig) {
+func (m *Manager) Store(id string, configs ...*networkservice.DNSConfig) {
 	m.configs.Store(id, configs)
 }
 
 // Remove removes dns config by id
-func (m *manager) Remove(id string) {
+func (m *Manager) Remove(id string) {
 	m.configs.Delete(id)
 }
 
