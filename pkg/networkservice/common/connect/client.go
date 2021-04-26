@@ -25,7 +25,6 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
-	"go.uber.org/atomic"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 
@@ -45,35 +44,31 @@ type connectClient struct {
 	initOnce      sync.Once
 	dialErr       error
 	client        networkservice.NetworkServiceClient
-	closedFlag    atomic.Bool
-}
-
-type connectionClosedErrType struct{}
-
-var connectionClosedErr = connectionClosedErrType{}
-
-func (c connectionClosedErrType) Error() string {
-	return "connection was closed"
 }
 
 func (u *connectClient) init() error {
 	u.initOnce.Do(func() {
+		ctx, cancel := context.WithCancel(u.ctx)
+		u.ctx = ctx
+
 		clockTime := clock.FromContext(u.ctx)
 
 		clientURL := clienturlctx.ClientURL(u.ctx)
 		if clientURL == nil {
 			u.dialErr = errors.New("cannot dial nil clienturl.ClientURL(ctx)")
+			cancel()
 			return
 		}
 
-		ctx, cancel := clockTime.WithTimeout(u.ctx, u.dialTimeout)
-		defer cancel()
+		dialCtx, dialCancel := clockTime.WithTimeout(u.ctx, u.dialTimeout)
+		defer dialCancel()
 
 		dialOptions := append(append([]grpc.DialOption{}, u.dialOptions...), grpc.WithReturnConnectionError())
 
 		var cc *grpc.ClientConn
-		cc, u.dialErr = grpc.DialContext(ctx, grpcutils.URLToTarget(clientURL), dialOptions...)
+		cc, u.dialErr = grpc.DialContext(dialCtx, grpcutils.URLToTarget(clientURL), dialOptions...)
 		if u.dialErr != nil {
+			cancel()
 			return
 		}
 
@@ -81,7 +76,7 @@ func (u *connectClient) init() error {
 
 		go func() {
 			defer func() {
-				u.closedFlag.Store(true)
+				cancel()
 				_ = cc.Close()
 			}()
 			for cc.WaitForStateChange(u.ctx, cc.GetState()) {
@@ -101,9 +96,6 @@ func (u *connectClient) init() error {
 func (u *connectClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	if err := u.init(); err != nil {
 		return nil, err
-	}
-	if u.closedFlag.Load() {
-		return nil, connectionClosedErr
 	}
 	return u.client.Request(ctx, request, opts...)
 }

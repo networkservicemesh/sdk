@@ -28,10 +28,12 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/multiexecutor"
 )
@@ -48,7 +50,7 @@ type connectServer struct {
 }
 
 type clientInfo struct {
-	client  networkservice.NetworkServiceClient
+	client  *connectClient
 	count   int
 	onClose context.CancelFunc
 }
@@ -92,7 +94,7 @@ func (s *connectServer) Request(ctx context.Context, request *networkservice.Net
 		}
 
 		// Close current client chain if grpc connection was closed
-		if errors.Is(err, connectionClosedErr) {
+		if grpcutils.UnwrapCode(err) == codes.Canceled && c.client.ctx.Err() != nil {
 			s.deleteClient(c, clientURL.String())
 			s.connInfos.Delete(request.GetConnection().GetId())
 		}
