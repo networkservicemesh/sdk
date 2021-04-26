@@ -54,11 +54,8 @@ func testNSE() *registry.NetworkServiceEndpoint {
 func TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	clockMock := clockmock.NewMock(ctx)
-	ctx = clock.WithClock(ctx, clockMock)
+	clockMock := clockmock.New()
+	ctx := clock.WithClock(context.Background(), clockMock)
 
 	countClient := new(requestCountClient)
 	client := next.NewNetworkServiceEndpointRegistryClient(
@@ -103,11 +100,8 @@ func TestRefreshNSEClient_ShouldSetExpirationTime_BeforeCallNext(t *testing.T) {
 func Test_RefreshNSEClient_CalledRegisterTwice(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	clockMock := clockmock.NewMock(ctx)
-	ctx = clock.WithClock(ctx, clockMock)
+	clockMock := clockmock.New()
+	ctx := clock.WithClock(context.Background(), clockMock)
 
 	countClient := new(requestCountClient)
 	client := next.NewNetworkServiceEndpointRegistryClient(
@@ -138,11 +132,8 @@ func Test_RefreshNSEClient_CalledRegisterTwice(t *testing.T) {
 func Test_RefreshNSEClient_ShouldOverrideNameAndDuration(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	clockMock := clockmock.NewMock(ctx)
-	ctx = clock.WithClock(ctx, clockMock)
+	clockMock := clockmock.New()
+	ctx := clock.WithClock(context.Background(), clockMock)
 
 	endpoint := &registry.NetworkServiceEndpoint{
 		Name: "nse-1",
@@ -192,11 +183,8 @@ func Test_RefreshNSEClient_ShouldOverrideNameAndDuration(t *testing.T) {
 func Test_RefreshNSEClient_SetsCorrectExpireTime(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	clockMock := clockmock.NewMock(ctx)
-	ctx = clock.WithClock(ctx, clockMock)
+	clockMock := clockmock.New()
+	ctx := clock.WithClock(context.Background(), clockMock)
 
 	countClient := new(requestCountClient)
 	client := next.NewNetworkServiceEndpointRegistryClient(

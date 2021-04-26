@@ -83,7 +83,7 @@ func TestTimeoutServer_Request(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	clockMock := clockmock.NewMock(ctx)
+	clockMock := clockmock.New()
 	ctx = clock.WithClock(ctx, clockMock)
 
 	connServer := newConnectionsServer(t)
@@ -112,7 +112,7 @@ func TestTimeoutServer_CloseBeforeTimeout(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	clockMock := clockmock.NewMock(ctx)
+	clockMock := clockmock.New()
 	ctx = clock.WithClock(ctx, clockMock)
 
 	connServer := newConnectionsServer(t)
@@ -144,7 +144,7 @@ func TestTimeoutServer_CloseAfterTimeout(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	clockMock := clockmock.NewMock(ctx)
+	clockMock := clockmock.New()
 	ctx = clock.WithClock(ctx, clockMock)
 
 	connServer := newConnectionsServer(t)
@@ -218,7 +218,7 @@ func TestTimeoutServer_RefreshFailure(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	clockMock := clockmock.NewMock(ctx)
+	clockMock := clockmock.New()
 	ctx = clock.WithClock(ctx, clockMock)
 
 	connServer := newConnectionsServer(t)

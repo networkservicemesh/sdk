@@ -512,11 +512,8 @@ func TestMatchExactEndpoint(t *testing.T) {
 func TestMatchSelectedNSESecondAttempt(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	clockMock := clockmock.NewMock(ctx)
-	ctx = clock.WithClock(ctx, clockMock)
+	clockMock := clockmock.New()
+	ctx := clock.WithClock(context.Background(), clockMock)
 
 	const requestTimeout = time.Second
 	const tick = requestTimeout / 10
