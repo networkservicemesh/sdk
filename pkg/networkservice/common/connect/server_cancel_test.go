@@ -30,6 +30,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/atomic"
+	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
@@ -44,12 +45,13 @@ import (
 )
 
 func TestConnect_CancelDuringRequest(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 	var err error
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	domain := sandbox.NewBuilder(t).
-		SetNodesCount(2).
+		SetNodesCount(1).
 		SetRegistryProxySupplier(nil).
 		SetContext(ctx).
 		Build()
