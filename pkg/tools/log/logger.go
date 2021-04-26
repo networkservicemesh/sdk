@@ -58,7 +58,6 @@ func FromContext(ctx context.Context) Logger {
 	if ok {
 		return rv
 	}
-	println("No logger in context")
 	return Empty()
 }
 
