@@ -42,11 +42,12 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
 const (
-	nodesCount = 7
+	nodesCount = 3
 )
 
 type nsmgrSuite struct {
@@ -77,6 +78,15 @@ func (s *nsmgrSuite) SetupSuite() {
 		SetNSMgrProxySupplier(nil).
 		SetContext(ctx).
 		Build()
+}
+
+func (s *nsmgrSuite) SetupTest() {
+	logger := log.Empty()
+	logger.Info("-------------------------------------------------------")
+	logger.Info("*******************************************************")
+	logger.Info("-------------------------------------------------------")
+	logger.Info("*******************************************************")
+	logger.Info("-------------------------------------------------------")
 }
 
 func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
@@ -391,7 +401,7 @@ func (s *nsmgrSuite) Test_LocalUsecase() {
 func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 	t := s.T()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
 	var nsesReg [nodesCount]*registry.NetworkServiceEndpoint
@@ -451,9 +461,9 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 
 func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 	t := s.T()
-	const nsesCount = 7
+	const nsesCount = 3
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
 	var nsesReg [nsesCount]*registry.NetworkServiceEndpoint
