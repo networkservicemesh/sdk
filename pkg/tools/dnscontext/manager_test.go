@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,13 +14,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dnscontext
+package dnscontext_test
 
 import (
 	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/dnscontext"
 )
 
 func TestManager_StoreAnyDomain(t *testing.T) {
@@ -29,7 +31,7 @@ func TestManager_StoreAnyDomain(t *testing.T) {
 	log
 	reload
 }`
-	m := NewManager()
+	var m dnscontext.Manager
 	m.Store("0", &networkservice.DNSConfig{
 		DnsServerIps: []string{"IP1", "IP2"},
 	})
@@ -42,7 +44,7 @@ func TestManager_StoreAnyDomainConflict(t *testing.T) {
 	log
 	reload
 }`
-	m := NewManager()
+	var m dnscontext.Manager
 	m.Store("0", &networkservice.DNSConfig{
 		DnsServerIps: []string{"IP1", "IP2"},
 	})
@@ -63,7 +65,7 @@ func TestManager_Store(t *testing.T) {
 	forward . IP3 IP4
 	log
 }`}
-	m := NewManager()
+	var m dnscontext.Manager
 	m.Store("0", &networkservice.DNSConfig{
 		SearchDomains: []string{"zone-a"},
 		DnsServerIps:  []string{"IP1", "IP2"},
@@ -83,7 +85,7 @@ func TestManager_StoreConflict(t *testing.T) {
 	fanout . IP1 IP2 IP3
 	log
 }`
-	m := NewManager()
+	var m dnscontext.Manager
 	m.Store("0", &networkservice.DNSConfig{
 		SearchDomains: []string{"zone-a"},
 		DnsServerIps:  []string{"IP1", "IP2"},
@@ -93,9 +95,7 @@ func TestManager_StoreConflict(t *testing.T) {
 		DnsServerIps:  []string{"IP3", "IP1"},
 	})
 	actual := m.String()
-	require.Len(t, actual, len(expected))
-	require.Contains(t, actual, "IP1 IP2")
-	require.Contains(t, actual, "IP3")
+	require.Equal(t, expected, actual)
 }
 
 func TestManger_Remove(t *testing.T) {
@@ -103,7 +103,7 @@ func TestManger_Remove(t *testing.T) {
 	forward . IP1 IP2
 	log
 }`
-	m := NewManager()
+	var m dnscontext.Manager
 	m.Store("0", &networkservice.DNSConfig{
 		SearchDomains: []string{"zone-a"},
 		DnsServerIps:  []string{"IP1", "IP2"},
@@ -120,7 +120,7 @@ func TestManger_RemoveConflict(t *testing.T) {
 	forward . IP1 IP2
 	log
 }`
-	m := NewManager()
+	var m dnscontext.Manager
 	m.Store("0", &networkservice.DNSConfig{
 		SearchDomains: []string{"zone-a"},
 		DnsServerIps:  []string{"IP1", "IP2"},

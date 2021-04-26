@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -19,100 +19,84 @@ package dnscontext_test
 import (
 	"context"
 	"io/ioutil"
-	"net"
 	"os"
-	"path"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
+	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/eventchannel"
 )
 
-func TestDNSClient_ReceivesUpdateEvent(t *testing.T) {
-	corefilePath := path.Join(os.TempDir(), "corefile")
-	defer func() {
-		_ = os.Remove(corefilePath)
-	}()
-	resolveConfigPath := path.Join(os.TempDir(), "resolv.conf")
-	err := ioutil.WriteFile(resolveConfigPath, []byte(`
-nameserver 8.8.4.4
-search example.com`), os.ModePerm)
-	require.Nil(t, err)
-	eventCh := make(chan *networkservice.ConnectionEvent, 2)
-	client := chain.NewNetworkServiceClient(dnscontext.NewClient(eventchannel.NewMonitorConnectionClient(eventCh),
-		dnscontext.WithCorefilePath(corefilePath),
-		dnscontext.WithResolveConfigPath(resolveConfigPath),
-		dnscontext.WithDefaultNameServerIP(net.IP{}),
-		dnscontext.WithChainContext(context.Background()),
-		dnscontext.WithMonitorCallOptions(grpc.WaitForReady(true))))
-	_, err = client.Request(context.Background(), &networkservice.NetworkServiceRequest{})
-	require.Nil(t, err)
-	eventCh <- &networkservice.ConnectionEvent{
-		Type: networkservice.ConnectionEventType_UPDATE,
-		Connections: map[string]*networkservice.Connection{
-			"1": {
-				Context: &networkservice.ConnectionContext{
-					DnsContext: &networkservice.DNSContext{
-						Configs: []*networkservice.DNSConfig{
-							{
-								DnsServerIps: []string{"8.8.8.8"},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-	actual := waitCorefileUpdate(corefilePath, "")
-	require.NotContains(t, actual, "forward")
-	require.Contains(t, actual, "fanout")
-	require.Contains(t, actual, "8.8.8.8")
-	require.Contains(t, actual, "8.8.4.4")
-	_, err = client.Close(context.Background(), &networkservice.Connection{})
-	require.Nil(t, err)
-}
+func Test_DNSContextClient_Usecases(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 
-func TestDNSClient_ReceivesDeleteEvent(t *testing.T) {
-	corefilePath := path.Join(os.TempDir(), "corefile")
-	defer func() {
-		_ = os.Remove(corefilePath)
-	}()
-	const expected = `. {
+	corefilePath := filepath.Join(t.TempDir(), "corefile")
+	resolveConfigPath := filepath.Join(t.TempDir(), "resolv.conf")
+
+	err := ioutil.WriteFile(resolveConfigPath, []byte("nameserver 8.8.4.4\nsearch example.com\n"), os.ModePerm)
+	require.NoError(t, err)
+
+	client := chain.NewNetworkServiceClient(
+		dnscontext.NewClient(
+			dnscontext.WithCorefilePath(corefilePath),
+			dnscontext.WithResolveConfigPath(resolveConfigPath),
+		),
+	)
+
+	const expectedEmptyCorefile = `. {
 	forward . 8.8.4.4
 	log
 	reload
 }`
-	resolveConfigPath := path.Join(os.TempDir(), "resolv.conf")
-	err := ioutil.WriteFile(resolveConfigPath, []byte(`
-nameserver 8.8.4.4
-search example.com`), os.ModePerm)
-	require.Nil(t, err)
-	eventCh := make(chan *networkservice.ConnectionEvent, 2)
-	client := chain.NewNetworkServiceClient(dnscontext.NewClient(eventchannel.NewMonitorConnectionClient(eventCh),
-		dnscontext.WithCorefilePath(corefilePath),
-		dnscontext.WithResolveConfigPath(resolveConfigPath),
-		dnscontext.WithDefaultNameServerIP(net.IP{}),
-		dnscontext.WithChainContext(context.Background()),
-		dnscontext.WithMonitorCallOptions(grpc.WaitForReady(true))))
-	_, err = client.Request(context.Background(), &networkservice.NetworkServiceRequest{})
-	require.Nil(t, err)
-	eventCh <- &networkservice.ConnectionEvent{
-		Type: networkservice.ConnectionEventType_UPDATE,
-		Connections: map[string]*networkservice.Connection{
-			"1": {
-				Context: &networkservice.ConnectionContext{
-					DnsContext: &networkservice.DNSContext{
-						Configs: []*networkservice.DNSConfig{
-							{
-								SearchDomains: []string{"example.com"},
-								DnsServerIps:  []string{"8.8.8.8"},
+	var samples = []struct {
+		request          *networkservice.NetworkServiceRequest
+		expectedCorefile string
+	}{
+		{
+			expectedCorefile: ". {\n\tforward . 8.8.4.4\n\tlog\n\treload\n}\nexample.com {\n\tforward . 8.8.8.8\n\tlog\n}",
+			request: &networkservice.NetworkServiceRequest{
+				Connection: &networkservice.Connection{
+					Id: "nsc-1",
+					Context: &networkservice.ConnectionContext{
+						DnsContext: &networkservice.DNSContext{
+							Configs: []*networkservice.DNSConfig{
+								{
+									SearchDomains: []string{"example.com"},
+									DnsServerIps:  []string{"8.8.8.8"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			expectedCorefile: ". {\n\tforward . 8.8.4.4\n\tlog\n\treload\n}\nexample.com {\n\tfanout . 7.7.7.7 8.8.8.8 9.9.9.9\n\tlog\n}",
+			request: &networkservice.NetworkServiceRequest{
+				Connection: &networkservice.Connection{
+					Id: "nsc-1",
+					Context: &networkservice.ConnectionContext{
+						DnsContext: &networkservice.DNSContext{
+							Configs: []*networkservice.DNSConfig{
+								{
+									SearchDomains: []string{"example.com"},
+									DnsServerIps:  []string{"7.7.7.7"},
+								},
+								{
+									SearchDomains: []string{"example.com"},
+									DnsServerIps:  []string{"8.8.8.8"},
+								},
+								{
+									SearchDomains: []string{"example.com"},
+									DnsServerIps:  []string{"9.9.9.9"},
+								},
 							},
 						},
 					},
@@ -120,28 +104,28 @@ search example.com`), os.ModePerm)
 			},
 		},
 	}
-	actual := waitCorefileUpdate(corefilePath, "")
-	require.NotEmpty(t, actual)
-	eventCh <- &networkservice.ConnectionEvent{
-		Type: networkservice.ConnectionEventType_DELETE,
-		Connections: map[string]*networkservice.Connection{
-			"1": {},
-		},
+
+	for _, s := range samples {
+		resp, err := client.Request(ctx, s.request)
+		require.NoError(t, err)
+		requireFileChanged(ctx, t, corefilePath, s.expectedCorefile)
+		_, err = client.Close(ctx, resp)
+		require.NoError(t, err)
+		requireFileChanged(ctx, t, corefilePath, expectedEmptyCorefile)
 	}
-	require.Equal(t, expected, waitCorefileUpdate(corefilePath, actual))
-	_, err = client.Close(context.Background(), &networkservice.Connection{})
-	require.Nil(t, err)
 }
 
-func waitCorefileUpdate(location, content string) string {
-	for now := time.Now(); time.Since(now) < time.Second; <-time.After(time.Millisecond * 100) {
+func requireFileChanged(ctx context.Context, t *testing.T, location, expected string) {
+	var r string
+	for ; ctx.Err() == nil; <-time.After(time.Millisecond * 100) {
 		b, err := ioutil.ReadFile(filepath.Clean(location))
-		r := string(b)
-		if err == nil {
-			if r != content {
-				return r
-			}
+		r = string(b)
+		if err != nil {
+			continue
+		}
+		if r == expected {
+			return
 		}
 	}
-	return content
+	require.FailNowf(t, "fail to wait update", "file has not updated. Last content: %s", r)
 }

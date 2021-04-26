@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -19,6 +19,9 @@ package dnscontext_test
 import (
 	"context"
 	"testing"
+	"time"
+
+	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
 
@@ -28,38 +31,42 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-func TestServerBasic(t *testing.T) {
+func Test_DNSContextServer_Request(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 	r := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Context: &networkservice.ConnectionContext{},
 		},
 	}
-	configs := func() []*networkservice.DNSConfig {
-		return []*networkservice.DNSConfig{
-			{
-				DnsServerIps:  []string{"8.8.8.8"},
-				SearchDomains: []string{"sample1"},
-			},
-			{
-				DnsServerIps:  []string{"8.8.4.4"},
-				SearchDomains: []string{"sample2"},
-			},
-		}
+	expected := []*networkservice.DNSConfig{
+		{
+			DnsServerIps:  []string{"8.8.8.8"},
+			SearchDomains: []string{"sample1"},
+		},
+		{
+			DnsServerIps:  []string{"8.8.4.4"},
+			SearchDomains: []string{"sample2"},
+		},
 	}
-	expected := configs()
-	s := next.NewNetworkServiceServer(dnscontext.NewServer(configs))
-	resp, err := s.Request(context.Background(), r)
-	require.Nil(t, err)
+
+	s := next.NewNetworkServiceServer(dnscontext.NewServer(&networkservice.DNSConfig{
+		DnsServerIps:  []string{"8.8.8.8"},
+		SearchDomains: []string{"sample1"},
+	}, &networkservice.DNSConfig{
+		DnsServerIps:  []string{"8.8.4.4"},
+		SearchDomains: []string{"sample2"},
+	}))
+	resp, err := s.Request(ctx, r)
+	require.NoError(t, err)
 	require.NotNil(t, resp.GetContext().GetDnsContext())
 	require.Equal(t, resp.GetContext().GetDnsContext().Configs, expected)
-	r.Connection.Context.DnsContext = nil
-	_, err = s.Close(context.Background(), r.Connection)
-	require.Nil(t, err)
-	require.Equal(t, resp.GetContext().GetDnsContext().Configs, expected)
 }
-
-func TestServerShouldNotPanicIfPassNil(t *testing.T) {
-	require.NotPanics(t, func() {
-		_, _ = next.NewNetworkServiceServer(dnscontext.NewServer(nil)).Request(context.Context(nil), nil)
-	})
+func Test_DNSContextServer_Close(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	_, err := dnscontext.NewServer().Close(ctx, new(networkservice.Connection))
+	require.NoError(t, err)
 }
