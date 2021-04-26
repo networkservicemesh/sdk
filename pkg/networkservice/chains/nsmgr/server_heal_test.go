@@ -163,14 +163,6 @@ func TestNSMGR_HealLocalForwarderRestored(t *testing.T) {
 	testNSMGRHealForwarder(t, 1, true, customConfig, forwarderCtxCancel)
 }
 
-func TestNSMGR_HealRemoteForwarderMultiple(t *testing.T) {
-	// t.Skip("https://github.com/networkservicemesh/sdk/issues/845")
-
-	for i := 0; i < 100; i++ {
-		t.Run("TestNSMGR_HealRemoteForwarder", TestNSMGR_HealRemoteForwarder)
-	}
-}
-
 func TestNSMGR_HealRemoteForwarder(t *testing.T) {
 	// t.Skip("https://github.com/networkservicemesh/sdk/issues/845")
 
