@@ -75,12 +75,12 @@ func TestConnect_CancelDuringRequest(t *testing.T) {
 	var counter atomic.Int32
 	ptClient := newPassTroughClient(service1Name)
 	kernelClient := kernel.NewClient()
-	clientUuid := fmt.Sprintf("nsc-%v", uuid.New().String())
+	clientName := fmt.Sprintf("connectClient-%v", uuid.New().String())
 	clientFactory := func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 		counter.Add(1)
 		return chain.NewNetworkServiceClient(
 			mechanismtranslation.NewClient(),
-			client.NewClient(ctx, cc, client.WithName(clientUuid),
+			client.NewClient(ctx, cc, client.WithName(clientName),
 				client.WithAdditionalFunctionality(ptClient, kernelClient)),
 		)
 	}
