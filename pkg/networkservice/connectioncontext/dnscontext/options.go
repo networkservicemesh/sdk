@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -19,8 +19,6 @@ package dnscontext
 import (
 	"context"
 	"net"
-
-	"google.golang.org/grpc"
 )
 
 // DNSOption is applying options for DNS client.
@@ -45,13 +43,6 @@ func WithCorefilePath(path string) DNSOption {
 func WithResolveConfigPath(path string) DNSOption {
 	return applyFunc(func(c *dnsContextClient) {
 		c.resolveConfigPath = path
-	})
-}
-
-// WithMonitorCallOptions sets specific grpc call options for DNS monitoring client.
-func WithMonitorCallOptions(options ...grpc.CallOption) DNSOption {
-	return applyFunc(func(c *dnsContextClient) {
-		c.monitorCallOptions = options
 	})
 }
 

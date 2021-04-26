@@ -20,6 +20,10 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"sync"
+
+	"github.com/edwarnicke/serialize"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
@@ -27,32 +31,24 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
 
-	"github.com/edwarnicke/serialize"
-
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnscontext"
 )
 
 type dnsContextClient struct {
-	cancelMonitoring    context.CancelFunc
 	chainContext        context.Context
-	monitorContext      context.Context
-	requestContext      context.Context
 	coreFilePath        string
 	resolveConfigPath   string
 	defaultNameServerIP string
-	monitorCallOptions  []grpc.CallOption
 	dnsConfigManager    dnscontext.Manager
-	monitorClient       networkservice.MonitorConnectionClient
-	executor            serialize.Executor
+	updateCorefileQueue serialize.Executor
+	once                sync.Once
 }
 
 // NewClient creates a new DNS client chain component. Setups all DNS traffic to the localhost. Monitors DNS configs from connections.
-func NewClient(monitorClient networkservice.MonitorConnectionClient, options ...DNSOption) networkservice.NetworkServiceClient {
+func NewClient(options ...DNSOption) networkservice.NetworkServiceClient {
 	c := &dnsContextClient{
 		chainContext:        context.Background(),
-		dnsConfigManager:    dnscontext.NewManager(),
-		monitorClient:       monitorClient,
 		defaultNameServerIP: "127.0.0.1",
 		resolveConfigPath:   "/etc/resolv.conf",
 		coreFilePath:        "/etc/coredns/Corefile",
@@ -61,18 +57,6 @@ func NewClient(monitorClient networkservice.MonitorConnectionClient, options ...
 		o.apply(c)
 	}
 
-	if r, err := dnscontext.OpenResolveConfig(c.resolveConfigPath); err != nil {
-		log.FromContext(c.chainContext).Errorf("DnsContextClient: can not load resolve config file. Path: %v. Error: %v", c.resolveConfigPath, err.Error())
-	} else {
-		c.dnsConfigManager.Store("", &networkservice.DNSConfig{
-			SearchDomains: r.Value(dnscontext.AnyDomain),
-			DnsServerIps:  r.Value(dnscontext.NameserverProperty),
-		})
-		r.SetValue(dnscontext.NameserverProperty, c.defaultNameServerIP)
-		if err := r.Save(); err != nil {
-			log.FromContext(c.chainContext).Errorf("DnsContextClient: can not update resolve config file. Error: %v", err.Error())
-		}
-	}
 	return c
 }
 
@@ -81,53 +65,57 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 	if err != nil {
 		return nil, err
 	}
-	c.requestContext = ctx
-	c.executor.AsyncExec(c.monitorConfigs)
+	var conifgs []*networkservice.DNSConfig
+	if rv.GetContext().GetDnsContext() != nil {
+		conifgs = rv.GetContext().GetDnsContext().GetConfigs()
+	}
+	if len(conifgs) > 0 {
+		c.once.Do(c.initialize)
+		c.dnsConfigManager.Store(rv.GetId(), conifgs...)
+		c.updateCorefileQueue.AsyncExec(c.updateCorefile)
+	}
 	return rv, err
 }
 
-func (c *dnsContextClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	r, err := next.Client(ctx).Close(ctx, conn, opts...)
+func (c *dnsContextClient) updateCorefile() {
+	dir := filepath.Dir(c.coreFilePath)
+	_ = os.MkdirAll(dir, os.ModePerm)
+	err := ioutil.WriteFile(c.coreFilePath, []byte(c.dnsConfigManager.String()), os.ModePerm)
 	if err != nil {
-		return nil, err
+		log.FromContext(c.chainContext).Errorf("An error during update corefile: %v", err.Error())
 	}
-	c.cancelMonitoring()
-	return r, err
 }
 
-func (c *dnsContextClient) monitorConfigs() {
-	c.monitorContext, c.cancelMonitoring = context.WithCancel(c.chainContext)
-	steam, err := c.monitorClient.MonitorConnections(c.monitorContext, &networkservice.MonitorScopeSelector{}, c.monitorCallOptions...)
+func (c *dnsContextClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	var conifgs []*networkservice.DNSConfig
+	if conn.GetContext().GetDnsContext() != nil {
+		conifgs = conn.GetContext().GetDnsContext().GetConfigs()
+	}
+	if len(conifgs) > 0 {
+		c.dnsConfigManager.Remove(conn.GetId())
+		c.updateCorefileQueue.AsyncExec(c.updateCorefile)
+	}
+	return next.Client(ctx).Close(ctx, conn, opts...)
+}
+
+func (c *dnsContextClient) initialize() {
+	r, err := dnscontext.OpenResolveConfig(c.resolveConfigPath)
 	if err != nil {
-		log.FromContext(c.requestContext).Errorf("DnsContextClient: Can not start monitor connections: %v", err)
-		c.executor.AsyncExec(c.monitorConfigs)
+		log.FromContext(c.chainContext).Errorf("An error during open resolve config: %v", err.Error())
 		return
 	}
-	for {
-		if c.monitorContext.Err() != nil {
-			return
-		}
-		event, err := steam.Recv()
-		if err != nil {
-			c.executor.AsyncExec(c.monitorConfigs)
-			return
-		}
-		c.handleEvent(event)
-		v := c.dnsConfigManager.String()
-		log.FromContext(c.requestContext).Info(v)
-		_ = ioutil.WriteFile(c.coreFilePath, []byte(v), os.ModePerm)
-	}
-}
 
-func (c *dnsContextClient) handleEvent(event *networkservice.ConnectionEvent) {
-	switch event.GetType() {
-	case networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER, networkservice.ConnectionEventType_UPDATE:
-		for k, v := range event.Connections {
-			c.dnsConfigManager.Store(k, v.GetContext().GetDnsContext().GetConfigs()...)
-		}
-	case networkservice.ConnectionEventType_DELETE:
-		for k := range event.Connections {
-			c.dnsConfigManager.Remove(k)
-		}
+	c.dnsConfigManager.Store("", &networkservice.DNSConfig{
+		SearchDomains: r.Value(dnscontext.AnyDomain),
+		DnsServerIps:  r.Value(dnscontext.NameserverProperty),
+	})
+
+	r.SetValue(dnscontext.NameserverProperty, c.defaultNameServerIP)
+
+	if err = r.Save(); err != nil {
+		log.FromContext(c.chainContext).Errorf("An error during save resolve config: %v", err.Error())
+		return
 	}
+
+	c.updateCorefileQueue.AsyncExec(c.updateCorefile)
 }
