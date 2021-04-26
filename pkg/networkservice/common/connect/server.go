@@ -25,16 +25,13 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/multiexecutor"
 )
@@ -95,7 +92,7 @@ func (s *connectServer) Request(ctx context.Context, request *networkservice.Net
 		}
 
 		// Close current client chain if grpc connection was closed
-		if grpcutils.UnwrapCode(err) == codes.Canceled {
+		if err == connectionClosedErr {
 			s.deleteClient(c, clientURL.String())
 			s.connInfos.Delete(request.GetConnection().GetId())
 		}

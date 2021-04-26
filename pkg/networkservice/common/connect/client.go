@@ -25,6 +25,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
+	"go.uber.org/atomic"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 
@@ -44,6 +45,15 @@ type connectClient struct {
 	initOnce      sync.Once
 	dialErr       error
 	client        networkservice.NetworkServiceClient
+	closedFlag    atomic.Bool
+}
+
+type connectionClosedErrType struct{}
+
+var connectionClosedErr = connectionClosedErrType{}
+
+func (c connectionClosedErrType) Error() string {
+	return "connection was closed"
 }
 
 func (u *connectClient) init() error {
@@ -71,6 +81,7 @@ func (u *connectClient) init() error {
 
 		go func() {
 			defer func() {
+				u.closedFlag.Store(true)
 				_ = cc.Close()
 			}()
 			for cc.WaitForStateChange(u.ctx, cc.GetState()) {
@@ -90,6 +101,9 @@ func (u *connectClient) init() error {
 func (u *connectClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	if err := u.init(); err != nil {
 		return nil, err
+	}
+	if u.closedFlag.Load() {
+		return nil, connectionClosedErr
 	}
 	return u.client.Request(ctx, request, opts...)
 }
