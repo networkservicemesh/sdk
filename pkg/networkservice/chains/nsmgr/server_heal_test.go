@@ -164,6 +164,7 @@ func TestNSMGR_HealLocalForwarderRestored(t *testing.T) {
 }
 
 func TestNSMGR_HealRemoteForwarderMultiple(t *testing.T) {
+	t.Skip("https://github.com/networkservicemesh/sdk/issues/845")
 	logger := logruslogger.New(context.Background())
 	log.WithLog(context.Background(), logger)
 	log.EnableTracing(true)
