@@ -165,9 +165,6 @@ func TestNSMGR_HealLocalForwarderRestored(t *testing.T) {
 
 func TestNSMGR_HealRemoteForwarderMultiple(t *testing.T) {
 	// t.Skip("https://github.com/networkservicemesh/sdk/issues/845")
-	logger := logruslogger.New(context.Background())
-	log.WithLog(context.Background(), logger)
-	log.EnableTracing(true)
 
 	for i := 0; i < 100; i++ {
 		t.Run("TestNSMGR_HealRemoteForwarder", TestNSMGR_HealRemoteForwarder)
@@ -210,6 +207,10 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int, restored bool, customConf
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
+
+	logger := logruslogger.New(ctx)
+	log.WithLog(ctx, logger)
+	log.EnableTracing(true)
 
 	builder := sandbox.NewBuilder(t)
 	domain := builder.
