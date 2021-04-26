@@ -83,7 +83,7 @@ func (f *healServer) Request(ctx context.Context, request *networkservice.Networ
 	}
 
 	cw, loaded := f.healContextMap.LoadOrStore(request.GetConnection().GetId(), &ctxWrapper{
-		request: request.Clone().SetRequestConnection(conn.Clone()),
+		request: request.Clone(),
 		ctx:     f.createHealContext(ctx, nil),
 	})
 	if loaded {
@@ -94,7 +94,7 @@ func (f *healServer) Request(ctx context.Context, request *networkservice.Networ
 			cw.cancel()
 			cw.cancel = nil
 		}
-		cw.request = request.Clone().SetRequestConnection(conn.Clone())
+		cw.request = request.Clone()
 		cw.ctx = f.createHealContext(ctx, cw.ctx)
 	}
 
@@ -112,9 +112,6 @@ func (f *healServer) Close(ctx context.Context, conn *networkservice.Connection)
 }
 
 func (f *healServer) getHealContext(conn *networkservice.Connection) (*networkservice.NetworkServiceRequest, context.Context) {
-	var healCtx context.Context
-	var request *networkservice.NetworkServiceRequest
-
 	cw, ok := f.healContextMap.Load(conn.GetId())
 	if !ok {
 		return nil, nil
@@ -128,10 +125,9 @@ func (f *healServer) getHealContext(conn *networkservice.Connection) (*networkse
 	}
 	ctx, cancel := context.WithCancel(cw.ctx)
 	cw.cancel = cancel
-	healCtx = ctx
-	request = cw.request
+	request := cw.request.Clone()
 
-	return request, healCtx
+	return request, ctx
 }
 
 // handleHealConnectionRequest - heals requested connection. Returns immediately, heal is asynchronous.
