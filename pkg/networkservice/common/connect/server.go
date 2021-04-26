@@ -92,7 +92,7 @@ func (s *connectServer) Request(ctx context.Context, request *networkservice.Net
 		}
 
 		// Close current client chain if grpc connection was closed
-		if err == connectionClosedErr {
+		if errors.Is(err, connectionClosedErr) {
 			s.deleteClient(c, clientURL.String())
 			s.connInfos.Delete(request.GetConnection().GetId())
 		}
