@@ -55,6 +55,9 @@ func Test_DNSContextClient_Usecases(t *testing.T) {
 	log
 	reload
 }`
+
+	requireFileChanged(ctx, t, corefilePath, expectedEmptyCorefile)
+
 	var samples = []struct {
 		request          *networkservice.NetworkServiceRequest
 		expectedCorefile string

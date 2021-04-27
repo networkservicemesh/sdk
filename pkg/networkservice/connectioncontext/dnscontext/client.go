@@ -21,7 +21,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"sync"
 
 	"github.com/edwarnicke/serialize"
 
@@ -42,7 +41,6 @@ type dnsContextClient struct {
 	defaultNameServerIP string
 	dnsConfigManager    dnscontext.Manager
 	updateCorefileQueue serialize.Executor
-	once                sync.Once
 }
 
 // NewClient creates a new DNS client chain component. Setups all DNS traffic to the localhost. Monitors DNS configs from connections.
@@ -56,7 +54,7 @@ func NewClient(options ...DNSOption) networkservice.NetworkServiceClient {
 	for _, o := range options {
 		o.apply(c)
 	}
-
+	c.initialize()
 	return c
 }
 
@@ -70,7 +68,6 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 		conifgs = rv.GetContext().GetDnsContext().GetConfigs()
 	}
 	if len(conifgs) > 0 {
-		c.once.Do(c.initialize)
 		c.dnsConfigManager.Store(rv.GetId(), conifgs...)
 		c.updateCorefileQueue.AsyncExec(c.updateCorefile)
 	}
