@@ -33,6 +33,8 @@ import (
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -162,7 +164,7 @@ func TestNSMGR_HealLocalForwarderRestored(t *testing.T) {
 }
 
 func TestNSMGR_HealRemoteForwarder(t *testing.T) {
-	t.Skip("https://github.com/networkservicemesh/sdk/issues/845")
+	// t.Skip("https://github.com/networkservicemesh/sdk/issues/845")
 
 	forwarderCtx, forwarderCtxCancel := context.WithTimeout(context.Background(), time.Second)
 	defer forwarderCtxCancel()
@@ -178,7 +180,7 @@ func TestNSMGR_HealRemoteForwarder(t *testing.T) {
 }
 
 func TestNSMGR_HealRemoteForwarderRestored(t *testing.T) {
-	t.Skip("https://github.com/networkservicemesh/sdk/issues/840")
+	// t.Skip("https://github.com/networkservicemesh/sdk/issues/840")
 
 	forwarderCtx, forwarderCtxCancel := context.WithTimeout(context.Background(), time.Second)
 	defer forwarderCtxCancel()
@@ -197,6 +199,10 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int, restored bool, customConf
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
+
+	logger := logruslogger.New(ctx)
+	log.WithLog(ctx, logger)
+	log.EnableTracing(true)
 
 	builder := sandbox.NewBuilder(t)
 	domain := builder.
