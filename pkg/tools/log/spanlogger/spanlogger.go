@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"runtime/debug"
 	"strings"
+	"sync"
 
 	"github.com/opentracing/opentracing-go"
 	opentracinglog "github.com/opentracing/opentracing-go/log"
@@ -40,6 +41,7 @@ const (
 type spanLogger struct {
 	span    opentracing.Span
 	entries map[interface{}]interface{}
+	lock    sync.RWMutex
 }
 
 func (s *spanLogger) Info(v ...interface{}) {
@@ -91,6 +93,9 @@ func (s *spanLogger) Tracef(format string, v ...interface{}) {
 }
 
 func (s *spanLogger) Object(k, v interface{}) {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
 	if s.span != nil {
 		if v != nil {
 			msg := ""
@@ -110,6 +115,9 @@ func (s *spanLogger) Object(k, v interface{}) {
 }
 
 func (s *spanLogger) WithField(key, value interface{}) log.Logger {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
 	data := make(map[interface{}]interface{}, len(s.entries)+1)
 	for k, v := range s.entries {
 		data[k] = v
@@ -127,6 +135,9 @@ func (s *spanLogger) log(level string, v ...interface{}) {
 }
 
 func (s *spanLogger) logf(level, format string, v ...interface{}) {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
 	if s.span != nil {
 		if v != nil {
 			s.span.LogFields(opentracinglog.String("event", level), opentracinglog.String("message", fmt.Sprintf(format, v...)))
@@ -152,6 +163,9 @@ func FromContext(ctx context.Context, operation string) (context.Context, log.Lo
 
 // finish - closes spanLogger
 func (s *spanLogger) finish() {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	if s.span != nil {
 		s.span.Finish()
 		s.span = nil
