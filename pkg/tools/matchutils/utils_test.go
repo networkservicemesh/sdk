@@ -297,3 +297,122 @@ func TestNSEMatch(t *testing.T) {
 		})
 	}
 }
+
+func TestLabelsContains(t *testing.T) {
+	referenceLabels := map[string]*registry.NetworkServiceLabels{
+		"Service1": {
+			Labels: map[string]string{
+				"foo":  "bar",
+				"foo2": "bar2",
+				"foo3": "bar3",
+			},
+		},
+		"Service2": {
+			Labels: map[string]string{
+				"foo4": "bar4",
+			},
+		},
+	}
+
+	type test struct {
+		name   string
+		labels map[string]*registry.NetworkServiceLabels
+		want   bool
+	}
+
+	tests := []test{
+		{
+			name:   "empty",
+			labels: nil,
+			want:   true,
+		},
+		{
+			name:   "same",
+			labels: referenceLabels,
+			want:   true,
+		},
+		{
+			name: "matchWithoutLabels",
+			labels: map[string]*registry.NetworkServiceLabels{
+				"Service1": {},
+			},
+			want: true,
+		},
+		{
+			name: "matchWithAllLabels",
+			labels: map[string]*registry.NetworkServiceLabels{
+				"Service1": {
+					Labels: map[string]string{
+						"foo":  "bar",
+						"foo2": "bar2",
+						"foo3": "bar3",
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "matchWithPartialLabels",
+			labels: map[string]*registry.NetworkServiceLabels{
+				"Service1": {
+					Labels: map[string]string{
+						"foo": "bar",
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "noMatchLabelKey",
+			labels: map[string]*registry.NetworkServiceLabels{
+				"Service1": {
+					Labels: map[string]string{
+						"unknown": "bar",
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "noMatchLabelValue",
+			labels: map[string]*registry.NetworkServiceLabels{
+				"Service1": {
+					Labels: map[string]string{
+						"foo": "unknown",
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "noMatchAdditionalService",
+			labels: map[string]*registry.NetworkServiceLabels{
+				"Service2": {
+					Labels: map[string]string{
+						"foo4": "bar4",
+					},
+				},
+				"Service3": {},
+			},
+			want: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			left := &registry.NetworkServiceEndpoint{
+				NetworkServiceLabels: tc.labels,
+			}
+			right := &registry.NetworkServiceEndpoint{
+				NetworkServiceLabels: referenceLabels,
+			}
+
+			got := matchutils.MatchNetworkServiceEndpoints(left, right)
+			if tc.want != got {
+				t.Logf("matching right: %v", referenceLabels)
+				t.Logf("matching left: %v", tc.labels)
+				require.Equal(t, tc.want, got)
+			}
+		})
+	}
+}
