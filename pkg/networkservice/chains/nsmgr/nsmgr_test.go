@@ -126,6 +126,7 @@ func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
 	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Closes))
 
 	// Endpoint unregister
+	unregisterWG.Wait()
 	_, err = s.domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
 	require.NoError(t, err)
 }
@@ -240,6 +241,7 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Closes))
 
 	// Endpoint unregister
+	unregisterWG.Wait()
 	for i := 0; i < len(nsesReg); i++ {
 		_, err = s.domain.Nodes[1].EndpointRegistryClient.Unregister(ctx, nsesReg[i])
 		require.NoError(t, err)
