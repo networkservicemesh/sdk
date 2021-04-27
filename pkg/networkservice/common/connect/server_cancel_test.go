@@ -65,8 +65,8 @@ func TestConnect_CancelDuringRequest(t *testing.T) {
 	}
 	nscCtx, nscCancel := context.WithCancel(ctx)
 	var flag atomic.Bool
-	_, err = domain.Nodes[0].NewEndpoint(ctx, nseReg1, sandbox.GenerateTestToken, checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
-		if flag.Load() == true {
+	_, err = domain.Nodes[0].NewEndpoint(ctx, nseReg1, sandbox.GenerateTestToken, checkrequest.NewServer(t, func(*testing.T, *networkservice.NetworkServiceRequest) {
+		if flag.Load() {
 			nscCancel()
 		}
 	}))
