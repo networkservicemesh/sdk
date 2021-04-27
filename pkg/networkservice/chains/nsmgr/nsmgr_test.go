@@ -93,7 +93,11 @@ func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
 	request := defaultRequest()
 	counter := &counterServer{}
 
+	var unregisterWG sync.WaitGroup
+	unregisterWG.Add(1)
 	go func() {
+		defer unregisterWG.Done()
+
 		time.Sleep(time.Millisecond * 100)
 		_, err := s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 		require.NoError(t, err)
@@ -122,6 +126,7 @@ func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
 	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Closes))
 
 	// Endpoint unregister
+	unregisterWG.Wait()
 	_, err = s.domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
 	require.NoError(t, err)
 }
@@ -198,7 +203,12 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 			wg.Done()
 		}(i)
 	}
+
+	var unregisterWG sync.WaitGroup
+	unregisterWG.Add(1)
 	go func() {
+		defer unregisterWG.Done()
+
 		wg.Wait()
 		time.Sleep(time.Second / 2)
 		nsesReg[3] = defaultRegistryEndpoint()
@@ -231,6 +241,7 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Closes))
 
 	// Endpoint unregister
+	unregisterWG.Wait()
 	for i := 0; i < len(nsesReg); i++ {
 		_, err = s.domain.Nodes[1].EndpointRegistryClient.Unregister(ctx, nsesReg[i])
 		require.NoError(t, err)
