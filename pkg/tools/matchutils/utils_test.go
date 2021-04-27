@@ -22,6 +22,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/matchutils"
 )
@@ -133,6 +134,164 @@ func TestNSMatch(t *testing.T) {
 			if tc.want != got {
 				t.Logf("matching right: %v", referenceService)
 				t.Logf("matching left: %v", tc.svc)
+				require.Equal(t, tc.want, got)
+			}
+		})
+	}
+}
+
+func TestNSEMatch(t *testing.T) {
+	referenceEndpoint := &registry.NetworkServiceEndpoint{
+		Name:                "nse-1-substring-match",
+		NetworkServiceNames: []string{"nse-service-1", "nse-service-2"},
+		NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+			"Service1": {
+				Labels: map[string]string{
+					"foo": "bar",
+				},
+			},
+			"Service2": {
+				Labels: map[string]string{
+					"foo2": "bar2",
+				},
+			},
+		},
+		Url:            "tcp://1.1.1.1",
+		ExpirationTime: &timestamppb.Timestamp{Seconds: 600},
+	}
+
+	type test struct {
+		name     string
+		endpoint *registry.NetworkServiceEndpoint
+		want     bool
+	}
+
+	tests := []test{
+		{
+			name:     "empty",
+			endpoint: &registry.NetworkServiceEndpoint{},
+			want:     true,
+		},
+		{
+			name:     "same",
+			endpoint: referenceEndpoint,
+			want:     true,
+		},
+		{
+			name: "matchName",
+			endpoint: &registry.NetworkServiceEndpoint{
+				Name: referenceEndpoint.Name,
+			},
+			want: true,
+		},
+		{
+			name: "matchNameSubstring",
+			endpoint: &registry.NetworkServiceEndpoint{
+				Name: "substring-match",
+			},
+			want: true,
+		},
+		{
+			name: "noMatchName",
+			endpoint: &registry.NetworkServiceEndpoint{
+				Name: "different-name",
+			},
+			want: false,
+		},
+		{
+			name: "matchLabels",
+			endpoint: &registry.NetworkServiceEndpoint{
+				NetworkServiceLabels: referenceEndpoint.NetworkServiceLabels,
+			},
+			want: true,
+		},
+		{
+			name: "noMatchLabels",
+			endpoint: &registry.NetworkServiceEndpoint{
+				NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+					"Service3": {
+						Labels: map[string]string{
+							"foo": "bar",
+						},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "matchExpirationTime",
+			endpoint: &registry.NetworkServiceEndpoint{
+				ExpirationTime: referenceEndpoint.ExpirationTime,
+			},
+			want: true,
+		},
+		{
+			name: "matchExpirationTimeWithoutNanos",
+			endpoint: &registry.NetworkServiceEndpoint{
+				ExpirationTime: &timestamppb.Timestamp{
+					Seconds: 600,
+					Nanos:   100000,
+				},
+			},
+			want: true,
+		},
+		{
+			name: "noMatchExpirationTime",
+			endpoint: &registry.NetworkServiceEndpoint{
+				ExpirationTime: &timestamppb.Timestamp{Seconds: 601},
+			},
+			want: false,
+		},
+		{
+			name: "matchNetworkServiceNames",
+			endpoint: &registry.NetworkServiceEndpoint{
+				NetworkServiceNames: referenceEndpoint.NetworkServiceNames,
+			},
+			want: true,
+		},
+		{
+			name: "matchNetworkServiceNamesPartial",
+			endpoint: &registry.NetworkServiceEndpoint{
+				NetworkServiceNames: []string{"nse-service-2"},
+			},
+			want: true,
+		},
+		{
+			name: "noMatchNetworkServiceNames",
+			endpoint: &registry.NetworkServiceEndpoint{
+				NetworkServiceNames: []string{"nse-service-3"},
+			},
+			want: false,
+		},
+		{
+			name: "matchUrl",
+			endpoint: &registry.NetworkServiceEndpoint{
+				Url: referenceEndpoint.Url,
+			},
+			want: true,
+		},
+		{
+			name: "matchUrlPartial",
+			endpoint: &registry.NetworkServiceEndpoint{
+				Url: "://1",
+			},
+			want: true,
+		},
+		{
+			name: "noMatchUrl",
+			endpoint: &registry.NetworkServiceEndpoint{
+				Url: "udp://",
+			},
+			want: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := matchutils.MatchNetworkServiceEndpoints(tc.endpoint, referenceEndpoint)
+			if tc.want != got {
+				t.Logf("matching right: %v", referenceEndpoint)
+				t.Logf("matching left: %v", tc.endpoint)
 				require.Equal(t, tc.want, got)
 			}
 		})
