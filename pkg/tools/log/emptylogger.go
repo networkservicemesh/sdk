@@ -16,106 +16,26 @@
 
 package log
 
-import (
-	"encoding/json"
-	"fmt"
-	"log"
-	"strings"
-)
+import "os"
 
-type emptyLogger struct {
-	prefix string
-}
+type emptylogger struct{}
 
-// Empty - provides a default logger
+func (s *emptylogger) Info(v ...interface{})                   {}
+func (s *emptylogger) Infof(format string, v ...interface{})   {}
+func (s *emptylogger) Warn(v ...interface{})                   {}
+func (s *emptylogger) Warnf(format string, v ...interface{})   {}
+func (s *emptylogger) Error(v ...interface{})                  {}
+func (s *emptylogger) Errorf(format string, v ...interface{})  {}
+func (s *emptylogger) Fatal(v ...interface{})                  { os.Exit(1) }
+func (s *emptylogger) Fatalf(format string, v ...interface{})  { os.Exit(1) }
+func (s *emptylogger) Debug(v ...interface{})                  {}
+func (s *emptylogger) Debugf(format string, v ...interface{})  {}
+func (s *emptylogger) Trace(v ...interface{})                  {}
+func (s *emptylogger) Tracef(format string, v ...interface{})  {}
+func (s *emptylogger) Object(k, v interface{})                 {}
+func (s *emptylogger) WithField(key, value interface{}) Logger { return s }
+
+// Empty - provides a logger that does nothing
 func Empty() Logger {
-	return &emptyLogger{}
-}
-
-func (l *emptyLogger) Info(v ...interface{}) {
-	log.Println(l.msg("[INFO] ", v...))
-}
-
-func (l *emptyLogger) Infof(format string, v ...interface{}) {
-	l.Info(fmt.Sprintf(format, v...))
-}
-
-func (l *emptyLogger) Warn(v ...interface{}) {
-	log.Println(l.msg("[WARN] ", v...))
-}
-
-func (l *emptyLogger) Warnf(format string, v ...interface{}) {
-	l.Warn(fmt.Sprintf(format, v...))
-}
-
-func (l *emptyLogger) Error(v ...interface{}) {
-	log.Println(l.msg("[ERROR]", v...))
-}
-
-func (l *emptyLogger) Errorf(format string, v ...interface{}) {
-	l.Error(fmt.Sprintf(format, v...))
-}
-
-func (l *emptyLogger) Fatal(v ...interface{}) {
-	log.Fatalln(l.msg("[FATAL]", v...))
-}
-
-func (l *emptyLogger) Fatalf(format string, v ...interface{}) {
-	l.Fatal(fmt.Sprintf(format, v...))
-}
-
-func (l *emptyLogger) Debug(v ...interface{}) {
-	log.Println(l.msg("[DEBUG]", v...))
-}
-
-func (l *emptyLogger) Debugf(format string, v ...interface{}) {
-	l.Debug(fmt.Sprintf(format, v...))
-}
-
-func (l *emptyLogger) Trace(v ...interface{}) {
-	log.Println(l.msg("[TRACE]", v...))
-}
-
-func (l *emptyLogger) Tracef(format string, v ...interface{}) {
-	l.Trace(fmt.Sprintf(format, v...))
-}
-
-func (l *emptyLogger) Object(k, v interface{}) {
-	msg := ""
-	cc, err := json.Marshal(v)
-	if err == nil {
-		msg = string(cc)
-	} else {
-		msg = fmt.Sprint(v)
-	}
-	l.Infof("%v=%s", k, msg)
-}
-
-func (l *emptyLogger) WithField(key, value interface{}) Logger {
-	var prefix string
-	if l.prefix != "" {
-		prefix = fmt.Sprintf("%s [%s:%s]", l.prefix, key, value)
-	} else {
-		prefix = fmt.Sprintf("[%s:%s]", key, value)
-	}
-
-	return &emptyLogger{
-		prefix: prefix,
-	}
-}
-
-func (l *emptyLogger) msg(level string, v ...interface{}) string {
-	sb := strings.Builder{}
-
-	sb.WriteString(level)
-	sb.WriteRune(' ')
-
-	if l.prefix != "" {
-		sb.WriteString(l.prefix)
-		sb.WriteRune(' ')
-	}
-
-	sb.WriteString(fmt.Sprint(v...))
-
-	return sb.String()
+	return &emptylogger{}
 }

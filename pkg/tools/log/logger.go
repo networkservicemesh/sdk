@@ -58,7 +58,7 @@ func FromContext(ctx context.Context) Logger {
 	if ok {
 		return rv
 	}
-	return Empty()
+	return Default()
 }
 
 // Join - concatenates new logger with existing loggers
