@@ -107,7 +107,7 @@ func TestNSMatch(t *testing.T) {
 			want: true,
 		},
 		{
-			name: "noMatchPayload",
+			name: "noMatchMatches",
 			svc: &registry.NetworkService{
 				Matches: []*registry.Match{
 					{
