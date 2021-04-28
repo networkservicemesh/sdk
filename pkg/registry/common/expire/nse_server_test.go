@@ -21,6 +21,7 @@ import (
 	"io"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
@@ -43,7 +44,10 @@ import (
 )
 
 const (
-	nseName = "nse"
+	expireTimeout = time.Minute
+	nseName       = "nse"
+	testWait      = 100 * time.Millisecond
+	testTick      = testWait / 100
 )
 
 func TestExpireNSEServer_ShouldCorrectlySetExpirationTime_InRemoteCase(t *testing.T) {
