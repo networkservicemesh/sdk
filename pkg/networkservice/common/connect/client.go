@@ -48,22 +48,27 @@ type connectClient struct {
 
 func (u *connectClient) init() error {
 	u.initOnce.Do(func() {
+		ctx, cancel := context.WithCancel(u.ctx)
+		u.ctx = ctx
+
 		clockTime := clock.FromContext(u.ctx)
 
 		clientURL := clienturlctx.ClientURL(u.ctx)
 		if clientURL == nil {
 			u.dialErr = errors.New("cannot dial nil clienturl.ClientURL(ctx)")
+			cancel()
 			return
 		}
 
-		ctx, cancel := clockTime.WithTimeout(u.ctx, u.dialTimeout)
-		defer cancel()
+		dialCtx, dialCancel := clockTime.WithTimeout(u.ctx, u.dialTimeout)
+		defer dialCancel()
 
 		dialOptions := append(append([]grpc.DialOption{}, u.dialOptions...), grpc.WithReturnConnectionError())
 
 		var cc *grpc.ClientConn
-		cc, u.dialErr = grpc.DialContext(ctx, grpcutils.URLToTarget(clientURL), dialOptions...)
+		cc, u.dialErr = grpc.DialContext(dialCtx, grpcutils.URLToTarget(clientURL), dialOptions...)
 		if u.dialErr != nil {
+			cancel()
 			return
 		}
 
@@ -71,6 +76,7 @@ func (u *connectClient) init() error {
 
 		go func() {
 			defer func() {
+				cancel()
 				_ = cc.Close()
 			}()
 			for cc.WaitForStateChange(u.ctx, cc.GetState()) {

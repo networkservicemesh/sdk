@@ -80,6 +80,9 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 		if err == nil {
 			return resp, err
 		}
+		if ctx.Err() != nil {
+			break
+		}
 
 		if deadline, ok := ctx.Deadline(); ctx.Err() == nil && ok {
 			timeout := clockTime.Until(deadline) / 10
