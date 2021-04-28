@@ -129,6 +129,7 @@ func TestNSMatch(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			got := matchutils.MatchNetworkServices(tc.svc, referenceService)
 			if tc.want != got {
@@ -287,6 +288,7 @@ func TestNSEMatch(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			got := matchutils.MatchNetworkServiceEndpoints(tc.endpoint, referenceEndpoint)
 			if tc.want != got {
@@ -399,6 +401,7 @@ func TestLabelsContains(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			left := &registry.NetworkServiceEndpoint{
 				NetworkServiceLabels: tc.labels,
