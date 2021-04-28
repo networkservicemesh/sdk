@@ -21,9 +21,9 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
@@ -36,21 +36,27 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
-func defaultRegistryEndpoint() *registry.NetworkServiceEndpoint {
-	return &registry.NetworkServiceEndpoint{
-		Name:                "final-endpoint",
-		NetworkServiceNames: []string{"ns-1"},
+func defaultRegistryService() *registry.NetworkService {
+	return &registry.NetworkService{
+		Name: "ns-" + uuid.New().String(),
 	}
 }
 
-func defaultRequest() *networkservice.NetworkServiceRequest {
+func defaultRegistryEndpoint(nsName string) *registry.NetworkServiceEndpoint {
+	return &registry.NetworkServiceEndpoint{
+		Name:                "final-endpoint",
+		NetworkServiceNames: []string{nsName},
+	}
+}
+
+func defaultRequest(nsName string) *networkservice.NetworkServiceRequest {
 	return &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
 			{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
 		},
 		Connection: &networkservice.Connection{
 			Id:             "1",
-			NetworkService: "ns-1",
+			NetworkService: nsName,
 			Context:        &networkservice.ConnectionContext{},
 		},
 	}
@@ -70,8 +76,7 @@ func testNSEAndClient(
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-	request := defaultRequest()
-	request.Connection.NetworkService = nseReg.NetworkServiceNames[0]
+	request := defaultRequest(nseReg.NetworkServiceNames[0])
 
 	conn, err := nsc.Request(ctx, request)
 	require.NoError(t, err)
@@ -81,14 +86,6 @@ func testNSEAndClient(
 
 	_, err = domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
 	require.NoError(t, err)
-
-	require.Eventually(t, func() bool {
-		stream, err := domain.Nodes[0].NSRegistryClient.Find(ctx, &registry.NetworkServiceQuery{
-			NetworkService: new(registry.NetworkService),
-		})
-		require.NoError(t, err)
-		return len(registry.ReadNetworkServiceList(stream)) == 0
-	}, 100*time.Millisecond, 10*time.Millisecond)
 }
 
 type passThroughClient struct {

@@ -23,7 +23,6 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
@@ -115,41 +114,17 @@ func (n *Node) newEndpoint(
 	nse.Url = u.String()
 
 	// 3. Register with the node registry client
-	err = n.registerEndpoint(ctx, nse, registryClient)
-	if err != nil {
-		return nil, err
-	}
-
-	log.FromContext(ctx).Infof("Started listen endpoint %s on %s.", nse.Name, u.String())
-
-	return &EndpointEntry{Endpoint: ep, URL: u}, nil
-}
-
-// RegisterEndpoint - registers endpoint in the registry client
-func (n *Node) RegisterEndpoint(ctx context.Context, nse *registryapi.NetworkServiceEndpoint) error {
-	return n.registerEndpoint(ctx, nse, n.EndpointRegistryClient)
-}
-
-func (n *Node) registerEndpoint(ctx context.Context, nse *registryapi.NetworkServiceEndpoint, registryClient registryapi.NetworkServiceEndpointRegistryClient) error {
-	var err error
-	for _, nsName := range nse.NetworkServiceNames {
-		if _, err = n.NSRegistryClient.Register(ctx, &registryapi.NetworkService{
-			Name:    nsName,
-			Payload: payload.IP,
-		}); err != nil {
-			return err
-		}
-	}
-
 	var reg *registryapi.NetworkServiceEndpoint
 	if reg, err = registryClient.Register(ctx, nse); err != nil {
-		return err
+		return nil, err
 	}
 
 	nse.Name = reg.Name
 	nse.ExpirationTime = reg.ExpirationTime
 
-	return nil
+	log.FromContext(ctx).Infof("Started listen endpoint %s on %s.", nse.Name, u.String())
+
+	return &EndpointEntry{Endpoint: ep, URL: u}, nil
 }
 
 // NewClient starts a new client and connects it to the node NSMgr

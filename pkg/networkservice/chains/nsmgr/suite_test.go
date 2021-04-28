@@ -60,16 +60,18 @@ func TestNsmgr(t *testing.T) {
 }
 
 func (s *nsmgrSuite) SetupSuite() {
+	t := s.T()
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Call cleanup when tests complete
-	s.T().Cleanup(func() {
+	t.Cleanup(func() {
 		cancel()
 		goleak.VerifyNone(s.T())
 	})
 
 	// Create default domain with nodesCount nodes, which will be enough for any test
-	s.domain = sandbox.NewBuilder(s.T()).
+	s.domain = sandbox.NewBuilder(t).
 		SetNodesCount(nodesCount).
 		SetRegistryProxySupplier(nil).
 		SetNSMgrProxySupplier(nil).
@@ -83,8 +85,10 @@ func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	nseReg := defaultRegistryEndpoint()
-	request := defaultRequest()
+	nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	counter := &counterServer{}
 
 	var unregisterWG sync.WaitGroup
@@ -93,10 +97,12 @@ func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
 		defer unregisterWG.Done()
 
 		time.Sleep(time.Millisecond * 100)
-		_, err := s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
-		require.NoError(t, err)
+		_, epErr := s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
+		require.NoError(t, epErr)
 	}()
 	nsc := s.domain.Nodes[1].NewClient(ctx, sandbox.GenerateTestToken)
+
+	request := defaultRequest(nsReg.Name)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -131,8 +137,10 @@ func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	nseReg := defaultRegistryEndpoint()
-	request := defaultRequest()
+	nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
 
 	// 1. Start listen address and register endpoint
 	netListener, err := net.Listen("tcp", "127.0.0.1:")
@@ -159,7 +167,7 @@ func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 	// 3. Create client and request endpoint
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-	conn, err := nsc.Request(ctx, request.Clone())
+	conn, err := nsc.Request(ctx, defaultRequest(nsReg.Name))
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 5, len(conn.Path.PathSegments))
@@ -181,7 +189,9 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	request := defaultRequest()
+	nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	require.NoError(t, err)
+
 	counter := &counterServer{}
 
 	var wg sync.WaitGroup
@@ -189,11 +199,11 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 	for i := 0; i < 3; i++ {
 		wg.Add(1)
 		go func(id int) {
-			nsesReg[id] = defaultRegistryEndpoint()
+			nsesReg[id] = defaultRegistryEndpoint(nsReg.Name)
 			nsesReg[id].Name += strconv.Itoa(id)
 
-			_, err := s.domain.Nodes[1].NewEndpoint(ctx, nsesReg[id], sandbox.GenerateTestToken, injecterror.NewServer())
-			require.NoError(t, err)
+			_, epErr := s.domain.Nodes[1].NewEndpoint(ctx, nsesReg[id], sandbox.GenerateTestToken, injecterror.NewServer())
+			require.NoError(t, epErr)
 			wg.Done()
 		}(i)
 	}
@@ -205,13 +215,15 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 
 		wg.Wait()
 		time.Sleep(time.Second / 2)
-		nsesReg[3] = defaultRegistryEndpoint()
+		nsesReg[3] = defaultRegistryEndpoint(nsReg.Name)
 		nsesReg[3].Name += strconv.Itoa(3)
 
-		_, err := s.domain.Nodes[1].NewEndpoint(ctx, nsesReg[3], sandbox.GenerateTestToken, counter)
-		require.NoError(t, err)
+		_, epErr := s.domain.Nodes[1].NewEndpoint(ctx, nsesReg[3], sandbox.GenerateTestToken, counter)
+		require.NoError(t, epErr)
 	}()
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	request := defaultRequest(nsReg.Name)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -248,14 +260,18 @@ func (s *nsmgrSuite) Test_RemoteUsecase() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	nseReg := defaultRegistryEndpoint()
-	request := defaultRequest()
+	nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	counter := &counterServer{}
 
-	_, err := s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
+	_, err = s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 	require.NoError(t, err)
 
 	nsc := s.domain.Nodes[1].NewClient(ctx, sandbox.GenerateTestToken)
+
+	request := defaultRequest(nsReg.Name)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -290,14 +306,18 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	nseCtx, killNse := context.WithCancel(ctx)
 	defer cancel()
 
-	nseReg := defaultRegistryEndpoint()
-	request := defaultRequest()
+	nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	counter := &counterServer{}
 
-	_, err := s.domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.GenerateTestToken, counter)
+	_, err = s.domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.GenerateTestToken, counter)
 	require.NoError(t, err)
 
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	request := defaultRequest(nsReg.Name)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -329,14 +349,18 @@ func (s *nsmgrSuite) Test_LocalUsecase() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	nseReg := defaultRegistryEndpoint()
-	request := defaultRequest()
+	nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	counter := &counterServer{}
 
-	_, err := s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
+	_, err = s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 	require.NoError(t, err)
 
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	request := defaultRequest(nsReg.Name)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -387,18 +411,23 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 				),
 			}
 		}
+
+		nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, &registry.NetworkService{
+			Name: fmt.Sprintf("my-service-remote-%v", i),
+		})
+		require.NoError(t, err)
+
 		nsesReg[i] = &registry.NetworkServiceEndpoint{
 			Name:                fmt.Sprintf("endpoint-%v", i),
-			NetworkServiceNames: []string{fmt.Sprintf("my-service-remote-%v", i)},
+			NetworkServiceNames: []string{nsReg.Name},
 		}
-		_, err := s.domain.Nodes[i].NewEndpoint(ctx, nsesReg[i], sandbox.GenerateTestToken, additionalFunctionality...)
+		_, err = s.domain.Nodes[i].NewEndpoint(ctx, nsesReg[i], sandbox.GenerateTestToken, additionalFunctionality...)
 		require.NoError(t, err)
 	}
 
 	nsc := s.domain.Nodes[nodesCount-1].NewClient(ctx, sandbox.GenerateTestToken)
 
-	request := defaultRequest()
-	request.Connection.NetworkService = fmt.Sprintf("my-service-remote-%v", nodesCount-1)
+	request := defaultRequest(fmt.Sprintf("my-service-remote-%v", nodesCount-1))
 
 	conn, err := nsc.Request(ctx, request)
 	require.NoError(t, err)
@@ -442,18 +471,23 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 				),
 			}
 		}
+
+		nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, &registry.NetworkService{
+			Name: fmt.Sprintf("my-service-remote-%v", i),
+		})
+		require.NoError(t, err)
+
 		nsesReg[i] = &registry.NetworkServiceEndpoint{
 			Name:                fmt.Sprintf("endpoint-%v", i),
-			NetworkServiceNames: []string{fmt.Sprintf("my-service-remote-%v", i)},
+			NetworkServiceNames: []string{nsReg.Name},
 		}
-		_, err := s.domain.Nodes[0].NewEndpoint(ctx, nsesReg[i], sandbox.GenerateTestToken, additionalFunctionality...)
+		_, err = s.domain.Nodes[0].NewEndpoint(ctx, nsesReg[i], sandbox.GenerateTestToken, additionalFunctionality...)
 		require.NoError(t, err)
 	}
 
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-	request := defaultRequest()
-	request.Connection.NetworkService = fmt.Sprintf("my-service-remote-%v", nsesCount-1)
+	request := defaultRequest(fmt.Sprintf("my-service-remote-%v", nsesCount-1))
 
 	conn, err := nsc.Request(ctx, request)
 	require.NoError(t, err)
@@ -480,12 +514,8 @@ func (s *nsmgrSuite) Test_ShouldCleanAllClientAndEndpointGoroutines() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	// We have lazy initialization in some chain elements in both networkservice, registry chains. So registering an
-	// endpoint and requesting it from client can result in new endless NSMgr goroutines.
-	testNSEAndClient(ctx, t, s.domain, &registry.NetworkServiceEndpoint{
-		Name:                "endpoint-init",
-		NetworkServiceNames: []string{"service-init"},
-	})
+	nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	require.NoError(t, err)
 
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
@@ -494,8 +524,5 @@ func (s *nsmgrSuite) Test_ShouldCleanAllClientAndEndpointGoroutines() {
 	//   1. GRPC request context cancel
 	//   2. NSC connection close
 	//   3. NSE unregister
-	testNSEAndClient(ctx, t, s.domain, &registry.NetworkServiceEndpoint{
-		Name:                "endpoint-final",
-		NetworkServiceNames: []string{"service-final"},
-	})
+	testNSEAndClient(ctx, t, s.domain, defaultRegistryEndpoint(nsReg.Name))
 }
