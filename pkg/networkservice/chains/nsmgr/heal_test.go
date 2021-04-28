@@ -59,10 +59,10 @@ func testNSMGRHealEndpoint(t *testing.T, restored bool) {
 		SetContext(ctx).
 		Build()
 
-	_, err := domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	nsReg, err := domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint()
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	nseReg.ExpirationTime = timestamppb.New(time.Now().Add(time.Second))
 
 	nseCtx, nseCtxCancel := context.WithTimeout(context.Background(), time.Second)
@@ -72,7 +72,7 @@ func testNSMGRHealEndpoint(t *testing.T, restored bool) {
 	nse, err := domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.GenerateExpiringToken(time.Second), counter)
 	require.NoError(t, err)
 
-	request := defaultRequest()
+	request := defaultRequest(nsReg.Name)
 
 	nsc := domain.Nodes[1].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -87,7 +87,7 @@ func testNSMGRHealEndpoint(t *testing.T, restored bool) {
 	// Wait grpc unblock the port
 	require.Eventually(t, checkURLFree(nse.URL.Host), timeout, tick)
 
-	nseReg2 := defaultRegistryEndpoint()
+	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
 	nseReg2.Name += "-2"
 	if restored {
 		nseReg2.Url = nse.URL.String()
@@ -191,14 +191,14 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int, restored bool, customConf
 		SetCustomConfig(customConfig).
 		Build()
 
-	_, err := domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	nsReg, err := domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
 	counter := &counterServer{}
-	_, err = domain.Nodes[0].NewEndpoint(ctx, defaultRegistryEndpoint(), sandbox.GenerateTestToken, counter)
+	_, err = domain.Nodes[0].NewEndpoint(ctx, defaultRegistryEndpoint(nsReg.Name), sandbox.GenerateTestToken, counter)
 	require.NoError(t, err)
 
-	request := defaultRequest()
+	request := defaultRequest(nsReg.Name)
 
 	nsc := domain.Nodes[1].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -288,16 +288,16 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, customConfig []*sandbox.NodeC
 		SetCustomConfig(customConfig).
 		Build()
 
-	_, err := domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	nsReg, err := domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint()
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
 
 	counter := &counterServer{}
 	nse, err := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 	require.NoError(t, err)
 
-	request := defaultRequest()
+	request := defaultRequest(nsReg.Name)
 
 	nsc := domain.Nodes[1].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -371,14 +371,14 @@ func TestNSMGR_HealRemoteNSMgr(t *testing.T) {
 		SetCustomConfig(customConfig).
 		Build()
 
-	_, err := domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	nsReg, err := domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
 	counter := &counterServer{}
-	_, err = domain.Nodes[0].NewEndpoint(ctx, defaultRegistryEndpoint(), sandbox.GenerateTestToken, counter)
+	_, err = domain.Nodes[0].NewEndpoint(ctx, defaultRegistryEndpoint(nsReg.Name), sandbox.GenerateTestToken, counter)
 	require.NoError(t, err)
 
-	request := defaultRequest()
+	request := defaultRequest(nsReg.Name)
 
 	nsc := domain.Nodes[1].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -390,7 +390,7 @@ func TestNSMGR_HealRemoteNSMgr(t *testing.T) {
 
 	nsmgrCtxCancel()
 
-	nseReg2 := defaultRegistryEndpoint()
+	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
 	nseReg2.Name += "-2"
 	_, err = domain.Nodes[2].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter)
 	require.NoError(t, err)
@@ -424,15 +424,15 @@ func TestNSMGR_CloseHeal(t *testing.T) {
 		SetContext(ctx).
 		Build()
 
-	_, err := domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	nsReg, err := domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
 	nseCtx, nseCtxCancel := context.WithCancel(ctx)
 
-	_, err = domain.Nodes[0].NewEndpoint(nseCtx, defaultRegistryEndpoint(), sandbox.GenerateTestToken)
+	_, err = domain.Nodes[0].NewEndpoint(nseCtx, defaultRegistryEndpoint(nsReg.Name), sandbox.GenerateTestToken)
 	require.NoError(t, err)
 
-	request := defaultRequest()
+	request := defaultRequest(nsReg.Name)
 
 	nscCtx, nscCtxCancel := context.WithCancel(ctx)
 

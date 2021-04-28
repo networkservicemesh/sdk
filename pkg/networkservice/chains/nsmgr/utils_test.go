@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
@@ -37,25 +38,25 @@ import (
 
 func defaultRegistryService() *registry.NetworkService {
 	return &registry.NetworkService{
-		Name: "ns-1",
+		Name: "ns-" + uuid.New().String(),
 	}
 }
 
-func defaultRegistryEndpoint() *registry.NetworkServiceEndpoint {
+func defaultRegistryEndpoint(nsName string) *registry.NetworkServiceEndpoint {
 	return &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint",
-		NetworkServiceNames: []string{"ns-1"},
+		NetworkServiceNames: []string{nsName},
 	}
 }
 
-func defaultRequest() *networkservice.NetworkServiceRequest {
+func defaultRequest(nsName string) *networkservice.NetworkServiceRequest {
 	return &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
 			{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
 		},
 		Connection: &networkservice.Connection{
 			Id:             "1",
-			NetworkService: "ns-1",
+			NetworkService: nsName,
 			Context:        &networkservice.ConnectionContext{},
 		},
 	}
@@ -75,8 +76,7 @@ func testNSEAndClient(
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-	request := defaultRequest()
-	request.Connection.NetworkService = nseReg.NetworkServiceNames[0]
+	request := defaultRequest(nseReg.NetworkServiceNames[0])
 
 	conn, err := nsc.Request(ctx, request)
 	require.NoError(t, err)
