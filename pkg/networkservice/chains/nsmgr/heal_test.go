@@ -24,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -35,8 +36,20 @@ import (
 
 const (
 	tick    = 10 * time.Millisecond
-	timeout = 10 * time.Second
+	timeout = 5 * time.Second
 )
+
+func testInfo(t *testing.T) {
+	println("************************************************************")
+	println("START:", t.Name())
+	println("************************************************************")
+
+	t.Cleanup(func() {
+		println("************************************************************")
+		println("END:", t.Name())
+		println("************************************************************")
+	})
+}
 
 func TestNSMGR_HealEndpoint(t *testing.T) {
 	for i := 0; i < 100; i++ {
@@ -51,6 +64,8 @@ func TestNSMGR_HealEndpointRestored(t *testing.T) {
 }
 
 func testNSMGRHealEndpoint(t *testing.T, restored bool) {
+	testInfo(t)
+
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
@@ -76,6 +91,8 @@ func testNSMGRHealEndpoint(t *testing.T, restored bool) {
 	request := defaultRequest(nsReg.Name)
 
 	nsc := domain.Nodes[1].NewClient(ctx, sandbox.GenerateTestToken)
+
+	require.NoError(t, errors.New("aa"))
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -172,6 +189,8 @@ func TestNSMGR_HealRemoteForwarderRestored(t *testing.T) {
 }
 
 func testNSMGRHealForwarder(t *testing.T, nodeNum int, restored bool, customConfig []*sandbox.NodeConfig, forwarderCtxCancel context.CancelFunc) {
+	testInfo(t)
+
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -266,6 +285,8 @@ func TestNSMGR_HealRemoteNSMgrRestored(t *testing.T) {
 }
 
 func testNSMGRHealNSMgr(t *testing.T, nodeNum int, customConfig []*sandbox.NodeConfig, nsmgrCtxCancel context.CancelFunc) {
+	testInfo(t)
+
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -338,6 +359,8 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, customConfig []*sandbox.NodeC
 }
 
 func TestNSMGR_HealRemoteNSMgr(t *testing.T) {
+	testInfo(t)
+
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	nsmgrCtx, nsmgrCtxCancel := context.WithCancel(context.Background())
