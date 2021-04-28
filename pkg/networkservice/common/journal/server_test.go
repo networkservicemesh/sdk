@@ -56,8 +56,8 @@ func TestConnect(t *testing.T) {
 		Connection: &networkservice.Connection{
 			Context: &networkservice.ConnectionContext{
 				IpContext: &networkservice.IPContext{
-					SrcIpAddr: "10.0.0.1/32",
-					DstIpAddr: "10.0.0.2/32",
+					SrcIpAddrs: []string{"10.0.0.1/32"},
+					DstIpAddrs: []string{"10.0.0.2/32"},
 				},
 			},
 			Path: &networkservice.Path{},
@@ -80,8 +80,8 @@ func TestConnect(t *testing.T) {
 		assert.NoError(t, subErr)
 
 		assert.Equal(t, entry.Time.Unix(), ts.Unix())
-		assert.Equal(t, "10.0.0.1/32", entry.Source)
-		assert.Equal(t, "10.0.0.2/32", entry.Destination)
+		assert.Equal(t, []string{"10.0.0.1/32"}, entry.Sources)
+		assert.Equal(t, []string{"10.0.0.2/32"}, entry.Destinations)
 		assert.Equal(t, journal.ActionRequest, entry.Action)
 		assert.NotNil(t, entry.Path)
 
