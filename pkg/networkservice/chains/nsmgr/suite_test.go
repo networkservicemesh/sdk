@@ -21,23 +21,18 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"runtime"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
-	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
@@ -46,7 +41,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
@@ -198,7 +192,7 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 			nsesReg[id] = defaultRegistryEndpoint()
 			nsesReg[id].Name += strconv.Itoa(id)
 
-			_, err := s.domain.Nodes[1].NewEndpoint(ctx, nsesReg[id], sandbox.GenerateTestToken, newBusyEndpoint())
+			_, err := s.domain.Nodes[1].NewEndpoint(ctx, nsesReg[id], sandbox.GenerateTestToken, injecterror.NewServer())
 			require.NoError(t, err)
 			wg.Done()
 		}(i)
@@ -504,299 +498,4 @@ func (s *nsmgrSuite) Test_ShouldCleanAllClientAndEndpointGoroutines() {
 		Name:                "endpoint-final",
 		NetworkServiceNames: []string{"service-final"},
 	})
-}
-
-func Test_ShouldCorrectlyAddForwardersWithSameNames(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-
-	domain := sandbox.NewBuilder(t).
-		SetNodesCount(1).
-		SetRegistryProxySupplier(nil).
-		SetNodeSetup(nil).
-		SetRegistryExpiryDuration(sandbox.RegistryExpiryDuration).
-		SetContext(ctx).
-		Build()
-
-	forwarderReg := &registry.NetworkServiceEndpoint{
-		Name: "forwarder",
-	}
-
-	nseReg := defaultRegistryEndpoint()
-
-	// 1. Add forwarders
-	forwarder1Reg := forwarderReg.Clone()
-	_, err := domain.Nodes[0].NewForwarder(ctx, forwarder1Reg, sandbox.GenerateTestToken)
-	require.NoError(t, err)
-
-	forwarder2Reg := forwarderReg.Clone()
-	_, err = domain.Nodes[0].NewForwarder(ctx, forwarder2Reg, sandbox.GenerateTestToken)
-	require.NoError(t, err)
-
-	forwarder3Reg := forwarderReg.Clone()
-	_, err = domain.Nodes[0].NewForwarder(ctx, forwarder3Reg, sandbox.GenerateTestToken)
-	require.NoError(t, err)
-
-	// 2. Wait for refresh
-	<-time.After(sandbox.RegistryExpiryDuration)
-
-	testNSEAndClient(ctx, t, domain, nseReg.Clone())
-
-	// 3. Delete first forwarder
-	_, err = domain.Nodes[0].ForwarderRegistryClient.Unregister(ctx, forwarder1Reg)
-	require.NoError(t, err)
-
-	testNSEAndClient(ctx, t, domain, nseReg.Clone())
-
-	// 4. Delete last forwarder
-	_, err = domain.Nodes[0].ForwarderRegistryClient.Unregister(ctx, forwarder3Reg)
-	require.NoError(t, err)
-
-	testNSEAndClient(ctx, t, domain, nseReg.Clone())
-
-	_, err = domain.Nodes[0].ForwarderRegistryClient.Unregister(ctx, forwarder2Reg)
-	require.NoError(t, err)
-}
-
-func Test_ShouldCorrectlyAddEndpointsWithSameNames(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-
-	domain := sandbox.NewBuilder(t).
-		SetNodesCount(1).
-		SetRegistryProxySupplier(nil).
-		SetRegistryExpiryDuration(sandbox.RegistryExpiryDuration).
-		SetContext(ctx).
-		Build()
-
-	nseReg := &registry.NetworkServiceEndpoint{
-		Name: "endpoint",
-	}
-
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
-
-	// 1. Add endpoints
-	nse1Reg := nseReg.Clone()
-	nse1Reg.NetworkServiceNames = []string{"service-1"}
-	_, err := domain.Nodes[0].NewEndpoint(ctx, nse1Reg, sandbox.GenerateTestToken)
-	require.NoError(t, err)
-
-	nse2Reg := nseReg.Clone()
-	nse2Reg.NetworkServiceNames = []string{"service-2"}
-	_, err = domain.Nodes[0].NewEndpoint(ctx, nse2Reg, sandbox.GenerateTestToken)
-	require.NoError(t, err)
-
-	// 2. Wait for refresh
-	<-time.After(sandbox.RegistryExpiryDuration)
-
-	// 3. Request
-	_, err = nsc.Request(ctx, &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			NetworkService: "service-1",
-		},
-	})
-	require.NoError(t, err)
-
-	_, err = nsc.Request(ctx, &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			NetworkService: "service-2",
-		},
-	})
-	require.NoError(t, err)
-
-	// 3. Delete endpoints
-	_, err = domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nse1Reg)
-	require.NoError(t, err)
-
-	_, err = domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nse2Reg)
-	require.NoError(t, err)
-}
-
-func Test_Local_NoURLUsecase(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("Unix sockets are not supported under windows, skipping")
-		return
-	}
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-
-	domain := sandbox.NewBuilder(t).
-		SetNodesCount(1).
-		UseUnixSockets().
-		SetContext(ctx).
-		SetNSMgrProxySupplier(nil).
-		SetRegistryProxySupplier(nil).
-		SetRegistrySupplier(nil).
-		Build()
-
-	nseReg := defaultRegistryEndpoint()
-	request := defaultRequest()
-	counter := &counterServer{}
-
-	_, err := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
-	require.NoError(t, err)
-
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
-
-	conn, err := nsc.Request(ctx, request.Clone())
-	require.NoError(t, err)
-	require.NotNil(t, conn)
-	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Requests))
-	require.Equal(t, 5, len(conn.Path.PathSegments))
-
-	// Simulate refresh from client
-	refreshRequest := request.Clone()
-	refreshRequest.Connection = conn.Clone()
-
-	conn2, err := nsc.Request(ctx, refreshRequest)
-	require.NoError(t, err)
-	require.NotNil(t, conn2)
-	require.Equal(t, 5, len(conn2.Path.PathSegments))
-	require.Equal(t, int32(2), atomic.LoadInt32(&counter.Requests))
-
-	// Close
-	_, err = nsc.Close(ctx, conn)
-	require.NoError(t, err)
-	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Closes))
-}
-
-func testNSEAndClient(
-	ctx context.Context,
-	t *testing.T,
-	domain *sandbox.Domain,
-	nseReg *registry.NetworkServiceEndpoint,
-) {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	_, err := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
-	require.NoError(t, err)
-
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
-
-	request := defaultRequest()
-	request.Connection.NetworkService = nseReg.NetworkServiceNames[0]
-
-	conn, err := nsc.Request(ctx, request)
-	require.NoError(t, err)
-
-	_, err = nsc.Close(ctx, conn)
-	require.NoError(t, err)
-
-	_, err = domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
-	require.NoError(t, err)
-
-	require.Eventually(t, func() bool {
-		stream, err := domain.Nodes[0].NSRegistryClient.Find(ctx, &registry.NetworkServiceQuery{
-			NetworkService: new(registry.NetworkService),
-		})
-		require.NoError(t, err)
-		return len(registry.ReadNetworkServiceList(stream)) == 0
-	}, 100*time.Millisecond, 10*time.Millisecond)
-}
-
-func defaultRegistryEndpoint() *registry.NetworkServiceEndpoint {
-	return &registry.NetworkServiceEndpoint{
-		Name:                "final-endpoint",
-		NetworkServiceNames: []string{"ns-1"},
-	}
-}
-
-func defaultRequest() *networkservice.NetworkServiceRequest {
-	return &networkservice.NetworkServiceRequest{
-		MechanismPreferences: []*networkservice.Mechanism{
-			{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
-		},
-		Connection: &networkservice.Connection{
-			Id:             "1",
-			NetworkService: "ns-1",
-			Context:        &networkservice.ConnectionContext{},
-		},
-	}
-}
-
-type passThroughClient struct {
-	networkService string
-}
-
-func newPassTroughClient(networkService string) *passThroughClient {
-	return &passThroughClient{
-		networkService: networkService,
-	}
-}
-
-func (c *passThroughClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	request.Connection.NetworkService = c.networkService
-	request.Connection.NetworkServiceEndpointName = ""
-	return next.Client(ctx).Request(ctx, request, opts...)
-}
-
-func (c *passThroughClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	conn.NetworkService = c.networkService
-	return next.Client(ctx).Close(ctx, conn, opts...)
-}
-
-type counterServer struct {
-	Requests, Closes int32
-	requests         map[string]int32
-	closes           map[string]int32
-	mu               sync.Mutex
-}
-
-func (c *counterServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	atomic.AddInt32(&c.Requests, 1)
-	if c.requests == nil {
-		c.requests = make(map[string]int32)
-	}
-	c.requests[request.GetConnection().GetId()]++
-
-	return next.Server(ctx).Request(ctx, request)
-}
-
-func (c *counterServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	atomic.AddInt32(&c.Closes, 1)
-	if c.closes == nil {
-		c.closes = make(map[string]int32)
-	}
-	c.closes[connection.GetId()]++
-
-	return next.Server(ctx).Close(ctx, connection)
-}
-
-func (c *counterServer) UniqueRequests() int {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if c.requests == nil {
-		return 0
-	}
-	return len(c.requests)
-}
-
-func (c *counterServer) UniqueCloses() int {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if c.closes == nil {
-		return 0
-	}
-	return len(c.closes)
-}
-
-func newBusyEndpoint() networkservice.NetworkServiceServer {
-	return injecterror.NewServer(
-		injecterror.WithError(errors.New("sorry, endpoint is busy, try again later")),
-	)
 }
