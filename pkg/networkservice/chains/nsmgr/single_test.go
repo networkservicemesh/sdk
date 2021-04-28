@@ -18,6 +18,7 @@ package nsmgr_test
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -26,10 +27,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
@@ -48,7 +50,10 @@ func Test_DNSUsecase(t *testing.T) {
 		SetContext(ctx).
 		Build()
 
-	_, err := domain.Nodes[0].NewEndpoint(ctx, defaultRegistryEndpoint(), sandbox.GenerateTestToken, dnscontext.NewServer(
+	_, err := domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	require.NoError(t, err)
+
+	_, err = domain.Nodes[0].NewEndpoint(ctx, defaultRegistryEndpoint(), sandbox.GenerateTestToken, dnscontext.NewServer(
 		&networkservice.DNSConfig{
 			DnsServerIps:  []string{"8.8.8.8"},
 			SearchDomains: []string{"my.domain1"},
@@ -107,6 +112,9 @@ func Test_ShouldCorrectlyAddForwardersWithSameNames(t *testing.T) {
 		SetContext(ctx).
 		Build()
 
+	_, err := domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	require.NoError(t, err)
+
 	forwarderReg := &registry.NetworkServiceEndpoint{
 		Name: "forwarder",
 	}
@@ -115,7 +123,7 @@ func Test_ShouldCorrectlyAddForwardersWithSameNames(t *testing.T) {
 
 	// 1. Add forwarders
 	forwarder1Reg := forwarderReg.Clone()
-	_, err := domain.Nodes[0].NewForwarder(ctx, forwarder1Reg, sandbox.GenerateTestToken)
+	_, err = domain.Nodes[0].NewForwarder(ctx, forwarder1Reg, sandbox.GenerateTestToken)
 	require.NoError(t, err)
 
 	forwarder2Reg := forwarderReg.Clone()
@@ -160,47 +168,44 @@ func Test_ShouldCorrectlyAddEndpointsWithSameNames(t *testing.T) {
 		SetContext(ctx).
 		Build()
 
-	nseReg := &registry.NetworkServiceEndpoint{
-		Name: "endpoint",
-	}
-
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
-
 	// 1. Add endpoints
-	nse1Reg := nseReg.Clone()
-	nse1Reg.NetworkServiceNames = []string{"service-1"}
-	_, err := domain.Nodes[0].NewEndpoint(ctx, nse1Reg, sandbox.GenerateTestToken)
-	require.NoError(t, err)
+	var nseRegs []*registry.NetworkServiceEndpoint
+	for i := 0; i < 2; i++ {
+		nsReg := &registry.NetworkService{
+			Name: fmt.Sprintf("ns-%d", i),
+		}
 
-	nse2Reg := nseReg.Clone()
-	nse2Reg.NetworkServiceNames = []string{"service-2"}
-	_, err = domain.Nodes[0].NewEndpoint(ctx, nse2Reg, sandbox.GenerateTestToken)
-	require.NoError(t, err)
+		_, err := domain.Nodes[0].NSRegistryClient.Register(ctx, nsReg)
+		require.NoError(t, err)
+
+		nseReg := defaultRegistryEndpoint()
+		nseReg.NetworkServiceNames[0] = nsReg.Name
+
+		_, err = domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
+		require.NoError(t, err)
+
+		nseRegs = append(nseRegs, nseReg)
+	}
 
 	// 2. Wait for refresh
 	<-time.After(sandbox.RegistryExpiryDuration)
 
 	// 3. Request
-	_, err = nsc.Request(ctx, &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			NetworkService: "service-1",
-		},
-	})
-	require.NoError(t, err)
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-	_, err = nsc.Request(ctx, &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			NetworkService: "service-2",
-		},
-	})
-	require.NoError(t, err)
+	for i := 0; i < 2; i++ {
+		request := defaultRequest()
+		request.Connection.NetworkService = fmt.Sprintf("ns-%d", i)
+
+		_, err := nsc.Request(ctx, request)
+		require.NoError(t, err)
+	}
 
 	// 3. Delete endpoints
-	_, err = domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nse1Reg)
-	require.NoError(t, err)
-
-	_, err = domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nse2Reg)
-	require.NoError(t, err)
+	for _, nseReg := range nseRegs {
+		_, err := domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
+		require.NoError(t, err)
+	}
 }
 
 func Test_Local_NoURLUsecase(t *testing.T) {
@@ -226,7 +231,10 @@ func Test_Local_NoURLUsecase(t *testing.T) {
 	request := defaultRequest()
 	counter := &counterServer{}
 
-	_, err := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
+	_, err := domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	require.NoError(t, err)
+
+	_, err = domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 	require.NoError(t, err)
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)

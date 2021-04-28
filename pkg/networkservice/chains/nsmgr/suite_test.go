@@ -60,21 +60,26 @@ func TestNsmgr(t *testing.T) {
 }
 
 func (s *nsmgrSuite) SetupSuite() {
+	t := s.T()
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Call cleanup when tests complete
-	s.T().Cleanup(func() {
+	t.Cleanup(func() {
 		cancel()
 		goleak.VerifyNone(s.T())
 	})
 
 	// Create default domain with nodesCount nodes, which will be enough for any test
-	s.domain = sandbox.NewBuilder(s.T()).
+	s.domain = sandbox.NewBuilder(t).
 		SetNodesCount(nodesCount).
 		SetRegistryProxySupplier(nil).
 		SetNSMgrProxySupplier(nil).
 		SetContext(ctx).
 		Build()
+
+	_, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	require.NoError(t, err)
 }
 
 func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
@@ -387,11 +392,18 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 				),
 			}
 		}
+
+		nsReg := &registry.NetworkService{
+			Name: fmt.Sprintf("my-service-remote-%v", i),
+		}
+		_, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, nsReg)
+		require.NoError(t, err)
+
 		nsesReg[i] = &registry.NetworkServiceEndpoint{
 			Name:                fmt.Sprintf("endpoint-%v", i),
-			NetworkServiceNames: []string{fmt.Sprintf("my-service-remote-%v", i)},
+			NetworkServiceNames: []string{nsReg.Name},
 		}
-		_, err := s.domain.Nodes[i].NewEndpoint(ctx, nsesReg[i], sandbox.GenerateTestToken, additionalFunctionality...)
+		_, err = s.domain.Nodes[i].NewEndpoint(ctx, nsesReg[i], sandbox.GenerateTestToken, additionalFunctionality...)
 		require.NoError(t, err)
 	}
 
@@ -442,11 +454,18 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 				),
 			}
 		}
+
+		nsReg := &registry.NetworkService{
+			Name: fmt.Sprintf("my-service-remote-%v", i),
+		}
+		_, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, nsReg)
+		require.NoError(t, err)
+
 		nsesReg[i] = &registry.NetworkServiceEndpoint{
 			Name:                fmt.Sprintf("endpoint-%v", i),
-			NetworkServiceNames: []string{fmt.Sprintf("my-service-remote-%v", i)},
+			NetworkServiceNames: []string{nsReg.Name},
 		}
-		_, err := s.domain.Nodes[0].NewEndpoint(ctx, nsesReg[i], sandbox.GenerateTestToken, additionalFunctionality...)
+		_, err = s.domain.Nodes[0].NewEndpoint(ctx, nsesReg[i], sandbox.GenerateTestToken, additionalFunctionality...)
 		require.NoError(t, err)
 	}
 
@@ -480,13 +499,6 @@ func (s *nsmgrSuite) Test_ShouldCleanAllClientAndEndpointGoroutines() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	// We have lazy initialization in some chain elements in both networkservice, registry chains. So registering an
-	// endpoint and requesting it from client can result in new endless NSMgr goroutines.
-	testNSEAndClient(ctx, t, s.domain, &registry.NetworkServiceEndpoint{
-		Name:                "endpoint-init",
-		NetworkServiceNames: []string{"service-init"},
-	})
-
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	// At this moment all possible endless NSMgr goroutines have been started. So we expect all newly created goroutines
@@ -494,8 +506,5 @@ func (s *nsmgrSuite) Test_ShouldCleanAllClientAndEndpointGoroutines() {
 	//   1. GRPC request context cancel
 	//   2. NSC connection close
 	//   3. NSE unregister
-	testNSEAndClient(ctx, t, s.domain, &registry.NetworkServiceEndpoint{
-		Name:                "endpoint-final",
-		NetworkServiceNames: []string{"service-final"},
-	})
+	testNSEAndClient(ctx, t, s.domain, defaultRegistryEndpoint())
 }

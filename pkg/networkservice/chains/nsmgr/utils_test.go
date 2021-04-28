@@ -21,7 +21,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/require"
@@ -35,6 +34,12 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
+
+func defaultRegistryService() *registry.NetworkService {
+	return &registry.NetworkService{
+		Name: "ns-1",
+	}
+}
 
 func defaultRegistryEndpoint() *registry.NetworkServiceEndpoint {
 	return &registry.NetworkServiceEndpoint{
@@ -81,14 +86,6 @@ func testNSEAndClient(
 
 	_, err = domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
 	require.NoError(t, err)
-
-	require.Eventually(t, func() bool {
-		stream, err := domain.Nodes[0].NSRegistryClient.Find(ctx, &registry.NetworkServiceQuery{
-			NetworkService: new(registry.NetworkService),
-		})
-		require.NoError(t, err)
-		return len(registry.ReadNetworkServiceList(stream)) == 0
-	}, 100*time.Millisecond, 10*time.Millisecond)
 }
 
 type passThroughClient struct {

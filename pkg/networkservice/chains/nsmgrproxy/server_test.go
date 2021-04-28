@@ -18,6 +18,7 @@ package nsmgrproxy_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -56,12 +57,19 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 
 	require.NoError(t, dnsServer.Register(remoteRegistryDomain, domain2.Registry.URL))
 
-	nseReg := &registry.NetworkServiceEndpoint{
-		Name:                "final-endpoint",
-		NetworkServiceNames: []string{"my-service-interdomain"},
+	nsReg := &registry.NetworkService{
+		Name: "my-service-interdomain",
 	}
 
-	_, err := domain2.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
+	_, err := domain2.Nodes[0].NSRegistryClient.Register(ctx, nsReg)
+	require.NoError(t, err)
+
+	nseReg := &registry.NetworkServiceEndpoint{
+		Name:                "final-endpoint",
+		NetworkServiceNames: []string{nsReg.Name},
+	}
+
+	_, err = domain2.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
 	require.NoError(t, err)
 
 	nsc := domain1.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
@@ -72,7 +80,7 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 		},
 		Connection: &networkservice.Connection{
 			Id:             "1",
-			NetworkService: "my-service-interdomain@" + remoteRegistryDomain,
+			NetworkService: fmt.Sprint(nsReg.Name, "@", remoteRegistryDomain),
 			Context:        &networkservice.ConnectionContext{},
 		},
 	}
