@@ -66,7 +66,7 @@ func Test_WatchFile(t *testing.T) {
 		select {
 		case <-time.After(time.Second):
 			debug.PrintStack()
-			t.Fatal("no events")
+			require.NotNil(t, nil, filePath)
 		case update := <-ch:
 			assertFunc(t, update)
 		}
@@ -85,7 +85,9 @@ func Test_WatchFile(t *testing.T) {
 
 	err = os.RemoveAll(path)
 	checkPathError(t, err)
-	expectEvent(require.Nil)
+	expectEvent(func(t require.TestingT, i interface{}, i2 ...interface{}) {
+		require.Nil(t, i, filePath)
+	})
 
 	err = os.MkdirAll(path, os.ModePerm)
 	for i := 0; i < 5 && err != nil; i++ {
