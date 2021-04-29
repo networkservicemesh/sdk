@@ -54,7 +54,7 @@ func testNSE() *registry.NetworkServiceEndpoint {
 func TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	clockMock := clockmock.NewMock()
+	clockMock := clockmock.New()
 	ctx := clock.WithClock(context.Background(), clockMock)
 
 	countClient := new(requestCountClient)
@@ -100,7 +100,7 @@ func TestRefreshNSEClient_ShouldSetExpirationTime_BeforeCallNext(t *testing.T) {
 func Test_RefreshNSEClient_CalledRegisterTwice(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	clockMock := clockmock.NewMock()
+	clockMock := clockmock.New()
 	ctx := clock.WithClock(context.Background(), clockMock)
 
 	countClient := new(requestCountClient)
@@ -132,7 +132,7 @@ func Test_RefreshNSEClient_CalledRegisterTwice(t *testing.T) {
 func Test_RefreshNSEClient_ShouldOverrideNameAndDuration(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	clockMock := clockmock.NewMock()
+	clockMock := clockmock.New()
 	ctx := clock.WithClock(context.Background(), clockMock)
 
 	endpoint := &registry.NetworkServiceEndpoint{
@@ -183,7 +183,7 @@ func Test_RefreshNSEClient_ShouldOverrideNameAndDuration(t *testing.T) {
 func Test_RefreshNSEClient_SetsCorrectExpireTime(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	clockMock := clockmock.NewMock()
+	clockMock := clockmock.New()
 	ctx := clock.WithClock(context.Background(), clockMock)
 
 	countClient := new(requestCountClient)

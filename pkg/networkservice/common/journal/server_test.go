@@ -67,7 +67,7 @@ func TestConnect(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 
-	clockMock := clockmock.NewMock()
+	clockMock := clockmock.New()
 	ctx := clock.WithClock(context.Background(), clockMock)
 
 	ts := time.Now()

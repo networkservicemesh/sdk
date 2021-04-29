@@ -65,7 +65,7 @@ func TestRefreshClient_ValidRefresh(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	clockMock := clockmock.NewMock()
+	clockMock := clockmock.New()
 	ctx = clock.WithClock(ctx, clockMock)
 
 	cloneClient := &countClient{
@@ -109,7 +109,7 @@ func TestRefreshClient_StopRefreshAtClose(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	clockMock := clockmock.NewMock()
+	clockMock := clockmock.New()
 	ctx = clock.WithClock(ctx, clockMock)
 
 	cloneClient := &countClient{
@@ -149,7 +149,7 @@ func TestRefreshClient_RestartsRefreshAtAnotherRequest(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	clockMock := clockmock.NewMock()
+	clockMock := clockmock.New()
 	ctx = clock.WithClock(ctx, clockMock)
 
 	cloneClient := &countClient{

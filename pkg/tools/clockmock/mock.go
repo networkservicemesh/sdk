@@ -35,15 +35,14 @@ type Mock struct {
 	mock *libclock.Mock
 }
 
-// NewMock returns a new mocked clock
-func NewMock() *Mock {
+// New returns a new mocked clock
+func New() *Mock {
 	return &Mock{
 		mock: libclock.NewMock(),
 	}
 }
 
 // Set sets the current time of the mock clock to a specific one.
-// This should only be called from a single goroutine at a time.
 func (m *Mock) Set(t time.Time) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -52,7 +51,6 @@ func (m *Mock) Set(t time.Time) {
 }
 
 // Add moves the current time of the mock clock forward by the specified duration.
-// This should only be called from a single goroutine at a time.
 func (m *Mock) Add(d time.Duration) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -82,11 +80,19 @@ func (m *Mock) Sleep(d time.Duration) {
 
 // Timer returns a timer that will fire when the mock current time becomes > m.Now().Add(d)
 func (m *Mock) Timer(d time.Duration) clock.Timer {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
+	if d = safeDuration(d); d > 0 {
+		m.lock.RLock()
+		defer m.lock.RUnlock()
+	} else {
+		m.lock.Lock()
+		defer m.lock.Unlock()
+
+		defer m.mock.Add(0)
+	}
 
 	return &mockTimer{
-		Timer: m.mock.Timer(safeDuration(d)),
+		mock:  m,
+		Timer: m.mock.Timer(d),
 	}
 }
 
@@ -97,15 +103,23 @@ func (m *Mock) After(d time.Duration) <-chan time.Time {
 
 // AfterFunc returns a timer that will call f when the mock current time becomes > m.Now().Add(d)
 func (m *Mock) AfterFunc(d time.Duration, f func()) clock.Timer {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
+	if d = safeDuration(d); d > 0 {
+		m.lock.RLock()
+		defer m.lock.RUnlock()
+	} else {
+		m.lock.Lock()
+		defer m.lock.Unlock()
+
+		defer m.mock.Add(0)
+	}
 
 	return m.afterFunc(d, f)
 }
 
 func (m *Mock) afterFunc(d time.Duration, f func()) clock.Timer {
 	return &mockTimer{
-		Timer: m.mock.AfterFunc(safeDuration(d), func() {
+		mock: m,
+		Timer: m.mock.AfterFunc(d, func() {
 			go f()
 		}),
 	}
