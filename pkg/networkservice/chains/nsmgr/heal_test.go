@@ -39,7 +39,11 @@ const (
 )
 
 func TestNSMGR_HealEndpoint(t *testing.T) {
-	testNSMGRHealEndpoint(t, false)
+	for i := 0; i < 100; i++ {
+		t.Run("Test", func(t *testing.T) {
+			testNSMGRHealEndpoint(t, false)
+		})
+	}
 }
 
 func TestNSMGR_HealEndpointRestored(t *testing.T) {
