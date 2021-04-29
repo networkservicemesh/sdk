@@ -35,7 +35,7 @@ import (
 
 const (
 	tick    = 10 * time.Millisecond
-	timeout = 5 * time.Second
+	timeout = 10 * time.Second
 )
 
 func testInfo(t *testing.T) {
