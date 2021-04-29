@@ -88,6 +88,10 @@ func Test_WatchFile(t *testing.T) {
 	expectEvent(require.Nil)
 
 	err = os.MkdirAll(path, os.ModePerm)
+	for i := 0; i < 5 && err != nil; i++ {
+		time.Sleep(time.Millisecond * 50)
+		err = os.MkdirAll(path, os.ModePerm)
+	}
 	checkPathError(t, err)
 
 	err = ioutil.WriteFile(filePath, []byte("data"), os.ModePerm)
