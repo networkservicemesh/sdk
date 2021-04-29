@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/fs"
@@ -47,12 +48,12 @@ func checkPathError(t *testing.T, err error) {
 
 func Test_WatchFile(t *testing.T) {
 	root := filepath.Join(os.TempDir(), t.Name())
-	defer func() {
-		_ = os.RemoveAll(root)
-	}()
 
-	path := filepath.Join(root, "A")
+	path := filepath.Join(root, uuid.New().String())
 	err := os.MkdirAll(path, os.ModePerm)
+	defer func() {
+		_ = os.RemoveAll(path)
+	}()
 	checkPathError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -82,7 +83,7 @@ func Test_WatchFile(t *testing.T) {
 		expectEvent(require.NotNil)
 	}
 
-	err = os.RemoveAll(root)
+	err = os.RemoveAll(path)
 	checkPathError(t, err)
 
 	expectEvent(require.Nil)
