@@ -38,7 +38,8 @@ func Test_WatchFile(t *testing.T) {
 	}()
 
 	path := filepath.Join(root, "A")
-	_ = os.MkdirAll(path, os.ModePerm)
+	err := os.MkdirAll(path, os.ModePerm)
+	require.Nil(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -67,11 +68,13 @@ func Test_WatchFile(t *testing.T) {
 		expectEvent(require.NotNil)
 	}
 
-	_ = os.RemoveAll(root)
+	err = os.RemoveAll(root)
+	require.Nil(t, err)
 
 	expectEvent(require.Nil)
 
-	_ = os.MkdirAll(path, os.ModePerm)
+	err = os.MkdirAll(path, os.ModePerm)
+	require.Nil(t, err)
 	require.Nil(t, ioutil.WriteFile(filePath, []byte("data"), os.ModePerm))
 
 	expectEvent(require.NotNil)
