@@ -19,6 +19,7 @@ package nsmgrproxy
 
 import (
 	"context"
+	"time"
 
 	"google.golang.org/grpc"
 
@@ -41,6 +42,7 @@ import (
 type serverOptions struct {
 	name            string
 	authorizeServer networkservice.NetworkServiceServer
+	dialTimeout     time.Duration
 	dialOptions     []grpc.DialOption
 }
 
@@ -65,6 +67,13 @@ func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Op
 	}
 }
 
+// WithDialTimeout sets gRPC Dial timeout for the server
+func WithDialTimeout(timeout time.Duration) Option {
+	return func(o *serverOptions) {
+		o.dialTimeout = timeout
+	}
+}
+
 // WithDialOptions sets gRPC Dial Options for the server
 func WithDialOptions(options ...grpc.DialOption) Option {
 	return func(o *serverOptions) {
@@ -82,6 +91,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	opts := &serverOptions{
 		name:            "nsmgr-proxy-" + uuid.New().String(),
 		authorizeServer: authorize.NewServer(authorize.Any()),
+		dialTimeout:     100 * time.Millisecond,
 	}
 	for _, opt := range options {
 		opt(opts)
@@ -97,6 +107,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			heal.NewServer(ctx, addressof.NetworkServiceClient(adapters.NewServerToClient(rv))),
 			connect.NewServer(ctx,
 				client.NewClientFactory(client.WithName(opts.name)),
+				connect.WithDialTimeout(opts.dialTimeout),
 				connect.WithDialOptions(opts.dialOptions...),
 			),
 		),

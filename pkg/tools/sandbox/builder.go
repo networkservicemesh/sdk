@@ -275,6 +275,7 @@ func (b *Builder) newNSMgrProxy(ctx context.Context) *EndpointEntry {
 	name := "nsmgr-proxy-" + uuid.New().String()
 	mgr := b.supplyNSMgrProxy(ctx, b.generateTokenFunc,
 		nsmgrproxy.WithName(name),
+		nsmgrproxy.WithDialTimeout(DialTimeout),
 		nsmgrproxy.WithDialOptions(DefaultDialOptions(b.generateTokenFunc)...))
 	serveURL := grpcutils.TargetToURL(b.newAddress("nsmgr-proxy"))
 
@@ -323,6 +324,7 @@ func (b *Builder) newNSMgr(ctx context.Context, address string, registryURL *url
 	options := []nsmgr.Option{
 		nsmgr.WithName(nsmgrName),
 		nsmgr.WithAuthorizeServer(authorize.NewServer(authorize.Any())),
+		nsmgr.WithDialTimeout(DialTimeout),
 		nsmgr.WithDialOptions(DefaultDialOptions(generateTokenFunc)...),
 	}
 
