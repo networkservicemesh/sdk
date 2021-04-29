@@ -63,6 +63,7 @@ func (n *Node) NewForwarder(
 			client.NewCrossConnectClientFactory(
 				client.WithName(nse.Name),
 			),
+			connect.WithDialTimeout(DialTimeout),
 			connect.WithDialOptions(DefaultDialOptions(generatorFunc)...),
 		),
 	)
