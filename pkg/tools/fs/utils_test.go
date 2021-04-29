@@ -74,8 +74,8 @@ func Test_WatchFile(t *testing.T) {
 
 	expectEvent(require.Nil)
 
-	checkPathError(t, ioutil.WriteFile(filePath, []byte("data"), os.ModePerm))
-
+	err = ioutil.WriteFile(filePath, []byte("data"), os.ModePerm)
+	checkPathError(t, err)
 	expectEvent(require.NotNil)
 
 	// https://github.com/fsnotify/fsnotify/issues/11
@@ -85,12 +85,12 @@ func Test_WatchFile(t *testing.T) {
 
 	err = os.RemoveAll(path)
 	checkPathError(t, err)
-
 	expectEvent(require.Nil)
 
 	err = os.MkdirAll(path, os.ModePerm)
 	checkPathError(t, err)
-	checkPathError(t, ioutil.WriteFile(filePath, []byte("data"), os.ModePerm))
 
+	err = ioutil.WriteFile(filePath, []byte("data"), os.ModePerm)
+	checkPathError(t, err)
 	expectEvent(require.NotNil)
 }
