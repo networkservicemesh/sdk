@@ -18,6 +18,7 @@ package fs_test
 
 import (
 	"context"
+	iofs "io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -31,6 +32,19 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/fs"
 )
 
+func checkPathError(t *testing.T, err error) {
+	if err == nil {
+		return
+	}
+
+	if ferr, ok := err.(*iofs.PathError); ok {
+		if u := ferr.Unwrap(); u != nil {
+			t.Log(u)
+		}
+	}
+	require.Nil(t, err)
+}
+
 func Test_WatchFile(t *testing.T) {
 	root := filepath.Join(os.TempDir(), t.Name())
 	defer func() {
@@ -39,7 +53,7 @@ func Test_WatchFile(t *testing.T) {
 
 	path := filepath.Join(root, "A")
 	err := os.MkdirAll(path, os.ModePerm)
-	require.Nil(t, err)
+	checkPathError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -59,7 +73,7 @@ func Test_WatchFile(t *testing.T) {
 
 	expectEvent(require.Nil)
 
-	require.Nil(t, ioutil.WriteFile(filePath, []byte("data"), os.ModePerm))
+	checkPathError(t, ioutil.WriteFile(filePath, []byte("data"), os.ModePerm))
 
 	expectEvent(require.NotNil)
 
@@ -69,13 +83,13 @@ func Test_WatchFile(t *testing.T) {
 	}
 
 	err = os.RemoveAll(root)
-	require.Nil(t, err)
+	checkPathError(t, err)
 
 	expectEvent(require.Nil)
 
 	err = os.MkdirAll(path, os.ModePerm)
-	require.Nil(t, err)
-	require.Nil(t, ioutil.WriteFile(filePath, []byte("data"), os.ModePerm))
+	checkPathError(t, err)
+	checkPathError(t, ioutil.WriteFile(filePath, []byte("data"), os.ModePerm))
 
 	expectEvent(require.NotNil)
 }
