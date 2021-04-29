@@ -254,6 +254,9 @@ issues:
       linters:
         - funlen
       text: "Function 'TestConnectServer_Request'"
+    - path: pkg/tools/matchutils/utils_test.go
+      linters:
+        - funlen
     - path: pkg/registry/common/recvfd/gen.go
       linters:
         - structcheck
