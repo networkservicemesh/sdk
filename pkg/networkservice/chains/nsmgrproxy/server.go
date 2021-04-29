@@ -19,9 +19,6 @@ package nsmgrproxy
 
 import (
 	"context"
-	"time"
-
-	"google.golang.org/grpc"
 
 	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -42,8 +39,7 @@ import (
 type serverOptions struct {
 	name            string
 	authorizeServer networkservice.NetworkServiceServer
-	dialTimeout     time.Duration
-	dialOptions     []grpc.DialOption
+	connectOptions  []connect.Option
 }
 
 // Option modifies option value
@@ -67,17 +63,10 @@ func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Op
 	}
 }
 
-// WithDialTimeout sets gRPC Dial timeout for the server
-func WithDialTimeout(timeout time.Duration) Option {
+// WithConnectOptions sets connect Options for the server
+func WithConnectOptions(connectOptions ...connect.Option) Option {
 	return func(o *serverOptions) {
-		o.dialTimeout = timeout
-	}
-}
-
-// WithDialOptions sets gRPC Dial Options for the server
-func WithDialOptions(options ...grpc.DialOption) Option {
-	return func(o *serverOptions) {
-		o.dialOptions = options
+		o.connectOptions = connectOptions
 	}
 }
 
@@ -91,7 +80,6 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	opts := &serverOptions{
 		name:            "nsmgr-proxy-" + uuid.New().String(),
 		authorizeServer: authorize.NewServer(authorize.Any()),
-		dialTimeout:     100 * time.Millisecond,
 	}
 	for _, opt := range options {
 		opt(opts)
@@ -106,9 +94,9 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			swapip.NewServer(),
 			heal.NewServer(ctx, addressof.NetworkServiceClient(adapters.NewServerToClient(rv))),
 			connect.NewServer(ctx,
-				client.NewClientFactory(client.WithName(opts.name)),
-				connect.WithDialTimeout(opts.dialTimeout),
-				connect.WithDialOptions(opts.dialOptions...),
+				client.NewClientFactory(
+					client.WithName(opts.name),
+				), opts.connectOptions...,
 			),
 		),
 	)

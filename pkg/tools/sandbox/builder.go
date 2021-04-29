@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -275,8 +276,10 @@ func (b *Builder) newNSMgrProxy(ctx context.Context) *EndpointEntry {
 	name := "nsmgr-proxy-" + uuid.New().String()
 	mgr := b.supplyNSMgrProxy(ctx, b.generateTokenFunc,
 		nsmgrproxy.WithName(name),
-		nsmgrproxy.WithDialTimeout(DialTimeout),
-		nsmgrproxy.WithDialOptions(DefaultDialOptions(b.generateTokenFunc)...))
+		nsmgrproxy.WithConnectOptions(
+			connect.WithDialTimeout(DialTimeout),
+			connect.WithDialOptions(DefaultDialOptions(b.generateTokenFunc)...)),
+	)
 	serveURL := grpcutils.TargetToURL(b.newAddress("nsmgr-proxy"))
 
 	serve(ctx, serveURL, mgr.Register)
@@ -324,8 +327,9 @@ func (b *Builder) newNSMgr(ctx context.Context, address string, registryURL *url
 	options := []nsmgr.Option{
 		nsmgr.WithName(nsmgrName),
 		nsmgr.WithAuthorizeServer(authorize.NewServer(authorize.Any())),
-		nsmgr.WithDialTimeout(DialTimeout),
-		nsmgr.WithDialOptions(DefaultDialOptions(generateTokenFunc)...),
+		nsmgr.WithConnectOptions(
+			connect.WithDialTimeout(DialTimeout),
+			connect.WithDialOptions(DefaultDialOptions(b.generateTokenFunc)...)),
 	}
 
 	if registryURL != nil {
