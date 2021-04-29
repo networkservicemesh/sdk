@@ -35,6 +35,7 @@ func (s *localBypassNSEFindServer) Send(nse *registry.NetworkServiceEndpoint) er
 
 	u, ok := s.nseURLs.Load(nse.Name)
 	if !ok {
+		println("DROP:", nse.Name)
 		return nil
 	}
 

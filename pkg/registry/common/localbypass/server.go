@@ -55,6 +55,7 @@ func (s *localBypassNSEServer) Register(ctx context.Context, nse *registry.Netwo
 			return nil, errors.Errorf("cannot register NSE with passed URL: %s", nse.Url)
 		}
 
+		println("STORE:", nse.Name)
 		s.nseURLs.Store(nse.Name, u)
 	}
 
