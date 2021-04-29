@@ -33,8 +33,12 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-// RegistryExpiryDuration is a duration that should be used for expire tests
-const RegistryExpiryDuration = time.Second
+const (
+	// RegistryExpiryDuration is a duration that should be used for expire tests
+	RegistryExpiryDuration = time.Second
+	// DialTimeout is a default dial timeout for the sandbox tests
+	DialTimeout = 500 * time.Millisecond
+)
 
 type insecurePerRPCCredentials struct {
 	credentials.PerRPCCredentials

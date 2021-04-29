@@ -74,6 +74,7 @@ type nsmgrServer struct {
 
 type serverOptions struct {
 	authorizeServer networkservice.NetworkServiceServer
+	dialTimeout     time.Duration
 	dialOptions     []grpc.DialOption
 	regClientConn   *grpc.ClientConnInterface
 	name            string
@@ -82,6 +83,13 @@ type serverOptions struct {
 
 // Option modifies server option value
 type Option func(o *serverOptions)
+
+// WithDialTimeout sets gRPC Dial timeout for the server
+func WithDialTimeout(timeout time.Duration) Option {
+	return func(o *serverOptions) {
+		o.dialTimeout = timeout
+	}
+}
 
 // WithDialOptions sets gRPC Dial Options for the server
 func WithDialOptions(dialOptions ...grpc.DialOption) Option {
@@ -131,6 +139,7 @@ var _ Nsmgr = (*nsmgrServer)(nil)
 func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...Option) Nsmgr {
 	opts := &serverOptions{
 		authorizeServer: authorize.NewServer(authorize.Any()),
+		dialTimeout:     100 * time.Millisecond,
 		name:            "nsmgr-" + uuid.New().String(),
 		url:             "",
 	}
@@ -195,6 +204,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 						sendfd.NewClient(),
 					),
 				),
+				connect.WithDialTimeout(opts.dialTimeout),
 				connect.WithDialOptions(opts.dialOptions...)),
 			sendfd.NewServer()),
 	)

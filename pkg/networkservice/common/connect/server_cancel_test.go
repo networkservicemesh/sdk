@@ -103,6 +103,7 @@ func TestConnect_CancelDuringRequest(t *testing.T) {
 			clienturl.NewServer(domain.Nodes[0].NSMgr.URL),
 			connect.NewServer(ctx,
 				clientFactory,
+				connect.WithDialTimeout(sandbox.DialTimeout),
 				connect.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...),
 			),
 		),
