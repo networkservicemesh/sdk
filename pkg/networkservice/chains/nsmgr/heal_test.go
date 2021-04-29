@@ -24,7 +24,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -91,8 +90,6 @@ func testNSMGRHealEndpoint(t *testing.T, restored bool) {
 	request := defaultRequest(nsReg.Name)
 
 	nsc := domain.Nodes[1].NewClient(ctx, sandbox.GenerateTestToken)
-
-	require.NoError(t, errors.New("aa"))
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
