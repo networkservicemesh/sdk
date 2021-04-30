@@ -329,7 +329,7 @@ func (b *Builder) newNSMgr(ctx context.Context, address string, registryURL *url
 		nsmgr.WithAuthorizeServer(authorize.NewServer(authorize.Any())),
 		nsmgr.WithConnectOptions(
 			connect.WithDialTimeout(DialTimeout),
-			connect.WithDialOptions(DefaultDialOptions(b.generateTokenFunc)...)),
+			connect.WithDialOptions(DefaultDialOptions(generateTokenFunc)...)),
 	}
 
 	if registryURL != nil {
