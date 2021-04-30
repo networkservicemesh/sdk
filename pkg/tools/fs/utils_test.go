@@ -33,6 +33,8 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/fs"
 )
 
+const macOSName = "darwin"
+
 func checkPathError(t *testing.T, err error) {
 	if err == nil {
 		return
@@ -79,7 +81,6 @@ func Test_WatchFile(t *testing.T) {
 	checkPathError(t, err)
 	require.NotNil(t, expectEvent(), filePath) // file created
 
-	macOSName := "darwin"
 	// https://github.com/fsnotify/fsnotify/issues/11
 	if runtime.GOOS != macOSName {
 		require.NotNil(t, expectEvent(), filePath) // file write. Go on MacOS doesn't support write events
