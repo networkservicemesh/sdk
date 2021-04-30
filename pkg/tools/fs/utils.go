@@ -101,6 +101,7 @@ func monitorFile(ctx context.Context, filePath string, watcher *fsnotify.Watcher
 			} else if e.Op&(fsnotify.Write|fsnotify.Create) == 0 {
 				continue
 			}
+			logger.Infof("read and send")
 			data, err := ioutil.ReadFile(filepath.Clean(filePath))
 			for err != nil && ctx.Err() == nil {
 				time.Sleep(time.Millisecond * 50)
