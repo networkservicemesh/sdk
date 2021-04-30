@@ -79,38 +79,30 @@ func Test_WatchFile(t *testing.T) {
 	checkPathError(t, err)
 	require.NotNil(t, expectEvent(), filePath) // file created
 
+	macOSName := "darwin"
 	// https://github.com/fsnotify/fsnotify/issues/11
-	if runtime.GOOS != "darwin" {
+	if runtime.GOOS != macOSName {
 		require.NotNil(t, expectEvent(), filePath) // file write. MacOS doesn't support write events
 	}
 	time.Sleep(time.Millisecond * 50)
 
 	err = os.RemoveAll(path)
 	checkPathError(t, err)
-	if runtime.GOOS != "darwin" {
+	if runtime.GOOS != macOSName {
 		require.Nil(t, expectEvent(), filePath) // file removed
 	} else {
 		event := expectEvent()
-		if event != nil {
+		if event != nil { // ...but MacOS sometimes sends write events. Very rarely, about 1/500 test retries
 			event = expectEvent()
 		}
-		require.Nil(t, event, filePath) // ...but MacOS sometimes sends some write events. Very rarely, but it happens
+		require.Nil(t, event, filePath)
 	}
-	//if runtime.GOOS != "darwin" {
-	//} else { // ...but MacOS sometimes sends some write events. Very rarely, but it happens
-	//	for {
-	//		event := expectEvent()
-	//		if event == nil {
-	//			break
-	//		}
-	//	}
-	//}
 
 	err = os.MkdirAll(path, os.ModePerm)
 	for i := 0; i < 5 && err != nil; i++ {
 		// Removing file is async operation.
 		// Waiting for events should theoretically sync us with filesystem,
-		// but apparently sometimes it's not enough for the folder to become available for write.
+		// but apparently sometimes it's not enough, so MkdirAll can fail because the folder is still locked by remove.
 		// Particularly, this can be observed on slow Windows OS systems.
 		time.Sleep(time.Millisecond * 50)
 		err = os.MkdirAll(path, os.ModePerm)
