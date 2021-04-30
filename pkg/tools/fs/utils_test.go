@@ -56,43 +56,45 @@ func Test_WatchFile(t *testing.T) {
 	}()
 	checkPathError(t, err)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	filePath := filepath.Join(path, "file1.txt")
 	ch := fs.WatchFile(ctx, filePath)
 
-	expectEvent := func(assertFunc func(require.TestingT, interface{}, ...interface{})) {
+	expectEvent := func() []byte {
 		select {
-		case <-time.After(time.Second):
+		case <-ctx.Done():
 			debug.PrintStack()
-			require.NotNil(t, nil, filePath)
-		case update := <-ch:
-			assertFunc(t, update, filePath)
+			require.Fail(t, "timeout waiting for message from", filePath)
+		case event := <-ch:
+			return event
 		}
+		return nil
 	}
 
-	expectEvent(require.Nil)
+	require.Nil(t, expectEvent(), filePath)
 
 	err = ioutil.WriteFile(filePath, []byte("data"), os.ModePerm)
 	checkPathError(t, err)
-	expectEvent(require.NotNil)
+	require.NotNil(t, expectEvent(), filePath)
 
 	// https://github.com/fsnotify/fsnotify/issues/11
 	if runtime.GOOS != "darwin" {
-		expectEvent(require.NotNil)
+		require.NotNil(t, expectEvent(), filePath)
 	}
 
 	err = os.RemoveAll(path)
 	checkPathError(t, err)
 	if runtime.GOOS != "darwin" {
-		expectEvent(require.Nil)
+		require.Nil(t, expectEvent(), filePath)
 	} else {
-		expectEvent(func(t require.TestingT, object interface{}, msgAndArgs ...interface{}) {
-			if object != nil {
-				expectEvent(require.Nil)
+		for {
+			event := expectEvent()
+			if event == nil {
+				break
 			}
-		})
+		}
 	}
 
 	err = os.MkdirAll(path, os.ModePerm)
@@ -104,5 +106,5 @@ func Test_WatchFile(t *testing.T) {
 
 	err = ioutil.WriteFile(filePath, []byte("data"), os.ModePerm)
 	checkPathError(t, err)
-	expectEvent(require.NotNil)
+	require.NotNil(t, expectEvent(), filePath)
 }
