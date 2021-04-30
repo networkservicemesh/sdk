@@ -85,7 +85,15 @@ func Test_WatchFile(t *testing.T) {
 
 	err = os.RemoveAll(path)
 	checkPathError(t, err)
-	expectEvent(require.Nil)
+	if runtime.GOOS != "darwin" {
+		expectEvent(require.Nil)
+	} else {
+		expectEvent(func(t require.TestingT, object interface{}, msgAndArgs ...interface{}) {
+			if object != nil {
+				expectEvent(require.Nil)
+			}
+		})
+	}
 
 	err = os.MkdirAll(path, os.ModePerm)
 	for i := 0; i < 5 && err != nil; i++ {
