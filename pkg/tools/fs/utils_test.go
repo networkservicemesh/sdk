@@ -29,26 +29,26 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/fs"
 )
 
 const macOSName = "darwin"
 
-func checkPathError(t *testing.T, err error) {
-	if err == nil {
-		return
-	}
-
+func checkPathError(t *testing.T, err error) error {
 	if fErr, ok := err.(*iofs.PathError); ok {
 		if u := fErr.Unwrap(); u != nil {
 			t.Log(u) // Without unwrapping printing gives only numeric error code.
 		}
 	}
-	require.Nil(t, err)
+
+	return err
 }
 
 func Test_WatchFile(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
 	root := filepath.Join(os.TempDir(), t.Name())
 
 	path := filepath.Join(root, uuid.New().String())
@@ -56,7 +56,7 @@ func Test_WatchFile(t *testing.T) {
 	defer func() {
 		_ = os.RemoveAll(path)
 	}()
-	checkPathError(t, err)
+	require.Nil(t, checkPathError(t, err))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -78,7 +78,7 @@ func Test_WatchFile(t *testing.T) {
 	require.Nil(t, expectEvent(), filePath) // initial file read, nil because file doesn't exist
 
 	err = ioutil.WriteFile(filePath, []byte("data"), os.ModePerm)
-	checkPathError(t, err)
+	require.Nil(t, checkPathError(t, err))
 	require.NotNil(t, expectEvent(), filePath) // file created
 
 	// https://github.com/fsnotify/fsnotify/issues/11
@@ -87,7 +87,7 @@ func Test_WatchFile(t *testing.T) {
 	}
 
 	err = os.RemoveAll(path)
-	checkPathError(t, err)
+	require.Nil(t, checkPathError(t, err))
 	if runtime.GOOS != macOSName {
 		require.Nil(t, expectEvent(), filePath) // file removed
 	} else {
@@ -98,18 +98,18 @@ func Test_WatchFile(t *testing.T) {
 		require.Nil(t, event, filePath)
 	}
 
-	err = os.MkdirAll(path, os.ModePerm)
-	for i := 0; i < 5 && err != nil; i++ {
+	err = checkPathError(t, os.MkdirAll(path, os.ModePerm))
+	if err != nil {
 		// Removing file is async operation.
 		// Waiting for events should theoretically sync us with the filesystem,
-		// but apparently sometimes it's not enough, so MkdirAll can fail because the folder is still locked by remove.
+		// but apparently sometimes it's not enough, so MkdirAll can fail because the folder is still locked by the remove operation.
 		// Particularly, this can be observed on slow Windows systems.
-		time.Sleep(time.Millisecond * 50)
-		err = os.MkdirAll(path, os.ModePerm)
+		require.Eventually(t, func() bool {
+			return checkPathError(t, os.MkdirAll(path, os.ModePerm)) == nil
+		}, time.Millisecond * 300, time.Millisecond * 50)
 	}
-	checkPathError(t, err)
 
 	err = ioutil.WriteFile(filePath, []byte("data"), os.ModePerm)
-	checkPathError(t, err)
+	require.Nil(t, checkPathError(t, err))
 	require.NotNil(t, expectEvent(), filePath) // file created
 }
