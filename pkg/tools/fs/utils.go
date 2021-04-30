@@ -89,6 +89,7 @@ func monitorFile(ctx context.Context, filePath string, watcher *fsnotify.Watcher
 			close(notifyCh)
 			return
 		case e := <-watcher.Events:
+			logger.Infof("event: %v", e)
 			if !strings.HasSuffix(filePath, filepath.Clean(e.Name)) {
 				continue
 			}
@@ -105,7 +106,6 @@ func monitorFile(ctx context.Context, filePath string, watcher *fsnotify.Watcher
 				time.Sleep(time.Millisecond * 50)
 				logger.Warn(err.Error())
 				data, err = ioutil.ReadFile(filepath.Clean(filePath))
-				continue
 			}
 			if !sendOrClose(ctx, notifyCh, data) {
 				return

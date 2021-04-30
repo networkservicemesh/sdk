@@ -68,7 +68,7 @@ func Test_WatchFile(t *testing.T) {
 			debug.PrintStack()
 			require.NotNil(t, nil, filePath)
 		case update := <-ch:
-			assertFunc(t, update)
+			assertFunc(t, update, filePath)
 		}
 	}
 
@@ -85,9 +85,7 @@ func Test_WatchFile(t *testing.T) {
 
 	err = os.RemoveAll(path)
 	checkPathError(t, err)
-	expectEvent(func(t require.TestingT, i interface{}, i2 ...interface{}) {
-		require.Nil(t, i, filePath)
-	})
+	expectEvent(require.Nil)
 
 	err = os.MkdirAll(path, os.ModePerm)
 	for i := 0; i < 5 && err != nil; i++ {
