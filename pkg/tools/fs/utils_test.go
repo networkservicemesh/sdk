@@ -84,7 +84,6 @@ func Test_WatchFile(t *testing.T) {
 	if runtime.GOOS != macOSName {
 		require.NotNil(t, expectEvent(), filePath) // file write. MacOS doesn't support write events
 	}
-	time.Sleep(time.Millisecond * 50)
 
 	err = os.RemoveAll(path)
 	checkPathError(t, err)
