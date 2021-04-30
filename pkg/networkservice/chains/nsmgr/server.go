@@ -74,7 +74,7 @@ type nsmgrServer struct {
 
 type serverOptions struct {
 	authorizeServer networkservice.NetworkServiceServer
-	dialOptions     []grpc.DialOption
+	connectOptions  []connect.Option
 	regClientConn   *grpc.ClientConnInterface
 	name            string
 	url             string
@@ -83,10 +83,10 @@ type serverOptions struct {
 // Option modifies server option value
 type Option func(o *serverOptions)
 
-// WithDialOptions sets gRPC Dial Options for the server
-func WithDialOptions(dialOptions ...grpc.DialOption) Option {
+// WithConnectOptions sets connect Options for the server
+func WithConnectOptions(connectOptions ...connect.Option) Option {
 	return func(o *serverOptions) {
-		o.dialOptions = dialOptions
+		o.connectOptions = connectOptions
 	}
 }
 
@@ -194,8 +194,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 						recvfd.NewClient(),
 						sendfd.NewClient(),
 					),
-				),
-				connect.WithDialOptions(opts.dialOptions...)),
+				), opts.connectOptions...),
 			sendfd.NewServer()),
 	)
 

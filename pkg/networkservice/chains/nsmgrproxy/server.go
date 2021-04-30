@@ -20,8 +20,6 @@ package nsmgrproxy
 import (
 	"context"
 
-	"google.golang.org/grpc"
-
 	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
@@ -41,7 +39,7 @@ import (
 type serverOptions struct {
 	name            string
 	authorizeServer networkservice.NetworkServiceServer
-	dialOptions     []grpc.DialOption
+	connectOptions  []connect.Option
 }
 
 // Option modifies option value
@@ -65,10 +63,10 @@ func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Op
 	}
 }
 
-// WithDialOptions sets gRPC Dial Options for the server
-func WithDialOptions(options ...grpc.DialOption) Option {
+// WithConnectOptions sets connect Options for the server
+func WithConnectOptions(connectOptions ...connect.Option) Option {
 	return func(o *serverOptions) {
-		o.dialOptions = options
+		o.connectOptions = connectOptions
 	}
 }
 
@@ -96,8 +94,9 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			swapip.NewServer(),
 			heal.NewServer(ctx, addressof.NetworkServiceClient(adapters.NewServerToClient(rv))),
 			connect.NewServer(ctx,
-				client.NewClientFactory(client.WithName(opts.name)),
-				connect.WithDialOptions(opts.dialOptions...),
+				client.NewClientFactory(
+					client.WithName(opts.name),
+				), opts.connectOptions...,
 			),
 		),
 	)
