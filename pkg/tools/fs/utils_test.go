@@ -106,7 +106,7 @@ func Test_WatchFile(t *testing.T) {
 		// Particularly, this can be observed on slow Windows systems.
 		require.Eventually(t, func() bool {
 			return checkPathError(t, os.MkdirAll(path, os.ModePerm)) == nil
-		}, time.Millisecond * 300, time.Millisecond * 50)
+		}, time.Millisecond*300, time.Millisecond*50)
 	}
 
 	err = ioutil.WriteFile(filePath, []byte("data"), os.ModePerm)
