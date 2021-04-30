@@ -56,7 +56,7 @@ func Test_WatchFile(t *testing.T) {
 	defer func() {
 		_ = os.RemoveAll(path)
 	}()
-	require.Nil(t, checkPathError(t, err))
+	require.NoError(t, checkPathError(t, err))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -68,7 +68,7 @@ func Test_WatchFile(t *testing.T) {
 		select {
 		case <-time.After(time.Second):
 			debug.PrintStack()
-			require.Fail(t, "timeout waiting for event", filePath)
+			t.Fatal("timeout waiting for event", filePath)
 		case event := <-ch:
 			return event
 		}
@@ -78,7 +78,7 @@ func Test_WatchFile(t *testing.T) {
 	require.Nil(t, expectEvent(), filePath) // initial file read, nil because file doesn't exist
 
 	err = ioutil.WriteFile(filePath, []byte("data"), os.ModePerm)
-	require.Nil(t, checkPathError(t, err))
+	require.NoError(t, checkPathError(t, err))
 	require.NotNil(t, expectEvent(), filePath) // file created
 
 	// https://github.com/fsnotify/fsnotify/issues/11
@@ -87,7 +87,7 @@ func Test_WatchFile(t *testing.T) {
 	}
 
 	err = os.RemoveAll(path)
-	require.Nil(t, checkPathError(t, err))
+	require.NoError(t, checkPathError(t, err))
 	if runtime.GOOS != macOSName {
 		require.Nil(t, expectEvent(), filePath) // file removed
 	} else {
@@ -110,6 +110,6 @@ func Test_WatchFile(t *testing.T) {
 	}
 
 	err = ioutil.WriteFile(filePath, []byte("data"), os.ModePerm)
-	require.Nil(t, checkPathError(t, err))
+	require.NoError(t, checkPathError(t, err))
 	require.NotNil(t, expectEvent(), filePath) // file created
 }
