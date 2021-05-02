@@ -51,14 +51,14 @@ func newRequest() *networkservice.NetworkServiceRequest {
 }
 
 func validateConn(t *testing.T, conn *networkservice.Connection, dst, src string) {
-	require.Equal(t, conn.Context.IpContext.DstIpAddr, dst)
+	require.Equal(t, conn.Context.IpContext.DstIpAddrs[0], dst)
 	require.Equal(t, conn.Context.IpContext.DstRoutes, []*networkservice.Route{
 		{
 			Prefix: src,
 		},
 	})
 
-	require.Equal(t, conn.Context.IpContext.SrcIpAddr, src)
+	require.Equal(t, conn.Context.IpContext.SrcIpAddrs[0], src)
 	require.Equal(t, conn.Context.IpContext.SrcRoutes, []*networkservice.Route{
 		{
 			Prefix: dst,

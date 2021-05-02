@@ -106,10 +106,10 @@ func (s *ipamServer) Request(ctx context.Context, request *networkservice.Networ
 		storeConnInfo(ctx, connInfo)
 	}
 
-	ipContext.SrcIpAddr = connInfo.srcAddr
+	ipContext.SrcIpAddrs = []string{connInfo.srcAddr}
 	addRoute(&ipContext.SrcRoutes, connInfo.dstAddr)
 
-	ipContext.DstIpAddr = connInfo.dstAddr
+	ipContext.DstIpAddrs = []string{connInfo.dstAddr}
 	addRoute(&ipContext.DstRoutes, connInfo.srcAddr)
 
 	conn, err = next.Server(ctx).Request(ctx, request)

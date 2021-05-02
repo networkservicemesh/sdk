@@ -43,11 +43,11 @@ const ActionClose = "close"
 
 // Entry is populated and serialized to NATS.
 type Entry struct {
-	Time        time.Time
-	Source      string
-	Destination string
-	Action      string
-	Path        *networkservice.Path
+	Time         time.Time
+	Sources      []string
+	Destinations []string
+	Action       string
+	Path         *networkservice.Path
 }
 
 type journalServer struct {
@@ -63,16 +63,16 @@ func (srv *journalServer) Request(ctx context.Context, request *networkservice.N
 		return conn, err
 	}
 
-	src := conn.GetContext().GetIpContext().GetSrcIpAddr()
-	dst := conn.GetContext().GetIpContext().GetDstIpAddr()
+	src := conn.GetContext().GetIpContext().GetSrcIpAddrs()
+	dst := conn.GetContext().GetIpContext().GetDstIpAddrs()
 	path := conn.GetPath()
 
 	entry := Entry{
-		Time:        clockTime.Now().UTC(),
-		Source:      src,
-		Destination: dst,
-		Action:      ActionRequest,
-		Path:        path,
+		Time:         clockTime.Now().UTC(),
+		Sources:      src,
+		Destinations: dst,
+		Action:       ActionRequest,
+		Path:         path,
 	}
 
 	err = srv.publish(&entry)
@@ -82,14 +82,14 @@ func (srv *journalServer) Request(ctx context.Context, request *networkservice.N
 func (srv *journalServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
 	clockTime := clock.FromContext(ctx)
 
-	src := connection.GetContext().GetIpContext().GetSrcIpAddr()
-	dst := connection.GetContext().GetIpContext().GetDstIpAddr()
+	src := connection.GetContext().GetIpContext().GetSrcIpAddrs()
+	dst := connection.GetContext().GetIpContext().GetDstIpAddrs()
 
 	entry := Entry{
-		Time:        clockTime.Now().UTC(),
-		Source:      src,
-		Destination: dst,
-		Action:      ActionClose,
+		Time:         clockTime.Now().UTC(),
+		Sources:      src,
+		Destinations: dst,
+		Action:       ActionClose,
 	}
 
 	// squash error if present
