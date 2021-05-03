@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -111,24 +112,25 @@ func Test_DNSContextClient_Usecases(t *testing.T) {
 	for _, s := range samples {
 		resp, err := client.Request(ctx, s.request)
 		require.NoError(t, err)
+		require.NotNil(t, resp.GetContext().GetDnsContext())
+		require.Len(t, resp.GetContext().GetDnsContext().GetConfigs(), len(s.request.GetConnection().Context.DnsContext.GetConfigs()))
 		requireFileChanged(ctx, t, corefilePath, s.expectedCorefile)
 		_, err = client.Close(ctx, resp)
 		require.NoError(t, err)
+
 		requireFileChanged(ctx, t, corefilePath, expectedEmptyCorefile)
 	}
 }
 
 func requireFileChanged(ctx context.Context, t *testing.T, location, expected string) {
 	var r string
-	for ; ctx.Err() == nil; <-time.After(time.Millisecond * 100) {
+	for ctx.Err() == nil {
 		b, err := ioutil.ReadFile(filepath.Clean(location))
 		r = string(b)
-		if err != nil {
-			continue
-		}
-		if r == expected {
+		if err == nil && r == expected {
 			return
 		}
+		runtime.Gosched()
 	}
 	require.FailNowf(t, "fail to wait update", "file has not updated. Last content: %s", r)
 }
