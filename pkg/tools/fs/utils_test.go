@@ -48,6 +48,7 @@ func Test_WatchFile(t *testing.T) {
 	defer cancel()
 
 	filePath := filepath.Join(path, "file1.txt")
+
 	ch := fs.WatchFile(ctx, filePath)
 
 	expectEvent := func() []byte {
@@ -63,7 +64,7 @@ func Test_WatchFile(t *testing.T) {
 
 	require.Nil(t, expectEvent(), filePath) // Initial file read. nil because file doesn't exist yet
 
-	f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
+	f, err := os.OpenFile(filepath.Clean(filePath), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
 	require.NoError(t, err)
 	require.NotNil(t, expectEvent(), filePath) // file created
 
