@@ -21,7 +21,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
 	"runtime/debug"
 	"testing"
 	"time"
@@ -32,8 +31,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/tools/fs"
 )
-
-const macOSName = "darwin"
 
 func Test_WatchFile(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
@@ -64,28 +61,21 @@ func Test_WatchFile(t *testing.T) {
 		return nil
 	}
 
-	require.Nil(t, expectEvent(), filePath) // initial file read, nil because file doesn't exist
+	require.Nil(t, expectEvent(), filePath) // Initial file read. nil because file doesn't exist yet
 
-	err = ioutil.WriteFile(filePath, []byte("data"), os.ModePerm)
+	f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
 	require.NoError(t, err)
 	require.NotNil(t, expectEvent(), filePath) // file created
 
-	// https://github.com/fsnotify/fsnotify/issues/11
-	if runtime.GOOS != macOSName {
-		require.NotNil(t, expectEvent(), filePath) // file write. Go on MacOS doesn't support write events
-	}
+	_, err = f.Write([]byte("data"))
+	require.NoError(t, err)
+	err = f.Close()
+	require.NoError(t, err)
+	require.NotNil(t, expectEvent(), filePath) // file write
 
 	err = os.RemoveAll(path)
 	require.NoError(t, err)
-	if runtime.GOOS != macOSName {
-		require.Nil(t, expectEvent(), filePath) // file removed
-	} else {
-		event := expectEvent()
-		if event != nil { // ...but sometimes we still get write events on MacOS. Very rarely, about 1/500 test retries
-			event = expectEvent()
-		}
-		require.Nil(t, event, filePath)
-	}
+	require.Nil(t, expectEvent(), filePath) // file removed
 
 	if os.MkdirAll(path, os.ModePerm) != nil {
 		// Removing file is async operation.
