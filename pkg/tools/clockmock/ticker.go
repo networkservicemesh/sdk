@@ -23,13 +23,24 @@ import (
 )
 
 type mockTicker struct {
-	*libclock.Ticker
+	mock   *Mock
+	ticker *libclock.Ticker
 }
 
 func (t *mockTicker) C() <-chan time.Time {
-	return t.Ticker.C
+	return t.ticker.C
+}
+
+func (t *mockTicker) Stop() {
+	t.mock.lock.RLock()
+	defer t.mock.lock.RUnlock()
+
+	t.ticker.Stop()
 }
 
 func (t *mockTicker) Reset(d time.Duration) {
-	t.Ticker.Reset(d)
+	t.mock.lock.RLock()
+	defer t.mock.lock.RUnlock()
+
+	t.ticker.Reset(d)
 }

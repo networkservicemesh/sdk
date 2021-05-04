@@ -75,10 +75,7 @@ func (m *Mock) Start(ctx context.Context, speed float64) {
 
 // Set sets the current time of the mock clock to a specific one.
 func (m *Mock) Set(t time.Time) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-
-	m.mock.Set(t)
+	m.Add(safeDuration(m.Until(t)))
 }
 
 // Add moves the current time of the mock clock forward by the specified duration.
@@ -86,7 +83,7 @@ func (m *Mock) Add(d time.Duration) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	m.mock.Add(d)
+	m.mock.Add(safeDuration(d))
 }
 
 // Now returns mock current time
@@ -123,7 +120,7 @@ func (m *Mock) Timer(d time.Duration) clock.Timer {
 
 	return &mockTimer{
 		mock:  m,
-		Timer: m.mock.Timer(d),
+		timer: m.mock.Timer(d),
 	}
 }
 
@@ -150,7 +147,7 @@ func (m *Mock) AfterFunc(d time.Duration, f func()) clock.Timer {
 func (m *Mock) afterFunc(d time.Duration, f func()) clock.Timer {
 	return &mockTimer{
 		mock: m,
-		Timer: m.mock.AfterFunc(d, func() {
+		timer: m.mock.AfterFunc(d, func() {
 			go f()
 		}),
 	}
@@ -162,7 +159,8 @@ func (m *Mock) Ticker(d time.Duration) clock.Ticker {
 	defer m.lock.RUnlock()
 
 	return &mockTicker{
-		Ticker: m.mock.Ticker(d),
+		mock:   m,
+		ticker: m.mock.Ticker(d),
 	}
 }
 
