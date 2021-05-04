@@ -34,13 +34,7 @@ import (
 func Test_WatchFile(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	root := filepath.Join(t.TempDir(), t.Name())
-	defer func() {
-		_ = os.RemoveAll(root)
-	}()
-
-	err := os.MkdirAll(root, os.ModePerm)
-	require.NoError(t, err)
+	root := t.TempDir()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
