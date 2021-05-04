@@ -44,7 +44,7 @@ func Test_WatchFile(t *testing.T) {
 	}()
 	require.NoError(t, err)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	filePath := filepath.Join(path, "file1.txt")
@@ -53,7 +53,7 @@ func Test_WatchFile(t *testing.T) {
 
 	expectEvent := func() []byte {
 		select {
-		case <-time.After(time.Second):
+		case <-ctx.Done():
 			debug.PrintStack()
 			t.Fatal("timeout waiting for event", filePath)
 		case event := <-ch:
