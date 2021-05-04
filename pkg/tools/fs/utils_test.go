@@ -18,7 +18,6 @@ package fs_test
 
 import (
 	"context"
-	iofs "io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -36,16 +35,6 @@ import (
 
 const macOSName = "darwin"
 
-func checkPathError(t *testing.T, err error) error {
-	if fErr, ok := err.(*iofs.PathError); ok {
-		if u := fErr.Unwrap(); u != nil {
-			t.Log(u) // Without unwrapping printing gives only numeric error code.
-		}
-	}
-
-	return err
-}
-
 func Test_WatchFile(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -56,7 +45,7 @@ func Test_WatchFile(t *testing.T) {
 	defer func() {
 		_ = os.RemoveAll(path)
 	}()
-	require.NoError(t, checkPathError(t, err))
+	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -78,7 +67,7 @@ func Test_WatchFile(t *testing.T) {
 	require.Nil(t, expectEvent(), filePath) // initial file read, nil because file doesn't exist
 
 	err = ioutil.WriteFile(filePath, []byte("data"), os.ModePerm)
-	require.NoError(t, checkPathError(t, err))
+	require.NoError(t, err)
 	require.NotNil(t, expectEvent(), filePath) // file created
 
 	// https://github.com/fsnotify/fsnotify/issues/11
@@ -87,7 +76,7 @@ func Test_WatchFile(t *testing.T) {
 	}
 
 	err = os.RemoveAll(path)
-	require.NoError(t, checkPathError(t, err))
+	require.NoError(t, err)
 	if runtime.GOOS != macOSName {
 		require.Nil(t, expectEvent(), filePath) // file removed
 	} else {
@@ -98,18 +87,17 @@ func Test_WatchFile(t *testing.T) {
 		require.Nil(t, event, filePath)
 	}
 
-	err = checkPathError(t, os.MkdirAll(path, os.ModePerm))
-	if err != nil {
+	if os.MkdirAll(path, os.ModePerm) != nil {
 		// Removing file is async operation.
 		// Waiting for events should theoretically sync us with the filesystem,
 		// but apparently sometimes it's not enough, so MkdirAll can fail because the folder is still locked by the remove operation.
 		// Particularly, this can be observed on slow Windows systems.
 		require.Eventually(t, func() bool {
-			return checkPathError(t, os.MkdirAll(path, os.ModePerm)) == nil
+			return os.MkdirAll(path, os.ModePerm) == nil
 		}, time.Millisecond*300, time.Millisecond*50)
 	}
 
 	err = ioutil.WriteFile(filePath, []byte("data"), os.ModePerm)
-	require.NoError(t, checkPathError(t, err))
+	require.NoError(t, err)
 	require.NotNil(t, expectEvent(), filePath) // file created
 }
