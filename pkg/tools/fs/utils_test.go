@@ -21,60 +21,72 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
 	"runtime/debug"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/fs"
 )
 
 func Test_WatchFile(t *testing.T) {
-	t.Skip("https://github.com/networkservicemesh/sdk/issues/848")
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	root := filepath.Join(os.TempDir(), t.Name())
-	defer func() {
-		_ = os.RemoveAll(root)
-	}()
+	root := t.TempDir()
 
-	path := filepath.Join(root, "A")
-	_ = os.MkdirAll(path, os.ModePerm)
-
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	filePath := filepath.Join(path, "file1.txt")
+	filePath := filepath.Join(root, "file1.txt")
+
 	ch := fs.WatchFile(ctx, filePath)
 
-	expectEvent := func(assertFunc func(require.TestingT, interface{}, ...interface{})) {
+	readEvent := func() []byte {
 		select {
-		case <-time.After(time.Second):
+		case <-ctx.Done():
 			debug.PrintStack()
-			t.Fatal("no events")
-		case update := <-ch:
-			assertFunc(t, update)
+			t.Fatal("timeout waiting for event", filePath)
+		case event := <-ch:
+			return event
 		}
+		return nil
 	}
 
-	expectEvent(require.Nil)
+	require.Nil(t, readEvent(), filePath) // Initial file read. nil because file doesn't exist yet
 
-	require.Nil(t, ioutil.WriteFile(filePath, []byte("data"), os.ModePerm))
+	// We can't use things like ioutil.WriteFile here
+	// because MacOS doesn't support recursive directory watching: https://github.com/fsnotify/fsnotify/issues/11
+	// and without it event watching for "create and write" operations is not stable,
+	// we should have separate "create" and "write" events for consistent behavior.
+	f, err := os.OpenFile(filepath.Clean(filePath), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
+	require.NoError(t, err)
+	require.NotNil(t, readEvent(), filePath) // file created
 
-	expectEvent(require.NotNil)
+	_, err = f.Write([]byte("data"))
+	require.NoError(t, err)
+	err = f.Close()
+	require.NoError(t, err)
+	require.NotNil(t, readEvent(), filePath) // file write
 
-	// https://github.com/fsnotify/fsnotify/issues/11
-	if runtime.GOOS != "darwin" {
-		expectEvent(require.NotNil)
+	err = os.RemoveAll(root)
+	require.NoError(t, err)
+	require.Nil(t, readEvent(), filePath) // file removed
+
+	// Removing file is async operation.
+	// Waiting for events should theoretically sync us with the filesystem,
+	// but apparently sometimes it's not enough, so MkdirAll can fail because the folder is still locked by the remove operation.
+	// Particularly, this can be observed on slow Windows systems.
+	// Ideally we would only use require.Eventually, but require.Eventually waits specified tick duration before first check,
+	// while os.MkdirAll usually succeeds instantly, therefore explicit call before require.Eventually makes test run faster.
+	if os.MkdirAll(root, os.ModePerm) != nil {
+		require.Eventually(t, func() bool {
+			return os.MkdirAll(root, os.ModePerm) == nil
+		}, time.Millisecond*300, time.Millisecond*50)
 	}
 
-	_ = os.RemoveAll(root)
-
-	expectEvent(require.Nil)
-
-	_ = os.MkdirAll(path, os.ModePerm)
-	require.Nil(t, ioutil.WriteFile(filePath, []byte("data"), os.ModePerm))
-
-	expectEvent(require.NotNil)
+	err = ioutil.WriteFile(filePath, []byte("data"), os.ModePerm)
+	require.NoError(t, err)
+	require.NotNil(t, readEvent(), filePath) // file created
 }
