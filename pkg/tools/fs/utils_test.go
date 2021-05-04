@@ -25,7 +25,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
@@ -35,19 +34,18 @@ import (
 func Test_WatchFile(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	root := filepath.Join(os.TempDir(), t.Name())
-
-	path := filepath.Join(root, uuid.New().String())
-	err := os.MkdirAll(path, os.ModePerm)
+	root := filepath.Join(t.TempDir(), t.Name())
 	defer func() {
-		_ = os.RemoveAll(path)
+		_ = os.RemoveAll(root)
 	}()
+
+	err := os.MkdirAll(root, os.ModePerm)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	filePath := filepath.Join(path, "file1.txt")
+	filePath := filepath.Join(root, "file1.txt")
 
 	ch := fs.WatchFile(ctx, filePath)
 
@@ -74,17 +72,17 @@ func Test_WatchFile(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, expectEvent(), filePath) // file write
 
-	err = os.RemoveAll(path)
+	err = os.RemoveAll(root)
 	require.NoError(t, err)
 	require.Nil(t, expectEvent(), filePath) // file removed
 
-	if os.MkdirAll(path, os.ModePerm) != nil {
+	if os.MkdirAll(root, os.ModePerm) != nil {
 		// Removing file is async operation.
 		// Waiting for events should theoretically sync us with the filesystem,
 		// but apparently sometimes it's not enough, so MkdirAll can fail because the folder is still locked by the remove operation.
 		// Particularly, this can be observed on slow Windows systems.
 		require.Eventually(t, func() bool {
-			return os.MkdirAll(path, os.ModePerm) == nil
+			return os.MkdirAll(root, os.ModePerm) == nil
 		}, time.Millisecond*300, time.Millisecond*50)
 	}
 
