@@ -34,8 +34,9 @@ import (
 )
 
 const (
-	tick    = 10 * time.Millisecond
-	timeout = 10 * time.Second
+	tick         = 10 * time.Millisecond
+	timeout      = 10 * time.Second
+	tokenTimeout = 5 * time.Second
 )
 
 func TestNSMGR_HealEndpoint(t *testing.T) {
@@ -61,12 +62,19 @@ func testNSMGRHealEndpoint(t *testing.T, restored bool) {
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
-	nseReg.ExpirationTime = timestamppb.New(time.Now().Add(tokenTimeout(restored)))
+	if !restored {
+		nseReg.ExpirationTime = timestamppb.New(time.Now().Add(tokenTimeout))
+	}
 
 	nseCtx, nseCtxCancel := context.WithCancel(context.Background())
 
 	counter := &counterServer{}
-	nse, err := domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.GenerateExpiringToken(tokenTimeout(restored)), counter)
+	var nse *sandbox.EndpointEntry
+	if restored {
+		nse, err = domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.GenerateTestToken, counter)
+	} else {
+		nse, err = domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.GenerateExpiringToken(tokenTimeout), counter)
+	}
 	require.NoError(t, err)
 
 	request := defaultRequest(nsReg.Name)
@@ -117,7 +125,7 @@ func TestNSMGR_HealLocalForwarder(t *testing.T) {
 		nil,
 		{
 			ForwarderCtx:               forwarderCtx,
-			ForwarderGenerateTokenFunc: sandbox.GenerateExpiringToken(tokenTimeout(false)),
+			ForwarderGenerateTokenFunc: sandbox.GenerateExpiringToken(tokenTimeout),
 		},
 	}
 
@@ -132,7 +140,7 @@ func TestNSMGR_HealLocalForwarderRestored(t *testing.T) {
 		nil,
 		{
 			ForwarderCtx:               forwarderCtx,
-			ForwarderGenerateTokenFunc: sandbox.GenerateExpiringToken(tokenTimeout(true)),
+			ForwarderGenerateTokenFunc: sandbox.GenerateTestToken,
 		},
 	}
 
@@ -146,7 +154,7 @@ func TestNSMGR_HealRemoteForwarder(t *testing.T) {
 	customConfig := []*sandbox.NodeConfig{
 		{
 			ForwarderCtx:               forwarderCtx,
-			ForwarderGenerateTokenFunc: sandbox.GenerateExpiringToken(tokenTimeout(false)),
+			ForwarderGenerateTokenFunc: sandbox.GenerateExpiringToken(tokenTimeout),
 		},
 	}
 
@@ -160,7 +168,7 @@ func TestNSMGR_HealRemoteForwarderRestored(t *testing.T) {
 	customConfig := []*sandbox.NodeConfig{
 		{
 			ForwarderCtx:               forwarderCtx,
-			ForwarderGenerateTokenFunc: sandbox.GenerateExpiringToken(tokenTimeout(true)),
+			ForwarderGenerateTokenFunc: sandbox.GenerateTestToken,
 		},
 	}
 
@@ -253,7 +261,7 @@ func TestNSMGR_HealRemoteNSMgrRestored(t *testing.T) {
 	customConfig := []*sandbox.NodeConfig{
 		{
 			NsmgrCtx:               nsmgrCtx,
-			NsmgrGenerateTokenFunc: sandbox.GenerateExpiringToken(tokenTimeout(true)),
+			NsmgrGenerateTokenFunc: sandbox.GenerateTestToken,
 		},
 	}
 
@@ -330,7 +338,7 @@ func TestNSMGR_HealRemoteNSMgr(t *testing.T) {
 	customConfig := []*sandbox.NodeConfig{
 		{
 			NsmgrCtx:               nsmgrCtx,
-			NsmgrGenerateTokenFunc: sandbox.GenerateExpiringToken(tokenTimeout(false)),
+			NsmgrGenerateTokenFunc: sandbox.GenerateExpiringToken(tokenTimeout),
 		},
 	}
 
@@ -437,13 +445,6 @@ func TestNSMGR_CloseHeal(t *testing.T) {
 	}, timeout, tick)
 
 	require.NoError(t, ctx.Err())
-}
-
-func tokenTimeout(restored bool) time.Duration {
-	if restored {
-		return time.Hour
-	}
-	return 3 * time.Second
 }
 
 func checkSecondRequestsReceived(requestsDone func() int) func() bool {
