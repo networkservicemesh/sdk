@@ -34,8 +34,9 @@ import (
 )
 
 const (
-	tick    = 10 * time.Millisecond
-	timeout = 10 * time.Second
+	tick         = 10 * time.Millisecond
+	timeout      = 10 * time.Second
+	tokenTimeout = 5 * time.Second
 )
 
 func TestNSMGR_HealEndpoint(t *testing.T) {
@@ -43,8 +44,6 @@ func TestNSMGR_HealEndpoint(t *testing.T) {
 }
 
 func TestNSMGR_HealEndpointRestored(t *testing.T) {
-	t.Skip("https://github.com/networkservicemesh/sdk/issues/840")
-
 	testNSMGRHealEndpoint(t, true)
 }
 
@@ -63,13 +62,19 @@ func testNSMGRHealEndpoint(t *testing.T, restored bool) {
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
-	nseReg.ExpirationTime = timestamppb.New(time.Now().Add(time.Second))
+	if !restored {
+		nseReg.ExpirationTime = timestamppb.New(time.Now().Add(tokenTimeout))
+	}
 
-	nseCtx, nseCtxCancel := context.WithTimeout(context.Background(), time.Second)
-	defer nseCtxCancel()
+	nseCtx, nseCtxCancel := context.WithCancel(context.Background())
 
 	counter := &counterServer{}
-	nse, err := domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.GenerateExpiringToken(time.Second), counter)
+	var nse *sandbox.EndpointEntry
+	if restored {
+		nse, err = domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.GenerateTestToken, counter)
+	} else {
+		nse, err = domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.GenerateExpiringToken(tokenTimeout), counter)
+	}
 	require.NoError(t, err)
 
 	request := defaultRequest(nsReg.Name)
@@ -113,16 +118,14 @@ func testNSMGRHealEndpoint(t *testing.T, restored bool) {
 }
 
 func TestNSMGR_HealLocalForwarder(t *testing.T) {
-	t.Skip("https://github.com/networkservicemesh/sdk/issues/845")
-
-	forwarderCtx, forwarderCtxCancel := context.WithTimeout(context.Background(), time.Second)
+	forwarderCtx, forwarderCtxCancel := context.WithCancel(context.Background())
 	defer forwarderCtxCancel()
 
 	customConfig := []*sandbox.NodeConfig{
 		nil,
 		{
 			ForwarderCtx:               forwarderCtx,
-			ForwarderGenerateTokenFunc: sandbox.GenerateExpiringToken(time.Second),
+			ForwarderGenerateTokenFunc: sandbox.GenerateExpiringToken(tokenTimeout),
 		},
 	}
 
@@ -130,16 +133,14 @@ func TestNSMGR_HealLocalForwarder(t *testing.T) {
 }
 
 func TestNSMGR_HealLocalForwarderRestored(t *testing.T) {
-	t.Skip("https://github.com/networkservicemesh/sdk/issues/840")
-
-	forwarderCtx, forwarderCtxCancel := context.WithTimeout(context.Background(), time.Second)
+	forwarderCtx, forwarderCtxCancel := context.WithCancel(context.Background())
 	defer forwarderCtxCancel()
 
 	customConfig := []*sandbox.NodeConfig{
 		nil,
 		{
 			ForwarderCtx:               forwarderCtx,
-			ForwarderGenerateTokenFunc: sandbox.GenerateExpiringToken(time.Second),
+			ForwarderGenerateTokenFunc: sandbox.GenerateTestToken,
 		},
 	}
 
@@ -147,15 +148,13 @@ func TestNSMGR_HealLocalForwarderRestored(t *testing.T) {
 }
 
 func TestNSMGR_HealRemoteForwarder(t *testing.T) {
-	t.Skip("https://github.com/networkservicemesh/sdk/issues/845")
-
-	forwarderCtx, forwarderCtxCancel := context.WithTimeout(context.Background(), time.Second)
+	forwarderCtx, forwarderCtxCancel := context.WithCancel(context.Background())
 	defer forwarderCtxCancel()
 
 	customConfig := []*sandbox.NodeConfig{
 		{
 			ForwarderCtx:               forwarderCtx,
-			ForwarderGenerateTokenFunc: sandbox.GenerateExpiringToken(time.Second),
+			ForwarderGenerateTokenFunc: sandbox.GenerateExpiringToken(tokenTimeout),
 		},
 	}
 
@@ -163,15 +162,13 @@ func TestNSMGR_HealRemoteForwarder(t *testing.T) {
 }
 
 func TestNSMGR_HealRemoteForwarderRestored(t *testing.T) {
-	t.Skip("https://github.com/networkservicemesh/sdk/issues/840")
-
-	forwarderCtx, forwarderCtxCancel := context.WithTimeout(context.Background(), time.Second)
+	forwarderCtx, forwarderCtxCancel := context.WithCancel(context.Background())
 	defer forwarderCtxCancel()
 
 	customConfig := []*sandbox.NodeConfig{
 		{
 			ForwarderCtx:               forwarderCtx,
-			ForwarderGenerateTokenFunc: sandbox.GenerateExpiringToken(time.Second),
+			ForwarderGenerateTokenFunc: sandbox.GenerateTestToken,
 		},
 	}
 
@@ -258,17 +255,13 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int, restored bool, customConf
 }
 
 func TestNSMGR_HealRemoteNSMgrRestored(t *testing.T) {
-	t.Skip("https://github.com/networkservicemesh/sdk/issues/840")
-
-	nsmgrCtx, nsmgrCtxCancel := context.WithTimeout(context.Background(), time.Second)
+	nsmgrCtx, nsmgrCtxCancel := context.WithCancel(context.Background())
 	defer nsmgrCtxCancel()
 
 	customConfig := []*sandbox.NodeConfig{
 		{
-			NsmgrCtx:                   nsmgrCtx,
-			NsmgrGenerateTokenFunc:     sandbox.GenerateExpiringToken(time.Second),
-			ForwarderCtx:               nsmgrCtx,
-			ForwarderGenerateTokenFunc: sandbox.GenerateExpiringToken(time.Second),
+			NsmgrCtx:               nsmgrCtx,
+			NsmgrGenerateTokenFunc: sandbox.GenerateTestToken,
 		},
 	}
 
@@ -276,7 +269,11 @@ func TestNSMGR_HealRemoteNSMgrRestored(t *testing.T) {
 }
 
 func testNSMGRHealNSMgr(t *testing.T, nodeNum int, customConfig []*sandbox.NodeConfig, nsmgrCtxCancel context.CancelFunc) {
+	// Restore NSMgr test cases cannot work without registry healing.
+	t.Skip("https://github.com/networkservicemesh/sdk/issues/713")
+
 	t.Cleanup(func() { goleak.VerifyNone(t) })
+
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
@@ -291,10 +288,8 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, customConfig []*sandbox.NodeC
 	nsReg, err := domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
-
 	counter := &counterServer{}
-	nse, err := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
+	_, err = domain.Nodes[0].NewEndpoint(ctx, defaultRegistryEndpoint(nsReg.Name), sandbox.GenerateTestToken, counter)
 	require.NoError(t, err)
 
 	request := defaultRequest(nsReg.Name)
@@ -317,17 +312,6 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, customConfig []*sandbox.NodeC
 	domain.Nodes[nodeNum].NSMgr = restoredNSMgrEntry
 	domain.AddResources(restoredNSMgrResources)
 
-	forwarderReg := &registry.NetworkServiceEndpoint{
-		Name: "forwarder-restored",
-	}
-	_, err = domain.Nodes[nodeNum].NewForwarder(ctx, forwarderReg, sandbox.GenerateTestToken)
-	require.NoError(t, err)
-
-	nseReg.Url = nse.URL.String()
-	_, err = domain.Nodes[nodeNum].EndpointRegistryClient.Register(ctx, nseReg)
-	require.NoError(t, err)
-
-	// Wait Cross NSE expired and reconnecting through the new Cross NSE
 	require.Eventually(t, checkSecondRequestsReceived(func() int {
 		return int(atomic.LoadInt32(&counter.Requests))
 	}), timeout, tick)
@@ -349,14 +333,12 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, customConfig []*sandbox.NodeC
 func TestNSMGR_HealRemoteNSMgr(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	nsmgrCtx, nsmgrCtxCancel := context.WithTimeout(context.Background(), time.Second)
-	defer nsmgrCtxCancel()
+	nsmgrCtx, nsmgrCtxCancel := context.WithCancel(context.Background())
+
 	customConfig := []*sandbox.NodeConfig{
 		{
-			NsmgrCtx:                   nsmgrCtx,
-			NsmgrGenerateTokenFunc:     sandbox.GenerateExpiringToken(time.Second),
-			ForwarderCtx:               nsmgrCtx,
-			ForwarderGenerateTokenFunc: sandbox.GenerateExpiringToken(time.Second),
+			NsmgrCtx:               nsmgrCtx,
+			NsmgrGenerateTokenFunc: sandbox.GenerateExpiringToken(tokenTimeout),
 		},
 	}
 
@@ -395,7 +377,7 @@ func TestNSMGR_HealRemoteNSMgr(t *testing.T) {
 	_, err = domain.Nodes[2].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter)
 	require.NoError(t, err)
 
-	// Wait Cross NSE expired and reconnecting through the new Cross NSE
+	// Wait NSMgr expired and reconnecting through the new NSMgr
 	require.Eventually(t, checkSecondRequestsReceived(counter.UniqueRequests), timeout, tick)
 	require.Equal(t, 2, counter.UniqueRequests())
 
@@ -467,7 +449,7 @@ func TestNSMGR_CloseHeal(t *testing.T) {
 
 func checkSecondRequestsReceived(requestsDone func() int) func() bool {
 	return func() bool {
-		return requestsDone() == 2
+		return requestsDone() >= 2
 	}
 }
 
