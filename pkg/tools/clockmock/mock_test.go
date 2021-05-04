@@ -34,6 +34,32 @@ const (
 	testTick = testWait / 100
 )
 
+func TestMock_Start(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	m := clockmock.New()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	const speed = 1000.0
+	const hours = 7
+
+	m.Start(ctx, speed)
+
+	realStart, mockStart := time.Now(), m.Now()
+	for i := 0; i < hours; i++ {
+		time.Sleep(testWait)
+		m.Add(time.Hour)
+	}
+	realDuration, mockDuration := time.Since(realStart), m.Since(mockStart)
+
+	mockSpeed := float64((mockDuration - hours*time.Hour) / realDuration)
+
+	require.Greater(t, mockSpeed/speed, 0.9)
+	require.Less(t, mockSpeed/speed, 1.1)
+}
+
 func TestMock_Timer(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 

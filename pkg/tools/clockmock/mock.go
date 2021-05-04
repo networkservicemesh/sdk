@@ -42,6 +42,37 @@ func New() *Mock {
 	}
 }
 
+// Start starts mock time to run with the given speed until ctx becomes done. While time is running, current time for
+// the mock will be the following:
+//   mock time := mock start time  +  (real time duration from the start) * speed  +  mock duration added with Set, Add
+func (m *Mock) Start(ctx context.Context, speed float64) {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
+	const tick = 10 * time.Millisecond
+
+	realStart, mockStart, mockTime := time.Now(), m.Now(), m.Now()
+	var mockAdded time.Duration
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(tick):
+				m.lock.Lock()
+
+				mockAdded += m.Since(mockTime)
+				mockTime = mockStart.
+					Add(time.Duration(float64(time.Since(realStart)) * speed)).
+					Add(mockAdded)
+				m.mock.Set(mockTime)
+
+				m.lock.Unlock()
+			}
+		}
+	}()
+}
+
 // Set sets the current time of the mock clock to a specific one.
 func (m *Mock) Set(t time.Time) {
 	m.lock.Lock()
