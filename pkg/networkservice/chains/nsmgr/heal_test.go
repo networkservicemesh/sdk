@@ -203,8 +203,8 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int, restored bool) {
 		SetNodesCount(2).
 		SetNSMgrProxySupplier(nil).
 		SetRegistryProxySupplier(nil).
-		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, i int) {
-			if i != nodeNum {
+		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, nodeN int) {
+			if nodeN != nodeNum {
 				sandbox.SetupDefaultNode(ctx, node, nsmgr.NewServer)
 			} else {
 				forwarderCtxCancel, forwarder = setupCancelableForwarderNode(ctx, node, restored)
@@ -231,7 +231,7 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int, restored bool) {
 	forwarderCtxCancel()
 
 	forwarderReg := &registry.NetworkServiceEndpoint{
-		Name: sandbox.Name("forwarder-2"),
+		Name: sandbox.UniqueName("forwarder-2"),
 	}
 	if restored {
 		// Wait grpc unblock the port
@@ -272,12 +272,12 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int, restored bool) {
 }
 
 func setupCancelableForwarderNode(ctx context.Context, node *sandbox.Node, restored bool) (context.CancelFunc, *sandbox.EndpointEntry) {
-	node.NewNSMgr(ctx, sandbox.Name("nsmgr"), nil, sandbox.GenerateTestToken, nsmgr.NewServer)
+	node.NewNSMgr(ctx, sandbox.UniqueName("nsmgr"), nil, sandbox.GenerateTestToken, nsmgr.NewServer)
 
 	forwarderCtx, forwarderCtxCancel := context.WithCancel(ctx)
 
 	forwarderReg := &registry.NetworkServiceEndpoint{
-		Name: sandbox.Name("forwarder"),
+		Name: sandbox.UniqueName("forwarder"),
 	}
 
 	var forwarder *sandbox.EndpointEntry
@@ -336,8 +336,8 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 		SetNodesCount(3).
 		SetNSMgrProxySupplier(nil).
 		SetRegistryProxySupplier(nil).
-		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, i int) {
-			if i != nodeNum {
+		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, nodeN int) {
+			if nodeN != nodeNum {
 				sandbox.SetupDefaultNode(ctx, node, nsmgr.NewServer)
 			} else {
 				nsmgrCtxCancel = setupCancellableNSMgrNode(ctx, node, restored)
@@ -411,7 +411,7 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 func setupCancellableNSMgrNode(ctx context.Context, node *sandbox.Node, restored bool) context.CancelFunc {
 	nsmgrCtx, nsmgrCtxCancel := context.WithCancel(ctx)
 
-	nsmgrName := sandbox.Name("nsmgr")
+	nsmgrName := sandbox.UniqueName("nsmgr")
 	if restored {
 		node.NewNSMgr(nsmgrCtx, nsmgrName, nil, sandbox.GenerateTestToken, nsmgr.NewServer)
 	} else {
@@ -419,7 +419,7 @@ func setupCancellableNSMgrNode(ctx context.Context, node *sandbox.Node, restored
 	}
 
 	node.NewForwarder(ctx, &registry.NetworkServiceEndpoint{
-		Name: sandbox.Name("forwarder"),
+		Name: sandbox.UniqueName("forwarder"),
 	}, sandbox.GenerateTestToken)
 
 	return nsmgrCtxCancel

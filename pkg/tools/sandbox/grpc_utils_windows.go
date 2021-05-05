@@ -20,6 +20,8 @@ package sandbox
 
 import "google.golang.org/grpc/credentials"
 
+// grpcfdTransportCredentials is a wrapper for grpcfd.TransportCredentials. Since grpcfd is not defined for windows, it
+// simply returns cred.
 func grpcfdTransportCredentials(cred credentials.TransportCredentials) credentials.TransportCredentials {
 	return cred
 }

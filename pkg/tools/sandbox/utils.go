@@ -113,16 +113,16 @@ func DefaultDialOptions(genTokenFunc token.GeneratorFunc) []grpc.DialOption {
 	}, opentracing.WithTracingDial()...)
 }
 
-// Name creates unique name with the given prefix
-func Name(prefix string) string {
+// UniqueName creates unique name with the given prefix
+func UniqueName(prefix string) string {
 	return fmt.Sprintf("%s-%s", prefix, uuid.New().String())
 }
 
 // SetupDefaultNode setups NSMgr and default Forwarder on the given node
 func SetupDefaultNode(ctx context.Context, node *Node, supplyNSMgr SupplyNSMgrFunc) {
-	node.NewNSMgr(ctx, Name("nsmgr"), nil, GenerateTestToken, supplyNSMgr)
+	node.NewNSMgr(ctx, UniqueName("nsmgr"), nil, GenerateTestToken, supplyNSMgr)
 
 	node.NewForwarder(ctx, &registryapi.NetworkServiceEndpoint{
-		Name: Name("forwarder"),
+		Name: UniqueName("forwarder"),
 	}, GenerateTestToken)
 }
