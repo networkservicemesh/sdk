@@ -53,28 +53,15 @@ func filterValidNSEs(clockTime clock.Clock, nses ...*registry.NetworkServiceEndp
 	return validNetworkServiceEndpoints
 }
 
-func matchEndpoint(nsLabels map[string]string, ns *registry.NetworkService, nses []*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
-	var match *registry.Match
-	// Iterate through the matches
-	for _, m := range ns.GetMatches() {
-		// All match source selector labels should be present in the requested labels map
-		if !isSubset(nsLabels, m.GetSourceSelector(), nsLabels) {
-			continue
-		}
-		match = m
-		break
-	}
-
+func matchEndpoint(nsLabels map[string]string, nsName string, match *registry.Match, nses []*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
 	if match == nil {
 		return nses
 	}
 
 	var nseCandidates []*registry.NetworkServiceEndpoint
-	// Check all Destinations in that match
 	for _, destination := range match.GetRoutes() {
-		// Each NSE should be matched against that destination
 		for _, nse := range nses {
-			if isSubset(nse.GetNetworkServiceLabels()[ns.Name].Labels, destination.GetDestinationSelector(), nsLabels) {
+			if isSubset(nse.GetNetworkServiceLabels()[nsName].Labels, destination.GetDestinationSelector(), nsLabels) {
 				nseCandidates = append(nseCandidates, nse)
 			}
 		}
