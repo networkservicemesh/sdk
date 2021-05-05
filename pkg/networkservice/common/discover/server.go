@@ -67,7 +67,7 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 	if err != nil {
 		return nil, err
 	}
-	nses, err := d.discoverNetworkServiceEndpoints(ctx, ns, request.GetConnection().GetLabels())
+	nses, destLabels, err := d.discoverNetworkServiceEndpoints(ctx, ns, request.GetConnection().GetLabels())
 	if err != nil {
 		return nil, err
 	}
@@ -79,6 +79,7 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 		resp, err := next.Server(ctx).Request(WithCandidates(ctx, &NetworkServiceCandidates{
 			NetworkService: ns,
 			Endpoints:      nses,
+			DestLabels:     destLabels,
 		}), request)
 		if err == nil {
 			return resp, err
@@ -96,7 +97,7 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 		clockTime.Sleep(time.Duration(delay))
 		delay *= discoverDelayMultiplier
 
-		nses, err = d.discoverNetworkServiceEndpoints(ctx, ns, request.GetConnection().GetLabels())
+		nses, destLabels, err = d.discoverNetworkServiceEndpoints(ctx, ns, request.GetConnection().GetLabels())
 		if err != nil {
 			return nil, err
 		}
@@ -158,7 +159,7 @@ func (d *discoverCandidatesServer) discoverNetworkServiceEndpoint(ctx context.Co
 	}
 }
 
-func (d *discoverCandidatesServer) discoverNetworkServiceEndpoints(ctx context.Context, ns *registry.NetworkService, labels map[string]string) ([]*registry.NetworkServiceEndpoint, error) {
+func (d *discoverCandidatesServer) discoverNetworkServiceEndpoints(ctx context.Context, ns *registry.NetworkService, labels map[string]string) ([]*registry.NetworkServiceEndpoint, []map[string]string, error) {
 	clockTime := clock.FromContext(ctx)
 
 	var match *registry.Match
@@ -183,13 +184,13 @@ func (d *discoverCandidatesServer) discoverNetworkServiceEndpoints(ctx context.C
 
 	nseStream, err := d.nseClient.Find(ctx, query)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, nil, errors.WithStack(err)
 	}
 	nseList := registry.ReadNetworkServiceEndpointList(nseStream)
 
-	result := matchEndpoint(labels, ns.Name, match, filterValidNSEs(clockTime, nseList...))
+	result, destLabels := matchEndpoint(labels, ns.Name, match, filterValidNSEs(clockTime, nseList...))
 	if len(result) != 0 {
-		return result, nil
+		return result, destLabels, nil
 	}
 
 	query.Watch = true
@@ -199,17 +200,17 @@ func (d *discoverCandidatesServer) discoverNetworkServiceEndpoints(ctx context.C
 
 	nseStream, err = d.nseClient.Find(ctx, query)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, nil, errors.WithStack(err)
 	}
 	for {
 		var nse *registry.NetworkServiceEndpoint
 		if nse, err = nseStream.Recv(); err != nil {
-			return nil, errors.WithStack(err)
+			return nil, nil, errors.WithStack(err)
 		}
 
-		result = matchEndpoint(labels, ns.Name, match, filterValidNSEs(clockTime, nse))
+		result, destLabels = matchEndpoint(labels, ns.Name, match, filterValidNSEs(clockTime, nse))
 		if len(result) != 0 {
-			return result, nil
+			return result, destLabels, nil
 		}
 	}
 }

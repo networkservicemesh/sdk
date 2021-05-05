@@ -35,6 +35,7 @@ type contextKeyType string
 type NetworkServiceCandidates struct {
 	NetworkService *registry.NetworkService
 	Endpoints      []*registry.NetworkServiceEndpoint
+	DestLabels     []map[string]string
 }
 
 // WithCandidates -

@@ -53,20 +53,22 @@ func filterValidNSEs(clockTime clock.Clock, nses ...*registry.NetworkServiceEndp
 	return validNetworkServiceEndpoints
 }
 
-func matchEndpoint(nsLabels map[string]string, nsName string, match *registry.Match, nses []*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
+func matchEndpoint(nsLabels map[string]string, nsName string, match *registry.Match, nses []*registry.NetworkServiceEndpoint) ([]*registry.NetworkServiceEndpoint, []map[string]string) {
 	if match == nil {
-		return nses
+		return nses, nil
 	}
 
 	var nseCandidates []*registry.NetworkServiceEndpoint
+	var destLabels []map[string]string
 	for _, destination := range match.GetRoutes() {
 		for _, nse := range nses {
 			if isSubset(nse.GetNetworkServiceLabels()[nsName].Labels, destination.GetDestinationSelector(), nsLabels) {
 				nseCandidates = append(nseCandidates, nse)
+				destLabels = append(destLabels, destination.GetDestinationSelector())
 			}
 		}
 	}
-	return nseCandidates
+	return nseCandidates, destLabels
 }
 
 // ProcessLabels generates matches based on destination label selectors that specify templating.
