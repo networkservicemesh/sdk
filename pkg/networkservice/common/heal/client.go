@@ -124,10 +124,12 @@ func (u *healClient) listenToConnectionChanges(healConnection, restoreConnection
 	for {
 		event, err := monitorClient.Recv()
 		if err != nil {
-			u.conns.Range(func(id string, info *connectionInfo) bool {
-				info.mut.Lock()
-				defer info.mut.Unlock()
-				restoreConnection(info.conn)
+			u.conns.Range(func(id string, connInfo *connectionInfo) bool {
+				connInfo.mut.Lock()
+				defer connInfo.mut.Unlock()
+				if connInfo.active {
+					restoreConnection(connInfo.conn)
+				}
 				return true
 			})
 			return
