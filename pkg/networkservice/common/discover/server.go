@@ -170,7 +170,7 @@ func (d *discoverCandidatesServer) discoverNetworkServiceEndpoints(ctx context.C
 	}
 	nseList := registry.ReadNetworkServiceEndpointList(nseStream)
 
-	result := matchEndpoint(clockTime, labels, ns, nseList...)
+	result := matchEndpoint(labels, ns, filterValidNSEs(clockTime, nseList...))
 	if len(result) != 0 {
 		return result, nil
 	}
@@ -190,7 +190,7 @@ func (d *discoverCandidatesServer) discoverNetworkServiceEndpoints(ctx context.C
 			return nil, errors.WithStack(err)
 		}
 
-		result = matchEndpoint(clockTime, labels, ns, nse)
+		result = matchEndpoint(labels, ns, filterValidNSEs(clockTime, nse))
 		if len(result) != 0 {
 			return result, nil
 		}

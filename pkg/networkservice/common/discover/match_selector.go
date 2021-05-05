@@ -43,25 +43,28 @@ func isSubset(a, b, nsLabels map[string]string) bool {
 	return true
 }
 
-func matchEndpoint(clockTime clock.Clock, nsLabels map[string]string, ns *registry.NetworkService, nses ...*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
+func filterValidNSEs(clockTime clock.Clock, nses ...*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
 	var validNetworkServiceEndpoints []*registry.NetworkServiceEndpoint
 	for _, nse := range nses {
 		if nse.GetExpirationTime() == nil || nse.GetExpirationTime().AsTime().After(clockTime.Now()) {
 			validNetworkServiceEndpoints = append(validNetworkServiceEndpoints, nse)
 		}
 	}
+	return validNetworkServiceEndpoints
+}
 
+func matchEndpoint(nsLabels map[string]string, ns *registry.NetworkService, nses []*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
 	// Iterate through the matches
 	for _, match := range ns.GetMatches() {
 		// All match source selector labels should be present in the requested labels map
 		if !isSubset(nsLabels, match.GetSourceSelector(), nsLabels) {
 			continue
 		}
-		nseCandidates := make([]*registry.NetworkServiceEndpoint, 0)
+		var nseCandidates []*registry.NetworkServiceEndpoint
 		// Check all Destinations in that match
 		for _, destination := range match.GetRoutes() {
 			// Each NSE should be matched against that destination
-			for _, nse := range validNetworkServiceEndpoints {
+			for _, nse := range nses {
 				if isSubset(nse.GetNetworkServiceLabels()[ns.Name].Labels, destination.GetDestinationSelector(), nsLabels) {
 					nseCandidates = append(nseCandidates, nse)
 				}
@@ -70,7 +73,7 @@ func matchEndpoint(clockTime clock.Clock, nsLabels map[string]string, ns *regist
 		return nseCandidates
 	}
 
-	return validNetworkServiceEndpoints
+	return nses
 }
 
 // ProcessLabels generates matches based on destination label selectors that specify templating.
