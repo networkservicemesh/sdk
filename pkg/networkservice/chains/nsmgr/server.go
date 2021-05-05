@@ -212,10 +212,10 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		checkid.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
 		registryrecvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
-		urlsRegistryServer,                                       // Store endpoints URLs
-		interposeRegistryServer,                                  // Store cross connect NSEs
-		localBypassRegistryServer,                                // Perform URL transformations
-		nseRegistry,                                              // Register NSE inside Remote registry
+		urlsRegistryServer,        // Store endpoints URLs
+		interposeRegistryServer,   // Store cross connect NSEs
+		localBypassRegistryServer, // Perform URL transformations
+		nseRegistry,               // Register NSE inside Remote registry
 	)
 
 	rv.Registry = registry.NewServer(nsChain, nseChain)

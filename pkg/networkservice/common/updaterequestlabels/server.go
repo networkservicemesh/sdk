@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package updaterequestlabels provides a networkservice chain element that updates Connection.Labels using discovery.Candidates
 package updaterequestlabels
 
 import (
@@ -49,6 +50,8 @@ func (s *updateRequestLabelsServer) Close(ctx context.Context, conn *networkserv
 	return next.Server(ctx).Close(ctx, conn)
 }
 
+// updateLabels - updates labels in conn, return original value of conn.Labels.
+// If context doesn't contain info for network service specified in conn, does nothing.
 func (s *updateRequestLabelsServer) updateLabels(ctx context.Context, conn *networkservice.Connection) map[string]string {
 	originalLabels := conn.Labels
 	labels, err := s.getLabelsForEndpoint(ctx, conn.NetworkServiceEndpointName)
@@ -58,6 +61,7 @@ func (s *updateRequestLabelsServer) updateLabels(ctx context.Context, conn *netw
 	return originalLabels
 }
 
+// getLabelsForEndpoint - searches for labels linked to specified endpointName in context
 func (s *updateRequestLabelsServer) getLabelsForEndpoint(ctx context.Context, endpointName string) (map[string]string, error) {
 	candidates := discover.Candidates(ctx)
 	if candidates == nil {

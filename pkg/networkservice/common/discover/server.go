@@ -176,11 +176,6 @@ func (d *discoverCandidatesServer) discoverNetworkServiceEndpoints(ctx context.C
 			NetworkServiceNames: []string{ns.Name},
 		},
 	}
-	// if match != nil {
-	// 	query.NetworkServiceEndpoint.NetworkServiceLabels = map[string]*registry.NetworkServiceLabels{
-	// 		ns.Name: {Labels: match.GetRoutes()[0].GetDestinationSelector()},
-	// 	}
-	// }
 
 	nseStream, err := d.nseClient.Find(ctx, query)
 	if err != nil {
