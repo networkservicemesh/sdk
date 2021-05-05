@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -17,20 +17,10 @@
 package point2pointipam
 
 import (
-	"context"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
+	"sync"
 )
 
-type keyType struct{}
+//go:generate go-syncmap -output connectionInfoMap.gen.go -type Map<string,*connectionInfo>
 
-func storeConnInfo(ctx context.Context, connInfo *connectionInfo) {
-	metadata.Map(ctx, false).Store(keyType{}, connInfo)
-}
-
-func loadConnInfo(ctx context.Context) (*connectionInfo, bool) {
-	if raw, ok := metadata.Map(ctx, false).Load(keyType{}); ok {
-		return raw.(*connectionInfo), true
-	}
-	return nil, false
-}
+// Map - sync.Map with key == string and value == networkservice.NetworkServiceClient
+type Map sync.Map
