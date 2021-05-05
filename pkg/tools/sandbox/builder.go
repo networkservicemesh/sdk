@@ -219,7 +219,7 @@ func (b *Builder) newNSMgrProxy() {
 		return
 	}
 
-	name := Name("nsmgr-proxy")
+	name := UniqueName("nsmgr-proxy")
 	mgr := b.supplyNSMgrProxy(b.ctx, b.generateTokenFunc,
 		nsmgrproxy.WithName(name),
 		nsmgrproxy.WithConnectOptions(

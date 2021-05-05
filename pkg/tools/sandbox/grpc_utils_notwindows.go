@@ -23,6 +23,7 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
+// grpcfdTransportCredentials is a wrapper for grpcfd.TransportCredentials.
 func grpcfdTransportCredentials(cred credentials.TransportCredentials) credentials.TransportCredentials {
 	return grpcfd.TransportCredentials(cred)
 }

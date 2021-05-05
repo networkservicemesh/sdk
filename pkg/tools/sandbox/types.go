@@ -44,7 +44,7 @@ type SupplyRegistryFunc func(ctx context.Context, expiryDuration time.Duration, 
 type SupplyRegistryProxyFunc func(ctx context.Context, dnsResolver dnsresolve.Resolver, handlingDNSDomain string, proxyNSMgrURL *url.URL, options ...grpc.DialOption) registry.Registry
 
 // SetupNodeFunc setups each node on Builder.Build() stage
-type SetupNodeFunc func(ctx context.Context, node *Node, i int)
+type SetupNodeFunc func(ctx context.Context, node *Node, nodeNum int)
 
 // RegistryEntry is pair of registry.Registry and url.URL
 type RegistryEntry struct {
