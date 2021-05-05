@@ -42,6 +42,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/roundrobin"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updaterequestlabels"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/checkid"
@@ -182,6 +183,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		endpoint.WithAdditionalFunctionality(
 			discover.NewServer(nsClient, nseClient),
 			roundrobin.NewServer(),
+			updaterequestlabels.NewServer(),
 			excludedprefixes.NewServer(ctx),
 			recvfd.NewServer(), // Receive any files passed
 			interpose.NewServer(&interposeRegistryServer),
@@ -210,10 +212,10 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		checkid.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
 		registryrecvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
-		urlsRegistryServer,        // Store endpoints URLs
-		interposeRegistryServer,   // Store cross connect NSEs
-		localBypassRegistryServer, // Perform URL transformations
-		nseRegistry,               // Register NSE inside Remote registry
+		urlsRegistryServer,                                       // Store endpoints URLs
+		interposeRegistryServer,                                  // Store cross connect NSEs
+		localBypassRegistryServer,                                // Perform URL transformations
+		nseRegistry,                                              // Register NSE inside Remote registry
 	)
 
 	rv.Registry = registry.NewServer(nsChain, nseChain)
