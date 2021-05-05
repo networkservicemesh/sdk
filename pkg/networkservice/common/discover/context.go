@@ -39,14 +39,11 @@ type NetworkServiceCandidates struct {
 
 // WithCandidates -
 //    Wraps 'parent' in a new Context that has the Candidates
-func WithCandidates(parent context.Context, candidates []*registry.NetworkServiceEndpoint, service *registry.NetworkService) context.Context {
+func WithCandidates(parent context.Context, candidates *NetworkServiceCandidates) context.Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
-	return context.WithValue(parent, candidatesKey, &NetworkServiceCandidates{
-		NetworkService: service,
-		Endpoints:      candidates,
-	})
+	return context.WithValue(parent, candidatesKey, candidates)
 }
 
 // Candidates -

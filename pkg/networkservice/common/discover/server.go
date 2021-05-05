@@ -76,7 +76,10 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 
 	delay := defaultDiscoverDelay
 	for ctx.Err() == nil {
-		resp, err := next.Server(ctx).Request(WithCandidates(ctx, nses, ns), request)
+		resp, err := next.Server(ctx).Request(WithCandidates(ctx, &NetworkServiceCandidates{
+			NetworkService: ns,
+			Endpoints:      nses,
+		}), request)
 		if err == nil {
 			return resp, err
 		}
