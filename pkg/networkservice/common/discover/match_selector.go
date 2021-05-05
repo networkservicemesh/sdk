@@ -54,26 +54,32 @@ func filterValidNSEs(clockTime clock.Clock, nses ...*registry.NetworkServiceEndp
 }
 
 func matchEndpoint(nsLabels map[string]string, ns *registry.NetworkService, nses []*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
+	var match *registry.Match
 	// Iterate through the matches
-	for _, match := range ns.GetMatches() {
+	for _, m := range ns.GetMatches() {
 		// All match source selector labels should be present in the requested labels map
-		if !isSubset(nsLabels, match.GetSourceSelector(), nsLabels) {
+		if !isSubset(nsLabels, m.GetSourceSelector(), nsLabels) {
 			continue
 		}
-		var nseCandidates []*registry.NetworkServiceEndpoint
-		// Check all Destinations in that match
-		for _, destination := range match.GetRoutes() {
-			// Each NSE should be matched against that destination
-			for _, nse := range nses {
-				if isSubset(nse.GetNetworkServiceLabels()[ns.Name].Labels, destination.GetDestinationSelector(), nsLabels) {
-					nseCandidates = append(nseCandidates, nse)
-				}
-			}
-		}
-		return nseCandidates
+		match = m
+		break
 	}
 
-	return nses
+	if match == nil {
+		return nses
+	}
+
+	var nseCandidates []*registry.NetworkServiceEndpoint
+	// Check all Destinations in that match
+	for _, destination := range match.GetRoutes() {
+		// Each NSE should be matched against that destination
+		for _, nse := range nses {
+			if isSubset(nse.GetNetworkServiceLabels()[ns.Name].Labels, destination.GetDestinationSelector(), nsLabels) {
+				nseCandidates = append(nseCandidates, nse)
+			}
+		}
+	}
+	return nseCandidates
 }
 
 // ProcessLabels generates matches based on destination label selectors that specify templating.
