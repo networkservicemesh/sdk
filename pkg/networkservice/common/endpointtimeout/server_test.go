@@ -18,6 +18,7 @@ package endpointtimeout_test
 
 import (
 	"context"
+	"runtime"
 	"testing"
 	"time"
 
@@ -53,14 +54,10 @@ func TestEndpointTimeout_NoRequests(t *testing.T) {
 	}))
 
 	clockMock.Add(timeout - 1)
-	require.Never(t, func() bool {
-		return flag.Load()
-	}, testWait, testTick)
+	require.Never(t, flag.Load, testWait, testTick)
 
 	clockMock.Add(1)
-	require.Eventually(t, func() bool {
-		return flag.Load()
-	}, testWait, testTick)
+	require.Eventually(t, flag.Load, testWait, testTick)
 }
 
 func TestEndpointTimeout_Refresh(t *testing.T) {
@@ -83,16 +80,12 @@ func TestEndpointTimeout_Refresh(t *testing.T) {
 	conn, err := server.Request(ctx, &networkservice.NetworkServiceRequest{})
 	require.NoError(t, err)
 	clockMock.Add(1)
-	require.Never(t, func() bool {
-		return flag.Load()
-	}, testWait, testTick)
+	require.Never(t, flag.Load, testWait, testTick)
 
 	_, err = server.Close(ctx, conn) // Closes shouldn't affect timeout
 	require.NoError(t, err)
 	clockMock.Add(timeout - 1)
-	require.Eventually(t, func() bool {
-		return flag.Load()
-	}, testWait, testTick)
+	require.Eventually(t, flag.Load, testWait, testTick)
 }
 
 func TestEndpointTimeout_ContextCancel(t *testing.T) {
@@ -112,8 +105,7 @@ func TestEndpointTimeout_ContextCancel(t *testing.T) {
 	}))
 
 	cancel()
+	runtime.Gosched()
 	clockMock.Add(timeout)
-	require.Never(t, func() bool {
-		return flag.Load()
-	}, testWait, testTick)
+	require.Never(t, flag.Load, testWait, testTick)
 }
