@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package endpointtimeout_test
+package idlenotifier_test
 
 import (
 	"context"
@@ -27,7 +27,7 @@ import (
 	"go.uber.org/atomic"
 	"go.uber.org/goleak"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/endpointtimeout"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/idlenotifier"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
 )
@@ -49,7 +49,7 @@ func TestEndpointTimeout_NoRequests(t *testing.T) {
 	timeout := time.Hour
 	var flag atomic.Bool
 
-	_ = endpointtimeout.NewServer(ctx, endpointtimeout.WithTimeout(timeout), endpointtimeout.WithNotify(func() {
+	_ = idlenotifier.NewServer(ctx, idlenotifier.WithTimeout(timeout), idlenotifier.WithNotify(func() {
 		flag.Store(true)
 	}))
 
@@ -72,7 +72,7 @@ func TestEndpointTimeout_Refresh(t *testing.T) {
 	timeout := time.Hour
 	var flag atomic.Bool
 
-	server := endpointtimeout.NewServer(ctx, endpointtimeout.WithTimeout(timeout), endpointtimeout.WithNotify(func() {
+	server := idlenotifier.NewServer(ctx, idlenotifier.WithTimeout(timeout), idlenotifier.WithNotify(func() {
 		flag.Store(true)
 	}))
 
@@ -102,7 +102,7 @@ func TestEndpointTimeout_ContextCancel(t *testing.T) {
 	timeout := time.Hour
 	var flag atomic.Bool
 
-	_ = endpointtimeout.NewServer(ctx, endpointtimeout.WithTimeout(timeout), endpointtimeout.WithNotify(func() {
+	_ = idlenotifier.NewServer(ctx, idlenotifier.WithTimeout(timeout), idlenotifier.WithNotify(func() {
 		flag.Store(true)
 	}))
 

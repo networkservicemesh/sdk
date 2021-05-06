@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package endpointtimeout provides server chain element that executes a callback when there were no connections for specified time
-package endpointtimeout
+// Package idlenotifier provides server chain element that executes a callback when there were no connections for specified time
+package idlenotifier
 
 import (
 	"context"
