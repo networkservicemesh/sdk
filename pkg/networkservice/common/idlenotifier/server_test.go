@@ -37,7 +37,7 @@ const (
 	testTick = testWait / 100
 )
 
-func TestEndpointTimeout_NoRequests(t *testing.T) {
+func TestIdleNotifier_NoRequests(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -60,7 +60,7 @@ func TestEndpointTimeout_NoRequests(t *testing.T) {
 	require.Eventually(t, flag.Load, testWait, testTick)
 }
 
-func TestEndpointTimeout_Refresh(t *testing.T) {
+func TestIdleNotifier_Refresh(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -90,7 +90,46 @@ func TestEndpointTimeout_Refresh(t *testing.T) {
 	require.Eventually(t, flag.Load, testWait, testTick)
 }
 
-func TestEndpointTimeout_ContextCancel(t *testing.T) {
+func TestIdleNotifier_HoldingActiveRequest(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	clockMock := clockmock.New()
+	ctx = clock.WithClock(ctx, clockMock)
+
+	timeout := time.Hour
+	var flag atomic.Bool
+
+	server := idlenotifier.NewServer(ctx, idlenotifier.WithTimeout(timeout), idlenotifier.WithNotify(func() {
+		flag.Store(true)
+	}))
+
+	clockMock.Add(timeout - 1)
+	conn1, err := server.Request(ctx, &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: "1",
+		},
+	})
+	require.NoError(t, err)
+	conn2, err := server.Request(ctx, &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: "2",
+		},
+	})
+	require.NoError(t, err)
+
+	_, err = server.Close(ctx, conn1)
+	require.NoError(t, err)
+	clockMock.Add(timeout)
+	require.Never(t, flag.Load, testWait, testTick)
+	_, err = server.Close(ctx, conn2)
+	clockMock.Add(timeout)
+	require.Eventually(t, flag.Load, testWait, testTick)
+}
+
+func TestIdleNotifier_ContextCancel(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)

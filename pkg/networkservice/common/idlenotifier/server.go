@@ -39,7 +39,7 @@ type endpointTimeoutServer struct {
 	timer       clock.Timer
 	// Timers don't support concurrency natively.
 	// If we stop it, they tell us if the timer was running before our call.
-	// But if timer was not running, there's no way to distinguish,
+	// But if timer was not running, there's no way to distinguish
 	// if it was stopped earlier (e.g. concurrently by another thread) or if it has already fired.
 	// Therefore, we should implement some manual sync for this.
 	timerMut         sync.Mutex
@@ -47,7 +47,7 @@ type endpointTimeoutServer struct {
 	timerFired       bool
 }
 
-// NewServer - returns a new server chain element that notifies about long time periods without requests
+// NewServer - returns a new server chain element that notifies about long time periods without active requests
 func NewServer(ctx context.Context, options ...Option) networkservice.NetworkServiceServer {
 	clockTime := clock.FromContext(ctx)
 
