@@ -18,7 +18,6 @@ package onidle_test
 
 import (
 	"context"
-	"runtime"
 	"testing"
 	"time"
 
@@ -180,7 +179,7 @@ func TestIdleNotifier_ContextCancel(t *testing.T) {
 	}, onidle.WithTimeout(timeout))
 
 	cancel()
-	runtime.Gosched()
+	time.Sleep(time.Millisecond * 50)
 	clockMock.Add(timeout)
 	require.Never(t, flag.Load, testWait, testTick)
 }
