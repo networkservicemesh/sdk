@@ -69,18 +69,18 @@ func NewServer(ctx context.Context, options ...Option) networkservice.NetworkSer
 }
 
 func (t *endpointTimeoutServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	_, isRefresh := t.activeConns.LoadOrStore(request.GetConnection().GetId(), struct{}{})
+
 	expired := t.stopTimer()
 	if expired {
+		t.removeConnection(request.GetConnection())
 		return nil, errors.New("endpoint expired")
 	}
-
-	_, isRefresh := t.activeConns.LoadOrStore(request.GetConnection().GetId(), struct{}{})
 
 	conn, err := next.Server(ctx).Request(ctx, request)
 	if err != nil {
 		if !isRefresh {
-			t.activeConns.Delete(request.GetConnection().GetId())
-			t.startTimerIfNoActiveConns()
+			t.removeConnection(request.GetConnection())
 		}
 	}
 
@@ -88,8 +88,7 @@ func (t *endpointTimeoutServer) Request(ctx context.Context, request *networkser
 }
 
 func (t *endpointTimeoutServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	t.activeConns.Delete(conn.GetId())
-	t.startTimerIfNoActiveConns()
+	t.removeConnection(conn)
 	return next.Server(ctx).Close(ctx, conn)
 }
 
@@ -124,6 +123,11 @@ func (t *endpointTimeoutServer) stopTimer() bool {
 	t.timer.Stop()
 
 	return false
+}
+
+func (t *endpointTimeoutServer) removeConnection(conn *networkservice.Connection) {
+	t.activeConns.Delete(conn.GetId())
+	t.startTimerIfNoActiveConns()
 }
 
 func (t *endpointTimeoutServer) startTimerIfNoActiveConns() {
