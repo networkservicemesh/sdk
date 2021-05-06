@@ -51,9 +51,9 @@ func TestIdleNotifier_NoRequests(t *testing.T) {
 	timeout := time.Hour
 	var flag atomic.Bool
 
-	_ = idlenotifier.NewServer(ctx, idlenotifier.WithTimeout(timeout), idlenotifier.WithNotify(func() {
+	_ = idlenotifier.NewServer(ctx, func() {
 		flag.Store(true)
-	}))
+	}, idlenotifier.WithTimeout(timeout))
 
 	clockMock.Add(timeout - 1)
 	require.Never(t, flag.Load, testWait, testTick)
@@ -74,9 +74,9 @@ func TestIdleNotifier_Refresh(t *testing.T) {
 	timeout := time.Hour
 	var flag atomic.Bool
 
-	server := idlenotifier.NewServer(ctx, idlenotifier.WithTimeout(timeout), idlenotifier.WithNotify(func() {
+	server := idlenotifier.NewServer(ctx, func() {
 		flag.Store(true)
-	}))
+	}, idlenotifier.WithTimeout(timeout))
 
 	clockMock.Add(timeout - 1)
 	conn, err := server.Request(ctx, &networkservice.NetworkServiceRequest{})
@@ -104,9 +104,9 @@ func TestIdleNotifier_HoldingActiveRequest(t *testing.T) {
 	timeout := time.Hour
 	var flag atomic.Bool
 
-	server := idlenotifier.NewServer(ctx, idlenotifier.WithTimeout(timeout), idlenotifier.WithNotify(func() {
+	server := idlenotifier.NewServer(ctx, func() {
 		flag.Store(true)
-	}))
+	}, idlenotifier.WithTimeout(timeout))
 
 	clockMock.Add(timeout - 1)
 	conn1, err := server.Request(ctx, &networkservice.NetworkServiceRequest{
@@ -145,9 +145,9 @@ func TestIdleNotifier_FailedRequest(t *testing.T) {
 	var flag atomic.Bool
 
 	server := next.NewNetworkServiceServer(
-		idlenotifier.NewServer(ctx, idlenotifier.WithTimeout(timeout), idlenotifier.WithNotify(func() {
+		idlenotifier.NewServer(ctx, func() {
 			flag.Store(true)
-		})),
+		}, idlenotifier.WithTimeout(timeout)),
 		injecterror.NewServer(),
 	)
 
@@ -175,9 +175,9 @@ func TestIdleNotifier_ContextCancel(t *testing.T) {
 	timeout := time.Hour
 	var flag atomic.Bool
 
-	_ = idlenotifier.NewServer(ctx, idlenotifier.WithTimeout(timeout), idlenotifier.WithNotify(func() {
+	_ = idlenotifier.NewServer(ctx, func() {
 		flag.Store(true)
-	}))
+	}, idlenotifier.WithTimeout(timeout))
 
 	cancel()
 	runtime.Gosched()

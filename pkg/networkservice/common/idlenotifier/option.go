@@ -29,10 +29,3 @@ func WithTimeout(timeout time.Duration) Option {
 		t.timeout = timeout
 	}
 }
-
-// WithNotify sets notifier for endpointTimeoutServer
-func WithNotify(notify func()) Option {
-	return func(t *endpointTimeoutServer) {
-		t.notify = notify
-	}
-}

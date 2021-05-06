@@ -19,7 +19,6 @@ package idlenotifier
 
 import (
 	"context"
-	"os"
 	"sync"
 	"time"
 
@@ -48,13 +47,13 @@ type endpointTimeoutServer struct {
 }
 
 // NewServer - returns a new server chain element that notifies about long time periods without active requests
-func NewServer(ctx context.Context, options ...Option) networkservice.NetworkServiceServer {
+func NewServer(ctx context.Context, notify func(), options ...Option) networkservice.NetworkServiceServer {
 	clockTime := clock.FromContext(ctx)
 
 	t := &endpointTimeoutServer{
 		ctx:     ctx,
 		timeout: time.Minute * 10,
-		notify:  func() { os.Exit(0) },
+		notify:  notify,
 	}
 
 	for _, opt := range options {
