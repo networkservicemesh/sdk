@@ -127,6 +127,7 @@ func TestIdleNotifier_HoldingActiveRequest(t *testing.T) {
 	clockMock.Add(timeout)
 	require.Never(t, flag.Load, testWait, testTick)
 	_, err = server.Close(ctx, conn2)
+	require.NoError(t, err)
 	clockMock.Add(timeout)
 	require.Eventually(t, flag.Load, testWait, testTick)
 }
