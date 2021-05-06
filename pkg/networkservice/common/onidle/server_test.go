@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package idlenotifier_test
+package onidle_test
 
 import (
 	"context"
@@ -27,7 +27,7 @@ import (
 	"go.uber.org/atomic"
 	"go.uber.org/goleak"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/idlenotifier"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/onidle"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
@@ -51,9 +51,9 @@ func TestIdleNotifier_NoRequests(t *testing.T) {
 	timeout := time.Hour
 	var flag atomic.Bool
 
-	_ = idlenotifier.NewServer(ctx, func() {
+	_ = onidle.NewServer(ctx, func() {
 		flag.Store(true)
-	}, idlenotifier.WithTimeout(timeout))
+	}, onidle.WithTimeout(timeout))
 
 	clockMock.Add(timeout - 1)
 	require.Never(t, flag.Load, testWait, testTick)
@@ -74,9 +74,9 @@ func TestIdleNotifier_Refresh(t *testing.T) {
 	timeout := time.Hour
 	var flag atomic.Bool
 
-	server := idlenotifier.NewServer(ctx, func() {
+	server := onidle.NewServer(ctx, func() {
 		flag.Store(true)
-	}, idlenotifier.WithTimeout(timeout))
+	}, onidle.WithTimeout(timeout))
 
 	clockMock.Add(timeout - 1)
 	conn, err := server.Request(ctx, &networkservice.NetworkServiceRequest{})
@@ -104,9 +104,9 @@ func TestIdleNotifier_HoldingActiveRequest(t *testing.T) {
 	timeout := time.Hour
 	var flag atomic.Bool
 
-	server := idlenotifier.NewServer(ctx, func() {
+	server := onidle.NewServer(ctx, func() {
 		flag.Store(true)
-	}, idlenotifier.WithTimeout(timeout))
+	}, onidle.WithTimeout(timeout))
 
 	clockMock.Add(timeout - 1)
 	conn1, err := server.Request(ctx, &networkservice.NetworkServiceRequest{
@@ -145,9 +145,9 @@ func TestIdleNotifier_FailedRequest(t *testing.T) {
 	var flag atomic.Bool
 
 	server := next.NewNetworkServiceServer(
-		idlenotifier.NewServer(ctx, func() {
+		onidle.NewServer(ctx, func() {
 			flag.Store(true)
-		}, idlenotifier.WithTimeout(timeout)),
+		}, onidle.WithTimeout(timeout)),
 		injecterror.NewServer(),
 	)
 
@@ -175,9 +175,9 @@ func TestIdleNotifier_ContextCancel(t *testing.T) {
 	timeout := time.Hour
 	var flag atomic.Bool
 
-	_ = idlenotifier.NewServer(ctx, func() {
+	_ = onidle.NewServer(ctx, func() {
 		flag.Store(true)
-	}, idlenotifier.WithTimeout(timeout))
+	}, onidle.WithTimeout(timeout))
 
 	cancel()
 	runtime.Gosched()

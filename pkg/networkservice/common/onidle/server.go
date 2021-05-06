@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package idlenotifier provides server chain element that executes a callback when there were no connections for specified time
-package idlenotifier
+// Package onidle provides server chain element that executes a callback when there were no connections for specified time
+package onidle
 
 import (
 	"context"
