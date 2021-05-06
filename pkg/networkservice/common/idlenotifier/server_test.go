@@ -28,6 +28,8 @@ import (
 	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/idlenotifier"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
 )
@@ -126,6 +128,37 @@ func TestIdleNotifier_HoldingActiveRequest(t *testing.T) {
 	require.Never(t, flag.Load, testWait, testTick)
 	_, err = server.Close(ctx, conn2)
 	clockMock.Add(timeout)
+	require.Eventually(t, flag.Load, testWait, testTick)
+}
+
+func TestIdleNotifier_FailedRequest(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	clockMock := clockmock.New()
+	ctx = clock.WithClock(ctx, clockMock)
+
+	timeout := time.Hour
+	var flag atomic.Bool
+
+	server := next.NewNetworkServiceServer(
+		idlenotifier.NewServer(ctx, idlenotifier.WithTimeout(timeout), idlenotifier.WithNotify(func() {
+			flag.Store(true)
+		})),
+		injecterror.NewServer(),
+	)
+
+	clockMock.Add(timeout - 1)
+	require.Never(t, flag.Load, testWait, testTick)
+
+	_, err := server.Request(ctx, &networkservice.NetworkServiceRequest{})
+	require.Error(t, err)
+	clockMock.Add(timeout - 1)
+	require.Never(t, flag.Load, testWait, testTick)
+
+	clockMock.Add(1)
 	require.Eventually(t, flag.Load, testWait, testTick)
 }
 
