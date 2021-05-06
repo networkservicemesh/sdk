@@ -32,11 +32,11 @@ import (
 )
 
 type endpointTimeoutServer struct {
-	ctx              context.Context
-	timeout          time.Duration
-	notify           func()
-	activeConns      sync.Map
-	timer            clock.Timer
+	ctx         context.Context
+	timeout     time.Duration
+	notify      func()
+	activeConns sync.Map
+	timer       clock.Timer
 	// Timers don't support concurrency natively.
 	// If we stop it, they tell us if the timer was running before our call.
 	// But if timer was not running, there's no way to distinguish,
