@@ -20,6 +20,7 @@ package endpointtimeout
 import (
 	"context"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -31,10 +32,19 @@ import (
 )
 
 type endpointTimeoutServer struct {
-	ctx     context.Context
-	timeout time.Duration
-	notify  func()
-	timer   clock.Timer
+	ctx              context.Context
+	timeout          time.Duration
+	notify           func()
+	activeConns      sync.Map
+	timer            clock.Timer
+	// Timers don't support concurrency natively.
+	// If we stop it, they tell us if the timer was running before our call.
+	// But if timer was not running, there's no way to distinguish,
+	// if it was stopped earlier (e.g. concurrently by another thread) or if it has already fired.
+	// Therefore, we should implement some manual sync for this.
+	timerMut         sync.Mutex
+	timerStopRequest bool
+	timerFired       bool
 }
 
 // NewServer - returns a new server chain element that notifies about long time periods without requests
@@ -59,24 +69,74 @@ func NewServer(ctx context.Context, options ...Option) networkservice.NetworkSer
 }
 
 func (t *endpointTimeoutServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if !t.timer.Stop() {
+	expired := t.stopTimer()
+	if expired {
 		return nil, errors.New("endpoint expired")
 	}
-	t.timer.Reset(t.timeout)
 
-	return next.Server(ctx).Request(ctx, request)
+	_, isRefresh := t.activeConns.LoadOrStore(request.GetConnection().GetId(), struct{}{})
+
+	conn, err := next.Server(ctx).Request(ctx, request)
+	if err != nil {
+		if !isRefresh {
+			t.activeConns.Delete(request.GetConnection().GetId())
+			t.startTimerIfNoActiveConns()
+		}
+	}
+
+	return conn, err
 }
 
 func (t *endpointTimeoutServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	t.activeConns.Delete(conn.GetId())
+	t.startTimerIfNoActiveConns()
 	return next.Server(ctx).Close(ctx, conn)
 }
 
 func (t *endpointTimeoutServer) waitForTimeout() {
-	select {
-	case <-t.ctx.Done():
-		return
-	case <-t.timer.C():
-		t.notify()
-		return
+	for {
+		select {
+		case <-t.ctx.Done():
+			return
+		case <-t.timer.C():
+			t.timerMut.Lock()
+			if !t.timerStopRequest {
+				t.timerFired = true
+				t.timerMut.Unlock()
+				t.notify()
+				return
+			}
+			t.timerMut.Unlock()
+		}
+	}
+}
+
+// stopTimer - stops the timer. Returns true if it has already fired, false otherwise
+func (t *endpointTimeoutServer) stopTimer() bool {
+	t.timerMut.Lock()
+	defer t.timerMut.Unlock()
+
+	if t.timerFired {
+		return true
+	}
+
+	t.timerStopRequest = true
+	t.timer.Stop()
+
+	return false
+}
+
+func (t *endpointTimeoutServer) startTimerIfNoActiveConns() {
+	any := false
+	t.activeConns.Range(func(key, value interface{}) bool {
+		any = true
+		return false
+	})
+	if !any {
+		t.timerMut.Lock()
+		defer t.timerMut.Unlock()
+
+		t.timerStopRequest = false
+		t.timer.Reset(t.timeout)
 	}
 }

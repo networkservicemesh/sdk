@@ -79,12 +79,14 @@ func TestEndpointTimeout_Refresh(t *testing.T) {
 	clockMock.Add(timeout - 1)
 	conn, err := server.Request(ctx, &networkservice.NetworkServiceRequest{})
 	require.NoError(t, err)
-	clockMock.Add(1)
+	clockMock.Add(timeout)
 	require.Never(t, flag.Load, testWait, testTick)
 
-	_, err = server.Close(ctx, conn) // Closes shouldn't affect timeout
+	_, err = server.Close(ctx, conn)
 	require.NoError(t, err)
 	clockMock.Add(timeout - 1)
+	require.Never(t, flag.Load, testWait, testTick)
+	clockMock.Add(1)
 	require.Eventually(t, flag.Load, testWait, testTick)
 }
 
