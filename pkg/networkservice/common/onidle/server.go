@@ -44,7 +44,7 @@ type onIdleServer struct {
 //
 // If timeout passes, server calls specified notify function and all further Requests will fail.
 //
-// If ctx is cancelled before timeout, the server stops monitoring connections without calling notify.
+// If ctx is canceled before timeout, the server stops monitoring connections without calling notify.
 // Further calls to Request will not be affected by this.
 func NewServer(ctx context.Context, notify func(), options ...Option) networkservice.NetworkServiceServer {
 	clockTime := clock.FromContext(ctx)
