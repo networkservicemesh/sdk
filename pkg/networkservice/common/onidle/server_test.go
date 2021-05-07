@@ -174,7 +174,7 @@ func TestIdleNotifier_ContextCancel(t *testing.T) {
 	timeout := time.Hour
 	var flag atomic.Bool
 
-	_ = onidle.NewServer(ctx, func() {
+	server := onidle.NewServer(ctx, func() {
 		flag.Store(true)
 	}, onidle.WithTimeout(timeout))
 
@@ -185,4 +185,29 @@ func TestIdleNotifier_ContextCancel(t *testing.T) {
 	}, time.Second, testTick)
 	clockMock.Add(timeout)
 	require.Never(t, flag.Load, testWait, testTick)
+
+	_, err := server.Request(ctx, &networkservice.NetworkServiceRequest{})
+	require.NoError(t, err)
+}
+
+func TestIdleNotifier_RequestAfterExpire(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	clockMock := clockmock.New()
+	ctx = clock.WithClock(ctx, clockMock)
+
+	timeout := time.Hour
+	var flag atomic.Bool
+
+	server := onidle.NewServer(ctx, func() {
+		flag.Store(true)
+	}, onidle.WithTimeout(timeout))
+
+	clockMock.Add(timeout)
+	require.Eventually(t, flag.Load, time.Second, testTick)
+	_, err := server.Request(ctx, &networkservice.NetworkServiceRequest{})
+	require.Error(t, err)
 }
