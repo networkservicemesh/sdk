@@ -179,7 +179,10 @@ func TestIdleNotifier_ContextCancel(t *testing.T) {
 	}, onidle.WithTimeout(timeout))
 
 	cancel()
-	time.Sleep(time.Millisecond * 50)
+	require.Eventually(t, func() bool {
+		err := goleak.Find(goleak.IgnoreTopFunction("github.com/stretchr/testify/assert.Eventually"))
+		return err == nil
+	}, time.Second, testTick)
 	clockMock.Add(timeout)
 	require.Never(t, flag.Load, testWait, testTick)
 }
