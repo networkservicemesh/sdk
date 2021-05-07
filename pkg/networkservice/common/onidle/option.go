@@ -21,11 +21,11 @@ import (
 )
 
 // Option is an option for the connect server
-type Option func(t *endpointTimeoutServer)
+type Option func(t *onIdleServer)
 
-// WithTimeout sets timeout for endpointTimeoutServer
+// WithTimeout sets timeout for onIdleServer
 func WithTimeout(timeout time.Duration) Option {
-	return func(t *endpointTimeoutServer) {
+	return func(t *onIdleServer) {
 		t.timeout = timeout
 	}
 }

@@ -30,7 +30,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 )
 
-type endpointTimeoutServer struct {
+type onIdleServer struct {
 	ctx         context.Context
 	timeout     time.Duration
 	notify      func()
@@ -50,7 +50,7 @@ type endpointTimeoutServer struct {
 func NewServer(ctx context.Context, notify func(), options ...Option) networkservice.NetworkServiceServer {
 	clockTime := clock.FromContext(ctx)
 
-	t := &endpointTimeoutServer{
+	t := &onIdleServer{
 		ctx:     ctx,
 		timeout: time.Minute * 10,
 		notify:  notify,
@@ -67,7 +67,7 @@ func NewServer(ctx context.Context, notify func(), options ...Option) networkser
 	return t
 }
 
-func (t *endpointTimeoutServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+func (t *onIdleServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	_, isRefresh := t.activeConns.LoadOrStore(request.GetConnection().GetId(), struct{}{})
 
 	expired := t.stopTimer()
@@ -86,12 +86,12 @@ func (t *endpointTimeoutServer) Request(ctx context.Context, request *networkser
 	return conn, err
 }
 
-func (t *endpointTimeoutServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+func (t *onIdleServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	t.removeConnection(conn)
 	return next.Server(ctx).Close(ctx, conn)
 }
 
-func (t *endpointTimeoutServer) waitForTimeout() {
+func (t *onIdleServer) waitForTimeout() {
 	for {
 		select {
 		case <-t.ctx.Done():
@@ -110,7 +110,7 @@ func (t *endpointTimeoutServer) waitForTimeout() {
 }
 
 // stopTimer - stops the timer. Returns true if it has already fired, false otherwise
-func (t *endpointTimeoutServer) stopTimer() bool {
+func (t *onIdleServer) stopTimer() bool {
 	t.timerMut.Lock()
 	defer t.timerMut.Unlock()
 
@@ -124,12 +124,12 @@ func (t *endpointTimeoutServer) stopTimer() bool {
 	return false
 }
 
-func (t *endpointTimeoutServer) removeConnection(conn *networkservice.Connection) {
+func (t *onIdleServer) removeConnection(conn *networkservice.Connection) {
 	t.activeConns.Delete(conn.GetId())
 	t.startTimerIfNoActiveConns()
 }
 
-func (t *endpointTimeoutServer) startTimerIfNoActiveConns() {
+func (t *onIdleServer) startTimerIfNoActiveConns() {
 	any := false
 	t.activeConns.Range(func(key, value interface{}) bool {
 		any = true
