@@ -31,19 +31,18 @@ import (
 )
 
 type onIdleServer struct {
-	ctx         context.Context
-	timeout     time.Duration
-	notify      func()
-	activeConns sync.Map
-	timer       clock.Timer
+	ctx     context.Context
+	timeout time.Duration
+	notify  func()
+	timer   clock.Timer
 	// Timers don't support concurrency natively.
 	// If we stop it, they tell us if the timer was running before our call.
 	// But if timer was not running, there's no way to distinguish
 	// if it was stopped earlier (e.g. concurrently by another thread) or if it has already fired.
 	// Therefore, we should implement some manual sync for this.
-	timerMut     sync.Mutex
-	timerFired   bool
-	timerCounter int
+	timerMut    sync.Mutex
+	timerFired  bool
+	activeConns map[string]struct{}
 }
 
 // NewServer - returns a new server chain element that notifies about long time periods without active requests
@@ -51,9 +50,10 @@ func NewServer(ctx context.Context, notify func(), options ...Option) networkser
 	clockTime := clock.FromContext(ctx)
 
 	t := &onIdleServer{
-		ctx:     ctx,
-		timeout: time.Minute * 10,
-		notify:  notify,
+		ctx:         ctx,
+		timeout:     time.Minute * 10,
+		notify:      notify,
+		activeConns: make(map[string]struct{}),
 	}
 
 	for _, opt := range options {
@@ -97,7 +97,7 @@ func (t *onIdleServer) waitForTimeout() {
 			return
 		case <-t.timer.C():
 			t.timerMut.Lock()
-			if t.timerCounter == 0 {
+			if len(t.activeConns) == 0 {
 				t.timerFired = true
 				t.timerMut.Unlock()
 				t.notify()
@@ -116,9 +116,9 @@ func (t *onIdleServer) addConnection(conn *networkservice.Connection) (isRefresh
 		return false, true
 	}
 
-	_, isRefresh = t.activeConns.LoadOrStore(conn.GetId(), struct{}{})
+	_, isRefresh = t.activeConns[conn.GetId()]
 	if !isRefresh {
-		t.timerCounter++
+		t.activeConns[conn.GetId()] = struct{}{}
 		t.timer.Stop()
 	}
 	return
@@ -128,10 +128,10 @@ func (t *onIdleServer) removeConnection(conn *networkservice.Connection) {
 	t.timerMut.Lock()
 	defer t.timerMut.Unlock()
 
-	_, loaded := t.activeConns.LoadAndDelete(conn.GetId())
+	_, loaded := t.activeConns[conn.GetId()]
 	if loaded {
-		t.timerCounter--
-		if t.timerCounter == 0 {
+		delete(t.activeConns, conn.GetId())
+		if len(t.activeConns) == 0 {
 			t.timer.Reset(t.timeout)
 		}
 	}
