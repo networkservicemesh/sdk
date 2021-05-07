@@ -31,10 +31,10 @@ import (
 )
 
 type onIdleServer struct {
-	ctx     context.Context
-	timeout time.Duration
-	notify  func()
-	timer   clock.Timer
+	ctx         context.Context
+	timeout     time.Duration
+	notify      func()
+	timer       clock.Timer
 	timerMut    sync.Mutex
 	timerFired  bool
 	activeConns map[string]struct{}
@@ -60,9 +60,26 @@ func NewServer(ctx context.Context, notify func(), options ...Option) networkser
 		opt(t)
 	}
 
-	t.timer = clockTime.Timer(t.timeout)
+	t.timer = clockTime.AfterFunc(t.timeout, func() {
+		if ctx.Err() != nil {
+			return
+		}
 
-	go t.waitForTimeout()
+		t.timerMut.Lock()
+		defer t.timerMut.Unlock()
+
+		if t.timerFired || len(t.activeConns) != 0 {
+			return
+		}
+
+		t.timerFired = true
+		t.notify()
+	})
+
+	go func() {
+		<-t.ctx.Done()
+		t.timer.Stop()
+	}()
 
 	return t
 }
@@ -87,25 +104,6 @@ func (t *onIdleServer) Request(ctx context.Context, request *networkservice.Netw
 func (t *onIdleServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	t.removeConnection(conn)
 	return next.Server(ctx).Close(ctx, conn)
-}
-
-func (t *onIdleServer) waitForTimeout() {
-	for {
-		select {
-		case <-t.ctx.Done():
-			t.timer.Stop()
-			return
-		case <-t.timer.C():
-			t.timerMut.Lock()
-			if len(t.activeConns) == 0 {
-				t.timerFired = true
-				t.timerMut.Unlock()
-				t.notify()
-				return
-			}
-			t.timerMut.Unlock()
-		}
-	}
 }
 
 func (t *onIdleServer) addConnection(conn *networkservice.Connection) (isRefresh, expired bool) {
