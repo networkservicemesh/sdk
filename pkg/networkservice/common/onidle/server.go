@@ -130,7 +130,9 @@ func (t *onIdleServer) removeConnection(conn *networkservice.Connection) {
 	if loaded {
 		delete(t.activeConns, conn.GetId())
 		if len(t.activeConns) == 0 {
-			t.timer.Reset(t.timeout)
+			if t.ctx.Err() == nil {
+				t.timer.Reset(t.timeout)
+			}
 		}
 	}
 }
