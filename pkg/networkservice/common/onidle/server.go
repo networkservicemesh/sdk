@@ -66,13 +66,14 @@ func NewServer(ctx context.Context, notify func(), options ...Option) networkser
 		}
 
 		t.timerMut.Lock()
-		defer t.timerMut.Unlock()
 
 		if t.timerFired || len(t.activeConns) != 0 {
+			t.timerMut.Unlock()
 			return
 		}
 
 		t.timerFired = true
+		t.timerMut.Unlock()
 		t.notify()
 	})
 
