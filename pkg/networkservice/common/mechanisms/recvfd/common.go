@@ -68,6 +68,10 @@ func recvFDAndSwapInodeToFile(ctx context.Context, fileMap *perConnectionFileMap
 				// any of the other chain elements using the information, and since that filename will be
 				// file:///proc/${pid}/fd/${fd} we need to remember it because each time we get it from the
 				// grpcfd.Recver it will be a *different* fd and thus a different filename
+				if file == nil {
+					err = errors.Wrapf(ctx.Err(), "nil file received for %s", inodeURLStr)
+					return
+				}
 				fileMap.filesByInodeURL[inodeURL.String()] = file
 			}
 		}
