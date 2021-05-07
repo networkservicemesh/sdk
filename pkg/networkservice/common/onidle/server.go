@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package onidle provides server chain element that executes a callback when there were no connections for specified time
+// Package onidle provides server chain element that executes a callback when there were no active connections for specified time
 package onidle
 
 import (
@@ -35,17 +35,17 @@ type onIdleServer struct {
 	timeout time.Duration
 	notify  func()
 	timer   clock.Timer
-	// Timers don't support concurrency natively.
-	// If we stop it, they tell us if the timer was running before our call.
-	// But if timer was not running, there's no way to distinguish
-	// if it was stopped earlier (e.g. concurrently by another thread) or if it has already fired.
-	// Therefore, we should implement some manual sync for this.
 	timerMut    sync.Mutex
 	timerFired  bool
 	activeConns map[string]struct{}
 }
 
-// NewServer - returns a new server chain element that notifies about long time periods without active requests
+// NewServer returns a new server chain element that notifies about long time periods without active connections.
+//
+// If timeout passes, server calls specified notify function and all further Requests will fail.
+//
+// If ctx is cancelled before timeout, the server stops monitoring connections without calling notify.
+// Further calls to Request will not be affected by this.
 func NewServer(ctx context.Context, notify func(), options ...Option) networkservice.NetworkServiceServer {
 	clockTime := clock.FromContext(ctx)
 
