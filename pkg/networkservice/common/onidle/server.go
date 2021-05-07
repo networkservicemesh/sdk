@@ -71,7 +71,6 @@ func (t *onIdleServer) Request(ctx context.Context, request *networkservice.Netw
 	isRefresh, expired := t.addConnection(request.GetConnection())
 
 	if expired {
-		t.removeConnection(request.GetConnection())
 		return nil, errors.New("endpoint expired")
 	}
 
