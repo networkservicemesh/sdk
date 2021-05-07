@@ -41,9 +41,9 @@ type onIdleServer struct {
 	// But if timer was not running, there's no way to distinguish
 	// if it was stopped earlier (e.g. concurrently by another thread) or if it has already fired.
 	// Therefore, we should implement some manual sync for this.
-	timerMut         sync.Mutex
-	timerStopRequest bool
-	timerFired       bool
+	timerMut     sync.Mutex
+	timerFired   bool
+	timerCounter int
 }
 
 // NewServer - returns a new server chain element that notifies about long time periods without active requests
@@ -68,9 +68,8 @@ func NewServer(ctx context.Context, notify func(), options ...Option) networkser
 }
 
 func (t *onIdleServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	_, isRefresh := t.activeConns.LoadOrStore(request.GetConnection().GetId(), struct{}{})
+	isRefresh, expired := t.addConnection(request.GetConnection())
 
-	expired := t.stopTimer()
 	if expired {
 		t.removeConnection(request.GetConnection())
 		return nil, errors.New("endpoint expired")
@@ -98,7 +97,7 @@ func (t *onIdleServer) waitForTimeout() {
 			return
 		case <-t.timer.C():
 			t.timerMut.Lock()
-			if !t.timerStopRequest {
+			if t.timerCounter == 0 {
 				t.timerFired = true
 				t.timerMut.Unlock()
 				t.notify()
@@ -109,37 +108,31 @@ func (t *onIdleServer) waitForTimeout() {
 	}
 }
 
-// stopTimer - stops the timer. Returns true if it has already fired, false otherwise
-func (t *onIdleServer) stopTimer() bool {
+func (t *onIdleServer) addConnection(conn *networkservice.Connection) (isRefresh, expired bool) {
 	t.timerMut.Lock()
 	defer t.timerMut.Unlock()
 
 	if t.timerFired {
-		return true
+		return false, true
 	}
 
-	t.timerStopRequest = true
-	t.timer.Stop()
-
-	return false
+	_, isRefresh = t.activeConns.LoadOrStore(conn.GetId(), struct{}{})
+	if !isRefresh {
+		t.timerCounter++
+		t.timer.Stop()
+	}
+	return
 }
 
 func (t *onIdleServer) removeConnection(conn *networkservice.Connection) {
-	t.activeConns.Delete(conn.GetId())
-	t.startTimerIfNoActiveConns()
-}
+	t.timerMut.Lock()
+	defer t.timerMut.Unlock()
 
-func (t *onIdleServer) startTimerIfNoActiveConns() {
-	any := false
-	t.activeConns.Range(func(key, value interface{}) bool {
-		any = true
-		return false
-	})
-	if !any {
-		t.timerMut.Lock()
-		defer t.timerMut.Unlock()
-
-		t.timerStopRequest = false
-		t.timer.Reset(t.timeout)
+	_, loaded := t.activeConns.LoadAndDelete(conn.GetId())
+	if loaded {
+		t.timerCounter--
+		if t.timerCounter == 0 {
+			t.timer.Reset(t.timeout)
+		}
 	}
 }
