@@ -94,6 +94,7 @@ func (t *onIdleServer) waitForTimeout() {
 	for {
 		select {
 		case <-t.ctx.Done():
+			t.timer.Stop()
 			return
 		case <-t.timer.C():
 			t.timerMut.Lock()
