@@ -32,6 +32,7 @@ import (
 )
 
 type ipamServer struct {
+	Map
 	ipPools  []*ippool.IPPool
 	prefixes []*net.IPNet
 	once     sync.Once
@@ -90,10 +91,12 @@ func (s *ipamServer) Request(ctx context.Context, request *networkservice.Networ
 
 	excludeIP4, excludeIP6 := exclude(ipContext.GetExcludedPrefixes()...)
 
-	connInfo, loaded := loadConnInfo(ctx)
+	connInfo, loaded := s.Load(conn.GetId())
 	var err error
 	if loaded && (connInfo.shouldUpdate(excludeIP4) || connInfo.shouldUpdate(excludeIP6)) {
 		// some of the existing addresses are excluded
+		deleteAddr(&ipContext.SrcIpAddrs, connInfo.srcAddr)
+		deleteAddr(&ipContext.DstIpAddrs, connInfo.dstAddr)
 		deleteRoute(&ipContext.SrcRoutes, connInfo.dstAddr)
 		deleteRoute(&ipContext.DstRoutes, connInfo.srcAddr)
 		s.free(connInfo)
@@ -103,13 +106,13 @@ func (s *ipamServer) Request(ctx context.Context, request *networkservice.Networ
 		if connInfo, err = s.getP2PAddrs(excludeIP4, excludeIP6); err != nil {
 			return nil, err
 		}
-		storeConnInfo(ctx, connInfo)
+		s.Store(conn.GetId(), connInfo)
 	}
 
-	ipContext.SrcIpAddrs = []string{connInfo.srcAddr}
+	addAddr(&ipContext.SrcIpAddrs, connInfo.srcAddr)
 	addRoute(&ipContext.SrcRoutes, connInfo.dstAddr)
 
-	ipContext.DstIpAddrs = []string{connInfo.dstAddr}
+	addAddr(&ipContext.DstIpAddrs, connInfo.dstAddr)
 	addRoute(&ipContext.DstRoutes, connInfo.srcAddr)
 
 	conn, err = next.Server(ctx).Request(ctx, request)
@@ -157,13 +160,31 @@ func addRoute(routes *[]*networkservice.Route, prefix string) {
 	})
 }
 
+func deleteAddr(addrs *[]string, addr string) {
+	for i, a := range *addrs {
+		if a == addr {
+			*addrs = append((*addrs)[:i], (*addrs)[i+1:]...)
+			return
+		}
+	}
+}
+
+func addAddr(addrs *[]string, addr string) {
+	for _, a := range *addrs {
+		if a == addr {
+			return
+		}
+	}
+	*addrs = append(*addrs, addr)
+}
+
 func (s *ipamServer) Close(ctx context.Context, conn *networkservice.Connection) (_ *empty.Empty, err error) {
 	s.once.Do(s.init)
 	if s.initErr != nil {
 		return nil, s.initErr
 	}
 
-	if connInfo, ok := loadConnInfo(ctx); ok {
+	if connInfo, ok := s.Load(conn.GetId()); ok {
 		s.free(connInfo)
 	}
 

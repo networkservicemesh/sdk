@@ -23,6 +23,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
@@ -64,6 +66,17 @@ func validateConn(t *testing.T, conn *networkservice.Connection, dst, src string
 			Prefix: dst,
 		},
 	})
+}
+
+func validateConns(t *testing.T, conn *networkservice.Connection, dsts, srcs []string) {
+	for i, dst := range dsts {
+		require.Equal(t, conn.Context.IpContext.DstIpAddrs[i], dst)
+		require.Equal(t, conn.Context.IpContext.SrcRoutes[i].Prefix, dst)
+	}
+	for i, src := range srcs {
+		require.Equal(t, conn.Context.IpContext.SrcIpAddrs[i], src)
+		require.Equal(t, conn.Context.IpContext.DstRoutes[i].Prefix, src)
+	}
 }
 
 //nolint:dupl
@@ -346,4 +359,67 @@ func TestRefreshNextError(t *testing.T) {
 	conn, err = srv.Request(context.Background(), newRequest())
 	require.NoError(t, err)
 	validateConn(t, conn, "192.168.0.2/32", "192.168.0.3/32")
+}
+
+//nolint:dupl
+func TestServers(t *testing.T) {
+	_, ipNet1, err := net.ParseCIDR("192.168.3.4/16")
+	require.NoError(t, err)
+	_, ipNet2, err := net.ParseCIDR("fd00::/8")
+	require.NoError(t, err)
+
+	srv := chain.NewNetworkServiceServer(
+		newIpamServer(ipNet1),
+		newIpamServer(ipNet2),
+	)
+
+	conn1, err := srv.Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConns(t, conn1, []string{"192.168.0.0/32", "fd00::/128"}, []string{"192.168.0.1/32", "fd00::1/128"})
+
+	conn2, err := srv.Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConns(t, conn2, []string{"192.168.0.2/32", "fd00::2/128"}, []string{"192.168.0.3/32", "fd00::3/128"})
+
+	_, err = srv.Close(context.Background(), conn1)
+	require.NoError(t, err)
+
+	conn3, err := srv.Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConns(t, conn3, []string{"192.168.0.0/32", "fd00::/128"}, []string{"192.168.0.1/32", "fd00::1/128"})
+
+	conn4, err := srv.Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConns(t, conn4, []string{"192.168.0.4/32", "fd00::4/128"}, []string{"192.168.0.5/32", "fd00::5/128"})
+}
+
+//nolint:dupl
+func TestRefreshRequestMultiServer(t *testing.T) {
+	_, ipNet1, err := net.ParseCIDR("192.168.3.4/16")
+	require.NoError(t, err)
+	_, ipNet2, err := net.ParseCIDR("fe80::/64")
+	require.NoError(t, err)
+
+	srv := chain.NewNetworkServiceServer(
+		newIpamServer(ipNet1),
+		newIpamServer(ipNet2),
+	)
+
+	req := newRequest()
+	req.Connection.Context.IpContext.ExcludedPrefixes = []string{"192.168.0.1/32", "fe80::1/128"}
+	conn, err := srv.Request(context.Background(), req)
+	require.NoError(t, err)
+	validateConns(t, conn, []string{"192.168.0.0/32", "fe80::/128"}, []string{"192.168.0.2/32", "fe80::2/128"})
+
+	req = newRequest()
+	req.Connection = conn
+	conn, err = srv.Request(context.Background(), req)
+	require.NoError(t, err)
+	validateConns(t, conn, []string{"192.168.0.0/32", "fe80::/128"}, []string{"192.168.0.2/32", "fe80::2/128"})
+
+	req.Connection = conn.Clone()
+	req.Connection.Context.IpContext.ExcludedPrefixes = []string{"192.168.0.1/30", "fe80::1/126"}
+	conn, err = srv.Request(context.Background(), req)
+	require.NoError(t, err)
+	validateConns(t, conn, []string{"192.168.0.4/32", "fe80::4/128"}, []string{"192.168.0.5/32", "fe80::5/128"})
 }
