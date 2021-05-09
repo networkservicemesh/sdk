@@ -78,14 +78,14 @@ func (tc *labelsMatchingFindClient) Recv() (*registry.NetworkService, error) {
 	for _, match := range ns.GetMatches() {
 		for _, dest := range match.GetRoutes() {
 			for key, val := range dest.GetDestinationSelector() {
-				t, err := template.New(fmt.Sprintf("template-%v", key)).Parse(val)
-				if err != nil {
+				t, innerErr := template.New(fmt.Sprintf("template-%v", key)).Parse(val)
+				if innerErr != nil {
 					continue
 				}
 
 				var b bytes.Buffer
-				err = t.Execute(&b, tc.labelsMatchingClient)
-				if err != nil {
+				innerErr = t.Execute(&b, tc.labelsMatchingClient)
+				if innerErr != nil {
 					continue
 				}
 
@@ -94,5 +94,5 @@ func (tc *labelsMatchingFindClient) Recv() (*registry.NetworkService, error) {
 		}
 	}
 
-	return ns, err
+	return ns, nil
 }

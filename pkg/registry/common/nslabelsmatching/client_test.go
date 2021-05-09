@@ -150,7 +150,7 @@ func TestIncorrectTemplate(t *testing.T) {
 	ns, err = nsrfc.Recv()
 	require.NoError(t, err)
 	require.NotEqual(t, testEnvValue, ns.Matches[0].Routes[0].DestinationSelector[destinationTestKey])
-	require.True(t, len(ns.Matches[0].Routes[0].DestinationSelector[destinationTestKey]) == 0)
+	require.True(t, ns.Matches[0].Routes[0].DestinationSelector[destinationTestKey] == "")
 
 	require.NoError(t, ctx.Err())
 }
