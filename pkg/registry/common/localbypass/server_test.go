@@ -139,6 +139,54 @@ func TestLocalBypassNSEServer_SlowRegistryFind(t *testing.T) {
 	require.NoError(t, err)
 }
 
+type nsmgrProxyRegistryServer struct {
+	registry.NetworkServiceEndpointRegistryServer
+}
+
+func (n *nsmgrProxyRegistryServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (reg *registry.NetworkServiceEndpoint, err error) {
+	nse.Url = "tcp://nsmgr-proxy:5005"
+	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
+}
+
+func (n *nsmgrProxyRegistryServer) Find(q *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
+	return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(q, s)
+}
+
+func TestLocalByPass_ShouldCorrectlyHandleNSEsFromFloatingRegistry(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	const expectedURL = "file://nse.sock"
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	nsmgrRegistryClient := adapters.NetworkServiceEndpointServerToClient(next.NewNetworkServiceEndpointRegistryServer(
+		localbypass.NewNetworkServiceEndpointRegistryServer(nsmgrURL),
+		memory.NewNetworkServiceEndpointRegistryServer(),
+		new(nsmgrProxyRegistryServer),
+	))
+
+	_, err := nsmgrRegistryClient.Register(ctx, &registry.NetworkServiceEndpoint{
+		Name: "nse-1",
+		Url:  expectedURL,
+	})
+
+	require.NoError(t, err)
+
+	stream, err := nsmgrRegistryClient.Find(ctx, &registry.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+			Name: "nse-1",
+		},
+	})
+
+	require.NoError(t, err)
+
+	l := registry.ReadNetworkServiceEndpointList(stream)
+
+	require.Len(t, l, 1)
+	require.Equal(t, expectedURL, l[0].Url)
+}
+
 func TestLocalBypassNSEServer_SlowRegistryFindWatch(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
