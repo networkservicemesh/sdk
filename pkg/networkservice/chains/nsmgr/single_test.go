@@ -33,6 +33,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -253,4 +254,54 @@ func Test_Local_NoURLUsecase(t *testing.T) {
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
 	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Closes))
+}
+
+func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	const (
+		testEnvName             = "NODE_NAME"
+		testEnvValue            = "testValue"
+		destinationTestKey      = "nodeName"
+		destinationTestTemplate = "{{index .Src \"NodeNameKey\"}}"
+	)
+
+	err := os.Setenv(testEnvName, testEnvValue)
+	require.NoError(t, err)
+
+	domain := sandbox.NewBuilder(t).
+		SetNodesCount(1).
+		SetRegistryProxySupplier(nil).
+		SetNSMgrProxySupplier(nil).
+		SetContext(ctx).
+		Build()
+
+	ns := &registry.NetworkService{
+		Matches: []*registry.Match{
+			{
+				Routes: []*registry.Destination{
+					{
+						DestinationSelector: map[string]string{
+							destinationTestKey: destinationTestTemplate,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	nsrc := adapters.NetworkServiceServerToClient(domain.Nodes[0].NSMgr.NetworkServiceRegistryServer())
+
+	ns, err = nsrc.Register(ctx, ns)
+	require.NoError(t, err)
+
+	nsrfc, err := nsrc.Find(ctx, &registry.NetworkServiceQuery{NetworkService: ns})
+	require.NoError(t, err)
+
+	ns, err = nsrfc.Recv()
+	require.NoError(t, err)
+	require.Equal(t, testEnvValue, ns.Matches[0].Routes[0].DestinationSelector[destinationTestKey])
 }

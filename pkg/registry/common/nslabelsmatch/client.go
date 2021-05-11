@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package nslabelsmatching provides registry elements for label matching
-package nslabelsmatching
+// Package nslabelsmatch provides registry elements for label matching
+package nslabelsmatch
 
 import (
 	"bytes"
@@ -53,13 +53,14 @@ func (s *labelsMatchingClient) Unregister(ctx context.Context, ns *registry.Netw
 	return next.NetworkServiceRegistryClient(ctx).Unregister(ctx, ns, opts...)
 }
 
-// NewNetworkServiceRegistryClient creates new instance of NetworkServiceRegistryClient
-func NewNetworkServiceRegistryClient() registry.NetworkServiceRegistryClient {
+// NewNetworkServiceRegistryClient creates new instance of NetworkServiceRegistryClient chain element,
+// which parses labels in template format via k8s envs for each incoming NetworkService
+func NewNetworkServiceRegistryClient(ctx context.Context) registry.NetworkServiceRegistryClient {
 	srv := &labelsMatchingClient{
 		Src: map[string]string{},
 	}
 
-	clientinfo.AddClientInfo(context.Background(), srv.Src)
+	clientinfo.AddClientInfo(ctx, srv.Src)
 
 	return srv
 }

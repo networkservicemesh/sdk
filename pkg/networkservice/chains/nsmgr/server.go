@@ -48,7 +48,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/nslabelsmatching"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/nslabelsmatch"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/querycache"
 	registryrecvfd "github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
 	registryserialize "github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
@@ -149,7 +149,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		nsRegistry = registryadapter.NetworkServiceClientToServer(
 			nextwrap.NewNetworkServiceRegistryClient(
 				registrychain.NewNetworkServiceRegistryClient(
-					nslabelsmatching.NewNetworkServiceRegistryClient(),
+					nslabelsmatch.NewNetworkServiceRegistryClient(ctx),
 					registryapi.NewNetworkServiceRegistryClient(*opts.regClientConn),
 				),
 			),
