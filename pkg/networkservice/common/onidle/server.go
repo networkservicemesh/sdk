@@ -93,10 +93,8 @@ func (t *onIdleServer) Request(ctx context.Context, request *networkservice.Netw
 	}
 
 	conn, err := next.Server(ctx).Request(ctx, request)
-	if err != nil {
-		if !isRefresh {
-			t.removeConnection(request.GetConnection())
-		}
+	if err != nil && !isRefresh {
+		t.removeConnection(request.GetConnection())
 	}
 
 	return conn, err
@@ -115,25 +113,21 @@ func (t *onIdleServer) addConnection(conn *networkservice.Connection) (isRefresh
 		return false, true
 	}
 
-	_, isRefresh = t.activeConns[conn.GetId()]
-	if !isRefresh {
+	if _, isRefresh = t.activeConns[conn.GetId()]; !isRefresh {
 		t.activeConns[conn.GetId()] = struct{}{}
 		t.timer.Stop()
 	}
-	return
+	return isRefresh, false
 }
 
 func (t *onIdleServer) removeConnection(conn *networkservice.Connection) {
 	t.timerMut.Lock()
 	defer t.timerMut.Unlock()
 
-	_, loaded := t.activeConns[conn.GetId()]
-	if loaded {
+	if _, loaded := t.activeConns[conn.GetId()]; loaded {
 		delete(t.activeConns, conn.GetId())
-		if len(t.activeConns) == 0 {
-			if t.ctx.Err() == nil {
-				t.timer.Reset(t.timeout)
-			}
+		if len(t.activeConns) == 0 && t.ctx.Err() == nil {
+			t.timer.Reset(t.timeout)
 		}
 	}
 }
