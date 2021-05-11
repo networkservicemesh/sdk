@@ -58,69 +58,47 @@ func TestNSTemplates(t *testing.T) {
 	)
 
 	type test struct {
-		name string
-		ns   *registry.NetworkService
-		want string
+		name     string
+		template string
+		want     string
 	}
 
 	tests := []test{
 		{
-			name: "CorrectTemplate",
-			ns: &registry.NetworkService{
-				Matches: []*registry.Match{
-					{
-						Routes: []*registry.Destination{
-							{
-								DestinationSelector: map[string]string{
-									destinationTestKey: destinationTestCorrectTemplate,
-								},
-							},
-						},
-					},
-				},
-			},
-			want: testEnvValue,
+			name:     "CorrectTemplate",
+			template: destinationTestCorrectTemplate,
+			want:     testEnvValue,
 		},
 		{
-			name: "IncorrectTemplate",
-			ns: &registry.NetworkService{
-				Matches: []*registry.Match{
-					{
-						Routes: []*registry.Destination{
-							{
-								DestinationSelector: map[string]string{
-									destinationTestKey: destinationTestIncorrectTemplate,
-								},
-							},
-						},
-					},
-				},
-			},
-			want: "",
+			name:     "IncorrectTemplate",
+			template: destinationTestIncorrectTemplate,
+			want:     "",
 		},
 		{
-			name: "NotATemplate",
-			ns: &registry.NetworkService{
-				Matches: []*registry.Match{
-					{
-						Routes: []*registry.Destination{
-							{
-								DestinationSelector: map[string]string{
-									destinationTestKey: destinationTestNotATemplate,
-								},
-							},
-						},
-					},
-				},
-			},
-			want: destinationTestNotATemplate,
+			name:     "NotATemplate",
+			template: destinationTestNotATemplate,
+			want:     destinationTestNotATemplate,
 		},
 	}
 
-	for _, test := range tests {
-		tc := test
+	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			ns, err := nsrc.Register(ctx, tc.ns)
+			ns := &registry.NetworkService{
+				Matches: []*registry.Match{
+					{
+						Routes: []*registry.Destination{
+							{
+								DestinationSelector: map[string]string{
+									destinationTestKey: tc.template,
+								},
+							},
+						},
+					},
+				},
+			}
+
+			ns, err := nsrc.Register(ctx, ns)
 			require.NoError(t, err)
 
 			nsrfc, err := nsrc.Find(ctx, &registry.NetworkServiceQuery{NetworkService: ns})
