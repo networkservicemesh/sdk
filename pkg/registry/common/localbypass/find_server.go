@@ -26,16 +26,13 @@ type localBypassNSEFindServer struct {
 }
 
 func (s *localBypassNSEFindServer) Send(nse *registry.NetworkServiceEndpoint) error {
-	if nse.ExpirationTime != nil && nse.ExpirationTime.Seconds == -1 {
+	if u, ok := s.nseURLs.Load(nse.Name); ok {
+		nse.Url = u.String()
+	}
+
+	if nse.Url != s.nsmgrURL || nse.ExpirationTime != nil && nse.ExpirationTime.Seconds == -1 {
 		return s.NetworkServiceEndpointRegistry_FindServer.Send(nse)
 	}
 
-	u, ok := s.nseURLs.Load(nse.Name)
-	if !ok {
-		return s.NetworkServiceEndpointRegistry_FindServer.Send(nse)
-	}
-
-	nse.Url = u.String()
-
-	return s.NetworkServiceEndpointRegistry_FindServer.Send(nse)
+	return nil
 }

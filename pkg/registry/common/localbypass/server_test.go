@@ -18,6 +18,7 @@ package localbypass_test
 
 import (
 	"context"
+	"io"
 	"testing"
 	"time"
 
@@ -89,6 +90,68 @@ func TestLocalBypassNSEServer(t *testing.T) {
 
 	_, err = stream.Recv()
 	require.Error(t, err)
+}
+
+func TestLocalBypassNSEServer_Restart(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	mem := memory.NewNetworkServiceEndpointRegistryServer()
+
+	server := next.NewNetworkServiceEndpointRegistryServer(
+		localbypass.NewNetworkServiceEndpointRegistryServer(nsmgrURL),
+		mem,
+	)
+
+	// 1. Register
+	nse, err := server.Register(context.Background(), &registry.NetworkServiceEndpoint{
+		Name: "nse",
+		Url:  nseURL,
+	})
+	require.NoError(t, err)
+	require.Equal(t, nseURL, nse.Url)
+
+	// 2. Find
+	stream, err := adapters.NetworkServiceEndpointServerToClient(server).Find(context.Background(), &registry.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
+	})
+	require.NoError(t, err)
+
+	findNSE, err := stream.Recv()
+	require.NoError(t, err)
+	require.Equal(t, nseURL, findNSE.Url)
+
+	// 3. Restart
+	server = next.NewNetworkServiceEndpointRegistryServer(
+		localbypass.NewNetworkServiceEndpointRegistryServer(nsmgrURL),
+		mem,
+	)
+
+	// 4. Try to find again
+	stream, err = adapters.NetworkServiceEndpointServerToClient(server).Find(context.Background(), &registry.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
+	})
+	require.NoError(t, err)
+
+	findNSE, err = stream.Recv()
+	if err != nil {
+		require.Error(t, err, io.EOF) // either return nothing
+	} else {
+		require.Equal(t, nseURL, findNSE.Url) // or return valid
+	}
+
+	// 5. Refresh register
+	_, err = server.Register(context.Background(), nse)
+	require.NoError(t, err)
+
+	// 6. Find
+	stream, err = adapters.NetworkServiceEndpointServerToClient(server).Find(context.Background(), &registry.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
+	})
+	require.NoError(t, err)
+
+	findNSE, err = stream.Recv()
+	require.NoError(t, err)
+	require.Equal(t, nseURL, findNSE.Url)
 }
 
 func TestLocalBypassNSEServer_SlowRegistryFind(t *testing.T) {
