@@ -165,6 +165,9 @@ func testServers(
 func TestMatchEmptySourceSelector(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
+	ctx, cancel := context.WithTimeout(context.Background(), testWait)
+	defer cancel()
+
 	nsName := networkServiceName()
 
 	nsServer, nseServer := testServers(t, nsName, endpoints(), fromFirewallMatch(), fromSomeMiddleAppMatch(), fromAnywhereMatch())
@@ -191,12 +194,15 @@ func TestMatchEmptySourceSelector(t *testing.T) {
 		}),
 	)
 
-	_, err := server.Request(context.Background(), request)
+	_, err := server.Request(ctx, request)
 	require.NoError(t, err)
 }
 
 func TestMatchNonEmptySourceSelector(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), testWait)
+	defer cancel()
 
 	nsName := networkServiceName()
 
@@ -226,12 +232,15 @@ func TestMatchNonEmptySourceSelector(t *testing.T) {
 		}),
 	)
 
-	_, err := server.Request(context.Background(), request)
+	_, err := server.Request(ctx, request)
 	require.NoError(t, err)
 }
 
 func TestMatchEmptySourceSelectorGoingFirst(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), testWait)
+	defer cancel()
 
 	nsName := networkServiceName()
 
@@ -261,12 +270,15 @@ func TestMatchEmptySourceSelectorGoingFirst(t *testing.T) {
 		}),
 	)
 
-	_, err := server.Request(context.Background(), request)
+	_, err := server.Request(ctx, request)
 	require.NoError(t, err)
 }
 
 func TestMatchNothing(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), testWait)
+	defer cancel()
 
 	nsName := networkServiceName()
 
@@ -291,12 +303,15 @@ func TestMatchNothing(t *testing.T) {
 		}),
 	)
 
-	_, err := server.Request(context.Background(), request)
+	_, err := server.Request(ctx, request)
 	require.NoError(t, err)
 }
 
 func TestMatchSelectedNSE(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), testWait)
+	defer cancel()
 
 	nsName := networkServiceName()
 	nses := endpoints()
@@ -318,7 +333,7 @@ func TestMatchSelectedNSE(t *testing.T) {
 		}),
 	)
 
-	_, err := server.Request(context.Background(), request)
+	_, err := server.Request(ctx, request)
 	require.NoError(t, err)
 }
 
