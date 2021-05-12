@@ -310,4 +310,7 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 
 	_, err = nsc.Request(ctx, defaultRequest(ns.Name))
 	require.NoError(t, err)
+
+	_, err = domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nse)
+	require.NoError(t, err)
 }
