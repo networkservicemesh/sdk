@@ -28,12 +28,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
+	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -293,7 +294,14 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 		},
 	}
 
-	nsrc := adapters.NetworkServiceServerToClient(domain.Nodes[0].NSMgr.NetworkServiceRegistryServer())
+	// start grpc client connection and register it
+	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(domain.Nodes[0].NSMgr.URL), sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...)
+	require.NoError(t, err)
+	defer func() {
+		_ = cc.Close()
+	}()
+
+	nsrc := registry.NewNetworkServiceRegistryClient(cc)
 
 	ns, err = nsrc.Register(ctx, ns)
 	require.NoError(t, err)

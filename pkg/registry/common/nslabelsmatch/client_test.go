@@ -51,10 +51,9 @@ func TestNSTemplates(t *testing.T) {
 	err := os.Setenv(testEnvName, testEnvValue)
 	require.NoError(t, err)
 
-	mem := memory.NewNetworkServiceRegistryServer()
 	nsrc := chain.NewNetworkServiceRegistryClient(
 		nslabelsmatch.NewNetworkServiceRegistryClient(ctx),
-		adapters.NetworkServiceServerToClient(mem),
+		adapters.NetworkServiceServerToClient(memory.NewNetworkServiceRegistryServer()),
 	)
 
 	type test struct {

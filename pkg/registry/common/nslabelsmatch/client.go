@@ -33,7 +33,7 @@ import (
 )
 
 type labelsMatchingClient struct {
-	Src map[string]string
+	src map[string]string
 }
 
 func (s *labelsMatchingClient) Register(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
@@ -57,10 +57,10 @@ func (s *labelsMatchingClient) Unregister(ctx context.Context, ns *registry.Netw
 // which parses labels in template format via k8s envs for each incoming NetworkService
 func NewNetworkServiceRegistryClient(ctx context.Context) registry.NetworkServiceRegistryClient {
 	srv := &labelsMatchingClient{
-		Src: map[string]string{},
+		src: map[string]string{},
 	}
 
-	clientinfo.AddClientInfo(ctx, srv.Src)
+	clientinfo.AddClientInfo(ctx, srv.src)
 
 	return srv
 }
@@ -85,7 +85,11 @@ func (tc *labelsMatchingFindClient) Recv() (*registry.NetworkService, error) {
 				}
 
 				var b bytes.Buffer
-				innerErr = t.Execute(&b, tc.labelsMatchingClient)
+				innerErr = t.Execute(&b, struct {
+					Src map[string]string
+				}{
+					Src: tc.labelsMatchingClient.src,
+				})
 				if innerErr != nil {
 					continue
 				}
