@@ -95,7 +95,7 @@ func Test_DNSUsecase(t *testing.T) {
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
 
-	_, err = domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
+	err = domain.Nodes[0].UnregisterEndpoint(ctx, nseReg)
 	require.NoError(t, err)
 }
 
@@ -141,18 +141,18 @@ func Test_ShouldCorrectlyAddForwardersWithSameNames(t *testing.T) {
 	testNSEAndClient(ctx, t, domain, nseReg.Clone())
 
 	// 3. Delete first forwarder
-	_, err = domain.Nodes[0].ForwarderRegistryClient.Unregister(ctx, forwarder1Reg)
+	err = domain.Nodes[0].UnregisterForwarder(ctx, forwarder1Reg)
 	require.NoError(t, err)
 
 	testNSEAndClient(ctx, t, domain, nseReg.Clone())
 
 	// 4. Delete last forwarder
-	_, err = domain.Nodes[0].ForwarderRegistryClient.Unregister(ctx, forwarder3Reg)
+	err = domain.Nodes[0].UnregisterForwarder(ctx, forwarder3Reg)
 	require.NoError(t, err)
 
 	testNSEAndClient(ctx, t, domain, nseReg.Clone())
 
-	_, err = domain.Nodes[0].ForwarderRegistryClient.Unregister(ctx, forwarder2Reg)
+	err = domain.Nodes[0].UnregisterForwarder(ctx, forwarder2Reg)
 	require.NoError(t, err)
 }
 
@@ -197,7 +197,7 @@ func Test_ShouldCorrectlyAddEndpointsWithSameNames(t *testing.T) {
 
 	// 3. Delete endpoints
 	for _, nseReg := range nseRegs {
-		_, err := domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
+		err := domain.Nodes[0].UnregisterEndpoint(ctx, nseReg)
 		require.NoError(t, err)
 	}
 }

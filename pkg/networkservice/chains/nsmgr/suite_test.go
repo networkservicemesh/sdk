@@ -33,7 +33,6 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
@@ -127,7 +126,7 @@ func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
 
 	// Endpoint unregister
 	unregisterWG.Wait()
-	_, err = s.domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
+	err = s.domain.Nodes[0].UnregisterEndpoint(ctx, nseReg)
 	require.NoError(t, err)
 }
 
@@ -148,13 +147,7 @@ func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 	defer func() { _ = netListener.Close() }()
 	nseReg.Url = "tcp://" + netListener.Addr().String()
 
-	_, err = s.domain.Nodes[0].NSRegistryClient.Register(ctx, &registry.NetworkService{
-		Name:    nseReg.NetworkServiceNames[0],
-		Payload: payload.IP,
-	})
-	require.NoError(t, err)
-
-	nseReg, err = s.domain.Nodes[0].EndpointRegistryClient.Register(ctx, nseReg)
+	nseReg, err = s.domain.Nodes[0].RegisterEndpoint(ctx, nseReg)
 	require.NoError(t, err)
 
 	// 2. Postpone endpoint start
@@ -179,7 +172,7 @@ func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 	require.NoError(t, err)
 
 	// Endpoint unregister
-	_, err = s.domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
+	err = s.domain.Nodes[0].UnregisterEndpoint(ctx, nseReg)
 	require.NoError(t, err)
 }
 
@@ -249,7 +242,7 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 	// Endpoint unregister
 	unregisterWG.Wait()
 	for i := 0; i < len(nsesReg); i++ {
-		_, err = s.domain.Nodes[1].EndpointRegistryClient.Unregister(ctx, nsesReg[i])
+		err = s.domain.Nodes[1].UnregisterEndpoint(ctx, nsesReg[i])
 		require.NoError(t, err)
 	}
 }
@@ -295,7 +288,7 @@ func (s *nsmgrSuite) Test_RemoteUsecase() {
 	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Closes))
 
 	// Endpoint unregister
-	_, err = s.domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
+	err = s.domain.Nodes[0].UnregisterEndpoint(ctx, nseReg)
 	require.NoError(t, err)
 }
 
@@ -339,7 +332,7 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	require.Error(t, err)
 
 	// Endpoint unregister
-	_, err = s.domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
+	err = s.domain.Nodes[0].UnregisterEndpoint(ctx, nseReg)
 	require.NoError(t, err)
 }
 
@@ -384,7 +377,7 @@ func (s *nsmgrSuite) Test_LocalUsecase() {
 	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Closes))
 
 	// Endpoint unregister
-	_, err = s.domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
+	err = s.domain.Nodes[0].UnregisterEndpoint(ctx, nseReg)
 	require.NoError(t, err)
 }
 
@@ -444,7 +437,7 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 
 	// Endpoint unregister
 	for i := 0; i < len(nsesReg); i++ {
-		_, err = s.domain.Nodes[i].EndpointRegistryClient.Unregister(ctx, nsesReg[i])
+		err = s.domain.Nodes[i].UnregisterEndpoint(ctx, nsesReg[i])
 		require.NoError(t, err)
 	}
 }
@@ -505,7 +498,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 
 	// Endpoint unregister
 	for i := 0; i < len(nsesReg); i++ {
-		_, err = s.domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nsesReg[i])
+		err = s.domain.Nodes[0].UnregisterEndpoint(ctx, nsesReg[i])
 		require.NoError(t, err)
 	}
 }

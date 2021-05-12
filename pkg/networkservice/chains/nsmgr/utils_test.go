@@ -84,7 +84,7 @@ func testNSEAndClient(
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
 
-	_, err = domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
+	err = domain.Nodes[0].UnregisterEndpoint(ctx, nseReg)
 	require.NoError(t, err)
 }
 

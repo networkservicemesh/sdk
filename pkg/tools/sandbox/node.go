@@ -32,23 +32,25 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
+	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-// Node is a NSMgr with Forwarder, NSE registry clients
+// Node is a NSMgr with API to add and register NSs, Forwarders, NSEs
 type Node struct {
-	ctx                     context.Context
-	NSMgr                   *NSMgrEntry
-	Forwarder               []*EndpointEntry
-	ForwarderRegistryClient registryapi.NetworkServiceEndpointRegistryClient
-	EndpointRegistryClient  registryapi.NetworkServiceEndpointRegistryClient
-	NSRegistryClient        registryapi.NetworkServiceRegistryClient
+	ctx                context.Context
+	nsmgrCC            grpc.ClientConnInterface
+	nseRegistryClients nseRegistryClientMap
+
+	NSMgr            *NSMgrEntry
+	Forwarder        []*EndpointEntry
+	NSRegistryClient registryapi.NetworkServiceRegistryClient
 }
 
-// NewForwarder starts a new forwarder and registers it on the node NSMgr
+// NewForwarder starts a new forwarder and registers it on the node NSMgr with its own registry client
 func (n *Node) NewForwarder(
 	ctx context.Context,
 	nse *registryapi.NetworkServiceEndpoint,
@@ -68,23 +70,29 @@ func (n *Node) NewForwarder(
 		),
 	)
 
-	entry, err := n.newEndpoint(ctx, nse, generatorFunc, n.ForwarderRegistryClient, additionalFunctionality...)
+	registryClient := registryclient.NewNetworkServiceEndpointRegistryInterposeClient(ctx, n.nsmgrCC)
+
+	entry, err := n.newEndpoint(ctx, nse, generatorFunc, registryClient, additionalFunctionality...)
 	if err != nil {
 		return nil, err
 	}
 	*ep = *entry
+
 	n.Forwarder = append(n.Forwarder, ep)
+
 	return ep, nil
 }
 
-// NewEndpoint starts a new endpoint and registers it on the node NSMgr
+// NewEndpoint starts a new endpoint and registers it on the node NSMgr with its own registry client
 func (n *Node) NewEndpoint(
 	ctx context.Context,
 	nse *registryapi.NetworkServiceEndpoint,
 	generatorFunc token.GeneratorFunc,
 	additionalFunctionality ...networkservice.NetworkServiceServer,
 ) (*EndpointEntry, error) {
-	return n.newEndpoint(ctx, nse, generatorFunc, n.EndpointRegistryClient, additionalFunctionality...)
+	registryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx, n.nsmgrCC)
+
+	return n.newEndpoint(ctx, nse, generatorFunc, registryClient, additionalFunctionality...)
 }
 
 func (n *Node) newEndpoint(
@@ -116,7 +124,7 @@ func (n *Node) newEndpoint(
 
 	// 3. Register with the node registry client
 	var reg *registryapi.NetworkServiceEndpoint
-	if reg, err = registryClient.Register(ctx, nse); err != nil {
+	if reg, err = n.registerEndpoint(ctx, nse, registryClient); err != nil {
 		return nil, err
 	}
 
@@ -126,6 +134,56 @@ func (n *Node) newEndpoint(
 	log.FromContext(ctx).Infof("Started listen endpoint %s on %s.", nse.Name, u.String())
 
 	return &EndpointEntry{Endpoint: ep, URL: u}, nil
+}
+
+// RegisterEndpoint registers endpoint on the node NSMgr with its own registry client
+func (n *Node) RegisterEndpoint(ctx context.Context, nse *registryapi.NetworkServiceEndpoint) (*registryapi.NetworkServiceEndpoint, error) {
+	registryClient, ok := n.nseRegistryClients.Load(nse.Name)
+	if !ok {
+		registryClient = registryclient.NewNetworkServiceEndpointRegistryClient(ctx, n.nsmgrCC)
+	}
+	return n.registerEndpoint(ctx, nse, registryClient)
+}
+
+func (n *Node) registerEndpoint(
+	ctx context.Context,
+	nse *registryapi.NetworkServiceEndpoint,
+	registryClient registryapi.NetworkServiceEndpointRegistryClient,
+) (reg *registryapi.NetworkServiceEndpoint, err error) {
+	if reg, err = registryClient.Register(ctx, nse); err != nil {
+		return nil, err
+	}
+
+	n.nseRegistryClients.Store(reg.Name, registryClient)
+
+	return reg, nil
+}
+
+// UnregisterForwarder unregisters forwarder from the node NSMgr with its own registry client
+func (n *Node) UnregisterForwarder(ctx context.Context, nse *registryapi.NetworkServiceEndpoint) error {
+	registryClient, ok := n.nseRegistryClients.Load(nse.Name)
+	if !ok {
+		registryClient = registryclient.NewNetworkServiceEndpointRegistryInterposeClient(ctx, n.nsmgrCC)
+	}
+	return n.unregisterEndpoint(ctx, nse, registryClient)
+}
+
+// UnregisterEndpoint unregisters endpoint from the node NSMgr with its own registry client
+func (n *Node) UnregisterEndpoint(ctx context.Context, nse *registryapi.NetworkServiceEndpoint) error {
+	registryClient, ok := n.nseRegistryClients.Load(nse.Name)
+	if !ok {
+		registryClient = registryclient.NewNetworkServiceEndpointRegistryClient(ctx, n.nsmgrCC)
+	}
+	return n.unregisterEndpoint(ctx, nse, registryClient)
+}
+
+func (n *Node) unregisterEndpoint(
+	ctx context.Context,
+	nse *registryapi.NetworkServiceEndpoint,
+	registryClient registryapi.NetworkServiceEndpointRegistryClient,
+) error {
+	_, err := registryClient.Unregister(ctx, nse)
+	return err
 }
 
 // NewClient starts a new client and connects it to the node NSMgr

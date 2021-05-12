@@ -415,11 +415,8 @@ func (b *Builder) newNode(ctx context.Context, registryURL *url.URL, nodeConfig 
 
 // SetupRegistryClients - creates Network Service Registry Clients
 func (b *Builder) SetupRegistryClients(ctx context.Context, node *Node) {
-	nsmgrCC := b.dialContext(ctx, node.NSMgr.URL)
-
-	node.ForwarderRegistryClient = client.NewNetworkServiceEndpointRegistryInterposeClient(ctx, nsmgrCC)
-	node.EndpointRegistryClient = client.NewNetworkServiceEndpointRegistryClient(ctx, nsmgrCC)
-	node.NSRegistryClient = client.NewNetworkServiceRegistryClient(nsmgrCC)
+	node.nsmgrCC = b.dialContext(ctx, node.NSMgr.URL)
+	node.NSRegistryClient = client.NewNetworkServiceRegistryClient(node.nsmgrCC)
 }
 
 // newAddress - will return a new public address, if unixSockets are used prefix will be used to make uniq files.
