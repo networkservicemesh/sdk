@@ -46,7 +46,7 @@ func (s *labelsMatchingClient) Find(ctx context.Context, query *registry.Network
 		return nil, err
 	}
 
-	return &labelsMatchingFindClient{rv, *s}, nil
+	return &labelsMatchingFindClient{rv, s}, nil
 }
 
 func (s *labelsMatchingClient) Unregister(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
@@ -67,7 +67,7 @@ func NewNetworkServiceRegistryClient(ctx context.Context) registry.NetworkServic
 
 type labelsMatchingFindClient struct {
 	registry.NetworkServiceRegistry_FindClient
-	labelsMatchingClient
+	*labelsMatchingClient
 }
 
 func (tc *labelsMatchingFindClient) Recv() (*registry.NetworkService, error) {

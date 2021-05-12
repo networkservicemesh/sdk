@@ -37,32 +37,20 @@ const (
 	testEnvName                      = "NODE_NAME"
 	testEnvValue                     = "testValue"
 	destinationTestKey               = "nodeName"
-	destinationTestCorrectTemplate   = "{{index .Src \"NodeNameKey\"}}"
-	destinationTestIncorrectTemplate = "{{index .Src \"SomeRandomKey\"}}"
+	destinationTestCorrectTemplate   = `{{index .Src "NodeNameKey"}}`
+	destinationTestIncorrectTemplate = `{{index .Src "SomeRandomKey"}}`
 	destinationTestNotATemplate      = "SomeRandomString"
 )
 
 func TestNSTemplates(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-
 	err := os.Setenv(testEnvName, testEnvValue)
 	require.NoError(t, err)
 
-	nsrc := chain.NewNetworkServiceRegistryClient(
-		nslabelsmatch.NewNetworkServiceRegistryClient(ctx),
-		adapters.NetworkServiceServerToClient(memory.NewNetworkServiceRegistryServer()),
-	)
-
-	type test struct {
+	tests := []struct {
 		name     string
 		template string
 		want     string
-	}
-
-	tests := []test{
+	}{
 		{
 			name:     "CorrectTemplate",
 			template: destinationTestCorrectTemplate,
@@ -83,30 +71,44 @@ func TestNSTemplates(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			ns := &registry.NetworkService{
-				Matches: []*registry.Match{
+			testNSTemplate(t, tc.template, tc.want)
+		})
+	}
+}
+
+func testNSTemplate(t *testing.T, template, want string) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	nsrc := chain.NewNetworkServiceRegistryClient(
+		nslabelsmatch.NewNetworkServiceRegistryClient(ctx),
+		adapters.NetworkServiceServerToClient(memory.NewNetworkServiceRegistryServer()),
+	)
+
+	ns := &registry.NetworkService{
+		Matches: []*registry.Match{
+			{
+				Routes: []*registry.Destination{
 					{
-						Routes: []*registry.Destination{
-							{
-								DestinationSelector: map[string]string{
-									destinationTestKey: tc.template,
-								},
-							},
+						DestinationSelector: map[string]string{
+							destinationTestKey: template,
 						},
 					},
 				},
-			}
-
-			ns, err := nsrc.Register(ctx, ns)
-			require.NoError(t, err)
-
-			nsrfc, err := nsrc.Find(ctx, &registry.NetworkServiceQuery{NetworkService: ns})
-			require.NoError(t, err)
-
-			ns, err = nsrfc.Recv()
-			require.NoError(t, err)
-
-			require.Equal(t, tc.want, ns.Matches[0].Routes[0].DestinationSelector[destinationTestKey])
-		})
+			},
+		},
 	}
+
+	ns, err := nsrc.Register(ctx, ns)
+	require.NoError(t, err)
+
+	nsrfc, err := nsrc.Find(ctx, &registry.NetworkServiceQuery{NetworkService: ns})
+	require.NoError(t, err)
+
+	ns, err = nsrfc.Recv()
+	require.NoError(t, err)
+
+	require.Equal(t, want, ns.Matches[0].Routes[0].DestinationSelector[destinationTestKey])
 }

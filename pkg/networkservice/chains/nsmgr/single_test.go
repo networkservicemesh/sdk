@@ -26,15 +26,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
-	"google.golang.org/grpc"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -267,7 +264,7 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 		testEnvName             = "NODE_NAME"
 		testEnvValue            = "testValue"
 		destinationTestKey      = "nodeName"
-		destinationTestTemplate = "{{index .Src \"NodeNameKey\"}}"
+		destinationTestTemplate = `{{index .Src "NodeNameKey"}}`
 	)
 
 	err := os.Setenv(testEnvName, testEnvValue)
@@ -280,36 +277,37 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 		SetContext(ctx).
 		Build()
 
-	ns := &registry.NetworkService{
-		Matches: []*registry.Match{
-			{
-				Routes: []*registry.Destination{
-					{
-						DestinationSelector: map[string]string{
-							destinationTestKey: destinationTestTemplate,
-						},
+	ns := defaultRegistryService()
+	ns.Matches = []*registry.Match{
+		{
+			Routes: []*registry.Destination{
+				{
+					DestinationSelector: map[string]string{
+						destinationTestKey: destinationTestTemplate,
 					},
 				},
 			},
 		},
 	}
 
-	// start grpc client connection and register it
-	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(domain.Nodes[0].NSMgr.URL), sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...)
-	require.NoError(t, err)
-	defer func() {
-		_ = cc.Close()
-	}()
-
-	nsrc := registry.NewNetworkServiceRegistryClient(cc)
-
-	ns, err = nsrc.Register(ctx, ns)
+	ns, err = domain.Nodes[0].NSRegistryClient.Register(ctx, ns)
 	require.NoError(t, err)
 
-	nsrfc, err := nsrc.Find(ctx, &registry.NetworkServiceQuery{NetworkService: ns})
+	nse := defaultRegistryEndpoint(ns.Name)
+	nse.NetworkServiceLabels = map[string]*registry.NetworkServiceLabels{
+		ns.Name: {
+			Labels: map[string]string{
+				destinationTestKey: testEnvValue,
+			},
+		},
+	}
+
+	_, err = domain.Nodes[0].NewEndpoint(ctx, nse, sandbox.GenerateTestToken)
 	require.NoError(t, err)
 
-	ns, err = nsrfc.Recv()
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 	require.NoError(t, err)
-	require.Equal(t, testEnvValue, ns.Matches[0].Routes[0].DestinationSelector[destinationTestKey])
+
+	_, err = nsc.Request(ctx, defaultRequest(ns.Name))
+	require.NoError(t, err)
 }
