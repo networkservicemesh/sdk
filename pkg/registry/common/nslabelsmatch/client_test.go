@@ -69,7 +69,7 @@ func TestNSTemplates(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
+		// nolint:scopelint
 		t.Run(tc.name, func(t *testing.T) {
 			testNSTemplate(t, tc.template, tc.want)
 		})
@@ -87,7 +87,7 @@ func testNSTemplate(t *testing.T, template, want string) {
 		adapters.NetworkServiceServerToClient(memory.NewNetworkServiceRegistryServer()),
 	)
 
-	ns := &registry.NetworkService{
+	nsReg := &registry.NetworkService{
 		Matches: []*registry.Match{
 			{
 				Routes: []*registry.Destination{
@@ -101,14 +101,14 @@ func testNSTemplate(t *testing.T, template, want string) {
 		},
 	}
 
-	ns, err := nsrc.Register(ctx, ns)
+	nsReg, err := nsrc.Register(ctx, nsReg)
 	require.NoError(t, err)
 
-	nsrfc, err := nsrc.Find(ctx, &registry.NetworkServiceQuery{NetworkService: ns})
+	stream, err := nsrc.Find(ctx, &registry.NetworkServiceQuery{NetworkService: nsReg})
 	require.NoError(t, err)
 
-	ns, err = nsrfc.Recv()
+	nsReg, err = stream.Recv()
 	require.NoError(t, err)
 
-	require.Equal(t, want, ns.Matches[0].Routes[0].DestinationSelector[destinationTestKey])
+	require.Equal(t, want, nsReg.Matches[0].Routes[0].DestinationSelector[destinationTestKey])
 }

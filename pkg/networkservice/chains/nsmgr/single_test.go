@@ -277,8 +277,8 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 		SetContext(ctx).
 		Build()
 
-	ns := defaultRegistryService()
-	ns.Matches = []*registry.Match{
+	nsReg := defaultRegistryService()
+	nsReg.Matches = []*registry.Match{
 		{
 			Routes: []*registry.Destination{
 				{
@@ -290,27 +290,27 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 		},
 	}
 
-	ns, err = domain.Nodes[0].NSRegistryClient.Register(ctx, ns)
+	nsReg, err = domain.Nodes[0].NSRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
-	nse := defaultRegistryEndpoint(ns.Name)
-	nse.NetworkServiceLabels = map[string]*registry.NetworkServiceLabels{
-		ns.Name: {
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg.NetworkServiceLabels = map[string]*registry.NetworkServiceLabels{
+		nsReg.Name: {
 			Labels: map[string]string{
 				destinationTestKey: testEnvValue,
 			},
 		},
 	}
 
-	_, err = domain.Nodes[0].NewEndpoint(ctx, nse, sandbox.GenerateTestToken)
+	_, err = domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
 	require.NoError(t, err)
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 	require.NoError(t, err)
 
-	_, err = nsc.Request(ctx, defaultRequest(ns.Name))
+	_, err = nsc.Request(ctx, defaultRequest(nsReg.Name))
 	require.NoError(t, err)
 
-	_, err = domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nse)
+	_, err = domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
 	require.NoError(t, err)
 }
