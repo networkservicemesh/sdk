@@ -397,21 +397,19 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	labels := []string{"a", "b", "c", "d", "e", "f", "g"}
-
-	nsReg := linearNS(labels)
+	nsReg := linearNS(nodesCount)
 	nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
 	var nsesReg [nodesCount]*registry.NetworkServiceEndpoint
 	for i := 0; i < nodesCount; i++ {
 		nsesReg[i] = &registry.NetworkServiceEndpoint{
-			Name:                fmt.Sprintf("endpoint-%v", labels[i]),
+			Name:                fmt.Sprintf("endpoint-%v", i),
 			NetworkServiceNames: []string{nsReg.GetName()},
 			NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
 				nsReg.GetName(): {
 					Labels: map[string]string{
-						step: labels[i],
+						step: fmt.Sprintf("%v", i),
 					},
 				},
 			},
@@ -424,7 +422,7 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 					clienturl.NewServer(s.domain.Nodes[i].NSMgr.URL),
 					connect.NewServer(ctx,
 						client.NewClientFactory(
-							client.WithName(fmt.Sprintf("endpoint-client-%v", labels[i])),
+							client.WithName(fmt.Sprintf("endpoint-client-%v", i)),
 							client.WithAdditionalFunctionality(
 								mechanismtranslation.NewClient(),
 								injectlabels.NewClient(nsesReg[i].NetworkServiceLabels[nsReg.Name].Labels),
@@ -474,24 +472,22 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 	t := s.T()
 	const nsesCount = 5
 
-	labels := []string{"a", "b", "c", "d", "e"}
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	nsReg := linearNS(labels)
+	nsReg := linearNS(nsesCount)
 	nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
 	var nsesReg [nsesCount]*registry.NetworkServiceEndpoint
 	for i := 0; i < nsesCount; i++ {
 		nsesReg[i] = &registry.NetworkServiceEndpoint{
-			Name:                fmt.Sprintf("endpoint-%v", labels[i]),
+			Name:                fmt.Sprintf("endpoint-%v", i),
 			NetworkServiceNames: []string{nsReg.GetName()},
 			NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
 				nsReg.GetName(): {
 					Labels: map[string]string{
-						step: labels[i],
+						step: fmt.Sprintf("%v", i),
 					},
 				},
 			},
@@ -504,7 +500,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 					clienturl.NewServer(s.domain.Nodes[0].NSMgr.URL),
 					connect.NewServer(ctx,
 						client.NewClientFactory(
-							client.WithName(fmt.Sprintf("endpoint-client-%v", labels[i])),
+							client.WithName(fmt.Sprintf("%v", i)),
 							client.WithAdditionalFunctionality(
 								mechanismtranslation.NewClient(),
 								injectlabels.NewClient(nsesReg[i].NetworkServiceLabels[nsReg.Name].Labels),
@@ -650,18 +646,18 @@ const (
 	labelB = "label_b"
 )
 
-func linearNS(labels []string) *registry.NetworkService {
+func linearNS(count int) *registry.NetworkService {
 	matches := make([]*registry.Match, 0)
 
-	for i := 1; i < len(labels); i++ {
+	for i := 1; i < count; i++ {
 		match := &registry.Match{
 			SourceSelector: map[string]string{
-				step: labels[i-1],
+				step: fmt.Sprintf("%v", i-1),
 			},
 			Routes: []*registry.Destination{
 				{
 					DestinationSelector: map[string]string{
-						step: labels[i],
+						step: fmt.Sprintf("%v", i),
 					},
 				},
 			},
@@ -670,13 +666,13 @@ func linearNS(labels []string) *registry.NetworkService {
 		matches = append(matches, match)
 	}
 
-	if len(labels) > 1 {
+	if count > 1 {
 		// match with empty source selector must be the last
 		match := &registry.Match{
 			Routes: []*registry.Destination{
 				{
 					DestinationSelector: map[string]string{
-						step: labels[0],
+						step: fmt.Sprintf("%v", 0),
 					},
 				},
 			},
