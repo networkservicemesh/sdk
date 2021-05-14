@@ -44,7 +44,7 @@ func TestIdleNotifier_NoRequests(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	clockMock := clockmock.New()
+	clockMock := clockmock.New(ctx)
 	ctx = clock.WithClock(ctx, clockMock)
 
 	timeout := time.Hour
@@ -67,7 +67,7 @@ func TestIdleNotifier_Refresh(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	clockMock := clockmock.New()
+	clockMock := clockmock.New(ctx)
 	ctx = clock.WithClock(ctx, clockMock)
 
 	timeout := time.Hour
@@ -97,7 +97,7 @@ func TestIdleNotifier_HoldingActiveRequest(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	clockMock := clockmock.New()
+	clockMock := clockmock.New(ctx)
 	ctx = clock.WithClock(ctx, clockMock)
 
 	timeout := time.Hour
@@ -137,7 +137,7 @@ func TestIdleNotifier_FailedRequest(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	clockMock := clockmock.New()
+	clockMock := clockmock.New(ctx)
 	ctx = clock.WithClock(ctx, clockMock)
 
 	timeout := time.Hour
@@ -168,7 +168,7 @@ func TestIdleNotifier_ContextCancel(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	clockMock := clockmock.New()
+	clockMock := clockmock.New(ctx)
 	ctx = clock.WithClock(ctx, clockMock)
 
 	timeout := time.Hour
@@ -192,7 +192,7 @@ func TestIdleNotifier_RequestAfterExpire(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	clockMock := clockmock.New()
+	clockMock := clockmock.New(ctx)
 	ctx = clock.WithClock(ctx, clockMock)
 
 	timeout := time.Hour

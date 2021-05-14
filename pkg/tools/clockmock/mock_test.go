@@ -34,18 +34,90 @@ const (
 	testTick = testWait / 100
 )
 
-func TestMock_Start(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+func TestMock_SetSpeed(t *testing.T) {
+	samples := []struct {
+		name                    string
+		firstSpeed, secondSpeed float64
+	}{
+		{
+			name:        "From 0",
+			firstSpeed:  0,
+			secondSpeed: 1,
+		},
+		{
+			name:        "To 0",
+			firstSpeed:  1,
+			secondSpeed: 0,
+		},
+		{
+			name:        "Same",
+			firstSpeed:  1,
+			secondSpeed: 1,
+		},
+		{
+			name:        "Increasing to",
+			firstSpeed:  0.1,
+			secondSpeed: 1,
+		},
+		{
+			name:        "Increasing from",
+			firstSpeed:  1,
+			secondSpeed: 10,
+		},
+		{
+			name:        "Decreasing to",
+			firstSpeed:  10,
+			secondSpeed: 1,
+		},
+		{
+			name:        "Decreasing from",
+			firstSpeed:  1,
+			secondSpeed: 0.1,
+		},
+	}
 
-	m := clockmock.New()
+	speeds := []struct {
+		name       string
+		multiplier float64
+	}{
+		{
+			name:       "Slow",
+			multiplier: 0.001,
+		},
+		{
+			name:       "Real",
+			multiplier: 1,
+		},
+		{
+			name:       "Fast",
+			multiplier: 1000,
+		},
+	}
+
+	for _, sample := range samples {
+		// nolint:scopelint
+		t.Run(sample.name, func(t *testing.T) {
+			for _, speed := range speeds {
+				// nolint:scopelint
+				t.Run(speed.name, func(t *testing.T) {
+					testMockSetSpeed(t, sample.firstSpeed*speed.multiplier, sample.secondSpeed*speed.multiplier)
+				})
+			}
+		})
+	}
+}
+
+func testMockSetSpeed(t *testing.T, firstSpeed, secondSpeed float64) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	const speed = 1000.0
-	const hours = 7
+	const hours = 3
 
-	m.Start(ctx, speed)
+	m := clockmock.New(ctx)
+
+	m.SetSpeed(firstSpeed)
 
 	realStart, mockStart := time.Now(), m.Now()
 	for i := 0; i < hours; i++ {
@@ -54,16 +126,30 @@ func TestMock_Start(t *testing.T) {
 	}
 	realDuration, mockDuration := time.Since(realStart), m.Since(mockStart)
 
-	mockSpeed := float64((mockDuration - hours*time.Hour) / realDuration)
+	m.SetSpeed(secondSpeed)
 
-	require.Greater(t, mockSpeed/speed, 0.9)
-	require.Less(t, mockSpeed/speed, 1.1)
+	realStart, mockStart = time.Now(), m.Now()
+	for i := 0; i < hours; i++ {
+		time.Sleep(testWait)
+		m.Add(time.Hour)
+	}
+	realDuration += time.Since(realStart)
+	mockDuration += m.Since(mockStart)
+
+	mockSpeed := float64(mockDuration-2*hours*time.Hour) / float64(realDuration)
+	avgSpeed := (firstSpeed + secondSpeed) / 2
+
+	require.Greater(t, mockSpeed/avgSpeed, 0.7)
+	require.Less(t, mockSpeed/avgSpeed, 1.3)
 }
 
 func TestMock_Timer(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	m := clockmock.New()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	m := clockmock.New(ctx)
 
 	timer := m.Timer(timeout)
 
@@ -93,7 +179,10 @@ func TestMock_Timer(t *testing.T) {
 func TestMock_Timer_ZeroDuration(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	m := clockmock.New()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	m := clockmock.New(ctx)
 
 	timer := m.Timer(0)
 
@@ -107,7 +196,10 @@ func TestMock_Timer_ZeroDuration(t *testing.T) {
 func TestMock_Timer_Stop(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	m := clockmock.New()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	m := clockmock.New(ctx)
 
 	timer := m.Timer(timeout)
 
@@ -126,7 +218,10 @@ func TestMock_Timer_Stop(t *testing.T) {
 func TestMock_Timer_StopResult(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	m := clockmock.New()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	m := clockmock.New(ctx)
 
 	timer := m.Timer(timeout)
 
@@ -139,7 +234,10 @@ func TestMock_Timer_StopResult(t *testing.T) {
 func TestMock_Timer_Reset(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	m := clockmock.New()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	m := clockmock.New(ctx)
 
 	timer := m.Timer(timeout)
 
@@ -168,7 +266,10 @@ func TestMock_Timer_Reset(t *testing.T) {
 func TestMock_Timer_ResetExpired(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	m := clockmock.New()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	m := clockmock.New(ctx)
 
 	timer := m.Timer(timeout)
 
@@ -198,7 +299,10 @@ func TestMock_Timer_ResetExpired(t *testing.T) {
 func TestMock_Timer_Reset_ZeroDuration(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	m := clockmock.New()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	m := clockmock.New(ctx)
 
 	timer := m.Timer(timeout)
 
@@ -215,7 +319,10 @@ func TestMock_Timer_Reset_ZeroDuration(t *testing.T) {
 func TestMock_AfterFunc(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	m := clockmock.New()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	m := clockmock.New(ctx)
 
 	var count int32
 	for i := time.Duration(0); i < 10; i++ {
@@ -244,7 +351,10 @@ func TestMock_AfterFunc(t *testing.T) {
 func TestMock_AfterFunc_ZeroDuration(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	m := clockmock.New()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	m := clockmock.New(ctx)
 
 	var count int32
 	m.AfterFunc(0, func() {
@@ -259,7 +369,10 @@ func TestMock_AfterFunc_ZeroDuration(t *testing.T) {
 func TestMock_Ticker(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	m := clockmock.New()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	m := clockmock.New(ctx)
 
 	ticker := m.Ticker(timeout)
 
@@ -291,23 +404,26 @@ func TestMock_Ticker(t *testing.T) {
 func TestMock_WithDeadline(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	m := clockmock.New()
-
-	ctx, cancel := m.WithDeadline(context.Background(), m.Now().Add(timeout))
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	m := clockmock.New(ctx)
+
+	deadlineCtx, deadlineCtxCancel := m.WithDeadline(context.Background(), m.Now().Add(timeout))
+	defer deadlineCtxCancel()
+
 	select {
-	case <-ctx.Done():
+	case <-deadlineCtx.Done():
 		require.FailNow(t, "too early")
 	case <-time.After(testWait):
-		require.NoError(t, ctx.Err())
+		require.NoError(t, deadlineCtx.Err())
 	}
 
 	m.Add(timeout)
 
 	select {
-	case <-ctx.Done():
-		require.Error(t, ctx.Err())
+	case <-deadlineCtx.Done():
+		require.Error(t, deadlineCtx.Err())
 	case <-time.After(testWait):
 		require.FailNow(t, "too late")
 	}
@@ -316,14 +432,17 @@ func TestMock_WithDeadline(t *testing.T) {
 func TestMock_WithDeadline_Expired(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	m := clockmock.New()
-
-	ctx, cancel := m.WithDeadline(context.Background(), m.Now())
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	m := clockmock.New(ctx)
+
+	deadlineCtx, deadlineCtxCancel := m.WithDeadline(context.Background(), m.Now())
+	defer deadlineCtxCancel()
+
 	select {
-	case <-ctx.Done():
-		require.Error(t, ctx.Err())
+	case <-deadlineCtx.Done():
+		require.Error(t, deadlineCtx.Err())
 	case <-time.After(testWait):
 		require.FailNow(t, "too late")
 	}
@@ -332,25 +451,28 @@ func TestMock_WithDeadline_Expired(t *testing.T) {
 func TestMock_WithDeadline_ParentCanceled(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	m := clockmock.New()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	m := clockmock.New(ctx)
 
 	parentCtx, parentCancel := context.WithCancel(context.Background())
 
-	ctx, cancel := m.WithDeadline(parentCtx, m.Now().Add(timeout))
-	defer cancel()
+	deadlineCtx, deadlineCtxCancel := m.WithDeadline(parentCtx, m.Now().Add(timeout))
+	defer deadlineCtxCancel()
 
 	select {
-	case <-ctx.Done():
+	case <-deadlineCtx.Done():
 		require.FailNow(t, "too early")
 	case <-time.After(testWait):
-		require.NoError(t, ctx.Err())
+		require.NoError(t, deadlineCtx.Err())
 	}
 
 	parentCancel()
 
 	select {
-	case <-ctx.Done():
-		require.Error(t, ctx.Err())
+	case <-deadlineCtx.Done():
+		require.Error(t, deadlineCtx.Err())
 	case <-time.After(testWait):
 		require.FailNow(t, "too late")
 	}
@@ -359,23 +481,26 @@ func TestMock_WithDeadline_ParentCanceled(t *testing.T) {
 func TestMock_WithTimeout(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	m := clockmock.New()
-
-	ctx, cancel := m.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	m := clockmock.New(ctx)
+
+	timeoutCtx, timeoutCtxCancel := m.WithTimeout(context.Background(), timeout)
+	defer timeoutCtxCancel()
+
 	select {
-	case <-ctx.Done():
+	case <-timeoutCtx.Done():
 		require.FailNow(t, "too early")
 	case <-time.After(testWait):
-		require.NoError(t, ctx.Err())
+		require.NoError(t, timeoutCtx.Err())
 	}
 
 	m.Add(timeout)
 
 	select {
-	case <-ctx.Done():
-		require.Error(t, ctx.Err())
+	case <-timeoutCtx.Done():
+		require.Error(t, timeoutCtx.Err())
 	case <-time.After(testWait):
 		require.FailNow(t, "too late")
 	}

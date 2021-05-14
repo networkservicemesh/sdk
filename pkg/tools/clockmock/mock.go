@@ -31,46 +31,63 @@ var _ clock.Clock = (*Mock)(nil)
 
 // Mock is a mock implementation of the Clock
 type Mock struct {
-	lock sync.RWMutex
-	mock *libclock.Mock
+	ctx     context.Context
+	speedCh chan float64
+	mock    *libclock.Mock
+	lock    sync.RWMutex
 }
 
 // New returns a new mocked clock
-func New() *Mock {
-	return &Mock{
-		mock: libclock.NewMock(),
+func New(ctx context.Context) *Mock {
+	m := &Mock{
+		ctx:     ctx,
+		speedCh: make(chan float64),
+		mock:    libclock.NewMock(),
 	}
-}
 
-// Start starts mock time to run with the given speed until ctx becomes done. While time is running, current time for
-// the mock will be the following:
-//   mock time := mock start time  +  (real time duration from the start) * speed  +  mock duration added with Set, Add
-func (m *Mock) Start(ctx context.Context, speed float64) {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-
-	const tick = 10 * time.Millisecond
-
-	realStart, mockStart, mockTime := time.Now(), m.Now(), m.Now()
+	var speed float64
+	var realStart, mockStart, mockTime = time.Now(), m.Now(), m.Now()
 	var mockAdded time.Duration
 	go func() {
 		for {
 			select {
-			case <-ctx.Done():
+			case <-m.ctx.Done():
 				return
-			case <-time.After(tick):
-				m.lock.Lock()
-
-				mockAdded += m.Since(mockTime)
-				mockTime = mockStart.
-					Add(time.Duration(float64(time.Since(realStart)) * speed)).
-					Add(mockAdded)
-				m.mock.Set(mockTime)
-
-				m.lock.Unlock()
+			case newSpeed := <-m.speedCh:
+				realNow := time.Now()
+				mockTime, _ = m.timeTick(speed, realStart, mockStart, realNow, mockTime, mockAdded)
+				speed, realStart, mockStart, mockAdded = newSpeed, realNow, mockTime, 0
+			case <-time.After(10 * time.Millisecond):
+				mockTime, mockAdded = m.timeTick(speed, realStart, mockStart, time.Now(), mockTime, mockAdded)
 			}
 		}
 	}()
+
+	return m
+}
+
+func (m *Mock) timeTick(
+	speed float64,
+	realStart, mockStart, realNow, mockTime time.Time,
+	mockAdded time.Duration,
+) (time.Time, time.Duration) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	mockAdded += m.Since(mockTime)
+	mockTime = mockStart.
+		Add(time.Duration(float64(realNow.Sub(realStart)) * speed)).
+		Add(mockAdded)
+	m.mock.Set(mockTime)
+
+	return mockTime, mockAdded
+}
+
+// SetSpeed starts mock time to run with the given speed until Mock.ctx becomes done or speed becomes changed. While
+// time is running, current time for the mock will be the following:
+//   mock time := mock start time  +  (real time duration from the start) * speed  +  mock duration added with Set, Add
+func (m *Mock) SetSpeed(speed float64) {
+	m.speedCh <- speed
 }
 
 // Set sets the current time of the mock clock to a specific one.
