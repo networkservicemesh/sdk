@@ -64,8 +64,8 @@ func (q *queryCacheNSEClient) Find(ctx context.Context, query *registry.NetworkS
 
 	resultCh := make(chan *registry.NetworkServiceEndpoint, len(nses))
 	for _, nse := range nses {
-		resultCh <- nse.Clone()
-		q.storeInCache(ctx, nse, opts...)
+		resultCh <- nse
+		q.storeInCache(ctx, nse.Clone(), opts...)
 	}
 	close(resultCh)
 
