@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package injectlabels sets connection labels
-package injectlabels
+// Package replacelabels sets connection labels
+package replacelabels
 
 import (
 	"context"
@@ -28,11 +28,11 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type injectLabelsClient struct {
+type replaceLabelsClient struct {
 	labels map[string]string
 }
 
-func (s *injectLabelsClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
+func (s *replaceLabelsClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
 	oldConnLabels := request.Connection.Labels
 	oldNetworkServiceEndpointName := request.Connection.NetworkServiceEndpointName
 
@@ -50,13 +50,13 @@ func (s *injectLabelsClient) Request(ctx context.Context, request *networkservic
 	return conn, nil
 }
 
-func (s *injectLabelsClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (s *replaceLabelsClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
-// NewClient creates new instance of NetworkServiceClient chain element, which inject labels into connection
+// NewClient creates new instance of NetworkServiceClient chain element, which replaces labels in the connection
 func NewClient(labels map[string]string) networkservice.NetworkServiceClient {
-	return &injectLabelsClient{
+	return &replaceLabelsClient{
 		labels: labels,
 	}
 }
