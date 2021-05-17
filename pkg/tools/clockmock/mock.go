@@ -31,23 +31,68 @@ var _ clock.Clock = (*Mock)(nil)
 
 // Mock is a mock implementation of the Clock
 type Mock struct {
-	lock sync.RWMutex
-	mock *libclock.Mock
+	ctx     context.Context
+	speedCh chan float64
+	mock    *libclock.Mock
+	lock    sync.RWMutex
 }
 
 // New returns a new mocked clock
-func New() *Mock {
-	return &Mock{
-		mock: libclock.NewMock(),
+func New(ctx context.Context) *Mock {
+	m := &Mock{
+		ctx:     ctx,
+		speedCh: make(chan float64),
+		mock:    libclock.NewMock(),
 	}
+
+	var speed float64
+	var realStart, mockStart, mockTime = time.Now(), m.Now(), m.Now()
+	var mockAdded time.Duration
+	go func() {
+		for {
+			select {
+			case <-m.ctx.Done():
+				return
+			case newSpeed := <-m.speedCh:
+				realNow := time.Now()
+				mockTime, _ = m.timeTick(speed, realStart, mockStart, realNow, mockTime, mockAdded)
+				speed, realStart, mockStart, mockAdded = newSpeed, realNow, mockTime, 0
+			case <-time.After(10 * time.Millisecond):
+				mockTime, mockAdded = m.timeTick(speed, realStart, mockStart, time.Now(), mockTime, mockAdded)
+			}
+		}
+	}()
+
+	return m
+}
+
+func (m *Mock) timeTick(
+	speed float64,
+	realStart, mockStart, realNow, mockTime time.Time,
+	mockAdded time.Duration,
+) (time.Time, time.Duration) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	mockAdded += m.Since(mockTime)
+	mockTime = mockStart.
+		Add(time.Duration(float64(realNow.Sub(realStart)) * speed)).
+		Add(mockAdded)
+	m.mock.Set(mockTime)
+
+	return mockTime, mockAdded
+}
+
+// SetSpeed starts mock time to run with the given speed until Mock.ctx becomes done or speed becomes changed. While
+// time is running, current time for the mock will be the following:
+//   mock time := mock start time  +  (real time duration from the start) * speed  +  mock duration added with Set, Add
+func (m *Mock) SetSpeed(speed float64) {
+	m.speedCh <- speed
 }
 
 // Set sets the current time of the mock clock to a specific one.
 func (m *Mock) Set(t time.Time) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-
-	m.mock.Set(t)
+	m.Add(safeDuration(m.Until(t)))
 }
 
 // Add moves the current time of the mock clock forward by the specified duration.
@@ -55,7 +100,7 @@ func (m *Mock) Add(d time.Duration) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	m.mock.Add(d)
+	m.mock.Add(safeDuration(d))
 }
 
 // Now returns mock current time
@@ -92,7 +137,7 @@ func (m *Mock) Timer(d time.Duration) clock.Timer {
 
 	return &mockTimer{
 		mock:  m,
-		Timer: m.mock.Timer(d),
+		timer: m.mock.Timer(d),
 	}
 }
 
@@ -119,7 +164,7 @@ func (m *Mock) AfterFunc(d time.Duration, f func()) clock.Timer {
 func (m *Mock) afterFunc(d time.Duration, f func()) clock.Timer {
 	return &mockTimer{
 		mock: m,
-		Timer: m.mock.AfterFunc(d, func() {
+		timer: m.mock.AfterFunc(d, func() {
 			go f()
 		}),
 	}
@@ -131,7 +176,8 @@ func (m *Mock) Ticker(d time.Duration) clock.Ticker {
 	defer m.lock.RUnlock()
 
 	return &mockTicker{
-		Ticker: m.mock.Ticker(d),
+		mock:   m,
+		ticker: m.mock.Ticker(d),
 	}
 }
 

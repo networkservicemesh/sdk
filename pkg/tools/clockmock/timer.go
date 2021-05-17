@@ -23,22 +23,31 @@ import (
 )
 
 type mockTimer struct {
-	mock *Mock
-
-	*libclock.Timer
+	mock  *Mock
+	timer *libclock.Timer
 }
 
 func (t *mockTimer) C() <-chan time.Time {
-	return t.Timer.C
+	return t.timer.C
+}
+
+func (t *mockTimer) Stop() bool {
+	t.mock.lock.RLock()
+	defer t.mock.lock.RUnlock()
+
+	return t.timer.Stop()
 }
 
 func (t *mockTimer) Reset(d time.Duration) bool {
-	if d = safeDuration(d); d == 0 {
+	if d = safeDuration(d); d > 0 {
+		t.mock.lock.RLock()
+		defer t.mock.lock.RUnlock()
+	} else {
 		t.mock.lock.Lock()
 		defer t.mock.lock.Unlock()
 
 		defer t.mock.mock.Add(0)
 	}
 
-	return t.Timer.Reset(d)
+	return t.timer.Reset(d)
 }
