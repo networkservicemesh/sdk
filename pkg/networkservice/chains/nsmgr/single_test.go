@@ -32,6 +32,7 @@ import (
 	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
+	"github.com/networkservicemesh/sdk/pkg/tools/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -263,12 +264,15 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 	const (
 		testEnvName             = "NODE_NAME"
 		testEnvValue            = "testValue"
-		destinationTestKey      = "nodeName"
-		destinationTestTemplate = `{{index .Src "NodeNameKey"}}`
+		destinationTestKey      = `NodeNameKey`
+		destinationTestTemplate = `{{.NodeNameKey}}`
 	)
 
 	err := os.Setenv(testEnvName, testEnvValue)
 	require.NoError(t, err)
+
+	want := map[string]string{}
+	clientinfo.AddClientInfo(ctx, want)
 
 	domain := sandbox.NewBuilder(t).
 		SetNodesCount(1).
@@ -294,13 +298,7 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
-	nseReg.NetworkServiceLabels = map[string]*registry.NetworkServiceLabels{
-		nsReg.Name: {
-			Labels: map[string]string{
-				destinationTestKey: testEnvValue,
-			},
-		},
-	}
+	nseReg.NetworkServiceLabels = map[string]*registry.NetworkServiceLabels{nsReg.Name: {}}
 
 	_, err = domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
 	require.NoError(t, err)
@@ -308,8 +306,15 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 	require.NoError(t, err)
 
-	_, err = nsc.Request(ctx, defaultRequest(nsReg.Name))
+	req := defaultRequest(nsReg.Name)
+
+	conn, err := nsc.Request(ctx, req)
 	require.NoError(t, err)
+
+	// Test for connection labels setting
+	require.Equal(t, want, conn.Labels)
+	// Test for endpoint labels setting
+	require.Equal(t, want, nseReg.NetworkServiceLabels[nsReg.Name].Labels)
 
 	_, err = domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
 	require.NoError(t, err)

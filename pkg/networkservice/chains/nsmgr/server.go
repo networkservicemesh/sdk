@@ -33,6 +33,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
@@ -48,7 +49,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/nslabelsmatch"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/querycache"
 	registryrecvfd "github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
 	registryserialize "github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
@@ -149,7 +149,6 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		nsRegistry = registryadapter.NetworkServiceClientToServer(
 			nextwrap.NewNetworkServiceRegistryClient(
 				registrychain.NewNetworkServiceRegistryClient(
-					nslabelsmatch.NewNetworkServiceRegistryClient(ctx),
 					registryapi.NewNetworkServiceRegistryClient(*opts.regClientConn),
 				),
 			),
@@ -186,6 +185,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		endpoint.WithName(opts.name),
 		endpoint.WithAuthorizeServer(opts.authorizeServer),
 		endpoint.WithAdditionalFunctionality(
+			adapters.NewClientToServer(clientinfo.NewClient()),
 			discover.NewServer(nsClient, nseClient),
 			roundrobin.NewServer(),
 			excludedprefixes.NewServer(ctx),

@@ -34,7 +34,7 @@ func isSubset(a, b, nsLabels map[string]string) bool {
 	}
 	for k, v := range b {
 		if a[k] != v {
-			result := ProcessLabels(v, nsLabels)
+			result := processLabels(v, nsLabels)
 			if a[k] != result {
 				return false
 			}
@@ -73,22 +73,28 @@ func matchEndpoint(clockTime clock.Clock, nsLabels map[string]string, ns *regist
 	return validNetworkServiceEndpoints
 }
 
-// ProcessLabels generates matches based on destination label selectors that specify templating.
-func ProcessLabels(str string, vars interface{}) string {
+// processLabels generates matches based on destination label selectors that specify templating.
+func processLabels(str string, vars interface{}) string {
 	tmpl, err := template.New("tmpl").Parse(str)
 
 	if err != nil {
-		panic(err)
+		return str
 	}
-	return process(tmpl, vars)
+
+	rv, err := process(tmpl, vars)
+	if err != nil {
+		return str
+	}
+
+	return rv
 }
 
-func process(t *template.Template, vars interface{}) string {
+func process(t *template.Template, vars interface{}) (string, error) {
 	var tmplBytes bytes.Buffer
 
 	err := t.Execute(&tmplBytes, vars)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
-	return tmplBytes.String()
+	return tmplBytes.String(), nil
 }
