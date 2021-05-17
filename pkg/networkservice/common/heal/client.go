@@ -20,6 +20,7 @@ package heal
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -30,7 +31,7 @@ import (
 )
 
 type connectionInfo struct {
-	mut    sync.Mutex
+	cond   *sync.Cond
 	conn   *networkservice.Connection
 	active bool
 }
@@ -76,8 +77,8 @@ func (u *healClient) init(ctx context.Context, conn *networkservice.Connection) 
 	return nil
 }
 
-func (u *healClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	conn := request.GetConnection()
+func (u *healClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
+	conn = request.GetConnection()
 	u.initOnce.Do(func() {
 		u.initErr = u.init(ctx, conn)
 	})
@@ -88,23 +89,70 @@ func (u *healClient) Request(ctx context.Context, request *networkservice.Networ
 
 	connInfo, loaded := u.conns.LoadOrStore(conn.GetId(), &connectionInfo{
 		conn: conn.Clone(),
-		mut:  sync.Mutex{},
+		cond: sync.NewCond(new(sync.Mutex)),
 	})
 	u.replaceConnectionPath(conn, connInfo)
 
-	conn, err := next.Client(ctx).Request(ctx, request, opts...)
-	if err != nil {
-		if !loaded {
+	defer func() {
+		if !loaded && err != nil {
 			u.conns.Delete(request.GetConnection().GetId())
 		}
+	}()
+
+	conn, err = next.Client(ctx).Request(ctx, request, opts...)
+	if err != nil {
 		return nil, err
 	}
 
-	connInfo.mut.Lock()
-	defer connInfo.mut.Unlock()
+	condCh, cancel := u.condCh(connInfo)
+	defer cancel()
+
+	// Problem:
+	//   gRPC requests and streaming requests have different requirements for the underlying gRPC connection. There can
+	//   be a case on the closing gRPC connection, when it is still sending requests but fails to keep or start
+	//   a streaming request. In such case we can get a situation when we have a Connection with no monitor stream, so
+	//   it would never be healed.
+	// Solution:
+	//   We should check that monitor stream is ready for the Connection, before returning it back. This check should
+	//   wait for some time after the next.Request(), because for the [NSMgr -> Endpoint] case response may come faster
+	//   than monitor stream update.
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-condCh:
+	case <-time.After(100 * time.Millisecond):
+		_, _ = next.Client(ctx).Close(ctx, conn)
+		return nil, errors.Errorf("timeout waiting for connection monitor: %s", conn.GetId())
+	}
+
+	connInfo.cond.L.Lock()
+	defer connInfo.cond.L.Unlock()
+
 	connInfo.conn = conn.Clone()
 
 	return conn, nil
+}
+
+func (u *healClient) condCh(connInfo *connectionInfo) (ch chan struct{}, cancel func()) {
+	ch, condFlag := make(chan struct{}), false
+	go func() {
+		defer close(ch)
+
+		connInfo.cond.L.Lock()
+		defer connInfo.cond.L.Unlock()
+
+		if !condFlag && !connInfo.active {
+			connInfo.cond.Wait()
+		}
+	}()
+
+	return ch, func() {
+		connInfo.cond.L.Lock()
+		defer connInfo.cond.L.Unlock()
+
+		condFlag = true
+		connInfo.cond.Broadcast()
+	}
 }
 
 func (u *healClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
@@ -125,8 +173,9 @@ func (u *healClient) listenToConnectionChanges(healConnection, restoreConnection
 		event, err := monitorClient.Recv()
 		if err != nil {
 			u.conns.Range(func(id string, connInfo *connectionInfo) bool {
-				connInfo.mut.Lock()
-				defer connInfo.mut.Unlock()
+				connInfo.cond.L.Lock()
+				defer connInfo.cond.L.Unlock()
+
 				if connInfo.active {
 					restoreConnection(connInfo.conn)
 				}
@@ -141,7 +190,9 @@ func (u *healClient) listenToConnectionChanges(healConnection, restoreConnection
 			if !ok {
 				continue
 			}
-			connInfo.mut.Lock()
+
+			connInfo.cond.L.Lock()
+
 			switch event.GetType() {
 			// Why both INITIAL_STATE_TRANSFER and UPDATE:
 			// Sometimes we start polling events too late, and when we wait for confirmation of success of some connection,
@@ -150,13 +201,15 @@ func (u *healClient) listenToConnectionChanges(healConnection, restoreConnection
 				connInfo.active = true
 				connInfo.conn.Path.PathSegments = eventConn.Clone().Path.PathSegments
 				connInfo.conn.NetworkServiceEndpointName = eventConn.NetworkServiceEndpointName
+				connInfo.cond.Broadcast()
 			case networkservice.ConnectionEventType_DELETE:
 				if connInfo.active {
 					healConnection(connInfo.conn)
 				}
 				connInfo.active = false
 			}
-			connInfo.mut.Unlock()
+
+			connInfo.cond.L.Unlock()
 		}
 	}
 }
@@ -164,8 +217,9 @@ func (u *healClient) listenToConnectionChanges(healConnection, restoreConnection
 func (u *healClient) replaceConnectionPath(conn *networkservice.Connection, connInfo *connectionInfo) {
 	path := conn.GetPath()
 	if path != nil && int(path.Index) < len(path.PathSegments)-1 {
-		connInfo.mut.Lock()
-		defer connInfo.mut.Unlock()
+		connInfo.cond.L.Lock()
+		defer connInfo.cond.L.Unlock()
+
 		path.PathSegments = path.PathSegments[:path.Index+1]
 		path.PathSegments = append(path.PathSegments, connInfo.conn.Path.PathSegments[path.Index+1:]...)
 		conn.NetworkServiceEndpointName = connInfo.conn.NetworkServiceEndpointName
