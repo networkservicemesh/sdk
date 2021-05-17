@@ -27,6 +27,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/cancelctx"
 )
 
 type connectionInfo struct {
@@ -62,6 +63,10 @@ func (u *healClient) init(ctx context.Context, conn *networkservice.Connection) 
 		return errors.Wrap(err, "MonitorConnections failed")
 	}
 
+	cancel := cancelctx.FromContext(u.ctx)
+	if cancel == nil {
+		cancel = func() {}
+	}
 	healConnection := requestHealConnectionFunc(ctx)
 	if healConnection == nil {
 		healConnection = func(conn *networkservice.Connection) {}
@@ -71,7 +76,7 @@ func (u *healClient) init(ctx context.Context, conn *networkservice.Connection) 
 		restoreConnection = func(conn *networkservice.Connection) {}
 	}
 
-	go u.listenToConnectionChanges(healConnection, restoreConnection, monitorClient)
+	go u.listenToConnectionChanges(cancel, healConnection, restoreConnection, monitorClient)
 
 	return nil
 }
@@ -120,10 +125,15 @@ func (u *healClient) Close(ctx context.Context, conn *networkservice.Connection,
 // listenToConnectionChanges - loops on events from MonitorConnectionClient while the monitor client is alive.
 //                             Updates connection cache and broadcasts events of successful connections.
 //                             Calls heal when something breaks.
-func (u *healClient) listenToConnectionChanges(healConnection, restoreConnection requestHealFuncType, monitorClient networkservice.MonitorConnection_MonitorConnectionsClient) {
+func (u *healClient) listenToConnectionChanges(
+	cancel context.CancelFunc,
+	healConnection, restoreConnection requestHealFuncType,
+	monitorClient networkservice.MonitorConnection_MonitorConnectionsClient,
+) {
 	for {
 		event, err := monitorClient.Recv()
 		if err != nil {
+			cancel()
 			u.conns.Range(func(id string, connInfo *connectionInfo) bool {
 				connInfo.mut.Lock()
 				defer connInfo.mut.Unlock()
