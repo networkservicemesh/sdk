@@ -31,7 +31,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/health/grpc_health_v1"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
@@ -45,74 +44,11 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
 const (
 	parallelCount = 1000
 )
-
-func startServer(ctx context.Context, listenOn *url.URL, server networkservice.NetworkServiceServer) error {
-	grpcServer := grpc.NewServer()
-
-	networkservice.RegisterNetworkServiceServer(grpcServer, server)
-	grpcutils.RegisterHealthServices(grpcServer, server)
-
-	errCh := grpcutils.ListenAndServe(ctx, listenOn, grpcServer)
-	select {
-	case err := <-errCh:
-		return err
-	default:
-		return nil
-	}
-}
-
-func waitServerStarted(target *url.URL) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(target), grpc.WithBlock(), grpc.WithInsecure())
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = cc.Close()
-	}()
-
-	healthCheckRequest := &grpc_health_v1.HealthCheckRequest{
-		Service: networkservice.ServiceNames(null.NewServer())[0],
-	}
-
-	client := grpc_health_v1.NewHealthClient(cc)
-	for ctx.Err() == nil {
-		response, err := client.Check(ctx, healthCheckRequest)
-		if err != nil {
-			return err
-		}
-		if response.Status == grpc_health_v1.HealthCheckResponse_SERVING {
-			return nil
-		}
-	}
-	return ctx.Err()
-}
-
-func waitServerStopped(target *url.URL) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	var err error
-	for err == nil && ctx.Err() == nil {
-		dialCtx, dialCancel := context.WithTimeout(ctx, 10*time.Millisecond)
-
-		var cc *grpc.ClientConn
-		if cc, err = grpc.DialContext(dialCtx, grpcutils.URLToTarget(target), grpc.WithBlock(), grpc.WithInsecure()); err == nil {
-			_ = cc.Close()
-		}
-
-		dialCancel()
-	}
-	return ctx.Err()
-}
 
 func TestConnectServer_Request(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
@@ -124,9 +60,10 @@ func TestConnectServer_Request(t *testing.T) {
 
 	s := next.NewNetworkServiceServer(
 		connect.NewServer(context.Background(),
-			func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+			func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 				return next.NewNetworkServiceClient(
 					adapters.NewServerToClient(serverClient),
+					newMonitorClient(ctx, cc),
 					networkservice.NewNetworkServiceClient(cc),
 				)
 			},
@@ -164,9 +101,6 @@ func TestConnectServer_Request(t *testing.T) {
 		}),
 	))
 	require.NoError(t, err)
-
-	require.NoError(t, waitServerStarted(urlA))
-	require.NoError(t, waitServerStarted(urlB))
 
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -256,9 +190,10 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 
 	s := next.NewNetworkServiceServer(
 		connect.NewServer(context.Background(),
-			func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+			func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 				return next.NewNetworkServiceClient(
 					adapters.NewServerToClient(serverClient),
+					newMonitorClient(ctx, cc),
 					networkservice.NewNetworkServiceClient(cc),
 				)
 			},
@@ -278,8 +213,6 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 
 	err := startServer(ctx, urlA, serverA)
 	require.NoError(t, err)
-
-	require.NoError(t, waitServerStarted(urlA))
 
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -364,8 +297,6 @@ func TestConnectServer_RequestFail(t *testing.T) {
 	err := startServer(ctx, urlA, null.NewServer())
 	require.NoError(t, err)
 
-	require.NoError(t, waitServerStarted(urlA))
-
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	// 3. Create request
@@ -396,9 +327,10 @@ func TestConnectServer_RequestNextServerError(t *testing.T) {
 
 	s := next.NewNetworkServiceServer(
 		connect.NewServer(context.Background(),
-			func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+			func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 				return next.NewNetworkServiceClient(
 					adapters.NewServerToClient(serverClient),
+					newMonitorClient(ctx, cc),
 					networkservice.NewNetworkServiceClient(cc),
 				)
 			},
@@ -424,7 +356,6 @@ func TestConnectServer_RequestNextServerError(t *testing.T) {
 		}),
 	))
 	require.NoError(t, err)
-	require.NoError(t, waitServerStarted(urlA))
 
 	// 3. Create request
 
@@ -460,8 +391,11 @@ func TestConnectServer_RemoteRestarted(t *testing.T) {
 	// 1. Create connectServer
 
 	s := connect.NewServer(context.Background(),
-		func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-			return networkservice.NewNetworkServiceClient(cc)
+		func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+			return next.NewNetworkServiceClient(
+				newMonitorClient(ctx, cc),
+				networkservice.NewNetworkServiceClient(cc),
+			)
 		},
 		connect.WithDialTimeout(time.Second),
 		connect.WithDialOptions(grpc.WithInsecure()),
@@ -475,8 +409,6 @@ func TestConnectServer_RemoteRestarted(t *testing.T) {
 
 	err := startServer(ctx, urlA, null.NewServer())
 	require.NoError(t, err)
-
-	require.NoError(t, waitServerStarted(urlA))
 
 	// 3. Create request
 
@@ -519,8 +451,6 @@ func TestConnectServer_RemoteRestarted(t *testing.T) {
 
 	err = startServer(ctx, urlA, null.NewServer())
 	require.NoError(t, err)
-
-	require.NoError(t, waitServerStarted(urlA))
 
 	// 5. Re request A --> eventually Success
 
