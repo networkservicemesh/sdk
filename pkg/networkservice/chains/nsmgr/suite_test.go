@@ -547,52 +547,61 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 
 func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
 	t := s.T()
-	const nsesCount = 9
 
-	labels := multiLabelEndpoints()
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	nsReg := multiLabelNS()
 	nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
-	var nsesReg [nsesCount]*registry.NetworkServiceEndpoint
-	for i := 0; i < nsesCount; i++ {
-		nsesReg[i] = &registry.NetworkServiceEndpoint{
-			Name:                fmt.Sprintf("endpoint-%v", labels[i]),
-			NetworkServiceNames: []string{nsReg.GetName()},
-			NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
-				nsReg.GetName(): {
-					Labels: labels[i],
+	var labelAvalue, labelBvalue string
+	nsesReg := []*registry.NetworkServiceEndpoint{}
+	for i := 0; i < 3; i++ {
+		labelAvalue += "a"
+		for j := 0; j < 3; j++ {
+			labelBvalue += "b"
+
+			nseReg := &registry.NetworkServiceEndpoint{
+				Name:                fmt.Sprintf("endpoint-%v%v", i, j),
+				NetworkServiceNames: []string{nsReg.GetName()},
+				NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+					nsReg.GetName(): {
+						Labels: map[string]string{
+							labelA: labelAvalue,
+							labelB: labelBvalue,
+						},
+					},
 				},
-			},
-		}
-
-		var additionalFunctionality []networkservice.NetworkServiceServer
-		if i != nsesCount-1 {
-			additionalFunctionality = []networkservice.NetworkServiceServer{
-				chain.NewNetworkServiceServer(
-					clienturl.NewServer(s.domain.Nodes[0].NSMgr.URL),
-					connect.NewServer(ctx,
-						client.NewClientFactory(
-							client.WithName(fmt.Sprintf("endpoint-client-%v", labels[i])),
-							client.WithAdditionalFunctionality(
-								mechanismtranslation.NewClient(),
-								injectlabels.NewClient(nsesReg[i].NetworkServiceLabels[nsReg.Name].Labels),
-								kernel.NewClient(),
-							),
-						),
-						connect.WithDialTimeout(sandbox.DialTimeout),
-						connect.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...),
-					),
-				),
 			}
-		}
 
-		_, err = s.domain.Nodes[0].NewEndpoint(ctx, nsesReg[i], sandbox.GenerateTestToken, additionalFunctionality...)
-		require.NoError(t, err)
+			var additionalFunctionality []networkservice.NetworkServiceServer
+			if i != 2 || j != 2 {
+				additionalFunctionality = []networkservice.NetworkServiceServer{
+					chain.NewNetworkServiceServer(
+						clienturl.NewServer(s.domain.Nodes[0].NSMgr.URL),
+						connect.NewServer(ctx,
+							client.NewClientFactory(
+								client.WithName(fmt.Sprintf("endpoint-client-%v%v", i, j)),
+								client.WithAdditionalFunctionality(
+									mechanismtranslation.NewClient(),
+									injectlabels.NewClient(nseReg.NetworkServiceLabels[nsReg.Name].Labels),
+									kernel.NewClient(),
+								),
+							),
+							connect.WithDialTimeout(sandbox.DialTimeout),
+							connect.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...),
+						),
+					),
+				}
+			}
+
+			_, err = s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, additionalFunctionality...)
+			require.NoError(t, err)
+
+			nsesReg = append(nsesReg, nseReg)
+		}
+		labelBvalue = ""
 	}
 
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
@@ -605,6 +614,9 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
 
 	// Path length from NSE client to other local endpoint is 5
 	require.Equal(t, 5*len(nsReg.Matches), len(conn.Path.PathSegments))
+	for i := 0; i < len(nsReg.Matches); i++ {
+		require.Contains(t, nsesReg[i*4].Name, conn.Path.PathSegments[(i+1)*5-1].GetName())
+	}
 
 	// Refresh
 	conn, err = nsc.Request(ctx, request)
@@ -728,47 +740,6 @@ func multiLabelNS() *registry.NetworkService {
 					},
 				},
 			},
-		},
-	}
-}
-
-func multiLabelEndpoints() []map[string]string {
-	return []map[string]string{
-		{
-			labelA: "a",
-			labelB: "b",
-		},
-		{
-			labelA: "a",
-			labelB: "bb",
-		},
-		{
-			labelA: "aa",
-			labelB: "b",
-		},
-		{
-			labelA: "aa",
-			labelB: "bb",
-		},
-		{
-			labelA: "a",
-			labelB: "bbb",
-		},
-		{
-			labelA: "aaa",
-			labelB: "b",
-		},
-		{
-			labelA: "aa",
-			labelB: "bbb",
-		},
-		{
-			labelA: "aaa",
-			labelB: "bb",
-		},
-		{
-			labelA: "aaa",
-			labelB: "bbb",
 		},
 	}
 }
