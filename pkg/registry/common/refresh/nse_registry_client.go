@@ -125,6 +125,11 @@ func (c *refreshNSEClient) startRefresh(ctx context.Context, nse *registry.Netwo
 						return
 					}
 
+					if reg.ExpirationTime == nil {
+						logger.Warnf("received nil expiration time: %s", nse.Name)
+						return
+					}
+
 					expirationTime = reg.ExpirationTime.AsTime().Local()
 					refreshCh = clockTime.After(2 * clockTime.Until(expirationTime) / 3)
 				})
