@@ -46,6 +46,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/checkid"
+	registryclientinfo "github.com/networkservicemesh/sdk/pkg/registry/common/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
@@ -212,6 +213,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 
 	nseChain := registrychain.NewNamedNetworkServiceEndpointRegistryServer(
 		opts.name+".NetworkServiceEndpointRegistry",
+		registryclientinfo.NewNetworkServiceEndpointRegistryServer(),
 		registryserialize.NewNetworkServiceEndpointRegistryServer(),
 		checkid.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
