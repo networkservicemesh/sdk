@@ -23,13 +23,12 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
-	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
 type setIDClient struct {
@@ -46,27 +45,40 @@ func (c *setIDClient) Register(ctx context.Context, nse *registry.NetworkService
 		return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, nse, opts...)
 	}
 
-	nameSuffix := nse.Name
-	if nameSuffix == "" {
-		nameSuffix = strings.Join(nse.NetworkServiceNames, "-")
+	if nse.Name == "" {
+		nse.Name = strings.Join(nse.NetworkServiceNames, "-")
 	}
-	nameSuffix = "-" + nameSuffix
 
-	for err = status.Error(codes.AlreadyExists, ""); err != nil && isAlreadyExistsError(err); {
-		name := uuid.New().String() + nameSuffix
+	nameSuffix := "-" + nse.Name
 
-		nse.Name = name
-		if reg, err = next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, nse, opts...); err == nil {
-			c.names.Store(name, struct{}{})
+	stream, err := next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, &registry.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: nse,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	nse.Name = uuid.New().String() + nameSuffix
+	for _, foundNSE := range registry.ReadNetworkServiceEndpointList(stream) {
+		if foundNSE.Url == nse.Url {
+			nse.Name = foundNSE.Name
+			break
 		}
 	}
 
-	return reg, err
-}
+	for {
+		name := nse.Name
+		if reg, err = next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, nse, opts...); err == nil {
+			c.names.Store(name, struct{}{})
+			return reg, nil
+		}
 
-func isAlreadyExistsError(e error) bool {
-	grpcStatus, ok := status.FromError(e)
-	return ok && grpcStatus.Code() == codes.AlreadyExists
+		if err != nil && grpcutils.UnwrapCode(err) != codes.AlreadyExists {
+			return nil, err
+		}
+
+		nse.Name = uuid.New().String() + nameSuffix
+	}
 }
 
 func (c *setIDClient) Find(ctx context.Context, query *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
