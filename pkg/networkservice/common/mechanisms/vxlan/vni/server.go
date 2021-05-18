@@ -25,6 +25,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/vxlan"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
@@ -41,33 +42,43 @@ func NewServer(tunnelIP net.IP) networkservice.NetworkServiceServer {
 }
 
 func (v *vniServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if mechanism := vxlan.ToMechanism(request.GetConnection().GetMechanism()); mechanism != nil {
-		mechanism.SetDstIP(v.tunnelIP)
-		k := vniKey{
-			srcIPString: mechanism.SrcIP().String(),
-			vni:         mechanism.VNI(),
+	mechanism := vxlan.ToMechanism(request.GetConnection().GetMechanism())
+	if mechanism == nil {
+		return next.Server(ctx).Request(ctx, request)
+	}
+	mechanism.SetDstIP(v.tunnelIP)
+	k := vniKey{
+		srcIPString: mechanism.SrcIP().String(),
+		vni:         mechanism.VNI(),
+	}
+	// If we already have a VNI, make sure we remember it, and go on
+	if k.vni != 0 && mechanism.SrcIP() != nil {
+		v.Map.LoadOrStore(k, &k)
+		conn, err := next.Server(ctx).Request(ctx, request)
+		if err != nil {
+			v.Map.Delete(k)
 		}
-		// If we already have a VNI, make sure we remember it, and go on
-		if k.vni != 0 && mechanism.SrcIP() != nil {
-			v.Map.LoadOrStore(k, &k)
-			return next.Server(ctx).Request(ctx, request)
-		}
+		return conn, err
+	}
 
-		for {
-			// Generate a random VNI (appropriately odd or even)
-			var err error
-			k.vni, err = mechanism.GenerateRandomVNI()
-			if err != nil {
-				return nil, err
-			}
-			// If its not one already in use, set it and we are good to go
-			if _, ok := v.Map.LoadOrStore(k, &k); !ok {
-				mechanism.SetVNI(k.vni)
-				break
-			}
+	for {
+		// Generate a random VNI (appropriately odd or even)
+		var err error
+		k.vni, err = mechanism.GenerateRandomVNI()
+		if err != nil {
+			return nil, err
+		}
+		// If its not one already in use, set it and we are good to go
+		if _, ok := v.Map.LoadOrStore(k, &k); !ok {
+			mechanism.SetVNI(k.vni)
+			break
 		}
 	}
-	return next.Server(ctx).Request(ctx, request)
+	conn, err := next.Server(ctx).Request(ctx, request)
+	if err != nil {
+		v.Map.Delete(k)
+	}
+	return conn, err
 }
 
 func (v *vniServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {

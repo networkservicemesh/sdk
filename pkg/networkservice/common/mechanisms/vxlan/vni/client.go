@@ -43,7 +43,9 @@ func NewClient(tunnelIP net.IP) networkservice.NetworkServiceClient {
 func (v *vniClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	for _, m := range request.GetMechanismPreferences() {
 		// Note: This only has effect if this is a vxlan mechanism
-		vxlan.ToMechanism(m).SetSrcIP(v.tunnelIP)
+		if mech := vxlan.ToMechanism(m); mech != nil {
+			mech.SetSrcIP(v.tunnelIP)
+		}
 	}
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
