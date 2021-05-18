@@ -21,10 +21,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/atomic"
 	"go.uber.org/goleak"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/onidle"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -38,6 +39,23 @@ const (
 	testTick = testWait / 100
 )
 
+func TestIdleNotifier_Disable(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	clockMock := clockmock.New(ctx)
+	ctx = clock.WithClock(ctx, clockMock)
+
+	var flag atomic.Bool
+
+	_ = onidle.NewServer(ctx, func() { flag.Store(true) }, 0)
+
+	clockMock.Add(time.Hour * 100)
+	require.Never(t, flag.Load, testWait, testTick)
+}
+
 func TestIdleNotifier_NoRequests(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -50,9 +68,7 @@ func TestIdleNotifier_NoRequests(t *testing.T) {
 	timeout := time.Hour
 	var flag atomic.Bool
 
-	_ = onidle.NewServer(ctx, func() {
-		flag.Store(true)
-	}, onidle.WithTimeout(timeout))
+	_ = onidle.NewServer(ctx, func() { flag.Store(true) }, timeout)
 
 	clockMock.Add(timeout - 1)
 	require.Never(t, flag.Load, testWait, testTick)
@@ -73,9 +89,7 @@ func TestIdleNotifier_Refresh(t *testing.T) {
 	timeout := time.Hour
 	var flag atomic.Bool
 
-	server := onidle.NewServer(ctx, func() {
-		flag.Store(true)
-	}, onidle.WithTimeout(timeout))
+	server := onidle.NewServer(ctx, func() { flag.Store(true) }, timeout)
 
 	clockMock.Add(timeout - 1)
 	conn, err := server.Request(ctx, &networkservice.NetworkServiceRequest{})
@@ -103,9 +117,7 @@ func TestIdleNotifier_HoldingActiveRequest(t *testing.T) {
 	timeout := time.Hour
 	var flag atomic.Bool
 
-	server := onidle.NewServer(ctx, func() {
-		flag.Store(true)
-	}, onidle.WithTimeout(timeout))
+	server := onidle.NewServer(ctx, func() { flag.Store(true) }, timeout)
 
 	clockMock.Add(timeout - 1)
 	conn1, err := server.Request(ctx, &networkservice.NetworkServiceRequest{
@@ -144,9 +156,7 @@ func TestIdleNotifier_FailedRequest(t *testing.T) {
 	var flag atomic.Bool
 
 	server := next.NewNetworkServiceServer(
-		onidle.NewServer(ctx, func() {
-			flag.Store(true)
-		}, onidle.WithTimeout(timeout)),
+		onidle.NewServer(ctx, func() { flag.Store(true) }, timeout),
 		injecterror.NewServer(),
 	)
 
@@ -174,9 +184,7 @@ func TestIdleNotifier_ContextCancel(t *testing.T) {
 	timeout := time.Hour
 	var flag atomic.Bool
 
-	server := onidle.NewServer(ctx, func() {
-		flag.Store(true)
-	}, onidle.WithTimeout(timeout))
+	server := onidle.NewServer(ctx, func() { flag.Store(true) }, timeout)
 
 	cancel()
 	clockMock.Add(timeout)
@@ -198,9 +206,7 @@ func TestIdleNotifier_RequestAfterExpire(t *testing.T) {
 	timeout := time.Hour
 	var flag atomic.Bool
 
-	server := onidle.NewServer(ctx, func() {
-		flag.Store(true)
-	}, onidle.WithTimeout(timeout))
+	server := onidle.NewServer(ctx, func() { flag.Store(true) }, timeout)
 
 	clockMock.Add(timeout)
 	require.Eventually(t, flag.Load, time.Second, testTick)
