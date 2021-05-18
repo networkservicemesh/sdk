@@ -46,27 +46,23 @@ type onIdleServer struct {
 //
 // If timeout passes, server calls specified notify function and all further Requests will fail.
 //
+// Zero timeout disables onidle server altogether. Setting timeout=0 is equivalent to using null.NewServer.
+//
 // If ctx is canceled before timeout, the server stops monitoring connections without calling notify.
 // Further calls to Request will not be affected by this.
-func NewServer(ctx context.Context, notify func(), options ...Option) networkservice.NetworkServiceServer {
-	clockTime := clock.FromContext(ctx)
+func NewServer(ctx context.Context, notify func(), timeout time.Duration) networkservice.NetworkServiceServer {
+	if timeout == 0 {
+		return null.NewServer()
+	}
 
 	t := &onIdleServer{
 		ctx:         ctx,
-		timeout:     time.Minute * 10,
+		timeout:     timeout,
 		notify:      notify,
 		activeConns: make(map[string]struct{}),
 	}
 
-	for _, opt := range options {
-		opt(t)
-	}
-
-	if t.timeout == 0 {
-		return null.NewServer()
-	}
-
-	t.timer = clockTime.AfterFunc(t.timeout, func() {
+	t.timer = clock.FromContext(ctx).AfterFunc(t.timeout, func() {
 		if ctx.Err() != nil {
 			return
 		}
