@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Cisco and/or its affiliates.
 //
+// Copyright (c) 2021 Nordix Foundation.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -53,9 +55,9 @@ func (v *vniServer) Request(ctx context.Context, request *networkservice.Network
 	}
 	// If we already have a VNI, make sure we remember it, and go on
 	if k.vni != 0 && mechanism.SrcIP() != nil {
-		v.Map.LoadOrStore(k, &k)
+		_, loaded := v.Map.LoadOrStore(k, &k)
 		conn, err := next.Server(ctx).Request(ctx, request)
-		if err != nil {
+		if err != nil && !loaded {
 			v.Map.Delete(k)
 		}
 		return conn, err
