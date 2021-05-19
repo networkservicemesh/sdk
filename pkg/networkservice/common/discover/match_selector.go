@@ -22,6 +22,8 @@ import (
 	"bytes"
 	"text/template"
 
+	"github.com/pkg/errors"
+
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
@@ -94,7 +96,7 @@ func process(t *template.Template, vars interface{}) (string, error) {
 
 	err := t.Execute(&tmplBytes, vars)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "error during execution of template")
 	}
 	return tmplBytes.String(), nil
 }
