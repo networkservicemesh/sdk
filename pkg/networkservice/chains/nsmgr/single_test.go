@@ -26,13 +26,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/registry"
-
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
+	"github.com/networkservicemesh/sdk/pkg/tools/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -253,4 +253,69 @@ func Test_Local_NoURLUsecase(t *testing.T) {
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
 	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Closes))
+}
+
+func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	const (
+		testEnvName             = "NODE_NAME"
+		testEnvValue            = "testValue"
+		destinationTestKey      = `NodeNameKey`
+		destinationTestTemplate = `{{.NodeNameKey}}`
+	)
+
+	err := os.Setenv(testEnvName, testEnvValue)
+	require.NoError(t, err)
+
+	want := map[string]string{}
+	clientinfo.AddClientInfo(ctx, want)
+
+	domain := sandbox.NewBuilder(t).
+		SetNodesCount(1).
+		SetRegistryProxySupplier(nil).
+		SetNSMgrProxySupplier(nil).
+		SetContext(ctx).
+		Build()
+
+	nsReg := defaultRegistryService()
+	nsReg.Matches = []*registry.Match{
+		{
+			Routes: []*registry.Destination{
+				{
+					DestinationSelector: map[string]string{
+						destinationTestKey: destinationTestTemplate,
+					},
+				},
+			},
+		},
+	}
+
+	nsReg, err = domain.Nodes[0].NSRegistryClient.Register(ctx, nsReg)
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg.NetworkServiceLabels = map[string]*registry.NetworkServiceLabels{nsReg.Name: {}}
+
+	_, err = domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
+	require.NoError(t, err)
+
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+	require.NoError(t, err)
+
+	req := defaultRequest(nsReg.Name)
+
+	conn, err := nsc.Request(ctx, req)
+	require.NoError(t, err)
+
+	// Test for connection labels setting
+	require.Equal(t, want, conn.Labels)
+	// Test for endpoint labels setting
+	require.Equal(t, want, nseReg.NetworkServiceLabels[nsReg.Name].Labels)
+
+	_, err = domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
+	require.NoError(t, err)
 }

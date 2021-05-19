@@ -33,6 +33,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
@@ -45,6 +46,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/checkid"
+	registryclientinfo "github.com/networkservicemesh/sdk/pkg/registry/common/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
@@ -147,7 +149,11 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		// Use remote registry
 		nsRegistry = registryadapter.NetworkServiceClientToServer(
 			nextwrap.NewNetworkServiceRegistryClient(
-				registryapi.NewNetworkServiceRegistryClient(*opts.regClientConn)))
+				registrychain.NewNetworkServiceRegistryClient(
+					registryapi.NewNetworkServiceRegistryClient(*opts.regClientConn),
+				),
+			),
+		)
 	} else {
 		// Use memory registry if no registry is passed
 		nsRegistry = memory.NewNetworkServiceRegistryServer()
@@ -180,6 +186,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		endpoint.WithName(opts.name),
 		endpoint.WithAuthorizeServer(opts.authorizeServer),
 		endpoint.WithAdditionalFunctionality(
+			adapters.NewClientToServer(clientinfo.NewClient()),
 			discover.NewServer(nsClient, nseClient),
 			roundrobin.NewServer(),
 			excludedprefixes.NewServer(ctx),
@@ -206,6 +213,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 
 	nseChain := registrychain.NewNamedNetworkServiceEndpointRegistryServer(
 		opts.name+".NetworkServiceEndpointRegistry",
+		registryclientinfo.NewNetworkServiceEndpointRegistryServer(),
 		registryserialize.NewNetworkServiceEndpointRegistryServer(),
 		checkid.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
