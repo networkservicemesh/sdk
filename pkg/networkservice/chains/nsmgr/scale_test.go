@@ -22,12 +22,13 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/atomic"
 	"go.uber.org/goleak"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
@@ -83,9 +84,12 @@ func TestCreateEndpointDuringRequest(t *testing.T) {
 			},
 		},
 		serverFactory: func() networkservice.NetworkServiceServer {
-			// we can't check that this is the first request
+			// we can't use require false here
 			// because there will be several calls, and it's expected behavior
-			flag.Swap(true)
+			if flag.Swap(true) {
+				return nil
+			}
+
 			return requestCounter
 		},
 	}
@@ -130,7 +134,12 @@ type nseMaker struct {
 }
 
 func (m *nseMaker) Request(_ context.Context, _ *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	_, err := m.domain.Nodes[1].NewEndpoint(m.ctx, m.nseReg, sandbox.GenerateTestToken, m.serverFactory())
+	endpoint := m.serverFactory()
+	if endpoint == nil {
+		return nil, errors.New("can't create new endpoint")
+	}
+
+	_, err := m.domain.Nodes[1].NewEndpoint(m.ctx, m.nseReg, sandbox.GenerateTestToken, endpoint)
 	if err != nil {
 		return nil, err
 	}
