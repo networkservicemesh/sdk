@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -29,117 +30,123 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/serializectx"
 )
 
-// TODO: rework to serialize
 type refreshNSEClient struct {
-	chainContext          context.Context
-	nseCancels            cancelsMap
-	defaultExpiryDuration time.Duration
+	ctx        context.Context
+	nseCancels cancelsMap
 }
 
 // NewNetworkServiceEndpointRegistryClient creates new NetworkServiceEndpointRegistryClient that will refresh expiration
 // time for registered NSEs
-func NewNetworkServiceEndpointRegistryClient(options ...Option) registry.NetworkServiceEndpointRegistryClient {
-	c := &refreshNSEClient{
-		defaultExpiryDuration: time.Minute * 30,
-		chainContext:          context.Background(),
+func NewNetworkServiceEndpointRegistryClient(ctx context.Context) registry.NetworkServiceEndpointRegistryClient {
+	return &refreshNSEClient{
+		ctx: ctx,
 	}
-
-	for _, o := range options {
-		o.apply(c)
-	}
-
-	return c
 }
 
-func (c *refreshNSEClient) startRefresh(
-	ctx context.Context,
-	clockTime clock.Clock,
-	client registry.NetworkServiceEndpointRegistryClient,
-	nse *registry.NetworkServiceEndpoint,
-	expiryDuration time.Duration,
-) {
-	logger := log.FromContext(ctx).WithField("refreshNSEClient", "startRefresh")
-
-	t := time.Unix(nse.ExpirationTime.Seconds, int64(nse.ExpirationTime.Nanos))
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-clockTime.After(2 * clockTime.Until(t) / 3):
-				nse.ExpirationTime = timestamppb.New(clockTime.Now().Add(expiryDuration))
-
-				res, err := client.Register(ctx, nse.Clone())
-				if err != nil {
-					logger.Errorf("failed to update registration: %s", err.Error())
-					return
-				}
-
-				nse.ExpirationTime = res.ExpirationTime
-
-				t = nse.ExpirationTime.AsTime().Local()
-			}
-		}
-	}()
-}
-
-func (c *refreshNSEClient) Register(
-	ctx context.Context,
-	nse *registry.NetworkServiceEndpoint,
-	opts ...grpc.CallOption,
-) (*registry.NetworkServiceEndpoint, error) {
+func (c *refreshNSEClient) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
 	clockTime := clock.FromContext(ctx)
+	logger := log.FromContext(ctx).WithField("refreshNSEClient", "Register")
 
-	var expiryDuration time.Duration
-	if nse.ExpirationTime == nil {
-		expiryDuration = c.defaultExpiryDuration
-		nse.ExpirationTime = timestamppb.New(clockTime.Now().Add(expiryDuration))
-	} else {
-		expiryDuration = clockTime.Until(nse.ExpirationTime.AsTime().Local())
+	var expirationDuration time.Duration
+	if nse.ExpirationTime != nil {
+		expirationDuration = clockTime.Until(nse.ExpirationTime.AsTime().Local())
 	}
 
-	refreshNSE := nse.Clone()
+	cancel, ok := c.nseCancels.LoadAndDelete(nse.Name)
+	if ok {
+		cancel()
+	}
 
-	nextClient := next.NetworkServiceEndpointRegistryClient(ctx)
-
-	resp, err := nextClient.Register(ctx, nse, opts...)
+	reg, err := next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, nse, opts...)
 	if err != nil {
 		return nil, err
 	}
-	if cancel, ok := c.nseCancels.Load(resp.Name); ok {
-		cancel()
+
+	if reg.ExpirationTime != nil {
+		cancel, err = c.startRefresh(ctx, reg.Clone(), expirationDuration)
+		if err != nil {
+			if _, unregisterErr := next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, reg); unregisterErr != nil {
+				logger.Errorf("failed to unregister endpoint on error: %s %s", reg.Name, unregisterErr.Error())
+			}
+			return nil, err
+		}
+
+		c.nseCancels.Store(reg.Name, cancel)
 	}
 
-	refreshNSE.Name = resp.Name
-	refreshNSE.ExpirationTime = resp.ExpirationTime
-
-	ctx, cancel := context.WithCancel(c.chainContext)
-	c.nseCancels.Store(resp.Name, cancel)
-
-	c.startRefresh(ctx, clockTime, nextClient, refreshNSE, expiryDuration)
-
-	return resp, err
+	return reg, err
 }
 
-func (c *refreshNSEClient) Find(
-	ctx context.Context,
-	query *registry.NetworkServiceEndpointQuery,
-	opts ...grpc.CallOption,
-) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
+func (c *refreshNSEClient) startRefresh(ctx context.Context, nse *registry.NetworkServiceEndpoint, expirationDuration time.Duration) (context.CancelFunc, error) {
+	clockTime := clock.FromContext(ctx)
+	logger := log.FromContext(ctx).WithField("refreshNSEClient", "startRefresh")
+
+	executor := serializectx.GetExecutor(ctx, nse.Name)
+	if executor == nil {
+		return nil, errors.Errorf("failed to get executor from context")
+	}
+
+	expirationTime := nse.ExpirationTime.AsTime().Local()
+	refreshCh := clockTime.After(2 * clockTime.Until(expirationTime) / 3)
+
+	refreshCtx, refreshCancel := context.WithCancel(c.ctx)
+	go func() {
+		defer refreshCancel()
+		for {
+			select {
+			case <-refreshCtx.Done():
+				return
+			case <-refreshCh:
+				<-executor.AsyncExec(func() {
+					if refreshCtx.Err() != nil {
+						return
+					}
+
+					var registerCtx context.Context
+					var cancel context.CancelFunc
+					if expirationDuration != 0 {
+						nse.ExpirationTime = timestamppb.New(clockTime.Now().Add(expirationDuration))
+						registerCtx, cancel = clockTime.WithTimeout(refreshCtx, expirationDuration)
+					} else {
+						nse.ExpirationTime = nil
+						registerCtx, cancel = context.WithCancel(refreshCtx)
+					}
+					defer cancel()
+
+					reg, err := next.NetworkServiceEndpointRegistryClient(ctx).Register(registerCtx, nse.Clone())
+					if err == nil && reg.Name != nse.Name {
+						err = errors.Errorf("renamed to %s", reg.Name)
+					}
+					if err != nil {
+						logger.Errorf("failed to refresh endpoint registration: %s %s", nse.Name, err.Error())
+						return
+					}
+
+					if reg.ExpirationTime == nil {
+						logger.Warnf("received nil expiration time: %s", nse.Name)
+						return
+					}
+
+					expirationTime = reg.ExpirationTime.AsTime().Local()
+					refreshCh = clockTime.After(2 * clockTime.Until(expirationTime) / 3)
+				})
+			}
+		}
+	}()
+
+	return refreshCancel, nil
+}
+
+func (c *refreshNSEClient) Find(ctx context.Context, query *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
 	return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, query, opts...)
 }
 
-func (c *refreshNSEClient) Unregister(
-	ctx context.Context,
-	nse *registry.NetworkServiceEndpoint,
-	opts ...grpc.CallOption,
-) (*empty.Empty, error) {
-	if cancel, ok := c.nseCancels.Load(nse.Name); ok {
+func (c *refreshNSEClient) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
+	if cancel, ok := c.nseCancels.LoadAndDelete(nse.Name); ok {
 		cancel()
 	}
-	c.nseCancels.Delete(nse.Name)
-
 	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, nse, opts...)
 }

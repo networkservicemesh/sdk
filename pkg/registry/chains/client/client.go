@@ -39,7 +39,7 @@ func NewNetworkServiceEndpointRegistryClient(ctx context.Context, cc grpc.Client
 			append([]registry.NetworkServiceEndpointRegistryClient{
 				setid.NewNetworkServiceEndpointRegistryClient(),
 				serialize.NewNetworkServiceEndpointRegistryClient(),
-				refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithChainContext(ctx)),
+				refresh.NewNetworkServiceEndpointRegistryClient(ctx),
 				sendfd.NewNetworkServiceEndpointRegistryClient(),
 			}, additionalFunctionality...),
 			registry.NewNetworkServiceEndpointRegistryClient(cc),
@@ -67,7 +67,7 @@ func NewNetworkServiceEndpointRegistryInterposeClient(ctx context.Context, cc gr
 				setid.NewNetworkServiceEndpointRegistryClient(),
 				interpose.NewNetworkServiceEndpointRegistryClient(),
 				serialize.NewNetworkServiceEndpointRegistryClient(),
-				refresh.NewNetworkServiceEndpointRegistryClient(refresh.WithChainContext(ctx)),
+				refresh.NewNetworkServiceEndpointRegistryClient(ctx),
 				sendfd.NewNetworkServiceEndpointRegistryClient(),
 			}, additionalFunctionality...),
 			registry.NewNetworkServiceEndpointRegistryClient(cc),
