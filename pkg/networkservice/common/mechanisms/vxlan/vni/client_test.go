@@ -46,4 +46,7 @@ func TestVNIClient(t *testing.T) {
 	conn, err := c.Request(context.Background(), request)
 	assert.Nil(t, err)
 	assert.NotNil(t, conn)
+	mechanism := vxlan.ToMechanism(request.MechanismPreferences[0])
+	assert.NotNil(t, mechanism)
+	assert.Equal(t, "192.0.2.1", mechanism.SrcIP().String())
 }
