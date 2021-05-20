@@ -40,10 +40,9 @@ func TestCreateEndpointDuringRequest(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 
 	defer cancel()
-	domain := sandbox.NewBuilder(t).
+	domain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(2).
 		SetRegistryProxySupplier(nil).
-		SetContext(ctx).
 		Build()
 
 	nsReg := &registry.NetworkService{
@@ -94,8 +93,7 @@ func TestCreateEndpointDuringRequest(t *testing.T) {
 		},
 	}
 
-	_, err = domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, makerServer)
-	require.NoError(t, err)
+	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, makerServer)
 
 	nsc := domain.Nodes[1].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -139,10 +137,7 @@ func (m *nseMaker) Request(_ context.Context, _ *networkservice.NetworkServiceRe
 		return nil, errors.New("can't create new endpoint")
 	}
 
-	_, err := m.domain.Nodes[1].NewEndpoint(m.ctx, m.nseReg, sandbox.GenerateTestToken, endpoint)
-	if err != nil {
-		return nil, err
-	}
+	m.domain.Nodes[1].NewEndpoint(m.ctx, m.nseReg, sandbox.GenerateTestToken, endpoint)
 
 	return nil, errors.New("can't provide requested network service")
 }
