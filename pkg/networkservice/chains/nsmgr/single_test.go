@@ -267,11 +267,10 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 	want := map[string]string{}
 	clientinfo.AddClientInfo(ctx, want)
 
-	domain := sandbox.NewBuilder(t).
+	domain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
 		SetRegistryProxySupplier(nil).
 		SetNSMgrProxySupplier(nil).
-		SetContext(ctx).
 		Build()
 
 	nsReg := defaultRegistryService()
@@ -293,8 +292,7 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	nseReg.NetworkServiceLabels = map[string]*registry.NetworkServiceLabels{nsReg.Name: {}}
 
-	_, err = domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
-	require.NoError(t, err)
+	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 	require.NoError(t, err)
