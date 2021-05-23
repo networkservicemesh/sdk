@@ -49,6 +49,7 @@ func (v *vniServer) Request(ctx context.Context, request *networkservice.Network
 		return next.Server(ctx).Request(ctx, request)
 	}
 	mechanism.SetDstIP(v.tunnelIP)
+	mechanism.SetDstPort(vxlanPort)
 	k := vniKey{
 		srcIPString: mechanism.SrcIP().String(),
 		vni:         mechanism.VNI(),

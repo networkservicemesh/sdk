@@ -47,6 +47,7 @@ func (v *vniClient) Request(ctx context.Context, request *networkservice.Network
 		// Note: This only has effect if this is a vxlan mechanism
 		if mech := vxlan.ToMechanism(m); mech != nil {
 			mech.SetSrcIP(v.tunnelIP)
+			mech.SetSrcPort(vxlanPort)
 		}
 	}
 	return next.Client(ctx).Request(ctx, request, opts...)
