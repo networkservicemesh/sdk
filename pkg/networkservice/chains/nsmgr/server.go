@@ -21,6 +21,7 @@ package nsmgr
 
 import (
 	"context"
+	"net/url"
 	"time"
 
 	"github.com/google/uuid"
@@ -45,6 +46,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/roundrobin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry"
+	"github.com/networkservicemesh/sdk/pkg/registry/chains/connectto"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/checkid"
 	registryclientinfo "github.com/networkservicemesh/sdk/pkg/registry/common/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
@@ -56,13 +58,12 @@ import (
 	registryadapter "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	registrychain "github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/nextwrap"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-// Nsmgr - A simple combintation of the Endpoint, registry.NetworkServiceRegistryServer, and registry.NetworkServiceDiscoveryServer interfaces
+// Nsmgr - A simple combination of the Endpoint, registry.NetworkServiceRegistryServer, and registry.NetworkServiceDiscoveryServer interfaces
 type Nsmgr interface {
 	networkservice.NetworkServiceServer
 	networkservice.MonitorConnectionServer
@@ -77,7 +78,8 @@ type nsmgrServer struct {
 type serverOptions struct {
 	authorizeServer networkservice.NetworkServiceServer
 	connectOptions  []connect.Option
-	regClientConn   *grpc.ClientConnInterface
+	regURL          *url.URL
+	regDialOptions  []grpc.DialOption
 	name            string
 	url             string
 }
@@ -102,11 +104,11 @@ func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Op
 	}
 }
 
-// WithRegistryClientConn sets client connection to reach the upstream registry, if not passed memory storage will be used.
-// Please do not pass nil value of registry connection.
-func WithRegistryClientConn(regClientConn grpc.ClientConnInterface) Option {
+// WithRegistry sets URL and dial options to reach the upstream registry, if not passed memory storage will be used.
+func WithRegistry(regURL *url.URL, regDialOptions ...grpc.DialOption) Option {
 	return func(o *serverOptions) {
-		o.regClientConn = &regClientConn
+		o.regURL = regURL
+		o.regDialOptions = regDialOptions
 	}
 }
 
@@ -119,9 +121,9 @@ func WithName(name string) Option {
 
 // WithURL - set a public URL address for NetworkServiceManager, it is used to access endpoints within this NSMgr from remote clients.
 // Default value is not set, and endpoints address will not be changed.
-func WithURL(url string) Option {
+func WithURL(u string) Option {
 	return func(o *serverOptions) {
-		o.url = url
+		o.url = u
 	}
 }
 
@@ -145,26 +147,18 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	var urlsRegistryServer, interposeRegistryServer registryapi.NetworkServiceEndpointRegistryServer
 
 	var nsRegistry registryapi.NetworkServiceRegistryServer
-	if opts.regClientConn != nil {
+	if opts.regURL != nil {
 		// Use remote registry
-		nsRegistry = registryadapter.NetworkServiceClientToServer(
-			nextwrap.NewNetworkServiceRegistryClient(
-				registrychain.NewNetworkServiceRegistryClient(
-					registryapi.NewNetworkServiceRegistryClient(*opts.regClientConn),
-				),
-			),
-		)
+		nsRegistry = connectto.NewNetworkServiceRegistryServer(ctx, opts.regURL, opts.regDialOptions...)
 	} else {
 		// Use memory registry if no registry is passed
 		nsRegistry = memory.NewNetworkServiceRegistryServer()
 	}
 
 	var nseRegistry registryapi.NetworkServiceEndpointRegistryServer
-	if opts.regClientConn != nil {
+	if opts.regURL != nil {
 		// Use remote registry
-		nseRegistry = registryadapter.NetworkServiceEndpointClientToServer(
-			nextwrap.NewNetworkServiceEndpointRegistryClient(
-				registryapi.NewNetworkServiceEndpointRegistryClient(*opts.regClientConn)))
+		nseRegistry = connectto.NewNetworkServiceEndpointRegistryServer(ctx, opts.regURL, opts.regDialOptions...)
 	} else {
 		// Use memory registry if no registry is passed
 		nseRegistry = memory.NewNetworkServiceEndpointRegistryServer()

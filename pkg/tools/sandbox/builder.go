@@ -307,10 +307,6 @@ func (b *Builder) newNSMgr(ctx context.Context, address string, registryURL *url
 	if b.supplyNSMgr == nil {
 		panic("nodes without managers are not supported")
 	}
-	var registryCC *grpc.ClientConn
-	if registryURL != nil {
-		registryCC = b.dialContext(ctx, registryURL)
-	}
 
 	var serveURL *url.URL
 	if b.useUnixSockets {
@@ -333,7 +329,7 @@ func (b *Builder) newNSMgr(ctx context.Context, address string, registryURL *url
 	}
 
 	if registryURL != nil {
-		options = append(options, nsmgr.WithRegistryClientConn(registryCC))
+		options = append(options, nsmgr.WithRegistry(registryURL, DefaultDialOptions(generateTokenFunc)...))
 	}
 
 	if serveURL.Scheme == "tcp" {
@@ -415,11 +411,11 @@ func (b *Builder) newNode(ctx context.Context, registryURL *url.URL, nodeConfig 
 
 // SetupRegistryClients - creates Network Service Registry Clients
 func (b *Builder) SetupRegistryClients(ctx context.Context, node *Node) {
-	nsmgrCC := b.dialContext(ctx, node.NSMgr.URL)
+	dialOptions := DefaultDialOptions(b.generateTokenFunc)
 
-	node.ForwarderRegistryClient = client.NewNetworkServiceEndpointRegistryInterposeClient(ctx, nsmgrCC)
-	node.EndpointRegistryClient = client.NewNetworkServiceEndpointRegistryClient(ctx, nsmgrCC)
-	node.NSRegistryClient = client.NewNetworkServiceRegistryClient(nsmgrCC)
+	node.ForwarderRegistryClient = client.NewNetworkServiceEndpointRegistryInterposeClient(ctx, node.NSMgr.URL, client.WithNSEDialOptions(dialOptions...))
+	node.EndpointRegistryClient = client.NewNetworkServiceEndpointRegistryClient(ctx, node.NSMgr.URL, client.WithNSEDialOptions(dialOptions...))
+	node.NSRegistryClient = client.NewNetworkServiceRegistryClient(ctx, node.NSMgr.URL, client.WithNSDialOptions(dialOptions...))
 }
 
 // newAddress - will return a new public address, if unixSockets are used prefix will be used to make uniq files.
