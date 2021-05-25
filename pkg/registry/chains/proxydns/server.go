@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -38,12 +38,12 @@ func NewServer(ctx context.Context, dnsResolver dnsresolve.Resolver, handlingDNS
 		swap.NewNetworkServiceEndpointRegistryServer(handlingDNSDomain, proxyNSMgrURL),
 		connect.NewNetworkServiceEndpointRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registryapi.NetworkServiceEndpointRegistryClient {
 			return registryapi.NewNetworkServiceEndpointRegistryClient(cc)
-		}, connect.WithClientDialOptions(options...)))
+		}, options...))
 	nsChain := chain.NewNetworkServiceRegistryServer(
 		dnsresolve.NewNetworkServiceRegistryServer(dnsresolve.WithResolver(dnsResolver)),
 		swap.NewNetworkServiceRegistryServer(handlingDNSDomain),
 		connect.NewNetworkServiceRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registryapi.NetworkServiceRegistryClient {
 			return chain.NewNetworkServiceRegistryClient(registryapi.NewNetworkServiceRegistryClient(cc))
-		}, connect.WithClientDialOptions(options...)))
+		}, options...))
 	return registry.NewServer(nsChain, nseChain)
 }

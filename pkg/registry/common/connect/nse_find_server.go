@@ -16,16 +16,38 @@
 
 package connect
 
-import "sync"
+import (
+	"io"
 
-//go:generate go-syncmap -output nse_info_map.gen.go -type nseInfoMap<string,*nseInfo>
-//go:generate go-syncmap -output nse_client_map.gen.go -type nseClientMap<string,*nseClient>
+	"github.com/networkservicemesh/api/pkg/api/registry"
+)
 
-type nseInfoMap sync.Map
-type nseClientMap sync.Map
+type connectNSEFindServer struct {
+	client    *nseClient
+	clientURL string
+	err       error
 
-//go:generate go-syncmap -output ns_info_map.gen.go -type nsInfoMap<string,*nsInfo>
-//go:generate go-syncmap -output ns_client_map.gen.go -type nsClientMap<string,*nsClient>
+	*connectNSEServer
+	registry.NetworkServiceEndpointRegistry_FindServer
+}
 
-type nsInfoMap sync.Map
-type nsClientMap sync.Map
+func (s *connectNSEFindServer) Send(nse *registry.NetworkServiceEndpoint) error {
+	if s.err != nil {
+		return s.err
+	}
+
+	switch err := s.NetworkServiceEndpointRegistry_FindServer.Send(nse); {
+	case err == io.EOF:
+		s.err = err
+		s.closeClient(s.client, s.clientURL)
+		return io.EOF
+	case err != nil:
+		if s.client.client.ctx.Err() != nil {
+			s.err = err
+			s.deleteClient(s.client, s.clientURL)
+		}
+		return err
+	}
+
+	return nil
+}

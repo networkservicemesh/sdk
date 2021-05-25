@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,9 +18,7 @@ package connect_test
 
 import (
 	"context"
-	"net"
 	"net/url"
-	"runtime"
 	"testing"
 	"time"
 
@@ -37,25 +35,22 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
-func startNSEServer(t *testing.T) (u *url.URL, closeFunc func()) {
+func startNSEServer(t *testing.T) (*url.URL, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(context.Background())
+
 	serverChain := memory.NewNetworkServiceEndpointRegistryServer()
 	s := grpc.NewServer()
 	registry.RegisterNetworkServiceEndpointRegistryServer(s, serverChain)
 	grpcutils.RegisterHealthServices(s, serverChain)
-	l, err := net.Listen("tcp", "127.0.0.1:0")
-	require.Nil(t, err)
-	closeFunc = func() {
-		_ = l.Close()
+
+	u := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
+	select {
+	case err := <-grpcutils.ListenAndServe(ctx, u, s):
+		require.NoError(t, err)
+	default:
 	}
-	go func() {
-		_ = s.Serve(l)
-	}()
-	u, err = url.Parse("tcp://" + l.Addr().String())
-	if err != nil {
-		closeFunc()
-	}
-	require.Nil(t, err)
-	return u, closeFunc
+
+	return u, cancel
 }
 
 func TestConnect_NewNetworkServiceEndpointRegistryServer(t *testing.T) {
@@ -67,31 +62,33 @@ func TestConnect_NewNetworkServiceEndpointRegistryServer(t *testing.T) {
 
 	s := connect.NewNetworkServiceEndpointRegistryServer(ctx, func(_ context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient {
 		return registry.NewNetworkServiceEndpointRegistryClient(cc)
-	}, connect.WithExpirationDuration(time.Millisecond*100), connect.WithClientDialOptions(grpc.WithInsecure()))
+	}, grpc.WithInsecure())
 
-	_, err := s.Register(clienturlctx.WithClientURL(context.Background(), url1), &registry.NetworkServiceEndpoint{Name: "ns-1"})
-	require.Nil(t, err)
-	_, err = s.Register(clienturlctx.WithClientURL(context.Background(), url2), &registry.NetworkServiceEndpoint{Name: "ns-1-1"})
-	require.Nil(t, err)
+	_, err := s.Register(clienturlctx.WithClientURL(context.Background(), url1), &registry.NetworkServiceEndpoint{Name: "nse-1"})
+	require.NoError(t, err)
+
+	_, err = s.Register(clienturlctx.WithClientURL(context.Background(), url2), &registry.NetworkServiceEndpoint{Name: "nse-1-1"})
+	require.NoError(t, err)
+
 	ch := make(chan *registry.NetworkServiceEndpoint, 1)
 	findSrv := streamchannel.NewNetworkServiceEndpointFindServer(clienturlctx.WithClientURL(context.Background(), url1), ch)
 	err = s.Find(&registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-		Name: "ns-1",
+		Name: "nse-1",
 	}}, findSrv)
-	require.Nil(t, err)
-	require.Equal(t, (<-ch).Name, "ns-1")
+	require.NoError(t, err)
+	require.Equal(t, (<-ch).Name, "nse-1")
+
 	findSrv = streamchannel.NewNetworkServiceEndpointFindServer(clienturlctx.WithClientURL(context.Background(), url2), ch)
 	err = s.Find(&registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-		Name: "ns-1",
+		Name: "nse-1",
 	}}, findSrv)
-	require.Nil(t, err)
-	require.Equal(t, (<-ch).Name, "ns-1-1")
+	require.NoError(t, err)
+	require.Equal(t, (<-ch).Name, "nse-1-1")
 
 	closeServer1()
 	closeServer2()
 
 	require.Eventually(t, func() bool {
-		runtime.GC()
-		return goleak.Find() != nil
-	}, time.Second, time.Microsecond*100)
+		return goleak.Find(goleak.IgnoreTopFunction("github.com/stretchr/testify/assert.Eventually")) == nil
+	}, time.Second, 100*time.Millisecond)
 }

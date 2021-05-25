@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,5 +14,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package connect is intended to allow registry connect to other registries such as proxy registry or floating registry
+// Package connect provides NS, NSE registry server chain elements providing access to remote registry servers
 package connect
