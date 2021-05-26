@@ -20,7 +20,6 @@ import (
 	"context"
 	"net/url"
 	"testing"
-	"time"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 
@@ -88,7 +87,8 @@ func TestConnect_NewNetworkServiceEndpointRegistryServer(t *testing.T) {
 	closeServer1()
 	closeServer2()
 
-	require.Eventually(t, func() bool {
-		return goleak.Find(goleak.IgnoreTopFunction("github.com/stretchr/testify/assert.Eventually")) == nil
-	}, time.Second, 100*time.Millisecond)
+	var i int
+	for err, i = goleak.Find(), 0; err != nil && i < 3; err, i = goleak.Find(), i+1 {
+	}
+	require.NoError(t, err)
 }
