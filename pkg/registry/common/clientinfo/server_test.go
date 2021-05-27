@@ -78,9 +78,9 @@ func TestLabelsServer(t *testing.T) {
 				"CLUSTER_NAME": "CCC",
 			},
 			expected: map[string]string{
-				"NodeNameKey":    "AAA",
-				"PodNameKey":     "BBB",
-				"ClusterNameKey": "CCC",
+				"NodeNameKey":    "OLD_VAL1",
+				"PodNameKey":     "OLD_VAL2",
+				"ClusterNameKey": "OLD_VAL3",
 				"SomeOtherLabel": "DDD",
 			},
 			input: map[string]string{
@@ -97,7 +97,7 @@ func TestLabelsServer(t *testing.T) {
 			},
 			expected: map[string]string{
 				"NodeNameKey":    "OLD_VAL1",
-				"ClusterNameKey": "CCC",
+				"ClusterNameKey": "OLD_VAL2",
 				"SomeOtherLabel": "DDD",
 			},
 			input: map[string]string{
