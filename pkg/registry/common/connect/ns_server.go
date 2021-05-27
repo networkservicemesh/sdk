@@ -30,9 +30,12 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/multiexecutor"
 )
 
+// NSClientFactory is a NS client chain supplier func type
+type NSClientFactory = func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient
+
 type connectNSServer struct {
 	ctx               context.Context
-	clientFactory     func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient
+	clientFactory     NSClientFactory
 	clientDialOptions []grpc.DialOption
 
 	nsInfos  nsInfoMap
@@ -55,7 +58,7 @@ type nsClient struct {
 //             clienturlctx.ClientURL(ctx)
 func NewNetworkServiceRegistryServer(
 	ctx context.Context,
-	clientFactory func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient,
+	clientFactory NSClientFactory,
 	clientDialOptions ...grpc.DialOption,
 ) registry.NetworkServiceRegistryServer {
 	return &connectNSServer{

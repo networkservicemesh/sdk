@@ -33,7 +33,7 @@ import (
 
 type connectNSClient struct {
 	ctx           context.Context
-	clientFactory func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient
+	clientFactory NSClientFactory
 	dialOptions   []grpc.DialOption
 	initOnce      sync.Once
 	dialErr       error
