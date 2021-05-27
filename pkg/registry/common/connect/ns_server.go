@@ -18,92 +18,183 @@ package connect
 
 import (
 	"context"
-	"time"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/clock"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
-	"github.com/networkservicemesh/sdk/pkg/tools/extend"
+	"net/url"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"github.com/networkservicemesh/sdk/pkg/tools/multiexecutor"
 )
 
-type nsCacheEntry struct {
-	expirationTimer clock.Timer
-	client          registry.NetworkServiceRegistryClient
-}
+// NSClientFactory is a NS client chain supplier func type
+type NSClientFactory = func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient
 
 type connectNSServer struct {
-	dialOptions       []grpc.DialOption
-	clientFactory     func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient
-	cache             nsClientMap
-	connectExpiration time.Duration
 	ctx               context.Context
-	clock             clock.Clock
+	clientFactory     NSClientFactory
+	clientDialOptions []grpc.DialOption
+
+	nsInfos  nsInfoMap
+	clients  nsClientMap
+	executor multiexecutor.MultiExecutor
 }
 
-// NewNetworkServiceRegistryServer creates new connect NetworkServiceEndpointRegistryServer with specific chain context, registry client factory and options
-// that allows connecting to other registries via passed clienturl.
-func NewNetworkServiceRegistryServer(ctx context.Context, clientFactory func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient, options ...Option) registry.NetworkServiceRegistryServer {
-	r := &connectNSServer{
+type nsInfo struct {
+	clientURL *url.URL
+	client    *nsClient
+}
+
+type nsClient struct {
+	client  *connectNSClient
+	count   int
+	onClose context.CancelFunc
+}
+
+// NewNetworkServiceRegistryServer - server chain element that creates client subchains and requests them selecting by
+//             clienturlctx.ClientURL(ctx)
+func NewNetworkServiceRegistryServer(
+	ctx context.Context,
+	clientFactory NSClientFactory,
+	clientDialOptions ...grpc.DialOption,
+) registry.NetworkServiceRegistryServer {
+	return &connectNSServer{
 		ctx:               ctx,
 		clientFactory:     clientFactory,
-		connectExpiration: defaultConnectExpiration,
-		clock:             clock.FromContext(ctx),
+		clientDialOptions: clientDialOptions,
 	}
-	for _, o := range options {
-		o.apply(r)
+}
+
+func (s *connectNSServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
+	clientURL := clienturlctx.ClientURL(ctx)
+	if clientURL == nil {
+		return nil, errors.Errorf("clientURL not found for incoming service: %+v", ns)
 	}
-	return r
-}
 
-func (c *connectNSServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
-	return c.connect(ctx).Register(ctx, ns)
-}
+	_, loaded := s.nsInfos.Load(ns.Name)
 
-func (c *connectNSServer) Find(q *registry.NetworkServiceQuery, s registry.NetworkServiceRegistry_FindServer) error {
-	return adapters.NetworkServiceClientToServer(c.connect(s.Context())).Find(q, s)
-}
-
-func (c *connectNSServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
-	return c.connect(ctx).Unregister(ctx, ns)
-}
-
-func (c *connectNSServer) connect(ctx context.Context) registry.NetworkServiceRegistryClient {
-	key := ""
-	if url := clienturlctx.ClientURL(ctx); url != nil {
-		key = url.String()
-	}
-	if v, ok := c.cache.Load(key); v != nil && ok {
-		if v.expirationTimer.Stop() {
-			v.expirationTimer.Reset(c.connectExpiration)
+	c := s.client(ctx, ns)
+	reg, err := c.client.Register(ctx, ns)
+	if err != nil {
+		if !loaded {
+			s.closeClient(c, clientURL.String())
 		}
-		return v.client
+
+		// Close current client chain if gRPC connection was closed
+		if c.client.ctx.Err() != nil {
+			s.deleteClient(c, clientURL.String())
+			s.nsInfos.Delete(ns.Name)
+		}
+
+		return nil, err
 	}
 
-	// Use new context with longer lifetime to use with client
-	ctx = extend.WithValuesFromContext(c.ctx, ctx)
-	client := clienturl.NewNetworkServiceRegistryClient(ctx, c.clientFactory, c.dialOptions...)
-	cached, _ := c.cache.LoadOrStore(key, &nsCacheEntry{
-		expirationTimer: c.clock.AfterFunc(c.connectExpiration, func() {
-			c.cache.Delete(key)
-		}),
-		client: client,
+	s.nsInfos.Store(ns.Name, &nsInfo{
+		clientURL: clientURL,
+		client:    c,
 	})
-	return cached.client
+
+	return reg, nil
 }
 
-func (c *connectNSServer) setExpirationDuration(d time.Duration) {
-	c.connectExpiration = d
+func (s *connectNSServer) Find(query *registry.NetworkServiceQuery, server registry.NetworkServiceRegistry_FindServer) error {
+	clientURL := clienturlctx.ClientURL(server.Context())
+	if clientURL == nil {
+		return errors.Errorf("clientURL not found for incoming query: %+v", query)
+	}
+
+	c := s.client(server.Context(), nil)
+
+	return adapters.NetworkServiceClientToServer(c.client).Find(query, &connectNSFindServer{
+		client:                            c,
+		clientURL:                         clientURL.String(),
+		connectNSServer:                   s,
+		NetworkServiceRegistry_FindServer: server,
+	})
 }
 
-func (c *connectNSServer) setClientDialOptions(opts []grpc.DialOption) {
-	c.dialOptions = opts
+func (s *connectNSServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
+	clientURL := clienturlctx.ClientURL(ctx)
+	if clientURL == nil {
+		return nil, errors.Errorf("clientURL not found for incoming service: %+v", ns)
+	}
+
+	c := s.client(ctx, ns)
+	_, err := c.client.Unregister(ctx, ns)
+	if err != nil && c.client.ctx.Err() != nil {
+		s.deleteClient(c, clientURL.String())
+	} else {
+		s.closeClient(c, clientURL.String())
+	}
+
+	s.nsInfos.Delete(ns.Name)
+
+	return new(empty.Empty), err
 }
 
-var _ registry.NetworkServiceRegistryServer = (*connectNSServer)(nil)
+func (s *connectNSServer) client(ctx context.Context, ns *registry.NetworkService) *nsClient {
+	clientURL := clienturlctx.ClientURL(ctx)
+
+	if ns != nil {
+		// First check if we have already registered on some clientURL with this ns.Name.
+		if info, ok := s.nsInfos.Load(ns.Name); ok {
+			if *info.clientURL == *clientURL {
+				return info.client
+			}
+
+			// For some reason we have changed the clientURL, so we need to close the existing client.
+			s.closeClient(info.client, info.clientURL.String())
+		}
+	}
+
+	var c *nsClient
+	<-s.executor.AsyncExec(clientURL.String(), func() {
+		// Fast path if we already have client for the clientURL and we should not reconnect, use it.
+		var loaded bool
+		c, loaded = s.clients.Load(clientURL.String())
+		if !loaded {
+			// If not, create and LoadOrStore a new one.
+			c = s.newClient(clientURL)
+			s.clients.Store(clientURL.String(), c)
+		}
+		c.count++
+	})
+	return c
+}
+
+func (s *connectNSServer) newClient(clientURL *url.URL) *nsClient {
+	ctx, cancel := context.WithCancel(s.ctx)
+	return &nsClient{
+		client: &connectNSClient{
+			ctx:           clienturlctx.WithClientURL(ctx, clientURL),
+			clientFactory: s.clientFactory,
+			dialOptions:   s.clientDialOptions,
+		},
+		count:   0,
+		onClose: cancel,
+	}
+}
+
+func (s *connectNSServer) closeClient(c *nsClient, clientURL string) {
+	<-s.executor.AsyncExec(clientURL, func() {
+		c.count--
+		if c.count == 0 {
+			if loadedClient, ok := s.clients.Load(clientURL); ok && c == loadedClient {
+				s.clients.Delete(clientURL)
+			}
+			c.onClose()
+		}
+	})
+}
+
+func (s *connectNSServer) deleteClient(c *nsClient, clientURL string) {
+	<-s.executor.AsyncExec(clientURL, func() {
+		if loadedClient, ok := s.clients.Load(clientURL); ok && c == loadedClient {
+			s.clients.Delete(clientURL)
+		}
+		c.onClose()
+	})
+}

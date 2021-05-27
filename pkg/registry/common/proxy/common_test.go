@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,7 +21,6 @@ import (
 	"net"
 	"net/url"
 	"testing"
-	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
@@ -78,7 +77,7 @@ func testingNSEServerChain(ctx context.Context, u *url.URL) registry.NetworkServ
 		proxy.NewNetworkServiceEndpointRegistryServer(u),
 		connect.NewNetworkServiceEndpointRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient {
 			return registry.NewNetworkServiceEndpointRegistryClient(cc)
-		}, connect.WithExpirationDuration(time.Millisecond*100), connect.WithClientDialOptions(grpc.WithInsecure())),
+		}, grpc.WithInsecure()),
 	)
 }
 
@@ -87,6 +86,6 @@ func testingNSServerChain(ctx context.Context, u *url.URL) registry.NetworkServi
 		proxy.NewNetworkServiceRegistryServer(u),
 		connect.NewNetworkServiceRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
 			return registry.NewNetworkServiceRegistryClient(cc)
-		}, connect.WithExpirationDuration(time.Millisecond*100), connect.WithClientDialOptions(grpc.WithInsecure())),
+		}, grpc.WithInsecure()),
 	)
 }
