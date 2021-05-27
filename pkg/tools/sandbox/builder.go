@@ -413,9 +413,9 @@ func (b *Builder) newNode(ctx context.Context, registryURL *url.URL, nodeConfig 
 func (b *Builder) SetupRegistryClients(ctx context.Context, node *Node) {
 	dialOptions := DefaultDialOptions(b.generateTokenFunc)
 
-	node.ForwarderRegistryClient = client.NewNetworkServiceEndpointRegistryInterposeClient(ctx, node.NSMgr.URL, client.WithNSEDialOptions(dialOptions...))
-	node.EndpointRegistryClient = client.NewNetworkServiceEndpointRegistryClient(ctx, node.NSMgr.URL, client.WithNSEDialOptions(dialOptions...))
-	node.NSRegistryClient = client.NewNetworkServiceRegistryClient(ctx, node.NSMgr.URL, client.WithNSDialOptions(dialOptions...))
+	node.ForwarderRegistryClient = client.NewNetworkServiceEndpointRegistryInterposeClient(ctx, node.NSMgr.URL, client.WithDialOptions(dialOptions...))
+	node.EndpointRegistryClient = client.NewNetworkServiceEndpointRegistryClient(ctx, node.NSMgr.URL, client.WithDialOptions(dialOptions...))
+	node.NSRegistryClient = client.NewNetworkServiceRegistryClient(ctx, node.NSMgr.URL, client.WithDialOptions(dialOptions...))
 }
 
 // newAddress - will return a new public address, if unixSockets are used prefix will be used to make uniq files.

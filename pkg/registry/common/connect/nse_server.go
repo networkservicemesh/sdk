@@ -30,12 +30,9 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/multiexecutor"
 )
 
-// NSEClientFactory is a NSE client chain supplier func type
-type NSEClientFactory func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient
-
 type connectNSEServer struct {
 	ctx               context.Context
-	clientFactory     NSEClientFactory
+	clientFactory     func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient
 	clientDialOptions []grpc.DialOption
 
 	nseInfos nseInfoMap
@@ -58,7 +55,7 @@ type nseClient struct {
 //             clienturlctx.ClientURL(ctx)
 func NewNetworkServiceEndpointRegistryServer(
 	ctx context.Context,
-	clientFactory NSEClientFactory,
+	clientFactory func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient,
 	clientDialOptions ...grpc.DialOption,
 ) registry.NetworkServiceEndpointRegistryServer {
 	return &connectNSEServer{

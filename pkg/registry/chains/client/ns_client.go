@@ -32,37 +32,15 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 )
 
-// NSOption is an option pattern for NewNetworkServiceRegistryClient
-type NSOption func(nsOpts *nsClientOptions)
-
-// WithNSAdditionalFunctionality sets additional functionality
-func WithNSAdditionalFunctionality(additionalFunctionality ...registry.NetworkServiceRegistryClient) NSOption {
-	return func(nsOpts *nsClientOptions) {
-		nsOpts.additionalFunctionality = additionalFunctionality
-	}
-}
-
-// WithNSDialOptions sets dial options
-func WithNSDialOptions(dialOptions ...grpc.DialOption) NSOption {
-	return func(nsOpts *nsClientOptions) {
-		nsOpts.dialOptions = dialOptions
-	}
-}
-
-type nsClientOptions struct {
-	additionalFunctionality []registry.NetworkServiceRegistryClient
-	dialOptions             []grpc.DialOption
-}
-
 // NewNetworkServiceRegistryClient creates a new NewNetworkServiceRegistryClient that can be used for NS registration.
-func NewNetworkServiceRegistryClient(ctx context.Context, connectTo *url.URL, opts ...NSOption) registry.NetworkServiceRegistryClient {
-	nsOpts := new(nsClientOptions)
+func NewNetworkServiceRegistryClient(ctx context.Context, connectTo *url.URL, opts ...Option) registry.NetworkServiceRegistryClient {
+	clientOpts := new(clientOptions)
 	for _, opt := range opts {
-		opt(nsOpts)
+		opt(clientOpts)
 	}
 
 	var additionalFunctionality registry.NetworkServiceRegistryClient
-	if len(nsOpts.additionalFunctionality) > 0 {
+	if len(clientOpts.nsAdditionalFunctionality) > 0 {
 		additionalFunctionality = chain.NewNetworkServiceRegistryClient(additionalFunctionality)
 	} else {
 		additionalFunctionality = null.NewNetworkServiceRegistryClient()
@@ -76,7 +54,7 @@ func NewNetworkServiceRegistryClient(ctx context.Context, connectTo *url.URL, op
 				clienturl.NewNetworkServiceRegistryServer(connectTo),
 				connect.NewNetworkServiceRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
 					return registry.NewNetworkServiceRegistryClient(cc)
-				}, nsOpts.dialOptions...),
+				}, clientOpts.dialOptions...),
 			),
 		),
 	)

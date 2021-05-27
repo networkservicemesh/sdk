@@ -37,42 +37,20 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 )
 
-// NSEOption is an option pattern for NewNetworkServiceEndpointRegistryClient
-type NSEOption func(nseOpts *nseClientOptions)
-
-// WithNSEAdditionalFunctionality sets additional functionality
-func WithNSEAdditionalFunctionality(additionalFunctionality ...registry.NetworkServiceEndpointRegistryClient) NSEOption {
-	return func(nseOpts *nseClientOptions) {
-		nseOpts.additionalFunctionality = additionalFunctionality
-	}
-}
-
-// WithNSEDialOptions sets dial options
-func WithNSEDialOptions(dialOptions ...grpc.DialOption) NSEOption {
-	return func(nseOpts *nseClientOptions) {
-		nseOpts.dialOptions = dialOptions
-	}
-}
-
-type nseClientOptions struct {
-	additionalFunctionality []registry.NetworkServiceEndpointRegistryClient
-	dialOptions             []grpc.DialOption
-}
-
 // NewNetworkServiceEndpointRegistryClient creates a new NewNetworkServiceEndpointRegistryClient that can be used for NSE registration.
-func NewNetworkServiceEndpointRegistryClient(ctx context.Context, connectTo *url.URL, opts ...NSEOption) registry.NetworkServiceEndpointRegistryClient {
+func NewNetworkServiceEndpointRegistryClient(ctx context.Context, connectTo *url.URL, opts ...Option) registry.NetworkServiceEndpointRegistryClient {
 	return newNetworkServiceEndpointRegistryClient(ctx, connectTo, false, opts...)
 }
 
 // NewNetworkServiceEndpointRegistryInterposeClient creates a new registry.NetworkServiceEndpointRegistryClient that can be used for cross-nse registration
-func NewNetworkServiceEndpointRegistryInterposeClient(ctx context.Context, connectTo *url.URL, opts ...NSEOption) registry.NetworkServiceEndpointRegistryClient {
+func NewNetworkServiceEndpointRegistryInterposeClient(ctx context.Context, connectTo *url.URL, opts ...Option) registry.NetworkServiceEndpointRegistryClient {
 	return newNetworkServiceEndpointRegistryClient(ctx, connectTo, true, opts...)
 }
 
-func newNetworkServiceEndpointRegistryClient(ctx context.Context, connectTo *url.URL, withInterpose bool, opts ...NSEOption) registry.NetworkServiceEndpointRegistryClient {
-	nseOpts := new(nseClientOptions)
+func newNetworkServiceEndpointRegistryClient(ctx context.Context, connectTo *url.URL, withInterpose bool, opts ...Option) registry.NetworkServiceEndpointRegistryClient {
+	clientOpts := new(clientOptions)
 	for _, opt := range opts {
-		opt(nseOpts)
+		opt(clientOpts)
 	}
 
 	var interposeClient registry.NetworkServiceEndpointRegistryClient
@@ -83,7 +61,7 @@ func newNetworkServiceEndpointRegistryClient(ctx context.Context, connectTo *url
 	}
 
 	var additionalFunctionalityClient registry.NetworkServiceEndpointRegistryClient
-	if len(nseOpts.additionalFunctionality) > 0 {
+	if len(clientOpts.nseAdditionalFunctionality) > 0 {
 		additionalFunctionalityClient = chain.NewNetworkServiceEndpointRegistryClient(additionalFunctionalityClient)
 	} else {
 		additionalFunctionalityClient = null.NewNetworkServiceEndpointRegistryClient()
@@ -101,7 +79,7 @@ func newNetworkServiceEndpointRegistryClient(ctx context.Context, connectTo *url
 				clienturl.NewNetworkServiceEndpointRegistryServer(connectTo),
 				connect.NewNetworkServiceEndpointRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient {
 					return registry.NewNetworkServiceEndpointRegistryClient(cc)
-				}, nseOpts.dialOptions...),
+				}, clientOpts.dialOptions...),
 			),
 		),
 	)
