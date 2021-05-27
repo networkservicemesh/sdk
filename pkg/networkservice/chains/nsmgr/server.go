@@ -46,9 +46,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/roundrobin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry"
-	"github.com/networkservicemesh/sdk/pkg/registry/chains/connectto"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/checkid"
 	registryclientinfo "github.com/networkservicemesh/sdk/pkg/registry/common/clientinfo"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
+	registryconnect "github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
@@ -149,7 +150,12 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	var nsRegistry registryapi.NetworkServiceRegistryServer
 	if opts.regURL != nil {
 		// Use remote registry
-		nsRegistry = connectto.NewNetworkServiceRegistryServer(ctx, opts.regURL, opts.regDialOptions...)
+		nsRegistry = registrychain.NewNetworkServiceRegistryServer(
+			clienturl.NewNetworkServiceRegistryServer(opts.regURL),
+			registryconnect.NewNetworkServiceRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registryapi.NetworkServiceRegistryClient {
+				return registryapi.NewNetworkServiceRegistryClient(cc)
+			}, opts.regDialOptions...),
+		)
 	} else {
 		// Use memory registry if no registry is passed
 		nsRegistry = memory.NewNetworkServiceRegistryServer()
@@ -158,7 +164,12 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	var nseRegistry registryapi.NetworkServiceEndpointRegistryServer
 	if opts.regURL != nil {
 		// Use remote registry
-		nseRegistry = connectto.NewNetworkServiceEndpointRegistryServer(ctx, opts.regURL, opts.regDialOptions...)
+		nseRegistry = registrychain.NewNetworkServiceEndpointRegistryServer(
+			clienturl.NewNetworkServiceEndpointRegistryServer(opts.regURL),
+			registryconnect.NewNetworkServiceEndpointRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registryapi.NetworkServiceEndpointRegistryClient {
+				return registryapi.NewNetworkServiceEndpointRegistryClient(cc)
+			}, opts.regDialOptions...),
+		)
 	} else {
 		// Use memory registry if no registry is passed
 		nseRegistry = memory.NewNetworkServiceEndpointRegistryServer()
