@@ -49,7 +49,8 @@ func AddClientInfo(ctx context.Context, labels map[string]string) {
 		}
 		oldValue, isPresent := labels[labelName]
 		if isPresent {
-			log.FromContext(ctx).Warnf("The label %s was already assigned to %s. Overwriting.", labelName, oldValue)
+			log.FromContext(ctx).Warnf("The label %s was already assigned to %s. Skipping.", labelName, oldValue)
+			continue
 		}
 		labels[labelName] = value
 	}

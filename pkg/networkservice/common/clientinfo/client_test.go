@@ -21,10 +21,12 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -49,101 +51,109 @@ func unsetEnvs(envs map[string]string) error {
 	return nil
 }
 
-func TestLabelsMapNotPresent(t *testing.T) {
+func TestClientInfo(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	envs := map[string]string{
-		"NODE_NAME":    "AAA",
-		"POD_NAME":     "BBB",
-		"CLUSTER_NAME": "CCC",
-	}
-	expected := map[string]string{
-		"NodeNameKey":    "AAA",
-		"PodNameKey":     "BBB",
-		"ClusterNameKey": "CCC",
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 
-	err := setEnvs(envs)
-	assert.Nil(t, err)
-
-	client := next.NewNetworkServiceClient(clientinfo.NewClient(), checkrequest.NewClient(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
-		assert.Equal(t, expected, request.GetConnection().GetLabels())
-	}))
-	conn, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{},
-	})
-	assert.Nil(t, err)
-	assert.NotNil(t, conn)
-
-	err = unsetEnvs(envs)
-	assert.Nil(t, err)
-}
-
-func TestLabelsOverwritten(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-	envs := map[string]string{
-		"NODE_NAME":    "AAA",
-		"POD_NAME":     "BBB",
-		"CLUSTER_NAME": "CCC",
-	}
-	expected := map[string]string{
-		"NodeNameKey":    "AAA",
-		"PodNameKey":     "BBB",
-		"ClusterNameKey": "CCC",
-		"SomeOtherLabel": "DDD",
-	}
-
-	err := setEnvs(envs)
-	assert.Nil(t, err)
-
-	client := next.NewNetworkServiceClient(clientinfo.NewClient(), checkrequest.NewClient(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
-		assert.Equal(t, expected, request.GetConnection().GetLabels())
-	}))
-	conn, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Labels: map[string]string{
+	tests := []struct {
+		name      string
+		envs      map[string]string
+		oldLabels map[string]string
+		want      map[string]string
+	}{
+		{
+			name: "LabelsMapNotPresent",
+			envs: map[string]string{
+				"NODE_NAME":    "AAA",
+				"POD_NAME":     "BBB",
+				"CLUSTER_NAME": "CCC",
+			},
+			oldLabels: nil,
+			want: map[string]string{
+				"NodeNameKey":    "AAA",
+				"PodNameKey":     "BBB",
+				"ClusterNameKey": "CCC",
+			},
+		},
+		{
+			name: "LabelsAlreadySet",
+			envs: map[string]string{
+				"NODE_NAME":    "AAA",
+				"POD_NAME":     "BBB",
+				"CLUSTER_NAME": "CCC",
+			},
+			oldLabels: map[string]string{
+				"NodeNameKey":    "OLD_VAL1",
+				"PodNameKey":     "OLD_VAL2",
+				"ClusterNameKey": "OLD_VAL3",
+				"SomeOtherLabel": "DDD",
+			},
+			want: map[string]string{
 				"NodeNameKey":    "OLD_VAL1",
 				"PodNameKey":     "OLD_VAL2",
 				"ClusterNameKey": "OLD_VAL3",
 				"SomeOtherLabel": "DDD",
 			},
 		},
-	})
-	assert.Nil(t, err)
-	assert.NotNil(t, conn)
-
-	err = unsetEnvs(envs)
-	assert.Nil(t, err)
-}
-
-func TestSomeEnvsNotPresent(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-	envs := map[string]string{
-		"CLUSTER_NAME": "CCC",
-	}
-	expected := map[string]string{
-		"NodeNameKey":    "OLD_VAL1",
-		"ClusterNameKey": "CCC",
-		"SomeOtherLabel": "DDD",
-	}
-
-	err := setEnvs(envs)
-	assert.Nil(t, err)
-
-	client := next.NewNetworkServiceClient(clientinfo.NewClient(), checkrequest.NewClient(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
-		assert.Equal(t, expected, request.GetConnection().GetLabels())
-	}))
-	conn, err := client.Request(context.Background(), &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Labels: map[string]string{
+		{
+			name: "SomeEnvsNotPresent",
+			envs: map[string]string{
+				"POD_NAME":     "BBB",
+				"CLUSTER_NAME": "CCC",
+			},
+			oldLabels: map[string]string{
 				"NodeNameKey":    "OLD_VAL1",
-				"ClusterNameKey": "OLD_VAL2",
+				"ClusterNameKey": "OLD_VAL3",
+				"SomeOtherLabel": "DDD",
+			},
+			want: map[string]string{
+				"NodeNameKey":    "OLD_VAL1",
+				"PodNameKey":     "BBB",
+				"ClusterNameKey": "OLD_VAL3",
 				"SomeOtherLabel": "DDD",
 			},
 		},
-	})
-	assert.Nil(t, err)
-	assert.NotNil(t, conn)
+		{
+			name: "SomeEnvsAndLabelsNotPresent",
+			envs: map[string]string{
+				"POD_NAME":     "BBB",
+				"CLUSTER_NAME": "CCC",
+			},
+			oldLabels: map[string]string{
+				"ClusterNameKey": "OLD_VAL3",
+				"SomeOtherLabel": "DDD",
+			},
+			want: map[string]string{
+				"PodNameKey":     "BBB",
+				"ClusterNameKey": "OLD_VAL3",
+				"SomeOtherLabel": "DDD",
+			},
+		},
+	}
 
-	err = unsetEnvs(envs)
-	assert.Nil(t, err)
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			err := setEnvs(tc.envs)
+			require.NoError(t, err)
+
+			client := next.NewNetworkServiceClient(
+				clientinfo.NewClient(),
+				checkrequest.NewClient(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
+					require.Equal(t, tc.want, request.GetConnection().GetLabels())
+				}),
+			)
+			conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
+				Connection: &networkservice.Connection{
+					Labels: tc.oldLabels,
+				},
+			})
+			require.NoError(t, err)
+			require.NotNil(t, conn)
+
+			err = unsetEnvs(tc.envs)
+			require.NoError(t, err)
+		})
+	}
 }
