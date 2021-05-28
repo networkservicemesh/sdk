@@ -21,19 +21,22 @@ package client
 
 import (
 	"context"
+	"net/url"
 
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanismtranslation"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
@@ -74,7 +77,49 @@ func WithAuthorizeClient(authorizeClient networkservice.NetworkServiceClient) Op
 // NewClient - returns a (1.) case NSM client.
 //             - ctx    - context for the lifecycle of the *Client* itself.  Cancel when discarding the client.
 //             - cc - grpc.ClientConnInterface for the endpoint to which this client should connect
-func NewClient(ctx context.Context, cc grpc.ClientConnInterface, clientOpts ...Option) networkservice.NetworkServiceClient {
+func NewClient(ctx context.Context, connectTo *url.URL, dialOptions []grpc.DialOption, clientOpts ...Option) networkservice.NetworkServiceClient {
+	var rv networkservice.NetworkServiceClient
+	var opts = &clientOptions{
+		name:            "client-" + uuid.New().String(),
+		authorizeClient: null.NewClient(),
+	}
+	for _, opt := range clientOpts {
+		opt(opts)
+	}
+	rv = chain.NewNetworkServiceClient(
+		append(
+			append([]networkservice.NetworkServiceClient{
+				updatepath.NewClient(opts.name),
+				serialize.NewClient(),
+				refresh.NewClient(ctx),
+				metadata.NewClient(),
+			}, opts.additionalFunctionality...),
+			opts.authorizeClient,
+			adapters.NewServerToClient(
+				chain.NewNetworkServiceServer(
+					clienturl.NewServer(connectTo),
+					heal.NewServer(ctx, nil),
+					connect.NewServer(
+						ctx,
+						func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+							return chain.NewNetworkServiceClient(
+								heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc)),
+								networkservice.NewNetworkServiceClient(cc),
+							)
+						},
+						connect.WithDialOptions(dialOptions...),
+					),
+				),
+			),
+		)...)
+	return rv
+}
+
+// newServerSideClient returns an NSM client for (2.) and (3.) cases.
+// This function is intended to be a part of a client factory, and therefore should never ba called directly.
+//  ctx - context for the lifecycle of the *Client* itself.  Cancel when discarding the client.
+//  cc  - grpc.ClientConnInterface for the endpoint to which this client should connect.
+func newServerSideClient(ctx context.Context, cc grpc.ClientConnInterface, clientOpts ...Option) networkservice.NetworkServiceClient {
 	var rv networkservice.NetworkServiceClient
 	var opts = &clientOptions{
 		name:            "client-" + uuid.New().String(),
@@ -98,13 +143,12 @@ func NewClient(ctx context.Context, cc grpc.ClientConnInterface, clientOpts ...O
 	return rv
 }
 
-
 // NewCrossConnectClientFactory - returns a (2.) case func(cc grpc.ClientConnInterface) NSM client factory.
 func NewCrossConnectClientFactory(clientOpts ...Option) connect.ClientFactory {
 	return func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 		return chain.NewNetworkServiceClient(
 			mechanismtranslation.NewClient(),
-			NewClient(ctx, cc, clientOpts...),
+			newServerSideClient(ctx, cc, clientOpts...),
 		)
 	}
 }
@@ -112,8 +156,6 @@ func NewCrossConnectClientFactory(clientOpts ...Option) connect.ClientFactory {
 // NewClientFactory - returns a (3.) case func(cc grpc.ClientConnInterface) NSM client factory.
 func NewClientFactory(clientOpts ...Option) connect.ClientFactory {
 	return func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-		return chain.NewNetworkServiceClient(
-			NewClient(ctx, cc, clientOpts...),
-		)
+		return newServerSideClient(ctx, cc, clientOpts...)
 	}
 }

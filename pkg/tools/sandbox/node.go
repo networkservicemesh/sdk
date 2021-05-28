@@ -20,8 +20,6 @@ import (
 	"context"
 	"net/url"
 
-	"google.golang.org/grpc"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 
@@ -33,7 +31,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
@@ -136,19 +133,10 @@ func (n *Node) NewClient(
 	additionalFunctionality ...networkservice.NetworkServiceClient,
 ) networkservice.NetworkServiceClient {
 	ctx = log.Join(ctx, log.Empty())
-	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(n.NSMgr.URL), DefaultDialOptions(generatorFunc)...)
-	if err != nil {
-		log.FromContext(ctx).Fatalf("Failed to dial node NSMgr: %s", err.Error())
-	}
-
-	go func() {
-		defer func() { _ = cc.Close() }()
-		<-ctx.Done()
-	}()
-
 	return client.NewClient(
 		ctx,
-		cc,
+		n.NSMgr.URL,
+		DefaultDialOptions(generatorFunc),
 		client.WithAuthorizeClient(authorize.NewClient(authorize.Any())),
 		client.WithAdditionalFunctionality(additionalFunctionality...),
 	)

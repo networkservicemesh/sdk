@@ -24,20 +24,20 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
-	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
-	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/atomic"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
+	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
+	"github.com/networkservicemesh/api/pkg/api/registry"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanismtranslation"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
@@ -85,13 +85,10 @@ func TestConnect_CancelDuringRequest(t *testing.T) {
 	ptClient := newPassTroughClient(service1Name)
 	kernelClient := kernel.NewClient()
 	clientName := fmt.Sprintf("connectClient-%v", uuid.New().String())
+	standardClientFactory := client.NewCrossConnectClientFactory(client.WithName(clientName), client.WithAdditionalFunctionality(ptClient, kernelClient))
 	clientFactory := func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 		counter.Add(1)
-		return chain.NewNetworkServiceClient(
-			mechanismtranslation.NewClient(),
-			client.NewClient(ctx, cc, client.WithName(clientName),
-				client.WithAdditionalFunctionality(ptClient, kernelClient)),
-		)
+		return standardClientFactory(ctx, cc)
 	}
 
 	nseReg2 := &registry.NetworkServiceEndpoint{
