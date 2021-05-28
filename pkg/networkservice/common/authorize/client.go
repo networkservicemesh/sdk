@@ -66,8 +66,8 @@ func (a *authorizeClient) Request(ctx context.Context, request *networkservice.N
 }
 
 func (a *authorizeClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	p := a.serverPeer.Load().(*peer.Peer)
-	if p != nil {
+	p, ok := a.serverPeer.Load().(*peer.Peer)
+	if ok && p != nil {
 		ctx = peer.NewContext(ctx, p)
 	}
 	if err := a.policies.check(ctx, conn); err != nil {
