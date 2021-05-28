@@ -72,13 +72,15 @@ func newNetworkServiceEndpointRegistryClient(ctx context.Context, connectTo *url
 		interposeClient,
 		serialize.NewNetworkServiceEndpointRegistryClient(),
 		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
-		sendfd.NewNetworkServiceEndpointRegistryClient(),
 		additionalFunctionalityClient,
 		adapters.NetworkServiceEndpointServerToClient(
 			chain.NewNetworkServiceEndpointRegistryServer(
 				clienturl.NewNetworkServiceEndpointRegistryServer(connectTo),
 				connect.NewNetworkServiceEndpointRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient {
-					return registry.NewNetworkServiceEndpointRegistryClient(cc)
+					return chain.NewNetworkServiceEndpointRegistryClient(
+						sendfd.NewNetworkServiceEndpointRegistryClient(),
+						registry.NewNetworkServiceEndpointRegistryClient(cc),
+					)
 				}, clientOpts.dialOptions...),
 			),
 		),
