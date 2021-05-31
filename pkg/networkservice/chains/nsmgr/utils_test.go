@@ -24,13 +24,11 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
@@ -86,27 +84,6 @@ func testNSEAndClient(
 
 	_, err = domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
 	require.NoError(t, err)
-}
-
-type passThroughClient struct {
-	networkService string
-}
-
-func newPassTroughClient(networkService string) *passThroughClient {
-	return &passThroughClient{
-		networkService: networkService,
-	}
-}
-
-func (c *passThroughClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	request.Connection.NetworkService = c.networkService
-	request.Connection.NetworkServiceEndpointName = ""
-	return next.Client(ctx).Request(ctx, request, opts...)
-}
-
-func (c *passThroughClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	conn.NetworkService = c.networkService
-	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
 type counterServer struct {

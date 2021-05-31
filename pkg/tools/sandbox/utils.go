@@ -22,13 +22,9 @@ import (
 	"time"
 
 	"github.com/edwarnicke/grpcfd"
-	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/tools/opentracing"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
@@ -85,14 +81,6 @@ func GenerateExpiringToken(duration time.Duration) token.GeneratorFunc {
 	return func(_ credentials.AuthInfo) (tokenValue string, expireTime time.Time, err error) {
 		return value, time.Now().Add(duration).Local(), nil
 	}
-}
-
-// NewCrossConnectClientFactory is a client.NewCrossConnectClientFactory with some fields preset for testing
-func NewCrossConnectClientFactory(generatorFunc token.GeneratorFunc, additionalFunctionality ...networkservice.NetworkServiceClient) client.Factory {
-	return client.NewCrossConnectClientFactory(
-		client.WithName(fmt.Sprintf("nsc-%v", uuid.New().String())),
-		client.WithAdditionalFunctionality(additionalFunctionality...),
-	)
 }
 
 // DefaultDialOptions returns default dial options for sandbox testing

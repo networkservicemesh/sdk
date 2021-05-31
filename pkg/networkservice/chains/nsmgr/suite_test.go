@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/url"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -36,10 +37,13 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanismtranslation"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/replacelabels"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
@@ -394,42 +398,25 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	var nsesReg [nodesCount]*registry.NetworkServiceEndpoint
+	counterClose := &counterServer{}
+
+	nsReg := linearNS(nodesCount)
+	nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, nsReg)
+	require.NoError(t, err)
+
+	var nsesReg []*registry.NetworkServiceEndpoint
 	for i := 0; i < nodesCount; i++ {
-		var additionalFunctionality []networkservice.NetworkServiceServer
-		if i != 0 {
-			// Passtrough to the node i-1
-			additionalFunctionality = []networkservice.NetworkServiceServer{
-				chain.NewNetworkServiceServer(
-					clienturl.NewServer(s.domain.Nodes[i].NSMgr.URL),
-					connect.NewServer(ctx,
-						sandbox.NewCrossConnectClientFactory(sandbox.GenerateTestToken,
-							newPassTroughClient(fmt.Sprintf("my-service-remote-%v", i-1)),
-							kernel.NewClient()),
-						connect.WithDialTimeout(sandbox.DialTimeout),
-						connect.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...),
-					),
-				),
-			}
+		labels := map[string]string{
+			step: fmt.Sprintf("%v", i),
 		}
-
-		nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, &registry.NetworkService{
-			Name: fmt.Sprintf("my-service-remote-%v", i),
-		})
-		require.NoError(t, err)
-
-		nsesReg[i] = &registry.NetworkServiceEndpoint{
-			Name:                fmt.Sprintf("endpoint-%v", i),
-			NetworkServiceNames: []string{nsReg.Name},
-		}
-		_, err = s.domain.Nodes[i].NewEndpoint(ctx, nsesReg[i], sandbox.GenerateTestToken, additionalFunctionality...)
-		require.NoError(t, err)
+		nsesReg = append(nsesReg, newPassThroughEndpoint(ctx, t, s, labels, fmt.Sprintf("%v", i), nsReg.Name, i != nodesCount-1, i, counterClose))
 	}
 
-	nsc := s.domain.Nodes[nodesCount-1].NewClient(ctx, sandbox.GenerateTestToken)
+	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-	request := defaultRequest(fmt.Sprintf("my-service-remote-%v", nodesCount-1))
+	request := defaultRequest(nsReg.Name)
 
+	// Request
 	conn, err := nsc.Request(ctx, request)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
@@ -437,10 +424,18 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 	// Path length to first endpoint is 5
 	// Path length from NSE client to other remote endpoint is 8
 	require.Equal(t, 8*(nodesCount-1)+5, len(conn.Path.PathSegments))
+	for i := 0; i < len(nsesReg); i++ {
+		require.Contains(t, nsesReg[i].Name, conn.Path.PathSegments[i*8+4].Name)
+	}
+
+	// Refresh
+	conn, err = nsc.Request(ctx, request)
+	require.NoError(t, err)
 
 	// Close
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
+	require.Equal(t, int32(nodesCount), atomic.LoadInt32(&counterClose.Closes))
 
 	// Endpoint unregister
 	for i := 0; i < len(nsesReg); i++ {
@@ -456,40 +451,24 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	var nsesReg [nsesCount]*registry.NetworkServiceEndpoint
+	counterClose := &counterServer{}
+
+	nsReg := linearNS(nsesCount)
+	nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, nsReg)
+	require.NoError(t, err)
+
+	var nsesReg []*registry.NetworkServiceEndpoint
 	for i := 0; i < nsesCount; i++ {
-		var additionalFunctionality []networkservice.NetworkServiceServer
-		if i != 0 {
-			additionalFunctionality = []networkservice.NetworkServiceServer{
-				chain.NewNetworkServiceServer(
-					clienturl.NewServer(s.domain.Nodes[0].NSMgr.URL),
-					connect.NewServer(ctx,
-						sandbox.NewCrossConnectClientFactory(sandbox.GenerateTestToken,
-							newPassTroughClient(fmt.Sprintf("my-service-remote-%v", i-1)),
-							kernel.NewClient()),
-						connect.WithDialTimeout(sandbox.DialTimeout),
-						connect.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...),
-					),
-				),
-			}
+		labels := map[string]string{
+			step: fmt.Sprintf("%v", i),
 		}
 
-		nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, &registry.NetworkService{
-			Name: fmt.Sprintf("my-service-remote-%v", i),
-		})
-		require.NoError(t, err)
-
-		nsesReg[i] = &registry.NetworkServiceEndpoint{
-			Name:                fmt.Sprintf("endpoint-%v", i),
-			NetworkServiceNames: []string{nsReg.Name},
-		}
-		_, err = s.domain.Nodes[0].NewEndpoint(ctx, nsesReg[i], sandbox.GenerateTestToken, additionalFunctionality...)
-		require.NoError(t, err)
+		nsesReg = append(nsesReg, newPassThroughEndpoint(ctx, t, s, labels, fmt.Sprintf("%v", i), nsReg.Name, i != nsesCount-1, 0, counterClose))
 	}
 
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-	request := defaultRequest(fmt.Sprintf("my-service-remote-%v", nsesCount-1))
+	request := defaultRequest(nsReg.Name)
 
 	conn, err := nsc.Request(ctx, request)
 	require.NoError(t, err)
@@ -498,10 +477,78 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 	// Path length to first endpoint is 5
 	// Path length from NSE client to other local endpoint is 5
 	require.Equal(t, 5*(nsesCount-1)+5, len(conn.Path.PathSegments))
+	for i := 0; i < len(nsesReg); i++ {
+		require.Contains(t, nsesReg[i].Name, conn.Path.PathSegments[(i+1)*5-1].Name)
+	}
+
+	// Refresh
+	conn, err = nsc.Request(ctx, request)
+	require.NoError(t, err)
 
 	// Close
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
+	require.Equal(t, int32(nsesCount), atomic.LoadInt32(&counterClose.Closes))
+
+	// Endpoint unregister
+	for i := 0; i < len(nsesReg); i++ {
+		_, err = s.domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nsesReg[i])
+		require.NoError(t, err)
+	}
+}
+
+func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
+	t := s.T()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	counterClose := &counterServer{}
+
+	nsReg := multiLabelNS()
+	nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, nsReg)
+	require.NoError(t, err)
+
+	var labelAvalue, labelBvalue string
+	nsesReg := []*registry.NetworkServiceEndpoint{}
+	for i := 0; i < 3; i++ {
+		labelAvalue += "a"
+		for j := 0; j < 3; j++ {
+			labelBvalue += "b"
+
+			labels := map[string]string{
+				labelA: labelAvalue,
+				labelB: labelBvalue,
+			}
+
+			nsesReg = append(nsesReg, newPassThroughEndpoint(ctx, t, s, labels, labelAvalue+labelBvalue, nsReg.Name, i != 2 || j != 2, 0, counterClose))
+		}
+		labelBvalue = ""
+	}
+
+	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	request := defaultRequest(nsReg.Name)
+
+	conn, err := nsc.Request(ctx, request)
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+
+	// Path length from NSE client to other local endpoint is 5
+	expectedPath := []string{"ab", "aabb", "aaabbb"}
+	require.Equal(t, 5*len(nsReg.Matches), len(conn.Path.PathSegments))
+	for i := 0; i < len(expectedPath); i++ {
+		require.Contains(t, conn.Path.PathSegments[(i+1)*5-1].Name, expectedPath[i])
+	}
+
+	// Refresh
+	conn, err = nsc.Request(ctx, request)
+	require.NoError(t, err)
+
+	// Close
+	_, err = nsc.Close(ctx, conn)
+	require.NoError(t, err)
+	require.Equal(t, int32(len(expectedPath)), atomic.LoadInt32(&counterClose.Closes))
 
 	// Endpoint unregister
 	for i := 0; i < len(nsesReg); i++ {
@@ -527,4 +574,142 @@ func (s *nsmgrSuite) Test_ShouldCleanAllClientAndEndpointGoroutines() {
 	//   2. NSC connection close
 	//   3. NSE unregister
 	testNSEAndClient(ctx, t, s.domain, defaultRegistryEndpoint(nsReg.Name))
+}
+
+const (
+	step   = "step"
+	labelA = "label_a"
+	labelB = "label_b"
+)
+
+func linearNS(count int) *registry.NetworkService {
+	matches := make([]*registry.Match, 0)
+
+	for i := 1; i < count; i++ {
+		match := &registry.Match{
+			SourceSelector: map[string]string{
+				step: fmt.Sprintf("%v", i-1),
+			},
+			Routes: []*registry.Destination{
+				{
+					DestinationSelector: map[string]string{
+						step: fmt.Sprintf("%v", i),
+					},
+				},
+			},
+		}
+
+		matches = append(matches, match)
+	}
+
+	if count > 1 {
+		// match with empty source selector must be the last
+		match := &registry.Match{
+			Routes: []*registry.Destination{
+				{
+					DestinationSelector: map[string]string{
+						step: fmt.Sprintf("%v", 0),
+					},
+				},
+			},
+		}
+		matches = append(matches, match)
+	}
+
+	return &registry.NetworkService{
+		Name:    "test-network-service-linear",
+		Matches: matches,
+	}
+}
+
+func multiLabelNS() *registry.NetworkService {
+	return &registry.NetworkService{
+		Name: "test-network-service",
+		Matches: []*registry.Match{
+			{
+				SourceSelector: map[string]string{
+					labelA: "a",
+					labelB: "b",
+				},
+				Routes: []*registry.Destination{
+					{
+						DestinationSelector: map[string]string{
+							labelA: "aa",
+							labelB: "bb",
+						},
+					},
+				},
+			},
+			{
+				SourceSelector: map[string]string{
+					labelA: "aa",
+					labelB: "bb",
+				},
+				Routes: []*registry.Destination{
+					{
+						DestinationSelector: map[string]string{
+							labelA: "aaa",
+							labelB: "bbb",
+						},
+					},
+				},
+			},
+			{
+				Routes: []*registry.Destination{
+					{
+						DestinationSelector: map[string]string{
+							labelA: "a",
+							labelB: "b",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func additionalFunctionalityChain(ctx context.Context, clientURL *url.URL, clientName string, labels map[string]string) []networkservice.NetworkServiceServer {
+	return []networkservice.NetworkServiceServer{
+		chain.NewNetworkServiceServer(
+			clienturl.NewServer(clientURL),
+			connect.NewServer(ctx,
+				client.NewClientFactory(
+					client.WithName(fmt.Sprintf("endpoint-client-%v", clientName)),
+					client.WithAdditionalFunctionality(
+						mechanismtranslation.NewClient(),
+						replacelabels.NewClient(labels),
+						kernel.NewClient(),
+					),
+				),
+				connect.WithDialTimeout(sandbox.DialTimeout),
+				connect.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...),
+			),
+		),
+	}
+}
+
+func newPassThroughEndpoint(ctx context.Context, t *testing.T, s *nsmgrSuite, labels map[string]string, name, nsRegName string, hasClientFunctionality bool, nodeIndex int, counter networkservice.NetworkServiceServer) *registry.NetworkServiceEndpoint {
+	nseReg := &registry.NetworkServiceEndpoint{
+		Name:                fmt.Sprintf("endpoint-%v", name),
+		NetworkServiceNames: []string{nsRegName},
+		NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+			nsRegName: {
+				Labels: labels,
+			},
+		},
+	}
+
+	var additionalFunctionality []networkservice.NetworkServiceServer
+	if hasClientFunctionality {
+		additionalFunctionality = additionalFunctionalityChain(ctx, s.domain.Nodes[nodeIndex].NSMgr.URL, name, labels)
+	}
+
+	if counter != nil {
+		additionalFunctionality = append(additionalFunctionality, counter)
+	}
+
+	_, err := s.domain.Nodes[nodeIndex].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, additionalFunctionality...)
+	require.NoError(t, err)
+
+	return nseReg
 }
