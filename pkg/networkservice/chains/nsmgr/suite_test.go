@@ -398,6 +398,8 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
+	counterClose := &counterServer{}
+
 	nsReg := linearNS(nodesCount)
 	nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
@@ -407,7 +409,7 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 		labels := map[string]string{
 			step: fmt.Sprintf("%v", i),
 		}
-		nsesReg = append(nsesReg, newPassThroughEndpoint(ctx, t, s, labels, fmt.Sprintf("%v", i), nsReg.Name, i != nodesCount-1, i))
+		nsesReg = append(nsesReg, newPassThroughEndpoint(ctx, t, s, labels, fmt.Sprintf("%v", i), nsReg.Name, i != nodesCount-1, i, counterClose))
 	}
 
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
@@ -433,6 +435,7 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 	// Close
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
+	require.Equal(t, int32(nodesCount), atomic.LoadInt32(&counterClose.Closes))
 
 	// Endpoint unregister
 	for i := 0; i < len(nsesReg); i++ {
@@ -448,6 +451,8 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
+	counterClose := &counterServer{}
+
 	nsReg := linearNS(nsesCount)
 	nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
@@ -458,7 +463,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 			step: fmt.Sprintf("%v", i),
 		}
 
-		nsesReg = append(nsesReg, newPassThroughEndpoint(ctx, t, s, labels, fmt.Sprintf("%v", i), nsReg.Name, i != nsesCount-1, 0))
+		nsesReg = append(nsesReg, newPassThroughEndpoint(ctx, t, s, labels, fmt.Sprintf("%v", i), nsReg.Name, i != nsesCount-1, 0, counterClose))
 	}
 
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
@@ -483,6 +488,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 	// Close
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
+	require.Equal(t, int32(nsesCount), atomic.LoadInt32(&counterClose.Closes))
 
 	// Endpoint unregister
 	for i := 0; i < len(nsesReg); i++ {
@@ -496,6 +502,8 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
+
+	counterClose := &counterServer{}
 
 	nsReg := multiLabelNS()
 	nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, nsReg)
@@ -513,7 +521,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
 				labelB: labelBvalue,
 			}
 
-			nsesReg = append(nsesReg, newPassThroughEndpoint(ctx, t, s, labels, labelAvalue+labelBvalue, nsReg.Name, i != 2 || j != 2, 0))
+			nsesReg = append(nsesReg, newPassThroughEndpoint(ctx, t, s, labels, labelAvalue+labelBvalue, nsReg.Name, i != 2 || j != 2, 0, counterClose))
 		}
 		labelBvalue = ""
 	}
@@ -540,6 +548,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
 	// Close
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
+	require.Equal(t, int32(len(expectedPath)), atomic.LoadInt32(&counterClose.Closes))
 
 	// Endpoint unregister
 	for i := 0; i < len(nsesReg); i++ {
@@ -679,7 +688,7 @@ func additionalFunctionalityChain(ctx context.Context, clientURL *url.URL, clien
 	}
 }
 
-func newPassThroughEndpoint(ctx context.Context, t *testing.T, s *nsmgrSuite, labels map[string]string, name, nsRegName string, hasClientFunctionality bool, nodeIndex int) *registry.NetworkServiceEndpoint {
+func newPassThroughEndpoint(ctx context.Context, t *testing.T, s *nsmgrSuite, labels map[string]string, name, nsRegName string, hasClientFunctionality bool, nodeIndex int, counter networkservice.NetworkServiceServer) *registry.NetworkServiceEndpoint {
 	nseReg := &registry.NetworkServiceEndpoint{
 		Name:                fmt.Sprintf("endpoint-%v", name),
 		NetworkServiceNames: []string{nsRegName},
@@ -693,6 +702,10 @@ func newPassThroughEndpoint(ctx context.Context, t *testing.T, s *nsmgrSuite, la
 	var additionalFunctionality []networkservice.NetworkServiceServer
 	if hasClientFunctionality {
 		additionalFunctionality = additionalFunctionalityChain(ctx, s.domain.Nodes[nodeIndex].NSMgr.URL, name, labels)
+	}
+
+	if counter != nil {
+		additionalFunctionality = append(additionalFunctionality, counter)
 	}
 
 	_, err := s.domain.Nodes[nodeIndex].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, additionalFunctionality...)
