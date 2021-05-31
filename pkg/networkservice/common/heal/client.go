@@ -20,7 +20,6 @@ package heal
 import (
 	"context"
 	"sync"
-	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -28,7 +27,6 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 )
 
 type connectionInfo struct {
@@ -121,7 +119,7 @@ func (u *healClient) Request(ctx context.Context, request *networkservice.Networ
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case <-condCh:
-	case <-clock.FromContext(ctx).After(100 * time.Millisecond):
+	case <-u.ctx.Done():
 		_, _ = next.Client(ctx).Close(ctx, conn)
 		return nil, errors.Errorf("timeout waiting for connection monitor: %s", conn.GetId())
 	}
