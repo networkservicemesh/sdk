@@ -402,7 +402,7 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 		labels := map[string]string{
 			step: fmt.Sprintf("%v", i),
 		}
-		nsesReg = append(nsesReg, newPassThroughEndpoint(ctx, t, s, labels, fmt.Sprintf("%v", i), nsReg.Name, i != nodesCount-1, i, counterClose))
+		nsesReg = append(nsesReg, newPassThroughEndpoint(ctx, s.domain.Nodes[i], labels, fmt.Sprintf("%v", i), nsReg.Name, i != nodesCount-1, counterClose))
 	}
 
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
@@ -456,7 +456,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 			step: fmt.Sprintf("%v", i),
 		}
 
-		nsesReg = append(nsesReg, newPassThroughEndpoint(ctx, t, s, labels, fmt.Sprintf("%v", i), nsReg.Name, i != nsesCount-1, 0, counterClose))
+		nsesReg = append(nsesReg, newPassThroughEndpoint(ctx, s.domain.Nodes[0], labels, fmt.Sprintf("%v", i), nsReg.Name, i != nsesCount-1, counterClose))
 	}
 
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
@@ -514,7 +514,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
 				labelB: labelBvalue,
 			}
 
-			nsesReg = append(nsesReg, newPassThroughEndpoint(ctx, t, s, labels, labelAvalue+labelBvalue, nsReg.Name, i != 2 || j != 2, 0, counterClose))
+			nsesReg = append(nsesReg, newPassThroughEndpoint(ctx, s.domain.Nodes[0], labels, labelAvalue+labelBvalue, nsReg.Name, i != 2 || j != 2, counterClose))
 		}
 		labelBvalue = ""
 	}
@@ -681,7 +681,7 @@ func additionalFunctionalityChain(ctx context.Context, clientURL *url.URL, clien
 	}
 }
 
-func newPassThroughEndpoint(ctx context.Context, t *testing.T, s *nsmgrSuite, labels map[string]string, name, nsRegName string, hasClientFunctionality bool, nodeIndex int, counter networkservice.NetworkServiceServer) *registry.NetworkServiceEndpoint {
+func newPassThroughEndpoint(ctx context.Context, node *sandbox.Node, labels map[string]string, name, nsRegName string, hasClientFunctionality bool, counter networkservice.NetworkServiceServer) *registry.NetworkServiceEndpoint {
 	nseReg := &registry.NetworkServiceEndpoint{
 		Name:                fmt.Sprintf("endpoint-%v", name),
 		NetworkServiceNames: []string{nsRegName},
@@ -694,14 +694,14 @@ func newPassThroughEndpoint(ctx context.Context, t *testing.T, s *nsmgrSuite, la
 
 	var additionalFunctionality []networkservice.NetworkServiceServer
 	if hasClientFunctionality {
-		additionalFunctionality = additionalFunctionalityChain(ctx, s.domain.Nodes[nodeIndex].NSMgr.URL, name, labels)
+		additionalFunctionality = additionalFunctionalityChain(ctx, node.NSMgr.URL, name, labels)
 	}
 
 	if counter != nil {
 		additionalFunctionality = append(additionalFunctionality, counter)
 	}
 
-	s.domain.Nodes[nodeIndex].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, additionalFunctionality...)
+	node.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, additionalFunctionality...)
 
 	return nseReg
 }
