@@ -28,7 +28,6 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
@@ -40,7 +39,7 @@ type connectClient struct {
 	dialOptions []grpc.DialOption
 	dialErr     error
 
-	clientFactory client.Factory
+	clientFactory ClientFactory
 	client        networkservice.NetworkServiceClient
 
 	initOnce sync.Once

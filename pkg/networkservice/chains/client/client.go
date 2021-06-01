@@ -26,6 +26,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanismtranslation"
@@ -97,11 +98,9 @@ func NewClient(ctx context.Context, cc grpc.ClientConnInterface, clientOpts ...O
 	return rv
 }
 
-// Factory creates a networkservice.NetworkServiceClient by passed context.Cotnext and grpc.ClientConnInterface
-type Factory = func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient
 
 // NewCrossConnectClientFactory - returns a (2.) case func(cc grpc.ClientConnInterface) NSM client factory.
-func NewCrossConnectClientFactory(clientOpts ...Option) Factory {
+func NewCrossConnectClientFactory(clientOpts ...Option) connect.ClientFactory {
 	return func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 		return chain.NewNetworkServiceClient(
 			mechanismtranslation.NewClient(),
@@ -111,7 +110,7 @@ func NewCrossConnectClientFactory(clientOpts ...Option) Factory {
 }
 
 // NewClientFactory - returns a (3.) case func(cc grpc.ClientConnInterface) NSM client factory.
-func NewClientFactory(clientOpts ...Option) Factory {
+func NewClientFactory(clientOpts ...Option) connect.ClientFactory {
 	return func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 		return chain.NewNetworkServiceClient(
 			NewClient(ctx, cc, clientOpts...),
