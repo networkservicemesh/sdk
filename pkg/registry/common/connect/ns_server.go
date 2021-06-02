@@ -108,12 +108,15 @@ func (s *connectNSServer) Find(query *registry.NetworkServiceQuery, server regis
 
 	c := s.client(server.Context(), nil)
 
-	return adapters.NetworkServiceClientToServer(c.client).Find(query, &connectNSFindServer{
-		client:                            c,
-		clientURL:                         clientURL.String(),
-		connectNSServer:                   s,
-		NetworkServiceRegistry_FindServer: server,
-	})
+	err := adapters.NetworkServiceClientToServer(c.client).Find(query, server)
+
+	if err != nil && c.client.ctx.Err() != nil {
+		s.deleteClient(c, clientURL.String())
+	} else {
+		s.closeClient(c, clientURL.String())
+	}
+
+	return err
 }
 
 func (s *connectNSServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
