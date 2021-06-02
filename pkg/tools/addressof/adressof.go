@@ -1,4 +1,6 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2020-2021 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -27,6 +29,7 @@ package addressof
 
 import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
 // NetworkServiceClient - convenience function to help in converting things from networkservice.NetworkServiceClient to *networkservice.NetworkServiceClient
@@ -42,5 +45,15 @@ import (
 //               impl := &clientImpl{}
 //               var ptr *networkservice.NetworkServiceClient =NetworkServiceClient(cl)
 func NetworkServiceClient(client networkservice.NetworkServiceClient) *networkservice.NetworkServiceClient {
+	return &client
+}
+
+// NetworkServiceEndpointRegistryClient converts client to *registry.NetworkServiceEndpointRegistryClient
+func NetworkServiceEndpointRegistryClient(client registry.NetworkServiceEndpointRegistryClient) *registry.NetworkServiceEndpointRegistryClient {
+	return &client
+}
+
+// NetworkServiceRegistryClient converts client to *registry.NetworkServiceRegistryClient
+func NetworkServiceRegistryClient(client registry.NetworkServiceRegistryClient) *registry.NetworkServiceRegistryClient {
 	return &client
 }

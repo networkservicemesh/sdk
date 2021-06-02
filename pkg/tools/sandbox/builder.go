@@ -400,7 +400,7 @@ func (b *Builder) newNode(ctx context.Context, registryURL *url.URL, nodeConfig 
 		NSMgr: nsmgrEntry,
 	}
 
-	b.SetupRegistryClients(nodeConfig.NsmgrCtx, node)
+	b.SetupRegistryClients(ctx, node)
 
 	if b.setupNode != nil {
 		b.setupNode(ctx, node, nodeConfig)
