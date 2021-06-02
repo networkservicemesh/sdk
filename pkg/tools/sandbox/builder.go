@@ -325,7 +325,7 @@ func (b *Builder) NewNSMgr(ctx context.Context, node *Node, address string, regi
 
 	entry = b.newNSMgr(nsmgrCtx, address, registryURL, generateTokenFunc)
 
-	b.SetupRegistryClients(nsmgrCtx, node, registryURL)
+	b.SetupRegistryClients(ctx, node)
 
 	resources, b.resources = b.resources, nil
 	return
@@ -428,7 +428,7 @@ func (b *Builder) newNode(ctx context.Context, registryURL *url.URL, nodeConfig 
 		NSMgr: nsmgrEntry,
 	}
 
-	b.SetupRegistryClients(nodeConfig.NsmgrCtx, node, registryURL)
+	b.SetupRegistryClients(ctx, node)
 
 	if b.setupNode != nil {
 		b.setupNode(ctx, node, nodeConfig)
@@ -438,7 +438,7 @@ func (b *Builder) newNode(ctx context.Context, registryURL *url.URL, nodeConfig 
 }
 
 // SetupRegistryClients - creates Network Service Registry Clients
-func (b *Builder) SetupRegistryClients(ctx context.Context, node *Node, regURL *url.URL) {
+func (b *Builder) SetupRegistryClients(ctx context.Context, node *Node) {
 	if node.NSMgr == nil {
 		return
 	}

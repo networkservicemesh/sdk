@@ -14,14 +14,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package heal provides NS, NSE registry client chain elements for healing failed remote side
 package heal
-
-import (
-	"sync"
-)
-
-//go:generate go-syncmap -output nse_info_map.gen.go -type nseInfoMap<string,*nseInfo>
-//go:generate go-syncmap -output ns_info_map.gen.go -type nsInfoMap<string,*nsInfo>
-
-type nseInfoMap sync.Map
-type nsInfoMap sync.Map

@@ -98,7 +98,7 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 			})
 			result, err = next.Server(crossCTX).Request(crossCTX, request)
 			if err != nil {
-				log.FromContext(ctx).Errorf("failed to request cross NSE %v err: %v", crossNSEURL, err)
+				log.Default().Errorf("failed to request cross NSE %v err: %v", crossNSEURL, err)
 				return true
 			}
 			// If all is ok, stop iterating.

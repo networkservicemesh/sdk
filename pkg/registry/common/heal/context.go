@@ -18,62 +18,39 @@ package heal
 
 import (
 	"context"
-
-	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
 const (
-	requestNSERestoreKey     contextKeyType = "requestNSERestore"
-	requestNSERestoreFindKey contextKeyType = "requestNSERestoreFind"
-	requestNSRestoreKey      contextKeyType = "requestNSRestore"
-	requestNSRestoreFindKey  contextKeyType = "requestNSRestoreFind"
+	nseFindHealingKey contextKeyType = "nseFindHealing"
+	nsFindHealingKey  contextKeyType = "nsFindHealing"
 )
 
 type contextKeyType string
 
-type requestNSERestoreFunc func(nse *registry.NetworkServiceEndpoint)
-type requestNSERestoreFindFunc func()
-
-func withRequestNSERestore(parent context.Context, f requestNSERestoreFunc) context.Context {
+func withNSEFindHealing(parent context.Context) context.Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
-	return context.WithValue(parent, requestNSERestoreKey, f)
+	return context.WithValue(parent, nseFindHealingKey, true)
 }
 
-func requestNSERestore(ctx context.Context) requestNSERestoreFunc {
-	if rv, ok := ctx.Value(requestNSERestoreKey).(requestNSERestoreFunc); ok {
-		return rv
+func isNSEFindHealing(ctx context.Context) bool {
+	if _, ok := ctx.Value(nseFindHealingKey).(bool); ok {
+		return true
 	}
-	return func(nse *registry.NetworkServiceEndpoint) {}
+	return false
 }
 
-func withRequestNSERestoreFind(parent context.Context, f requestNSERestoreFindFunc) context.Context {
+func withNSFindHealing(parent context.Context) context.Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
-	return context.WithValue(parent, requestNSERestoreFindKey, f)
+	return context.WithValue(parent, nsFindHealingKey, true)
 }
 
-func requestNSERestoreFind(ctx context.Context) requestNSERestoreFindFunc {
-	if rv, ok := ctx.Value(requestNSERestoreFindKey).(requestNSERestoreFindFunc); ok {
-		return rv
+func isNSFindHealing(ctx context.Context) bool {
+	if _, ok := ctx.Value(nsFindHealingKey).(bool); ok {
+		return true
 	}
-	return func() {}
-}
-
-type requestNSRestoreFunc func(ns *registry.NetworkService)
-
-func withRequestNSRestore(parent context.Context, f requestNSRestoreFunc) context.Context {
-	if parent == nil {
-		panic("cannot create context from nil parent")
-	}
-	return context.WithValue(parent, requestNSRestoreKey, f)
-}
-
-func requestNSRestore(ctx context.Context) requestNSRestoreFunc {
-	if rv, ok := ctx.Value(requestNSRestoreKey).(requestNSRestoreFunc); ok {
-		return rv
-	}
-	return func(ns *registry.NetworkService) {}
+	return false
 }

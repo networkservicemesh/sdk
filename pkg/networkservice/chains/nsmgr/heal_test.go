@@ -273,9 +273,6 @@ func TestNSMGR_HealRemoteNSMgrRestored(t *testing.T) {
 }
 
 func testNSMGRHealNSMgr(t *testing.T, nodeNum int, customConfig []*sandbox.NodeConfig, nsmgrCtxCancel context.CancelFunc) {
-	// Restore NSMgr test cases cannot work without registry healing.
-	t.Skip("https://github.com/networkservicemesh/sdk/issues/713")
-
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -318,9 +315,12 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, customConfig []*sandbox.NodeC
 	domain.Nodes[nodeNum].NSMgr = restoredNSMgrEntry
 	domain.AddResources(restoredNSMgrResources)
 
-	require.Eventually(t, checkSecondRequestsReceived(func() int {
-		return int(atomic.LoadInt32(&counter.Requests))
-	}), timeout, tick)
+	require.Eventually(t, func() bool {
+		// 1. Client Request
+		// 2. Local NSMgr healing Request
+		// 3. Remote Forwarder healing Request
+		return atomic.LoadInt32(&counter.Requests) == 3
+	}, timeout, tick)
 
 	// Check refresh
 	request.Connection = conn
@@ -332,7 +332,7 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, customConfig []*sandbox.NodeC
 	e, err := nsc.Close(ctx, conn)
 	require.NoError(t, err)
 	require.NotNil(t, e)
-	require.Equal(t, int32(3), atomic.LoadInt32(&counter.Requests))
+	require.Equal(t, int32(4), atomic.LoadInt32(&counter.Requests))
 	require.Equal(t, closes+1, atomic.LoadInt32(&counter.Closes))
 }
 
