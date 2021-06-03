@@ -20,16 +20,11 @@ import (
 	"context"
 	"net/url"
 
-	"google.golang.org/grpc"
-
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/connectto"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
 // NewNetworkServiceRegistryClient creates a new NewNetworkServiceRegistryClient that can be used for NS registration.
@@ -39,23 +34,13 @@ func NewNetworkServiceRegistryClient(ctx context.Context, connectTo *url.URL, op
 		opt(clientOpts)
 	}
 
-	var additionalFunctionality registry.NetworkServiceRegistryClient
-	if len(clientOpts.nsAdditionalFunctionality) > 0 {
-		additionalFunctionality = chain.NewNetworkServiceRegistryClient(additionalFunctionality)
-	} else {
-		additionalFunctionality = null.NewNetworkServiceRegistryClient()
-	}
-
-	return chain.NewNetworkServiceRegistryClient(
-		serialize.NewNetworkServiceRegistryClient(),
-		additionalFunctionality,
-		adapters.NetworkServiceServerToClient(
-			chain.NewNetworkServiceRegistryServer(
-				clienturl.NewNetworkServiceRegistryServer(connectTo),
-				connect.NewNetworkServiceRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
-					return registry.NewNetworkServiceRegistryClient(cc)
-				}, clientOpts.dialOptions...),
-			),
+	c := new(registry.NetworkServiceRegistryClient)
+	*c = chain.NewNetworkServiceRegistryClient(
+		connectto.NewNetworkServiceRegistryClient(ctx, grpcutils.URLToTarget(connectTo),
+			connectto.WithNSAdditionalFunctionality(clientOpts.nsAdditionalFunctionality...),
+			connectto.WithDialOptions(clientOpts.dialOptions...),
 		),
 	)
+
+	return *c
 }

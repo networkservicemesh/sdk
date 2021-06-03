@@ -19,7 +19,6 @@ package nsmgr_test
 
 import (
 	"context"
-	"net"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -30,6 +29,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -90,7 +90,7 @@ func testNSMGRHealEndpoint(t *testing.T, restored bool) {
 	nseCtxCancel()
 
 	// Wait grpc unblock the port
-	require.Eventually(t, checkURLFree(nse.URL.Host), timeout, tick)
+	require.Eventually(t, grpcutils.CheckURLFree(nse.URL.Host), timeout, tick)
 
 	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
 	nseReg2.Name += "-2"
@@ -209,7 +209,7 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int, restored bool, customConf
 
 	// Wait grpc unblock the port
 	require.GreaterOrEqual(t, 1, len(domain.Nodes[nodeNum].Forwarder))
-	require.Eventually(t, checkURLFree(domain.Nodes[nodeNum].Forwarder[0].URL.Host), timeout, tick)
+	require.Eventually(t, grpcutils.CheckURLFree(domain.Nodes[nodeNum].Forwarder[0].URL.Host), timeout, tick)
 
 	forwarderReg := &registry.NetworkServiceEndpoint{
 		Name: "forwarder-restored",
@@ -306,7 +306,7 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, customConfig []*sandbox.NodeC
 	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Requests))
 	require.Equal(t, int32(0), atomic.LoadInt32(&counter.Closes))
 
-	require.Eventually(t, checkURLFree(domain.Nodes[nodeNum].NSMgr.URL.Host), timeout, tick)
+	require.Eventually(t, grpcutils.CheckURLFree(domain.Nodes[nodeNum].NSMgr.URL.Host), timeout, tick)
 
 	restoredNSMgrEntry, restoredNSMgrResources := builder.NewNSMgr(ctx, domain.Nodes[nodeNum], domain.Nodes[nodeNum].NSMgr.URL.Host, domain.Registry.URL, sandbox.GenerateTestToken)
 	domain.Nodes[nodeNum].NSMgr = restoredNSMgrEntry
@@ -450,16 +450,5 @@ func TestNSMGR_CloseHeal(t *testing.T) {
 func checkSecondRequestsReceived(requestsDone func() int) func() bool {
 	return func() bool {
 		return requestsDone() >= 2
-	}
-}
-
-func checkURLFree(url string) func() bool {
-	return func() bool {
-		ln, err := net.Listen("tcp", url)
-		if err != nil {
-			return false
-		}
-		err = ln.Close()
-		return err == nil
 	}
 }
