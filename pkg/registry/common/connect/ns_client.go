@@ -22,7 +22,7 @@ import (
 
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -68,13 +68,9 @@ func (c *connectNSClient) init() error {
 				cancel()
 				_ = cc.Close()
 			}()
-			for cc.WaitForStateChange(c.ctx, cc.GetState()) {
-				switch cc.GetState() {
-				case connectivity.Connecting, connectivity.Idle, connectivity.Ready:
-					continue
-				default:
-					return
-				}
+
+			stream, err := grpc_health_v1.NewHealthClient(cc).Watch(c.ctx, new(grpc_health_v1.HealthCheckRequest))
+			for ; err == nil; _, err = stream.Recv() {
 			}
 		}()
 	})

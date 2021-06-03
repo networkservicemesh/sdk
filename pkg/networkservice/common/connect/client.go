@@ -26,11 +26,12 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/health/grpc_health_v1"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
@@ -74,23 +75,57 @@ func (u *connectClient) init() error {
 
 		u.client = u.clientFactory(u.ctx, cc)
 
-		go func() {
-			defer func() {
-				cancel()
-				_ = cc.Close()
-			}()
-			for cc.WaitForStateChange(u.ctx, cc.GetState()) {
-				switch cc.GetState() {
-				case connectivity.Connecting, connectivity.Idle, connectivity.Ready:
-					continue
-				default:
-					return
-				}
-			}
-		}()
+		select {
+		case <-dialCtx.Done():
+			u.dialErr = dialCtx.Err()
+		case u.dialErr = <-u.monitor(dialCtx, cancel, cc):
+		}
 	})
 
 	return u.dialErr
+}
+
+func (u *connectClient) monitor(dialCtx context.Context, cancel context.CancelFunc, cc *grpc.ClientConn) <-chan error {
+	errCh := make(chan error)
+	go func() {
+		defer func() {
+			cancel()
+			_ = cc.Close()
+		}()
+
+		stream, err := grpc_health_v1.NewHealthClient(cc).Watch(u.ctx, &grpc_health_v1.HealthCheckRequest{
+			Service: networkservice.ServiceNames(null.NewServer())[0],
+		})
+		if err != nil {
+			errCh <- err
+			return
+		}
+
+		var closed bool
+		for {
+			var resp *grpc_health_v1.HealthCheckResponse
+			resp, err = stream.Recv()
+			if err != nil {
+				if !closed {
+					errCh <- err
+				}
+				return
+			}
+
+			switch resp.Status {
+			case grpc_health_v1.HealthCheckResponse_SERVING:
+				if !closed {
+					closed = true
+					close(errCh)
+				}
+			default:
+				if dialCtx.Err() != nil {
+					return
+				}
+			}
+		}
+	}()
+	return errCh
 }
 
 func (u *connectClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
