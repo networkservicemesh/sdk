@@ -43,8 +43,6 @@ const (
 )
 
 func TestNSMGR_HealEndpoint(t *testing.T) {
-	t.Skip("https://github.com/networkservicemesh/sdk/issues/925")
-
 	var samples = []struct {
 		name     string
 		nodeNum  int
