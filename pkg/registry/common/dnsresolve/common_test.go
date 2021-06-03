@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -26,6 +26,14 @@ import (
 type testResolver struct {
 	srvRecords  map[string][]*net.SRV
 	hostRecords map[string][]net.IPAddr
+	cnames      map[string]string
+}
+
+func (t *testResolver) LookupCNAME(ctx context.Context, host string) (cname string, err error) {
+	if v, ok := t.cnames[cname]; ok {
+		return v, nil
+	}
+	return "", errors.New("unknown host")
 }
 
 func (t *testResolver) LookupSRV(ctx context.Context, service, proto, name string) (string, []*net.SRV, error) {

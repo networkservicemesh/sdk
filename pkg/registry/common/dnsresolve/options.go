@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -16,32 +16,32 @@
 
 package dnsresolve
 
-type configurable interface {
-	setResolver(Resolver)
-	setService(string)
+type options struct {
+	resolver          Resolver
+	nsmgrProxyService string
+	registryService   string
 }
 
 // Option is option to configure dnsresovle chain elements
-type Option interface {
-	apply(configurable)
-}
-
-type optionApplyFunc func(configurable)
-
-func (f optionApplyFunc) apply(c configurable) {
-	f(c)
-}
+type Option func(*options)
 
 // WithResolver sets DNS resolver by default used net.DefaultResolver
 func WithResolver(r Resolver) Option {
-	return optionApplyFunc(func(c configurable) {
-		c.setResolver(r)
-	})
+	return func(o *options) {
+		o.resolver = r
+	}
 }
 
-// WithService sets default service to lookup DNS SRV records
-func WithService(service string) Option {
-	return optionApplyFunc(func(c configurable) {
-		c.setService(service)
-	})
+// WithNSMgrProxyService sets default service of nsmgr-proxy to lookup DNS SRV records
+func WithNSMgrProxyService(service string) Option {
+	return func(o *options) {
+		o.nsmgrProxyService = service
+	}
+}
+
+// WithRegistryService sets default service of nsmgr-proxy to lookup DNS SRV records
+func WithRegistryService(service string) Option {
+	return func(o *options) {
+		o.registryService = service
+	}
 }

@@ -19,26 +19,22 @@ package proxydns
 
 import (
 	"context"
-	"net/url"
 
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/swap"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 )
 
 // NewServer creates new stateless registry server that proxies queries to the second registries by DNS domains
-func NewServer(ctx context.Context, dnsResolver dnsresolve.Resolver, handlingDNSDomain string, proxyNSMgrURL *url.URL, dialOptions ...grpc.DialOption) registry.Registry {
+func NewServer(ctx context.Context, dnsResolver dnsresolve.Resolver, dialOptions ...grpc.DialOption) registry.Registry {
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
 		dnsresolve.NewNetworkServiceEndpointRegistryServer(dnsresolve.WithResolver(dnsResolver)),
-		swap.NewNetworkServiceEndpointRegistryServer(handlingDNSDomain, proxyNSMgrURL),
 		connect.NewNetworkServiceEndpointRegistryServer(ctx, connect.WithDialOptions(dialOptions...)))
 	nsChain := chain.NewNetworkServiceRegistryServer(
 		dnsresolve.NewNetworkServiceRegistryServer(dnsresolve.WithResolver(dnsResolver)),
-		swap.NewNetworkServiceRegistryServer(handlingDNSDomain),
 		connect.NewNetworkServiceRegistryServer(ctx, connect.WithDialOptions(dialOptions...)))
 	return registry.NewServer(nsChain, nseChain)
 }

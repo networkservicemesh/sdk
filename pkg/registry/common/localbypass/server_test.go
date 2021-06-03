@@ -34,6 +34,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 )
 
 const (
@@ -43,6 +44,9 @@ const (
 
 func TestLocalBypassNSEServer(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 
 	mem := memory.NewNetworkServiceEndpointRegistryServer()
 
@@ -54,13 +58,13 @@ func TestLocalBypassNSEServer(t *testing.T) {
 	)
 
 	// 1. Register
-	nse, err := server.Register(context.Background(), &registry.NetworkServiceEndpoint{
+	nse, err := server.Register(ctx, &registry.NetworkServiceEndpoint{
 		Url: nseURL,
 	})
 	require.NoError(t, err)
 	require.Equal(t, nseURL, nse.Url)
 
-	stream, err := adapters.NetworkServiceEndpointServerToClient(mem).Find(context.Background(), &registry.NetworkServiceEndpointQuery{
+	stream, err := adapters.NetworkServiceEndpointServerToClient(mem).Find(ctx, &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
 	})
 	require.NoError(t, err)
@@ -70,7 +74,7 @@ func TestLocalBypassNSEServer(t *testing.T) {
 	require.Equal(t, nsmgrURL, findNSE.Url)
 
 	// 2. Find
-	stream, err = adapters.NetworkServiceEndpointServerToClient(server).Find(context.Background(), &registry.NetworkServiceEndpointQuery{
+	stream, err = adapters.NetworkServiceEndpointServerToClient(server).Find(ctx, &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
 	})
 	require.NoError(t, err)
@@ -80,10 +84,10 @@ func TestLocalBypassNSEServer(t *testing.T) {
 	require.Equal(t, nseURL, findNSE.Url)
 
 	// 3. Unregister
-	_, err = server.Unregister(context.Background(), nse)
+	_, err = server.Unregister(ctx, nse)
 	require.NoError(t, err)
 
-	stream, err = adapters.NetworkServiceEndpointServerToClient(mem).Find(context.Background(), &registry.NetworkServiceEndpointQuery{
+	stream, err = adapters.NetworkServiceEndpointServerToClient(mem).Find(ctx, &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
 	})
 	require.NoError(t, err)
@@ -95,6 +99,9 @@ func TestLocalBypassNSEServer(t *testing.T) {
 func TestLocalBypassNSEServer_Restart(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
 	mem := memory.NewNetworkServiceEndpointRegistryServer()
 
 	server := next.NewNetworkServiceEndpointRegistryServer(
@@ -103,7 +110,7 @@ func TestLocalBypassNSEServer_Restart(t *testing.T) {
 	)
 
 	// 1. Register
-	nse, err := server.Register(context.Background(), &registry.NetworkServiceEndpoint{
+	nse, err := server.Register(ctx, &registry.NetworkServiceEndpoint{
 		Name: "nse",
 		Url:  nseURL,
 	})
@@ -111,7 +118,7 @@ func TestLocalBypassNSEServer_Restart(t *testing.T) {
 	require.Equal(t, nseURL, nse.Url)
 
 	// 2. Find
-	stream, err := adapters.NetworkServiceEndpointServerToClient(server).Find(context.Background(), &registry.NetworkServiceEndpointQuery{
+	stream, err := adapters.NetworkServiceEndpointServerToClient(server).Find(ctx, &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
 	})
 	require.NoError(t, err)
@@ -127,7 +134,7 @@ func TestLocalBypassNSEServer_Restart(t *testing.T) {
 	)
 
 	// 4. Try to find again
-	stream, err = adapters.NetworkServiceEndpointServerToClient(server).Find(context.Background(), &registry.NetworkServiceEndpointQuery{
+	stream, err = adapters.NetworkServiceEndpointServerToClient(server).Find(ctx, &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
 	})
 	require.NoError(t, err)
@@ -140,11 +147,11 @@ func TestLocalBypassNSEServer_Restart(t *testing.T) {
 	}
 
 	// 5. Refresh register
-	_, err = server.Register(context.Background(), nse)
+	_, err = server.Register(ctx, nse)
 	require.NoError(t, err)
 
 	// 6. Find
-	stream, err = adapters.NetworkServiceEndpointServerToClient(server).Find(context.Background(), &registry.NetworkServiceEndpointQuery{
+	stream, err = adapters.NetworkServiceEndpointServerToClient(server).Find(ctx, &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
 	})
 	require.NoError(t, err)
@@ -157,6 +164,9 @@ func TestLocalBypassNSEServer_Restart(t *testing.T) {
 func TestLocalBypassNSEServer_SlowRegistryFind(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
 	server := next.NewNetworkServiceEndpointRegistryServer(
 		adapters.NetworkServiceEndpointClientToServer(setid.NewNetworkServiceEndpointRegistryClient()),
 		localbypass.NewNetworkServiceEndpointRegistryServer(nsmgrURL),
@@ -166,9 +176,6 @@ func TestLocalBypassNSEServer_SlowRegistryFind(t *testing.T) {
 			NetworkServiceEndpointRegistryServer: memory.NewNetworkServiceEndpointRegistryServer(),
 		},
 	)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	// 1. Start trying to find endpoint
 	c := adapters.NetworkServiceEndpointServerToClient(server)
@@ -191,14 +198,14 @@ func TestLocalBypassNSEServer_SlowRegistryFind(t *testing.T) {
 	}()
 
 	// 2. Register
-	nse, err := server.Register(context.Background(), &registry.NetworkServiceEndpoint{
+	nse, err := server.Register(ctx, &registry.NetworkServiceEndpoint{
 		Url: nseURL,
 	})
 	require.NoError(t, err)
 	require.Equal(t, nseURL, nse.Url)
 
 	// 3. Unregister
-	_, err = server.Unregister(context.Background(), nse)
+	_, err = server.Unregister(ctx, nse)
 	require.NoError(t, err)
 }
 
@@ -263,13 +270,12 @@ func TestLocalBypassNSEServer_SlowRegistryFindWatch(t *testing.T) {
 		},
 	)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 
 	// 1. Start watching endpoint
 	c := adapters.NetworkServiceEndpointServerToClient(server)
 	go func() {
-		defer cancel()
-
 		stream, err := c.Find(ctx, &registry.NetworkServiceEndpointQuery{
 			NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
 			Watch:                  true,
@@ -291,14 +297,14 @@ func TestLocalBypassNSEServer_SlowRegistryFindWatch(t *testing.T) {
 	}()
 
 	// 2. Register
-	nse, err := server.Register(context.Background(), &registry.NetworkServiceEndpoint{
+	nse, err := server.Register(ctx, &registry.NetworkServiceEndpoint{
 		Url: nseURL,
 	})
 	require.NoError(t, err)
 	require.Equal(t, nseURL, nse.Url)
 
 	// 3. Unregister
-	_, err = server.Unregister(context.Background(), nse)
+	_, err = server.Unregister(ctx, nse)
 	require.NoError(t, err)
 
 	<-ctx.Done()
@@ -311,15 +317,15 @@ type slowRegistry struct {
 }
 
 func (r *slowRegistry) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	time.Sleep(r.delay)
-	defer time.Sleep(r.delay)
+	clock.FromContext(ctx).Sleep(r.delay)
+	defer clock.FromContext(ctx).Sleep(r.delay)
 
 	return r.NetworkServiceEndpointRegistryServer.Register(ctx, nse)
 }
 
 func (r *slowRegistry) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	time.Sleep(r.delay)
-	defer time.Sleep(r.delay)
+	clock.FromContext(ctx).Sleep(r.delay)
+	defer clock.FromContext(ctx).Sleep(r.delay)
 
 	return r.NetworkServiceEndpointRegistryServer.Unregister(ctx, nse)
 }

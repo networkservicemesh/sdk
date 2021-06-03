@@ -14,11 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package interdomain_test
+package proxydns_test
 
 import (
 	"context"
-	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -30,33 +29,28 @@ import (
 
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/registry"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
-	registryadapters "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
-	registrychain "github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
 /*
 	TestInterdomainNetworkServiceEndpointRegistry covers the next scenario:
-		1. local registry from domain2 has entry "ns-1"
+		1. local registry from domain2 has entry "nse-1"
 		2. nsmgr from domain1 call find with query "nse-1@domain2"
-		3. local registry proxies query to proxy registry
-		4. proxy registry proxies query to local registry from domain2
-	Expected: nsmgr found ns
-	domain1                                      domain2
-	 ___________________________________         ___________________
-	|                                   | Find  |                   |
-	| local registry --> proxy registry | ----> | local registry    |
-	|                                   |       |                   |
-	____________________________________         ___________________
+		3. local registry proxies query to nsmgr proxy registry
+		4. nsmgr proxy registry proxies query to proxy registry
+		5. proxy registry proxies query to local registry from domain2
+	Expected: nsmgr found nse
+
+	domain1:                                                           domain2:
+	------------------------------------------------------------       -------------------
+	|                                                           | Find |                 |
+	|  local registry -> nsmgr proxy registry -> proxy registry | ---> | local registry  |
+	|                                                           |      |                 |
+	------------------------------------------------------------       ------------------
 */
 func TestInterdomainNetworkServiceEndpointRegistry(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-
-	const remoteRegistryDomain = "domain2.local.registry"
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
@@ -73,9 +67,8 @@ func TestInterdomainNetworkServiceEndpointRegistry(t *testing.T) {
 		SetContext(ctx).
 		SetNodesCount(0).
 		SetDNSResolver(dnsServer).
+		SetDNSDomainName("domain2").
 		Build()
-
-	require.NoError(t, dnsServer.Register(remoteRegistryDomain, domain2.Registry.URL))
 
 	expirationTime, _ := ptypes.TimestampProto(time.Now().Add(time.Hour))
 
@@ -100,7 +93,7 @@ func TestInterdomainNetworkServiceEndpointRegistry(t *testing.T) {
 
 	stream, err := client.Find(ctx, &registryapi.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registryapi.NetworkServiceEndpoint{
-			Name: reg.Name + "@" + remoteRegistryDomain,
+			Name: reg.Name + "@" + domain2.Name,
 		},
 	})
 
@@ -109,28 +102,26 @@ func TestInterdomainNetworkServiceEndpointRegistry(t *testing.T) {
 	list := registryapi.ReadNetworkServiceEndpointList(stream)
 
 	require.Len(t, list, 1)
-	require.Equal(t, reg.Name+"@nsmgr-url", list[0].Name)
+	require.Equal(t, reg.Name+"@"+domain2.Name, list[0].Name)
 }
 
 /*
 	TestLocalDomain_NetworkServiceEndpointRegistry covers the next scenario:
 		1. nsmgr from domain1 calls find with query "nse-1@domain1"
-		2. local registry proxies query to proxy registry
-		3. proxy registry proxies query to local registry removes interdomain symbol
-		4. local registry finds nse-1 with local nsmgr URL
-
+		2. local registry proxies query to nsmgr proxy registry
+		3. nsmgr proxy registry  proxies query to proxy registry
+		4. proxy registry proxies query to local registry
 	Expected: nsmgr found nse
-	domain1
-	 ____________________________________
-	|                                    |
-	| local registry <--> proxy registry |
-	|                                    |
-	_____________________________________
+
+	domain1:
+	-----------------------------------------------------------------------------------
+	|                                                                                 |
+	|    local registry -> nsmgr proxy registry -> proxy registry -> local registry   |
+	|                                                                                 |
+	-----------------------------------------------------------------------------------
 */
 func TestLocalDomain_NetworkServiceEndpointRegistry(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-
-	const localRegistryDomain = "domain1.local.registry"
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
@@ -140,11 +131,9 @@ func TestLocalDomain_NetworkServiceEndpointRegistry(t *testing.T) {
 	domain1 := sandbox.NewBuilder(t).
 		SetContext(ctx).
 		SetNodesCount(0).
-		SetDNSDomainName(localRegistryDomain).
+		SetDNSDomainName("cluster.local").
 		SetDNSResolver(dnsServer).
 		Build()
-
-	require.NoError(t, dnsServer.Register(localRegistryDomain, domain1.Registry.URL))
 
 	expirationTime, _ := ptypes.TimestampProto(time.Now().Add(time.Hour))
 
@@ -168,7 +157,7 @@ func TestLocalDomain_NetworkServiceEndpointRegistry(t *testing.T) {
 
 	stream, err := client.Find(context.Background(), &registryapi.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registryapi.NetworkServiceEndpoint{
-			Name: reg.Name + "@" + localRegistryDomain,
+			Name: reg.Name + "@" + domain1.Name,
 		},
 	})
 
@@ -177,32 +166,27 @@ func TestLocalDomain_NetworkServiceEndpointRegistry(t *testing.T) {
 	list := registryapi.ReadNetworkServiceEndpointList(stream)
 
 	require.Len(t, list, 1)
-	require.Equal(t, reg.Name, list[0].Name)
-	require.Equal(t, "test://publicNSMGRurl", list[0].Url)
+	require.Equal(t, "nse-1@"+domain1.Name, list[0].Name)
 }
 
 /*
-	TestInterdomainFloatingNetworkServiceEndpointRegistry covers the next scenario:
-		1. local registry from domain3 registers entry "ns-1"
-		2. proxy registry from domain3 proxies entry "ns-1" to floating registry
-		3. nsmgr from domain1 call find with query "nse-1@domain3"
-		4. local registry from domain1 proxies query to proxy registry from domain1
-		5. proxy registry from domain1 proxies query to floating registry
-	Expected: nsmgr found ns
-	domain1	                                        domain2                            domain3
-	 ___________________________________            ___________________                ___________________________________
-	|                                   | 2. Find  |                    | 1. Register |                                   |
-	| local registry --> proxy registry | -------> | floating registry  | <---------  | proxy registry <-- local registry |
-	|                                   |          |                    |             |                                   |
-	____________________________________            ___________________                ___________________________________
-*/
+	TestInterdomainNetworkServiceEndpointRegistry covers the next scenario:
+		1. local registry from domain2 has entry "nse-1"
+		2. nsmgr from domain1 call find with query "nse-1@domain2"
+		3. local registry proxies query to nsmgr proxy registry
+		4. nsmgr proxy registry proxies query to proxy registry
+		5. proxy registry proxies query to local registry from domain2
+	Expected: nsmgr found nse
 
+	domain1:                                                             domain2:
+	------------------------------------------------------------         -------------------              ------------------------------------------------------------
+	|                                                           | 2.Find |                 | 1. Register  |                                                           |
+	|  local registry -> nsmgr proxy registry -> proxy registry |  --->  | local registry  | <----------- |  local registry -> nsmgr proxy registry -> proxy registry |
+	|                                                           |        |                 |              |                                                           |
+	------------------------------------------------------------         ------------------               ------------------------------------------------------------
+*/
 func TestInterdomainFloatingNetworkServiceEndpointRegistry(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-
-	const remoteRegistryDomain = "domain3.local.registry"
-	const remoteProxyRegistryDomain = "domain3.proxy.registry"
-	const floatingRegistryDomain = "domain2.floating.registry"
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
@@ -222,29 +206,20 @@ func TestInterdomainFloatingNetworkServiceEndpointRegistry(t *testing.T) {
 		Build()
 
 	domain3 := sandbox.NewBuilder(t).
+		SetContext(ctx).
 		SetNodesCount(0).
-		SetRegistrySupplier(func(context.Context, time.Duration, *url.URL, ...grpc.DialOption) registry.Registry {
-			return registry.NewServer(
-				memory.NewNetworkServiceRegistryServer(),
-				registrychain.NewNetworkServiceEndpointRegistryServer(
-					registryadapters.NetworkServiceEndpointClientToServer(setid.NewNetworkServiceEndpointRegistryClient()),
-					memory.NewNetworkServiceEndpointRegistryServer(),
-				),
-			)
-		}).
+		SetDNSResolver(dnsServer).
+		SetNSMgrProxySupplier(nil).
 		SetRegistryProxySupplier(nil).
+		SetDNSDomainName("floating.domain").
 		Build()
-
-	require.NoError(t, dnsServer.Register(remoteRegistryDomain, domain2.Registry.URL))
-	require.NoError(t, dnsServer.Register(remoteProxyRegistryDomain, domain2.RegistryProxy.URL))
-	require.NoError(t, dnsServer.Register(floatingRegistryDomain, domain3.Registry.URL))
 
 	expirationTime, _ := ptypes.TimestampProto(time.Now().Add(time.Hour))
 
 	reg, err := domain2.Registry.NetworkServiceEndpointRegistryServer().Register(
 		context.Background(),
 		&registryapi.NetworkServiceEndpoint{
-			Name:           "nse-1@" + floatingRegistryDomain,
+			Name:           "nse-1@" + domain3.Name,
 			Url:            "test://publicNSMGRurl",
 			ExpirationTime: expirationTime,
 		},
@@ -263,7 +238,7 @@ func TestInterdomainFloatingNetworkServiceEndpointRegistry(t *testing.T) {
 
 	stream, err := client.Find(ctx, &registryapi.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registryapi.NetworkServiceEndpoint{
-			Name: name + "@" + floatingRegistryDomain,
+			Name: name + "@" + domain3.Name,
 		},
 	})
 
@@ -272,5 +247,5 @@ func TestInterdomainFloatingNetworkServiceEndpointRegistry(t *testing.T) {
 	list := registryapi.ReadNetworkServiceEndpointList(stream)
 
 	require.Len(t, list, 1)
-	require.Equal(t, name+"@test://publicNSMGRurl", list[0].Name)
+	require.Equal(t, name+"@"+domain3.Name, list[0].Name)
 }

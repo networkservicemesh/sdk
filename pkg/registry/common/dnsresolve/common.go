@@ -23,7 +23,15 @@ import (
 	"net/url"
 
 	"github.com/pkg/errors"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
+
+// DefaultNsmgrProxyService default NSM nsmgr proxy service name for SRV lookup
+const DefaultNsmgrProxyService = "nsmgr-proxy.nsm-system"
+
+// DefaultRegistryService default NSM registry service name for SRV lookup
+const DefaultRegistryService = "registry.nsm-system"
 
 // Resolver is DNS resolver
 type Resolver interface {
@@ -60,7 +68,7 @@ func resolveDomain(ctx context.Context, service, domain string, r Resolver) (*ur
 	if ip == nil || port == nil {
 		serviceDomain := fmt.Sprintf("%v.%v", service, domain)
 
-		_, records, err := r.LookupSRV(ctx, service, "tcp", serviceDomain)
+		_, records, err := r.LookupSRV(ctx, "", "", serviceDomain)
 		if err != nil {
 			return nil, err
 		}
@@ -84,6 +92,7 @@ func resolveDomain(ctx context.Context, service, domain string, r Resolver) (*ur
 		return nil, err
 	}
 
+	log.FromContext(ctx).Info("Resolved url: %v", u)
 	return u, nil
 }
 

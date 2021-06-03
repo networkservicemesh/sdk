@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -23,6 +23,11 @@ const identifier = "@"
 // Is returns true if passed string can be represented as interdomain URL
 func Is(s string) bool {
 	return strings.Contains(s, identifier)
+}
+
+// Not returns true if passed string is not related to interdomain.
+func Not(s string) bool {
+	return !Is(s)
 }
 
 // Join concatenates strings with intedomain identifier

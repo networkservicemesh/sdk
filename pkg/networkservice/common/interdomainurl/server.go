@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,68 +14,60 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package interdomainurl provides chain element to putting remote NSMgr URL into context.
+// Package interdomainurl inject into context clienturl if requested networkserviceendpoint has interdomain attribute
 package interdomainurl
 
 import (
 	"context"
-	"net/url"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/pkg/errors"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/storeurl"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
+	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 )
 
-type interdomainURLServer struct{}
-
-// NewServer creates new interdomainurl chain element
-func NewServer() networkservice.NetworkServiceServer {
-	return &interdomainURLServer{}
+type interdomainurlServer struct {
+	m stringurl.Map
 }
 
-func (i *interdomainURLServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	interDomainNSEName := request.GetConnection().GetNetworkServiceEndpointName()
-	nseName, domainURL, err := parseInterDomainNSEName(interDomainNSEName)
-	if err != nil {
-		return nil, err
-	}
-	request.GetConnection().NetworkServiceEndpointName = nseName
-
-	conn, err := next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, domainURL), request)
-	if err != nil {
-		return nil, err
-	}
-	conn.NetworkServiceEndpointName = interDomainNSEName
-
-	return conn, nil
+// NewServer - returns a new NetworkServiceServer that injects clienturl into context on requesting known endpoint
+func NewServer(rs *registry.NetworkServiceEndpointRegistryServer) networkservice.NetworkServiceServer {
+	var rv = new(interdomainurlServer)
+	*rs = storeurl.NewNetworkServiceEndpointRegistryServer(&rv.m)
+	return rv
 }
 
-func (i *interdomainURLServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	interDomainNSEName := conn.GetNetworkServiceEndpointName()
-	nseName, domainURL, err := parseInterDomainNSEName(interDomainNSEName)
-	if err != nil {
-		return nil, err
+func (n *interdomainurlServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	u, ok := n.m.Load(request.Connection.NetworkServiceEndpointName)
+	if ok {
+		ctx = clienturlctx.WithClientURL(ctx, u)
+		originalNSEName := request.GetConnection().NetworkServiceEndpointName
+		request.GetConnection().NetworkServiceEndpointName = interdomain.Target(originalNSEName)
+		resp, err := next.Server(ctx).Request(ctx, request)
+		if err != nil {
+			return nil, err
+		}
+		resp.NetworkServiceEndpointName = originalNSEName
+		return resp, nil
 	}
-	conn.NetworkServiceEndpointName = nseName
 
-	return next.Server(ctx).Close(clienturlctx.WithClientURL(ctx, domainURL), conn)
+	return next.Server(ctx).Request(ctx, request)
 }
 
-func parseInterDomainNSEName(interDomainNSEName string) (string, *url.URL, error) {
-	if interDomainNSEName == "" {
-		return "", nil, errors.New("NSE is not selected")
+func (n *interdomainurlServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	u, ok := n.m.Load(conn.NetworkServiceEndpointName)
+	if ok {
+		ctx = clienturlctx.WithClientURL(ctx, u)
+		originalNSEName := conn.NetworkServiceEndpointName
+		defer func() {
+			conn.NetworkServiceEndpointName = originalNSEName
+		}()
+		conn.NetworkServiceEndpointName = interdomain.Target(originalNSEName)
 	}
-
-	remoteURL := interdomain.Domain(interDomainNSEName)
-	u, err := url.Parse(remoteURL)
-	if err != nil {
-		return "", nil, errors.Wrap(err, "selected NSE has wrong name. Make sure that proxy-registry has handled NSE")
-	}
-
-	return interdomain.Target(interDomainNSEName), u, nil
+	return next.Server(ctx).Close(ctx, conn)
 }

@@ -137,7 +137,6 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	opts := &serverOptions{
 		authorizeServer: authorize.NewServer(authorize.Any()),
 		name:            "nsmgr-" + uuid.New().String(),
-		url:             "",
 	}
 	for _, opt := range options {
 		opt(opts)

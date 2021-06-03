@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -69,20 +69,21 @@ func (f *FakeDNSResolver) LookupIPAddr(_ context.Context, host string) ([]net.IP
 	return nil, errors.New("not found")
 }
 
-// Register adds new DNS record by passed url.URL
-func (f *FakeDNSResolver) Register(name string, u *url.URL) error {
+// AddSRVEntry adds new DNS record by passed url.URL
+func (f *FakeDNSResolver) AddSRVEntry(name, service string, u *url.URL) {
 	if u == nil {
-		return errors.New("u cannot be nil")
+		panic("u cannot be nil")
 	}
 	f.Lock()
 	defer f.Unlock()
 	if f.ports == nil {
 		f.ports = map[string]string{}
 	}
-	key := fmt.Sprintf("%v.%v", dnsresolve.NSMRegistryService, name)
+	key := fmt.Sprintf("%v.%v", service, name)
 	var err error
-	_, f.ports[key], err = net.SplitHostPort(u.Host)
-	return err
+	if _, f.ports[key], err = net.SplitHostPort(u.Host); err != nil {
+		panic(err.Error())
+	}
 }
 
 var _ dnsresolve.Resolver = (*FakeDNSResolver)(nil)

@@ -35,12 +35,12 @@ import (
 	"google.golang.org/grpc"
 
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
-
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgrproxy"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/proxydns"
+	registryconnect "github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
@@ -55,7 +55,7 @@ type Builder struct {
 	nodesCount             int
 	nodesConfig            []*NodeConfig
 	DNSDomainName          string
-	Resolver               dnsresolve.Resolver
+	resolver               dnsresolve.Resolver
 	supplyNSMgr            SupplyNSMgrFunc
 	supplyNSMgrProxy       SupplyNSMgrProxyFunc
 	supplyRegistry         SupplyRegistryFunc
@@ -76,7 +76,6 @@ func NewBuilder(t *testing.T) *Builder {
 	return &Builder{
 		nodesCount:             1,
 		require:                require.New(t),
-		Resolver:               net.DefaultResolver,
 		supplyNSMgr:            nsmgr.NewServer,
 		DNSDomainName:          "cluster.local",
 		supplyRegistry:         memory.NewServer,
@@ -85,6 +84,7 @@ func NewBuilder(t *testing.T) *Builder {
 		setupNode:              defaultSetupNode(t),
 		generateTokenFunc:      GenerateTestToken,
 		registryExpiryDuration: time.Minute,
+		resolver:               new(FakeDNSResolver),
 		t:                      t,
 
 		useUnixSockets: false,
@@ -110,16 +110,19 @@ func (b *Builder) Build() *Domain {
 		domain.domainTemp = b.sockPath
 	}
 
-	domain.NSMgrProxy = b.newNSMgrProxy(ctx)
-	if domain.NSMgrProxy == nil {
-		domain.RegistryProxy = b.newRegistryProxy(ctx, &url.URL{})
-	} else {
-		domain.RegistryProxy = b.newRegistryProxy(ctx, domain.NSMgrProxy.URL)
-	}
+	domain.RegistryProxy = b.newRegistryProxy(ctx)
+
+	var nsmgrProxyURL = new(url.URL)
+
 	if domain.RegistryProxy == nil {
 		domain.Registry = b.newRegistry(ctx, nil)
 	} else {
-		domain.Registry = b.newRegistry(ctx, domain.RegistryProxy.URL)
+		domain.Registry = b.newRegistry(ctx, nsmgrProxyURL)
+	}
+
+	if domain.RegistryProxy != nil {
+		domain.NSMgrProxy = b.newNSMgrProxy(ctx, domain.Registry.URL, domain.RegistryProxy.URL)
+		*nsmgrProxyURL = *domain.NSMgrProxy.URL
 	}
 
 	var registryURL *url.URL
@@ -135,7 +138,24 @@ func (b *Builder) Build() *Domain {
 
 	b.t.Cleanup(domain.cleanup)
 
+	b.buildDNSServer(domain)
+	domain.Name = b.DNSDomainName
+
 	return domain
+}
+
+func (b *Builder) buildDNSServer(d *Domain) {
+	resolver, ok := b.resolver.(*FakeDNSResolver)
+	if !ok {
+		return
+	}
+
+	if d.Registry != nil {
+		resolver.AddSRVEntry(b.DNSDomainName, dnsresolve.DefaultRegistryService, d.Registry.URL)
+	}
+	if d.NSMgrProxy != nil {
+		resolver.AddSRVEntry(b.DNSDomainName, dnsresolve.DefaultNsmgrProxyService, d.NSMgrProxy.URL)
+	}
 }
 
 // SetContext sets default context for all chains
@@ -208,7 +228,7 @@ func (b *Builder) UseUnixSockets() *Builder {
 
 // SetDNSResolver sets DNS resolver for proxy registries
 func (b *Builder) SetDNSResolver(d dnsresolve.Resolver) *Builder {
-	b.Resolver = d
+	b.resolver = d
 	return b
 }
 
@@ -269,21 +289,28 @@ func (b *Builder) dialContext(ctx context.Context, u *url.URL) *grpc.ClientConn 
 	return conn
 }
 
-func (b *Builder) newNSMgrProxy(ctx context.Context) *EndpointEntry {
+func (b *Builder) newNSMgrProxy(ctx context.Context, registryURL, registryProxyURL *url.URL) *EndpointEntry {
 	if b.supplyRegistryProxy == nil {
 		return nil
 	}
 	name := "nsmgr-proxy-" + uuid.New().String()
-	mgr := b.supplyNSMgrProxy(ctx, b.generateTokenFunc,
+	serveURL := grpcutils.TargetToURL(b.newAddress("nsmgr-proxy"))
+	mgr := b.supplyNSMgrProxy(ctx,
+		registryURL,
+		registryProxyURL,
+		b.generateTokenFunc,
+		nsmgrproxy.WithListenOn(serveURL),
 		nsmgrproxy.WithName(name),
 		nsmgrproxy.WithConnectOptions(
 			connect.WithDialTimeout(DialTimeout),
 			connect.WithDialOptions(DefaultDialOptions(b.generateTokenFunc)...)),
+		nsmgrproxy.WithRegistryConnectOptions(
+			registryconnect.WithDialOptions(DefaultDialOptions(b.generateTokenFunc)...),
+		),
 	)
-	serveURL := grpcutils.TargetToURL(b.newAddress("nsmgr-proxy"))
 
 	serve(ctx, serveURL, mgr.Register)
-	log.FromContext(ctx).Infof("%v listen on: %v", name, serveURL)
+	log.FromContext(ctx).Infof("%v: %v listen on: %v", b.DNSDomainName, name, serveURL)
 	return &EndpointEntry{
 		Endpoint: mgr,
 		URL:      serveURL,
@@ -297,7 +324,7 @@ func (b *Builder) NewNSMgr(ctx context.Context, node *Node, address string, regi
 
 	entry = b.newNSMgr(nsmgrCtx, address, registryURL, generateTokenFunc)
 
-	b.SetupRegistryClients(nsmgrCtx, node)
+	b.SetupRegistryClients(nsmgrCtx, node, registryURL)
 
 	resources, b.resources = b.resources, nil
 	return
@@ -305,7 +332,7 @@ func (b *Builder) NewNSMgr(ctx context.Context, node *Node, address string, regi
 
 func (b *Builder) newNSMgr(ctx context.Context, address string, registryURL *url.URL, generateTokenFunc token.GeneratorFunc) *NSMgrEntry {
 	if b.supplyNSMgr == nil {
-		panic("nodes without managers are not supported")
+		return nil
 	}
 
 	var serveURL *url.URL
@@ -339,7 +366,7 @@ func (b *Builder) newNSMgr(ctx context.Context, address string, registryURL *url
 	mgr := b.supplyNSMgr(ctx, generateTokenFunc, options...)
 
 	serve(ctx, serveURL, mgr.Register)
-	log.FromContext(ctx).Infof("%v listen on: %v", nsmgrName, serveURL)
+	log.FromContext(ctx).Infof("%v: %v listen on: %v", b.DNSDomainName, nsmgrName, serveURL)
 	return &NSMgrEntry{
 		URL:   serveURL,
 		Nsmgr: mgr,
@@ -363,14 +390,14 @@ func serve(ctx context.Context, u *url.URL, register func(server *grpc.Server)) 
 	}()
 }
 
-func (b *Builder) newRegistryProxy(ctx context.Context, nsmgrProxyURL *url.URL) *RegistryEntry {
+func (b *Builder) newRegistryProxy(ctx context.Context) *RegistryEntry {
 	if b.supplyRegistryProxy == nil {
 		return nil
 	}
-	result := b.supplyRegistryProxy(ctx, b.Resolver, b.DNSDomainName, nsmgrProxyURL, DefaultDialOptions(b.generateTokenFunc)...)
+	result := b.supplyRegistryProxy(ctx, b.resolver, DefaultDialOptions(b.generateTokenFunc)...)
 	serveURL := grpcutils.TargetToURL(b.newAddress("reg-proxy"))
 	serve(ctx, serveURL, result.Register)
-	log.FromContext(ctx).Infof("registry-proxy-dns listen on: %v", serveURL)
+	log.FromContext(ctx).Infof("%v: registry-proxy-dns listen on: %v", b.DNSDomainName, serveURL)
 	return &RegistryEntry{
 		URL:      serveURL,
 		Registry: result,
@@ -384,7 +411,7 @@ func (b *Builder) newRegistry(ctx context.Context, proxyRegistryURL *url.URL) *R
 	result := b.supplyRegistry(ctx, b.registryExpiryDuration, proxyRegistryURL, DefaultDialOptions(b.generateTokenFunc)...)
 	serveURL := grpcutils.TargetToURL(b.newAddress("reg"))
 	serve(ctx, serveURL, result.Register)
-	log.FromContext(ctx).Infof("Registry listen on: %v", serveURL)
+	log.FromContext(ctx).Infof("%v: registry listen on: %v", b.DNSDomainName, serveURL)
 	return &RegistryEntry{
 		URL:      serveURL,
 		Registry: result,
@@ -400,7 +427,7 @@ func (b *Builder) newNode(ctx context.Context, registryURL *url.URL, nodeConfig 
 		NSMgr: nsmgrEntry,
 	}
 
-	b.SetupRegistryClients(nodeConfig.NsmgrCtx, node)
+	b.SetupRegistryClients(nodeConfig.NsmgrCtx, node, registryURL)
 
 	if b.setupNode != nil {
 		b.setupNode(ctx, node, nodeConfig)
@@ -410,7 +437,11 @@ func (b *Builder) newNode(ctx context.Context, registryURL *url.URL, nodeConfig 
 }
 
 // SetupRegistryClients - creates Network Service Registry Clients
-func (b *Builder) SetupRegistryClients(ctx context.Context, node *Node) {
+func (b *Builder) SetupRegistryClients(ctx context.Context, node *Node, regURL *url.URL) {
+	if node.NSMgr == nil {
+		return
+	}
+
 	dialOptions := DefaultDialOptions(b.generateTokenFunc)
 
 	node.ForwarderRegistryClient = client.NewNetworkServiceEndpointRegistryInterposeClient(ctx, node.NSMgr.URL, client.WithDialOptions(dialOptions...))

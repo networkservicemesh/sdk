@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,11 +18,12 @@ package dnsresolve_test
 
 import (
 	"context"
-	"fmt"
-	"net"
+	"net/url"
 	"testing"
+	"time"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -50,58 +51,57 @@ func (c *checkNSContext) Unregister(ctx context.Context, ns *registry.NetworkSer
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }
 
-func TestDNSResolve_NewNetworkServiceRegistryServer(t *testing.T) {
+func TestDNSResolve_CorrectUsecase(t *testing.T) {
 	const srv = "service1"
+
+	var resolver = new(sandbox.FakeDNSResolver)
+
+	u, err := url.Parse("tcp://127.0.0.1:80")
+	require.NoError(t, err)
+
+	resolver.AddSRVEntry("domain1", srv, u)
+
 	s := dnsresolve.NewNetworkServiceRegistryServer(
-		dnsresolve.WithService(srv),
-		dnsresolve.WithResolver(&testResolver{
-			srvRecords: map[string][]*net.SRV{
-				fmt.Sprintf("_%v._tcp.%v.domain1", srv, srv): {{
-					Port:   80,
-					Target: "domain1",
-				}},
-			},
-			hostRecords: map[string][]net.IPAddr{
-				fmt.Sprintf("%v.domain1", srv): {{
-					IP: net.ParseIP("127.0.0.1"),
-				}},
-			},
-		}))
+		dnsresolve.WithRegistryService(srv),
+		dnsresolve.WithResolver(resolver))
 
 	s = next.NewNetworkServiceRegistryServer(s, &checkNSContext{t})
 
-	ctx := context.Background()
-	_, err := s.Register(ctx, &registry.NetworkService{Name: "ns-1@domain1"})
-	require.Nil(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	_, err = s.Register(ctx, &registry.NetworkService{Name: "ns-1@domain1"})
+	require.NoError(t, err)
 	err = s.Find(&registry.NetworkServiceQuery{NetworkService: &registry.NetworkService{Name: "ns-1@domain1"}}, streamchannel.NewNetworkServiceFindServer(ctx, nil))
-	require.Nil(t, err)
+	require.NoError(t, err)
 	_, err = s.Unregister(ctx, &registry.NetworkService{Name: "ns-1@domain1"})
-	require.Nil(t, err)
+	require.NoError(t, err)
 }
 
-func TestDNSResolveDefault_NewNetworkServiceRegistryServer(t *testing.T) {
+func TestDNSResolve_LoopUsecase(t *testing.T) {
+	const srv = "service1"
+
+	var resolver = new(sandbox.FakeDNSResolver)
+
+	u, err := url.Parse("tcp://127.0.0.1:80")
+	require.NoError(t, err)
+
+	resolver.AddSRVEntry("domain1", srv, u)
+
 	s := dnsresolve.NewNetworkServiceRegistryServer(
-		dnsresolve.WithResolver(&testResolver{
-			srvRecords: map[string][]*net.SRV{
-				fmt.Sprintf("_%v._tcp.%v.domain1", dnsresolve.NSMRegistryService, dnsresolve.NSMRegistryService): {{
-					Port:   80,
-					Target: "domain1",
-				}},
-			},
-			hostRecords: map[string][]net.IPAddr{
-				dnsresolve.NSMRegistryService + ".domain1": {{
-					IP: net.ParseIP("127.0.0.1"),
-				}},
-			},
-		}))
+		dnsresolve.WithRegistryService(srv),
+		dnsresolve.WithResolver(resolver),
+	)
 
 	s = next.NewNetworkServiceRegistryServer(s, &checkNSContext{t})
 
-	ctx := context.Background()
-	_, err := s.Register(ctx, &registry.NetworkService{Name: "ns-1@domain1"})
-	require.Nil(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	_, err = s.Register(ctx, &registry.NetworkService{Name: "ns-1@domain1"})
+	require.NoError(t, err)
 	err = s.Find(&registry.NetworkServiceQuery{NetworkService: &registry.NetworkService{Name: "ns-1@domain1"}}, streamchannel.NewNetworkServiceFindServer(ctx, nil))
-	require.Nil(t, err)
+	require.NoError(t, err)
 	_, err = s.Unregister(ctx, &registry.NetworkService{Name: "ns-1@domain1"})
-	require.Nil(t, err)
+	require.NoError(t, err)
 }

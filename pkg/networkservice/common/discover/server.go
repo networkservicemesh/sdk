@@ -51,6 +51,10 @@ func NewServer(nsClient registry.NetworkServiceRegistryClient, nseClient registr
 func (d *discoverCandidatesServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	clockTime := clock.FromContext(ctx)
 
+	if clienturlctx.ClientURL(ctx) != nil {
+		return next.Server(ctx).Request(ctx, request)
+	}
+
 	nseName := request.GetConnection().GetNetworkServiceEndpointName()
 	if nseName != "" {
 		nse, err := d.discoverNetworkServiceEndpoint(ctx, nseName)
@@ -102,6 +106,10 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 }
 
 func (d *discoverCandidatesServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	if clienturlctx.ClientURL(ctx) != nil {
+		return next.Server(ctx).Close(ctx, conn)
+	}
+
 	nseName := conn.GetNetworkServiceEndpointName()
 	if nseName == "" {
 		// If it's an existing connection, the NSE name should be set. Otherwise, it's probably an API misuse.

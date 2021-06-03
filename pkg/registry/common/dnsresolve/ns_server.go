@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,6 +18,7 @@ package dnsresolve
 
 import (
 	"context"
+	"errors"
 	"net"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
@@ -32,19 +33,24 @@ import (
 )
 
 type dnsNSResolveServer struct {
-	resolver Resolver
-	service  string
+	resolver        Resolver
+	registryService string
 }
 
 // NewNetworkServiceRegistryServer creates new NetworkServiceRegistryServer that can resolve passed domain to clienturl
-func NewNetworkServiceRegistryServer(options ...Option) registry.NetworkServiceRegistryServer {
-	r := &dnsNSResolveServer{
-		resolver: net.DefaultResolver,
-		service:  NSMRegistryService,
+func NewNetworkServiceRegistryServer(opts ...Option) registry.NetworkServiceRegistryServer {
+	var serverOptions = &options{
+		resolver:        net.DefaultResolver,
+		registryService: DefaultRegistryService,
 	}
 
-	for _, o := range options {
-		o.apply(r)
+	for _, opt := range opts {
+		opt(serverOptions)
+	}
+
+	r := &dnsNSResolveServer{
+		resolver:        serverOptions.resolver,
+		registryService: serverOptions.registryService,
 	}
 
 	return r
@@ -52,33 +58,51 @@ func NewNetworkServiceRegistryServer(options ...Option) registry.NetworkServiceR
 
 func (d *dnsNSResolveServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
 	domain := interdomain.Domain(ns.Name)
-	url, err := resolveDomain(ctx, d.service, domain, d.resolver)
+	url, err := resolveDomain(ctx, d.registryService, domain, d.resolver)
 	if err != nil {
 		return nil, err
 	}
 	ctx = clienturlctx.WithClientURL(ctx, url)
-	return next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
+	ns.Name = interdomain.Target(ns.Name)
+	resp, err := next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
+
+	return resp, err
+}
+
+type dnsFindNSServer struct {
+	domain string
+	registry.NetworkServiceRegistry_FindServer
+}
+
+func (s *dnsFindNSServer) Send(nse *registry.NetworkService) error {
+	nse.Name = interdomain.Join(nse.Name, s.domain)
+	return s.NetworkServiceRegistry_FindServer.Send(nse)
 }
 
 func (d *dnsNSResolveServer) Find(q *registry.NetworkServiceQuery, s registry.NetworkServiceRegistry_FindServer) error {
 	ctx := s.Context()
 	domain := interdomain.Domain(q.NetworkService.Name)
-	url, err := resolveDomain(ctx, d.service, domain, d.resolver)
+	if domain == "" {
+		return errors.New("domain cannot be empty")
+	}
+	url, err := resolveDomain(ctx, d.registryService, domain, d.resolver)
 	if err != nil {
 		return err
 	}
 	ctx = clienturlctx.WithClientURL(s.Context(), url)
 	s = streamcontext.NetworkServiceRegistryFindServer(ctx, s)
-	return next.NetworkServiceRegistryServer(s.Context()).Find(q, s)
+	q.NetworkService.Name = interdomain.Target(q.NetworkService.Name)
+	return next.NetworkServiceRegistryServer(s.Context()).Find(q, &dnsFindNSServer{domain: domain, NetworkServiceRegistry_FindServer: s})
 }
 
 func (d *dnsNSResolveServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
 	domain := interdomain.Domain(ns.Name)
-	url, err := resolveDomain(ctx, d.service, domain, d.resolver)
+	url, err := resolveDomain(ctx, d.registryService, domain, d.resolver)
 	if err != nil {
 		return nil, err
 	}
 	ctx = clienturlctx.WithClientURL(ctx, url)
+	ns.Name = interdomain.Target(ns.Name)
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }
 
@@ -86,6 +110,8 @@ func (d *dnsNSResolveServer) setResolver(r Resolver) {
 	d.resolver = r
 }
 
-func (d *dnsNSResolveServer) setService(service string) {
-	d.service = service
+func (d *dnsNSResolveServer) setRegistryService(service string) {
+	d.registryService = service
 }
+
+func (d *dnsNSResolveServer) setNSMgrProxyService(_ string) {}

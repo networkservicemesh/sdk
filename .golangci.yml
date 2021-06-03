@@ -276,3 +276,6 @@ issues:
     - path: pkg/tools/ippool/ippool.go
       linters:
         - gocyclo
+    - path: pkg/networkservice/chains/nsmgrproxy/server_test.go
+      linters:
+        - funlen
