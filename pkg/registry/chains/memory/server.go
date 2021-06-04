@@ -27,7 +27,6 @@ import (
 	registryserver "github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/checkid"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/connectto"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/proxy"
@@ -44,14 +43,14 @@ func NewServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryU
 		checkid.NewNetworkServiceEndpointRegistryServer(),
 		memory.NewNetworkServiceEndpointRegistryServer(),
 		proxy.NewNetworkServiceEndpointRegistryServer(proxyRegistryURL),
-		connect.NewNetworkServiceEndpointRegistryServer(ctx, connectto.WithDialOptions(dialOptions...)),
+		connect.NewNetworkServiceEndpointRegistryServer(ctx, connect.WithDialOptions(dialOptions...)),
 	)
 	nsChain := chain.NewNetworkServiceRegistryServer(
 		serialize.NewNetworkServiceRegistryServer(),
 		setpayload.NewNetworkServiceRegistryServer(),
 		memory.NewNetworkServiceRegistryServer(),
 		proxy.NewNetworkServiceRegistryServer(proxyRegistryURL),
-		connect.NewNetworkServiceRegistryServer(ctx, connectto.WithDialOptions(dialOptions...)),
+		connect.NewNetworkServiceRegistryServer(ctx, connect.WithDialOptions(dialOptions...)),
 	)
 
 	return registryserver.NewServer(nsChain, nseChain)

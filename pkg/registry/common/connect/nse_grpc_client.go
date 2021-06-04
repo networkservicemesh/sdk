@@ -14,14 +14,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package connectto
+package connect
 
 import (
 	"context"
 
-	"github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
 type grpcNSEClient struct{}

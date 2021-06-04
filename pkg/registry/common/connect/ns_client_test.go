@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package connectto_test
+package connect_test
 
 import (
 	"context"
@@ -22,64 +22,17 @@ import (
 	"testing"
 	"time"
 
-	"google.golang.org/grpc/health/grpc_health_v1"
-
-	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/connectto"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
-
-func startNSServer(ctx context.Context, listenOn *url.URL, server registry.NetworkServiceRegistryServer) error {
-	grpcServer := grpc.NewServer()
-
-	registry.RegisterNetworkServiceRegistryServer(grpcServer, server)
-	grpcutils.RegisterHealthServices(grpcServer, server)
-
-	errCh := grpcutils.ListenAndServe(ctx, listenOn, grpcServer)
-	select {
-	case err := <-errCh:
-		return err
-	default:
-		return nil
-	}
-}
-
-func waitNSServerStarted(target *url.URL) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(target), grpc.WithBlock(), grpc.WithInsecure())
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = cc.Close()
-	}()
-
-	healthCheckRequest := &grpc_health_v1.HealthCheckRequest{
-		Service: registry.ServiceNames(null.NewNetworkServiceRegistryServer())[0],
-	}
-
-	client := grpc_health_v1.NewHealthClient(cc)
-	for ctx.Err() == nil {
-		respons, err := client.Check(ctx, healthCheckRequest)
-		if err != nil {
-			return err
-		}
-		if respons.Status == grpc_health_v1.HealthCheckResponse_SERVING {
-			return nil
-		}
-	}
-	return ctx.Err()
-}
 
 func TestConnectNSClient(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
@@ -97,8 +50,8 @@ func TestConnectNSClient(t *testing.T) {
 	_, err := mem.Register(ctx, &registry.NetworkService{Name: "ns-remote"})
 	require.NoError(t, err)
 
-	c := connectto.NewNetworkServiceRegistryClient(ctx, grpcutils.URLToTarget(u),
-		connectto.WithDialOptions(grpc.WithInsecure()),
+	c := connect.NewNetworkServiceRegistryClient(ctx, grpcutils.URLToTarget(u),
+		connect.WithDialOptions(grpc.WithInsecure()),
 	)
 
 	// 2. Register local NS
@@ -147,8 +100,8 @@ func TestConnectNSClient_Restart(t *testing.T) {
 	require.NoError(t, startNSServer(serverCtx, u, mem))
 	require.NoError(t, waitNSServerStarted(u))
 
-	c := connectto.NewNetworkServiceRegistryClient(ctx, grpcutils.URLToTarget(u),
-		connectto.WithDialOptions(grpc.WithInsecure()),
+	c := connect.NewNetworkServiceRegistryClient(ctx, grpcutils.URLToTarget(u),
+		connect.WithDialOptions(grpc.WithInsecure()),
 	)
 
 	// 1. Register NS-1 with client

@@ -23,7 +23,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/connectto"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
@@ -63,12 +63,12 @@ func newNetworkServiceEndpointRegistryClient(ctx context.Context, connectTo *url
 		interposeClient,
 		serialize.NewNetworkServiceEndpointRegistryClient(),
 		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
-		connectto.NewNetworkServiceEndpointRegistryClient(ctx, grpcutils.URLToTarget(connectTo),
-			connectto.WithNSEAdditionalFunctionality(
+		connect.NewNetworkServiceEndpointRegistryClient(ctx, grpcutils.URLToTarget(connectTo),
+			connect.WithNSEAdditionalFunctionality(
 				append(
 					clientOpts.nseAdditionalFunctionality,
 					sendfd.NewNetworkServiceEndpointRegistryClient())...),
-			connectto.WithDialOptions(clientOpts.dialOptions...),
+			connect.WithDialOptions(clientOpts.dialOptions...),
 		),
 	)
 

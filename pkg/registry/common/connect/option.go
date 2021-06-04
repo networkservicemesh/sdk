@@ -14,11 +14,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package connectto
+package connect
 
 import (
-	"github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
 // Option is an option pattern for NewNetworkServiceRegistryClient, NewNetworkServiceEndpointRegistryClient

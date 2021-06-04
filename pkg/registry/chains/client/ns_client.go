@@ -22,7 +22,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/connectto"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
@@ -36,9 +36,9 @@ func NewNetworkServiceRegistryClient(ctx context.Context, connectTo *url.URL, op
 
 	c := new(registry.NetworkServiceRegistryClient)
 	*c = chain.NewNetworkServiceRegistryClient(
-		connectto.NewNetworkServiceRegistryClient(ctx, grpcutils.URLToTarget(connectTo),
-			connectto.WithNSAdditionalFunctionality(clientOpts.nsAdditionalFunctionality...),
-			connectto.WithDialOptions(clientOpts.dialOptions...),
+		connect.NewNetworkServiceRegistryClient(ctx, grpcutils.URLToTarget(connectTo),
+			connect.WithNSAdditionalFunctionality(clientOpts.nsAdditionalFunctionality...),
+			connect.WithDialOptions(clientOpts.dialOptions...),
 		),
 	)
 

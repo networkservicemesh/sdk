@@ -21,10 +21,10 @@ import (
 	"net/url"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/pkg/errors"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/connectto"
+	"github.com/networkservicemesh/api/pkg/api/registry"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
@@ -33,7 +33,7 @@ import (
 
 type connectNSServer struct {
 	ctx           context.Context
-	clientOptions []connectto.Option
+	clientOptions []Option
 
 	nsInfos  nsInfoMap
 	clients  nsClientMap
@@ -55,7 +55,7 @@ type nsClient struct {
 //             clienturlctx.ClientURL(ctx)
 func NewNetworkServiceRegistryServer(
 	ctx context.Context,
-	clientOptions ...connectto.Option,
+	clientOptions ...Option,
 ) registry.NetworkServiceRegistryServer {
 	return &connectNSServer{
 		ctx:           ctx,
@@ -152,7 +152,7 @@ func (s *connectNSServer) client(ctx context.Context, ns *registry.NetworkServic
 func (s *connectNSServer) newClient(clientURL *url.URL) *nsClient {
 	ctx, cancel := context.WithCancel(s.ctx)
 	return &nsClient{
-		client:  connectto.NewNetworkServiceRegistryClient(ctx, grpcutils.URLToTarget(clientURL), s.clientOptions...),
+		client:  NewNetworkServiceRegistryClient(ctx, grpcutils.URLToTarget(clientURL), s.clientOptions...),
 		count:   0,
 		onClose: cancel,
 	}

@@ -14,26 +14,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package connectto
+package connect
 
 import (
 	"context"
 	"sync"
 
-	"github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/networkservicemesh/api/pkg/api/registry"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 )
 
-// NSEClientFactory is a NSE client chain supplier func type
-type NSEClientFactory = func() registry.NetworkServiceEndpointRegistryClient
-
-type connectNSEClient struct {
+type connectNSClient struct {
 	ctx         context.Context
-	client      registry.NetworkServiceEndpointRegistryClient
+	client      registry.NetworkServiceRegistryClient
 	connectTo   string
 	dialOptions []grpc.DialOption
 
@@ -41,20 +39,20 @@ type connectNSEClient struct {
 	lock sync.RWMutex
 }
 
-// NewNetworkServiceEndpointRegistryClient returns a new NSE registry client chain element connecting to the remote
-//                                         NSE registry server
-func NewNetworkServiceEndpointRegistryClient(ctx context.Context, connectTo string, opts ...Option) registry.NetworkServiceEndpointRegistryClient {
+// NewNetworkServiceRegistryClient returns a new NS registry client chain element connecting to the remote
+//                                 NS registry server
+func NewNetworkServiceRegistryClient(ctx context.Context, connectTo string, opts ...Option) registry.NetworkServiceRegistryClient {
 	connectOpts := new(connectOptions)
 	for _, opt := range opts {
 		opt(connectOpts)
 	}
 
-	c := &connectNSEClient{
+	c := &connectNSClient{
 		ctx: ctx,
-		client: chain.NewNetworkServiceEndpointRegistryClient(
+		client: chain.NewNetworkServiceRegistryClient(
 			append(
-				connectOpts.nseAdditionalFunctionality,
-				new(grpcNSEClient),
+				connectOpts.nsAdditionalFunctionality,
+				new(grpcNSClient),
 			)...,
 		),
 		connectTo:   connectTo,
@@ -75,15 +73,15 @@ func NewNetworkServiceEndpointRegistryClient(ctx context.Context, connectTo stri
 	return c
 }
 
-func (c *connectNSEClient) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+func (c *connectNSClient) Register(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
 	cc, err := c.getCC()
 	if err != nil {
 		return nil, err
 	}
-	return c.client.Register(withCC(ctx, cc), nse, opts...)
+	return c.client.Register(withCC(ctx, cc), ns, opts...)
 }
 
-func (c *connectNSEClient) Find(ctx context.Context, query *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
+func (c *connectNSClient) Find(ctx context.Context, query *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
 	cc, err := c.getCC()
 	if err != nil {
 		return nil, err
@@ -91,15 +89,15 @@ func (c *connectNSEClient) Find(ctx context.Context, query *registry.NetworkServ
 	return c.client.Find(withCC(ctx, cc), query, opts...)
 }
 
-func (c *connectNSEClient) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *connectNSClient) Unregister(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cc, err := c.getCC()
 	if err != nil {
 		return nil, err
 	}
-	return c.client.Unregister(withCC(ctx, cc), nse, opts...)
+	return c.client.Unregister(withCC(ctx, cc), ns, opts...)
 }
 
-func (c *connectNSEClient) getCC() (*grpc.ClientConn, error) {
+func (c *connectNSClient) getCC() (*grpc.ClientConn, error) {
 	c.lock.RLock()
 	cc := c.cc
 	c.lock.RUnlock()

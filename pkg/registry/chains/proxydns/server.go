@@ -25,7 +25,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/connectto"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/swap"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
@@ -36,10 +35,10 @@ func NewServer(ctx context.Context, dnsResolver dnsresolve.Resolver, handlingDNS
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
 		dnsresolve.NewNetworkServiceEndpointRegistryServer(dnsresolve.WithResolver(dnsResolver)),
 		swap.NewNetworkServiceEndpointRegistryServer(handlingDNSDomain, proxyNSMgrURL),
-		connect.NewNetworkServiceEndpointRegistryServer(ctx, connectto.WithDialOptions(dialOptions...)))
+		connect.NewNetworkServiceEndpointRegistryServer(ctx, connect.WithDialOptions(dialOptions...)))
 	nsChain := chain.NewNetworkServiceRegistryServer(
 		dnsresolve.NewNetworkServiceRegistryServer(dnsresolve.WithResolver(dnsResolver)),
 		swap.NewNetworkServiceRegistryServer(handlingDNSDomain),
-		connect.NewNetworkServiceRegistryServer(ctx, connectto.WithDialOptions(dialOptions...)))
+		connect.NewNetworkServiceRegistryServer(ctx, connect.WithDialOptions(dialOptions...)))
 	return registry.NewServer(nsChain, nseChain)
 }
