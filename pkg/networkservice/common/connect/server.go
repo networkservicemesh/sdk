@@ -86,18 +86,17 @@ func (s *connectServer) Request(ctx context.Context, request *networkservice.Net
 	}
 
 	c := s.client(ctx, request.GetConnection())
+	if err := c.client.ctx.Err(); err != nil {
+		s.deleteClient(c, clientURL.String())
+		s.connInfos.Delete(request.GetConnection().GetId())
+		return nil, err
+	}
+
 	conn, err := c.client.Request(ctx, request.Clone())
 	if err != nil {
 		if _, ok := s.connInfos.Load(request.GetConnection().GetId()); !ok {
 			s.closeClient(c, clientURL.String())
 		}
-
-		// Delete current client chain if it was closed
-		if c.client.ctx.Err() != nil {
-			s.deleteClient(c, clientURL.String())
-			s.connInfos.Delete(request.GetConnection().GetId())
-		}
-
 		return nil, err
 	}
 
