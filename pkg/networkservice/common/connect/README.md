@@ -13,20 +13,14 @@ If the server is asked to Close an existing server connection, it should also Cl
 with the server that client Connection was received from.  Even if the attempt to Close the client connection fails, it should
 continue to call down the next.Server(ctx) chain.
 
-If the server is asked to Close a server connection from which it has no corresponding client Connection, it should quietly
-return without error.
-
 # Implementation
 
 ## connectServer
 
-`connectServer` keeps `connInfos` [connectionInfoMap](https://github.com/networkservicemesh/pkg/networkservice/common/connect/gen.go#25)
-mapping incoming server `Connection.ID` to the remote server URL and to the client chain assigned to this URL
-mapping remote server URL to a [clienturl.NewClient(...)](https://github.com/networkservicemesh/sdk/blob/master/pkg/networkservice/common/clienturl/client.go)
-which handles the instantiation and management of the client connection from the `clienturl.ClientURL(ctx)` of the server
-Request. Notably, on every [clienturl.NewClient(...)](https://github.com/networkservicemesh/sdk/blob/master/pkg/networkservice/common/clienturl/client.go)
-Close it is deleted from the `clients` map, so eventually its context will be canceled and the corresponding `grpc.ClientConn`
-will be closed.
+`connectServer` keeps `connInfos` [connectionInfoMap](./gen.go) mapping incoming server `Connection.ID` to the remote
+server URL and to the client chain assigned to this URL mapping remote server URL to a `connectClient`. Notably, on
+every Close it is deleted from the `clients` map, so eventually its context will be canceled and the corresponding
+`grpc.ClientConn` will be closed.
 
 Care is taken to make sure that each client chain results in one increment of the refcount on its creation, and one
 decrement when it receives a Close. In this way, we can be sure that `clienturl.NewClient(...)` context is closed after
@@ -37,12 +31,19 @@ It may occasionally have more than one in a transient fashion for the lifetime o
 In all events it will have zero `clienturl.NewClient(...)` for a `clientURL` if it has no server Connections for that
 `clientURL`.
 
-## Comments on concurrency characteristics.
+## connectClient
 
-Concurrency is primarily managed through type-specific wrappers of [sync.Map](https://golang.org/pkg/sync/#Map):
-> The Map type is optimized for two common use cases: (1) when the entry for a given key is only ever written once 
-> but read many times, as in caches that only grow, or (2) when multiple goroutines read, write, and overwrite entries 
-> for disjoint sets of keys. In these two cases, use of a Map may significantly reduce lock contention compared to a 
-> Go map paired with a separate Mutex or RWMutex.
+`connectClient` handles the instantiation and management of the client connection from the `clienturl.ClientURL(ctx)` of
+the server Request.
 
-This is precisely our case.
+## Monitoring
+
+Both `connectServer` and `connectClient` by themselves doesn't monitor gRPC connection for liveness. Every error received
+from Request, Close is simply returned to the previous chain elements. But there are some cases when connection should
+be closed and reopened on some event happens. For this purpose `connectServer` injects into the client chain context a
+cancel function for this context ([cancelctx](../../../tools/cancelctx/context.go)). When this context becomes canceled,
+`connectClient` closes corresponding gRPC connection and `connectServer` force decreases its refcount to 0.
+
+The most common way for the NSM chains is using [heal client](../heal/client.go) for monitoring and canceling the
+connection, but it also can be implemented in some other way ([example using gRPC health check API](./monitor_client_test.go))
+or not be implemented at all.
