@@ -31,7 +31,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
 // NewNetworkServiceEndpointRegistryClient creates a new NewNetworkServiceEndpointRegistryClient that can be used for NSE registration.
@@ -63,7 +62,7 @@ func newNetworkServiceEndpointRegistryClient(ctx context.Context, connectTo *url
 		interposeClient,
 		serialize.NewNetworkServiceEndpointRegistryClient(),
 		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
-		connect.NewNetworkServiceEndpointRegistryClient(ctx, grpcutils.URLToTarget(connectTo),
+		connect.NewNetworkServiceEndpointRegistryClient(ctx, connectTo,
 			connect.WithNSEAdditionalFunctionality(
 				append(
 					clientOpts.nseAdditionalFunctionality,

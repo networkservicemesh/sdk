@@ -18,6 +18,7 @@ package connect
 
 import (
 	"context"
+	"net/url"
 	"sync"
 
 	"google.golang.org/grpc"
@@ -27,6 +28,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
 type connectNSClient struct {
@@ -41,7 +43,7 @@ type connectNSClient struct {
 
 // NewNetworkServiceRegistryClient returns a new NS registry client chain element connecting to the remote
 //                                 NS registry server
-func NewNetworkServiceRegistryClient(ctx context.Context, connectTo string, opts ...Option) registry.NetworkServiceRegistryClient {
+func NewNetworkServiceRegistryClient(ctx context.Context, connectTo *url.URL, opts ...Option) registry.NetworkServiceRegistryClient {
 	connectOpts := new(connectOptions)
 	for _, opt := range opts {
 		opt(connectOpts)
@@ -55,7 +57,7 @@ func NewNetworkServiceRegistryClient(ctx context.Context, connectTo string, opts
 				new(grpcNSClient),
 			)...,
 		),
-		connectTo:   connectTo,
+		connectTo:   grpcutils.URLToTarget(connectTo),
 		dialOptions: append(append([]grpc.DialOption{}, connectOpts.dialOptions...), grpc.WithReturnConnectionError()),
 	}
 

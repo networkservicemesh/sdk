@@ -50,7 +50,7 @@ func TestConnectNSEClient(t *testing.T) {
 	_, err := mem.Register(ctx, &registry.NetworkServiceEndpoint{Name: "nse-remote"})
 	require.NoError(t, err)
 
-	c := connect.NewNetworkServiceEndpointRegistryClient(ctx, grpcutils.URLToTarget(u),
+	c := connect.NewNetworkServiceEndpointRegistryClient(ctx, u,
 		connect.WithDialOptions(grpc.WithInsecure()),
 	)
 
@@ -100,7 +100,7 @@ func TestConnectNSEClient_Restart(t *testing.T) {
 	require.NoError(t, startNSEServer(serverCtx, u, mem))
 	require.NoError(t, waitNSEServerStarted(u))
 
-	c := connect.NewNetworkServiceEndpointRegistryClient(ctx, grpcutils.URLToTarget(u),
+	c := connect.NewNetworkServiceEndpointRegistryClient(ctx, u,
 		connect.WithDialOptions(grpc.WithInsecure()),
 	)
 

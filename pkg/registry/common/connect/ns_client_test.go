@@ -50,7 +50,7 @@ func TestConnectNSClient(t *testing.T) {
 	_, err := mem.Register(ctx, &registry.NetworkService{Name: "ns-remote"})
 	require.NoError(t, err)
 
-	c := connect.NewNetworkServiceRegistryClient(ctx, grpcutils.URLToTarget(u),
+	c := connect.NewNetworkServiceRegistryClient(ctx, u,
 		connect.WithDialOptions(grpc.WithInsecure()),
 	)
 
@@ -100,7 +100,7 @@ func TestConnectNSClient_Restart(t *testing.T) {
 	require.NoError(t, startNSServer(serverCtx, u, mem))
 	require.NoError(t, waitNSServerStarted(u))
 
-	c := connect.NewNetworkServiceRegistryClient(ctx, grpcutils.URLToTarget(u),
+	c := connect.NewNetworkServiceRegistryClient(ctx, u,
 		connect.WithDialOptions(grpc.WithInsecure()),
 	)
 

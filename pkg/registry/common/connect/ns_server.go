@@ -27,7 +27,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/multiexecutor"
 )
 
@@ -152,7 +151,7 @@ func (s *connectNSServer) client(ctx context.Context, ns *registry.NetworkServic
 func (s *connectNSServer) newClient(clientURL *url.URL) *nsClient {
 	ctx, cancel := context.WithCancel(s.ctx)
 	return &nsClient{
-		client:  NewNetworkServiceRegistryClient(ctx, grpcutils.URLToTarget(clientURL), s.clientOptions...),
+		client:  NewNetworkServiceRegistryClient(ctx, clientURL, s.clientOptions...),
 		count:   0,
 		onClose: cancel,
 	}

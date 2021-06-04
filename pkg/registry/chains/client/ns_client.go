@@ -24,7 +24,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
 // NewNetworkServiceRegistryClient creates a new NewNetworkServiceRegistryClient that can be used for NS registration.
@@ -36,7 +35,7 @@ func NewNetworkServiceRegistryClient(ctx context.Context, connectTo *url.URL, op
 
 	c := new(registry.NetworkServiceRegistryClient)
 	*c = chain.NewNetworkServiceRegistryClient(
-		connect.NewNetworkServiceRegistryClient(ctx, grpcutils.URLToTarget(connectTo),
+		connect.NewNetworkServiceRegistryClient(ctx, connectTo,
 			connect.WithNSAdditionalFunctionality(clientOpts.nsAdditionalFunctionality...),
 			connect.WithDialOptions(clientOpts.dialOptions...),
 		),
