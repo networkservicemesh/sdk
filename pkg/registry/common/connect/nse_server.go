@@ -23,20 +23,17 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/pkg/errors"
-	"google.golang.org/grpc"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/connectto"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/multiexecutor"
 )
 
-// NSEClientFactory is a NSE client chain supplier func type
-type NSEClientFactory = func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient
-
 type connectNSEServer struct {
-	ctx               context.Context
-	clientFactory     NSEClientFactory
-	clientDialOptions []grpc.DialOption
+	ctx           context.Context
+	clientOptions []connectto.Option
 
 	nseInfos nseInfoMap
 	clients  nseClientMap
@@ -49,7 +46,7 @@ type nseInfo struct {
 }
 
 type nseClient struct {
-	client  *connectNSEClient
+	client  registry.NetworkServiceEndpointRegistryClient
 	count   int
 	onClose context.CancelFunc
 }
@@ -58,13 +55,11 @@ type nseClient struct {
 //             clienturlctx.ClientURL(ctx)
 func NewNetworkServiceEndpointRegistryServer(
 	ctx context.Context,
-	clientFactory NSEClientFactory,
-	clientDialOptions ...grpc.DialOption,
+	clientOptions ...connectto.Option,
 ) registry.NetworkServiceEndpointRegistryServer {
 	return &connectNSEServer{
-		ctx:               ctx,
-		clientFactory:     clientFactory,
-		clientDialOptions: clientDialOptions,
+		ctx:           ctx,
+		clientOptions: clientOptions,
 	}
 }
 
@@ -82,13 +77,6 @@ func (s *connectNSEServer) Register(ctx context.Context, nse *registry.NetworkSe
 		if !loaded {
 			s.closeClient(c, clientURL.String())
 		}
-
-		// Close current client chain if gRPC connection was closed
-		if c.client.ctx.Err() != nil {
-			s.deleteClient(c, clientURL.String())
-			s.nseInfos.Delete(nse.Name)
-		}
-
 		return nil, err
 	}
 
@@ -110,11 +98,7 @@ func (s *connectNSEServer) Find(query *registry.NetworkServiceEndpointQuery, ser
 
 	err := adapters.NetworkServiceEndpointClientToServer(c.client).Find(query, server)
 
-	if err != nil && c.client.ctx.Err() != nil {
-		s.deleteClient(c, clientURL.String())
-	} else {
-		s.closeClient(c, clientURL.String())
-	}
+	s.closeClient(c, clientURL.String())
 
 	return err
 }
@@ -126,13 +110,10 @@ func (s *connectNSEServer) Unregister(ctx context.Context, nse *registry.Network
 	}
 
 	c := s.client(ctx, nse)
-	_, err := c.client.Unregister(ctx, nse)
-	if err != nil && c.client.ctx.Err() != nil {
-		s.deleteClient(c, clientURL.String())
-	} else {
-		s.closeClient(c, clientURL.String())
-	}
 
+	_, err := c.client.Unregister(ctx, nse)
+
+	s.closeClient(c, clientURL.String())
 	s.nseInfos.Delete(nse.Name)
 
 	return new(empty.Empty), err
@@ -171,11 +152,7 @@ func (s *connectNSEServer) client(ctx context.Context, nse *registry.NetworkServ
 func (s *connectNSEServer) newClient(clientURL *url.URL) *nseClient {
 	ctx, cancel := context.WithCancel(s.ctx)
 	return &nseClient{
-		client: &connectNSEClient{
-			ctx:           clienturlctx.WithClientURL(ctx, clientURL),
-			clientFactory: s.clientFactory,
-			dialOptions:   s.clientDialOptions,
-		},
+		client:  connectto.NewNetworkServiceEndpointRegistryClient(ctx, grpcutils.URLToTarget(clientURL), s.clientOptions...),
 		count:   0,
 		onClose: cancel,
 	}
@@ -190,14 +167,5 @@ func (s *connectNSEServer) closeClient(c *nseClient, clientURL string) {
 			}
 			c.onClose()
 		}
-	})
-}
-
-func (s *connectNSEServer) deleteClient(c *nseClient, clientURL string) {
-	<-s.executor.AsyncExec(clientURL, func() {
-		if loadedClient, ok := s.clients.Load(clientURL); ok && c == loadedClient {
-			s.clients.Delete(clientURL)
-		}
-		c.onClose()
 	})
 }

@@ -22,12 +22,12 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
 
 	registryserver "github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/checkid"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/connectto"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/proxy"
@@ -37,29 +37,21 @@ import (
 )
 
 // NewServer creates new registry server based on memory storage
-func NewServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryURL *url.URL, options ...grpc.DialOption) registryserver.Registry {
+func NewServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryURL *url.URL, dialOptions ...grpc.DialOption) registryserver.Registry {
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
 		serialize.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, expiryDuration),
 		checkid.NewNetworkServiceEndpointRegistryServer(),
 		memory.NewNetworkServiceEndpointRegistryServer(),
 		proxy.NewNetworkServiceEndpointRegistryServer(proxyRegistryURL),
-		connect.NewNetworkServiceEndpointRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient {
-			return chain.NewNetworkServiceEndpointRegistryClient(
-				registry.NewNetworkServiceEndpointRegistryClient(cc),
-			)
-		}, options...),
+		connect.NewNetworkServiceEndpointRegistryServer(ctx, connectto.WithDialOptions(dialOptions...)),
 	)
 	nsChain := chain.NewNetworkServiceRegistryServer(
 		serialize.NewNetworkServiceRegistryServer(),
 		setpayload.NewNetworkServiceRegistryServer(),
 		memory.NewNetworkServiceRegistryServer(),
 		proxy.NewNetworkServiceRegistryServer(proxyRegistryURL),
-		connect.NewNetworkServiceRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
-			return chain.NewNetworkServiceRegistryClient(
-				registry.NewNetworkServiceRegistryClient(cc),
-			)
-		}, options...),
+		connect.NewNetworkServiceRegistryServer(ctx, connectto.WithDialOptions(dialOptions...)),
 	)
 
 	return registryserver.NewServer(nsChain, nseChain)

@@ -50,6 +50,7 @@ import (
 	registryclientinfo "github.com/networkservicemesh/sdk/pkg/registry/common/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 	registryconnect "github.com/networkservicemesh/sdk/pkg/registry/common/connect"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/connectto"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
@@ -152,9 +153,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		// Use remote registry
 		nsRegistry = registrychain.NewNetworkServiceRegistryServer(
 			clienturl.NewNetworkServiceRegistryServer(opts.regURL),
-			registryconnect.NewNetworkServiceRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registryapi.NetworkServiceRegistryClient {
-				return registryapi.NewNetworkServiceRegistryClient(cc)
-			}, opts.regDialOptions...),
+			registryconnect.NewNetworkServiceRegistryServer(ctx, connectto.WithDialOptions(opts.regDialOptions...)),
 		)
 	} else {
 		// Use memory registry if no registry is passed
@@ -166,9 +165,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		// Use remote registry
 		nseRegistry = registrychain.NewNetworkServiceEndpointRegistryServer(
 			clienturl.NewNetworkServiceEndpointRegistryServer(opts.regURL),
-			registryconnect.NewNetworkServiceEndpointRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registryapi.NetworkServiceEndpointRegistryClient {
-				return registryapi.NewNetworkServiceEndpointRegistryClient(cc)
-			}, opts.regDialOptions...),
+			registryconnect.NewNetworkServiceEndpointRegistryServer(ctx, connectto.WithDialOptions(opts.regDialOptions...)),
 		)
 	} else {
 		// Use memory registry if no registry is passed

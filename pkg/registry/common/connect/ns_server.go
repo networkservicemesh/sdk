@@ -23,20 +23,17 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/pkg/errors"
-	"google.golang.org/grpc"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/connectto"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/multiexecutor"
 )
 
-// NSClientFactory is a NS client chain supplier func type
-type NSClientFactory = func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient
-
 type connectNSServer struct {
-	ctx               context.Context
-	clientFactory     NSClientFactory
-	clientDialOptions []grpc.DialOption
+	ctx           context.Context
+	clientOptions []connectto.Option
 
 	nsInfos  nsInfoMap
 	clients  nsClientMap
@@ -49,7 +46,7 @@ type nsInfo struct {
 }
 
 type nsClient struct {
-	client  *connectNSClient
+	client  registry.NetworkServiceRegistryClient
 	count   int
 	onClose context.CancelFunc
 }
@@ -58,13 +55,11 @@ type nsClient struct {
 //             clienturlctx.ClientURL(ctx)
 func NewNetworkServiceRegistryServer(
 	ctx context.Context,
-	clientFactory NSClientFactory,
-	clientDialOptions ...grpc.DialOption,
+	clientOptions ...connectto.Option,
 ) registry.NetworkServiceRegistryServer {
 	return &connectNSServer{
-		ctx:               ctx,
-		clientFactory:     clientFactory,
-		clientDialOptions: clientDialOptions,
+		ctx:           ctx,
+		clientOptions: clientOptions,
 	}
 }
 
@@ -82,13 +77,6 @@ func (s *connectNSServer) Register(ctx context.Context, ns *registry.NetworkServ
 		if !loaded {
 			s.closeClient(c, clientURL.String())
 		}
-
-		// Close current client chain if gRPC connection was closed
-		if c.client.ctx.Err() != nil {
-			s.deleteClient(c, clientURL.String())
-			s.nsInfos.Delete(ns.Name)
-		}
-
 		return nil, err
 	}
 
@@ -110,11 +98,7 @@ func (s *connectNSServer) Find(query *registry.NetworkServiceQuery, server regis
 
 	err := adapters.NetworkServiceClientToServer(c.client).Find(query, server)
 
-	if err != nil && c.client.ctx.Err() != nil {
-		s.deleteClient(c, clientURL.String())
-	} else {
-		s.closeClient(c, clientURL.String())
-	}
+	s.closeClient(c, clientURL.String())
 
 	return err
 }
@@ -126,13 +110,10 @@ func (s *connectNSServer) Unregister(ctx context.Context, ns *registry.NetworkSe
 	}
 
 	c := s.client(ctx, ns)
-	_, err := c.client.Unregister(ctx, ns)
-	if err != nil && c.client.ctx.Err() != nil {
-		s.deleteClient(c, clientURL.String())
-	} else {
-		s.closeClient(c, clientURL.String())
-	}
 
+	_, err := c.client.Unregister(ctx, ns)
+
+	s.closeClient(c, clientURL.String())
 	s.nsInfos.Delete(ns.Name)
 
 	return new(empty.Empty), err
@@ -171,11 +152,7 @@ func (s *connectNSServer) client(ctx context.Context, ns *registry.NetworkServic
 func (s *connectNSServer) newClient(clientURL *url.URL) *nsClient {
 	ctx, cancel := context.WithCancel(s.ctx)
 	return &nsClient{
-		client: &connectNSClient{
-			ctx:           clienturlctx.WithClientURL(ctx, clientURL),
-			clientFactory: s.clientFactory,
-			dialOptions:   s.clientDialOptions,
-		},
+		client:  connectto.NewNetworkServiceRegistryClient(ctx, grpcutils.URLToTarget(clientURL), s.clientOptions...),
 		count:   0,
 		onClose: cancel,
 	}
