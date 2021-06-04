@@ -200,6 +200,10 @@ func (f *healServer) processHeal(ctx context.Context, request *networkservice.Ne
 	logEntry := log.FromContext(ctx).WithField("healServer", "processHeal")
 	conn := request.GetConnection()
 
+	if ctx.Err() != nil {
+		return
+	}
+
 	candidates := discover.Candidates(ctx)
 	if candidates != nil || conn.GetPath().GetIndex() == 0 {
 		logEntry.Infof("Starting heal process for %s", conn.GetId())
