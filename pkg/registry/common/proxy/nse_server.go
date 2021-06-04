@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -38,9 +38,6 @@ func (n *nseServer) Register(ctx context.Context, nse *registry.NetworkServiceEn
 	if !interdomain.Is(nse.Name) {
 		return nse, nil
 	}
-	if n.proxyRegistryURL == nil {
-		return nil, urlToProxyNotPassedErr
-	}
 	ctx = clienturlctx.WithClientURL(ctx, n.proxyRegistryURL)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 }
@@ -49,9 +46,6 @@ func (n nseServer) Find(q *registry.NetworkServiceEndpointQuery, s registry.Netw
 	if !isInterdomain(q.NetworkServiceEndpoint) {
 		return nil
 	}
-	if n.proxyRegistryURL == nil {
-		return urlToProxyNotPassedErr
-	}
 	ctx := clienturlctx.WithClientURL(s.Context(), n.proxyRegistryURL)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Find(q, streamcontext.NetworkServiceEndpointRegistryFindServer(ctx, s))
 }
@@ -59,9 +53,6 @@ func (n nseServer) Find(q *registry.NetworkServiceEndpointQuery, s registry.Netw
 func (n *nseServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
 	if !interdomain.Is(nse.Name) {
 		return new(empty.Empty), nil
-	}
-	if n.proxyRegistryURL == nil {
-		return nil, urlToProxyNotPassedErr
 	}
 	ctx = clienturlctx.WithClientURL(ctx, n.proxyRegistryURL)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)

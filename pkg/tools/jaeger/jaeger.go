@@ -96,7 +96,7 @@ func InitJaeger(ctx context.Context, service string) io.Closer {
 		cfg.Reporter.LogSpans = true
 	}
 
-	log.FromContext(ctx).Infof("Creating logger from config: %v", cfg)
+	log.FromContext(ctx).Debugf("Creating logger from config: %v", cfg)
 	tracer, closer, err := cfg.NewTracer(config.Logger(jaeger.StdLogger))
 	if err != nil {
 		log.FromContext(ctx).Errorf("ERROR: cannot init Jaeger: %v\n", err)

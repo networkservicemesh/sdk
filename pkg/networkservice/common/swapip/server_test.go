@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,65 +18,78 @@ package swapip_test
 
 import (
 	"context"
-	"net/url"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/externalips"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/swapip"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkresponse"
 )
 
 func TestSwapIPServer_Request(t *testing.T) {
-	const localIP = "127.0.0.1"
-	const remoteIP = "172.16.1.1"
-	const externalIP = "180.16.1.1"
-	ctx, cancel := context.WithCancel(context.Background())
+	defer goleak.VerifyNone(t)
+
+	p1 := filepath.Join(t.TempDir(), "map-ip-1.yaml")
+	p2 := filepath.Join(t.TempDir(), "map-ip-2.yaml")
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	ch := make(chan map[string]string, 1)
-	ch <- map[string]string{
-		localIP: externalIP,
-	}
-	s := next.NewNetworkServiceServer(
-		externalips.NewServer(ctx, externalips.WithUpdateChannel(ch)),
-		swapip.NewServer(),
-		checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
-			for _, m := range request.MechanismPreferences {
-				require.Equal(t, m.GetParameters()[common.SrcIP], externalIP)
-			}
-			request.GetConnection().Mechanism = request.MechanismPreferences[0].Clone()
-			request.GetConnection().Mechanism.GetParameters()[common.DstIP] = localIP
-			require.False(t, interdomain.Is(request.GetConnection().NetworkServiceEndpointName))
-			require.False(t, interdomain.Is(request.GetConnection().NetworkService))
-		}))
-	require.Eventually(t, func() bool {
-		return len(ch) == 0
-	}, time.Second, time.Millisecond*100)
-	ctx = clienturlctx.WithClientURL(context.Background(), &url.URL{Scheme: "tcp", Host: remoteIP + ":5001"})
-	response, err := s.Request(ctx, &networkservice.NetworkServiceRequest{
-		MechanismPreferences: []*networkservice.Mechanism{
-			{
-				Cls: cls.REMOTE,
+
+	err := ioutil.WriteFile(p1, []byte(`172.16.2.10: 172.16.1.10`), os.ModePerm)
+	require.NoError(t, err)
+
+	err = ioutil.WriteFile(p2, []byte(`172.16.2.100: 172.16.1.100`), os.ModePerm)
+	require.NoError(t, err)
+
+	var testChain = next.NewNetworkServiceServer(
+		checkresponse.NewServer(t, func(t *testing.T, c *networkservice.Connection) {
+			require.Equal(t, "172.16.2.10", c.Mechanism.Parameters[common.SrcIP])
+			require.Equal(t, "", c.Mechanism.Parameters[common.SrcOriginalIP])
+			require.Equal(t, "172.16.1.100", c.Mechanism.Parameters[common.DstIP])
+			require.Equal(t, "172.16.2.100", c.Mechanism.Parameters[common.DstOriginalIP])
+		}),
+		swapip.NewServer(ctx, p1),
+		checkrequest.NewServer(t, func(t *testing.T, r *networkservice.NetworkServiceRequest) {
+			require.Equal(t, "172.16.1.10", r.Connection.Mechanism.Parameters[common.SrcIP])
+			require.Equal(t, "172.16.2.10", r.Connection.Mechanism.Parameters[common.SrcOriginalIP])
+		}),
+		checkresponse.NewServer(t, func(t *testing.T, c *networkservice.Connection) {
+			require.Equal(t, "172.16.1.100", c.Mechanism.Parameters[common.DstIP])
+			require.Equal(t, "172.16.2.100", c.Mechanism.Parameters[common.DstOriginalIP])
+		}),
+		swapip.NewServer(ctx, p2),
+		checkrequest.NewServer(t, func(t *testing.T, r *networkservice.NetworkServiceRequest) {
+			require.Equal(t, "", r.Connection.Mechanism.Parameters[common.DstOriginalIP])
+			require.Equal(t, "", r.Connection.Mechanism.Parameters[common.DstIP])
+			r.Connection.Mechanism.Parameters[common.DstIP] = "172.16.2.100"
+		}),
+	)
+
+	r := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Mechanism: &networkservice.Mechanism{
 				Parameters: map[string]string{
-					common.SrcIP: localIP,
+					common.SrcIP: "172.16.2.10",
 				},
 			},
 		},
-		Connection: &networkservice.Connection{
-			NetworkService:             "my-ns1@remote_domain",
-			NetworkServiceEndpointName: "my-nse1@remote_domain",
-		},
-	})
+	}
+
+	time.Sleep(time.Second / 4)
+
+	resp, err := testChain.Request(context.Background(), r)
 	require.NoError(t, err)
-	require.Equal(t, response.Mechanism.Parameters[common.DstIP], remoteIP)
-	require.True(t, interdomain.Is(response.NetworkServiceEndpointName))
-	require.True(t, interdomain.Is(response.NetworkService))
+
+	// refresh
+	_, err = testChain.Request(ctx, &networkservice.NetworkServiceRequest{Connection: resp})
+	require.NoError(t, err)
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020-2021 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -20,6 +20,8 @@ package clienturlctx
 import (
 	"context"
 	"net/url"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 const (
@@ -36,6 +38,7 @@ func WithClientURL(parent context.Context, clientURL *url.URL) context.Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
+	log.FromContext(parent).Debugf("passed clientURL: %v", clientURL)
 	return context.WithValue(parent, clientURLKey, clientURL)
 }
 

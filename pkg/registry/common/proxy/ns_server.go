@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -32,25 +32,20 @@ import (
 
 type nsServer struct {
 	proxyRegistryURL *url.URL
+	matchFunc        func(name string) bool
 }
 
 func (n *nsServer) Register(ctx context.Context, nse *registry.NetworkService) (*registry.NetworkService, error) {
 	if !interdomain.Is(nse.Name) {
 		return nse, nil
 	}
-	if n.proxyRegistryURL == nil {
-		return nil, urlToProxyNotPassedErr
-	}
 	ctx = clienturlctx.WithClientURL(ctx, n.proxyRegistryURL)
 	return next.NetworkServiceRegistryServer(ctx).Register(ctx, nse)
 }
 
-func (n nsServer) Find(q *registry.NetworkServiceQuery, s registry.NetworkServiceRegistry_FindServer) error {
+func (n *nsServer) Find(q *registry.NetworkServiceQuery, s registry.NetworkServiceRegistry_FindServer) error {
 	if !interdomain.Is(q.NetworkService.Name) {
 		return nil
-	}
-	if n.proxyRegistryURL == nil {
-		return urlToProxyNotPassedErr
 	}
 	ctx := clienturlctx.WithClientURL(s.Context(), n.proxyRegistryURL)
 	return next.NetworkServiceRegistryServer(ctx).Find(q, streamcontext.NetworkServiceRegistryFindServer(ctx, s))
@@ -60,9 +55,6 @@ func (n *nsServer) Unregister(ctx context.Context, nse *registry.NetworkService)
 	if !interdomain.Is(nse.Name) {
 		return new(empty.Empty), nil
 	}
-	if n.proxyRegistryURL == nil {
-		return nil, urlToProxyNotPassedErr
-	}
 	ctx = clienturlctx.WithClientURL(ctx, n.proxyRegistryURL)
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, nse)
 }
@@ -71,5 +63,6 @@ func (n *nsServer) Unregister(ctx context.Context, nse *registry.NetworkService)
 func NewNetworkServiceRegistryServer(proxyRegistryURL *url.URL) registry.NetworkServiceRegistryServer {
 	return &nsServer{
 		proxyRegistryURL: proxyRegistryURL,
+		matchFunc:        interdomain.Is,
 	}
 }

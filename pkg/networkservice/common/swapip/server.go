@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -20,64 +20,83 @@ package swapip
 
 import (
 	"context"
-	"errors"
-	"net"
+	"sync/atomic"
 
+	"github.com/ghodss/yaml"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/externalips"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
+	"github.com/networkservicemesh/sdk/pkg/tools/fs"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-type swapIPServer struct{}
-
-func (i *swapIPServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	url := clienturlctx.ClientURL(ctx)
-	if url == nil {
-		return nil, errors.New("url is required for interdomain use-case")
-	}
-	dstIP, _, err := net.SplitHostPort(clienturlctx.ClientURL(ctx).Host)
-	if err != nil {
-		return nil, err
-	}
-	for _, m := range request.MechanismPreferences {
-		if m.Cls == cls.REMOTE {
-			if externalIP := externalips.FromInternal(ctx, net.ParseIP(m.Parameters[common.SrcIP])); externalIP != nil {
-				m.Parameters[common.SrcIP] = externalIP.String()
-			}
-		}
-	}
-
-	if request.Connection.Mechanism != nil {
-		if externalIP := externalips.FromInternal(ctx, net.ParseIP(request.Connection.Mechanism.Parameters[common.SrcIP])); externalIP != nil {
-			request.Connection.Mechanism.Parameters[common.SrcIP] = externalIP.String()
-		}
-	}
-
-	nsName, nseName := request.Connection.NetworkService, request.Connection.NetworkServiceEndpointName
-	request.Connection.NetworkServiceEndpointName, request.Connection.NetworkService = interdomain.Target(request.Connection.NetworkServiceEndpointName), interdomain.Target(request.Connection.NetworkService)
-	response, err := next.Server(ctx).Request(ctx, request)
-	if err != nil {
-		return nil, err
-	}
-	if response.Mechanism != nil {
-		response.Mechanism.Parameters[common.DstIP] = dstIP
-	}
-	response.NetworkService = nsName
-	response.NetworkServiceEndpointName = nseName
-	return response, err
+type swapIPServer struct {
+	internalToExternalMap *atomic.Value
 }
 
-func (i *swapIPServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
-	return next.Server(ctx).Close(ctx, connection)
+func (i *swapIPServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	internalToExternalMap := i.internalToExternalMap.Load().(map[string]string)
+	mechanisms := request.GetMechanismPreferences()
+	var isSorceSide bool
+
+	if m := request.GetConnection().GetMechanism(); m != nil {
+		mechanisms = append(mechanisms, m)
+	}
+
+	for _, m := range mechanisms {
+		params := m.GetParameters()
+		if params != nil {
+			isSorceSide = m.GetParameters()[common.SrcOriginalIP] == ""
+			if isSorceSide {
+				srcIP := params[common.SrcIP]
+				params[common.SrcIP], params[common.SrcOriginalIP] = internalToExternalMap[srcIP], srcIP
+			}
+			params[common.DstOriginalIP] = ""
+			params[common.DstIP] = ""
+		}
+	}
+
+	resp, err := next.Server(ctx).Request(ctx, request)
+
+	if err != nil {
+		return nil, err
+	}
+
+	params := resp.GetMechanism().GetParameters()
+
+	if params != nil {
+		if isSorceSide {
+			params[common.SrcIP], params[common.SrcOriginalIP] = params[common.SrcOriginalIP], ""
+		} else {
+			dstIP := params[common.DstIP]
+			params[common.DstIP], params[common.DstOriginalIP] = internalToExternalMap[dstIP], dstIP
+		}
+	}
+
+	return resp, err
+}
+
+func (i *swapIPServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	return next.Server(ctx).Close(ctx, conn)
 }
 
 // NewServer creates new swap chain element. Expects public IP address of node
-func NewServer() networkservice.NetworkServiceServer {
-	return &swapIPServer{}
+func NewServer(ctx context.Context, pathToDir string) networkservice.NetworkServiceServer {
+	var v = new(atomic.Value)
+	v.Store(map[string]string{})
+	go func() {
+		logger := log.FromContext(ctx).WithField("swapIPServer", "monitor map ip")
+		for data := range fs.WatchFile(ctx, pathToDir) {
+			var m map[string]string
+			err := yaml.Unmarshal(data, &m)
+			if err != nil {
+				logger.Error(err.Error())
+				continue
+			}
+			v.Store(m)
+		}
+	}()
+	return &swapIPServer{internalToExternalMap: v}
 }

@@ -33,7 +33,7 @@ import (
 )
 
 // SupplyNSMgrProxyFunc nsmgr proxy
-type SupplyNSMgrProxyFunc func(context.Context, token.GeneratorFunc, ...nsmgrproxy.Option) endpoint.Endpoint
+type SupplyNSMgrProxyFunc func(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator token.GeneratorFunc, options ...nsmgrproxy.Option) nsmgr.Nsmgr
 
 // SupplyNSMgrFunc supplies NSMGR
 type SupplyNSMgrFunc func(context.Context, token.GeneratorFunc, ...nsmgr.Option) nsmgr.Nsmgr
@@ -42,7 +42,7 @@ type SupplyNSMgrFunc func(context.Context, token.GeneratorFunc, ...nsmgr.Option)
 type SupplyRegistryFunc func(ctx context.Context, expiryDuration time.Duration, proxyRegistryURL *url.URL, options ...grpc.DialOption) registry.Registry
 
 // SupplyRegistryProxyFunc supplies registry proxy
-type SupplyRegistryProxyFunc func(ctx context.Context, dnsResolver dnsresolve.Resolver, handlingDNSDomain string, proxyNSMgrURL *url.URL, options ...grpc.DialOption) registry.Registry
+type SupplyRegistryProxyFunc func(ctx context.Context, dnsResolver dnsresolve.Resolver, options ...grpc.DialOption) registry.Registry
 
 // SetupNodeFunc setups each node on Builder.Build() stage
 type SetupNodeFunc func(ctx context.Context, node *Node, config *NodeConfig)

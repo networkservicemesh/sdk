@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package interdomainurl_test
+package storeurl_test
 
 import (
 	"context"
@@ -22,18 +22,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interdomainurl"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/storeurl"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 )
 
 func Test_StoreUrlNSEServer(t *testing.T) {
@@ -43,29 +40,20 @@ func Test_StoreUrlNSEServer(t *testing.T) {
 
 	defer cancel()
 
-	var storeRegServer registry.NetworkServiceEndpointRegistryServer
+	var m stringurl.Map
 
-	var s = chain.NewNetworkServiceServer(
-		interdomainurl.NewServer(&storeRegServer),
-		checkcontext.NewServer(t, func(t *testing.T, c context.Context) {
-			v := clienturlctx.ClientURL(c)
-			require.NotNil(t, v)
-			require.Equal(t, url.URL{Scheme: "unix", Host: "file.sock"}, *v)
-		}),
-	)
-
-	registryServer := next.NewNetworkServiceEndpointRegistryServer(
-		storeRegServer,
+	s := next.NewNetworkServiceEndpointRegistryServer(
+		storeurl.NewNetworkServiceEndpointRegistryServer(&m),
 		memory.NewNetworkServiceEndpointRegistryServer(),
 	)
 
-	_, err := registryServer.Register(ctx, &registry.NetworkServiceEndpoint{
+	_, err := s.Register(ctx, &registry.NetworkServiceEndpoint{
 		Name: "nse-1",
 		Url:  "unix://file.sock",
 	})
 	require.NoError(t, err)
 
-	stream, err := adapters.NetworkServiceEndpointServerToClient(registryServer).Find(ctx, &registry.NetworkServiceEndpointQuery{
+	stream, err := adapters.NetworkServiceEndpointServerToClient(s).Find(ctx, &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 			Name: "nse-1",
 		},
@@ -75,11 +63,8 @@ func Test_StoreUrlNSEServer(t *testing.T) {
 	list := registry.ReadNetworkServiceEndpointList(stream)
 	require.Len(t, list, 1)
 
-	_, err = s.Request(ctx, &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			NetworkServiceEndpointName: "nse-1",
-		},
-	})
+	v, ok := m.Load("nse-1")
+	require.True(t, ok)
 
-	require.NoError(t, err)
+	require.Equal(t, url.URL{Scheme: "unix", Host: "file.sock"}, *v)
 }

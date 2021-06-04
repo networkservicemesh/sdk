@@ -88,7 +88,7 @@ func (eps *excludedPrefixesServer) Request(ctx context.Context, request *network
 		conn.Context.IpContext = &networkservice.IPContext{}
 	}
 	prefixes := eps.prefixPool.Load().(*ippool.PrefixPool).GetPrefixes()
-	log.FromContext(ctx).Infof("ExcludedPrefixesService: adding excluded prefixes to connection: %v", prefixes)
+	log.FromContext(ctx).Debugf("ExcludedPrefixesService: adding excluded prefixes to connection: %v", prefixes)
 	ipCtx := conn.GetContext().GetIpContext()
 	ipCtx.ExcludedPrefixes = removeDuplicates(append(ipCtx.GetExcludedPrefixes(), prefixes...))
 

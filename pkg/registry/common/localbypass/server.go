@@ -54,7 +54,6 @@ func (s *localBypassNSEServer) Register(ctx context.Context, nse *registry.Netwo
 		if u.String() == "" {
 			return nil, errors.Errorf("cannot register NSE with passed URL: %s", nse.Url)
 		}
-
 		s.nseURLs.Store(nse.Name, u)
 	}
 
@@ -69,6 +68,7 @@ func (s *localBypassNSEServer) Register(ctx context.Context, nse *registry.Netwo
 	}
 
 	reg.Url = u.String()
+	s.nseURLs.Store(reg.Name, u)
 
 	return reg, nil
 }
