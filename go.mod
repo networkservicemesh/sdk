@@ -32,6 +32,8 @@ require (
 	golang.org/x/net v0.0.0-20210525063256-abc453219eb5 // indirect
 	golang.org/x/sys v0.0.0-20210603125802-9665404d3644 // indirect
 	golang.org/x/term v0.0.0-20210503060354-a79de5458b56 // indirect
+	golang.org/x/text v0.3.6 // indirect
+	golang.org/x/tools v0.1.2 // indirect
 	gonum.org/v1/gonum v0.6.2
 	google.golang.org/grpc v1.35.0
 	google.golang.org/protobuf v1.25.0
