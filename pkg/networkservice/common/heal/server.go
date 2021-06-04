@@ -193,14 +193,16 @@ func (f *healServer) restoreConnection(ctx context.Context, request *networkserv
 		}
 	}
 
-	if ctx.Err() == nil {
-		f.processHeal(ctx, request.Clone(), opts...)
-	}
+	f.processHeal(ctx, request.Clone(), opts...)
 }
 
 func (f *healServer) processHeal(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) {
 	logEntry := log.FromContext(ctx).WithField("healServer", "processHeal")
 	conn := request.GetConnection()
+
+	if ctx.Err() != nil {
+		return
+	}
 
 	candidates := discover.Candidates(ctx)
 	if candidates != nil || conn.GetPath().GetIndex() == 0 {
