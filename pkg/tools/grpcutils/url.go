@@ -93,3 +93,12 @@ func TargetToNetAddr(target string) (network, addr string) {
 
 	return network, target
 }
+
+// CheckURLFree returns is given url is free for Listen
+func CheckURLFree(u *url.URL) bool {
+	ln, err := net.Listen(TargetToNetAddr(URLToTarget(u)))
+	if err == nil {
+		err = ln.Close()
+	}
+	return err == nil
+}

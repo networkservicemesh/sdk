@@ -21,11 +21,8 @@ import (
 	"context"
 	"net/url"
 
-	"google.golang.org/grpc"
-
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
@@ -33,7 +30,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 )
 
@@ -60,29 +56,20 @@ func newNetworkServiceEndpointRegistryClient(ctx context.Context, connectTo *url
 		interposeClient = null.NewNetworkServiceEndpointRegistryClient()
 	}
 
-	var additionalFunctionalityClient registry.NetworkServiceEndpointRegistryClient
-	if len(clientOpts.nseAdditionalFunctionality) > 0 {
-		additionalFunctionalityClient = chain.NewNetworkServiceEndpointRegistryClient(additionalFunctionalityClient)
-	} else {
-		additionalFunctionalityClient = null.NewNetworkServiceEndpointRegistryClient()
-	}
-
-	return chain.NewNetworkServiceEndpointRegistryClient(
+	c := new(registry.NetworkServiceEndpointRegistryClient)
+	*c = chain.NewNetworkServiceEndpointRegistryClient(
 		setid.NewNetworkServiceEndpointRegistryClient(),
 		interposeClient,
 		serialize.NewNetworkServiceEndpointRegistryClient(),
 		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
-		additionalFunctionalityClient,
-		adapters.NetworkServiceEndpointServerToClient(
-			chain.NewNetworkServiceEndpointRegistryServer(
-				clienturl.NewNetworkServiceEndpointRegistryServer(connectTo),
-				connect.NewNetworkServiceEndpointRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient {
-					return chain.NewNetworkServiceEndpointRegistryClient(
-						sendfd.NewNetworkServiceEndpointRegistryClient(),
-						registry.NewNetworkServiceEndpointRegistryClient(cc),
-					)
-				}, clientOpts.dialOptions...),
-			),
+		connect.NewNetworkServiceEndpointRegistryClient(ctx, connectTo,
+			connect.WithNSEAdditionalFunctionality(
+				append(
+					clientOpts.nseAdditionalFunctionality,
+					sendfd.NewNetworkServiceEndpointRegistryClient())...),
+			connect.WithDialOptions(clientOpts.dialOptions...),
 		),
 	)
+
+	return *c
 }
