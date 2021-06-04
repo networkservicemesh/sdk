@@ -54,7 +54,7 @@ func ListenAndServe(ctx context.Context, address *url.URL, server *grpc.Server) 
 		}
 		basePath := path.Dir(target)
 		if _, err = os.Stat(basePath); os.IsNotExist(err) {
-			log.FromContext(ctx).Infof("target folder %v not exists, Trying to create", basePath)
+			log.FromContext(ctx).Debugf("target folder %v not exists, Trying to create", basePath)
 			if err = os.MkdirAll(basePath, os.ModePerm); err != nil {
 				errCh <- errors.Wrapf(err, "Could not serve %v", target)
 				close(errCh)

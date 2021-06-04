@@ -35,6 +35,7 @@ import (
 	"google.golang.org/grpc"
 
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgrproxy"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/client"
@@ -310,7 +311,7 @@ func (b *Builder) newNSMgrProxy(ctx context.Context, registryURL, registryProxyU
 	)
 
 	serve(ctx, serveURL, mgr.Register)
-	log.FromContext(ctx).Infof("%v: %v listen on: %v", b.DNSDomainName, name, serveURL)
+	log.FromContext(ctx).Debugf("%v: %v listen on: %v", b.DNSDomainName, name, serveURL)
 	return &EndpointEntry{
 		Endpoint: mgr,
 		URL:      serveURL,
@@ -366,7 +367,7 @@ func (b *Builder) newNSMgr(ctx context.Context, address string, registryURL *url
 	mgr := b.supplyNSMgr(ctx, generateTokenFunc, options...)
 
 	serve(ctx, serveURL, mgr.Register)
-	log.FromContext(ctx).Infof("%v: %v listen on: %v", b.DNSDomainName, nsmgrName, serveURL)
+	log.FromContext(ctx).Debugf("%v: %v listen on: %v", b.DNSDomainName, nsmgrName, serveURL)
 	return &NSMgrEntry{
 		URL:   serveURL,
 		Nsmgr: mgr,
@@ -380,7 +381,7 @@ func serve(ctx context.Context, u *url.URL, register func(server *grpc.Server)) 
 	go func() {
 		select {
 		case <-ctx.Done():
-			log.FromContext(ctx).Infof("Stop serve: %v", u.String())
+			log.FromContext(ctx).Debugf("Stop serve: %v", u.String())
 			return
 		case err := <-errCh:
 			if err != nil {
@@ -397,7 +398,7 @@ func (b *Builder) newRegistryProxy(ctx context.Context) *RegistryEntry {
 	result := b.supplyRegistryProxy(ctx, b.resolver, DefaultDialOptions(b.generateTokenFunc)...)
 	serveURL := grpcutils.TargetToURL(b.newAddress("reg-proxy"))
 	serve(ctx, serveURL, result.Register)
-	log.FromContext(ctx).Infof("%v: registry-proxy-dns listen on: %v", b.DNSDomainName, serveURL)
+	log.FromContext(ctx).Debugf("%v: registry-proxy-dns listen on: %v", b.DNSDomainName, serveURL)
 	return &RegistryEntry{
 		URL:      serveURL,
 		Registry: result,
@@ -411,7 +412,7 @@ func (b *Builder) newRegistry(ctx context.Context, proxyRegistryURL *url.URL) *R
 	result := b.supplyRegistry(ctx, b.registryExpiryDuration, proxyRegistryURL, DefaultDialOptions(b.generateTokenFunc)...)
 	serveURL := grpcutils.TargetToURL(b.newAddress("reg"))
 	serve(ctx, serveURL, result.Register)
-	log.FromContext(ctx).Infof("%v: registry listen on: %v", b.DNSDomainName, serveURL)
+	log.FromContext(ctx).Debugf("%v: registry listen on: %v", b.DNSDomainName, serveURL)
 	return &RegistryEntry{
 		URL:      serveURL,
 		Registry: result,

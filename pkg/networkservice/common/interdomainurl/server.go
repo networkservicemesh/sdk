@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package interdomainurl inject into context clienturl if requested networkserviceendpoint has interdomain attribute
+// Package interdomainurl injects into incoming context the URL to remote side only if requesting endpoint has been resolved.
 package interdomainurl
 
 import (
@@ -35,7 +35,7 @@ type interdomainurlServer struct {
 	m stringurl.Map
 }
 
-// NewServer - returns a new NetworkServiceServer that injects clienturl into context on requesting known endpoint
+// NewServer - returns a new NetworkServiceServer that injects the URL to remote side into context on requesting resolved endpoint
 func NewServer(rs *registry.NetworkServiceEndpointRegistryServer) networkservice.NetworkServiceServer {
 	var rv = new(interdomainurlServer)
 	*rs = storeurl.NewNetworkServiceEndpointRegistryServer(&rv.m)

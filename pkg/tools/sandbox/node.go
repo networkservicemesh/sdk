@@ -124,7 +124,7 @@ func (n *Node) newEndpoint(
 	nse.ExpirationTime = reg.ExpirationTime
 	nse.NetworkServiceLabels = reg.NetworkServiceLabels
 
-	log.FromContext(ctx).Infof("Started listen endpoint %s on %s.", nse.Name, u.String())
+	log.FromContext(ctx).Debugf("Started listen endpoint %s on %s.", nse.Name, u.String())
 
 	return &EndpointEntry{Endpoint: ep, URL: u}, nil
 }
