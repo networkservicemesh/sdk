@@ -22,26 +22,24 @@ import (
 	"testing"
 	"time"
 
-	"google.golang.org/grpc/health/grpc_health_v1"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-
-	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health/grpc_health_v1"
+
+	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
-func startNSEServer(ctx context.Context, listenOn *url.URL) error {
+func startNSEServer(ctx context.Context, listenOn *url.URL, server registry.NetworkServiceEndpointRegistryServer) error {
 	grpcServer := grpc.NewServer()
 
-	server := memory.NewNetworkServiceEndpointRegistryServer()
 	registry.RegisterNetworkServiceEndpointRegistryServer(grpcServer, server)
 	grpcutils.RegisterHealthServices(grpcServer, server)
 
@@ -89,12 +87,12 @@ func startTestNSEServers(ctx context.Context, t *testing.T) (url1, url2 *url.URL
 	ctx1, cancel1 = context.WithCancel(ctx)
 
 	url1 = &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
-	require.NoError(t, startNSEServer(ctx1, url1))
+	require.NoError(t, startNSEServer(ctx1, url1, memory.NewNetworkServiceEndpointRegistryServer()))
 
 	ctx2, cancel2 = context.WithCancel(ctx)
 
 	url2 = &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
-	require.NoError(t, startNSEServer(ctx2, url2))
+	require.NoError(t, startNSEServer(ctx2, url2, memory.NewNetworkServiceEndpointRegistryServer()))
 
 	require.NoError(t, waitNSEServerStarted(url1))
 	require.NoError(t, waitNSEServerStarted(url2))
@@ -114,9 +112,7 @@ func TestConnectNSEServer_AllUnregister(t *testing.T) {
 
 	ignoreCurrent := goleak.IgnoreCurrent()
 
-	s := connect.NewNetworkServiceEndpointRegistryServer(ctx, func(_ context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient {
-		return registry.NewNetworkServiceEndpointRegistryClient(cc)
-	}, grpc.WithInsecure())
+	s := connect.NewNetworkServiceEndpointRegistryServer(ctx, connect.WithDialOptions(grpc.WithInsecure()))
 
 	_, err := s.Register(clienturlctx.WithClientURL(context.Background(), url1), &registry.NetworkServiceEndpoint{Name: "nse-1"})
 	require.NoError(t, err)
@@ -154,9 +150,7 @@ func TestConnectNSEServer_AllDead_Register(t *testing.T) {
 
 	url1, url2, cancel1, cancel2 := startTestNSEServers(ctx, t)
 
-	s := connect.NewNetworkServiceEndpointRegistryServer(ctx, func(_ context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient {
-		return registry.NewNetworkServiceEndpointRegistryClient(cc)
-	}, grpc.WithInsecure())
+	s := connect.NewNetworkServiceEndpointRegistryServer(ctx, connect.WithDialOptions(grpc.WithInsecure()))
 
 	_, err := s.Register(clienturlctx.WithClientURL(ctx, url1), &registry.NetworkServiceEndpoint{Name: "nse-1"})
 	require.NoError(t, err)
@@ -178,9 +172,7 @@ func TestConnectNSEServer_AllDead_WatchingFind(t *testing.T) {
 
 	url1, url2, cancel1, cancel2 := startTestNSEServers(ctx, t)
 
-	s := connect.NewNetworkServiceEndpointRegistryServer(ctx, func(_ context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient {
-		return registry.NewNetworkServiceEndpointRegistryClient(cc)
-	}, grpc.WithInsecure())
+	s := connect.NewNetworkServiceEndpointRegistryServer(ctx, connect.WithDialOptions(grpc.WithInsecure()))
 
 	go func() {
 		ch := make(chan *registry.NetworkServiceEndpoint, 1)

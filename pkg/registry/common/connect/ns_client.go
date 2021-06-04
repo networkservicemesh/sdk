@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -20,85 +20,121 @@ import (
 	"context"
 	"sync"
 
-	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 )
 
 type connectNSClient struct {
-	ctx           context.Context
-	clientFactory NSClientFactory
-	dialOptions   []grpc.DialOption
-	initOnce      sync.Once
-	dialErr       error
-	client        registry.NetworkServiceRegistryClient
+	ctx         context.Context
+	client      registry.NetworkServiceRegistryClient
+	connectTo   string
+	dialOptions []grpc.DialOption
+
+	cc   *grpc.ClientConn
+	lock sync.RWMutex
 }
 
-func (c *connectNSClient) init() error {
-	c.initOnce.Do(func() {
-		ctx, cancel := context.WithCancel(c.ctx)
-		c.ctx = ctx
+// NewNetworkServiceRegistryClient returns a new NS registry client chain element connecting to the remote
+//                                 NS registry server
+func NewNetworkServiceRegistryClient(ctx context.Context, connectTo string, opts ...Option) registry.NetworkServiceRegistryClient {
+	connectOpts := new(connectOptions)
+	for _, opt := range opts {
+		opt(connectOpts)
+	}
 
-		clientURL := clienturlctx.ClientURL(c.ctx)
-		if clientURL == nil {
-			c.dialErr = errors.New("cannot dial nil clienturl.ClientURL(ctx)")
-			cancel()
-			return
+	c := &connectNSClient{
+		ctx: ctx,
+		client: chain.NewNetworkServiceRegistryClient(
+			append(
+				connectOpts.nsAdditionalFunctionality,
+				new(grpcNSClient),
+			)...,
+		),
+		connectTo:   connectTo,
+		dialOptions: append(append([]grpc.DialOption{}, connectOpts.dialOptions...), grpc.WithReturnConnectionError()),
+	}
+
+	go func() {
+		<-ctx.Done()
+
+		c.lock.Lock()
+		defer c.lock.Unlock()
+
+		if c.cc != nil {
+			_ = c.cc.Close()
 		}
+	}()
 
-		dialOptions := append(append([]grpc.DialOption{}, c.dialOptions...), grpc.WithReturnConnectionError())
-
-		var cc *grpc.ClientConn
-		cc, c.dialErr = grpc.DialContext(ctx, grpcutils.URLToTarget(clientURL), dialOptions...)
-		if c.dialErr != nil {
-			cancel()
-			return
-		}
-
-		c.client = c.clientFactory(c.ctx, cc)
-
-		go func() {
-			defer func() {
-				cancel()
-				_ = cc.Close()
-			}()
-			for cc.WaitForStateChange(c.ctx, cc.GetState()) {
-				switch cc.GetState() {
-				case connectivity.Connecting, connectivity.Idle, connectivity.Ready:
-					continue
-				default:
-					return
-				}
-			}
-		}()
-	})
-
-	return c.dialErr
+	return c
 }
 
 func (c *connectNSClient) Register(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
-	if err := c.init(); err != nil {
+	cc, err := c.getCC()
+	if err != nil {
 		return nil, err
 	}
-	return c.client.Register(ctx, ns, opts...)
+	return c.client.Register(withCC(ctx, cc), ns, opts...)
 }
 
 func (c *connectNSClient) Find(ctx context.Context, query *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
-	if err := c.init(); err != nil {
+	cc, err := c.getCC()
+	if err != nil {
 		return nil, err
 	}
-	return c.client.Find(ctx, query, opts...)
+	return c.client.Find(withCC(ctx, cc), query, opts...)
 }
 
 func (c *connectNSClient) Unregister(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	if err := c.init(); err != nil {
+	cc, err := c.getCC()
+	if err != nil {
 		return nil, err
 	}
-	return c.client.Unregister(ctx, ns, opts...)
+	return c.client.Unregister(withCC(ctx, cc), ns, opts...)
+}
+
+func (c *connectNSClient) getCC() (*grpc.ClientConn, error) {
+	c.lock.RLock()
+	cc := c.cc
+	c.lock.RUnlock()
+
+	if cc != nil {
+		return cc, nil
+	}
+
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	if c.cc != nil {
+		return c.cc, nil
+	}
+
+	var err error
+	if c.cc, err = grpc.DialContext(c.ctx, c.connectTo, c.dialOptions...); err != nil {
+		return nil, err
+	}
+
+	go func() {
+		defer func() {
+			c.lock.Lock()
+			defer c.lock.Unlock()
+
+			_ = c.cc.Close()
+			c.cc = nil
+		}()
+		for c.cc.WaitForStateChange(c.ctx, c.cc.GetState()) {
+			switch c.cc.GetState() {
+			case connectivity.Connecting, connectivity.Idle, connectivity.Ready:
+				continue
+			default:
+				return
+			}
+		}
+	}()
+
+	return c.cc, nil
 }

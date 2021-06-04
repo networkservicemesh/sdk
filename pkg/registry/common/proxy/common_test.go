@@ -75,17 +75,13 @@ func startNSServer(t *testing.T, chain registry.NetworkServiceRegistryServer) (u
 func testingNSEServerChain(ctx context.Context, u *url.URL) registry.NetworkServiceEndpointRegistryServer {
 	return next.NewNetworkServiceEndpointRegistryServer(
 		proxy.NewNetworkServiceEndpointRegistryServer(u),
-		connect.NewNetworkServiceEndpointRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient {
-			return registry.NewNetworkServiceEndpointRegistryClient(cc)
-		}, grpc.WithInsecure()),
+		connect.NewNetworkServiceEndpointRegistryServer(ctx, connect.WithDialOptions(grpc.WithInsecure())),
 	)
 }
 
 func testingNSServerChain(ctx context.Context, u *url.URL) registry.NetworkServiceRegistryServer {
 	return next.NewNetworkServiceRegistryServer(
 		proxy.NewNetworkServiceRegistryServer(u),
-		connect.NewNetworkServiceRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
-			return registry.NewNetworkServiceRegistryClient(cc)
-		}, grpc.WithInsecure()),
+		connect.NewNetworkServiceRegistryServer(ctx, connect.WithDialOptions(grpc.WithInsecure())),
 	)
 }

@@ -22,26 +22,24 @@ import (
 	"testing"
 	"time"
 
-	"google.golang.org/grpc/health/grpc_health_v1"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-
-	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health/grpc_health_v1"
+
+	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
-func startNSServer(ctx context.Context, listenOn *url.URL) error {
+func startNSServer(ctx context.Context, listenOn *url.URL, server registry.NetworkServiceRegistryServer) error {
 	grpcServer := grpc.NewServer()
 
-	server := memory.NewNetworkServiceRegistryServer()
 	registry.RegisterNetworkServiceRegistryServer(grpcServer, server)
 	grpcutils.RegisterHealthServices(grpcServer, server)
 
@@ -89,12 +87,12 @@ func startTestNSServers(ctx context.Context, t *testing.T) (url1, url2 *url.URL,
 	ctx1, cancel1 = context.WithCancel(ctx)
 
 	url1 = &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
-	require.NoError(t, startNSServer(ctx1, url1))
+	require.NoError(t, startNSServer(ctx1, url1, memory.NewNetworkServiceRegistryServer()))
 
 	ctx2, cancel2 = context.WithCancel(ctx)
 
 	url2 = &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
-	require.NoError(t, startNSServer(ctx2, url2))
+	require.NoError(t, startNSServer(ctx2, url2, memory.NewNetworkServiceRegistryServer()))
 
 	require.NoError(t, waitNSServerStarted(url1))
 	require.NoError(t, waitNSServerStarted(url2))
@@ -114,9 +112,7 @@ func TestConnectNSServer_AllUnregister(t *testing.T) {
 
 	ignoreCurrent := goleak.IgnoreCurrent()
 
-	s := connect.NewNetworkServiceRegistryServer(ctx, func(_ context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
-		return registry.NewNetworkServiceRegistryClient(cc)
-	}, grpc.WithInsecure())
+	s := connect.NewNetworkServiceRegistryServer(ctx, connect.WithDialOptions(grpc.WithInsecure()))
 
 	_, err := s.Register(clienturlctx.WithClientURL(context.Background(), url1), &registry.NetworkService{Name: "ns-1"})
 	require.NoError(t, err)
@@ -154,9 +150,7 @@ func TestConnectNSServer_AllDead_Register(t *testing.T) {
 
 	url1, url2, cancel1, cancel2 := startTestNSServers(ctx, t)
 
-	s := connect.NewNetworkServiceRegistryServer(ctx, func(_ context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
-		return registry.NewNetworkServiceRegistryClient(cc)
-	}, grpc.WithInsecure())
+	s := connect.NewNetworkServiceRegistryServer(ctx, connect.WithDialOptions(grpc.WithInsecure()))
 
 	_, err := s.Register(clienturlctx.WithClientURL(ctx, url1), &registry.NetworkService{Name: "ns-1"})
 	require.NoError(t, err)
@@ -178,9 +172,7 @@ func TestConnectNSServer_AllDead_WatchingFind(t *testing.T) {
 
 	url1, url2, cancel1, cancel2 := startTestNSServers(ctx, t)
 
-	s := connect.NewNetworkServiceRegistryServer(ctx, func(_ context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceRegistryClient {
-		return registry.NewNetworkServiceRegistryClient(cc)
-	}, grpc.WithInsecure())
+	s := connect.NewNetworkServiceRegistryServer(ctx, connect.WithDialOptions(grpc.WithInsecure()))
 
 	go func() {
 		ch := make(chan *registry.NetworkService, 1)

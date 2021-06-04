@@ -21,11 +21,8 @@ import (
 	"context"
 	"net/url"
 
-	"google.golang.org/grpc"
-
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
@@ -34,8 +31,8 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
 // NewNetworkServiceEndpointRegistryClient creates a new NewNetworkServiceEndpointRegistryClient that can be used for NSE registration.
@@ -67,20 +64,13 @@ func newNetworkServiceEndpointRegistryClient(ctx context.Context, connectTo *url
 		interposeClient,
 		serialize.NewNetworkServiceEndpointRegistryClient(),
 		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
-		heal.NewNetworkServiceEndpointRegistryClient(ctx, c),
-		adapters.NetworkServiceEndpointServerToClient(
-			chain.NewNetworkServiceEndpointRegistryServer(
-				clienturl.NewNetworkServiceEndpointRegistryServer(connectTo),
-				connect.NewNetworkServiceEndpointRegistryServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) registry.NetworkServiceEndpointRegistryClient {
-					return chain.NewNetworkServiceEndpointRegistryClient(
-						append(
-							clientOpts.nseAdditionalFunctionality,
-							sendfd.NewNetworkServiceEndpointRegistryClient(),
-							registry.NewNetworkServiceEndpointRegistryClient(cc),
-						)...,
-					)
-				}, clientOpts.dialOptions...),
-			),
+		connect.NewNetworkServiceEndpointRegistryClient(ctx, grpcutils.URLToTarget(connectTo),
+			connect.WithNSEAdditionalFunctionality(
+				append(
+					clientOpts.nseAdditionalFunctionality,
+					heal.NewNetworkServiceEndpointRegistryClient(ctx, c),
+					sendfd.NewNetworkServiceEndpointRegistryClient())...),
+			connect.WithDialOptions(clientOpts.dialOptions...),
 		),
 	)
 
