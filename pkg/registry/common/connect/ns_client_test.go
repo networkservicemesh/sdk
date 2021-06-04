@@ -110,7 +110,9 @@ func TestConnectNSClient_Restart(t *testing.T) {
 
 	// 2. Restart remote
 	serverCancel()
-	require.Eventually(t, grpcutils.CheckURLFree(grpcutils.URLToTarget(u)), time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool {
+		return grpcutils.CheckURLFree(u)
+	}, time.Second, 10*time.Millisecond)
 
 	require.NoError(t, startNSServer(ctx, u, mem))
 	require.NoError(t, waitNSServerStarted(u))

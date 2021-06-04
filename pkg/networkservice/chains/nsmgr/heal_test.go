@@ -90,7 +90,9 @@ func testNSMGRHealEndpoint(t *testing.T, restored bool) {
 	nseCtxCancel()
 
 	// Wait grpc unblock the port
-	require.Eventually(t, grpcutils.CheckURLFree(nse.URL.Host), timeout, tick)
+	require.Eventually(t, func() bool {
+		return grpcutils.CheckURLFree(nse.URL)
+	}, timeout, tick)
 
 	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
 	nseReg2.Name += "-2"
@@ -209,7 +211,9 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int, restored bool, customConf
 
 	// Wait grpc unblock the port
 	require.GreaterOrEqual(t, 1, len(domain.Nodes[nodeNum].Forwarder))
-	require.Eventually(t, grpcutils.CheckURLFree(domain.Nodes[nodeNum].Forwarder[0].URL.Host), timeout, tick)
+	require.Eventually(t, func() bool {
+		return grpcutils.CheckURLFree(domain.Nodes[nodeNum].Forwarder[0].URL)
+	}, timeout, tick)
 
 	forwarderReg := &registry.NetworkServiceEndpoint{
 		Name: "forwarder-restored",
@@ -306,7 +310,9 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, customConfig []*sandbox.NodeC
 	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Requests))
 	require.Equal(t, int32(0), atomic.LoadInt32(&counter.Closes))
 
-	require.Eventually(t, grpcutils.CheckURLFree(domain.Nodes[nodeNum].NSMgr.URL.Host), timeout, tick)
+	require.Eventually(t, func() bool {
+		return grpcutils.CheckURLFree(domain.Nodes[nodeNum].NSMgr.URL)
+	}, timeout, tick)
 
 	restoredNSMgrEntry, restoredNSMgrResources := builder.NewNSMgr(ctx, domain.Nodes[nodeNum], domain.Nodes[nodeNum].NSMgr.URL.Host, domain.Registry.URL, sandbox.GenerateTestToken)
 	domain.Nodes[nodeNum].NSMgr = restoredNSMgrEntry
