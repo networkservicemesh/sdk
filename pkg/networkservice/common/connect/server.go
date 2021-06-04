@@ -28,12 +28,11 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/cancelctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/multiexecutor"
 )
@@ -87,18 +86,17 @@ func (s *connectServer) Request(ctx context.Context, request *networkservice.Net
 	}
 
 	c := s.client(ctx, request.GetConnection())
+	if err := c.client.ctx.Err(); err != nil {
+		s.deleteClient(c, clientURL.String())
+		s.connInfos.Delete(request.GetConnection().GetId())
+		return nil, err
+	}
+
 	conn, err := c.client.Request(ctx, request.Clone())
 	if err != nil {
 		if _, ok := s.connInfos.Load(request.GetConnection().GetId()); !ok {
 			s.closeClient(c, clientURL.String())
 		}
-
-		// Close current client chain if grpc connection was closed
-		if grpcutils.UnwrapCode(err) == codes.Canceled && c.client.ctx.Err() != nil {
-			s.deleteClient(c, clientURL.String())
-			s.connInfos.Delete(request.GetConnection().GetId())
-		}
-
 		return nil, err
 	}
 
@@ -177,7 +175,7 @@ func (s *connectServer) client(ctx context.Context, conn *networkservice.Connect
 }
 
 func (s *connectServer) newClient(clientURL *url.URL) *clientInfo {
-	ctx, cancel := context.WithCancel(s.ctx)
+	ctx, cancel := cancelctx.WithCancel(s.ctx)
 	return &clientInfo{
 		client: &connectClient{
 			ctx:           clienturlctx.WithClientURL(ctx, clientURL),
