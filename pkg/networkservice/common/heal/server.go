@@ -193,7 +193,9 @@ func (f *healServer) restoreConnection(ctx context.Context, request *networkserv
 		}
 	}
 
-	f.processHeal(ctx, request.Clone(), opts...)
+	if ctx.Err() == nil {
+		f.processHeal(ctx, request.Clone(), opts...)
+	}
 }
 
 func (f *healServer) processHeal(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) {
