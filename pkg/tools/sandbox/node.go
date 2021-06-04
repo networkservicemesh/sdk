@@ -29,6 +29,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanismtranslation"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
@@ -57,8 +58,11 @@ func (n *Node) NewForwarder(
 		clienturl.NewServer(n.NSMgr.URL),
 		heal.NewServer(ctx, addressof.NetworkServiceClient(adapters.NewServerToClient(ep))),
 		connect.NewServer(ctx,
-			client.NewCrossConnectClientFactory(
+			client.NewClientFactory(
 				client.WithName(nse.Name),
+				client.WithAdditionalFunctionality(
+					mechanismtranslation.NewClient(),
+				),
 			),
 			connect.WithDialTimeout(DialTimeout),
 			connect.WithDialOptions(DefaultDialOptions(generatorFunc)...),
@@ -136,7 +140,7 @@ func (n *Node) NewClient(
 	return client.NewClient(
 		ctx,
 		n.NSMgr.URL,
-		DefaultDialOptions(generatorFunc),
+		client.WithDialOptions(DefaultDialOptions(generatorFunc)...),
 		client.WithAuthorizeClient(authorize.NewClient(authorize.Any())),
 		client.WithAdditionalFunctionality(additionalFunctionality...),
 	)

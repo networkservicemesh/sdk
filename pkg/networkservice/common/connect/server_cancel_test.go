@@ -38,6 +38,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanismtranslation"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
@@ -82,10 +83,14 @@ func TestConnect_CancelDuringRequest(t *testing.T) {
 	require.NoError(t, err)
 
 	var counter atomic.Int32
-	ptClient := newPassTroughClient(service1Name)
-	kernelClient := kernel.NewClient()
 	clientName := fmt.Sprintf("connectClient-%v", uuid.New().String())
-	standardClientFactory := client.NewCrossConnectClientFactory(client.WithName(clientName), client.WithAdditionalFunctionality(ptClient, kernelClient))
+	standardClientFactory := client.NewClientFactory(
+		client.WithName(clientName),
+		client.WithAdditionalFunctionality(
+			mechanismtranslation.NewClient(),
+			newPassTroughClient(service1Name),
+			kernel.NewClient()),
+	)
 	clientFactory := func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 		counter.Add(1)
 		return standardClientFactory(ctx, cc)
