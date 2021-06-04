@@ -37,5 +37,5 @@ func (s *emptylogger) WithField(key, value interface{}) Logger { return s }
 
 // Empty - provides a logger that does nothing
 func Empty() Logger {
-	return &emptylogger{}
+	return &defaultLogger{}
 }
