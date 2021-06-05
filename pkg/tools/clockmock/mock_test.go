@@ -139,8 +139,8 @@ func testMockSetSpeed(t *testing.T, firstSpeed, secondSpeed float64) {
 	mockSpeed := float64(mockDuration-2*hours*time.Hour) / float64(realDuration)
 	avgSpeed := (firstSpeed + secondSpeed) / 2
 
-	require.Greater(t, mockSpeed/avgSpeed, 0.7)
-	require.Less(t, mockSpeed/avgSpeed, 1.3)
+	require.Greater(t, mockSpeed/avgSpeed, 0.6)
+	require.Less(t, mockSpeed/avgSpeed, 1.4)
 }
 
 func TestMock_Timer(t *testing.T) {
