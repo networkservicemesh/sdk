@@ -224,6 +224,8 @@ func TestRefreshClient_CheckRaceConditions(t *testing.T) {
 }
 
 func TestRefreshClient_Sandbox(t *testing.T) {
+	t.Skip("https://github.com/networkservicemesh/sdk/issues/839")
+
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), sandboxTotalTimeout)
