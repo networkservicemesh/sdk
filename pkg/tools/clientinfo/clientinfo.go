@@ -28,9 +28,9 @@ const (
 	nodeNameEnv      = "NODE_NAME"
 	podNameEnv       = "POD_NAME"
 	clusterNameEnv   = "CLUSTER_NAME"
-	nodeNameLabel    = "NodeNameKey"
-	podNameLabel     = "PodNameKey"
-	clusterNameLabel = "ClusterNameKey"
+	nodeNameLabel    = "NodeName"
+	podNameLabel     = "PodName"
+	clusterNameLabel = "ClusterName"
 )
 
 // AddClientInfo adds client info (node/pod/cluster names) to provided map, taking this info from corresponding

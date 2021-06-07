@@ -264,8 +264,8 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 	const (
 		testEnvName             = "NODE_NAME"
 		testEnvValue            = "testValue"
-		destinationTestKey      = `NodeNameKey`
-		destinationTestTemplate = `{{.NodeNameKey}}`
+		destinationTestKey      = `NodeName`
+		destinationTestTemplate = `{{.NodeName}}`
 	)
 
 	err := os.Setenv(testEnvName, testEnvValue)
