@@ -258,6 +258,21 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int, restored bool, customConf
 	}
 }
 
+func TestNSMGR_HealLocalNSMgrRestored(t *testing.T) {
+	nsmgrCtx, nsmgrCtxCancel := context.WithCancel(context.Background())
+	defer nsmgrCtxCancel()
+
+	customConfig := []*sandbox.NodeConfig{
+		nil,
+		{
+			NsmgrCtx:               nsmgrCtx,
+			NsmgrGenerateTokenFunc: sandbox.GenerateTestToken,
+		},
+	}
+
+	testNSMGRHealNSMgr(t, 1, customConfig, nsmgrCtxCancel)
+}
+
 func TestNSMGR_HealRemoteNSMgrRestored(t *testing.T) {
 	nsmgrCtx, nsmgrCtxCancel := context.WithCancel(context.Background())
 	defer nsmgrCtxCancel()
