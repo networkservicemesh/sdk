@@ -100,7 +100,6 @@ func (b *Builder) Build() *Domain {
 		ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 		b.resources = append(b.resources, cancel)
 	}
-	ctx = log.Join(ctx, log.Empty())
 
 	domain := new(Domain)
 
