@@ -110,7 +110,6 @@ func (n *Node) newEndpoint(
 		}
 	}
 
-	ctx = log.Join(ctx, log.Empty())
 	serve(ctx, u, ep.Register)
 
 	nse.Url = u.String()
@@ -136,7 +135,6 @@ func (n *Node) NewClient(
 	generatorFunc token.GeneratorFunc,
 	additionalFunctionality ...networkservice.NetworkServiceClient,
 ) networkservice.NetworkServiceClient {
-	ctx = log.Join(ctx, log.Empty())
 	return client.NewClient(
 		ctx,
 		n.NSMgr.URL,
