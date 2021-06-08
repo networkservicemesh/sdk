@@ -24,6 +24,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
@@ -66,6 +67,7 @@ func newNetworkServiceEndpointRegistryClient(ctx context.Context, connectTo *url
 			connect.WithNSEAdditionalFunctionality(
 				append(
 					clientOpts.nseAdditionalFunctionality,
+					heal.NewNetworkServiceEndpointRegistryClient(ctx, c),
 					sendfd.NewNetworkServiceEndpointRegistryClient())...),
 			connect.WithDialOptions(clientOpts.dialOptions...),
 		),
