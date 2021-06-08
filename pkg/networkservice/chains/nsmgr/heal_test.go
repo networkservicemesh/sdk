@@ -330,18 +330,21 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, customConfig []*sandbox.NodeC
 	domain.Nodes[nodeNum].NSMgr = restoredNSMgrEntry
 	domain.AddResources(restoredNSMgrResources)
 
+	require.Eventually(t, checkSecondRequestsReceived(func() int {
+		return int(atomic.LoadInt32(&counter.Requests))
+	}), timeout, tick)
+
 	// Check refresh
 	request.Connection = conn
-	require.Eventually(t, func() bool {
-		conn, err = nsc.Request(ctx, request.Clone())
-		return err == nil
-	}, timeout, tick)
+	_, err = nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
 
 	// Close.
 	closes := atomic.LoadInt32(&counter.Closes)
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
 
+	require.Equal(t, int32(3), atomic.LoadInt32(&counter.Requests))
 	require.Equal(t, closes+1, atomic.LoadInt32(&counter.Closes))
 }
 
