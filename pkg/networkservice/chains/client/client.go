@@ -21,18 +21,22 @@ package client
 
 import (
 	"context"
+	"net/url"
+	"time"
 
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanismtranslation"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
@@ -41,6 +45,8 @@ type clientOptions struct {
 	name                    string
 	additionalFunctionality []networkservice.NetworkServiceClient
 	authorizeClient         networkservice.NetworkServiceClient
+	dialOptions             []grpc.DialOption
+	dialTimeout             time.Duration
 }
 
 // Option modifies default client chain values.
@@ -70,51 +76,84 @@ func WithAuthorizeClient(authorizeClient networkservice.NetworkServiceClient) Op
 	})
 }
 
+// WithDialOptions sets dial options
+func WithDialOptions(dialOptions ...grpc.DialOption) Option {
+	return Option(func(c *clientOptions) {
+		c.dialOptions = dialOptions
+	})
+}
+
+// WithDialTimeout sets dial timeout
+func WithDialTimeout(dialTimeout time.Duration) Option {
+	return func(c *clientOptions) {
+		c.dialTimeout = dialTimeout
+	}
+}
+
 // NewClient - returns a (1.) case NSM client.
 //             - ctx    - context for the lifecycle of the *Client* itself.  Cancel when discarding the client.
 //             - cc - grpc.ClientConnInterface for the endpoint to which this client should connect
-func NewClient(ctx context.Context, cc grpc.ClientConnInterface, clientOpts ...Option) networkservice.NetworkServiceClient {
-	var rv networkservice.NetworkServiceClient
+func NewClient(ctx context.Context, connectTo *url.URL, clientOpts ...Option) networkservice.NetworkServiceClient {
+	rv := new(networkservice.NetworkServiceClient)
 	var opts = &clientOptions{
 		name:            "client-" + uuid.New().String(),
 		authorizeClient: null.NewClient(),
+		dialTimeout:     100 * time.Millisecond,
 	}
 	for _, opt := range clientOpts {
 		opt(opts)
 	}
-	rv = chain.NewNetworkServiceClient(
-		append(
-			append([]networkservice.NetworkServiceClient{
-				updatepath.NewClient(opts.name),
-				serialize.NewClient(),
-				heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc)),
-				refresh.NewClient(ctx),
-				metadata.NewClient(),
-			}, opts.additionalFunctionality...),
-			opts.authorizeClient,
-			networkservice.NewNetworkServiceClient(cc),
-		)...)
-	return rv
-}
 
-// Factory creates a networkservice.NetworkServiceClient by passed context.Cotnext and grpc.ClientConnInterface
-type Factory = func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient
-
-// NewCrossConnectClientFactory - returns a (2.) case func(cc grpc.ClientConnInterface) NSM client factory.
-func NewCrossConnectClientFactory(clientOpts ...Option) Factory {
-	return func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-		return chain.NewNetworkServiceClient(
-			mechanismtranslation.NewClient(),
-			NewClient(ctx, cc, clientOpts...),
-		)
-	}
+	*rv = chain.NewNetworkServiceClient(
+		updatepath.NewClient(opts.name),
+		serialize.NewClient(),
+		refresh.NewClient(ctx),
+		metadata.NewClient(),
+		adapters.NewServerToClient(
+			chain.NewNetworkServiceServer(
+				heal.NewServer(ctx, rv),
+				clienturl.NewServer(connectTo),
+				connect.NewServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+					return chain.NewNetworkServiceClient(
+						append(
+							opts.additionalFunctionality,
+							heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc)),
+							opts.authorizeClient,
+							networkservice.NewNetworkServiceClient(cc),
+						)...,
+					)
+				},
+					connect.WithDialOptions(opts.dialOptions...),
+					connect.WithDialTimeout(opts.dialTimeout)),
+			),
+		),
+	)
+	return *rv
 }
 
 // NewClientFactory - returns a (3.) case func(cc grpc.ClientConnInterface) NSM client factory.
-func NewClientFactory(clientOpts ...Option) Factory {
+func NewClientFactory(clientOpts ...Option) connect.ClientFactory {
 	return func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-		return chain.NewNetworkServiceClient(
-			NewClient(ctx, cc, clientOpts...),
-		)
+		var rv networkservice.NetworkServiceClient
+		var opts = &clientOptions{
+			name:            "client-" + uuid.New().String(),
+			authorizeClient: null.NewClient(),
+		}
+		for _, opt := range clientOpts {
+			opt(opts)
+		}
+		rv = chain.NewNetworkServiceClient(
+			append(
+				append([]networkservice.NetworkServiceClient{
+					updatepath.NewClient(opts.name),
+					serialize.NewClient(),
+					refresh.NewClient(ctx),
+					metadata.NewClient(),
+					heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc)),
+				}, opts.additionalFunctionality...),
+				opts.authorizeClient,
+				networkservice.NewNetworkServiceClient(cc),
+			)...)
+		return rv
 	}
 }

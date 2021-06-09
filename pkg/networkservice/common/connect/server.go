@@ -25,11 +25,11 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/cancelctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
@@ -37,9 +37,12 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/multiexecutor"
 )
 
+// ClientFactory is used to created new clients when new connection is created.
+type ClientFactory = func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient
+
 type connectServer struct {
 	ctx               context.Context
-	clientFactory     client.Factory
+	clientFactory     ClientFactory
 	clientDialTimeout time.Duration
 	clientDialOptions []grpc.DialOption
 
@@ -63,7 +66,7 @@ type connectionInfo struct {
 //             clienturlctx.ClientURL(ctx)
 func NewServer(
 	ctx context.Context,
-	clientFactory client.Factory,
+	clientFactory ClientFactory,
 	options ...Option,
 ) networkservice.NetworkServiceServer {
 	s := &connectServer{
