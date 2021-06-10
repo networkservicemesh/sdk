@@ -56,7 +56,9 @@ func (n *Node) NewForwarder(
 	ep := new(EndpointEntry)
 	additionalFunctionality = append(additionalFunctionality,
 		clienturl.NewServer(n.NSMgr.URL),
-		heal.NewServer(ctx, addressof.NetworkServiceClient(adapters.NewServerToClient(ep))),
+		heal.NewServer(ctx,
+			heal.WithOnHeal(addressof.NetworkServiceClient(adapters.NewServerToClient(ep))),
+			heal.WithRestoreEnabled(false)),
 		connect.NewServer(ctx,
 			client.NewClientFactory(
 				client.WithName(nse.Name),

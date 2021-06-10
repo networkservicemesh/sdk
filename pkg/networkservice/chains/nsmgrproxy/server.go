@@ -157,7 +157,8 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 			interdomainurl.NewServer(&nseStockServer),
 			discover.NewServer(nsClient, nseClient),
 			swapip.NewServer(ctx, opts.mapipFilePath),
-			heal.NewServer(ctx, addressof.NetworkServiceClient(adapters.NewServerToClient(rv))),
+			heal.NewServer(ctx,
+				heal.WithOnHeal(addressof.NetworkServiceClient(adapters.NewServerToClient(rv)))),
 			connect.NewServer(ctx,
 				client.NewClientFactory(
 					client.WithName(opts.name),

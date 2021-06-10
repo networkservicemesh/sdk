@@ -77,7 +77,8 @@ func TestHealClient_Request(t *testing.T) {
 		monitor.NewServer(ctx, &monitorServer),
 		updatetoken.NewServer(sandbox.GenerateTestToken),
 	)
-	healServer := heal.NewServer(ctx, addressof.NetworkServiceClient(onHeal))
+	healServer := heal.NewServer(ctx,
+		heal.WithOnHeal(addressof.NetworkServiceClient(onHeal)))
 	client := chain.NewNetworkServiceClient(
 		updatepath.NewClient("testClient"),
 		adapters.NewServerToClient(healServer),

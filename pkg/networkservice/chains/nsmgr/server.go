@@ -193,7 +193,8 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			recvfd.NewServer(), // Receive any files passed
 			interpose.NewServer(&interposeRegistryServer),
 			filtermechanisms.NewServer(&urlsRegistryServer),
-			heal.NewServer(ctx, addressof.NetworkServiceClient(adapters.NewServerToClient(rv))),
+			heal.NewServer(ctx,
+				heal.WithOnHeal(addressof.NetworkServiceClient(adapters.NewServerToClient(rv)))),
 			connect.NewServer(ctx,
 				client.NewClientFactory(
 					client.WithName(opts.name),

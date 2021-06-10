@@ -47,24 +47,23 @@ type ctxWrapper struct {
 type healServer struct {
 	ctx            context.Context
 	onHeal         *networkservice.NetworkServiceClient
+	restoreEnabled bool
 	healContextMap ctxWrapperMap
 }
 
 // NewServer - creates a new networkservice.NetworkServiceServer chain element that implements the healing algorithm
-//             - ctx    - context for the lifecycle of the *Server* itself. Cancel when discarding the server.
-//             - onHeal - client used 'onHeal'.
-//                        If we detect we need to heal, onHeal.Request is used to heal.
-//                        If we can't heal connection, onHeal.Close will be called.
-//                        If onHeal is nil, then we simply set onHeal to this client chain element
-//                        Since networkservice.NetworkServiceClient is an interface (and thus a pointer)
-//                        *networkservice.NetworkServiceClient is a double pointer.  Meaning it
-//                        points to a place that points to a place that implements networkservice.NetworkServiceClient
-//                        This is done because when we use heal.NewClient as part of a chain, we may not *have*
-//                        a pointer to this
-func NewServer(ctx context.Context, onHeal *networkservice.NetworkServiceClient) networkservice.NetworkServiceServer {
+func NewServer(ctx context.Context, opts ...Option) networkservice.NetworkServiceServer {
+	healOpts := &healOptions{
+		restoreEnabled: true,
+	}
+	for _, opt := range opts {
+		opt(healOpts)
+	}
+
 	rv := &healServer{
-		ctx:    ctx,
-		onHeal: onHeal,
+		ctx:            ctx,
+		onHeal:         healOpts.onHeal,
+		restoreEnabled: healOpts.restoreEnabled,
 	}
 
 	if rv.onHeal == nil {
@@ -76,7 +75,10 @@ func NewServer(ctx context.Context, onHeal *networkservice.NetworkServiceClient)
 
 func (f *healServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	ctx = withRequestHealConnectionFunc(ctx, f.handleHealConnectionRequest)
-	ctx = withRequestRestoreConnectionFunc(ctx, f.handleRestoreConnectionRequest)
+	if f.restoreEnabled {
+		ctx = withRequestRestoreConnectionFunc(ctx, f.handleRestoreConnectionRequest)
+	}
+
 	conn, err := next.Server(ctx).Request(ctx, request)
 	if err != nil {
 		return nil, err
