@@ -104,13 +104,11 @@ func (f *healServer) Request(ctx context.Context, request *networkservice.Networ
 }
 
 func (f *healServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	rv, err := next.Server(ctx).Close(ctx, conn)
+
 	f.stopHeal(conn)
 
-	rv, err := next.Server(ctx).Close(ctx, conn)
-	if err != nil {
-		return nil, err
-	}
-	return rv, nil
+	return rv, err
 }
 
 func (f *healServer) getHealContext(conn *networkservice.Connection) (*networkservice.NetworkServiceRequest, context.Context) {
