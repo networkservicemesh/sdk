@@ -383,10 +383,11 @@ func TestNSMGR_HealRemoteNSMgr(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 1, counter.UniqueRequests())
+
 	require.Equal(t, 8, len(conn.Path.PathSegments))
 
 	nsmgrCtxCancel()
- 
+
 	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
 	nseReg2.Name += "-2"
 	_, err = domain.Nodes[2].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter)
