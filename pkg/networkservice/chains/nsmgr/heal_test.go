@@ -407,6 +407,7 @@ func TestNSMGR_HealRemoteNSMgr(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, e)
 	require.Equal(t, 2, counter.UniqueRequests())
+
 	require.Equal(t, 2, counter.UniqueCloses())
 }
 
