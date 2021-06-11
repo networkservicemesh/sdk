@@ -14,8 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build !windows
-
 package point2multipointipam
 
 import (
@@ -30,11 +28,11 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
 )
 
 type multipIpam struct {
+	Map
 	ipPools  []*ippool.IPPool
 	prefixes []*net.IPNet
 	myIPs    []string
@@ -42,22 +40,18 @@ type multipIpam struct {
 	once     sync.Once
 	initErr  error
 }
-type ipConnections struct {
-	ipPool  *ippool.IPPool
-	dstAddr string
-}
+
 type connectionInfo struct {
-	connections []*ipConnections
+	ipPool  *ippool.IPPool
+	srcAddr string
+	dstAddr string
 }
 
 func (i *connectionInfo) shouldUpdate(exclude *ippool.IPPool) bool {
-	for _, con := range i.connections {
-		dstIP, _, dstErr := net.ParseCIDR(con.dstAddr)
-		if dstErr == nil && exclude.ContainsString(dstIP.String()) {
-			return false
-		}
-	}
-	return true
+	srcIP, _, srcErr := net.ParseCIDR(i.srcAddr)
+	dstIP, _, dstErr := net.ParseCIDR(i.dstAddr)
+
+	return srcErr == nil && exclude.ContainsString(srcIP.String()) || dstErr == nil && exclude.ContainsString(dstIP.String())
 }
 
 // NewServer - creates a new NetworkServiceServer chain element that implements IPAM service.
@@ -104,9 +98,11 @@ func (mipam *multipIpam) Request(ctx context.Context, request *networkservice.Ne
 
 	excludeIP4, excludeIP6 := exclude(ipContext.GetExcludedPrefixes()...)
 
-	connInfo, loaded := loadConnInfo(ctx)
+	connInfo, loaded := mipam.Load(conn.GetId())
 	if loaded && (connInfo.shouldUpdate(excludeIP4) || connInfo.shouldUpdate(excludeIP6)) {
 		// some of the existing addresses are excluded
+		deleteAddr(&ipContext.DstIpAddrs, connInfo.dstAddr)
+		deleteAddr(&ipContext.SrcIpAddrs, connInfo.srcAddr)
 		mipam.free(connInfo)
 		loaded = false
 	}
@@ -115,14 +111,11 @@ func (mipam *multipIpam) Request(ctx context.Context, request *networkservice.Ne
 		if connInfo, err = mipam.getAddrs(excludeIP4, excludeIP6); err != nil {
 			return nil, err
 		}
-		storeConnInfo(ctx, connInfo)
+		mipam.Store(conn.GetId(), connInfo)
 	}
-	for _, myIP := range mipam.myIPs {
-		addIP(&ipContext.SrcIpAddrs, myIP)
-	}
-	for _, con := range connInfo.connections {
-		addIP(&ipContext.DstIpAddrs, con.dstAddr)
-	}
+
+	addAddr(&ipContext.SrcIpAddrs, connInfo.srcAddr)
+	addAddr(&ipContext.DstIpAddrs, connInfo.dstAddr)
 
 	conn, err = next.Server(ctx).Request(ctx, request)
 	if err != nil {
@@ -142,7 +135,7 @@ func (mipam *multipIpam) Close(
 		return nil, mipam.initErr
 	}
 
-	if connInfo, ok := loadConnInfo(ctx); ok {
+	if connInfo, ok := mipam.Load(conn.GetId()); ok {
 		mipam.free(connInfo)
 	}
 	return next.Server(ctx).Close(ctx, conn)
@@ -161,25 +154,16 @@ func getFirstIP(ipNet *net.IPNet) string {
 }
 
 func addMaskIP(ip net.IP) string {
-	i := len(ip)
-	if i == net.IPv4len {
+	if ip.To4() != nil {
 		return ip.String() + "/32"
-	} // else if i == net.IPv6len
+	}
 	return ip.String() + "/128"
 }
 
-func addIP(ips *[]string, newIP string) {
-	for _, ip := range *ips {
-		if ip == newIP {
-			return
-		}
-	}
-	*ips = append(*ips, newIP)
-}
-
 func (mipam *multipIpam) free(connInfo *connectionInfo) {
-	for _, con := range connInfo.connections {
-		con.ipPool.AddNetString(con.dstAddr)
+	ipAddr, _, err := net.ParseCIDR(connInfo.dstAddr)
+	if err == nil {
+		connInfo.ipPool.AddNetString(addMaskIP(ipAddr))
 	}
 }
 
@@ -188,56 +172,60 @@ func (mipam *multipIpam) setMyIP(i int) error {
 	if err != nil {
 		return err
 	}
-	mipam.myIPs = append(mipam.myIPs, myIP.String()+mipam.masks[i])
+	if i >= len(mipam.myIPs) {
+		mipam.myIPs = append(mipam.myIPs, myIP.String()+mipam.masks[i])
+	} else {
+		mipam.myIPs[i] = myIP.String() + mipam.masks[i]
+	}
 	return nil
 }
 
 func (mipam *multipIpam) getAddrs(excludeIP4, excludeIP6 *ippool.IPPool) (connInfo *connectionInfo, err error) {
-	connInfo = &connectionInfo{connections: []*ipConnections{}}
+	var dstAddr, srcAddr net.IP
+
 	for i := 0; i < len(mipam.prefixes); i++ {
 		// The NSE needs only one src address
+		srcSet := false
 		if i >= len(mipam.myIPs) {
 			err = mipam.setMyIP(i)
 			if err != nil {
-				return nil, err
-			}
-		} else if excludeIP4.ContainsString(mipam.myIPs[i]) || excludeIP6.ContainsString(mipam.myIPs[i]) {
-			err = mipam.setMyIP(i)
-			if err != nil {
-				return nil, err
+				continue
 			}
 		}
-		var dstAddr net.IP
+
 		for {
-			if dstAddr, err = mipam.ipPools[i].Pull(); err != nil {
-				return nil, err
+			myIP, _, _ := net.ParseCIDR(mipam.myIPs[i])
+			if !excludeIP4.ContainsString(myIP.String()) && !excludeIP6.ContainsString(myIP.String()) {
+				srcAddr = myIP
+				srcSet = true
+				break
 			}
-			if !excludeIP4.ContainsString(dstAddr.String()) && !excludeIP6.ContainsString(dstAddr.String()) {
+			err = mipam.setMyIP(i)
+			if err != nil {
 				break
 			}
 		}
-		if dstAddr != nil {
-			connInfo.connections = append(connInfo.connections, &ipConnections{
-				ipPool:  mipam.ipPools[i],
-				dstAddr: dstAddr.String() + mipam.masks[i],
-			})
+		for {
+			if dstAddr, err = mipam.ipPools[i].Pull(); err != nil {
+				break
+			}
+			if !excludeIP4.ContainsString(dstAddr.String()) && !excludeIP6.ContainsString(dstAddr.String()) {
+				if srcSet {
+					return &connectionInfo{
+						ipPool:  mipam.ipPools[i],
+						srcAddr: srcAddr.String() + mipam.masks[i],
+						dstAddr: dstAddr.String() + mipam.masks[i],
+					}, nil
+				}
+			}
 		}
 	}
-	return connInfo, nil
+	return nil, err
 }
 
-type keyType struct{}
-
-func storeConnInfo(ctx context.Context, connInfo *connectionInfo) {
-	metadata.Map(ctx, false).Store(keyType{}, connInfo)
-}
-
-func loadConnInfo(ctx context.Context) (*connectionInfo, bool) {
-	if raw, ok := metadata.Map(ctx, false).Load(keyType{}); ok {
-		return raw.(*connectionInfo), true
-	}
-	return nil, false
-}
+//
+// common with point2point
+// ------------------------
 
 func exclude(prefixes ...string) (ipv4exclude, ipv6exclude *ippool.IPPool) {
 	ipv4exclude = ippool.New(net.IPv4len)
@@ -247,4 +235,21 @@ func exclude(prefixes ...string) (ipv4exclude, ipv6exclude *ippool.IPPool) {
 		ipv6exclude.AddNetString(prefix)
 	}
 	return
+}
+func deleteAddr(addrs *[]string, addr string) {
+	for i, a := range *addrs {
+		if a == addr {
+			*addrs = append((*addrs)[:i], (*addrs)[i+1:]...)
+			return
+		}
+	}
+}
+
+func addAddr(addrs *[]string, addr string) {
+	for _, a := range *addrs {
+		if a == addr {
+			return
+		}
+	}
+	*addrs = append(*addrs, addr)
 }
