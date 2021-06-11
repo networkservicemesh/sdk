@@ -143,6 +143,7 @@ func (n *Node) NewClient(
 		ctx,
 		n.NSMgr.URL,
 		client.WithDialOptions(DefaultDialOptions(generatorFunc)...),
+		client.WithDialTimeout(DialTimeout),
 		client.WithAuthorizeClient(authorize.NewClient(authorize.Any())),
 		client.WithAdditionalFunctionality(additionalFunctionality...),
 	)
