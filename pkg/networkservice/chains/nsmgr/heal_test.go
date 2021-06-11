@@ -383,7 +383,6 @@ func TestNSMGR_HealRemoteNSMgr(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 1, counter.UniqueRequests())
-
 	require.Equal(t, 8, len(conn.Path.PathSegments))
 
 	nsmgrCtxCancel()
@@ -407,7 +406,6 @@ func TestNSMGR_HealRemoteNSMgr(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, e)
 	require.Equal(t, 2, counter.UniqueRequests())
-
 	require.Equal(t, 2, counter.UniqueCloses())
 }
 
