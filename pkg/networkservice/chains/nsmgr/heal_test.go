@@ -394,6 +394,7 @@ func TestNSMGR_HealRemoteNSMgr(t *testing.T) {
 
 	// Wait NSMgr expired and reconnecting through the new NSMgr
 	require.Eventually(t, checkSecondRequestsReceived(counter.UniqueRequests), timeout, tick)
+
 	require.Equal(t, 2, counter.UniqueRequests())
 
 	// Check refresh
