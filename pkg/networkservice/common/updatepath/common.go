@@ -35,6 +35,9 @@ import (
 		2.3 if path has next segment available and next name is segmentName, take Id from next path segment.
 */
 func updatePath(conn *networkservice.Connection, segmentName string) (*networkservice.Connection, uint32, error) {
+	if conn == nil {
+		return nil, 0, errors.New("updatePath cannot be called with a nil conn")
+	}
 	if conn.Path == nil {
 		// If we don't have a Path, add one
 		conn.Path = &networkservice.Path{}
