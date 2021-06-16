@@ -16,7 +16,11 @@
 
 package heal
 
-import "github.com/networkservicemesh/api/pkg/api/networkservice"
+import (
+	"time"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+)
 
 // Option is an option pattern for heal server
 type Option func(healOpts *healOptions)
@@ -44,7 +48,15 @@ func WithRestoreEnabled(restoreEnabled bool) Option {
 	}
 }
 
+// WithRestoreTimeout sets restore timeout. Default `1m`.
+func WithRestoreTimeout(restoreTimeout time.Duration) Option {
+	return func(healOpts *healOptions) {
+		healOpts.restoreTimeout = restoreTimeout
+	}
+}
+
 type healOptions struct {
 	onHeal         *networkservice.NetworkServiceClient
 	restoreEnabled bool
+	restoreTimeout time.Duration
 }
