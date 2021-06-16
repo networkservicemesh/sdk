@@ -26,8 +26,9 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
@@ -48,13 +49,14 @@ type healServer struct {
 	ctx            context.Context
 	onHeal         *networkservice.NetworkServiceClient
 	restoreEnabled bool
+	restoreTimeout time.Duration
 	healContextMap ctxWrapperMap
 }
 
 // NewServer - creates a new networkservice.NetworkServiceServer chain element that implements the healing algorithm
 func NewServer(ctx context.Context, opts ...Option) networkservice.NetworkServiceServer {
 	healOpts := &healOptions{
-		restoreEnabled: true,
+		restoreTimeout: time.Minute,
 	}
 	for _, opt := range opts {
 		opt(healOpts)
@@ -64,6 +66,7 @@ func NewServer(ctx context.Context, opts ...Option) networkservice.NetworkServic
 		ctx:            ctx,
 		onHeal:         healOpts.onHeal,
 		restoreEnabled: healOpts.restoreEnabled,
+		restoreTimeout: healOpts.restoreTimeout,
 	}
 
 	if rv.onHeal == nil {
@@ -74,10 +77,7 @@ func NewServer(ctx context.Context, opts ...Option) networkservice.NetworkServic
 }
 
 func (f *healServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	ctx = withRequestHealConnectionFunc(ctx, f.handleHealConnectionRequest)
-	if f.restoreEnabled {
-		ctx = withRequestRestoreConnectionFunc(ctx, f.handleRestoreConnectionRequest)
-	}
+	ctx = f.withHandlers(ctx)
 
 	conn, err := next.Server(ctx).Request(ctx, request)
 	if err != nil {
@@ -101,6 +101,17 @@ func (f *healServer) Request(ctx context.Context, request *networkservice.Networ
 	}
 
 	return conn, nil
+}
+
+func (f *healServer) withHandlers(ctx context.Context) context.Context {
+	ctx = withRequestHealConnectionFunc(ctx, f.handleHealConnectionRequest)
+
+	restoreConnectionHandler := f.handleHealConnectionRequest
+	if f.restoreEnabled {
+		restoreConnectionHandler = f.handleRestoreConnectionRequest
+	}
+
+	return withRequestRestoreConnectionFunc(ctx, restoreConnectionHandler)
 }
 
 func (f *healServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
@@ -180,7 +191,7 @@ func (f *healServer) restoreConnection(ctx context.Context, request *networkserv
 		return
 	}
 
-	deadline := clockTime.Now().Add(time.Minute)
+	deadline := clockTime.Now().Add(f.restoreTimeout)
 	if deadline.After(expireTime) {
 		deadline = expireTime
 	}
