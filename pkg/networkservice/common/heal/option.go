@@ -16,7 +16,11 @@
 
 package heal
 
-import "github.com/networkservicemesh/api/pkg/api/networkservice"
+import (
+	"time"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+)
 
 // Option is an option pattern for heal server
 type Option func(healOpts *healOptions)
@@ -35,16 +39,22 @@ func WithOnHeal(onHeal *networkservice.NetworkServiceClient) Option {
 	}
 }
 
-// WithRestoreEnabled sets is restore enabled. Default `true`.
-// IMPORTANT: restore should be disabled for the Forwarder, because it results in NSMgr doesn't understanding that
-// Request is coming from Forwarder (https://github.com/networkservicemesh/sdk/issues/970).
+// WithRestoreEnabled sets is restore enabled. Default `false`.
 func WithRestoreEnabled(restoreEnabled bool) Option {
 	return func(healOpts *healOptions) {
 		healOpts.restoreEnabled = restoreEnabled
 	}
 }
 
+// WithRestoreTimeout sets restore timeout. Default `1m`.
+func WithRestoreTimeout(restoreTimeout time.Duration) Option {
+	return func(healOpts *healOptions) {
+		healOpts.restoreTimeout = restoreTimeout
+	}
+}
+
 type healOptions struct {
 	onHeal         *networkservice.NetworkServiceClient
 	restoreEnabled bool
+	restoreTimeout time.Duration
 }
