@@ -48,7 +48,7 @@ type ctxWrapper struct {
 type healServer struct {
 	ctx            context.Context
 	onHeal         *networkservice.NetworkServiceClient
-	restoreEnabled bool
+	onRestore      OnRestore
 	restoreTimeout time.Duration
 	healContextMap ctxWrapperMap
 }
@@ -56,6 +56,7 @@ type healServer struct {
 // NewServer - creates a new networkservice.NetworkServiceServer chain element that implements the healing algorithm
 func NewServer(ctx context.Context, opts ...Option) networkservice.NetworkServiceServer {
 	healOpts := &healOptions{
+		onRestore:      OnRestoreHeal,
 		restoreTimeout: time.Minute,
 	}
 	for _, opt := range opts {
@@ -65,7 +66,7 @@ func NewServer(ctx context.Context, opts ...Option) networkservice.NetworkServic
 	rv := &healServer{
 		ctx:            ctx,
 		onHeal:         healOpts.onHeal,
-		restoreEnabled: healOpts.restoreEnabled,
+		onRestore:      healOpts.onRestore,
 		restoreTimeout: healOpts.restoreTimeout,
 	}
 
@@ -106,12 +107,18 @@ func (f *healServer) Request(ctx context.Context, request *networkservice.Networ
 func (f *healServer) withHandlers(ctx context.Context) context.Context {
 	ctx = withRequestHealConnectionFunc(ctx, f.handleHealConnectionRequest)
 
-	restoreConnectionHandler := f.handleHealConnectionRequest
-	if f.restoreEnabled {
+	var restoreConnectionHandler requestHealFuncType
+	switch f.onRestore {
+	case OnRestoreRestore:
 		restoreConnectionHandler = f.handleRestoreConnectionRequest
+	case OnRestoreHeal:
+		restoreConnectionHandler = f.handleHealConnectionRequest
+	case OnRestoreIgnore:
+		restoreConnectionHandler = func(*networkservice.Connection) {}
 	}
+	ctx = withRequestRestoreConnectionFunc(ctx, restoreConnectionHandler)
 
-	return withRequestRestoreConnectionFunc(ctx, restoreConnectionHandler)
+	return ctx
 }
 
 func (f *healServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
