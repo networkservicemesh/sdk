@@ -58,7 +58,7 @@ func (n *Node) NewForwarder(
 		clienturl.NewServer(n.NSMgr.URL),
 		heal.NewServer(ctx,
 			heal.WithOnHeal(addressof.NetworkServiceClient(adapters.NewServerToClient(ep))),
-			heal.WithRestoreEnabled(false)),
+			heal.WithOnRestore(heal.OnRestoreIgnore)),
 		connect.NewServer(ctx,
 			client.NewClientFactory(
 				client.WithName(nse.Name),
