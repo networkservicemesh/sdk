@@ -29,62 +29,111 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/checkid"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
-func TestSetIDClient_EmptyName(t *testing.T) {
-	c := setid.NewNetworkServiceEndpointRegistryClient()
+const (
+	url1 = "tcp://1.1.1.1"
+	url2 = "tcp://2.2.2.2"
+)
 
-	nse := &registry.NetworkServiceEndpoint{
-		NetworkServiceNames: []string{"ns-1", "ns-2"},
-	}
+func testEndpoints(nse *registry.NetworkServiceEndpoint) (nses [2]*registry.NetworkServiceEndpoint) {
+	nses[0] = nse.Clone()
+	nses[0].Url = url1
 
-	// 1. Register
-	reg1, err := c.Register(context.Background(), nse.Clone())
-	require.NoError(t, err)
-	require.Contains(t, reg1.Name, nse.NetworkServiceNames[0])
-	require.Contains(t, reg1.Name, nse.NetworkServiceNames[1])
+	nses[1] = nse.Clone()
+	nses[1].Url = url2
 
-	reg2, err := c.Register(context.Background(), nse.Clone())
-	require.NoError(t, err)
-	require.Contains(t, reg2.Name, nse.NetworkServiceNames[0])
-	require.Contains(t, reg2.Name, nse.NetworkServiceNames[1])
-
-	require.NotEqual(t, reg1.Name, reg2.Name)
-
-	// 2. Refresh
-	refresh, err := c.Register(context.Background(), reg1.Clone())
-	require.NoError(t, err)
-	require.Equal(t, reg1.Name, refresh.Name)
-
-	// 3. Unregister
-	_, err = c.Unregister(context.Background(), reg1.Clone())
-	require.NoError(t, err)
-
-	refresh, err = c.Register(context.Background(), reg1.Clone())
-	require.NoError(t, err)
-
-	require.NotEqual(t, reg1.Name, refresh.Name)
-	require.NotEqual(t, reg2.Name, refresh.Name)
+	return nses
 }
 
-func TestSetIDClient_NotEmptyName(t *testing.T) {
-	c := setid.NewNetworkServiceEndpointRegistryClient()
-
-	nse := &registry.NetworkServiceEndpoint{
-		Name: "nse",
+func TestSetIDClient(t *testing.T) {
+	samples := []struct {
+		name      string
+		nse       *registry.NetworkServiceEndpoint
+		nameCheck func(t *testing.T, name string)
+	}{
+		{
+			name: "Empty name",
+			nse: &registry.NetworkServiceEndpoint{
+				NetworkServiceNames: []string{"ns-1", "ns-2"},
+			},
+			nameCheck: func(t *testing.T, name string) {
+				require.Contains(t, name, "ns-1")
+				require.Contains(t, name, "ns-2")
+			},
+		},
+		{
+			name: "Empty NS names",
+			nse: &registry.NetworkServiceEndpoint{
+				Name: "nse",
+			},
+			nameCheck: func(t *testing.T, name string) {
+				require.Contains(t, name, "nse")
+			},
+		},
+		{
+			name: "All set",
+			nse: &registry.NetworkServiceEndpoint{
+				Name:                "nse",
+				NetworkServiceNames: []string{"ns-1", "ns-2"},
+			},
+			nameCheck: func(t *testing.T, name string) {
+				require.Contains(t, name, "nse")
+			},
+		},
 	}
 
-	reg1, err := c.Register(context.Background(), nse.Clone())
-	require.NoError(t, err)
-	require.Contains(t, reg1.Name, nse.Name)
+	for _, sample := range samples {
+		// nolint:scopelint
+		t.Run(sample.name, func(t *testing.T) {
+			testSetIDClient(t, sample.nse, sample.nameCheck)
+		})
+	}
+}
 
-	reg2, err := c.Register(context.Background(), nse.Clone())
-	require.NoError(t, err)
-	require.Contains(t, reg2.Name, nse.Name)
+func testSetIDClient(t *testing.T, nse *registry.NetworkServiceEndpoint, nameCheck func(t *testing.T, name string)) {
+	c := next.NewNetworkServiceEndpointRegistryClient(
+		setid.NewNetworkServiceEndpointRegistryClient(),
+		adapters.NetworkServiceEndpointServerToClient(next.NewNetworkServiceEndpointRegistryServer(
+			checkid.NewNetworkServiceEndpointRegistryServer(),
+			memory.NewNetworkServiceEndpointRegistryServer(),
+		)),
+	)
 
-	require.NotEqual(t, reg1.Name, reg2.Name)
+	nses := testEndpoints(nse)
+
+	// 1. Register
+	var regs [2]*registry.NetworkServiceEndpoint
+	var err error
+	for i := range nses {
+		regs[i], err = c.Register(context.Background(), nses[i].Clone())
+		require.NoError(t, err)
+		nameCheck(t, regs[i].Name)
+	}
+
+	require.NotEqual(t, regs[0].Name, regs[1].Name)
+
+	// 2. Refresh
+	for _, reg := range regs {
+		refresh, refreshErr := c.Register(context.Background(), reg.Clone())
+		require.NoError(t, refreshErr)
+		require.Equal(t, reg.Name, refresh.Name)
+	}
+
+	// 3. Unregister
+	_, err = c.Unregister(context.Background(), regs[0].Clone())
+	require.NoError(t, err)
+
+	refresh, err := c.Register(context.Background(), regs[0].Clone())
+	require.NoError(t, err)
+
+	require.NotEqual(t, regs[0].Name, refresh.Name)
+	require.NotEqual(t, regs[1].Name, refresh.Name)
 }
 
 func TestSetIDClient_Duplicate(t *testing.T) {
@@ -114,11 +163,78 @@ func TestSetIDClient_Error(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestSetIDClient_Restore(t *testing.T) {
+	samples := []struct {
+		name string
+		nse  *registry.NetworkServiceEndpoint
+	}{
+		{
+			name: "Empty name",
+			nse: &registry.NetworkServiceEndpoint{
+				NetworkServiceNames: []string{"ns-1", "ns-2"},
+			},
+		},
+		{
+			name: "Empty NS names",
+			nse: &registry.NetworkServiceEndpoint{
+				Name: "nse",
+			},
+		},
+		{
+			name: "All set",
+			nse: &registry.NetworkServiceEndpoint{
+				Name:                "nse",
+				NetworkServiceNames: []string{"ns-1", "ns-2"},
+			},
+		},
+	}
+
+	for _, sample := range samples {
+		// nolint:scopelint
+		t.Run(sample.name, func(t *testing.T) {
+			testSetIDClientRestore(t, sample.nse)
+		})
+	}
+}
+
+func testSetIDClientRestore(t *testing.T, nse *registry.NetworkServiceEndpoint) {
+	s := next.NewNetworkServiceEndpointRegistryServer(
+		checkid.NewNetworkServiceEndpointRegistryServer(),
+		memory.NewNetworkServiceEndpointRegistryServer(),
+	)
+
+	nses := testEndpoints(nse)
+
+	// 1. Register
+	c := next.NewNetworkServiceEndpointRegistryClient(
+		setid.NewNetworkServiceEndpointRegistryClient(),
+		adapters.NetworkServiceEndpointServerToClient(s),
+	)
+
+	var regs [2]*registry.NetworkServiceEndpoint
+	var err error
+	for i := range nses {
+		regs[i], err = c.Register(context.Background(), nses[i].Clone())
+		require.NoError(t, err)
+	}
+
+	// 2. Restore registration
+	c = next.NewNetworkServiceEndpointRegistryClient(
+		setid.NewNetworkServiceEndpointRegistryClient(),
+		adapters.NetworkServiceEndpointServerToClient(s),
+	)
+
+	var restores [2]*registry.NetworkServiceEndpoint
+	for i := range nses {
+		restores[i], err = c.Register(context.Background(), nses[i].Clone())
+		require.NoError(t, err)
+		require.Equal(t, regs[i].Name, restores[i].Name)
+	}
+}
+
 type errorClient struct {
 	count, expected int
 	err             error
-
-	registry.NetworkServiceEndpointRegistryClient
 }
 
 func (c *errorClient) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
@@ -129,6 +245,10 @@ func (c *errorClient) Register(ctx context.Context, nse *registry.NetworkService
 	}
 
 	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, nse, opts...)
+}
+
+func (c *errorClient) Find(ctx context.Context, query *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
+	return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, query, opts...)
 }
 
 func (c *errorClient) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
