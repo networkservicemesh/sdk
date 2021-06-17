@@ -1,0 +1,91 @@
+---
+name: Release
+on:
+  workflow_run:
+    types:
+      - completed
+    workflows:
+      - 'ci'
+jobs:
+  print-debug-info:
+    name: Print debug info for Release workflow
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hmarr/debug-action@v2
+  create-release:
+    name: Create release
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' && contains(github.event.workflow_run.head_branch, 'release/') }}
+    steps:
+      - name: Get tag
+        run: |
+          branch=${{github.event.workflow_run.head_branch}}
+          echo '::set-output name=tag::'${branch#release/}
+        id: get-tag-step
+      - uses: dev-drprasad/delete-tag-and-release@v0.2.0
+        with:
+          delete_release: true
+          tag_name: ${{ steps.get-tag-step.outputs.tag }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.NSM_BOT_GITHUB_TOKEN }}
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.NSM_BOT_GITHUB_TOKEN }}
+        with:
+          tag_name: refs/tags/${{ steps.get-tag-step.outputs.tag }}
+          release_name: ${{ steps.get-tag-step.outputs.tag }}
+          draft: false
+          prerelease: false
+  update-dependent-repositories:
+    strategy:
+      matrix:
+        repository:
+          - sdk-k8s
+          - sdk-vpp
+          - sdk-kernel
+          - cmd-nsmgr
+          - cmd-nsmgr-proxy
+          - cmd-registry-memory
+          - cmd-registry-proxy-dns
+          - cmd-nse-icmp-responder
+          - cmd-nse-vfio
+          - cmd-nsc-init
+    name: Update ${{ matrix.repository }}
+    needs: create-release
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' && contains(github.event.workflow_run.head_branch, 'release/') }}
+    steps:
+      - name: Get tag
+        run: |
+          branch=${{github.event.workflow_run.head_branch}}
+          echo '::set-output name=tag::'${branch#release/}
+        id: get-tag-step
+      - name: Create commit
+        run: |
+          echo "Update go.mod and go.sum to ${{ github.repository }}@${{ steps.get-tag-step.outputs.tag }}" >> /tmp/commit-message
+      - name: Checkout networkservicemesh/${{ matrix.repository }}
+        uses: actions/checkout@v2
+        with:
+          path: networkservicemesh/${{ matrix.repository }}
+          repository: networkservicemesh/${{ matrix.repository }}
+          token: ${{ secrets.NSM_BOT_GITHUB_TOKEN }}
+      - uses: actions/setup-go@v1
+        with:
+          go-version: 1.16
+      - name: Update ${{ github.repository }} locally
+        working-directory: networkservicemesh/${{ matrix.repository }}
+        run: |
+          GOPRIVATE=github.com/networkservicemesh go get -u github.com/${{ github.repository }}@${{ steps.get-tag-step.outputs.tag }}
+          go mod tidy
+          git diff
+      - name: Push update to the ${{ matrix.repository }}
+        working-directory: networkservicemesh/${{ matrix.repository }}
+        run: |
+          echo Starting to update repositotry ${{ matrix.repository }}
+          git config --global user.email "nsmbot@networkservicmesh.io"
+          git config --global user.name "NSMBot"
+          git add go.mod go.sum
+          git commit -s -F /tmp/commit-message
+          git checkout -b ${{ github.event.workflow_run.head_branch }}
+          git push -f origin ${{ github.event.workflow_run.head_branch }}
