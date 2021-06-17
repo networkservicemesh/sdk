@@ -338,10 +338,6 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	require.Error(t, err)
 	require.NoError(t, ctx.Err())
 
-	// Close
-	_, err = nsc.Close(ctx, conn)
-	require.Error(t, err)
-
 	// Endpoint unregister
 	_, err = s.domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
 	require.NoError(t, err)

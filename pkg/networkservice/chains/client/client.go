@@ -112,7 +112,9 @@ func NewClient(ctx context.Context, connectTo *url.URL, clientOpts ...Option) ne
 		adapters.NewServerToClient(
 			chain.NewNetworkServiceServer(
 				heal.NewServer(ctx,
-					heal.WithOnHeal(rv)),
+					heal.WithOnHeal(rv),
+					heal.WithOnRestore(heal.OnRestoreRestore),
+					heal.WithRestoreTimeout(time.Minute)),
 				clienturl.NewServer(connectTo),
 				connect.NewServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 					return chain.NewNetworkServiceClient(
