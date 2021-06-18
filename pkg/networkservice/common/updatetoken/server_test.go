@@ -32,10 +32,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/assert"
@@ -55,7 +55,7 @@ type updateTokenServerSuite struct {
 
 func (f *updateTokenServerSuite) SetupSuite() {
 	f.Token, f.Expires, _ = TokenGenerator(nil)
-	f.ExpiresProto, _ = ptypes.TimestampProto(f.Expires)
+	f.ExpiresProto = timestamppb.New(f.Expires)
 }
 
 func (f *updateTokenServerSuite) TestNewServer_EmptyPathInRequest() {
