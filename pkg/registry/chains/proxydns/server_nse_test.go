@@ -22,10 +22,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 
@@ -68,7 +68,7 @@ func TestInterdomainNetworkServiceEndpointRegistry(t *testing.T) {
 		SetDNSDomainName("domain2").
 		Build()
 
-	expirationTime, _ := ptypes.TimestampProto(time.Now().Add(time.Hour))
+	expirationTime := timestamppb.New(time.Now().Add(time.Hour))
 
 	reg, err := domain2.Registry.NetworkServiceEndpointRegistryServer().Register(
 		context.Background(),
@@ -132,7 +132,7 @@ func TestLocalDomain_NetworkServiceEndpointRegistry(t *testing.T) {
 		SetDNSResolver(dnsServer).
 		Build()
 
-	expirationTime, _ := ptypes.TimestampProto(time.Now().Add(time.Hour))
+	expirationTime := timestamppb.New(time.Now().Add(time.Hour))
 
 	reg, err := domain1.Registry.NetworkServiceEndpointRegistryServer().Register(
 		context.Background(),
@@ -208,7 +208,7 @@ func TestInterdomainFloatingNetworkServiceEndpointRegistry(t *testing.T) {
 		SetDNSDomainName("floating.domain").
 		Build()
 
-	expirationTime, _ := ptypes.TimestampProto(time.Now().Add(time.Hour))
+	expirationTime := timestamppb.New(time.Now().Add(time.Hour))
 
 	reg, err := domain2.Registry.NetworkServiceEndpointRegistryServer().Register(
 		context.Background(),

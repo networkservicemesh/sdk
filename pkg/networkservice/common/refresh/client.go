@@ -24,7 +24,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -132,9 +131,16 @@ func after(ctx context.Context, conn *networkservice.Connection) (time.Duration,
 		log.FromContext(ctx).Infof("expiration after %s at %s", minTimeout.String(), expireTime.UTC())
 	}
 
+<<<<<<< HEAD
 	if minTimeout == nil || *minTimeout <= 0 {
 		return 1, nil
+=======
+	nextClient := next.Client(ctx)
+	if !request.GetConnection().GetCurrentPathSegment().GetExpires().IsValid() {
+		return
+>>>>>>> Update protobuf to v1.26.0 needed for opentelemetry
 	}
+	expireTime := request.GetConnection().GetCurrentPathSegment().GetExpires().AsTime()
 
 	// A heuristic to reduce the number of redundant requests in a chain
 	// made of refreshing clients with the same expiration time: let outer
