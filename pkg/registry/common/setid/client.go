@@ -30,6 +30,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
 type setIDClient struct {
@@ -52,7 +53,7 @@ func (c *setIDClient) Register(ctx context.Context, nse *registry.NetworkService
 	}
 	nameSuffix = "-" + nameSuffix
 
-	for err = status.Error(codes.AlreadyExists, ""); err != nil && isAlreadyExistsError(err); {
+	for err = status.Error(codes.AlreadyExists, ""); grpcutils.UnwrapCode(err) == codes.AlreadyExists; {
 		name := uuid.New().String() + nameSuffix
 
 		nse.Name = name
@@ -62,11 +63,6 @@ func (c *setIDClient) Register(ctx context.Context, nse *registry.NetworkService
 	}
 
 	return reg, err
-}
-
-func isAlreadyExistsError(e error) bool {
-	grpcStatus, ok := status.FromError(e)
-	return ok && grpcStatus.Code() == codes.AlreadyExists
 }
 
 func (c *setIDClient) Find(ctx context.Context, query *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
