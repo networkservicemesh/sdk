@@ -24,7 +24,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -221,10 +220,10 @@ func (f *healServer) restoreConnection(
 
 	// Make sure we have a valid expireTime to work with
 	expires := request.GetConnection().GetNextPathSegment().GetExpires()
-	expireTime, err := ptypes.Timestamp(expires)
-	if err != nil {
+	if !expires.IsValid() {
 		return
 	}
+	expireTime := expires.AsTime()
 
 	deadline := clockTime.Now().Add(f.restoreTimeout)
 	if deadline.After(expireTime) {
