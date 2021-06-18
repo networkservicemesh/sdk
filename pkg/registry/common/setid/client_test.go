@@ -92,7 +92,7 @@ func TestSetIDClient_Duplicate(t *testing.T) {
 		setid.NewNetworkServiceEndpointRegistryClient(),
 		&errorClient{
 			expected: 3,
-			err:      status.Error(codes.AlreadyExists, ""),
+			err:      errors.Wrap(status.Error(codes.AlreadyExists, ""), "Error"),
 		},
 	)
 
