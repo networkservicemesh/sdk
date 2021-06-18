@@ -127,6 +127,8 @@ func (d *discoverCandidatesServer) Close(ctx context.Context, conn *networkservi
 }
 
 func (d *discoverCandidatesServer) discoverNetworkServiceEndpoint(ctx context.Context, nseName string) (*registry.NetworkServiceEndpoint, error) {
+	clockTime := clock.FromContext(ctx)
+
 	query := &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 			Name: nseName,
@@ -147,7 +149,17 @@ func (d *discoverCandidatesServer) discoverNetworkServiceEndpoint(ctx context.Co
 
 	query.Watch = true
 
-	nseStream, err = d.nseClient.Find(ctx, query)
+	findTimeout := 100 * time.Millisecond
+	if deadline, ok := ctx.Deadline(); ok {
+		if ctxTimeout := clockTime.Until(deadline) / 10; ctxTimeout > findTimeout {
+			findTimeout = ctxTimeout
+		}
+	}
+
+	findCtx, cancelFind := clock.FromContext(ctx).WithTimeout(ctx, findTimeout)
+	defer cancelFind()
+
+	nseStream, err = d.nseClient.Find(findCtx, query)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
