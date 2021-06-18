@@ -474,6 +474,9 @@ func TestMatchExactService(t *testing.T) {
 func TestMatchExactEndpoint(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
 	nseServer := memory.NewNetworkServiceEndpointRegistryServer()
 
 	nseName := "final-endpoint"
@@ -497,9 +500,6 @@ func TestMatchExactEndpoint(t *testing.T) {
 	require.NoError(t, err)
 
 	// 2. Try to discover NSE by the right name
-	ctx, cancel := context.WithTimeout(context.Background(), testWait)
-	defer cancel()
-
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			NetworkServiceEndpointName: nseName,
@@ -517,9 +517,6 @@ func TestMatchExactEndpoint(t *testing.T) {
 	require.NoError(t, err)
 
 	// 4. Try to discover NSE by the right name
-	ctx, cancel = context.WithTimeout(context.Background(), testWait)
-	defer cancel()
-
 	_, err = server.Request(ctx, request.Clone())
 	require.NoError(t, err)
 }
