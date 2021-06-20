@@ -25,7 +25,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -83,10 +82,10 @@ func (t *refreshClient) startTimer(ctx context.Context, connectionID string, req
 	clockTime := clock.FromContext(ctx)
 
 	nextClient := next.Client(ctx)
-	expireTime, err := ptypes.Timestamp(request.GetConnection().GetCurrentPathSegment().GetExpires())
-	if err != nil {
+	if !request.GetConnection().GetCurrentPathSegment().GetExpires().IsValid() {
 		return
 	}
+	expireTime := request.GetConnection().GetCurrentPathSegment().GetExpires().AsTime()
 
 	// A heuristic to reduce the number of redundant requests in a chain
 	// made of refreshing clients with the same expiration time: let outer

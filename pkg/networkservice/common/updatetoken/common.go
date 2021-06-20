@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2021 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -19,9 +19,8 @@ package updatetoken
 import (
 	"context"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/credentials"
@@ -51,15 +50,8 @@ func updateToken(ctx context.Context, conn *networkservice.Connection, tokenGene
 		return errors.WithStack(err)
 	}
 
-	// Convert the expireTime to proto
-	var expires *timestamp.Timestamp
-	expires, err = ptypes.TimestampProto(expireTime)
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
 	// Update the PathSegment
 	path.GetPathSegments()[path.GetIndex()].Token = tok
-	path.GetPathSegments()[path.GetIndex()].Expires = expires
+	path.GetPathSegments()[path.GetIndex()].Expires = timestamppb.New(expireTime)
 	return nil
 }

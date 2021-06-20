@@ -45,8 +45,8 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	"github.com/networkservicemesh/sdk/pkg/tools/opentracing"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
+	"github.com/networkservicemesh/sdk/pkg/tools/tracing"
 )
 
 // Builder implements builder pattern for building NSM Domain
@@ -375,7 +375,7 @@ func (b *Builder) newNSMgr(ctx context.Context, address string, registryURL *url
 }
 
 func serve(ctx context.Context, u *url.URL, register func(server *grpc.Server)) {
-	server := grpc.NewServer(opentracing.WithTracing()...)
+	server := grpc.NewServer(tracing.WithTracing()...)
 	register(server)
 	errCh := grpcutils.ListenAndServe(ctx, u, server)
 	go func() {

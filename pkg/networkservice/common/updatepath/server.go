@@ -23,12 +23,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/golang/protobuf/ptypes/timestamp"
-	"github.com/pkg/errors"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
@@ -66,13 +63,7 @@ func (i *updatePathServer) Request(ctx context.Context, request *networkservice.
 		if err != nil {
 			log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", err)
 		} else {
-			var expires *timestamp.Timestamp
-			expires, err = ptypes.TimestampProto(expireTime.Local())
-			if err != nil {
-				return nil, errors.WithStack(err)
-			}
-
-			prev.Expires = expires
+			prev.Expires = timestamppb.New(expireTime.Local())
 			prev.Token = tok
 		}
 	}

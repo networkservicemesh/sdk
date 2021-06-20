@@ -19,6 +19,7 @@ package log
 
 import (
 	"context"
+	"os"
 )
 
 type contextKeyType string
@@ -26,7 +27,32 @@ type contextKeyType string
 const (
 	logKey       contextKeyType = "Logger"
 	logFieldsKey contextKeyType = "LoggerFields"
+
+	telemetryEnv  = "TELEMETRY"
+	telemetryOT   = "opentracing"
+	telemetryOTel = "opentelemetry"
+
+	// Opentracing enabled by default
+	telemetryDefault = telemetryOT
 )
+
+// IsOpentracingEnabled returns true if opentracing enabled
+func IsOpentracingEnabled() bool {
+	return telemetryOT == getTelemetryEnv()
+}
+
+// IsOpentelemetryEnabled returns true if opentelemetry enabled
+func IsOpentelemetryEnabled() bool {
+	return telemetryOTel == getTelemetryEnv()
+}
+
+func getTelemetryEnv() string {
+	val := os.Getenv(telemetryEnv)
+	if val == "" {
+		return telemetryDefault
+	}
+	return val
+}
 
 var (
 	isTracingEnabled = false

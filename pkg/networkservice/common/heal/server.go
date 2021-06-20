@@ -24,7 +24,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 
@@ -193,10 +192,10 @@ func (f *healServer) restoreConnection(ctx context.Context, request *networkserv
 
 	// Make sure we have a valid expireTime to work with
 	expires := request.GetConnection().GetNextPathSegment().GetExpires()
-	expireTime, err := ptypes.Timestamp(expires)
-	if err != nil {
+	if !expires.IsValid() {
 		return
 	}
+	expireTime := expires.AsTime()
 
 	deadline := clockTime.Now().Add(f.restoreTimeout)
 	if deadline.After(expireTime) {
@@ -206,7 +205,7 @@ func (f *healServer) restoreConnection(ctx context.Context, request *networkserv
 	defer requestCancel()
 
 	for requestCtx.Err() == nil {
-		if _, err = (*f.onHeal).Request(requestCtx, request.Clone(), opts...); err == nil {
+		if _, err := (*f.onHeal).Request(requestCtx, request.Clone(), opts...); err == nil {
 			return
 		}
 	}

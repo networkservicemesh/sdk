@@ -25,8 +25,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/opentracing"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
+	"github.com/networkservicemesh/sdk/pkg/tools/tracing"
 )
 
 const (
@@ -96,5 +96,5 @@ func DefaultDialOptions(genTokenFunc token.GeneratorFunc) []grpc.DialOption {
 		grpcfd.WithChainUnaryInterceptor(),
 		WithInsecureRPCCredentials(),
 		WithInsecureStreamRPCCredentials(),
-	}, opentracing.WithTracingDial()...)
+	}, tracing.WithTracingDial()...)
 }

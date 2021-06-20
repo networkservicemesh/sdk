@@ -24,37 +24,13 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/config"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
-
-const (
-	opentracingEnv     = "TRACER_ENABLED"
-	opentracingDefault = true
-)
-
-// IsOpentracingEnabled returns true if opentracing enabled
-func IsOpentracingEnabled() bool {
-	val, err := readEnvBool(opentracingEnv, opentracingDefault)
-	if err == nil {
-		return val
-	}
-	return opentracingDefault
-}
-
-func readEnvBool(env string, value bool) (bool, error) {
-	str := os.Getenv(env)
-	if str == "" {
-		return value, nil
-	}
-
-	return strconv.ParseBool(str)
-}
 
 type emptyCloser struct {
 }
@@ -66,7 +42,7 @@ func (*emptyCloser) Close() error {
 
 // InitJaeger -  returns an instance of Jaeger Tracer that samples 100% of traces and logs all spans to stdout.
 func InitJaeger(ctx context.Context, service string) io.Closer {
-	if !IsOpentracingEnabled() {
+	if !log.IsOpentracingEnabled() {
 		return &emptyCloser{}
 	}
 	if opentracing.IsGlobalTracerRegistered() {

@@ -43,6 +43,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interpose"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/metrics"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/roundrobin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry"
@@ -191,6 +192,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			roundrobin.NewServer(),
 			excludedprefixes.NewServer(ctx),
 			recvfd.NewServer(), // Receive any files passed
+			metrics.NewServer(),
 			interpose.NewServer(&interposeRegistryServer),
 			filtermechanisms.NewServer(&urlsRegistryServer),
 			heal.NewServer(ctx,
