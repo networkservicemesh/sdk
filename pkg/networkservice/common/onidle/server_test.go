@@ -35,7 +35,7 @@ import (
 )
 
 const (
-	testWait = 150 * time.Millisecond
+	testWait = 250 * time.Millisecond
 	testTick = 10 * time.Millisecond
 )
 
