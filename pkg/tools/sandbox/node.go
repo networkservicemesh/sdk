@@ -48,6 +48,13 @@ type Node struct {
 	NSMgr *NSMgrEntry
 }
 
+// URL returns node NSMgr URL
+func (n *Node) URL() *url.URL {
+	u := new(url.URL)
+	*u = *n.NSMgr.URL
+	return u
+}
+
 // NewNSMgr creates a new NSMgr
 func (n *Node) NewNSMgr(
 	ctx context.Context,
@@ -108,7 +115,7 @@ func (n *Node) NewForwarder(
 
 	entry := new(EndpointEntry)
 	additionalFunctionality = append(additionalFunctionality,
-		clienturl.NewServer(n.NSMgr.URL),
+		clienturl.NewServer(n.URL()),
 		heal.NewServer(ctx,
 			heal.WithOnHeal(addressof.NetworkServiceClient(adapters.NewServerToClient(entry))),
 			heal.WithOnRestore(heal.OnRestoreIgnore)),
@@ -128,7 +135,7 @@ func (n *Node) NewForwarder(
 		ctx,
 		nse,
 		generatorFunc,
-		registryclient.NewNetworkServiceEndpointRegistryInterposeClient(ctx, n.NSMgr.URL,
+		registryclient.NewNetworkServiceEndpointRegistryInterposeClient(ctx, n.URL(),
 			registryclient.WithDialOptions(dialOptions...)),
 		additionalFunctionality...,
 	)
@@ -151,7 +158,7 @@ func (n *Node) NewEndpoint(
 		ctx,
 		nse,
 		generatorFunc,
-		registryclient.NewNetworkServiceEndpointRegistryClient(ctx, n.NSMgr.URL,
+		registryclient.NewNetworkServiceEndpointRegistryClient(ctx, n.URL(),
 			registryclient.WithDialOptions(DefaultDialOptions(generatorFunc)...)),
 		additionalFunctionality...,
 	)
@@ -200,7 +207,7 @@ func (n *Node) NewClient(
 ) networkservice.NetworkServiceClient {
 	return client.NewClient(
 		ctx,
-		n.NSMgr.URL,
+		n.URL(),
 		client.WithDialOptions(DefaultDialOptions(generatorFunc)...),
 		client.WithDialTimeout(DialTimeout),
 		client.WithAuthorizeClient(authorize.NewClient(authorize.Any())),

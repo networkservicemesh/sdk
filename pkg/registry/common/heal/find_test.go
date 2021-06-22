@@ -55,7 +55,7 @@ func TestHealClient_FindTest(t *testing.T) {
 	// 1. Create NS, NSE find clients
 	findCtx, findCancel := context.WithCancel(ctx)
 
-	nsRegistryClient := registryclient.NewNetworkServiceRegistryClient(ctx, domain.Nodes[0].NSMgr.URL,
+	nsRegistryClient := registryclient.NewNetworkServiceRegistryClient(ctx, domain.Nodes[0].URL(),
 		registryclient.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...))
 
 	nsStream, err := nsRegistryClient.Find(findCtx, &registry.NetworkServiceQuery{
@@ -64,7 +64,7 @@ func TestHealClient_FindTest(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx, domain.Nodes[0].NSMgr.URL,
+	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx, domain.Nodes[0].URL(),
 		registryclient.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...))
 
 	nseStream, err := nseRegistryClient.Find(findCtx, &registry.NetworkServiceEndpointQuery{

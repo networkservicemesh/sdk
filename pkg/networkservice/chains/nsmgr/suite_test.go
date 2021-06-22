@@ -161,7 +161,7 @@ func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 	})
 	require.NoError(t, err)
 
-	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx, s.domain.Nodes[0].NSMgr.URL,
+	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx, s.domain.Nodes[0].URL(),
 		registryclient.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...))
 
 	nseReg, err = nseRegistryClient.Register(ctx, nseReg)
@@ -725,7 +725,7 @@ func newPassThroughEndpoint(
 
 	var additionalFunctionality []networkservice.NetworkServiceServer
 	if hasClientFunctionality {
-		additionalFunctionality = additionalFunctionalityChain(ctx, node.NSMgr.URL, name, labels)
+		additionalFunctionality = additionalFunctionalityChain(ctx, node.URL(), name, labels)
 	}
 
 	if counter != nil {
