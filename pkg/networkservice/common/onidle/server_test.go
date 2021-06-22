@@ -35,8 +35,8 @@ import (
 )
 
 const (
-	testWait = 100 * time.Millisecond
-	testTick = testWait / 100
+	testWait = 250 * time.Millisecond
+	testTick = 10 * time.Millisecond
 )
 
 func TestIdleNotifier_Disable(t *testing.T) {
