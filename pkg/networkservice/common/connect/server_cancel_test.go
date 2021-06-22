@@ -56,14 +56,16 @@ func TestConnect_CancelDuringRequest(t *testing.T) {
 		SetRegistryProxySupplier(nil).
 		Build()
 
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
 	service1Name := "my-service-endpoint"
-	_, err = domain.Nodes[0].NSRegistryClient.Register(ctx, &registry.NetworkService{
+	_, err = nsRegistryClient.Register(ctx, &registry.NetworkService{
 		Name: service1Name,
 	})
 	require.NoError(t, err)
 
 	service2Name := "my-service-with-passthrough"
-	_, err = domain.Nodes[0].NSRegistryClient.Register(ctx, &registry.NetworkService{
+	_, err = nsRegistryClient.Register(ctx, &registry.NetworkService{
 		Name: service2Name,
 	})
 	require.NoError(t, err)

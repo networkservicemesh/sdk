@@ -45,6 +45,8 @@ func TestCreateEndpointDuringRequest(t *testing.T) {
 		SetRegistryProxySupplier(nil).
 		Build()
 
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
 	nsReg := &registry.NetworkService{
 		Name: "ns-1",
 		Matches: []*registry.Match{
@@ -58,7 +60,7 @@ func TestCreateEndpointDuringRequest(t *testing.T) {
 		},
 	}
 
-	_, err := domain.Nodes[0].NSRegistryClient.Register(ctx, nsReg)
+	_, err := nsRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
 	nseReg := &registry.NetworkServiceEndpoint{

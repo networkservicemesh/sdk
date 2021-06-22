@@ -71,7 +71,9 @@ func testNSMGRHealEndpoint(t *testing.T, nodeNum int) {
 		SetRegistryProxySupplier(nil).
 		Build()
 
-	nsReg, err := domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
@@ -155,7 +157,9 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int) {
 		}).
 		Build()
 
-	nsReg, err := domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
 	counter := &counterServer{}
@@ -249,7 +253,9 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 		}).
 		Build()
 
-	nsReg, err := domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
@@ -338,7 +344,9 @@ func TestNSMGR_CloseHeal(t *testing.T) {
 		SetRegistryProxySupplier(nil).
 		Build()
 
-	nsReg, err := domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
 	nseCtx, nseCtxCancel := context.WithCancel(ctx)

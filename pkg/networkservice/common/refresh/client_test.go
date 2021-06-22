@@ -237,11 +237,13 @@ func TestRefreshClient_Sandbox(t *testing.T) {
 		SetTokenGenerateFunc(sandbox.GenerateTestToken).
 		Build()
 
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
 	nsReg := &registry.NetworkService{
 		Name: "my-service-remote",
 	}
 
-	_, err := domain.Nodes[0].NSRegistryClient.Register(ctx, nsReg)
+	_, err := nsRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
 	nseReg := &registry.NetworkServiceEndpoint{

@@ -64,11 +64,13 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 		SetDNSResolver(dnsServer).
 		Build()
 
+	nsRegistryClient := cluster2.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
 	nsReg := &registry.NetworkService{
 		Name: "my-service-interdomain",
 	}
 
-	_, err := cluster2.Nodes[0].NSRegistryClient.Register(ctx, nsReg)
+	_, err := nsRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
 	nseReg := &registry.NetworkServiceEndpoint{
@@ -136,12 +138,14 @@ func TestNSMGR_Interdomain_TwoNodesNSEs(t *testing.T) {
 		SetDNSResolver(dnsServer).
 		Build()
 
-	_, err := cluster2.Nodes[0].NSRegistryClient.Register(ctx, &registry.NetworkService{
+	nsRegistryClient := cluster2.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	_, err := nsRegistryClient.Register(ctx, &registry.NetworkService{
 		Name: "my-service-interdomain-1",
 	})
 	require.NoError(t, err)
 
-	_, err = cluster2.Nodes[1].NSRegistryClient.Register(ctx, &registry.NetworkService{
+	_, err = nsRegistryClient.Register(ctx, &registry.NetworkService{
 		Name: "my-service-interdomain-2",
 	})
 	require.NoError(t, err)
@@ -246,11 +250,13 @@ func TestNSMGR_FloatingInterdomainUseCase(t *testing.T) {
 		SetRegistryProxySupplier(nil).
 		Build()
 
+	nsRegistryClient := cluster2.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
 	nsReg := &registry.NetworkService{
 		Name: "my-service-interdomain@" + floating.Name,
 	}
 
-	_, err := cluster2.Nodes[0].NSRegistryClient.Register(ctx, nsReg)
+	_, err := nsRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
 	nseReg := &registry.NetworkServiceEndpoint{
@@ -337,11 +343,13 @@ func TestNSMGR_FloatingInterdomain_FourClusters(t *testing.T) {
 
 	// register first ednpoint
 
+	nsRegistryClient := cluster2.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
 	nsReg1 := &registry.NetworkService{
 		Name: "my-service-interdomain-1@" + floating.Name,
 	}
 
-	_, err := cluster2.Nodes[0].NSRegistryClient.Register(ctx, nsReg1)
+	_, err := nsRegistryClient.Register(ctx, nsReg1)
 	require.NoError(t, err)
 
 	nseReg1 := &registry.NetworkServiceEndpoint{
@@ -357,7 +365,9 @@ func TestNSMGR_FloatingInterdomain_FourClusters(t *testing.T) {
 
 	// register second ednpoint
 
-	_, err = cluster3.Nodes[0].NSRegistryClient.Register(ctx, nsReg2)
+	nsRegistryClient = cluster3.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	_, err = nsRegistryClient.Register(ctx, nsReg2)
 	require.NoError(t, err)
 
 	nseReg2 := &registry.NetworkServiceEndpoint{
@@ -491,7 +501,9 @@ func Test_Interdomain_PassThroughUsecase(t *testing.T) {
 			}
 		}
 
-		nsReg, err := clusters[i].Nodes[0].NSRegistryClient.Register(ctx, &registry.NetworkService{
+		nsRegistryClient := clusters[i].NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+		nsReg, err := nsRegistryClient.Register(ctx, &registry.NetworkService{
 			Name: fmt.Sprintf("my-service-remote-%v", i),
 		})
 		require.NoError(t, err)

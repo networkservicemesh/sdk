@@ -45,10 +45,7 @@ type Node struct {
 	t      *testing.T
 	domain *Domain
 
-	NSMgr                   *NSMgrEntry
-	ForwarderRegistryClient registryapi.NetworkServiceEndpointRegistryClient
-	EndpointRegistryClient  registryapi.NetworkServiceEndpointRegistryClient
-	NSRegistryClient        registryapi.NetworkServiceRegistryClient
+	NSMgr *NSMgrEntry
 }
 
 // NewNSMgr creates a new NSMgr
@@ -91,15 +88,6 @@ func (n *Node) NewNSMgr(
 
 	log.FromContext(ctx).Debugf("%s: NSMgr %s on %v", n.domain.Name, name, serveURL)
 
-	if n.NSMgr == nil || n.NSMgr.URL.String() != serveURL.String() {
-		n.ForwarderRegistryClient = registryclient.NewNetworkServiceEndpointRegistryInterposeClient(ctx, serveURL,
-			registryclient.WithDialOptions(dialOptions...))
-		n.EndpointRegistryClient = registryclient.NewNetworkServiceEndpointRegistryClient(ctx, serveURL,
-			registryclient.WithDialOptions(dialOptions...))
-		n.NSRegistryClient = registryclient.NewNetworkServiceRegistryClient(ctx, serveURL,
-			registryclient.WithDialOptions(dialOptions...))
-	}
-
 	n.NSMgr = entry
 
 	return entry
@@ -116,6 +104,8 @@ func (n *Node) NewForwarder(
 		nse.Url = n.domain.supplyURL("forwarder").String()
 	}
 
+	dialOptions := DefaultDialOptions(generatorFunc)
+
 	entry := new(EndpointEntry)
 	additionalFunctionality = append(additionalFunctionality,
 		clienturl.NewServer(n.NSMgr.URL),
@@ -130,11 +120,18 @@ func (n *Node) NewForwarder(
 				),
 			),
 			connect.WithDialTimeout(DialTimeout),
-			connect.WithDialOptions(DefaultDialOptions(generatorFunc)...),
+			connect.WithDialOptions(dialOptions...),
 		),
 	)
 
-	*entry = *n.newEndpoint(ctx, nse, generatorFunc, n.ForwarderRegistryClient, additionalFunctionality...)
+	*entry = *n.newEndpoint(
+		ctx,
+		nse,
+		generatorFunc,
+		registryclient.NewNetworkServiceEndpointRegistryInterposeClient(ctx, n.NSMgr.URL,
+			registryclient.WithDialOptions(dialOptions...)),
+		additionalFunctionality...,
+	)
 
 	return entry
 }
@@ -150,7 +147,14 @@ func (n *Node) NewEndpoint(
 		nse.Url = n.domain.supplyURL("nse").String()
 	}
 
-	return n.newEndpoint(ctx, nse, generatorFunc, n.EndpointRegistryClient, additionalFunctionality...)
+	return n.newEndpoint(
+		ctx,
+		nse,
+		generatorFunc,
+		registryclient.NewNetworkServiceEndpointRegistryClient(ctx, n.NSMgr.URL,
+			registryclient.WithDialOptions(DefaultDialOptions(generatorFunc)...)),
+		additionalFunctionality...,
+	)
 }
 
 func (n *Node) newEndpoint(
@@ -161,7 +165,7 @@ func (n *Node) newEndpoint(
 	additionalFunctionality ...networkservice.NetworkServiceServer,
 ) *EndpointEntry {
 	name := nse.Name
-	entry := endpoint.NewServer(ctx, generatorFunc,
+	ep := endpoint.NewServer(ctx, generatorFunc,
 		endpoint.WithName(name),
 		endpoint.WithAdditionalFunctionality(additionalFunctionality...),
 	)
@@ -169,7 +173,7 @@ func (n *Node) newEndpoint(
 	serveURL, err := url.Parse(nse.Url)
 	require.NoError(n.t, err)
 
-	serve(ctx, n.t, serveURL, entry.Register)
+	serve(ctx, n.t, serveURL, ep.Register)
 
 	reg, err := registryClient.Register(ctx, nse)
 	require.NoError(n.t, err)
@@ -181,9 +185,10 @@ func (n *Node) newEndpoint(
 	log.FromContext(ctx).Debugf("%s: endpoint %s on %v", n.domain.Name, nse.Name, serveURL)
 
 	return &EndpointEntry{
-		Endpoint: entry,
-		Name:     name,
-		URL:      serveURL,
+		Name:                                 name,
+		URL:                                  serveURL,
+		Endpoint:                             ep,
+		NetworkServiceEndpointRegistryClient: registryClient,
 	}
 }
 

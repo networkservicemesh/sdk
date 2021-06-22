@@ -21,12 +21,14 @@ import (
 	"net/url"
 	"time"
 
+	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgrproxy"
 	"github.com/networkservicemesh/sdk/pkg/registry"
+	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
@@ -48,22 +50,26 @@ type SetupNodeFunc func(ctx context.Context, node *Node, nodeNum int)
 
 // RegistryEntry is pair of registry.Registry and url.URL
 type RegistryEntry struct {
-	registry.Registry
 	URL *url.URL
+
+	registry.Registry
 }
 
 // NSMgrEntry is pair of nsmgr.Nsmgr and url.URL
 type NSMgrEntry struct {
-	nsmgr.Nsmgr
 	Name string
 	URL  *url.URL
+
+	nsmgr.Nsmgr
 }
 
 // EndpointEntry is pair of endpoint.Endpoint and url.URL
 type EndpointEntry struct {
-	endpoint.Endpoint
 	Name string
 	URL  *url.URL
+
+	endpoint.Endpoint
+	registryapi.NetworkServiceEndpointRegistryClient
 }
 
 // Domain contains attached to domain nodes, registry
@@ -77,4 +83,20 @@ type Domain struct {
 	Name        string
 
 	supplyURL func(prefix string) *url.URL
+}
+
+// NewNSRegistryClient creates new NS registry client for the domain
+func (d *Domain) NewNSRegistryClient(ctx context.Context, generatorFunc token.GeneratorFunc) registryapi.NetworkServiceRegistryClient {
+	var registryURL *url.URL
+	switch {
+	case d.Registry != nil:
+		registryURL = d.Registry.URL
+	case len(d.Nodes) != 0:
+		registryURL = d.Nodes[0].NSMgr.URL
+	default:
+		return nil
+	}
+
+	return registryclient.NewNetworkServiceRegistryClient(ctx, registryURL,
+		registryclient.WithDialOptions(DefaultDialOptions(generatorFunc)...))
 }
