@@ -31,6 +31,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
 	"github.com/networkservicemesh/sdk/pkg/tools/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
@@ -42,19 +43,20 @@ func Test_DNSUsecase(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	domain := sandbox.NewBuilder(t).
+	domain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
 		SetNSMgrProxySupplier(nil).
 		SetRegistryProxySupplier(nil).
-		SetContext(ctx).
 		Build()
 
-	nsReg, err := domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 
-	_, err = domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, dnscontext.NewServer(
+	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, dnscontext.NewServer(
 		&networkservice.DNSConfig{
 			DnsServerIps:  []string{"8.8.8.8"},
 			SearchDomains: []string{"my.domain1"},
@@ -64,7 +66,6 @@ func Test_DNSUsecase(t *testing.T) {
 			SearchDomains: []string{"my.domain1"},
 		},
 	))
-	require.NoError(t, err)
 
 	corefilePath := filepath.Join(t.TempDir(), "corefile")
 	resolveConfigPath := filepath.Join(t.TempDir(), "resolv.conf")
@@ -95,7 +96,7 @@ func Test_DNSUsecase(t *testing.T) {
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
 
-	_, err = domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
+	_, err = nse.Unregister(ctx, nseReg)
 	require.NoError(t, err)
 }
 
@@ -105,15 +106,18 @@ func Test_ShouldCorrectlyAddForwardersWithSameNames(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	domain := sandbox.NewBuilder(t).
+	domain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
 		SetRegistryProxySupplier(nil).
-		SetNodeSetup(nil).
+		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, _ int) {
+			node.NewNSMgr(ctx, "nsmgr", nil, sandbox.GenerateTestToken, nsmgr.NewServer)
+		}).
 		SetRegistryExpiryDuration(sandbox.RegistryExpiryDuration).
-		SetContext(ctx).
 		Build()
 
-	nsReg, err := domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
 	forwarderReg := &registry.NetworkServiceEndpoint{
@@ -121,39 +125,25 @@ func Test_ShouldCorrectlyAddForwardersWithSameNames(t *testing.T) {
 	}
 
 	// 1. Add forwarders
-	forwarder1Reg := forwarderReg.Clone()
-	_, err = domain.Nodes[0].NewForwarder(ctx, forwarder1Reg, sandbox.GenerateTestToken)
-	require.NoError(t, err)
-
-	forwarder2Reg := forwarderReg.Clone()
-	_, err = domain.Nodes[0].NewForwarder(ctx, forwarder2Reg, sandbox.GenerateTestToken)
-	require.NoError(t, err)
-
-	forwarder3Reg := forwarderReg.Clone()
-	_, err = domain.Nodes[0].NewForwarder(ctx, forwarder3Reg, sandbox.GenerateTestToken)
-	require.NoError(t, err)
+	var forwarderRegs [3]*registry.NetworkServiceEndpoint
+	var forwarders [3]*sandbox.EndpointEntry
+	for i := range forwarderRegs {
+		forwarderRegs[i] = forwarderReg.Clone()
+		forwarders[i] = domain.Nodes[0].NewForwarder(ctx, forwarderRegs[i], sandbox.GenerateTestToken)
+	}
 
 	// 2. Wait for refresh
 	<-time.After(sandbox.RegistryExpiryDuration)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 
-	testNSEAndClient(ctx, t, domain, nseReg.Clone())
+	// 3. Delete first forwarder, last forwarder, middle forwarder
+	for _, i := range []int{0, 2, 1} {
+		testNSEAndClient(ctx, t, domain, nseReg.Clone())
 
-	// 3. Delete first forwarder
-	_, err = domain.Nodes[0].ForwarderRegistryClient.Unregister(ctx, forwarder1Reg)
-	require.NoError(t, err)
-
-	testNSEAndClient(ctx, t, domain, nseReg.Clone())
-
-	// 4. Delete last forwarder
-	_, err = domain.Nodes[0].ForwarderRegistryClient.Unregister(ctx, forwarder3Reg)
-	require.NoError(t, err)
-
-	testNSEAndClient(ctx, t, domain, nseReg.Clone())
-
-	_, err = domain.Nodes[0].ForwarderRegistryClient.Unregister(ctx, forwarder2Reg)
-	require.NoError(t, err)
+		_, err = forwarders[i].Unregister(ctx, forwarderRegs[i])
+		require.NoError(t, err)
+	}
 }
 
 func Test_ShouldCorrectlyAddEndpointsWithSameNames(t *testing.T) {
@@ -162,26 +152,25 @@ func Test_ShouldCorrectlyAddEndpointsWithSameNames(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	domain := sandbox.NewBuilder(t).
+	domain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
 		SetRegistryProxySupplier(nil).
 		SetRegistryExpiryDuration(sandbox.RegistryExpiryDuration).
-		SetContext(ctx).
 		Build()
 
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
 	// 1. Add endpoints
-	nseRegs := make([]*registry.NetworkServiceEndpoint, 2)
+	var nseRegs [2]*registry.NetworkServiceEndpoint
+	var nses [2]*sandbox.EndpointEntry
 	for i := range nseRegs {
-		nsReg, err := domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+		nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService())
 		require.NoError(t, err)
 
 		nseRegs[i] = defaultRegistryEndpoint(nsReg.Name)
 		nseRegs[i].NetworkServiceNames[0] = nsReg.Name
 
-		_, err = domain.Nodes[0].NewEndpoint(ctx, nseRegs[i], sandbox.GenerateTestToken)
-		require.NoError(t, err)
-
-		nseRegs = append(nseRegs, nseRegs[i])
+		nses[i] = domain.Nodes[0].NewEndpoint(ctx, nseRegs[i], sandbox.GenerateTestToken)
 	}
 
 	// 2. Wait for refresh
@@ -196,8 +185,8 @@ func Test_ShouldCorrectlyAddEndpointsWithSameNames(t *testing.T) {
 	}
 
 	// 3. Delete endpoints
-	for _, nseReg := range nseRegs {
-		_, err := domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
+	for i, nseReg := range nseRegs {
+		_, err := nses[i].Unregister(ctx, nseReg)
 		require.NoError(t, err)
 	}
 }
@@ -212,24 +201,24 @@ func Test_Local_NoURLUsecase(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	domain := sandbox.NewBuilder(t).
+	domain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
 		UseUnixSockets().
-		SetContext(ctx).
 		SetNSMgrProxySupplier(nil).
 		SetRegistryProxySupplier(nil).
 		SetRegistrySupplier(nil).
 		Build()
 
-	nsReg, err := domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	request := defaultRequest(nsReg.Name)
 	counter := &counterServer{}
 
-	_, err = domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
-	require.NoError(t, err)
+	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -274,12 +263,13 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 	want := map[string]string{}
 	clientinfo.AddClientInfo(ctx, want)
 
-	domain := sandbox.NewBuilder(t).
+	domain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
 		SetRegistryProxySupplier(nil).
 		SetNSMgrProxySupplier(nil).
-		SetContext(ctx).
 		Build()
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
 	nsReg := defaultRegistryService()
 	nsReg.Matches = []*registry.Match{
@@ -294,14 +284,13 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 		},
 	}
 
-	nsReg, err = domain.Nodes[0].NSRegistryClient.Register(ctx, nsReg)
+	nsReg, err = nsRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	nseReg.NetworkServiceLabels = map[string]*registry.NetworkServiceLabels{nsReg.Name: {}}
 
-	_, err = domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
-	require.NoError(t, err)
+	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 	require.NoError(t, err)
@@ -316,6 +305,6 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 	// Test for endpoint labels setting
 	require.Equal(t, want, nseReg.NetworkServiceLabels[nsReg.Name].Labels)
 
-	_, err = domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
+	_, err = nse.Unregister(ctx, nseReg)
 	require.NoError(t, err)
 }

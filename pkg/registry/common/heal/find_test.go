@@ -26,6 +26,8 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
+	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
@@ -39,42 +41,47 @@ func TestHealClient_FindTest(t *testing.T) {
 	nsmgrCtx, nsmgrCancel := context.WithCancel(ctx)
 	defer nsmgrCancel()
 
-	nodeConfig := []*sandbox.NodeConfig{{
-		NsmgrCtx: nsmgrCtx,
-	}}
-
-	builder := sandbox.NewBuilder(t).
+	domain := sandbox.NewBuilder(ctx, t).
 		SetRegistryProxySupplier(nil).
 		SetNSMgrProxySupplier(nil).
-		SetContext(ctx).
-		SetCustomConfig(nodeConfig)
-	domain := builder.Build()
+		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, nodeNum int) {
+			node.NewNSMgr(nsmgrCtx, sandbox.UniqueName("nsmgr"), nil, sandbox.GenerateTestToken, nsmgr.NewServer)
+			node.NewForwarder(ctx, &registry.NetworkServiceEndpoint{
+				Name: sandbox.UniqueName("forwarder"),
+			}, sandbox.GenerateTestToken)
+		}).
+		Build()
 
 	// 1. Create NS, NSE find clients
 	findCtx, findCancel := context.WithCancel(ctx)
 
-	nsStream, err := domain.Nodes[0].NSRegistryClient.Find(findCtx, &registry.NetworkServiceQuery{
+	nsRegistryClient := registryclient.NewNetworkServiceRegistryClient(ctx, domain.Nodes[0].URL(),
+		registryclient.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...))
+
+	nsStream, err := nsRegistryClient.Find(findCtx, &registry.NetworkServiceQuery{
 		NetworkService: new(registry.NetworkService),
 		Watch:          true,
 	})
 	require.NoError(t, err)
 
-	nseStream, err := domain.Nodes[0].EndpointRegistryClient.Find(findCtx, &registry.NetworkServiceEndpointQuery{
+	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx, domain.Nodes[0].URL(),
+		registryclient.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...))
+
+	nseStream, err := nseRegistryClient.Find(findCtx, &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
 		Watch:                  true,
 	})
 	require.NoError(t, err)
 
 	// 2. Restart NSMgr
-	nsmgrURL := domain.Nodes[0].NSMgr.URL
+	mgr := domain.Nodes[0].NSMgr
 
 	nsmgrCancel()
 	require.Eventually(t, func() bool {
-		return grpcutils.CheckURLFree(nsmgrURL)
+		return grpcutils.CheckURLFree(mgr.URL)
 	}, time.Second, 100*time.Millisecond)
 
-	mgr, resources := builder.NewNSMgr(ctx, domain.Nodes[0], grpcutils.URLToTarget(nsmgrURL), domain.Registry.URL, sandbox.GenerateTestToken)
-	domain.AddResources(resources)
+	mgr = domain.Nodes[0].NewNSMgr(ctx, mgr.Name, mgr.URL, sandbox.GenerateTestToken, nsmgr.NewServer)
 
 	// 3. Register new NS, NSE
 	_, err = mgr.NetworkServiceRegistryServer().Register(ctx, &registry.NetworkService{

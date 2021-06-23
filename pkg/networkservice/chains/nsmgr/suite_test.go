@@ -46,6 +46,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/replacelabels"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
+	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -56,7 +57,8 @@ const (
 type nsmgrSuite struct {
 	suite.Suite
 
-	domain *sandbox.Domain
+	domain           *sandbox.Domain
+	nsRegistryClient registry.NetworkServiceRegistryClient
 }
 
 func TestNsmgr(t *testing.T) {
@@ -75,12 +77,13 @@ func (s *nsmgrSuite) SetupSuite() {
 	})
 
 	// Create default domain with nodesCount nodes, which will be enough for any test
-	s.domain = sandbox.NewBuilder(t).
+	s.domain = sandbox.NewBuilder(ctx, t).
 		SetNodesCount(nodesCount).
 		SetRegistryProxySupplier(nil).
 		SetNSMgrProxySupplier(nil).
-		SetContext(ctx).
 		Build()
+
+	s.nsRegistryClient = s.domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 }
 
 func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
@@ -89,20 +92,20 @@ func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	counter := &counterServer{}
 
 	var unregisterWG sync.WaitGroup
+	var nse *sandbox.EndpointEntry
 	unregisterWG.Add(1)
 	go func() {
 		defer unregisterWG.Done()
 
 		time.Sleep(time.Millisecond * 100)
-		_, epErr := s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
-		require.NoError(t, epErr)
+		nse = s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 	}()
 	nsc := s.domain.Nodes[1].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -131,7 +134,7 @@ func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
 
 	// Endpoint unregister
 	unregisterWG.Wait()
-	_, err = s.domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
+	_, err = nse.Unregister(ctx, nseReg)
 	require.NoError(t, err)
 }
 
@@ -141,7 +144,7 @@ func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
@@ -152,13 +155,16 @@ func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 	defer func() { _ = netListener.Close() }()
 	nseReg.Url = "tcp://" + netListener.Addr().String()
 
-	_, err = s.domain.Nodes[0].NSRegistryClient.Register(ctx, &registry.NetworkService{
+	_, err = s.nsRegistryClient.Register(ctx, &registry.NetworkService{
 		Name:    nseReg.NetworkServiceNames[0],
 		Payload: payload.IP,
 	})
 	require.NoError(t, err)
 
-	nseReg, err = s.domain.Nodes[0].EndpointRegistryClient.Register(ctx, nseReg)
+	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx, s.domain.Nodes[0].URL(),
+		registryclient.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...))
+
+	nseReg, err = nseRegistryClient.Register(ctx, nseReg)
 	require.NoError(t, err)
 
 	// 2. Postpone endpoint start
@@ -183,7 +189,7 @@ func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 	require.NoError(t, err)
 
 	// Endpoint unregister
-	_, err = s.domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
+	_, err = nseRegistryClient.Unregister(ctx, nseReg)
 	require.NoError(t, err)
 }
 
@@ -193,21 +199,21 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
 	counter := &counterServer{}
 
 	var wg sync.WaitGroup
-	var nsesReg [4]*registry.NetworkServiceEndpoint
+	var nseRegs [4]*registry.NetworkServiceEndpoint
+	var nses [4]*sandbox.EndpointEntry
 	for i := 0; i < 3; i++ {
 		wg.Add(1)
 		go func(id int) {
-			nsesReg[id] = defaultRegistryEndpoint(nsReg.Name)
-			nsesReg[id].Name += strconv.Itoa(id)
+			nseRegs[id] = defaultRegistryEndpoint(nsReg.Name)
+			nseRegs[id].Name += strconv.Itoa(id)
 
-			_, epErr := s.domain.Nodes[1].NewEndpoint(ctx, nsesReg[id], sandbox.GenerateTestToken, injecterror.NewServer())
-			require.NoError(t, epErr)
+			nses[id] = s.domain.Nodes[1].NewEndpoint(ctx, nseRegs[id], sandbox.GenerateTestToken, injecterror.NewServer())
 			wg.Done()
 		}(i)
 	}
@@ -219,11 +225,10 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 
 		wg.Wait()
 		time.Sleep(time.Second / 2)
-		nsesReg[3] = defaultRegistryEndpoint(nsReg.Name)
-		nsesReg[3].Name += strconv.Itoa(3)
+		nseRegs[3] = defaultRegistryEndpoint(nsReg.Name)
+		nseRegs[3].Name += strconv.Itoa(3)
 
-		_, epErr := s.domain.Nodes[1].NewEndpoint(ctx, nsesReg[3], sandbox.GenerateTestToken, counter)
-		require.NoError(t, epErr)
+		nses[3] = s.domain.Nodes[1].NewEndpoint(ctx, nseRegs[3], sandbox.GenerateTestToken, counter)
 	}()
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -252,8 +257,8 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 
 	// Endpoint unregister
 	unregisterWG.Wait()
-	for i := 0; i < len(nsesReg); i++ {
-		_, err = s.domain.Nodes[1].EndpointRegistryClient.Unregister(ctx, nsesReg[i])
+	for i, nseReg := range nseRegs {
+		_, err = nses[i].Unregister(ctx, nseReg)
 		require.NoError(t, err)
 	}
 }
@@ -264,14 +269,13 @@ func (s *nsmgrSuite) Test_RemoteUsecase() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	counter := &counterServer{}
 
-	_, err = s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
-	require.NoError(t, err)
+	nse := s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
 	nsc := s.domain.Nodes[1].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -299,7 +303,7 @@ func (s *nsmgrSuite) Test_RemoteUsecase() {
 	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Closes))
 
 	// Endpoint unregister
-	_, err = s.domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
+	_, err = nse.Unregister(ctx, nseReg)
 	require.NoError(t, err)
 }
 
@@ -310,14 +314,13 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	nseCtx, killNse := context.WithCancel(ctx)
 	defer cancel()
 
-	nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	counter := &counterServer{}
 
-	_, err = s.domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.GenerateTestToken, counter)
-	require.NoError(t, err)
+	s.domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.GenerateTestToken, counter)
 
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -339,7 +342,7 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	require.NoError(t, ctx.Err())
 
 	// Endpoint unregister
-	_, err = s.domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
+	_, err = s.domain.Nodes[0].NSMgr.NetworkServiceEndpointRegistryServer().Unregister(ctx, nseReg)
 	require.NoError(t, err)
 }
 
@@ -349,14 +352,13 @@ func (s *nsmgrSuite) Test_LocalUsecase() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	counter := &counterServer{}
 
-	_, err = s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
-	require.NoError(t, err)
+	nse := s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -384,7 +386,7 @@ func (s *nsmgrSuite) Test_LocalUsecase() {
 	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Closes))
 
 	// Endpoint unregister
-	_, err = s.domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
+	_, err = nse.Unregister(ctx, nseReg)
 	require.NoError(t, err)
 }
 
@@ -397,15 +399,23 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 	counterClose := &counterServer{}
 
 	nsReg := linearNS(nodesCount)
-	nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, nsReg)
+	nsReg, err := s.nsRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
-	var nsesReg []*registry.NetworkServiceEndpoint
-	for i := 0; i < nodesCount; i++ {
-		labels := map[string]string{
-			step: fmt.Sprintf("%v", i),
-		}
-		nsesReg = append(nsesReg, newPassThroughEndpoint(ctx, t, s, labels, fmt.Sprintf("%v", i), nsReg.Name, i != nodesCount-1, i, counterClose))
+	var nseRegs [nodesCount]*registry.NetworkServiceEndpoint
+	var nses [nodesCount]*sandbox.EndpointEntry
+	for i := range nseRegs {
+		nseRegs[i], nses[i] = newPassThroughEndpoint(
+			ctx,
+			s.domain.Nodes[i],
+			map[string]string{
+				step: fmt.Sprintf("%v", i),
+			},
+			fmt.Sprintf("%v", i),
+			nsReg.Name,
+			i != nodesCount-1,
+			counterClose,
+		)
 	}
 
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
@@ -420,8 +430,8 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 	// Path length to first endpoint is 5
 	// Path length from NSE client to other remote endpoint is 8
 	require.Equal(t, 8*(nodesCount-1)+5, len(conn.Path.PathSegments))
-	for i := 0; i < len(nsesReg); i++ {
-		require.Contains(t, nsesReg[i].Name, conn.Path.PathSegments[i*8+4].Name)
+	for i := 0; i < len(nseRegs); i++ {
+		require.Contains(t, nseRegs[i].Name, conn.Path.PathSegments[i*8+4].Name)
 	}
 
 	// Refresh
@@ -434,8 +444,8 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 	require.Equal(t, int32(nodesCount), atomic.LoadInt32(&counterClose.Closes))
 
 	// Endpoint unregister
-	for i := 0; i < len(nsesReg); i++ {
-		_, err = s.domain.Nodes[i].EndpointRegistryClient.Unregister(ctx, nsesReg[i])
+	for i, nseReg := range nseRegs {
+		_, err = nses[i].Unregister(ctx, nseReg)
 		require.NoError(t, err)
 	}
 }
@@ -449,17 +459,23 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 
 	counterClose := &counterServer{}
 
-	nsReg := linearNS(nsesCount)
-	nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, nsReg)
+	nsReg, err := s.nsRegistryClient.Register(ctx, linearNS(nsesCount))
 	require.NoError(t, err)
 
-	var nsesReg []*registry.NetworkServiceEndpoint
-	for i := 0; i < nsesCount; i++ {
-		labels := map[string]string{
-			step: fmt.Sprintf("%v", i),
-		}
-
-		nsesReg = append(nsesReg, newPassThroughEndpoint(ctx, t, s, labels, fmt.Sprintf("%v", i), nsReg.Name, i != nsesCount-1, 0, counterClose))
+	var nseRegs [nsesCount]*registry.NetworkServiceEndpoint
+	var nses [nsesCount]*sandbox.EndpointEntry
+	for i := range nseRegs {
+		nseRegs[i], nses[i] = newPassThroughEndpoint(
+			ctx,
+			s.domain.Nodes[0],
+			map[string]string{
+				step: fmt.Sprintf("%v", i),
+			},
+			fmt.Sprintf("%v", i),
+			nsReg.Name,
+			i != nsesCount-1,
+			counterClose,
+		)
 	}
 
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
@@ -473,8 +489,8 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 	// Path length to first endpoint is 5
 	// Path length from NSE client to other local endpoint is 5
 	require.Equal(t, 5*(nsesCount-1)+5, len(conn.Path.PathSegments))
-	for i := 0; i < len(nsesReg); i++ {
-		require.Contains(t, nsesReg[i].Name, conn.Path.PathSegments[(i+1)*5-1].Name)
+	for i := 0; i < len(nseRegs); i++ {
+		require.Contains(t, nseRegs[i].Name, conn.Path.PathSegments[(i+1)*5-1].Name)
 	}
 
 	// Refresh
@@ -487,8 +503,8 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 	require.Equal(t, int32(nsesCount), atomic.LoadInt32(&counterClose.Closes))
 
 	// Endpoint unregister
-	for i := 0; i < len(nsesReg); i++ {
-		_, err = s.domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nsesReg[i])
+	for i, nseReg := range nseRegs {
+		_, err = nses[i].Unregister(ctx, nseReg)
 		require.NoError(t, err)
 	}
 }
@@ -501,23 +517,28 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
 
 	counterClose := &counterServer{}
 
-	nsReg := multiLabelNS()
-	nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, nsReg)
+	nsReg, err := s.nsRegistryClient.Register(ctx, multiLabelNS())
 	require.NoError(t, err)
 
 	var labelAvalue, labelBvalue string
-	nsesReg := []*registry.NetworkServiceEndpoint{}
+	var nseRegs [3 * 3]*registry.NetworkServiceEndpoint
+	var nses [3 * 3]*sandbox.EndpointEntry
 	for i := 0; i < 3; i++ {
 		labelAvalue += "a"
 		for j := 0; j < 3; j++ {
 			labelBvalue += "b"
-
-			labels := map[string]string{
-				labelA: labelAvalue,
-				labelB: labelBvalue,
-			}
-
-			nsesReg = append(nsesReg, newPassThroughEndpoint(ctx, t, s, labels, labelAvalue+labelBvalue, nsReg.Name, i != 2 || j != 2, 0, counterClose))
+			nseRegs[i*3+j], nses[i*3+j] = newPassThroughEndpoint(
+				ctx,
+				s.domain.Nodes[0],
+				map[string]string{
+					labelA: labelAvalue,
+					labelB: labelBvalue,
+				},
+				labelAvalue+labelBvalue,
+				nsReg.Name,
+				i != 2 || j != 2,
+				counterClose,
+			)
 		}
 		labelBvalue = ""
 	}
@@ -547,8 +568,8 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
 	require.Equal(t, int32(len(expectedPath)), atomic.LoadInt32(&counterClose.Closes))
 
 	// Endpoint unregister
-	for i := 0; i < len(nsesReg); i++ {
-		_, err = s.domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nsesReg[i])
+	for i, nseReg := range nseRegs {
+		_, err = nses[i].Unregister(ctx, nseReg)
 		require.NoError(t, err)
 	}
 }
@@ -559,7 +580,7 @@ func (s *nsmgrSuite) Test_ShouldCleanAllClientAndEndpointGoroutines() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	nsReg, err := s.domain.Nodes[0].NSRegistryClient.Register(ctx, defaultRegistryService())
+	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
@@ -684,7 +705,14 @@ func additionalFunctionalityChain(ctx context.Context, clientURL *url.URL, clien
 	}
 }
 
-func newPassThroughEndpoint(ctx context.Context, t *testing.T, s *nsmgrSuite, labels map[string]string, name, nsRegName string, hasClientFunctionality bool, nodeIndex int, counter networkservice.NetworkServiceServer) *registry.NetworkServiceEndpoint {
+func newPassThroughEndpoint(
+	ctx context.Context,
+	node *sandbox.Node,
+	labels map[string]string,
+	name, nsRegName string,
+	hasClientFunctionality bool,
+	counter networkservice.NetworkServiceServer,
+) (*registry.NetworkServiceEndpoint, *sandbox.EndpointEntry) {
 	nseReg := &registry.NetworkServiceEndpoint{
 		Name:                fmt.Sprintf("endpoint-%v", name),
 		NetworkServiceNames: []string{nsRegName},
@@ -697,15 +725,12 @@ func newPassThroughEndpoint(ctx context.Context, t *testing.T, s *nsmgrSuite, la
 
 	var additionalFunctionality []networkservice.NetworkServiceServer
 	if hasClientFunctionality {
-		additionalFunctionality = additionalFunctionalityChain(ctx, s.domain.Nodes[nodeIndex].NSMgr.URL, name, labels)
+		additionalFunctionality = additionalFunctionalityChain(ctx, node.URL(), name, labels)
 	}
 
 	if counter != nil {
 		additionalFunctionality = append(additionalFunctionality, counter)
 	}
 
-	_, err := s.domain.Nodes[nodeIndex].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, additionalFunctionality...)
-	require.NoError(t, err)
-
-	return nseReg
+	return nseReg, node.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, additionalFunctionality...)
 }

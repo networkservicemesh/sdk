@@ -231,18 +231,19 @@ func TestRefreshClient_Sandbox(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), sandboxTotalTimeout)
 	defer cancel()
 
-	domain := sandbox.NewBuilder(t).
+	domain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(2).
-		SetContext(ctx).
 		SetRegistryProxySupplier(nil).
 		SetTokenGenerateFunc(sandbox.GenerateTestToken).
 		Build()
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
 	nsReg := &registry.NetworkService{
 		Name: "my-service-remote",
 	}
 
-	_, err := domain.Nodes[0].NSRegistryClient.Register(ctx, nsReg)
+	_, err := nsRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
 	nseReg := &registry.NetworkServiceEndpoint{
@@ -251,8 +252,7 @@ func TestRefreshClient_Sandbox(t *testing.T) {
 	}
 
 	refreshSrv := newRefreshTesterServer(t, sandboxMinDuration, sandboxExpireTimeout)
-	_, err = domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, refreshSrv)
-	require.NoError(t, err)
+	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, refreshSrv)
 
 	nscTokenGenerator := sandbox.GenerateExpiringToken(sandboxExpireTimeout)
 	nsc := domain.Nodes[1].NewClient(ctx, nscTokenGenerator)

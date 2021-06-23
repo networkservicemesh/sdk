@@ -19,18 +19,22 @@ package sandbox
 import (
 	"context"
 	"net/url"
+	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanismtranslation"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
+	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
@@ -38,12 +42,62 @@ import (
 
 // Node is a NSMgr with Forwarder, NSE registry clients
 type Node struct {
-	ctx                     context.Context
-	NSMgr                   *NSMgrEntry
-	Forwarder               []*EndpointEntry
-	ForwarderRegistryClient registryapi.NetworkServiceEndpointRegistryClient
-	EndpointRegistryClient  registryapi.NetworkServiceEndpointRegistryClient
-	NSRegistryClient        registryapi.NetworkServiceRegistryClient
+	t      *testing.T
+	domain *Domain
+
+	NSMgr *NSMgrEntry
+}
+
+// URL returns node NSMgr URL
+func (n *Node) URL() *url.URL {
+	u := new(url.URL)
+	*u = *n.NSMgr.URL
+	return u
+}
+
+// NewNSMgr creates a new NSMgr
+func (n *Node) NewNSMgr(
+	ctx context.Context,
+	name string,
+	serveURL *url.URL,
+	generatorFunc token.GeneratorFunc,
+	supplyNSMgr SupplyNSMgrFunc,
+) *NSMgrEntry {
+	if serveURL == nil {
+		serveURL = n.domain.supplyURL("nsmgr")
+	}
+
+	dialOptions := DefaultDialOptions(generatorFunc)
+
+	options := []nsmgr.Option{
+		nsmgr.WithName(name),
+		nsmgr.WithAuthorizeServer(authorize.NewServer(authorize.Any())),
+		nsmgr.WithConnectOptions(
+			connect.WithDialTimeout(DialTimeout),
+			connect.WithDialOptions(dialOptions...)),
+	}
+
+	if n.domain.Registry != nil {
+		options = append(options, nsmgr.WithRegistry(n.domain.Registry.URL, dialOptions...))
+	}
+
+	if serveURL.Scheme != "unix" {
+		options = append(options, nsmgr.WithURL(serveURL.String()))
+	}
+
+	entry := &NSMgrEntry{
+		Nsmgr: supplyNSMgr(ctx, generatorFunc, options...),
+		Name:  name,
+		URL:   serveURL,
+	}
+
+	serve(ctx, n.t, serveURL, entry.Register)
+
+	log.FromContext(ctx).Debugf("%s: NSMgr %s on %v", n.domain.Name, name, serveURL)
+
+	n.NSMgr = entry
+
+	return entry
 }
 
 // NewForwarder starts a new forwarder and registers it on the node NSMgr
@@ -52,12 +106,18 @@ func (n *Node) NewForwarder(
 	nse *registryapi.NetworkServiceEndpoint,
 	generatorFunc token.GeneratorFunc,
 	additionalFunctionality ...networkservice.NetworkServiceServer,
-) (*EndpointEntry, error) {
-	ep := new(EndpointEntry)
+) *EndpointEntry {
+	if nse.Url == "" {
+		nse.Url = n.domain.supplyURL("forwarder").String()
+	}
+
+	dialOptions := DefaultDialOptions(generatorFunc)
+
+	entry := new(EndpointEntry)
 	additionalFunctionality = append(additionalFunctionality,
-		clienturl.NewServer(n.NSMgr.URL),
+		clienturl.NewServer(n.URL()),
 		heal.NewServer(ctx,
-			heal.WithOnHeal(addressof.NetworkServiceClient(adapters.NewServerToClient(ep))),
+			heal.WithOnHeal(addressof.NetworkServiceClient(adapters.NewServerToClient(entry))),
 			heal.WithOnRestore(heal.OnRestoreIgnore)),
 		connect.NewServer(ctx,
 			client.NewClientFactory(
@@ -67,17 +127,20 @@ func (n *Node) NewForwarder(
 				),
 			),
 			connect.WithDialTimeout(DialTimeout),
-			connect.WithDialOptions(DefaultDialOptions(generatorFunc)...),
+			connect.WithDialOptions(dialOptions...),
 		),
 	)
 
-	entry, err := n.newEndpoint(ctx, nse, generatorFunc, n.ForwarderRegistryClient, additionalFunctionality...)
-	if err != nil {
-		return nil, err
-	}
-	*ep = *entry
-	n.Forwarder = append(n.Forwarder, ep)
-	return ep, nil
+	*entry = *n.newEndpoint(
+		ctx,
+		nse,
+		generatorFunc,
+		registryclient.NewNetworkServiceEndpointRegistryInterposeClient(ctx, n.URL(),
+			registryclient.WithDialOptions(dialOptions...)),
+		additionalFunctionality...,
+	)
+
+	return entry
 }
 
 // NewEndpoint starts a new endpoint and registers it on the node NSMgr
@@ -86,8 +149,19 @@ func (n *Node) NewEndpoint(
 	nse *registryapi.NetworkServiceEndpoint,
 	generatorFunc token.GeneratorFunc,
 	additionalFunctionality ...networkservice.NetworkServiceServer,
-) (*EndpointEntry, error) {
-	return n.newEndpoint(ctx, nse, generatorFunc, n.EndpointRegistryClient, additionalFunctionality...)
+) *EndpointEntry {
+	if nse.Url == "" {
+		nse.Url = n.domain.supplyURL("nse").String()
+	}
+
+	return n.newEndpoint(
+		ctx,
+		nse,
+		generatorFunc,
+		registryclient.NewNetworkServiceEndpointRegistryClient(ctx, n.URL(),
+			registryclient.WithDialOptions(DefaultDialOptions(generatorFunc)...)),
+		additionalFunctionality...,
+	)
 }
 
 func (n *Node) newEndpoint(
@@ -96,40 +170,33 @@ func (n *Node) newEndpoint(
 	generatorFunc token.GeneratorFunc,
 	registryClient registryapi.NetworkServiceEndpointRegistryClient,
 	additionalFunctionality ...networkservice.NetworkServiceServer,
-) (_ *EndpointEntry, err error) {
-	// 1. Create endpoint server
+) *EndpointEntry {
+	name := nse.Name
 	ep := endpoint.NewServer(ctx, generatorFunc,
-		endpoint.WithName(nse.Name),
+		endpoint.WithName(name),
 		endpoint.WithAdditionalFunctionality(additionalFunctionality...),
 	)
 
-	// 2. Start listening on URL
-	u := &url.URL{Scheme: "tcp", Host: "127.0.0.1:0"}
-	if nse.Url != "" {
-		u, err = url.Parse(nse.Url)
-		if err != nil {
-			return nil, err
-		}
-	}
+	serveURL, err := url.Parse(nse.Url)
+	require.NoError(n.t, err)
 
-	ctx = log.Join(ctx, log.Empty())
-	serve(ctx, u, ep.Register)
+	serve(ctx, n.t, serveURL, ep.Register)
 
-	nse.Url = u.String()
-
-	// 3. Register with the node registry client
-	var reg *registryapi.NetworkServiceEndpoint
-	if reg, err = registryClient.Register(ctx, nse); err != nil {
-		return nil, err
-	}
+	reg, err := registryClient.Register(ctx, nse)
+	require.NoError(n.t, err)
 
 	nse.Name = reg.Name
 	nse.ExpirationTime = reg.ExpirationTime
 	nse.NetworkServiceLabels = reg.NetworkServiceLabels
 
-	log.FromContext(ctx).Debugf("Started listen endpoint %s on %s.", nse.Name, u.String())
+	log.FromContext(ctx).Debugf("%s: endpoint %s on %v", n.domain.Name, nse.Name, serveURL)
 
-	return &EndpointEntry{Endpoint: ep, URL: u}, nil
+	return &EndpointEntry{
+		Name:                                 name,
+		URL:                                  serveURL,
+		Endpoint:                             ep,
+		NetworkServiceEndpointRegistryClient: registryClient,
+	}
 }
 
 // NewClient starts a new client and connects it to the node NSMgr
@@ -138,10 +205,9 @@ func (n *Node) NewClient(
 	generatorFunc token.GeneratorFunc,
 	additionalFunctionality ...networkservice.NetworkServiceClient,
 ) networkservice.NetworkServiceClient {
-	ctx = log.Join(ctx, log.Empty())
 	return client.NewClient(
 		ctx,
-		n.NSMgr.URL,
+		n.URL(),
 		client.WithDialOptions(DefaultDialOptions(generatorFunc)...),
 		client.WithDialTimeout(DialTimeout),
 		client.WithAuthorizeClient(authorize.NewClient(authorize.Any())),

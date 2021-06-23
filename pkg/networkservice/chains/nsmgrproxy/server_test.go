@@ -52,25 +52,25 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 
 	var dnsServer = new(sandbox.FakeDNSResolver)
 
-	cluster1 := sandbox.NewBuilder(t).
+	cluster1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
-		SetContext(ctx).
 		SetDNSResolver(dnsServer).
 		SetDNSDomainName("cluster1").
 		Build()
 
-	cluster2 := sandbox.NewBuilder(t).
+	cluster2 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
 		SetDNSDomainName("cluster2").
 		SetDNSResolver(dnsServer).
-		SetContext(ctx).
 		Build()
+
+	nsRegistryClient := cluster2.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
 	nsReg := &registry.NetworkService{
 		Name: "my-service-interdomain",
 	}
 
-	_, err := cluster2.Nodes[0].NSRegistryClient.Register(ctx, nsReg)
+	_, err := nsRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
 	nseReg := &registry.NetworkServiceEndpoint{
@@ -78,8 +78,7 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 		NetworkServiceNames: []string{nsReg.Name},
 	}
 
-	_, err = cluster2.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
-	require.NoError(t, err)
+	cluster2.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
 
 	nsc := cluster1.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -127,26 +126,26 @@ func TestNSMGR_Interdomain_TwoNodesNSEs(t *testing.T) {
 
 	var dnsServer = new(sandbox.FakeDNSResolver)
 
-	cluster1 := sandbox.NewBuilder(t).
+	cluster1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
-		SetContext(ctx).
 		SetDNSResolver(dnsServer).
 		SetDNSDomainName("cluster1").
 		Build()
 
-	cluster2 := sandbox.NewBuilder(t).
+	cluster2 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(2).
 		SetDNSDomainName("cluster2").
 		SetDNSResolver(dnsServer).
-		SetContext(ctx).
 		Build()
 
-	_, err := cluster2.Nodes[0].NSRegistryClient.Register(ctx, &registry.NetworkService{
+	nsRegistryClient := cluster2.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	_, err := nsRegistryClient.Register(ctx, &registry.NetworkService{
 		Name: "my-service-interdomain-1",
 	})
 	require.NoError(t, err)
 
-	_, err = cluster2.Nodes[1].NSRegistryClient.Register(ctx, &registry.NetworkService{
+	_, err = nsRegistryClient.Register(ctx, &registry.NetworkService{
 		Name: "my-service-interdomain-2",
 	})
 	require.NoError(t, err)
@@ -155,15 +154,13 @@ func TestNSMGR_Interdomain_TwoNodesNSEs(t *testing.T) {
 		Name:                "final-endpoint-1",
 		NetworkServiceNames: []string{"my-service-interdomain-1"},
 	}
-	_, err = cluster2.Nodes[0].NewEndpoint(ctx, nseReg1, sandbox.GenerateTestToken)
-	require.NoError(t, err)
+	cluster2.Nodes[0].NewEndpoint(ctx, nseReg1, sandbox.GenerateTestToken)
 
 	nseReg2 := &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint-2",
 		NetworkServiceNames: []string{"my-service-interdomain-2"},
 	}
-	_, err = cluster2.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken)
-	require.NoError(t, err)
+	cluster2.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken)
 
 	nsc := cluster1.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -233,34 +230,33 @@ func TestNSMGR_FloatingInterdomainUseCase(t *testing.T) {
 
 	var dnsServer = new(sandbox.FakeDNSResolver)
 
-	cluster1 := sandbox.NewBuilder(t).
+	cluster1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
-		SetContext(ctx).
 		SetDNSResolver(dnsServer).
 		SetDNSDomainName("cluster1").
 		Build()
 
-	cluster2 := sandbox.NewBuilder(t).
+	cluster2 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
 		SetDNSDomainName("cluster2").
 		SetDNSResolver(dnsServer).
-		SetContext(ctx).
 		Build()
 
-	floating := sandbox.NewBuilder(t).
+	floating := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(0).
 		SetDNSDomainName("floating.domain").
 		SetDNSResolver(dnsServer).
 		SetNSMgrProxySupplier(nil).
 		SetRegistryProxySupplier(nil).
-		SetContext(ctx).
 		Build()
+
+	nsRegistryClient := cluster2.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
 	nsReg := &registry.NetworkService{
 		Name: "my-service-interdomain@" + floating.Name,
 	}
 
-	_, err := cluster2.Nodes[0].NSRegistryClient.Register(ctx, nsReg)
+	_, err := nsRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
 	nseReg := &registry.NetworkServiceEndpoint{
@@ -268,8 +264,7 @@ func TestNSMGR_FloatingInterdomainUseCase(t *testing.T) {
 		NetworkServiceNames: []string{"my-service-interdomain"},
 	}
 
-	_, err = cluster2.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
-	require.NoError(t, err)
+	cluster2.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
 
 	nsc := cluster1.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -320,43 +315,41 @@ func TestNSMGR_FloatingInterdomain_FourClusters(t *testing.T) {
 
 	// setup clusters
 
-	cluster1 := sandbox.NewBuilder(t).
+	cluster1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
-		SetContext(ctx).
 		SetDNSResolver(dnsServer).
 		SetDNSDomainName("cluster1").
 		Build()
 
-	cluster2 := sandbox.NewBuilder(t).
+	cluster2 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
 		SetDNSDomainName("cluster2").
 		SetDNSResolver(dnsServer).
-		SetContext(ctx).
 		Build()
 
-	cluster3 := sandbox.NewBuilder(t).
+	cluster3 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
 		SetDNSDomainName("cluster3").
 		SetDNSResolver(dnsServer).
-		SetContext(ctx).
 		Build()
 
-	floating := sandbox.NewBuilder(t).
+	floating := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(0).
 		SetDNSDomainName("floating.domain").
 		SetDNSResolver(dnsServer).
 		SetNSMgrProxySupplier(nil).
 		SetRegistryProxySupplier(nil).
-		SetContext(ctx).
 		Build()
 
 	// register first ednpoint
+
+	nsRegistryClient := cluster2.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
 	nsReg1 := &registry.NetworkService{
 		Name: "my-service-interdomain-1@" + floating.Name,
 	}
 
-	_, err := cluster2.Nodes[0].NSRegistryClient.Register(ctx, nsReg1)
+	_, err := nsRegistryClient.Register(ctx, nsReg1)
 	require.NoError(t, err)
 
 	nseReg1 := &registry.NetworkServiceEndpoint{
@@ -364,8 +357,7 @@ func TestNSMGR_FloatingInterdomain_FourClusters(t *testing.T) {
 		NetworkServiceNames: []string{"my-service-interdomain-1"},
 	}
 
-	_, err = cluster2.Nodes[0].NewEndpoint(ctx, nseReg1, sandbox.GenerateTestToken)
-	require.NoError(t, err)
+	cluster2.Nodes[0].NewEndpoint(ctx, nseReg1, sandbox.GenerateTestToken)
 
 	nsReg2 := &registry.NetworkService{
 		Name: "my-service-interdomain-1@" + floating.Name,
@@ -373,7 +365,9 @@ func TestNSMGR_FloatingInterdomain_FourClusters(t *testing.T) {
 
 	// register second ednpoint
 
-	_, err = cluster3.Nodes[0].NSRegistryClient.Register(ctx, nsReg2)
+	nsRegistryClient = cluster3.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	_, err = nsRegistryClient.Register(ctx, nsReg2)
 	require.NoError(t, err)
 
 	nseReg2 := &registry.NetworkServiceEndpoint{
@@ -381,8 +375,7 @@ func TestNSMGR_FloatingInterdomain_FourClusters(t *testing.T) {
 		NetworkServiceNames: []string{"my-service-interdomain-2"},
 	}
 
-	_, err = cluster3.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken)
-	require.NoError(t, err)
+	cluster3.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken)
 
 	// connect to first endpoint from cluster2
 
@@ -485,9 +478,8 @@ func Test_Interdomain_PassThroughUsecase(t *testing.T) {
 	var clusters = make([]*sandbox.Domain, clusterCount)
 
 	for i := 0; i < clusterCount; i++ {
-		clusters[i] = sandbox.NewBuilder(t).
+		clusters[i] = sandbox.NewBuilder(ctx, t).
 			SetNodesCount(1).
-			SetContext(ctx).
 			SetDNSResolver(dnsServer).
 			SetDNSDomainName("cluster" + fmt.Sprint(i)).
 			Build()
@@ -496,7 +488,7 @@ func Test_Interdomain_PassThroughUsecase(t *testing.T) {
 			// Passtrough to the node i-1
 			additionalFunctionality = []networkservice.NetworkServiceServer{
 				chain.NewNetworkServiceServer(
-					clienturl.NewServer(clusters[i].Nodes[0].NSMgr.URL),
+					clienturl.NewServer(clusters[i].Nodes[0].URL()),
 					connect.NewServer(ctx,
 						client.NewClientFactory(client.WithAdditionalFunctionality(
 							newPassTroughClient(fmt.Sprintf("my-service-remote-%v@cluster%v", i-1, i-1)),
@@ -509,7 +501,9 @@ func Test_Interdomain_PassThroughUsecase(t *testing.T) {
 			}
 		}
 
-		nsReg, err := clusters[i].Nodes[0].NSRegistryClient.Register(ctx, &registry.NetworkService{
+		nsRegistryClient := clusters[i].NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+		nsReg, err := nsRegistryClient.Register(ctx, &registry.NetworkService{
 			Name: fmt.Sprintf("my-service-remote-%v", i),
 		})
 		require.NoError(t, err)
@@ -518,8 +512,7 @@ func Test_Interdomain_PassThroughUsecase(t *testing.T) {
 			Name:                fmt.Sprintf("endpoint-%v", i),
 			NetworkServiceNames: []string{nsReg.Name},
 		}
-		_, err = clusters[i].Nodes[0].NewEndpoint(ctx, nsesReg, sandbox.GenerateTestToken, additionalFunctionality...)
-		require.NoError(t, err)
+		clusters[i].Nodes[0].NewEndpoint(ctx, nsesReg, sandbox.GenerateTestToken, additionalFunctionality...)
 	}
 
 	nsc := clusters[clusterCount-1].Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)

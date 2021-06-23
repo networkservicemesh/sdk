@@ -51,20 +51,21 @@ func TestConnect_CancelDuringRequest(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	domain := sandbox.NewBuilder(t).
+	domain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
 		SetRegistryProxySupplier(nil).
-		SetContext(ctx).
 		Build()
 
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
 	service1Name := "my-service-endpoint"
-	_, err = domain.Nodes[0].NSRegistryClient.Register(ctx, &registry.NetworkService{
+	_, err = nsRegistryClient.Register(ctx, &registry.NetworkService{
 		Name: service1Name,
 	})
 	require.NoError(t, err)
 
 	service2Name := "my-service-with-passthrough"
-	_, err = domain.Nodes[0].NSRegistryClient.Register(ctx, &registry.NetworkService{
+	_, err = nsRegistryClient.Register(ctx, &registry.NetworkService{
 		Name: service2Name,
 	})
 	require.NoError(t, err)
@@ -75,12 +76,11 @@ func TestConnect_CancelDuringRequest(t *testing.T) {
 	}
 	nscCtx, nscCancel := context.WithCancel(ctx)
 	var flag atomic.Bool
-	_, err = domain.Nodes[0].NewEndpoint(ctx, nseReg1, sandbox.GenerateTestToken, checkrequest.NewServer(t, func(*testing.T, *networkservice.NetworkServiceRequest) {
+	domain.Nodes[0].NewEndpoint(ctx, nseReg1, sandbox.GenerateTestToken, checkrequest.NewServer(t, func(*testing.T, *networkservice.NetworkServiceRequest) {
 		if flag.Load() {
 			nscCancel()
 		}
 	}))
-	require.NoError(t, err)
 
 	var counter atomic.Int32
 	clientName := fmt.Sprintf("connectClient-%v", uuid.New().String())
@@ -100,9 +100,9 @@ func TestConnect_CancelDuringRequest(t *testing.T) {
 		Name:                "endpoint-2",
 		NetworkServiceNames: []string{service2Name},
 	}
-	_, err = domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken,
+	domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken,
 		chain.NewNetworkServiceServer(
-			clienturl.NewServer(domain.Nodes[0].NSMgr.URL),
+			clienturl.NewServer(domain.Nodes[0].URL()),
 			connect.NewServer(ctx,
 				clientFactory,
 				connect.WithDialTimeout(sandbox.DialTimeout),
@@ -110,7 +110,6 @@ func TestConnect_CancelDuringRequest(t *testing.T) {
 			),
 		),
 	)
-	require.NoError(t, err)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
