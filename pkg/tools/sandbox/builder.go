@@ -190,16 +190,16 @@ func (b *Builder) Build() *Domain {
 
 	if b.supplyRegistryProxy != nil {
 		require.NotNil(b.t, b.supplyNSMgrProxy, "NSMgr proxy supplier should be set if registry proxy supplier is set")
-		b.domain.NSMgrProxy = &EndpointEntry{
+		b.domain.NSMgrProxy = &NSMgrEntry{
 			URL: b.domain.supplyURL("nsmgr-proxy"),
 		}
 	}
 
-	b.newRegistryProxy()
-	b.newRegistry()
-	b.newNSMgrProxy()
+	b.domain.RegistryProxy = b.newRegistryProxy()
+	b.domain.Registry = b.newRegistry()
+	b.domain.NSMgrProxy = b.newNSMgrProxy()
 	for i := 0; i < b.nodesCount; i++ {
-		b.newNode(i)
+		b.domain.Nodes = append(b.domain.Nodes, b.newNode(i))
 	}
 
 	b.buildDNSServer()
@@ -227,9 +227,9 @@ func (b *Builder) supplyTCPAddress() func(prefix string) *url.URL {
 	}
 }
 
-func (b *Builder) newRegistryProxy() {
+func (b *Builder) newRegistryProxy() *RegistryEntry {
 	if b.supplyRegistryProxy == nil {
-		return
+		return nil
 	}
 
 	registryProxy := b.supplyRegistryProxy(b.ctx, b.dnsResolver, DefaultDialOptions(b.generateTokenFunc)...)
@@ -239,15 +239,15 @@ func (b *Builder) newRegistryProxy() {
 
 	log.FromContext(b.ctx).Debugf("%s: registry-proxy-dns on: %v", b.name, serveURL)
 
-	b.domain.RegistryProxy = &RegistryEntry{
+	return &RegistryEntry{
 		URL:      serveURL,
 		Registry: registryProxy,
 	}
 }
 
-func (b *Builder) newRegistry() {
+func (b *Builder) newRegistry() *RegistryEntry {
 	if b.supplyRegistry == nil {
-		return
+		return nil
 	}
 
 	var nsmgrProxyURL *url.URL
@@ -262,15 +262,15 @@ func (b *Builder) newRegistry() {
 
 	log.FromContext(b.ctx).Debugf("%s: registry on: %v", b.name, serveURL)
 
-	b.domain.Registry = &RegistryEntry{
+	return &RegistryEntry{
 		URL:      serveURL,
 		Registry: registry,
 	}
 }
 
-func (b *Builder) newNSMgrProxy() {
+func (b *Builder) newNSMgrProxy() *NSMgrEntry {
 	if b.supplyRegistryProxy == nil {
-		return
+		return nil
 	}
 
 	name := UniqueName("nsmgr-proxy")
@@ -292,10 +292,14 @@ func (b *Builder) newNSMgrProxy() {
 
 	log.FromContext(b.ctx).Debugf("%s: NSMgr proxy %s on: %v", b.name, name, b.domain.NSMgrProxy.URL)
 
-	b.domain.NSMgrProxy.Endpoint = mgr
+	return &NSMgrEntry{
+		Name:  name,
+		URL:   b.domain.NSMgrProxy.URL,
+		Nsmgr: mgr,
+	}
 }
 
-func (b *Builder) newNode(nodeNum int) {
+func (b *Builder) newNode(nodeNum int) *Node {
 	node := &Node{
 		t:      b.t,
 		domain: b.domain,
@@ -305,7 +309,7 @@ func (b *Builder) newNode(nodeNum int) {
 
 	require.NotNil(b.t, node.NSMgr, "NSMgr should be set for the node")
 
-	b.domain.Nodes = append(b.domain.Nodes, node)
+	return node
 }
 
 func (b *Builder) buildDNSServer() {

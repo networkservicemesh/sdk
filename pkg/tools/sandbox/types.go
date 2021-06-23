@@ -75,7 +75,7 @@ type EndpointEntry struct {
 // Domain contains attached to domain nodes, registry
 type Domain struct {
 	Nodes         []*Node
-	NSMgrProxy    *EndpointEntry
+	NSMgrProxy    *NSMgrEntry
 	Registry      *RegistryEntry
 	RegistryProxy *RegistryEntry
 
