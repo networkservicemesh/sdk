@@ -43,16 +43,14 @@ func TestCallNext(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	var srvCounter, nextCounter, defCounter atomic.Int32
+	var srvCounter, nextCounter atomic.Int32
 	s := chain.NewNetworkServiceServer(
 		selectservice.NewServer(map[string]networkservice.NetworkServiceServer{
 			svc1: checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
 				srvCounter.Inc()
 			}),
 			svc2: null.NewServer(),
-		}, checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
-			defCounter.Inc()
-		})),
+		}),
 		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
 			nextCounter.Inc()
 		}),
@@ -65,22 +63,9 @@ func TestCallNext(t *testing.T) {
 	require.NotNil(t, conn)
 	require.Equal(t, int32(1), srvCounter.Load())
 	require.Equal(t, int32(1), nextCounter.Load())
-	require.Equal(t, int32(0), defCounter.Load())
-
-	srvCounter.Store(0)
-	nextCounter.Store(0)
-
-	conn, err = s.Request(ctx, &networkservice.NetworkServiceRequest{Connection: &networkservice.Connection{
-		NetworkService: "does-not-exist",
-	}})
-	require.NoError(t, err)
-	require.NotNil(t, conn)
-	require.Equal(t, int32(0), srvCounter.Load())
-	require.Equal(t, int32(1), nextCounter.Load())
-	require.Equal(t, int32(1), defCounter.Load())
 }
 
-func TestNoDefault(t *testing.T) {
+func TestMissingService(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -89,7 +74,7 @@ func TestNoDefault(t *testing.T) {
 	s := chain.NewNetworkServiceServer(
 		selectservice.NewServer(map[string]networkservice.NetworkServiceServer{
 			svc2: null.NewServer(),
-		}, nil),
+		}),
 		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
 			nextCounter.Inc()
 		}),

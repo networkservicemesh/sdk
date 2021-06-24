@@ -28,41 +28,34 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 )
 
-type chooserServer struct {
+type selectServiceServer struct {
 	servers map[string]networkservice.NetworkServiceServer
-	defSrv  networkservice.NetworkServiceServer
 }
 
 // NewServer - returns new NetworkServiceServer chain element that will
 // select one of the servers passed in arguments based on the requested network service name
 //
-//  servers - map of supported network services.
-//  defSrv  - default server. Used when servers map doesn't have the requested network service
-//            May be nil.
+//  servers - map for supported network services.
 //
-func NewServer(servers map[string]networkservice.NetworkServiceServer, defSrv networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
-	rv := &chooserServer{
+func NewServer(servers map[string]networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
+	rv := &selectServiceServer{
 		servers: servers,
-		defSrv:  defSrv,
 	}
 	return rv
 }
 
-func (s *chooserServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+func (s *selectServiceServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	return s.findServer(request.GetConnection()).Request(ctx, request)
 }
 
-func (s *chooserServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+func (s *selectServiceServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	return s.findServer(conn).Close(ctx, conn)
 }
 
-func (s *chooserServer) findServer(conn *networkservice.Connection) networkservice.NetworkServiceServer {
+func (s *selectServiceServer) findServer(conn *networkservice.Connection) networkservice.NetworkServiceServer {
 	nsName := conn.GetNetworkService()
 	srv, ok := s.servers[nsName]
-	if !ok {
-		srv = s.defSrv
-	}
-	if srv == nil {
+	if !ok || srv == nil {
 		return injecterror.NewServer(injecterror.WithError(errors.New("no server found for specified service and no default is provided")))
 	}
 	return srv
