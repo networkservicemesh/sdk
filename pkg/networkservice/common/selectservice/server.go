@@ -1,0 +1,69 @@
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at:
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Package selectservice provides a chain element that can choose which element to call based on network service name
+package selectservice
+
+import (
+	"context"
+
+	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
+)
+
+type chooserServer struct {
+	servers map[string]networkservice.NetworkServiceServer
+	defSrv  networkservice.NetworkServiceServer
+}
+
+// NewServer - returns new NetworkServiceServer chain element that will
+// select one of the servers passed in arguments based on the requested network service name
+//
+//  servers - map of supported network services.
+//  defSrv  - default server. Used when servers map doesn't have the requested network service
+//            May be nil.
+//
+func NewServer(servers map[string]networkservice.NetworkServiceServer, defSrv networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
+	rv := &chooserServer{
+		servers: servers,
+		defSrv:  defSrv,
+	}
+	return rv
+}
+
+func (s *chooserServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	return s.findServer(request.GetConnection()).Request(ctx, request)
+}
+
+func (s *chooserServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	return s.findServer(conn).Close(ctx, conn)
+}
+
+func (s *chooserServer) findServer(conn *networkservice.Connection) networkservice.NetworkServiceServer {
+	nsName := conn.GetNetworkService()
+	srv, ok := s.servers[nsName]
+	if !ok {
+		srv = s.defSrv
+	}
+	if srv == nil {
+		return injecterror.NewServer(injecterror.WithError(errors.New("no server found for specified service and no default is provided")))
+	}
+	return srv
+}
