@@ -108,8 +108,6 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 			return result, nil
 		}
 
-		l.activeConnection.Delete(activeConnID)
-
 		return nil, errors.Errorf("all cross NSE failed to connect to endpoint %v connection: %v", clientURL, conn)
 	}
 
