@@ -64,7 +64,7 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 		SetDNSResolver(dnsServer).
 		Build()
 
-	nsRegistryClient := cluster2.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+	nsRegistryClient := cluster2.NewNSRegistryClient(ctx, sandbox.DefaultTokenTimeout)
 
 	nsReg := &registry.NetworkService{
 		Name: "my-service-interdomain",
@@ -78,9 +78,9 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 		NetworkServiceNames: []string{nsReg.Name},
 	}
 
-	cluster2.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
+	cluster2.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.DefaultTokenTimeout)
 
-	nsc := cluster1.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+	nsc := cluster1.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -138,7 +138,7 @@ func TestNSMGR_Interdomain_TwoNodesNSEs(t *testing.T) {
 		SetDNSResolver(dnsServer).
 		Build()
 
-	nsRegistryClient := cluster2.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+	nsRegistryClient := cluster2.NewNSRegistryClient(ctx, sandbox.DefaultTokenTimeout)
 
 	_, err := nsRegistryClient.Register(ctx, &registry.NetworkService{
 		Name: "my-service-interdomain-1",
@@ -154,15 +154,15 @@ func TestNSMGR_Interdomain_TwoNodesNSEs(t *testing.T) {
 		Name:                "final-endpoint-1",
 		NetworkServiceNames: []string{"my-service-interdomain-1"},
 	}
-	cluster2.Nodes[0].NewEndpoint(ctx, nseReg1, sandbox.GenerateTestToken)
+	cluster2.Nodes[0].NewEndpoint(ctx, nseReg1, sandbox.DefaultTokenTimeout)
 
 	nseReg2 := &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint-2",
 		NetworkServiceNames: []string{"my-service-interdomain-2"},
 	}
-	cluster2.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken)
+	cluster2.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.DefaultTokenTimeout)
 
-	nsc := cluster1.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+	nsc := cluster1.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -250,7 +250,7 @@ func TestNSMGR_FloatingInterdomainUseCase(t *testing.T) {
 		SetRegistryProxySupplier(nil).
 		Build()
 
-	nsRegistryClient := cluster2.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+	nsRegistryClient := cluster2.NewNSRegistryClient(ctx, sandbox.DefaultTokenTimeout)
 
 	nsReg := &registry.NetworkService{
 		Name: "my-service-interdomain@" + floating.Name,
@@ -264,9 +264,9 @@ func TestNSMGR_FloatingInterdomainUseCase(t *testing.T) {
 		NetworkServiceNames: []string{"my-service-interdomain"},
 	}
 
-	cluster2.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
+	cluster2.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.DefaultTokenTimeout)
 
-	nsc := cluster1.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+	nsc := cluster1.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -343,7 +343,7 @@ func TestNSMGR_FloatingInterdomain_FourClusters(t *testing.T) {
 
 	// register first ednpoint
 
-	nsRegistryClient := cluster2.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+	nsRegistryClient := cluster2.NewNSRegistryClient(ctx, sandbox.DefaultTokenTimeout)
 
 	nsReg1 := &registry.NetworkService{
 		Name: "my-service-interdomain-1@" + floating.Name,
@@ -357,7 +357,7 @@ func TestNSMGR_FloatingInterdomain_FourClusters(t *testing.T) {
 		NetworkServiceNames: []string{"my-service-interdomain-1"},
 	}
 
-	cluster2.Nodes[0].NewEndpoint(ctx, nseReg1, sandbox.GenerateTestToken)
+	cluster2.Nodes[0].NewEndpoint(ctx, nseReg1, sandbox.DefaultTokenTimeout)
 
 	nsReg2 := &registry.NetworkService{
 		Name: "my-service-interdomain-1@" + floating.Name,
@@ -365,7 +365,7 @@ func TestNSMGR_FloatingInterdomain_FourClusters(t *testing.T) {
 
 	// register second ednpoint
 
-	nsRegistryClient = cluster3.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+	nsRegistryClient = cluster3.NewNSRegistryClient(ctx, sandbox.DefaultTokenTimeout)
 
 	_, err = nsRegistryClient.Register(ctx, nsReg2)
 	require.NoError(t, err)
@@ -375,11 +375,11 @@ func TestNSMGR_FloatingInterdomain_FourClusters(t *testing.T) {
 		NetworkServiceNames: []string{"my-service-interdomain-2"},
 	}
 
-	cluster3.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken)
+	cluster3.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.DefaultTokenTimeout)
 
 	// connect to first endpoint from cluster2
 
-	nsc := cluster1.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+	nsc := cluster1.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -495,13 +495,13 @@ func Test_Interdomain_PassThroughUsecase(t *testing.T) {
 							kernelmech.NewClient(),
 						)),
 						connect.WithDialTimeout(sandbox.DialTimeout),
-						connect.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...),
+						connect.WithDialOptions(clusters[i].DefaultDialOptions(sandbox.DefaultTokenTimeout)...),
 					),
 				),
 			}
 		}
 
-		nsRegistryClient := clusters[i].NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+		nsRegistryClient := clusters[i].NewNSRegistryClient(ctx, sandbox.DefaultTokenTimeout)
 
 		nsReg, err := nsRegistryClient.Register(ctx, &registry.NetworkService{
 			Name: fmt.Sprintf("my-service-remote-%v", i),
@@ -512,10 +512,10 @@ func Test_Interdomain_PassThroughUsecase(t *testing.T) {
 			Name:                fmt.Sprintf("endpoint-%v", i),
 			NetworkServiceNames: []string{nsReg.Name},
 		}
-		clusters[i].Nodes[0].NewEndpoint(ctx, nsesReg, sandbox.GenerateTestToken, additionalFunctionality...)
+		clusters[i].Nodes[0].NewEndpoint(ctx, nsesReg, sandbox.DefaultTokenTimeout, additionalFunctionality...)
 	}
 
-	nsc := clusters[clusterCount-1].Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+	nsc := clusters[clusterCount-1].Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{

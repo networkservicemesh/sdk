@@ -23,11 +23,10 @@ import (
 
 	"github.com/edwarnicke/grpcfd"
 	"github.com/google/uuid"
+	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
-
-	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/opentracing"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
@@ -38,6 +37,8 @@ const (
 	RegistryExpiryDuration = time.Second
 	// DialTimeout is a default dial timeout for the sandbox tests
 	DialTimeout = 500 * time.Millisecond
+	// DefaultTokenTimeout is a default token timeout for sandbox testing
+	DefaultTokenTimeout = time.Hour
 )
 
 type insecurePerRPCCredentials struct {
@@ -109,10 +110,10 @@ func UniqueName(prefix string) string {
 }
 
 // SetupDefaultNode setups NSMgr and default Forwarder on the given node
-func SetupDefaultNode(ctx context.Context, node *Node, supplyNSMgr SupplyNSMgrFunc) {
-	node.NewNSMgr(ctx, UniqueName("nsmgr"), nil, GenerateTestToken, supplyNSMgr)
+func SetupDefaultNode(ctx context.Context, node *Node, tokenTimeout time.Duration, supplyNSMgr SupplyNSMgrFunc) {
+	node.NewNSMgr(ctx, UniqueName("nsmgr"), nil, tokenTimeout, supplyNSMgr)
 
 	node.NewForwarder(ctx, &registryapi.NetworkServiceEndpoint{
 		Name: UniqueName("forwarder"),
-	}, GenerateTestToken)
+	}, tokenTimeout)
 }

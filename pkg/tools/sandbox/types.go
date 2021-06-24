@@ -28,25 +28,27 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgrproxy"
 	"github.com/networkservicemesh/sdk/pkg/registry"
-	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-// SupplyNSMgrProxyFunc nsmgr proxy
+// SupplyNSMgrProxyFunc supplies NSMgr proxy
 type SupplyNSMgrProxyFunc func(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator token.GeneratorFunc, options ...nsmgrproxy.Option) nsmgr.Nsmgr
 
-// SupplyNSMgrFunc supplies NSMGR
+// SupplyNSMgrFunc supplies NSMgr
 type SupplyNSMgrFunc func(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...nsmgr.Option) nsmgr.Nsmgr
 
 // SupplyRegistryFunc supplies Registry
 type SupplyRegistryFunc func(ctx context.Context, expiryDuration time.Duration, proxyRegistryURL *url.URL, options ...grpc.DialOption) registry.Registry
 
-// SupplyRegistryProxyFunc supplies registry proxy
+// SupplyRegistryProxyFunc supplies Registry proxy
 type SupplyRegistryProxyFunc func(ctx context.Context, dnsResolver dnsresolve.Resolver, options ...grpc.DialOption) registry.Registry
 
 // SetupNodeFunc setups each node on Builder.Build() stage
 type SetupNodeFunc func(ctx context.Context, node *Node, nodeNum int)
+
+// SupplyTokenGeneratorFunc supplies token generator
+type SupplyTokenGeneratorFunc func(tokenTimeout time.Duration) token.GeneratorFunc
 
 // RegistryEntry is pair of registry.Registry and url.URL
 type RegistryEntry struct {
@@ -70,33 +72,4 @@ type EndpointEntry struct {
 
 	endpoint.Endpoint
 	registryapi.NetworkServiceEndpointRegistryClient
-}
-
-// Domain contains attached to domain nodes, registry
-type Domain struct {
-	Nodes         []*Node
-	NSMgrProxy    *NSMgrEntry
-	Registry      *RegistryEntry
-	RegistryProxy *RegistryEntry
-
-	DNSResolver dnsresolve.Resolver
-	Name        string
-
-	supplyURL func(prefix string) *url.URL
-}
-
-// NewNSRegistryClient creates new NS registry client for the domain
-func (d *Domain) NewNSRegistryClient(ctx context.Context, generatorFunc token.GeneratorFunc) registryapi.NetworkServiceRegistryClient {
-	var registryURL *url.URL
-	switch {
-	case d.Registry != nil:
-		registryURL = d.Registry.URL
-	case len(d.Nodes) != 0:
-		registryURL = d.Nodes[0].URL()
-	default:
-		return nil
-	}
-
-	return registryclient.NewNetworkServiceRegistryClient(ctx, registryURL,
-		registryclient.WithDialOptions(DefaultDialOptions(generatorFunc)...))
 }

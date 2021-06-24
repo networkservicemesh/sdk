@@ -19,20 +19,17 @@ package memory_test
 
 import (
 	"context"
+	"testing"
+	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 
 	"github.com/stretchr/testify/require"
 
 	"go.uber.org/goleak"
-	"google.golang.org/grpc"
-
-	"testing"
-	"time"
 )
 
 func Test_RegistryMemory_ShouldSetDefaultPayload(t *testing.T) {
@@ -47,23 +44,17 @@ func Test_RegistryMemory_ShouldSetDefaultPayload(t *testing.T) {
 		SetNSMgrProxySupplier(nil).
 		Build()
 
-	// start grpc client connection and register it
-	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(domain.Registry.URL), sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...)
-	require.NoError(t, err)
-	defer func() {
-		_ = cc.Close()
-	}()
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.DefaultTokenTimeout)
 
-	nsrc := registry.NewNetworkServiceRegistryClient(cc)
-	ns, err := nsrc.Register(ctx, &registry.NetworkService{
+	ns, err := nsRegistryClient.Register(ctx, &registry.NetworkService{
 		Name: "ns-1",
 	})
 	require.NoError(t, err)
 
-	nsrfc, err := nsrc.Find(ctx, &registry.NetworkServiceQuery{NetworkService: ns})
+	stream, err := nsRegistryClient.Find(ctx, &registry.NetworkServiceQuery{NetworkService: ns})
 	require.NoError(t, err)
 
-	ns, err = nsrfc.Recv()
+	ns, err = stream.Recv()
 	require.NoError(t, err)
 
 	require.Equal(t, payload.IP, ns.Payload)
