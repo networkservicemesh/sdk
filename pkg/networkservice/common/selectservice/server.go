@@ -24,8 +24,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 )
 
 type selectServiceServer struct {
@@ -45,18 +43,17 @@ func NewServer(servers map[string]networkservice.NetworkServiceServer) networkse
 }
 
 func (s *selectServiceServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	return s.findServer(request.GetConnection()).Request(ctx, request)
+	srv, ok := s.servers[request.GetConnection().GetNetworkService()]
+	if !ok || srv == nil {
+		return nil, errors.New("no server found for specified service and no default is provided")
+	}
+	return srv.Request(ctx, request)
 }
 
 func (s *selectServiceServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	return s.findServer(conn).Close(ctx, conn)
-}
-
-func (s *selectServiceServer) findServer(conn *networkservice.Connection) networkservice.NetworkServiceServer {
-	nsName := conn.GetNetworkService()
-	srv, ok := s.servers[nsName]
+	srv, ok := s.servers[conn.GetNetworkService()]
 	if !ok || srv == nil {
-		return injecterror.NewServer(injecterror.WithError(errors.New("no server found for specified service and no default is provided")))
+		return nil, errors.New("no server found for specified service and no default is provided")
 	}
-	return srv
+	return srv.Close(ctx, conn)
 }
