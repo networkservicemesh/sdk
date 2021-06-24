@@ -330,13 +330,17 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	require.Equal(t, 5, len(conn.Path.PathSegments))
 
 	killNse()
-	// Simulate refresh from client.
+
+	// Simulate refresh from client
 	refreshRequest := request.Clone()
 	refreshRequest.Connection = conn.Clone()
 
 	_, err = nsc.Request(ctx, refreshRequest)
 	require.Error(t, err)
 	require.NoError(t, ctx.Err())
+
+	// Close
+	_, _ = nsc.Close(ctx, conn)
 
 	// Endpoint unregister
 	_, err = s.domain.Nodes[0].EndpointRegistryClient.Unregister(ctx, nseReg)
