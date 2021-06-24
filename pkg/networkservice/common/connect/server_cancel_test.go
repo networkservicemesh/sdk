@@ -56,7 +56,7 @@ func TestConnect_CancelDuringRequest(t *testing.T) {
 		SetRegistryProxySupplier(nil).
 		Build()
 
-	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.DefaultTokenTimeout)
 
 	service1Name := "my-service-endpoint"
 	_, err = nsRegistryClient.Register(ctx, &registry.NetworkService{
@@ -76,7 +76,7 @@ func TestConnect_CancelDuringRequest(t *testing.T) {
 	}
 	nscCtx, nscCancel := context.WithCancel(ctx)
 	var flag atomic.Bool
-	domain.Nodes[0].NewEndpoint(ctx, nseReg1, sandbox.GenerateTestToken, checkrequest.NewServer(t, func(*testing.T, *networkservice.NetworkServiceRequest) {
+	domain.Nodes[0].NewEndpoint(ctx, nseReg1, sandbox.DefaultTokenTimeout, checkrequest.NewServer(t, func(*testing.T, *networkservice.NetworkServiceRequest) {
 		if flag.Load() {
 			nscCancel()
 		}
@@ -100,13 +100,13 @@ func TestConnect_CancelDuringRequest(t *testing.T) {
 		Name:                "endpoint-2",
 		NetworkServiceNames: []string{service2Name},
 	}
-	domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken,
+	domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.DefaultTokenTimeout,
 		chain.NewNetworkServiceServer(
 			clienturl.NewServer(domain.Nodes[0].URL()),
 			connect.NewServer(ctx,
 				clientFactory,
 				connect.WithDialTimeout(sandbox.DialTimeout),
-				connect.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...),
+				connect.WithDialOptions(domain.DefaultDialOptions(sandbox.DefaultTokenTimeout)...),
 			),
 		),
 	)
@@ -121,8 +121,8 @@ func TestConnect_CancelDuringRequest(t *testing.T) {
 			Context:        &networkservice.ConnectionContext{},
 		},
 	}
-	nsc1 := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
-	nsc2 := domain.Nodes[0].NewClient(nscCtx, sandbox.GenerateTestToken)
+	nsc1 := domain.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
+	nsc2 := domain.Nodes[0].NewClient(nscCtx, sandbox.DefaultTokenTimeout)
 
 	_, err = nsc1.Request(ctx, request.Clone())
 	require.NoError(t, err)

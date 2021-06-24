@@ -45,10 +45,10 @@ func TestHealClient_FindTest(t *testing.T) {
 		SetRegistryProxySupplier(nil).
 		SetNSMgrProxySupplier(nil).
 		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, nodeNum int) {
-			node.NewNSMgr(nsmgrCtx, sandbox.UniqueName("nsmgr"), nil, sandbox.GenerateTestToken, nsmgr.NewServer)
+			node.NewNSMgr(nsmgrCtx, sandbox.UniqueName("nsmgr"), nil, sandbox.DefaultTokenTimeout, nsmgr.NewServer)
 			node.NewForwarder(ctx, &registry.NetworkServiceEndpoint{
 				Name: sandbox.UniqueName("forwarder"),
-			}, sandbox.GenerateTestToken)
+			}, sandbox.DefaultTokenTimeout)
 		}).
 		Build()
 
@@ -56,7 +56,7 @@ func TestHealClient_FindTest(t *testing.T) {
 	findCtx, findCancel := context.WithCancel(ctx)
 
 	nsRegistryClient := registryclient.NewNetworkServiceRegistryClient(ctx, domain.Nodes[0].URL(),
-		registryclient.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...))
+		registryclient.WithDialOptions(domain.DefaultDialOptions(sandbox.DefaultTokenTimeout)...))
 
 	nsStream, err := nsRegistryClient.Find(findCtx, &registry.NetworkServiceQuery{
 		NetworkService: new(registry.NetworkService),
@@ -65,7 +65,7 @@ func TestHealClient_FindTest(t *testing.T) {
 	require.NoError(t, err)
 
 	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx, domain.Nodes[0].URL(),
-		registryclient.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...))
+		registryclient.WithDialOptions(domain.DefaultDialOptions(sandbox.DefaultTokenTimeout)...))
 
 	nseStream, err := nseRegistryClient.Find(findCtx, &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
@@ -81,7 +81,7 @@ func TestHealClient_FindTest(t *testing.T) {
 		return grpcutils.CheckURLFree(mgr.URL)
 	}, time.Second, 100*time.Millisecond)
 
-	mgr = domain.Nodes[0].NewNSMgr(ctx, mgr.Name, mgr.URL, sandbox.GenerateTestToken, nsmgr.NewServer)
+	mgr = domain.Nodes[0].NewNSMgr(ctx, mgr.Name, mgr.URL, sandbox.DefaultTokenTimeout, nsmgr.NewServer)
 
 	// 3. Register new NS, NSE
 	_, err = mgr.NetworkServiceRegistryServer().Register(ctx, &registry.NetworkService{

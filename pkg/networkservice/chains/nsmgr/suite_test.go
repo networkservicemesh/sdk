@@ -47,6 +47,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -83,7 +84,7 @@ func (s *nsmgrSuite) SetupSuite() {
 		SetNSMgrProxySupplier(nil).
 		Build()
 
-	s.nsRegistryClient = s.domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+	s.nsRegistryClient = s.domain.NewNSRegistryClient(ctx, sandbox.DefaultTokenTimeout)
 }
 
 func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
@@ -105,9 +106,9 @@ func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
 		defer unregisterWG.Done()
 
 		time.Sleep(time.Millisecond * 100)
-		nse = s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
+		nse = s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.DefaultTokenTimeout, counter)
 	}()
-	nsc := s.domain.Nodes[1].NewClient(ctx, sandbox.GenerateTestToken)
+	nsc := s.domain.Nodes[1].NewClient(ctx, sandbox.DefaultTokenTimeout)
 
 	request := defaultRequest(nsReg.Name)
 
@@ -162,7 +163,7 @@ func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 	require.NoError(t, err)
 
 	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx, s.domain.Nodes[0].URL(),
-		registryclient.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...))
+		registryclient.WithDialOptions(s.domain.DefaultDialOptions(sandbox.DefaultTokenTimeout)...))
 
 	nseReg, err = nseRegistryClient.Register(ctx, nseReg)
 	require.NoError(t, err)
@@ -170,12 +171,12 @@ func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 	// 2. Postpone endpoint start
 	time.AfterFunc(time.Second, func() {
 		serv := grpc.NewServer()
-		endpoint.NewServer(ctx, sandbox.GenerateTestToken).Register(serv)
+		endpoint.NewServer(ctx, sandbox.GenerateTestToken(clock.FromContext(ctx))).Register(serv)
 		_ = serv.Serve(netListener)
 	})
 
 	// 3. Create client and request endpoint
-	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
 
 	conn, err := nsc.Request(ctx, defaultRequest(nsReg.Name))
 	require.NoError(t, err)
@@ -213,7 +214,7 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 			nseRegs[id] = defaultRegistryEndpoint(nsReg.Name)
 			nseRegs[id].Name += strconv.Itoa(id)
 
-			nses[id] = s.domain.Nodes[1].NewEndpoint(ctx, nseRegs[id], sandbox.GenerateTestToken, injecterror.NewServer())
+			nses[id] = s.domain.Nodes[1].NewEndpoint(ctx, nseRegs[id], sandbox.DefaultTokenTimeout, injecterror.NewServer())
 			wg.Done()
 		}(i)
 	}
@@ -228,9 +229,9 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 		nseRegs[3] = defaultRegistryEndpoint(nsReg.Name)
 		nseRegs[3].Name += strconv.Itoa(3)
 
-		nses[3] = s.domain.Nodes[1].NewEndpoint(ctx, nseRegs[3], sandbox.GenerateTestToken, counter)
+		nses[3] = s.domain.Nodes[1].NewEndpoint(ctx, nseRegs[3], sandbox.DefaultTokenTimeout, counter)
 	}()
-	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
 
 	request := defaultRequest(nsReg.Name)
 
@@ -275,9 +276,9 @@ func (s *nsmgrSuite) Test_RemoteUsecase() {
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	counter := &counterServer{}
 
-	nse := s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
+	nse := s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.DefaultTokenTimeout, counter)
 
-	nsc := s.domain.Nodes[1].NewClient(ctx, sandbox.GenerateTestToken)
+	nsc := s.domain.Nodes[1].NewClient(ctx, sandbox.DefaultTokenTimeout)
 
 	request := defaultRequest(nsReg.Name)
 
@@ -320,9 +321,9 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	counter := &counterServer{}
 
-	s.domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.GenerateTestToken, counter)
+	s.domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.DefaultTokenTimeout, counter)
 
-	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
 
 	request := defaultRequest(nsReg.Name)
 
@@ -358,9 +359,9 @@ func (s *nsmgrSuite) Test_LocalUsecase() {
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	counter := &counterServer{}
 
-	nse := s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
+	nse := s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.DefaultTokenTimeout, counter)
 
-	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
 
 	request := defaultRequest(nsReg.Name)
 
@@ -405,7 +406,7 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 	var nseRegs [nodesCount]*registry.NetworkServiceEndpoint
 	var nses [nodesCount]*sandbox.EndpointEntry
 	for i := range nseRegs {
-		nseRegs[i], nses[i] = newPassThroughEndpoint(
+		nseRegs[i], nses[i] = s.newPassThroughEndpoint(
 			ctx,
 			s.domain.Nodes[i],
 			map[string]string{
@@ -418,7 +419,7 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 		)
 	}
 
-	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
 
 	request := defaultRequest(nsReg.Name)
 
@@ -465,7 +466,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 	var nseRegs [nsesCount]*registry.NetworkServiceEndpoint
 	var nses [nsesCount]*sandbox.EndpointEntry
 	for i := range nseRegs {
-		nseRegs[i], nses[i] = newPassThroughEndpoint(
+		nseRegs[i], nses[i] = s.newPassThroughEndpoint(
 			ctx,
 			s.domain.Nodes[0],
 			map[string]string{
@@ -478,7 +479,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 		)
 	}
 
-	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
 
 	request := defaultRequest(nsReg.Name)
 
@@ -527,7 +528,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
 		labelAvalue += "a"
 		for j := 0; j < 3; j++ {
 			labelBvalue += "b"
-			nseRegs[i*3+j], nses[i*3+j] = newPassThroughEndpoint(
+			nseRegs[i*3+j], nses[i*3+j] = s.newPassThroughEndpoint(
 				ctx,
 				s.domain.Nodes[0],
 				map[string]string{
@@ -543,7 +544,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
 		labelBvalue = ""
 	}
 
-	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
 
 	request := defaultRequest(nsReg.Name)
 
@@ -685,7 +686,7 @@ func multiLabelNS() *registry.NetworkService {
 	}
 }
 
-func additionalFunctionalityChain(ctx context.Context, clientURL *url.URL, clientName string, labels map[string]string) []networkservice.NetworkServiceServer {
+func (s *nsmgrSuite) additionalFunctionalityChain(ctx context.Context, clientURL *url.URL, clientName string, labels map[string]string) []networkservice.NetworkServiceServer {
 	return []networkservice.NetworkServiceServer{
 		chain.NewNetworkServiceServer(
 			clienturl.NewServer(clientURL),
@@ -699,13 +700,13 @@ func additionalFunctionalityChain(ctx context.Context, clientURL *url.URL, clien
 					),
 				),
 				connect.WithDialTimeout(sandbox.DialTimeout),
-				connect.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...),
+				connect.WithDialOptions(s.domain.DefaultDialOptions(sandbox.DefaultTokenTimeout)...),
 			),
 		),
 	}
 }
 
-func newPassThroughEndpoint(
+func (s *nsmgrSuite) newPassThroughEndpoint(
 	ctx context.Context,
 	node *sandbox.Node,
 	labels map[string]string,
@@ -725,12 +726,12 @@ func newPassThroughEndpoint(
 
 	var additionalFunctionality []networkservice.NetworkServiceServer
 	if hasClientFunctionality {
-		additionalFunctionality = additionalFunctionalityChain(ctx, node.URL(), name, labels)
+		additionalFunctionality = s.additionalFunctionalityChain(ctx, node.URL(), name, labels)
 	}
 
 	if counter != nil {
 		additionalFunctionality = append(additionalFunctionality, counter)
 	}
 
-	return nseReg, node.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, additionalFunctionality...)
+	return nseReg, node.NewEndpoint(ctx, nseReg, sandbox.DefaultTokenTimeout, additionalFunctionality...)
 }

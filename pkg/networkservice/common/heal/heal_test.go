@@ -37,6 +37,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
@@ -44,7 +45,8 @@ import (
 func startRemoteServer(ctx context.Context, t *testing.T, expireDuration time.Duration) (*url.URL, context.CancelFunc) {
 	ctx, cancel := context.WithCancel(ctx)
 
-	server := endpoint.NewServer(ctx, sandbox.GenerateExpiringToken(expireDuration), endpoint.WithName("remote"))
+	server := endpoint.NewServer(ctx, sandbox.GenerateExpiringToken(clock.FromContext(ctx), expireDuration),
+		endpoint.WithName("remote"))
 
 	grpcServer := grpc.NewServer()
 	server.Register(grpcServer)
@@ -74,7 +76,7 @@ func TestHeal_CloseChain(t *testing.T) {
 	*serverChain = adapters.NewServerToClient(
 		next.NewNetworkServiceServer(
 			updatepath.NewServer("server"),
-			updatetoken.NewServer(sandbox.GenerateTestToken),
+			updatetoken.NewServer(sandbox.GenerateTestToken(clock.FromContext(ctx))),
 			heal.NewServer(ctx,
 				heal.WithOnHeal(serverChain)),
 			clienturl.NewServer(remoteURL),

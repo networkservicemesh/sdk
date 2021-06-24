@@ -19,11 +19,12 @@ package sandbox
 import (
 	"context"
 	"net/url"
-	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
@@ -37,15 +38,13 @@ import (
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 // Node is a NSMgr with Forwarder, NSE registry clients
 type Node struct {
-	t      *testing.T
-	domain *Domain
-
 	NSMgr *NSMgrEntry
+
+	*Domain
 }
 
 // URL returns node NSMgr URL
@@ -60,14 +59,14 @@ func (n *Node) NewNSMgr(
 	ctx context.Context,
 	name string,
 	serveURL *url.URL,
-	generatorFunc token.GeneratorFunc,
+	tokenTimeout time.Duration,
 	supplyNSMgr SupplyNSMgrFunc,
 ) *NSMgrEntry {
 	if serveURL == nil {
-		serveURL = n.domain.supplyURL("nsmgr")
+		serveURL = n.supplyURL("nsmgr")
 	}
 
-	dialOptions := DefaultDialOptions(generatorFunc)
+	dialOptions := n.DefaultDialOptions(tokenTimeout)
 
 	options := []nsmgr.Option{
 		nsmgr.WithName(name),
@@ -77,8 +76,8 @@ func (n *Node) NewNSMgr(
 			connect.WithDialOptions(dialOptions...)),
 	}
 
-	if n.domain.Registry != nil {
-		options = append(options, nsmgr.WithRegistry(n.domain.Registry.URL, dialOptions...))
+	if n.Registry != nil {
+		options = append(options, nsmgr.WithRegistry(n.Registry.URL, dialOptions...))
 	}
 
 	if serveURL.Scheme != "unix" {
@@ -86,14 +85,14 @@ func (n *Node) NewNSMgr(
 	}
 
 	entry := &NSMgrEntry{
-		Nsmgr: supplyNSMgr(ctx, generatorFunc, options...),
+		Nsmgr: supplyNSMgr(ctx, n.supplyTokenGenerator(tokenTimeout), options...),
 		Name:  name,
 		URL:   serveURL,
 	}
 
 	serve(ctx, n.t, serveURL, entry.Register)
 
-	log.FromContext(ctx).Debugf("%s: NSMgr %s on %v", n.domain.Name, name, serveURL)
+	log.FromContext(ctx).Debugf("%s: NSMgr %s on %v", n.Name, name, serveURL)
 
 	n.NSMgr = entry
 
@@ -104,14 +103,14 @@ func (n *Node) NewNSMgr(
 func (n *Node) NewForwarder(
 	ctx context.Context,
 	nse *registryapi.NetworkServiceEndpoint,
-	generatorFunc token.GeneratorFunc,
+	tokenTimeout time.Duration,
 	additionalFunctionality ...networkservice.NetworkServiceServer,
 ) *EndpointEntry {
 	if nse.Url == "" {
-		nse.Url = n.domain.supplyURL("forwarder").String()
+		nse.Url = n.supplyURL("forwarder").String()
 	}
 
-	dialOptions := DefaultDialOptions(generatorFunc)
+	dialOptions := n.DefaultDialOptions(tokenTimeout)
 
 	entry := new(EndpointEntry)
 	additionalFunctionality = append(additionalFunctionality,
@@ -134,7 +133,7 @@ func (n *Node) NewForwarder(
 	*entry = *n.newEndpoint(
 		ctx,
 		nse,
-		generatorFunc,
+		tokenTimeout,
 		registryclient.NewNetworkServiceEndpointRegistryInterposeClient(ctx, n.URL(),
 			registryclient.WithDialOptions(dialOptions...)),
 		additionalFunctionality...,
@@ -147,19 +146,19 @@ func (n *Node) NewForwarder(
 func (n *Node) NewEndpoint(
 	ctx context.Context,
 	nse *registryapi.NetworkServiceEndpoint,
-	generatorFunc token.GeneratorFunc,
+	tokenTimeout time.Duration,
 	additionalFunctionality ...networkservice.NetworkServiceServer,
 ) *EndpointEntry {
 	if nse.Url == "" {
-		nse.Url = n.domain.supplyURL("nse").String()
+		nse.Url = n.supplyURL("nse").String()
 	}
 
 	return n.newEndpoint(
 		ctx,
 		nse,
-		generatorFunc,
+		tokenTimeout,
 		registryclient.NewNetworkServiceEndpointRegistryClient(ctx, n.URL(),
-			registryclient.WithDialOptions(DefaultDialOptions(generatorFunc)...)),
+			registryclient.WithDialOptions(n.DefaultDialOptions(tokenTimeout)...)),
 		additionalFunctionality...,
 	)
 }
@@ -167,12 +166,14 @@ func (n *Node) NewEndpoint(
 func (n *Node) newEndpoint(
 	ctx context.Context,
 	nse *registryapi.NetworkServiceEndpoint,
-	generatorFunc token.GeneratorFunc,
+	tokenTimeout time.Duration,
 	registryClient registryapi.NetworkServiceEndpointRegistryClient,
 	additionalFunctionality ...networkservice.NetworkServiceServer,
 ) *EndpointEntry {
+	tokenGenerator := n.supplyTokenGenerator(tokenTimeout)
+
 	name := nse.Name
-	ep := endpoint.NewServer(ctx, generatorFunc,
+	ep := endpoint.NewServer(ctx, tokenGenerator,
 		endpoint.WithName(name),
 		endpoint.WithAdditionalFunctionality(additionalFunctionality...),
 	)
@@ -189,7 +190,7 @@ func (n *Node) newEndpoint(
 	nse.ExpirationTime = reg.ExpirationTime
 	nse.NetworkServiceLabels = reg.NetworkServiceLabels
 
-	log.FromContext(ctx).Debugf("%s: endpoint %s on %v", n.domain.Name, nse.Name, serveURL)
+	log.FromContext(ctx).Debugf("%s: endpoint %s on %v", n.Name, nse.Name, serveURL)
 
 	return &EndpointEntry{
 		Name:                                 name,
@@ -202,13 +203,13 @@ func (n *Node) newEndpoint(
 // NewClient starts a new client and connects it to the node NSMgr
 func (n *Node) NewClient(
 	ctx context.Context,
-	generatorFunc token.GeneratorFunc,
+	tokenTimeout time.Duration,
 	additionalFunctionality ...networkservice.NetworkServiceClient,
 ) networkservice.NetworkServiceClient {
 	return client.NewClient(
 		ctx,
 		n.URL(),
-		client.WithDialOptions(DefaultDialOptions(generatorFunc)...),
+		client.WithDialOptions(n.DefaultDialOptions(tokenTimeout)...),
 		client.WithDialTimeout(DialTimeout),
 		client.WithAuthorizeClient(authorize.NewClient(authorize.Any())),
 		client.WithAdditionalFunctionality(additionalFunctionality...),

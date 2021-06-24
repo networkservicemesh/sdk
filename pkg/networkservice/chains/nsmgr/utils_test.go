@@ -69,9 +69,9 @@ func testNSEAndClient(
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
+	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.DefaultTokenTimeout)
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
 
 	request := defaultRequest(nseReg.NetworkServiceNames[0])
 

@@ -49,14 +49,14 @@ func Test_DNSUsecase(t *testing.T) {
 		SetRegistryProxySupplier(nil).
 		Build()
 
-	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.DefaultTokenTimeout)
 
 	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 
-	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, dnscontext.NewServer(
+	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.DefaultTokenTimeout, dnscontext.NewServer(
 		&networkservice.DNSConfig{
 			DnsServerIps:  []string{"8.8.8.8"},
 			SearchDomains: []string{"my.domain1"},
@@ -75,7 +75,7 @@ func Test_DNSUsecase(t *testing.T) {
 
 	const expectedCorefile = ". {\n\tforward . 8.8.4.4\n\tlog\n\treload\n}\nmy.domain1 {\n\tfanout . 8.8.4.4 8.8.8.8\n\tlog\n}"
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, dnscontext.NewClient(
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout, dnscontext.NewClient(
 		dnscontext.WithChainContext(ctx),
 		dnscontext.WithCorefilePath(corefilePath),
 		dnscontext.WithResolveConfigPath(resolveConfigPath),
@@ -110,12 +110,12 @@ func Test_ShouldCorrectlyAddForwardersWithSameNames(t *testing.T) {
 		SetNodesCount(1).
 		SetRegistryProxySupplier(nil).
 		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, _ int) {
-			node.NewNSMgr(ctx, "nsmgr", nil, sandbox.GenerateTestToken, nsmgr.NewServer)
+			node.NewNSMgr(ctx, "nsmgr", nil, sandbox.DefaultTokenTimeout, nsmgr.NewServer)
 		}).
 		SetRegistryExpiryDuration(sandbox.RegistryExpiryDuration).
 		Build()
 
-	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.DefaultTokenTimeout)
 
 	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
@@ -129,7 +129,7 @@ func Test_ShouldCorrectlyAddForwardersWithSameNames(t *testing.T) {
 	var forwarders [3]*sandbox.EndpointEntry
 	for i := range forwarderRegs {
 		forwarderRegs[i] = forwarderReg.Clone()
-		forwarders[i] = domain.Nodes[0].NewForwarder(ctx, forwarderRegs[i], sandbox.GenerateTestToken)
+		forwarders[i] = domain.Nodes[0].NewForwarder(ctx, forwarderRegs[i], sandbox.DefaultTokenTimeout)
 	}
 
 	// 2. Wait for refresh
@@ -158,7 +158,7 @@ func Test_ShouldCorrectlyAddEndpointsWithSameNames(t *testing.T) {
 		SetRegistryExpiryDuration(sandbox.RegistryExpiryDuration).
 		Build()
 
-	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.DefaultTokenTimeout)
 
 	// 1. Add endpoints
 	var nseRegs [2]*registry.NetworkServiceEndpoint
@@ -170,14 +170,14 @@ func Test_ShouldCorrectlyAddEndpointsWithSameNames(t *testing.T) {
 		nseRegs[i] = defaultRegistryEndpoint(nsReg.Name)
 		nseRegs[i].NetworkServiceNames[0] = nsReg.Name
 
-		nses[i] = domain.Nodes[0].NewEndpoint(ctx, nseRegs[i], sandbox.GenerateTestToken)
+		nses[i] = domain.Nodes[0].NewEndpoint(ctx, nseRegs[i], sandbox.DefaultTokenTimeout)
 	}
 
 	// 2. Wait for refresh
 	<-time.After(sandbox.RegistryExpiryDuration)
 
 	// 3. Request
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
 
 	for _, nseReg := range nseRegs {
 		_, err := nsc.Request(ctx, defaultRequest(nseReg.NetworkServiceNames[0]))
@@ -209,7 +209,7 @@ func Test_Local_NoURLUsecase(t *testing.T) {
 		SetRegistrySupplier(nil).
 		Build()
 
-	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.DefaultTokenTimeout)
 
 	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
@@ -218,9 +218,9 @@ func Test_Local_NoURLUsecase(t *testing.T) {
 	request := defaultRequest(nsReg.Name)
 	counter := &counterServer{}
 
-	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
+	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.DefaultTokenTimeout, counter)
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -269,7 +269,7 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 		SetNSMgrProxySupplier(nil).
 		Build()
 
-	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.DefaultTokenTimeout)
 
 	nsReg := defaultRegistryService()
 	nsReg.Matches = []*registry.Match{
@@ -290,9 +290,9 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	nseReg.NetworkServiceLabels = map[string]*registry.NetworkServiceLabels{nsReg.Name: {}}
 
-	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
+	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.DefaultTokenTimeout)
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.DefaultTokenTimeout)
 	require.NoError(t, err)
 
 	req := defaultRequest(nsReg.Name)

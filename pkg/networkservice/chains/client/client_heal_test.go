@@ -29,6 +29,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
@@ -44,7 +45,7 @@ func TestClientHeal(t *testing.T) {
 
 	nsc := client.NewClient(ctx,
 		serverURL,
-		client.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...),
+		client.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken(clock.FromContext(ctx)))...),
 		client.WithDialTimeout(time.Second),
 	)
 	_, err := nsc.Request(ctx, &networkservice.NetworkServiceRequest{})
@@ -68,7 +69,7 @@ func TestClientHeal(t *testing.T) {
 func startEmptyServer(ctx context.Context, t *testing.T, serverURL *url.URL) context.CancelFunc {
 	serverCtx, serverCancel := context.WithCancel(ctx)
 
-	nse := endpoint.NewServer(serverCtx, sandbox.GenerateTestToken)
+	nse := endpoint.NewServer(serverCtx, sandbox.GenerateTestToken(clock.FromContext(ctx)))
 
 	select {
 	case err := <-endpoint.Serve(serverCtx, serverURL, nse):

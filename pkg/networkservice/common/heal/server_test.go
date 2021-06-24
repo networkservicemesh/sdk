@@ -37,6 +37,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/eventchannel"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -71,11 +72,14 @@ func TestHealClient_Request(t *testing.T) {
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
+
+	tokenGenerator := sandbox.GenerateTestToken(clock.FromContext(ctx))
+
 	monitorServer := eventchannel.NewMonitorServer(eventCh)
 	server := chain.NewNetworkServiceServer(
 		updatepath.NewServer("testServer"),
 		monitor.NewServer(ctx, &monitorServer),
-		updatetoken.NewServer(sandbox.GenerateTestToken),
+		updatetoken.NewServer(tokenGenerator),
 	)
 	healServer := heal.NewServer(ctx,
 		heal.WithOnHeal(addressof.NetworkServiceClient(onHeal)))
@@ -83,7 +87,7 @@ func TestHealClient_Request(t *testing.T) {
 		updatepath.NewClient("testClient"),
 		adapters.NewServerToClient(healServer),
 		heal.NewClient(ctx, adapters.NewMonitorServerToClient(monitorServer)),
-		adapters.NewServerToClient(updatetoken.NewServer(sandbox.GenerateTestToken)),
+		adapters.NewServerToClient(updatetoken.NewServer(tokenGenerator)),
 		adapters.NewServerToClient(server),
 	)
 

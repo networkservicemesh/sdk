@@ -44,6 +44,7 @@ func New(ctx context.Context) *Mock {
 		speedCh: make(chan float64),
 		mock:    libclock.NewMock(),
 	}
+	m.Set(time.Now())
 
 	var speed float64
 	var realStart, mockStart, mockTime = time.Now(), m.Now(), m.Now()
