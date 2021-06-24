@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
-
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
@@ -36,78 +35,79 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/eventchannel"
-	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
-type testOnHeal struct {
-	RequestFunc func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error)
-	CloseFunc   func(ctx context.Context, in *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error)
-}
-
-func (t *testOnHeal) Request(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	return t.RequestFunc(ctx, in, opts...)
-}
-
-func (t *testOnHeal) Close(ctx context.Context, in *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	return t.CloseFunc(ctx, in, opts...)
-}
-
 func TestHealClient_Request(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	eventCh := make(chan *networkservice.ConnectionEvent, 1)
-	defer close(eventCh)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 
 	onHealCh := make(chan struct{})
 	// TODO for tomorrow... check on how to work onHeal into the new chain I've built
-	onHeal := &testOnHeal{
-		RequestFunc: func(ctx context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (connection *networkservice.Connection, e error) {
-			if ctx.Err() == nil {
+	var onHeal networkservice.NetworkServiceClient = &testOnHeal{
+		requestFunc: func(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
+			if err = ctx.Err(); err == nil {
 				close(onHealCh)
 			}
-			return &networkservice.Connection{}, nil
+			return request.Connection, err
 		},
 	}
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
+	eventCh := make(chan *networkservice.ConnectionEvent, 1)
+	defer close(eventCh)
+
 	monitorServer := eventchannel.NewMonitorServer(eventCh)
+
 	server := chain.NewNetworkServiceServer(
 		updatepath.NewServer("testServer"),
 		monitor.NewServer(ctx, &monitorServer),
 		updatetoken.NewServer(sandbox.GenerateTestToken),
 	)
-	healServer := heal.NewServer(ctx,
-		heal.WithOnHeal(addressof.NetworkServiceClient(onHeal)))
+
 	client := chain.NewNetworkServiceClient(
 		updatepath.NewClient("testClient"),
-		adapters.NewServerToClient(healServer),
+		adapters.NewServerToClient(heal.NewServer(ctx,
+			heal.WithOnHeal(&onHeal))),
 		heal.NewClient(ctx, adapters.NewMonitorServerToClient(monitorServer)),
-		adapters.NewServerToClient(updatetoken.NewServer(sandbox.GenerateTestToken)),
-		adapters.NewServerToClient(server),
+		adapters.NewServerToClient(
+			chain.NewNetworkServiceServer(
+				updatetoken.NewServer(sandbox.GenerateTestToken),
+				server,
+			),
+		),
 	)
 
-	requestCtx, reqCancelFunc := context.WithTimeout(ctx, waitForTimeout)
-	defer reqCancelFunc()
-	conn, err := client.Request(requestCtx, &networkservice.NetworkServiceRequest{
+	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			NetworkService: "ns-1",
 		},
 	})
-	require.Nil(t, err)
-	t1 := time.Now()
-	_, err = server.Close(requestCtx, conn.Clone())
 	require.NoError(t, err)
-	ctx, cancel := context.WithTimeout(context.Background(), waitHealTimeout)
-	defer cancel()
+
+	_, err = server.Close(ctx, conn.Clone())
+	require.NoError(t, err)
+
 	select {
 	case <-ctx.Done():
-		require.FailNow(t, "timeout waiting for Heal event %v", time.Since(t1))
-		return
+		require.FailNow(t, "timeout waiting for Heal event")
 	case <-onHealCh:
 		// All is fine, test is passed
-		break
 	}
-	_, err = client.Close(requestCtx, conn)
+
+	_, err = client.Close(ctx, conn)
 	require.NoError(t, err)
+}
+
+type testOnHeal struct {
+	requestFunc func(context.Context, *networkservice.NetworkServiceRequest, ...grpc.CallOption) (*networkservice.Connection, error)
+}
+
+func (t *testOnHeal) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	return t.requestFunc(ctx, request, opts...)
+}
+
+func (t *testOnHeal) Close(context.Context, *networkservice.Connection, ...grpc.CallOption) (*empty.Empty, error) {
+	return new(empty.Empty), nil
 }
