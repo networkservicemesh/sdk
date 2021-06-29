@@ -282,30 +282,30 @@ func (b *Builder) newNSMgrProxy() *NSMgrEntry {
 		return nil
 	}
 
-	name := UniqueName("nsmgr-proxy")
-	mgr := b.supplyNSMgrProxy(b.ctx,
-		b.domain.Registry.URL,
-		b.domain.RegistryProxy.URL,
-		b.generateTokenFunc,
-		nsmgrproxy.WithListenOn(b.domain.NSMgrProxy.URL),
-		nsmgrproxy.WithName(name),
-		nsmgrproxy.WithConnectOptions(
-			connect.WithDialTimeout(DialTimeout),
-			connect.WithDialOptions(DefaultDialOptions(b.generateTokenFunc)...)),
-		nsmgrproxy.WithRegistryConnectOptions(
-			registryconnect.WithDialOptions(DefaultDialOptions(b.generateTokenFunc)...),
-		),
-	)
-
-	serve(b.ctx, b.t, b.domain.NSMgrProxy.URL, mgr.Register)
-
-	log.FromContext(b.ctx).Debugf("%s: NSMgr proxy %s on: %v", b.name, name, b.domain.NSMgrProxy.URL)
-
-	return &NSMgrEntry{
-		Name:  name,
-		URL:   b.domain.NSMgrProxy.URL,
-		Nsmgr: mgr,
+	entry := &NSMgrEntry{
+		Name: UniqueName("nsmgr-proxy"),
+		URL:  b.domain.NSMgrProxy.URL,
 	}
+	entry.restartableServer = newRestartableServer(b.ctx, b.t, entry.URL, func(ctx context.Context) {
+		entry.Nsmgr = b.supplyNSMgrProxy(ctx,
+			b.domain.Registry.URL,
+			b.domain.RegistryProxy.URL,
+			b.generateTokenFunc,
+			nsmgrproxy.WithListenOn(entry.URL),
+			nsmgrproxy.WithName(entry.Name),
+			nsmgrproxy.WithConnectOptions(
+				connect.WithDialTimeout(DialTimeout),
+				connect.WithDialOptions(DefaultDialOptions(b.generateTokenFunc)...)),
+			nsmgrproxy.WithRegistryConnectOptions(
+				registryconnect.WithDialOptions(DefaultDialOptions(b.generateTokenFunc)...),
+			),
+		)
+		serve(ctx, b.t, entry.URL, entry.Register)
+
+		log.FromContext(ctx).Debugf("%s: NSMgr proxy %s on: %v", b.name, entry.Name, entry.URL)
+	})
+
+	return entry
 }
 
 func (b *Builder) newNode(nodeNum int) *Node {

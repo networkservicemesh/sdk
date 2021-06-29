@@ -28,7 +28,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -239,18 +238,10 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	var nsmgrCtxCancel context.CancelFunc
 	domain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(3).
 		SetNSMgrProxySupplier(nil).
 		SetRegistryProxySupplier(nil).
-		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, nodeN int) {
-			if nodeN != nodeNum {
-				sandbox.SetupDefaultNode(ctx, node, nsmgr.NewServer)
-			} else {
-				nsmgrCtxCancel = setupCancellableNSMgrNode(ctx, node)
-			}
-		}).
 		Build()
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
@@ -275,19 +266,10 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 		nseReg2.Name += "-2"
 
 		domain.Nodes[2].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter)
-	}
 
-	nsmgrCtxCancel()
-
-	if restored {
-		mgr := domain.Nodes[nodeNum].NSMgr
-
-		// Wait grpc unblock the port
-		require.Eventually(t, func() bool {
-			return grpcutils.CheckURLFree(domain.Nodes[0].NSMgr.URL)
-		}, timeout, tick)
-
-		domain.Nodes[nodeNum].NewNSMgr(ctx, mgr.Name, mgr.URL, sandbox.GenerateTestToken, nsmgr.NewServer)
+		domain.Nodes[nodeNum].NSMgr.Cancel()
+	} else {
+		domain.Nodes[nodeNum].NSMgr.Restart()
 	}
 
 	if restored {
@@ -318,18 +300,6 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 		require.Equal(t, 2, counter.UniqueRequests())
 		require.Equal(t, 1, counter.UniqueCloses())
 	}
-}
-
-func setupCancellableNSMgrNode(ctx context.Context, node *sandbox.Node) context.CancelFunc {
-	nsmgrCtx, nsmgrCtxCancel := context.WithCancel(ctx)
-
-	node.NewNSMgr(nsmgrCtx, sandbox.UniqueName("nsmgr"), nil, sandbox.GenerateTestToken, nsmgr.NewServer)
-
-	node.NewForwarder(ctx, &registry.NetworkServiceEndpoint{
-		Name: sandbox.UniqueName("forwarder"),
-	}, sandbox.GenerateTestToken)
-
-	return nsmgrCtxCancel
 }
 
 func TestNSMGR_HealRegistry(t *testing.T) {

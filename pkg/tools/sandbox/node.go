@@ -86,14 +86,15 @@ func (n *Node) NewNSMgr(
 	}
 
 	entry := &NSMgrEntry{
-		Nsmgr: supplyNSMgr(ctx, generatorFunc, options...),
-		Name:  name,
-		URL:   serveURL,
+		Name: name,
+		URL:  serveURL,
 	}
+	entry.restartableServer = newRestartableServer(ctx, n.t, entry.URL, func(ctx context.Context) {
+		entry.Nsmgr = supplyNSMgr(ctx, generatorFunc, options...)
+		serve(ctx, n.t, entry.URL, entry.Register)
 
-	serve(ctx, n.t, serveURL, entry.Register)
-
-	log.FromContext(ctx).Debugf("%s: NSMgr %s on %v", n.domain.Name, name, serveURL)
+		log.FromContext(ctx).Debugf("%s: NSMgr %s on %v", n.domain.Name, name, serveURL)
+	})
 
 	n.NSMgr = entry
 

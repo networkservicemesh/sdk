@@ -61,6 +61,7 @@ type NSMgrEntry struct {
 	Name string
 	URL  *url.URL
 
+	*restartableServer
 	nsmgr.Nsmgr
 }
 
