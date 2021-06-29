@@ -37,10 +37,11 @@ func serve(ctx context.Context, t *testing.T, u *url.URL, register func(server *
 	register(server)
 
 	errCh := grpcutils.ListenAndServe(ctx, u, server)
+	uString := u.String()
 	go func() {
 		select {
 		case <-ctx.Done():
-			log.FromContext(ctx).Infof("Stop serve: %v", u.String())
+			log.FromContext(ctx).Infof("Stop serve: %s", uString)
 			return
 		case err := <-errCh:
 			require.NoError(t, err)

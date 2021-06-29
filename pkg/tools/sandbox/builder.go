@@ -256,7 +256,7 @@ func (b *Builder) newRegistry() *RegistryEntry {
 
 	var nsmgrProxyURL *url.URL
 	if b.domain.NSMgrProxy != nil {
-		nsmgrProxyURL = b.domain.NSMgrProxy.URL
+		nsmgrProxyURL = grpcutils.CloneURL(b.domain.NSMgrProxy.URL)
 	}
 
 	entry := &RegistryEntry{
@@ -288,8 +288,8 @@ func (b *Builder) newNSMgrProxy() *NSMgrEntry {
 	}
 	entry.restartableServer = newRestartableServer(b.ctx, b.t, entry.URL, func(ctx context.Context) {
 		entry.Nsmgr = b.supplyNSMgrProxy(ctx,
-			b.domain.Registry.URL,
-			b.domain.RegistryProxy.URL,
+			grpcutils.CloneURL(b.domain.Registry.URL),
+			grpcutils.CloneURL(b.domain.RegistryProxy.URL),
 			b.generateTokenFunc,
 			nsmgrproxy.WithListenOn(entry.URL),
 			nsmgrproxy.WithName(entry.Name),
@@ -329,9 +329,9 @@ func (b *Builder) buildDNSServer() {
 	}
 
 	if b.domain.Registry != nil {
-		resolver.AddSRVEntry(b.name, dnsresolve.DefaultRegistryService, b.domain.Registry.URL)
+		resolver.AddSRVEntry(b.name, dnsresolve.DefaultRegistryService, grpcutils.CloneURL(b.domain.Registry.URL))
 	}
 	if b.domain.NSMgrProxy != nil {
-		resolver.AddSRVEntry(b.name, dnsresolve.DefaultNsmgrProxyService, b.domain.NSMgrProxy.URL)
+		resolver.AddSRVEntry(b.name, dnsresolve.DefaultNsmgrProxyService, grpcutils.CloneURL(b.domain.NSMgrProxy.URL))
 	}
 }

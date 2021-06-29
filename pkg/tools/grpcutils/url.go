@@ -102,3 +102,15 @@ func CheckURLFree(u *url.URL) bool {
 	}
 	return err == nil
 }
+
+// CloneURL clones given url
+func CloneURL(u *url.URL) *url.URL {
+	if u == nil {
+		return nil
+	}
+
+	cloned := new(url.URL)
+	*cloned = *u
+
+	return cloned
+}

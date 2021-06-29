@@ -47,6 +47,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -161,7 +162,7 @@ func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 	})
 	require.NoError(t, err)
 
-	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx, s.domain.Nodes[0].URL(),
+	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx, grpcutils.CloneURL(s.domain.Nodes[0].NSMgr.URL),
 		registryclient.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...))
 
 	nseReg, err = nseRegistryClient.Register(ctx, nseReg)
@@ -812,7 +813,7 @@ func newPassThroughEndpoint(
 
 	var additionalFunctionality []networkservice.NetworkServiceServer
 	if hasClientFunctionality {
-		additionalFunctionality = additionalFunctionalityChain(ctx, node.URL(), name, labels)
+		additionalFunctionality = additionalFunctionalityChain(ctx, node.NSMgr.URL, name, labels)
 	}
 
 	if counter != nil {
