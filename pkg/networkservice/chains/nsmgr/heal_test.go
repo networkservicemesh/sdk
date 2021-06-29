@@ -371,8 +371,9 @@ func TestNSMGR_CloseHeal(t *testing.T) {
 	conn, err = nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 
-	// 3. Stop endpoint
+	// 3. Stop endpoint and wait for the heal to start
 	nseCtxCancel()
+	time.Sleep(100 * time.Millisecond)
 
 	// 4. Close connection
 	_, _ = nsc.Close(nscCtx, conn.Clone())
