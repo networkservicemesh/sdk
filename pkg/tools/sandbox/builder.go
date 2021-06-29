@@ -310,8 +310,9 @@ func (b *Builder) newNSMgrProxy() *NSMgrEntry {
 
 func (b *Builder) newNode(nodeNum int) *Node {
 	node := &Node{
-		t:      b.t,
-		domain: b.domain,
+		t:          b.t,
+		domain:     b.domain,
+		Forwarders: make(map[string]*EndpointEntry),
 	}
 
 	b.setupNode(b.ctx, node, nodeNum)

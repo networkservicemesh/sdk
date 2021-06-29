@@ -45,7 +45,8 @@ type Node struct {
 	t      *testing.T
 	domain *Domain
 
-	NSMgr *NSMgrEntry
+	NSMgr      *NSMgrEntry
+	Forwarders map[string]*EndpointEntry
 }
 
 // URL returns node NSMgr URL
@@ -108,38 +109,55 @@ func (n *Node) NewForwarder(
 	generatorFunc token.GeneratorFunc,
 	additionalFunctionality ...networkservice.NetworkServiceServer,
 ) *EndpointEntry {
+	var serveURL *url.URL
+	var err error
 	if nse.Url == "" {
-		nse.Url = n.domain.supplyURL("forwarder").String()
+		serveURL = n.domain.supplyURL("forwarder")
+		nse.Url = serveURL.String()
+	} else {
+		serveURL, err = url.Parse(nse.Url)
+		require.NoError(n.t, err)
 	}
 
+	nseClone := nse.Clone()
 	dialOptions := DefaultDialOptions(generatorFunc)
 
-	entry := new(EndpointEntry)
-	additionalFunctionality = append(additionalFunctionality,
-		clienturl.NewServer(n.URL()),
-		heal.NewServer(ctx,
-			heal.WithOnHeal(addressof.NetworkServiceClient(adapters.NewServerToClient(entry))),
-			heal.WithOnRestore(heal.OnRestoreIgnore)),
-		connect.NewServer(ctx,
-			client.NewClientFactory(
-				client.WithName(nse.Name),
-				client.WithAdditionalFunctionality(
-					mechanismtranslation.NewClient(),
-				),
+	entry := &EndpointEntry{
+		Name: nse.Name,
+		URL:  serveURL,
+	}
+	entry.restartableServer = newRestartableServer(ctx, n.t, entry.URL, func(ctx context.Context) {
+		entry.Endpoint = endpoint.NewServer(ctx, generatorFunc,
+			endpoint.WithName(entry.Name),
+			endpoint.WithAdditionalFunctionality(
+				append(
+					additionalFunctionality,
+					clienturl.NewServer(n.URL()),
+					heal.NewServer(ctx,
+						heal.WithOnHeal(addressof.NetworkServiceClient(adapters.NewServerToClient(entry))),
+						heal.WithOnRestore(heal.OnRestoreIgnore)),
+					connect.NewServer(ctx,
+						client.NewClientFactory(
+							client.WithName(entry.Name),
+							client.WithAdditionalFunctionality(
+								mechanismtranslation.NewClient(),
+							),
+						),
+						connect.WithDialTimeout(DialTimeout),
+						connect.WithDialOptions(dialOptions...),
+					),
+				)...,
 			),
-			connect.WithDialTimeout(DialTimeout),
-			connect.WithDialOptions(dialOptions...),
-		),
-	)
+		)
+		serve(ctx, n.t, entry.URL, entry.Endpoint.Register)
 
-	*entry = *n.newEndpoint(
-		ctx,
-		nse,
-		generatorFunc,
-		registryclient.NewNetworkServiceEndpointRegistryInterposeClient(ctx, n.URL(),
-			registryclient.WithDialOptions(dialOptions...)),
-		additionalFunctionality...,
-	)
+		entry.NetworkServiceEndpointRegistryClient = registryclient.NewNetworkServiceEndpointRegistryInterposeClient(ctx, n.URL(),
+			registryclient.WithDialOptions(dialOptions...))
+
+		n.registerEndpoint(ctx, nse, nseClone, entry.NetworkServiceEndpointRegistryClient)
+	})
+
+	n.Forwarders[entry.Name] = entry
 
 	return entry
 }
@@ -151,53 +169,50 @@ func (n *Node) NewEndpoint(
 	generatorFunc token.GeneratorFunc,
 	additionalFunctionality ...networkservice.NetworkServiceServer,
 ) *EndpointEntry {
+	var serveURL *url.URL
+	var err error
 	if nse.Url == "" {
-		nse.Url = n.domain.supplyURL("nse").String()
+		serveURL = n.domain.supplyURL("nse")
+		nse.Url = serveURL.String()
+	} else {
+		serveURL, err = url.Parse(nse.Url)
+		require.NoError(n.t, err)
 	}
 
-	return n.newEndpoint(
-		ctx,
-		nse,
-		generatorFunc,
-		registryclient.NewNetworkServiceEndpointRegistryClient(ctx, n.URL(),
-			registryclient.WithDialOptions(DefaultDialOptions(generatorFunc)...)),
-		additionalFunctionality...,
-	)
+	nseClone := nse.Clone()
+	dialOptions := DefaultDialOptions(generatorFunc)
+
+	entry := &EndpointEntry{
+		Name: nse.Name,
+		URL:  serveURL,
+	}
+	entry.restartableServer = newRestartableServer(ctx, n.t, entry.URL, func(ctx context.Context) {
+		entry.Endpoint = endpoint.NewServer(ctx, generatorFunc,
+			endpoint.WithName(entry.Name),
+			endpoint.WithAdditionalFunctionality(additionalFunctionality...),
+		)
+		serve(ctx, n.t, entry.URL, entry.Endpoint.Register)
+
+		entry.NetworkServiceEndpointRegistryClient = registryclient.NewNetworkServiceEndpointRegistryClient(ctx, n.URL(),
+			registryclient.WithDialOptions(dialOptions...))
+
+		n.registerEndpoint(ctx, nse, nseClone, entry.NetworkServiceEndpointRegistryClient)
+	})
+
+	return entry
 }
 
-func (n *Node) newEndpoint(
+func (n *Node) registerEndpoint(
 	ctx context.Context,
-	nse *registryapi.NetworkServiceEndpoint,
-	generatorFunc token.GeneratorFunc,
+	nse, nseClone *registryapi.NetworkServiceEndpoint,
 	registryClient registryapi.NetworkServiceEndpointRegistryClient,
-	additionalFunctionality ...networkservice.NetworkServiceServer,
-) *EndpointEntry {
-	name := nse.Name
-	ep := endpoint.NewServer(ctx, generatorFunc,
-		endpoint.WithName(name),
-		endpoint.WithAdditionalFunctionality(additionalFunctionality...),
-	)
-
-	serveURL, err := url.Parse(nse.Url)
-	require.NoError(n.t, err)
-
-	serve(ctx, n.t, serveURL, ep.Register)
-
-	reg, err := registryClient.Register(ctx, nse)
+) {
+	reg, err := registryClient.Register(ctx, nseClone.Clone())
 	require.NoError(n.t, err)
 
 	nse.Name = reg.Name
 	nse.ExpirationTime = reg.ExpirationTime
 	nse.NetworkServiceLabels = reg.NetworkServiceLabels
-
-	log.FromContext(ctx).Debugf("%s: endpoint %s on %v", n.domain.Name, nse.Name, serveURL)
-
-	return &EndpointEntry{
-		Name:                                 name,
-		URL:                                  serveURL,
-		Endpoint:                             ep,
-		NetworkServiceEndpointRegistryClient: registryClient,
-	}
 }
 
 // NewClient starts a new client and connects it to the node NSMgr

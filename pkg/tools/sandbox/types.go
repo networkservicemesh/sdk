@@ -70,6 +70,7 @@ type EndpointEntry struct {
 	Name string
 	URL  *url.URL
 
+	*restartableServer
 	endpoint.Endpoint
 	registryapi.NetworkServiceEndpointRegistryClient
 }
