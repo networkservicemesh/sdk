@@ -62,6 +62,8 @@ func NewServer(registryServer *registry.NetworkServiceEndpointRegistryServer) ne
 }
 
 func (l *interposeServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (result *networkservice.Connection, err error) {
+	logger := log.FromContext(ctx).WithField("interposeServer", "Request")
+
 	// Check if there is no active connection, we need to replace endpoint url with forwarder url
 	conn := request.GetConnection()
 	ind := conn.GetPath().GetIndex() // It is designed to be used inside Endpoint, so current index is Endpoint already
@@ -98,7 +100,7 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 			})
 			result, err = next.Server(crossCTX).Request(crossCTX, request)
 			if err != nil {
-				log.Default().Errorf("failed to request cross NSE %v err: %v", crossNSEURL, err)
+				logger.Errorf("failed to request cross NSE %v err: %v", crossNSEURL, err)
 				return true
 			}
 			// If all is ok, stop iterating.
@@ -107,6 +109,8 @@ func (l *interposeServer) Request(ctx context.Context, request *networkservice.N
 		if result != nil {
 			return result, nil
 		}
+
+		l.activeConnection.Delete(activeConnID)
 
 		return nil, errors.Errorf("all cross NSE failed to connect to endpoint %v connection: %v", clientURL, conn)
 	}
@@ -140,10 +144,13 @@ func (l *interposeServer) getConnectionID(conn *networkservice.Connection) (stri
 }
 
 func (l *interposeServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	logger := log.FromContext(ctx).WithField("interposeServer", "Close")
+
 	// If we came from NSMgr, we need to go to proper interpose NSE
 	connInfo, ok := l.activeConnection.Load(conn.GetId())
 	if !ok {
-		return nil, errors.Errorf("no active connection found: %v", conn)
+		logger.Errorf("no active connection found: %v", conn)
+		return next.Server(ctx).Close(clienturlctx.WithClientURL(ctx, nil), conn)
 	}
 
 	var crossCTX context.Context
