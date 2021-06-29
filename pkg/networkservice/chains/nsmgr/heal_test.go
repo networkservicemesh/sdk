@@ -332,6 +332,52 @@ func setupCancellableNSMgrNode(ctx context.Context, node *sandbox.Node) context.
 	return nsmgrCtxCancel
 }
 
+func TestNSMGR_HealRegistry(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		Build()
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService())
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
+
+	counter := &counterServer{}
+	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
+
+	request := defaultRequest(nsReg.Name)
+
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	conn, err := nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+
+	// 1. Restart Registry
+	domain.Registry.Restart()
+
+	// 2. Check refresh
+	request.Connection = conn
+	_, err = nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+
+	// 3. Check new client request
+	nsc = domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	_, err = nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+
+	require.Equal(t, int32(3), atomic.LoadInt32(&counter.Requests))
+}
+
 func TestNSMGR_CloseHeal(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 

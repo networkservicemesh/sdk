@@ -52,6 +52,7 @@ type SetupNodeFunc func(ctx context.Context, node *Node, nodeNum int)
 type RegistryEntry struct {
 	URL *url.URL
 
+	*restartableServer
 	registry.Registry
 }
 

@@ -232,17 +232,21 @@ func (b *Builder) newRegistryProxy() *RegistryEntry {
 		return nil
 	}
 
-	registryProxy := b.supplyRegistryProxy(b.ctx, b.dnsResolver, DefaultDialOptions(b.generateTokenFunc)...)
-	serveURL := b.domain.supplyURL("reg-proxy")
-
-	serve(b.ctx, b.t, serveURL, registryProxy.Register)
-
-	log.FromContext(b.ctx).Debugf("%s: registry-proxy-dns on: %v", b.name, serveURL)
-
-	return &RegistryEntry{
-		URL:      serveURL,
-		Registry: registryProxy,
+	entry := &RegistryEntry{
+		URL: b.domain.supplyURL("reg-proxy"),
 	}
+	entry.restartableServer = newRestartableServer(b.ctx, b.t, entry.URL, func(ctx context.Context) {
+		entry.Registry = b.supplyRegistryProxy(
+			ctx,
+			b.dnsResolver,
+			DefaultDialOptions(b.generateTokenFunc)...,
+		)
+		serve(ctx, b.t, entry.URL, entry.Register)
+
+		log.FromContext(ctx).Debugf("%s: registry-proxy-dns on: %v", b.name, entry.URL)
+	})
+
+	return entry
 }
 
 func (b *Builder) newRegistry() *RegistryEntry {
@@ -255,17 +259,22 @@ func (b *Builder) newRegistry() *RegistryEntry {
 		nsmgrProxyURL = b.domain.NSMgrProxy.URL
 	}
 
-	registry := b.supplyRegistry(b.ctx, b.registryExpiryDuration, nsmgrProxyURL, DefaultDialOptions(b.generateTokenFunc)...)
-	serveURL := b.domain.supplyURL("reg")
-
-	serve(b.ctx, b.t, serveURL, registry.Register)
-
-	log.FromContext(b.ctx).Debugf("%s: registry on: %v", b.name, serveURL)
-
-	return &RegistryEntry{
-		URL:      serveURL,
-		Registry: registry,
+	entry := &RegistryEntry{
+		URL: b.domain.supplyURL("reg"),
 	}
+	entry.restartableServer = newRestartableServer(b.ctx, b.t, entry.URL, func(ctx context.Context) {
+		entry.Registry = b.supplyRegistry(
+			ctx,
+			b.registryExpiryDuration,
+			nsmgrProxyURL,
+			DefaultDialOptions(b.generateTokenFunc)...,
+		)
+		serve(ctx, b.t, entry.URL, entry.Register)
+
+		log.FromContext(ctx).Debugf("%s: registry on: %v", b.name, entry.URL)
+	})
+
+	return entry
 }
 
 func (b *Builder) newNSMgrProxy() *NSMgrEntry {
