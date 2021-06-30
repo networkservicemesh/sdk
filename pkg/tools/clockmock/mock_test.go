@@ -30,7 +30,7 @@ import (
 
 const (
 	timeout  = 2 * time.Hour
-	testWait = 100 * time.Millisecond
+	testWait = 200 * time.Millisecond
 	testTick = testWait / 100
 )
 
