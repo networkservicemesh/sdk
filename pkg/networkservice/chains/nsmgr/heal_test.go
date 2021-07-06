@@ -359,8 +359,11 @@ func TestNSMGR_CloseHeal(t *testing.T) {
 
 	nsc := domain.Nodes[0].NewClient(nscCtx, sandbox.GenerateTestToken)
 
+	reqCtx, reqCancel := context.WithTimeout(ctx, time.Second)
+	defer reqCancel()
+
 	// 1. Request
-	conn, err := nsc.Request(ctx, request.Clone())
+	conn, err := nsc.Request(reqCtx, request.Clone())
 	require.NoError(t, err)
 
 	ignoreCurrent := goleak.IgnoreCurrent()
@@ -368,7 +371,7 @@ func TestNSMGR_CloseHeal(t *testing.T) {
 	// 2. Refresh
 	request.Connection = conn
 
-	conn, err = nsc.Request(ctx, request.Clone())
+	conn, err = nsc.Request(reqCtx, request.Clone())
 	require.NoError(t, err)
 
 	// 3. Stop endpoint and wait for the heal to start

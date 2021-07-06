@@ -326,7 +326,10 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 
 	request := defaultRequest(nsReg.Name)
 
-	conn, err := nsc.Request(ctx, request.Clone())
+	reqCtx, reqCancel := context.WithTimeout(ctx, time.Second)
+	defer reqCancel()
+
+	conn, err := nsc.Request(reqCtx, request.Clone())
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Requests))
@@ -338,9 +341,9 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	refreshRequest := request.Clone()
 	refreshRequest.Connection = conn.Clone()
 
-	_, err = nsc.Request(ctx, refreshRequest)
+	_, err = nsc.Request(reqCtx, refreshRequest)
 	require.Error(t, err)
-	require.NoError(t, ctx.Err())
+	require.NoError(t, reqCtx.Err())
 
 	// Close
 	_, _ = nsc.Close(ctx, conn)
