@@ -81,6 +81,11 @@ func (f *healServer) Request(ctx context.Context, request *networkservice.Networ
 	clockTime := clock.FromContext(ctx)
 	ctx = f.withHandlers(ctx)
 
+	requestTimeout := time.Duration(0)
+	if deadline, ok := ctx.Deadline(); ok {
+		requestTimeout = clockTime.Until(deadline)
+	}
+
 	requestStart := clockTime.Now()
 
 	conn, err := next.Server(ctx).Request(ctx, request)
@@ -92,7 +97,10 @@ func (f *healServer) Request(ctx context.Context, request *networkservice.Networ
 	// difference between these times was 3x on packet cluster (0.5s local vs 1.5s remote). So taking 5x value would be
 	// enough to cover such local to remote case and not too much in terms of blocking subsequent Request/Close events
 	// (7.5s for the worst remote case).
-	requestTimeout := clockTime.Since(requestStart) * 5
+	requestDuration := clockTime.Since(requestStart) * 5
+	if requestDuration > requestTimeout {
+		requestTimeout = requestDuration
+	}
 
 	cw, loaded := f.healContextMap.LoadOrStore(request.GetConnection().GetId(), &ctxWrapper{
 		request:        request.Clone(),
@@ -108,7 +116,9 @@ func (f *healServer) Request(ctx context.Context, request *networkservice.Networ
 			cw.cancel = nil
 		}
 		cw.request = request.Clone()
-		cw.requestTimeout = requestTimeout
+		if requestTimeout > cw.requestTimeout {
+			cw.requestTimeout = requestTimeout
+		}
 		cw.ctx = f.createHealContext(ctx, cw.ctx)
 	}
 
