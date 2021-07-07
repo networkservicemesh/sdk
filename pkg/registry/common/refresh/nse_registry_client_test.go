@@ -30,12 +30,14 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checknse"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
+	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
 )
 
 const (
@@ -44,11 +46,60 @@ const (
 	testTick      = testWait / 100
 )
 
+type injectNSERegisterClient struct {
+	registry.NetworkServiceEndpointRegistryClient
+	register func(context.Context, *registry.NetworkServiceEndpoint, ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error)
+}
+
+func (c *injectNSERegisterClient) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+	return c.register(ctx, nse, opts...)
+}
+
 func testNSE(clockTime clock.Clock) *registry.NetworkServiceEndpoint {
 	return &registry.NetworkServiceEndpoint{
 		Name:           "nse-1",
 		ExpirationTime: timestamppb.New(clockTime.Now().Add(expireTimeout)),
 	}
+}
+
+func Test_NetworkServiceEndpointRefreshClient_ShouldWorkCorrectlyWithFloatingScenario(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	clockMock := clockmock.New(ctx)
+	ctx = clock.WithClock(ctx, clockMock)
+
+	var registerCount int32
+
+	client := next.NewNetworkServiceEndpointRegistryClient(
+		serialize.NewNetworkServiceEndpointRegistryClient(),
+		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
+		&injectNSERegisterClient{
+			NetworkServiceEndpointRegistryClient: null.NewNetworkServiceEndpointRegistryClient(),
+			register: func(c context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+				resp := nse.Clone()
+				resp.Name = interdomain.Target(nse.Name)
+				require.Equal(t, "nse-1@my.domain.com", nse.Name)
+				atomic.AddInt32(&registerCount, 1)
+				return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, resp, opts...)
+			},
+		},
+	)
+
+	nse := testNSE(clockMock)
+	nse.Name = "nse-1@my.domain.com"
+	reg, err := client.Register(ctx, nse)
+	require.NoError(t, err)
+
+	clockMock.Add(expireTimeout)
+	require.Eventually(t, func() bool {
+		return atomic.LoadInt32(&registerCount) > 1
+	}, testWait, testTick)
+
+	_, err = client.Unregister(ctx, reg)
+	require.NoError(t, err)
 }
 
 func TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {

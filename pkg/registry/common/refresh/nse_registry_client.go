@@ -66,7 +66,10 @@ func (c *refreshNSEClient) Register(ctx context.Context, nse *registry.NetworkSe
 	}
 
 	if reg.ExpirationTime != nil {
-		cancel, err = c.startRefresh(ctx, reg.Clone(), expirationDuration)
+		refreshNSE := nse.Clone()
+		refreshNSE.ExpirationTime = reg.ExpirationTime
+
+		cancel, err = c.startRefresh(ctx, refreshNSE, expirationDuration)
 		if err != nil {
 			if _, unregisterErr := next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, reg); unregisterErr != nil {
 				logger.Errorf("failed to unregister endpoint on error: %s %s", reg.Name, unregisterErr.Error())
@@ -74,7 +77,7 @@ func (c *refreshNSEClient) Register(ctx context.Context, nse *registry.NetworkSe
 			return nil, err
 		}
 
-		c.nseCancels.Store(reg.Name, cancel)
+		c.nseCancels.Store(refreshNSE.Name, cancel)
 	}
 
 	return reg, err
@@ -117,9 +120,6 @@ func (c *refreshNSEClient) startRefresh(ctx context.Context, nse *registry.Netwo
 					defer cancel()
 
 					reg, err := next.NetworkServiceEndpointRegistryClient(ctx).Register(registerCtx, nse.Clone())
-					if err == nil && reg.Name != nse.Name {
-						err = errors.Errorf("renamed to %s", reg.Name)
-					}
 					if err != nil {
 						logger.Errorf("failed to refresh endpoint registration: %s %s", nse.Name, err.Error())
 						return
