@@ -16,7 +16,7 @@
 
 // Package resetting provides grpc credentials.TransportCredentials wrapper that can init re-dial prodcudere for grpc connection on event receiving from the channel.
 // This might be useful for updating long-living connections with expired certificates on the server and client-side.
-// See at https://github.com/grpc/grpc-go/blob/45549242f79aacb850de77336a76777bef8bbe01/clientconn.go#L1138
+// See at https://github.com/grpc/grpc-go/blob/v1.39.0/clientconn.go#L1138
 package resetting
 
 import (
@@ -48,7 +48,7 @@ func (c *subscribableConn) Close() error {
 // NewCredentials adds to passed credentials.TransportCredentials a possible to reset all connections on receiving a update from the resetCh.
 func NewCredentials(creds credentials.TransportCredentials, resetCh <-chan struct{}) credentials.TransportCredentials {
 	if resetCh == nil {
-		panic("updateCh cannot be nil")
+		panic("resetCh cannot be nil")
 	}
 	var s = &transportCredentails{
 		TransportCredentials: creds,

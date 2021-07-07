@@ -79,7 +79,7 @@ func Test_ResetTransportCreds_Stream(t *testing.T) {
 	}
 }
 
-func testResetTransportCredsStream(t *testing.T, listemOn *url.URL) {
+func testResetTransportCredsStream(t *testing.T, listenOn *url.URL) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
@@ -96,11 +96,11 @@ func testResetTransportCredsStream(t *testing.T, listemOn *url.URL) {
 
 	grpc_health_v1.RegisterHealthServer(s, healthServer)
 	healthServer.SetServingStatus("test", grpc_health_v1.HealthCheckResponse_SERVING)
-	println(listemOn.String())
-	errCh := grpcutils.ListenAndServe(ctx, listemOn, s)
+
+	errCh := grpcutils.ListenAndServe(ctx, listenOn, s)
 	require.Equal(t, 0, len(errCh))
 
-	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(listemOn), grpc.WithTransportCredentials(creds), grpc.WithBlock())
+	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(listenOn), grpc.WithTransportCredentials(creds), grpc.WithBlock())
 	require.NoError(t, err)
 	defer func() {
 		_ = cc.Close()
@@ -133,7 +133,7 @@ func testResetTransportCredsStream(t *testing.T, listemOn *url.URL) {
 	}, time.Until(deadline), time.Millisecond*50)
 }
 
-func testResetTransportCredsRPC(t *testing.T, listemOn *url.URL) {
+func testResetTransportCredsRPC(t *testing.T, listenOn *url.URL) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -150,11 +150,11 @@ func testResetTransportCredsRPC(t *testing.T, listemOn *url.URL) {
 
 	grpc_health_v1.RegisterHealthServer(s, healthServer)
 	healthServer.SetServingStatus("test", grpc_health_v1.HealthCheckResponse_SERVING)
-	println(listemOn.String())
-	errCh := grpcutils.ListenAndServe(ctx, listemOn, s)
+	println(listenOn.String())
+	errCh := grpcutils.ListenAndServe(ctx, listenOn, s)
 	require.Equal(t, 0, len(errCh))
 
-	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(listemOn), grpc.WithTransportCredentials(creds), grpc.WithBlock())
+	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(listenOn), grpc.WithTransportCredentials(creds), grpc.WithBlock())
 	require.NoError(t, err)
 
 	defer func() {
