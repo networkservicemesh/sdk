@@ -402,7 +402,7 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 
 	counterClose := &counterServer{}
 
-	nsReg := linearNS(nodesCount)
+	nsReg := linearNS(nodesCount, false, false)
 	nsReg, err := s.nsRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
@@ -463,7 +463,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 
 	counterClose := &counterServer{}
 
-	nsReg, err := s.nsRegistryClient.Register(ctx, linearNS(nsesCount))
+	nsReg, err := s.nsRegistryClient.Register(ctx, linearNS(nsesCount, false, false))
 	require.NoError(t, err)
 
 	var nseRegs [nsesCount]*registry.NetworkServiceEndpoint
@@ -509,6 +509,71 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 	// Endpoint unregister
 	for i, nseReg := range nseRegs {
 		_, err = nses[i].Unregister(ctx, nseReg)
+		require.NoError(t, err)
+	}
+}
+
+func (s *nsmgrSuite) Test_PassThroughSameSourceSelector() {
+	t := s.T()
+	const nsesCount = 7
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	counterClose := &counterServer{}
+
+	nsReg, err := s.nsRegistryClient.Register(ctx, linearNS(nsesCount, true, true))
+	require.NoError(t, err)
+
+	var nseRegs [nsesCount]*registry.NetworkServiceEndpoint
+	var nses [nsesCount]*sandbox.EndpointEntry
+	for i := range nseRegs {
+		if i == 0 {
+			continue
+		}
+		nseRegs[i], nses[i] = newPassThroughEndpoint(
+			ctx,
+			s.domain.Nodes[0],
+			map[string]string{
+				step: fmt.Sprintf("%v", i),
+			},
+			fmt.Sprintf("%v", i),
+			nsReg.Name,
+			i != nsesCount-1,
+			counterClose,
+		)
+	}
+
+	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	request := defaultRequest(nsReg.Name)
+
+	conn, err := nsc.Request(ctx, request)
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+
+	// Path length to first endpoint is 5
+	// Path length from NSE client to other local endpoint is 5
+	require.Equal(t, 5*(nsesCount-2)+5, len(conn.Path.PathSegments))
+	for i := 1; i < len(nseRegs); i++ {
+		require.Contains(t, nseRegs[i].Name, conn.Path.PathSegments[i*5-1].Name)
+	}
+
+	// Refresh
+	conn, err = nsc.Request(ctx, request)
+	require.NoError(t, err)
+
+	// Close
+	_, err = nsc.Close(ctx, conn)
+	require.NoError(t, err)
+	require.Equal(t, int32(nsesCount-1), atomic.LoadInt32(&counterClose.Closes))
+
+	// Endpoint unregister
+	for i, nseReg := range nseRegs {
+		if i == 0 {
+			continue
+		}
+		_, err := nses[i].Unregister(ctx, nseReg)
 		require.NoError(t, err)
 	}
 }
@@ -603,7 +668,7 @@ const (
 	labelB = "label_b"
 )
 
-func linearNS(count int) *registry.NetworkService {
+func linearNS(count int, twoEmpty, withPassthrough bool) *registry.NetworkService {
 	matches := make([]*registry.Match, 0)
 
 	for i := 1; i < count; i++ {
@@ -633,8 +698,22 @@ func linearNS(count int) *registry.NetworkService {
 					},
 				},
 			},
+			Fallthrough: withPassthrough,
 		}
 		matches = append(matches, match)
+
+		if twoEmpty {
+			match := &registry.Match{
+				Routes: []*registry.Destination{
+					{
+						DestinationSelector: map[string]string{
+							step: fmt.Sprintf("%v", 1),
+						},
+					},
+				},
+			}
+			matches = append(matches, match)
+		}
 	}
 
 	return &registry.NetworkService{

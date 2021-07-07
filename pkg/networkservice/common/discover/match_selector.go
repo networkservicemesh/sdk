@@ -70,7 +70,7 @@ func matchEndpoint(clockTime clock.Clock, nsLabels map[string]string, ns *regist
 			}
 		}
 
-		if match.Fallthrough && len(nseCandidates) == 0{
+		if match.Fallthrough && len(nseCandidates) == 0 {
 			continue
 		}
 
