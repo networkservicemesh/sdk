@@ -214,7 +214,7 @@ func FromSpan(ctx context.Context, span opentracing.Span, operation string) (con
 
 func (s *logrusLogger) printStart() {
 	prefix := strings.Repeat(separator, s.info.level)
-	s.entry.Infof("%v%s⎆ %v()%v", s.info.incInfo(), prefix, s.operation, s.getSpan())
+	s.entry.Debugf("%v%s⎆ %v()%v", s.info.incInfo(), prefix, s.operation, s.getSpan())
 }
 
 func (s *logrusLogger) format(format string, v ...interface{}) string {

@@ -23,6 +23,9 @@ import (
 	"reflect"
 	"strconv"
 
+	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/testing/protocmp"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"google.golang.org/protobuf/proto"
@@ -33,12 +36,12 @@ func logRequest(ctx context.Context, request proto.Message) {
 	connInfo, ok := trace(ctx)
 	if ok && !proto.Equal(connInfo.Request, request) {
 		if connInfo.Request != nil && connInfo.Request.ProtoReflect().Descriptor().FullName() == request.ProtoReflect().Descriptor().FullName() {
-			requestDiff, hadChanges := Diff(connInfo.Request.ProtoReflect(), request.ProtoReflect())
-			if hadChanges {
-				log.FromContext(ctx).Object("request-diff", requestDiff)
+			requestDiff := cmp.Diff(connInfo.Request, request, protocmp.Transform())
+			if requestDiff != "" {
+				log.FromContext(ctx).Debugf("request-diff: %v", requestDiff)
 			}
 		} else {
-			log.FromContext(ctx).Object("request", request)
+			log.FromContext(ctx).Debugf("request: %v", request)
 		}
 		connInfo.Request = proto.Clone(request)
 	}
@@ -48,12 +51,12 @@ func logResponse(ctx context.Context, response proto.Message) {
 	connInfo, ok := trace(ctx)
 	if ok && !proto.Equal(connInfo.Response, response) {
 		if connInfo.Response != nil {
-			responseDiff, changed := Diff(connInfo.Response.ProtoReflect(), response.ProtoReflect())
-			if changed {
-				log.FromContext(ctx).Object("response-diff", responseDiff)
+			responseDiff := cmp.Diff(connInfo.Request, response, protocmp.Transform())
+			if responseDiff != "" {
+				log.FromContext(ctx).Debugf("response-diff: %f", responseDiff)
 			}
 		} else {
-			log.FromContext(ctx).Object("response", response)
+			log.FromContext(ctx).Debugf("response: %f", response)
 		}
 		connInfo.Response = proto.Clone(response)
 		return

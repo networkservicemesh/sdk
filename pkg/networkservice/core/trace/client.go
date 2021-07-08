@@ -49,6 +49,12 @@ func NewNetworkServiceClient(traced networkservice.NetworkServiceClient) network
 func (t *beginTraceClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	// Create a new logger
 	operation := typeutils.GetFuncName(t.traced, "Request")
+	fields := make(map[string]interface{})
+	for k, v := range log.Fields(ctx) {
+		fields[k] = v
+	}
+	fields["id"] = request.GetConnection().GetId()
+	ctx = log.WithFields(ctx, fields)
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
@@ -74,6 +80,12 @@ func (t *beginTraceClient) Request(ctx context.Context, request *networkservice.
 func (t *beginTraceClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	// Create a new logger
 	operation := typeutils.GetFuncName(t.traced, "Close")
+	fields := make(map[string]interface{})
+	for k, v := range log.Fields(ctx) {
+		fields[k] = v
+	}
+	fields["id"] = conn.GetId()
+	ctx = log.WithFields(ctx, fields)
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
