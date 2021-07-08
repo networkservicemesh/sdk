@@ -402,7 +402,7 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 
 	counterClose := &counterServer{}
 
-	nsReg := linearNS(nodesCount, false, false)
+	nsReg := linearNS(nodesCount)
 	nsReg, err := s.nsRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
@@ -463,7 +463,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 
 	counterClose := &counterServer{}
 
-	nsReg, err := s.nsRegistryClient.Register(ctx, linearNS(nsesCount, false, false))
+	nsReg, err := s.nsRegistryClient.Register(ctx, linearNS(nsesCount))
 	require.NoError(t, err)
 
 	var nseRegs [nsesCount]*registry.NetworkServiceEndpoint
@@ -522,7 +522,19 @@ func (s *nsmgrSuite) Test_PassThroughSameSourceSelector() {
 
 	counterClose := &counterServer{}
 
-	nsReg, err := s.nsRegistryClient.Register(ctx, linearNS(nsesCount, true, true))
+	ns := linearNS(nsesCount)
+	ns.Matches[len(ns.Matches)-1].Fallthrough = true
+	ns.Matches = append(ns.Matches, &registry.Match{
+		Routes: []*registry.Destination{
+			{
+				DestinationSelector: map[string]string{
+					step: fmt.Sprintf("%v", 1),
+				},
+			},
+		},
+	})
+
+	nsReg, err := s.nsRegistryClient.Register(ctx, ns)
 	require.NoError(t, err)
 
 	var nseRegs [nsesCount]*registry.NetworkServiceEndpoint
@@ -668,7 +680,7 @@ const (
 	labelB = "label_b"
 )
 
-func linearNS(count int, twoEmpty, withPassthrough bool) *registry.NetworkService {
+func linearNS(count int) *registry.NetworkService {
 	matches := make([]*registry.Match, 0)
 
 	for i := 1; i < count; i++ {
@@ -698,22 +710,8 @@ func linearNS(count int, twoEmpty, withPassthrough bool) *registry.NetworkServic
 					},
 				},
 			},
-			Fallthrough: withPassthrough,
 		}
 		matches = append(matches, match)
-
-		if twoEmpty {
-			match := &registry.Match{
-				Routes: []*registry.Destination{
-					{
-						DestinationSelector: map[string]string{
-							step: fmt.Sprintf("%v", 1),
-						},
-					},
-				},
-			}
-			matches = append(matches, match)
-		}
 	}
 
 	return &registry.NetworkService{
