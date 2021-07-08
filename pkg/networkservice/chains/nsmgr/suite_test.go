@@ -516,6 +516,87 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 	}
 }
 
+func (s *nsmgrSuite) Test_PassThroughSameSourceSelector() {
+	t := s.T()
+	const nsesCount = 7
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	counterClose := &counterServer{}
+
+	ns := linearNS(nsesCount)
+	ns.Matches[len(ns.Matches)-1].Fallthrough = true
+	ns.Matches = append(ns.Matches, &registry.Match{
+		Routes: []*registry.Destination{
+			{
+				DestinationSelector: map[string]string{
+					step: fmt.Sprintf("%v", 1),
+				},
+			},
+		},
+	})
+
+	nsReg, err := s.nsRegistryClient.Register(ctx, ns)
+	require.NoError(t, err)
+
+	var nseRegs [nsesCount]*registry.NetworkServiceEndpoint
+	var nses [nsesCount]*sandbox.EndpointEntry
+	for i := range nseRegs {
+		if i == 0 {
+			continue
+		}
+		nseRegs[i], nses[i] = newPassThroughEndpoint(
+			ctx,
+			s.domain.Nodes[0],
+			map[string]string{
+				step: fmt.Sprintf("%v", i),
+			},
+			fmt.Sprintf("%v", i),
+			nsReg.Name,
+			i != nsesCount-1,
+			counterClose,
+		)
+	}
+
+	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	request := defaultRequest(nsReg.Name)
+
+	conn, err := nsc.Request(ctx, request)
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+
+	// Path length to first endpoint is 5
+	// Path length from NSE client to other local endpoint is 5
+	require.Equal(t, 5*(nsesCount-2)+5, len(conn.Path.PathSegments))
+	for i := 1; i < len(nseRegs); i++ {
+		require.Contains(t, nseRegs[i].Name, conn.Path.PathSegments[i*5-1].Name)
+	}
+
+	// Refresh
+	conn, err = nsc.Request(ctx, request)
+	require.NoError(t, err)
+	require.Equal(t, 5*(nsesCount-2)+5, len(conn.Path.PathSegments))
+	for i := 1; i < len(nseRegs); i++ {
+		require.Contains(t, nseRegs[i].Name, conn.Path.PathSegments[i*5-1].Name)
+	}
+
+	// Close
+	_, err = nsc.Close(ctx, conn)
+	require.NoError(t, err)
+	require.Equal(t, int32(nsesCount-1), atomic.LoadInt32(&counterClose.Closes))
+
+	// Endpoint unregister
+	for i, nseReg := range nseRegs {
+		if i == 0 {
+			continue
+		}
+		_, err := nses[i].Unregister(ctx, nseReg)
+		require.NoError(t, err)
+	}
+}
+
 func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
 	t := s.T()
 
