@@ -574,6 +574,10 @@ func (s *nsmgrSuite) Test_PassThroughSameSourceSelector() {
 	// Refresh
 	conn, err = nsc.Request(ctx, request)
 	require.NoError(t, err)
+	require.Equal(t, 5*(nsesCount-2)+5, len(conn.Path.PathSegments))
+	for i := 1; i < len(nseRegs); i++ {
+		require.Contains(t, nseRegs[i].Name, conn.Path.PathSegments[i*5-1].Name)
+	}
 
 	// Close
 	_, err = nsc.Close(ctx, conn)
