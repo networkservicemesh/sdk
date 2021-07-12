@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Cisco Systems, Inc.
 //
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -69,8 +71,5 @@ func (s *selectEndpointServer) Request(ctx context.Context, request *networkserv
 }
 
 func (s *selectEndpointServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	if clienturlctx.ClientURL(ctx) != nil {
-		return next.Server(ctx).Close(ctx, conn)
-	}
-	return nil, errors.Errorf("passed incorrect connection: %+v", conn)
+	return next.Server(ctx).Close(ctx, conn)
 }

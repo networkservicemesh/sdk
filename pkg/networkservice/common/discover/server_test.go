@@ -162,7 +162,7 @@ func testServers(
 	return nsServer, nseServer
 }
 
-func TestMatchEmptySourceSelector(t *testing.T) {
+func TestDiscoverCandidatesServer_MatchEmptySourceSelector(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), testWait)
@@ -198,7 +198,7 @@ func TestMatchEmptySourceSelector(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestMatchNonEmptySourceSelector(t *testing.T) {
+func TestDiscoverCandidatesServer_MatchNonEmptySourceSelector(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), testWait)
@@ -236,7 +236,7 @@ func TestMatchNonEmptySourceSelector(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestMatchEmptySourceSelectorGoingFirst(t *testing.T) {
+func TestDiscoverCandidatesServer_MatchEmptySourceSelectorGoingFirst(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), testWait)
@@ -274,7 +274,7 @@ func TestMatchEmptySourceSelectorGoingFirst(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestMatchNothing(t *testing.T) {
+func TestDiscoverCandidatesServer_MatchNothing(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), testWait)
@@ -307,7 +307,7 @@ func TestMatchNothing(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestMatchSelectedNSE(t *testing.T) {
+func TestDiscoverCandidatesServer_MatchSelectedNSE(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), testWait)
@@ -337,7 +337,7 @@ func TestMatchSelectedNSE(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestNoMatchServiceFound(t *testing.T) {
+func TestDiscoverCandidatesServer_NoMatchServiceFound(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	nsName := networkServiceName()
@@ -374,7 +374,7 @@ func TestNoMatchServiceFound(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestNoMatchServiceEndpointFound(t *testing.T) {
+func TestDiscoverCandidatesServer_NoMatchServiceEndpointFound(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	nsName := networkServiceName()
@@ -410,7 +410,7 @@ func TestNoMatchServiceEndpointFound(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestMatchExactService(t *testing.T) {
+func TestDiscoverCandidatesServer_MatchExactService(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	nsServer, nseServer := testServers(t, "", []*registry.NetworkServiceEndpoint{})
@@ -471,7 +471,7 @@ func TestMatchExactService(t *testing.T) {
 	require.Equal(t, payload.IP, conn.Payload)
 }
 
-func TestMatchExactEndpoint(t *testing.T) {
+func TestDiscoverCandidatesServer_MatchExactEndpoint(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -521,7 +521,7 @@ func TestMatchExactEndpoint(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestMatchSelectedNSESecondAttempt(t *testing.T) {
+func TestDiscoverCandidatesServer_MatchSelectedNSESecondAttempt(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -584,4 +584,31 @@ func TestMatchSelectedNSESecondAttempt(t *testing.T) {
 	require.Eventually(t, func() bool {
 		return atomic.LoadInt32(&flag) == 1
 	}, testWait, testTick)
+}
+
+func TestDiscoverCandidatesServer_NoEndpointOnClose(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var closed bool
+	server := next.NewNetworkServiceServer(
+		discover.NewServer(
+			registryadapters.NetworkServiceServerToClient(memory.NewNetworkServiceRegistryServer()),
+			registryadapters.NetworkServiceEndpointServerToClient(memory.NewNetworkServiceEndpointRegistryServer())),
+		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+			require.Nil(t, clienturlctx.ClientURL(ctx))
+			closed = true
+		}),
+	)
+
+	conn := &networkservice.Connection{
+		NetworkServiceEndpointName: "nse",
+	}
+
+	_, err := server.Close(ctx, conn)
+	require.NoError(t, err)
+
+	require.True(t, closed)
 }

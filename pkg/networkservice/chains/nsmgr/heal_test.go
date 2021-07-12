@@ -333,16 +333,43 @@ func setupCancellableNSMgrNode(ctx context.Context, node *sandbox.Node) context.
 }
 
 func TestNSMGR_CloseHeal(t *testing.T) {
+	var samples = []struct {
+		name              string
+		withNSEExpiration bool
+	}{
+		{
+			name: "Without NSE expiration",
+		},
+		{
+			name:              "With NSE expiration",
+			withNSEExpiration: true,
+		},
+	}
+
+	for _, sample := range samples {
+		t.Run(sample.name, func(t *testing.T) {
+			// nolint:scopelint
+			testNSMGRCloseHeal(t, sample.withNSEExpiration)
+		})
+	}
+}
+
+func testNSMGRCloseHeal(t *testing.T, withNSEExpiration bool) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	domain := sandbox.NewBuilder(ctx, t).
+	builder := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
 		SetNSMgrProxySupplier(nil).
-		SetRegistryProxySupplier(nil).
-		Build()
+		SetRegistryProxySupplier(nil)
+
+	if withNSEExpiration {
+		builder = builder.SetRegistryExpiryDuration(sandbox.RegistryExpiryDuration)
+	}
+
+	domain := builder.Build()
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
@@ -377,6 +404,11 @@ func TestNSMGR_CloseHeal(t *testing.T) {
 	// 3. Stop endpoint and wait for the heal to start
 	nseCtxCancel()
 	time.Sleep(100 * time.Millisecond)
+
+	if withNSEExpiration {
+		// 3.1 Wait for the endpoint expiration
+		time.Sleep(sandbox.RegistryExpiryDuration)
+	}
 
 	// 4. Close connection
 	_, _ = nsc.Close(nscCtx, conn.Clone())
