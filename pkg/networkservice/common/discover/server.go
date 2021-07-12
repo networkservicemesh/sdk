@@ -32,6 +32,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type discoverCandidatesServer struct {
@@ -106,6 +107,8 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 }
 
 func (d *discoverCandidatesServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	logger := log.FromContext(ctx).WithField("discoverCandidatesServer", "Close")
+
 	if clienturlctx.ClientURL(ctx) != nil {
 		return next.Server(ctx).Close(ctx, conn)
 	}
@@ -115,14 +118,18 @@ func (d *discoverCandidatesServer) Close(ctx context.Context, conn *networkservi
 		// If it's an existing connection, the NSE name should be set. Otherwise, it's probably an API misuse.
 		return nil, errors.Errorf("network_service_endpoint_name is not set")
 	}
-	nse, err := d.discoverNetworkServiceEndpoint(ctx, nseName)
-	if err != nil {
-		return nil, err
+
+	var u *url.URL
+
+	if nse, err := d.discoverNetworkServiceEndpoint(ctx, nseName); err == nil {
+		u, err = url.Parse(nse.Url)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+	} else {
+		logger.Errorf("no endpoint found for Close: %v", conn)
 	}
-	u, err := url.Parse(nse.Url)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
+
 	return next.Server(ctx).Close(clienturlctx.WithClientURL(ctx, u), conn)
 }
 
