@@ -24,6 +24,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
+	"gopkg.in/yaml.v2"
 
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 
@@ -42,10 +43,13 @@ import (
 	registryconnect "github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/proxy"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/seturl"
+	registryswapip "github.com/networkservicemesh/sdk/pkg/registry/common/swapip"
 	registryadapter "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
+	"github.com/networkservicemesh/sdk/pkg/tools/fs"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -71,6 +75,27 @@ type serverOptions struct {
 	registryConnectOptions []registryconnect.Option
 }
 
+func (s *serverOptions) openMapIPChannel(ctx context.Context) <-chan map[string]string {
+	var r = make(chan map[string]string)
+	var fCh = fs.WatchFile(ctx, s.mapipFilePath)
+	go func() {
+		defer close(r)
+		for data := range fCh {
+			var m map[string]string
+			if err := yaml.Unmarshal(data, &m); err != nil {
+				log.FromContext(ctx).Errorf("An error during umarshal ipmap: %v", err.Error())
+				continue
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case r <- m:
+			}
+		}
+	}()
+	return r
+}
+
 // Option modifies option value
 type Option func(o *serverOptions)
 
@@ -84,7 +109,7 @@ func WithName(name string) Option {
 // WithAuthorizeServer sets authorize server for the server
 func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Option {
 	if authorizeServer == nil {
-		panic("Authorize server cannot be nil")
+		panic("authorizeServer cannot be nil")
 	}
 
 	return func(o *serverOptions) {
@@ -156,7 +181,7 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 		endpoint.WithAdditionalFunctionality(
 			interdomainurl.NewServer(&nseStockServer),
 			discover.NewServer(nsClient, nseClient),
-			swapip.NewServer(ctx, opts.mapipFilePath),
+			swapip.NewServer(opts.openMapIPChannel(ctx)),
 			heal.NewServer(ctx,
 				heal.WithOnHeal(addressof.NetworkServiceClient(adapters.NewServerToClient(rv)))),
 			connect.NewServer(ctx,
@@ -175,6 +200,7 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 	var nseServerChain = chain.NewNetworkServiceEndpointRegistryServer(
 		proxy.NewNetworkServiceEndpointRegistryServer(proxyURL),
 		seturl.NewNetworkServiceEndpointRegistryServer(opts.listenOn),
+		registryswapip.NewNetworkServiceEndpointRegistryServer(opts.openMapIPChannel(ctx)),
 		nseStockServer,
 		registryconnect.NewNetworkServiceEndpointRegistryServer(ctx, opts.registryConnectOptions...),
 	)

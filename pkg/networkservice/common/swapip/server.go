@@ -22,14 +22,11 @@ import (
 	"context"
 	"sync/atomic"
 
-	"github.com/ghodss/yaml"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/fs"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type swapIPServer struct {
@@ -83,19 +80,12 @@ func (i *swapIPServer) Close(ctx context.Context, conn *networkservice.Connectio
 }
 
 // NewServer creates new swap chain element. Expects public IP address of node
-func NewServer(ctx context.Context, pathToDir string) networkservice.NetworkServiceServer {
+func NewServer(updateIPMapCh <-chan map[string]string) networkservice.NetworkServiceServer {
 	var v = new(atomic.Value)
 	v.Store(map[string]string{})
 	go func() {
-		logger := log.FromContext(ctx).WithField("swapIPServer", "monitor map ip")
-		for data := range fs.WatchFile(ctx, pathToDir) {
-			var m map[string]string
-			err := yaml.Unmarshal(data, &m)
-			if err != nil {
-				logger.Error(err.Error())
-				continue
-			}
-			v.Store(m)
+		for data := range updateIPMapCh {
+			v.Store(data)
 		}
 	}()
 	return &swapIPServer{internalToExternalMap: v}
