@@ -29,7 +29,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -52,7 +51,7 @@ func TestClientHeal(t *testing.T) {
 
 	serverCancel()
 	require.Eventually(t, func() bool {
-		return grpcutils.CheckURLFree(serverURL)
+		return sandbox.CheckURLFree(serverURL)
 	}, time.Second, time.Millisecond*10)
 	require.NoError(t, ctx.Err())
 

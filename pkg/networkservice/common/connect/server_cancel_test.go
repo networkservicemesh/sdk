@@ -102,7 +102,7 @@ func TestConnect_CancelDuringRequest(t *testing.T) {
 	}
 	domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken,
 		chain.NewNetworkServiceServer(
-			clienturl.NewServer(domain.Nodes[0].URL()),
+			clienturl.NewServer(domain.Nodes[0].NSMgr.URL),
 			connect.NewServer(ctx,
 				clientFactory,
 				connect.WithDialTimeout(sandbox.DialTimeout),

@@ -488,7 +488,7 @@ func Test_Interdomain_PassThroughUsecase(t *testing.T) {
 			// Passtrough to the node i-1
 			additionalFunctionality = []networkservice.NetworkServiceServer{
 				chain.NewNetworkServiceServer(
-					clienturl.NewServer(clusters[i].Nodes[0].URL()),
+					clienturl.NewServer(clusters[i].Nodes[0].NSMgr.URL),
 					connect.NewServer(ctx,
 						client.NewClientFactory(client.WithAdditionalFunctionality(
 							newPassTroughClient(fmt.Sprintf("my-service-remote-%v@cluster%v", i-1, i-1)),

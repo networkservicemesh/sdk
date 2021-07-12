@@ -28,7 +28,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -55,7 +54,7 @@ func TestHealClient_FindTest(t *testing.T) {
 	// 1. Create NS, NSE find clients
 	findCtx, findCancel := context.WithCancel(ctx)
 
-	nsRegistryClient := registryclient.NewNetworkServiceRegistryClient(ctx, domain.Nodes[0].URL(),
+	nsRegistryClient := registryclient.NewNetworkServiceRegistryClient(ctx, sandbox.CloneURL(domain.Nodes[0].NSMgr.URL),
 		registryclient.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...))
 
 	nsStream, err := nsRegistryClient.Find(findCtx, &registry.NetworkServiceQuery{
@@ -64,7 +63,7 @@ func TestHealClient_FindTest(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx, domain.Nodes[0].URL(),
+	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx, sandbox.CloneURL(domain.Nodes[0].NSMgr.URL),
 		registryclient.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...))
 
 	nseStream, err := nseRegistryClient.Find(findCtx, &registry.NetworkServiceEndpointQuery{
@@ -78,7 +77,7 @@ func TestHealClient_FindTest(t *testing.T) {
 
 	nsmgrCancel()
 	require.Eventually(t, func() bool {
-		return grpcutils.CheckURLFree(mgr.URL)
+		return sandbox.CheckURLFree(mgr.URL)
 	}, time.Second, 100*time.Millisecond)
 
 	mgr = domain.Nodes[0].NewNSMgr(ctx, mgr.Name, mgr.URL, sandbox.GenerateTestToken, nsmgr.NewServer)

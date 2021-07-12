@@ -31,7 +31,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
+	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
 func TestConnectNSClient(t *testing.T) {
@@ -111,7 +111,7 @@ func TestConnectNSClient_Restart(t *testing.T) {
 	// 2. Restart remote
 	serverCancel()
 	require.Eventually(t, func() bool {
-		return grpcutils.CheckURLFree(u)
+		return sandbox.CheckURLFree(u)
 	}, time.Second, 10*time.Millisecond)
 
 	require.NoError(t, startNSServer(ctx, u, mem))

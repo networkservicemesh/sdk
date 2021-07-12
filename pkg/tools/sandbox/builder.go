@@ -232,17 +232,21 @@ func (b *Builder) newRegistryProxy() *RegistryEntry {
 		return nil
 	}
 
-	registryProxy := b.supplyRegistryProxy(b.ctx, b.dnsResolver, DefaultDialOptions(b.generateTokenFunc)...)
-	serveURL := b.domain.supplyURL("reg-proxy")
-
-	serve(b.ctx, b.t, serveURL, registryProxy.Register)
-
-	log.FromContext(b.ctx).Debugf("%s: registry-proxy-dns on: %v", b.name, serveURL)
-
-	return &RegistryEntry{
-		URL:      serveURL,
-		Registry: registryProxy,
+	entry := &RegistryEntry{
+		URL: b.domain.supplyURL("reg-proxy"),
 	}
+	entry.restartableServer = newRestartableServer(b.ctx, b.t, entry.URL, func(ctx context.Context) {
+		entry.Registry = b.supplyRegistryProxy(
+			ctx,
+			b.dnsResolver,
+			DefaultDialOptions(b.generateTokenFunc)...,
+		)
+		serve(ctx, b.t, entry.URL, entry.Register)
+
+		log.FromContext(ctx).Debugf("%s: registry-proxy-dns on: %v", b.name, entry.URL)
+	})
+
+	return entry
 }
 
 func (b *Builder) newRegistry() *RegistryEntry {
@@ -252,20 +256,25 @@ func (b *Builder) newRegistry() *RegistryEntry {
 
 	var nsmgrProxyURL *url.URL
 	if b.domain.NSMgrProxy != nil {
-		nsmgrProxyURL = b.domain.NSMgrProxy.URL
+		nsmgrProxyURL = CloneURL(b.domain.NSMgrProxy.URL)
 	}
 
-	registry := b.supplyRegistry(b.ctx, b.registryExpiryDuration, nsmgrProxyURL, DefaultDialOptions(b.generateTokenFunc)...)
-	serveURL := b.domain.supplyURL("reg")
-
-	serve(b.ctx, b.t, serveURL, registry.Register)
-
-	log.FromContext(b.ctx).Debugf("%s: registry on: %v", b.name, serveURL)
-
-	return &RegistryEntry{
-		URL:      serveURL,
-		Registry: registry,
+	entry := &RegistryEntry{
+		URL: b.domain.supplyURL("reg"),
 	}
+	entry.restartableServer = newRestartableServer(b.ctx, b.t, entry.URL, func(ctx context.Context) {
+		entry.Registry = b.supplyRegistry(
+			ctx,
+			b.registryExpiryDuration,
+			nsmgrProxyURL,
+			DefaultDialOptions(b.generateTokenFunc)...,
+		)
+		serve(ctx, b.t, entry.URL, entry.Register)
+
+		log.FromContext(ctx).Debugf("%s: registry on: %v", b.name, entry.URL)
+	})
+
+	return entry
 }
 
 func (b *Builder) newNSMgrProxy() *NSMgrEntry {
@@ -273,36 +282,37 @@ func (b *Builder) newNSMgrProxy() *NSMgrEntry {
 		return nil
 	}
 
-	name := UniqueName("nsmgr-proxy")
-	mgr := b.supplyNSMgrProxy(b.ctx,
-		b.domain.Registry.URL,
-		b.domain.RegistryProxy.URL,
-		b.generateTokenFunc,
-		nsmgrproxy.WithListenOn(b.domain.NSMgrProxy.URL),
-		nsmgrproxy.WithName(name),
-		nsmgrproxy.WithConnectOptions(
-			connect.WithDialTimeout(DialTimeout),
-			connect.WithDialOptions(DefaultDialOptions(b.generateTokenFunc)...)),
-		nsmgrproxy.WithRegistryConnectOptions(
-			registryconnect.WithDialOptions(DefaultDialOptions(b.generateTokenFunc)...),
-		),
-	)
-
-	serve(b.ctx, b.t, b.domain.NSMgrProxy.URL, mgr.Register)
-
-	log.FromContext(b.ctx).Debugf("%s: NSMgr proxy %s on: %v", b.name, name, b.domain.NSMgrProxy.URL)
-
-	return &NSMgrEntry{
-		Name:  name,
-		URL:   b.domain.NSMgrProxy.URL,
-		Nsmgr: mgr,
+	entry := &NSMgrEntry{
+		Name: UniqueName("nsmgr-proxy"),
+		URL:  b.domain.NSMgrProxy.URL,
 	}
+	entry.restartableServer = newRestartableServer(b.ctx, b.t, entry.URL, func(ctx context.Context) {
+		entry.Nsmgr = b.supplyNSMgrProxy(ctx,
+			CloneURL(b.domain.Registry.URL),
+			CloneURL(b.domain.RegistryProxy.URL),
+			b.generateTokenFunc,
+			nsmgrproxy.WithListenOn(entry.URL),
+			nsmgrproxy.WithName(entry.Name),
+			nsmgrproxy.WithConnectOptions(
+				connect.WithDialTimeout(DialTimeout),
+				connect.WithDialOptions(DefaultDialOptions(b.generateTokenFunc)...)),
+			nsmgrproxy.WithRegistryConnectOptions(
+				registryconnect.WithDialOptions(DefaultDialOptions(b.generateTokenFunc)...),
+			),
+		)
+		serve(ctx, b.t, entry.URL, entry.Register)
+
+		log.FromContext(ctx).Debugf("%s: NSMgr proxy %s on: %v", b.name, entry.Name, entry.URL)
+	})
+
+	return entry
 }
 
 func (b *Builder) newNode(nodeNum int) *Node {
 	node := &Node{
-		t:      b.t,
-		domain: b.domain,
+		t:          b.t,
+		domain:     b.domain,
+		Forwarders: make(map[string]*EndpointEntry),
 	}
 
 	b.setupNode(b.ctx, node, nodeNum)
@@ -319,9 +329,9 @@ func (b *Builder) buildDNSServer() {
 	}
 
 	if b.domain.Registry != nil {
-		resolver.AddSRVEntry(b.name, dnsresolve.DefaultRegistryService, b.domain.Registry.URL)
+		resolver.AddSRVEntry(b.name, dnsresolve.DefaultRegistryService, CloneURL(b.domain.Registry.URL))
 	}
 	if b.domain.NSMgrProxy != nil {
-		resolver.AddSRVEntry(b.name, dnsresolve.DefaultNsmgrProxyService, b.domain.NSMgrProxy.URL)
+		resolver.AddSRVEntry(b.name, dnsresolve.DefaultNsmgrProxyService, CloneURL(b.domain.NSMgrProxy.URL))
 	}
 }

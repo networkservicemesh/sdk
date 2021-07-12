@@ -18,6 +18,7 @@ package sandbox
 
 import (
 	"context"
+	"net"
 	"net/url"
 	"testing"
 
@@ -37,13 +38,35 @@ func serve(ctx context.Context, t *testing.T, u *url.URL, register func(server *
 	register(server)
 
 	errCh := grpcutils.ListenAndServe(ctx, u, server)
+	uString := u.String()
 	go func() {
 		select {
 		case <-ctx.Done():
-			log.FromContext(ctx).Infof("Stop serve: %v", u.String())
+			log.FromContext(ctx).Infof("Stop serve: %s", uString)
 			return
 		case err := <-errCh:
 			require.NoError(t, err)
 		}
 	}()
+}
+
+// CheckURLFree returns is given url is free for Listen
+func CheckURLFree(u *url.URL) bool {
+	ln, err := net.Listen(grpcutils.TargetToNetAddr(grpcutils.URLToTarget(u)))
+	if err == nil {
+		err = ln.Close()
+	}
+	return err == nil
+}
+
+// CloneURL clones given url
+func CloneURL(u *url.URL) *url.URL {
+	if u == nil {
+		return nil
+	}
+
+	cloned := new(url.URL)
+	*cloned = *u
+
+	return cloned
 }

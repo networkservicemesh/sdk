@@ -161,7 +161,7 @@ func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 	})
 	require.NoError(t, err)
 
-	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx, s.domain.Nodes[0].URL(),
+	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx, sandbox.CloneURL(s.domain.Nodes[0].NSMgr.URL),
 		registryclient.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...))
 
 	nseReg, err = nseRegistryClient.Register(ctx, nseReg)
@@ -311,7 +311,6 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	t := s.T()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	nseCtx, killNse := context.WithCancel(ctx)
 	defer cancel()
 
 	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService())
@@ -320,7 +319,7 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	counter := &counterServer{}
 
-	s.domain.Nodes[0].NewEndpoint(nseCtx, nseReg, sandbox.GenerateTestToken, counter)
+	nse := s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -335,7 +334,7 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Requests))
 	require.Equal(t, 5, len(conn.Path.PathSegments))
 
-	killNse()
+	nse.Cancel()
 
 	// Simulate refresh from client
 	refreshRequest := request.Clone()
@@ -813,7 +812,7 @@ func newPassThroughEndpoint(
 
 	var additionalFunctionality []networkservice.NetworkServiceServer
 	if hasClientFunctionality {
-		additionalFunctionality = additionalFunctionalityChain(ctx, node.URL(), name, labels)
+		additionalFunctionality = additionalFunctionalityChain(ctx, node.NSMgr.URL, name, labels)
 	}
 
 	if counter != nil {

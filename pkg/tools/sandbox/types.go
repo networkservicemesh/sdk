@@ -52,6 +52,7 @@ type SetupNodeFunc func(ctx context.Context, node *Node, nodeNum int)
 type RegistryEntry struct {
 	URL *url.URL
 
+	*restartableServer
 	registry.Registry
 }
 
@@ -60,6 +61,7 @@ type NSMgrEntry struct {
 	Name string
 	URL  *url.URL
 
+	*restartableServer
 	nsmgr.Nsmgr
 }
 
@@ -68,6 +70,7 @@ type EndpointEntry struct {
 	Name string
 	URL  *url.URL
 
+	*restartableServer
 	endpoint.Endpoint
 	registryapi.NetworkServiceEndpointRegistryClient
 }
@@ -92,7 +95,7 @@ func (d *Domain) NewNSRegistryClient(ctx context.Context, generatorFunc token.Ge
 	case d.Registry != nil:
 		registryURL = d.Registry.URL
 	case len(d.Nodes) != 0:
-		registryURL = d.Nodes[0].URL()
+		registryURL = CloneURL(d.Nodes[0].NSMgr.URL)
 	default:
 		return nil
 	}
