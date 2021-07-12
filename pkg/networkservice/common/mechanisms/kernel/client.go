@@ -47,14 +47,18 @@ func NewClient(options ...Option) networkservice.NetworkServiceClient {
 
 func (k *kernelMechanismClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	if !k.updateMechanismPreferences(request) {
-		request.MechanismPreferences = append(request.GetMechanismPreferences(), &networkservice.Mechanism{
+		mechanism := &networkservice.Mechanism{
 			Cls:  cls.LOCAL,
 			Type: kernel.MECHANISM,
 			Parameters: map[string]string{
 				kernel.NetNSURL:         (&url.URL{Scheme: "file", Path: netNSFilename}).String(),
-				kernel.InterfaceNameKey: k.interfaceName,
+				kernel.InterfaceNameKey: GetNameFromConnection(request.GetConnection()),
 			},
-		})
+		}
+		if k.interfaceName != "" {
+			mechanism.Parameters[kernel.InterfaceNameKey] = k.interfaceName
+		}
+		request.MechanismPreferences = append(request.GetMechanismPreferences(), mechanism)
 	}
 	return next.Client(ctx).Request(ctx, request, opts...)
 }

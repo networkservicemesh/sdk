@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -38,6 +38,9 @@ import (
 
 func kernelMechanism() *networkservice.Mechanism {
 	request := new(networkservice.NetworkServiceRequest)
+	request.Connection = &networkservice.Connection{
+		Id: "id",
+	}
 	_, _ = kernel.NewClient().Request(context.TODO(), request)
 	return request.MechanismPreferences[0]
 }
