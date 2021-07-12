@@ -23,8 +23,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
 type restartableServer struct {
@@ -44,7 +42,7 @@ func newRestartableServer(
 		ctx:           ctx,
 		cancelCurrent: func() {},
 		startFunction: func(ctx context.Context) {
-			if !grpcutils.CheckURLFree(serveURL) {
+			if !CheckURLFree(serveURL) {
 				var timeout time.Duration
 				if deadline, ok := ctx.Deadline(); ok {
 					timeout = time.Until(deadline)
@@ -53,7 +51,7 @@ func newRestartableServer(
 				}
 
 				require.Eventually(t, func() bool {
-					return grpcutils.CheckURLFree(serveURL)
+					return CheckURLFree(serveURL)
 				}, timeout, timeout/100)
 			}
 			startFunction(ctx)

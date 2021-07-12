@@ -30,7 +30,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -96,7 +95,7 @@ func (d *Domain) NewNSRegistryClient(ctx context.Context, generatorFunc token.Ge
 	case d.Registry != nil:
 		registryURL = d.Registry.URL
 	case len(d.Nodes) != 0:
-		registryURL = grpcutils.CloneURL(d.Nodes[0].NSMgr.URL)
+		registryURL = CloneURL(d.Nodes[0].NSMgr.URL)
 	default:
 		return nil
 	}

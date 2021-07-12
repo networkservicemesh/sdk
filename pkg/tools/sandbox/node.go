@@ -36,7 +36,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
@@ -73,7 +72,7 @@ func (n *Node) NewNSMgr(
 	}
 
 	if n.domain.Registry != nil {
-		options = append(options, nsmgr.WithRegistry(grpcutils.CloneURL(n.domain.Registry.URL), dialOptions...))
+		options = append(options, nsmgr.WithRegistry(CloneURL(n.domain.Registry.URL), dialOptions...))
 	}
 
 	if serveURL.Scheme != "unix" {
@@ -126,7 +125,7 @@ func (n *Node) NewForwarder(
 			endpoint.WithAdditionalFunctionality(
 				append(
 					additionalFunctionality,
-					clienturl.NewServer(grpcutils.CloneURL(n.NSMgr.URL)),
+					clienturl.NewServer(CloneURL(n.NSMgr.URL)),
 					heal.NewServer(ctx,
 						heal.WithOnHeal(addressof.NetworkServiceClient(adapters.NewServerToClient(entry))),
 						heal.WithOnRestore(heal.OnRestoreIgnore)),
@@ -145,7 +144,7 @@ func (n *Node) NewForwarder(
 		)
 		serve(ctx, n.t, entry.URL, entry.Endpoint.Register)
 
-		entry.NetworkServiceEndpointRegistryClient = registryclient.NewNetworkServiceEndpointRegistryInterposeClient(ctx, grpcutils.CloneURL(n.NSMgr.URL),
+		entry.NetworkServiceEndpointRegistryClient = registryclient.NewNetworkServiceEndpointRegistryInterposeClient(ctx, CloneURL(n.NSMgr.URL),
 			registryclient.WithDialOptions(dialOptions...))
 
 		n.registerEndpoint(ctx, nse, nseClone, entry.NetworkServiceEndpointRegistryClient)
@@ -187,7 +186,7 @@ func (n *Node) NewEndpoint(
 		)
 		serve(ctx, n.t, entry.URL, entry.Endpoint.Register)
 
-		entry.NetworkServiceEndpointRegistryClient = registryclient.NewNetworkServiceEndpointRegistryClient(ctx, grpcutils.CloneURL(n.NSMgr.URL),
+		entry.NetworkServiceEndpointRegistryClient = registryclient.NewNetworkServiceEndpointRegistryClient(ctx, CloneURL(n.NSMgr.URL),
 			registryclient.WithDialOptions(dialOptions...))
 
 		n.registerEndpoint(ctx, nse, nseClone, entry.NetworkServiceEndpointRegistryClient)
@@ -217,7 +216,7 @@ func (n *Node) NewClient(
 ) networkservice.NetworkServiceClient {
 	return client.NewClient(
 		ctx,
-		grpcutils.CloneURL(n.NSMgr.URL),
+		CloneURL(n.NSMgr.URL),
 		client.WithDialOptions(DefaultDialOptions(generatorFunc)...),
 		client.WithDialTimeout(DialTimeout),
 		client.WithAuthorizeClient(authorize.NewClient(authorize.Any())),

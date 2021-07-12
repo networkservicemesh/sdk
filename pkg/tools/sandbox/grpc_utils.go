@@ -18,6 +18,7 @@ package sandbox
 
 import (
 	"context"
+	"net"
 	"net/url"
 	"testing"
 
@@ -47,4 +48,25 @@ func serve(ctx context.Context, t *testing.T, u *url.URL, register func(server *
 			require.NoError(t, err)
 		}
 	}()
+}
+
+// CheckURLFree returns is given url is free for Listen
+func CheckURLFree(u *url.URL) bool {
+	ln, err := net.Listen(grpcutils.TargetToNetAddr(grpcutils.URLToTarget(u)))
+	if err == nil {
+		err = ln.Close()
+	}
+	return err == nil
+}
+
+// CloneURL clones given url
+func CloneURL(u *url.URL) *url.URL {
+	if u == nil {
+		return nil
+	}
+
+	cloned := new(url.URL)
+	*cloned = *u
+
+	return cloned
 }
