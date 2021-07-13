@@ -27,21 +27,27 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 )
 
 type authorizeServer struct {
-	policies *policiesList
+	policies policiesList
 }
 
 // NewServer - returns a new authorization networkservicemesh.NetworkServiceServers
 func NewServer(opts ...Option) networkservice.NetworkServiceServer {
-	p := &policiesList{}
+	var s = &authorizeServer{
+		policies: []Policy{
+			opa.WithTokensValidPolicy(),
+			opa.WithPrevTokenSignedPolicy(),
+			opa.WithTokensExpiredPolicy(),
+			opa.WithTokenChainPolicy(),
+		},
+	}
 	for _, o := range opts {
-		o.apply(p)
+		o.apply(&s.policies)
 	}
-	return &authorizeServer{
-		policies: p,
-	}
+	return s
 }
 
 func (a *authorizeServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {

@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -56,7 +56,7 @@ func TestWithAllTokensValidPolicy(t *testing.T) {
 		},
 	}
 
-	p := opa.WithAllTokensValidPolicy()
+	p := opa.WithTokensValidPolicy()
 	err := p.Check(context.Background(), validPath)
 	require.Nil(t, err)
 	err = p.Check(context.Background(), invalidPath)

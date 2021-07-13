@@ -173,6 +173,9 @@ issues:
       linters:
         - dupl
         - golint
+    - path: pkg/tools/opa/policies.go
+      linters:
+        - golint
     - path: .*registry.*.go
       linters:
         - dupl

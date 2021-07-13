@@ -30,6 +30,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 )
 
@@ -41,7 +42,12 @@ type authorizeClient struct {
 // NewClient - returns a new authorization networkservicemesh.NetworkServiceClient
 func NewClient(opts ...Option) networkservice.NetworkServiceClient {
 	var result = &authorizeClient{
-		policies: defaultPolicies(),
+		policies: []Policy{
+			opa.WithTokensValidPolicy(),
+			opa.WithCurrentTokenSignedPolicy(),
+			opa.WithTokensExpiredPolicy(),
+			opa.WithTokenChainPolicy(),
+		},
 	}
 
 	for _, o := range opts {

@@ -31,7 +31,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 )
 
-func Test_LastTokenShouldBeSigned_Server(t *testing.T) {
+func Test_PrevTokenShouldBeSigned_Server(t *testing.T) {
 	ca, err := generateCA()
 	require.Nil(t, err)
 
@@ -44,7 +44,7 @@ func Test_LastTokenShouldBeSigned_Server(t *testing.T) {
 	validX509crt, err := x509.ParseCertificate(cert.Certificate[0])
 	require.Nil(t, err)
 
-	p := opa.WithLastTokenSignedPolicy()
+	p := opa.WithPrevTokenSignedPolicy()
 
 	samples := []*networkservice.Path{
 		{
@@ -52,15 +52,9 @@ func Test_LastTokenShouldBeSigned_Server(t *testing.T) {
 				{
 					Token: token,
 				},
-			},
-		},
-		{
-			PathSegments: []*networkservice.PathSegment{
 				{},
-				{
-					Token: token,
-				},
 			},
+			Index: 1,
 		},
 	}
 
