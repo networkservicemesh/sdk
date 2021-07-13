@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -39,6 +39,7 @@ func NewServer() networkservice.NetworkServiceServer {
 func (m *kernelMechanismServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	if mechanism := kernel.ToMechanism(request.GetConnection().GetMechanism()); mechanism != nil {
 		mechanism.SetNetNSURL((&url.URL{Scheme: "file", Path: netNSFilename}).String())
+		mechanism.SetInterfaceName(GetNameFromConnection(request.GetConnection()))
 	}
 	return next.Server(ctx).Request(ctx, request)
 }
