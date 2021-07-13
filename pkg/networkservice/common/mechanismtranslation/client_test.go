@@ -37,9 +37,10 @@ import (
 )
 
 func kernelMechanism() *networkservice.Mechanism {
-	request := new(networkservice.NetworkServiceRequest)
-	request.Connection = &networkservice.Connection{
-		Id: "id",
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: "id",
+		},
 	}
 	_, _ = kernel.NewClient().Request(context.TODO(), request)
 	return request.MechanismPreferences[0]

@@ -39,7 +39,7 @@ func NewServer() networkservice.NetworkServiceServer {
 func (m *kernelMechanismServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	if mechanism := kernel.ToMechanism(request.GetConnection().GetMechanism()); mechanism != nil {
 		mechanism.SetNetNSURL((&url.URL{Scheme: "file", Path: netNSFilename}).String())
-		mechanism.SetInterfaceName(request.GetConnection().GetId())
+		mechanism.SetInterfaceName(GetNameFromConnection(request.GetConnection()))
 	}
 	return next.Server(ctx).Request(ctx, request)
 }
