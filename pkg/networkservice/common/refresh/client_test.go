@@ -36,6 +36,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
@@ -266,4 +267,25 @@ func TestRefreshClient_Sandbox(t *testing.T) {
 	require.Eventually(t, func() bool {
 		return refreshSrv.getState() == testRefreshStateDoneRequest
 	}, sandboxTotalTimeout, sandboxStepDuration)
+}
+
+func TestRefreshClient_NoRefreshOnFailure(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	client := chain.NewNetworkServiceClient(
+		serialize.NewClient(),
+		updatepath.NewClient("refresh"),
+		refresh.NewClient(ctx),
+		injecterror.NewClient(),
+	)
+
+	_, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
+		Connection: new(networkservice.Connection),
+	})
+	require.Error(t, err)
+
+	goleak.VerifyNone(t)
 }
