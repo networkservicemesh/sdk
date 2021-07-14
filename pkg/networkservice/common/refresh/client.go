@@ -1,7 +1,6 @@
 // Copyright (c) 2020 Cisco Systems, Inc.
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -55,16 +54,20 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 	connectionID := request.Connection.Id
 	t.stopTimer(connectionID)
 
-	rv, err := next.Client(ctx).Request(ctx, request, opts...)
+	conn, err := next.Client(ctx).Request(ctx, request, opts...)
+	if err != nil {
+		return nil, err
+	}
 
 	executor := serializectx.GetExecutor(ctx, connectionID)
 	if executor == nil {
 		return nil, errors.New("no executor provided")
 	}
-	request.Connection = rv.Clone()
+
+	request.Connection = conn.Clone()
 	t.startTimer(ctx, connectionID, request, opts)
 
-	return rv, err
+	return conn, nil
 }
 
 func (t *refreshClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (e *empty.Empty, err error) {
@@ -120,14 +123,16 @@ func (t *refreshClient) startTimer(ctx context.Context, connectionID string, req
 			if timeout > duration {
 				timeout = duration
 			}
+
 			refreshCtx, cancel := clockTime.WithTimeout(extend.WithValuesFromContext(t.chainCtx, ctx), timeout)
 			defer cancel()
-			rv, err := nextClient.Request(refreshCtx, req, opts...)
 
-			if err == nil && rv != nil {
-				req.Connection = rv
+			conn, err := nextClient.Request(refreshCtx, req, opts...)
+			if err != nil {
+				return
 			}
 
+			req.Connection = conn.Clone()
 			t.startTimer(ctx, connectionID, req, opts)
 		})
 	})

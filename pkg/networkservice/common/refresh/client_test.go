@@ -36,6 +36,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
@@ -53,10 +54,28 @@ const (
 	sandboxTotalTimeout  = 800 * time.Millisecond
 )
 
-func testTokenFunc(clockTime clock.Clock, timeout time.Duration) token.GeneratorFunc {
+func testTokenFunc(clockTime clock.Clock) token.GeneratorFunc {
 	return func(_ credentials.AuthInfo) (token string, expireTime time.Time, err error) {
-		return "", clockTime.Now().Add(timeout), err
+		return "", clockTime.Now().Add(expireTimeout), err
 	}
+}
+
+func testClient(
+	ctx context.Context,
+	tokenGenerator token.GeneratorFunc,
+	additionalFunctionality ...networkservice.NetworkServiceClient,
+) networkservice.NetworkServiceClient {
+	return next.NewNetworkServiceClient(
+		append([]networkservice.NetworkServiceClient{
+			serialize.NewClient(),
+			updatepath.NewClient("refresh"),
+			refresh.NewClient(ctx),
+			adapters.NewServerToClient(
+				updatetoken.NewServer(tokenGenerator),
+			),
+		}, additionalFunctionality...,
+		)...,
+	)
 }
 
 func TestRefreshClient_ValidRefresh(t *testing.T) {
@@ -71,13 +90,7 @@ func TestRefreshClient_ValidRefresh(t *testing.T) {
 	cloneClient := &countClient{
 		t: t,
 	}
-	client := chain.NewNetworkServiceClient(
-		serialize.NewClient(),
-		updatepath.NewClient("refresh"),
-		refresh.NewClient(ctx),
-		adapters.NewServerToClient(updatetoken.NewServer(testTokenFunc(clockMock, expireTimeout))),
-		cloneClient,
-	)
+	client := testClient(ctx, testTokenFunc(clockMock), cloneClient)
 
 	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -119,7 +132,7 @@ func TestRefreshClient_StopRefreshAtClose(t *testing.T) {
 		serialize.NewClient(),
 		updatepath.NewClient("refresh"),
 		refresh.NewClient(ctx),
-		adapters.NewServerToClient(updatetoken.NewServer(testTokenFunc(clockMock, expireTimeout))),
+		adapters.NewServerToClient(updatetoken.NewServer(testTokenFunc(clockMock))),
 		cloneClient,
 	)
 
@@ -155,13 +168,7 @@ func TestRefreshClient_RestartsRefreshAtAnotherRequest(t *testing.T) {
 	cloneClient := &countClient{
 		t: t,
 	}
-	client := chain.NewNetworkServiceClient(
-		serialize.NewClient(),
-		updatepath.NewClient("refresh"),
-		refresh.NewClient(ctx),
-		adapters.NewServerToClient(updatetoken.NewServer(testTokenFunc(clockMock, expireTimeout))),
-		cloneClient,
-	)
+	client := testClient(ctx, testTokenFunc(clockMock), cloneClient)
 
 	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -212,13 +219,8 @@ func TestRefreshClient_CheckRaceConditions(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	client := next.NewNetworkServiceClient(
-		serialize.NewClient(),
-		updatepath.NewClient("foo"),
-		refresh.NewClient(ctx),
-		adapters.NewServerToClient(updatetoken.NewServer(sandbox.GenerateExpiringToken(conf.expireTimeout))),
-		adapters.NewServerToClient(refreshTester),
-	)
+
+	client := testClient(ctx, sandbox.GenerateExpiringToken(conf.expireTimeout), adapters.NewServerToClient(refreshTester))
 
 	generateRequests(t, client, refreshTester, conf.iterations, conf.tickDuration)
 }
@@ -266,4 +268,62 @@ func TestRefreshClient_Sandbox(t *testing.T) {
 	require.Eventually(t, func() bool {
 		return refreshSrv.getState() == testRefreshStateDoneRequest
 	}, sandboxTotalTimeout, sandboxStepDuration)
+}
+
+func TestRefreshClient_NoRefreshOnFailure(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	clockMock := clockmock.New(ctx)
+	ctx = clock.WithClock(ctx, clockMock)
+
+	cloneClient := &countClient{
+		t: t,
+	}
+	client := testClient(ctx, testTokenFunc(clockMock),
+		cloneClient,
+		injecterror.NewClient(),
+	)
+
+	_, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
+		Connection: new(networkservice.Connection),
+	})
+	require.Error(t, err)
+
+	clockMock.Add(expireTimeout)
+
+	require.Never(t, cloneClient.validator(2), testWait, testTick)
+}
+
+func TestRefreshClient_NoRefreshOnRefreshFailure(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	clockMock := clockmock.New(ctx)
+	ctx = clock.WithClock(ctx, clockMock)
+
+	cloneClient := &countClient{
+		t: t,
+	}
+	client := testClient(ctx, testTokenFunc(clockMock),
+		cloneClient,
+		injecterror.NewClient(injecterror.WithRequestErrorTimes(1, -1)),
+	)
+
+	_, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
+		Connection: new(networkservice.Connection),
+	})
+	require.NoError(t, err)
+
+	clockMock.Add(expireTimeout)
+
+	require.Eventually(t, cloneClient.validator(2), testWait, testTick)
+
+	clockMock.Add(expireTimeout)
+
+	require.Never(t, cloneClient.validator(3), testWait, testTick)
 }
