@@ -50,6 +50,10 @@ func TestSwapIPNSERegistryServer_Register(t *testing.T) {
 		"127.0.0.1": "8.8.8.8",
 		"8.8.8.8":   "127.0.0.1",
 	}
+	ipMapCh <- map[string]string{
+		"127.0.0.1": "8.8.8.8",
+		"8.8.8.8":   "127.0.0.1",
+	}
 
 	defer close(ipMapCh)
 
@@ -75,6 +79,11 @@ func TestSwapIPNSERegistryServer_Unregister(t *testing.T) {
 		}),
 	)
 	defer close(ipMapCh)
+
+	ipMapCh <- map[string]string{
+		"127.0.0.1": "8.8.8.8",
+		"8.8.8.8":   "127.0.0.1",
+	}
 
 	ipMapCh <- map[string]string{
 		"127.0.0.1": "8.8.8.8",
@@ -110,6 +119,11 @@ func TestSwapIPNSERegistryServer_Find(t *testing.T) {
 		m,
 	)
 	defer close(ipMapCh)
+
+	ipMapCh <- map[string]string{
+		"127.0.0.1": "8.8.8.8",
+		"8.8.8.8":   "127.0.0.1",
+	}
 
 	ipMapCh <- map[string]string{
 		"127.0.0.1": "8.8.8.8",
