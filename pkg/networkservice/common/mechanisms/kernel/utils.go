@@ -31,8 +31,12 @@ func GetNameFromConnection(conn *networkservice.Connection) string {
 		ns = ns[:nsMaxLength]
 	}
 	name := fmt.Sprintf("%s-%s", ns, conn.GetId())
+	return limitName(name)
+}
+
+func limitName(name string) string {
 	if len(name) > kernelmech.LinuxIfMaxLength {
-		name = name[:kernelmech.LinuxIfMaxLength]
+		return name[:kernelmech.LinuxIfMaxLength]
 	}
 	return name
 }

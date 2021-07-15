@@ -56,7 +56,7 @@ func (k *kernelMechanismClient) Request(ctx context.Context, request *networkser
 			},
 		}
 		if k.interfaceName != "" {
-			mechanism.Parameters[kernel.InterfaceNameKey] = k.interfaceName
+			mechanism.Parameters[kernel.InterfaceNameKey] = limitName(k.interfaceName)
 		}
 		request.MechanismPreferences = append(request.GetMechanismPreferences(), mechanism)
 	}
