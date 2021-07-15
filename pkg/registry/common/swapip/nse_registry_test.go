@@ -46,10 +46,13 @@ func TestSwapIPNSERegistryServer_Register(t *testing.T) {
 		}),
 	)
 
-	ipMapCh <- map[string]string{
+	event := map[string]string{
 		"127.0.0.1": "8.8.8.8",
 		"8.8.8.8":   "127.0.0.1",
 	}
+
+	ipMapCh <- event
+	ipMapCh <- event
 
 	defer close(ipMapCh)
 
@@ -76,10 +79,13 @@ func TestSwapIPNSERegistryServer_Unregister(t *testing.T) {
 	)
 	defer close(ipMapCh)
 
-	ipMapCh <- map[string]string{
+	event := map[string]string{
 		"127.0.0.1": "8.8.8.8",
 		"8.8.8.8":   "127.0.0.1",
 	}
+
+	ipMapCh <- event
+	ipMapCh <- event
 
 	_, err := s.Unregister(ctx, &registry.NetworkServiceEndpoint{
 		Url: "tcp://127.0.0.1:5001",
@@ -111,10 +117,13 @@ func TestSwapIPNSERegistryServer_Find(t *testing.T) {
 	)
 	defer close(ipMapCh)
 
-	ipMapCh <- map[string]string{
+	event := map[string]string{
 		"127.0.0.1": "8.8.8.8",
 		"8.8.8.8":   "127.0.0.1",
 	}
+
+	ipMapCh <- event
+	ipMapCh <- event
 
 	stream, err := adapters.NetworkServiceEndpointServerToClient(s).Find(ctx, &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
