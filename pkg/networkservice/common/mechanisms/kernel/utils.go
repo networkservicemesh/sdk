@@ -26,8 +26,8 @@ import (
 
 var netNSURL = (&url.URL{Scheme: "file", Path: "/proc/thread-self/ns/net"}).String()
 
-// GetNameFromConnection - returns a name computed from networkservice.Connection 'conn'
-func GetNameFromConnection(conn *networkservice.Connection) string {
+// getNameFromConnection - returns a name computed from networkservice.Connection 'conn'
+func getNameFromConnection(conn *networkservice.Connection) string {
 	ns := conn.GetNetworkService()
 	nsMaxLength := kernelmech.LinuxIfMaxLength - 5
 	if len(ns) > nsMaxLength {
