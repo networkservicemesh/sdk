@@ -18,10 +18,13 @@ package kernel
 
 import (
 	"fmt"
+	"net/url"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 )
+
+var netNSURL = (&url.URL{Scheme: "file", Path: "/proc/thread-self/ns/net"}).String()
 
 // GetNameFromConnection - returns a name computed from networkservice.Connection 'conn'
 func GetNameFromConnection(conn *networkservice.Connection) string {

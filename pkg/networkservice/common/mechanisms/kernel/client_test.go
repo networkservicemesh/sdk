@@ -18,29 +18,36 @@ package kernel_test
 
 import (
 	"context"
+	"net/url"
 	"testing"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
 	"github.com/stretchr/testify/require"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 )
 
-func Test_KernelClient_ShouldSetInterfaceName(t *testing.T) {
-	expectedIfaceName := "myiface"
+var netNSURL = (&url.URL{Scheme: "file", Path: "/proc/thread-self/ns/net"}).String()
 
-	c := kernel.NewClient(kernel.WithInterfaceName(expectedIfaceName))
+func TestKernelMechanismClient_ShouldSetInterfaceName(t *testing.T) {
+	var expectedIfaceName string
+	for i := 0; i < kernelmech.LinuxIfMaxLength; i++ {
+		expectedIfaceName += "a"
+	}
+
+	c := kernel.NewClient(kernel.WithInterfaceName(expectedIfaceName + "long-suffix"))
 
 	req := &networkservice.NetworkServiceRequest{}
 	_, err := c.Request(context.Background(), req)
 	require.NoError(t, err)
 
 	require.Len(t, req.MechanismPreferences, 1)
-	require.Equal(t, expectedIfaceName, req.MechanismPreferences[0].Parameters[common.InterfaceNameKey])
+	require.Equal(t, expectedIfaceName, req.MechanismPreferences[0].Parameters[kernelmech.InterfaceNameKey])
 }
 
-func Test_KernelClient_ShouldNotDoublingMechanims(t *testing.T) {
+func TestKernelMechanismClient_ShouldNotDoublingMechanisms(t *testing.T) {
 	c := kernel.NewClient()
 
 	req := &networkservice.NetworkServiceRequest{}
@@ -50,4 +57,18 @@ func Test_KernelClient_ShouldNotDoublingMechanims(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, req.MechanismPreferences, 1)
 	}
+}
+
+func TestKernelMechanismClient_ShouldSetValidNetNSURL(t *testing.T) {
+	c := kernel.NewClient()
+
+	req := &networkservice.NetworkServiceRequest{
+		MechanismPreferences: []*networkservice.Mechanism{
+			kernelmech.New("invalid-url"),
+		},
+	}
+
+	_, err := c.Request(context.Background(), req)
+	require.NoError(t, err)
+	require.Equal(t, netNSURL, req.MechanismPreferences[0].Parameters[kernelmech.NetNSURL])
 }

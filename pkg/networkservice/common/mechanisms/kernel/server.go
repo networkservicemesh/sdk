@@ -19,12 +19,11 @@ package kernel
 
 import (
 	"context"
-	"net/url"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
@@ -37,8 +36,8 @@ func NewServer() networkservice.NetworkServiceServer {
 }
 
 func (m *kernelMechanismServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if mechanism := kernel.ToMechanism(request.GetConnection().GetMechanism()); mechanism != nil {
-		mechanism.SetNetNSURL((&url.URL{Scheme: "file", Path: netNSFilename}).String())
+	if mechanism := kernelmech.ToMechanism(request.GetConnection().GetMechanism()); mechanism != nil {
+		mechanism.SetNetNSURL(netNSURL)
 		mechanism.SetInterfaceName(GetNameFromConnection(request.GetConnection()))
 	}
 	return next.Server(ctx).Request(ctx, request)

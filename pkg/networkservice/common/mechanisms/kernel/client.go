@@ -20,14 +20,12 @@ package kernel
 
 import (
 	"context"
-	"net/url"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
-	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
+	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
@@ -47,18 +45,13 @@ func NewClient(options ...Option) networkservice.NetworkServiceClient {
 
 func (k *kernelMechanismClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	if !k.updateMechanismPreferences(request) {
-		mechanism := &networkservice.Mechanism{
-			Cls:  cls.LOCAL,
-			Type: kernel.MECHANISM,
-			Parameters: map[string]string{
-				kernel.NetNSURL:         (&url.URL{Scheme: "file", Path: netNSFilename}).String(),
-				kernel.InterfaceNameKey: GetNameFromConnection(request.GetConnection()),
-			},
-		}
+		mechanism := kernelmech.ToMechanism(kernelmech.New(netNSURL))
 		if k.interfaceName != "" {
-			mechanism.Parameters[kernel.InterfaceNameKey] = limitName(k.interfaceName)
+			mechanism.SetInterfaceName(k.interfaceName)
+		} else {
+			mechanism.SetInterfaceName(GetNameFromConnection(request.GetConnection()))
 		}
-		request.MechanismPreferences = append(request.GetMechanismPreferences(), mechanism)
+		request.MechanismPreferences = append(request.GetMechanismPreferences(), mechanism.Mechanism)
 	}
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
@@ -72,16 +65,16 @@ func (k *kernelMechanismClient) updateMechanismPreferences(request *networkservi
 	var updated = false
 
 	for _, m := range request.GetRequestMechanismPreferences() {
-		if m.Type == kernel.MECHANISM {
-			if m.Parameters == nil {
-				m.Parameters = make(map[string]string)
+		if mechanism := kernelmech.ToMechanism(m); mechanism != nil {
+			if mechanism.GetInterfaceName() == "" {
+				if k.interfaceName != "" {
+					mechanism.SetInterfaceName(k.interfaceName)
+				} else {
+					mechanism.SetInterfaceName(GetNameFromConnection(request.GetConnection()))
+				}
 			}
-			if m.Parameters[kernel.InterfaceNameKey] == "" {
-				m.Parameters[kernel.InterfaceNameKey] = k.interfaceName
-			}
-			if m.Parameters[kernel.NetNSURL] == "" {
-				m.Parameters[kernel.NetNSURL] = (&url.URL{Scheme: "file", Path: netNSFilename}).String()
-			}
+			mechanism.SetNetNSURL(netNSURL)
+
 			updated = true
 		}
 	}
@@ -95,6 +88,6 @@ type Option func(k *kernelMechanismClient)
 // WithInterfaceName sets interface name
 func WithInterfaceName(interfaceName string) Option {
 	return func(k *kernelMechanismClient) {
-		k.interfaceName = interfaceName
+		k.interfaceName = limitName(interfaceName)
 	}
 }
