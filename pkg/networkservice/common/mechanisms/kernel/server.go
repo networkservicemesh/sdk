@@ -28,17 +28,29 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type kernelMechanismServer struct{}
+type kernelMechanismServer struct {
+	interfaceName string
+}
 
 // NewServer - creates a NetworkServiceServer that requests a kernel interface and populates the netns inode
-func NewServer() networkservice.NetworkServiceServer {
-	return &kernelMechanismServer{}
+func NewServer(opts ...Option) networkservice.NetworkServiceServer {
+	o := &options{}
+	for _, opt := range opts {
+		opt(o)
+	}
+	return &kernelMechanismServer{
+		interfaceName: o.interfaceName,
+	}
 }
 
 func (m *kernelMechanismServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	if mechanism := kernelmech.ToMechanism(request.GetConnection().GetMechanism()); mechanism != nil {
 		mechanism.SetNetNSURL(netNSURL)
-		mechanism.SetInterfaceName(GetNameFromConnection(request.GetConnection()))
+		if m.interfaceName != "" {
+			mechanism.SetInterfaceName(m.interfaceName)
+		} else {
+			mechanism.SetInterfaceName(getNameFromConnection(request.GetConnection()))
+		}
 	}
 	return next.Server(ctx).Request(ctx, request)
 }

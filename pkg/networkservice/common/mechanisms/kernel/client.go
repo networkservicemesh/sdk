@@ -35,12 +35,14 @@ type kernelMechanismClient struct {
 }
 
 // NewClient - returns client that sets kernel preferred mechanism
-func NewClient(options ...Option) networkservice.NetworkServiceClient {
-	k := &kernelMechanismClient{}
-	for _, opt := range options {
-		opt(k)
+func NewClient(opts ...Option) networkservice.NetworkServiceClient {
+	o := &options{}
+	for _, opt := range opts {
+		opt(o)
 	}
-	return k
+	return &kernelMechanismClient{
+		interfaceName: o.interfaceName,
+	}
 }
 
 func (k *kernelMechanismClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
@@ -49,7 +51,7 @@ func (k *kernelMechanismClient) Request(ctx context.Context, request *networkser
 		if k.interfaceName != "" {
 			mechanism.SetInterfaceName(k.interfaceName)
 		} else {
-			mechanism.SetInterfaceName(GetNameFromConnection(request.GetConnection()))
+			mechanism.SetInterfaceName(getNameFromConnection(request.GetConnection()))
 		}
 		request.MechanismPreferences = append(request.GetMechanismPreferences(), mechanism.Mechanism)
 	}
@@ -70,7 +72,7 @@ func (k *kernelMechanismClient) updateMechanismPreferences(request *networkservi
 				if k.interfaceName != "" {
 					mechanism.SetInterfaceName(k.interfaceName)
 				} else {
-					mechanism.SetInterfaceName(GetNameFromConnection(request.GetConnection()))
+					mechanism.SetInterfaceName(getNameFromConnection(request.GetConnection()))
 				}
 			}
 			mechanism.SetNetNSURL(netNSURL)
@@ -80,14 +82,4 @@ func (k *kernelMechanismClient) updateMechanismPreferences(request *networkservi
 	}
 
 	return updated
-}
-
-// Option for kernel mechanism client
-type Option func(k *kernelMechanismClient)
-
-// WithInterfaceName sets interface name
-func WithInterfaceName(interfaceName string) Option {
-	return func(k *kernelMechanismClient) {
-		k.interfaceName = limitName(interfaceName)
-	}
 }
