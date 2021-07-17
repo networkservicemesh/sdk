@@ -46,16 +46,14 @@ func Test_PrevTokenShouldBeSigned_Server(t *testing.T) {
 
 	p := opa.WithPrevTokenSignedPolicy()
 
-	samples := []*networkservice.Path{
-		{
-			PathSegments: []*networkservice.PathSegment{
-				{
-					Token: token,
-				},
-				{},
+	var sample = &networkservice.Path{
+		PathSegments: []*networkservice.PathSegment{
+			{
+				Token: token,
 			},
-			Index: 1,
+			{},
 		},
+		Index: 1,
 	}
 
 	peerAuth := &peer.Peer{
@@ -70,18 +68,16 @@ func Test_PrevTokenShouldBeSigned_Server(t *testing.T) {
 
 	ctx := peer.NewContext(context.Background(), peerAuth)
 
-	for i, input := range samples {
-		peerAuth.AuthInfo.(*credentials.TLSInfo).State.PeerCertificates[0] = validX509crt
+	peerAuth.AuthInfo.(*credentials.TLSInfo).State.PeerCertificates[0] = validX509crt
 
-		err = p.Check(ctx, input)
-		require.NoError(t, err, i)
+	err = p.Check(ctx, sample)
+	require.NoError(t, err)
 
-		invalidX509crt, err := x509.ParseCertificate(ca.Certificate[0])
-		require.NoError(t, err)
+	invalidX509crt, err := x509.ParseCertificate(ca.Certificate[0])
+	require.NoError(t, err)
 
-		peerAuth.AuthInfo.(*credentials.TLSInfo).State.PeerCertificates[0] = invalidX509crt
+	peerAuth.AuthInfo.(*credentials.TLSInfo).State.PeerCertificates[0] = invalidX509crt
 
-		err = p.Check(ctx, input)
-		require.Error(t, err)
-	}
+	err = p.Check(ctx, sample)
+	require.Error(t, err)
 }
