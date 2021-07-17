@@ -78,8 +78,30 @@ func Test_DNSResolve(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
+	resp, err := s.Register(ctx, &registry.NetworkServiceEndpoint{Name: "nse-1@domain1"})
+	require.NoError(t, err)
+	require.Equal(t, "nse-1", resp.Name)
+
+	resp, err = s.Register(ctx, &registry.NetworkServiceEndpoint{
+		Name:                "nse-1",
+		NetworkServiceNames: []string{"ns1@domain1"},
+		NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+			"ns1@domain1": {
+				Labels: map[string]string{
+					"app": "myapp",
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "nse-1", resp.Name)
+	require.Len(t, resp.GetNetworkServiceLabels(), 1)
+	require.NotNil(t, resp.GetNetworkServiceLabels()["ns1"])
+	require.Equal(t, "myapp", resp.GetNetworkServiceLabels()["ns1"].Labels["app"])
+
 	_, err = s.Register(ctx, &registry.NetworkServiceEndpoint{Name: "nse-1@domain1"})
 	require.NoError(t, err)
+
 	err = s.Find(&registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: "nse-1@domain1"}}, streamchannel.NewNetworkServiceEndpointFindServer((ctx), nil))
 	require.NoError(t, err)
 	_, err = s.Unregister(ctx, &registry.NetworkServiceEndpoint{Name: "nse-1@domain1"})

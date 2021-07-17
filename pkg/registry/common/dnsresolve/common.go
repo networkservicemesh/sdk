@@ -92,7 +92,7 @@ func resolveDomain(ctx context.Context, service, domain string, r Resolver) (*ur
 		return nil, err
 	}
 
-	log.FromContext(ctx).Debug("Resolved url: %v", u)
+	log.FromContext(ctx).Debugf("Resolved url: %v", u)
 	return u, nil
 }
 
