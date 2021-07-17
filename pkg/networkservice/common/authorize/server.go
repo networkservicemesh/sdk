@@ -35,6 +35,7 @@ type authorizeServer struct {
 }
 
 // NewServer - returns a new authorization networkservicemesh.NetworkServiceServers
+// Authorize server checks left side of Path.
 func NewServer(opts ...Option) networkservice.NetworkServiceServer {
 	var s = &authorizeServer{
 		policies: []Policy{
@@ -51,15 +52,28 @@ func NewServer(opts ...Option) networkservice.NetworkServiceServer {
 }
 
 func (a *authorizeServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if err := a.policies.check(ctx, request.GetConnection()); err != nil {
+	var index = request.GetConnection().GetPath().GetIndex()
+	var leftSide = &networkservice.Path{
+		Index:        index,
+		PathSegments: request.GetConnection().GetPath().GetPathSegments()[:index+1],
+	}
+
+	if err := a.policies.check(ctx, leftSide); err != nil {
 		return nil, err
 	}
 	return next.Server(ctx).Request(ctx, request)
 }
 
 func (a *authorizeServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	if err := a.policies.check(ctx, conn); err != nil {
+	var index = conn.GetPath().GetIndex()
+	var leftSide = &networkservice.Path{
+		Index:        index,
+		PathSegments: conn.GetPath().GetPathSegments()[:index+1],
+	}
+
+	if err := a.policies.check(ctx, leftSide); err != nil {
 		return nil, err
 	}
+
 	return next.Server(ctx).Close(ctx, conn)
 }

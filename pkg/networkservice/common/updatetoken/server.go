@@ -20,10 +20,14 @@ package updatetoken
 import (
 	"context"
 
+	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -40,6 +44,22 @@ func NewServer(tokenGenerator token.GeneratorFunc) networkservice.NetworkService
 }
 
 func (u *updateTokenServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	if prev := request.GetConnection().GetPrevPathSegment(); prev != nil {
+		var tok, expireTime, err = token.FromContext(ctx)
+
+		if err != nil {
+			log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", err)
+		} else {
+			var expires *timestamp.Timestamp
+			expires, err = ptypes.TimestampProto(expireTime.Local())
+			if err != nil {
+				return nil, errors.WithStack(err)
+			}
+
+			prev.Expires = expires
+			prev.Token = tok
+		}
+	}
 	if request.Connection == nil {
 		request.Connection = &networkservice.Connection{}
 	}
@@ -51,6 +71,22 @@ func (u *updateTokenServer) Request(ctx context.Context, request *networkservice
 }
 
 func (u *updateTokenServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	if prev := conn.GetPrevPathSegment(); prev != nil {
+		var tok, expireTime, err = token.FromContext(ctx)
+
+		if err != nil {
+			log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", err)
+		} else {
+			var expires *timestamp.Timestamp
+			expires, err = ptypes.TimestampProto(expireTime.Local())
+			if err != nil {
+				return nil, errors.WithStack(err)
+			}
+
+			prev.Expires = expires
+			prev.Token = tok
+		}
+	}
 	err := updateToken(ctx, conn, u.tokenGenerator)
 	if err != nil {
 		return nil, err
