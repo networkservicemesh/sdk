@@ -86,10 +86,15 @@ func (s *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 func (s *timeoutServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	logger := log.FromContext(ctx).WithField("timeoutServer", "Close")
 
-	if !s.expireManager.Delete(conn.GetId()) {
+	if s.expireManager.Stop(conn.GetId()) {
+		if _, err := next.Server(ctx).Close(ctx, conn); err != nil {
+			s.expireManager.Start(conn.GetId())
+			return nil, err
+		}
+		s.expireManager.Delete(conn.GetId())
+	} else {
 		logger.Warnf("connection has been already closed: %s", conn.GetId())
-		return new(empty.Empty), nil
 	}
 
-	return next.Server(ctx).Close(ctx, conn)
+	return new(empty.Empty), nil
 }

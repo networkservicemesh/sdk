@@ -79,10 +79,12 @@ func (m *Manager) New(executor Executor, id string, expirationTime time.Time, cl
 }
 
 // Stop stops expiration for the `id`
-func (m *Manager) Stop(id string) {
-	if t, ok := m.timers.Load(id); ok {
+func (m *Manager) Stop(id string) bool {
+	t, loaded := m.timers.Load(id)
+	if loaded {
 		t.stopped = t.Stop()
 	}
+	return loaded
 }
 
 // Start starts stopped expiration for the `id` with the same expiration time
