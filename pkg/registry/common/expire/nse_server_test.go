@@ -51,6 +51,26 @@ const (
 	testTick      = testWait / 100
 )
 
+func find(ctx context.Context, c registry.NetworkServiceEndpointRegistryClient) (nses []*registry.NetworkServiceEndpoint, err error) {
+	stream, err := c.Find(ctx, &registry.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var nse *registry.NetworkServiceEndpoint
+	for nse, err = stream.Recv(); err == nil; nse, err = stream.Recv() {
+		nses = append(nses, nse)
+	}
+
+	if err != io.EOF {
+		return nil, err
+	}
+
+	return nses, nil
+}
+
 func TestExpireNSEServer_ShouldCorrectlySetExpirationTime_InRemoteCase(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -99,17 +119,10 @@ func TestExpireNSEServer_ShouldUseLessExpirationTimeFromInput_AndWork(t *testing
 
 	require.Equal(t, clockMock.Until(resp.ExpirationTime.AsTime()), expireTimeout/2)
 
-	c := adapters.NetworkServiceEndpointServerToClient(mem)
-
 	clockMock.Add(expireTimeout / 2)
 	require.Eventually(t, func() bool {
-		stream, err := c.Find(ctx, &registry.NetworkServiceEndpointQuery{
-			NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
-		})
-		require.NoError(t, err)
-
-		_, err = stream.Recv()
-		return err == io.EOF
+		nses, err := find(ctx, adapters.NetworkServiceEndpointServerToClient(mem))
+		return err == nil && len(nses) == 0
 	}, testWait, testTick)
 }
 
@@ -161,35 +174,29 @@ func TestExpireNSEServer_ShouldRemoveNSEAfterExpirationTime(t *testing.T) {
 
 	c := adapters.NetworkServiceEndpointServerToClient(mem)
 
-	stream, err := c.Find(ctx, &registry.NetworkServiceEndpointQuery{
-		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
-	})
+	nses, err := find(ctx, c)
 	require.NoError(t, err)
-
-	nse, err := stream.Recv()
-	require.NoError(t, err)
-	require.Equal(t, nseName, nse.Name)
+	require.Len(t, nses, 1)
+	require.Equal(t, nseName, nses[0].Name)
 
 	clockMock.Add(expireTimeout)
 	require.Eventually(t, func() bool {
-		stream, err = c.Find(ctx, &registry.NetworkServiceEndpointQuery{
-			NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
-		})
-		require.NoError(t, err)
-
-		_, err = stream.Recv()
-		return err == io.EOF
+		nses, err = find(ctx, c)
+		return err == nil && len(nses) == 0
 	}, testWait, testTick)
 }
 
 func TestExpireNSEServer_DataRace(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	mem := memory.NewNetworkServiceEndpointRegistryServer()
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
 		serialize.NewNetworkServiceEndpointRegistryServer(),
-		expire.NewNetworkServiceEndpointRegistryServer(context.Background(), 0),
+		expire.NewNetworkServiceEndpointRegistryServer(ctx, 0),
 		localbypass.NewNetworkServiceEndpointRegistryServer("tcp://0.0.0.0"),
 		mem,
 	)
@@ -202,16 +209,9 @@ func TestExpireNSEServer_DataRace(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	c := adapters.NetworkServiceEndpointServerToClient(mem)
-
 	require.Eventually(t, func() bool {
-		stream, err := c.Find(context.Background(), &registry.NetworkServiceEndpointQuery{
-			NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
-		})
-		require.NoError(t, err)
-
-		_, err = stream.Recv()
-		return err == io.EOF
+		nses, err := find(context.Background(), adapters.NetworkServiceEndpointServerToClient(mem))
+		return err == nil && len(nses) == 0
 	}, testWait, testTick)
 }
 
@@ -241,13 +241,56 @@ func TestExpireNSEServer_RefreshFailure(t *testing.T) {
 
 	clockMock.Add(expireTimeout)
 	require.Eventually(t, func() bool {
-		stream, err := c.Find(ctx, &registry.NetworkServiceEndpointQuery{
-			NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
-		})
-		require.NoError(t, err)
+		nses, err := find(ctx, c)
+		return err == nil && len(nses) == 0
+	}, testWait, testTick)
+}
 
-		_, err = stream.Recv()
-		return err == io.EOF
+func TestExpireNSEServer_UnregisterFailure(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	clockMock := clockmock.New(ctx)
+	ctx = clock.WithClock(ctx, clockMock)
+
+	mem := memory.NewNetworkServiceEndpointRegistryServer()
+
+	s := next.NewNetworkServiceEndpointRegistryServer(
+		serialize.NewNetworkServiceEndpointRegistryServer(),
+		expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
+		new(remoteNSEServer), // <-- GRPC invocation
+		mem,
+	)
+
+	nse, err := s.Register(ctx, &registry.NetworkServiceEndpoint{
+		Name: nseName,
+	})
+	require.NoError(t, err)
+
+	c := adapters.NetworkServiceEndpointServerToClient(mem)
+
+	nses, err := find(ctx, c)
+	require.NoError(t, err)
+	require.Len(t, nses, 1)
+	require.Equal(t, nseName, nses[0].Name)
+
+	unregisterCtx, cancelUnregister := context.WithCancel(ctx)
+	cancelUnregister()
+
+	_, err = s.Unregister(unregisterCtx, nse)
+	require.Error(t, err)
+
+	nses, err = find(ctx, c)
+	require.NoError(t, err)
+	require.Len(t, nses, 1)
+	require.Equal(t, nseName, nses[0].Name)
+
+	clockMock.Add(expireTimeout)
+	require.Eventually(t, func() bool {
+		nses, err = find(ctx, c)
+		return err == nil && len(nses) == 0
 	}, testWait, testTick)
 }
 
@@ -295,14 +338,23 @@ type remoteNSEServer struct {
 }
 
 func (s *remoteNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse.Clone())
 }
 
 func (s *remoteNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
+	if err := server.Context().Err(); err != nil {
+		return err
+	}
 	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
 }
 
 func (s *remoteNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse.Clone())
 }
 
