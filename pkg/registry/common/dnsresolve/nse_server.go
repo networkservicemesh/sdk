@@ -18,7 +18,6 @@ package dnsresolve
 
 import (
 	"context"
-	"errors"
 	"net"
 	"net/url"
 
@@ -61,75 +60,124 @@ func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkSer
 	return r
 }
 
-func (d *dnsNSEResolveServer) Register(ctx context.Context, ns *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	domain := interdomain.Domain(ns.Name)
-	u, err := resolveDomain(ctx, d.registryService, domain, d.resolver)
+func translateNSE(nse *registry.NetworkServiceEndpoint, translator func(string) string) {
+	nse.Name = translator(nse.Name)
+
+	for i := 0; i < len(nse.GetNetworkServiceNames()); i++ {
+		var service = nse.GetNetworkServiceNames()[i]
+		var target = translator(service)
+
+		nse.GetNetworkServiceNames()[i] = target
+
+		if nse.GetNetworkServiceNames() == nil {
+			continue
+		}
+
+		var labels = nse.GetNetworkServiceLabels()[service]
+
+		if labels == nil {
+			continue
+		}
+
+		delete(nse.GetNetworkServiceLabels(), service)
+
+		nse.GetNetworkServiceLabels()[target] = labels
+	}
+}
+
+// TODO: consider to return error if NSE is not consistent and have multi domains target.
+func resolveNSE(nse *registry.NetworkServiceEndpoint) string {
+	var domain string
+
+	for _, name := range append([]string{nse.Name}, nse.GetNetworkServiceNames()...) {
+		if interdomain.Is(name) {
+			domain = interdomain.Domain(name)
+			break
+		}
+	}
+
+	return domain
+}
+
+func (d *dnsNSEResolveServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	var domain = resolveNSE(nse)
+	var u, err = resolveDomain(ctx, d.registryService, domain, d.resolver)
+
 	if err != nil {
 		return nil, err
 	}
+
 	ctx = clienturlctx.WithClientURL(ctx, u)
-	ns.Name = interdomain.Target(ns.Name)
-	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, ns)
+
+	translateNSE(nse, interdomain.Target)
+
+	resp, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
+
+	if err != nil {
+		return nil, err
+	}
+
+	translateNSE(nse, func(s string) string {
+		return interdomain.Join(s, domain)
+	})
+
+	return resp, err
 }
 
 type dnsFindNSEServer struct {
 	domain string
-	u      *url.URL
+	nseURL *url.URL
 	registry.NetworkServiceEndpointRegistry_FindServer
 }
 
 func (s *dnsFindNSEServer) Send(nse *registry.NetworkServiceEndpoint) error {
-	nse.Name = interdomain.Join(nse.Name, s.domain)
-	if s.u != nil {
-		nse.Url = s.u.String()
+	translateNSE(nse, func(str string) string {
+		return interdomain.Join(str, s.domain)
+	})
+
+	if s.nseURL != nil {
+		nse.Url = s.nseURL.String()
 	}
+
 	return s.NetworkServiceEndpointRegistry_FindServer.Send(nse)
 }
 
 func (d *dnsNSEResolveServer) Find(q *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
-	ctx := s.Context()
-	domain := domainOf(q.NetworkServiceEndpoint)
-	if domain == "" {
-		return errors.New("domain cannot be empty")
-	}
-	q.NetworkServiceEndpoint.Name = interdomain.Target(q.NetworkServiceEndpoint.Name)
-	u, err := resolveDomain(ctx, d.registryService, domain, d.resolver)
+	var ctx = s.Context()
+	var domain = resolveNSE(q.NetworkServiceEndpoint)
+	var nsmgrProxyURL, err = resolveDomain(ctx, d.registryService, domain, d.resolver)
+
 	if err != nil {
 		return err
 	}
-	ctx = clienturlctx.WithClientURL(s.Context(), u)
-	u, err = resolveDomain(ctx, d.nsmgrProxyService, domain, d.resolver)
+
+	ctx = clienturlctx.WithClientURL(s.Context(), nsmgrProxyURL)
+	nsmgrProxyURL, err = resolveDomain(ctx, d.nsmgrProxyService, domain, d.resolver)
+
 	if err != nil {
 		log.FromContext(ctx).Errorf("nsmgrProxyService is not reachable by domain: %v", domain)
 	}
+
 	s = streamcontext.NetworkServiceEndpointRegistryFindServer(ctx, s)
-	return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(q, &dnsFindNSEServer{NetworkServiceEndpointRegistry_FindServer: s, domain: domain, u: u})
+
+	translateNSE(q.NetworkServiceEndpoint, interdomain.Target)
+
+	return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(q, &dnsFindNSEServer{NetworkServiceEndpointRegistry_FindServer: s, domain: domain, nseURL: nsmgrProxyURL})
 }
 
-func (d *dnsNSEResolveServer) Unregister(ctx context.Context, ns *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	domain := interdomain.Domain(ns.Name)
-	u, err := resolveDomain(ctx, d.registryService, domain, d.resolver)
+func (d *dnsNSEResolveServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	var domain = resolveNSE(nse)
+	var u, err = resolveDomain(ctx, d.registryService, domain, d.resolver)
+
 	if err != nil {
 		return nil, err
 	}
+
 	ctx = clienturlctx.WithClientURL(ctx, u)
-	ns.Name = interdomain.Target(ns.Name)
-	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, ns)
-}
 
-func domainOf(nse *registry.NetworkServiceEndpoint) string {
-	if nse.Name != "" {
-		return interdomain.Domain(nse.Name)
-	}
+	translateNSE(nse, interdomain.Target)
 
-	for i, ns := range nse.NetworkServiceNames {
-		if interdomain.Is(ns) {
-			result := interdomain.Domain(ns)
-			nse.NetworkServiceNames[i] = interdomain.Target(ns)
-			return result
-		}
-	}
-	return ""
+	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }
 
 func (d *dnsNSEResolveServer) setResolver(r Resolver) {

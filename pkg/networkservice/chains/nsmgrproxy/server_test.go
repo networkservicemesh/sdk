@@ -300,6 +300,89 @@ func TestNSMGR_FloatingInterdomainUseCase(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// TestNSMGR_FloatingInterdomainUseCase_FloatingNetworkServiceNameRegistration covers simple interdomain scenario with resolving endpoint from floating registry:
+//
+// registration: {"name": "nse@floating.domain", "networkservice_names": ["my-service-interdomain@floating.domain"]}
+//
+//  nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy2 -> nsmgr2 ->forwarder2 -> nsmgr2 -> nse3
+func TestNSMGR_FloatingInterdomainUseCase_FloatingNetworkServiceNameRegistration(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	var dnsServer = new(sandbox.FakeDNSResolver)
+
+	cluster1 := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetDNSResolver(dnsServer).
+		SetDNSDomainName("cluster1").
+		Build()
+
+	cluster2 := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetDNSDomainName("cluster2").
+		SetDNSResolver(dnsServer).
+		Build()
+
+	floating := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(0).
+		SetDNSDomainName("floating.domain").
+		SetDNSResolver(dnsServer).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		Build()
+
+	nsRegistryClient := cluster2.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg := &registry.NetworkService{
+		Name: "my-service-interdomain@" + floating.Name,
+	}
+
+	_, err := nsRegistryClient.Register(ctx, nsReg)
+	require.NoError(t, err)
+
+	nseReg := &registry.NetworkServiceEndpoint{
+		Name:                "final-endpoint@" + floating.Name,
+		NetworkServiceNames: []string{"my-service-interdomain@" + floating.Name},
+	}
+
+	cluster2.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
+
+	nsc := cluster1.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	request := &networkservice.NetworkServiceRequest{
+		MechanismPreferences: []*networkservice.Mechanism{
+			{Cls: cls.LOCAL, Type: kernel.MECHANISM},
+		},
+		Connection: &networkservice.Connection{
+			Id:             "1",
+			NetworkService: fmt.Sprint(nsReg.Name),
+			Context:        &networkservice.ConnectionContext{},
+		},
+	}
+
+	conn, err := nsc.Request(ctx, request)
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+
+	require.Equal(t, 10, len(conn.Path.PathSegments))
+
+	// Simulate refresh from client.
+
+	refreshRequest := request.Clone()
+	refreshRequest.Connection = conn.Clone()
+
+	conn, err = nsc.Request(ctx, refreshRequest)
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+	require.Equal(t, 10, len(conn.Path.PathSegments))
+
+	// Close
+	_, err = nsc.Close(ctx, conn)
+	require.NoError(t, err)
+}
+
 // TestNSMGR_FloatingInterdomain_FourClusters covers scenarion with connection from the one client to two endpoints
 // from diffrenret clusters using floating registry for resolving endpoints.
 //
