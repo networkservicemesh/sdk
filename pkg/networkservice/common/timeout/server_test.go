@@ -247,6 +247,41 @@ func TestTimeoutServer_RefreshFailure(t *testing.T) {
 	require.Condition(t, connServer.validator(0, 1))
 }
 
+func TestTimeoutServer_CloseFailure(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	clockMock := clockmock.New(ctx)
+	ctx = clock.WithClock(ctx, clockMock)
+
+	connServer := newConnectionsServer(t)
+
+	client := testClient(
+		ctx,
+		null.NewClient(),
+		next.NewNetworkServiceServer(
+			injecterror.NewServer(
+				injecterror.WithRequestErrorTimes(),
+				injecterror.WithCloseErrorTimes(0)),
+			connServer,
+		),
+		tokenTimeout,
+	)
+
+	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{})
+	require.NoError(t, err)
+	require.Condition(t, connServer.validator(1, 0))
+
+	_, err = client.Close(ctx, conn)
+	require.Error(t, err)
+	require.Condition(t, connServer.validator(1, 0))
+
+	clockMock.Add(tokenTimeout)
+	require.Eventually(t, connServer.validator(0, 1), testWait, testTick)
+}
+
 type remoteServer struct{}
 
 func (s *remoteServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {

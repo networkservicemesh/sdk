@@ -92,10 +92,15 @@ func (s *expireNSEServer) Find(query *registry.NetworkServiceEndpointQuery, serv
 func (s *expireNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
 	logger := log.FromContext(ctx).WithField("expireNSEServer", "Unregister")
 
-	if !s.expireManager.Delete(nse.Name) {
+	if s.expireManager.Stop(nse.Name) {
+		if _, err := next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse); err != nil {
+			s.expireManager.Start(nse.Name)
+			return nil, err
+		}
+		s.expireManager.Delete(nse.Name)
+	} else {
 		logger.Warnf("endpoint has been already unregistered: %s", nse.Name)
-		return new(empty.Empty), nil
 	}
 
-	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
+	return new(empty.Empty), nil
 }
