@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -40,6 +39,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checknse"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
 )
@@ -231,7 +231,11 @@ func TestExpireNSEServer_RefreshFailure(t *testing.T) {
 			new(remoteNSEServer), // <-- GRPC invocation
 			serialize.NewNetworkServiceEndpointRegistryServer(),
 			expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
-			newFailureNSEServer(1, -1),
+			injecterror.NewNetworkServiceEndpointRegistryServer(
+				injecterror.WithRegisterErrorTimes(1, -1),
+				injecterror.WithFindErrorTimes(),
+				injecterror.WithUnregisterErrorTimes(),
+			),
 			memory.NewNetworkServiceEndpointRegistryServer(),
 		)),
 	)
@@ -260,7 +264,11 @@ func TestExpireNSEServer_UnregisterFailure(t *testing.T) {
 	s := next.NewNetworkServiceEndpointRegistryServer(
 		serialize.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
-		new(remoteNSEServer), // <-- GRPC invocation
+		injecterror.NewNetworkServiceEndpointRegistryServer(
+			injecterror.WithRegisterErrorTimes(),
+			injecterror.WithFindErrorTimes(),
+			injecterror.WithUnregisterErrorTimes(0),
+		),
 		mem,
 	)
 
@@ -269,20 +277,12 @@ func TestExpireNSEServer_UnregisterFailure(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	_, err = s.Unregister(ctx, nse)
+	require.Error(t, err)
+
 	c := adapters.NetworkServiceEndpointServerToClient(mem)
 
 	nses, err := find(ctx, c)
-	require.NoError(t, err)
-	require.Len(t, nses, 1)
-	require.Equal(t, nseName, nses[0].Name)
-
-	unregisterCtx, cancelUnregister := context.WithCancel(ctx)
-	cancelUnregister()
-
-	_, err = s.Unregister(unregisterCtx, nse)
-	require.Error(t, err)
-
-	nses, err = find(ctx, c)
 	require.NoError(t, err)
 	require.Len(t, nses, 1)
 	require.Equal(t, nseName, nses[0].Name)
@@ -356,38 +356,6 @@ func (s *remoteNSEServer) Unregister(ctx context.Context, nse *registry.NetworkS
 		return nil, err
 	}
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse.Clone())
-}
-
-type failureNSEServer struct {
-	count        int
-	failureTimes []int
-}
-
-func newFailureNSEServer(failureTimes ...int) *failureNSEServer {
-	return &failureNSEServer{
-		failureTimes: failureTimes,
-	}
-}
-
-func (s *failureNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	defer func() { s.count++ }()
-	for _, failureTime := range s.failureTimes {
-		if failureTime > s.count {
-			break
-		}
-		if failureTime == s.count || failureTime == -1 {
-			return nil, errors.New("failure")
-		}
-	}
-	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
-}
-
-func (s *failureNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
-	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
-}
-
-func (s *failureNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }
 
 type unregisterNSEServer struct {
