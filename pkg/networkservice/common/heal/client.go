@@ -28,6 +28,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/cancelctx"
+	"github.com/networkservicemesh/sdk/pkg/tools/closectx"
 )
 
 type connectionInfo struct {
@@ -122,11 +123,20 @@ func (u *healClient) Request(ctx context.Context, request *networkservice.Networ
 	//   than monitor stream update.
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		err = ctx.Err()
 	case <-condCh:
 	case <-u.ctx.Done():
-		_, _ = next.Client(ctx).Close(ctx, conn)
-		return nil, errors.Errorf("timeout waiting for connection monitor: %s", conn.GetId())
+		err = errors.Errorf("timeout waiting for connection monitor: %s", conn.GetId())
+	}
+	if err != nil {
+		closeCtx, cancelClose := closectx.New(u.ctx, ctx)
+		defer cancelClose()
+
+		if _, closeErr := next.Client(ctx).Close(closeCtx, conn); closeErr != nil {
+			err = errors.Wrapf(err, "connection closed with error: %s", closeErr.Error())
+		}
+
+		return nil, err
 	}
 
 	connInfo.cond.L.Lock()

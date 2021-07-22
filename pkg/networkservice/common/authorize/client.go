@@ -23,46 +23,62 @@ import (
 	"sync/atomic"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/closectx"
 )
 
 type authorizeClient struct {
+	ctx        context.Context
 	policies   policiesList
 	serverPeer atomic.Value
 }
 
 // NewClient - returns a new authorization networkservicemesh.NetworkServiceClient
-func NewClient(opts ...Option) networkservice.NetworkServiceClient {
+func NewClient(ctx context.Context, opts ...Option) networkservice.NetworkServiceClient {
 	var result = &authorizeClient{
+		ctx:      ctx,
 		policies: defaultPolicies(),
 	}
+
 	for _, o := range opts {
 		o.apply(&result.policies)
 	}
+
 	return result
 }
 
 func (a *authorizeClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	var p peer.Peer
 	opts = append(opts, grpc.Peer(&p))
-	resp, err := next.Client(ctx).Request(ctx, request, opts...)
+
+	conn, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
 		return nil, err
 	}
+
 	if p != (peer.Peer{}) {
 		a.serverPeer.Store(&p)
 		ctx = peer.NewContext(ctx, &p)
 	}
-	if err = a.policies.check(ctx, resp); err != nil {
-		_, _ = next.Client(ctx).Close(ctx, resp, opts...)
+
+	if err = a.policies.check(ctx, conn); err != nil {
+		closeCtx, cancelClose := closectx.New(a.ctx, ctx)
+		defer cancelClose()
+
+		if _, closeErr := next.Client(ctx).Close(closeCtx, conn, opts...); closeErr != nil {
+			err = errors.Wrapf(err, "connection closed with error: %s", closeErr.Error())
+		}
+
 		return nil, err
 	}
-	return resp, err
+
+	return conn, err
 }
 
 func (a *authorizeClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
@@ -70,8 +86,10 @@ func (a *authorizeClient) Close(ctx context.Context, conn *networkservice.Connec
 	if ok && p != nil {
 		ctx = peer.NewContext(ctx, p)
 	}
+
 	if err := a.policies.check(ctx, conn); err != nil {
 		return nil, err
 	}
+
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }

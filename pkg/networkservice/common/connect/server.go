@@ -33,6 +33,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/cancelctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"github.com/networkservicemesh/sdk/pkg/tools/closectx"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/multiexecutor"
 )
@@ -116,9 +117,12 @@ func (s *connectServer) Request(ctx context.Context, request *networkservice.Net
 	conn, err = next.Server(ctx).Request(ctx, request)
 	// Close connection if next.Server Request finished with error
 	if err != nil && !refreshRequest {
-		_, cErr := s.Close(ctx, request.Connection.Clone())
-		if cErr != nil {
-			err = errors.Wrapf(cErr, "connection closed with error: %v", cErr)
+		closeCtx, cancelClose := closectx.New(s.ctx, ctx)
+		defer cancelClose()
+
+		_, closeErr := s.Close(closeCtx, request.Connection.Clone())
+		if closeErr != nil {
+			err = errors.Wrapf(err, "connection closed with error: %s", closeErr.Error())
 		}
 	}
 	return conn, err
@@ -154,9 +158,12 @@ func (s *connectServer) client(ctx context.Context, conn *networkservice.Connect
 			return connInfo.client
 		}
 
+		closeCtx, cancelClose := closectx.New(s.ctx, ctx)
+		defer cancelClose()
+
 		// For some reason we have changed the clientURL, so we need to close and delete the existing client.
-		if _, clientErr := connInfo.client.client.Close(ctx, conn); clientErr != nil {
-			logger.Warnf("failed to close client: %+v", clientErr)
+		if _, clientErr := connInfo.client.client.Close(closeCtx, conn); clientErr != nil {
+			logger.Warnf("failed to close client: %s", clientErr.Error())
 		}
 
 		s.closeClient(connInfo.client, connInfo.clientURL.String())
