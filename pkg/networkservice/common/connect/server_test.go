@@ -520,6 +520,82 @@ func TestConnectServer_DialTimeout(t *testing.T) {
 	timer.Stop()
 }
 
+func TestConnectServer_ChangeURLWithExpiredContext(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	// 1. Create connectServer
+
+	s := next.NewNetworkServiceServer(
+		connect.NewServer(context.Background(),
+			func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+				return next.NewNetworkServiceClient(
+					newMonitorClient(ctx, cc),
+					networkservice.NewNetworkServiceClient(cc),
+				)
+			},
+			connect.WithDialTimeout(time.Second),
+			connect.WithDialOptions(grpc.WithInsecure()),
+		),
+	)
+
+	// 3. Setup servers
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	urlA := &url.URL{Scheme: "tcp", Host: "127.0.0.1:"}
+	serverA := new(captureServer)
+
+	err := startServer(ctx, urlA, serverA)
+	require.NoError(t, err)
+
+	urlB := &url.URL{Scheme: "tcp", Host: "127.0.0.1:"}
+	serverB := new(captureServer)
+
+	err = startServer(ctx, urlB, serverB)
+	require.NoError(t, err)
+
+	// 4. Create request
+
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: "id",
+		},
+	}
+
+	// 5. Request A
+
+	requestCtx, requestCancel := context.WithCancel(context.Background())
+
+	conn, err := s.Request(clienturlctx.WithClientURL(requestCtx, urlA), request.Clone())
+	require.NoError(t, err)
+
+	require.NotNil(t, serverA.capturedRequest)
+
+	requestCancel()
+
+	// 6. Request B with timed out context
+
+	request.Connection = conn.Clone()
+
+	_, err = s.Request(clienturlctx.WithClientURL(requestCtx, urlB), request.Clone())
+	require.Error(t, err)
+
+	require.Nil(t, serverB.capturedRequest)
+
+	// 7. Request B with valid context
+
+	requestCtx, requestCancel = context.WithCancel(context.Background())
+
+	_, err = s.Request(clienturlctx.WithClientURL(requestCtx, urlB), request.Clone())
+	require.NoError(t, err)
+
+	require.Nil(t, serverA.capturedRequest)
+	require.NotNil(t, serverB.capturedRequest)
+
+	requestCancel()
+}
+
 type editServer struct {
 	key       string
 	value     string
