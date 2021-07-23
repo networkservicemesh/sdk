@@ -72,7 +72,7 @@ func (c *refreshNSEClient) Register(ctx context.Context, nse *registry.NetworkSe
 
 		cancel, err = c.startRefresh(ctx, refreshNSE, expirationDuration)
 		if err != nil {
-			unregisterCtx, cancelUnregister := closectx.New(c.ctx, ctx)
+			unregisterCtx, cancelUnregister := closectx.New(ctx)
 			defer cancelUnregister()
 
 			if _, unregisterErr := next.NetworkServiceEndpointRegistryServer(ctx).Unregister(unregisterCtx, reg); unregisterErr != nil {

@@ -28,18 +28,18 @@ import (
 const closeTimeout = 15 * time.Second
 
 // New creates a new context for Close/Unregister in case of Request/Register failure
-func New(parent, valuesCtx context.Context) (ctx context.Context, cancel context.CancelFunc) {
-	clockTime := clock.FromContext(valuesCtx)
+func New(ctx context.Context) (context.Context, context.CancelFunc) {
+	clockTime := clock.FromContext(ctx)
 
 	var timeout time.Duration
-	if deadline, ok := valuesCtx.Deadline(); ok {
+	if deadline, ok := ctx.Deadline(); ok {
 		timeout = clockTime.Until(deadline)
 	}
 	if timeout < closeTimeout {
 		timeout = closeTimeout
 	}
 
-	ctx = extend.WithValuesFromContext(parent, valuesCtx)
+	ctx = extend.WithValuesFromContext(context.Background(), ctx)
 
 	return clockTime.WithTimeout(ctx, timeout)
 }

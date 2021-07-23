@@ -117,7 +117,7 @@ func (s *connectServer) Request(ctx context.Context, request *networkservice.Net
 	conn, err = next.Server(ctx).Request(ctx, request)
 	// Close connection if next.Server Request finished with error
 	if err != nil && !refreshRequest {
-		closeCtx, cancelClose := closectx.New(s.ctx, ctx)
+		closeCtx, cancelClose := closectx.New(ctx)
 		defer cancelClose()
 
 		_, closeErr := s.Close(closeCtx, request.Connection.Clone())
@@ -158,7 +158,7 @@ func (s *connectServer) client(ctx context.Context, conn *networkservice.Connect
 			return connInfo.client
 		}
 
-		closeCtx, cancelClose := closectx.New(s.ctx, ctx)
+		closeCtx, cancelClose := closectx.New(ctx)
 		defer cancelClose()
 
 		// For some reason we have changed the clientURL, so we need to close and delete the existing client.

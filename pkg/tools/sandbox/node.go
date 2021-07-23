@@ -219,7 +219,7 @@ func (n *Node) NewClient(
 		CloneURL(n.NSMgr.URL),
 		client.WithDialOptions(DialOptions(WithTokenGenerator(generatorFunc))...),
 		client.WithDialTimeout(DialTimeout),
-		client.WithAuthorizeClient(authorize.NewClient(ctx, authorize.Any())),
+		client.WithAuthorizeClient(authorize.NewClient(authorize.Any())),
 		client.WithAdditionalFunctionality(additionalFunctionality...),
 	)
 }

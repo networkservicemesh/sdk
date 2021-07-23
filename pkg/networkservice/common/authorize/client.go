@@ -34,15 +34,13 @@ import (
 )
 
 type authorizeClient struct {
-	ctx        context.Context
 	policies   policiesList
 	serverPeer atomic.Value
 }
 
 // NewClient - returns a new authorization networkservicemesh.NetworkServiceClient
-func NewClient(ctx context.Context, opts ...Option) networkservice.NetworkServiceClient {
+func NewClient(opts ...Option) networkservice.NetworkServiceClient {
 	var result = &authorizeClient{
-		ctx:      ctx,
 		policies: defaultPolicies(),
 	}
 
@@ -68,7 +66,7 @@ func (a *authorizeClient) Request(ctx context.Context, request *networkservice.N
 	}
 
 	if err = a.policies.check(ctx, conn); err != nil {
-		closeCtx, cancelClose := closectx.New(a.ctx, ctx)
+		closeCtx, cancelClose := closectx.New(ctx)
 		defer cancelClose()
 
 		if _, closeErr := next.Client(ctx).Close(closeCtx, conn, opts...); closeErr != nil {

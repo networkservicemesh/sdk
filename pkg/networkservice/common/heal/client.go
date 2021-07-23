@@ -129,7 +129,7 @@ func (u *healClient) Request(ctx context.Context, request *networkservice.Networ
 		err = errors.Errorf("timeout waiting for connection monitor: %s", conn.GetId())
 	}
 	if err != nil {
-		closeCtx, cancelClose := closectx.New(u.ctx, ctx)
+		closeCtx, cancelClose := closectx.New(ctx)
 		defer cancelClose()
 
 		if _, closeErr := next.Client(ctx).Close(closeCtx, conn); closeErr != nil {
