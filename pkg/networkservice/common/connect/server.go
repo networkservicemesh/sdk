@@ -72,7 +72,7 @@ func NewServer(
 	s := &connectServer{
 		ctx:               ctx,
 		clientFactory:     clientFactory,
-		clientDialTimeout: 100 * time.Millisecond,
+		clientDialTimeout: time.Second,
 	}
 
 	for _, opt := range options {
