@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2021 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -29,15 +29,6 @@ func store(parent context.Context, id string, mdMap *metaDataMap) context.Contex
 	_, ok := parent.Value(metaDataKey{}).(*metaData)
 	if !ok {
 		md, _ := mdMap.LoadOrStore(id, &metaData{})
-		return context.WithValue(parent, metaDataKey{}, md)
-	}
-	return parent
-}
-
-func del(parent context.Context, id string, mdMap *metaDataMap) context.Context {
-	_, ok := parent.Value(metaDataKey{}).(*metaData)
-	if !ok {
-		md, _ := mdMap.LoadAndDelete(id)
 		return context.WithValue(parent, metaDataKey{}, md)
 	}
 	return parent

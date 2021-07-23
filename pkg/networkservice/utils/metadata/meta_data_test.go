@@ -65,7 +65,7 @@ var samples = []*sample{
 					metadata.Map(ctx, isClient).Store(testKey, expected)
 				}),
 			)
-			conn, err := chainServer.Request(context.TODO(), testRequest(nil))
+			conn, err := chainServer.Request(context.Background(), testRequest(nil))
 			require.NoError(t, err)
 
 			chainServer = next.NewNetworkServiceServer(
@@ -78,7 +78,7 @@ var samples = []*sample{
 					}
 				}),
 			)
-			_, err = chainServer.Request(context.TODO(), testRequest(conn))
+			_, err = chainServer.Request(context.Background(), testRequest(conn))
 			require.NoError(t, err)
 
 			require.Equal(t, expected, actual)
@@ -91,7 +91,7 @@ var samples = []*sample{
 				testServer(server),
 				injecterror.NewServer(),
 			)
-			_, err := chainServer.Request(context.TODO(), testRequest(nil))
+			_, err := chainServer.Request(context.Background(), testRequest(nil))
 			require.Error(t, err)
 		},
 	},
@@ -106,10 +106,10 @@ var samples = []*sample{
 					metadata.Map(ctx, isClient).Store(testKey, data)
 				}),
 			)
-			conn, err := chainServer.Request(context.TODO(), testRequest(nil))
+			conn, err := chainServer.Request(context.Background(), testRequest(nil))
 			require.NoError(t, err)
 
-			_, err = testServer(server).Close(context.TODO(), conn)
+			_, err = testServer(server).Close(context.Background(), conn)
 			require.NoError(t, err)
 
 			chainServer = next.NewNetworkServiceServer(
@@ -122,10 +122,30 @@ var samples = []*sample{
 					}
 				}),
 			)
-			_, err = chainServer.Request(context.TODO(), testRequest(conn))
+			_, err = chainServer.Request(context.Background(), testRequest(conn))
 			require.NoError(t, err)
 
 			require.Nil(t, data)
+		},
+	},
+	{
+		name: "Double Close",
+		test: func(t *testing.T, server networkservice.NetworkServiceServer, isClient bool) {
+			chainServer := next.NewNetworkServiceServer(
+				testServer(server),
+				checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+					require.NotNil(t, metadata.Map(ctx, isClient))
+				}),
+			)
+
+			conn, err := chainServer.Request(context.Background(), testRequest(nil))
+			require.NoError(t, err)
+
+			_, err = chainServer.Close(context.Background(), conn)
+			require.NoError(t, err)
+
+			_, err = chainServer.Close(context.Background(), conn)
+			require.NoError(t, err)
 		},
 	},
 }

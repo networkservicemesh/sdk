@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2021 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -39,11 +39,9 @@ func NewClient() networkservice.NetworkServiceClient {
 func (m *metaDataClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	connID := request.GetConnection().GetId()
 
-	ctx = store(ctx, connID, &m.Map)
-
-	conn, err := next.Client(ctx).Request(ctx, request, opts...)
+	conn, err := next.Client(ctx).Request(store(ctx, connID, &m.Map), request, opts...)
 	if err != nil {
-		del(ctx, connID, &m.Map)
+		m.Map.Delete(connID)
 		return nil, err
 	}
 
@@ -51,6 +49,9 @@ func (m *metaDataClient) Request(ctx context.Context, request *networkservice.Ne
 }
 
 func (m *metaDataClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	ctx = del(ctx, conn.GetId(), &m.Map)
-	return next.Client(ctx).Close(ctx, conn, opts...)
+	rv, err := next.Client(ctx).Close(store(ctx, conn.GetId(), &m.Map), conn, opts...)
+
+	m.Map.Delete(conn.GetId())
+
+	return rv, err
 }

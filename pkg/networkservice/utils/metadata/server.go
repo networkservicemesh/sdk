@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2021 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -38,11 +38,9 @@ func NewServer() networkservice.NetworkServiceServer {
 func (m *metadataServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	connID := request.GetConnection().GetId()
 
-	ctx = store(ctx, connID, &m.Map)
-
-	conn, err := next.Server(ctx).Request(ctx, request)
+	conn, err := next.Server(ctx).Request(store(ctx, connID, &m.Map), request)
 	if err != nil {
-		del(ctx, connID, &m.Map)
+		m.Map.Delete(connID)
 		return nil, err
 	}
 
@@ -50,6 +48,9 @@ func (m *metadataServer) Request(ctx context.Context, request *networkservice.Ne
 }
 
 func (m *metadataServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	ctx = del(ctx, conn.GetId(), &m.Map)
-	return next.Server(ctx).Close(ctx, conn)
+	rv, err := next.Server(ctx).Close(store(ctx, conn.GetId(), &m.Map), conn)
+
+	m.Map.Delete(conn.GetId())
+
+	return rv, err
 }
