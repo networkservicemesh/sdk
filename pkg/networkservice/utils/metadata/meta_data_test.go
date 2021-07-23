@@ -86,13 +86,30 @@ var samples = []*sample{
 	},
 	{
 		name: "Request failed",
-		test: func(t *testing.T, server networkservice.NetworkServiceServer, _ bool) {
+		test: func(t *testing.T, server networkservice.NetworkServiceServer, isClient bool) {
+			conn := &networkservice.Connection{
+				Id: "id",
+			}
+
 			chainServer := next.NewNetworkServiceServer(
-				testServer(server),
+				server,
+				checkcontext.NewServer(t, func(_ *testing.T, ctx context.Context) {
+					metadata.Map(ctx, isClient).Store(testKey, 0)
+				}),
 				injecterror.NewServer(),
 			)
-			_, err := chainServer.Request(context.Background(), testRequest(nil))
+			_, err := chainServer.Request(context.Background(), testRequest(conn))
 			require.Error(t, err)
+
+			chainServer = next.NewNetworkServiceServer(
+				server,
+				checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+					_, ok := metadata.Map(ctx, isClient).Load(testKey)
+					require.False(t, ok)
+				}),
+			)
+			_, err = chainServer.Request(context.Background(), testRequest(conn))
+			require.NoError(t, err)
 		},
 	},
 	{

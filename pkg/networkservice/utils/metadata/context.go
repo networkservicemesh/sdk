@@ -1,4 +1,6 @@
-// Copyright (c) 2020-2021 Cisco and/or its affiliates.
+// Copyright (c) 2020 Cisco and/or its affiliates.
+//
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -26,10 +28,19 @@ import (
 type metaDataKey struct{}
 
 func store(parent context.Context, id string, mdMap *metaDataMap) context.Context {
-	_, ok := parent.Value(metaDataKey{}).(*metaData)
-	if !ok {
+	if _, ok := parent.Value(metaDataKey{}).(*metaData); !ok {
 		md, _ := mdMap.LoadOrStore(id, &metaData{})
 		return context.WithValue(parent, metaDataKey{}, md)
+	}
+	return parent
+}
+
+func del(parent context.Context, id string, mdMap *metaDataMap) context.Context {
+	if _, ok := parent.Value(metaDataKey{}).(*metaData); !ok {
+		if md, ok := mdMap.LoadAndDelete(id); ok {
+			return context.WithValue(parent, metaDataKey{}, md)
+		}
+		return context.WithValue(parent, metaDataKey{}, new(metaData))
 	}
 	return parent
 }
