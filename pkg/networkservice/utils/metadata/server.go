@@ -39,10 +39,13 @@ func NewServer() networkservice.NetworkServiceServer {
 
 func (m *metadataServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	connID := request.GetConnection().GetId()
+	_, isRefresh := m.Map.Load(connID)
 
 	conn, err := next.Server(ctx).Request(store(ctx, connID, &m.Map), request)
 	if err != nil {
-		del(ctx, connID, &m.Map)
+		if !isRefresh {
+			del(ctx, connID, &m.Map)
+		}
 		return nil, err
 	}
 
