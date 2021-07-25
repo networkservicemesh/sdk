@@ -113,6 +113,39 @@ var samples = []*sample{
 		},
 	},
 	{
+		name: "Refresh failed",
+		test: func(t *testing.T, server networkservice.NetworkServiceServer, isClient bool) {
+			conn := &networkservice.Connection{
+				Id: "id",
+			}
+
+			chainServer := next.NewNetworkServiceServer(
+				server,
+				checkcontext.NewServer(t, func(_ *testing.T, ctx context.Context) {
+					metadata.Map(ctx, isClient).Store(testKey, 0)
+				}),
+				injecterror.NewServer(
+					injecterror.WithRequestErrorTimes(1),
+				),
+			)
+			conn, err := chainServer.Request(context.Background(), testRequest(conn))
+			require.NoError(t, err)
+
+			_, err = chainServer.Request(context.Background(), testRequest(conn))
+			require.Error(t, err)
+
+			chainServer = next.NewNetworkServiceServer(
+				server,
+				checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+					_, ok := metadata.Map(ctx, isClient).Load(testKey)
+					require.True(t, ok)
+				}),
+			)
+			_, err = chainServer.Request(context.Background(), testRequest(conn))
+			require.NoError(t, err)
+		},
+	},
+	{
 		name: "Close",
 		test: func(t *testing.T, server networkservice.NetworkServiceServer, isClient bool) {
 			data := map[string]string{"a": "A"}
