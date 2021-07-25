@@ -40,11 +40,11 @@ func NewClient() networkservice.NetworkServiceClient {
 
 func (m *metaDataClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	connID := request.GetConnection().GetId()
-	_, isRefresh := m.Map.Load(connID)
+	_, isEstablished := m.Map.Load(connID)
 
 	conn, err := next.Client(ctx).Request(store(ctx, connID, &m.Map), request, opts...)
 	if err != nil {
-		if !isRefresh {
+		if !isEstablished {
 			del(ctx, connID, &m.Map)
 		}
 		return nil, err
