@@ -27,6 +27,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -76,7 +77,7 @@ func testNSMGRHealEndpoint(t *testing.T, nodeNum int) {
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 
-	counter := &counterServer{}
+	counter := new(count.Server)
 	nse := domain.Nodes[nodeNum].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
 	request := defaultRequest(nsReg.Name)
@@ -150,7 +151,7 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int) {
 	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
-	counter := &counterServer{}
+	counter := new(count.Server)
 	domain.Nodes[1].NewEndpoint(ctx, defaultRegistryEndpoint(nsReg.Name), sandbox.GenerateTestToken, counter)
 
 	request := defaultRequest(nsReg.Name)
@@ -232,7 +233,7 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 
-	counter := &counterServer{}
+	counter := new(count.Server)
 	domain.Nodes[1].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
 	request := defaultRequest(nsReg.Name)
@@ -302,7 +303,7 @@ func TestNSMGR_HealRegistry(t *testing.T) {
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 
-	counter := &counterServer{}
+	counter := new(count.Server)
 	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
 	request := defaultRequest(nsReg.Name)

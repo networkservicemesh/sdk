@@ -42,6 +42,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 )
@@ -185,14 +186,14 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 
 	// 1. Create connectServer
 
-	serverNext := new(countServer)
-	serverClient := new(countServer)
+	serverNext := new(count.Server)
+	serverClient := new(count.Client)
 
 	s := next.NewNetworkServiceServer(
 		connect.NewServer(context.Background(),
 			func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 				return next.NewNetworkServiceClient(
-					adapters.NewServerToClient(serverClient),
+					serverClient,
 					newMonitorClient(ctx, cc),
 					networkservice.NewNetworkServiceClient(cc),
 				)
@@ -209,7 +210,7 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 	defer cancel()
 
 	urlA := &url.URL{Scheme: "tcp", Host: "127.0.0.1:"}
-	serverA := new(countServer)
+	serverA := new(count.Server)
 
 	err := startServer(ctx, urlA, serverA)
 	require.NoError(t, err)
@@ -221,6 +222,8 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 	wg := new(sync.WaitGroup)
 	wg.Add(parallelCount)
 
+	// IMPORTANT: please don't use any `require` statements from here to `barrier.Done()`. It would lead to strange
+	// errors if one of them fails. Please use `assert` instead of that.
 	barrier := new(sync.WaitGroup)
 	barrier.Add(1)
 
@@ -262,16 +265,23 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 	wg.Wait()
 	wg.Add(parallelCount)
 
-	assert.Equal(t, int32(parallelCount), serverClient.count)
-	assert.Equal(t, int32(parallelCount), serverA.count)
-	assert.Equal(t, int32(parallelCount), serverNext.count)
+	assert.Equal(t, int32(parallelCount), atomic.LoadInt32(&serverClient.Requests))
+	assert.Equal(t, int32(0), atomic.LoadInt32(&serverClient.Closes))
+	assert.Equal(t, int32(parallelCount), atomic.LoadInt32(&serverA.Requests))
+	assert.Equal(t, int32(0), atomic.LoadInt32(&serverA.Closes))
+	assert.Equal(t, int32(parallelCount), atomic.LoadInt32(&serverNext.Requests))
+	assert.Equal(t, int32(0), atomic.LoadInt32(&serverNext.Closes))
 
+	// IMPORTANT: now feel free to use `require` statements.
 	barrier.Done()
 	wg.Wait()
 
-	require.Equal(t, int32(parallelCount), serverClient.count)
-	require.Equal(t, int32(parallelCount), serverA.count)
-	require.Equal(t, int32(parallelCount), serverNext.count)
+	require.Equal(t, int32(2*parallelCount), atomic.LoadInt32(&serverClient.Requests))
+	require.Equal(t, int32(parallelCount), atomic.LoadInt32(&serverClient.Closes))
+	require.Equal(t, int32(2*parallelCount), atomic.LoadInt32(&serverA.Requests))
+	require.Equal(t, int32(parallelCount), atomic.LoadInt32(&serverA.Closes))
+	require.Equal(t, int32(2*parallelCount), atomic.LoadInt32(&serverNext.Requests))
+	require.Equal(t, int32(parallelCount), atomic.LoadInt32(&serverNext.Closes))
 }
 
 func TestConnectServer_RequestFail(t *testing.T) {
@@ -547,19 +557,5 @@ func (s *captureServer) Request(ctx context.Context, request *networkservice.Net
 
 func (s *captureServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	s.capturedRequest = nil
-	return next.Server(ctx).Close(ctx, conn)
-}
-
-type countServer struct {
-	count int32
-}
-
-func (s *countServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	atomic.AddInt32(&s.count, 1)
-	return next.Server(ctx).Request(ctx, request)
-}
-
-func (s *countServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	atomic.AddInt32(&s.count, -1)
 	return next.Server(ctx).Close(ctx, conn)
 }

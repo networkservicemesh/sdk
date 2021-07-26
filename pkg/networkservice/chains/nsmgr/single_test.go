@@ -33,6 +33,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/tools/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
@@ -216,7 +217,7 @@ func Test_Local_NoURLUsecase(t *testing.T) {
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	request := defaultRequest(nsReg.Name)
-	counter := &counterServer{}
+	counter := new(count.Server)
 
 	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 

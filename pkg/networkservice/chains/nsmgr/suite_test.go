@@ -45,6 +45,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanismtranslation"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/replacelabels"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
@@ -96,7 +97,7 @@ func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
-	counter := &counterServer{}
+	counter := new(count.Server)
 
 	var unregisterWG sync.WaitGroup
 	var nse *sandbox.EndpointEntry
@@ -202,7 +203,7 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
-	counter := &counterServer{}
+	counter := new(count.Server)
 
 	var wg sync.WaitGroup
 	var nseRegs [4]*registry.NetworkServiceEndpoint
@@ -273,7 +274,7 @@ func (s *nsmgrSuite) Test_RemoteUsecase() {
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
-	counter := &counterServer{}
+	counter := new(count.Server)
 
 	nse := s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
@@ -317,7 +318,7 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
-	counter := &counterServer{}
+	counter := new(count.Server)
 
 	nse := s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
@@ -362,7 +363,7 @@ func (s *nsmgrSuite) Test_LocalUsecase() {
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
-	counter := &counterServer{}
+	counter := new(count.Server)
 
 	nse := s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
@@ -402,7 +403,7 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	counterClose := &counterServer{}
+	counterClose := new(count.Server)
 
 	nsReg := linearNS(nodesCount)
 	nsReg, err := s.nsRegistryClient.Register(ctx, nsReg)
@@ -463,7 +464,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	counterClose := &counterServer{}
+	counterClose := new(count.Server)
 
 	nsReg, err := s.nsRegistryClient.Register(ctx, linearNS(nsesCount))
 	require.NoError(t, err)
@@ -522,7 +523,7 @@ func (s *nsmgrSuite) Test_PassThroughSameSourceSelector() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	counterClose := &counterServer{}
+	counterClose := new(count.Server)
 
 	ns := linearNS(nsesCount)
 	ns.Matches[len(ns.Matches)-1].Fallthrough = true
@@ -602,7 +603,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	counterClose := &counterServer{}
+	counterClose := new(count.Server)
 
 	nsReg, err := s.nsRegistryClient.Register(ctx, multiLabelNS())
 	require.NoError(t, err)
@@ -686,10 +687,10 @@ const (
 	labelB = "label_b"
 )
 
-func linearNS(count int) *registry.NetworkService {
+func linearNS(hopsCount int) *registry.NetworkService {
 	matches := make([]*registry.Match, 0)
 
-	for i := 1; i < count; i++ {
+	for i := 1; i < hopsCount; i++ {
 		match := &registry.Match{
 			SourceSelector: map[string]string{
 				step: fmt.Sprintf("%v", i-1),
@@ -706,7 +707,7 @@ func linearNS(count int) *registry.NetworkService {
 		matches = append(matches, match)
 	}
 
-	if count > 1 {
+	if hopsCount > 1 {
 		// match with empty source selector must be the last
 		match := &registry.Match{
 			Routes: []*registry.Destination{
