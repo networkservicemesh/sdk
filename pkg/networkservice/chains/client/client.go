@@ -120,8 +120,8 @@ func NewClient(ctx context.Context, connectTo *url.URL, clientOpts ...Option) ne
 					return chain.NewNetworkServiceClient(
 						append(
 							opts.additionalFunctionality,
-							heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc)),
 							opts.authorizeClient,
+							heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc)),
 							networkservice.NewNetworkServiceClient(cc),
 						)...,
 					)
@@ -152,9 +152,9 @@ func NewClientFactory(clientOpts ...Option) connect.ClientFactory {
 					serialize.NewClient(),
 					refresh.NewClient(ctx),
 					metadata.NewClient(),
-					heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc)),
 				}, opts.additionalFunctionality...),
 				opts.authorizeClient,
+				heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc)),
 				networkservice.NewNetworkServiceClient(cc),
 			)...)
 		return rv
