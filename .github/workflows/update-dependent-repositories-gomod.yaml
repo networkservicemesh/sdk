@@ -44,12 +44,12 @@ jobs:
       - name: Create commit message
         working-directory: ${{ github.repository }}
         run: |
-          echo "Update go.mod and go.sum to latest version from ${{ github.repository }}@main ${{ github.repository }}#${{ steps.findPr.outputs.pr }}" >> /tmp/commit-message
+          echo "Update go.mod and go.sum to latest version from ${{ github.repository }}@main" >> /tmp/commit-message
           echo "" >> /tmp/commit-message
-          echo "${{ github.repository }} PR link: https://github.com/${{ github.repository }}/pull/${{ steps.findPr.outputs.pr }}" >> /tmp/commit-message
+          echo "PR link: https://github.com/${{ github.repository }}/pull/${{ steps.findPr.outputs.pr }}" >> /tmp/commit-message
           echo "" >> /tmp/commit-message
-          echo "${{ github.repository }} commit message:" >> /tmp/commit-message
-          git log -1 >> /tmp/commit-message
+          echo "Commit message:" >> /tmp/commit-message
+          git log --abbrev-commit -1 >> /tmp/commit-message
           echo "Commit Message:"
           cat /tmp/commit-message
 
