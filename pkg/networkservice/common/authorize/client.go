@@ -30,7 +30,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/closectx"
+	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 )
 
 type authorizeClient struct {
@@ -55,6 +55,8 @@ func (a *authorizeClient) Request(ctx context.Context, request *networkservice.N
 	var p peer.Peer
 	opts = append(opts, grpc.Peer(&p))
 
+	postponeCtxFunc := postpone.ContextWithValues(ctx)
+
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
 		return nil, err
@@ -66,7 +68,7 @@ func (a *authorizeClient) Request(ctx context.Context, request *networkservice.N
 	}
 
 	if err = a.policies.check(ctx, conn); err != nil {
-		closeCtx, cancelClose := closectx.New(ctx)
+		closeCtx, cancelClose := postponeCtxFunc()
 		defer cancelClose()
 
 		if _, closeErr := next.Client(ctx).Close(closeCtx, conn, opts...); closeErr != nil {

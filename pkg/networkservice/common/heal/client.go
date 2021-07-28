@@ -28,7 +28,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/cancelctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/closectx"
+	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 )
 
 type connectionInfo struct {
@@ -104,6 +104,8 @@ func (u *healClient) Request(ctx context.Context, request *networkservice.Networ
 		}
 	}()
 
+	postponeCtxFunc := postpone.ContextWithValues(ctx)
+
 	conn, err = next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
 		return nil, err
@@ -129,7 +131,7 @@ func (u *healClient) Request(ctx context.Context, request *networkservice.Networ
 		err = errors.Errorf("timeout waiting for connection monitor: %s", conn.GetId())
 	}
 	if err != nil {
-		closeCtx, cancelClose := closectx.New(ctx)
+		closeCtx, cancelClose := postponeCtxFunc()
 		defer cancelClose()
 
 		if _, closeErr := next.Client(ctx).Close(closeCtx, conn); closeErr != nil {

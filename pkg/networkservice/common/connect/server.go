@@ -33,9 +33,9 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/cancelctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/closectx"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/multiexecutor"
+	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 )
 
 // ClientFactory is used to created new clients when new connection is created.
@@ -89,12 +89,17 @@ func (s *connectServer) Request(ctx context.Context, request *networkservice.Net
 		return nil, errors.Errorf("clientURL not found for incoming connection: %+v", request.GetConnection())
 	}
 
-	c := s.client(ctx, request.GetConnection())
-	if err := c.client.ctx.Err(); err != nil {
+	c, err := s.client(ctx, request.GetConnection())
+	if err != nil {
+		return nil, err
+	}
+	if err = c.client.ctx.Err(); err != nil {
 		s.deleteClient(c, clientURL.String())
 		s.connInfos.Delete(request.GetConnection().GetId())
 		return nil, err
 	}
+
+	postponeCtxFunc := postpone.ContextWithValues(ctx)
 
 	conn, err := c.client.Request(ctx, request.Clone())
 	if err != nil {
@@ -117,7 +122,7 @@ func (s *connectServer) Request(ctx context.Context, request *networkservice.Net
 	conn, err = next.Server(ctx).Request(ctx, request)
 	// Close connection if next.Server Request finished with error
 	if err != nil && !refreshRequest {
-		closeCtx, cancelClose := closectx.New(ctx)
+		closeCtx, cancelClose := postponeCtxFunc()
 		defer cancelClose()
 
 		_, closeErr := s.Close(closeCtx, request.Connection.Clone())
@@ -148,22 +153,23 @@ func (s *connectServer) Close(ctx context.Context, conn *networkservice.Connecti
 	return &empty.Empty{}, err
 }
 
-func (s *connectServer) client(ctx context.Context, conn *networkservice.Connection) *clientInfo {
+func (s *connectServer) client(ctx context.Context, conn *networkservice.Connection) (*clientInfo, error) {
 	logger := log.FromContext(ctx).WithField("connectServer", "client")
 	clientURL := clienturlctx.ClientURL(ctx)
 
 	// First check if we have already requested some clientURL with this conn.GetID().
 	if connInfo, ok := s.connInfos.Load(conn.GetId()); ok {
 		if *connInfo.clientURL == *clientURL {
-			return connInfo.client
+			return connInfo.client, nil
 		}
 
-		closeCtx, cancelClose := closectx.New(ctx)
-		defer cancelClose()
-
 		// For some reason we have changed the clientURL, so we need to close and delete the existing client.
-		if _, clientErr := connInfo.client.client.Close(closeCtx, conn); clientErr != nil {
+		if _, clientErr := connInfo.client.client.Close(ctx, conn); clientErr != nil {
 			logger.Warnf("failed to close client: %s", clientErr.Error())
+		}
+
+		if err := ctx.Err(); err != nil {
+			return nil, err
 		}
 
 		s.closeClient(connInfo.client, connInfo.clientURL.String())
@@ -181,7 +187,7 @@ func (s *connectServer) client(ctx context.Context, conn *networkservice.Connect
 		}
 		c.count++
 	})
-	return c
+	return c, nil
 }
 
 func (s *connectServer) newClient(clientURL *url.URL) *clientInfo {
