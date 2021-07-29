@@ -27,15 +27,11 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/forwarder"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanismtranslation"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
-	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
@@ -100,7 +96,7 @@ func (n *Node) NewForwarder(
 	ctx context.Context,
 	nse *registryapi.NetworkServiceEndpoint,
 	generatorFunc token.GeneratorFunc,
-	additionalFunctionality ...networkservice.NetworkServiceServer,
+	options ...forwarder.Option,
 ) *EndpointEntry {
 	var serveURL *url.URL
 	var err error
@@ -120,28 +116,13 @@ func (n *Node) NewForwarder(
 		URL:  serveURL,
 	}
 	entry.restartableServer = newRestartableServer(ctx, n.t, entry.URL, func(ctx context.Context) {
-		entry.Endpoint = endpoint.NewServer(ctx, generatorFunc,
-			endpoint.WithName(entry.Name),
-			endpoint.WithAdditionalFunctionality(
-				append(
-					additionalFunctionality,
-					clienturl.NewServer(CloneURL(n.NSMgr.URL)),
-					heal.NewServer(ctx,
-						heal.WithOnHeal(addressof.NetworkServiceClient(adapters.NewServerToClient(entry))),
-						heal.WithOnRestore(heal.OnRestoreIgnore)),
-					connect.NewServer(ctx,
-						client.NewClientFactory(
-							client.WithName(entry.Name),
-							client.WithAdditionalFunctionality(
-								mechanismtranslation.NewClient(),
-							),
-						),
-						connect.WithDialTimeout(DialTimeout),
-						connect.WithDialOptions(dialOptions...),
-					),
-				)...,
-			),
-		)
+		entry.Endpoint = forwarder.NewServer(ctx, generatorFunc, CloneURL(n.NSMgr.URL),
+			append([]forwarder.Option{
+				forwarder.WithName(entry.Name),
+				forwarder.WithConnectOptions(
+					connect.WithDialTimeout(DialTimeout),
+					connect.WithDialOptions(dialOptions...)),
+			}, options...)...)
 		serve(ctx, n.t, entry.URL, entry.Endpoint.Register)
 
 		entry.NetworkServiceEndpointRegistryClient = registryclient.NewNetworkServiceEndpointRegistryInterposeClient(ctx, CloneURL(n.NSMgr.URL),

@@ -25,13 +25,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/registry"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/forwarder"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/tools/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
@@ -120,16 +123,23 @@ func Test_ShouldCorrectlyAddForwardersWithSameNames(t *testing.T) {
 	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
-	forwarderReg := &registry.NetworkServiceEndpoint{
-		Name: "forwarder",
-	}
-
 	// 1. Add forwarders
-	var forwarderRegs [3]*registry.NetworkServiceEndpoint
-	var forwarders [3]*sandbox.EndpointEntry
-	for i := range forwarderRegs {
-		forwarderRegs[i] = forwarderReg.Clone()
-		forwarders[i] = domain.Nodes[0].NewForwarder(ctx, forwarderRegs[i], sandbox.GenerateTestToken)
+	var selectedForwarderReg *registry.NetworkServiceEndpoint
+	var selectedForwarder *sandbox.EndpointEntry
+	for i := 0; i < 3; i++ {
+		forwarderReg := &registry.NetworkServiceEndpoint{
+			Name: "forwarder",
+		}
+
+		entry := new(*sandbox.EndpointEntry)
+		*entry = domain.Nodes[0].NewForwarder(ctx, forwarderReg, sandbox.GenerateTestToken,
+			forwarder.WithBeforeConnectServers(
+				checkrequest.NewServer(t, func(*testing.T, *networkservice.NetworkServiceRequest) {
+					selectedForwarderReg = forwarderReg
+					selectedForwarder = *entry
+				}),
+			),
+		)
 	}
 
 	// 2. Wait for refresh
@@ -137,11 +147,11 @@ func Test_ShouldCorrectlyAddForwardersWithSameNames(t *testing.T) {
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 
-	// 3. Delete first forwarder, last forwarder, middle forwarder
-	for _, i := range []int{0, 2, 1} {
+	// 3. Delete selected forwarder in a loop
+	for i := 0; i < 3; i++ {
 		testNSEAndClient(ctx, t, domain, nseReg.Clone())
 
-		_, err = forwarders[i].Unregister(ctx, forwarderRegs[i])
+		_, err = selectedForwarder.Unregister(ctx, selectedForwarderReg)
 		require.NoError(t, err)
 	}
 }
