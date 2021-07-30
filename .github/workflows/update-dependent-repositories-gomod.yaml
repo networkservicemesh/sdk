@@ -37,7 +37,7 @@ jobs:
           repository: ${{ github.repository }}
           token: ${{ secrets.NSM_BOT_GITHUB_TOKEN }}
       - name: Find merged PR
-        uses: jwalton/gh-find-current-pr@v1
+        uses: jwalton/gh-find-current-pr@v1.0.2
         id: findPr
         with:
           github-token: ${{ github.token }}
@@ -45,11 +45,11 @@ jobs:
         working-directory: ${{ github.repository }}
         run: |
           echo "Update go.mod and go.sum to latest version from ${{ github.repository }}@main" >> /tmp/commit-message
-          echo "" >> /tmp/commit-message
           echo "PR link: https://github.com/${{ github.repository }}/pull/${{ steps.findPr.outputs.pr }}" >> /tmp/commit-message
           echo "" >> /tmp/commit-message
-          echo "Commit message:" >> /tmp/commit-message
-          git log --abbrev-commit -1 >> /tmp/commit-message
+          LOG_MSG=$(git log --date=iso --pretty='format:Commit: %h%nAuthor: %an%nDate: %ad%nMessage:%n  - %B%n' -1 | sed '/^$/d;$d')
+          for((i=2;i<=18;i+=2)); do n=$(printf '%*s' $((i+2))) m=$(printf '%*s' $i) LOG_MSG=$(echo "$LOG_MSG" | tr '\n' '|' | sed "s/${m}-/${n}-/2g" | tr '|' '\n'); done
+          echo "$LOG_MSG" >> /tmp/commit-message
           echo "Commit Message:"
           cat /tmp/commit-message
 
