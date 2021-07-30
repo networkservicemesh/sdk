@@ -14,6 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package swich provides chain elements acting like a switch-case statement, selecting a chain element with first
+// Package switchcase provides chain elements acting like a switch-case statement, selecting a chain element with first
 // succeed condition
-package swich
+package switchcase

@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package swich_test
+package switchcase_test
 
 import (
 	"context"
@@ -22,19 +22,19 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/swich"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/switchcase"
 )
 
 type sample struct {
 	name       string
-	conditions []swich.Condition
+	conditions []switchcase.Condition
 	result     int
 }
 
 func testSamples() (samples []*sample) {
 	for i := 0; i < 8; i++ {
 		s := &sample{
-			conditions: make([]swich.Condition, 3),
+			conditions: make([]switchcase.Condition, 3),
 			result:     -1,
 		}
 
@@ -59,7 +59,7 @@ func testSamples() (samples []*sample) {
 	return samples
 }
 
-func condition(n int) swich.Condition {
+func condition(n int) switchcase.Condition {
 	return func(ctx context.Context, _ *networkservice.Connection) bool {
 		if value := ctx.Value("key"); value != nil {
 			num, ok := value.(int)

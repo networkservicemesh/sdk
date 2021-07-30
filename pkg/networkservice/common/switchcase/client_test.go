@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package swich_test
+package switchcase_test
 
 import (
 	"context"
@@ -24,7 +24,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/swich"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/switchcase"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
 )
 
@@ -37,13 +37,13 @@ func TestSwitchClient(t *testing.T) {
 	}
 }
 
-func testSwitchClient(t *testing.T, conditions []swich.Condition, expected int) {
+func testSwitchClient(t *testing.T, conditions []switchcase.Condition, expected int) {
 	var actual int
 
-	var cases []*swich.ClientCase
+	var cases []*switchcase.ClientCase
 	for i, cond := range conditions {
 		i := i
-		cases = append(cases, &swich.ClientCase{
+		cases = append(cases, &switchcase.ClientCase{
 			Condition: cond,
 			Client: checkcontext.NewClient(t, func(*testing.T, context.Context) {
 				actual = i
@@ -51,7 +51,7 @@ func testSwitchClient(t *testing.T, conditions []swich.Condition, expected int) 
 		})
 	}
 
-	s := swich.NewClient(cases...)
+	s := switchcase.NewClient(cases...)
 	ctx := withN(context.Background(), 1)
 
 	actual = -1

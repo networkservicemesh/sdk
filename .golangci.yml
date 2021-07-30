@@ -282,6 +282,6 @@ issues:
     - path: pkg/networkservice/core/next/.*_test.go
       linters:
         - dupl
-    - path: pkg/networkservice/common/swich/.*_test.go
+    - path: pkg/networkservice/common/switchcase/.*_test.go
       linters:
         - dupl
