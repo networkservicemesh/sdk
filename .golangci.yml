@@ -285,3 +285,6 @@ issues:
     - path: pkg/networkservice/common/switchcase/.*_test.go
       linters:
         - dupl
+    - path: pkg/networkservice/common/label/.*_test.go
+      linters:
+        - dupl
