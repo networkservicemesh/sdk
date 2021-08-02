@@ -20,6 +20,7 @@ package trace
 
 import (
 	"context"
+	"encoding/json"
 	"reflect"
 	"strconv"
 
@@ -35,10 +36,22 @@ func logRequest(ctx context.Context, request proto.Message) {
 		if connInfo.Request != nil && connInfo.Request.ProtoReflect().Descriptor().FullName() == request.ProtoReflect().Descriptor().FullName() {
 			requestDiff, hadChanges := Diff(connInfo.Request.ProtoReflect(), request.ProtoReflect())
 			if hadChanges {
-				log.FromContext(ctx).Object("request-diff", requestDiff)
+				s, err := json.MarshalIndent(requestDiff, "", "\t")
+				if err == nil {
+					log.FromContext(ctx).Debugf("request-diff: %v", string(s))
+				} else {
+					log.FromContext(ctx).Errorf("can't pretty-print request", err)
+					log.FromContext(ctx).Debugf("request-diff: %v", requestDiff)
+				}
 			}
 		} else {
-			log.FromContext(ctx).Object("request", request)
+			s, err := json.MarshalIndent(request, "", "\t")
+			if err == nil {
+				log.FromContext(ctx).Debugf("request: %v", string(s))
+			} else {
+				log.FromContext(ctx).Errorf("can't pretty-print request", err)
+				log.FromContext(ctx).Debugf("request: %v", request)
+			}
 		}
 		connInfo.Request = proto.Clone(request)
 	}
@@ -48,12 +61,24 @@ func logResponse(ctx context.Context, response proto.Message) {
 	connInfo, ok := trace(ctx)
 	if ok && !proto.Equal(connInfo.Response, response) {
 		if connInfo.Response != nil {
-			responseDiff, changed := Diff(connInfo.Response.ProtoReflect(), response.ProtoReflect())
-			if changed {
-				log.FromContext(ctx).Object("response-diff", responseDiff)
+			responseDiff, hadChanges := Diff(connInfo.Response.ProtoReflect(), response.ProtoReflect())
+			if hadChanges {
+				s, err := json.MarshalIndent(responseDiff, "", "\t")
+				if err == nil {
+					log.FromContext(ctx).Debugf("response-diff: %v", string(s))
+				} else {
+					log.FromContext(ctx).Errorf("can't pretty-print request", err)
+					log.FromContext(ctx).Debugf("response-diff: %v", responseDiff)
+				}
 			}
 		} else {
-			log.FromContext(ctx).Object("response", response)
+			s, err := json.MarshalIndent(response, "", "\t")
+			if err == nil {
+				log.FromContext(ctx).Debugf("response: %v", string(s))
+			} else {
+				log.FromContext(ctx).Errorf("can't pretty-print request", err)
+				log.FromContext(ctx).Debugf("response: %v", response)
+			}
 		}
 		connInfo.Response = proto.Clone(response)
 		return
