@@ -31,6 +31,7 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger/formatter"
 )
 
 type loggerKeyType string
@@ -79,7 +80,7 @@ func fromContext(ctx context.Context) *traceCtxInfo {
 		return rv
 	}
 
-	// Check metdata incoming for parent span and return it
+	// Check metadata incoming for parent span and return it
 	if md, ok := metadata.FromIncomingContext(ctx); ok {
 		value := md.Get("tracing-parent")
 		if len(value) > 0 {
@@ -186,6 +187,7 @@ func (s *logrusLogger) WithField(key, value interface{}) log.Logger {
 // New - creates a logruslogger and returns it
 func New(ctx context.Context) log.Logger {
 	entry := logrus.WithFields(log.Fields(ctx))
+	entry.Logger.Formatter = formatter.New()
 	newLog := &logrusLogger{
 		entry: entry,
 	}
@@ -196,6 +198,7 @@ func New(ctx context.Context) log.Logger {
 // and returns context with it, logger, and a function to defer
 func FromSpan(ctx context.Context, span opentracing.Span, operation string) (context.Context, log.Logger, func()) {
 	entry := logrus.WithFields(log.Fields(ctx))
+	entry.Logger.Formatter = formatter.New()
 
 	var info *traceCtxInfo
 	ctx, info = withTraceInfo(ctx)
@@ -214,7 +217,7 @@ func FromSpan(ctx context.Context, span opentracing.Span, operation string) (con
 
 func (s *logrusLogger) printStart() {
 	prefix := strings.Repeat(separator, s.info.level)
-	s.entry.Infof("%v%s⎆ %v()%v", s.info.incInfo(), prefix, s.operation, s.getSpan())
+	s.entry.Debugf("%v%s⎆ %v()%v", s.info.incInfo(), prefix, s.operation, s.getSpan())
 }
 
 func (s *logrusLogger) format(format string, v ...interface{}) string {

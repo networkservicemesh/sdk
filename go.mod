@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/HdrHistogram/hdrhistogram-go v1.0.1 // indirect
+	github.com/antonfisher/nested-logrus-formatter v1.3.1
 	github.com/benbjohnson/clock v1.1.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/edwarnicke/exechelper v1.0.2
