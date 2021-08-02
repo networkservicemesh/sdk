@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package formatter contains custom logrus formatter that duplicates fields and other metadata from nested-logrus-formatter to each line of the message
 package formatter
 
 import (
@@ -24,12 +25,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Formatter - logrus formatter, implements logrus.Formatter
-// Duplicates fields and other metadata from nested-logrus-formatter to each line of the message
+// Formatter - implements logrus.Formatter
+// Duplicates fields and other metadata from nested-logrus-Formatter to each line of the message
 type Formatter struct {
 	nf nested.Formatter
 }
 
+// New creates new Formatter and initializes it
 func New() *Formatter {
 	f := Formatter{}
 	f.nf.FieldsOrder = []string{"id", "name"}
