@@ -23,14 +23,16 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/sirupsen/logrus"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/stretchr/testify/require"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
-	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -106,9 +108,7 @@ func TestTraceOutput(t *testing.T) {
 	// Set output to buffer
 	var buff bytes.Buffer
 	logrus.SetOutput(&buff)
-	logrus.SetFormatter(&logrus.TextFormatter{
-		DisableTimestamp: true,
-	})
+	logrus.SetLevel(logrus.DebugLevel)
 	log.EnableTracing(true)
 
 	// Create a chain with modifying elements
@@ -128,31 +128,123 @@ func TestTraceOutput(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, e)
 
-	expectedOutput :=
-		"level=info msg=\"(1) ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerFirstServer.Request()\" name=TestTraceOutput\n" +
-			"level=info msg=\"(1.1)   request={\\\"connection\\\":{\\\"id\\\":\\\"conn-1\\\",\\\"context\\\":" +
-			"{\\\"ip_context\\\":{\\\"src_ip_required\\\":true}}},\\\"mechanism_preferences\\\":[{\\\"cls\\\":\\\"LOCAL\\\"," +
-			"\\\"type\\\":\\\"KERNEL\\\"},{\\\"cls\\\":\\\"LOCAL\\\",\\\"type\\\":\\\"KERNEL\\\",\\\"parameters\\\":{\\\"label\\\"" +
-			":\\\"v2\\\"}}]}\" name=TestTraceOutput\n" +
-			"level=info msg=\"(1.2)   request-diff={\\\"connection\\\":{\\\"labels\\\":{\\\"+Label\\\":\\\"A\\\"}}}\" name=TestTraceOutput\n" +
-			"level=info msg=\"(2)  ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerSecondServer.Request()\" name=TestTraceOutput\n" +
-			"level=info msg=\"(2.1)    request-diff={\\\"connection\\\":{\\\"labels\\\":{\\\"Label\\\":\\\"B\\\"}}}\" name=TestTraceOutput\n" +
-			"level=info msg=\"(2.2)    response={\\\"id\\\":\\\"conn-1\\\",\\\"context\\\":{\\\"ip_context\\\":{\\\"src_ip_required\\\":true}}," +
-			"\\\"labels\\\":{\\\"Label\\\":\\\"B\\\"}}\" name=TestTraceOutput\n" +
-			"level=info msg=\"(2.3)    response-diff={\\\"labels\\\":{\\\"Label\\\":\\\"C\\\"}}\" name=TestTraceOutput\n" +
-			"level=info msg=\"(1.3)   response-diff={\\\"labels\\\":{\\\"Label\\\":\\\"D\\\"}}\" name=TestTraceOutput\n" +
-			"level=info msg=\"(1) ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerFirstServer.Close()\" name=TestTraceOutput\n" +
-			"level=info msg=\"(1.1)   request={\\\"id\\\":\\\"conn-1\\\",\\\"context\\\":{\\\"ip_context\\\":{\\\"src_ip_required\\\":true}}," +
-			"\\\"labels\\\":{\\\"Label\\\":\\\"D\\\"}}\" name=TestTraceOutput\n" +
-			"level=info msg=\"(1.2)   request-diff={\\\"labels\\\":{\\\"Label\\\":\\\"W\\\"}}\" name=TestTraceOutput\n" +
-			"level=info msg=\"(2)  ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerSecondServer.Close()\" name=TestTraceOutput\n" +
-			"level=info msg=\"(2.1)    request-diff={\\\"labels\\\":{\\\"Label\\\":\\\"X\\\"}}\" name=TestTraceOutput\n" +
-			"level=info msg=\"(2.2)    response={\\\"id\\\":\\\"conn-1\\\",\\\"context\\\":{\\\"ip_context\\\":{\\\"src_ip_required\\\"" +
-			":true}},\\\"labels\\\":{\\\"Label\\\":\\\"X\\\"}}\" name=TestTraceOutput\n" +
-			"level=info msg=\"(2.3)    response-diff={\\\"labels\\\":{\\\"Label\\\":\\\"Y\\\"}}\" name=TestTraceOutput\n" +
-			"level=info msg=\"(1.3)   response-diff={\\\"labels\\\":{\\\"Label\\\":\\\"Z\\\"}}\" name=TestTraceOutput\n"
+	//nolint:stylecheck // disable ST1018: string literal contains Unicode control characters
+	expectedOutput := `[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m(1) ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerFirstServer.Request()
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m(1.1)   request: {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	"connection": {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m		"id": "conn-1",
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m		"context": {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m			"ip_context": {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m				"src_ip_required": true
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m			}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m		}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	},
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	"mechanism_preferences": [
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m		{
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m			"cls": "LOCAL",
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m			"type": "KERNEL"
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m		},
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m		{
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m			"cls": "LOCAL",
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m			"type": "KERNEL",
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m			"parameters": {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m				"label": "v2"
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m			}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m		}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	]
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m(1.2)   request-diff: {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	"connection": {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m		"labels": {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m			"+Label": "A"
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m		}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m(2)  ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerSecondServer.Request()
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m(2.1)    request-diff: {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	"connection": {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m		"labels": {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m			"Label": "B"
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m		}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m(2.2)    response: {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	"id": "conn-1",
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	"context": {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m		"ip_context": {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m			"src_ip_required": true
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m		}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	},
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	"labels": {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m		"Label": "B"
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m(2.3)    response-diff: {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	"labels": {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m		"Label": "C"
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m(1.3)   response-diff: {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	"labels": {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m		"Label": "D"
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m(1) ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerFirstServer.Close()
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m(1.1)   request: {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	"id": "conn-1",
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	"context": {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m		"ip_context": {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m			"src_ip_required": true
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m		}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	},
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	"labels": {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m		"Label": "D"
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m(1.2)   request-diff: {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	"labels": {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m		"Label": "W"
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m(2)  ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerSecondServer.Close()
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m(2.1)    request-diff: {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	"labels": {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m		"Label": "X"
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m(2.2)    response: {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	"id": "conn-1",
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	"context": {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m		"ip_context": {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m			"src_ip_required": true
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m		}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	},
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	"labels": {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m		"Label": "X"
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m(2.3)    response-diff: {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	"labels": {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m		"Label": "Y"
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m(1.3)   response-diff: {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	"labels": {
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m		"Label": "Z"
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m	}
+[37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m}
+`
 
-	require.Equal(t, expectedOutput, buff.String())
+	result := ""
+	for _, line := range strings.Split(buff.String(), "\n") {
+		if len(line) > 19 {
+			result += line[19:] + "\n"
+		} else {
+			result += line
+		}
+	}
+
+	require.Equal(t, expectedOutput, result)
 }
 
 func newConnection() *networkservice.NetworkServiceRequest {

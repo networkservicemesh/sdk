@@ -194,6 +194,10 @@ issues:
       linters:
         - funlen
       text: "Function 'TestConnectServerShouldNotPanicOnRequest' is too long"
+    - path: pkg/networkservice/core/trace/common_test.go
+      linters:
+        - funlen
+      text: "Function 'TestTraceOutput' is too long"
     - path: pkg/networkservice/utils/checks/checkerror/server_test.go
       linters:
         - dupl
