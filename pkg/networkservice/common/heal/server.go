@@ -112,6 +112,7 @@ func (f *healServer) Request(ctx context.Context, request *networkservice.Networ
 		defer cw.mut.Unlock()
 
 		if cw.cancel != nil {
+			log.FromContext(ctx).Debug("canceling previous heal")
 			cw.cancel()
 			cw.cancel = nil
 		}
@@ -162,6 +163,7 @@ func (f *healServer) getHealContext(
 	defer cw.mut.Unlock()
 
 	if cw.cancel != nil {
+		log.FromContext(cw.ctx).Debug("canceling previous heal")
 		cw.cancel()
 	}
 	ctx, cancel := context.WithCancel(cw.ctx)
@@ -174,6 +176,7 @@ func (f *healServer) getHealContext(
 func (f *healServer) handleHealConnectionRequest(conn *networkservice.Connection) {
 	ctx, request, requestTimeout := f.getHealContext(conn)
 	if request == nil {
+		log.FromContext(f.ctx).WithField("healServer", "healRequest").Warnf("can't find context for conn %v, skipping heal", conn.GetId())
 		return
 	}
 
@@ -186,6 +189,7 @@ func (f *healServer) handleHealConnectionRequest(conn *networkservice.Connection
 func (f *healServer) handleRestoreConnectionRequest(conn *networkservice.Connection) {
 	ctx, request, requestTimeout := f.getHealContext(conn)
 	if request == nil {
+		log.FromContext(f.ctx).WithField("healServer", "restoreRequest").Warnf("can't find context for conn %v, skipping restore", conn.GetId())
 		return
 	}
 
@@ -204,6 +208,7 @@ func (f *healServer) stopHeal(conn *networkservice.Connection) {
 	defer cw.mut.Unlock()
 
 	if cw.cancel != nil {
+		log.FromContext(cw.ctx).Debug("canceling previous heal")
 		cw.cancel()
 	}
 }
@@ -216,6 +221,7 @@ func (f *healServer) restoreConnection(
 	clockTime := clock.FromContext(ctx)
 
 	if ctx.Err() != nil {
+		log.FromContext(ctx).Warnf("skipping restore: heal context error: %v", ctx.Err())
 		return
 	}
 
@@ -252,9 +258,19 @@ func (f *healServer) processHeal(
 	requestTimeout time.Duration,
 ) {
 	clockTime := clock.FromContext(ctx)
+
+	fields := make(map[string]interface{})
+	if prevFields := log.Fields(ctx); prevFields != nil {
+		for k, v := range prevFields {
+			fields[k] = v
+		}
+	}
+	fields["healServer"] = "processHeal"
+	ctx = log.WithFields(ctx, fields)
 	logger := log.FromContext(ctx).WithField("healServer", "processHeal")
 
 	if ctx.Err() != nil {
+		logger.Warnf("skipping heal: heal context error: %v", ctx.Err())
 		return
 	}
 
@@ -279,6 +295,7 @@ func (f *healServer) processHeal(
 			}
 		}
 	} else {
+		logger.Warn("closing the connection")
 		// Huge timeout is not required to close connection on a current path segment
 		closeCtx, closeCancel := clockTime.WithTimeout(ctx, time.Second)
 		defer closeCancel()
@@ -299,7 +316,11 @@ func (f *healServer) createHealContext(requestCtx, cachedCtx context.Context) co
 			ctx = cachedCtx
 		}
 	}
+
 	healCtx := f.ctx
+	healCtx = log.WithLog(healCtx, log.FromContext(requestCtx))
+	healCtx = log.WithFields(healCtx, log.Fields(requestCtx))
+
 	if candidates := discover.Candidates(ctx); candidates != nil {
 		healCtx = discover.WithCandidates(healCtx, candidates.Endpoints, candidates.NetworkService)
 	}

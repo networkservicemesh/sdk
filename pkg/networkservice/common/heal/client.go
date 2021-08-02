@@ -22,7 +22,11 @@ import (
 	"sync"
 
 	"github.com/golang/protobuf/ptypes/empty"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
@@ -120,10 +124,13 @@ func (u *healClient) Request(ctx context.Context, request *networkservice.Networ
 	//   We should check that monitor stream is ready for the Connection, before returning it back. This check should
 	//   wait for some time after the next.Request(), because for the [NSMgr -> Endpoint] case response may come faster
 	//   than monitor stream update.
+	clockTime := clock.FromContext(ctx)
+	now := clockTime.Now()
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case <-condCh:
+		log.FromContext(ctx).WithField("healClient", "monitorWaitDuration").Debugf("received connection confirmation after %v", clockTime.Since(now))
 	case <-u.ctx.Done():
 		_, _ = next.Client(ctx).Close(ctx, conn)
 		return nil, errors.Errorf("timeout waiting for connection monitor: %s", conn.GetId())
@@ -177,14 +184,18 @@ func (u *healClient) listenToConnectionChanges(
 	healConnection, restoreConnection requestHealFuncType,
 	monitorClient networkservice.MonitorConnection_MonitorConnectionsClient,
 ) {
+	logger := log.FromContext(u.ctx)
+
 	for {
 		event, err := monitorClient.Recv()
 		if err != nil {
+			logger.Errorf("monitorClient error: %v", err)
 			cancel()
 			u.conns.Range(func(id string, connInfo *connectionInfo) bool {
 				connInfo.cond.L.Lock()
 				defer connInfo.cond.L.Unlock()
 
+				logger.Warnf("requesting heal for: %v", id)
 				if connInfo.active {
 					restoreConnection(connInfo.conn)
 				}
@@ -192,6 +203,8 @@ func (u *healClient) listenToConnectionChanges(
 			})
 			return
 		}
+
+		logger.Infof("got event: %v", event)
 
 		for _, eventConn := range event.GetConnections() {
 			connID := eventConn.GetPrevPathSegment().GetId()
