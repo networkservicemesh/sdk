@@ -44,12 +44,12 @@ func AddClientInfo(ctx context.Context, labels map[string]string) {
 	for envName, labelName := range names {
 		value, exists := os.LookupEnv(envName)
 		if !exists {
-			log.FromContext(ctx).Warnf("Environment variable %s is not set. Skipping.", envName)
+			log.FromContext(ctx).Tracef("Environment variable %s is not set. Skipping.", envName)
 			continue
 		}
 		oldValue, isPresent := labels[labelName]
 		if isPresent {
-			log.FromContext(ctx).Warnf("The label %s was already assigned to %s. Skipping.", labelName, oldValue)
+			log.FromContext(ctx).Tracef("The label %s was already assigned to %s. Skipping.", labelName, oldValue)
 			continue
 		}
 		labels[labelName] = value
