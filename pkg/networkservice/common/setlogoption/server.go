@@ -45,6 +45,9 @@ func (s *setLogOptionServer) Request(ctx context.Context, request *networkservic
 
 func (s *setLogOptionServer) withFields(ctx context.Context) context.Context {
 	fields := make(map[string]interface{})
+	for k, v := range log.Fields(ctx) {
+		fields[k] = v
+	}
 	for k, v := range s.options {
 		fields[k] = v
 	}
