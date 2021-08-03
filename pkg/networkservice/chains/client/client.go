@@ -29,6 +29,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/checkconn"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
@@ -121,6 +122,7 @@ func NewClient(ctx context.Context, connectTo *url.URL, clientOpts ...Option) ne
 						append(
 							opts.additionalFunctionality,
 							heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc)),
+							checkconn.NewClient(networkservice.NewMonitorConnectionClient(cc)),
 							opts.authorizeClient,
 							networkservice.NewNetworkServiceClient(cc),
 						)...,
@@ -153,6 +155,7 @@ func NewClientFactory(clientOpts ...Option) connect.ClientFactory {
 					refresh.NewClient(ctx),
 					metadata.NewClient(),
 					heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc)),
+					checkconn.NewClient(networkservice.NewMonitorConnectionClient(cc)),
 				}, opts.additionalFunctionality...),
 				opts.authorizeClient,
 				networkservice.NewNetworkServiceClient(cc),
