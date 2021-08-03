@@ -183,7 +183,7 @@ func (u *healClient) listenToConnectionChanges(
 	healConnection, restoreConnection requestHealFuncType,
 	monitorClient networkservice.MonitorConnection_MonitorConnectionsClient,
 ) {
-	logger := log.FromContext(u.ctx)
+	logger := log.FromContext(u.ctx).WithField("healClient", "listenToConnectionChanges")
 
 	for {
 		event, err := monitorClient.Recv()
@@ -194,7 +194,7 @@ func (u *healClient) listenToConnectionChanges(
 				connInfo.cond.L.Lock()
 				defer connInfo.cond.L.Unlock()
 
-				logger.Warnf("requesting heal for: %v", id)
+				logger.Infof("requesting heal for: %v", id)
 				if connInfo.active {
 					restoreConnection(connInfo.conn)
 				}
@@ -203,7 +203,11 @@ func (u *healClient) listenToConnectionChanges(
 			return
 		}
 
-		logger.Infof("got event: %v", event)
+		if len(event.GetConnections()) != 0 {
+			logger.Tracef("got event: %v", event)
+		} else {
+			logger.Trace("got empty event")
+		}
 
 		for _, eventConn := range event.GetConnections() {
 			connID := eventConn.GetPrevPathSegment().GetId()
@@ -225,6 +229,7 @@ func (u *healClient) listenToConnectionChanges(
 				connInfo.cond.Broadcast()
 			case networkservice.ConnectionEventType_DELETE:
 				if connInfo.active {
+					logger.Infof("requesting heal for: %v", connInfo.conn.GetId())
 					healConnection(connInfo.conn)
 				}
 				connInfo.active = false
