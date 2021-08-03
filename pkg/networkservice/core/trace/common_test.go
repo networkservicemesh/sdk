@@ -235,10 +235,20 @@ func TestTraceOutput(t *testing.T) {
 [37m [DEBU] [id:conn-1] [name:TestTraceOutput] [0m}
 `
 
+	// Logger created by the trace chain element uses custom formatter, which prints date and time info in each line
+	// To check if output matches our expectations, we need to somehow get rid of this info.
+	// We have the following options:
+	// 1. Configure formatter options on logger creation in trace element
+	// 2. Use some global configuration (either set global default formatter
+	// 	  instead of creating it in trace element or use global config for our formatter)
+	// 3. Remove datetime information from the output
+	// Since we are unlikely to need to remove date in any case except these tests,
+	// it seems like the third option would be the most convenient.
 	result := ""
+	datetimeLength := 19
 	for _, line := range strings.Split(buff.String(), "\n") {
-		if len(line) > 19 {
-			result += line[19:] + "\n"
+		if len(line) > datetimeLength {
+			result += line[datetimeLength:] + "\n"
 		} else {
 			result += line
 		}
