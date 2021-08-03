@@ -95,6 +95,28 @@ type AuthorizationPolicy struct {
 	once           sync.Once
 }
 
+// UnmarshalText unmarshalls policy string to AuthorizationPolicy
+// * "source-1.rego:check_name:true" -> WithPolicyFromFile("source-1.rego", "check_name", True("check_name"),
+// * "source-2.rego:check_id:false"  -> WithPolicyFromFile("source-2.rego", "check_id", False("check_id"),
+func (d *AuthorizationPolicy) UnmarshalText(text []byte) error {
+	split := strings.Split(string(text), ":")
+	if len(split) != 3 {
+		return errors.Errorf(`policy string doesn't match pattern "source:query:checker": %s`, string(text))
+	}
+
+	path, query := split[0], split[1]
+	switch trueFalse := strings.ToLower(split[2]); trueFalse {
+	case "true":
+		*d = *WithPolicyFromFile(path, query, True)
+	case "false":
+		*d = *WithPolicyFromFile(path, query, False)
+	default:
+		return errors.Errorf(`checker should be "true" or "false", got: %s`, trueFalse)
+	}
+
+	return nil
+}
+
 // Check returns nil if passed tokens are valid
 func (d *AuthorizationPolicy) Check(ctx context.Context, model interface{}) error {
 	input, err := PreparedOpaInput(ctx, model)

@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,38 +18,46 @@ package opa_test
 
 import (
 	"context"
-	"io/ioutil"
-	"os"
-	"path"
-	"path/filepath"
 	"testing"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 )
 
 func TestWithPolicyFromFile(t *testing.T) {
-	dir := filepath.Clean(path.Join(os.TempDir(), t.Name()))
-	defer func() {
-		_ = os.RemoveAll(dir)
-	}()
+	p := opa.WithPolicyFromFile("allow.rego", "allow", opa.True)
 
-	err := os.MkdirAll(dir, os.ModePerm)
-	require.Nil(t, err)
+	err := p.Check(context.Background(), nil)
+	require.NoError(t, err)
+}
 
-	const policy = `		
-		package test
+func TestAuthorizationPolicy_UnmarshalText(t *testing.T) {
+	p1, p2 := new(opa.AuthorizationPolicy), new(opa.AuthorizationPolicy)
 
-		default allow = true
-	`
+	err := p1.UnmarshalText([]byte(`check_name.rego:check_name:false`))
+	require.NoError(t, err)
 
-	policyPath := filepath.Clean(path.Join(dir, "policy.rego"))
-	err = ioutil.WriteFile(policyPath, []byte(policy), os.ModePerm)
-	require.Nil(t, err)
+	err = p2.UnmarshalText([]byte(`allow.rego:allow:true`))
+	require.NoError(t, err)
 
-	p := opa.WithPolicyFromFile(policyPath, "allow", opa.True)
+	input := &networkservice.Path{
+		PathSegments: []*networkservice.PathSegment{
+			{
+				Name: "a",
+			},
+			{
+				Name: "b",
+			},
+		},
+	}
+	require.NoError(t, p1.Check(context.Background(), input))
+	require.NoError(t, p2.Check(context.Background(), input))
 
-	err = p.Check(context.Background(), nil)
-	require.Nil(t, err)
+	input.PathSegments = append(input.PathSegments, &networkservice.PathSegment{
+		Name: "test-name",
+	})
+	require.Error(t, p1.Check(context.Background(), input))
+	require.NoError(t, p2.Check(context.Background(), input))
 }
