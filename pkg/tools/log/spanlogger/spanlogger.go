@@ -21,7 +21,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"runtime/debug"
 	"strings"
 	"sync"
 
@@ -61,11 +60,11 @@ func (s *spanLogger) Warnf(format string, v ...interface{}) {
 }
 
 func (s *spanLogger) Error(v ...interface{}) {
-	s.WithField("stacktrace", limitString(string(debug.Stack()))).(*spanLogger).log("error", v...)
+	s.log("error", v...)
 }
 
 func (s *spanLogger) Errorf(format string, v ...interface{}) {
-	s.WithField("stacktrace", limitString(string(debug.Stack()))).(*spanLogger).logf("error", format, v...)
+	s.logf("error", format, v...)
 }
 
 func (s *spanLogger) Fatal(v ...interface{}) {
