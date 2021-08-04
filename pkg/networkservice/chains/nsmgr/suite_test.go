@@ -28,13 +28,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
@@ -154,12 +154,6 @@ func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 	require.NoError(t, err)
 	defer func() { _ = netListener.Close() }()
 	nseReg.Url = "tcp://" + netListener.Addr().String()
-
-	_, err = s.nsRegistryClient.Register(ctx, &registry.NetworkService{
-		Name:    nseReg.NetworkServiceNames[0],
-		Payload: payload.IP,
-	})
-	require.NoError(t, err)
 
 	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx, sandbox.CloneURL(s.domain.Nodes[0].NSMgr.URL),
 		registryclient.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...))
@@ -721,7 +715,7 @@ func linearNS(count int) *registry.NetworkService {
 	}
 
 	return &registry.NetworkService{
-		Name:    "test-network-service-linear",
+		Name:    "ns" + uuid.New().String(),
 		Matches: matches,
 	}
 }

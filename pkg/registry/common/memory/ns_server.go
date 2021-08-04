@@ -23,6 +23,7 @@ import (
 	"github.com/edwarnicke/serialize"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
@@ -57,6 +58,11 @@ func (s *memoryNSServer) Register(ctx context.Context, ns *registry.NetworkServi
 	r, err := next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
 	if err != nil {
 		return nil, err
+	}
+
+	loaded, ok := s.networkServices.Load(r.Name)
+	if ok && loaded.Name == ns.Name && loaded.Payload == ns.Payload {
+		return nil, errors.New("network service with this name already exist")
 	}
 
 	s.networkServices.Store(r.Name, r.Clone())

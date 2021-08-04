@@ -443,7 +443,7 @@ func TestNSMGR_FloatingInterdomain_FourClusters(t *testing.T) {
 	cluster2.Nodes[0].NewEndpoint(ctx, nseReg1, sandbox.GenerateTestToken)
 
 	nsReg2 := &registry.NetworkService{
-		Name: "my-service-interdomain-1@" + floating.Name,
+		Name: "my-service-interdomain-2@" + floating.Name,
 	}
 
 	// register second ednpoint

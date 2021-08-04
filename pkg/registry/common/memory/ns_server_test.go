@@ -106,11 +106,10 @@ func TestNetworkServiceRegistryServer_RegisterAndFindWatch(t *testing.T) {
 		Name: "a",
 	}, <-ch)
 
-	expected, err := s.Register(context.Background(), &registry.NetworkService{
+	_, err = s.Register(context.Background(), &registry.NetworkService{
 		Name: "a",
 	})
-	require.NoError(t, err)
-	require.True(t, proto.Equal(expected, <-ch))
+	require.Error(t, err)
 }
 
 func TestNetworkServiceRegistryServer_DataRace(t *testing.T) {
