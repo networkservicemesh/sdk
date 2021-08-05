@@ -18,107 +18,158 @@ package dnscontext_test
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 )
 
-func Test_DNSContextClient_Usecases(t *testing.T) {
+const (
+	resolvConf = `nameserver 8.8.4.4
+nameserver 6.6.3.3
+search example.com
+`
+	expectedResolvConf = `nameserver 127.0.0.1
+nameserver 8.8.4.4
+nameserver 6.6.3.3
+search example.com
+`
+	expectedEmptyCoreFile = `. {
+	log
+	reload
+}
+`
+	expectedEmptyCoreFileWithServer = `. {
+	forward . %s
+	log
+	reload
+}
+`
+)
+
+func TestDNSContextClient(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	corefilePath := filepath.Join(t.TempDir(), "corefile")
-	resolveConfigPath := filepath.Join(t.TempDir(), "resolv.conf")
-
-	err := ioutil.WriteFile(resolveConfigPath, []byte("nameserver 8.8.4.4\nsearch example.com\n"), os.ModePerm)
-	require.NoError(t, err)
-
-	client := chain.NewNetworkServiceClient(
-		dnscontext.NewClient(
-			dnscontext.WithCorefilePath(corefilePath),
-			dnscontext.WithResolveConfigPath(resolveConfigPath),
-		),
-	)
-
-	const expectedEmptyCorefile = `. {
-	forward . 8.8.4.4
-	log
-	reload
-}`
-
-	requireFileChanged(ctx, t, corefilePath, expectedEmptyCorefile)
-
 	var samples = []struct {
-		request          *networkservice.NetworkServiceRequest
-		expectedCorefile string
+		name                string
+		defaultNameServerIP net.IP
+		configs             []*networkservice.DNSConfig
+		expectedCorefile    string
 	}{
 		{
-			expectedCorefile: ". {\n\tforward . 8.8.4.4\n\tlog\n\treload\n}\nexample.com {\n\tforward . 8.8.8.8\n\tlog\n}",
-			request: &networkservice.NetworkServiceRequest{
-				Connection: &networkservice.Connection{
-					Id: "nsc-1",
-					Context: &networkservice.ConnectionContext{
-						DnsContext: &networkservice.DNSContext{
-							Configs: []*networkservice.DNSConfig{
-								{
-									SearchDomains: []string{"example.com"},
-									DnsServerIps:  []string{"8.8.8.8"},
-								},
-							},
-						},
-					},
+			name: "without default, without conflicts",
+			configs: []*networkservice.DNSConfig{
+				{
+					SearchDomains: []string{"example.com"},
+					DnsServerIps:  []string{"8.8.8.8"},
 				},
 			},
+			expectedCorefile: ". {\n\tlog\n\treload\n}\nexample.com {\n\tforward . 8.8.8.8\n\tlog\n}\n",
 		},
 		{
-			expectedCorefile: ". {\n\tforward . 8.8.4.4\n\tlog\n\treload\n}\nexample.com {\n\tfanout . 7.7.7.7 8.8.8.8 9.9.9.9\n\tlog\n}",
-			request: &networkservice.NetworkServiceRequest{
-				Connection: &networkservice.Connection{
-					Id: "nsc-1",
-					Context: &networkservice.ConnectionContext{
-						DnsContext: &networkservice.DNSContext{
-							Configs: []*networkservice.DNSConfig{
-								{
-									SearchDomains: []string{"example.com"},
-									DnsServerIps:  []string{"7.7.7.7"},
-								},
-								{
-									SearchDomains: []string{"example.com"},
-									DnsServerIps:  []string{"8.8.8.8"},
-								},
-								{
-									SearchDomains: []string{"example.com"},
-									DnsServerIps:  []string{"9.9.9.9"},
-								},
-							},
-						},
-					},
+			name:                "with default, without conflicts",
+			defaultNameServerIP: net.IPv4(10, 10, 10, 10),
+			configs: []*networkservice.DNSConfig{
+				{
+					SearchDomains: []string{"example.com"},
+					DnsServerIps:  []string{"8.8.8.8"},
 				},
 			},
+			expectedCorefile: ". {\n\tforward . 10.10.10.10\n\tlog\n\treload\n}\nexample.com {\n\tforward . 8.8.8.8\n\tlog\n}\n",
+		},
+		{
+			name: "without default, with conflicts",
+			configs: []*networkservice.DNSConfig{
+				{
+					SearchDomains: []string{"example.com"},
+					DnsServerIps:  []string{"7.7.7.7"},
+				},
+				{
+					SearchDomains: []string{"example.com"},
+					DnsServerIps:  []string{"8.8.8.8"},
+				},
+				{
+					SearchDomains: []string{"example.com"},
+					DnsServerIps:  []string{"9.9.9.9"},
+				},
+			},
+			expectedCorefile: ". {\n\tlog\n\treload\n}\nexample.com {\n\tfanout . 7.7.7.7 8.8.8.8 9.9.9.9\n\tlog\n}\n",
 		},
 	}
 
-	for _, s := range samples {
-		resp, err := client.Request(ctx, s.request)
-		require.NoError(t, err)
-		require.NotNil(t, resp.GetContext().GetDnsContext())
-		require.Len(t, resp.GetContext().GetDnsContext().GetConfigs(), len(s.request.GetConnection().Context.DnsContext.GetConfigs()))
-		requireFileChanged(ctx, t, corefilePath, s.expectedCorefile)
-		_, err = client.Close(ctx, resp)
-		require.NoError(t, err)
+	for _, sample := range samples {
+		t.Run(sample.name, func(t *testing.T) {
+			// nolint:scopelint
+			testDNSContextClient(ctx, t, sample.defaultNameServerIP, sample.configs, sample.expectedCorefile)
+		})
+	}
+}
 
-		requireFileChanged(ctx, t, corefilePath, expectedEmptyCorefile)
+func testDNSContextClient(
+	ctx context.Context,
+	t *testing.T,
+	defaultNameServerIP net.IP,
+	configs []*networkservice.DNSConfig,
+	expectedCoreFile string,
+) {
+	corefilePath := filepath.Join(t.TempDir(), "corefile")
+	resolveConfigPath := filepath.Join(t.TempDir(), "resolv.conf")
+
+	err := ioutil.WriteFile(resolveConfigPath, []byte(resolvConf), os.ModePerm)
+	require.NoError(t, err)
+
+	// 0. `cmd-nsc-init` case
+	// 1. `cmd-nsc` case
+	for i := 0; i < 2; i++ {
+		opts := []dnscontext.DNSOption{
+			dnscontext.WithChainContext(ctx),
+			dnscontext.WithCorefilePath(corefilePath),
+			dnscontext.WithResolveConfigPath(resolveConfigPath),
+		}
+		if defaultNameServerIP != nil {
+			opts = append(opts, dnscontext.WithDefaultNameServerIP(defaultNameServerIP))
+		}
+
+		client := dnscontext.NewClient(opts...)
+
+		requireFileChanged(ctx, t, resolveConfigPath, expectedResolvConf)
+
+		emptyCoreFile := expectedEmptyCoreFile
+		if defaultNameServerIP != nil {
+			emptyCoreFile = fmt.Sprintf(expectedEmptyCoreFileWithServer, defaultNameServerIP.String())
+		}
+		requireFileChanged(ctx, t, corefilePath, emptyCoreFile)
+
+		conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
+			Connection: &networkservice.Connection{
+				Id: "id",
+				Context: &networkservice.ConnectionContext{
+					DnsContext: &networkservice.DNSContext{
+						Configs: configs,
+					},
+				},
+			},
+		})
+		require.NoError(t, err)
+		requireFileChanged(ctx, t, corefilePath, expectedCoreFile)
+
+		_, err = client.Close(ctx, conn)
+		require.NoError(t, err)
+		requireFileChanged(ctx, t, corefilePath, emptyCoreFile)
 	}
 }
 
