@@ -24,6 +24,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
@@ -60,8 +61,8 @@ func (s *memoryNSServer) Register(ctx context.Context, ns *registry.NetworkServi
 		return nil, err
 	}
 
-	loaded, ok := s.networkServices.Load(r.Name)
-	if ok && loaded.Name == ns.Name && loaded.Payload == ns.Payload {
+	loaded, ok := s.networkServices.LoadOrStore(r.Name, r.Clone())
+	if ok && proto.Equal(ns, loaded) {
 		return nil, errors.New("network service with this name already exist")
 	}
 
