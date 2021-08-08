@@ -18,19 +18,19 @@ package opa
 
 import _ "embed"
 
-//go:embed policies/tokens_valid.opa
+//go:embed policies/tokens_valid.rego
 var tokensValidPolicySource string
 
-//go:embed policies/prev_token_signed.opa
+//go:embed policies/prev_token_signed.rego
 var prevTokenSignedPolicySource string
 
-//go:embed policies/curr_token_signed.opa
+//go:embed policies/curr_token_signed.rego
 var currTokenSignedPolicySource string
 
-//go:embed policies/tokens_chained.opa
+//go:embed policies/tokens_chained.rego
 var tokensChainedPolicySource string
 
-//go:embed policies/tokens_expired.opa
+//go:embed policies/tokens_expired.rego
 var tokensExpiredPolicySource string
 
 // WithTokensValidPolicy returns default policy for checking that all tokens in the path can be decoded.

@@ -103,8 +103,8 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	rv.NetworkServiceServer = chain.NewNamedNetworkServiceServer(
 		opts.name,
 		append([]networkservice.NetworkServiceServer{
-			serialize.NewServer(),
 			updatepath.NewServer(opts.name),
+			serialize.NewServer(),
 			updatetoken.NewServer(tokenGenerator),
 			opts.authorizeServer,
 			// `timeout` uses ctx as a context for the timeout Close and it closes only the subsequent chain, so
