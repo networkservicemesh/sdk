@@ -36,15 +36,11 @@ jobs:
           path: ${{ github.repository }}
           repository: ${{ github.repository }}
           token: ${{ secrets.NSM_BOT_GITHUB_TOKEN }}
-      - name: Get sha
-        id: get-sha
-        run: |
-          echo ::set-output name=sha::$( curl -u "u:${{secrets.NSM_BOT_GITHUB_TOKEN}}" https://api.github.com/repos/networkservicemesh/sdk/git/ref/heads/main | jq .object.sha | tr -d '"' )
       - name: Find merged PR
         uses: jwalton/gh-find-current-pr@v1.0.2
         id: findPr
         with:
-          sha: ${{ steps.get-sha.outputs.sha }}
+          sha: ${{ github.sha }}
           github-token: ${{ secrets.NSM_BOT_GITHUB_TOKEN }}
       - name: Create commit message
         working-directory: ${{ github.repository }}
