@@ -42,11 +42,17 @@ import (
 
 // Node is a NSMgr with Forwarder, NSE registry clients
 type Node struct {
-	t      *testing.T
-	domain *Domain
+	t             *testing.T
+	domain        *Domain
+	resetTokensCh chan struct{}
 
 	NSMgr      *NSMgrEntry
 	Forwarders map[string]*EndpointEntry
+}
+
+// UpdateTokens imitates token update event coming from spire
+func (n *Node) UpdateTokens() {
+	n.resetTokensCh <- struct{}{}
 }
 
 // NewNSMgr creates a new NSMgr
@@ -61,7 +67,9 @@ func (n *Node) NewNSMgr(
 		serveURL = n.domain.supplyURL("nsmgr")
 	}
 
-	dialOptions := DialOptions(WithTokenGenerator(generatorFunc))
+	dialOptions := DialOptions(
+		WithTokenGenerator(generatorFunc),
+		WithTokenResetCh(n.resetTokensCh))
 
 	options := []nsmgr.Option{
 		nsmgr.WithName(name),
@@ -113,7 +121,9 @@ func (n *Node) NewForwarder(
 	}
 
 	nseClone := nse.Clone()
-	dialOptions := DialOptions(WithTokenGenerator(generatorFunc))
+	dialOptions := DialOptions(
+		WithTokenGenerator(generatorFunc),
+		WithTokenResetCh(n.resetTokensCh))
 
 	entry := &EndpointEntry{
 		Name: nse.Name,
@@ -173,7 +183,9 @@ func (n *Node) NewEndpoint(
 	}
 
 	nseClone := nse.Clone()
-	dialOptions := DialOptions(WithTokenGenerator(generatorFunc))
+	dialOptions := DialOptions(
+		WithTokenGenerator(generatorFunc),
+		WithTokenResetCh(n.resetTokensCh))
 
 	entry := &EndpointEntry{
 		Name: nse.Name,
@@ -217,7 +229,9 @@ func (n *Node) NewClient(
 	return client.NewClient(
 		ctx,
 		CloneURL(n.NSMgr.URL),
-		client.WithDialOptions(DialOptions(WithTokenGenerator(generatorFunc))...),
+		client.WithDialOptions(DialOptions(
+			WithTokenGenerator(generatorFunc),
+			WithTokenResetCh(n.resetTokensCh))...),
 		client.WithDialTimeout(DialTimeout),
 		client.WithAuthorizeClient(authorize.NewClient(authorize.Any())),
 		client.WithAdditionalFunctionality(additionalFunctionality...),

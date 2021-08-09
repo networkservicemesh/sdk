@@ -311,12 +311,17 @@ func (b *Builder) newNSMgrProxy() *NSMgrEntry {
 
 func (b *Builder) newNode(nodeNum int) *Node {
 	node := &Node{
-		t:          b.t,
-		domain:     b.domain,
-		Forwarders: make(map[string]*EndpointEntry),
+		t:             b.t,
+		domain:        b.domain,
+		resetTokensCh: make(chan struct{}),
+		Forwarders:    make(map[string]*EndpointEntry),
 	}
 
 	b.setupNode(b.ctx, node, nodeNum)
+	go func() {
+		<-b.ctx.Done()
+		close(node.resetTokensCh)
+	}()
 
 	require.NotNil(b.t, node.NSMgr, "NSMgr should be set for the node")
 

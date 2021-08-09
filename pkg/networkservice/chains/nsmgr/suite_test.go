@@ -73,7 +73,7 @@ func (s *nsmgrSuite) SetupSuite() {
 	// Call cleanup when tests complete
 	t.Cleanup(func() {
 		cancel()
-		goleak.VerifyNone(s.T())
+		goleak.VerifyNone(s.T(), goleak.IgnoreTopFunction("github.com/networkservicemesh/sdk/pkg/tools/resetting.NewCredentials.func1"))
 	})
 
 	// Create default domain with nodesCount nodes, which will be enough for any test
@@ -287,6 +287,12 @@ func (s *nsmgrSuite) Test_RemoteUsecase() {
 	require.Equal(t, 1, counter.Requests())
 	require.Equal(t, 8, len(conn.Path.PathSegments))
 
+	s.domain.Nodes[0].UpdateTokens()
+	s.domain.Nodes[1].UpdateTokens()
+
+	// Make sure that no healing happens
+	time.Sleep(100 * time.Millisecond)
+
 	// Simulate refresh from client
 	refreshRequest := request.Clone()
 	refreshRequest.Connection = conn.Clone()
@@ -378,6 +384,11 @@ func (s *nsmgrSuite) Test_LocalUsecase() {
 	require.NotNil(t, conn)
 	require.Equal(t, 1, counter.Requests())
 	require.Equal(t, 5, len(conn.Path.PathSegments))
+
+	s.domain.Nodes[0].UpdateTokens()
+
+	// Make sure that no healing happens
+	time.Sleep(100 * time.Millisecond)
 
 	// Simulate refresh from client
 	refreshRequest := request.Clone()
@@ -673,7 +684,9 @@ func (s *nsmgrSuite) Test_ShouldCleanAllClientAndEndpointGoroutines() {
 	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent(),
+		// Starting new NSC, NSE
+		goleak.IgnoreTopFunction("github.com/networkservicemesh/sdk/pkg/tools/resetting.NewCredentials.func1"))
 
 	// At this moment all possible endless NSMgr goroutines have been started. So we expect all newly created goroutines
 	// to be canceled no later than some of these events:

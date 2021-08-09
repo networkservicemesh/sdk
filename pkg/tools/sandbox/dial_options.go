@@ -22,11 +22,13 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/opentracing"
+	"github.com/networkservicemesh/sdk/pkg/tools/resetting"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 type dialOpts struct {
 	tokenGenerator token.GeneratorFunc
+	tokenResetCh   <-chan struct{}
 }
 
 // DialOption is an option pattern for DialOptions
@@ -39,6 +41,13 @@ func WithTokenGenerator(tokenGenerator token.GeneratorFunc) DialOption {
 	}
 }
 
+// WithTokenResetCh sets token reset channel for DialOptions
+func WithTokenResetCh(updateCh <-chan struct{}) DialOption {
+	return func(opts *dialOpts) {
+		opts.tokenResetCh = updateCh
+	}
+}
+
 // DialOptions is a helper method for building []grpc.DialOption for testing
 func DialOptions(options ...DialOption) []grpc.DialOption {
 	tokenResetCh := make(chan struct{})
@@ -46,6 +55,7 @@ func DialOptions(options ...DialOption) []grpc.DialOption {
 
 	opts := &dialOpts{
 		tokenGenerator: GenerateTestToken,
+		tokenResetCh:   tokenResetCh,
 	}
 	for _, o := range options {
 		o(opts)
@@ -53,7 +63,10 @@ func DialOptions(options ...DialOption) []grpc.DialOption {
 
 	return append([]grpc.DialOption{
 		grpc.WithTransportCredentials(
-			grpcfdTransportCredentials(insecure.NewCredentials()),
+			resetting.NewCredentials(
+				grpcfdTransportCredentials(insecure.NewCredentials()),
+				opts.tokenResetCh,
+			),
 		),
 		grpc.WithBlock(),
 		grpc.WithDefaultCallOptions(
