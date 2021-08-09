@@ -239,7 +239,7 @@ func (b *Builder) newRegistryProxy() *RegistryEntry {
 		entry.Registry = b.supplyRegistryProxy(
 			ctx,
 			b.dnsResolver,
-			DefaultDialOptions(b.generateTokenFunc)...,
+			DialOptions(WithTokenGenerator(b.generateTokenFunc))...,
 		)
 		serve(ctx, b.t, entry.URL, entry.Register)
 
@@ -267,7 +267,7 @@ func (b *Builder) newRegistry() *RegistryEntry {
 			ctx,
 			b.registryExpiryDuration,
 			nsmgrProxyURL,
-			DefaultDialOptions(b.generateTokenFunc)...,
+			DialOptions(WithTokenGenerator(b.generateTokenFunc))...,
 		)
 		serve(ctx, b.t, entry.URL, entry.Register)
 
@@ -287,6 +287,7 @@ func (b *Builder) newNSMgrProxy() *NSMgrEntry {
 		URL:  b.domain.NSMgrProxy.URL,
 	}
 	entry.restartableServer = newRestartableServer(b.ctx, b.t, entry.URL, func(ctx context.Context) {
+		dialOptions := DialOptions(WithTokenGenerator(b.generateTokenFunc))
 		entry.Nsmgr = b.supplyNSMgrProxy(ctx,
 			CloneURL(b.domain.Registry.URL),
 			CloneURL(b.domain.RegistryProxy.URL),
@@ -295,9 +296,9 @@ func (b *Builder) newNSMgrProxy() *NSMgrEntry {
 			nsmgrproxy.WithName(entry.Name),
 			nsmgrproxy.WithConnectOptions(
 				connect.WithDialTimeout(DialTimeout),
-				connect.WithDialOptions(DefaultDialOptions(b.generateTokenFunc)...)),
+				connect.WithDialOptions(dialOptions...)),
 			nsmgrproxy.WithRegistryConnectOptions(
-				registryconnect.WithDialOptions(DefaultDialOptions(b.generateTokenFunc)...),
+				registryconnect.WithDialOptions(dialOptions...),
 			),
 		)
 		serve(ctx, b.t, entry.URL, entry.Register)

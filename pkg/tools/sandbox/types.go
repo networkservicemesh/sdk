@@ -101,5 +101,5 @@ func (d *Domain) NewNSRegistryClient(ctx context.Context, generatorFunc token.Ge
 	}
 
 	return registryclient.NewNetworkServiceRegistryClient(ctx, registryURL,
-		registryclient.WithDialOptions(DefaultDialOptions(generatorFunc)...))
+		registryclient.WithDialOptions(DialOptions(WithTokenGenerator(generatorFunc))...))
 }

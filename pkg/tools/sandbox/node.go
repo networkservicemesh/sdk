@@ -61,7 +61,7 @@ func (n *Node) NewNSMgr(
 		serveURL = n.domain.supplyURL("nsmgr")
 	}
 
-	dialOptions := DefaultDialOptions(generatorFunc)
+	dialOptions := DialOptions(WithTokenGenerator(generatorFunc))
 
 	options := []nsmgr.Option{
 		nsmgr.WithName(name),
@@ -113,7 +113,7 @@ func (n *Node) NewForwarder(
 	}
 
 	nseClone := nse.Clone()
-	dialOptions := DefaultDialOptions(generatorFunc)
+	dialOptions := DialOptions(WithTokenGenerator(generatorFunc))
 
 	entry := &EndpointEntry{
 		Name: nse.Name,
@@ -173,7 +173,7 @@ func (n *Node) NewEndpoint(
 	}
 
 	nseClone := nse.Clone()
-	dialOptions := DefaultDialOptions(generatorFunc)
+	dialOptions := DialOptions(WithTokenGenerator(generatorFunc))
 
 	entry := &EndpointEntry{
 		Name: nse.Name,
@@ -217,7 +217,7 @@ func (n *Node) NewClient(
 	return client.NewClient(
 		ctx,
 		CloneURL(n.NSMgr.URL),
-		client.WithDialOptions(DefaultDialOptions(generatorFunc)...),
+		client.WithDialOptions(DialOptions(WithTokenGenerator(generatorFunc))...),
 		client.WithDialTimeout(DialTimeout),
 		client.WithAuthorizeClient(authorize.NewClient(authorize.Any())),
 		client.WithAdditionalFunctionality(additionalFunctionality...),
