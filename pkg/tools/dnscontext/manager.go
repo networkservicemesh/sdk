@@ -20,53 +20,66 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"sync"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+)
+
+const (
+	anyDomain              = "."
+	defaultPlugin          = "forward"
+	conflictResolverPlugin = "fanout"
 )
 
 // Manager can store, remove []dnscontext.Config and also present it as corefile.
 // See what is corefile here: https://coredns.io/2017/07/23/corefile-explained/
 type Manager struct {
-	configs sync.Map
+	configs dnsConfigsMap
 }
 
 func (m *Manager) String() string {
-	var keys []string
-	result := map[string][]string{}
-	conflict := map[string]bool{}
-	m.configs.Range(func(_, value interface{}) bool {
-		configs := value.([]*networkservice.DNSConfig)
+	var domains []string
+	ipsByDomain := map[string][]string{}
+	conflictByDomain := map[string]bool{}
+	m.configs.Range(func(_ string, configs []*networkservice.DNSConfig) bool {
 		for _, c := range configs {
-			k := strings.Join(c.SearchDomains, " ")
-			if len(result[k]) != 0 {
-				conflict[k] = true
-			} else {
-				keys = append(keys, k)
+			domain := strings.Join(c.SearchDomains, " ")
+			if domain == "" {
+				domain = anyDomain
 			}
-			result[k] = removeDuplicates(append(result[k], c.DnsServerIps...))
+
+			if _, ok := ipsByDomain[domain]; ok {
+				conflictByDomain[domain] = true
+			} else {
+				domains = append(domains, domain)
+			}
+
+			ipsByDomain[domain] = removeDuplicates(append(ipsByDomain[domain], c.DnsServerIps...))
 		}
 		return true
 	})
-	sort.Strings(keys)
-	sb := strings.Builder{}
-	i := 0
-	for _, k := range keys {
-		v := result[k]
+
+	sort.Strings(domains)
+
+	var sb strings.Builder
+	for _, domain := range domains {
 		plugin := defaultPlugin
-		if conflict[k] {
+		if conflictByDomain[domain] {
 			plugin = conflictResolverPlugin
 		}
-		sort.Strings(v)
-		if k == "" {
-			_, _ = sb.WriteString(fmt.Sprintf(serverBlockTemplate, AnyDomain, plugin, strings.Join(v, " "), "log\n\treload"))
-		} else {
-			_, _ = sb.WriteString(fmt.Sprintf(serverBlockTemplate, k, plugin, strings.Join(v, " "), "log"))
+
+		ips := ipsByDomain[domain]
+		sort.Strings(ips)
+		ipsString := strings.TrimSpace(strings.Join(ips, " "))
+
+		_, _ = sb.WriteString(fmt.Sprintf("%s {\n", domain))
+		if ipsString != "" {
+			_, _ = sb.WriteString(fmt.Sprintf("\t%s . %s\n", plugin, ipsString))
 		}
-		i++
-		if i < len(result) {
-			_, _ = sb.WriteRune('\n')
+		_, _ = sb.WriteString("\tlog\n")
+		if domain == anyDomain {
+			_, _ = sb.WriteString("\treload\n")
 		}
+		sb.WriteString("}\n")
 	}
 	return sb.String()
 }

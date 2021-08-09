@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,7 +21,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -29,58 +28,50 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnscontext"
 )
 
-func createSample(name, source string) (string, error) {
-	tmpPath := path.Join(os.TempDir(), name)
-	err := ioutil.WriteFile(tmpPath, []byte(source), os.ModePerm)
-	if err != nil {
-		return "", err
-	}
-	return tmpPath, nil
+const (
+	optionsKey = "options"
+	searchKey  = "search"
+	sample     = `nameserver 1.1.1.1
+nameserver 2.2.2.2
+options ndots:5
+search default.svc.cluster.local svc.cluster.local cluster.local
+`
+)
+
+func createSample(t *testing.T, source string) string {
+	tmpPath := path.Join(t.TempDir(), "resolv.conf")
+	require.NoError(t, ioutil.WriteFile(tmpPath, []byte(source), os.ModePerm))
+	return tmpPath
 }
 
 func TestResolveConfig_ReadProperties(t *testing.T) {
-	sample := `nameserver 127.0.0.1
-search default.svc.cluster.local svc.cluster.local cluster.local
-options ndots:5
-`
-	p, err := createSample("resolv.conf.tmp.test.file", sample)
-	require.Nil(t, err)
-	defer func() {
-		_ = os.Remove(p)
-	}()
+	p := createSample(t, sample)
+	t.Cleanup(func() { _ = os.Remove(p) })
+
 	conf, err := dnscontext.OpenResolveConfig(p)
+	require.NoError(t, err)
 	require.NotNil(t, conf)
-	require.Nil(t, err)
-	result := conf.Value(dnscontext.NameserverProperty)
-	require.EqualValues(t, result, []string{"127.0.0.1"})
-	result = conf.Value(dnscontext.SearchProperty)
-	require.EqualValues(t, result, []string{"default.svc.cluster.local", "svc.cluster.local", "cluster.local"})
-	result = conf.Value(dnscontext.OptionsProperty)
-	require.EqualValues(t, result, []string{"ndots:5"})
+
+	require.Equal(t, []string{"1.1.1.1", "2.2.2.2"}, conf.NameServers)
+	require.Equal(t, []string{"ndots:5"}, conf.Value(optionsKey))
+	require.Equal(t, []string{"default.svc.cluster.local", "svc.cluster.local", "cluster.local"}, conf.Value(searchKey))
 }
 
 func TestResolveConfig_WriteProperties(t *testing.T) {
-	sample := `nameserver 127.0.0.1
-search default.svc.cluster.local svc.cluster.local cluster.local
-options ndots:5`
-	p, err := createSample("resolv.conf.tmp.test.file", "")
-	require.Nil(t, err)
-	defer func() {
-		_ = os.Remove(p)
-	}()
-	config, err := dnscontext.OpenResolveConfig(p)
-	require.Nil(t, err)
-	config.SetValue(dnscontext.NameserverProperty, "127.0.0.1")
-	config.SetValue(dnscontext.SearchProperty, "default.svc.cluster.local", "svc.cluster.local", "cluster.local")
-	config.SetValue(dnscontext.OptionsProperty, "ndots:5")
-	config.SetValue("my_property")
-	err = config.Save()
-	require.Nil(t, err)
+	p := createSample(t, "")
+	t.Cleanup(func() { _ = os.Remove(p) })
+
+	conf, err := dnscontext.OpenResolveConfig(p)
+	require.NoError(t, err)
+	require.NotNil(t, conf)
+
+	conf.NameServers = []string{"1.1.1.1", "2.2.2.2"}
+	conf.SetValue(optionsKey, "ndots:5")
+	conf.SetValue(searchKey, "default.svc.cluster.local", "svc.cluster.local", "cluster.local")
+	conf.SetValue("empty")
+	require.NoError(t, conf.Save())
+
 	bytes, err := ioutil.ReadFile(filepath.Clean(p))
-	require.Nil(t, err)
-	actual := string(bytes)
-	require.Len(t, actual, len(sample))
-	for _, l := range strings.Split(actual, "\n") {
-		require.Contains(t, sample, l)
-	}
+	require.NoError(t, err)
+	require.Equal(t, sample, string(bytes))
 }
