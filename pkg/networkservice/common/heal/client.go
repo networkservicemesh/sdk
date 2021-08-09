@@ -19,6 +19,7 @@ package heal
 
 import (
 	"context"
+	"runtime"
 	"sync"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -29,6 +30,8 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/cancelctx"
 )
+
+const maxMonitorAttempts = 10
 
 type connectionInfo struct {
 	cond   *sync.Cond
@@ -56,9 +59,14 @@ func NewClient(ctx context.Context, cc networkservice.MonitorConnectionClient) n
 }
 
 func (u *healClient) init(ctx context.Context, conn *networkservice.Connection) error {
-	monitorClient, err := u.cc.MonitorConnections(u.ctx, &networkservice.MonitorScopeSelector{
-		PathSegments: []*networkservice.PathSegment{{Name: conn.GetCurrentPathSegment().Name}, {Name: ""}},
-	})
+	currentName := conn.GetCurrentPathSegment().GetName()
+	createMonitorStream := func() (networkservice.MonitorConnection_MonitorConnectionsClient, error) {
+		return u.cc.MonitorConnections(u.ctx, &networkservice.MonitorScopeSelector{
+			PathSegments: []*networkservice.PathSegment{{Name: currentName}, {Name: ""}},
+		}, grpc.WaitForReady(false))
+	}
+
+	monitorStream, err := createMonitorStream()
 	if err != nil {
 		return errors.Wrap(err, "MonitorConnections failed")
 	}
@@ -67,6 +75,7 @@ func (u *healClient) init(ctx context.Context, conn *networkservice.Connection) 
 	if cancel == nil {
 		cancel = func() {}
 	}
+
 	healConnection := requestHealConnectionFunc(ctx)
 	if healConnection == nil {
 		healConnection = func(conn *networkservice.Connection) {}
@@ -76,7 +85,7 @@ func (u *healClient) init(ctx context.Context, conn *networkservice.Connection) 
 		restoreConnection = func(conn *networkservice.Connection) {}
 	}
 
-	go u.listenToConnectionChanges(cancel, healConnection, restoreConnection, monitorClient)
+	go u.listenToConnectionChanges(monitorStream, createMonitorStream, cancel, healConnection, restoreConnection)
 
 	return nil
 }
@@ -173,25 +182,24 @@ func (u *healClient) Close(ctx context.Context, conn *networkservice.Connection,
 //                             Updates connection cache and broadcasts events of successful connections.
 //                             Calls heal when something breaks.
 func (u *healClient) listenToConnectionChanges(
+	monitorStream networkservice.MonitorConnection_MonitorConnectionsClient,
+	createMonitorStream func() (networkservice.MonitorConnection_MonitorConnectionsClient, error),
 	cancel context.CancelFunc,
 	healConnection, restoreConnection requestHealFuncType,
-	monitorClient networkservice.MonitorConnection_MonitorConnectionsClient,
 ) {
-	for {
-		event, err := monitorClient.Recv()
+	for attempts := 0; attempts < maxMonitorAttempts && u.ctx.Err() == nil; {
+		event, err := monitorStream.Recv()
 		if err != nil {
-			cancel()
-			u.conns.Range(func(id string, connInfo *connectionInfo) bool {
-				connInfo.cond.L.Lock()
-				defer connInfo.cond.L.Unlock()
-
-				if connInfo.active {
-					restoreConnection(connInfo.conn)
+			for attempts++; attempts < maxMonitorAttempts && u.ctx.Err() == nil; {
+				runtime.Gosched()
+				if monitorStream, err = createMonitorStream(); err != nil {
+					attempts++
+					continue
 				}
-				return true
-			})
-			return
+			}
+			continue
 		}
+		attempts = 0
 
 		for _, eventConn := range event.GetConnections() {
 			connID := eventConn.GetPrevPathSegment().GetId()
@@ -221,6 +229,21 @@ func (u *healClient) listenToConnectionChanges(
 			connInfo.cond.L.Unlock()
 		}
 	}
+	if u.ctx.Err() != nil {
+		return
+	}
+
+	cancel()
+
+	u.conns.Range(func(id string, connInfo *connectionInfo) bool {
+		connInfo.cond.L.Lock()
+		defer connInfo.cond.L.Unlock()
+
+		if connInfo.active {
+			restoreConnection(connInfo.conn)
+		}
+		return true
+	})
 }
 
 func (u *healClient) replaceConnectionPath(conn *networkservice.Connection, connInfo *connectionInfo) {
