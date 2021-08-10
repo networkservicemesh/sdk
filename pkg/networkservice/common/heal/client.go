@@ -19,16 +19,18 @@ package heal
 
 import (
 	"context"
-	"runtime"
 	"sync"
+	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/cancelctx"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 )
 
 const maxMonitorAttempts = 10
@@ -85,7 +87,11 @@ func (u *healClient) init(ctx context.Context, conn *networkservice.Connection) 
 		restoreConnection = func(conn *networkservice.Connection) {}
 	}
 
-	go u.listenToConnectionChanges(monitorStream, createMonitorStream, cancel, healConnection, restoreConnection)
+	go u.listenToConnectionChanges(
+		monitorStream, createMonitorStream,
+		cancel,
+		healConnection, restoreConnection,
+	)
 
 	return nil
 }
@@ -187,14 +193,19 @@ func (u *healClient) listenToConnectionChanges(
 	cancel context.CancelFunc,
 	healConnection, restoreConnection requestHealFuncType,
 ) {
-	for attempts := 0; attempts < maxMonitorAttempts && u.ctx.Err() == nil; {
+	clockTime := clock.FromContext(u.ctx)
+	for attempts := 0; attempts < maxMonitorAttempts; {
 		event, err := monitorStream.Recv()
 		if err != nil {
-			for attempts++; attempts < maxMonitorAttempts && u.ctx.Err() == nil; {
-				runtime.Gosched()
-				if monitorStream, err = createMonitorStream(); err != nil {
-					attempts++
-					continue
+			for attempts++; attempts < maxMonitorAttempts; {
+				select {
+				case <-u.ctx.Done():
+					return
+				case <-clockTime.After(100 * time.Millisecond):
+					if monitorStream, err = createMonitorStream(); err != nil {
+						attempts++
+						continue
+					}
 				}
 			}
 			continue
