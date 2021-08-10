@@ -19,7 +19,6 @@ package heal_test
 import (
 	"context"
 	"net/url"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -27,7 +26,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
@@ -37,6 +35,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
@@ -68,7 +67,7 @@ func TestHeal_CloseChain(t *testing.T) {
 	remoteURL, remoteCancel := startRemoteServer(ctx, t, 0)
 	defer remoteCancel()
 
-	counter := new(counterServer)
+	counter := new(count.Server)
 
 	serverChain := new(networkservice.NetworkServiceClient)
 	*serverChain = adapters.NewServerToClient(
@@ -101,24 +100,6 @@ func TestHeal_CloseChain(t *testing.T) {
 	remoteCancel()
 
 	require.Eventually(t, func() bool {
-		return atomic.LoadInt32(&counter.closes) == 1
+		return counter.Closes() == 1
 	}, time.Second, 10*time.Millisecond)
-}
-
-type counterServer struct {
-	closes int32
-}
-
-func (s *counterServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	return next.Server(ctx).Request(ctx, request)
-}
-
-func (s *counterServer) Close(ctx context.Context, conn *networkservice.Connection) (*emptypb.Empty, error) {
-	if ctx.Err() != nil {
-		return nil, ctx.Err()
-	}
-
-	atomic.AddInt32(&s.closes, 1)
-
-	return next.Server(ctx).Close(ctx, conn)
 }

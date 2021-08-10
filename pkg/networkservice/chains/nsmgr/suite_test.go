@@ -24,7 +24,6 @@ import (
 	"net/url"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -45,6 +44,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanismtranslation"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/replacelabels"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
@@ -96,7 +96,7 @@ func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
-	counter := &counterServer{}
+	counter := new(count.Server)
 
 	var unregisterWG sync.WaitGroup
 	var nse *sandbox.EndpointEntry
@@ -114,7 +114,7 @@ func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Requests))
+	require.Equal(t, 1, counter.Requests())
 	require.Equal(t, 8, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client.
@@ -125,12 +125,12 @@ func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 8, len(conn.Path.PathSegments))
-	require.Equal(t, int32(2), atomic.LoadInt32(&counter.Requests))
+	require.Equal(t, 2, counter.Requests())
 
 	// Close
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
-	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Closes))
+	require.Equal(t, 1, counter.Closes())
 
 	// Endpoint unregister
 	unregisterWG.Wait()
@@ -202,7 +202,7 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
-	counter := &counterServer{}
+	counter := new(count.Server)
 
 	var wg sync.WaitGroup
 	var nseRegs [4]*registry.NetworkServiceEndpoint
@@ -237,7 +237,7 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Requests))
+	require.Equal(t, 1, counter.Requests())
 	require.Equal(t, 8, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client
@@ -247,13 +247,13 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 	conn, err = nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, int32(2), atomic.LoadInt32(&counter.Requests))
+	require.Equal(t, 2, counter.Requests())
 	require.Equal(t, 8, len(conn.Path.PathSegments))
 
 	// Close
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
-	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Closes))
+	require.Equal(t, 1, counter.Closes())
 
 	// Endpoint unregister
 	unregisterWG.Wait()
@@ -273,7 +273,7 @@ func (s *nsmgrSuite) Test_RemoteUsecase() {
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
-	counter := &counterServer{}
+	counter := new(count.Server)
 
 	nse := s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
@@ -284,7 +284,7 @@ func (s *nsmgrSuite) Test_RemoteUsecase() {
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Requests))
+	require.Equal(t, 1, counter.Requests())
 	require.Equal(t, 8, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client
@@ -294,13 +294,13 @@ func (s *nsmgrSuite) Test_RemoteUsecase() {
 	conn, err = nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, int32(2), atomic.LoadInt32(&counter.Requests))
+	require.Equal(t, 2, counter.Requests())
 	require.Equal(t, 8, len(conn.Path.PathSegments))
 
 	// Close
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
-	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Closes))
+	require.Equal(t, 1, counter.Closes())
 
 	// Endpoint unregister
 	_, err = nse.Unregister(ctx, nseReg)
@@ -317,7 +317,7 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
-	counter := &counterServer{}
+	counter := new(count.Server)
 
 	nse := s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
@@ -331,7 +331,7 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	conn, err := nsc.Request(reqCtx, request.Clone())
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Requests))
+	require.Equal(t, 1, counter.Requests())
 	require.Equal(t, 5, len(conn.Path.PathSegments))
 
 	nse.Cancel()
@@ -362,7 +362,7 @@ func (s *nsmgrSuite) Test_LocalUsecase() {
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
-	counter := &counterServer{}
+	counter := new(count.Server)
 
 	nse := s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
@@ -373,7 +373,7 @@ func (s *nsmgrSuite) Test_LocalUsecase() {
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Requests))
+	require.Equal(t, 1, counter.Requests())
 	require.Equal(t, 5, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client
@@ -384,12 +384,12 @@ func (s *nsmgrSuite) Test_LocalUsecase() {
 	require.NoError(t, err)
 	require.NotNil(t, conn2)
 	require.Equal(t, 5, len(conn2.Path.PathSegments))
-	require.Equal(t, int32(2), atomic.LoadInt32(&counter.Requests))
+	require.Equal(t, 2, counter.Requests())
 
 	// Close
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
-	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Closes))
+	require.Equal(t, 1, counter.Closes())
 
 	// Endpoint unregister
 	_, err = nse.Unregister(ctx, nseReg)
@@ -402,7 +402,7 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	counterClose := &counterServer{}
+	counterClose := new(count.Server)
 
 	nsReg := linearNS(nodesCount)
 	nsReg, err := s.nsRegistryClient.Register(ctx, nsReg)
@@ -447,7 +447,7 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 	// Close
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
-	require.Equal(t, int32(nodesCount), atomic.LoadInt32(&counterClose.Closes))
+	require.Equal(t, nodesCount, counterClose.Closes())
 
 	// Endpoint unregister
 	for i, nseReg := range nseRegs {
@@ -463,7 +463,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	counterClose := &counterServer{}
+	counterClose := new(count.Server)
 
 	nsReg, err := s.nsRegistryClient.Register(ctx, linearNS(nsesCount))
 	require.NoError(t, err)
@@ -506,7 +506,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 	// Close
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
-	require.Equal(t, int32(nsesCount), atomic.LoadInt32(&counterClose.Closes))
+	require.Equal(t, nsesCount, counterClose.Closes())
 
 	// Endpoint unregister
 	for i, nseReg := range nseRegs {
@@ -522,7 +522,7 @@ func (s *nsmgrSuite) Test_PassThroughSameSourceSelector() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	counterClose := &counterServer{}
+	counterClose := new(count.Server)
 
 	ns := linearNS(nsesCount)
 	ns.Matches[len(ns.Matches)-1].Fallthrough = true
@@ -584,7 +584,7 @@ func (s *nsmgrSuite) Test_PassThroughSameSourceSelector() {
 	// Close
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
-	require.Equal(t, int32(nsesCount-1), atomic.LoadInt32(&counterClose.Closes))
+	require.Equal(t, nsesCount-1, counterClose.Closes())
 
 	// Endpoint unregister
 	for i, nseReg := range nseRegs {
@@ -602,7 +602,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	counterClose := &counterServer{}
+	counterClose := new(count.Server)
 
 	nsReg, err := s.nsRegistryClient.Register(ctx, multiLabelNS())
 	require.NoError(t, err)
@@ -652,7 +652,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
 	// Close
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
-	require.Equal(t, int32(len(expectedPath)), atomic.LoadInt32(&counterClose.Closes))
+	require.Equal(t, len(expectedPath), counterClose.Closes())
 
 	// Endpoint unregister
 	for i, nseReg := range nseRegs {
@@ -686,10 +686,10 @@ const (
 	labelB = "label_b"
 )
 
-func linearNS(count int) *registry.NetworkService {
+func linearNS(hopsCount int) *registry.NetworkService {
 	matches := make([]*registry.Match, 0)
 
-	for i := 1; i < count; i++ {
+	for i := 1; i < hopsCount; i++ {
 		match := &registry.Match{
 			SourceSelector: map[string]string{
 				step: fmt.Sprintf("%v", i-1),
@@ -706,7 +706,7 @@ func linearNS(count int) *registry.NetworkService {
 		matches = append(matches, match)
 	}
 
-	if count > 1 {
+	if hopsCount > 1 {
 		// match with empty source selector must be the last
 		match := &registry.Match{
 			Routes: []*registry.Destination{

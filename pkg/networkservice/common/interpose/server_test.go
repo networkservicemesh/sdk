@@ -23,7 +23,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
@@ -33,6 +32,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	registryinterpose "github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
 	registryadapters "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	registrynext "github.com/networkservicemesh/sdk/pkg/registry/core/next"
@@ -55,7 +55,7 @@ func TestInterposeServer(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	touchServer := new(touchServer)
+	counter := new(count.Server)
 
 	client := next.NewNetworkServiceClient(
 		updatepath.NewClient("client"),
@@ -84,7 +84,7 @@ func TestInterposeServer(t *testing.T) {
 		)),
 		adapters.NewServerToClient(next.NewNetworkServiceServer(
 			updatepath.NewServer("endpoint"),
-			touchServer,
+			counter,
 		)),
 	)
 
@@ -96,40 +96,22 @@ func TestInterposeServer(t *testing.T) {
 
 	conn, err := client.Request(context.TODO(), request)
 	require.NoError(t, err)
-	require.True(t, touchServer.touched)
+	require.Equal(t, 1, counter.Requests())
 
 	// 2. Refresh
 
 	request = request.Clone()
 	request.Connection = conn.Clone()
 
-	touchServer.touched = false
-
 	conn, err = client.Request(context.TODO(), request)
 	require.NoError(t, err)
-	require.True(t, touchServer.touched)
+	require.Equal(t, 2, counter.Requests())
 
 	// 3. Close
 
 	conn = conn.Clone()
 
-	touchServer.touched = false
-
 	_, err = client.Close(context.TODO(), conn)
 	require.NoError(t, err)
-	require.True(t, touchServer.touched)
-}
-
-type touchServer struct {
-	touched bool
-}
-
-func (s *touchServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	s.touched = true
-	return next.Server(ctx).Request(ctx, request)
-}
-
-func (s *touchServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	s.touched = true
-	return next.Server(ctx).Close(ctx, conn)
+	require.Equal(t, 1, counter.Closes())
 }

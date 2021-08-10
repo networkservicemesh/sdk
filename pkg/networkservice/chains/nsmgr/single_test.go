@@ -22,7 +22,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -33,6 +32,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/tools/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
@@ -216,7 +216,7 @@ func Test_Local_NoURLUsecase(t *testing.T) {
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	request := defaultRequest(nsReg.Name)
-	counter := &counterServer{}
+	counter := new(count.Server)
 
 	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
@@ -225,7 +225,7 @@ func Test_Local_NoURLUsecase(t *testing.T) {
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Requests))
+	require.Equal(t, 1, counter.Requests())
 	require.Equal(t, 5, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client
@@ -236,12 +236,12 @@ func Test_Local_NoURLUsecase(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn2)
 	require.Equal(t, 5, len(conn2.Path.PathSegments))
-	require.Equal(t, int32(2), atomic.LoadInt32(&counter.Requests))
+	require.Equal(t, 2, counter.Requests())
 
 	// Close
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
-	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Closes))
+	require.Equal(t, 1, counter.Closes())
 }
 
 func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {

@@ -18,7 +18,6 @@ package nsmgr_test
 
 import (
 	"context"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -27,6 +26,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -76,7 +76,7 @@ func testNSMGRHealEndpoint(t *testing.T, nodeNum int) {
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 
-	counter := &counterServer{}
+	counter := new(count.Server)
 	nse := domain.Nodes[nodeNum].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
 	request := defaultRequest(nsReg.Name)
@@ -150,7 +150,7 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int) {
 	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
-	counter := &counterServer{}
+	counter := new(count.Server)
 	domain.Nodes[1].NewEndpoint(ctx, defaultRegistryEndpoint(nsReg.Name), sandbox.GenerateTestToken, counter)
 
 	request := defaultRequest(nsReg.Name)
@@ -232,7 +232,7 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 
-	counter := &counterServer{}
+	counter := new(count.Server)
 	domain.Nodes[1].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
 	request := defaultRequest(nsReg.Name)
@@ -255,10 +255,8 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 
 	if restored {
 		// Wait reconnecting through the restored NSMgr
-		require.Eventually(t, checkSecondRequestsReceived(func() int {
-			return int(atomic.LoadInt32(&counter.Requests))
-		}), timeout, tick)
-		require.Equal(t, int32(2), atomic.LoadInt32(&counter.Requests))
+		require.Eventually(t, checkSecondRequestsReceived(counter.Requests), timeout, tick)
+		require.Equal(t, 2, counter.Requests())
 	} else {
 		// Wait reconnecting through the new NSMgr
 		require.Eventually(t, checkSecondRequestsReceived(counter.UniqueRequests), timeout, tick)
@@ -275,8 +273,8 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 	require.NoError(t, err)
 
 	if restored {
-		require.Equal(t, int32(3), atomic.LoadInt32(&counter.Requests))
-		require.Equal(t, int32(1), atomic.LoadInt32(&counter.Closes))
+		require.Equal(t, 3, counter.Requests())
+		require.Equal(t, 1, counter.Closes())
 	} else {
 		require.Equal(t, 2, counter.UniqueRequests())
 		require.Equal(t, 1, counter.UniqueCloses())
@@ -302,7 +300,7 @@ func TestNSMGR_HealRegistry(t *testing.T) {
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 
-	counter := &counterServer{}
+	counter := new(count.Server)
 	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
 	request := defaultRequest(nsReg.Name)
@@ -326,7 +324,7 @@ func TestNSMGR_HealRegistry(t *testing.T) {
 	_, err = nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 
-	require.Equal(t, int32(3), atomic.LoadInt32(&counter.Requests))
+	require.Equal(t, 3, counter.Requests())
 }
 
 func TestNSMGR_CloseHeal(t *testing.T) {
