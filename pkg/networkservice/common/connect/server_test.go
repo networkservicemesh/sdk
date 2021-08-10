@@ -60,7 +60,7 @@ func TestConnectServer_Request(t *testing.T) {
 
 	s := next.NewNetworkServiceServer(
 		connect.NewServer(context.Background(),
-			func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+			func(ctx context.Context, cc *grpc.ClientConn) networkservice.NetworkServiceClient {
 				return next.NewNetworkServiceClient(
 					adapters.NewServerToClient(serverClient),
 					newMonitorClient(ctx, cc),
@@ -190,7 +190,7 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 
 	s := next.NewNetworkServiceServer(
 		connect.NewServer(context.Background(),
-			func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+			func(ctx context.Context, cc *grpc.ClientConn) networkservice.NetworkServiceClient {
 				return next.NewNetworkServiceClient(
 					serverClient,
 					newMonitorClient(ctx, cc),
@@ -289,7 +289,7 @@ func TestConnectServer_RequestFail(t *testing.T) {
 	// 1. Create connectServer
 
 	s := connect.NewServer(context.Background(),
-		func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+		func(_ context.Context, cc *grpc.ClientConn) networkservice.NetworkServiceClient {
 			return injecterror.NewClient()
 		},
 		connect.WithDialTimeout(time.Second),
@@ -336,7 +336,7 @@ func TestConnectServer_RequestNextServerError(t *testing.T) {
 
 	s := next.NewNetworkServiceServer(
 		connect.NewServer(context.Background(),
-			func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+			func(ctx context.Context, cc *grpc.ClientConn) networkservice.NetworkServiceClient {
 				return next.NewNetworkServiceClient(
 					adapters.NewServerToClient(serverClient),
 					newMonitorClient(ctx, cc),
@@ -400,7 +400,7 @@ func TestConnectServer_RemoteRestarted(t *testing.T) {
 	// 1. Create connectServer
 
 	s := connect.NewServer(context.Background(),
-		func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+		func(ctx context.Context, cc *grpc.ClientConn) networkservice.NetworkServiceClient {
 			return next.NewNetworkServiceClient(
 				newMonitorClient(ctx, cc),
 				networkservice.NewNetworkServiceClient(cc),
@@ -483,7 +483,7 @@ func TestConnectServer_DialTimeout(t *testing.T) {
 	// 1. Create connectServer
 
 	s := connect.NewServer(context.Background(),
-		func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+		func(_ context.Context, cc *grpc.ClientConn) networkservice.NetworkServiceClient {
 			return networkservice.NewNetworkServiceClient(cc)
 		},
 		connect.WithDialTimeout(100*time.Millisecond),

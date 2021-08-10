@@ -67,20 +67,20 @@ func (n *Node) NewNSMgr(
 		serveURL = n.domain.supplyURL("nsmgr")
 	}
 
-	dialOptions := DialOptions(
-		WithTokenGenerator(generatorFunc),
-		WithTokenResetCh(n.resetTokensCh))
-
 	options := []nsmgr.Option{
 		nsmgr.WithName(name),
 		nsmgr.WithAuthorizeServer(authorize.NewServer(authorize.Any())),
 		nsmgr.WithConnectOptions(
 			connect.WithDialTimeout(DialTimeout),
-			connect.WithDialOptions(dialOptions...)),
+			connect.WithDialOptions(DialOptions(
+				WithTokenGenerator(generatorFunc),
+				WithTokenResetCh(n.resetTokensCh))...)),
 	}
 
 	if n.domain.Registry != nil {
-		options = append(options, nsmgr.WithRegistry(CloneURL(n.domain.Registry.URL), dialOptions...))
+		options = append(options, nsmgr.WithRegistry(
+			CloneURL(n.domain.Registry.URL),
+			DialOptions(WithTokenGenerator(generatorFunc))...))
 	}
 
 	if serveURL.Scheme != "unix" {
@@ -121,9 +121,6 @@ func (n *Node) NewForwarder(
 	}
 
 	nseClone := nse.Clone()
-	dialOptions := DialOptions(
-		WithTokenGenerator(generatorFunc),
-		WithTokenResetCh(n.resetTokensCh))
 
 	entry := &EndpointEntry{
 		Name: nse.Name,
@@ -147,7 +144,9 @@ func (n *Node) NewForwarder(
 							),
 						),
 						connect.WithDialTimeout(DialTimeout),
-						connect.WithDialOptions(dialOptions...),
+						connect.WithDialOptions(DialOptions(
+							WithTokenGenerator(generatorFunc),
+							WithTokenResetCh(n.resetTokensCh))...),
 					),
 				)...,
 			),
@@ -155,7 +154,7 @@ func (n *Node) NewForwarder(
 		serve(ctx, n.t, entry.URL, entry.Endpoint.Register)
 
 		entry.NetworkServiceEndpointRegistryClient = registryclient.NewNetworkServiceEndpointRegistryInterposeClient(ctx, CloneURL(n.NSMgr.URL),
-			registryclient.WithDialOptions(dialOptions...))
+			registryclient.WithDialOptions(DialOptions(WithTokenGenerator(generatorFunc))...))
 
 		n.registerEndpoint(ctx, nse, nseClone, entry.NetworkServiceEndpointRegistryClient)
 	})
@@ -183,9 +182,6 @@ func (n *Node) NewEndpoint(
 	}
 
 	nseClone := nse.Clone()
-	dialOptions := DialOptions(
-		WithTokenGenerator(generatorFunc),
-		WithTokenResetCh(n.resetTokensCh))
 
 	entry := &EndpointEntry{
 		Name: nse.Name,
@@ -199,7 +195,7 @@ func (n *Node) NewEndpoint(
 		serve(ctx, n.t, entry.URL, entry.Endpoint.Register)
 
 		entry.NetworkServiceEndpointRegistryClient = registryclient.NewNetworkServiceEndpointRegistryClient(ctx, CloneURL(n.NSMgr.URL),
-			registryclient.WithDialOptions(dialOptions...))
+			registryclient.WithDialOptions(DialOptions(WithTokenGenerator(generatorFunc))...))
 
 		n.registerEndpoint(ctx, nse, nseClone, entry.NetworkServiceEndpointRegistryClient)
 	})

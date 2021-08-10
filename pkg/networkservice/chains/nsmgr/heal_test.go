@@ -250,6 +250,9 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 
 		domain.Nodes[nodeNum].NSMgr.Cancel()
 	} else {
+		domain.Nodes[nodeNum].NSMgr.Cancel()
+		// We need to be sure that Client has noticed NSMgr death
+		time.Sleep(time.Second)
 		domain.Nodes[nodeNum].NSMgr.Restart()
 	}
 

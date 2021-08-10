@@ -77,9 +77,9 @@ func TestHeal_CloseChain(t *testing.T) {
 			heal.NewServer(ctx,
 				heal.WithOnHeal(serverChain)),
 			clienturl.NewServer(remoteURL),
-			connect.NewServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+			connect.NewServer(ctx, func(ctx context.Context, cc *grpc.ClientConn) networkservice.NetworkServiceClient {
 				return next.NewNetworkServiceClient(
-					heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc)),
+					heal.NewClient(ctx, cc),
 					networkservice.NewNetworkServiceClient(cc),
 				)
 			}, connect.WithDialOptions(grpc.WithInsecure())),

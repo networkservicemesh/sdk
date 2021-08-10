@@ -91,7 +91,7 @@ func TestConnect_CancelDuringRequest(t *testing.T) {
 			newPassTroughClient(service1Name),
 			kernel.NewClient()),
 	)
-	clientFactory := func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+	clientFactory := func(ctx context.Context, cc *grpc.ClientConn) networkservice.NetworkServiceClient {
 		counter.Add(1)
 		return standardClientFactory(ctx, cc)
 	}

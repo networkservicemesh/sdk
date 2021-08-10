@@ -38,7 +38,7 @@ import (
 )
 
 // ClientFactory is used to created new clients when new connection is created.
-type ClientFactory = func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient
+type ClientFactory = func(ctx context.Context, cc *grpc.ClientConn) networkservice.NetworkServiceClient
 
 type connectServer struct {
 	ctx               context.Context

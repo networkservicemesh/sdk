@@ -23,17 +23,15 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
-
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"google.golang.org/grpc/connectivity"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/cancelctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 )
-
-const maxMonitorAttempts = 10
 
 type connectionInfo struct {
 	cond   *sync.Cond
@@ -43,7 +41,7 @@ type connectionInfo struct {
 
 type healClient struct {
 	ctx      context.Context
-	cc       networkservice.MonitorConnectionClient
+	cc       *grpc.ClientConn
 	initOnce sync.Once
 	initErr  error
 	conns    connectionInfoMap
@@ -53,7 +51,7 @@ type healClient struct {
 //             and calls heal server in case connection breaks if heal server is present in the chain
 //             - ctx - context for the lifecycle of the *Client* itself.  Cancel when discarding the client.
 //             - cc  - MonitorConnectionClient that will be used to watch for connection confirmations and breakages.
-func NewClient(ctx context.Context, cc networkservice.MonitorConnectionClient) networkservice.NetworkServiceClient {
+func NewClient(ctx context.Context, cc *grpc.ClientConn) networkservice.NetworkServiceClient {
 	return &healClient{
 		ctx: ctx,
 		cc:  cc,
@@ -63,7 +61,7 @@ func NewClient(ctx context.Context, cc networkservice.MonitorConnectionClient) n
 func (u *healClient) init(ctx context.Context, conn *networkservice.Connection) error {
 	currentName := conn.GetCurrentPathSegment().GetName()
 	createMonitorStream := func() (networkservice.MonitorConnection_MonitorConnectionsClient, error) {
-		return u.cc.MonitorConnections(u.ctx, &networkservice.MonitorScopeSelector{
+		return networkservice.NewMonitorConnectionClient(u.cc).MonitorConnections(u.ctx, &networkservice.MonitorScopeSelector{
 			PathSegments: []*networkservice.PathSegment{{Name: currentName}, {Name: ""}},
 		}, grpc.WaitForReady(false))
 	}
@@ -194,23 +192,21 @@ func (u *healClient) listenToConnectionChanges(
 	healConnection, restoreConnection requestHealFuncType,
 ) {
 	clockTime := clock.FromContext(u.ctx)
-	for attempts := 0; attempts < maxMonitorAttempts; {
+	for u.cc.GetState() <= connectivity.Ready {
 		event, err := monitorStream.Recv()
 		if err != nil {
-			for attempts++; attempts < maxMonitorAttempts; {
+			for err != nil && u.cc.GetState() <= connectivity.Ready {
 				select {
 				case <-u.ctx.Done():
 					return
 				case <-clockTime.After(100 * time.Millisecond):
 					if monitorStream, err = createMonitorStream(); err != nil {
-						attempts++
 						continue
 					}
 				}
 			}
 			continue
 		}
-		attempts = 0
 
 		for _, eventConn := range event.GetConnections() {
 			connID := eventConn.GetPrevPathSegment().GetId()

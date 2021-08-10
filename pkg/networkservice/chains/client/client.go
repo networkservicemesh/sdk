@@ -116,12 +116,12 @@ func NewClient(ctx context.Context, connectTo *url.URL, clientOpts ...Option) ne
 					heal.WithOnRestore(heal.OnRestoreRestore),
 					heal.WithRestoreTimeout(time.Minute)),
 				clienturl.NewServer(connectTo),
-				connect.NewServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+				connect.NewServer(ctx, func(ctx context.Context, cc *grpc.ClientConn) networkservice.NetworkServiceClient {
 					return chain.NewNetworkServiceClient(
 						append(
 							opts.additionalFunctionality,
 							opts.authorizeClient,
-							heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc)),
+							heal.NewClient(ctx, cc),
 							networkservice.NewNetworkServiceClient(cc),
 						)...,
 					)
@@ -136,7 +136,7 @@ func NewClient(ctx context.Context, connectTo *url.URL, clientOpts ...Option) ne
 
 // NewClientFactory - returns a (3.) case func(cc grpc.ClientConnInterface) NSM client factory.
 func NewClientFactory(clientOpts ...Option) connect.ClientFactory {
-	return func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+	return func(ctx context.Context, cc *grpc.ClientConn) networkservice.NetworkServiceClient {
 		var rv networkservice.NetworkServiceClient
 		var opts = &clientOptions{
 			name:            "client-" + uuid.New().String(),
@@ -153,7 +153,7 @@ func NewClientFactory(clientOpts ...Option) connect.ClientFactory {
 					refresh.NewClient(ctx),
 					metadata.NewClient(),
 					// TODO: move back to the end of the chain when `begin` chain element will be ready
-					heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc)),
+					heal.NewClient(ctx, cc),
 				}, opts.additionalFunctionality...),
 				opts.authorizeClient,
 				networkservice.NewNetworkServiceClient(cc),
