@@ -30,17 +30,17 @@ import (
 
 // Server is a server type for counting Requests/Closes
 type Server struct {
-	Requests, Closes int32
-	requests, closes map[string]int32
-	mu               sync.Mutex
+	totalRequests, TotalCloses int32
+	requests, closes           map[string]int32
+	mu                         sync.Mutex
 }
 
-// Request performs request and increments Requests
+// Request performs request and increments requests count
 func (s *Server) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	atomic.AddInt32(&s.Requests, 1)
+	atomic.AddInt32(&s.totalRequests, 1)
 	if s.requests == nil {
 		s.requests = make(map[string]int32)
 	}
@@ -49,18 +49,28 @@ func (s *Server) Request(ctx context.Context, request *networkservice.NetworkSer
 	return next.Server(ctx).Request(ctx, request)
 }
 
-// Close performs close and increments Closes
+// Close performs close and increments closes count
 func (s *Server) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	atomic.AddInt32(&s.Closes, 1)
+	atomic.AddInt32(&s.TotalCloses, 1)
 	if s.closes == nil {
 		s.closes = make(map[string]int32)
 	}
 	s.closes[connection.GetId()]++
 
 	return next.Server(ctx).Close(ctx, connection)
+}
+
+// Requests returns requests count
+func (s *Server) Requests() int {
+	return int(atomic.LoadInt32(&s.totalRequests))
+}
+
+// Closes returns closes count
+func (s *Server) Closes() int {
+	return int(atomic.LoadInt32(&s.TotalCloses))
 }
 
 // UniqueRequests returns unique requests count

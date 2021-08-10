@@ -19,7 +19,6 @@ package interpose_test
 import (
 	"context"
 	"net/url"
-	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -97,7 +96,7 @@ func TestInterposeServer(t *testing.T) {
 
 	conn, err := client.Request(context.TODO(), request)
 	require.NoError(t, err)
-	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Requests))
+	require.Equal(t, 1, counter.Requests())
 
 	// 2. Refresh
 
@@ -106,7 +105,7 @@ func TestInterposeServer(t *testing.T) {
 
 	conn, err = client.Request(context.TODO(), request)
 	require.NoError(t, err)
-	require.Equal(t, int32(2), atomic.LoadInt32(&counter.Requests))
+	require.Equal(t, 2, counter.Requests())
 
 	// 3. Close
 
@@ -114,5 +113,5 @@ func TestInterposeServer(t *testing.T) {
 
 	_, err = client.Close(context.TODO(), conn)
 	require.NoError(t, err)
-	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Closes))
+	require.Equal(t, 1, counter.Closes())
 }

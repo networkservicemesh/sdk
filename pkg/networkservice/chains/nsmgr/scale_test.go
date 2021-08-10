@@ -108,14 +108,14 @@ func TestCreateEndpointDuringRequest(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.True(t, flag.Load())
-	require.Equal(t, int32(1), requestCounter.Requests)
+	require.Equal(t, 1, requestCounter.Requests())
 
 	// check refresh
 	_, err = nsc.Request(ctx, &networkservice.NetworkServiceRequest{
 		Connection: conn,
 	})
 	require.NoError(t, err)
-	require.Equal(t, int32(2), requestCounter.Requests)
+	require.Equal(t, 2, requestCounter.Requests())
 
 	// check new request
 	_, err = nsc.Request(ctx, &networkservice.NetworkServiceRequest{
@@ -124,7 +124,7 @@ func TestCreateEndpointDuringRequest(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	require.Equal(t, int32(3), requestCounter.Requests)
+	require.Equal(t, 3, requestCounter.Requests())
 }
 
 type nseMaker struct {

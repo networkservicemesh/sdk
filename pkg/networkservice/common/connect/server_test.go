@@ -22,7 +22,6 @@ import (
 	"net/url"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -265,23 +264,23 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 	wg.Wait()
 	wg.Add(parallelCount)
 
-	assert.Equal(t, int32(parallelCount), atomic.LoadInt32(&serverClient.Requests))
-	assert.Equal(t, int32(0), atomic.LoadInt32(&serverClient.Closes))
-	assert.Equal(t, int32(parallelCount), atomic.LoadInt32(&serverA.Requests))
-	assert.Equal(t, int32(0), atomic.LoadInt32(&serverA.Closes))
-	assert.Equal(t, int32(parallelCount), atomic.LoadInt32(&serverNext.Requests))
-	assert.Equal(t, int32(0), atomic.LoadInt32(&serverNext.Closes))
+	assert.Equal(t, parallelCount, serverClient.Requests())
+	assert.Equal(t, 0, serverClient.Closes())
+	assert.Equal(t, parallelCount, serverA.Requests())
+	assert.Equal(t, 0, serverA.Closes())
+	assert.Equal(t, parallelCount, serverNext.Requests())
+	assert.Equal(t, 0, serverNext.Closes())
 
 	// IMPORTANT: now feel free to use `require` statements.
 	barrier.Done()
 	wg.Wait()
 
-	require.Equal(t, int32(2*parallelCount), atomic.LoadInt32(&serverClient.Requests))
-	require.Equal(t, int32(parallelCount), atomic.LoadInt32(&serverClient.Closes))
-	require.Equal(t, int32(2*parallelCount), atomic.LoadInt32(&serverA.Requests))
-	require.Equal(t, int32(parallelCount), atomic.LoadInt32(&serverA.Closes))
-	require.Equal(t, int32(2*parallelCount), atomic.LoadInt32(&serverNext.Requests))
-	require.Equal(t, int32(parallelCount), atomic.LoadInt32(&serverNext.Closes))
+	require.Equal(t, 2*parallelCount, serverClient.Requests())
+	require.Equal(t, parallelCount, serverClient.Closes())
+	require.Equal(t, 2*parallelCount, serverA.Requests())
+	require.Equal(t, parallelCount, serverA.Closes())
+	require.Equal(t, 2*parallelCount, serverNext.Requests())
+	require.Equal(t, parallelCount, serverNext.Closes())
 }
 
 func TestConnectServer_RequestFail(t *testing.T) {

@@ -31,17 +31,17 @@ import (
 
 // Client is a client type for counting Requests/Closes
 type Client struct {
-	Requests, Closes int32
-	requests, closes map[string]int32
-	mu               sync.Mutex
+	totalRequests, totalCloses int32
+	requests, closes           map[string]int32
+	mu                         sync.Mutex
 }
 
-// Request performs request and increments Requests
+// Request performs request and increments requests count
 func (c *Client) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	atomic.AddInt32(&c.Requests, 1)
+	atomic.AddInt32(&c.totalRequests, 1)
 	if c.requests == nil {
 		c.requests = make(map[string]int32)
 	}
@@ -50,18 +50,28 @@ func (c *Client) Request(ctx context.Context, request *networkservice.NetworkSer
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
 
-// Close performs close and increments Closes
+// Close performs close and increments closes count
 func (c *Client) Close(ctx context.Context, connection *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	atomic.AddInt32(&c.Closes, 1)
+	atomic.AddInt32(&c.totalCloses, 1)
 	if c.closes == nil {
 		c.closes = make(map[string]int32)
 	}
 	c.closes[connection.GetId()]++
 
 	return next.Client(ctx).Close(ctx, connection, opts...)
+}
+
+// Requests returns requests count
+func (c *Client) Requests() int {
+	return int(atomic.LoadInt32(&c.totalRequests))
+}
+
+// Closes returns closes count
+func (c *Client) Closes() int {
+	return int(atomic.LoadInt32(&c.totalCloses))
 }
 
 // UniqueRequests returns unique requests count

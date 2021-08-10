@@ -22,7 +22,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -226,7 +225,7 @@ func Test_Local_NoURLUsecase(t *testing.T) {
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Requests))
+	require.Equal(t, 1, counter.Requests())
 	require.Equal(t, 5, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client
@@ -237,12 +236,12 @@ func Test_Local_NoURLUsecase(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn2)
 	require.Equal(t, 5, len(conn2.Path.PathSegments))
-	require.Equal(t, int32(2), atomic.LoadInt32(&counter.Requests))
+	require.Equal(t, 2, counter.Requests())
 
 	// Close
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
-	require.Equal(t, int32(1), atomic.LoadInt32(&counter.Closes))
+	require.Equal(t, 1, counter.Closes())
 }
 
 func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {

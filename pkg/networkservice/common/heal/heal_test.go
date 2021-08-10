@@ -19,7 +19,6 @@ package heal_test
 import (
 	"context"
 	"net/url"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -101,6 +100,6 @@ func TestHeal_CloseChain(t *testing.T) {
 	remoteCancel()
 
 	require.Eventually(t, func() bool {
-		return atomic.LoadInt32(&counter.Closes) == 1
+		return counter.Closes() == 1
 	}, time.Second, 10*time.Millisecond)
 }
