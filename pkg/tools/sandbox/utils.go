@@ -21,15 +21,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/edwarnicke/grpcfd"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
 
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/opentracing"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -85,22 +82,6 @@ func GenerateExpiringToken(duration time.Duration) token.GeneratorFunc {
 	return func(_ credentials.AuthInfo) (tokenValue string, expireTime time.Time, err error) {
 		return value, time.Now().Add(duration).Local(), nil
 	}
-}
-
-// DefaultDialOptions returns default dial options for sandbox testing
-func DefaultDialOptions(genTokenFunc token.GeneratorFunc) []grpc.DialOption {
-	return append([]grpc.DialOption{
-		grpc.WithTransportCredentials(grpcfdTransportCredentials(insecure.NewCredentials())),
-		grpc.WithBlock(),
-		grpc.WithDefaultCallOptions(
-			grpc.WaitForReady(true),
-			grpc.PerRPCCredentials(token.NewPerRPCCredentials(genTokenFunc)),
-		),
-		grpcfd.WithChainStreamInterceptor(),
-		grpcfd.WithChainUnaryInterceptor(),
-		WithInsecureRPCCredentials(),
-		WithInsecureStreamRPCCredentials(),
-	}, opentracing.WithTracingDial()...)
 }
 
 // UniqueName creates unique name with the given prefix

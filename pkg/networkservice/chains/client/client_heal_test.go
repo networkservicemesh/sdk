@@ -43,7 +43,7 @@ func TestClientHeal(t *testing.T) {
 
 	nsc := client.NewClient(ctx,
 		serverURL,
-		client.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...),
+		client.WithDialOptions(sandbox.DialOptions()...),
 		client.WithDialTimeout(time.Second),
 	)
 	_, err := nsc.Request(ctx, &networkservice.NetworkServiceRequest{})

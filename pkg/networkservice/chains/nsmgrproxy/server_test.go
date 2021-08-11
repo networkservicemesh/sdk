@@ -578,7 +578,7 @@ func Test_Interdomain_PassThroughUsecase(t *testing.T) {
 							kernelmech.NewClient(),
 						)),
 						connect.WithDialTimeout(sandbox.DialTimeout),
-						connect.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...),
+						connect.WithDialOptions(sandbox.DialOptions()...),
 					),
 				),
 			}

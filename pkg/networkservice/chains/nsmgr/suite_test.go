@@ -162,7 +162,7 @@ func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 	require.NoError(t, err)
 
 	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx, sandbox.CloneURL(s.domain.Nodes[0].NSMgr.URL),
-		registryclient.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...))
+		registryclient.WithDialOptions(sandbox.DialOptions()...))
 
 	nseReg, err = nseRegistryClient.Register(ctx, nseReg)
 	require.NoError(t, err)
@@ -789,7 +789,7 @@ func additionalFunctionalityChain(ctx context.Context, clientURL *url.URL, clien
 					),
 				),
 				connect.WithDialTimeout(sandbox.DialTimeout),
-				connect.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...),
+				connect.WithDialOptions(sandbox.DialOptions()...),
 			),
 		),
 	}
