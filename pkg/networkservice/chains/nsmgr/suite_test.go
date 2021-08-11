@@ -340,7 +340,10 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	refreshRequest := request.Clone()
 	refreshRequest.Connection = conn.Clone()
 
-	_, err = nsc.Request(reqCtx, refreshRequest)
+	refreshReqCtx, refreshReqCancel := context.WithTimeout(ctx, time.Second)
+	defer refreshReqCancel()
+
+	_, err = nsc.Request(refreshReqCtx, refreshRequest)
 	require.Error(t, err)
 	require.NoError(t, reqCtx.Err())
 
