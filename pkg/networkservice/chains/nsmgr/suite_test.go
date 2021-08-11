@@ -331,7 +331,7 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 
 	request := defaultRequest(nsReg.Name)
 
-	reqCtx, reqCancel := context.WithTimeout(ctx, time.Second)
+	reqCtx, reqCancel := context.WithTimeout(ctx, 2*time.Second)
 	defer reqCancel()
 
 	conn, err := nsc.Request(reqCtx, request.Clone())
@@ -346,10 +346,7 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	refreshRequest := request.Clone()
 	refreshRequest.Connection = conn.Clone()
 
-	refreshReqCtx, refreshReqCancel := context.WithTimeout(ctx, time.Second)
-	defer refreshReqCancel()
-
-	_, err = nsc.Request(refreshReqCtx, refreshRequest)
+	_, err = nsc.Request(ctx, refreshRequest)
 	require.Error(t, err)
 	require.NoError(t, reqCtx.Err())
 

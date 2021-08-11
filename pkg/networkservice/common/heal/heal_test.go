@@ -101,5 +101,5 @@ func TestHeal_CloseChain(t *testing.T) {
 
 	require.Eventually(t, func() bool {
 		return counter.Closes() == 1
-	}, time.Second, 10*time.Millisecond)
+	}, 3*time.Second, 10*time.Millisecond)
 }
