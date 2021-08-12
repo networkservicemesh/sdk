@@ -123,7 +123,7 @@ func TestClient_StopHealingOnFailure(t *testing.T) {
 				return client.NewClient(ctx,
 					serverURL,
 					append([]client.Option{
-						client.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...),
+						client.WithDialOptions(sandbox.DialOptions()...),
 						client.WithDialTimeout(time.Second),
 					}, sample.optsSupplier(counter)...)...,
 				)
@@ -171,7 +171,7 @@ func TestClientFactory_StopHealingOnFailure(t *testing.T) {
 							append([]client.Option{
 								client.WithName("name"),
 							}, sample.opts...)...),
-							connect.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...),
+							connect.WithDialOptions(sandbox.DialOptions()...),
 							connect.WithDialTimeout(time.Second),
 						),
 					),
@@ -179,7 +179,7 @@ func TestClientFactory_StopHealingOnFailure(t *testing.T) {
 
 				return client.NewClient(ctx,
 					clientServerURL,
-					client.WithDialOptions(sandbox.DefaultDialOptions(sandbox.GenerateTestToken)...),
+					client.WithDialOptions(sandbox.DialOptions()...),
 					client.WithDialTimeout(time.Second),
 				)
 			})
