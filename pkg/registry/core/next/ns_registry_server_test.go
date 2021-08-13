@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -75,10 +75,10 @@ func emptyNSRegistryServer() registry.NetworkServiceRegistryServer {
 
 func TestNewNetworkServiceRegistryServerShouldNotPanic(t *testing.T) {
 	assert.NotPanics(t, func() {
-		_, _ = next.NewNetworkServiceRegistryServer().Register(context.Context(nil), nil)
+		_, _ = next.NewNetworkServiceRegistryServer().Register(context.Background(), nil)
 		_, _ = next.NewWrappedNetworkServiceRegistryServer(func(server registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
 			return server
-		}).Register(context.Context(nil), nil)
+		}).Register(context.Background(), nil)
 	})
 }
 
@@ -97,8 +97,9 @@ func TestNSServerBranches(t *testing.T) {
 		{visitNSRegistryServer(), adapters.NetworkServiceClientToServer(emptyNSRegistryClient()), visitNSRegistryServer()},
 		{visitNSRegistryServer(), adapters.NetworkServiceClientToServer(visitNSRegistryClient()), emptyNSRegistryServer()},
 		{adapters.NetworkServiceClientToServer(visitNSRegistryClient()), adapters.NetworkServiceClientToServer(emptyNSRegistryClient()), visitNSRegistryServer()},
+		{next.NewNetworkServiceRegistryServer(), next.NewNetworkServiceRegistryServer(visitNSRegistryServer(), next.NewNetworkServiceRegistryServer()), visitNSRegistryServer()},
 	}
-	expects := []int{1, 2, 3, 0, 1, 2, 2, 2, 3, 3, 1, 2, 1}
+	expects := []int{1, 2, 3, 0, 1, 2, 2, 2, 3, 3, 1, 2, 1, 2}
 	for i, sample := range servers {
 		s := next.NewNetworkServiceRegistryServer(sample...)
 
@@ -168,10 +169,10 @@ func emptyNSRegistryClient() registry.NetworkServiceRegistryClient {
 
 func TestNewNetworkServiceRegistryClientShouldNotPanic(t *testing.T) {
 	assert.NotPanics(t, func() {
-		_, _ = next.NewNetworkServiceRegistryClient().Register(context.Context(nil), nil)
+		_, _ = next.NewNetworkServiceRegistryClient().Register(context.Background(), nil)
 		_, _ = next.NewWrappedNetworkServiceRegistryClient(func(client registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
 			return client
-		}).Register(context.Context(nil), nil)
+		}).Register(context.Background(), nil)
 	})
 }
 
@@ -235,8 +236,9 @@ func TestNetworkServiceRegistryClientBranches(t *testing.T) {
 		{visitNSRegistryClient(), adapters.NetworkServiceServerToClient(emptyNSRegistryServer()), visitNSRegistryClient()},
 		{visitNSRegistryClient(), adapters.NetworkServiceServerToClient(visitNSRegistryServer()), emptyNSRegistryClient()},
 		{adapters.NetworkServiceServerToClient(visitNSRegistryServer()), adapters.NetworkServiceServerToClient(emptyNSRegistryServer()), visitNSRegistryClient()},
+		{next.NewNetworkServiceRegistryClient(), next.NewNetworkServiceRegistryClient(visitNSRegistryClient(), next.NewNetworkServiceRegistryClient()), visitNSRegistryClient()},
 	}
-	expects := []int{1, 2, 3, 0, 1, 2, 2, 2, 3, 3, 1, 2, 1}
+	expects := []int{1, 2, 3, 0, 1, 2, 2, 2, 3, 3, 1, 2, 1, 2}
 	for i, sample := range samples {
 		msg := fmt.Sprintf("sample index: %v", i)
 		s := next.NewNetworkServiceRegistryClient(sample...)

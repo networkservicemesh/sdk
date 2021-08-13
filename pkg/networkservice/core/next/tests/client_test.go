@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -30,10 +30,10 @@ import (
 
 func TestNewNetworkServiceClientShouldNotPanic(t *testing.T) {
 	assert.NotPanics(t, func() {
-		_, _ = next.NewNetworkServiceClient().Request(context.Context(nil), nil)
+		_, _ = next.NewNetworkServiceClient().Request(context.Background(), nil)
 		_, _ = next.NewWrappedNetworkServiceClient(func(client networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 			return client
-		}).Request(context.Context(nil), nil)
+		}).Request(context.Background(), nil)
 	})
 }
 
@@ -53,8 +53,9 @@ func TestClientBranches(t *testing.T) {
 		{visitClient(), adapters.NewServerToClient(visitServer()), emptyClient()},
 		{visitClient(), next.NewNetworkServiceClient(next.NewNetworkServiceClient(visitClient())), visitClient()},
 		{visitClient(), next.NewNetworkServiceClient(next.NewNetworkServiceClient(emptyClient())), visitClient()},
+		{next.NewNetworkServiceClient(), next.NewNetworkServiceClient(visitClient(), next.NewNetworkServiceClient()), visitClient()},
 	}
-	expects := []int{1, 2, 3, 0, 1, 2, 1, 2, 3, 3, 1, 2, 3, 1}
+	expects := []int{1, 2, 3, 0, 1, 2, 1, 2, 3, 3, 1, 2, 3, 1, 2}
 	for i, sample := range samples {
 		msg := fmt.Sprintf("sample index: %v", i)
 		ctx := visit(context.Background())

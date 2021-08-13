@@ -279,3 +279,6 @@ issues:
     - path: pkg/networkservice/chains/nsmgrproxy/server_test.go
       linters:
         - funlen
+    - path: pkg/networkservice/core/next/.*_test.go
+      linters:
+        - dupl
