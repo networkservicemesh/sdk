@@ -133,6 +133,7 @@ func TestClient_StopHealingOnFailure(t *testing.T) {
 }
 
 func TestClientFactory_StopHealingOnFailure(t *testing.T) {
+	t.Skip("need `begin` chain element to fix heal client")
 	var samples = []struct {
 		name string
 		opts []client.Option
