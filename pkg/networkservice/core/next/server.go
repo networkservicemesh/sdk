@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
-//
 // Copyright (c) 2020 Cisco Systems, Inc.
+//
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -40,9 +40,6 @@ type ServerChainer func(...networkservice.NetworkServiceServer) networkservice.N
 
 // NewWrappedNetworkServiceServer - chains together the servers provides with the wrapper wrapped around each one in turn.
 func NewWrappedNetworkServiceServer(wrapper ServerWrapper, servers ...networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
-	if len(servers) == 0 {
-		return &tailServer{}
-	}
 	rv := &nextServer{servers: make([]networkservice.NetworkServiceServer, 0, len(servers))}
 	for _, s := range servers {
 		rv.servers = append(rv.servers, wrapper(s))
@@ -59,27 +56,25 @@ func NewNetworkServiceServer(servers ...networkservice.NetworkServiceServer) net
 }
 
 func (n *nextServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	nextParent := n.nextParent
-	if n.index == 0 && ctx != nil {
-		if np := Server(ctx); np != nil {
-			nextParent = np
-		}
-	}
-	if n.index+1 < len(n.servers) {
-		return n.servers[n.index].Request(withNextServer(ctx, &nextServer{nextParent: nextParent, servers: n.servers, index: n.index + 1}), request)
-	}
-	return n.servers[n.index].Request(withNextServer(ctx, nextParent), request)
+	server, ctx := n.getServerAndContext(ctx)
+	return server.Request(ctx, request)
 }
 
 func (n *nextServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	server, ctx := n.getServerAndContext(ctx)
+	return server.Close(ctx, conn)
+}
+
+func (n *nextServer) getServerAndContext(ctx context.Context) (networkservice.NetworkServiceServer, context.Context) {
 	nextParent := n.nextParent
-	if n.index == 0 && ctx != nil {
-		if np := Server(ctx); np != nil {
-			nextParent = np
+	if n.index == 0 {
+		nextParent = Server(ctx)
+		if len(n.servers) == 0 {
+			return nextParent, ctx
 		}
 	}
 	if n.index+1 < len(n.servers) {
-		return n.servers[n.index].Close(withNextServer(ctx, &nextServer{nextParent: nextParent, servers: n.servers, index: n.index + 1}), conn)
+		return n.servers[n.index], withNextServer(ctx, &nextServer{nextParent: nextParent, servers: n.servers, index: n.index + 1})
 	}
-	return n.servers[n.index].Close(withNextServer(ctx, nextParent), conn)
+	return n.servers[n.index], withNextServer(ctx, nextParent)
 }

@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
-//
 // Copyright (c) 2020 Cisco Systems, Inc.
+//
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -41,9 +41,6 @@ type ClientChainer func(...networkservice.NetworkServiceClient) networkservice.N
 
 // NewWrappedNetworkServiceClient chains together clients with wrapper wrapped around each one
 func NewWrappedNetworkServiceClient(wrapper ClientWrapper, clients ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
-	if len(clients) == 0 {
-		return &tailClient{}
-	}
 	rv := &nextClient{clients: make([]networkservice.NetworkServiceClient, 0, len(clients))}
 	for _, c := range clients {
 		rv.clients = append(rv.clients, wrapper(c))
@@ -59,27 +56,25 @@ func NewNetworkServiceClient(clients ...networkservice.NetworkServiceClient) net
 }
 
 func (n *nextClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	nextParent := n.nextParent
-	if n.index == 0 && ctx != nil {
-		if np := Client(ctx); np != nil {
-			nextParent = np
-		}
-	}
-	if n.index+1 < len(n.clients) {
-		return n.clients[n.index].Request(withNextClient(ctx, &nextClient{nextParent: nextParent, clients: n.clients, index: n.index + 1}), request, opts...)
-	}
-	return n.clients[n.index].Request(withNextClient(ctx, nextParent), request, opts...)
+	client, ctx := n.getClientAndContext(ctx)
+	return client.Request(ctx, request, opts...)
 }
 
 func (n *nextClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	client, ctx := n.getClientAndContext(ctx)
+	return client.Close(ctx, conn, opts...)
+}
+
+func (n *nextClient) getClientAndContext(ctx context.Context) (networkservice.NetworkServiceClient, context.Context) {
 	nextParent := n.nextParent
-	if n.index == 0 && ctx != nil {
-		if np := Client(ctx); np != nil {
-			nextParent = np
+	if n.index == 0 {
+		nextParent = Client(ctx)
+		if len(n.clients) == 0 {
+			return nextParent, ctx
 		}
 	}
 	if n.index+1 < len(n.clients) {
-		return n.clients[n.index].Close(withNextClient(ctx, &nextClient{nextParent: nextParent, clients: n.clients, index: n.index + 1}), conn, opts...)
+		return n.clients[n.index], withNextClient(ctx, &nextClient{nextParent: nextParent, clients: n.clients, index: n.index + 1})
 	}
-	return n.clients[n.index].Close(withNextClient(ctx, nextParent), conn, opts...)
+	return n.clients[n.index], withNextClient(ctx, nextParent)
 }

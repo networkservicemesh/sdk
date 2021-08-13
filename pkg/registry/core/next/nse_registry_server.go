@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -38,64 +38,8 @@ type nextNetworkServiceEndpointRegistryServer struct {
 	nextParent registry.NetworkServiceEndpointRegistryServer
 }
 
-func (n *nextNetworkServiceEndpointRegistryServer) Register(ctx context.Context, request *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	nextParent := n.nextParent
-	if n.index == 0 && ctx != nil {
-		if nextServer := NetworkServiceEndpointRegistryServer(ctx); nextServer != nil {
-			nextParent = nextServer
-		}
-	}
-	if n.index+1 < len(n.servers) {
-		return n.servers[n.index].Register(withNextNSERegistryServer(ctx, &nextNetworkServiceEndpointRegistryServer{nextParent: nextParent, servers: n.servers, index: n.index + 1}), request)
-	}
-	return n.servers[n.index].Register(withNextNSERegistryServer(ctx, nextParent), request)
-}
-
-func (n *nextNetworkServiceEndpointRegistryServer) Find(query *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
-	nextParent := n.nextParent
-	if n.index == 0 && s.Context() != nil {
-		if nextServer := NetworkServiceEndpointRegistryServer(s.Context()); nextServer != nil {
-			nextParent = nextServer
-		}
-	}
-	if n.index+1 < len(n.servers) {
-		return n.servers[n.index].Find(query,
-			streamcontext.NetworkServiceEndpointRegistryFindServer(
-				withNextNSERegistryServer(
-					s.Context(),
-					&nextNetworkServiceEndpointRegistryServer{nextParent: nextParent, servers: n.servers, index: n.index + 1}),
-				s,
-			),
-		)
-	}
-	return n.servers[n.index].Find(query,
-		streamcontext.NetworkServiceEndpointRegistryFindServer(
-			withNextNSERegistryServer(
-				s.Context(),
-				nextParent),
-			s,
-		),
-	)
-}
-
-func (n *nextNetworkServiceEndpointRegistryServer) Unregister(ctx context.Context, request *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	nextParent := n.nextParent
-	if n.index == 0 && ctx != nil {
-		if nextServer := NetworkServiceEndpointRegistryServer(ctx); nextServer != nil {
-			nextParent = nextServer
-		}
-	}
-	if n.index+1 < len(n.servers) {
-		return n.servers[n.index].Unregister(withNextNSERegistryServer(ctx, &nextNetworkServiceEndpointRegistryServer{nextParent: nextParent, servers: n.servers, index: n.index + 1}), request)
-	}
-	return n.servers[n.index].Unregister(withNextNSERegistryServer(ctx, nextParent), request)
-}
-
 // NewWrappedNetworkServiceEndpointRegistryServer - creates a chain of servers with each one wrapped in wrapper
 func NewWrappedNetworkServiceEndpointRegistryServer(wrapper NetworkServiceEndpointRegistryServerWrapper, servers ...registry.NetworkServiceEndpointRegistryServer) registry.NetworkServiceEndpointRegistryServer {
-	if len(servers) == 0 {
-		return &tailNetworkServiceEndpointRegistryServer{}
-	}
 	rv := &nextNetworkServiceEndpointRegistryServer{servers: make([]registry.NetworkServiceEndpointRegistryServer, 0, len(servers))}
 	for _, s := range servers {
 		rv.servers = append(rv.servers, wrapper(s))
@@ -108,4 +52,33 @@ func NewNetworkServiceEndpointRegistryServer(servers ...registry.NetworkServiceE
 	return NewWrappedNetworkServiceEndpointRegistryServer(func(server registry.NetworkServiceEndpointRegistryServer) registry.NetworkServiceEndpointRegistryServer {
 		return server
 	}, servers...)
+}
+
+func (n *nextNetworkServiceEndpointRegistryServer) Register(ctx context.Context, request *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	server, ctx := n.getServerAndContext(ctx)
+	return server.Register(ctx, request)
+}
+
+func (n *nextNetworkServiceEndpointRegistryServer) Find(query *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
+	server, ctx := n.getServerAndContext(s.Context())
+	return server.Find(query, streamcontext.NetworkServiceEndpointRegistryFindServer(ctx, s))
+}
+
+func (n *nextNetworkServiceEndpointRegistryServer) Unregister(ctx context.Context, request *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	server, ctx := n.getServerAndContext(ctx)
+	return server.Unregister(ctx, request)
+}
+
+func (n *nextNetworkServiceEndpointRegistryServer) getServerAndContext(ctx context.Context) (registry.NetworkServiceEndpointRegistryServer, context.Context) {
+	nextParent := n.nextParent
+	if n.index == 0 {
+		nextParent = NetworkServiceEndpointRegistryServer(ctx)
+		if len(n.servers) == 0 {
+			return nextParent, ctx
+		}
+	}
+	if n.index+1 < len(n.servers) {
+		return n.servers[n.index], withNextNSERegistryServer(ctx, &nextNetworkServiceEndpointRegistryServer{nextParent: nextParent, servers: n.servers, index: n.index + 1})
+	}
+	return n.servers[n.index], withNextNSERegistryServer(ctx, nextParent)
 }

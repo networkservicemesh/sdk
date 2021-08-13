@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
-//
 // Copyright (c) 2020 Cisco Systems, Inc.
+//
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -32,10 +32,10 @@ import (
 
 func TestNewNetworkServiceServerShouldNotPanic(t *testing.T) {
 	assert.NotPanics(t, func() {
-		_, _ = next.NewNetworkServiceServer().Request(context.Context(nil), nil)
+		_, _ = next.NewNetworkServiceServer().Request(context.Background(), nil)
 		_, _ = next.NewWrappedNetworkServiceServer(func(server networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
 			return server
-		}).Request(context.Context(nil), nil)
+		}).Request(context.Background(), nil)
 	})
 }
 
@@ -55,8 +55,9 @@ func TestServerBranches(t *testing.T) {
 		{visitServer(), adapters.NewClientToServer(visitClient()), emptyServer()},
 		{visitServer(), next.NewNetworkServiceServer(next.NewNetworkServiceServer(visitServer())), visitServer()},
 		{visitServer(), next.NewNetworkServiceServer(next.NewNetworkServiceServer(emptyServer())), visitServer()},
+		{next.NewNetworkServiceServer(), next.NewNetworkServiceServer(visitServer(), next.NewNetworkServiceServer()), visitServer()},
 	}
-	expects := []int{1, 2, 3, 0, 1, 2, 1, 2, 3, 3, 1, 2, 3, 1}
+	expects := []int{1, 2, 3, 0, 1, 2, 1, 2, 3, 3, 1, 2, 3, 1, 2}
 	for i, sample := range servers {
 		ctx := visit(context.Background())
 		s := next.NewNetworkServiceServer(sample...)

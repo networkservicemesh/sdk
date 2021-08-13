@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -75,10 +75,10 @@ func emptyNSERegistryServer() registry.NetworkServiceEndpointRegistryServer {
 
 func TestNewNetworkServiceEndpointRegistryServerShouldNotPanic(t *testing.T) {
 	assert.NotPanics(t, func() {
-		_, _ = next.NewNetworkServiceEndpointRegistryServer().Register(context.Context(nil), nil)
+		_, _ = next.NewNetworkServiceEndpointRegistryServer().Register(context.Background(), nil)
 		_, _ = next.NewWrappedNetworkServiceEndpointRegistryServer(func(server registry.NetworkServiceEndpointRegistryServer) registry.NetworkServiceEndpointRegistryServer {
 			return server
-		}).Register(context.Context(nil), nil)
+		}).Register(context.Background(), nil)
 	})
 }
 
@@ -97,8 +97,9 @@ func TestNSEServerBranches(t *testing.T) {
 		{visitNSERegistryServer(), adapters.NetworkServiceEndpointClientToServer(emptyNSERegistryClient()), visitNSERegistryServer()},
 		{visitNSERegistryServer(), adapters.NetworkServiceEndpointClientToServer(visitNSERegistryClient()), emptyNSERegistryServer()},
 		{adapters.NetworkServiceEndpointClientToServer(visitNSERegistryClient()), adapters.NetworkServiceEndpointClientToServer(emptyNSERegistryClient()), visitNSERegistryServer()},
+		{next.NewNetworkServiceEndpointRegistryServer(), next.NewNetworkServiceEndpointRegistryServer(visitNSERegistryServer(), next.NewNetworkServiceEndpointRegistryServer()), visitNSERegistryServer()},
 	}
-	expects := []int{1, 2, 3, 0, 1, 2, 2, 2, 3, 3, 1, 2, 1}
+	expects := []int{1, 2, 3, 0, 1, 2, 2, 2, 3, 3, 1, 2, 1, 2}
 	for i, sample := range servers {
 		s := next.NewNetworkServiceEndpointRegistryServer(sample...)
 
@@ -168,10 +169,10 @@ func emptyNSERegistryClient() registry.NetworkServiceEndpointRegistryClient {
 
 func TestNewNetworkServiceEndpointRegistryClientShouldNotPanic(t *testing.T) {
 	assert.NotPanics(t, func() {
-		_, _ = next.NewNetworkServiceEndpointRegistryClient().Register(context.Context(nil), nil)
+		_, _ = next.NewNetworkServiceEndpointRegistryClient().Register(context.Background(), nil)
 		_, _ = next.NewWrappedNetworkServiceEndpointRegistryClient(func(client registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceEndpointRegistryClient {
 			return client
-		}).Register(context.Context(nil), nil)
+		}).Register(context.Background(), nil)
 	})
 }
 
@@ -190,8 +191,9 @@ func TestNetworkServiceEndpointRegistryClientBranches(t *testing.T) {
 		{visitNSERegistryClient(), adapters.NetworkServiceEndpointServerToClient(emptyNSERegistryServer()), visitNSERegistryClient()},
 		{visitNSERegistryClient(), adapters.NetworkServiceEndpointServerToClient(visitNSERegistryServer()), emptyNSERegistryClient()},
 		{adapters.NetworkServiceEndpointServerToClient(visitNSERegistryServer()), adapters.NetworkServiceEndpointServerToClient(emptyNSERegistryServer()), visitNSERegistryClient()},
+		{next.NewNetworkServiceEndpointRegistryClient(), next.NewNetworkServiceEndpointRegistryClient(visitNSERegistryClient(), next.NewNetworkServiceEndpointRegistryClient()), visitNSERegistryClient()},
 	}
-	expects := []int{1, 2, 3, 0, 1, 2, 2, 2, 3, 3, 1, 2, 1}
+	expects := []int{1, 2, 3, 0, 1, 2, 2, 2, 3, 3, 1, 2, 1, 2}
 	for i, sample := range samples {
 		msg := fmt.Sprintf("sample index: %v", i)
 		s := next.NewNetworkServiceEndpointRegistryClient(sample...)

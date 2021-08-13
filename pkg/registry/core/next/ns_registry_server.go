@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -38,64 +38,8 @@ type nextNetworkServiceRegistryServer struct {
 	nextParent registry.NetworkServiceRegistryServer
 }
 
-func (n *nextNetworkServiceRegistryServer) Register(ctx context.Context, request *registry.NetworkService) (*registry.NetworkService, error) {
-	nextParent := n.nextParent
-	if n.index == 0 && ctx != nil {
-		if nextServer := NetworkServiceRegistryServer(ctx); nextServer != nil {
-			nextParent = nextServer
-		}
-	}
-	if n.index+1 < len(n.servers) {
-		return n.servers[n.index].Register(withNextNSRegistryServer(ctx, &nextNetworkServiceRegistryServer{nextParent: nextParent, servers: n.servers, index: n.index + 1}), request)
-	}
-	return n.servers[n.index].Register(withNextNSRegistryServer(ctx, nextParent), request)
-}
-
-func (n *nextNetworkServiceRegistryServer) Find(query *registry.NetworkServiceQuery, s registry.NetworkServiceRegistry_FindServer) error {
-	nextParent := n.nextParent
-	if n.index == 0 && s.Context() != nil {
-		if nextServer := NetworkServiceRegistryServer(s.Context()); nextServer != nil {
-			nextParent = nextServer
-		}
-	}
-	if n.index+1 < len(n.servers) {
-		return n.servers[n.index].Find(query,
-			streamcontext.NetworkServiceRegistryFindServer(
-				withNextNSRegistryServer(
-					s.Context(),
-					&nextNetworkServiceRegistryServer{nextParent: nextParent, servers: n.servers, index: n.index + 1}),
-				s,
-			),
-		)
-	}
-	return n.servers[n.index].Find(query,
-		streamcontext.NetworkServiceRegistryFindServer(
-			withNextNSRegistryServer(
-				s.Context(),
-				nextParent),
-			s,
-		),
-	)
-}
-
-func (n *nextNetworkServiceRegistryServer) Unregister(ctx context.Context, request *registry.NetworkService) (*empty.Empty, error) {
-	nextParent := n.nextParent
-	if n.index == 0 && ctx != nil {
-		if nextServer := NetworkServiceRegistryServer(ctx); nextServer != nil {
-			nextParent = nextServer
-		}
-	}
-	if n.index+1 < len(n.servers) {
-		return n.servers[n.index].Unregister(withNextNSRegistryServer(ctx, &nextNetworkServiceRegistryServer{nextParent: nextParent, servers: n.servers, index: n.index + 1}), request)
-	}
-	return n.servers[n.index].Unregister(withNextNSRegistryServer(ctx, nextParent), request)
-}
-
 // NewWrappedNetworkServiceRegistryServer - creates a chain of servers with each one wrapped in wrapper
 func NewWrappedNetworkServiceRegistryServer(wrapper NetworkServiceRegistryServerWrapper, servers ...registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
-	if len(servers) == 0 {
-		return &tailNetworkServiceRegistryServer{}
-	}
 	rv := &nextNetworkServiceRegistryServer{servers: make([]registry.NetworkServiceRegistryServer, 0, len(servers))}
 	for _, s := range servers {
 		rv.servers = append(rv.servers, wrapper(s))
@@ -108,4 +52,33 @@ func NewNetworkServiceRegistryServer(servers ...registry.NetworkServiceRegistryS
 	return NewWrappedNetworkServiceRegistryServer(func(server registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
 		return server
 	}, servers...)
+}
+
+func (n *nextNetworkServiceRegistryServer) Register(ctx context.Context, request *registry.NetworkService) (*registry.NetworkService, error) {
+	server, ctx := n.getServerAndContext(ctx)
+	return server.Register(ctx, request)
+}
+
+func (n *nextNetworkServiceRegistryServer) Find(query *registry.NetworkServiceQuery, s registry.NetworkServiceRegistry_FindServer) error {
+	server, ctx := n.getServerAndContext(s.Context())
+	return server.Find(query, streamcontext.NetworkServiceRegistryFindServer(ctx, s))
+}
+
+func (n *nextNetworkServiceRegistryServer) Unregister(ctx context.Context, request *registry.NetworkService) (*empty.Empty, error) {
+	server, ctx := n.getServerAndContext(ctx)
+	return server.Unregister(ctx, request)
+}
+
+func (n *nextNetworkServiceRegistryServer) getServerAndContext(ctx context.Context) (registry.NetworkServiceRegistryServer, context.Context) {
+	nextParent := n.nextParent
+	if n.index == 0 {
+		nextParent = NetworkServiceRegistryServer(ctx)
+		if len(n.servers) == 0 {
+			return nextParent, ctx
+		}
+	}
+	if n.index+1 < len(n.servers) {
+		return n.servers[n.index], withNextNSRegistryServer(ctx, &nextNetworkServiceRegistryServer{nextParent: nextParent, servers: n.servers, index: n.index + 1})
+	}
+	return n.servers[n.index], withNextNSRegistryServer(ctx, nextParent)
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -36,50 +36,8 @@ type nextNetworkServiceEndpointRegistryClient struct {
 	nextParent registry.NetworkServiceEndpointRegistryClient
 }
 
-func (n *nextNetworkServiceEndpointRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	nextParent := n.nextParent
-	if n.index == 0 && ctx != nil {
-		if nextClient := NetworkServiceEndpointRegistryClient(ctx); nextClient != nil {
-			nextParent = nextClient
-		}
-	}
-	if n.index+1 < len(n.clients) {
-		return n.clients[n.index].Find(withNextNSERegistryClient(ctx, &nextNetworkServiceEndpointRegistryClient{nextParent: nextParent, clients: n.clients, index: n.index + 1}), in, opts...)
-	}
-	return n.clients[n.index].Find(withNextNSERegistryClient(ctx, nextParent), in, opts...)
-}
-
-func (n *nextNetworkServiceEndpointRegistryClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	nextParent := n.nextParent
-	if n.index == 0 && ctx != nil {
-		if nextClient := NetworkServiceEndpointRegistryClient(ctx); nextClient != nil {
-			nextParent = nextClient
-		}
-	}
-	if n.index+1 < len(n.clients) {
-		return n.clients[n.index].Register(withNextNSERegistryClient(ctx, &nextNetworkServiceEndpointRegistryClient{nextParent: nextParent, clients: n.clients, index: n.index + 1}), in, opts...)
-	}
-	return n.clients[n.index].Register(withNextNSERegistryClient(ctx, nextParent), in, opts...)
-}
-
-func (n *nextNetworkServiceEndpointRegistryClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
-	nextParent := n.nextParent
-	if n.index == 0 && ctx != nil {
-		if nextClient := NetworkServiceEndpointRegistryClient(ctx); nextClient != nil {
-			nextParent = nextClient
-		}
-	}
-	if n.index+1 < len(n.clients) {
-		return n.clients[n.index].Unregister(withNextNSERegistryClient(ctx, &nextNetworkServiceEndpointRegistryClient{nextParent: nextParent, clients: n.clients, index: n.index + 1}), in, opts...)
-	}
-	return n.clients[n.index].Unregister(withNextNSERegistryClient(ctx, nextParent), in, opts...)
-}
-
 // NewWrappedNetworkServiceEndpointRegistryClient - creates a chain of servers with each one wrapped in wrapper
 func NewWrappedNetworkServiceEndpointRegistryClient(wrapper NetworkServiceEndpointRegistryClientWrapper, clients ...registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceEndpointRegistryClient {
-	if len(clients) == 0 {
-		return &tailNetworkServiceEndpointRegistryClient{}
-	}
 	rv := &nextNetworkServiceEndpointRegistryClient{clients: make([]registry.NetworkServiceEndpointRegistryClient, 0, len(clients))}
 	for _, c := range clients {
 		rv.clients = append(rv.clients, wrapper(c))
@@ -92,4 +50,33 @@ func NewNetworkServiceEndpointRegistryClient(clients ...registry.NetworkServiceE
 	return NewWrappedNetworkServiceEndpointRegistryClient(func(client registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceEndpointRegistryClient {
 		return client
 	}, clients...)
+}
+
+func (n *nextNetworkServiceEndpointRegistryClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+	client, ctx := n.getClientAndContext(ctx)
+	return client.Register(ctx, in, opts...)
+}
+
+func (n *nextNetworkServiceEndpointRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
+	client, ctx := n.getClientAndContext(ctx)
+	return client.Find(ctx, in, opts...)
+}
+
+func (n *nextNetworkServiceEndpointRegistryClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
+	client, ctx := n.getClientAndContext(ctx)
+	return client.Unregister(ctx, in, opts...)
+}
+
+func (n *nextNetworkServiceEndpointRegistryClient) getClientAndContext(ctx context.Context) (registry.NetworkServiceEndpointRegistryClient, context.Context) {
+	nextParent := n.nextParent
+	if n.index == 0 {
+		nextParent = NetworkServiceEndpointRegistryClient(ctx)
+		if len(n.clients) == 0 {
+			return nextParent, ctx
+		}
+	}
+	if n.index+1 < len(n.clients) {
+		return n.clients[n.index], withNextNSERegistryClient(ctx, &nextNetworkServiceEndpointRegistryClient{nextParent: nextParent, clients: n.clients, index: n.index + 1})
+	}
+	return n.clients[n.index], withNextNSERegistryClient(ctx, nextParent)
 }
