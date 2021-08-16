@@ -152,9 +152,10 @@ func NewClientFactory(clientOpts ...Option) connect.ClientFactory {
 					serialize.NewClient(),
 					refresh.NewClient(ctx),
 					metadata.NewClient(),
+					// TODO: move back to the end of the chain when `begin` chain element will be ready
+					heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc)),
 				}, opts.additionalFunctionality...),
 				opts.authorizeClient,
-				heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc)),
 				networkservice.NewNetworkServiceClient(cc),
 			)...)
 		return rv
