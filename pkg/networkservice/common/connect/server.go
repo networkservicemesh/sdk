@@ -31,10 +31,8 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/cancelctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	"github.com/networkservicemesh/sdk/pkg/tools/multiexecutor"
 	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 )
 
@@ -46,21 +44,11 @@ type connectServer struct {
 	clientFactory     ClientFactory
 	clientDialTimeout time.Duration
 	clientDialOptions []grpc.DialOption
-
-	connInfos connectionInfoMap
-	clients   clientInfoMap
-	executor  multiexecutor.MultiExecutor
-}
-
-type clientInfo struct {
-	client  *connectClient
-	count   int
-	onClose context.CancelFunc
 }
 
 type connectionInfo struct {
 	clientURL *url.URL
-	client    *clientInfo
+	cancel    context.CancelFunc
 }
 
 // NewServer - server chain element that creates client subchains and requests them selecting by
@@ -83,61 +71,59 @@ func NewServer(
 	return s
 }
 
-func (s *connectServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+func (s *connectServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (conn *networkservice.Connection, err error) {
 	clientURL := clienturlctx.ClientURL(ctx)
 	if clientURL == nil {
 		return nil, errors.Errorf("clientURL not found for incoming connection: %+v", request.GetConnection())
 	}
 
-	c, err := s.client(ctx, request.GetConnection())
+	var connInfo *connectionInfo
+	connInfo, err = s.connInfo(ctx, request.GetConnection())
 	if err != nil {
 		return nil, err
 	}
-	if err = c.client.ctx.Err(); err != nil {
-		s.deleteClient(c, clientURL.String())
-		s.connInfos.Delete(request.GetConnection().GetId())
-		return nil, err
-	}
+
+	var client *connectClient
+	client, connInfo.cancel = s.client(clientURL)
+	defer func() {
+		if err != nil {
+			connInfo.cancel()
+		}
+	}()
 
 	postponeCtxFunc := postpone.ContextWithValues(ctx)
 
-	conn, err := c.client.Request(ctx, request.Clone())
+	conn, err = client.Request(ctx, request.Clone())
 	if err != nil {
-		if _, ok := s.connInfos.Load(request.GetConnection().GetId()); !ok {
-			s.closeClient(c, clientURL.String())
-		}
 		return nil, err
 	}
 
-	// Update request.Connection
 	request.Connection = conn
 
-	_, refreshRequest := s.connInfos.Load(conn.GetId())
-	s.connInfos.Store(conn.GetId(), connectionInfo{
-		clientURL: clientURL,
-		client:    c,
-	})
-
-	// Carry on with next.Server
-	conn, err = next.Server(ctx).Request(ctx, request)
-	// Close connection if next.Server Request finished with error
-	if err != nil && !refreshRequest {
+	if conn, err = next.Server(ctx).Request(ctx, request); err != nil {
 		closeCtx, cancelClose := postponeCtxFunc()
 		defer cancelClose()
 
-		_, closeErr := s.Close(closeCtx, request.Connection.Clone())
+		_, closeErr := client.Close(closeCtx, request.Connection.Clone())
 		if closeErr != nil {
 			err = errors.Wrapf(err, "connection closed with error: %s", closeErr.Error())
 		}
+
+		connInfo.cancel()
 	}
+
 	return conn, err
 }
 
 func (s *connectServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	var clientErr error
-	if connInfo, ok := s.connInfos.LoadAndDelete(conn.GetId()); ok {
-		_, clientErr = connInfo.client.client.Close(ctx, conn)
-		s.closeClient(connInfo.client, connInfo.clientURL.String())
+	if connInfo, ok := load(ctx); ok {
+		connInfo.cancel()
+
+		client, cancel := s.client(connInfo.clientURL)
+		defer cancel()
+
+		_, clientErr = client.Close(ctx, conn)
 	} else {
 		clientErr = errors.Errorf("no client found for the connection: %s", conn.GetId())
 	}
@@ -145,7 +131,7 @@ func (s *connectServer) Close(ctx context.Context, conn *networkservice.Connecti
 	_, err := next.Server(ctx).Close(ctx, conn)
 
 	if clientErr != nil && err != nil {
-		return nil, errors.Wrapf(err, "errors during client close: %v", clientErr)
+		return nil, errors.Wrapf(err, "errors during client close: %s", clientErr.Error())
 	}
 	if clientErr != nil {
 		return nil, errors.Wrap(clientErr, "errors during client close")
@@ -153,18 +139,26 @@ func (s *connectServer) Close(ctx context.Context, conn *networkservice.Connecti
 	return &empty.Empty{}, err
 }
 
-func (s *connectServer) client(ctx context.Context, conn *networkservice.Connection) (*clientInfo, error) {
-	logger := log.FromContext(ctx).WithField("connectServer", "client")
+func (s *connectServer) connInfo(ctx context.Context, conn *networkservice.Connection) (*connectionInfo, error) {
+	logger := log.FromContext(ctx).WithField("connectServer", "connInfo")
+
 	clientURL := clienturlctx.ClientURL(ctx)
 
-	// First check if we have already requested some clientURL with this conn.GetID().
-	if connInfo, ok := s.connInfos.Load(conn.GetId()); ok {
-		if *connInfo.clientURL == *clientURL {
-			return connInfo.client, nil
-		}
+	connInfo, loaded := loadOrStore(ctx, &connectionInfo{
+		clientURL: clientURL,
+		cancel:    func() {},
+	})
+	if !loaded {
+		return connInfo, nil
+	}
 
-		// For some reason we have changed the clientURL, so we need to close and delete the existing client.
-		if _, clientErr := connInfo.client.client.Close(ctx, conn); clientErr != nil {
+	connInfo.cancel()
+
+	if connInfo.clientURL.String() != clientURL.String() {
+		client, cancel := s.client(connInfo.clientURL)
+		defer cancel()
+
+		if _, clientErr := client.Close(ctx, conn.Clone()); clientErr != nil {
 			logger.Warnf("failed to close client: %s", clientErr.Error())
 		}
 
@@ -172,55 +166,18 @@ func (s *connectServer) client(ctx context.Context, conn *networkservice.Connect
 			return nil, err
 		}
 
-		s.closeClient(connInfo.client, connInfo.clientURL.String())
+		connInfo.clientURL = clientURL
 	}
 
-	var c *clientInfo
-	<-s.executor.AsyncExec(clientURL.String(), func() {
-		// Fast path if we already have client for the clientURL and we chould not reconnect, use it.
-		var loaded bool
-		c, loaded = s.clients.Load(clientURL.String())
-		if !loaded {
-			// If not, create and LoadOrStore a new one.
-			c = s.newClient(clientURL)
-			s.clients.Store(clientURL.String(), c)
-		}
-		c.count++
-	})
-	return c, nil
+	return connInfo, nil
 }
 
-func (s *connectServer) newClient(clientURL *url.URL) *clientInfo {
-	ctx, cancel := cancelctx.WithCancel(s.ctx)
-	return &clientInfo{
-		client: &connectClient{
-			ctx:           clienturlctx.WithClientURL(ctx, clientURL),
-			dialTimeout:   s.clientDialTimeout,
-			clientFactory: s.clientFactory,
-			dialOptions:   s.clientDialOptions,
-		},
-		count:   0,
-		onClose: cancel,
-	}
-}
-
-func (s *connectServer) closeClient(c *clientInfo, clientURL string) {
-	<-s.executor.AsyncExec(clientURL, func() {
-		c.count--
-		if c.count == 0 {
-			if loadedClient, ok := s.clients.Load(clientURL); ok && c == loadedClient {
-				s.clients.Delete(clientURL)
-			}
-			c.onClose()
-		}
-	})
-}
-
-func (s *connectServer) deleteClient(c *clientInfo, clientURL string) {
-	<-s.executor.AsyncExec(clientURL, func() {
-		if loadedClient, ok := s.clients.Load(clientURL); ok && c == loadedClient {
-			s.clients.Delete(clientURL)
-		}
-		c.onClose()
-	})
+func (s *connectServer) client(clientURL *url.URL) (*connectClient, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(s.ctx)
+	return &connectClient{
+		ctx:           clienturlctx.WithClientURL(ctx, clientURL),
+		dialTimeout:   s.clientDialTimeout,
+		clientFactory: s.clientFactory,
+		dialOptions:   s.clientDialOptions,
+	}, cancel
 }

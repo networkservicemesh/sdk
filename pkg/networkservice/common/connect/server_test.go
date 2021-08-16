@@ -43,11 +43,12 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 )
 
 const (
-	parallelCount = 1000
+	parallelCount = 100
 )
 
 func TestConnectServer_Request(t *testing.T) {
@@ -59,11 +60,11 @@ func TestConnectServer_Request(t *testing.T) {
 	serverClient := new(captureServer)
 
 	s := next.NewNetworkServiceServer(
+		metadata.NewServer(),
 		connect.NewServer(context.Background(),
 			func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 				return next.NewNetworkServiceClient(
 					adapters.NewServerToClient(serverClient),
-					newMonitorClient(ctx, cc),
 					networkservice.NewNetworkServiceClient(cc),
 				)
 			},
@@ -189,11 +190,11 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 	serverClient := new(count.Client)
 
 	s := next.NewNetworkServiceServer(
+		metadata.NewServer(),
 		connect.NewServer(context.Background(),
 			func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 				return next.NewNetworkServiceClient(
 					serverClient,
-					newMonitorClient(ctx, cc),
 					networkservice.NewNetworkServiceClient(cc),
 				)
 			},
@@ -288,12 +289,15 @@ func TestConnectServer_RequestFail(t *testing.T) {
 
 	// 1. Create connectServer
 
-	s := connect.NewServer(context.Background(),
-		func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-			return injecterror.NewClient()
-		},
-		connect.WithDialTimeout(time.Second),
-		connect.WithDialOptions(grpc.WithInsecure()),
+	s := next.NewNetworkServiceServer(
+		metadata.NewServer(),
+		connect.NewServer(context.Background(),
+			func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+				return injecterror.NewClient()
+			},
+			connect.WithDialTimeout(time.Second),
+			connect.WithDialOptions(grpc.WithInsecure()),
+		),
 	)
 
 	// 2. Setup A
@@ -335,11 +339,11 @@ func TestConnectServer_RequestNextServerError(t *testing.T) {
 	serverClient := new(captureServer)
 
 	s := next.NewNetworkServiceServer(
+		metadata.NewServer(),
 		connect.NewServer(context.Background(),
 			func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 				return next.NewNetworkServiceClient(
 					adapters.NewServerToClient(serverClient),
-					newMonitorClient(ctx, cc),
 					networkservice.NewNetworkServiceClient(cc),
 				)
 			},
@@ -399,15 +403,15 @@ func TestConnectServer_RemoteRestarted(t *testing.T) {
 
 	// 1. Create connectServer
 
-	s := connect.NewServer(context.Background(),
-		func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-			return next.NewNetworkServiceClient(
-				newMonitorClient(ctx, cc),
-				networkservice.NewNetworkServiceClient(cc),
-			)
-		},
-		connect.WithDialTimeout(time.Second),
-		connect.WithDialOptions(grpc.WithInsecure()),
+	s := next.NewNetworkServiceServer(
+		metadata.NewServer(),
+		connect.NewServer(context.Background(),
+			func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+				return networkservice.NewNetworkServiceClient(cc)
+			},
+			connect.WithDialTimeout(time.Second),
+			connect.WithDialOptions(grpc.WithInsecure()),
+		),
 	)
 
 	// 2. Setup A
@@ -482,12 +486,15 @@ func TestConnectServer_DialTimeout(t *testing.T) {
 
 	// 1. Create connectServer
 
-	s := connect.NewServer(context.Background(),
-		func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-			return networkservice.NewNetworkServiceClient(cc)
-		},
-		connect.WithDialTimeout(100*time.Millisecond),
-		connect.WithDialOptions(grpc.WithInsecure()),
+	s := next.NewNetworkServiceServer(
+		metadata.NewServer(),
+		connect.NewServer(context.Background(),
+			func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+				return networkservice.NewNetworkServiceClient(cc)
+			},
+			connect.WithDialTimeout(100*time.Millisecond),
+			connect.WithDialOptions(grpc.WithInsecure()),
+		),
 	)
 
 	// 2. Setup fake A
@@ -526,12 +533,10 @@ func TestConnectServer_ChangeURLWithExpiredContext(t *testing.T) {
 	// 1. Create connectServer
 
 	s := next.NewNetworkServiceServer(
+		metadata.NewServer(),
 		connect.NewServer(context.Background(),
 			func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-				return next.NewNetworkServiceClient(
-					newMonitorClient(ctx, cc),
-					networkservice.NewNetworkServiceClient(cc),
-				)
+				return networkservice.NewNetworkServiceClient(cc)
 			},
 			connect.WithDialTimeout(time.Second),
 			connect.WithDialOptions(grpc.WithInsecure()),
@@ -586,14 +591,18 @@ func TestConnectServer_ChangeURLWithExpiredContext(t *testing.T) {
 	// 7. Request B with valid context
 
 	requestCtx, requestCancel = context.WithCancel(context.Background())
+	defer requestCancel()
 
-	_, err = s.Request(clienturlctx.WithClientURL(requestCtx, urlB), request.Clone())
+	conn, err = s.Request(clienturlctx.WithClientURL(requestCtx, urlB), request.Clone())
 	require.NoError(t, err)
 
 	require.Nil(t, serverA.capturedRequest)
 	require.NotNil(t, serverB.capturedRequest)
 
-	requestCancel()
+	// 8. Close B
+
+	_, err = s.Close(clienturlctx.WithClientURL(requestCtx, urlB), conn)
+	require.NoError(t, err)
 }
 
 type editServer struct {
