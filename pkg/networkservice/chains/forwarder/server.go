@@ -38,10 +38,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-type forwarder struct {
-	endpoint.Endpoint
-}
-
 type serverOptions struct {
 	name                                      string
 	authorizeServer                           networkservice.NetworkServiceServer
@@ -108,7 +104,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, clientUR
 		opt(opts)
 	}
 
-	rv := new(forwarder)
+	rv := new(struct{ endpoint.Endpoint })
 	rv.Endpoint = endpoint.NewServer(ctx, tokenGenerator,
 		endpoint.WithName(opts.name),
 		endpoint.WithAuthorizeServer(opts.authorizeServer),
