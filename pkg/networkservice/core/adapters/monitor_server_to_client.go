@@ -38,8 +38,8 @@ func NewMonitorServerToClient(server networkservice.MonitorConnectionServer) net
 	return &monitorServerToClient{server: server}
 }
 
-func (m *monitorServerToClient) MonitorConnections(ctx context.Context, selector *networkservice.MonitorScopeSelector, opts ...grpc.CallOption) (networkservice.MonitorConnection_MonitorConnectionsClient, error) {
-	eventCh := make(chan *networkservice.ConnectionEvent, 100)
+func (m *monitorServerToClient) MonitorConnections(ctx context.Context, selector *networkservice.MonitorScopeSelector, _ ...grpc.CallOption) (networkservice.MonitorConnection_MonitorConnectionsClient, error) {
+	eventCh := make(chan *networkservice.ConnectionEvent, 1)
 	srv := eventchannel.NewMonitorConnectionMonitorConnectionsServer(ctx, eventCh)
 	go func() {
 		_ = m.server.MonitorConnections(selector, srv)

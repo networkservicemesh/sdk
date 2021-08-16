@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Cisco Systems, Inc.
 //
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,11 +19,14 @@
 package monitor
 
 import (
+	"github.com/edwarnicke/serialize"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
 type monitorFilter struct {
 	selector *networkservice.MonitorScopeSelector
+	executor serialize.Executor
+
 	networkservice.MonitorConnection_MonitorConnectionsServer
 }
 

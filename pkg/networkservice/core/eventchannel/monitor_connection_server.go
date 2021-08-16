@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Cisco and/or its affiliates.
 //
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -41,11 +43,12 @@ func NewMonitorConnectionMonitorConnectionsServer(ctx context.Context, eventCh c
 }
 
 func (m *monitorConnectionMonitorConnectionsServer) Send(event *networkservice.ConnectionEvent) error {
-	if err := m.ctx.Err(); err != nil {
-		return errors.Wrap(err, "Can no longer Send")
+	select {
+	case <-m.ctx.Done():
+		return m.ctx.Err()
+	case m.eventCh <- event:
+		return nil
 	}
-	m.eventCh <- event
-	return nil
 }
 
 func (m *monitorConnectionMonitorConnectionsServer) Context() context.Context {
