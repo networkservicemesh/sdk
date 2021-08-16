@@ -96,6 +96,7 @@ func testNSMGRHealEndpoint(t *testing.T, nodeNum int) {
 	// Wait reconnecting to the new NSE
 	require.Eventually(t, checkSecondRequestsReceived(counter.UniqueRequests), timeout, tick)
 	require.Equal(t, 2, counter.UniqueRequests())
+	closes := counter.UniqueCloses()
 
 	// Check refresh
 	request.Connection = conn
@@ -107,7 +108,7 @@ func testNSMGRHealEndpoint(t *testing.T, nodeNum int) {
 	require.NoError(t, err)
 
 	require.Equal(t, 2, counter.UniqueRequests())
-	require.Equal(t, 1, counter.UniqueCloses())
+	require.Equal(t, closes+1, counter.UniqueCloses())
 }
 
 func TestNSMGR_HealForwarder(t *testing.T) {
@@ -174,6 +175,7 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int) {
 	// Wait reconnecting through the new Forwarder
 	require.Eventually(t, checkSecondRequestsReceived(counter.UniqueRequests), timeout, tick)
 	require.Equal(t, 2, counter.UniqueRequests())
+	closes := counter.UniqueCloses()
 
 	// Check refresh
 	request.Connection = conn
@@ -185,7 +187,7 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int) {
 	require.NoError(t, err)
 
 	require.Equal(t, 2, counter.UniqueRequests())
-	require.Equal(t, 1, counter.UniqueCloses())
+	require.Equal(t, closes+1, counter.UniqueCloses())
 }
 
 func TestNSMGR_HealNSMgr(t *testing.T) {
@@ -253,6 +255,7 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 		domain.Nodes[nodeNum].NSMgr.Restart()
 	}
 
+	var closes int
 	if restored {
 		// Wait reconnecting through the restored NSMgr
 		require.Eventually(t, checkSecondRequestsReceived(counter.Requests), timeout, tick)
@@ -261,6 +264,7 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 		// Wait reconnecting through the new NSMgr
 		require.Eventually(t, checkSecondRequestsReceived(counter.UniqueRequests), timeout, tick)
 		require.Equal(t, 2, counter.UniqueRequests())
+		closes = counter.UniqueCloses()
 	}
 
 	// Check refresh
@@ -277,7 +281,7 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 		require.Equal(t, 1, counter.Closes())
 	} else {
 		require.Equal(t, 2, counter.UniqueRequests())
-		require.Equal(t, 1, counter.UniqueCloses())
+		require.Equal(t, closes+1, counter.UniqueCloses())
 	}
 }
 

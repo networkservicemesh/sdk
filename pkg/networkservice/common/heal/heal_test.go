@@ -137,6 +137,7 @@ func TestHeal_CloseChainOnNoMonitorUpdate(t *testing.T) {
 	*serverChain = adapters.NewServerToClient(
 		next.NewNetworkServiceServer(
 			updatepath.NewServer("server"),
+			metadata.NewServer(),
 			updatetoken.NewServer(sandbox.GenerateTestToken),
 			heal.NewServer(ctx,
 				heal.WithOnHeal(serverChain)),
