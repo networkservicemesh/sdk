@@ -24,6 +24,7 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/google/uuid"
 
 	"github.com/edwarnicke/serialize"
 
@@ -34,10 +35,10 @@ import (
 )
 
 type monitorServer struct {
-	connections map[string]*networkservice.Connection
-	monitors    []networkservice.MonitorConnection_MonitorConnectionsServer
-	executor    serialize.Executor
 	ctx         context.Context
+	connections map[string]*networkservice.Connection
+	filters     map[string]*monitorFilter
+	executor    serialize.Executor
 }
 
 // NewServer - creates a NetworkServiceServer chain element that will properly update a MonitorConnectionServer
@@ -53,27 +54,35 @@ func NewServer(ctx context.Context, monitorServerPtr *networkservice.MonitorConn
 	rv := &monitorServer{
 		ctx:         ctx,
 		connections: make(map[string]*networkservice.Connection),
-		monitors:    nil, // Intentionally nil
+		filters:     make(map[string]*monitorFilter),
 	}
+
 	*monitorServerPtr = rv
+
 	return rv
 }
 
 func (m *monitorServer) MonitorConnections(selector *networkservice.MonitorScopeSelector, srv networkservice.MonitorConnection_MonitorConnectionsServer) error {
 	m.executor.AsyncExec(func() {
-		monitor := newMonitorFilter(selector, srv)
-		m.monitors = append(m.monitors, monitor)
+		filter := newMonitorFilter(selector, srv)
+		m.filters[uuid.New().String()] = filter
+
 		connections := networkservice.FilterMapOnManagerScopeSelector(m.connections, selector)
+
 		// Send initial transfer of all data available
-		_ = monitor.Send(&networkservice.ConnectionEvent{
-			Type:        networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,
-			Connections: connections,
+		filter.executor.AsyncExec(func() {
+			_ = filter.Send(&networkservice.ConnectionEvent{
+				Type:        networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,
+				Connections: connections,
+			})
 		})
 	})
+
 	select {
 	case <-srv.Context().Done():
 	case <-m.ctx.Done():
 	}
+
 	return nil
 }
 
@@ -83,53 +92,53 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 		eventConn := conn.Clone()
 		m.executor.AsyncExec(func() {
 			m.connections[eventConn.GetId()] = eventConn
-
-			// Send update event
-			event := &networkservice.ConnectionEvent{
+			// Send UPDATE
+			m.send(ctx, &networkservice.ConnectionEvent{
 				Type:        networkservice.ConnectionEventType_UPDATE,
 				Connections: map[string]*networkservice.Connection{eventConn.GetId(): eventConn},
-			}
-			if sendErr := m.send(ctx, event); sendErr != nil {
-				log.FromContext(ctx).Errorf("Error during sending event: %v", sendErr)
-			}
+			})
 		})
 	}
 	return conn, err
 }
 
 func (m *monitorServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	_, closeErr := next.Server(ctx).Close(ctx, conn)
+	rv, err := next.Server(ctx).Close(ctx, conn)
 
 	// Remove connection object we have and send DELETE
 	eventConn := conn.Clone()
 	m.executor.AsyncExec(func() {
 		delete(m.connections, eventConn.GetId())
-
-		event := &networkservice.ConnectionEvent{
+		m.send(ctx, &networkservice.ConnectionEvent{
 			Type:        networkservice.ConnectionEventType_DELETE,
 			Connections: map[string]*networkservice.Connection{eventConn.GetId(): eventConn},
-		}
-		if err := m.send(ctx, event); err != nil {
-			log.FromContext(ctx).Errorf("Error during sending event: %v", err)
-		}
+		})
 	})
-	return &empty.Empty{}, closeErr
+
+	return rv, err
 }
 
-// send - perform a send to clients.
-func (m *monitorServer) send(ctx context.Context, event *networkservice.ConnectionEvent) (err error) {
-	newMonitors := []networkservice.MonitorConnection_MonitorConnectionsServer{}
-	for _, filter := range m.monitors {
-		select {
-		case <-filter.Context().Done():
-		default:
-			if err = filter.Send(event.Clone()); err != nil {
-				log.FromContext(ctx).Errorf("Error sending event: %+v: %+v", event, err)
+func (m *monitorServer) send(ctx context.Context, event *networkservice.ConnectionEvent) {
+	logger := log.FromContext(ctx).WithField("monitorServer", "send")
+	for id, filter := range m.filters {
+		id, filter := id, filter
+		e := event.Clone()
+		filter.executor.AsyncExec(func() {
+			var err error
+			select {
+			case <-filter.Context().Done():
+				err = filter.Context().Err()
+			default:
+				err = filter.Send(e)
 			}
-			newMonitors = append(newMonitors, filter)
-		}
-	}
+			if err == nil {
+				return
+			}
 
-	m.monitors = newMonitors
-	return err
+			logger.Errorf("error sending event: %+v %s", e, err.Error())
+			m.executor.AsyncExec(func() {
+				delete(m.filters, id)
+			})
+		})
+	}
 }

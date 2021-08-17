@@ -19,22 +19,26 @@ package monitor_test
 import (
 	"context"
 	"testing"
+	"time"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 )
 
-func TestMonitor(t *testing.T) {
+func TestMonitorServer(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
 	// Specify pathSegments to test
 	segmentNames := []string{"local-nsm", "remote-nsm"}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+
 	// Create monitorServer, monitorClient, and server.
 	var monitorServer networkservice.MonitorConnectionServer
 	server := monitor.NewServer(ctx, &monitorServer)
@@ -44,26 +48,32 @@ func TestMonitor(t *testing.T) {
 	connections := make(map[string]*networkservice.Connection)
 	receivers := make(map[string]networkservice.MonitorConnection_MonitorConnectionsClient)
 
+	// Create non-reading monitor client for all connections
+	_, monitorErr := monitorClient.MonitorConnections(ctx, new(networkservice.MonitorScopeSelector))
+	require.NoError(t, monitorErr)
+
 	// Get Empty initial state transfers
 	for _, segmentName := range segmentNames {
-		var err error
-		ctx, cancelFunc := context.WithCancel(context.Background())
-		defer cancelFunc()
-		receivers[segmentName], err = monitorClient.MonitorConnections(ctx, &networkservice.MonitorScopeSelector{
+		monitorCtx, cancelMonitor := context.WithCancel(ctx)
+		defer cancelMonitor()
+
+		receivers[segmentName], monitorErr = monitorClient.MonitorConnections(monitorCtx, &networkservice.MonitorScopeSelector{
 			PathSegments: []*networkservice.PathSegment{{Name: segmentName}},
 		})
-		assert.Nil(t, err)
+		require.NoError(t, monitorErr)
+
 		event, err := receivers[segmentName].Recv()
-		assert.Nil(t, err)
+		require.NoError(t, err)
+
 		require.NotNil(t, event)
-		assert.Equal(t, networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER, event.GetType())
-		require.Equal(t, len(event.GetConnections()[segmentName].GetPath().GetPathSegments()), 0)
+		require.Equal(t, networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER, event.GetType())
+		require.Empty(t, event.GetConnections()[segmentName].GetPath().GetPathSegments())
 	}
 
 	// Send requests
 	for _, segmentName := range segmentNames {
 		var err error
-		connections[segmentName], err = server.Request(context.Background(), &networkservice.NetworkServiceRequest{
+		connections[segmentName], err = server.Request(ctx, &networkservice.NetworkServiceRequest{
 			Connection: &networkservice.Connection{
 				Id: segmentName,
 				Path: &networkservice.Path{
@@ -76,32 +86,34 @@ func TestMonitor(t *testing.T) {
 				},
 			},
 		})
-		assert.Nil(t, err)
+		require.NoError(t, err)
 	}
 
 	// Get Updates and insure we've properly filtered by segmentName
 	for _, segmentName := range segmentNames {
 		event, err := receivers[segmentName].Recv()
-		assert.Nil(t, err)
+		require.NoError(t, err)
+
 		require.NotNil(t, event)
-		assert.Equal(t, networkservice.ConnectionEventType_UPDATE, event.GetType())
-		require.Equal(t, len(event.GetConnections()[segmentName].GetPath().GetPathSegments()), 1)
-		assert.Equal(t, segmentName, event.GetConnections()[segmentName].GetPath().GetPathSegments()[0].GetName())
+		require.Equal(t, networkservice.ConnectionEventType_UPDATE, event.GetType())
+		require.Len(t, event.GetConnections()[segmentName].GetPath().GetPathSegments(), 1)
+		require.Equal(t, segmentName, event.GetConnections()[segmentName].GetPath().GetPathSegments()[0].GetName())
 	}
 
 	// Close Connections
 	for _, conn := range connections {
-		_, err := server.Close(context.Background(), conn)
-		assert.Nil(t, err)
+		_, err := server.Close(ctx, conn)
+		require.NoError(t, err)
 	}
 
 	// Get Delete Events and insure we've properly filtered by segmentName
 	for _, segmentName := range segmentNames {
 		event, err := receivers[segmentName].Recv()
-		assert.Nil(t, err)
+		require.NoError(t, err)
+
 		require.NotNil(t, event)
-		assert.Equal(t, networkservice.ConnectionEventType_DELETE, event.GetType())
-		require.Equal(t, len(event.GetConnections()[segmentName].GetPath().GetPathSegments()), 1)
-		assert.Equal(t, segmentName, event.GetConnections()[segmentName].GetPath().GetPathSegments()[0].GetName())
+		require.Equal(t, networkservice.ConnectionEventType_DELETE, event.GetType())
+		require.Len(t, event.GetConnections()[segmentName].GetPath().GetPathSegments(), 1)
+		require.Equal(t, segmentName, event.GetConnections()[segmentName].GetPath().GetPathSegments()[0].GetName())
 	}
 }
