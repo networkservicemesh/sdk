@@ -22,10 +22,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
@@ -40,10 +41,17 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
-func startRemoteServer(ctx context.Context, t *testing.T, expireDuration time.Duration) (*url.URL, context.CancelFunc) {
+func startRemoteServer(
+	ctx context.Context,
+	t *testing.T,
+	expireDuration time.Duration,
+	additionalFunctionality ...networkservice.NetworkServiceServer,
+) (*url.URL, context.CancelFunc) {
 	ctx, cancel := context.WithCancel(ctx)
 
-	server := endpoint.NewServer(ctx, sandbox.GenerateExpiringToken(expireDuration), endpoint.WithName("remote"))
+	server := endpoint.NewServer(ctx, sandbox.GenerateExpiringToken(expireDuration),
+		endpoint.WithName("remote"),
+		endpoint.WithAdditionalFunctionality(additionalFunctionality...))
 
 	grpcServer := grpc.NewServer()
 	server.Register(grpcServer)
@@ -102,4 +110,57 @@ func TestHeal_CloseChain(t *testing.T) {
 	require.Eventually(t, func() bool {
 		return counter.Closes() == 1
 	}, time.Second, 10*time.Millisecond)
+}
+
+func TestHeal_CloseChainOnNoMonitorUpdate(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	counter := new(count.Server)
+	remoteURL, remoteCancel := startRemoteServer(ctx, t, 10*time.Minute, counter)
+	defer remoteCancel()
+
+	// Create fake monitor connection
+	monitorURL, monitorCancel := startRemoteServer(ctx, t, 0)
+	monitorCC, err := grpc.DialContext(ctx, grpcutils.URLToTarget(monitorURL), grpc.WithBlock(), grpc.WithInsecure())
+	require.NoError(t, err)
+	defer func() {
+		monitorCancel()
+		_ = monitorCC.Close()
+	}()
+
+	serverChain := new(networkservice.NetworkServiceClient)
+	*serverChain = adapters.NewServerToClient(
+		next.NewNetworkServiceServer(
+			updatepath.NewServer("server"),
+			updatetoken.NewServer(sandbox.GenerateTestToken),
+			heal.NewServer(ctx,
+				heal.WithOnHeal(serverChain)),
+			clienturl.NewServer(remoteURL),
+			connect.NewServer(ctx, func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
+				return next.NewNetworkServiceClient(
+					heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(monitorCC)),
+					networkservice.NewNetworkServiceClient(cc),
+				)
+			}, connect.WithDialOptions(grpc.WithInsecure())),
+		),
+	)
+
+	client := next.NewNetworkServiceClient(
+		updatepath.NewClient("client"),
+		*serverChain,
+	)
+
+	requestCtx, cancelRequest := context.WithTimeout(ctx, time.Second)
+	defer cancelRequest()
+
+	_, err = client.Request(requestCtx, &networkservice.NetworkServiceRequest{
+		Connection: new(networkservice.Connection),
+	})
+	require.Error(t, err)
+
+	require.Equal(t, 1, counter.Requests())
+	require.Equal(t, 1, counter.Closes())
 }

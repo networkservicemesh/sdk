@@ -30,6 +30,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 	"github.com/networkservicemesh/sdk/pkg/tools/serializectx"
 )
 
@@ -60,6 +61,8 @@ func (c *refreshNSEClient) Register(ctx context.Context, nse *registry.NetworkSe
 		cancel()
 	}
 
+	postponeCtxFunc := postpone.ContextWithValues(ctx)
+
 	reg, err := next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, nse, opts...)
 	if err != nil {
 		return nil, err
@@ -71,7 +74,10 @@ func (c *refreshNSEClient) Register(ctx context.Context, nse *registry.NetworkSe
 
 		cancel, err = c.startRefresh(ctx, refreshNSE, expirationDuration)
 		if err != nil {
-			if _, unregisterErr := next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, reg); unregisterErr != nil {
+			unregisterCtx, cancelUnregister := postponeCtxFunc()
+			defer cancelUnregister()
+
+			if _, unregisterErr := next.NetworkServiceEndpointRegistryServer(ctx).Unregister(unregisterCtx, reg); unregisterErr != nil {
 				logger.Errorf("failed to unregister endpoint on error: %s %s", reg.Name, unregisterErr.Error())
 			}
 			return nil, err
