@@ -22,10 +22,10 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
-// Condition is a type for swich.*Case condition
+// Condition is a type for switchcase.*Case condition
 type Condition = func(context.Context, *networkservice.Connection) bool
 
-// Default is a "default" case condition for swich
+// Default is a "default" case condition for switchcase
 func Default(context.Context, *networkservice.Connection) bool {
 	return true
 }

@@ -25,7 +25,9 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/switchcase"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 )
 
 func TestSwitchClient(t *testing.T) {
@@ -51,26 +53,23 @@ func testSwitchClient(t *testing.T, conditions []switchcase.Condition, expected 
 		})
 	}
 
-	s := switchcase.NewClient(cases...)
+	counter := new(count.Client)
+	s := next.NewNetworkServiceClient(
+		switchcase.NewClient(cases...),
+		counter,
+	)
+
 	ctx := withN(context.Background(), 1)
 
 	actual = -1
 	_, err := s.Request(ctx, new(networkservice.NetworkServiceRequest))
+	require.NoError(t, err)
 	require.Equal(t, expected, actual)
-
-	if expected != -1 {
-		require.NoError(t, err)
-	} else {
-		require.Error(t, err)
-	}
+	require.Equal(t, 1, counter.Requests())
 
 	actual = -1
 	_, err = s.Close(ctx, new(networkservice.Connection))
+	require.NoError(t, err)
 	require.Equal(t, expected, actual)
-
-	if expected != -1 {
-		require.NoError(t, err)
-	} else {
-		require.Error(t, err)
-	}
+	require.Equal(t, 1, counter.Closes())
 }

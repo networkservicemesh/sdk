@@ -19,11 +19,12 @@ package switchcase
 import (
 	"context"
 
-	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
 // ClientCase is a case type for the switch-case client chain element
@@ -49,7 +50,7 @@ func (s *switchClient) Request(ctx context.Context, request *networkservice.Netw
 			return c.Client.Request(ctx, request, opts...)
 		}
 	}
-	return nil, errors.WithStack(errors.New("all cases failed"))
+	return next.Client(ctx).Request(ctx, request, opts...)
 }
 
 func (s *switchClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
@@ -58,5 +59,5 @@ func (s *switchClient) Close(ctx context.Context, conn *networkservice.Connectio
 			return c.Client.Close(ctx, conn, opts...)
 		}
 	}
-	return nil, errors.WithStack(errors.New("all cases failed"))
+	return next.Client(ctx).Close(ctx, conn, opts...)
 }

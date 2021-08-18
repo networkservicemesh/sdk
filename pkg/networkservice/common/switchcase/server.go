@@ -19,10 +19,11 @@ package switchcase
 import (
 	"context"
 
-	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
 // ServerCase is a case type for the switch-case server chain element
@@ -48,7 +49,7 @@ func (s *switchServer) Request(ctx context.Context, request *networkservice.Netw
 			return c.Server.Request(ctx, request)
 		}
 	}
-	return nil, errors.WithStack(errors.New("all cases failed"))
+	return next.Server(ctx).Request(ctx, request)
 }
 
 func (s *switchServer) Close(ctx context.Context, conn *networkservice.Connection) (*emptypb.Empty, error) {
@@ -57,5 +58,5 @@ func (s *switchServer) Close(ctx context.Context, conn *networkservice.Connectio
 			return c.Server.Close(ctx, conn)
 		}
 	}
-	return nil, errors.WithStack(errors.New("all cases failed"))
+	return next.Server(ctx).Close(ctx, conn)
 }
