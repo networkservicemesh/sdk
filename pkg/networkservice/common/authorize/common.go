@@ -20,8 +20,6 @@ import (
 	"context"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 )
 
 // Policy represents authorization policy for network service.
@@ -32,26 +30,17 @@ type Policy interface {
 
 type policiesList []Policy
 
-func (l *policiesList) check(ctx context.Context, conn *networkservice.Connection) error {
+func (l *policiesList) check(ctx context.Context, p *networkservice.Path) error {
 	if l == nil {
 		return nil
 	}
-	for _, p := range *l {
-		if p == nil {
+	for _, policy := range *l {
+		if policy == nil {
 			continue
 		}
-		if err := p.Check(ctx, conn.GetPath()); err != nil {
+		if err := policy.Check(ctx, p); err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-func defaultPolicies() policiesList {
-	return []Policy{
-		opa.WithAllTokensValidPolicy(),
-		opa.WithLastTokenSignedPolicy(),
-		opa.WithTokensExpiredPolicy(),
-		opa.WithTokenChainPolicy(),
-	}
 }

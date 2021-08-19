@@ -27,33 +27,53 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 )
 
 type authorizeServer struct {
-	policies *policiesList
+	policies policiesList
 }
 
 // NewServer - returns a new authorization networkservicemesh.NetworkServiceServers
+// Authorize server checks left side of Path.
 func NewServer(opts ...Option) networkservice.NetworkServiceServer {
-	p := &policiesList{}
+	var s = &authorizeServer{
+		policies: []Policy{
+			opa.WithTokensValidPolicy(),
+			opa.WithPrevTokenSignedPolicy(),
+			opa.WithTokensExpiredPolicy(),
+			opa.WithTokenChainPolicy(),
+		},
+	}
 	for _, o := range opts {
-		o.apply(p)
+		o.apply(&s.policies)
 	}
-	return &authorizeServer{
-		policies: p,
-	}
+	return s
 }
 
 func (a *authorizeServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if err := a.policies.check(ctx, request.GetConnection()); err != nil {
+	var index = request.GetConnection().GetPath().GetIndex()
+	var leftSide = &networkservice.Path{
+		Index:        index,
+		PathSegments: request.GetConnection().GetPath().GetPathSegments()[:index+1],
+	}
+
+	if err := a.policies.check(ctx, leftSide); err != nil {
 		return nil, err
 	}
 	return next.Server(ctx).Request(ctx, request)
 }
 
 func (a *authorizeServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	if err := a.policies.check(ctx, conn); err != nil {
+	var index = conn.GetPath().GetIndex()
+	var leftSide = &networkservice.Path{
+		Index:        index,
+		PathSegments: conn.GetPath().GetPathSegments()[:index+1],
+	}
+
+	if err := a.policies.check(ctx, leftSide); err != nil {
 		return nil, err
 	}
+
 	return next.Server(ctx).Close(ctx, conn)
 }

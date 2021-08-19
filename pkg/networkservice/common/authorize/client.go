@@ -30,6 +30,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 )
 
@@ -39,9 +40,15 @@ type authorizeClient struct {
 }
 
 // NewClient - returns a new authorization networkservicemesh.NetworkServiceClient
+// Authorize client checks rigiht side of path.
 func NewClient(opts ...Option) networkservice.NetworkServiceClient {
 	var result = &authorizeClient{
-		policies: defaultPolicies(),
+		policies: []Policy{
+			opa.WithTokensValidPolicy(),
+			opa.WithCurrentTokenSignedPolicy(),
+			opa.WithTokensExpiredPolicy(),
+			opa.WithTokenChainPolicy(),
+		},
 	}
 
 	for _, o := range opts {
@@ -67,7 +74,7 @@ func (a *authorizeClient) Request(ctx context.Context, request *networkservice.N
 		ctx = peer.NewContext(ctx, &p)
 	}
 
-	if err = a.policies.check(ctx, conn); err != nil {
+	if err = a.policies.check(ctx, conn.GetPath()); err != nil {
 		closeCtx, cancelClose := postponeCtxFunc()
 		defer cancelClose()
 
@@ -86,8 +93,7 @@ func (a *authorizeClient) Close(ctx context.Context, conn *networkservice.Connec
 	if ok && p != nil {
 		ctx = peer.NewContext(ctx, p)
 	}
-
-	if err := a.policies.check(ctx, conn); err != nil {
+	if err := a.policies.check(ctx, conn.GetPath()); err != nil {
 		return nil, err
 	}
 
