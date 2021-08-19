@@ -74,6 +74,7 @@ func (m *Manager) String() string {
 		_, _ = sb.WriteString(fmt.Sprintf("%s {\n", domain))
 		if ipsString != "" {
 			_, _ = sb.WriteString(fmt.Sprintf("\t%s . %s\n", plugin, ipsString))
+			_, _ = sb.WriteString("\tcache\n")
 		}
 		_, _ = sb.WriteString("\tlog\n")
 		if domain == anyDomain {

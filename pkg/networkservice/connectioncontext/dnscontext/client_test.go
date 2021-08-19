@@ -52,6 +52,7 @@ search example.com
 `
 	expectedEmptyCoreFileWithServer = `. {
 	forward . %s
+	cache
 	log
 	reload
 }
@@ -78,7 +79,7 @@ func TestDNSContextClient(t *testing.T) {
 					DnsServerIps:  []string{"8.8.8.8"},
 				},
 			},
-			expectedCorefile: ". {\n\tlog\n\treload\n}\nexample.com {\n\tforward . 8.8.8.8\n\tlog\n}\n",
+			expectedCorefile: ". {\n\tlog\n\treload\n}\nexample.com {\n\tforward . 8.8.8.8\n\tcache\n\tlog\n}\n",
 		},
 		{
 			name:                "with default, without conflicts",
@@ -89,7 +90,7 @@ func TestDNSContextClient(t *testing.T) {
 					DnsServerIps:  []string{"8.8.8.8"},
 				},
 			},
-			expectedCorefile: ". {\n\tforward . 10.10.10.10\n\tlog\n\treload\n}\nexample.com {\n\tforward . 8.8.8.8\n\tlog\n}\n",
+			expectedCorefile: ". {\n\tforward . 10.10.10.10\n\tcache\n\tlog\n\treload\n}\nexample.com {\n\tforward . 8.8.8.8\n\tcache\n\tlog\n}\n",
 		},
 		{
 			name: "without default, with conflicts",
@@ -107,7 +108,7 @@ func TestDNSContextClient(t *testing.T) {
 					DnsServerIps:  []string{"9.9.9.9"},
 				},
 			},
-			expectedCorefile: ". {\n\tlog\n\treload\n}\nexample.com {\n\tfanout . 7.7.7.7 8.8.8.8 9.9.9.9\n\tlog\n}\n",
+			expectedCorefile: ". {\n\tlog\n\treload\n}\nexample.com {\n\tfanout . 7.7.7.7 8.8.8.8 9.9.9.9\n\tcache\n\tlog\n}\n",
 		},
 	}
 
