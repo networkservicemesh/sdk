@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,11 +14,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package refresh
+package begin
 
-import "time"
-
-const (
-	// defaultRefreshRequestTimeout - default timeout for refresh request
-	defaultRefreshRequestTimeout = time.Minute
+import (
+	"sync"
 )
+
+//go:generate go-syncmap -output client_map.gen.go -type clientMap<string,*eventFactoryClient>
+
+// clientMap - sync.Map with key == string and value == *eventFactoryClient
+type clientMap sync.Map
+
+//go:generate go-syncmap -output server_map.gen.go -type serverMap<string,*eventFactoryServer>
+
+// serverMap - sync.Map with key == string and value == *eventFactoryServer
+type serverMap sync.Map

@@ -1,0 +1,219 @@
+// Copyright (c) 2021 Cisco and/or its affiliates.
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at:
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package begin
+
+import (
+	"context"
+	"time"
+
+	"github.com/edwarnicke/serialize"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+)
+
+type connectionState int
+
+const (
+	zero connectionState = iota + 1
+	established
+	closed
+)
+
+var _ connectionState = zero
+
+// EventFactory - allows firing off a Request or Close event from midchain
+type EventFactory interface {
+	Request(opts ...Option) <-chan error
+	Close(opts ...Option) <-chan error
+}
+
+type eventFactoryClient struct {
+	state      connectionState
+	executor   serialize.Executor
+	ctxFunc    func() (context.Context, context.CancelFunc)
+	request    *networkservice.NetworkServiceRequest
+	opts       []grpc.CallOption
+	client     networkservice.NetworkServiceClient
+	afterClose func()
+}
+
+func newEventFactoryClient(ctx context.Context, afterClose func(), opts ...grpc.CallOption) *eventFactoryClient {
+	f := &eventFactoryClient{
+		client: next.Client(ctx),
+		opts:   opts,
+	}
+	f.ctxFunc = cxtFuncFromContext(ctx, f)
+
+	f.afterClose = func() {
+		f.state = closed
+		if afterClose != nil {
+			afterClose()
+		}
+	}
+	return f
+}
+
+func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
+	o := &option{
+		cancelCtx: context.Background(),
+	}
+	for _, opt := range opts {
+		opt(o)
+	}
+	ch := make(chan error, 1)
+	f.executor.AsyncExec(func() {
+		defer close(ch)
+		if f.state != established || f.client == nil || f.request == nil {
+			return
+		}
+		select {
+		case <-o.cancelCtx.Done():
+		default:
+			ctx, cancel := f.ctxFunc()
+			defer cancel()
+			conn, err := f.client.Request(ctx, f.request, f.opts...)
+			if err == nil && f.request != nil {
+				f.request.Connection = conn
+			}
+			ch <- err
+		}
+	})
+	return ch
+}
+
+func (f *eventFactoryClient) Close(opts ...Option) <-chan error {
+	o := &option{
+		cancelCtx: context.Background(),
+	}
+	for _, opt := range opts {
+		opt(o)
+	}
+	ch := make(chan error, 1)
+	f.executor.AsyncExec(func() {
+		defer close(ch)
+		if f.state != established || f.client == nil || f.request == nil {
+			return
+		}
+		select {
+		case <-o.cancelCtx.Done():
+		default:
+			ctx, cancel := f.ctxFunc()
+			defer cancel()
+			_, err := f.client.Close(ctx, f.request.GetConnection(), f.opts...)
+			f.afterClose()
+			ch <- err
+		}
+	})
+	return ch
+}
+
+var _ EventFactory = &eventFactoryClient{}
+
+type eventFactoryServer struct {
+	state      connectionState
+	executor   serialize.Executor
+	ctxFunc    func() (context.Context, context.CancelFunc)
+	request    *networkservice.NetworkServiceRequest
+	afterClose func()
+	server     networkservice.NetworkServiceServer
+}
+
+func newEventFactoryServer(ctx context.Context, afterClose func()) *eventFactoryServer {
+	f := &eventFactoryServer{
+		server: next.Server(ctx),
+	}
+	f.ctxFunc = cxtFuncFromContext(ctx, f)
+
+	f.afterClose = func() {
+		f.state = closed
+		afterClose()
+	}
+	return f
+}
+
+func (f *eventFactoryServer) Request(opts ...Option) <-chan error {
+	o := &option{
+		cancelCtx: context.Background(),
+	}
+	for _, opt := range opts {
+		opt(o)
+	}
+	ch := make(chan error, 1)
+	f.executor.AsyncExec(func() {
+		defer close(ch)
+		if f.state != established || f.server == nil || f.request == nil {
+			return
+		}
+		select {
+		case <-o.cancelCtx.Done():
+		default:
+			ctx, cancel := f.ctxFunc()
+			defer cancel()
+			conn, err := f.server.Request(ctx, f.request)
+			if err == nil && f.request != nil {
+				f.request.Connection = conn
+			}
+			ch <- err
+		}
+	})
+	return ch
+}
+
+func (f *eventFactoryServer) Close(opts ...Option) <-chan error {
+	o := &option{
+		cancelCtx: context.Background(),
+	}
+	for _, opt := range opts {
+		opt(o)
+	}
+	ch := make(chan error, 1)
+	<-f.executor.AsyncExec(func() {
+		defer close(ch)
+		if f.state != established || f.server == nil || f.request == nil {
+			return
+		}
+		select {
+		case <-o.cancelCtx.Done():
+		default:
+			ctx, cancel := f.ctxFunc()
+			defer cancel()
+			_, err := f.server.Close(ctx, f.request.GetConnection())
+			ch <- err
+		}
+	})
+	return ch
+}
+
+var _ EventFactory = &eventFactoryServer{}
+
+func cxtFuncFromContext(ctx context.Context, eventFactory EventFactory) func() (context.Context, context.CancelFunc) {
+	ctxFunc := func() (context.Context, context.CancelFunc) {
+		eventCtx, cancel := context.WithCancel(context.Background())
+		return withEventFactory(eventCtx, eventFactory), cancel
+	}
+	if deadline, ok := ctx.Deadline(); ok {
+		duration := time.Until(deadline)
+		ctxFunc = func() (context.Context, context.CancelFunc) {
+			eventContext, cancel := context.WithTimeout(context.Background(), duration)
+			eventContext = withEventFactory(eventContext, eventFactory)
+			return eventContext, cancel
+		}
+	}
+	return ctxFunc
+}

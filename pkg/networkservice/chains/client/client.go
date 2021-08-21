@@ -27,6 +27,8 @@ import (
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
@@ -34,7 +36,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
@@ -106,9 +107,9 @@ func NewClient(ctx context.Context, connectTo *url.URL, clientOpts ...Option) ne
 
 	*rv = chain.NewNetworkServiceClient(
 		updatepath.NewClient(opts.name),
-		serialize.NewClient(),
-		refresh.NewClient(ctx),
+		begin.NewClient(),
 		metadata.NewClient(),
+		refresh.NewClient(ctx),
 		adapters.NewServerToClient(
 			chain.NewNetworkServiceServer(
 				heal.NewServer(ctx,
@@ -149,9 +150,9 @@ func NewClientFactory(clientOpts ...Option) connect.ClientFactory {
 			append(
 				append([]networkservice.NetworkServiceClient{
 					updatepath.NewClient(opts.name),
-					serialize.NewClient(),
-					refresh.NewClient(ctx),
+					begin.NewClient(),
 					metadata.NewClient(),
+					refresh.NewClient(ctx),
 					// TODO: move back to the end of the chain when `begin` chain element will be ready
 					heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc)),
 				}, opts.additionalFunctionality...),
