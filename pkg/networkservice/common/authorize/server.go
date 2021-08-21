@@ -23,6 +23,7 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"google.golang.org/grpc/peer"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
@@ -57,9 +58,10 @@ func (a *authorizeServer) Request(ctx context.Context, request *networkservice.N
 		Index:        index,
 		PathSegments: request.GetConnection().GetPath().GetPathSegments()[:index+1],
 	}
-
-	if err := a.policies.check(ctx, leftSide); err != nil {
-		return nil, err
+	if _, ok := peer.FromContext(ctx); ok {
+		if err := a.policies.check(ctx, leftSide); err != nil {
+			return nil, err
+		}
 	}
 	return next.Server(ctx).Request(ctx, request)
 }
@@ -70,10 +72,10 @@ func (a *authorizeServer) Close(ctx context.Context, conn *networkservice.Connec
 		Index:        index,
 		PathSegments: conn.GetPath().GetPathSegments()[:index+1],
 	}
-
-	if err := a.policies.check(ctx, leftSide); err != nil {
-		return nil, err
+	if _, ok := peer.FromContext(ctx); ok {
+		if err := a.policies.check(ctx, leftSide); err != nil {
+			return nil, err
+		}
 	}
-
 	return next.Server(ctx).Close(ctx, conn)
 }

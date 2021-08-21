@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
@@ -56,6 +57,28 @@ func requestWithToken(token string) *networkservice.NetworkServiceRequest {
 			},
 		},
 	}
+}
+
+func TestAuthorize_ShouldCorrectlyWorkWithHeal(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	r := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Path: &networkservice.Path{
+				PathSegments: []*networkservice.PathSegment{
+					{},
+				},
+			},
+		},
+	}
+
+	// simulate heal request
+	conn, err := authorize.NewServer().Request(context.Background(), r)
+	require.NoError(t, err)
+
+	// simulate timeout close
+	_, err = authorize.NewServer().Close(context.Background(), conn)
+	require.NoError(t, err)
 }
 
 func TestAuthzEndpoint(t *testing.T) {
@@ -96,10 +119,12 @@ func TestAuthzEndpoint(t *testing.T) {
 				require.Equal(t, s.Code(), codes.PermissionDenied, "wrong error status code")
 			}
 
-			_, err := srv.Request(context.Background(), s.request)
+			ctx := peer.NewContext(context.Background(), &peer.Peer{})
+
+			_, err := srv.Request(ctx, s.request)
 			checkResult(err)
 
-			_, err = srv.Close(context.Background(), s.request.GetConnection())
+			_, err = srv.Close(ctx, s.request.GetConnection())
 			checkResult(err)
 		})
 	}

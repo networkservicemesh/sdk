@@ -45,7 +45,7 @@ func NewClient(opts ...Option) networkservice.NetworkServiceClient {
 	var result = &authorizeClient{
 		policies: []Policy{
 			opa.WithTokensValidPolicy(),
-			opa.WithCurrentTokenSignedPolicy(),
+			opa.WithNextTokenSignedPolicy(),
 			opa.WithTokensExpiredPolicy(),
 			opa.WithTokenChainPolicy(),
 		},
