@@ -303,6 +303,5 @@ func (f *healServer) createHealContext(requestCtx, cachedCtx context.Context) co
 	if candidates := discover.Candidates(ctx); candidates != nil {
 		healCtx = discover.WithCandidates(healCtx, candidates.Endpoints, candidates.NetworkService)
 	}
-
 	return healCtx
 }

@@ -24,7 +24,7 @@ var tokensValidPolicySource string
 //go:embed policies/prev_token_signed.rego
 var prevTokenSignedPolicySource string
 
-//go:embed policies/curr_token_signed.rego
+//go:embed policies/next_token_signed.rego
 var currTokenSignedPolicySource string
 
 //go:embed policies/tokens_chained.rego
@@ -42,12 +42,12 @@ func WithTokensValidPolicy() *AuthorizationPolicy {
 	}
 }
 
-// WithCurrentTokenSignedPolicy returns default policy for checking that last token in path is signed.
-func WithCurrentTokenSignedPolicy() *AuthorizationPolicy {
+// WithNextTokenSignedPolicy returns default policy for checking that last token in path is signed.
+func WithNextTokenSignedPolicy() *AuthorizationPolicy {
 	return &AuthorizationPolicy{
 		policySource: currTokenSignedPolicySource,
-		query:        "curr_token_signed",
-		checker:      True("curr_token_signed"),
+		query:        "next_token_signed",
+		checker:      True("next_token_signed"),
 	}
 }
 

@@ -44,9 +44,10 @@ func Test_CurrentTokenShouldBeSigned_Server(t *testing.T) {
 	validX509crt, err := x509.ParseCertificate(cert.Certificate[0])
 	require.Nil(t, err)
 
-	var p = opa.WithCurrentTokenSignedPolicy()
+	var p = opa.WithNextTokenSignedPolicy()
 	var input = &networkservice.Path{
 		PathSegments: []*networkservice.PathSegment{
+			{},
 			{
 				Token: token,
 			},
