@@ -28,6 +28,7 @@ import (
 func TestManager_StoreAnyDomain(t *testing.T) {
 	const expected = `. {
 	forward . IP1 IP2
+	cache
 	log
 	reload
 }
@@ -42,6 +43,7 @@ func TestManager_StoreAnyDomain(t *testing.T) {
 func TestManager_StoreAnyDomainConflict(t *testing.T) {
 	const expected = `. {
 	fanout . IP1 IP2 IP3
+	cache
 	log
 	reload
 }
@@ -62,9 +64,11 @@ func TestManager_StoreAnyDomainConflict(t *testing.T) {
 func TestManager_Store(t *testing.T) {
 	expected := []string{`zone-a {
 	forward . IP1 IP2
+	cache
 	log
 }`, `zone-b zone-c {
 	forward . IP3 IP4
+	cache
 	log
 }
 `}
@@ -86,6 +90,7 @@ func TestManager_Store(t *testing.T) {
 func TestManager_StoreConflict(t *testing.T) {
 	const expected = `zone-a {
 	fanout . IP1 IP2 IP3
+	cache
 	log
 }
 `
@@ -105,6 +110,7 @@ func TestManager_StoreConflict(t *testing.T) {
 func TestManger_Remove(t *testing.T) {
 	const expected = `zone-a {
 	forward . IP1 IP2
+	cache
 	log
 }
 `
@@ -124,6 +130,7 @@ func TestManger_Remove(t *testing.T) {
 func TestManger_RemoveConflict(t *testing.T) {
 	const expected = `zone-a {
 	forward . IP1 IP2
+	cache
 	log
 }
 `
