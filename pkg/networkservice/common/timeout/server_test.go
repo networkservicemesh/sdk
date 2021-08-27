@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
@@ -238,7 +239,8 @@ func TestTimeoutServer_RefreshFailure(t *testing.T) {
 		next.NewNetworkServiceServer(
 			injecterror.NewServer(
 				injecterror.WithRequestErrorTimes(1, -1),
-				injecterror.WithCloseErrorTimes()),
+				injecterror.WithCloseErrorTimes(),
+			),
 			connServer,
 		),
 		tokenTimeout,
@@ -255,6 +257,44 @@ func TestTimeoutServer_RefreshFailure(t *testing.T) {
 	_, err = client.Close(ctx, conn)
 	require.NoError(t, err)
 	require.Condition(t, connServer.validator(0, 1))
+}
+
+func TestTimeoutServer_CloseFailure(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	clockMock := clockmock.New(ctx)
+	ctx = clock.WithClock(ctx, clockMock)
+
+	connServer := newConnectionsServer(t)
+
+	client := testClient(
+		ctx,
+		null.NewClient(),
+		next.NewNetworkServiceServer(
+			injecterror.NewServer(
+				injecterror.WithError(errors.WithStack(context.DeadlineExceeded)),
+				injecterror.WithRequestErrorTimes(),
+				injecterror.WithCloseErrorTimes(0)),
+
+			connServer,
+		),
+		tokenTimeout,
+		clockMock,
+	)
+
+	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{})
+	require.NoError(t, err)
+	require.Condition(t, connServer.validator(1, 0))
+
+	_, err = client.Close(ctx, conn)
+	require.Error(t, err)
+	require.Condition(t, connServer.validator(1, 0))
+
+	clockMock.Add(tokenTimeout)
+	require.Eventually(t, connServer.validator(0, 1), testWait, testTick)
 }
 
 type remoteServer struct{}

@@ -23,6 +23,8 @@ import (
 	"context"
 	"time"
 
+	iserror "errors"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 
@@ -82,8 +84,11 @@ func (s *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 }
 
 func (s *timeoutServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	if oldCancel, loaded := LoadAndDelete(ctx, metadata.IsClient(s)); loaded {
-		oldCancel()
+	_, err := next.Server(ctx).Close(ctx, conn)
+	if !(iserror.Is(err, context.DeadlineExceeded) || iserror.Is(err, context.Canceled)) {
+		if oldCancel, loaded := LoadAndDelete(ctx, metadata.IsClient(s)); loaded {
+			oldCancel()
+		}
 	}
-	return next.Server(ctx).Close(ctx, conn)
+	return &empty.Empty{}, err
 }

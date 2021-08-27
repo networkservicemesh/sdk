@@ -18,11 +18,12 @@ package begin
 
 import (
 	"context"
-	"time"
 
 	"github.com/edwarnicke/serialize"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
@@ -58,7 +59,11 @@ func newEventFactoryClient(ctx context.Context, afterClose func(), opts ...grpc.
 		client: next.Client(ctx),
 		opts:   opts,
 	}
-	f.ctxFunc = cxtFuncFromContext(ctx, f)
+	ctxFunc := postpone.Context(ctx)
+	f.ctxFunc = func() (context.Context, context.CancelFunc) {
+		eventCtx, cancel := ctxFunc()
+		return withEventFactory(eventCtx, f), cancel
+	}
 
 	f.afterClose = func() {
 		f.state = closed
@@ -107,7 +112,7 @@ func (f *eventFactoryClient) Close(opts ...Option) <-chan error {
 	ch := make(chan error, 1)
 	f.executor.AsyncExec(func() {
 		defer close(ch)
-		if f.state != established || f.client == nil || f.request == nil {
+		if f.client == nil || f.request == nil {
 			return
 		}
 		select {
@@ -138,7 +143,11 @@ func newEventFactoryServer(ctx context.Context, afterClose func()) *eventFactory
 	f := &eventFactoryServer{
 		server: next.Server(ctx),
 	}
-	f.ctxFunc = cxtFuncFromContext(ctx, f)
+	ctxFunc := postpone.Context(ctx)
+	f.ctxFunc = func() (context.Context, context.CancelFunc) {
+		eventCtx, cancel := ctxFunc()
+		return withEventFactory(eventCtx, f), cancel
+	}
 
 	f.afterClose = func() {
 		f.state = closed
@@ -185,7 +194,7 @@ func (f *eventFactoryServer) Close(opts ...Option) <-chan error {
 	ch := make(chan error, 1)
 	<-f.executor.AsyncExec(func() {
 		defer close(ch)
-		if f.state != established || f.server == nil || f.request == nil {
+		if f.server == nil || f.request == nil {
 			return
 		}
 		select {
@@ -201,19 +210,3 @@ func (f *eventFactoryServer) Close(opts ...Option) <-chan error {
 }
 
 var _ EventFactory = &eventFactoryServer{}
-
-func cxtFuncFromContext(ctx context.Context, eventFactory EventFactory) func() (context.Context, context.CancelFunc) {
-	ctxFunc := func() (context.Context, context.CancelFunc) {
-		eventCtx, cancel := context.WithCancel(context.Background())
-		return withEventFactory(eventCtx, eventFactory), cancel
-	}
-	if deadline, ok := ctx.Deadline(); ok {
-		duration := time.Until(deadline)
-		ctxFunc = func() (context.Context, context.CancelFunc) {
-			eventContext, cancel := context.WithTimeout(context.Background(), duration)
-			eventContext = withEventFactory(eventContext, eventFactory)
-			return eventContext, cancel
-		}
-	}
-	return ctxFunc
-}
