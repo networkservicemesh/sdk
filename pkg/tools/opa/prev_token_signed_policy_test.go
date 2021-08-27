@@ -22,7 +22,7 @@ import (
 	"crypto/x509"
 	"testing"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/credentials"
