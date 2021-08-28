@@ -192,7 +192,7 @@ func (f *eventFactoryServer) Close(opts ...Option) <-chan error {
 		opt(o)
 	}
 	ch := make(chan error, 1)
-	<-f.executor.AsyncExec(func() {
+	f.executor.AsyncExec(func() {
 		defer close(ch)
 		if f.server == nil || f.request == nil {
 			return
