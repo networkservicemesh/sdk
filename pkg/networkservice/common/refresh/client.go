@@ -67,16 +67,11 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 
 	// Create a cancel context.
 	cancelCtx, cancel := context.WithCancel(t.chainCtx)
-	for {
-		// Call the old cancel to cancel any existing refreshes hanging out waiting to go
-		if oldCancel, loaded := loadAndDelete(ctx, metadata.IsClient(t)); loaded {
-			oldCancel()
-		}
-		// store the cancel context and break out of the loop
-		if _, loaded := loadOrStore(ctx, metadata.IsClient(t), cancel); !loaded {
-			break
-		}
+
+	if oldCancel, loaded := loadAndDelete(ctx, metadata.IsClient(t)); loaded {
+		oldCancel()
 	}
+	store(ctx, metadata.IsClient(t), cancel)
 
 	eventFactory := begin.FromContext(ctx)
 	timeClock := clock.FromContext(ctx)

@@ -61,14 +61,10 @@ func (s *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 	}
 	expirationTime := expirationTimestamp.AsTime()
 	cancelCtx, cancel := context.WithCancel(s.chainCtx)
-	for {
-		if oldCancel, loaded := loadAndDelete(ctx, metadata.IsClient(s)); loaded {
-			oldCancel()
-		}
-		if _, loaded := loadOrStore(ctx, metadata.IsClient(s), cancel); !loaded {
-			break
-		}
+	if oldCancel, loaded := loadAndDelete(ctx, metadata.IsClient(s)); loaded {
+		oldCancel()
 	}
+	store(ctx, metadata.IsClient(s), cancel)
 	eventFactory := begin.FromContext(ctx)
 	timeClock := clock.FromContext(ctx)
 	afterCh := timeClock.After(timeClock.Until(expirationTime))

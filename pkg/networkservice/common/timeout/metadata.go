@@ -24,16 +24,9 @@ import (
 
 type key struct{}
 
-// loadOrStore returns the existing context.CancelFunc stored in per Connection.Id metadata if present.
-// Otherwise, it stores and returns the given nterface_types.InterfaceIndex.
-// The loaded result is true if the value was loaded, false if stored.
-func loadOrStore(ctx context.Context, isClient bool, cancel context.CancelFunc) (value context.CancelFunc, ok bool) {
-	rawValue, ok := metadata.Map(ctx, isClient).LoadOrStore(key{}, cancel)
-	if !ok {
-		return
-	}
-	value, ok = rawValue.(context.CancelFunc)
-	return value, ok
+// store sets the context.CancelFunc stored in per Connection.Id metadata.
+func store(ctx context.Context, isClient bool, cancel context.CancelFunc) {
+	metadata.Map(ctx, isClient).Store(key{}, cancel)
 }
 
 // loadAndDelete deletes the context.CancelFunc stored in per Connection.Id metadata,
