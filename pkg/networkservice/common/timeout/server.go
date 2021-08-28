@@ -62,10 +62,10 @@ func (s *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 	expirationTime := expirationTimestamp.AsTime()
 	cancelCtx, cancel := context.WithCancel(s.chainCtx)
 	for {
-		if oldCancel, loaded := LoadAndDelete(ctx, metadata.IsClient(s)); loaded {
+		if oldCancel, loaded := loadAndDelete(ctx, metadata.IsClient(s)); loaded {
 			oldCancel()
 		}
-		if _, loaded := LoadOrStore(ctx, metadata.IsClient(s), cancel); !loaded {
+		if _, loaded := loadOrStore(ctx, metadata.IsClient(s), cancel); !loaded {
 			break
 		}
 	}
@@ -86,7 +86,7 @@ func (s *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 func (s *timeoutServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	_, err := next.Server(ctx).Close(ctx, conn)
 	if !(iserror.Is(err, context.DeadlineExceeded) || iserror.Is(err, context.Canceled)) {
-		if oldCancel, loaded := LoadAndDelete(ctx, metadata.IsClient(s)); loaded {
+		if oldCancel, loaded := loadAndDelete(ctx, metadata.IsClient(s)); loaded {
 			oldCancel()
 		}
 	}

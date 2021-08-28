@@ -24,32 +24,10 @@ import (
 
 type key struct{}
 
-// Store sets the context.CancelFunc stored in per Connection.Id metadata.
-func Store(ctx context.Context, isClient bool, cancel context.CancelFunc) {
-	metadata.Map(ctx, isClient).Store(key{}, cancel)
-}
-
-// Delete deletes the context.CancelFunc stored in per Connection.Id metadata
-func Delete(ctx context.Context, isClient bool) {
-	metadata.Map(ctx, isClient).Delete(key{})
-}
-
-// Load returns the context.CancelFunc stored in per Connection.Id metadata, or nil if no
-// value is present.
-// The ok result indicates whether value was found in the per Connection.Id metadata.
-func Load(ctx context.Context, isClient bool) (value context.CancelFunc, ok bool) {
-	rawValue, ok := metadata.Map(ctx, isClient).Load(key{})
-	if !ok {
-		return
-	}
-	value, ok = rawValue.(context.CancelFunc)
-	return value, ok
-}
-
-// LoadOrStore returns the existing context.CancelFunc stored in per Connection.Id metadata if present.
+// loadOrStore returns the existing context.CancelFunc stored in per Connection.Id metadata if present.
 // Otherwise, it stores and returns the given nterface_types.InterfaceIndex.
 // The loaded result is true if the value was loaded, false if stored.
-func LoadOrStore(ctx context.Context, isClient bool, cancel context.CancelFunc) (value context.CancelFunc, ok bool) {
+func loadOrStore(ctx context.Context, isClient bool, cancel context.CancelFunc) (value context.CancelFunc, ok bool) {
 	rawValue, ok := metadata.Map(ctx, isClient).LoadOrStore(key{}, cancel)
 	if !ok {
 		return
@@ -58,9 +36,9 @@ func LoadOrStore(ctx context.Context, isClient bool, cancel context.CancelFunc) 
 	return value, ok
 }
 
-// LoadAndDelete deletes the context.CancelFunc stored in per Connection.Id metadata,
+// loadAndDelete deletes the context.CancelFunc stored in per Connection.Id metadata,
 // returning the previous value if any. The loaded result reports whether the key was present.
-func LoadAndDelete(ctx context.Context, isClient bool) (value context.CancelFunc, ok bool) {
+func loadAndDelete(ctx context.Context, isClient bool) (value context.CancelFunc, ok bool) {
 	rawValue, ok := metadata.Map(ctx, isClient).LoadAndDelete(key{})
 	if !ok {
 		return

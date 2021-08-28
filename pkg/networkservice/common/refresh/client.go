@@ -69,11 +69,11 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 	cancelCtx, cancel := context.WithCancel(t.chainCtx)
 	for {
 		// Call the old cancel to cancel any existing refreshes hanging out waiting to go
-		if oldCancel, loaded := LoadAndDelete(ctx, metadata.IsClient(t)); loaded {
+		if oldCancel, loaded := loadAndDelete(ctx, metadata.IsClient(t)); loaded {
 			oldCancel()
 		}
-		// Store the cancel context and break out of the loop
-		if _, loaded := LoadOrStore(ctx, metadata.IsClient(t), cancel); !loaded {
+		// store the cancel context and break out of the loop
+		if _, loaded := loadOrStore(ctx, metadata.IsClient(t), cancel); !loaded {
 			break
 		}
 	}
@@ -95,7 +95,7 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 }
 
 func (t *refreshClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (e *empty.Empty, err error) {
-	if oldCancel, loaded := LoadAndDelete(ctx, metadata.IsClient(t)); loaded {
+	if oldCancel, loaded := loadAndDelete(ctx, metadata.IsClient(t)); loaded {
 		oldCancel()
 	}
 	return next.Client(ctx).Close(ctx, conn, opts...)
