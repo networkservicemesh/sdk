@@ -105,8 +105,8 @@ func (b *beginClient) Close(ctx context.Context, conn *networkservice.Connection
 		conn = eventFactoryClient.request.Connection
 		ctx = withEventFactory(ctx, eventFactoryClient)
 		emp, err = next.Client(ctx).Close(ctx, conn, opts...)
-		// afterClose() is used to cleanup things like the entry in the Map for EventFactories
-		eventFactoryClient.afterClose()
+		// afterCloseFunc() is used to cleanup things like the entry in the Map for EventFactories
+		eventFactoryClient.afterCloseFunc()
 	})
 	return emp, err
 }

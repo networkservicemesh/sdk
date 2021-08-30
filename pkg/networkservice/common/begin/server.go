@@ -96,7 +96,7 @@ func (b *beginServer) Close(ctx context.Context, conn *networkservice.Connection
 		conn = eventFactoryServer.request.Connection
 		ctx = withEventFactory(ctx, eventFactoryServer)
 		emp, err = next.Server(ctx).Close(ctx, conn)
-		eventFactoryServer.afterClose()
+		eventFactoryServer.afterCloseFunc()
 	})
 	return emp, err
 }

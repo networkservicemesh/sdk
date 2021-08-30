@@ -45,13 +45,13 @@ type EventFactory interface {
 }
 
 type eventFactoryClient struct {
-	state      connectionState
-	executor   serialize.Executor
-	ctxFunc    func() (context.Context, context.CancelFunc)
-	request    *networkservice.NetworkServiceRequest
-	opts       []grpc.CallOption
-	client     networkservice.NetworkServiceClient
-	afterClose func()
+	state          connectionState
+	executor       serialize.Executor
+	ctxFunc        func() (context.Context, context.CancelFunc)
+	request        *networkservice.NetworkServiceRequest
+	opts           []grpc.CallOption
+	client         networkservice.NetworkServiceClient
+	afterCloseFunc func()
 }
 
 func newEventFactoryClient(ctx context.Context, afterClose func(), opts ...grpc.CallOption) *eventFactoryClient {
@@ -65,7 +65,7 @@ func newEventFactoryClient(ctx context.Context, afterClose func(), opts ...grpc.
 		return withEventFactory(eventCtx, f), cancel
 	}
 
-	f.afterClose = func() {
+	f.afterCloseFunc = func() {
 		f.state = closed
 		if afterClose != nil {
 			afterClose()
@@ -121,7 +121,7 @@ func (f *eventFactoryClient) Close(opts ...Option) <-chan error {
 			ctx, cancel := f.ctxFunc()
 			defer cancel()
 			_, err := f.client.Close(ctx, f.request.GetConnection(), f.opts...)
-			f.afterClose()
+			f.afterCloseFunc()
 			ch <- err
 		}
 	})
@@ -131,12 +131,12 @@ func (f *eventFactoryClient) Close(opts ...Option) <-chan error {
 var _ EventFactory = &eventFactoryClient{}
 
 type eventFactoryServer struct {
-	state      connectionState
-	executor   serialize.Executor
-	ctxFunc    func() (context.Context, context.CancelFunc)
-	request    *networkservice.NetworkServiceRequest
-	afterClose func()
-	server     networkservice.NetworkServiceServer
+	state          connectionState
+	executor       serialize.Executor
+	ctxFunc        func() (context.Context, context.CancelFunc)
+	request        *networkservice.NetworkServiceRequest
+	afterCloseFunc func()
+	server         networkservice.NetworkServiceServer
 }
 
 func newEventFactoryServer(ctx context.Context, afterClose func()) *eventFactoryServer {
@@ -149,7 +149,7 @@ func newEventFactoryServer(ctx context.Context, afterClose func()) *eventFactory
 		return withEventFactory(eventCtx, f), cancel
 	}
 
-	f.afterClose = func() {
+	f.afterCloseFunc = func() {
 		f.state = closed
 		afterClose()
 	}
