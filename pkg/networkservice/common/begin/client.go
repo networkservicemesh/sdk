@@ -24,6 +24,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
@@ -57,8 +59,9 @@ func (b *beginClient) Request(ctx context.Context, request *networkservice.Netwo
 	<-eventFactoryClient.executor.AsyncExec(func() {
 		// If the eventFactory has changed, usually because the connection has been Closed and re-established
 		// go back to the beginning and try again.
-		currentConnClient, _ := b.LoadOrStore(request.GetConnection().GetId(), eventFactoryClient)
-		if currentConnClient != eventFactoryClient {
+		currentEventFactoryClient, _ := b.LoadOrStore(request.GetConnection().GetId(), eventFactoryClient)
+		if currentEventFactoryClient != eventFactoryClient {
+			log.FromContext(ctx).Debug("recalling begin.Request because currentEventFactoryClient != eventFactoryClient")
 			conn, err = b.Request(ctx, request)
 			return
 		}
@@ -97,8 +100,8 @@ func (b *beginClient) Close(ctx context.Context, conn *networkservice.Connection
 		}
 
 		// If this isn't the connection we started with, do nothing
-		currentConnClient, _ := b.LoadOrStore(conn.GetId(), eventFactoryClient)
-		if currentConnClient != eventFactoryClient {
+		currentEventFactoryClient, _ := b.LoadOrStore(conn.GetId(), eventFactoryClient)
+		if currentEventFactoryClient != eventFactoryClient {
 			return
 		}
 		// Always close with the last valid Connection we got

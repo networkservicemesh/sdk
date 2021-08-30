@@ -23,6 +23,8 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
@@ -53,8 +55,9 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 		),
 	)
 	<-eventFactoryServer.executor.AsyncExec(func() {
-		currentServerClient, _ := b.LoadOrStore(request.GetConnection().GetId(), eventFactoryServer)
-		if currentServerClient != eventFactoryServer {
+		currentEventFactoryServer, _ := b.LoadOrStore(request.GetConnection().GetId(), eventFactoryServer)
+		if currentEventFactoryServer != eventFactoryServer {
+			log.FromContext(ctx).Debug("recalling begin.Request because currentEventFactoryServer != eventFactoryServer")
 			conn, err = b.Request(ctx, request)
 			return
 		}
