@@ -29,14 +29,16 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injectclock"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
@@ -63,12 +65,15 @@ func testTokenFunc(clockTime clock.Clock) token.GeneratorFunc {
 func testClient(
 	ctx context.Context,
 	tokenGenerator token.GeneratorFunc,
+	clk clock.Clock,
 	additionalFunctionality ...networkservice.NetworkServiceClient,
 ) networkservice.NetworkServiceClient {
 	return next.NewNetworkServiceClient(
 		append([]networkservice.NetworkServiceClient{
-			serialize.NewClient(),
 			updatepath.NewClient("refresh"),
+			begin.NewClient(),
+			metadata.NewClient(),
+			injectclock.NewClient(clk),
 			refresh.NewClient(ctx),
 			adapters.NewServerToClient(
 				updatetoken.NewServer(tokenGenerator),
@@ -85,12 +90,11 @@ func TestRefreshClient_ValidRefresh(t *testing.T) {
 	defer cancel()
 
 	clockMock := clockmock.New(ctx)
-	ctx = clock.WithClock(ctx, clockMock)
 
 	cloneClient := &countClient{
 		t: t,
 	}
-	client := testClient(ctx, testTokenFunc(clockMock), cloneClient)
+	client := testClient(ctx, testTokenFunc(clockMock), clockMock, cloneClient)
 
 	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -123,13 +127,14 @@ func TestRefreshClient_StopRefreshAtClose(t *testing.T) {
 	defer cancel()
 
 	clockMock := clockmock.New(ctx)
-	ctx = clock.WithClock(ctx, clockMock)
 
 	cloneClient := &countClient{
 		t: t,
 	}
 	client := chain.NewNetworkServiceClient(
-		serialize.NewClient(),
+		begin.NewClient(),
+		metadata.NewClient(),
+		injectclock.NewClient(clockMock),
 		updatepath.NewClient("refresh"),
 		refresh.NewClient(ctx),
 		adapters.NewServerToClient(updatetoken.NewServer(testTokenFunc(clockMock))),
@@ -168,7 +173,7 @@ func TestRefreshClient_RestartsRefreshAtAnotherRequest(t *testing.T) {
 	cloneClient := &countClient{
 		t: t,
 	}
-	client := testClient(ctx, testTokenFunc(clockMock), cloneClient)
+	client := testClient(ctx, testTokenFunc(clockMock), clockMock, cloneClient)
 
 	conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -220,7 +225,7 @@ func TestRefreshClient_CheckRaceConditions(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	client := testClient(ctx, sandbox.GenerateExpiringToken(conf.expireTimeout), adapters.NewServerToClient(refreshTester))
+	client := testClient(ctx, sandbox.GenerateExpiringToken(conf.expireTimeout), clock.FromContext(ctx), adapters.NewServerToClient(refreshTester))
 
 	generateRequests(t, client, refreshTester, conf.iterations, conf.tickDuration)
 }
@@ -277,12 +282,12 @@ func TestRefreshClient_NoRefreshOnFailure(t *testing.T) {
 	defer cancel()
 
 	clockMock := clockmock.New(ctx)
-	ctx = clock.WithClock(ctx, clockMock)
 
 	cloneClient := &countClient{
 		t: t,
 	}
 	client := testClient(ctx, testTokenFunc(clockMock),
+		clockMock,
 		cloneClient,
 		injecterror.NewClient(),
 	)
@@ -304,12 +309,12 @@ func TestRefreshClient_NoRefreshOnRefreshFailure(t *testing.T) {
 	defer cancel()
 
 	clockMock := clockmock.New(ctx)
-	ctx = clock.WithClock(ctx, clockMock)
 
 	cloneClient := &countClient{
 		t: t,
 	}
 	client := testClient(ctx, testTokenFunc(clockMock),
+		clockMock,
 		cloneClient,
 		injecterror.NewClient(injecterror.WithRequestErrorTimes(1, -1)),
 	)

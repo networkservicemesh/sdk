@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package serialize_test
+package begin_test
 
 import (
 	"context"
@@ -24,15 +24,13 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/serializectx"
 )
 
 const (
@@ -54,8 +52,7 @@ func TestSerializeServer_StressTest(t *testing.T) {
 	defer cancel()
 
 	server := chain.NewNetworkServiceServer(
-		serialize.NewServer(),
-		new(eventServer),
+		begin.NewServer(),
 		newParallelServer(t),
 	)
 
@@ -75,34 +72,6 @@ func TestSerializeServer_StressTest(t *testing.T) {
 	wg.Wait()
 }
 
-type eventServer struct{}
-
-func (s *eventServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	executor := serializectx.GetExecutor(ctx, request.GetConnection().GetId())
-	go func() {
-		executor.AsyncExec(func() {
-			_, _ = next.Server(ctx).Request(serializectx.WithExecutor(context.TODO(), executor), request)
-		})
-	}()
-
-	conn, err := next.Server(ctx).Request(ctx, request)
-	if err != nil {
-		return nil, err
-	}
-
-	go func() {
-		executor.AsyncExec(func() {
-			_, _ = next.Server(ctx).Close(context.TODO(), conn)
-		})
-	}()
-
-	return conn, nil
-}
-
-func (s *eventServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	return next.Server(ctx).Close(ctx, conn)
-}
-
 type parallelServer struct {
 	t      *testing.T
 	states sync.Map
@@ -119,7 +88,7 @@ func (s *parallelServer) Request(ctx context.Context, request *networkservice.Ne
 	statePtr := raw.(*int32)
 
 	state := atomic.LoadInt32(statePtr)
-	assert.True(s.t, atomic.CompareAndSwapInt32(statePtr, state, state+1), "state has been changed")
+	assert.True(s.t, atomic.CompareAndSwapInt32(statePtr, state, state+1), "state has been changed for connection %s expected %d actual %d", request.GetConnection().GetId(), state, atomic.LoadInt32(statePtr))
 
 	return next.Server(ctx).Request(ctx, request)
 }
@@ -129,7 +98,7 @@ func (s *parallelServer) Close(ctx context.Context, conn *networkservice.Connect
 	statePtr := raw.(*int32)
 
 	state := atomic.LoadInt32(statePtr)
-	assert.True(s.t, atomic.CompareAndSwapInt32(statePtr, state, state+1), "state has been changed")
+	assert.True(s.t, atomic.CompareAndSwapInt32(statePtr, state, state+1), "state has been changed for connection %s expected %d actual %d", conn.GetId(), state, atomic.LoadInt32(statePtr))
 
 	return next.Server(ctx).Close(ctx, conn)
 }

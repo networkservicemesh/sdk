@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,12 +14,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package refresh
+package begin
 
 import (
-	"sync"
+	"context"
 )
 
-//go:generate go-syncmap -output timer_map.gen.go -type timerMap<string,github.com/networkservicemesh/sdk/pkg/tools/clock.Timer>
+type option struct {
+	cancelCtx context.Context
+}
 
-type timerMap sync.Map
+// Option - event option
+type Option func(*option)
+
+// CancelContext - optionally provide a context that, when canceled will preclude the event from running
+func CancelContext(cancelCtx context.Context) Option {
+	return func(o *option) {
+		o.cancelCtx = cancelCtx
+	}
+}

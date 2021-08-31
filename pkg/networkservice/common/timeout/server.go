@@ -21,80 +21,70 @@ package timeout
 
 import (
 	"context"
+	"time"
+
+	iserror "errors"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/expire"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	"github.com/networkservicemesh/sdk/pkg/tools/serializectx"
 )
 
 type timeoutServer struct {
-	expireManager *expire.Manager
+	chainCtx context.Context
 }
 
 // NewServer - creates a new NetworkServiceServer chain element that implements timeout of expired connections
 //             for the subsequent chain elements.
 func NewServer(ctx context.Context) networkservice.NetworkServiceServer {
 	return &timeoutServer{
-		expireManager: expire.NewManager(ctx),
+		chainCtx: ctx,
 	}
 }
 
 func (s *timeoutServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (conn *networkservice.Connection, err error) {
-	logger := log.FromContext(ctx).WithField("timeoutServer", "Request")
-
-	conn = request.GetConnection()
-	connID := conn.GetId()
+	conn, err = next.Server(ctx).Request(ctx, request)
+	if err != nil {
+		return nil, err
+	}
 
 	expirationTimestamp := conn.GetPrevPathSegment().GetExpires()
 	if expirationTimestamp == nil {
 		return nil, errors.Errorf("expiration for the previous path segment cannot be nil: %+v", conn)
 	}
-
-	s.expireManager.Stop(connID)
-
-	conn, err = next.Server(ctx).Request(ctx, request)
-	if err != nil {
-		s.expireManager.Start(connID)
-		return nil, err
+	expirationTime := expirationTimestamp.AsTime()
+	cancelCtx, cancel := context.WithCancel(s.chainCtx)
+	if oldCancel, loaded := loadAndDelete(ctx, metadata.IsClient(s)); loaded {
+		oldCancel()
 	}
-
-	closeConn := conn.Clone()
-	if closeConn.GetId() != connID {
-		s.expireManager.Delete(connID)
-	}
-
-	s.expireManager.New(
-		serializectx.GetExecutor(ctx, closeConn.GetId()),
-		closeConn.GetId(),
-		expirationTimestamp.AsTime().Local(),
-		func(closeCtx context.Context) {
-			if _, closeErr := next.Server(ctx).Close(closeCtx, closeConn); closeErr != nil {
-				logger.Errorf("failed to close timed out connection: %s %s", closeConn.GetId(), closeErr.Error())
-			}
-		},
-	)
+	store(ctx, metadata.IsClient(s), cancel)
+	eventFactory := begin.FromContext(ctx)
+	timeClock := clock.FromContext(ctx)
+	afterCh := timeClock.After(timeClock.Until(expirationTime))
+	go func(cancelCtx context.Context, afterCh <-chan time.Time) {
+		select {
+		case <-cancelCtx.Done():
+		case <-afterCh:
+			eventFactory.Close(begin.CancelContext(cancelCtx))
+		}
+	}(cancelCtx, afterCh)
 
 	return conn, nil
 }
 
 func (s *timeoutServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	logger := log.FromContext(ctx).WithField("timeoutServer", "Close")
-
-	if s.expireManager.Stop(conn.GetId()) {
-		if _, err := next.Server(ctx).Close(ctx, conn); err != nil {
-			s.expireManager.Start(conn.GetId())
-			return nil, err
+	_, err := next.Server(ctx).Close(ctx, conn)
+	if !(iserror.Is(err, context.DeadlineExceeded) || iserror.Is(err, context.Canceled)) {
+		if oldCancel, loaded := loadAndDelete(ctx, metadata.IsClient(s)); loaded {
+			oldCancel()
 		}
-		s.expireManager.Delete(conn.GetId())
-	} else {
-		logger.Warnf("connection has been already closed: %s", conn.GetId())
 	}
-
-	return new(empty.Empty), nil
+	return &empty.Empty{}, err
 }

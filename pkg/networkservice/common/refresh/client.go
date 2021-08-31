@@ -29,17 +29,18 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
-	"github.com/networkservicemesh/sdk/pkg/tools/extend"
-	"github.com/networkservicemesh/sdk/pkg/tools/serializectx"
 )
 
 type refreshClient struct {
 	chainCtx context.Context
-	timers   timerMap
 }
 
 // NewClient - creates new NetworkServiceClient chain element for refreshing
@@ -51,92 +52,67 @@ func NewClient(ctx context.Context) networkservice.NetworkServiceClient {
 }
 
 func (t *refreshClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	connectionID := request.Connection.Id
-	t.stopTimer(connectionID)
-
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	executor := serializectx.GetExecutor(ctx, connectionID)
-	if executor == nil {
-		return nil, errors.New("no executor provided")
+	// Compute refreshAfter
+	refreshAfter, err := after(ctx, conn)
+	if err != nil {
+		// If we can't refresh, we should close down chain
+		_, _ = t.Close(ctx, conn)
+		return nil, err
 	}
 
-	request.Connection = conn.Clone()
-	t.startTimer(ctx, connectionID, request, opts)
+	// Create a cancel context.
+	cancelCtx, cancel := context.WithCancel(t.chainCtx)
+
+	if oldCancel, loaded := loadAndDelete(ctx, metadata.IsClient(t)); loaded {
+		oldCancel()
+	}
+	store(ctx, metadata.IsClient(t), cancel)
+
+	eventFactory := begin.FromContext(ctx)
+	timeClock := clock.FromContext(ctx)
+	// Create the afterCh *outside* the go routine.  This must be done to avoid picking up a later 'now'
+	// from mockClock in testing
+	afterCh := timeClock.After(refreshAfter)
+	go func(cancelCtx context.Context, afterCh <-chan time.Time) {
+		select {
+		case <-cancelCtx.Done():
+		case <-afterCh:
+			eventFactory.Request(begin.CancelContext(cancelCtx))
+		}
+	}(cancelCtx, afterCh)
 
 	return conn, nil
 }
 
 func (t *refreshClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (e *empty.Empty, err error) {
-	t.stopTimer(conn.Id)
+	if oldCancel, loaded := loadAndDelete(ctx, metadata.IsClient(t)); loaded {
+		oldCancel()
+	}
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
-func (t *refreshClient) stopTimer(connectionID string) {
-	value, loaded := t.timers.LoadAndDelete(connectionID)
-	if loaded {
-		value.Stop()
-	}
-}
-
-func (t *refreshClient) startTimer(ctx context.Context, connectionID string, request *networkservice.NetworkServiceRequest, opts []grpc.CallOption) {
+func after(ctx context.Context, conn *networkservice.Connection) (time.Duration, error) {
 	clockTime := clock.FromContext(ctx)
-
-	nextClient := next.Client(ctx)
-	expireTime, err := ptypes.Timestamp(request.GetConnection().GetCurrentPathSegment().GetExpires())
+	expireTime, err := ptypes.Timestamp(conn.GetCurrentPathSegment().GetExpires())
 	if err != nil {
-		return
+		return 0, errors.WithStack(err)
 	}
+	log.FromContext(ctx).Infof("expireTime %s now %s", expireTime, clockTime.Now().UTC())
 
 	// A heuristic to reduce the number of redundant requests in a chain
 	// made of refreshing clients with the same expiration time: let outer
 	// chain elements refresh slightly faster than inner ones.
 	// Update interval is within 0.2*expirationTime .. 0.4*expirationTime
 	scale := 1. / 3.
-	path := request.GetConnection().GetPath()
+	path := conn.GetPath()
 	if len(path.PathSegments) > 1 {
 		scale = 0.2 + 0.2*float64(path.Index)/float64(len(path.PathSegments))
 	}
 	duration := time.Duration(float64(clockTime.Until(expireTime)) * scale)
-	req := request.Clone()
-	exec := serializectx.GetExecutor(ctx, connectionID)
-
-	var timer clock.Timer
-	timer = clockTime.AfterFunc(duration, func() {
-		exec.AsyncExec(func() {
-			oldTimer, ok := t.timers.Load(connectionID)
-			if !ok || oldTimer != timer {
-				return
-			}
-
-			t.timers.Delete(connectionID)
-
-			// Context is canceled or deadlined.
-			if t.chainCtx.Err() != nil {
-				return
-			}
-
-			timeout := defaultRefreshRequestTimeout
-			if timeout > duration {
-				timeout = duration
-			}
-
-			refreshCtx, cancel := clockTime.WithTimeout(extend.WithValuesFromContext(t.chainCtx, ctx), timeout)
-			defer cancel()
-
-			conn, err := nextClient.Request(refreshCtx, req, opts...)
-			if err != nil {
-				return
-			}
-
-			req.Connection = conn.Clone()
-			t.startTimer(ctx, connectionID, req, opts)
-		})
-	})
-
-	t.stopTimer(connectionID)
-	t.timers.Store(connectionID, timer)
+	return duration, nil
 }
