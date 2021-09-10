@@ -673,7 +673,7 @@ func (s *nsmgrSuite) Test_ShouldCleanAllClientAndEndpointGoroutines() {
 	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
 
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	// At this moment all possible endless NSMgr goroutines have been started. So we expect all newly created goroutines
 	// to be canceled no later than some of these events:
@@ -779,17 +779,18 @@ func additionalFunctionalityChain(ctx context.Context, clientURL *url.URL, clien
 	return []networkservice.NetworkServiceServer{
 		chain.NewNetworkServiceServer(
 			clienturl.NewServer(clientURL),
-			connect.NewServer(ctx,
-				client.NewClientFactory(
+			connect.NewServer(
+				client.NewClient(
+					ctx,
 					client.WithName(fmt.Sprintf("endpoint-client-%v", clientName)),
 					client.WithAdditionalFunctionality(
 						mechanismtranslation.NewClient(),
 						replacelabels.NewClient(labels),
 						kernel.NewClient(),
 					),
+					client.WithDialOptions(sandbox.DialOptions()...),
+					client.WithDialTimeout(sandbox.DialTimeout),
 				),
-				connect.WithDialTimeout(sandbox.DialTimeout),
-				connect.WithDialOptions(sandbox.DialOptions()...),
 			),
 		),
 	}

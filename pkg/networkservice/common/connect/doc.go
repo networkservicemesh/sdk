@@ -1,6 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
-//
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -16,16 +14,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package heal
-
-import (
-	"sync"
-)
-
-//go:generate go-syncmap -output connection_info_map.gen.go -type connectionInfoMap<string,*connectionInfo>
-
-type connectionInfoMap sync.Map
-
-//go:generate go-syncmap -output context_wrapper_map.gen.go -type ctxWrapperMap<string,*ctxWrapper>
-
-type ctxWrapperMap sync.Map
+// Package connect provides chain elements to 'connect' clients
+package connect

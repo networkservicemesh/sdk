@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package connect
+package dial
 
 import (
 	"time"
@@ -22,19 +22,24 @@ import (
 	"google.golang.org/grpc"
 )
 
-// Option is an option for the connect server
-type Option func(s *connectServer)
+type option struct {
+	dialOptions []grpc.DialOption
+	dialTimeout time.Duration
+}
 
-// WithDialTimeout sets connect server client dial timeout
-func WithDialTimeout(dialTimeout time.Duration) Option {
-	return func(s *connectServer) {
-		s.clientDialTimeout = dialTimeout
+// Option - options for the dial chain element
+type Option func(*option)
+
+// WithDialOptions - grpc.DialOptions for use by the dial chain element
+func WithDialOptions(dialOptions ...grpc.DialOption) Option {
+	return func(o *option) {
+		o.dialOptions = dialOptions
 	}
 }
 
-// WithDialOptions sets connect server client dial options
-func WithDialOptions(opts ...grpc.DialOption) Option {
-	return func(s *connectServer) {
-		s.clientDialOptions = opts
+// WithDialTimeOut - dialTimeout for use by dial chain element.
+func WithDialTimeOut(dialTimeout time.Duration) Option {
+	return func(o *option) {
+		o.dialTimeout = dialTimeout
 	}
 }
