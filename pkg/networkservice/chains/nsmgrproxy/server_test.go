@@ -572,13 +572,16 @@ func Test_Interdomain_PassThroughUsecase(t *testing.T) {
 			additionalFunctionality = []networkservice.NetworkServiceServer{
 				chain.NewNetworkServiceServer(
 					clienturl.NewServer(clusters[i].Nodes[0].NSMgr.URL),
-					connect.NewServer(ctx,
-						client.NewClientFactory(client.WithAdditionalFunctionality(
-							newPassTroughClient(fmt.Sprintf("my-service-remote-%v@cluster%v", i-1, i-1)),
-							kernelmech.NewClient(),
-						)),
-						connect.WithDialTimeout(sandbox.DialTimeout),
-						connect.WithDialOptions(sandbox.DialOptions()...),
+					connect.NewServer(
+						client.NewClient(
+							ctx,
+							client.WithAdditionalFunctionality(
+								newPassTroughClient(fmt.Sprintf("my-service-remote-%v@cluster%v", i-1, i-1)),
+								kernelmech.NewClient(),
+							),
+							client.WithDialTimeout(sandbox.DialTimeout),
+							client.WithDialOptions(sandbox.DialOptions()...),
+						),
 					),
 				),
 			}

@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,25 +14,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package connect
+package dial
 
 import (
-	"context"
+	"time"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
+	"google.golang.org/grpc"
 )
 
-type keyType struct{}
-
-func loadOrStore(ctx context.Context, connInfo *connectionInfo) (*connectionInfo, bool) {
-	v, ok := metadata.Map(ctx, false).LoadOrStore(keyType{}, connInfo)
-	return v.(*connectionInfo), ok
+type option struct {
+	dialOptions []grpc.DialOption
+	dialTimeout time.Duration
 }
 
-func load(ctx context.Context) (*connectionInfo, bool) {
-	v, ok := metadata.Map(ctx, false).Load(keyType{})
-	if !ok {
-		return nil, false
+// Option - options for the dial chain element
+type Option func(*option)
+
+// WithDialOptions - grpc.DialOptions for use by the dial chain element
+func WithDialOptions(dialOptions ...grpc.DialOption) Option {
+	return func(o *option) {
+		o.dialOptions = dialOptions
 	}
-	return v.(*connectionInfo), true
+}
+
+// WithDialTimeOut - dialTimeout for use by dial chain element.
+func WithDialTimeOut(dialTimeout time.Duration) Option {
+	return func(o *option) {
+		o.dialTimeout = dialTimeout
+	}
 }
