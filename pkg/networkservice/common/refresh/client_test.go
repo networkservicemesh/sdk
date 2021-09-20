@@ -302,7 +302,7 @@ func TestRefreshClient_NoRefreshOnFailure(t *testing.T) {
 	require.Never(t, cloneClient.validator(2), testWait, testTick)
 }
 
-func TestRefreshClient_NoRefreshOnRefreshFailure(t *testing.T) {
+func TestRefreshClient_RefreshOnRefreshFailure(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -330,5 +330,5 @@ func TestRefreshClient_NoRefreshOnRefreshFailure(t *testing.T) {
 
 	clockMock.Add(expireTimeout)
 
-	require.Never(t, cloneClient.validator(3), testWait, testTick)
+	require.Eventually(t, cloneClient.validator(3), testWait, testTick)
 }
