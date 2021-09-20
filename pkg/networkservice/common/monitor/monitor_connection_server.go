@@ -1,0 +1,92 @@
+package monitor
+
+import (
+	"context"
+
+	"github.com/edwarnicke/serialize"
+	"github.com/google/uuid"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/pkg/errors"
+)
+
+type monitorConnectionServer struct {
+	chainCtx    context.Context
+	connections map[string]*networkservice.Connection
+	filters     map[string]*monitorFilter
+	executor    serialize.Executor
+}
+
+func newMonitorConnectionServer(chainCtx context.Context) networkservice.MonitorConnectionServer {
+	return &monitorConnectionServer{
+		chainCtx:    chainCtx,
+		connections: make(map[string]*networkservice.Connection),
+		filters:     make(map[string]*monitorFilter),
+	}
+}
+
+func (m *monitorConnectionServer) MonitorConnections(selector *networkservice.MonitorScopeSelector, srv networkservice.MonitorConnection_MonitorConnectionsServer) error {
+	m.executor.AsyncExec(func() {
+		filter := newMonitorFilter(selector, srv)
+		m.filters[uuid.New().String()] = filter
+
+		connections := networkservice.FilterMapOnManagerScopeSelector(m.connections, selector)
+
+		// Send initial transfer of all data available
+		filter.executor.AsyncExec(func() {
+			_ = filter.Send(&networkservice.ConnectionEvent{
+				Type:        networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER,
+				Connections: connections,
+			})
+		})
+	})
+
+	select {
+	case <-srv.Context().Done():
+	case <-m.chainCtx.Done():
+	}
+
+	return nil
+}
+
+var _ networkservice.MonitorConnectionServer = &monitorConnectionServer{}
+
+func (m *monitorConnectionServer) Send(event *networkservice.ConnectionEvent) (err error) {
+	m.executor.AsyncExec(func() {
+		if event.Type == networkservice.ConnectionEventType_UPDATE {
+			for _, conn := range event.GetConnections() {
+				m.connections[conn.GetId()] = conn.Clone()
+			}
+		}
+		if event.Type == networkservice.ConnectionEventType_DELETE {
+			for _, conn := range event.GetConnections() {
+				delete(m.connections, conn.GetId())
+			}
+		}
+		if event.Type == networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER {
+			err = errors.Wrapf(err, "sending event with INIITIAL_STATE_TRANSFER not permitted: event: %+v", event)
+		}
+		for id, filter := range m.filters {
+			id, filter := id, filter
+			e := event.Clone()
+			filter.executor.AsyncExec(func() {
+				var err error
+				select {
+				case <-filter.Context().Done():
+					m.executor.AsyncExec(func() {
+						delete(m.filters, id)
+					})
+				default:
+					err = filter.Send(e)
+				}
+				if err != nil {
+					m.executor.AsyncExec(func() {
+						delete(m.filters, id)
+					})
+				}
+			})
+		}
+	})
+	return err
+}
+
+var _ EventConsumer = &monitorConnectionServer{}
