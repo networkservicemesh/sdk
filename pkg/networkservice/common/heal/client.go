@@ -38,21 +38,28 @@ type connectionInfo struct {
 }
 
 type healClient struct {
-	ctx      context.Context
-	cc       networkservice.MonitorConnectionClient
-	initOnce sync.Once
-	initErr  error
-	conns    connectionInfoMap
+	ctx            context.Context
+	cc             networkservice.MonitorConnectionClient
+	initOnce       sync.Once
+	initErr        error
+	conns          connectionInfoMap
+	changeEndpoint bool
 }
 
 // NewClient - creates a new networkservice.NetworkServiceClient chain element that monitors its connections' state
 //             and calls heal server in case connection breaks if heal server is present in the chain
 //             - ctx - context for the lifecycle of the *Client* itself.  Cancel when discarding the client.
 //             - cc  - MonitorConnectionClient that will be used to watch for connection confirmations and breakages.
-func NewClient(ctx context.Context, cc networkservice.MonitorConnectionClient) networkservice.NetworkServiceClient {
+func NewClient(ctx context.Context, cc networkservice.MonitorConnectionClient, opts ...Option) networkservice.NetworkServiceClient {
+	healOpts := new(healOptions)
+	for _, opt := range opts {
+		opt(healOpts)
+	}
+
 	return &healClient{
-		ctx: ctx,
-		cc:  cc,
+		ctx:            ctx,
+		cc:             cc,
+		changeEndpoint: healOpts.changeEndpoint,
 	}
 }
 
@@ -221,7 +228,9 @@ func (u *healClient) listenToConnectionChanges(
 			case networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER, networkservice.ConnectionEventType_UPDATE:
 				connInfo.active = true
 				connInfo.conn.Path.PathSegments = eventConn.Clone().Path.PathSegments
-				connInfo.conn.NetworkServiceEndpointName = eventConn.NetworkServiceEndpointName
+				if u.changeEndpoint {
+					connInfo.conn.NetworkServiceEndpointName = eventConn.NetworkServiceEndpointName
+				}
 				connInfo.cond.Broadcast()
 			case networkservice.ConnectionEventType_DELETE:
 				if connInfo.active {
