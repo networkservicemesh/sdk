@@ -29,9 +29,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
@@ -92,12 +93,23 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 			}
 			return nil, errors.Wrapf(err, "failed to dial %s", grpcutils.URLToTarget(clientURL))
 		}
+		// store the cc because it will be needed by later chain elements like connect
+		clientconn.Store(ctx, cc)
+		conn, err := next.Client(ctx).Request(ctx, request)
+		if err != nil {
+			// Since we had to dial, if this requests fail, we should close the cc so that we don't leak connections
+			// On *subsequent* connections, things should eventually be closed, if for no other reason than via timeout
+			// but if this initial request fails, we need to close the grpc.ClientConn
+			_ = cc.Close()
+			clientconn.Delete(ctx)
+			return nil, err
+		}
 		go func() {
 			<-d.chainCtx.Done()
 			_ = cc.Close()
 		}()
-		clientconn.Store(ctx, cc)
 		storeClientURL(ctx, metadata.IsClient(d), clientURL)
+		return conn, nil
 	}
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
