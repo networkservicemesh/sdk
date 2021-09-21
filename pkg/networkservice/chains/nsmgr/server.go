@@ -210,6 +210,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 					),
 					client.WithDialOptions(opts.dialOptions...),
 					client.WithDialTimeout(opts.dialTimeout),
+					client.WithoutRefresh(),
 				),
 			),
 			sendfd.NewServer()),
