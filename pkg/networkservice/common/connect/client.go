@@ -25,7 +25,6 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientconn"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
 type connectClient struct{}
@@ -36,7 +35,7 @@ func NewClient() networkservice.NetworkServiceClient {
 }
 
 func (c *connectClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	cc, loaded := clientconn.Load(ctx, metadata.IsClient(c))
+	cc, loaded := clientconn.Load(ctx)
 	if !loaded {
 		return nil, errors.New("no grpc.ClientConnInterface provided")
 	}
@@ -45,7 +44,7 @@ func (c *connectClient) Request(ctx context.Context, request *networkservice.Net
 }
 
 func (c *connectClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	cc, loaded := clientconn.Load(ctx, metadata.IsClient(c))
+	cc, loaded := clientconn.Load(ctx)
 	if !loaded {
 		return nil, errors.New("no grpc.ClientConnInterface provided")
 	}

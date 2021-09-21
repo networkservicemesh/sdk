@@ -64,19 +64,19 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 		return next.Client(ctx).Request(ctx, request, opts...)
 	}
 
-	cc, ccLoaded := clientconn.Load(ctx, metadata.IsClient(d))
+	cc, ccLoaded := clientconn.Load(ctx)
 
 	// If the previousClientURL doesn't match the current clientURL, close the old connection,
 	// which will trigger redial
-	previousClientURL, urlLoaded := loadClientURL(ctx, metadata.IsClient(d))
+	previousClientURL, urlLoaded := loadClientURL(ctx)
 	if ccLoaded && urlLoaded && previousClientURL.String() != clientURL.String() {
 		closer, ok := cc.(io.Closer)
 		if ok {
 			_ = closer.Close()
 		}
 		ccLoaded = false
-		clientconn.Delete(ctx, metadata.IsClient(d))
-		deleteClientURL(ctx, metadata.IsClient(d))
+		clientconn.Delete(ctx)
+		deleteClientURL(ctx)
 	}
 
 	// If we have no current cc, dial
@@ -96,7 +96,7 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 			<-d.chainCtx.Done()
 			_ = cc.Close()
 		}()
-		clientconn.Store(ctx, metadata.IsClient(d), cc)
+		clientconn.Store(ctx, cc)
 		storeClientURL(ctx, metadata.IsClient(d), clientURL)
 	}
 	return next.Client(ctx).Request(ctx, request, opts...)
@@ -106,18 +106,18 @@ func (d *dialClient) Close(ctx context.Context, conn *networkservice.Connection,
 	_, err := next.Client(ctx).Close(ctx, conn, opts...)
 
 	clientURL := clienturlctx.ClientURL(ctx)
-	_, urlLoaded := loadClientURL(ctx, metadata.IsClient(d))
+	_, urlLoaded := loadClientURL(ctx)
 
 	// If we either have no URL for the close, or didn't previously have a URL
 	if clientURL == nil || !urlLoaded {
 		return &emptypb.Empty{}, err
 	}
-	cc, loaded := clientconn.Load(ctx, metadata.IsClient(d))
+	cc, loaded := clientconn.Load(ctx)
 	closer, ok := cc.(io.Closer)
 	if loaded && ok {
 		_ = closer.Close()
 	}
-	clientconn.Delete(ctx, metadata.IsClient(d))
-	deleteClientURL(ctx, metadata.IsClient(d))
+	clientconn.Delete(ctx)
+	deleteClientURL(ctx)
 	return &emptypb.Empty{}, err
 }

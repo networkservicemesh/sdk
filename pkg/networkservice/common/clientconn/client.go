@@ -25,7 +25,6 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
 // NewClient - returns a clientconn chain element
@@ -41,7 +40,7 @@ type clientConnClient struct {
 
 func (c *clientConnClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	if c.cc != nil {
-		_, _ = LoadOrStore(ctx, metadata.IsClient(c), c.cc)
+		_, _ = LoadOrStore(ctx, c.cc)
 	}
 	return next.Client(ctx).Request(ctx, request)
 }
@@ -49,7 +48,7 @@ func (c *clientConnClient) Request(ctx context.Context, request *networkservice.
 func (c *clientConnClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	_, err := next.Client(ctx).Close(ctx, conn)
 	if c.cc != nil {
-		Delete(ctx, metadata.IsClient(c))
+		Delete(ctx)
 	}
 	return &emptypb.Empty{}, err
 }

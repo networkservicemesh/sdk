@@ -28,20 +28,20 @@ import (
 type key struct{}
 
 // Store sets the grpc.ClientConnInterface stored in per Connection.Id metadata.
-func Store(ctx context.Context, isClient bool, cc grpc.ClientConnInterface) {
-	metadata.Map(ctx, isClient).Store(key{}, cc)
+func Store(ctx context.Context, cc grpc.ClientConnInterface) {
+	metadata.Map(ctx, true).Store(key{}, cc)
 }
 
 // Delete deletes the grpc.ClientConnInterface stored in per Connection.Id metadata
-func Delete(ctx context.Context, isClient bool) {
-	metadata.Map(ctx, isClient).Delete(key{})
+func Delete(ctx context.Context) {
+	metadata.Map(ctx, true).Delete(key{})
 }
 
 // Load returns the grpc.ClientConnInterface stored in per Connection.Id metadata, or nil if no
 // value is present.
 // The ok result indicates whether value was found in the per Connection.Id metadata.
-func Load(ctx context.Context, isClient bool) (value grpc.ClientConnInterface, ok bool) {
-	m := metadata.Map(ctx, isClient)
+func Load(ctx context.Context) (value grpc.ClientConnInterface, ok bool) {
+	m := metadata.Map(ctx, true)
 	rawValue, ok := m.Load(key{})
 	if !ok {
 		return
@@ -53,8 +53,8 @@ func Load(ctx context.Context, isClient bool) (value grpc.ClientConnInterface, o
 // LoadOrStore returns the existing grpc.ClientConnInterface stored in per Connection.Id metadata if present.
 // Otherwise, it stores and returns the given nterface_types.InterfaceIndex.
 // The loaded result is true if the value was loaded, false if stored.
-func LoadOrStore(ctx context.Context, isClient bool, cc grpc.ClientConnInterface) (value grpc.ClientConnInterface, ok bool) {
-	rawValue, ok := metadata.Map(ctx, isClient).LoadOrStore(key{}, cc)
+func LoadOrStore(ctx context.Context, cc grpc.ClientConnInterface) (value grpc.ClientConnInterface, ok bool) {
+	rawValue, ok := metadata.Map(ctx, true).LoadOrStore(key{}, cc)
 	if !ok {
 		return
 	}
@@ -64,8 +64,8 @@ func LoadOrStore(ctx context.Context, isClient bool, cc grpc.ClientConnInterface
 
 // LoadAndDelete deletes the grpc.ClientConnInterface stored in per Connection.Id metadata,
 // returning the previous value if any. The loaded result reports whether the key was present.
-func LoadAndDelete(ctx context.Context, isClient bool) (value grpc.ClientConnInterface, ok bool) {
-	m := metadata.Map(ctx, isClient)
+func LoadAndDelete(ctx context.Context) (value grpc.ClientConnInterface, ok bool) {
+	m := metadata.Map(ctx, true)
 	rawValue, ok := m.LoadAndDelete(key{})
 	if !ok {
 		return

@@ -31,15 +31,15 @@ func storeClientURL(ctx context.Context, isClient bool, u *url.URL) {
 }
 
 // deleteClientURL deletes the *url.URL stored in per Connection.Id metadata
-func deleteClientURL(ctx context.Context, isClient bool) {
-	metadata.Map(ctx, isClient).Delete(key{})
+func deleteClientURL(ctx context.Context) {
+	metadata.Map(ctx, true).Delete(key{})
 }
 
 // loadClientURL returns the *url.URL stored in per Connection.Id metadata, or nil if no
 // value is present.
 // The ok result indicates whether value was found in the per Connection.Id metadata.
-func loadClientURL(ctx context.Context, isClient bool) (value *url.URL, ok bool) {
-	rawValue, ok := metadata.Map(ctx, isClient).Load(key{})
+func loadClientURL(ctx context.Context) (value *url.URL, ok bool) {
+	rawValue, ok := metadata.Map(ctx, true).Load(key{})
 	if !ok {
 		return
 	}
