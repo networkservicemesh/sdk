@@ -67,8 +67,16 @@ func WithRestoreTimeout(restoreTimeout time.Duration) Option {
 	}
 }
 
+// WithEndpointChange sets if Connection.EndpointName can be changed with monitor updates
+func WithEndpointChange() Option {
+	return func(healOpts *healOptions) {
+		healOpts.changeEndpoint = true
+	}
+}
+
 type healOptions struct {
 	onHeal         *networkservice.NetworkServiceClient
 	onRestore      OnRestore
 	restoreTimeout time.Duration
+	changeEndpoint bool
 }

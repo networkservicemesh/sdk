@@ -122,7 +122,8 @@ func NewClient(ctx context.Context, connectTo *url.URL, clientOpts ...Option) ne
 						append(
 							opts.additionalFunctionality,
 							opts.authorizeClient,
-							heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc)),
+							heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc),
+								heal.WithEndpointChange()),
 							networkservice.NewNetworkServiceClient(cc),
 						)...,
 					)

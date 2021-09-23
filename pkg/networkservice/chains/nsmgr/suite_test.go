@@ -402,7 +402,7 @@ func (s *nsmgrSuite) Test_LocalUsecase() {
 func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 	t := s.T()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	defer cancel()
 
 	counterClose := new(count.Server)
@@ -444,8 +444,12 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 	}
 
 	// Refresh
-	conn, err = nsc.Request(ctx, request)
-	require.NoError(t, err)
+	for i := 0; i < 5; i++ {
+		request.Connection = conn.Clone()
+
+		conn, err = nsc.Request(ctx, request)
+		require.NoError(t, err)
+	}
 
 	// Close
 	_, err = nsc.Close(ctx, conn)
@@ -463,7 +467,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 	t := s.T()
 	const nsesCount = 7
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	defer cancel()
 
 	counterClose := new(count.Server)
@@ -503,8 +507,12 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 	}
 
 	// Refresh
-	conn, err = nsc.Request(ctx, request)
-	require.NoError(t, err)
+	for i := 0; i < 5; i++ {
+		request.Connection = conn.Clone()
+
+		conn, err = nsc.Request(ctx, request)
+		require.NoError(t, err)
+	}
 
 	// Close
 	_, err = nsc.Close(ctx, conn)
