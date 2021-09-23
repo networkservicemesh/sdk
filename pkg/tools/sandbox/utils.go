@@ -34,7 +34,7 @@ const (
 	// RegistryExpiryDuration is a duration that should be used for expire tests
 	RegistryExpiryDuration = time.Second
 	// DialTimeout is a default dial timeout for the sandbox tests
-	DialTimeout = 500 * time.Millisecond
+	DialTimeout = 2 * time.Second
 )
 
 type insecurePerRPCCredentials struct {

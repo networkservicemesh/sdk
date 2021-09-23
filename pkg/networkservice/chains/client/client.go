@@ -121,9 +121,10 @@ func NewClient(ctx context.Context, connectTo *url.URL, clientOpts ...Option) ne
 					return chain.NewNetworkServiceClient(
 						append(
 							opts.additionalFunctionality,
-							opts.authorizeClient,
+							// TODO: move back to the end of the chain when `begin` chain element will be ready
 							heal.NewClient(ctx, networkservice.NewMonitorConnectionClient(cc),
 								heal.WithEndpointChange()),
+							opts.authorizeClient,
 							networkservice.NewNetworkServiceClient(cc),
 						)...,
 					)

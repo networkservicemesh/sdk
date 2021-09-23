@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -17,11 +17,22 @@
 package connect
 
 import (
-	"sync"
+	"context"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
-//go:generate go-syncmap -output connection_info_map.gen.go -type connectionInfoMap<string,connectionInfo>
-//go:generate go-syncmap -output client_info_map.gen.go -type clientInfoMap<string,*clientInfo>
+type keyType struct{}
 
-type connectionInfoMap sync.Map
-type clientInfoMap sync.Map
+func loadOrStore(ctx context.Context, connInfo *connectionInfo) (*connectionInfo, bool) {
+	v, ok := metadata.Map(ctx, false).LoadOrStore(keyType{}, connInfo)
+	return v.(*connectionInfo), ok
+}
+
+func load(ctx context.Context) (*connectionInfo, bool) {
+	v, ok := metadata.Map(ctx, false).Load(keyType{})
+	if !ok {
+		return nil, false
+	}
+	return v.(*connectionInfo), true
+}

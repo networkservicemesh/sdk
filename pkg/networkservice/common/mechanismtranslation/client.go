@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -29,9 +29,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type mechanismTranslationClient struct {
-	mechs mechanismMap
-}
+type mechanismTranslationClient struct{}
 
 // NewClient returns a new translation client chain element
 func NewClient() networkservice.NetworkServiceClient {
@@ -39,21 +37,18 @@ func NewClient() networkservice.NetworkServiceClient {
 }
 
 func (c *mechanismTranslationClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
-	connID := request.GetConnection().GetId()
-
 	// 1. Translate request mechanisms
 	clientRequest := request.Clone()
 	clientRequest.MechanismPreferences = nil
 
-	mech, _ := c.mechs.Load(connID)
-	clientRequest.Connection.Mechanism = mech
+	clientRequest.Connection.Mechanism = load(ctx)
 
 	// 2. Request client chain
 	clientConn, err := next.Client(ctx).Request(ctx, clientRequest, opts...)
 	if err != nil {
 		return nil, err
 	}
-	c.mechs.Store(connID, clientConn.Mechanism)
+	store(ctx, clientConn.Mechanism)
 
 	// 3. Translate connection mechanism
 	conn = clientConn.Clone()
@@ -65,8 +60,7 @@ func (c *mechanismTranslationClient) Request(ctx context.Context, request *netwo
 func (c *mechanismTranslationClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	// 1. Translate connection mechanism
 	conn = conn.Clone()
-	mech, _ := c.mechs.LoadAndDelete(conn.GetId())
-	conn.Mechanism = mech
+	conn.Mechanism = load(ctx)
 
 	// 2. Close client chain
 	return next.Client(ctx).Close(ctx, conn, opts...)

@@ -35,6 +35,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/eventchannel"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -68,6 +69,7 @@ func TestHealClient_Request(t *testing.T) {
 
 	client := chain.NewNetworkServiceClient(
 		updatepath.NewClient("testClient"),
+		metadata.NewClient(),
 		adapters.NewServerToClient(heal.NewServer(ctx,
 			heal.WithOnHeal(&onHeal))),
 		heal.NewClient(ctx, adapters.NewMonitorServerToClient(monitorServer)),

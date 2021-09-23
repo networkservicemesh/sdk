@@ -22,28 +22,26 @@ import (
 	"sync"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/cancelctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 )
 
-type connectionInfo struct {
-	cond   *sync.Cond
-	conn   *networkservice.Connection
-	active bool
+type healClient struct {
+	baseCtx, ctx   context.Context
+	cancel         context.CancelFunc
+	cc             networkservice.MonitorConnectionClient
+	changeEndpoint bool
 }
 
-type healClient struct {
-	ctx            context.Context
-	cc             networkservice.MonitorConnectionClient
-	initOnce       sync.Once
-	initErr        error
-	conns          connectionInfoMap
-	changeEndpoint bool
+type connectionInfo struct {
+	conn   *networkservice.Connection
+	cond   *sync.Cond
+	active bool
 }
 
 // NewClient - creates a new networkservice.NetworkServiceClient chain element that monitors its connections' state
@@ -55,65 +53,31 @@ func NewClient(ctx context.Context, cc networkservice.MonitorConnectionClient, o
 	for _, opt := range opts {
 		opt(healOpts)
 	}
-
-	return &healClient{
-		ctx:            ctx,
+	u := &healClient{
+		baseCtx:        ctx,
 		cc:             cc,
 		changeEndpoint: healOpts.changeEndpoint,
 	}
+
+	u.ctx, u.cancel = context.WithCancel(ctx)
+
+	return u
 }
 
-func (u *healClient) init(ctx context.Context, conn *networkservice.Connection) error {
-	monitorClient, err := u.cc.MonitorConnections(u.ctx, &networkservice.MonitorScopeSelector{
-		PathSegments: []*networkservice.PathSegment{{Name: conn.GetCurrentPathSegment().Name}, {Name: ""}},
-	})
-	if err != nil {
-		return errors.Wrap(err, "MonitorConnections failed")
-	}
-
-	cancel := cancelctx.FromContext(u.ctx)
-	if cancel == nil {
-		cancel = func() {}
-	}
-	healConnection := requestHealConnectionFunc(ctx)
-	if healConnection == nil {
-		healConnection = func(conn *networkservice.Connection) {}
-	}
-	restoreConnection := requestRestoreConnectionFunc(ctx)
-	if restoreConnection == nil {
-		restoreConnection = func(conn *networkservice.Connection) {}
-	}
-
-	go u.listenToConnectionChanges(cancel, healConnection, restoreConnection, monitorClient)
-
-	return nil
-}
-
-func (u *healClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
-	conn = request.GetConnection()
-	u.initOnce.Do(func() {
-		u.initErr = u.init(ctx, conn)
-	})
-	// if initialization failed, then we want for all subsequent calls to Request() on this object to also fail
-	if u.initErr != nil {
-		return nil, u.initErr
-	}
-
-	connInfo, loaded := u.conns.LoadOrStore(conn.GetId(), &connectionInfo{
-		conn: conn.Clone(),
+func (u *healClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	connInfo, _ := loadOrStore(ctx, &connectionInfo{
+		conn: request.GetConnection().Clone(),
 		cond: sync.NewCond(new(sync.Mutex)),
 	})
-	u.replaceConnectionPath(conn, connInfo)
+	u.replaceConnectionPath(request.GetConnection(), connInfo)
 
-	defer func() {
-		if !loaded && err != nil {
-			u.conns.Delete(request.GetConnection().GetId())
-		}
-	}()
+	if err := u.listenToConnectionChanges(ctx, connInfo); err != nil {
+		return nil, err
+	}
 
 	postponeCtxFunc := postpone.ContextWithValues(ctx)
 
-	conn, err = next.Client(ctx).Request(ctx, request, opts...)
+	conn, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -179,11 +143,12 @@ func (u *healClient) condCh(connInfo *connectionInfo) (ch chan struct{}, cancel 
 }
 
 func (u *healClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	connInfo, loaded := u.conns.LoadAndDelete(conn.GetId())
-	if !loaded {
-		return &empty.Empty{}, nil
+	u.cancel()
+
+	connInfo, loaded := load(ctx)
+	if loaded {
+		u.replaceConnectionPath(conn, connInfo)
 	}
-	u.replaceConnectionPath(conn, connInfo)
 
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
@@ -191,57 +156,69 @@ func (u *healClient) Close(ctx context.Context, conn *networkservice.Connection,
 // listenToConnectionChanges - loops on events from MonitorConnectionClient while the monitor client is alive.
 //                             Updates connection cache and broadcasts events of successful connections.
 //                             Calls heal when something breaks.
-func (u *healClient) listenToConnectionChanges(
-	cancel context.CancelFunc,
-	healConnection, restoreConnection requestHealFuncType,
-	monitorClient networkservice.MonitorConnection_MonitorConnectionsClient,
-) {
-	for {
-		event, err := monitorClient.Recv()
-		if err != nil {
-			cancel()
-			u.conns.Range(func(id string, connInfo *connectionInfo) bool {
-				connInfo.cond.L.Lock()
-				defer connInfo.cond.L.Unlock()
+func (u *healClient) listenToConnectionChanges(ctx context.Context, connInfo *connectionInfo) error {
+	monitorClient, err := u.cc.MonitorConnections(u.ctx, &networkservice.MonitorScopeSelector{
+		PathSegments: []*networkservice.PathSegment{{Name: connInfo.conn.GetCurrentPathSegment().Name}, {Name: ""}},
+	})
+	if err != nil {
+		return errors.Wrap(err, "MonitorConnections failed")
+	}
 
-				if connInfo.active {
-					restoreConnection(connInfo.conn)
+	var healConnection requestHealFuncType
+	if healConnection = requestHealConnectionFunc(ctx); healConnection == nil {
+		healConnection = func(*networkservice.Connection) {}
+	}
+
+	var restoreConnection requestHealFuncType
+	if restoreConnection = requestRestoreConnectionFunc(ctx); restoreConnection == nil {
+		restoreConnection = func(*networkservice.Connection) {}
+	}
+
+	connID := connInfo.conn.GetId()
+	go func() {
+		for event, err := monitorClient.Recv(); err == nil; event, err = monitorClient.Recv() {
+			for _, eventConn := range event.GetConnections() {
+				if eventConn.GetPrevPathSegment().GetId() != connID {
+					continue
 				}
-				return true
-			})
+
+				connInfo.cond.L.Lock()
+
+				switch event.GetType() {
+				// Why both INITIAL_STATE_TRANSFER and UPDATE:
+				// Sometimes we start polling events too late, and when we wait for confirmation of success of some connection,
+				// this connection is in the INITIAL_STATE_TRANSFER event, so we must treat these events the same as UPDATE.
+				case networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER, networkservice.ConnectionEventType_UPDATE:
+					connInfo.active = true
+					connInfo.conn.Path.PathSegments = eventConn.Clone().Path.PathSegments
+					if u.changeEndpoint {
+						connInfo.conn.NetworkServiceEndpointName = eventConn.NetworkServiceEndpointName
+					}
+					connInfo.cond.Broadcast()
+				case networkservice.ConnectionEventType_DELETE:
+					if connInfo.active {
+						healConnection(connInfo.conn)
+					}
+					connInfo.active = false
+				}
+
+				connInfo.cond.L.Unlock()
+			}
+		}
+
+		if u.baseCtx.Err() != nil || u.ctx.Err() != nil {
 			return
 		}
 
-		for _, eventConn := range event.GetConnections() {
-			connID := eventConn.GetPrevPathSegment().GetId()
-			connInfo, ok := u.conns.Load(connID)
-			if !ok {
-				continue
-			}
+		connInfo.cond.L.Lock()
+		defer connInfo.cond.L.Unlock()
 
-			connInfo.cond.L.Lock()
-
-			switch event.GetType() {
-			// Why both INITIAL_STATE_TRANSFER and UPDATE:
-			// Sometimes we start polling events too late, and when we wait for confirmation of success of some connection,
-			// this connection is in the INITIAL_STATE_TRANSFER event, so we must treat these events the same as UPDATE.
-			case networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER, networkservice.ConnectionEventType_UPDATE:
-				connInfo.active = true
-				connInfo.conn.Path.PathSegments = eventConn.Clone().Path.PathSegments
-				if u.changeEndpoint {
-					connInfo.conn.NetworkServiceEndpointName = eventConn.NetworkServiceEndpointName
-				}
-				connInfo.cond.Broadcast()
-			case networkservice.ConnectionEventType_DELETE:
-				if connInfo.active {
-					healConnection(connInfo.conn)
-				}
-				connInfo.active = false
-			}
-
-			connInfo.cond.L.Unlock()
+		if connInfo.active {
+			restoreConnection(connInfo.conn)
 		}
-	}
+	}()
+
+	return nil
 }
 
 func (u *healClient) replaceConnectionPath(conn *networkservice.Connection, connInfo *connectionInfo) {

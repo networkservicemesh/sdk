@@ -37,6 +37,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
@@ -81,6 +82,7 @@ func TestHeal_CloseChain(t *testing.T) {
 	*serverChain = adapters.NewServerToClient(
 		next.NewNetworkServiceServer(
 			updatepath.NewServer("server"),
+			metadata.NewServer(),
 			updatetoken.NewServer(sandbox.GenerateTestToken),
 			heal.NewServer(ctx,
 				heal.WithOnHeal(serverChain)),
@@ -109,7 +111,7 @@ func TestHeal_CloseChain(t *testing.T) {
 
 	require.Eventually(t, func() bool {
 		return counter.Closes() == 1
-	}, time.Second, 10*time.Millisecond)
+	}, 3*time.Second, 10*time.Millisecond)
 }
 
 func TestHeal_CloseChainOnNoMonitorUpdate(t *testing.T) {
@@ -135,6 +137,7 @@ func TestHeal_CloseChainOnNoMonitorUpdate(t *testing.T) {
 	*serverChain = adapters.NewServerToClient(
 		next.NewNetworkServiceServer(
 			updatepath.NewServer("server"),
+			metadata.NewServer(),
 			updatetoken.NewServer(sandbox.GenerateTestToken),
 			heal.NewServer(ctx,
 				heal.WithOnHeal(serverChain)),
