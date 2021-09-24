@@ -22,7 +22,6 @@ jobs:
           - cmd-nsmgr-proxy
           - cmd-registry-memory
           - cmd-registry-proxy-dns
-          - cmd-nse-icmp-responder
           - cmd-nse-vfio
           - cmd-nsc-init
     name: Update ${{ matrix.repository }}
