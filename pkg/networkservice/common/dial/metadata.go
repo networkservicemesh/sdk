@@ -21,28 +21,26 @@ import (
 	"net/url"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
+	"google.golang.org/grpc"
 )
 
 type key struct{}
 
-// storeClientURL sets the *url.URL stored in per Connection.Id metadata.
-func storeClientURL(ctx context.Context, isClient bool, u *url.URL) {
-	metadata.Map(ctx, isClient).Store(key{}, u)
+type dialInfo struct {
+	url *url.URL
+	cc  *grpc.ClientConn
 }
 
-// deleteClientURL deletes the *url.URL stored in per Connection.Id metadata
-func deleteClientURL(ctx context.Context) {
-	metadata.Map(ctx, true).Delete(key{})
+func store(ctx context.Context, dialInfo *dialInfo) {
+	metadata.Map(ctx, true).Store(key{}, dialInfo)
 }
 
-// loadClientURL returns the *url.URL stored in per Connection.Id metadata, or nil if no
-// value is present.
-// The ok result indicates whether value was found in the per Connection.Id metadata.
-func loadClientURL(ctx context.Context) (value *url.URL, ok bool) {
-	rawValue, ok := metadata.Map(ctx, true).Load(key{})
+func loadAndDelete(ctx context.Context) (value *dialInfo, ok bool) {
+	m := metadata.Map(ctx, true)
+	rawValue, ok := m.LoadAndDelete(key{})
 	if !ok {
 		return
 	}
-	value, ok = rawValue.(*url.URL)
+	value, ok = rawValue.(*dialInfo)
 	return value, ok
 }
