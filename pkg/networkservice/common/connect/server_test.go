@@ -31,6 +31,8 @@ import (
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/dial"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
@@ -59,17 +61,19 @@ func TestConnectServer_Request(t *testing.T) {
 	serverNext := new(captureServer)
 	serverClient := new(captureServer)
 
+	chainCtx, chainCancel := context.WithCancel(context.Background())
+	defer chainCancel()
 	s := next.NewNetworkServiceServer(
 		metadata.NewServer(),
-		connect.NewServer(context.Background(),
-			func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-				return next.NewNetworkServiceClient(
-					adapters.NewServerToClient(serverClient),
-					networkservice.NewNetworkServiceClient(cc),
-				)
-			},
-			connect.WithDialTimeout(time.Second),
-			connect.WithDialOptions(grpc.WithInsecure()),
+		connect.NewServer(
+			next.NewNetworkServiceClient(
+				adapters.NewServerToClient(serverClient),
+				dial.NewClient(chainCtx,
+					dial.WithDialTimeout(time.Second),
+					dial.WithDialOptions(grpc.WithInsecure()),
+				),
+				connect.NewClient(),
+			),
 		),
 		serverNext,
 	)
@@ -189,17 +193,20 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 	serverNext := new(count.Server)
 	serverClient := new(count.Client)
 
+	chainCtx, chainCancel := context.WithCancel(context.Background())
+	defer chainCancel()
+
 	s := next.NewNetworkServiceServer(
 		metadata.NewServer(),
-		connect.NewServer(context.Background(),
-			func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-				return next.NewNetworkServiceClient(
-					serverClient,
-					networkservice.NewNetworkServiceClient(cc),
-				)
-			},
-			connect.WithDialTimeout(time.Second),
-			connect.WithDialOptions(grpc.WithInsecure()),
+		connect.NewServer(
+			next.NewNetworkServiceClient(
+				dial.NewClient(chainCtx,
+					dial.WithDialTimeout(time.Second),
+					dial.WithDialOptions(grpc.WithInsecure()),
+				),
+				serverClient,
+				connect.NewClient(),
+			),
 		),
 		serverNext,
 	)
@@ -289,14 +296,20 @@ func TestConnectServer_RequestFail(t *testing.T) {
 
 	// 1. Create connectServer
 
+	chainCtx, chainCancel := context.WithCancel(context.Background())
+	defer chainCancel()
+
 	s := next.NewNetworkServiceServer(
 		metadata.NewServer(),
-		connect.NewServer(context.Background(),
-			func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-				return injecterror.NewClient()
-			},
-			connect.WithDialTimeout(time.Second),
-			connect.WithDialOptions(grpc.WithInsecure()),
+		connect.NewServer(
+			next.NewNetworkServiceClient(
+				dial.NewClient(chainCtx,
+					dial.WithDialTimeout(time.Second),
+					dial.WithDialOptions(grpc.WithInsecure()),
+				),
+				injecterror.NewClient(),
+				connect.NewClient(),
+			),
 		),
 	)
 
@@ -336,17 +349,20 @@ func TestConnectServer_RequestNextServerError(t *testing.T) {
 
 	serverClient := new(captureServer)
 
+	chainCtx, chainCancel := context.WithCancel(context.Background())
+	defer chainCancel()
+
 	s := next.NewNetworkServiceServer(
 		metadata.NewServer(),
-		connect.NewServer(context.Background(),
-			func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-				return next.NewNetworkServiceClient(
-					adapters.NewServerToClient(serverClient),
-					networkservice.NewNetworkServiceClient(cc),
-				)
-			},
-			connect.WithDialTimeout(time.Second),
-			connect.WithDialOptions(grpc.WithInsecure()),
+		connect.NewServer(
+			next.NewNetworkServiceClient(
+				dial.NewClient(chainCtx,
+					dial.WithDialTimeout(time.Second),
+					dial.WithDialOptions(grpc.WithInsecure()),
+				),
+				adapters.NewServerToClient(serverClient),
+				connect.NewClient(),
+			),
 		),
 		injecterror.NewServer(),
 	)
@@ -403,14 +419,19 @@ func TestConnectServer_RemoteRestarted(t *testing.T) {
 
 	// 1. Create connectServer
 
+	chainCtx, chainCancel := context.WithCancel(context.Background())
+	defer chainCancel()
+
 	s := next.NewNetworkServiceServer(
 		metadata.NewServer(),
-		connect.NewServer(context.Background(),
-			func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-				return networkservice.NewNetworkServiceClient(cc)
-			},
-			connect.WithDialTimeout(time.Second),
-			connect.WithDialOptions(grpc.WithInsecure()),
+		connect.NewServer(
+			next.NewNetworkServiceClient(
+				dial.NewClient(chainCtx,
+					dial.WithDialTimeout(time.Second),
+					dial.WithDialOptions(grpc.WithInsecure()),
+				),
+				connect.NewClient(),
+			),
 		),
 	)
 
@@ -488,14 +509,19 @@ func TestConnectServer_DialTimeout(t *testing.T) {
 
 	// 1. Create connectServer
 
+	chainCtx, chainCancel := context.WithCancel(context.Background())
+	defer chainCancel()
+
 	s := next.NewNetworkServiceServer(
 		metadata.NewServer(),
-		connect.NewServer(context.Background(),
-			func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-				return networkservice.NewNetworkServiceClient(cc)
-			},
-			connect.WithDialTimeout(100*time.Millisecond),
-			connect.WithDialOptions(grpc.WithInsecure()),
+		connect.NewServer(
+			next.NewNetworkServiceClient(
+				dial.NewClient(chainCtx,
+					dial.WithDialTimeout(100*time.Millisecond),
+					dial.WithDialOptions(grpc.WithInsecure(), grpc.WithBlock()),
+				),
+				connect.NewClient(),
+			),
 		),
 	)
 
@@ -503,10 +529,10 @@ func TestConnectServer_DialTimeout(t *testing.T) {
 
 	listener, err := net.Listen("tcp", "127.0.0.1:")
 	require.NoError(t, err)
-	defer func() { _ = listener.Close() }()
 
 	urlA, err := url.Parse("tcp://" + listener.Addr().String())
 	require.NoError(t, err)
+	_ = listener.Close()
 
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
@@ -520,15 +546,14 @@ func TestConnectServer_DialTimeout(t *testing.T) {
 
 	// 3. Request A
 
-	timer := time.AfterFunc(time.Second/2, t.FailNow)
+	now := time.Now()
 
 	requestCtx, requestCancel := context.WithTimeout(context.Background(), time.Second)
 	defer requestCancel()
 
 	_, err = s.Request(clienturlctx.WithClientURL(requestCtx, urlA), request.Clone())
 	require.Error(t, err)
-
-	timer.Stop()
+	require.LessOrEqual(t, time.Since(now), time.Second/2)
 }
 
 func TestConnectServer_ChangeURLWithExpiredContext(t *testing.T) {
@@ -536,14 +561,19 @@ func TestConnectServer_ChangeURLWithExpiredContext(t *testing.T) {
 
 	// 1. Create connectServer
 
+	chainCtx, chainCancel := context.WithCancel(context.Background())
+	defer chainCancel()
+
 	s := next.NewNetworkServiceServer(
 		metadata.NewServer(),
-		connect.NewServer(context.Background(),
-			func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-				return networkservice.NewNetworkServiceClient(cc)
-			},
-			connect.WithDialTimeout(time.Second),
-			connect.WithDialOptions(grpc.WithInsecure()),
+		connect.NewServer(
+			next.NewNetworkServiceClient(
+				dial.NewClient(chainCtx,
+					dial.WithDialTimeout(time.Second),
+					dial.WithDialOptions(grpc.WithInsecure()),
+				),
+				connect.NewClient(),
+			),
 		),
 	)
 

@@ -37,8 +37,8 @@ func WithDialOptions(dialOptions ...grpc.DialOption) Option {
 	}
 }
 
-// WithDialTimeOut - dialTimeout for use by dial chain element.
-func WithDialTimeOut(dialTimeout time.Duration) Option {
+// WithDialTimeout - dialTimeout for use by dial chain element.
+func WithDialTimeout(dialTimeout time.Duration) Option {
 	return func(o *option) {
 		o.dialTimeout = dialTimeout
 	}

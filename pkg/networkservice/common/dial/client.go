@@ -56,65 +56,84 @@ func NewClient(chainCtx context.Context, opts ...Option) networkservice.NetworkS
 
 func (d *dialClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	// If no clientURL, we have no work to do
+	// call the next in the chain
 	clientURL := clienturlctx.ClientURL(ctx)
 	if clientURL == nil {
 		return next.Client(ctx).Request(ctx, request, opts...)
 	}
 
+	di, err := d.dial(ctx, func(di *dialInfo) {
+		_, _ = d.Close(clienturlctx.WithClientURL(ctx, di.url), request.GetConnection(), opts...)
+	})
+	if di != nil {
+		store(ctx, di)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := next.Client(ctx).Request(ctx, request, opts...)
+	if err != nil {
+		_ = di.Close()
+		return nil, err
+	}
+	return conn, nil
+}
+
+func (d *dialClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	// If no clientURL, we have no work to do
+	clientURL := clienturlctx.ClientURL(ctx)
+	if clientURL == nil {
+		return next.Client(ctx).Close(ctx, conn, opts...)
+	}
+
+	di, _ := d.dial(ctx, func(_ *dialInfo) {})
+
+	_, err := next.Client(ctx).Close(ctx, conn, opts...)
+	if di != nil {
+		_ = di.Close()
+	}
+	clientconn.Delete(ctx)
+	return &emptypb.Empty{}, err
+}
+
+func (d *dialClient) dial(ctx context.Context, onRedirect func(di *dialInfo)) (di *dialInfo, err error) {
+	clientURL := clienturlctx.ClientURL(ctx)
+
 	// If we already have an old cc, close it
 	di, diLoaded := loadAndDelete(ctx)
-	if diLoaded && di != nil && di.cc != nil {
-		_ = di.cc.Close()
+	if diLoaded {
+		_ = di.Close()
 	}
 
-	// If there's already a grpc.ClientConn via other means and it's not ours
-	// don't create one
-	oldCC, ccLoaded := clientconn.Load(ctx)
-	if ccLoaded && di != nil && oldCC != di.cc {
-		return next.Client(ctx).Request(ctx, request, opts...)
+	if di != nil && di.url.String() != clientURL.String() {
+		onRedirect(di)
 	}
 
+	// Setup dialTimeout if needed
 	dialCtx := ctx
 	if d.dialTimeout != 0 {
 		dialCtx, _ = clock.FromContext(d.chainCtx).WithTimeout(dialCtx, d.dialTimeout)
 	}
-	cc, err := grpc.DialContext(dialCtx, grpcutils.URLToTarget(clientURL), d.dialOptions...)
+
+	// Dial
+	target := grpcutils.URLToTarget(clientURL)
+	cc, err := grpc.DialContext(dialCtx, target, d.dialOptions...)
 	if err != nil {
 		if cc != nil {
 			_ = cc.Close()
 		}
-		return nil, errors.Wrapf(err, "failed to dial %s", grpcutils.URLToTarget(clientURL))
+		return di, errors.Wrapf(err, "failed to dial %s", target)
 	}
+
 	// store the cc because it will be needed by later chain elements like connect
 	clientconn.Store(ctx, cc)
-	conn, err := next.Client(ctx).Request(ctx, request)
-	if err != nil {
-		_ = cc.Close()
-		return nil, err
-	}
 	go func() {
 		<-d.chainCtx.Done()
 		_ = cc.Close()
 	}()
-	store(ctx, &dialInfo{
-		url: clientURL,
-		cc:  cc,
-	})
-	return conn, nil
-
-}
-
-func (d *dialClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	_, err := next.Client(ctx).Close(ctx, conn, opts...)
-
-	di, diLoaded := loadAndDelete(ctx)
-	if !diLoaded {
-		return &emptypb.Empty{}, err
-	}
-
-	if di != nil && di.cc != nil {
-		di.cc.Close()
-	}
-	clientconn.Delete(ctx)
-	return &emptypb.Empty{}, err
+	return &dialInfo{
+		url:        clientURL,
+		ClientConn: cc,
+	}, nil
 }

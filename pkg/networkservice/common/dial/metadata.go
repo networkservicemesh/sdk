@@ -20,15 +20,23 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
 type key struct{}
 
 type dialInfo struct {
 	url *url.URL
-	cc  *grpc.ClientConn
+	*grpc.ClientConn
+}
+
+func (d *dialInfo) Close() error {
+	if d != nil && d.ClientConn != nil {
+		return d.ClientConn.Close()
+	}
+	return nil
 }
 
 func store(ctx context.Context, dialInfo *dialInfo) {
