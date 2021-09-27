@@ -292,3 +292,7 @@ issues:
     - path: pkg/networkservice/common/switchcase/.*_test.go
       linters:
         - dupl
+    - path: pkg/networkservice/chains/endpoint/combine_monitor_server.go
+      linters:
+        - interfacer
+      text: "`rawSrv` can be `github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor.EventConsumer`"

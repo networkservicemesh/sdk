@@ -23,6 +23,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
@@ -53,6 +55,7 @@ func NewClient(ctx context.Context, clientOpts ...Option) networkservice.Network
 				updatepath.NewClient(opts.name),
 				begin.NewClient(),
 				metadata.NewClient(),
+				monitor.NewClient(ctx),
 				opts.refreshClient,
 				clienturl.NewClient(opts.clientURL),
 				clientconn.NewClient(opts.cc),

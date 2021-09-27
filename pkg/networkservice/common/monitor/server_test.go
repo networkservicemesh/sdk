@@ -106,7 +106,7 @@ func TestMonitorServer(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	// Get Delete Events and insure we've properly filtered by segmentName
+	// Get deleteMonitorClientCC Events and insure we've properly filtered by segmentName
 	for _, segmentName := range segmentNames {
 		event, err := receivers[segmentName].Recv()
 		require.NoError(t, err)

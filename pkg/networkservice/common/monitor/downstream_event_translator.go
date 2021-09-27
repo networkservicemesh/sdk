@@ -1,0 +1,89 @@
+// Copyright (c) 2021 Cisco and/or its affiliates.
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at:
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package monitor
+
+import (
+	"github.com/edwarnicke/serialize"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+)
+
+type downstreamEventTranslator struct {
+	conn          *networkservice.Connection
+	eventConsumer EventConsumer
+	executor      serialize.Executor
+}
+
+func newDownstreamEventTranslator(conn *networkservice.Connection, eventConsumer EventConsumer) EventConsumer {
+	return &downstreamEventTranslator{
+		conn:          conn,
+		eventConsumer: eventConsumer,
+	}
+}
+
+func (p *downstreamEventTranslator) Send(eventIn *networkservice.ConnectionEvent) (_ error) {
+	p.executor.AsyncExec(func() {
+		eventOut := &networkservice.ConnectionEvent{
+			Type:        networkservice.ConnectionEventType_UPDATE,
+			Connections: make(map[string]*networkservice.Connection),
+		}
+		for _, connIn := range eventIn.GetConnections() {
+			if eventIn.GetType() == networkservice.ConnectionEventType_DELETE {
+				connIn = connIn.Clone()
+				connIn.State = networkservice.State_DOWN
+			}
+			// If we don't have enough PathSegments connIn doesn't match e.conn
+			if len(connIn.GetPath().GetPathSegments()) < int(p.conn.GetPath().GetIndex()+1) {
+				continue
+			}
+			// If the e.conn isn't in the expected PathSegment connIn doesn't match e.conn
+			if connIn.GetPath().GetPathSegments()[int(p.conn.GetPath().GetIndex())].GetId() != p.conn.GetId() {
+				continue
+			}
+			// If the current index isn't the index of e.conn or what comes after it connIn doesn't match e.conn
+			if !(connIn.GetPath().GetIndex() == p.conn.GetPath().GetIndex() || connIn.GetPath().GetIndex() == p.conn.GetPath().GetIndex()+1) {
+				continue
+			}
+
+			// Construct the outgoing Connection
+			connOut := p.conn.Clone()
+			connOut.Path = connIn.Path
+			connOut.GetPath().Index = p.conn.GetPath().GetIndex()
+			connOut.Context = connIn.Context
+			connOut.State = connIn.State
+
+			// If it's deleted, mark the event state down
+			if eventIn.GetType() == networkservice.ConnectionEventType_DELETE {
+				connOut.State = networkservice.State_DOWN
+			}
+
+			// If the connection hasn't changed... don't send the event
+			if connOut.Equals(p.conn) {
+				continue
+			}
+
+			// Add the Connection to the outgoing event
+			eventOut.GetConnections()[connOut.GetId()] = connOut
+
+			// Update the event we are watching for:
+			p.conn = connOut
+		}
+		if len(eventOut.GetConnections()) > 0 {
+			_ = p.eventConsumer.Send(eventOut)
+		}
+	})
+	return nil
+}
