@@ -546,14 +546,12 @@ func TestConnectServer_DialTimeout(t *testing.T) {
 
 	// 3. Request A
 
-	now := time.Now()
-
 	requestCtx, requestCancel := context.WithTimeout(context.Background(), time.Second)
 	defer requestCancel()
 
 	_, err = s.Request(clienturlctx.WithClientURL(requestCtx, urlA), request.Clone())
 	require.Error(t, err)
-	require.LessOrEqual(t, time.Since(now), time.Second/2)
+	require.NoError(t, requestCtx.Err())
 }
 
 func TestConnectServer_ChangeURLWithExpiredContext(t *testing.T) {
