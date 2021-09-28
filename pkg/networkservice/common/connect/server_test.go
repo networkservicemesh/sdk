@@ -594,8 +594,6 @@ func TestConnectServer_ChangeURLWithExpiredContext(t *testing.T) {
 	err = startServer(ctx, urlB, serverB)
 	require.NoError(t, err)
 
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-
 	// 4. Create request
 
 	request := &networkservice.NetworkServiceRequest{
