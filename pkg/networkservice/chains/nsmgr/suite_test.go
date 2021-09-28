@@ -798,6 +798,7 @@ func additionalFunctionalityChain(ctx context.Context, clientURL *url.URL, clien
 					),
 					client.WithDialOptions(sandbox.DialOptions()...),
 					client.WithDialTimeout(sandbox.DialTimeout),
+					client.WithoutRefresh(),
 				),
 			),
 		),

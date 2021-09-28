@@ -131,6 +131,7 @@ func (n *Node) NewForwarder(
 							),
 							client.WithDialOptions(dialOptions...),
 							client.WithDialTimeout(DialTimeout),
+							client.WithoutRefresh(),
 						),
 					),
 				)...,

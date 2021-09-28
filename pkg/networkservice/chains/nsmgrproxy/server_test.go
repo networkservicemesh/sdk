@@ -581,6 +581,7 @@ func Test_Interdomain_PassThroughUsecase(t *testing.T) {
 							),
 							client.WithDialTimeout(sandbox.DialTimeout),
 							client.WithDialOptions(sandbox.DialOptions()...),
+							client.WithoutRefresh(),
 						),
 					),
 				),

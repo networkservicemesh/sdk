@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -43,6 +44,7 @@ func NewServer(client networkservice.NetworkServiceClient, callOptions ...grpc.C
 }
 
 func (c *connectServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	closeCtxFunc := postpone.ContextWithValues(ctx)
 	clientConn, clientErr := c.client.Request(ctx, request, c.callOptions...)
 	if clientErr != nil {
 		return nil, clientErr
@@ -50,7 +52,9 @@ func (c *connectServer) Request(ctx context.Context, request *networkservice.Net
 	request.Connection = clientConn
 	serverConn, serverErr := next.Server(ctx).Request(ctx, request)
 	if serverErr != nil {
-		_, _ = c.client.Close(ctx, clientConn, c.callOptions...)
+		closeCtx, closeCancel := closeCtxFunc()
+		defer closeCancel()
+		_, _ = c.client.Close(closeCtx, clientConn, c.callOptions...)
 	}
 	return serverConn, serverErr
 }
