@@ -32,14 +32,23 @@ import (
 )
 
 type vniServer struct {
-	tunnelIP net.IP
+	tunnelIP   net.IP
+	tunnelPort uint16
 	sync.Map
 }
 
 // NewServer - set the DstIP *and* VNI for the vxlan mechanism
-func NewServer(tunnelIP net.IP) networkservice.NetworkServiceServer {
+func NewServer(tunnelIP net.IP, options ...Option) networkservice.NetworkServiceServer {
+	opts := &vniOpions{
+		tunnelPort: vxlanPort,
+	}
+	for _, opt := range options {
+		opt(opts)
+	}
+
 	return &vniServer{
-		tunnelIP: tunnelIP,
+		tunnelIP:   tunnelIP,
+		tunnelPort: opts.tunnelPort,
 	}
 }
 
@@ -49,7 +58,7 @@ func (v *vniServer) Request(ctx context.Context, request *networkservice.Network
 		return next.Server(ctx).Request(ctx, request)
 	}
 	mechanism.SetDstIP(v.tunnelIP)
-	mechanism.SetDstPort(vxlanPort)
+	mechanism.SetDstPort(v.tunnelPort)
 	k := vniKey{
 		srcIPString: mechanism.SrcIP().String(),
 		vni:         mechanism.VNI(),
