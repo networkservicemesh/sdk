@@ -61,14 +61,12 @@ func TestConnectServer_Request(t *testing.T) {
 	serverNext := new(captureServer)
 	serverClient := new(captureServer)
 
-	chainCtx, chainCancel := context.WithCancel(context.Background())
-	defer chainCancel()
 	s := next.NewNetworkServiceServer(
 		metadata.NewServer(),
 		connect.NewServer(
 			next.NewNetworkServiceClient(
 				adapters.NewServerToClient(serverClient),
-				dial.NewClient(chainCtx,
+				dial.NewClient(context.Background(),
 					dial.WithDialTimeout(time.Second),
 					dial.WithDialOptions(grpc.WithInsecure()),
 				),
@@ -106,6 +104,8 @@ func TestConnectServer_Request(t *testing.T) {
 		}),
 	))
 	require.NoError(t, err)
+
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	// 4. Create request
 
@@ -191,14 +191,11 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 	serverNext := new(count.Server)
 	serverClient := new(count.Client)
 
-	chainCtx, chainCancel := context.WithCancel(context.Background())
-	defer chainCancel()
-
 	s := next.NewNetworkServiceServer(
 		metadata.NewServer(),
 		connect.NewServer(
 			next.NewNetworkServiceClient(
-				dial.NewClient(chainCtx,
+				dial.NewClient(context.Background(),
 					dial.WithDialTimeout(time.Second),
 					dial.WithDialOptions(grpc.WithInsecure()),
 				),
@@ -219,6 +216,8 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 
 	err := startServer(ctx, urlA, serverA)
 	require.NoError(t, err)
+
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	// 4. Request A
 
@@ -292,14 +291,11 @@ func TestConnectServer_RequestFail(t *testing.T) {
 
 	// 1. Create connectServer
 
-	chainCtx, chainCancel := context.WithCancel(context.Background())
-	defer chainCancel()
-
 	s := next.NewNetworkServiceServer(
 		metadata.NewServer(),
 		connect.NewServer(
 			next.NewNetworkServiceClient(
-				dial.NewClient(chainCtx,
+				dial.NewClient(context.Background(),
 					dial.WithDialTimeout(time.Second),
 					dial.WithDialOptions(grpc.WithInsecure()),
 				),
@@ -318,6 +314,8 @@ func TestConnectServer_RequestFail(t *testing.T) {
 
 	err := startServer(ctx, urlA, null.NewServer())
 	require.NoError(t, err)
+
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	// 3. Create request
 
@@ -343,14 +341,11 @@ func TestConnectServer_RequestNextServerError(t *testing.T) {
 
 	serverClient := new(captureServer)
 
-	chainCtx, chainCancel := context.WithCancel(context.Background())
-	defer chainCancel()
-
 	s := next.NewNetworkServiceServer(
 		metadata.NewServer(),
 		connect.NewServer(
 			next.NewNetworkServiceClient(
-				dial.NewClient(chainCtx,
+				dial.NewClient(context.Background(),
 					dial.WithDialTimeout(time.Second),
 					dial.WithDialOptions(grpc.WithInsecure()),
 				),
@@ -377,6 +372,8 @@ func TestConnectServer_RequestNextServerError(t *testing.T) {
 		}),
 	))
 	require.NoError(t, err)
+
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	// 3. Create request
 
@@ -411,14 +408,11 @@ func TestConnectServer_RemoteRestarted(t *testing.T) {
 
 	// 1. Create connectServer
 
-	chainCtx, chainCancel := context.WithCancel(context.Background())
-	defer chainCancel()
-
 	s := next.NewNetworkServiceServer(
 		metadata.NewServer(),
 		connect.NewServer(
 			next.NewNetworkServiceClient(
-				dial.NewClient(chainCtx,
+				dial.NewClient(context.Background(),
 					dial.WithDialTimeout(time.Second),
 					dial.WithDialOptions(grpc.WithInsecure()),
 				),
@@ -435,6 +429,8 @@ func TestConnectServer_RemoteRestarted(t *testing.T) {
 
 	err := startServer(ctx, urlA, null.NewServer())
 	require.NoError(t, err)
+
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	// 3. Create request
 
@@ -499,14 +495,11 @@ func TestConnectServer_DialTimeout(t *testing.T) {
 
 	// 1. Create connectServer
 
-	chainCtx, chainCancel := context.WithCancel(context.Background())
-	defer chainCancel()
-
 	s := next.NewNetworkServiceServer(
 		metadata.NewServer(),
 		connect.NewServer(
 			next.NewNetworkServiceClient(
-				dial.NewClient(chainCtx,
+				dial.NewClient(context.Background(),
 					dial.WithDialTimeout(100*time.Millisecond),
 					dial.WithDialOptions(grpc.WithInsecure(), grpc.WithBlock()),
 				),
@@ -519,10 +512,10 @@ func TestConnectServer_DialTimeout(t *testing.T) {
 
 	listener, err := net.Listen("tcp", "127.0.0.1:")
 	require.NoError(t, err)
+	defer func() { _ = listener.Close() }()
 
 	urlA, err := url.Parse("tcp://" + listener.Addr().String())
 	require.NoError(t, err)
-	_ = listener.Close()
 
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
@@ -549,15 +542,12 @@ func TestConnectServer_ChangeURLWithExpiredContext(t *testing.T) {
 
 	// 1. Create connectServer
 
-	chainCtx, chainCancel := context.WithCancel(context.Background())
-	defer chainCancel()
-
 	s := next.NewNetworkServiceServer(
 		metadata.NewServer(),
 		connect.NewServer(
 			next.NewNetworkServiceClient(
-				dial.NewClient(chainCtx,
-					dial.WithDialTimeout(time.Second),
+				dial.NewClient(context.Background(),
+					dial.WithDialTimeout(time.Hour),
 					dial.WithDialOptions(grpc.WithInsecure()),
 				),
 				connect.NewClient(),
@@ -581,6 +571,8 @@ func TestConnectServer_ChangeURLWithExpiredContext(t *testing.T) {
 
 	err = startServer(ctx, urlB, serverB)
 	require.NoError(t, err)
+
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	// 4. Create request
 

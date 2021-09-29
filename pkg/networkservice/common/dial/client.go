@@ -24,15 +24,14 @@ import (
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/clock"
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
 type dialClient struct {
@@ -55,6 +54,7 @@ func NewClient(chainCtx context.Context, opts ...Option) networkservice.NetworkS
 }
 
 func (d *dialClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	closeContextFunc := postpone.ContextWithValues(ctx)
 	// If no clientURL, we have no work to do
 	// call the next in the chain
 	clientURL := clienturlctx.ClientURL(ctx)
@@ -62,13 +62,28 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 		return next.Client(ctx).Request(ctx, request, opts...)
 	}
 
-	di, err := d.dial(ctx, func(di *dialInfo) {
-		_, _ = d.Close(clienturlctx.WithClientURL(ctx, di.url), request.GetConnection(), opts...)
-	})
-	if di != nil {
-		store(ctx, di)
+	cc, _ := clientconn.LoadOrStore(ctx, newDialer(d.chainCtx, d.dialTimeout, d.dialOptions...))
+
+	// If there's an existing grpc.ClientConnInterface and it's not ours, call the next in the chain
+	di, ok := cc.(*dialer)
+	if !ok {
+		return next.Client(ctx).Request(ctx, request, opts...)
 	}
+
+	// If our existing dialer has a different URL close down the chain
+	if di.clientURL != nil && di.clientURL.String() != clientURL.String() {
+		closeCtx, closeCancel := closeContextFunc()
+		defer closeCancel()
+		_ = di.Dial(closeCtx, di.clientURL)
+		_, _ = next.Client(ctx).Close(clienturlctx.WithClientURL(closeCtx, di.clientURL), request.GetConnection(), opts...)
+	}
+
+	err := di.Dial(ctx, clientURL)
 	if err != nil {
+		clientconn.Delete(ctx)
+		closeCtx, closeCancel := closeContextFunc()
+		defer closeCancel()
+		_, _ = next.Client(ctx).Close(clienturlctx.WithClientURL(closeCtx, di.clientURL), request.GetConnection(), opts...)
 		return nil, err
 	}
 
@@ -81,59 +96,16 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 }
 
 func (d *dialClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	// If no clientURL, we have no work to do
-	clientURL := clienturlctx.ClientURL(ctx)
-	if clientURL == nil {
+	cc, _ := clientconn.LoadOrStore(ctx, newDialer(ctx, d.dialTimeout, d.dialOptions...))
+
+	di, ok := cc.(*dialer)
+	if !ok {
 		return next.Client(ctx).Close(ctx, conn, opts...)
 	}
-
-	di, _ := d.dial(ctx, func(_ *dialInfo) {})
-
-	_, err := next.Client(ctx).Close(ctx, conn, opts...)
-	if di != nil {
+	defer func() {
 		_ = di.Close()
-	}
-	clientconn.Delete(ctx)
-	return &emptypb.Empty{}, err
-}
-
-func (d *dialClient) dial(ctx context.Context, onRedirect func(di *dialInfo)) (di *dialInfo, err error) {
-	clientURL := clienturlctx.ClientURL(ctx)
-
-	// If we already have an old cc, close it
-	di, diLoaded := loadAndDelete(ctx)
-	if diLoaded {
-		_ = di.Close()
-	}
-
-	if di != nil && di.url.String() != clientURL.String() {
-		onRedirect(di)
-	}
-
-	// Setup dialTimeout if needed
-	dialCtx := ctx
-	if d.dialTimeout != 0 {
-		dialCtx, _ = clock.FromContext(d.chainCtx).WithTimeout(dialCtx, d.dialTimeout)
-	}
-
-	// Dial
-	target := grpcutils.URLToTarget(clientURL)
-	cc, err := grpc.DialContext(dialCtx, target, d.dialOptions...)
-	if err != nil {
-		if cc != nil {
-			_ = cc.Close()
-		}
-		return di, errors.Wrapf(err, "failed to dial %s", target)
-	}
-
-	// store the cc because it will be needed by later chain elements like connect
-	clientconn.Store(ctx, cc)
-	go func() {
-		<-d.chainCtx.Done()
-		_ = cc.Close()
+		clientconn.Delete(ctx)
 	}()
-	return &dialInfo{
-		url:        clientURL,
-		ClientConn: cc,
-	}, nil
+
+	return next.Client(ctx).Close(ctx, conn, opts...)
 }

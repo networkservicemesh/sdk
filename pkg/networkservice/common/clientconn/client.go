@@ -48,7 +48,10 @@ func (c *clientConnClient) Request(ctx context.Context, request *networkservice.
 func (c *clientConnClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	_, err := next.Client(ctx).Close(ctx, conn)
 	if c.cc != nil {
-		Delete(ctx)
+		cc, loaded := LoadAndDelete(ctx)
+		if loaded && cc != c.cc {
+			Store(ctx, cc)
+		}
 	}
 	return &emptypb.Empty{}, err
 }

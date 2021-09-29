@@ -51,12 +51,12 @@ func Load(ctx context.Context) (value grpc.ClientConnInterface, ok bool) {
 }
 
 // LoadOrStore returns the existing grpc.ClientConnInterface stored in per Connection.Id metadata if present.
-// Otherwise, it stores and returns the given nterface_types.InterfaceIndex.
+// Otherwise, it stores and returns the given grpc.ClientConnInterface.
 // The loaded result is true if the value was loaded, false if stored.
 func LoadOrStore(ctx context.Context, cc grpc.ClientConnInterface) (value grpc.ClientConnInterface, ok bool) {
 	rawValue, ok := metadata.Map(ctx, true).LoadOrStore(key{}, cc)
 	if !ok {
-		return
+		return cc, ok
 	}
 	value, ok = rawValue.(grpc.ClientConnInterface)
 	return value, ok
