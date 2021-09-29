@@ -57,6 +57,7 @@ func DialOptions(options ...DialOption) []grpc.DialOption {
 		),
 		grpc.WithBlock(),
 		grpc.WithDefaultCallOptions(
+			grpc.WaitForReady(true),
 			grpc.PerRPCCredentials(token.NewPerRPCCredentials(opts.tokenGenerator)),
 		),
 		grpcfd.WithChainStreamInterceptor(),
