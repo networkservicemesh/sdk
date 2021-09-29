@@ -43,9 +43,11 @@ func NewServer(opts ...Option) networkservice.NetworkServiceServer {
 	for _, opt := range opts {
 		opt(o)
 	}
+	vlans := roaring.New()
+	vlans.AddRange(1, 4095)
 	return &kernelMechanismServer{
 		interfaceName: o.interfaceName,
-		freeVLANs:     o.vlans,
+		freeVLANs:     vlans,
 	}
 }
 
@@ -58,7 +60,7 @@ func (m *kernelMechanismServer) Request(ctx context.Context, request *networkser
 		} else {
 			mechanism.SetInterfaceName(getNameFromConnection(request.GetConnection()))
 		}
-		if mechanism.SupportsVLAN() && m.freeVLANs != nil {
+		if mechanism.SupportsVLAN() {
 			m.lock.Lock()
 			if m.freeVLANs.IsEmpty() {
 				m.lock.Unlock()
@@ -89,7 +91,7 @@ func (m *kernelMechanismServer) releaseVLANID(mechanism *kernelmech.Mechanism) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	vlanID := mechanism.GetVLAN()
-	if vlanID > 0 && m.freeVLANs != nil {
+	if vlanID > 0 {
 		m.freeVLANs.Add(vlanID)
 	}
 }
