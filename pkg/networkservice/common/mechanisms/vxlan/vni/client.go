@@ -32,13 +32,22 @@ import (
 )
 
 type vniClient struct {
-	tunnelIP net.IP
+	tunnelIP   net.IP
+	tunnelPort uint16
 }
 
 // NewClient - set the SrcIP for the vxlan mechanism
-func NewClient(tunnelIP net.IP) networkservice.NetworkServiceClient {
+func NewClient(tunnelIP net.IP, options ...Option) networkservice.NetworkServiceClient {
+	opts := &vniOpions{
+		tunnelPort: vxlanPort,
+	}
+	for _, opt := range options {
+		opt(opts)
+	}
+
 	return &vniClient{
-		tunnelIP: tunnelIP,
+		tunnelIP:   tunnelIP,
+		tunnelPort: opts.tunnelPort,
 	}
 }
 
@@ -47,7 +56,7 @@ func (v *vniClient) Request(ctx context.Context, request *networkservice.Network
 		// Note: This only has effect if this is a vxlan mechanism
 		if mech := vxlan.ToMechanism(m); mech != nil {
 			mech.SetSrcIP(v.tunnelIP)
-			mech.SetSrcPort(vxlanPort)
+			mech.SetSrcPort(v.tunnelPort)
 		}
 	}
 	return next.Client(ctx).Request(ctx, request, opts...)

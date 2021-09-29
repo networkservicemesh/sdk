@@ -48,6 +48,7 @@ func TestVNIServer(t *testing.T) {
 		Type: vxlan.MECHANISM,
 	}
 	vxlan.ToMechanism(request.GetConnection().GetMechanism()).SetSrcIP(net.ParseIP("192.0.2.1"))
+	var port uint16 = 0
 	server := next.NewNetworkServiceServer(vni.NewServer(net.ParseIP("192.0.2.2")))
 	conn, err := server.Request(context.Background(), request)
 	assert.Nil(t, err)
@@ -55,6 +56,18 @@ func TestVNIServer(t *testing.T) {
 	mechanism := vxlan.ToMechanism(conn.GetMechanism())
 	assert.NotNil(t, mechanism)
 	assert.Equal(t, "192.0.2.2", mechanism.DstIP().String())
+	assert.NotEqual(t, port, mechanism.DstPort())
+	assert.NotEqual(t, 0, mechanism.VNI())
+
+	port = 4466
+	server = next.NewNetworkServiceServer(vni.NewServer(net.ParseIP("192.0.2.2"), vni.WithTunnelPort(port)))
+	conn, err = server.Request(context.Background(), request)
+	assert.Nil(t, err)
+	assert.NotNil(t, conn)
+	mechanism = vxlan.ToMechanism(conn.GetMechanism())
+	assert.NotNil(t, mechanism)
+	assert.Equal(t, "192.0.2.2", mechanism.DstIP().String())
+	assert.Equal(t, port, mechanism.DstPort())
 	assert.NotEqual(t, 0, mechanism.VNI())
 }
 
