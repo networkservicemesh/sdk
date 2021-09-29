@@ -6,7 +6,7 @@ require (
 	github.com/HdrHistogram/hdrhistogram-go v1.0.1 // indirect
 	github.com/benbjohnson/clock v1.1.0
 	github.com/edwarnicke/exechelper v1.0.2
-	github.com/edwarnicke/grpcfd v0.1.0
+	github.com/edwarnicke/grpcfd v0.1.1
 	github.com/edwarnicke/serialize v1.0.7
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/ghodss/yaml v1.0.0
