@@ -62,7 +62,7 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 		return next.Client(ctx).Request(ctx, request, opts...)
 	}
 
-	cc, _ := clientconn.LoadOrStore(ctx, newDialer(d.chainCtx, d.dialTimeout, d.dialOptions...))
+	cc, ccloaded := clientconn.LoadOrStore(ctx, newDialer(d.chainCtx, d.dialTimeout, d.dialOptions...))
 
 	// If there's an existing grpc.ClientConnInterface and it's not ours, call the next in the chain
 	di, ok := cc.(*dialer)
@@ -81,9 +81,11 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 	err := di.Dial(ctx, clientURL)
 	if err != nil {
 		clientconn.Delete(ctx)
-		closeCtx, closeCancel := closeContextFunc()
-		defer closeCancel()
-		_, _ = next.Client(ctx).Close(clienturlctx.WithClientURL(closeCtx, di.clientURL), request.GetConnection(), opts...)
+		if ccloaded {
+			closeCtx, closeCancel := closeContextFunc()
+			defer closeCancel()
+			_, _ = next.Client(ctx).Close(clienturlctx.WithClientURL(closeCtx, di.clientURL), request.GetConnection(), opts...)
+		}
 		return nil, err
 	}
 
