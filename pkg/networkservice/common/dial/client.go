@@ -98,7 +98,14 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 }
 
 func (d *dialClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	cc, _ := clientconn.LoadOrStore(ctx, newDialer(ctx, d.dialTimeout, d.dialOptions...))
+	// If no clientURL, we have no work to do
+	// call the next in the chain
+	clientURL := clienturlctx.ClientURL(ctx)
+	if clientURL == nil {
+		return next.Client(ctx).Close(ctx, conn, opts...)
+	}
+
+	cc, _ := clientconn.Load(ctx)
 
 	di, ok := cc.(*dialer)
 	if !ok {
@@ -108,6 +115,7 @@ func (d *dialClient) Close(ctx context.Context, conn *networkservice.Connection,
 		_ = di.Close()
 		clientconn.Delete(ctx)
 	}()
+	_ = di.Dial(ctx, clientURL)
 
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }

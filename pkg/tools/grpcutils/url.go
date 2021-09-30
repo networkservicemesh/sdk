@@ -25,6 +25,9 @@ import (
 
 // URLToTarget - convert *net.URL to acceptable grpc target value.
 func URLToTarget(u *url.URL) (target string) {
+	if u == nil {
+		return ""
+	}
 	switch u.Scheme {
 	case unixScheme:
 		return u.String()

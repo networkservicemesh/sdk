@@ -175,7 +175,7 @@ func TestConnectServer_Request(t *testing.T) {
 
 	// 8. Close B
 
-	_, err = s.Close(ctx, conn)
+	_, err = s.Close(clienturlctx.WithClientURL(ctx, urlB), conn)
 	require.NoError(t, err)
 
 	require.Nil(t, serverClient.capturedRequest)
@@ -258,7 +258,7 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 			requestCancel()
 
 			// 4.4. Close A
-			_, err = s.Close(ctx, conn)
+			_, err = s.Close(clienturlctx.WithClientURL(ctx, urlA), conn)
 			assert.NoError(t, err)
 			wg.Done()
 		}(i)
@@ -486,7 +486,7 @@ func TestConnectServer_RemoteRestarted(t *testing.T) {
 
 	// 6. Close A
 
-	_, err = s.Close(ctx, conn)
+	_, err = s.Close(clienturlctx.WithClientURL(ctx, urlA), conn)
 	require.NoError(t, err)
 }
 
