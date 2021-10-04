@@ -23,44 +23,73 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
-
+	"github.com/pkg/errors"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-func logRequest(ctx context.Context, request proto.Message) {
+func logRequest(ctx context.Context, request proto.Message, isClose bool) {
+	msg := "request"
+	diffMsg := "request-diff"
+	if isClose {
+		msg = "close"
+		diffMsg = "close-diff"
+	}
+
 	connInfo, ok := trace(ctx)
 	if ok && !proto.Equal(connInfo.Request, request) {
 		if connInfo.Request != nil && connInfo.Request.ProtoReflect().Descriptor().FullName() == request.ProtoReflect().Descriptor().FullName() {
 			requestDiff, hadChanges := Diff(connInfo.Request.ProtoReflect(), request.ProtoReflect())
 			if hadChanges {
-				log.FromContext(ctx).Object("request-diff", requestDiff)
+				log.FromContext(ctx).Object(diffMsg, requestDiff)
 			}
 		} else {
-			log.FromContext(ctx).Object("request", request)
+			log.FromContext(ctx).Object(msg, request)
 		}
 		connInfo.Request = proto.Clone(request)
 	}
 }
 
-func logResponse(ctx context.Context, response proto.Message) {
+func logResponse(ctx context.Context, response proto.Message, isClose bool) {
+	msg := "request-response"
+	diffMsg := "request-response-diff"
+	if isClose {
+		msg = "close-response"
+		diffMsg = "close-response-diff"
+	}
+
 	connInfo, ok := trace(ctx)
 	if ok && !proto.Equal(connInfo.Response, response) {
 		if connInfo.Response != nil {
 			responseDiff, changed := Diff(connInfo.Response.ProtoReflect(), response.ProtoReflect())
 			if changed {
-				log.FromContext(ctx).Object("response-diff", responseDiff)
+				log.FromContext(ctx).Object(diffMsg, responseDiff)
 			}
 		} else {
-			log.FromContext(ctx).Object("response", response)
+			log.FromContext(ctx).Object(msg, response)
 		}
 		connInfo.Response = proto.Clone(response)
 		return
 	}
 }
 
-// Diff - calculate a protobuf messge diff
+func logError(ctx context.Context, err error, operation string) {
+	if stackErr, ok := err.(stackTracer); ok {
+		// todo: think about why tabs for errors not working
+		log.FromContext(ctx).Errorf("\t\tError returned from %s", operation)
+		for _, f := range stackErr.StackTrace() {
+			log.FromContext(ctx).Errorf("\t\t%v", f)
+		}
+		return
+	}
+
+	err = errors.Wrapf(err, "Error returned from %s", operation)
+	log.FromContext(ctx).Errorf("%+v", err)
+}
+
+// Diff - calculate a protobuf message diff
 func Diff(oldMessage, newMessage protoreflect.Message) (map[string]interface{}, bool) {
 	diffMessage := map[string]interface{}{}
 	oldReflectMessage := oldMessage
@@ -125,7 +154,7 @@ func mapDiff(descriptor protoreflect.FieldDescriptor, originMap, targetMap map[s
 		oldVal, ok := originMap[key]
 		if !ok {
 			// No old value,
-			putToMappDif(value, resultMap, "+"+key)
+			putToMapDiff(value, resultMap, "+"+key)
 			lchanged++
 			continue
 		}
@@ -141,14 +170,14 @@ func mapDiff(descriptor protoreflect.FieldDescriptor, originMap, targetMap map[s
 		_, ok := targetMap[key]
 		if !ok {
 			// No new value, mark as deleted
-			putToMappDif(value, resultMap, "-"+key)
+			putToMapDiff(value, resultMap, "-"+key)
 			lchanged++
 		}
 	}
 	return resultMap, lchanged > 0
 }
 
-func putToMappDif(value protoreflect.Value, resultMap map[string]interface{}, key string) {
+func putToMapDiff(value protoreflect.Value, resultMap map[string]interface{}, key string) {
 	if msg, ok := value.Interface().(protoreflect.Message); ok {
 		smsg := msg.Interface()
 		resultMap[key] = smsg

@@ -129,28 +129,28 @@ func TestTraceOutput(t *testing.T) {
 	require.NotNil(t, e)
 
 	expectedOutput :=
-		"level=info msg=\"(1) ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerFirstServer.Request()\" name=TestTraceOutput\n" +
+		"level=info msg=\"(1) ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerFirstServer.Request()\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
 			"level=info msg=\"(1.1)   request={\\\"connection\\\":{\\\"id\\\":\\\"conn-1\\\",\\\"context\\\":" +
 			"{\\\"ip_context\\\":{\\\"src_ip_required\\\":true}}},\\\"mechanism_preferences\\\":[{\\\"cls\\\":\\\"LOCAL\\\"," +
 			"\\\"type\\\":\\\"KERNEL\\\"},{\\\"cls\\\":\\\"LOCAL\\\",\\\"type\\\":\\\"KERNEL\\\",\\\"parameters\\\":{\\\"label\\\"" +
-			":\\\"v2\\\"}}]}\" name=TestTraceOutput\n" +
-			"level=info msg=\"(1.2)   request-diff={\\\"connection\\\":{\\\"labels\\\":{\\\"+Label\\\":\\\"A\\\"}}}\" name=TestTraceOutput\n" +
-			"level=info msg=\"(2)  ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerSecondServer.Request()\" name=TestTraceOutput\n" +
-			"level=info msg=\"(2.1)    request-diff={\\\"connection\\\":{\\\"labels\\\":{\\\"Label\\\":\\\"B\\\"}}}\" name=TestTraceOutput\n" +
-			"level=info msg=\"(2.2)    response={\\\"id\\\":\\\"conn-1\\\",\\\"context\\\":{\\\"ip_context\\\":{\\\"src_ip_required\\\":true}}," +
-			"\\\"labels\\\":{\\\"Label\\\":\\\"B\\\"}}\" name=TestTraceOutput\n" +
-			"level=info msg=\"(2.3)    response-diff={\\\"labels\\\":{\\\"Label\\\":\\\"C\\\"}}\" name=TestTraceOutput\n" +
-			"level=info msg=\"(1.3)   response-diff={\\\"labels\\\":{\\\"Label\\\":\\\"D\\\"}}\" name=TestTraceOutput\n" +
-			"level=info msg=\"(1) ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerFirstServer.Close()\" name=TestTraceOutput\n" +
-			"level=info msg=\"(1.1)   request={\\\"id\\\":\\\"conn-1\\\",\\\"context\\\":{\\\"ip_context\\\":{\\\"src_ip_required\\\":true}}," +
-			"\\\"labels\\\":{\\\"Label\\\":\\\"D\\\"}}\" name=TestTraceOutput\n" +
-			"level=info msg=\"(1.2)   request-diff={\\\"labels\\\":{\\\"Label\\\":\\\"W\\\"}}\" name=TestTraceOutput\n" +
-			"level=info msg=\"(2)  ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerSecondServer.Close()\" name=TestTraceOutput\n" +
-			"level=info msg=\"(2.1)    request-diff={\\\"labels\\\":{\\\"Label\\\":\\\"X\\\"}}\" name=TestTraceOutput\n" +
-			"level=info msg=\"(2.2)    response={\\\"id\\\":\\\"conn-1\\\",\\\"context\\\":{\\\"ip_context\\\":{\\\"src_ip_required\\\"" +
-			":true}},\\\"labels\\\":{\\\"Label\\\":\\\"X\\\"}}\" name=TestTraceOutput\n" +
-			"level=info msg=\"(2.3)    response-diff={\\\"labels\\\":{\\\"Label\\\":\\\"Y\\\"}}\" name=TestTraceOutput\n" +
-			"level=info msg=\"(1.3)   response-diff={\\\"labels\\\":{\\\"Label\\\":\\\"Z\\\"}}\" name=TestTraceOutput\n"
+			":\\\"v2\\\"}}]}\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
+			"level=info msg=\"(1.2)   request-diff={\\\"connection\\\":{\\\"labels\\\":{\\\"+Label\\\":\\\"A\\\"}}}\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
+			"level=info msg=\"(2)  ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerSecondServer.Request()\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
+			"level=info msg=\"(2.1)    request-diff={\\\"connection\\\":{\\\"labels\\\":{\\\"Label\\\":\\\"B\\\"}}}\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
+			"level=info msg=\"(2.2)    request-response={\\\"id\\\":\\\"conn-1\\\",\\\"context\\\":{\\\"ip_context\\\":{\\\"src_ip_required\\\":true}}," +
+			"\\\"labels\\\":{\\\"Label\\\":\\\"B\\\"}}\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
+			"level=info msg=\"(2.3)    request-response-diff={\\\"labels\\\":{\\\"Label\\\":\\\"C\\\"}}\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
+			"level=info msg=\"(1.3)   request-response-diff={\\\"labels\\\":{\\\"Label\\\":\\\"D\\\"}}\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
+			"level=info msg=\"(1) ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerFirstServer.Close()\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
+			"level=info msg=\"(1.1)   close={\\\"id\\\":\\\"conn-1\\\",\\\"context\\\":{\\\"ip_context\\\":{\\\"src_ip_required\\\":true}}," +
+			"\\\"labels\\\":{\\\"Label\\\":\\\"D\\\"}}\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
+			"level=info msg=\"(1.2)   close-diff={\\\"labels\\\":{\\\"Label\\\":\\\"W\\\"}}\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
+			"level=info msg=\"(2)  ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerSecondServer.Close()\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
+			"level=info msg=\"(2.1)    close-diff={\\\"labels\\\":{\\\"Label\\\":\\\"X\\\"}}\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
+			"level=info msg=\"(2.2)    close-response={\\\"id\\\":\\\"conn-1\\\",\\\"context\\\":{\\\"ip_context\\\":{\\\"src_ip_required\\\"" +
+			":true}},\\\"labels\\\":{\\\"Label\\\":\\\"X\\\"}}\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
+			"level=info msg=\"(2.3)    close-response-diff={\\\"labels\\\":{\\\"Label\\\":\\\"Y\\\"}}\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
+			"level=info msg=\"(1.3)   close-response-diff={\\\"labels\\\":{\\\"Label\\\":\\\"Z\\\"}}\" id=conn-1 name=TestTraceOutput type=NetworkService\n"
 
 	require.Equal(t, expectedOutput, buff.String())
 }

@@ -20,8 +20,6 @@ package trace
 import (
 	"context"
 
-	"github.com/pkg/errors"
-
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamcontext"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/typeutils"
@@ -49,15 +47,10 @@ func (t *traceNetworkServiceRegistryFindClient) Recv() (*registry.NetworkService
 	s := streamcontext.NetworkServiceRegistryFindClient(ctx, t.NetworkServiceRegistry_FindClient)
 	rv, err := s.Recv()
 	if err != nil {
-		if _, ok := err.(stackTracer); !ok {
-			err = errors.Wrapf(err, "Error returned from %s", operation)
-			log.FromContext(ctx).Errorf("%+v", err)
-			return nil, err
-		}
-		log.FromContext(ctx).Errorf("%v", err)
+		logError(ctx, err, operation)
 		return nil, err
 	}
-	log.FromContext(ctx).Object("response", rv)
+	log.FromContext(ctx).Object(recvResponseMsg, rv)
 	return rv, err
 }
 
@@ -67,19 +60,14 @@ func (t *traceNetworkServiceRegistryClient) Register(ctx context.Context, in *re
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	log.FromContext(ctx).Object("request", in)
+	log.FromContext(ctx).Object(registerRequestMsg, in)
 
 	rv, err := t.traced.Register(ctx, in, opts...)
 	if err != nil {
-		if _, ok := err.(stackTracer); !ok {
-			err = errors.Wrapf(err, "Error returned from %s", operation)
-			log.FromContext(ctx).Errorf("%+v", err)
-			return nil, err
-		}
-		log.FromContext(ctx).Errorf("%v", err)
+		logError(ctx, err, operation)
 		return nil, err
 	}
-	log.FromContext(ctx).Object("response", rv)
+	log.FromContext(ctx).Object(registerResponseMsg, rv)
 	return rv, err
 }
 func (t *traceNetworkServiceRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
@@ -88,20 +76,15 @@ func (t *traceNetworkServiceRegistryClient) Find(ctx context.Context, in *regist
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	log.FromContext(ctx).Object("find", in)
+	log.FromContext(ctx).Object(findRequestMsg, in)
 
 	// Actually call the next
 	rv, err := t.traced.Find(ctx, in, opts...)
 	if err != nil {
-		if _, ok := err.(stackTracer); !ok {
-			err = errors.Wrapf(err, "Error returned from %s", operation)
-			log.FromContext(ctx).Errorf("%+v", err)
-			return nil, err
-		}
-		log.FromContext(ctx).Errorf("%v", err)
+		logError(ctx, err, operation)
 		return nil, err
 	}
-	log.FromContext(ctx).Object("response", rv)
+	log.FromContext(ctx).Object(findResponseMsg, rv)
 
 	return &traceNetworkServiceRegistryFindClient{NetworkServiceRegistry_FindClient: rv}, nil
 }
@@ -112,20 +95,15 @@ func (t *traceNetworkServiceRegistryClient) Unregister(ctx context.Context, in *
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	log.FromContext(ctx).Object("request", in)
+	log.FromContext(ctx).Object(unregisterRequestMsg, in)
 
 	// Actually call the next
 	rv, err := t.traced.Unregister(ctx, in, opts...)
 	if err != nil {
-		if _, ok := err.(stackTracer); !ok {
-			err = errors.Wrapf(err, "Error returned from %s", operation)
-			log.FromContext(ctx).Errorf("%+v", err)
-			return nil, err
-		}
-		log.FromContext(ctx).Errorf("%v", err)
+		logError(ctx, err, operation)
 		return nil, err
 	}
-	log.FromContext(ctx).Object("response", rv)
+	log.FromContext(ctx).Object(unregisterResponseMsg, rv)
 	return rv, err
 }
 
@@ -144,19 +122,14 @@ func (t *traceNetworkServiceRegistryServer) Register(ctx context.Context, in *re
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	log.FromContext(ctx).Object("request", in)
+	log.FromContext(ctx).Object(registerRequestMsg, in)
 
 	rv, err := t.traced.Register(ctx, in)
 	if err != nil {
-		if _, ok := err.(stackTracer); !ok {
-			err = errors.Wrapf(err, "Error returned from %s", operation)
-			log.FromContext(ctx).Errorf("%+v", err)
-			return nil, err
-		}
-		log.FromContext(ctx).Errorf("%v", err)
+		logError(ctx, err, operation)
 		return nil, err
 	}
-	log.FromContext(ctx).Object("response", rv)
+	log.FromContext(ctx).Object(registerResponseMsg, rv)
 	return rv, err
 }
 
@@ -169,17 +142,12 @@ func (t *traceNetworkServiceRegistryServer) Find(in *registry.NetworkServiceQuer
 	s = &traceNetworkServiceRegistryFindServer{
 		NetworkServiceRegistry_FindServer: streamcontext.NetworkServiceRegistryFindServer(ctx, s),
 	}
-	log.FromContext(ctx).Object("find", in)
+	log.FromContext(ctx).Object(findRequestMsg, in)
 
 	// Actually call the next
 	err := t.traced.Find(in, s)
 	if err != nil {
-		if _, ok := err.(stackTracer); !ok {
-			err = errors.Wrapf(err, "Error returned from %s", operation)
-			log.FromContext(ctx).Errorf("%+v", err)
-			return err
-		}
-		log.FromContext(ctx).Errorf("%v", err)
+		logError(ctx, err, operation)
 		return err
 	}
 	return nil
@@ -191,20 +159,15 @@ func (t *traceNetworkServiceRegistryServer) Unregister(ctx context.Context, in *
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	log.FromContext(ctx).Object("request", in)
+	log.FromContext(ctx).Object(unregisterRequestMsg, in)
 
 	// Actually call the next
 	rv, err := t.traced.Unregister(ctx, in)
 	if err != nil {
-		if _, ok := err.(stackTracer); !ok {
-			err = errors.Wrapf(err, "Error returned from %s", operation)
-			log.FromContext(ctx).Errorf("%+v", err)
-			return nil, err
-		}
-		log.FromContext(ctx).Errorf("%v", err)
+		logError(ctx, err, operation)
 		return nil, err
 	}
-	log.FromContext(ctx).Object("response", rv)
+	log.FromContext(ctx).Object(unregisterResponseMsg, rv)
 	return rv, err
 }
 
@@ -223,16 +186,11 @@ func (t *traceNetworkServiceRegistryFindServer) Send(ns *registry.NetworkService
 	ctx, finish := withLog(t.Context(), operation)
 	defer finish()
 
-	log.FromContext(ctx).Object("network service", ns)
+	log.FromContext(ctx).Object(nsMsg, ns)
 	s := streamcontext.NetworkServiceRegistryFindServer(ctx, t.NetworkServiceRegistry_FindServer)
 	err := s.Send(ns)
 	if err != nil {
-		if _, ok := err.(stackTracer); !ok {
-			err = errors.Wrapf(err, "Error returned from %s", operation)
-			log.FromContext(ctx).Errorf("%+v", err)
-			return err
-		}
-		log.FromContext(ctx).Errorf("%v", err)
+		logError(ctx, err, operation)
 		return err
 	}
 	return err
