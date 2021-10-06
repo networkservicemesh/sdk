@@ -20,6 +20,8 @@ package trace
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"reflect"
 	"strconv"
 
@@ -43,10 +45,10 @@ func logRequest(ctx context.Context, request proto.Message, isClose bool) {
 		if connInfo.Request != nil && connInfo.Request.ProtoReflect().Descriptor().FullName() == request.ProtoReflect().Descriptor().FullName() {
 			requestDiff, hadChanges := Diff(connInfo.Request.ProtoReflect(), request.ProtoReflect())
 			if hadChanges {
-				log.FromContext(ctx).Object(diffMsg, requestDiff)
+				logObjectTrace(ctx, diffMsg, requestDiff)
 			}
 		} else {
-			log.FromContext(ctx).Object(msg, request)
+			logObjectTrace(ctx, msg, request)
 		}
 		connInfo.Request = proto.Clone(request)
 	}
@@ -65,10 +67,10 @@ func logResponse(ctx context.Context, response proto.Message, isClose bool) {
 		if connInfo.Response != nil {
 			responseDiff, changed := Diff(connInfo.Response.ProtoReflect(), response.ProtoReflect())
 			if changed {
-				log.FromContext(ctx).Object(diffMsg, responseDiff)
+				logObjectTrace(ctx, diffMsg, responseDiff)
 			}
 		} else {
-			log.FromContext(ctx).Object(msg, response)
+			logObjectTrace(ctx, msg, response)
 		}
 		connInfo.Response = proto.Clone(response)
 		return
@@ -83,6 +85,18 @@ func logError(ctx context.Context, err error, operation string) {
 
 	err = errors.Wrapf(err, "Error returned from %s", operation)
 	log.FromContext(ctx).Errorf("%+v", err)
+}
+
+func logObjectTrace(ctx context.Context, k, v interface{}) {
+	s := log.FromContext(ctx)
+	msg := ""
+	cc, err := json.Marshal(v)
+	if err == nil {
+		msg = string(cc)
+	} else {
+		msg = fmt.Sprint(v)
+	}
+	s.Tracef("%v=%s", k, msg)
 }
 
 // Diff - calculate a protobuf message diff

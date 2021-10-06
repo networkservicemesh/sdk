@@ -20,7 +20,6 @@ import (
 	"context"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamcontext"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/typeutils"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -49,7 +48,7 @@ func (t *traceNetworkServiceEndpointRegistryFindClient) Recv() (*registry.Networ
 		logError(ctx, err, operation)
 		return nil, err
 	}
-	log.FromContext(ctx).Object(recvResponseMsg, rv)
+	logObjectTrace(ctx, recvResponseMsg, rv)
 	return rv, err
 }
 
@@ -59,14 +58,13 @@ func (t *traceNetworkServiceEndpointRegistryClient) Register(ctx context.Context
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	log.FromContext(ctx).Object(registerRequestMsg, in)
-
+	logObjectTrace(ctx, registerRequestMsg, in)
 	rv, err := t.traced.Register(ctx, in, opts...)
 	if err != nil {
 		logError(ctx, err, operation)
 		return nil, err
 	}
-	log.FromContext(ctx).Object(registerResponseMsg, rv)
+	logObjectTrace(ctx, registerResponseMsg, rv)
 	return rv, err
 }
 func (t *traceNetworkServiceEndpointRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
@@ -75,7 +73,7 @@ func (t *traceNetworkServiceEndpointRegistryClient) Find(ctx context.Context, in
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	log.FromContext(ctx).Object(findRequestMsg, in)
+	logObjectTrace(ctx, findRequestMsg, in)
 
 	// Actually call the next
 	rv, err := t.traced.Find(ctx, in, opts...)
@@ -83,7 +81,7 @@ func (t *traceNetworkServiceEndpointRegistryClient) Find(ctx context.Context, in
 		logError(ctx, err, operation)
 		return nil, err
 	}
-	log.FromContext(ctx).Object(findResponseMsg, rv)
+	logObjectTrace(ctx, findResponseMsg, rv)
 
 	return &traceNetworkServiceEndpointRegistryFindClient{NetworkServiceEndpointRegistry_FindClient: rv}, nil
 }
@@ -94,7 +92,7 @@ func (t *traceNetworkServiceEndpointRegistryClient) Unregister(ctx context.Conte
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	log.FromContext(ctx).Object(unregisterRequestMsg, in)
+	logObjectTrace(ctx, unregisterRequestMsg, in)
 
 	// Actually call the next
 	rv, err := t.traced.Unregister(ctx, in, opts...)
@@ -102,7 +100,7 @@ func (t *traceNetworkServiceEndpointRegistryClient) Unregister(ctx context.Conte
 		logError(ctx, err, operation)
 		return nil, err
 	}
-	log.FromContext(ctx).Object(unregisterResponseMsg, rv)
+	logObjectTrace(ctx, unregisterResponseMsg, rv)
 	return rv, err
 }
 
@@ -121,14 +119,14 @@ func (t *traceNetworkServiceEndpointRegistryServer) Register(ctx context.Context
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	log.FromContext(ctx).Object(registerRequestMsg, in)
+	logObjectTrace(ctx, registerRequestMsg, in)
 
 	rv, err := t.traced.Register(ctx, in)
 	if err != nil {
 		logError(ctx, err, operation)
 		return nil, err
 	}
-	log.FromContext(ctx).Object(registerResponseMsg, rv)
+	logObjectTrace(ctx, registerResponseMsg, rv)
 	return rv, err
 }
 
@@ -141,7 +139,7 @@ func (t *traceNetworkServiceEndpointRegistryServer) Find(in *registry.NetworkSer
 	s = &traceNetworkServiceEndpointRegistryFindServer{
 		NetworkServiceEndpointRegistry_FindServer: streamcontext.NetworkServiceEndpointRegistryFindServer(ctx, s),
 	}
-	log.FromContext(ctx).Object(findRequestMsg, in)
+	logObjectTrace(ctx, findRequestMsg, in)
 
 	// Actually call the next
 	err := t.traced.Find(in, s)
@@ -149,7 +147,7 @@ func (t *traceNetworkServiceEndpointRegistryServer) Find(in *registry.NetworkSer
 		logError(ctx, err, operation)
 		return err
 	}
-	log.FromContext(ctx).Object(findResponseMsg, in)
+	logObjectTrace(ctx, findResponseMsg, in)
 
 	return nil
 }
@@ -160,7 +158,7 @@ func (t *traceNetworkServiceEndpointRegistryServer) Unregister(ctx context.Conte
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	log.FromContext(ctx).Object(unregisterRequestMsg, in)
+	logObjectTrace(ctx, unregisterRequestMsg, in)
 
 	// Actually call the next
 	rv, err := t.traced.Unregister(ctx, in)
@@ -168,7 +166,7 @@ func (t *traceNetworkServiceEndpointRegistryServer) Unregister(ctx context.Conte
 		logError(ctx, err, operation)
 		return nil, err
 	}
-	log.FromContext(ctx).Object(unregisterResponseMsg, rv)
+	logObjectTrace(ctx, unregisterResponseMsg, rv)
 	return rv, err
 }
 
@@ -187,7 +185,7 @@ func (t *traceNetworkServiceEndpointRegistryFindServer) Send(nse *registry.Netwo
 	ctx, finish := withLog(t.Context(), operation)
 	defer finish()
 
-	log.FromContext(ctx).Object(nseMsg, nse)
+	logObjectTrace(ctx, nseMsg, nse)
 	s := streamcontext.NetworkServiceEndpointRegistryFindServer(ctx, t.NetworkServiceEndpointRegistry_FindServer)
 	err := s.Send(nse)
 	if err != nil {

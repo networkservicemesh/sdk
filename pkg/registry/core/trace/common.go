@@ -18,6 +18,8 @@ package trace
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
 	"github.com/pkg/errors"
 
@@ -44,4 +46,16 @@ func logError(ctx context.Context, err error, operation string) {
 
 	err = errors.Wrapf(err, "Error returned from %s", operation)
 	log.FromContext(ctx).Errorf("%+v", err)
+}
+
+func logObjectTrace(ctx context.Context, k, v interface{}) {
+	s := log.FromContext(ctx)
+	msg := ""
+	cc, err := json.Marshal(v)
+	if err == nil {
+		msg = string(cc)
+	} else {
+		msg = fmt.Sprint(v)
+	}
+	s.Tracef("%v=%s", k, msg)
 }

@@ -110,6 +110,7 @@ func TestTraceOutput(t *testing.T) {
 	logrus.SetFormatter(&logrus.TextFormatter{
 		DisableTimestamp: true,
 	})
+	logrus.SetLevel(logrus.TraceLevel)
 	log.EnableTracing(true)
 
 	// Create a chain with modifying elements
@@ -130,28 +131,28 @@ func TestTraceOutput(t *testing.T) {
 	require.NotNil(t, e)
 
 	expectedOutput :=
-		"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1) ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerFirstServer.Request()\n" +
-			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1.1)   request={\"connection\":{\"id\":\"conn-1\",\"context\":" +
+		"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1) ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerFirstServer.Request()\n" +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1.1)   request={\"connection\":{\"id\":\"conn-1\",\"context\":" +
 			"{\"ip_context\":{\"src_ip_required\":true}}},\"mechanism_preferences\":[{\"cls\":\"LOCAL\"," +
 			"\"type\":\"KERNEL\"},{\"cls\":\"LOCAL\",\"type\":\"KERNEL\",\"parameters\":{\"label\"" +
 			":\"v2\"}}]}\n" +
-			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1.2)   request-diff={\"connection\":{\"labels\":{\"+Label\":\"A\"}}}\n" +
-			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2)  ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerSecondServer.Request()\n" +
-			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2.1)    request-diff={\"connection\":{\"labels\":{\"Label\":\"B\"}}}\n" +
-			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2.2)    request-response={\"id\":\"conn-1\",\"context\":{\"ip_context\":{\"src_ip_required\":true}}," +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1.2)   request-diff={\"connection\":{\"labels\":{\"+Label\":\"A\"}}}\n" +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2)  ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerSecondServer.Request()\n" +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2.1)    request-diff={\"connection\":{\"labels\":{\"Label\":\"B\"}}}\n" +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2.2)    request-response={\"id\":\"conn-1\",\"context\":{\"ip_context\":{\"src_ip_required\":true}}," +
 			"\"labels\":{\"Label\":\"B\"}}\n" +
-			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2.3)    request-response-diff={\"labels\":{\"Label\":\"C\"}}\n" +
-			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1.3)   request-response-diff={\"labels\":{\"Label\":\"D\"}}\n" +
-			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1) ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerFirstServer.Close()\n" +
-			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1.1)   close={\"id\":\"conn-1\",\"context\":{\"ip_context\":{\"src_ip_required\":true}}," +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2.3)    request-response-diff={\"labels\":{\"Label\":\"C\"}}\n" +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1.3)   request-response-diff={\"labels\":{\"Label\":\"D\"}}\n" +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1) ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerFirstServer.Close()\n" +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1.1)   close={\"id\":\"conn-1\",\"context\":{\"ip_context\":{\"src_ip_required\":true}}," +
 			"\"labels\":{\"Label\":\"D\"}}\n" +
-			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1.2)   close-diff={\"labels\":{\"Label\":\"W\"}}\n" +
-			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2)  ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerSecondServer.Close()\n" +
-			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2.1)    close-diff={\"labels\":{\"Label\":\"X\"}}\n" +
-			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2.2)    close-response={\"id\":\"conn-1\",\"context\":{\"ip_context\":{\"src_ip_required\"" +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1.2)   close-diff={\"labels\":{\"Label\":\"W\"}}\n" +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2)  ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerSecondServer.Close()\n" +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2.1)    close-diff={\"labels\":{\"Label\":\"X\"}}\n" +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2.2)    close-response={\"id\":\"conn-1\",\"context\":{\"ip_context\":{\"src_ip_required\"" +
 			":true}},\"labels\":{\"Label\":\"X\"}}\n" +
-			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2.3)    close-response-diff={\"labels\":{\"Label\":\"Y\"}}\n" +
-			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1.3)   close-response-diff={\"labels\":{\"Label\":\"Z\"}}\n"
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2.3)    close-response-diff={\"labels\":{\"Label\":\"Y\"}}\n" +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1.3)   close-response-diff={\"labels\":{\"Label\":\"Z\"}}\n"
 
 	// Logger created by the trace chain element uses custom formatter, which prints date and time info in each line
 	// To check if output matches our expectations, we need to somehow get rid of this info.
