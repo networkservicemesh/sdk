@@ -59,3 +59,16 @@ func logObjectTrace(ctx context.Context, k, v interface{}) {
 	}
 	s.Tracef("%v=%s", k, msg)
 }
+
+func addIDCtx(ctx context.Context, id string) context.Context {
+	if len(id) > 0 {
+		fields := make(map[string]interface{})
+		for k, v := range log.Fields(ctx) {
+			fields[k] = v
+		}
+		fields["id"] = id
+		ctx = log.WithFields(ctx, fields)
+	}
+
+	return ctx
+}

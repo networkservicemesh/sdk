@@ -45,6 +45,11 @@ func (t *traceNetworkServiceRegistryFindClient) Recv() (*registry.NetworkService
 
 	s := streamcontext.NetworkServiceRegistryFindClient(ctx, t.NetworkServiceRegistry_FindClient)
 	rv, err := s.Recv()
+
+	if rv != nil {
+		ctx = addIDCtx(ctx, rv.Name)
+	}
+
 	if err != nil {
 		logError(ctx, err, operation)
 		return nil, err
@@ -54,6 +59,8 @@ func (t *traceNetworkServiceRegistryFindClient) Recv() (*registry.NetworkService
 }
 
 func (t *traceNetworkServiceRegistryClient) Register(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
+	ctx = addIDCtx(ctx, in.Name)
+
 	operation := typeutils.GetFuncName(t.traced, "Register")
 
 	ctx, finish := withLog(ctx, operation)
@@ -70,6 +77,8 @@ func (t *traceNetworkServiceRegistryClient) Register(ctx context.Context, in *re
 	return rv, err
 }
 func (t *traceNetworkServiceRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
+	ctx = addIDCtx(ctx, in.NetworkService.Name)
+
 	operation := typeutils.GetFuncName(t.traced, "Find")
 
 	ctx, finish := withLog(ctx, operation)
@@ -89,6 +98,8 @@ func (t *traceNetworkServiceRegistryClient) Find(ctx context.Context, in *regist
 }
 
 func (t *traceNetworkServiceRegistryClient) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
+	ctx = addIDCtx(ctx, in.Name)
+
 	operation := typeutils.GetFuncName(t.traced, "Unregister")
 
 	ctx, finish := withLog(ctx, operation)
@@ -116,6 +127,8 @@ type traceNetworkServiceRegistryServer struct {
 }
 
 func (t *traceNetworkServiceRegistryServer) Register(ctx context.Context, in *registry.NetworkService) (*registry.NetworkService, error) {
+	ctx = addIDCtx(ctx, in.Name)
+
 	operation := typeutils.GetFuncName(t.traced, "Register")
 
 	ctx, finish := withLog(ctx, operation)
@@ -138,6 +151,8 @@ func (t *traceNetworkServiceRegistryServer) Find(in *registry.NetworkServiceQuer
 	ctx, finish := withLog(s.Context(), operation)
 	defer finish()
 
+	ctx = addIDCtx(ctx, in.NetworkService.Name)
+
 	s = &traceNetworkServiceRegistryFindServer{
 		NetworkServiceRegistry_FindServer: streamcontext.NetworkServiceRegistryFindServer(ctx, s),
 	}
@@ -153,6 +168,8 @@ func (t *traceNetworkServiceRegistryServer) Find(in *registry.NetworkServiceQuer
 }
 
 func (t *traceNetworkServiceRegistryServer) Unregister(ctx context.Context, in *registry.NetworkService) (*empty.Empty, error) {
+	ctx = addIDCtx(ctx, in.Name)
+
 	operation := typeutils.GetFuncName(t.traced, "Unregister")
 
 	ctx, finish := withLog(ctx, operation)
@@ -184,6 +201,8 @@ func (t *traceNetworkServiceRegistryFindServer) Send(ns *registry.NetworkService
 
 	ctx, finish := withLog(t.Context(), operation)
 	defer finish()
+
+	ctx = addIDCtx(ctx, ns.Name)
 
 	logObjectTrace(ctx, nsMsg, ns)
 	s := streamcontext.NetworkServiceRegistryFindServer(ctx, t.NetworkServiceRegistry_FindServer)

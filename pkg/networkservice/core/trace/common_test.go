@@ -26,6 +26,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -176,6 +177,99 @@ func TestTraceOutput(t *testing.T) {
 	require.Equal(t, expectedOutput, result)
 }
 
+func TestErrorOutput(t *testing.T) {
+	// Configure logging
+	// Set output to buffer
+	var buff bytes.Buffer
+	logrus.SetOutput(&buff)
+	logrus.SetFormatter(&logrus.TextFormatter{
+		DisableTimestamp: true,
+	})
+	logrus.SetLevel(logrus.TraceLevel)
+	log.EnableTracing(true)
+
+	// Create a chain with modifying elements
+	ch := chain.NewNamedNetworkServiceServer(
+		"TestTraceOutput",
+		&labelChangerFirstServer{},
+		&labelChangerSecondServer{},
+		&errorServer{},
+	)
+
+	request := newConnection()
+
+	conn, err := ch.Request(context.Background(), request)
+	require.Error(t, err)
+	require.Nil(t, conn)
+
+	expectedOutput :=
+		"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1) ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerFirstServer.Request()\n" +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1.1)   request={\"connection\":{\"id\":\"conn-1\",\"context\":" +
+			"{\"ip_context\":{\"src_ip_required\":true}}},\"mechanism_preferences\":[{\"cls\":\"LOCAL\"," +
+			"\"type\":\"KERNEL\"},{\"cls\":\"LOCAL\",\"type\":\"KERNEL\",\"parameters\":{\"label\"" +
+			":\"v2\"}}]}\n" +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1.2)   request-diff={\"connection\":{\"labels\":{\"+Label\":\"A\"}}}\n" +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2)  ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerSecondServer.Request()\n" +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2.1)    request-diff={\"connection\":{\"labels\":{\"Label\":\"B\"}}}\n" +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(3)   ⎆ sdk/pkg/networkservice/core/trace_test/errorServer.Request()\n" +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(3.1)     request-response={\"id\":\"conn-1\",\"context\":{\"ip_context\":{\"src_ip_required\":true}},\"labels\":{\"Label\":\"B\"}}\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(3.2)     Error returned from api/pkg/api/networkservice/networkServiceClient.Close\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0mgithub.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*beginTraceClient).Close\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:85\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0mgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0mgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0mgithub.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*endTraceClient).Close\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:106\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0mgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65\n" +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2.2)    request-response-diff={\"context\":{\"ip_context\":{\"src_ip_required\":false}},\"id\":\"\",\"labels\":{\"-Label\":\"B\"}}\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2.3)    Error returned from api/pkg/api/networkservice/networkServiceClient.Close\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0mgithub.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*beginTraceClient).Close\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:85\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0mgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0mgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0mgithub.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*endTraceClient).Close\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:106\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0mgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1.3)   Error returned from api/pkg/api/networkservice/networkServiceClient.Close\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0mgithub.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*beginTraceClient).Close\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:85\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0mgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0mgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0mgithub.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*endTraceClient).Close\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:106\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0mgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65\n"
+
+	// Logger created by the trace chain element uses custom formatter, which prints date and time info in each line
+	// To check if output matches our expectations, we need to somehow get rid of this info.
+	// We have the following options:
+	// 1. Configure formatter options on logger creation in trace element
+	// 2. Use some global configuration (either set global default formatter
+	// 	  instead of creating it in trace element or use global config for our formatter)
+	// 3. Remove datetime information from the output
+	// Since we are unlikely to need to remove date in any case except these tests,
+	// it seems like the third option would be the most convenient.
+	result := ""
+	datetimeLength := 19
+	for _, line := range strings.Split(buff.String(), "\n") {
+		if len(line) > datetimeLength {
+			result += line[datetimeLength:] + "\n"
+		} else {
+			result += line
+		}
+	}
+
+	require.Equal(t, expectedOutput, result)
+}
+
 func newConnection() *networkservice.NetworkServiceRequest {
 	return &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -209,6 +303,9 @@ func (c *labelChangerFirstServer) Request(ctx context.Context, request *networks
 		"Label": "A",
 	}
 	rv, err := next.Server(ctx).Request(ctx, request)
+	if err != nil {
+		return nil, err
+	}
 	rv.Labels = map[string]string{
 		"Label": "D",
 	}
@@ -233,6 +330,9 @@ func (c *labelChangerSecondServer) Request(ctx context.Context, request *network
 		"Label": "B",
 	}
 	rv, err := next.Server(ctx).Request(ctx, request)
+	if err != nil {
+		return nil, err
+	}
 	rv.Labels = map[string]string{
 		"Label": "C",
 	}
@@ -248,4 +348,40 @@ func (c *labelChangerSecondServer) Close(ctx context.Context, connection *networ
 		"Label": "Y",
 	}
 	return r, err
+}
+
+type errorServer struct{}
+
+type customError struct{}
+
+func (*customError) Error() string {
+	return `Error returned from api/pkg/api/networkservice/networkServiceClient.Close
+github.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*beginTraceClient).Close
+	/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:85
+github.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close
+	/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65
+github.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close
+	/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65
+github.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*endTraceClient).Close
+	/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:106
+github.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close
+	/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65`
+}
+
+func (*customError) StackTrace() errors.StackTrace {
+	return []errors.Frame{}
+}
+
+func (c *errorServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	request.Connection.Labels = map[string]string{
+		"Label": "B",
+	}
+
+	_, _ = next.Server(ctx).Request(ctx, request)
+
+	return nil, &customError{}
+}
+
+func (c *errorServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
+	return next.Server(ctx).Close(ctx, connection)
 }
