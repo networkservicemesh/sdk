@@ -37,12 +37,8 @@ const (
 )
 
 func logError(ctx context.Context, err error, operation string) {
-	if stackErr, ok := err.(stackTracer); ok {
-		// todo: think about why tabs for errors not working
-		log.FromContext(ctx).Errorf("Error returned from %s", operation)
-		for _, f := range stackErr.StackTrace() {
-			log.FromContext(ctx).Errorf("\t\t%+v", f)
-		}
+	if _, ok := err.(stackTracer); ok {
+		log.FromContext(ctx).Errorf("%v", err)
 		return
 	}
 

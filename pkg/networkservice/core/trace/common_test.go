@@ -23,6 +23,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -129,30 +130,49 @@ func TestTraceOutput(t *testing.T) {
 	require.NotNil(t, e)
 
 	expectedOutput :=
-		"level=info msg=\"(1) ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerFirstServer.Request()\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
-			"level=info msg=\"(1.1)   request={\\\"connection\\\":{\\\"id\\\":\\\"conn-1\\\",\\\"context\\\":" +
-			"{\\\"ip_context\\\":{\\\"src_ip_required\\\":true}}},\\\"mechanism_preferences\\\":[{\\\"cls\\\":\\\"LOCAL\\\"," +
-			"\\\"type\\\":\\\"KERNEL\\\"},{\\\"cls\\\":\\\"LOCAL\\\",\\\"type\\\":\\\"KERNEL\\\",\\\"parameters\\\":{\\\"label\\\"" +
-			":\\\"v2\\\"}}]}\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
-			"level=info msg=\"(1.2)   request-diff={\\\"connection\\\":{\\\"labels\\\":{\\\"+Label\\\":\\\"A\\\"}}}\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
-			"level=info msg=\"(2)  ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerSecondServer.Request()\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
-			"level=info msg=\"(2.1)    request-diff={\\\"connection\\\":{\\\"labels\\\":{\\\"Label\\\":\\\"B\\\"}}}\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
-			"level=info msg=\"(2.2)    request-response={\\\"id\\\":\\\"conn-1\\\",\\\"context\\\":{\\\"ip_context\\\":{\\\"src_ip_required\\\":true}}," +
-			"\\\"labels\\\":{\\\"Label\\\":\\\"B\\\"}}\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
-			"level=info msg=\"(2.3)    request-response-diff={\\\"labels\\\":{\\\"Label\\\":\\\"C\\\"}}\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
-			"level=info msg=\"(1.3)   request-response-diff={\\\"labels\\\":{\\\"Label\\\":\\\"D\\\"}}\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
-			"level=info msg=\"(1) ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerFirstServer.Close()\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
-			"level=info msg=\"(1.1)   close={\\\"id\\\":\\\"conn-1\\\",\\\"context\\\":{\\\"ip_context\\\":{\\\"src_ip_required\\\":true}}," +
-			"\\\"labels\\\":{\\\"Label\\\":\\\"D\\\"}}\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
-			"level=info msg=\"(1.2)   close-diff={\\\"labels\\\":{\\\"Label\\\":\\\"W\\\"}}\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
-			"level=info msg=\"(2)  ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerSecondServer.Close()\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
-			"level=info msg=\"(2.1)    close-diff={\\\"labels\\\":{\\\"Label\\\":\\\"X\\\"}}\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
-			"level=info msg=\"(2.2)    close-response={\\\"id\\\":\\\"conn-1\\\",\\\"context\\\":{\\\"ip_context\\\":{\\\"src_ip_required\\\"" +
-			":true}},\\\"labels\\\":{\\\"Label\\\":\\\"X\\\"}}\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
-			"level=info msg=\"(2.3)    close-response-diff={\\\"labels\\\":{\\\"Label\\\":\\\"Y\\\"}}\" id=conn-1 name=TestTraceOutput type=NetworkService\n" +
-			"level=info msg=\"(1.3)   close-response-diff={\\\"labels\\\":{\\\"Label\\\":\\\"Z\\\"}}\" id=conn-1 name=TestTraceOutput type=NetworkService\n"
+		"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1) ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerFirstServer.Request()\n" +
+			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1.1)   request={\"connection\":{\"id\":\"conn-1\",\"context\":" +
+			"{\"ip_context\":{\"src_ip_required\":true}}},\"mechanism_preferences\":[{\"cls\":\"LOCAL\"," +
+			"\"type\":\"KERNEL\"},{\"cls\":\"LOCAL\",\"type\":\"KERNEL\",\"parameters\":{\"label\"" +
+			":\"v2\"}}]}\n" +
+			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1.2)   request-diff={\"connection\":{\"labels\":{\"+Label\":\"A\"}}}\n" +
+			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2)  ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerSecondServer.Request()\n" +
+			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2.1)    request-diff={\"connection\":{\"labels\":{\"Label\":\"B\"}}}\n" +
+			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2.2)    request-response={\"id\":\"conn-1\",\"context\":{\"ip_context\":{\"src_ip_required\":true}}," +
+			"\"labels\":{\"Label\":\"B\"}}\n" +
+			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2.3)    request-response-diff={\"labels\":{\"Label\":\"C\"}}\n" +
+			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1.3)   request-response-diff={\"labels\":{\"Label\":\"D\"}}\n" +
+			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1) ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerFirstServer.Close()\n" +
+			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1.1)   close={\"id\":\"conn-1\",\"context\":{\"ip_context\":{\"src_ip_required\":true}}," +
+			"\"labels\":{\"Label\":\"D\"}}\n" +
+			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1.2)   close-diff={\"labels\":{\"Label\":\"W\"}}\n" +
+			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2)  ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerSecondServer.Close()\n" +
+			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2.1)    close-diff={\"labels\":{\"Label\":\"X\"}}\n" +
+			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2.2)    close-response={\"id\":\"conn-1\",\"context\":{\"ip_context\":{\"src_ip_required\"" +
+			":true}},\"labels\":{\"Label\":\"X\"}}\n" +
+			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2.3)    close-response-diff={\"labels\":{\"Label\":\"Y\"}}\n" +
+			"\x1b[36m [INFO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1.3)   close-response-diff={\"labels\":{\"Label\":\"Z\"}}\n"
 
-	require.Equal(t, expectedOutput, buff.String())
+	// Logger created by the trace chain element uses custom formatter, which prints date and time info in each line
+	// To check if output matches our expectations, we need to somehow get rid of this info.
+	// We have the following options:
+	// 1. Configure formatter options on logger creation in trace element
+	// 2. Use some global configuration (either set global default formatter
+	// 	  instead of creating it in trace element or use global config for our formatter)
+	// 3. Remove datetime information from the output
+	// Since we are unlikely to need to remove date in any case except these tests,
+	// it seems like the third option would be the most convenient.
+	result := ""
+	datetimeLength := 19
+	for _, line := range strings.Split(buff.String(), "\n") {
+		if len(line) > datetimeLength {
+			result += line[datetimeLength:] + "\n"
+		} else {
+			result += line
+		}
+	}
+
+	require.Equal(t, expectedOutput, result)
 }
 
 func newConnection() *networkservice.NetworkServiceRequest {
