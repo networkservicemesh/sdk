@@ -155,25 +155,7 @@ func TestTraceOutput(t *testing.T) {
 			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2.3)    close-response-diff={\"labels\":{\"Label\":\"Y\"}}\n" +
 			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1.3)   close-response-diff={\"labels\":{\"Label\":\"Z\"}}\n"
 
-	// Logger created by the trace chain element uses custom formatter, which prints date and time info in each line
-	// To check if output matches our expectations, we need to somehow get rid of this info.
-	// We have the following options:
-	// 1. Configure formatter options on logger creation in trace element
-	// 2. Use some global configuration (either set global default formatter
-	// 	  instead of creating it in trace element or use global config for our formatter)
-	// 3. Remove datetime information from the output
-	// Since we are unlikely to need to remove date in any case except these tests,
-	// it seems like the third option would be the most convenient.
-	result := ""
-	datetimeLength := 19
-	for _, line := range strings.Split(buff.String(), "\n") {
-		if len(line) > datetimeLength {
-			result += line[datetimeLength:] + "\n"
-		} else {
-			result += line
-		}
-	}
-
+	result := trimLogTime(buff)
 	require.Equal(t, expectedOutput, result)
 }
 
@@ -248,25 +230,7 @@ func TestErrorOutput(t *testing.T) {
 			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0mgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close\n" +
 			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65\n"
 
-	// Logger created by the trace chain element uses custom formatter, which prints date and time info in each line
-	// To check if output matches our expectations, we need to somehow get rid of this info.
-	// We have the following options:
-	// 1. Configure formatter options on logger creation in trace element
-	// 2. Use some global configuration (either set global default formatter
-	// 	  instead of creating it in trace element or use global config for our formatter)
-	// 3. Remove datetime information from the output
-	// Since we are unlikely to need to remove date in any case except these tests,
-	// it seems like the third option would be the most convenient.
-	result := ""
-	datetimeLength := 19
-	for _, line := range strings.Split(buff.String(), "\n") {
-		if len(line) > datetimeLength {
-			result += line[datetimeLength:] + "\n"
-		} else {
-			result += line
-		}
-	}
-
+	result := trimLogTime(buff)
 	require.Equal(t, expectedOutput, result)
 }
 
@@ -384,4 +348,27 @@ func (c *errorServer) Request(ctx context.Context, request *networkservice.Netwo
 
 func (c *errorServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
 	return next.Server(ctx).Close(ctx, connection)
+}
+
+func trimLogTime(buff bytes.Buffer) string {
+	// Logger created by the trace chain element uses custom formatter, which prints date and time info in each line
+	// To check if output matches our expectations, we need to somehow get rid of this info.
+	// We have the following options:
+	// 1. Configure formatter options on logger creation in trace element
+	// 2. Use some global configuration (either set global default formatter
+	// 	  instead of creating it in trace element or use global config for our formatter)
+	// 3. Remove datetime information from the output
+	// Since we are unlikely to need to remove date in any case except these tests,
+	// it seems like the third option would be the most convenient.
+	result := ""
+	datetimeLength := 19
+	for _, line := range strings.Split(buff.String(), "\n") {
+		if len(line) > datetimeLength {
+			result += line[datetimeLength:] + "\n"
+		} else {
+			result += line
+		}
+	}
+
+	return result
 }
