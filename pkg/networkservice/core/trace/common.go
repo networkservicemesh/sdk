@@ -77,14 +77,14 @@ func logResponse(ctx context.Context, response proto.Message, isClose bool) {
 	}
 }
 
-func logError(ctx context.Context, err error, operation string) {
-	if _, ok := err.(stackTracer); ok {
-		log.FromContext(ctx).Errorf("%v", err)
-		return
+func logError(ctx context.Context, err error, operation string) error {
+	if _, ok := err.(stackTracer); !ok {
+		err = errors.Wrapf(err, "Error returned from %s", operation)
+		log.FromContext(ctx).Errorf("%+v", err)
+		return err
 	}
-
-	err = errors.Wrapf(err, "Error returned from %s", operation)
-	log.FromContext(ctx).Errorf("%+v", err)
+	log.FromContext(ctx).Errorf("%v", err)
+	return err
 }
 
 func logObjectTrace(ctx context.Context, k, v interface{}) {
@@ -97,6 +97,26 @@ func logObjectTrace(ctx context.Context, k, v interface{}) {
 		msg = fmt.Sprint(v)
 	}
 	s.Tracef("%v=%s", k, msg)
+}
+
+func addIDCtx(ctx context.Context, id string) context.Context {
+	fields := make(map[string]interface{})
+	for k, v := range log.Fields(ctx) {
+		fields[k] = v
+	}
+
+	// don't change type if it's already present - it happens when registry elements used in endpoint discovery
+	if _, ok := fields["type"]; !ok {
+		fields["type"] = "NetworkService"
+		ctx = log.WithFields(ctx, fields)
+	}
+
+	if len(id) > 0 {
+		fields["id"] = id
+		ctx = log.WithFields(ctx, fields)
+	}
+
+	return ctx
 }
 
 // Diff - calculate a protobuf message diff

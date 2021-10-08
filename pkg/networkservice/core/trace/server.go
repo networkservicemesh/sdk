@@ -26,7 +26,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/typeutils"
 )
 
@@ -46,12 +45,7 @@ func NewNetworkServiceServer(traced networkservice.NetworkServiceServer) network
 
 func (t *beginTraceServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	// Create a new logger
-	fields := make(map[string]interface{})
-	for k, v := range log.Fields(ctx) {
-		fields[k] = v
-	}
-	fields["id"] = request.GetConnection().GetId()
-	ctx = log.WithFields(ctx, fields)
+	ctx = addIDCtx(ctx, request.GetConnection().GetId())
 
 	operation := typeutils.GetFuncName(t.traced, "Request")
 	ctx, finish := withLog(ctx, operation)
@@ -61,8 +55,7 @@ func (t *beginTraceServer) Request(ctx context.Context, request *networkservice.
 	// Actually call the next
 	rv, err := t.traced.Request(ctx, request)
 	if err != nil {
-		logError(ctx, err, operation)
-		return nil, err
+		return nil, logError(ctx, err, operation)
 	}
 	logResponse(ctx, rv, false)
 	return rv, err
@@ -70,12 +63,7 @@ func (t *beginTraceServer) Request(ctx context.Context, request *networkservice.
 
 func (t *beginTraceServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	// Create a new logger
-	fields := make(map[string]interface{})
-	for k, v := range log.Fields(ctx) {
-		fields[k] = v
-	}
-	fields["id"] = conn.GetId()
-	ctx = log.WithFields(ctx, fields)
+	ctx = addIDCtx(ctx, conn.GetId())
 
 	operation := typeutils.GetFuncName(t.traced, "Close")
 	ctx, finish := withLog(ctx, operation)
@@ -84,8 +72,7 @@ func (t *beginTraceServer) Close(ctx context.Context, conn *networkservice.Conne
 	logRequest(ctx, conn, true)
 	rv, err := t.traced.Close(ctx, conn)
 	if err != nil {
-		logError(ctx, err, operation)
-		return nil, err
+		return nil, logError(ctx, err, operation)
 	}
 	logResponse(ctx, conn, true)
 	return rv, err

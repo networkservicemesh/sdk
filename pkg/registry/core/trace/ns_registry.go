@@ -51,8 +51,7 @@ func (t *traceNetworkServiceRegistryFindClient) Recv() (*registry.NetworkService
 	}
 
 	if err != nil {
-		logError(ctx, err, operation)
-		return nil, err
+		return nil, logError(ctx, err, operation)
 	}
 	logObjectTrace(ctx, recvResponseMsg, rv)
 	return rv, err
@@ -70,8 +69,7 @@ func (t *traceNetworkServiceRegistryClient) Register(ctx context.Context, in *re
 
 	rv, err := t.traced.Register(ctx, in, opts...)
 	if err != nil {
-		logError(ctx, err, operation)
-		return nil, err
+		return nil, logError(ctx, err, operation)
 	}
 	logObjectTrace(ctx, registerResponseMsg, rv)
 	return rv, err
@@ -89,8 +87,7 @@ func (t *traceNetworkServiceRegistryClient) Find(ctx context.Context, in *regist
 	// Actually call the next
 	rv, err := t.traced.Find(ctx, in, opts...)
 	if err != nil {
-		logError(ctx, err, operation)
-		return nil, err
+		return nil, logError(ctx, err, operation)
 	}
 	logObjectTrace(ctx, findResponseMsg, rv)
 
@@ -110,8 +107,7 @@ func (t *traceNetworkServiceRegistryClient) Unregister(ctx context.Context, in *
 	// Actually call the next
 	rv, err := t.traced.Unregister(ctx, in, opts...)
 	if err != nil {
-		logError(ctx, err, operation)
-		return nil, err
+		return nil, logError(ctx, err, operation)
 	}
 	logObjectTrace(ctx, unregisterResponseMsg, rv)
 	return rv, err
@@ -138,8 +134,7 @@ func (t *traceNetworkServiceRegistryServer) Register(ctx context.Context, in *re
 
 	rv, err := t.traced.Register(ctx, in)
 	if err != nil {
-		logError(ctx, err, operation)
-		return nil, err
+		return nil, logError(ctx, err, operation)
 	}
 	logObjectTrace(ctx, registerResponseMsg, rv)
 	return rv, err
@@ -161,8 +156,7 @@ func (t *traceNetworkServiceRegistryServer) Find(in *registry.NetworkServiceQuer
 	// Actually call the next
 	err := t.traced.Find(in, s)
 	if err != nil {
-		logError(ctx, err, operation)
-		return err
+		return logError(ctx, err, operation)
 	}
 	return nil
 }
@@ -180,8 +174,7 @@ func (t *traceNetworkServiceRegistryServer) Unregister(ctx context.Context, in *
 	// Actually call the next
 	rv, err := t.traced.Unregister(ctx, in)
 	if err != nil {
-		logError(ctx, err, operation)
-		return nil, err
+		return nil, logError(ctx, err, operation)
 	}
 	logObjectTrace(ctx, unregisterResponseMsg, rv)
 	return rv, err
@@ -208,8 +201,7 @@ func (t *traceNetworkServiceRegistryFindServer) Send(ns *registry.NetworkService
 	s := streamcontext.NetworkServiceRegistryFindServer(ctx, t.NetworkServiceRegistry_FindServer)
 	err := s.Send(ns)
 	if err != nil {
-		logError(ctx, err, operation)
-		return err
+		return logError(ctx, err, operation)
 	}
 	return err
 }

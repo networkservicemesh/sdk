@@ -35,10 +35,7 @@ func NewNetworkServiceEndpointRegistryServer(servers ...registry.NetworkServiceE
 // NewNamedNetworkServiceEndpointRegistryServer - creates a chain of servers with name log option if tracing enabled
 func NewNamedNetworkServiceEndpointRegistryServer(name string, servers ...registry.NetworkServiceEndpointRegistryServer) registry.NetworkServiceEndpointRegistryServer {
 	return next.NewNetworkServiceEndpointRegistryServer(
-		setlogoption.NewNetworkServiceEndpointRegistryServer(map[string]string{
-			"name": name,
-			"type": "NetworkServiceEndpointRegistry",
-		}),
+		setlogoption.NewNetworkServiceEndpointRegistryServer(map[string]string{"name": name}),
 		next.NewWrappedNetworkServiceEndpointRegistryServer(trace.NewNetworkServiceEndpointRegistryServer, servers...))
 }
 

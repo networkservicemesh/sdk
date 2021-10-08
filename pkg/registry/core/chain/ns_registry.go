@@ -34,10 +34,7 @@ func NewNetworkServiceRegistryServer(servers ...registry.NetworkServiceRegistryS
 // NewNamedNetworkServiceRegistryServer - creates a chain of servers with name log option if tracing enabled
 func NewNamedNetworkServiceRegistryServer(name string, servers ...registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
 	return next.NewNetworkServiceRegistryServer(
-		setlogoption.NewNetworkServiceRegistryServer(map[string]string{
-			"name": name,
-			"type": "NetworkServiceRegistry",
-		}),
+		setlogoption.NewNetworkServiceRegistryServer(map[string]string{"name": name}),
 		next.NewWrappedNetworkServiceRegistryServer(trace.NewNetworkServiceRegistryServer, servers...))
 }
 
