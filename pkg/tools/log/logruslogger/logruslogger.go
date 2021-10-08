@@ -114,6 +114,14 @@ func (s *logrusLogger) getTraceInfo() string {
 	return ""
 }
 
+func (s *logrusLogger) SetLogLevel(level string) {
+	l, err := logrus.ParseLevel(level)
+	if err != nil {
+		return
+	}
+	s.entry.Logger.SetLevel(l)
+}
+
 func (s *logrusLogger) Info(v ...interface{}) {
 	s.entry.Info(s.format("%s", v...))
 }

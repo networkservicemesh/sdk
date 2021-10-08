@@ -114,3 +114,9 @@ func (j *groupLogger) WithField(key, value interface{}) Logger {
 	}
 	return &groupLogger{loggers: loggers}
 }
+
+func (j *groupLogger) SetLogLevel(level string) {
+	for _, l := range j.loggers {
+		l.SetLogLevel(level)
+	}
+}

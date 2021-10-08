@@ -104,6 +104,8 @@ func (l *defaultLogger) WithField(key, value interface{}) Logger {
 	}
 }
 
+func (l *defaultLogger) SetLogLevel(level string) {}
+
 func (l *defaultLogger) msg(level string, v ...interface{}) string {
 	sb := strings.Builder{}
 
