@@ -19,6 +19,7 @@ package trace
 
 import (
 	"context"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamcontext"
 	"github.com/networkservicemesh/sdk/pkg/tools/typeutils"
@@ -47,69 +48,125 @@ func (t *traceNetworkServiceRegistryFindClient) Recv() (*registry.NetworkService
 	rv, err := s.Recv()
 
 	if rv != nil {
-		ctx = addIDCtx(ctx, rv.Name)
+		fields := make(map[string]interface{})
+		for k, v := range log.Fields(ctx) {
+			fields[k] = v
+		}
+
+		// don't change type if it's already present - it happens when registry elements used in endpoint discovery
+		if _, ok := fields["type"]; !ok {
+			fields["type"] = "NetworkServiceEndpointRegistry"
+			ctx = log.WithFields(ctx, fields)
+		}
+
+		if len(rv.Name) > 0 {
+			fields["id"] = rv.Name
+			ctx = log.WithFields(ctx, fields)
+		}
 	}
 
 	if err != nil {
 		return nil, logError(ctx, err, operation)
 	}
-	logObjectTrace(ctx, recvResponseMsg, rv)
+	logObjectTrace(ctx, "recv-response", rv)
 	return rv, err
 }
 
 func (t *traceNetworkServiceRegistryClient) Register(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
-	ctx = addIDCtx(ctx, in.Name)
+	fields := make(map[string]interface{})
+	for k, v := range log.Fields(ctx) {
+		fields[k] = v
+	}
+
+	// don't change type if it's already present - it happens when registry elements used in endpoint discovery
+	if _, ok := fields["type"]; !ok {
+		fields["type"] = "NetworkServiceEndpointRegistry"
+		ctx = log.WithFields(ctx, fields)
+	}
+
+	if len(in.Name) > 0 {
+		fields["id"] = in.Name
+		ctx = log.WithFields(ctx, fields)
+	}
 
 	operation := typeutils.GetFuncName(t.traced, "Register")
 
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	logObjectTrace(ctx, registerRequestMsg, in)
+	logObjectTrace(ctx, "register-request", in)
 
 	rv, err := t.traced.Register(ctx, in, opts...)
 	if err != nil {
 		return nil, logError(ctx, err, operation)
 	}
-	logObjectTrace(ctx, registerResponseMsg, rv)
+	logObjectTrace(ctx, "register-response", rv)
 	return rv, err
 }
 func (t *traceNetworkServiceRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
-	ctx = addIDCtx(ctx, in.NetworkService.Name)
+	fields := make(map[string]interface{})
+	for k, v := range log.Fields(ctx) {
+		fields[k] = v
+	}
+
+	// don't change type if it's already present - it happens when registry elements used in endpoint discovery
+	if _, ok := fields["type"]; !ok {
+		fields["type"] = "NetworkServiceEndpointRegistry"
+		ctx = log.WithFields(ctx, fields)
+	}
+
+	if len(in.NetworkService.Name) > 0 {
+		fields["id"] = in.NetworkService.Name
+		ctx = log.WithFields(ctx, fields)
+	}
 
 	operation := typeutils.GetFuncName(t.traced, "Find")
 
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	logObjectTrace(ctx, findRequestMsg, in)
+	logObjectTrace(ctx, "find-request", in)
 
 	// Actually call the next
 	rv, err := t.traced.Find(ctx, in, opts...)
 	if err != nil {
 		return nil, logError(ctx, err, operation)
 	}
-	logObjectTrace(ctx, findResponseMsg, rv)
+	logObjectTrace(ctx, "find-response", rv)
 
 	return &traceNetworkServiceRegistryFindClient{NetworkServiceRegistry_FindClient: rv}, nil
 }
 
 func (t *traceNetworkServiceRegistryClient) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
-	ctx = addIDCtx(ctx, in.Name)
+	fields := make(map[string]interface{})
+	for k, v := range log.Fields(ctx) {
+		fields[k] = v
+	}
+
+	// don't change type if it's already present - it happens when registry elements used in endpoint discovery
+	if _, ok := fields["type"]; !ok {
+		fields["type"] = "NetworkServiceEndpointRegistry"
+		ctx = log.WithFields(ctx, fields)
+	}
+
+	if len(in.Name) > 0 {
+		fields["id"] = in.Name
+		ctx = log.WithFields(ctx, fields)
+	}
 
 	operation := typeutils.GetFuncName(t.traced, "Unregister")
 
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	logObjectTrace(ctx, unregisterRequestMsg, in)
+	logObjectTrace(ctx, "unregister-request", in)
 
 	// Actually call the next
 	rv, err := t.traced.Unregister(ctx, in, opts...)
 	if err != nil {
 		return nil, logError(ctx, err, operation)
 	}
-	logObjectTrace(ctx, unregisterResponseMsg, rv)
+	logObjectTrace(ctx, "unregister-response", rv)
 	return rv, err
 }
 
@@ -123,20 +180,34 @@ type traceNetworkServiceRegistryServer struct {
 }
 
 func (t *traceNetworkServiceRegistryServer) Register(ctx context.Context, in *registry.NetworkService) (*registry.NetworkService, error) {
-	ctx = addIDCtx(ctx, in.Name)
+	fields := make(map[string]interface{})
+	for k, v := range log.Fields(ctx) {
+		fields[k] = v
+	}
+
+	// don't change type if it's already present - it happens when registry elements used in endpoint discovery
+	if _, ok := fields["type"]; !ok {
+		fields["type"] = "NetworkServiceEndpointRegistry"
+		ctx = log.WithFields(ctx, fields)
+	}
+
+	if len(in.Name) > 0 {
+		fields["id"] = in.Name
+		ctx = log.WithFields(ctx, fields)
+	}
 
 	operation := typeutils.GetFuncName(t.traced, "Register")
 
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	logObjectTrace(ctx, registerRequestMsg, in)
+	logObjectTrace(ctx, "register-request", in)
 
 	rv, err := t.traced.Register(ctx, in)
 	if err != nil {
 		return nil, logError(ctx, err, operation)
 	}
-	logObjectTrace(ctx, registerResponseMsg, rv)
+	logObjectTrace(ctx, "register-response", rv)
 	return rv, err
 }
 
@@ -146,12 +217,26 @@ func (t *traceNetworkServiceRegistryServer) Find(in *registry.NetworkServiceQuer
 	ctx, finish := withLog(s.Context(), operation)
 	defer finish()
 
-	ctx = addIDCtx(ctx, in.NetworkService.Name)
+	fields := make(map[string]interface{})
+	for k, v := range log.Fields(ctx) {
+		fields[k] = v
+	}
+
+	// don't change type if it's already present - it happens when registry elements used in endpoint discovery
+	if _, ok := fields["type"]; !ok {
+		fields["type"] = "NetworkServiceEndpointRegistry"
+		ctx = log.WithFields(ctx, fields)
+	}
+
+	if len(in.NetworkService.Name) > 0 {
+		fields["id"] = in.NetworkService.Name
+		ctx = log.WithFields(ctx, fields)
+	}
 
 	s = &traceNetworkServiceRegistryFindServer{
 		NetworkServiceRegistry_FindServer: streamcontext.NetworkServiceRegistryFindServer(ctx, s),
 	}
-	logObjectTrace(ctx, findRequestMsg, in)
+	logObjectTrace(ctx, "find-request", in)
 
 	// Actually call the next
 	err := t.traced.Find(in, s)
@@ -162,21 +247,35 @@ func (t *traceNetworkServiceRegistryServer) Find(in *registry.NetworkServiceQuer
 }
 
 func (t *traceNetworkServiceRegistryServer) Unregister(ctx context.Context, in *registry.NetworkService) (*empty.Empty, error) {
-	ctx = addIDCtx(ctx, in.Name)
+	fields := make(map[string]interface{})
+	for k, v := range log.Fields(ctx) {
+		fields[k] = v
+	}
+
+	// don't change type if it's already present - it happens when registry elements used in endpoint discovery
+	if _, ok := fields["type"]; !ok {
+		fields["type"] = "NetworkServiceEndpointRegistry"
+		ctx = log.WithFields(ctx, fields)
+	}
+
+	if len(in.Name) > 0 {
+		fields["id"] = in.Name
+		ctx = log.WithFields(ctx, fields)
+	}
 
 	operation := typeutils.GetFuncName(t.traced, "Unregister")
 
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	logObjectTrace(ctx, unregisterRequestMsg, in)
+	logObjectTrace(ctx, "unregister-request", in)
 
 	// Actually call the next
 	rv, err := t.traced.Unregister(ctx, in)
 	if err != nil {
 		return nil, logError(ctx, err, operation)
 	}
-	logObjectTrace(ctx, unregisterResponseMsg, rv)
+	logObjectTrace(ctx, "unregister-response", rv)
 	return rv, err
 }
 
@@ -195,9 +294,23 @@ func (t *traceNetworkServiceRegistryFindServer) Send(ns *registry.NetworkService
 	ctx, finish := withLog(t.Context(), operation)
 	defer finish()
 
-	ctx = addIDCtx(ctx, ns.Name)
+	fields := make(map[string]interface{})
+	for k, v := range log.Fields(ctx) {
+		fields[k] = v
+	}
 
-	logObjectTrace(ctx, nsMsg, ns)
+	// don't change type if it's already present - it happens when registry elements used in endpoint discovery
+	if _, ok := fields["type"]; !ok {
+		fields["type"] = "NetworkServiceEndpointRegistry"
+		ctx = log.WithFields(ctx, fields)
+	}
+
+	if len(ns.Name) > 0 {
+		fields["id"] = ns.Name
+		ctx = log.WithFields(ctx, fields)
+	}
+
+	logObjectTrace(ctx, "network service", ns)
 	s := streamcontext.NetworkServiceRegistryFindServer(ctx, t.NetworkServiceRegistry_FindServer)
 	err := s.Send(ns)
 	if err != nil {

@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/proto"
@@ -32,13 +33,9 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-func logRequest(ctx context.Context, request proto.Message, isClose bool) {
-	msg := "request"
-	diffMsg := "request-diff"
-	if isClose {
-		msg = "close"
-		diffMsg = "close-diff"
-	}
+func logRequest(ctx context.Context, request proto.Message, prefixes ...string) {
+	msg := strings.Join(append(prefixes, "request"), "-")
+	diffMsg := strings.Join(append(prefixes, "request", "diff"), "-")
 
 	connInfo, ok := trace(ctx)
 	if ok && !proto.Equal(connInfo.Request, request) {
@@ -54,13 +51,9 @@ func logRequest(ctx context.Context, request proto.Message, isClose bool) {
 	}
 }
 
-func logResponse(ctx context.Context, response proto.Message, isClose bool) {
-	msg := "request-response"
-	diffMsg := "request-response-diff"
-	if isClose {
-		msg = "close-response"
-		diffMsg = "close-response-diff"
-	}
+func logResponse(ctx context.Context, response proto.Message, prefixes ...string) {
+	msg := strings.Join(append(prefixes, "response"), "-")
+	diffMsg := strings.Join(append(prefixes, "response", "diff"), "-")
 
 	connInfo, ok := trace(ctx)
 	if ok && !proto.Equal(connInfo.Response, response) {
@@ -97,26 +90,6 @@ func logObjectTrace(ctx context.Context, k, v interface{}) {
 		msg = fmt.Sprint(v)
 	}
 	s.Tracef("%v=%s", k, msg)
-}
-
-func addIDCtx(ctx context.Context, id string) context.Context {
-	fields := make(map[string]interface{})
-	for k, v := range log.Fields(ctx) {
-		fields[k] = v
-	}
-
-	// don't change type if it's already present - it happens when registry elements used in endpoint discovery
-	if _, ok := fields["type"]; !ok {
-		fields["type"] = "NetworkService"
-		ctx = log.WithFields(ctx, fields)
-	}
-
-	if len(id) > 0 {
-		fields["id"] = id
-		ctx = log.WithFields(ctx, fields)
-	}
-
-	return ctx
 }
 
 // Diff - calculate a protobuf message diff

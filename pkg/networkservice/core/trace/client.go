@@ -20,6 +20,7 @@ package trace
 
 import (
 	"context"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
@@ -46,50 +47,78 @@ func NewNetworkServiceClient(traced networkservice.NetworkServiceClient) network
 
 func (t *beginTraceClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	// Create a new logger
-	ctx = addIDCtx(ctx, request.GetConnection().GetId())
+	fields := make(map[string]interface{})
+	for k, v := range log.Fields(ctx) {
+		fields[k] = v
+	}
+
+	// don't change type if it's already present - it happens when registry elements used in endpoint discovery
+	if _, ok := fields["type"]; !ok {
+		fields["type"] = "NetworkService"
+		ctx = log.WithFields(ctx, fields)
+	}
+
+	if len(request.GetConnection().GetId()) > 0 {
+		fields["id"] = request.GetConnection().GetId()
+		ctx = log.WithFields(ctx, fields)
+	}
 
 	operation := typeutils.GetFuncName(t.traced, "Request")
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	logRequest(ctx, request, false)
+	logRequest(ctx, request, "request")
 	// Actually call the next
 	rv, err := t.traced.Request(ctx, request, opts...)
 	if err != nil {
 		return nil, logError(ctx, err, operation)
 	}
-	logResponse(ctx, rv, false)
+	logResponse(ctx, rv, "request")
 	return rv, err
 }
 
 func (t *beginTraceClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	// Create a new logger
-	ctx = addIDCtx(ctx, conn.GetId())
+	fields := make(map[string]interface{})
+	for k, v := range log.Fields(ctx) {
+		fields[k] = v
+	}
+
+	// don't change type if it's already present - it happens when registry elements used in endpoint discovery
+	if _, ok := fields["type"]; !ok {
+		fields["type"] = "NetworkService"
+		ctx = log.WithFields(ctx, fields)
+	}
+
+	if len(conn.GetId()) > 0 {
+		fields["id"] = conn.GetId()
+		ctx = log.WithFields(ctx, fields)
+	}
 
 	operation := typeutils.GetFuncName(t.traced, "Close")
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	logRequest(ctx, conn, true)
+	logRequest(ctx, conn, "close")
 	rv, err := t.traced.Close(ctx, conn, opts...)
 	if err != nil {
 		return nil, logError(ctx, err, operation)
 	}
-	logResponse(ctx, conn, true)
+	logResponse(ctx, conn, "close")
 
 	return rv, err
 }
 
 func (t *endTraceClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	logRequest(ctx, request, false)
+	logRequest(ctx, request, "request")
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
-	logResponse(ctx, conn, false)
+	logResponse(ctx, conn, "request")
 	return conn, err
 }
 
 func (t *endTraceClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	logRequest(ctx, conn, true)
+	logRequest(ctx, conn, "close")
 	r, err := next.Client(ctx).Close(ctx, conn, opts...)
-	logResponse(ctx, conn, true)
+	logResponse(ctx, conn, "close")
 	return r, err
 }
