@@ -20,13 +20,13 @@ package trace
 
 import (
 	"context"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"github.com/golang/protobuf/ptypes/empty"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/typeutils"
 )
 
@@ -45,28 +45,22 @@ func NewNetworkServiceServer(traced networkservice.NetworkServiceServer) network
 }
 
 func (t *beginTraceServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	if log.Fields(ctx) != nil {
+		// don't change type if it's already present - it happens when registry elements used in endpoint discovery
+		if _, ok := log.Fields(ctx)["type"]; !ok {
+			log.Fields(ctx)["type"] = networkService
+		}
+		if len(request.GetConnection().GetId()) > 0 {
+			log.Fields(ctx)["id"] = request.GetConnection().GetId()
+		}
+	}
+
 	// Create a new logger
-	fields := make(map[string]interface{})
-	for k, v := range log.Fields(ctx) {
-		fields[k] = v
-	}
-
-	// don't change type if it's already present - it happens when registry elements used in endpoint discovery
-	if _, ok := fields["type"]; !ok {
-		fields["type"] = "NetworkService"
-		ctx = log.WithFields(ctx, fields)
-	}
-
-	if len(request.GetConnection().GetId()) > 0 {
-		fields["id"] = request.GetConnection().GetId()
-		ctx = log.WithFields(ctx, fields)
-	}
-
 	operation := typeutils.GetFuncName(t.traced, "Request")
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	logRequest(ctx, request, "request")
+	logRequest(ctx, request)
 	// Actually call the next
 	rv, err := t.traced.Request(ctx, request)
 	if err != nil {
@@ -77,23 +71,17 @@ func (t *beginTraceServer) Request(ctx context.Context, request *networkservice.
 }
 
 func (t *beginTraceServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	if log.Fields(ctx) != nil {
+		// don't change type if it's already present - it happens when registry elements used in endpoint discovery
+		if _, ok := log.Fields(ctx)["type"]; !ok {
+			log.Fields(ctx)["type"] = networkService
+		}
+		if len(conn.GetId()) > 0 {
+			log.Fields(ctx)["id"] = conn.GetId()
+		}
+	}
+
 	// Create a new logger
-	fields := make(map[string]interface{})
-	for k, v := range log.Fields(ctx) {
-		fields[k] = v
-	}
-
-	// don't change type if it's already present - it happens when registry elements used in endpoint discovery
-	if _, ok := fields["type"]; !ok {
-		fields["type"] = "NetworkService"
-		ctx = log.WithFields(ctx, fields)
-	}
-
-	if len(conn.GetId()) > 0 {
-		fields["id"] = conn.GetId()
-		ctx = log.WithFields(ctx, fields)
-	}
-
 	operation := typeutils.GetFuncName(t.traced, "Close")
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
@@ -108,7 +96,7 @@ func (t *beginTraceServer) Close(ctx context.Context, conn *networkservice.Conne
 }
 
 func (t *endTraceServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	logRequest(ctx, request, "request")
+	logRequest(ctx, request)
 	conn, err := next.Server(ctx).Request(ctx, request)
 	logResponse(ctx, conn, "request")
 	return conn, err

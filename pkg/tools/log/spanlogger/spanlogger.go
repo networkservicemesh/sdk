@@ -36,44 +36,11 @@ const (
 	dotCount        int = 3
 )
 
-type logLevel int
-
 // spanlogger - provides a way to log via opentracing spans
 type spanLogger struct {
 	span    opentracing.Span
 	entries map[interface{}]interface{}
 	lock    sync.RWMutex
-	level   logLevel
-}
-
-func parseLevel(level string) logLevel {
-	switch strings.ToLower(level) {
-	case "panic":
-		return 6
-	case "fatal":
-		return 5
-	case "error":
-		return 4
-	case "warn":
-		return 3
-	case "info":
-		return 2
-	case "debug":
-		return 1
-	case "trace":
-		return 0
-	default:
-		return -1
-	}
-}
-
-func (s *spanLogger) SetLogLevel(level string) {
-	lvl := parseLevel(level)
-	if lvl == -1 {
-		return
-	}
-
-	s.level = lvl
 }
 
 func (s *spanLogger) Info(v ...interface{}) {
@@ -158,25 +125,17 @@ func (s *spanLogger) WithField(key, value interface{}) log.Logger {
 	newlog := &spanLogger{
 		span:    s.span,
 		entries: data,
-		level:   2,
 	}
 	return newlog
 }
 
 func (s *spanLogger) log(level string, v ...interface{}) {
-	if l := parseLevel(level); l < s.level {
-		return
-	}
 	s.logf(level, "%s", fmt.Sprint(v...))
 }
 
 func (s *spanLogger) logf(level, format string, v ...interface{}) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
-
-	if l := parseLevel(level); l < s.level {
-		return
-	}
 
 	if s.span != nil {
 		if v != nil {
@@ -197,7 +156,6 @@ func FromContext(ctx context.Context, operation string) (context.Context, log.Lo
 	newLog := &spanLogger{
 		span:    span,
 		entries: make(map[interface{}]interface{}),
-		level:   2,
 	}
 	return ctx, newLog, span, func() { newLog.finish() }
 }

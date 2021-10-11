@@ -34,7 +34,6 @@ type contextKeyType string
 
 const (
 	traceInfoKey contextKeyType = "ConnectionInfo"
-	levelTracing string         = "trace"
 )
 
 // ConnectionInfo - struct, containing string representations of request and response, used for tracing.
@@ -58,10 +57,6 @@ func withLog(parent context.Context, operation string) (c context.Context, f fun
 		(grpcTraceState == grpcutils.TraceUndefined && log.IsTracingEnabled()) {
 		ctx, sLogger, span, sFinish := spanlogger.FromContext(parent, operation)
 		ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation)
-
-		sLogger.SetLogLevel(levelTracing)
-		lLogger.SetLogLevel(levelTracing)
-
 		return withTrace(log.WithLog(ctx, sLogger, lLogger)), func() {
 			sFinish()
 			lFinish()

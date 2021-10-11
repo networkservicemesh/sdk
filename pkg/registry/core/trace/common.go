@@ -26,8 +26,15 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
+const (
+	networkServiceEndpointRegistry = "NetworkServiceEndpointRegistry"
+)
+
 func logError(ctx context.Context, err error, operation string) error {
 	if _, ok := err.(stackTracer); !ok {
+		if err == error(nil) {
+			return nil
+		}
 		err = errors.Wrapf(err, "Error returned from %s", operation)
 		log.FromContext(ctx).Errorf("%+v", err)
 		return err

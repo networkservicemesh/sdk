@@ -33,6 +33,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
+const (
+	networkService = "networkService"
+)
+
 func logRequest(ctx context.Context, request proto.Message, prefixes ...string) {
 	msg := strings.Join(append(prefixes, "request"), "-")
 	diffMsg := strings.Join(append(prefixes, "request", "diff"), "-")

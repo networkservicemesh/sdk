@@ -114,14 +114,6 @@ func (s *logrusLogger) getTraceInfo() string {
 	return ""
 }
 
-func (s *logrusLogger) SetLogLevel(level string) {
-	l, err := logrus.ParseLevel(level)
-	if err != nil {
-		return
-	}
-	s.entry.Logger.SetLevel(l)
-}
-
 func (s *logrusLogger) Info(v ...interface{}) {
 	s.entry.Info(s.format("%s", v...))
 }
@@ -208,6 +200,7 @@ func New(ctx context.Context) log.Logger {
 func FromSpan(ctx context.Context, span opentracing.Span, operation string) (context.Context, log.Logger, func()) {
 	entry := logrus.WithFields(log.Fields(ctx))
 	entry.Logger.Formatter = formatter.New()
+	entry.Logger.SetLevel(logrus.TraceLevel)
 
 	var info *traceCtxInfo
 	ctx, info = withTraceInfo(ctx)

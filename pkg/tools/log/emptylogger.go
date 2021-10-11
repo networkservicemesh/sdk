@@ -34,7 +34,6 @@ func (s *emptylogger) Trace(v ...interface{})                  {}
 func (s *emptylogger) Tracef(format string, v ...interface{})  {}
 func (s *emptylogger) Object(k, v interface{})                 {}
 func (s *emptylogger) WithField(key, value interface{}) Logger { return s }
-func (s *emptylogger) SetLogLevel(level string)                {}
 
 // Empty - provides a logger that does nothing
 func Empty() Logger {

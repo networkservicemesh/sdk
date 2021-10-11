@@ -50,8 +50,6 @@ type Logger interface {
 	Object(k, v interface{})
 
 	WithField(key, value interface{}) Logger
-
-	SetLogLevel(level string)
 }
 
 // FromContext - returns logger from context
