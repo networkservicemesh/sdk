@@ -22,9 +22,23 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/goleak"
+	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/timeout"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
@@ -34,8 +48,8 @@ import (
 )
 
 const (
-	timeout = time.Second
-	pause   = 10 * time.Millisecond
+	testTimeout = time.Second
+	pause       = 10 * time.Millisecond
 )
 
 type monitorClientSuite struct {
@@ -116,8 +130,8 @@ func (m *monitorClientSuite) TestDeleteToDown() {
 		m.Require().Equal(m.conn.GetId(), event.GetConnections()[m.conn.GetId()].GetId())
 		m.Require().Equal(event.GetType(), networkservice.ConnectionEventType_UPDATE)
 		m.Require().Equal(event.GetConnections()[m.conn.GetId()].GetState(), networkservice.State_DOWN)
-	case <-time.After(timeout):
-		m.Assert().Fail("timeout waiting for event")
+	case <-time.After(testTimeout):
+		m.Assert().Fail("testTimeout waiting for event")
 	}
 }
 
@@ -133,8 +147,8 @@ func (m *monitorClientSuite) TestServerDown() {
 		m.Require().Equal(m.conn.GetId(), event.GetConnections()[m.conn.GetId()].GetId())
 		m.Require().Equal(event.GetType(), networkservice.ConnectionEventType_UPDATE)
 		m.Require().Equal(event.GetConnections()[m.conn.GetId()].GetState(), networkservice.State_DOWN)
-	case <-time.After(timeout):
-		m.Assert().Fail("timeout waiting for event")
+	case <-time.After(testTimeout):
+		m.Assert().Fail("testTimeout waiting for event")
 	}
 }
 
@@ -161,8 +175,8 @@ func (m *monitorClientSuite) TestServerUpdate() {
 		m.Require().Equal(event.GetConnections()[m.conn.GetId()].GetState(), networkservice.State_DOWN)
 		m.Require().NotNil(event.GetConnections()[m.conn.GetId()].GetContext().GetExtraContext())
 		m.Require().Equal(event.GetConnections()[m.conn.GetId()].GetContext().GetExtraContext()["mark"], "true")
-	case <-time.After(timeout):
-		m.Assert().Fail("timeout waiting for event")
+	case <-time.After(testTimeout):
+		m.Assert().Fail("testTimeout waiting for event")
 	}
 }
 
@@ -180,4 +194,72 @@ func (m *monitorClientSuite) TestNoEventOnClientClose() {
 
 func TestMonitorClient(t *testing.T) {
 	suite.Run(t, &monitorClientSuite{})
+}
+
+func TestMonitorClientError(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+	testCtx, testCancel := context.WithCancel(context.Background())
+	defer testCancel()
+
+	// Insert an event consumer into the context
+	ec := newEventConsumer()
+	testCtx = monitor.WithEventConsumer(testCtx, ec)
+
+	tokengen := sandbox.GenerateExpiringToken(time.Second)
+
+	// Create the server and serve
+	listenOn := &url.URL{Scheme: "tcp", Host: "127.0.0.1:"}
+	name := "error-test"
+	capture := &captureServer{}
+	server := chain.NewNamedNetworkServiceServer(
+		name,
+		updatepath.NewServer(name),
+		begin.NewServer(),
+		updatetoken.NewServer(tokengen),
+		metadata.NewServer(),
+		timeout.NewServer(testCtx),
+		capture,
+	)
+
+	// Serve only NetworkServiceMesh not MonitorConnection
+	serverCtx, serverCancel := context.WithCancel(testCtx)
+	defer serverCancel()
+	grpcServer := grpc.NewServer()
+	networkservice.RegisterNetworkServiceServer(grpcServer, server)
+	grpcutils.RegisterHealthServices(grpcServer, server)
+
+	errCh := grpcutils.ListenAndServe(serverCtx, listenOn, grpcServer)
+	require.Len(t, errCh, 0)
+
+	require.NoError(t, waitServerStarted(listenOn))
+
+	// Create the client
+	c := client.NewClient(
+		testCtx,
+		client.WithClientURL(listenOn),
+		client.WithAuthorizeClient(null.NewClient()),
+		client.WithDialOptions(
+			sandbox.DialOptions()...,
+		),
+	)
+	// Make a request - should fail due to lack of monitor server
+	conn, err := c.Request(testCtx, &networkservice.NetworkServiceRequest{})
+	assert.Error(t, err)
+	assert.Nil(t, conn)
+
+	assert.Nil(t, capture.capturedRequest)
+}
+
+type captureServer struct {
+	capturedRequest *networkservice.NetworkServiceRequest
+}
+
+func (s *captureServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	s.capturedRequest = request.Clone()
+	return next.Server(ctx).Request(ctx, request)
+}
+
+func (s *captureServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	s.capturedRequest = nil
+	return next.Server(ctx).Close(ctx, conn)
 }

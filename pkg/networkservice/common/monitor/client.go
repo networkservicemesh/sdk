@@ -24,6 +24,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
@@ -41,6 +43,7 @@ func NewClient(chainCtx context.Context) networkservice.NetworkServiceClient {
 }
 
 func (m *monitorClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	closeCtxFunc := postpone.ContextWithValues(ctx)
 	// Cancel any existing clientEventLoop
 	if cancelClientEventLoop, loaded := loadAndDelete(ctx, metadata.IsClient(m)); loaded {
 		cancelClientEventLoop()
@@ -56,6 +59,9 @@ func (m *monitorClient) Request(ctx context.Context, request *networkservice.Net
 	if ccLoaded {
 		cancelClientEventLoop, eventLoopErr := newClientEventLoop(m.chainCtx, FromContext(ctx), cc, conn)
 		if eventLoopErr != nil {
+			closeCtx, closeCancel := closeCtxFunc()
+			defer closeCancel()
+			_, _ = next.Client(closeCtx).Close(closeCtx, conn)
 			return nil, errors.Wrap(eventLoopErr, "unable to monitor")
 		}
 		store(ctx, metadata.IsClient(m), cancelClientEventLoop)

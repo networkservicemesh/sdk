@@ -57,7 +57,14 @@ func newClientEventLoop(ctx context.Context, eventConsumers []EventConsumer, cc 
 		},
 	}
 
-	client, err := networkservice.NewMonitorConnectionClient(cc).MonitorConnections(eventLoopCtx, selector)
+	client, err := networkservice.NewMonitorConnectionClient(cc).MonitorConnections(eventLoopCtx, selector, grpc.WaitForReady(false))
+	if err != nil {
+		eventLoopCancel()
+		return nil, errors.WithStack(err)
+	}
+
+	// get the initial state transfer and use it to detect whether we have a real connection or not
+	_, err = client.Recv()
 	if err != nil {
 		eventLoopCancel()
 		return nil, errors.WithStack(err)
