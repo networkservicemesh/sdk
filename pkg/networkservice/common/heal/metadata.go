@@ -29,10 +29,10 @@ func loadOrStore(ctx context.Context, connInfo *connectionInfo) (*connectionInfo
 	return v.(*connectionInfo), ok
 }
 
-func load(ctx context.Context) (*connectionInfo, bool) {
-	v, ok := metadata.Map(ctx, true).Load(keyType{})
+func loadAndDelete(ctx context.Context) *connectionInfo {
+	v, ok := metadata.Map(ctx, true).LoadAndDelete(keyType{})
 	if !ok {
-		return nil, false
+		return nil
 	}
-	return v.(*connectionInfo), true
+	return v.(*connectionInfo)
 }

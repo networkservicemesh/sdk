@@ -117,7 +117,7 @@ func (s *connectServer) Request(ctx context.Context, request *networkservice.Net
 
 func (s *connectServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	var clientErr error
-	if connInfo, ok := load(ctx); ok {
+	if connInfo := loadAndDelete(ctx); connInfo != nil {
 		connInfo.cancel()
 
 		client, cancel := s.client(connInfo.clientURL)

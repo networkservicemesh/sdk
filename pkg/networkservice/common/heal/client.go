@@ -145,8 +145,8 @@ func (u *healClient) condCh(connInfo *connectionInfo) (ch chan struct{}, cancel 
 func (u *healClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	u.cancel()
 
-	connInfo, loaded := load(ctx)
-	if loaded {
+	connInfo := loadAndDelete(ctx)
+	if connInfo != nil {
 		u.replaceConnectionPath(conn, connInfo)
 	}
 
