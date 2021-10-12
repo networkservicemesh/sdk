@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"reflect"
 	"strconv"
 	"strings"
@@ -75,7 +76,15 @@ func logResponse(ctx context.Context, response proto.Message, prefixes ...string
 }
 
 func logError(ctx context.Context, err error, operation string) error {
+	if errors.Is(err, io.EOF) {
+		log.FromContext(ctx).Errorf("EOF")
+		return err
+	}
+
 	if _, ok := err.(stackTracer); !ok {
+		if err == error(nil) {
+			return nil
+		}
 		err = errors.Wrapf(err, "Error returned from %s", operation)
 		log.FromContext(ctx).Errorf("%+v", err)
 		return err

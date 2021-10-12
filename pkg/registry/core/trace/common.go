@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 
 	"github.com/pkg/errors"
 
@@ -31,6 +32,11 @@ const (
 )
 
 func logError(ctx context.Context, err error, operation string) error {
+	if errors.Is(err, io.EOF) {
+		log.FromContext(ctx).Errorf("EOF")
+		return err
+	}
+
 	if _, ok := err.(stackTracer); !ok {
 		if err == error(nil) {
 			return nil

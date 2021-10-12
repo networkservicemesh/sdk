@@ -23,6 +23,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"strings"
 	"testing"
 
@@ -234,6 +235,49 @@ func TestErrorOutput(t *testing.T) {
 	require.Equal(t, expectedOutput, result)
 }
 
+func TestErrorEOFOutput(t *testing.T) {
+	// Configure logging
+	// Set output to buffer
+	var buff bytes.Buffer
+	logrus.SetOutput(&buff)
+	logrus.SetFormatter(&logrus.TextFormatter{
+		DisableTimestamp: true,
+	})
+	logrus.SetLevel(logrus.TraceLevel)
+	log.EnableTracing(true)
+
+	// Create a chain with modifying elements
+	ch := chain.NewNamedNetworkServiceServer(
+		"TestTraceOutput",
+		&labelChangerFirstServer{},
+		&labelChangerSecondServer{},
+		&eofServer{},
+	)
+
+	request := newConnection()
+
+	conn, err := ch.Request(context.Background(), request)
+	require.Error(t, err)
+	require.Nil(t, conn)
+
+	expectedOutput :=
+		"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:networkService] \x1b[0m(1) ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerFirstServer.Request()\n" +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:networkService] \x1b[0m(1.1)   request={\"connection\":{\"id\":\"conn-1\",\"context\":" +
+			"{\"ip_context\":{\"src_ip_required\":true}}},\"mechanism_preferences\":[{\"cls\":\"LOCAL\"," +
+			"\"type\":\"KERNEL\"},{\"cls\":\"LOCAL\",\"type\":\"KERNEL\",\"parameters\":{\"label\"" +
+			":\"v2\"}}]}\n" +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:networkService] \x1b[0m(1.2)   request-diff={\"connection\":{\"labels\":{\"+Label\":\"A\"}}}\n" +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:networkService] \x1b[0m(2)  ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerSecondServer.Request()\n" +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:networkService] \x1b[0m(2.1)    request-diff={\"connection\":{\"labels\":{\"Label\":\"B\"}}}\n" +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:networkService] \x1b[0m(3)   ⎆ sdk/pkg/networkservice/core/trace_test/eofServer.Request()\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:networkService] \x1b[0m(3.1)     EOF\n" +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:networkService] \x1b[0m(2.2)    request-response=null\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:networkService] \x1b[0m(2.3)    EOF\n" +
+			"\x1b[31m [ERRO] [id:conn-1] [name:TestTraceOutput] [type:networkService] \x1b[0m(1.3)   EOF\n"
+	result := trimLogTime(buff)
+	require.Equal(t, expectedOutput, result)
+}
+
 func newConnection() *networkservice.NetworkServiceRequest {
 	return &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -314,8 +358,6 @@ func (c *labelChangerSecondServer) Close(ctx context.Context, connection *networ
 	return r, err
 }
 
-type errorServer struct{}
-
 type customError struct{}
 
 func (*customError) Error() string {
@@ -335,6 +377,8 @@ github.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Clo
 func (*customError) StackTrace() errors.StackTrace {
 	return []errors.Frame{}
 }
+
+type errorServer struct{}
 
 func (c *errorServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	request.Connection.Labels = map[string]string{
@@ -371,4 +415,14 @@ func trimLogTime(buff bytes.Buffer) string {
 	}
 
 	return result
+}
+
+type eofServer struct{}
+
+func (c *eofServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	return nil, io.EOF
+}
+
+func (c *eofServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
+	return next.Server(ctx).Close(ctx, connection)
 }
