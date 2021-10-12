@@ -203,6 +203,7 @@ func (f *eventFactoryServer) Close(opts ...Option) <-chan error {
 			ctx, cancel := f.ctxFunc()
 			defer cancel()
 			_, err := f.server.Close(ctx, f.request.GetConnection())
+			f.afterCloseFunc()
 			ch <- err
 		}
 	})
