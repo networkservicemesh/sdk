@@ -37,3 +37,11 @@ func load(ctx context.Context) *networkservice.Mechanism {
 	}
 	return v.(*networkservice.Mechanism)
 }
+
+func loadAndDelete(ctx context.Context) *networkservice.Mechanism {
+	v, ok := metadata.Map(ctx, true).LoadAndDelete(keyType{})
+	if !ok {
+		return nil
+	}
+	return v.(*networkservice.Mechanism)
+}
