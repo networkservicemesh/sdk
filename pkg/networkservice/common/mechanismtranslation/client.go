@@ -60,7 +60,7 @@ func (c *mechanismTranslationClient) Request(ctx context.Context, request *netwo
 func (c *mechanismTranslationClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	// 1. Translate connection mechanism
 	conn = conn.Clone()
-	conn.Mechanism = load(ctx)
+	conn.Mechanism = loadAndDelete(ctx)
 
 	// 2. Close client chain
 	return next.Client(ctx).Close(ctx, conn, opts...)

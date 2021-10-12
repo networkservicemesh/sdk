@@ -21,8 +21,10 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
@@ -35,6 +37,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
@@ -44,7 +47,7 @@ func kernelMechanism() *networkservice.Mechanism {
 			Id: "id",
 		},
 	}
-	_, _ = kernel.NewClient().Request(context.TODO(), request)
+	_, _ = kernel.NewClient().Request(context.Background(), request)
 	return request.MechanismPreferences[0]
 }
 
@@ -84,7 +87,7 @@ func TestMechanismTranslationClient(t *testing.T) {
 
 	// 1. Request
 
-	conn, err := client.Request(context.TODO(), request.Clone())
+	conn, err := client.Request(context.Background(), request.Clone())
 	require.NoError(t, err)
 	require.Equal(t, request.Connection.String(), conn.String())
 
@@ -95,7 +98,7 @@ func TestMechanismTranslationClient(t *testing.T) {
 
 	// 2. Refresh
 
-	conn, err = client.Request(context.TODO(), request.Clone())
+	conn, err = client.Request(context.Background(), request.Clone())
 	require.NoError(t, err)
 	require.Equal(t, request.Connection.String(), conn.String())
 
@@ -106,10 +109,56 @@ func TestMechanismTranslationClient(t *testing.T) {
 
 	// 3. Close
 
-	_, err = client.Close(context.TODO(), conn.Clone())
+	_, err = client.Close(context.Background(), conn.Clone())
 	require.NoError(t, err)
 
 	require.Equal(t, captureRequest.Connection.String(), capture.conn.String())
+}
+
+func TestMechanismTranslationClient_CloseOnError(t *testing.T) {
+	count := 0
+	client := next.NewNetworkServiceClient(
+		metadata.NewClient(),
+		new(afterErrorClient),
+		mechanismtranslation.NewClient(),
+		checkrequest.NewClient(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
+			switch count {
+			case 0, 2:
+				require.Nil(t, request.Connection.Mechanism)
+			case 1:
+				require.Equal(t, request.Connection.Mechanism.String(), kernelMechanism().String())
+			}
+			count++
+		}),
+		kernel.NewClient(),
+		adapters.NewServerToClient(
+			mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
+				kernelmech.MECHANISM: null.NewServer(),
+			}),
+		),
+	)
+
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: "id",
+		},
+	}
+
+	// 1. Request
+	conn, err := client.Request(context.Background(), request.Clone())
+	require.NoError(t, err)
+
+	// 2. Refresh Request + Close on error
+	request.Connection = conn.Clone()
+
+	_, err = client.Request(context.Background(), request.Clone())
+	require.Error(t, err)
+
+	// 3. Refresh Request
+	_, err = client.Request(context.Background(), request.Clone())
+	require.NoError(t, err)
+
+	require.Equal(t, count, 3)
 }
 
 type captureClient struct {
@@ -125,4 +174,25 @@ func (c *captureClient) Request(ctx context.Context, request *networkservice.Net
 func (c *captureClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	c.conn = conn.Clone()
 	return next.Client(ctx).Close(ctx, conn, opts...)
+}
+
+type afterErrorClient struct {
+	success bool
+}
+
+func (c *afterErrorClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	c.success = !c.success
+
+	conn, err := next.Client(ctx).Request(ctx, request)
+	if err != nil || c.success {
+		return conn, err
+	}
+
+	_, _ = next.Client(ctx).Close(ctx, conn)
+
+	return nil, errors.New("error")
+}
+
+func (c *afterErrorClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	return next.Client(ctx).Close(ctx, conn)
 }
