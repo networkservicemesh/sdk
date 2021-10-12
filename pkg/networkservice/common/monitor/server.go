@@ -24,6 +24,11 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientconn"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
+	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
@@ -31,6 +36,7 @@ import (
 )
 
 type monitorServer struct {
+	chainCtx context.Context
 	networkservice.MonitorConnectionServer
 }
 
@@ -43,28 +49,54 @@ type monitorServer struct {
 //                        networkservice.MonitorConnectionServer that can be used either standalone or in a
 //                        networkservice.MonitorConnectionServer chain
 //             chainCtx - context for lifecycle management
-func NewServer(ctx context.Context, monitorServerPtr *networkservice.MonitorConnectionServer) networkservice.NetworkServiceServer {
-	*monitorServerPtr = newMonitorConnectionServer(ctx)
+func NewServer(chainCtx context.Context, monitorServerPtr *networkservice.MonitorConnectionServer) networkservice.NetworkServiceServer {
+	*monitorServerPtr = newMonitorConnectionServer(chainCtx)
 	return &monitorServer{
+		chainCtx:                chainCtx,
 		MonitorConnectionServer: *monitorServerPtr,
 	}
 }
 
 func (m *monitorServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	ctx = WithEventConsumer(ctx, m.MonitorConnectionServer.(EventConsumer))
-	conn, err := next.Server(ctx).Request(ctx, request)
-	if err == nil {
-		_ = m.MonitorConnectionServer.(EventConsumer).Send(&networkservice.ConnectionEvent{
-			Type:        networkservice.ConnectionEventType_UPDATE,
-			Connections: map[string]*networkservice.Connection{conn.GetId(): conn.Clone()},
-		})
+	closeCtxFunc := postpone.ContextWithValues(ctx)
+	// Cancel any existing eventLoop
+	if cancelEventLoop, loaded := loadAndDelete(ctx, metadata.IsClient(m)); loaded {
+		cancelEventLoop()
 	}
-	return conn, err
+
+	conn, err := next.Server(ctx).Request(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	_ = m.MonitorConnectionServer.(eventConsumer).Send(&networkservice.ConnectionEvent{
+		Type:        networkservice.ConnectionEventType_UPDATE,
+		Connections: map[string]*networkservice.Connection{conn.GetId(): conn.Clone()},
+	})
+
+	// If we have a clientconn ... we must be part of a passthrough server, and have a client to pass
+	// events through from, so start an eventLoop
+	cc, ccLoaded := clientconn.Load(ctx)
+	if ccLoaded {
+		cancelEventLoop, eventLoopErr := newEventLoop(m.chainCtx, m.MonitorConnectionServer.(eventConsumer), cc, conn)
+		if eventLoopErr != nil {
+			closeCtx, closeCancel := closeCtxFunc()
+			defer closeCancel()
+			_, _ = next.Client(closeCtx).Close(closeCtx, conn)
+			return nil, errors.Wrap(eventLoopErr, "unable to monitor")
+		}
+		store(ctx, metadata.IsClient(m), cancelEventLoop)
+	}
+
+	return conn, nil
 }
 
 func (m *monitorServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	// Cancel any existing eventLoop
+	if cancelEventLoop, loaded := loadAndDelete(ctx, metadata.IsClient(m)); loaded {
+		cancelEventLoop()
+	}
 	rv, err := next.Server(ctx).Close(ctx, conn)
-	_ = m.MonitorConnectionServer.(EventConsumer).Send(&networkservice.ConnectionEvent{
+	_ = m.MonitorConnectionServer.(eventConsumer).Send(&networkservice.ConnectionEvent{
 		Type:        networkservice.ConnectionEventType_DELETE,
 		Connections: map[string]*networkservice.Connection{conn.GetId(): conn.Clone()},
 	})

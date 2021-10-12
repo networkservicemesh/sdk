@@ -24,24 +24,18 @@ import (
 	"google.golang.org/grpc"
 )
 
-type clientEventLoop struct {
-	eventLoopCtx   context.Context
-	conn           *networkservice.Connection
-	eventConsumers []EventConsumer
-	client         networkservice.MonitorConnection_MonitorConnectionsClient
+type eventLoop struct {
+	eventLoopCtx  context.Context
+	conn          *networkservice.Connection
+	eventConsumer eventConsumer
+	client        networkservice.MonitorConnection_MonitorConnectionsClient
 }
 
-func newClientEventLoop(ctx context.Context, eventConsumers []EventConsumer, cc grpc.ClientConnInterface, conn *networkservice.Connection) (context.CancelFunc, error) {
+func newEventLoop(ctx context.Context, ec eventConsumer, cc grpc.ClientConnInterface, conn *networkservice.Connection) (context.CancelFunc, error) {
 	conn = conn.Clone()
 	// Is another chain element asking for events?  If not, no need to monitor
-	if eventConsumers == nil {
+	if ec == nil {
 		return func() {}, nil
-	}
-
-	// Wrap the event consumers in a filter to translate the event
-	var translatedEventConsumers []EventConsumer
-	for _, ec := range eventConsumers {
-		translatedEventConsumers = append(translatedEventConsumers, newDownstreamEventTranslator(conn, ec))
 	}
 
 	// Create new eventLoopCtx and store its eventLoopCancel
@@ -57,7 +51,7 @@ func newClientEventLoop(ctx context.Context, eventConsumers []EventConsumer, cc 
 		},
 	}
 
-	client, err := networkservice.NewMonitorConnectionClient(cc).MonitorConnections(eventLoopCtx, selector, grpc.WaitForReady(false))
+	client, err := networkservice.NewMonitorConnectionClient(cc).MonitorConnections(eventLoopCtx, selector)
 	if err != nil {
 		eventLoopCancel()
 		return nil, errors.WithStack(err)
@@ -70,11 +64,11 @@ func newClientEventLoop(ctx context.Context, eventConsumers []EventConsumer, cc 
 		return nil, errors.WithStack(err)
 	}
 
-	cev := &clientEventLoop{
-		eventLoopCtx:   eventLoopCtx,
-		conn:           conn,
-		eventConsumers: translatedEventConsumers,
-		client:         client,
+	cev := &eventLoop{
+		eventLoopCtx:  eventLoopCtx,
+		conn:          conn,
+		eventConsumer: ec,
+		client:        newClientFilter(client, conn),
 	}
 
 	// Start the eventLoop
@@ -82,7 +76,7 @@ func newClientEventLoop(ctx context.Context, eventConsumers []EventConsumer, cc 
 	return eventLoopCancel, nil
 }
 
-func (cev *clientEventLoop) eventLoop() {
+func (cev *eventLoop) eventLoop() {
 	// So we have a client, and can receive events
 	for {
 		eventIn, err := cev.client.Recv()
@@ -99,13 +93,9 @@ func (cev *clientEventLoop) eventLoop() {
 					cev.conn.GetId(): connOut,
 				},
 			}
-			for _, eventConsumer := range cev.eventConsumers {
-				_ = eventConsumer.Send(eventOut)
-			}
+			_ = cev.eventConsumer.Send(eventOut)
 			return
 		}
-		for _, eventConsumer := range cev.eventConsumers {
-			_ = eventConsumer.Send(eventIn)
-		}
+		_ = cev.eventConsumer.Send(eventIn)
 	}
 }

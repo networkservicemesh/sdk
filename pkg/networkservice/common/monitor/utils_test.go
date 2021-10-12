@@ -31,7 +31,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
-func startServer(ctx context.Context, listenOn *url.URL, server endpoint.Endpoint) error {
+func startEndpoint(ctx context.Context, listenOn *url.URL, server endpoint.Endpoint) error {
 	grpcServer := grpc.NewServer()
 	server.Register(grpcServer)
 
@@ -42,10 +42,10 @@ func startServer(ctx context.Context, listenOn *url.URL, server endpoint.Endpoin
 	default:
 	}
 
-	return waitServerStarted(listenOn)
+	return waitNetworkServiceReady(listenOn)
 }
 
-func waitServerStarted(target *url.URL) error {
+func waitNetworkServiceReady(target *url.URL) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 

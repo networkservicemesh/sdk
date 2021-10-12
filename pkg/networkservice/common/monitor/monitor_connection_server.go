@@ -105,4 +105,8 @@ func (m *monitorConnectionServer) Send(event *networkservice.ConnectionEvent) (_
 	return nil
 }
 
-var _ EventConsumer = &monitorConnectionServer{}
+type eventConsumer interface {
+	Send(event *networkservice.ConnectionEvent) (err error)
+}
+
+var _ eventConsumer = &monitorConnectionServer{}

@@ -17,25 +17,27 @@
 package monitor
 
 import (
-	"github.com/edwarnicke/serialize"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
-type downstreamEventTranslator struct {
-	conn          *networkservice.Connection
-	eventConsumer EventConsumer
-	executor      serialize.Executor
+type clientFilter struct {
+	conn *networkservice.Connection
+	networkservice.MonitorConnection_MonitorConnectionsClient
 }
 
-func newDownstreamEventTranslator(conn *networkservice.Connection, eventConsumer EventConsumer) EventConsumer {
-	return &downstreamEventTranslator{
-		conn:          conn,
-		eventConsumer: eventConsumer,
+func newClientFilter(client networkservice.MonitorConnection_MonitorConnectionsClient, conn *networkservice.Connection) networkservice.MonitorConnection_MonitorConnectionsClient {
+	return &clientFilter{
+		MonitorConnection_MonitorConnectionsClient: client,
+		conn: conn,
 	}
 }
 
-func (p *downstreamEventTranslator) Send(eventIn *networkservice.ConnectionEvent) (_ error) {
-	p.executor.AsyncExec(func() {
+func (c *clientFilter) Recv() (*networkservice.ConnectionEvent, error) {
+	for {
+		eventIn, err := c.MonitorConnection_MonitorConnectionsClient.Recv()
+		if err != nil {
+			return nil, err
+		}
 		eventOut := &networkservice.ConnectionEvent{
 			Type:        networkservice.ConnectionEventType_UPDATE,
 			Connections: make(map[string]*networkservice.Connection),
@@ -46,22 +48,22 @@ func (p *downstreamEventTranslator) Send(eventIn *networkservice.ConnectionEvent
 				connIn.State = networkservice.State_DOWN
 			}
 			// If we don't have enough PathSegments connIn doesn't match e.conn
-			if len(connIn.GetPath().GetPathSegments()) < int(p.conn.GetPath().GetIndex()+1) {
+			if len(connIn.GetPath().GetPathSegments()) < int(c.conn.GetPath().GetIndex()+1) {
 				continue
 			}
 			// If the e.conn isn't in the expected PathSegment connIn doesn't match e.conn
-			if connIn.GetPath().GetPathSegments()[int(p.conn.GetPath().GetIndex())].GetId() != p.conn.GetId() {
+			if connIn.GetPath().GetPathSegments()[int(c.conn.GetPath().GetIndex())].GetId() != c.conn.GetId() {
 				continue
 			}
 			// If the current index isn't the index of e.conn or what comes after it connIn doesn't match e.conn
-			if !(connIn.GetPath().GetIndex() == p.conn.GetPath().GetIndex() || connIn.GetPath().GetIndex() == p.conn.GetPath().GetIndex()+1) {
+			if !(connIn.GetPath().GetIndex() == c.conn.GetPath().GetIndex() || connIn.GetPath().GetIndex() == c.conn.GetPath().GetIndex()+1) {
 				continue
 			}
 
 			// Construct the outgoing Connection
-			connOut := p.conn.Clone()
+			connOut := c.conn.Clone()
 			connOut.Path = connIn.Path
-			connOut.GetPath().Index = p.conn.GetPath().GetIndex()
+			connOut.GetPath().Index = c.conn.GetPath().GetIndex()
 			connOut.Context = connIn.Context
 			connOut.State = connIn.State
 
@@ -71,7 +73,7 @@ func (p *downstreamEventTranslator) Send(eventIn *networkservice.ConnectionEvent
 			}
 
 			// If the connection hasn't changed... don't send the event
-			if connOut.Equals(p.conn) {
+			if connOut.Equals(c.conn) {
 				continue
 			}
 
@@ -79,11 +81,10 @@ func (p *downstreamEventTranslator) Send(eventIn *networkservice.ConnectionEvent
 			eventOut.GetConnections()[connOut.GetId()] = connOut
 
 			// Update the event we are watching for:
-			p.conn = connOut
+			c.conn = connOut
 		}
 		if len(eventOut.GetConnections()) > 0 {
-			_ = p.eventConsumer.Send(eventOut)
+			return eventOut, nil
 		}
-	})
-	return nil
+	}
 }

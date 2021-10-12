@@ -21,12 +21,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 )
 
@@ -41,7 +43,10 @@ func TestMonitorServer(t *testing.T) {
 
 	// Create monitorServer, monitorClient, and server.
 	var monitorServer networkservice.MonitorConnectionServer
-	server := monitor.NewServer(ctx, &monitorServer)
+	server := chain.NewNetworkServiceServer(
+		metadata.NewServer(),
+		monitor.NewServer(ctx, &monitorServer),
+	)
 	monitorClient := adapters.NewMonitorServerToClient(monitorServer)
 
 	// Create maps to hold returned connections and receivers
