@@ -31,6 +31,8 @@ import (
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/dial"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
@@ -61,15 +63,15 @@ func TestConnectServer_Request(t *testing.T) {
 
 	s := next.NewNetworkServiceServer(
 		metadata.NewServer(),
-		connect.NewServer(context.Background(),
-			func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-				return next.NewNetworkServiceClient(
-					adapters.NewServerToClient(serverClient),
-					networkservice.NewNetworkServiceClient(cc),
-				)
-			},
-			connect.WithDialTimeout(time.Second),
-			connect.WithDialOptions(grpc.WithInsecure()),
+		connect.NewServer(
+			next.NewNetworkServiceClient(
+				adapters.NewServerToClient(serverClient),
+				dial.NewClient(context.Background(),
+					dial.WithDialTimeout(time.Second),
+					dial.WithDialOptions(grpc.WithInsecure()),
+				),
+				connect.NewClient(),
+			),
 		),
 		serverNext,
 	)
@@ -173,7 +175,7 @@ func TestConnectServer_Request(t *testing.T) {
 
 	// 8. Close B
 
-	_, err = s.Close(ctx, conn)
+	_, err = s.Close(clienturlctx.WithClientURL(ctx, urlB), conn)
 	require.NoError(t, err)
 
 	require.Nil(t, serverClient.capturedRequest)
@@ -191,15 +193,15 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 
 	s := next.NewNetworkServiceServer(
 		metadata.NewServer(),
-		connect.NewServer(context.Background(),
-			func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-				return next.NewNetworkServiceClient(
-					serverClient,
-					networkservice.NewNetworkServiceClient(cc),
-				)
-			},
-			connect.WithDialTimeout(time.Second),
-			connect.WithDialOptions(grpc.WithInsecure()),
+		connect.NewServer(
+			next.NewNetworkServiceClient(
+				dial.NewClient(context.Background(),
+					dial.WithDialTimeout(time.Second),
+					dial.WithDialOptions(grpc.WithInsecure()),
+				),
+				serverClient,
+				connect.NewClient(),
+			),
 		),
 		serverNext,
 	)
@@ -256,7 +258,7 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 			requestCancel()
 
 			// 4.4. Close A
-			_, err = s.Close(ctx, conn)
+			_, err = s.Close(clienturlctx.WithClientURL(ctx, urlA), conn)
 			assert.NoError(t, err)
 			wg.Done()
 		}(i)
@@ -291,12 +293,15 @@ func TestConnectServer_RequestFail(t *testing.T) {
 
 	s := next.NewNetworkServiceServer(
 		metadata.NewServer(),
-		connect.NewServer(context.Background(),
-			func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-				return injecterror.NewClient()
-			},
-			connect.WithDialTimeout(time.Second),
-			connect.WithDialOptions(grpc.WithInsecure()),
+		connect.NewServer(
+			next.NewNetworkServiceClient(
+				dial.NewClient(context.Background(),
+					dial.WithDialTimeout(time.Second),
+					dial.WithDialOptions(grpc.WithInsecure()),
+				),
+				injecterror.NewClient(),
+				connect.NewClient(),
+			),
 		),
 	)
 
@@ -338,15 +343,15 @@ func TestConnectServer_RequestNextServerError(t *testing.T) {
 
 	s := next.NewNetworkServiceServer(
 		metadata.NewServer(),
-		connect.NewServer(context.Background(),
-			func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-				return next.NewNetworkServiceClient(
-					adapters.NewServerToClient(serverClient),
-					networkservice.NewNetworkServiceClient(cc),
-				)
-			},
-			connect.WithDialTimeout(time.Second),
-			connect.WithDialOptions(grpc.WithInsecure()),
+		connect.NewServer(
+			next.NewNetworkServiceClient(
+				dial.NewClient(context.Background(),
+					dial.WithDialTimeout(time.Second),
+					dial.WithDialOptions(grpc.WithInsecure()),
+				),
+				adapters.NewServerToClient(serverClient),
+				connect.NewClient(),
+			),
 		),
 		injecterror.NewServer(),
 	)
@@ -405,12 +410,14 @@ func TestConnectServer_RemoteRestarted(t *testing.T) {
 
 	s := next.NewNetworkServiceServer(
 		metadata.NewServer(),
-		connect.NewServer(context.Background(),
-			func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-				return networkservice.NewNetworkServiceClient(cc)
-			},
-			connect.WithDialTimeout(time.Second),
-			connect.WithDialOptions(grpc.WithInsecure()),
+		connect.NewServer(
+			next.NewNetworkServiceClient(
+				dial.NewClient(context.Background(),
+					dial.WithDialTimeout(time.Second),
+					dial.WithDialOptions(grpc.WithInsecure()),
+				),
+				connect.NewClient(),
+			),
 		),
 	)
 
@@ -479,7 +486,7 @@ func TestConnectServer_RemoteRestarted(t *testing.T) {
 
 	// 6. Close A
 
-	_, err = s.Close(ctx, conn)
+	_, err = s.Close(clienturlctx.WithClientURL(ctx, urlA), conn)
 	require.NoError(t, err)
 }
 
@@ -490,12 +497,14 @@ func TestConnectServer_DialTimeout(t *testing.T) {
 
 	s := next.NewNetworkServiceServer(
 		metadata.NewServer(),
-		connect.NewServer(context.Background(),
-			func(_ context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-				return networkservice.NewNetworkServiceClient(cc)
-			},
-			connect.WithDialTimeout(100*time.Millisecond),
-			connect.WithDialOptions(grpc.WithInsecure()),
+		connect.NewServer(
+			next.NewNetworkServiceClient(
+				dial.NewClient(context.Background(),
+					dial.WithDialTimeout(100*time.Millisecond),
+					dial.WithDialOptions(grpc.WithInsecure(), grpc.WithBlock()),
+				),
+				connect.NewClient(),
+			),
 		),
 	)
 
@@ -520,15 +529,12 @@ func TestConnectServer_DialTimeout(t *testing.T) {
 
 	// 3. Request A
 
-	timer := time.AfterFunc(time.Second/2, t.FailNow)
-
 	requestCtx, requestCancel := context.WithTimeout(context.Background(), time.Second)
 	defer requestCancel()
 
 	_, err = s.Request(clienturlctx.WithClientURL(requestCtx, urlA), request.Clone())
 	require.Error(t, err)
-
-	timer.Stop()
+	require.NoError(t, requestCtx.Err())
 }
 
 func TestConnectServer_ChangeURLWithExpiredContext(t *testing.T) {
@@ -538,12 +544,14 @@ func TestConnectServer_ChangeURLWithExpiredContext(t *testing.T) {
 
 	s := next.NewNetworkServiceServer(
 		metadata.NewServer(),
-		connect.NewServer(context.Background(),
-			func(ctx context.Context, cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
-				return networkservice.NewNetworkServiceClient(cc)
-			},
-			connect.WithDialTimeout(time.Second),
-			connect.WithDialOptions(grpc.WithInsecure()),
+		connect.NewServer(
+			next.NewNetworkServiceClient(
+				dial.NewClient(context.Background(),
+					dial.WithDialTimeout(time.Hour),
+					dial.WithDialOptions(grpc.WithInsecure()),
+				),
+				connect.NewClient(),
+			),
 		),
 	)
 

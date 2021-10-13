@@ -31,11 +31,8 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanismtranslation"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
-	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
@@ -66,9 +63,8 @@ func (n *Node) NewNSMgr(
 	options := []nsmgr.Option{
 		nsmgr.WithName(name),
 		nsmgr.WithAuthorizeServer(authorize.NewServer(authorize.Any())),
-		nsmgr.WithConnectOptions(
-			connect.WithDialTimeout(DialTimeout),
-			connect.WithDialOptions(dialOptions...)),
+		nsmgr.WithDialOptions(dialOptions...),
+		nsmgr.WithDialTimeout(DialTimeout),
 	}
 
 	if n.domain.Registry != nil {
@@ -126,18 +122,17 @@ func (n *Node) NewForwarder(
 				append(
 					additionalFunctionality,
 					clienturl.NewServer(CloneURL(n.NSMgr.URL)),
-					heal.NewServer(ctx,
-						heal.WithOnHeal(addressof.NetworkServiceClient(adapters.NewServerToClient(entry))),
-						heal.WithOnRestore(heal.OnRestoreIgnore)),
-					connect.NewServer(ctx,
-						client.NewClientFactory(
+					connect.NewServer(
+						client.NewClient(
+							ctx,
 							client.WithName(entry.Name),
 							client.WithAdditionalFunctionality(
 								mechanismtranslation.NewClient(),
 							),
+							client.WithDialOptions(dialOptions...),
+							client.WithDialTimeout(DialTimeout),
+							client.WithoutRefresh(),
 						),
-						connect.WithDialTimeout(DialTimeout),
-						connect.WithDialOptions(dialOptions...),
 					),
 				)...,
 			),
@@ -216,10 +211,10 @@ func (n *Node) NewClient(
 ) networkservice.NetworkServiceClient {
 	return client.NewClient(
 		ctx,
-		CloneURL(n.NSMgr.URL),
+		client.WithClientURL(CloneURL(n.NSMgr.URL)),
 		client.WithDialOptions(DialOptions(WithTokenGenerator(generatorFunc))...),
-		client.WithDialTimeout(DialTimeout),
 		client.WithAuthorizeClient(authorize.NewClient(authorize.Any())),
 		client.WithAdditionalFunctionality(additionalFunctionality...),
+		client.WithDialTimeout(DialTimeout),
 	)
 }

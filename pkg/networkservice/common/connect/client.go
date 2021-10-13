@@ -1,6 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
-//
-// Copyright (c) 2020-2021 Cisco and/or its affiliates.
+// Copyright (c) 2021 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -20,73 +18,35 @@ package connect
 
 import (
 	"context"
-	"sync"
-	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/clock"
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientconn"
 )
 
-type connectClient struct {
-	ctx         context.Context
-	dialTimeout time.Duration
-	dialOptions []grpc.DialOption
-	dialErr     error
+type connectClient struct{}
 
-	clientFactory ClientFactory
-	client        networkservice.NetworkServiceClient
-
-	initOnce sync.Once
+// NewClient - returns a connect chain element
+func NewClient() networkservice.NetworkServiceClient {
+	return &connectClient{}
 }
 
-func (u *connectClient) init() error {
-	u.initOnce.Do(func() {
-		clockTime := clock.FromContext(u.ctx)
-
-		clientURL := clienturlctx.ClientURL(u.ctx)
-		if clientURL == nil {
-			u.dialErr = errors.New("cannot dial nil clienturl.ClientURL(ctx)")
-			return
-		}
-
-		dialCtx, dialCancel := clockTime.WithTimeout(u.ctx, u.dialTimeout)
-		defer dialCancel()
-
-		dialOptions := append(append([]grpc.DialOption{}, u.dialOptions...), grpc.WithReturnConnectionError())
-
-		var cc *grpc.ClientConn
-		cc, u.dialErr = grpc.DialContext(dialCtx, grpcutils.URLToTarget(clientURL), dialOptions...)
-		if u.dialErr != nil {
-			return
-		}
-
-		u.client = u.clientFactory(u.ctx, cc)
-
-		go func() {
-			<-u.ctx.Done()
-			_ = cc.Close()
-		}()
-	})
-
-	return u.dialErr
-}
-
-func (u *connectClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	if err := u.init(); err != nil {
-		return nil, err
+func (c *connectClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	cc, loaded := clientconn.Load(ctx)
+	if !loaded {
+		return nil, errors.New("no grpc.ClientConnInterface provided")
 	}
-	return u.client.Request(ctx, request, opts...)
+	conn, err := networkservice.NewNetworkServiceClient(cc).Request(ctx, request, opts...)
+	return conn, err
 }
 
-func (u *connectClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	if err := u.init(); err != nil {
-		return nil, err
+func (c *connectClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cc, loaded := clientconn.Load(ctx)
+	if !loaded {
+		return nil, errors.New("no grpc.ClientConnInterface provided")
 	}
-	return u.client.Close(ctx, conn, opts...)
+	return networkservice.NewNetworkServiceClient(cc).Close(ctx, conn, opts...)
 }

@@ -197,6 +197,10 @@ issues:
       linters:
         - funlen
       text: "Function 'TestConnectServerShouldNotPanicOnRequest' is too long"
+    - path: pkg/networkservice/common/connect/server_test.go
+      linters:
+        - funlen
+      text: "Function 'TestConnectServer_RequestParallel' is too long"
     - path: pkg/networkservice/utils/checks/checkerror/server_test.go
       linters:
         - dupl
@@ -288,3 +292,7 @@ issues:
     - path: pkg/networkservice/common/switchcase/.*_test.go
       linters:
         - dupl
+    - path: pkg/networkservice/chains/endpoint/combine_monitor_server.go
+      linters:
+        - interfacer
+      text: "`rawSrv` can be `github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor.EventConsumer`"

@@ -26,20 +26,20 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
+
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientinfo"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/filtermechanisms"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interpose"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
@@ -59,7 +59,6 @@ import (
 	registryadapter "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	registrychain "github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
@@ -78,7 +77,8 @@ type nsmgrServer struct {
 
 type serverOptions struct {
 	authorizeServer networkservice.NetworkServiceServer
-	connectOptions  []connect.Option
+	dialOptions     []grpc.DialOption
+	dialTimeout     time.Duration
 	regURL          *url.URL
 	regDialOptions  []grpc.DialOption
 	name            string
@@ -88,10 +88,17 @@ type serverOptions struct {
 // Option modifies server option value
 type Option func(o *serverOptions)
 
-// WithConnectOptions sets connect Options for the server
-func WithConnectOptions(connectOptions ...connect.Option) Option {
+// WithDialOptions sets grpc.DialOptions for the client
+func WithDialOptions(dialOptions ...grpc.DialOption) Option {
 	return func(o *serverOptions) {
-		o.connectOptions = connectOptions
+		o.dialOptions = dialOptions
+	}
+}
+
+// WithDialTimeout sets dial timeout for the client
+func WithDialTimeout(dialTimeout time.Duration) Option {
+	return func(o *serverOptions) {
+		o.dialTimeout = dialTimeout
 	}
 }
 
@@ -193,16 +200,19 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			recvfd.NewServer(), // Receive any files passed
 			interpose.NewServer(&interposeRegistryServer),
 			filtermechanisms.NewServer(&urlsRegistryServer),
-			heal.NewServer(ctx,
-				heal.WithOnHeal(addressof.NetworkServiceClient(adapters.NewServerToClient(rv)))),
-			connect.NewServer(ctx,
-				client.NewClientFactory(
+			connect.NewServer(
+				client.NewClient(
+					ctx,
 					client.WithName(opts.name),
 					client.WithAdditionalFunctionality(
 						recvfd.NewClient(),
 						sendfd.NewClient(),
 					),
-				), opts.connectOptions...),
+					client.WithDialOptions(opts.dialOptions...),
+					client.WithDialTimeout(opts.dialTimeout),
+					client.WithoutRefresh(),
+				),
+			),
 			sendfd.NewServer()),
 	)
 

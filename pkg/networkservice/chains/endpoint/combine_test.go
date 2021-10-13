@@ -27,6 +27,8 @@ import (
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/memif"
@@ -312,6 +314,7 @@ func newTestEndpoint(ctx context.Context, name string) *testEndpoint {
 	e.NetworkServiceServer = next.NewNetworkServiceServer(
 		updatepath.NewServer(name),
 		begin.NewServer(),
+		metadata.NewServer(),
 		monitor.NewServer(ctx, &e.MonitorConnectionServer),
 	)
 	return e

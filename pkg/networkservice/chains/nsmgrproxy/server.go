@@ -20,6 +20,7 @@ package nsmgrproxy
 import (
 	"context"
 	"net/url"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -34,10 +35,8 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interdomainurl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/swapip"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 	registryconnect "github.com/networkservicemesh/sdk/pkg/registry/common/connect"
@@ -46,7 +45,6 @@ import (
 	registryswapip "github.com/networkservicemesh/sdk/pkg/registry/common/swapip"
 	registryadapter "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
 	"github.com/networkservicemesh/sdk/pkg/tools/fs"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
@@ -71,7 +69,8 @@ type serverOptions struct {
 	mapipFilePath          string
 	listenOn               *url.URL
 	authorizeServer        networkservice.NetworkServiceServer
-	connectOptions         []connect.Option
+	dialOptions            []grpc.DialOption
+	dialTimeout            time.Duration
 	registryConnectOptions []registryconnect.Option
 }
 
@@ -138,10 +137,17 @@ func WithMapIPFilePath(p string) Option {
 	}
 }
 
-// WithConnectOptions sets connect Options for the server
-func WithConnectOptions(connectOptions ...connect.Option) Option {
+// WithDialOptions sets connect Options for the server
+func WithDialOptions(dialOptions ...grpc.DialOption) Option {
 	return func(o *serverOptions) {
-		o.connectOptions = connectOptions
+		o.dialOptions = dialOptions
+	}
+}
+
+// WithDialTimeout sets dial timeout for the server
+func WithDialTimeout(dialTimeout time.Duration) Option {
+	return func(o *serverOptions) {
+		o.dialTimeout = dialTimeout
 	}
 }
 
@@ -182,12 +188,14 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 			interdomainurl.NewServer(&nseStockServer),
 			discover.NewServer(nsClient, nseClient),
 			swapip.NewServer(opts.openMapIPChannel(ctx)),
-			heal.NewServer(ctx,
-				heal.WithOnHeal(addressof.NetworkServiceClient(adapters.NewServerToClient(rv)))),
-			connect.NewServer(ctx,
-				client.NewClientFactory(
+			connect.NewServer(
+				client.NewClient(
+					ctx,
 					client.WithName(opts.name),
-				), opts.connectOptions...,
+					client.WithDialOptions(opts.dialOptions...),
+					client.WithDialTimeout(opts.dialTimeout),
+					client.WithoutRefresh(),
+				),
 			),
 		),
 	)

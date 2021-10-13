@@ -85,7 +85,7 @@ func (b *beginServer) Close(ctx context.Context, conn *networkservice.Connection
 	eventFactoryServer, ok := b.Load(conn.GetId())
 	if !ok {
 		// If we don't have a connection to Close, just let it be
-		return
+		return &emptypb.Empty{}, nil
 	}
 	<-eventFactoryServer.executor.AsyncExec(func() {
 		if eventFactoryServer.state != established || eventFactoryServer.request == nil {
@@ -101,5 +101,5 @@ func (b *beginServer) Close(ctx context.Context, conn *networkservice.Connection
 		emp, err = next.Server(ctx).Close(ctx, conn)
 		eventFactoryServer.afterCloseFunc()
 	})
-	return emp, err
+	return &emptypb.Empty{}, err
 }

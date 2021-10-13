@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package connect
+package monitor
 
 import (
 	"context"
@@ -22,17 +22,20 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
-type keyType struct{}
+type key struct{}
 
-func loadOrStore(ctx context.Context, connInfo *connectionInfo) (*connectionInfo, bool) {
-	v, ok := metadata.Map(ctx, false).LoadOrStore(keyType{}, connInfo)
-	return v.(*connectionInfo), ok
+// store sets the context.CancelFunc stored in per Connection.Id metadata.
+func store(ctx context.Context, isClient bool, cancel context.CancelFunc) {
+	metadata.Map(ctx, isClient).Store(key{}, cancel)
 }
 
-func load(ctx context.Context) (*connectionInfo, bool) {
-	v, ok := metadata.Map(ctx, false).Load(keyType{})
+// loadAndDelete deletes the context.CancelFunc stored in per Connection.Id metadata,
+// returning the previous value if any. The loaded result reports whether the key was present.
+func loadAndDelete(ctx context.Context, isClient bool) (value context.CancelFunc, ok bool) {
+	rawValue, ok := metadata.Map(ctx, isClient).LoadAndDelete(key{})
 	if !ok {
-		return nil, false
+		return
 	}
-	return v.(*connectionInfo), true
+	value, ok = rawValue.(context.CancelFunc)
+	return value, ok
 }

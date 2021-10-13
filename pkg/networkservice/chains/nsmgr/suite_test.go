@@ -340,12 +340,16 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	refreshRequest := request.Clone()
 	refreshRequest.Connection = conn.Clone()
 
-	_, err = nsc.Request(ctx, refreshRequest)
+	refreshCtx, refreshCancel := context.WithTimeout(ctx, time.Second)
+	defer refreshCancel()
+	_, err = nsc.Request(refreshCtx, refreshRequest)
 	require.Error(t, err)
 	require.NoError(t, ctx.Err())
 
 	// Close
-	_, _ = nsc.Close(ctx, conn)
+	closeCtx, closeCancel := context.WithTimeout(ctx, time.Second)
+	defer closeCancel()
+	_, _ = nsc.Close(closeCtx, conn)
 
 	// Endpoint unregister
 	_, err = s.domain.Nodes[0].NSMgr.NetworkServiceEndpointRegistryServer().Unregister(ctx, nseReg)
@@ -671,14 +675,13 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
 
 func (s *nsmgrSuite) Test_ShouldCleanAllClientAndEndpointGoroutines() {
 	t := s.T()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService())
 	require.NoError(t, err)
-
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	// At this moment all possible endless NSMgr goroutines have been started. So we expect all newly created goroutines
 	// to be canceled no later than some of these events:
@@ -784,17 +787,19 @@ func additionalFunctionalityChain(ctx context.Context, clientURL *url.URL, clien
 	return []networkservice.NetworkServiceServer{
 		chain.NewNetworkServiceServer(
 			clienturl.NewServer(clientURL),
-			connect.NewServer(ctx,
-				client.NewClientFactory(
+			connect.NewServer(
+				client.NewClient(
+					ctx,
 					client.WithName(fmt.Sprintf("endpoint-client-%v", clientName)),
 					client.WithAdditionalFunctionality(
 						mechanismtranslation.NewClient(),
 						replacelabels.NewClient(labels),
 						kernel.NewClient(),
 					),
+					client.WithDialOptions(sandbox.DialOptions()...),
+					client.WithDialTimeout(sandbox.DialTimeout),
+					client.WithoutRefresh(),
 				),
-				connect.WithDialTimeout(sandbox.DialTimeout),
-				connect.WithDialOptions(sandbox.DialOptions()...),
 			),
 		),
 	}
