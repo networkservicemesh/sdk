@@ -90,9 +90,19 @@ func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
 		select {
 		case <-o.cancelCtx.Done():
 		default:
+			request := f.request.Clone()
+			if o.reselect {
+				ctx, cancel := f.ctxFunc()
+				defer cancel()
+				_, _ = f.client.Close(ctx, request.GetConnection(), f.opts...)
+				if request.GetConnection() != nil {
+					request.GetConnection().Mechanism = nil
+					request.GetConnection().NetworkServiceEndpointName = ""
+				}
+			}
 			ctx, cancel := f.ctxFunc()
 			defer cancel()
-			conn, err := f.client.Request(ctx, f.request, f.opts...)
+			conn, err := f.client.Request(ctx, request, f.opts...)
 			if err == nil && f.request != nil {
 				f.request.Connection = conn
 			}
