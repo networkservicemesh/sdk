@@ -22,6 +22,7 @@ import (
 
 type option struct {
 	cancelCtx context.Context
+	reselect  bool
 }
 
 // Option - event option
@@ -31,5 +32,12 @@ type Option func(*option)
 func CancelContext(cancelCtx context.Context) Option {
 	return func(o *option) {
 		o.cancelCtx = cancelCtx
+	}
+}
+
+// WithReselect - optionally clear Mechanism and NetworkServiceName to force reselect
+func WithReselect() Option {
+	return func(o *option) {
+		o.reselect = true
 	}
 }
