@@ -44,6 +44,7 @@ func (f *Formatter) Format(entry *logrus.Entry) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	bytesString := string(formattedBytes)
 	lineBreakIndex := strings.Index(bytesString, "\n")
 	if lineBreakIndex == -1 || lineBreakIndex == len(bytesString)-1 {
@@ -56,11 +57,12 @@ func (f *Formatter) Format(entry *logrus.Entry) ([]byte, error) {
 	split := strings.SplitN(bytesString, "\x1b[0m", 2)
 	prefix := split[0] + "\x1b[0m"
 	split[1] = split[1][:len(split[1])-1] // remove trailing \n
+	bb.WriteString(prefix)
 	for _, line := range strings.Split(split[1], "\n") {
-		bb.WriteString(prefix)
 		bb.WriteString(line)
-		bb.WriteString("\n")
+		bb.WriteString(";\t")
 	}
+	bb.WriteString("\n")
 
 	return bb.Bytes(), nil
 }
