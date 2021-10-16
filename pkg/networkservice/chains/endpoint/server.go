@@ -25,6 +25,8 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/trimpath"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
@@ -104,15 +106,22 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	rv := &endpoint{}
 	rv.NetworkServiceServer = chain.NewNamedNetworkServiceServer(
 		opts.name,
-		append([]networkservice.NetworkServiceServer{
-			updatepath.NewServer(opts.name),
-			begin.NewServer(),
-			updatetoken.NewServer(tokenGenerator),
-			opts.authorizeServer,
-			metadata.NewServer(),
-			timeout.NewServer(ctx),
-			monitor.NewServer(ctx, &rv.MonitorConnectionServer),
-		}, opts.additionalFunctionality...)...)
+
+		append(
+			[]networkservice.NetworkServiceServer{
+				updatepath.NewServer(opts.name),
+				begin.NewServer(),
+				updatetoken.NewServer(tokenGenerator),
+				opts.authorizeServer,
+				metadata.NewServer(),
+				timeout.NewServer(ctx),
+				monitor.NewServer(ctx, &rv.MonitorConnectionServer),
+				trimpath.NewServer(),
+			},
+			opts.additionalFunctionality...,
+		)...,
+	)
+
 	return rv
 }
 
