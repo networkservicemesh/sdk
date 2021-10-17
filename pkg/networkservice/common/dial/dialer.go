@@ -92,3 +92,17 @@ func (di *dialer) Close() error {
 	}
 	return nil
 }
+
+func (di *dialer) Invoke(ctx context.Context, method string, args, reply interface{}, opts ...grpc.CallOption) error {
+	if di.ClientConn == nil {
+		return errors.New("no dialer.ClientConn found")
+	}
+	return di.ClientConn.Invoke(ctx, method, args, reply, opts...)
+}
+
+func (di *dialer) NewStream(ctx context.Context, desc *grpc.StreamDesc, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+	if di.ClientConn == nil {
+		return nil, errors.New("no dialer.ClientConn found")
+	}
+	return di.ClientConn.NewStream(ctx, desc, method, opts...)
+}
