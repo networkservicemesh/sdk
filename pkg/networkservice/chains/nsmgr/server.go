@@ -25,18 +25,17 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
-
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientinfo"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/filtermechanisms"
@@ -77,8 +76,7 @@ type nsmgrServer struct {
 
 type serverOptions struct {
 	authorizeServer networkservice.NetworkServiceServer
-	dialOptions     []grpc.DialOption
-	dialTimeout     time.Duration
+	dialOptions     []dial.Option
 	regURL          *url.URL
 	regDialOptions  []grpc.DialOption
 	name            string
@@ -88,17 +86,10 @@ type serverOptions struct {
 // Option modifies server option value
 type Option func(o *serverOptions)
 
-// WithDialOptions sets grpc.DialOptions for the client
-func WithDialOptions(dialOptions ...grpc.DialOption) Option {
+// WithDialOptions sets dial options for the client
+func WithDialOptions(dialOptions ...dial.Option) Option {
 	return func(o *serverOptions) {
 		o.dialOptions = dialOptions
-	}
-}
-
-// WithDialTimeout sets dial timeout for the client
-func WithDialTimeout(dialTimeout time.Duration) Option {
-	return func(o *serverOptions) {
-		o.dialTimeout = dialTimeout
 	}
 }
 
@@ -206,10 +197,8 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 					client.WithName(opts.name),
 					client.WithAdditionalFunctionality(
 						recvfd.NewClient(),
-						sendfd.NewClient(),
-					),
+						sendfd.NewClient()),
 					client.WithDialOptions(opts.dialOptions...),
-					client.WithDialTimeout(opts.dialTimeout),
 					client.WithoutRefresh(),
 				),
 			),

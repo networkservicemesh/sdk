@@ -501,7 +501,7 @@ func TestConnectServer_DialTimeout(t *testing.T) {
 			next.NewNetworkServiceClient(
 				dial.NewClient(context.Background(),
 					dial.WithDialTimeout(100*time.Millisecond),
-					dial.WithDialOptions(grpc.WithInsecure(), grpc.WithBlock()),
+					dial.WithDialOptions(grpc.WithInsecure()),
 				),
 				connect.NewClient(),
 			),

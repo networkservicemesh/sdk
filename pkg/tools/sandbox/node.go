@@ -21,9 +21,10 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
@@ -31,6 +32,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanismtranslation"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
@@ -63,8 +65,9 @@ func (n *Node) NewNSMgr(
 	options := []nsmgr.Option{
 		nsmgr.WithName(name),
 		nsmgr.WithAuthorizeServer(authorize.NewServer(authorize.Any())),
-		nsmgr.WithDialOptions(dialOptions...),
-		nsmgr.WithDialTimeout(DialTimeout),
+		nsmgr.WithDialOptions(
+			dial.WithDialTimeout(DialTimeout),
+			dial.WithDialOptions(dialOptions...)),
 	}
 
 	if n.domain.Registry != nil {
@@ -127,10 +130,10 @@ func (n *Node) NewForwarder(
 							ctx,
 							client.WithName(entry.Name),
 							client.WithAdditionalFunctionality(
-								mechanismtranslation.NewClient(),
-							),
-							client.WithDialOptions(dialOptions...),
-							client.WithDialTimeout(DialTimeout),
+								mechanismtranslation.NewClient()),
+							client.WithDialOptions(
+								dial.WithDialTimeout(DialTimeout),
+								dial.WithDialOptions(dialOptions...)),
 							client.WithoutRefresh(),
 						),
 					),
@@ -212,9 +215,10 @@ func (n *Node) NewClient(
 	return client.NewClient(
 		ctx,
 		client.WithClientURL(CloneURL(n.NSMgr.URL)),
-		client.WithDialOptions(DialOptions(WithTokenGenerator(generatorFunc))...),
 		client.WithAuthorizeClient(authorize.NewClient(authorize.Any())),
 		client.WithAdditionalFunctionality(additionalFunctionality...),
-		client.WithDialTimeout(DialTimeout),
+		client.WithDialOptions(
+			dial.WithDialTimeout(DialTimeout),
+			dial.WithDialOptions(DialOptions(WithTokenGenerator(generatorFunc))...)),
 	)
 }

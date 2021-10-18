@@ -31,6 +31,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgrproxy"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/proxydns"
 	registryconnect "github.com/networkservicemesh/sdk/pkg/registry/common/connect"
@@ -293,10 +294,11 @@ func (b *Builder) newNSMgrProxy() *NSMgrEntry {
 			b.generateTokenFunc,
 			nsmgrproxy.WithListenOn(entry.URL),
 			nsmgrproxy.WithName(entry.Name),
-			nsmgrproxy.WithDialOptions(dialOptions...),
+			nsmgrproxy.WithDialOptions(
+				dial.WithDialTimeout(DialTimeout),
+				dial.WithDialOptions(dialOptions...)),
 			nsmgrproxy.WithRegistryConnectOptions(
-				registryconnect.WithDialOptions(dialOptions...),
-			),
+				registryconnect.WithDialOptions(dialOptions...)),
 		)
 		serve(ctx, b.t, entry.URL, entry.Register)
 

@@ -40,6 +40,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanismtranslation"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/replacelabels"
@@ -789,8 +790,10 @@ func additionalFunctionalityChain(ctx context.Context, clientURL *url.URL, clien
 						replacelabels.NewClient(labels),
 						kernel.NewClient(),
 					),
-					client.WithDialOptions(sandbox.DialOptions()...),
-					client.WithDialTimeout(sandbox.DialTimeout),
+					client.WithDialOptions(
+						dial.WithDialTimeout(sandbox.DialTimeout),
+						dial.WithDialOptions(sandbox.DialOptions()...),
+					),
 					client.WithoutRefresh(),
 				),
 			),

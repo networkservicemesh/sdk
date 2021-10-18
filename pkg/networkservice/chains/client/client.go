@@ -59,10 +59,7 @@ func NewClient(ctx context.Context, clientOpts ...Option) networkservice.Network
 			},
 			append(
 				opts.additionalFunctionality,
-				dial.NewClient(ctx,
-					dial.WithDialOptions(opts.dialOptions...),
-					dial.WithDialTimeout(opts.dialTimeout),
-				),
+				dial.NewClient(ctx, opts.dialOptions...),
 				opts.authorizeClient,
 				connect.NewClient(),
 			)...,

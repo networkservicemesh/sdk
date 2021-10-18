@@ -23,15 +23,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
@@ -126,8 +128,8 @@ func (m *MonitorPassThroughSuite) StartPassThroughEndpoints(connectTo *url.URL) 
 						client.WithoutRefresh(),
 						client.WithAuthorizeClient(null.NewClient()),
 						client.WithDialOptions(
-							sandbox.DialOptions()...,
-						),
+							dial.WithDialTimeout(sandbox.DialTimeout),
+							dial.WithDialOptions(sandbox.DialOptions()...)),
 					),
 				),
 			),
@@ -166,8 +168,8 @@ func (m *MonitorPassThroughSuite) StartClient(connectTo *url.URL) {
 		client.WithClientURL(connectTo),
 		client.WithAuthorizeClient(null.NewClient()),
 		client.WithDialOptions(
-			sandbox.DialOptions()...,
-		),
+			dial.WithDialTimeout(sandbox.DialTimeout),
+			dial.WithDialOptions(sandbox.DialOptions()...)),
 	)
 }
 

@@ -20,13 +20,12 @@ package nsmgrproxy
 import (
 	"context"
 	"net/url"
-	"time"
 
 	"github.com/google/uuid"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
 	"gopkg.in/yaml.v2"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
@@ -34,6 +33,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interdomainurl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/swapip"
@@ -69,8 +69,7 @@ type serverOptions struct {
 	mapipFilePath          string
 	listenOn               *url.URL
 	authorizeServer        networkservice.NetworkServiceServer
-	dialOptions            []grpc.DialOption
-	dialTimeout            time.Duration
+	dialOptions            []dial.Option
 	registryConnectOptions []registryconnect.Option
 }
 
@@ -137,17 +136,10 @@ func WithMapIPFilePath(p string) Option {
 	}
 }
 
-// WithDialOptions sets connect Options for the server
-func WithDialOptions(dialOptions ...grpc.DialOption) Option {
+// WithDialOptions sets dial options for the client
+func WithDialOptions(dialOptions ...dial.Option) Option {
 	return func(o *serverOptions) {
 		o.dialOptions = dialOptions
-	}
-}
-
-// WithDialTimeout sets dial timeout for the server
-func WithDialTimeout(dialTimeout time.Duration) Option {
-	return func(o *serverOptions) {
-		o.dialTimeout = dialTimeout
 	}
 }
 
@@ -193,7 +185,6 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 					ctx,
 					client.WithName(opts.name),
 					client.WithDialOptions(opts.dialOptions...),
-					client.WithDialTimeout(opts.dialTimeout),
 					client.WithoutRefresh(),
 				),
 			),

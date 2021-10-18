@@ -42,7 +42,9 @@ type dialClient struct {
 
 // NewClient - returns new dial chain element
 func NewClient(chainCtx context.Context, opts ...Option) networkservice.NetworkServiceClient {
-	o := &option{}
+	o := &option{
+		dialTimeout: time.Second,
+	}
 	for _, opt := range opts {
 		opt(o)
 	}

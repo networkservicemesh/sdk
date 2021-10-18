@@ -18,18 +18,22 @@ package connect_test
 
 import (
 	"context"
+	"time"
+
+	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 // ExampleForwarder - example of how to use the connect chain element in a forwarder
 func ExampleNewServer() {
+	var dialTimeout time.Duration
 	var dialOptions []grpc.DialOption
 	var callOptions []grpc.CallOption
 	var additonalClientFunctionality []networkservice.NetworkServiceClient
@@ -49,7 +53,9 @@ func ExampleNewServer() {
 				client.NewClient(
 					chainCtx,
 					client.WithAdditionalFunctionality(additonalClientFunctionality...),
-					client.WithDialOptions(dialOptions...),
+					client.WithDialOptions(
+						dial.WithDialTimeout(dialTimeout),
+						dial.WithDialOptions(dialOptions...)),
 					client.WithoutRefresh(),
 					client.WithName(name),
 				),

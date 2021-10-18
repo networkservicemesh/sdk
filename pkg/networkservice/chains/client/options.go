@@ -18,11 +18,12 @@ package client
 
 import (
 	"net/url"
-	"time"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 )
 
@@ -33,8 +34,7 @@ type clientOptions struct {
 	additionalFunctionality []networkservice.NetworkServiceClient
 	authorizeClient         networkservice.NetworkServiceClient
 	refreshClient           networkservice.NetworkServiceClient
-	dialOptions             []grpc.DialOption
-	dialTimeout             time.Duration
+	dialOptions             []dial.Option
 }
 
 // Option modifies default client chain values.
@@ -79,16 +79,9 @@ func WithAuthorizeClient(authorizeClient networkservice.NetworkServiceClient) Op
 }
 
 // WithDialOptions sets dial options
-func WithDialOptions(dialOptions ...grpc.DialOption) Option {
-	return Option(func(c *clientOptions) {
-		c.dialOptions = dialOptions
-	})
-}
-
-// WithDialTimeout sets dial timeout
-func WithDialTimeout(dialTimeout time.Duration) Option {
+func WithDialOptions(dialOptions ...dial.Option) Option {
 	return func(c *clientOptions) {
-		c.dialTimeout = dialTimeout
+		c.dialOptions = dialOptions
 	}
 }
 
