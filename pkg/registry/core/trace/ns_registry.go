@@ -85,7 +85,7 @@ func (t *traceNetworkServiceRegistryClient) Register(ctx context.Context, in *re
 func (t *traceNetworkServiceRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
 	operation := typeutils.GetFuncName(t.traced, "Find")
 
-	ctx, finish := withLog(ctx, operation)
+	ctx, finish := withCustomSpanLog(ctx, operation)
 	defer finish()
 
 	log.FromContext(ctx).Object("find", in)
@@ -163,7 +163,7 @@ func (t *traceNetworkServiceRegistryServer) Register(ctx context.Context, in *re
 func (t *traceNetworkServiceRegistryServer) Find(in *registry.NetworkServiceQuery, s registry.NetworkServiceRegistry_FindServer) error {
 	operation := typeutils.GetFuncName(t.traced, "Find")
 
-	ctx, finish := withLog(s.Context(), operation)
+	ctx, finish := withCustomSpanLog(s.Context(), operation)
 	defer finish()
 
 	s = &traceNetworkServiceRegistryFindServer{

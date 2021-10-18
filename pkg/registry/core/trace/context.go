@@ -25,6 +25,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 	"github.com/networkservicemesh/sdk/pkg/tools/log/spanlogger"
+	"github.com/networkservicemesh/sdk/pkg/tools/log/spanlogger/childspanlogger"
 )
 
 // withLog - provides corresponding logger in context
@@ -39,6 +40,27 @@ func withLog(parent context.Context, operation string) (c context.Context, f fun
 	if grpcTraceState := grpcutils.TraceFromContext(parent); (grpcTraceState == grpcutils.TraceOn) ||
 		(grpcTraceState == grpcutils.TraceUndefined && log.IsTracingEnabled()) {
 		ctx, sLogger, span, sFinish := spanlogger.FromContext(parent, operation)
+		ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation)
+		return log.WithLog(ctx, sLogger, lLogger), func() {
+			sFinish()
+			lFinish()
+		}
+	}
+	return log.WithLog(parent), func() {}
+}
+
+// withLog - provides corresponding logger in context
+func withCustomSpanLog(parent context.Context, operation string) (c context.Context, f func()) {
+	if parent == nil {
+		panic("cannot create context from nil parent")
+	}
+
+	// Update outgoing grpc context
+	parent = grpcutils.PassTraceToOutgoing(parent)
+
+	if grpcTraceState := grpcutils.TraceFromContext(parent); (grpcTraceState == grpcutils.TraceOn) ||
+		(grpcTraceState == grpcutils.TraceUndefined && log.IsTracingEnabled()) {
+		ctx, sLogger, span, sFinish := childspanlogger.FromContext(parent, operation)
 		ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation)
 		return log.WithLog(ctx, sLogger, lLogger), func() {
 			sFinish()
