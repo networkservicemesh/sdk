@@ -175,8 +175,8 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int) {
 	domain.Nodes[nodeNum].NewForwarder(ctx, forwarderReg, sandbox.GenerateTestToken)
 
 	// Wait reconnecting through the new Forwarder
-	require.Eventually(t, checkSecondRequestsReceived(counter.UniqueRequests), timeout, tick)
-	require.Equal(t, 2, counter.UniqueRequests())
+	require.Eventually(t, checkSecondRequestsReceived(counter.Requests), timeout, tick)
+	require.Equal(t, 2, counter.Requests())
 	closes := counter.UniqueCloses()
 
 	// Check refresh
@@ -188,8 +188,8 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int) {
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
 
-	require.Equal(t, 2, counter.UniqueRequests())
-	require.Equal(t, closes+1, counter.UniqueCloses())
+	require.Equal(t, 3, counter.Requests())
+	require.Equal(t, closes+1, counter.Closes())
 }
 
 func TestNSMGR_HealNSMgr(t *testing.T) {
