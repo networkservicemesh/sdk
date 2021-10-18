@@ -42,7 +42,7 @@ type dialer struct {
 func newDialer(ctx context.Context, dialTimeout time.Duration, dialOptions ...grpc.DialOption) *dialer {
 	return &dialer{
 		ctx:         ctx,
-		dialOptions: dialOptions,
+		dialOptions: append(append([]grpc.DialOption{}, dialOptions...), grpc.WithReturnConnectionError()),
 		dialTimeout: dialTimeout,
 	}
 }

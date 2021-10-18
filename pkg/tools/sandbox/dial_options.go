@@ -55,7 +55,6 @@ func DialOptions(options ...DialOption) []grpc.DialOption {
 		grpc.WithTransportCredentials(
 			grpcfdTransportCredentials(insecure.NewCredentials()),
 		),
-		grpc.WithBlock(),
 		grpc.WithDefaultCallOptions(
 			grpc.WaitForReady(true),
 			grpc.PerRPCCredentials(token.NewPerRPCCredentials(opts.tokenGenerator)),

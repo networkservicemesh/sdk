@@ -325,10 +325,7 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 
 	request := defaultRequest(nsReg.Name)
 
-	reqCtx, reqCancel := context.WithTimeout(ctx, time.Second)
-	defer reqCancel()
-
-	conn, err := nsc.Request(reqCtx, request.Clone())
+	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 1, counter.Requests())
@@ -340,16 +337,12 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	refreshRequest := request.Clone()
 	refreshRequest.Connection = conn.Clone()
 
-	refreshCtx, refreshCancel := context.WithTimeout(ctx, time.Second)
-	defer refreshCancel()
-	_, err = nsc.Request(refreshCtx, refreshRequest)
+	_, err = nsc.Request(ctx, refreshRequest)
 	require.Error(t, err)
 	require.NoError(t, ctx.Err())
 
 	// Close
-	closeCtx, closeCancel := context.WithTimeout(ctx, time.Second)
-	defer closeCancel()
-	_, _ = nsc.Close(closeCtx, conn)
+	_, _ = nsc.Close(ctx, conn)
 
 	// Endpoint unregister
 	_, err = s.domain.Nodes[0].NSMgr.NetworkServiceEndpointRegistryServer().Unregister(ctx, nseReg)
