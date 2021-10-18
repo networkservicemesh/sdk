@@ -14,40 +14,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package childspanlogger contains span logger for specific case of inifinite Find request
-package childspanlogger
+package spanlogger
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
-	"sync"
-	"time"
 
 	"github.com/opentracing/opentracing-go"
 	opentracinglog "github.com/opentracing/opentracing-go/log"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/jaeger"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/log/spanlogger/notifcator"
 )
-
-const (
-	maxStringLength int = 1000
-	dotCount        int = 3
-)
-
-var loggers []*childSpanLogger
-var ticker = time.NewTicker(time.Minute)
-var once sync.Once
-var lock sync.Mutex
 
 // childSpanlogger - provides a way to log via opentracing spans
 type childSpanLogger struct {
-	span      opentracing.Span
+	spanLogger
 	childSpan opentracing.Span
-	entries   map[interface{}]interface{}
-	lock      sync.RWMutex
 	operation string
 }
 
@@ -103,7 +88,7 @@ func (s *childSpanLogger) Object(k, v interface{}) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
-	if s.span != nil {
+	if s.childSpan != nil {
 		if v != nil {
 			msg := ""
 			cc, err := json.Marshal(v)
@@ -113,9 +98,9 @@ func (s *childSpanLogger) Object(k, v interface{}) {
 				msg = fmt.Sprint(v)
 			}
 
-			s.span.LogFields(opentracinglog.Object(k.(string), limitString(msg)))
+			s.childSpan.LogFields(opentracinglog.Object(k.(string), limitString(msg)))
 			for k, v := range s.entries {
-				s.span.LogKV(k, v)
+				s.childSpan.LogKV(k, v)
 			}
 		}
 	}
@@ -131,8 +116,10 @@ func (s *childSpanLogger) WithField(key, value interface{}) log.Logger {
 	}
 	data[key] = value
 	newlog := &childSpanLogger{
-		span:      s.span,
-		entries:   data,
+		spanLogger: spanLogger{
+			span:    s.spanLogger.span,
+			entries: data,
+		},
 		childSpan: s.childSpan,
 		operation: s.operation,
 	}
@@ -157,43 +144,43 @@ func (s *childSpanLogger) logf(level, format string, v ...interface{}) {
 	}
 }
 
-// FromContext - creates a new childSpanLogger from context and operation
-func FromContext(ctx context.Context, operation string) (context.Context, log.Logger, opentracing.Span, func()) {
-	once.Do(func() {
-		go func() {
-			for {
-				select {
-				case <-ticker.C:
-					for _, l := range loggers {
-						if l.span != nil {
-							l.lock.Lock()
-							l.childSpan.Finish()
-							l.childSpan = l.span.Tracer().StartSpan(l.operation, opentracing.ChildOf(l.span.Context()))
-							l.lock.Unlock()
-						}
-					}
-				case <-ctx.Done():
-					return
-				}
-			}
-		}()
-	})
-
+// FromContextNonBlockingSpanLogger - creates a new childSpanLogger from context and operation
+func FromContextNonBlockingSpanLogger(ctx context.Context, operation string) (context.Context, log.Logger, opentracing.Span, func()) {
 	var span opentracing.Span
 	if jaeger.IsOpentracingEnabled() {
 		span, ctx = opentracing.StartSpanFromContext(ctx, operation)
 	}
 
-	newLog := &childSpanLogger{
-		span:      span,
-		entries:   make(map[interface{}]interface{}),
-		childSpan: span.Tracer().StartSpan(operation, opentracing.ChildOf(span.Context())),
-		operation: operation,
+	var child opentracing.Span
+	if span != nil {
+		child = span.Tracer().StartSpan(operation, opentracing.ChildOf(span.Context()))
 	}
 
-	lock.Lock()
-	loggers = append(loggers, newLog)
-	lock.Unlock()
+	newLog := &childSpanLogger{
+		spanLogger: spanLogger{
+			span:    span,
+			entries: make(map[interface{}]interface{}),
+		},
+		childSpan: child,
+		operation: operation,
+	}
+	ch := make(chan struct{})
+	ctx = notifcator.WithNotificator(ctx)
+	not := notifcator.FromContext(ctx)
+	if not != nil {
+		not.AddSubscribers(ch)
+		go func() {
+			for {
+				select {
+				case <-ch:
+					newLog.finishChild()
+				case <-not.Done():
+					newLog.finish()
+					return
+				}
+			}
+		}()
+	}
 
 	return ctx, newLog, span, func() { newLog.finish() }
 }
@@ -203,16 +190,20 @@ func (s *childSpanLogger) finish() {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	if s.span != nil {
+	if s.span != nil && s.childSpan != nil {
 		s.childSpan.Finish()
+		s.childSpan = nil
 		s.span.Finish()
 		s.span = nil
 	}
 }
 
-func limitString(s string) string {
-	if len(s) > maxStringLength {
-		return s[maxStringLength-dotCount:] + strings.Repeat(".", dotCount)
+func (s *childSpanLogger) finishChild() {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	if s.span != nil && s.childSpan != nil {
+		s.childSpan.Finish()
+		s.childSpan = s.span.Tracer().StartSpan(s.operation, opentracing.ChildOf(s.span.Context()))
 	}
-	return s
 }

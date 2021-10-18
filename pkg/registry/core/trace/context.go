@@ -25,7 +25,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 	"github.com/networkservicemesh/sdk/pkg/tools/log/spanlogger"
-	"github.com/networkservicemesh/sdk/pkg/tools/log/spanlogger/childspanlogger"
 )
 
 // withLog - provides corresponding logger in context
@@ -60,7 +59,7 @@ func withCustomSpanLog(parent context.Context, operation string) (c context.Cont
 
 	if grpcTraceState := grpcutils.TraceFromContext(parent); (grpcTraceState == grpcutils.TraceOn) ||
 		(grpcTraceState == grpcutils.TraceUndefined && log.IsTracingEnabled()) {
-		ctx, sLogger, span, sFinish := childspanlogger.FromContext(parent, operation)
+		ctx, sLogger, span, sFinish := spanlogger.FromContextNonBlockingSpanLogger(parent, operation)
 		ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation)
 		return log.WithLog(ctx, sLogger, lLogger), func() {
 			sFinish()
