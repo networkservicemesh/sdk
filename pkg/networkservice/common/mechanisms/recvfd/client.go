@@ -48,7 +48,7 @@ func NewClient() networkservice.NetworkServiceClient {
 func (r *recvFDClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	// Get the grpcfd.FDRecver
 	rpcCredentials := grpcfd.PerRPCCredentials(grpcfd.PerRPCCredentialsFromCallOptions(opts...))
-	opts = append(opts, grpc.PerRPCCredentials(rpcCredentials))
+	opts = append([]grpc.CallOption{grpc.PerRPCCredentials(rpcCredentials)}, opts...)
 	recv, _ := grpcfd.FromPerRPCCredentials(rpcCredentials)
 
 	// Call the next Client in the chain
@@ -76,7 +76,7 @@ func (r *recvFDClient) Request(ctx context.Context, request *networkservice.Netw
 func (r *recvFDClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	// Get the grpcfd.FDRecver
 	rpcCredentials := grpcfd.PerRPCCredentials(grpcfd.PerRPCCredentialsFromCallOptions(opts...))
-	opts = append(opts, grpc.PerRPCCredentials(rpcCredentials))
+	opts = append([]grpc.CallOption{grpc.PerRPCCredentials(rpcCredentials)}, opts...)
 	recv, _ := grpcfd.FromPerRPCCredentials(rpcCredentials)
 
 	// Get the fileMap

@@ -40,7 +40,7 @@ func NewClient() networkservice.NetworkServiceClient {
 func (s *sendFDClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	// Get the grpcfd.FDSender
 	rpcCredentials := grpcfd.PerRPCCredentials(grpcfd.PerRPCCredentialsFromCallOptions(opts...))
-	opts = append(opts, grpc.PerRPCCredentials(rpcCredentials))
+	opts = append([]grpc.CallOption{grpc.PerRPCCredentials(rpcCredentials)}, opts...)
 	sender, _ := grpcfd.FromPerRPCCredentials(rpcCredentials)
 
 	// Iterate over mechanisms
@@ -68,7 +68,7 @@ func (s *sendFDClient) Request(ctx context.Context, request *networkservice.Netw
 
 func (s *sendFDClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	rpcCredentials := grpcfd.PerRPCCredentials(grpcfd.PerRPCCredentialsFromCallOptions(opts...))
-	opts = append(opts, grpc.PerRPCCredentials(rpcCredentials))
+	opts = append([]grpc.CallOption{grpc.PerRPCCredentials(rpcCredentials)}, opts...)
 	sender, _ := grpcfd.FromPerRPCCredentials(rpcCredentials)
 
 	// Send the FD and swap the FileURL for an InodeURL
