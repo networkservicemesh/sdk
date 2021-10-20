@@ -21,7 +21,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 
@@ -32,7 +31,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/tools/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
@@ -189,59 +187,6 @@ func Test_ShouldCorrectlyAddEndpointsWithSameNames(t *testing.T) {
 		_, err := nses[i].Unregister(ctx, nseReg)
 		require.NoError(t, err)
 	}
-}
-
-func Test_Local_NoURLUsecase(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("Unix sockets are not supported under windows, skipping")
-		return
-	}
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-
-	domain := sandbox.NewBuilder(ctx, t).
-		SetNodesCount(1).
-		UseUnixSockets().
-		SetNSMgrProxySupplier(nil).
-		SetRegistryProxySupplier(nil).
-		SetRegistrySupplier(nil).
-		Build()
-
-	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
-
-	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService())
-	require.NoError(t, err)
-
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
-	request := defaultRequest(nsReg.Name)
-	counter := new(count.Server)
-
-	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
-
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
-
-	conn, err := nsc.Request(ctx, request.Clone())
-	require.NoError(t, err)
-	require.NotNil(t, conn)
-	require.Equal(t, 1, counter.Requests())
-	require.Equal(t, 5, len(conn.Path.PathSegments))
-
-	// Simulate refresh from client
-	refreshRequest := request.Clone()
-	refreshRequest.Connection = conn.Clone()
-
-	conn2, err := nsc.Request(ctx, refreshRequest)
-	require.NoError(t, err)
-	require.NotNil(t, conn2)
-	require.Equal(t, 5, len(conn2.Path.PathSegments))
-	require.Equal(t, 2, counter.Requests())
-
-	// Close
-	_, err = nsc.Close(ctx, conn)
-	require.NoError(t, err)
-	require.Equal(t, 1, counter.Closes())
 }
 
 func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
