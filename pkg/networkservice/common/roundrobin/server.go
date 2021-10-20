@@ -62,7 +62,7 @@ func (s *selectEndpointServer) Request(ctx context.Context, request *networkserv
 		}
 		ctx = clienturlctx.WithClientURL(ctx, u)
 		request.GetConnection().NetworkServiceEndpointName = endpoint.Name
-		resp, err := next.Server(ctx).Request(ctx, request)
+		resp, err := next.Server(ctx).Request(ctx, request.Clone())
 		if err == nil {
 			return resp, err
 		}
