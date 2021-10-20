@@ -43,7 +43,7 @@ const (
 func TestSelectEndpointServer_CleanRequest(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	var flag bool
+	var hasBeenRequested bool
 	s := next.NewNetworkServiceServer(
 		roundrobin.NewServer(),
 		switchcase.NewServer(
@@ -53,7 +53,7 @@ func TestSelectEndpointServer_CleanRequest(t *testing.T) {
 				},
 				Server: next.NewNetworkServiceServer(
 					checkrequest.NewServer(t, func(_ *testing.T, request *networkservice.NetworkServiceRequest) {
-						flag = true
+						hasBeenRequested = true
 						request.Connection.Labels[nse1] = nse1
 					}),
 					injecterror.NewServer(),
@@ -82,7 +82,7 @@ func TestSelectEndpointServer_CleanRequest(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	require.True(t, flag)
+	require.True(t, hasBeenRequested)
 	require.Equal(t, nse2, conn.NetworkServiceEndpointName)
 	require.Equal(t, map[string]string{nse2: nse2}, conn.Labels)
 }
