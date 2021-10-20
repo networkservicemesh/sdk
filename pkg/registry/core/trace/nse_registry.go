@@ -20,7 +20,6 @@ import (
 	"context"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamcontext"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/typeutils"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -46,17 +45,6 @@ func (t *traceNetworkServiceEndpointRegistryFindClient) Recv() (*registry.Networ
 	s := streamcontext.NetworkServiceEndpointRegistryFindClient(ctx, t.NetworkServiceEndpointRegistry_FindClient)
 	rv, err := s.Recv()
 
-	if rv != nil && log.Fields(ctx) != nil {
-		// don't change type if it's already present - it happens when registry elements used in endpoint discovery
-		if _, ok := log.Fields(ctx)["type"]; !ok {
-			log.Fields(ctx)["type"] = networkServiceEndpointRegistry
-		}
-
-		if len(rv.Name) > 0 {
-			log.Fields(ctx)["id"] = rv.Name
-		}
-	}
-
 	if err != nil {
 		return nil, logError(ctx, err, operation)
 	}
@@ -65,16 +53,6 @@ func (t *traceNetworkServiceEndpointRegistryFindClient) Recv() (*registry.Networ
 }
 
 func (t *traceNetworkServiceEndpointRegistryClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	if log.Fields(ctx) != nil {
-		// don't change type if it's already present - it happens when registry elements used in endpoint discovery
-		if _, ok := log.Fields(ctx)["type"]; !ok {
-			log.Fields(ctx)["type"] = networkServiceEndpointRegistry
-		}
-		if len(in.Name) > 0 {
-			log.Fields(ctx)["id"] = in.Name
-		}
-	}
-
 	operation := typeutils.GetFuncName(t.traced, "Register")
 
 	ctx, finish := withLog(ctx, operation)
@@ -89,16 +67,6 @@ func (t *traceNetworkServiceEndpointRegistryClient) Register(ctx context.Context
 	return rv, err
 }
 func (t *traceNetworkServiceEndpointRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	if log.Fields(ctx) != nil {
-		// don't change type if it's already present - it happens when registry elements used in endpoint discovery
-		if _, ok := log.Fields(ctx)["type"]; !ok {
-			log.Fields(ctx)["type"] = networkServiceEndpointRegistry
-		}
-		if len(in.NetworkServiceEndpoint.Name) > 0 {
-			log.Fields(ctx)["id"] = in.NetworkServiceEndpoint.Name
-		}
-	}
-
 	operation := typeutils.GetFuncName(t.traced, "Find")
 
 	ctx, finish := withLog(ctx, operation)
@@ -117,17 +85,6 @@ func (t *traceNetworkServiceEndpointRegistryClient) Find(ctx context.Context, in
 }
 
 func (t *traceNetworkServiceEndpointRegistryClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
-	if log.Fields(ctx) != nil {
-		// don't change type if it's already present - it happens when registry elements used in endpoint discovery
-		if _, ok := log.Fields(ctx)["type"]; !ok {
-			log.Fields(ctx)["type"] = networkServiceEndpointRegistry
-		}
-
-		if len(in.Name) > 0 {
-			log.Fields(ctx)["id"] = in.Name
-		}
-	}
-
 	operation := typeutils.GetFuncName(t.traced, "Unregister")
 
 	ctx, finish := withLog(ctx, operation)
@@ -154,16 +111,6 @@ type traceNetworkServiceEndpointRegistryServer struct {
 }
 
 func (t *traceNetworkServiceEndpointRegistryServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	if log.Fields(ctx) != nil {
-		// don't change type if it's already present - it happens when registry elements used in endpoint discovery
-		if _, ok := log.Fields(ctx)["type"]; !ok {
-			log.Fields(ctx)["type"] = networkServiceEndpointRegistry
-		}
-		if len(in.Name) > 0 {
-			log.Fields(ctx)["id"] = in.Name
-		}
-	}
-
 	operation := typeutils.GetFuncName(t.traced, "Register")
 
 	ctx, finish := withLog(ctx, operation)
@@ -185,16 +132,6 @@ func (t *traceNetworkServiceEndpointRegistryServer) Find(in *registry.NetworkSer
 	ctx, finish := withLog(s.Context(), operation)
 	defer finish()
 
-	if log.Fields(ctx) != nil {
-		// don't change type if it's already present - it happens when registry elements used in endpoint discovery
-		if _, ok := log.Fields(ctx)["type"]; !ok {
-			log.Fields(ctx)["type"] = networkServiceEndpointRegistry
-		}
-		if len(in.NetworkServiceEndpoint.Name) > 0 {
-			log.Fields(ctx)["id"] = in.NetworkServiceEndpoint.Name
-		}
-	}
-
 	s = &traceNetworkServiceEndpointRegistryFindServer{
 		NetworkServiceEndpointRegistry_FindServer: streamcontext.NetworkServiceEndpointRegistryFindServer(ctx, s),
 	}
@@ -211,16 +148,6 @@ func (t *traceNetworkServiceEndpointRegistryServer) Find(in *registry.NetworkSer
 }
 
 func (t *traceNetworkServiceEndpointRegistryServer) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	if log.Fields(ctx) != nil {
-		// don't change type if it's already present - it happens when registry elements used in endpoint discovery
-		if _, ok := log.Fields(ctx)["type"]; !ok {
-			log.Fields(ctx)["type"] = networkServiceEndpointRegistry
-		}
-		if len(in.Name) > 0 {
-			log.Fields(ctx)["id"] = in.Name
-		}
-	}
-
 	operation := typeutils.GetFuncName(t.traced, "Unregister")
 
 	ctx, finish := withLog(ctx, operation)
@@ -251,16 +178,6 @@ func (t *traceNetworkServiceEndpointRegistryFindServer) Send(nse *registry.Netwo
 
 	ctx, finish := withLog(t.Context(), operation)
 	defer finish()
-
-	if log.Fields(ctx) != nil {
-		// don't change type if it's already present - it happens when registry elements used in endpoint discovery
-		if _, ok := log.Fields(ctx)["type"]; !ok {
-			log.Fields(ctx)["type"] = networkServiceEndpointRegistry
-		}
-		if len(nse.Name) > 0 {
-			log.Fields(ctx)["id"] = nse.Name
-		}
-	}
 
 	logObjectTrace(ctx, "network service endpoint", nse)
 	s := streamcontext.NetworkServiceEndpointRegistryFindServer(ctx, t.NetworkServiceEndpointRegistry_FindServer)

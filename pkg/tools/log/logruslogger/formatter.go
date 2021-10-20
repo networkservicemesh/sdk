@@ -14,8 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package formatter contains custom logrus formatter that duplicates fields and other metadata from nested-logrus-formatter to each line of the message
-package formatter
+package logruslogger
 
 import (
 	"bytes"
@@ -25,21 +24,20 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Formatter - implements logrus.Formatter
-// Duplicates fields and other metadata from nested-logrus-Formatter to each line of the message
-type Formatter struct {
+// formatter - implements logrus.Formatter
+// Duplicates fields and other metadata from nested-logrus-formatter to each line of the message
+type formatter struct {
 	nf nested.Formatter
 }
 
-// New creates new Formatter and initializes it
-func New() *Formatter {
-	f := Formatter{}
+func newFormatter() *formatter {
+	f := formatter{}
 	f.nf.FieldsOrder = []string{"id", "name"}
 	return &f
 }
 
 // Format an log entry
-func (f *Formatter) Format(entry *logrus.Entry) ([]byte, error) {
+func (f *formatter) Format(entry *logrus.Entry) ([]byte, error) {
 	formattedBytes, err := f.nf.Format(entry)
 	if err != nil {
 		return nil, err

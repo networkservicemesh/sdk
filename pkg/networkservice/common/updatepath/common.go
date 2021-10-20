@@ -17,10 +17,14 @@
 package updatepath
 
 import (
+	"context"
+
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 /*
@@ -102,4 +106,10 @@ func updatePath(conn *networkservice.Connection, segmentName string) (*networkse
 	}
 
 	return conn, conn.Path.Index - 1, nil
+}
+
+func addID(ctx context.Context, id string) {
+	if log.Fields(ctx) != nil && len(id) > 0 {
+		log.Fields(ctx)["id"] = id
+	}
 }

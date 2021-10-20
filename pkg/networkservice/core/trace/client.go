@@ -27,7 +27,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/typeutils"
 )
 
@@ -46,16 +45,6 @@ func NewNetworkServiceClient(traced networkservice.NetworkServiceClient) network
 }
 
 func (t *beginTraceClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	if log.Fields(ctx) != nil {
-		// don't change type if it's already present - it happens when registry elements used in endpoint discovery
-		if _, ok := log.Fields(ctx)["type"]; !ok {
-			log.Fields(ctx)["type"] = networkService
-		}
-		if len(request.GetConnection().GetId()) > 0 {
-			log.Fields(ctx)["id"] = request.GetConnection().GetId()
-		}
-	}
-
 	// Create a new logger
 	operation := typeutils.GetFuncName(t.traced, "Request")
 	ctx, finish := withLog(ctx, operation)
@@ -72,16 +61,6 @@ func (t *beginTraceClient) Request(ctx context.Context, request *networkservice.
 }
 
 func (t *beginTraceClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	if log.Fields(ctx) != nil {
-		// don't change type if it's already present - it happens when registry elements used in endpoint discovery
-		if _, ok := log.Fields(ctx)["type"]; !ok {
-			log.Fields(ctx)["type"] = networkService
-		}
-		if len(conn.GetId()) > 0 {
-			log.Fields(ctx)["id"] = conn.GetId()
-		}
-	}
-
 	// Create a new logger
 	operation := typeutils.GetFuncName(t.traced, "Close")
 	ctx, finish := withLog(ctx, operation)

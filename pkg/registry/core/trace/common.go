@@ -27,13 +27,12 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-const (
-	networkServiceEndpointRegistry = "NetworkServiceEndpointRegistry"
-)
+type stackTracer interface {
+	StackTrace() errors.StackTrace
+}
 
 func logError(ctx context.Context, err error, operation string) error {
-	if errors.Is(err, io.EOF) {
-		log.FromContext(ctx).Errorf("EOF")
+	if err == io.EOF {
 		return err
 	}
 

@@ -30,13 +30,16 @@ import (
 
 // NewNetworkServiceServer - chains together a list of networkservice.Servers with tracing
 func NewNetworkServiceServer(servers ...networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
-	return next.NewWrappedNetworkServiceServer(trace.NewNetworkServiceServer, servers...)
+	return next.NewNetworkServiceServer(
+		setlogoption.NewServer(map[string]string{"type": "NetworkService"}),
+		next.NewWrappedNetworkServiceServer(trace.NewNetworkServiceServer, servers...),
+	)
 }
 
 // NewNamedNetworkServiceServer - chains together a list of networkservice.Servers with tracing and name log option
 func NewNamedNetworkServiceServer(name string, servers ...networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
 	return next.NewNetworkServiceServer(
-		setlogoption.NewServer(map[string]string{"name": name}),
+		setlogoption.NewServer(map[string]string{"name": name, "type": "NetworkService"}),
 		next.NewWrappedNetworkServiceServer(trace.NewNetworkServiceServer, servers...),
 	)
 }

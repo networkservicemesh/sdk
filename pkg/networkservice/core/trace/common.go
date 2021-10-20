@@ -22,7 +22,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"reflect"
 	"strconv"
 	"strings"
@@ -32,10 +31,6 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
-)
-
-const (
-	networkService = "networkService"
 )
 
 func logRequest(ctx context.Context, request proto.Message, prefixes ...string) {
@@ -73,36 +68,6 @@ func logResponse(ctx context.Context, response proto.Message, prefixes ...string
 		connInfo.Response = proto.Clone(response)
 		return
 	}
-}
-
-func logError(ctx context.Context, err error, operation string) error {
-	if errors.Is(err, io.EOF) {
-		log.FromContext(ctx).Errorf("EOF")
-		return err
-	}
-
-	if _, ok := err.(stackTracer); !ok {
-		if err == error(nil) {
-			return nil
-		}
-		err = errors.Wrapf(err, "Error returned from %s", operation)
-		log.FromContext(ctx).Errorf("%+v", err)
-		return err
-	}
-	log.FromContext(ctx).Errorf("%v", err)
-	return err
-}
-
-func logObjectTrace(ctx context.Context, k, v interface{}) {
-	s := log.FromContext(ctx)
-	msg := ""
-	cc, err := json.Marshal(v)
-	if err == nil {
-		msg = string(cc)
-	} else {
-		msg = fmt.Sprint(v)
-	}
-	s.Tracef("%v=%s", k, msg)
 }
 
 // Diff - calculate a protobuf message diff
@@ -227,4 +192,33 @@ func diffField(descriptor protoreflect.FieldDescriptor, oldValue, newValue inter
 		return newValue, true
 	}
 	return nil, false
+}
+
+type stackTracer interface {
+	StackTrace() errors.StackTrace
+}
+
+func logError(ctx context.Context, err error, operation string) error {
+	if _, ok := err.(stackTracer); !ok {
+		if err == error(nil) {
+			return nil
+		}
+		err = errors.Wrapf(err, "Error returned from %s", operation)
+		log.FromContext(ctx).Errorf("%+v", err)
+		return err
+	}
+	log.FromContext(ctx).Errorf("%v", err)
+	return err
+}
+
+func logObjectTrace(ctx context.Context, k, v interface{}) {
+	s := log.FromContext(ctx)
+	msg := ""
+	cc, err := json.Marshal(v)
+	if err == nil {
+		msg = string(cc)
+	} else {
+		msg = fmt.Sprint(v)
+	}
+	s.Tracef("%v=%s", k, msg)
 }

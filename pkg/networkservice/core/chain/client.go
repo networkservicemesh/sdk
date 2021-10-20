@@ -21,11 +21,16 @@ package chain
 import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/setlogoption"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
 )
 
 // NewNetworkServiceClient - chains together a list of networkservice.NetworkServiceClient with tracing
 func NewNetworkServiceClient(clients ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
-	return next.NewWrappedNetworkServiceClient(trace.NewNetworkServiceClient, clients...)
+	return next.NewNetworkServiceClient(
+		adapters.NewServerToClient(setlogoption.NewServer(map[string]string{"type": "NetworkService"})),
+		next.NewWrappedNetworkServiceClient(trace.NewNetworkServiceClient, clients...),
+	)
 }

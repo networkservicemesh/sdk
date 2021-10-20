@@ -44,17 +44,17 @@ func (s *setLogOptionFindServer) Context() context.Context {
 }
 
 func (s *setNSLogOption) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
-	ctx = s.withFields(ctx)
+	ctx = s.withFields(ctx, ns.Name)
 	return next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
 }
 
 func (s *setNSLogOption) Find(query *registry.NetworkServiceQuery, server registry.NetworkServiceRegistry_FindServer) error {
-	ctx := s.withFields(server.Context())
+	ctx := s.withFields(server.Context(), query.NetworkService.Name)
 	return next.NetworkServiceRegistryServer(ctx).Find(query, &setLogOptionFindServer{ctx: ctx, NetworkServiceRegistry_FindServer: server})
 }
 
 func (s *setNSLogOption) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
-	ctx = s.withFields(ctx)
+	ctx = s.withFields(ctx, ns.Name)
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }
 
@@ -65,12 +65,15 @@ func NewNetworkServiceRegistryServer(options map[string]string) registry.Network
 	}
 }
 
-func (s *setNSLogOption) withFields(ctx context.Context) context.Context {
+func (s *setNSLogOption) withFields(ctx context.Context, id string) context.Context {
 	fields := make(map[string]interface{})
 	for k, v := range s.options {
 		fields[k] = v
 	}
 	if len(fields) > 0 {
+		if len(id) > 0 {
+			fields["id"] = id
+		}
 		ctx = log.WithFields(ctx, fields)
 	}
 	return ctx
