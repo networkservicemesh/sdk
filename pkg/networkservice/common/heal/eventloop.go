@@ -18,16 +18,24 @@ package heal
 
 import (
 	"context"
+	"time"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 )
+
+const attemptAfter = time.Millisecond * 200
 
 type eventLoop struct {
 	eventLoopCtx    context.Context
+	chainCtx        context.Context
 	conn            *networkservice.Connection
 	eventFactory    begin.EventFactory
 	client          networkservice.MonitorConnection_MonitorConnectionsClient
@@ -69,6 +77,7 @@ func newEventLoop(ctx context.Context, ev begin.EventFactory, cc grpc.ClientConn
 
 	cev := &eventLoop{
 		eventLoopCtx:    eventLoopCtx,
+		chainCtx:        ctx,
 		conn:            conn,
 		eventFactory:    ev,
 		client:          newClientFilter(client, conn),
@@ -81,15 +90,42 @@ func newEventLoop(ctx context.Context, ev begin.EventFactory, cc grpc.ClientConn
 }
 
 func (cev *eventLoop) eventLoop() {
+	/* Receive monitor events */
 	for {
 		eventIn, err := cev.client.Recv()
 		if cev.eventLoopCtx.Err() != nil {
 			return
 		}
-		if (err != nil || eventIn.GetConnections()[cev.conn.GetId()].GetState() == networkservice.State_DOWN) &&
-			!cev.livelinessCheck(cev.conn) {
-			_ = cev.eventFactory.Request(begin.WithReselect())
+
+		if !cev.livelinessCheck(cev.conn) {
+			// Handle error
+			if err != nil {
+				s, _ := status.FromError(err)
+				// This condition means, that the client closed the connection. Stop healing
+				if s.Code() == codes.Canceled {
+					return
+				}
+				// Otherwise - Start healing
+				break
+			}
+
+			// Handle event. Start healing
+			if eventIn.GetConnections()[cev.conn.GetId()].GetState() == networkservice.State_DOWN {
+				break
+			}
+		}
+	}
+	/* Attempts to heal the connection */
+	afterTicker := clock.FromContext(cev.eventLoopCtx).Ticker(attemptAfter)
+	defer afterTicker.Stop()
+	for {
+		select {
+		case <-cev.chainCtx.Done():
 			return
+		case <-afterTicker.C():
+			if err := <-cev.eventFactory.Request(begin.WithReselect()); err == nil {
+				return
+			}
 		}
 	}
 }

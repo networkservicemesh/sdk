@@ -170,7 +170,8 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int) {
 	}
 
 	forwarderReg := &registry.NetworkServiceEndpoint{
-		Name: sandbox.UniqueName("forwarder-2"),
+		Name:                sandbox.UniqueName("forwarder-2"),
+		NetworkServiceNames: []string{"forwarder"},
 	}
 	domain.Nodes[nodeNum].NewForwarder(ctx, forwarderReg, sandbox.GenerateTestToken)
 

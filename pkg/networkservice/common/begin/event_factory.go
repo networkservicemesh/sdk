@@ -99,6 +99,7 @@ func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
 				if request.GetConnection() != nil {
 					request.GetConnection().Mechanism = nil
 					request.GetConnection().NetworkServiceEndpointName = ""
+					request.GetConnection().GetPath().PathSegments = request.GetConnection().GetPath().PathSegments[:request.GetConnection().GetPath().GetIndex()+1]
 				}
 			}
 			ctx, cancel := f.ctxFunc()
