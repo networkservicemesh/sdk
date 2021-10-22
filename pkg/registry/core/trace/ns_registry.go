@@ -20,8 +20,8 @@ package trace
 import (
 	"context"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamcontext"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/typeutils"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -47,6 +47,10 @@ func (t *traceNetworkServiceRegistryFindClient) Recv() (*registry.NetworkService
 	s := streamcontext.NetworkServiceRegistryFindClient(ctx, t.NetworkServiceRegistry_FindClient)
 	rv, err := s.Recv()
 
+	if rv != nil {
+		log.Fields(ctx)["id"] = rv.Name
+	}
+
 	if err != nil {
 		return nil, logError(ctx, err, operation)
 	}
@@ -55,6 +59,8 @@ func (t *traceNetworkServiceRegistryFindClient) Recv() (*registry.NetworkService
 }
 
 func (t *traceNetworkServiceRegistryClient) Register(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
+	log.Fields(ctx)["id"] = in.Name
+
 	operation := typeutils.GetFuncName(t.traced, "Register")
 
 	ctx, finish := withLog(ctx, operation)
@@ -70,6 +76,8 @@ func (t *traceNetworkServiceRegistryClient) Register(ctx context.Context, in *re
 	return rv, err
 }
 func (t *traceNetworkServiceRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
+	log.Fields(ctx)["id"] = in.NetworkService.Name
+
 	operation := typeutils.GetFuncName(t.traced, "Find")
 
 	ctx, finish := withLog(ctx, operation)
@@ -88,6 +96,8 @@ func (t *traceNetworkServiceRegistryClient) Find(ctx context.Context, in *regist
 }
 
 func (t *traceNetworkServiceRegistryClient) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
+	log.Fields(ctx)["id"] = in.Name
+
 	operation := typeutils.GetFuncName(t.traced, "Unregister")
 
 	ctx, finish := withLog(ctx, operation)
@@ -114,6 +124,8 @@ type traceNetworkServiceRegistryServer struct {
 }
 
 func (t *traceNetworkServiceRegistryServer) Register(ctx context.Context, in *registry.NetworkService) (*registry.NetworkService, error) {
+	log.Fields(ctx)["id"] = in.Name
+
 	operation := typeutils.GetFuncName(t.traced, "Register")
 
 	ctx, finish := withLog(ctx, operation)
@@ -135,6 +147,7 @@ func (t *traceNetworkServiceRegistryServer) Find(in *registry.NetworkServiceQuer
 	ctx, finish := withLog(s.Context(), operation)
 	defer finish()
 
+	log.Fields(ctx)["id"] = in.NetworkService.Name
 	s = &traceNetworkServiceRegistryFindServer{
 		NetworkServiceRegistry_FindServer: streamcontext.NetworkServiceRegistryFindServer(ctx, s),
 	}
@@ -149,6 +162,8 @@ func (t *traceNetworkServiceRegistryServer) Find(in *registry.NetworkServiceQuer
 }
 
 func (t *traceNetworkServiceRegistryServer) Unregister(ctx context.Context, in *registry.NetworkService) (*empty.Empty, error) {
+	log.Fields(ctx)["id"] = in.Name
+
 	operation := typeutils.GetFuncName(t.traced, "Unregister")
 
 	ctx, finish := withLog(ctx, operation)
@@ -167,10 +182,7 @@ func (t *traceNetworkServiceRegistryServer) Unregister(ctx context.Context, in *
 
 // NewNetworkServiceRegistryServer - wraps registry.NetworkServiceRegistryServer with tracing
 func NewNetworkServiceRegistryServer(traced registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
-	return next.NewNetworkServiceRegistryServer(
-
-		&traceNetworkServiceRegistryServer{traced: traced},
-	)
+	return &traceNetworkServiceRegistryServer{traced: traced}
 }
 
 type traceNetworkServiceRegistryFindServer struct {
@@ -182,6 +194,8 @@ func (t *traceNetworkServiceRegistryFindServer) Send(ns *registry.NetworkService
 
 	ctx, finish := withLog(t.Context(), operation)
 	defer finish()
+
+	log.Fields(ctx)["id"] = ns.Name
 
 	logObjectTrace(ctx, "network service", ns)
 	s := streamcontext.NetworkServiceRegistryFindServer(ctx, t.NetworkServiceRegistry_FindServer)

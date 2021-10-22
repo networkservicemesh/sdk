@@ -52,7 +52,6 @@ func (i *updatePathServer) Request(ctx context.Context, request *networkservice.
 		return nil, err
 	}
 
-	addID(ctx, request.GetConnection().GetId())
 	conn, err = next.Server(ctx).Request(ctx, request)
 	if err != nil {
 		return nil, err
@@ -61,7 +60,6 @@ func (i *updatePathServer) Request(ctx context.Context, request *networkservice.
 	conn.Id = conn.Path.PathSegments[index].Id
 	conn.Path.Index = index
 
-	addID(ctx, conn.GetId())
 	return conn, err
 }
 
@@ -70,6 +68,5 @@ func (i *updatePathServer) Close(ctx context.Context, conn *networkservice.Conne
 	if err != nil {
 		return nil, err
 	}
-	addID(ctx, conn.GetId())
 	return next.Server(ctx).Close(ctx, conn)
 }

@@ -26,6 +26,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/typeutils"
 )
 
@@ -44,6 +45,8 @@ func NewNetworkServiceServer(traced networkservice.NetworkServiceServer) network
 }
 
 func (t *beginTraceServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	log.Fields(ctx)["id"] = request.GetConnection().GetId()
+
 	// Create a new logger
 	operation := typeutils.GetFuncName(t.traced, "Request")
 	ctx, finish := withLog(ctx, operation)
@@ -60,6 +63,8 @@ func (t *beginTraceServer) Request(ctx context.Context, request *networkservice.
 }
 
 func (t *beginTraceServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	log.Fields(ctx)["id"] = conn.GetId()
+
 	// Create a new logger
 	operation := typeutils.GetFuncName(t.traced, "Close")
 	ctx, finish := withLog(ctx, operation)
