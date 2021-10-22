@@ -34,8 +34,8 @@ import (
 )
 
 func logRequest(ctx context.Context, request proto.Message, prefixes ...string) {
-	msg := strings.Join(append(prefixes, "request"), "-")
-	diffMsg := strings.Join(append(prefixes, "request", "diff"), "-")
+	msg := strings.Join(prefixes, "-")
+	diffMsg := strings.Join(append(prefixes, "diff"), "-")
 
 	connInfo, ok := trace(ctx)
 	if ok && !proto.Equal(connInfo.Request, request) {

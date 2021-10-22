@@ -52,7 +52,7 @@ func (t *beginTraceServer) Request(ctx context.Context, request *networkservice.
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	logRequest(ctx, request)
+	logRequest(ctx, request, "request")
 	// Actually call the next
 	rv, err := t.traced.Request(ctx, request)
 	if err != nil {
@@ -80,7 +80,7 @@ func (t *beginTraceServer) Close(ctx context.Context, conn *networkservice.Conne
 }
 
 func (t *endTraceServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	logRequest(ctx, request)
+	logRequest(ctx, request, "request")
 	conn, err := next.Server(ctx).Request(ctx, request)
 	logResponse(ctx, conn, "request")
 	return conn, err

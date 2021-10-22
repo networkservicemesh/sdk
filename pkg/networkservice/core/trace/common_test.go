@@ -145,11 +145,11 @@ func TestTraceOutput(t *testing.T) {
 			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2.3)    request-response-diff={\"labels\":{\"Label\":\"C\"}}\n" +
 			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1.3)   request-response-diff={\"labels\":{\"Label\":\"D\"}}\n" +
 			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1) ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerFirstServer.Close()\n" +
-			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1.1)   close-request={\"id\":\"conn-1\",\"context\":{\"ip_context\":{\"src_ip_required\":true}}," +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1.1)   close={\"id\":\"conn-1\",\"context\":{\"ip_context\":{\"src_ip_required\":true}}," +
 			"\"labels\":{\"Label\":\"D\"}}\n" +
-			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1.2)   close-request-diff={\"labels\":{\"Label\":\"W\"}}\n" +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(1.2)   close-diff={\"labels\":{\"Label\":\"W\"}}\n" +
 			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2)  ⎆ sdk/pkg/networkservice/core/trace_test/labelChangerSecondServer.Close()\n" +
-			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2.1)    close-request-diff={\"labels\":{\"Label\":\"X\"}}\n" +
+			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2.1)    close-diff={\"labels\":{\"Label\":\"X\"}}\n" +
 			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2.2)    close-response={\"id\":\"conn-1\",\"context\":{\"ip_context\":{\"src_ip_required\"" +
 			":true}},\"labels\":{\"Label\":\"X\"}}\n" +
 			"\x1b[37m [TRAC] [id:conn-1] [name:TestTraceOutput] [type:NetworkService] \x1b[0m(2.3)    close-response-diff={\"labels\":{\"Label\":\"Y\"}}\n" +

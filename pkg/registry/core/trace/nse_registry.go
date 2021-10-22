@@ -65,7 +65,7 @@ func (t *traceNetworkServiceEndpointRegistryClient) Register(ctx context.Context
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	logObjectTrace(ctx, "register-request", in)
+	logObjectTrace(ctx, "register", in)
 	rv, err := t.traced.Register(ctx, in, opts...)
 	if err != nil {
 		return nil, logError(ctx, err, operation)
@@ -81,7 +81,7 @@ func (t *traceNetworkServiceEndpointRegistryClient) Find(ctx context.Context, in
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	logObjectTrace(ctx, "find-request", in)
+	logObjectTrace(ctx, "find", in)
 
 	// Actually call the next
 	rv, err := t.traced.Find(ctx, in, opts...)
@@ -101,7 +101,7 @@ func (t *traceNetworkServiceEndpointRegistryClient) Unregister(ctx context.Conte
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	logObjectTrace(ctx, "unregister-request", in)
+	logObjectTrace(ctx, "unregister", in)
 
 	// Actually call the next
 	rv, err := t.traced.Unregister(ctx, in, opts...)
@@ -129,7 +129,7 @@ func (t *traceNetworkServiceEndpointRegistryServer) Register(ctx context.Context
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	logObjectTrace(ctx, "register-request", in)
+	logObjectTrace(ctx, "register", in)
 
 	rv, err := t.traced.Register(ctx, in)
 	if err != nil {
@@ -150,7 +150,7 @@ func (t *traceNetworkServiceEndpointRegistryServer) Find(in *registry.NetworkSer
 	s = &traceNetworkServiceEndpointRegistryFindServer{
 		NetworkServiceEndpointRegistry_FindServer: streamcontext.NetworkServiceEndpointRegistryFindServer(ctx, s),
 	}
-	logObjectTrace(ctx, "find-request", in)
+	logObjectTrace(ctx, "find", in)
 
 	// Actually call the next
 	err := t.traced.Find(in, s)
@@ -170,7 +170,7 @@ func (t *traceNetworkServiceEndpointRegistryServer) Unregister(ctx context.Conte
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	logObjectTrace(ctx, "unregister-request", in)
+	logObjectTrace(ctx, "unregister", in)
 
 	// Actually call the next
 	rv, err := t.traced.Unregister(ctx, in)
