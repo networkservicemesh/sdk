@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 
 	"github.com/pkg/errors"
 
@@ -32,13 +31,9 @@ type stackTracer interface {
 }
 
 func logError(ctx context.Context, err error, operation string) error {
-	if err == io.EOF {
-		return err
-	}
-
 	if _, ok := err.(stackTracer); !ok {
 		if err == error(nil) {
-			return nil
+			return errors.New("")
 		}
 		err = errors.Wrapf(err, "Error returned from %s", operation)
 		log.FromContext(ctx).Errorf("%+v", err)

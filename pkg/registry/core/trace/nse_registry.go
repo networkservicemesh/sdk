@@ -18,6 +18,7 @@ package trace
 
 import (
 	"context"
+	"io"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamcontext"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
@@ -51,6 +52,9 @@ func (t *traceNetworkServiceEndpointRegistryFindClient) Recv() (*registry.Networ
 	}
 
 	if err != nil {
+		if err == io.EOF {
+			return nil, err
+		}
 		return nil, logError(ctx, err, operation)
 	}
 	logObjectTrace(ctx, "recv-response", rv)
