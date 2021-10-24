@@ -13,11 +13,11 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/golang/protobuf v1.4.3
-	github.com/google/go-cmp v0.5.2
+	github.com/google/go-cmp v0.5.4
 	github.com/google/uuid v1.1.2
 	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645
-	github.com/nats-io/nats-streaming-server v0.17.0
-	github.com/nats-io/stan.go v0.6.0
+	github.com/nats-io/nats-streaming-server v0.22.1
+	github.com/nats-io/stan.go v0.10.0
 	github.com/networkservicemesh/api v1.0.1-0.20210907194827-9a36433d7d6e
 	github.com/open-policy-agent/opa v0.16.1
 	github.com/opentracing/opentracing-go v1.1.0
@@ -29,9 +29,7 @@ require (
 	github.com/uber/jaeger-lib v2.4.0+incompatible // indirect
 	go.uber.org/atomic v1.7.0
 	go.uber.org/goleak v1.1.10
-	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a // indirect
 	golang.org/x/net v0.0.0-20210525063256-abc453219eb5 // indirect
-	golang.org/x/sys v0.0.0-20210603125802-9665404d3644 // indirect
 	golang.org/x/tools v0.1.2 // indirect
 	gonum.org/v1/gonum v0.6.2
 	google.golang.org/grpc v1.35.0
