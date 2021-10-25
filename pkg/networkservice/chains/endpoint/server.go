@@ -33,13 +33,13 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
-
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/setlogoption"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/timeout"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -102,10 +102,10 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	}
 
 	rv := &endpoint{}
-	rv.NetworkServiceServer = chain.NewNamedNetworkServiceServer(
-		opts.name,
+	rv.NetworkServiceServer = chain.NewNetworkServiceServer(
 		append([]networkservice.NetworkServiceServer{
 			updatepath.NewServer(opts.name),
+			setlogoption.NewServer(map[string]string{"name": opts.name}),
 			begin.NewServer(),
 			updatetoken.NewServer(tokenGenerator),
 			opts.authorizeServer,

@@ -45,17 +45,17 @@ func (s *setNSELogOptionFindServer) Context() context.Context {
 }
 
 func (s *setNSELogOption) Register(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	ctx = s.withFields(ctx, endpoint.Name)
+	ctx = s.withFields(ctx)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, endpoint)
 }
 
 func (s *setNSELogOption) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
-	ctx := s.withFields(server.Context(), query.NetworkServiceEndpoint.Name)
+	ctx := s.withFields(server.Context())
 	return next.NetworkServiceEndpointRegistryServer(ctx).Find(query, &setNSELogOptionFindServer{ctx: ctx, NetworkServiceEndpointRegistry_FindServer: server})
 }
 
 func (s *setNSELogOption) Unregister(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	ctx = s.withFields(ctx, endpoint.Name)
+	ctx = s.withFields(ctx)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, endpoint)
 }
 
@@ -66,15 +66,17 @@ func NewNetworkServiceEndpointRegistryServer(options map[string]string) registry
 	}
 }
 
-func (s *setNSELogOption) withFields(ctx context.Context, id string) context.Context {
+func (s *setNSELogOption) withFields(ctx context.Context) context.Context {
+	ctxFields := log.Fields(ctx)
 	fields := make(map[string]interface{})
+	for k, v := range ctxFields {
+		fields[k] = v
+	}
+	fields["type"] = registryType
 	for k, v := range s.options {
 		fields[k] = v
 	}
 	if len(fields) > 0 {
-		if len(id) > 0 {
-			fields["id"] = id
-		}
 		ctx = log.WithFields(ctx, fields)
 	}
 	return ctx

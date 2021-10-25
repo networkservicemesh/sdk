@@ -25,18 +25,16 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
-
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientinfo"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/filtermechanisms"
@@ -56,6 +54,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/querycache"
 	registryrecvfd "github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
 	registryserialize "github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/setlogoption"
 	registryadapter "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	registrychain "github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
@@ -216,8 +215,8 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			sendfd.NewServer()),
 	)
 
-	nsChain := registrychain.NewNamedNetworkServiceRegistryServer(
-		opts.name,
+	nsChain := registrychain.NewNetworkServiceRegistryServer(
+		setlogoption.NewNetworkServiceRegistryServer(map[string]string{"name": opts.name}),
 		registryserialize.NewNetworkServiceRegistryServer(),
 		nsRegistry,
 	)

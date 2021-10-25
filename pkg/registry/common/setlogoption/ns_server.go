@@ -26,6 +26,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
+const (
+	registryType = "NetworkServiceRegistry"
+)
+
 type setNSLogOption struct {
 	options map[string]string
 }
@@ -44,17 +48,17 @@ func (s *setLogOptionFindServer) Context() context.Context {
 }
 
 func (s *setNSLogOption) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
-	ctx = s.withFields(ctx, ns.Name)
+	ctx = s.withFields(ctx)
 	return next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
 }
 
 func (s *setNSLogOption) Find(query *registry.NetworkServiceQuery, server registry.NetworkServiceRegistry_FindServer) error {
-	ctx := s.withFields(server.Context(), query.NetworkService.Name)
+	ctx := s.withFields(server.Context())
 	return next.NetworkServiceRegistryServer(ctx).Find(query, &setLogOptionFindServer{ctx: ctx, NetworkServiceRegistry_FindServer: server})
 }
 
 func (s *setNSLogOption) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
-	ctx = s.withFields(ctx, ns.Name)
+	ctx = s.withFields(ctx)
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }
 
@@ -65,15 +69,17 @@ func NewNetworkServiceRegistryServer(options map[string]string) registry.Network
 	}
 }
 
-func (s *setNSLogOption) withFields(ctx context.Context, id string) context.Context {
+func (s *setNSLogOption) withFields(ctx context.Context) context.Context {
+	ctxFields := log.Fields(ctx)
 	fields := make(map[string]interface{})
+	for k, v := range ctxFields {
+		fields[k] = v
+	}
+	fields["type"] = registryType
 	for k, v := range s.options {
 		fields[k] = v
 	}
 	if len(fields) > 0 {
-		if len(id) > 0 {
-			fields["id"] = id
-		}
 		ctx = log.WithFields(ctx, fields)
 	}
 	return ctx
