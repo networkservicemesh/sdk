@@ -36,3 +36,5 @@ require (
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/yaml.v2 v2.2.2
 )
+
+replace github.com/edwarnicke/grpcfd => github.com/Bolodya1997/grpcfd v0.1.1-0.20211025045501-c16349df153a

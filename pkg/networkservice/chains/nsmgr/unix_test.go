@@ -24,6 +24,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
@@ -84,6 +86,9 @@ func Test_Local_NoURLUsecase(t *testing.T) {
 }
 
 func Test_MultiForwarderSendfd(t *testing.T) {
+	log.EnableTracing(true)
+	logrus.SetLevel(logrus.DebugLevel)
+
 	if runtime.GOOS != "linux" {
 		t.Skip("sendfd works only on linux")
 	}

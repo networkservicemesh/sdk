@@ -74,9 +74,14 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 	if di.clientURL != nil && di.clientURL.String() != clientURL.String() {
 		closeCtx, closeCancel := closeContextFunc()
 		defer closeCancel()
+
+		closeCtx = closeContext(closeCtx, request.Connection)
+
 		_ = di.Dial(closeCtx, di.clientURL)
 		_, _ = next.Client(ctx).Close(clienturlctx.WithClientURL(closeCtx, di.clientURL), request.GetConnection(), opts...)
 	}
+
+	ctx = requestContext(ctx, request.Connection)
 
 	err := di.Dial(ctx, clientURL)
 	if err != nil {
@@ -101,6 +106,8 @@ func (d *dialClient) Close(ctx context.Context, conn *networkservice.Connection,
 
 	cc, _ := clientconn.Load(ctx)
 
+	ctx = closeContext(ctx, conn)
+
 	di, ok := cc.(*dialer)
 	if !ok {
 		return next.Client(ctx).Close(ctx, conn, opts...)
@@ -112,4 +119,14 @@ func (d *dialClient) Close(ctx context.Context, conn *networkservice.Connection,
 	_ = di.Dial(ctx, clientURL)
 
 	return next.Client(ctx).Close(ctx, conn, opts...)
+}
+
+func requestContext(ctx context.Context, conn *networkservice.Connection) context.Context {
+	return context.WithValue(ctx, "message",
+		"Request: " + conn.Id + " : " + clienturlctx.ClientURL(ctx).String())
+}
+
+func closeContext(ctx context.Context, conn *networkservice.Connection) context.Context {
+	return context.WithValue(ctx, "message",
+		"Close: " + conn.Id + " : " + clienturlctx.ClientURL(ctx).String())
 }
