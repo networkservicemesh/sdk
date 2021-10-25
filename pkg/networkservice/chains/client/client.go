@@ -56,13 +56,13 @@ func NewClient(ctx context.Context, clientOpts ...Option) networkservice.Network
 				opts.refreshClient,
 				clienturl.NewClient(opts.clientURL),
 				clientconn.NewClient(opts.cc),
+			},
+			append(
+				opts.additionalFunctionality,
 				dial.NewClient(ctx,
 					dial.WithDialOptions(opts.dialOptions...),
 					dial.WithDialTimeout(opts.dialTimeout),
 				),
-			},
-			append(
-				opts.additionalFunctionality,
 				opts.authorizeClient,
 				connect.NewClient(),
 			)...,
