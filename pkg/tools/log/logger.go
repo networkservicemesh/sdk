@@ -78,7 +78,11 @@ func WithLog(ctx context.Context, log ...Logger) context.Context {
 // Fields - returns fields from context
 func Fields(ctx context.Context) map[string]interface{} {
 	if rv := ctx.Value(logFieldsKey); rv != nil {
-		return rv.(map[string]interface{})
+		copyFields := map[string]interface{}{}
+		for k, v := range rv.(map[string]interface{}) {
+			copyFields[k] = v
+		}
+		return copyFields
 	}
 	return map[string]interface{}{}
 }

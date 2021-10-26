@@ -24,7 +24,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type setNSELogOption struct {
@@ -45,17 +44,17 @@ func (s *setNSELogOptionFindServer) Context() context.Context {
 }
 
 func (s *setNSELogOption) Register(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	ctx = s.withFields(ctx)
+	ctx = withFields(ctx, s.options)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, endpoint)
 }
 
 func (s *setNSELogOption) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
-	ctx := s.withFields(server.Context())
+	ctx := withFields(server.Context(), s.options)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Find(query, &setNSELogOptionFindServer{ctx: ctx, NetworkServiceEndpointRegistry_FindServer: server})
 }
 
 func (s *setNSELogOption) Unregister(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	ctx = s.withFields(ctx)
+	ctx = withFields(ctx, s.options)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, endpoint)
 }
 
@@ -64,20 +63,4 @@ func NewNetworkServiceEndpointRegistryServer(options map[string]string) registry
 	return &setNSELogOption{
 		options: options,
 	}
-}
-
-func (s *setNSELogOption) withFields(ctx context.Context) context.Context {
-	ctxFields := log.Fields(ctx)
-	fields := make(map[string]interface{})
-	for k, v := range ctxFields {
-		fields[k] = v
-	}
-	fields["type"] = registryType
-	for k, v := range s.options {
-		fields[k] = v
-	}
-	if len(fields) > 0 {
-		ctx = log.WithFields(ctx, fields)
-	}
-	return ctx
 }
