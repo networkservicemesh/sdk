@@ -29,11 +29,14 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/vxlan"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
 type vniServer struct {
 	tunnelIP   net.IP
 	tunnelPort uint16
+
+	// This map stores all generated VNIs
 	sync.Map
 }
 
@@ -65,29 +68,38 @@ func (v *vniServer) Request(ctx context.Context, request *networkservice.Network
 	}
 	// If we already have a VNI, make sure we remember it, and go on
 	if k.vni != 0 && mechanism.SrcIP() != nil {
-		_, loaded := v.Map.LoadOrStore(k, &k)
+		_, _ = v.Map.LoadOrStore(k, &k)
+		_, loaded := loadOrStore(ctx, metadata.IsClient(v), k.vni)
 		conn, err := next.Server(ctx).Request(ctx, request)
 		if err != nil && !loaded {
+			delete(ctx, metadata.IsClient(v))
 			v.Map.Delete(k)
 		}
 		return conn, err
 	}
 
-	for {
-		// Generate a random VNI (appropriately odd or even)
-		var err error
-		k.vni, err = mechanism.GenerateRandomVNI()
-		if err != nil {
-			return nil, err
-		}
-		// If its not one already in use, set it and we are good to go
-		if _, ok := v.Map.LoadOrStore(k, &k); !ok {
-			mechanism.SetVNI(k.vni)
-			break
+	if vni, ok := load(ctx, metadata.IsClient(v)); ok {
+		mechanism.SetVNI(vni)
+	} else {
+		for {
+			// Generate a random VNI (appropriately odd or even)
+			var err error
+			k.vni, err = mechanism.GenerateRandomVNI()
+			if err != nil {
+				return nil, err
+			}
+			// If its not one already in use, set it and we are good to go
+			if _, ok := v.Map.LoadOrStore(k, &k); !ok {
+				mechanism.SetVNI(k.vni)
+				store(ctx, metadata.IsClient(v), k.vni)
+				break
+			}
 		}
 	}
+
 	conn, err := next.Server(ctx).Request(ctx, request)
 	if err != nil {
+		delete(ctx, metadata.IsClient(v))
 		v.Map.Delete(k)
 	}
 	return conn, err
@@ -100,6 +112,7 @@ func (v *vniServer) Close(ctx context.Context, conn *networkservice.Connection) 
 			vni:         mechanism.VNI(),
 		}
 		if k.vni != 0 && mechanism.SrcIP() != nil {
+			delete(ctx, metadata.IsClient(v))
 			v.Map.LoadAndDelete(k)
 		}
 	}
