@@ -22,17 +22,13 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-const (
-	registryType = "NetworkServiceRegistry"
-)
-
-func withFields(ctx context.Context, options map[string]string) context.Context {
+func withFields(ctx context.Context, options map[string]string, chainType string) context.Context {
 	ctxFields := log.Fields(ctx)
 	fields := make(map[string]interface{})
 	for k, v := range ctxFields {
 		fields[k] = v
 	}
-	fields["type"] = registryType
+	fields["type"] = chainType
 	for k, v := range options {
 		fields[k] = v
 	}

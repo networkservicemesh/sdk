@@ -221,8 +221,8 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		nsRegistry,
 	)
 
-	nseChain := registrychain.NewNamedNetworkServiceEndpointRegistryServer(
-		opts.name,
+	nseChain := registrychain.NewNetworkServiceEndpointRegistryServer(
+		setlogoption.NewNetworkServiceEndpointRegistryServer(map[string]string{"name": opts.name}),
 		registryclientinfo.NewNetworkServiceEndpointRegistryServer(),
 		registryserialize.NewNetworkServiceEndpointRegistryServer(),
 		checkid.NewNetworkServiceEndpointRegistryServer(),

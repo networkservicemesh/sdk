@@ -26,6 +26,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
+const (
+	endpointRegistryType = "NetworkServiceEndpointRegistry"
+)
+
 type setNSELogOption struct {
 	options map[string]string
 }
@@ -44,17 +48,17 @@ func (s *setNSELogOptionFindServer) Context() context.Context {
 }
 
 func (s *setNSELogOption) Register(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	ctx = withFields(ctx, s.options)
+	ctx = withFields(ctx, s.options, endpointRegistryType)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, endpoint)
 }
 
 func (s *setNSELogOption) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
-	ctx := withFields(server.Context(), s.options)
+	ctx := withFields(server.Context(), s.options, endpointRegistryType)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Find(query, &setNSELogOptionFindServer{ctx: ctx, NetworkServiceEndpointRegistry_FindServer: server})
 }
 
 func (s *setNSELogOption) Unregister(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	ctx = withFields(ctx, s.options)
+	ctx = withFields(ctx, s.options, endpointRegistryType)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, endpoint)
 }
 

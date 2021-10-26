@@ -53,8 +53,8 @@ func NewClient(ctx context.Context, clientOpts ...Option) networkservice.Network
 		append(
 			[]networkservice.NetworkServiceClient{
 				updatepath.NewClient(opts.name),
-				adapters.NewServerToClient(setlogoption.NewServer(map[string]string{"name": opts.name})),
 				begin.NewClient(),
+				adapters.NewServerToClient(setlogoption.NewServer(map[string]string{"name": opts.name})),
 				metadata.NewClient(),
 				opts.refreshClient,
 				clienturl.NewClient(opts.clientURL),
