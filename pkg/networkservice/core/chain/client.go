@@ -27,5 +27,7 @@ import (
 
 // NewNetworkServiceClient - chains together a list of networkservice.NetworkServiceClient with tracing
 func NewNetworkServiceClient(clients ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
-	return next.NewWrappedNetworkServiceClient(trace.NewNetworkServiceClient, clients...)
+	return next.NewNetworkServiceClient(
+		next.NewWrappedNetworkServiceClient(trace.NewNetworkServiceClient, clients...),
+	)
 }

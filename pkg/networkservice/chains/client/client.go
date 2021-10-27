@@ -30,7 +30,9 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/setlogoption"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
@@ -50,6 +52,7 @@ func NewClient(ctx context.Context, clientOpts ...Option) networkservice.Network
 	return chain.NewNetworkServiceClient(
 		append(
 			[]networkservice.NetworkServiceClient{
+				adapters.NewServerToClient(setlogoption.NewServer(map[string]string{"name": opts.name})),
 				updatepath.NewClient(opts.name),
 				begin.NewClient(),
 				metadata.NewClient(),

@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/HdrHistogram/hdrhistogram-go v1.0.1 // indirect
 	github.com/RoaringBitmap/roaring v0.9.4
+	github.com/antonfisher/nested-logrus-formatter v1.3.1
 	github.com/benbjohnson/clock v1.1.0
 	github.com/edwarnicke/exechelper v1.0.2
 	github.com/edwarnicke/grpcfd v0.1.1

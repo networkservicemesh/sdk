@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,12 +14,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trace
+package setlogoption
 
 import (
-	"github.com/pkg/errors"
+	"context"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-type stackTracer interface {
-	StackTrace() errors.StackTrace
+func withFields(ctx context.Context, options map[string]string, chainType string) context.Context {
+	ctxFields := log.Fields(ctx)
+	fields := make(map[string]interface{})
+	for k, v := range ctxFields {
+		fields[k] = v
+	}
+	fields["type"] = chainType
+	for k, v := range options {
+		fields[k] = v
+	}
+	if len(fields) > 0 {
+		ctx = log.WithFields(ctx, fields)
+	}
+	return ctx
 }

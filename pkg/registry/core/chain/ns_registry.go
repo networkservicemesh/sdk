@@ -21,24 +21,18 @@ package chain
 import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/setlogoption"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/trace"
 )
 
 // NewNetworkServiceRegistryServer - creates a chain of servers
 func NewNetworkServiceRegistryServer(servers ...registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
-	return next.NewWrappedNetworkServiceRegistryServer(trace.NewNetworkServiceRegistryServer, servers...)
-}
-
-// NewNamedNetworkServiceRegistryServer - creates a chain of servers with name log option if tracing enabled
-func NewNamedNetworkServiceRegistryServer(name string, servers ...registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
 	return next.NewNetworkServiceRegistryServer(
-		setlogoption.NewNetworkServiceRegistryServer(map[string]string{"name": name}),
 		next.NewWrappedNetworkServiceRegistryServer(trace.NewNetworkServiceRegistryServer, servers...))
 }
 
 // NewNetworkServiceRegistryClient - creates a chain of clients
 func NewNetworkServiceRegistryClient(clients ...registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
-	return next.NewWrappedNetworkServiceRegistryClient(trace.NewNetworkServiceRegistryClient, clients...)
+	return next.NewNetworkServiceRegistryClient(
+		next.NewWrappedNetworkServiceRegistryClient(trace.NewNetworkServiceRegistryClient, clients...))
 }

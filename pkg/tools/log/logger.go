@@ -80,7 +80,7 @@ func Fields(ctx context.Context) map[string]interface{} {
 	if rv := ctx.Value(logFieldsKey); rv != nil {
 		return rv.(map[string]interface{})
 	}
-	return nil
+	return map[string]interface{}{}
 }
 
 // WithFields - adds fields to context
