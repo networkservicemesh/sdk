@@ -25,29 +25,29 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 )
 
 type interposeRegistryServer struct {
-	interposeURLs *stringurl.Map
+	backend registry.NetworkServiceEndpointRegistryServer
 }
 
 // NewNetworkServiceEndpointRegistryServer - creates a NetworkServiceRegistryServer that registers local Cross connect Endpoints
 //				and adds them to Map
-func NewNetworkServiceEndpointRegistryServer(interposeURLs *stringurl.Map) registry.NetworkServiceEndpointRegistryServer {
+func NewNetworkServiceEndpointRegistryServer() registry.NetworkServiceEndpointRegistryServer {
 	return &interposeRegistryServer{
-		interposeURLs: interposeURLs,
+		backend: chain.NewNetworkServiceEndpointRegistryServer(
+			memory.NewNetworkServiceEndpointRegistryServer(),
+			new(breakNSEServer),
+		),
 	}
 }
 
 func (s *interposeRegistryServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	if !Is(nse.Name) {
 		return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
-	}
-
-	if _, ok := s.interposeURLs.Load(nse.Name); ok {
-		return nse, nil
 	}
 
 	u, err := url.Parse(nse.Url)
@@ -58,13 +58,17 @@ func (s *interposeRegistryServer) Register(ctx context.Context, nse *registry.Ne
 		return nil, errors.Errorf("cannot register cross NSE with passed URL: %s", nse.Url)
 	}
 
-	s.interposeURLs.Store(nse.Name, u)
-
-	return nse, nil
+	return s.backend.Register(ctx, nse)
 }
 
 func (s *interposeRegistryServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
-	// No need to modify find logic.
+	if Is(query.NetworkServiceEndpoint.GetName()) {
+		query.NetworkServiceEndpoint.NetworkServiceNames = nil
+		if err := s.backend.Find(query, server); err != nil {
+			return err
+		}
+		return nil
+	}
 	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
 }
 
@@ -73,9 +77,24 @@ func (s *interposeRegistryServer) Unregister(ctx context.Context, nse *registry.
 		return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 	}
 
-	s.interposeURLs.Delete(nse.Name)
-
-	return new(empty.Empty), nil
+	return s.backend.Unregister(ctx, nse)
 }
 
 var _ registry.NetworkServiceEndpointRegistryServer = (*interposeRegistryServer)(nil)
+
+// TODO Should we use it? Should we move it to separate pkg and use in the next pkg?
+type breakNSEServer struct{}
+
+func (*breakNSEServer) Register(_ context.Context, r *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	return r, nil
+}
+
+func (*breakNSEServer) Find(_ *registry.NetworkServiceEndpointQuery, _ registry.NetworkServiceEndpointRegistry_FindServer) error {
+	return nil
+}
+
+func (*breakNSEServer) Unregister(context.Context, *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	return new(empty.Empty), nil
+}
+
+var _ registry.NetworkServiceEndpointRegistryServer = &breakNSEServer{}

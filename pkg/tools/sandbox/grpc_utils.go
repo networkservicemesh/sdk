@@ -39,6 +39,7 @@ func serve(ctx context.Context, t *testing.T, u *url.URL, register func(server *
 
 	errCh := grpcutils.ListenAndServe(ctx, u, server)
 	uString := u.String()
+
 	go func() {
 		select {
 		case <-ctx.Done():

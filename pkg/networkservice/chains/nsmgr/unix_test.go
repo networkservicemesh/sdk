@@ -65,7 +65,7 @@ func Test_Local_NoURLUsecase(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 1, counter.Requests())
-	require.Equal(t, 5, len(conn.Path.PathSegments))
+	require.Equal(t, 4, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client
 	refreshRequest := request.Clone()
@@ -74,7 +74,7 @@ func Test_Local_NoURLUsecase(t *testing.T) {
 	conn2, err := nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
 	require.NotNil(t, conn2)
-	require.Equal(t, 5, len(conn2.Path.PathSegments))
+	require.Equal(t, 4, len(conn2.Path.PathSegments))
 	require.Equal(t, 2, counter.Requests())
 
 	// Close
@@ -127,7 +127,7 @@ func Test_MultiForwarderSendfd(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 1, counter.Requests())
-	require.Equal(t, 5, len(conn.Path.PathSegments))
+	require.Equal(t, 4, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client
 	refreshRequest := request.Clone()
@@ -136,7 +136,7 @@ func Test_MultiForwarderSendfd(t *testing.T) {
 	conn2, err := nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
 	require.NotNil(t, conn2)
-	require.Equal(t, 5, len(conn2.Path.PathSegments))
+	require.Equal(t, 4, len(conn2.Path.PathSegments))
 	require.Equal(t, 2, counter.Requests())
 
 	// Close

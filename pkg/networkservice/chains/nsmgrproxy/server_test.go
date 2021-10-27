@@ -97,7 +97,7 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
-	require.Equal(t, 10, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client.
 
@@ -107,7 +107,7 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 	conn, err = nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, 10, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.Path.PathSegments))
 
 	// Close
 	_, err = nsc.Close(ctx, conn)
@@ -179,7 +179,7 @@ func TestNSMGR_Interdomain_TwoNodesNSEs(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
-	require.Equal(t, 10, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client.
 
@@ -189,7 +189,7 @@ func TestNSMGR_Interdomain_TwoNodesNSEs(t *testing.T) {
 	conn, err = nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, 10, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.Path.PathSegments))
 
 	request = &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -206,7 +206,7 @@ func TestNSMGR_Interdomain_TwoNodesNSEs(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
-	require.Equal(t, 10, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client.
 
@@ -216,7 +216,7 @@ func TestNSMGR_Interdomain_TwoNodesNSEs(t *testing.T) {
 	conn, err = nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, 10, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.Path.PathSegments))
 }
 
 // TestNSMGR_FloatingInterdomainUseCase covers simple interdomain scenario with resolving endpoint from floating registry:
@@ -283,7 +283,7 @@ func TestNSMGR_FloatingInterdomainUseCase(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
-	require.Equal(t, 10, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client.
 
@@ -293,7 +293,7 @@ func TestNSMGR_FloatingInterdomainUseCase(t *testing.T) {
 	conn, err = nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, 10, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.Path.PathSegments))
 
 	// Close
 	_, err = nsc.Close(ctx, conn)
@@ -366,7 +366,7 @@ func TestNSMGR_FloatingInterdomainUseCase_FloatingNetworkServiceNameRegistration
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
-	require.Equal(t, 10, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client.
 
@@ -376,7 +376,7 @@ func TestNSMGR_FloatingInterdomainUseCase_FloatingNetworkServiceNameRegistration
 	conn, err = nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, 10, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.Path.PathSegments))
 
 	// Close
 	_, err = nsc.Close(ctx, conn)
@@ -479,7 +479,7 @@ func TestNSMGR_FloatingInterdomain_FourClusters(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
-	require.Equal(t, 10, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client.
 
@@ -489,7 +489,7 @@ func TestNSMGR_FloatingInterdomain_FourClusters(t *testing.T) {
 	conn, err = nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, 10, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.Path.PathSegments))
 
 	// connect to second endpoint from cluster3
 	request = &networkservice.NetworkServiceRequest{
@@ -507,7 +507,7 @@ func TestNSMGR_FloatingInterdomain_FourClusters(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
-	require.Equal(t, 10, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client.
 
@@ -517,7 +517,7 @@ func TestNSMGR_FloatingInterdomain_FourClusters(t *testing.T) {
 	conn, err = nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, 10, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.Path.PathSegments))
 }
 
 type passThroughClient struct {
@@ -619,9 +619,9 @@ func Test_Interdomain_PassThroughUsecase(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
-	// Path length to first endpoint is 5
-	// Path length from NSE client to other remote endpoint is 10
-	require.Equal(t, 10*(clusterCount-1)+5, len(conn.Path.PathSegments))
+	// Path length to first endpoint is 4
+	// Path length from NSE client to other remote endpoint is 8
+	require.Equal(t, 8*(clusterCount-1)+4, len(conn.Path.PathSegments))
 
 	// Close
 	_, err = nsc.Close(ctx, conn)

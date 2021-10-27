@@ -27,32 +27,23 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
-	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/endpointurls"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 )
 
-type filterMechanismsServer struct {
-	nses endpointurls.Map
-}
+type filterMechanismsServer struct{}
 
 // NewServer - filters out remote mechanisms if connection is received from a unix file socket, otherwise filters
 // out local mechanisms
-func NewServer(registryServer *registry.NetworkServiceEndpointRegistryServer) networkservice.NetworkServiceServer {
-	s := &filterMechanismsServer{}
-	*registryServer = endpointurls.NewNetworkServiceEndpointRegistryServer(&s.nses)
-	return s
+func NewServer() networkservice.NetworkServiceServer {
+	return new(filterMechanismsServer)
 }
 
 func (s *filterMechanismsServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	u := clienturlctx.ClientURL(ctx)
-	if name, ok := s.nses.Load(*u); ok {
-		if !interpose.Is(name) {
-			request.MechanismPreferences = filterMechanismsByCls(request.GetMechanismPreferences(), cls.LOCAL)
-		}
+	if u.Scheme == "inode" || u.Scheme == "unix" {
+		request.MechanismPreferences = filterMechanismsByCls(request.GetMechanismPreferences(), cls.LOCAL)
 	} else {
 		request.MechanismPreferences = filterMechanismsByCls(request.GetMechanismPreferences(), cls.REMOTE)
 	}

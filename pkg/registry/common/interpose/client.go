@@ -42,6 +42,9 @@ func (rc *interposeRegistryClient) Register(ctx context.Context, in *registry.Ne
 }
 
 func (rc *interposeRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
+	if in.GetNetworkServiceEndpoint() != nil && !Is(in.GetNetworkServiceEndpoint().GetName()) {
+		in.GetNetworkServiceEndpoint().Name = interposeName(in.NetworkServiceEndpoint.Name)
+	}
 	return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, in, opts...)
 }
 

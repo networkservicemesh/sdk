@@ -25,9 +25,15 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientconn"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type connectClient struct{}
+
+// TODO delete it
+type debugMate interface {
+	Target() string
+}
 
 // NewClient - returns a connect chain element
 func NewClient() networkservice.NetworkServiceClient {
@@ -39,6 +45,7 @@ func (c *connectClient) Request(ctx context.Context, request *networkservice.Net
 	if !loaded {
 		return nil, errors.New("no grpc.ClientConnInterface provided")
 	}
+	log.FromContext(ctx).Infof("see at serve on: %v", cc.(debugMate).Target())
 	conn, err := networkservice.NewNetworkServiceClient(cc).Request(ctx, request, opts...)
 	return conn, err
 }

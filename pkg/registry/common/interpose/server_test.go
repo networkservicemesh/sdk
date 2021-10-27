@@ -18,17 +18,18 @@ package interpose_test
 
 import (
 	"context"
-	"net/url"
 	"testing"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 )
 
 const (
@@ -37,12 +38,22 @@ const (
 	validURL   = "tcp://0.0.0.0"
 )
 
+func requireReadList(t *testing.T, server registry.NetworkServiceEndpointRegistryServer) []*registry.NetworkServiceEndpoint {
+	s, err := chain.NewNetworkServiceEndpointRegistryClient(
+		interpose.NewNetworkServiceEndpointRegistryClient(),
+		adapters.NetworkServiceEndpointServerToClient(server)).Find(context.Background(), &registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{}})
+	require.NoError(t, err)
+
+	return registry.ReadNetworkServiceEndpointList(s)
+}
+
 func TestInterposeRegistryServer_Interpose(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
 	captureName := new(captureNameTestRegistryServer)
 
-	var crossMap stringurl.Map
 	server := next.NewNetworkServiceEndpointRegistryServer(
-		interpose.NewNetworkServiceEndpointRegistryServer(&crossMap),
+		interpose.NewNetworkServiceEndpointRegistryServer(),
 		captureName,
 	)
 
@@ -54,21 +65,23 @@ func TestInterposeRegistryServer_Interpose(t *testing.T) {
 
 	require.True(t, interpose.Is(reg.Name))
 	require.Empty(t, captureName.name)
-	requireCrossMapEqual(t, map[string]string{reg.Name: validURL}, &crossMap)
+
+	var list = requireReadList(t, server)
+
+	require.Len(t, list, 1)
+	require.Equal(t, validURL, list[0].Url)
 
 	_, err = server.Unregister(context.Background(), reg)
 	require.NoError(t, err)
 
-	require.Empty(t, captureName.name)
-	requireCrossMapEqual(t, map[string]string{}, &crossMap)
+	require.Empty(t, requireReadList(t, server))
 }
 
 func TestInterposeRegistryServer_Common(t *testing.T) {
 	captureName := new(captureNameTestRegistryServer)
 
-	var crossMap stringurl.Map
 	server := next.NewNetworkServiceEndpointRegistryServer(
-		interpose.NewNetworkServiceEndpointRegistryServer(&crossMap),
+		interpose.NewNetworkServiceEndpointRegistryServer(),
 		captureName,
 	)
 
@@ -79,7 +92,8 @@ func TestInterposeRegistryServer_Common(t *testing.T) {
 
 	require.Equal(t, name, reg.Name)
 	require.Equal(t, name, captureName.name)
-	requireCrossMapEqual(t, map[string]string{}, &crossMap)
+
+	require.Empty(t, requireReadList(t, server), 1)
 
 	captureName.name = ""
 
@@ -87,15 +101,15 @@ func TestInterposeRegistryServer_Common(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, name, captureName.name)
-	requireCrossMapEqual(t, map[string]string{}, &crossMap)
+
+	require.Empty(t, requireReadList(t, server), 1)
 }
 
 func TestInterposeRegistryServer_Invalid(t *testing.T) {
 	captureName := new(captureNameTestRegistryServer)
 
-	var crossMap stringurl.Map
 	server := next.NewNetworkServiceEndpointRegistryServer(
-		interpose.NewNetworkServiceEndpointRegistryServer(&crossMap),
+		interpose.NewNetworkServiceEndpointRegistryServer(),
 		captureName,
 	)
 
@@ -105,16 +119,7 @@ func TestInterposeRegistryServer_Invalid(t *testing.T) {
 	require.Error(t, err)
 
 	require.Empty(t, captureName.name)
-	requireCrossMapEqual(t, map[string]string{}, &crossMap)
-}
-
-func requireCrossMapEqual(t *testing.T, expected map[string]string, crossMap *stringurl.Map) {
-	actual := map[string]string{}
-	crossMap.Range(func(key string, value *url.URL) bool {
-		actual[key] = value.String()
-		return true
-	})
-	require.Equal(t, expected, actual)
+	require.Empty(t, requireReadList(t, server), 1)
 }
 
 type captureNameTestRegistryServer struct {
@@ -133,4 +138,8 @@ func (r *captureNameTestRegistryServer) Unregister(ctx context.Context, in *regi
 	r.name = in.Name
 
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
+}
+func (r *captureNameTestRegistryServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
+	r.name = query.NetworkServiceEndpoint.GetName()
+	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
 }

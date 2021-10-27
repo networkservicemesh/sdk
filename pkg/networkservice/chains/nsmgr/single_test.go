@@ -99,6 +99,8 @@ func Test_DNSUsecase(t *testing.T) {
 }
 
 func Test_ShouldCorrectlyAddForwardersWithSameNames(t *testing.T) {
+	t.Skip("TODO")
+
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)

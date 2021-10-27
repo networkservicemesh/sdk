@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
@@ -36,7 +37,6 @@ import (
 	registryconnect "github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -242,7 +242,7 @@ func (b *Builder) newRegistryProxy() *RegistryEntry {
 		)
 		serve(ctx, b.t, entry.URL, entry.Register)
 
-		log.FromContext(ctx).Debugf("%s: registry-proxy-dns on: %v", b.name, entry.URL)
+		logrus.Errorf("%s: registry-proxy-dns serve on: %v", b.name, entry.URL)
 	})
 
 	return entry
@@ -270,7 +270,7 @@ func (b *Builder) newRegistry() *RegistryEntry {
 		)
 		serve(ctx, b.t, entry.URL, entry.Register)
 
-		log.FromContext(ctx).Debugf("%s: registry on: %v", b.name, entry.URL)
+		logrus.Errorf("%s: registry serve on: %v", b.name, entry.URL)
 	})
 
 	return entry
@@ -300,7 +300,7 @@ func (b *Builder) newNSMgrProxy() *NSMgrEntry {
 		)
 		serve(ctx, b.t, entry.URL, entry.Register)
 
-		log.FromContext(ctx).Debugf("%s: NSMgr proxy %s on: %v", b.name, entry.Name, entry.URL)
+		logrus.Errorf("%s: NSMgr proxy %s serve on: %v", b.name, entry.Name, entry.URL)
 	})
 
 	return entry

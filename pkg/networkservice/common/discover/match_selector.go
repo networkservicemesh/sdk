@@ -64,7 +64,8 @@ func matchEndpoint(clockTime clock.Clock, nsLabels map[string]string, ns *regist
 		for _, destination := range match.GetRoutes() {
 			// Each NSE should be matched against that destination
 			for _, nse := range validNetworkServiceEndpoints {
-				if isSubset(nse.GetNetworkServiceLabels()[ns.Name].Labels, destination.GetDestinationSelector(), nsLabels) {
+				// TODO looks unhealthy
+				if nse.GetNetworkServiceLabels()[ns.Name] == nil || isSubset(nse.GetNetworkServiceLabels()[ns.Name].Labels, destination.GetDestinationSelector(), nsLabels) {
 					nseCandidates = append(nseCandidates, nse)
 				}
 			}
