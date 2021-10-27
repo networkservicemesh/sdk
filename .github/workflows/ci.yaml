@@ -33,7 +33,7 @@ jobs:
       - name: Build
         run: go build -race  ./...
       - name: Test
-        run: go test -run TestExpireNSEServer_RefreshKeepsNoUnregister -count 500 --race ./pkg/registry/common/expire
+        run: go test -run TestTimeoutServer_Request -count 500 --race ./pkg/networkservice/common/timeout
   golangci-lint:
     name: golangci-lint
     runs-on: ubuntu-latest
