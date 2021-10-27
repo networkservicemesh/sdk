@@ -33,7 +33,7 @@ jobs:
       - name: Build
         run: go build -race  ./...
       - name: Test
-        run: go test -race ./...
+        run: go test -run TestExpireNSEServer_RefreshKeepsNoUnregister -count 500 --race ./pkg/registry/common/expire
   golangci-lint:
     name: golangci-lint
     runs-on: ubuntu-latest
