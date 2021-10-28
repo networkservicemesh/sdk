@@ -18,6 +18,7 @@ package nsmgr_test
 
 import (
 	"context"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -34,6 +35,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
+
+func init()  {
+	log.EnableTracing(true)
+}
 
 func Test_DNSUsecase(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
