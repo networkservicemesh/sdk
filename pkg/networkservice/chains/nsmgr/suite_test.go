@@ -47,6 +47,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -84,12 +85,14 @@ func (s *nsmgrSuite) SetupSuite() {
 		Build()
 
 	s.nsRegistryClient = s.domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	log.EnableTracing(true)
 }
 
 func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
 	t := s.T()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10*5)
 	defer cancel()
 
 	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService())
@@ -141,7 +144,7 @@ func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
 func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 	t := s.T()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10*5)
 	defer cancel()
 
 	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService())
@@ -196,7 +199,7 @@ func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 	t := s.T()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10*5)
 	defer cancel()
 
 	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService())
@@ -266,7 +269,7 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 func (s *nsmgrSuite) Test_RemoteUsecase() {
 	t := s.T()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10*5)
 	defer cancel()
 
 	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService())
@@ -310,7 +313,7 @@ func (s *nsmgrSuite) Test_RemoteUsecase() {
 func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	t := s.T()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10*5)
 	defer cancel()
 
 	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService())
@@ -325,7 +328,7 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 
 	request := defaultRequest(nsReg.Name)
 
-	reqCtx, reqCancel := context.WithTimeout(ctx, time.Second)
+	reqCtx, reqCancel := context.WithTimeout(ctx, time.Second*30)
 	defer reqCancel()
 
 	conn, err := nsc.Request(reqCtx, request.Clone())
@@ -340,14 +343,14 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	refreshRequest := request.Clone()
 	refreshRequest.Connection = conn.Clone()
 
-	refreshCtx, refreshCancel := context.WithTimeout(ctx, time.Second)
+	refreshCtx, refreshCancel := context.WithTimeout(ctx, time.Second*50)
 	defer refreshCancel()
 	_, err = nsc.Request(refreshCtx, refreshRequest)
 	require.Error(t, err)
 	require.NoError(t, ctx.Err())
 
 	// Close
-	closeCtx, closeCancel := context.WithTimeout(ctx, time.Second)
+	closeCtx, closeCancel := context.WithTimeout(ctx, time.Second*50)
 	defer closeCancel()
 	_, _ = nsc.Close(closeCtx, conn)
 
@@ -359,7 +362,7 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 func (s *nsmgrSuite) Test_LocalUsecase() {
 	t := s.T()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10*5)
 	defer cancel()
 
 	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService())
@@ -403,7 +406,7 @@ func (s *nsmgrSuite) Test_LocalUsecase() {
 func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 	t := s.T()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10*20)
 	defer cancel()
 
 	counterClose := new(count.Server)
@@ -468,7 +471,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 	t := s.T()
 	const nsesCount = 7
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10*20)
 	defer cancel()
 
 	counterClose := new(count.Server)
@@ -531,7 +534,7 @@ func (s *nsmgrSuite) Test_PassThroughSameSourceSelector() {
 	t := s.T()
 	const nsesCount = 7
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10*5*2)
 	defer cancel()
 
 	counterClose := new(count.Server)
@@ -611,7 +614,7 @@ func (s *nsmgrSuite) Test_PassThroughSameSourceSelector() {
 func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
 	t := s.T()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10*5)
 	defer cancel()
 
 	counterClose := new(count.Server)
@@ -677,7 +680,7 @@ func (s *nsmgrSuite) Test_ShouldCleanAllClientAndEndpointGoroutines() {
 	t := s.T()
 	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10*5)
 	defer cancel()
 
 	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService())
