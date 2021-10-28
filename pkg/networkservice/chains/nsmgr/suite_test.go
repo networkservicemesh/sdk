@@ -19,34 +19,15 @@ package nsmgr_test
 
 import (
 	"context"
-	"fmt"
-	"net"
-	"net/url"
-	"strconv"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/goleak"
-	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanismtranslation"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/replacelabels"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
-	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -86,6 +67,7 @@ func (s *nsmgrSuite) SetupSuite() {
 	s.nsRegistryClient = s.domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 }
 
+/*
 func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
 	t := s.T()
 
@@ -672,7 +654,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
 		require.NoError(t, err)
 	}
 }
-
+*/
 func (s *nsmgrSuite) Test_ShouldCleanAllClientAndEndpointGoroutines() {
 	t := s.T()
 	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
@@ -691,12 +673,13 @@ func (s *nsmgrSuite) Test_ShouldCleanAllClientAndEndpointGoroutines() {
 	testNSEAndClient(ctx, t, s.domain, defaultRegistryEndpoint(nsReg.Name))
 }
 
-const (
-	step   = "step"
-	labelA = "label_a"
-	labelB = "label_b"
-)
+// const (
+// 	step   = "step"
+// 	labelA = "label_a"
+// 	labelB = "label_b"
+// )
 
+/*
 func linearNS(hopsCount int) *registry.NetworkService {
 	matches := make([]*registry.Match, 0)
 
@@ -834,3 +817,4 @@ func newPassThroughEndpoint(
 
 	return nseReg, node.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, additionalFunctionality...)
 }
+*/
