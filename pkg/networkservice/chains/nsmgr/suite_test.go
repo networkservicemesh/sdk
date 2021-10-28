@@ -19,6 +19,8 @@ package nsmgr_test
 
 import (
 	"context"
+	"fmt"
+	"net/url"
 	"testing"
 	"time"
 
@@ -26,8 +28,17 @@ import (
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/goleak"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanismtranslation"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/replacelabels"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -382,6 +393,7 @@ func (s *nsmgrSuite) Test_LocalUsecase() {
 	require.NoError(t, err)
 }
 
+*/
 func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 	t := s.T()
 
@@ -446,6 +458,7 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 	}
 }
 
+/*
 func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 	t := s.T()
 	const nsesCount = 7
@@ -654,7 +667,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
 		require.NoError(t, err)
 	}
 }
-*/
+
 func (s *nsmgrSuite) Test_ShouldCleanAllClientAndEndpointGoroutines() {
 	t := s.T()
 	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
@@ -673,13 +686,14 @@ func (s *nsmgrSuite) Test_ShouldCleanAllClientAndEndpointGoroutines() {
 	testNSEAndClient(ctx, t, s.domain, defaultRegistryEndpoint(nsReg.Name))
 }
 
-// const (
-// 	step   = "step"
-// 	labelA = "label_a"
-// 	labelB = "label_b"
-// )
+*/
 
-/*
+const (
+	step = "step"
+	// labelA = "label_a"
+	// labelB = "label_b"
+)
+
 func linearNS(hopsCount int) *registry.NetworkService {
 	matches := make([]*registry.Match, 0)
 
@@ -720,6 +734,7 @@ func linearNS(hopsCount int) *registry.NetworkService {
 	}
 }
 
+/*
 func multiLabelNS() *registry.NetworkService {
 	return &registry.NetworkService{
 		Name: "test-network-service",
@@ -766,6 +781,7 @@ func multiLabelNS() *registry.NetworkService {
 	}
 }
 
+*/
 func additionalFunctionalityChain(ctx context.Context, clientURL *url.URL, clientName string, labels map[string]string) []networkservice.NetworkServiceServer {
 	return []networkservice.NetworkServiceServer{
 		chain.NewNetworkServiceServer(
@@ -817,4 +833,3 @@ func newPassThroughEndpoint(
 
 	return nseReg, node.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, additionalFunctionality...)
 }
-*/

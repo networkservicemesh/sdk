@@ -33,7 +33,7 @@ jobs:
       - name: Build
         run: go build -race  ./...
       - name: Test
-        run: go test -run TestNsmgr -count 500 --race ./pkg/networkservice/chains/nsmgr
+        run: go test -run TestNsmgr -count 70 --race ./pkg/networkservice/chains/nsmgr
   golangci-lint:
     name: golangci-lint
     runs-on: ubuntu-latest
