@@ -76,14 +76,14 @@ func TestConnectNSEClient(t *testing.T) {
 	require.NoError(t, err)
 
 	// 5. Find only local NSE in memory
-	ch := make(chan *registry.NetworkServiceEndpoint, 2)
+	ch := make(chan *registry.NetworkServiceEndpointResponse, 2)
 	err = mem.Find(&registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
 	}, streamchannel.NewNetworkServiceEndpointFindServer(ctx, ch))
 	require.NoError(t, err)
 
 	require.Len(t, ch, 1)
-	require.Equal(t, "nse-local", (<-ch).Name)
+	require.Equal(t, "nse-local", (<-ch).NetworkServiceEndpoint.Name)
 }
 
 func TestConnectNSEClient_Restart(t *testing.T) {
@@ -124,7 +124,7 @@ func TestConnectNSEClient_Restart(t *testing.T) {
 	}, time.Second, 10*time.Millisecond)
 
 	// 4. Find both NSE-1, NSE-2 in memory
-	ch := make(chan *registry.NetworkServiceEndpoint, 2)
+	ch := make(chan *registry.NetworkServiceEndpointResponse, 2)
 	err = mem.Find(&registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
 	}, streamchannel.NewNetworkServiceEndpointFindServer(ctx, ch))
@@ -132,7 +132,7 @@ func TestConnectNSEClient_Restart(t *testing.T) {
 
 	var nseNames []string
 	for i := len(ch); i > 0; i-- {
-		nseNames = append(nseNames, (<-ch).Name)
+		nseNames = append(nseNames, (<-ch).NetworkServiceEndpoint.Name)
 	}
 	require.Len(t, nseNames, 2)
 	require.Subset(t, []string{"nse-1", "nse-2"}, nseNames)

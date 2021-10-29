@@ -26,7 +26,7 @@ import (
 )
 
 // NewNetworkServiceFindClient creates new NetworkServiceRegistry_FindClient
-func NewNetworkServiceFindClient(ctx context.Context, recvCh <-chan *registry.NetworkService) registry.NetworkServiceRegistry_FindClient {
+func NewNetworkServiceFindClient(ctx context.Context, recvCh <-chan *registry.NetworkServiceResponse) registry.NetworkServiceRegistry_FindClient {
 	return &networkServiceRegistryFindClient{
 		ctx:    ctx,
 		recvCh: recvCh,
@@ -36,16 +36,12 @@ func NewNetworkServiceFindClient(ctx context.Context, recvCh <-chan *registry.Ne
 type networkServiceRegistryFindClient struct {
 	grpc.ClientStream
 	err    error
-	recvCh <-chan *registry.NetworkService
+	recvCh <-chan *registry.NetworkServiceResponse
 	ctx    context.Context
 }
 
 func (c *networkServiceRegistryFindClient) Recv() (*registry.NetworkServiceResponse, error) {
-	nse, ok := <-c.recvCh
-
-	res := &registry.NetworkServiceResponse{
-		NetworkService: nse,
-	}
+	res, ok := <-c.recvCh
 
 	if !ok {
 		err := io.EOF
@@ -64,7 +60,7 @@ func (c *networkServiceRegistryFindClient) Context() context.Context {
 var _ registry.NetworkServiceRegistry_FindClient = &networkServiceRegistryFindClient{}
 
 // NewNetworkServiceFindServer creates new NetworkServiceRegistry_FindServer based on passed channel
-func NewNetworkServiceFindServer(ctx context.Context, sendCh chan<- *registry.NetworkService) registry.NetworkServiceRegistry_FindServer {
+func NewNetworkServiceFindServer(ctx context.Context, sendCh chan<- *registry.NetworkServiceResponse) registry.NetworkServiceRegistry_FindServer {
 	return &networkServiceRegistryFindServer{
 		ctx:    ctx,
 		sendCh: sendCh,
@@ -74,14 +70,14 @@ func NewNetworkServiceFindServer(ctx context.Context, sendCh chan<- *registry.Ne
 type networkServiceRegistryFindServer struct {
 	grpc.ServerStream
 	ctx    context.Context
-	sendCh chan<- *registry.NetworkService
+	sendCh chan<- *registry.NetworkServiceResponse
 }
 
 func (s *networkServiceRegistryFindServer) Send(nsr *registry.NetworkServiceResponse) error {
 	select {
 	case <-s.ctx.Done():
 		return s.ctx.Err()
-	case s.sendCh <- nsr.NetworkService:
+	case s.sendCh <- nsr:
 		return nil
 	}
 }

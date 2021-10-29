@@ -62,9 +62,9 @@ func (q *queryCacheNSEClient) Find(ctx context.Context, query *registry.NetworkS
 
 	nses := registry.ReadNetworkServiceEndpointList(client)
 
-	resultCh := make(chan *registry.NetworkServiceEndpoint, len(nses))
+	resultCh := make(chan *registry.NetworkServiceEndpointResponse, len(nses))
 	for _, nse := range nses {
-		resultCh <- nse
+		resultCh <- &registry.NetworkServiceEndpointResponse{NetworkServiceEndpoint: nse}
 		q.storeInCache(ctx, nse.Clone(), opts...)
 	}
 	close(resultCh)
@@ -78,8 +78,8 @@ func (q *queryCacheNSEClient) findInCache(ctx context.Context, key string) (regi
 		return nil, false
 	}
 
-	resultCh := make(chan *registry.NetworkServiceEndpoint, 1)
-	resultCh <- nse.Clone()
+	resultCh := make(chan *registry.NetworkServiceEndpointResponse, 1)
+	resultCh <- &registry.NetworkServiceEndpointResponse{NetworkServiceEndpoint: nse.Clone()}
 	close(resultCh)
 
 	return streamchannel.NewNetworkServiceEndpointFindClient(ctx, resultCh), true

@@ -40,9 +40,9 @@ func (t *echoNetworkServiceClient) Register(_ context.Context, in *registry.Netw
 }
 
 func (t *echoNetworkServiceClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, _ ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
-	ch := make(chan *registry.NetworkService)
+	ch := make(chan *registry.NetworkServiceResponse)
 	go func() {
-		ch <- in.NetworkService
+		ch <- &registry.NetworkServiceResponse{NetworkService: in.NetworkService}
 		close(ch)
 	}()
 	return streamchannel.NewNetworkServiceFindClient(ctx, ch), nil
@@ -107,11 +107,11 @@ func TestNetworkServiceClientToServer_Unregister(t *testing.T) {
 func TestNetworkServiceFind(t *testing.T) {
 	for i := 1; i < adaptCountPerTest; i++ {
 		server := adaptNetworkServiceClientToServerFewTimes(i, &echoNetworkServiceClient{})
-		ch := make(chan *registry.NetworkService, 1)
+		ch := make(chan *registry.NetworkServiceResponse, 1)
 		s := streamchannel.NewNetworkServiceFindServer(context.Background(), ch)
 		err := server.Find(&registry.NetworkServiceQuery{NetworkService: &registry.NetworkService{Name: "test"}}, s)
 		require.Nil(t, err)
-		require.Equal(t, "test", (<-ch).Name)
+		require.Equal(t, "test", (<-ch).NetworkService.Name)
 		close(ch)
 	}
 }

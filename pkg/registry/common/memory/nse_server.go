@@ -80,7 +80,6 @@ func (s *memoryNSEServer) Find(query *registry.NetworkServiceEndpointQuery, serv
 		for _, nse := range s.allMatches(query) {
 			nser := &registry.NetworkServiceEndpointResponse{
 				NetworkServiceEndpoint: nse,
-				Deleted:                nse.ExpirationTime != nil && nse.ExpirationTime.Seconds == -1,
 			}
 			if err := server.Send(nser); err != nil {
 				return err

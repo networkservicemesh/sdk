@@ -120,7 +120,7 @@ func nsFindClientToServer(client registry.NetworkServiceRegistry_FindClient, ser
 }
 
 func nsFindServerToClient(ctx context.Context, server registry.NetworkServiceRegistryServer, in *registry.NetworkServiceQuery) (registry.NetworkServiceRegistry_FindClient, error) {
-	ch := make(chan *registry.NetworkService, channelSize)
+	ch := make(chan *registry.NetworkServiceResponse, channelSize)
 	s := streamchannel.NewNetworkServiceFindServer(ctx, ch)
 	if in != nil && in.Watch {
 		go func() {

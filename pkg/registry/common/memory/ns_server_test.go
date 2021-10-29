@@ -56,7 +56,7 @@ func TestNetworkServiceRegistryServer_RegisterAndFind(t *testing.T) {
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	ch := make(chan *registry.NetworkService, 1)
+	ch := make(chan *registry.NetworkServiceResponse, 1)
 	defer close(ch)
 	_ = s.Find(&registry.NetworkServiceQuery{
 		NetworkService: &registry.NetworkService{
@@ -64,9 +64,12 @@ func TestNetworkServiceRegistryServer_RegisterAndFind(t *testing.T) {
 		},
 	}, streamchannel.NewNetworkServiceFindServer(ctx, ch))
 
-	expected := &registry.NetworkService{
-		Name: "a",
+	expected := &registry.NetworkServiceResponse{
+		NetworkService: &registry.NetworkService{
+			Name: "a",
+		},
 	}
+
 	require.True(t, proto.Equal(expected, <-ch))
 }
 
@@ -91,7 +94,7 @@ func TestNetworkServiceRegistryServer_RegisterAndFindWatch(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	ch := make(chan *registry.NetworkService, 1)
+	ch := make(chan *registry.NetworkServiceResponse, 1)
 	defer close(ch)
 	go func() {
 		_ = s.Find(&registry.NetworkServiceQuery{
@@ -102,15 +105,17 @@ func TestNetworkServiceRegistryServer_RegisterAndFindWatch(t *testing.T) {
 		}, streamchannel.NewNetworkServiceFindServer(ctx, ch))
 	}()
 
-	require.Equal(t, &registry.NetworkService{
-		Name: "a",
+	require.Equal(t, &registry.NetworkServiceResponse{
+		NetworkService: &registry.NetworkService{
+			Name: "a",
+		},
 	}, <-ch)
 
 	expected, err := s.Register(context.Background(), &registry.NetworkService{
 		Name: "a",
 	})
 	require.NoError(t, err)
-	require.True(t, proto.Equal(expected, <-ch))
+	require.True(t, proto.Equal(&registry.NetworkServiceResponse{NetworkService: expected}, <-ch))
 }
 
 func TestNetworkServiceRegistryServer_DataRace(t *testing.T) {
@@ -134,7 +139,7 @@ func TestNetworkServiceRegistryServer_DataRace(t *testing.T) {
 			findCtx, findCancel := context.WithCancel(ctx)
 			defer findCancel()
 
-			ch := make(chan *registry.NetworkService, 10)
+			ch := make(chan *registry.NetworkServiceResponse, 10)
 			go func() {
 				defer close(ch)
 				findErr := s.Find(&registry.NetworkServiceQuery{
@@ -144,16 +149,16 @@ func TestNetworkServiceRegistryServer_DataRace(t *testing.T) {
 				assert.NoError(t, findErr)
 			}()
 
-			_, receiveErr := receiveNS(findCtx, ch)
+			_, receiveErr := receiveNSR(findCtx, ch)
 			assert.NoError(t, receiveErr)
 
 			wgStart.Done()
 
 			for j := 0; j < 50; j++ {
-				nse, receiveErr := receiveNS(findCtx, ch)
+				nser, receiveErr := receiveNSR(findCtx, ch)
 				assert.NoError(t, receiveErr)
 
-				nse.Name = ""
+				nser.NetworkService.Name = ""
 			}
 		}()
 	}
@@ -177,7 +182,7 @@ func TestNetworkServiceRegistryServer_SlowReceiver(t *testing.T) {
 
 	findCtx, findCancel := context.WithCancel(ctx)
 
-	ch := make(chan *registry.NetworkService, 10)
+	ch := make(chan *registry.NetworkServiceResponse, 10)
 	go func() {
 		defer close(ch)
 		findErr := s.Find(&registry.NetworkServiceQuery{
@@ -194,7 +199,7 @@ func TestNetworkServiceRegistryServer_SlowReceiver(t *testing.T) {
 
 	ignoreCurrent := goleak.IgnoreCurrent()
 
-	_, err := receiveNS(findCtx, ch)
+	_, err := receiveNSR(findCtx, ch)
 	require.NoError(t, err)
 
 	findCancel()
@@ -228,7 +233,7 @@ func TestNetworkServiceRegistryServer_ShouldReceiveAllRegisters(t *testing.T) {
 			findCtx, findCancel := context.WithCancel(ctx)
 			defer findCancel()
 
-			ch := make(chan *registry.NetworkService, 10)
+			ch := make(chan *registry.NetworkServiceResponse, 10)
 			go func() {
 				defer close(ch)
 				err := s.Find(&registry.NetworkServiceQuery{
@@ -238,21 +243,21 @@ func TestNetworkServiceRegistryServer_ShouldReceiveAllRegisters(t *testing.T) {
 				assert.NoError(t, err)
 			}()
 
-			_, err := receiveNS(findCtx, ch)
+			_, err := receiveNSR(findCtx, ch)
 			assert.NoError(t, err)
 		}()
 	}
 	wgWait(ctx, t, &wg)
 }
 
-func receiveNS(ctx context.Context, ch <-chan *registry.NetworkService) (*registry.NetworkService, error) {
+func receiveNSR(ctx context.Context, ch <-chan *registry.NetworkServiceResponse) (*registry.NetworkServiceResponse, error) {
 	select {
 	case <-ctx.Done():
 		return nil, io.EOF
-	case ns, ok := <-ch:
+	case nsr, ok := <-ch:
 		if !ok {
 			return nil, io.EOF
 		}
-		return ns, nil
+		return nsr, nil
 	}
 }

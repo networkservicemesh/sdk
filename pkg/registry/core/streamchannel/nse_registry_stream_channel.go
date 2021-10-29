@@ -27,7 +27,7 @@ import (
 )
 
 // NewNetworkServiceEndpointFindClient creates NetworkServiceEndpointRegistry_FindClient based on passed channel
-func NewNetworkServiceEndpointFindClient(ctx context.Context, recvCh <-chan *registry.NetworkServiceEndpoint) registry.NetworkServiceEndpointRegistry_FindClient {
+func NewNetworkServiceEndpointFindClient(ctx context.Context, recvCh <-chan *registry.NetworkServiceEndpointResponse) registry.NetworkServiceEndpointRegistry_FindClient {
 	return &networkServiceEndpointRegistryFindClient{
 		ctx:    ctx,
 		recvCh: recvCh,
@@ -37,17 +37,12 @@ func NewNetworkServiceEndpointFindClient(ctx context.Context, recvCh <-chan *reg
 type networkServiceEndpointRegistryFindClient struct {
 	grpc.ClientStream
 	err    error
-	recvCh <-chan *registry.NetworkServiceEndpoint
+	recvCh <-chan *registry.NetworkServiceEndpointResponse
 	ctx    context.Context
 }
 
 func (c *networkServiceEndpointRegistryFindClient) Recv() (*registry.NetworkServiceEndpointResponse, error) {
-	nse, ok := <-c.recvCh
-
-	res := &registry.NetworkServiceEndpointResponse{
-		NetworkServiceEndpoint: nse,
-		Deleted:                nse != nil && nse.ExpirationTime != nil && nse.ExpirationTime.Seconds == -1,
-	}
+	res, ok := <-c.recvCh
 
 	if !ok {
 		err := io.EOF
@@ -66,7 +61,7 @@ func (c *networkServiceEndpointRegistryFindClient) Context() context.Context {
 var _ registry.NetworkServiceEndpointRegistry_FindClient = &networkServiceEndpointRegistryFindClient{}
 
 // NewNetworkServiceEndpointFindServer creates NetworkServiceEndpointRegistry_FindServer based on passed channel
-func NewNetworkServiceEndpointFindServer(ctx context.Context, sendCh chan<- *registry.NetworkServiceEndpoint) registry.NetworkServiceEndpointRegistry_FindServer {
+func NewNetworkServiceEndpointFindServer(ctx context.Context, sendCh chan<- *registry.NetworkServiceEndpointResponse) registry.NetworkServiceEndpointRegistry_FindServer {
 	return &networkServiceEndpointRegistryFindServer{
 		ctx:    ctx,
 		sendCh: sendCh,
@@ -76,14 +71,14 @@ func NewNetworkServiceEndpointFindServer(ctx context.Context, sendCh chan<- *reg
 type networkServiceEndpointRegistryFindServer struct {
 	grpc.ServerStream
 	ctx    context.Context
-	sendCh chan<- *registry.NetworkServiceEndpoint
+	sendCh chan<- *registry.NetworkServiceEndpointResponse
 }
 
 func (s *networkServiceEndpointRegistryFindServer) Send(nser *registry.NetworkServiceEndpointResponse) error {
 	select {
 	case <-s.ctx.Done():
 		return s.ctx.Err()
-	case s.sendCh <- nser.NetworkServiceEndpoint:
+	case s.sendCh <- nser:
 		return nil
 	}
 }

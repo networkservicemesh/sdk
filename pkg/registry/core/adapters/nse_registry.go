@@ -120,7 +120,7 @@ func nseFindClientToServer(client registry.NetworkServiceEndpointRegistry_FindCl
 }
 
 func nseFindServerToClient(ctx context.Context, server registry.NetworkServiceEndpointRegistryServer, in *registry.NetworkServiceEndpointQuery) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	ch := make(chan *registry.NetworkServiceEndpoint, channelSize)
+	ch := make(chan *registry.NetworkServiceEndpointResponse, channelSize)
 	s := streamchannel.NewNetworkServiceEndpointFindServer(ctx, ch)
 	if in != nil && in.Watch {
 		go func() {

@@ -120,20 +120,20 @@ func TestConnectNSEServer_AllUnregister(t *testing.T) {
 	_, err = s.Register(clienturlctx.WithClientURL(context.Background(), url2), &registry.NetworkServiceEndpoint{Name: "nse-1-1"})
 	require.NoError(t, err)
 
-	ch := make(chan *registry.NetworkServiceEndpoint, 1)
+	ch := make(chan *registry.NetworkServiceEndpointResponse, 1)
 	findSrv := streamchannel.NewNetworkServiceEndpointFindServer(clienturlctx.WithClientURL(ctx, url1), ch)
 	err = s.Find(&registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 		Name: "nse-1",
 	}}, findSrv)
 	require.NoError(t, err)
-	require.Equal(t, (<-ch).Name, "nse-1")
+	require.Equal(t, (<-ch).NetworkServiceEndpoint.Name, "nse-1")
 
 	findSrv = streamchannel.NewNetworkServiceEndpointFindServer(clienturlctx.WithClientURL(ctx, url2), ch)
 	err = s.Find(&registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 		Name: "nse-1",
 	}}, findSrv)
 	require.NoError(t, err)
-	require.Equal(t, (<-ch).Name, "nse-1-1")
+	require.Equal(t, (<-ch).NetworkServiceEndpoint.Name, "nse-1-1")
 
 	_, err = s.Unregister(clienturlctx.WithClientURL(ctx, url1), &registry.NetworkServiceEndpoint{Name: "nse-1"})
 	require.NoError(t, err)
@@ -175,7 +175,7 @@ func TestConnectNSEServer_AllDead_WatchingFind(t *testing.T) {
 	s := connect.NewNetworkServiceEndpointRegistryServer(ctx, connect.WithDialOptions(grpc.WithInsecure()))
 
 	go func() {
-		ch := make(chan *registry.NetworkServiceEndpoint, 1)
+		ch := make(chan *registry.NetworkServiceEndpointResponse, 1)
 		findSrv := streamchannel.NewNetworkServiceEndpointFindServer(clienturlctx.WithClientURL(ctx, url1), ch)
 		err := s.Find(&registry.NetworkServiceEndpointQuery{
 			NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
@@ -185,7 +185,7 @@ func TestConnectNSEServer_AllDead_WatchingFind(t *testing.T) {
 	}()
 
 	go func() {
-		ch := make(chan *registry.NetworkServiceEndpoint, 1)
+		ch := make(chan *registry.NetworkServiceEndpointResponse, 1)
 		findSrv := streamchannel.NewNetworkServiceEndpointFindServer(clienturlctx.WithClientURL(ctx, url2), ch)
 		err := s.Find(&registry.NetworkServiceEndpointQuery{
 			NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
