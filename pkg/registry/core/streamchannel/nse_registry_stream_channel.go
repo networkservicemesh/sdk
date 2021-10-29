@@ -46,7 +46,7 @@ func (c *networkServiceEndpointRegistryFindClient) Recv() (*registry.NetworkServ
 
 	res := &registry.NetworkServiceEndpointResponse{
 		NetworkServiceEndpoint: nse,
-		Deleted:                nse.ExpirationTime.Seconds == -1,
+		Deleted:                nse != nil && nse.ExpirationTime != nil && nse.ExpirationTime.Seconds == -1,
 	}
 
 	if !ok {

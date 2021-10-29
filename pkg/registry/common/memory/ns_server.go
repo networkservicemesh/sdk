@@ -78,7 +78,11 @@ func (s *memoryNSServer) sendEvent(event *registry.NetworkService) {
 func (s *memoryNSServer) Find(query *registry.NetworkServiceQuery, server registry.NetworkServiceRegistry_FindServer) error {
 	if !query.Watch {
 		for _, ns := range s.allMatches(query) {
-			if err := server.Send(ns); err != nil {
+			nsr := &registry.NetworkServiceResponse{
+				NetworkService: ns,
+			}
+
+			if err := server.Send(nsr); err != nil {
 				return err
 			}
 		}
@@ -142,7 +146,12 @@ func (s *memoryNSServer) receiveEvent(
 		return io.EOF
 	case event := <-eventCh:
 		if matchutils.MatchNetworkServices(query.NetworkService, event) {
-			if err := server.Send(event); err != nil {
+			nse := &registry.NetworkServiceResponse{
+				NetworkService: event,
+				Deleted:        false,
+			}
+
+			if err := server.Send(nse); err != nil {
 				if server.Context().Err() != nil {
 					return io.EOF
 				}

@@ -78,8 +78,12 @@ func (s *memoryNSEServer) sendEvent(event *registry.NetworkServiceEndpoint) {
 
 func (s *memoryNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
 	if !query.Watch {
-		for _, ns := range s.allMatches(query) {
-			if err := server.Send(ns); err != nil {
+		for _, nse := range s.allMatches(query) {
+			nser := &registry.NetworkServiceEndpointResponse{
+				NetworkServiceEndpoint: nse,
+				Deleted:                nse.ExpirationTime != nil && nse.ExpirationTime.Seconds == -1,
+			}
+			if err := server.Send(nser); err != nil {
 				return err
 			}
 		}
@@ -143,7 +147,11 @@ func (s *memoryNSEServer) receiveEvent(
 		return io.EOF
 	case event := <-eventCh:
 		if matchutils.MatchNetworkServiceEndpoints(query.NetworkServiceEndpoint, event) {
-			if err := server.Send(event); err != nil {
+			nser := &registry.NetworkServiceEndpointResponse{
+				NetworkServiceEndpoint: event,
+				Deleted:                event.ExpirationTime != nil && event.ExpirationTime.Seconds == -1,
+			}
+			if err := server.Send(nser); err != nil {
 				if server.Context().Err() != nil {
 					return io.EOF
 				}

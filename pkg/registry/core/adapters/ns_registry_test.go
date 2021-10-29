@@ -59,7 +59,10 @@ func (e echoNetworkServiceServer) Register(ctx context.Context, service *registr
 }
 
 func (e echoNetworkServiceServer) Find(query *registry.NetworkServiceQuery, server registry.NetworkServiceRegistry_FindServer) error {
-	return server.Send(query.NetworkService)
+	nsr := &registry.NetworkServiceResponse{
+		NetworkService: query.NetworkService,
+	}
+	return server.Send(nsr)
 }
 
 func (e echoNetworkServiceServer) Unregister(ctx context.Context, service *registry.NetworkService) (*empty.Empty, error) {
@@ -70,7 +73,7 @@ type ignoreNSFindServer struct {
 	grpc.ServerStream
 }
 
-func (*ignoreNSFindServer) Send(_ *registry.NetworkService) error {
+func (*ignoreNSFindServer) Send(_ *registry.NetworkServiceResponse) error {
 	return nil
 }
 

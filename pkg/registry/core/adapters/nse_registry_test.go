@@ -59,7 +59,11 @@ func (e echoNetworkServiceEndpointServer) Register(ctx context.Context, service 
 }
 
 func (e echoNetworkServiceEndpointServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
-	return server.Send(query.NetworkServiceEndpoint)
+	nser := &registry.NetworkServiceEndpointResponse{
+		NetworkServiceEndpoint: query.NetworkServiceEndpoint,
+		Deleted:                query.NetworkServiceEndpoint.ExpirationTime != nil && query.NetworkServiceEndpoint.ExpirationTime.Seconds == -1,
+	}
+	return server.Send(nser)
 }
 
 func (e echoNetworkServiceEndpointServer) Unregister(ctx context.Context, service *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
@@ -70,7 +74,7 @@ type ignoreNSEFindServer struct {
 	grpc.ServerStream
 }
 
-func (*ignoreNSEFindServer) Send(_ *registry.NetworkServiceEndpoint) error {
+func (*ignoreNSEFindServer) Send(_ *registry.NetworkServiceEndpointResponse) error {
 	return nil
 }
 
