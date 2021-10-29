@@ -59,9 +59,9 @@ func find(ctx context.Context, c registry.NetworkServiceEndpointRegistryClient) 
 		return nil, err
 	}
 
-	var nse *registry.NetworkServiceEndpoint
-	for nse, err = stream.Recv(); err == nil; nse, err = stream.Recv() {
-		nses = append(nses, nse)
+	var nser *registry.NetworkServiceEndpointResponse
+	for nser, err = stream.Recv(); err == nil; nser, err = stream.Recv() {
+		nses = append(nses, nser.NetworkServiceEndpoint)
 	}
 
 	if err != io.EOF {

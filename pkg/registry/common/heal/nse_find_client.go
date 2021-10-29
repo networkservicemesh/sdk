@@ -30,13 +30,13 @@ type healNSEFindClient struct {
 	registry.NetworkServiceEndpointRegistry_FindClient
 }
 
-func (c *healNSEFindClient) Recv() (*registry.NetworkServiceEndpoint, error) {
+func (c *healNSEFindClient) Recv() (*registry.NetworkServiceEndpointResponse, error) {
 	if c.err != nil {
 		return nil, c.err
 	}
 
-	nse, err := c.NetworkServiceEndpointRegistry_FindClient.Recv()
-	for ; err != nil; nse, err = c.NetworkServiceEndpointRegistry_FindClient.Recv() {
+	nser, err := c.NetworkServiceEndpointRegistry_FindClient.Recv()
+	for ; err != nil; nser, err = c.NetworkServiceEndpointRegistry_FindClient.Recv() {
 		c.NetworkServiceEndpointRegistry_FindClient, err = c.createStream()
 		for ; err != nil; c.NetworkServiceEndpointRegistry_FindClient, err = c.createStream() {
 			if c.ctx.Err() != nil {
@@ -51,5 +51,5 @@ func (c *healNSEFindClient) Recv() (*registry.NetworkServiceEndpoint, error) {
 		}
 	}
 
-	return nse, nil
+	return nser, nil
 }

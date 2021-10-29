@@ -30,13 +30,13 @@ type healNSFindClient struct {
 	registry.NetworkServiceRegistry_FindClient
 }
 
-func (c *healNSFindClient) Recv() (*registry.NetworkService, error) {
+func (c *healNSFindClient) Recv() (*registry.NetworkServiceResponse, error) {
 	if c.err != nil {
 		return nil, c.err
 	}
 
-	ns, err := c.NetworkServiceRegistry_FindClient.Recv()
-	for ; err != nil; ns, err = c.NetworkServiceRegistry_FindClient.Recv() {
+	nsr, err := c.NetworkServiceRegistry_FindClient.Recv()
+	for ; err != nil; nsr, err = c.NetworkServiceRegistry_FindClient.Recv() {
 		c.NetworkServiceRegistry_FindClient, err = c.createStream()
 		for ; err != nil; c.NetworkServiceRegistry_FindClient, err = c.createStream() {
 			if c.ctx.Err() != nil {
@@ -51,5 +51,5 @@ func (c *healNSFindClient) Recv() (*registry.NetworkService, error) {
 		}
 	}
 
-	return ns, nil
+	return nsr, nil
 }

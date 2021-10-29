@@ -39,8 +39,8 @@ type setNSELogOptionFindServer struct {
 	ctx context.Context
 }
 
-func (s *setNSELogOptionFindServer) Send(endpoint *registry.NetworkServiceEndpoint) error {
-	return s.NetworkServiceEndpointRegistry_FindServer.Send(endpoint)
+func (s *setNSELogOptionFindServer) Send(nser *registry.NetworkServiceEndpointResponse) error {
+	return s.NetworkServiceEndpointRegistry_FindServer.Send(nser)
 }
 
 func (s *setNSELogOptionFindServer) Context() context.Context {

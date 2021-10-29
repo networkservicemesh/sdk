@@ -39,7 +39,7 @@ type traceNetworkServiceRegistryFindClient struct {
 	registry.NetworkServiceRegistry_FindClient
 }
 
-func (t *traceNetworkServiceRegistryFindClient) Recv() (*registry.NetworkService, error) {
+func (t *traceNetworkServiceRegistryFindClient) Recv() (*registry.NetworkServiceResponse, error) {
 	operation := typeutils.GetFuncName(t.NetworkServiceRegistry_FindClient, "Recv")
 
 	ctx, finish := withLog(t.Context(), operation)
@@ -58,7 +58,7 @@ func (t *traceNetworkServiceRegistryFindClient) Recv() (*registry.NetworkService
 		}
 		return nil, logError(ctx, err, operation)
 	}
-	logObjectTrace(ctx, "recv-response", rv)
+	logObjectTrace(ctx, "recv-response", rv.NetworkService)
 	return rv, err
 }
 
@@ -193,17 +193,17 @@ type traceNetworkServiceRegistryFindServer struct {
 	registry.NetworkServiceRegistry_FindServer
 }
 
-func (t *traceNetworkServiceRegistryFindServer) Send(ns *registry.NetworkService) error {
+func (t *traceNetworkServiceRegistryFindServer) Send(nsr *registry.NetworkServiceResponse) error {
 	operation := typeutils.GetFuncName(t.NetworkServiceRegistry_FindServer, "Send")
 
 	ctx, finish := withLog(t.Context(), operation)
 	defer finish()
 
-	log.Fields(ctx)["id"] = ns.Name
+	log.Fields(ctx)["id"] = nsr.NetworkSerivce.Name
+	logObjectTrace(ctx, "network service", nsr.NetworkSerivce)
 
-	logObjectTrace(ctx, "network service", ns)
 	s := streamcontext.NetworkServiceRegistryFindServer(ctx, t.NetworkServiceRegistry_FindServer)
-	err := s.Send(ns)
+	err := s.Send(nsr)
 	if err != nil {
 		return logError(ctx, err, operation)
 	}

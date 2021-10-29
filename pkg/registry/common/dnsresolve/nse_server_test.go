@@ -146,7 +146,7 @@ func Test_DNSResolve_LookupNsmgrProxy(t *testing.T) {
 
 	r, err := resp.Recv()
 	require.NoError(t, err)
-	require.Equal(t, nsmgrProxyURL.String(), r.Url)
+	require.Equal(t, nsmgrProxyURL.String(), r.NetworkServiceEndpoint.Url)
 
 	_, err = s.Unregister(ctx, &registry.NetworkServiceEndpoint{Name: "nse-1@" + domain})
 	require.NoError(t, err)

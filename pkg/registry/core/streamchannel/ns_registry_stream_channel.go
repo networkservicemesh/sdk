@@ -40,8 +40,13 @@ type networkServiceRegistryFindClient struct {
 	ctx    context.Context
 }
 
-func (c *networkServiceRegistryFindClient) Recv() (*registry.NetworkService, error) {
-	res, ok := <-c.recvCh
+func (c *networkServiceRegistryFindClient) Recv() (*registry.NetworkServiceResponse, error) {
+	nse, ok := <-c.recvCh
+
+	res := &registry.NetworkServiceResponse{
+		NetworkService: nse,
+	}
+
 	if !ok {
 		err := io.EOF
 		if c.err == nil {
@@ -72,11 +77,11 @@ type networkServiceRegistryFindServer struct {
 	sendCh chan<- *registry.NetworkService
 }
 
-func (s *networkServiceRegistryFindServer) Send(ns *registry.NetworkService) error {
+func (s *networkServiceRegistryFindServer) Send(nsr *registry.NetworkServiceResponse) error {
 	select {
 	case <-s.ctx.Done():
 		return s.ctx.Err()
-	case s.sendCh <- ns:
+	case s.sendCh <- nsr.NetworkService:
 		return nil
 	}
 }

@@ -130,16 +130,16 @@ type dnsFindNSEServer struct {
 	registry.NetworkServiceEndpointRegistry_FindServer
 }
 
-func (s *dnsFindNSEServer) Send(nse *registry.NetworkServiceEndpoint) error {
-	translateNSE(nse, func(str string) string {
+func (s *dnsFindNSEServer) Send(nser *registry.NetworkServiceEndpointResponse) error {
+	translateNSE(nser.NetworkServiceEndpoint, func(str string) string {
 		return interdomain.Join(str, s.domain)
 	})
 
 	if s.nseURL != nil {
-		nse.Url = s.nseURL.String()
+		nser.NetworkServiceEndpoint.Url = s.nseURL.String()
 	}
 
-	return s.NetworkServiceEndpointRegistry_FindServer.Send(nse)
+	return s.NetworkServiceEndpointRegistry_FindServer.Send(nser)
 }
 
 func (d *dnsNSEResolveServer) Find(q *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {

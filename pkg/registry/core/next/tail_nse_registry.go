@@ -61,7 +61,7 @@ func (t *tailNetworkServiceEndpointRegistryFindClient) Context() context.Context
 	return t.ctx
 }
 
-func (t *tailNetworkServiceEndpointRegistryFindClient) Recv() (*registry.NetworkServiceEndpoint, error) {
+func (t *tailNetworkServiceEndpointRegistryFindClient) Recv() (*registry.NetworkServiceEndpointResponse, error) {
 	return nil, io.EOF
 }
 

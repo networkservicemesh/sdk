@@ -41,8 +41,14 @@ type networkServiceEndpointRegistryFindClient struct {
 	ctx    context.Context
 }
 
-func (c *networkServiceEndpointRegistryFindClient) Recv() (*registry.NetworkServiceEndpoint, error) {
-	res, ok := <-c.recvCh
+func (c *networkServiceEndpointRegistryFindClient) Recv() (*registry.NetworkServiceEndpointResponse, error) {
+	nse, ok := <-c.recvCh
+
+	res := &registry.NetworkServiceEndpointResponse{
+		NetworkServiceEndpoint: nse,
+		Deleted:                nse.ExpirationTime.Seconds == -1,
+	}
+
 	if !ok {
 		err := io.EOF
 		if c.err == nil {
@@ -73,11 +79,11 @@ type networkServiceEndpointRegistryFindServer struct {
 	sendCh chan<- *registry.NetworkServiceEndpoint
 }
 
-func (s *networkServiceEndpointRegistryFindServer) Send(endpoint *registry.NetworkServiceEndpoint) error {
+func (s *networkServiceEndpointRegistryFindServer) Send(nser *registry.NetworkServiceEndpointResponse) error {
 	select {
 	case <-s.ctx.Done():
 		return s.ctx.Err()
-	case s.sendCh <- endpoint:
+	case s.sendCh <- nser.NetworkServiceEndpoint:
 		return nil
 	}
 }

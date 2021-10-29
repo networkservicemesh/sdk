@@ -84,11 +84,11 @@ func Test_QueryCacheClient_ShouldCacheNSEs(t *testing.T) {
 	stream, err := c.Find(ctx, testNSEQuery(""))
 	require.NoError(t, err)
 
-	nse, err := stream.Recv()
+	nser, err := stream.Recv()
 	require.NoError(t, err)
 
-	require.Equal(t, name, nse.Name)
-	require.Equal(t, url1, nse.Url)
+	require.Equal(t, name, nser.NetworkServiceEndpoint.Name)
+	require.Equal(t, url1, nser.NetworkServiceEndpoint.Url)
 
 	// 2. Find from cache
 	atomic.StoreInt32(&failureClient.shouldFail, 1)
@@ -97,10 +97,10 @@ func Test_QueryCacheClient_ShouldCacheNSEs(t *testing.T) {
 		if stream, err = c.Find(ctx, testNSEQuery(name)); err != nil {
 			return false
 		}
-		if nse, err = stream.Recv(); err != nil {
+		if nser, err = stream.Recv(); err != nil {
 			return false
 		}
-		return name == nse.Name && url1 == nse.Url
+		return name == nser.NetworkServiceEndpoint.Name && url1 == nser.NetworkServiceEndpoint.Url
 	}, testWait, testTick)
 
 	// 3. Update NSE in memory
@@ -113,10 +113,10 @@ func Test_QueryCacheClient_ShouldCacheNSEs(t *testing.T) {
 		if stream, err = c.Find(ctx, testNSEQuery(name)); err != nil {
 			return false
 		}
-		if nse, err = stream.Recv(); err != nil {
+		if nser, err = stream.Recv(); err != nil {
 			return false
 		}
-		return name == nse.Name && url2 == nse.Url
+		return name == nser.NetworkServiceEndpoint.Name && url2 == nser.NetworkServiceEndpoint.Url
 	}, testWait, testTick)
 
 	// 4. Delete NSE from memory
