@@ -104,7 +104,6 @@ func Test_RetryClient_Request_ContextHasCorrectDeadline(t *testing.T) {
 			v, ok := c.Deadline()
 			require.True(t, ok)
 			require.Equal(t, expectedDeadline, v)
-
 		}),
 	), retry.WithSettings(retry.Settings{
 		TryTimeout: time.Hour,
@@ -132,7 +131,6 @@ func Test_RetryClient_Close_ContextHasCorrectDeadline(t *testing.T) {
 			v, ok := c.Deadline()
 			require.True(t, ok)
 			require.Equal(t, expectedDeadline, v)
-
 		}),
 	), retry.WithSettings(retry.Settings{
 		TryTimeout: time.Hour,
@@ -160,7 +158,6 @@ func Test_RetryClient_Close(t *testing.T) {
 			v, ok := c.Deadline()
 			require.True(t, ok)
 			require.Equal(t, expectedDeadline, v)
-
 		}),
 	), retry.WithSettings(retry.Settings{
 		TryTimeout: time.Hour,
