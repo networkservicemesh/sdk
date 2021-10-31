@@ -32,6 +32,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanismtranslation"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/retry"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
@@ -209,12 +210,12 @@ func (n *Node) NewClient(
 	generatorFunc token.GeneratorFunc,
 	additionalFunctionality ...networkservice.NetworkServiceClient,
 ) networkservice.NetworkServiceClient {
-	return client.NewClient(
+	return retry.NewClient(client.NewClient(
 		ctx,
 		client.WithClientURL(CloneURL(n.NSMgr.URL)),
 		client.WithDialOptions(DialOptions(WithTokenGenerator(generatorFunc))...),
 		client.WithAuthorizeClient(authorize.NewClient(authorize.Any())),
 		client.WithAdditionalFunctionality(additionalFunctionality...),
 		client.WithDialTimeout(DialTimeout),
-	)
+	))
 }

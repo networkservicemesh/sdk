@@ -21,7 +21,6 @@ package discover
 import (
 	"context"
 	"net/url"
-	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
@@ -50,8 +49,6 @@ func NewServer(nsClient registry.NetworkServiceRegistryClient, nseClient registr
 }
 
 func (d *discoverCandidatesServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	clockTime := clock.FromContext(ctx)
-
 	if clienturlctx.ClientURL(ctx) != nil {
 		return next.Server(ctx).Request(ctx, request)
 	}
@@ -79,31 +76,7 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 
 	request.GetConnection().Payload = ns.Payload
 
-	delay := defaultDiscoverDelay
-	for ctx.Err() == nil {
-		resp, err := next.Server(ctx).Request(WithCandidates(ctx, nses, ns), request.Clone())
-		if err == nil {
-			return resp, err
-		}
-		if ctx.Err() != nil {
-			break
-		}
-
-		if deadline, ok := ctx.Deadline(); ctx.Err() == nil && ok {
-			timeout := clockTime.Until(deadline) / 10
-			if delay > float64(timeout) {
-				delay = float64(timeout)
-			}
-		}
-		clockTime.Sleep(time.Duration(delay))
-		delay *= discoverDelayMultiplier
-
-		nses, err = d.discoverNetworkServiceEndpoints(ctx, ns, request.GetConnection().GetLabels())
-		if err != nil {
-			return nil, err
-		}
-	}
-	return nil, errors.Wrap(ctx.Err(), "no match endpoints or all endpoints fail")
+	return next.Server(ctx).Request(WithCandidates(ctx, nses, ns), request.Clone())
 }
 
 func (d *discoverCandidatesServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
@@ -134,8 +107,6 @@ func (d *discoverCandidatesServer) Close(ctx context.Context, conn *networkservi
 }
 
 func (d *discoverCandidatesServer) discoverNetworkServiceEndpoint(ctx context.Context, nseName string) (*registry.NetworkServiceEndpoint, error) {
-	clockTime := clock.FromContext(ctx)
-
 	query := &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 			Name: nseName,
@@ -154,32 +125,7 @@ func (d *discoverCandidatesServer) discoverNetworkServiceEndpoint(ctx context.Co
 		}
 	}
 
-	query.Watch = true
-
-	findTimeout := 100 * time.Millisecond
-	if deadline, ok := ctx.Deadline(); ok {
-		if ctxTimeout := clockTime.Until(deadline) / 10; ctxTimeout > findTimeout {
-			findTimeout = ctxTimeout
-		}
-	}
-
-	findCtx, cancelFind := clock.FromContext(ctx).WithTimeout(ctx, findTimeout)
-	defer cancelFind()
-
-	nseStream, err = d.nseClient.Find(findCtx, query)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-	for {
-		var nse *registry.NetworkServiceEndpoint
-		if nse, err = nseStream.Recv(); err != nil {
-			return nil, errors.WithStack(err)
-		}
-
-		if nse.Name == nseName {
-			return nse, nil
-		}
-	}
+	return nil, errors.Errorf("network service endpoint %v not found", nseName)
 }
 
 func (d *discoverCandidatesServer) discoverNetworkServiceEndpoints(ctx context.Context, ns *registry.NetworkService, labels map[string]string) ([]*registry.NetworkServiceEndpoint, error) {
@@ -202,26 +148,7 @@ func (d *discoverCandidatesServer) discoverNetworkServiceEndpoints(ctx context.C
 		return result, nil
 	}
 
-	query.Watch = true
-
-	ctx, cancelFind := context.WithCancel(ctx)
-	defer cancelFind()
-
-	nseStream, err = d.nseClient.Find(ctx, query)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-	for {
-		var nse *registry.NetworkServiceEndpoint
-		if nse, err = nseStream.Recv(); err != nil {
-			return nil, errors.WithStack(err)
-		}
-
-		result = matchEndpoint(clockTime, labels, ns, nse)
-		if len(result) != 0 {
-			return result, nil
-		}
-	}
+	return nil, errors.New("network service endpoint candidates not found")
 }
 
 func (d *discoverCandidatesServer) discoverNetworkService(ctx context.Context, name, payload string) (*registry.NetworkService, error) {
@@ -244,23 +171,5 @@ func (d *discoverCandidatesServer) discoverNetworkService(ctx context.Context, n
 		}
 	}
 
-	ctx, cancelFind := context.WithCancel(ctx)
-	defer cancelFind()
-
-	query.Watch = true
-
-	nsStream, err = d.nsClient.Find(ctx, query)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-	for {
-		var ns *registry.NetworkService
-		if ns, err = nsStream.Recv(); err != nil {
-			return nil, errors.WithStack(err)
-		}
-
-		if ns.Name == name {
-			return ns, nil
-		}
-	}
+	return nil, errors.Errorf("network service %v is not found", name)
 }
