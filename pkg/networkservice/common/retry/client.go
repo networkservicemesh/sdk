@@ -55,9 +55,9 @@ func WithSettings(s Settings) Option {
 func NewClient(client networkservice.NetworkServiceClient, opts ...Option) networkservice.NetworkServiceClient {
 	var result = &retryClient{
 		Settings: Settings{
-			Interval:   time.Millisecond * 100,
-			TryTimeout: time.Second,
-			Timeout:    (time.Second + time.Millisecond*100) * 15,
+			Interval:   time.Millisecond * 200,
+			TryTimeout: time.Second * 15,
+			Timeout:    (time.Second*15 + time.Millisecond*200) * 5,
 		},
 		client: client,
 	}
