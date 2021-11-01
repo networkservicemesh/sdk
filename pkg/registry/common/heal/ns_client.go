@@ -152,6 +152,7 @@ func (c *healNSClient) startMonitor(ctx context.Context, opts []grpc.CallOption)
 
 	findCtx, findCancel := context.WithCancel(c.ctx)
 	findCtx = extend.WithValuesFromContext(findCtx, ctx)
+	findCtx = log.WithFields(findCtx, map[string]interface{}{})
 
 	query := &registry.NetworkServiceQuery{
 		NetworkService: new(registry.NetworkService),
@@ -200,7 +201,7 @@ func (c *healNSClient) restore(opts []grpc.CallOption) {
 
 	c.nsInfos.Range(func(name string, info *nsInfo) bool {
 		go func() {
-			nsCtx, nsCancel := context.WithCancel(healCtx)
+			nsCtx, nsCancel := context.WithCancel(extend.WithValuesFromContext(healCtx, context.Background()))
 			defer nsCancel()
 
 			go func() {

@@ -38,7 +38,7 @@ import (
 func Test_DNSUsecase(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	domain := sandbox.NewBuilder(ctx, t).
@@ -101,7 +101,7 @@ func Test_DNSUsecase(t *testing.T) {
 func Test_ShouldCorrectlyAddForwardersWithSameNames(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	domain := sandbox.NewBuilder(ctx, t).
@@ -147,7 +147,7 @@ func Test_ShouldCorrectlyAddForwardersWithSameNames(t *testing.T) {
 func Test_ShouldCorrectlyAddEndpointsWithSameNames(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	domain := sandbox.NewBuilder(ctx, t).
@@ -192,7 +192,7 @@ func Test_ShouldCorrectlyAddEndpointsWithSameNames(t *testing.T) {
 func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	const (

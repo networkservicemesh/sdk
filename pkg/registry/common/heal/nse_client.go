@@ -152,6 +152,7 @@ func (c *healNSEClient) startMonitor(ctx context.Context, opts []grpc.CallOption
 
 	findCtx, findCancel := context.WithCancel(c.ctx)
 	findCtx = extend.WithValuesFromContext(findCtx, ctx)
+	findCtx = log.WithFields(findCtx, map[string]interface{}{})
 
 	query := &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
@@ -200,7 +201,7 @@ func (c *healNSEClient) restore(opts []grpc.CallOption) {
 
 	c.nseInfos.Range(func(name string, info *nseInfo) bool {
 		go func() {
-			nseCtx, nseCancel := context.WithCancel(healCtx)
+			nseCtx, nseCancel := context.WithCancel(extend.WithValuesFromContext(healCtx, context.Background()))
 			defer nseCancel()
 
 			go func() {

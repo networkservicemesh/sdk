@@ -38,7 +38,7 @@ import (
 func TestCreateEndpointDuringRequest(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 
 	defer cancel()
 	domain := sandbox.NewBuilder(ctx, t).

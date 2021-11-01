@@ -30,7 +30,7 @@ const (
 )
 
 var (
-		isTracingEnabled int32 = 0
+	isTracingEnabled int32 = 0
 )
 
 // Logger - unified interface for logging
@@ -97,9 +97,9 @@ func IsTracingEnabled() bool {
 // EnableTracing - enable/disable traces
 func EnableTracing(enable bool) {
 	if enable {
-		atomic.StoreInt32(&isTracingEnabled,1)
+		atomic.StoreInt32(&isTracingEnabled, 1)
 		return
 	}
 
-	atomic.StoreInt32(&isTracingEnabled,0)
+	atomic.StoreInt32(&isTracingEnabled, 0)
 }
