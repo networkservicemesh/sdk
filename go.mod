@@ -37,3 +37,5 @@ require (
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/yaml.v2 v2.2.2
 )
+
+replace github.com/networkservicemesh/api v1.0.1-0.20210907194827-9a36433d7d6e => github.com/NikitaSkrynnik/api v1.0.1-0.20211029120037-29df1c3fea57
