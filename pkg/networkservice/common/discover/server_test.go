@@ -33,7 +33,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
 	registryadapters "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	registrynext "github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
@@ -144,7 +143,6 @@ func testServers(
 	}
 
 	nseServer := registrynext.NewNetworkServiceEndpointRegistryServer(
-		registryadapters.NetworkServiceEndpointClientToServer(setid.NewNetworkServiceEndpointRegistryClient()),
 		memory.NewNetworkServiceEndpointRegistryServer(),
 	)
 	for i, nse := range nses {

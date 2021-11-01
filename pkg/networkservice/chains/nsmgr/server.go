@@ -43,7 +43,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/checkid"
 	registryclientinfo "github.com/networkservicemesh/sdk/pkg/registry/common/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 	registryconnect "github.com/networkservicemesh/sdk/pkg/registry/common/connect"
@@ -229,6 +228,20 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		nsRegistry,
 		nseRegistry,
 	)
+
+	nseChain := registrychain.NewNetworkServiceEndpointRegistryServer(
+		setlogoption.NewNetworkServiceEndpointRegistryServer(map[string]string{"name": opts.name}),
+		registryclientinfo.NewNetworkServiceEndpointRegistryServer(),
+		registryserialize.NewNetworkServiceEndpointRegistryServer(),
+		expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
+		registryrecvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
+		urlsRegistryServer,        // Store endpoints URLs
+		interposeRegistryServer,   // Store cross connect NSEs
+		localBypassRegistryServer, // Perform URL transformations
+		nseRegistry,               // Register NSE inside Remote registry
+	)
+
+	rv.Registry = registry.NewServer(nsChain, nseChain)
 
 	return rv
 }
