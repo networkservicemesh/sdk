@@ -48,7 +48,7 @@ func (t *traceNetworkServiceEndpointRegistryFindClient) Recv() (*registry.Networ
 	rv, err := s.Recv()
 
 	if rv != nil {
-		log.Fields(ctx)["id"] = rv.Name
+		log.Fields(ctx)["id"] = rv.NetworkServiceEndpoint.Name
 	}
 
 	if err != nil {

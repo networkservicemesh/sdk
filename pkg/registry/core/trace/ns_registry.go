@@ -49,7 +49,7 @@ func (t *traceNetworkServiceRegistryFindClient) Recv() (*registry.NetworkService
 	rv, err := s.Recv()
 
 	if rv != nil {
-		log.Fields(ctx)["id"] = rv.Name
+		log.Fields(ctx)["id"] = rv.NetworkService.Name
 	}
 
 	if err != nil {
@@ -199,8 +199,8 @@ func (t *traceNetworkServiceRegistryFindServer) Send(nsResp *registry.NetworkSer
 	ctx, finish := withLog(t.Context(), operation)
 	defer finish()
 
-	log.Fields(ctx)["id"] = nsResp.NetworkSerivce.Name
-	logObjectTrace(ctx, "network service", nsResp.NetworkSerivce)
+	log.Fields(ctx)["id"] = nsResp.NetworkService.Name
+	logObjectTrace(ctx, "network service", nsResp.NetworkService)
 
 	s := streamcontext.NetworkServiceRegistryFindServer(ctx, t.NetworkServiceRegistry_FindServer)
 	err := s.Send(nsResp)
