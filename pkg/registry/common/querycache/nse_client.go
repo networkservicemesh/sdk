@@ -120,7 +120,7 @@ func (q *queryCacheNSEClient) storeInCache(ctx context.Context, nse *registry.Ne
 				break
 			}
 
-			entry.Update(nseResp)
+			entry.Update(nseResp.NetworkServiceEndpoint)
 		}
 	}()
 }

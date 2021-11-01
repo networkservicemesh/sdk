@@ -293,8 +293,6 @@ func TestLocalBypassNSEServer_SlowRegistryFindWatch(t *testing.T) {
 		require.NoError(t, err)
 
 		require.True(t, nseResp.Deleted)
-		//require.NotNil(t, nseResp.NetworkServiceEndpoint.ExpirationTime)
-		//require.Equal(t, int64(-1), nseResp.NetworkServiceEndpoint.ExpirationTime.Seconds)
 	}()
 
 	// 2. Register
