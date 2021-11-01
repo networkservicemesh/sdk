@@ -148,7 +148,6 @@ func (s *memoryNSServer) receiveEvent(
 		if matchutils.MatchNetworkServices(query.NetworkService, event) {
 			nse := &registry.NetworkServiceResponse{
 				NetworkService: event,
-				Deleted:        false,
 			}
 
 			if err := server.Send(nse); err != nil {

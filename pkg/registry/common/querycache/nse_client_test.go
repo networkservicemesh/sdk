@@ -60,6 +60,9 @@ func Test_QueryCacheClient_ShouldCacheNSEs(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	//log.EnableTracing(true)
+
+	//ctx = log.WithLog(ctx, logruslogger.New(ctx))
 	mem := memory.NewNetworkServiceEndpointRegistryServer()
 
 	failureClient := new(failureNSEClient)
