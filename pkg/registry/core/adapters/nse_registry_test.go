@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai, Inc.
+// Copyright (c) 2020-2021 Doc.ai, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //

@@ -26,7 +26,6 @@ type localBypassNSEFindServer struct {
 }
 
 func (s *localBypassNSEFindServer) Send(nseResp *registry.NetworkServiceEndpointResponse) error {
-
 	if u, ok := s.nseURLs.Load(nseResp.NetworkServiceEndpoint.Name); ok {
 		nseResp.NetworkServiceEndpoint.Url = u.String()
 	}
