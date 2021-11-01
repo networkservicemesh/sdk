@@ -31,7 +31,7 @@ func (s *localBypassNSEFindServer) Send(nseResp *registry.NetworkServiceEndpoint
 		nseResp.NetworkServiceEndpoint.Url = u.String()
 	}
 
-	if nseResp.NetworkServiceEndpoint.Url != s.nsmgrURL || nseResp.Deleted {
+	if nseResp.NetworkServiceEndpoint.Url != s.nsmgrURL || nseResp.NetworkServiceEndpoint.ExpirationTime != nil && nseResp.Deleted {
 		return s.NetworkServiceEndpointRegistry_FindServer.Send(nseResp)
 	}
 
