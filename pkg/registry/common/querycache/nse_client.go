@@ -112,15 +112,15 @@ func (q *queryCacheNSEClient) storeInCache(ctx context.Context, nse *registry.Ne
 			return
 		}
 
-		for nser, err := stream.Recv(); err == nil; nser, err = stream.Recv() {
-			if nser.NetworkServiceEndpoint.Name != nseQuery.NetworkServiceEndpoint.Name {
+		for nseResp, err := stream.Recv(); err == nil; nseResp, err = stream.Recv() {
+			if nseResp.NetworkServiceEndpoint.Name != nseQuery.NetworkServiceEndpoint.Name {
 				continue
 			}
-			if nser.Deleted {
+			if nseResp.Deleted {
 				break
 			}
 
-			entry.Update(nser)
+			entry.Update(nseResp)
 		}
 	}()
 }

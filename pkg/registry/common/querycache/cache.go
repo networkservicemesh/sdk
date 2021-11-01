@@ -107,11 +107,11 @@ type cacheEntry struct {
 	cleanup        func()
 }
 
-func (e *cacheEntry) Update(nser *registry.NetworkServiceEndpointResponse) {
+func (e *cacheEntry) Update(nseResp *registry.NetworkServiceEndpointResponse) {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 
-	e.nse = nser.NetworkServiceEndpoint
+	e.nse = nseResp.NetworkServiceEndpoint
 }
 
 func (e *cacheEntry) Cleanup() {

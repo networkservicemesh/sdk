@@ -59,10 +59,10 @@ func (e echoNetworkServiceEndpointServer) Register(ctx context.Context, service 
 }
 
 func (e echoNetworkServiceEndpointServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
-	nser := &registry.NetworkServiceEndpointResponse{
+	nseResp := &registry.NetworkServiceEndpointResponse{
 		NetworkServiceEndpoint: query.NetworkServiceEndpoint,
 	}
-	return server.Send(nser)
+	return server.Send(nseResp)
 }
 
 func (e echoNetworkServiceEndpointServer) Unregister(ctx context.Context, service *registry.NetworkServiceEndpoint) (*empty.Empty, error) {

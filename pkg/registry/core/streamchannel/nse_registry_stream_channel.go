@@ -74,11 +74,11 @@ type networkServiceEndpointRegistryFindServer struct {
 	sendCh chan<- *registry.NetworkServiceEndpointResponse
 }
 
-func (s *networkServiceEndpointRegistryFindServer) Send(nser *registry.NetworkServiceEndpointResponse) error {
+func (s *networkServiceEndpointRegistryFindServer) Send(nseResp *registry.NetworkServiceEndpointResponse) error {
 	select {
 	case <-s.ctx.Done():
 		return s.ctx.Err()
-	case s.sendCh <- nser:
+	case s.sendCh <- nseResp:
 		return nil
 	}
 }

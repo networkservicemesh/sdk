@@ -36,9 +36,9 @@ type swapIPFindNSEServer struct {
 	ctx context.Context
 }
 
-func (s *swapIPFindNSEServer) Send(nser *registry.NetworkServiceEndpointResponse) error {
-	trySwapIP(s.ctx, nser.NetworkServiceEndpoint, s.m)
-	return s.NetworkServiceEndpointRegistry_FindServer.Send(nser)
+func (s *swapIPFindNSEServer) Send(nseResp *registry.NetworkServiceEndpointResponse) error {
+	trySwapIP(s.ctx, nseResp.NetworkServiceEndpoint, s.m)
+	return s.NetworkServiceEndpointRegistry_FindServer.Send(nseResp)
 }
 
 type swapIPNSEServer struct {

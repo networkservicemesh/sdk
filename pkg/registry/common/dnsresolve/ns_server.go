@@ -74,9 +74,9 @@ type dnsFindNSServer struct {
 	registry.NetworkServiceRegistry_FindServer
 }
 
-func (s *dnsFindNSServer) Send(nser *registry.NetworkServiceResponse) error {
-	nser.NetworkService.Name = interdomain.Join(nser.NetworkService.Name, s.domain)
-	return s.NetworkServiceRegistry_FindServer.Send(nser)
+func (s *dnsFindNSServer) Send(nseResp *registry.NetworkServiceResponse) error {
+	nseResp.NetworkService.Name = interdomain.Join(nseResp.NetworkService.Name, s.domain)
+	return s.NetworkServiceRegistry_FindServer.Send(nseResp)
 }
 
 func (d *dnsNSResolveServer) Find(q *registry.NetworkServiceQuery, s registry.NetworkServiceRegistry_FindServer) error {

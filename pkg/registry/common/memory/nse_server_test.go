@@ -356,12 +356,12 @@ func TestNetworkServiceEndpointRegistryServer_ShouldReceiveAllUnregisters(t *tes
 			var err error
 			exists := false
 			for err == nil {
-				var nser *registry.NetworkServiceEndpointResponse
-				nser, err = receiveNSER(findCtx, ch)
+				var nseResp *registry.NetworkServiceEndpointResponse
+				nseResp, err = receiveNSER(findCtx, ch)
 				switch {
 				case err != nil:
 					assert.Equal(t, io.EOF, err)
-				case nser.Deleted:
+				case nseResp.Deleted:
 					return
 				default:
 					exists = true
@@ -436,10 +436,10 @@ func receiveNSER(ctx context.Context, ch <-chan *registry.NetworkServiceEndpoint
 	select {
 	case <-ctx.Done():
 		return nil, io.EOF
-	case nser, ok := <-ch:
+	case nseResp, ok := <-ch:
 		if !ok {
 			return nil, io.EOF
 		}
-		return nser, nil
+		return nseResp, nil
 	}
 }

@@ -38,8 +38,8 @@ type setLogOptionFindServer struct {
 	ctx context.Context
 }
 
-func (s *setLogOptionFindServer) Send(nsr *registry.NetworkServiceResponse) error {
-	return s.NetworkServiceRegistry_FindServer.Send(nsr)
+func (s *setLogOptionFindServer) Send(nsResp *registry.NetworkServiceResponse) error {
+	return s.NetworkServiceRegistry_FindServer.Send(nsResp)
 }
 
 func (s *setLogOptionFindServer) Context() context.Context {

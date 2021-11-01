@@ -194,16 +194,16 @@ type traceNetworkServiceEndpointRegistryFindServer struct {
 	registry.NetworkServiceEndpointRegistry_FindServer
 }
 
-func (t *traceNetworkServiceEndpointRegistryFindServer) Send(nser *registry.NetworkServiceEndpointResponse) error {
+func (t *traceNetworkServiceEndpointRegistryFindServer) Send(nseResp *registry.NetworkServiceEndpointResponse) error {
 	operation := typeutils.GetFuncName(t.NetworkServiceEndpointRegistry_FindServer, "Send")
 
 	ctx, finish := withLog(t.Context(), operation)
 	defer finish()
 
-	log.Fields(ctx)["id"] = nser.NetworkServiceEndpoint.Name
-	logObjectTrace(ctx, "network service endpoint", nser.NetworkServiceEndpoint)
+	log.Fields(ctx)["id"] = nseResp.NetworkServiceEndpoint.Name
+	logObjectTrace(ctx, "network service endpoint", nseResp.NetworkServiceEndpoint)
 	s := streamcontext.NetworkServiceEndpointRegistryFindServer(ctx, t.NetworkServiceEndpointRegistry_FindServer)
-	err := s.Send(nser)
+	err := s.Send(nseResp)
 	if err != nil {
 		return logError(ctx, err, operation)
 	}

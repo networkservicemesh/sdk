@@ -155,10 +155,10 @@ func TestNetworkServiceRegistryServer_DataRace(t *testing.T) {
 			wgStart.Done()
 
 			for j := 0; j < 50; j++ {
-				nser, receiveErr := receiveNSR(findCtx, ch)
+				nseResp, receiveErr := receiveNSR(findCtx, ch)
 				assert.NoError(t, receiveErr)
 
-				nser.NetworkService.Name = ""
+				nseResp.NetworkService.Name = ""
 			}
 		}()
 	}
@@ -254,10 +254,10 @@ func receiveNSR(ctx context.Context, ch <-chan *registry.NetworkServiceResponse)
 	select {
 	case <-ctx.Done():
 		return nil, io.EOF
-	case nsr, ok := <-ch:
+	case nsResp, ok := <-ch:
 		if !ok {
 			return nil, io.EOF
 		}
-		return nsr, nil
+		return nsResp, nil
 	}
 }

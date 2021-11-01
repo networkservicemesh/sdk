@@ -184,8 +184,8 @@ func find(t *testing.T, mem registry.NetworkServiceEndpointRegistryServer, query
 		require.NoError(t, mem.Find(query, streamchannel.NewNetworkServiceEndpointFindServer(ctx, ch)))
 	}()
 
-	for nser := range ch {
-		nses = append(nses, nser.NetworkServiceEndpoint)
+	for nseResp := range ch {
+		nses = append(nses, nseResp.NetworkServiceEndpoint)
 	}
 
 	return nses

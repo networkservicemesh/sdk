@@ -57,11 +57,11 @@ func NewNetworkServiceEndpointRegistryServer(m *stringurl.Map) registry.NetworkS
 	return &storeurl{m: m}
 }
 
-func (s *urlstockFindServer) Send(nser *registry.NetworkServiceEndpointResponse) error {
-	u, err := url.Parse(nser.NetworkServiceEndpoint.Url)
+func (s *urlstockFindServer) Send(nseResp *registry.NetworkServiceEndpointResponse) error {
+	u, err := url.Parse(nseResp.NetworkServiceEndpoint.Url)
 	if err != nil {
 		return err
 	}
-	s.m.Store(nser.NetworkServiceEndpoint.Name, u)
-	return s.NetworkServiceEndpointRegistry_FindServer.Send(nser)
+	s.m.Store(nseResp.NetworkServiceEndpoint.Name, u)
+	return s.NetworkServiceEndpointRegistry_FindServer.Send(nseResp)
 }

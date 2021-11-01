@@ -25,14 +25,14 @@ type localBypassNSEFindServer struct {
 	registry.NetworkServiceEndpointRegistry_FindServer
 }
 
-func (s *localBypassNSEFindServer) Send(nser *registry.NetworkServiceEndpointResponse) error {
+func (s *localBypassNSEFindServer) Send(nseResp *registry.NetworkServiceEndpointResponse) error {
 
-	if u, ok := s.nseURLs.Load(nser.NetworkServiceEndpoint.Name); ok {
-		nser.NetworkServiceEndpoint.Url = u.String()
+	if u, ok := s.nseURLs.Load(nseResp.NetworkServiceEndpoint.Name); ok {
+		nseResp.NetworkServiceEndpoint.Url = u.String()
 	}
 
-	if nser.NetworkServiceEndpoint.Url != s.nsmgrURL || nser.Deleted {
-		return s.NetworkServiceEndpointRegistry_FindServer.Send(nser)
+	if nseResp.NetworkServiceEndpoint.Url != s.nsmgrURL || nseResp.Deleted {
+		return s.NetworkServiceEndpointRegistry_FindServer.Send(nseResp)
 	}
 
 	return nil

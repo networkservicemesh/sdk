@@ -78,10 +78,10 @@ func (s *memoryNSEServer) sendEvent(event *registry.NetworkServiceEndpointRespon
 func (s *memoryNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
 	if !query.Watch {
 		for _, nse := range s.allMatches(query) {
-			nser := &registry.NetworkServiceEndpointResponse{
+			nseResp := &registry.NetworkServiceEndpointResponse{
 				NetworkServiceEndpoint: nse,
 			}
-			if err := server.Send(nser); err != nil {
+			if err := server.Send(nseResp); err != nil {
 				return err
 			}
 		}

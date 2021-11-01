@@ -95,13 +95,13 @@ func TestHealClient_FindTest(t *testing.T) {
 	require.NoError(t, err)
 
 	// 4. Validate NS, NSE streams working
-	nsr, err := nsStream.Recv()
+	nsResp, err := nsStream.Recv()
 	require.NoError(t, err)
-	require.Equal(t, "ns", nsr.NetworkService.Name)
+	require.Equal(t, "ns", nsResp.NetworkService.Name)
 
-	nser, err := nseStream.Recv()
+	nseResp, err := nseStream.Recv()
 	require.NoError(t, err)
-	require.Equal(t, "nse", nser.NetworkServiceEndpoint.Name)
+	require.Equal(t, "nse", nseResp.NetworkServiceEndpoint.Name)
 
 	// 5. Close NS, NSE streams
 	findCancel()

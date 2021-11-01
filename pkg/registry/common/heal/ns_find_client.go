@@ -35,8 +35,8 @@ func (c *healNSFindClient) Recv() (*registry.NetworkServiceResponse, error) {
 		return nil, c.err
 	}
 
-	nsr, err := c.NetworkServiceRegistry_FindClient.Recv()
-	for ; err != nil; nsr, err = c.NetworkServiceRegistry_FindClient.Recv() {
+	nsResp, err := c.NetworkServiceRegistry_FindClient.Recv()
+	for ; err != nil; nsResp, err = c.NetworkServiceRegistry_FindClient.Recv() {
 		c.NetworkServiceRegistry_FindClient, err = c.createStream()
 		for ; err != nil; c.NetworkServiceRegistry_FindClient, err = c.createStream() {
 			if c.ctx.Err() != nil {
@@ -51,5 +51,5 @@ func (c *healNSFindClient) Recv() (*registry.NetworkServiceResponse, error) {
 		}
 	}
 
-	return nsr, nil
+	return nsResp, nil
 }
