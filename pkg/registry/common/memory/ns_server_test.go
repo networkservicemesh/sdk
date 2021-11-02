@@ -149,13 +149,13 @@ func TestNetworkServiceRegistryServer_DataRace(t *testing.T) {
 				assert.NoError(t, findErr)
 			}()
 
-			_, receiveErr := receiveNSR(findCtx, ch)
+			_, receiveErr := readNSResponse(findCtx, ch)
 			assert.NoError(t, receiveErr)
 
 			wgStart.Done()
 
 			for j := 0; j < 50; j++ {
-				nseResp, receiveErr := receiveNSR(findCtx, ch)
+				nseResp, receiveErr := readNSResponse(findCtx, ch)
 				assert.NoError(t, receiveErr)
 
 				nseResp.NetworkService.Name = ""
@@ -199,7 +199,7 @@ func TestNetworkServiceRegistryServer_SlowReceiver(t *testing.T) {
 
 	ignoreCurrent := goleak.IgnoreCurrent()
 
-	_, err := receiveNSR(findCtx, ch)
+	_, err := readNSResponse(findCtx, ch)
 	require.NoError(t, err)
 
 	findCancel()
@@ -243,14 +243,14 @@ func TestNetworkServiceRegistryServer_ShouldReceiveAllRegisters(t *testing.T) {
 				assert.NoError(t, err)
 			}()
 
-			_, err := receiveNSR(findCtx, ch)
+			_, err := readNSResponse(findCtx, ch)
 			assert.NoError(t, err)
 		}()
 	}
 	wgWait(ctx, t, &wg)
 }
 
-func receiveNSR(ctx context.Context, ch <-chan *registry.NetworkServiceResponse) (*registry.NetworkServiceResponse, error) {
+func readNSResponse(ctx context.Context, ch <-chan *registry.NetworkServiceResponse) (*registry.NetworkServiceResponse, error) {
 	select {
 	case <-ctx.Done():
 		return nil, io.EOF
