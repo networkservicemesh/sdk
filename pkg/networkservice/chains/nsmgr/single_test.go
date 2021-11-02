@@ -98,53 +98,6 @@ func Test_DNSUsecase(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func Test_ShouldCorrectlyAddForwardersWithSameNames(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-
-	domain := sandbox.NewBuilder(ctx, t).
-		SetNodesCount(1).
-		SetRegistryProxySupplier(nil).
-		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, _ int) {
-			node.NewNSMgr(ctx, "nsmgr", nil, sandbox.GenerateTestToken, nsmgr.NewServer)
-		}).
-		SetRegistryExpiryDuration(sandbox.RegistryExpiryDuration).
-		Build()
-
-	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
-
-	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService())
-	require.NoError(t, err)
-
-	forwarderReg := &registry.NetworkServiceEndpoint{
-		Name:                "forwarder",
-		NetworkServiceNames: []string{"forwarder"},
-	}
-
-	// 1. Add forwarders
-	var forwarderRegs [3]*registry.NetworkServiceEndpoint
-	var forwarders [3]*sandbox.EndpointEntry
-	for i := range forwarderRegs {
-		forwarderRegs[i] = forwarderReg.Clone()
-		forwarders[i] = domain.Nodes[0].NewForwarder(ctx, forwarderRegs[i], sandbox.GenerateTestToken)
-	}
-
-	// 2. Wait for refresh
-	<-time.After(sandbox.RegistryExpiryDuration)
-
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
-
-	// 3. Delete first forwarder, last forwarder, middle forwarder
-	for _, i := range []int{0, 2, 1} {
-		testNSEAndClient(ctx, t, domain, nseReg.Clone())
-
-		_, err = forwarders[i].Unregister(ctx, forwarderRegs[i])
-		require.NoError(t, err)
-	}
-}
-
 func Test_ShouldCorrectlyAddEndpointsWithSameNames(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 

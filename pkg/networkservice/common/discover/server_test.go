@@ -46,6 +46,7 @@ func endpoints() []*registry.NetworkServiceEndpoint {
 	ns := networkServiceName()
 	return []*registry.NetworkServiceEndpoint{
 		{
+			Name:                "nse-1",
 			NetworkServiceNames: []string{ns},
 			NetworkServiceLabels: labels(ns,
 				map[string]string{
@@ -54,6 +55,7 @@ func endpoints() []*registry.NetworkServiceEndpoint {
 			),
 		},
 		{
+			Name:                "nse-2",
 			NetworkServiceNames: []string{ns},
 			NetworkServiceLabels: labels(ns,
 				map[string]string{
@@ -62,6 +64,7 @@ func endpoints() []*registry.NetworkServiceEndpoint {
 			),
 		},
 		{
+			Name:                "nse-3",
 			NetworkServiceNames: []string{ns},
 			NetworkServiceLabels: labels(ns,
 				map[string]string{
