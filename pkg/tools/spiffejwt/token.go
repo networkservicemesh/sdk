@@ -19,7 +19,7 @@ package spiffejwt
 import (
 	"time"
 
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/pkg/errors"
 	"github.com/spiffe/go-spiffe/v2/svid/x509svid"
 	"google.golang.org/grpc/credentials"

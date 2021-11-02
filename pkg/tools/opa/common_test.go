@@ -28,7 +28,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc/credentials"
 
