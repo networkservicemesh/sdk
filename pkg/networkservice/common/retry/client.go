@@ -29,37 +29,35 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-// Settings represents retry policy settings.
-type Settings struct {
-	Timeout    time.Duration
-	Interval   time.Duration
-	TryTimeout time.Duration
-}
-
 type retryClient struct {
-	Settings
-	client networkservice.NetworkServiceClient
+	interval   time.Duration
+	tryTimeout time.Duration
+	client     networkservice.NetworkServiceClient
 }
 
 // Option configuress retry.Client instance.
 type Option func(*retryClient)
 
-// WithSettings sets retry policy settings for the retry.Client instance.
-func WithSettings(s Settings) Option {
+// WithTryTimeout sets timeout for the request and close operations try.
+func WithTryTimeout(tryTimeout time.Duration) Option {
 	return func(rc *retryClient) {
-		rc.Settings = s
+		rc.tryTimeout = tryTimeout
+	}
+}
+
+// WithInterval sets delay interval before next try.
+func WithInterval(interval time.Duration) Option {
+	return func(rc *retryClient) {
+		rc.interval = interval
 	}
 }
 
 // NewClient - returns a connect chain element
 func NewClient(client networkservice.NetworkServiceClient, opts ...Option) networkservice.NetworkServiceClient {
 	var result = &retryClient{
-		Settings: Settings{
-			Interval:   time.Millisecond * 200,
-			TryTimeout: time.Second * 15,
-			Timeout:    (time.Second*15 + time.Millisecond*200) * 5,
-		},
-		client: client,
+		interval:   time.Millisecond * 200,
+		tryTimeout: time.Second * 15,
+		client:     client,
 	}
 
 	for _, opt := range opts {
@@ -73,14 +71,8 @@ func (r *retryClient) Request(ctx context.Context, request *networkservice.Netwo
 	logger := log.FromContext(ctx).WithField("retryClient", "Request")
 	c := clock.FromContext(ctx)
 
-	if r.Timeout > 0 {
-		var cancel func()
-		ctx, cancel = c.WithTimeout(ctx, r.Timeout)
-		defer cancel()
-	}
-
 	for ctx.Err() == nil {
-		requestCtx, cancel := c.WithTimeout(ctx, r.TryTimeout)
+		requestCtx, cancel := c.WithTimeout(ctx, r.tryTimeout)
 		resp, err := r.client.Request(requestCtx, request, opts...)
 		cancel()
 
@@ -90,7 +82,7 @@ func (r *retryClient) Request(ctx context.Context, request *networkservice.Netwo
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()
-			case <-c.After(r.Interval):
+			case <-c.After(r.interval):
 				continue
 			}
 		}
@@ -105,14 +97,8 @@ func (r *retryClient) Close(ctx context.Context, conn *networkservice.Connection
 	logger := log.FromContext(ctx).WithField("retryClient", "Close")
 	c := clock.FromContext(ctx)
 
-	if r.Timeout > 0 {
-		var cancel func()
-		ctx, cancel = c.WithTimeout(ctx, r.Timeout)
-		defer cancel()
-	}
-
 	for ctx.Err() == nil {
-		closeCtx, cancel := c.WithTimeout(ctx, r.TryTimeout)
+		closeCtx, cancel := c.WithTimeout(ctx, r.tryTimeout)
 
 		resp, err := r.client.Close(closeCtx, conn, opts...)
 		cancel()
@@ -123,7 +109,7 @@ func (r *retryClient) Close(ctx context.Context, conn *networkservice.Connection
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()
-			case <-c.After(r.Interval):
+			case <-c.After(r.interval):
 				continue
 			}
 		}

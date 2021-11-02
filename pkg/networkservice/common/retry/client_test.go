@@ -68,17 +68,17 @@ func Test_RetryClient_Request(t *testing.T) {
 
 	var counter = new(count.Client)
 
-	var client = retry.NewClient(chain.NewNetworkServiceClient(
-		counter,
-		&remoteSideClient{
-			delay:            time.Millisecond * 10,
-			failRequestCount: 5,
-		},
-	), retry.WithSettings(retry.Settings{
-		Interval:   time.Millisecond * 10,
-		Timeout:    time.Second / 2,
-		TryTimeout: time.Second / 30,
-	}))
+	var client = retry.NewClient(
+		chain.NewNetworkServiceClient(
+			counter,
+			&remoteSideClient{
+				delay:            time.Millisecond * 10,
+				failRequestCount: 5,
+			},
+		),
+		retry.WithInterval(time.Millisecond*10),
+		retry.WithTryTimeout(time.Second/30),
+	)
 
 	var _, err = client.Request(context.Background(), nil)
 	require.NoError(t, err)
@@ -105,9 +105,7 @@ func Test_RetryClient_Request_ContextHasCorrectDeadline(t *testing.T) {
 			require.True(t, ok)
 			require.Equal(t, expectedDeadline, v)
 		}),
-	), retry.WithSettings(retry.Settings{
-		TryTimeout: time.Hour,
-	}))
+	), retry.WithTryTimeout(time.Hour))
 
 	var _, err = client.Request(ctx, nil)
 	require.NoError(t, err)
@@ -132,9 +130,7 @@ func Test_RetryClient_Close_ContextHasCorrectDeadline(t *testing.T) {
 			require.True(t, ok)
 			require.Equal(t, expectedDeadline, v)
 		}),
-	), retry.WithSettings(retry.Settings{
-		TryTimeout: time.Hour,
-	}))
+	), retry.WithTryTimeout(time.Hour))
 
 	var _, err = client.Close(ctx, nil)
 	require.NoError(t, err)
@@ -143,26 +139,22 @@ func Test_RetryClient_Close_ContextHasCorrectDeadline(t *testing.T) {
 func Test_RetryClient_Close(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	var counter = new(count.Client)
 
-	clockMock := clockmock.New(ctx)
-	clockMock.SetSpeed(0)
+	var client = retry.NewClient(
+		chain.NewNetworkServiceClient(
+			counter,
+			&remoteSideClient{
+				delay:          time.Millisecond * 10,
+				failCloseCount: 5,
+			},
+		),
+		retry.WithInterval(time.Millisecond*10),
+		retry.WithTryTimeout(time.Second/30),
+	)
 
-	ctx = clock.WithClock(ctx, clockMock)
-
-	expectedDeadline := clockMock.Now().Add(time.Hour)
-
-	var client = retry.NewClient(chain.NewNetworkServiceClient(
-		checkcontext.NewClient(t, func(t *testing.T, c context.Context) {
-			v, ok := c.Deadline()
-			require.True(t, ok)
-			require.Equal(t, expectedDeadline, v)
-		}),
-	), retry.WithSettings(retry.Settings{
-		TryTimeout: time.Hour,
-	}))
-
-	var _, err = client.Close(ctx, nil)
+	var _, err = client.Close(context.Background(), nil)
 	require.NoError(t, err)
+	require.Equal(t, 0, counter.Requests())
+	require.Equal(t, 6, counter.Closes())
 }
