@@ -19,6 +19,7 @@ package log
 
 import (
 	"context"
+	"sync/atomic"
 )
 
 type contextKeyType string
@@ -29,7 +30,7 @@ const (
 )
 
 var (
-	isTracingEnabled = false
+	isTracingEnabled int32 = 0
 )
 
 // Logger - unified interface for logging
@@ -90,10 +91,15 @@ func WithFields(ctx context.Context, fields map[string]interface{}) context.Cont
 
 // IsTracingEnabled - checks if it is allowed to use traces
 func IsTracingEnabled() bool {
-	return isTracingEnabled
+	return atomic.LoadInt32(&isTracingEnabled) != 0
 }
 
 // EnableTracing - enable/disable traces
 func EnableTracing(enable bool) {
-	isTracingEnabled = enable
+	if enable {
+		atomic.StoreInt32(&isTracingEnabled, 1)
+		return
+	}
+
+	atomic.StoreInt32(&isTracingEnabled, 0)
 }

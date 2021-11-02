@@ -25,15 +25,18 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/setlogoption"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 )
 
 // NewServer creates new stateless registry server that proxies queries to the second registries by DNS domains
 func NewServer(ctx context.Context, dnsResolver dnsresolve.Resolver, dialOptions ...grpc.DialOption) registry.Registry {
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
+		setlogoption.NewNetworkServiceEndpointRegistryServer(map[string]string{}),
 		dnsresolve.NewNetworkServiceEndpointRegistryServer(dnsresolve.WithResolver(dnsResolver)),
 		connect.NewNetworkServiceEndpointRegistryServer(ctx, connect.WithDialOptions(dialOptions...)))
 	nsChain := chain.NewNetworkServiceRegistryServer(
+		setlogoption.NewNetworkServiceRegistryServer(map[string]string{}),
 		dnsresolve.NewNetworkServiceRegistryServer(dnsresolve.WithResolver(dnsResolver)),
 		connect.NewNetworkServiceRegistryServer(ctx, connect.WithDialOptions(dialOptions...)))
 	return registry.NewServer(nsChain, nseChain)
