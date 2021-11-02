@@ -19,11 +19,9 @@ package discover_test
 
 import (
 	"context"
-	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
@@ -34,19 +32,15 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
 	registryadapters "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	registrynext "github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/clock"
-	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
 )
 
 const (
 	testWait = 100 * time.Millisecond
-	testTick = testWait / 100
 )
 
 func endpoints() []*registry.NetworkServiceEndpoint {
@@ -519,71 +513,6 @@ func TestDiscoverCandidatesServer_MatchExactEndpoint(t *testing.T) {
 	// 4. Try to discover NSE by the right name
 	_, err = server.Request(ctx, request.Clone())
 	require.NoError(t, err)
-}
-
-func TestDiscoverCandidatesServer_MatchSelectedNSESecondAttempt(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	clockMock := clockmock.New(ctx)
-	ctx = clock.WithClock(ctx, clockMock)
-
-	const requestTimeout = time.Second
-	const tick = requestTimeout / 10
-
-	nsName := networkServiceName()
-
-	nsServer, nseServer := testServers(t, nsName, []*registry.NetworkServiceEndpoint{{
-		NetworkServiceNames: []string{nsName},
-	}})
-
-	server := next.NewNetworkServiceServer(
-		discover.NewServer(
-			registryadapters.NetworkServiceServerToClient(nsServer),
-			registryadapters.NetworkServiceEndpointServerToClient(nseServer)),
-		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
-			nses := discover.Candidates(ctx).Endpoints
-			require.Len(t, nses, 1)
-			require.Equal(t, nsName, nses[0].NetworkServiceNames[0])
-		}),
-		injecterror.NewServer(
-			injecterror.WithRequestErrorTimes(0),
-		),
-	)
-
-	request := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			NetworkService: nsName,
-		},
-	}
-
-	requestCtx, cancel := clockMock.WithTimeout(ctx, requestTimeout)
-	defer cancel()
-
-	var flag int32
-	go func() {
-		defer atomic.StoreInt32(&flag, 1)
-
-		_, err := server.Request(requestCtx, request)
-		assert.NoError(t, err)
-	}()
-
-	// Wait for the first Request to fail
-	time.Sleep(testWait)
-
-	clockMock.Add(tick / 2)
-
-	require.Never(t, func() bool {
-		return atomic.LoadInt32(&flag) == 1
-	}, testWait, testTick)
-
-	clockMock.Add(tick / 2)
-
-	require.Eventually(t, func() bool {
-		return atomic.LoadInt32(&flag) == 1
-	}, testWait, testTick)
 }
 
 func TestDiscoverCandidatesServer_NoEndpointOnClose(t *testing.T) {
