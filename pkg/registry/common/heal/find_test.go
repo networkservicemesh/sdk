@@ -57,7 +57,7 @@ func TestHealClient_FindTest(t *testing.T) {
 	nsRegistryClient := registryclient.NewNetworkServiceRegistryClient(ctx, sandbox.CloneURL(domain.Nodes[0].NSMgr.URL),
 		registryclient.WithDialOptions(sandbox.DialOptions()...))
 
-	nsStream, err := nsRegistryClient.Find(findCtx, &registry.NetworkServiceQuery{
+	nsRespStream, err := nsRegistryClient.Find(findCtx, &registry.NetworkServiceQuery{
 		NetworkService: new(registry.NetworkService),
 		Watch:          true,
 	})
@@ -66,7 +66,7 @@ func TestHealClient_FindTest(t *testing.T) {
 	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx, sandbox.CloneURL(domain.Nodes[0].NSMgr.URL),
 		registryclient.WithDialOptions(sandbox.DialOptions()...))
 
-	nseStream, err := nseRegistryClient.Find(findCtx, &registry.NetworkServiceEndpointQuery{
+	nseRespStream, err := nseRegistryClient.Find(findCtx, &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
 		Watch:                  true,
 	})
@@ -95,13 +95,13 @@ func TestHealClient_FindTest(t *testing.T) {
 	require.NoError(t, err)
 
 	// 4. Validate NS, NSE streams working
-	ns, err := nsStream.Recv()
+	nsResp, err := nsRespStream.Recv()
 	require.NoError(t, err)
-	require.Equal(t, "ns", ns.Name)
+	require.Equal(t, "ns", nsResp.NetworkService.Name)
 
-	nse, err := nseStream.Recv()
+	nseResp, err := nseRespStream.Recv()
 	require.NoError(t, err)
-	require.Equal(t, "nse", nse.Name)
+	require.Equal(t, "nse", nseResp.NetworkServiceEndpoint.Name)
 
 	// 5. Close NS, NSE streams
 	findCancel()
@@ -109,10 +109,10 @@ func TestHealClient_FindTest(t *testing.T) {
 	// 6. Validate NS, NSE streams closed
 	timer := time.AfterFunc(100*time.Millisecond, t.FailNow)
 
-	_, err = nsStream.Recv()
+	_, err = nsRespStream.Recv()
 	require.Error(t, err)
 
-	_, err = nseStream.Recv()
+	_, err = nseRespStream.Recv()
 	require.Error(t, err)
 
 	timer.Stop()

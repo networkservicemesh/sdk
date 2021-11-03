@@ -22,7 +22,6 @@ import (
 
 	"github.com/edwarnicke/serialize"
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/google/uuid"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -34,7 +33,7 @@ import (
 type memoryNSEServer struct {
 	networkServiceEndpoints NetworkServiceEndpointSyncMap
 	executor                serialize.Executor
-	eventChannels           map[string]chan *registry.NetworkServiceEndpoint
+	eventChannels           map[string]chan *registry.NetworkServiceEndpointResponse
 	eventChannelSize        int
 }
 
@@ -42,7 +41,7 @@ type memoryNSEServer struct {
 func NewNetworkServiceEndpointRegistryServer(options ...Option) registry.NetworkServiceEndpointRegistryServer {
 	s := &memoryNSEServer{
 		eventChannelSize: defaultEventChannelSize,
-		eventChannels:    make(map[string]chan *registry.NetworkServiceEndpoint),
+		eventChannels:    make(map[string]chan *registry.NetworkServiceEndpointResponse),
 	}
 	for _, o := range options {
 		o.apply(s)
@@ -62,12 +61,12 @@ func (s *memoryNSEServer) Register(ctx context.Context, nse *registry.NetworkSer
 
 	s.networkServiceEndpoints.Store(r.Name, r.Clone())
 
-	s.sendEvent(r)
+	s.sendEvent(&registry.NetworkServiceEndpointResponse{NetworkServiceEndpoint: r})
 
 	return r, err
 }
 
-func (s *memoryNSEServer) sendEvent(event *registry.NetworkServiceEndpoint) {
+func (s *memoryNSEServer) sendEvent(event *registry.NetworkServiceEndpointResponse) {
 	event = event.Clone()
 	s.executor.AsyncExec(func() {
 		for _, ch := range s.eventChannels {
@@ -78,21 +77,24 @@ func (s *memoryNSEServer) sendEvent(event *registry.NetworkServiceEndpoint) {
 
 func (s *memoryNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
 	if !query.Watch {
-		for _, ns := range s.allMatches(query) {
-			if err := server.Send(ns); err != nil {
+		for _, nse := range s.allMatches(query) {
+			nseResp := &registry.NetworkServiceEndpointResponse{
+				NetworkServiceEndpoint: nse,
+			}
+			if err := server.Send(nseResp); err != nil {
 				return err
 			}
 		}
 		return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
 	}
 
-	eventCh := make(chan *registry.NetworkServiceEndpoint, s.eventChannelSize)
+	eventCh := make(chan *registry.NetworkServiceEndpointResponse, s.eventChannelSize)
 	id := uuid.New().String()
 
 	s.executor.AsyncExec(func() {
 		s.eventChannels[id] = eventCh
 		for _, entity := range s.allMatches(query) {
-			eventCh <- entity
+			eventCh <- &registry.NetworkServiceEndpointResponse{NetworkServiceEndpoint: entity}
 		}
 	})
 	defer s.closeEventChannel(id, eventCh)
@@ -116,7 +118,7 @@ func (s *memoryNSEServer) allMatches(query *registry.NetworkServiceEndpointQuery
 	return matches
 }
 
-func (s *memoryNSEServer) closeEventChannel(id string, eventCh <-chan *registry.NetworkServiceEndpoint) {
+func (s *memoryNSEServer) closeEventChannel(id string, eventCh <-chan *registry.NetworkServiceEndpointResponse) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	s.executor.AsyncExec(func() {
@@ -136,13 +138,13 @@ func (s *memoryNSEServer) closeEventChannel(id string, eventCh <-chan *registry.
 func (s *memoryNSEServer) receiveEvent(
 	query *registry.NetworkServiceEndpointQuery,
 	server registry.NetworkServiceEndpointRegistry_FindServer,
-	eventCh <-chan *registry.NetworkServiceEndpoint,
+	eventCh <-chan *registry.NetworkServiceEndpointResponse,
 ) error {
 	select {
 	case <-server.Context().Done():
 		return io.EOF
 	case event := <-eventCh:
-		if matchutils.MatchNetworkServiceEndpoints(query.NetworkServiceEndpoint, event) {
+		if matchutils.MatchNetworkServiceEndpoints(query.NetworkServiceEndpoint, event.NetworkServiceEndpoint) {
 			if err := server.Send(event); err != nil {
 				if server.Context().Err() != nil {
 					return io.EOF
@@ -157,10 +159,7 @@ func (s *memoryNSEServer) receiveEvent(
 func (s *memoryNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
 	if unregisterNSE, ok := s.networkServiceEndpoints.LoadAndDelete(nse.Name); ok {
 		unregisterNSE = unregisterNSE.Clone()
-		unregisterNSE.ExpirationTime = &timestamp.Timestamp{
-			Seconds: -1,
-		}
-		s.sendEvent(unregisterNSE)
+		s.sendEvent(&registry.NetworkServiceEndpointResponse{NetworkServiceEndpoint: unregisterNSE, Deleted: true})
 	}
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }

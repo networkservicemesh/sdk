@@ -31,8 +31,8 @@ type seturlNSEServer struct {
 	u *url.URL
 }
 
-func (s *setURLNSEServer) Send(nse *registry.NetworkServiceEndpoint) error {
-	nse.Url = s.u.String()
+func (s *setURLNSEServer) Send(nse *registry.NetworkServiceEndpointResponse) error {
+	nse.NetworkServiceEndpoint.Url = s.u.String()
 	return s.NetworkServiceEndpointRegistry_FindServer.Send(nse)
 }
 

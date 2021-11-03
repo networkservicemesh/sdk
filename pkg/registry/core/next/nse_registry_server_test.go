@@ -147,7 +147,7 @@ type testEmptyNSERegistryFindClient struct {
 	ctx context.Context
 }
 
-func (t *testEmptyNSERegistryFindClient) Recv() (*registry.NetworkServiceEndpoint, error) {
+func (t *testEmptyNSERegistryFindClient) Recv() (*registry.NetworkServiceEndpointResponse, error) {
 	return nil, io.EOF
 }
 

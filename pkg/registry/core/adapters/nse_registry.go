@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020-2021 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -120,7 +120,7 @@ func nseFindClientToServer(client registry.NetworkServiceEndpointRegistry_FindCl
 }
 
 func nseFindServerToClient(ctx context.Context, server registry.NetworkServiceEndpointRegistryServer, in *registry.NetworkServiceEndpointQuery) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	ch := make(chan *registry.NetworkServiceEndpoint, channelSize)
+	ch := make(chan *registry.NetworkServiceEndpointResponse, channelSize)
 	s := streamchannel.NewNetworkServiceEndpointFindServer(ctx, ch)
 	if in != nil && in.Watch {
 		go func() {

@@ -147,7 +147,7 @@ type testEmptyNSRegistryFindClient struct {
 	ctx context.Context
 }
 
-func (t *testEmptyNSRegistryFindClient) Recv() (*registry.NetworkService, error) {
+func (t *testEmptyNSRegistryFindClient) Recv() (*registry.NetworkServiceResponse, error) {
 	return nil, io.EOF
 }
 

@@ -178,14 +178,14 @@ func find(t *testing.T, mem registry.NetworkServiceEndpointRegistryServer, query
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
-	ch := make(chan *registry.NetworkServiceEndpoint)
+	ch := make(chan *registry.NetworkServiceEndpointResponse)
 	go func() {
 		defer close(ch)
 		require.NoError(t, mem.Find(query, streamchannel.NewNetworkServiceEndpointFindServer(ctx, ch)))
 	}()
 
-	for nse := range ch {
-		nses = append(nses, nse)
+	for nseResp := range ch {
+		nses = append(nses, nseResp.NetworkServiceEndpoint)
 	}
 
 	return nses

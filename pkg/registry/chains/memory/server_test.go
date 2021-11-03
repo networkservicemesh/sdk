@@ -61,10 +61,10 @@ func Test_RegistryMemory_ShouldSetDefaultPayload(t *testing.T) {
 	nsrfc, err := nsrc.Find(ctx, &registry.NetworkServiceQuery{NetworkService: ns})
 	require.NoError(t, err)
 
-	ns, err = nsrfc.Recv()
+	nsResp, err := nsrfc.Recv()
 	require.NoError(t, err)
 
-	require.Equal(t, payload.IP, ns.Payload)
+	require.Equal(t, payload.IP, nsResp.NetworkService.Payload)
 
 	require.NoError(t, ctx.Err())
 }

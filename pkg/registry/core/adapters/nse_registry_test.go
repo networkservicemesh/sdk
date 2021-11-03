@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai, Inc.
+// Copyright (c) 2020-2021 Doc.ai, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -40,9 +40,9 @@ func (t *echoNetworkServiceEndpointClient) Register(_ context.Context, in *regis
 }
 
 func (t *echoNetworkServiceEndpointClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, _ ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	ch := make(chan *registry.NetworkServiceEndpoint)
+	ch := make(chan *registry.NetworkServiceEndpointResponse)
 	go func() {
-		ch <- in.NetworkServiceEndpoint
+		ch <- &registry.NetworkServiceEndpointResponse{NetworkServiceEndpoint: in.NetworkServiceEndpoint}
 		close(ch)
 	}()
 	return streamchannel.NewNetworkServiceEndpointFindClient(ctx, ch), nil
@@ -59,7 +59,10 @@ func (e echoNetworkServiceEndpointServer) Register(ctx context.Context, service 
 }
 
 func (e echoNetworkServiceEndpointServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
-	return server.Send(query.NetworkServiceEndpoint)
+	nseResp := &registry.NetworkServiceEndpointResponse{
+		NetworkServiceEndpoint: query.NetworkServiceEndpoint,
+	}
+	return server.Send(nseResp)
 }
 
 func (e echoNetworkServiceEndpointServer) Unregister(ctx context.Context, service *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
@@ -70,7 +73,7 @@ type ignoreNSEFindServer struct {
 	grpc.ServerStream
 }
 
-func (*ignoreNSEFindServer) Send(_ *registry.NetworkServiceEndpoint) error {
+func (*ignoreNSEFindServer) Send(_ *registry.NetworkServiceEndpointResponse) error {
 	return nil
 }
 
@@ -104,11 +107,11 @@ func TestNetworkServiceEndpointClientToServer_Unregister(t *testing.T) {
 func TestNetworkServiceEndpointFind(t *testing.T) {
 	for i := 1; i < adaptCountPerTest; i++ {
 		server := adaptNetworkServiceEndpointClientToServerFewTimes(i, &echoNetworkServiceEndpointClient{})
-		ch := make(chan *registry.NetworkServiceEndpoint, 1)
+		ch := make(chan *registry.NetworkServiceEndpointResponse, 1)
 		s := streamchannel.NewNetworkServiceEndpointFindServer(context.Background(), ch)
 		err := server.Find(&registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: "test"}}, s)
 		require.Nil(t, err)
-		require.Equal(t, "test", (<-ch).Name)
+		require.Equal(t, "test", (<-ch).NetworkServiceEndpoint.Name)
 		close(ch)
 	}
 }

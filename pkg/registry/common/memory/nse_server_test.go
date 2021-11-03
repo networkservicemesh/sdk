@@ -55,7 +55,7 @@ func TestNetworkServiceEndpointRegistryServer_RegisterAndFind(t *testing.T) {
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	ch := make(chan *registry.NetworkServiceEndpoint, 1)
+	ch := make(chan *registry.NetworkServiceEndpointResponse, 1)
 	defer close(ch)
 	_ = s.Find(&registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
@@ -63,8 +63,10 @@ func TestNetworkServiceEndpointRegistryServer_RegisterAndFind(t *testing.T) {
 		},
 	}, streamchannel.NewNetworkServiceEndpointFindServer(ctx, ch))
 
-	require.Equal(t, &registry.NetworkServiceEndpoint{
-		Name: "a",
+	require.Equal(t, &registry.NetworkServiceEndpointResponse{
+		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+			Name: "a",
+		},
 	}, <-ch)
 }
 
@@ -89,7 +91,7 @@ func TestNetworkServiceEndpointRegistryServer_RegisterAndFindWatch(t *testing.T)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	ch := make(chan *registry.NetworkServiceEndpoint, 1)
+	ch := make(chan *registry.NetworkServiceEndpointResponse, 1)
 	defer close(ch)
 	go func() {
 		_ = s.Find(&registry.NetworkServiceEndpointQuery{
@@ -100,15 +102,17 @@ func TestNetworkServiceEndpointRegistryServer_RegisterAndFindWatch(t *testing.T)
 		}, streamchannel.NewNetworkServiceEndpointFindServer(ctx, ch))
 	}()
 
-	require.Equal(t, &registry.NetworkServiceEndpoint{
-		Name: "a",
+	require.Equal(t, &registry.NetworkServiceEndpointResponse{
+		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+			Name: "a",
+		},
 	}, <-ch)
 
 	expected, err := s.Register(context.Background(), &registry.NetworkServiceEndpoint{
 		Name: "a",
 	})
 	require.NoError(t, err)
-	require.True(t, proto.Equal(expected, <-ch))
+	require.True(t, proto.Equal(&registry.NetworkServiceEndpointResponse{NetworkServiceEndpoint: expected}, <-ch))
 }
 
 func TestNetworkServiceEndpointRegistryServer_RegisterAndFindByLabel(t *testing.T) {
@@ -126,7 +130,7 @@ func TestNetworkServiceEndpointRegistryServer_RegisterAndFindByLabel(t *testing.
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	ch := make(chan *registry.NetworkServiceEndpoint, 1)
+	ch := make(chan *registry.NetworkServiceEndpointResponse, 1)
 	defer close(ch)
 	_ = s.Find(&registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
@@ -140,7 +144,7 @@ func TestNetworkServiceEndpointRegistryServer_RegisterAndFindByLabel(t *testing.
 		},
 	}, streamchannel.NewNetworkServiceEndpointFindServer(ctx, ch))
 
-	require.True(t, proto.Equal(createLabeledNSE2(), <-ch))
+	require.True(t, proto.Equal(&registry.NetworkServiceEndpointResponse{NetworkServiceEndpoint: createLabeledNSE2()}, <-ch))
 }
 
 func TestNetworkServiceEndpointRegistryServer_RegisterAndFindByLabelWatch(t *testing.T) {
@@ -158,7 +162,7 @@ func TestNetworkServiceEndpointRegistryServer_RegisterAndFindByLabelWatch(t *tes
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	ch := make(chan *registry.NetworkServiceEndpoint, 1)
+	ch := make(chan *registry.NetworkServiceEndpointResponse, 1)
 	defer close(ch)
 	go func() {
 		_ = s.Find(&registry.NetworkServiceEndpointQuery{
@@ -175,11 +179,11 @@ func TestNetworkServiceEndpointRegistryServer_RegisterAndFindByLabelWatch(t *tes
 		}, streamchannel.NewNetworkServiceEndpointFindServer(ctx, ch))
 	}()
 
-	require.Equal(t, createLabeledNSE2(), <-ch)
+	require.Equal(t, &registry.NetworkServiceEndpointResponse{NetworkServiceEndpoint: createLabeledNSE2()}, <-ch)
 
 	expected, err := s.Register(context.Background(), createLabeledNSE2())
 	require.NoError(t, err)
-	require.True(t, proto.Equal(expected, <-ch))
+	require.True(t, proto.Equal(&registry.NetworkServiceEndpointResponse{NetworkServiceEndpoint: expected}, <-ch))
 }
 
 func TestNetworkServiceEndpointRegistryServer_DataRace(t *testing.T) {
@@ -203,7 +207,7 @@ func TestNetworkServiceEndpointRegistryServer_DataRace(t *testing.T) {
 			findCtx, findCancel := context.WithCancel(ctx)
 			defer findCancel()
 
-			ch := make(chan *registry.NetworkServiceEndpoint, 10)
+			ch := make(chan *registry.NetworkServiceEndpointResponse, 10)
 			go func() {
 				defer close(ch)
 				findErr := s.Find(&registry.NetworkServiceEndpointQuery{
@@ -213,16 +217,16 @@ func TestNetworkServiceEndpointRegistryServer_DataRace(t *testing.T) {
 				assert.NoError(t, findErr)
 			}()
 
-			_, receiveErr := receiveNSE(findCtx, ch)
+			_, receiveErr := receiveNSER(findCtx, ch)
 			assert.NoError(t, receiveErr)
 
 			wgStart.Done()
 
 			for j := 0; j < 50; j++ {
-				nse, receiveErr := receiveNSE(findCtx, ch)
+				nse, receiveErr := receiveNSER(findCtx, ch)
 				assert.NoError(t, receiveErr)
 
-				nse.Name = ""
+				nse.NetworkServiceEndpoint.Name = ""
 			}
 		}()
 	}
@@ -246,7 +250,7 @@ func TestNetworkServiceEndpointRegistryServer_SlowReceiver(t *testing.T) {
 
 	findCtx, findCancel := context.WithCancel(ctx)
 
-	ch := make(chan *registry.NetworkServiceEndpoint, 10)
+	ch := make(chan *registry.NetworkServiceEndpointResponse, 10)
 	go func() {
 		defer close(ch)
 		findErr := s.Find(&registry.NetworkServiceEndpointQuery{
@@ -263,7 +267,7 @@ func TestNetworkServiceEndpointRegistryServer_SlowReceiver(t *testing.T) {
 
 	ignoreCurrent := goleak.IgnoreCurrent()
 
-	_, err := receiveNSE(findCtx, ch)
+	_, err := receiveNSER(findCtx, ch)
 	require.NoError(t, err)
 
 	findCancel()
@@ -297,7 +301,7 @@ func TestNetworkServiceEndpointRegistryServer_ShouldReceiveAllRegisters(t *testi
 			findCtx, findCancel := context.WithCancel(ctx)
 			defer findCancel()
 
-			ch := make(chan *registry.NetworkServiceEndpoint, 10)
+			ch := make(chan *registry.NetworkServiceEndpointResponse, 10)
 			go func() {
 				defer close(ch)
 				err := s.Find(&registry.NetworkServiceEndpointQuery{
@@ -307,7 +311,7 @@ func TestNetworkServiceEndpointRegistryServer_ShouldReceiveAllRegisters(t *testi
 				assert.NoError(t, err)
 			}()
 
-			_, err := receiveNSE(findCtx, ch)
+			_, err := receiveNSER(findCtx, ch)
 			assert.NoError(t, err)
 		}()
 	}
@@ -339,7 +343,7 @@ func TestNetworkServiceEndpointRegistryServer_ShouldReceiveAllUnregisters(t *tes
 			findCtx, findCancel := context.WithCancel(ctx)
 			defer findCancel()
 
-			ch := make(chan *registry.NetworkServiceEndpoint, 10)
+			ch := make(chan *registry.NetworkServiceEndpointResponse, 10)
 			go func() {
 				defer close(ch)
 				err := s.Find(&registry.NetworkServiceEndpointQuery{
@@ -352,12 +356,12 @@ func TestNetworkServiceEndpointRegistryServer_ShouldReceiveAllUnregisters(t *tes
 			var err error
 			exists := false
 			for err == nil {
-				var nse *registry.NetworkServiceEndpoint
-				nse, err = receiveNSE(findCtx, ch)
+				var nseResp *registry.NetworkServiceEndpointResponse
+				nseResp, err = receiveNSER(findCtx, ch)
 				switch {
 				case err != nil:
 					assert.Equal(t, io.EOF, err)
-				case nse.ExpirationTime != nil && nse.ExpirationTime.Seconds < 0:
+				case nseResp.Deleted:
 					return
 				default:
 					exists = true
@@ -428,14 +432,14 @@ func createLabeledNSE3() *registry.NetworkServiceEndpoint {
 	}
 }
 
-func receiveNSE(ctx context.Context, ch <-chan *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+func receiveNSER(ctx context.Context, ch <-chan *registry.NetworkServiceEndpointResponse) (*registry.NetworkServiceEndpointResponse, error) {
 	select {
 	case <-ctx.Done():
 		return nil, io.EOF
-	case nse, ok := <-ch:
+	case nseResp, ok := <-ch:
 		if !ok {
 			return nil, io.EOF
 		}
-		return nse, nil
+		return nseResp, nil
 	}
 }

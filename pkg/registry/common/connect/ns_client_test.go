@@ -76,14 +76,14 @@ func TestConnectNSClient(t *testing.T) {
 	require.NoError(t, err)
 
 	// 5. Find only local NS in memory
-	ch := make(chan *registry.NetworkService, 2)
+	ch := make(chan *registry.NetworkServiceResponse, 2)
 	err = mem.Find(&registry.NetworkServiceQuery{
 		NetworkService: new(registry.NetworkService),
 	}, streamchannel.NewNetworkServiceFindServer(ctx, ch))
 	require.NoError(t, err)
 
 	require.Len(t, ch, 1)
-	require.Equal(t, "ns-local", (<-ch).Name)
+	require.Equal(t, "ns-local", (<-ch).NetworkService.Name)
 }
 
 func TestConnectNSClient_Restart(t *testing.T) {
@@ -124,7 +124,7 @@ func TestConnectNSClient_Restart(t *testing.T) {
 	}, time.Second, 10*time.Millisecond)
 
 	// 4. Find both NS-1, NS-2 in memory
-	ch := make(chan *registry.NetworkService, 2)
+	ch := make(chan *registry.NetworkServiceResponse, 2)
 	err = mem.Find(&registry.NetworkServiceQuery{
 		NetworkService: new(registry.NetworkService),
 	}, streamchannel.NewNetworkServiceFindServer(ctx, ch))
@@ -132,7 +132,7 @@ func TestConnectNSClient_Restart(t *testing.T) {
 
 	var nsNames []string
 	for i := len(ch); i > 0; i-- {
-		nsNames = append(nsNames, (<-ch).Name)
+		nsNames = append(nsNames, (<-ch).NetworkService.Name)
 	}
 	require.Len(t, nsNames, 2)
 	require.Subset(t, []string{"ns-1", "ns-2"}, nsNames)

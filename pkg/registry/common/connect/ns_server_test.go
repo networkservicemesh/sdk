@@ -120,20 +120,20 @@ func TestConnectNSServer_AllUnregister(t *testing.T) {
 	_, err = s.Register(clienturlctx.WithClientURL(context.Background(), url2), &registry.NetworkService{Name: "ns-1-1"})
 	require.NoError(t, err)
 
-	ch := make(chan *registry.NetworkService, 1)
+	ch := make(chan *registry.NetworkServiceResponse, 1)
 	findSrv := streamchannel.NewNetworkServiceFindServer(clienturlctx.WithClientURL(ctx, url1), ch)
 	err = s.Find(&registry.NetworkServiceQuery{NetworkService: &registry.NetworkService{
 		Name: "ns-1",
 	}}, findSrv)
 	require.NoError(t, err)
-	require.Equal(t, (<-ch).Name, "ns-1")
+	require.Equal(t, (<-ch).NetworkService.Name, "ns-1")
 
 	findSrv = streamchannel.NewNetworkServiceFindServer(clienturlctx.WithClientURL(ctx, url2), ch)
 	err = s.Find(&registry.NetworkServiceQuery{NetworkService: &registry.NetworkService{
 		Name: "ns-1",
 	}}, findSrv)
 	require.NoError(t, err)
-	require.Equal(t, (<-ch).Name, "ns-1-1")
+	require.Equal(t, (<-ch).NetworkService.Name, "ns-1-1")
 
 	_, err = s.Unregister(clienturlctx.WithClientURL(ctx, url1), &registry.NetworkService{Name: "ns-1"})
 	require.NoError(t, err)
@@ -175,7 +175,7 @@ func TestConnectNSServer_AllDead_WatchingFind(t *testing.T) {
 	s := connect.NewNetworkServiceRegistryServer(ctx, connect.WithDialOptions(grpc.WithInsecure()))
 
 	go func() {
-		ch := make(chan *registry.NetworkService, 1)
+		ch := make(chan *registry.NetworkServiceResponse, 1)
 		findSrv := streamchannel.NewNetworkServiceFindServer(clienturlctx.WithClientURL(ctx, url1), ch)
 		err := s.Find(&registry.NetworkServiceQuery{
 			NetworkService: new(registry.NetworkService),
@@ -185,7 +185,7 @@ func TestConnectNSServer_AllDead_WatchingFind(t *testing.T) {
 	}()
 
 	go func() {
-		ch := make(chan *registry.NetworkService, 1)
+		ch := make(chan *registry.NetworkServiceResponse, 1)
 		findSrv := streamchannel.NewNetworkServiceFindServer(clienturlctx.WithClientURL(ctx, url2), ch)
 		err := s.Find(&registry.NetworkServiceQuery{
 			NetworkService: new(registry.NetworkService),

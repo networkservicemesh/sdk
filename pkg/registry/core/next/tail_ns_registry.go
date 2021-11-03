@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -61,7 +61,7 @@ func (t *tailNetworkServiceRegistryFindClient) Context() context.Context {
 	return t.ctx
 }
 
-func (t *tailNetworkServiceRegistryFindClient) Recv() (*registry.NetworkService, error) {
+func (t *tailNetworkServiceRegistryFindClient) Recv() (*registry.NetworkServiceResponse, error) {
 	return nil, io.EOF
 }
 
