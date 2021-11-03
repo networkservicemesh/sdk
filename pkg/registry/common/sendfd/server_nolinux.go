@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -16,17 +16,14 @@
 
 // +build !linux
 
-// Package sendfd provides a registry.NetworkServiceEndpointRegistryClient chain element to convert any unix file socket
-// endpoint.URLs into 'inode://${dev}/${ino}' urls and send the fd over the unix file socket.
 package sendfd
 
 import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
-
 	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
 )
 
-// NewNetworkServiceEndpointRegistryClient - creates a Client that if endpoint.Url is of scheme "unix" will replace it with an "inode" scheme url and send the FD over the unix socket
-func NewNetworkServiceEndpointRegistryClient() registry.NetworkServiceEndpointRegistryClient {
-	return null.NewNetworkServiceEndpointRegistryClient()
+// NewNetworkServiceEndpointRegistryServer - returns a new null server that does nothing but call next.NetworkServiceEndpointRegistryServer(ctx).
+func NewNetworkServiceEndpointRegistryServer() registry.NetworkServiceEndpointRegistryServer {
+	return null.NewNetworkServiceEndpointRegistryServer()
 }

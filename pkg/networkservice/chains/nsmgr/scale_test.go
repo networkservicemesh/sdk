@@ -36,7 +36,6 @@ import (
 )
 
 func TestCreateEndpointDuringRequest(t *testing.T) {
-	t.Skip("TODO")
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)

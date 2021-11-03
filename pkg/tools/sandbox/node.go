@@ -36,6 +36,8 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/retry"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/roundrobin"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -117,7 +119,9 @@ func (n *Node) NewForwarder(
 		Name: nse.Name,
 		URL:  serveURL,
 	}
-	nseClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx, CloneURL(n.NSMgr.URL), registryclient.WithDialOptions(dialOptions...))
+	nseClient := chain.NewNetworkServiceEndpointRegistryClient(
+		recvfd.NewNetworkServiceEndpointRegistryClient(),
+		registryclient.NewNetworkServiceEndpointRegistryClient(ctx, CloneURL(n.NSMgr.URL), registryclient.WithDialOptions(dialOptions...)))
 	nsClient := registryclient.NewNetworkServiceRegistryClient(ctx, CloneURL(n.NSMgr.URL), registryclient.WithDialOptions(dialOptions...))
 	entry.restartableServer = newRestartableServer(ctx, n.t, entry.URL, func(ctx context.Context) {
 		entry.Endpoint = endpoint.NewServer(ctx, generatorFunc,

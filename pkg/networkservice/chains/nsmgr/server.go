@@ -54,6 +54,8 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	registryrecvfd "github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
+	registrysendfd "github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
+
 	registryserialize "github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setlogoption"
 	registryadapter "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
@@ -222,6 +224,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		checkid.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
 		registryrecvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
+		registrysendfd.NewNetworkServiceEndpointRegistryServer(),
 		interposeRegistryServer,   // Store cross connect NSEs
 		localBypassRegistryServer, // Perform URL transformations
 		nseRegistry,

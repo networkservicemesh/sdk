@@ -196,8 +196,6 @@ func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 	t := s.T()
 
-	t.Skip("TODO")
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
@@ -240,7 +238,7 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 1, counter.Requests())
-	require.Equal(t, 8, len(conn.Path.PathSegments))
+	require.Equal(t, 6, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client
 	refreshRequest := request.Clone()
@@ -250,7 +248,7 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 2, counter.Requests())
-	require.Equal(t, 8, len(conn.Path.PathSegments))
+	require.Equal(t, 6, len(conn.Path.PathSegments))
 
 	// Close
 	_, err = nsc.Close(ctx, conn)
