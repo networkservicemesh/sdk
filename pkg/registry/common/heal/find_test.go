@@ -106,14 +106,13 @@ func TestHealClient_FindTest(t *testing.T) {
 	// 5. Close NS, NSE streams
 	findCancel()
 
-	// 6. Validate NS, NSE streams closed
-	timer := time.AfterFunc(100*time.Millisecond, t.FailNow)
+	require.Eventually(t, func() bool {
+		_, err := nsRespStream.Recv()
+		return err != nil
+	}, time.Millisecond*100, time.Millisecond*10)
 
-	_, err = nsRespStream.Recv()
-	require.Error(t, err)
-
-	_, err = nseRespStream.Recv()
-	require.Error(t, err)
-
-	timer.Stop()
+	require.Eventually(t, func() bool {
+		_, err := nseRespStream.Recv()
+		return err != nil
+	}, time.Millisecond*100, time.Millisecond*10)
 }

@@ -73,7 +73,7 @@ func (r *retryClient) Request(ctx context.Context, request *networkservice.Netwo
 
 	for ctx.Err() == nil {
 		requestCtx, cancel := c.WithTimeout(ctx, r.tryTimeout)
-		resp, err := r.client.Request(requestCtx, request, opts...)
+		resp, err := r.client.Request(requestCtx, request.Clone(), opts...)
 		cancel()
 
 		if err != nil {
@@ -100,7 +100,7 @@ func (r *retryClient) Close(ctx context.Context, conn *networkservice.Connection
 	for ctx.Err() == nil {
 		closeCtx, cancel := c.WithTimeout(ctx, r.tryTimeout)
 
-		resp, err := r.client.Close(closeCtx, conn, opts...)
+		resp, err := r.client.Close(closeCtx, conn.Clone(), opts...)
 		cancel()
 
 		if err != nil {

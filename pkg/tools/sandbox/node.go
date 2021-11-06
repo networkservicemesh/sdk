@@ -23,7 +23,6 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
@@ -37,7 +36,9 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/roundrobin"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/setnetworkservicenames"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -87,7 +88,7 @@ func (n *Node) NewNSMgr(
 		entry.Nsmgr = supplyNSMgr(ctx, generatorFunc, options...)
 		serve(ctx, n.t, entry.URL, entry.Register)
 
-		logrus.Infof("%s: NSMgr %s serve on %v", n.domain.Name, name, serveURL)
+		log.FromContext(ctx).Infof("%s: NSMgr %s serve on %v", n.domain.Name, name, serveURL)
 	})
 
 	n.NSMgr = entry
@@ -120,8 +121,11 @@ func (n *Node) NewForwarder(
 		URL:  serveURL,
 	}
 	nseClient := chain.NewNetworkServiceEndpointRegistryClient(
-		recvfd.NewNetworkServiceEndpointRegistryClient(),
-		registryclient.NewNetworkServiceEndpointRegistryClient(ctx, CloneURL(n.NSMgr.URL), registryclient.WithDialOptions(dialOptions...)))
+		registryclient.NewNetworkServiceEndpointRegistryClient(ctx, CloneURL(n.NSMgr.URL),
+			registryclient.WithNSEAdditionalFunctionality(recvfd.NewNetworkServiceEndpointRegistryClient()),
+			registryclient.WithDialOptions(dialOptions...),
+		),
+	)
 	nsClient := registryclient.NewNetworkServiceRegistryClient(ctx, CloneURL(n.NSMgr.URL), registryclient.WithDialOptions(dialOptions...))
 	entry.restartableServer = newRestartableServer(ctx, n.t, entry.URL, func(ctx context.Context) {
 		entry.Endpoint = endpoint.NewServer(ctx, generatorFunc,
@@ -149,10 +153,16 @@ func (n *Node) NewForwarder(
 		)
 		serve(ctx, n.t, entry.URL, entry.Endpoint.Register)
 
-		logrus.Infof("%s: forwarder %s serve on %v", n.domain.Name, nse.Name, serveURL)
+		log.FromContext(ctx).Infof("%s: forwarder %s serve on %v", n.domain.Name, nse.Name, serveURL)
 
-		entry.NetworkServiceEndpointRegistryClient = registryclient.NewNetworkServiceEndpointRegistryInterposeClient(ctx, CloneURL(n.NSMgr.URL),
-			registryclient.WithDialOptions(dialOptions...))
+		entry.NetworkServiceEndpointRegistryClient = registryclient.NewNetworkServiceEndpointRegistryClient(
+			ctx,
+			CloneURL(n.NSMgr.URL),
+			registryclient.WithDialOptions(dialOptions...),
+			registryclient.WithNSEAdditionalFunctionality(
+				setnetworkservicenames.NewNetworkServiceEndpointRegistryClient("forwarder"),
+			),
+		)
 
 		n.registerEndpoint(ctx, nse, nseClone, entry.NetworkServiceEndpointRegistryClient)
 	})
@@ -194,7 +204,7 @@ func (n *Node) NewEndpoint(
 
 		serve(ctx, n.t, entry.URL, entry.Endpoint.Register)
 
-		logrus.Infof("%s: NSE %s serve on %v", n.domain.Name, nse.Name, serveURL)
+		log.FromContext(ctx).Infof("%s: NSE %s serve on %v", n.domain.Name, nse.Name, serveURL)
 
 		entry.NetworkServiceEndpointRegistryClient = registryclient.NewNetworkServiceEndpointRegistryClient(ctx, CloneURL(n.NSMgr.URL),
 			registryclient.WithDialOptions(dialOptions...))

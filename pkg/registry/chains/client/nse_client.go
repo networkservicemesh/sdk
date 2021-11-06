@@ -25,8 +25,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/heal"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/interpose"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
@@ -38,32 +36,15 @@ import (
 
 // NewNetworkServiceEndpointRegistryClient creates a new NewNetworkServiceEndpointRegistryClient that can be used for NSE registration.
 func NewNetworkServiceEndpointRegistryClient(ctx context.Context, connectTo *url.URL, opts ...Option) registry.NetworkServiceEndpointRegistryClient {
-	return newNetworkServiceEndpointRegistryClient(ctx, connectTo, false, opts...)
-}
-
-// NewNetworkServiceEndpointRegistryInterposeClient creates a new registry.NetworkServiceEndpointRegistryClient that can be used for cross-nse registration
-func NewNetworkServiceEndpointRegistryInterposeClient(ctx context.Context, connectTo *url.URL, opts ...Option) registry.NetworkServiceEndpointRegistryClient {
-	return newNetworkServiceEndpointRegistryClient(ctx, connectTo, true, opts...)
-}
-
-func newNetworkServiceEndpointRegistryClient(ctx context.Context, connectTo *url.URL, withInterpose bool, opts ...Option) registry.NetworkServiceEndpointRegistryClient {
 	clientOpts := new(clientOptions)
 	for _, opt := range opts {
 		opt(clientOpts)
-	}
-
-	var interposeClient registry.NetworkServiceEndpointRegistryClient
-	if withInterpose {
-		interposeClient = interpose.NewNetworkServiceEndpointRegistryClient()
-	} else {
-		interposeClient = null.NewNetworkServiceEndpointRegistryClient()
 	}
 
 	c := new(registry.NetworkServiceEndpointRegistryClient)
 	*c = chain.NewNetworkServiceEndpointRegistryClient(
 		adapters.NetworkServiceEndpointServerToClient(setlogoption.NewNetworkServiceEndpointRegistryServer(map[string]string{})),
 		setid.NewNetworkServiceEndpointRegistryClient(),
-		interposeClient,
 		serialize.NewNetworkServiceEndpointRegistryClient(),
 		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
 		connect.NewNetworkServiceEndpointRegistryClient(ctx, connectTo,

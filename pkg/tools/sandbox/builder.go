@@ -37,6 +37,7 @@ import (
 	registryconnect "github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -242,7 +243,7 @@ func (b *Builder) newRegistryProxy() *RegistryEntry {
 		)
 		serve(ctx, b.t, entry.URL, entry.Register)
 
-		logrus.Errorf("%s: registry-proxy-dns serve on: %v", b.name, entry.URL)
+		log.FromContext(ctx).Infof("%s: registry-proxy-dns serve on: %v", b.name, entry.URL)
 	})
 
 	return entry
@@ -270,7 +271,7 @@ func (b *Builder) newRegistry() *RegistryEntry {
 		)
 		serve(ctx, b.t, entry.URL, entry.Register)
 
-		logrus.Errorf("%s: registry serve on: %v", b.name, entry.URL)
+		log.FromContext(ctx).Infof("%s: registry serve on: %v", b.name, entry.URL)
 	})
 
 	return entry

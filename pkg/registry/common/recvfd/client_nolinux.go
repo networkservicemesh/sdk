@@ -22,6 +22,7 @@ package recvfd
 
 import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
 )
 
