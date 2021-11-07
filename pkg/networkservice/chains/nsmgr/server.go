@@ -21,10 +21,12 @@ package nsmgr
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"time"
 
 	"github.com/google/uuid"
+
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -35,13 +37,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discoverforwarder"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/filtermechanisms"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interpose"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/roundrobin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/checkid"
@@ -51,13 +50,13 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/querycache"
 	registryrecvfd "github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
+	registrysendfd "github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
+
 	registryserialize "github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setlogoption"
 	registryadapter "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	registrychain "github.com/networkservicemesh/sdk/pkg/registry/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
@@ -75,13 +74,14 @@ type nsmgrServer struct {
 }
 
 type serverOptions struct {
-	authorizeServer networkservice.NetworkServiceServer
-	dialOptions     []grpc.DialOption
-	dialTimeout     time.Duration
-	regURL          *url.URL
-	regDialOptions  []grpc.DialOption
-	name            string
-	url             string
+	authorizeServer      networkservice.NetworkServiceServer
+	dialOptions          []grpc.DialOption
+	dialTimeout          time.Duration
+	regURL               *url.URL
+	regDialOptions       []grpc.DialOption
+	name                 string
+	url                  string
+	forwarderServiceName string
 }
 
 // Option modifies server option value
@@ -91,6 +91,14 @@ type Option func(o *serverOptions)
 func WithDialOptions(dialOptions ...grpc.DialOption) Option {
 	return func(o *serverOptions) {
 		o.dialOptions = dialOptions
+	}
+}
+
+// WithForwarderServiceName overrides default forwarder service name
+// By default "forwarder"
+func WithForwarderServiceName(forwarderServiceName string) Option {
+	return func(o *serverOptions) {
+		o.forwarderServiceName = forwarderServiceName
 	}
 }
 
@@ -141,8 +149,9 @@ var _ Nsmgr = (*nsmgrServer)(nil)
 //			 options - a set of Nsmgr options.
 func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...Option) Nsmgr {
 	opts := &serverOptions{
-		authorizeServer: authorize.NewServer(authorize.Any()),
-		name:            "nsmgr-" + uuid.New().String(),
+		authorizeServer:      authorize.NewServer(authorize.Any()),
+		name:                 "nsmgr-" + uuid.New().String(),
+		forwarderServiceName: "forwarder",
 	}
 	for _, opt := range options {
 		opt(opts)
@@ -150,42 +159,43 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 
 	rv := &nsmgrServer{}
 
-	var urlsRegistryServer, interposeRegistryServer registryapi.NetworkServiceEndpointRegistryServer
-
-	var nsRegistry registryapi.NetworkServiceRegistryServer
+	var nsRegistry = memory.NewNetworkServiceRegistryServer()
 	if opts.regURL != nil {
 		// Use remote registry
 		nsRegistry = registrychain.NewNetworkServiceRegistryServer(
 			clienturl.NewNetworkServiceRegistryServer(opts.regURL),
 			registryconnect.NewNetworkServiceRegistryServer(ctx, registryconnect.WithDialOptions(opts.regDialOptions...)),
 		)
-	} else {
-		// Use memory registry if no registry is passed
-		nsRegistry = memory.NewNetworkServiceRegistryServer()
 	}
 
-	var nseRegistry registryapi.NetworkServiceEndpointRegistryServer
+	nsRegistry = registrychain.NewNetworkServiceRegistryServer(
+		registryserialize.NewNetworkServiceRegistryServer(),
+		setlogoption.NewNetworkServiceRegistryServer(map[string]string{"name": "NetworkServiceRegistryServer." + opts.name}),
+		nsRegistry,
+	)
+
+	var nseInMemoryRegistry = registrychain.NewNetworkServiceEndpointRegistryServer(
+		setlogoption.NewNetworkServiceEndpointRegistryServer(map[string]string{"name": fmt.Sprintf("NetworkServiceRegistryServer.%v", opts.name)}),
+		registryclientinfo.NewNetworkServiceEndpointRegistryServer(),
+		registryserialize.NewNetworkServiceEndpointRegistryServer(),
+		checkid.NewNetworkServiceEndpointRegistryServer(),
+		expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
+		registryrecvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
+		registrysendfd.NewNetworkServiceEndpointRegistryServer(),
+		memory.NewNetworkServiceEndpointRegistryServer(),
+		localbypass.NewNetworkServiceEndpointRegistryServer(opts.url),
+	)
+
+	var nseRegistry = nseInMemoryRegistry
+
 	if opts.regURL != nil {
-		// Use remote registry
+		// Add remote registry
 		nseRegistry = registrychain.NewNetworkServiceEndpointRegistryServer(
+			nseRegistry,
 			clienturl.NewNetworkServiceEndpointRegistryServer(opts.regURL),
 			registryconnect.NewNetworkServiceEndpointRegistryServer(ctx, registryconnect.WithDialOptions(opts.regDialOptions...)),
 		)
-	} else {
-		// Use memory registry if no registry is passed
-		nseRegistry = memory.NewNetworkServiceEndpointRegistryServer()
 	}
-
-	localBypassRegistryServer := localbypass.NewNetworkServiceEndpointRegistryServer(opts.url)
-
-	nseClient := next.NewNetworkServiceEndpointRegistryClient(
-		registryserialize.NewNetworkServiceEndpointRegistryClient(),
-		registryadapter.NetworkServiceEndpointServerToClient(localBypassRegistryServer),
-		querycache.NewClient(ctx),
-		registryadapter.NetworkServiceEndpointServerToClient(nseRegistry),
-	)
-
-	nsClient := registryadapter.NetworkServiceServerToClient(nsRegistry)
 
 	// Construct Endpoint
 	rv.Endpoint = endpoint.NewServer(ctx, tokenGenerator,
@@ -193,12 +203,12 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		endpoint.WithAuthorizeServer(opts.authorizeServer),
 		endpoint.WithAdditionalFunctionality(
 			adapters.NewClientToServer(clientinfo.NewClient()),
-			discover.NewServer(nsClient, nseClient),
-			roundrobin.NewServer(),
+			discoverforwarder.NewServer(
+				registryadapter.NetworkServiceEndpointServerToClient(nseInMemoryRegistry),
+				discoverforwarder.WithForwarderServiceName(opts.forwarderServiceName),
+			),
 			excludedprefixes.NewServer(ctx),
 			recvfd.NewServer(), // Receive any files passed
-			interpose.NewServer(&interposeRegistryServer),
-			filtermechanisms.NewServer(&urlsRegistryServer),
 			connect.NewServer(
 				client.NewClient(
 					ctx,
@@ -215,26 +225,10 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			sendfd.NewServer()),
 	)
 
-	nsChain := registrychain.NewNetworkServiceRegistryServer(
-		setlogoption.NewNetworkServiceRegistryServer(map[string]string{"name": opts.name}),
-		registryserialize.NewNetworkServiceRegistryServer(),
+	rv.Registry = registry.NewServer(
 		nsRegistry,
+		nseRegistry,
 	)
-
-	nseChain := registrychain.NewNetworkServiceEndpointRegistryServer(
-		setlogoption.NewNetworkServiceEndpointRegistryServer(map[string]string{"name": opts.name}),
-		registryclientinfo.NewNetworkServiceEndpointRegistryServer(),
-		registryserialize.NewNetworkServiceEndpointRegistryServer(),
-		checkid.NewNetworkServiceEndpointRegistryServer(),
-		expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
-		registryrecvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
-		urlsRegistryServer,        // Store endpoints URLs
-		interposeRegistryServer,   // Store cross connect NSEs
-		localBypassRegistryServer, // Perform URL transformations
-		nseRegistry,               // Register NSE inside Remote registry
-	)
-
-	rv.Registry = registry.NewServer(nsChain, nseChain)
 
 	return rv
 }

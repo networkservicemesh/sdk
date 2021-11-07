@@ -14,5 +14,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package interpose provides NSE Registry Server, Client for registering interpose NSE
-package interpose
+package discoverforwarder
+
+import (
+	"context"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
+)
+
+type selectedForworderKey struct{}
+
+func loadForwarderName(ctx context.Context) string {
+	v, ok := metadata.Map(ctx, false).Load(selectedForworderKey{})
+	if !ok {
+		return ""
+	}
+	return v.(string)
+}
+
+func storeForwarderName(ctx context.Context, v string) {
+	metadata.Map(ctx, false).Store(selectedForworderKey{}, v)
+}

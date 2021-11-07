@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,13 +14,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package interpose
+package discoverforwarder
 
-import (
-	"sync"
-)
+// Option changes default settings for the discoverForwarderServer
+type Option func(*discoverForwarderServer)
 
-//go:generate go-syncmap -output connection_info_map.gen.go -type connectionInfoMap<string,connectionInfo>
-
-// Map - sync.Map with key == string and value == networkservice.NetworkServiceClient
-type connectionInfoMap sync.Map
+// WithForwarderServiceName overrides forwarder service name
+// By default "forwarder"
+func WithForwarderServiceName(serviceName string) Option {
+	return func(d *discoverForwarderServer) {
+		d.forwarderServiceName = serviceName
+	}
+}

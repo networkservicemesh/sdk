@@ -115,7 +115,7 @@ func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 1, counter.Requests())
-	require.Equal(t, 8, len(conn.Path.PathSegments))
+	require.Equal(t, 6, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client.
 	refreshRequest := request.Clone()
@@ -124,7 +124,7 @@ func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
 	conn, err = nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, 8, len(conn.Path.PathSegments))
+	require.Equal(t, 6, len(conn.Path.PathSegments))
 	require.Equal(t, 2, counter.Requests())
 
 	// Close
@@ -180,7 +180,7 @@ func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 	conn, err := nsc.Request(ctx, defaultRequest(nsReg.Name))
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, 5, len(conn.Path.PathSegments))
+	require.Equal(t, 4, len(conn.Path.PathSegments))
 
 	require.NoError(t, ctx.Err())
 
@@ -238,7 +238,7 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 1, counter.Requests())
-	require.Equal(t, 8, len(conn.Path.PathSegments))
+	require.Equal(t, 6, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client
 	refreshRequest := request.Clone()
@@ -248,7 +248,7 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 2, counter.Requests())
-	require.Equal(t, 8, len(conn.Path.PathSegments))
+	require.Equal(t, 6, len(conn.Path.PathSegments))
 
 	// Close
 	_, err = nsc.Close(ctx, conn)
@@ -285,7 +285,7 @@ func (s *nsmgrSuite) Test_RemoteUsecase() {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 1, counter.Requests())
-	require.Equal(t, 8, len(conn.Path.PathSegments))
+	require.Equal(t, 6, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client
 	refreshRequest := request.Clone()
@@ -295,7 +295,7 @@ func (s *nsmgrSuite) Test_RemoteUsecase() {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 2, counter.Requests())
-	require.Equal(t, 8, len(conn.Path.PathSegments))
+	require.Equal(t, 6, len(conn.Path.PathSegments))
 
 	// Close
 	_, err = nsc.Close(ctx, conn)
@@ -332,7 +332,7 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 1, counter.Requests())
-	require.Equal(t, 5, len(conn.Path.PathSegments))
+	require.Equal(t, 4, len(conn.Path.PathSegments))
 
 	nse.Cancel()
 
@@ -378,7 +378,7 @@ func (s *nsmgrSuite) Test_LocalUsecase() {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 1, counter.Requests())
-	require.Equal(t, 5, len(conn.Path.PathSegments))
+	require.Equal(t, 4, len(conn.Path.PathSegments))
 
 	// Simulate refresh from client
 	refreshRequest := request.Clone()
@@ -387,7 +387,7 @@ func (s *nsmgrSuite) Test_LocalUsecase() {
 	conn2, err := nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
 	require.NotNil(t, conn2)
-	require.Equal(t, 5, len(conn2.Path.PathSegments))
+	require.Equal(t, 4, len(conn2.Path.PathSegments))
 	require.Equal(t, 2, counter.Requests())
 
 	// Close
@@ -439,9 +439,9 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 
 	// Path length to first endpoint is 5
 	// Path length from NSE client to other remote endpoint is 8
-	require.Equal(t, 8*(nodesCount-1)+5, len(conn.Path.PathSegments))
+	require.Equal(t, 6*(nodesCount-1)+4, len(conn.Path.PathSegments))
 	for i := 0; i < len(nseRegs); i++ {
-		require.Contains(t, nseRegs[i].Name, conn.Path.PathSegments[i*8+4].Name)
+		require.Contains(t, nseRegs[i].Name, conn.Path.PathSegments[i*6+3].Name)
 	}
 
 	// Refresh
@@ -502,9 +502,9 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 
 	// Path length to first endpoint is 5
 	// Path length from NSE client to other local endpoint is 5
-	require.Equal(t, 5*(nsesCount-1)+5, len(conn.Path.PathSegments))
+	require.Equal(t, 4*(nsesCount-1)+4, len(conn.Path.PathSegments))
 	for i := 0; i < len(nseRegs); i++ {
-		require.Contains(t, nseRegs[i].Name, conn.Path.PathSegments[(i+1)*5-1].Name)
+		require.Contains(t, nseRegs[i].Name, conn.Path.PathSegments[(i+1)*4-1].Name)
 	}
 
 	// Refresh
@@ -578,19 +578,19 @@ func (s *nsmgrSuite) Test_PassThroughSameSourceSelector() {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
-	// Path length to first endpoint is 5
-	// Path length from NSE client to other local endpoint is 5
-	require.Equal(t, 5*(nsesCount-2)+5, len(conn.Path.PathSegments))
+	// Path length to first endpoint is 4
+	// Path length from NSE client to other local endpoint is 4
+	require.Equal(t, 4*(nsesCount-2)+4, len(conn.Path.PathSegments))
 	for i := 1; i < len(nseRegs); i++ {
-		require.Contains(t, nseRegs[i].Name, conn.Path.PathSegments[i*5-1].Name)
+		require.Contains(t, nseRegs[i].Name, conn.Path.PathSegments[i*4-1].Name)
 	}
 
 	// Refresh
 	conn, err = nsc.Request(ctx, request)
 	require.NoError(t, err)
-	require.Equal(t, 5*(nsesCount-2)+5, len(conn.Path.PathSegments))
+	require.Equal(t, 4*(nsesCount-2)+4, len(conn.Path.PathSegments))
 	for i := 1; i < len(nseRegs); i++ {
-		require.Contains(t, nseRegs[i].Name, conn.Path.PathSegments[i*5-1].Name)
+		require.Contains(t, nseRegs[i].Name, conn.Path.PathSegments[i*4-1].Name)
 	}
 
 	// Close
@@ -650,11 +650,11 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
-	// Path length from NSE client to other local endpoint is 5
+	// Path length from NSE client to other local endpoint is 4
 	expectedPath := []string{"ab", "aabb", "aaabbb"}
-	require.Equal(t, 5*len(nsReg.Matches), len(conn.Path.PathSegments))
+	require.Equal(t, 4*len(nsReg.Matches), len(conn.Path.PathSegments))
 	for i := 0; i < len(expectedPath); i++ {
-		require.Contains(t, conn.Path.PathSegments[(i+1)*5-1].Name, expectedPath[i])
+		require.Contains(t, conn.Path.PathSegments[(i+1)*4-1].Name, expectedPath[i])
 	}
 
 	// Refresh

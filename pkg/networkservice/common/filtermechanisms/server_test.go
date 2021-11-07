@@ -27,7 +27,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/memif"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/srv6"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/vxlan"
-	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/filtermechanisms"
@@ -65,14 +64,8 @@ func TestFilterMechanismsServer_Request(t *testing.T) {
 		ClsResult    string
 	}{
 		{
-			Name:      "Local mechanisms",
-			ClientURL: &url.URL{Scheme: "tcp", Host: "localhost:5000"},
-			RegisterURLs: []url.URL{
-				{
-					Scheme: "tcp",
-					Host:   "localhost:5000",
-				},
-			},
+			Name:         "Local mechanisms",
+			ClientURL:    &url.URL{Scheme: "inode", Host: "localhost:5000"},
 			EndpointName: "nse-1",
 			ClsResult:    cls.LOCAL,
 		},
@@ -82,29 +75,10 @@ func TestFilterMechanismsServer_Request(t *testing.T) {
 			EndpointName: "nse-1",
 			ClsResult:    cls.REMOTE,
 		},
-		{
-			Name:         "Pass mechanisms to forwarder",
-			ClientURL:    &url.URL{Scheme: "tcp", Host: "localhost:5000"},
-			EndpointName: "nse-1#interpose-nse",
-			RegisterURLs: []url.URL{
-				{
-					Scheme: "tcp",
-					Host:   "localhost:5000",
-				},
-			},
-		},
 	}
 
 	for _, sample := range samples {
-		var registryServer registry.NetworkServiceEndpointRegistryServer
-		s := filtermechanisms.NewServer(&registryServer)
-		for _, u := range sample.RegisterURLs {
-			_, err := registryServer.Register(context.Background(), &registry.NetworkServiceEndpoint{
-				Name: sample.EndpointName,
-				Url:  u.String(),
-			})
-			require.NoError(t, err)
-		}
+		s := filtermechanisms.NewServer()
 		ctx := clienturlctx.WithClientURL(context.Background(), sample.ClientURL)
 		req := request()
 		_, err := s.Request(ctx, req)

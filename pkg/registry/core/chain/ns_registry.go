@@ -27,12 +27,10 @@ import (
 
 // NewNetworkServiceRegistryServer - creates a chain of servers
 func NewNetworkServiceRegistryServer(servers ...registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
-	return next.NewNetworkServiceRegistryServer(
-		next.NewWrappedNetworkServiceRegistryServer(trace.NewNetworkServiceRegistryServer, servers...))
+	return next.NewNetworkServiceRegistryServer(next.NewWrappedNetworkServiceRegistryServer(trace.NewNetworkServiceRegistryServer, servers...))
 }
 
 // NewNetworkServiceRegistryClient - creates a chain of clients
 func NewNetworkServiceRegistryClient(clients ...registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
-	return next.NewNetworkServiceRegistryClient(
-		next.NewWrappedNetworkServiceRegistryClient(trace.NewNetworkServiceRegistryClient, clients...))
+	return next.NewNetworkServiceRegistryClient(next.NewWrappedNetworkServiceRegistryClient(trace.NewNetworkServiceRegistryClient, clients...))
 }

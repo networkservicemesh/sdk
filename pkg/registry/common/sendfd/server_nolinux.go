@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,17 +14,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package interpose
+// +build !linux
 
-import "strings"
+package sendfd
 
-const nameSuffix = "#interpose-nse"
+import (
+	"github.com/networkservicemesh/api/pkg/api/registry"
 
-func interposeName(name string) string {
-	return name + nameSuffix
-}
+	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
+)
 
-// Is returns true if passed name contains interpose identity
-func Is(name string) bool {
-	return strings.HasSuffix(name, nameSuffix)
+// NewNetworkServiceEndpointRegistryServer - returns a new null server that does nothing but call next.NetworkServiceEndpointRegistryServer(ctx).
+func NewNetworkServiceEndpointRegistryServer() registry.NetworkServiceEndpointRegistryServer {
+	return null.NewNetworkServiceEndpointRegistryServer()
 }

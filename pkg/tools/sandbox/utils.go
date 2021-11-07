@@ -94,6 +94,7 @@ func SetupDefaultNode(ctx context.Context, node *Node, supplyNSMgr SupplyNSMgrFu
 	node.NewNSMgr(ctx, UniqueName("nsmgr"), nil, GenerateTestToken, supplyNSMgr)
 
 	node.NewForwarder(ctx, &registryapi.NetworkServiceEndpoint{
-		Name: UniqueName("forwarder"),
+		Name:                UniqueName("forwarder"),
+		NetworkServiceNames: []string{"forwarder"},
 	}, GenerateTestToken)
 }

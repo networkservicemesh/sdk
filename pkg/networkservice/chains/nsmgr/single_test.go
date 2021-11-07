@@ -119,7 +119,8 @@ func Test_ShouldCorrectlyAddForwardersWithSameNames(t *testing.T) {
 	require.NoError(t, err)
 
 	forwarderReg := &registry.NetworkServiceEndpoint{
-		Name: "forwarder",
+		Name:                "forwarder",
+		NetworkServiceNames: []string{"forwarder"},
 	}
 
 	// 1. Add forwarders
@@ -252,4 +253,79 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 
 	_, err = nse.Unregister(ctx, nseReg)
 	require.NoError(t, err)
+}
+
+func Test_UsecasePoint2MultiPoint(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetRegistryProxySupplier(nil).
+		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, _ int) {
+			node.NewNSMgr(ctx, "nsmgr", nil, sandbox.GenerateTestToken, nsmgr.NewServer)
+		}).
+		SetRegistryExpiryDuration(sandbox.RegistryExpiryDuration).
+		Build()
+
+	domain.Nodes[0].NewForwarder(ctx, &registry.NetworkServiceEndpoint{
+		Name:                "p2mp forwarder",
+		NetworkServiceNames: []string{"forwarder"},
+		NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+			"forwarder": {
+				Labels: map[string]string{
+					"p2mp": "true",
+				},
+			},
+		},
+	}, sandbox.GenerateTestToken)
+
+	domain.Nodes[0].NewForwarder(ctx, &registry.NetworkServiceEndpoint{
+		Name:                "p2p forwarder",
+		NetworkServiceNames: []string{"forwarder"},
+		NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+			"forwarder": {
+				Labels: map[string]string{
+					"p2p": "true",
+				},
+			},
+		},
+	}, sandbox.GenerateTestToken)
+
+	domain.Nodes[0].NewForwarder(ctx, &registry.NetworkServiceEndpoint{
+		Name:                "special forwarder",
+		NetworkServiceNames: []string{"forwarder"},
+		NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+			"forwarder": {
+				Labels: map[string]string{
+					"special": "true",
+				},
+			},
+		},
+	}, sandbox.GenerateTestToken)
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService())
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
+
+	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
+
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	request := defaultRequest(nsReg.Name)
+
+	request.GetConnection().Labels = map[string]string{
+		"p2mp": "true",
+	}
+
+	conn, err := nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+	require.Equal(t, 4, len(conn.Path.PathSegments))
+	require.Equal(t, "p2mp forwarder", conn.GetPath().GetPathSegments()[2].Name)
 }

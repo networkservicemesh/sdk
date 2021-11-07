@@ -28,12 +28,10 @@ import (
 
 // NewNetworkServiceEndpointRegistryServer - creates a chain of servers
 func NewNetworkServiceEndpointRegistryServer(servers ...registry.NetworkServiceEndpointRegistryServer) registry.NetworkServiceEndpointRegistryServer {
-	return next.NewNetworkServiceEndpointRegistryServer(
-		next.NewWrappedNetworkServiceEndpointRegistryServer(trace.NewNetworkServiceEndpointRegistryServer, servers...))
+	return next.NewWrappedNetworkServiceEndpointRegistryServer(trace.NewNetworkServiceEndpointRegistryServer, servers...)
 }
 
 // NewNetworkServiceEndpointRegistryClient - creates a chain of clients
 func NewNetworkServiceEndpointRegistryClient(clients ...registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceEndpointRegistryClient {
-	return next.NewNetworkServiceEndpointRegistryClient(
-		next.NewWrappedNetworkServiceEndpointRegistryClient(trace.NewNetworkServiceEndpointRegistryClient, clients...))
+	return next.NewNetworkServiceEndpointRegistryClient(next.NewWrappedNetworkServiceEndpointRegistryClient(trace.NewNetworkServiceEndpointRegistryClient, clients...))
 }
