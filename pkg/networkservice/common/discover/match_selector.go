@@ -19,31 +19,11 @@
 package discover
 
 import (
-	"bytes"
-	"text/template"
-
-	"github.com/pkg/errors"
-
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
+	"github.com/networkservicemesh/sdk/pkg/tools/matchutils"
 )
-
-// isSubset checks if B is a subset of A. TODO: reconsider this as a part of "tools"
-func isSubset(a, b, nsLabels map[string]string) bool {
-	if len(a) < len(b) {
-		return false
-	}
-	for k, v := range b {
-		if a[k] != v {
-			result := processLabels(v, nsLabels)
-			if a[k] != result {
-				return false
-			}
-		}
-	}
-	return true
-}
 
 func matchEndpoint(clockTime clock.Clock, nsLabels map[string]string, ns *registry.NetworkService, nses ...*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
 	var validNetworkServiceEndpoints []*registry.NetworkServiceEndpoint
@@ -56,7 +36,7 @@ func matchEndpoint(clockTime clock.Clock, nsLabels map[string]string, ns *regist
 	// Iterate through the matches
 	for _, match := range ns.GetMatches() {
 		// All match source selector labels should be present in the requested labels map
-		if !isSubset(nsLabels, match.GetSourceSelector(), nsLabels) {
+		if !matchutils.IsSubset(nsLabels, match.GetSourceSelector(), nsLabels) {
 			continue
 		}
 		nseCandidates := make([]*registry.NetworkServiceEndpoint, 0)
@@ -64,8 +44,11 @@ func matchEndpoint(clockTime clock.Clock, nsLabels map[string]string, ns *regist
 		for _, destination := range match.GetRoutes() {
 			// Each NSE should be matched against that destination
 			for _, nse := range validNetworkServiceEndpoints {
-				// TODO looks unhealthy
-				if nse.GetNetworkServiceLabels()[ns.Name] == nil || isSubset(nse.GetNetworkServiceLabels()[ns.Name].Labels, destination.GetDestinationSelector(), nsLabels) {
+				var candidateNetworkServiceLabels = nse.GetNetworkServiceLabels()[ns.GetName()]
+				if candidateNetworkServiceLabels == nil {
+					continue
+				}
+				if matchutils.IsSubset(candidateNetworkServiceLabels.Labels, destination.GetDestinationSelector(), nsLabels) {
 					nseCandidates = append(nseCandidates, nse)
 				}
 			}
@@ -79,30 +62,4 @@ func matchEndpoint(clockTime clock.Clock, nsLabels map[string]string, ns *regist
 	}
 
 	return validNetworkServiceEndpoints
-}
-
-// processLabels generates matches based on destination label selectors that specify templating.
-func processLabels(str string, vars interface{}) string {
-	tmpl, err := template.New("tmpl").Parse(str)
-
-	if err != nil {
-		return str
-	}
-
-	rv, err := process(tmpl, vars)
-	if err != nil {
-		return str
-	}
-
-	return rv
-}
-
-func process(t *template.Template, vars interface{}) (string, error) {
-	var tmplBytes bytes.Buffer
-
-	err := t.Execute(&tmplBytes, vars)
-	if err != nil {
-		return "", errors.Wrap(err, "error during execution of template")
-	}
-	return tmplBytes.String(), nil
 }

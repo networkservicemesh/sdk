@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,9 +18,12 @@
 package matchutils
 
 import (
+	"bytes"
 	"strings"
+	"text/template"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/pkg/errors"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -40,6 +43,49 @@ func MatchNetworkServiceEndpoints(left, right *registry.NetworkServiceEndpoint) 
 		(left.ExpirationTime == nil || left.ExpirationTime.Seconds == right.ExpirationTime.Seconds) &&
 		(left.NetworkServiceNames == nil || contains(right.NetworkServiceNames, left.NetworkServiceNames)) &&
 		(left.Url == "" || strings.Contains(right.Url, left.Url))
+}
+
+// IsSubset checks if B is a subset of A.
+// Tries to process values for each B value.
+func IsSubset(a, b, values map[string]string) bool {
+	if len(a) < len(b) {
+		return false
+	}
+	for k, v := range b {
+		if a[k] != v {
+			result := processLabels(v, values)
+			if a[k] != result {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// processLabels generates matches based on destination label selectors that specify templating.
+func processLabels(str string, vars interface{}) string {
+	tmpl, err := template.New("tmpl").Parse(str)
+
+	if err != nil {
+		return str
+	}
+
+	rv, err := process(tmpl, vars)
+	if err != nil {
+		return str
+	}
+
+	return rv
+}
+
+func process(t *template.Template, vars interface{}) (string, error) {
+	var tmplBytes bytes.Buffer
+
+	err := t.Execute(&tmplBytes, vars)
+	if err != nil {
+		return "", errors.Wrap(err, "error during execution of template")
+	}
+	return tmplBytes.String(), nil
 }
 
 func labelsContains(where, what map[string]*registry.NetworkServiceLabels) bool {

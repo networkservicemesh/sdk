@@ -27,9 +27,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover/discovercrossnse"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/roundrobin"
-
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -40,6 +37,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discovercrossnse"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
@@ -54,7 +52,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	registryrecvfd "github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
 	registrysendfd "github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/setnetworkservicenames"
 
 	registryserialize "github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setlogoption"
@@ -196,14 +193,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		endpoint.WithAuthorizeServer(opts.authorizeServer),
 		endpoint.WithAdditionalFunctionality(
 			adapters.NewClientToServer(clientinfo.NewClient()),
-			discovercrossnse.NewServer(
-				registryadapter.NetworkServiceServerToClient(nsRegistry),
-				registrychain.NewNetworkServiceEndpointRegistryClient(
-					setnetworkservicenames.NewNetworkServiceEndpointRegistryClient("forwarder"),
-					registryadapter.NetworkServiceEndpointServerToClient(nseInMemoryRegistry),
-				),
-				roundrobin.NewServer(),
-			),
+			discovercrossnse.NewServer(registryadapter.NetworkServiceEndpointServerToClient(nseInMemoryRegistry)),
 			excludedprefixes.NewServer(ctx),
 			recvfd.NewServer(), // Receive any files passed
 			connect.NewServer(

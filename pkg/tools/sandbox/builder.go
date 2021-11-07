@@ -27,7 +27,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
@@ -301,7 +300,7 @@ func (b *Builder) newNSMgrProxy() *NSMgrEntry {
 		)
 		serve(ctx, b.t, entry.URL, entry.Register)
 
-		logrus.Errorf("%s: NSMgr proxy %s serve on: %v", b.name, entry.Name, entry.URL)
+		log.FromContext(ctx).Infof("%s: NSMgr proxy %s serve on: %v", b.name, entry.Name, entry.URL)
 	})
 
 	return entry

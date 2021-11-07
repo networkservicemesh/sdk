@@ -46,7 +46,8 @@ func TestHealClient_FindTest(t *testing.T) {
 		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, nodeNum int) {
 			node.NewNSMgr(nsmgrCtx, sandbox.UniqueName("nsmgr"), nil, sandbox.GenerateTestToken, nsmgr.NewServer)
 			node.NewForwarder(ctx, &registry.NetworkServiceEndpoint{
-				Name: sandbox.UniqueName("forwarder"),
+				Name:                sandbox.UniqueName("forwarder"),
+				NetworkServiceNames: []string{"forwarder"},
 			}, sandbox.GenerateTestToken)
 		}).
 		Build()

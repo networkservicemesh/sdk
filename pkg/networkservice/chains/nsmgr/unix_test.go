@@ -39,7 +39,7 @@ import (
 )
 
 func Test_Local_NoURLUsecase(t *testing.T) {
-	t.Skip("TODO")
+	t.Skip("https://github.com/networkservicemesh/sdk/issues/1118")
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
@@ -85,7 +85,7 @@ func Test_Local_NoURLUsecase(t *testing.T) {
 }
 
 func Test_MultiForwarderSendfd(t *testing.T) {
-	t.Skip("TODO")
+	t.Skip("https://github.com/networkservicemesh/sdk/issues/1118")
 	if runtime.GOOS != "linux" {
 		t.Skip("sendfd works only on linux")
 	}
@@ -103,10 +103,12 @@ func Test_MultiForwarderSendfd(t *testing.T) {
 		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, _ int) {
 			node.NewNSMgr(ctx, "nsmgr", nil, sandbox.GenerateTestToken, nsmgr.NewServer)
 			node.NewForwarder(ctx, &registry.NetworkServiceEndpoint{
-				Name: "forwarder-1",
+				Name:                "forwarder-1",
+				NetworkServiceNames: []string{"forwarder"},
 			}, sandbox.GenerateTestToken, errorServer, recvfd.NewServer())
 			node.NewForwarder(ctx, &registry.NetworkServiceEndpoint{
-				Name: "forwarder-2",
+				Name:                "forwarder-2",
+				NetworkServiceNames: []string{"forwarder"},
 			}, sandbox.GenerateTestToken, errorServer, recvfd.NewServer())
 		}).
 		Build()
