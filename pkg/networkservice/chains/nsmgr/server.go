@@ -37,7 +37,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discovercrossnse"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discoverforwarder"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
@@ -74,13 +74,14 @@ type nsmgrServer struct {
 }
 
 type serverOptions struct {
-	authorizeServer networkservice.NetworkServiceServer
-	dialOptions     []grpc.DialOption
-	dialTimeout     time.Duration
-	regURL          *url.URL
-	regDialOptions  []grpc.DialOption
-	name            string
-	url             string
+	authorizeServer      networkservice.NetworkServiceServer
+	dialOptions          []grpc.DialOption
+	dialTimeout          time.Duration
+	regURL               *url.URL
+	regDialOptions       []grpc.DialOption
+	name                 string
+	url                  string
+	forwarderServiceName string
 }
 
 // Option modifies server option value
@@ -90,6 +91,14 @@ type Option func(o *serverOptions)
 func WithDialOptions(dialOptions ...grpc.DialOption) Option {
 	return func(o *serverOptions) {
 		o.dialOptions = dialOptions
+	}
+}
+
+// WithForwarderServiceName overrides default forwarder service name
+// By default "forwarder"
+func WithForwarderServiceName(forwarderServiceName string) Option {
+	return func(o *serverOptions) {
+		o.forwarderServiceName = forwarderServiceName
 	}
 }
 
@@ -140,8 +149,9 @@ var _ Nsmgr = (*nsmgrServer)(nil)
 //			 options - a set of Nsmgr options.
 func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...Option) Nsmgr {
 	opts := &serverOptions{
-		authorizeServer: authorize.NewServer(authorize.Any()),
-		name:            "nsmgr-" + uuid.New().String(),
+		authorizeServer:      authorize.NewServer(authorize.Any()),
+		name:                 "nsmgr-" + uuid.New().String(),
+		forwarderServiceName: "forwarder",
 	}
 	for _, opt := range options {
 		opt(opts)
@@ -193,7 +203,10 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		endpoint.WithAuthorizeServer(opts.authorizeServer),
 		endpoint.WithAdditionalFunctionality(
 			adapters.NewClientToServer(clientinfo.NewClient()),
-			discovercrossnse.NewServer(registryadapter.NetworkServiceEndpointServerToClient(nseInMemoryRegistry)),
+			discoverforwarder.NewServer(
+				registryadapter.NetworkServiceEndpointServerToClient(nseInMemoryRegistry),
+				discoverforwarder.WithForwarderServiceName(opts.forwarderServiceName),
+			),
 			excludedprefixes.NewServer(ctx),
 			recvfd.NewServer(), // Receive any files passed
 			connect.NewServer(

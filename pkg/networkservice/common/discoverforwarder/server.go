@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package discovercrossnse discovers forwarder from the registry.
-package discovercrossnse
+// Package discoverforwarder discovers forwarder from the registry.
+package discoverforwarder
 
 import (
 	"context"
@@ -33,18 +33,26 @@ import (
 )
 
 type discoverForwarderServer struct {
-	nseClient registry.NetworkServiceEndpointRegistryClient
+	nseClient            registry.NetworkServiceEndpointRegistryClient
+	forwarderServiceName string
 }
 
-// NewServer creates new instance of discovercrossnse networkservice.NetworkServiceServer.
+// NewServer creates new instance of discoverforwarder networkservice.NetworkServiceServer.
 // Requires not nil nseClient.
-func NewServer(nseClient registry.NetworkServiceEndpointRegistryClient) networkservice.NetworkServiceServer {
+func NewServer(nseClient registry.NetworkServiceEndpointRegistryClient, opts ...Option) networkservice.NetworkServiceServer {
 	if nseClient == nil {
 		panic("mseClient can not be nil")
 	}
-	return &discoverForwarderServer{
-		nseClient: nseClient,
+	var result = &discoverForwarderServer{
+		nseClient:            nseClient,
+		forwarderServiceName: "forwarder",
 	}
+
+	for _, opt := range opts {
+		opt(result)
+	}
+
+	return result
 }
 
 func (d *discoverForwarderServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
@@ -55,7 +63,7 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 		stream, err := d.nseClient.Find(ctx, &registry.NetworkServiceEndpointQuery{
 			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 				NetworkServiceNames: []string{
-					"forwarder",
+					d.forwarderServiceName,
 				},
 			},
 		})
