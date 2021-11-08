@@ -26,10 +26,14 @@ tokens_chained {
 	pair_count == count(input.path_segments) - 1
 }
 
+contains(arr, elem) {
+  arr[_] = elem
+}
+
 pair_valid(token1, token2) = r { 
 	p1 := payload(token1)
 	p2 := payload(token2)
-	r := p1.aud == p2.sub
+	r := contains(p1.aud, p2.sub)
 }
 
 payload(token) = p {
