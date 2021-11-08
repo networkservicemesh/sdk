@@ -141,12 +141,12 @@ func generateKeyPair(spiffeID, domain string, caTLS *tls.Certificate) (tls.Certi
 }
 
 func genJWTWithClaimsWithYear(year int) string {
-	return genJWTWithClaims(&jwt.StandardClaims{
-		ExpiresAt: time.Date(year, 1, 1, 1, 1, 1, 1, time.UTC).Unix(),
+	return genJWTWithClaims(&jwt.RegisteredClaims{
+		ExpiresAt: jwt.NewNumericDate(time.Date(year, 1, 1, 1, 1, 1, 1, time.UTC)),
 	})
 }
 
-func genJWTWithClaims(claims *jwt.StandardClaims) string {
+func genJWTWithClaims(claims *jwt.RegisteredClaims) string {
 	t, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte("super secret"))
 	return t
 }
@@ -167,7 +167,7 @@ func genConnectionWithTokens(tokens []string) *networkservice.Connection {
 	return rv
 }
 
-func genTokenFunc(claims *jwt.StandardClaims) token.GeneratorFunc {
+func genTokenFunc(claims *jwt.RegisteredClaims) token.GeneratorFunc {
 	return func(_ credentials.AuthInfo) (string, time.Time, error) {
 		return genJWTWithClaims(claims), time.Time{}, nil
 	}

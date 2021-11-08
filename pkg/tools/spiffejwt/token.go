@@ -42,9 +42,9 @@ func TokenGeneratorFunc(source x509svid.Source, maxTokenLifeTime time.Duration) 
 		if err != nil {
 			return "", time.Time{}, errors.Wrap(err, "Error creating Token")
 		}
-		claims := jwt.StandardClaims{
+		claims := jwt.RegisteredClaims{
 			Subject:   ownSVID.ID.String(),
-			ExpiresAt: expireTime.Unix(),
+			ExpiresAt: jwt.NewNumericDate(expireTime),
 		}
 		if authInfo != nil {
 			if tlsInfo, ok := authInfo.(credentials.TLSInfo); ok {
@@ -57,7 +57,7 @@ func TokenGeneratorFunc(source x509svid.Source, maxTokenLifeTime time.Duration) 
 					if peerCert.NotAfter.Before(expireTime) {
 						expireTime = peerCert.NotAfter
 					}
-					claims.Audience = peerSpiffeID.String()
+					claims.Audience = []string{peerSpiffeID.String()}
 				}
 			}
 		}
