@@ -19,7 +19,7 @@ require (
 	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645
 	github.com/nats-io/nats-streaming-server v0.22.1
 	github.com/nats-io/stan.go v0.10.0
-	github.com/networkservicemesh/api v1.0.1-0.20211105145309-b0e47249449a
+	github.com/networkservicemesh/api v1.0.1-0.20211108174538-15c88bce33f3
 	github.com/open-policy-agent/opa v0.16.1
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/pkg/errors v0.9.1
