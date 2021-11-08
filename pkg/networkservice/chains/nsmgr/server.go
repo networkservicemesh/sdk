@@ -179,7 +179,6 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		setlogoption.NewNetworkServiceEndpointRegistryServer(map[string]string{"name": fmt.Sprintf("NetworkServiceRegistryServer.%v", opts.name)}),
 		registryclientinfo.NewNetworkServiceEndpointRegistryServer(),
 		registryserialize.NewNetworkServiceEndpointRegistryServer(),
-		checkid.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
 		registryrecvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
 		registrysendfd.NewNetworkServiceEndpointRegistryServer(),
@@ -228,20 +227,6 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		nsRegistry,
 		nseRegistry,
 	)
-
-	nseChain := registrychain.NewNetworkServiceEndpointRegistryServer(
-		setlogoption.NewNetworkServiceEndpointRegistryServer(map[string]string{"name": opts.name}),
-		registryclientinfo.NewNetworkServiceEndpointRegistryServer(),
-		registryserialize.NewNetworkServiceEndpointRegistryServer(),
-		expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
-		registryrecvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
-		urlsRegistryServer,        // Store endpoints URLs
-		interposeRegistryServer,   // Store cross connect NSEs
-		localBypassRegistryServer, // Perform URL transformations
-		nseRegistry,               // Register NSE inside Remote registry
-	)
-
-	rv.Registry = registry.NewServer(nsChain, nseChain)
 
 	return rv
 }

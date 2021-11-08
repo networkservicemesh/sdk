@@ -43,7 +43,6 @@ func NewNetworkServiceEndpointRegistryClient(ctx context.Context, connectTo *url
 	c := new(registry.NetworkServiceEndpointRegistryClient)
 	*c = chain.NewNetworkServiceEndpointRegistryClient(
 		adapters.NetworkServiceEndpointServerToClient(setlogoption.NewNetworkServiceEndpointRegistryServer(map[string]string{})),
-		interposeClient,
 		serialize.NewNetworkServiceEndpointRegistryClient(),
 		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
 		connect.NewNetworkServiceEndpointRegistryClient(ctx, connectTo,
