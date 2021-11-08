@@ -174,7 +174,9 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		nsRegistry,
 	)
 
-	var nseInMemoryRegistry = registrychain.NewNetworkServiceEndpointRegistryServer(
+	var nseInMemoryRegistry = memory.NewNetworkServiceEndpointRegistryServer()
+
+	var nseRegistry = registrychain.NewNetworkServiceEndpointRegistryServer(
 		setlogoption.NewNetworkServiceEndpointRegistryServer(map[string]string{"name": fmt.Sprintf("NetworkServiceRegistryServer.%v", opts.name)}),
 		registryclientinfo.NewNetworkServiceEndpointRegistryServer(),
 		registryserialize.NewNetworkServiceEndpointRegistryServer(),
@@ -182,11 +184,9 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
 		registryrecvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
 		registrysendfd.NewNetworkServiceEndpointRegistryServer(),
-		memory.NewNetworkServiceEndpointRegistryServer(),
+		nseInMemoryRegistry,
 		localbypass.NewNetworkServiceEndpointRegistryServer(opts.url),
 	)
-
-	var nseRegistry = nseInMemoryRegistry
 
 	if opts.regURL != nil {
 		// Add remote registry
