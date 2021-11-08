@@ -92,7 +92,7 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 			resp, err := next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request.Clone())
 
 			if err == nil {
-				storeForwarderName(ctx, nses[0].Name)
+				storeForwarderName(ctx, candidate.Name)
 				return resp, nil
 			}
 		}
