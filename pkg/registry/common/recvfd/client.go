@@ -51,9 +51,9 @@ func (n *recvfdNSEClient) Find(ctx context.Context, in *registry.NetworkServiceE
 		return nil, err
 	}
 	recv, _ := grpcfd.FromPeer(p)
-	// if !ok {
-	//	return nil, errors.New("recv not found")
-	// }
+	if !ok {
+		return nil, errors.New("recv not found")
+	}
 
 	return &recvfdNSEFindClient{
 		transceiver: recv,

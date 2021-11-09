@@ -128,6 +128,8 @@ func TestCreateEndpointDuringRequest(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, 3, requestCounter.Requests())
+
+	log.EnableTracing(false)
 }
 
 type nseMaker struct {
