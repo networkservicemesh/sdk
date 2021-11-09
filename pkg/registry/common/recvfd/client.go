@@ -82,7 +82,8 @@ func (x *recvfdNSEFindClient) Recv() (*registry.NetworkServiceEndpointResponse, 
 		return nil, err
 	}
 
-	recv, ok := grpcfd.FromPeer(x.p)
+	//recv, ok := grpcfd.FromPeer(x.p)
+	recv, ok := grpcfd.FromContext(x.Context())
 	if !ok {
 		return nil, errors.New("recv not found")
 	}
