@@ -25,11 +25,12 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/edwarnicke/grpcfd"
+	"google.golang.org/grpc/peer"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
-
-	"github.com/edwarnicke/grpcfd"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
@@ -46,10 +47,8 @@ func NewClient() networkservice.NetworkServiceClient {
 }
 
 func (r *recvFDClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	// Get the grpcfd.FDRecver
-	rpcCredentials := grpcfd.PerRPCCredentials(grpcfd.PerRPCCredentialsFromCallOptions(opts...))
-	opts = append(opts, grpc.PerRPCCredentials(rpcCredentials))
-	recv, _ := grpcfd.FromPerRPCCredentials(rpcCredentials)
+	p := new(peer.Peer)
+	opts = append(opts, grpc.Peer(p))
 
 	// Call the next Client in the chain
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
@@ -63,6 +62,11 @@ func (r *recvFDClient) Request(ctx context.Context, request *networkservice.Netw
 		inodeURLbyFilename: make(map[string]*url.URL),
 	})
 
+	recv, ok := grpcfd.FromPeer(p)
+	if !ok {
+		return conn, nil
+	}
+
 	// Recv the FD and swap theInode to File in the Parameters for the returned connection mechanism
 	err = recvFDAndSwapInodeToFile(ctx, fileMap, conn.GetMechanism().GetParameters(), recv)
 	if err != nil {
@@ -74,10 +78,8 @@ func (r *recvFDClient) Request(ctx context.Context, request *networkservice.Netw
 }
 
 func (r *recvFDClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	// Get the grpcfd.FDRecver
-	rpcCredentials := grpcfd.PerRPCCredentials(grpcfd.PerRPCCredentialsFromCallOptions(opts...))
-	opts = append(opts, grpc.PerRPCCredentials(rpcCredentials))
-	recv, _ := grpcfd.FromPerRPCCredentials(rpcCredentials)
+	p := new(peer.Peer)
+	opts = append(opts, grpc.Peer(p))
 
 	// Get the fileMap
 	fileMap, _ := r.fileMaps.LoadOrStore(conn.GetId(), &perConnectionFileMap{
@@ -100,6 +102,11 @@ func (r *recvFDClient) Close(ctx context.Context, conn *networkservice.Connectio
 	_, err := next.Client(ctx).Close(ctx, conn, opts...)
 	if err != nil {
 		return nil, err
+	}
+
+	recv, ok := grpcfd.FromPeer(p)
+	if !ok {
+		return &empty.Empty{}, nil
 	}
 
 	// Recv the FD and swap theInode to File in the Parameters for the returned connection mechanism
