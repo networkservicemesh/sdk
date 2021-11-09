@@ -18,6 +18,7 @@ package nsmgr_test
 
 import (
 	"context"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"testing"
 	"time"
 
@@ -37,6 +38,8 @@ import (
 
 func TestCreateEndpointDuringRequest(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	log.EnableTracing(true)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 
