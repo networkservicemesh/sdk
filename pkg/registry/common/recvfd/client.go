@@ -28,7 +28,6 @@ import (
 	"github.com/edwarnicke/grpcfd"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
 
@@ -51,10 +50,10 @@ func (n *recvfdNSEClient) Find(ctx context.Context, in *registry.NetworkServiceE
 	if err != nil {
 		return nil, err
 	}
-	recv, ok := grpcfd.FromPeer(p)
-	if !ok {
-		return nil, errors.New("recv not found")
-	}
+	recv, _ := grpcfd.FromPeer(p)
+	// if !ok {
+	//	return nil, errors.New("recv not found")
+	// }
 
 	return &recvfdNSEFindClient{
 		transceiver: recv,
