@@ -37,7 +37,7 @@ import (
 
 func TestCreateEndpointDuringRequest(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-
+	// asdf asdf
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 
 	defer cancel()
