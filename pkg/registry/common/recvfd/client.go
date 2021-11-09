@@ -22,6 +22,7 @@ package recvfd
 
 import (
 	"context"
+	"github.com/pkg/errors"
 	"net/url"
 	"os"
 
@@ -29,6 +30,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/peer"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
@@ -42,15 +44,17 @@ func (n *recvfdNSEClient) Register(ctx context.Context, in *registry.NetworkServ
 }
 
 func (n *recvfdNSEClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	rpcCredentials := grpcfd.PerRPCCredentials(grpcfd.PerRPCCredentialsFromCallOptions(opts...))
-	opts = append(opts, grpc.PerRPCCredentials(rpcCredentials))
-	recv, _ := grpcfd.FromPerRPCCredentials(rpcCredentials)
+	p := new(peer.Peer)
+	opts = append(opts, grpc.Peer(p))
+
 	resp, err := next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, in, opts...)
 	if err != nil {
 		return nil, err
 	}
+
 	return &recvfdNSEFindClient{
-		transceiver: recv,
+		// transceiver: recv,
+		p : p,
 		NetworkServiceEndpointRegistry_FindClient: resp,
 		fileMaps: &n.fileMaps,
 	}, nil
@@ -69,6 +73,7 @@ type recvfdNSEFindClient struct {
 	registry.NetworkServiceEndpointRegistry_FindClient
 	transceiver grpcfd.FDTransceiver
 	fileMaps    *perEndpointFileMapMap
+	p			*peer.Peer
 }
 
 func (x *recvfdNSEFindClient) Recv() (*registry.NetworkServiceEndpointResponse, error) {
@@ -76,6 +81,14 @@ func (x *recvfdNSEFindClient) Recv() (*registry.NetworkServiceEndpointResponse, 
 	if err != nil {
 		return nil, err
 	}
+
+	//recv, ok := grpcfd.FromPeer(x.p)
+	recv, ok := grpcfd.FromContext(x.Context())
+	if !ok {
+		return nil, errors.New("recv not found")
+	}
+	x.transceiver = recv
+
 	if x.transceiver != nil {
 		// Get the fileMap
 		fileMap := &perEndpointFileMap{

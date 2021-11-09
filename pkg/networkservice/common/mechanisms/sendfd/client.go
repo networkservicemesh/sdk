@@ -25,6 +25,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
+
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -39,7 +40,7 @@ func NewClient() networkservice.NetworkServiceClient {
 
 func (s *sendFDClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	// Get the grpcfd.FDSender
-	rpcCredentials := grpcfd.PerRPCCredentials(grpcfd.PerRPCCredentialsFromCallOptions(opts...))
+	rpcCredentials := grpcfd.PerRPCCredentials(ctx, grpcfd.PerRPCCredentialsFromCallOptions(opts...))
 	opts = append(opts, grpc.PerRPCCredentials(rpcCredentials))
 	sender, _ := grpcfd.FromPerRPCCredentials(rpcCredentials)
 
@@ -67,7 +68,7 @@ func (s *sendFDClient) Request(ctx context.Context, request *networkservice.Netw
 }
 
 func (s *sendFDClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	rpcCredentials := grpcfd.PerRPCCredentials(grpcfd.PerRPCCredentialsFromCallOptions(opts...))
+	rpcCredentials := grpcfd.PerRPCCredentials(ctx, grpcfd.PerRPCCredentialsFromCallOptions(opts...))
 	opts = append(opts, grpc.PerRPCCredentials(rpcCredentials))
 	sender, _ := grpcfd.FromPerRPCCredentials(rpcCredentials)
 

@@ -44,7 +44,7 @@ func NewNetworkServiceEndpointRegistryClient() registry.NetworkServiceEndpointRe
 
 func (s *sendFDNSEClient) Register(ctx context.Context, endpoint *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
 	// Get the grpcfd.FDSender
-	rpcCredentials := grpcfd.PerRPCCredentials(grpcfd.PerRPCCredentialsFromCallOptions(opts...))
+	rpcCredentials := grpcfd.PerRPCCredentials(ctx, grpcfd.PerRPCCredentialsFromCallOptions(opts...))
 	opts = append(opts, grpc.PerRPCCredentials(rpcCredentials))
 	sender, _ := grpcfd.FromPerRPCCredentials(rpcCredentials)
 
@@ -72,7 +72,7 @@ func (s *sendFDNSEClient) Find(ctx context.Context, query *registry.NetworkServi
 
 func (s *sendFDNSEClient) Unregister(ctx context.Context, endpoint *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
 	// Get the grpcfd.FDSender
-	rpcCredentials := grpcfd.PerRPCCredentials(grpcfd.PerRPCCredentialsFromCallOptions(opts...))
+	rpcCredentials := grpcfd.PerRPCCredentials(ctx, grpcfd.PerRPCCredentialsFromCallOptions(opts...))
 	opts = append(opts, grpc.PerRPCCredentials(rpcCredentials))
 	sender, _ := grpcfd.FromPerRPCCredentials(rpcCredentials)
 
