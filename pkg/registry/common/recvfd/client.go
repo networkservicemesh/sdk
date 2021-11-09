@@ -50,7 +50,7 @@ func (n *recvfdNSEClient) Find(ctx context.Context, in *registry.NetworkServiceE
 	if err != nil {
 		return nil, err
 	}
-	recv, _ := grpcfd.FromPeer(p)
+	recv, ok := grpcfd.FromPeer(p)
 	if !ok {
 		return nil, errors.New("recv not found")
 	}
