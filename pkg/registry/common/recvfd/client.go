@@ -22,6 +22,7 @@ package recvfd
 
 import (
 	"context"
+	"github.com/pkg/errors"
 	"net/url"
 	"os"
 
