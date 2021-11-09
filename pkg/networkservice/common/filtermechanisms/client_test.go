@@ -33,7 +33,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 )
 
-func TestFilterMechanismsServer_Request(t *testing.T) {
+func TestFilterMechanismsClient_Request(t *testing.T) {
 	request := func() *networkservice.NetworkServiceRequest {
 		return &networkservice.NetworkServiceRequest{
 			MechanismPreferences: []*networkservice.Mechanism{
@@ -78,7 +78,7 @@ func TestFilterMechanismsServer_Request(t *testing.T) {
 	}
 
 	for _, sample := range samples {
-		s := filtermechanisms.NewServer()
+		s := filtermechanisms.NewClient()
 		ctx := clienturlctx.WithClientURL(context.Background(), sample.ClientURL)
 		req := request()
 		_, err := s.Request(ctx, req)

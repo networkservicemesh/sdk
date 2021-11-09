@@ -24,6 +24,7 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
@@ -32,26 +33,26 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 )
 
-type filterMechanismsServer struct{}
+type filterMechanismsClient struct{}
 
-// NewServer - filters out remote mechanisms if connection is received from a unix file socket, otherwise filters
+// NewClient - filters out remote mechanisms if connection is received from a unix file socket, otherwise filters
 // out local mechanisms
-func NewServer() networkservice.NetworkServiceServer {
-	return new(filterMechanismsServer)
+func NewClient() networkservice.NetworkServiceClient {
+	return new(filterMechanismsClient)
 }
 
-func (s *filterMechanismsServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+func (s *filterMechanismsClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	u := clienturlctx.ClientURL(ctx)
 	if u.Scheme == "inode" || u.Scheme == "unix" {
 		request.MechanismPreferences = filterMechanismsByCls(request.GetMechanismPreferences(), cls.LOCAL)
 	} else {
 		request.MechanismPreferences = filterMechanismsByCls(request.GetMechanismPreferences(), cls.REMOTE)
 	}
-	return next.Server(ctx).Request(ctx, request)
+	return next.Client(ctx).Request(ctx, request, opts...)
 }
 
-func (s *filterMechanismsServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	return next.Server(ctx).Close(ctx, conn)
+func (s *filterMechanismsClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
 func filterMechanismsByCls(mechanisms []*networkservice.Mechanism, mechanismCls string) []*networkservice.Mechanism {
