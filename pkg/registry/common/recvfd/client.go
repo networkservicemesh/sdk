@@ -22,7 +22,6 @@ package recvfd
 
 import (
 	"context"
-	"github.com/pkg/errors"
 	"net/url"
 	"os"
 
@@ -51,13 +50,10 @@ func (n *recvfdNSEClient) Find(ctx context.Context, in *registry.NetworkServiceE
 	if err != nil {
 		return nil, err
 	}
-	recv, ok := grpcfd.FromPeer(p)
-	if !ok {
-		return nil, errors.New("recv not found")
-	}
 
 	return &recvfdNSEFindClient{
-		transceiver: recv,
+		// transceiver: recv,
+		p : p,
 		NetworkServiceEndpointRegistry_FindClient: resp,
 		fileMaps: &n.fileMaps,
 	}, nil
@@ -76,6 +72,7 @@ type recvfdNSEFindClient struct {
 	registry.NetworkServiceEndpointRegistry_FindClient
 	transceiver grpcfd.FDTransceiver
 	fileMaps    *perEndpointFileMapMap
+	p			*peer.Peer
 }
 
 func (x *recvfdNSEFindClient) Recv() (*registry.NetworkServiceEndpointResponse, error) {
@@ -83,6 +80,13 @@ func (x *recvfdNSEFindClient) Recv() (*registry.NetworkServiceEndpointResponse, 
 	if err != nil {
 		return nil, err
 	}
+
+	recv, ok := grpcfd.FromPeer(p)
+	if !ok {
+		return nil, errors.New("recv not found")
+	}
+	x.transceiver = recv
+
 	if x.transceiver != nil {
 		// Get the fileMap
 		fileMap := &perEndpointFileMap{
