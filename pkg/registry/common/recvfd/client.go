@@ -22,6 +22,7 @@ package recvfd
 
 import (
 	"context"
+	"github.com/pkg/errors"
 	"net/url"
 	"os"
 
@@ -81,7 +82,7 @@ func (x *recvfdNSEFindClient) Recv() (*registry.NetworkServiceEndpointResponse, 
 		return nil, err
 	}
 
-	recv, ok := grpcfd.FromPeer(p)
+	recv, ok := grpcfd.FromPeer(x.p)
 	if !ok {
 		return nil, errors.New("recv not found")
 	}
