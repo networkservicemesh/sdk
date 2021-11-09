@@ -18,7 +18,6 @@ package sandbox
 
 import (
 	"context"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
 	"net/url"
 	"testing"
 
@@ -122,7 +121,7 @@ func (n *Node) NewForwarder(
 	}
 	nseClient := chain.NewNetworkServiceEndpointRegistryClient(
 		registryclient.NewNetworkServiceEndpointRegistryClient(ctx, CloneURL(n.NSMgr.URL),
-			registryclient.WithNSEAdditionalFunctionality(recvfd.NewNetworkServiceEndpointRegistryClient(), sendfd.NewNetworkServiceEndpointRegistryClient()),
+			registryclient.WithNSEAdditionalFunctionality(recvfd.NewNetworkServiceEndpointRegistryClient()),
 			registryclient.WithDialOptions(dialOptions...),
 		),
 	)

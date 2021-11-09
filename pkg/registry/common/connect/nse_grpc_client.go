@@ -18,6 +18,7 @@ package connect
 
 import (
 	"context"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -32,6 +33,9 @@ func (c *grpcNSEClient) Register(ctx context.Context, nse *registry.NetworkServi
 }
 
 func (c *grpcNSEClient) Find(ctx context.Context, query *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
+	for _, o := range opts {
+		log.FromContext(ctx).WithField("FIND", "CLIENT").Debug(o)
+	}
 	return registry.NewNetworkServiceEndpointRegistryClient(ccFromContext(ctx)).Find(ctx, query, opts...)
 }
 
