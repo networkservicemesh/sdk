@@ -47,7 +47,7 @@ linters-settings:
       - errors
     packages-with-error-message:
       # specify an error message to output when a blacklisted package is used
-       - errors: "Please use \"github.com/pkg/errors\" instead of \"errors\" in go imports"
+      - errors: "Please use \"github.com/pkg/errors\" instead of \"errors\" in go imports"
   misspell:
     locale: US
   unparam:
