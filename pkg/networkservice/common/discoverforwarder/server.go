@@ -34,17 +34,24 @@ import (
 
 type discoverForwarderServer struct {
 	nseClient            registry.NetworkServiceEndpointRegistryClient
+	nsClient             registry.NetworkServiceRegistryClient
 	forwarderServiceName string
 }
 
 // NewServer creates new instance of discoverforwarder networkservice.NetworkServiceServer.
 // Requires not nil nseClient.
-func NewServer(nseClient registry.NetworkServiceEndpointRegistryClient, opts ...Option) networkservice.NetworkServiceServer {
+// Requires not nil nsClient.
+func NewServer(nsClient registry.NetworkServiceRegistryClient, nseClient registry.NetworkServiceEndpointRegistryClient, opts ...Option) networkservice.NetworkServiceServer {
 	if nseClient == nil {
 		panic("mseClient can not be nil")
 	}
+	if nsClient == nil {
+		panic("nsClient can not be nil")
+	}
+
 	var result = &discoverForwarderServer{
 		nseClient:            nseClient,
+		nsClient:             nsClient,
 		forwarderServiceName: "forwarder",
 	}
 
@@ -60,6 +67,11 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 	var logger = log.FromContext(ctx).WithField("discoverForwarderServer", "request")
 
 	if forwarderName == "" {
+		ns, err := d.discoverNetworkService(ctx, request.GetConnection().GetNetworkService(), request.GetConnection().GetPayload())
+		if err != nil {
+			return nil, err
+		}
+
 		stream, err := d.nseClient.Find(ctx, &registry.NetworkServiceEndpointQuery{
 			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 				NetworkServiceNames: []string{
@@ -73,7 +85,7 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 			return nil, errors.WithStack(err)
 		}
 
-		nses := d.matchForwarders(request.Connection.GetLabels(), registry.ReadNetworkServiceEndpointList(stream))
+		nses := d.matchForwarders(request.Connection.GetLabels(), ns, registry.ReadNetworkServiceEndpointList(stream))
 
 		if len(nses) == 0 {
 			return nil, errors.New("no candidates found")
@@ -163,20 +175,64 @@ func (d *discoverForwarderServer) Close(ctx context.Context, conn *networkservic
 	return next.Server(ctx).Close(ctx, conn)
 }
 
-func (d *discoverForwarderServer) matchForwarders(clientLabels map[string]string, canidates []*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
+func (d *discoverForwarderServer) matchForwarders(nsLabels map[string]string, ns *registry.NetworkService, nses []*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
 	var result []*registry.NetworkServiceEndpoint
 
-	for _, candidate := range canidates {
-		var forwawrderLabels map[string]string
+	if len(ns.GetMatches()) == 0 {
+		return nses
+	}
 
-		if candidate.NetworkServiceLabels[d.forwarderServiceName] != nil {
-			forwawrderLabels = candidate.NetworkServiceLabels[d.forwarderServiceName].Labels
+	for _, match := range ns.GetMatches() {
+		if !matchutils.IsSubset(nsLabels, match.GetSourceSelector(), nsLabels) {
+			continue
 		}
 
-		if matchutils.IsSubset(clientLabels, forwawrderLabels, clientLabels) {
-			result = append(result, candidate)
+		var matchLabels = match.GetMetadata().GetLabels()
+
+		if matchLabels == nil {
+			matchLabels = map[string]string{
+				"p2p": "true",
+			}
 		}
+		for _, nse := range nses {
+			var forwarderLabels = nse.GetNetworkServiceLabels()[d.forwarderServiceName]
+			if forwarderLabels == nil {
+				continue
+			}
+			if matchutils.IsSubset(forwarderLabels.Labels, matchLabels, nsLabels) {
+				result = append(result, nse)
+			}
+		}
+
+		if match.Fallthrough && len(result) == 0 {
+			continue
+		}
+
+		break
 	}
 
 	return result
+}
+
+func (d *discoverForwarderServer) discoverNetworkService(ctx context.Context, name, payload string) (*registry.NetworkService, error) {
+	query := &registry.NetworkServiceQuery{
+		NetworkService: &registry.NetworkService{
+			Name:    name,
+			Payload: payload,
+		},
+	}
+
+	nsRespStream, err := d.nsClient.Find(ctx, query)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	nsList := registry.ReadNetworkServiceList(nsRespStream)
+
+	for _, ns := range nsList {
+		if ns.Name == name {
+			return ns, nil
+		}
+	}
+
+	return nil, errors.Errorf("network service %v is not found", name)
 }

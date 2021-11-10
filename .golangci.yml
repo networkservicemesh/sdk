@@ -274,6 +274,9 @@ issues:
     - path: pkg/tools/matchutils/utils_test.go
       linters:
         - funlen
+    - path: pkg/networkservice/chains/nsmgr/single_test.go
+      linters:
+        - funlen
     - path: pkg/registry/common/recvfd/gen.go
       linters:
         - structcheck

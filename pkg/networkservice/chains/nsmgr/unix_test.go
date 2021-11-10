@@ -103,10 +103,24 @@ func Test_MultiForwarderSendfd(t *testing.T) {
 			node.NewForwarder(ctx, &registry.NetworkServiceEndpoint{
 				Name:                "forwarder-1",
 				NetworkServiceNames: []string{"forwarder"},
+				NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+					"forwarder": {
+						Labels: map[string]string{
+							"p2p": "true",
+						},
+					},
+				},
 			}, sandbox.GenerateTestToken, errorServer, recvfd.NewServer())
 			node.NewForwarder(ctx, &registry.NetworkServiceEndpoint{
 				Name:                "forwarder-2",
 				NetworkServiceNames: []string{"forwarder"},
+				NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+					"forwarder": {
+						Labels: map[string]string{
+							"p2p": "true",
+						},
+					},
+				},
 			}, sandbox.GenerateTestToken, errorServer, recvfd.NewServer())
 		}).
 		Build()

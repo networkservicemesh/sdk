@@ -96,5 +96,12 @@ func SetupDefaultNode(ctx context.Context, node *Node, supplyNSMgr SupplyNSMgrFu
 	node.NewForwarder(ctx, &registryapi.NetworkServiceEndpoint{
 		Name:                UniqueName("forwarder"),
 		NetworkServiceNames: []string{"forwarder"},
+		NetworkServiceLabels: map[string]*registryapi.NetworkServiceLabels{
+			"forwarder": {
+				Labels: map[string]string{
+					"p2p": "true",
+				},
+			},
+		},
 	}, GenerateTestToken)
 }
