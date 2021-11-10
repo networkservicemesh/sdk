@@ -24,8 +24,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
-
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
@@ -83,7 +81,7 @@ func testNSMGRHealEndpoint(t *testing.T, nodeNum int) {
 
 	request := defaultRequest(nsReg.Name)
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, heal.NewClient(ctx))
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -158,7 +156,7 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int) {
 
 	request := defaultRequest(nsReg.Name)
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, heal.NewClient(ctx))
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -242,7 +240,7 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 
 	request := defaultRequest(nsReg.Name)
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, heal.NewClient(ctx))
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -312,7 +310,7 @@ func TestNSMGR_HealRegistry(t *testing.T) {
 
 	request := defaultRequest(nsReg.Name)
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, heal.NewClient(ctx))
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -326,7 +324,7 @@ func TestNSMGR_HealRegistry(t *testing.T) {
 	require.NoError(t, err)
 
 	// 3. Check new client request
-	nsc = domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, heal.NewClient(ctx))
+	nsc = domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
 	_, err = nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -386,7 +384,7 @@ func testNSMGRCloseHeal(t *testing.T, withNSEExpiration bool) {
 
 	nscCtx, nscCtxCancel := context.WithCancel(ctx)
 
-	nsc := domain.Nodes[0].NewClient(nscCtx, sandbox.GenerateTestToken, heal.NewClient(ctx))
+	nsc := domain.Nodes[0].NewClient(nscCtx, sandbox.GenerateTestToken)
 
 	reqCtx, reqCancel := context.WithTimeout(ctx, time.Second)
 	defer reqCancel()

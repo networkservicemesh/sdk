@@ -33,6 +33,7 @@ type clientOptions struct {
 	additionalFunctionality []networkservice.NetworkServiceClient
 	authorizeClient         networkservice.NetworkServiceClient
 	refreshClient           networkservice.NetworkServiceClient
+	healClient              networkservice.NetworkServiceClient
 	dialOptions             []grpc.DialOption
 	dialTimeout             time.Duration
 }
@@ -75,6 +76,16 @@ func WithAuthorizeClient(authorizeClient networkservice.NetworkServiceClient) Op
 	}
 	return Option(func(c *clientOptions) {
 		c.authorizeClient = authorizeClient
+	})
+}
+
+// WithHealClient sets healClient for the client chain.
+func WithHealClient(healClient networkservice.NetworkServiceClient) Option {
+	if healClient == nil {
+		panic("healClient cannot be nil")
+	}
+	return Option(func(c *clientOptions) {
+		c.healClient = healClient
 	})
 }
 

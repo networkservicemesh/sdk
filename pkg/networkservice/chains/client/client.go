@@ -45,6 +45,7 @@ func NewClient(ctx context.Context, clientOpts ...Option) networkservice.Network
 	var opts = &clientOptions{
 		name:            "client-" + uuid.New().String(),
 		authorizeClient: null.NewClient(),
+		healClient:      null.NewClient(),
 		refreshClient:   refresh.NewClient(ctx),
 	}
 	for _, opt := range clientOpts {
@@ -61,6 +62,7 @@ func NewClient(ctx context.Context, clientOpts ...Option) networkservice.Network
 				opts.refreshClient,
 				clienturl.NewClient(opts.clientURL),
 				clientconn.NewClient(opts.cc),
+				opts.healClient,
 				dial.NewClient(ctx,
 					dial.WithDialOptions(opts.dialOptions...),
 					dial.WithDialTimeout(opts.dialTimeout),
