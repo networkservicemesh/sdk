@@ -29,7 +29,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setlogoption"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 )
 
@@ -42,7 +41,7 @@ func NewNetworkServiceEndpointRegistryClient(ctx context.Context, connectTo *url
 
 	c := new(registry.NetworkServiceEndpointRegistryClient)
 	*c = chain.NewNetworkServiceEndpointRegistryClient(
-		adapters.NetworkServiceEndpointServerToClient(setlogoption.NewNetworkServiceEndpointRegistryServer(map[string]string{})),
+		setlogoption.NewNetworkServiceEndpointRegistryClient(map[string]string{}),
 		serialize.NewNetworkServiceEndpointRegistryClient(),
 		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
 		connect.NewNetworkServiceEndpointRegistryClient(ctx, connectTo,

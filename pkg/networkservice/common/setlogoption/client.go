@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,11 +14,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package setlogoption - allow to overide some of logging capabilities.
 package setlogoption
 
 import (
 	"context"
+
+	"google.golang.org/grpc"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -27,23 +28,23 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-type setLogOptionServer struct {
+type setLogOptionClient struct {
 	options map[string]string
 }
 
-// NewServer - construct a new set log option server to override some logging capabilities for context.
-func NewServer(options map[string]string) networkservice.NetworkServiceServer {
-	return &setLogOptionServer{
+// NewClient - construct a new set log option server to override some logging capabilities for context.
+func NewClient(options map[string]string) networkservice.NetworkServiceClient {
+	return &setLogOptionClient{
 		options: options,
 	}
 }
 
-func (s *setLogOptionServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+func (s *setLogOptionClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	ctx = s.withFields(ctx)
-	return next.Server(ctx).Request(ctx, request)
+	return next.Client(ctx).Request(ctx, request, opts...)
 }
 
-func (s *setLogOptionServer) withFields(ctx context.Context) context.Context {
+func (s *setLogOptionClient) withFields(ctx context.Context) context.Context {
 	ctxFields := log.Fields(ctx)
 	fields := make(map[string]interface{})
 	for k, v := range ctxFields {
@@ -60,7 +61,7 @@ func (s *setLogOptionServer) withFields(ctx context.Context) context.Context {
 	return ctx
 }
 
-func (s *setLogOptionServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
+func (s *setLogOptionClient) Close(ctx context.Context, connection *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	ctx = s.withFields(ctx)
-	return next.Server(ctx).Close(ctx, connection)
+	return next.Client(ctx).Close(ctx, connection, opts...)
 }
