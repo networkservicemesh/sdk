@@ -204,6 +204,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		endpoint.WithAdditionalFunctionality(
 			adapters.NewClientToServer(clientinfo.NewClient()),
 			discoverforwarder.NewServer(
+				registryadapter.NetworkServiceServerToClient(nsRegistry),
 				registryadapter.NetworkServiceEndpointServerToClient(nseInMemoryRegistry),
 				discoverforwarder.WithForwarderServiceName(opts.forwarderServiceName),
 			),

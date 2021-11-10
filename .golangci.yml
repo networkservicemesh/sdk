@@ -47,7 +47,7 @@ linters-settings:
       - errors
     packages-with-error-message:
       # specify an error message to output when a blacklisted package is used
-      - errors: "Please use \"github.com/pkg/errors\" instead of \"errors\" in go imports"
+       - errors: "Please use \"github.com/pkg/errors\" instead of \"errors\" in go imports"
   misspell:
     locale: US
   unparam:
@@ -272,6 +272,9 @@ issues:
         - funlen
       text: "Function 'TestConnectServer_Request'"
     - path: pkg/tools/matchutils/utils_test.go
+      linters:
+        - funlen
+    - path: pkg/networkservice/chains/nsmgr/single_test.go
       linters:
         - funlen
     - path: pkg/registry/common/recvfd/gen.go

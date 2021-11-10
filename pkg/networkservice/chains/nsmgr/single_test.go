@@ -308,24 +308,66 @@ func Test_UsecasePoint2MultiPoint(t *testing.T) {
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService())
+	_, err := nsRegistryClient.Register(ctx, &registry.NetworkService{
+		Name: "my-ns",
+		Matches: []*registry.Match{
+			{
+				SourceSelector: map[string]string{},
+				Routes: []*registry.Destination{
+					{
+						DestinationSelector: map[string]string{},
+					},
+				},
+				Metadata: &registry.Metadata{
+					Labels: map[string]string{
+						"p2mp": "true",
+					},
+				},
+			},
+		},
+	})
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := &registry.NetworkServiceEndpoint{
+		Name:                "my-nse-1",
+		NetworkServiceNames: []string{"my-ns"},
+	}
 
 	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-	request := defaultRequest(nsReg.Name)
-
-	request.GetConnection().Labels = map[string]string{
-		"p2mp": "true",
-	}
+	request := defaultRequest("my-ns")
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 4, len(conn.Path.PathSegments))
 	require.Equal(t, "p2mp forwarder", conn.GetPath().GetPathSegments()[2].Name)
+
+	_, err = nsRegistryClient.Register(ctx, &registry.NetworkService{
+		Name: "my-ns",
+		Matches: []*registry.Match{
+			{
+				SourceSelector: map[string]string{},
+				Routes: []*registry.Destination{
+					{
+						DestinationSelector: map[string]string{},
+					},
+				},
+				Metadata: &registry.Metadata{
+					Labels: map[string]string{
+						// no labels
+					},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	conn, err = nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+	require.Equal(t, 4, len(conn.Path.PathSegments))
+	require.Equal(t, "p2p forwarder", conn.GetPath().GetPathSegments()[2].Name)
 }

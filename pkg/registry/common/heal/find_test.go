@@ -48,6 +48,13 @@ func TestHealClient_FindTest(t *testing.T) {
 			node.NewForwarder(ctx, &registry.NetworkServiceEndpoint{
 				Name:                sandbox.UniqueName("forwarder"),
 				NetworkServiceNames: []string{"forwarder"},
+				NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+					"forwarder": {
+						Labels: map[string]string{
+							"p2p": "true",
+						},
+					},
+				},
 			}, sandbox.GenerateTestToken)
 		}).
 		Build()
