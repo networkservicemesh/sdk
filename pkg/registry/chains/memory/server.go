@@ -33,6 +33,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setlogoption"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setpayload"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/setregistrationtime"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 )
 
@@ -41,6 +42,7 @@ func NewServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryU
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
 		setlogoption.NewNetworkServiceEndpointRegistryServer(map[string]string{}),
 		serialize.NewNetworkServiceEndpointRegistryServer(),
+		setregistrationtime.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, expiryDuration),
 		checkid.NewNetworkServiceEndpointRegistryServer(),
 		memory.NewNetworkServiceEndpointRegistryServer(),
