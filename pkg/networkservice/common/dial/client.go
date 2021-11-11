@@ -32,6 +32,8 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type dialClient struct {
@@ -74,12 +76,19 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 	if di.clientURL != nil && di.clientURL.String() != clientURL.String() {
 		closeCtx, closeCancel := closeContextFunc()
 		defer closeCancel()
-		_ = di.Dial(closeCtx, di.clientURL)
+		err := di.Dial(closeCtx, di.clientURL)
+		if err != nil {
+			log.FromContext(ctx).Errorf("can not redial to %v, err %v. Deleting clientconn...", grpcutils.URLToTarget(di.clientURL), err)
+			clientconn.Delete(ctx)
+			return nil, err
+		}
 		_, _ = next.Client(ctx).Close(clienturlctx.WithClientURL(closeCtx, di.clientURL), request.GetConnection(), opts...)
 	}
 
 	err := di.Dial(ctx, clientURL)
 	if err != nil {
+		log.FromContext(ctx).Errorf("can not dial to %v, err %v. Deleting clientconn...", grpcutils.URLToTarget(clientURL), err)
+		clientconn.Delete(ctx)
 		return nil, err
 	}
 
