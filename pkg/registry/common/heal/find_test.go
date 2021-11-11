@@ -34,6 +34,7 @@ import (
 func TestHealClient_FindTest(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
+	// blah blah
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
