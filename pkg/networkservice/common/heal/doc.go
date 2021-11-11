@@ -14,30 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package begin
-
-import (
-	"context"
-)
-
-type option struct {
-	cancelCtx context.Context
-	reselect  bool
-}
-
-// Option - event option
-type Option func(*option)
-
-// CancelContext - optionally provide a context that, when canceled will preclude the event from running
-func CancelContext(cancelCtx context.Context) Option {
-	return func(o *option) {
-		o.cancelCtx = cancelCtx
-	}
-}
-
-// WithReselect - optionally clear Mechanism and NetworkServiceName to force reselect
-func WithReselect() Option {
-	return func(o *option) {
-		o.reselect = true
-	}
-}
+// Package heal provides a client chain element that can be used to enable fast heal of Connections
+// if something goes wrong with the current Connection (as detected by monitor).
+// Do not use heal client chain element in a passthrough NSE
+package heal

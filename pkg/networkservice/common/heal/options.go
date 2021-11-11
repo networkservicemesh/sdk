@@ -14,30 +14,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package begin
+package heal
 
 import (
-	"context"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
+// LivelinessCheck - function that returns true of conn is 'live' and false otherwise
+type LivelinessCheck func(conn *networkservice.Connection) bool
+
 type option struct {
-	cancelCtx context.Context
-	reselect  bool
+	livelinessCheck LivelinessCheck
 }
 
-// Option - event option
-type Option func(*option)
+// Option - option for heal.NewClient() chain element
+type Option func(o *option)
 
-// CancelContext - optionally provide a context that, when canceled will preclude the event from running
-func CancelContext(cancelCtx context.Context) Option {
+// WithLivelinessCheck - sets the LivelinessCheck for the heal chain elemeent
+func WithLivelinessCheck(livelinessCheck LivelinessCheck) Option {
 	return func(o *option) {
-		o.cancelCtx = cancelCtx
-	}
-}
-
-// WithReselect - optionally clear Mechanism and NetworkServiceName to force reselect
-func WithReselect() Option {
-	return func(o *option) {
-		o.reselect = true
+		o.livelinessCheck = livelinessCheck
 	}
 }

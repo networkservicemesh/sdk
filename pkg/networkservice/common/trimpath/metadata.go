@@ -14,30 +14,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package begin
+package trimpath
 
 import (
 	"context"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
-type option struct {
-	cancelCtx context.Context
-	reselect  bool
+type key struct{}
+
+// dontTrimPath stores the fact we should not trim the path in in per Connection.Id metadata.
+// should only be called in trimPathClient
+func dontTrimPath(ctx context.Context) {
+	metadata.Map(ctx, true).Store(key{}, key{})
 }
 
-// Option - event option
-type Option func(*option)
-
-// CancelContext - optionally provide a context that, when canceled will preclude the event from running
-func CancelContext(cancelCtx context.Context) Option {
-	return func(o *option) {
-		o.cancelCtx = cancelCtx
-	}
-}
-
-// WithReselect - optionally clear Mechanism and NetworkServiceName to force reselect
-func WithReselect() Option {
-	return func(o *option) {
-		o.reselect = true
-	}
+// shouldTrimPath returns true if the server should trim the path, false otherwise.
+func shouldTrimPath(ctx context.Context) (ok bool) {
+	m := metadata.Map(ctx, true)
+	_, ok = m.LoadAndDelete(key{})
+	return !ok
 }

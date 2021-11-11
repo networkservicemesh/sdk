@@ -23,6 +23,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/trimpath"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
@@ -43,6 +45,7 @@ func NewClient(ctx context.Context, clientOpts ...Option) networkservice.Network
 	var opts = &clientOptions{
 		name:            "client-" + uuid.New().String(),
 		authorizeClient: null.NewClient(),
+		healClient:      null.NewClient(),
 		refreshClient:   refresh.NewClient(ctx),
 	}
 	for _, opt := range clientOpts {
@@ -59,6 +62,7 @@ func NewClient(ctx context.Context, clientOpts ...Option) networkservice.Network
 				opts.refreshClient,
 				clienturl.NewClient(opts.clientURL),
 				clientconn.NewClient(opts.cc),
+				opts.healClient,
 				dial.NewClient(ctx,
 					dial.WithDialOptions(opts.dialOptions...),
 					dial.WithDialTimeout(opts.dialTimeout),
@@ -67,6 +71,7 @@ func NewClient(ctx context.Context, clientOpts ...Option) networkservice.Network
 			append(
 				opts.additionalFunctionality,
 				opts.authorizeClient,
+				trimpath.NewClient(),
 				connect.NewClient(),
 			)...,
 		)...,

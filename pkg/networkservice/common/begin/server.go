@@ -73,6 +73,8 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 		eventFactoryServer.request = request.Clone()
 		eventFactoryServer.request.Connection = conn.Clone()
 		eventFactoryServer.state = established
+
+		eventFactoryServer.returnedConnection = conn.Clone()
 	})
 	return conn, err
 }

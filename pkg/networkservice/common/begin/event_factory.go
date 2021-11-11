@@ -45,13 +45,14 @@ type EventFactory interface {
 }
 
 type eventFactoryClient struct {
-	state          connectionState
-	executor       serialize.Executor
-	ctxFunc        func() (context.Context, context.CancelFunc)
-	request        *networkservice.NetworkServiceRequest
-	opts           []grpc.CallOption
-	client         networkservice.NetworkServiceClient
-	afterCloseFunc func()
+	state              connectionState
+	executor           serialize.Executor
+	ctxFunc            func() (context.Context, context.CancelFunc)
+	request            *networkservice.NetworkServiceRequest
+	returnedConnection *networkservice.Connection
+	opts               []grpc.CallOption
+	client             networkservice.NetworkServiceClient
+	afterCloseFunc     func()
 }
 
 func newEventFactoryClient(ctx context.Context, afterClose func(), opts ...grpc.CallOption) *eventFactoryClient {
@@ -90,9 +91,20 @@ func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
 		select {
 		case <-o.cancelCtx.Done():
 		default:
+			request := f.request.Clone()
+			if o.reselect {
+				ctx, cancel := f.ctxFunc()
+				defer cancel()
+				_, _ = f.client.Close(ctx, request.GetConnection(), f.opts...)
+				if request.GetConnection() != nil {
+					request.GetConnection().Mechanism = nil
+					request.GetConnection().NetworkServiceEndpointName = ""
+					request.GetConnection().GetPath().PathSegments = request.GetConnection().GetPath().PathSegments[:request.GetConnection().GetPath().GetIndex()+1]
+				}
+			}
 			ctx, cancel := f.ctxFunc()
 			defer cancel()
-			conn, err := f.client.Request(ctx, f.request, f.opts...)
+			conn, err := f.client.Request(ctx, request, f.opts...)
 			if err == nil && f.request != nil {
 				f.request.Connection = conn
 			}
@@ -131,12 +143,13 @@ func (f *eventFactoryClient) Close(opts ...Option) <-chan error {
 var _ EventFactory = &eventFactoryClient{}
 
 type eventFactoryServer struct {
-	state          connectionState
-	executor       serialize.Executor
-	ctxFunc        func() (context.Context, context.CancelFunc)
-	request        *networkservice.NetworkServiceRequest
-	afterCloseFunc func()
-	server         networkservice.NetworkServiceServer
+	state              connectionState
+	executor           serialize.Executor
+	ctxFunc            func() (context.Context, context.CancelFunc)
+	request            *networkservice.NetworkServiceRequest
+	returnedConnection *networkservice.Connection
+	afterCloseFunc     func()
+	server             networkservice.NetworkServiceServer
 }
 
 func newEventFactoryServer(ctx context.Context, afterClose func()) *eventFactoryServer {
