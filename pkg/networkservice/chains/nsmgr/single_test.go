@@ -98,51 +98,6 @@ func Test_DNSUsecase(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func Test_ShouldCorrectlyAddEndpointsWithSameNames(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-
-	domain := sandbox.NewBuilder(ctx, t).
-		SetNodesCount(1).
-		SetRegistryProxySupplier(nil).
-		SetRegistryExpiryDuration(sandbox.RegistryExpiryDuration).
-		Build()
-
-	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
-
-	// 1. Add endpoints
-	var nseRegs [2]*registry.NetworkServiceEndpoint
-	var nses [2]*sandbox.EndpointEntry
-	for i := range nseRegs {
-		nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService())
-		require.NoError(t, err)
-
-		nseRegs[i] = defaultRegistryEndpoint(nsReg.Name)
-		nseRegs[i].NetworkServiceNames[0] = nsReg.Name
-
-		nses[i] = domain.Nodes[0].NewEndpoint(ctx, nseRegs[i], sandbox.GenerateTestToken)
-	}
-
-	// 2. Wait for refresh
-	<-time.After(sandbox.RegistryExpiryDuration)
-
-	// 3. Request
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
-
-	for _, nseReg := range nseRegs {
-		_, err := nsc.Request(ctx, defaultRequest(nseReg.NetworkServiceNames[0]))
-		require.NoError(t, err)
-	}
-
-	// 3. Delete endpoints
-	for i, nseReg := range nseRegs {
-		_, err := nses[i].Unregister(ctx, nseReg)
-		require.NoError(t, err)
-	}
-}
-
 func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -316,6 +271,9 @@ func Test_UsecasePoint2MultiPoint(t *testing.T) {
 			},
 		},
 	})
+	require.NoError(t, err)
+
+	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
 
 	conn, err = nsc.Request(ctx, request.Clone())
