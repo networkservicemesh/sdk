@@ -369,5 +369,5 @@ func Test_UsecasePoint2MultiPoint(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 4, len(conn.Path.PathSegments))
-	require.Equal(t, "p2p forwarder", conn.GetPath().GetPathSegments()[2].Name)
+	require.Equal(t, "p2mp forwarder", conn.GetPath().GetPathSegments()[2].Name)
 }
