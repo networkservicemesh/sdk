@@ -255,6 +255,7 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// blah blah
 func Test_UsecasePoint2MultiPoint(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
