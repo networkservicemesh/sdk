@@ -28,10 +28,8 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/checkid"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/setid"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
@@ -51,9 +49,7 @@ func TestLocalBypassNSEServer(t *testing.T) {
 	mem := memory.NewNetworkServiceEndpointRegistryServer()
 
 	server := next.NewNetworkServiceEndpointRegistryServer(
-		adapters.NetworkServiceEndpointClientToServer(setid.NewNetworkServiceEndpointRegistryClient()),
 		localbypass.NewNetworkServiceEndpointRegistryServer(nsmgrURL),
-		checkid.NewNetworkServiceEndpointRegistryServer(),
 		mem,
 	)
 
@@ -168,9 +164,7 @@ func TestLocalBypassNSEServer_SlowRegistryFind(t *testing.T) {
 	defer cancel()
 
 	server := next.NewNetworkServiceEndpointRegistryServer(
-		adapters.NetworkServiceEndpointClientToServer(setid.NewNetworkServiceEndpointRegistryClient()),
 		localbypass.NewNetworkServiceEndpointRegistryServer(nsmgrURL),
-		checkid.NewNetworkServiceEndpointRegistryServer(),
 		&slowRegistry{
 			delay:                                100 * time.Millisecond,
 			NetworkServiceEndpointRegistryServer: memory.NewNetworkServiceEndpointRegistryServer(),
@@ -261,9 +255,7 @@ func TestLocalBypassNSEServer_SlowRegistryFindWatch(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	server := next.NewNetworkServiceEndpointRegistryServer(
-		adapters.NetworkServiceEndpointClientToServer(setid.NewNetworkServiceEndpointRegistryClient()),
 		localbypass.NewNetworkServiceEndpointRegistryServer(nsmgrURL),
-		checkid.NewNetworkServiceEndpointRegistryServer(),
 		&slowRegistry{
 			delay:                                100 * time.Millisecond,
 			NetworkServiceEndpointRegistryServer: memory.NewNetworkServiceEndpointRegistryServer(),
