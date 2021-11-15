@@ -17,6 +17,7 @@
 package sandbox
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -27,6 +28,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
@@ -82,6 +84,8 @@ func NewBuilder(ctx context.Context, t *testing.T) *Builder {
 	b.setupNode = func(ctx context.Context, node *Node, _ int) {
 		SetupDefaultNode(ctx, node, b.supplyNSMgr)
 	}
+
+	writeLogsIfTestFailed(ctx, t)
 
 	return b
 }
@@ -332,4 +336,20 @@ func (b *Builder) buildDNSServer() {
 	if b.domain.NSMgrProxy != nil {
 		resolver.AddSRVEntry(b.name, dnsresolve.DefaultNsmgrProxyService, CloneURL(b.domain.NSMgrProxy.URL))
 	}
+}
+
+func writeLogsIfTestFailed(ctx context.Context, t *testing.T) {
+	var buffer *bytes.Buffer = new(bytes.Buffer)
+
+	log.EnableTracing(true)
+	logrus.SetOutput(buffer)
+
+	t.Cleanup(func() {
+		if t.Failed() {
+			_, err := os.Stdout.Write(buffer.Bytes())
+			if err != nil {
+				log.FromContext(ctx).Error("Failed to print memory logs")
+			}
+		}
+	})
 }
