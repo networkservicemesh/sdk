@@ -25,6 +25,7 @@ import (
 	"net/url"
 	"os"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
 
@@ -65,6 +66,8 @@ type Builder struct {
 	domain *Domain
 }
 
+var once sync.Once
+
 // NewBuilder creates new SandboxBuilder
 func NewBuilder(ctx context.Context, t *testing.T) *Builder {
 	b := &Builder{
@@ -85,7 +88,8 @@ func NewBuilder(ctx context.Context, t *testing.T) *Builder {
 		SetupDefaultNode(ctx, node, b.supplyNSMgr)
 	}
 
-	writeLogsIfTestFailed(ctx, t)
+	//var once sync.Once
+	once.Do(func() { writeLogsIfTestFailed(ctx, t) })
 
 	return b
 }
@@ -338,18 +342,46 @@ func (b *Builder) buildDNSServer() {
 	}
 }
 
+type threadSafeBuffer struct {
+	buffer bytes.Buffer
+	m      sync.Mutex
+}
+
+func (s *threadSafeBuffer) Write(p []byte) (n int, err error) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	return s.buffer.Write(p)
+}
+
+func (s *threadSafeBuffer) Bytes() []byte {
+	s.m.Lock()
+	defer s.m.Unlock()
+	return s.buffer.Bytes()
+}
+
+func (s *threadSafeBuffer) Reset() {
+	s.m.Lock()
+	defer s.m.Unlock()
+	s.buffer.Reset()
+}
+
+var stdoutMu sync.Mutex
+
 func writeLogsIfTestFailed(ctx context.Context, t *testing.T) {
-	var buffer *bytes.Buffer = new(bytes.Buffer)
+	var buffer = new(threadSafeBuffer)
 
 	log.EnableTracing(true)
 	logrus.SetOutput(buffer)
 
 	t.Cleanup(func() {
 		if t.Failed() {
+			stdoutMu.Lock()
+			defer stdoutMu.Unlock()
 			_, err := os.Stdout.Write(buffer.Bytes())
 			if err != nil {
 				log.FromContext(ctx).Error("Failed to print memory logs")
 			}
 		}
+		buffer.Reset()
 	})
 }
