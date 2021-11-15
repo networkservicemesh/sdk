@@ -25,7 +25,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type setLogOptionClient struct {
@@ -40,28 +39,11 @@ func NewClient(options map[string]string) networkservice.NetworkServiceClient {
 }
 
 func (s *setLogOptionClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	ctx = s.withFields(ctx)
+	ctx = withFields(ctx, s.options)
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
 
-func (s *setLogOptionClient) withFields(ctx context.Context) context.Context {
-	ctxFields := log.Fields(ctx)
-	fields := make(map[string]interface{})
-	for k, v := range ctxFields {
-		fields[k] = v
-	}
-
-	fields["type"] = networkService
-	for k, v := range s.options {
-		fields[k] = v
-	}
-	if len(fields) > 0 {
-		ctx = log.WithFields(ctx, fields)
-	}
-	return ctx
-}
-
 func (s *setLogOptionClient) Close(ctx context.Context, connection *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	ctx = s.withFields(ctx)
+	ctx = withFields(ctx, s.options)
 	return next.Client(ctx).Close(ctx, connection, opts...)
 }

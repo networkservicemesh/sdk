@@ -16,6 +16,20 @@
 
 package setlogoption
 
-const (
-	networkService = "NetworkService"
+import (
+	"context"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
+
+func withFields(ctx context.Context, options map[string]string) context.Context {
+	fields := make(map[string]interface{})
+	fields["type"] = "NetworkService"
+	for k, v := range options {
+		fields[k] = v
+	}
+
+	ctx = log.WithFields(ctx, fields)
+
+	return ctx
+}
