@@ -20,7 +20,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -48,23 +48,23 @@ func getSamples() []chainSample {
 			services: []serviceSample{
 				{
 					name: "nsc",
-					tokenGenerator: genTokenFunc(&jwt.StandardClaims{
+					tokenGenerator: genTokenFunc(&jwt.RegisteredClaims{
 						Subject:  "nsc",
-						Audience: "nsmgr1",
+						Audience: []string{"nsmgr1"},
 					}),
 				},
 				{
 					name: "nsmgr1",
-					tokenGenerator: genTokenFunc(&jwt.StandardClaims{
+					tokenGenerator: genTokenFunc(&jwt.RegisteredClaims{
 						Subject:  "nsmgr1",
-						Audience: "nsmgr2",
+						Audience: []string{"nsmgr2"},
 					}),
 				},
 				{
 					name: "nsmgr2",
-					tokenGenerator: genTokenFunc(&jwt.StandardClaims{
+					tokenGenerator: genTokenFunc(&jwt.RegisteredClaims{
 						Subject:  "nsmgr2",
-						Audience: "nse",
+						Audience: []string{"nse"},
 					}),
 				},
 			},
@@ -75,28 +75,28 @@ func getSamples() []chainSample {
 			services: []serviceSample{
 				{
 					name: "nsc",
-					tokenGenerator: genTokenFunc(&jwt.StandardClaims{
+					tokenGenerator: genTokenFunc(&jwt.RegisteredClaims{
 						Subject:  "nsc",
-						Audience: "nsmgr1",
+						Audience: []string{"nsmgr1"},
 					}),
 				},
 				{
 					name: "nsmgr1",
-					tokenGenerator: genTokenFunc(&jwt.StandardClaims{
+					tokenGenerator: genTokenFunc(&jwt.RegisteredClaims{
 						Subject:  "nsmgr1",
-						Audience: "nsmgr2",
+						Audience: []string{"nsmgr2"},
 					}),
 				},
 				{
 					name: "nsmgr2",
-					tokenGenerator: genTokenFunc(&jwt.StandardClaims{
+					tokenGenerator: genTokenFunc(&jwt.RegisteredClaims{
 						Subject:  "spy",
-						Audience: "nse",
+						Audience: []string{"nse"},
 					}),
 				},
 				{
 					name: "nse",
-					tokenGenerator: genTokenFunc(&jwt.StandardClaims{
+					tokenGenerator: genTokenFunc(&jwt.RegisteredClaims{
 						Subject: "nse",
 					}),
 				},

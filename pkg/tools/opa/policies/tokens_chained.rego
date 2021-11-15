@@ -29,7 +29,7 @@ tokens_chained {
 pair_valid(token1, token2) = r { 
 	p1 := payload(token1)
 	p2 := payload(token2)
-	r := p1.aud == p2.sub
+	r := p1.aud[_] == p2.sub
 }
 
 payload(token) = p {
