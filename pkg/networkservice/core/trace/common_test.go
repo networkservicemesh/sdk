@@ -112,6 +112,7 @@ func TestTraceOutput(t *testing.T) {
 	logrus.SetFormatter(&logrus.TextFormatter{
 		DisableTimestamp: true,
 	})
+	logrus.SetLevel(logrus.TraceLevel)
 	log.EnableTracing(true)
 
 	// Create a chain with modifying elements
@@ -166,6 +167,7 @@ func TestErrorOutput(t *testing.T) {
 	logrus.SetFormatter(&logrus.TextFormatter{
 		DisableTimestamp: true,
 	})
+	logrus.SetLevel(logrus.TraceLevel)
 	log.EnableTracing(true)
 
 	// Create a chain with modifying elements

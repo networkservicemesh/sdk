@@ -199,7 +199,6 @@ func New(ctx context.Context) log.Logger {
 func FromSpan(ctx context.Context, span opentracing.Span, operation string) (context.Context, log.Logger, func()) {
 	entry := logrus.WithFields(log.Fields(ctx))
 	entry.Logger.SetFormatter(newFormatter())
-	entry.Logger.SetLevel(logrus.TraceLevel)
 
 	var info *traceCtxInfo
 	ctx, info = withTraceInfo(ctx)
