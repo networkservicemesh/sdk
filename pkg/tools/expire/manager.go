@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 // Executor is a serialize.Executor interface
@@ -46,7 +47,7 @@ type timer struct {
 // NewManager creates a new Manager
 func NewManager(ctx context.Context) *Manager {
 	return &Manager{
-		ctx:       ctx,
+		ctx:       log.WithCopyFields(ctx),
 		clockTime: clock.FromContext(ctx),
 	}
 }

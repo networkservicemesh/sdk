@@ -89,6 +89,18 @@ func WithFields(ctx context.Context, fields map[string]interface{}) context.Cont
 	return context.WithValue(ctx, logFieldsKey, fields)
 }
 
+// WithCopyFields - returns context with copied log fields to prevent data races
+func WithCopyFields(ctx context.Context) context.Context {
+	fields := Fields(ctx)
+
+	newFields := map[string]interface{}{}
+	for k, v := range fields {
+		newFields[k] = v
+	}
+
+	return WithFields(ctx, newFields)
+}
+
 // IsTracingEnabled - checks if it is allowed to use traces
 func IsTracingEnabled() bool {
 	return atomic.LoadInt32(&isTracingEnabled) != 0
