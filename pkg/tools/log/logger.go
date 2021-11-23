@@ -73,7 +73,7 @@ func Join(ctx context.Context, log Logger) context.Context {
 
 // WithLog - creates new context with `log` inside
 func WithLog(ctx context.Context, log ...Logger) context.Context {
-	return context.WithValue(ctx, logKey, New(log...))
+	return context.WithValue(ctx, logKey, Combine(log...))
 }
 
 // Fields - returns fields from context
