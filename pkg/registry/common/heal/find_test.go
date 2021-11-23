@@ -31,6 +31,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
+//nolint:funlen
 func TestHealClient_FindTest(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -40,13 +41,14 @@ func TestHealClient_FindTest(t *testing.T) {
 	nsmgrCtx, nsmgrCancel := context.WithCancel(ctx)
 	defer nsmgrCancel()
 
+	fwdName := sandbox.UniqueName("forwarder")
 	domain := sandbox.NewBuilder(ctx, t).
 		SetRegistryProxySupplier(nil).
 		SetNSMgrProxySupplier(nil).
 		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, nodeNum int) {
 			node.NewNSMgr(nsmgrCtx, sandbox.UniqueName("nsmgr"), nil, sandbox.GenerateTestToken, nsmgr.NewServer)
 			node.NewForwarder(ctx, &registry.NetworkServiceEndpoint{
-				Name:                sandbox.UniqueName("forwarder"),
+				Name:                fwdName,
 				NetworkServiceNames: []string{"forwarder"},
 				NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
 					"forwarder": {
@@ -107,9 +109,19 @@ func TestHealClient_FindTest(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "ns", nsResp.NetworkService.Name)
 
+	m := map[string]struct{}{
+		"nse":   {},
+		fwdName: {},
+	}
+
 	nseResp, err := nseRespStream.Recv()
 	require.NoError(t, err)
-	require.Equal(t, "nse", nseResp.NetworkServiceEndpoint.Name)
+	require.Contains(t, m, nseResp.NetworkServiceEndpoint.Name)
+	delete(m, nseResp.NetworkServiceEndpoint.Name)
+
+	nseResp, err = nseRespStream.Recv()
+	require.NoError(t, err)
+	require.Contains(t, m, nseResp.NetworkServiceEndpoint.Name)
 
 	// 5. Close NS, NSE streams
 	findCancel()
