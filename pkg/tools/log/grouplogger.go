@@ -23,7 +23,8 @@ type groupLogger struct {
 	loggers []Logger
 }
 
-func newGroup(s ...Logger) Logger {
+// New creates grouped logger from all provided loggers
+func New(s ...Logger) Logger {
 	return &groupLogger{loggers: s}
 }
 
