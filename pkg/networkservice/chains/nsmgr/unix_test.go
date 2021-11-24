@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//+build !windows
+// +build !windows
 
 package nsmgr_test
 
@@ -171,7 +171,7 @@ func Test_TimeoutRecvfd(t *testing.T) {
 	}
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	domain := sandbox.NewBuilder(ctx, t).
