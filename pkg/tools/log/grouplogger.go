@@ -23,7 +23,8 @@ type groupLogger struct {
 	loggers []Logger
 }
 
-func newGroup(s ...Logger) Logger {
+// Combine creates grouped logger from all provided loggers
+func Combine(s ...Logger) Logger {
 	return &groupLogger{loggers: s}
 }
 
