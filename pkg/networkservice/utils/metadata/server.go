@@ -21,6 +21,8 @@ package metadata
 import (
 	"context"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
@@ -45,6 +47,11 @@ func (m *metadataServer) Request(ctx context.Context, request *networkservice.Ne
 	if err != nil {
 		if !isEstablished {
 			del(ctx, connID, &m.Map)
+
+			log.FromContext(ctx).
+				WithField("metadata", "server").
+				WithField("connID", connID).
+				Debugf("metadata deleted")
 		}
 		return nil, err
 	}
@@ -53,5 +60,12 @@ func (m *metadataServer) Request(ctx context.Context, request *networkservice.Ne
 }
 
 func (m *metadataServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	return next.Server(ctx).Close(del(ctx, conn.GetId(), &m.Map), conn)
+	delCtx := del(ctx, conn.GetId(), &m.Map)
+
+	log.FromContext(ctx).
+		WithField("metadata", "server").
+		WithField("connID", conn.GetId()).
+		Debugf("metadata deleted")
+
+	return next.Server(ctx).Close(delCtx, conn)
 }

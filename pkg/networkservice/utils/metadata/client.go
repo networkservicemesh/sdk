@@ -21,6 +21,8 @@ package metadata
 import (
 	"context"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
@@ -46,6 +48,11 @@ func (m *metaDataClient) Request(ctx context.Context, request *networkservice.Ne
 	if err != nil {
 		if !isEstablished {
 			del(ctx, connID, &m.Map)
+
+			log.FromContext(ctx).
+				WithField("metadata", "client").
+				WithField("connID", connID).
+				Debugf("metadata deleted")
 		}
 		return nil, err
 	}
@@ -54,5 +61,12 @@ func (m *metaDataClient) Request(ctx context.Context, request *networkservice.Ne
 }
 
 func (m *metaDataClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	return next.Client(ctx).Close(del(ctx, conn.GetId(), &m.Map), conn, opts...)
+	delCtx := del(ctx, conn.GetId(), &m.Map)
+
+	log.FromContext(ctx).
+		WithField("metadata", "client").
+		WithField("connID", conn.GetId()).
+		Debugf("metadata deleted")
+
+	return next.Client(ctx).Close(delCtx, conn, opts...)
 }
