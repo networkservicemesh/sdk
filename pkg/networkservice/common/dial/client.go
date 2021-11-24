@@ -95,6 +95,7 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
 		_ = di.Close()
+		clientconn.Delete(ctx)
 		return nil, err
 	}
 	return conn, nil
