@@ -14,13 +14,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build !windows
+// +build linux
 
 package nsmgr_test
 
 import (
 	"context"
-	"runtime"
 	"testing"
 	"time"
 
@@ -36,10 +35,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
-)
-
-const (
-	linuxOsName = "linux"
 )
 
 func Test_Local_NoURLUsecase(t *testing.T) {
@@ -88,9 +83,6 @@ func Test_Local_NoURLUsecase(t *testing.T) {
 }
 
 func Test_MultiForwarderSendfd(t *testing.T) {
-	if runtime.GOOS != linuxOsName {
-		t.Skip("sendfd works only on linux")
-	}
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
@@ -166,9 +158,6 @@ func Test_MultiForwarderSendfd(t *testing.T) {
 }
 
 func Test_TimeoutRecvfd(t *testing.T) {
-	if runtime.GOOS != linuxOsName {
-		t.Skip("recvfd works only on linux")
-	}
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)

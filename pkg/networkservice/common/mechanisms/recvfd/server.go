@@ -69,7 +69,7 @@ func (r *recvFDServer) Request(ctx context.Context, request *networkservice.Netw
 	}
 
 	// Swap back from File to Inode in the InodeURL in the Parameters
-	err = swapFileToInode(fileMap, conn.GetMechanism().GetParameters(), false)
+	err = swapFileToInode(fileMap, conn.GetMechanism().GetParameters())
 	if err != nil {
 		return nil, err
 	}
@@ -79,12 +79,11 @@ func (r *recvFDServer) Request(ctx context.Context, request *networkservice.Netw
 
 func (r *recvFDServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	// Clean up the fileMap no matter what happens
-	defer r.fileMaps.Delete(conn.GetId())
+	defer r.closeFiles(conn)
 
 	// Get the grpcfd.FDRecver
 	recv, ok := grpcfd.FromContext(ctx)
 	if !ok {
-		r.closeFiles(conn)
 		return next.Server(ctx).Close(ctx, conn)
 	}
 
@@ -107,11 +106,13 @@ func (r *recvFDServer) Close(ctx context.Context, conn *networkservice.Connectio
 	}
 
 	// Swap back from File to Inode in the InodeURL in the Parameters
-	err = swapFileToInode(fileMap, conn.GetMechanism().GetParameters(), true)
+	err = swapFileToInode(fileMap, conn.GetMechanism().GetParameters())
 	return &empty.Empty{}, err
 }
 
 func (r *recvFDServer) closeFiles(conn *networkservice.Connection) {
+	defer r.fileMaps.Delete(conn.GetId())
+
 	fileMap, _ := r.fileMaps.LoadOrStore(conn.GetId(), &perConnectionFileMap{
 		filesByInodeURL:    make(map[string]*os.File),
 		inodeURLbyFilename: make(map[string]*url.URL),

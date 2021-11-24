@@ -86,7 +86,7 @@ func recvFDAndSwapInodeToFile(ctx context.Context, fileMap *perConnectionFileMap
 	return err
 }
 
-func swapFileToInode(fileMap *perConnectionFileMap, parameters map[string]string, closeAllFiles bool) error {
+func swapFileToInode(fileMap *perConnectionFileMap, parameters map[string]string) error {
 	// Get the inodeURL from  parameters
 	fileURLStr, ok := parameters[common.InodeURL]
 	if !ok {
@@ -112,11 +112,10 @@ func swapFileToInode(fileMap *perConnectionFileMap, parameters map[string]string
 		// Swap the fileURL for the inodeURL in parameters
 		parameters[common.InodeURL] = inodeURL.String()
 
-		// If closeAllFiles == true, close any files we may have open for any other inodes
 		// This is used to clean up files sent by MechanismPreferences that were *not* selected to be the
 		// connection mechanism
 		for inodeURLStr, file := range fileMap.filesByInodeURL {
-			if closeAllFiles || inodeURLStr != inodeURL.String() {
+			if inodeURLStr != inodeURL.String() {
 				delete(fileMap.filesByInodeURL, inodeURLStr)
 				_ = file.Close()
 			}
