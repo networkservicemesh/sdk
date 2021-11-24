@@ -38,6 +38,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
+const (
+	linuxOsName = "linux"
+)
+
 func Test_Local_NoURLUsecase(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -84,7 +88,7 @@ func Test_Local_NoURLUsecase(t *testing.T) {
 }
 
 func Test_MultiForwarderSendfd(t *testing.T) {
-	if runtime.GOOS != "linux" {
+	if runtime.GOOS != linuxOsName {
 		t.Skip("sendfd works only on linux")
 	}
 	t.Cleanup(func() { goleak.VerifyNone(t) })
@@ -162,7 +166,7 @@ func Test_MultiForwarderSendfd(t *testing.T) {
 }
 
 func Test_TimeoutRecvfd(t *testing.T) {
-	if runtime.GOOS != "linux" {
+	if runtime.GOOS != linuxOsName {
 		t.Skip("recvfd works only on linux")
 	}
 	t.Cleanup(func() { goleak.VerifyNone(t) })
