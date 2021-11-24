@@ -23,6 +23,8 @@ import (
 	"net"
 	"sync"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+
 	"github.com/golang/protobuf/ptypes/empty"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -56,30 +58,43 @@ func NewServer(tunnelIP net.IP, options ...Option) networkservice.NetworkService
 }
 
 func (v *vniServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	logger := log.FromContext(ctx).WithField("VNIserver", "request")
+
 	mechanism := vxlan.ToMechanism(request.GetConnection().GetMechanism())
 	if mechanism == nil {
+		logger.Debugf("mechanism is not vxlan")
 		return next.Server(ctx).Request(ctx, request)
 	}
 	mechanism.SetDstIP(v.tunnelIP)
 	mechanism.SetDstPort(v.tunnelPort)
+
+	logger.WithField("mechanism.DstIP", mechanism.DstIP()).WithField("mechanism.DstPort", mechanism.DstPort()).Debugf("set mechanism dst")
+
 	k := vniKey{
 		srcIPString: mechanism.SrcIP().String(),
 		vni:         mechanism.VNI(),
 	}
+
 	// If we already have a VNI, make sure we remember it, and go on
 	if k.vni != 0 && mechanism.SrcIP() != nil {
 		_, _ = v.Map.LoadOrStore(k, &k)
 		_, loaded := loadOrStore(ctx, metadata.IsClient(v), k.vni)
+
+		logger.WithField("vni", k.vni).Debugf("loadOrStore vni in metadata")
+
 		conn, err := next.Server(ctx).Request(ctx, request)
 		if err != nil && !loaded {
 			delete(ctx, metadata.IsClient(v))
 			v.Map.Delete(k)
+
+			logger.WithField("vni", k.vni).Errorf("error returned from request, deleting vni. err=%v", err.Error())
 		}
 		return conn, err
 	}
 
 	if vni, ok := load(ctx, metadata.IsClient(v)); ok {
 		mechanism.SetVNI(vni)
+		logger.WithField("vni", vni).Debugf("vni loaded from metadata")
 	} else {
 		for {
 			// Generate a random VNI (appropriately odd or even)
@@ -92,6 +107,7 @@ func (v *vniServer) Request(ctx context.Context, request *networkservice.Network
 			if _, ok := v.Map.LoadOrStore(k, &k); !ok {
 				mechanism.SetVNI(k.vni)
 				store(ctx, metadata.IsClient(v), k.vni)
+				logger.WithField("vni", k.vni).Debugf("vni generated and stored in metadata")
 				break
 			}
 		}
@@ -101,6 +117,8 @@ func (v *vniServer) Request(ctx context.Context, request *networkservice.Network
 	if err != nil {
 		delete(ctx, metadata.IsClient(v))
 		v.Map.Delete(k)
+
+		logger.WithField("vniKey.vni", k.vni).Errorf("error returned from request, deleting vni. err=%v", err.Error())
 	}
 	return conn, err
 }
@@ -111,9 +129,16 @@ func (v *vniServer) Close(ctx context.Context, conn *networkservice.Connection) 
 			srcIPString: mechanism.SrcIP().String(),
 			vni:         mechanism.VNI(),
 		}
+
 		if k.vni != 0 && mechanism.SrcIP() != nil {
 			delete(ctx, metadata.IsClient(v))
 			v.Map.LoadAndDelete(k)
+
+			log.FromContext(ctx).
+				WithField("VNIserver", "close").
+				WithField("vniKey.srcIPString", k.srcIPString).
+				WithField("vniKey.vni", k.vni).
+				Debugf("vniKey deleted")
 		}
 	}
 	return next.Server(ctx).Close(ctx, conn)

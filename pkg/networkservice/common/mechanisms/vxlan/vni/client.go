@@ -22,6 +22,8 @@ import (
 	"context"
 	"net"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 
@@ -57,6 +59,12 @@ func (v *vniClient) Request(ctx context.Context, request *networkservice.Network
 		if mech := vxlan.ToMechanism(m); mech != nil {
 			mech.SetSrcIP(v.tunnelIP)
 			mech.SetSrcPort(v.tunnelPort)
+
+			log.FromContext(ctx).
+				WithField("VNIclient", "request").
+				WithField("mechSrcIp", mech.SrcIP()).
+				WithField("mechSrcPort", mech.SrcPort()).
+				Debugf("set mechanism src")
 		}
 	}
 	return next.Client(ctx).Request(ctx, request, opts...)
