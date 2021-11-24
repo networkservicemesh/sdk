@@ -98,9 +98,14 @@ func (r *recvfdNseServer) Unregister(ctx context.Context, endpoint *registry.Net
 	if endpoint.GetName() == "" {
 		return nil, errors.New("invalid endpoint specified")
 	}
+
+	// Clean up the fileMap no matter what happens
+	defer r.fileMaps.Delete(endpoint.GetName())
+
 	// Get the grpcfd.FDRecver
 	recv, ok := grpcfd.FromContext(ctx)
 	if !ok {
+		r.closeFiles(endpoint)
 		return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, endpoint)
 	}
 	// Get the fileMap
@@ -108,8 +113,6 @@ func (r *recvfdNseServer) Unregister(ctx context.Context, endpoint *registry.Net
 		filesByInodeURL:    make(map[string]*os.File),
 		inodeURLbyFilename: make(map[string]*url.URL),
 	})
-	// Clean up the fileMap no matter what happens
-	defer r.fileMaps.Delete(endpoint.GetName())
 
 	// Recv the FD and Swap the Inode for a file in InodeURL in Parameters
 	endpoint = endpoint.Clone()
@@ -209,4 +212,16 @@ func swapFileToInode(fileMap *perEndpointFileMap, endpoint *registry.NetworkServ
 		}
 	})
 	return nil
+}
+
+func (r *recvfdNseServer) closeFiles(endpoint *registry.NetworkServiceEndpoint) {
+	fileMap, _ := r.fileMaps.LoadOrStore(endpoint.GetName(), &perEndpointFileMap{
+		filesByInodeURL:    make(map[string]*os.File),
+		inodeURLbyFilename: make(map[string]*url.URL),
+	})
+
+	for inodeURLStr, file := range fileMap.filesByInodeURL {
+		delete(fileMap.filesByInodeURL, inodeURLStr)
+		_ = file.Close()
+	}
 }

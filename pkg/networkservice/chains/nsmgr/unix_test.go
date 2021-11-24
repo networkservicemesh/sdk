@@ -160,3 +160,49 @@ func Test_MultiForwarderSendfd(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, counter.Closes())
 }
+
+func Test_TimeoutRecvfd(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("recvfd works only on linux")
+	}
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(ctx, t).
+		UseUnixSockets().
+		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, _ int) {
+			node.NewNSMgr(ctx, "nsmgr", nil, sandbox.GenerateTestToken, nsmgr.NewServer)
+			node.NewForwarder(ctx, &registry.NetworkServiceEndpoint{
+				Name:                "forwarder-1",
+				NetworkServiceNames: []string{"forwarder"},
+				NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+					"forwarder": {
+						Labels: map[string]string{
+							"p2p": "true",
+						},
+					},
+				},
+			}, sandbox.GenerateTestToken, recvfd.NewServer())
+		}).
+		Build()
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService())
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
+
+	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
+
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateExpiringToken(0), kernel.NewClient(), sendfd.NewClient())
+
+	request := defaultRequest(nsReg.Name)
+
+	conn, err := nsc.Request(ctx, request.Clone())
+	require.Nil(t, err)
+	require.NotNil(t, conn)
+	require.Equal(t, 4, len(conn.Path.PathSegments))
+}
