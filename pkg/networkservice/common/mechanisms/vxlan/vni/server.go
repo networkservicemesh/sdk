@@ -92,7 +92,8 @@ func (v *vniServer) Request(ctx context.Context, request *networkservice.Network
 		return conn, err
 	}
 
-	if vni, ok := load(ctx, metadata.IsClient(v)); ok {
+	vni, loaded := load(ctx, metadata.IsClient(v))
+	if loaded {
 		mechanism.SetVNI(vni)
 		logger.WithField("vni", vni).Debugf("vni loaded from metadata")
 	} else {
@@ -114,7 +115,7 @@ func (v *vniServer) Request(ctx context.Context, request *networkservice.Network
 	}
 
 	conn, err := next.Server(ctx).Request(ctx, request)
-	if err != nil {
+	if err != nil && !loaded {
 		delete(ctx, metadata.IsClient(v))
 		v.Map.Delete(k)
 
