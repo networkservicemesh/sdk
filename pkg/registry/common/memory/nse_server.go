@@ -88,6 +88,10 @@ func (s *memoryNSEServer) Find(query *registry.NetworkServiceEndpointQuery, serv
 		return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
 	}
 
+	if err := next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server); err != nil {
+		return err
+	}
+
 	eventCh := make(chan *registry.NetworkServiceEndpointResponse, s.eventChannelSize)
 	id := uuid.New().String()
 
@@ -105,7 +109,7 @@ func (s *memoryNSEServer) Find(query *registry.NetworkServiceEndpointQuery, serv
 	if err != io.EOF {
 		return err
 	}
-	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
+	return nil
 }
 
 func (s *memoryNSEServer) allMatches(query *registry.NetworkServiceEndpointQuery) (matches []*registry.NetworkServiceEndpoint) {
