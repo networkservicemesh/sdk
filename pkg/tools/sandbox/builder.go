@@ -88,7 +88,6 @@ func NewBuilder(ctx context.Context, t *testing.T) *Builder {
 		SetupDefaultNode(ctx, node, b.supplyNSMgr)
 	}
 
-	//var once sync.Once
 	once.Do(func() { writeLogsIfTestFailed(ctx, t) })
 
 	return b

@@ -403,7 +403,7 @@ func (s *nsmgrSuite) Test_LocalUsecase() {
 func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 	t := s.T()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*70)
 	defer cancel()
 
 	counterClose := new(count.Server)
@@ -468,7 +468,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 	t := s.T()
 	const nsesCount = 7
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*40)
 	defer cancel()
 
 	counterClose := new(count.Server)
@@ -531,7 +531,7 @@ func (s *nsmgrSuite) Test_PassThroughSameSourceSelector() {
 	t := s.T()
 	const nsesCount = 7
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
 	defer cancel()
 
 	counterClose := new(count.Server)
@@ -611,7 +611,7 @@ func (s *nsmgrSuite) Test_PassThroughSameSourceSelector() {
 func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
 	t := s.T()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
 	counterClose := new(count.Server)
