@@ -25,6 +25,7 @@ import (
 	"net/url"
 	"os"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -364,19 +365,42 @@ func (s *threadSafeBuffer) Reset() {
 	s.buffer.Reset()
 }
 
+type threadSafeStringBuilder struct {
+	builder strings.Builder
+	m       sync.Mutex
+}
+
+func (s *threadSafeStringBuilder) Write(p []byte) (n int, err error) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	return s.builder.Write(p)
+}
+
+func (s *threadSafeStringBuilder) String() string {
+	s.m.Lock()
+	defer s.m.Unlock()
+	return s.builder.String()
+}
+
+func (s *threadSafeStringBuilder) Reset() {
+	s.m.Lock()
+	defer s.m.Unlock()
+	s.builder.Reset()
+}
+
 var stdoutMu sync.Mutex
 
 func writeLogsIfTestFailed(ctx context.Context, t *testing.T) {
-	var buffer = new(threadSafeBuffer)
+	var buffer = new(threadSafeStringBuilder)
 
-	//log.EnableTracing(true)
+	log.EnableTracing(true)
 	logrus.SetOutput(buffer)
 
 	t.Cleanup(func() {
 		if t.Failed() {
 			stdoutMu.Lock()
 			defer stdoutMu.Unlock()
-			_, err := os.Stdout.Write(buffer.Bytes())
+			_, err := os.Stdout.WriteString(buffer.String())
 			if err != nil {
 				log.FromContext(ctx).Error("Failed to print memory logs")
 			}

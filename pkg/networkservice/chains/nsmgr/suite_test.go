@@ -403,7 +403,7 @@ func (s *nsmgrSuite) Test_LocalUsecase() {
 func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 	t := s.T()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*35)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*50)
 	defer cancel()
 
 	counterClose := new(count.Server)
