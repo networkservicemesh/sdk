@@ -349,7 +349,7 @@ type threadSafeBuffer struct {
 func (s *threadSafeBuffer) Write(p []byte) (n int, err error) {
 	s.m.Lock()
 	defer s.m.Unlock()
-	return s.buffer.Write(p)
+	return 0, nil
 }
 
 func (s *threadSafeBuffer) Bytes() []byte {
