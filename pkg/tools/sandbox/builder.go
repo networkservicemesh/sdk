@@ -349,7 +349,7 @@ type threadSafeBuffer struct {
 func (s *threadSafeBuffer) Write(p []byte) (n int, err error) {
 	s.m.Lock()
 	defer s.m.Unlock()
-	return 0, nil
+	return s.buffer.Write(p)
 }
 
 func (s *threadSafeBuffer) Bytes() []byte {
@@ -369,7 +369,7 @@ var stdoutMu sync.Mutex
 func writeLogsIfTestFailed(ctx context.Context, t *testing.T) {
 	var buffer = new(threadSafeBuffer)
 
-	log.EnableTracing(true)
+	//log.EnableTracing(true)
 	logrus.SetOutput(buffer)
 
 	t.Cleanup(func() {
