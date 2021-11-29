@@ -388,10 +388,42 @@ func (s *threadSafeStringBuilder) Reset() {
 	s.builder.Reset()
 }
 
+type threadSafeSlice struct {
+	slice [][]byte
+	m     sync.Mutex
+}
+
+func (s *threadSafeSlice) Write(p []byte) (n int, err error) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	s.slice = append(s.slice, p)
+
+	return len(p), nil
+}
+
+func (s *threadSafeSlice) String() string {
+	s.m.Lock()
+	defer s.m.Unlock()
+
+	var builder strings.Builder
+
+	for _, p := range s.slice {
+		builder.Write(p)
+	}
+
+	return builder.String()
+}
+
+func (s *threadSafeSlice) Reset() {
+	s.m.Lock()
+	defer s.m.Unlock()
+	s.slice = nil
+}
+
 var stdoutMu sync.Mutex
 
 func writeLogsIfTestFailed(ctx context.Context, t *testing.T) {
-	var buffer = new(threadSafeStringBuilder)
+	var buffer = new(threadSafeSlice)
 
 	log.EnableTracing(true)
 	logrus.SetOutput(buffer)
