@@ -50,3 +50,18 @@ func exclude(source, exclude []string) []string {
 
 	return source
 }
+
+func removePrefixes(origin []string, prefixesToRemove map[string]struct{}) []string {
+	if len(origin) == 0 || len(prefixesToRemove) == 0 {
+		return origin
+	}
+
+	var rv []string
+	for _, p := range origin {
+		if _, ok := prefixesToRemove[p]; !ok {
+			rv = append(rv, p)
+		}
+	}
+
+	return rv
+}
