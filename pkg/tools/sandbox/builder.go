@@ -29,6 +29,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
@@ -397,10 +398,12 @@ type threadSafeSlice struct {
 func (s *threadSafeSlice) Write(p []byte) (n int, err error) {
 	s.m.Lock()
 	defer s.m.Unlock()
+
+	size := unsafe.Sizeof(p)
 	s.slice[s.index] = p
 	s.index++
 
-	return len(p), nil
+	return int(size), nil
 }
 
 func (s *threadSafeSlice) String() string {
@@ -427,7 +430,7 @@ var stdoutMu sync.Mutex
 func writeLogsIfTestFailed(ctx context.Context, t *testing.T) {
 	var buffer = new(threadSafeSlice)
 
-	log.EnableTracing(true)
+	//log.EnableTracing(true)
 	logrus.SetOutput(buffer)
 
 	t.Cleanup(func() {
