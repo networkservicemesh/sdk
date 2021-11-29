@@ -395,11 +395,11 @@ type threadSafeSlice struct {
 }
 
 func (s *threadSafeSlice) Write(p []byte) (n int, err error) {
-	s.m.Lock()
-	defer s.m.Unlock()
+	//s.m.Lock()
+	//defer s.m.Unlock()
 
-	s.slice[s.index] = p
-	s.index++
+	//s.slice[s.index] = p
+	//s.index++
 
 	return len(p), nil
 }
