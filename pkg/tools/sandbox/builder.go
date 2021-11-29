@@ -389,14 +389,16 @@ func (s *threadSafeStringBuilder) Reset() {
 }
 
 type threadSafeSlice struct {
-	slice [][]byte
+	slice [500000][]byte
+	index int
 	m     sync.Mutex
 }
 
 func (s *threadSafeSlice) Write(p []byte) (n int, err error) {
 	s.m.Lock()
 	defer s.m.Unlock()
-	s.slice = append(s.slice, p)
+	s.slice[s.index] = p
+	s.index++
 
 	return len(p), nil
 }
@@ -407,8 +409,8 @@ func (s *threadSafeSlice) String() string {
 
 	var builder strings.Builder
 
-	for _, p := range s.slice {
-		builder.Write(p)
+	for i := 0; i < s.index; i++ {
+		builder.Write(s.slice[i])
 	}
 
 	return builder.String()
@@ -417,7 +419,7 @@ func (s *threadSafeSlice) String() string {
 func (s *threadSafeSlice) Reset() {
 	s.m.Lock()
 	defer s.m.Unlock()
-	s.slice = nil
+	s.index = 0
 }
 
 var stdoutMu sync.Mutex
