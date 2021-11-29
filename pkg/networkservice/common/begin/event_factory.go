@@ -18,6 +18,7 @@ package begin
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/edwarnicke/serialize"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -76,6 +77,7 @@ func newEventFactoryClient(ctx context.Context, afterClose func(), opts ...grpc.
 }
 
 func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
+	fmt.Println("eventFactoryClient.Request")
 	o := &option{
 		cancelCtx: context.Background(),
 	}
@@ -114,6 +116,7 @@ func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
 }
 
 func (f *eventFactoryClient) Close(opts ...Option) <-chan error {
+	fmt.Println("eventFactoryClient.Close")
 	o := &option{
 		cancelCtx: context.Background(),
 	}
@@ -169,6 +172,7 @@ func newEventFactoryServer(ctx context.Context, afterClose func()) *eventFactory
 }
 
 func (f *eventFactoryServer) Request(opts ...Option) <-chan error {
+	fmt.Println("eventFactoryServer.Request")
 	o := &option{
 		cancelCtx: context.Background(),
 	}
@@ -197,6 +201,7 @@ func (f *eventFactoryServer) Request(opts ...Option) <-chan error {
 }
 
 func (f *eventFactoryServer) Close(opts ...Option) <-chan error {
+	fmt.Println("eventFactoryServer.Close")
 	o := &option{
 		cancelCtx: context.Background(),
 	}

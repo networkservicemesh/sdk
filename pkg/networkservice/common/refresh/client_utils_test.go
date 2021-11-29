@@ -19,6 +19,7 @@ package refresh_test
 import (
 	"context"
 	"math/rand"
+	"runtime/debug"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -134,7 +135,7 @@ func (t *refreshTesterServer) beforeRequest(marker string) {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
 	t.checkUnlocked()
-	assert.Contains(t.t, []refreshTesterServerState{testRefreshStateInit, testRefreshStateRunning}, t.state, "Unexpected state")
+	assert.Containsf(t.t, []refreshTesterServerState{testRefreshStateInit, testRefreshStateRunning}, t.state, "Unexpected state: %v, stack: %v", strconv.Itoa(t.state), string(debug.Stack()))
 	t.state = testRefreshStateWaitRequest
 	t.nextMarker = marker
 }
@@ -143,7 +144,7 @@ func (t *refreshTesterServer) afterRequest() {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
 	t.checkUnlocked()
-	assert.Equal(t.t, testRefreshStateDoneRequest, t.state, "Unexpected state")
+	assert.Equalf(t.t, testRefreshStateDoneRequest, t.state, "Unexpected state: %v, stack: %v", strconv.Itoa(t.state), string(debug.Stack()))
 	t.state = testRefreshStateRunning
 }
 
@@ -151,7 +152,7 @@ func (t *refreshTesterServer) beforeClose() {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
 	t.checkUnlocked()
-	assert.Equal(t.t, testRefreshStateRunning, t.state, "Unexpected state")
+	assert.Equalf(t.t, testRefreshStateRunning, t.state, "Unexpected state: %v, stack: %v", strconv.Itoa(t.state), string(debug.Stack()))
 	t.state = testRefreshStateWaitClose
 }
 
@@ -159,7 +160,7 @@ func (t *refreshTesterServer) afterClose() {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
 	t.checkUnlocked()
-	assert.Equal(t.t, testRefreshStateDoneClose, t.state, "Unexpected state")
+	assert.Equalf(t.t, testRefreshStateDoneClose, t.state, "Unexpected state: %v, stack: %v", strconv.Itoa(t.state), string(debug.Stack()))
 	t.state = testRefreshStateInit
 	t.currentMarker = ""
 }
@@ -167,7 +168,7 @@ func (t *refreshTesterServer) afterClose() {
 func (t *refreshTesterServer) checkUnlocked() {
 	if t.state == testRefreshStateDoneRequest || t.state == testRefreshStateRunning {
 		delta := time.Now().UTC().Sub(t.lastSeen)
-		assert.Lessf(t.t, int64(delta), int64(t.maxDuration), "Duration expired (too slow) delta=%v max=%v", delta, t.maxDuration)
+		assert.Lessf(t.t, int64(delta), int64(t.maxDuration), "Duration expired (too slow) delta=%v max=%v stack=%v", delta, t.maxDuration, string(debug.Stack()))
 	}
 }
 
@@ -201,9 +202,9 @@ func (t *refreshTesterServer) Request(ctx context.Context, request *networkservi
 	case testRefreshStateDoneRequest, testRefreshStateRunning, testRefreshStateWaitClose:
 		assert.Equal(t.t, t.currentMarker, marker, "Unexpected marker")
 		delta := time.Now().UTC().Sub(t.lastSeen)
-		assert.GreaterOrEqual(t.t, int64(delta), int64(t.minDuration), "Too fast delta=%v min=%v", delta, t.minDuration)
+		assert.GreaterOrEqual(t.t, int64(delta), int64(t.minDuration), "Too fast delta=%v min=%v stack=%v", delta, t.minDuration, string(debug.Stack()))
 	default:
-		assert.Fail(t.t, "Unexpected state", t.state)
+		assert.Failf(t.t, "Unexpected state", "state: %v, stack: %v", strconv.Itoa(t.state), string(debug.Stack()))
 	}
 
 	t.lastSeen = time.Now()
@@ -225,7 +226,7 @@ func (t *refreshTesterServer) Close(ctx context.Context, connection *networkserv
 	}()
 	t.checkUnlocked()
 
-	assert.Equal(t.t, testRefreshStateWaitClose, t.state, "Unexpected state")
+	assert.Equalf(t.t, testRefreshStateWaitClose, t.state, "Unexpected state: %v, stack: %v", strconv.Itoa(t.state), string(debug.Stack()))
 	t.state = testRefreshStateDoneClose
 
 	t.mutex.Unlock()

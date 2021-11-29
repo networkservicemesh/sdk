@@ -33,7 +33,7 @@ jobs:
       - name: Build
         run: go build -race  ./...
       - name: Test
-        run: go test -race ./...
+        run: go test -run TestRefreshClient_Sandbox -count 20000 -race ./pkg/networkservice/common/refresh -timeout 3h -v
   golangci-lint:
     name: golangci-lint
     runs-on: ubuntu-latest

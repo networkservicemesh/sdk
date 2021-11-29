@@ -22,6 +22,7 @@ package refresh
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
@@ -84,8 +85,10 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 		for {
 			select {
 			case <-cancelCtx.Done():
+				fmt.Println("Refresh client: cancel done")
 				return
 			case <-afterTicker.C():
+				fmt.Println("Refresh client: performing request")
 				if err := <-eventFactory.Request(begin.CancelContext(cancelCtx)); err != nil {
 					logger.Warnf("refresh failed: %s", err.Error())
 					continue

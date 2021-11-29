@@ -231,8 +231,6 @@ func TestRefreshClient_CheckRaceConditions(t *testing.T) {
 }
 
 func TestRefreshClient_Sandbox(t *testing.T) {
-	t.Skip("https://github.com/networkservicemesh/sdk/issues/839")
-
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), sandboxTotalTimeout)
@@ -270,9 +268,10 @@ func TestRefreshClient_Sandbox(t *testing.T) {
 	refreshSrv.afterRequest()
 
 	refreshSrv.beforeRequest("test-conn")
+
 	require.Eventually(t, func() bool {
 		return refreshSrv.getState() == testRefreshStateDoneRequest
-	}, sandboxTotalTimeout, sandboxStepDuration)
+	}, sandboxTotalTimeout, sandboxStepDuration, refreshSrv.getState())
 }
 
 func TestRefreshClient_NoRefreshOnFailure(t *testing.T) {
