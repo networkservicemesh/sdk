@@ -428,7 +428,7 @@ var stdoutMu sync.Mutex
 func writeLogsIfTestFailed(ctx context.Context, t *testing.T) {
 	var buffer = new(threadSafeSlice)
 
-	log.EnableTracing(true)
+	// log.EnableTracing(true)
 	logrus.SetOutput(buffer)
 
 	t.Cleanup(func() {
