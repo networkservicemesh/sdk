@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/goleak"
@@ -47,6 +48,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -372,9 +374,15 @@ func (s *nsmgrSuite) Test_LocalUsecase() {
 
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-	request := defaultRequest(nsReg.Name)
+	logrus.SetLevel(logrus.TraceLevel)
+	log.EnableTracing(true)
 
+	start := time.Now()
+	request := defaultRequest(nsReg.Name)
 	conn, err := nsc.Request(ctx, request.Clone())
+	elapsed := time.Since(start)
+	fmt.Printf("Next request. Elapsed time: %v\n", elapsed)
+
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 1, counter.Requests())
@@ -404,8 +412,11 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 	t := s.T()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
+	logrus.SetLevel(logrus.TraceLevel)
+	log.EnableTracing(true)
 	defer cancel()
 
+	start := time.Now()
 	counterClose := new(count.Server)
 
 	nsReg := linearNS(nodesCount)
@@ -431,9 +442,9 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
 	request := defaultRequest(nsReg.Name)
-
 	// Request
 	conn, err := nsc.Request(ctx, request)
+
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
@@ -462,6 +473,8 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 		_, err = nses[i].Unregister(ctx, nseReg)
 		require.NoError(t, err)
 	}
+	elapsed := time.Since(start)
+	fmt.Printf("Test_PassThroughRemoteUsecase. Elapsed time: %v\n", elapsed)
 }
 
 func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
