@@ -20,7 +20,6 @@ package nsmgr_test
 import (
 	"context"
 	"fmt"
-	"io"
 	"net"
 	"net/url"
 	"strconv"
@@ -65,10 +64,6 @@ type nsmgrSuite struct {
 }
 
 func TestNsmgr(t *testing.T) {
-	logrus.SetLevel(logrus.TraceLevel)
-	log.EnableTracing(true)
-	logrus.SetOutput(io.Discard)
-
 	suite.Run(t, new(nsmgrSuite))
 }
 

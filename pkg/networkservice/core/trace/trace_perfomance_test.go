@@ -1,86 +1,71 @@
 package trace_test
 
-import (
-	"context"
-	"fmt"
-	"testing"
-	"time"
+// type myChainClient struct {
+// 	saved *networkservice.NetworkServiceRequest
+// }
 
-	emptypb "github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	"github.com/sirupsen/logrus"
-	"google.golang.org/grpc"
-)
+// func NewClient() networkservice.NetworkServiceClient {
+// 	return &myChainClient{}
+// }
 
-type myChainClient struct {
-	saved *networkservice.NetworkServiceRequest
-}
+// func (c *myChainClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
+// 	return next.Client(ctx).Request(ctx, request, opts...)
+// }
 
-func NewClient() networkservice.NetworkServiceClient {
-	return &myChainClient{}
-}
+// func (c *myChainClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (emp *emptypb.Empty, err error) {
+// 	return next.Client(ctx).Close(ctx, conn, opts...)
+// }
 
-func (c *myChainClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
-	return next.Client(ctx).Request(ctx, request, opts...)
-}
+// func TestTrace(t *testing.T) {
+// 	t.Skip()
+// 	ctx := context.Background()
 
-func (c *myChainClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (emp *emptypb.Empty, err error) {
-	return next.Client(ctx).Close(ctx, conn, opts...)
-}
+// 	client1 := NewClient()
+// 	client2 := NewClient()
+// 	nextClient := next.NewNetworkServiceClient(client1)
+// 	chainClient := chain.NewNetworkServiceClient(client2)
 
-func TestTrace(t *testing.T) {
-	t.Skip()
-	ctx := context.Background()
+// 	request := &networkservice.NetworkServiceRequest{
+// 		Connection: newConnection().Connection,
+// 	}
 
-	client1 := NewClient()
-	client2 := NewClient()
-	nextClient := next.NewNetworkServiceClient(client1)
-	chainClient := chain.NewNetworkServiceClient(client2)
+// 	logrus.SetLevel(logrus.TraceLevel)
+// 	log.EnableTracing(true)
 
-	request := &networkservice.NetworkServiceRequest{
-		Connection: newConnection().Connection,
-	}
+// 	start := time.Now()
+// 	nextClient.Request(ctx, request)
+// 	elapsed := time.Since(start)
+// 	fmt.Printf("Next request. Elapsed time: %v\n", elapsed)
 
-	logrus.SetLevel(logrus.TraceLevel)
-	log.EnableTracing(true)
+// 	start = time.Now()
+// 	chainClient.Request(ctx, request)
+// 	elapsed = time.Since(start)
+// 	fmt.Printf("Chain request. Elapsed time: %v\n", elapsed)
+// }
 
-	start := time.Now()
-	nextClient.Request(ctx, request)
-	elapsed := time.Since(start)
-	fmt.Printf("Next request. Elapsed time: %v\n", elapsed)
+// func TestTrace2(t *testing.T) {
+// 	t.Skip()
+// 	ctx := context.Background()
 
-	start = time.Now()
-	chainClient.Request(ctx, request)
-	elapsed = time.Since(start)
-	fmt.Printf("Chain request. Elapsed time: %v\n", elapsed)
-}
+// 	client1 := NewClient()
+// 	client2 := NewClient()
+// 	nextClient := next.NewNetworkServiceClient(client1, client1, client1, client1, client1, client1)
+// 	chainClient := chain.NewNetworkServiceClient(client2, client2, client2, client2, client2, client2)
 
-func TestTrace2(t *testing.T) {
-	t.Skip()
-	ctx := context.Background()
+// 	request := &networkservice.NetworkServiceRequest{
+// 		Connection: newConnection().Connection,
+// 	}
 
-	client1 := NewClient()
-	client2 := NewClient()
-	nextClient := next.NewNetworkServiceClient(client1, client1, client1, client1, client1, client1)
-	chainClient := chain.NewNetworkServiceClient(client2, client2, client2, client2, client2, client2)
+// 	logrus.SetLevel(logrus.TraceLevel)
+// 	log.EnableTracing(true)
 
-	request := &networkservice.NetworkServiceRequest{
-		Connection: newConnection().Connection,
-	}
+// 	start := time.Now()
+// 	nextClient.Request(ctx, request)
+// 	elapsed := time.Since(start)
+// 	fmt.Printf("Next request. Elapsed time: %v\n", elapsed)
 
-	logrus.SetLevel(logrus.TraceLevel)
-	log.EnableTracing(true)
-
-	start := time.Now()
-	nextClient.Request(ctx, request)
-	elapsed := time.Since(start)
-	fmt.Printf("Next request. Elapsed time: %v\n", elapsed)
-
-	start = time.Now()
-	chainClient.Request(ctx, request)
-	elapsed = time.Since(start)
-	fmt.Printf("Chain request. Elapsed time: %v\n", elapsed)
-}
+// 	start = time.Now()
+// 	chainClient.Request(ctx, request)
+// 	elapsed = time.Since(start)
+// 	fmt.Printf("Chain request. Elapsed time: %v\n", elapsed)
+// }
