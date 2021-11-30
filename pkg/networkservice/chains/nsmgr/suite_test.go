@@ -20,7 +20,6 @@ package nsmgr_test
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/url"
 	"testing"
 	"time"
@@ -407,7 +406,7 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	logrus.SetLevel(logrus.TraceLevel)
 	log.EnableTracing(true)
-	logrus.SetOutput(io.Discard)
+	//logrus.SetOutput(io.Discard)
 	defer cancel()
 
 	start := time.Now()
