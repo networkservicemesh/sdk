@@ -33,7 +33,7 @@ jobs:
       - name: Build
         run: go build -race  ./...
       - name: Test
-        run: go test -race ./...
+        run: go test -timeout 100s -run TestNsmgr -testify.m Test_PassThroughRemoteUsecase ./pkg/networkservice/chains/nsmgr -test.v
   golangci-lint:
     name: golangci-lint
     runs-on: ubuntu-latest
