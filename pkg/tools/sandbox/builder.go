@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/url"
@@ -395,11 +396,11 @@ type threadSafeSlice struct {
 }
 
 func (s *threadSafeSlice) Write(p []byte) (n int, err error) {
-	//s.m.Lock()
-	//defer s.m.Unlock()
+	s.m.Lock()
+	defer s.m.Unlock()
 
-	//s.slice[s.index] = p
-	//s.index++
+	s.slice[s.index] = p
+	s.index++
 
 	return len(p), nil
 }
@@ -428,8 +429,8 @@ var stdoutMu sync.Mutex
 func writeLogsIfTestFailed(ctx context.Context, t *testing.T) {
 	var buffer = new(threadSafeSlice)
 
-	// log.EnableTracing(true)
-	logrus.SetOutput(buffer)
+	log.EnableTracing(true)
+	logrus.SetOutput(io.Discard)
 
 	t.Cleanup(func() {
 		if t.Failed() {
