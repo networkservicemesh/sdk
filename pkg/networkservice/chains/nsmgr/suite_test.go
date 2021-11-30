@@ -27,7 +27,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/goleak"
@@ -48,7 +47,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -374,15 +372,8 @@ func (s *nsmgrSuite) Test_LocalUsecase() {
 
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-	logrus.SetLevel(logrus.TraceLevel)
-	log.EnableTracing(true)
-
-	start := time.Now()
 	request := defaultRequest(nsReg.Name)
 	conn, err := nsc.Request(ctx, request.Clone())
-	elapsed := time.Since(start)
-	fmt.Printf("Next request. Elapsed time: %v\n", elapsed)
-
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 1, counter.Requests())
