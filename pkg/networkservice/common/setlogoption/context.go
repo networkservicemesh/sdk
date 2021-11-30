@@ -23,7 +23,7 @@ import (
 )
 
 func withFields(ctx context.Context, options map[string]string) context.Context {
-	fields := make(map[string]interface{})
+	fields := log.Fields(ctx)
 	fields["type"] = "NetworkService"
 	for k, v := range options {
 		fields[k] = v
