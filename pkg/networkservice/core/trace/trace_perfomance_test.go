@@ -32,6 +32,7 @@ func (c *myChainClient) Close(ctx context.Context, conn *networkservice.Connecti
 }
 
 func TestTrace(t *testing.T) {
+	t.Skip()
 	ctx := context.Background()
 
 	client1 := NewClient()
@@ -58,6 +59,7 @@ func TestTrace(t *testing.T) {
 }
 
 func TestTrace2(t *testing.T) {
+	t.Skip()
 	ctx := context.Background()
 
 	client1 := NewClient()
