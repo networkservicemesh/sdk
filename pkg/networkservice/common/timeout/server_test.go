@@ -53,7 +53,7 @@ const (
 	clientName   = "client"
 	serverName   = "server"
 	tokenTimeout = 15 * time.Minute
-	testWait     = 100 * time.Millisecond
+	testWait     = 150 * time.Millisecond
 	testTick     = testWait / 100
 )
 
