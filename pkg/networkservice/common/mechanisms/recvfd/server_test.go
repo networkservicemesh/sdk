@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,7 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build linux
 // +build linux
 
 package recvfd_test
@@ -22,7 +21,6 @@ package recvfd_test
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
@@ -54,61 +52,59 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
-type checkFileClosed struct {
-	onFileClosed map[string]func()
+type checkRecvfdServer struct {
+	onRecvFile map[string]func()
 
 	t *testing.T
 }
 
-type wrapTransceiver struct {
+type notifiableFDTransceiver struct {
 	grpcfd.FDTransceiver
 	net.Addr
 
-	onFileClosed map[string]func()
+	onRecvFile map[string]func()
 }
 
-func (n *checkFileClosed) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+func (n *checkRecvfdServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	return next.Server(ctx).Close(ctx, conn)
 }
 
-func (n *checkFileClosed) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+func (n *checkRecvfdServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	p, ok := peer.FromContext(ctx)
-	if !ok {
-		n.t.Fatal("No peer in context")
-	}
+	require.True(n.t, ok)
 
 	transceiver, ok := p.Addr.(grpcfd.FDTransceiver)
-	assert.True(n.t, ok)
+	require.True(n.t, ok)
 
-	p.Addr = &wrapTransceiver{
+	p.Addr = &notifiableFDTransceiver{
 		FDTransceiver: transceiver,
 		Addr:          p.Addr,
-		onFileClosed:  n.onFileClosed,
+		onRecvFile:    n.onRecvFile,
 	}
 
 	return next.Server(ctx).Request(ctx, request)
 }
 
-func (w *wrapTransceiver) RecvFileByURL(urlStr string) (<-chan *os.File, error) {
-	res, err := w.FDTransceiver.RecvFileByURL(urlStr)
+func (w *notifiableFDTransceiver) RecvFileByURL(urlStr string) (<-chan *os.File, error) {
+	recv, err := w.FDTransceiver.RecvFileByURL(urlStr)
 	if err != nil {
 		return nil, err
 	}
 
-	var chanRes = make(chan *os.File)
+	var fileCh = make(chan *os.File)
 	go func() {
-		for f := range res {
+		for f := range recv {
 			runtime.SetFinalizer(f, func(file *os.File) {
-				onFileClosedFunc, ok := w.onFileClosed[urlStr]
+				onFileClosedFunc, ok := w.onRecvFile[urlStr]
 				if ok {
 					onFileClosedFunc()
 				}
 			})
-			chanRes <- f
+			fileCh <- f
 		}
 	}()
 
-	return chanRes, nil
+	return fileCh, nil
 }
 
 func createFile(fileName string, t *testing.T) (inodeURLStr string, fileClosedContext context.Context, cancelFunc func()) {
@@ -130,28 +126,25 @@ func createFile(fileName string, t *testing.T) (inodeURLStr string, fileClosedCo
 	return
 }
 
-func createServerAndClient(ctx context.Context, t *testing.T, testServerChain *networkservice.NetworkServiceServer, serveURL *url.URL) (testClient networkservice.NetworkServiceClient) {
+func startServer(ctx context.Context, t *testing.T, testServerChain *networkservice.NetworkServiceServer, serveURL *url.URL) {
 	var grpcServer = grpc.NewServer(grpc.Creds(grpcfd.TransportCredentials(insecure.NewCredentials())))
 	networkservice.RegisterNetworkServiceServer(grpcServer, *testServerChain)
 
 	var errCh = grpcutils.ListenAndServe(ctx, serveURL, grpcServer)
 
-	select {
-	case e := <-errCh:
-		assert.Failf(t, "Server failed to start: %v", e.Error())
-	default:
-	}
+	require.Len(t, errCh, 0)
+}
 
-	testClient = client.NewClient(
+func createClient(ctx context.Context, u *url.URL) networkservice.NetworkServiceClient {
+	return client.NewClient(
 		ctx,
-		client.WithClientURL(sandbox.CloneURL(serveURL)),
+		client.WithClientURL(sandbox.CloneURL(u)),
 		client.WithDialOptions(grpc.WithTransportCredentials(
 			grpcfd.TransportCredentials(insecure.NewCredentials())),
 		),
 		client.WithDialTimeout(time.Second),
 		client.WithoutRefresh(),
 		client.WithAdditionalFunctionality(sendfd.NewClient()))
-	return
 }
 
 func TestRecvfdClosesSingleFile(t *testing.T) {
@@ -160,11 +153,7 @@ func TestRecvfdClosesSingleFile(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	dir, err := ioutil.TempDir(os.TempDir(), t.Name())
-	require.NoError(t, err)
-	defer func() {
-		_ = os.RemoveAll(dir)
-	}()
+	var dir = t.TempDir()
 
 	s, err := os.Create(path.Join(dir, "test.sock"))
 	require.NoError(t, err)
@@ -173,17 +162,19 @@ func TestRecvfdClosesSingleFile(t *testing.T) {
 
 	inodeURLStr, fileClosedContext, cancelFunc := createFile(testFileName, t)
 
-	serveURL := &url.URL{Scheme: "unix", Path: s.Name(), Host: "0.0.0.0:5000"}
+	serveURL := &url.URL{Scheme: "unix", Path: s.Name()}
 
 	var testChain = chain.NewNetworkServiceServer(
-		&checkFileClosed{
-			onFileClosed: map[string]func(){
+		&checkRecvfdServer{
+			t: t,
+			onRecvFile: map[string]func(){
 				inodeURLStr: cancelFunc,
 			},
 		},
 		recvfd.NewServer())
 
-	testClient := createServerAndClient(ctx, t, &testChain, serveURL)
+	startServer(ctx, t, &testChain, serveURL)
+	var testClient = createClient(ctx, serveURL)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -215,11 +206,7 @@ func TestRecvfdClosesMultipleFiles(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	dir, err := ioutil.TempDir(os.TempDir(), t.Name())
-	require.NoError(t, err)
-	defer func() {
-		_ = os.RemoveAll(dir)
-	}()
+	var dir = t.TempDir()
 
 	s, err := os.Create(path.Join(dir, "test.sock"))
 	require.NoError(t, err)
@@ -253,12 +240,14 @@ func TestRecvfdClosesMultipleFiles(t *testing.T) {
 	serveURL := &url.URL{Scheme: "unix", Path: s.Name(), Host: "0.0.0.0:5000"}
 
 	var testChain = chain.NewNetworkServiceServer(
-		&checkFileClosed{
-			onFileClosed: onFileClosedFuncs,
+		&checkRecvfdServer{
+			t:          t,
+			onRecvFile: onFileClosedFuncs,
 		},
 		recvfd.NewServer())
 
-	var testClient = createServerAndClient(ctx, t, &testChain, serveURL)
+	startServer(ctx, t, &testChain, serveURL)
+	var testClient = createClient(ctx, serveURL)
 
 	conn, err := testClient.Request(ctx, request)
 	require.NoError(t, err)
