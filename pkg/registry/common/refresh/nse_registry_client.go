@@ -71,6 +71,7 @@ func (c *refreshNSEClient) Register(ctx context.Context, nse *registry.NetworkSe
 	if reg.ExpirationTime != nil {
 		refreshNSE := nse.Clone()
 		refreshNSE.ExpirationTime = reg.ExpirationTime
+		refreshNSE.InitialRegistrationTime = reg.InitialRegistrationTime
 
 		cancel, err = c.startRefresh(ctx, refreshNSE, expirationDuration)
 		if err != nil {
