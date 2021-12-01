@@ -63,7 +63,7 @@ func (t *beginTraceClient) Request(ctx context.Context, request *networkservice.
 	if err != nil {
 		return nil, logError(ctx, err, operation)
 	}
-	logResponse(ctx, rv, "request")
+	// logResponse(ctx, rv, "request")
 	return rv, err
 }
 
