@@ -93,7 +93,7 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 		logrus.SetLevel(logrus.InfoLevel)
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*80)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*150)
 	defer cancel()
 
 	start := time.Now()
