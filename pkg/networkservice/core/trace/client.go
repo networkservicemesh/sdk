@@ -71,7 +71,7 @@ func (t *beginTraceClient) Close(ctx context.Context, conn *networkservice.Conne
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	// logRequest(ctx, conn, "close")
+	logRequest(ctx, conn, "close")
 	rv, err := t.traced.Close(ctx, conn, opts...)
 	if err != nil {
 		return nil, logError(ctx, err, operation)
