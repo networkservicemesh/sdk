@@ -20,7 +20,6 @@ package nsmgr_test
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/url"
 	"testing"
 	"time"
@@ -86,7 +85,7 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 
 	log.EnableTracing(true)
 	logrus.SetLevel(logrus.TraceLevel)
-	logrus.SetOutput(io.Discard)
+	// logrus.SetOutput(io.Discard)
 
 	t.Cleanup(func() {
 		log.EnableTracing(false)
