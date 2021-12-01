@@ -53,17 +53,13 @@ func (t *beginTraceClient) Request(ctx context.Context, request *networkservice.
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	// start := time.Now()
-	// logRequest(ctx, request, "request")
-	// elapsed := time.Since(start)
-	// fmt.Printf("logRequest. Elapsed time: %v\n", elapsed)
-
+	logRequest(ctx, request, "request")
 	// Actually call the next
 	rv, err := t.traced.Request(ctx, request, opts...)
 	if err != nil {
 		return nil, logError(ctx, err, operation)
 	}
-	// logResponse(ctx, rv, "request")
+	logResponse(ctx, rv, "request")
 	return rv, err
 }
 
@@ -80,21 +76,21 @@ func (t *beginTraceClient) Close(ctx context.Context, conn *networkservice.Conne
 	if err != nil {
 		return nil, logError(ctx, err, operation)
 	}
-	// logResponse(ctx, conn, "close")
+	logResponse(ctx, conn, "close")
 
 	return rv, err
 }
 
 func (t *endTraceClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	// logRequest(ctx, request, "request")
+	logRequest(ctx, request, "request")
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
-	// logResponse(ctx, conn, "request")
+	logResponse(ctx, conn, "request")
 	return conn, err
 }
 
 func (t *endTraceClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	// logRequest(ctx, conn, "close")
+	logRequest(ctx, conn, "close")
 	r, err := next.Client(ctx).Close(ctx, conn, opts...)
-	// logResponse(ctx, conn, "close")
+	logResponse(ctx, conn, "close")
 	return r, err
 }
