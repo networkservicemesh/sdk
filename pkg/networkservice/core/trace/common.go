@@ -38,7 +38,7 @@ func logRequest(ctx context.Context, request proto.Message, prefixes ...string) 
 	diffMsg := strings.Join(append(prefixes, "diff"), "-")
 
 	connInfo, ok := trace(ctx)
-	if ok /* && !proto.Equal(connInfo.Request, request) */ {
+	if ok && !proto.Equal(connInfo.Request, request) {
 		if connInfo.Request != nil && connInfo.Request.ProtoReflect().Descriptor().FullName() == request.ProtoReflect().Descriptor().FullName() {
 			requestDiff, hadChanges := Diff(connInfo.Request.ProtoReflect(), request.ProtoReflect())
 			if hadChanges {
@@ -56,7 +56,7 @@ func logResponse(ctx context.Context, response proto.Message, prefixes ...string
 	diffMsg := strings.Join(append(prefixes, "response", "diff"), "-")
 
 	connInfo, ok := trace(ctx)
-	if ok /* && !proto.Equal(connInfo.Response, response) */ {
+	if ok && !proto.Equal(connInfo.Response, response) {
 		if connInfo.Response != nil {
 			responseDiff, changed := Diff(connInfo.Response.ProtoReflect(), response.ProtoReflect())
 			if changed {
