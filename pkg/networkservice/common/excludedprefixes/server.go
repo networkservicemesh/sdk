@@ -37,11 +37,10 @@ import (
 )
 
 type excludedPrefixesServer struct {
-	ctx              context.Context
-	prefixPool       atomic.Value
-	once             sync.Once
-	configPath       string
-	previousPrefixes map[string]struct{}
+	ctx        context.Context
+	prefixPool atomic.Value
+	once       sync.Once
+	configPath string
 }
 
 func (eps *excludedPrefixesServer) init(ctx context.Context) {
@@ -90,18 +89,21 @@ func (eps *excludedPrefixesServer) Request(ctx context.Context, request *network
 	}
 	prefixes := eps.prefixPool.Load().(*ippool.PrefixPool).GetPrefixes()
 
+	previousPrefixes, _ := load(ctx)
+
 	ipCtx := conn.GetContext().GetIpContext()
-	withoutPrevious := removePrefixes(ipCtx.GetExcludedPrefixes(), eps.previousPrefixes)
+	withoutPrevious := removePrefixes(ipCtx.GetExcludedPrefixes(), previousPrefixes)
 	ipCtx.ExcludedPrefixes = removeDuplicates(append(withoutPrevious, prefixes...))
 
 	for _, p := range prefixes {
-		eps.previousPrefixes[p] = struct{}{}
+		previousPrefixes[p] = struct{}{}
 	}
+	store(ctx, previousPrefixes)
 
 	log.FromContext(ctx).
 		WithField("excludedPrefixes", "server").
 		WithField("loadedPrefixes", prefixes).
-		WithField("previousPrefixes", eps.previousPrefixes).
+		WithField("previousPrefixes", previousPrefixes).
 		Debugf("adding excluded prefixes to connection")
 
 	return next.Server(ctx).Request(ctx, request)
@@ -116,9 +118,8 @@ func (eps *excludedPrefixesServer) Close(ctx context.Context, connection *networ
 // Note: request.Connection and Connection.Context should not be nil when calling Request
 func NewServer(ctx context.Context, setters ...ServerOption) networkservice.NetworkServiceServer {
 	server := &excludedPrefixesServer{
-		configPath:       PrefixesFilePathDefault,
-		ctx:              ctx,
-		previousPrefixes: map[string]struct{}{},
+		configPath: PrefixesFilePathDefault,
+		ctx:        ctx,
 	}
 	for _, setter := range setters {
 		setter(server)
