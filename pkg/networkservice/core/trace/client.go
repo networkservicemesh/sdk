@@ -75,12 +75,12 @@ func (t *beginTraceClient) Close(ctx context.Context, conn *networkservice.Conne
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	logRequest(ctx, conn, "close")
+	// logRequest(ctx, conn, "close")
 	rv, err := t.traced.Close(ctx, conn, opts...)
 	if err != nil {
 		return nil, logError(ctx, err, operation)
 	}
-	logResponse(ctx, conn, "close")
+	// logResponse(ctx, conn, "close")
 
 	return rv, err
 }
@@ -93,8 +93,8 @@ func (t *endTraceClient) Request(ctx context.Context, request *networkservice.Ne
 }
 
 func (t *endTraceClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	logRequest(ctx, conn, "close")
+	// logRequest(ctx, conn, "close")
 	r, err := next.Client(ctx).Close(ctx, conn, opts...)
-	logResponse(ctx, conn, "close")
+	// logResponse(ctx, conn, "close")
 	return r, err
 }
