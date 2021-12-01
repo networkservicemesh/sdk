@@ -136,7 +136,11 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 
 	// Refresh
 	for i := 0; i < 5; i++ {
+		start1 := time.Now()
+
 		request.Connection = conn.Clone()
+		elapsed1 := time.Since(start1)
+		fmt.Printf("conn.Clone. Elapsed time: %v\n", elapsed1)
 
 		conn, err = nsc.Request(ctx, request)
 		require.NoError(t, err)
