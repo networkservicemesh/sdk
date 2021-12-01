@@ -86,9 +86,9 @@ func (t *beginTraceClient) Close(ctx context.Context, conn *networkservice.Conne
 }
 
 func (t *endTraceClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	logRequest(ctx, request, "request")
+	// logRequest(ctx, request, "request")
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
-	logResponse(ctx, conn, "request")
+	// logResponse(ctx, conn, "request")
 	return conn, err
 }
 
