@@ -96,7 +96,6 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*150)
 	defer cancel()
 
-	start := time.Now()
 	counterClose := new(count.Server)
 
 	nsReg := linearNS(nodesCount)
@@ -119,6 +118,7 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 		)
 	}
 
+	start := time.Now()
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
 	request := defaultRequest(nsReg.Name)
