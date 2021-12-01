@@ -33,9 +33,9 @@ jobs:
       - name: Build
         run: go build -race  ./...
       - name: Build binary
-        run: go test -c -race ./pkg/networkservice/chains/nsmgr -test.v -o my.test
+        run: go test -c ./pkg/networkservice/chains/nsmgr -test.v -o my.test
       - name: Test
-        run:  ./my.test -test.run TestNsmgr
+        run: ./my.test -test.run TestNsmgr
   golangci-lint:
     name: golangci-lint
     runs-on: ubuntu-latest
