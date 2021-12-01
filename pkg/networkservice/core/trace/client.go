@@ -20,8 +20,6 @@ package trace
 
 import (
 	"context"
-	"fmt"
-	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
@@ -55,10 +53,10 @@ func (t *beginTraceClient) Request(ctx context.Context, request *networkservice.
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
-	start := time.Now()
-	logRequest(ctx, request, "request")
-	elapsed := time.Since(start)
-	fmt.Printf("logRequest. Elapsed time: %v\n", elapsed)
+	// start := time.Now()
+	// logRequest(ctx, request, "request")
+	// elapsed := time.Since(start)
+	// fmt.Printf("logRequest. Elapsed time: %v\n", elapsed)
 
 	// Actually call the next
 	rv, err := t.traced.Request(ctx, request, opts...)
