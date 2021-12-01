@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/goleak"
@@ -47,6 +48,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -402,14 +404,14 @@ func (s *nsmgrSuite) Test_LocalUsecase() {
 func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 	t := s.T()
 
-	// log.EnableTracing(true)
-	// logrus.SetLevel(logrus.TraceLevel)
-	// logrus.SetOutput(io.Discard)
+	log.EnableTracing(true)
+	logrus.SetLevel(logrus.TraceLevel)
+	//logrus.SetOutput(io.Discard)
 
-	// t.Cleanup(func() {
-	// 	log.EnableTracing(false)
-	// 	logrus.SetLevel(logrus.InfoLevel)
-	// })
+	t.Cleanup(func() {
+		log.EnableTracing(false)
+		logrus.SetLevel(logrus.InfoLevel)
+	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*70)
 	defer cancel()
