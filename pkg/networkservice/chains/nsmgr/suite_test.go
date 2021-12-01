@@ -127,7 +127,6 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
-	start := time.Now()
 	// Path length to first endpoint is 5
 	// Path length from NSE client to other remote endpoint is 8
 	require.Equal(t, 6*(nodesCount-1)+4, len(conn.Path.PathSegments))
@@ -142,6 +141,8 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 		conn, err = nsc.Request(ctx, request)
 		require.NoError(t, err)
 	}
+
+	start := time.Now()
 
 	// Close
 	_, err = nsc.Close(ctx, conn)
