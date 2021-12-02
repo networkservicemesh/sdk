@@ -201,6 +201,46 @@ func Test_RefreshNSEClient_SetsCorrectExpireTime(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func Test_RefreshNSEClient_CorrectInitialRegTime(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	clockMock := clockmock.New(ctx)
+	ctx = clock.WithClock(ctx, clockMock)
+	regTime := clockMock.Now()
+
+	var registerCount int32
+
+	client := next.NewNetworkServiceEndpointRegistryClient(
+		serialize.NewNetworkServiceEndpointRegistryClient(),
+		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
+		&injectNSERegisterClient{
+			NetworkServiceEndpointRegistryClient: null.NewNetworkServiceEndpointRegistryClient(),
+			register: func(c context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+				require.NotNil(t, nse.InitialRegistrationTime)
+				require.True(t, nse.InitialRegistrationTime.AsTime().Equal(regTime))
+				atomic.AddInt32(&registerCount, 1)
+				return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, nse, opts...)
+			},
+		},
+	)
+
+	nse := testNSE(clockMock)
+	nse.InitialRegistrationTime = timestamppb.New(regTime)
+	reg, err := client.Register(ctx, nse)
+	require.NoError(t, err)
+
+	clockMock.Add(expireTimeout)
+	require.Eventually(t, func() bool {
+		return atomic.LoadInt32(&registerCount) > 1
+	}, testWait, testTick)
+
+	_, err = client.Unregister(ctx, reg)
+	require.NoError(t, err)
+}
+
 type requestCountClient struct {
 	requestCount int32
 
