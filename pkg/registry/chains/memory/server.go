@@ -30,7 +30,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/proxy"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/setlogoption"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setpayload"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setregistrationtime"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
@@ -39,7 +38,6 @@ import (
 // NewServer creates new registry server based on memory storage
 func NewServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryURL *url.URL, dialOptions ...grpc.DialOption) registryserver.Registry {
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
-		setlogoption.NewNetworkServiceEndpointRegistryServer(map[string]string{}),
 		serialize.NewNetworkServiceEndpointRegistryServer(),
 		setregistrationtime.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, expiryDuration),
@@ -48,7 +46,6 @@ func NewServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryU
 		connect.NewNetworkServiceEndpointRegistryServer(ctx, connect.WithDialOptions(dialOptions...)),
 	)
 	nsChain := chain.NewNetworkServiceRegistryServer(
-		setlogoption.NewNetworkServiceRegistryServer(map[string]string{}),
 		serialize.NewNetworkServiceRegistryServer(),
 		setpayload.NewNetworkServiceRegistryServer(),
 		memory.NewNetworkServiceRegistryServer(),

@@ -21,7 +21,6 @@ package nsmgr
 
 import (
 	"context"
-	"fmt"
 	"net/url"
 	"time"
 
@@ -53,7 +52,6 @@ import (
 	registrysendfd "github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
 
 	registryserialize "github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/setlogoption"
 	registryadapter "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	registrychain "github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
@@ -169,14 +167,12 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 
 	nsRegistry = registrychain.NewNetworkServiceRegistryServer(
 		registryserialize.NewNetworkServiceRegistryServer(),
-		setlogoption.NewNetworkServiceRegistryServer(map[string]string{"name": "NetworkServiceRegistryServer." + opts.name}),
 		nsRegistry,
 	)
 
 	var nseInMemoryRegistry = memory.NewNetworkServiceEndpointRegistryServer()
 
 	var nseRegistry = registrychain.NewNetworkServiceEndpointRegistryServer(
-		setlogoption.NewNetworkServiceEndpointRegistryServer(map[string]string{"name": fmt.Sprintf("NetworkServiceRegistryServer.%v", opts.name)}),
 		registryclientinfo.NewNetworkServiceEndpointRegistryServer(),
 		registryserialize.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),

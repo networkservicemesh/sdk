@@ -152,7 +152,6 @@ func (c *healNSClient) startMonitor(ctx context.Context, opts []grpc.CallOption)
 
 	findCtx, findCancel := context.WithCancel(c.ctx)
 	findCtx = extend.WithValuesFromContext(findCtx, ctx)
-	findCtx = log.WithFields(findCtx, map[string]interface{}{})
 
 	query := &registry.NetworkServiceQuery{
 		NetworkService: new(registry.NetworkService),

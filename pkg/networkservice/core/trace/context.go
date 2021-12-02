@@ -34,6 +34,7 @@ type contextKeyType string
 
 const (
 	traceInfoKey contextKeyType = "ConnectionInfo"
+	loggedType   string         = "networkService"
 )
 
 // ConnectionInfo - struct, containing string representations of request and response, used for tracing.
@@ -45,7 +46,7 @@ type traceInfo struct {
 }
 
 // withLog - provides corresponding logger in context
-func withLog(parent context.Context, operation string) (c context.Context, f func()) {
+func withLog(parent context.Context, operation, connectionID string) (c context.Context, f func()) {
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
@@ -56,7 +57,7 @@ func withLog(parent context.Context, operation string) (c context.Context, f fun
 	if grpcTraceState := grpcutils.TraceFromContext(parent); (grpcTraceState == grpcutils.TraceOn) ||
 		(grpcTraceState == grpcutils.TraceUndefined && log.IsTracingEnabled()) {
 		ctx, sLogger, span, sFinish := spanlogger.FromContext(parent, operation)
-		ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation)
+		ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation, map[string]interface{}{"type": loggedType, "id": connectionID})
 		return withTrace(log.WithLog(ctx, sLogger, lLogger)), func() {
 			sFinish()
 			lFinish()

@@ -21,7 +21,6 @@ import (
 	"io"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamcontext"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/typeutils"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -47,10 +46,6 @@ func (t *traceNetworkServiceEndpointRegistryFindClient) Recv() (*registry.Networ
 	s := streamcontext.NetworkServiceEndpointRegistryFindClient(ctx, t.NetworkServiceEndpointRegistry_FindClient)
 	rv, err := s.Recv()
 
-	if rv != nil {
-		log.Fields(ctx)["id"] = rv.NetworkServiceEndpoint.Name
-	}
-
 	if err != nil {
 		if err == io.EOF {
 			return nil, err
@@ -62,10 +57,7 @@ func (t *traceNetworkServiceEndpointRegistryFindClient) Recv() (*registry.Networ
 }
 
 func (t *traceNetworkServiceEndpointRegistryClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	log.Fields(ctx)["id"] = in.Name
-
 	operation := typeutils.GetFuncName(t.traced, "Register")
-
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
@@ -78,10 +70,7 @@ func (t *traceNetworkServiceEndpointRegistryClient) Register(ctx context.Context
 	return rv, err
 }
 func (t *traceNetworkServiceEndpointRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	log.Fields(ctx)["id"] = in.NetworkServiceEndpoint.Name
-
 	operation := typeutils.GetFuncName(t.traced, "Find")
-
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
@@ -98,10 +87,7 @@ func (t *traceNetworkServiceEndpointRegistryClient) Find(ctx context.Context, in
 }
 
 func (t *traceNetworkServiceEndpointRegistryClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
-	log.Fields(ctx)["id"] = in.Name
-
 	operation := typeutils.GetFuncName(t.traced, "Unregister")
-
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
@@ -126,10 +112,7 @@ type traceNetworkServiceEndpointRegistryServer struct {
 }
 
 func (t *traceNetworkServiceEndpointRegistryServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	log.Fields(ctx)["id"] = in.Name
-
 	operation := typeutils.GetFuncName(t.traced, "Register")
-
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
@@ -145,11 +128,8 @@ func (t *traceNetworkServiceEndpointRegistryServer) Register(ctx context.Context
 
 func (t *traceNetworkServiceEndpointRegistryServer) Find(in *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
 	operation := typeutils.GetFuncName(t.traced, "Find")
-
 	ctx, finish := withLog(s.Context(), operation)
 	defer finish()
-
-	log.Fields(ctx)["id"] = in.NetworkServiceEndpoint.Name
 
 	s = &traceNetworkServiceEndpointRegistryFindServer{
 		NetworkServiceEndpointRegistry_FindServer: streamcontext.NetworkServiceEndpointRegistryFindServer(ctx, s),
@@ -167,10 +147,7 @@ func (t *traceNetworkServiceEndpointRegistryServer) Find(in *registry.NetworkSer
 }
 
 func (t *traceNetworkServiceEndpointRegistryServer) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	log.Fields(ctx)["id"] = in.Name
-
 	operation := typeutils.GetFuncName(t.traced, "Unregister")
-
 	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
@@ -196,11 +173,9 @@ type traceNetworkServiceEndpointRegistryFindServer struct {
 
 func (t *traceNetworkServiceEndpointRegistryFindServer) Send(nseResp *registry.NetworkServiceEndpointResponse) error {
 	operation := typeutils.GetFuncName(t.NetworkServiceEndpointRegistry_FindServer, "Send")
-
 	ctx, finish := withLog(t.Context(), operation)
 	defer finish()
 
-	log.Fields(ctx)["id"] = nseResp.NetworkServiceEndpoint.Name
 	logObjectTrace(ctx, "network service endpoint", nseResp.NetworkServiceEndpoint)
 	s := streamcontext.NetworkServiceEndpointRegistryFindServer(ctx, t.NetworkServiceEndpointRegistry_FindServer)
 	err := s.Send(nseResp)
