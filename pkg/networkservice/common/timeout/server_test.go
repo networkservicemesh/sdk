@@ -241,6 +241,9 @@ func TestTimeoutServer_RefreshFailure(t *testing.T) {
 				injecterror.WithRequestErrorTimes(1, -1),
 				injecterror.WithCloseErrorTimes(),
 			),
+			updatetoken.NewServer(func(_ credentials.AuthInfo) (string, time.Time, error) {
+				return "test", clock.FromContext(ctx).Now().Add(tokenTimeout), nil
+			}),
 			connServer,
 		),
 		tokenTimeout,

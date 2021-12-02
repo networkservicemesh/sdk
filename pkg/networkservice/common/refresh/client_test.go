@@ -18,16 +18,16 @@ package refresh_test
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc/credentials"
-
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
@@ -36,6 +36,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	countutil "github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injectclock"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
@@ -60,6 +61,28 @@ func testTokenFunc(clockTime clock.Clock) token.GeneratorFunc {
 	return func(_ credentials.AuthInfo) (token string, expireTime time.Time, err error) {
 		return "", clockTime.Now().Add(expireTimeout), err
 	}
+}
+
+func testTokenFuncWithTimeout(clockTime clock.Clock, timeout time.Duration) token.GeneratorFunc {
+	return func(_ credentials.AuthInfo) (token string, expireTime time.Time, err error) {
+		return "", clockTime.Now().Add(timeout), err
+	}
+}
+
+type captureTickerDuration struct {
+	*clockmock.Mock
+
+	tickerDuration time.Duration
+}
+
+func (m *captureTickerDuration) Ticker(d time.Duration) clock.Ticker {
+	m.tickerDuration = d
+	return m.Mock.Ticker(d)
+}
+
+func (m *captureTickerDuration) Reset(t time.Time) {
+	m.tickerDuration = 0
+	m.Set(t)
 }
 
 func testClient(
@@ -300,6 +323,82 @@ func TestRefreshClient_NoRefreshOnFailure(t *testing.T) {
 	clockMock.Add(expireTimeout)
 
 	require.Never(t, cloneClient.validator(2), testWait, testTick)
+}
+
+func TestRefreshClient_CalculatesShortestTokenTimeout(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	testData := []struct {
+		Chain                     []time.Duration
+		ExpectedRefreshTimeoutMax time.Duration
+		ExpectedRefreshTimeoutMin time.Duration
+	}{
+		{
+			Chain:                     []time.Duration{time.Hour},
+			ExpectedRefreshTimeoutMax: 20*time.Minute + time.Second,
+			ExpectedRefreshTimeoutMin: 20*time.Minute - time.Second,
+		},
+		{
+			Chain:                     []time.Duration{time.Hour, 3 * time.Minute},
+			ExpectedRefreshTimeoutMax: 54*time.Second + time.Second/2.,
+			ExpectedRefreshTimeoutMin: 54*time.Second - time.Second/2.,
+		},
+		{
+			Chain:                     []time.Duration{time.Hour, 5 * time.Second, 3 * time.Minute},
+			ExpectedRefreshTimeoutMax: 5*time.Second/3. + time.Second/3.,
+			ExpectedRefreshTimeoutMin: 5*time.Second/3. - time.Second/3.,
+		},
+		{
+			Chain:                     []time.Duration{200 * time.Millisecond, 1 * time.Minute, 100 * time.Millisecond, time.Hour},
+			ExpectedRefreshTimeoutMax: 100*time.Millisecond/3. + 30*time.Millisecond,
+			ExpectedRefreshTimeoutMin: 100*time.Millisecond/3. - 30*time.Millisecond,
+		},
+	}
+
+	timeNow, err := time.Parse("2006-01-02 15:04:05", "2009-11-10 23:00:00")
+	require.NoError(t, err)
+
+	clockMock := captureTickerDuration{
+		Mock: clockmock.New(ctx),
+	}
+
+	var countClient = &countutil.Client{}
+
+	for _, testDataElement := range testData {
+		clockMock.Reset(timeNow)
+
+		var pathChain []networkservice.NetworkServiceClient
+		var clientChain = []networkservice.NetworkServiceClient{
+			begin.NewClient(),
+			metadata.NewClient(),
+			injectclock.NewClient(&clockMock),
+			refresh.NewClient(ctx),
+		}
+
+		for _, expireTimeValue := range testDataElement.Chain {
+			pathChain = append(pathChain,
+				updatepath.NewClient(fmt.Sprintf("test-%v", expireTimeValue)),
+				adapters.NewServerToClient(updatetoken.NewServer(testTokenFuncWithTimeout(&clockMock, expireTimeValue))),
+			)
+		}
+
+		clientChain = append(pathChain, clientChain...)
+		clientChain = append(clientChain, countClient)
+		client := chain.NewNetworkServiceClient(clientChain...)
+
+		_, err = client.Request(ctx, &networkservice.NetworkServiceRequest{
+			Connection: new(networkservice.Connection),
+		})
+		require.NoError(t, err)
+
+		require.Less(t, clockMock.tickerDuration, testDataElement.ExpectedRefreshTimeoutMax)
+		require.Greater(t, clockMock.tickerDuration, testDataElement.ExpectedRefreshTimeoutMin)
+	}
+
+	require.Equal(t, countClient.Requests(), len(testData))
 }
 
 func TestRefreshClient_RefreshOnRefreshFailure(t *testing.T) {

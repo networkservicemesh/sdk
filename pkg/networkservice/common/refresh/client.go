@@ -22,6 +22,7 @@ package refresh
 
 import (
 	"context"
+	"math"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
@@ -108,16 +109,23 @@ func (t *refreshClient) Close(ctx context.Context, conn *networkservice.Connecti
 func after(ctx context.Context, conn *networkservice.Connection) (time.Duration, error) {
 	clockTime := clock.FromContext(ctx)
 
-	expireTime, err := ptypes.Timestamp(conn.GetCurrentPathSegment().GetExpires())
-	if err != nil {
-		return 0, errors.WithStack(err)
-	}
+	var minTimeout = time.Duration(math.MaxInt64)
+	for _, seg := range conn.GetPath().GetPathSegments() {
+		expireTime, err := ptypes.Timestamp(seg.GetExpires())
+		if err != nil {
+			return 0, errors.WithStack(err)
+		}
 
-	timeout := clockTime.Until(expireTime)
-	log.FromContext(ctx).Infof("expiration after %s at %s", timeout.String(), expireTime.UTC())
+		timeout := clockTime.Until(expireTime)
+		log.FromContext(ctx).Infof("expiration after %s at %s", timeout.String(), expireTime.UTC())
 
-	if timeout <= 0 {
-		return 1, nil
+		if timeout <= 0 {
+			return 1, nil
+		}
+
+		if timeout < minTimeout {
+			minTimeout = timeout
+		}
 	}
 
 	// A heuristic to reduce the number of redundant requests in a chain
@@ -129,7 +137,7 @@ func after(ctx context.Context, conn *networkservice.Connection) (time.Duration,
 	if len(path.PathSegments) > 1 {
 		scale = 0.2 + 0.2*float64(path.Index)/float64(len(path.PathSegments))
 	}
-	duration := time.Duration(float64(timeout) * scale)
+	duration := time.Duration(float64(minTimeout) * scale)
 
 	return duration, nil
 }
