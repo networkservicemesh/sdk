@@ -29,8 +29,11 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/testing/protocmp"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func logRequest(ctx context.Context, request proto.Message, prefixes ...string) {
@@ -40,10 +43,12 @@ func logRequest(ctx context.Context, request proto.Message, prefixes ...string) 
 	connInfo, ok := trace(ctx)
 	if ok /* && !proto.Equal(connInfo.Request, request) */ {
 		if connInfo.Request != nil && connInfo.Request.ProtoReflect().Descriptor().FullName() == request.ProtoReflect().Descriptor().FullName() {
-			requestDiff, hadChanges := Diff(connInfo.Request.ProtoReflect(), request.ProtoReflect())
-			if hadChanges {
-				logObjectTrace(ctx, diffMsg, requestDiff)
-			}
+			// data, _ := protojson.Marshal(connInfo.Request)
+			// json := string(data)
+			// fmt.Println(json)
+			requestDiff := cmp.Diff(connInfo.Request, request, protocmp.Transform())
+			//protocmp.IgnoreFields(&networkservice.NetworkServiceRequest{}, "state"))
+			logObjectTrace(ctx, diffMsg, requestDiff)
 		} else {
 			logObjectTrace(ctx, msg, request)
 		}
@@ -58,10 +63,8 @@ func logResponse(ctx context.Context, response proto.Message, prefixes ...string
 	connInfo, ok := trace(ctx)
 	if ok /* && !proto.Equal(connInfo.Response, response) */ {
 		if connInfo.Response != nil {
-			responseDiff, changed := Diff(connInfo.Response.ProtoReflect(), response.ProtoReflect())
-			if changed {
-				logObjectTrace(ctx, diffMsg, responseDiff)
-			}
+			responseDiff := cmp.Diff(connInfo.Response, response, protocmp.Transform())
+			logObjectTrace(ctx, diffMsg, responseDiff)
 		} else {
 			logObjectTrace(ctx, msg, response)
 		}
@@ -171,15 +174,15 @@ func diffField(descriptor protoreflect.FieldDescriptor, oldValue, newValue inter
 	if descriptor.Kind() == protoreflect.MessageKind {
 		// A pointer to message, we do not need to compare
 		if newMsg, ok := newValue.(protoreflect.Message); ok {
-			_, oldOk := oldValue.(protoreflect.Message)
+			oldMsg, oldOk := oldValue.(protoreflect.Message)
 			if !oldOk {
 				// No old message defined
 				return newMsg.Interface(), true
 			}
-			// fieldDiff, childFieldChanged := Diff(oldMsg, newMsg)
-			// if childFieldChanged {
-			// 	return fieldDiff, true
-			// }
+			fieldDiff, childFieldChanged := Diff(oldMsg, newMsg)
+			if childFieldChanged {
+				return fieldDiff, true
+			}
 			return "=", false
 		} else if oldMsg, ok := oldValue.(protoreflect.Message); ok {
 			// No new message defined
