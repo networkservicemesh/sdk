@@ -112,17 +112,17 @@ func Diff(oldMessage, newMessage protoreflect.Message) (map[string]interface{}, 
 					return true
 				})
 			}
-			// if resultMap, mapChanged := mapDiff(descriptor, originMap, targetMap); mapChanged {
-			// 	changes++
-			// 	diffMessage[string(descriptor.Name())] = resultMap
-			// }
+			if resultMap, mapChanged := mapDiff(descriptor, originMap, targetMap); mapChanged {
+				changes++
+				diffMessage[string(descriptor.Name())] = resultMap
+			}
 			continue
 		}
-		//val, diff := diffField(descriptor, oldValue, newValue)
-		// if diff {
-		// 	changes++
-		// 	diffMessage[string(descriptor.Name())] = val
-		// }
+		val, diff := diffField(descriptor, oldValue, newValue)
+		if diff {
+			changes++
+			diffMessage[string(descriptor.Name())] = val
+		}
 	}
 
 	return diffMessage, changes > 0
@@ -171,15 +171,15 @@ func diffField(descriptor protoreflect.FieldDescriptor, oldValue, newValue inter
 	if descriptor.Kind() == protoreflect.MessageKind {
 		// A pointer to message, we do not need to compare
 		if newMsg, ok := newValue.(protoreflect.Message); ok {
-			oldMsg, oldOk := oldValue.(protoreflect.Message)
+			_, oldOk := oldValue.(protoreflect.Message)
 			if !oldOk {
 				// No old message defined
 				return newMsg.Interface(), true
 			}
-			fieldDiff, childFieldChanged := Diff(oldMsg, newMsg)
-			if childFieldChanged {
-				return fieldDiff, true
-			}
+			// fieldDiff, childFieldChanged := Diff(oldMsg, newMsg)
+			// if childFieldChanged {
+			// 	return fieldDiff, true
+			// }
 			return "=", false
 		} else if oldMsg, ok := oldValue.(protoreflect.Message); ok {
 			// No new message defined
