@@ -21,12 +21,10 @@ package recvfd_test
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/url"
 	"os"
 	"path"
 	"runtime"
-	"syscall"
 	"testing"
 	"time"
 
@@ -36,7 +34,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
-	"github.com/stretchr/testify/assert"
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcfdutils"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
@@ -58,13 +56,6 @@ type checkRecvfdServer struct {
 	t *testing.T
 }
 
-type notifiableFDTransceiver struct {
-	grpcfd.FDTransceiver
-	net.Addr
-
-	onRecvFile map[string]func()
-}
-
 func (n *checkRecvfdServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	return next.Server(ctx).Close(ctx, conn)
 }
@@ -76,52 +67,28 @@ func (n *checkRecvfdServer) Request(ctx context.Context, request *networkservice
 	transceiver, ok := p.Addr.(grpcfd.FDTransceiver)
 	require.True(n.t, ok)
 
-	p.Addr = &notifiableFDTransceiver{
+	p.Addr = &grpcfdutils.NotifiableFDTransceiver{
 		FDTransceiver: transceiver,
 		Addr:          p.Addr,
-		onRecvFile:    n.onRecvFile,
+		OnRecvFile:    n.onRecvFile,
 	}
 
 	return next.Server(ctx).Request(ctx, request)
-}
-
-func (w *notifiableFDTransceiver) RecvFileByURL(urlStr string) (<-chan *os.File, error) {
-	recv, err := w.FDTransceiver.RecvFileByURL(urlStr)
-	if err != nil {
-		return nil, err
-	}
-
-	var fileCh = make(chan *os.File)
-	go func() {
-		for f := range recv {
-			runtime.SetFinalizer(f, func(file *os.File) {
-				onFileClosedFunc, ok := w.onRecvFile[urlStr]
-				if ok {
-					onFileClosedFunc()
-				}
-			})
-			fileCh <- f
-		}
-	}()
-
-	return fileCh, nil
 }
 
 func createFile(fileName string, t *testing.T) (inodeURLStr string, fileClosedContext context.Context, cancelFunc func()) {
 	f, err := os.Create(fileName)
 	require.NoError(t, err, "Failed to create and open a file: %v", err)
 
-	info, err := f.Stat()
-	assert.NoError(t, err)
-
-	stat, ok := info.Sys().(*syscall.Stat_t)
-	assert.True(t, ok)
-
 	err = f.Close()
 	require.NoError(t, err, "Failed to close file: %v", err)
 
 	fileClosedContext, cancelFunc = context.WithCancel(context.Background())
-	inodeURLStr = fmt.Sprintf("inode://%d/%d", stat.Dev, stat.Ino)
+
+	inodeURL, err := grpcfd.FilenameToURL(fileName)
+	require.NoError(t, err)
+
+	inodeURLStr = inodeURL.String()
 
 	return
 }
@@ -150,7 +117,7 @@ func createClient(ctx context.Context, u *url.URL) networkservice.NetworkService
 func TestRecvfdClosesSingleFile(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	var dir = t.TempDir()
@@ -203,7 +170,7 @@ func TestRecvfdClosesSingleFile(t *testing.T) {
 func TestRecvfdClosesMultipleFiles(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	var dir = t.TempDir()
