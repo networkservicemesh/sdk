@@ -183,9 +183,25 @@ func (s *logrusLogger) WithField(key, value interface{}) log.Logger {
 	return logger
 }
 
+// Field is simple key value pair
+type Field struct {
+	key string
+	val interface{}
+}
+
+func toMap(fields ...Field) map[string]interface{} {
+	rv := make(map[string]interface{})
+
+	for _, f := range fields {
+		rv[f.key] = f.val
+	}
+
+	return rv
+}
+
 // New - creates a logruslogger and returns it
-func New(ctx context.Context) log.Logger {
-	entry := logrus.NewEntry(logrus.StandardLogger())
+func New(ctx context.Context, fields ...Field) log.Logger {
+	entry := logrus.WithFields(toMap(fields...))
 	entry.Logger.SetFormatter(newFormatter())
 
 	newLog := &logrusLogger{
