@@ -21,6 +21,7 @@ package recvfd_test
 import (
 	"context"
 	"net/url"
+	"os"
 	"path"
 	"runtime"
 	"testing"
@@ -50,9 +51,8 @@ import (
 )
 
 type checkNseRecvfdServer struct {
-	onRecvFile map[string]func()
-
-	t *testing.T
+	t                     *testing.T
+	onFileClosedCallbacks map[string]func()
 }
 
 func (n *checkNseRecvfdServer) Unregister(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
@@ -77,6 +77,15 @@ func (n *checkNseRecvfdServer) Register(ctx context.Context, endpoint *registry.
 
 func (n *checkNseRecvfdServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
 	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
+}
+
+func (n *checkNseRecvfdServer) onRecvFile(fileName string, file *os.File) {
+	runtime.SetFinalizer(file, func(file *os.File) {
+		onFileClosedCallback, ok := n.onFileClosedCallbacks[fileName]
+		if ok {
+			onFileClosedCallback()
+		}
+	})
 }
 
 func getFileInfo(fileName string, t *testing.T) (inodeURLStr string, fileClosedContext context.Context, cancelFunc func()) {
@@ -109,8 +118,8 @@ func TestNseRecvfdServerClosesFile(t *testing.T) {
 	)
 
 	var checkRecvfdServer = &checkNseRecvfdServer{
-		t:          t,
-		onRecvFile: make(map[string]func()),
+		t:                     t,
+		onFileClosedCallbacks: make(map[string]func()),
 	}
 
 	var nseRegistry = registrychain.NewNetworkServiceEndpointRegistryServer(
@@ -151,7 +160,7 @@ func TestNseRecvfdServerClosesFile(t *testing.T) {
 	// setting onRecvFile after starting the server as we're re-creating a socket in grpcutils.ListenAndServe
 	// in registry case we're passing a socket
 	inodeURLStr, fileClosedContext, cancelFunc := getFileInfo(testFileName, t)
-	checkRecvfdServer.onRecvFile[inodeURLStr] = cancelFunc
+	checkRecvfdServer.onFileClosedCallbacks[inodeURLStr] = cancelFunc
 
 	var testEndpoint = &registry.NetworkServiceEndpoint{
 		Name:                "test-endpoint",

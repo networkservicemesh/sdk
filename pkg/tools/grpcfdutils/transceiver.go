@@ -14,23 +14,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build linux
+
+// Package grpcfdutils provides utilities for grpcfd library
 package grpcfdutils
 
 import (
 	"net"
 	"os"
-	"runtime"
 
 	"github.com/edwarnicke/grpcfd"
 )
 
+// NotifiableFDTransceiver - grpcfd.Transceiver wrapper checking that received FDs are closed
+//     OnRecvFile - callback receiving inodeURL string and a file received by grpcfd
 type NotifiableFDTransceiver struct {
 	grpcfd.FDTransceiver
 	net.Addr
 
-	OnRecvFile map[string]func()
+	OnRecvFile func(string, *os.File)
 }
 
+// RecvFileByURL - wrapper of grpcfd.FDRecver method invoking callback when a file is received by grpcfd
 func (w *NotifiableFDTransceiver) RecvFileByURL(urlStr string) (<-chan *os.File, error) {
 	recv, err := w.FDTransceiver.RecvFileByURL(urlStr)
 	if err != nil {
@@ -40,12 +45,7 @@ func (w *NotifiableFDTransceiver) RecvFileByURL(urlStr string) (<-chan *os.File,
 	var fileCh = make(chan *os.File)
 	go func() {
 		for f := range recv {
-			runtime.SetFinalizer(f, func(file *os.File) {
-				onFileClosedFunc, ok := w.OnRecvFile[urlStr]
-				if ok {
-					onFileClosedFunc()
-				}
-			})
+			w.OnRecvFile(urlStr, f)
 			fileCh <- f
 		}
 	}()

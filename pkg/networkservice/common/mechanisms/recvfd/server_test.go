@@ -34,7 +34,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcfdutils"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
@@ -46,14 +45,14 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcfdutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
 type checkRecvfdServer struct {
-	onRecvFile map[string]func()
-
-	t *testing.T
+	t                     *testing.T
+	onFileClosedCallbacks map[string]func()
 }
 
 func (n *checkRecvfdServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
@@ -74,6 +73,16 @@ func (n *checkRecvfdServer) Request(ctx context.Context, request *networkservice
 	}
 
 	return next.Server(ctx).Request(ctx, request)
+}
+
+func (n *checkRecvfdServer) onRecvFile(fileName string, file *os.File) {
+	// checking a file is closed by recvfd by setting a finalizer
+	runtime.SetFinalizer(file, func(file *os.File) {
+		onFileClosedCallback, ok := n.onFileClosedCallbacks[fileName]
+		if ok {
+			onFileClosedCallback()
+		}
+	})
 }
 
 func createFile(fileName string, t *testing.T) (inodeURLStr string, fileClosedContext context.Context, cancelFunc func()) {
@@ -134,7 +143,7 @@ func TestRecvfdClosesSingleFile(t *testing.T) {
 	var testChain = chain.NewNetworkServiceServer(
 		&checkRecvfdServer{
 			t: t,
-			onRecvFile: map[string]func(){
+			onFileClosedCallbacks: map[string]func(){
 				inodeURLStr: cancelFunc,
 			},
 		},
@@ -208,8 +217,8 @@ func TestRecvfdClosesMultipleFiles(t *testing.T) {
 
 	var testChain = chain.NewNetworkServiceServer(
 		&checkRecvfdServer{
-			t:          t,
-			onRecvFile: onFileClosedFuncs,
+			t:                     t,
+			onFileClosedCallbacks: onFileClosedFuncs,
 		},
 		recvfd.NewServer())
 
