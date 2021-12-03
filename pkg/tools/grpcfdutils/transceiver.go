@@ -20,23 +20,26 @@
 package grpcfdutils
 
 import (
+	"context"
 	"net"
 	"os"
 
 	"github.com/edwarnicke/grpcfd"
+	"github.com/pkg/errors"
+	"google.golang.org/grpc/peer"
 )
 
-// NotifiableFDTransceiver - grpcfd.Transceiver wrapper checking that received FDs are closed
-//     OnRecvFile - callback receiving inodeURL string and a file received by grpcfd
-type NotifiableFDTransceiver struct {
+// notifiableFDTransceiver - grpcfd.Transceiver wrapper checking that received FDs are closed
+//     onRecvFile - callback receiving inodeURL string and a file received by grpcfd
+type notifiableFDTransceiver struct {
 	grpcfd.FDTransceiver
 	net.Addr
 
-	OnRecvFile func(string, *os.File)
+	onRecvFile func(string, *os.File)
 }
 
 // RecvFileByURL - wrapper of grpcfd.FDRecver method invoking callback when a file is received by grpcfd
-func (w *NotifiableFDTransceiver) RecvFileByURL(urlStr string) (<-chan *os.File, error) {
+func (w *notifiableFDTransceiver) RecvFileByURL(urlStr string) (<-chan *os.File, error) {
 	recv, err := w.FDTransceiver.RecvFileByURL(urlStr)
 	if err != nil {
 		return nil, err
@@ -45,10 +48,31 @@ func (w *NotifiableFDTransceiver) RecvFileByURL(urlStr string) (<-chan *os.File,
 	var fileCh = make(chan *os.File)
 	go func() {
 		for f := range recv {
-			w.OnRecvFile(urlStr, f)
+			w.onRecvFile(urlStr, f)
 			fileCh <- f
 		}
 	}()
 
 	return fileCh, nil
+}
+
+// InjectOnFileReceivedCallback - injects callback into grpcfd.FDTransceiver that will be invoked on file received
+func InjectOnFileReceivedCallback(ctx context.Context, callback func(string, *os.File)) error {
+	p, ok := peer.FromContext(ctx)
+	if !ok {
+		return errors.Errorf("No peer in context")
+	}
+
+	transceiver, ok := p.Addr.(grpcfd.FDTransceiver)
+	if !ok {
+		return errors.Errorf("No grpcfd transceiver in context")
+	}
+
+	p.Addr = &notifiableFDTransceiver{
+		FDTransceiver: transceiver,
+		Addr:          p.Addr,
+		onRecvFile:    callback,
+	}
+
+	return nil
 }

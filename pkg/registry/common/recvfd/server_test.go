@@ -33,7 +33,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/peer"
 
 	registryserver "github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
@@ -60,17 +59,8 @@ func (n *checkNseRecvfdServer) Unregister(ctx context.Context, endpoint *registr
 }
 
 func (n *checkNseRecvfdServer) Register(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	p, ok := peer.FromContext(ctx)
-	require.True(n.t, ok)
-
-	transceiver, ok := p.Addr.(grpcfd.FDTransceiver)
-	require.True(n.t, ok)
-
-	p.Addr = &grpcfdutils.NotifiableFDTransceiver{
-		FDTransceiver: transceiver,
-		Addr:          p.Addr,
-		OnRecvFile:    n.onRecvFile,
-	}
+	err := grpcfdutils.InjectOnFileReceivedCallback(ctx, n.onRecvFile)
+	require.NoError(n.t, err)
 
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, endpoint)
 }

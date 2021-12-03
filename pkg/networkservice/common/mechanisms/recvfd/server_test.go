@@ -38,7 +38,6 @@ import (
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/peer"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
@@ -60,17 +59,8 @@ func (n *checkRecvfdServer) Close(ctx context.Context, conn *networkservice.Conn
 }
 
 func (n *checkRecvfdServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	p, ok := peer.FromContext(ctx)
-	require.True(n.t, ok)
-
-	transceiver, ok := p.Addr.(grpcfd.FDTransceiver)
-	require.True(n.t, ok)
-
-	p.Addr = &grpcfdutils.NotifiableFDTransceiver{
-		FDTransceiver: transceiver,
-		Addr:          p.Addr,
-		OnRecvFile:    n.onRecvFile,
-	}
+	err := grpcfdutils.InjectOnFileReceivedCallback(ctx, n.onRecvFile)
+	require.NoError(n.t, err)
 
 	return next.Server(ctx).Request(ctx, request)
 }
