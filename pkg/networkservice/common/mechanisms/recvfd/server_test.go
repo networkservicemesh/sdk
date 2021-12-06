@@ -29,7 +29,6 @@ import (
 	"time"
 
 	"github.com/edwarnicke/grpcfd"
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
@@ -43,37 +42,11 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcfdutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
-
-type checkRecvfdServer struct {
-	t                     *testing.T
-	onFileClosedCallbacks map[string]func()
-}
-
-func (n *checkRecvfdServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	return next.Server(ctx).Close(ctx, conn)
-}
-
-func (n *checkRecvfdServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	err := grpcfdutils.InjectOnFileReceivedCallback(ctx, n.onRecvFile)
-	require.NoError(n.t, err)
-
-	return next.Server(ctx).Request(ctx, request)
-}
-
-func (n *checkRecvfdServer) onRecvFile(fileName string, file *os.File) {
-	// checking a file is closed by recvfd by setting a finalizer
-	runtime.SetFinalizer(file, func(file *os.File) {
-		onFileClosedCallback, ok := n.onFileClosedCallbacks[fileName]
-		if ok {
-			onFileClosedCallback()
-		}
-	})
-}
 
 func createFile(fileName string, t *testing.T) (inodeURLStr string, fileClosedContext context.Context, cancelFunc func()) {
 	f, err := os.Create(fileName)
@@ -87,16 +60,14 @@ func createFile(fileName string, t *testing.T) (inodeURLStr string, fileClosedCo
 	inodeURL, err := grpcfd.FilenameToURL(fileName)
 	require.NoError(t, err)
 
-	inodeURLStr = inodeURL.String()
-
-	return
+	return inodeURL.String(), fileClosedContext, cancelFunc
 }
 
 func startServer(ctx context.Context, t *testing.T, testServerChain *networkservice.NetworkServiceServer, serveURL *url.URL) {
-	var grpcServer = grpc.NewServer(grpc.Creds(grpcfd.TransportCredentials(insecure.NewCredentials())))
+	grpcServer := grpc.NewServer(grpc.Creds(grpcfd.TransportCredentials(insecure.NewCredentials())))
 	networkservice.RegisterNetworkServiceServer(grpcServer, *testServerChain)
 
-	var errCh = grpcutils.ListenAndServe(ctx, serveURL, grpcServer)
+	errCh := grpcutils.ListenAndServe(ctx, serveURL, grpcServer)
 
 	require.Len(t, errCh, 0)
 }
@@ -116,31 +87,41 @@ func createClient(ctx context.Context, u *url.URL) networkservice.NetworkService
 func TestRecvfdClosesSingleFile(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	var dir = t.TempDir()
+	dir := t.TempDir()
 
 	s, err := os.Create(path.Join(dir, "test.sock"))
 	require.NoError(t, err)
 
-	var testFileName = path.Join(dir, t.Name()+".test")
+	testFileName := path.Join(dir, t.Name()+".test")
 
 	inodeURLStr, fileClosedContext, cancelFunc := createFile(testFileName, t)
 
+	onFileClosedCallbacks := map[string]func(){
+		inodeURLStr: cancelFunc,
+	}
+
 	serveURL := &url.URL{Scheme: "unix", Path: s.Name()}
 
-	var testChain = chain.NewNetworkServiceServer(
-		&checkRecvfdServer{
-			t: t,
-			onFileClosedCallbacks: map[string]func(){
-				inodeURLStr: cancelFunc,
-			},
-		},
+	testChain := chain.NewNetworkServiceServer(
+		checkcontext.NewServer(t, func(t *testing.T, c context.Context) {
+			injectErr := grpcfdutils.InjectOnFileReceivedCallback(c, func(fileName string, file *os.File) {
+				runtime.SetFinalizer(file, func(file *os.File) {
+					onFileClosedCallback, ok := onFileClosedCallbacks[fileName]
+					if ok {
+						onFileClosedCallback()
+					}
+				})
+			})
+
+			require.NoError(t, injectErr)
+		}),
 		recvfd.NewServer())
 
 	startServer(ctx, t, &testChain, serveURL)
-	var testClient = createClient(ctx, serveURL)
+	testClient := createClient(ctx, serveURL)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -169,17 +150,17 @@ func TestRecvfdClosesSingleFile(t *testing.T) {
 func TestRecvfdClosesMultipleFiles(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	var dir = t.TempDir()
+	dir := t.TempDir()
 
 	s, err := os.Create(path.Join(dir, "test.sock"))
 	require.NoError(t, err)
 
 	const numFiles = 3
-	var fileClosedContexts = make([]context.Context, numFiles)
-	var onFileClosedFuncs = make(map[string]func(), numFiles)
+	fileClosedContexts := make([]context.Context, numFiles)
+	onFileClosedCallbacks := make(map[string]func(), numFiles)
 
 	request := &networkservice.NetworkServiceRequest{
 		MechanismPreferences: make([]*networkservice.Mechanism, numFiles),
@@ -190,7 +171,7 @@ func TestRecvfdClosesMultipleFiles(t *testing.T) {
 		filePath = path.Join(dir, fmt.Sprintf("%s.test%d", t.Name(), i))
 
 		inodeURLStr, fileClosedContext, cancelFunc := createFile(filePath, t)
-		onFileClosedFuncs[inodeURLStr] = cancelFunc
+		onFileClosedCallbacks[inodeURLStr] = cancelFunc
 		fileClosedContexts[i] = fileClosedContext
 
 		request.MechanismPreferences = append(request.MechanismPreferences,
@@ -205,15 +186,23 @@ func TestRecvfdClosesMultipleFiles(t *testing.T) {
 
 	serveURL := &url.URL{Scheme: "unix", Path: s.Name(), Host: "0.0.0.0:5000"}
 
-	var testChain = chain.NewNetworkServiceServer(
-		&checkRecvfdServer{
-			t:                     t,
-			onFileClosedCallbacks: onFileClosedFuncs,
-		},
+	testChain := chain.NewNetworkServiceServer(
+		checkcontext.NewServer(t, func(t *testing.T, c context.Context) {
+			e := grpcfdutils.InjectOnFileReceivedCallback(c, func(inodeURLStr string, file *os.File) {
+				runtime.SetFinalizer(file, func(file *os.File) {
+					onFileClosedCallback, ok := onFileClosedCallbacks[inodeURLStr]
+					if ok {
+						onFileClosedCallback()
+					}
+				})
+			})
+
+			require.NoError(t, e)
+		}),
 		recvfd.NewServer())
 
 	startServer(ctx, t, &testChain, serveURL)
-	var testClient = createClient(ctx, serveURL)
+	testClient := createClient(ctx, serveURL)
 
 	conn, err := testClient.Request(ctx, request)
 	require.NoError(t, err)

@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"github.com/edwarnicke/grpcfd"
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -42,41 +41,12 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
 	registryserialize "github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
 	registrychain "github.com/networkservicemesh/sdk/pkg/registry/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checkcontext"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcfdutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
-
-type checkNseRecvfdServer struct {
-	t                     *testing.T
-	onFileClosedCallbacks map[string]func()
-}
-
-func (n *checkNseRecvfdServer) Unregister(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, endpoint)
-}
-
-func (n *checkNseRecvfdServer) Register(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	err := grpcfdutils.InjectOnFileReceivedCallback(ctx, n.onRecvFile)
-	require.NoError(n.t, err)
-
-	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, endpoint)
-}
-
-func (n *checkNseRecvfdServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
-	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
-}
-
-func (n *checkNseRecvfdServer) onRecvFile(fileName string, file *os.File) {
-	runtime.SetFinalizer(file, func(file *os.File) {
-		onFileClosedCallback, ok := n.onFileClosedCallbacks[fileName]
-		if ok {
-			onFileClosedCallback()
-		}
-	})
-}
 
 func getFileInfo(fileName string, t *testing.T) (inodeURLStr string, fileClosedContext context.Context, cancelFunc func()) {
 	fileClosedContext, cancelFunc = context.WithCancel(context.Background())
@@ -84,9 +54,7 @@ func getFileInfo(fileName string, t *testing.T) (inodeURLStr string, fileClosedC
 	inodeURL, err := grpcfd.FilenameToURL(fileName)
 	require.NoError(t, err)
 
-	inodeURLStr = inodeURL.String()
-
-	return
+	return inodeURL.String(), fileClosedContext, cancelFunc
 }
 
 func startServer(ctx context.Context, t *testing.T, testRegistry registryserver.Registry, serveURL *url.URL) {
@@ -99,7 +67,7 @@ func startServer(ctx context.Context, t *testing.T, testRegistry registryserver.
 }
 
 func TestNseRecvfdServerClosesFile(t *testing.T) {
-	var ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+	var ctx, cancel = context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
 	var nsRegistry = registrychain.NewNetworkServiceRegistryServer(
@@ -107,14 +75,22 @@ func TestNseRecvfdServerClosesFile(t *testing.T) {
 		memory.NewNetworkServiceRegistryServer(),
 	)
 
-	var checkRecvfdServer = &checkNseRecvfdServer{
-		t:                     t,
-		onFileClosedCallbacks: make(map[string]func()),
-	}
+	var onFileClosedCallbacks = make(map[string]func())
 
 	var nseRegistry = registrychain.NewNetworkServiceEndpointRegistryServer(
 		registryserialize.NewNetworkServiceEndpointRegistryServer(),
-		checkRecvfdServer,
+		checkcontext.NewNSEServer(t, func(t *testing.T, c context.Context) {
+			err := grpcfdutils.InjectOnFileReceivedCallback(c, func(inodeURLStr string, file *os.File) {
+				runtime.SetFinalizer(file, func(file *os.File) {
+					onFileClosedCallback, ok := onFileClosedCallbacks[inodeURLStr]
+					if ok {
+						onFileClosedCallback()
+					}
+				})
+			})
+
+			require.NoError(t, err)
+		}),
 		registryrecvfd.NewNetworkServiceEndpointRegistryServer(),
 		memory.NewNetworkServiceEndpointRegistryServer(),
 	)
@@ -150,7 +126,7 @@ func TestNseRecvfdServerClosesFile(t *testing.T) {
 	// setting onRecvFile after starting the server as we're re-creating a socket in grpcutils.ListenAndServe
 	// in registry case we're passing a socket
 	inodeURLStr, fileClosedContext, cancelFunc := getFileInfo(testFileName, t)
-	checkRecvfdServer.onFileClosedCallbacks[inodeURLStr] = cancelFunc
+	onFileClosedCallbacks[inodeURLStr] = cancelFunc
 
 	var testEndpoint = &registry.NetworkServiceEndpoint{
 		Name:                "test-endpoint",
