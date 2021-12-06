@@ -265,7 +265,6 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 
 func (s *nsmgrSuite) Test_RemoteUsecase() {
 	t := s.T()
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 

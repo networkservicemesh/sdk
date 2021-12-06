@@ -184,8 +184,11 @@ func (s *logrusLogger) WithField(key, value interface{}) log.Logger {
 }
 
 // New - creates a logruslogger and returns it
-func New(ctx context.Context) log.Logger {
-	entry := logrus.WithFields(log.Fields(ctx))
+func New(ctx context.Context, fields ...logrus.Fields) log.Logger {
+	entry := logrus.NewEntry(logrus.StandardLogger())
+	for _, f := range fields {
+		entry = entry.WithFields(f)
+	}
 	entry.Logger.SetFormatter(newFormatter())
 
 	newLog := &logrusLogger{
@@ -196,8 +199,8 @@ func New(ctx context.Context) log.Logger {
 
 // FromSpan - creates a new logruslogger from context, operation and span
 // and returns context with it, logger, and a function to defer
-func FromSpan(ctx context.Context, span opentracing.Span, operation string) (context.Context, log.Logger, func()) {
-	entry := logrus.WithFields(log.Fields(ctx))
+func FromSpan(ctx context.Context, span opentracing.Span, operation string, fields map[string]interface{}) (context.Context, log.Logger, func()) {
+	entry := logrus.WithFields(fields)
 	entry.Logger.SetFormatter(newFormatter())
 
 	var info *traceCtxInfo

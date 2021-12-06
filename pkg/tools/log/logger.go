@@ -25,8 +25,7 @@ import (
 type contextKeyType string
 
 const (
-	logKey       contextKeyType = "Logger"
-	logFieldsKey contextKeyType = "LoggerFields"
+	logKey contextKeyType = "Logger"
 )
 
 var (
@@ -74,19 +73,6 @@ func Join(ctx context.Context, log Logger) context.Context {
 // WithLog - creates new context with `log` inside
 func WithLog(ctx context.Context, log ...Logger) context.Context {
 	return context.WithValue(ctx, logKey, Combine(log...))
-}
-
-// Fields - returns fields from context
-func Fields(ctx context.Context) map[string]interface{} {
-	if rv := ctx.Value(logFieldsKey); rv != nil {
-		return rv.(map[string]interface{})
-	}
-	return map[string]interface{}{}
-}
-
-// WithFields - adds fields to context
-func WithFields(ctx context.Context, fields map[string]interface{}) context.Context {
-	return context.WithValue(ctx, logFieldsKey, fields)
 }
 
 // IsTracingEnabled - checks if it is allowed to use traces
