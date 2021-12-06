@@ -328,38 +328,32 @@ func TestRefreshClient_NoRefreshOnFailure(t *testing.T) {
 func TestRefreshClient_CalculatesShortestTokenTimeout(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
 	testData := []struct {
-		Chain                     []time.Duration
-		ExpectedRefreshTimeoutMax time.Duration
-		ExpectedRefreshTimeoutMin time.Duration
+		Chain                  []time.Duration
+		ExpectedRefreshTimeout time.Duration
 	}{
 		{
-			Chain:                     []time.Duration{time.Hour},
-			ExpectedRefreshTimeoutMax: 20*time.Minute + time.Second,
-			ExpectedRefreshTimeoutMin: 20*time.Minute - time.Second,
+			Chain:                  []time.Duration{time.Hour},
+			ExpectedRefreshTimeout: 20 * time.Minute,
 		},
 		{
-			Chain:                     []time.Duration{time.Hour, 3 * time.Minute},
-			ExpectedRefreshTimeoutMax: 54*time.Second + time.Second/2.,
-			ExpectedRefreshTimeoutMin: 54*time.Second - time.Second/2.,
+			Chain:                  []time.Duration{time.Hour, 3 * time.Minute},
+			ExpectedRefreshTimeout: 54 * time.Second,
 		},
 		{
-			Chain:                     []time.Duration{time.Hour, 5 * time.Second, 3 * time.Minute},
-			ExpectedRefreshTimeoutMax: 5*time.Second/3. + time.Second/3.,
-			ExpectedRefreshTimeoutMin: 5*time.Second/3. - time.Second/3.,
+			Chain:                  []time.Duration{time.Hour, 5 * time.Second, 3 * time.Minute},
+			ExpectedRefreshTimeout: 5 * time.Second / 3.,
 		},
 		{
-			Chain:                     []time.Duration{200 * time.Millisecond, 1 * time.Minute, 100 * time.Millisecond, time.Hour},
-			ExpectedRefreshTimeoutMax: 100*time.Millisecond/3. + 30*time.Millisecond,
-			ExpectedRefreshTimeoutMin: 100*time.Millisecond/3. - 30*time.Millisecond,
+			Chain:                  []time.Duration{200 * time.Millisecond, 1 * time.Minute, 100 * time.Millisecond, time.Hour},
+			ExpectedRefreshTimeout: 100 * time.Millisecond / 3.,
 		},
 	}
 
-	timeNow, err := time.Parse("2006-01-02 15:04:05", "2009-11-10 23:00:00")
-	require.NoError(t, err)
+	timeNow := time.Date(2009, 11, 10, 23, 0, 0, 0, time.Local)
 
 	clockMock := captureTickerDuration{
 		Mock: clockmock.New(ctx),
@@ -367,6 +361,7 @@ func TestRefreshClient_CalculatesShortestTokenTimeout(t *testing.T) {
 
 	var countClient = &countutil.Client{}
 
+	const timeoutDelta = 10 * time.Millisecond
 	for _, testDataElement := range testData {
 		clockMock.Reset(timeNow)
 
@@ -389,13 +384,13 @@ func TestRefreshClient_CalculatesShortestTokenTimeout(t *testing.T) {
 		clientChain = append(clientChain, countClient)
 		client := chain.NewNetworkServiceClient(clientChain...)
 
-		_, err = client.Request(ctx, &networkservice.NetworkServiceRequest{
+		_, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
 			Connection: new(networkservice.Connection),
 		})
 		require.NoError(t, err)
 
-		require.Less(t, clockMock.tickerDuration, testDataElement.ExpectedRefreshTimeoutMax)
-		require.Greater(t, clockMock.tickerDuration, testDataElement.ExpectedRefreshTimeoutMin)
+		require.Less(t, clockMock.tickerDuration, testDataElement.ExpectedRefreshTimeout+timeoutDelta)
+		require.Greater(t, clockMock.tickerDuration, testDataElement.ExpectedRefreshTimeout-timeoutDelta)
 	}
 
 	require.Equal(t, countClient.Requests(), len(testData))

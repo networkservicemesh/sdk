@@ -110,22 +110,25 @@ func after(ctx context.Context, conn *networkservice.Connection) (time.Duration,
 	clockTime := clock.FromContext(ctx)
 
 	var minTimeout = time.Duration(math.MaxInt64)
-	for _, seg := range conn.GetPath().GetPathSegments() {
-		expireTime, err := ptypes.Timestamp(seg.GetExpires())
+	var expireTime time.Time
+	for _, segment := range conn.GetPath().GetPathSegments() {
+		expTime, err := ptypes.Timestamp(segment.GetExpires())
 		if err != nil {
 			return 0, errors.WithStack(err)
 		}
 
-		timeout := clockTime.Until(expireTime)
-		log.FromContext(ctx).Infof("expiration after %s at %s", timeout.String(), expireTime.UTC())
-
-		if timeout <= 0 {
-			return 1, nil
-		}
+		timeout := clockTime.Until(expTime)
 
 		if timeout < minTimeout {
 			minTimeout = timeout
+			expireTime = expTime
 		}
+	}
+
+	log.FromContext(ctx).Infof("expiration after %s at %s", minTimeout.String(), expireTime.UTC())
+
+	if minTimeout <= 0 {
+		return 1, nil
 	}
 
 	// A heuristic to reduce the number of redundant requests in a chain
