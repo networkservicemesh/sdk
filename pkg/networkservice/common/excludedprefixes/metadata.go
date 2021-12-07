@@ -24,15 +24,20 @@ import (
 
 type keyType struct{}
 
-func load(ctx context.Context) (map[string]struct{}, bool) {
-	val, ok := metadata.Map(ctx, false).Load(keyType{})
-	if !ok {
-		return map[string]struct{}{}, false
-	}
-
-	return val.(map[string]struct{}), true
+type prefixesInfo struct {
+	previousFilePrefixes   []string
+	previousClientPrefixes []string
 }
 
-func store(ctx context.Context, prefixes map[string]struct{}) {
-	metadata.Map(ctx, false).Store(keyType{}, prefixes)
+func load(ctx context.Context) (prefixesInfo, bool) {
+	val, ok := metadata.Map(ctx, false).Load(keyType{})
+	if !ok {
+		return prefixesInfo{}, false
+	}
+
+	return val.(prefixesInfo), true
+}
+
+func store(ctx context.Context, info prefixesInfo) {
+	metadata.Map(ctx, false).Store(keyType{}, info)
 }

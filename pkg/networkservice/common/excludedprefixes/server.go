@@ -22,6 +22,7 @@ package excludedprefixes
 
 import (
 	"context"
+	"sort"
 	"sync"
 	"sync/atomic"
 
@@ -87,24 +88,48 @@ func (eps *excludedPrefixesServer) Request(ctx context.Context, request *network
 	if conn.GetContext().GetIpContext() == nil {
 		conn.Context.IpContext = &networkservice.IPContext{}
 	}
-	prefixes := eps.prefixPool.Load().(*ippool.PrefixPool).GetPrefixes()
+	// excluded prefixes from file
+	prefixesFromFile := eps.prefixPool.Load().(*ippool.PrefixPool).GetPrefixes()
+	// excluded prefixes from client
+	clientPrefixes := conn.GetContext().GetIpContext().GetExcludedPrefixes()
 
-	previousPrefixes, _ := load(ctx)
+	sort.Strings(prefixesFromFile)
+	sort.Strings(clientPrefixes)
 
-	ipCtx := conn.GetContext().GetIpContext()
-	withoutPrevious := removePrefixes(ipCtx.GetExcludedPrefixes(), previousPrefixes)
-	ipCtx.ExcludedPrefixes = removeDuplicates(append(withoutPrevious, prefixes...))
-
-	for _, p := range prefixes {
-		previousPrefixes[p] = struct{}{}
+	if IsEqual(prefixesFromFile, clientPrefixes) {
+		return next.Server(ctx).Request(ctx, request)
 	}
-	store(ctx, previousPrefixes)
+
+	prefixesInfo, _ := load(ctx)
+
+	clientPrefixesChanged := !IsEqual(prefixesInfo.previousClientPrefixes, clientPrefixes)
+	filePrefixesChanged := !IsEqual(prefixesInfo.previousFilePrefixes, prefixesFromFile)
+
+	finalPrefixes := clientPrefixes
+	if !clientPrefixesChanged && filePrefixesChanged {
+		finalPrefixes = removePrefixes(clientPrefixes, prefixesInfo.previousFilePrefixes)
+	}
+
+	finalPrefixes = removeDuplicates(append(finalPrefixes, prefixesFromFile...))
+	request.GetConnection().GetContext().GetIpContext().ExcludedPrefixes = finalPrefixes
+
+	if filePrefixesChanged {
+		prefixesInfo.previousFilePrefixes = make([]string, len(prefixesFromFile))
+		copy(prefixesInfo.previousFilePrefixes, prefixesFromFile)
+	}
+
+	if clientPrefixesChanged {
+		prefixesInfo.previousClientPrefixes = make([]string, len(finalPrefixes))
+		copy(prefixesInfo.previousClientPrefixes, finalPrefixes)
+	}
 
 	log.FromContext(ctx).
 		WithField("excludedPrefixes", "server").
-		WithField("loadedPrefixes", prefixes).
-		WithField("previousPrefixes", previousPrefixes).
+		WithField("prefixesFromFile", prefixesFromFile).
+		WithField("previousPrefixesInfo", prefixesInfo).
 		Debugf("adding excluded prefixes to connection")
+
+	store(ctx, prefixesInfo)
 
 	return next.Server(ctx).Request(ctx, request)
 }

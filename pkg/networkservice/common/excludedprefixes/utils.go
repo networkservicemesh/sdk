@@ -18,6 +18,11 @@
 
 package excludedprefixes
 
+import (
+	"reflect"
+	"sort"
+)
+
 func removeDuplicates(elements []string) []string {
 	encountered := map[string]bool{}
 	var result []string
@@ -51,17 +56,42 @@ func exclude(source, exclude []string) []string {
 	return source
 }
 
-func removePrefixes(origin []string, prefixesToRemove map[string]struct{}) []string {
+func removePrefixes(origin, prefixesToRemove []string) []string {
 	if len(origin) == 0 || len(prefixesToRemove) == 0 {
 		return origin
 	}
 
+	prefixesMap := toMap(prefixesToRemove)
 	var rv []string
 	for _, p := range origin {
-		if _, ok := prefixesToRemove[p]; !ok {
+		if _, ok := prefixesMap[p]; !ok {
 			rv = append(rv, p)
 		}
 	}
 
 	return rv
+}
+
+func toMap(arr []string) map[string]struct{} {
+	rv := map[string]struct{}{}
+
+	for _, a := range arr {
+		rv[a] = struct{}{}
+	}
+
+	return rv
+}
+
+// IsEqual check if two slices contains equal strings, no matter the order
+func IsEqual(s1, s2 []string) bool {
+	s1copy := make([]string, len(s1))
+	s2copy := make([]string, len(s2))
+
+	copy(s1copy, s1)
+	copy(s2copy, s2)
+
+	sort.Strings(s1copy)
+	sort.Strings(s2copy)
+
+	return reflect.DeepEqual(s1copy, s2copy)
 }
