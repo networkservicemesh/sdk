@@ -14,13 +14,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//+build !windows
+// +build linux
 
 package nsmgr_test
 
 import (
 	"context"
-	"runtime"
 	"testing"
 	"time"
 
@@ -84,9 +83,6 @@ func Test_Local_NoURLUsecase(t *testing.T) {
 }
 
 func Test_MultiForwarderSendfd(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("sendfd works only on linux")
-	}
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)

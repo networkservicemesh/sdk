@@ -83,7 +83,7 @@ func (r *recvfdNseServer) Register(ctx context.Context, endpoint *registry.Netwo
 		r.fileMaps.Store(endpoint.GetName(), fileMap)
 	}
 	// Swap back from File to Inode in the InodeURL in the Parameters
-	err = swapFileToInode(fileMap, returnedEndpoint, false)
+	err = swapFileToInode(fileMap, returnedEndpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -98,6 +98,10 @@ func (r *recvfdNseServer) Unregister(ctx context.Context, endpoint *registry.Net
 	if endpoint.GetName() == "" {
 		return nil, errors.New("invalid endpoint specified")
 	}
+
+	// Clean up the fileMap no matter what happens
+	defer r.closeFiles(endpoint)
+
 	// Get the grpcfd.FDRecver
 	recv, ok := grpcfd.FromContext(ctx)
 	if !ok {
@@ -108,8 +112,6 @@ func (r *recvfdNseServer) Unregister(ctx context.Context, endpoint *registry.Net
 		filesByInodeURL:    make(map[string]*os.File),
 		inodeURLbyFilename: make(map[string]*url.URL),
 	})
-	// Clean up the fileMap no matter what happens
-	defer r.fileMaps.Delete(endpoint.GetName())
 
 	// Recv the FD and Swap the Inode for a file in InodeURL in Parameters
 	endpoint = endpoint.Clone()
@@ -126,7 +128,7 @@ func (r *recvfdNseServer) Unregister(ctx context.Context, endpoint *registry.Net
 
 	// Swap back from File to Inode in the InodeURL in the Parameters
 	endpoint = endpoint.Clone()
-	err = swapFileToInode(fileMap, endpoint, true)
+	err = swapFileToInode(fileMap, endpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +180,7 @@ func recvFDAndSwapInodeToUnix(ctx context.Context, fileMap *perEndpointFileMap, 
 	return err
 }
 
-func swapFileToInode(fileMap *perEndpointFileMap, endpoint *registry.NetworkServiceEndpoint, closeAllFiles bool) error {
+func swapFileToInode(fileMap *perEndpointFileMap, endpoint *registry.NetworkServiceEndpoint) error {
 	// Transform string to URL for correctness checking and ease of use
 	unixURL, err := url.Parse(endpoint.GetUrl())
 	if err != nil {
@@ -198,15 +200,28 @@ func swapFileToInode(fileMap *perEndpointFileMap, endpoint *registry.NetworkServ
 		// Swap the fileURL for the inodeURL in parameters
 		endpoint.Url = inodeURL.String()
 
-		// If closeAllFiles == true, close any files we may have open for any other inodes
 		// This is used to clean up files sent by MechanismPreferences that were *not* selected to be the
 		// connection mechanism
 		for inodeURLStr, file := range fileMap.filesByInodeURL {
-			if closeAllFiles || inodeURLStr != inodeURL.String() {
+			if inodeURLStr != inodeURL.String() {
 				delete(fileMap.filesByInodeURL, inodeURLStr)
 				_ = file.Close()
 			}
 		}
 	})
 	return nil
+}
+
+func (r *recvfdNseServer) closeFiles(endpoint *registry.NetworkServiceEndpoint) {
+	defer r.fileMaps.Delete(endpoint.GetName())
+
+	fileMap, _ := r.fileMaps.LoadOrStore(endpoint.GetName(), &perEndpointFileMap{
+		filesByInodeURL:    make(map[string]*os.File),
+		inodeURLbyFilename: make(map[string]*url.URL),
+	})
+
+	for inodeURLStr, file := range fileMap.filesByInodeURL {
+		delete(fileMap.filesByInodeURL, inodeURLStr)
+		_ = file.Close()
+	}
 }
