@@ -59,6 +59,10 @@ func matchEndpoint(clockTime clock.Clock, nsLabels map[string]string, ns *regist
 			continue
 		}
 
+		if match.GetMetadata() != nil && len(match.Routes) == 0 && len(nseCandidates) == 0 {
+			break
+		}
+
 		return nseCandidates
 	}
 
