@@ -18,6 +18,7 @@ package nsmgr_test
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -281,4 +282,116 @@ func Test_UsecasePoint2MultiPoint(t *testing.T) {
 	require.NotNil(t, conn)
 	require.Equal(t, 4, len(conn.Path.PathSegments))
 	require.Equal(t, "p2p forwarder", conn.GetPath().GetPathSegments()[2].Name)
+}
+func Test_RemoteUsecase_Point2MultiPoint(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	const nodeCount = 2
+
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(nodeCount).
+		SetRegistryProxySupplier(nil).
+		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, _ int) {
+			node.NewNSMgr(ctx, "nsmgr", nil, sandbox.GenerateTestToken, nsmgr.NewServer)
+		}).
+		SetRegistryExpiryDuration(sandbox.RegistryExpiryDuration).
+		Build()
+
+	for i := 0; i < nodeCount; i++ {
+		domain.Nodes[i].NewForwarder(ctx, &registry.NetworkServiceEndpoint{
+			Name:                "p2mp forwarder-" + fmt.Sprint(i),
+			NetworkServiceNames: []string{"forwarder"},
+			NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+				"forwarder": {
+					Labels: map[string]string{
+						"p2mp": "true",
+					},
+				},
+			},
+		}, sandbox.GenerateTestToken)
+
+		domain.Nodes[i].NewForwarder(ctx, &registry.NetworkServiceEndpoint{
+			Name:                "p2p forwarder-" + fmt.Sprint(i),
+			NetworkServiceNames: []string{"forwarder"},
+			NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+				"forwarder": {
+					Labels: map[string]string{
+						"p2p": "true",
+					},
+				},
+			},
+		}, sandbox.GenerateTestToken)
+
+		domain.Nodes[i].NewForwarder(ctx, &registry.NetworkServiceEndpoint{
+			Name:                "special forwarder-" + fmt.Sprint(i),
+			NetworkServiceNames: []string{"forwarder"},
+			NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+				"forwarder": {
+					Labels: map[string]string{
+						"special": "true",
+					},
+				},
+			},
+		}, sandbox.GenerateTestToken)
+	}
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	_, err := nsRegistryClient.Register(ctx, &registry.NetworkService{
+		Name: "my-ns",
+		Matches: []*registry.Match{
+			{
+				Metadata: &registry.Metadata{
+					Labels: map[string]string{
+						"p2mp": "true",
+					},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	nseReg := &registry.NetworkServiceEndpoint{
+		Name:                "my-nse-1",
+		NetworkServiceNames: []string{"my-ns"},
+	}
+
+	domain.Nodes[1].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
+
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	request := defaultRequest("my-ns")
+
+	conn, err := nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+	require.Equal(t, 6, len(conn.Path.PathSegments))
+	require.Equal(t, "p2mp forwarder-0", conn.GetPath().GetPathSegments()[2].Name)
+	require.Equal(t, "p2mp forwarder-1", conn.GetPath().GetPathSegments()[4].Name)
+
+	_, err = nsRegistryClient.Register(ctx, &registry.NetworkService{
+		Name: "my-ns",
+		Matches: []*registry.Match{
+			{
+				Metadata: &registry.Metadata{
+					Labels: map[string]string{
+						// no labels
+					},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	_, err = nsc.Close(ctx, conn)
+	require.NoError(t, err)
+
+	conn, err = nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+	require.Equal(t, 6, len(conn.Path.PathSegments))
+	require.Equal(t, "p2p forwarder-0", conn.GetPath().GetPathSegments()[2].Name)
+	require.Equal(t, "p2p forwarder-1", conn.GetPath().GetPathSegments()[4].Name)
 }

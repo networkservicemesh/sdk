@@ -107,6 +107,7 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 				storeForwarderName(ctx, candidate.Name)
 				return resp, nil
 			}
+			logger.Errorf("forwarder=%v url=%v returned error=%v", candidate.Name, candidate.Url, err.Error())
 		}
 
 		return nil, errors.New("all forwarders failed")
