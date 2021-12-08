@@ -24,9 +24,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 )
 
@@ -62,7 +62,7 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 	}
 	cc, ccLoaded := clientconn.Load(ctx)
 	if ccLoaded {
-		cancelEventLoop, eventLoopErr := newEventLoop(h.chainCtx, begin.FromContext(ctx), cc, conn, h.livelinessCheck)
+		cancelEventLoop, eventLoopErr := newEventLoop(extend.WithValuesFromContext(h.chainCtx, ctx), cc, conn, h.livelinessCheck)
 		if eventLoopErr != nil {
 			closeCtx, closeCancel := closeCtxFunc()
 			defer closeCancel()

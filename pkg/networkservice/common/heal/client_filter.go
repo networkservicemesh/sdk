@@ -18,23 +18,30 @@ package heal
 
 import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type clientFilter struct {
 	conn *networkservice.Connection
 	networkservice.MonitorConnection_MonitorConnectionsClient
+
+	logger log.Logger
 }
 
-func newClientFilter(client networkservice.MonitorConnection_MonitorConnectionsClient, conn *networkservice.Connection) networkservice.MonitorConnection_MonitorConnectionsClient {
+func newClientFilter(client networkservice.MonitorConnection_MonitorConnectionsClient, conn *networkservice.Connection, logger log.Logger) networkservice.MonitorConnection_MonitorConnectionsClient {
 	return &clientFilter{
 		MonitorConnection_MonitorConnectionsClient: client,
 		conn: conn,
+
+		logger: logger.WithField("heal", "eventLoop"),
 	}
 }
 
 func (c *clientFilter) Recv() (*networkservice.ConnectionEvent, error) {
 	for {
 		eventIn, err := c.MonitorConnection_MonitorConnectionsClient.Recv()
+		c.logger.Debugf("received eventIn: %v, err: %v", eventIn.String(), err)
 		if err != nil {
 			return nil, err
 		}
