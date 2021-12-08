@@ -107,7 +107,7 @@ func (eps *excludedPrefixesServer) Request(ctx context.Context, request *network
 
 	finalPrefixes := clientPrefixes
 	if !clientPrefixesChanged && filePrefixesChanged {
-		finalPrefixes = removePrefixes(clientPrefixes, prefixesInfo.previousFilePrefixes)
+		finalPrefixes = removePrefixes(clientPrefixes, prefixesInfo.previousDiff)
 	}
 
 	finalPrefixes = removeDuplicates(append(finalPrefixes, prefixesFromFile...))
@@ -123,6 +123,8 @@ func (eps *excludedPrefixesServer) Request(ctx context.Context, request *network
 		copy(prefixesInfo.previousClientPrefixes, finalPrefixes)
 	}
 
+	prefixesInfo.previousDiff = Subtract(clientPrefixes, prefixesFromFile)
+
 	log.FromContext(ctx).
 		WithField("excludedPrefixes", "server").
 		WithField("prefixesFromFile", prefixesFromFile).
@@ -135,6 +137,7 @@ func (eps *excludedPrefixesServer) Request(ctx context.Context, request *network
 }
 
 func (eps *excludedPrefixesServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
+	del(ctx)
 	return next.Server(ctx).Close(ctx, connection)
 }
 

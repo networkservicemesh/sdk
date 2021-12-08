@@ -95,3 +95,17 @@ func IsEqual(s1, s2 []string) bool {
 
 	return reflect.DeepEqual(s1copy, s2copy)
 }
+
+// Subtract calculates setB - setA
+func Subtract(setA, setB []string) []string {
+	sliceMap := toMap(setA)
+
+	var rv []string
+	for _, s := range setB {
+		if _, ok := sliceMap[s]; !ok {
+			rv = append(rv, s)
+		}
+	}
+
+	return rv
+}

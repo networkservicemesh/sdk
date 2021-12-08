@@ -27,6 +27,7 @@ type keyType struct{}
 type prefixesInfo struct {
 	previousFilePrefixes   []string
 	previousClientPrefixes []string
+	previousDiff           []string
 }
 
 func load(ctx context.Context) (prefixesInfo, bool) {
@@ -40,4 +41,8 @@ func load(ctx context.Context) (prefixesInfo, bool) {
 
 func store(ctx context.Context, info prefixesInfo) {
 	metadata.Map(ctx, false).Store(keyType{}, info)
+}
+
+func del(ctx context.Context) {
+	metadata.Map(ctx, false).Delete(keyType{})
 }

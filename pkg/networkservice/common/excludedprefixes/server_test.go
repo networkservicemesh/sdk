@@ -191,7 +191,7 @@ func TestFilePrefixesChanged(t *testing.T) {
 	newExcludedPrefixes := []string{"172.16.2.0/24"}
 	require.NoError(t, ioutil.WriteFile(configPath, []byte(strings.Join(append([]string{"prefixes:"}, newExcludedPrefixes...), "\n- ")), os.ModePerm))
 
-	newDiffPrefixes := []string{"100.1.1.0/13", "10.20.0.0/24", "10.20.16.0/20", "10.20.2.0/23", "172.16.2.0/24"}
+	newDiffPrefixes := []string{"10.20.0.0/24", "10.20.128.0/17", "10.20.64.0/18", "10.20.16.0/20", "10.20.2.0/23", "10.32.0.0/12", "10.96.0.0/12", "100.1.1.0/13", "172.16.2.0/24"}
 
 	require.Eventually(t, func() bool {
 		_, err = server.Request(context.Background(), req)
