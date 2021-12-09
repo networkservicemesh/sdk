@@ -108,15 +108,31 @@ func (t *refreshClient) Close(ctx context.Context, conn *networkservice.Connecti
 func after(ctx context.Context, conn *networkservice.Connection) (time.Duration, error) {
 	clockTime := clock.FromContext(ctx)
 
-	expireTime, err := ptypes.Timestamp(conn.GetCurrentPathSegment().GetExpires())
-	if err != nil {
-		return 0, errors.WithStack(err)
+	var minTimeout *time.Duration
+	var expireTime time.Time
+	for _, segment := range conn.GetPath().GetPathSegments() {
+		expTime, err := ptypes.Timestamp(segment.GetExpires())
+		if err != nil {
+			return 0, errors.WithStack(err)
+		}
+
+		timeout := clockTime.Until(expTime)
+
+		if minTimeout == nil || timeout < *minTimeout {
+			if minTimeout == nil {
+				minTimeout = new(time.Duration)
+			}
+
+			*minTimeout = timeout
+			expireTime = expTime
+		}
 	}
 
-	timeout := clockTime.Until(expireTime)
-	log.FromContext(ctx).Infof("expiration after %s at %s", timeout.String(), expireTime.UTC())
+	if minTimeout != nil {
+		log.FromContext(ctx).Infof("expiration after %s at %s", minTimeout.String(), expireTime.UTC())
+	}
 
-	if timeout <= 0 {
+	if minTimeout == nil || *minTimeout <= 0 {
 		return 1, nil
 	}
 
@@ -129,7 +145,7 @@ func after(ctx context.Context, conn *networkservice.Connection) (time.Duration,
 	if len(path.PathSegments) > 1 {
 		scale = 0.2 + 0.2*float64(path.Index)/float64(len(path.PathSegments))
 	}
-	duration := time.Duration(float64(timeout) * scale)
+	duration := time.Duration(float64(*minTimeout) * scale)
 
 	return duration, nil
 }
