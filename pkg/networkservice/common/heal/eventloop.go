@@ -29,6 +29,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 const attemptAfter = time.Millisecond * 200
@@ -42,8 +43,10 @@ type eventLoop struct {
 	livelinessCheck LivelinessCheck
 }
 
-func newEventLoop(ctx context.Context, ev begin.EventFactory, cc grpc.ClientConnInterface, conn *networkservice.Connection, livelinessCheck LivelinessCheck) (context.CancelFunc, error) {
+func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networkservice.Connection, livelinessCheck LivelinessCheck) (context.CancelFunc, error) {
 	conn = conn.Clone()
+
+	ev := begin.FromContext(ctx)
 	// Is another chain element asking for events?  If not, no need to monitor
 	if ev == nil {
 		return func() {}, nil
@@ -80,7 +83,7 @@ func newEventLoop(ctx context.Context, ev begin.EventFactory, cc grpc.ClientConn
 		chainCtx:        ctx,
 		conn:            conn,
 		eventFactory:    ev,
-		client:          newClientFilter(client, conn),
+		client:          newClientFilter(client, conn, log.FromContext(ctx)),
 		livelinessCheck: livelinessCheck,
 	}
 
