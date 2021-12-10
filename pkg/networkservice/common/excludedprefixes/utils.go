@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2021 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -28,6 +28,26 @@ func removeDuplicates(elements []string) []string {
 		}
 		encountered[elements[index]] = true
 		result = append(result, elements[index])
+	}
+	return result
+}
+
+func exclude(source, exclude []string) []string {
+	var result []string
+
+	var isExcluded bool
+	for _, s := range source {
+		isExcluded = false
+		for _, e := range exclude {
+			if s == e {
+				isExcluded = true
+				break
+			}
+		}
+
+		if !isExcluded {
+			result = append(result, s)
+		}
 	}
 	return result
 }
