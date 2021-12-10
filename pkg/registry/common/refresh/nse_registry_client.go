@@ -101,6 +101,7 @@ func (c *refreshNSEClient) startRefresh(ctx context.Context, nse *registry.Netwo
 
 	expirationTime := nse.ExpirationTime.AsTime().Local()
 	refreshCh := clockTime.After(2 * clockTime.Until(expirationTime) / 3)
+	log.FromContext(ctx).Infof("=== RefreshRegistry duration %v %v", 2 * clockTime.Until(expirationTime) / 3, nse.Name)
 
 	refreshCtx, refreshCancel := context.WithCancel(c.ctx)
 	go func() {
@@ -108,12 +109,16 @@ func (c *refreshNSEClient) startRefresh(ctx context.Context, nse *registry.Netwo
 		for {
 			select {
 			case <-refreshCtx.Done():
+				log.FromContext(ctx).Infof("=== RefreshRegistry refreshCtx.Done() for %v", nse.Name)
 				return
 			case <-refreshCh:
+				log.FromContext(ctx).Infof("=== RefreshRegistry Signal for %v", nse.Name)
 				<-executor.AsyncExec(func() {
 					if refreshCtx.Err() != nil {
+						log.FromContext(ctx).Infof("=== RefreshRegistry refreshCtx.Err() != nil for %v", nse.Name)
 						return
 					}
+					log.FromContext(ctx).Infof("=== RefreshRegistry === %v", nse.Name)
 
 					var registerCtx context.Context
 					var cancel context.CancelFunc

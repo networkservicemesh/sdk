@@ -137,7 +137,11 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 		return nil, errors.WithStack(err)
 	}
 
-	return next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request)
+	conn, err := next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request)
+	if err != nil {
+		storeForwarderName(ctx, "")
+	}
+	return conn, err
 }
 
 func (d *discoverForwarderServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
