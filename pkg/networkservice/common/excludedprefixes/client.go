@@ -50,26 +50,31 @@ func (epc *excludedPrefixesClient) Request(ctx context.Context, request *network
 		conn.Context.IpContext = &networkservice.IPContext{}
 	}
 
+	logger := log.FromContext(ctx).WithField("ExcludedPrefixesClient", "Request")
 	ipCtx := conn.GetContext().GetIpContext()
 
+	oldExcludedPrefixes := ipCtx.GetExcludedPrefixes()
 	if len(epc.excludedPrefixes) > 0 {
 		<-epc.executor.AsyncExec(func() {
-			log.FromContext(ctx).Debugf("ExcludedPrefixesClient: adding new excluded IPs to the request: %v", epc.excludedPrefixes)
+			logger.Debugf("Adding new excluded IPs to the request: %+v", epc.excludedPrefixes)
 			excludedPrefixes := ipCtx.GetExcludedPrefixes()
 			excludedPrefixes = append(excludedPrefixes, epc.excludedPrefixes...)
 			excludedPrefixes = removeDuplicates(excludedPrefixes)
 
-			log.FromContext(ctx).Debugf("ExcludedPrefixesClient: excluded prefixes from request - %v", excludedPrefixes)
+			logger.Debugf("Excluded prefixes from request - %+v", excludedPrefixes)
 			ipCtx.ExcludedPrefixes = excludedPrefixes
 		})
 	}
 
 	resp, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
+		if oldExcludedPrefixes != nil {
+			ipCtx.ExcludedPrefixes = oldExcludedPrefixes
+		}
 		return resp, err
 	}
 
-	log.FromContext(ctx).Debugf("ExcludedPrefixesClient: request excluded IPs - srcIPs: %v, dstIPs: %v",
+	logger.Debugf("Request excluded IPs - srcIPs: %v, dstIPs: %v",
 		resp.GetContext().GetIpContext().GetSrcIpAddrs(), resp.GetContext().GetIpContext().GetDstIpAddrs())
 
 	<-epc.executor.AsyncExec(func() {
@@ -77,20 +82,21 @@ func (epc *excludedPrefixesClient) Request(ctx context.Context, request *network
 		epc.excludedPrefixes = append(epc.excludedPrefixes, ipCtx.GetDstIpAddrs()...)
 		epc.excludedPrefixes = append(epc.excludedPrefixes, ipCtx.GetExcludedPrefixes()...)
 		epc.excludedPrefixes = removeDuplicates(epc.excludedPrefixes)
-		log.FromContext(ctx).Debugf("Added excluded prefixes: %v", epc.excludedPrefixes)
+		logger.Debugf("Added excluded prefixes: %+v", epc.excludedPrefixes)
 	})
 
 	return resp, err
 }
 
 func (epc *excludedPrefixesClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	logger := log.FromContext(ctx).WithField("ExcludedPrefixesClient", "Close")
 	ipCtx := conn.GetContext().GetIpContext()
 
 	<-epc.executor.AsyncExec(func() {
 		epc.excludedPrefixes = exclude(epc.excludedPrefixes, ipCtx.GetSrcIpAddrs())
 		epc.excludedPrefixes = exclude(epc.excludedPrefixes, ipCtx.GetDstIpAddrs())
 		epc.excludedPrefixes = exclude(epc.excludedPrefixes, ipCtx.GetExcludedPrefixes())
-		log.FromContext(ctx).Debugf("Excluded prefixes after closing connection: %v", epc.excludedPrefixes)
+		logger.Debugf("Excluded prefixes after closing connection: %+v", epc.excludedPrefixes)
 	})
 
 	return next.Client(ctx).Close(ctx, conn, opts...)
