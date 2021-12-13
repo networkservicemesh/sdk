@@ -70,77 +70,78 @@ func validateConn(t *testing.T, conn *networkservice.Connection, prefix, route s
 	})
 }
 
-//nolint:dupl
-func TestIPv4(t *testing.T) {
-	prefixes := []string{"192.168.0.0/16"}
+func TestIPFamilies(t *testing.T) {
+	var samples = []struct {
+		name      string
+		family    networkservice.IpFamily_Family
+		prefixLen uint32
+		prefix    string
+		cidr0     string
+		cidr1     string
+		cidr2     string
+	}{
+		{
+			name:      "IPv4",
+			family:    networkservice.IpFamily_IPV4,
+			prefix:    "192.168.0.0/16",
+			prefixLen: 24,
+			cidr0:     "192.168.0.0/24",
+			cidr1:     "192.168.1.0/24",
+			cidr2:     "192.168.2.0/24",
+		},
+		{
+			name:      "IPv6",
+			family:    networkservice.IpFamily_IPV6,
+			prefix:    "2001:db8::/96",
+			prefixLen: 112,
+			cidr0:     "2001:db8::/112",
+			cidr1:     "2001:db8::1:0/112",
+			cidr2:     "2001:db8::2:0/112",
+		},
+	}
+
+	for _, sample := range samples {
+		t.Run(sample.name, func(t *testing.T) {
+			// nolint:scopelint
+			testIPFamilies(t, sample.family, sample.prefixLen, sample.prefix, sample.cidr0, sample.cidr1, sample.cidr2)
+		})
+	}
+}
+
+func testIPFamilies(t *testing.T, family networkservice.IpFamily_Family, prefixLen uint32, prefix, cidr0, cidr1, cidr2 string) {
+	prefixes := []string{prefix}
 	server := newServer(prefixes, nil)
 
 	request := newRequest()
-	client1 := newClient(24, networkservice.IpFamily_IPV4, server)
+	client1 := newClient(prefixLen, family, server)
 	conn1, err := client1.Request(context.Background(), request)
 	require.NoError(t, err)
-	validateConn(t, conn1, "192.168.0.0/24", "192.168.0.0/16")
+	validateConn(t, conn1, cidr0, prefix)
 
 	// refresh
 	conn1, err = client1.Request(context.Background(), request)
 	require.NoError(t, err)
-	validateConn(t, conn1, "192.168.0.0/24", "192.168.0.0/16")
+	validateConn(t, conn1, cidr0, prefix)
 
-	client2 := newClient(24, networkservice.IpFamily_IPV4, server)
+	client2 := newClient(prefixLen, family, server)
 	conn2, err := client2.Request(context.Background(), newRequest())
 	require.NoError(t, err)
-	validateConn(t, conn2, "192.168.1.0/24", "192.168.0.0/16")
+	validateConn(t, conn2, cidr1, prefix)
 
 	_, err = client1.Close(context.Background(), conn1)
 	require.NoError(t, err)
 
-	client3 := newClient(24, networkservice.IpFamily_IPV4, server)
+	client3 := newClient(prefixLen, family, server)
 	conn3, err := client3.Request(context.Background(), newRequest())
 	require.NoError(t, err)
-	validateConn(t, conn3, "192.168.0.0/24", "192.168.0.0/16")
+	validateConn(t, conn3, cidr0, prefix)
 
-	client4 := newClient(24, networkservice.IpFamily_IPV4, server)
+	client4 := newClient(prefixLen, family, server)
 	conn4, err := client4.Request(context.Background(), newRequest())
 	require.NoError(t, err)
-	validateConn(t, conn4, "192.168.2.0/24", "192.168.0.0/16")
+	validateConn(t, conn4, cidr2, prefix)
 }
 
-//nolint:dupl
-func TestIPv6(t *testing.T) {
-	prefixes := []string{"2001:db8::/96"}
-	server := newServer(prefixes, nil)
-
-	request := newRequest()
-	client1 := newClient(112, networkservice.IpFamily_IPV6, server)
-	conn1, err := client1.Request(context.Background(), request)
-	require.NoError(t, err)
-	validateConn(t, conn1, "2001:db8::/112", "2001:db8::/96")
-
-	// refresh
-	conn1, err = client1.Request(context.Background(), request)
-	require.NoError(t, err)
-	validateConn(t, conn1, "2001:db8::/112", "2001:db8::/96")
-
-	client2 := newClient(112, networkservice.IpFamily_IPV6, server)
-	conn2, err := client2.Request(context.Background(), newRequest())
-	require.NoError(t, err)
-	validateConn(t, conn2, "2001:db8::1:0/112", "2001:db8::/96")
-
-	_, err = client1.Close(context.Background(), conn1)
-	require.NoError(t, err)
-
-	client3 := newClient(112, networkservice.IpFamily_IPV6, server)
-	conn3, err := client3.Request(context.Background(), newRequest())
-	require.NoError(t, err)
-	validateConn(t, conn3, "2001:db8::/112", "2001:db8::/96")
-
-	client4 := newClient(112, networkservice.IpFamily_IPV6, server)
-	conn4, err := client4.Request(context.Background(), newRequest())
-	require.NoError(t, err)
-	validateConn(t, conn4, "2001:db8::2:0/112", "2001:db8::/96")
-}
-
-//nolint:dupl
 func TestIPv4Exclude(t *testing.T) {
 	prefixes := []string{"192.168.0.0/16"}
 	excludePrefixes := []string{"192.168.0.0/24"}
