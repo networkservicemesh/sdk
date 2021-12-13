@@ -30,6 +30,8 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/point2pointipam"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkconnection"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injectexcludedprefixes"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injectipcontext"
@@ -108,7 +110,16 @@ func TestExcludedPrefixesClient_Request_SrcAndDestPrefixesAreDifferent(t *testin
 		Connection: &networkservice.Connection{},
 	}
 
-	resp, err = chain.NewNetworkServiceClient(client, server2).Request(ctx, request2)
+	resp, err = chain.NewNetworkServiceClient(
+		client,
+		checkconnection.NewClient(t, func(t *testing.T, conn *networkservice.Connection) {
+			if conn.GetContext() == nil || conn.GetContext().GetIpContext() == nil {
+				return
+			}
+			require.ElementsMatch(t, expectedExcludedIPs, conn.GetContext().GetIpContext().GetExcludedPrefixes())
+		}),
+		server2,
+	).Request(ctx, request2)
 	require.NoError(t, err)
 
 	srcIPs = resp.GetContext().GetIpContext().GetSrcIpAddrs()
@@ -116,9 +127,6 @@ func TestExcludedPrefixesClient_Request_SrcAndDestPrefixesAreDifferent(t *testin
 	srcIP2 := srcIPs[0]
 
 	require.NotEqual(t, srcIP1, srcIP2)
-
-	excludedIPs := resp.GetContext().GetIpContext().GetExcludedPrefixes()
-	require.ElementsMatch(t, expectedExcludedIPs, excludedIPs)
 }
 
 func TestExcludedPrefixesClient_Close_PrefixesAreRemoved(t *testing.T) {
@@ -197,10 +205,17 @@ func TestExcludedPrefixesClient_Request_WithExcludedPrefixes(t *testing.T) {
 		point2pointipam.NewServer(ipNet),
 	)
 
-	resp, err = chain.NewNetworkServiceClient(client, server2).Request(ctx, request2)
+	_, err = chain.NewNetworkServiceClient(
+		client,
+		checkconnection.NewClient(t, func(t *testing.T, conn *networkservice.Connection) {
+			if conn.GetContext() == nil || conn.GetContext().GetIpContext() == nil {
+				return
+			}
+			require.ElementsMatch(t, expectedExcludedPrefixes, conn.GetContext().GetIpContext().GetExcludedPrefixes())
+		}),
+		server2,
+	).Request(ctx, request2)
 	require.NoError(t, err)
-
-	require.ElementsMatch(t, expectedExcludedPrefixes, resp.GetContext().GetIpContext().GetExcludedPrefixes())
 }
 
 func TestExcludedPrefixesClient_Request_PrefixesUnchangedAfterError(t *testing.T) {
@@ -261,10 +276,17 @@ func TestExcludedPrefixesClient_Request_PrefixesUnchangedAfterError(t *testing.T
 			point2pointipam.NewServer(ipNet)),
 	)
 
-	resp, err = chain.NewNetworkServiceClient(client, server3).Request(ctx, request3)
+	_, err = chain.NewNetworkServiceClient(
+		client,
+		checkconnection.NewClient(t, func(t *testing.T, conn *networkservice.Connection) {
+			if conn.GetContext() == nil || conn.GetContext().GetIpContext() == nil {
+				return
+			}
+			require.ElementsMatch(t, expectedExcludedPrefixes, conn.GetContext().GetIpContext().GetExcludedPrefixes())
+		}),
+		server3,
+	).Request(ctx, request3)
 	require.NoError(t, err)
-
-	require.ElementsMatch(t, expectedExcludedPrefixes, resp.GetContext().GetIpContext().GetExcludedPrefixes())
 }
 
 func TestExcludedPrefixesClient_Request_SuccessfulRefresh(t *testing.T) {
@@ -307,10 +329,17 @@ func TestExcludedPrefixesClient_Request_SuccessfulRefresh(t *testing.T) {
 	// src/dest IPs from first server should still be present in a request to another server
 	expectedExcludedPrefixes2 := []string{"172.16.0.99/32", "172.16.0.97/32", "172.16.0.96/32", "172.16.0.98/32", "172.16.0.100/32"}
 
-	resp, err = chain.NewNetworkServiceClient(client, server1).Request(ctx, request)
+	_, err = chain.NewNetworkServiceClient(
+		client,
+		checkconnection.NewClient(t, func(t *testing.T, conn *networkservice.Connection) {
+			if conn.GetContext() == nil || conn.GetContext().GetIpContext() == nil {
+				return
+			}
+			require.ElementsMatch(t, expectedExcludedPrefixes, conn.GetContext().GetIpContext().GetExcludedPrefixes())
+		}),
+		server1,
+	).Request(ctx, request)
 	require.NoError(t, err)
-
-	require.ElementsMatch(t, expectedExcludedPrefixes, resp.GetContext().GetIpContext().GetExcludedPrefixes())
 
 	server2 := chain.NewNetworkServiceClient(
 		adapters.NewServerToClient(
@@ -321,10 +350,17 @@ func TestExcludedPrefixesClient_Request_SuccessfulRefresh(t *testing.T) {
 		Connection: &networkservice.Connection{},
 	}
 
-	resp, err = chain.NewNetworkServiceClient(client, server2).Request(ctx, request2)
+	_, err = chain.NewNetworkServiceClient(
+		client,
+		checkconnection.NewClient(t, func(t *testing.T, conn *networkservice.Connection) {
+			if conn.GetContext() == nil || conn.GetContext().GetIpContext() == nil {
+				return
+			}
+			require.ElementsMatch(t, expectedExcludedPrefixes2, conn.GetContext().GetIpContext().GetExcludedPrefixes())
+		}),
+		server2,
+	).Request(ctx, request2)
 	require.NoError(t, err)
-
-	require.ElementsMatch(t, expectedExcludedPrefixes2, resp.GetContext().GetIpContext().GetExcludedPrefixes())
 }
 
 func TestExcludedPrefixesClient_Request_EndpointConflicts(t *testing.T) {
@@ -450,4 +486,30 @@ func TestExcludedPrefixesClient_Request_EndpointConflictCloseError(t *testing.T)
 	_, err = chain.NewNetworkServiceClient(client, server2).Request(ctx, request.Clone())
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "connection closed")
+}
+
+func TestClient(t *testing.T) {
+	reqPrefixes := []string{"100.1.1.0/13", "10.32.0.0/12", "10.96.0.0/12"}
+
+	client := chain.NewNetworkServiceClient(
+		excludedprefixes.NewClient(),
+		checkrequest.NewClient(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
+			request.Connection.Context.IpContext.ExcludedPrefixes = append(request.Connection.Context.IpContext.ExcludedPrefixes, []string{"172.16.2.0/24"}...)
+		}),
+	)
+
+	req := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Context: &networkservice.ConnectionContext{
+				IpContext: &networkservice.IPContext{
+					ExcludedPrefixes: reqPrefixes,
+				},
+			},
+		},
+	}
+
+	_, err := client.Request(context.Background(), req)
+
+	require.ElementsMatch(t, reqPrefixes, req.Connection.Context.IpContext.ExcludedPrefixes)
+	require.NoError(t, err)
 }

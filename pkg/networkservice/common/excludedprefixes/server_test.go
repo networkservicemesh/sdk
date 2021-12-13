@@ -36,7 +36,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
 const defaultPrefixesFileName = "excluded_prefixes.yaml"
@@ -51,13 +50,9 @@ func TestNewExcludedPrefixesService(t *testing.T) {
 	configPath := filepath.Join(dir, defaultPrefixesFileName)
 	require.NoError(t, ioutil.WriteFile(configPath, []byte(testConfig), os.ModePerm))
 
-	server := chain.NewNetworkServiceServer(
-		metadata.NewServer(),
-		excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)),
-		checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
-			require.Equal(t, request.Connection.Context.IpContext.ExcludedPrefixes, prefixes)
-		}),
-	)
+	server := chain.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)), checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
+		require.Equal(t, request.Connection.Context.IpContext.ExcludedPrefixes, prefixes)
+	}))
 	req := request()
 
 	_, err := server.Request(context.Background(), req)
@@ -77,13 +72,7 @@ func TestCheckReloadedPrefixes(t *testing.T) {
 
 	defer func() { _ = os.Remove(configPath) }()
 
-	server := chain.NewNetworkServiceServer(
-		metadata.NewServer(),
-		excludedprefixes.NewServer(
-			context.Background(),
-			excludedprefixes.WithConfigPath(configPath),
-		),
-	)
+	server := chain.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)))
 	req := request()
 
 	err := ioutil.WriteFile(configPath, []byte(testConfig), 0600)
@@ -126,17 +115,11 @@ func TestUniqueRequestPrefixes(t *testing.T) {
 	require.NoError(t, ioutil.WriteFile(configPath, []byte(testConfig), os.ModePerm))
 	defer func() { _ = os.Remove(configPath) }()
 
-	server := chain.NewNetworkServiceServer(
-		metadata.NewServer(),
-		excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)),
-		checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
-			require.True(t, excludedprefixes.IsEqual(uniquePrefixes, request.Connection.Context.IpContext.ExcludedPrefixes))
-		}),
-	)
-
+	server := chain.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)), checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
+		require.Equal(t, uniquePrefixes, request.Connection.Context.IpContext.ExcludedPrefixes)
+	}))
 	req := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
-			Id: "1",
 			Context: &networkservice.ConnectionContext{
 				IpContext: &networkservice.IPContext{
 					ExcludedPrefixes: reqPrefixes,
@@ -150,28 +133,31 @@ func TestUniqueRequestPrefixes(t *testing.T) {
 }
 
 func TestFilePrefixesChanged(t *testing.T) {
-	prefixes := []string{"172.16.1.0/24", "10.32.0.0/12", "10.96.0.0/12", "10.20.128.0/17", "10.20.64.0/18", "10.20.8.0/21", "10.20.4.0/22"}
-	reqPrefixes := []string{"100.1.1.0/13", "10.32.0.0/12", "10.96.0.0/12", "10.20.0.0/24", "10.20.128.0/17", "10.20.64.0/18", "10.20.16.0/20", "10.20.2.0/23"}
-	diffPrefxies := []string{"100.1.1.0/13", "10.32.0.0/12", "10.96.0.0/12", "10.20.0.0/24", "10.20.128.0/17", "10.20.64.0/18", "10.20.16.0/20", "10.20.2.0/23", "10.20.4.0/22", "10.20.8.0/21", "172.16.1.0/24"}
+	filePrefixes := []string{"172.16.1.0/24", "10.32.0.0/12", "10.96.0.0/12", "10.20.128.0/17"}
+	reqPrefixes := []string{"100.1.1.0/13", "10.32.0.0/12", "10.96.0.0/12"}
+	diffPrefxies := []string{"100.1.1.0/13", "10.32.0.0/12", "10.96.0.0/12", "10.20.128.0/17", "172.16.1.0/24"}
+	newFilePrefixes := []string{"172.16.2.0/24"}
 
 	dir := filepath.Join(os.TempDir(), t.Name())
 	defer func() { _ = os.RemoveAll(dir) }()
 	require.NoError(t, os.MkdirAll(dir, os.ModePerm))
 
-	testConfig := strings.Join(append([]string{"prefixes:"}, prefixes...), "\n- ")
+	testConfig := strings.Join(append([]string{"prefixes:"}, filePrefixes...), "\n- ")
 	configPath := filepath.Join(dir, defaultPrefixesFileName)
 	require.NoError(t, ioutil.WriteFile(configPath, []byte(testConfig), os.ModePerm))
 	defer func() { _ = os.Remove(configPath) }()
 
+	var prefixesAfterServer []string
 	isFirst := true
 	server := chain.NewNetworkServiceServer(
-		metadata.NewServer(),
 		excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)),
 		checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
 			if isFirst {
-				require.True(t, excludedprefixes.IsEqual(diffPrefxies, request.Connection.Context.IpContext.ExcludedPrefixes))
+				require.ElementsMatch(t, diffPrefxies, request.Connection.Context.IpContext.ExcludedPrefixes)
 				isFirst = false
 			}
+
+			prefixesAfterServer = request.Connection.Context.IpContext.ExcludedPrefixes
 		}),
 	)
 
@@ -188,70 +174,13 @@ func TestFilePrefixesChanged(t *testing.T) {
 
 	_, err := server.Request(context.Background(), req)
 
-	newExcludedPrefixes := []string{"172.16.2.0/24"}
-	require.NoError(t, ioutil.WriteFile(configPath, []byte(strings.Join(append([]string{"prefixes:"}, newExcludedPrefixes...), "\n- ")), os.ModePerm))
-
-	newDiffPrefixes := []string{"10.20.0.0/24", "10.20.128.0/17", "10.20.64.0/18", "10.20.16.0/20", "10.20.2.0/23", "10.32.0.0/12", "10.96.0.0/12", "100.1.1.0/13", "172.16.2.0/24"}
+	require.NoError(t, ioutil.WriteFile(configPath, []byte(strings.Join(append([]string{"prefixes:"}, newFilePrefixes...), "\n- ")), os.ModePerm))
 
 	require.Eventually(t, func() bool {
 		_, err = server.Request(context.Background(), req)
-		fmt.Printf("%v\n", req.Connection.Context.IpContext.ExcludedPrefixes)
-		return excludedprefixes.IsEqual(req.Connection.Context.IpContext.ExcludedPrefixes, newDiffPrefixes)
-	}, time.Second*10, time.Millisecond*100)
-
-	require.NoError(t, err)
-}
-
-// request1: {clientPrefixes: a, serverPrefixes:a, finalPrefixes: a}
-// request2: {clientPrefixes: a, serverPrefixes:b, finalPrefixes: ab}
-func TestClientAndFilePrefixesAreSame(t *testing.T) {
-	prefixes := []string{"172.16.1.0/24", "10.32.0.0/12"}
-	reqPrefixes := []string{"172.16.1.0/24", "10.32.0.0/12"}
-	firstDiffPrefxies := []string{"172.16.1.0/24", "10.32.0.0/12"}
-
-	dir := filepath.Join(os.TempDir(), t.Name())
-	defer func() { _ = os.RemoveAll(dir) }()
-	require.NoError(t, os.MkdirAll(dir, os.ModePerm))
-
-	testConfig := strings.Join(append([]string{"prefixes:"}, prefixes...), "\n- ")
-	configPath := filepath.Join(dir, defaultPrefixesFileName)
-	require.NoError(t, ioutil.WriteFile(configPath, []byte(testConfig), os.ModePerm))
-	defer func() { _ = os.Remove(configPath) }()
-
-	isFirst := true
-	server := chain.NewNetworkServiceServer(
-		metadata.NewServer(),
-		excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)),
-		checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
-			if isFirst {
-				require.True(t, excludedprefixes.IsEqual(firstDiffPrefxies, request.Connection.Context.IpContext.ExcludedPrefixes))
-				isFirst = false
-			}
-		}),
-	)
-
-	req := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id: "1",
-			Context: &networkservice.ConnectionContext{
-				IpContext: &networkservice.IPContext{
-					ExcludedPrefixes: reqPrefixes,
-				},
-			},
-		},
-	}
-
-	_, err := server.Request(context.Background(), req)
-
-	newExcludedPrefixes := []string{"172.16.2.0/24"}
-	require.NoError(t, ioutil.WriteFile(configPath, []byte(strings.Join(append([]string{"prefixes:"}, newExcludedPrefixes...), "\n- ")), os.ModePerm))
-
-	newDiffPrefixes := []string{"172.16.1.0/24", "10.32.0.0/12", "172.16.2.0/24"}
-
-	require.Eventually(t, func() bool {
-		_, err = server.Request(context.Background(), req)
-		return excludedprefixes.IsEqual(req.Connection.Context.IpContext.ExcludedPrefixes, newDiffPrefixes)
-	}, time.Second*5, time.Millisecond*100)
+		fmt.Printf("%v\n", prefixesAfterServer)
+		return excludedprefixes.IsEqual(prefixesAfterServer, append(diffPrefxies, newFilePrefixes...))
+	}, time.Second, time.Millisecond*100)
 
 	require.NoError(t, err)
 }
@@ -261,10 +190,8 @@ func testWaitForFile(t *testing.T, filePath string) {
 
 	testConfig := strings.Join(append([]string{"prefixes:"}, prefixes...), "\n- ")
 
-	server := chain.NewNetworkServiceServer(
-		metadata.NewServer(),
-		excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(filePath)),
-	)
+	server := chain.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(),
+		excludedprefixes.WithConfigPath(filePath)))
 
 	req := request()
 	_, err := server.Request(context.Background(), req)
@@ -294,7 +221,6 @@ func testWaitForFile(t *testing.T, filePath string) {
 func request() *networkservice.NetworkServiceRequest {
 	return &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
-			Id:      "1",
 			Context: &networkservice.ConnectionContext{},
 		},
 	}

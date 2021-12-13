@@ -22,7 +22,6 @@ package excludedprefixes
 
 import (
 	"context"
-	"sort"
 	"sync"
 	"sync/atomic"
 
@@ -88,56 +87,15 @@ func (eps *excludedPrefixesServer) Request(ctx context.Context, request *network
 	if conn.GetContext().GetIpContext() == nil {
 		conn.Context.IpContext = &networkservice.IPContext{}
 	}
-	// excluded prefixes from file
-	prefixesFromFile := eps.prefixPool.Load().(*ippool.PrefixPool).GetPrefixes()
-	// excluded prefixes from client
-	clientPrefixes := conn.GetContext().GetIpContext().GetExcludedPrefixes()
-
-	sort.Strings(prefixesFromFile)
-	sort.Strings(clientPrefixes)
-
-	if IsEqual(prefixesFromFile, clientPrefixes) {
-		return next.Server(ctx).Request(ctx, request)
-	}
-
-	prefixesInfo, _ := load(ctx)
-
-	clientPrefixesChanged := !IsEqual(prefixesInfo.previousClientPrefixes, clientPrefixes)
-	filePrefixesChanged := !IsEqual(prefixesInfo.previousFilePrefixes, prefixesFromFile)
-
-	finalPrefixes := clientPrefixes
-	if !clientPrefixesChanged && filePrefixesChanged {
-		finalPrefixes = removePrefixes(clientPrefixes, prefixesInfo.previousDiff)
-	}
-
-	finalPrefixes = removeDuplicates(append(finalPrefixes, prefixesFromFile...))
-	request.GetConnection().GetContext().GetIpContext().ExcludedPrefixes = finalPrefixes
-
-	if filePrefixesChanged {
-		prefixesInfo.previousFilePrefixes = make([]string, len(prefixesFromFile))
-		copy(prefixesInfo.previousFilePrefixes, prefixesFromFile)
-	}
-
-	if clientPrefixesChanged {
-		prefixesInfo.previousClientPrefixes = make([]string, len(finalPrefixes))
-		copy(prefixesInfo.previousClientPrefixes, finalPrefixes)
-	}
-
-	prefixesInfo.previousDiff = Subtract(clientPrefixes, prefixesFromFile)
-
-	log.FromContext(ctx).
-		WithField("excludedPrefixes", "server").
-		WithField("prefixesFromFile", prefixesFromFile).
-		WithField("previousPrefixesInfo", prefixesInfo).
-		Debugf("adding excluded prefixes to connection")
-
-	store(ctx, prefixesInfo)
+	prefixes := eps.prefixPool.Load().(*ippool.PrefixPool).GetPrefixes()
+	log.FromContext(ctx).Debugf("ExcludedPrefixesService: adding excluded prefixes to connection: %v", prefixes)
+	ipCtx := conn.GetContext().GetIpContext()
+	ipCtx.ExcludedPrefixes = removeDuplicates(append(ipCtx.GetExcludedPrefixes(), prefixes...))
 
 	return next.Server(ctx).Request(ctx, request)
 }
 
 func (eps *excludedPrefixesServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
-	del(ctx)
 	return next.Server(ctx).Close(ctx, connection)
 }
 

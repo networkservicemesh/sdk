@@ -56,32 +56,6 @@ func exclude(source, exclude []string) []string {
 	return source
 }
 
-func removePrefixes(origin, prefixesToRemove []string) []string {
-	if len(origin) == 0 || len(prefixesToRemove) == 0 {
-		return origin
-	}
-
-	prefixesMap := toMap(prefixesToRemove)
-	var rv []string
-	for _, p := range origin {
-		if _, ok := prefixesMap[p]; !ok {
-			rv = append(rv, p)
-		}
-	}
-
-	return rv
-}
-
-func toMap(arr []string) map[string]struct{} {
-	rv := map[string]struct{}{}
-
-	for _, a := range arr {
-		rv[a] = struct{}{}
-	}
-
-	return rv
-}
-
 // IsEqual check if two slices contains equal strings, no matter the order
 func IsEqual(s1, s2 []string) bool {
 	s1copy := make([]string, len(s1))
@@ -94,18 +68,4 @@ func IsEqual(s1, s2 []string) bool {
 	sort.Strings(s2copy)
 
 	return reflect.DeepEqual(s1copy, s2copy)
-}
-
-// Subtract calculates setB - setA
-func Subtract(setA, setB []string) []string {
-	sliceMap := toMap(setA)
-
-	var rv []string
-	for _, s := range setB {
-		if _, ok := sliceMap[s]; !ok {
-			rv = append(rv, s)
-		}
-	}
-
-	return rv
 }
