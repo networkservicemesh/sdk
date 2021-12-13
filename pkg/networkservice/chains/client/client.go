@@ -28,7 +28,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/dial"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/trimpath"
@@ -58,7 +57,6 @@ func NewClient(ctx context.Context, clientOpts ...Option) networkservice.Network
 				metadata.NewClient(),
 				opts.refreshClient,
 				clienturl.NewClient(opts.clientURL),
-				excludedprefixes.NewClient(),
 				clientconn.NewClient(opts.cc),
 				opts.healClient,
 				dial.NewClient(ctx,

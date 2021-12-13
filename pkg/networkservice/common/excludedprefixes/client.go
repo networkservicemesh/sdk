@@ -74,13 +74,14 @@ func (epc *excludedPrefixesClient) Request(ctx context.Context, request *network
 		return resp, err
 	}
 
-	logger.Debugf("Request excluded IPs - srcIPs: %v, dstIPs: %v",
-		resp.GetContext().GetIpContext().GetSrcIpAddrs(), resp.GetContext().GetIpContext().GetDstIpAddrs())
+	respIpContext := resp.GetContext().GetIpContext()
+	logger.Debugf("Request excluded IPs - srcIPs: %v, dstIPs: %v, excluded prefixes: %v", respIpContext.GetSrcIpAddrs(),
+		respIpContext.GetDstIpAddrs(), respIpContext.GetExcludedPrefixes())
 
 	<-epc.executor.AsyncExec(func() {
-		epc.excludedPrefixes = append(epc.excludedPrefixes, ipCtx.GetSrcIpAddrs()...)
-		epc.excludedPrefixes = append(epc.excludedPrefixes, ipCtx.GetDstIpAddrs()...)
-		epc.excludedPrefixes = append(epc.excludedPrefixes, ipCtx.GetExcludedPrefixes()...)
+		epc.excludedPrefixes = append(epc.excludedPrefixes, respIpContext.GetSrcIpAddrs()...)
+		epc.excludedPrefixes = append(epc.excludedPrefixes, respIpContext.GetDstIpAddrs()...)
+		epc.excludedPrefixes = append(epc.excludedPrefixes, respIpContext.GetExcludedPrefixes()...)
 		epc.excludedPrefixes = removeDuplicates(epc.excludedPrefixes)
 		logger.Debugf("Added excluded prefixes: %+v", epc.excludedPrefixes)
 	})
