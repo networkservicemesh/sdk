@@ -23,6 +23,7 @@ jobs:
           - cmd-registry-memory
           - cmd-registry-proxy-dns
           - cmd-nse-vfio
+          - cmd-nse-remote-vlan
           - cmd-nsc-init
           - cmd-admission-webhook-k8s
     name: Update ${{ matrix.repository }}
