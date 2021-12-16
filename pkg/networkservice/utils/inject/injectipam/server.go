@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package injectexcludedprefixes
+package injectipam
 
 import (
 	"context"
@@ -25,11 +25,14 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type injectExcludedPrefixesServer struct {
-	prefixes []string
+type injectIPAMServer struct {
+	srcIPs    []string
+	dstIPs    []string
+	srcRoutes []*networkservice.Route
+	dstRoutes []*networkservice.Route
 }
 
-func (ieps *injectExcludedPrefixesServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+func (s *injectIPAMServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	conn := request.GetConnection()
 	if conn.GetContext() == nil {
 		conn.Context = &networkservice.ConnectionContext{}
@@ -39,18 +42,24 @@ func (ieps *injectExcludedPrefixesServer) Request(ctx context.Context, request *
 	}
 
 	ipCtx := conn.GetContext().GetIpContext()
-	ipCtx.ExcludedPrefixes = ieps.prefixes
+	ipCtx.SrcIpAddrs = s.srcIPs
+	ipCtx.DstIpAddrs = s.dstIPs
+	ipCtx.SrcRoutes = s.srcRoutes
+	ipCtx.DstRoutes = s.dstRoutes
 
 	return next.Server(ctx).Request(ctx, request)
 }
 
-func (ieps *injectExcludedPrefixesServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
+func (s *injectIPAMServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
 	return next.Server(ctx).Close(ctx, connection)
 }
 
-// NewServer - creates a networkservice.NetworkServiceServer chain element injecting specified excluded prefixes on Request into IP context
-func NewServer(excludedPrefixes []string) networkservice.NetworkServiceServer {
-	return &injectExcludedPrefixesServer{
-		prefixes: excludedPrefixes,
+// NewServer - creates a networkservice.NetworkServiceServer chain element injecting specified routes/IPs on Request into IP context
+func NewServer(srcIPs, dstIPs []string, srcRoutes, dstRoutes []*networkservice.Route) networkservice.NetworkServiceServer {
+	return &injectIPAMServer{
+		srcIPs:    srcIPs,
+		dstIPs:    dstIPs,
+		srcRoutes: srcRoutes,
+		dstRoutes: dstRoutes,
 	}
 }

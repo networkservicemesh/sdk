@@ -18,7 +18,8 @@
 
 package excludedprefixes
 
-func removeDuplicates(elements []string) []string {
+// RemoveDuplicates - removes duplicate strings from a slice
+func RemoveDuplicates(elements []string) []string {
 	encountered := map[string]bool{}
 	var result []string
 
@@ -32,22 +33,19 @@ func removeDuplicates(elements []string) []string {
 	return result
 }
 
-func exclude(source, exclude []string) []string {
-	var result []string
+// Exclude - excludes strings from a slice
+func Exclude(source, exclude []string) []string {
+	var prefix string
 
-	var isExcluded bool
-	for _, s := range source {
-		isExcluded = false
-		for _, e := range exclude {
-			if s == e {
-				isExcluded = true
-				break
+	for i := 0; i < len(source); i++ {
+		prefix = source[i]
+		for _, ipCtxPrefix := range exclude {
+			if prefix == ipCtxPrefix {
+				source = append(source[:i], source[i+1:]...)
+				i--
 			}
 		}
-
-		if !isExcluded {
-			result = append(result, s)
-		}
 	}
-	return result
+
+	return source
 }
