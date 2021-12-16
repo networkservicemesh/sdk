@@ -235,6 +235,31 @@ func (impl *PrefixPool) Extract(connectionID string, family networkservice.IpFam
 	return &net.IPNet{IP: src, Mask: ipNet.Mask}, &net.IPNet{IP: dst, Mask: ipNet.Mask}, requested, nil
 }
 
+// ExtractPrefixes extracts requested prefixes
+func (impl *PrefixPool) ExtractPrefixes(connectionID string, requests ...*networkservice.ExtraPrefixRequest) (requested []string, err error) {
+	impl.mutex.Lock()
+	defer impl.mutex.Unlock()
+
+	if len(requests) > 0 {
+		var remaining []string
+		requested, remaining, err = ExtractPrefixes(impl.prefixes, requests...)
+		if err != nil {
+			return nil, err
+		}
+
+		impl.prefixes = remaining
+
+		if rec, ok := impl.connections[connectionID]; !ok {
+			impl.connections[connectionID] = &connectionRecord{
+				prefixes: requested,
+			}
+		} else {
+			rec.prefixes = append(rec.prefixes, requested...)
+		}
+	}
+	return requested, nil
+}
+
 // Release releases prefixes from the connection
 func (impl *PrefixPool) Release(connectionID string) error {
 	impl.mutex.Lock()
