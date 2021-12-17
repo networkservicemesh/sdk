@@ -35,15 +35,18 @@ func RemoveDuplicates(elements []string) []string {
 
 // Exclude - excludes strings from a slice
 func Exclude(source, exclude []string) []string {
-	var prefix string
+	var s string
+	var excludeMap = make(map[string]struct{})
+
+	for _, e := range exclude {
+		excludeMap[e] = struct{}{}
+	}
 
 	for i := 0; i < len(source); i++ {
-		prefix = source[i]
-		for _, ipCtxPrefix := range exclude {
-			if prefix == ipCtxPrefix {
-				source = append(source[:i], source[i+1:]...)
-				i--
-			}
+		s = source[i]
+		if _, ok := excludeMap[s]; ok {
+			source = append(source[:i], source[i+1:]...)
+			i--
 		}
 	}
 
