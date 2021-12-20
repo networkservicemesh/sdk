@@ -27,24 +27,24 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace"
 )
 
-// InitExporter -  returns an instance of Jaeger Tracer that samples 100% of traces and logs all spans to stdout.
+// InitExporter -  returns an instance of Jaeger Exporter.
 func InitExporter(ctx context.Context, exporterURL string) trace.SpanExporter {
 	if !log.IsOpentelemetryEnabled() {
 		return nil
 	}
 
 	exporter, err := jaeger.New(jaeger.WithCollectorEndpoint(jaeger.WithEndpoint(exporterURL)))
+	if err != nil {
+		log.FromContext(ctx).Fatal(err)
+		return nil
+	}
+
 	go func() {
 		<-ctx.Done()
 		if err := exporter.Shutdown(context.Background()); err != nil {
 			log.FromContext(ctx).Fatal(err)
 		}
 	}()
-
-	if err != nil {
-		log.FromContext(ctx).Fatal(err)
-		return nil
-	}
 
 	return exporter
 }
