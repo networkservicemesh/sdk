@@ -20,17 +20,10 @@ package opentelemetry
 import (
 	"context"
 	"io"
-	"strings"
-	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric"
-	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
-	"go.opentelemetry.io/otel/metric/global"
 	controller "go.opentelemetry.io/otel/sdk/metric/controller/basic"
-	processor "go.opentelemetry.io/otel/sdk/metric/processor/basic"
-	"go.opentelemetry.io/otel/sdk/metric/selector/simple"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
@@ -78,7 +71,7 @@ func (o *opentelemetry) Close() error {
 }
 
 // Init - creates opentelemetry tracer and meter providers
-func Init(ctx context.Context, collectorAddr, service string) io.Closer {
+func Init(ctx context.Context, exporter sdktrace.SpanExporter, service string) io.Closer {
 	o := &opentelemetry{
 		ctx: ctx,
 	}
@@ -87,13 +80,13 @@ func Init(ctx context.Context, collectorAddr, service string) io.Closer {
 	}
 
 	// Check the opentlemetry collector address
-	if collectorAddr == "" {
-		collectorAddr = defaultAddr + ":" + defaultPort
-	} else if len(strings.Split(collectorAddr, ":")) == 1 {
-		collectorAddr += ":" + defaultPort
-	}
+	// if collectorAddr == "" {
+	// 	collectorAddr = defaultAddr + ":" + defaultPort
+	// } else if len(strings.Split(collectorAddr, ":")) == 1 {
+	// 	collectorAddr += ":" + defaultPort
+	// }
 
-	// Create tracer provider
+	// Create resourse
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
 			// the service name used to display traces in backends
@@ -104,52 +97,55 @@ func Init(ctx context.Context, collectorAddr, service string) io.Closer {
 		log.FromContext(ctx).Errorf("%v", err)
 		return o
 	}
-	traceExporter, err := otlptracegrpc.New(ctx,
-		otlptracegrpc.WithInsecure(),
-		otlptracegrpc.WithEndpoint(collectorAddr),
-	)
-	if err != nil {
-		log.FromContext(ctx).Errorf("%v", err)
-		return o
-	}
+
 	// Register the trace exporter with a TracerProvider, using a batch
 	// span processor to aggregate spans before export.
-	bsp := sdktrace.NewBatchSpanProcessor(traceExporter)
+	bsp := sdktrace.NewBatchSpanProcessor(exporter)
 	tracerProvider := sdktrace.NewTracerProvider(
-		sdktrace.WithSampler(sdktrace.AlwaysSample()),
-		sdktrace.WithResource(res),
 		sdktrace.WithSpanProcessor(bsp),
+		sdktrace.WithResource(res),
 	)
+	go func() {
+		<-ctx.Done()
+		if err := tracerProvider.Shutdown(context.Background()); err != nil {
+			log.FromContext(ctx).Fatal(err)
+		}
+
+		bsp.Shutdown(context.Background())
+		exporter.Shutdown(context.Background())
+	}()
+
 	otel.SetTracerProvider(tracerProvider)
 	o.tracerProvider = tracerProvider
 
-	// Create meter provider
-	client := otlpmetricgrpc.NewClient(
-		otlpmetricgrpc.WithInsecure(),
-		otlpmetricgrpc.WithEndpoint(collectorAddr),
-	)
-	metricExporter, err := otlpmetric.New(ctx, client)
-	if err != nil {
-		log.FromContext(ctx).Errorf("%v", err)
-		return o
-	}
-	o.metricExporter = metricExporter
+	// // Create meter provider
+	// client := otlpmetricgrpc.NewClient(
+	// 	otlpmetricgrpc.WithInsecure(),
+	// 	otlpmetricgrpc.WithEndpoint(collectorAddr),
+	// )
+	// metricExporter, err := otlpmetric.New(ctx, client)
+	// if err != nil {
+	// 	log.FromContext(ctx).Errorf("%v", err)
+	// 	return o
+	// }
 
-	metricController := controller.New(
-		processor.NewFactory(
-			simple.NewWithExactDistribution(),
-			metricExporter,
-		),
-		controller.WithExporter(metricExporter),
-		controller.WithCollectPeriod(2*time.Second),
-	)
+	// o.metricExporter = metricExporter
 
-	if err := metricController.Start(ctx); err != nil {
-		log.FromContext(ctx).Errorf("%v", err)
-		return o
-	}
-	global.SetMeterProvider(metricController)
-	o.metricController = metricController
+	// metricController := controller.New(
+	// 	processor.NewFactory(
+	// 		simple.NewWithExactDistribution(),
+	// 		metricExporter,
+	// 	),
+	// 	controller.WithExporter(metricExporter),
+	// 	controller.WithCollectPeriod(2*time.Second),
+	// )
+
+	// if err := metricController.Start(ctx); err != nil {
+	// 	log.FromContext(ctx).Errorf("%v", err)
+	// 	return o
+	// }
+	// global.SetMeterProvider(metricController)
+	// o.metricController = metricController
 
 	return o
 }

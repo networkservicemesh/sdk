@@ -21,63 +21,24 @@ package jaeger
 
 import (
 	"context"
-	"fmt"
-	"io"
-	"os"
-
-	"github.com/opentracing/opentracing-go"
-	"github.com/uber/jaeger-client-go"
-	"github.com/uber/jaeger-client-go/config"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"go.opentelemetry.io/otel/exporters/jaeger"
+	"go.opentelemetry.io/otel/sdk/trace"
 )
 
-type emptyCloser struct {
-}
-
-func (*emptyCloser) Close() error {
-	// Ignore
-	return nil
-}
-
-// InitJaeger -  returns an instance of Jaeger Tracer that samples 100% of traces and logs all spans to stdout.
-func InitJaeger(ctx context.Context, service string) io.Closer {
-	if !log.IsOpentracingEnabled() {
-		return &emptyCloser{}
+// InitExporter -  returns an instance of Jaeger Tracer that samples 100% of traces and logs all spans to stdout.
+func InitExporter(ctx context.Context, exporterURL string) trace.SpanExporter {
+	if !log.IsOpentelemetryEnabled() {
+		return nil
 	}
-	if opentracing.IsGlobalTracerRegistered() {
-		log.FromContext(ctx).Warnf("global opentracer is already initialized")
-	}
-	cfg, err := config.FromEnv()
+
+	exporter, err := jaeger.New(jaeger.WithCollectorEndpoint(jaeger.WithEndpoint(exporterURL)))
+
 	if err != nil {
-		panic(fmt.Sprintf("ERROR: cannot create Jaeger configuration: %v\n", err))
+		log.FromContext(ctx).Fatal(err)
+		return nil
 	}
 
-	if cfg.ServiceName == "" {
-		var hostname string
-		hostname, err = os.Hostname()
-		if err == nil {
-			cfg.ServiceName = fmt.Sprintf("%s@%s", service, hostname)
-		} else {
-			cfg.ServiceName = service
-		}
-	}
-	if cfg.Sampler.Type == "" {
-		cfg.Sampler.Type = "const"
-	}
-	if cfg.Sampler.Param == 0 {
-		cfg.Sampler.Param = 1
-	}
-	if !cfg.Reporter.LogSpans {
-		cfg.Reporter.LogSpans = true
-	}
-
-	log.FromContext(ctx).Debugf("Creating logger from config: %v", cfg)
-	tracer, closer, err := cfg.NewTracer(config.Logger(jaeger.StdLogger))
-	if err != nil {
-		log.FromContext(ctx).Errorf("ERROR: cannot init Jaeger: %v\n", err)
-		return &emptyCloser{}
-	}
-	opentracing.SetGlobalTracer(tracer)
-	return closer
+	return exporter
 }

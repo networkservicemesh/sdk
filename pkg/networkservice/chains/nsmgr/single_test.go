@@ -27,12 +27,14 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
 	"github.com/networkservicemesh/sdk/pkg/tools/clientinfo"
+	"github.com/networkservicemesh/sdk/pkg/tools/jaeger"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/opentelemetry"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
@@ -45,8 +47,10 @@ func Test_DNSUsecase(t *testing.T) {
 	defer cancel()
 
 	log.EnableTracing(true)
+	logrus.SetLevel(logrus.TraceLevel)
 	os.Setenv("TELEMETRY", "opentelemetry")
-	opentelemetry.Init(ctx, "localhost:6831", "NSM")
+	exporter := jaeger.InitExporter(ctx, "http://localhost:14268/api/traces")
+	opentelemetry.Init(ctx, exporter, "NSM")
 
 	domain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
