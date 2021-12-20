@@ -32,7 +32,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/point2pointipam"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injectexcludedprefixes"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injectipam"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injectipcontext"
 )
 
 func TestExcludedPrefixesClient_Request_SanityCheck(t *testing.T) {
@@ -355,19 +355,21 @@ func TestExcludedPrefixesClient_Request_EndpointConflicts(t *testing.T) {
 
 	// conflict with existing routes (172.16.0.96/32)
 	server2 := chain.NewNetworkServiceClient(
-		adapters.NewServerToClient(injectipam.NewServer(
-			[]string{"172.16.0.101/32"},
-			[]string{"172.16.0.96/32"},
-			[]*networkservice.Route{
-				{
-					Prefix:  "172.16.0.101/32",
-					NextHop: "",
+		adapters.NewServerToClient(injectipcontext.NewServer(
+			&networkservice.IPContext{
+				SrcIpAddrs: []string{"172.16.0.101/32"},
+				DstIpAddrs: []string{"172.16.0.96/32"},
+				SrcRoutes: []*networkservice.Route{
+					{
+						Prefix:  "172.16.0.101/32",
+						NextHop: "",
+					},
 				},
-			},
-			[]*networkservice.Route{
-				{
-					Prefix:  "172.16.0.96/32",
-					NextHop: "",
+				DstRoutes: []*networkservice.Route{
+					{
+						Prefix:  "172.16.0.96/32",
+						NextHop: "",
+					},
 				},
 			})))
 
@@ -376,19 +378,21 @@ func TestExcludedPrefixesClient_Request_EndpointConflicts(t *testing.T) {
 
 	// conflict with already excluded prefixes (172.16.0.100/32)
 	server3 := chain.NewNetworkServiceClient(
-		adapters.NewServerToClient(injectipam.NewServer(
-			[]string{"172.16.0.100/32"},
-			[]string{"172.16.0.103/32"},
-			[]*networkservice.Route{
-				{
-					Prefix:  "172.16.0.103/32",
-					NextHop: "",
+		adapters.NewServerToClient(injectipcontext.NewServer(
+			&networkservice.IPContext{
+				SrcIpAddrs: []string{"172.16.0.100/32"},
+				DstIpAddrs: []string{"172.16.0.103/32"},
+				SrcRoutes: []*networkservice.Route{
+					{
+						Prefix:  "172.16.0.103/32",
+						NextHop: "",
+					},
 				},
-			},
-			[]*networkservice.Route{
-				{
-					Prefix:  "172.16.0.100/32",
-					NextHop: "",
+				DstRoutes: []*networkservice.Route{
+					{
+						Prefix:  "172.16.0.100/32",
+						NextHop: "",
+					},
 				},
 			})))
 
@@ -424,19 +428,21 @@ func TestExcludedPrefixesClient_Request_EndpointConflictCloseError(t *testing.T)
 
 	// conflict with existing routes (172.16.0.96/32)
 	server2 := chain.NewNetworkServiceClient(
-		adapters.NewServerToClient(injectipam.NewServer(
-			[]string{"172.16.0.101/32"},
-			[]string{"172.16.0.96/32"},
-			[]*networkservice.Route{
-				{
-					Prefix:  "172.16.0.101/32",
-					NextHop: "",
+		adapters.NewServerToClient(injectipcontext.NewServer(
+			&networkservice.IPContext{
+				SrcIpAddrs: []string{"172.16.0.101/32"},
+				DstIpAddrs: []string{"172.16.0.96/32"},
+				SrcRoutes: []*networkservice.Route{
+					{
+						Prefix:  "172.16.0.101/32",
+						NextHop: "",
+					},
 				},
-			},
-			[]*networkservice.Route{
-				{
-					Prefix:  "172.16.0.96/32",
-					NextHop: "",
+				DstRoutes: []*networkservice.Route{
+					{
+						Prefix:  "172.16.0.96/32",
+						NextHop: "",
+					},
 				},
 			})),
 		injecterror.NewClient(injecterror.WithCloseErrorTimes(-1), injecterror.WithRequestErrorTimes(-2)))

@@ -14,5 +14,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package injectipam provides a chain element injecting specified routes/IPs on Request into IP context
-package injectipam
+// Package injectipcontext provides a chain element injecting specified IPContext on Request
+package injectipcontext
