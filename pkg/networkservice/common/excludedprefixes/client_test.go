@@ -94,11 +94,7 @@ func TestExcludedPrefixesClient_Request_SrcAndDestPrefixesAreDifferent(t *testin
 	resp, err := chain.NewNetworkServiceClient(client, server1).Request(ctx, request1)
 	require.NoError(t, err)
 
-	expectedExcludedIPs := append(resp.GetContext().GetIpContext().GetSrcIpAddrs(),
-		resp.GetContext().GetIpContext().GetDstIpAddrs()...)
-	expectedExcludedIPs = append(expectedExcludedIPs, getPrefixes(resp.GetContext().GetIpContext().GetSrcRoutes())...)
-	expectedExcludedIPs = append(expectedExcludedIPs, getPrefixes(resp.GetContext().GetIpContext().GetDstRoutes())...)
-	expectedExcludedIPs = excludedprefixes.RemoveDuplicates(expectedExcludedIPs)
+	expectedExcludedIPs := []string{"172.16.0.100/32", "172.16.0.101/32"}
 
 	srcIPs := resp.GetContext().GetIpContext().GetSrcIpAddrs()
 	require.Len(t, srcIPs, 1)
@@ -191,12 +187,7 @@ func TestExcludedPrefixesClient_Request_WithExcludedPrefixes(t *testing.T) {
 	destIPs := resp.GetContext().GetIpContext().GetDstIpAddrs()
 	require.Len(t, destIPs, 1)
 
-	expectedExcludedPrefixes := make([]string, 0)
-	expectedExcludedPrefixes = append(expectedExcludedPrefixes, srcIPs[0], destIPs[0])
-	expectedExcludedPrefixes = append(expectedExcludedPrefixes, getPrefixes(resp.GetContext().GetIpContext().GetSrcRoutes())...)
-	expectedExcludedPrefixes = append(expectedExcludedPrefixes, getPrefixes(resp.GetContext().GetIpContext().GetDstRoutes())...)
-	expectedExcludedPrefixes = append(expectedExcludedPrefixes, excludedPrefixes...)
-	expectedExcludedPrefixes = excludedprefixes.RemoveDuplicates(expectedExcludedPrefixes)
+	expectedExcludedPrefixes := []string{"172.16.0.99/32", "172.16.0.97/32", "172.16.0.96/32", "172.16.0.98/32", "172.16.0.100/32"}
 
 	request2 := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{},
@@ -244,12 +235,7 @@ func TestExcludedPrefixesClient_Request_PrefixesUnchangedAfterError(t *testing.T
 	destIPs := resp.GetContext().GetIpContext().GetDstIpAddrs()
 	require.Len(t, destIPs, 1)
 
-	expectedExcludedPrefixes := make([]string, 0)
-	expectedExcludedPrefixes = append(expectedExcludedPrefixes, srcIPs[0], destIPs[0])
-	expectedExcludedPrefixes = append(expectedExcludedPrefixes, getPrefixes(resp.GetContext().GetIpContext().GetSrcRoutes())...)
-	expectedExcludedPrefixes = append(expectedExcludedPrefixes, getPrefixes(resp.GetContext().GetIpContext().GetDstRoutes())...)
-	expectedExcludedPrefixes = append(expectedExcludedPrefixes, excludedPrefixes...)
-	expectedExcludedPrefixes = excludedprefixes.RemoveDuplicates(expectedExcludedPrefixes)
+	expectedExcludedPrefixes := []string{"172.16.0.99/32", "172.16.0.97/32", "172.16.0.96/32", "172.16.0.98/32", "172.16.0.100/32"}
 
 	// request with error
 	request2 := &networkservice.NetworkServiceRequest{
@@ -315,21 +301,11 @@ func TestExcludedPrefixesClient_Request_SuccessfulRefresh(t *testing.T) {
 
 	// expected excluded prefixes for refresh use-case
 	// src/dest IPs won't be present in IPContext
-	expectedExcludedPrefixes := make([]string, 0)
-	expectedExcludedPrefixes = append(expectedExcludedPrefixes, getPrefixes(resp.GetContext().GetIpContext().GetSrcRoutes())...)
-	expectedExcludedPrefixes = append(expectedExcludedPrefixes, getPrefixes(resp.GetContext().GetIpContext().GetDstRoutes())...)
-	expectedExcludedPrefixes = append(expectedExcludedPrefixes, excludedPrefixes...)
-	expectedExcludedPrefixes = excludedprefixes.RemoveDuplicates(expectedExcludedPrefixes)
-	expectedExcludedPrefixes = excludedprefixes.Exclude(expectedExcludedPrefixes, []string{srcIPs[0], destIPs[0]})
+	expectedExcludedPrefixes := []string{"172.16.0.96/32", "172.16.0.98/32", "172.16.0.100/32"}
 
 	// expected excluded prefixes for a non-refresh use-case
 	// src/dest IPs from first server should still be present in a request to another server
-	expectedExcludedPrefixes2 := make([]string, 0)
-	expectedExcludedPrefixes2 = append(expectedExcludedPrefixes2, srcIPs[0], destIPs[0])
-	expectedExcludedPrefixes2 = append(expectedExcludedPrefixes2, getPrefixes(resp.GetContext().GetIpContext().GetSrcRoutes())...)
-	expectedExcludedPrefixes2 = append(expectedExcludedPrefixes2, getPrefixes(resp.GetContext().GetIpContext().GetDstRoutes())...)
-	expectedExcludedPrefixes2 = append(expectedExcludedPrefixes2, excludedPrefixes...)
-	expectedExcludedPrefixes2 = excludedprefixes.RemoveDuplicates(expectedExcludedPrefixes2)
+	expectedExcludedPrefixes2 := []string{"172.16.0.99/32", "172.16.0.97/32", "172.16.0.96/32", "172.16.0.98/32", "172.16.0.100/32"}
 
 	resp, err = chain.NewNetworkServiceClient(client, server1).Request(ctx, request)
 	require.NoError(t, err)
@@ -468,12 +444,4 @@ func TestExcludedPrefixesClient_Request_EndpointConflictCloseError(t *testing.T)
 	_, err = chain.NewNetworkServiceClient(client, server2).Request(ctx, request.Clone())
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "connection closed")
-}
-
-func getPrefixes(routes []*networkservice.Route) []string {
-	var rv []string
-	for _, route := range routes {
-		rv = append(rv, route.GetPrefix())
-	}
-	return rv
 }

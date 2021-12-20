@@ -64,10 +64,10 @@ func (epc *excludedPrefixesClient) Request(ctx context.Context, request *network
 			logger.Debugf("Adding new excluded IPs to the request: %+v", epc.excludedPrefixes)
 			newExcludedPrefixes = ipCtx.GetExcludedPrefixes()
 			newExcludedPrefixes = append(newExcludedPrefixes, epc.excludedPrefixes...)
-			newExcludedPrefixes = RemoveDuplicates(newExcludedPrefixes)
+			newExcludedPrefixes = removeDuplicates(newExcludedPrefixes)
 
 			// excluding IPs for current request/connection before calling next client for the refresh use-case
-			newExcludedPrefixes = Exclude(newExcludedPrefixes, append(ipCtx.GetSrcIpAddrs(), ipCtx.GetDstIpAddrs()...))
+			newExcludedPrefixes = exclude(newExcludedPrefixes, append(ipCtx.GetSrcIpAddrs(), ipCtx.GetDstIpAddrs()...))
 
 			logger.Debugf("Excluded prefixes from request - %+v", newExcludedPrefixes)
 			ipCtx.ExcludedPrefixes = newExcludedPrefixes
@@ -108,7 +108,7 @@ func (epc *excludedPrefixesClient) Request(ctx context.Context, request *network
 		epc.excludedPrefixes = append(epc.excludedPrefixes, getRoutePrefixes(respIPContext.GetSrcRoutes())...)
 		epc.excludedPrefixes = append(epc.excludedPrefixes, getRoutePrefixes(respIPContext.GetDstRoutes())...)
 		epc.excludedPrefixes = append(epc.excludedPrefixes, respIPContext.GetExcludedPrefixes()...)
-		epc.excludedPrefixes = RemoveDuplicates(epc.excludedPrefixes)
+		epc.excludedPrefixes = removeDuplicates(epc.excludedPrefixes)
 		logger.Debugf("Added excluded prefixes: %+v", epc.excludedPrefixes)
 	})
 
@@ -120,11 +120,11 @@ func (epc *excludedPrefixesClient) Close(ctx context.Context, conn *networkservi
 	ipCtx := conn.GetContext().GetIpContext()
 
 	<-epc.executor.AsyncExec(func() {
-		epc.excludedPrefixes = Exclude(epc.excludedPrefixes, ipCtx.GetSrcIpAddrs())
-		epc.excludedPrefixes = Exclude(epc.excludedPrefixes, ipCtx.GetDstIpAddrs())
-		epc.excludedPrefixes = Exclude(epc.excludedPrefixes, getRoutePrefixes(ipCtx.GetSrcRoutes()))
-		epc.excludedPrefixes = Exclude(epc.excludedPrefixes, getRoutePrefixes(ipCtx.GetDstRoutes()))
-		epc.excludedPrefixes = Exclude(epc.excludedPrefixes, ipCtx.GetExcludedPrefixes())
+		epc.excludedPrefixes = exclude(epc.excludedPrefixes, ipCtx.GetSrcIpAddrs())
+		epc.excludedPrefixes = exclude(epc.excludedPrefixes, ipCtx.GetDstIpAddrs())
+		epc.excludedPrefixes = exclude(epc.excludedPrefixes, getRoutePrefixes(ipCtx.GetSrcRoutes()))
+		epc.excludedPrefixes = exclude(epc.excludedPrefixes, getRoutePrefixes(ipCtx.GetDstRoutes()))
+		epc.excludedPrefixes = exclude(epc.excludedPrefixes, ipCtx.GetExcludedPrefixes())
 		logger.Debugf("Excluded prefixes after closing connection: %+v", epc.excludedPrefixes)
 	})
 

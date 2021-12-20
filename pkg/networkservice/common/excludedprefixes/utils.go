@@ -18,8 +18,7 @@
 
 package excludedprefixes
 
-// RemoveDuplicates - removes duplicate strings from a slice
-func RemoveDuplicates(elements []string) []string {
+func removeDuplicates(elements []string) []string {
 	encountered := map[string]bool{}
 	var result []string
 
@@ -33,8 +32,7 @@ func RemoveDuplicates(elements []string) []string {
 	return result
 }
 
-// Exclude - excludes strings from a slice
-func Exclude(source, exclude []string) []string {
+func exclude(source, exclude []string) []string {
 	var s string
 	var excludeMap = make(map[string]struct{})
 
