@@ -26,6 +26,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/retry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
@@ -41,6 +42,7 @@ func NewNetworkServiceEndpointRegistryClient(ctx context.Context, connectTo *url
 	c := new(registry.NetworkServiceEndpointRegistryClient)
 	*c = chain.NewNetworkServiceEndpointRegistryClient(
 		serialize.NewNetworkServiceEndpointRegistryClient(),
+		retry.NewNetworkServiceEndpointRegistryClient(),
 		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
 		connect.NewNetworkServiceEndpointRegistryClient(ctx, connectTo,
 			connect.WithNSEAdditionalFunctionality(
