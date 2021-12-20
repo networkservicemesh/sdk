@@ -102,6 +102,7 @@ func Init(ctx context.Context, exporter sdktrace.SpanExporter, service string) i
 	// span processor to aggregate spans before export.
 	bsp := sdktrace.NewBatchSpanProcessor(exporter)
 	tracerProvider := sdktrace.NewTracerProvider(
+		sdktrace.WithSampler(sdktrace.AlwaysSample()),
 		sdktrace.WithSpanProcessor(bsp),
 		sdktrace.WithResource(res),
 	)
@@ -111,8 +112,9 @@ func Init(ctx context.Context, exporter sdktrace.SpanExporter, service string) i
 			log.FromContext(ctx).Fatal(err)
 		}
 
-		bsp.Shutdown(context.Background())
-		exporter.Shutdown(context.Background())
+		if err := bsp.Shutdown(context.Background()); err != nil {
+			log.FromContext(ctx).Fatal(err)
+		}
 	}()
 
 	otel.SetTracerProvider(tracerProvider)

@@ -34,6 +34,12 @@ func InitExporter(ctx context.Context, exporterURL string) trace.SpanExporter {
 	}
 
 	exporter, err := jaeger.New(jaeger.WithCollectorEndpoint(jaeger.WithEndpoint(exporterURL)))
+	go func() {
+		<-ctx.Done()
+		if err := exporter.Shutdown(context.Background()); err != nil {
+			log.FromContext(ctx).Fatal(err)
+		}
+	}()
 
 	if err != nil {
 		log.FromContext(ctx).Fatal(err)
