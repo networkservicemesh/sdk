@@ -104,7 +104,7 @@ func (otelsp *otelSpan) LogObject(k, v interface{}) {
 }
 
 func (otelsp *otelSpan) WithField(k, v interface{}) Span {
-	otelsp.span.SetAttributes(attribute.Any(k.(string), v))
+	otelsp.span.SetAttributes(attribute.String(k.(string), fmt.Sprint(v)))
 	return otelsp
 }
 
@@ -123,7 +123,7 @@ func newOTELSpan(ctx context.Context, operationName string, additionalFields map
 	var add []attribute.KeyValue
 
 	for k, v := range additionalFields {
-		add = append(add, attribute.Any(k, v))
+		add = append(add, attribute.String(k, fmt.Sprint(v)))
 	}
 
 	ctx, span := otel.Tracer(opentelemetrynsm.InstrumentationName).Start(ctx, operationName)

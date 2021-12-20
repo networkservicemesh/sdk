@@ -38,7 +38,7 @@ type meterHelper struct {
 	prefix      string
 	connLabel   attribute.KeyValue
 	meter       metric.Meter
-	recorderMap map[string]metric.Int64ValueRecorder
+	recorderMap map[string]metric.Int64Histogram
 }
 
 // NewMeterHelper - constructs a meter helper from segmentName and connectionID.
@@ -48,7 +48,7 @@ func NewMeterHelper(segmentName, connectionID string) MeterHelper {
 		prefix:      segmentName + "_",
 		connLabel:   attribute.String("connection", connectionID),
 		meter:       meter,
-		recorderMap: make(map[string]metric.Int64ValueRecorder),
+		recorderMap: make(map[string]metric.Int64Histogram),
 	}
 }
 
@@ -65,7 +65,7 @@ func (m *meterHelper) WriteMetrics(ctx context.Context, metrics map[string]strin
 		}
 		_, ok := m.recorderMap[metricName]
 		if !ok {
-			m.recorderMap[metricName] = metric.Must(m.meter).NewInt64ValueRecorder(
+			m.recorderMap[metricName] = metric.Must(m.meter).NewInt64Histogram(
 				m.prefix + metricName,
 			)
 		}

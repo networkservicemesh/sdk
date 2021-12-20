@@ -136,7 +136,7 @@ func Init(ctx context.Context, collectorAddr, service string) io.Closer {
 	o.metricExporter = metricExporter
 
 	metricController := controller.New(
-		processor.New(
+		processor.NewFactory(
 			simple.NewWithExactDistribution(),
 			metricExporter,
 		),
@@ -148,7 +148,7 @@ func Init(ctx context.Context, collectorAddr, service string) io.Closer {
 		log.FromContext(ctx).Errorf("%v", err)
 		return o
 	}
-	global.SetMeterProvider(metricController.MeterProvider())
+	global.SetMeterProvider(metricController)
 	o.metricController = metricController
 
 	return o
