@@ -39,12 +39,5 @@ func InitExporter(ctx context.Context, exporterURL string) trace.SpanExporter {
 		return nil
 	}
 
-	go func() {
-		<-ctx.Done()
-		if err := exporter.Shutdown(context.Background()); err != nil {
-			log.FromContext(ctx).Fatal(err)
-		}
-	}()
-
 	return exporter
 }

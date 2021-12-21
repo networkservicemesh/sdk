@@ -20,6 +20,7 @@ package opentelemetry
 import (
 	"context"
 	"io"
+	"strings"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric"
@@ -71,7 +72,7 @@ func (o *opentelemetry) Close() error {
 }
 
 // Init - creates opentelemetry tracer and meter providers
-func Init(ctx context.Context, exporter sdktrace.SpanExporter, service string) io.Closer {
+func Init(ctx context.Context, exporter sdktrace.SpanExporter, collectorAddr, service string) io.Closer {
 	o := &opentelemetry{
 		ctx: ctx,
 	}
@@ -80,11 +81,11 @@ func Init(ctx context.Context, exporter sdktrace.SpanExporter, service string) i
 	}
 
 	// Check the opentlemetry collector address
-	// if collectorAddr == "" {
-	// 	collectorAddr = defaultAddr + ":" + defaultPort
-	// } else if len(strings.Split(collectorAddr, ":")) == 1 {
-	// 	collectorAddr += ":" + defaultPort
-	// }
+	if collectorAddr == "" {
+		collectorAddr = defaultAddr + ":" + defaultPort
+	} else if len(strings.Split(collectorAddr, ":")) == 1 {
+		collectorAddr += ":" + defaultPort
+	}
 
 	// Create resourse
 	res, err := resource.New(ctx,
@@ -98,6 +99,11 @@ func Init(ctx context.Context, exporter sdktrace.SpanExporter, service string) i
 		return o
 	}
 
+	//conn, err := grpc.DialContext(ctx, "localhost:30080", grpc.WithInsecure(), grpc.WithBlock())
+
+	// Set up a trace exporter
+	//traceExporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithGRPCConn(conn))
+
 	// Register the trace exporter with a TracerProvider, using a batch
 	// span processor to aggregate spans before export.
 	bsp := sdktrace.NewBatchSpanProcessor(exporter)
@@ -108,19 +114,14 @@ func Init(ctx context.Context, exporter sdktrace.SpanExporter, service string) i
 	)
 	go func() {
 		<-ctx.Done()
-		if err := tracerProvider.Shutdown(context.Background()); err != nil {
-			log.FromContext(ctx).Fatal(err)
-		}
-
-		if err := bsp.Shutdown(context.Background()); err != nil {
-			log.FromContext(ctx).Fatal(err)
-		}
+		tracerProvider.ForceFlush(context.Background())
+		tracerProvider.Shutdown(context.Background())
 	}()
 
 	otel.SetTracerProvider(tracerProvider)
 	o.tracerProvider = tracerProvider
 
-	// // Create meter provider
+	// Create meter provider
 	// client := otlpmetricgrpc.NewClient(
 	// 	otlpmetricgrpc.WithInsecure(),
 	// 	otlpmetricgrpc.WithEndpoint(collectorAddr),
