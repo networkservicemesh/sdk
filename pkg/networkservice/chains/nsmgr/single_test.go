@@ -37,7 +37,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/opentelemetry"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
-	"github.com/networkservicemesh/sdk/pkg/tools/zipkin"
 )
 
 func Test_DNSUsecase(t *testing.T) {
@@ -53,8 +52,9 @@ func Test_DNSUsecase(t *testing.T) {
 	logrus.SetLevel(logrus.TraceLevel)
 	os.Setenv("TELEMETRY", "opentelemetry")
 	// exporter := jaeger.InitExporter(ctx, "http://localhost:14268/api/traces")
-	exporter := zipkin.InitExporter(ctx, "http://localhost:9411/api/v2/spans")
-	opentelemetry.Init(ctx, exporter, "", "NSM")
+	// exporter := zipkin.InitExporter(ctx, "http://localhost:9411/api/v2/spans")
+	exporter := opentelemetry.InitExporter(ctx, "0.0.0.0:4317")
+	opentelemetry.Init(ctx, exporter, "NSM")
 
 	domain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
