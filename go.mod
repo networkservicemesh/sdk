@@ -38,12 +38,7 @@ require (
 	go.opentelemetry.io/proto/otlp v0.11.0 // indirect
 	go.uber.org/atomic v1.7.0
 	go.uber.org/goleak v1.1.10
-<<<<<<< HEAD
 	golang.org/x/net v0.0.0-20210525063256-abc453219eb5 // indirect
-=======
-	golang.org/x/net v0.0.0-20211201190559-0a0e4e1bb54c // indirect
-	golang.org/x/sys v0.0.0-20211124211545-fe61309f8881 // indirect
->>>>>>> add zipkin exporter
 	golang.org/x/tools v0.1.2 // indirect
 	gonum.org/v1/gonum v0.6.2
 	google.golang.org/genproto v0.0.0-20211129164237-f09f9a12af12 // indirect

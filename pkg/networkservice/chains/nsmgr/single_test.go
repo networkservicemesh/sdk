@@ -41,7 +41,10 @@ import (
 )
 
 func Test_DNSUsecase(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Cleanup(func() {
+		time.Sleep(time.Second * 20)
+		goleak.VerifyNone(t)
+	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -49,10 +52,9 @@ func Test_DNSUsecase(t *testing.T) {
 	log.EnableTracing(true)
 	logrus.SetLevel(logrus.TraceLevel)
 	os.Setenv("TELEMETRY", "opentelemetry")
-	//exporter := jaeger.InitExporter(ctx, "http://localhost:14268/api/traces")
+	// exporter := jaeger.InitExporter(ctx, "http://localhost:14268/api/traces")
 	exporter := zipkin.InitExporter(ctx, "http://localhost:9411/api/v2/spans")
-
-	opentelemetry.Init(ctx, exporter, "NSM")
+	opentelemetry.Init(ctx, exporter, "", "NSM")
 
 	domain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
