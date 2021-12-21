@@ -20,7 +20,6 @@ package opentelemetry
 import (
 	"context"
 	"io"
-	"strings"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric"
@@ -72,7 +71,7 @@ func (o *opentelemetry) Close() error {
 }
 
 // Init - creates opentelemetry tracer and meter providers
-func Init(ctx context.Context, exporter sdktrace.SpanExporter, collectorAddr, service string) io.Closer {
+func Init(ctx context.Context, exporter sdktrace.SpanExporter, service string) io.Closer {
 	o := &opentelemetry{
 		ctx: ctx,
 	}
@@ -81,11 +80,11 @@ func Init(ctx context.Context, exporter sdktrace.SpanExporter, collectorAddr, se
 	}
 
 	// Check the opentlemetry collector address
-	if collectorAddr == "" {
-		collectorAddr = defaultAddr + ":" + defaultPort
-	} else if len(strings.Split(collectorAddr, ":")) == 1 {
-		collectorAddr += ":" + defaultPort
-	}
+	// if collectorAddr == "" {
+	// 	collectorAddr = defaultAddr + ":" + defaultPort
+	// } else if len(strings.Split(collectorAddr, ":")) == 1 {
+	// 	collectorAddr += ":" + defaultPort
+	// }
 
 	// Create resourse
 	res, err := resource.New(ctx,
@@ -99,18 +98,13 @@ func Init(ctx context.Context, exporter sdktrace.SpanExporter, collectorAddr, se
 		return o
 	}
 
-	//conn, err := grpc.DialContext(ctx, "localhost:30080", grpc.WithInsecure(), grpc.WithBlock())
-
-	// Set up a trace exporter
-	//traceExporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithGRPCConn(conn))
-
 	// Register the trace exporter with a TracerProvider, using a batch
 	// span processor to aggregate spans before export.
 	bsp := sdktrace.NewBatchSpanProcessor(exporter)
 	tracerProvider := sdktrace.NewTracerProvider(
 		sdktrace.WithSampler(sdktrace.AlwaysSample()),
-		sdktrace.WithSpanProcessor(bsp),
 		sdktrace.WithResource(res),
+		sdktrace.WithSpanProcessor(bsp),
 	)
 	go func() {
 		<-ctx.Done()
