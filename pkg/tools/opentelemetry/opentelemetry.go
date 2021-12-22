@@ -25,7 +25,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric"
 	"go.opentelemetry.io/otel/metric/global"
-	"go.opentelemetry.io/otel/sdk/export/metric"
 	controller "go.opentelemetry.io/otel/sdk/metric/controller/basic"
 	processor "go.opentelemetry.io/otel/sdk/metric/processor/basic"
 	"go.opentelemetry.io/otel/sdk/metric/selector/simple"
@@ -80,7 +79,7 @@ type my_exporter interface {
 }
 
 // Init - creates opentelemetry tracer and meter providers
-func Init(ctx context.Context, spanExporter sdktrace.SpanExporter, metricExporter metric.Exporter, service string) io.Closer {
+func Init(ctx context.Context, spanExporter sdktrace.SpanExporter, metricExporter *otlpmetric.Exporter, service string) io.Closer {
 	o := &opentelemetry{
 		ctx: ctx,
 	}
@@ -126,7 +125,7 @@ func Init(ctx context.Context, spanExporter sdktrace.SpanExporter, metricExporte
 
 	// Create meter provider
 
-	// o.metricExporter = metricExporter
+	o.metricExporter = metricExporter
 
 	metricController := controller.New(
 		processor.NewFactory(
@@ -147,10 +146,7 @@ func Init(ctx context.Context, spanExporter sdktrace.SpanExporter, metricExporte
 	go func() {
 		<-ctx.Done()
 		metricController.Stop(context.Background())
-
-		if exp, ok := metricExporter.(my_exporter); ok {
-			exp.Shutdown(context.Background())
-		}
+		metricExporter.Shutdown(context.Background())
 	}()
 
 	return o

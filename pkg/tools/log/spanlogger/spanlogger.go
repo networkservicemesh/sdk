@@ -129,10 +129,8 @@ func (s *spanLogger) logf(level, format string, v ...interface{}) {
 // FromContext - creates a new spanLogger from context and operation
 func FromContext(ctx context.Context, operation string) (context.Context, log.Logger, Span, func()) {
 	var span Span
-	if log.IsOpentracingEnabled() {
-		ctx, span = newOTSpan(ctx, operation, log.Fields(ctx))
-	} else if log.IsOpentelemetryEnabled() {
-		ctx, span = newOTELSpan(ctx, operation, log.Fields(ctx))
+	if log.IsOpentelemetryEnabled() {
+		ctx, span = newOTELSpan(ctx, operation, make(map[string]interface{}))
 	}
 	newLog := &spanLogger{
 		span: span,

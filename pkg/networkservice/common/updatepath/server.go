@@ -23,12 +23,7 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
-<<<<<<< HEAD
-
-=======
->>>>>>> Update protobuf to v1.26.0 needed for opentelemetry
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
@@ -56,22 +51,6 @@ func (i *updatePathServer) Request(ctx context.Context, request *networkservice.
 		return nil, err
 	}
 
-<<<<<<< HEAD
-=======
-	if prev := request.GetConnection().GetPrevPathSegment(); prev != nil {
-		var tok string
-		var expireTime time.Time
-		tok, expireTime, err = token.FromContext(ctx)
-
-		if err != nil {
-			log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", err)
-		} else {
-			prev.Expires = timestamppb.New(expireTime.Local())
-			prev.Token = tok
-		}
-	}
-
->>>>>>> Update protobuf to v1.26.0 needed for opentelemetry
 	conn, err = next.Server(ctx).Request(ctx, request)
 	if err != nil {
 		return nil, err

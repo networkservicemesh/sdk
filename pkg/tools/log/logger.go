@@ -19,19 +19,13 @@ package log
 
 import (
 	"context"
-<<<<<<< HEAD
-	"sync/atomic"
-=======
 	"os"
->>>>>>> Add opentelemetry support
+	"sync/atomic"
 )
 
 type contextKeyType string
 
 const (
-<<<<<<< HEAD
-	logKey contextKeyType = "Logger"
-=======
 	logKey       contextKeyType = "Logger"
 	logFieldsKey contextKeyType = "LoggerFields"
 
@@ -41,7 +35,6 @@ const (
 
 	// Opentracing enabled by default
 	telemetryDefault = telemetryOTel
->>>>>>> Add opentelemetry support
 )
 
 // IsOpentracingEnabled returns true if opentracing enabled

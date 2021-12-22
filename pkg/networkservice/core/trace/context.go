@@ -57,7 +57,7 @@ func withLog(parent context.Context, operation, connectionID string) (c context.
 	if grpcTraceState := grpcutils.TraceFromContext(parent); (grpcTraceState == grpcutils.TraceOn) ||
 		(grpcTraceState == grpcutils.TraceUndefined && log.IsTracingEnabled()) {
 		ctx, sLogger, span, sFinish := spanlogger.FromContext(parent, operation)
-		ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation, map[string]interface{}{"type": loggedType, "id": connectionID})
+		ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation)
 		return withTrace(log.WithLog(ctx, sLogger, lLogger)), func() {
 			sFinish()
 			lFinish()
