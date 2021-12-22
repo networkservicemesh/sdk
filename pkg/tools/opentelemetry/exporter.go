@@ -21,14 +21,16 @@ import (
 	"context"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
 )
 
-// InitExporter - returns an instance of OpenTelemetry Exporter.
-func InitExporter(ctx context.Context, exporterURL string) trace.SpanExporter {
+// InitSpanExporter - returns an instance of OpenTelemetry Exporter.
+func InitSpanExporter(ctx context.Context, exporterURL string) trace.SpanExporter {
 	if !log.IsOpentelemetryEnabled() {
 		return nil
 	}
@@ -41,6 +43,24 @@ func InitExporter(ctx context.Context, exporterURL string) trace.SpanExporter {
 
 	if err != nil {
 		log.FromContext(ctx).Fatal(err)
+		return nil
+	}
+
+	return exporter
+}
+
+func InitMetricExporter(ctx context.Context, exporterURL string) *otlpmetric.Exporter {
+	if !log.IsOpentelemetryEnabled() {
+		return nil
+	}
+
+	client := otlpmetricgrpc.NewClient(
+		otlpmetricgrpc.WithInsecure(),
+		otlpmetricgrpc.WithEndpoint(exporterURL),
+	)
+	exporter, err := otlpmetric.New(ctx, client)
+	if err != nil {
+		log.FromContext(ctx).Errorf("%v", err)
 		return nil
 	}
 
