@@ -79,7 +79,7 @@ func Test_DNSUsecase(t *testing.T) {
 			DnsServerIps:  []string{"8.8.4.4"},
 			SearchDomains: []string{"my.domain1"},
 		},
-	))
+	), opentelemetry.NewServer())
 
 	corefilePath := filepath.Join(t.TempDir(), "corefile")
 	resolveConfigPath := filepath.Join(t.TempDir(), "resolv.conf")
