@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,7 +18,6 @@ package count
 
 import (
 	"context"
-	"sync"
 	"sync/atomic"
 
 	"google.golang.org/grpc"
@@ -29,66 +28,59 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
-// NSClient is a client type for counting Register / Unregister / Find
-type NSClient struct {
-	totalRegisterCalls, totalUnregisterCalls, totalFindCalls int32
-	registers, unregisters, finds                            map[string]int32
-	mu                                                       sync.Mutex
+// countNSClient is a client type for counting Register / Unregister / Find
+type countNSClient struct {
+	totalRegisterCalls, totalUnregisterCalls, totalFindCalls *int32
 }
 
 // Register - increments registration call count
-func (c *NSClient) Register(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	atomic.AddInt32(&c.totalRegisterCalls, 1)
-	if c.registers == nil {
-		c.registers = make(map[string]int32)
-	}
-	c.registers[in.GetName()]++
-
+func (c *countNSClient) Register(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
+	atomic.AddInt32(c.totalRegisterCalls, 1)
 	return next.NetworkServiceRegistryClient(ctx).Register(ctx, in, opts...)
 }
 
 // Unregister - increments un-registration call count
-func (c *NSClient) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	atomic.AddInt32(&c.totalUnregisterCalls, 1)
-	if c.unregisters == nil {
-		c.unregisters = make(map[string]int32)
-	}
-	c.unregisters[in.GetName()]++
-
+func (c *countNSClient) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	atomic.AddInt32(c.totalUnregisterCalls, 1)
 	return next.NetworkServiceRegistryClient(ctx).Unregister(ctx, in, opts...)
 }
 
 // Find - increments find call count
-func (c *NSClient) Find(ctx context.Context, query *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	atomic.AddInt32(&c.totalFindCalls, 1)
-	if c.unregisters == nil {
-		c.unregisters = make(map[string]int32)
-	}
-	c.unregisters[query.String()]++
-
+func (c *countNSClient) Find(ctx context.Context, query *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
+	atomic.AddInt32(c.totalFindCalls, 1)
 	return next.NetworkServiceRegistryClient(ctx).Find(ctx, query, opts...)
 }
 
 // Registers returns Register call count
-func (c *NSClient) Registers() int {
-	return int(atomic.LoadInt32(&c.totalRegisterCalls))
+func (c *countNSClient) Registers() int {
+	return int(atomic.LoadInt32(c.totalRegisterCalls))
 }
 
 // Unregisters returns Unregister count
-func (c *NSClient) Unregisters() int {
-	return int(atomic.LoadInt32(&c.totalUnregisterCalls))
+func (c *countNSClient) Unregisters() int {
+	return int(atomic.LoadInt32(c.totalUnregisterCalls))
 }
 
 // Finds returns Find count
-func (c *NSClient) Finds() int {
-	return int(atomic.LoadInt32(&c.totalFindCalls))
+func (c *countNSClient) Finds() int {
+	return int(atomic.LoadInt32(c.totalFindCalls))
+}
+
+// NewNetworkServiceRegistryClient - creates a new chain element counting Register / Unregister / Find calls
+func NewNetworkServiceRegistryClient(opts ...Option) registry.NetworkServiceRegistryClient {
+	clientOpts := &options{
+		totalRegisterCalls:   new(int32),
+		totalUnregisterCalls: new(int32),
+		totalFindCalls:       new(int32),
+	}
+
+	for _, opt := range opts {
+		opt(clientOpts)
+	}
+
+	return &countNSClient{
+		totalRegisterCalls:   clientOpts.totalRegisterCalls,
+		totalUnregisterCalls: clientOpts.totalUnregisterCalls,
+		totalFindCalls:       clientOpts.totalFindCalls,
+	}
 }

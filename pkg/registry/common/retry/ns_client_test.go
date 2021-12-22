@@ -36,7 +36,8 @@ import (
 func TestNSRetryClient_Register(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	var counter = new(count.NSClient)
+	var totalRegisterCalls = new(int32)
+	var counter = count.NewNetworkServiceRegistryClient(count.WithTotalRegisterCalls(totalRegisterCalls))
 
 	var client = chain.NewNetworkServiceRegistryClient(
 		retry.NewNetworkServiceRegistryClient(
@@ -48,7 +49,7 @@ func TestNSRetryClient_Register(t *testing.T) {
 
 	var _, err = client.Register(context.Background(), nil)
 	require.NoError(t, err)
-	require.Equal(t, 6, counter.Registers())
+	require.Equal(t, int32(6), *totalRegisterCalls)
 }
 
 func TestNSRetryClient_Register_ContextHasCorrectDeadline(t *testing.T) {
@@ -104,7 +105,8 @@ func TestNSRetryClient_Unregister_ContextHasCorrectDeadline(t *testing.T) {
 func TestNSRetryClient_Unregister(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	var counter = new(count.NSClient)
+	var totalUnregisterCalls = new(int32)
+	var counter = count.NewNetworkServiceRegistryClient(count.WithTotalUnregisterCalls(totalUnregisterCalls))
 
 	var client = chain.NewNetworkServiceRegistryClient(
 		retry.NewNetworkServiceRegistryClient(
@@ -116,13 +118,14 @@ func TestNSRetryClient_Unregister(t *testing.T) {
 
 	var _, err = client.Unregister(context.Background(), nil)
 	require.NoError(t, err)
-	require.Equal(t, 6, counter.Unregisters())
+	require.Equal(t, int32(6), *totalUnregisterCalls)
 }
 
 func TestNSRetryClient_Find(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	var counter = new(count.NSClient)
+	var totalFindCalls = new(int32)
+	var counter = count.NewNetworkServiceRegistryClient(count.WithTotalFindCalls(totalFindCalls))
 
 	var client = chain.NewNetworkServiceRegistryClient(
 		retry.NewNetworkServiceRegistryClient(
@@ -134,13 +137,15 @@ func TestNSRetryClient_Find(t *testing.T) {
 
 	var _, err = client.Find(context.Background(), nil)
 	require.NoError(t, err)
-	require.Equal(t, 6, counter.Finds())
+	require.Equal(t, int32(6), *totalFindCalls)
 }
 
 func TestNSRetryClient_RegisterCompletesOnParentContextTimeout(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	var counter = new(count.NSClient)
+	var totalRegisterCalls = new(int32)
+	var counter = count.NewNetworkServiceRegistryClient(count.WithTotalRegisterCalls(totalRegisterCalls))
+
 	var client = chain.NewNetworkServiceRegistryClient(
 		retry.NewNetworkServiceRegistryClient(
 			retry.WithInterval(time.Millisecond*10),
@@ -154,13 +159,15 @@ func TestNSRetryClient_RegisterCompletesOnParentContextTimeout(t *testing.T) {
 
 	var _, err = client.Register(ctx, nil)
 	require.Error(t, err)
-	require.Greater(t, counter.Registers(), 0)
+	require.Greater(t, *totalRegisterCalls, int32(0))
 }
 
 func TestNSRetryClient_UnregisterCompletesOnParentContextTimeout(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	var counter = new(count.NSClient)
+	var totalUnregisterCalls = new(int32)
+	var counter = count.NewNetworkServiceRegistryClient(count.WithTotalUnregisterCalls(totalUnregisterCalls))
+
 	var client = chain.NewNetworkServiceRegistryClient(
 		retry.NewNetworkServiceRegistryClient(
 			retry.WithInterval(time.Millisecond*10),
@@ -174,13 +181,15 @@ func TestNSRetryClient_UnregisterCompletesOnParentContextTimeout(t *testing.T) {
 
 	var _, err = client.Unregister(ctx, nil)
 	require.Error(t, err)
-	require.Greater(t, counter.Unregisters(), 0)
+	require.Greater(t, *totalUnregisterCalls, int32(0))
 }
 
 func TestNSRetryClient_FindCompletesOnParentContextTimeout(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	var counter = new(count.NSClient)
+	var totalFindCalls = new(int32)
+	var counter = count.NewNetworkServiceRegistryClient(count.WithTotalFindCalls(totalFindCalls))
+
 	var client = chain.NewNetworkServiceRegistryClient(
 		retry.NewNetworkServiceRegistryClient(
 			retry.WithInterval(time.Millisecond*10),
@@ -194,5 +203,5 @@ func TestNSRetryClient_FindCompletesOnParentContextTimeout(t *testing.T) {
 
 	var _, err = client.Find(ctx, nil)
 	require.Error(t, err)
-	require.Greater(t, counter.Finds(), 0)
+	require.Greater(t, *totalFindCalls, int32(0))
 }

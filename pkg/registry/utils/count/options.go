@@ -14,28 +14,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package retry
-
-import "time"
+package count
 
 type options struct {
-	interval   time.Duration
-	tryTimeout time.Duration
+	totalRegisterCalls, totalUnregisterCalls, totalFindCalls *int32
 }
 
-// Option is NS/NSE retry client config option
+// Option is an option pattern for NewNetworkServiceRegistryClient, NewNetworkServiceEndpointRegistryClient
 type Option func(*options)
 
-// WithTryTimeout sets timeout for the register/unregister/find operations
-func WithTryTimeout(tryTimeout time.Duration) Option {
+// WithTotalRegisterCalls sets pointer to number of Register calls
+func WithTotalRegisterCalls(registerCount *int32) func(*options) {
 	return func(o *options) {
-		o.tryTimeout = tryTimeout
+		o.totalRegisterCalls = registerCount
 	}
 }
 
-// WithInterval sets delay interval before next try
-func WithInterval(interval time.Duration) Option {
+// WithTotalUnregisterCalls sets pointer to number of Unregister calls
+func WithTotalUnregisterCalls(unregisterCount *int32) func(*options) {
 	return func(o *options) {
-		o.interval = interval
+		o.totalUnregisterCalls = unregisterCount
+	}
+}
+
+// WithTotalFindCalls sets pointer to number of Find calls
+func WithTotalFindCalls(findCalls *int32) func(*options) {
+	return func(o *options) {
+		o.totalFindCalls = findCalls
 	}
 }

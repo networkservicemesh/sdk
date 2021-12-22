@@ -36,24 +36,19 @@ type retryNSEClient struct {
 
 // NewNetworkServiceEndpointRegistryClient - returns a retry chain element
 func NewNetworkServiceEndpointRegistryClient(opts ...Option) registry.NetworkServiceEndpointRegistryClient {
-	client := &retryNSEClient{
+	clientOpts := &options{
 		interval:   time.Millisecond * 200,
 		tryTimeout: time.Second * 15,
 	}
 
 	for _, opt := range opts {
-		opt.apply(client)
+		opt(clientOpts)
 	}
 
-	return client
-}
-
-func (r *retryNSEClient) setInterval(interval time.Duration) {
-	r.interval = interval
-}
-
-func (r *retryNSEClient) setTryTimeout(tryTimeout time.Duration) {
-	r.tryTimeout = tryTimeout
+	return &retryNSEClient{
+		interval:   clientOpts.interval,
+		tryTimeout: clientOpts.tryTimeout,
+	}
 }
 
 func (r *retryNSEClient) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {

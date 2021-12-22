@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,7 +18,6 @@ package count
 
 import (
 	"context"
-	"sync"
 	"sync/atomic"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -29,66 +28,59 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
-// NSEClient is a client type for counting Register / Unregister / Find
-type NSEClient struct {
-	totalRegisterCalls, totalUnregisterCalls, totalFindCalls int32
-	registers, unregisters, finds                            map[string]int32
-	mu                                                       sync.Mutex
+// countNSEClient is a client type for counting Register / Unregister / Find
+type countNSEClient struct {
+	totalRegisterCalls, totalUnregisterCalls, totalFindCalls *int32
 }
 
 // Register - increments registration call count
-func (c *NSEClient) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	atomic.AddInt32(&c.totalRegisterCalls, 1)
-	if c.registers == nil {
-		c.registers = make(map[string]int32)
-	}
-	c.registers[nse.GetName()]++
-
+func (c *countNSEClient) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+	atomic.AddInt32(c.totalRegisterCalls, 1)
 	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, nse, opts...)
 }
 
 // Unregister - increments un-registration call count
-func (c *NSEClient) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	atomic.AddInt32(&c.totalUnregisterCalls, 1)
-	if c.unregisters == nil {
-		c.unregisters = make(map[string]int32)
-	}
-	c.unregisters[nse.GetName()]++
-
+func (c *countNSEClient) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
+	atomic.AddInt32(c.totalUnregisterCalls, 1)
 	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, nse, opts...)
 }
 
 // Find - increments find call count
-func (c *NSEClient) Find(ctx context.Context, query *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	atomic.AddInt32(&c.totalFindCalls, 1)
-	if c.unregisters == nil {
-		c.unregisters = make(map[string]int32)
-	}
-	c.unregisters[query.String()]++
-
+func (c *countNSEClient) Find(ctx context.Context, query *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
+	atomic.AddInt32(c.totalFindCalls, 1)
 	return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, query, opts...)
 }
 
 // Registers returns Register call count
-func (c *NSEClient) Registers() int {
-	return int(atomic.LoadInt32(&c.totalRegisterCalls))
+func (c *countNSEClient) Registers() int {
+	return int(atomic.LoadInt32(c.totalRegisterCalls))
 }
 
 // Unregisters returns Unregister count
-func (c *NSEClient) Unregisters() int {
-	return int(atomic.LoadInt32(&c.totalUnregisterCalls))
+func (c *countNSEClient) Unregisters() int {
+	return int(atomic.LoadInt32(c.totalUnregisterCalls))
 }
 
 // Finds returns Find count
-func (c *NSEClient) Finds() int {
-	return int(atomic.LoadInt32(&c.totalFindCalls))
+func (c *countNSEClient) Finds() int {
+	return int(atomic.LoadInt32(c.totalFindCalls))
+}
+
+// NewNetworkServiceEndpointRegistryClient - creates a new chain element counting Register / Unregister / Find calls
+func NewNetworkServiceEndpointRegistryClient(opts ...Option) registry.NetworkServiceEndpointRegistryClient {
+	clientOpts := &options{
+		totalRegisterCalls:   new(int32),
+		totalUnregisterCalls: new(int32),
+		totalFindCalls:       new(int32),
+	}
+
+	for _, opt := range opts {
+		opt(clientOpts)
+	}
+
+	return &countNSEClient{
+		totalRegisterCalls:   clientOpts.totalRegisterCalls,
+		totalUnregisterCalls: clientOpts.totalUnregisterCalls,
+		totalFindCalls:       clientOpts.totalFindCalls,
+	}
 }
