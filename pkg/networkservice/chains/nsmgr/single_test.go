@@ -53,8 +53,9 @@ func Test_DNSUsecase(t *testing.T) {
 	os.Setenv("TELEMETRY", "opentelemetry")
 	// exporter := jaeger.InitExporter(ctx, "http://localhost:14268/api/traces")
 	// exporter := zipkin.InitExporter(ctx, "http://localhost:9411/api/v2/spans")
-	exporter := opentelemetry.InitExporter(ctx, "0.0.0.0:4317")
-	opentelemetry.Init(ctx, exporter, "NSM")
+	spanExporter := opentelemetry.InitSpanExporter(ctx, "0.0.0.0:4317")
+	metricExporter := opentelemetry.InitMetricExporter(ctx, "0.0.0.0:4317")
+	opentelemetry.Init(ctx, spanExporter, metricExporter, "NSM")
 
 	domain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
