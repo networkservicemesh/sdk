@@ -20,14 +20,17 @@ package excludedprefixes_test
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -128,6 +131,63 @@ func TestUniqueRequestPrefixes(t *testing.T) {
 	}
 
 	_, err := server.Request(context.Background(), req)
+	require.NoError(t, err)
+}
+
+func TestFilePrefixesChanged(t *testing.T) {
+	filePrefixes := []string{"172.16.1.0/24", "10.32.0.0/12", "10.96.0.0/12", "10.20.128.0/17"}
+	reqPrefixes := []string{"100.1.1.0/13", "10.32.0.0/12", "10.96.0.0/12"}
+	diffPrefxies := []string{"100.1.1.0/13", "10.32.0.0/12", "10.96.0.0/12", "10.20.128.0/17", "172.16.1.0/24"}
+	newFilePrefixes := []string{"172.16.2.0/24"}
+
+	dir := filepath.Join(os.TempDir(), t.Name())
+	defer func() { _ = os.RemoveAll(dir) }()
+	require.NoError(t, os.MkdirAll(dir, os.ModePerm))
+
+	testConfig := strings.Join(append([]string{"prefixes:"}, filePrefixes...), "\n- ")
+	configPath := filepath.Join(dir, defaultPrefixesFileName)
+	require.NoError(t, ioutil.WriteFile(configPath, []byte(testConfig), os.ModePerm))
+	defer func() { _ = os.Remove(configPath) }()
+
+	var prefixesAfterServer []string
+	isFirst := true
+	server := chain.NewNetworkServiceServer(
+		excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)),
+		checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
+			if isFirst {
+				require.ElementsMatch(t, diffPrefxies, request.Connection.Context.IpContext.ExcludedPrefixes)
+				isFirst = false
+			}
+
+			prefixesAfterServer = request.Connection.Context.IpContext.ExcludedPrefixes
+		}),
+	)
+
+	req := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: "1",
+			Context: &networkservice.ConnectionContext{
+				IpContext: &networkservice.IPContext{
+					ExcludedPrefixes: reqPrefixes,
+				},
+			},
+		},
+	}
+
+	_, err := server.Request(context.Background(), req)
+
+	require.NoError(t, ioutil.WriteFile(configPath, []byte(strings.Join(append([]string{"prefixes:"}, newFilePrefixes...), "\n- ")), os.ModePerm))
+
+	require.Eventually(t, func() bool {
+		_, err = server.Request(context.Background(), req)
+		fmt.Printf("%v\n", prefixesAfterServer)
+		return cmp.Equal(prefixesAfterServer, append(diffPrefxies, newFilePrefixes...), cmp.Transformer("Sort", func(in []string) []string {
+			out := append([]string(nil), in...)
+			sort.Strings(out)
+			return out
+		}))
+	}, time.Second, time.Millisecond*100)
+
 	require.NoError(t, err)
 }
 

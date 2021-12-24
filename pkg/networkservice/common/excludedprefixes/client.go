@@ -112,6 +112,8 @@ func (epc *excludedPrefixesClient) Request(ctx context.Context, request *network
 		logger.Debugf("Added excluded prefixes: %+v", epc.excludedPrefixes)
 	})
 
+	ipCtx.ExcludedPrefixes = oldExcludedPrefixes
+
 	return resp, err
 }
 
