@@ -25,10 +25,12 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -179,7 +181,11 @@ func TestFilePrefixesChanged(t *testing.T) {
 	require.Eventually(t, func() bool {
 		_, err = server.Request(context.Background(), req)
 		fmt.Printf("%v\n", prefixesAfterServer)
-		return excludedprefixes.IsEqual(prefixesAfterServer, append(diffPrefxies, newFilePrefixes...))
+		return cmp.Equal(prefixesAfterServer, append(diffPrefxies, newFilePrefixes...), cmp.Transformer("Sort", func(in []string) []string {
+			out := append([]string(nil), in...)
+			sort.Strings(out)
+			return out
+		}))
 	}, time.Second, time.Millisecond*100)
 
 	require.NoError(t, err)

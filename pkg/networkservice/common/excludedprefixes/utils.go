@@ -18,11 +18,6 @@
 
 package excludedprefixes
 
-import (
-	"reflect"
-	"sort"
-)
-
 func removeDuplicates(elements []string) []string {
 	encountered := map[string]bool{}
 	var result []string
@@ -54,18 +49,4 @@ func exclude(source, exclude []string) []string {
 	}
 
 	return source
-}
-
-// IsEqual check if two slices contains equal strings, no matter the order
-func IsEqual(s1, s2 []string) bool {
-	s1copy := make([]string, len(s1))
-	s2copy := make([]string, len(s2))
-
-	copy(s1copy, s1)
-	copy(s2copy, s2)
-
-	sort.Strings(s1copy)
-	sort.Strings(s2copy)
-
-	return reflect.DeepEqual(s1copy, s2copy)
 }
