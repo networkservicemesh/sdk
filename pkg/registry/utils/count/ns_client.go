@@ -30,57 +30,30 @@ import (
 
 // countNSClient is a client type for counting Register / Unregister / Find
 type countNSClient struct {
-	totalRegisterCalls, totalUnregisterCalls, totalFindCalls *int32
+	counter *CallCounter
 }
 
 // Register - increments registration call count
 func (c *countNSClient) Register(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
-	atomic.AddInt32(c.totalRegisterCalls, 1)
+	atomic.AddInt32(&c.counter.totalRegisterCalls, 1)
 	return next.NetworkServiceRegistryClient(ctx).Register(ctx, in, opts...)
 }
 
 // Unregister - increments un-registration call count
 func (c *countNSClient) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	atomic.AddInt32(c.totalUnregisterCalls, 1)
+	atomic.AddInt32(&c.counter.totalUnregisterCalls, 1)
 	return next.NetworkServiceRegistryClient(ctx).Unregister(ctx, in, opts...)
 }
 
 // Find - increments find call count
 func (c *countNSClient) Find(ctx context.Context, query *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
-	atomic.AddInt32(c.totalFindCalls, 1)
+	atomic.AddInt32(&c.counter.totalFindCalls, 1)
 	return next.NetworkServiceRegistryClient(ctx).Find(ctx, query, opts...)
 }
 
-// Registers returns Register call count
-func (c *countNSClient) Registers() int {
-	return int(atomic.LoadInt32(c.totalRegisterCalls))
-}
-
-// Unregisters returns Unregister count
-func (c *countNSClient) Unregisters() int {
-	return int(atomic.LoadInt32(c.totalUnregisterCalls))
-}
-
-// Finds returns Find count
-func (c *countNSClient) Finds() int {
-	return int(atomic.LoadInt32(c.totalFindCalls))
-}
-
 // NewNetworkServiceRegistryClient - creates a new chain element counting Register / Unregister / Find calls
-func NewNetworkServiceRegistryClient(opts ...Option) registry.NetworkServiceRegistryClient {
-	clientOpts := &options{
-		totalRegisterCalls:   new(int32),
-		totalUnregisterCalls: new(int32),
-		totalFindCalls:       new(int32),
-	}
-
-	for _, opt := range opts {
-		opt(clientOpts)
-	}
-
+func NewNetworkServiceRegistryClient(counter *CallCounter) registry.NetworkServiceRegistryClient {
 	return &countNSClient{
-		totalRegisterCalls:   clientOpts.totalRegisterCalls,
-		totalUnregisterCalls: clientOpts.totalUnregisterCalls,
-		totalFindCalls:       clientOpts.totalFindCalls,
+		counter: counter,
 	}
 }
