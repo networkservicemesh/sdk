@@ -24,6 +24,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/heal"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/retry"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 )
 
@@ -36,6 +37,7 @@ func NewNetworkServiceRegistryClient(ctx context.Context, connectTo *url.URL, op
 
 	c := new(registry.NetworkServiceRegistryClient)
 	*c = chain.NewNetworkServiceRegistryClient(
+		retry.NewNetworkServiceRegistryClient(),
 		connect.NewNetworkServiceRegistryClient(ctx, connectTo,
 			connect.WithNSAdditionalFunctionality(
 				append(
