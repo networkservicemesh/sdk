@@ -20,13 +20,14 @@ package opentelemetry
 import (
 	"context"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 // InitSpanExporter - returns an instance of OpenTelemetry Span Exporter.

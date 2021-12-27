@@ -22,9 +22,10 @@ package jaeger
 import (
 	"context"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"go.opentelemetry.io/otel/exporters/jaeger"
 	"go.opentelemetry.io/otel/sdk/trace"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 // InitExporter -  returns an instance of Jaeger Exporter.
