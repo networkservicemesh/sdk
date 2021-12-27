@@ -47,7 +47,7 @@ func NewNetworkServiceClient(traced networkservice.NetworkServiceClient) network
 func (t *beginTraceClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	// Create a new logger
 	operation := typeutils.GetFuncName(t.traced, "Request")
-	ctx, finish := withLog(ctx, operation, request.GetConnection().GetId())
+	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
 	logRequest(ctx, request, "request")
@@ -63,7 +63,7 @@ func (t *beginTraceClient) Request(ctx context.Context, request *networkservice.
 func (t *beginTraceClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	// Create a new logger
 	operation := typeutils.GetFuncName(t.traced, "Close")
-	ctx, finish := withLog(ctx, operation, conn.GetId())
+	ctx, finish := withLog(ctx, operation)
 	defer finish()
 
 	logRequest(ctx, conn, "close")
