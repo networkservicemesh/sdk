@@ -46,7 +46,7 @@ type traceInfo struct {
 }
 
 // withLog - provides corresponding logger in context
-func withLog(parent context.Context, operation, connectionID string) (c context.Context, f func()) {
+func withLog(parent context.Context, operation) (c context.Context, f func()) {
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}

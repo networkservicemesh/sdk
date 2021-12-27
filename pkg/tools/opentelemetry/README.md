@@ -29,7 +29,8 @@ log.EnableTracing(true)
 os.Setenv("TELEMETRY", "opentelemetry")
 spanExporter := opentelemetry.InitSpanExporter(ctx, "0.0.0.0:4317")
 metricExporter := opentelemetry.InitMetricExporter(ctx, "0.0.0.0:4317")
-opentelemetry.Init(ctx, spanExporter, metricExporter, "NSM")
+o := opentelemetry.Init(ctx, spanExporter, metricExporter, "NSM")
+defer o.Close()
 ```
 
 Metrics are disabled in tests by default. You can create simple metrics chain element to test them:

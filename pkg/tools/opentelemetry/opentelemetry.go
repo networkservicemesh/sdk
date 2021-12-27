@@ -66,16 +66,12 @@ func (o *opentelemetry) Close() error {
 			log.FromContext(o.ctx).Errorf("failed to shutdown controller: %v", err)
 		}
 	}
-	// if o.metricExporter != nil {
-	// 	if err := o.metricExporter.Shutdown(o.ctx); err != nil {
-	// 		log.FromContext(o.ctx).Errorf("failed to stop exporter: %v", err)
-	// 	}
-	// }
+	if o.metricExporter != nil {
+		if err := o.metricExporter.Shutdown(o.ctx); err != nil {
+			log.FromContext(o.ctx).Errorf("failed to stop exporter: %v", err)
+		}
+	}
 	return nil
-}
-
-type my_exporter interface {
-	Shutdown(context context.Context)
 }
 
 // Init - creates opentelemetry tracer and meter providers
@@ -86,13 +82,6 @@ func Init(ctx context.Context, spanExporter sdktrace.SpanExporter, metricExporte
 	if !log.IsOpentelemetryEnabled() {
 		return o
 	}
-
-	// Check the opentlemetry collector address
-	// if collectorAddr == "" {
-	// 	collectorAddr = defaultAddr + ":" + defaultPort
-	// } else if len(strings.Split(collectorAddr, ":")) == 1 {
-	// 	collectorAddr += ":" + defaultPort
-	// }
 
 	// Create resourse
 	res, err := resource.New(ctx,
@@ -114,11 +103,6 @@ func Init(ctx context.Context, spanExporter sdktrace.SpanExporter, metricExporte
 		sdktrace.WithResource(res),
 		sdktrace.WithSpanProcessor(bsp),
 	)
-	go func() {
-		<-ctx.Done()
-		tracerProvider.ForceFlush(context.Background())
-		tracerProvider.Shutdown(context.Background())
-	}()
 
 	otel.SetTracerProvider(tracerProvider)
 	o.tracerProvider = tracerProvider
@@ -142,12 +126,6 @@ func Init(ctx context.Context, spanExporter sdktrace.SpanExporter, metricExporte
 	}
 	global.SetMeterProvider(metricController)
 	o.metricController = metricController
-
-	go func() {
-		<-ctx.Done()
-		metricController.Stop(context.Background())
-		metricExporter.Shutdown(context.Background())
-	}()
 
 	return o
 }
