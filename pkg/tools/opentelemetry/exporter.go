@@ -29,7 +29,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-// InitSpanExporter - returns an instance of OpenTelemetry Exporter.
+// InitSpanExporter - returns an instance of OpenTelemetry Span Exporter.
 func InitSpanExporter(ctx context.Context, exporterURL string) trace.SpanExporter {
 	if !log.IsOpentelemetryEnabled() {
 		return nil
@@ -49,6 +49,7 @@ func InitSpanExporter(ctx context.Context, exporterURL string) trace.SpanExporte
 	return exporter
 }
 
+// InitMetricExporter - returns an instance of OpenTelemetry Metric Exporter.
 func InitMetricExporter(ctx context.Context, exporterURL string) *otlpmetric.Exporter {
 	if !log.IsOpentelemetryEnabled() {
 		return nil

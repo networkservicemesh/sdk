@@ -25,7 +25,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric"
 	"go.opentelemetry.io/otel/metric/global"
-	"go.opentelemetry.io/otel/sdk/export/metric"
 	controller "go.opentelemetry.io/otel/sdk/metric/controller/basic"
 	processor "go.opentelemetry.io/otel/sdk/metric/processor/basic"
 	"go.opentelemetry.io/otel/sdk/metric/selector/simple"
@@ -39,10 +38,6 @@ import (
 const (
 	// InstrumentationName - denotes the library that provides the instrumentation
 	InstrumentationName = "NSM"
-
-	// defaults denotes default collector address
-	defaultAddr = "localhost"
-	defaultPort = "4317"
 )
 
 type opentelemetry struct {
@@ -67,20 +62,16 @@ func (o *opentelemetry) Close() error {
 			log.FromContext(o.ctx).Errorf("failed to shutdown controller: %v", err)
 		}
 	}
-	// if o.metricExporter != nil {
-	// 	if err := o.metricExporter.Shutdown(o.ctx); err != nil {
-	// 		log.FromContext(o.ctx).Errorf("failed to stop exporter: %v", err)
-	// 	}
-	// }
+	if o.metricExporter != nil {
+		if err := o.metricExporter.Shutdown(o.ctx); err != nil {
+			log.FromContext(o.ctx).Errorf("failed to stop exporter: %v", err)
+		}
+	}
 	return nil
 }
 
-type my_exporter interface {
-	Shutdown(context context.Context)
-}
-
 // Init - creates opentelemetry tracer and meter providers
-func Init(ctx context.Context, spanExporter sdktrace.SpanExporter, metricExporter metric.Exporter, service string) io.Closer {
+func Init(ctx context.Context, spanExporter sdktrace.SpanExporter, metricExporter *otlpmetric.Exporter, service string) io.Closer {
 	o := &opentelemetry{
 		ctx: ctx,
 	}
@@ -88,14 +79,7 @@ func Init(ctx context.Context, spanExporter sdktrace.SpanExporter, metricExporte
 		return o
 	}
 
-	// Check the opentlemetry collector address
-	// if collectorAddr == "" {
-	// 	collectorAddr = defaultAddr + ":" + defaultPort
-	// } else if len(strings.Split(collectorAddr, ":")) == 1 {
-	// 	collectorAddr += ":" + defaultPort
-	// }
-
-	// Create resourse
+	// Create resourses
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
 			// the service name used to display traces in backends
@@ -115,18 +99,13 @@ func Init(ctx context.Context, spanExporter sdktrace.SpanExporter, metricExporte
 		sdktrace.WithResource(res),
 		sdktrace.WithSpanProcessor(bsp),
 	)
-	go func() {
-		<-ctx.Done()
-		tracerProvider.ForceFlush(context.Background())
-		tracerProvider.Shutdown(context.Background())
-	}()
 
 	otel.SetTracerProvider(tracerProvider)
 	o.tracerProvider = tracerProvider
 
 	// Create meter provider
 
-	// o.metricExporter = metricExporter
+	o.metricExporter = metricExporter
 
 	metricController := controller.New(
 		processor.NewFactory(
@@ -143,15 +122,6 @@ func Init(ctx context.Context, spanExporter sdktrace.SpanExporter, metricExporte
 	}
 	global.SetMeterProvider(metricController)
 	o.metricController = metricController
-
-	go func() {
-		<-ctx.Done()
-		metricController.Stop(context.Background())
-
-		if exp, ok := metricExporter.(my_exporter); ok {
-			exp.Shutdown(context.Background())
-		}
-	}()
 
 	return o
 }

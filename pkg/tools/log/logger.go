@@ -26,8 +26,7 @@ import (
 type contextKeyType string
 
 const (
-	logKey       contextKeyType = "Logger"
-	logFieldsKey contextKeyType = "LoggerFields"
+	logKey contextKeyType = "Logger"
 
 	telemetryEnv  = "TELEMETRY"
 	telemetryOT   = "opentracing"
