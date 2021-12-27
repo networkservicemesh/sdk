@@ -40,11 +40,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
-<<<<<<< HEAD
-=======
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/metrics"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/roundrobin"
->>>>>>> Add opentelemetry support
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry"
 	registryclientinfo "github.com/networkservicemesh/sdk/pkg/registry/common/clientinfo"
@@ -209,19 +205,10 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			),
 			excludedprefixes.NewServer(ctx),
 			recvfd.NewServer(), // Receive any files passed
-<<<<<<< HEAD
+			metrics.NewServer(),
 			connect.NewServer(
 				client.NewClient(
 					ctx,
-=======
-			metrics.NewServer(),
-			interpose.NewServer(&interposeRegistryServer),
-			filtermechanisms.NewServer(&urlsRegistryServer),
-			heal.NewServer(ctx,
-				heal.WithOnHeal(addressof.NetworkServiceClient(adapters.NewServerToClient(rv)))),
-			connect.NewServer(ctx,
-				client.NewClientFactory(
->>>>>>> Add opentelemetry support
 					client.WithName(opts.name),
 					client.WithAdditionalFunctionality(
 						recvfd.NewClient(),

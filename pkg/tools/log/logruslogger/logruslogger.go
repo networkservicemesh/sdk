@@ -26,7 +26,6 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
-	"github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/metadata"
 
@@ -202,7 +201,7 @@ func New(ctx context.Context, fields ...logrus.Fields) log.Logger {
 
 // FromSpan - creates a new logruslogger from context, operation and span
 // and returns context with it, logger, and a function to defer
-func FromSpan(ctx context.Context, span opentracing.Span, operation string, fields map[string]interface{}) (context.Context, log.Logger, func()) {
+func FromSpan(ctx context.Context, span spanlogger.Span, operation string, fields map[string]interface{}) (context.Context, log.Logger, func()) {
 	entry := logrus.WithFields(fields)
 	entry.Logger.SetFormatter(newFormatter())
 

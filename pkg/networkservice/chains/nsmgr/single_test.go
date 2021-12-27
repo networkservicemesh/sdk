@@ -27,15 +27,12 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
 	"github.com/networkservicemesh/sdk/pkg/tools/clientinfo"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	"github.com/networkservicemesh/sdk/pkg/tools/opentelemetry"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -47,15 +44,6 @@ func Test_DNSUsecase(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
-
-	log.EnableTracing(true)
-	logrus.SetLevel(logrus.TraceLevel)
-	os.Setenv("TELEMETRY", "opentelemetry")
-	// exporter := jaeger.InitExporter(ctx, "http://localhost:14268/api/traces")
-	// exporter := zipkin.InitExporter(ctx, "http://localhost:9411/api/v2/spans")
-	spanExporter := opentelemetry.InitSpanExporter(ctx, "0.0.0.0:4317")
-	metricExporter := opentelemetry.InitMetricExporter(ctx, "0.0.0.0:4317")
-	opentelemetry.Init(ctx, spanExporter, metricExporter, "NSM")
 
 	domain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
@@ -79,7 +67,7 @@ func Test_DNSUsecase(t *testing.T) {
 			DnsServerIps:  []string{"8.8.4.4"},
 			SearchDomains: []string{"my.domain1"},
 		},
-	), opentelemetry.NewServer())
+	))
 
 	corefilePath := filepath.Join(t.TempDir(), "corefile")
 	resolveConfigPath := filepath.Join(t.TempDir(), "resolv.conf")

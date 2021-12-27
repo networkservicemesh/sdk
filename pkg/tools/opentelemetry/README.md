@@ -29,24 +29,22 @@ log.EnableTracing(true)
 os.Setenv("TELEMETRY", "opentelemetry")
 spanExporter := opentelemetry.InitSpanExporter(ctx, "0.0.0.0:4317")
 metricExporter := opentelemetry.InitMetricExporter(ctx, "0.0.0.0:4317")
-opentelemetry.Init(ctx, spanExporter, metricExporter, "NSM")
+o := opentelemetry.Init(ctx, spanExporter, metricExporter, "NSM")
+defer o.Close()
 ```
 
 Metrics are disabled in tests by default. You can create simple metrics chain element to test them:
 ```Go
 type metricsServer struct {
 }
-
 func NewServer() networkservice.NetworkServiceServer {
 	return &metricsServer{}
 }
-
 func (c *metricsServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	request.Connection.GetCurrentPathSegment().Metrics = make(map[string]string)
 	request.Connection.GetCurrentPathSegment().Metrics["my_nsm_metric"] = "10000"
 	return next.Server(ctx).Request(ctx, request)
 }
-
 func (c *metricsServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	return next.Server(ctx).Close(ctx, conn)
 }

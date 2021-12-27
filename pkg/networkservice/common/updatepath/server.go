@@ -21,16 +21,16 @@ package updatepath
 
 import (
 	"context"
+	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
-<<<<<<< HEAD
 
-=======
->>>>>>> Update protobuf to v1.26.0 needed for opentelemetry
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 type updatePathServer struct {
@@ -56,8 +56,6 @@ func (i *updatePathServer) Request(ctx context.Context, request *networkservice.
 		return nil, err
 	}
 
-<<<<<<< HEAD
-=======
 	if prev := request.GetConnection().GetPrevPathSegment(); prev != nil {
 		var tok string
 		var expireTime time.Time
@@ -71,7 +69,6 @@ func (i *updatePathServer) Request(ctx context.Context, request *networkservice.
 		}
 	}
 
->>>>>>> Update protobuf to v1.26.0 needed for opentelemetry
 	conn, err = next.Server(ctx).Request(ctx, request)
 	if err != nil {
 		return nil, err
