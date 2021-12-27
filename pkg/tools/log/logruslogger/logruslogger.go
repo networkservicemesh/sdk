@@ -26,6 +26,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/metadata"
 
@@ -201,14 +202,9 @@ func New(ctx context.Context, fields ...logrus.Fields) log.Logger {
 
 // FromSpan - creates a new logruslogger from context, operation and span
 // and returns context with it, logger, and a function to defer
-<<<<<<< HEAD
 func FromSpan(ctx context.Context, span opentracing.Span, operation string, fields map[string]interface{}) (context.Context, log.Logger, func()) {
 	entry := logrus.WithFields(fields)
 	entry.Logger.SetFormatter(newFormatter())
-=======
-func FromSpan(ctx context.Context, span spanlogger.Span, operation string) (context.Context, log.Logger, func()) {
-	entry := logrus.WithFields(log.Fields(ctx))
->>>>>>> Add opentelemetry support
 
 	var info *traceCtxInfo
 	ctx, info = withTraceInfo(ctx)
