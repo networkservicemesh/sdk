@@ -97,6 +97,7 @@ func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
 				defer cancel()
 				_, _ = f.client.Close(ctx, request.GetConnection(), f.opts...)
 				if request.GetConnection() != nil {
+					request.MechanismPreferences = nil
 					request.GetConnection().Mechanism = nil
 					request.GetConnection().NetworkServiceEndpointName = ""
 				}
