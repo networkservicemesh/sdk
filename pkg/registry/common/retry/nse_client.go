@@ -57,7 +57,7 @@ func (r *retryNSEClient) Register(ctx context.Context, nse *registry.NetworkServ
 
 	for ctx.Err() == nil {
 		registerCtx, cancel := c.WithTimeout(ctx, r.tryTimeout)
-		resp, err := next.NetworkServiceEndpointRegistryClient(registerCtx).Register(registerCtx, nse, opts...)
+		resp, err := next.NetworkServiceEndpointRegistryClient(registerCtx).Register(registerCtx, nse.Clone(), opts...)
 		cancel()
 
 		if err != nil {
@@ -81,8 +81,12 @@ func (r *retryNSEClient) Find(ctx context.Context, query *registry.NetworkServic
 	logger := log.FromContext(ctx).WithField("retryNSEClient", "Find")
 	c := clock.FromContext(ctx)
 
+	cloneQuery := query
+	if query != nil {
+		cloneQuery.NetworkServiceEndpoint = query.NetworkServiceEndpoint.Clone()
+	}
 	for ctx.Err() == nil {
-		stream, err := next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, query, opts...)
+		stream, err := next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, cloneQuery, opts...)
 
 		if err != nil {
 			logger.Errorf("try attempt has failed: %v", err.Error())
@@ -102,7 +106,7 @@ func (r *retryNSEClient) Unregister(ctx context.Context, in *registry.NetworkSer
 
 	for ctx.Err() == nil {
 		closeCtx, cancel := c.WithTimeout(ctx, r.tryTimeout)
-		resp, err := next.NetworkServiceEndpointRegistryClient(closeCtx).Unregister(closeCtx, in, opts...)
+		resp, err := next.NetworkServiceEndpointRegistryClient(closeCtx).Unregister(closeCtx, in.Clone(), opts...)
 		cancel()
 
 		if err != nil {
