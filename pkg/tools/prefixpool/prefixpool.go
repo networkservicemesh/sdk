@@ -390,7 +390,9 @@ func extractPrefix(prefixes []string, prefixLen uint32) (retPrefix string, retLe
 		if prefixLen == uint32(parentLen) {
 			// We found required one.
 			resultPrefix := prefixes[idx]
-			resultPrefixes := append(prefixes[:idx], prefixes[idx+1:]...)
+			resultPrefixes := make([]string, 0, len(prefixes)-1)
+			resultPrefixes = append(resultPrefixes, prefixes[:idx]...)
+			resultPrefixes = append(resultPrefixes, prefixes[idx+1:]...)
 			// Lets remove from list and return
 			return resultPrefix, resultPrefixes, nil
 		} else if uint32(parentLen) < prefixLen && (parentLen > maxPrefix || maxPrefix == 0) {
@@ -450,7 +452,10 @@ func releasePrefixes(prefixes []string, released ...string) (remaining []string,
 		return prefixes, nil
 	}
 
-	allPrefixes := append(prefixes, released...)
+	allPrefixes := make([]string, 0, len(prefixes)+len(released))
+	allPrefixes = append(allPrefixes, prefixes...)
+	allPrefixes = append(allPrefixes, released...)
+
 	subnets, err := getSubnets(allPrefixes)
 	if err != nil {
 		return nil, err
@@ -473,7 +478,10 @@ func releasePrefixes(prefixes []string, released ...string) (remaining []string,
 		for basePrefix, value := range prefixByPrefixLen {
 			base := map[string]*net.IPNet{}
 
-			cvalue := append(newPrefixByPrefixLen[basePrefix], value...)
+			cvalue := make([]*net.IPNet, 0, len(newPrefixByPrefixLen[basePrefix])+len(value))
+			cvalue = append(cvalue, newPrefixByPrefixLen[basePrefix]...)
+			cvalue = append(cvalue, value...)
+
 			parentPrefix := []*net.IPNet{}
 			if len(cvalue) < 2 {
 				newPrefixByPrefixLen[basePrefix] = cvalue
