@@ -19,22 +19,28 @@ package metrics
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/global"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/opentelemetry/meterhelper"
+	"github.com/networkservicemesh/sdk/pkg/tools/opentelemetry"
 )
 
 type metricServer struct {
-	helpers map[string]meterhelper.MeterHelper
+	recorderMap map[string]metric.Int64Histogram
+	meter       metric.Meter
 }
 
 // NewServer returns a new metric server chain element
 func NewServer() networkservice.NetworkServiceServer {
 	return &metricServer{
-		helpers: make(map[string]meterhelper.MeterHelper),
+		recorderMap: make(map[string]metric.Int64Histogram),
+		meter:       global.Meter(opentelemetry.InstrumentationName),
 	}
 }
 
@@ -64,11 +70,21 @@ func (t *metricServer) writeMetrics(ctx context.Context, path *networkservice.Pa
 			if pathSegment.Metrics == nil {
 				continue
 			}
-			_, ok := t.helpers[pathSegment.Id]
-			if !ok {
-				t.helpers[pathSegment.Id] = meterhelper.NewMeterHelper(pathSegment.Name, path.GetPathSegments()[0].Id)
+
+			for metricName, metricValue := range pathSegment.Metrics {
+				/* Works with integers only */
+				recVal, err := strconv.ParseInt(metricValue, 10, 64)
+				if err != nil {
+					continue
+				}
+				_, ok := t.recorderMap[metricName]
+				if !ok {
+					t.recorderMap[metricName] = metric.Must(t.meter).NewInt64Histogram(
+						pathSegment.Name + "_" + metricName,
+					)
+				}
+				t.recorderMap[metricName].Record(ctx, recVal, attribute.String("connection", path.GetPathSegments()[0].Id))
 			}
-			t.helpers[pathSegment.Id].WriteMetrics(ctx, pathSegment.Metrics)
 		}
 	}
 }
