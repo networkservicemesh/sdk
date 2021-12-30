@@ -28,7 +28,6 @@ import (
 	"go.opentelemetry.io/otel/metric/global"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/opentelemetry"
 )
 
 type metricServer struct {
@@ -40,7 +39,7 @@ type metricServer struct {
 func NewServer() networkservice.NetworkServiceServer {
 	return &metricServer{
 		recorderMap: make(map[string]metric.Int64Histogram),
-		meter:       global.Meter(opentelemetry.InstrumentationName),
+		meter:       global.Meter(""),
 	}
 }
 

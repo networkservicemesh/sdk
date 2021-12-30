@@ -35,11 +35,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-const (
-	// InstrumentationName - denotes the library that provides the instrumentation
-	InstrumentationName = "NSM"
-)
-
 type opentelemetry struct {
 	io.Closer
 

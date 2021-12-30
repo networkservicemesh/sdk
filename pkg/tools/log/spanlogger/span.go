@@ -25,8 +25,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	opentelemetry "go.opentelemetry.io/otel/trace"
-
-	opentelemetrynsm "github.com/networkservicemesh/sdk/pkg/tools/opentelemetry"
 )
 
 // Span - unified interface for opentracing/opentelemetry spans
@@ -81,12 +79,13 @@ func newOTSpan(ctx context.Context, operationName string, additionalFields map[s
 
 // Opentelemetry span
 type otelSpan struct {
-	span opentelemetry.Span
+	span          opentelemetry.Span
+	operationName string
 }
 
 func (otelsp *otelSpan) Log(level, format string, v ...interface{}) {
 	otelsp.span.AddEvent(
-		"",
+		otelsp.operationName,
 		opentelemetry.WithAttributes([]attribute.KeyValue{
 			attribute.String("event", level),
 			attribute.String("message", fmt.Sprintf(format, v...)),
@@ -96,7 +95,7 @@ func (otelsp *otelSpan) Log(level, format string, v ...interface{}) {
 
 func (otelsp *otelSpan) LogObject(k, v interface{}) {
 	otelsp.span.AddEvent(
-		"",
+		otelsp.operationName,
 		opentelemetry.WithAttributes([]attribute.KeyValue{
 			attribute.String(fmt.Sprintf("%v", k), fmt.Sprintf("%v", v)),
 		}...),
@@ -126,8 +125,8 @@ func newOTELSpan(ctx context.Context, operationName string, additionalFields map
 		add = append(add, attribute.String(k, fmt.Sprint(v)))
 	}
 
-	ctx, span := otel.Tracer(opentelemetrynsm.InstrumentationName).Start(ctx, operationName)
+	ctx, span := otel.Tracer("").Start(ctx, operationName)
 	span.SetAttributes(add...)
 
-	return ctx, &otelSpan{span: span}
+	return ctx, &otelSpan{span: span, operationName: operationName}
 }
