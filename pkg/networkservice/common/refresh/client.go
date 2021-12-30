@@ -24,7 +24,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -57,7 +59,12 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 	}
 
 	// Compute refreshAfter
-	refreshAfter := after(ctx, conn)
+	refreshAfter, err := after(ctx, conn)
+	if err != nil {
+		// If we can't refresh, we should close down chain
+		_, _ = t.Close(ctx, conn)
+		return nil, err
+	}
 
 	// Create a cancel context.
 	cancelCtx, cancel := context.WithCancel(t.chainCtx)
@@ -98,13 +105,16 @@ func (t *refreshClient) Close(ctx context.Context, conn *networkservice.Connecti
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
-func after(ctx context.Context, conn *networkservice.Connection) time.Duration {
+func after(ctx context.Context, conn *networkservice.Connection) (time.Duration, error) {
 	clockTime := clock.FromContext(ctx)
 
 	var minTimeout *time.Duration
 	var expireTime time.Time
 	for _, segment := range conn.GetPath().GetPathSegments() {
-		expTime := segment.GetExpires().AsTime()
+		expTime, err := ptypes.Timestamp(segment.GetExpires())
+		if err != nil {
+			return 0, errors.WithStack(err)
+		}
 
 		timeout := clockTime.Until(expTime)
 
@@ -123,7 +133,7 @@ func after(ctx context.Context, conn *networkservice.Connection) time.Duration {
 	}
 
 	if minTimeout == nil || *minTimeout <= 0 {
-		return 1
+		return 1, nil
 	}
 
 	// A heuristic to reduce the number of redundant requests in a chain
@@ -137,5 +147,5 @@ func after(ctx context.Context, conn *networkservice.Connection) time.Duration {
 	}
 	duration := time.Duration(float64(*minTimeout) * scale)
 
-	return duration
+	return duration, nil
 }
