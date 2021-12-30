@@ -21,16 +21,12 @@ package updatepath
 
 import (
 	"context"
-	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 type updatePathServer struct {
@@ -54,19 +50,6 @@ func (i *updatePathServer) Request(ctx context.Context, request *networkservice.
 	request.Connection, index, err = updatePath(request.Connection, i.name)
 	if err != nil {
 		return nil, err
-	}
-
-	if prev := request.GetConnection().GetPrevPathSegment(); prev != nil {
-		var tok string
-		var expireTime time.Time
-		tok, expireTime, err = token.FromContext(ctx)
-
-		if err != nil {
-			log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", err)
-		} else {
-			prev.Expires = timestamppb.New(expireTime.Local())
-			prev.Token = tok
-		}
 	}
 
 	conn, err = next.Server(ctx).Request(ctx, request)
