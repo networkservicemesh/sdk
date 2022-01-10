@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"strconv"
 
 	"github.com/pkg/errors"
 
@@ -45,19 +46,19 @@ type Resolver interface {
 	LookupIPAddr(ctx context.Context, host string) ([]net.IPAddr, error)
 }
 
-func parseIPPort(domain string) (ip, port interface{}) {
+func parseIPPort(domain string) (ip net.IP, port string) {
 	u, err := url.Parse(domain)
 	if err != nil {
-		return nil, nil
+		return nil, ""
 	}
 
 	ip = net.ParseIP(u.Hostname())
 	if ip == nil {
-		return nil, nil
+		return nil, ""
 	}
 
 	if port = u.Port(); port == "" {
-		return nil, nil
+		return nil, ""
 	}
 
 	return ip, port
@@ -65,7 +66,7 @@ func parseIPPort(domain string) (ip, port interface{}) {
 
 func resolveDomain(ctx context.Context, service, domain string, r Resolver) (*url.URL, error) {
 	ip, port := parseIPPort(domain)
-	if ip == nil || port == nil {
+	if ip == nil || port == "" {
 		serviceDomain := fmt.Sprintf("%v.%v", service, domain)
 
 		_, records, err := r.LookupSRV(ctx, "", "", serviceDomain)
@@ -75,7 +76,7 @@ func resolveDomain(ctx context.Context, service, domain string, r Resolver) (*ur
 		if len(records) == 0 {
 			return nil, errors.New("resolver.LookupSERV return empty result")
 		}
-		port = records[0].Port
+		port = strconv.Itoa(int(records[0].Port))
 
 		ips, err := r.LookupIPAddr(ctx, serviceDomain)
 		if err != nil {

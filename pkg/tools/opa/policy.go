@@ -59,7 +59,7 @@ func False(query string) CheckAccessFunc {
 	return func(result rego.ResultSet) (bool, error) {
 		b, err := t(result)
 		if err == nil {
-			return !b, err
+			return !b, nil
 		}
 		return b, err
 	}

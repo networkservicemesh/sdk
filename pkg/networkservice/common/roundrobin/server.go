@@ -64,7 +64,7 @@ func (s *selectEndpointServer) Request(ctx context.Context, request *networkserv
 		request.GetConnection().NetworkServiceEndpointName = endpoint.Name
 		resp, err := next.Server(ctx).Request(ctx, request.Clone())
 		if err == nil {
-			return resp, err
+			return resp, nil
 		}
 	}
 	return nil, errors.Errorf("all candidates %#v fail", candidates)
