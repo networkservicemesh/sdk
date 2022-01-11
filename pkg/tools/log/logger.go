@@ -29,19 +29,11 @@ const (
 	logKey contextKeyType = "Logger"
 
 	telemetryEnv  = "TELEMETRY"
-	telemetryOT   = "opentracing"
 	telemetryOTel = "opentelemetry"
 
-	// Opentracing enabled by default
 	telemetryDefault = telemetryOTel
 )
 
-// IsOpentracingEnabled returns true if opentracing enabled
-func IsOpentracingEnabled() bool {
-	return telemetryOT == getTelemetryEnv()
-}
-
-// IsOpentelemetryEnabled returns true if opentelemetry enabled
 func IsOpentelemetryEnabled() bool {
 	return telemetryOTel == getTelemetryEnv()
 }

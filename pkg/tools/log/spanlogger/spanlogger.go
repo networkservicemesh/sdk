@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package spanlogger provides a set of utilities to assist in working with opentracing spans
+// Package spanlogger provides a set of utilities to assist in working with spans
 package spanlogger
 
 import (
@@ -26,7 +26,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-// spanlogger - provides a way to log via opentracing spans
+// spanlogger - provides a way to log via opentelemetry spans
 type spanLogger struct {
 	span Span
 	lock sync.RWMutex
@@ -129,9 +129,7 @@ func (s *spanLogger) logf(level, format string, v ...interface{}) {
 // FromContext - creates a new spanLogger from context and operation
 func FromContext(ctx context.Context, operation string, fields map[string]interface{}) (context.Context, log.Logger, Span, func()) {
 	var span Span
-	if log.IsOpentracingEnabled() {
-		ctx, span = newOTSpan(ctx, operation, fields)
-	} else if log.IsOpentelemetryEnabled() {
+	if log.IsOpentelemetryEnabled() {
 		ctx, span = newOTELSpan(ctx, operation, fields)
 	}
 	newLog := &spanLogger{

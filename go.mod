@@ -15,12 +15,10 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.6
 	github.com/google/uuid v1.1.2
-	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645
 	github.com/nats-io/nats-streaming-server v0.22.1
 	github.com/nats-io/stan.go v0.10.0
 	github.com/networkservicemesh/api v1.0.1-0.20211110183123-3038992da61a
 	github.com/open-policy-agent/opa v0.16.1
-	github.com/opentracing/opentracing-go v1.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spiffe/go-spiffe/v2 v2.0.0-alpha.4.0.20200528145730-dc11d0c74e85

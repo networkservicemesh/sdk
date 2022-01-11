@@ -16,7 +16,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package tracing provides a set of utilities to assist in working with opentracing and opentelemetry
+// Package tracing provides a set of utilities to assist in working with opentelemetry
 package tracing
 
 import (
@@ -27,30 +27,12 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
-	"github.com/opentracing/opentracing-go"
-
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-// WithTracing - returns array of grpc.ServerOption that should be passed to grpc.Dial to enable opentracing/opentelemetry tracing
+// WithTracing - returns array of grpc.ServerOption that should be passed to grpc.Dial to enable opentelemetry tracing
 func WithTracing() []grpc.ServerOption {
-	if log.IsOpentracingEnabled() {
-		interceptor := func(
-			ctx context.Context,
-			req interface{},
-			info *grpc.UnaryServerInfo,
-			handler grpc.UnaryHandler,
-		) (resp interface{}, err error) {
-			return otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer())(ctx, proto.Clone(req.(proto.Message)), info, handler)
-		}
-		return []grpc.ServerOption{
-			grpc.ChainUnaryInterceptor(
-				interceptor),
-			grpc.ChainStreamInterceptor(
-				otgrpc.OpenTracingStreamServerInterceptor(opentracing.GlobalTracer())),
-		}
-	} else if log.IsOpentelemetryEnabled() {
+	if log.IsOpentelemetryEnabled() {
 		interceptor := func(
 			ctx context.Context,
 			req interface{},
@@ -71,26 +53,9 @@ func WithTracing() []grpc.ServerOption {
 	}
 }
 
-// WithTracingDial returns array of grpc.DialOption that should be passed to grpc.Dial to enable opentracing/opentelemetry tracing
+// WithTracingDial returns array of grpc.DialOption that should be passed to grpc.Dial to enable opentelemetry tracing
 func WithTracingDial() []grpc.DialOption {
-	if log.IsOpentracingEnabled() {
-		interceptor := func(
-			ctx context.Context,
-			method string,
-			req, reply interface{},
-			cc *grpc.ClientConn,
-			invoker grpc.UnaryInvoker,
-			opts ...grpc.CallOption,
-		) error {
-			return otgrpc.OpenTracingClientInterceptor(opentracing.GlobalTracer())(ctx, method, proto.Clone(req.(proto.Message)), reply, cc, invoker, opts...)
-		}
-		return []grpc.DialOption{
-			grpc.WithChainUnaryInterceptor(
-				interceptor),
-			grpc.WithChainStreamInterceptor(
-				otgrpc.OpenTracingStreamClientInterceptor(opentracing.GlobalTracer())),
-		}
-	} else if log.IsOpentelemetryEnabled() {
+	if log.IsOpentelemetryEnabled() {
 		interceptor := func(
 			ctx context.Context,
 			method string,

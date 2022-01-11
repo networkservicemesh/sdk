@@ -20,14 +20,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/opentracing/opentracing-go"
-	opentracinglog "github.com/opentracing/opentracing-go/log"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	opentelemetry "go.opentelemetry.io/otel/trace"
 )
 
-// Span - unified interface for opentracing/opentelemetry spans
+// Span - unified interface for opentelemetry spans
 type Span interface {
 	Log(level, format string, v ...interface{})
 	LogObject(k, v interface{})
@@ -35,46 +33,6 @@ type Span interface {
 	Finish()
 
 	ToString() string
-}
-
-// Opentracing span
-type otSpan struct {
-	span opentracing.Span
-}
-
-func (otsp *otSpan) Log(level, format string, v ...interface{}) {
-	otsp.span.LogFields(
-		opentracinglog.String("event", level),
-		opentracinglog.String("message", fmt.Sprintf(format, v...)),
-	)
-}
-
-func (otsp *otSpan) LogObject(k, v interface{}) {
-	otsp.span.LogFields(opentracinglog.Object(k.(string), v))
-}
-
-func (otsp *otSpan) WithField(k, v interface{}) Span {
-	otsp.span = otsp.span.SetTag(k.(string), v)
-	return otsp
-}
-
-func (otsp *otSpan) ToString() string {
-	if spanStr := fmt.Sprintf("%v", otsp.span); spanStr != "{}" {
-		return spanStr
-	}
-	return ""
-}
-
-func (otsp *otSpan) Finish() {
-	otsp.span.Finish()
-}
-
-func newOTSpan(ctx context.Context, operationName string, additionalFields map[string]interface{}) (c context.Context, s Span) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, operationName)
-	for k, v := range additionalFields {
-		span = span.SetTag(k, v)
-	}
-	return ctx, &otSpan{span: span}
 }
 
 // Opentelemetry span
