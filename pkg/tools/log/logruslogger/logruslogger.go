@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -26,11 +26,11 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
-	"github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/metadata"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/log/spanlogger"
 )
 
 type loggerKeyType string
@@ -93,15 +93,17 @@ func fromContext(ctx context.Context) *traceCtxInfo {
 
 type logrusLogger struct {
 	entry     *logrus.Entry
-	span      opentracing.Span
+	span      spanlogger.Span
 	info      *traceCtxInfo
 	operation string
 }
 
 func (s *logrusLogger) getSpan() string {
-	spanStr := fmt.Sprintf("%v", s.span)
-	if len(spanStr) > 0 && spanStr != "{}" && s.span != nil {
-		return fmt.Sprintf(" span=%v", spanStr)
+	if s.span != nil {
+		spanStr := s.span.ToString()
+		if len(spanStr) > 0 && spanStr != "{}" {
+			return fmt.Sprintf(" span=%v", spanStr)
+		}
 	}
 	return ""
 }
@@ -199,7 +201,7 @@ func New(ctx context.Context, fields ...logrus.Fields) log.Logger {
 
 // FromSpan - creates a new logruslogger from context, operation and span
 // and returns context with it, logger, and a function to defer
-func FromSpan(ctx context.Context, span opentracing.Span, operation string, fields map[string]interface{}) (context.Context, log.Logger, func()) {
+func FromSpan(ctx context.Context, span spanlogger.Span, operation string, fields map[string]interface{}) (context.Context, log.Logger, func()) {
 	entry := logrus.WithFields(fields)
 	entry.Logger.SetFormatter(newFormatter())
 

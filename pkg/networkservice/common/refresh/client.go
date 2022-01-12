@@ -1,6 +1,6 @@
 // Copyright (c) 2020 Cisco Systems, Inc.
 //
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -24,9 +24,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -59,12 +57,7 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 	}
 
 	// Compute refreshAfter
-	refreshAfter, err := after(ctx, conn)
-	if err != nil {
-		// If we can't refresh, we should close down chain
-		_, _ = t.Close(ctx, conn)
-		return nil, err
-	}
+	refreshAfter := after(ctx, conn)
 
 	// Create a cancel context.
 	cancelCtx, cancel := context.WithCancel(t.chainCtx)
@@ -105,16 +98,13 @@ func (t *refreshClient) Close(ctx context.Context, conn *networkservice.Connecti
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
-func after(ctx context.Context, conn *networkservice.Connection) (time.Duration, error) {
+func after(ctx context.Context, conn *networkservice.Connection) time.Duration {
 	clockTime := clock.FromContext(ctx)
 
 	var minTimeout *time.Duration
 	var expireTime time.Time
 	for _, segment := range conn.GetPath().GetPathSegments() {
-		expTime, err := ptypes.Timestamp(segment.GetExpires())
-		if err != nil {
-			return 0, errors.WithStack(err)
-		}
+		expTime := segment.GetExpires().AsTime()
 
 		timeout := clockTime.Until(expTime)
 
@@ -133,7 +123,7 @@ func after(ctx context.Context, conn *networkservice.Connection) (time.Duration,
 	}
 
 	if minTimeout == nil || *minTimeout <= 0 {
-		return 1, nil
+		return 1
 	}
 
 	// A heuristic to reduce the number of redundant requests in a chain
@@ -147,5 +137,5 @@ func after(ctx context.Context, conn *networkservice.Connection) (time.Duration,
 	}
 	duration := time.Duration(float64(*minTimeout) * scale)
 
-	return duration, nil
+	return duration
 }

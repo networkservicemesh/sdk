@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Cisco Systems, Inc.
+// Copyright (c) 2020-2022 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -20,11 +20,9 @@ package updatetoken
 import (
 	"context"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/pkg/errors"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
@@ -50,11 +48,7 @@ func (u *updateTokenServer) Request(ctx context.Context, request *networkservice
 		if err != nil {
 			log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", err)
 		} else {
-			var expires *timestamp.Timestamp
-			expires, err = ptypes.TimestampProto(expireTime.Local())
-			if err != nil {
-				return nil, errors.WithStack(err)
-			}
+			expires := timestamppb.New(expireTime.Local())
 
 			prev.Expires = expires
 			prev.Token = tok
@@ -77,11 +71,7 @@ func (u *updateTokenServer) Close(ctx context.Context, conn *networkservice.Conn
 		if err != nil {
 			log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", err)
 		} else {
-			var expires *timestamp.Timestamp
-			expires, err = ptypes.TimestampProto(expireTime.Local())
-			if err != nil {
-				return nil, errors.WithStack(err)
-			}
+			expires := timestamppb.New(expireTime.Local())
 
 			prev.Expires = expires
 			prev.Token = tok

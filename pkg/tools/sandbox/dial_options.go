@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,8 +21,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/opentracing"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
+	"github.com/networkservicemesh/sdk/pkg/tools/tracing"
 )
 
 type dialOpts struct {
@@ -62,5 +62,5 @@ func DialOptions(options ...DialOption) []grpc.DialOption {
 		grpcfd.WithChainUnaryInterceptor(),
 		WithInsecureRPCCredentials(),
 		WithInsecureStreamRPCCredentials(),
-	}, opentracing.WithTracingDial()...)
+	}, tracing.WithTracingDial()...)
 }

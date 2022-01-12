@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -28,13 +28,13 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	"github.com/networkservicemesh/sdk/pkg/tools/opentracing"
+	"github.com/networkservicemesh/sdk/pkg/tools/tracing"
 )
 
 func serve(ctx context.Context, t *testing.T, u *url.URL, register func(server *grpc.Server)) {
 	server := grpc.NewServer(append([]grpc.ServerOption{
 		grpc.Creds(grpcfdTransportCredentials(insecure.NewCredentials())),
-	}, opentracing.WithTracing()...)...)
+	}, tracing.WithTracing()...)...)
 	register(server)
 
 	errCh := grpcutils.ListenAndServe(ctx, u, server)

@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020-2022 Cisco Systems, Inc.
 //
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -16,36 +16,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package opentracing provides a set of utilities to assist in working with opentracing
-package opentracing
+// Package tracing provides a set of utilities to assist in working with opentelemetry
+package tracing
 
 import (
 	"context"
 
-	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
-	"github.com/opentracing/opentracing-go"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/jaeger"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-// WithTracing - returns array of grpc.ServerOption that should be passed to grpc.Dial to enable opentracing
+// WithTracing - returns array of grpc.ServerOption that should be passed to grpc.Dial to enable opentelemetry tracing
 func WithTracing() []grpc.ServerOption {
-	if jaeger.IsOpentracingEnabled() {
+	if log.IsOpentelemetryEnabled() {
 		interceptor := func(
 			ctx context.Context,
 			req interface{},
 			info *grpc.UnaryServerInfo,
 			handler grpc.UnaryHandler,
 		) (resp interface{}, err error) {
-			return otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer())(ctx, proto.Clone(req.(proto.Message)), info, handler)
+			return otelgrpc.UnaryServerInterceptor(otelgrpc.WithTracerProvider(otel.GetTracerProvider()))(ctx, proto.Clone(req.(proto.Message)), info, handler)
 		}
 		return []grpc.ServerOption{
 			grpc.ChainUnaryInterceptor(
 				interceptor),
 			grpc.ChainStreamInterceptor(
-				otgrpc.OpenTracingStreamServerInterceptor(opentracing.GlobalTracer())),
+				otelgrpc.StreamServerInterceptor(otelgrpc.WithTracerProvider(otel.GetTracerProvider()))),
 		}
 	}
 	return []grpc.ServerOption{
@@ -53,9 +53,9 @@ func WithTracing() []grpc.ServerOption {
 	}
 }
 
-// WithTracingDial returns array of grpc.DialOption that should be passed to grpc.Dial to enable opentracing
+// WithTracingDial returns array of grpc.DialOption that should be passed to grpc.Dial to enable opentelemetry tracing
 func WithTracingDial() []grpc.DialOption {
-	if jaeger.IsOpentracingEnabled() {
+	if log.IsOpentelemetryEnabled() {
 		interceptor := func(
 			ctx context.Context,
 			method string,
@@ -64,13 +64,13 @@ func WithTracingDial() []grpc.DialOption {
 			invoker grpc.UnaryInvoker,
 			opts ...grpc.CallOption,
 		) error {
-			return otgrpc.OpenTracingClientInterceptor(opentracing.GlobalTracer())(ctx, method, proto.Clone(req.(proto.Message)), reply, cc, invoker, opts...)
+			return otelgrpc.UnaryClientInterceptor(otelgrpc.WithTracerProvider(otel.GetTracerProvider()))(ctx, method, proto.Clone(req.(proto.Message)), reply, cc, invoker, opts...)
 		}
 		return []grpc.DialOption{
 			grpc.WithChainUnaryInterceptor(
 				interceptor),
 			grpc.WithChainStreamInterceptor(
-				otgrpc.OpenTracingStreamClientInterceptor(opentracing.GlobalTracer())),
+				otelgrpc.StreamClientInterceptor(otelgrpc.WithTracerProvider(otel.GetTracerProvider()))),
 		}
 	}
 	return []grpc.DialOption{

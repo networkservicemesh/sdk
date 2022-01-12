@@ -1,3 +1,5 @@
+// Copyright (c) 2020-2022 Cisco Systems, Inc.
+//
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -14,17 +16,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build !windows
-// +build !windows
-
-package sandbox
+// Package zipkin provides a set of utilities for assisting with using zipkin
+package zipkin
 
 import (
-	"github.com/edwarnicke/grpcfd"
-	"google.golang.org/grpc/credentials"
+	"context"
+
+	"go.opentelemetry.io/otel/exporters/zipkin"
+	"go.opentelemetry.io/otel/sdk/trace"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-// grpcfdTransportCredentials is a wrapper for grpcfd.TransportCredentials.
-func grpcfdTransportCredentials(cred credentials.TransportCredentials) credentials.TransportCredentials {
-	return grpcfd.TransportCredentials(cred)
+// InitExporter -  returns an instance of Zipkin Exporter.
+func InitExporter(ctx context.Context, exporterURL string) trace.SpanExporter {
+	if !log.IsOpentelemetryEnabled() {
+		return nil
+	}
+
+	exporter, err := zipkin.New(exporterURL)
+	if err != nil {
+		log.FromContext(ctx).Fatal(err)
+		return nil
+	}
+
+	return exporter
 }
