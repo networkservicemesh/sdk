@@ -29,7 +29,7 @@ const (
 	logKey contextKeyType = "Logger"
 
 	telemetryEnv  = "TELEMETRY"
-	telemetryOTel = "opentelemetry"
+	telemetryOTel = "enabled"
 
 	telemetryDefault = telemetryOTel
 )
