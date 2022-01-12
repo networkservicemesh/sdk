@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Nordix and its affiliates.
+// Copyright (c) 2020-2022 Nordix and its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //

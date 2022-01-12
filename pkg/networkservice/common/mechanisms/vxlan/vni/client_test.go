@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Nordix Foundation.
+// Copyright (c) 2022 Nordix Foundation.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
