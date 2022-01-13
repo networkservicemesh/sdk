@@ -21,6 +21,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"strconv"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -37,23 +38,15 @@ import (
 )
 
 const (
-	telemetryEnv  = "TELEMETRY"
-	telemetryOTel = "enabled"
-
-	telemetryDefault = telemetryOTel
+	telemetryEnv = "TELEMETRY"
 )
 
 // IsEnabled returns true if opentelemetry enabled
 func IsEnabled() bool {
-	return telemetryOTel == getTelemetryEnv()
-}
-
-func getTelemetryEnv() string {
-	val := os.Getenv(telemetryEnv)
-	if val == "" {
-		return telemetryDefault
+	if v, err := strconv.ParseBool(os.Getenv(telemetryEnv)); err == nil {
+		return v
 	}
-	return val
+	return false
 }
 
 type opentelemetry struct {
