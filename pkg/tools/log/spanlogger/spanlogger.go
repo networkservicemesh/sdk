@@ -24,6 +24,7 @@ import (
 	"sync"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/opentelemetry"
 )
 
 // spanlogger - provides a way to log via opentelemetry spans
@@ -129,7 +130,7 @@ func (s *spanLogger) logf(level, format string, v ...interface{}) {
 // FromContext - creates a new spanLogger from context and operation
 func FromContext(ctx context.Context, operation string, fields map[string]interface{}) (context.Context, log.Logger, Span, func()) {
 	var span Span
-	if log.IsOpentelemetryEnabled() {
+	if opentelemetry.IsEnabled() {
 		ctx, span = newOTELSpan(ctx, operation, fields)
 	}
 	newLog := &spanLogger{

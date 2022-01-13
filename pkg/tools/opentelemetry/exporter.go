@@ -32,7 +32,7 @@ import (
 
 // InitSpanExporter - returns an instance of OpenTelemetry Span Exporter.
 func InitSpanExporter(ctx context.Context, exporterURL string) trace.SpanExporter {
-	if !log.IsOpentelemetryEnabled() {
+	if !IsEnabled() {
 		return nil
 	}
 
@@ -52,7 +52,7 @@ func InitSpanExporter(ctx context.Context, exporterURL string) trace.SpanExporte
 
 // InitMetricExporter - returns an instance of OpenTelemetry Metric Exporter.
 func InitMetricExporter(ctx context.Context, exporterURL string) *otlpmetric.Exporter {
-	if !log.IsOpentelemetryEnabled() {
+	if !IsEnabled() {
 		return nil
 	}
 
