@@ -19,7 +19,6 @@ package log
 
 import (
 	"context"
-	"os"
 	"sync/atomic"
 )
 
@@ -27,25 +26,7 @@ type contextKeyType string
 
 const (
 	logKey contextKeyType = "Logger"
-
-	telemetryEnv  = "TELEMETRY"
-	telemetryOTel = "enabled"
-
-	telemetryDefault = telemetryOTel
 )
-
-// IsOpentelemetryEnabled returns true if opentelemetry enabled
-func IsOpentelemetryEnabled() bool {
-	return telemetryOTel == getTelemetryEnv()
-}
-
-func getTelemetryEnv() string {
-	val := os.Getenv(telemetryEnv)
-	if val == "" {
-		return telemetryDefault
-	}
-	return val
-}
 
 var (
 	isTracingEnabled int32 = 0

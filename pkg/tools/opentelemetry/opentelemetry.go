@@ -20,6 +20,8 @@ package opentelemetry
 import (
 	"context"
 	"io"
+	"os"
+	"strconv"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -34,6 +36,18 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
+
+const (
+	telemetryEnv = "TELEMETRY"
+)
+
+// IsEnabled returns true if opentelemetry enabled
+func IsEnabled() bool {
+	if v, err := strconv.ParseBool(os.Getenv(telemetryEnv)); err == nil {
+		return v
+	}
+	return false
+}
 
 type opentelemetry struct {
 	io.Closer
@@ -70,7 +84,7 @@ func Init(ctx context.Context, spanExporter sdktrace.SpanExporter, metricExporte
 	o := &opentelemetry{
 		ctx: ctx,
 	}
-	if !log.IsOpentelemetryEnabled() {
+	if !IsEnabled() {
 		return o
 	}
 

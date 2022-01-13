@@ -26,11 +26,12 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/opentelemetry"
 )
 
 // InitExporter -  returns an instance of Jaeger Exporter.
 func InitExporter(ctx context.Context, exporterURL string) trace.SpanExporter {
-	if !log.IsOpentelemetryEnabled() {
+	if !opentelemetry.IsEnabled() {
 		return nil
 	}
 
