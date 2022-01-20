@@ -48,6 +48,7 @@ import (
 	registryconnect "github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/localcache"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	registryrecvfd "github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
 	registrysendfd "github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
@@ -171,7 +172,9 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		nsRegistry,
 	)
 
-	var nseInMemoryRegistry = memory.NewNetworkServiceEndpointRegistryServer()
+	var nseInMemoryRegistry = localcache.NewNetworkServiceEndpointRegistryServer(
+		memory.NewNetworkServiceEndpointRegistryServer(),
+	)
 
 	var nseRegistry = registrychain.NewNetworkServiceEndpointRegistryServer(
 		registryclientinfo.NewNetworkServiceEndpointRegistryServer(),
