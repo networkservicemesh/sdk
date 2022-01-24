@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -36,6 +36,7 @@ type discoverForwarderServer struct {
 	nseClient            registry.NetworkServiceEndpointRegistryClient
 	nsClient             registry.NetworkServiceRegistryClient
 	forwarderServiceName string
+	nsmgrURL             string
 }
 
 // NewServer creates new instance of discoverforwarder networkservice.NetworkServiceServer.
@@ -77,6 +78,7 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 				NetworkServiceNames: []string{
 					d.forwarderServiceName,
 				},
+				Url: d.nsmgrURL,
 			},
 		})
 
@@ -91,9 +93,11 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 			return nil, errors.New("no candidates found")
 		}
 
+		var candidatesErr = errors.New("all forwarders have failed")
+
 		// TODO: Should we consider about load balancing?
 		// https://github.com/networkservicemesh/sdk/issues/790
-		for _, candidate := range nses {
+		for i, candidate := range nses {
 			u, err := url.Parse(candidate.Url)
 
 			if err != nil {
@@ -108,13 +112,15 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 				return resp, nil
 			}
 			logger.Errorf("forwarder=%v url=%v returned error=%v", candidate.Name, candidate.Url, err.Error())
+			candidatesErr = errors.Wrapf(candidatesErr, "%v. An error during select forwawrder %v --> %v", i, candidate.Name, err.Error())
 		}
 
-		return nil, errors.New("all forwarders failed")
+		return nil, candidatesErr
 	}
 	stream, err := d.nseClient.Find(ctx, &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 			Name: forwarderName,
+			Url:  d.nsmgrURL,
 		},
 	})
 
@@ -155,6 +161,7 @@ func (d *discoverForwarderServer) Close(ctx context.Context, conn *networkservic
 	stream, err := d.nseClient.Find(ctx, &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 			Name: forwarderName,
+			Url:  d.nsmgrURL,
 		},
 	})
 

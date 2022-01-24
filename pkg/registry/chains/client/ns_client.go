@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -19,10 +19,15 @@ package client
 import (
 	"context"
 	"net/url"
+	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/connect2"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/retry"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
@@ -35,19 +40,16 @@ func NewNetworkServiceRegistryClient(ctx context.Context, connectTo *url.URL, op
 		opt(clientOpts)
 	}
 
-	c := new(registry.NetworkServiceRegistryClient)
-	*c = chain.NewNetworkServiceRegistryClient(
-		retry.NewNetworkServiceRegistryClient(),
-		connect.NewNetworkServiceRegistryClient(ctx, connectTo,
-			connect.WithNSAdditionalFunctionality(
-				append(
-					clientOpts.nsAdditionalFunctionality,
-					heal.NewNetworkServiceRegistryClient(ctx, c),
-				)...,
-			),
-			connect.WithDialOptions(clientOpts.dialOptions...),
+	return chain.NewNetworkServiceRegistryClient(
+		begin.NewNetworkServiceRegistryClient(),
+		retry.NewNetworkServiceRegistryClient(ctx),
+		heal.NewNetworkServiceRegistryClient(ctx),
+		clienturl.NewNetworkServiceRegistryClient(connectTo),
+		clientconn.NewNetworkServiceRegistryClient(),
+		dial.NewNetworkServiceRegistryClient(ctx,
+			dial.WithDialOptions(clientOpts.dialOptions...),
+			dial.WithDialTimeout(time.Second),
 		),
+		connect2.NewNetworkServiceRegistryClient(),
 	)
-
-	return *c
 }

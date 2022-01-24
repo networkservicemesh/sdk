@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -31,8 +31,6 @@ import (
 )
 
 const (
-	// RegistryExpiryDuration is a duration that should be used for expire tests
-	RegistryExpiryDuration = time.Second
 	// DialTimeout is a default dial timeout for the sandbox tests
 	DialTimeout = 2 * time.Second
 )

@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -235,7 +235,11 @@ func TestTimeoutServer_RefreshFailure(t *testing.T) {
 
 	client := testClient(
 		ctx,
-		refresh.NewClient(ctx),
+		next.NewNetworkServiceClient(
+			begin.NewClient(),
+			metadata.NewClient(),
+			refresh.NewClient(ctx),
+		),
 		next.NewNetworkServiceServer(
 			injecterror.NewServer(
 				injecterror.WithRequestErrorTimes(1, -1),

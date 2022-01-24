@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -38,6 +38,7 @@ import (
 	kernelmech "github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -225,7 +226,7 @@ func TestNSMGR_Interdomain_TwoNodesNSEs(t *testing.T) {
 func TestNSMGR_FloatingInterdomainUseCase(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
 	defer cancel()
 
 	var dnsServer = new(sandbox.FakeDNSResolver)
@@ -265,6 +266,18 @@ func TestNSMGR_FloatingInterdomainUseCase(t *testing.T) {
 	}
 
 	cluster2.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
+
+	c := adapters.NetworkServiceEndpointServerToClient(cluster2.Nodes[0].NSMgr.NetworkServiceEndpointRegistryServer())
+
+	s, err := c.Find(ctx, &registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+		Name: "final-endpoint@" + floating.Name,
+	}})
+
+	require.NoError(t, err)
+
+	list := registry.ReadNetworkServiceEndpointList(s)
+
+	require.Len(t, list, 1)
 
 	nsc := cluster1.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 

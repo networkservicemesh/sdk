@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -62,7 +62,7 @@ func (b *beginClient) Request(ctx context.Context, request *networkservice.Netwo
 		currentEventFactoryClient, _ := b.LoadOrStore(request.GetConnection().GetId(), eventFactoryClient)
 		if currentEventFactoryClient != eventFactoryClient {
 			log.FromContext(ctx).Debug("recalling begin.Request because currentEventFactoryClient != eventFactoryClient")
-			conn, err = b.Request(ctx, request)
+			conn, err = b.Request(ctx, request, opts...)
 			return
 		}
 

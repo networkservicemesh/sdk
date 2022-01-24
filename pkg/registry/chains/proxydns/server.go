@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -19,11 +19,15 @@ package proxydns
 
 import (
 	"context"
+	"time"
 
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/registry"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/connect2"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 )
@@ -31,10 +35,31 @@ import (
 // NewServer creates new stateless registry server that proxies queries to the second registries by DNS domains
 func NewServer(ctx context.Context, dnsResolver dnsresolve.Resolver, dialOptions ...grpc.DialOption) registry.Registry {
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
+		begin.NewNetworkServiceEndpointRegistryServer(),
 		dnsresolve.NewNetworkServiceEndpointRegistryServer(dnsresolve.WithResolver(dnsResolver)),
-		connect.NewNetworkServiceEndpointRegistryServer(ctx, connect.WithDialOptions(dialOptions...)))
+		connect2.NewNetworkServiceEndpointRegistryServer(
+			chain.NewNetworkServiceEndpointRegistryClient(
+				clientconn.NewNetworkServiceEndpointRegistryClient(),
+				dial.NewNetworkServiceEndpointRegistryClient(ctx,
+					dial.WithDialOptions(dialOptions...),
+					dial.WithDialTimeout(time.Millisecond*100),
+				),
+				connect2.NewNetworkServiceEndpointRegistryClient(),
+			),
+		))
 	nsChain := chain.NewNetworkServiceRegistryServer(
+		begin.NewNetworkServiceRegistryServer(),
 		dnsresolve.NewNetworkServiceRegistryServer(dnsresolve.WithResolver(dnsResolver)),
-		connect.NewNetworkServiceRegistryServer(ctx, connect.WithDialOptions(dialOptions...)))
+		connect2.NewNetworkServiceRegistryServer(
+			chain.NewNetworkServiceRegistryClient(
+				clientconn.NewNetworkServiceRegistryClient(),
+				dial.NewNetworkServiceRegistryClient(
+					ctx,
+					dial.WithDialOptions(dialOptions...),
+					dial.WithDialTimeout(time.Millisecond*100),
+				),
+				connect2.NewNetworkServiceRegistryClient(),
+			),
+		))
 	return registry.NewServer(nsChain, nseChain)
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -159,7 +159,6 @@ func (n *Node) NewForwarder(
 			ctx,
 			CloneURL(n.NSMgr.URL),
 			registryclient.WithDialOptions(dialOptions...),
-			registryclient.WithNSEAdditionalFunctionality(),
 		)
 
 		n.registerEndpoint(ctx, nse, nseClone, entry.NetworkServiceEndpointRegistryClient)

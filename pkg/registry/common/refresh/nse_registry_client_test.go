@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,6 +18,7 @@ package refresh_test
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -30,9 +31,9 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checknse"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
@@ -74,7 +75,7 @@ func Test_NetworkServiceEndpointRefreshClient_ShouldWorkCorrectlyWithFloatingSce
 	var registerCount int32
 
 	client := next.NewNetworkServiceEndpointRegistryClient(
-		serialize.NewNetworkServiceEndpointRegistryClient(),
+		begin.NewNetworkServiceEndpointRegistryClient(),
 		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
 		&injectNSERegisterClient{
 			NetworkServiceEndpointRegistryClient: null.NewNetworkServiceEndpointRegistryClient(),
@@ -113,7 +114,7 @@ func TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {
 
 	countClient := new(requestCountClient)
 	client := next.NewNetworkServiceEndpointRegistryClient(
-		serialize.NewNetworkServiceEndpointRegistryClient(),
+		begin.NewNetworkServiceEndpointRegistryClient(),
 		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
 		countClient,
 	)
@@ -141,7 +142,7 @@ func Test_RefreshNSEClient_CalledRegisterTwice(t *testing.T) {
 
 	countClient := new(requestCountClient)
 	client := next.NewNetworkServiceEndpointRegistryClient(
-		serialize.NewNetworkServiceEndpointRegistryClient(),
+		begin.NewNetworkServiceEndpointRegistryClient(),
 		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
 		countClient,
 	)
@@ -161,6 +162,64 @@ func Test_RefreshNSEClient_CalledRegisterTwice(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func Test_RefreshNSEClient_StopsRefreshOnUnregister(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	goleak.VerifyNone(t)
+
+	clockMock := clockmock.New(ctx)
+	ctx = clock.WithClock(ctx, clockMock)
+
+	ignoreClockMockGoroutine := goleak.IgnoreCurrent()
+
+	countClient := new(requestCountClient)
+	client := next.NewNetworkServiceEndpointRegistryClient(
+		begin.NewNetworkServiceEndpointRegistryClient(),
+		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
+		countClient,
+	)
+
+	const registerCount = 100
+
+	var regs []*registry.NetworkServiceEndpoint
+
+	for i := 0; i < registerCount; i++ {
+		regs = append(regs, testNSE(clockMock))
+		regs[i].Name = fmt.Sprint(i)
+		resp, err := client.Register(ctx, regs[i])
+		require.NoError(t, err)
+		regs[i] = resp
+		regs[i].ExpirationTime = timestamppb.New(clockMock.Now().Add(expireTimeout))
+	}
+
+	clockMock.Add(expireTimeout / 3 * 2)
+
+	require.Eventually(t, func() bool {
+		return atomic.LoadInt32(&countClient.requestCount) >= 2*int32(len(regs))
+	}, testWait, testTick)
+
+	for i := 0; i < registerCount; i++ {
+		_, err := client.Unregister(ctx, regs[i])
+		require.NoError(t, err)
+	}
+
+	goleak.VerifyNone(t, ignoreClockMockGoroutine)
+
+	for i := 0; i < 5; i++ {
+		clockMock.Add(expireTimeout / 3 * 2)
+
+		require.Never(t, func() bool {
+			return atomic.LoadInt32(&countClient.requestCount) > registerCount*3
+		}, testWait, testTick)
+
+		// Wait for the Refresh to fully happen
+		time.Sleep(testWait)
+	}
+}
+
 func Test_RefreshNSEClient_SetsCorrectExpireTime(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -172,12 +231,12 @@ func Test_RefreshNSEClient_SetsCorrectExpireTime(t *testing.T) {
 
 	countClient := new(requestCountClient)
 	client := next.NewNetworkServiceEndpointRegistryClient(
-		serialize.NewNetworkServiceEndpointRegistryClient(),
+		begin.NewNetworkServiceEndpointRegistryClient(),
 		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
-		checknse.NewClient(t, func(t *testing.T, nse *registry.NetworkServiceEndpoint) {
-			require.Equal(t, expireTimeout, clockMock.Until(nse.ExpirationTime.AsTime().Local()))
-		}),
 		countClient,
+		checknse.NewClient(t, func(t *testing.T, nse *registry.NetworkServiceEndpoint) {
+			nse.ExpirationTime = testNSE(clockMock).ExpirationTime
+		}),
 	)
 
 	reg, err := client.Register(ctx, testNSE(clockMock))
@@ -214,7 +273,7 @@ func Test_RefreshNSEClient_CorrectInitialRegTime(t *testing.T) {
 	var registerCount int32
 
 	client := next.NewNetworkServiceEndpointRegistryClient(
-		serialize.NewNetworkServiceEndpointRegistryClient(),
+		begin.NewNetworkServiceEndpointRegistryClient(),
 		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
 		&injectNSERegisterClient{
 			NetworkServiceEndpointRegistryClient: null.NewNetworkServiceEndpointRegistryClient(),

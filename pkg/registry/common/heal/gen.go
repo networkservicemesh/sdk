@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -20,8 +20,8 @@ import (
 	"sync"
 )
 
-//go:generate go-syncmap -output nse_info_map.gen.go -type nseInfoMap<string,*nseInfo>
-//go:generate go-syncmap -output ns_info_map.gen.go -type nsInfoMap<string,*nsInfo>
+//go:generate go-syncmap -output sync_map.gen.go -type cancelsMap<string,context.CancelFunc>
 
-type nseInfoMap sync.Map
-type nsInfoMap sync.Map
+// cancelsMap is like a Go map[string]context.CancelFunc but is safe for concurrent use
+// by multiple goroutines without additional locking or coordination
+type cancelsMap sync.Map

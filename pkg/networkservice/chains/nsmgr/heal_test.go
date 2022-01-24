@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -71,7 +71,7 @@ func testNSMGRHealEndpoint(t *testing.T, nodeNum int) {
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService())
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
@@ -148,7 +148,7 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int) {
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService())
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
 	counter := new(count.Server)
@@ -230,7 +230,7 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService())
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
@@ -300,7 +300,7 @@ func TestNSMGR_HealRegistry(t *testing.T) {
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService())
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
@@ -366,14 +366,14 @@ func testNSMGRCloseHeal(t *testing.T, withNSEExpiration bool) {
 		SetRegistryProxySupplier(nil)
 
 	if withNSEExpiration {
-		builder = builder.SetRegistryExpiryDuration(sandbox.RegistryExpiryDuration)
+		builder = builder.SetRegistryExpiryDuration(time.Second)
 	}
 
 	domain := builder.Build()
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService())
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
 	nseCtx, nseCtxCancel := context.WithCancel(ctx)
@@ -407,19 +407,18 @@ func testNSMGRCloseHeal(t *testing.T, withNSEExpiration bool) {
 
 	if withNSEExpiration {
 		// 3.1 Wait for the endpoint expiration
-		time.Sleep(sandbox.RegistryExpiryDuration)
+		time.Sleep(time.Second)
 	}
 
 	// 4. Close connection
-	_, _ = nsc.Close(nscCtx, conn.Clone())
+	_, err = nsc.Close(nscCtx, conn.Clone())
+	require.NoError(t, err)
 
 	nscCtxCancel()
-
+	require.NoError(t, ctx.Err())
 	require.Eventually(t, func() bool {
 		return goleak.Find(ignoreCurrent) == nil
 	}, timeout, tick)
-
-	require.NoError(t, ctx.Err())
 }
 
 func checkSecondRequestsReceived(requestsDone func() int) func() bool {

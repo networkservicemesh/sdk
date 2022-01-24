@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -31,21 +31,20 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checknse"
 	"github.com/networkservicemesh/sdk/pkg/registry/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
 )
 
 const (
-	expireTimeout = time.Minute
+	expireTimeout = time.Second
 	nseName       = "nse"
 	testWait      = 100 * time.Millisecond
 	testTick      = testWait / 100
@@ -81,7 +80,7 @@ func TestExpireNSEServer_ShouldCorrectlySetExpirationTime_InRemoteCase(t *testin
 	ctx = clock.WithClock(ctx, clockMock)
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
-		serialize.NewNetworkServiceEndpointRegistryServer(),
+		begin.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
 		new(remoteNSEServer),
 	)
@@ -91,7 +90,7 @@ func TestExpireNSEServer_ShouldCorrectlySetExpirationTime_InRemoteCase(t *testin
 	})
 	require.NoError(t, err)
 
-	require.Equal(t, clockMock.Until(resp.ExpirationTime.AsTime()), expireTimeout)
+	require.Equal(t, expireTimeout, clockMock.Until(resp.ExpirationTime.AsTime().Local()))
 }
 
 func TestExpireNSEServer_ShouldUseLessExpirationTimeFromInput_AndWork(t *testing.T) {
@@ -106,7 +105,7 @@ func TestExpireNSEServer_ShouldUseLessExpirationTimeFromInput_AndWork(t *testing
 	mem := memory.NewNetworkServiceEndpointRegistryServer()
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
-		serialize.NewNetworkServiceEndpointRegistryServer(),
+		begin.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
 		mem,
 	)
@@ -136,17 +135,17 @@ func TestExpireNSEServer_ShouldUseLessExpirationTimeFromResponse(t *testing.T) {
 	ctx = clock.WithClock(ctx, clockMock)
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
-		serialize.NewNetworkServiceEndpointRegistryServer(),
+		begin.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
 		new(remoteNSEServer), // <-- GRPC invocation
-		serialize.NewNetworkServiceEndpointRegistryServer(),
+		begin.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout/2),
 	)
 
 	resp, err := s.Register(ctx, &registry.NetworkServiceEndpoint{Name: "nse-1"})
 	require.NoError(t, err)
 
-	require.Equal(t, clockMock.Until(resp.ExpirationTime.AsTime()), expireTimeout/2)
+	require.Equal(t, expireTimeout/2, clockMock.Until(resp.ExpirationTime.AsTime()))
 }
 
 func TestExpireNSEServer_ShouldRemoveNSEAfterExpirationTime(t *testing.T) {
@@ -161,7 +160,7 @@ func TestExpireNSEServer_ShouldRemoveNSEAfterExpirationTime(t *testing.T) {
 	mem := memory.NewNetworkServiceEndpointRegistryServer()
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
-		serialize.NewNetworkServiceEndpointRegistryServer(),
+		begin.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
 		new(remoteNSEServer), // <-- GRPC invocation
 		mem,
@@ -195,7 +194,7 @@ func TestExpireNSEServer_DataRace(t *testing.T) {
 	mem := memory.NewNetworkServiceEndpointRegistryServer()
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
-		serialize.NewNetworkServiceEndpointRegistryServer(),
+		begin.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, 0),
 		localbypass.NewNetworkServiceEndpointRegistryServer("tcp://0.0.0.0"),
 		mem,
@@ -225,11 +224,11 @@ func TestExpireNSEServer_RefreshFailure(t *testing.T) {
 	ctx = clock.WithClock(ctx, clockMock)
 
 	c := next.NewNetworkServiceEndpointRegistryClient(
-		serialize.NewNetworkServiceEndpointRegistryClient(),
+		begin.NewNetworkServiceEndpointRegistryClient(),
 		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
 		adapters.NetworkServiceEndpointServerToClient(next.NewNetworkServiceEndpointRegistryServer(
 			new(remoteNSEServer), // <-- GRPC invocation
-			serialize.NewNetworkServiceEndpointRegistryServer(),
+			begin.NewNetworkServiceEndpointRegistryServer(),
 			expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
 			injecterror.NewNetworkServiceEndpointRegistryServer(
 				injecterror.WithRegisterErrorTimes(1, -1),
@@ -262,13 +261,14 @@ func TestExpireNSEServer_UnregisterFailure(t *testing.T) {
 	mem := memory.NewNetworkServiceEndpointRegistryServer()
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
-		serialize.NewNetworkServiceEndpointRegistryServer(),
+		begin.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
 		injecterror.NewNetworkServiceEndpointRegistryServer(
 			injecterror.WithRegisterErrorTimes(),
 			injecterror.WithFindErrorTimes(),
 			injecterror.WithUnregisterErrorTimes(0),
 		),
+		expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
 		mem,
 	)
 
@@ -306,18 +306,15 @@ func TestExpireNSEServer_RefreshKeepsNoUnregister(t *testing.T) {
 	unregisterServer := new(unregisterNSEServer)
 
 	c := next.NewNetworkServiceEndpointRegistryClient(
-		serialize.NewNetworkServiceEndpointRegistryClient(),
+		begin.NewNetworkServiceEndpointRegistryClient(),
 		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
-		adapters.NetworkServiceEndpointServerToClient(next.NewNetworkServiceEndpointRegistryServer(
-			// NSMgr chain
-			new(remoteNSEServer), // <-- GRPC invocation
-			serialize.NewNetworkServiceEndpointRegistryServer(),
-			expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
-			checknse.NewServer(t, func(*testing.T, *registry.NetworkServiceEndpoint) {
-				clockMock.Add(expireTimeout / 2)
-			}),
-			unregisterServer,
-		)),
+		adapters.NetworkServiceEndpointServerToClient(
+			next.NewNetworkServiceEndpointRegistryServer(
+				// NSMgr chain
+				new(remoteNSEServer), // <-- GRPC invocation
+				expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
+				unregisterServer,
+			)),
 	)
 
 	_, err := c.Register(ctx, &registry.NetworkServiceEndpoint{
@@ -326,7 +323,7 @@ func TestExpireNSEServer_RefreshKeepsNoUnregister(t *testing.T) {
 	require.NoError(t, err)
 
 	for i := 0; i < 3; i++ {
-		clockMock.Add(expireTimeout/2 - time.Millisecond)
+		clockMock.Add(expireTimeout*2/3 + time.Millisecond)
 		require.Never(t, func() bool {
 			return atomic.LoadInt32(&unregisterServer.unregisterCount) > 0
 		}, testWait, testTick)

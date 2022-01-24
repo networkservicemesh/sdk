@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -20,15 +20,18 @@ package client
 import (
 	"context"
 	"net/url"
+	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/connect2"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/retry"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 )
 
@@ -39,20 +42,17 @@ func NewNetworkServiceEndpointRegistryClient(ctx context.Context, connectTo *url
 		opt(clientOpts)
 	}
 
-	c := new(registry.NetworkServiceEndpointRegistryClient)
-	*c = chain.NewNetworkServiceEndpointRegistryClient(
-		serialize.NewNetworkServiceEndpointRegistryClient(),
-		retry.NewNetworkServiceEndpointRegistryClient(),
+	return chain.NewNetworkServiceEndpointRegistryClient(
+		begin.NewNetworkServiceEndpointRegistryClient(),
+		retry.NewNetworkServiceEndpointRegistryClient(ctx),
+		heal.NewNetworkServiceEndpointRegistryClient(ctx),
 		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
-		connect.NewNetworkServiceEndpointRegistryClient(ctx, connectTo,
-			connect.WithNSEAdditionalFunctionality(
-				append(
-					clientOpts.nseAdditionalFunctionality,
-					heal.NewNetworkServiceEndpointRegistryClient(ctx, c),
-					sendfd.NewNetworkServiceEndpointRegistryClient())...),
-			connect.WithDialOptions(clientOpts.dialOptions...),
+		clienturl.NewNetworkServiceEndpointRegistryClient(connectTo),
+		clientconn.NewNetworkServiceEndpointRegistryClient(),
+		dial.NewNetworkServiceEndpointRegistryClient(ctx,
+			dial.WithDialOptions(clientOpts.dialOptions...),
+			dial.WithDialTimeout(time.Millisecond*100),
 		),
+		connect2.NewNetworkServiceEndpointRegistryClient(),
 	)
-
-	return *c
 }

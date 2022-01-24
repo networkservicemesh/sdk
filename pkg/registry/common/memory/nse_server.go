@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -161,7 +161,7 @@ func (s *memoryNSEServer) receiveEvent(
 }
 
 func (s *memoryNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	if unregisterNSE, ok := s.networkServiceEndpoints.LoadAndDelete(nse.Name); ok {
+	if unregisterNSE, ok := s.networkServiceEndpoints.LoadAndDelete(nse.GetName()); ok {
 		unregisterNSE = unregisterNSE.Clone()
 		s.sendEvent(&registry.NetworkServiceEndpointResponse{NetworkServiceEndpoint: unregisterNSE, Deleted: true})
 	}
