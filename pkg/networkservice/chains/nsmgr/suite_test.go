@@ -204,7 +204,7 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 
 	counter := new(count.Server)
 
-	const nseCount = 2
+	const nseCount = 3
 
 	var wg sync.WaitGroup
 	var nseRegs [nseCount + 1]*registry.NetworkServiceEndpoint

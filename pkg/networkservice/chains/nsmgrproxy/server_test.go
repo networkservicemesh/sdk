@@ -226,7 +226,7 @@ func TestNSMGR_Interdomain_TwoNodesNSEs(t *testing.T) {
 func TestNSMGR_FloatingInterdomainUseCase(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	var dnsServer = new(sandbox.FakeDNSResolver)

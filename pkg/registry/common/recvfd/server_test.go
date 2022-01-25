@@ -75,7 +75,7 @@ func TestNseRecvfdServerClosesFile(t *testing.T) {
 	defer cancel()
 
 	var nsRegistry = chain.NewNetworkServiceRegistryServer(
-		// begin.NewNetworkServiceRegistryServer(),
+		begin.NewNetworkServiceRegistryServer(),
 		memory.NewNetworkServiceRegistryServer(),
 	)
 
