@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -29,9 +29,15 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
@@ -70,11 +76,11 @@ func waitNSServerStarted(target *url.URL) error {
 
 	client := grpc_health_v1.NewHealthClient(cc)
 	for ctx.Err() == nil {
-		respons, err := client.Check(ctx, healthCheckRequest)
+		response, err := client.Check(ctx, healthCheckRequest)
 		if err != nil {
 			return err
 		}
-		if respons.Status == grpc_health_v1.HealthCheckResponse_SERVING {
+		if response.Status == grpc_health_v1.HealthCheckResponse_SERVING {
 			return nil
 		}
 	}
@@ -112,7 +118,17 @@ func TestConnectNSServer_AllUnregister(t *testing.T) {
 
 	ignoreCurrent := goleak.IgnoreCurrent()
 
-	s := connect.NewNetworkServiceRegistryServer(ctx, connect.WithDialOptions(grpc.WithInsecure()))
+	s := connect.NewNetworkServiceRegistryServer(
+		chain.NewNetworkServiceRegistryClient(
+			begin.NewNetworkServiceRegistryClient(),
+			clientconn.NewNetworkServiceRegistryClient(),
+			dial.NewNetworkServiceRegistryClient(ctx,
+				dial.WithDialOptions(grpc.WithInsecure()),
+				dial.WithDialTimeout(time.Second),
+			),
+			connect.NewNetworkServiceRegistryClient(),
+		),
+	)
 
 	_, err := s.Register(clienturlctx.WithClientURL(context.Background(), url1), &registry.NetworkService{Name: "ns-1"})
 	require.NoError(t, err)
@@ -150,8 +166,17 @@ func TestConnectNSServer_AllDead_Register(t *testing.T) {
 
 	url1, url2, cancel1, cancel2 := startTestNSServers(ctx, t)
 
-	s := connect.NewNetworkServiceRegistryServer(ctx, connect.WithDialOptions(grpc.WithInsecure()))
-
+	s := connect.NewNetworkServiceRegistryServer(
+		chain.NewNetworkServiceRegistryClient(
+			begin.NewNetworkServiceRegistryClient(),
+			clientconn.NewNetworkServiceRegistryClient(),
+			dial.NewNetworkServiceRegistryClient(ctx,
+				dial.WithDialOptions(grpc.WithInsecure()),
+				dial.WithDialTimeout(time.Second),
+			),
+			connect.NewNetworkServiceRegistryClient(),
+		),
+	)
 	_, err := s.Register(clienturlctx.WithClientURL(ctx, url1), &registry.NetworkService{Name: "ns-1"})
 	require.NoError(t, err)
 
@@ -172,7 +197,19 @@ func TestConnectNSServer_AllDead_WatchingFind(t *testing.T) {
 
 	url1, url2, cancel1, cancel2 := startTestNSServers(ctx, t)
 
-	s := connect.NewNetworkServiceRegistryServer(ctx, connect.WithDialOptions(grpc.WithInsecure()))
+	s := connect.NewNetworkServiceRegistryServer(
+		chain.NewNetworkServiceRegistryClient(
+			begin.NewNetworkServiceRegistryClient(),
+			clientconn.NewNetworkServiceRegistryClient(),
+			dial.NewNetworkServiceRegistryClient(ctx,
+				dial.WithDialOptions(grpc.WithInsecure()),
+				dial.WithDialTimeout(time.Second),
+			),
+			connect.NewNetworkServiceRegistryClient(),
+		),
+	)
+
+	errCh := make(chan error, 2)
 
 	go func() {
 		ch := make(chan *registry.NetworkServiceResponse, 1)
@@ -181,7 +218,7 @@ func TestConnectNSServer_AllDead_WatchingFind(t *testing.T) {
 			NetworkService: new(registry.NetworkService),
 			Watch:          true,
 		}, findSrv)
-		require.Error(t, err)
+		errCh <- err
 	}()
 
 	go func() {
@@ -191,12 +228,95 @@ func TestConnectNSServer_AllDead_WatchingFind(t *testing.T) {
 			NetworkService: new(registry.NetworkService),
 			Watch:          true,
 		}, findSrv)
-		require.Error(t, err)
+		errCh <- err
 	}()
 
 	cancel1()
 	cancel2()
 
+	<-errCh
+	<-errCh
+
 	for err, i := goleak.Find(), 0; err != nil && i < 3; err, i = goleak.Find(), i+1 {
+	}
+}
+
+func Test_NSConenctChain_Find(t *testing.T) {
+	for depth := 2; depth < 11; depth++ {
+		for killIndex := 1; killIndex < depth; killIndex++ {
+			var ctx, cancel = context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+
+			var urls = make([]*url.URL, depth)
+
+			var servers = make([]*struct {
+				registry.NetworkServiceRegistryServer
+				kill func()
+			}, depth)
+
+			for i := 0; i < depth; i++ {
+				var serverCtx, serverCancel = context.WithCancel(ctx)
+
+				servers[i] = &struct {
+					registry.NetworkServiceRegistryServer
+					kill func()
+				}{
+					kill: serverCancel,
+				}
+
+				urls[i] = new(url.URL)
+
+				require.NoError(t,
+					startNSServer(
+						serverCtx,
+						urls[i],
+						servers[i],
+					),
+				)
+			}
+
+			for i := 0; i < depth-1; i++ {
+				servers[i].NetworkServiceRegistryServer = chain.NewNetworkServiceRegistryServer(
+					clienturl.NewNetworkServiceRegistryServer(urls[i+1]),
+					connect.NewNetworkServiceRegistryServer(
+						chain.NewNetworkServiceRegistryClient(
+							begin.NewNetworkServiceRegistryClient(),
+							clientconn.NewNetworkServiceRegistryClient(),
+							dial.NewNetworkServiceRegistryClient(ctx,
+								dial.WithDialOptions(grpc.WithInsecure()),
+								dial.WithDialTimeout(time.Second),
+							),
+							connect.NewNetworkServiceRegistryClient(),
+						),
+					),
+				)
+			}
+
+			servers[len(servers)-1].NetworkServiceRegistryServer = memory.NewNetworkServiceRegistryServer()
+
+			c := adapters.NetworkServiceServerToClient(servers[0].NetworkServiceRegistryServer)
+
+			_, err := c.Register(ctx, &registry.NetworkService{
+				Name: "testing",
+			})
+
+			require.NoError(t, err)
+
+			stream, err := c.Find(ctx, &registry.NetworkServiceQuery{
+				Watch: true,
+				NetworkService: &registry.NetworkService{
+					Name: "testing",
+				},
+			})
+			require.NoError(t, err)
+
+			_, err = stream.Recv()
+			require.NoError(t, err)
+
+			servers[killIndex].kill()
+
+			_, err = stream.Recv()
+			require.Error(t, err)
+		}
 	}
 }

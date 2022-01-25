@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -32,10 +32,11 @@ import (
 type retryNSEClient struct {
 	interval   time.Duration
 	tryTimeout time.Duration
+	chainCtx   context.Context
 }
 
 // NewNetworkServiceEndpointRegistryClient - returns a retry chain element
-func NewNetworkServiceEndpointRegistryClient(opts ...Option) registry.NetworkServiceEndpointRegistryClient {
+func NewNetworkServiceEndpointRegistryClient(ctx context.Context, opts ...Option) registry.NetworkServiceEndpointRegistryClient {
 	clientOpts := &options{
 		interval:   time.Millisecond * 200,
 		tryTimeout: time.Second * 15,
@@ -48,6 +49,7 @@ func NewNetworkServiceEndpointRegistryClient(opts ...Option) registry.NetworkSer
 	return &retryNSEClient{
 		interval:   clientOpts.interval,
 		tryTimeout: clientOpts.tryTimeout,
+		chainCtx:   ctx,
 	}
 }
 
@@ -64,6 +66,8 @@ func (r *retryNSEClient) Register(ctx context.Context, nse *registry.NetworkServ
 			logger.Errorf("try attempt has failed: %v", err.Error())
 
 			select {
+			case <-r.chainCtx.Done():
+				return nil, err
 			case <-ctx.Done():
 				return nil, ctx.Err()
 			case <-c.After(r.interval):
@@ -85,7 +89,7 @@ func (r *retryNSEClient) Find(ctx context.Context, query *registry.NetworkServic
 	if query != nil {
 		cloneQuery.NetworkServiceEndpoint = query.NetworkServiceEndpoint.Clone()
 	}
-	for ctx.Err() == nil {
+	for ctx.Err() == nil && r.chainCtx.Err() == nil {
 		stream, err := next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, cloneQuery, opts...)
 
 		if err != nil {
@@ -95,6 +99,10 @@ func (r *retryNSEClient) Find(ctx context.Context, query *registry.NetworkServic
 		}
 
 		return stream, err
+	}
+
+	if r.chainCtx.Err() != nil {
+		return nil, ctx.Err()
 	}
 
 	return nil, ctx.Err()
@@ -113,6 +121,8 @@ func (r *retryNSEClient) Unregister(ctx context.Context, in *registry.NetworkSer
 			logger.Errorf("try attempt has failed: %v", err.Error())
 
 			select {
+			case <-r.chainCtx.Done():
+				return nil, err
 			case <-ctx.Done():
 				return nil, ctx.Err()
 			case <-c.After(r.interval):

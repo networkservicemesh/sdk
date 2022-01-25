@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -24,5 +24,12 @@ type Option func(*discoverForwarderServer)
 func WithForwarderServiceName(serviceName string) Option {
 	return func(d *discoverForwarderServer) {
 		d.forwarderServiceName = serviceName
+	}
+}
+
+// WithNSMgrURL sets URL for NSE Find queriees
+func WithNSMgrURL(nsmgrURL string) Option {
+	return func(d *discoverForwarderServer) {
+		d.nsmgrURL = nsmgrURL
 	}
 }

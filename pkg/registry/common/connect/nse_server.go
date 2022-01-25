@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,157 +14,76 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package connect TODO
 package connect
 
 import (
 	"context"
-	"net/url"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
+	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/multiexecutor"
 )
 
 type connectNSEServer struct {
-	ctx           context.Context
-	clientOptions []Option
-
-	nseInfos nseInfoMap
-	clients  nseClientMap
-	executor multiexecutor.MultiExecutor
+	client      registry.NetworkServiceEndpointRegistryClient
+	callOptions []grpc.CallOption
 }
 
-type nseInfo struct {
-	clientURL *url.URL
-	client    *nseClient
+func (c *connectNSEServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	closeCtxFunc := postpone.ContextWithValues(ctx)
+	clientResp, clientErr := c.client.Register(ctx, in, c.callOptions...)
+	if clientErr != nil {
+		return nil, clientErr
+	}
+
+	serverResp, serverErr := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, clientResp)
+	if serverErr != nil {
+		closeCtx, closeCancel := closeCtxFunc()
+		defer closeCancel()
+		_, _ = c.client.Unregister(closeCtx, clientResp, c.callOptions...)
+	}
+	return serverResp, serverErr
 }
 
-type nseClient struct {
-	client  registry.NetworkServiceEndpointRegistryClient
-	count   int
-	onClose context.CancelFunc
+func (c *connectNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
+	ctx := server.Context()
+
+	clientResp, clientErr := c.client.Find(ctx, query, c.callOptions...)
+	if clientErr != nil {
+		return clientErr
+	}
+
+	for resp := range registry.ReadNetworkServiceEndpointChannel(clientResp) {
+		if err := server.Send(resp); err != nil {
+			return err
+		}
+	}
+
+	return next.NetworkServiceEndpointRegistryServer(ctx).Find(query, server)
 }
 
-// NewNetworkServiceEndpointRegistryServer - server chain element that creates client subchains and requests them selecting by
-//             clienturlctx.ClientURL(ctx)
-func NewNetworkServiceEndpointRegistryServer(
-	ctx context.Context,
-	clientOptions ...Option,
-) registry.NetworkServiceEndpointRegistryServer {
+func (c *connectNSEServer) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	_, clientErr := c.client.Unregister(ctx, in, c.callOptions...)
+	_, serverErr := next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in)
+	if clientErr != nil && serverErr != nil {
+		return nil, errors.Wrapf(serverErr, "errors during client close: %v", clientErr)
+	}
+	if clientErr != nil {
+		return nil, errors.Wrap(clientErr, "errors during client close")
+	}
+	return &empty.Empty{}, serverErr
+}
+
+// NewNetworkServiceEndpointRegistryServer - returns a connect chain element
+func NewNetworkServiceEndpointRegistryServer(client registry.NetworkServiceEndpointRegistryClient, callOptions ...grpc.CallOption) registry.NetworkServiceEndpointRegistryServer {
 	return &connectNSEServer{
-		ctx:           ctx,
-		clientOptions: clientOptions,
+		client:      client,
+		callOptions: callOptions,
 	}
-}
-
-func (s *connectNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	clientURL := clienturlctx.ClientURL(ctx)
-	if clientURL == nil {
-		return nil, errors.Errorf("clientURL not found for incoming endpoint: %+v", nse)
-	}
-
-	_, loaded := s.nseInfos.Load(nse.Name)
-
-	c := s.client(ctx, nse)
-	reg, err := c.client.Register(ctx, nse)
-	if err != nil {
-		if !loaded {
-			s.closeClient(c, clientURL.String())
-		}
-		return nil, err
-	}
-
-	s.nseInfos.Store(nse.Name, &nseInfo{
-		clientURL: clientURL,
-		client:    c,
-	})
-
-	return reg, nil
-}
-
-func (s *connectNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
-	clientURL := clienturlctx.ClientURL(server.Context())
-	if clientURL == nil {
-		return errors.Errorf("clientURL not found for incoming query: %+v", query)
-	}
-
-	c := s.client(server.Context(), nil)
-
-	err := adapters.NetworkServiceEndpointClientToServer(c.client).Find(query, server)
-
-	s.closeClient(c, clientURL.String())
-
-	return err
-}
-
-func (s *connectNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	clientURL := clienturlctx.ClientURL(ctx)
-	if clientURL == nil {
-		return nil, errors.Errorf("clientURL not found for incoming endpoint: %+v", nse)
-	}
-
-	c := s.client(ctx, nse)
-
-	_, err := c.client.Unregister(ctx, nse)
-
-	s.closeClient(c, clientURL.String())
-	s.nseInfos.Delete(nse.Name)
-
-	return new(empty.Empty), err
-}
-
-func (s *connectNSEServer) client(ctx context.Context, nse *registry.NetworkServiceEndpoint) *nseClient {
-	clientURL := clienturlctx.ClientURL(ctx)
-
-	if nse != nil {
-		// First check if we have already registered on some clientURL with this nse.Name.
-		if info, ok := s.nseInfos.Load(nse.Name); ok {
-			if *info.clientURL == *clientURL {
-				return info.client
-			}
-
-			// For some reason we have changed the clientURL, so we need to close the existing client.
-			s.closeClient(info.client, info.clientURL.String())
-		}
-	}
-
-	var c *nseClient
-	<-s.executor.AsyncExec(clientURL.String(), func() {
-		// Fast path if we already have client for the clientURL and we should not reconnect, use it.
-		var loaded bool
-		c, loaded = s.clients.Load(clientURL.String())
-		if !loaded {
-			// If not, create and LoadOrStore a new one.
-			c = s.newClient(clientURL)
-			s.clients.Store(clientURL.String(), c)
-		}
-		c.count++
-	})
-	return c
-}
-
-func (s *connectNSEServer) newClient(clientURL *url.URL) *nseClient {
-	ctx, cancel := context.WithCancel(s.ctx)
-	return &nseClient{
-		client:  NewNetworkServiceEndpointRegistryClient(ctx, clientURL, s.clientOptions...),
-		count:   0,
-		onClose: cancel,
-	}
-}
-
-func (s *connectNSEServer) closeClient(c *nseClient, clientURL string) {
-	<-s.executor.AsyncExec(clientURL, func() {
-		c.count--
-		if c.count == 0 {
-			if loadedClient, ok := s.clients.Load(clientURL); ok && c == loadedClient {
-				s.clients.Delete(clientURL)
-			}
-			c.onClose()
-		}
-	})
 }

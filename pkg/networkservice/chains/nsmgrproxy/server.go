@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -35,15 +35,15 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interdomainurl"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interdomainbypass"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/swapip"
 	"github.com/networkservicemesh/sdk/pkg/registry"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 	registryconnect "github.com/networkservicemesh/sdk/pkg/registry/common/connect"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/proxy"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/seturl"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
 	registryswapip "github.com/networkservicemesh/sdk/pkg/registry/common/swapip"
-	registryadapter "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/fs"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
@@ -65,13 +65,12 @@ type nsmgrProxyServer struct {
 }
 
 type serverOptions struct {
-	name                   string
-	mapipFilePath          string
-	listenOn               *url.URL
-	authorizeServer        networkservice.NetworkServiceServer
-	dialOptions            []grpc.DialOption
-	dialTimeout            time.Duration
-	registryConnectOptions []registryconnect.Option
+	name            string
+	mapipFilePath   string
+	listenOn        *url.URL
+	authorizeServer networkservice.NetworkServiceServer
+	dialOptions     []grpc.DialOption
+	dialTimeout     time.Duration
 }
 
 func (s *serverOptions) openMapIPChannel(ctx context.Context) <-chan map[string]string {
@@ -113,13 +112,6 @@ func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Op
 
 	return func(o *serverOptions) {
 		o.authorizeServer = authorizeServer
-	}
-}
-
-// WithRegistryConnectOptions sets registry connect options
-func WithRegistryConnectOptions(connectOptions ...registryconnect.Option) Option {
-	return func(o *serverOptions) {
-		o.registryConnectOptions = connectOptions
 	}
 }
 
@@ -165,27 +157,34 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 		opt(opts)
 	}
 
-	var nseStockServer registryapi.NetworkServiceEndpointRegistryServer
+	var interdomainBypassNSEServer registryapi.NetworkServiceEndpointRegistryServer
 
-	nseClient := registryadapter.NetworkServiceEndpointServerToClient(
-		chain.NewNetworkServiceEndpointRegistryServer(
-			clienturl.NewNetworkServiceEndpointRegistryServer(regURL),
-			registryconnect.NewNetworkServiceEndpointRegistryServer(ctx, opts.registryConnectOptions...),
+	nseClient := chain.NewNetworkServiceEndpointRegistryClient(
+		begin.NewNetworkServiceEndpointRegistryClient(),
+		clienturl.NewNetworkServiceEndpointRegistryClient(regURL),
+		clientconn.NewNetworkServiceEndpointRegistryClient(),
+		dial.NewNetworkServiceEndpointRegistryClient(ctx,
+			dial.WithDialOptions(opts.dialOptions...),
+			dial.WithDialTimeout(opts.dialTimeout),
 		),
+		registryconnect.NewNetworkServiceEndpointRegistryClient(),
 	)
 
-	nsClient := registryadapter.NetworkServiceServerToClient(
-		chain.NewNetworkServiceRegistryServer(
-			clienturl.NewNetworkServiceRegistryServer(regURL),
-			registryconnect.NewNetworkServiceRegistryServer(ctx, opts.registryConnectOptions...),
+	nsClient := chain.NewNetworkServiceRegistryClient(
+		begin.NewNetworkServiceRegistryClient(),
+		clienturl.NewNetworkServiceRegistryClient(regURL),
+		clientconn.NewNetworkServiceRegistryClient(),
+		dial.NewNetworkServiceRegistryClient(ctx,
+			dial.WithDialOptions(opts.dialOptions...),
 		),
+		registryconnect.NewNetworkServiceRegistryClient(),
 	)
 
 	rv.Endpoint = endpoint.NewServer(ctx, tokenGenerator,
 		endpoint.WithName(opts.name),
 		endpoint.WithAuthorizeServer(opts.authorizeServer),
 		endpoint.WithAdditionalFunctionality(
-			interdomainurl.NewServer(&nseStockServer),
+			interdomainbypass.NewServer(&interdomainBypassNSEServer, opts.listenOn),
 			discover.NewServer(nsClient, nseClient),
 			swapip.NewServer(opts.openMapIPChannel(ctx)),
 			connect.NewServer(
@@ -200,17 +199,33 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 		),
 	)
 
-	var nsServerChain = chain.NewNetworkServiceRegistryServer(
-		proxy.NewNetworkServiceRegistryServer(proxyURL),
-		registryconnect.NewNetworkServiceRegistryServer(ctx, opts.registryConnectOptions...),
+	var nsServerChain = registryconnect.NewNetworkServiceRegistryServer(
+		chain.NewNetworkServiceRegistryClient(
+			begin.NewNetworkServiceRegistryClient(),
+			clienturl.NewNetworkServiceRegistryClient(proxyURL),
+			clientconn.NewNetworkServiceRegistryClient(),
+			dial.NewNetworkServiceRegistryClient(ctx,
+				dial.WithDialOptions(opts.dialOptions...),
+			),
+			registryconnect.NewNetworkServiceRegistryClient(),
+		),
 	)
 
 	var nseServerChain = chain.NewNetworkServiceEndpointRegistryServer(
-		proxy.NewNetworkServiceEndpointRegistryServer(proxyURL),
-		seturl.NewNetworkServiceEndpointRegistryServer(opts.listenOn),
+		begin.NewNetworkServiceEndpointRegistryServer(),
+		clienturl.NewNetworkServiceEndpointRegistryServer(proxyURL),
+		interdomainBypassNSEServer,
 		registryswapip.NewNetworkServiceEndpointRegistryServer(opts.openMapIPChannel(ctx)),
-		nseStockServer,
-		registryconnect.NewNetworkServiceEndpointRegistryServer(ctx, opts.registryConnectOptions...),
+		registryconnect.NewNetworkServiceEndpointRegistryServer(
+			chain.NewNetworkServiceEndpointRegistryClient(
+				clientconn.NewNetworkServiceEndpointRegistryClient(),
+				dial.NewNetworkServiceEndpointRegistryClient(ctx,
+					dial.WithDialOptions(opts.dialOptions...),
+					dial.WithDialTimeout(opts.dialTimeout),
+				),
+				registryconnect.NewNetworkServiceEndpointRegistryClient(),
+			),
+		),
 	)
 
 	rv.Registry = registry.NewServer(nsServerChain, nseServerChain)

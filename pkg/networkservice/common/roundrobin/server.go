@@ -51,10 +51,12 @@ func (s *selectEndpointServer) Request(ctx context.Context, request *networkserv
 	}
 	candidates := discover.Candidates(ctx)
 
+	var candidatesErr = errors.New("all candidates have failed")
+
 	for i := 0; i < len(candidates.Endpoints); i++ {
 		endpoint := s.selector.selectEndpoint(candidates.NetworkService, candidates.Endpoints)
 		if endpoint == nil {
-			return nil, errors.Errorf("failed to find endpoint for Network Service: %v %v", candidates.NetworkService, candidates.Endpoints)
+			return nil, errors.Errorf("failed to select endpoint for Network Service: %v %v", candidates.NetworkService, candidates.Endpoints)
 		}
 		u, err := url.Parse(endpoint.Url)
 		if err != nil {
@@ -66,8 +68,9 @@ func (s *selectEndpointServer) Request(ctx context.Context, request *networkserv
 		if err == nil {
 			return resp, nil
 		}
+		candidatesErr = errors.Wrapf(candidatesErr, "%v. An error during select endpoint %v --> %v", i, endpoint.Name, err.Error())
 	}
-	return nil, errors.Errorf("all candidates %#v fail", candidates)
+	return nil, candidatesErr
 }
 
 func (s *selectEndpointServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {

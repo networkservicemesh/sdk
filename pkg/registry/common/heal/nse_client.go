@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,73 +18,62 @@ package heal
 
 import (
 	"context"
-	"sync"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/addressof"
-	"github.com/networkservicemesh/sdk/pkg/tools/extend"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type healNSEClient struct {
-	ctx      context.Context
-	onHeal   *registry.NetworkServiceEndpointRegistryClient
-	nseInfos nseInfoMap
-
-	stream     registry.NetworkServiceEndpointRegistry_FindClient
-	healCancel context.CancelFunc
-	lock       sync.RWMutex
-}
-
-type nseInfo struct {
-	nse    *registry.NetworkServiceEndpoint
-	ctx    context.Context
-	cancel context.CancelFunc
+	ctx context.Context
+	cancelsMap
 }
 
 // NewNetworkServiceEndpointRegistryClient returns a new NSE registry client responsible for healing
-func NewNetworkServiceEndpointRegistryClient(ctx context.Context, onHeal *registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceEndpointRegistryClient {
-	c := &healNSEClient{
-		ctx:        ctx,
-		onHeal:     onHeal,
-		healCancel: func() {},
+func NewNetworkServiceEndpointRegistryClient(ctx context.Context) registry.NetworkServiceEndpointRegistryClient {
+	return &healNSEClient{
+		ctx: ctx,
 	}
-	if c.onHeal == nil {
-		c.onHeal = addressof.NetworkServiceEndpointRegistryClient(c)
-	}
-	return c
 }
 
 func (c *healNSEClient) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	nseCtx, nseCancel := context.WithCancel(c.ctx)
-	_, loaded := c.nseInfos.LoadOrStore(nse.Name, &nseInfo{
-		nse:    nse.Clone(),
-		ctx:    nseCtx,
-		cancel: nseCancel,
-	})
-	if loaded {
-		nseCancel()
-	}
+	resp, err := next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, nse, opts...)
 
-	if err := c.startMonitor(ctx, opts); err != nil {
-		return nil, err
-	}
-
-	reg, err := next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, nse, opts...)
 	if err != nil {
-		if !loaded {
-			nseCancel()
-			c.nseInfos.Delete(nse.Name)
-		}
 		return nil, err
 	}
 
-	return reg, nil
+	factory := begin.FromContext(ctx)
+
+	if v, ok := c.LoadAndDelete(nse.GetName()); ok {
+		v()
+	}
+	healCtx, cancel := context.WithCancel(c.ctx)
+
+	stream, streamErr := next.NetworkServiceEndpointRegistryClient(ctx).Find(healCtx, &registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: nse.GetName()}, Watch: true}, opts...)
+
+	if streamErr != nil {
+		cancel()
+		return nil, streamErr
+	}
+
+	c.Store(nse.GetName(), cancel)
+
+	go func() {
+		for {
+			_, recvErr := stream.Recv()
+			if recvErr != nil {
+				factory.Register(begin.CancelContext(healCtx))
+				return
+			}
+		}
+	}()
+
+	return resp, err
 }
 
 func (c *healNSEClient) Find(ctx context.Context, query *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
@@ -94,13 +83,15 @@ func (c *healNSEClient) Find(ctx context.Context, query *registry.NetworkService
 
 	query = proto.Clone(query).(*registry.NetworkServiceEndpointQuery)
 
+	nextClient := next.NetworkServiceEndpointRegistryClient(ctx)
+
 	createStream := func() (registry.NetworkServiceEndpointRegistry_FindClient, error) {
 		queryClone := proto.Clone(query).(*registry.NetworkServiceEndpointQuery)
-		return (*c.onHeal).Find(withNSEFindHealing(ctx), queryClone, opts...)
+		return nextClient.Find(withNSEFindHealing(ctx), queryClone, opts...)
 	}
 
 	queryClone := proto.Clone(query).(*registry.NetworkServiceEndpointQuery)
-	stream, err := next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, queryClone, opts...)
+	stream, err := nextClient.Find(ctx, queryClone, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -122,101 +113,8 @@ func (c *healNSEClient) Find(ctx context.Context, query *registry.NetworkService
 }
 
 func (c *healNSEClient) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
-	info, loaded := c.nseInfos.LoadAndDelete(nse.Name)
-	if !loaded {
-		return new(empty.Empty), nil
+	if v, loaded := c.LoadAndDelete(nse.Name); loaded {
+		v()
 	}
-
-	info.cancel()
-
 	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, nse, opts...)
-}
-
-func (c *healNSEClient) startMonitor(ctx context.Context, opts []grpc.CallOption) error {
-	logger := log.FromContext(c.ctx).WithField("healNSEClient", "startMonitor")
-
-	c.lock.RLock()
-	stream := c.stream
-	c.lock.RUnlock()
-
-	if stream != nil {
-		return nil
-	}
-
-	c.lock.Lock()
-
-	if c.stream != nil {
-		c.lock.Unlock()
-		return nil
-	}
-
-	findCtx, findCancel := context.WithCancel(c.ctx)
-	findCtx = extend.WithValuesFromContext(findCtx, ctx)
-
-	query := &registry.NetworkServiceEndpointQuery{
-		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
-		Watch:                  true,
-	}
-
-	var err error
-	c.stream, err = next.NetworkServiceEndpointRegistryClient(ctx).Find(findCtx, query, opts...)
-
-	c.lock.Unlock()
-
-	if err != nil {
-		logger.Warn("NSE client failed")
-		findCancel()
-		return err
-	}
-
-	logger.Info("NSE client ready")
-
-	go func() {
-		defer findCancel()
-		c.monitor(opts)
-	}()
-
-	return nil
-}
-
-func (c *healNSEClient) monitor(opts []grpc.CallOption) {
-	for _, err := c.stream.Recv(); err == nil; _, err = c.stream.Recv() {
-	}
-	c.healCancel()
-
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
-	c.restore(opts)
-}
-
-func (c *healNSEClient) restore(opts []grpc.CallOption) {
-	log.FromContext(c.ctx).WithField("healNSEClient", "restore").Warn("NSE client restoring")
-
-	c.stream = nil
-
-	var healCtx context.Context
-	healCtx, c.healCancel = context.WithCancel(c.ctx)
-
-	c.nseInfos.Range(func(name string, info *nseInfo) bool {
-		go func() {
-			nseCtx, nseCancel := context.WithCancel(extend.WithValuesFromContext(healCtx, context.Background()))
-			defer nseCancel()
-
-			go func() {
-				select {
-				case <-nseCtx.Done():
-				case <-info.ctx.Done():
-				}
-				nseCancel()
-			}()
-
-			for nseCtx.Err() == nil {
-				if _, err := (*c.onHeal).Register(nseCtx, info.nse.Clone(), opts...); err == nil {
-					return
-				}
-			}
-		}()
-		return true
-	})
 }

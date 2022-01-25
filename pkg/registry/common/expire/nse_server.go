@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -25,64 +25,71 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
-	"github.com/networkservicemesh/sdk/pkg/tools/expire"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	"github.com/networkservicemesh/sdk/pkg/tools/serializectx"
 )
 
 type expireNSEServer struct {
-	expireManager *expire.Manager
 	nseExpiration time.Duration
+	ctx           context.Context
+	cancelsMap
 }
 
 // NewNetworkServiceEndpointRegistryServer creates a new NetworkServiceServer chain element that implements unregister
 // of expired connections for the subsequent chain elements.
 func NewNetworkServiceEndpointRegistryServer(ctx context.Context, nseExpiration time.Duration) registry.NetworkServiceEndpointRegistryServer {
 	return &expireNSEServer{
-		expireManager: expire.NewManager(ctx),
 		nseExpiration: nseExpiration,
+		ctx:           ctx,
 	}
 }
 
 func (s *expireNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	clockTime := clock.FromContext(ctx)
+	factory := begin.FromContext(ctx)
+	timeClock := clock.FromContext(ctx)
+	expirationTime := timeClock.Now().Add(s.nseExpiration).Local()
+
 	logger := log.FromContext(ctx).WithField("expireNSEServer", "Register")
 
-	s.expireManager.Stop(nse.Name)
-
-	expirationTime := clockTime.Now().Add(s.nseExpiration)
-	if nse.ExpirationTime != nil {
-		if nseExpirationTime := nse.ExpirationTime.AsTime().Local(); nseExpirationTime.Before(expirationTime) {
+	if nse.GetExpirationTime() != nil {
+		if nseExpirationTime := nse.GetExpirationTime().AsTime().Local(); nseExpirationTime.Before(expirationTime) {
 			expirationTime = nseExpirationTime
+			logger.Infof("selected expiration time %v for %v", expirationTime, nse.GetName())
 		}
 	}
+
 	nse.ExpirationTime = timestamppb.New(expirationTime)
 
-	reg, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
+	resp, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	if err != nil {
-		s.expireManager.Start(nse.Name)
 		return nil, err
 	}
 
-	unregisterNSE := reg.Clone()
-	if unregisterNSE.Name != nse.Name {
-		s.expireManager.Delete(nse.Name)
+	if nseExpirationTime := resp.GetExpirationTime().AsTime().Local(); nseExpirationTime.Before(expirationTime) {
+		expirationTime = nseExpirationTime
+		logger.Infof("selected expiration time %v for %v", expirationTime, resp.GetName())
 	}
 
-	s.expireManager.New(
-		serializectx.GetExecutor(ctx, unregisterNSE.Name),
-		unregisterNSE.Name,
-		unregisterNSE.ExpirationTime.AsTime().Local(),
-		func(unregisterCtx context.Context) {
-			if _, unregisterErr := next.NetworkServiceEndpointRegistryServer(ctx).Unregister(unregisterCtx, unregisterNSE); unregisterErr != nil {
-				logger.Errorf("failed to unregister expired endpoint: %s %s", unregisterNSE.Name, unregisterErr.Error())
-			}
-		},
-	)
+	expireContext, cancel := context.WithCancel(s.ctx)
+	if v, ok := s.cancelsMap.LoadAndDelete(nse.GetName()); ok {
+		v()
+	}
+	s.cancelsMap.Store(nse.GetName(), cancel)
 
-	return reg, nil
+	expireCh := timeClock.After(timeClock.Until(expirationTime.Local()))
+
+	go func() {
+		select {
+		case <-expireContext.Done():
+			return
+		case <-expireCh:
+			factory.Unregister(begin.CancelContext(expireContext))
+		}
+	}()
+
+	return resp, nil
 }
 
 func (s *expireNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
@@ -90,17 +97,8 @@ func (s *expireNSEServer) Find(query *registry.NetworkServiceEndpointQuery, serv
 }
 
 func (s *expireNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	logger := log.FromContext(ctx).WithField("expireNSEServer", "Unregister")
-
-	if s.expireManager.Stop(nse.Name) {
-		if _, err := next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse); err != nil {
-			s.expireManager.Start(nse.Name)
-			return nil, err
-		}
-		s.expireManager.Delete(nse.Name)
-	} else {
-		logger.Warnf("endpoint has been already unregistered: %s", nse.Name)
+	if oldCancel, loaded := s.LoadAndDelete(nse.Name); loaded {
+		oldCancel()
 	}
-
-	return new(empty.Empty), nil
+	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }

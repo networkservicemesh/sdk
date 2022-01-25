@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -32,10 +32,11 @@ import (
 type retryNSClient struct {
 	interval   time.Duration
 	tryTimeout time.Duration
+	chainCtx   context.Context
 }
 
 // NewNetworkServiceRegistryClient - returns a retry chain element
-func NewNetworkServiceRegistryClient(opts ...Option) registry.NetworkServiceRegistryClient {
+func NewNetworkServiceRegistryClient(ctx context.Context, opts ...Option) registry.NetworkServiceRegistryClient {
 	clientOpts := &options{
 		interval:   time.Millisecond * 200,
 		tryTimeout: time.Second * 15,
@@ -46,6 +47,7 @@ func NewNetworkServiceRegistryClient(opts ...Option) registry.NetworkServiceRegi
 	}
 
 	return &retryNSClient{
+		chainCtx:   ctx,
 		interval:   clientOpts.interval,
 		tryTimeout: clientOpts.tryTimeout,
 	}
@@ -55,7 +57,7 @@ func (r *retryNSClient) Register(ctx context.Context, in *registry.NetworkServic
 	logger := log.FromContext(ctx).WithField("retryNSClient", "Register")
 	c := clock.FromContext(ctx)
 
-	for ctx.Err() == nil {
+	for ctx.Err() == nil && r.chainCtx.Err() == nil {
 		registerCtx, cancel := c.WithTimeout(ctx, r.tryTimeout)
 		resp, err := next.NetworkServiceRegistryClient(registerCtx).Register(registerCtx, in, opts...)
 		cancel()
@@ -64,6 +66,8 @@ func (r *retryNSClient) Register(ctx context.Context, in *registry.NetworkServic
 			logger.Errorf("try attempt has failed: %v", err.Error())
 
 			select {
+			case <-r.chainCtx.Done():
+				return nil, r.chainCtx.Err()
 			case <-ctx.Done():
 				return nil, ctx.Err()
 			case <-c.After(r.interval):
@@ -74,6 +78,10 @@ func (r *retryNSClient) Register(ctx context.Context, in *registry.NetworkServic
 		return resp, err
 	}
 
+	if r.chainCtx.Err() != nil {
+		return nil, r.chainCtx.Err()
+	}
+
 	return nil, ctx.Err()
 }
 
@@ -81,7 +89,7 @@ func (r *retryNSClient) Find(ctx context.Context, query *registry.NetworkService
 	logger := log.FromContext(ctx).WithField("retryNSClient", "Find")
 	c := clock.FromContext(ctx)
 
-	for ctx.Err() == nil {
+	for ctx.Err() == nil && r.chainCtx.Err() == nil {
 		stream, err := next.NetworkServiceRegistryClient(ctx).Find(ctx, query, opts...)
 
 		if err != nil {
@@ -93,6 +101,10 @@ func (r *retryNSClient) Find(ctx context.Context, query *registry.NetworkService
 		return stream, err
 	}
 
+	if r.chainCtx.Err() != nil {
+		return nil, r.chainCtx.Err()
+	}
+
 	return nil, ctx.Err()
 }
 
@@ -100,7 +112,7 @@ func (r *retryNSClient) Unregister(ctx context.Context, in *registry.NetworkServ
 	logger := log.FromContext(ctx).WithField("retryNSClient", "Unregister")
 	c := clock.FromContext(ctx)
 
-	for ctx.Err() == nil {
+	for ctx.Err() == nil && r.chainCtx.Err() == nil {
 		closeCtx, cancel := c.WithTimeout(ctx, r.tryTimeout)
 		resp, err := next.NetworkServiceRegistryClient(closeCtx).Unregister(closeCtx, in, opts...)
 		cancel()
@@ -109,6 +121,8 @@ func (r *retryNSClient) Unregister(ctx context.Context, in *registry.NetworkServ
 			logger.Errorf("try attempt has failed: %v", err.Error())
 
 			select {
+			case <-r.chainCtx.Done():
+				return nil, r.chainCtx.Err()
 			case <-ctx.Done():
 				return nil, ctx.Err()
 			case <-c.After(r.interval):
@@ -117,6 +131,9 @@ func (r *retryNSClient) Unregister(ctx context.Context, in *registry.NetworkServ
 		}
 
 		return resp, err
+	}
+	if r.chainCtx.Err() != nil {
+		return nil, r.chainCtx.Err()
 	}
 
 	return nil, ctx.Err()

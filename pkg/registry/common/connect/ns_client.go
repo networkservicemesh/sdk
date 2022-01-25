@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,125 +18,41 @@ package connect
 
 import (
 	"context"
-	"net/url"
-	"sync"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
-	"google.golang.org/protobuf/types/known/emptypb"
-
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"google.golang.org/grpc"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
 )
 
-type connectNSClient struct {
-	ctx         context.Context
-	client      registry.NetworkServiceRegistryClient
-	connectTo   string
-	dialOptions []grpc.DialOption
+type connectNSClient struct{}
 
-	cc   *grpc.ClientConn
-	lock sync.RWMutex
+func (n *connectNSClient) Register(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
+	cc, loaded := clientconn.Load(ctx)
+	if !loaded {
+		return nil, errNoCCProvided
+	}
+	return registry.NewNetworkServiceRegistryClient(cc).Register(ctx, in, opts...)
 }
 
-// NewNetworkServiceRegistryClient returns a new NS registry client chain element connecting to the remote
-//                                 NS registry server
-func NewNetworkServiceRegistryClient(ctx context.Context, connectTo *url.URL, opts ...Option) registry.NetworkServiceRegistryClient {
-	connectOpts := new(connectOptions)
-	for _, opt := range opts {
-		opt(connectOpts)
+func (n *connectNSClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
+	cc, loaded := clientconn.Load(ctx)
+	if !loaded {
+		return nil, errNoCCProvided
 	}
-
-	c := &connectNSClient{
-		ctx: ctx,
-		client: chain.NewNetworkServiceRegistryClient(
-			append(
-				connectOpts.nsAdditionalFunctionality,
-				new(grpcNSClient),
-			)...,
-		),
-		connectTo:   grpcutils.URLToTarget(connectTo),
-		dialOptions: append(append([]grpc.DialOption{}, connectOpts.dialOptions...), grpc.WithReturnConnectionError()),
-	}
-
-	go func() {
-		<-ctx.Done()
-
-		c.lock.Lock()
-		defer c.lock.Unlock()
-
-		if c.cc != nil {
-			_ = c.cc.Close()
-		}
-	}()
-
-	return c
+	return registry.NewNetworkServiceRegistryClient(cc).Find(ctx, in, opts...)
 }
 
-func (c *connectNSClient) Register(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
-	cc, err := c.getCC()
-	if err != nil {
-		return nil, err
+func (n *connectNSClient) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
+	cc, loaded := clientconn.Load(ctx)
+	if !loaded {
+		return nil, errNoCCProvided
 	}
-	return c.client.Register(withCC(ctx, cc), ns, opts...)
+	return registry.NewNetworkServiceRegistryClient(cc).Unregister(ctx, in, opts...)
 }
 
-func (c *connectNSClient) Find(ctx context.Context, query *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
-	cc, err := c.getCC()
-	if err != nil {
-		return nil, err
-	}
-	return c.client.Find(withCC(ctx, cc), query, opts...)
-}
-
-func (c *connectNSClient) Unregister(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	cc, err := c.getCC()
-	if err != nil {
-		return nil, err
-	}
-	return c.client.Unregister(withCC(ctx, cc), ns, opts...)
-}
-
-func (c *connectNSClient) getCC() (*grpc.ClientConn, error) {
-	c.lock.RLock()
-	cc := c.cc
-	c.lock.RUnlock()
-
-	if cc != nil {
-		return cc, nil
-	}
-
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
-	if c.cc != nil {
-		return c.cc, nil
-	}
-
-	var err error
-	if c.cc, err = grpc.DialContext(c.ctx, c.connectTo, c.dialOptions...); err != nil {
-		return nil, err
-	}
-
-	go func() {
-		defer func() {
-			c.lock.Lock()
-			defer c.lock.Unlock()
-
-			_ = c.cc.Close()
-			c.cc = nil
-		}()
-		for c.cc.WaitForStateChange(c.ctx, c.cc.GetState()) {
-			switch c.cc.GetState() {
-			case connectivity.Connecting, connectivity.Idle, connectivity.Ready:
-				continue
-			default:
-				return
-			}
-		}
-	}()
-
-	return c.cc, nil
+// NewNetworkServiceRegistryClient - returns a new null client that does nothing but call next.NetworkServiceRegistryClient(ctx).
+func NewNetworkServiceRegistryClient() registry.NetworkServiceRegistryClient {
+	return new(connectNSClient)
 }

@@ -43,18 +43,21 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/metrics"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
 	registryclientinfo "github.com/networkservicemesh/sdk/pkg/registry/common/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 	registryconnect "github.com/networkservicemesh/sdk/pkg/registry/common/connect"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	registryrecvfd "github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
 	registrysendfd "github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
+	"github.com/networkservicemesh/sdk/pkg/registry/switchcase"
 
-	registryserialize "github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
 	registryadapter "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
-	registrychain "github.com/networkservicemesh/sdk/pkg/registry/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
@@ -160,37 +163,61 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	var nsRegistry = memory.NewNetworkServiceRegistryServer()
 	if opts.regURL != nil {
 		// Use remote registry
-		nsRegistry = registrychain.NewNetworkServiceRegistryServer(
-			clienturl.NewNetworkServiceRegistryServer(opts.regURL),
-			registryconnect.NewNetworkServiceRegistryServer(ctx, registryconnect.WithDialOptions(opts.regDialOptions...)),
+		nsRegistry = registryconnect.NewNetworkServiceRegistryServer(
+			chain.NewNetworkServiceRegistryClient(
+				clienturl.NewNetworkServiceRegistryClient(opts.regURL),
+				begin.NewNetworkServiceRegistryClient(),
+				clientconn.NewNetworkServiceRegistryClient(),
+				dial.NewNetworkServiceRegistryClient(ctx,
+					dial.WithDialOptions(opts.dialOptions...),
+				),
+				registryconnect.NewNetworkServiceRegistryClient(),
+			),
 		)
 	}
 
-	nsRegistry = registrychain.NewNetworkServiceRegistryServer(
-		registryserialize.NewNetworkServiceRegistryServer(),
+	nsRegistry = chain.NewNetworkServiceRegistryServer(
 		nsRegistry,
 	)
 
-	var nseInMemoryRegistry = memory.NewNetworkServiceEndpointRegistryServer()
-
-	var nseRegistry = registrychain.NewNetworkServiceEndpointRegistryServer(
+	var nseRegistry = chain.NewNetworkServiceEndpointRegistryServer(
 		registryclientinfo.NewNetworkServiceEndpointRegistryServer(),
-		registryserialize.NewNetworkServiceEndpointRegistryServer(),
+		begin.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
 		registryrecvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
-		registrysendfd.NewNetworkServiceEndpointRegistryServer(),
-		nseInMemoryRegistry,
+		switchcase.NewNetworkServiceEndpointRegistryServer(
+			switchcase.NSEServerCase{
+				Condition: func(c context.Context, nse *registryapi.NetworkServiceEndpoint) bool {
+					return opts.regURL != nil
+				},
+				Action: registrysendfd.NewNetworkServiceEndpointRegistryServer(),
+			},
+		),
 		localbypass.NewNetworkServiceEndpointRegistryServer(opts.url),
+		switchcase.NewNetworkServiceEndpointRegistryServer(
+			switchcase.NSEServerCase{
+				Condition: func(c context.Context, nse *registryapi.NetworkServiceEndpoint) bool {
+					return opts.regURL == nil
+				},
+				Action: memory.NewNetworkServiceEndpointRegistryServer(),
+			},
+			switchcase.NSEServerCase{
+				Condition: func(c context.Context, nse *registryapi.NetworkServiceEndpoint) bool {
+					return opts.regURL != nil
+				},
+				Action: registryconnect.NewNetworkServiceEndpointRegistryServer(
+					chain.NewNetworkServiceEndpointRegistryClient(
+						begin.NewNetworkServiceEndpointRegistryClient(),
+						clienturl.NewNetworkServiceEndpointRegistryClient(opts.regURL),
+						clientconn.NewNetworkServiceEndpointRegistryClient(),
+						dial.NewNetworkServiceEndpointRegistryClient(ctx,
+							dial.WithDialOptions(opts.dialOptions...),
+						),
+						registryconnect.NewNetworkServiceEndpointRegistryClient(),
+					),
+				),
+			}),
 	)
-
-	if opts.regURL != nil {
-		// Add remote registry
-		nseRegistry = registrychain.NewNetworkServiceEndpointRegistryServer(
-			nseRegistry,
-			clienturl.NewNetworkServiceEndpointRegistryServer(opts.regURL),
-			registryconnect.NewNetworkServiceEndpointRegistryServer(ctx, registryconnect.WithDialOptions(opts.regDialOptions...)),
-		)
-	}
 
 	// Construct Endpoint
 	rv.Endpoint = endpoint.NewServer(ctx, tokenGenerator,
@@ -200,8 +227,9 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			adapters.NewClientToServer(clientinfo.NewClient()),
 			discoverforwarder.NewServer(
 				registryadapter.NetworkServiceServerToClient(nsRegistry),
-				registryadapter.NetworkServiceEndpointServerToClient(nseInMemoryRegistry),
+				registryadapter.NetworkServiceEndpointServerToClient(nseRegistry),
 				discoverforwarder.WithForwarderServiceName(opts.forwarderServiceName),
+				discoverforwarder.WithNSMgrURL(opts.url),
 			),
 			excludedprefixes.NewServer(ctx),
 			recvfd.NewServer(), // Receive any files passed

@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -30,6 +30,23 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 )
+
+type localBypassNSEFindServer struct {
+	*localBypassNSEServer
+	registry.NetworkServiceEndpointRegistry_FindServer
+}
+
+func (s *localBypassNSEFindServer) Send(nseResp *registry.NetworkServiceEndpointResponse) error {
+	if u, ok := s.nseURLs.Load(nseResp.NetworkServiceEndpoint.Name); ok {
+		nseResp.NetworkServiceEndpoint.Url = u.String()
+	}
+
+	if nseResp.GetNetworkServiceEndpoint().GetUrl() == s.nsmgrURL && !nseResp.Deleted {
+		return nil
+	}
+
+	return s.NetworkServiceEndpointRegistry_FindServer.Send(nseResp)
+}
 
 type localBypassNSEServer struct {
 	nsmgrURL string

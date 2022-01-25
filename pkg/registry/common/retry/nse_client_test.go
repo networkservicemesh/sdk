@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -41,6 +41,7 @@ func TestNSERetryClient_Register(t *testing.T) {
 
 	var client = chain.NewNetworkServiceEndpointRegistryClient(
 		retry.NewNetworkServiceEndpointRegistryClient(
+			context.Background(),
 			retry.WithInterval(time.Millisecond*10),
 			retry.WithTryTimeout(time.Second/30)),
 		counter,
@@ -66,7 +67,7 @@ func TestNSERetryClient_Register_ContextHasCorrectDeadline(t *testing.T) {
 	expectedDeadline := clockMock.Now().Add(time.Hour)
 
 	var client = chain.NewNetworkServiceEndpointRegistryClient(
-		retry.NewNetworkServiceEndpointRegistryClient(retry.WithTryTimeout(time.Hour)),
+		retry.NewNetworkServiceEndpointRegistryClient(context.Background(), retry.WithTryTimeout(time.Hour)),
 		checkcontext.NewNSEClient(t, func(t *testing.T, c context.Context) {
 			v, ok := c.Deadline()
 			require.True(t, ok)
@@ -91,7 +92,7 @@ func TestNSERetryClient_Unregister_ContextHasCorrectDeadline(t *testing.T) {
 	expectedDeadline := clockMock.Now().Add(time.Hour)
 
 	var client = chain.NewNetworkServiceEndpointRegistryClient(
-		retry.NewNetworkServiceEndpointRegistryClient(retry.WithTryTimeout(time.Hour)),
+		retry.NewNetworkServiceEndpointRegistryClient(context.Background(), retry.WithTryTimeout(time.Hour)),
 		checkcontext.NewNSEClient(t, func(t *testing.T, c context.Context) {
 			v, ok := c.Deadline()
 			require.True(t, ok)
@@ -110,6 +111,7 @@ func TestNSERetryClient_Unregister(t *testing.T) {
 
 	var client = chain.NewNetworkServiceEndpointRegistryClient(
 		retry.NewNetworkServiceEndpointRegistryClient(
+			context.Background(),
 			retry.WithInterval(time.Millisecond*10),
 			retry.WithTryTimeout(time.Second/30)),
 		counter,
@@ -129,6 +131,7 @@ func TestNSERetryClient_Find(t *testing.T) {
 
 	var client = chain.NewNetworkServiceEndpointRegistryClient(
 		retry.NewNetworkServiceEndpointRegistryClient(
+			context.Background(),
 			retry.WithInterval(time.Millisecond*10),
 			retry.WithTryTimeout(time.Second/30)),
 		counter,
@@ -148,6 +151,7 @@ func TestNSERetryClient_RegisterCompletesOnParentContextTimeout(t *testing.T) {
 
 	var client = chain.NewNetworkServiceEndpointRegistryClient(
 		retry.NewNetworkServiceEndpointRegistryClient(
+			context.Background(),
 			retry.WithInterval(time.Millisecond*10),
 			retry.WithTryTimeout(time.Second/30)),
 		counter,
@@ -170,6 +174,7 @@ func TestNSERetryClient_UnregisterCompletesOnParentContextTimeout(t *testing.T) 
 
 	var client = chain.NewNetworkServiceEndpointRegistryClient(
 		retry.NewNetworkServiceEndpointRegistryClient(
+			context.Background(),
 			retry.WithInterval(time.Millisecond*10),
 			retry.WithTryTimeout(time.Second/30)),
 		counter,
@@ -192,6 +197,7 @@ func TestNSERetryClient_FindCompletesOnParentContextTimeout(t *testing.T) {
 
 	var client = chain.NewNetworkServiceEndpointRegistryClient(
 		retry.NewNetworkServiceEndpointRegistryClient(
+			context.Background(),
 			retry.WithInterval(time.Millisecond*10),
 			retry.WithTryTimeout(time.Second/30)),
 		counter,

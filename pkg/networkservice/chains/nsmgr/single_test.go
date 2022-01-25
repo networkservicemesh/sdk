@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -50,7 +50,7 @@ func Test_DNSUsecase(t *testing.T) {
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService())
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
@@ -126,7 +126,7 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg := defaultRegistryService()
+	nsReg := defaultRegistryService(t.Name())
 	nsReg.Matches = []*registry.Match{
 		{
 			Routes: []*registry.Destination{
@@ -176,7 +176,7 @@ func Test_UsecasePoint2MultiPoint(t *testing.T) {
 		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, _ int) {
 			node.NewNSMgr(ctx, "nsmgr", nil, sandbox.GenerateTestToken, nsmgr.NewServer)
 		}).
-		SetRegistryExpiryDuration(sandbox.RegistryExpiryDuration).
+		SetRegistryExpiryDuration(time.Second).
 		Build()
 
 	domain.Nodes[0].NewForwarder(ctx, &registry.NetworkServiceEndpoint{
@@ -297,7 +297,7 @@ func Test_RemoteUsecase_Point2MultiPoint(t *testing.T) {
 		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, _ int) {
 			node.NewNSMgr(ctx, "nsmgr", nil, sandbox.GenerateTestToken, nsmgr.NewServer)
 		}).
-		SetRegistryExpiryDuration(sandbox.RegistryExpiryDuration).
+		SetRegistryExpiryDuration(time.Second).
 		Build()
 
 	for i := 0; i < nodeCount; i++ {

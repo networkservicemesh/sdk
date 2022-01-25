@@ -35,7 +35,7 @@ linters-settings:
   dupl:
     threshold: 150
   funlen:
-    Lines: 100
+    Lines: 110
     Statements: 50
   goconst:
     min-len: 2
@@ -216,10 +216,6 @@ issues:
         - dupl
       text: "lines are duplicate of"
     - path: pkg/tools/spiffeutils/spiffeutils.go
-      linters:
-        - interfacer
-      text: "can be `fmt.Stringer`"
-    - path: pkg/networkservice/chains/nsmgr/peertracker/server.go
       linters:
         - interfacer
       text: "can be `fmt.Stringer`"

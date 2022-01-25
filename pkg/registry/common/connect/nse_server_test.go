@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -29,9 +29,15 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
@@ -112,7 +118,17 @@ func TestConnectNSEServer_AllUnregister(t *testing.T) {
 
 	ignoreCurrent := goleak.IgnoreCurrent()
 
-	s := connect.NewNetworkServiceEndpointRegistryServer(ctx, connect.WithDialOptions(grpc.WithInsecure()))
+	s := connect.NewNetworkServiceEndpointRegistryServer(
+		chain.NewNetworkServiceEndpointRegistryClient(
+			begin.NewNetworkServiceEndpointRegistryClient(),
+			clientconn.NewNetworkServiceEndpointRegistryClient(),
+			dial.NewNetworkServiceEndpointRegistryClient(ctx,
+				dial.WithDialOptions(grpc.WithInsecure()),
+				dial.WithDialTimeout(time.Second),
+			),
+			connect.NewNetworkServiceEndpointRegistryClient(),
+		),
+	)
 
 	_, err := s.Register(clienturlctx.WithClientURL(context.Background(), url1), &registry.NetworkServiceEndpoint{Name: "nse-1"})
 	require.NoError(t, err)
@@ -150,8 +166,17 @@ func TestConnectNSEServer_AllDead_Register(t *testing.T) {
 
 	url1, url2, cancel1, cancel2 := startTestNSEServers(ctx, t)
 
-	s := connect.NewNetworkServiceEndpointRegistryServer(ctx, connect.WithDialOptions(grpc.WithInsecure()))
-
+	s := connect.NewNetworkServiceEndpointRegistryServer(
+		chain.NewNetworkServiceEndpointRegistryClient(
+			begin.NewNetworkServiceEndpointRegistryClient(),
+			clientconn.NewNetworkServiceEndpointRegistryClient(),
+			dial.NewNetworkServiceEndpointRegistryClient(ctx,
+				dial.WithDialOptions(grpc.WithInsecure()),
+				dial.WithDialTimeout(time.Second),
+			),
+			connect.NewNetworkServiceEndpointRegistryClient(),
+		),
+	)
 	_, err := s.Register(clienturlctx.WithClientURL(ctx, url1), &registry.NetworkServiceEndpoint{Name: "nse-1"})
 	require.NoError(t, err)
 
@@ -172,7 +197,19 @@ func TestConnectNSEServer_AllDead_WatchingFind(t *testing.T) {
 
 	url1, url2, cancel1, cancel2 := startTestNSEServers(ctx, t)
 
-	s := connect.NewNetworkServiceEndpointRegistryServer(ctx, connect.WithDialOptions(grpc.WithInsecure()))
+	s := connect.NewNetworkServiceEndpointRegistryServer(
+		chain.NewNetworkServiceEndpointRegistryClient(
+			begin.NewNetworkServiceEndpointRegistryClient(),
+			clientconn.NewNetworkServiceEndpointRegistryClient(),
+			dial.NewNetworkServiceEndpointRegistryClient(ctx,
+				dial.WithDialOptions(grpc.WithInsecure()),
+				dial.WithDialTimeout(time.Second),
+			),
+			connect.NewNetworkServiceEndpointRegistryClient(),
+		),
+	)
+
+	errCh := make(chan error, 2)
 
 	go func() {
 		ch := make(chan *registry.NetworkServiceEndpointResponse, 1)
@@ -181,7 +218,7 @@ func TestConnectNSEServer_AllDead_WatchingFind(t *testing.T) {
 			NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
 			Watch:                  true,
 		}, findSrv)
-		require.Error(t, err)
+		errCh <- err
 	}()
 
 	go func() {
@@ -191,12 +228,95 @@ func TestConnectNSEServer_AllDead_WatchingFind(t *testing.T) {
 			NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
 			Watch:                  true,
 		}, findSrv)
-		require.Error(t, err)
+		errCh <- err
 	}()
 
 	cancel1()
 	cancel2()
 
+	<-errCh
+	<-errCh
+
 	for err, i := goleak.Find(), 0; err != nil && i < 3; err, i = goleak.Find(), i+1 {
+	}
+}
+
+func Test_ConenctNSEChain_Find(t *testing.T) {
+	for depth := 2; depth < 11; depth++ {
+		for killIndex := 1; killIndex < depth; killIndex++ {
+			var ctx, cancel = context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+
+			var urls = make([]*url.URL, depth)
+
+			var servers = make([]*struct {
+				registry.NetworkServiceEndpointRegistryServer
+				kill func()
+			}, depth)
+
+			for i := 0; i < depth; i++ {
+				var serverCtx, serverCancel = context.WithCancel(ctx)
+
+				servers[i] = &struct {
+					registry.NetworkServiceEndpointRegistryServer
+					kill func()
+				}{
+					kill: serverCancel,
+				}
+
+				urls[i] = new(url.URL)
+
+				require.NoError(t,
+					startNSEServer(
+						serverCtx,
+						urls[i],
+						servers[i],
+					),
+				)
+			}
+
+			for i := 0; i < depth-1; i++ {
+				servers[i].NetworkServiceEndpointRegistryServer = chain.NewNetworkServiceEndpointRegistryServer(
+					clienturl.NewNetworkServiceEndpointRegistryServer(urls[i+1]),
+					connect.NewNetworkServiceEndpointRegistryServer(
+						chain.NewNetworkServiceEndpointRegistryClient(
+							begin.NewNetworkServiceEndpointRegistryClient(),
+							clientconn.NewNetworkServiceEndpointRegistryClient(),
+							dial.NewNetworkServiceEndpointRegistryClient(ctx,
+								dial.WithDialOptions(grpc.WithInsecure()),
+								dial.WithDialTimeout(time.Second),
+							),
+							connect.NewNetworkServiceEndpointRegistryClient(),
+						),
+					),
+				)
+			}
+
+			servers[len(servers)-1].NetworkServiceEndpointRegistryServer = memory.NewNetworkServiceEndpointRegistryServer()
+
+			c := adapters.NetworkServiceEndpointServerToClient(servers[0].NetworkServiceEndpointRegistryServer)
+
+			_, err := c.Register(ctx, &registry.NetworkServiceEndpoint{
+				Name: "testing",
+			})
+
+			require.NoError(t, err)
+
+			stream, err := c.Find(ctx, &registry.NetworkServiceEndpointQuery{
+				Watch: true,
+				NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+					Name: "testing",
+				},
+			})
+			require.NoError(t, err)
+
+			_, err = stream.Recv()
+			require.NoError(t, err)
+
+			servers[killIndex].kill()
+
+			_, err = stream.Recv()
+			require.Error(t, err)
+		}
 	}
 }

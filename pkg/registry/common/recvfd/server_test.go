@@ -35,13 +35,16 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	registryserver "github.com/networkservicemesh/sdk/pkg/registry"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	registryrecvfd "github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
-	registryserialize "github.com/networkservicemesh/sdk/pkg/registry/common/serialize"
-	registrychain "github.com/networkservicemesh/sdk/pkg/registry/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checkcontext"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcfdutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
@@ -71,15 +74,15 @@ func TestNseRecvfdServerClosesFile(t *testing.T) {
 	var ctx, cancel = context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	var nsRegistry = registrychain.NewNetworkServiceRegistryServer(
-		registryserialize.NewNetworkServiceRegistryServer(),
+	var nsRegistry = chain.NewNetworkServiceRegistryServer(
+		begin.NewNetworkServiceRegistryServer(),
 		memory.NewNetworkServiceRegistryServer(),
 	)
 
 	var onFileClosedCallbacks = make(map[string]func())
 
-	var nseRegistry = registrychain.NewNetworkServiceEndpointRegistryServer(
-		registryserialize.NewNetworkServiceEndpointRegistryServer(),
+	var nseRegistry = chain.NewNetworkServiceEndpointRegistryServer(
+		begin.NewNetworkServiceEndpointRegistryServer(),
 		checkcontext.NewNSEServer(t, func(t *testing.T, c context.Context) {
 			err := grpcfdutils.InjectOnFileReceivedCallback(c, func(inodeURLStr string, file *os.File) {
 				runtime.SetFinalizer(file, func(file *os.File) {
@@ -113,14 +116,21 @@ func TestNseRecvfdServerClosesFile(t *testing.T) {
 		sandbox.WithInsecureStreamRPCCredentials(),
 	}
 
-	var nseClient = registrychain.NewNetworkServiceEndpointRegistryClient(
-		registryserialize.NewNetworkServiceEndpointRegistryClient(),
+	var nseClient = chain.NewNetworkServiceEndpointRegistryClient(
+		begin.NewNetworkServiceEndpointRegistryClient(),
 		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
-		connect.NewNetworkServiceEndpointRegistryClient(ctx, regURL,
-			connect.WithNSEAdditionalFunctionality(
-				sendfd.NewNetworkServiceEndpointRegistryClient()),
-			connect.WithDialOptions(dialOptions...),
-		))
+
+		chain.NewNetworkServiceEndpointRegistryClient(
+			clienturl.NewNetworkServiceEndpointRegistryClient(regURL),
+			clientconn.NewNetworkServiceEndpointRegistryClient(),
+			dial.NewNetworkServiceEndpointRegistryClient(ctx,
+				dial.WithDialOptions(dialOptions...),
+				dial.WithDialTimeout(time.Second),
+			),
+			sendfd.NewNetworkServiceEndpointRegistryClient(),
+			connect.NewNetworkServiceEndpointRegistryClient(),
+		),
+	)
 
 	startServer(ctx, t, registryserver.NewServer(nsRegistry, nseRegistry), regURL)
 

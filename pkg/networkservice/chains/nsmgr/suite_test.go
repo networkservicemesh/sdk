@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -92,7 +92,7 @@ func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService())
+	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
@@ -144,7 +144,7 @@ func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService())
+	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
@@ -199,15 +199,17 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService())
+	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
 	counter := new(count.Server)
 
+	const nseCount = 3
+
 	var wg sync.WaitGroup
-	var nseRegs [4]*registry.NetworkServiceEndpoint
-	var nses [4]*sandbox.EndpointEntry
-	for i := 0; i < 3; i++ {
+	var nseRegs [nseCount + 1]*registry.NetworkServiceEndpoint
+	var nses [nseCount + 1]*sandbox.EndpointEntry
+	for i := 0; i < nseCount; i++ {
 		wg.Add(1)
 		go func(id int) {
 			nseRegs[id] = defaultRegistryEndpoint(nsReg.Name)
@@ -225,10 +227,10 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 
 		wg.Wait()
 		time.Sleep(time.Second / 2)
-		nseRegs[3] = defaultRegistryEndpoint(nsReg.Name)
-		nseRegs[3].Name += strconv.Itoa(3)
+		nseRegs[nseCount] = defaultRegistryEndpoint(nsReg.Name)
+		nseRegs[nseCount].Name += strconv.Itoa(3)
 
-		nses[3] = s.domain.Nodes[1].NewEndpoint(ctx, nseRegs[3], sandbox.GenerateTestToken, counter)
+		nses[nseCount] = s.domain.Nodes[1].NewEndpoint(ctx, nseRegs[nseCount], sandbox.GenerateTestToken, counter)
 	}()
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -268,7 +270,7 @@ func (s *nsmgrSuite) Test_RemoteUsecase() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService())
+	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
@@ -312,7 +314,7 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService())
+	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
@@ -361,7 +363,7 @@ func (s *nsmgrSuite) Test_LocalUsecase() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService())
+	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
@@ -607,6 +609,23 @@ func (s *nsmgrSuite) Test_PassThroughSameSourceSelector() {
 	}
 }
 
+func (s *nsmgrSuite) Test_ShouldCleanAllClientAndEndpointGoroutines() {
+	t := s.T()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
+	require.NoError(t, err)
+
+	// At this moment all possible endless NSMgr goroutines have been started. So we expect all newly created goroutines
+	// to be canceled no later than some of these events:
+	//   1. GRPC request context cancel
+	//   2. NSC connection close
+	//   3. NSE unregister
+	testNSEAndClient(ctx, t, s.domain, defaultRegistryEndpoint(nsReg.Name))
+}
 func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
 	t := s.T()
 
@@ -670,24 +689,6 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
 		_, err = nses[i].Unregister(ctx, nseReg)
 		require.NoError(t, err)
 	}
-}
-
-func (s *nsmgrSuite) Test_ShouldCleanAllClientAndEndpointGoroutines() {
-	t := s.T()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-
-	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService())
-	require.NoError(t, err)
-
-	// At this moment all possible endless NSMgr goroutines have been started. So we expect all newly created goroutines
-	// to be canceled no later than some of these events:
-	//   1. GRPC request context cancel
-	//   2. NSC connection close
-	//   3. NSE unregister
-	testNSEAndClient(ctx, t, s.domain, defaultRegistryEndpoint(nsReg.Name))
 }
 
 const (
