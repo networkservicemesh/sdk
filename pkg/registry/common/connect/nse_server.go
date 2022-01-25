@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package connect2 TODO
-package connect2
+// Package connect TODO
+package connect
 
 import (
 	"context"

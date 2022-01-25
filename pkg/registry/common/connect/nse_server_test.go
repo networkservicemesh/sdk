@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package connect2_test
+package connect_test
 
 import (
 	"context"
@@ -32,7 +32,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/connect2"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
@@ -118,7 +118,7 @@ func TestConnectNSEServer_AllUnregister(t *testing.T) {
 
 	ignoreCurrent := goleak.IgnoreCurrent()
 
-	s := connect2.NewNetworkServiceEndpointRegistryServer(
+	s := connect.NewNetworkServiceEndpointRegistryServer(
 		chain.NewNetworkServiceEndpointRegistryClient(
 			begin.NewNetworkServiceEndpointRegistryClient(),
 			clientconn.NewNetworkServiceEndpointRegistryClient(),
@@ -126,7 +126,7 @@ func TestConnectNSEServer_AllUnregister(t *testing.T) {
 				dial.WithDialOptions(grpc.WithInsecure()),
 				dial.WithDialTimeout(time.Second),
 			),
-			connect2.NewNetworkServiceEndpointRegistryClient(),
+			connect.NewNetworkServiceEndpointRegistryClient(),
 		),
 	)
 
@@ -166,7 +166,7 @@ func TestConnectNSEServer_AllDead_Register(t *testing.T) {
 
 	url1, url2, cancel1, cancel2 := startTestNSEServers(ctx, t)
 
-	s := connect2.NewNetworkServiceEndpointRegistryServer(
+	s := connect.NewNetworkServiceEndpointRegistryServer(
 		chain.NewNetworkServiceEndpointRegistryClient(
 			begin.NewNetworkServiceEndpointRegistryClient(),
 			clientconn.NewNetworkServiceEndpointRegistryClient(),
@@ -174,7 +174,7 @@ func TestConnectNSEServer_AllDead_Register(t *testing.T) {
 				dial.WithDialOptions(grpc.WithInsecure()),
 				dial.WithDialTimeout(time.Second),
 			),
-			connect2.NewNetworkServiceEndpointRegistryClient(),
+			connect.NewNetworkServiceEndpointRegistryClient(),
 		),
 	)
 	_, err := s.Register(clienturlctx.WithClientURL(ctx, url1), &registry.NetworkServiceEndpoint{Name: "nse-1"})
@@ -197,7 +197,7 @@ func TestConnectNSEServer_AllDead_WatchingFind(t *testing.T) {
 
 	url1, url2, cancel1, cancel2 := startTestNSEServers(ctx, t)
 
-	s := connect2.NewNetworkServiceEndpointRegistryServer(
+	s := connect.NewNetworkServiceEndpointRegistryServer(
 		chain.NewNetworkServiceEndpointRegistryClient(
 			begin.NewNetworkServiceEndpointRegistryClient(),
 			clientconn.NewNetworkServiceEndpointRegistryClient(),
@@ -205,7 +205,7 @@ func TestConnectNSEServer_AllDead_WatchingFind(t *testing.T) {
 				dial.WithDialOptions(grpc.WithInsecure()),
 				dial.WithDialTimeout(time.Second),
 			),
-			connect2.NewNetworkServiceEndpointRegistryClient(),
+			connect.NewNetworkServiceEndpointRegistryClient(),
 		),
 	)
 
@@ -278,7 +278,7 @@ func Test_ConenctNSEChain_Find(t *testing.T) {
 			for i := 0; i < depth-1; i++ {
 				servers[i].NetworkServiceEndpointRegistryServer = chain.NewNetworkServiceEndpointRegistryServer(
 					clienturl.NewNetworkServiceEndpointRegistryServer(urls[i+1]),
-					connect2.NewNetworkServiceEndpointRegistryServer(
+					connect.NewNetworkServiceEndpointRegistryServer(
 						chain.NewNetworkServiceEndpointRegistryClient(
 							begin.NewNetworkServiceEndpointRegistryClient(),
 							clientconn.NewNetworkServiceEndpointRegistryClient(),
@@ -286,7 +286,7 @@ func Test_ConenctNSEChain_Find(t *testing.T) {
 								dial.WithDialOptions(grpc.WithInsecure()),
 								dial.WithDialTimeout(time.Second),
 							),
-							connect2.NewNetworkServiceEndpointRegistryClient(),
+							connect.NewNetworkServiceEndpointRegistryClient(),
 						),
 					),
 				)

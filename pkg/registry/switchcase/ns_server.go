@@ -14,7 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package switchcase TODO
+// Package switchcase provides chain elements acting like a switch-case statement, selecting a chain element with first
+// succeed condition
 package switchcase
 
 import (
@@ -27,7 +28,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
-// NSServerCase -
+// NSServerCase repsenets NetworkService case for servers.
 type NSServerCase struct {
 	Condition func(context.Context, *registry.NetworkService) bool
 	Action    registry.NetworkServiceRegistryServer
@@ -64,7 +65,7 @@ func (n *switchCaseNSServer) Unregister(ctx context.Context, service *registry.N
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, service)
 }
 
-// NewNetworkServiceRegistryServer - returns a new null server that does nothing but call next.NetworkServiceRegistryServer(ctx).
+// NewNetworkServiceRegistryServer - returns a new switchcase server.
 func NewNetworkServiceRegistryServer(cases ...NSServerCase) registry.NetworkServiceRegistryServer {
 	for index, c := range cases {
 		if c.Action == nil {

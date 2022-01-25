@@ -21,12 +21,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
+	"github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -366,7 +368,7 @@ func testNSMGRCloseHeal(t *testing.T, withNSEExpiration bool) {
 		SetRegistryProxySupplier(nil)
 
 	if withNSEExpiration {
-		builder = builder.SetRegistryExpiryDuration(time.Second)
+		builder = builder.SetRegistryExpiryDuration(time.Second / 2)
 	}
 
 	domain := builder.Build()
@@ -408,17 +410,34 @@ func testNSMGRCloseHeal(t *testing.T, withNSEExpiration bool) {
 	if withNSEExpiration {
 		// 3.1 Wait for the endpoint expiration
 		time.Sleep(time.Second)
+		c := client.NewNetworkServiceEndpointRegistryClient(ctx, domain.Nodes[0].NSMgr.URL, client.WithDialOptions(sandbox.DialOptions(sandbox.WithTokenGenerator(sandbox.GenerateTestToken))...))
+
+		stream, err := c.Find(ctx, &registry.NetworkServiceEndpointQuery{
+			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+				Name: "final-endpoint",
+			},
+		})
+
+		require.NoError(t, err)
+
+		require.Len(t, registry.ReadNetworkServiceEndpointList(stream), 0)
 	}
 
 	// 4. Close connection
-	_, err = nsc.Close(nscCtx, conn.Clone())
-	require.NoError(t, err)
+	_, _ = nsc.Close(nscCtx, conn.Clone())
 
 	nscCtxCancel()
-	require.NoError(t, ctx.Err())
+
+	for _, fwd := range domain.Nodes[0].Forwarders {
+		fwd.Cancel()
+	}
+
 	require.Eventually(t, func() bool {
+		logrus.Error(goleak.Find())
 		return goleak.Find(ignoreCurrent) == nil
 	}, timeout, tick)
+
+	require.NoError(t, ctx.Err())
 }
 
 func checkSecondRequestsReceived(requestsDone func() int) func() bool {

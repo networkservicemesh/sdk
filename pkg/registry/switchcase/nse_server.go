@@ -14,7 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package switchcase TODO
 package switchcase
 
 import (
@@ -27,7 +26,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
-// NSEServerCase -
+// NSEServerCase repsenets NetworkServiceEndpoint case for servers.
 type NSEServerCase struct {
 	Condition func(context.Context, *registry.NetworkServiceEndpoint) bool
 	Action    registry.NetworkServiceEndpointRegistryServer
@@ -64,7 +63,7 @@ func (n *switchCaseNSEServer) Unregister(ctx context.Context, service *registry.
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, service)
 }
 
-// NewNetworkServiceEndpointRegistryServer - returns a new null server that does nothing but call next.NetworkServiceEndpointRegistryServer(ctx).
+// NewNetworkServiceEndpointRegistryServer - returns a new switchcase server.
 func NewNetworkServiceEndpointRegistryServer(cases ...NSEServerCase) registry.NetworkServiceEndpointRegistryServer {
 	for index, c := range cases {
 		if c.Action == nil {

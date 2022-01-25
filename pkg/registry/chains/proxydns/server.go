@@ -19,14 +19,13 @@ package proxydns
 
 import (
 	"context"
-	"time"
 
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/connect2"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
@@ -37,28 +36,26 @@ func NewServer(ctx context.Context, dnsResolver dnsresolve.Resolver, dialOptions
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
 		begin.NewNetworkServiceEndpointRegistryServer(),
 		dnsresolve.NewNetworkServiceEndpointRegistryServer(dnsresolve.WithResolver(dnsResolver)),
-		connect2.NewNetworkServiceEndpointRegistryServer(
+		connect.NewNetworkServiceEndpointRegistryServer(
 			chain.NewNetworkServiceEndpointRegistryClient(
 				clientconn.NewNetworkServiceEndpointRegistryClient(),
 				dial.NewNetworkServiceEndpointRegistryClient(ctx,
 					dial.WithDialOptions(dialOptions...),
-					dial.WithDialTimeout(time.Millisecond*100),
 				),
-				connect2.NewNetworkServiceEndpointRegistryClient(),
+				connect.NewNetworkServiceEndpointRegistryClient(),
 			),
 		))
 	nsChain := chain.NewNetworkServiceRegistryServer(
 		begin.NewNetworkServiceRegistryServer(),
 		dnsresolve.NewNetworkServiceRegistryServer(dnsresolve.WithResolver(dnsResolver)),
-		connect2.NewNetworkServiceRegistryServer(
+		connect.NewNetworkServiceRegistryServer(
 			chain.NewNetworkServiceRegistryClient(
 				clientconn.NewNetworkServiceRegistryClient(),
 				dial.NewNetworkServiceRegistryClient(
 					ctx,
 					dial.WithDialOptions(dialOptions...),
-					dial.WithDialTimeout(time.Millisecond*100),
 				),
-				connect2.NewNetworkServiceRegistryClient(),
+				connect.NewNetworkServiceRegistryClient(),
 			),
 		))
 	return registry.NewServer(nsChain, nseChain)

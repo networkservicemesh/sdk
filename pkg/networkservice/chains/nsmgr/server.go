@@ -47,7 +47,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
 	registryclientinfo "github.com/networkservicemesh/sdk/pkg/registry/common/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/connect2"
+	registryconnect "github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
@@ -163,16 +163,15 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	var nsRegistry = memory.NewNetworkServiceRegistryServer()
 	if opts.regURL != nil {
 		// Use remote registry
-		nsRegistry = connect2.NewNetworkServiceRegistryServer(
+		nsRegistry = registryconnect.NewNetworkServiceRegistryServer(
 			chain.NewNetworkServiceRegistryClient(
 				clienturl.NewNetworkServiceRegistryClient(opts.regURL),
 				begin.NewNetworkServiceRegistryClient(),
 				clientconn.NewNetworkServiceRegistryClient(),
 				dial.NewNetworkServiceRegistryClient(ctx,
 					dial.WithDialOptions(opts.dialOptions...),
-					dial.WithDialTimeout(time.Millisecond*100),
 				),
-				connect2.NewNetworkServiceRegistryClient(),
+				registryconnect.NewNetworkServiceRegistryClient(),
 			),
 		)
 	}
@@ -206,17 +205,15 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 				Condition: func(c context.Context, nse *registryapi.NetworkServiceEndpoint) bool {
 					return opts.regURL != nil
 				},
-				Action: connect2.NewNetworkServiceEndpointRegistryServer(
+				Action: registryconnect.NewNetworkServiceEndpointRegistryServer(
 					chain.NewNetworkServiceEndpointRegistryClient(
-						clienturl.NewNetworkServiceEndpointRegistryClient(opts.regURL),
-						//				retry.NewNetworkServiceEndpointRegistryClient(),
 						begin.NewNetworkServiceEndpointRegistryClient(),
+						clienturl.NewNetworkServiceEndpointRegistryClient(opts.regURL),
 						clientconn.NewNetworkServiceEndpointRegistryClient(),
 						dial.NewNetworkServiceEndpointRegistryClient(ctx,
 							dial.WithDialOptions(opts.dialOptions...),
-							dial.WithDialTimeout(time.Millisecond*100),
 						),
-						connect2.NewNetworkServiceEndpointRegistryClient(),
+						registryconnect.NewNetworkServiceEndpointRegistryClient(),
 					),
 				),
 			}),

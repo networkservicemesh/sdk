@@ -30,7 +30,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/connect2"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
@@ -58,16 +58,15 @@ func NewServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryU
 				return false
 			},
 			Action: chain.NewNetworkServiceEndpointRegistryServer(
-				connect2.NewNetworkServiceEndpointRegistryServer(
+				connect.NewNetworkServiceEndpointRegistryServer(
 					chain.NewNetworkServiceEndpointRegistryClient(
 						begin.NewNetworkServiceEndpointRegistryClient(),
 						clienturl.NewNetworkServiceEndpointRegistryClient(proxyRegistryURL),
 						clientconn.NewNetworkServiceEndpointRegistryClient(),
 						dial.NewNetworkServiceEndpointRegistryClient(ctx,
 							dial.WithDialOptions(dialOptions...),
-							dial.WithDialTimeout(time.Millisecond*100),
 						),
-						connect2.NewNetworkServiceEndpointRegistryClient(),
+						connect.NewNetworkServiceEndpointRegistryClient(),
 					),
 				),
 			),
@@ -89,16 +88,15 @@ func NewServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryU
 				Condition: func(c context.Context, ns *registry.NetworkService) bool {
 					return interdomain.Is(ns.GetName())
 				},
-				Action: connect2.NewNetworkServiceRegistryServer(
+				Action: connect.NewNetworkServiceRegistryServer(
 					chain.NewNetworkServiceRegistryClient(
 						clienturl.NewNetworkServiceRegistryClient(proxyRegistryURL),
 						begin.NewNetworkServiceRegistryClient(),
 						clientconn.NewNetworkServiceRegistryClient(),
 						dial.NewNetworkServiceRegistryClient(ctx,
 							dial.WithDialOptions(dialOptions...),
-							dial.WithDialTimeout(time.Millisecond*100),
 						),
-						connect2.NewNetworkServiceRegistryClient(),
+						connect.NewNetworkServiceRegistryClient(),
 					),
 				),
 			},

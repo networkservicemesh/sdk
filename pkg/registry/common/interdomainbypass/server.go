@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package interdomainbypass TODO
+// Package interdomainbypass provides registry chain element that sets to outgoing NSE the public nsmgr-proxy and stores into the shared map the public nsmgr URL from the incoming endpoint.
 package interdomainbypass
 
 import (
@@ -72,7 +72,9 @@ func (n *interdomainBypassNSEServer) Unregister(ctx context.Context, service *re
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, service)
 }
 
-// NewNetworkServiceEndpointRegistryServer creates new instance of storeurl NSE server
+// NewNetworkServiceEndpointRegistryServer creates new instance of interdomainbypass NSE server.
+// It simply stores into passed stringurl.Map all incoming nse.Name:nse.URL entries.
+// And sets passed URL for outgoing NSEs.
 func NewNetworkServiceEndpointRegistryServer(m *stringurl.Map, u *url.URL) registry.NetworkServiceEndpointRegistryServer {
 	if m == nil {
 		panic("m can not be nil")

@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package connect2_test
+package connect_test
 
 import (
 	"context"
@@ -32,7 +32,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/connect2"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
@@ -118,7 +118,7 @@ func TestConnectNSServer_AllUnregister(t *testing.T) {
 
 	ignoreCurrent := goleak.IgnoreCurrent()
 
-	s := connect2.NewNetworkServiceRegistryServer(
+	s := connect.NewNetworkServiceRegistryServer(
 		chain.NewNetworkServiceRegistryClient(
 			begin.NewNetworkServiceRegistryClient(),
 			clientconn.NewNetworkServiceRegistryClient(),
@@ -126,7 +126,7 @@ func TestConnectNSServer_AllUnregister(t *testing.T) {
 				dial.WithDialOptions(grpc.WithInsecure()),
 				dial.WithDialTimeout(time.Second),
 			),
-			connect2.NewNetworkServiceRegistryClient(),
+			connect.NewNetworkServiceRegistryClient(),
 		),
 	)
 
@@ -166,7 +166,7 @@ func TestConnectNSServer_AllDead_Register(t *testing.T) {
 
 	url1, url2, cancel1, cancel2 := startTestNSServers(ctx, t)
 
-	s := connect2.NewNetworkServiceRegistryServer(
+	s := connect.NewNetworkServiceRegistryServer(
 		chain.NewNetworkServiceRegistryClient(
 			begin.NewNetworkServiceRegistryClient(),
 			clientconn.NewNetworkServiceRegistryClient(),
@@ -174,7 +174,7 @@ func TestConnectNSServer_AllDead_Register(t *testing.T) {
 				dial.WithDialOptions(grpc.WithInsecure()),
 				dial.WithDialTimeout(time.Second),
 			),
-			connect2.NewNetworkServiceRegistryClient(),
+			connect.NewNetworkServiceRegistryClient(),
 		),
 	)
 	_, err := s.Register(clienturlctx.WithClientURL(ctx, url1), &registry.NetworkService{Name: "ns-1"})
@@ -197,7 +197,7 @@ func TestConnectNSServer_AllDead_WatchingFind(t *testing.T) {
 
 	url1, url2, cancel1, cancel2 := startTestNSServers(ctx, t)
 
-	s := connect2.NewNetworkServiceRegistryServer(
+	s := connect.NewNetworkServiceRegistryServer(
 		chain.NewNetworkServiceRegistryClient(
 			begin.NewNetworkServiceRegistryClient(),
 			clientconn.NewNetworkServiceRegistryClient(),
@@ -205,7 +205,7 @@ func TestConnectNSServer_AllDead_WatchingFind(t *testing.T) {
 				dial.WithDialOptions(grpc.WithInsecure()),
 				dial.WithDialTimeout(time.Second),
 			),
-			connect2.NewNetworkServiceRegistryClient(),
+			connect.NewNetworkServiceRegistryClient(),
 		),
 	)
 
@@ -278,7 +278,7 @@ func Test_NSConenctChain_Find(t *testing.T) {
 			for i := 0; i < depth-1; i++ {
 				servers[i].NetworkServiceRegistryServer = chain.NewNetworkServiceRegistryServer(
 					clienturl.NewNetworkServiceRegistryServer(urls[i+1]),
-					connect2.NewNetworkServiceRegistryServer(
+					connect.NewNetworkServiceRegistryServer(
 						chain.NewNetworkServiceRegistryClient(
 							begin.NewNetworkServiceRegistryClient(),
 							clientconn.NewNetworkServiceRegistryClient(),
@@ -286,7 +286,7 @@ func Test_NSConenctChain_Find(t *testing.T) {
 								dial.WithDialOptions(grpc.WithInsecure()),
 								dial.WithDialTimeout(time.Second),
 							),
-							connect2.NewNetworkServiceRegistryClient(),
+							connect.NewNetworkServiceRegistryClient(),
 						),
 					),
 				)

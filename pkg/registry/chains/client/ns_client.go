@@ -26,7 +26,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/connect2"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/retry"
@@ -50,6 +50,6 @@ func NewNetworkServiceRegistryClient(ctx context.Context, connectTo *url.URL, op
 			dial.WithDialOptions(clientOpts.dialOptions...),
 			dial.WithDialTimeout(time.Second),
 		),
-		connect2.NewNetworkServiceRegistryClient(),
+		connect.NewNetworkServiceRegistryClient(),
 	)
 }

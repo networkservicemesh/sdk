@@ -27,45 +27,45 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
-// NSClientCase -
-type NSClientCase struct {
-	Condition func(context.Context, *registry.NetworkService) bool
-	Action    registry.NetworkServiceRegistryClient
+// NSEClientCase repsenets NetworkServiceEndpoint case for clients.
+type NSEClientCase struct {
+	Condition func(context.Context, *registry.NetworkServiceEndpoint) bool
+	Action    registry.NetworkServiceEndpointRegistryClient
 }
 
-type switchCaseNSClient struct {
-	cases []NSClientCase
+type switchCaseNSEClient struct {
+	cases []NSEClientCase
 }
 
-func (n *switchCaseNSClient) Register(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
+func (n *switchCaseNSEClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
 	for _, c := range n.cases {
 		if c.Condition(ctx, in) {
 			return c.Action.Register(ctx, in)
 		}
 	}
-	return next.NetworkServiceRegistryServer(ctx).Register(ctx, in)
+	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
 }
 
-func (n *switchCaseNSClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
+func (n *switchCaseNSEClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
 	for _, c := range n.cases {
-		if c.Condition(ctx, in.NetworkService) {
+		if c.Condition(ctx, in.NetworkServiceEndpoint) {
 			return c.Action.Find(ctx, in)
 		}
 	}
-	return next.NetworkServiceRegistryClient(ctx).Find(ctx, in, opts...)
+	return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, in, opts...)
 }
 
-func (n *switchCaseNSClient) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (n *switchCaseNSEClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
 	for _, c := range n.cases {
 		if c.Condition(ctx, in) {
 			return c.Action.Unregister(ctx, in)
 		}
 	}
-	return next.NetworkServiceRegistryClient(ctx).Unregister(ctx, in, opts...)
+	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
 }
 
-// NewNetworkServiceRegistryClient - returns a new null server that does nothing but call next.NetworkServiceRegistryServer(ctx).
-func NewNetworkServiceRegistryClient(cases ...NSClientCase) registry.NetworkServiceRegistryClient {
+// NewNetworkServiceEndpointRegistryClient - returns a new switchcase client.
+func NewNetworkServiceEndpointRegistryClient(cases ...NSEClientCase) registry.NetworkServiceEndpointRegistryClient {
 	for index, c := range cases {
 		if c.Action == nil {
 			panic(fmt.Sprintf("index: %v, %v.Action is nil", index, c))
@@ -75,7 +75,7 @@ func NewNetworkServiceRegistryClient(cases ...NSClientCase) registry.NetworkServ
 		}
 	}
 
-	return &switchCaseNSClient{
+	return &switchCaseNSEClient{
 		cases: cases,
 	}
 }

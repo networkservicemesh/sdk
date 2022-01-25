@@ -43,7 +43,8 @@ func nameFromContext(ctx context.Context) string {
 	return ""
 }
 
-// LoadAndDelete -
+// LoadAndDelete deletes the value for a key, returning the previous value if any.
+// The loaded result reports whether the key was present.
 func LoadAndDelete(ctx context.Context) (grpc.ClientConnInterface, bool) {
 	k := nameFromContext(ctx)
 
@@ -54,7 +55,7 @@ func LoadAndDelete(ctx context.Context) (grpc.ClientConnInterface, bool) {
 	return nil, false
 }
 
-// Store -
+// Store sets the value for a key.
 func Store(ctx context.Context, cc grpc.ClientConnInterface) {
 	k := nameFromContext(ctx)
 
@@ -63,7 +64,7 @@ func Store(ctx context.Context, cc grpc.ClientConnInterface) {
 	}
 }
 
-// Delete -
+// Delete deletes the value for a key.
 func Delete(ctx context.Context) {
 	k := nameFromContext(ctx)
 
@@ -72,7 +73,9 @@ func Delete(ctx context.Context) {
 	}
 }
 
-// Load -
+// Load returns the value stored in the map for a key, or nil if no
+// value is present.
+// The ok result indicates whether value was found in the map.
 func Load(ctx context.Context) (grpc.ClientConnInterface, bool) {
 	k := nameFromContext(ctx)
 
@@ -83,7 +86,9 @@ func Load(ctx context.Context) (grpc.ClientConnInterface, bool) {
 	return nil, false
 }
 
-// LoadOrStore -
+// LoadOrStore returns the existing value for the key if present.
+// Otherwise, it stores and returns the given value.
+// The loaded result is true if the value was loaded, false if stored.
 func LoadOrStore(ctx context.Context, cc grpc.ClientConnInterface) (grpc.ClientConnInterface, bool) {
 	k := nameFromContext(ctx)
 

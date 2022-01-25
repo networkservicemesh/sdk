@@ -38,7 +38,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/connect2"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	registryrecvfd "github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
@@ -128,7 +128,7 @@ func TestNseRecvfdServerClosesFile(t *testing.T) {
 				dial.WithDialTimeout(time.Second),
 			),
 			sendfd.NewNetworkServiceEndpointRegistryClient(),
-			connect2.NewNetworkServiceEndpointRegistryClient(),
+			connect.NewNetworkServiceEndpointRegistryClient(),
 		),
 	)
 
