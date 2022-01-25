@@ -167,7 +167,7 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 func Test_UsecasePoint2MultiPoint(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	domain := sandbox.NewBuilder(ctx, t).

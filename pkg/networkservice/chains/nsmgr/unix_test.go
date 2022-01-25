@@ -41,7 +41,7 @@ import (
 func Test_Local_NoURLUsecase(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Hour*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	domain := sandbox.NewBuilder(ctx, t).

@@ -16,84 +16,78 @@
 
 package begin_test
 
-// func TestCloseServer(t *testing.T) {
-// 	t.Cleanup(func() { goleak.VerifyNone(t) })
-// 	server := chain.NewNetworkServiceServer(
-// 		begin.NewServer(),
-// 		&markServer{t: t},
-// 	)
-// 	id := "1"
-// 	ctx, cancel := context.WithCancel(context.Background())
-// 	defer cancel()
-// 	conn, err := server.Request(ctx, testRegistration(id))
-// 	assert.NotNil(t, t, conn)
-// 	assert.NoError(t, err)
-// 	assert.Equal(t, conn.GetContext().GetExtraContext()[mark], mark)
-// 	conn = conn.Clone()
-// 	delete(conn.GetContext().GetExtraContext(), mark)
-// 	assert.Zero(t, conn.GetContext().GetExtraContext()[mark])
-// 	_, err = server.Close(ctx, conn)
-// 	assert.NoError(t, err)
-// }
+import (
+	"context"
+	"sync"
+	"testing"
 
-// type markServer struct {
-// 	t *testing.T
-// }
+	"github.com/networkservicemesh/api/pkg/api/registry"
 
-// func (m *markServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-// 	if request.GetConnection().GetContext() == nil {
-// 		request.GetConnection().Context = &networkservice.ConnectionContext{}
-// 	}
-// 	if request.GetConnection().GetContext().GetExtraContext() == nil {
-// 		request.GetConnection().GetContext().ExtraContext = make(map[string]string)
-// 	}
-// 	request.GetConnection().GetContext().GetExtraContext()[mark] = mark
-// 	return next.Server(ctx).Request(ctx, request)
-// }
+	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 
-// func (m *markServer) Close(ctx context.Context, conn *networkservice.Connection) (*emptypb.Empty, error) {
-// 	assert.NotNil(m.t, conn.GetContext().GetExtraContext())
-// 	assert.Equal(m.t, mark, conn.GetContext().GetExtraContext()[mark])
-// 	return next.Server(ctx).Close(ctx, conn)
-// }
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/goleak"
+	"google.golang.org/protobuf/types/known/emptypb"
+)
 
-// var _ networkservice.NetworkServiceServer = &markServer{}
+func TestCloseServer(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+	server := chain.NewNetworkServiceEndpointRegistryServer(
+		begin.NewNetworkServiceEndpointRegistryServer(),
+		adapters.NetworkServiceEndpointClientToServer(&markClient{t: t}),
+	)
+	id := "1"
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	conn, err := server.Register(ctx, &registry.NetworkServiceEndpoint{
+		Name: id,
+	})
+	assert.NotNil(t, t, conn)
+	assert.NoError(t, err)
+	assert.Equal(t, conn.GetNetworkServiceLabels()[mark].Labels[mark], mark)
+	conn = conn.Clone()
+	delete(conn.GetNetworkServiceLabels()[mark].Labels, mark)
+	assert.Zero(t, conn.GetNetworkServiceLabels()[mark].Labels[mark])
+	_, err = server.Unregister(ctx, conn)
+	assert.NoError(t, err)
+}
 
-// func TestDoubleCloseServer(t *testing.T) {
-// 	t.Cleanup(func() { goleak.VerifyNone(t) })
-// 	server := chain.NewNetworkServiceServer(
-// 		begin.NewServer(),
-// 		&doubleCloseServer{t: t},
-// 	)
-// 	id := "1"
-// 	ctx, cancel := context.WithCancel(context.Background())
-// 	defer cancel()
-// 	conn, err := server.Request(ctx, testRegistration(id))
-// 	assert.NotNil(t, t, conn)
-// 	assert.NoError(t, err)
-// 	conn = conn.Clone()
-// 	_, err = server.Close(ctx, conn)
-// 	assert.NoError(t, err)
-// 	_, err = server.Close(ctx, conn)
-// 	assert.NoError(t, err)
-// }
+func TestDoubleCloseServer(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+	server := chain.NewNetworkServiceEndpointRegistryServer(
+		begin.NewNetworkServiceEndpointRegistryServer(),
+		&doubleCloseServer{t: t, NetworkServiceEndpointRegistryServer: null.NewNetworkServiceEndpointRegistryServer()},
+	)
+	id := "1"
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	conn, err := server.Register(ctx, &registry.NetworkServiceEndpoint{
+		Name: id,
+	})
+	assert.NotNil(t, t, conn)
+	assert.NoError(t, err)
+	conn = conn.Clone()
+	_, err = server.Unregister(ctx, conn)
+	assert.NoError(t, err)
+	_, err = server.Unregister(ctx, conn)
+	assert.NoError(t, err)
+}
 
-// type doubleCloseServer struct {
-// 	t *testing.T
-// 	sync.Once
-// }
+type doubleCloseServer struct {
+	t *testing.T
+	sync.Once
+	registry.NetworkServiceEndpointRegistryServer
+}
 
-// func (s *doubleCloseServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-// 	return next.Server(ctx).Request(ctx, request)
-// }
-
-// func (s *doubleCloseServer) Close(ctx context.Context, conn *networkservice.Connection) (*emptypb.Empty, error) {
-// 	count := 1
-// 	s.Do(func() {
-// 		count++
-// 	})
-// 	assert.Equal(s.t, 2, count, "Close has been called more than once")
-// 	return next.Server(ctx).Close(ctx, conn)
-// }
-
-// var _ networkservice.NetworkServiceClient = &doubleCloseClient{}
+func (s *doubleCloseServer) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint) (*emptypb.Empty, error) {
+	count := 1
+	s.Do(func() {
+		count++
+	})
+	assert.Equal(s.t, 2, count, "Close has been called more than once")
+	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
+}
