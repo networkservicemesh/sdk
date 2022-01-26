@@ -78,7 +78,6 @@ type serverOptions struct {
 	dialOptions          []grpc.DialOption
 	dialTimeout          time.Duration
 	regURL               *url.URL
-	regDialOptions       []grpc.DialOption
 	name                 string
 	url                  string
 	forwarderServiceName string
@@ -120,10 +119,9 @@ func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Op
 }
 
 // WithRegistry sets URL and dial options to reach the upstream registry, if not passed memory storage will be used.
-func WithRegistry(regURL *url.URL, regDialOptions ...grpc.DialOption) Option {
+func WithRegistry(regURL *url.URL) Option {
 	return func(o *serverOptions) {
 		o.regURL = regURL
-		o.regDialOptions = regDialOptions
 	}
 }
 
