@@ -74,7 +74,7 @@ func (n *Node) NewNSMgr(
 	}
 
 	if n.domain.Registry != nil {
-		options = append(options, nsmgr.WithRegistry(CloneURL(n.domain.Registry.URL), dialOptions...))
+		options = append(options, nsmgr.WithRegistry(CloneURL(n.domain.Registry.URL)))
 	}
 
 	if serveURL.Scheme != "unix" {
