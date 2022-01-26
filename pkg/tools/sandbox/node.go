@@ -37,6 +37,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/roundrobin"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
@@ -203,8 +204,12 @@ func (n *Node) NewEndpoint(
 
 		log.FromContext(ctx).Infof("%s: NSE %s serve on %v", n.domain.Name, nse.Name, serveURL)
 
-		entry.NetworkServiceEndpointRegistryClient = registryclient.NewNetworkServiceEndpointRegistryClient(ctx, CloneURL(n.NSMgr.URL),
-			registryclient.WithDialOptions(dialOptions...))
+		entry.NetworkServiceEndpointRegistryClient = registryclient.NewNetworkServiceEndpointRegistryClient(
+			ctx,
+			CloneURL(n.NSMgr.URL),
+			registryclient.WithDialOptions(dialOptions...),
+			registryclient.WithNSEAdditionalFunctionality(sendfd.NewNetworkServiceEndpointRegistryClient()),
+		)
 
 		n.registerEndpoint(ctx, nse, nseClone, entry.NetworkServiceEndpointRegistryClient)
 	})

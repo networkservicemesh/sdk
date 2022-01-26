@@ -42,15 +42,22 @@ func NewNetworkServiceEndpointRegistryClient(ctx context.Context, connectTo *url
 	}
 
 	return chain.NewNetworkServiceEndpointRegistryClient(
-		begin.NewNetworkServiceEndpointRegistryClient(),
-		retry.NewNetworkServiceEndpointRegistryClient(ctx),
-		heal.NewNetworkServiceEndpointRegistryClient(ctx),
-		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
-		clienturl.NewNetworkServiceEndpointRegistryClient(connectTo),
-		clientconn.NewNetworkServiceEndpointRegistryClient(),
-		dial.NewNetworkServiceEndpointRegistryClient(ctx,
-			dial.WithDialOptions(clientOpts.dialOptions...),
-		),
-		connect.NewNetworkServiceEndpointRegistryClient(),
+		append(
+			[]registry.NetworkServiceEndpointRegistryClient{
+				begin.NewNetworkServiceEndpointRegistryClient(),
+				retry.NewNetworkServiceEndpointRegistryClient(ctx),
+				heal.NewNetworkServiceEndpointRegistryClient(ctx),
+				refresh.NewNetworkServiceEndpointRegistryClient(ctx),
+				clienturl.NewNetworkServiceEndpointRegistryClient(connectTo),
+				clientconn.NewNetworkServiceEndpointRegistryClient(),
+				dial.NewNetworkServiceEndpointRegistryClient(ctx,
+					dial.WithDialOptions(clientOpts.dialOptions...),
+				),
+			},
+			append(
+				clientOpts.nseAdditionalFunctionality,
+				connect.NewNetworkServiceEndpointRegistryClient(),
+			)...,
+		)...,
 	)
 }

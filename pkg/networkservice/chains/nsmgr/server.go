@@ -54,7 +54,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	registryrecvfd "github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
 	registrysendfd "github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
-	"github.com/networkservicemesh/sdk/pkg/registry/switchcase"
 
 	registryadapter "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
@@ -181,43 +180,39 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	)
 
 	var nseRegistry = chain.NewNetworkServiceEndpointRegistryServer(
-		registryclientinfo.NewNetworkServiceEndpointRegistryServer(),
 		begin.NewNetworkServiceEndpointRegistryServer(),
+		registryclientinfo.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
 		registryrecvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
-		switchcase.NewNetworkServiceEndpointRegistryServer(
-			switchcase.NSEServerCase{
-				Condition: func(c context.Context, nse *registryapi.NetworkServiceEndpoint) bool {
-					return opts.regURL != nil
-				},
-				Action: registrysendfd.NewNetworkServiceEndpointRegistryServer(),
-			},
-		),
+		registrysendfd.NewNetworkServiceEndpointRegistryServer(),
 		localbypass.NewNetworkServiceEndpointRegistryServer(opts.url),
-		switchcase.NewNetworkServiceEndpointRegistryServer(
-			switchcase.NSEServerCase{
-				Condition: func(c context.Context, nse *registryapi.NetworkServiceEndpoint) bool {
-					return opts.regURL == nil
-				},
-				Action: memory.NewNetworkServiceEndpointRegistryServer(),
-			},
-			switchcase.NSEServerCase{
-				Condition: func(c context.Context, nse *registryapi.NetworkServiceEndpoint) bool {
-					return opts.regURL != nil
-				},
-				Action: registryconnect.NewNetworkServiceEndpointRegistryServer(
-					chain.NewNetworkServiceEndpointRegistryClient(
-						begin.NewNetworkServiceEndpointRegistryClient(),
-						clienturl.NewNetworkServiceEndpointRegistryClient(opts.regURL),
-						clientconn.NewNetworkServiceEndpointRegistryClient(),
-						dial.NewNetworkServiceEndpointRegistryClient(ctx,
-							dial.WithDialOptions(opts.dialOptions...),
-						),
-						registryconnect.NewNetworkServiceEndpointRegistryClient(),
-					),
+		registryconnect.NewNetworkServiceEndpointRegistryServer(
+			chain.NewNetworkServiceEndpointRegistryClient(
+				begin.NewNetworkServiceEndpointRegistryClient(),
+				clienturl.NewNetworkServiceEndpointRegistryClient(opts.regURL),
+				clientconn.NewNetworkServiceEndpointRegistryClient(),
+				dial.NewNetworkServiceEndpointRegistryClient(ctx,
+					dial.WithDialOptions(opts.dialOptions...),
 				),
-			}),
+				registryconnect.NewNetworkServiceEndpointRegistryClient(),
+			),
+		),
 	)
+	var remoteOrLocalRegistry = nseRegistry
+
+	if opts.regURL == nil {
+		remoteOrLocalRegistry = memory.NewNetworkServiceEndpointRegistryServer()
+
+		nseRegistry = chain.NewNetworkServiceEndpointRegistryServer(
+			begin.NewNetworkServiceEndpointRegistryServer(),
+			registryclientinfo.NewNetworkServiceEndpointRegistryServer(),
+			expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
+			registryrecvfd.NewNetworkServiceEndpointRegistryServer(),
+			registrysendfd.NewNetworkServiceEndpointRegistryServer(),
+			remoteOrLocalRegistry,
+			localbypass.NewNetworkServiceEndpointRegistryServer(opts.url),
+		)
+	}
 
 	// Construct Endpoint
 	rv.Endpoint = endpoint.NewServer(ctx, tokenGenerator,
@@ -227,7 +222,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			adapters.NewClientToServer(clientinfo.NewClient()),
 			discoverforwarder.NewServer(
 				registryadapter.NetworkServiceServerToClient(nsRegistry),
-				registryadapter.NetworkServiceEndpointServerToClient(nseRegistry),
+				registryadapter.NetworkServiceEndpointServerToClient(remoteOrLocalRegistry),
 				discoverforwarder.WithForwarderServiceName(opts.forwarderServiceName),
 				discoverforwarder.WithNSMgrURL(opts.url),
 			),
