@@ -177,12 +177,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		nsRegistry,
 	)
 
-	var nseRegistry = chain.NewNetworkServiceEndpointRegistryServer(
-		begin.NewNetworkServiceEndpointRegistryServer(),
-		registryclientinfo.NewNetworkServiceEndpointRegistryServer(),
-		expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
-		registryrecvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
-		registrysendfd.NewNetworkServiceEndpointRegistryServer(),
+	var remoteOrLocalRegistry = chain.NewNetworkServiceEndpointRegistryServer(
 		localbypass.NewNetworkServiceEndpointRegistryServer(opts.url),
 		registryconnect.NewNetworkServiceEndpointRegistryServer(
 			chain.NewNetworkServiceEndpointRegistryClient(
@@ -196,21 +191,22 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			),
 		),
 	)
-	var remoteOrLocalRegistry = nseRegistry
 
 	if opts.regURL == nil {
-		remoteOrLocalRegistry = memory.NewNetworkServiceEndpointRegistryServer()
-
-		nseRegistry = chain.NewNetworkServiceEndpointRegistryServer(
-			begin.NewNetworkServiceEndpointRegistryServer(),
-			registryclientinfo.NewNetworkServiceEndpointRegistryServer(),
-			expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
-			registryrecvfd.NewNetworkServiceEndpointRegistryServer(),
-			registrysendfd.NewNetworkServiceEndpointRegistryServer(),
-			remoteOrLocalRegistry,
+		remoteOrLocalRegistry = chain.NewNetworkServiceEndpointRegistryServer(
+			memory.NewNetworkServiceEndpointRegistryServer(),
 			localbypass.NewNetworkServiceEndpointRegistryServer(opts.url),
 		)
 	}
+
+	var nseRegistry = chain.NewNetworkServiceEndpointRegistryServer(
+		begin.NewNetworkServiceEndpointRegistryServer(),
+		registryclientinfo.NewNetworkServiceEndpointRegistryServer(),
+		expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
+		registryrecvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
+		registrysendfd.NewNetworkServiceEndpointRegistryServer(),
+		remoteOrLocalRegistry,
+	)
 
 	// Construct Endpoint
 	rv.Endpoint = endpoint.NewServer(ctx, tokenGenerator,
