@@ -242,7 +242,7 @@ func (b *Builder) newRegistryProxy() *RegistryEntry {
 		serve(ctx, b.t, entry.URL, entry.Register)
 
 		log.FromContext(ctx).Infof("%s: registry-proxy-dns serve on: %v", b.name, entry.URL)
-	})
+	}, nil)
 
 	return entry
 }
@@ -270,7 +270,7 @@ func (b *Builder) newRegistry() *RegistryEntry {
 		serve(ctx, b.t, entry.URL, entry.Register)
 
 		log.FromContext(ctx).Infof("%s: registry serve on: %v", b.name, entry.URL)
-	})
+	}, nil)
 
 	return entry
 }
@@ -297,7 +297,7 @@ func (b *Builder) newNSMgrProxy() *NSMgrEntry {
 		serve(ctx, b.t, entry.URL, entry.Register)
 
 		log.FromContext(ctx).Infof("%s: NSMgr proxy %s serve on: %v", b.name, entry.Name, entry.URL)
-	})
+	}, nil)
 
 	return entry
 }

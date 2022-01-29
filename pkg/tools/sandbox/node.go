@@ -90,7 +90,7 @@ func (n *Node) NewNSMgr(
 		serve(ctx, n.t, entry.URL, entry.Register)
 
 		log.FromContext(ctx).Infof("%s: NSMgr %s serve on %v", n.domain.Name, name, serveURL)
-	})
+	}, nil)
 
 	n.NSMgr = entry
 
@@ -163,9 +163,10 @@ func (n *Node) NewForwarder(
 		)
 
 		n.registerEndpoint(ctx, nse, nseClone, entry.NetworkServiceEndpointRegistryClient)
+		n.Forwarders[entry.Name] = entry
+	}, func() {
+		delete(n.Forwarders, entry.Name)
 	})
-
-	n.Forwarders[entry.Name] = entry
 
 	return entry
 }
@@ -212,7 +213,7 @@ func (n *Node) NewEndpoint(
 		)
 
 		n.registerEndpoint(ctx, nse, nseClone, entry.NetworkServiceEndpointRegistryClient)
-	})
+	}, nil)
 
 	return entry
 }
