@@ -1,4 +1,6 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2022 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -117,7 +119,7 @@ func (d *dnsNSEResolveServer) Register(ctx context.Context, nse *registry.Networ
 		return nil, err
 	}
 
-	translateNSE(nse, func(s string) string {
+	translateNSE(resp, func(s string) string {
 		return interdomain.Join(s, domain)
 	})
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -66,6 +66,8 @@ func (d *dnsNSResolveServer) Register(ctx context.Context, ns *registry.NetworkS
 	ns.Name = interdomain.Target(ns.Name)
 	resp, err := next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
 
+	resp.Name = interdomain.Join(resp.Name, domain)
+
 	return resp, err
 }
 
@@ -103,6 +105,9 @@ func (d *dnsNSResolveServer) Unregister(ctx context.Context, ns *registry.Networ
 	}
 	ctx = clienturlctx.WithClientURL(ctx, url)
 	ns.Name = interdomain.Target(ns.Name)
+	defer func() {
+		ns.Name = interdomain.Join(ns.Name, domain)
+	}()
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }
 
