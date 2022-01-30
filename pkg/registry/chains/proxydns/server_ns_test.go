@@ -18,6 +18,7 @@ package proxydns_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -132,6 +133,7 @@ func TestLocalDomain_NetworkServiceRegistry(t *testing.T) {
 		},
 	)
 	require.Nil(t, err)
+	require.True(t, strings.Contains(expected.GetName(), "@"+domain1.Name))
 
 	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(domain1.Registry.URL), grpc.WithBlock(), grpc.WithInsecure())
 	require.Nil(t, err)
@@ -142,7 +144,7 @@ func TestLocalDomain_NetworkServiceRegistry(t *testing.T) {
 
 	stream, err := client.Find(context.Background(), &registryapi.NetworkServiceQuery{
 		NetworkService: &registryapi.NetworkService{
-			Name: expected.Name + "@" + domain1.Name,
+			Name: expected.Name,
 		},
 	})
 

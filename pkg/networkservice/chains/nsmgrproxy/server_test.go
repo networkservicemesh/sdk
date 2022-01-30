@@ -115,6 +115,131 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// TestNSMGR_InterdomainUseCase covers simple interdomain scenario:
+//
+// request1: nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy2 -> nsmgr2 ->forwarder2 -> nsmgr2 -> final-endpoint via cluster2
+// request2: nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy2 -> nsmgr2 ->forwarder2 -> nsmgr2 -> final-endpoint via floating registry
+func Test_NSEMovedFromInterdomainToFloatingUseCase(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	var dnsServer = new(sandbox.FakeDNSResolver)
+
+	cluster1 := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetDNSResolver(dnsServer).
+		SetDNSDomainName("cluster1").
+		Build()
+
+	cluster2 := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetDNSDomainName("cluster2").
+		SetDNSResolver(dnsServer).
+		Build()
+
+	floating := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(0).
+		SetDNSDomainName("floating.domain").
+		SetDNSResolver(dnsServer).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		Build()
+	nsRegistryClient := cluster2.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg1 := &registry.NetworkService{
+		Name: "my-service-interdomain",
+	}
+
+	var err error
+
+	nsReg1, err = nsRegistryClient.Register(ctx, nsReg1)
+	require.NoError(t, err)
+
+	nsReg2 := &registry.NetworkService{
+		Name: "my-service-interdomain@" + floating.Name,
+	}
+
+	nsReg2, err = nsRegistryClient.Register(ctx, nsReg2)
+	require.NoError(t, err)
+
+	nseReg1 := &registry.NetworkServiceEndpoint{
+		Name:                "final-endpoint",
+		NetworkServiceNames: []string{nsReg1.Name},
+	}
+
+	cluster2.Nodes[0].NewEndpoint(ctx, nseReg1, sandbox.GenerateTestToken)
+
+	nseReg2 := &registry.NetworkServiceEndpoint{
+		Name:                "final-endpoint@" + floating.Name,
+		NetworkServiceNames: []string{nsReg1.Name},
+	}
+
+	cluster2.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken)
+
+	stream, err := adapters.NetworkServiceEndpointServerToClient(cluster2.Registry.NetworkServiceEndpointRegistryServer()).Find(context.Background(), &registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+		Name: nseReg1.Name,
+	}})
+	require.NoError(t, err)
+	require.Len(t, registry.ReadNetworkServiceEndpointList(stream), 1)
+
+	stream, err = adapters.NetworkServiceEndpointServerToClient(cluster1.Registry.NetworkServiceEndpointRegistryServer()).Find(context.Background(), &registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+		Name: nseReg1.Name,
+	}})
+	require.NoError(t, err)
+	require.Len(t, registry.ReadNetworkServiceEndpointList(stream), 0)
+
+	stream, err = adapters.NetworkServiceEndpointServerToClient(floating.Registry.NetworkServiceEndpointRegistryServer()).Find(context.Background(), &registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+		Name: nseReg1.Name,
+	}})
+	require.NoError(t, err)
+	require.Len(t, registry.ReadNetworkServiceEndpointList(stream), 1)
+
+	nsc := cluster1.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	var finalNSE = map[string]string{
+		fmt.Sprint(nsReg1.Name, "@", cluster2.Name): nseReg1.GetName(),
+		nsReg2.GetName(): nseReg2.GetName(),
+	}
+
+	for _, nsName := range []string{fmt.Sprint(nsReg1.Name, "@", cluster2.Name), nsReg2.GetName()} {
+		request := &networkservice.NetworkServiceRequest{
+			MechanismPreferences: []*networkservice.Mechanism{
+				{Cls: cls.LOCAL, Type: kernel.MECHANISM},
+			},
+			Connection: &networkservice.Connection{
+				Id:             "1",
+				NetworkService: nsName,
+				Context:        &networkservice.ConnectionContext{},
+			},
+		}
+
+		conn, err := nsc.Request(ctx, request)
+		require.NoError(t, err)
+		require.NotNil(t, conn)
+
+		require.Equal(t, 8, len(conn.Path.PathSegments))
+
+		require.Equal(t, finalNSE[nsName], conn.GetPath().GetPathSegments()[7].GetName())
+
+		// Simulate refresh from client.
+
+		refreshRequest := request.Clone()
+		refreshRequest.Connection = conn.Clone()
+
+		conn, err = nsc.Request(ctx, refreshRequest)
+		require.NoError(t, err)
+		require.NotNil(t, conn)
+		require.Equal(t, 8, len(conn.Path.PathSegments))
+		require.Equal(t, finalNSE[nsName], conn.GetPath().GetPathSegments()[7].GetName())
+
+		// Close
+		_, err = nsc.Close(ctx, conn)
+		require.NoError(t, err)
+	}
+}
+
 // TestNSMGR_Interdomain_TwoNodesNSEs covers scenarion with connection from the one client to two endpoints from diffrenret clusters.
 //
 //  nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy2 -> nsmgr2 ->forwarder2 -> nsmgr2 -> nse2
