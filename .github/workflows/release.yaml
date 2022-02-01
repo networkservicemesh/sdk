@@ -50,6 +50,7 @@ jobs:
           - cmd-nsmgr-proxy
           - cmd-registry-memory
           - cmd-registry-proxy-dns
+          - cmd-nse-remote-vlan
           - cmd-nse-vfio
           - cmd-nsc-init
           - cmd-admission-webhook-k8s
