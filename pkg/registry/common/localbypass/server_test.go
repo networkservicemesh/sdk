@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -155,6 +155,59 @@ func TestLocalBypassNSEServer_Restart(t *testing.T) {
 	nseResp, err = stream.Recv()
 	require.NoError(t, err)
 	require.Equal(t, nseURL, nseResp.NetworkServiceEndpoint.Url)
+}
+
+func TestLocalBypassNSEServer_RegisterNSESameName(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	mem := memory.NewNetworkServiceEndpointRegistryServer()
+
+	server := next.NewNetworkServiceEndpointRegistryServer(
+		localbypass.NewNetworkServiceEndpointRegistryServer(nsmgrURL),
+		mem,
+	)
+
+	// 1. Register
+	nse, err := server.Register(ctx, &registry.NetworkServiceEndpoint{
+		Name: "nse",
+		Url:  nseURL,
+	})
+	require.NoError(t, err)
+	require.Equal(t, nseURL, nse.Url)
+
+	// 2. NSE restarted with the same name but different URL
+	nseRestartedURL := "tcp://1.1.1.2"
+	nse, err = server.Register(ctx, &registry.NetworkServiceEndpoint{
+		Name: "nse",
+		Url:  nseRestartedURL,
+	})
+	require.NoError(t, err)
+	require.Equal(t, nseRestartedURL, nse.Url)
+
+	// 3. Find
+	stream, err := adapters.NetworkServiceEndpointServerToClient(server).Find(ctx, &registry.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
+	})
+	require.NoError(t, err)
+
+	nseResp, err := stream.Recv()
+	require.NoError(t, err)
+	require.Equal(t, nseRestartedURL, nseResp.NetworkServiceEndpoint.Url)
+
+	// 4. Unregister
+	_, err = server.Unregister(ctx, nse)
+	require.NoError(t, err)
+
+	stream, err = adapters.NetworkServiceEndpointServerToClient(mem).Find(ctx, &registry.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
+	})
+	require.NoError(t, err)
+
+	_, err = stream.Recv()
+	require.Error(t, err)
 }
 
 func TestLocalBypassNSEServer_SlowRegistryFind(t *testing.T) {
