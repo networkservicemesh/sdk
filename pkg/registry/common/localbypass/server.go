@@ -63,7 +63,7 @@ func NewNetworkServiceEndpointRegistryServer(nsmgrURL string) registry.NetworkSe
 
 func (s *localBypassNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (reg *registry.NetworkServiceEndpoint, err error) {
 	u, loaded := s.nseURLs.Load(nse.Name)
-	if !loaded {
+	if !loaded || u.String() != nse.Url {
 		u, err = url.Parse(nse.Url)
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot register NSE with passed URL: %s", nse.Url)
