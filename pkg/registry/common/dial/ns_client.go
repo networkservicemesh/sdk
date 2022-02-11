@@ -140,6 +140,7 @@ func (c *dialNSClient) Find(ctx context.Context, in *registry.NetworkServiceQuer
 	}
 
 	clientconn.Store(ctx, di)
+	defer clientconn.Delete(ctx)
 
 	resp, err := next.NetworkServiceRegistryClient(ctx).Find(ctx, in, opts...)
 	if err != nil {
