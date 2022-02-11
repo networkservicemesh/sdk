@@ -7,7 +7,7 @@ require (
 	github.com/antonfisher/nested-logrus-formatter v1.3.1
 	github.com/benbjohnson/clock v1.3.0
 	github.com/edwarnicke/exechelper v1.0.2
-	github.com/edwarnicke/grpcfd v0.1.1
+	github.com/edwarnicke/grpcfd v1.1.2
 	github.com/edwarnicke/serialize v1.0.7
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/ghodss/yaml v1.0.0
@@ -38,7 +38,6 @@ require (
 	go.uber.org/atomic v1.7.0
 	go.uber.org/goleak v1.1.12
 	gonum.org/v1/gonum v0.6.2
-	google.golang.org/genproto v0.0.0-20211129164237-f09f9a12af12 // indirect
 	google.golang.org/grpc v1.42.0
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/yaml.v2 v2.4.0
