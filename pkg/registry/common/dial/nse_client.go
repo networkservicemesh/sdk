@@ -140,7 +140,7 @@ func (c *dialNSEClient) Find(ctx context.Context, in *registry.NetworkServiceEnd
 
 	cleanupFn := func() {
 		clientconn.Delete(ctx)
-		di.Close()
+		_ = di.Close()
 	}
 
 	resp, err := next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, in, opts...)
