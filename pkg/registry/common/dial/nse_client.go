@@ -111,13 +111,13 @@ func (c *dialNSEClient) Unregister(ctx context.Context, in *registry.NetworkServ
 
 type dialNSEFindClient struct {
 	registry.NetworkServiceEndpointRegistry_FindClient
-	closeFn func()
+	cleanupFn func()
 }
 
 func (c *dialNSEFindClient) Recv() (*registry.NetworkServiceEndpointResponse, error) {
 	resp, err := c.NetworkServiceEndpointRegistry_FindClient.Recv()
 	if err != nil {
-		c.closeFn()
+		c.cleanupFn()
 	}
 	return resp, err
 }
@@ -130,31 +130,33 @@ func (c *dialNSEClient) Find(ctx context.Context, in *registry.NetworkServiceEnd
 
 	di := newDialer(c.chainCtx, c.dialTimeout, c.dialOptions...)
 
-	findCtx, cancel := context.WithCancel(ctx)
-
-	err := di.Dial(findCtx, clientURL)
+	err := di.Dial(ctx, clientURL)
 	if err != nil {
 		log.FromContext(ctx).Errorf("can not dial to %v, err %v. Deleting clientconn...", grpcutils.URLToTarget(clientURL), err)
-		cancel()
 		return nil, err
 	}
 
 	clientconn.Store(ctx, di)
-	defer clientconn.Delete(ctx)
+
+	cleanupFn := func() {
+		clientconn.Delete(ctx)
+		di.Close()
+	}
 
 	resp, err := next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, in, opts...)
 	if err != nil {
-		_ = di.Close()
-		cancel()
+		cleanupFn()
 		return nil, err
 	}
 
+	go func() {
+		<-resp.Context().Done()
+		cleanupFn()
+	}()
+
 	return &dialNSEFindClient{
 		NetworkServiceEndpointRegistry_FindClient: resp,
-		closeFn: func() {
-			cancel()
-			_ = di.Close()
-		},
+		cleanupFn: cleanupFn,
 	}, nil
 }
 
