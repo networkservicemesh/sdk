@@ -89,6 +89,29 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 
 		nses := d.matchForwarders(request.Connection.GetLabels(), ns, registry.ReadNetworkServiceEndpointList(stream))
 
+		segments := request.Connection.GetPath().GetPathSegments()
+		datapathForwarder := ""
+		if len(segments) > 2 {
+			datapathForwarder = segments[2].Name
+		}
+
+		for _, candidate := range nses {
+			if candidate.Name == datapathForwarder {
+				u, err := url.Parse(candidate.Url)
+
+				if err != nil {
+					logger.Errorf("can not parse forwarder=%v url=%v error=%v", nses[0].Name, u, err.Error())
+					return nil, errors.WithStack(err)
+				}
+
+				conn, err := next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request)
+				if err != nil {
+					storeForwarderName(ctx, candidate.Name)
+				}
+				return conn, err
+			}
+		}
+
 		if len(nses) == 0 {
 			return nil, errors.New("no candidates found")
 		}
