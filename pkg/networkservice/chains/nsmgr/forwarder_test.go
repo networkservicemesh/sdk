@@ -30,7 +30,74 @@ import (
 	"go.uber.org/goleak"
 )
 
-func Test_ForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T) {
+func Test_RemoteForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*10)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(2).
+		SetRegistryProxySupplier(nil).
+		SetNSMgrProxySupplier(nil).
+		Build()
+
+	log.EnableTracing(false)
+
+	var expectedForwarderName string
+
+	require.Len(t, domain.Nodes[0].Forwarders, 1)
+	for k := range domain.Nodes[0].Forwarders {
+		expectedForwarderName = k
+	}
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	_, err := nsRegistryClient.Register(ctx, &registry.NetworkService{
+		Name: "my-ns",
+	})
+	require.NoError(t, err)
+
+	nseReg := &registry.NetworkServiceEndpoint{
+		Name:                "my-nse-1",
+		NetworkServiceNames: []string{"my-ns"},
+	}
+
+	domain.Nodes[1].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
+
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	request := defaultRequest("my-ns")
+
+	conn, err := nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+	require.Equal(t, 6, len(conn.Path.PathSegments))
+	require.Equal(t, expectedForwarderName, conn.GetPath().GetPathSegments()[2].Name)
+
+	for i := 0; i < 10; i++ {
+		request.Connection = conn.Clone()
+		conn, err = nsc.Request(ctx, request.Clone())
+		require.NoError(t, err)
+		require.Equal(t, expectedForwarderName, conn.GetPath().GetPathSegments()[2].Name)
+
+		domain.Nodes[0].NewForwarder(ctx, &registryapi.NetworkServiceEndpoint{
+			Name:                sandbox.UniqueName(fmt.Sprintf("%v-forwarder", i)),
+			NetworkServiceNames: []string{"forwarder"},
+			NetworkServiceLabels: map[string]*registryapi.NetworkServiceLabels{
+				"forwarder": {
+					Labels: map[string]string{
+						"p2p": "true",
+					},
+				},
+			},
+		}, sandbox.GenerateTestToken)
+
+		domain.Nodes[0].NSMgr.Restart()
+	}
+}
+
+func Test_LocalForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*10)

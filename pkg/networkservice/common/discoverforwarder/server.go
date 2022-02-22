@@ -90,9 +90,11 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 		nses := d.matchForwarders(request.Connection.GetLabels(), ns, registry.ReadNetworkServiceEndpointList(stream))
 
 		segments := request.Connection.GetPath().GetPathSegments()
+		pathIndex := int(request.Connection.GetPath().Index)
+
 		datapathForwarder := ""
-		if len(segments) > 2 {
-			datapathForwarder = segments[2].Name
+		if len(segments) > pathIndex+1 {
+			datapathForwarder = segments[pathIndex+1].Name
 		}
 
 		for _, candidate := range nses {
@@ -106,8 +108,10 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 
 				conn, err := next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request)
 				if err != nil {
-					storeForwarderName(ctx, candidate.Name)
+					continue
 				}
+				storeForwarderName(ctx, candidate.Name)
+
 				return conn, err
 			}
 		}
