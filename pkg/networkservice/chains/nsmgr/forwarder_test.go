@@ -24,7 +24,6 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
@@ -33,7 +32,7 @@ import (
 func Test_RemoteForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
 	domain := sandbox.NewBuilder(ctx, t).
@@ -41,8 +40,6 @@ func Test_RemoteForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T) {
 		SetRegistryProxySupplier(nil).
 		SetNSMgrProxySupplier(nil).
 		Build()
-
-	log.EnableTracing(false)
 
 	var expectedForwarderName string
 
@@ -100,7 +97,7 @@ func Test_RemoteForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T) {
 func Test_LocalForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
 	domain := sandbox.NewBuilder(ctx, t).
@@ -108,8 +105,6 @@ func Test_LocalForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T) {
 		SetRegistryProxySupplier(nil).
 		SetNSMgrProxySupplier(nil).
 		Build()
-
-	log.EnableTracing(false)
 
 	var expectedForwarderName string
 
