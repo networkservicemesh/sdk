@@ -22,7 +22,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/networkservicemesh/api/pkg/api/registry"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 	"github.com/stretchr/testify/require"
@@ -50,12 +49,12 @@ func Test_RemoteForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T) {
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	_, err := nsRegistryClient.Register(ctx, &registry.NetworkService{
+	_, err := nsRegistryClient.Register(ctx, &registryapi.NetworkService{
 		Name: "my-ns",
 	})
 	require.NoError(t, err)
 
-	nseReg := &registry.NetworkServiceEndpoint{
+	nseReg := &registryapi.NetworkServiceEndpoint{
 		Name:                "my-nse-1",
 		NetworkServiceNames: []string{"my-ns"},
 	}
@@ -115,12 +114,12 @@ func Test_LocalForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T) {
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	_, err := nsRegistryClient.Register(ctx, &registry.NetworkService{
+	_, err := nsRegistryClient.Register(ctx, &registryapi.NetworkService{
 		Name: "my-ns",
 	})
 	require.NoError(t, err)
 
-	nseReg := &registry.NetworkServiceEndpoint{
+	nseReg := &registryapi.NetworkServiceEndpoint{
 		Name:                "my-nse-1",
 		NetworkServiceNames: []string{"my-ns"},
 	}

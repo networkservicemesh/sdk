@@ -89,35 +89,34 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 
 		nses := d.matchForwarders(request.Connection.GetLabels(), ns, registry.ReadNetworkServiceEndpointList(stream))
 
+		if len(nses) == 0 {
+			return nil, errors.New("no candidates found")
+		}
+
 		segments := request.Connection.GetPath().GetPathSegments()
 		pathIndex := int(request.Connection.GetPath().Index)
-
 		datapathForwarder := ""
 		if len(segments) > pathIndex+1 {
 			datapathForwarder = segments[pathIndex+1].Name
 		}
 
 		for _, candidate := range nses {
-			if candidate.Name == datapathForwarder {
-				u, err := url.Parse(candidate.Url)
-
-				if err != nil {
-					logger.Errorf("can not parse forwarder=%v url=%v error=%v", nses[0].Name, u, err.Error())
-					return nil, errors.WithStack(err)
-				}
-
-				conn, err := next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request)
-				if err != nil {
-					continue
-				}
-				storeForwarderName(ctx, candidate.Name)
-
-				return conn, err
+			if candidate.Name != datapathForwarder {
+				continue
 			}
-		}
+			u, err := url.Parse(candidate.Url)
 
-		if len(nses) == 0 {
-			return nil, errors.New("no candidates found")
+			if err != nil {
+				logger.Errorf("can not parse forwarder=%v url=%v error=%v", candidate.Name, u, err.Error())
+				return nil, errors.WithStack(err)
+			}
+
+			resp, err := next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request)
+			if err == nil {
+				storeForwarderName(ctx, candidate.Name)
+				return resp, nil
+			}
+			return nil, err
 		}
 
 		var candidatesErr = errors.New("all forwarders have failed")

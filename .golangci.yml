@@ -36,7 +36,7 @@ linters-settings:
     threshold: 150
   funlen:
     Lines: 110
-    Statements: 50
+    Statements: 60
   goconst:
     min-len: 2
     min-occurrences: 2
