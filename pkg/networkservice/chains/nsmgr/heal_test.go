@@ -34,7 +34,7 @@ import (
 
 const (
 	tick    = 10 * time.Millisecond
-	timeout = 10 * time.Minute
+	timeout = 10 * time.Second
 )
 
 func TestNSMGR_HealEndpoint(t *testing.T) {
