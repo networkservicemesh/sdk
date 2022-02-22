@@ -112,11 +112,11 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 			}
 
 			resp, err := next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request)
-			if err == nil {
-				storeForwarderName(ctx, candidate.Name)
-				return resp, nil
+			if err != nil {
+				continue
 			}
-			return nil, err
+			storeForwarderName(ctx, candidate.Name)
+			return resp, nil
 		}
 
 		var candidatesErr = errors.New("all forwarders have failed")
