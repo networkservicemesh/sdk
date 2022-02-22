@@ -23,9 +23,10 @@ import (
 	"time"
 
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
 func Test_ForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T) {
