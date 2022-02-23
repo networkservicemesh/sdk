@@ -1,4 +1,5 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2022 Cisco and/or its affiliates.
+// Copyright (c) 2022 Nordix Foundation
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -36,7 +37,8 @@ func mergeConnection(returnedConnection, requestedConnection, connection *networ
 func mergeConnectionContext(returnedConnectionContext, requestedConnectionContext, connectioncontext *networkservice.ConnectionContext) *networkservice.ConnectionContext {
 	rv := proto.Clone(connectioncontext).(*networkservice.ConnectionContext)
 	if !proto.Equal(returnedConnectionContext, requestedConnectionContext) {
-		// TODO: IPContext, DNSContext, EthernetContext, do we need to do MTU?
+		// TODO: DNSContext, EthernetContext, do we need to do MTU?
+		rv.IpContext = requestedConnectionContext.IpContext
 		rv.ExtraContext = mergeMapStringString(returnedConnectionContext.GetExtraContext(), requestedConnectionContext.GetExtraContext(), connectioncontext.GetExtraContext())
 	}
 	return rv
