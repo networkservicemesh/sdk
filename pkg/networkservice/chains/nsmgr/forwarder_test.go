@@ -28,6 +28,7 @@ import (
 	"go.uber.org/goleak"
 
 	registryadapter "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -57,7 +58,7 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*40)
 	// logrus.SetLevel(logrus.TraceLevel)
-	// log.EnableTracing(true)
+	log.EnableTracing(true)
 	defer cancel()
 
 	domain := sandbox.NewBuilder(ctx, t).
@@ -118,23 +119,22 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 		domain.Nodes[0].NSMgr.Restart()
 
 		nseClient := registryadapter.NetworkServiceEndpointServerToClient(domain.Nodes[0].NSMgr.Nsmgr.NetworkServiceEndpointRegistryServer())
-		for _, forwarder := range domain.Nodes[0].Forwarders {
-			request := &registry.NetworkServiceEndpointQuery{
-				NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-					Name: forwarder.Name,
-					Url:  domain.Nodes[0].NSMgr.URL.String(),
-				},
-			}
-
-			stream, _ := nseClient.Find(ctx, request)
-			msg, _ := stream.Recv()
-
-			for msg == nil {
-				stream, _ = nseClient.Find(ctx, request)
-				msg, _ = stream.Recv()
-			}
-
-			require.Equal(t, msg.NetworkServiceEndpoint.Name, forwarder.Name)
+		request := &registry.NetworkServiceEndpointQuery{
+			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+				Name: expectedForwarderName,
+				Url:  domain.Nodes[0].NSMgr.URL.String(),
+			},
 		}
+
+		stream, _ := nseClient.Find(ctx, request)
+		msg, _ := stream.Recv()
+
+		for msg == nil {
+			stream, _ = nseClient.Find(ctx, request)
+			msg, _ = stream.Recv()
+		}
+
+		require.Equal(t, msg.NetworkServiceEndpoint.Name, expectedForwarderName)
+
 	}
 }

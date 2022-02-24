@@ -87,7 +87,11 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 			return nil, errors.WithStack(err)
 		}
 
-		nses := d.matchForwarders(request.Connection.GetLabels(), ns, registry.ReadNetworkServiceEndpointList(stream))
+		rawNses := registry.ReadNetworkServiceEndpointList(stream)
+		logger.Infof("[MY_TRACE forwarderName == ''] NSEs before match: nses=%v", rawNses)
+		nses := d.matchForwarders(request.Connection.GetLabels(), ns, rawNses)
+
+		logger.Infof("[MY_TRACE forwarderName == ''] NSEs before match: nses=%v", nses)
 
 		if len(nses) == 0 {
 			return nil, errors.New("no candidates found")
