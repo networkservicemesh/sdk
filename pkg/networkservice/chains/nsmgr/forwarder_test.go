@@ -28,7 +28,6 @@ import (
 	"go.uber.org/goleak"
 
 	registryadapter "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -120,7 +119,6 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 
 		nseClient := registryadapter.NetworkServiceEndpointServerToClient(domain.Nodes[0].NSMgr.Nsmgr.NetworkServiceEndpointRegistryServer())
 		for _, forwarder := range domain.Nodes[0].Forwarders {
-
 			request := &registry.NetworkServiceEndpointQuery{
 				NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 					Name: forwarder.Name,
@@ -129,13 +127,14 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 			}
 
 			stream, _ := nseClient.Find(ctx, request)
-			msg, recvErr := stream.Recv()
-			log.FromContext(ctx).Info(msg)
+			msg, _ := stream.Recv()
 
-			for recvErr != nil {
+			for msg == nil {
 				stream, _ = nseClient.Find(ctx, request)
-				msg, recvErr = stream.Recv()
+				msg, _ = stream.Recv()
 			}
+
+			require.Equal(t, msg.NetworkServiceEndpoint.Name, forwarder.Name)
 		}
 	}
 }
