@@ -58,7 +58,7 @@ func Test_ForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T) {
 func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum, pathSegmentCount int) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*100)
 	defer cancel()
 
 	domain := sandbox.NewBuilder(ctx, t).
@@ -98,7 +98,7 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 	require.Equal(t, pathSegmentCount, len(conn.Path.PathSegments))
 	require.Equal(t, expectedForwarderName, conn.GetPath().GetPathSegments()[2].Name)
 
-	for i := 0; i < 1; i++ {
+	for i := 0; i < 2; i++ {
 		request.Connection = conn.Clone()
 		conn, err = nsc.Request(ctx, request.Clone())
 		require.NoError(t, err)
