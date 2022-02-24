@@ -55,7 +55,7 @@ func Test_ForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T) {
 func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum, pathSegmentCount int) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*40)
 	// logrus.SetLevel(logrus.TraceLevel)
 	// log.EnableTracing(true)
 	defer cancel()
