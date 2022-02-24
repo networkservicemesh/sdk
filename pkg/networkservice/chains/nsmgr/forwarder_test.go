@@ -22,10 +22,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/networkservicemesh/api/pkg/api/registry"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
+	registryadapter "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
@@ -54,8 +57,8 @@ func Test_ForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T) {
 func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum, pathSegmentCount int) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*100)
-	//logrus.SetLevel(logrus.TraceLevel)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
+	logrus.SetLevel(logrus.TraceLevel)
 	log.EnableTracing(true)
 	defer cancel()
 
@@ -115,5 +118,25 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 		}, sandbox.GenerateTestToken)
 
 		domain.Nodes[0].NSMgr.Restart()
+
+		nseClient := registryadapter.NetworkServiceEndpointServerToClient(domain.Nodes[0].NSMgr.Nsmgr.NetworkServiceEndpointRegistryServer())
+		for _, forwarder := range domain.Nodes[0].Forwarders {
+
+			request := &registry.NetworkServiceEndpointQuery{
+				NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
+					Name: forwarder.Name,
+					Url:  domain.Nodes[0].NSMgr.URL.String(),
+				},
+			}
+
+			stream, _ := nseClient.Find(ctx, request)
+			msg, recvErr := stream.Recv()
+			log.FromContext(ctx).Info(msg)
+
+			for recvErr != nil {
+				stream, _ = nseClient.Find(ctx, request)
+				msg, recvErr = stream.Recv()
+			}
+		}
 	}
 }
