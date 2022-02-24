@@ -100,23 +100,11 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 			datapathForwarder = segments[pathIndex+1].Name
 		}
 
-		for _, candidate := range nses {
-			if candidate.Name != datapathForwarder {
-				continue
+		for i, candidate := range nses {
+			if candidate.Name == datapathForwarder {
+				nses[0], nses[i] = nses[i], nses[0]
+				break
 			}
-			u, err := url.Parse(candidate.Url)
-
-			if err != nil {
-				logger.Errorf("can not parse forwarder=%v url=%v error=%v", candidate.Name, u, err.Error())
-				return nil, errors.WithStack(err)
-			}
-
-			resp, err := next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request)
-			if err != nil {
-				continue
-			}
-			storeForwarderName(ctx, candidate.Name)
-			return resp, nil
 		}
 
 		var candidatesErr = errors.New("all forwarders have failed")
