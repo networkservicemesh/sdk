@@ -67,10 +67,6 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 	var forwarderName = loadForwarderName(ctx)
 	var logger = log.FromContext(ctx).WithField("discoverForwarderServer", "request")
 
-	if forwarderName != "" {
-		logger.Infof("[MY_TRACE] forwarder = %v", forwarderName)
-	}
-
 	if forwarderName == "" {
 		ns, err := d.discoverNetworkService(ctx, request.GetConnection().GetNetworkService(), request.GetConnection().GetPayload())
 		if err != nil {
@@ -91,11 +87,7 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 			return nil, errors.WithStack(err)
 		}
 
-		rawNses := registry.ReadNetworkServiceEndpointList(stream)
-		logger.Infof("[MY_TRACE forwarderName == ''] NSEs before match: nses=%v", rawNses)
-		nses := d.matchForwarders(request.Connection.GetLabels(), ns, rawNses)
-
-		logger.Infof("[MY_TRACE forwarderName == ''] NSEs before match: nses=%v", nses)
+		nses := d.matchForwarders(request.Connection.GetLabels(), ns, registry.ReadNetworkServiceEndpointList(stream))
 
 		if len(nses) == 0 {
 			return nil, errors.New("no candidates found")
@@ -106,20 +98,14 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 		datapathForwarder := ""
 		if len(segments) > pathIndex+1 {
 			datapathForwarder = segments[pathIndex+1].Name
-			logger.Infof("[MY_TRACE forwarderName == ''] current datapath forwarder found (forwarder=%v)", datapathForwarder)
 		}
 
-		logger.Info("[MY_TRACE forwarderName == ''] nses[0]=%v", nses[0].Name)
-		logger.Info("[MY_TRACE forwarderName == ''] attempt to match current datapath forwarder")
 		for i, candidate := range nses {
 			if candidate.Name == datapathForwarder {
-				logger.Info("[MY_TRACE forwarderName == ''] current datapath forwarder matched")
 				nses[0], nses[i] = nses[i], nses[0]
 				break
 			}
 		}
-
-		logger.Info("[MY_TRACE forwarderName == ''] nses[0]=%v", nses[0].Name)
 
 		var candidatesErr = errors.New("all forwarders have failed")
 
@@ -164,23 +150,6 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 		storeForwarderName(ctx, "")
 		return nil, errors.New("forwarder not found")
 	}
-
-	// segments := request.Connection.GetPath().GetPathSegments()
-	// pathIndex := int(request.Connection.GetPath().Index)
-	// datapathForwarder := ""
-	// if len(segments) > pathIndex+1 {
-	// 	logger.Infof("[MY_TRACE forwarderName != ''] current datapath forwarder found (forwarder=%s)", datapathForwarder)
-	// 	datapathForwarder = segments[pathIndex+1].Name
-	// }
-
-	// logger.Info("[MY_TRACE forwarderName != ''] attempt to match current datapath forwarder")
-	// for i, candidate := range nses {
-	// 	if candidate.Name == datapathForwarder {
-	// 		logger.Info("[MY_TRACE forwarderName != ''] current datapath forwarder matched")
-	// 		nses[0], nses[i] = nses[i], nses[0]
-	// 		break
-	// 	}
-	// }
 
 	u, err := url.Parse(nses[0].Url)
 
