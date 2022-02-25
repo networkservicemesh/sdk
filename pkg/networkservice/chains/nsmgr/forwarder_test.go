@@ -23,9 +23,11 @@ import (
 	"time"
 
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -53,9 +55,9 @@ func Test_ForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T) {
 func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum, pathSegmentCount int) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*40)
-	// logrus.SetLevel(logrus.TraceLevel)
-	// log.EnableTracing(true)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*400)
+	logrus.SetLevel(logrus.TraceLevel)
+	log.EnableTracing(true)
 	defer cancel()
 
 	domain := sandbox.NewBuilder(ctx, t).
@@ -115,17 +117,20 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 
 		domain.Nodes[0].NSMgr.Restart()
 
-		domain.Nodes[0].NSMgr.NetworkServiceEndpointRegistryServer().Register(ctx, &registryapi.NetworkServiceEndpoint{
-			Name:                expectedForwarderName,
-			Url:                 domain.Nodes[0].Forwarders[expectedForwarderName].URL.String(),
-			NetworkServiceNames: []string{"forwarder"},
-			NetworkServiceLabels: map[string]*registryapi.NetworkServiceLabels{
-				"forwarder": {
-					Labels: map[string]string{
-						"p2p": "true",
-					},
-				},
-			},
-		})
+		time.Sleep(time.Millisecond * 300)
+		// t.FailNow()
+
+		// domain.Nodes[0].NSMgr.NetworkServiceEndpointRegistryServer().Register(ctx, &registryapi.NetworkServiceEndpoint{
+		// 	Name:                expectedForwarderName,
+		// 	Url:                 domain.Nodes[0].Forwarders[expectedForwarderName].URL.String(),
+		// 	NetworkServiceNames: []string{"forwarder"},
+		// 	NetworkServiceLabels: map[string]*registryapi.NetworkServiceLabels{
+		// 		"forwarder": {
+		// 			Labels: map[string]string{
+		// 				"p2p": "true",
+		// 			},
+		// 		},
+		// 	},
+		// })
 	}
 }
