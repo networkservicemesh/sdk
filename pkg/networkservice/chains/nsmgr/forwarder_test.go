@@ -117,7 +117,6 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 
 		logrus.Errorf("MY_ERROR %v", domain.Nodes[0].NSMgr.URL)
 		domain.Nodes[0].NSMgr.Restart()
-		domain.Registry.Restart()
 
 		logrus.Errorf("MY_ERROR %v", domain.Nodes[0].NSMgr.URL)
 
