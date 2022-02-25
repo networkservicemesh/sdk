@@ -27,7 +27,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -56,8 +55,8 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*400)
-	logrus.SetLevel(logrus.TraceLevel)
-	log.EnableTracing(true)
+	// logrus.SetLevel(logrus.TraceLevel)
+	// log.EnableTracing(true)
 	defer cancel()
 
 	domain := sandbox.NewBuilder(ctx, t).
@@ -115,7 +114,10 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 			},
 		}, sandbox.GenerateTestToken)
 
+		logrus.Errorf("MY_ERROR %v", domain.Nodes[0].NSMgr.URL)
 		domain.Nodes[0].NSMgr.Restart()
+
+		logrus.Errorf("MY_ERROR %v", domain.Nodes[0].NSMgr.URL)
 
 		time.Sleep(time.Millisecond * 300)
 		// t.FailNow()
