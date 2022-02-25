@@ -27,7 +27,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
-	registryadapter "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
@@ -121,25 +120,25 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 
 		logrus.Errorf("MY_ERROR %v", domain.Nodes[0].NSMgr.URL)
 
-		nseClient := registryadapter.NetworkServiceEndpointServerToClient(domain.Nodes[0].NSMgr.Nsmgr.NetworkServiceEndpointRegistryServer())
-		request := &registryapi.NetworkServiceEndpointQuery{
-			NetworkServiceEndpoint: &registryapi.NetworkServiceEndpoint{
-				Name: expectedForwarderName,
-				Url:  domain.Nodes[0].NSMgr.URL.String(),
-			},
-		}
+		// nseClient := registryadapter.NetworkServiceEndpointServerToClient(domain.Nodes[0].NSMgr.Nsmgr.NetworkServiceEndpointRegistryServer())
+		// request := &registryapi.NetworkServiceEndpointQuery{
+		// 	NetworkServiceEndpoint: &registryapi.NetworkServiceEndpoint{
+		// 		Name: expectedForwarderName,
+		// 		Url:  domain.Nodes[0].NSMgr.URL.String(),
+		// 	},
+		// }
 
-		stream, _ := nseClient.Find(ctx, request)
-		msg, _ := stream.Recv()
+		// stream, _ := nseClient.Find(ctx, request)
+		// msg, _ := stream.Recv()
 
-		for msg == nil {
-			stream, _ = nseClient.Find(ctx, request)
-			msg, _ = stream.Recv()
-		}
+		// for msg == nil {
+		// 	stream, _ = nseClient.Find(ctx, request)
+		// 	msg, _ = stream.Recv()
+		// }
 
-		require.Equal(t, msg.NetworkServiceEndpoint.Name, expectedForwarderName)
+		// require.Equal(t, msg.NetworkServiceEndpoint.Name, expectedForwarderName)
 
-		time.Sleep(time.Millisecond * 300)
+		time.Sleep(time.Millisecond * 1000)
 		// t.FailNow()
 
 		// domain.Nodes[0].NSMgr.NetworkServiceEndpointRegistryServer().Register(ctx, &registryapi.NetworkServiceEndpoint{
