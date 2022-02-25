@@ -82,7 +82,6 @@ func (c *dialNSEClient) Register(ctx context.Context, in *registry.NetworkServic
 	conn, err := next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)
 	if err != nil {
 		_ = di.Close()
-		clientconn.Delete(ctx)
 		return nil, err
 	}
 	return conn, nil
