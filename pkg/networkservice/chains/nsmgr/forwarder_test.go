@@ -115,6 +115,17 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 
 		domain.Nodes[0].NSMgr.Restart()
 
-		time.Sleep(time.Millisecond * 2000)
+		domain.Nodes[0].NSMgr.NetworkServiceEndpointRegistryServer().Register(ctx, &registryapi.NetworkServiceEndpoint{
+			Name:                expectedForwarderName,
+			Url:                 domain.Nodes[0].Forwarders[expectedForwarderName].URL.String(),
+			NetworkServiceNames: []string{"forwarder"},
+			NetworkServiceLabels: map[string]*registryapi.NetworkServiceLabels{
+				"forwarder": {
+					Labels: map[string]string{
+						"p2p": "true",
+					},
+				},
+			},
+		})
 	}
 }
