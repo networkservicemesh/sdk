@@ -115,6 +115,6 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 
 		domain.Nodes[0].NSMgr.Restart()
 
-		time.Sleep(time.Millisecond * 1000)
+		time.Sleep(time.Millisecond * 2000)
 	}
 }
