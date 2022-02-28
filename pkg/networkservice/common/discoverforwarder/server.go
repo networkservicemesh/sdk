@@ -27,10 +27,13 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/matchutils"
 )
+
+type tryCountKey struct{}
 
 type discoverForwarderServer struct {
 	nseClient            registry.NetworkServiceEndpointRegistryClient
@@ -99,10 +102,20 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 			datapathForwarder = segments[pathIndex+1].Name
 		}
 
-		for i, candidate := range nses {
-			if candidate.Name == datapathForwarder {
-				nses[0], nses[i] = nses[i], nses[0]
-				break
+		if datapathForwarder != "" {
+			for i, candidate := range nses {
+				if candidate.Name == datapathForwarder {
+					nses[0], nses[i] = nses[i], nses[0]
+					break
+				}
+			}
+
+			if nses[0].Name != datapathForwarder {
+				attempt, _ := metadata.Map(ctx, false).LoadOrStore(&tryCountKey{}, new(int32))
+				*attempt.(*int32)++
+				if *attempt.(*int32) <= 3 {
+					return nil, errors.New(datapathForwarder + " is not found")
+				}
 			}
 		}
 
