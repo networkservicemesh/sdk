@@ -539,7 +539,7 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 
 		_, err = domain.Nodes[0].NSMgr.NetworkServiceEndpointRegistryServer().Register(ctx, &registry.NetworkServiceEndpoint{
 			Name:                expectedForwarderName,
-			Url:                 domain.Nodes[nodeNum].Forwarders[expectedForwarderName].URL.String(),
+			Url:                 domain.Nodes[0].Forwarders[expectedForwarderName].URL.String(),
 			NetworkServiceNames: []string{"forwarder"},
 			NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
 				"forwarder": {
