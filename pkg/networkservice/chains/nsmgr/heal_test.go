@@ -18,6 +18,7 @@ package nsmgr_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -443,5 +444,112 @@ func testNSMGRCloseHeal(t *testing.T, withNSEExpiration bool) {
 func checkSecondRequestsReceived(requestsDone func() int) func() bool {
 	return func() bool {
 		return requestsDone() >= 2
+	}
+}
+
+func Test_ForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T) {
+	var samples = []struct {
+		name             string
+		nodeNum          int
+		pathSegmentCount int
+	}{
+		{
+			name:             "Local",
+			nodeNum:          0,
+			pathSegmentCount: 4,
+		},
+		{
+			name:             "Remote",
+			nodeNum:          1,
+			pathSegmentCount: 6,
+		},
+	}
+
+	for _, sample := range samples {
+		t.Run(sample.name, func(t *testing.T) {
+			// nolint:scopelint
+			testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t, sample.nodeNum, sample.pathSegmentCount)
+		})
+	}
+}
+
+func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum, pathSegmentCount int) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*70)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(nodeNum + 1).
+		SetRegistryProxySupplier(nil).
+		SetNSMgrProxySupplier(nil).
+		Build()
+
+	var expectedForwarderName string
+
+	require.Len(t, domain.Nodes[0].Forwarders, 1)
+	for k := range domain.Nodes[0].Forwarders {
+		expectedForwarderName = k
+	}
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	_, err := nsRegistryClient.Register(ctx, &registry.NetworkService{
+		Name: "my-ns",
+	})
+	require.NoError(t, err)
+
+	nseReg := &registry.NetworkServiceEndpoint{
+		Name:                "my-nse-1",
+		NetworkServiceNames: []string{"my-ns"},
+	}
+
+	domain.Nodes[nodeNum].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
+
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	request := defaultRequest("my-ns")
+
+	conn, err := nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+	require.Equal(t, pathSegmentCount, len(conn.Path.PathSegments))
+	require.Equal(t, expectedForwarderName, conn.GetPath().GetPathSegments()[2].Name)
+
+	for i := 0; i < 10; i++ {
+		request.Connection = conn.Clone()
+		conn, err = nsc.Request(ctx, request.Clone())
+
+		require.NoError(t, err)
+		require.Equal(t, expectedForwarderName, conn.GetPath().GetPathSegments()[2].Name)
+
+		domain.Nodes[0].NewForwarder(ctx, &registry.NetworkServiceEndpoint{
+			Name:                sandbox.UniqueName(fmt.Sprintf("%v-forwarder", i)),
+			NetworkServiceNames: []string{"forwarder"},
+			NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+				"forwarder": {
+					Labels: map[string]string{
+						"p2p": "true",
+					},
+				},
+			},
+		}, sandbox.GenerateTestToken)
+
+		domain.Nodes[0].NSMgr.Restart()
+
+		_, err = domain.Nodes[0].NSMgr.NetworkServiceEndpointRegistryServer().Register(ctx, &registry.NetworkServiceEndpoint{
+			Name:                expectedForwarderName,
+			Url:                 domain.Nodes[nodeNum].Forwarders[expectedForwarderName].URL.String(),
+			NetworkServiceNames: []string{"forwarder"},
+			NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+				"forwarder": {
+					Labels: map[string]string{
+						"p2p": "true",
+					},
+				},
+			},
+		})
+
+		require.NoError(t, err)
 	}
 }
