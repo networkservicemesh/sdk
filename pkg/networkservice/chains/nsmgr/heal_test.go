@@ -458,11 +458,11 @@ func Test_ForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T) {
 			nodeNum:          0,
 			pathSegmentCount: 4,
 		},
-		{
-			name:             "Remote",
-			nodeNum:          1,
-			pathSegmentCount: 6,
-		},
+		// {
+		// 	name:             "Remote",
+		// 	nodeNum:          1,
+		// 	pathSegmentCount: 6,
+		// },
 	}
 
 	for _, sample := range samples {
@@ -535,9 +535,9 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 			},
 		}, sandbox.GenerateTestToken)
 
-		domain.Nodes[0].NSMgr.Restart()
+		domain.Nodes[nodeNum].NSMgr.Restart()
 
-		_, err = domain.Nodes[0].NSMgr.NetworkServiceEndpointRegistryServer().Register(ctx, &registry.NetworkServiceEndpoint{
+		_, err = domain.Nodes[nodeNum].NSMgr.NetworkServiceEndpointRegistryServer().Register(ctx, &registry.NetworkServiceEndpoint{
 			Name:                expectedForwarderName,
 			Url:                 domain.Nodes[0].Forwarders[expectedForwarderName].URL.String(),
 			NetworkServiceNames: []string{"forwarder"},
