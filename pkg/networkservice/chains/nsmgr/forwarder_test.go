@@ -102,7 +102,7 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 	require.Equal(t, pathSegmentCount, len(conn.Path.PathSegments))
 	require.Equal(t, expectedForwarderName, conn.GetPath().GetPathSegments()[2].Name)
 
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 10; i++ {
 		request.Connection = conn.Clone()
 		conn, err = nsc.Request(ctx, request.Clone())
 
@@ -121,11 +121,11 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 			},
 		}, sandbox.GenerateTestToken)
 
-		domain.Nodes[0].NSMgr.Restart()
+		domain.Nodes[nodeNum].NSMgr.Restart()
 
-		_, err = domain.Nodes[0].NSMgr.NetworkServiceEndpointRegistryServer().Register(ctx, &registryapi.NetworkServiceEndpoint{
+		_, err = domain.Nodes[nodeNum].NSMgr.NetworkServiceEndpointRegistryServer().Register(ctx, &registryapi.NetworkServiceEndpoint{
 			Name:                expectedForwarderName,
-			Url:                 domain.Nodes[0].Forwarders[expectedForwarderName].URL.String(),
+			Url:                 domain.Nodes[nodeNum].Forwarders[expectedForwarderName].URL.String(),
 			NetworkServiceNames: []string{"forwarder"},
 			NetworkServiceLabels: map[string]*registryapi.NetworkServiceLabels{
 				"forwarder": {
