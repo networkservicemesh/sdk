@@ -104,9 +104,7 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 
 	for i := 0; i < 3; i++ {
 		request.Connection = conn.Clone()
-		logrus.Trace("[MY_TRACE] Request begin")
 		conn, err = nsc.Request(ctx, request.Clone())
-		logrus.Trace("[MY_TRACE] Request end")
 
 		require.NoError(t, err)
 		require.Equal(t, expectedForwarderName, conn.GetPath().GetPathSegments()[2].Name)
@@ -125,6 +123,19 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 
 		domain.Nodes[0].NSMgr.Restart()
 
-		time.Sleep(time.Second * 5)
+		_, err = domain.Nodes[0].NSMgr.NetworkServiceEndpointRegistryServer().Register(ctx, &registryapi.NetworkServiceEndpoint{
+			Name:                expectedForwarderName,
+			Url:                 domain.Nodes[0].Forwarders[expectedForwarderName].URL.String(),
+			NetworkServiceNames: []string{"forwarder"},
+			NetworkServiceLabels: map[string]*registryapi.NetworkServiceLabels{
+				"forwarder": {
+					Labels: map[string]string{
+						"p2p": "true",
+					},
+				},
+			},
+		})
+
+		require.NoError(t, err)
 	}
 }
