@@ -117,5 +117,7 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 		}, sandbox.GenerateTestToken)
 
 		domain.Nodes[0].NSMgr.Restart()
+
+		time.Sleep(time.Millisecond * 300)
 	}
 }
