@@ -104,7 +104,10 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 
 	for i := 0; i < 3; i++ {
 		request.Connection = conn.Clone()
+		logrus.Trace("[MY_TRACE] Request begin")
 		conn, err = nsc.Request(ctx, request.Clone())
+		logrus.Trace("[MY_TRACE] Request end")
+
 		require.NoError(t, err)
 		require.Equal(t, expectedForwarderName, conn.GetPath().GetPathSegments()[2].Name)
 
