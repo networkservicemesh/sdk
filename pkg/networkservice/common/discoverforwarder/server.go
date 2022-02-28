@@ -94,9 +94,8 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 		}
 
 		segments := request.Connection.GetPath().GetPathSegments()
-		pathIndex := int(request.Connection.GetPath().Index)
 		datapathForwarder := ""
-		if len(segments) > pathIndex+1 {
+		if pathIndex := int(request.Connection.GetPath().Index); len(segments) > pathIndex+1 {
 			datapathForwarder = segments[pathIndex+1].Name
 		}
 

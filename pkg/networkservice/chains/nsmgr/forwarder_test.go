@@ -122,7 +122,7 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 
 		domain.Nodes[0].NSMgr.Restart()
 
-		domain.Nodes[0].NSMgr.NetworkServiceEndpointRegistryServer().Register(ctx, &registryapi.NetworkServiceEndpoint{
+		_, err = domain.Nodes[0].NSMgr.NetworkServiceEndpointRegistryServer().Register(ctx, &registryapi.NetworkServiceEndpoint{
 			Name:                expectedForwarderName,
 			Url:                 domain.Nodes[0].Forwarders[expectedForwarderName].URL.String(),
 			NetworkServiceNames: []string{"forwarder"},
@@ -134,5 +134,7 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 				},
 			},
 		})
+
+		require.NoError(t, err)
 	}
 }
