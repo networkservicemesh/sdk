@@ -23,11 +23,9 @@ import (
 	"time"
 
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -61,8 +59,6 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*70)
-	logrus.SetLevel(logrus.TraceLevel)
-	log.EnableTracing(true)
 	defer cancel()
 
 	domain := sandbox.NewBuilder(ctx, t).
@@ -121,9 +117,9 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 			},
 		}, sandbox.GenerateTestToken)
 
-		domain.Nodes[nodeNum].NSMgr.Restart()
+		domain.Nodes[0].NSMgr.Restart()
 
-		_, err = domain.Nodes[nodeNum].NSMgr.NetworkServiceEndpointRegistryServer().Register(ctx, &registryapi.NetworkServiceEndpoint{
+		_, err = domain.Nodes[0].NSMgr.NetworkServiceEndpointRegistryServer().Register(ctx, &registryapi.NetworkServiceEndpoint{
 			Name:                expectedForwarderName,
 			Url:                 domain.Nodes[nodeNum].Forwarders[expectedForwarderName].URL.String(),
 			NetworkServiceNames: []string{"forwarder"},
