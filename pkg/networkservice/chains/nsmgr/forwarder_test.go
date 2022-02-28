@@ -42,6 +42,11 @@ func Test_ForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T) {
 			nodeNum:          0,
 			pathSegmentCount: 4,
 		},
+		{
+			name:             "Remote",
+			nodeNum:          1,
+			pathSegmentCount: 6,
+		},
 	}
 
 	for _, sample := range samples {
@@ -97,7 +102,7 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 	require.Equal(t, pathSegmentCount, len(conn.Path.PathSegments))
 	require.Equal(t, expectedForwarderName, conn.GetPath().GetPathSegments()[2].Name)
 
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 10; i++ {
 		request.Connection = conn.Clone()
 		conn, err = nsc.Request(ctx, request.Clone())
 		require.NoError(t, err)
@@ -115,43 +120,19 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 			},
 		}, sandbox.GenerateTestToken)
 
-		logrus.Errorf("MY_ERROR %v", domain.Nodes[0].NSMgr.URL)
 		domain.Nodes[0].NSMgr.Restart()
 
-		logrus.Errorf("MY_ERROR %v", domain.Nodes[0].NSMgr.URL)
-
-		// nseClient := registryadapter.NetworkServiceEndpointServerToClient(domain.Nodes[0].NSMgr.Nsmgr.NetworkServiceEndpointRegistryServer())
-		// request := &registryapi.NetworkServiceEndpointQuery{
-		// 	NetworkServiceEndpoint: &registryapi.NetworkServiceEndpoint{
-		// 		Name: expectedForwarderName,
-		// 		Url:  domain.Nodes[0].NSMgr.URL.String(),
-		// 	},
-		// }
-
-		// stream, _ := nseClient.Find(ctx, request)
-		// msg, _ := stream.Recv()
-
-		// for msg == nil {
-		// 	stream, _ = nseClient.Find(ctx, request)
-		// 	msg, _ = stream.Recv()
-		// }
-
-		// require.Equal(t, msg.NetworkServiceEndpoint.Name, expectedForwarderName)
-
-		time.Sleep(time.Millisecond * 1000)
-		// t.FailNow()
-
-		// domain.Nodes[0].NSMgr.NetworkServiceEndpointRegistryServer().Register(ctx, &registryapi.NetworkServiceEndpoint{
-		// 	Name:                expectedForwarderName,
-		// 	Url:                 domain.Nodes[0].Forwarders[expectedForwarderName].URL.String(),
-		// 	NetworkServiceNames: []string{"forwarder"},
-		// 	NetworkServiceLabels: map[string]*registryapi.NetworkServiceLabels{
-		// 		"forwarder": {
-		// 			Labels: map[string]string{
-		// 				"p2p": "true",
-		// 			},
-		// 		},
-		// 	},
-		// })
+		domain.Nodes[0].NSMgr.NetworkServiceEndpointRegistryServer().Register(ctx, &registryapi.NetworkServiceEndpoint{
+			Name:                expectedForwarderName,
+			Url:                 domain.Nodes[0].Forwarders[expectedForwarderName].URL.String(),
+			NetworkServiceNames: []string{"forwarder"},
+			NetworkServiceLabels: map[string]*registryapi.NetworkServiceLabels{
+				"forwarder": {
+					Labels: map[string]string{
+						"p2p": "true",
+					},
+				},
+			},
+		})
 	}
 }
