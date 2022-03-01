@@ -516,16 +516,16 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, pathSegmentCount, len(conn.Path.PathSegments))
-	require.Equal(t, expectedForwarderName, conn.GetPath().GetPathSegments()[2].Name)
+	require.Equal(t, expectedForwarderName, conn.GetPath().GetPathSegments()[pathSegmentCount-2].Name)
 
 	for i := 0; i < 10; i++ {
 		request.Connection = conn.Clone()
 		conn, err = nsc.Request(ctx, request.Clone())
 
 		require.NoError(t, err)
-		require.Equal(t, expectedForwarderName, conn.GetPath().GetPathSegments()[2].Name)
+		require.Equal(t, expectedForwarderName, conn.GetPath().GetPathSegments()[pathSegmentCount-2].Name)
 
-		domain.Nodes[0].NewForwarder(ctx, &registry.NetworkServiceEndpoint{
+		domain.Nodes[nodeNum].NewForwarder(ctx, &registry.NetworkServiceEndpoint{
 			Name:                sandbox.UniqueName(fmt.Sprintf("%v-forwarder", i)),
 			NetworkServiceNames: []string{"forwarder"},
 			NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
@@ -538,5 +538,18 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 		}, sandbox.GenerateTestToken)
 
 		domain.Nodes[nodeNum].NSMgr.Restart()
+
+		// domain.Nodes[nodeNum].NSMgr.NetworkServiceEndpointRegistryServer().Register(ctx, &registryapi.NetworkServiceEndpoint{
+		// 	Name:                expectedForwarderName,
+		// 	Url:                 domain.Nodes[nodeNum].Forwarders[expectedForwarderName].URL.String(),
+		// 	NetworkServiceNames: []string{"forwarder"},
+		// 	NetworkServiceLabels: map[string]*registryapi.NetworkServiceLabels{
+		// 		"forwarder": {
+		// 			Labels: map[string]string{
+		// 				"p2p": "true",
+		// 			},
+		// 		},
+		// 	},
+		// })
 	}
 }
