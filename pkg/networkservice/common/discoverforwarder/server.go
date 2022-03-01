@@ -32,8 +32,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/matchutils"
 )
 
-type tryCountKey struct{}
-
 type discoverForwarderServer struct {
 	nseClient            registry.NetworkServiceEndpointRegistryClient
 	nsClient             registry.NetworkServiceRegistryClient
