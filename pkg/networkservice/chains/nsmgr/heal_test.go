@@ -458,11 +458,11 @@ func Test_ForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T) {
 			nodeNum:          0,
 			pathSegmentCount: 4,
 		},
-		// {
-		// 	name:             "Remote",
-		// 	nodeNum:          1,
-		// 	pathSegmentCount: 6,
-		// },
+		{
+			name:             "Remote",
+			nodeNum:          1,
+			pathSegmentCount: 6,
+		},
 	}
 
 	for _, sample := range samples {
@@ -489,8 +489,8 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 
 	var expectedForwarderName string
 
-	require.Len(t, domain.Nodes[0].Forwarders, 1)
-	for k := range domain.Nodes[0].Forwarders {
+	require.Len(t, domain.Nodes[nodeNum].Forwarders, 1)
+	for k := range domain.Nodes[nodeNum].Forwarders {
 		expectedForwarderName = k
 	}
 
