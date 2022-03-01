@@ -39,7 +39,7 @@ type retryNSEClient struct {
 func NewNetworkServiceEndpointRegistryClient(ctx context.Context, opts ...Option) registry.NetworkServiceEndpointRegistryClient {
 	clientOpts := &options{
 		interval:   time.Millisecond * 200,
-		tryTimeout: time.Second,
+		tryTimeout: time.Millisecond,
 	}
 
 	for _, opt := range opts {
