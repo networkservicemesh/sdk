@@ -476,7 +476,7 @@ func Test_ForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T) {
 func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum, pathSegmentCount int) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*70)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	//logrus.SetLevel(logrus.TraceLevel)
 	//log.EnableTracing(true)
 	defer cancel()
@@ -506,7 +506,7 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 		NetworkServiceNames: []string{"my-ns"},
 	}
 
-	domain.Nodes[nodeNum].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
+	nseEntry := domain.Nodes[nodeNum].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -525,6 +525,8 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 		require.NoError(t, err)
 		require.Equal(t, expectedForwarderName, conn.GetPath().GetPathSegments()[pathSegmentCount-2].Name)
 
+		domain.Nodes[nodeNum].NSMgr.Restart()
+
 		domain.Nodes[nodeNum].NewForwarder(ctx, &registry.NetworkServiceEndpoint{
 			Name:                sandbox.UniqueName(fmt.Sprintf("%v-forwarder", i)),
 			NetworkServiceNames: []string{"forwarder"},
@@ -537,8 +539,6 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 			},
 		}, sandbox.GenerateTestToken)
 
-		domain.Nodes[nodeNum].NSMgr.Restart()
-
 		domain.Nodes[nodeNum].NSMgr.NetworkServiceEndpointRegistryServer().Register(ctx, &registry.NetworkServiceEndpoint{
 			Name:                expectedForwarderName,
 			Url:                 domain.Nodes[nodeNum].Forwarders[expectedForwarderName].URL.String(),
@@ -550,6 +550,12 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 					},
 				},
 			},
+		})
+
+		domain.Nodes[nodeNum].NSMgr.NetworkServiceEndpointRegistryServer().Register(ctx, &registry.NetworkServiceEndpoint{
+			Name:                "my-nse-1",
+			Url:                 nseEntry.URL.String(),
+			NetworkServiceNames: []string{"my-ns"},
 		})
 	}
 }
