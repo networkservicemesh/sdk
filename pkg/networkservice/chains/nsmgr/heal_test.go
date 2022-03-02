@@ -552,9 +552,9 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 		require.NoError(t, err)
 
 		_, err = domain.Nodes[nodeNum].NSMgr.NetworkServiceEndpointRegistryServer().Register(ctx, &registry.NetworkServiceEndpoint{
-			Name:                "my-nse-1",
+			Name:                nseReg.Name,
 			Url:                 nseEntry.URL.String(),
-			NetworkServiceNames: []string{"my-ns"},
+			NetworkServiceNames: nseReg.NetworkServiceNames,
 		})
 		require.NoError(t, err)
 	}
