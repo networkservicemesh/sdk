@@ -37,6 +37,7 @@ import (
 
 type excludedPrefixesClient struct {
 	excludedPrefixes []string
+	awarenessGroups  [][]string
 	executor         serialize.Executor
 }
 

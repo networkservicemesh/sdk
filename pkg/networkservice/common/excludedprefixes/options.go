@@ -25,3 +25,12 @@ func WithConfigPath(s string) ServerOption {
 		args.configPath = s
 	}
 }
+
+// ClientOption - method for excludedPrefixesClient
+type ClientOption func(client *excludedPrefixesClient)
+
+func WithAwarenessGroups(awarenessGroups [][]string) ClientOption {
+	return func(args *excludedPrefixesClient) {
+		args.awarenessGroups = awarenessGroups
+	}
+}
