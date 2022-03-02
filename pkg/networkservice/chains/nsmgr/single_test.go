@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 	"testing"
@@ -31,7 +32,9 @@ import (
 	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/point2pointipam"
 	"github.com/networkservicemesh/sdk/pkg/tools/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
@@ -96,6 +99,103 @@ func Test_DNSUsecase(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = nse.Unregister(ctx, nseReg)
+	require.NoError(t, err)
+}
+
+func Test_AwareNSEs(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*500)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		Build()
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	ns1, err := nsRegistryClient.Register(ctx, defaultRegistryService("ns-1"))
+	require.NoError(t, err)
+	ns2, err := nsRegistryClient.Register(ctx, defaultRegistryService("ns-2"))
+	require.NoError(t, err)
+
+	nseReg1 := &registry.NetworkServiceEndpoint{
+		Name:                "nse-1",
+		NetworkServiceNames: []string{ns1.Name},
+		NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+			ns1.Name: {
+				Labels: map[string]string{
+					"color": "red",
+				},
+			},
+		},
+	}
+
+	nseReg2 := &registry.NetworkServiceEndpoint{
+		Name:                "nse-2",
+		NetworkServiceNames: []string{ns2.Name},
+		NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+			ns2.Name: {
+				Labels: map[string]string{
+					"color": "red",
+				},
+			},
+		},
+	}
+
+	request1 := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id:             "1",
+			NetworkService: ns1.Name,
+			Context:        &networkservice.ConnectionContext{},
+			Labels: map[string]string{
+				"color": "red",
+			},
+		},
+	}
+
+	request2 := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id:             "2",
+			NetworkService: ns2.Name,
+			Context:        &networkservice.ConnectionContext{},
+			Labels: map[string]string{
+				"color": "red",
+			},
+		},
+	}
+
+	_, ipNet, err := net.ParseCIDR("172.16.0.96/29")
+	require.NoError(t, err)
+
+	nse1 := domain.Nodes[0].NewEndpoint(ctx, nseReg1, sandbox.GenerateTestToken, point2pointipam.NewServer(ipNet))
+	nse2 := domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, point2pointipam.NewServer(ipNet))
+
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, excludedprefixes.NewClient())
+
+	conn1, err := nsc.Request(ctx, request1)
+	require.NoError(t, err)
+
+	conn2, err := nsc.Request(ctx, request2)
+	require.NoError(t, err)
+
+	srcIP1 := conn1.GetContext().GetIpContext().GetSrcIpAddrs()
+	srcIP2 := conn2.GetContext().GetIpContext().GetSrcIpAddrs()
+
+	require.Equal(t, srcIP1[0], srcIP2[0])
+
+	_, err = nsc.Close(ctx, conn1)
+	require.NoError(t, err)
+
+	_, err = nsc.Close(ctx, conn2)
+	require.NoError(t, err)
+
+	_, err = nse1.Unregister(ctx, nseReg1)
+	require.NoError(t, err)
+
+	_, err = nse2.Unregister(ctx, nseReg2)
 	require.NoError(t, err)
 }
 
