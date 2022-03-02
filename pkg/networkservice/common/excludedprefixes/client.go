@@ -19,10 +19,13 @@ package excludedprefixes
 import (
 	"context"
 	"net"
+	"net/url"
+	"strings"
 
 	"github.com/edwarnicke/serialize"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
@@ -46,6 +49,8 @@ func NewClient() networkservice.NetworkServiceClient {
 
 func (epc *excludedPrefixesClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	conn := request.GetConnection()
+
+	getFullURL(request)
 	if conn.GetContext() == nil {
 		conn.Context = &networkservice.ConnectionContext{}
 	}
@@ -172,4 +177,23 @@ func validateIPs(ipContext *networkservice.IPContext, excludedPrefixes []string)
 	}
 
 	return nil
+}
+
+func getFullURL(request *networkservice.NetworkServiceRequest) string {
+	var url url.URL
+
+	url.Host = request.Connection.GetNetworkService()
+	mechanism := request.Connection.GetMechanism()
+	url.Scheme = strings.ToLower(mechanism.Type)
+	iface := mechanism.GetParameters()[common.InterfaceNameKey]
+	if iface != "" {
+		url.Path = "/" + iface
+	}
+	query := url.Query()
+	for k, v := range request.Connection.GetLabels() {
+		query.Add(k, v)
+	}
+	url.RawQuery = query.Encode()
+
+	return url.String()
 }

@@ -27,6 +27,8 @@ import (
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
+	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
@@ -146,10 +148,14 @@ func Test_AwareNSEs(t *testing.T) {
 	}
 
 	request1 := &networkservice.NetworkServiceRequest{
+		MechanismPreferences: []*networkservice.Mechanism{
+			{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
+		},
 		Connection: &networkservice.Connection{
 			Id:             "1",
 			NetworkService: ns1.Name,
 			Context:        &networkservice.ConnectionContext{},
+			Mechanism:      &networkservice.Mechanism{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
 			Labels: map[string]string{
 				"color": "red",
 			},
@@ -157,10 +163,14 @@ func Test_AwareNSEs(t *testing.T) {
 	}
 
 	request2 := &networkservice.NetworkServiceRequest{
+		MechanismPreferences: []*networkservice.Mechanism{
+			{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
+		},
 		Connection: &networkservice.Connection{
 			Id:             "2",
 			NetworkService: ns2.Name,
 			Context:        &networkservice.ConnectionContext{},
+			Mechanism:      &networkservice.Mechanism{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
 			Labels: map[string]string{
 				"color": "red",
 			},
