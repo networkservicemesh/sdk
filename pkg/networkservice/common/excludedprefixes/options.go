@@ -16,6 +16,8 @@
 
 package excludedprefixes
 
+import "net/url"
+
 // ServerOption - method for excludedPrefixesServer
 type ServerOption func(server *excludedPrefixesServer)
 
@@ -29,7 +31,7 @@ func WithConfigPath(s string) ServerOption {
 // ClientOption - method for excludedPrefixesClient
 type ClientOption func(client *excludedPrefixesClient)
 
-func WithAwarenessGroups(awarenessGroups [][]string) ClientOption {
+func WithAwarenessGroups(awarenessGroups [][]url.URL) ClientOption {
 	return func(args *excludedPrefixesClient) {
 		args.awarenessGroups = awarenessGroups
 	}

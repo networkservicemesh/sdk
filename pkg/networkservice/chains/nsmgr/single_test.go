@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -148,9 +149,6 @@ func Test_AwareNSEs(t *testing.T) {
 	}
 
 	request1 := &networkservice.NetworkServiceRequest{
-		MechanismPreferences: []*networkservice.Mechanism{
-			{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
-		},
 		Connection: &networkservice.Connection{
 			Id:             "1",
 			NetworkService: ns1.Name,
@@ -163,9 +161,6 @@ func Test_AwareNSEs(t *testing.T) {
 	}
 
 	request2 := &networkservice.NetworkServiceRequest{
-		MechanismPreferences: []*networkservice.Mechanism{
-			{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
-		},
 		Connection: &networkservice.Connection{
 			Id:             "2",
 			NetworkService: ns2.Name,
@@ -183,7 +178,14 @@ func Test_AwareNSEs(t *testing.T) {
 	nse1 := domain.Nodes[0].NewEndpoint(ctx, nseReg1, sandbox.GenerateTestToken, point2pointipam.NewServer(ipNet))
 	nse2 := domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, point2pointipam.NewServer(ipNet))
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, excludedprefixes.NewClient())
+	nsurl1, _ := url.Parse("kernel://ns-1?color=red")
+	nsurl2, _ := url.Parse("kernel://ns-2?color=red")
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
+		excludedprefixes.NewClient(excludedprefixes.WithAwarenessGroups(
+			[][]url.URL{
+				{*nsurl1, *nsurl2},
+			},
+		)))
 
 	conn1, err := nsc.Request(ctx, request1)
 	require.NoError(t, err)
