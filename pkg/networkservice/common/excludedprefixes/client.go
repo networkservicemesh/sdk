@@ -215,7 +215,7 @@ func getURL(request *networkservice.NetworkServiceRequest) url.URL {
 
 	url.Host = request.Connection.GetNetworkService()
 	mechanism := request.Connection.GetMechanism()
-	url.Scheme = strings.ToLower(mechanism.Type)
+	url.Scheme = strings.ToLower(mechanism.GetType())
 	iface := mechanism.GetParameters()[common.InterfaceNameKey]
 	if iface != "" {
 		url.Path = "/" + iface
