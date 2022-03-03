@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -37,8 +37,8 @@ import (
 
 type excludedPrefixesClient struct {
 	excludedPrefixes               []string
-	awarenessGroups                [][]url.URL
-	awarenessGroupsExcludedPrexies map[url.URL][]string
+	awarenessGroups                [][]*url.URL
+	awarenessGroupsExcludedPrexies map[*url.URL][]string
 	executor                       serialize.Executor
 }
 
@@ -46,8 +46,8 @@ type excludedPrefixesClient struct {
 func NewClient(opts ...ClientOption) networkservice.NetworkServiceClient {
 	client := &excludedPrefixesClient{
 		excludedPrefixes:               make([]string, 0),
-		awarenessGroups:                make([][]url.URL, 0),
-		awarenessGroupsExcludedPrexies: make(map[url.URL][]string),
+		awarenessGroups:                make([][]*url.URL, 0),
+		awarenessGroupsExcludedPrexies: make(map[*url.URL][]string),
 	}
 
 	for _, opt := range opts {
@@ -210,29 +210,29 @@ func validateIPs(ipContext *networkservice.IPContext, excludedPrefixes []string)
 	return nil
 }
 
-func getURL(request *networkservice.NetworkServiceRequest) url.URL {
-	var url url.URL
+func getURL(request *networkservice.NetworkServiceRequest) *url.URL {
+	nsurl := &url.URL{}
 
-	url.Host = request.Connection.GetNetworkService()
+	nsurl.Host = request.Connection.GetNetworkService()
 	mechanism := request.Connection.GetMechanism()
-	url.Scheme = strings.ToLower(mechanism.GetType())
+	nsurl.Scheme = strings.ToLower(mechanism.GetType())
 	iface := mechanism.GetParameters()[common.InterfaceNameKey]
 	if iface != "" {
-		url.Path = "/" + iface
+		nsurl.Path = "/" + iface
 	}
-	query := url.Query()
+	query := nsurl.Query()
 	for k, v := range request.Connection.GetLabels() {
 		query.Add(k, v)
 	}
-	url.RawQuery = query.Encode()
+	nsurl.RawQuery = query.Encode()
 
-	return url
+	return nsurl
 }
 
-func checkAwarenessGroups(url url.URL, awarenessGroups [][]url.URL) (bool, int) {
+func checkAwarenessGroups(nsurl *url.URL, awarenessGroups [][]*url.URL) (isInGroup bool, i int) {
 	for i, group := range awarenessGroups {
-		for _, nsurl := range group {
-			if url == nsurl {
+		for _, groupurl := range group {
+			if *nsurl == *groupurl {
 				return true, i
 			}
 		}

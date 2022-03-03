@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -31,7 +31,8 @@ func WithConfigPath(s string) ServerOption {
 // ClientOption - method for excludedPrefixesClient
 type ClientOption func(client *excludedPrefixesClient)
 
-func WithAwarenessGroups(awarenessGroups [][]url.URL) ClientOption {
+// WithAwarenessGroups - returns method that sets awarenessGroups in excludedPrefixesClient
+func WithAwarenessGroups(awarenessGroups [][]*url.URL) ClientOption {
 	return func(args *excludedPrefixesClient) {
 		args.awarenessGroups = awarenessGroups
 	}

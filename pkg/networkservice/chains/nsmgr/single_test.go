@@ -182,8 +182,8 @@ func Test_AwareNSEs(t *testing.T) {
 	nsurl2, _ := url.Parse("kernel://ns-2?color=red")
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
 		excludedprefixes.NewClient(excludedprefixes.WithAwarenessGroups(
-			[][]url.URL{
-				{*nsurl1, *nsurl2},
+			[][]*url.URL{
+				{nsurl1, nsurl2},
 			},
 		)))
 
