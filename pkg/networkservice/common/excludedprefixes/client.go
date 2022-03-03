@@ -38,7 +38,7 @@ import (
 type excludedPrefixesClient struct {
 	excludedPrefixes               []string
 	awarenessGroups                [][]*url.URL
-	awarenessGroupsExcludedPrexies map[*url.URL][]string
+	awarenessGroupsExcludedPrexies map[url.URL][]string
 	executor                       serialize.Executor
 }
 
@@ -47,7 +47,7 @@ func NewClient(opts ...ClientOption) networkservice.NetworkServiceClient {
 	client := &excludedPrefixesClient{
 		excludedPrefixes:               make([]string, 0),
 		awarenessGroups:                make([][]*url.URL, 0),
-		awarenessGroupsExcludedPrexies: make(map[*url.URL][]string),
+		awarenessGroupsExcludedPrexies: make(map[url.URL][]string),
 	}
 
 	for _, opt := range opts {
@@ -74,8 +74,8 @@ func (epc *excludedPrefixesClient) Request(ctx context.Context, request *network
 	var awarenessGroupsExcludedPrefixes []string
 	for i, group := range epc.awarenessGroups {
 		if i != groupIndex {
-			for _, nsurl := range group {
-				awarenessGroupsExcludedPrefixes = append(awarenessGroupsExcludedPrefixes, epc.awarenessGroupsExcludedPrexies[nsurl]...)
+			for _, groupurl := range group {
+				awarenessGroupsExcludedPrefixes = append(awarenessGroupsExcludedPrefixes, epc.awarenessGroupsExcludedPrexies[*groupurl]...)
 			}
 		}
 	}
@@ -137,8 +137,8 @@ func (epc *excludedPrefixesClient) Request(ctx context.Context, request *network
 		excludedPrefixes = append(excludedPrefixes, getRoutePrefixes(respIPContext.GetDstRoutes())...)
 
 		if isInAwarenessGroup {
-			epc.awarenessGroupsExcludedPrexies[nsurl] = append(epc.awarenessGroupsExcludedPrexies[nsurl], excludedPrefixes...)
-			epc.awarenessGroupsExcludedPrexies[nsurl] = removeDuplicates(epc.awarenessGroupsExcludedPrexies[nsurl])
+			epc.awarenessGroupsExcludedPrexies[*nsurl] = append(epc.awarenessGroupsExcludedPrexies[*nsurl], excludedPrefixes...)
+			epc.awarenessGroupsExcludedPrexies[*nsurl] = removeDuplicates(epc.awarenessGroupsExcludedPrexies[*nsurl])
 		} else {
 			excludedPrefixes = append(excludedPrefixes, respIPContext.GetExcludedPrefixes()...)
 			epc.excludedPrefixes = append(epc.excludedPrefixes, excludedPrefixes...)

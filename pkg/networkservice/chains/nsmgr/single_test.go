@@ -119,96 +119,81 @@ func Test_AwareNSEs(t *testing.T) {
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	ns1, err := nsRegistryClient.Register(ctx, defaultRegistryService("ns-1"))
-	require.NoError(t, err)
-	ns2, err := nsRegistryClient.Register(ctx, defaultRegistryService("ns-2"))
-	require.NoError(t, err)
-
-	nseReg1 := &registry.NetworkServiceEndpoint{
-		Name:                "nse-1",
-		NetworkServiceNames: []string{ns1.Name},
-		NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
-			ns1.Name: {
-				Labels: map[string]string{
-					"color": "red",
-				},
-			},
-		},
-	}
-
-	nseReg2 := &registry.NetworkServiceEndpoint{
-		Name:                "nse-2",
-		NetworkServiceNames: []string{ns2.Name},
-		NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
-			ns2.Name: {
-				Labels: map[string]string{
-					"color": "red",
-				},
-			},
-		},
-	}
-
-	request1 := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id:             "1",
-			NetworkService: ns1.Name,
-			Context:        &networkservice.ConnectionContext{},
-			Mechanism:      &networkservice.Mechanism{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
-			Labels: map[string]string{
-				"color": "red",
-			},
-		},
-	}
-
-	request2 := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id:             "2",
-			NetworkService: ns2.Name,
-			Context:        &networkservice.ConnectionContext{},
-			Mechanism:      &networkservice.Mechanism{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
-			Labels: map[string]string{
-				"color": "red",
-			},
-		},
-	}
-
 	_, ipNet, err := net.ParseCIDR("172.16.0.96/29")
 	require.NoError(t, err)
 
-	nse1 := domain.Nodes[0].NewEndpoint(ctx, nseReg1, sandbox.GenerateTestToken, point2pointipam.NewServer(ipNet))
-	nse2 := domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, point2pointipam.NewServer(ipNet))
+	const count int = 3
+	var nsurls [count]*url.URL
+	var nseRegs [count]*registry.NetworkServiceEndpoint
+	var nses [count]*sandbox.EndpointEntry
+	var requests [count]*networkservice.NetworkServiceRequest
 
-	nsurl1, _ := url.Parse("kernel://ns-1?color=red")
-	nsurl2, _ := url.Parse("kernel://ns-2?color=red")
+	for i := 0; i < count; i++ {
+		ns, err := nsRegistryClient.Register(ctx, defaultRegistryService(fmt.Sprintf("ns-%d", i)))
+		require.NoError(t, err)
+
+		nsurls[i], err = url.Parse(fmt.Sprintf("kernel://ns-%d?color=red", i))
+		require.NoError(t, err)
+
+		nseRegs[i] = &registry.NetworkServiceEndpoint{
+			Name:                fmt.Sprintf("nse-%d", i),
+			NetworkServiceNames: []string{ns.Name},
+			NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+				ns.Name: {
+					Labels: map[string]string{
+						"color": "red",
+					},
+				},
+			},
+		}
+
+		requests[i] = &networkservice.NetworkServiceRequest{
+			Connection: &networkservice.Connection{
+				Id:             fmt.Sprint(i),
+				NetworkService: ns.Name,
+				Context:        &networkservice.ConnectionContext{},
+				Mechanism:      &networkservice.Mechanism{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
+				Labels: map[string]string{
+					"color": "red",
+				},
+			},
+		}
+
+		nses[i] = domain.Nodes[0].NewEndpoint(ctx, nseRegs[i], sandbox.GenerateTestToken, point2pointipam.NewServer(ipNet))
+
+	}
+
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
 		excludedprefixes.NewClient(excludedprefixes.WithAwarenessGroups(
 			[][]*url.URL{
-				{nsurl1, nsurl2},
+				{nsurls[0], nsurls[1]},
+				{nsurls[2]},
 			},
 		)))
 
-	conn1, err := nsc.Request(ctx, request1)
-	require.NoError(t, err)
+	var conns [count]*networkservice.Connection
+	for i := 0; i < count; i++ {
+		conns[i], err = nsc.Request(ctx, requests[i])
+		require.NoError(t, err)
+	}
 
-	conn2, err := nsc.Request(ctx, request2)
-	require.NoError(t, err)
-
-	srcIP1 := conn1.GetContext().GetIpContext().GetSrcIpAddrs()
-	srcIP2 := conn2.GetContext().GetIpContext().GetSrcIpAddrs()
+	srcIP1 := conns[0].GetContext().GetIpContext().GetSrcIpAddrs()
+	srcIP2 := conns[1].GetContext().GetIpContext().GetSrcIpAddrs()
+	srcIP3 := conns[2].GetContext().GetIpContext().GetSrcIpAddrs()
 
 	require.Equal(t, srcIP1[0], srcIP2[0])
+	require.NotEqual(t, srcIP1[0], srcIP3[0])
+	require.NotEqual(t, srcIP2[0], srcIP3[0])
 
-	_, err = nsc.Close(ctx, conn1)
-	require.NoError(t, err)
+	for i := 0; i < count; i++ {
+		_, err = nsc.Close(ctx, conns[i])
+		require.NoError(t, err)
+	}
 
-	_, err = nsc.Close(ctx, conn2)
-	require.NoError(t, err)
-
-	_, err = nse1.Unregister(ctx, nseReg1)
-	require.NoError(t, err)
-
-	_, err = nse2.Unregister(ctx, nseReg2)
-	require.NoError(t, err)
+	for i := 0; i < count; i++ {
+		_, err = nses[i].Unregister(ctx, nseRegs[i])
+		require.NoError(t, err)
+	}
 }
 
 func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
