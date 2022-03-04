@@ -129,7 +129,8 @@ func Test_AwareNSEs(t *testing.T) {
 	var requests [count]*networkservice.NetworkServiceRequest
 
 	for i := 0; i < count; i++ {
-		ns, err := nsRegistryClient.Register(ctx, defaultRegistryService(fmt.Sprintf("ns-%d", i)))
+		var ns *registry.NetworkService
+		ns, err = nsRegistryClient.Register(ctx, defaultRegistryService(fmt.Sprintf("ns-%d", i)))
 		require.NoError(t, err)
 
 		nsurls[i], err = url.Parse(fmt.Sprintf("kernel://ns-%d?color=red", i))
@@ -160,7 +161,6 @@ func Test_AwareNSEs(t *testing.T) {
 		}
 
 		nses[i] = domain.Nodes[0].NewEndpoint(ctx, nseRegs[i], sandbox.GenerateTestToken, point2pointipam.NewServer(ipNet))
-
 	}
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,

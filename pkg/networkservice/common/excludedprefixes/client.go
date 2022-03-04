@@ -59,7 +59,6 @@ func NewClient(opts ...ClientOption) networkservice.NetworkServiceClient {
 
 func (epc *excludedPrefixesClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	conn := request.GetConnection()
-
 	if conn.GetContext() == nil {
 		conn.Context = &networkservice.ConnectionContext{}
 	}
@@ -157,18 +156,15 @@ func (epc *excludedPrefixesClient) Close(ctx context.Context, conn *networkservi
 	logger := log.FromContext(ctx).WithField("ExcludedPrefixesClient", "Close")
 	ipCtx := conn.GetContext().GetIpContext()
 
-	nsurl := getURL(conn)
-
 	<-epc.executor.AsyncExec(func() {
 		epc.excludedPrefixes = exclude(epc.excludedPrefixes, ipCtx.GetSrcIpAddrs())
 		epc.excludedPrefixes = exclude(epc.excludedPrefixes, ipCtx.GetDstIpAddrs())
 		epc.excludedPrefixes = exclude(epc.excludedPrefixes, getRoutePrefixes(ipCtx.GetSrcRoutes()))
 		epc.excludedPrefixes = exclude(epc.excludedPrefixes, getRoutePrefixes(ipCtx.GetDstRoutes()))
 		epc.excludedPrefixes = exclude(epc.excludedPrefixes, ipCtx.GetExcludedPrefixes())
+		nsurl := getURL(conn)
+		delete(epc.awarenessGroupsExcludedPrexies, *nsurl)
 
-		if _, ok := epc.awarenessGroupsExcludedPrexies[*nsurl]; ok {
-			delete(epc.awarenessGroupsExcludedPrexies, *nsurl)
-		}
 		logger.Debugf("Excluded prefixes after closing connection: %+v", epc.excludedPrefixes)
 	})
 
