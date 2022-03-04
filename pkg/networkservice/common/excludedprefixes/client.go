@@ -68,7 +68,7 @@ func (epc *excludedPrefixesClient) Request(ctx context.Context, request *network
 		conn.Context.IpContext = &networkservice.IPContext{}
 	}
 
-	nsurl := getURL(request)
+	nsurl := getURL(request.GetConnection())
 	isInAwarenessGroup, groupIndex := checkAwarenessGroups(nsurl, epc.awarenessGroups)
 
 	var awarenessGroupsExcludedPrefixes []string
@@ -157,12 +157,18 @@ func (epc *excludedPrefixesClient) Close(ctx context.Context, conn *networkservi
 	logger := log.FromContext(ctx).WithField("ExcludedPrefixesClient", "Close")
 	ipCtx := conn.GetContext().GetIpContext()
 
+	nsurl := getURL(conn)
+
 	<-epc.executor.AsyncExec(func() {
 		epc.excludedPrefixes = exclude(epc.excludedPrefixes, ipCtx.GetSrcIpAddrs())
 		epc.excludedPrefixes = exclude(epc.excludedPrefixes, ipCtx.GetDstIpAddrs())
 		epc.excludedPrefixes = exclude(epc.excludedPrefixes, getRoutePrefixes(ipCtx.GetSrcRoutes()))
 		epc.excludedPrefixes = exclude(epc.excludedPrefixes, getRoutePrefixes(ipCtx.GetDstRoutes()))
 		epc.excludedPrefixes = exclude(epc.excludedPrefixes, ipCtx.GetExcludedPrefixes())
+
+		if _, ok := epc.awarenessGroupsExcludedPrexies[*nsurl]; ok {
+			delete(epc.awarenessGroupsExcludedPrexies, *nsurl)
+		}
 		logger.Debugf("Excluded prefixes after closing connection: %+v", epc.excludedPrefixes)
 	})
 
@@ -210,18 +216,18 @@ func validateIPs(ipContext *networkservice.IPContext, excludedPrefixes []string)
 	return nil
 }
 
-func getURL(request *networkservice.NetworkServiceRequest) *url.URL {
+func getURL(conn *networkservice.Connection) *url.URL {
 	nsurl := &url.URL{}
 
-	nsurl.Host = request.Connection.GetNetworkService()
-	mechanism := request.Connection.GetMechanism()
+	nsurl.Host = conn.GetNetworkService()
+	mechanism := conn.GetMechanism()
 	nsurl.Scheme = strings.ToLower(mechanism.GetType())
 	iface := mechanism.GetParameters()[common.InterfaceNameKey]
 	if iface != "" {
 		nsurl.Path = "/" + iface
 	}
 	query := nsurl.Query()
-	for k, v := range request.Connection.GetLabels() {
+	for k, v := range conn.GetLabels() {
 		query.Add(k, v)
 	}
 	nsurl.RawQuery = query.Encode()
