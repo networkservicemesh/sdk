@@ -66,5 +66,12 @@ func matchEndpoint(clockTime clock.Clock, nsLabels map[string]string, ns *regist
 		return nseCandidates
 	}
 
-	return validNetworkServiceEndpoints
+	var candidates []*registry.NetworkServiceEndpoint
+	for _, nse := range validNetworkServiceEndpoints {
+		if !matchutils.IsSubset(nsLabels, nse.NetworkServiceLabels[ns.Name].Labels, nsLabels) {
+			continue
+		}
+		candidates = append(candidates, nse)
+	}
+	return candidates
 }
