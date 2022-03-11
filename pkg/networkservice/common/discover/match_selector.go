@@ -1,6 +1,6 @@
-// Copyright (c) 2018-2020 VMware, Inc.
+// Copyright (c) 2018-2022 VMware, Inc.
 //
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -68,7 +68,8 @@ func matchEndpoint(clockTime clock.Clock, nsLabels map[string]string, ns *regist
 
 	var candidates []*registry.NetworkServiceEndpoint
 	for _, nse := range validNetworkServiceEndpoints {
-		if !matchutils.IsSubset(nsLabels, nse.NetworkServiceLabels[ns.Name].Labels, nsLabels) {
+		nseLabels := nse.GetNetworkServiceLabels()[ns.Name].GetLabels()
+		if nseLabels != nil && !matchutils.IsSubset(nsLabels, nseLabels, nsLabels) {
 			continue
 		}
 		candidates = append(candidates, nse)

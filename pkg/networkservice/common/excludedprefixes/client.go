@@ -67,7 +67,7 @@ func (epc *excludedPrefixesClient) Request(ctx context.Context, request *network
 		conn.Context.IpContext = &networkservice.IPContext{}
 	}
 
-	nsurl := getURL(request.GetConnection())
+	nsurl := getURL(request)
 	isInAwarenessGroup, groupIndex := checkAwarenessGroups(nsurl, epc.awarenessGroups)
 
 	var awarenessGroupsExcludedPrefixes []string
@@ -162,7 +162,7 @@ func (epc *excludedPrefixesClient) Close(ctx context.Context, conn *networkservi
 		epc.excludedPrefixes = exclude(epc.excludedPrefixes, getRoutePrefixes(ipCtx.GetSrcRoutes()))
 		epc.excludedPrefixes = exclude(epc.excludedPrefixes, getRoutePrefixes(ipCtx.GetDstRoutes()))
 		epc.excludedPrefixes = exclude(epc.excludedPrefixes, ipCtx.GetExcludedPrefixes())
-		nsurl := getURL(conn)
+		nsurl := getURL(&networkservice.NetworkServiceRequest{Connection: conn})
 		delete(epc.awarenessGroupsExcludedPrexies, *nsurl)
 
 		logger.Debugf("Excluded prefixes after closing connection: %+v", epc.excludedPrefixes)
@@ -212,18 +212,22 @@ func validateIPs(ipContext *networkservice.IPContext, excludedPrefixes []string)
 	return nil
 }
 
-func getURL(conn *networkservice.Connection) *url.URL {
+func getURL(request *networkservice.NetworkServiceRequest) *url.URL {
 	nsurl := &url.URL{}
 
-	nsurl.Host = conn.GetNetworkService()
-	mechanism := conn.GetMechanism()
+	nsurl.Host = request.GetConnection().GetNetworkService()
+	mechanism := request.GetConnection().GetMechanism()
+	if mechanism == nil && len(request.MechanismPreferences) > 0 {
+		mechanism = request.MechanismPreferences[0]
+	}
+
 	nsurl.Scheme = strings.ToLower(mechanism.GetType())
 	iface := mechanism.GetParameters()[common.InterfaceNameKey]
 	if iface != "" {
 		nsurl.Path = "/" + iface
 	}
 	query := nsurl.Query()
-	for k, v := range conn.GetLabels() {
+	for k, v := range request.GetConnection().GetLabels() {
 		query.Add(k, v)
 	}
 	nsurl.RawQuery = query.Encode()
