@@ -15,7 +15,7 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.6
 	github.com/google/uuid v1.1.2
-	github.com/nats-io/nats-streaming-server v0.24.1
+	github.com/nats-io/nats-streaming-server v0.24.3
 	github.com/nats-io/stan.go v0.10.2
 	github.com/networkservicemesh/api v1.1.2-0.20220119092736-21eda250c390
 	github.com/open-policy-agent/opa v0.16.1
