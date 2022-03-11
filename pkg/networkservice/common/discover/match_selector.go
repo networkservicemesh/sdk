@@ -26,13 +26,7 @@ import (
 )
 
 func matchEndpoint(clockTime clock.Clock, nsLabels map[string]string, ns *registry.NetworkService, nses ...*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
-	var validNetworkServiceEndpoints []*registry.NetworkServiceEndpoint
-	for _, nse := range nses {
-		if nse.GetExpirationTime() == nil || nse.GetExpirationTime().AsTime().After(clockTime.Now()) {
-			validNetworkServiceEndpoints = append(validNetworkServiceEndpoints, nse)
-		}
-	}
-
+	validNetworkServiceEndpoints := validateExpirationTime(clockTime, nses)
 	// Iterate through the matches
 	for _, match := range ns.GetMatches() {
 		// All match source selector labels should be present in the requested labels map
@@ -75,4 +69,15 @@ func matchEndpoint(clockTime clock.Clock, nsLabels map[string]string, ns *regist
 		candidates = append(candidates, nse)
 	}
 	return candidates
+}
+
+func validateExpirationTime(clockTime clock.Clock, nses []*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
+	var validNetworkServiceEndpoints []*registry.NetworkServiceEndpoint
+	for _, nse := range nses {
+		if nse.GetExpirationTime() == nil || nse.GetExpirationTime().AsTime().After(clockTime.Now()) {
+			validNetworkServiceEndpoints = append(validNetworkServiceEndpoints, nse)
+		}
+	}
+
+	return validNetworkServiceEndpoints
 }
