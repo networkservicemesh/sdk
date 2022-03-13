@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,39 +21,55 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func mergeConnection(returnedConnection, requestedConnection, connection *networkservice.Connection) *networkservice.Connection {
-	if returnedConnection == nil || connection == nil {
+// mergeConnection - preforms the three way merge of the returnedConnection, requestedConnection and connection
+//                   returnedConnection - the Connection last returned from the begin.Request(...)
+//                   requestedConnection - the Connection passed in to the begin.Request(...)
+//                   currentConnection - the last value for the Connection in EventFactory.  Since Refreshes, Heals, etc
+//                                can result in changes that have *not* been returned from begin.Request(...) because
+//                                they originated in events internal to the chain (instead of external via calls to
+//                                begin.Request(...)) it is possible that connection differs from returnedConnection
+func mergeConnection(returnedConnection, requestedConnection, currentConnection *networkservice.Connection) *networkservice.Connection {
+	if returnedConnection == nil || currentConnection == nil {
 		return requestedConnection
 	}
-	conn := connection.Clone()
+	conn := currentConnection.Clone()
 	if returnedConnection.GetNetworkServiceEndpointName() != requestedConnection.GetNetworkServiceEndpointName() {
 		conn.NetworkServiceEndpointName = requestedConnection.GetNetworkServiceEndpointName()
 	}
-	conn.Context = mergeConnectionContext(returnedConnection.GetContext(), requestedConnection.GetContext(), connection.GetContext())
+	conn.Context = mergeConnectionContext(returnedConnection.GetContext(), requestedConnection.GetContext(), currentConnection.GetContext())
 	return conn
 }
 
-func mergeConnectionContext(returnedConnectionContext, requestedConnectionContext, connectioncontext *networkservice.ConnectionContext) *networkservice.ConnectionContext {
-	rv := proto.Clone(connectioncontext).(*networkservice.ConnectionContext)
+func mergeConnectionContext(returnedConnectionContext, requestedConnectionContext, currentConnectionContext *networkservice.ConnectionContext) *networkservice.ConnectionContext {
+	if currentConnectionContext == nil {
+		return requestedConnectionContext
+	}
+	rv := proto.Clone(currentConnectionContext).(*networkservice.ConnectionContext)
 	if !proto.Equal(returnedConnectionContext, requestedConnectionContext) {
-		// TODO: IPContext, DNSContext, EthernetContext, do we need to do MTU?
-		rv.ExtraContext = mergeMapStringString(returnedConnectionContext.GetExtraContext(), requestedConnectionContext.GetExtraContext(), connectioncontext.GetExtraContext())
+		rv.IpContext = requestedConnectionContext.GetIpContext()
+		rv.EthernetContext = requestedConnectionContext.GetEthernetContext()
+		rv.DnsContext = requestedConnectionContext.GetDnsContext()
+		rv.MTU = requestedConnectionContext.GetMTU()
+		rv.ExtraContext = mergeMapStringString(returnedConnectionContext.GetExtraContext(), requestedConnectionContext.GetExtraContext(), currentConnectionContext.GetExtraContext())
 	}
 	return rv
 }
 
-func mergeMapStringString(returnedMap, requestedMap, mapMap map[string]string) map[string]string {
-	// clone the map
+func mergeMapStringString(returnedMap, requestedMap, currentMap map[string]string) map[string]string {
+	// clone the currentMap
 	rv := make(map[string]string)
-	for k, v := range mapMap {
+	for k, v := range currentMap {
 		rv[k] = v
 	}
 
+	// Only intentional changes between the returnedMap (which was values last returned from calls to begin.Request(...))
+	// and requestedMap (the values passed into begin.Request for this call) are considered for application to the existing
+	// map (currentMap - the last set of values remembered by the EventFactory).
 	for k, v := range returnedMap {
-		requestedValue, ok := requestedMap[k]
+		srcValue, ok := requestedMap[k]
 		// If a key is in returnedMap and its value differs from requestedMap, update the value
-		if ok && requestedValue != v {
-			rv[k] = requestedValue
+		if ok && srcValue != v {
+			rv[k] = srcValue
 		}
 		// If a key is in returnedMap and not in requestedMap, delete it
 		if !ok {
