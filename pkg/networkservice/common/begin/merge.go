@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,45 +21,32 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func mergeConnection(returnedConnection, requestedConnection, connection *networkservice.Connection) *networkservice.Connection {
-	if returnedConnection == nil || connection == nil {
+// mergeConnection - deals explicitly with the problem of "What should we allow the 'main' of a client executable
+// to update from outside the chain after the initial request for a connection.
+// One minor point to keep in mind here is that a passthrough NSE, one that is a server that incorporates a client
+// into its own chain, begin's at the server side... and so the server's use of client like functions are 'inside the chain'
+func mergeConnection(returnedConnection, requestedConnection *networkservice.Connection) *networkservice.Connection {
+	// If this request has has yet to return successfully, go with the requesteConnection
+	if returnedConnection == nil {
 		return requestedConnection
 	}
-	conn := connection.Clone()
+
+	// Clone the previously returned connection
+	conn := returnedConnection.Clone()
+
+	// If the Request is asking for a new NSE, use that
 	if returnedConnection.GetNetworkServiceEndpointName() != requestedConnection.GetNetworkServiceEndpointName() {
 		conn.NetworkServiceEndpointName = requestedConnection.GetNetworkServiceEndpointName()
 	}
-	conn.Context = mergeConnectionContext(returnedConnection.GetContext(), requestedConnection.GetContext(), connection.GetContext())
+
+	// Ifthe Request is asking for a change in ConnectionContext, propagate that.
+	if !proto.Equal(returnedConnection.GetContext(), requestedConnection.GetContext()) {
+		conn.Context = proto.Clone(requestedConnection.GetContext()).(*networkservice.ConnectionContext)
+	}
+
+	// Note: We are disallowing at this time changes in requested NetworkService, Mechanism, Labels, or Path.
+	// In the future it may be worth permitting changes in the Labels.
+	// It probably is not a good idea to allow changes in the NetworkService or Path here.
+
 	return conn
-}
-
-func mergeConnectionContext(returnedConnectionContext, requestedConnectionContext, connectioncontext *networkservice.ConnectionContext) *networkservice.ConnectionContext {
-	rv := proto.Clone(connectioncontext).(*networkservice.ConnectionContext)
-	if !proto.Equal(returnedConnectionContext, requestedConnectionContext) {
-		// TODO: IPContext, DNSContext, EthernetContext, do we need to do MTU?
-		rv.ExtraContext = mergeMapStringString(returnedConnectionContext.GetExtraContext(), requestedConnectionContext.GetExtraContext(), connectioncontext.GetExtraContext())
-	}
-	return rv
-}
-
-func mergeMapStringString(returnedMap, requestedMap, mapMap map[string]string) map[string]string {
-	// clone the map
-	rv := make(map[string]string)
-	for k, v := range mapMap {
-		rv[k] = v
-	}
-
-	for k, v := range returnedMap {
-		requestedValue, ok := requestedMap[k]
-		// If a key is in returnedMap and its value differs from requestedMap, update the value
-		if ok && requestedValue != v {
-			rv[k] = requestedValue
-		}
-		// If a key is in returnedMap and not in requestedMap, delete it
-		if !ok {
-			delete(rv, k)
-		}
-	}
-
-	return rv
 }

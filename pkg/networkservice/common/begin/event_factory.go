@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -45,14 +45,13 @@ type EventFactory interface {
 }
 
 type eventFactoryClient struct {
-	state              connectionState
-	executor           serialize.Executor
-	ctxFunc            func() (context.Context, context.CancelFunc)
-	request            *networkservice.NetworkServiceRequest
-	returnedConnection *networkservice.Connection
-	opts               []grpc.CallOption
-	client             networkservice.NetworkServiceClient
-	afterCloseFunc     func()
+	state          connectionState
+	executor       serialize.Executor
+	ctxFunc        func() (context.Context, context.CancelFunc)
+	request        *networkservice.NetworkServiceRequest
+	opts           []grpc.CallOption
+	client         networkservice.NetworkServiceClient
+	afterCloseFunc func()
 }
 
 func newEventFactoryClient(ctx context.Context, afterClose func(), opts ...grpc.CallOption) *eventFactoryClient {
@@ -142,13 +141,12 @@ func (f *eventFactoryClient) Close(opts ...Option) <-chan error {
 var _ EventFactory = &eventFactoryClient{}
 
 type eventFactoryServer struct {
-	state              connectionState
-	executor           serialize.Executor
-	ctxFunc            func() (context.Context, context.CancelFunc)
-	request            *networkservice.NetworkServiceRequest
-	returnedConnection *networkservice.Connection
-	afterCloseFunc     func()
-	server             networkservice.NetworkServiceServer
+	state          connectionState
+	executor       serialize.Executor
+	ctxFunc        func() (context.Context, context.CancelFunc)
+	request        *networkservice.NetworkServiceRequest
+	afterCloseFunc func()
+	server         networkservice.NetworkServiceServer
 }
 
 func newEventFactoryServer(ctx context.Context, afterClose func()) *eventFactoryServer {

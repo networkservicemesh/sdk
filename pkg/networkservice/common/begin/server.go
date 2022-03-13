@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -73,8 +73,6 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 		eventFactoryServer.request = request.Clone()
 		eventFactoryServer.request.Connection = conn.Clone()
 		eventFactoryServer.state = established
-
-		eventFactoryServer.returnedConnection = conn.Clone()
 	})
 	return conn, err
 }
