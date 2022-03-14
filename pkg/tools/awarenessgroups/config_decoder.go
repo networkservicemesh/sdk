@@ -18,6 +18,8 @@
 package awarenessgroups
 
 import (
+	"errors"
+	"fmt"
 	"net/url"
 	"strings"
 )
@@ -29,12 +31,22 @@ type Decoder [][]*url.URL
 // Decode parses values from passed string.
 func (d *Decoder) Decode(value string) error {
 	value = strings.ReplaceAll(value, " ", "")
+	if value == "" {
+		return nil
+	}
+	if err := validateParentheses(value); err != nil {
+		return err
+	}
+
 	lists := strings.Split(value, "],[")
 	awarenessGroups := make([][]*url.URL, len(lists))
 	for i, list := range lists {
 		list = strings.Trim(list, "[]")
 		groupItems := strings.Split(list, ",")
 		for _, item := range groupItems {
+			if item == "" {
+				return errors.New("empty nsurl")
+			}
 			nsurl, err := url.Parse(item)
 			if err != nil {
 				return err
@@ -44,5 +56,46 @@ func (d *Decoder) Decode(value string) error {
 	}
 
 	*d = Decoder(awarenessGroups)
+	return nil
+}
+
+// TODO: write validation fuction for awarenessGroups values
+func validateParentheses(value string) error {
+	i := 0
+	length := len(value)
+	if length < 2 {
+		return errors.New("value is too short")
+	}
+
+	parenthesesCounter := 0
+	for ; i < length; i++ {
+		if value[i] == '[' {
+			if parenthesesCounter == 1 {
+				return fmt.Errorf("unexpected %c", value[i])
+			}
+			parenthesesCounter++
+		} else if value[i] == ']' {
+			if parenthesesCounter == 0 {
+				return fmt.Errorf("unexpected %c", value[i])
+			}
+			if i+1 == length {
+				return nil
+			}
+			if i+2 == length {
+				return errors.New("unexpected end of value")
+			}
+			if value[i+1] != ',' {
+				return fmt.Errorf("unexpected %c", value[i+1])
+			}
+			if value[i+2] != '[' {
+				return fmt.Errorf("unexpected %c", value[i+2])
+			}
+			parenthesesCounter--
+		}
+	}
+
+	if parenthesesCounter != 0 {
+		return errors.New("parenteses are not balanced")
+	}
 	return nil
 }
