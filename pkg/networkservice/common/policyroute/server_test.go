@@ -90,12 +90,12 @@ func TestCheckReloadedPolicies(t *testing.T) {
 	defer cancel()
 	// Create policies
 	policies := []*networkservice.PolicyRoute{
-		{From: "172.16.2.201/24", Proto: 6, Port: 6666, Routes: []*networkservice.Route{{
+		{From: "172.16.2.201/24", Proto: "6", DstPort: "6666", Routes: []*networkservice.Route{{
 			Prefix:  "172.16.3.0/24",
 			NextHop: "172.16.2.200",
 		}}},
-		{Proto: 17, Port: 6666},
-		{Proto: 17, Port: 5555, Routes: []*networkservice.Route{{
+		{Proto: "17", DstPort: "6666"},
+		{Proto: "17", DstPort: "5555", Routes: []*networkservice.Route{{
 			Prefix:  "2004::5/120",
 			NextHop: "2004::6",
 		}}},
