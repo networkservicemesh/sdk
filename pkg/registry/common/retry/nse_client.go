@@ -102,7 +102,7 @@ func (r *retryNSEClient) Find(ctx context.Context, query *registry.NetworkServic
 	}
 
 	if r.chainCtx.Err() != nil {
-		return nil, ctx.Err()
+		return nil, r.chainCtx.Err()
 	}
 
 	return nil, ctx.Err()
