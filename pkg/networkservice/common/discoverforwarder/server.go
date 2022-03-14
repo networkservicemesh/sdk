@@ -93,6 +93,17 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 			return nil, errors.New("no candidates found")
 		}
 
+		segments := request.Connection.GetPath().GetPathSegments()
+		if pathIndex := int(request.Connection.GetPath().Index); len(segments) > pathIndex+1 {
+			datapathForwarder := segments[pathIndex+1].Name
+			for i, candidate := range nses {
+				if candidate.Name == datapathForwarder {
+					nses[0], nses[i] = nses[i], nses[0]
+					break
+				}
+			}
+		}
+
 		var candidatesErr = errors.New("all forwarders have failed")
 
 		// TODO: Should we consider about load balancing?
