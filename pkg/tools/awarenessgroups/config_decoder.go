@@ -18,10 +18,10 @@
 package awarenessgroups
 
 import (
-	"errors"
-	"fmt"
 	"net/url"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 // Decoder allows to parse [][]*url.URL from string. Can be used for env configuration.
@@ -71,12 +71,12 @@ func validateParentheses(value string) error {
 	for ; i < length; i++ {
 		if value[i] == '[' {
 			if parenthesesCounter == 1 {
-				return fmt.Errorf("unexpected %c", value[i])
+				return errors.Errorf("unexpected character: %c", value[i])
 			}
 			parenthesesCounter++
 		} else if value[i] == ']' {
 			if parenthesesCounter == 0 {
-				return fmt.Errorf("unexpected %c", value[i])
+				return errors.Errorf("unexpected character: %c", value[i])
 			}
 			if i+1 == length {
 				return nil
@@ -85,10 +85,10 @@ func validateParentheses(value string) error {
 				return errors.New("unexpected end of value")
 			}
 			if value[i+1] != ',' {
-				return fmt.Errorf("unexpected %c", value[i+1])
+				return errors.Errorf("unexpected character: %c", value[i+1])
 			}
 			if value[i+2] != '[' {
-				return fmt.Errorf("unexpected %c", value[i+2])
+				return errors.Errorf("unexpected character: %c", value[i+2])
 			}
 			parenthesesCounter--
 		}
