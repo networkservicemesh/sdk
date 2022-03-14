@@ -1,6 +1,6 @@
-// Copyright (c) 2020-2021 Cisco Systems, Inc.
+// Copyright (c) 2020-2022 Cisco Systems, Inc.
 //
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -128,7 +128,7 @@ func (d *discoverCandidatesServer) discoverNetworkServiceEndpoint(ctx context.Co
 	return nil, errors.Errorf("network service endpoint %v not found", nseName)
 }
 
-func (d *discoverCandidatesServer) discoverNetworkServiceEndpoints(ctx context.Context, ns *registry.NetworkService, labels map[string]string) ([]*registry.NetworkServiceEndpoint, error) {
+func (d *discoverCandidatesServer) discoverNetworkServiceEndpoints(ctx context.Context, ns *registry.NetworkService, nsLabels map[string]string) ([]*registry.NetworkServiceEndpoint, error) {
 	clockTime := clock.FromContext(ctx)
 
 	query := &registry.NetworkServiceEndpointQuery{
@@ -143,7 +143,7 @@ func (d *discoverCandidatesServer) discoverNetworkServiceEndpoints(ctx context.C
 	}
 	nseList := registry.ReadNetworkServiceEndpointList(nseRespStream)
 
-	result := matchEndpoint(clockTime, labels, ns, nseList...)
+	result := matchEndpoint(clockTime, nsLabels, ns, nseList...)
 	if len(result) != 0 {
 		return result, nil
 	}

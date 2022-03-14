@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -19,10 +19,14 @@ package excludedprefixes
 import (
 	"context"
 	"net"
+	"net/url"
+	"strings"
+	"sync/atomic"
 
 	"github.com/edwarnicke/serialize"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
@@ -32,16 +36,35 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 )
 
+type awarenessGroup struct {
+	NSUrlSet          map[url.URL]struct{}
+	ExcludedPrfixes   []string
+	ConnectionCounter int32
+}
+
+func (g *awarenessGroup) contains(nsURL *url.URL) bool {
+	_, ok := g.NSUrlSet[*nsURL]
+	return ok
+}
+
 type excludedPrefixesClient struct {
 	excludedPrefixes []string
+	awarenessGroups  []*awarenessGroup
 	executor         serialize.Executor
 }
 
 // NewClient - creates a networkservice.NetworkServiceClient chain element that excludes prefixes already used by other NetworkServices
-func NewClient() networkservice.NetworkServiceClient {
-	return &excludedPrefixesClient{
+func NewClient(opts ...ClientOption) networkservice.NetworkServiceClient {
+	client := &excludedPrefixesClient{
 		excludedPrefixes: make([]string, 0),
+		awarenessGroups:  make([]*awarenessGroup, 0),
 	}
+
+	for _, opt := range opts {
+		opt(client)
+	}
+
+	return client
 }
 
 func (epc *excludedPrefixesClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
@@ -54,16 +77,27 @@ func (epc *excludedPrefixesClient) Request(ctx context.Context, request *network
 		conn.Context.IpContext = &networkservice.IPContext{}
 	}
 
+	nsurl := getNSURL(request)
+	groupIndex := checkAwarenessGroups(nsurl, epc.awarenessGroups)
+
+	var awarenessGroupsExcludedPrefixes []string
+	for i, group := range epc.awarenessGroups {
+		if i != groupIndex {
+			awarenessGroupsExcludedPrefixes = append(awarenessGroupsExcludedPrefixes, group.ExcludedPrfixes...)
+		}
+	}
+
 	logger := log.FromContext(ctx).WithField("ExcludedPrefixesClient", "Request")
 	ipCtx := conn.GetContext().GetIpContext()
 
 	var newExcludedPrefixes []string
 	oldExcludedPrefixes := ipCtx.GetExcludedPrefixes()
-	if len(epc.excludedPrefixes) > 0 {
+	if len(epc.excludedPrefixes) > 0 || len(awarenessGroupsExcludedPrefixes) > 0 {
 		<-epc.executor.AsyncExec(func() {
 			logger.Debugf("Adding new excluded IPs to the request: %+v", epc.excludedPrefixes)
 			newExcludedPrefixes = ipCtx.GetExcludedPrefixes()
 			newExcludedPrefixes = append(newExcludedPrefixes, epc.excludedPrefixes...)
+			newExcludedPrefixes = append(newExcludedPrefixes, awarenessGroupsExcludedPrefixes...)
 			newExcludedPrefixes = removeDuplicates(newExcludedPrefixes)
 
 			// excluding IPs for current request/connection before calling next client for the refresh use-case
@@ -103,12 +137,22 @@ func (epc *excludedPrefixesClient) Request(ctx context.Context, request *network
 		respIPContext.GetDstIpAddrs(), respIPContext.GetExcludedPrefixes())
 
 	<-epc.executor.AsyncExec(func() {
-		epc.excludedPrefixes = append(epc.excludedPrefixes, respIPContext.GetSrcIpAddrs()...)
-		epc.excludedPrefixes = append(epc.excludedPrefixes, respIPContext.GetDstIpAddrs()...)
-		epc.excludedPrefixes = append(epc.excludedPrefixes, getRoutePrefixes(respIPContext.GetSrcRoutes())...)
-		epc.excludedPrefixes = append(epc.excludedPrefixes, getRoutePrefixes(respIPContext.GetDstRoutes())...)
-		epc.excludedPrefixes = append(epc.excludedPrefixes, respIPContext.GetExcludedPrefixes()...)
-		epc.excludedPrefixes = removeDuplicates(epc.excludedPrefixes)
+		var excludedPrefixes []string
+		excludedPrefixes = append(excludedPrefixes, respIPContext.GetSrcIpAddrs()...)
+		excludedPrefixes = append(excludedPrefixes, respIPContext.GetDstIpAddrs()...)
+		excludedPrefixes = append(excludedPrefixes, getRoutePrefixes(respIPContext.GetSrcRoutes())...)
+		excludedPrefixes = append(excludedPrefixes, getRoutePrefixes(respIPContext.GetDstRoutes())...)
+
+		if groupIndex >= 0 {
+			epc.awarenessGroups[groupIndex].ExcludedPrfixes = append(epc.awarenessGroups[groupIndex].ExcludedPrfixes, excludedPrefixes...)
+			epc.awarenessGroups[groupIndex].ExcludedPrfixes = removeDuplicates(epc.awarenessGroups[groupIndex].ExcludedPrfixes)
+			atomic.AddInt32(&epc.awarenessGroups[groupIndex].ConnectionCounter, 1)
+		} else {
+			excludedPrefixes = append(excludedPrefixes, respIPContext.GetExcludedPrefixes()...)
+			epc.excludedPrefixes = append(epc.excludedPrefixes, excludedPrefixes...)
+			epc.excludedPrefixes = removeDuplicates(epc.excludedPrefixes)
+		}
+
 		logger.Debugf("Added excluded prefixes: %+v", epc.excludedPrefixes)
 	})
 
@@ -127,6 +171,16 @@ func (epc *excludedPrefixesClient) Close(ctx context.Context, conn *networkservi
 		epc.excludedPrefixes = exclude(epc.excludedPrefixes, getRoutePrefixes(ipCtx.GetSrcRoutes()))
 		epc.excludedPrefixes = exclude(epc.excludedPrefixes, getRoutePrefixes(ipCtx.GetDstRoutes()))
 		epc.excludedPrefixes = exclude(epc.excludedPrefixes, ipCtx.GetExcludedPrefixes())
+
+		nsurl := getNSURL(&networkservice.NetworkServiceRequest{Connection: conn})
+		groupIndex := checkAwarenessGroups(nsurl, epc.awarenessGroups)
+		if groupIndex >= 0 {
+			atomic.AddInt32(&epc.awarenessGroups[groupIndex].ConnectionCounter, -1)
+			if atomic.LoadInt32(&epc.awarenessGroups[groupIndex].ConnectionCounter) == 0 {
+				epc.awarenessGroups[groupIndex].ExcludedPrfixes = make([]string, 0)
+			}
+		}
+
 		logger.Debugf("Excluded prefixes after closing connection: %+v", epc.excludedPrefixes)
 	})
 
@@ -172,4 +226,37 @@ func validateIPs(ipContext *networkservice.IPContext, excludedPrefixes []string)
 	}
 
 	return nil
+}
+
+func getNSURL(request *networkservice.NetworkServiceRequest) *url.URL {
+	nsurl := &url.URL{}
+
+	nsurl.Host = request.GetConnection().GetNetworkService()
+	mechanism := request.GetConnection().GetMechanism()
+	if mechanism == nil && len(request.MechanismPreferences) > 0 {
+		mechanism = request.MechanismPreferences[0]
+	}
+
+	nsurl.Scheme = strings.ToLower(mechanism.GetType())
+	iface := mechanism.GetParameters()[common.InterfaceNameKey]
+	if iface != "" {
+		nsurl.Path = "/" + iface
+	}
+	query := nsurl.Query()
+	for k, v := range request.GetConnection().GetLabels() {
+		query.Add(k, v)
+	}
+	nsurl.RawQuery = query.Encode()
+
+	return nsurl
+}
+
+func checkAwarenessGroups(nsurl *url.URL, awarenessGroups []*awarenessGroup) int {
+	for i, group := range awarenessGroups {
+		if group.contains(nsurl) {
+			return i
+		}
+	}
+
+	return -1
 }

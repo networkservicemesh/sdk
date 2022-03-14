@@ -1,6 +1,6 @@
-// Copyright (c) 2018-2020 VMware, Inc.
+// Copyright (c) 2018-2022 VMware, Inc.
 //
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -26,13 +26,7 @@ import (
 )
 
 func matchEndpoint(clockTime clock.Clock, nsLabels map[string]string, ns *registry.NetworkService, nses ...*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
-	var validNetworkServiceEndpoints []*registry.NetworkServiceEndpoint
-	for _, nse := range nses {
-		if nse.GetExpirationTime() == nil || nse.GetExpirationTime().AsTime().After(clockTime.Now()) {
-			validNetworkServiceEndpoints = append(validNetworkServiceEndpoints, nse)
-		}
-	}
-
+	validNetworkServiceEndpoints := validateExpirationTime(clockTime, nses)
 	// Iterate through the matches
 	for _, match := range ns.GetMatches() {
 		// All match source selector labels should be present in the requested labels map
@@ -64,6 +58,25 @@ func matchEndpoint(clockTime clock.Clock, nsLabels map[string]string, ns *regist
 		}
 
 		return nseCandidates
+	}
+
+	var candidates []*registry.NetworkServiceEndpoint
+	for _, nse := range validNetworkServiceEndpoints {
+		nseLabels := nse.GetNetworkServiceLabels()[ns.Name].GetLabels()
+		if nseLabels != nil && !matchutils.IsSubset(nsLabels, nseLabels, nsLabels) {
+			continue
+		}
+		candidates = append(candidates, nse)
+	}
+	return candidates
+}
+
+func validateExpirationTime(clockTime clock.Clock, nses []*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
+	var validNetworkServiceEndpoints []*registry.NetworkServiceEndpoint
+	for _, nse := range nses {
+		if nse.GetExpirationTime() == nil || nse.GetExpirationTime().AsTime().After(clockTime.Now()) {
+			validNetworkServiceEndpoints = append(validNetworkServiceEndpoints, nse)
+		}
 	}
 
 	return validNetworkServiceEndpoints

@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -16,6 +16,8 @@
 
 package excludedprefixes
 
+import "net/url"
+
 // ServerOption - method for excludedPrefixesServer
 type ServerOption func(server *excludedPrefixesServer)
 
@@ -23,5 +25,25 @@ type ServerOption func(server *excludedPrefixesServer)
 func WithConfigPath(s string) ServerOption {
 	return func(args *excludedPrefixesServer) {
 		args.configPath = s
+	}
+}
+
+// ClientOption - method for excludedPrefixesClient
+type ClientOption func(client *excludedPrefixesClient)
+
+// WithAwarenessGroups - returns method that sets awarenessGroups in excludedPrefixesClient
+func WithAwarenessGroups(awarenessGroups [][]*url.URL) ClientOption {
+	return func(args *excludedPrefixesClient) {
+		groups := make([]*awarenessGroup, len(awarenessGroups))
+		for i, g := range awarenessGroups {
+			groups[i] = &awarenessGroup{
+				NSUrlSet:        make(map[url.URL]struct{}),
+				ExcludedPrfixes: make([]string, 0),
+			}
+			for _, item := range g {
+				groups[i].NSUrlSet[*item] = struct{}{}
+			}
+		}
+		args.awarenessGroups = groups
 	}
 }
