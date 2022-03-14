@@ -21,6 +21,7 @@ import (
 	"net"
 	"net/url"
 	"strings"
+	"sync/atomic"
 
 	"github.com/edwarnicke/serialize"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -35,19 +36,28 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 )
 
+type awarenessGroup struct {
+	NSUrlSet          map[url.URL]struct{}
+	ExcludedPrfixes   []string
+	ConnectionCounter int32
+}
+
+func (g *awarenessGroup) contains(nsURL *url.URL) bool {
+	_, ok := g.NSUrlSet[*nsURL]
+	return ok
+}
+
 type excludedPrefixesClient struct {
-	excludedPrefixes               []string
-	awarenessGroups                [][]*url.URL
-	awarenessGroupsExcludedPrexies map[url.URL][]string
-	executor                       serialize.Executor
+	excludedPrefixes []string
+	awarenessGroups  []*awarenessGroup
+	executor         serialize.Executor
 }
 
 // NewClient - creates a networkservice.NetworkServiceClient chain element that excludes prefixes already used by other NetworkServices
 func NewClient(opts ...ClientOption) networkservice.NetworkServiceClient {
 	client := &excludedPrefixesClient{
-		excludedPrefixes:               make([]string, 0),
-		awarenessGroups:                make([][]*url.URL, 0),
-		awarenessGroupsExcludedPrexies: make(map[url.URL][]string),
+		excludedPrefixes: make([]string, 0),
+		awarenessGroups:  make([]*awarenessGroup, 0),
 	}
 
 	for _, opt := range opts {
@@ -73,9 +83,7 @@ func (epc *excludedPrefixesClient) Request(ctx context.Context, request *network
 	var awarenessGroupsExcludedPrefixes []string
 	for i, group := range epc.awarenessGroups {
 		if i != groupIndex {
-			for _, groupurl := range group {
-				awarenessGroupsExcludedPrefixes = append(awarenessGroupsExcludedPrefixes, epc.awarenessGroupsExcludedPrexies[*groupurl]...)
-			}
+			awarenessGroupsExcludedPrefixes = append(awarenessGroupsExcludedPrefixes, group.ExcludedPrfixes...)
 		}
 	}
 
@@ -136,8 +144,9 @@ func (epc *excludedPrefixesClient) Request(ctx context.Context, request *network
 		excludedPrefixes = append(excludedPrefixes, getRoutePrefixes(respIPContext.GetDstRoutes())...)
 
 		if groupIndex >= 0 {
-			epc.awarenessGroupsExcludedPrexies[*nsurl] = append(epc.awarenessGroupsExcludedPrexies[*nsurl], excludedPrefixes...)
-			epc.awarenessGroupsExcludedPrexies[*nsurl] = removeDuplicates(epc.awarenessGroupsExcludedPrexies[*nsurl])
+			epc.awarenessGroups[groupIndex].ExcludedPrfixes = append(epc.awarenessGroups[groupIndex].ExcludedPrfixes, excludedPrefixes...)
+			epc.awarenessGroups[groupIndex].ExcludedPrfixes = removeDuplicates(epc.awarenessGroups[groupIndex].ExcludedPrfixes)
+			atomic.AddInt32(&epc.awarenessGroups[groupIndex].ConnectionCounter, 1)
 		} else {
 			excludedPrefixes = append(excludedPrefixes, respIPContext.GetExcludedPrefixes()...)
 			epc.excludedPrefixes = append(epc.excludedPrefixes, excludedPrefixes...)
@@ -162,8 +171,15 @@ func (epc *excludedPrefixesClient) Close(ctx context.Context, conn *networkservi
 		epc.excludedPrefixes = exclude(epc.excludedPrefixes, getRoutePrefixes(ipCtx.GetSrcRoutes()))
 		epc.excludedPrefixes = exclude(epc.excludedPrefixes, getRoutePrefixes(ipCtx.GetDstRoutes()))
 		epc.excludedPrefixes = exclude(epc.excludedPrefixes, ipCtx.GetExcludedPrefixes())
+
 		nsurl := getNSURL(&networkservice.NetworkServiceRequest{Connection: conn})
-		delete(epc.awarenessGroupsExcludedPrexies, *nsurl)
+		groupIndex := checkAwarenessGroups(nsurl, epc.awarenessGroups)
+		if groupIndex >= 0 {
+			atomic.AddInt32(&epc.awarenessGroups[groupIndex].ConnectionCounter, -1)
+			if epc.awarenessGroups[groupIndex].ConnectionCounter == 0 {
+				epc.awarenessGroups[groupIndex].ExcludedPrfixes = make([]string, 0)
+			}
+		}
 
 		logger.Debugf("Excluded prefixes after closing connection: %+v", epc.excludedPrefixes)
 	})
@@ -235,12 +251,10 @@ func getNSURL(request *networkservice.NetworkServiceRequest) *url.URL {
 	return nsurl
 }
 
-func checkAwarenessGroups(nsurl *url.URL, awarenessGroups [][]*url.URL) int {
+func checkAwarenessGroups(nsurl *url.URL, awarenessGroups []*awarenessGroup) int {
 	for i, group := range awarenessGroups {
-		for _, groupurl := range group {
-			if *nsurl == *groupurl {
-				return i
-			}
+		if group.contains(nsurl) {
+			return i
 		}
 	}
 

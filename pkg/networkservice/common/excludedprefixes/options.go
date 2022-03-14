@@ -34,6 +34,16 @@ type ClientOption func(client *excludedPrefixesClient)
 // WithAwarenessGroups - returns method that sets awarenessGroups in excludedPrefixesClient
 func WithAwarenessGroups(awarenessGroups [][]*url.URL) ClientOption {
 	return func(args *excludedPrefixesClient) {
-		args.awarenessGroups = awarenessGroups
+		groups := make([]*awarenessGroup, len(awarenessGroups))
+		for i, g := range awarenessGroups {
+			groups[i] = &awarenessGroup{
+				NSUrlSet:        make(map[url.URL]struct{}),
+				ExcludedPrfixes: make([]string, 0),
+			}
+			for _, item := range g {
+				groups[i].NSUrlSet[*item] = struct{}{}
+			}
+		}
+		args.awarenessGroups = groups
 	}
 }
