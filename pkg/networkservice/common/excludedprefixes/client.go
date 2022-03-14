@@ -176,7 +176,7 @@ func (epc *excludedPrefixesClient) Close(ctx context.Context, conn *networkservi
 		groupIndex := checkAwarenessGroups(nsurl, epc.awarenessGroups)
 		if groupIndex >= 0 {
 			atomic.AddInt32(&epc.awarenessGroups[groupIndex].ConnectionCounter, -1)
-			if epc.awarenessGroups[groupIndex].ConnectionCounter == 0 {
+			if atomic.LoadInt32(&epc.awarenessGroups[groupIndex].ConnectionCounter) == 0 {
 				epc.awarenessGroups[groupIndex].ExcludedPrfixes = make([]string, 0)
 			}
 		}
