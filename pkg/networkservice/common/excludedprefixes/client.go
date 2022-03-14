@@ -67,8 +67,8 @@ func (epc *excludedPrefixesClient) Request(ctx context.Context, request *network
 		conn.Context.IpContext = &networkservice.IPContext{}
 	}
 
-	nsurl := getURL(request)
-	isInAwarenessGroup, groupIndex := checkAwarenessGroups(nsurl, epc.awarenessGroups)
+	nsurl := getNSURL(request)
+	groupIndex := checkAwarenessGroups(nsurl, epc.awarenessGroups)
 
 	var awarenessGroupsExcludedPrefixes []string
 	for i, group := range epc.awarenessGroups {
@@ -135,7 +135,7 @@ func (epc *excludedPrefixesClient) Request(ctx context.Context, request *network
 		excludedPrefixes = append(excludedPrefixes, getRoutePrefixes(respIPContext.GetSrcRoutes())...)
 		excludedPrefixes = append(excludedPrefixes, getRoutePrefixes(respIPContext.GetDstRoutes())...)
 
-		if isInAwarenessGroup {
+		if groupIndex >= 0 {
 			epc.awarenessGroupsExcludedPrexies[*nsurl] = append(epc.awarenessGroupsExcludedPrexies[*nsurl], excludedPrefixes...)
 			epc.awarenessGroupsExcludedPrexies[*nsurl] = removeDuplicates(epc.awarenessGroupsExcludedPrexies[*nsurl])
 		} else {
@@ -162,7 +162,7 @@ func (epc *excludedPrefixesClient) Close(ctx context.Context, conn *networkservi
 		epc.excludedPrefixes = exclude(epc.excludedPrefixes, getRoutePrefixes(ipCtx.GetSrcRoutes()))
 		epc.excludedPrefixes = exclude(epc.excludedPrefixes, getRoutePrefixes(ipCtx.GetDstRoutes()))
 		epc.excludedPrefixes = exclude(epc.excludedPrefixes, ipCtx.GetExcludedPrefixes())
-		nsurl := getURL(&networkservice.NetworkServiceRequest{Connection: conn})
+		nsurl := getNSURL(&networkservice.NetworkServiceRequest{Connection: conn})
 		delete(epc.awarenessGroupsExcludedPrexies, *nsurl)
 
 		logger.Debugf("Excluded prefixes after closing connection: %+v", epc.excludedPrefixes)
@@ -212,7 +212,7 @@ func validateIPs(ipContext *networkservice.IPContext, excludedPrefixes []string)
 	return nil
 }
 
-func getURL(request *networkservice.NetworkServiceRequest) *url.URL {
+func getNSURL(request *networkservice.NetworkServiceRequest) *url.URL {
 	nsurl := &url.URL{}
 
 	nsurl.Host = request.GetConnection().GetNetworkService()
@@ -235,14 +235,14 @@ func getURL(request *networkservice.NetworkServiceRequest) *url.URL {
 	return nsurl
 }
 
-func checkAwarenessGroups(nsurl *url.URL, awarenessGroups [][]*url.URL) (isInGroup bool, i int) {
+func checkAwarenessGroups(nsurl *url.URL, awarenessGroups [][]*url.URL) int {
 	for i, group := range awarenessGroups {
 		for _, groupurl := range group {
 			if *nsurl == *groupurl {
-				return true, i
+				return i
 			}
 		}
 	}
 
-	return false, -1
+	return -1
 }
