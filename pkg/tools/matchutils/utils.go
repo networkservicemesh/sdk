@@ -62,6 +62,25 @@ func IsSubset(a, b, values map[string]string) bool {
 	return true
 }
 
+// CountIntersections counts the number of intersections of A and B sets
+// Tries to process values for each B value.
+func CountIntersections(a, b, values map[string]string) int {
+	matchCount := 0
+	for k, v := range b {
+		if a[k] == v {
+			matchCount++
+		} else {
+			result := processLabels(v, values)
+			if a[k] == result {
+				matchCount++
+			}
+		}
+
+	}
+
+	return matchCount
+}
+
 // processLabels generates matches based on destination label selectors that specify templating.
 func processLabels(str string, vars interface{}) string {
 	tmpl, err := template.New("tmpl").Parse(str)

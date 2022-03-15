@@ -19,6 +19,8 @@
 package discover
 
 import (
+	"sort"
+
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
@@ -60,15 +62,7 @@ func matchEndpoint(clockTime clock.Clock, nsLabels map[string]string, ns *regist
 		return nseCandidates
 	}
 
-	var candidates []*registry.NetworkServiceEndpoint
-	for _, nse := range validNetworkServiceEndpoints {
-		nseLabels := nse.GetNetworkServiceLabels()[ns.Name].GetLabels()
-		if nseLabels != nil && !matchutils.IsSubset(nsLabels, nseLabels, nsLabels) {
-			continue
-		}
-		candidates = append(candidates, nse)
-	}
-	return candidates
+	return matchEndpointLabels(ns.Name, nsLabels, validNetworkServiceEndpoints)
 }
 
 func validateExpirationTime(clockTime clock.Clock, nses []*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
@@ -80,4 +74,31 @@ func validateExpirationTime(clockTime clock.Clock, nses []*registry.NetworkServi
 	}
 
 	return validNetworkServiceEndpoints
+}
+
+type priorityNSE struct {
+	nse      *registry.NetworkServiceEndpoint
+	priority int
+}
+
+func matchEndpointLabels(nsName string, nsLabels map[string]string, nses []*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
+	candidates := make([]priorityNSE, len(nses))
+
+	for i, nse := range nses {
+		priority := 0
+		nseLabels := nse.GetNetworkServiceLabels()[nsName].GetLabels()
+		if nseLabels != nil {
+			priority = matchutils.CountIntersections(nsLabels, nseLabels, nsLabels)
+		}
+		candidates[i] = priorityNSE{nse, priority}
+	}
+
+	sort.Slice(candidates, func(i, j int) bool { return candidates[i].priority > candidates[j].priority })
+
+	sortedNSEs := make([]*registry.NetworkServiceEndpoint, len(nses))
+	for i, candidate := range candidates {
+		sortedNSEs[i] = candidate.nse
+	}
+
+	return sortedNSEs
 }

@@ -543,3 +543,43 @@ func TestDiscoverCandidatesServer_NoEndpointOnClose(t *testing.T) {
 
 	require.True(t, closed)
 }
+
+func TestDiscoverCandidatesServer_MatchNSEWithDifferentLabel(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), testWait)
+	defer cancel()
+
+	nsName := networkServiceName()
+	nses := []*registry.NetworkServiceEndpoint{
+		{
+			Name:                "nse",
+			NetworkServiceNames: []string{nsName},
+			NetworkServiceLabels: labels(nsName,
+				map[string]string{
+					"node": "worker-2",
+				},
+			),
+		},
+	}
+
+	nsServer, nseServer := testServers(t, nsName, nses)
+
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			NetworkService: nsName,
+			Labels: map[string]string{
+				"node": "worker-1",
+			},
+		},
+	}
+
+	server := next.NewNetworkServiceServer(
+		discover.NewServer(
+			registryadapters.NetworkServiceServerToClient(nsServer),
+			registryadapters.NetworkServiceEndpointServerToClient(nseServer)),
+	)
+
+	_, err := server.Request(ctx, request)
+	require.NoError(t, err)
+}
