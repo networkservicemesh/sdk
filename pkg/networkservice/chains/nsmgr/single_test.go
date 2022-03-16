@@ -109,7 +109,7 @@ func Test_DNSUsecase(t *testing.T) {
 func Test_AwareNSEs(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*500)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	domain := sandbox.NewBuilder(ctx, t).
