@@ -131,6 +131,12 @@ func Test_AwareNSEs(t *testing.T) {
 	ns1, err := nsRegistryClient.Register(ctx, defaultRegistryService("my-ns-1"))
 	require.NoError(t, err)
 
+	ns1.Matches = append(ns1.Matches, 
+		&registry.Match{
+			SourceSelector: map[string]string,
+			Routes: ,
+		})
+
 	nsurl1, err := url.Parse(fmt.Sprintf("kernel://%s?%s=%s", ns1.Name, "color", "red"))
 	require.NoError(t, err)
 

@@ -69,11 +69,11 @@ func CountIntersections(a, b, values map[string]string) int {
 	for k, v := range b {
 		if a[k] == v {
 			matchCount++
-		} else {
-			result := processLabels(v, values)
-			if a[k] == result {
-				matchCount++
-			}
+			continue
+		}
+		result := processLabels(v, values)
+		if a[k] == result {
+			matchCount++
 		}
 	}
 

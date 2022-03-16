@@ -62,7 +62,7 @@ func matchEndpoint(clockTime clock.Clock, nsLabels map[string]string, ns *regist
 		return nseCandidates
 	}
 
-	return matchEndpointLabels(ns.Name, nsLabels, validNetworkServiceEndpoints)
+	return orderByLabelsMatch(ns.Name, nsLabels, validNetworkServiceEndpoints)
 }
 
 func validateExpirationTime(clockTime clock.Clock, nses []*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
@@ -76,29 +76,23 @@ func validateExpirationTime(clockTime clock.Clock, nses []*registry.NetworkServi
 	return validNetworkServiceEndpoints
 }
 
-type priorityNSE struct {
-	nse      *registry.NetworkServiceEndpoint
-	priority int
-}
-
-func matchEndpointLabels(nsName string, nsLabels map[string]string, nses []*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
-	candidates := make([]priorityNSE, len(nses))
+func orderByLabelsMatch(nsName string, nsLabels map[string]string, nses []*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
+	priorities := make([]int, len(nses))
 
 	for i, nse := range nses {
-		priority := 0
 		nseLabels := nse.GetNetworkServiceLabels()[nsName].GetLabels()
 		if nseLabels != nil {
-			priority = matchutils.CountIntersections(nsLabels, nseLabels, nsLabels)
+			priorities[i] = matchutils.CountIntersections(nsLabels, nseLabels, nsLabels)
 		}
-		candidates[i] = priorityNSE{nse, priority}
 	}
 
-	sort.Slice(candidates, func(i, j int) bool { return candidates[i].priority > candidates[j].priority })
+	sort.Slice(priorities, func(i, j int) bool {
+		flag := priorities[i] > priorities[j]
+		if flag {
+			nses[i], nses[j] = nses[j], nses[i]
+		}
+		return flag
+	})
 
-	sortedNSEs := make([]*registry.NetworkServiceEndpoint, len(nses))
-	for i, candidate := range candidates {
-		sortedNSEs[i] = candidate.nse
-	}
-
-	return sortedNSEs
+	return nses
 }
