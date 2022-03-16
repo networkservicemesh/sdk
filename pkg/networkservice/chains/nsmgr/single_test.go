@@ -109,7 +109,7 @@ func Test_DNSUsecase(t *testing.T) {
 func Test_AwareNSEs(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*500)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	domain := sandbox.NewBuilder(ctx, t).
@@ -128,35 +128,32 @@ func Test_AwareNSEs(t *testing.T) {
 	var nses [count]*sandbox.EndpointEntry
 	var requests [count]*networkservice.NetworkServiceRequest
 
-	ns1, err := nsRegistryClient.Register(ctx, defaultRegistryService("my-ns-1"))
-	require.NoError(t, err)
+	ns1 := defaultRegistryService("my-ns-1")
+	ns2 := defaultRegistryService("my-ns-2")
 
 	nsurl1, err := url.Parse(fmt.Sprintf("kernel://%s?%s=%s", ns1.Name, "color", "red"))
-	require.NoError(t, err)
-
-	ns2, err := nsRegistryClient.Register(ctx, defaultRegistryService("my-ns-2"))
 	require.NoError(t, err)
 
 	nsurl2, err := url.Parse(fmt.Sprintf("kernel://%s?%s=%s", ns2.Name, "color", "red"))
 	require.NoError(t, err)
 
-	nseInfo := [count]struct {
-		nsname     string
+	nsInfo := [count]struct {
+		ns         *registry.NetworkService
 		labelKey   string
 		labelValue string
 	}{
 		{
-			nsname:     ns1.Name,
+			ns:         ns1,
 			labelKey:   "color",
 			labelValue: "red",
 		},
 		{
-			nsname:     ns2.Name,
+			ns:         ns2,
 			labelKey:   "color",
 			labelValue: "red",
 		},
 		{
-			nsname:     ns1.Name,
+			ns:         ns1,
 			labelKey:   "day",
 			labelValue: "friday",
 		},
@@ -165,11 +162,11 @@ func Test_AwareNSEs(t *testing.T) {
 	for i := 0; i < count; i++ {
 		nseRegs[i] = &registry.NetworkServiceEndpoint{
 			Name:                fmt.Sprintf("nse-%s", uuid.New().String()),
-			NetworkServiceNames: []string{nseInfo[i].nsname},
+			NetworkServiceNames: []string{nsInfo[i].ns.Name},
 			NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
-				nseInfo[i].nsname: {
+				nsInfo[i].ns.Name: {
 					Labels: map[string]string{
-						nseInfo[i].labelKey: nseInfo[i].labelValue,
+						nsInfo[i].labelKey: nsInfo[i].labelValue,
 					},
 				},
 			},
@@ -180,15 +177,31 @@ func Test_AwareNSEs(t *testing.T) {
 		requests[i] = &networkservice.NetworkServiceRequest{
 			Connection: &networkservice.Connection{
 				Id:             fmt.Sprint(i),
-				NetworkService: nseInfo[i].nsname,
+				NetworkService: nsInfo[i].ns.Name,
 				Context:        &networkservice.ConnectionContext{},
 				Mechanism:      &networkservice.Mechanism{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
 				Labels: map[string]string{
-					nseInfo[i].labelKey: nseInfo[i].labelValue,
+					nsInfo[i].labelKey: nsInfo[i].labelValue,
 				},
 			},
 		}
+
+		nsInfo[i].ns.Matches = append(nsInfo[i].ns.Matches,
+			&registry.Match{
+				SourceSelector: map[string]string{nsInfo[i].labelKey: nsInfo[i].labelValue},
+				Routes: []*registry.Destination{
+					{
+						DestinationSelector: map[string]string{nsInfo[i].labelKey: nsInfo[i].labelValue},
+					},
+				},
+			},
+		)
 	}
+
+	_, err = nsRegistryClient.Register(ctx, ns1)
+	require.NoError(t, err)
+	_, err = nsRegistryClient.Register(ctx, ns2)
+	require.NoError(t, err)
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
 		excludedprefixes.NewClient(excludedprefixes.WithAwarenessGroups(

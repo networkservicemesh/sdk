@@ -60,15 +60,7 @@ func matchEndpoint(clockTime clock.Clock, nsLabels map[string]string, ns *regist
 		return nseCandidates
 	}
 
-	var candidates []*registry.NetworkServiceEndpoint
-	for _, nse := range validNetworkServiceEndpoints {
-		nseLabels := nse.GetNetworkServiceLabels()[ns.Name].GetLabels()
-		if nseLabels != nil && !matchutils.IsSubset(nsLabels, nseLabels, nsLabels) {
-			continue
-		}
-		candidates = append(candidates, nse)
-	}
-	return candidates
+	return validNetworkServiceEndpoints
 }
 
 func validateExpirationTime(clockTime clock.Clock, nses []*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
