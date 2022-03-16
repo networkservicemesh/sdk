@@ -24,8 +24,8 @@ type options struct {
 // Option - options for the cleanup chain element
 type Option func(*options)
 
-// WithCCClose - closes clientconn to prevent calling requests/closes on other datapath objects
-func WithCCClose() Option {
+// WithoutGRPCCall - closes client connection to prevent calling requests/closes on other endpoints
+func WithoutGRPCCall() Option {
 	return func(o *options) {
 		o.ccClose = true
 	}
