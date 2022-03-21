@@ -86,7 +86,7 @@ func Test_vl3_IPAM_Allocate(t *testing.T) {
 	}
 }
 
-func Test_vl3_IPAM_Allocat2(t *testing.T) {
+func Test_vl3_IPAM_Allocate2(t *testing.T) {
 	t.Cleanup(func() {
 		goleak.VerifyNone(t)
 	})
@@ -118,7 +118,7 @@ func Test_vl3_IPAM_Allocat2(t *testing.T) {
 	}
 }
 
-func Test_vl3_IPAM_Allocat3(t *testing.T) {
+func Test_vl3_IPAM_Allocate3(t *testing.T) {
 	t.Cleanup(func() {
 		goleak.VerifyNone(t)
 	})
@@ -149,43 +149,5 @@ func Test_vl3_IPAM_Allocat3(t *testing.T) {
 		require.NotEmpty(t, resp.ExcludePrefixes, i)
 		cancel()
 		time.Sleep(time.Millisecond * 50)
-	}
-}
-
-func Test_vl3_IPAM_Allocat4(t *testing.T) {
-	t.Cleanup(func() {
-		goleak.VerifyNone(t)
-	})
-
-	var ctx, cancel = context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-
-	connectTO := newVL3IPAMServer(ctx, t, "172.16.0.0/16", 40)
-
-	for i := 0; i < 10; i++ {
-		c := newVL3IPAMClient(ctx, t, &connectTO)
-
-		var stream, err = c.ManagePrefixes(ctx)
-		require.NoError(t, err, i)
-
-		err = stream.Send(&ipam.PrefixRequest{
-			Type:   ipam.Type_ALLOCATE,
-			Prefix: "172.16.0.0/30",
-		})
-
-		require.NoError(t, err)
-
-		resp, err := stream.Recv()
-		require.NoError(t, err)
-
-		require.Equal(t, "172.16.0.0/30", resp.Prefix, i)
-		require.NotEmpty(t, resp.ExcludePrefixes, i)
-
-		err = stream.Send(&ipam.PrefixRequest{
-			Type:   ipam.Type_DELETE,
-			Prefix: "172.16.0.0/30",
-		})
-
-		require.NoError(t, err)
 	}
 }
