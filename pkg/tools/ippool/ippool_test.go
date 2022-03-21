@@ -1,4 +1,6 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -17,6 +19,7 @@
 package ippool
 
 import (
+	"fmt"
 	"math/rand"
 	"net"
 	"runtime"
@@ -60,6 +63,67 @@ func TestIPPoolTool_AddRange(t *testing.T) {
 
 	ipPool.AddNetString("192.168.11.0/24")
 	require.Equal(t, ipPool.size, uint64(2))
+}
+
+func TestGlobalCIDR(t *testing.T) {
+	ipPool := NewWithNetString("192.168.0.0/16")
+	require.True(t, ipPool.ContainsNetString("192.168.0.1/32"))
+	require.False(t, ipPool.ContainsNetString("193.169.0.1/32"))
+}
+
+func TestIsItWorkCorrect(t *testing.T) {
+	ipPool := NewWithNetString("192.168.0.0/16")
+	ipPool.ExcludeString("192.168.0.0/30")
+	p, err := ipPool.Pull()
+
+	require.NoError(t, err)
+
+	prefix := p.String() + "/24"
+	fmt.Println(prefix)
+
+	pool2 := NewWithNetString(prefix)
+	pool2.ExcludeString("192.168.0.0/30")
+	require.False(t, pool2.ContainsString("192.168.0.1"))
+}
+
+func TestIPPool_ExcludeRange(t *testing.T) {
+	ipPool := NewWithNetString("192.168.0.0/16")
+
+	for i := 0; i < 3; i++ {
+		p, err := ipPool.Pull()
+
+		require.NoError(t, err)
+
+		prefix := p.String() + "/24"
+
+		ipPool.ExcludeString(prefix)
+
+		require.Equal(t, fmt.Sprintf("192.168.%v.0/24", i), prefix)
+	}
+}
+
+func Test_IPPoolContains(t *testing.T) {
+	ipPool := NewWithNetString("10.10.0.0/16")
+
+	for i := 1; i <= 255; i++ {
+		if i == 10 {
+			continue
+		}
+		for j := 1; j <= 255; j++ {
+			if j == 10 {
+				continue
+			}
+			require.False(t, ipPool.ContainsNetString(fmt.Sprintf("%v.%v.0.0/24", i, j)))
+		}
+	}
+	for i := 16; i < 32; i++ {
+		ipNet := "10.10.0.0/" + fmt.Sprint(i)
+		require.True(t, ipPool.ContainsNetString(ipNet), ipNet)
+	}
+	for i := 15; i > 0; i-- {
+		ipNet := "10.10.0.0/" + fmt.Sprint(i)
+		require.False(t, ipPool.ContainsNetString(ipNet), ipNet)
+	}
 }
 
 func TestIPPoolTool_Contains(t *testing.T) {
