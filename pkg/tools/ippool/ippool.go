@@ -1,4 +1,6 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -143,6 +145,41 @@ func (tree *IPPool) AddNetString(ipNetString string) {
 	}
 
 	tree.AddNet(ipNet)
+}
+
+// ContainsNetString parses ipNetRaw string and checks that pool contains whole ipNet
+func (tree *IPPool) ContainsNetString(ipNetRaw string) bool {
+	_, ipNet, err := net.ParseCIDR(ipNetRaw)
+	if err != nil {
+		return false
+	}
+
+	return tree.ContainsNet(ipNet)
+}
+
+// ContainsNet checks that pool contains whole ipNet
+func (tree *IPPool) ContainsNet(ipNet *net.IPNet) bool {
+	if ipNet == nil {
+		return false
+	}
+
+	var node = tree.root
+	var ipRange = ipRangeFromIPNet(ipNet)
+
+	for node != nil {
+		compare := node.Value.CompareRange(ipRange)
+		switch {
+		case compare < 0:
+			node = node.Left
+		case compare > 0:
+			node = node.Right
+		default:
+			lRange, rRange := ipRange.Sub(node.Value)
+			return lRange == nil && rRange == nil
+		}
+	}
+
+	return false
 }
 
 // Contains - check the pool contains ip address

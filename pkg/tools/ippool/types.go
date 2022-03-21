@@ -1,4 +1,6 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -118,7 +120,7 @@ func (b *ipRange) CompareRange(ipR *ipRange) int {
 	}
 	if b.Compare(ipR.start) > 0 && b.Compare(ipR.end) > 0 {
 		if !ipR.end.IsFirst() && b.Compare(ipR.start.Prev()) == 0 {
-			return -1
+			return 1
 		}
 		return 2
 	}
