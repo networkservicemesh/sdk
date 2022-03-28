@@ -53,6 +53,7 @@ jobs:
           - cmd-nse-remote-vlan
           - cmd-nse-vfio
           - cmd-nsc-init
+          - cmd-ipam-vl3
           - cmd-admission-webhook-k8s
     name: Update ${{ matrix.repository }}
     needs: create-release
