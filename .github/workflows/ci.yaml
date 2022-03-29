@@ -33,7 +33,7 @@ jobs:
       - name: Build
         run: go build -race  ./...
       - name: Test
-        run: go test ./... -run Test_ForwarderShouldBeSelectedCorrectlyOnNSMgrRestart -count 90
+        run: go test ./... -run Test_ForwarderShouldBeSelectedCorrectlyOnNSMgrRestart -count 99
   golangci-lint:
     name: golangci-lint
     runs-on: ubuntu-latest
