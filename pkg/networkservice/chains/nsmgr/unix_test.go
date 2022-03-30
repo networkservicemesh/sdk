@@ -29,6 +29,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
@@ -132,7 +133,7 @@ func Test_MultiForwarderSendfd(t *testing.T) {
 
 	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, kernel.NewClient(), sendfd.NewClient())
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(kernel.NewClient(), sendfd.NewClient()))
 
 	request := defaultRequest(nsReg.Name)
 
