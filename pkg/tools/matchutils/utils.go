@@ -27,6 +27,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 )
 
 // MatchNetworkServices returns true if two network services are matched
@@ -45,6 +46,44 @@ func MatchNetworkServiceEndpoints(left, right *registry.NetworkServiceEndpoint) 
 		(left.Url == "" || strings.Contains(right.Url, left.Url))
 }
 
+func MatchEndpoint(clockTime clock.Clock, nsLabels map[string]string, ns *registry.NetworkService, nses ...*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
+	validNetworkServiceEndpoints := validateExpirationTime(clockTime, nses)
+	// Iterate through the matches
+	for _, match := range ns.GetMatches() {
+		// All match source selector labels should be present in the requested labels map
+		if !IsSubset(nsLabels, match.GetSourceSelector(), nsLabels) {
+			continue
+		}
+		nseCandidates := make([]*registry.NetworkServiceEndpoint, 0)
+		// Check all Destinations in that match
+		for _, destination := range match.GetRoutes() {
+			// Each NSE should be matched against that destination
+			for _, nse := range validNetworkServiceEndpoints {
+				var candidateNetworkServiceLabels = nse.GetNetworkServiceLabels()[ns.GetName()]
+				var labels map[string]string
+				if candidateNetworkServiceLabels != nil {
+					labels = candidateNetworkServiceLabels.Labels
+				}
+				if IsSubset(labels, destination.GetDestinationSelector(), nsLabels) {
+					nseCandidates = append(nseCandidates, nse)
+				}
+			}
+		}
+
+		if match.Fallthrough && len(nseCandidates) == 0 {
+			continue
+		}
+
+		if match.GetMetadata() != nil && len(match.Routes) == 0 && len(nseCandidates) == 0 {
+			break
+		}
+
+		return nseCandidates
+	}
+
+	return validNetworkServiceEndpoints
+}
+
 // IsSubset checks if B is a subset of A.
 // Tries to process values for each B value.
 func IsSubset(a, b, values map[string]string) bool {
@@ -60,6 +99,17 @@ func IsSubset(a, b, values map[string]string) bool {
 		}
 	}
 	return true
+}
+
+func validateExpirationTime(clockTime clock.Clock, nses []*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
+	var validNetworkServiceEndpoints []*registry.NetworkServiceEndpoint
+	for _, nse := range nses {
+		if nse.GetExpirationTime() == nil || nse.GetExpirationTime().AsTime().After(clockTime.Now()) {
+			validNetworkServiceEndpoints = append(validNetworkServiceEndpoints, nse)
+		}
+	}
+
+	return validNetworkServiceEndpoints
 }
 
 // processLabels generates matches based on destination label selectors that specify templating.
