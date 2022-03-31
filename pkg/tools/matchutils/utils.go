@@ -1,4 +1,6 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -27,6 +29,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 )
 
@@ -46,6 +49,7 @@ func MatchNetworkServiceEndpoints(left, right *registry.NetworkServiceEndpoint) 
 		(left.Url == "" || strings.Contains(right.Url, left.Url))
 }
 
+// MatchEndpoint returns endpoints that match network service labels
 func MatchEndpoint(clockTime clock.Clock, nsLabels map[string]string, ns *registry.NetworkService, nses ...*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
 	validNetworkServiceEndpoints := validateExpirationTime(clockTime, nses)
 	// Iterate through the matches
