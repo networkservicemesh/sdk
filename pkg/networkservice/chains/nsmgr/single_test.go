@@ -35,6 +35,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
@@ -81,11 +82,11 @@ func Test_DNSUsecase(t *testing.T) {
 
 	const expectedCorefile = ". {\n\tlog\n\treload\n}\nmy.domain1 {\n\tfanout . 8.8.4.4 8.8.8.8\n\tcache\n\tlog\n}\n"
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, dnscontext.NewClient(
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(dnscontext.NewClient(
 		dnscontext.WithChainContext(ctx),
 		dnscontext.WithCorefilePath(corefilePath),
 		dnscontext.WithResolveConfigPath(resolveConfigPath),
-	))
+	)))
 
 	conn, err := nsc.Request(ctx, defaultRequest(nsReg.Name))
 	require.NoError(t, err)
@@ -203,12 +204,12 @@ func Test_AwareNSEs(t *testing.T) {
 	_, err = nsRegistryClient.Register(ctx, ns2)
 	require.NoError(t, err)
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(
 		excludedprefixes.NewClient(excludedprefixes.WithAwarenessGroups(
 			[][]*url.URL{
 				{nsurl1, nsurl2},
 			},
-		)))
+		))))
 
 	var conns [count]*networkservice.Connection
 	for i := 0; i < count; i++ {

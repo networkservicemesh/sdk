@@ -28,6 +28,8 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	nsclient "github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
@@ -506,7 +508,7 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 
 	nseEntry := domain.Nodes[nodeNum].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, nsclient.WithHealClient(null.NewClient()))
 
 	request := defaultRequest("my-ns")
 
@@ -525,17 +527,12 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 
 		domain.Nodes[nodeNum].NSMgr.Restart()
 
-		domain.Nodes[nodeNum].NewForwarder(ctx, &registry.NetworkServiceEndpoint{
-			Name:                sandbox.UniqueName(fmt.Sprintf("%v-forwarder", i)),
-			NetworkServiceNames: []string{"forwarder"},
-			NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
-				"forwarder": {
-					Labels: map[string]string{
-						"p2p": "true",
-					},
-				},
-			},
-		}, sandbox.GenerateTestToken)
+		_, err = domain.Nodes[nodeNum].NSMgr.NetworkServiceEndpointRegistryServer().Register(ctx, &registry.NetworkServiceEndpoint{
+			Name:                nseReg.Name,
+			Url:                 nseEntry.URL.String(),
+			NetworkServiceNames: nseReg.NetworkServiceNames,
+		})
+		require.NoError(t, err)
 
 		_, err = domain.Nodes[nodeNum].NSMgr.NetworkServiceEndpointRegistryServer().Register(ctx, &registry.NetworkServiceEndpoint{
 			Name:                expectedForwarderName,
@@ -551,11 +548,16 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 		})
 		require.NoError(t, err)
 
-		_, err = domain.Nodes[nodeNum].NSMgr.NetworkServiceEndpointRegistryServer().Register(ctx, &registry.NetworkServiceEndpoint{
-			Name:                nseReg.Name,
-			Url:                 nseEntry.URL.String(),
-			NetworkServiceNames: nseReg.NetworkServiceNames,
-		})
-		require.NoError(t, err)
+		domain.Nodes[nodeNum].NewForwarder(ctx, &registry.NetworkServiceEndpoint{
+			Name:                sandbox.UniqueName(fmt.Sprintf("%v-forwarder", i)),
+			NetworkServiceNames: []string{"forwarder"},
+			NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+				"forwarder": {
+					Labels: map[string]string{
+						"p2p": "true",
+					},
+				},
+			},
+		}, sandbox.GenerateTestToken)
 	}
 }

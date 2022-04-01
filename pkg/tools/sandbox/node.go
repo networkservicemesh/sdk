@@ -234,15 +234,19 @@ func (n *Node) registerEndpoint(
 func (n *Node) NewClient(
 	ctx context.Context,
 	generatorFunc token.GeneratorFunc,
-	additionalFunctionality ...networkservice.NetworkServiceClient,
+	additionalOpts ...client.Option,
 ) networkservice.NetworkServiceClient {
-	return retry.NewClient(client.NewClient(
-		ctx,
+	opts := []client.Option{
 		client.WithClientURL(CloneURL(n.NSMgr.URL)),
 		client.WithDialOptions(DialOptions(WithTokenGenerator(generatorFunc))...),
 		client.WithAuthorizeClient(authorize.NewClient(authorize.Any())),
 		client.WithHealClient(heal.NewClient(ctx)),
-		client.WithAdditionalFunctionality(additionalFunctionality...),
 		client.WithDialTimeout(DialTimeout),
+	}
+
+	opts = append(opts, additionalOpts...)
+	return retry.NewClient(client.NewClient(
+		ctx,
+		opts...,
 	))
 }
