@@ -22,7 +22,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [windows-latest]
     steps:
       - name: Check out code
         uses: actions/checkout@v2
@@ -33,7 +33,7 @@ jobs:
       - name: Build
         run: go build -race  ./...
       - name: Test
-        run: go test -race ./... -run Test_RefreshNSEClient_SetsCorrectExpireTime -count 100
+        run: go test -race ./... -run Test_RefreshNSEClient_SetsCorrectExpireTime -count 30
   golangci-lint:
     name: golangci-lint
     runs-on: ubuntu-latest
