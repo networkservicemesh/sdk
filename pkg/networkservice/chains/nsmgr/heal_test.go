@@ -26,9 +26,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	nsclient "github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/client"
@@ -114,6 +116,166 @@ func testNSMGRHealEndpoint(t *testing.T, nodeNum int) {
 
 	require.Equal(t, 2, counter.UniqueRequests())
 	require.Equal(t, closes+1, counter.UniqueCloses())
+}
+
+func TestNSMGRHealEndpoint_DataplaneBroken_CtrlplaneBroken(t *testing.T) {
+	// This the same test as above but here we explicitly provided livenessCheck function
+	// The above test is for nil livenessCheck
+
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+
+	defer cancel()
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		Build()
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
+
+	counter := new(count.Server)
+	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
+
+	request := defaultRequest(nsReg.Name)
+
+	livenesCheck := func(conn *networkservice.Connection) bool { return false }
+
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
+		nsclient.WithHealClient(heal.NewClient(ctx, heal.WithLivelinessCheck(livenesCheck))))
+
+	conn, err := nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.Equal(t, 1, counter.UniqueRequests())
+
+	nse.Cancel()
+
+	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
+	nseReg2.Name += "-2"
+	domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter)
+
+	// Wait reconnecting to the new NSE
+	require.Eventually(t, checkSecondRequestsReceived(counter.UniqueRequests), timeout, tick)
+	require.Equal(t, 2, counter.UniqueRequests())
+	closes := counter.UniqueCloses()
+
+	// Check refresh
+	request.Connection = conn
+	_, err = nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+
+	// Close with old connection
+	_, err = nsc.Close(ctx, conn)
+	require.NoError(t, err)
+
+	require.Equal(t, 2, counter.UniqueRequests())
+	require.Equal(t, closes+1, counter.UniqueCloses())
+}
+
+func TestNSMGRHealEndpoint_DataplaneBroken_CtrlplaneHelthy(t *testing.T) {
+	// This the same test as above but here we explicitly provided livenessCheck function
+	// The above test is for nil livenessCheck
+
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+
+	defer cancel()
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		Build()
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
+
+	counter := new(count.Server)
+	_ = domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
+
+	request := defaultRequest(nsReg.Name)
+
+	livenesCheck := func(conn *networkservice.Connection) bool { return false }
+
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
+		nsclient.WithHealClient(heal.NewClient(ctx, heal.WithLivelinessCheck(livenesCheck))))
+
+	conn, err := nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.Equal(t, 1, counter.UniqueRequests())
+
+	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
+	nseReg2.Name += "-2"
+	domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter)
+
+	// Reconnecting to the new NSE even when the prev NSE still opened
+
+	require.Eventually(t, checkSecondRequestsReceived(counter.UniqueRequests), timeout, tick)
+	require.Equal(t, 2, counter.UniqueRequests())
+	closes := counter.UniqueCloses()
+
+	// Check refresh
+	request.Connection = conn
+	_, err = nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+
+	// Close with old connection
+	_, err = nsc.Close(ctx, conn)
+	require.NoError(t, err)
+
+	require.Equal(t, 2, counter.UniqueRequests())
+	require.Equal(t, closes+1, counter.UniqueCloses())
+}
+
+func TestNSMGRHealEndpoint_DatapathHealthy_CtrlplaneBroken(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+
+	defer cancel()
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		Build()
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
+
+	counter := new(count.Server)
+	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
+
+	request := defaultRequest(nsReg.Name)
+
+	livenesCheck := func(conn *networkservice.Connection) bool { return true }
+
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
+		nsclient.WithHealClient(heal.NewClient(ctx, heal.WithLivelinessCheck(livenesCheck))))
+
+	_, err = nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.Equal(t, 1, counter.UniqueRequests())
+
+	nse.Cancel()
+
+	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
+	nseReg2.Name += "-2"
+	domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter)
+
+	// Should not connect to new NSE
+	require.Eventually(t, func() bool { return counter.UniqueRequests() == 1 }, timeout, tick)
+	require.Equal(t, 1, counter.UniqueRequests())
 }
 
 func TestNSMGR_HealForwarder(t *testing.T) {

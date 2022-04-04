@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -37,9 +37,7 @@ type healClient struct {
 
 // NewClient - returns a new heal client chain element
 func NewClient(chainCtx context.Context, opts ...Option) networkservice.NetworkServiceClient {
-	o := &option{
-		livelinessCheck: func(_ *networkservice.Connection) bool { return false },
-	}
+	o := &option{}
 	for _, opt := range opts {
 		opt(o)
 	}

@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -32,7 +32,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-const attemptAfter = time.Millisecond * 200
+const (
+	attemptAfter          = time.Millisecond * 200
+	livenessCheckInterval = time.Microsecond * 200
+)
 
 type eventLoop struct {
 	eventLoopCtx    context.Context
@@ -92,32 +95,106 @@ func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networ
 	return eventLoopCancel, nil
 }
 
-func (cev *eventLoop) eventLoop() {
-	/* Receive monitor events */
-	for {
-		eventIn, err := cev.client.Recv()
-		if cev.eventLoopCtx.Err() != nil {
-			return
-		}
+func (cev *eventLoop) waitCtrlPlaneEvent() <-chan struct{} {
+	res := make(chan struct{}, 1)
 
-		if !cev.livelinessCheck(cev.conn) {
+	go func() {
+		defer close(res)
+
+		for {
+			eventIn, err := cev.client.Recv()
+
+			if cev.chainCtx.Err() != nil || cev.eventLoopCtx.Err() != nil {
+				res <- struct{}{}
+				return
+			}
+
 			// Handle error
 			if err != nil {
 				s, _ := status.FromError(err)
 				// This condition means, that the client closed the connection. Stop healing
 				if s.Code() == codes.Canceled {
-					return
+					res <- struct{}{}
 				}
 				// Otherwise - Start healing
-				break
+				return
 			}
 
 			// Handle event. Start healing
 			if eventIn.GetConnections()[cev.conn.GetId()].GetState() == networkservice.State_DOWN {
-				break
+				return
 			}
 		}
+	}()
+
+	return res
+}
+
+func (cev *eventLoop) waitDataPlaneEvent() <-chan struct{} {
+	res := make(chan struct{}, 1)
+
+	go func() {
+		defer close(res)
+
+		ticker := clock.FromContext(cev.eventLoopCtx).Ticker(livenessCheckInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-cev.chainCtx.Done():
+				res <- struct{}{}
+				return
+			case <-cev.eventLoopCtx.Done():
+				res <- struct{}{}
+				return
+			case <-ticker.C():
+				if !cev.livelinessCheck(cev.conn) {
+					// Datapath broken, start healing
+					println("EVENT Datapath broken, start healing")
+					return
+				}
+			}
+		}
+	}()
+
+	return res
+}
+
+func (cev *eventLoop) eventLoop() {
+	reselect := false
+
+	ctrlPlaneCh := cev.waitCtrlPlaneEvent()
+
+	var dataPlaneCh <-chan struct{}
+	if cev.livelinessCheck != nil {
+		dataPlaneCh = cev.waitDataPlaneEvent()
+	} else {
+		// Don't start unnecessary goroutine when no livenessCheck provided
+		dataPlaneCh = make(<-chan struct{})
+		// Since we don't know about datapath status - always use reselect
+		reselect = true
 	}
+
+	select {
+	case _, ok := <-ctrlPlaneCh:
+		if ok {
+			// Connection closed
+			return
+		}
+		// Start healing
+	case _, ok := <-dataPlaneCh:
+		if ok {
+			// Connection closed
+			return
+		}
+		reselect = true
+		// Start healing
+	case <-cev.chainCtx.Done():
+		return
+	case <-cev.eventLoopCtx.Done():
+		return
+	}
+
 	/* Attempts to heal the connection */
 	afterTicker := clock.FromContext(cev.eventLoopCtx).Ticker(attemptAfter)
 	defer afterTicker.Stop()
@@ -126,7 +203,16 @@ func (cev *eventLoop) eventLoop() {
 		case <-cev.chainCtx.Done():
 			return
 		case <-afterTicker.C():
-			if err := <-cev.eventFactory.Request(begin.WithReselect()); err == nil {
+			var errCh <-chan error
+			if !reselect {
+				reselect = !cev.livelinessCheck(cev.conn)
+			}
+			if reselect {
+				errCh = cev.eventFactory.Request(begin.WithReselect())
+			} else {
+				errCh = cev.eventFactory.Request()
+			}
+			if err := <-errCh; err == nil {
 				return
 			}
 		}
