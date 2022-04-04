@@ -33,7 +33,7 @@ jobs:
       - name: Build
         run: go build -race  ./...
       - name: Test
-        run: go test -race ./... -run Test_RefreshNSEClient_SetsCorrectExpireTime -count 300
+        run: go test -race ./... -run Test_RefreshNSEClient_SetsCorrectExpireTime -count 2000
   golangci-lint:
     name: golangci-lint
     runs-on: ubuntu-latest
