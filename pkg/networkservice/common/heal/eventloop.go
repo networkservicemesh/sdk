@@ -34,7 +34,7 @@ import (
 
 const (
 	attemptAfter          = time.Millisecond * 200
-	livenessCheckInterval = time.Microsecond * 200
+	livenessCheckInterval = time.Millisecond * 500
 )
 
 type eventLoop struct {
@@ -150,7 +150,7 @@ func (cev *eventLoop) waitDataPlaneEvent() <-chan struct{} {
 			case <-ticker.C():
 				if !cev.livelinessCheck(cev.conn) {
 					// Datapath broken, start healing
-					println("EVENT Datapath broken, start healing")
+					log.FromContext(cev.chainCtx).Info("Datapath broken, start healing")
 					return
 				}
 			}
