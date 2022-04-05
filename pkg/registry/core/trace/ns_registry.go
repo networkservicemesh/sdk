@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -48,6 +48,9 @@ func (t *traceNetworkServiceRegistryFindClient) Recv() (*registry.NetworkService
 
 	if err != nil {
 		if err == io.EOF {
+			return nil, err
+		}
+		if err == context.Canceled {
 			return nil, err
 		}
 		return nil, logError(ctx, err, operation)
