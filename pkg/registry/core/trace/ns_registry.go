@@ -50,6 +50,9 @@ func (t *traceNetworkServiceRegistryFindClient) Recv() (*registry.NetworkService
 		if err == io.EOF {
 			return nil, err
 		}
+		if err == context.Canceled {
+			return nil, err
+		}
 		return nil, logError(ctx, err, operation)
 	}
 	logObjectTrace(ctx, "recv-response", rv.NetworkService)
