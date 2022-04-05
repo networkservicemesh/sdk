@@ -17,7 +17,7 @@ require (
 	github.com/google/uuid v1.1.2
 	github.com/nats-io/nats-streaming-server v0.24.3
 	github.com/nats-io/stan.go v0.10.2
-	github.com/networkservicemesh/api v1.2.1-0.20220315001249-f33f8c3f2feb
+	github.com/networkservicemesh/api v1.3.0-rc.1.0.20220405210054-fbcde048efa5
 	github.com/open-policy-agent/opa v0.16.1
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1
