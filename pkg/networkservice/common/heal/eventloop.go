@@ -18,7 +18,6 @@ package heal
 
 import (
 	"context"
-	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -32,21 +31,17 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-const (
-	attemptAfter          = time.Millisecond * 200
-	livenessCheckInterval = time.Millisecond * 500
-)
-
 type eventLoop struct {
-	eventLoopCtx    context.Context
-	chainCtx        context.Context
-	conn            *networkservice.Connection
-	eventFactory    begin.EventFactory
-	client          networkservice.MonitorConnection_MonitorConnectionsClient
-	livelinessCheck LivelinessCheck
+	heal         *healClient
+	eventLoopCtx context.Context
+	chainCtx     context.Context
+	conn         *networkservice.Connection
+	eventFactory begin.EventFactory
+	client       networkservice.MonitorConnection_MonitorConnectionsClient
+	logger       log.Logger
 }
 
-func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networkservice.Connection, livelinessCheck LivelinessCheck) (context.CancelFunc, error) {
+func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networkservice.Connection, heal *healClient) (context.CancelFunc, error) {
 	conn = conn.Clone()
 
 	ev := begin.FromContext(ctx)
@@ -81,13 +76,15 @@ func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networ
 		return nil, errors.WithStack(err)
 	}
 
+	logger := log.FromContext(ctx).WithField("heal", "eventLoop")
 	cev := &eventLoop{
-		eventLoopCtx:    eventLoopCtx,
-		chainCtx:        ctx,
-		conn:            conn,
-		eventFactory:    ev,
-		client:          newClientFilter(client, conn, log.FromContext(ctx)),
-		livelinessCheck: livelinessCheck,
+		heal:         heal,
+		eventLoopCtx: eventLoopCtx,
+		chainCtx:     ctx,
+		conn:         conn,
+		eventFactory: ev,
+		client:       newClientFilter(client, conn, logger),
+		logger:       logger,
 	}
 
 	// Start the eventLoop
@@ -130,63 +127,34 @@ func (cev *eventLoop) waitCtrlPlaneEvent() <-chan struct{} {
 	return res
 }
 
-func (cev *eventLoop) waitDataPlaneEvent() <-chan struct{} {
-	res := make(chan struct{}, 1)
-
-	go func() {
-		defer close(res)
-
-		ticker := clock.FromContext(cev.eventLoopCtx).Ticker(livenessCheckInterval)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-cev.chainCtx.Done():
-				res <- struct{}{}
-				return
-			case <-cev.eventLoopCtx.Done():
-				res <- struct{}{}
-				return
-			case <-ticker.C():
-				if !cev.livelinessCheck(cev.conn) {
-					// Datapath broken, start healing
-					log.FromContext(cev.chainCtx).Info("Datapath broken, start healing")
-					return
-				}
-			}
-		}
-	}()
-
-	return res
-}
-
 func (cev *eventLoop) eventLoop() {
 	reselect := false
 
 	ctrlPlaneCh := cev.waitCtrlPlaneEvent()
 
-	var dataPlaneCh <-chan struct{}
-	if cev.livelinessCheck != nil {
-		dataPlaneCh = cev.waitDataPlaneEvent()
+	livenessCheckerCtx, livenessCheckerCancel := context.WithCancel(context.Background())
+	dataPlaneCh := make(chan struct{}, 1)
+	defer livenessCheckerCancel()
+	if cev.heal.livenessChecker != nil {
+		go func() {
+			cev.heal.livenessChecker(livenessCheckerCtx, cev.conn)
+			dataPlaneCh <- struct{}{}
+		}()
 	} else {
-		// Don't start unnecessary goroutine when no livenessCheck provided
-		dataPlaneCh = make(<-chan struct{})
-		// Since we don't know about datapath status - always use reselect
+		// Since we don't know about data path status - always use reselect
 		reselect = true
 	}
 
 	select {
 	case _, ok := <-ctrlPlaneCh:
+		cev.logger.Warnf("Control plane is down")
 		if ok {
 			// Connection closed
 			return
 		}
 		// Start healing
-	case _, ok := <-dataPlaneCh:
-		if ok {
-			// Connection closed
-			return
-		}
+	case <-dataPlaneCh:
+		cev.logger.Warnf("Data plane is down")
 		reselect = true
 		// Start healing
 	case <-cev.chainCtx.Done():
@@ -196,20 +164,22 @@ func (cev *eventLoop) eventLoop() {
 	}
 
 	/* Attempts to heal the connection */
-	afterTicker := clock.FromContext(cev.eventLoopCtx).Ticker(attemptAfter)
+	afterTicker := clock.FromContext(cev.eventLoopCtx).Ticker(cev.heal.attemptAfter)
 	defer afterTicker.Stop()
 	for {
 		select {
 		case <-cev.chainCtx.Done():
 			return
+		case <-dataPlaneCh:
+			cev.logger.Warnf("Data plane is down")
+			reselect = true
 		case <-afterTicker.C():
 			var errCh <-chan error
-			if !reselect {
-				reselect = !cev.livelinessCheck(cev.conn)
-			}
 			if reselect {
+				cev.logger.Debugf("Reconnect with reselect")
 				errCh = cev.eventFactory.Request(begin.WithReselect())
 			} else {
+				cev.logger.Debugf("Reconnect without reselect")
 				errCh = cev.eventFactory.Request()
 			}
 			if err := <-errCh; err == nil {
