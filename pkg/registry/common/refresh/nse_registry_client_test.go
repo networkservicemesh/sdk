@@ -45,7 +45,7 @@ import (
 
 const (
 	expireTimeout = 3 * time.Minute
-	testWait      = 300 * time.Millisecond
+	testWait      = 400 * time.Millisecond
 	testTick      = testWait / 100
 )
 
