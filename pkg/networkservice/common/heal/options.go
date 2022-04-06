@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -17,22 +17,33 @@
 package heal
 
 import (
+	"context"
+	"time"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
-// LivelinessCheck - function that returns true of conn is 'live' and false otherwise
-type LivelinessCheck func(conn *networkservice.Connection) bool
+// LivenessChecker blocks until the connection is alive or ctx is done.
+type LivenessChecker func(ctx context.Context, conn *networkservice.Connection)
 
-type option struct {
-	livelinessCheck LivelinessCheck
+type options struct {
+	livenessChecker LivenessChecker
+	attemptAfter    time.Duration
 }
 
 // Option - option for heal.NewClient() chain element
-type Option func(o *option)
+type Option func(o *options)
 
-// WithLivelinessCheck - sets the LivelinessCheck for the heal chain elemeent
-func WithLivelinessCheck(livelinessCheck LivelinessCheck) Option {
-	return func(o *option) {
-		o.livelinessCheck = livelinessCheck
+// WithLivenessChecker - sets the liveness checker for the heal chain element
+func WithLivenessChecker(livenessChecker LivenessChecker) Option {
+	return func(o *options) {
+		o.livenessChecker = livenessChecker
+	}
+}
+
+// WithAttemptAfter sets the time interval to wait before healing failed connection
+func WithAttemptAfter(attemptAfter time.Duration) Option {
+	return func(o *options) {
+		o.attemptAfter = attemptAfter
 	}
 }

@@ -18,6 +18,7 @@ package heal
 
 import (
 	"context"
+	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
@@ -32,18 +33,22 @@ import (
 
 type healClient struct {
 	chainCtx        context.Context
-	livelinessCheck LivelinessCheck
+	livenessChecker LivenessChecker
+	attemptAfter    time.Duration
 }
 
 // NewClient - returns a new heal client chain element
 func NewClient(chainCtx context.Context, opts ...Option) networkservice.NetworkServiceClient {
-	o := &option{}
+	o := &options{
+		attemptAfter: time.Millisecond * 200,
+	}
 	for _, opt := range opts {
 		opt(o)
 	}
 	return &healClient{
 		chainCtx:        chainCtx,
-		livelinessCheck: o.livelinessCheck,
+		livenessChecker: o.livenessChecker,
+		attemptAfter:    o.attemptAfter,
 	}
 }
 
@@ -60,7 +65,8 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 	}
 	cc, ccLoaded := clientconn.Load(ctx)
 	if ccLoaded {
-		cancelEventLoop, eventLoopErr := newEventLoop(extend.WithValuesFromContext(h.chainCtx, ctx), cc, conn, h.livelinessCheck)
+		cancelEventLoop, eventLoopErr := newEventLoop(
+			extend.WithValuesFromContext(h.chainCtx, ctx), cc, conn, h)
 		if eventLoopErr != nil {
 			closeCtx, closeCancel := closeCtxFunc()
 			defer closeCancel()
