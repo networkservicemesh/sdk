@@ -27,7 +27,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type refreshNSEClient struct {
@@ -70,9 +69,7 @@ func (c *refreshNSEClient) Register(ctx context.Context, nse *registry.NetworkSe
 			case <-refreshCtx.Done():
 				return
 			case <-refreshCh:
-				log.FromContext(c.ctx).Infof("[REFRESH] Reregister begin")
 				<-factory.Register(begin.CancelContext(refreshCtx))
-				log.FromContext(c.ctx).Infof("[REFRESH] Reregister end")
 			}
 		}()
 	}

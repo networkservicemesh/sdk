@@ -39,13 +39,11 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
 	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 )
 
 const (
 	expireTimeout = 3 * time.Minute
-	testWait      = 400 * time.Millisecond
+	testWait      = 100 * time.Millisecond
 	testTick      = testWait / 100
 )
 
@@ -228,9 +226,6 @@ func Test_RefreshNSEClient_SetsCorrectExpireTime(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	logger := logruslogger.New(ctx)
-	ctx = log.WithLog(ctx, logger)
-
 	clockMock := clockmock.New(ctx)
 	ctx = clock.WithClock(ctx, clockMock)
 
@@ -251,11 +246,9 @@ func Test_RefreshNSEClient_SetsCorrectExpireTime(t *testing.T) {
 		count := int32(i)
 
 		clockMock.Add(expireTimeout / 3 * 2)
-		logger.Info("[TEST] require.Eventually begin")
 		require.Eventually(t, func() bool {
 			return atomic.LoadInt32(&countClient.requestCount) > count
-		}, testWait, testTick)
-		logger.Info("[TEST] require.Eventually end")
+		}, 4*testWait, testTick)
 
 		// Wait for the Refresh to fully happen
 		time.Sleep(testWait)
