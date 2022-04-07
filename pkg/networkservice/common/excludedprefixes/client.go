@@ -205,6 +205,10 @@ func validateIPs(ipContext *networkservice.IPContext, excludedPrefixes []string)
 		if err != nil {
 			return err
 		}
+		// TODO: Think about validating routes with prefixes size less than /32 and /128
+		if prefixLen, maxLen := ipNet.Mask.Size(); prefixLen != maxLen {
+			continue
+		}
 
 		ip4Pool.AddNet(ipNet)
 		ip6Pool.AddNet(ipNet)
