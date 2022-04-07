@@ -27,11 +27,68 @@ import (
 	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/ipcontext/vl3"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
+
+func Test_Client_ConnectsToVl3NSE(t *testing.T) {
+	t.Cleanup(func() {
+		goleak.VerifyNone(t)
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	var serverPrefixCh = make(chan *ipam.PrefixResponse, 1)
+	defer close(serverPrefixCh)
+
+	serverPrefixCh <- &ipam.PrefixResponse{Prefix: "10.0.0.1/24"}
+
+	var clientPrefixCh = make(chan *ipam.PrefixResponse, 1)
+	defer close(clientPrefixCh)
+
+	var server = next.NewNetworkServiceServer(
+		adapters.NewClientToServer(
+			next.NewNetworkServiceClient(
+				begin.NewClient(),
+				metadata.NewClient(),
+				excludedprefixes.NewClient(),
+			),
+		),
+		metadata.NewServer(),
+		vl3.NewServer(ctx, serverPrefixCh),
+	)
+
+	require.Eventually(t, func() bool { return len(serverPrefixCh) == 0 && len(clientPrefixCh) == 0 }, time.Second, time.Millisecond*100)
+
+	resp, err := server.Request(ctx, &networkservice.NetworkServiceRequest{Connection: &networkservice.Connection{Id: t.Name()}})
+
+	require.NoError(t, err)
+
+	require.Equal(t, "10.0.0.1/32", resp.GetContext().GetIpContext().GetSrcIpAddrs()[0])
+	require.Equal(t, "10.0.0.0/32", resp.GetContext().GetIpContext().GetDstIpAddrs()[0])
+
+	require.Equal(t, "10.0.0.0/32", resp.GetContext().GetIpContext().GetSrcRoutes()[0].GetPrefix())
+	require.Equal(t, "10.0.0.0/24", resp.GetContext().GetIpContext().GetSrcRoutes()[1].GetPrefix())
+	require.Equal(t, "10.0.0.0/16", resp.GetContext().GetIpContext().GetSrcRoutes()[2].GetPrefix())
+	require.Equal(t, "10.0.0.1/32", resp.GetContext().GetIpContext().GetDstRoutes()[0].GetPrefix())
+
+	// refresh
+	resp, err = server.Request(ctx, &networkservice.NetworkServiceRequest{Connection: resp})
+
+	require.NoError(t, err)
+
+	require.Equal(t, "10.0.0.1/32", resp.GetContext().GetIpContext().GetSrcIpAddrs()[0])
+	require.Equal(t, "10.0.0.0/32", resp.GetContext().GetIpContext().GetDstIpAddrs()[0])
+
+	require.Equal(t, "10.0.0.0/32", resp.GetContext().GetIpContext().GetSrcRoutes()[0].GetPrefix())
+	require.Equal(t, "10.0.0.0/24", resp.GetContext().GetIpContext().GetSrcRoutes()[1].GetPrefix())
+	require.Equal(t, "10.0.0.0/16", resp.GetContext().GetIpContext().GetSrcRoutes()[2].GetPrefix())
+	require.Equal(t, "10.0.0.1/32", resp.GetContext().GetIpContext().GetDstRoutes()[0].GetPrefix())
+}
 
 func Test_VL3NSE_ConnectsToVl3NSE(t *testing.T) {
 	t.Cleanup(func() {
