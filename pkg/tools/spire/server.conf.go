@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,11 +18,11 @@ package spire
 
 const (
 	spireServerConfFileName = "server/server.conf"
-	spireServerRegSock      = "spire-registration.sock"
+	spireServerRegSock      = "api.sock"
 	spireServerConfContents = `server {
     bind_address = "127.0.0.1"
     bind_port = "8081"
-    registration_uds_path = "%[1]s/%[2]s"
+    socket_path = "%[1]s/%[2]s"
     trust_domain = "example.org"
     data_dir = "%[1]s/data"
     log_level = "WARN"
@@ -46,10 +46,6 @@ plugins {
     NodeAttestor "join_token" {
         plugin_data {
         }
-    }
-
-    NodeResolver "noop" {
-        plugin_data {}
     }
 
     KeyManager "memory" {
