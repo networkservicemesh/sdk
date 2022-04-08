@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -61,7 +61,7 @@ func logrusEntry(ctx context.Context) *logrus.Entry {
 // AddEntry - adds an entry to the spire server for parentID, spiffeID, and selector
 //            parentID is usually the same as the agentID provided to Start()
 func AddEntry(ctx context.Context, parentID, spiffeID, selector string) error {
-	cmdStr := "spire-server entry create -parentID %s -spiffeID %s -selector %s -registrationUDSPath %s/spire-registration.sock"
+	cmdStr := "spire-server entry create -parentID %s -spiffeID %s -selector %s -socketPath %s/api.sock"
 	cmdStr = fmt.Sprintf(cmdStr, parentID, spiffeID, selector, spireRoot)
 	return exechelper.Run(cmdStr,
 		exechelper.WithStdout(logrusEntry(ctx).WithField("cmd", cmdStr).WriterLevel(logrus.InfoLevel)),
@@ -123,7 +123,7 @@ func Start(options ...Option) <-chan error {
 
 	// Health check the Spire Server
 	if err = execHealthCheck(opt.ctx,
-		fmt.Sprintf("spire-server healthcheck -registrationUDSPath %s/spire-registration.sock", spireRoot),
+		fmt.Sprintf("spire-server healthcheck -socketPath %s/api.sock", spireRoot),
 		exechelper.WithStdout(logrusEntry(opt.ctx).WithField("cmd", "spire-server healthcheck").WriterLevel(logrus.InfoLevel)),
 		exechelper.WithStderr(logrusEntry(opt.ctx).WithField("cmd", "spire-server healthcheck").WriterLevel(logrus.WarnLevel)),
 	); err != nil {
@@ -142,7 +142,7 @@ func Start(options ...Option) <-chan error {
 	}
 
 	// Get the SpireServers Token
-	cmdStr := "spire-server token generate -spiffeID %s -registrationUDSPath %s/spire-registration.sock"
+	cmdStr := "spire-server token generate -spiffeID %s -socketPath %s/api.sock"
 	cmdStr = fmt.Sprintf(cmdStr, opt.agentID, spireRoot)
 	outputBytes, err := exechelper.Output(cmdStr,
 		exechelper.WithStdout(logrusEntry(opt.ctx).WithField("cmd", cmdStr).WriterLevel(logrus.InfoLevel)),
