@@ -248,7 +248,7 @@ func Test_RefreshNSEClient_SetsCorrectExpireTime(t *testing.T) {
 		clockMock.Add(expireTimeout / 3 * 2)
 		require.Eventually(t, func() bool {
 			return atomic.LoadInt32(&countClient.requestCount) > count
-		}, testWait, testTick)
+		}, 4*testWait, testTick)
 
 		// Wait for the Refresh to fully happen
 		time.Sleep(testWait)
