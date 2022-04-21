@@ -20,6 +20,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -32,23 +34,23 @@ import (
 )
 
 type healClient struct {
-	chainCtx        context.Context
-	livenessChecker LivenessChecker
-	attemptAfter    time.Duration
+	chainCtx                 context.Context
+	dataPlaneLivenessChecker LivenessChecker
+	backoff                  func() backoff.BackOff
 }
 
 // NewClient - returns a new heal client chain element
 func NewClient(chainCtx context.Context, opts ...Option) networkservice.NetworkServiceClient {
 	o := &options{
-		attemptAfter: time.Millisecond * 200,
+		backoff: defaultBackOff,
 	}
 	for _, opt := range opts {
 		opt(o)
 	}
 	return &healClient{
-		chainCtx:        chainCtx,
-		livenessChecker: o.livenessChecker,
-		attemptAfter:    o.attemptAfter,
+		chainCtx:                 chainCtx,
+		dataPlaneLivenessChecker: o.dataPlaneLivenessChecker,
+		backoff:                  o.backoff,
 	}
 }
 
@@ -84,4 +86,12 @@ func (h *healClient) Close(ctx context.Context, conn *networkservice.Connection,
 		cancelEventLoop()
 	}
 	return next.Client(ctx).Close(ctx, conn)
+}
+
+func defaultBackOff() backoff.BackOff {
+	b := backoff.NewExponentialBackOff()
+	b.InitialInterval = 50 * time.Millisecond
+	b.MaxInterval = time.Second
+	b.MaxElapsedTime = 0
+	return b
 }

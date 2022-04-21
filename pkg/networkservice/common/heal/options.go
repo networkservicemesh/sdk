@@ -18,8 +18,8 @@ package heal
 
 import (
 	"context"
-	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
@@ -27,23 +27,23 @@ import (
 type LivenessChecker func(ctx context.Context, conn *networkservice.Connection)
 
 type options struct {
-	livenessChecker LivenessChecker
-	attemptAfter    time.Duration
+	dataPlaneLivenessChecker LivenessChecker
+	backoff                  func() backoff.BackOff
 }
 
 // Option - option for heal.NewClient() chain element
 type Option func(o *options)
 
-// WithLivenessChecker - sets the liveness checker for the heal chain element
+// WithLivenessChecker - sets the data plane liveness checker
 func WithLivenessChecker(livenessChecker LivenessChecker) Option {
 	return func(o *options) {
-		o.livenessChecker = livenessChecker
+		o.dataPlaneLivenessChecker = livenessChecker
 	}
 }
 
-// WithAttemptAfter sets the time interval to wait before healing failed connection
-func WithAttemptAfter(attemptAfter time.Duration) Option {
+// WithBackoff sets the backoff policy to use during healing failed connections
+func WithBackoff(b func() backoff.BackOff) Option {
 	return func(o *options) {
-		o.attemptAfter = attemptAfter
+		o.backoff = b
 	}
 }

@@ -19,6 +19,7 @@ package heal
 import (
 	"context"
 
+	"github.com/cenkalti/backoff/v4"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -27,7 +28,6 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
-	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
@@ -92,7 +92,7 @@ func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networ
 	return eventLoopCancel, nil
 }
 
-func (cev *eventLoop) waitCtrlPlaneEvent() <-chan struct{} {
+func (cev *eventLoop) monitorCtrlPlane() <-chan struct{} {
 	res := make(chan struct{}, 1)
 
 	go func() {
@@ -130,15 +130,14 @@ func (cev *eventLoop) waitCtrlPlaneEvent() <-chan struct{} {
 func (cev *eventLoop) eventLoop() {
 	reselect := false
 
-	ctrlPlaneCh := cev.waitCtrlPlaneEvent()
+	ctrlPlaneCh := cev.monitorCtrlPlane()
 
-	livenessCheckerCtx, livenessCheckerCancel := context.WithCancel(context.Background())
-	dataPlaneCh := make(chan struct{}, 1)
-	defer livenessCheckerCancel()
-	if cev.heal.livenessChecker != nil {
+	dataPlaneCtx, dataPlaneCancel := context.WithCancel(context.Background())
+	defer dataPlaneCancel()
+	if cev.heal.dataPlaneLivenessChecker != nil {
 		go func() {
-			cev.heal.livenessChecker(livenessCheckerCtx, cev.conn)
-			dataPlaneCh <- struct{}{}
+			cev.heal.dataPlaneLivenessChecker(dataPlaneCtx, cev.conn)
+			dataPlaneCancel()
 		}()
 	} else {
 		// Since we don't know about data path status - always use reselect
@@ -153,7 +152,7 @@ func (cev *eventLoop) eventLoop() {
 			return
 		}
 		// Start healing
-	case <-dataPlaneCh:
+	case <-dataPlaneCtx.Done():
 		cev.logger.Warnf("Data plane is down")
 		reselect = true
 		// Start healing
@@ -164,25 +163,26 @@ func (cev *eventLoop) eventLoop() {
 	}
 
 	/* Attempts to heal the connection */
-	afterTicker := clock.FromContext(cev.eventLoopCtx).Ticker(cev.heal.attemptAfter)
+	afterTicker := backoff.NewTicker(cev.heal.backoff())
 	defer afterTicker.Stop()
 	for {
 		select {
 		case <-cev.chainCtx.Done():
 			return
-		case <-dataPlaneCh:
-			cev.logger.Warnf("Data plane is down")
-			reselect = true
-		case <-afterTicker.C():
-			var errCh <-chan error
+		case <-afterTicker.C:
+			var options []begin.Option
+			if cev.chainCtx.Err() != nil {
+				return
+			}
+			if !reselect && dataPlaneCtx.Err() != nil {
+				cev.logger.Warnf("Data plane is down")
+				reselect = true
+			}
 			if reselect {
 				cev.logger.Debugf("Reconnect with reselect")
-				errCh = cev.eventFactory.Request(begin.WithReselect())
-			} else {
-				cev.logger.Debugf("Reconnect without reselect")
-				errCh = cev.eventFactory.Request()
+				options = append(options, begin.WithReselect())
 			}
-			if err := <-errCh; err == nil {
+			if err := <-cev.eventFactory.Request(options...); err == nil {
 				return
 			}
 		}
