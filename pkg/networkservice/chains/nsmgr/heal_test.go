@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
@@ -211,7 +212,7 @@ func TestNSMGRHealEndpoint_DataPlaneBroken_CtrlPlaneHealthy(t *testing.T) {
 	livenessChecker := mkLivenessChecker()
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
-		nsclient.WithHealClient(heal.NewClient(ctx, heal.WithLivenessChecker(livenessChecker.run), heal.WithAttemptAfter(tick))))
+		nsclient.WithHealClient(heal.NewClient(ctx, heal.WithLivenessChecker(livenessChecker.run), heal.WithBackoff(testBackoff))))
 
 	// Connect to the first NSE.
 	conn, err := nsc.Request(ctx, request.Clone())
@@ -778,4 +779,8 @@ func (c *livenessChecker) run(ctx context.Context, conn *networkservice.Connecti
 	case <-c.killCh:
 		c.kills.Inc()
 	}
+}
+
+func testBackoff() backoff.BackOff {
+	return backoff.NewConstantBackOff(10 * time.Millisecond)
 }

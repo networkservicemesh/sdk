@@ -6,6 +6,7 @@ require (
 	github.com/RoaringBitmap/roaring v0.9.4
 	github.com/antonfisher/nested-logrus-formatter v1.3.1
 	github.com/benbjohnson/clock v1.3.0
+	github.com/cenkalti/backoff/v4 v4.1.2
 	github.com/edwarnicke/exechelper v1.0.2
 	github.com/edwarnicke/grpcfd v1.1.2
 	github.com/edwarnicke/serialize v1.0.7
