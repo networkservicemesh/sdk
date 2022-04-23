@@ -1,3 +1,5 @@
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -25,6 +27,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
@@ -121,7 +124,7 @@ func createClient(ctx context.Context, u *url.URL) networkservice.NetworkService
 }
 
 func createFile(s *checkRecvfdTestSuite, fileName string) (inodeURLStr string, fileClosedContext context.Context, cancelFunc func()) {
-	f, err := os.Create(fileName)
+	f, err := os.Create(filepath.Clean(fileName))
 	s.Require().NoErrorf(err, "Failed to create and open a file: %v", err)
 
 	err = f.Close()

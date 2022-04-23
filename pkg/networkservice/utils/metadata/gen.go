@@ -20,7 +20,7 @@ import (
 	"sync"
 )
 
-//go:generate go-syncmap -output meta_data_map.gen.go -type metaDataMap<string,*metaData>
+//go:generate go run github.com/searKing/golang/tools/cmd/go-syncmap -output meta_data_map.gen.go -type metaDataMap<string,*metaData>
 
 type metaDataMap sync.Map
 

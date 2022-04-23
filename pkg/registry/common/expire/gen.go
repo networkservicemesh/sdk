@@ -18,7 +18,7 @@ package expire
 
 import "sync"
 
-//go:generate go-syncmap -output sync_map.gen.go -type cancelsMap<string,context.CancelFunc>
+//go:generate go run github.com/searKing/golang/tools/cmd/go-syncmap -output sync_map.gen.go -type cancelsMap<string,context.CancelFunc>
 
 // cancelsMap is like a Go map[string]context.CancelFunc but is safe for concurrent use
 // by multiple goroutines without additional locking or coordination

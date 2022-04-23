@@ -20,7 +20,7 @@ import (
 	"sync"
 )
 
-//go:generate go-syncmap -output sync_map.gen.go -type Map<net/url.URL,string>
+//go:generate go run github.com/searKing/golang/tools/cmd/go-syncmap -output sync_map.gen.go -type Map<net/url.URL,string>
 
 // Map is like a Go map[url.URL]string but is safe for concurrent use
 // by multiple goroutines without additional locking or coordination

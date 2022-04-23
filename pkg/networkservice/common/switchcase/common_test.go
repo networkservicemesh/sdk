@@ -1,3 +1,5 @@
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -70,6 +72,6 @@ func condition(n int) switchcase.Condition {
 }
 
 func withN(ctx context.Context, n int) context.Context {
-	// nolint:golint,staticcheck
+	// nolint:revive,staticcheck
 	return context.WithValue(ctx, "key", n)
 }

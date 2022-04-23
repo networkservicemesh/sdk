@@ -24,7 +24,7 @@ import (
 	"github.com/edwarnicke/serialize"
 )
 
-//go:generate go-syncmap -output per_connection_file_map.gen.go -type perConnectionFileMapMap<string,*perConnectionFileMap>
+//go:generate go run github.com/searKing/golang/tools/cmd/go-syncmap -output per_connection_file_map.gen.go -type perConnectionFileMapMap<string,*perConnectionFileMap>
 
 // PerConnectionFileMap - sync.Map with key == string and value == *perConnectionFileMap
 type perConnectionFileMapMap sync.Map

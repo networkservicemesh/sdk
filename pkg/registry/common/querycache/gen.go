@@ -18,6 +18,6 @@ package querycache
 
 import "sync"
 
-//go:generate go-syncmap -output cache_entry_map.gen.go -type cacheEntryMap<string,*cacheEntry>
+//go:generate go run github.com/searKing/golang/tools/cmd/go-syncmap -output cache_entry_map.gen.go -type cacheEntryMap<string,*cacheEntry>
 
 type cacheEntryMap sync.Map

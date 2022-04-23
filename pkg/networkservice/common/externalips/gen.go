@@ -18,7 +18,7 @@ package externalips
 
 import "sync"
 
-//go:generate go-syncmap -output string_map.gen.go -type stringMap<string,string>
+//go:generate go run github.com/searKing/golang/tools/cmd/go-syncmap -output string_map.gen.go -type stringMap<string,string>
 
 // stringMap is like a Go map[string]string but is safe for concurrent use
 // by multiple goroutines without additional locking or coordination.

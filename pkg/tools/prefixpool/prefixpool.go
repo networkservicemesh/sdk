@@ -429,7 +429,7 @@ func extractPrefix(prefixes []string, prefixLen uint32) (retPrefix string, retLe
 		rightParts = append(rightParts, sub2.String())
 		rootCIDRNet = sub1
 	}
-	var resultPrefixes []string = nil
+	var resultPrefixes []string
 	resultPrefixes = append(resultPrefixes, prefixes[:maxPrefixIdx]...)
 	resultPrefixes = append(resultPrefixes, reverse(rightParts)...)
 	resultPrefixes = append(resultPrefixes, prefixes[maxPrefixIdx+1:]...)

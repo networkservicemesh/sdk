@@ -20,6 +20,6 @@ import (
 	"sync"
 )
 
-//go:generate go-syncmap -output mechanism_map.gen.go -type mechanismMap<string,*github.com/networkservicemesh/api/pkg/api/networkservice.Mechanism>
+//go:generate go run github.com/searKing/golang/tools/cmd/go-syncmap -output mechanism_map.gen.go -type mechanismMap<string,*github.com/networkservicemesh/api/pkg/api/networkservice.Mechanism>
 
 type mechanismMap sync.Map

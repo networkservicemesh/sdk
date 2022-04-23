@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
@@ -77,7 +77,7 @@ func TestCheckReloadedPrefixes(t *testing.T) {
 	server := chain.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)))
 	req := request()
 
-	err := ioutil.WriteFile(configPath, []byte(testConfig), 0600)
+	err := ioutil.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
 	require.Eventually(t, func() bool {

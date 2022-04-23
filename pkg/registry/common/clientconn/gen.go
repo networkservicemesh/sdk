@@ -20,7 +20,7 @@ import (
 	"sync"
 )
 
-//go:generate go-syncmap -output map.gen.go -type stringCCMap<string,google.golang.org/grpc.ClientConnInterface>
+//go:generate go run github.com/searKing/golang/tools/cmd/go-syncmap -output map.gen.go -type stringCCMap<string,google.golang.org/grpc.ClientConnInterface>
 
 // clientMap - sync.Map with key == url.URL and value == grpc.ClientConnInterface
 type stringCCMap sync.Map

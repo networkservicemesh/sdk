@@ -10,8 +10,9 @@ linters-settings:
     values:
       regexp:
         company: .*
-        copyright-holder: Copyright \(c\) ({{year-range}}) {{company}}\n\n
-        copyright-holders: ({{copyright-holder}})+
+        copyright-holder-curr: Copyright \(c\) ({{year-range}}) {{company}}\n\n
+        copyright-holder: Copyright \(c\) .*\n\n
+        copyright-holders: ({{copyright-holder}})*({{copyright-holder-curr}})+({{copyright-holder}})*
   errcheck:
     check-type-assertions: false
     check-blank: false
@@ -24,7 +25,7 @@ linters-settings:
           - (github.com/sirupsen/logrus.FieldLogger).Warnf
           - (github.com/sirupsen/logrus.FieldLogger).Errorf
           - (github.com/sirupsen/logrus.FieldLogger).Fatalf
-  golint:
+  revive:
     min-confidence: 0.8
   goimports:
     local-prefixes: github.com/networkservicemesh/sdk
@@ -143,7 +144,7 @@ linters:
     - gocyclo
     - gofmt
     - goimports
-    - golint
+    - revive
     - gosec
     - gosimple
     - govet
@@ -152,7 +153,7 @@ linters:
     # - lll
     - misspell
     - nakedret
-    - scopelint
+    - exportloopref
     - staticcheck
     - structcheck
     - stylecheck
@@ -172,10 +173,10 @@ issues:
     - path: .*\.gen\.go
       linters:
         - dupl
-        - golint
+        - revive
     - path: pkg/tools/opa/policies.go
       linters:
-        - golint
+        - revive
     - path: .*registry.*.go
       linters:
         - dupl

@@ -29,7 +29,7 @@ const (
 )
 
 var (
-	isTracingEnabled int32 = 0
+	isTracingEnabled int32
 )
 
 // Logger - unified interface for logging

@@ -21,7 +21,7 @@ import (
 	"sync"
 )
 
-//go:generate go-syncmap -output clientmap.gen.go -type Map<string,github.com/networkservicemesh/api/pkg/api/networkservice.NetworkServiceClient>
+//go:generate go run github.com/searKing/golang/tools/cmd/go-syncmap -output clientmap.gen.go -type Map<string,github.com/networkservicemesh/api/pkg/api/networkservice.NetworkServiceClient>
 
 // Map - sync.Map with key == string and value == networkservice.NetworkServiceClient
 type Map sync.Map

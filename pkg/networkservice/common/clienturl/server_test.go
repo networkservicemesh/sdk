@@ -1,3 +1,5 @@
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -74,7 +76,7 @@ func TestOverwriteURL(t *testing.T) {
 
 func TestOverwriteURLByNil(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	var clientURL *url.URL = nil
+	var clientURL *url.URL
 	previousURL := &url.URL{
 		Scheme: "unix",
 		Path:   "/var/run/nse-1.sock",

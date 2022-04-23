@@ -22,7 +22,7 @@ import (
 	"sync"
 )
 
-//go:generate go-syncmap -output vni_map.gen.go -type Map<vniKey,*vniKey>
+//go:generate go run github.com/searKing/golang/tools/cmd/go-syncmap -output vni_map.gen.go -type Map<vniKey,*vniKey>
 
 type vniKey struct {
 	srcIPString string

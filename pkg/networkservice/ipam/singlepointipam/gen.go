@@ -20,7 +20,7 @@ import (
 	"sync"
 )
 
-//go:generate go-syncmap -output connectionInfoMap.gen.go -type Map<string,*connectionInfo>
+//go:generate go run github.com/searKing/golang/tools/cmd/go-syncmap -output connectionInfoMap.gen.go -type Map<string,*connectionInfo>
 
 // Map - sync.Map with key == string and value == networkservice.NetworkServiceClient
 type Map sync.Map

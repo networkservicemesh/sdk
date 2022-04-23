@@ -1,3 +1,5 @@
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // Copyright (c) 2021 Nordix Foundation.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -42,7 +44,7 @@ func TestVNIClient(t *testing.T) {
 			},
 		},
 	}
-	var port uint16 = 0
+	var port uint16
 	c := next.NewNetworkServiceClient(vni.NewClient(net.ParseIP("192.0.2.1")))
 	conn, err := c.Request(context.Background(), request)
 	assert.Nil(t, err)

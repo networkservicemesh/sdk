@@ -20,6 +20,6 @@ import (
 	"sync"
 )
 
-//go:generate go-syncmap -output dns_configs_map.gen.go -type dnsConfigsMap<string,[]*github.com/networkservicemesh/api/pkg/api/networkservice.DNSConfig>
+//go:generate go run github.com/searKing/golang/tools/cmd/go-syncmap -output dns_configs_map.gen.go -type dnsConfigsMap<string,[]*github.com/networkservicemesh/api/pkg/api/networkservice.DNSConfig>
 
 type dnsConfigsMap sync.Map

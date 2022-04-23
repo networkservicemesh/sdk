@@ -20,12 +20,12 @@ import (
 	"sync"
 )
 
-//go:generate go-syncmap -output client_map.gen.go -type clientMap<string,*eventFactoryClient>
+//go:generate go run github.com/searKing/golang/tools/cmd/go-syncmap -output client_map.gen.go -type clientMap<string,*eventFactoryClient>
 
 // clientMap - sync.Map with key == string and value == *eventFactoryClient
 type clientMap sync.Map
 
-//go:generate go-syncmap -output server_map.gen.go -type serverMap<string,*eventFactoryServer>
+//go:generate go run github.com/searKing/golang/tools/cmd/go-syncmap -output server_map.gen.go -type serverMap<string,*eventFactoryServer>
 
 // serverMap - sync.Map with key == string and value == *eventFactoryServer
 type serverMap sync.Map

@@ -20,11 +20,11 @@ import (
 	"sync"
 )
 
-//go:generate go-syncmap -output nse_client_map.gen.go -type nseClientMap<string,*eventNSEFactoryClient>
-//go:generate go-syncmap -output nse_server_map.gen.go -type nseServerMap<string,*eventNSEFactoryServer>
+//go:generate go run github.com/searKing/golang/tools/cmd/go-syncmap -output nse_client_map.gen.go -type nseClientMap<string,*eventNSEFactoryClient>
+//go:generate go run github.com/searKing/golang/tools/cmd/go-syncmap -output nse_server_map.gen.go -type nseServerMap<string,*eventNSEFactoryServer>
 
-//go:generate go-syncmap -output ns_client_map.gen.go -type nsClientMap<string,*eventNSFactoryClient>
-//go:generate go-syncmap -output ns_server_map.gen.go -type nsServerMap<string,*eventNSFactoryServer>
+//go:generate go run github.com/searKing/golang/tools/cmd/go-syncmap -output ns_client_map.gen.go -type nsClientMap<string,*eventNSFactoryClient>
+//go:generate go run github.com/searKing/golang/tools/cmd/go-syncmap -output ns_server_map.gen.go -type nsServerMap<string,*eventNSFactoryServer>
 
 // nseClientMap - sync.Map with key == string and value == *eventNSEFactoryClient
 type nseClientMap sync.Map

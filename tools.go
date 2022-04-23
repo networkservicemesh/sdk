@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,13 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package stringurl provides sync map like a Go map[string]*url.URL but is safe for concurrent using
-package stringurl
+//go:build tools
 
-import "sync"
+package tools
 
-//go:generate go run github.com/searKing/golang/tools/cmd/go-syncmap -output sync_map.gen.go -type Map<string,*net/url.URL>
-
-// Map is like a Go map[string]*url.URL but is safe for concurrent use
-// by multiple goroutines without additional locking or coordination
-type Map sync.Map
+import (
+	_ "github.com/searKing/golang/tools/cmd/go-syncmap"
+)

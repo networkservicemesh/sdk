@@ -18,8 +18,8 @@ package memory
 
 import "sync"
 
-//go:generate go-syncmap -output ns_sync_map.gen.go -type NetworkServiceSyncMap<string,*github.com/networkservicemesh/api/pkg/api/registry.NetworkService>
-//go:generate go-syncmap -output nse_sync_map.gen.go -type NetworkServiceEndpointSyncMap<string,*github.com/networkservicemesh/api/pkg/api/registry.NetworkServiceEndpoint>
+//go:generate go run github.com/searKing/golang/tools/cmd/go-syncmap -output ns_sync_map.gen.go -type NetworkServiceSyncMap<string,*github.com/networkservicemesh/api/pkg/api/registry.NetworkService>
+//go:generate go run github.com/searKing/golang/tools/cmd/go-syncmap -output nse_sync_map.gen.go -type NetworkServiceEndpointSyncMap<string,*github.com/networkservicemesh/api/pkg/api/registry.NetworkServiceEndpoint>
 
 // NetworkServiceSyncMap is like a Go map[string]*registry.NetworkService but is safe for concurrent use
 // by multiple goroutines without additional locking or coordination.

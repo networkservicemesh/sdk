@@ -69,7 +69,7 @@ func AddEntry(ctx context.Context, parentID, spiffeID, selector string) error {
 	)
 }
 
-var spireRoot string = ""
+var spireRoot string
 
 // Start - start a spire-server and spire-agent with the given agentId
 func Start(options ...Option) <-chan error {
@@ -225,10 +225,10 @@ func writeDefaultConfigFiles(ctx context.Context, spireRoot string) (string, err
 		filename := path.Join(spireRoot, configName)
 		if _, err := os.Stat(filename); os.IsNotExist(err) {
 			logrusEntry(ctx).Infof("Configuration file: %q not found, using defaults", filename)
-			if err := os.MkdirAll(path.Dir(filename), 0700); err != nil {
+			if err := os.MkdirAll(path.Dir(filename), 0o700); err != nil {
 				return "", err
 			}
-			if err := ioutil.WriteFile(filename, []byte(contents), 0600); err != nil {
+			if err := ioutil.WriteFile(filename, []byte(contents), 0o600); err != nil {
 				return "", err
 			}
 		}

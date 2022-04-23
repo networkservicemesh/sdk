@@ -1,3 +1,5 @@
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // Copyright (c) 2021 Nordix Foundation.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -49,7 +51,7 @@ func TestVNIServer(t *testing.T) {
 		Type: vxlan.MECHANISM,
 	}
 	vxlan.ToMechanism(request.GetConnection().GetMechanism()).SetSrcIP(net.ParseIP("192.0.2.1"))
-	var port uint16 = 0
+	var port uint16
 	server := next.NewNetworkServiceServer(
 		metadata.NewServer(),
 		vni.NewServer(net.ParseIP("192.0.2.2")),
