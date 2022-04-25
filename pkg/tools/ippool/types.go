@@ -20,6 +20,8 @@ package ippool
 
 import "math"
 
+type UnexportedType struct{}
+
 type ipAddress struct {
 	high, low uint64
 }
