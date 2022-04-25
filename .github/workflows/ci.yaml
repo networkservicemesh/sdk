@@ -37,6 +37,9 @@ jobs:
   golangci-lint:
     name: golangci-lint
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [linux, darwin, windows]
     steps:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
@@ -50,6 +53,8 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         with:
           version: v1.42.1
+        env:
+          GOOS: ${{ matrix.goos }}
   excludeFmtErrorf:
     name: exclude fmt.Errorf
     runs-on: ubuntu-latest
