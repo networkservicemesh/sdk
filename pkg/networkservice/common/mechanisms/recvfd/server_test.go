@@ -121,6 +121,7 @@ func createClient(ctx context.Context, u *url.URL) networkservice.NetworkService
 }
 
 func createFile(s *checkRecvfdTestSuite, fileName string) (inodeURLStr string, fileClosedContext context.Context, cancelFunc func()) {
+	// #nosec
 	f, err := os.Create(fileName)
 	s.Require().NoErrorf(err, "Failed to create and open a file: %v", err)
 
