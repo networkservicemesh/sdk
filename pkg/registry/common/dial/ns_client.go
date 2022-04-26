@@ -163,7 +163,7 @@ func (c *dialNSClient) Find(ctx context.Context, in *registry.NetworkServiceQuer
 // NewNetworkServiceRegistryClient - returns a new null client that does nothing but call next.NetworkServiceRegistryClient(ctx).
 func NewNetworkServiceRegistryClient(chainCtx context.Context, opts ...Option) registry.NetworkServiceRegistryClient {
 	o := &option{
-		dialTimeout: time.Millisecond * 100,
+		dialTimeout: time.Millisecond * 300,
 	}
 	for _, opt := range opts {
 		opt(o)
