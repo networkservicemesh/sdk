@@ -17,7 +17,14 @@
 package heal
 
 import (
+	"time"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+)
+
+const (
+	livenessPingInterval = 200 * time.Millisecond
+	livenessPingTimeout  = 100 * time.Millisecond
 )
 
 // LivelinessChecker - function that returns true of conn is 'live' and false otherwise
@@ -25,6 +32,8 @@ type LivenessChecker func(conn *networkservice.Connection) bool
 
 type options struct {
 	dataPlaneLivenessChecker LivenessChecker
+	livenessPingInterval     time.Duration
+	livenessPingTimeout      time.Duration
 }
 
 // Option - option for heal.NewClient() chain element
@@ -34,5 +43,17 @@ type Option func(o *options)
 func WithLivenessChecker(livenessChecker LivenessChecker) Option {
 	return func(o *options) {
 		o.dataPlaneLivenessChecker = livenessChecker
+	}
+}
+
+func WithLivenessPingInterval(livenessPingInterval time.Duration) Option {
+	return func(o *options) {
+		o.livenessPingInterval = livenessPingInterval
+	}
+}
+
+func WithLivenessPingTimeout(livenessPingTimeout time.Duration) Option {
+	return func(o *options) {
+		o.livenessPingTimeout = livenessPingTimeout
 	}
 }

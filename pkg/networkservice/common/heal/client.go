@@ -37,7 +37,10 @@ type healClient struct {
 
 // NewClient - returns a new heal client chain element
 func NewClient(chainCtx context.Context, opts ...Option) networkservice.NetworkServiceClient {
-	o := &options{}
+	o := &options{
+		livenessPingInterval: livenessPingInterval,
+		livenessPingTimeout:  livenessPingTimeout,
+	}
 	for _, opt := range opts {
 		opt(o)
 	}
