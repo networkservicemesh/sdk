@@ -23,8 +23,8 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
-// LivenessChecker blocks until the connection is alive or ctx is done.
-type LivenessChecker func(ctx context.Context, conn *networkservice.Connection)
+// LivelinessChecker - function that returns true of conn is 'live' and false otherwise
+type LivenessChecker func(conn *networkservice.Connection) bool
 
 type options struct {
 	dataPlaneLivenessChecker LivenessChecker

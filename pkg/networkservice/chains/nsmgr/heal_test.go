@@ -148,7 +148,8 @@ func TestNSMGRHealEndpoint_DataPlaneBroken_CtrlPlaneBroken(t *testing.T) {
 
 	request := defaultRequest(nsReg.Name)
 
-	livenessChecker := func(ctx context.Context, conn *networkservice.Connection) {
+	livenessChecker := func(conn *networkservice.Connection) bool {
+		return false
 	}
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
@@ -209,10 +210,10 @@ func TestNSMGRHealEndpoint_DataPlaneBroken_CtrlPlaneHealthy(t *testing.T) {
 
 	request := defaultRequest(nsReg.Name)
 
-	livenessChecker := mkLivenessChecker()
+	livenessCheck := func(conn *networkservice.Connection) bool { return false }
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
-		nsclient.WithHealClient(heal.NewClient(ctx, heal.WithLivenessChecker(livenessChecker.run), heal.WithBackoff(testBackoff))))
+		nsclient.WithHealClient(heal.NewClient(ctx, heal.WithLivenessChecker(livenessCheck))))
 
 	// Connect to the first NSE.
 	conn, err := nsc.Request(ctx, request.Clone())
@@ -224,30 +225,9 @@ func TestNSMGRHealEndpoint_DataPlaneBroken_CtrlPlaneHealthy(t *testing.T) {
 	nseReg2.Name += "-2"
 	domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter)
 
-	// As long as liveness check is good, we do not expect reconnects.
-	require.Never(t, func() bool { return counter.Requests() != 1 }, neverTimeout, tick)
-
-	// If liveness check fail once, we expect one additional reconnect, but not more.
-	// If liveness check fails continuously, we expect reconnect number to grow.
-	kills := 5
-	for i := 0; i < kills; i++ {
-		livenessChecker.killCh <- struct{}{}
-		// nolint:scopelint
-		require.Eventually(t, func() bool {
-			return counter.Requests() == i+2 &&
-				livenessChecker.enters.Load() == uint32(i+2) &&
-				livenessChecker.dones.Load() == uint32(0) &&
-				livenessChecker.kills.Load() == uint32(i+1)
-		}, timeout, tick)
-	}
-	require.Never(t, func() bool {
-		return counter.Requests() != kills+1 ||
-			livenessChecker.enters.Load() != uint32(kills+1) ||
-			livenessChecker.dones.Load() != uint32(0) ||
-			livenessChecker.kills.Load() != uint32(kills)
-	}, neverTimeout, tick)
-
-	requests := counter.Requests()
+	require.Eventually(t, checkSecondRequestsReceived(counter.UniqueRequests), timeout, tick)
+	require.Equal(t, 2, counter.UniqueRequests())
+	closes := counter.UniqueCloses()
 
 	// Check refresh
 	request.Connection = conn
@@ -258,9 +238,8 @@ func TestNSMGRHealEndpoint_DataPlaneBroken_CtrlPlaneHealthy(t *testing.T) {
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
 
-	require.Equal(t, requests+1, counter.Requests())
-	require.Equal(t, livenessChecker.enters.Load(),
-		livenessChecker.dones.Load()+livenessChecker.kills.Load())
+	require.Equal(t, 2, counter.UniqueRequests())
+	require.Equal(t, closes+1, counter.UniqueCloses())
 }
 
 func TestNSMGRHealEndpoint_DatapathHealthy_CtrlPlaneBroken(t *testing.T) {
@@ -286,11 +265,11 @@ func TestNSMGRHealEndpoint_DatapathHealthy_CtrlPlaneBroken(t *testing.T) {
 
 	request := defaultRequest(nsReg.Name)
 
-	livenessChecker := mkLivenessChecker()
+	livenessCheck := func(conn *networkservice.Connection) bool { return true }
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
 		nsclient.WithHealClient(heal.NewClient(ctx,
-			heal.WithLivenessChecker(livenessChecker.run))))
+			heal.WithLivenessChecker(livenessCheck))))
 
 	_, err = nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -305,8 +284,6 @@ func TestNSMGRHealEndpoint_DatapathHealthy_CtrlPlaneBroken(t *testing.T) {
 	// Should not connect to new NSE
 	require.Eventually(t, func() bool { return counter.UniqueRequests() == 1 }, timeout, tick)
 	require.Equal(t, 1, counter.UniqueRequests())
-	require.Equal(t, livenessChecker.enters.Load(),
-		livenessChecker.dones.Load()+livenessChecker.kills.Load()+1)
 }
 
 func TestNSMGR_HealForwarder(t *testing.T) {
@@ -753,34 +730,4 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 			},
 		}, sandbox.GenerateTestToken)
 	}
-}
-
-type livenessChecker struct {
-	enters *atomic.Uint32
-	dones  *atomic.Uint32
-	kills  *atomic.Uint32
-	killCh chan struct{}
-}
-
-func mkLivenessChecker() *livenessChecker {
-	return &livenessChecker{
-		enters: atomic.NewUint32(0),
-		dones:  atomic.NewUint32(0),
-		kills:  atomic.NewUint32(0),
-		killCh: make(chan struct{}, 5),
-	}
-}
-
-func (c *livenessChecker) run(ctx context.Context, conn *networkservice.Connection) {
-	c.enters.Inc()
-	select {
-	case <-ctx.Done():
-		c.dones.Inc()
-	case <-c.killCh:
-		c.kills.Inc()
-	}
-}
-
-func testBackoff() backoff.BackOff {
-	return backoff.NewConstantBackOff(10 * time.Millisecond)
 }

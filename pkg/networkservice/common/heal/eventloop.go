@@ -136,7 +136,7 @@ func (cev *eventLoop) eventLoop() {
 	defer dataPlaneCancel()
 	if cev.heal.dataPlaneLivenessChecker != nil {
 		go func() {
-			cev.heal.dataPlaneLivenessChecker(dataPlaneCtx, cev.conn)
+			cev.heal.dataPlaneLivenessChecker(cev.conn)
 			dataPlaneCancel()
 		}()
 	} else {
