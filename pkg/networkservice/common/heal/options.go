@@ -23,8 +23,8 @@ import (
 )
 
 const (
-	livenessPingInterval = 200 * time.Millisecond
-	livenessPingTimeout  = 100 * time.Millisecond
+	livenessInterval = 200 * time.Millisecond
+	livenessTimeout  = 100 * time.Millisecond
 )
 
 // LivenessChecker - function that returns true of conn is 'live' and false otherwise
