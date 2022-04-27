@@ -18,6 +18,7 @@ package heal
 
 import (
 	"context"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -27,7 +28,12 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
+)
+
+const (
+	attemptAfter = time.Millisecond * 200
 )
 
 type eventLoop struct {
@@ -168,7 +174,7 @@ func (cev *eventLoop) eventLoop() {
 		select {
 		case <-cev.chainCtx.Done():
 			return
-		case <-afterTicker.C:
+		case <-afterTicker.C():
 			var options []begin.Option
 			if cev.chainCtx.Err() != nil {
 				return
