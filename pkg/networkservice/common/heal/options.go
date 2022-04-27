@@ -17,9 +17,6 @@
 package heal
 
 import (
-	"context"
-
-	"github.com/cenkalti/backoff/v4"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
@@ -28,7 +25,6 @@ type LivenessChecker func(conn *networkservice.Connection) bool
 
 type options struct {
 	dataPlaneLivenessChecker LivenessChecker
-	backoff                  func() backoff.BackOff
 }
 
 // Option - option for heal.NewClient() chain element
@@ -38,12 +34,5 @@ type Option func(o *options)
 func WithLivenessChecker(livenessChecker LivenessChecker) Option {
 	return func(o *options) {
 		o.dataPlaneLivenessChecker = livenessChecker
-	}
-}
-
-// WithBackoff sets the backoff policy to use during healing failed connections
-func WithBackoff(b func() backoff.BackOff) Option {
-	return func(o *options) {
-		o.backoff = b
 	}
 }

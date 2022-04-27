@@ -19,7 +19,6 @@ package heal
 import (
 	"context"
 
-	"github.com/cenkalti/backoff/v4"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -163,7 +162,7 @@ func (cev *eventLoop) eventLoop() {
 	}
 
 	/* Attempts to heal the connection */
-	afterTicker := backoff.NewTicker(cev.heal.backoff())
+	afterTicker := clock.FromContext(cev.eventLoopCtx).Ticker(attemptAfter)
 	defer afterTicker.Stop()
 	for {
 		select {

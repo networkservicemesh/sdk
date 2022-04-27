@@ -18,9 +18,6 @@ package heal
 
 import (
 	"context"
-	"time"
-
-	"github.com/cenkalti/backoff/v4"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
@@ -36,21 +33,17 @@ import (
 type healClient struct {
 	chainCtx                 context.Context
 	dataPlaneLivenessChecker LivenessChecker
-	backoff                  func() backoff.BackOff
 }
 
 // NewClient - returns a new heal client chain element
 func NewClient(chainCtx context.Context, opts ...Option) networkservice.NetworkServiceClient {
-	o := &options{
-		backoff: defaultBackOff,
-	}
+	o := &options{}
 	for _, opt := range opts {
 		opt(o)
 	}
 	return &healClient{
 		chainCtx:                 chainCtx,
 		dataPlaneLivenessChecker: o.dataPlaneLivenessChecker,
-		backoff:                  o.backoff,
 	}
 }
 
@@ -86,12 +79,4 @@ func (h *healClient) Close(ctx context.Context, conn *networkservice.Connection,
 		cancelEventLoop()
 	}
 	return next.Client(ctx).Close(ctx, conn)
-}
-
-func defaultBackOff() backoff.BackOff {
-	b := backoff.NewExponentialBackOff()
-	b.InitialInterval = 50 * time.Millisecond
-	b.MaxInterval = time.Second
-	b.MaxElapsedTime = 0
-	return b
 }
