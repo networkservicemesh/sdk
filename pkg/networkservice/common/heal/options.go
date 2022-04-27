@@ -27,7 +27,7 @@ const (
 	livenessPingTimeout  = 100 * time.Millisecond
 )
 
-// LivelinessChecker - function that returns true of conn is 'live' and false otherwise
+// LivenessChecker - function that returns true of conn is 'live' and false otherwise
 type LivenessChecker func(conn *networkservice.Connection) bool
 
 type options struct {
@@ -46,12 +46,14 @@ func WithLivenessChecker(livenessChecker LivenessChecker) Option {
 	}
 }
 
+// WithLivenessPingInterval - sets livenessPingInterval
 func WithLivenessPingInterval(livenessPingInterval time.Duration) Option {
 	return func(o *options) {
 		o.livenessPingInterval = livenessPingInterval
 	}
 }
 
+// WithLivenessPingTimeout - sets livenessPingTimeout
 func WithLivenessPingTimeout(livenessPingTimeout time.Duration) Option {
 	return func(o *options) {
 		o.livenessPingTimeout = livenessPingTimeout
