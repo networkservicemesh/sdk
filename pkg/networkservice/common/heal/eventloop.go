@@ -140,9 +140,27 @@ func (cev *eventLoop) eventLoop() {
 	dataPlaneCtx, dataPlaneCancel := context.WithCancel(context.Background())
 	defer dataPlaneCancel()
 	if cev.heal.dataPlaneLivenessChecker != nil {
+		log.FromContext(cev.chainCtx).Info("MY_INFO started to check dataplane")
 		go func() {
-			cev.heal.dataPlaneLivenessChecker(cev.conn)
-			dataPlaneCancel()
+			ticker := time.NewTicker(cev.heal.livenessPingInterval)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					deadlineCtx, deadlineCancel := context.WithDeadline(context.Background(), time.Now().Add(cev.heal.livenessPingTimeout))
+					log.FromContext(cev.chainCtx).Info("MY_INFO check if dataplane is alive")
+					alive := cev.heal.dataPlaneLivenessChecker(deadlineCtx, cev.conn)
+					deadlineCancel()
+
+					if !alive {
+						log.FromContext(cev.chainCtx).Info("MY_INFO dataplane is dead. BaAAdd!!!! :(")
+						dataPlaneCancel()
+						return
+					}
+					log.FromContext(cev.chainCtx).Info("MY_INFO dataplane is alive. GOOD!!!! :O")
+
+				}
+			}
 		}()
 	} else {
 		// Since we don't know about data path status - always use reselect
@@ -158,6 +176,7 @@ func (cev *eventLoop) eventLoop() {
 		}
 		// Start healing
 	case <-dataPlaneCtx.Done():
+		log.FromContext(cev.chainCtx).Info("MY_INFO dataplane is down start healing")
 		cev.logger.Warnf("Data plane is down")
 		reselect = true
 		// Start healing

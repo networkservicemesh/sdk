@@ -17,6 +17,7 @@
 package heal
 
 import (
+	"context"
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -28,7 +29,7 @@ const (
 )
 
 // LivenessChecker - function that returns true of conn is 'live' and false otherwise
-type LivenessChecker func(conn *networkservice.Connection) bool
+type LivenessChecker func(deadlineCtx context.Context, conn *networkservice.Connection) bool
 
 type options struct {
 	dataPlaneLivenessChecker LivenessChecker

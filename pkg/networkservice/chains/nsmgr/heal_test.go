@@ -144,7 +144,7 @@ func TestNSMGRHealEndpoint_DataPlaneBroken_CtrlPlaneBroken(t *testing.T) {
 
 	request := defaultRequest(nsReg.Name)
 
-	livenessChecker := func(conn *networkservice.Connection) bool {
+	livenessChecker := func(ctx context.Context, conn *networkservice.Connection) bool {
 		return false
 	}
 
@@ -206,7 +206,7 @@ func TestNSMGRHealEndpoint_DataPlaneBroken_CtrlPlaneHealthy(t *testing.T) {
 
 	request := defaultRequest(nsReg.Name)
 
-	livenessCheck := func(conn *networkservice.Connection) bool { return false }
+	livenessCheck := func(ctx context.Context, conn *networkservice.Connection) bool { return false }
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
 		nsclient.WithHealClient(heal.NewClient(ctx, heal.WithLivenessChecker(livenessCheck))))
@@ -261,7 +261,7 @@ func TestNSMGRHealEndpoint_DatapathHealthy_CtrlPlaneBroken(t *testing.T) {
 
 	request := defaultRequest(nsReg.Name)
 
-	livenessCheck := func(conn *networkservice.Connection) bool { return true }
+	livenessCheck := func(ctx context.Context, conn *networkservice.Connection) bool { return true }
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
 		nsclient.WithHealClient(heal.NewClient(ctx,

@@ -18,6 +18,7 @@ package heal
 
 import (
 	"context"
+	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
@@ -33,6 +34,8 @@ import (
 type healClient struct {
 	chainCtx                 context.Context
 	dataPlaneLivenessChecker LivenessChecker
+	livenessPingInterval     time.Duration
+	livenessPingTimeout      time.Duration
 }
 
 // NewClient - returns a new heal client chain element
@@ -47,6 +50,8 @@ func NewClient(chainCtx context.Context, opts ...Option) networkservice.NetworkS
 	return &healClient{
 		chainCtx:                 chainCtx,
 		dataPlaneLivenessChecker: o.dataPlaneLivenessChecker,
+		livenessPingInterval:     o.livenessPingInterval,
+		livenessPingTimeout:      o.livenessPingTimeout,
 	}
 }
 
