@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,14 +21,18 @@ import (
 )
 
 type entry struct {
-	spiffeID string
-	selector string
+	spiffeID      string
+	selector      string
+	federatesWith string
 }
 
 type option struct {
-	ctx     context.Context
-	agentID string
-	entries []*entry
+	ctx        context.Context
+	agentID    string
+	agentConf  string
+	serverConf string
+	spireRoot  string
+	entries    []*entry
 }
 
 // Option for spire
@@ -49,11 +53,33 @@ func WithAgentID(agentID string) Option {
 }
 
 // WithEntry - Option to add Entry to spire-server.  May be used multiple times.
-func WithEntry(spiffeID, selector string) Option {
+func WithEntry(spiffeID, selector, federatesWith string) Option {
 	return func(o *option) {
 		o.entries = append(o.entries, &entry{
-			spiffeID: spiffeID,
-			selector: selector,
+			spiffeID:      spiffeID,
+			selector:      selector,
+			federatesWith: federatesWith,
 		})
+	}
+}
+
+// WithAgentConfig - adds agent config
+func WithAgentConfig(conf string) Option {
+	return func(o *option) {
+		o.agentConf = conf
+	}
+}
+
+// WithServerConfig - adds server config
+func WithServerConfig(conf string) Option {
+	return func(o *option) {
+		o.serverConf = conf
+	}
+}
+
+// WithRoot - sets root folder
+func WithRoot(root string) Option {
+	return func(o *option) {
+		o.spireRoot = root
 	}
 }
