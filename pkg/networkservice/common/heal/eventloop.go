@@ -140,7 +140,10 @@ func (cev *eventLoop) eventLoop() {
 	dataPlaneCtx, dataPlaneCancel := context.WithCancel(context.Background())
 	defer dataPlaneCancel()
 	if cev.heal.dataPlaneLivenessChecker != nil {
-		go cev.monitorDataPlane(dataPlaneCancel)
+		go func() {
+			cev.monitorDataPlane()
+			dataPlaneCancel()
+		}()
 	} else {
 		// Since we don't know about data path status - always use reselect
 		reselect = true
@@ -192,23 +195,27 @@ func (cev *eventLoop) eventLoop() {
 	}
 }
 
-func (cev *eventLoop) monitorDataPlane(dataPlaneCancel context.CancelFunc) {
+func (cev *eventLoop) monitorDataPlane() {
 	log.FromContext(cev.chainCtx).Info("MY_INFO started to check dataplane")
 	ticker := time.NewTicker(cev.heal.livenessPingInterval)
 	defer ticker.Stop()
 	for {
-		<-ticker.C
-		deadlineCtx, deadlineCancel := context.WithDeadline(context.Background(), time.Now().Add(cev.heal.livenessPingTimeout))
-		log.FromContext(cev.chainCtx).Info("MY_INFO check if dataplane is alive")
-		alive := cev.heal.dataPlaneLivenessChecker(deadlineCtx, cev.conn)
-		deadlineCancel()
+		select {
+		case <-ticker.C:
+			deadlineCtx, deadlineCancel := context.WithDeadline(context.Background(), time.Now().Add(cev.heal.livenessPingTimeout))
+			log.FromContext(cev.chainCtx).Info("MY_INFO check if dataplane is alive")
+			alive := cev.heal.dataPlaneLivenessChecker(deadlineCtx, cev.conn)
+			deadlineCancel()
 
-		if !alive {
-			log.FromContext(cev.chainCtx).Info("MY_INFO dataplane is dead. BaAAdd!!!! :(")
-			dataPlaneCancel()
+			if !alive {
+				log.FromContext(cev.chainCtx).Info("MY_INFO dataplane is dead. BaAAdd!!!! :(")
+				return
+			}
+
+			log.FromContext(cev.chainCtx).Info("MY_INFO dataplane is alive. GOOD!!!! :O")
+		case <-cev.chainCtx.Done():
+		case <-cev.eventLoopCtx.Done():
 			return
 		}
-
-		log.FromContext(cev.chainCtx).Info("MY_INFO dataplane is alive. GOOD!!!! :O")
 	}
 }
