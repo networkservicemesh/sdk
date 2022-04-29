@@ -158,7 +158,6 @@ func (cev *eventLoop) eventLoop() {
 		}
 		// Start healing
 	case <-dataPlaneCtx.Done():
-		log.FromContext(cev.chainCtx).Info("MY_INFO dataplane is down start healing")
 		cev.logger.Warnf("Data plane is down")
 		reselect = true
 		// Start healing
@@ -196,24 +195,20 @@ func (cev *eventLoop) eventLoop() {
 }
 
 func (cev *eventLoop) monitorDataPlane() {
-	log.FromContext(cev.chainCtx).Info("MY_INFO started to check dataplane")
-	ticker := time.NewTicker(cev.heal.livenessPingInterval)
+	ticker := time.NewTicker(cev.heal.livenessCheckInterval)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			deadlineCtx, deadlineCancel := context.WithDeadline(context.Background(), time.Now().Add(cev.heal.livenessPingTimeout))
-			log.FromContext(cev.chainCtx).Info("MY_INFO check if dataplane is alive")
+			deadlineCtx, deadlineCancel := context.WithDeadline(context.Background(), time.Now().Add(cev.heal.livenessCheckTimeout))
 			alive := cev.heal.dataPlaneLivenessChecker(deadlineCtx, cev.conn)
 			deadlineCancel()
 
 			if !alive {
-				log.FromContext(cev.chainCtx).Info("MY_INFO dataplane is dead. BaAAdd!!!! :(")
 				return
 			}
-
-			log.FromContext(cev.chainCtx).Info("MY_INFO dataplane is alive. GOOD!!!! :O")
 		case <-cev.chainCtx.Done():
+			return
 		case <-cev.eventLoopCtx.Done():
 			return
 		}
