@@ -7,119 +7,29 @@ on:
       - 'release/**'
 jobs:
   yamllint:
-    name: yamllint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code into the Go module directory
-        uses: actions/checkout@v2
-      - name: yaml-lint
-        uses: ibiqlik/action-yamllint@v1
-        with:
-          config_file: .ci/yamllint.yml
-          strict: true
-  build-and-test:
-    name: build and test
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v2
-      - name: Setup Go
-        uses: actions/setup-go@v1
-        with:
-          go-version: 1.18.1
-      - name: Build
-        run: go build -race  ./...
-      - name: Test
-        run: go test -race ./...
-  golangci-lint:
-    name: golangci-lint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code into the Go module directory
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      - name: Setup Go
-        uses: actions/setup-go@v1
-        with:
-          go-version: 1.18.1
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3
-        with:
-          version: v1.45.2
-  excludeFmtErrorf:
-    name: exclude fmt.Errorf
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Exclude fmt.Errorf
-        run: |
-          if grep -r --include=*.go --exclude=*.pb.go fmt.Errorf . ; then
-           echo "Please use errors.Errorf (or errors.New or errors.Wrap or errors.Wrapf) as appropriate rather than fmt.Errorf"
-           exit 1
-          fi
+    uses: networkservicemesh/.github/.github/workflows/yamllint.yaml@main
 
-  restrictNSMDeps:
-    name: Restrict dependencies on github.com/networkservicemesh/*
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Restrict dependencies on github.com/networkservicemesh/*
-        run: |
-          for i in $(grep github.com/networkservicemesh/ go.mod | grep -v '^module' | sed 's;.*\(github.com\/networkservicemesh\/[^ ]*\).*;\1;g');do
-            if [ "${i}" != "github.com/networkservicemesh/api" ]; then
-              echo Dependency on "${i}" is forbidden
-              exit 1
-            fi
-          done
+  build-and-test:
+    uses: networkservicemesh/.github/.github/workflows/build-and-test.yaml@main
+    with:
+      os: '["ubuntu-latest", "macos-latest", "windows-latest"]'
+
+  golangci-lint:
+    uses: networkservicemesh/.github/.github/workflows/golangci-lint.yaml@main
+
+  exclude-fmt-errorf:
+    uses: networkservicemesh/.github/.github/workflows/exclude-fmt-errorf.yaml@main
+
+  restrict-nsm-deps:
+    uses: networkservicemesh/.github/.github/workflows/restrict-nsm-deps.yaml@main
+    with:
+      allowed_repositories: "api"
 
   checkgomod:
-    name: check go.mod and go.sum
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-go@v1
-        with:
-          go-version: 1.18.1
-      - run: go mod tidy
-      - name: Check for changes in go.mod or go.sum
-        run: |
-          git diff --name-only --exit-code go.mod || ( echo "Run go tidy" && false )
-          git diff --name-only --exit-code go.sum || ( echo "Run go tidy" && false )
+    uses: networkservicemesh/.github/.github/workflows/checkgomod.yaml@main
 
   gogenerate:
-    name: Check generated files
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: arduino/setup-protoc@master
-        with:
-          version: '3.8.0'
-      - uses: actions/setup-go@v1
-        with:
-          go-version: 1.18.1
-      - name: Install proto-gen-go
-        run: go install github.com/golang/protobuf/protoc-gen-go@v1.4.2
-      - name: Install go-syncmap
-        run: go install github.com/searKing/golang/tools/cmd/go-syncmap@v1.1.68
-      - name: Generate files
-        run: go generate ./...
-      - name: Check for changes in generated code
-        run: |
-          if [[ $(git diff -- '*.gen.go') ]]; then
-            echo "Run go generate ./..." locally and commit changes
-            exit 1
-          fi
-  excludereplace:
-    name: Exclude Replace in go.mod
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out the code
-        uses: actions/checkout@v2
-      - name: Exclude replace in go.mod
-        run: |
-          grep ^replace go.mod || exit 0
-          exit 1
+    uses: networkservicemesh/.github/.github/workflows/gogenerate.yaml@main
+
+  exclude-replace:
+    uses: networkservicemesh/.github/.github/workflows/exclude-replace.yaml@main
