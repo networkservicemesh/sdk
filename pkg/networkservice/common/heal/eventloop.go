@@ -132,12 +132,12 @@ func (cev *eventLoop) eventLoop() {
 
 	ctrlPlaneCh := cev.monitorCtrlPlane()
 
-	dataPlaneCtx, dataPlaneCancel := context.WithCancel(context.Background())
-	defer dataPlaneCancel()
+	livenessCheckCtx, livenessCheckCancel := context.WithCancel(context.Background())
+	defer livenessCheckCancel()
 	if cev.heal.dataPlaneLivenessChecker != nil {
 		go func() {
 			cev.monitorDataPlane()
-			dataPlaneCancel()
+			livenessCheckCancel()
 		}()
 	} else {
 		// Since we don't know about data path status - always use reselect
@@ -152,7 +152,7 @@ func (cev *eventLoop) eventLoop() {
 			return
 		}
 		// Start healing
-	case <-dataPlaneCtx.Done():
+	case <-livenessCheckCtx.Done():
 		cev.logger.Warnf("Data plane is down")
 		reselect = true
 		// Start healing
@@ -172,7 +172,7 @@ func (cev *eventLoop) eventLoop() {
 			if cev.chainCtx.Err() != nil {
 				return
 			}
-			if !reselect && dataPlaneCtx.Err() != nil {
+			if !reselect && livenessCheckCtx.Err() != nil {
 				cev.logger.Warnf("Data plane is down")
 				reselect = true
 			}
