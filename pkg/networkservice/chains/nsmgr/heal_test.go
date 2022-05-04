@@ -144,13 +144,13 @@ func TestNSMGRHealEndpoint_DataPlaneBroken_CtrlPlaneBroken(t *testing.T) {
 
 	request := defaultRequest(nsReg.Name)
 
-	livenessChecker := func(ctx context.Context, conn *networkservice.Connection) bool {
+	livenessCheck := func(ctx context.Context, conn *networkservice.Connection) bool {
 		return false
 	}
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
 		nsclient.WithHealClient(heal.NewClient(ctx,
-			heal.WithLivenessChecker(livenessChecker))))
+			heal.WithLivenessCheck(livenessCheck))))
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -209,7 +209,7 @@ func TestNSMGRHealEndpoint_DataPlaneBroken_CtrlPlaneHealthy(t *testing.T) {
 	livenessCheck := func(ctx context.Context, conn *networkservice.Connection) bool { return false }
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
-		nsclient.WithHealClient(heal.NewClient(ctx, heal.WithLivenessChecker(livenessCheck))))
+		nsclient.WithHealClient(heal.NewClient(ctx, heal.WithLivenessCheck(livenessCheck))))
 
 	// Connect to the first NSE.
 	conn, err := nsc.Request(ctx, request.Clone())
@@ -265,7 +265,7 @@ func TestNSMGRHealEndpoint_DatapathHealthy_CtrlPlaneBroken(t *testing.T) {
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
 		nsclient.WithHealClient(heal.NewClient(ctx,
-			heal.WithLivenessChecker(livenessCheck))))
+			heal.WithLivenessCheck(livenessCheck))))
 
 	_, err = nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
