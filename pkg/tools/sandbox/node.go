@@ -36,6 +36,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/retry"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/roundrobin"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
@@ -122,12 +123,15 @@ func (n *Node) NewForwarder(
 		URL:  serveURL,
 	}
 	nseClient := chain.NewNetworkServiceEndpointRegistryClient(
-		registryclient.NewNetworkServiceEndpointRegistryClient(ctx, CloneURL(n.NSMgr.URL),
+		registryclient.NewNetworkServiceEndpointRegistryClient(ctx,
+			registryclient.WithNSEClientURLResolver(clienturl.NewNetworkServiceEndpointRegistryClient(CloneURL(n.NSMgr.URL))),
 			registryclient.WithNSEAdditionalFunctionality(recvfd.NewNetworkServiceEndpointRegistryClient()),
 			registryclient.WithDialOptions(dialOptions...),
 		),
 	)
-	nsClient := registryclient.NewNetworkServiceRegistryClient(ctx, CloneURL(n.NSMgr.URL), registryclient.WithDialOptions(dialOptions...))
+	nsClient := registryclient.NewNetworkServiceRegistryClient(ctx,
+		registryclient.WithNSClientURLResolver(clienturl.NewNetworkServiceRegistryClient(CloneURL(n.NSMgr.URL))),
+		registryclient.WithDialOptions(dialOptions...))
 	entry.restartableServer = newRestartableServer(ctx, n.t, entry.URL, func(ctx context.Context) {
 		entry.Endpoint = endpoint.NewServer(ctx, generatorFunc,
 			endpoint.WithName(entry.Name),
@@ -158,7 +162,7 @@ func (n *Node) NewForwarder(
 
 		entry.NetworkServiceEndpointRegistryClient = registryclient.NewNetworkServiceEndpointRegistryClient(
 			ctx,
-			CloneURL(n.NSMgr.URL),
+			registryclient.WithNSEClientURLResolver(clienturl.NewNetworkServiceEndpointRegistryClient(CloneURL(n.NSMgr.URL))),
 			registryclient.WithDialOptions(dialOptions...),
 		)
 
@@ -206,7 +210,7 @@ func (n *Node) NewEndpoint(
 
 		entry.NetworkServiceEndpointRegistryClient = registryclient.NewNetworkServiceEndpointRegistryClient(
 			ctx,
-			CloneURL(n.NSMgr.URL),
+			registryclient.WithNSEClientURLResolver(clienturl.NewNetworkServiceEndpointRegistryClient(CloneURL(n.NSMgr.URL))),
 			registryclient.WithDialOptions(dialOptions...),
 			registryclient.WithNSEAdditionalFunctionality(sendfd.NewNetworkServiceEndpointRegistryClient()),
 		)

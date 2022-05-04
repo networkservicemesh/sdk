@@ -47,6 +47,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
+	registryclienturl "github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -161,7 +162,8 @@ func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 	})
 	require.NoError(t, err)
 
-	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx, sandbox.CloneURL(s.domain.Nodes[0].NSMgr.URL),
+	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx,
+		registryclient.WithNSEClientURLResolver(registryclienturl.NewNetworkServiceEndpointRegistryClient(sandbox.CloneURL(s.domain.Nodes[0].NSMgr.URL))),
 		registryclient.WithDialOptions(sandbox.DialOptions()...))
 
 	nseReg, err = nseRegistryClient.Register(ctx, nseReg)

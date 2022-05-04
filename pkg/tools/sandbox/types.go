@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -29,6 +29,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgrproxy"
 	"github.com/networkservicemesh/sdk/pkg/registry"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
@@ -100,6 +101,7 @@ func (d *Domain) NewNSRegistryClient(ctx context.Context, generatorFunc token.Ge
 		return nil
 	}
 
-	return registryclient.NewNetworkServiceRegistryClient(ctx, registryURL,
+	return registryclient.NewNetworkServiceRegistryClient(ctx,
+		registryclient.WithNSClientURLResolver(clienturl.NewNetworkServiceRegistryClient(registryURL)),
 		registryclient.WithDialOptions(DialOptions(WithTokenGenerator(generatorFunc))...))
 }

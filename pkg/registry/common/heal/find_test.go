@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -28,6 +28,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -64,7 +65,8 @@ func TestHealClient_FindTest(t *testing.T) {
 	// 1. Create NS, NSE find clients
 	findCtx, findCancel := context.WithCancel(ctx)
 
-	nsRegistryClient := registryclient.NewNetworkServiceRegistryClient(ctx, sandbox.CloneURL(domain.Nodes[0].NSMgr.URL),
+	nsRegistryClient := registryclient.NewNetworkServiceRegistryClient(ctx,
+		registryclient.WithNSClientURLResolver(clienturl.NewNetworkServiceRegistryClient(sandbox.CloneURL(domain.Nodes[0].NSMgr.URL))),
 		registryclient.WithDialOptions(sandbox.DialOptions()...))
 
 	nsRespStream, err := nsRegistryClient.Find(findCtx, &registry.NetworkServiceQuery{
@@ -73,7 +75,8 @@ func TestHealClient_FindTest(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx, sandbox.CloneURL(domain.Nodes[0].NSMgr.URL),
+	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx,
+		registryclient.WithNSEClientURLResolver(clienturl.NewNetworkServiceEndpointRegistryClient(sandbox.CloneURL(domain.Nodes[0].NSMgr.URL))),
 		registryclient.WithDialOptions(sandbox.DialOptions()...))
 
 	nseRespStream, err := nseRegistryClient.Find(findCtx, &registry.NetworkServiceEndpointQuery{
