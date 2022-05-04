@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -28,22 +28,20 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
-	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-const attemptAfter = time.Millisecond * 200
-
 type eventLoop struct {
-	eventLoopCtx    context.Context
-	chainCtx        context.Context
-	conn            *networkservice.Connection
-	eventFactory    begin.EventFactory
-	client          networkservice.MonitorConnection_MonitorConnectionsClient
-	livelinessCheck LivelinessCheck
+	heal         *healClient
+	eventLoopCtx context.Context
+	chainCtx     context.Context
+	conn         *networkservice.Connection
+	eventFactory begin.EventFactory
+	client       networkservice.MonitorConnection_MonitorConnectionsClient
+	logger       log.Logger
 }
 
-func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networkservice.Connection, livelinessCheck LivelinessCheck) (context.CancelFunc, error) {
+func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networkservice.Connection, heal *healClient) (context.CancelFunc, error) {
 	conn = conn.Clone()
 
 	ev := begin.FromContext(ctx)
@@ -78,13 +76,15 @@ func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networ
 		return nil, errors.WithStack(err)
 	}
 
+	logger := log.FromContext(ctx).WithField("heal", "eventLoop")
 	cev := &eventLoop{
-		eventLoopCtx:    eventLoopCtx,
-		chainCtx:        ctx,
-		conn:            conn,
-		eventFactory:    ev,
-		client:          newClientFilter(client, conn, log.FromContext(ctx)),
-		livelinessCheck: livelinessCheck,
+		heal:         heal,
+		eventLoopCtx: eventLoopCtx,
+		chainCtx:     ctx,
+		conn:         conn,
+		eventFactory: ev,
+		client:       newClientFilter(client, conn, logger),
+		logger:       logger,
 	}
 
 	// Start the eventLoop
@@ -92,43 +92,118 @@ func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networ
 	return eventLoopCancel, nil
 }
 
-func (cev *eventLoop) eventLoop() {
-	/* Receive monitor events */
-	for {
-		eventIn, err := cev.client.Recv()
-		if cev.eventLoopCtx.Err() != nil {
-			return
-		}
+func (cev *eventLoop) monitorCtrlPlane() <-chan struct{} {
+	res := make(chan struct{}, 1)
 
-		if !cev.livelinessCheck(cev.conn) {
+	go func() {
+		defer close(res)
+
+		for {
+			eventIn, err := cev.client.Recv()
+
+			if cev.chainCtx.Err() != nil || cev.eventLoopCtx.Err() != nil {
+				res <- struct{}{}
+				return
+			}
+
 			// Handle error
 			if err != nil {
 				s, _ := status.FromError(err)
 				// This condition means, that the client closed the connection. Stop healing
 				if s.Code() == codes.Canceled {
-					return
+					res <- struct{}{}
 				}
 				// Otherwise - Start healing
-				break
+				return
 			}
 
 			// Handle event. Start healing
 			if eventIn.GetConnections()[cev.conn.GetId()].GetState() == networkservice.State_DOWN {
-				break
+				return
 			}
 		}
+	}()
+
+	return res
+}
+
+func (cev *eventLoop) eventLoop() {
+	reselect := false
+
+	ctrlPlaneCh := cev.monitorCtrlPlane()
+
+	livenessCheckCtx, livenessCheckCancel := context.WithCancel(context.Background())
+	defer livenessCheckCancel()
+	if cev.heal.dataPlaneLivenessCheck != nil {
+		go func() {
+			cev.monitorDataPlane()
+			livenessCheckCancel()
+		}()
+	} else {
+		// Since we don't know about data path status - always use reselect
+		reselect = true
 	}
+
+	select {
+	case _, ok := <-ctrlPlaneCh:
+		cev.logger.Warnf("Control plane is down")
+		if ok {
+			// Connection closed
+			return
+		}
+		// Start healing
+	case <-livenessCheckCtx.Done():
+		cev.logger.Warnf("Data plane is down")
+		reselect = true
+		// Start healing
+	case <-cev.chainCtx.Done():
+		return
+	case <-cev.eventLoopCtx.Done():
+		return
+	}
+
 	/* Attempts to heal the connection */
-	afterTicker := clock.FromContext(cev.eventLoopCtx).Ticker(attemptAfter)
-	defer afterTicker.Stop()
 	for {
 		select {
 		case <-cev.chainCtx.Done():
 			return
-		case <-afterTicker.C():
-			if err := <-cev.eventFactory.Request(begin.WithReselect()); err == nil {
+		default:
+			var options []begin.Option
+			if cev.chainCtx.Err() != nil {
 				return
 			}
+			if !reselect && livenessCheckCtx.Err() != nil {
+				cev.logger.Warnf("Data plane is down")
+				reselect = true
+			}
+			if reselect {
+				cev.logger.Debugf("Reconnect with reselect")
+				options = append(options, begin.WithReselect())
+			}
+			if err := <-cev.eventFactory.Request(options...); err == nil {
+				return
+			}
+		}
+	}
+}
+
+func (cev *eventLoop) monitorDataPlane() {
+	ticker := time.NewTicker(cev.heal.livenessCheckInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			deadlineCtx, deadlineCancel := context.WithDeadline(context.Background(), time.Now().Add(cev.heal.livenessCheckTimeout))
+			alive := cev.heal.dataPlaneLivenessCheck(deadlineCtx, cev.conn)
+			deadlineCancel()
+
+			if !alive {
+				return
+			}
+		case <-cev.chainCtx.Done():
+			return
+		case <-cev.eventLoopCtx.Done():
+			return
 		}
 	}
 }

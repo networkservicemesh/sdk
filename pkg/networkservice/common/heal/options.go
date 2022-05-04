@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -17,22 +17,46 @@
 package heal
 
 import (
+	"context"
+	"time"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
-// LivelinessCheck - function that returns true of conn is 'live' and false otherwise
-type LivelinessCheck func(conn *networkservice.Connection) bool
+const (
+	livenessCheckInterval = 200 * time.Millisecond
+	livenessCheckTimeout  = 100 * time.Millisecond
+)
 
-type option struct {
-	livelinessCheck LivelinessCheck
+// LivenessCheck - function that returns true of conn is 'live' and false otherwise
+type LivenessCheck func(deadlineCtx context.Context, conn *networkservice.Connection) bool
+
+type options struct {
+	dataPlaneLivenessCheck LivenessCheck
+	livenessCheckInterval  time.Duration
+	livenessCheckTimeout   time.Duration
 }
 
 // Option - option for heal.NewClient() chain element
-type Option func(o *option)
+type Option func(o *options)
 
-// WithLivelinessCheck - sets the LivelinessCheck for the heal chain elemeent
-func WithLivelinessCheck(livelinessCheck LivelinessCheck) Option {
-	return func(o *option) {
-		o.livelinessCheck = livelinessCheck
+// WithLivenessCheck - sets the data plane liveness checker
+func WithLivenessCheck(livenessCheck LivenessCheck) Option {
+	return func(o *options) {
+		o.dataPlaneLivenessCheck = livenessCheck
+	}
+}
+
+// WithLivenessCheckInterval - sets livenessCheckInterval
+func WithLivenessCheckInterval(livenessCheckInterval time.Duration) Option {
+	return func(o *options) {
+		o.livenessCheckInterval = livenessCheckInterval
+	}
+}
+
+// WithLivenessCheckTimeout - sets livenessCheckTimeout
+func WithLivenessCheckTimeout(livenessCheckTimeout time.Duration) Option {
+	return func(o *options) {
+		o.livenessCheckTimeout = livenessCheckTimeout
 	}
 }

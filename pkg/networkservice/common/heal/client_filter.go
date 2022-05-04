@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -34,7 +34,7 @@ func newClientFilter(client networkservice.MonitorConnection_MonitorConnectionsC
 		MonitorConnection_MonitorConnectionsClient: client,
 		conn: conn,
 
-		logger: logger.WithField("heal", "eventLoop"),
+		logger: logger,
 	}
 }
 
