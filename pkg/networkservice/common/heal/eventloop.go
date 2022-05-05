@@ -134,7 +134,7 @@ func (cev *eventLoop) eventLoop() {
 
 	livenessCheckCtx, livenessCheckCancel := context.WithCancel(context.Background())
 	defer livenessCheckCancel()
-	if cev.heal.LivenessCheck != nil {
+	if cev.heal.livenessCheck != nil {
 		go func() {
 			cev.monitorDataPlane()
 			livenessCheckCancel()
@@ -194,7 +194,7 @@ func (cev *eventLoop) monitorDataPlane() {
 		select {
 		case <-ticker.C:
 			deadlineCtx, deadlineCancel := context.WithDeadline(cev.chainCtx, time.Now().Add(cev.heal.livenessCheckTimeout))
-			alive := cev.heal.LivenessCheck(deadlineCtx, cev.conn)
+			alive := cev.heal.livenessCheck(deadlineCtx, cev.conn)
 			deadlineCancel()
 
 			if !alive {

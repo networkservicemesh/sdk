@@ -33,7 +33,7 @@ import (
 
 type healClient struct {
 	chainCtx              context.Context
-	LivenessCheck         LivenessCheck
+	livenessCheck         LivenessCheck
 	livenessCheckInterval time.Duration
 	livenessCheckTimeout  time.Duration
 }
@@ -49,7 +49,7 @@ func NewClient(chainCtx context.Context, opts ...Option) networkservice.NetworkS
 	}
 	return &healClient{
 		chainCtx:              chainCtx,
-		LivenessCheck:         o.LivenessCheck,
+		livenessCheck:         o.livenessCheck,
 		livenessCheckInterval: o.livenessCheckInterval,
 		livenessCheckTimeout:  o.livenessCheckTimeout,
 	}
