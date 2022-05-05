@@ -21,8 +21,12 @@ import (
 )
 
 type entry struct {
-	spiffeID      string
-	selector      string
+	spiffeID string
+	selector string
+}
+
+type federatedEntry struct {
+	entry
 	federatesWith string
 }
 
@@ -33,6 +37,7 @@ type option struct {
 	serverConf string
 	spireRoot  string
 	entries    []*entry
+	fEntries   []*federatedEntry
 }
 
 // Option for spire
@@ -53,11 +58,20 @@ func WithAgentID(agentID string) Option {
 }
 
 // WithEntry - Option to add Entry to spire-server.  May be used multiple times.
-func WithEntry(spiffeID, selector, federatesWith string) Option {
+func WithEntry(spiffeID, selector string) Option {
 	return func(o *option) {
 		o.entries = append(o.entries, &entry{
-			spiffeID:      spiffeID,
-			selector:      selector,
+			spiffeID: spiffeID,
+			selector: selector,
+		})
+	}
+}
+
+// WithFederatedEntry - Option to add federated Entry to spire-server.  May be used multiple times.
+func WithFederatedEntry(spiffeID, selector, federatesWith string) Option {
+	return func(o *option) {
+		o.fEntries = append(o.fEntries, &federatedEntry{
+			entry:         entry{spiffeID: spiffeID, selector: selector},
 			federatesWith: federatesWith,
 		})
 	}

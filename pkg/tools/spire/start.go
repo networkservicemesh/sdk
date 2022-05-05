@@ -137,11 +137,20 @@ func Start(options ...Option) <-chan error {
 
 	// Add Entries
 	for _, entry := range opt.entries {
+		if err = AddEntry(opt.ctx, opt.agentID, entry.spiffeID, entry.selector, ""); err != nil {
+			errCh <- err
+			close(errCh)
+			return errCh
+		}
+	}
+
+	// Add Federated Entries
+	for _, entry := range opt.fEntries {
 		for {
 			if err = AddEntry(opt.ctx, opt.agentID, entry.spiffeID, entry.selector, entry.federatesWith); err != nil {
 				logrus.Warn("error occurred while adding entry")
 
-				// There will be an error, until we add a federated bundle outside. Retry.
+				// There will be an error, until we add a federated bundle. Retry.
 				if entry.federatesWith != "" {
 					time.Sleep(time.Second)
 					continue
