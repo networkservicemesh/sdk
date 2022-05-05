@@ -29,7 +29,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgrproxy"
 	"github.com/networkservicemesh/sdk/pkg/registry"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
@@ -102,6 +101,6 @@ func (d *Domain) NewNSRegistryClient(ctx context.Context, generatorFunc token.Ge
 	}
 
 	return registryclient.NewNetworkServiceRegistryClient(ctx,
-		registryclient.WithNSClientURLResolver(clienturl.NewNetworkServiceRegistryClient(registryURL)),
+		registryclient.WithNSClientURL(registryURL),
 		registryclient.WithDialOptions(DialOptions(WithTokenGenerator(generatorFunc))...))
 }

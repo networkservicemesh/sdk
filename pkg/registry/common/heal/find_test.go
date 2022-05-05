@@ -28,7 +28,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -66,7 +65,7 @@ func TestHealClient_FindTest(t *testing.T) {
 	findCtx, findCancel := context.WithCancel(ctx)
 
 	nsRegistryClient := registryclient.NewNetworkServiceRegistryClient(ctx,
-		registryclient.WithNSClientURLResolver(clienturl.NewNetworkServiceRegistryClient(sandbox.CloneURL(domain.Nodes[0].NSMgr.URL))),
+		registryclient.WithNSClientURL(sandbox.CloneURL(domain.Nodes[0].NSMgr.URL)),
 		registryclient.WithDialOptions(sandbox.DialOptions()...))
 
 	nsRespStream, err := nsRegistryClient.Find(findCtx, &registry.NetworkServiceQuery{
@@ -76,7 +75,7 @@ func TestHealClient_FindTest(t *testing.T) {
 	require.NoError(t, err)
 
 	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx,
-		registryclient.WithNSEClientURLResolver(clienturl.NewNetworkServiceEndpointRegistryClient(sandbox.CloneURL(domain.Nodes[0].NSMgr.URL))),
+		registryclient.WithNSEClientURL(sandbox.CloneURL(domain.Nodes[0].NSMgr.URL)),
 		registryclient.WithDialOptions(sandbox.DialOptions()...))
 
 	nseRespStream, err := nseRegistryClient.Find(findCtx, &registry.NetworkServiceEndpointQuery{

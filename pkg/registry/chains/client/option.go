@@ -17,8 +17,13 @@
 package client
 
 import (
-	"github.com/networkservicemesh/api/pkg/api/registry"
+	"net/url"
+
 	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/api/pkg/api/registry"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 )
 
 // Option is an option pattern for NewNetworkServiceRegistryClient, NewNetworkServiceEndpointRegistryClient
@@ -31,10 +36,24 @@ func WithNSClientURLResolver(c registry.NetworkServiceRegistryClient) Option {
 	}
 }
 
+// WithNSClientURL sets ns client URL
+func WithNSClientURL(u *url.URL) Option {
+	return func(clientOpts *clientOptions) {
+		clientOpts.nsClientURLResolver = clienturl.NewNetworkServiceRegistryClient(u)
+	}
+}
+
 // WithNSEClientURLResolver sets nse client URL resolver
 func WithNSEClientURLResolver(c registry.NetworkServiceEndpointRegistryClient) Option {
 	return func(clientOpts *clientOptions) {
 		clientOpts.nseClientURLResolver = c
+	}
+}
+
+// WithNSEClientURL sets nse client URL
+func WithNSEClientURL(u *url.URL) Option {
+	return func(clientOpts *clientOptions) {
+		clientOpts.nseClientURLResolver = clienturl.NewNetworkServiceEndpointRegistryClient(u)
 	}
 }
 

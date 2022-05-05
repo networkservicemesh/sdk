@@ -34,7 +34,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/client"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -581,7 +580,7 @@ func testNSMGRCloseHeal(t *testing.T, withNSEExpiration bool) {
 		// 3.1 Wait for the endpoint expiration
 		time.Sleep(time.Second)
 		c := client.NewNetworkServiceEndpointRegistryClient(ctx,
-			client.WithNSEClientURLResolver(clienturl.NewNetworkServiceEndpointRegistryClient(domain.Nodes[0].NSMgr.URL)),
+			client.WithNSEClientURL(domain.Nodes[0].NSMgr.URL),
 			client.WithDialOptions(sandbox.DialOptions(sandbox.WithTokenGenerator(sandbox.GenerateTestToken))...))
 
 		stream, err := c.Find(ctx, &registry.NetworkServiceEndpointQuery{
