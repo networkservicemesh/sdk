@@ -32,9 +32,9 @@ const (
 type LivenessCheck func(deadlineCtx context.Context, conn *networkservice.Connection) bool
 
 type options struct {
-	dataPlaneLivenessCheck LivenessCheck
-	livenessCheckInterval  time.Duration
-	livenessCheckTimeout   time.Duration
+	LivenessCheck         LivenessCheck
+	livenessCheckInterval time.Duration
+	livenessCheckTimeout  time.Duration
 }
 
 // Option - option for heal.NewClient() chain element
@@ -43,7 +43,7 @@ type Option func(o *options)
 // WithLivenessCheck - sets the data plane liveness checker
 func WithLivenessCheck(livenessCheck LivenessCheck) Option {
 	return func(o *options) {
-		o.dataPlaneLivenessCheck = livenessCheck
+		o.LivenessCheck = livenessCheck
 	}
 }
 

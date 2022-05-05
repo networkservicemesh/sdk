@@ -32,10 +32,10 @@ import (
 )
 
 type healClient struct {
-	chainCtx               context.Context
-	dataPlaneLivenessCheck LivenessCheck
-	livenessCheckInterval  time.Duration
-	livenessCheckTimeout   time.Duration
+	chainCtx              context.Context
+	LivenessCheck         LivenessCheck
+	livenessCheckInterval time.Duration
+	livenessCheckTimeout  time.Duration
 }
 
 // NewClient - returns a new heal client chain element
@@ -48,10 +48,10 @@ func NewClient(chainCtx context.Context, opts ...Option) networkservice.NetworkS
 		opt(o)
 	}
 	return &healClient{
-		chainCtx:               chainCtx,
-		dataPlaneLivenessCheck: o.dataPlaneLivenessCheck,
-		livenessCheckInterval:  o.livenessCheckInterval,
-		livenessCheckTimeout:   o.livenessCheckTimeout,
+		chainCtx:              chainCtx,
+		LivenessCheck:         o.LivenessCheck,
+		livenessCheckInterval: o.livenessCheckInterval,
+		livenessCheckTimeout:  o.livenessCheckTimeout,
 	}
 }
 
