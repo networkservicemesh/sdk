@@ -18,11 +18,9 @@ package spire
 
 const (
 	spireServerConfFileName = "server/server.conf"
-	spireServerRegSock      = "api.sock"
 	spireServerConfContents = `server {
     bind_address = "127.0.0.1"
     bind_port = "8081"
-    socket_path = "%[1]s/%[2]s"
     trust_domain = "example.org"
     data_dir = "%[1]s/data"
     log_level = "WARN"

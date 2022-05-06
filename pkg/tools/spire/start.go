@@ -60,55 +60,58 @@ func logrusEntry(ctx context.Context) *logrus.Entry {
 
 // AddEntry - adds an entry to the spire server for parentID, spiffeID, and selector
 //            parentID is usually the same as the agentID provided to Start()
-func AddEntry(ctx context.Context, parentID, spiffeID, selector string) error {
-	cmdStr := "spire-server entry create -parentID %s -spiffeID %s -selector %s -socketPath %s/api.sock"
-	cmdStr = fmt.Sprintf(cmdStr, parentID, spiffeID, selector, spireRoot)
+func AddEntry(ctx context.Context, parentID, spiffeID, selector, federatesWith string) error {
+	cmdStr := "spire-server entry create -parentID %s -spiffeID %s -selector %s"
+	cmdStr = fmt.Sprintf(cmdStr, parentID, spiffeID, selector)
+	if federatesWith != "" {
+		cmdStr = fmt.Sprintf(cmdStr+" -federatesWith %s", federatesWith)
+	}
 	return exechelper.Run(cmdStr,
 		exechelper.WithStdout(logrusEntry(ctx).WithField("cmd", cmdStr).WriterLevel(logrus.InfoLevel)),
 		exechelper.WithStderr(logrusEntry(ctx).WithField("cmd", cmdStr).WriterLevel(logrus.WarnLevel)),
 	)
 }
 
-var spireRoot string = ""
-
 // Start - start a spire-server and spire-agent with the given agentId
 func Start(options ...Option) <-chan error {
+	errCh := make(chan error, 4)
+	defaultRoot, err := ioutil.TempDir("", "spire")
+	if err != nil {
+		errCh <- err
+		close(errCh)
+		return errCh
+	}
+
 	opt := &option{
-		ctx:     withLog(context.Background()),
-		agentID: "spiffe://example.org/agent",
+		ctx:        withLog(context.Background()),
+		agentID:    "spiffe://example.org/agent",
+		agentConf:  fmt.Sprintf(spireAgentConfContents, defaultRoot),
+		serverConf: fmt.Sprintf(spireServerConfContents, defaultRoot),
+		spireRoot:  defaultRoot,
 	}
 	for _, o := range options {
 		o(opt)
 	}
 
-	errCh := make(chan error, 4)
-	var err error
-	spireRoot, err = ioutil.TempDir("", "spire")
+	// Write the config files
+	err = writeConfigFiles(opt.ctx, opt.agentConf, opt.serverConf, opt.spireRoot)
 	if err != nil {
 		errCh <- err
 		close(errCh)
 		return errCh
 	}
 
-	// Write the config files (if not present)
-	var spireSocketPath string
-	spireSocketPath, err = writeDefaultConfigFiles(opt.ctx, spireRoot)
-	if err != nil {
-		errCh <- err
-		close(errCh)
-		return errCh
-	}
-	logrus.Infof("Env variable %s=%s are set", workloadapi.SocketEnv, "unix:"+spireSocketPath)
-	if err = os.Setenv(workloadapi.SocketEnv, "unix:"+spireSocketPath); err != nil {
+	logrus.Infof("Env variable %s=%s are set", workloadapi.SocketEnv, "unix:"+spireDefaultEndpointSocket)
+	if err = os.Setenv(workloadapi.SocketEnv, "unix:"+spireDefaultEndpointSocket); err != nil {
 		errCh <- err
 		close(errCh)
 		return errCh
 	}
 
 	// Start the Spire Server
-	spireCmd := fmt.Sprintf("spire-server run -config %s", path.Join(spireRoot, spireServerConfFileName))
+	spireCmd := fmt.Sprintf("spire-server run -config %s", path.Join(opt.spireRoot, spireServerConfFileName))
 	spireServerErrCh := exechelper.Start(spireCmd,
-		exechelper.WithDir(spireRoot),
+		exechelper.WithDir(opt.spireRoot),
 		exechelper.WithContext(opt.ctx),
 		exechelper.WithStdout(logrusEntry(opt.ctx).WithField("cmd", "spire-server run").WriterLevel(logrus.InfoLevel)),
 		exechelper.WithStderr(logrusEntry(opt.ctx).WithField("cmd", "spire-server run").WriterLevel(logrus.WarnLevel)),
@@ -123,7 +126,7 @@ func Start(options ...Option) <-chan error {
 
 	// Health check the Spire Server
 	if err = execHealthCheck(opt.ctx,
-		fmt.Sprintf("spire-server healthcheck -socketPath %s/api.sock", spireRoot),
+		"spire-server healthcheck",
 		exechelper.WithStdout(logrusEntry(opt.ctx).WithField("cmd", "spire-server healthcheck").WriterLevel(logrus.InfoLevel)),
 		exechelper.WithStderr(logrusEntry(opt.ctx).WithField("cmd", "spire-server healthcheck").WriterLevel(logrus.WarnLevel)),
 	); err != nil {
@@ -134,16 +137,33 @@ func Start(options ...Option) <-chan error {
 
 	// Add Entries
 	for _, entry := range opt.entries {
-		if err = AddEntry(opt.ctx, opt.agentID, entry.spiffeID, entry.selector); err != nil {
+		if err = AddEntry(opt.ctx, opt.agentID, entry.spiffeID, entry.selector, ""); err != nil {
 			errCh <- err
 			close(errCh)
 			return errCh
 		}
 	}
 
+	// Add Federated Entries
+	for _, entry := range opt.fEntries {
+		for {
+			if err = AddEntry(opt.ctx, opt.agentID, entry.spiffeID, entry.selector, entry.federatesWith); err != nil {
+				logrus.Warn("error occurred while adding entry")
+
+				// There will be an error, until we add a federated bundle. Retry.
+				if entry.federatesWith != "" {
+					time.Sleep(time.Second)
+					continue
+				}
+				break
+			}
+			break
+		}
+	}
+
 	// Get the SpireServers Token
-	cmdStr := "spire-server token generate -spiffeID %s -socketPath %s/api.sock"
-	cmdStr = fmt.Sprintf(cmdStr, opt.agentID, spireRoot)
+	cmdStr := "spire-server token generate -spiffeID %s"
+	cmdStr = fmt.Sprintf(cmdStr, opt.agentID)
 	outputBytes, err := exechelper.Output(cmdStr,
 		exechelper.WithStdout(logrusEntry(opt.ctx).WithField("cmd", cmdStr).WriterLevel(logrus.InfoLevel)),
 		exechelper.WithStderr(logrusEntry(opt.ctx).WithField("cmd", cmdStr).WriterLevel(logrus.WarnLevel)),
@@ -158,7 +178,7 @@ func Start(options ...Option) <-chan error {
 
 	// Start the Spire Agent
 	spireAgentErrCh := exechelper.Start("spire-agent run"+" -config "+spireAgentConfFilename+" -joinToken "+spireToken,
-		exechelper.WithDir(spireRoot),
+		exechelper.WithDir(opt.spireRoot),
 		exechelper.WithContext(opt.ctx),
 		exechelper.WithStdout(logrusEntry(opt.ctx).WithField("cmd", "spire-agent run").WriterLevel(logrus.InfoLevel)),
 		exechelper.WithStderr(logrusEntry(opt.ctx).WithField("cmd", "spire-agent run").WriterLevel(logrus.WarnLevel)),
@@ -173,7 +193,7 @@ func Start(options ...Option) <-chan error {
 
 	// Health check the Spire Agent
 	if err = execHealthCheck(opt.ctx,
-		fmt.Sprintf("spire-agent healthcheck -socketPath %s", spireSocketPath),
+		"spire-agent healthcheck",
 		exechelper.WithStdout(logrusEntry(opt.ctx).WithField("cmd", "spire-agent healthcheck").WriterLevel(logrus.InfoLevel)),
 		exechelper.WithStderr(logrusEntry(opt.ctx).WithField("cmd", "spire-agent healthcheck").WriterLevel(logrus.WarnLevel)),
 	); err != nil {
@@ -214,26 +234,25 @@ func Start(options ...Option) <-chan error {
 	return errCh
 }
 
-// writeDefaultConfigFiles - write config files into configRoot and return a spire socket file to use
-func writeDefaultConfigFiles(ctx context.Context, spireRoot string) (string, error) {
-	spireSocketName := path.Join(spireRoot, spireEndpointSocket)
+// writeConfigFiles - write config files into configRoot
+func writeConfigFiles(ctx context.Context, agentConfig, serverConfig, spireRoot string) error {
 	configFiles := map[string]string{
-		spireServerConfFileName: fmt.Sprintf(spireServerConfContents, spireRoot, spireServerRegSock),
-		spireAgentConfFilename:  fmt.Sprintf(spireAgentConfContents, spireRoot, spireEndpointSocket),
+		spireServerConfFileName: serverConfig,
+		spireAgentConfFilename:  agentConfig,
 	}
 	for configName, contents := range configFiles {
 		filename := path.Join(spireRoot, configName)
 		if _, err := os.Stat(filename); os.IsNotExist(err) {
 			logrusEntry(ctx).Infof("Configuration file: %q not found, using defaults", filename)
 			if err := os.MkdirAll(path.Dir(filename), 0o700); err != nil {
-				return "", err
+				return err
 			}
 			if err := ioutil.WriteFile(filename, []byte(contents), 0o600); err != nil {
-				return "", err
+				return err
 			}
 		}
 	}
-	return spireSocketName, nil
+	return nil
 }
 
 func execHealthCheck(ctx context.Context, cmdStr string, options ...*exechelper.Option) error {

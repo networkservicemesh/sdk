@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -17,14 +17,15 @@
 package spire
 
 const (
+	/* See default socket_path value: https://github.com/spiffe/spire/blob/v1.2.3/doc/spire_agent.md */
+	spireDefaultEndpointSocket = "/tmp/spire-agent/public/api.sock"
+
 	spireAgentConfFilename = "agent/agent.conf"
-	spireEndpointSocket    = "agent.sock"
 	spireAgentConfContents = `agent {
     data_dir = "%[1]s/data"
     log_level = "WARN"
     server_address = "127.0.0.1"
     server_port = "8081"
-    socket_path = "%[1]s/%[2]s"
     insecure_bootstrap = true
     trust_domain = "example.org"
 }
