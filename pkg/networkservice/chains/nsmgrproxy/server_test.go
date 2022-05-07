@@ -38,7 +38,9 @@ import (
 	kernelmech "github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
+	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -79,7 +81,9 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 		NetworkServiceNames: []string{nsReg.Name},
 	}
 
-	cluster2.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
+	cluster2.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, checkrequest.NewServer(t, func(t *testing.T, nsr *networkservice.NetworkServiceRequest) {
+		require.False(t, interdomain.Is(nsr.GetConnection().GetNetworkService()))
+	}))
 
 	nsc := cluster1.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 

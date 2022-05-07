@@ -52,12 +52,15 @@ func (n *interdomainBypassServer) Request(ctx context.Context, request *networks
 		return next.Server(ctx).Request(ctx, request)
 	}
 	originalNSEName := request.GetConnection().NetworkServiceEndpointName
+	originalNS := request.GetConnection().NetworkService
 	request.GetConnection().NetworkServiceEndpointName = interdomain.Target(originalNSEName)
+	request.GetConnection().NetworkService = interdomain.Target(originalNS)
 	resp, err := next.Server(ctx).Request(ctx, request)
 	if err != nil {
 		return nil, err
 	}
 	resp.NetworkServiceEndpointName = originalNSEName
+	resp.NetworkService = originalNS
 	return resp, nil
 }
 
@@ -69,12 +72,15 @@ func (n *interdomainBypassServer) Close(ctx context.Context, conn *networkservic
 		ctx = clienturlctx.WithClientURL(ctx, u)
 		return next.Server(ctx).Close(ctx, conn)
 	}
-	originalNSEName := conn.NetworkServiceEndpointName
+	originalNSEName := conn.GetNetworkServiceEndpointName()
+	originalNS := conn.GetNetworkService()
 	conn.NetworkServiceEndpointName = interdomain.Target(originalNSEName)
+	conn.NetworkService = interdomain.Target(originalNS)
 	resp, err := next.Server(ctx).Close(ctx, conn)
 	if err != nil {
 		return nil, err
 	}
 	conn.NetworkServiceEndpointName = originalNSEName
+	conn.NetworkService = originalNS
 	return resp, nil
 }
