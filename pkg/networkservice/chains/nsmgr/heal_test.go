@@ -580,7 +580,7 @@ func testNSMGRCloseHeal(t *testing.T, withNSEExpiration bool) {
 		// 3.1 Wait for the endpoint expiration
 		time.Sleep(time.Second)
 		c := client.NewNetworkServiceEndpointRegistryClient(ctx,
-			client.WithNSEClientURL(domain.Nodes[0].NSMgr.URL),
+			client.WithClientURL(domain.Nodes[0].NSMgr.URL),
 			client.WithDialOptions(sandbox.DialOptions(sandbox.WithTokenGenerator(sandbox.GenerateTestToken))...))
 
 		stream, err := c.Find(ctx, &registry.NetworkServiceEndpointQuery{

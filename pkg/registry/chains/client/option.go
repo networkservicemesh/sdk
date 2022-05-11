@@ -29,6 +29,14 @@ import (
 // Option is an option pattern for NewNetworkServiceRegistryClient, NewNetworkServiceEndpointRegistryClient
 type Option func(clientOpts *clientOptions)
 
+// WithClientURL sets client URL
+func WithClientURL(u *url.URL) Option {
+	return func(clientOpts *clientOptions) {
+		clientOpts.nsClientURLResolver = clienturl.NewNetworkServiceRegistryClient(u)
+		clientOpts.nseClientURLResolver = clienturl.NewNetworkServiceEndpointRegistryClient(u)
+	}
+}
+
 // WithNSClientURLResolver sets ns client URL resolver
 func WithNSClientURLResolver(c registry.NetworkServiceRegistryClient) Option {
 	return func(clientOpts *clientOptions) {
@@ -36,24 +44,10 @@ func WithNSClientURLResolver(c registry.NetworkServiceRegistryClient) Option {
 	}
 }
 
-// WithNSClientURL sets ns client URL
-func WithNSClientURL(u *url.URL) Option {
-	return func(clientOpts *clientOptions) {
-		clientOpts.nsClientURLResolver = clienturl.NewNetworkServiceRegistryClient(u)
-	}
-}
-
 // WithNSEClientURLResolver sets nse client URL resolver
 func WithNSEClientURLResolver(c registry.NetworkServiceEndpointRegistryClient) Option {
 	return func(clientOpts *clientOptions) {
 		clientOpts.nseClientURLResolver = c
-	}
-}
-
-// WithNSEClientURL sets nse client URL
-func WithNSEClientURL(u *url.URL) Option {
-	return func(clientOpts *clientOptions) {
-		clientOpts.nseClientURLResolver = clienturl.NewNetworkServiceEndpointRegistryClient(u)
 	}
 }
 

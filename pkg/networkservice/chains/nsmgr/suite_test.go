@@ -162,7 +162,7 @@ func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 	require.NoError(t, err)
 
 	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx,
-		registryclient.WithNSEClientURL(sandbox.CloneURL(s.domain.Nodes[0].NSMgr.URL)),
+		registryclient.WithClientURL(sandbox.CloneURL(s.domain.Nodes[0].NSMgr.URL)),
 		registryclient.WithDialOptions(sandbox.DialOptions()...))
 
 	nseReg, err = nseRegistryClient.Register(ctx, nseReg)
