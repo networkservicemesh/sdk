@@ -65,6 +65,9 @@ func (d *dnsNSResolveClient) Register(ctx context.Context, ns *registry.NetworkS
 	ctx = clienturlctx.WithClientURL(ctx, url)
 	ns.Name = interdomain.Target(ns.Name)
 	resp, err := next.NetworkServiceRegistryClient(ctx).Register(ctx, ns, opts...)
+	if err != nil {
+		return nil, err
+	}
 
 	resp.Name = interdomain.Join(resp.Name, domain)
 
