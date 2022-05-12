@@ -16,81 +16,21 @@ jobs:
     name: Create release
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' && contains(github.event.workflow_run.head_branch, 'release/') }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-        with:
-          ref: refs/heads/${{github.event.workflow_run.head_branch}}
-      - name: Get tag
-        run: |
-          branch=${{github.event.workflow_run.head_branch}}
-          echo '::set-output name=tag::'${branch#release/}
-        id: get-tag-step
-      - name: Push tag ${{ steps.get-tag-step.outputs.tag }}
-        run: |
-          git status
-          git tag ${{ steps.get-tag-step.outputs.tag }}
-          git push origin ${{ steps.get-tag-step.outputs.tag }} -f
-      - name: Create release ${{ steps.get-tag-step.outputs.tag }}
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.NSM_BOT_GITHUB_TOKEN }}
-        with:
-          tag_name: refs/tags/${{ steps.get-tag-step.outputs.tag }}
-          release_name: ${{ steps.get-tag-step.outputs.tag }}
-          draft: false
-          prerelease: false
-  update-dependent-repositories:
-    strategy:
-      matrix:
-        repository:
-          - sdk-k8s
-          - sdk-kernel
-          - cmd-nsmgr
-          - cmd-nsmgr-proxy
-          - cmd-registry-memory
-          - cmd-registry-proxy-dns
-          - cmd-nse-remote-vlan
-          - cmd-nse-vfio
-          - cmd-nsc-init
-          - cmd-ipam-vl3
-          - cmd-map-ip-k8s
-          - cmd-admission-webhook-k8s
-    name: Update ${{ matrix.repository }}
-    needs: create-release
-    runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' && contains(github.event.workflow_run.head_branch, 'release/') }}
-    steps:
-      - name: Get tag
-        run: |
-          branch=${{github.event.workflow_run.head_branch}}
-          echo '::set-output name=tag::'${branch#release/}
-        id: get-tag-step
-      - name: Create commit
-        run: |
-          echo "Update go.mod and go.sum to ${{ github.repository }}@${{ steps.get-tag-step.outputs.tag }}" >> /tmp/commit-message
-      - name: Checkout networkservicemesh/${{ matrix.repository }}
-        uses: actions/checkout@v2
-        with:
-          path: networkservicemesh/${{ matrix.repository }}
-          repository: networkservicemesh/${{ matrix.repository }}
-          token: ${{ secrets.NSM_BOT_GITHUB_TOKEN }}
-      - uses: actions/setup-go@v1
-        with:
-          go-version: 1.18.1
-      - name: Update ${{ github.repository }} locally
-        working-directory: networkservicemesh/${{ matrix.repository }}
-        run: |
-          GOPRIVATE=github.com/networkservicemesh go get -u github.com/${{ github.repository }}@${{ steps.get-tag-step.outputs.tag }}
-          go mod tidy
-          git diff
-      - name: Push update to the ${{ matrix.repository }}
-        working-directory: networkservicemesh/${{ matrix.repository }}
-        run: |
-          echo Starting to update repositotry ${{ matrix.repository }}
-          git config --global user.email "nsmbot@networkservicmesh.io"
-          git config --global user.name "NSMBot"
-          git add go.mod go.sum
-          git commit -s -F /tmp/commit-message
-          git checkout -b ${{ github.event.workflow_run.head_branch }}
-          git push -f origin ${{ github.event.workflow_run.head_branch }}
+    uses: networkservicemesh/.github/.github/workflows/release.yaml@main
+    with:
+      dependent_repositories: |
+        ["sdk-k8s",
+        "sdk-kernel",
+        "cmd-nsmgr",
+        "cmd-nsmgr-proxy",
+        "cmd-registry-memory",
+        "cmd-registry-proxy-dns",
+        "cmd-nse-remote-vlan",
+        "cmd-nse-vfio",
+        "cmd-nsc-init",
+        "cmd-ipam-vl3",
+        "cmd-map-ip-k8s",
+        "cmd-admission-webhook-k8s"]
+
+    secrets:
+      token: ${{ secrets.NSM_BOT_GITHUB_TOKEN }}
