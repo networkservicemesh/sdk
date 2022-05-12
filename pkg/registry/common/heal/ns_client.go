@@ -49,19 +49,19 @@ func (c *healNSClient) Register(ctx context.Context, ns *registry.NetworkService
 
 	factory := begin.FromContext(ctx)
 
-	if v, ok := c.LoadAndDelete(ns.GetName()); ok {
+	if v, ok := c.LoadAndDelete(resp.GetName()); ok {
 		v()
 	}
 	healCtx, cancel := context.WithCancel(c.ctx)
 
-	stream, streamErr := next.NetworkServiceRegistryClient(ctx).Find(healCtx, &registry.NetworkServiceQuery{NetworkService: &registry.NetworkService{Name: ns.GetName()}, Watch: true}, opts...)
+	stream, streamErr := next.NetworkServiceRegistryClient(ctx).Find(healCtx, &registry.NetworkServiceQuery{NetworkService: &registry.NetworkService{Name: resp.GetName()}, Watch: true}, opts...)
 
 	if streamErr != nil {
 		cancel()
 		return nil, streamErr
 	}
 
-	c.Store(ns.GetName(), cancel)
+	c.Store(resp.GetName(), cancel)
 
 	go func() {
 		for {

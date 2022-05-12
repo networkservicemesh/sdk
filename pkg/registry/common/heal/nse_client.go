@@ -49,19 +49,19 @@ func (c *healNSEClient) Register(ctx context.Context, nse *registry.NetworkServi
 
 	factory := begin.FromContext(ctx)
 
-	if v, ok := c.LoadAndDelete(nse.GetName()); ok {
+	if v, ok := c.LoadAndDelete(resp.GetName()); ok {
 		v()
 	}
 	healCtx, cancel := context.WithCancel(c.ctx)
 
-	stream, streamErr := next.NetworkServiceEndpointRegistryClient(ctx).Find(healCtx, &registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: nse.GetName()}, Watch: true}, opts...)
+	stream, streamErr := next.NetworkServiceEndpointRegistryClient(ctx).Find(healCtx, &registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: resp.GetName()}, Watch: true}, opts...)
 
 	if streamErr != nil {
 		cancel()
 		return nil, streamErr
 	}
 
-	c.Store(nse.GetName(), cancel)
+	c.Store(resp.GetName(), cancel)
 
 	go func() {
 		for {
