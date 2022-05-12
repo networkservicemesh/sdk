@@ -34,8 +34,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnscontext"
 )
 
-const localhost = "127.0.0.1"
-
 type dnsContextClient struct {
 	chainContext        context.Context
 	coreFilePath        string
@@ -48,9 +46,10 @@ type dnsContextClient struct {
 // NewClient creates a new DNS client chain component. Setups all DNS traffic to the localhost. Monitors DNS configs from connections.
 func NewClient(options ...DNSOption) networkservice.NetworkServiceClient {
 	c := &dnsContextClient{
-		chainContext:      context.Background(),
-		resolveConfigPath: "/etc/resolv.conf",
-		coreFilePath:      "/etc/coredns/Corefile",
+		chainContext:        context.Background(),
+		defaultNameServerIP: "127.0.0.1",
+		resolveConfigPath:   "/etc/resolv.conf",
+		coreFilePath:        "/etc/coredns/Corefile",
 	}
 	for _, o := range options {
 		o.apply(c)
@@ -103,18 +102,17 @@ func (c *dnsContextClient) initialize() {
 		return
 	}
 
-	if r.NameServers[0] != localhost {
-		r.NameServers = append([]string{localhost}, r.NameServers...)
-	}
+	c.dnsConfigManager.Store("", &networkservice.DNSConfig{
+		SearchDomains: r.Value(dnscontext.AnyDomain),
+		DnsServerIps:  r.Value(dnscontext.NameserverProperty),
+	})
+
+	r.SetValue(dnscontext.NameserverProperty, c.defaultNameServerIP)
 
 	if err = r.Save(); err != nil {
 		log.FromContext(c.chainContext).Errorf("An error during save resolve config: %v", err.Error())
 		return
 	}
-
-	c.dnsConfigManager.Store("", &networkservice.DNSConfig{
-		DnsServerIps: []string{c.defaultNameServerIP},
-	})
 
 	c.updateCorefileQueue.AsyncExec(c.updateCorefile)
 }
