@@ -59,7 +59,7 @@ func (r *retryNSClient) Register(ctx context.Context, in *registry.NetworkServic
 
 	for ctx.Err() == nil && r.chainCtx.Err() == nil {
 		registerCtx, cancel := c.WithTimeout(ctx, r.tryTimeout)
-		resp, err := next.NetworkServiceRegistryClient(registerCtx).Register(registerCtx, in, opts...)
+		resp, err := next.NetworkServiceRegistryClient(registerCtx).Register(registerCtx, in.Clone(), opts...)
 		cancel()
 
 		if err != nil {

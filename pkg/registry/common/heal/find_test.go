@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -64,7 +64,8 @@ func TestHealClient_FindTest(t *testing.T) {
 	// 1. Create NS, NSE find clients
 	findCtx, findCancel := context.WithCancel(ctx)
 
-	nsRegistryClient := registryclient.NewNetworkServiceRegistryClient(ctx, sandbox.CloneURL(domain.Nodes[0].NSMgr.URL),
+	nsRegistryClient := registryclient.NewNetworkServiceRegistryClient(ctx,
+		registryclient.WithClientURL(sandbox.CloneURL(domain.Nodes[0].NSMgr.URL)),
 		registryclient.WithDialOptions(sandbox.DialOptions()...))
 
 	nsRespStream, err := nsRegistryClient.Find(findCtx, &registry.NetworkServiceQuery{
@@ -73,7 +74,8 @@ func TestHealClient_FindTest(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx, sandbox.CloneURL(domain.Nodes[0].NSMgr.URL),
+	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx,
+		registryclient.WithClientURL(sandbox.CloneURL(domain.Nodes[0].NSMgr.URL)),
 		registryclient.WithDialOptions(sandbox.DialOptions()...))
 
 	nseRespStream, err := nseRegistryClient.Find(findCtx, &registry.NetworkServiceEndpointQuery{

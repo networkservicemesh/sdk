@@ -18,24 +18,25 @@ package client
 
 import (
 	"context"
-	"net/url"
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/heal"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/retry"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 )
 
 // NewNetworkServiceRegistryClient creates a new NewNetworkServiceRegistryClient that can be used for NS registration.
-func NewNetworkServiceRegistryClient(ctx context.Context, connectTo *url.URL, opts ...Option) registry.NetworkServiceRegistryClient {
-	clientOpts := new(clientOptions)
+func NewNetworkServiceRegistryClient(ctx context.Context, opts ...Option) registry.NetworkServiceRegistryClient {
+	clientOpts := &clientOptions{
+		nsClientURLResolver: null.NewNetworkServiceRegistryClient(),
+	}
 	for _, opt := range opts {
 		opt(clientOpts)
 	}
@@ -46,7 +47,7 @@ func NewNetworkServiceRegistryClient(ctx context.Context, connectTo *url.URL, op
 				begin.NewNetworkServiceRegistryClient(),
 				retry.NewNetworkServiceRegistryClient(ctx),
 				heal.NewNetworkServiceRegistryClient(ctx),
-				clienturl.NewNetworkServiceRegistryClient(connectTo),
+				clientOpts.nsClientURLResolver,
 				clientconn.NewNetworkServiceRegistryClient(),
 				dial.NewNetworkServiceRegistryClient(ctx,
 					dial.WithDialOptions(clientOpts.dialOptions...),

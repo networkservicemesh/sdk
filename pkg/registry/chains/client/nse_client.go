@@ -19,24 +19,25 @@ package client
 
 import (
 	"context"
-	"net/url"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/heal"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/retry"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 )
 
 // NewNetworkServiceEndpointRegistryClient creates a new NewNetworkServiceEndpointRegistryClient that can be used for NSE registration.
-func NewNetworkServiceEndpointRegistryClient(ctx context.Context, connectTo *url.URL, opts ...Option) registry.NetworkServiceEndpointRegistryClient {
-	clientOpts := new(clientOptions)
+func NewNetworkServiceEndpointRegistryClient(ctx context.Context, opts ...Option) registry.NetworkServiceEndpointRegistryClient {
+	clientOpts := &clientOptions{
+		nseClientURLResolver: null.NewNetworkServiceEndpointRegistryClient(),
+	}
 	for _, opt := range opts {
 		opt(clientOpts)
 	}
@@ -48,7 +49,7 @@ func NewNetworkServiceEndpointRegistryClient(ctx context.Context, connectTo *url
 				retry.NewNetworkServiceEndpointRegistryClient(ctx),
 				heal.NewNetworkServiceEndpointRegistryClient(ctx),
 				refresh.NewNetworkServiceEndpointRegistryClient(ctx),
-				clienturl.NewNetworkServiceEndpointRegistryClient(connectTo),
+				clientOpts.nseClientURLResolver,
 				clientconn.NewNetworkServiceEndpointRegistryClient(),
 				dial.NewNetworkServiceEndpointRegistryClient(ctx,
 					dial.WithDialOptions(clientOpts.dialOptions...),

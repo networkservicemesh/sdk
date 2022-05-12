@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -100,6 +100,7 @@ func (d *Domain) NewNSRegistryClient(ctx context.Context, generatorFunc token.Ge
 		return nil
 	}
 
-	return registryclient.NewNetworkServiceRegistryClient(ctx, registryURL,
+	return registryclient.NewNetworkServiceRegistryClient(ctx,
+		registryclient.WithClientURL(registryURL),
 		registryclient.WithDialOptions(DialOptions(WithTokenGenerator(generatorFunc))...))
 }
