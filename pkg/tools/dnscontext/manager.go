@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,67 +22,50 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-)
-
-const (
-	anyDomain              = "."
-	defaultPlugin          = "forward"
-	conflictResolverPlugin = "fanout"
 )
 
 // Manager can store, remove []dnscontext.Config and also present it as corefile.
 // See what is corefile here: https://coredns.io/2017/07/23/corefile-explained/
 type Manager struct {
-	configs dnsConfigsMap
+	configs sync.Map
 }
 
 func (m *Manager) String() string {
-	var domains []string
-	ipsByDomain := map[string][]string{}
-	conflictByDomain := map[string]bool{}
-	m.configs.Range(func(_ string, configs []*networkservice.DNSConfig) bool {
+	var keys []string
+	result := map[string][]string{}
+	conflict := map[string]bool{}
+	m.configs.Range(func(_, value interface{}) bool {
+		configs := value.([]*networkservice.DNSConfig)
 		for _, c := range configs {
-			domain := strings.Join(c.SearchDomains, " ")
-			if domain == "" {
-				domain = anyDomain
-			}
-
-			if _, ok := ipsByDomain[domain]; ok {
-				conflictByDomain[domain] = true
+			k := strings.Join(c.SearchDomains, " ")
+			if len(result[k]) != 0 {
+				conflict[k] = true
 			} else {
-				domains = append(domains, domain)
+				keys = append(keys, k)
 			}
-
-			ipsByDomain[domain] = removeDuplicates(append(ipsByDomain[domain], c.DnsServerIps...))
+			result[k] = removeDuplicates(append(result[k], c.DnsServerIps...))
 		}
 		return true
 	})
-
-	sort.Strings(domains)
-
-	var sb strings.Builder
-	for _, domain := range domains {
+	sort.Strings(keys)
+	sb := strings.Builder{}
+	i := 0
+	for _, k := range keys {
+		v := result[k]
 		plugin := defaultPlugin
-		if conflictByDomain[domain] {
-			plugin = conflictResolverPlugin
+		sort.Strings(v)
+		if k == "" {
+			_, _ = sb.WriteString(fmt.Sprintf(serverBlockTemplate, AnyDomain, plugin, strings.Join(v, " "), "log\n\treload\n\tcache {\n\t\tdenial 0\n\t}"))
+		} else {
+			_, _ = sb.WriteString(fmt.Sprintf(serverBlockTemplate, k, plugin, strings.Join(v, " "), "log\n\tcache {\n\t\tdenial 0\n\t}"))
 		}
-
-		ips := ipsByDomain[domain]
-		sort.Strings(ips)
-		ipsString := strings.TrimSpace(strings.Join(ips, " "))
-
-		_, _ = sb.WriteString(fmt.Sprintf("%s {\n", domain))
-		if ipsString != "" {
-			_, _ = sb.WriteString(fmt.Sprintf("\t%s . %s\n", plugin, ipsString))
-			_, _ = sb.WriteString("\tcache\n")
+		i++
+		if i < len(result) {
+			_, _ = sb.WriteRune('\n')
 		}
-		_, _ = sb.WriteString("\tlog\n")
-		if domain == anyDomain {
-			_, _ = sb.WriteString("\treload\n")
-		}
-		sb.WriteString("}\n")
 	}
 	return sb.String()
 }

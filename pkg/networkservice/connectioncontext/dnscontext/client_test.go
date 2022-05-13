@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,159 +20,110 @@ package dnscontext_test
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
-	"net"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 )
 
-const (
-	resolvConf = `nameserver 8.8.4.4
-nameserver 6.6.3.3
-search example.com
-`
-	expectedResolvConf = `nameserver 127.0.0.1
-nameserver 8.8.4.4
-nameserver 6.6.3.3
-search example.com
-`
-	expectedEmptyCoreFile = `. {
-	log
-	reload
-}
-`
-	expectedEmptyCoreFileWithServer = `. {
-	forward . %s
-	cache
-	log
-	reload
-}
-`
-)
-
-func TestDNSContextClient(t *testing.T) {
+func Test_DNSContextClient_Usecases(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	var samples = []struct {
-		name                string
-		defaultNameServerIP net.IP
-		configs             []*networkservice.DNSConfig
-		expectedCorefile    string
-	}{
-		{
-			name: "without default, without conflicts",
-			configs: []*networkservice.DNSConfig{
-				{
-					SearchDomains: []string{"example.com"},
-					DnsServerIps:  []string{"8.8.8.8"},
-				},
-			},
-			expectedCorefile: ". {\n\tlog\n\treload\n}\nexample.com {\n\tforward . 8.8.8.8\n\tcache\n\tlog\n}\n",
-		},
-		{
-			name:                "with default, without conflicts",
-			defaultNameServerIP: net.IPv4(10, 10, 10, 10),
-			configs: []*networkservice.DNSConfig{
-				{
-					SearchDomains: []string{"example.com"},
-					DnsServerIps:  []string{"8.8.8.8"},
-				},
-			},
-			expectedCorefile: ". {\n\tforward . 10.10.10.10\n\tcache\n\tlog\n\treload\n}\nexample.com {\n\tforward . 8.8.8.8\n\tcache\n\tlog\n}\n",
-		},
-		{
-			name: "without default, with conflicts",
-			configs: []*networkservice.DNSConfig{
-				{
-					SearchDomains: []string{"example.com"},
-					DnsServerIps:  []string{"7.7.7.7"},
-				},
-				{
-					SearchDomains: []string{"example.com"},
-					DnsServerIps:  []string{"8.8.8.8"},
-				},
-				{
-					SearchDomains: []string{"example.com"},
-					DnsServerIps:  []string{"9.9.9.9"},
-				},
-			},
-			expectedCorefile: ". {\n\tlog\n\treload\n}\nexample.com {\n\tfanout . 7.7.7.7 8.8.8.8 9.9.9.9\n\tcache\n\tlog\n}\n",
-		},
-	}
-
-	for _, sample := range samples {
-		t.Run(sample.name, func(t *testing.T) {
-			// nolint:scopelint
-			testDNSContextClient(ctx, t, sample.defaultNameServerIP, sample.configs, sample.expectedCorefile)
-		})
-	}
-}
-
-func testDNSContextClient(
-	ctx context.Context,
-	t *testing.T,
-	defaultNameServerIP net.IP,
-	configs []*networkservice.DNSConfig,
-	expectedCoreFile string,
-) {
 	corefilePath := filepath.Join(t.TempDir(), "corefile")
 	resolveConfigPath := filepath.Join(t.TempDir(), "resolv.conf")
 
-	err := ioutil.WriteFile(resolveConfigPath, []byte(resolvConf), os.ModePerm)
+	err := ioutil.WriteFile(resolveConfigPath, []byte("nameserver 8.8.4.4\nsearch example.com\n"), os.ModePerm)
 	require.NoError(t, err)
 
-	// 0. `cmd-nsc-init` case
-	// 1. `cmd-nsc` case
-	for i := 0; i < 2; i++ {
-		opts := []dnscontext.DNSOption{
-			dnscontext.WithChainContext(ctx),
+	client := chain.NewNetworkServiceClient(
+		dnscontext.NewClient(
 			dnscontext.WithCorefilePath(corefilePath),
 			dnscontext.WithResolveConfigPath(resolveConfigPath),
-		}
-		if defaultNameServerIP != nil {
-			opts = append(opts, dnscontext.WithDefaultNameServerIP(defaultNameServerIP))
-		}
+		),
+	)
 
-		client := dnscontext.NewClient(opts...)
+	const expectedEmptyCorefile = `. {
+	fanout . 8.8.4.4
+	log
+	reload
+	cache {
+		denial 0
+	}
+}`
 
-		requireFileChanged(ctx, t, resolveConfigPath, expectedResolvConf)
+	requireFileChanged(ctx, t, corefilePath, expectedEmptyCorefile)
 
-		emptyCoreFile := expectedEmptyCoreFile
-		if defaultNameServerIP != nil {
-			emptyCoreFile = fmt.Sprintf(expectedEmptyCoreFileWithServer, defaultNameServerIP.String())
-		}
-		requireFileChanged(ctx, t, corefilePath, emptyCoreFile)
-
-		conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
-			Connection: &networkservice.Connection{
-				Id: "id",
-				Context: &networkservice.ConnectionContext{
-					DnsContext: &networkservice.DNSContext{
-						Configs: configs,
+	var samples = []struct {
+		request          *networkservice.NetworkServiceRequest
+		expectedCorefile string
+	}{
+		{
+			expectedCorefile: ". {\n\tfanout . 8.8.4.4\n\tlog\n\treload\n\tcache {\n\t\tdenial 0\n\t}\n}\nexample.com {\n\tfanout . 8.8.8.8\n\tlog\n\tcache {\n\t\tdenial 0\n\t}\n}",
+			request: &networkservice.NetworkServiceRequest{
+				Connection: &networkservice.Connection{
+					Id: "nsc-1",
+					Context: &networkservice.ConnectionContext{
+						DnsContext: &networkservice.DNSContext{
+							Configs: []*networkservice.DNSConfig{
+								{
+									SearchDomains: []string{"example.com"},
+									DnsServerIps:  []string{"8.8.8.8"},
+								},
+							},
+						},
 					},
 				},
 			},
-		})
-		require.NoError(t, err)
-		requireFileChanged(ctx, t, corefilePath, expectedCoreFile)
+		},
+		{
+			expectedCorefile: ". {\n\tfanout . 8.8.4.4\n\tlog\n\treload\n\tcache {\n\t\tdenial 0\n\t}\n}\nexample.com {\n\tfanout . 7.7.7.7 8.8.8.8 9.9.9.9\n\tlog\n\tcache {\n\t\tdenial 0\n\t}\n}",
+			request: &networkservice.NetworkServiceRequest{
+				Connection: &networkservice.Connection{
+					Id: "nsc-1",
+					Context: &networkservice.ConnectionContext{
+						DnsContext: &networkservice.DNSContext{
+							Configs: []*networkservice.DNSConfig{
+								{
+									SearchDomains: []string{"example.com"},
+									DnsServerIps:  []string{"7.7.7.7"},
+								},
+								{
+									SearchDomains: []string{"example.com"},
+									DnsServerIps:  []string{"8.8.8.8"},
+								},
+								{
+									SearchDomains: []string{"example.com"},
+									DnsServerIps:  []string{"9.9.9.9"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 
-		_, err = client.Close(ctx, conn)
+	for _, s := range samples {
+		resp, err := client.Request(ctx, s.request)
 		require.NoError(t, err)
-		requireFileChanged(ctx, t, corefilePath, emptyCoreFile)
+		require.NotNil(t, resp.GetContext().GetDnsContext())
+		require.Len(t, resp.GetContext().GetDnsContext().GetConfigs(), len(s.request.GetConnection().Context.DnsContext.GetConfigs()))
+		requireFileChanged(ctx, t, corefilePath, s.expectedCorefile)
+		_, err = client.Close(ctx, resp)
+		require.NoError(t, err)
+
+		requireFileChanged(ctx, t, corefilePath, expectedEmptyCorefile)
 	}
 }
 
@@ -184,5 +137,5 @@ func requireFileChanged(ctx context.Context, t *testing.T, location, expected st
 		}
 		runtime.Gosched()
 	}
-	require.FailNowf(t, "fail to wait update", "file has not updated. Last content: %s", r)
+	require.FailNowf(t, "fail to wait update", "file has not updated. Last content: %s, expected: %s", r, expected)
 }

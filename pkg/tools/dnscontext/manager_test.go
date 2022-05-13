@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,12 +29,13 @@ import (
 
 func TestManager_StoreAnyDomain(t *testing.T) {
 	const expected = `. {
-	forward . IP1 IP2
-	cache
+	fanout . IP1 IP2
 	log
 	reload
-}
-`
+	cache {
+		denial 0
+	}
+}`
 	var m dnscontext.Manager
 	m.Store("0", &networkservice.DNSConfig{
 		DnsServerIps: []string{"IP1", "IP2"},
@@ -43,11 +46,12 @@ func TestManager_StoreAnyDomain(t *testing.T) {
 func TestManager_StoreAnyDomainConflict(t *testing.T) {
 	const expected = `. {
 	fanout . IP1 IP2 IP3
-	cache
 	log
 	reload
-}
-`
+	cache {
+		denial 0
+	}
+}`
 	var m dnscontext.Manager
 	m.Store("0", &networkservice.DNSConfig{
 		DnsServerIps: []string{"IP1", "IP2"},
@@ -63,15 +67,18 @@ func TestManager_StoreAnyDomainConflict(t *testing.T) {
 
 func TestManager_Store(t *testing.T) {
 	expected := []string{`zone-a {
-	forward . IP1 IP2
-	cache
+	fanout . IP1 IP2
 	log
+	cache {
+		denial 0
+	}
 }`, `zone-b zone-c {
-	forward . IP3 IP4
-	cache
+	fanout . IP3 IP4
 	log
-}
-`}
+	cache {
+		denial 0
+	}
+}`}
 	var m dnscontext.Manager
 	m.Store("0", &networkservice.DNSConfig{
 		SearchDomains: []string{"zone-a"},
@@ -90,10 +97,11 @@ func TestManager_Store(t *testing.T) {
 func TestManager_StoreConflict(t *testing.T) {
 	const expected = `zone-a {
 	fanout . IP1 IP2 IP3
-	cache
 	log
-}
-`
+	cache {
+		denial 0
+	}
+}`
 	var m dnscontext.Manager
 	m.Store("0", &networkservice.DNSConfig{
 		SearchDomains: []string{"zone-a"},
@@ -109,11 +117,12 @@ func TestManager_StoreConflict(t *testing.T) {
 
 func TestManger_Remove(t *testing.T) {
 	const expected = `zone-a {
-	forward . IP1 IP2
-	cache
+	fanout . IP1 IP2
 	log
-}
-`
+	cache {
+		denial 0
+	}
+}`
 	var m dnscontext.Manager
 	m.Store("0", &networkservice.DNSConfig{
 		SearchDomains: []string{"zone-a"},
@@ -126,14 +135,14 @@ func TestManger_Remove(t *testing.T) {
 	m.Remove("1")
 	require.Equal(t, m.String(), expected)
 }
-
 func TestManger_RemoveConflict(t *testing.T) {
 	const expected = `zone-a {
-	forward . IP1 IP2
-	cache
+	fanout . IP1 IP2
 	log
-}
-`
+	cache {
+		denial 0
+	}
+}`
 	var m dnscontext.Manager
 	m.Store("0", &networkservice.DNSConfig{
 		SearchDomains: []string{"zone-a"},
@@ -145,18 +154,5 @@ func TestManger_RemoveConflict(t *testing.T) {
 	})
 	require.NotEqual(t, m.String(), expected)
 	m.Remove("1")
-	require.Equal(t, m.String(), expected)
-}
-
-func TestManager_EmptyAnyDomain(t *testing.T) {
-	const expected = `. {
-	log
-	reload
-}
-`
-	var m dnscontext.Manager
-	m.Store("", &networkservice.DNSConfig{
-		DnsServerIps: []string{""},
-	})
 	require.Equal(t, m.String(), expected)
 }

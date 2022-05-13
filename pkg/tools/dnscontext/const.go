@@ -1,4 +1,6 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -16,10 +18,18 @@
 
 package dnscontext
 
-import (
-	"sync"
+const (
+	// SearchProperty means search list for host-name lookup
+	SearchProperty = "search"
+	// NameserverProperty means name server IP address
+	NameserverProperty = "nameserver"
+	// OptionsProperty  allows certain internal resolver variables to be modified
+	OptionsProperty = "options"
+	// AnyDomain means that allowed any host-name
+	AnyDomain           = "."
+	defaultPlugin       = "fanout"
+	serverBlockTemplate = `%v {
+	%v . %v
+	%v
+}`
 )
-
-//go:generate go-syncmap -output dns_configs_map.gen.go -type dnsConfigsMap<string,[]*github.com/networkservicemesh/api/pkg/api/networkservice.DNSConfig>
-
-type dnsConfigsMap sync.Map

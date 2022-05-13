@@ -1,4 +1,6 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -19,23 +21,13 @@ package dnscontext
 import (
 	"io/ioutil"
 	"os"
-	"sort"
 	"strings"
-
-	"github.com/pkg/errors"
-)
-
-const (
-	nameServerKey = "nameserver"
 )
 
 // ResolveConfig provides API for editing / reading resolv.conf
-// https://man7.org/linux/man-pages/man5/resolv.conf.5.html
 type ResolveConfig struct {
 	path       string
 	properties map[string][]string
-
-	NameServers []string
 }
 
 // OpenResolveConfig reads resolve config file from specific path
@@ -55,19 +47,10 @@ func (r *ResolveConfig) readProperties() error {
 	if err != nil {
 		return err
 	}
-
 	for _, l := range strings.Split(string(b), "\n") {
 		words := strings.Split(l, " ")
-		switch key := words[0]; key {
-		case nameServerKey:
-			if len(words) != 2 {
-				return errors.Errorf("expected single value for `%s` key, got: %s", nameServerKey, l)
-			}
-			r.NameServers = append(r.NameServers, words[1])
-		default:
-			if len(words) > 1 {
-				r.properties[key] = words[1:]
-			}
+		if len(words) > 1 {
+			r.properties[words[0]] = words[1:]
 		}
 	}
 	return nil
@@ -90,24 +73,13 @@ func (r *ResolveConfig) SetValue(k string, values ...string) {
 // Save saves resolve config file
 func (r *ResolveConfig) Save() error {
 	var sb strings.Builder
-	for _, nameServer := range r.NameServers {
-		_, _ = sb.WriteString(nameServerKey)
-		_, _ = sb.WriteRune(' ')
-		_, _ = sb.WriteString(nameServer)
-		_, _ = sb.WriteRune('\n')
-	}
-
-	var keys []string
-	for k := range r.properties {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	for _, k := range keys {
-		_, _ = sb.WriteString(k)
-		_, _ = sb.WriteRune(' ')
-		_, _ = sb.WriteString(strings.Join(r.properties[k], " "))
-		_, _ = sb.WriteRune('\n')
+	var index int
+	for k, v := range r.properties {
+		_, _ = sb.WriteString(strings.Join(append([]string{k}, v...), " "))
+		index++
+		if index < len(r.properties) {
+			_, _ = sb.WriteRune('\n')
+		}
 	}
 	return ioutil.WriteFile(r.path, []byte(sb.String()), os.ModePerm)
 }
