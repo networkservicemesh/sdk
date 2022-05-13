@@ -37,12 +37,13 @@ import (
 )
 
 type dnsContextClient struct {
-	chainContext        context.Context
-	coreFilePath        string
-	resolveConfigPath   string
-	defaultNameServerIP string
-	dnsConfigManager    dnscontext.Manager
-	updateCorefileQueue serialize.Executor
+	chainContext           context.Context
+	coreFilePath           string
+	resolveConfigPath      string
+	storedResolvConfigPath string
+	defaultNameServerIP    string
+	dnsConfigManager       dnscontext.Manager
+	updateCorefileQueue    serialize.Executor
 }
 
 // NewClient creates a new DNS client chain component. Setups all DNS traffic to the localhost. Monitors DNS configs from connections.
@@ -56,6 +57,7 @@ func NewClient(options ...DNSOption) networkservice.NetworkServiceClient {
 	for _, o := range options {
 		o.apply(c)
 	}
+	c.storedResolvConfigPath = c.resolveConfigPath + ".restore"
 	c.initialize()
 	return c
 }
@@ -97,12 +99,40 @@ func (c *dnsContextClient) Close(ctx context.Context, conn *networkservice.Conne
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
+func (c *dnsContextClient) restoreResolvConf() {
+	originalResolvConf, err := ioutil.ReadFile(c.storedResolvConfigPath)
+	if err != nil || len(originalResolvConf) == 0 {
+		return
+	}
+	_ = os.WriteFile(c.resolveConfigPath, originalResolvConf, os.ModePerm)
+}
+
+func (c *dnsContextClient) storeOriginalResolvConf() {
+	if _, err := os.Stat(c.storedResolvConfigPath); err == nil {
+		return
+	}
+	originalResolvConf, err := ioutil.ReadFile(c.resolveConfigPath)
+	if err != nil {
+		return
+	}
+	_ = ioutil.WriteFile(c.storedResolvConfigPath, originalResolvConf, os.ModePerm)
+}
+
 func (c *dnsContextClient) initialize() {
+	c.restoreResolvConf()
+
 	r, err := dnscontext.OpenResolveConfig(c.resolveConfigPath)
 	if err != nil {
 		log.FromContext(c.chainContext).Errorf("An error during open resolve config: %v", err.Error())
 		return
 	}
+
+	c.storeOriginalResolvConf()
+
+	go func() {
+		defer c.restoreResolvConf()
+		<-c.chainContext.Done()
+	}()
 
 	c.dnsConfigManager.Store("", &networkservice.DNSConfig{
 		SearchDomains: r.Value(dnscontext.AnyDomain),
