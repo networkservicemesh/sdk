@@ -11,25 +11,6 @@ on:
       - 'automerge'
 jobs:
   update-dependent-repositories:
-    continue-on-error: true
-    strategy:
-      fail-fast: false
-      matrix:
-        repository:
-          - sdk-k8s
-          - sdk-kernel
-          - cmd-nsmgr
-          - cmd-nsmgr-proxy
-          - cmd-registry-memory
-          - cmd-registry-proxy-dns
-          - cmd-nse-vfio
-          - cmd-nse-remote-vlan
-          - cmd-nsc-init
-          - cmd-ipam-vl3
-          - cmd-map-ip-k8s
-          - cmd-admission-webhook-k8s
-    name: Update ${{ matrix.repository }}
-    runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' && github.actor == 'nsmbot' || github.event_name == 'push' }}
     uses: networkservicemesh/.github/.github/workflows/update-dependent-repositories-gomod.yaml@main
     with:
