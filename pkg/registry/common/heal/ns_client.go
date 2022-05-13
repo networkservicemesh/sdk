@@ -41,7 +41,7 @@ func NewNetworkServiceRegistryClient(ctx context.Context) registry.NetworkServic
 }
 
 func (c *healNSClient) Register(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
-	resp, err := next.NetworkServiceRegistryClient(ctx).Register(ctx, ns, opts...)
+	resp, err := next.NetworkServiceRegistryClient(ctx).Register(ctx, ns.Clone(), opts...)
 
 	if err != nil {
 		return nil, err
