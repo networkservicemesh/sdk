@@ -35,6 +35,37 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 )
 
+func Test_DNSContextClient_Restart(t *testing.T) {
+	corefilePath := filepath.Join(t.TempDir(), "corefile")
+	resolveConfigPath := filepath.Join(t.TempDir(), "resolv.conf")
+	err := ioutil.WriteFile(resolveConfigPath, []byte("nameserver 8.8.4.4\n"), os.ModePerm)
+	require.NoError(t, err)
+	const expectedEmptyCorefile = `. {
+	fanout . 8.8.4.4
+	log
+	reload
+	cache {
+		denial 0
+	}
+}`
+	for i := 0; i < 1; i++ {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*200)
+		defer cancel()
+		var c = chain.NewNetworkServiceClient(
+			dnscontext.NewClient(
+				dnscontext.WithCorefilePath(corefilePath),
+				dnscontext.WithResolveConfigPath(resolveConfigPath),
+				dnscontext.WithChainContext(ctx),
+			),
+		)
+		_, _ = c.Request(ctx, &networkservice.NetworkServiceRequest{})
+
+		requireFileChanged(ctx, t, corefilePath, expectedEmptyCorefile)
+
+		cancel()
+	}
+}
+
 func Test_DNSContextClient_Usecases(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -50,6 +81,7 @@ func Test_DNSContextClient_Usecases(t *testing.T) {
 		dnscontext.NewClient(
 			dnscontext.WithCorefilePath(corefilePath),
 			dnscontext.WithResolveConfigPath(resolveConfigPath),
+			dnscontext.WithChainContext(ctx),
 		),
 	)
 
