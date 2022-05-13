@@ -13,8 +13,6 @@ jobs:
     steps:
       - uses: hmarr/debug-action@v2
   create-release:
-    name: Create release
-    runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' && contains(github.event.workflow_run.head_branch, 'release/') }}
     uses: networkservicemesh/.github/.github/workflows/release.yaml@main
     with:
