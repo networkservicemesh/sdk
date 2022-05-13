@@ -32,7 +32,9 @@ func TestManager_StoreAnyDomain(t *testing.T) {
 	fanout . IP1 IP2
 	log
 	reload
-	cache
+	cache {
+		denial 0
+	}
 }`
 	var m dnscontext.Manager
 	m.Store("0", &networkservice.DNSConfig{
@@ -46,7 +48,9 @@ func TestManager_StoreAnyDomainConflict(t *testing.T) {
 	fanout . IP1 IP2 IP3
 	log
 	reload
-	cache
+	cache {
+		denial 0
+	}
 }`
 	var m dnscontext.Manager
 	m.Store("0", &networkservice.DNSConfig{
@@ -65,11 +69,15 @@ func TestManager_Store(t *testing.T) {
 	expected := []string{`zone-a {
 	fanout . IP1 IP2
 	log
-	cache
+	cache {
+		denial 0
+	}
 }`, `zone-b zone-c {
 	fanout . IP3 IP4
 	log
-	cache
+	cache {
+		denial 0
+	}
 }`}
 	var m dnscontext.Manager
 	m.Store("0", &networkservice.DNSConfig{
@@ -90,7 +98,9 @@ func TestManager_StoreConflict(t *testing.T) {
 	const expected = `zone-a {
 	fanout . IP1 IP2 IP3
 	log
-	cache
+	cache {
+		denial 0
+	}
 }`
 	var m dnscontext.Manager
 	m.Store("0", &networkservice.DNSConfig{
@@ -109,7 +119,9 @@ func TestManger_Remove(t *testing.T) {
 	const expected = `zone-a {
 	fanout . IP1 IP2
 	log
-	cache
+	cache {
+		denial 0
+	}
 }`
 	var m dnscontext.Manager
 	m.Store("0", &networkservice.DNSConfig{
@@ -127,7 +139,9 @@ func TestManger_RemoveConflict(t *testing.T) {
 	const expected = `zone-a {
 	fanout . IP1 IP2
 	log
-	cache
+	cache {
+		denial 0
+	}
 }`
 	var m dnscontext.Manager
 	m.Store("0", &networkservice.DNSConfig{

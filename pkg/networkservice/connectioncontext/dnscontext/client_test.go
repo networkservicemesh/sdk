@@ -57,7 +57,9 @@ func Test_DNSContextClient_Usecases(t *testing.T) {
 	fanout . 8.8.4.4
 	log
 	reload
-	cache
+	cache {
+		denial 0
+	}
 }`
 
 	requireFileChanged(ctx, t, corefilePath, expectedEmptyCorefile)
@@ -67,7 +69,7 @@ func Test_DNSContextClient_Usecases(t *testing.T) {
 		expectedCorefile string
 	}{
 		{
-			expectedCorefile: ". {\n\tfanout . 8.8.4.4\n\tlog\n\treload\n\tcache\n}\nexample.com {\n\tfanout . 8.8.8.8\n\tlog\n\tcache\n}",
+			expectedCorefile: ". {\n\tfanout . 8.8.4.4\n\tlog\n\treload\n\tcache {\n\t\tdenial 0\n\t}\n}\nexample.com {\n\tfanout . 8.8.8.8\n\tlog\n\tcache {\n\t\tdenial 0\n\t}\n}",
 			request: &networkservice.NetworkServiceRequest{
 				Connection: &networkservice.Connection{
 					Id: "nsc-1",
@@ -85,7 +87,7 @@ func Test_DNSContextClient_Usecases(t *testing.T) {
 			},
 		},
 		{
-			expectedCorefile: ". {\n\tfanout . 8.8.4.4\n\tlog\n\treload\n\tcache\n}\nexample.com {\n\tfanout . 7.7.7.7 8.8.8.8 9.9.9.9\n\tlog\n\tcache\n}",
+			expectedCorefile: ". {\n\tfanout . 8.8.4.4\n\tlog\n\treload\n\tcache {\n\t\tdenial 0\n\t}\n}\nexample.com {\n\tfanout . 7.7.7.7 8.8.8.8 9.9.9.9\n\tlog\n\tcache {\n\t\tdenial 0\n\t}\n}",
 			request: &networkservice.NetworkServiceRequest{
 				Connection: &networkservice.Connection{
 					Id: "nsc-1",

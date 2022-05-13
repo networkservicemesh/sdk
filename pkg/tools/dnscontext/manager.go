@@ -58,9 +58,9 @@ func (m *Manager) String() string {
 		plugin := defaultPlugin
 		sort.Strings(v)
 		if k == "" {
-			_, _ = sb.WriteString(fmt.Sprintf(serverBlockTemplate, AnyDomain, plugin, strings.Join(v, " "), "log\n\treload\n\tcache"))
+			_, _ = sb.WriteString(fmt.Sprintf(serverBlockTemplate, AnyDomain, plugin, strings.Join(v, " "), "log\n\treload\n\tcache {\n\t\tdenial 0\n\t}"))
 		} else {
-			_, _ = sb.WriteString(fmt.Sprintf(serverBlockTemplate, k, plugin, strings.Join(v, " "), "log\n\tcache"))
+			_, _ = sb.WriteString(fmt.Sprintf(serverBlockTemplate, k, plugin, strings.Join(v, " "), "log\n\tcache {\n\t\tdenial 0\n\t}"))
 		}
 		i++
 		if i < len(result) {
