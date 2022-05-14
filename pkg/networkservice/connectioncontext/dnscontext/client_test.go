@@ -66,15 +66,15 @@ func Test_DNSContextClient_Restart(t *testing.T) {
 
 	require.Never(t, func() bool {
 		for {
+			// #nosec
 			b, err := ioutil.ReadFile(corefilePath)
 			if err == nil {
 				time.Sleep(time.Millisecond * 50)
+				continue
 			}
 			return string(b) != expectedEmptyCorefile
 		}
-
 	}, time.Second/2, time.Millisecond*100)
-
 }
 
 func Test_DNSContextClient_Usecases(t *testing.T) {
