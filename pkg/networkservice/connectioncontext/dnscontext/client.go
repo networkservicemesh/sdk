@@ -129,11 +129,6 @@ func (c *dnsContextClient) initialize() {
 
 	c.storeOriginalResolvConf()
 
-	go func() {
-		defer c.restoreResolvConf()
-		<-c.chainContext.Done()
-	}()
-
 	c.dnsConfigManager.Store("", &networkservice.DNSConfig{
 		SearchDomains: r.Value(dnscontext.AnyDomain),
 		DnsServerIps:  r.Value(dnscontext.NameserverProperty),
