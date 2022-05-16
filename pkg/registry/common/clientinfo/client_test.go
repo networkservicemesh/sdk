@@ -20,57 +20,50 @@ package clientinfo_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientinfo"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
+	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/clientinfo"
 )
 
-func TestClientInfo(t *testing.T) {
+func TestLabelsClient(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
 
 	tests := []struct {
-		name      string
-		envs      map[string]string
-		oldLabels map[string]string
-		want      map[string]string
+		name     string
+		envs     map[string]string
+		expected map[string]string
+		input    map[string]string
 	}{
 		{
-			name: "LabelsMapNotPresent",
+			name: "MapNotPresent",
 			envs: map[string]string{
 				"NODE_NAME":    "AAA",
 				"POD_NAME":     "BBB",
 				"CLUSTER_NAME": "CCC",
 			},
-			oldLabels: nil,
-			want: map[string]string{
+			expected: map[string]string{
 				"nodeName":    "AAA",
 				"podName":     "BBB",
 				"clusterName": "CCC",
 			},
 		},
 		{
-			name: "LabelsAlreadySet",
+			name: "LabelsOverwritten",
 			envs: map[string]string{
 				"NODE_NAME":    "AAA",
 				"POD_NAME":     "BBB",
 				"CLUSTER_NAME": "CCC",
 			},
-			oldLabels: map[string]string{
+			expected: map[string]string{
 				"nodeName":       "OLD_VAL1",
 				"podName":        "OLD_VAL2",
 				"clusterName":    "OLD_VAL3",
 				"SomeOtherLabel": "DDD",
 			},
-			want: map[string]string{
+			input: map[string]string{
 				"nodeName":       "OLD_VAL1",
 				"podName":        "OLD_VAL2",
 				"clusterName":    "OLD_VAL3",
@@ -80,61 +73,52 @@ func TestClientInfo(t *testing.T) {
 		{
 			name: "SomeEnvsNotPresent",
 			envs: map[string]string{
-				"POD_NAME":     "BBB",
 				"CLUSTER_NAME": "CCC",
 			},
-			oldLabels: map[string]string{
+			expected: map[string]string{
 				"nodeName":       "OLD_VAL1",
-				"clusterName":    "OLD_VAL3",
+				"clusterName":    "OLD_VAL2",
 				"SomeOtherLabel": "DDD",
 			},
-			want: map[string]string{
+			input: map[string]string{
 				"nodeName":       "OLD_VAL1",
-				"podName":        "BBB",
-				"clusterName":    "OLD_VAL3",
-				"SomeOtherLabel": "DDD",
-			},
-		},
-		{
-			name: "SomeEnvsAndLabelsNotPresent",
-			envs: map[string]string{
-				"POD_NAME":     "BBB",
-				"CLUSTER_NAME": "CCC",
-			},
-			oldLabels: map[string]string{
-				"clusterName":    "OLD_VAL3",
-				"SomeOtherLabel": "DDD",
-			},
-			want: map[string]string{
-				"podName":        "BBB",
-				"clusterName":    "OLD_VAL3",
+				"clusterName":    "OLD_VAL2",
 				"SomeOtherLabel": "DDD",
 			},
 		},
 	}
 
 	for _, tc := range tests {
-		tc := tc
+		// nolint:scopelint
 		t.Run(tc.name, func(t *testing.T) {
-			err := setEnvs(tc.envs)
-			require.NoError(t, err)
-
-			client := next.NewNetworkServiceClient(
-				clientinfo.NewClient(),
-				checkrequest.NewClient(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
-					require.Equal(t, tc.want, request.GetConnection().GetLabels())
-				}),
-			)
-			conn, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
-				Connection: &networkservice.Connection{
-					Labels: tc.oldLabels,
-				},
-			})
-			require.NoError(t, err)
-			require.NotNil(t, conn)
-
-			err = unsetEnvs(tc.envs)
-			require.NoError(t, err)
+			testLabelsClient(t, tc.envs, tc.expected, tc.input)
 		})
 	}
+}
+
+func testLabelsClient(t *testing.T, envs, want, input map[string]string) {
+	nsReg := registry.NetworkService{Name: "ns-1"}
+	nseReg := &registry.NetworkServiceEndpoint{
+		Name: "nse-1",
+		NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{nsReg.Name: {
+			Labels: input,
+		}},
+	}
+
+	err := setEnvs(envs)
+	require.NoError(t, err)
+
+	client := clientinfo.NewNetworkServiceEndpointRegistryClient()
+
+	// Register
+	nseReg, err = client.Register(context.Background(), nseReg)
+	require.NoError(t, err)
+	require.Equal(t, want, nseReg.NetworkServiceLabels[nsReg.Name].Labels)
+
+	// Unregister
+	_, err = client.Unregister(context.Background(), nseReg)
+	require.NoError(t, err)
+
+	err = unsetEnvs(envs)
+	require.NoError(t, err)
 }

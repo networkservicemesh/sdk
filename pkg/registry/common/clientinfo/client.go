@@ -25,28 +25,34 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/tools/clientinfo"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
 type clientInfoClient struct{}
 
-// NewClient - creates a new networkservice.NetworkServiceClient chain element that adds pod, node and cluster names
+// NewNetworkServiceEndpointRegistryClient - creates a new networkservice.NetworkServiceEndpointRegistryClient chain element that adds pod, node and cluster names
 // to request from corresponding environment variables
-func NewClient() networkservice.NetworkServiceClient {
+func NewNetworkServiceEndpointRegistryClient() registry.NetworkServiceEndpointRegistryClient {
 	return &clientInfoClient{}
 }
 
-func (a *clientInfoClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	conn := request.GetRequestConnection()
-	if conn.Labels == nil {
-		conn.Labels = make(map[string]string)
+func (c *clientInfoClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+	for _, v := range in.NetworkServiceLabels {
+		if v.Labels == nil {
+			v.Labels = make(map[string]string)
+		}
+		clientinfo.AddClientInfo(ctx, v.Labels)
 	}
-	clientinfo.AddClientInfo(ctx, conn.Labels)
-	return next.Client(ctx).Request(ctx, request, opts...)
+
+	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)
 }
 
-func (a *clientInfoClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	return next.Client(ctx).Close(ctx, conn, opts...)
+func (c *clientInfoClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
+	return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, in, opts...)
+}
+
+func (c *clientInfoClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
+	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
 }

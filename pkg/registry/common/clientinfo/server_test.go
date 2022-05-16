@@ -111,12 +111,12 @@ func TestLabelsServer(t *testing.T) {
 	for _, tc := range tests {
 		// nolint:scopelint
 		t.Run(tc.name, func(t *testing.T) {
-			testLabels(t, tc.envs, tc.expected, tc.input)
+			testLabelsServer(t, tc.envs, tc.expected, tc.input)
 		})
 	}
 }
 
-func testLabels(t *testing.T, envs, want, input map[string]string) {
+func testLabelsServer(t *testing.T, envs, want, input map[string]string) {
 	nsReg := registry.NetworkService{Name: "ns-1"}
 	nseReg := &registry.NetworkServiceEndpoint{
 		Name: "nse-1",
