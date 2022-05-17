@@ -43,18 +43,21 @@ type externaldnscontextServer struct {
 	configs      atomic.Value
 }
 
-// NewServer  gets dnscontext from the remote side
+// NewServer cretes new externaldnscontext networkservice server instance
 func NewServer(ctx context.Context, serverLabels map[string]string, remoteURL *url.URL, opts ...grpc.DialOption) networkservice.NetworkServiceServer {
 	var r = &externaldnscontextServer{
 		serverLabels: serverLabels,
 		clientQueue:  make(chan *dns.DNSRequest, 100),
 	}
 	var logger = log.FromContext(ctx).WithField("externaldnscontextServer", "managePrefixes go-routine")
+
 	r.configs.Store((*dns.Configs)(nil))
+
 	go func() {
 		defer close(r.clientQueue)
 		<-ctx.Done()
 	}()
+
 	go func() {
 		for ; ctx.Err() == nil; time.Sleep(time.Millisecond * 100) {
 			cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(remoteURL), opts...)
@@ -95,6 +98,7 @@ func NewServer(ctx context.Context, serverLabels map[string]string, remoteURL *u
 			_ = cc.Close()
 		}
 	}()
+
 	return r
 }
 

@@ -40,7 +40,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
-func newTestingDNSRegisterServcer(ctx context.Context, t *testing.T) *testingDNSRegisterService {
+func newTestingDNSRegisterServce(ctx context.Context, t *testing.T) *testingDNSRegisterService {
 	var s = grpc.NewServer()
 
 	var r = new(testingDNSRegisterService)
@@ -114,7 +114,7 @@ func Test_ExternalDNSContext_EmptyRequest(t *testing.T) {
 	var ctx, cancel = context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	var s = newTestingDNSRegisterServcer(ctx, t)
+	var s = newTestingDNSRegisterServce(ctx, t)
 
 	var c = retry.NewClient(
 		adapters.NewServerToClient(
@@ -139,7 +139,7 @@ func Test_ExternalDNSContext_RequestRefreshClose(t *testing.T) {
 	var ctx, cancel = context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	var s = newTestingDNSRegisterServcer(ctx, t)
+	var s = newTestingDNSRegisterServce(ctx, t)
 
 	var c = retry.NewClient(
 		adapters.NewServerToClient(
@@ -194,7 +194,7 @@ func Test_ExternalDNSContext_WorksCorrectly_WithDNSContext(t *testing.T) {
 	var ctx, cancel = context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	var s = newTestingDNSRegisterServcer(ctx, t)
+	var s = newTestingDNSRegisterServce(ctx, t)
 
 	var c = retry.NewClient(
 		adapters.NewServerToClient(
