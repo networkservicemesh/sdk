@@ -48,65 +48,65 @@ func unsetEnvs(envs map[string]string) error {
 	return nil
 }
 
+var tests = []struct {
+	name     string
+	envs     map[string]string
+	expected map[string]string
+	input    map[string]string
+}{
+	{
+		name: "MapNotPresent",
+		envs: map[string]string{
+			"NODE_NAME":    "AAA",
+			"POD_NAME":     "BBB",
+			"CLUSTER_NAME": "CCC",
+		},
+		expected: map[string]string{
+			"nodeName":    "AAA",
+			"podName":     "BBB",
+			"clusterName": "CCC",
+		},
+	},
+	{
+		name: "LabelsOverwritten",
+		envs: map[string]string{
+			"NODE_NAME":    "AAA",
+			"POD_NAME":     "BBB",
+			"CLUSTER_NAME": "CCC",
+		},
+		expected: map[string]string{
+			"nodeName":       "OLD_VAL1",
+			"podName":        "OLD_VAL2",
+			"clusterName":    "OLD_VAL3",
+			"SomeOtherLabel": "DDD",
+		},
+		input: map[string]string{
+			"nodeName":       "OLD_VAL1",
+			"podName":        "OLD_VAL2",
+			"clusterName":    "OLD_VAL3",
+			"SomeOtherLabel": "DDD",
+		},
+	},
+	{
+		name: "SomeEnvsNotPresent",
+		envs: map[string]string{
+			"CLUSTER_NAME": "CCC",
+		},
+		expected: map[string]string{
+			"nodeName":       "OLD_VAL1",
+			"clusterName":    "OLD_VAL2",
+			"SomeOtherLabel": "DDD",
+		},
+		input: map[string]string{
+			"nodeName":       "OLD_VAL1",
+			"clusterName":    "OLD_VAL2",
+			"SomeOtherLabel": "DDD",
+		},
+	},
+}
+
 func TestLabelsServer(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-
-	tests := []struct {
-		name     string
-		envs     map[string]string
-		expected map[string]string
-		input    map[string]string
-	}{
-		{
-			name: "MapNotPresent",
-			envs: map[string]string{
-				"NODE_NAME":    "AAA",
-				"POD_NAME":     "BBB",
-				"CLUSTER_NAME": "CCC",
-			},
-			expected: map[string]string{
-				"nodeName":    "AAA",
-				"podName":     "BBB",
-				"clusterName": "CCC",
-			},
-		},
-		{
-			name: "LabelsOverwritten",
-			envs: map[string]string{
-				"NODE_NAME":    "AAA",
-				"POD_NAME":     "BBB",
-				"CLUSTER_NAME": "CCC",
-			},
-			expected: map[string]string{
-				"nodeName":       "OLD_VAL1",
-				"podName":        "OLD_VAL2",
-				"clusterName":    "OLD_VAL3",
-				"SomeOtherLabel": "DDD",
-			},
-			input: map[string]string{
-				"nodeName":       "OLD_VAL1",
-				"podName":        "OLD_VAL2",
-				"clusterName":    "OLD_VAL3",
-				"SomeOtherLabel": "DDD",
-			},
-		},
-		{
-			name: "SomeEnvsNotPresent",
-			envs: map[string]string{
-				"CLUSTER_NAME": "CCC",
-			},
-			expected: map[string]string{
-				"nodeName":       "OLD_VAL1",
-				"clusterName":    "OLD_VAL2",
-				"SomeOtherLabel": "DDD",
-			},
-			input: map[string]string{
-				"nodeName":       "OLD_VAL1",
-				"clusterName":    "OLD_VAL2",
-				"SomeOtherLabel": "DDD",
-			},
-		},
-	}
 
 	for _, tc := range tests {
 		// nolint:scopelint
