@@ -22,6 +22,7 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 
 	"github.com/edwarnicke/serialize"
@@ -48,7 +49,7 @@ type dnsContextClient struct {
 
 // NewClient creates a new DNS client chain component. Setups all DNS traffic to the localhost. Monitors DNS configs from connections.
 func NewClient(options ...DNSOption) networkservice.NetworkServiceClient {
-	c := &dnsContextClient{
+	var c = &dnsContextClient{
 		chainContext:        context.Background(),
 		defaultNameServerIP: "127.0.0.1",
 		resolveConfigPath:   "/etc/resolv.conf",
@@ -57,7 +58,9 @@ func NewClient(options ...DNSOption) networkservice.NetworkServiceClient {
 	for _, o := range options {
 		o.apply(c)
 	}
-	c.storedResolvConfigPath = c.resolveConfigPath + ".restore"
+
+	var _, name = path.Split(c.resolveConfigPath)
+	c.storedResolvConfigPath = path.Join(path.Dir(c.coreFilePath), name+".restore")
 	c.initialize()
 	return c
 }
