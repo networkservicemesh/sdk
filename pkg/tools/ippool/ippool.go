@@ -64,8 +64,13 @@ func New(ipLength int) *IPPool {
 // NewWithNet instantiates a ip pool as red-black tree with the specified ip network
 func NewWithNet(ipNet *net.IPNet) *IPPool {
 	ipPool := &IPPool{
-		ipLength: len(ipNet.IP),
+		ipLength: net.IPv4len,
 	}
+
+	if ipNet.IP.To4() == nil {
+		ipPool.ipLength = net.IPv6len
+	}
+
 	ipPool.AddNet(ipNet)
 	return ipPool
 }
@@ -127,7 +132,15 @@ func (tree *IPPool) AddString(in string) {
 
 // AddNet - adds ip addresses from network to the pool
 func (tree *IPPool) AddNet(ipNet *net.IPNet) {
-	if ipNet == nil || tree.ipLength != len(ipNet.IP) {
+	if ipNet == nil {
+		return
+	}
+
+	ipNetLen := net.IPv4len
+	if ipNet.IP.To4() == nil {
+		ipNetLen = net.IPv6len
+	}
+	if tree.ipLength != ipNetLen {
 		return
 	}
 
@@ -199,6 +212,14 @@ func (tree *IPPool) ContainsString(in string) bool {
 // Exclude - exclude network from pool
 func (tree *IPPool) Exclude(ipNet *net.IPNet) {
 	if ipNet == nil {
+		return
+	}
+
+	ipNetLen := net.IPv4len
+	if ipNet.IP.To4() == nil {
+		ipNetLen = net.IPv6len
+	}
+	if tree.ipLength != ipNetLen {
 		return
 	}
 
@@ -299,7 +320,7 @@ func (tree *IPPool) GetPrefixes() []string {
 }
 
 func (tree *IPPool) excludePool(exclude *IPPool) {
-	if exclude == nil {
+	if exclude == nil || tree.ipLength != exclude.ipLength {
 		return
 	}
 

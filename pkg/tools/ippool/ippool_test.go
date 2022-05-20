@@ -251,6 +251,12 @@ func TestIPPoolTool_PullP2PAddrs(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, srcIPNet.String(), "192.0.1.0/32")
 	require.Equal(t, dstIPNet.String(), "192.0.1.2/32")
+
+	excludedPool = NewWithNetString("::/0")
+	srcIPNet, dstIPNet, err = ipPool.PullP2PAddrs(excludedPool)
+	require.NoError(t, err)
+	require.Equal(t, srcIPNet.String(), "192.0.0.5/32")
+	require.Equal(t, dstIPNet.String(), "192.0.0.6/32")
 }
 
 func TestIPPoolTool_IPv6Add(t *testing.T) {
