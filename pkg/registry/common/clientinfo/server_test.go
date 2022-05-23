@@ -1,4 +1,6 @@
-// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -48,7 +50,7 @@ func unsetEnvs(envs map[string]string) error {
 	return nil
 }
 
-var tests = []struct {
+var testCases = []struct {
 	name     string
 	envs     map[string]string
 	expected map[string]string
@@ -108,7 +110,7 @@ var tests = []struct {
 func TestLabelsServer(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	for _, tc := range tests {
+	for _, tc := range testCases {
 		// nolint:scopelint
 		t.Run(tc.name, func(t *testing.T) {
 			testLabelsServer(t, tc.envs, tc.expected, tc.input)
