@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,15 +29,15 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/clientinfo"
 )
 
-type clientInfo struct{}
+type clientInfoServer struct{}
 
 // NewNetworkServiceEndpointRegistryServer - creates a new registry.NetworkServiceEndpointRegistryServer chain element
 // that adds pod, node and cluster names to endpoint labels from corresponding environment variables
 func NewNetworkServiceEndpointRegistryServer() registry.NetworkServiceEndpointRegistryServer {
-	return &clientInfo{}
+	return &clientInfoServer{}
 }
 
-func (c *clientInfo) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+func (c *clientInfoServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	for _, v := range nse.NetworkServiceLabels {
 		if v.Labels == nil {
 			v.Labels = make(map[string]string)
@@ -46,10 +48,10 @@ func (c *clientInfo) Register(ctx context.Context, nse *registry.NetworkServiceE
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 }
 
-func (c *clientInfo) Find(q *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
+func (c *clientInfoServer) Find(q *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
 	return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(q, s)
 }
 
-func (c *clientInfo) Unregister(ctx context.Context, ns *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+func (c *clientInfoServer) Unregister(ctx context.Context, ns *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, ns)
 }
