@@ -93,7 +93,7 @@ func (d *Domain) NewNSRegistryClient(ctx context.Context, generatorFunc token.Ge
 	var registryURL *url.URL
 	switch {
 	case d.Registry != nil:
-		registryURL = d.Registry.URL
+		registryURL = CloneURL(d.Registry.URL)
 	case len(d.Nodes) != 0:
 		registryURL = CloneURL(d.Nodes[0].NSMgr.URL)
 	default:
