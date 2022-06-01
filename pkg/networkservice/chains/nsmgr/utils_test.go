@@ -52,6 +52,7 @@ func defaultRequest(nsName string) *networkservice.NetworkServiceRequest {
 			Id:             "1",
 			NetworkService: nsName,
 			Context:        &networkservice.ConnectionContext{},
+			Labels:         make(map[string]string),
 		},
 	}
 }
