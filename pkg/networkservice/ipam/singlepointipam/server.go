@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Nordix and its affiliates.
+// Copyright (c) 2020-2022 Nordix and its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -113,7 +113,6 @@ func (sipam *singlePIpam) Request(ctx context.Context, request *networkservice.N
 	}
 
 	addAddr(&ipContext.SrcIpAddrs, connInfo.srcAddr)
-	addAddr(&ipContext.DstIpAddrs, connInfo.dstAddr)
 
 	conn, err = next.Server(ctx).Request(ctx, request)
 	if err != nil {
