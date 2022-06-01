@@ -108,7 +108,6 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 
 		_, err = resolver.LookupIP(reqCtx, "ip4", "nsc"+fmt.Sprint(i)+".vl3")
 		require.Error(t, err)
-
 	}
 }
 
