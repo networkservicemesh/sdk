@@ -1,4 +1,5 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Nordix and its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -23,11 +24,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/singlepointipam"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
@@ -52,17 +52,12 @@ func newRequest() *networkservice.NetworkServiceRequest {
 	}
 }
 
-func validateConn(t *testing.T, conn *networkservice.Connection, dst, src string) {
-	require.Equal(t, dst, conn.Context.IpContext.DstIpAddrs[0])
+func validateConn(t *testing.T, conn *networkservice.Connection, src string) {
 	require.Equal(t, src, conn.Context.IpContext.SrcIpAddrs[0])
 }
 
-func validateConns(t *testing.T, conn *networkservice.Connection, dsts, srcs []string) {
-	require.Equal(t, len(dsts), len(conn.Context.IpContext.DstIpAddrs))
+func validateConns(t *testing.T, conn *networkservice.Connection, srcs []string) {
 	require.Equal(t, len(srcs), len(conn.Context.IpContext.SrcIpAddrs))
-	for i, dst := range dsts {
-		require.Equal(t, dst, conn.Context.IpContext.DstIpAddrs[i])
-	}
 	for i, src := range srcs {
 		require.Equal(t, src, conn.Context.IpContext.SrcIpAddrs[i])
 	}
@@ -77,22 +72,22 @@ func TestServer(t *testing.T) {
 
 	conn1, err := srv.Request(context.Background(), newRequest())
 	require.NoError(t, err)
-	validateConn(t, conn1, "192.168.0.0/16", "192.168.0.1/16")
+	validateConn(t, conn1, "192.168.0.1/16")
 
 	conn2, err := srv.Request(context.Background(), newRequest())
 	require.NoError(t, err)
-	validateConn(t, conn2, "192.168.0.0/16", "192.168.0.2/16")
+	validateConn(t, conn2, "192.168.0.2/16")
 
 	_, err = srv.Close(context.Background(), conn1)
 	require.NoError(t, err)
 
 	conn3, err := srv.Request(context.Background(), newRequest())
 	require.NoError(t, err)
-	validateConn(t, conn3, "192.168.0.0/16", "192.168.0.1/16")
+	validateConn(t, conn3, "192.168.0.1/16")
 
 	conn4, err := srv.Request(context.Background(), newRequest())
 	require.NoError(t, err)
-	validateConn(t, conn4, "192.168.0.0/16", "192.168.0.3/16")
+	validateConn(t, conn4, "192.168.0.3/16")
 }
 
 //nolint:dupl
@@ -104,22 +99,22 @@ func TestServerIPv6(t *testing.T) {
 
 	conn1, err := srv.Request(context.Background(), newRequest())
 	require.NoError(t, err)
-	validateConn(t, conn1, "fe80::/64", "fe80::1/64")
+	validateConn(t, conn1, "fe80::1/64")
 
 	conn2, err := srv.Request(context.Background(), newRequest())
 	require.NoError(t, err)
-	validateConn(t, conn2, "fe80::/64", "fe80::2/64")
+	validateConn(t, conn2, "fe80::2/64")
 
 	_, err = srv.Close(context.Background(), conn1)
 	require.NoError(t, err)
 
 	conn3, err := srv.Request(context.Background(), newRequest())
 	require.NoError(t, err)
-	validateConn(t, conn3, "fe80::/64", "fe80::1/64")
+	validateConn(t, conn3, "fe80::1/64")
 
 	conn4, err := srv.Request(context.Background(), newRequest())
 	require.NoError(t, err)
-	validateConn(t, conn4, "fe80::/64", "fe80::3/64")
+	validateConn(t, conn4, "fe80::3/64")
 }
 
 func TestNilPrefixes(t *testing.T) {
@@ -160,21 +155,21 @@ func TestExclude32Prefix(t *testing.T) {
 	req1.Connection.Context.IpContext.ExcludedPrefixes = []string{"192.168.1.1/32", "192.168.1.3/32", "192.168.1.5/32"}
 	conn1, err := srv.Request(context.Background(), req1)
 	require.NoError(t, err)
-	validateConn(t, conn1, "192.168.1.0/24", "192.168.1.2/24")
+	validateConn(t, conn1, "192.168.1.2/24")
 
 	// Test exclude before assigned
 	req2 := newRequest()
 	req2.Connection.Context.IpContext.ExcludedPrefixes = []string{"192.168.1.1/32", "192.168.1.3/32", "192.168.1.5/32"}
 	conn2, err := srv.Request(context.Background(), req2)
 	require.NoError(t, err)
-	validateConn(t, conn2, "192.168.1.0/24", "192.168.1.4/24")
+	validateConn(t, conn2, "192.168.1.4/24")
 
 	// Test after assigned
 	req3 := newRequest()
 	req3.Connection.Context.IpContext.ExcludedPrefixes = []string{"192.168.1.1/32", "192.168.1.3/32", "192.168.1.5/32"}
 	conn3, err := srv.Request(context.Background(), req3)
 	require.NoError(t, err)
-	validateConn(t, conn3, "192.168.1.0/24", "192.168.1.6/24")
+	validateConn(t, conn3, "192.168.1.6/24")
 }
 
 //nolint:dupl
@@ -189,21 +184,21 @@ func TestExclude128PrefixIPv6(t *testing.T) {
 	req1.Connection.Context.IpContext.ExcludedPrefixes = []string{"fe80::1:1/128", "fe80::1:3/128", "fe80::1:5/128"}
 	conn1, err := srv.Request(context.Background(), req1)
 	require.NoError(t, err)
-	validateConn(t, conn1, "fe80::1:0/112", "fe80::1:2/112")
+	validateConn(t, conn1, "fe80::1:2/112")
 
 	// Test exclude before assigned
 	req2 := newRequest()
 	req2.Connection.Context.IpContext.ExcludedPrefixes = []string{"fe80::1:1/128", "fe80::1:3/128", "fe80::1:5/128"}
 	conn2, err := srv.Request(context.Background(), req2)
 	require.NoError(t, err)
-	validateConn(t, conn2, "fe80::1:0/112", "fe80::1:4/112")
+	validateConn(t, conn2, "fe80::1:4/112")
 
 	// Test after assigned
 	req3 := newRequest()
 	req3.Connection.Context.IpContext.ExcludedPrefixes = []string{"fe80::1:1/128", "fe80::1:3/128", "fe80::1:5/128"}
 	conn3, err := srv.Request(context.Background(), req3)
 	require.NoError(t, err)
-	validateConn(t, conn3, "fe80::1:0/112", "fe80::1:6/112")
+	validateConn(t, conn3, "fe80::1:6/112")
 }
 
 func TestOutOfIPs(t *testing.T) {
@@ -215,7 +210,7 @@ func TestOutOfIPs(t *testing.T) {
 	req1 := newRequest()
 	conn1, err := srv.Request(context.Background(), req1)
 	require.NoError(t, err)
-	validateConn(t, conn1, "192.168.1.2/31", "192.168.1.3/31")
+	validateConn(t, conn1, "192.168.1.3/31")
 
 	req2 := newRequest()
 	_, err = srv.Request(context.Background(), req2)
@@ -231,7 +226,7 @@ func TestOutOfIPsIPv6(t *testing.T) {
 	req1 := newRequest()
 	conn1, err := srv.Request(context.Background(), req1)
 	require.NoError(t, err)
-	validateConn(t, conn1, "fe80::1:2/127", "fe80::1:3/127")
+	validateConn(t, conn1, "fe80::1:3/127")
 
 	req2 := newRequest()
 	_, err = srv.Request(context.Background(), req2)
@@ -275,19 +270,19 @@ func TestRefreshRequest(t *testing.T) {
 	req.Connection.Context.IpContext.ExcludedPrefixes = []string{"192.168.0.1/32"}
 	conn, err := srv.Request(context.Background(), req)
 	require.NoError(t, err)
-	validateConn(t, conn, "192.168.0.0/16", "192.168.0.2/16")
+	validateConn(t, conn, "192.168.0.2/16")
 
 	req = newRequest()
 	req.Connection.Id = conn.Id
 	conn, err = srv.Request(context.Background(), req)
 	require.NoError(t, err)
-	validateConn(t, conn, "192.168.0.0/16", "192.168.0.2/16")
+	validateConn(t, conn, "192.168.0.2/16")
 
 	req.Connection = conn.Clone()
 	req.Connection.Context.IpContext.ExcludedPrefixes = []string{"192.168.0.1/30"}
 	conn, err = srv.Request(context.Background(), req)
 	require.NoError(t, err)
-	validateConn(t, conn, "192.168.0.4/16", "192.168.0.5/16")
+	validateConn(t, conn, "192.168.0.5/16")
 }
 
 //nolint:dupl
@@ -301,19 +296,19 @@ func TestRefreshRequestIPv6(t *testing.T) {
 	req.Connection.Context.IpContext.ExcludedPrefixes = []string{"fe80::1/128"}
 	conn, err := srv.Request(context.Background(), req)
 	require.NoError(t, err)
-	validateConn(t, conn, "fe80::/64", "fe80::2/64")
+	validateConn(t, conn, "fe80::2/64")
 
 	req = newRequest()
 	req.Connection.Id = conn.Id
 	conn, err = srv.Request(context.Background(), req)
 	require.NoError(t, err)
-	validateConn(t, conn, "fe80::/64", "fe80::2/64")
+	validateConn(t, conn, "fe80::2/64")
 
 	req.Connection = conn.Clone()
 	req.Connection.Context.IpContext.ExcludedPrefixes = []string{"fe80::/126"}
 	conn, err = srv.Request(context.Background(), req)
 	require.NoError(t, err)
-	validateConn(t, conn, "fe80::4/64", "fe80::5/64")
+	validateConn(t, conn, "fe80::5/64")
 }
 
 func TestNextError(t *testing.T) {
@@ -327,7 +322,7 @@ func TestNextError(t *testing.T) {
 
 	conn, err := srv.Request(context.Background(), newRequest())
 	require.NoError(t, err)
-	validateConn(t, conn, "192.168.0.0/16", "192.168.0.1/16")
+	validateConn(t, conn, "192.168.0.1/16")
 }
 
 func TestRefreshNextError(t *testing.T) {
@@ -339,7 +334,7 @@ func TestRefreshNextError(t *testing.T) {
 	req := newRequest()
 	conn, err := srv.Request(context.Background(), req)
 	require.NoError(t, err)
-	validateConn(t, conn, "192.168.0.0/16", "192.168.0.1/16")
+	validateConn(t, conn, "192.168.0.1/16")
 
 	req.Connection = conn.Clone()
 	_, err = next.NewNetworkServiceServer(srv, injecterror.NewServer()).Request(context.Background(), newRequest())
@@ -347,7 +342,7 @@ func TestRefreshNextError(t *testing.T) {
 
 	conn, err = srv.Request(context.Background(), newRequest())
 	require.NoError(t, err)
-	validateConn(t, conn, "192.168.0.0/16", "192.168.0.2/16")
+	validateConn(t, conn, "192.168.0.2/16")
 }
 
 //nolint:dupl
@@ -364,22 +359,22 @@ func TestServers(t *testing.T) {
 
 	conn1, err := srv.Request(context.Background(), newRequest())
 	require.NoError(t, err)
-	validateConns(t, conn1, []string{"192.168.0.0/16", "fd00::/8"}, []string{"192.168.0.1/16", "fd00::1/8"})
+	validateConns(t, conn1, []string{"192.168.0.1/16", "fd00::1/8"})
 
 	conn2, err := srv.Request(context.Background(), newRequest())
 	require.NoError(t, err)
-	validateConns(t, conn2, []string{"192.168.0.0/16", "fd00::/8"}, []string{"192.168.0.2/16", "fd00::2/8"})
+	validateConns(t, conn2, []string{"192.168.0.2/16", "fd00::2/8"})
 
 	_, err = srv.Close(context.Background(), conn1)
 	require.NoError(t, err)
 
 	conn3, err := srv.Request(context.Background(), newRequest())
 	require.NoError(t, err)
-	validateConns(t, conn3, []string{"192.168.0.0/16", "fd00::/8"}, []string{"192.168.0.1/16", "fd00::1/8"})
+	validateConns(t, conn3, []string{"192.168.0.1/16", "fd00::1/8"})
 
 	conn4, err := srv.Request(context.Background(), newRequest())
 	require.NoError(t, err)
-	validateConns(t, conn4, []string{"192.168.0.0/16", "fd00::/8"}, []string{"192.168.0.3/16", "fd00::3/8"})
+	validateConns(t, conn4, []string{"192.168.0.3/16", "fd00::3/8"})
 }
 
 //nolint:dupl
@@ -398,17 +393,17 @@ func TestRefreshRequestMultiServer(t *testing.T) {
 	req.Connection.Context.IpContext.ExcludedPrefixes = []string{"192.168.0.1/32", "fe80::1/128"}
 	conn, err := srv.Request(context.Background(), req)
 	require.NoError(t, err)
-	validateConns(t, conn, []string{"192.168.0.0/16", "fe80::/64"}, []string{"192.168.0.2/16", "fe80::2/64"})
+	validateConns(t, conn, []string{"192.168.0.2/16", "fe80::2/64"})
 
 	req = newRequest()
 	req.Connection = conn
 	conn, err = srv.Request(context.Background(), req)
 	require.NoError(t, err)
-	validateConns(t, conn, []string{"192.168.0.0/16", "fe80::/64"}, []string{"192.168.0.2/16", "fe80::2/64"})
+	validateConns(t, conn, []string{"192.168.0.2/16", "fe80::2/64"})
 
 	req.Connection = conn.Clone()
 	req.Connection.Context.IpContext.ExcludedPrefixes = []string{"192.168.0.1/30", "fe80::1/126"}
 	conn, err = srv.Request(context.Background(), req)
 	require.NoError(t, err)
-	validateConns(t, conn, []string{"192.168.0.4/16", "fe80::4/64"}, []string{"192.168.0.5/16", "fe80::5/64"})
+	validateConns(t, conn, []string{"192.168.0.5/16", "fe80::5/64"})
 }
