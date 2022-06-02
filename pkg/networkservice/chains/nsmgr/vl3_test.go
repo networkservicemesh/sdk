@@ -14,9 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build linux
-// +build linux
-
 package nsmgr_test
 
 import (
@@ -82,7 +79,7 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-		reqCtx, reqClose := context.WithTimeout(ctx, time.Second/4)
+		reqCtx, reqClose := context.WithTimeout(ctx, time.Second)
 		defer reqClose()
 
 		req := defaultRequest(nsReg.Name)
