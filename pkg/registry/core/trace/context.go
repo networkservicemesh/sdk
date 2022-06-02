@@ -25,6 +25,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 	"github.com/networkservicemesh/sdk/pkg/tools/log/spanlogger"
+	"github.com/networkservicemesh/sdk/pkg/tools/opentelemetry"
 )
 
 const (
@@ -41,13 +42,13 @@ func withLog(parent context.Context, operation string) (c context.Context, f fun
 	parent = grpcutils.PassTraceToOutgoing(parent)
 
 	if grpcTraceState := grpcutils.TraceFromContext(parent); (grpcTraceState == grpcutils.TraceOn) ||
-		(grpcTraceState == grpcutils.TraceUndefined && log.IsTracingEnabled()) {
-		ctx, sLogger, span, sFinish := spanlogger.FromContext(parent, operation, map[string]interface{}{"type": loggedType})
-		ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation, map[string]interface{}{"type": loggedType})
-		return log.WithLog(ctx, sLogger, lLogger), func() {
-			sFinish()
-			lFinish()
-		}
+		(grpcTraceState == grpcutils.TraceUndefined && opentelemetry.IsEnabled()) {
+			ctx, sLogger, span, sFinish := spanlogger.FromContext(parent, operation, map[string]interface{}{"type": loggedType})
+			ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation, map[string]interface{}{"type": loggedType})
+			return log.WithLog(ctx, sLogger, lLogger), func() {
+				sFinish()
+				lFinish()
+			}
 	}
 	return log.WithLog(parent), func() {}
 }

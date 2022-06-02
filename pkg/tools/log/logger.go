@@ -19,19 +19,12 @@ package log
 
 import (
 	"context"
-	"sync/atomic"
-
-	"github.com/sirupsen/logrus"
 )
 
 type contextKeyType string
 
 const (
 	logKey contextKeyType = "Logger"
-)
-
-var (
-	isTracingEnabled int32 = 0
 )
 
 // Logger - unified interface for logging
@@ -77,18 +70,5 @@ func WithLog(ctx context.Context, log ...Logger) context.Context {
 	return context.WithValue(ctx, logKey, Combine(log...))
 }
 
-// IsTracingEnabled - checks if it is allowed to use traces
-func IsTracingEnabled() bool {
-	// TODO: Rework this within https://github.com/networkservicemesh/sdk/issues/1272
-	return atomic.LoadInt32(&isTracingEnabled) != 0 && logrus.GetLevel() == logrus.TraceLevel
-}
-
 // EnableTracing - enable/disable traces
-func EnableTracing(enable bool) {
-	if enable {
-		atomic.StoreInt32(&isTracingEnabled, 1)
-		return
-	}
-
-	atomic.StoreInt32(&isTracingEnabled, 0)
-}
+func EnableTracing(enable bool) {}
