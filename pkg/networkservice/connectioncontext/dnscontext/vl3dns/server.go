@@ -28,7 +28,6 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/sirupsen/logrus"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
@@ -177,7 +176,6 @@ func (n *vl3DNSServer) shouldAddToFanoutList(ipContext *networkservice.IPContext
 			return false
 		}
 		var pool = ippool.NewWithNet(ipNet)
-		logrus.Error(ipNet.String())
 		for _, srcIP := range ipContext.GetSrcIpAddrs() {
 			if !pool.ContainsNetString(srcIP) {
 				return true
