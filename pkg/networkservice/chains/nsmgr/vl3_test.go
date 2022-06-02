@@ -14,6 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:build linux
+// +build linux
+
 package nsmgr_test
 
 import (
@@ -65,14 +68,14 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 		nseReg,
 		sandbox.GenerateTestToken,
 		vl3.NewServer(ctx, serverPrefixCh),
-		vl3dns.NewServer(ctx, vl3dns.WithDomainSchemes("{{ index .Labels \"podName\" }}.{{ .NetworkService }}.")),
+		vl3dns.NewServer(ctx, vl3dns.WithDomainSchemes("{{ index .Labels \"podName\" }}.{{ .NetworkService }}."), vl3dns.WithDNSPort(40053)),
 	)
 
 	resolver := net.Resolver{
 		PreferGo: true,
 		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
 			var dialer net.Dialer
-			return dialer.DialContext(ctx, network, "127.0.0.1:53")
+			return dialer.DialContext(ctx, network, "127.0.0.1:40053")
 		},
 	}
 
@@ -135,7 +138,7 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 
 	records.Store("nsc1.vl3.", []net.IP{net.ParseIP("1.1.1.1")})
 
-	dnsutils.ListenAndServe(ctx, dnsServer, ":53")
+	dnsutils.ListenAndServe(ctx, dnsServer, ":40053")
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
@@ -156,7 +159,7 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 		vl3.NewServer(ctx, serverPrefixCh),
 		vl3dns.NewServer(ctx, vl3dns.WithDomainSchemes("{{ index .Labels \"podName\" }}.{{ .NetworkService }}."), vl3dns.WithDNSListenAndServeFunc(func(ctx context.Context, handler dnsutils.Handler, listenOn string) {
 			dnsutils.ListenAndServe(ctx, handler, ":50053")
-		})),
+		}), vl3dns.WithDNSPort(40053)),
 	)
 
 	resolver := net.Resolver{

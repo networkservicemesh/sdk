@@ -61,3 +61,10 @@ func WithDNSListenAndServeFunc(listenAndServeDNS func(ctx context.Context, handl
 		vd.listenAndServeDNS = listenAndServeDNS
 	}
 }
+
+// WithDNSPort replaces default dns port for the inner dns server.
+func WithDNSPort(dnsPort int) Option {
+	return func(vd *vl3DNSServer) {
+		vd.dnsPort = dnsPort
+	}
+}
