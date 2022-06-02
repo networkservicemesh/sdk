@@ -173,15 +173,12 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 	clientPrefixCh <- &ipam.PrefixResponse{Prefix: "127.0.0.1/32"}
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(vl3.NewClient(ctx, clientPrefixCh)))
 
-	reqCtx, reqClose := context.WithTimeout(ctx, time.Second/4)
-	defer reqClose()
-
 	req := defaultRequest(nsReg.Name)
 	req.Connection.Id = uuid.New().String()
 
 	req.Connection.Labels["podName"] = "nsc"
 
-	resp, err := nsc.Request(reqCtx, req)
+	resp, err := nsc.Request(ctx, req)
 	require.NoError(t, err)
 	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs(), 1)
 	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].DnsServerIps, 1)
@@ -194,19 +191,19 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 
 	requireIPv4Lookup(ctx, t, &resolver, "nsc1.vl3", "1.1.1.1") // we can lookup this ip address only and only if fanout is working
 
-	resp, err = nsc.Request(reqCtx, req)
+	resp, err = nsc.Request(ctx, req)
 	require.NoError(t, err)
 
 	requireIPv4Lookup(ctx, t, &resolver, "nsc.vl3", "127.0.0.1")
 
 	requireIPv4Lookup(ctx, t, &resolver, "nsc1.vl3", "1.1.1.1") // we can lookup this ip address only and only if fanout is working
 
-	_, err = nsc.Close(reqCtx, resp)
+	_, err = nsc.Close(ctx, resp)
 	require.NoError(t, err)
 
-	_, err = resolver.LookupIP(reqCtx, "ip4", "nsc.vl3")
+	_, err = resolver.LookupIP(ctx, "ip4", "nsc.vl3")
 	require.Error(t, err)
 
-	_, err = resolver.LookupIP(reqCtx, "ip4", "nsc1.vl3")
+	_, err = resolver.LookupIP(ctx, "ip4", "nsc1.vl3")
 	require.Error(t, err)
 }
