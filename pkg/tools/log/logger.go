@@ -69,6 +69,3 @@ func Join(ctx context.Context, log Logger) context.Context {
 func WithLog(ctx context.Context, log ...Logger) context.Context {
 	return context.WithValue(ctx, logKey, Combine(log...))
 }
-
-// EnableTracing - enable/disable traces
-func EnableTracing(enable bool) {}
