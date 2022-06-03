@@ -129,10 +129,12 @@ func (n *vl3Client) Request(ctx context.Context, request *networkservice.Network
 	conn.GetContext().GetIpContext().SrcIpAddrs = []string{address}
 	conn.GetContext().GetIpContext().DstRoutes = []*networkservice.Route{
 		{
-			Prefix: address,
+			Prefix:  address,
+			NextHop: n.pool.selfAddress().IP.String(),
 		},
 		{
-			Prefix: prefix,
+			Prefix:  prefix,
+			NextHop: n.pool.selfAddress().IP.String(),
 		},
 	}
 

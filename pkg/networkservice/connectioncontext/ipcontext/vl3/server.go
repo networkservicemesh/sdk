@@ -83,10 +83,10 @@ func (v *vl3Server) Request(ctx context.Context, request *networkservice.Network
 		storeAddress(ctx, srcNet.String())
 	}
 
-	addRoute(&ipContext.SrcRoutes, v.pool.selfAddress().String())
-	addRoute(&ipContext.SrcRoutes, v.pool.selfPrefix().String())
+	addRoute(&ipContext.SrcRoutes, v.pool.selfAddress().String(), v.pool.selfAddress().IP.String())
+	addRoute(&ipContext.SrcRoutes, v.pool.selfPrefix().String(), v.pool.selfAddress().IP.String())
 	for _, srcAddr := range ipContext.SrcIpAddrs {
-		addRoute(&ipContext.DstRoutes, srcAddr)
+		addRoute(&ipContext.DstRoutes, srcAddr, "")
 	}
 	addAddr(&ipContext.DstIpAddrs, v.pool.selfAddress().String())
 
@@ -94,7 +94,7 @@ func (v *vl3Server) Request(ctx context.Context, request *networkservice.Network
 
 	resp, err := next.Server(ctx).Request(ctx, request)
 	if err == nil {
-		addRoute(&resp.GetContext().GetIpContext().SrcRoutes, v.pool.globalIPNet().String())
+		addRoute(&resp.GetContext().GetIpContext().SrcRoutes, v.pool.globalIPNet().String(), v.pool.selfAddress().IP.String())
 	}
 	return resp, err
 }
@@ -106,14 +106,15 @@ func (v *vl3Server) Close(ctx context.Context, conn *networkservice.Connection) 
 	return next.Server(ctx).Close(ctx, conn)
 }
 
-func addRoute(routes *[]*networkservice.Route, prefix string) {
+func addRoute(routes *[]*networkservice.Route, prefix, nextHop string) {
 	for _, route := range *routes {
 		if route.Prefix == prefix {
 			return
 		}
 	}
 	*routes = append(*routes, &networkservice.Route{
-		Prefix: prefix,
+		Prefix:  prefix,
+		NextHop: nextHop,
 	})
 }
 
