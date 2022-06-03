@@ -25,7 +25,7 @@ The example exposes the following backends:
 ## Using spans and metrics in tests
 After running docker-compose you can enable spans and metrics inside any test using the following code:
 ```Go
-os.Setenv("TELEMETRY", "opentelemetry")
+os.Setenv("TELEMETRY", "true")
 spanExporter := opentelemetry.InitSpanExporter(ctx, "0.0.0.0:4317")
 metricExporter := opentelemetry.InitMetricExporter(ctx, "0.0.0.0:4317")
 o := opentelemetry.Init(ctx, spanExporter, metricExporter, "NSM")
