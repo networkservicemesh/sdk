@@ -21,6 +21,8 @@ package trace
 import (
 	"context"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
@@ -41,7 +43,7 @@ func withLog(parent context.Context, operation string) (c context.Context, f fun
 	parent = grpcutils.PassTraceToOutgoing(parent)
 
 	if grpcTraceState := grpcutils.TraceFromContext(parent); (grpcTraceState == grpcutils.TraceOn) ||
-		(grpcTraceState == grpcutils.TraceUndefined && log.IsTracingEnabled()) {
+		(grpcTraceState == grpcutils.TraceUndefined && logrus.GetLevel() == logrus.TraceLevel) {
 		ctx, sLogger, span, sFinish := spanlogger.FromContext(parent, operation, map[string]interface{}{"type": loggedType})
 		ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation, map[string]interface{}{"type": loggedType})
 		return log.WithLog(ctx, sLogger, lLogger), func() {

@@ -37,7 +37,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 func TestDiffMechanism(t *testing.T) {
@@ -113,7 +112,6 @@ func TestTraceOutput(t *testing.T) {
 		DisableTimestamp: true,
 	})
 	logrus.SetLevel(logrus.TraceLevel)
-	log.EnableTracing(true)
 
 	// Create a chain with modifying elements
 	ch := chain.NewNetworkServiceServer(
@@ -168,7 +166,6 @@ func TestErrorOutput(t *testing.T) {
 		DisableTimestamp: true,
 	})
 	logrus.SetLevel(logrus.TraceLevel)
-	log.EnableTracing(true)
 
 	// Create a chain with modifying elements
 	ch := chain.NewNetworkServiceServer(

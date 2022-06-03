@@ -24,6 +24,8 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
@@ -55,7 +57,7 @@ func withLog(parent context.Context, operation, connectionID string) (c context.
 	parent = grpcutils.PassTraceToOutgoing(parent)
 
 	if grpcTraceState := grpcutils.TraceFromContext(parent); (grpcTraceState == grpcutils.TraceOn) ||
-		(grpcTraceState == grpcutils.TraceUndefined && log.IsTracingEnabled()) {
+		(grpcTraceState == grpcutils.TraceUndefined && logrus.GetLevel() == logrus.TraceLevel) {
 		ctx, sLogger, span, sFinish := spanlogger.FromContext(parent, operation, map[string]interface{}{"type": loggedType, "id": connectionID})
 		ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation, map[string]interface{}{"type": loggedType, "id": connectionID})
 		return withTrace(log.WithLog(ctx, sLogger, lLogger)), func() {
