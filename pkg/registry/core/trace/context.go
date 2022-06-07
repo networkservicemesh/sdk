@@ -22,6 +22,7 @@ import (
 	"context"
 
 	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
@@ -29,9 +30,20 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log/spanlogger"
 )
 
+type contextKeyType string
+
 const (
-	loggedType = "registry"
+	traceInfoKey contextKeyType = "RegistryInfo"
+	loggedType   string         = "registry"
 )
+
+// traceInfo - struct, containing string representations of request and response, used for tracing.
+type traceInfo struct {
+	// Request is last Registry action of NetworkService{Client, Server}
+	Request proto.Message
+	// Response is last Registry action-response of NetworkService{Client, Server}
+	Response proto.Message
+}
 
 // withLog - provides corresponding logger in context
 func withLog(parent context.Context, operation string) (c context.Context, f func()) {
@@ -46,10 +58,28 @@ func withLog(parent context.Context, operation string) (c context.Context, f fun
 		(grpcTraceState == grpcutils.TraceUndefined && logrus.GetLevel() == logrus.TraceLevel) {
 		ctx, sLogger, span, sFinish := spanlogger.FromContext(parent, operation, map[string]interface{}{"type": loggedType})
 		ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation, map[string]interface{}{"type": loggedType})
-		return log.WithLog(ctx, sLogger, lLogger), func() {
+		return withTrace(log.WithLog(ctx, sLogger, lLogger)), func() {
 			sFinish()
 			lFinish()
 		}
 	}
 	return log.WithLog(parent), func() {}
+}
+
+// withTrace - Provides a traceInfo in context
+func withTrace(parent context.Context) context.Context {
+	if parent == nil {
+		panic("cannot create context from nil parent")
+	}
+	if _, ok := trace(parent); ok {
+		// We already had registry info
+		return parent
+	}
+
+	return context.WithValue(parent, traceInfoKey, &traceInfo{})
+}
+
+func trace(ctx context.Context) (*traceInfo, bool) {
+	val, ok := ctx.Value(traceInfoKey).(*traceInfo)
+	return val, ok
 }
