@@ -29,7 +29,7 @@ jobs:
     uses: networkservicemesh/.github/.github/workflows/checkgomod.yaml@main
 
   gogenerate:
-    uses: networkservicemesh/.github/.github/workflows/gogenerate.yaml@main
+    uses: networkservicemesh/.github/.github/workflows/sdk-gogenerate.yaml@main
 
   exclude-replace:
     uses: networkservicemesh/.github/.github/workflows/exclude-replace.yaml@main
