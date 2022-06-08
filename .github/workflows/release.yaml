@@ -5,17 +5,42 @@ on:
     types:
       - completed
     workflows:
-      - 'ci'
+      - "ci"
 jobs:
   print-debug-info:
     name: Print debug info for Release workflow
     runs-on: ubuntu-latest
     steps:
       - uses: hmarr/debug-action@v2
-  create-release:
+      
+  get-tag:
+    name: Get tag
+    runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' && contains(github.event.workflow_run.head_branch, 'release/') }}
+    outputs:
+      tag: ${{ steps.get-tag-step.outputs.tag }}
+    steps:
+      - name: Get tag
+        run: |
+          branch=${{github.event.workflow_run.head_branch}}
+          echo '::set-output name=tag::'${branch#release/}
+        id: get-tag-step
+  
+  create-release:
+    name: Create release
+    needs: get-tag
     uses: networkservicemesh/.github/.github/workflows/release.yaml@main
     with:
+      tag: ${{ needs.get-tag.outputs.tag }}
+    secrets:
+      token: ${{ secrets.NSM_BOT_GITHUB_TOKEN }}
+
+  release-dependent-repositories:
+    name: Release dependent repositories
+    needs: [get-tag, create-release]
+    uses: networkservicemesh/.github/.github/workflows/release-dependent-repositories.yaml@main
+    with:
+      tag: ${{ needs.get-tag.outputs.tag }}
       dependent_repositories: |
         ["sdk-k8s",
         "sdk-kernel",
@@ -29,6 +54,5 @@ jobs:
         "cmd-ipam-vl3",
         "cmd-map-ip-k8s",
         "cmd-admission-webhook-k8s"]
-
     secrets:
       token: ${{ secrets.NSM_BOT_GITHUB_TOKEN }}
