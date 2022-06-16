@@ -31,15 +31,13 @@ import (
 )
 
 type metricServer struct {
-	recorderMap map[string]metric.Int64Histogram
-	meter       metric.Meter
+	meter metric.Meter
 }
 
 // NewServer returns a new metric server chain element
 func NewServer() networkservice.NetworkServiceServer {
 	return &metricServer{
-		recorderMap: make(map[string]metric.Int64Histogram),
-		meter:       global.Meter(""),
+		meter: global.Meter(""),
 	}
 }
 
@@ -70,19 +68,20 @@ func (t *metricServer) writeMetrics(ctx context.Context, path *networkservice.Pa
 				continue
 			}
 
+			metrics, _ := loadOrStore(ctx, make(map[string]metric.Int64Histogram))
 			for metricName, metricValue := range pathSegment.Metrics {
 				/* Works with integers only */
 				recVal, err := strconv.ParseInt(metricValue, 10, 64)
 				if err != nil {
 					continue
 				}
-				_, ok := t.recorderMap[metricName]
+				_, ok := metrics[metricName]
 				if !ok {
-					t.recorderMap[metricName] = metric.Must(t.meter).NewInt64Histogram(
+					metrics[metricName] = metric.Must(t.meter).NewInt64Histogram(
 						pathSegment.Name + "_" + metricName,
 					)
 				}
-				t.recorderMap[metricName].Record(ctx, recVal, attribute.String("connection", path.GetPathSegments()[0].Id))
+				metrics[metricName].Record(ctx, recVal, attribute.String("connection", path.GetPathSegments()[0].Id))
 			}
 		}
 	}
