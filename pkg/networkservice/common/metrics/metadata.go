@@ -25,7 +25,7 @@ import (
 )
 
 type keyType struct{}
-type metricsMap map[string]metric.Int64Histogram
+type metricsMap = map[string]metric.Int64Histogram
 
 func loadOrStore(ctx context.Context, metrics metricsMap) (value metricsMap, ok bool) {
 	rawValue, ok := metadata.Map(ctx, false).LoadOrStore(keyType{}, metrics)
