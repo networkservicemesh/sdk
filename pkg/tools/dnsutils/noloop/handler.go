@@ -19,6 +19,7 @@ package noloop
 
 import (
 	"context"
+	"fmt"
 
 	"sync"
 
@@ -36,6 +37,8 @@ func (n *noloopDNSHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter, 
 		dns.HandleFailed(rp, m)
 		return
 	}
+
+	fmt.Println(m.Question)
 	if _, loaded := n.ids.LoadOrStore(m.Id, struct{}{}); loaded {
 		log.FromContext(ctx).Errorf("loop is not allowed: query: %v", m.String())
 		dns.HandleFailed(rp, m)
