@@ -23,17 +23,17 @@ import (
 
 	"github.com/miekg/dns"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/dnscontext"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type fanoutHandler struct {
-	getAddressesFn GetAddressesFn
 }
 
 func (f *fanoutHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg *dns.Msg) {
-	var connectTO = f.getAddressesFn()
+	var connectTO = dnscontext.DNSAddresses(ctx)
 	var responseCh = make(chan *dns.Msg, len(connectTO))
 
 	if len(connectTO) == 0 {
@@ -104,24 +104,8 @@ func (f *fanoutHandler) waitResponse(ctx context.Context, respCh <-chan *dns.Msg
 	}
 }
 
-// WithStaticAddresses sets endpoints as static addresses
-func WithStaticAddresses(addresses ...url.URL) GetAddressesFn {
-	if len(addresses) == 0 {
-		panic("zero addresses are not supported")
-	}
-	return func() []url.URL {
-		return addresses
-	}
-}
-
 // NewDNSHandler creates a new dns handler instance that sends incoming queries in parallel to few endpoints
 // getAddressesFn gets endpoints for fanout
-func NewDNSHandler(getAddressesFn GetAddressesFn) dnsutils.Handler {
-	if getAddressesFn == nil {
-		panic("no addresses provided")
-	}
-	return &fanoutHandler{getAddressesFn: getAddressesFn}
+func NewDNSHandler() dnsutils.Handler {
+	return &fanoutHandler{}
 }
-
-// GetAddressesFn is alias for urls getter function
-type GetAddressesFn = func() []url.URL

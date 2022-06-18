@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -17,21 +17,29 @@
 package dnscontext
 
 import (
-	"encoding/json"
+	"context"
+	"net/url"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-// Decoder allows to parse []*networkservice.DNSConfig from json string. Can be used for env configuration.
-// See at https://github.com/kelseyhightower/envconfig#custom-decoders
-type Decoder []*networkservice.DNSConfig
+const (
+	addressesKey contextKeyType = "DNSAddresses"
+)
 
-// Decode parses values from passed string.
-func (d *Decoder) Decode(v string) error {
-	var c []*networkservice.DNSConfig
-	if err := json.Unmarshal([]byte(v), &c); err != nil {
-		return err
+type contextKeyType string
+
+func WithDNSAddresses(parent context.Context, addresses []url.URL) context.Context {
+	if parent == nil {
+		panic("cannot create context from nil parent")
 	}
-	*d = Decoder(c)
+	log.FromContext(parent).Debugf("passed DNS addresses: %v", addresses)
+	return context.WithValue(parent, addressesKey, addresses)
+}
+
+func DNSAddresses(ctx context.Context) []url.URL {
+	if rv, ok := ctx.Value(addressesKey).([]url.URL); ok {
+		return rv
+	}
 	return nil
 }
