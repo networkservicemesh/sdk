@@ -47,7 +47,7 @@ func (n *dnsConfigsHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter,
 		addresses = append(addresses, v...)
 	}
 
-	dnscontext.WithDNSAddresses(ctx, addresses)
+	ctx = dnscontext.WithDNSAddresses(ctx, addresses)
 	next.Handler(ctx).ServeDNS(ctx, rp, m)
 }
 

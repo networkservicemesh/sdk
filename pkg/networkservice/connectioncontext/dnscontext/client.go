@@ -23,7 +23,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"path/filepath"
 
 	"github.com/edwarnicke/serialize"
 
@@ -48,7 +47,6 @@ type dnsContextClient struct {
 	resolveConfigPath      string
 	storedResolvConfigPath string
 	defaultNameServerIP    string
-	dnsConfigManager       dnscontext.Manager
 	updateCorefileQueue    serialize.Executor
 	resolvconfDNSConfig    *networkservice.DNSConfig
 }
@@ -103,24 +101,7 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 	return rv, err
 }
 
-func (c *dnsContextClient) updateCorefile() {
-	dir := filepath.Dir(c.coreFilePath)
-	_ = os.MkdirAll(dir, os.ModePerm)
-	err := ioutil.WriteFile(c.coreFilePath, []byte(c.dnsConfigManager.String()), os.ModePerm)
-	if err != nil {
-		log.FromContext(c.chainContext).Errorf("An error during update corefile: %v", err.Error())
-	}
-}
-
 func (c *dnsContextClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	var conifgs []*networkservice.DNSConfig
-	if conn.GetContext().GetDnsContext() != nil {
-		conifgs = conn.GetContext().GetDnsContext().GetConfigs()
-	}
-	if len(conifgs) > 0 {
-		c.dnsConfigManager.Remove(conn.GetId())
-		c.updateCorefileQueue.AsyncExec(c.updateCorefile)
-	}
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
@@ -170,8 +151,6 @@ func (c *dnsContextClient) initialize() {
 		log.FromContext(c.chainContext).Errorf("An error during save resolve config: %v", err.Error())
 		return
 	}
-
-	c.updateCorefileQueue.AsyncExec(c.updateCorefile)
 }
 
 func containsNameserver(servers []string, value string) bool {
