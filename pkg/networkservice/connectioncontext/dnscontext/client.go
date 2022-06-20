@@ -21,7 +21,9 @@ package dnscontext
 import (
 	"context"
 	"io/ioutil"
+	"net/url"
 	"os"
+	"strconv"
 
 	"github.com/edwarnicke/serialize"
 
@@ -52,9 +54,7 @@ type dnsContextClient struct {
 // NewClient creates a new DNS client chain component. Setups all DNS traffic to the localhost. Monitors DNS configs from connections.
 func NewClient(options ...DNSOption) networkservice.NetworkServiceClient {
 	var c = &dnsContextClient{
-		chainContext:      context.Background(),
-		resolveConfigPath: "/etc/resolv.conf",
-		coreFilePath:      "/etc/coredns/Corefile",
+		chainContext: context.Background(),
 	}
 	for _, o := range options {
 		o.apply(c)
@@ -83,19 +83,42 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 	if err != nil {
 		return nil, err
 	}
-	var conifgs []*networkservice.DNSConfig
+
+	var configs []*networkservice.DNSConfig
 	if rv.GetContext().GetDnsContext() != nil {
-		conifgs = rv.GetContext().GetDnsContext().GetConfigs()
+		configs = rv.GetContext().GetDnsContext().GetConfigs()
 	}
-	if len(conifgs) > 0 {
-		c.dnsConfigManager.Store(rv.GetId(), conifgs...)
-		c.updateCorefileQueue.AsyncExec(c.updateCorefile)
+	if len(configs) > 0 {
+		for i, conf := range configs {
+			ips := make([]url.URL, len(conf.DnsServerIps))
+			for i, ip := range conf.DnsServerIps {
+				u, err := url.Parse(ip)
+				if err != nil {
+					return nil, err
+				}
+				ips[i] = *u
+			}
+
+			c.dnsIPsMap.Store(rv.Id+strconv.Itoa(i), ips)
+			c.searchDomainsMap.Store(rv.Id+strconv.Itoa(i), conf.SearchDomains)
+		}
 	}
 
 	return rv, err
 }
 
 func (c *dnsContextClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	var configs []*networkservice.DNSConfig
+	if conn.GetContext().GetDnsContext() != nil {
+		configs = conn.GetContext().GetDnsContext().GetConfigs()
+	}
+	if len(configs) > 0 {
+		for i := range configs {
+			c.dnsIPsMap.Delete(conn.Id + strconv.Itoa(i))
+			c.searchDomainsMap.Delete(conn.Id + strconv.Itoa(i))
+		}
+	}
+
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 

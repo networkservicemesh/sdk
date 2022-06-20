@@ -18,6 +18,8 @@ package dnscontext
 
 import (
 	"context"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/dnsconfigs"
 )
 
 // DNSOption is applying options for DNS client.
@@ -31,17 +33,17 @@ func (f applyFunc) apply(c *dnsContextClient) {
 	f(c)
 }
 
-// WithCorefilePath sets specific corefile path for DNS client.
-func WithCorefilePath(path string) DNSOption {
+// WithDNSIPsMap sets specific corefile path for DNS client.
+func WithDNSIPsMap(ipsMap *dnsconfigs.DNSServerIpMap) DNSOption {
 	return applyFunc(func(c *dnsContextClient) {
-		c.coreFilePath = path
+		c.dnsIPsMap = ipsMap
 	})
 }
 
-// WithResolveConfigPath sets specific resolve config file path for DNS client.
-func WithResolveConfigPath(path string) DNSOption {
+// WithSearchDomainsMap sets specific resolve config file path for DNS client.
+func WithSearchDomainsMap(domainsMap *dnsconfigs.SearchDomainsMap) DNSOption {
 	return applyFunc(func(c *dnsContextClient) {
-		c.resolveConfigPath = path
+		c.searchDomainsMap = domainsMap
 	})
 }
 
