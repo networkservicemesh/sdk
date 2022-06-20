@@ -19,7 +19,6 @@ package dnsconfigs
 
 import (
 	"context"
-	"fmt"
 	"net/url"
 
 	"github.com/miekg/dns"
@@ -30,7 +29,8 @@ import (
 )
 
 type dnsConfigsHandler struct {
-	configs Map
+	dnsServerIps  *DNSServerIpMap
+	searchDomains *SearchDomainsMap
 }
 
 func (n *dnsConfigsHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter, m *dns.Msg) {
@@ -39,22 +39,28 @@ func (n *dnsConfigsHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter,
 		return
 	}
 
-	fmt.Println(m.Question)
+	dnsIPs := make([]url.URL, 0)
 
-	addresses := make([]url.URL, 0)
-
-	n.configs.Range(func(key string, value []url.URL) bool {
-		addresses = append(addresses, value...)
+	n.dnsServerIps.Range(func(key string, ips []url.URL) bool {
+		dnsIPs = append(dnsIPs, ips...)
 		return true
 	})
 
-	ctx = dnscontext.WithDNSAddresses(ctx, addresses)
+	searchDomains := make([]string, 0)
+	n.searchDomains.Range(func(key string, domains []string) bool {
+		searchDomains = append(searchDomains, domains...)
+		return true
+	})
+
+	ctx = dnscontext.WithDNSAddresses(ctx, dnsIPs)
+	ctx = dnscontext.WithSearchDomains(ctx, searchDomains)
 	next.Handler(ctx).ServeDNS(ctx, rp, m)
 }
 
 // NewDNSHandler creates a new dns handler that stores dns configs
-func NewDNSHandler(configs Map) dnsutils.Handler {
+func NewDNSHandler(dnsServerIPs *DNSServerIpMap, searchDomains *SearchDomainsMap) dnsutils.Handler {
 	return &dnsConfigsHandler{
-		configs: configs,
+		dnsServerIps:  dnsServerIPs,
+		searchDomains: searchDomains,
 	}
 }

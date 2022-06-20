@@ -24,7 +24,8 @@ import (
 )
 
 const (
-	addressesKey contextKeyType = "DNSAddresses"
+	dnsAddressesKey  contextKeyType = "DNSAddresses"
+	searchDomainsKey contextKeyType = "SearchDomains"
 )
 
 type contextKeyType string
@@ -34,11 +35,26 @@ func WithDNSAddresses(parent context.Context, addresses []url.URL) context.Conte
 		panic("cannot create context from nil parent")
 	}
 	log.FromContext(parent).Debugf("passed DNS addresses: %v", addresses)
-	return context.WithValue(parent, addressesKey, addresses)
+	return context.WithValue(parent, dnsAddressesKey, addresses)
 }
 
 func DNSAddresses(ctx context.Context) []url.URL {
-	if rv, ok := ctx.Value(addressesKey).([]url.URL); ok {
+	if rv, ok := ctx.Value(dnsAddressesKey).([]url.URL); ok {
+		return rv
+	}
+	return nil
+}
+
+func WithSearchDomains(parent context.Context, domains []string) context.Context {
+	if parent == nil {
+		panic("cannot create context from nil parent")
+	}
+	log.FromContext(parent).Debugf("passed search domains: %v", domains)
+	return context.WithValue(parent, searchDomainsKey, domains)
+}
+
+func SearchDomains(ctx context.Context) []string {
+	if rv, ok := ctx.Value(searchDomainsKey).([]string); ok {
 		return rv
 	}
 	return nil

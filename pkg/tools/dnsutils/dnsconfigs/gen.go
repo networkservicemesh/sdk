@@ -18,8 +18,14 @@ package dnsconfigs
 
 import "sync"
 
-//go:generate go-syncmap -output sync_map.gen.go -type Map<string,[]net/url.URL>
+//go:generate go-syncmap -output ip_map.gen.go -type DNSServerIpMap<string,[]net/url.URL>
 
-// Map is like a Go map[string][]url.URL but is safe for concurrent use
+// DNSServerIpMap is like a Go map[string][]url.URL but is safe for concurrent use
 // by multiple goroutines without additional locking or coordination
-type Map sync.Map
+type DNSServerIpMap sync.Map
+
+//go:generate go-syncmap -output domains_map.gen.go -type SearchDomainsMap<string,[]string>
+
+// SearchDomainsMap is like a Go map[string][]string but is safe for concurrent use
+// by multiple goroutines without additional locking or coordination
+type SearchDomainsMap sync.Map

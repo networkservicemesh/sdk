@@ -14,39 +14,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package noloop prevents loops
-package noloop
+// Package searches ???
+package searches
 
 import (
 	"context"
 
-	"sync"
-
 	"github.com/miekg/dns"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/dnscontext"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-type noloopDNSHandler struct{ ids sync.Map }
+type dnsConfigsHandler struct {
+}
 
-func (n *noloopDNSHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter, m *dns.Msg) {
+func (n *dnsConfigsHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter, m *dns.Msg) {
 	if m == nil {
 		dns.HandleFailed(rp, m)
 		return
 	}
 
-	if _, loaded := n.ids.LoadOrStore(m.Id, struct{}{}); loaded {
-		log.FromContext(ctx).Errorf("loop is not allowed: query: %v", m.String())
-		dns.HandleFailed(rp, m)
-		return
+	searchDomains := dnscontext.SearchDomains(ctx)
+
+	for _, d := range searchDomains {
+		newMsg := m.Copy()
+		newMsg.Question[0].Name += d + "."
+		next.Handler(ctx).ServeDNS(ctx, rp, newMsg)
 	}
-	defer n.ids.Delete(m.Id)
+
 	next.Handler(ctx).ServeDNS(ctx, rp, m)
 }
 
-// NewDNSHandler creates a new dns handelr that prevents loops
+// NewDNSHandler creates a new dns handler that stores dns configs
 func NewDNSHandler() dnsutils.Handler {
-	return new(noloopDNSHandler)
+	return new(dnsConfigsHandler)
 }
