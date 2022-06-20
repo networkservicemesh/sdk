@@ -18,7 +18,6 @@ package dnscontext
 
 import (
 	"context"
-	"net"
 )
 
 // DNSOption is applying options for DNS client.
@@ -43,13 +42,6 @@ func WithCorefilePath(path string) DNSOption {
 func WithResolveConfigPath(path string) DNSOption {
 	return applyFunc(func(c *dnsContextClient) {
 		c.resolveConfigPath = path
-	})
-}
-
-// WithDefaultNameServerIP sets specific IP address of default DNS server.
-func WithDefaultNameServerIP(ip net.IP) DNSOption {
-	return applyFunc(func(c *dnsContextClient) {
-		c.defaultNameServerIP = ip.String()
 	})
 }
 

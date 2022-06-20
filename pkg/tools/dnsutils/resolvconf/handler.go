@@ -15,12 +15,11 @@
 // limitations under the License.
 
 // Package dnsconfigs stores dns configs
-package dnsconfigs
+package resolvconf
 
 import (
 	"context"
 	"io/ioutil"
-	"net/url"
 	"os"
 	"sync"
 
@@ -52,7 +51,7 @@ func (h *dnsConfigsHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter,
 }
 
 // NewDNSHandler creates a new dns handler that stores dns configs
-func NewDNSHandler(configs map[string][]url.URL) dnsutils.Handler {
+func NewDNSHandler() dnsutils.Handler {
 	return &dnsConfigsHandler{
 		chainContext:        context.Background(),
 		defaultNameServerIP: "127.0.0.1",
@@ -82,7 +81,7 @@ func (h *dnsConfigsHandler) storeOriginalResolvConf() {
 func (h *dnsConfigsHandler) initialize() {
 	h.restoreResolvConf()
 
-	r, err := dnscontext.OpenResolveConfig(c.resolveConfigPath)
+	r, err := dnscontext.OpenResolveConfig(h.resolveConfigPath)
 	if err != nil {
 		log.FromContext(h.chainContext).Errorf("An error during open resolve config: %v", err.Error())
 		return

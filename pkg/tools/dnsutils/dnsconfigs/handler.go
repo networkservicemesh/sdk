@@ -30,7 +30,7 @@ import (
 )
 
 type dnsConfigsHandler struct {
-	configs map[string][]url.URL
+	configs Map
 }
 
 func (n *dnsConfigsHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter, m *dns.Msg) {
@@ -43,16 +43,17 @@ func (n *dnsConfigsHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter,
 
 	addresses := make([]url.URL, 0)
 
-	for _, v := range n.configs {
-		addresses = append(addresses, v...)
-	}
+	n.configs.Range(func(key string, value []url.URL) bool {
+		addresses = append(addresses, value...)
+		return true
+	})
 
 	ctx = dnscontext.WithDNSAddresses(ctx, addresses)
 	next.Handler(ctx).ServeDNS(ctx, rp, m)
 }
 
 // NewDNSHandler creates a new dns handler that stores dns configs
-func NewDNSHandler(configs map[string][]url.URL) dnsutils.Handler {
+func NewDNSHandler(configs Map) dnsutils.Handler {
 	return &dnsConfigsHandler{
 		configs: configs,
 	}

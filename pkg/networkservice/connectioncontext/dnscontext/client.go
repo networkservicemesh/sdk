@@ -22,11 +22,8 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
-	"path"
 
 	"github.com/edwarnicke/serialize"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -35,6 +32,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnscontext"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 const (
@@ -54,18 +52,14 @@ type dnsContextClient struct {
 // NewClient creates a new DNS client chain component. Setups all DNS traffic to the localhost. Monitors DNS configs from connections.
 func NewClient(options ...DNSOption) networkservice.NetworkServiceClient {
 	var c = &dnsContextClient{
-		chainContext:        context.Background(),
-		defaultNameServerIP: "127.0.0.1",
-		resolveConfigPath:   "/etc/resolv.conf",
-		coreFilePath:        "/etc/coredns/Corefile",
+		chainContext:      context.Background(),
+		resolveConfigPath: "/etc/resolv.conf",
+		coreFilePath:      "/etc/coredns/Corefile",
 	}
 	for _, o := range options {
 		o.apply(c)
 	}
 
-	var _, name = path.Split(c.resolveConfigPath)
-	c.storedResolvConfigPath = path.Join(path.Dir(c.coreFilePath), name+".restore")
-	c.initialize()
 	return c
 }
 
