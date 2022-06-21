@@ -14,12 +14,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dnsconfigs
+package cache
 
 import "sync"
 
-//go:generate go-syncmap -output sync_map.gen.go -type Map<string,[]*github.com/networkservicemesh/api/pkg/api/networkservice.DNSConfig>
+//go:generate go-syncmap -output sync_map.gen.go -type Map<string,*github.com/miekg/dns.Msg>
 
-// Map is like a Go map[string][]*DNSConfig but is safe for concurrent use
+// Map is like a Go map[string]*dns.Msg but is safe for concurrent use
 // by multiple goroutines without additional locking or coordination
 type Map sync.Map

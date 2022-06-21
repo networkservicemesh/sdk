@@ -23,32 +23,40 @@ import (
 
 	"github.com/miekg/dns"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnscontext"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 )
 
 type dnsConfigsHandler struct {
-	dnsServerIps  *DNSServerIpMap
-	searchDomains *SearchDomainsMap
+	configs *Map
 }
 
-func (n *dnsConfigsHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter, m *dns.Msg) {
+func (h *dnsConfigsHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter, m *dns.Msg) {
 	if m == nil {
 		dns.HandleFailed(rp, m)
 		return
 	}
 
 	dnsIPs := make([]url.URL, 0)
-
-	n.dnsServerIps.Range(func(key string, ips []url.URL) bool {
-		dnsIPs = append(dnsIPs, ips...)
-		return true
-	})
-
 	searchDomains := make([]string, 0)
-	n.searchDomains.Range(func(key string, domains []string) bool {
-		searchDomains = append(searchDomains, domains...)
+
+	h.configs.Range(func(key string, value []*networkservice.DNSConfig) bool {
+		for _, conf := range value {
+			ips := make([]url.URL, len(conf.DnsServerIps))
+			for i, ip := range conf.DnsServerIps {
+				u, err := url.Parse(ip)
+				if err != nil {
+					return false
+				}
+				ips[i] = *u
+			}
+
+			dnsIPs = append(dnsIPs, ips...)
+			searchDomains = append(searchDomains, conf.SearchDomains...)
+		}
+
 		return true
 	})
 
@@ -58,9 +66,8 @@ func (n *dnsConfigsHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter,
 }
 
 // NewDNSHandler creates a new dns handler that stores dns configs
-func NewDNSHandler(dnsServerIPs *DNSServerIpMap, searchDomains *SearchDomainsMap) dnsutils.Handler {
+func NewDNSHandler(configs *Map) dnsutils.Handler {
 	return &dnsConfigsHandler{
-		dnsServerIps:  dnsServerIPs,
-		searchDomains: searchDomains,
+		configs: configs,
 	}
 }

@@ -56,8 +56,6 @@ func Test_DNSContextClient_Restart(t *testing.T) {
 		var c = chain.NewNetworkServiceClient(
 			metadata.NewClient(),
 			dnscontext.NewClient(
-				dnscontext.WithCorefilePath(corefilePath),
-				dnscontext.WithResolveConfigPath(resolveConfigPath),
 				dnscontext.WithChainContext(ctx),
 			),
 		)
@@ -93,8 +91,6 @@ func Test_DNSContextClient_Usecases(t *testing.T) {
 	client := chain.NewNetworkServiceClient(
 		metadata.NewClient(),
 		dnscontext.NewClient(
-			dnscontext.WithCorefilePath(corefilePath),
-			dnscontext.WithResolveConfigPath(resolveConfigPath),
 			dnscontext.WithChainContext(ctx),
 		),
 	)

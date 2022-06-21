@@ -21,9 +21,7 @@ package dnscontext
 import (
 	"context"
 	"io/ioutil"
-	"net/url"
 	"os"
-	"strconv"
 
 	"github.com/edwarnicke/serialize"
 
@@ -34,6 +32,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnscontext"
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/dnsconfigs"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
@@ -49,6 +48,7 @@ type dnsContextClient struct {
 	defaultNameServerIP    string
 	updateCorefileQueue    serialize.Executor
 	resolvconfDNSConfig    *networkservice.DNSConfig
+	configs                *dnsconfigs.Map
 }
 
 // NewClient creates a new DNS client chain component. Setups all DNS traffic to the localhost. Monitors DNS configs from connections.
@@ -88,37 +88,14 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 	if rv.GetContext().GetDnsContext() != nil {
 		configs = rv.GetContext().GetDnsContext().GetConfigs()
 	}
-	if len(configs) > 0 {
-		for i, conf := range configs {
-			ips := make([]url.URL, len(conf.DnsServerIps))
-			for i, ip := range conf.DnsServerIps {
-				u, err := url.Parse(ip)
-				if err != nil {
-					return nil, err
-				}
-				ips[i] = *u
-			}
 
-			c.dnsIPsMap.Store(rv.Id+strconv.Itoa(i), ips)
-			c.searchDomainsMap.Store(rv.Id+strconv.Itoa(i), conf.SearchDomains)
-		}
-	}
+	c.configs.Store(rv.Id, configs)
 
 	return rv, err
 }
 
 func (c *dnsContextClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	var configs []*networkservice.DNSConfig
-	if conn.GetContext().GetDnsContext() != nil {
-		configs = conn.GetContext().GetDnsContext().GetConfigs()
-	}
-	if len(configs) > 0 {
-		for i := range configs {
-			c.dnsIPsMap.Delete(conn.Id + strconv.Itoa(i))
-			c.searchDomainsMap.Delete(conn.Id + strconv.Itoa(i))
-		}
-	}
-
+	c.configs.Delete(conn.Id)
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 

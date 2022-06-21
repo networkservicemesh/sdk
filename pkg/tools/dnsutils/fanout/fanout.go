@@ -49,7 +49,7 @@ func (f *fanoutHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 				Net: u.Scheme,
 			}
 
-			fmt.Printf("Request with question: %v", msg.Question)
+			fmt.Printf("Request with question: %v\n", msg.Question)
 			var resp, _, err = client.Exchange(msg, u.Path+":53")
 
 			if err != nil {
