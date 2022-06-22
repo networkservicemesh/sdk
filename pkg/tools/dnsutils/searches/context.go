@@ -14,36 +14,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dnscontext
+package searches
 
 import (
 	"context"
-	"net/url"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 const (
-	dnsAddressesKey  contextKeyType = "DNSAddresses"
 	searchDomainsKey contextKeyType = "SearchDomains"
 )
 
 type contextKeyType string
-
-func WithDNSAddresses(parent context.Context, addresses []url.URL) context.Context {
-	if parent == nil {
-		panic("cannot create context from nil parent")
-	}
-	log.FromContext(parent).Debugf("passed DNS addresses: %v", addresses)
-	return context.WithValue(parent, dnsAddressesKey, addresses)
-}
-
-func DNSAddresses(ctx context.Context) []url.URL {
-	if rv, ok := ctx.Value(dnsAddressesKey).([]url.URL); ok {
-		return rv
-	}
-	return nil
-}
 
 func WithSearchDomains(parent context.Context, domains []string) context.Context {
 	if parent == nil {
