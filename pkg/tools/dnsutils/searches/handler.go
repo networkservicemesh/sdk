@@ -14,44 +14,64 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package searches ???
+// Package searches makes requests to all subdomains received from dns configs
 package searches
 
 import (
 	"context"
+	"time"
 
 	"github.com/miekg/dns"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/dnscontext"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-type dnsConfigsHandler struct {
+const (
+	timeout = 5 * time.Second
+)
+
+type searchDomainsHandler struct {
+	RequestError error
 }
 
-func (n *dnsConfigsHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m *dns.Msg) {
+func (h *searchDomainsHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m *dns.Msg) {
 	if m == nil {
 		dns.HandleFailed(rw, m)
 		return
 	}
 
-	next.Handler(ctx).ServeDNS(ctx, rw, m)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 
-	// сделать обертку для проверки ошибки
+	wrapper := &responseWriterWrapper{
+		rw:      rw,
+		handler: h,
+	}
 
-	// резать контекст по времени
-	searchDomains := dnscontext.SearchDomains(ctx)
+	next.Handler(ctx).ServeDNS(ctx, wrapper, m)
 
-	// Выходить на первый удачный
-	for _, d := range searchDomains {
+	if h.RequestError == nil {
+		return
+	}
+	log.FromContext(ctx).Error(h.RequestError)
+
+	for _, d := range SearchDomains(ctx) {
 		newMsg := m.Copy()
 		newMsg.Question[0].Name = dns.Fqdn(newMsg.Question[0].Name + d)
-		next.Handler(ctx).ServeDNS(ctx, rw, newMsg)
+		next.Handler(ctx).ServeDNS(ctx, wrapper, newMsg)
+
+		if h.RequestError == nil {
+			return
+		}
+		log.FromContext(ctx).Error(h.RequestError)
 	}
+
+	dns.HandleFailed(rw, m)
 }
 
-// NewDNSHandler creates a new dns handler that stores dns configs
+// NewDNSHandler creates a new dns handler that makes requests to all subdomains received from dns configs
 func NewDNSHandler() dnsutils.Handler {
-	return new(dnsConfigsHandler)
+	return new(searchDomainsHandler)
 }
