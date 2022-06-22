@@ -14,7 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package dnsconfigs stores dns configs
 package cache
 
 import (
@@ -37,7 +36,7 @@ func (r *responseWriterWrapper) RemoteAddr() net.Addr {
 }
 
 func (r *responseWriterWrapper) WriteMsg(m *dns.Msg) error {
-	if m.Rcode == 0 {
+	if m != nil && m.Rcode == 0 {
 		r.cache.Store(m.Question[0].Name, m)
 	}
 	return r.rw.WriteMsg(m)

@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package dnsconfigs stores dns configs
+// Package cache stores successful requests to dns server
 package cache
 
 import (
@@ -25,6 +25,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type dnsCacheHandler struct {
@@ -32,44 +33,67 @@ type dnsCacheHandler struct {
 	lastTTLUpdate time.Time
 }
 
-func (h *dnsCacheHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter, m *dns.Msg) {
+func (h *dnsCacheHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m *dns.Msg) {
 	if m == nil {
-		dns.HandleFailed(rp, m)
+		dns.HandleFailed(rw, m)
 		return
 	}
 
 	h.updateTTL()
-
-	// падаем если хотя бы 1 отрицательный Answer
 	if v, ok := h.cache.Load(m.Question[0].Name); ok {
-		if v.Answer[0].Header().Ttl > 0 {
-			rp.WriteMsg(v)
+		if validateMsg(v) {
+			v.Id = m.Id
+			if err := rw.WriteMsg(v); err != nil {
+				log.FromContext(ctx).Warnf("got an error during write the message: %v", err.Error())
+				dns.HandleFailed(rw, v)
+				return
+			}
 			return
 		}
 
 		h.cache.Delete(m.Question[0].Name)
 	}
 
-	w := responseWriterWrapper{
-		rw:    rp,
+	wrapper := responseWriterWrapper{
+		rw:    rw,
 		cache: h.cache,
 	}
 
-	next.Handler(ctx).ServeDNS(ctx, &w, m)
+	next.Handler(ctx).ServeDNS(ctx, &wrapper, m)
 }
 
 func (h *dnsCacheHandler) updateTTL() {
 	now := time.Now()
+
+	diff := uint32(now.Sub(h.lastTTLUpdate).Seconds())
+	if diff == 0 {
+		return
+	}
+
 	h.cache.Range(func(key string, value *dns.Msg) bool {
-		sub := now.Sub(h.lastTTLUpdate).Seconds()
-		subint := uint32(sub)
-		value.Answer[0].Header().Ttl -= subint
+		for i := range value.Answer {
+			if value.Answer[i].Header().Ttl < diff {
+				value.Answer[i].Header().Ttl = 0
+			} else {
+				value.Answer[i].Header().Ttl -= diff
+			}
+		}
 		return true
 	})
 	h.lastTTLUpdate = now
 }
 
-// NewDNSHandler creates a new dns handler that stores dns configs
+func validateMsg(m *dns.Msg) bool {
+	for _, answer := range m.Answer {
+		if answer.Header().Ttl <= 0 {
+			return false
+		}
+	}
+
+	return true
+}
+
+// NewDNSHandler creates a new dns handler that stores successful requests to dns server
 func NewDNSHandler() dnsutils.Handler {
 	return &dnsCacheHandler{
 		cache: new(Map),
