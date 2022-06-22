@@ -17,52 +17,22 @@
 package searches
 
 import (
-	"net"
-
 	"github.com/pkg/errors"
 
 	"github.com/miekg/dns"
 )
 
 type responseWriterWrapper struct {
-	rw      dns.ResponseWriter
+	dns.ResponseWriter
 	handler *searchDomainsHandler
-}
-
-func (r *responseWriterWrapper) LocalAddr() net.Addr {
-	return r.rw.LocalAddr()
-}
-
-func (r *responseWriterWrapper) RemoteAddr() net.Addr {
-	return r.rw.RemoteAddr()
 }
 
 func (r *responseWriterWrapper) WriteMsg(m *dns.Msg) error {
 	if m != nil && m.Rcode == 0 {
 		r.handler.RequestError = nil
-		return r.rw.WriteMsg(m)
+		return r.ResponseWriter.WriteMsg(m)
 	}
 
 	r.handler.RequestError = errors.Errorf("got an error during exchanging: %s", dns.RcodeToString[m.Rcode])
 	return r.handler.RequestError
-}
-
-func (r *responseWriterWrapper) Write(p []byte) (int, error) {
-	return r.rw.Write(p)
-}
-
-func (r *responseWriterWrapper) Close() error {
-	return r.rw.Close()
-}
-
-func (r *responseWriterWrapper) TsigStatus() error {
-	return r.rw.TsigStatus()
-}
-
-func (r *responseWriterWrapper) TsigTimersOnly(b bool) {
-	r.rw.TsigTimersOnly(b)
-}
-
-func (r *responseWriterWrapper) Hijack() {
-	r.rw.Hijack()
 }

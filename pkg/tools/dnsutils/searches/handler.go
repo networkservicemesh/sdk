@@ -46,10 +46,11 @@ func (h *searchDomainsHandler) ServeDNS(ctx context.Context, rw dns.ResponseWrit
 	defer cancel()
 
 	wrapper := &responseWriterWrapper{
-		rw:      rw,
-		handler: h,
+		ResponseWriter: rw,
+		handler:        h,
 	}
 
+	// TODO: add custom responseWriter to collect all responses from next chain elements and do with them whatever we want
 	next.Handler(ctx).ServeDNS(ctx, wrapper, m)
 
 	if h.RequestError == nil {

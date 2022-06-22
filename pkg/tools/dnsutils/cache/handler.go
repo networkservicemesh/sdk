@@ -55,8 +55,8 @@ func (h *dnsCacheHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m
 	}
 
 	wrapper := responseWriterWrapper{
-		rw:    rw,
-		cache: h.cache,
+		ResponseWriter: rw,
+		cache:          h.cache,
 	}
 
 	next.Handler(ctx).ServeDNS(ctx, &wrapper, m)
