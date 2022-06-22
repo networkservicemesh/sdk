@@ -24,7 +24,7 @@ import (
 
 	"github.com/miekg/dns"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/dnscontext"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
@@ -34,7 +34,7 @@ type fanoutHandler struct {
 }
 
 func (f *fanoutHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg *dns.Msg) {
-	var connectTO = dnscontext.DNSAddresses(ctx)
+	var connectTO = clienturlctx.DNSServerURLs(ctx)
 	var responseCh = make(chan *dns.Msg, len(connectTO))
 
 	if len(connectTO) == 0 {
@@ -107,7 +107,6 @@ func (f *fanoutHandler) waitResponse(ctx context.Context, respCh <-chan *dns.Msg
 }
 
 // NewDNSHandler creates a new dns handler instance that sends incoming queries in parallel to few endpoints
-// getAddressesFn gets endpoints for fanout
 func NewDNSHandler() dnsutils.Handler {
-	return &fanoutHandler{}
+	return new(fanoutHandler)
 }

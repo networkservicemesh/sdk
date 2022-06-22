@@ -24,9 +24,11 @@ import (
 	"github.com/miekg/dns"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/sdk/pkg/tools/dnscontext"
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/searches"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type dnsConfigsHandler struct {
@@ -48,7 +50,7 @@ func (h *dnsConfigsHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter,
 			for i, ip := range conf.DnsServerIps {
 				u, err := url.Parse(ip)
 				if err != nil {
-					return false
+					log.FromContext(ctx).Warnf("failed to parse ip: %s, error: %s", ip, err.Error())
 				}
 				ips[i] = *u
 			}
@@ -60,8 +62,8 @@ func (h *dnsConfigsHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter,
 		return true
 	})
 
-	ctx = dnscontext.WithDNSAddresses(ctx, dnsIPs)
-	ctx = dnscontext.WithSearchDomains(ctx, searchDomains)
+	ctx = clienturlctx.WithDNSServerURLs(ctx, dnsIPs)
+	ctx = searches.WithSearchDomains(ctx, searchDomains)
 	next.Handler(ctx).ServeDNS(ctx, rp, m)
 }
 
