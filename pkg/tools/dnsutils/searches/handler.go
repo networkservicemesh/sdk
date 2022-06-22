@@ -55,7 +55,7 @@ func (h *searchDomainsHandler) ServeDNS(ctx context.Context, rw dns.ResponseWrit
 	if h.RequestError == nil {
 		return
 	}
-	log.FromContext(ctx).Error(h.RequestError)
+	log.FromContext(ctx).Warn(h.RequestError)
 
 	for _, d := range SearchDomains(ctx) {
 		newMsg := m.Copy()
@@ -65,7 +65,7 @@ func (h *searchDomainsHandler) ServeDNS(ctx context.Context, rw dns.ResponseWrit
 		if h.RequestError == nil {
 			return
 		}
-		log.FromContext(ctx).Error(h.RequestError)
+		log.FromContext(ctx).Warn(h.RequestError)
 	}
 
 	dns.HandleFailed(rw, m)
