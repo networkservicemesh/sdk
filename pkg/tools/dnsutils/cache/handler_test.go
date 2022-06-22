@@ -59,9 +59,11 @@ func TestCache(t *testing.T) {
 	resp1, _, err := client.Exchange(m, "127.0.0.1:50053")
 	require.NoError(t, err)
 
+	time.Sleep(time.Second)
+
 	resp2, _, err := client.Exchange(m, "127.0.0.1:50053")
 	require.NoError(t, err)
 
 	require.Equal(t, resp1.Id, resp2.Id)
-	require.NotEqual(t, resp1.Answer[0].Header().Ttl, resp2.Answer[0].Header().Ttl)
+	require.Equal(t, resp1.Answer[0].Header().Ttl-resp2.Answer[0].Header().Ttl, uint32(1))
 }
