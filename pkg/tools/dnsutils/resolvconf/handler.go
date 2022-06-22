@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package dnsconfigs stores dns configs
+// Package resolvconf configures resolv.conf file
 package resolvconf
 
 import (
@@ -50,7 +50,7 @@ func (h *dnsConfigsHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter,
 	next.Handler(ctx).ServeDNS(ctx, rp, m)
 }
 
-// NewDNSHandler creates a new dns handler that stores dns configs
+// NewDNSHandler creates a new dns handler that configures resolv.conf file
 func NewDNSHandler() dnsutils.Handler {
 	return &dnsConfigsHandler{
 		chainContext:        context.Background(),
