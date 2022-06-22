@@ -131,10 +131,10 @@ func TestHealClient_FindTest(t *testing.T) {
 	require.Eventually(t, func() bool {
 		_, err := nsRespStream.Recv()
 		return err != nil
-	}, time.Millisecond*100, time.Millisecond*10)
+	}, time.Millisecond*2000, time.Millisecond*30)
 
 	require.Eventually(t, func() bool {
 		_, err := nseRespStream.Recv()
 		return err != nil
-	}, time.Millisecond*100, time.Millisecond*10)
+	}, time.Millisecond*2000, time.Millisecond*30)
 }
