@@ -17,53 +17,67 @@
 package cache_test
 
 import (
+	"net"
 	"testing"
 	"time"
 
 	"github.com/miekg/dns"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/cache"
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/dnsconfigs"
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/fanout"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
+type ResponseWriter struct {
+	dns.ResponseWriter
+	Response *dns.Msg
+}
+
+func (r *ResponseWriter) WriteMsg(m *dns.Msg) error {
+	r.Response = m
+	return nil
+}
+
+type checkHandler struct {
+	Count int
+}
+
+func (h *checkHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m *dns.Msg) {
+	h.Count++
+	rrr := new(dns.A)
+	rrr.Hdr = dns.RR_Header{Ttl: 3600}
+	rrr.A = net.ParseIP("1.1.1.1")
+
+	m.Answer = append(m.Answer, rrr)
+	err := rw.WriteMsg(m)
+	if err != nil {
+		log.FromContext(ctx).Error(err)
+	}
+}
+
 func TestCache(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	configs := new(dnsconfigs.Map)
-
-	configs.Store("1", []*networkservice.DNSConfig{
-		{SearchDomains: []string{}, DnsServerIps: []string{"8.8.4.4"}},
-	})
-
+	check := &checkHandler{}
 	handler := next.NewDNSHandler(
-		dnsconfigs.NewDNSHandler(configs),
 		cache.NewDNSHandler(),
-		fanout.NewDNSHandler(),
+		check,
 	)
 
-	go dnsutils.ListenAndServe(ctx, handler, "127.0.0.1:40053")
-
-	client := dns.Client{
-		Net: "tcp",
-	}
-
+	rw := &ResponseWriter{}
 	m := &dns.Msg{}
 	m.SetQuestion(dns.Fqdn("example.com"), dns.TypeANY)
-	resp1, _, err := client.Exchange(m, "127.0.0.1:40053")
-	require.NoError(t, err)
+	handler.ServeDNS(ctx, rw, m)
+	resp1 := rw.Response.Copy()
 
 	time.Sleep(time.Second)
 
-	resp2, _, err := client.Exchange(m, "127.0.0.1:40053")
-	require.NoError(t, err)
+	handler.ServeDNS(ctx, rw, m)
+	resp2 := rw.Response.Copy()
 
-	require.Equal(t, resp1.Id, resp2.Id)
+	require.Equal(t, check.Count, 1)
 	require.Equal(t, resp1.Answer[0].Header().Ttl-resp2.Answer[0].Header().Ttl, uint32(1))
 }

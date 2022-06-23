@@ -14,10 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package searches_test
+package dnsconfigs_test
 
 import (
-	"strings"
 	"testing"
 	"time"
 
@@ -26,67 +25,68 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/dnsconfigs"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/searches"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-type ResponseWriter struct {
-	dns.ResponseWriter
-	Response *dns.Msg
-}
-
-func (r *ResponseWriter) WriteMsg(m *dns.Msg) error {
-	r.Response = m
-	return nil
-}
-
 type checkHandler struct {
-	Count int
+	Domains []string
+	URLs    []string
 }
 
 func (h *checkHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m *dns.Msg) {
-	h.Count++
-	var err error
-	if m.Question[0].Name == "example." {
-		resp := new(dns.Msg)
-		resp.Rcode = 2
-		err = rw.WriteMsg(resp)
-	} else {
-		err = rw.WriteMsg(m)
-	}
+	h.Domains = searches.SearchDomains(ctx)
 
-	if err != nil {
-		log.FromContext(ctx).Error(err)
+	urls := clienturlctx.DNSServerURLs(ctx)
+
+	for _, u := range urls {
+		h.URLs = append(h.URLs, u.String())
 	}
 }
 
-func TestDomainSearches(t *testing.T) {
+func TestDNSConfigs(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	configs := new(dnsconfigs.Map)
 
 	configs.Store("1", []*networkservice.DNSConfig{
-		{SearchDomains: []string{"com", "net", "org"}, DnsServerIps: []string{"8.8.4.4"}},
+		{
+			SearchDomains: []string{"example.com"},
+			DnsServerIps:  []string{"7.7.7.7"},
+		},
+		{
+			SearchDomains: []string{"net"},
+			DnsServerIps:  []string{"8.8.8.8"},
+		},
+	})
+
+	configs.Store("2", []*networkservice.DNSConfig{
+		{
+			SearchDomains: []string{"my.domain"},
+			DnsServerIps:  []string{"9.9.9.9"},
+		},
 	})
 
 	check := &checkHandler{}
 	handler := next.NewDNSHandler(
 		dnsconfigs.NewDNSHandler(configs),
-		searches.NewDNSHandler(),
 		check,
 	)
 
-	m := &dns.Msg{}
-	m.SetQuestion(dns.Fqdn("example"), dns.TypeANY)
+	handler.ServeDNS(ctx, nil, new(dns.Msg))
 
-	rw := &ResponseWriter{}
-	handler.ServeDNS(ctx, rw, m)
+	domains := check.Domains
+	require.Equal(t, len(domains), 3)
+	require.Contains(t, domains, "example.com")
+	require.Contains(t, domains, "my.domain")
+	require.Contains(t, domains, "net")
 
-	resp := rw.Response.Copy()
-	require.Equal(t, check.Count, 4)
-	require.Equal(t, resp.MsgHdr.Rcode, 0)
-	require.True(t, strings.HasSuffix(resp.Question[0].Name, ".com."))
+	urls := check.URLs
+	require.Equal(t, len(urls), 3)
+	require.Contains(t, urls, "7.7.7.7")
+	require.Contains(t, urls, "8.8.8.8")
+	require.Contains(t, urls, "9.9.9.9")
 }

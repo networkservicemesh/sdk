@@ -36,47 +36,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
-func Test_DNSContextClient_Restart(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-	corefilePath := filepath.Join(t.TempDir(), "corefile")
-	resolveConfigPath := filepath.Join(t.TempDir(), "resolv.conf")
-	err := ioutil.WriteFile(resolveConfigPath, []byte("nameserver 8.8.4.4\n"), os.ModePerm)
-	require.NoError(t, err)
-	const expectedEmptyCorefile = `. {
-	fanout . 8.8.4.4
-	log
-	reload
-	cache {
-		denial 0
-	}
-}`
-	for i := 0; i < 100; i++ {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		var c = chain.NewNetworkServiceClient(
-			metadata.NewClient(),
-			dnscontext.NewClient(
-				dnscontext.WithChainContext(ctx),
-			),
-		)
-		_, _ = c.Request(ctx, &networkservice.NetworkServiceRequest{})
-
-		cancel()
-	}
-
-	require.Never(t, func() bool {
-		for {
-			// #nosec
-			b, err := ioutil.ReadFile(corefilePath)
-			if err == nil {
-				time.Sleep(time.Millisecond * 50)
-				continue
-			}
-			return string(b) != expectedEmptyCorefile
-		}
-	}, time.Second/2, time.Millisecond*100)
-}
-
 func Test_DNSContextClient_Usecases(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
