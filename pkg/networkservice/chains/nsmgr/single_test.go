@@ -84,8 +84,6 @@ func Test_DNSUsecase(t *testing.T) {
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(dnscontext.NewClient(
 		dnscontext.WithChainContext(ctx),
-		dnscontext.WithCorefilePath(corefilePath),
-		dnscontext.WithResolveConfigPath(resolveConfigPath),
 	)))
 
 	conn, err := nsc.Request(ctx, defaultRequest(nsReg.Name))

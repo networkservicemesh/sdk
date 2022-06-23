@@ -92,10 +92,5 @@ const (
 	// OptionsProperty  allows certain internal resolver variables to be modified
 	OptionsProperty = "options"
 	// AnyDomain means that allowed any host-name
-	AnyDomain           = "."
-	DefaultPlugin       = "fanout"
-	ServerBlockTemplate = `%v {
-	%v . %v
-	%v
-}`
+	AnyDomain = "."
 )

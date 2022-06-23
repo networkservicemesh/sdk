@@ -23,13 +23,14 @@ import (
 
 	"github.com/miekg/dns"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/net/context"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/dnsconfigs"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/fanout"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/searches"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 )
 
 func TestDomainSearches(t *testing.T) {

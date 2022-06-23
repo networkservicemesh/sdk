@@ -22,10 +22,11 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"golang.org/x/net/context"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 )
 
 func TestResolvConf(t *testing.T) {
