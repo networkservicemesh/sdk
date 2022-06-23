@@ -41,8 +41,8 @@ func (h *checkHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m *d
 
 	urls := clienturlctx.DNSServerURLs(ctx)
 
-	for _, u := range urls {
-		h.URLs = append(h.URLs, u.String())
+	for i := range urls {
+		h.URLs = append(h.URLs, urls[i].String())
 	}
 }
 
