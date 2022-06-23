@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package dnsconfigs stores dns configs
+// Package dnsconfigs stores DNS configs
 package dnsconfigs
 
 import (
@@ -67,7 +67,7 @@ func (h *dnsConfigsHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter,
 	next.Handler(ctx).ServeDNS(ctx, rp, m)
 }
 
-// NewDNSHandler creates a new dns handler that stores dns configs
+// NewDNSHandler creates a new dns handler that stores DNS configs
 func NewDNSHandler(configs *Map) dnsutils.Handler {
 	return &dnsConfigsHandler{
 		configs: configs,

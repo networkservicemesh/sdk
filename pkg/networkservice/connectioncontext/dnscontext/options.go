@@ -34,9 +34,9 @@ func (f applyFunc) apply(c *dnsContextClient) {
 }
 
 // WithDNSConfigsMap sets configs map for DNS client.
-func WithDNSConfigsMap(ipsMap *dnsconfigs.Map) DNSOption {
+func WithDNSConfigsMap(configsMap *dnsconfigs.Map) DNSOption {
 	return applyFunc(func(c *dnsContextClient) {
-		c.configs = ipsMap
+		c.configs = configsMap
 	})
 }
 

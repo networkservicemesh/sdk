@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package searches makes requests to all subdomains received from dns configs
+// Package searches makes requests to all subdomains received from DNS configs
 package searches
 
 import (

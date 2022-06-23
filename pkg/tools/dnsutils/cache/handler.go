@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package cache stores successful requests to dns server
+// Package cache stores successful requests to DNS server
 package cache
 
 import (
@@ -93,7 +93,7 @@ func validateMsg(m *dns.Msg) bool {
 	return true
 }
 
-// NewDNSHandler creates a new dns handler that stores successful requests to dns server
+// NewDNSHandler creates a new dns handler that stores successful requests to DNS server
 func NewDNSHandler() dnsutils.Handler {
 	return &dnsCacheHandler{
 		cache: new(Map),

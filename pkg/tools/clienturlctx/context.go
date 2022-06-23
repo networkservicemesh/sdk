@@ -52,6 +52,8 @@ func ClientURL(ctx context.Context) *url.URL {
 	return nil
 }
 
+// WithDNSServerURLs -
+//    Wraps 'parent' in a new Context that has the DNS server URLs
 func WithDNSServerURLs(parent context.Context, urls []url.URL) context.Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")
@@ -60,6 +62,8 @@ func WithDNSServerURLs(parent context.Context, urls []url.URL) context.Context {
 	return context.WithValue(parent, dnsServerURLSKey, urls)
 }
 
+// DNSServerURLs -
+//    Returns  the DNS server URLs
 func DNSServerURLs(ctx context.Context) []url.URL {
 	if rv, ok := ctx.Value(dnsServerURLSKey).([]url.URL); ok {
 		return rv
