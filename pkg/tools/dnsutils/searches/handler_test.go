@@ -49,7 +49,7 @@ func TestDomainSearches(t *testing.T) {
 		fanout.NewDNSHandler(),
 	)
 
-	go dnsutils.ListenAndServe(ctx, handler, "127.0.0.1:50053")
+	go dnsutils.ListenAndServe(ctx, handler, "127.0.0.1:40053")
 
 	client := dns.Client{
 		Net:     "udp",
@@ -57,7 +57,7 @@ func TestDomainSearches(t *testing.T) {
 	}
 	m1 := &dns.Msg{}
 	m1.SetQuestion(dns.Fqdn("example"), dns.TypeANY)
-	resp, _, err := client.Exchange(m1, "127.0.0.1:50053")
+	resp, _, err := client.Exchange(m1, "127.0.0.1:40053")
 	require.NoError(t, err)
 	require.Equal(t, resp.MsgHdr.Rcode, 0)
 	require.True(t, strings.HasSuffix(resp.Question[0].Name, ".com."))

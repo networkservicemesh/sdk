@@ -48,7 +48,7 @@ func TestCache(t *testing.T) {
 		fanout.NewDNSHandler(),
 	)
 
-	go dnsutils.ListenAndServe(ctx, handler, "127.0.0.1:50053")
+	go dnsutils.ListenAndServe(ctx, handler, "127.0.0.1:40053")
 
 	client := dns.Client{
 		Net: "tcp",
@@ -56,12 +56,12 @@ func TestCache(t *testing.T) {
 
 	m := &dns.Msg{}
 	m.SetQuestion(dns.Fqdn("example.com"), dns.TypeANY)
-	resp1, _, err := client.Exchange(m, "127.0.0.1:50053")
+	resp1, _, err := client.Exchange(m, "127.0.0.1:40053")
 	require.NoError(t, err)
 
 	time.Sleep(time.Second)
 
-	resp2, _, err := client.Exchange(m, "127.0.0.1:50053")
+	resp2, _, err := client.Exchange(m, "127.0.0.1:40053")
 	require.NoError(t, err)
 
 	require.Equal(t, resp1.Id, resp2.Id)
