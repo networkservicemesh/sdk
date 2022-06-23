@@ -32,14 +32,14 @@ import (
 
 var once sync.Once
 
-type dnsConfigsHandler struct {
+type resolvConfigHandler struct {
 	chainContext           context.Context
 	resolveConfigPath      string
 	storedResolvConfigPath string
 	defaultNameServerIP    string
 }
 
-func (h *dnsConfigsHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter, m *dns.Msg) {
+func (h *resolvConfigHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter, m *dns.Msg) {
 	if m == nil {
 		dns.HandleFailed(rp, m)
 		return
@@ -50,15 +50,21 @@ func (h *dnsConfigsHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter,
 }
 
 // NewDNSHandler creates a new dns handler that configures resolv.conf file
-func NewDNSHandler() dnsutils.Handler {
-	return &dnsConfigsHandler{
+func NewDNSHandler(opts ...Option) dnsutils.Handler {
+	handler := &resolvConfigHandler{
 		chainContext:        context.Background(),
 		defaultNameServerIP: "127.0.0.1",
 		resolveConfigPath:   "/etc/resolv.conf",
 	}
+
+	for _, o := range opts {
+		o(handler)
+	}
+
+	return handler
 }
 
-func (h *dnsConfigsHandler) restoreResolvConf() {
+func (h *resolvConfigHandler) restoreResolvConf() {
 	originalResolvConf, err := ioutil.ReadFile(h.storedResolvConfigPath)
 	if err != nil || len(originalResolvConf) == 0 {
 		return
@@ -66,7 +72,7 @@ func (h *dnsConfigsHandler) restoreResolvConf() {
 	_ = os.WriteFile(h.resolveConfigPath, originalResolvConf, os.ModePerm)
 }
 
-func (h *dnsConfigsHandler) storeOriginalResolvConf() {
+func (h *resolvConfigHandler) storeOriginalResolvConf() {
 	if _, err := os.Stat(h.storedResolvConfigPath); err == nil {
 		return
 	}
@@ -77,7 +83,7 @@ func (h *dnsConfigsHandler) storeOriginalResolvConf() {
 	_ = ioutil.WriteFile(h.storedResolvConfigPath, originalResolvConf, os.ModePerm)
 }
 
-func (h *dnsConfigsHandler) initialize() {
+func (h *resolvConfigHandler) initialize() {
 	h.restoreResolvConf()
 
 	r, err := openResolveConfig(h.resolveConfigPath)

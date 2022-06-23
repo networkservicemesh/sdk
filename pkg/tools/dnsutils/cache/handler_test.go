@@ -50,8 +50,7 @@ func TestCache(t *testing.T) {
 	go dnsutils.ListenAndServe(ctx, handler, "127.0.0.1:50053")
 
 	client := dns.Client{
-		Net:     "tcp",
-		Timeout: time.Hour,
+		Net: "tcp",
 	}
 
 	m := &dns.Msg{}

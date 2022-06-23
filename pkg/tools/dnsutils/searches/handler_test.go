@@ -33,7 +33,7 @@ import (
 )
 
 func TestDomainSearches(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	configs := new(dnsconfigs.Map)
