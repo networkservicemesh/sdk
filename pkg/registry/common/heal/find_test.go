@@ -90,7 +90,7 @@ func TestHealClient_FindTest(t *testing.T) {
 	nsmgrCancel()
 	require.Eventually(t, func() bool {
 		return sandbox.CheckURLFree(mgr.URL)
-	}, time.Second, 100*time.Millisecond)
+	}, 2*time.Second, 100*time.Millisecond)
 
 	mgr = domain.Nodes[0].NewNSMgr(ctx, mgr.Name, mgr.URL, sandbox.GenerateTestToken, nsmgr.NewServer)
 
@@ -131,10 +131,10 @@ func TestHealClient_FindTest(t *testing.T) {
 	require.Eventually(t, func() bool {
 		_, err := nsRespStream.Recv()
 		return err != nil
-	}, time.Millisecond*2000, time.Millisecond*30)
+	}, time.Second*2, time.Millisecond*30)
 
 	require.Eventually(t, func() bool {
 		_, err := nseRespStream.Recv()
 		return err != nil
-	}, time.Millisecond*2000, time.Millisecond*30)
+	}, time.Second*2, time.Millisecond*30)
 }
