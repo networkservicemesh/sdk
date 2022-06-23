@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"text/template"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 )
 
@@ -31,6 +33,15 @@ type Option func(*vl3DNSServer)
 func WithConfigs(m *Map) Option {
 	return func(vd *vl3DNSServer) {
 		vd.configs = m
+	}
+}
+
+// WithInitialFanoutList sets initial list to fanout queries
+func WithInitialFanoutList(initialFanoutList []string) Option {
+	return func(vd *vl3DNSServer) {
+		vd.dnsConfigs.Store("initialFanoutList", []*networkservice.DNSConfig{
+			{DnsServerIps: initialFanoutList},
+		})
 	}
 }
 

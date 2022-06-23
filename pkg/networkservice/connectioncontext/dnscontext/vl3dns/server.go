@@ -31,6 +31,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/dnsconfigs"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/fanout"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/memory"
 	dnsnext "github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
@@ -41,8 +42,9 @@ import (
 
 type vl3DNSServer struct {
 	dnsServerRecords      memory.Map
-	domainSchemeTemplates []*template.Template
 	configs               *Map
+	dnsConfigs            dnsconfigs.Map
+	domainSchemeTemplates []*template.Template
 	dnsPort               int
 	dnsServer             dnsutils.Handler
 	listenAndServeDNS     func(ctx context.Context, handler dnsutils.Handler, listenOn string)
@@ -70,6 +72,7 @@ func NewServer(chanCtx context.Context, getDNSServerIP func() net.IP, opts ...Op
 
 	if result.dnsServer == nil {
 		result.dnsServer = dnsnext.NewDNSHandler(
+			dnsconfigs.NewDNSHandler(&result.dnsConfigs),
 			noloop.NewDNSHandler(),
 			norecursion.NewDNSHandler(),
 			memory.NewDNSHandler(&result.dnsServerRecords),
@@ -133,17 +136,20 @@ func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.Netw
 					}
 					if withinPrefix(serverIP, lastPrefix) {
 						n.configs.Store(resp.GetId(), config)
+						n.dnsConfigs.Store(resp.GetId(), []*networkservice.DNSConfig{
+							config,
+						})
 					}
 				}
 			}
 		}
 	}
-
 	return resp, err
 }
 
 func (n *vl3DNSServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	n.configs.Delete(conn.GetId())
+	n.dnsConfigs.Delete(conn.Id)
 
 	if v, ok := metadata.Map(ctx, false).LoadAndDelete(clientDNSNameKey{}); ok {
 		var names = v.([]string)
@@ -176,6 +182,23 @@ func (n *vl3DNSServer) getFanoutAddresses() []url.URL {
 		return true
 	})
 	return result
+}
+
+func (n *vl3DNSServer) shouldAddToFanoutList(ipContext *networkservice.IPContext) bool {
+	if len(ipContext.SrcRoutes) > 0 {
+		var lastSrcRoute = ipContext.SrcRoutes[len(ipContext.SrcRoutes)-1]
+		_, ipNet, err := net.ParseCIDR(lastSrcRoute.Prefix)
+		if err != nil {
+			return false
+		}
+		var pool = ippool.NewWithNet(ipNet)
+		for _, srcIP := range ipContext.GetSrcIpAddrs() {
+			if !pool.ContainsNetString(srcIP) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func compareStringSlices(a, b []string) bool {
