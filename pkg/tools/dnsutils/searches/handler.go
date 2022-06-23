@@ -25,7 +25,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 const (
@@ -33,7 +32,6 @@ const (
 )
 
 type searchDomainsHandler struct {
-	RequestError error
 }
 
 func (h *searchDomainsHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m *dns.Msg) {
@@ -42,31 +40,30 @@ func (h *searchDomainsHandler) ServeDNS(ctx context.Context, rw dns.ResponseWrit
 		return
 	}
 
+	domains := SearchDomains(ctx)
+
+	r := &responseWriter{
+		ResponseWriter: rw,
+		Responses:      make([]*dns.Msg, len(domains)+1),
+		index:          0,
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	wrapper := &responseWriterWrapper{
-		ResponseWriter: rw,
-		handler:        h,
-	}
-
-	// TODO: add custom responseWriter to collect all responses from next chain elements and do with them whatever we want
-	next.Handler(ctx).ServeDNS(ctx, wrapper, m)
-
-	if h.RequestError == nil {
-		return
-	}
-	log.FromContext(ctx).Warn(h.RequestError)
+	next.Handler(ctx).ServeDNS(ctx, r, m)
 
 	for _, d := range SearchDomains(ctx) {
 		newMsg := m.Copy()
 		newMsg.Question[0].Name = dns.Fqdn(newMsg.Question[0].Name + d)
-		next.Handler(ctx).ServeDNS(ctx, wrapper, newMsg)
+		next.Handler(ctx).ServeDNS(ctx, r, newMsg)
+	}
 
-		if h.RequestError == nil {
+	for _, resp := range r.Responses {
+		if resp != nil && resp.Rcode == 0 {
+			rw.WriteMsg(resp)
 			return
 		}
-		log.FromContext(ctx).Warn(h.RequestError)
 	}
 
 	dns.HandleFailed(rw, m)

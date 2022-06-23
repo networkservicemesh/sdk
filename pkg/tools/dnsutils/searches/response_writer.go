@@ -17,22 +17,17 @@
 package searches
 
 import (
-	"github.com/pkg/errors"
-
 	"github.com/miekg/dns"
 )
 
-type responseWriterWrapper struct {
+type responseWriter struct {
 	dns.ResponseWriter
-	handler *searchDomainsHandler
+	Responses []*dns.Msg
+	index     int
 }
 
-func (r *responseWriterWrapper) WriteMsg(m *dns.Msg) error {
-	if m != nil && m.Rcode == 0 {
-		r.handler.RequestError = nil
-		return r.ResponseWriter.WriteMsg(m)
-	}
-
-	r.handler.RequestError = errors.Errorf("got an error during exchanging: %s", dns.RcodeToString[m.Rcode])
-	return r.handler.RequestError
+func (r *responseWriter) WriteMsg(m *dns.Msg) error {
+	r.Responses[r.index] = m
+	r.index++
+	return nil
 }

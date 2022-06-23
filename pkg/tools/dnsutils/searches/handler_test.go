@@ -17,7 +17,9 @@
 package searches_test
 
 import (
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/miekg/dns"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -37,7 +39,7 @@ func TestDomainSearches(t *testing.T) {
 	configs := new(dnsconfigs.Map)
 
 	configs.Store("1", []*networkservice.DNSConfig{
-		{SearchDomains: []string{"com"}, DnsServerIps: []string{"8.8.4.4"}},
+		{SearchDomains: []string{"com", "net", "org"}, DnsServerIps: []string{"8.8.4.4"}},
 	})
 
 	handler := next.NewDNSHandler(
@@ -49,11 +51,13 @@ func TestDomainSearches(t *testing.T) {
 	go dnsutils.ListenAndServe(ctx, handler, "127.0.0.1:50053")
 
 	client := dns.Client{
-		Net: "udp",
+		Net:     "udp",
+		Timeout: time.Hour,
 	}
 	m1 := &dns.Msg{}
 	m1.SetQuestion(dns.Fqdn("example"), dns.TypeANY)
 	resp, _, err := client.Exchange(m1, "127.0.0.1:50053")
 	require.NoError(t, err)
 	require.Equal(t, resp.MsgHdr.Rcode, 0)
+	require.True(t, strings.HasSuffix(resp.Question[0].Name, ".com."))
 }
