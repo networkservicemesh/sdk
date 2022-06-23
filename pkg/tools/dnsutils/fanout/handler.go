@@ -48,7 +48,9 @@ func (f *fanoutHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 				Net: u.Scheme,
 			}
 
+			log.FromContext(ctx).Debugf("MY_DEBUG dns exchange started with question %s and address %s", msg.Question[0].Name, u.Path+":40053")
 			var resp, _, err = client.Exchange(msg, u.Path+":40053")
+			log.FromContext(ctx).Debugf("MY_DEBUG dns exchange ended with question %s and address %s", msg.Question[0].Name, u.Path+":40053")
 
 			if err != nil {
 				log.FromContext(ctx).Warnf("got an error during exchanging: %v", err.Error())

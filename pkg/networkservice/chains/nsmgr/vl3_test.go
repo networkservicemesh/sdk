@@ -116,13 +116,6 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 	}
 }
 
-func requireIPv4Lookup(ctx context.Context, t *testing.T, r *net.Resolver, host, expected string) {
-	addrs, err := r.LookupIP(ctx, "ip4", host)
-	require.NoError(t, err)
-	require.Len(t, addrs, 1)
-	require.Equal(t, expected, addrs[0].String())
-}
-
 func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
