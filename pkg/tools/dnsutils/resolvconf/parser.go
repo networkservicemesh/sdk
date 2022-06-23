@@ -16,7 +16,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dnscontext
+package resolvconf
 
 import (
 	"io/ioutil"
@@ -25,14 +25,14 @@ import (
 )
 
 // ResolveConfig provides API for editing / reading resolv.conf
-type ResolveConfig struct {
+type resolveConfig struct {
 	path       string
 	properties map[string][]string
 }
 
-// OpenResolveConfig reads resolve config file from specific path
-func OpenResolveConfig(p string) (*ResolveConfig, error) {
-	r := &ResolveConfig{
+// openResolveConfig reads resolve config file from specific path
+func openResolveConfig(p string) (*resolveConfig, error) {
+	r := &resolveConfig{
 		path:       p,
 		properties: make(map[string][]string),
 	}
@@ -42,7 +42,7 @@ func OpenResolveConfig(p string) (*ResolveConfig, error) {
 	return r, nil
 }
 
-func (r *ResolveConfig) readProperties() error {
+func (r *resolveConfig) readProperties() error {
 	b, err := ioutil.ReadFile(r.path)
 	if err != nil {
 		return err
@@ -57,12 +57,12 @@ func (r *ResolveConfig) readProperties() error {
 }
 
 // Value returns value of property
-func (r *ResolveConfig) Value(k string) []string {
+func (r *resolveConfig) Value(k string) []string {
 	return r.properties[k]
 }
 
 // SetValue sets value for specific property
-func (r *ResolveConfig) SetValue(k string, values ...string) {
+func (r *resolveConfig) SetValue(k string, values ...string) {
 	if len(values) == 0 {
 		delete(r.properties, k)
 	} else {
@@ -71,7 +71,7 @@ func (r *ResolveConfig) SetValue(k string, values ...string) {
 }
 
 // Save saves resolve config file
-func (r *ResolveConfig) Save() error {
+func (r *resolveConfig) Save() error {
 	var sb strings.Builder
 	var index int
 	for k, v := range r.properties {
@@ -83,3 +83,19 @@ func (r *ResolveConfig) Save() error {
 	}
 	return ioutil.WriteFile(r.path, []byte(sb.String()), os.ModePerm)
 }
+
+const (
+	// SearchProperty means search list for host-name lookup
+	SearchProperty = "search"
+	// NameserverProperty means name server IP address
+	NameserverProperty = "nameserver"
+	// OptionsProperty  allows certain internal resolver variables to be modified
+	OptionsProperty = "options"
+	// AnyDomain means that allowed any host-name
+	AnyDomain           = "."
+	DefaultPlugin       = "fanout"
+	ServerBlockTemplate = `%v {
+	%v . %v
+	%v
+}`
+)

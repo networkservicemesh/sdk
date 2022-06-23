@@ -25,7 +25,6 @@ import (
 
 	"github.com/miekg/dns"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/dnscontext"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
@@ -81,7 +80,7 @@ func (h *dnsConfigsHandler) storeOriginalResolvConf() {
 func (h *dnsConfigsHandler) initialize() {
 	h.restoreResolvConf()
 
-	r, err := dnscontext.OpenResolveConfig(h.resolveConfigPath)
+	r, err := openResolveConfig(h.resolveConfigPath)
 	if err != nil {
 		log.FromContext(h.chainContext).Errorf("An error during open resolve config: %v", err.Error())
 		return
@@ -89,7 +88,7 @@ func (h *dnsConfigsHandler) initialize() {
 
 	h.storeOriginalResolvConf()
 
-	r.SetValue(dnscontext.NameserverProperty, h.defaultNameServerIP)
+	r.SetValue(NameserverProperty, h.defaultNameServerIP)
 
 	if err = r.Save(); err != nil {
 		log.FromContext(h.chainContext).Errorf("An error during save resolve config: %v", err.Error())

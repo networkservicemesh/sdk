@@ -33,21 +33,14 @@ func (f applyFunc) apply(c *dnsContextClient) {
 	f(c)
 }
 
-// WithDNSIPsMap sets specific corefile path for DNS client.
-func WithDNSIPsMap(ipsMap *dnsconfigs.DNSServerIpMap) DNSOption {
+// WithDNSConfigsMap sets configs map for DNS client.
+func WithDNSConfigsMap(ipsMap *dnsconfigs.Map) DNSOption {
 	return applyFunc(func(c *dnsContextClient) {
-		c.dnsIPsMap = ipsMap
+		c.configs = ipsMap
 	})
 }
 
-// WithSearchDomainsMap sets specific resolve config file path for DNS client.
-func WithSearchDomainsMap(domainsMap *dnsconfigs.SearchDomainsMap) DNSOption {
-	return applyFunc(func(c *dnsContextClient) {
-		c.searchDomainsMap = domainsMap
-	})
-}
-
-// WithChainContext sets chain context for DNS server.
+// WithChainContext sets chain context for DNS client.
 func WithChainContext(ctx context.Context) DNSOption {
 	return applyFunc(func(c *dnsContextClient) {
 		c.chainContext = ctx
