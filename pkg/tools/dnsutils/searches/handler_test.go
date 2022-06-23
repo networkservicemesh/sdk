@@ -17,6 +17,7 @@
 package searches_test
 
 import (
+	"net"
 	"strings"
 	"testing"
 	"time"
@@ -27,9 +28,9 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/dnsconfigs"
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/memory"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/searches"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type ResponseWriter struct {
@@ -48,18 +49,7 @@ type checkHandler struct {
 
 func (h *checkHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m *dns.Msg) {
 	h.Count++
-	var err error
-	if m.Question[0].Name == "example." {
-		resp := new(dns.Msg)
-		resp.Rcode = 2
-		err = rw.WriteMsg(resp)
-	} else {
-		err = rw.WriteMsg(m)
-	}
-
-	if err != nil {
-		log.FromContext(ctx).Error(err)
-	}
+	next.Handler(ctx).ServeDNS(ctx, rw, m)
 }
 
 func TestDomainSearches(t *testing.T) {
@@ -72,15 +62,19 @@ func TestDomainSearches(t *testing.T) {
 		{SearchDomains: []string{"com", "net", "org"}, DnsServerIps: []string{"8.8.4.4"}},
 	})
 
+	records := new(memory.Map)
+	records.Store("example.com.", []net.IP{net.ParseIP("1.1.1.1")})
+
 	check := &checkHandler{}
 	handler := next.NewDNSHandler(
 		dnsconfigs.NewDNSHandler(configs),
 		searches.NewDNSHandler(),
 		check,
+		memory.NewDNSHandler(records),
 	)
 
 	m := &dns.Msg{}
-	m.SetQuestion(dns.Fqdn("example"), dns.TypeANY)
+	m.SetQuestion(dns.Fqdn("example"), dns.TypeA)
 
 	rw := &ResponseWriter{}
 	handler.ServeDNS(ctx, rw, m)

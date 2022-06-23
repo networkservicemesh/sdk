@@ -26,8 +26,8 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/cache"
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/memory"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type ResponseWriter struct {
@@ -46,30 +46,26 @@ type checkHandler struct {
 
 func (h *checkHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m *dns.Msg) {
 	h.Count++
-	rrr := new(dns.A)
-	rrr.Hdr = dns.RR_Header{Ttl: 3600}
-	rrr.A = net.ParseIP("1.1.1.1")
-
-	m.Answer = append(m.Answer, rrr)
-	err := rw.WriteMsg(m)
-	if err != nil {
-		log.FromContext(ctx).Error(err)
-	}
+	next.Handler(ctx).ServeDNS(ctx, rw, m)
 }
 
 func TestCache(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
+	records := new(memory.Map)
+	records.Store("example.com.", []net.IP{net.ParseIP("1.1.1.1")})
+
 	check := &checkHandler{}
 	handler := next.NewDNSHandler(
 		cache.NewDNSHandler(),
 		check,
+		memory.NewDNSHandler(records),
 	)
 
 	rw := &ResponseWriter{}
 	m := &dns.Msg{}
-	m.SetQuestion(dns.Fqdn("example.com"), dns.TypeANY)
+	m.SetQuestion(dns.Fqdn("example.com"), dns.TypeA)
 	handler.ServeDNS(ctx, rw, m)
 	resp1 := rw.Response.Copy()
 
