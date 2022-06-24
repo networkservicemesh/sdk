@@ -87,7 +87,7 @@ func Test_DNSUsecase(t *testing.T) {
 
 	dnsConfigs := []*networkservice.DNSConfig{
 		{
-			DnsServerIps:  []string{"127.0.0.1"},
+			DnsServerIps:  []string{"127.0.0.1:40053"},
 			SearchDomains: []string{"com"},
 		},
 	}
