@@ -48,7 +48,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/noloop"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/norecursion"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/searches"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -106,7 +105,7 @@ func Test_DNSUsecase(t *testing.T) {
 		noloop.NewDNSHandler(),
 		norecursion.NewDNSHandler(),
 		cache.NewDNSHandler(),
-		fanout.NewDNSHandler(),
+		fanout.NewDNSHandler(fanout.WithTimeout(time.Second)),
 	)
 	dnsutils.ListenAndServe(ctx, clientDNSHandler, ":50053")
 
@@ -134,7 +133,6 @@ func Test_DNSUsecase(t *testing.T) {
 		},
 	}
 
-	log.FromContext(ctx).Infof("MY_INFO request")
 	_, err = resolver.LookupIP(ctx, "ip4", "my.domain")
 	require.Error(t, err)
 

@@ -25,7 +25,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 const defaultTTL = 3600
@@ -39,8 +38,6 @@ func (f *memoryHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 		next.Handler(ctx).ServeDNS(ctx, rw, msg)
 		return
 	}
-
-	log.FromContext(ctx).Debugf("MY_DEBUG memory received request: %s", &msg.Question[0].Name)
 
 	var name = dns.Name(msg.Question[0].Name).String()
 	var records, ok = f.recoreds.Load(name)

@@ -14,30 +14,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package resolvconf
+package fanout
 
-import "context"
+import "time"
 
 // Option applies option for resolvConfigHandler.
-type Option func(h *resolvConfigHandler)
+type Option func(h *fanoutHandler)
 
-// WithResolveConfigPath sets resolve.conf path for resonvConfigHandler.
-func WithResolveConfigPath(path string) Option {
-	return Option(func(h *resolvConfigHandler) {
-		h.resolveConfigPath = path
-	})
-}
-
-// WithDefaultNameServerIP sets default nameserver ip for resolvConfigHandler.
-func WithDefaultNameServerIP(ip string) Option {
-	return Option(func(h *resolvConfigHandler) {
-		h.defaultNameServerIP = ip
-	})
-}
-
-// WithChainContext sets chain context for resolvConfigHandler.
-func WithChainContext(ctx context.Context) Option {
-	return Option(func(h *resolvConfigHandler) {
-		h.chainContext = ctx
+// WithTimeout sets dns exchange timeout for fanoutHandler.
+func WithTimeout(timeout time.Duration) Option {
+	return Option(func(h *fanoutHandler) {
+		h.timeout = timeout
 	})
 }
