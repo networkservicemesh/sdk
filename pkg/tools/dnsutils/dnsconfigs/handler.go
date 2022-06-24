@@ -29,7 +29,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/searches"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type dnsConfigsHandler struct {
@@ -49,11 +48,7 @@ func (h *dnsConfigsHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter,
 		for _, conf := range value {
 			ips := make([]url.URL, len(conf.DnsServerIps))
 			for i, ip := range conf.DnsServerIps {
-				u, err := url.Parse(ip)
-				if err != nil {
-					log.FromContext(ctx).Warnf("failed to parse ip: %s, error: %s", ip, err.Error())
-				}
-				ips[i] = *u
+				ips[i] = url.URL{Scheme: "tcp", Host: ip}
 			}
 
 			dnsIPs = append(dnsIPs, ips...)
