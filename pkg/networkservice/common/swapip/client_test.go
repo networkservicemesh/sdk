@@ -1,7 +1,5 @@
 // Copyright (c) 2022 Cisco and/or its affiliates.
 //
-// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +24,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ghodss/yaml"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
 	"github.com/stretchr/testify/require"
@@ -39,13 +36,14 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/fs"
 )
 
-func TestSwapIPServer_Request(t *testing.T) {
+// nolint:goconst
+func TestSwapIPClient_Request(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
 	p1 := filepath.Join(t.TempDir(), "map-ip-1.yaml")
 	p2 := filepath.Join(t.TempDir(), "map-ip-2.yaml")
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10000)
 	defer cancel()
 
 	err := ioutil.WriteFile(p1, []byte(`172.16.2.10: 172.16.1.10`), os.ModePerm)
@@ -57,29 +55,28 @@ func TestSwapIPServer_Request(t *testing.T) {
 	ch1 := convertBytesChToMapCh(fs.WatchFile(ctx, p1))
 	ch2 := convertBytesChToMapCh(fs.WatchFile(ctx, p2))
 
-	var testChain = next.NewNetworkServiceServer(
+	var testChain = next.NewNetworkServiceClient(
 		/* Source side */
-		checkresponse.NewServer(t, func(t *testing.T, c *networkservice.Connection) {
-			require.Equal(t, "172.16.1.100", c.Mechanism.Parameters[common.DstIP])
+		checkresponse.NewClient(t, func(t *testing.T, c *networkservice.Connection) {
+			require.Equal(t, "172.16.2.10", c.Mechanism.Parameters[common.SrcIP])
+			require.Equal(t, "", c.Mechanism.Parameters[common.SrcOriginalIP])
+			require.Equal(t, "172.16.2.100", c.Mechanism.Parameters[common.DstIP])
 			require.Equal(t, "172.16.2.100", c.Mechanism.Parameters[common.DstOriginalIP])
-			c.Mechanism.Parameters[common.SrcOriginalIP] = ""
 		}),
-		swapip.NewServer(ch1),
-		checkrequest.NewServer(t, func(t *testing.T, r *networkservice.NetworkServiceRequest) {
-			require.Equal(t, "172.16.2.10", r.Connection.Mechanism.Parameters[common.SrcIP])
-			require.Equal(t, "", r.Connection.Mechanism.Parameters[common.SrcOriginalIP])
-			r.Connection.Mechanism.Parameters[common.SrcOriginalIP] = "172.16.2.10"
+		swapip.NewClient(ch1),
+		checkrequest.NewClient(t, func(t *testing.T, r *networkservice.NetworkServiceRequest) {
+			require.Equal(t, "172.16.1.10", r.Connection.Mechanism.Parameters[common.SrcIP])
+			require.Equal(t, "172.16.2.10", r.Connection.Mechanism.Parameters[common.SrcOriginalIP])
 		}),
 		/* Destination side */
-		checkresponse.NewServer(t, func(t *testing.T, c *networkservice.Connection) {
-			require.Equal(t, "172.16.1.100", c.Mechanism.Parameters[common.DstIP])
-			require.Equal(t, "172.16.2.100", c.Mechanism.Parameters[common.DstOriginalIP])
+		checkresponse.NewClient(t, func(t *testing.T, c *networkservice.Connection) {
+			require.Equal(t, "172.16.1.10", c.Mechanism.Parameters[common.SrcIP])
+			require.Equal(t, "172.16.2.10", c.Mechanism.Parameters[common.SrcOriginalIP])
 		}),
-		swapip.NewServer(ch2),
-		checkrequest.NewServer(t, func(t *testing.T, r *networkservice.NetworkServiceRequest) {
-			require.Equal(t, "", r.Connection.Mechanism.Parameters[common.DstOriginalIP])
-			require.Equal(t, "", r.Connection.Mechanism.Parameters[common.DstIP])
+		swapip.NewClient(ch2),
+		checkrequest.NewClient(t, func(t *testing.T, r *networkservice.NetworkServiceRequest) {
 			r.Connection.Mechanism.Parameters[common.DstIP] = "172.16.2.100"
+			r.Connection.Mechanism.Parameters[common.DstOriginalIP] = "172.16.2.100"
 		}),
 	)
 
@@ -101,18 +98,4 @@ func TestSwapIPServer_Request(t *testing.T) {
 	// refresh
 	_, err = testChain.Request(ctx, &networkservice.NetworkServiceRequest{Connection: resp})
 	require.NoError(t, err)
-}
-
-func convertBytesChToMapCh(in <-chan []byte) <-chan map[string]string {
-	var out = make(chan map[string]string)
-	go func() {
-		for data := range in {
-			var r map[string]string
-			_ = yaml.Unmarshal(data, &r)
-			out <- r
-		}
-		close(out)
-	}()
-
-	return out
 }
