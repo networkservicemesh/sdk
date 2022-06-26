@@ -26,7 +26,7 @@ type responseWriterWrapper struct {
 }
 
 func (r *responseWriterWrapper) WriteMsg(m *dns.Msg) error {
-	if m != nil && m.Rcode == 0 {
+	if m != nil && m.Rcode == dns.RcodeSuccess {
 		r.cache.Store(m.Question[0].Name, m)
 	}
 	return r.ResponseWriter.WriteMsg(m)

@@ -86,7 +86,7 @@ func TestDNSConfigs(t *testing.T) {
 
 	urls := check.URLs
 	require.Equal(t, len(urls), 3)
-	require.Contains(t, urls, "7.7.7.7")
-	require.Contains(t, urls, "8.8.8.8")
-	require.Contains(t, urls, "9.9.9.9")
+	require.Contains(t, urls, "tcp://7.7.7.7")
+	require.Contains(t, urls, "tcp://8.8.8.8")
+	require.Contains(t, urls, "tcp://9.9.9.9")
 }

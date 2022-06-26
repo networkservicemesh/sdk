@@ -81,6 +81,6 @@ func TestDomainSearches(t *testing.T) {
 
 	resp := rw.Response.Copy()
 	require.Equal(t, check.Count, 4)
-	require.Equal(t, resp.MsgHdr.Rcode, 0)
+	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeSuccess)
 	require.True(t, strings.HasSuffix(resp.Question[0].Name, ".com."))
 }
