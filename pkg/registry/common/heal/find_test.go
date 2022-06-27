@@ -35,7 +35,7 @@ import (
 func TestHealClient_FindTest(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	nsmgrCtx, nsmgrCancel := context.WithCancel(ctx)
@@ -90,7 +90,7 @@ func TestHealClient_FindTest(t *testing.T) {
 	nsmgrCancel()
 	require.Eventually(t, func() bool {
 		return sandbox.CheckURLFree(mgr.URL)
-	}, time.Second, 100*time.Millisecond)
+	}, 2*time.Second, 100*time.Millisecond)
 
 	mgr = domain.Nodes[0].NewNSMgr(ctx, mgr.Name, mgr.URL, sandbox.GenerateTestToken, nsmgr.NewServer)
 
@@ -131,10 +131,10 @@ func TestHealClient_FindTest(t *testing.T) {
 	require.Eventually(t, func() bool {
 		_, err := nsRespStream.Recv()
 		return err != nil
-	}, time.Millisecond*100, time.Millisecond*10)
+	}, 2*time.Second, time.Millisecond*30)
 
 	require.Eventually(t, func() bool {
 		_, err := nseRespStream.Recv()
 		return err != nil
-	}, time.Millisecond*100, time.Millisecond*10)
+	}, 2*time.Second, time.Millisecond*30)
 }
