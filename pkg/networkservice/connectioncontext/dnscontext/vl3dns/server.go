@@ -37,7 +37,6 @@ import (
 	dnsnext "github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/noloop"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/norecursion"
-	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
 )
 
 type vl3DNSServer struct {
@@ -48,6 +47,7 @@ type vl3DNSServer struct {
 	dnsPort               int
 	dnsServer             dnsutils.Handler
 	listenAndServeDNS     func(ctx context.Context, handler dnsutils.Handler, listenOn string)
+	listenOn              url.URL
 }
 
 type clientDNSNameKey struct{}
@@ -57,10 +57,11 @@ type clientDNSNameKey struct{}
 // By default is using fanout dns handler to connect to other vl3 nses.
 // chanCtx is using for signal to stop dns server.
 // opts confugre vl3dns networkservice instance with specific behavior.
-func NewServer(chanCtx context.Context, opts ...Option) networkservice.NetworkServiceServer {
+func NewServer(chanCtx context.Context, listenOn url.URL, opts ...Option) networkservice.NetworkServiceServer {
 	var result = &vl3DNSServer{
 		dnsPort:           53,
 		listenAndServeDNS: dnsutils.ListenAndServe,
+		listenOn:          listenOn,
 	}
 
 	for _, opt := range opts {
@@ -86,13 +87,18 @@ func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.Netw
 		request.Connection.Context.DnsContext = new(networkservice.DNSContext)
 	}
 
-	var ipContext = request.GetConnection().GetContext().GetIpContext()
+	var dnsContext = request.GetConnection().GetContext().GetDnsContext()
 
-	for _, dstIPNet := range ipContext.GetDstIPNets() {
-		request.GetConnection().GetContext().GetDnsContext().Configs = append(request.GetConnection().GetContext().GetDnsContext().Configs, &networkservice.DNSConfig{
-			DnsServerIps: []string{dstIPNet.IP.String()},
-		})
+	for _, config := range dnsContext.GetConfigs() {
+		for _, serverIP := range config.DnsServerIps {
+			var u = url.URL{Scheme: "tcp", Host: fmt.Sprintf("%v:%v", serverIP, n.dnsPort)}
+			n.fanoutAddresses.Store(u, struct{}{})
+		}
 	}
+
+	dnsContext.Configs = append(dnsContext.Configs, &networkservice.DNSConfig{
+		DnsServerIps: []string{n.listenOn.Hostname()},
+	})
 
 	var recordNames, err = n.buildSrcDNSRecords(request.GetConnection())
 
@@ -119,13 +125,6 @@ func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.Netw
 		}
 
 		metadata.Map(ctx, false).Store(clientDNSNameKey{}, recordNames)
-	}
-
-	if n.shouldAddToFanoutList(ipContext) {
-		for _, srcIPNet := range ipContext.GetSrcIPNets() {
-			var u = url.URL{Scheme: "tcp", Host: fmt.Sprintf("%v:%v", srcIPNet.IP.String(), n.dnsPort)}
-			n.fanoutAddresses.Store(u, struct{}{})
-		}
 	}
 
 	return next.Server(ctx).Request(ctx, request)
@@ -166,23 +165,6 @@ func (n *vl3DNSServer) getFanoutAddresses() []url.URL {
 		return true
 	})
 	return result
-}
-
-func (n *vl3DNSServer) shouldAddToFanoutList(ipContext *networkservice.IPContext) bool {
-	if len(ipContext.SrcRoutes) > 0 {
-		var lastSrcRoute = ipContext.SrcRoutes[len(ipContext.SrcRoutes)-1]
-		_, ipNet, err := net.ParseCIDR(lastSrcRoute.Prefix)
-		if err != nil {
-			return false
-		}
-		var pool = ippool.NewWithNet(ipNet)
-		for _, srcIP := range ipContext.GetSrcIpAddrs() {
-			if !pool.ContainsNetString(srcIP) {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func compareStringSlices(a, b []string) bool {

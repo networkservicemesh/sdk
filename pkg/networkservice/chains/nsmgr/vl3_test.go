@@ -23,6 +23,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/url"
 	"testing"
 	"time"
 
@@ -68,7 +69,10 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 		nseReg,
 		sandbox.GenerateTestToken,
 		vl3.NewServer(ctx, serverPrefixCh),
-		vl3dns.NewServer(ctx, vl3dns.WithDomainSchemes("{{ index .Labels \"podName\" }}.{{ .NetworkService }}."), vl3dns.WithDNSPort(40053)),
+		vl3dns.NewServer(ctx,
+			url.URL{Scheme: "tcp", Host: "127.0.0.1"},
+			vl3dns.WithDomainSchemes("{{ index .Labels \"podName\" }}.{{ .NetworkService }}."),
+			vl3dns.WithDNSPort(40053)),
 	)
 
 	resolver := net.Resolver{
@@ -95,7 +99,6 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, resp.GetContext().GetDnsContext().GetConfigs(), 1)
 		require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].DnsServerIps, 1)
-		require.Equal(t, "10.0.0.0", resp.GetContext().GetDnsContext().GetConfigs()[0].DnsServerIps[0])
 
 		req.Connection = resp.Clone()
 
@@ -157,9 +160,14 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 		nseReg,
 		sandbox.GenerateTestToken,
 		vl3.NewServer(ctx, serverPrefixCh),
-		vl3dns.NewServer(ctx, vl3dns.WithDomainSchemes("{{ index .Labels \"podName\" }}.{{ .NetworkService }}."), vl3dns.WithDNSListenAndServeFunc(func(ctx context.Context, handler dnsutils.Handler, listenOn string) {
-			dnsutils.ListenAndServe(ctx, handler, ":50053")
-		}), vl3dns.WithDNSPort(40053)),
+		vl3dns.NewServer(ctx,
+			url.URL{Scheme: "tcp", Host: "127.0.0.1"},
+			vl3dns.WithDomainSchemes("{{ index .Labels \"podName\" }}.{{ .NetworkService }}."),
+			vl3dns.WithDNSListenAndServeFunc(func(ctx context.Context, handler dnsutils.Handler, listenOn string) {
+				dnsutils.ListenAndServe(ctx, handler, ":50053")
+			}),
+			vl3dns.WithDNSPort(40053),
+		),
 	)
 
 	resolver := net.Resolver{
@@ -174,7 +182,7 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 	defer close(clientPrefixCh)
 
 	clientPrefixCh <- &ipam.PrefixResponse{Prefix: "127.0.0.1/32"}
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(vl3.NewClient(ctx, clientPrefixCh)))
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(vl3.NewClient(ctx, clientPrefixCh), vl3dns.NewClient(url.URL{Host: "127.0.0.1"})))
 
 	req := defaultRequest(nsReg.Name)
 	req.Connection.Id = uuid.New().String()
@@ -183,9 +191,8 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 
 	resp, err := nsc.Request(ctx, req)
 	require.NoError(t, err)
-	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs(), 1)
 	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].DnsServerIps, 1)
-	require.Equal(t, "10.0.0.0", resp.GetContext().GetDnsContext().GetConfigs()[0].DnsServerIps[0])
+	require.Equal(t, "127.0.0.1", resp.GetContext().GetDnsContext().GetConfigs()[0].DnsServerIps[0])
 
 	require.Equal(t, "127.0.0.1/32", resp.GetContext().GetIpContext().GetSrcIpAddrs()[0])
 	req.Connection = resp.Clone()
