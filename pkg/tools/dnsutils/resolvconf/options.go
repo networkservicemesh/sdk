@@ -16,7 +16,11 @@
 
 package resolvconf
 
-import "context"
+import (
+	"context"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/dnsconfigs"
+)
 
 // Option applies option for resolvConfigHandler.
 type Option func(h *resolvConfigHandler)
@@ -39,5 +43,12 @@ func WithDefaultNameServerIP(ip string) Option {
 func WithChainContext(ctx context.Context) Option {
 	return Option(func(h *resolvConfigHandler) {
 		h.chainContext = ctx
+	})
+}
+
+// WithDNSConfigsMap sets DNS configs map for resolvConfigHandler.
+func WithDNSConfigsMap(m *dnsconfigs.Map) Option {
+	return Option(func(h *resolvConfigHandler) {
+		h.dnsConfigsMap = m
 	})
 }

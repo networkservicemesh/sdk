@@ -21,18 +21,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/miekg/dns"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"golang.org/x/net/context"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 )
 
 func TestResolvConf(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Microsecond)
+	_, cancel := context.WithTimeout(context.Background(), time.Microsecond)
 	defer cancel()
 
 	file, err := os.CreateTemp(os.TempDir(), "resolv.conf")
@@ -49,11 +46,7 @@ func TestResolvConf(t *testing.T) {
 	err = conf.Save()
 	require.NoError(t, err)
 
-	handler := next.NewDNSHandler(
-		NewDNSHandler(WithResolveConfigPath(configPath)),
-	)
-
-	handler.ServeDNS(ctx, nil, new(dns.Msg))
+	NewDNSHandler(WithResolveConfigPath(configPath))
 
 	conf, err = openResolveConfig(configPath)
 	require.NoError(t, err)

@@ -21,22 +21,22 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
-	"sync"
 
 	"github.com/miekg/dns"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/dnsconfigs"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
-
-var once sync.Once
 
 type resolvConfigHandler struct {
 	chainContext           context.Context
 	resolveConfigPath      string
 	storedResolvConfigPath string
 	defaultNameServerIP    string
+	dnsConfigsMap          *dnsconfigs.Map
 }
 
 func (h *resolvConfigHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter, m *dns.Msg) {
@@ -45,7 +45,6 @@ func (h *resolvConfigHandler) ServeDNS(ctx context.Context, rp dns.ResponseWrite
 		return
 	}
 
-	once.Do(h.initialize)
 	next.Handler(ctx).ServeDNS(ctx, rp, m)
 }
 
@@ -60,6 +59,8 @@ func NewDNSHandler(opts ...Option) dnsutils.Handler {
 	for _, o := range opts {
 		o(handler)
 	}
+
+	handler.initialize()
 
 	return handler
 }
@@ -94,6 +95,15 @@ func (h *resolvConfigHandler) initialize() {
 
 	h.storeOriginalResolvConf()
 
+	nameserver := r.Value("nameserver")
+	search := r.Value("search")
+	if h.dnsConfigsMap != nil {
+		h.dnsConfigsMap.Store("defaultConfig", []*networkservice.DNSConfig{
+			{DnsServerIps: nameserver, SearchDomains: search},
+		})
+	}
+
+	r.SetValue("search", []string{}...)
 	r.SetValue(NameserverProperty, h.defaultNameServerIP)
 
 	if err = r.Save(); err != nil {
