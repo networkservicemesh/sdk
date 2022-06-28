@@ -18,7 +18,6 @@ package searches_test
 
 import (
 	"net"
-	"strings"
 	"testing"
 	"time"
 
@@ -82,5 +81,6 @@ func TestDomainSearches(t *testing.T) {
 	resp := rw.Response.Copy()
 	require.Equal(t, check.Count, 4)
 	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeSuccess)
-	require.True(t, strings.HasSuffix(resp.Question[0].Name, ".com."))
+	require.NotNil(t, resp.Answer)
+	require.Equal(t, resp.Answer[0].(*dns.A).A.String(), "1.1.1.1")
 }
