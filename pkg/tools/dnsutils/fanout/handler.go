@@ -60,11 +60,7 @@ func (f *fanoutHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 				address += ":53"
 			}
 
-			log.FromContext(ctx).Debugf("MY_DEBUG dns exchange begin with address: %s", address)
-
 			var resp, _, err = client.Exchange(msg, address)
-			log.FromContext(ctx).Debugf("MY_DEBUG dns exchange end with address: %s", address)
-
 			if err != nil {
 				log.FromContext(ctx).Warnf("got an error during exchanging: %v", err.Error())
 				responseCh <- nil
