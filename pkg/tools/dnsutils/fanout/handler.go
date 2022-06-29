@@ -35,13 +35,17 @@ const (
 )
 
 type fanoutHandler struct {
-	timeout time.Duration
 }
 
 func (f *fanoutHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg *dns.Msg) {
 	var connectTO = clienturlctx.DNSServerURLs(ctx)
 	var responseCh = make(chan *dns.Msg, len(connectTO))
 
+	deadline, ok := ctx.Deadline()
+	timeout := time.Until(deadline)
+	if !ok {
+		timeout = defaultTimeout
+	}
 	if len(connectTO) == 0 {
 		log.FromContext(ctx).Error("no urls to fanout")
 		dns.HandleFailed(rw, msg)
@@ -52,7 +56,7 @@ func (f *fanoutHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 		go func(u *url.URL, msg *dns.Msg) {
 			var client = dns.Client{
 				Net:     u.Scheme,
-				Timeout: f.timeout,
+				Timeout: timeout,
 			}
 
 			address := u.Host

@@ -59,7 +59,7 @@ func TestDNSConfigs(t *testing.T) {
 		},
 		{
 			SearchDomains: []string{"net"},
-			DnsServerIps:  []string{"8.8.8.8"},
+			DnsServerIps:  []string{"1.1.1.1"},
 		},
 	})
 
@@ -87,6 +87,6 @@ func TestDNSConfigs(t *testing.T) {
 	urls := check.URLs
 	require.Equal(t, len(urls), 3)
 	require.Contains(t, urls, "tcp://7.7.7.7")
-	require.Contains(t, urls, "tcp://8.8.8.8")
+	require.Contains(t, urls, "tcp://1.1.1.1")
 	require.Contains(t, urls, "tcp://9.9.9.9")
 }

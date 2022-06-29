@@ -61,6 +61,7 @@ func NewDNSHandler(opts ...Option) dnsutils.Handler {
 		o(handler)
 	}
 
+	handler.storedResolvConfigPath = handler.resolveConfigPath + ".restore"
 	handler.initialize()
 
 	return handler

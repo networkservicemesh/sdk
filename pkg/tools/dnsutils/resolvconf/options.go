@@ -25,7 +25,7 @@ import (
 // Option applies option for resolvConfigHandler.
 type Option func(h *resolvConfigHandler)
 
-// WithResolveConfigPath sets resolve.conf path for resonvConfigHandler.
+// WithResolveConfigPath sets resolv.conf path for resonvConfigHandler.
 func WithResolveConfigPath(path string) Option {
 	return Option(func(h *resolvConfigHandler) {
 		h.resolveConfigPath = path
