@@ -41,10 +41,9 @@ func (f *fanoutHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 	var connectTO = clienturlctx.DNSServerURLs(ctx)
 	var responseCh = make(chan *dns.Msg, len(connectTO))
 
-	deadline, ok := ctx.Deadline()
-	timeout := time.Until(deadline)
-	if !ok {
-		timeout = defaultTimeout
+	timeout := defaultTimeout
+	if deadline, ok := ctx.Deadline(); ok {
+		timeout = time.Until(deadline)
 	}
 	if len(connectTO) == 0 {
 		log.FromContext(ctx).Error("no urls to fanout")
