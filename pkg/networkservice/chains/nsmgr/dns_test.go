@@ -99,7 +99,7 @@ func Test_DNSUsecase(t *testing.T) {
 		noloop.NewDNSHandler(),
 		norecursion.NewDNSHandler(),
 		cache.NewDNSHandler(),
-		fanout.NewDNSHandler(fanout.WithTimeout(time.Second)),
+		fanout.NewDNSHandler(),
 	)
 	dnsutils.ListenAndServe(ctx, clientDNSHandler, ":50053")
 

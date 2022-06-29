@@ -120,14 +120,6 @@ func (f *fanoutHandler) waitResponse(ctx context.Context, respCh <-chan *dns.Msg
 }
 
 // NewDNSHandler creates a new dns handler instance that sends incoming queries in parallel to few endpoints
-func NewDNSHandler(opts ...Option) dnsutils.Handler {
-	h := &fanoutHandler{
-		timeout: defaultTimeout,
-	}
-
-	for _, o := range opts {
-		o(h)
-	}
-
-	return h
+func NewDNSHandler() dnsutils.Handler {
+	return new(fanoutHandler)
 }
