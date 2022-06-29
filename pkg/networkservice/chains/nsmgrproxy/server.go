@@ -194,6 +194,9 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 					client.WithDialOptions(opts.dialOptions...),
 					client.WithDialTimeout(opts.dialTimeout),
 					client.WithoutRefresh(),
+					client.WithAdditionalFunctionality(
+						swapip.NewClient(opts.openMapIPChannel(ctx)),
+					),
 				),
 			),
 		),

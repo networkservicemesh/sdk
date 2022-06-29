@@ -1,7 +1,5 @@
 // Copyright (c) 2022 Cisco and/or its affiliates.
 //
-// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,6 +22,8 @@ import (
 	"context"
 	"sync/atomic"
 
+	"google.golang.org/grpc"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
@@ -31,11 +31,23 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type swapIPServer struct {
+type swapIPClient struct {
 	internalToExternalMap *atomic.Value
 }
 
-func (i *swapIPServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+// NewClient creates new swap chain element. Expects public IP address of node
+func NewClient(updateIPMapCh <-chan map[string]string) networkservice.NetworkServiceClient {
+	var v = new(atomic.Value)
+	v.Store(map[string]string{})
+	go func() {
+		for data := range updateIPMapCh {
+			v.Store(data)
+		}
+	}()
+	return &swapIPClient{internalToExternalMap: v}
+}
+
+func (i *swapIPClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	internalToExternalMap := i.internalToExternalMap.Load().(map[string]string)
 	mechanisms := request.GetMechanismPreferences()
 	var isSourceSide bool
@@ -47,48 +59,32 @@ func (i *swapIPServer) Request(ctx context.Context, request *networkservice.Netw
 	for _, m := range mechanisms {
 		params := m.GetParameters()
 		if params != nil {
-			_, ok := params[common.SrcIP]
+			srcIP, ok := params[common.SrcIP]
 			if !ok {
 				continue
 			}
 			isSourceSide = params[common.SrcOriginalIP] == ""
-			if !isSourceSide {
-				params[common.DstOriginalIP] = ""
-				params[common.DstIP] = ""
+			if isSourceSide {
+				params[common.SrcIP], params[common.SrcOriginalIP] = internalToExternalMap[srcIP], srcIP
 			}
 		}
 	}
 
-	resp, err := next.Server(ctx).Request(ctx, request)
-
+	resp, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
 		return nil, err
 	}
 
 	params := resp.GetMechanism().GetParameters()
-
 	if params != nil {
-		if !isSourceSide {
-			dstIP := params[common.DstIP]
-			params[common.DstIP], params[common.DstOriginalIP] = internalToExternalMap[dstIP], dstIP
+		if isSourceSide {
+			params[common.SrcIP], params[common.SrcOriginalIP] = params[common.SrcOriginalIP], ""
 		}
 	}
 
 	return resp, err
 }
 
-func (i *swapIPServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	return next.Server(ctx).Close(ctx, conn)
-}
-
-// NewServer creates new swap chain element. Expects public IP address of node
-func NewServer(updateIPMapCh <-chan map[string]string) networkservice.NetworkServiceServer {
-	var v = new(atomic.Value)
-	v.Store(map[string]string{})
-	go func() {
-		for data := range updateIPMapCh {
-			v.Store(data)
-		}
-	}()
-	return &swapIPServer{internalToExternalMap: v}
+func (i *swapIPClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	return next.Client(ctx).Close(ctx, conn, opts...)
 }
