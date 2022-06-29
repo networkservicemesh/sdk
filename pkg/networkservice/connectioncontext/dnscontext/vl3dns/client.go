@@ -18,7 +18,7 @@ package vl3dns
 
 import (
 	"context"
-	"net/url"
+	"net"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -28,14 +28,16 @@ import (
 )
 
 type vl3DNSClient struct {
-	listenOn *url.URL
+	dnsServerIP net.IP
+	dnsConfigs  *Map
 }
 
 // NewClient - returns a new null client that does nothing but call next.Client(ctx).{Request/Close} and return the result
 //             This is very useful in testing
-func NewClient(listenOn *url.URL) networkservice.NetworkServiceClient {
+func NewClient(dnsServerIP net.IP, dnsConfigs *Map) networkservice.NetworkServiceClient {
 	return &vl3DNSClient{
-		listenOn: listenOn,
+		dnsServerIP: dnsServerIP,
+		dnsConfigs:  dnsConfigs,
 	}
 }
 
@@ -52,12 +54,31 @@ func (n *vl3DNSClient) Request(ctx context.Context, request *networkservice.Netw
 
 	request.GetConnection().GetContext().GetDnsContext().Configs = []*networkservice.DNSConfig{
 		{
-			DnsServerIps: []string{n.listenOn.Hostname()},
+			DnsServerIps: []string{n.dnsServerIP.String()},
 		},
 	}
-	return next.Client(ctx).Request(ctx, request, opts...)
+	resp, err := next.Client(ctx).Request(ctx, request, opts...)
+
+	if err == nil {
+		for _, config := range resp.GetContext().GetDnsContext().GetConfigs() {
+			var skip = false
+			for _, ip := range config.DnsServerIps {
+				if ip == n.dnsServerIP.String() {
+					skip = true
+					break
+				}
+			}
+			if skip {
+				continue
+			}
+			n.dnsConfigs.Store(resp.GetId(), config)
+		}
+	}
+
+	return resp, err
 }
 
 func (n *vl3DNSClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	n.dnsConfigs.Delete(conn.GetId())
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
