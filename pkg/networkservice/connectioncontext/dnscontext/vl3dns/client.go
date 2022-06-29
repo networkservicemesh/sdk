@@ -28,12 +28,12 @@ import (
 )
 
 type vl3DNSClient struct {
-	listenOn url.URL
+	listenOn *url.URL
 }
 
 // NewClient - returns a new null client that does nothing but call next.Client(ctx).{Request/Close} and return the result
 //             This is very useful in testing
-func NewClient(listenOn url.URL) networkservice.NetworkServiceClient {
+func NewClient(listenOn *url.URL) networkservice.NetworkServiceClient {
 	return &vl3DNSClient{
 		listenOn: listenOn,
 	}

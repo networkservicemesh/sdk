@@ -47,7 +47,7 @@ type vl3DNSServer struct {
 	dnsPort               int
 	dnsServer             dnsutils.Handler
 	listenAndServeDNS     func(ctx context.Context, handler dnsutils.Handler, listenOn string)
-	listenOn              url.URL
+	listenOn              *url.URL
 }
 
 type clientDNSNameKey struct{}
@@ -57,7 +57,7 @@ type clientDNSNameKey struct{}
 // By default is using fanout dns handler to connect to other vl3 nses.
 // chanCtx is using for signal to stop dns server.
 // opts confugre vl3dns networkservice instance with specific behavior.
-func NewServer(chanCtx context.Context, listenOn url.URL, opts ...Option) networkservice.NetworkServiceServer {
+func NewServer(chanCtx context.Context, listenOn *url.URL, opts ...Option) networkservice.NetworkServiceServer {
 	var result = &vl3DNSServer{
 		dnsPort:           53,
 		listenAndServeDNS: dnsutils.ListenAndServe,
