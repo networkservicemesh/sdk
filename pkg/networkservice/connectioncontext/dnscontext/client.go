@@ -45,6 +45,7 @@ type dnsContextClient struct {
 	defaultNameServerIP    string
 	dnsConfigManager       dnscontext.Manager
 	updateCorefileQueue    serialize.Executor
+	clientDNSConfigs       []*networkservice.DNSConfig
 }
 
 // NewClient creates a new DNS client chain component. Setups all DNS traffic to the localhost. Monitors DNS configs from connections.
@@ -66,6 +67,17 @@ func NewClient(options ...DNSOption) networkservice.NetworkServiceClient {
 }
 
 func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	if request.Connection.GetContext() == nil {
+		request.Connection.Context = &networkservice.ConnectionContext{
+			DnsContext: &networkservice.DNSContext{},
+		}
+	}
+	if request.Connection.GetContext().GetDnsContext() == nil {
+		request.Connection.Context.DnsContext = &networkservice.DNSContext{}
+	}
+
+	request.Connection.Context.DnsContext.Configs = c.clientDNSConfigs
+
 	rv, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
 		return nil, err
@@ -74,6 +86,7 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 	if rv.GetContext().GetDnsContext() != nil {
 		conifgs = rv.GetContext().GetDnsContext().GetConfigs()
 	}
+	log.FromContext(ctx).Infof("DNSCLIENT configs from NSE: %v", conifgs)
 	if len(conifgs) > 0 {
 		c.dnsConfigManager.Store(rv.GetId(), conifgs...)
 		c.updateCorefileQueue.AsyncExec(c.updateCorefile)
@@ -132,10 +145,12 @@ func (c *dnsContextClient) initialize() {
 
 	c.storeOriginalResolvConf()
 
-	c.dnsConfigManager.Store("", &networkservice.DNSConfig{
+	defaultDNSConfig := &networkservice.DNSConfig{
 		SearchDomains: r.Value(dnscontext.AnyDomain),
 		DnsServerIps:  r.Value(dnscontext.NameserverProperty),
-	})
+	}
+	c.dnsConfigManager.Store("", defaultDNSConfig)
+	c.clientDNSConfigs = append(c.clientDNSConfigs, defaultDNSConfig)
 
 	r.SetValue(dnscontext.NameserverProperty, c.defaultNameServerIP)
 
