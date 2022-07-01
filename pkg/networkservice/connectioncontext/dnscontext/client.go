@@ -89,7 +89,9 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 		c.initialClientDNSConfigs = request.Connection.Context.DnsContext.Configs
 	}
 
-	request.Connection.Context.DnsContext.Configs = append(c.initialClientDNSConfigs, c.resolvconfDNSConfig)
+	dnsConfigs := c.initialClientDNSConfigs
+	dnsConfigs = append(dnsConfigs, c.resolvconfDNSConfig)
+	request.Connection.Context.DnsContext.Configs = dnsConfigs
 
 	rv, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
