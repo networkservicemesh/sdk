@@ -43,14 +43,15 @@ const (
 )
 
 type dnsContextClient struct {
-	chainContext           context.Context
-	coreFilePath           string
-	resolveConfigPath      string
-	storedResolvConfigPath string
-	defaultNameServerIP    string
-	dnsConfigManager       dnscontext.Manager
-	updateCorefileQueue    serialize.Executor
-	clientDNSConfigs       []*networkservice.DNSConfig
+	chainContext            context.Context
+	coreFilePath            string
+	resolveConfigPath       string
+	storedResolvConfigPath  string
+	defaultNameServerIP     string
+	dnsConfigManager        dnscontext.Manager
+	updateCorefileQueue     serialize.Executor
+	initialClientDNSConfigs []*networkservice.DNSConfig
+	resolvconfDNSConfig     *networkservice.DNSConfig
 }
 
 // NewClient creates a new DNS client chain component. Setups all DNS traffic to the localhost. Monitors DNS configs from connections.
@@ -84,11 +85,11 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 		request.Connection.Context.DnsContext = &networkservice.DNSContext{}
 	}
 
-	dnsConfigs := c.clientDNSConfigs
 	if _, ok := metadata.Map(ctx, true).Load(dnsContextClientRefreshKey); !ok {
-		dnsConfigs = append(dnsConfigs, request.Connection.Context.DnsContext.Configs...)
+		c.initialClientDNSConfigs = request.Connection.Context.DnsContext.Configs
 	}
-	request.Connection.Context.DnsContext.Configs = dnsConfigs
+
+	request.Connection.Context.DnsContext.Configs = append(c.initialClientDNSConfigs, c.resolvconfDNSConfig)
 
 	rv, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
@@ -159,12 +160,11 @@ func (c *dnsContextClient) initialize() {
 
 	c.storeOriginalResolvConf()
 
-	defaultDNSConfig := &networkservice.DNSConfig{
+	c.resolvconfDNSConfig = &networkservice.DNSConfig{
 		SearchDomains: r.Value(dnscontext.AnyDomain),
 		DnsServerIps:  r.Value(dnscontext.NameserverProperty),
 	}
-	c.dnsConfigManager.Store("", defaultDNSConfig)
-	c.clientDNSConfigs = append(c.clientDNSConfigs, defaultDNSConfig)
+	c.dnsConfigManager.Store("", c.resolvconfDNSConfig)
 
 	r.SetValue(dnscontext.NameserverProperty, c.defaultNameServerIP)
 
