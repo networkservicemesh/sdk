@@ -34,7 +34,12 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnscontext"
+)
+
+const (
+	dnsContextClientRefreshKey = "dnsContextClientRefreshKey"
 )
 
 type dnsContextClient struct {
@@ -79,7 +84,11 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 		request.Connection.Context.DnsContext = &networkservice.DNSContext{}
 	}
 
-	request.Connection.Context.DnsContext.Configs = c.clientDNSConfigs
+	dnsConfigs := c.clientDNSConfigs
+	if _, ok := metadata.Map(ctx, true).Load(dnsContextClientRefreshKey); !ok {
+		dnsConfigs = append(dnsConfigs, request.Connection.Context.DnsContext.Configs...)
+	}
+	request.Connection.Context.DnsContext.Configs = dnsConfigs
 
 	rv, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
@@ -94,6 +103,8 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 		c.dnsConfigManager.Store(rv.GetId(), conifgs...)
 		c.updateCorefileQueue.AsyncExec(c.updateCorefile)
 	}
+
+	metadata.Map(ctx, true).Store(dnsContextClientRefreshKey, struct{}{})
 	return rv, err
 }
 
