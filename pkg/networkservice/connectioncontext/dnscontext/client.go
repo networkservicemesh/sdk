@@ -101,7 +101,6 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 	if rv.GetContext().GetDnsContext() != nil {
 		conifgs = rv.GetContext().GetDnsContext().GetConfigs()
 	}
-	log.FromContext(ctx).Infof("DNSCLIENT configs from NSE: %v", conifgs)
 	if len(conifgs) > 0 {
 		c.dnsConfigManager.Store(rv.GetId(), conifgs...)
 		c.updateCorefileQueue.AsyncExec(c.updateCorefile)
