@@ -67,6 +67,9 @@ func NewClient(options ...DNSOption) networkservice.NetworkServiceClient {
 }
 
 func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	if request.Connection == nil {
+		request.Connection = &networkservice.Connection{}
+	}
 	if request.Connection.GetContext() == nil {
 		request.Connection.Context = &networkservice.ConnectionContext{
 			DnsContext: &networkservice.DNSContext{},
