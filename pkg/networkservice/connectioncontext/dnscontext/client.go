@@ -43,15 +43,14 @@ const (
 )
 
 type dnsContextClient struct {
-	chainContext            context.Context
-	coreFilePath            string
-	resolveConfigPath       string
-	storedResolvConfigPath  string
-	defaultNameServerIP     string
-	dnsConfigManager        dnscontext.Manager
-	updateCorefileQueue     serialize.Executor
-	initialClientDNSConfigs []*networkservice.DNSConfig
-	resolvconfDNSConfig     *networkservice.DNSConfig
+	chainContext           context.Context
+	coreFilePath           string
+	resolveConfigPath      string
+	storedResolvConfigPath string
+	defaultNameServerIP    string
+	dnsConfigManager       dnscontext.Manager
+	updateCorefileQueue    serialize.Executor
+	resolvconfDNSConfig    *networkservice.DNSConfig
 }
 
 // NewClient creates a new DNS client chain component. Setups all DNS traffic to the localhost. Monitors DNS configs from connections.
@@ -85,13 +84,16 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 		request.Connection.Context.DnsContext = &networkservice.DNSContext{}
 	}
 
-	if _, ok := metadata.Map(ctx, true).Load(dnsContextClientRefreshKey); !ok {
-		c.initialClientDNSConfigs = request.Connection.Context.DnsContext.Configs
+	var initialClientDNSConfigs []*networkservice.DNSConfig
+	if v, ok := metadata.Map(ctx, true).Load(dnsContextClientRefreshKey); ok {
+		initialClientDNSConfigs = v.([]*networkservice.DNSConfig)
+	} else {
+		initialClientDNSConfigs = request.Connection.Context.DnsContext.Configs
+		metadata.Map(ctx, true).Store(dnsContextClientRefreshKey, initialClientDNSConfigs)
 	}
 
-	dnsConfigs := c.initialClientDNSConfigs
-	dnsConfigs = append(dnsConfigs, c.resolvconfDNSConfig)
-	request.Connection.Context.DnsContext.Configs = dnsConfigs
+	initialClientDNSConfigs = append(initialClientDNSConfigs, c.resolvconfDNSConfig)
+	request.Connection.Context.DnsContext.Configs = initialClientDNSConfigs
 
 	rv, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
@@ -106,7 +108,6 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 		c.updateCorefileQueue.AsyncExec(c.updateCorefile)
 	}
 
-	metadata.Map(ctx, true).Store(dnsContextClientRefreshKey, struct{}{})
 	return rv, err
 }
 
