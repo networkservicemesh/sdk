@@ -34,7 +34,12 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnscontext"
+)
+
+const (
+	dnsContextClientRefreshKey = "dnsContextClientRefreshKey"
 )
 
 type dnsContextClient struct {
@@ -45,6 +50,7 @@ type dnsContextClient struct {
 	defaultNameServerIP    string
 	dnsConfigManager       dnscontext.Manager
 	updateCorefileQueue    serialize.Executor
+	resolvconfDNSConfig    *networkservice.DNSConfig
 }
 
 // NewClient creates a new DNS client chain component. Setups all DNS traffic to the localhost. Monitors DNS configs from connections.
@@ -66,6 +72,21 @@ func NewClient(options ...DNSOption) networkservice.NetworkServiceClient {
 }
 
 func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	if request.Connection == nil {
+		request.Connection = &networkservice.Connection{}
+	}
+	if request.Connection.GetContext() == nil {
+		request.Connection.Context = &networkservice.ConnectionContext{
+			DnsContext: &networkservice.DNSContext{},
+		}
+	}
+	if request.Connection.GetContext().GetDnsContext() == nil {
+		request.Connection.Context.DnsContext = &networkservice.DNSContext{}
+	}
+
+	initialClientDNSConfigs, _ := metadata.Map(ctx, true).LoadOrStore(dnsContextClientRefreshKey, request.Connection.Context.DnsContext.Configs)
+	request.Connection.Context.DnsContext.Configs = append(initialClientDNSConfigs.([]*networkservice.DNSConfig), c.resolvconfDNSConfig)
+
 	rv, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
 		return nil, err
@@ -78,6 +99,7 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 		c.dnsConfigManager.Store(rv.GetId(), conifgs...)
 		c.updateCorefileQueue.AsyncExec(c.updateCorefile)
 	}
+
 	return rv, err
 }
 
@@ -132,10 +154,11 @@ func (c *dnsContextClient) initialize() {
 
 	c.storeOriginalResolvConf()
 
-	c.dnsConfigManager.Store("", &networkservice.DNSConfig{
+	c.resolvconfDNSConfig = &networkservice.DNSConfig{
 		SearchDomains: r.Value(dnscontext.AnyDomain),
 		DnsServerIps:  r.Value(dnscontext.NameserverProperty),
-	})
+	}
+	c.dnsConfigManager.Store("", c.resolvconfDNSConfig)
 
 	r.SetValue(dnscontext.NameserverProperty, c.defaultNameServerIP)
 

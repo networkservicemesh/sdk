@@ -33,6 +33,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
 func Test_DNSContextClient_Restart(t *testing.T) {
@@ -53,6 +54,7 @@ func Test_DNSContextClient_Restart(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		var c = chain.NewNetworkServiceClient(
+			metadata.NewClient(),
 			dnscontext.NewClient(
 				dnscontext.WithCorefilePath(corefilePath),
 				dnscontext.WithResolveConfigPath(resolveConfigPath),
@@ -89,6 +91,7 @@ func Test_DNSContextClient_Usecases(t *testing.T) {
 	require.NoError(t, err)
 
 	client := chain.NewNetworkServiceClient(
+		metadata.NewClient(),
 		dnscontext.NewClient(
 			dnscontext.WithCorefilePath(corefilePath),
 			dnscontext.WithResolveConfigPath(resolveConfigPath),
