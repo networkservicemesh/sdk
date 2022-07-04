@@ -84,11 +84,8 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 		request.Connection.Context.DnsContext = &networkservice.DNSContext{}
 	}
 
-	v, _ := metadata.Map(ctx, true).LoadOrStore(dnsContextClientRefreshKey, request.Connection.Context.DnsContext.Configs)
-	initialClientDNSConfigs := v.([]*networkservice.DNSConfig)
-
-	initialClientDNSConfigs = append(initialClientDNSConfigs, c.resolvconfDNSConfig)
-	request.Connection.Context.DnsContext.Configs = initialClientDNSConfigs
+	initialClientDNSConfigs, _ := metadata.Map(ctx, true).LoadOrStore(dnsContextClientRefreshKey, request.Connection.Context.DnsContext.Configs)
+	request.Connection.Context.DnsContext.Configs = append(initialClientDNSConfigs.([]*networkservice.DNSConfig), c.resolvconfDNSConfig)
 
 	rv, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
