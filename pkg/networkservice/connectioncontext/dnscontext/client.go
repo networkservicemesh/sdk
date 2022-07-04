@@ -23,8 +23,6 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/edwarnicke/serialize"
-
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
@@ -41,14 +39,9 @@ const (
 )
 
 type dnsContextClient struct {
-	chainContext           context.Context
-	coreFilePath           string
-	resolveConfigPath      string
-	storedResolvConfigPath string
-	defaultNameServerIP    string
-	updateCorefileQueue    serialize.Executor
-	resolvconfDNSConfig    *networkservice.DNSConfig
-	configs                *dnsconfigs.Map
+	chainContext        context.Context
+	resolvconfDNSConfig *networkservice.DNSConfig
+	configs             *dnsconfigs.Map
 }
 
 // NewClient creates a new DNS client chain component. Setups all DNS traffic to the localhost. Monitors DNS configs from connections.
