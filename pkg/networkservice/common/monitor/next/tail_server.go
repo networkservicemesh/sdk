@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2022 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -17,22 +17,14 @@
 package next
 
 import (
-	"context"
-
-	"github.com/golang/protobuf/ptypes/empty"
-	"google.golang.org/grpc"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
-// tailClient is a simple implementation of networkservice.NetworkServiceClient that is called at the end of a chain
+// tailMonitorConnectionsServer is a simple implementation of networkservice.MonitorConnectionServer that is called at the end of a chain
 // to insure that we never call a method on a nil object
-type tailClient struct{}
 
-func (t *tailClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, _ ...grpc.CallOption) (*networkservice.Connection, error) {
-	return request.GetConnection(), nil
-}
+type tailMonitorConnectionsServer struct{}
 
-func (t *tailClient) Close(ctx context.Context, _ *networkservice.Connection, _ ...grpc.CallOption) (*empty.Empty, error) {
-	return &empty.Empty{}, nil
+func (t *tailMonitorConnectionsServer) MonitorConnections(in *networkservice.MonitorScopeSelector, sv networkservice.MonitorConnection_MonitorConnectionsServer) error {
+	return nil
 }
