@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -22,6 +22,9 @@ import (
 	"github.com/edwarnicke/serialize"
 	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor/authorize"
 )
 
 type monitorConnectionServer struct {
@@ -32,11 +35,12 @@ type monitorConnectionServer struct {
 }
 
 func newMonitorConnectionServer(chainCtx context.Context) networkservice.MonitorConnectionServer {
-	return &monitorConnectionServer{
+	srv := &monitorConnectionServer{
 		chainCtx:    chainCtx,
 		connections: make(map[string]*networkservice.Connection),
 		filters:     make(map[string]*monitorFilter),
 	}
+	return next.NewMonitorConnectionServer(authorize.NewMonitorConnectionsServer(), srv)
 }
 
 func (m *monitorConnectionServer) MonitorConnections(selector *networkservice.MonitorScopeSelector, srv networkservice.MonitorConnection_MonitorConnectionsServer) error {

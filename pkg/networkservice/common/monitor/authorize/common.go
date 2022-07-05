@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2022 Cisco Systems, Inc.
+// Copyright (c) 2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,25 +14,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package next
+package authorize
 
 import (
 	"context"
 
-	"github.com/golang/protobuf/ptypes/empty"
-	"google.golang.org/grpc"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
-// tailClient is a simple implementation of networkservice.NetworkServiceClient that is called at the end of a chain
-// to insure that we never call a method on a nil object
-type tailClient struct{}
-
-func (t *tailClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, _ ...grpc.CallOption) (*networkservice.Connection, error) {
-	return request.GetConnection(), nil
+// Policy represents authorization policy for monitor connection.
+type Policy interface {
+	// Check checks authorization
+	Check(ctx context.Context, input interface{}) error
 }
 
-func (t *tailClient) Close(ctx context.Context, _ *networkservice.Connection, _ ...grpc.CallOption) (*empty.Empty, error) {
-	return &empty.Empty{}, nil
+type policiesList []Policy
+
+func (l *policiesList) check(ctx context.Context, srv *networkservice.Path) error {
+	if l == nil {
+		return nil
+	}
+	for _, policy := range *l {
+		if policy == nil {
+			continue
+		}
+		if err := policy.Check(ctx, srv); err != nil {
+			return err
+		}
+	}
+	return nil
 }

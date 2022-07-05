@@ -34,6 +34,21 @@ type MonitorConnectionsServerWrapper func(networkservice.MonitorConnectionServer
 // MonitorConnectionsServerChainer - a function that chains together a list of networkservice.MonitorConnectionServers
 type MonitorConnectionsServerChainer func(...networkservice.MonitorConnectionServer) networkservice.MonitorConnectionServer
 
+func newWrappedMonitorConnectionServer(wrapper MonitorConnectionsServerWrapper, servers ...networkservice.MonitorConnectionServer) networkservice.MonitorConnectionServer {
+	rv := &nextMonitorConnectionServer{servers: make([]networkservice.MonitorConnectionServer, 0, len(servers))}
+	for _, c := range servers {
+		rv.servers = append(rv.servers, wrapper(c))
+	}
+	return rv
+}
+
+// NewMonitorConnectionServer - chains together servers into a single networkservice.MonitorConnectionServer
+func NewMonitorConnectionServer(servers ...networkservice.MonitorConnectionServer) networkservice.MonitorConnectionServer {
+	return newWrappedMonitorConnectionServer(func(server networkservice.MonitorConnectionServer) networkservice.MonitorConnectionServer {
+		return server
+	}, servers...)
+}
+
 func (n *nextMonitorConnectionServer) MonitorConnections(in *networkservice.MonitorScopeSelector, srv networkservice.MonitorConnection_MonitorConnectionsServer) error {
 	server, _ := n.getServerAndContext(srv.Context())
 	return server.MonitorConnections(in, srv)
