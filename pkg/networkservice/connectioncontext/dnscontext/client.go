@@ -190,7 +190,7 @@ func removeDuplicates(elements []*networkservice.DNSConfig) []*networkservice.DN
 	return result
 }
 
-func equal(a []string, b []string) bool {
+func equal(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -204,7 +204,7 @@ func equal(a []string, b []string) bool {
 		if _, ok := diff[v]; !ok {
 			return false
 		}
-		diff[v] -= 1
+		diff[v]--
 		if diff[v] == 0 {
 			delete(diff, v)
 		}
