@@ -93,6 +93,7 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 	}
 	var conifgs []*networkservice.DNSConfig
 	if rv.GetContext().GetDnsContext() != nil {
+		rv.Context.DnsContext.Configs = removeDuplicates(rv.Context.DnsContext.Configs)
 		conifgs = rv.GetContext().GetDnsContext().GetConfigs()
 	}
 	if len(conifgs) > 0 {
@@ -168,4 +169,46 @@ func (c *dnsContextClient) initialize() {
 	}
 
 	c.updateCorefileQueue.AsyncExec(c.updateCorefile)
+}
+
+func removeDuplicates(elements []*networkservice.DNSConfig) []*networkservice.DNSConfig {
+	var result []*networkservice.DNSConfig
+
+	for _, e := range elements {
+		exists := false
+		for _, v := range result {
+			if equal(e.DnsServerIps, v.DnsServerIps) && equal(e.SearchDomains, v.SearchDomains) {
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			result = append(result, e)
+		}
+	}
+
+	return result
+}
+
+func equal(a []string, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	diff := make(map[string]int, len(a))
+	for _, v := range a {
+		diff[v]++
+	}
+
+	for _, v := range b {
+		if _, ok := diff[v]; !ok {
+			return false
+		}
+		diff[v] -= 1
+		if diff[v] == 0 {
+			delete(diff, v)
+		}
+	}
+
+	return len(diff) == 0
 }
