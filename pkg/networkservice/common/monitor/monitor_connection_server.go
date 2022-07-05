@@ -23,8 +23,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor/next"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor/authorize"
+	"github.com/networkservicemesh/sdk/pkg/tools/monitor/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/monitor/authorize"
 )
 
 type monitorConnectionServer struct {

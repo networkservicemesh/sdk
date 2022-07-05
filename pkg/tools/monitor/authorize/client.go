@@ -23,7 +23,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/monitor/next"
 )
 
 type authorizeMonitorConnectionsClient struct {
