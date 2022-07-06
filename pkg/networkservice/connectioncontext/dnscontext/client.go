@@ -34,7 +34,6 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnscontext"
 )
 
@@ -84,8 +83,8 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 		request.Connection.Context.DnsContext = &networkservice.DNSContext{}
 	}
 
-	initialClientDNSConfigs, _ := metadata.Map(ctx, true).LoadOrStore(dnsContextClientRefreshKey, request.Connection.Context.DnsContext.Configs)
-	request.Connection.Context.DnsContext.Configs = append(initialClientDNSConfigs.([]*networkservice.DNSConfig), c.resolvconfDNSConfig)
+	request.Connection.Context.DnsContext.Configs = append(request.Connection.Context.DnsContext.Configs, c.resolvconfDNSConfig)
+	request.Connection.Context.DnsContext.Configs = removeDuplicates(request.Connection.Context.DnsContext.Configs)
 
 	rv, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
