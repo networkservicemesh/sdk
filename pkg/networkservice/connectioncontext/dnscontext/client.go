@@ -37,10 +37,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnscontext"
 )
 
-const (
-	dnsContextClientRefreshKey = "dnsContextClientRefreshKey"
-)
-
 type dnsContextClient struct {
 	chainContext           context.Context
 	coreFilePath           string
