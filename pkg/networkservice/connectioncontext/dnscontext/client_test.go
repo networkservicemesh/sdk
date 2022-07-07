@@ -74,7 +74,6 @@ func Test_DNSContextClient_Usecases(t *testing.T) {
 	require.Contains(t, resp.Context.DnsContext.Configs[0].SearchDomains, "example.com")
 	_, err = client.Close(ctx, resp)
 	require.NoError(t, err)
-
 }
 
 func requireFileChanged(ctx context.Context, t *testing.T, location, expected string) {

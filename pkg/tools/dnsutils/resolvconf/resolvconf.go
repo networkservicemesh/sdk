@@ -16,6 +16,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// resolvconf provides API for editing / reading resolv.conf
 package resolvconf
 
 import (
@@ -25,14 +26,14 @@ import (
 )
 
 // ResolveConfig provides API for editing / reading resolv.conf
-type resolveConfig struct {
+type ResolveConfig struct {
 	path       string
 	properties map[string][]string
 }
 
-// openResolveConfig reads resolve config file from specific path
-func OpenResolveConfig(p string) (*resolveConfig, error) {
-	r := &resolveConfig{
+// OpenResolveConfig reads resolve config file from specific path
+func OpenResolveConfig(p string) (*ResolveConfig, error) {
+	r := &ResolveConfig{
 		path:       p,
 		properties: make(map[string][]string),
 	}
@@ -42,7 +43,7 @@ func OpenResolveConfig(p string) (*resolveConfig, error) {
 	return r, nil
 }
 
-func (r *resolveConfig) readProperties() error {
+func (r *ResolveConfig) readProperties() error {
 	b, err := ioutil.ReadFile(r.path)
 	if err != nil {
 		return err
@@ -57,12 +58,12 @@ func (r *resolveConfig) readProperties() error {
 }
 
 // Value returns value of property
-func (r *resolveConfig) Value(k string) []string {
+func (r *ResolveConfig) Value(k string) []string {
 	return r.properties[k]
 }
 
 // SetValue sets value for specific property
-func (r *resolveConfig) SetValue(k string, values ...string) {
+func (r *ResolveConfig) SetValue(k string, values ...string) {
 	if len(values) == 0 {
 		delete(r.properties, k)
 	} else {
@@ -71,7 +72,7 @@ func (r *resolveConfig) SetValue(k string, values ...string) {
 }
 
 // Save saves resolve config file
-func (r *resolveConfig) Save() error {
+func (r *ResolveConfig) Save() error {
 	var sb strings.Builder
 	var index int
 	for k, v := range r.properties {
