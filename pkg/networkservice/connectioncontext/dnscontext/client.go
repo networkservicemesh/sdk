@@ -50,7 +50,9 @@ type dnsContextClient struct {
 // NewClient creates a new DNS client chain component. Setups all DNS traffic to the localhost. Monitors DNS configs from connections.
 func NewClient(options ...DNSOption) networkservice.NetworkServiceClient {
 	var c = &dnsContextClient{
-		chainContext: context.Background(),
+		chainContext:        context.Background(),
+		defaultNameServerIP: "127.0.0.1",
+		resolveConfigPath:   "/etc/resolv.conf",
 	}
 	for _, o := range options {
 		o.apply(c)
