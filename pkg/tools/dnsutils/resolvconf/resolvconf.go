@@ -16,7 +16,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// resolvconf provides API for editing / reading resolv.conf
+// Package resolvconf provides API for editing / reading resolv.conf
 package resolvconf
 
 import (
