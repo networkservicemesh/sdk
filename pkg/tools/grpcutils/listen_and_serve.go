@@ -21,6 +21,7 @@ package grpcutils
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/url"
 	"os"
@@ -68,6 +69,13 @@ func ListenAndServe(ctx context.Context, address *url.URL, server *grpc.Server) 
 	if ln != nil {
 		// We need to pass a real listener address into context, since we could specify random port.
 		*address = *AddressToURL(ln.Addr())
+	}
+
+	if network == unixScheme {
+		err = os.Chmod(target, os.ModePerm)
+		if err != nil {
+			errCh <- errors.Wrap(err, fmt.Sprintf("Cannot change the mode of %s", target))
+		}
 	}
 
 	// Serve
