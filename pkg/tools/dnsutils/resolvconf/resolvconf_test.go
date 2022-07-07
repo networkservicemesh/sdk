@@ -46,7 +46,7 @@ options ndots:5
 	defer func() {
 		_ = os.Remove(p)
 	}()
-	conf, err := openResolveConfig(p)
+	conf, err := OpenResolveConfig(p)
 	require.NotNil(t, conf)
 	require.Nil(t, err)
 	result := conf.Value(NameserverProperty)
@@ -66,7 +66,7 @@ options ndots:5`
 	defer func() {
 		_ = os.Remove(p)
 	}()
-	config, err := openResolveConfig(p)
+	config, err := OpenResolveConfig(p)
 	require.Nil(t, err)
 	config.SetValue(NameserverProperty, "127.0.0.1")
 	config.SetValue(SearchProperty, "default.svc.cluster.local", "svc.cluster.local", "cluster.local")

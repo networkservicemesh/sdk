@@ -39,9 +39,12 @@ const (
 )
 
 type dnsContextClient struct {
-	chainContext        context.Context
-	resolvconfDNSConfig *networkservice.DNSConfig
-	configs             *dnsconfigs.Map
+	chainContext           context.Context
+	resolveConfigPath      string
+	storedResolvConfigPath string
+	defaultNameServerIP    string
+	resolvconfDNSConfig    *networkservice.DNSConfig
+	dnsConfigsMap          *dnsconfigs.Map
 }
 
 // NewClient creates a new DNS client chain component. Setups all DNS traffic to the localhost. Monitors DNS configs from connections.
@@ -52,6 +55,9 @@ func NewClient(options ...DNSOption) networkservice.NetworkServiceClient {
 	for _, o := range options {
 		o.apply(c)
 	}
+
+	c.storedResolvConfigPath = c.resolveConfigPath + ".restore"
+	c.initialize()
 
 	return c
 }
@@ -82,13 +88,13 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 		configs = rv.GetContext().GetDnsContext().GetConfigs()
 	}
 
-	c.configs.Store(rv.Id, configs)
+	c.dnsConfigsMap.Store(rv.Id, configs)
 
 	return rv, err
 }
 
 func (c *dnsContextClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	c.configs.Delete(conn.Id)
+	c.dnsConfigsMap.Delete(conn.Id)
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 

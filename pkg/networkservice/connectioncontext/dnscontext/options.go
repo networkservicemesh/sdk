@@ -35,10 +35,24 @@ func (f applyFunc) apply(c *dnsContextClient) {
 	f(c)
 }
 
+// WithResolveConfigPath sets resolv.conf path for resonvConfigHandler.
+func WithResolveConfigPath(path string) applyFunc {
+	return applyFunc(func(c *dnsContextClient) {
+		c.resolveConfigPath = path
+	})
+}
+
+// WithDefaultNameServerIP sets default nameserver ip for resolvConfigHandler.
+func WithDefaultNameServerIP(ip string) applyFunc {
+	return applyFunc(func(c *dnsContextClient) {
+		c.defaultNameServerIP = ip
+	})
+}
+
 // WithDNSConfigsMap sets configs map for DNS client.
 func WithDNSConfigsMap(configsMap *dnsconfigs.Map) DNSOption {
 	return applyFunc(func(c *dnsContextClient) {
-		c.configs = configsMap
+		c.dnsConfigsMap = configsMap
 	})
 }
 

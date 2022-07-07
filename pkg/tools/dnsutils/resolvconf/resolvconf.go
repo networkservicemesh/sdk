@@ -31,7 +31,7 @@ type resolveConfig struct {
 }
 
 // openResolveConfig reads resolve config file from specific path
-func openResolveConfig(p string) (*resolveConfig, error) {
+func OpenResolveConfig(p string) (*resolveConfig, error) {
 	r := &resolveConfig{
 		path:       p,
 		properties: make(map[string][]string),
