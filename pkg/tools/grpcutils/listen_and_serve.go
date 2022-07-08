@@ -77,7 +77,7 @@ func ListenAndServe(ctx context.Context, address *url.URL, server *grpc.Server) 
 		if _, err = os.Stat(target); os.IsExist(err) {
 			err = os.Chmod(target, os.ModePerm)
 			if err != nil {
-				errCh <- errors.Wrap(err, fmt.Sprintf("Cannot change the mode of %s", target))
+				errCh <- errors.Wrap(err, fmt.Sprintf("%v: сannot change mod", target))
 			}
 		}
 	}
