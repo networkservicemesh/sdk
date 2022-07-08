@@ -34,11 +34,6 @@ type dnsCacheHandler struct {
 }
 
 func (h *dnsCacheHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m *dns.Msg) {
-	if m == nil {
-		dns.HandleFailed(rw, m)
-		return
-	}
-
 	h.updateTTL()
 	if v, ok := h.cache.Load(m.Question[0].Name); ok {
 		if validateMsg(v) {

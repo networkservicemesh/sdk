@@ -32,12 +32,12 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/searches"
 )
 
-type ResponseWriter struct {
+type responseWriter struct {
 	dns.ResponseWriter
 	Response *dns.Msg
 }
 
-func (r *ResponseWriter) WriteMsg(m *dns.Msg) error {
+func (r *responseWriter) WriteMsg(m *dns.Msg) error {
 	r.Response = m
 	return nil
 }
@@ -75,7 +75,7 @@ func TestDomainSearches(t *testing.T) {
 	m := &dns.Msg{}
 	m.SetQuestion(dns.Fqdn("example"), dns.TypeA)
 
-	rw := &ResponseWriter{}
+	rw := &responseWriter{}
 	handler.ServeDNS(ctx, rw, m)
 
 	resp := rw.Response.Copy()

@@ -40,11 +40,6 @@ type dnsConfigsHandler struct {
 }
 
 func (h *dnsConfigsHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter, m *dns.Msg) {
-	if m == nil {
-		dns.HandleFailed(rp, m)
-		return
-	}
-
 	dnsIPs := make([]url.URL, 0)
 
 	h.configs.Range(func(key string, value []*networkservice.DNSConfig) bool {

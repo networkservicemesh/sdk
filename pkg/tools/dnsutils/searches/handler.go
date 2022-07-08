@@ -36,11 +36,6 @@ type searchDomainsHandler struct {
 }
 
 func (h *searchDomainsHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m *dns.Msg) {
-	if m == nil {
-		dns.HandleFailed(rw, m)
-		return
-	}
-
 	domains := SearchDomains(ctx)
 
 	r := &responseWriter{
