@@ -26,6 +26,8 @@ import (
 	"sync"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/sdk/pkg/tools/monitor/authorize"
+	"github.com/networkservicemesh/sdk/pkg/tools/monitor/next"
 	"google.golang.org/grpc"
 
 	"github.com/edwarnicke/serialize"
@@ -44,9 +46,9 @@ type monitorConnectionClient struct {
 //                                        returned from calling MonitorConnections receive the event.
 //                              Note: Does not perform filtering basedon MonitorScopeSelector
 func NewMonitorConnectionClient(eventCh <-chan *networkservice.ConnectionEvent) networkservice.MonitorConnectionClient {
-	return &monitorConnectionClient{
-		eventCh: eventCh,
-	}
+	srv := &monitorConnectionClient{eventCh: eventCh}
+	return next.NewMonitorConnectionClient(
+		authorize.NewMonitorConnectionsClient(), srv)
 }
 
 func (m *monitorConnectionClient) MonitorConnections(ctx context.Context, _ *networkservice.MonitorScopeSelector, _ ...grpc.CallOption) (networkservice.MonitorConnection_MonitorConnectionsClient, error) {

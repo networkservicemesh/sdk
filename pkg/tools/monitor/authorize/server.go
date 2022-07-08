@@ -18,11 +18,15 @@
 package authorize
 
 import (
-	"google.golang.org/grpc/peer"
+	"fmt"
 
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/sirupsen/logrus"
+	"github.com/spiffe/go-spiffe/v2/workloadapi"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/monitor/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 )
 
 type authorizeServer struct {
@@ -34,7 +38,9 @@ type authorizeServer struct {
 func NewMonitorConnectionsServer(opts ...Option) networkservice.MonitorConnectionServer {
 	// todo: add policies
 	var s = &authorizeServer{
-		policies: []Policy{},
+		policies: []Policy{
+			opa.WithServiceOwnConnectionPolicy(),
+		},
 	}
 	for _, o := range opts {
 		o.apply(&s.policies)
@@ -43,15 +49,39 @@ func NewMonitorConnectionsServer(opts ...Option) networkservice.MonitorConnectio
 }
 
 func (a *authorizeServer) MonitorConnections(in *networkservice.MonitorScopeSelector, srv networkservice.MonitorConnection_MonitorConnectionsServer) error {
-	// call smth to get ID of the Server/connection
 	ctx := srv.Context()
-	var leftSide = &networkservice.Path{
-		PathSegments: in.GetPathSegments(),
-	}
-	if _, ok := peer.FromContext(ctx); ok {
-		if err := a.policies.check(ctx, leftSide); err != nil {
-			return err
+	var decodedClaims jwt.RegisteredClaims
+	for _, seg := range in.GetPathSegments(){
+		logrus.Printf("Conn next path token  %v \n", seg.Token)
+		tokenDecoded, err := jwt.ParseWithClaims(
+			seg.Token, &jwt.RegisteredClaims{},
+			func(token *jwt.Token) (interface{}, error) {return []byte("AllYourBase"), nil},
+		)
+		if err != nil {
+			return fmt.Errorf("error decoding connection token: %+v", err)
 		}
+		logrus.Infof("decoded Token %v \n", tokenDecoded)
+		decodedClaims = tokenDecoded.Claims.(jwt.RegisteredClaims)
+		logrus.Infof("decoded Claims %v \n", decodedClaims)
+		logrus.Infof("Subject from the Claims %v", decodedClaims.Subject)
+		logrus.Infof("Audienct from the Claims %v", decodedClaims.Audience)
+	
 	}
+	source, err := workloadapi.NewX509Source(ctx)
+	if err != nil {
+		return fmt.Errorf("error getting x509 source: %+v", err)
+	}
+	svid, err := source.GetX509SVID()
+	if err != nil {
+		return fmt.Errorf("error getting x509 svid: %+v", err)
+	}
+	logrus.Infof("Service Own Spiffe ID %v", svid.ID)
+
+
+	// if _, ok := peer.FromContext(ctx); ok {
+	// 	if err := a.policies.check(ctx, svid); err != nil {
+	// 		return err
+	// 	}
+	// }
 	return next.MonitorConnectionServer(ctx).MonitorConnections(in, srv)
 }

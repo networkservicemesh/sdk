@@ -33,6 +33,9 @@ var tokensChainedPolicySource string
 //go:embed policies/tokens_expired.rego
 var tokensExpiredPolicySource string
 
+//go:embed policies/service_connection.rego
+var tokensServiceConnectionPolicySource string
+
 // WithTokensValidPolicy returns default policy for checking that all tokens in the path can be decoded.
 func WithTokensValidPolicy() *AuthorizationPolicy {
 	return &AuthorizationPolicy{
@@ -75,5 +78,13 @@ func WithTokensExpiredPolicy() *AuthorizationPolicy {
 		policySource: tokensExpiredPolicySource,
 		query:        "tokens_expired",
 		checker:      False("tokens_expired"),
+	}
+}
+
+func WithServiceOwnConnectionPolicy() *AuthorizationPolicy {
+	return &AuthorizationPolicy{
+		policySource: tokensServiceConnectionPolicySource,
+		query:        "service_connection",
+		checker:      True("service_connection"),
 	}
 }
