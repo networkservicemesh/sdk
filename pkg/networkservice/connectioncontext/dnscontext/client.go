@@ -122,7 +122,7 @@ func (c *dnsContextClient) storeOriginalResolvConf() {
 func (c *dnsContextClient) initialize() {
 	c.restoreResolvConf()
 
-	r, err := dnscontext.OpenResolveConfig(c.resolveConfigPath)
+	r, err := openResolveConfig(c.resolveConfigPath)
 	if err != nil {
 		log.FromContext(c.chainContext).Errorf("An error during open resolve config: %v", err.Error())
 		return

@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package resolvconf
+package dnscontext
 
 import (
 	"io/ioutil"
@@ -46,14 +46,14 @@ options ndots:5
 	defer func() {
 		_ = os.Remove(p)
 	}()
-	conf, err := OpenResolveConfig(p)
+	conf, err := openResolveConfig(p)
 	require.NotNil(t, conf)
 	require.Nil(t, err)
-	result := conf.Value(NameserverProperty)
+	result := conf.Value(nameserverProperty)
 	require.EqualValues(t, result, []string{"127.0.0.1"})
-	result = conf.Value(SearchProperty)
+	result = conf.Value(searchProperty)
 	require.EqualValues(t, result, []string{"default.svc.cluster.local", "svc.cluster.local", "cluster.local"})
-	result = conf.Value(OptionsProperty)
+	result = conf.Value(optionsProperty)
 	require.EqualValues(t, result, []string{"ndots:5"})
 }
 
@@ -66,11 +66,11 @@ options ndots:5`
 	defer func() {
 		_ = os.Remove(p)
 	}()
-	config, err := OpenResolveConfig(p)
+	config, err := openResolveConfig(p)
 	require.Nil(t, err)
-	config.SetValue(NameserverProperty, "127.0.0.1")
-	config.SetValue(SearchProperty, "default.svc.cluster.local", "svc.cluster.local", "cluster.local")
-	config.SetValue(OptionsProperty, "ndots:5")
+	config.SetValue(nameserverProperty, "127.0.0.1")
+	config.SetValue(searchProperty, "default.svc.cluster.local", "svc.cluster.local", "cluster.local")
+	config.SetValue(optionsProperty, "ndots:5")
 	config.SetValue("my_property")
 	err = config.Save()
 	require.Nil(t, err)
