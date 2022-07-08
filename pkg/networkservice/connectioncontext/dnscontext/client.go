@@ -172,8 +172,10 @@ func removeDuplicates(elements []*networkservice.DNSConfig) []*networkservice.DN
 	for _, e := range elements {
 		exists := false
 		for _, v := range result {
-			if equal(e.DnsServerIps, v.DnsServerIps) && equal(e.SearchDomains, v.SearchDomains) {
+			if intersect(e.DnsServerIps, v.DnsServerIps) && intersect(e.SearchDomains, v.SearchDomains) {
 				exists = true
+				v.DnsServerIps = merge(v.DnsServerIps, e.DnsServerIps)
+				v.SearchDomains = merge(v.SearchDomains, e.SearchDomains)
 				break
 			}
 		}
@@ -185,25 +187,34 @@ func removeDuplicates(elements []*networkservice.DNSConfig) []*networkservice.DN
 	return result
 }
 
-func equal(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-	diff := make(map[string]int, len(a))
+func intersect(a, b []string) bool {
+	common := make(map[string]bool, len(a))
 	for _, v := range a {
-		diff[v]++
+		common[v] = true
 	}
 
 	for _, v := range b {
-		if _, ok := diff[v]; !ok {
-			return false
-		}
-		diff[v]--
-		if diff[v] == 0 {
-			delete(diff, v)
+		if _, ok := common[v]; ok {
+			return true
 		}
 	}
 
-	return len(diff) == 0
+	return false
+}
+
+func merge(a, b []string) []string {
+	result := a
+	common := make(map[string]bool, len(a))
+
+	for _, v := range a {
+		common[v] = true
+	}
+
+	for _, v := range b {
+		if _, ok := common[v]; !ok {
+			result = append(result, v)
+		}
+	}
+
+	return result
 }
