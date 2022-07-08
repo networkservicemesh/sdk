@@ -91,6 +91,4 @@ const (
 	nameserverProperty = "nameserver"
 	// optionsProperty  allows certain internal resolver variables to be modified
 	optionsProperty = "options"
-	// anyDomain means that allowed any host-name
-	anyDomain = "."
 )
