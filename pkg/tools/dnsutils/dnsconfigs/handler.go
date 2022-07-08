@@ -20,6 +20,7 @@ package dnsconfigs
 import (
 	"context"
 	"net/url"
+	"sync"
 
 	"github.com/miekg/dns"
 
@@ -31,8 +32,11 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/searches"
 )
 
+var once sync.Once
+
 type dnsConfigsHandler struct {
-	configs *Map
+	configs       *Map
+	searchDomains []string
 }
 
 func (h *dnsConfigsHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter, m *dns.Msg) {
@@ -42,7 +46,6 @@ func (h *dnsConfigsHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter,
 	}
 
 	dnsIPs := make([]url.URL, 0)
-	searchDomains := make([]string, 0)
 
 	h.configs.Range(func(key string, value []*networkservice.DNSConfig) bool {
 		for _, conf := range value {
@@ -52,20 +55,30 @@ func (h *dnsConfigsHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter,
 			}
 
 			dnsIPs = append(dnsIPs, ips...)
-			searchDomains = append(searchDomains, conf.SearchDomains...)
 		}
 
 		return true
 	})
 
+	once.Do(func() {
+		h.configs.Range(func(key string, value []*networkservice.DNSConfig) bool {
+			for _, conf := range value {
+				h.searchDomains = append(h.searchDomains, conf.SearchDomains...)
+			}
+
+			return true
+		})
+	})
+
 	ctx = clienturlctx.WithDNSServerURLs(ctx, dnsIPs)
-	ctx = searches.WithSearchDomains(ctx, searchDomains)
+	ctx = searches.WithSearchDomains(ctx, h.searchDomains)
 	next.Handler(ctx).ServeDNS(ctx, rp, m)
 }
 
 // NewDNSHandler creates a new dns handler that stores DNS configs
 func NewDNSHandler(configs *Map) dnsutils.Handler {
 	return &dnsConfigsHandler{
-		configs: configs,
+		configs:       configs,
+		searchDomains: make([]string, 0),
 	}
 }
