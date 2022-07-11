@@ -44,7 +44,8 @@ func logError(ctx context.Context, err error, operation string) error {
 }
 
 func logObjectTrace(ctx context.Context, k, v interface{}) {
-	_, ok := trace(ctx); if ok {
+	_, ok := trace(ctx)
+	if ok {
 		s := log.FromContext(ctx)
 		msg := ""
 		cc, err := json.Marshal(v)

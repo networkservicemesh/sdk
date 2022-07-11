@@ -36,7 +36,7 @@ const (
 	loggedType   string         = "registry"
 )
 
-type traceInfo struct {}
+type traceInfo struct{}
 
 // withLog - provides corresponding logger in context
 func withLog(parent context.Context, operation string) (c context.Context, f func()) {
