@@ -18,7 +18,7 @@ require (
 	github.com/miekg/dns v1.1.49
 	github.com/nats-io/nats-streaming-server v0.24.3
 	github.com/nats-io/stan.go v0.10.2
-	github.com/networkservicemesh/api v1.4.1-0.20220705145838-0b96f94a2adb
+	github.com/networkservicemesh/api v1.4.1-0.20220711153918-a59689088578
 	github.com/open-policy-agent/opa v0.16.1
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1
