@@ -23,7 +23,6 @@ import (
 	"net"
 	"net/url"
 	"strings"
-	"sync"
 	"text/template"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -42,12 +41,12 @@ import (
 
 type vl3DNSServer struct {
 	dnsServerRecords      memory.Map
-	fanoutAddresses       sync.Map
 	domainSchemeTemplates []*template.Template
-	initialFanoutList     []url.URL
+	configs               *Map
 	dnsPort               int
 	dnsServer             dnsutils.Handler
 	listenAndServeDNS     func(ctx context.Context, handler dnsutils.Handler, listenOn string)
+	getDNSServerIP        func() net.IP
 }
 
 type clientDNSNameKey struct{}
@@ -57,10 +56,12 @@ type clientDNSNameKey struct{}
 // By default is using fanout dns handler to connect to other vl3 nses.
 // chanCtx is using for signal to stop dns server.
 // opts confugre vl3dns networkservice instance with specific behavior.
-func NewServer(chanCtx context.Context, opts ...Option) networkservice.NetworkServiceServer {
+func NewServer(chanCtx context.Context, getDNSServerIP func() net.IP, opts ...Option) networkservice.NetworkServiceServer {
 	var result = &vl3DNSServer{
 		dnsPort:           53,
 		listenAndServeDNS: dnsutils.ListenAndServe,
+		getDNSServerIP:    getDNSServerIP,
+		configs:           new(Map),
 	}
 
 	for _, opt := range opts {
@@ -86,13 +87,12 @@ func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.Netw
 		request.Connection.Context.DnsContext = new(networkservice.DNSContext)
 	}
 
-	var ipContext = request.GetConnection().GetContext().GetIpContext()
+	var dnsContext = request.GetConnection().GetContext().GetDnsContext()
+	var clientsConfigs = dnsContext.GetConfigs()
 
-	for _, dstIPNet := range ipContext.GetDstIPNets() {
-		request.GetConnection().GetContext().GetDnsContext().Configs = append(request.GetConnection().GetContext().GetDnsContext().Configs, &networkservice.DNSConfig{
-			DnsServerIps: []string{dstIPNet.IP.String()},
-		})
-	}
+	dnsContext.Configs = append(dnsContext.Configs, &networkservice.DNSConfig{
+		DnsServerIps: []string{n.getDNSServerIP().String()},
+	})
 
 	var recordNames, err = n.buildSrcDNSRecords(request.GetConnection())
 
@@ -121,21 +121,29 @@ func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.Netw
 		metadata.Map(ctx, false).Store(clientDNSNameKey{}, recordNames)
 	}
 
-	if n.shouldAddToFanoutList(ipContext) {
-		for _, srcIPNet := range ipContext.GetSrcIPNets() {
-			var u = url.URL{Scheme: "tcp", Host: fmt.Sprintf("%v:%v", srcIPNet.IP.String(), n.dnsPort)}
-			n.fanoutAddresses.Store(u, struct{}{})
+	resp, err := next.Server(ctx).Request(ctx, request)
+
+	if err == nil {
+		if srcRoutes := resp.GetContext().GetIpContext().GetSrcIPRoutes(); len(srcRoutes) > 0 {
+			var lastPrefix = srcRoutes[len(srcRoutes)-1].Prefix
+			for _, config := range clientsConfigs {
+				for _, serverIP := range config.DnsServerIps {
+					if serverIP == n.getDNSServerIP().String() {
+						continue
+					}
+					if withinPrefix(serverIP, lastPrefix) {
+						n.configs.Store(resp.GetId(), config)
+					}
+				}
+			}
 		}
 	}
 
-	return next.Server(ctx).Request(ctx, request)
+	return resp, err
 }
 
 func (n *vl3DNSServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	for _, srcIPNet := range conn.Context.GetIpContext().GetSrcIPNets() {
-		var u = url.URL{Scheme: "tcp", Host: fmt.Sprintf("%v:%v", srcIPNet.IP.String(), n.dnsPort)}
-		n.fanoutAddresses.Delete(u)
-	}
+	n.configs.Delete(conn.GetId())
 
 	if v, ok := metadata.Map(ctx, false).LoadAndDelete(clientDNSNameKey{}); ok {
 		var names = v.([]string)
@@ -160,29 +168,14 @@ func (n *vl3DNSServer) buildSrcDNSRecords(c *networkservice.Connection) ([]strin
 }
 
 func (n *vl3DNSServer) getFanoutAddresses() []url.URL {
-	var result = n.initialFanoutList
-	n.fanoutAddresses.Range(func(key, _ interface{}) bool {
-		result = append(result, key.(url.URL))
+	var result []url.URL
+	n.configs.Range(func(key string, value *networkservice.DNSConfig) bool {
+		for _, addr := range value.DnsServerIps {
+			result = append(result, url.URL{Scheme: "tcp", Host: fmt.Sprintf("%v:%v", addr, n.dnsPort)})
+		}
 		return true
 	})
 	return result
-}
-
-func (n *vl3DNSServer) shouldAddToFanoutList(ipContext *networkservice.IPContext) bool {
-	if len(ipContext.SrcRoutes) > 0 {
-		var lastSrcRoute = ipContext.SrcRoutes[len(ipContext.SrcRoutes)-1]
-		_, ipNet, err := net.ParseCIDR(lastSrcRoute.Prefix)
-		if err != nil {
-			return false
-		}
-		var pool = ippool.NewWithNet(ipNet)
-		for _, srcIP := range ipContext.GetSrcIpAddrs() {
-			if !pool.ContainsNetString(srcIP) {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func compareStringSlices(a, b []string) bool {
@@ -195,4 +188,13 @@ func compareStringSlices(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+func withinPrefix(ipAddr, prefix string) bool {
+	_, ipNet, err := net.ParseCIDR(prefix)
+	if err != nil {
+		return false
+	}
+	var pool = ippool.NewWithNet(ipNet)
+	return pool.ContainsString(ipAddr)
 }

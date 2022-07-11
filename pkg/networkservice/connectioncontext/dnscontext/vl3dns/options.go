@@ -19,7 +19,6 @@ package vl3dns
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"text/template"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
@@ -28,10 +27,10 @@ import (
 // Option configures vl3DNSServer
 type Option func(*vl3DNSServer)
 
-// WithInitialFanoutList sets initial list to fanout queries
-func WithInitialFanoutList(initialFanoutList []url.URL) Option {
+// WithConfigs sets initial list to fanout queries
+func WithConfigs(m *Map) Option {
 	return func(vd *vl3DNSServer) {
-		vd.initialFanoutList = initialFanoutList
+		vd.configs = m
 	}
 }
 
