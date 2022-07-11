@@ -22,7 +22,6 @@ import (
 	"context"
 
 	"github.com/sirupsen/logrus"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
@@ -37,13 +36,7 @@ const (
 	loggedType   string         = "registry"
 )
 
-// traceInfo - struct, containing string representations of request and response, used for tracing.
-type traceInfo struct {
-	// Request is last Registry action of NetworkService{Client, Server}
-	Request proto.Message
-	// Response is last Registry action-response of NetworkService{Client, Server}
-	Response proto.Message
-}
+type traceInfo struct {}
 
 // withLog - provides corresponding logger in context
 func withLog(parent context.Context, operation string) (c context.Context, f func()) {

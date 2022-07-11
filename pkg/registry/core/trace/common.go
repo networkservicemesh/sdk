@@ -44,8 +44,7 @@ func logError(ctx context.Context, err error, operation string) error {
 }
 
 func logObjectTrace(ctx context.Context, k, v interface{}) {
-	registryInfo, ok := trace(ctx)
-	if ok && registryInfo.Request != nil {
+	_, ok := trace(ctx); if ok {
 		s := log.FromContext(ctx)
 		msg := ""
 		cc, err := json.Marshal(v)
