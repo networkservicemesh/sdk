@@ -34,6 +34,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext/vl3dns"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/ipcontext/vl3"
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/memory"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
@@ -147,7 +148,7 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 
 	serverPrefixCh <- &ipam.PrefixResponse{Prefix: "10.0.0.1/24"}
 
-	var dnsConfigs = new(vl3dns.Map)
+	var dnsConfigs = new(dnsconfig.Map)
 
 	_ = domain.Nodes[0].NewEndpoint(
 		ctx,
