@@ -33,6 +33,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/cache"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/dnsconfigs"
@@ -73,7 +74,7 @@ func Test_DNSUsecase(t *testing.T) {
 
 	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
 
-	dnsConfigsMap := new(dnsconfigs.Map)
+	dnsConfigsMap := new(dnsconfig.Map)
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(dnscontext.NewClient(
 		dnscontext.WithChainContext(ctx),
 		dnscontext.WithDNSConfigsMap(dnsConfigsMap),

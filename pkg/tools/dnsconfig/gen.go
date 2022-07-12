@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package stringurl provides sync map like a Go map[string][]*DNSConfig but is safe for concurrent using
+// Package dnsconfig provides sync map like a Go map[string][]*DNSConfig but is safe for concurrent using
 package dnsconfig
 
 import "sync"
