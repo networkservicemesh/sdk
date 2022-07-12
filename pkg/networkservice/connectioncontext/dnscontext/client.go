@@ -154,10 +154,14 @@ func (c *dnsContextClient) initialize() {
 
 	c.storeOriginalResolvConf()
 
-	c.resolvconfDNSConfig = &networkservice.DNSConfig{
-		SearchDomains: r.Value(dnscontext.AnyDomain),
-		DnsServerIps:  r.Value(dnscontext.NameserverProperty),
+	nameserver := r.Value(dnscontext.NameserverProperty)
+	if !containsNameserver(nameserver, c.defaultNameServerIP) {
+		c.resolvconfDNSConfig = &networkservice.DNSConfig{
+			SearchDomains: r.Value(dnscontext.AnyDomain),
+			DnsServerIps:  nameserver,
+		}
 	}
+
 	c.dnsConfigManager.Store("", c.resolvconfDNSConfig)
 
 	r.SetValue(dnscontext.NameserverProperty, c.defaultNameServerIP)
@@ -168,4 +172,14 @@ func (c *dnsContextClient) initialize() {
 	}
 
 	c.updateCorefileQueue.AsyncExec(c.updateCorefile)
+}
+
+func containsNameserver(servers []string, value string) bool {
+	for i := range servers {
+		if servers[i] == value {
+			return true
+		}
+	}
+
+	return false
 }
