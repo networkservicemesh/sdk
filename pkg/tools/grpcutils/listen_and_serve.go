@@ -2,6 +2,8 @@
 //
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,6 +23,7 @@ package grpcutils
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/url"
 	"os"
@@ -68,6 +71,15 @@ func ListenAndServe(ctx context.Context, address *url.URL, server *grpc.Server) 
 	if ln != nil {
 		// We need to pass a real listener address into context, since we could specify random port.
 		*address = *AddressToURL(ln.Addr())
+	}
+
+	if network == unixScheme {
+		if _, err = os.Stat(target); err == nil {
+			err = os.Chmod(target, os.ModePerm)
+			if err != nil {
+				errCh <- errors.Wrap(err, fmt.Sprintf("%v: сannot change mod", target))
+			}
+		}
 	}
 
 	// Serve
