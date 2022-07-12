@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -71,7 +73,7 @@ func contains(array []*networkservice.DNSConfig, value *networkservice.DNSConfig
 	return false
 }
 
-func equal(a []string, b []string) bool {
+func equal(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -85,7 +87,7 @@ func equal(a []string, b []string) bool {
 		if _, ok := diff[v]; !ok {
 			return false
 		}
-		diff[v] -= 1
+		diff[v]--
 		if diff[v] == 0 {
 			delete(diff, v)
 		}

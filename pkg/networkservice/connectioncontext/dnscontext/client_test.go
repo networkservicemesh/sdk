@@ -33,6 +33,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
 func Test_DNSContextClient_Restart(t *testing.T) {
@@ -53,6 +54,7 @@ func Test_DNSContextClient_Restart(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		var c = chain.NewNetworkServiceClient(
+			metadata.NewClient(),
 			dnscontext.NewClient(
 				dnscontext.WithCorefilePath(corefilePath),
 				dnscontext.WithResolveConfigPath(resolveConfigPath),
@@ -181,106 +183,4 @@ func requireFileChanged(ctx context.Context, t *testing.T, location, expected st
 		runtime.Gosched()
 	}
 	require.FailNowf(t, "fail to wait update", "file has not updated. Last content: %s, expected: %s", r, expected)
-}
-
-func Test_DNSContextClient_RemoveDuplicates(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	resolveConfigPath := filepath.Join(t.TempDir(), "resolv.conf")
-	err := ioutil.WriteFile(resolveConfigPath, []byte("\n"), os.ModePerm)
-	require.NoError(t, err)
-
-	client := chain.NewNetworkServiceClient(
-		dnscontext.NewClient(
-			dnscontext.WithChainContext(ctx),
-			dnscontext.WithResolveConfigPath(resolveConfigPath),
-		),
-	)
-
-	var samples = []struct {
-		request  *networkservice.NetworkServiceRequest
-		expected []*networkservice.DNSConfig
-	}{
-		{
-			expected: []*networkservice.DNSConfig{
-				{
-					SearchDomains: []string{"example.com", "example2.com", "example3.com"},
-					DnsServerIps:  []string{"8.8.8.8", "9.9.9.9", "10.10.10.10"},
-				},
-			},
-			request: &networkservice.NetworkServiceRequest{
-				Connection: &networkservice.Connection{
-					Id: "nsc-1",
-					Context: &networkservice.ConnectionContext{
-						DnsContext: &networkservice.DNSContext{
-							Configs: []*networkservice.DNSConfig{
-								{
-									SearchDomains: []string{"example.com", "example2.com", "example3.com"},
-									DnsServerIps:  []string{"8.8.8.8", "9.9.9.9", "10.10.10.10"},
-								},
-								{
-									SearchDomains: []string{"example.com", "example2.com", "example3.com"},
-									DnsServerIps:  []string{"8.8.8.8", "9.9.9.9", "10.10.10.10"},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			expected: []*networkservice.DNSConfig{
-				{
-					SearchDomains: []string{"example.com", "example2.com", "example3.com", "example4.com"},
-					DnsServerIps:  []string{"8.8.8.8", "9.9.9.9", "10.10.10.10", "1.1.1.1"},
-				},
-				{
-					SearchDomains: []string{"example5.com", "example6.com"},
-					DnsServerIps:  []string{"5.5.5.5", "6.6.6.6"},
-				},
-			},
-			request: &networkservice.NetworkServiceRequest{
-				Connection: &networkservice.Connection{
-					Id: "nsc-1",
-					Context: &networkservice.ConnectionContext{
-						DnsContext: &networkservice.DNSContext{
-							Configs: []*networkservice.DNSConfig{
-								{
-									SearchDomains: []string{"example.com", "example2.com", "example3.com"},
-									DnsServerIps:  []string{"8.8.8.8", "9.9.9.9", "10.10.10.10"},
-								},
-								{
-									SearchDomains: []string{"example2.com", "example3.com", "example4.com"},
-									DnsServerIps:  []string{"8.8.8.8", "9.9.9.9", "1.1.1.1"},
-								},
-								{
-									SearchDomains: []string{"example.com"},
-									DnsServerIps:  []string{"9.9.9.9"},
-								},
-								{
-									SearchDomains: []string{"example5.com", "example6.com"},
-									DnsServerIps:  []string{"5.5.5.5", "6.6.6.6"},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	for _, s := range samples {
-		resp, err := client.Request(ctx, s.request)
-		require.NoError(t, err)
-		require.NotNil(t, resp.GetContext().GetDnsContext())
-		require.Len(t, resp.GetContext().GetDnsContext().GetConfigs(), len(s.expected)+1) // +1, because we also store resolvconf config
-		configs := resp.GetContext().GetDnsContext().GetConfigs()
-		for _, v := range s.expected {
-			require.Contains(t, configs, v)
-		}
-		_, err = client.Close(ctx, resp)
-		require.NoError(t, err)
-	}
 }
