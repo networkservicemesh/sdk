@@ -34,7 +34,12 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnscontext"
+)
+
+const (
+	dnsContextClientRefreshKey = "dnsContextClientRefreshKey"
 )
 
 type dnsContextClient struct {
@@ -79,8 +84,8 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 		request.Connection.Context.DnsContext = &networkservice.DNSContext{}
 	}
 
-	request.Connection.Context.DnsContext.Configs = append(request.Connection.Context.DnsContext.Configs, c.resolvconfDNSConfig)
-	request.Connection.Context.DnsContext.Configs = removeDuplicates(request.Connection.Context.DnsContext.Configs)
+	initialClientDNSConfigs, _ := metadata.Map(ctx, true).LoadOrStore(dnsContextClientRefreshKey, request.Connection.Context.DnsContext.Configs)
+	request.Connection.Context.DnsContext.Configs = append(initialClientDNSConfigs.([]*networkservice.DNSConfig), c.resolvconfDNSConfig)
 
 	rv, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
@@ -88,7 +93,6 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 	}
 	var conifgs []*networkservice.DNSConfig
 	if rv.GetContext().GetDnsContext() != nil {
-		rv.Context.DnsContext.Configs = removeDuplicates(rv.Context.DnsContext.Configs)
 		conifgs = rv.GetContext().GetDnsContext().GetConfigs()
 	}
 	if len(conifgs) > 0 {
@@ -150,10 +154,14 @@ func (c *dnsContextClient) initialize() {
 
 	c.storeOriginalResolvConf()
 
-	c.resolvconfDNSConfig = &networkservice.DNSConfig{
-		SearchDomains: r.Value(dnscontext.AnyDomain),
-		DnsServerIps:  r.Value(dnscontext.NameserverProperty),
+	nameserver := r.Value(dnscontext.NameserverProperty)
+	if !containsNameserver(nameserver, c.defaultNameServerIP) {
+		c.resolvconfDNSConfig = &networkservice.DNSConfig{
+			SearchDomains: r.Value(dnscontext.SearchProperty),
+			DnsServerIps:  nameserver,
+		}
 	}
+
 	c.dnsConfigManager.Store("", c.resolvconfDNSConfig)
 
 	r.SetValue(dnscontext.NameserverProperty, c.defaultNameServerIP)
@@ -166,55 +174,12 @@ func (c *dnsContextClient) initialize() {
 	c.updateCorefileQueue.AsyncExec(c.updateCorefile)
 }
 
-func removeDuplicates(elements []*networkservice.DNSConfig) []*networkservice.DNSConfig {
-	var result []*networkservice.DNSConfig
-
-	for _, e := range elements {
-		exists := false
-		for _, v := range result {
-			if intersect(e.DnsServerIps, v.DnsServerIps) && intersect(e.SearchDomains, v.SearchDomains) {
-				exists = true
-				v.DnsServerIps = merge(v.DnsServerIps, e.DnsServerIps)
-				v.SearchDomains = merge(v.SearchDomains, e.SearchDomains)
-				break
-			}
-		}
-		if !exists {
-			result = append(result, e)
-		}
-	}
-
-	return result
-}
-
-func intersect(a, b []string) bool {
-	common := make(map[string]bool, len(a))
-	for _, v := range a {
-		common[v] = true
-	}
-
-	for _, v := range b {
-		if _, ok := common[v]; ok {
+func containsNameserver(servers []string, value string) bool {
+	for i := range servers {
+		if servers[i] == value {
 			return true
 		}
 	}
 
 	return false
-}
-
-func merge(a, b []string) []string {
-	result := a
-	common := make(map[string]bool, len(a))
-
-	for _, v := range a {
-		common[v] = true
-	}
-
-	for _, v := range b {
-		if _, ok := common[v]; !ok {
-			result = append(result, v)
-		}
-	}
-
-	return result
 }
