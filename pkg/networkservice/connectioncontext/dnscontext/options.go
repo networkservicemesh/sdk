@@ -21,7 +21,7 @@ package dnscontext
 import (
 	"context"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/dnsconfigs"
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
 )
 
 // DNSOption is applying options for DNS client.
@@ -50,7 +50,7 @@ func WithDefaultNameServerIP(ip string) DNSOption {
 }
 
 // WithDNSConfigsMap sets configs map for DNS client.
-func WithDNSConfigsMap(configsMap *dnsconfigs.Map) DNSOption {
+func WithDNSConfigsMap(configsMap *dnsconfig.Map) DNSOption {
 	return applyFunc(func(c *dnsContextClient) {
 		c.dnsConfigsMap = configsMap
 	})

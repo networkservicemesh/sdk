@@ -26,6 +26,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/dnsconfigs"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/searches"
@@ -50,7 +51,7 @@ func TestDNSConfigs(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	configs := new(dnsconfigs.Map)
+	configs := new(dnsconfig.Map)
 
 	configs.Store("1", []*networkservice.DNSConfig{
 		{

@@ -29,8 +29,8 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnscontext"
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/dnsconfigs"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
@@ -44,7 +44,7 @@ type dnsContextClient struct {
 	storedResolvConfigPath string
 	defaultNameServerIP    string
 	resolvconfDNSConfig    *networkservice.DNSConfig
-	dnsConfigsMap          *dnsconfigs.Map
+	dnsConfigsMap          *dnsconfig.Map
 }
 
 // NewClient creates a new DNS client chain component. Setups all DNS traffic to the localhost. Monitors DNS configs from connections.

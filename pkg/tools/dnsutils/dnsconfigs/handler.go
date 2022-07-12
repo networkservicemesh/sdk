@@ -27,6 +27,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/searches"
@@ -35,7 +36,7 @@ import (
 var once sync.Once
 
 type dnsConfigsHandler struct {
-	configs       *Map
+	configs       *dnsconfig.Map
 	searchDomains []string
 }
 
@@ -71,7 +72,7 @@ func (h *dnsConfigsHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter,
 }
 
 // NewDNSHandler creates a new dns handler that stores DNS configs
-func NewDNSHandler(configs *Map) dnsutils.Handler {
+func NewDNSHandler(configs *dnsconfig.Map) dnsutils.Handler {
 	return &dnsConfigsHandler{
 		configs:       configs,
 		searchDomains: make([]string, 0),

@@ -34,7 +34,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/dnsconfigs"
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
 )
 
 func Test_DNSContextClient_Usecases(t *testing.T) {
@@ -52,7 +52,7 @@ func Test_DNSContextClient_Usecases(t *testing.T) {
 		dnscontext.NewClient(
 			dnscontext.WithChainContext(ctx),
 			dnscontext.WithResolveConfigPath(resolveConfigPath),
-			dnscontext.WithDNSConfigsMap(new(dnsconfigs.Map)),
+			dnscontext.WithDNSConfigsMap(new(dnsconfig.Map)),
 		),
 	)
 

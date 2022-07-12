@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/dnsconfigs"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/memory"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
@@ -55,7 +56,7 @@ func TestDomainSearches(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	configs := new(dnsconfigs.Map)
+	configs := new(dnsconfig.Map)
 
 	configs.Store("1", []*networkservice.DNSConfig{
 		{SearchDomains: []string{"com", "net", "org"}, DnsServerIps: []string{"8.8.4.4"}},

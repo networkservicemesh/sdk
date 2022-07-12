@@ -43,7 +43,7 @@ import (
 type vl3DNSServer struct {
 	dnsServerRecords      memory.Map
 	configs               *Map
-	dnsConfigs            dnsconfigs.Map
+	dnsConfigs            dnsconfig.Map
 	domainSchemeTemplates []*template.Template
 	dnsPort               int
 	dnsServer             dnsutils.Handler
