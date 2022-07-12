@@ -157,7 +157,7 @@ func (c *dnsContextClient) initialize() {
 	nameserver := r.Value(dnscontext.NameserverProperty)
 	if !containsNameserver(nameserver, c.defaultNameServerIP) {
 		c.resolvconfDNSConfig = &networkservice.DNSConfig{
-			SearchDomains: r.Value(dnscontext.SearchProperty),
+			SearchDomains: r.Value(dnscontext.AnyDomain),
 			DnsServerIps:  nameserver,
 		}
 	}

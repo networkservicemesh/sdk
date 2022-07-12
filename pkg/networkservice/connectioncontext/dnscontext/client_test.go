@@ -91,6 +91,7 @@ func Test_DNSContextClient_Usecases(t *testing.T) {
 	require.NoError(t, err)
 
 	client := chain.NewNetworkServiceClient(
+		metadata.NewClient(),
 		dnscontext.NewClient(
 			dnscontext.WithCorefilePath(corefilePath),
 			dnscontext.WithResolveConfigPath(resolveConfigPath),
