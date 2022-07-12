@@ -47,7 +47,7 @@ import (
 func Test_DNSUsecase(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*7)
 	defer cancel()
 
 	domain := sandbox.NewBuilder(ctx, t).
