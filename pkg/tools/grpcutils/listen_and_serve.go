@@ -74,7 +74,7 @@ func ListenAndServe(ctx context.Context, address *url.URL, server *grpc.Server) 
 	}
 
 	if network == unixScheme {
-		if _, err = os.Stat(target); os.IsExist(err) {
+		if _, err = os.Stat(target); err == nil {
 			err = os.Chmod(target, os.ModePerm)
 			if err != nil {
 				errCh <- errors.Wrap(err, fmt.Sprintf("%v: сannot change mod", target))
