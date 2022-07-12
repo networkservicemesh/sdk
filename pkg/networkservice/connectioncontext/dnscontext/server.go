@@ -45,23 +45,17 @@ func (d *dnsContextServer) Request(ctx context.Context, request *networkservice.
 	if request.GetConnection().GetContext().GetDnsContext() == nil {
 		request.GetConnection().GetContext().DnsContext = new(networkservice.DNSContext)
 	}
-	if !isSubset(request.GetConnection().GetContext().GetDnsContext().Configs, d.configs) {
-		request.GetConnection().GetContext().GetDnsContext().Configs = append(request.GetConnection().GetContext().GetDnsContext().Configs, d.configs...)
+
+	for _, config := range d.configs {
+		if !contains(request.GetConnection().GetContext().GetDnsContext().Configs, config) {
+			request.GetConnection().GetContext().GetDnsContext().Configs = append(request.GetConnection().GetContext().GetDnsContext().Configs, config)
+		}
 	}
 	return next.Server(ctx).Request(ctx, request)
 }
 
 func (d *dnsContextServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	return next.Server(ctx).Close(ctx, conn)
-}
-
-func isSubset(a, b []*networkservice.DNSConfig) bool {
-	for i := range b {
-		if !contains(a, b[i]) {
-			return false
-		}
-	}
-	return true
 }
 
 func contains(array []*networkservice.DNSConfig, value *networkservice.DNSConfig) bool {
