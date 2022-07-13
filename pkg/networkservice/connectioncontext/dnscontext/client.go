@@ -30,7 +30,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
-	"github.com/networkservicemesh/sdk/pkg/tools/dnscontext"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
@@ -130,17 +129,15 @@ func (c *dnsContextClient) initialize() {
 
 	c.storeOriginalResolvConf()
 
-	nameserver := r.Value(dnscontext.NameserverProperty)
+	nameserver := r.Value(nameserverProperty)
 	if !containsNameserver(nameserver, c.defaultNameServerIP) {
 		c.resolvconfDNSConfig = &networkservice.DNSConfig{
-			SearchDomains: r.Value(dnscontext.AnyDomain),
+			SearchDomains: r.Value(searchProperty),
 			DnsServerIps:  nameserver,
 		}
 	}
 
-	c.dnsConfigManager.Store("", c.resolvconfDNSConfig)
-
-	r.SetValue(dnscontext.NameserverProperty, c.defaultNameServerIP)
+	r.SetValue(nameserverProperty, c.defaultNameServerIP)
 
 	if err = r.Save(); err != nil {
 		log.FromContext(c.chainContext).Errorf("An error during save resolve config: %v", err.Error())
