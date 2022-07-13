@@ -45,6 +45,10 @@ func (f *fanoutHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 	if deadline, ok := ctx.Deadline(); ok {
 		timeout = time.Until(deadline)
 	}
+
+	timeout *= 10
+	log.FromContext(ctx).Infof("TIMEOUT: %v", timeout)
+
 	if len(connectTO) == 0 {
 		log.FromContext(ctx).Error("no urls to fanout")
 		dns.HandleFailed(rw, msg)
@@ -54,16 +58,18 @@ func (f *fanoutHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 	for i := 0; i < len(connectTO); i++ {
 		go func(u *url.URL, msg *dns.Msg) {
 			var client = dns.Client{
-				Net:     u.Scheme,
+				Net:     "udp",
 				Timeout: timeout,
 			}
 
 			address := u.Host
 			if u.Port() == "" {
-				address += ":53"
+				address += ":40053"
 			}
 
+			log.FromContext(ctx).Infof("Exchange with address: %s", address)
 			var resp, _, err = client.Exchange(msg, address)
+			log.FromContext(ctx).Infof("Exchange finish with address: %s", address)
 			if err != nil {
 				log.FromContext(ctx).Warnf("got an error during exchanging: %v", err.Error())
 				responseCh <- nil
