@@ -19,6 +19,7 @@ package fanout
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"time"
 
@@ -30,24 +31,16 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-const (
-	defaultTimeout = time.Second
-)
-
 type fanoutHandler struct {
+	dnsPort uint16
 }
 
-func (f *fanoutHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg *dns.Msg) {
+func (h *fanoutHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg *dns.Msg) {
 	var connectTO = clienturlctx.DNSServerURLs(ctx)
 	var responseCh = make(chan *dns.Msg, len(connectTO))
 
-	timeout := defaultTimeout
-	if deadline, ok := ctx.Deadline(); ok {
-		timeout = time.Until(deadline)
-	}
-
-	timeout *= 10
-	log.FromContext(ctx).Infof("TIMEOUT: %v", timeout)
+	deadline, _ := ctx.Deadline()
+	timeout := time.Until(deadline)
 
 	if len(connectTO) == 0 {
 		log.FromContext(ctx).Error("no urls to fanout")
@@ -58,18 +51,16 @@ func (f *fanoutHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 	for i := 0; i < len(connectTO); i++ {
 		go func(u *url.URL, msg *dns.Msg) {
 			var client = dns.Client{
-				Net:     "udp",
+				Net:     u.Scheme,
 				Timeout: timeout,
 			}
 
 			address := u.Host
 			if u.Port() == "" {
-				address += ":40053"
+				address += fmt.Sprintf(":%d", h.dnsPort)
 			}
 
-			log.FromContext(ctx).Infof("Exchange with address: %s", address)
 			var resp, _, err = client.Exchange(msg, address)
-			log.FromContext(ctx).Infof("Exchange finish with address: %s", address)
 			if err != nil {
 				log.FromContext(ctx).Warnf("got an error during exchanging: %v", err.Error())
 				responseCh <- nil
@@ -80,7 +71,7 @@ func (f *fanoutHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 		}(&connectTO[i], msg.Copy())
 	}
 
-	var resp = f.waitResponse(ctx, responseCh)
+	var resp = h.waitResponse(ctx, responseCh)
 
 	if resp == nil {
 		dns.HandleFailed(rw, msg)
@@ -96,7 +87,7 @@ func (f *fanoutHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 	next.Handler(ctx).ServeDNS(ctx, rw, resp)
 }
 
-func (f *fanoutHandler) waitResponse(ctx context.Context, respCh <-chan *dns.Msg) *dns.Msg {
+func (h *fanoutHandler) waitResponse(ctx context.Context, respCh <-chan *dns.Msg) *dns.Msg {
 	var respCount = cap(respCh)
 	for {
 		select {
@@ -125,6 +116,12 @@ func (f *fanoutHandler) waitResponse(ctx context.Context, respCh <-chan *dns.Msg
 }
 
 // NewDNSHandler creates a new dns handler instance that sends incoming queries in parallel to few endpoints
-func NewDNSHandler() dnsutils.Handler {
-	return new(fanoutHandler)
+func NewDNSHandler(opts ...Option) dnsutils.Handler {
+	var h = &fanoutHandler{
+		dnsPort: 53,
+	}
+	for _, o := range opts {
+		o(h)
+	}
+	return h
 }
