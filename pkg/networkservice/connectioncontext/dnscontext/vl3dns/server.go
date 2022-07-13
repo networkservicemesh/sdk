@@ -38,6 +38,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/noloop"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/norecursion"
 	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type vl3DNSServer struct {
@@ -135,6 +136,7 @@ func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.Netw
 						continue
 					}
 					if withinPrefix(serverIP, lastPrefix) {
+						log.FromContext(ctx).Info("CONFIG ADDED")
 						configs = append(configs, config)
 					}
 				}
@@ -146,7 +148,7 @@ func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.Netw
 }
 
 func (n *vl3DNSServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	n.dnsConfigs.Delete(conn.Id)
+	n.dnsConfigs.Delete(conn.GetId())
 
 	if v, ok := metadata.Map(ctx, false).LoadAndDelete(clientDNSNameKey{}); ok {
 		var names = v.([]string)
