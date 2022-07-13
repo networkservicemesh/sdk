@@ -39,7 +39,7 @@ import (
 
 func Test_DNSContextClient_Usecases(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10000)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
 	resolveConfigPath := filepath.Join(t.TempDir(), "resolv.conf")

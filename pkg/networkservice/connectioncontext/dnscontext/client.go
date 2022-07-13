@@ -138,6 +138,7 @@ func (c *dnsContextClient) initialize() {
 	}
 
 	r.SetValue(nameserverProperty, c.defaultNameServerIP)
+	r.SetValue(searchProperty, []string{}...)
 
 	if err = r.Save(); err != nil {
 		log.FromContext(c.chainContext).Errorf("An error during save resolve config: %v", err.Error())
