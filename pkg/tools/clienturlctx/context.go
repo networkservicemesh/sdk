@@ -25,8 +25,8 @@ import (
 )
 
 const (
-	clientURLKey     contextKeyType = "ClientURL"
-	dnsServerURLSKey contextKeyType = "dnsServerURLs"
+	clientURLKey  contextKeyType = "ClientURL"
+	clientURLsKey contextKeyType = "ClientURLs"
 	// UnixURLScheme - scheme for unix urls
 	UnixURLScheme = "unix"
 )
@@ -52,20 +52,20 @@ func ClientURL(ctx context.Context) *url.URL {
 	return nil
 }
 
-// WithDNSServerURLs -
-//    Wraps 'parent' in a new Context that has the DNS server URLs
-func WithDNSServerURLs(parent context.Context, urls []url.URL) context.Context {
+// WithClientURLs -
+//    Wraps 'parent' in a new Context that has list of passed URLs
+func WithClientURLs(parent context.Context, urls []url.URL) context.Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
-	log.FromContext(parent).Debugf("passed DNS server urls: %v", urls)
-	return context.WithValue(parent, dnsServerURLSKey, urls)
+	log.FromContext(parent).Debugf("passed client URLs: %v", urls)
+	return context.WithValue(parent, clientURLsKey, urls)
 }
 
-// DNSServerURLs -
-//    Returns  the DNS server URLs
-func DNSServerURLs(ctx context.Context) []url.URL {
-	if rv, ok := ctx.Value(dnsServerURLSKey).([]url.URL); ok {
+// ClientURLs -
+//    Returns list of URLs
+func ClientURLs(ctx context.Context) []url.URL {
+	if rv, ok := ctx.Value(clientURLsKey).([]url.URL); ok {
 		return rv
 	}
 	return nil
