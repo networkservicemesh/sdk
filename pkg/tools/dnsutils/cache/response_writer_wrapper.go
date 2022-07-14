@@ -22,7 +22,7 @@ import (
 
 type responseWriterWrapper struct {
 	dns.ResponseWriter
-	cache *Map
+	cache *msgMap
 }
 
 func (r *responseWriterWrapper) WriteMsg(m *dns.Msg) error {

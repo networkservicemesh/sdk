@@ -18,8 +18,8 @@ package cache
 
 import "sync"
 
-//go:generate go-syncmap -output sync_map.gen.go -type Map<string,*github.com/miekg/dns.Msg>
+//go:generate go-syncmap -output sync_map.gen.go -type msgMap<string,*github.com/miekg/dns.Msg>
 
-// Map is like a Go map[string]*dns.Msg but is safe for concurrent use
+// msgMap is like a Go map[string]*dns.Msg but is safe for concurrent use
 // by multiple goroutines without additional locking or coordination
-type Map sync.Map
+type msgMap sync.Map

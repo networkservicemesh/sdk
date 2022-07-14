@@ -29,7 +29,7 @@ import (
 )
 
 type dnsCacheHandler struct {
-	cache         *Map
+	cache         *msgMap
 	lastTTLUpdate time.Time
 }
 
@@ -91,6 +91,6 @@ func validateMsg(m *dns.Msg) bool {
 // NewDNSHandler creates a new dns handler that stores successful requests to DNS server
 func NewDNSHandler() dnsutils.Handler {
 	return &dnsCacheHandler{
-		cache: new(Map),
+		cache: new(msgMap),
 	}
 }
