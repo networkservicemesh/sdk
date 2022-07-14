@@ -36,7 +36,7 @@ type fanoutHandler struct {
 }
 
 func (h *fanoutHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg *dns.Msg) {
-	var connectTO = clienturlctx.DNSServerURLs(ctx)
+	var connectTO = clienturlctx.ClientURLs(ctx)
 	var responseCh = make(chan *dns.Msg, len(connectTO))
 
 	deadline, _ := ctx.Deadline()
