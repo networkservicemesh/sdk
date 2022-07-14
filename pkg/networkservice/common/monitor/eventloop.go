@@ -29,11 +29,11 @@ import (
 type eventLoop struct {
 	eventLoopCtx  context.Context
 	conn          *networkservice.Connection
-	eventConsumer eventConsumer
+	eventConsumer EventConsumer
 	client        networkservice.MonitorConnection_MonitorConnectionsClient
 }
 
-func newEventLoop(ctx context.Context, ec eventConsumer, cc grpc.ClientConnInterface, conn *networkservice.Connection) (context.CancelFunc, error) {
+func newEventLoop(ctx context.Context, ec EventConsumer, cc grpc.ClientConnInterface, conn *networkservice.Connection) (context.CancelFunc, error) {
 	conn = conn.Clone()
 	// Is another chain element asking for events?  If not, no need to monitor
 	if ec == nil {
