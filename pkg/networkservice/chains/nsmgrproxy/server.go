@@ -33,6 +33,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clusterinfo"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interdomainbypass"
@@ -41,6 +42,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
+	registryclusterinfo "github.com/networkservicemesh/sdk/pkg/registry/common/clusterinfo"
 	registryconnect "github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
 	registryswapip "github.com/networkservicemesh/sdk/pkg/registry/common/swapip"
@@ -187,6 +189,7 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 			interdomainbypass.NewServer(&interdomainBypassNSEServer, opts.listenOn),
 			discover.NewServer(nsClient, nseClient),
 			swapip.NewServer(opts.openMapIPChannel(ctx)),
+			clusterinfo.NewServer(),
 			connect.NewServer(
 				client.NewClient(
 					ctx,
@@ -219,6 +222,7 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 		clienturl.NewNetworkServiceEndpointRegistryServer(proxyURL),
 		interdomainBypassNSEServer,
 		registryswapip.NewNetworkServiceEndpointRegistryServer(opts.openMapIPChannel(ctx)),
+		registryclusterinfo.NewNetworkServiceEndpointRegistryServer(),
 		registryconnect.NewNetworkServiceEndpointRegistryServer(
 			chain.NewNetworkServiceEndpointRegistryClient(
 				clientconn.NewNetworkServiceEndpointRegistryClient(),
