@@ -68,5 +68,9 @@ func ClientURLs(ctx context.Context) []url.URL {
 	if rv, ok := ctx.Value(clientURLsKey).([]url.URL); ok {
 		return rv
 	}
+
+	if rv, ok := ctx.Value(clientURLKey).(url.URL); ok {
+		return []url.URL{rv}
+	}
 	return nil
 }
