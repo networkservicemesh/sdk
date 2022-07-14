@@ -91,6 +91,7 @@ func validateMsg(m *dns.Msg) bool {
 // NewDNSHandler creates a new dns handler that stores successful requests to DNS server
 func NewDNSHandler() dnsutils.Handler {
 	return &dnsCacheHandler{
-		cache: new(msgMap),
+		cache:         new(msgMap),
+		lastTTLUpdate: time.Now(),
 	}
 }
