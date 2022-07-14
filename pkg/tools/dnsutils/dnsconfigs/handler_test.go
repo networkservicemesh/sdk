@@ -40,7 +40,7 @@ type checkHandler struct {
 func (h *checkHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m *dns.Msg) {
 	h.Domains = searches.SearchDomains(ctx)
 
-	urls := clienturlctx.DNSServerURLs(ctx)
+	urls := clienturlctx.ClientURLs(ctx)
 
 	for i := range urls {
 		h.URLs = append(h.URLs, urls[i].String())
