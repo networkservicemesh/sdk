@@ -75,7 +75,7 @@ func NewServer(chanCtx context.Context, getDNSServerIP func() net.IP, opts ...Op
 			noloop.NewDNSHandler(),
 			norecursion.NewDNSHandler(),
 			memory.NewDNSHandler(&result.dnsServerRecords),
-			fanout.NewDNSHandler(fanout.WithDNSPort(uint16(result.dnsPort))),
+			fanout.NewDNSHandler(fanout.WithDefaultDNSPort(uint16(result.dnsPort))),
 		)
 	}
 
