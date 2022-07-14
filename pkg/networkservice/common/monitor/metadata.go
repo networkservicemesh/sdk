@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -23,6 +23,7 @@ import (
 )
 
 type key struct{}
+type keyEventConsumer struct{}
 
 // store sets the context.CancelFunc stored in per Connection.Id metadata.
 func store(ctx context.Context, isClient bool, cancel context.CancelFunc) {
@@ -37,5 +38,21 @@ func loadAndDelete(ctx context.Context, isClient bool) (value context.CancelFunc
 		return
 	}
 	value, ok = rawValue.(context.CancelFunc)
+	return value, ok
+}
+
+// storeEventConsumer sets the eventConsumer stored in per Connection.Id metadata.
+func storeEventConsumer(ctx context.Context, isClient bool, eventConsumer EventConsumer) {
+	metadata.Map(ctx, isClient).Store(keyEventConsumer{}, eventConsumer)
+}
+
+// LoadEventConsumer loads EventConsumer stored in per Connection.Id metadata.
+// The loaded result reports whether the key was present.
+func LoadEventConsumer(ctx context.Context, isClient bool) (value EventConsumer, ok bool) {
+	rawValue, ok := metadata.Map(ctx, isClient).Load(keyEventConsumer{})
+	if !ok {
+		return
+	}
+	value, ok = rawValue.(EventConsumer)
 	return value, ok
 }

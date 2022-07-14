@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020-2022 Cisco Systems, Inc.
 //
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -64,11 +64,13 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 		cancelEventLoop()
 	}
 
+	storeEventConsumer(ctx, metadata.IsClient(m), m.MonitorConnectionServer.(EventConsumer))
+
 	conn, err := next.Server(ctx).Request(ctx, request)
 	if err != nil {
 		return nil, err
 	}
-	_ = m.MonitorConnectionServer.(eventConsumer).Send(&networkservice.ConnectionEvent{
+	_ = m.MonitorConnectionServer.(EventConsumer).Send(&networkservice.ConnectionEvent{
 		Type:        networkservice.ConnectionEventType_UPDATE,
 		Connections: map[string]*networkservice.Connection{conn.GetId(): conn.Clone()},
 	})
@@ -77,7 +79,7 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 	// events through from, so start an eventLoop
 	cc, ccLoaded := clientconn.Load(ctx)
 	if ccLoaded {
-		cancelEventLoop, eventLoopErr := newEventLoop(m.chainCtx, m.MonitorConnectionServer.(eventConsumer), cc, conn)
+		cancelEventLoop, eventLoopErr := newEventLoop(m.chainCtx, m.MonitorConnectionServer.(EventConsumer), cc, conn)
 		if eventLoopErr != nil {
 			closeCtx, closeCancel := closeCtxFunc()
 			defer closeCancel()
@@ -96,7 +98,7 @@ func (m *monitorServer) Close(ctx context.Context, conn *networkservice.Connecti
 		cancelEventLoop()
 	}
 	rv, err := next.Server(ctx).Close(ctx, conn)
-	_ = m.MonitorConnectionServer.(eventConsumer).Send(&networkservice.ConnectionEvent{
+	_ = m.MonitorConnectionServer.(EventConsumer).Send(&networkservice.ConnectionEvent{
 		Type:        networkservice.ConnectionEventType_DELETE,
 		Connections: map[string]*networkservice.Connection{conn.GetId(): conn.Clone()},
 	})
