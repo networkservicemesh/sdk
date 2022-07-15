@@ -103,7 +103,7 @@ func (cev *eventLoop) eventLoop() {
 		cev.logger.Debug("refresh requested from upstream")
 
 		<-cev.eventFactory.Request()
-		cev.localNotifier.notify(cev.eventLoopCtx, cev.conn.GetId())
+		cev.localNotifier.Notify(cev.eventLoopCtx, cev.conn.GetId())
 
 	case _, ok := <-localCh:
 		if !ok {

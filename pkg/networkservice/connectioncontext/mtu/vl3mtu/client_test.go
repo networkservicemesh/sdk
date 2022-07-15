@@ -27,6 +27,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/mtu/vl3mtu"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
 func Test_vl3MtuClient(t *testing.T) {
@@ -36,6 +37,7 @@ func Test_vl3MtuClient(t *testing.T) {
 	defer cancel()
 
 	client := next.NewNetworkServiceClient(
+		metadata.NewClient(),
 		vl3mtu.NewClient(),
 	)
 

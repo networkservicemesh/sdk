@@ -19,55 +19,75 @@ package upstreamrefresh
 import (
 	"context"
 
+	"github.com/edwarnicke/serialize"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 // notifier - notifies all subscribers of an event
 type notifier struct {
-	channels notifierMap
+	executor serialize.Executor
+	channels map[string]chan struct{}
 }
 
 func newNotifier() *notifier {
-	return &notifier{}
+	return &notifier{
+		channels: make(map[string]chan struct{}),
+	}
 }
 
 func (n *notifier) subscribe(id string) {
 	if n == nil {
 		return
 	}
-	n.unsubscribe(id)
-	n.channels.Store(id, make(chan struct{}))
+	<-n.executor.AsyncExec(func() {
+		n.channels[id] = make(chan struct{})
+	})
 }
 
 func (n *notifier) get(id string) <-chan struct{} {
 	if n == nil {
 		return nil
 	}
-	if v, ok := n.channels.Load(id); ok {
-		return v
-	}
-	return nil
+	var ch chan struct{} = nil
+	<-n.executor.AsyncExec(func() {
+		if v, ok := n.channels[id]; ok {
+			ch = v
+		}
+	})
+	return ch
 }
 
 func (n *notifier) unsubscribe(id string) {
 	if n == nil {
 		return
 	}
-	if v, ok := n.channels.LoadAndDelete(id); ok {
-		close(v)
-	}
+	<-n.executor.AsyncExec(func() {
+		if v, ok := n.channels[id]; ok {
+			close(v)
+		}
+		delete(n.channels, id)
+	})
 }
 
-func (n *notifier) notify(ctx context.Context, initiatorID string) {
+func (n *notifier) Notify(ctx context.Context, initiatorID string) {
 	if n == nil {
 		return
 	}
-	n.channels.Range(func(key string, value typeCh) bool {
-		if initiatorID == key {
-			return true
+	<-n.executor.AsyncExec(func() {
+		for k, v := range n.channels {
+			if initiatorID == k {
+				continue
+			}
+			log.FromContext(ctx).WithField("upstreamrefresh", "notifier").Debugf("send notification to: %v", k)
+			v <- struct{}{}
 		}
-		log.FromContext(ctx).WithField("upstreamrefresh", "notifier").Debug("send notification to: %v", key)
-		value <- struct{}{}
-		return true
 	})
 }
+
+// Notifier - interface for local notifications sending
+type Notifier interface {
+	Notify(ctx context.Context, initiatorID string)
+}
+
+var _ Notifier = &notifier{}
