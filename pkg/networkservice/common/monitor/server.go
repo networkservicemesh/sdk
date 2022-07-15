@@ -191,6 +191,7 @@ func getSpiffeID(ctx context.Context) (string, error) {
 	return "", err
 }
 
-type eventConsumer interface {
+// EventConsumer - interface for monitor events sending
+type EventConsumer interface {
 	Send(event *networkservice.ConnectionEvent) (err error)
 }
