@@ -33,7 +33,6 @@ const (
 
 // withNextMonitorConnectionServer -
 //    Wraps 'parent' in a new Context that has the Server networkservice.MonitorConnectionServer to be called in the chain
-//    Should only be set in CompositeEndpoint.Request/Close
 func withNextMonitorConnectionServer(parent context.Context, next networkservice.MonitorConnectionServer) context.Context {
 	if parent == nil {
 		parent = context.Background()
@@ -53,7 +52,6 @@ func MonitorConnectionServer(ctx context.Context) networkservice.MonitorConnecti
 
 // withNextMonitorConnectionClient -
 //    Wraps 'parent' in a new Context that has the Client networkservice.MonitorConnectionClient to be called in the chain
-//    Should only be set in CompositeEndpoint.Request/Close iS IT?
 func withNextMonitorConnectionClient(parent context.Context, next networkservice.MonitorConnectionClient) context.Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")

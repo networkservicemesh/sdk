@@ -69,7 +69,3 @@ func (m *monitorConnectionServer) MonitorConnections(selector *networkservice.Mo
 
 	return nil
 }
-
-type eventConsumer interface {
-	Send(event *networkservice.ConnectionEvent) (err error)
-}

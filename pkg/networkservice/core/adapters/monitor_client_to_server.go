@@ -27,10 +27,9 @@ type monitorClientToServer struct {
 // NewMonitorClientToServer - returns a MonitorConnectionServer that is wrapped around the provided MonitorConnectionClient
 //                            events that are received by the MonitorConnectionClient are sent to the MonitorConnectionServer
 func NewMonitorClientToServer(client networkservice.MonitorConnectionClient) networkservice.MonitorConnectionServer {
-	srv := &monitorClientToServer{
+	return &monitorClientToServer{
 		client: client,
 	}
-	return srv
 }
 
 func (m monitorClientToServer) MonitorConnections(selector *networkservice.MonitorScopeSelector, srv networkservice.MonitorConnection_MonitorConnectionsServer) error {
