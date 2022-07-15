@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,40 +18,32 @@ package opa_test
 
 import (
 	"context"
-	// "fmt"
 	"testing"
-	// "time"
-	// "github.com/spiffe/go-spiffe/v2/spiffeid"
-	// "github.com/spiffe/go-spiffe/v2/svid/x509svid"
-	// "github.com/spiffe/go-spiffe/v2/workloadapi"
-	// "github.com/stretchr/testify/require"
-	// "github.com/networkservicemesh/sdk/pkg/tools/opa"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/stretchr/testify/require"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/monitor/authorize"
+	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 )
 
 func TestWithServiceConnectionPolicy(t *testing.T) {
-	_, cancel := context.WithCancel(context.Background())
+	var p = opa.WithServiceOwnConnectionPolicy()
+	var input = authorize.MonitorOpaInput{
+		PathSegments: []*networkservice.PathSegment{
+			{},
+			{
+				Id: "conn1",
+			},
+		},
+		SpiffeIDConnectionMap: map[string][]string{
+			spiffeID: {"conn1"},
+		},
+		ServiceSpiffeID: spiffeID,
+	}
 
-	defer cancel()
+	ctx := context.Background()
 
-	// source, err := workloadapi.NewX509Source(ctx)
-	// if err != nil {
-	// 	fmt.Errorf("couldn't get source %w", err)
-	// }
-	// fmt.Printf("New Source %v", source)
-	// validSvid, err := source.GetX509SVID()
-	// if err != nil {
-	// 	fmt.Errorf("couldn't get SVID %w", err)
-	// }
-	// fmt.Printf("New SVID %v", validSvid)
-
-	// id := &spiffeid.ID{td: "", path: "some/path"}
-	// invalidSvid := &x509svid.SVID{
-	// 	ID: id,
-	// }
-
-	// p := opa.WithServiceOwnConnectionPolicy()
-	// err := p.Check(ctx, nil)
-	// require.Nil(t, err)
-	// err = p.Check(context.Background(), invalidSvid)
-	// require.NotNil(t, err)
+	err := p.Check(ctx, input)
+	require.NoError(t, err)
 }

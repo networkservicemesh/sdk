@@ -66,10 +66,11 @@ func visitMCServer() networkservice.MonitorConnectionServer {
 
 func TestNewMonitorConnectionsServerShouldNotPanic(t *testing.T) {
 	assert.NotPanics(t, func() {
-		_ = next.NewMonitorConnectionServer().MonitorConnections(nil, &testEmptyMCMCServer{})
+		_ = next.NewMonitorConnectionServer().MonitorConnections(
+			nil, &testEmptyMCMCServer{context: context.Background()})
 		_ = next.NewWrappedMonitorConnectionServer(func(server networkservice.MonitorConnectionServer) networkservice.MonitorConnectionServer {
 			return server
-		}).MonitorConnections(nil, &testEmptyMCMCServer{})
+		}).MonitorConnections(nil, &testEmptyMCMCServer{context: context.Background()})
 	})
 }
 
@@ -99,7 +100,7 @@ func TestDataRaceMonitorConnectionServer(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_ = s.MonitorConnections(nil, &testEmptyMCMCServer{})
+			_ = s.MonitorConnections(nil, &testEmptyMCMCServer{context: context.Background()})
 		}()
 	}
 	wg.Wait()

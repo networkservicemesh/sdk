@@ -58,7 +58,7 @@ aMp+T747AZGjOEfwHb9/w+7m
 func TestMonitorServer(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	// Get MonitorServer SpiffeId from peer context
+	// Put peer Certificate to context
 	block, _ := pem.Decode([]byte(certPem))
 	x509cert, err := x509.ParseCertificate(block.Bytes)
 	assert.Nil(t, err)
