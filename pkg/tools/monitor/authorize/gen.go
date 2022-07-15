@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Doc.ai and/or its affiliates.
+// Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -17,28 +17,10 @@
 package authorize
 
 import (
-	"context"
+	"sync"
 )
 
-// Policy represents authorization policy for monitor connection.
-type Policy interface {
-	// Check checks authorization
-	Check(ctx context.Context, input interface{}) error
-}
+//go:generate go-syncmap -output connection_map.gen.go -type SpiffeIDConnectionMap<string,[]string>
 
-type policiesList []Policy
-
-func (l *policiesList) check(ctx context.Context, srv MonitorOpaInput) error {
-	if l == nil {
-		return nil
-	}
-	for _, policy := range *l {
-		if policy == nil {
-			continue
-		}
-		if err := policy.Check(ctx, srv); err != nil {
-			return err
-		}
-	}
-	return nil
-}
+// SpiffeIDConnectionMap - sync.Map with key == string and value == []string
+type SpiffeIDConnectionMap sync.Map

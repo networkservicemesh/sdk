@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -26,9 +26,9 @@ import (
 	"sync"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/sdk/pkg/tools/monitor/authorize"
-	"github.com/networkservicemesh/sdk/pkg/tools/monitor/next"
 	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/monitor/next"
 
 	"github.com/edwarnicke/serialize"
 )
@@ -46,9 +46,7 @@ type monitorConnectionClient struct {
 //                                        returned from calling MonitorConnections receive the event.
 //                              Note: Does not perform filtering basedon MonitorScopeSelector
 func NewMonitorConnectionClient(eventCh <-chan *networkservice.ConnectionEvent) networkservice.MonitorConnectionClient {
-	srv := &monitorConnectionClient{eventCh: eventCh}
-	return next.NewMonitorConnectionClient(
-		authorize.NewMonitorConnectionsClient(), srv)
+	return next.NewMonitorConnectionClient(&monitorConnectionClient{eventCh: eventCh})
 }
 
 func (m *monitorConnectionClient) MonitorConnections(ctx context.Context, _ *networkservice.MonitorScopeSelector, _ ...grpc.CallOption) (networkservice.MonitorConnection_MonitorConnectionsClient, error) {

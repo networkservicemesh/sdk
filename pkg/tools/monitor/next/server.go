@@ -20,13 +20,9 @@ import (
 	"context"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-)
 
-type nextMonitorConnectionServer struct {
-	servers    []networkservice.MonitorConnectionServer
-	index      int
-	nextParent networkservice.MonitorConnectionServer
-}
+	"github.com/networkservicemesh/sdk/pkg/tools/monitor/streamcontext"
+)
 
 // MonitorConnectionsServerWrapper - a function that wraps around a networkservice.MonitorConnectionServer
 type MonitorConnectionsServerWrapper func(networkservice.MonitorConnectionServer) networkservice.MonitorConnectionServer
@@ -34,24 +30,32 @@ type MonitorConnectionsServerWrapper func(networkservice.MonitorConnectionServer
 // MonitorConnectionsServerChainer - a function that chains together a list of networkservice.MonitorConnectionServers
 type MonitorConnectionsServerChainer func(...networkservice.MonitorConnectionServer) networkservice.MonitorConnectionServer
 
-func newWrappedMonitorConnectionServer(wrapper MonitorConnectionsServerWrapper, servers ...networkservice.MonitorConnectionServer) networkservice.MonitorConnectionServer {
+type nextMonitorConnectionServer struct {
+	servers    []networkservice.MonitorConnectionServer
+	index      int
+	nextParent networkservice.MonitorConnectionServer
+}
+
+// NewWrappedMonitorConnectionServer - creates a chain of servers with each one wrapped in wrapper
+func NewWrappedMonitorConnectionServer(wrapper MonitorConnectionsServerWrapper, servers ...networkservice.MonitorConnectionServer) networkservice.MonitorConnectionServer {
 	rv := &nextMonitorConnectionServer{servers: make([]networkservice.MonitorConnectionServer, 0, len(servers))}
-	for _, c := range servers {
-		rv.servers = append(rv.servers, wrapper(c))
+	for _, srv := range servers {
+		rv.servers = append(rv.servers, wrapper(srv))
 	}
 	return rv
 }
 
 // NewMonitorConnectionServer - chains together servers into a single networkservice.MonitorConnectionServer
 func NewMonitorConnectionServer(servers ...networkservice.MonitorConnectionServer) networkservice.MonitorConnectionServer {
-	return newWrappedMonitorConnectionServer(func(server networkservice.MonitorConnectionServer) networkservice.MonitorConnectionServer {
-		return server
-	}, servers...)
+	return NewWrappedMonitorConnectionServer(
+		func(server networkservice.MonitorConnectionServer) networkservice.MonitorConnectionServer {
+			return server
+		}, servers...)
 }
 
 func (n *nextMonitorConnectionServer) MonitorConnections(in *networkservice.MonitorScopeSelector, srv networkservice.MonitorConnection_MonitorConnectionsServer) error {
-	server, _ := n.getServerAndContext(srv.Context())
-	return server.MonitorConnections(in, srv)
+	server, ctx := n.getServerAndContext(srv.Context())
+	return server.MonitorConnections(in, streamcontext.MonitorConnectionMonitorConnectionsServer(ctx, srv))
 }
 
 func (n *nextMonitorConnectionServer) getServerAndContext(ctx context.Context) (networkservice.MonitorConnectionServer, context.Context) {

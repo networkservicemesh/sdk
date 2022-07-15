@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,11 +21,8 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-	"github.com/spiffe/go-spiffe/v2/spiffeid"
-	"github.com/spiffe/go-spiffe/v2/svid/x509svid"
 
+	"github.com/pkg/errors"
 	"google.golang.org/grpc/peer"
 
 	"google.golang.org/grpc/credentials"
@@ -40,19 +37,14 @@ func PreparedOpaInput(ctx context.Context, model interface{}) (map[string]interf
 	p, ok := peer.FromContext(ctx)
 	var cert *x509.Certificate
 	if ok {
-		cert = parseX509Cert(p.AuthInfo)
+		cert = ParseX509Cert(p.AuthInfo)
 	}
 	var pemcert string
-	var spiffeID spiffeid.ID
 	if cert != nil {
 		pemcert = pemEncodingX509Cert(cert)
-		spiffeID, err := x509svid.IDFromCert(cert); if err == nil {
-			logrus.Infof("\nSpiffe ID %v\n", spiffeID.String())
-		}	
 	}
 	result["auth_info"] = map[string]interface{}{
 		"certificate": pemcert,
-		"ownSpiffeId": spiffeID,
 	}
 	return result, nil
 }
@@ -62,7 +54,8 @@ func pemEncodingX509Cert(cert *x509.Certificate) string {
 	return string(certpem)
 }
 
-func parseX509Cert(authInfo credentials.AuthInfo) *x509.Certificate {
+// ParseX509Cert - parse authinfo to get peer sertificate
+func ParseX509Cert(authInfo credentials.AuthInfo) *x509.Certificate {
 	var peerCert *x509.Certificate
 
 	switch v := authInfo.(type) {

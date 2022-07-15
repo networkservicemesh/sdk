@@ -18,8 +18,6 @@ package adapters
 
 import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/sdk/pkg/tools/monitor/authorize"
-	"github.com/networkservicemesh/sdk/pkg/tools/monitor/next"
 )
 
 type monitorClientToServer struct {
@@ -32,7 +30,7 @@ func NewMonitorClientToServer(client networkservice.MonitorConnectionClient) net
 	srv := &monitorClientToServer{
 		client: client,
 	}
-	return next.NewMonitorConnectionServer(authorize.NewMonitorConnectionsServer(), srv)
+	return srv
 }
 
 func (m monitorClientToServer) MonitorConnections(selector *networkservice.MonitorScopeSelector, srv networkservice.MonitorConnection_MonitorConnectionsServer) error {

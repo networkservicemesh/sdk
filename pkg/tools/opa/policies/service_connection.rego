@@ -16,15 +16,10 @@
 
 package nsm
 
-import input.attributes.request.http as http_request
-
 default service_connection = false
 
 service_connection {
-	input.ID == svc_spiffe_id
-}
-
-svc_spiffe_id = spiffe_id {
-   [_, _, uri_type_san] := split(http_request.headers["x-forwarded-client-cert"], ";")
-   [_, spiffe_id] := split(uri_type_san, "=")
+   conn_ids := {y | y = input.spiffe_id_connection_map[input.service_spiffe_id][_]}
+   path_conn_ids := {x | x = input.path_segments[_].id}
+   conn_ids == path_conn_ids
 }

@@ -18,29 +18,29 @@
 package authorize
 
 import (
-	"fmt"
+	"crypto/x509"
 
-	"github.com/golang-jwt/jwt/v4"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/sirupsen/logrus"
-	"github.com/spiffe/go-spiffe/v2/workloadapi"
+	"github.com/spiffe/go-spiffe/v2/spiffeid"
+	"github.com/spiffe/go-spiffe/v2/svid/x509svid"
+	"google.golang.org/grpc/peer"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/monitor/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 )
 
-type authorizeServer struct {
-	policies policiesList
+type authorizeMonitorConnectionsServer struct {
+	policies              policiesList
+	spiffeIDConnectionMap *SpiffeIDConnectionMap
 }
 
-// NewMonitorConnectionsServer - returns a new authorization networkservicemesh.MonitorConnectionServer
-// Authorize server checks left side of Path.
-func NewMonitorConnectionsServer(opts ...Option) networkservice.MonitorConnectionServer {
-	// todo: add policies
-	var s = &authorizeServer{
+// NewMonitorConnectionServer - returns a new authorization networkservicemesh.MonitorConnectionServer
+func NewMonitorConnectionServer(spiffeIDConnectionMap *SpiffeIDConnectionMap, opts ...Option) networkservice.MonitorConnectionServer {
+	var s = &authorizeMonitorConnectionsServer{
 		policies: []Policy{
 			opa.WithServiceOwnConnectionPolicy(),
 		},
+		spiffeIDConnectionMap: spiffeIDConnectionMap,
 	}
 	for _, o := range opts {
 		o.apply(&s.policies)
@@ -48,40 +48,42 @@ func NewMonitorConnectionsServer(opts ...Option) networkservice.MonitorConnectio
 	return s
 }
 
-func (a *authorizeServer) MonitorConnections(in *networkservice.MonitorScopeSelector, srv networkservice.MonitorConnection_MonitorConnectionsServer) error {
+// MonitorOpaInput - used to pass complex structure to monitor policies
+type MonitorOpaInput struct {
+	SpiffeIDConnectionMap map[string][]string           `json:"spiffe_id_connection_map"`
+	PathSegments          []*networkservice.PathSegment `json:"path_segments"`
+	ServiceSpiffeID       string                        `json:"service_spiffe_id"`
+}
+
+func (a *authorizeMonitorConnectionsServer) MonitorConnections(in *networkservice.MonitorScopeSelector, srv networkservice.MonitorConnection_MonitorConnectionsServer) error {
 	ctx := srv.Context()
-	var decodedClaims jwt.RegisteredClaims
-	for _, seg := range in.GetPathSegments(){
-		logrus.Printf("Conn next path token  %v \n", seg.Token)
-		tokenDecoded, err := jwt.ParseWithClaims(
-			seg.Token, &jwt.RegisteredClaims{},
-			func(token *jwt.Token) (interface{}, error) {return []byte("AllYourBase"), nil},
-		)
-		if err != nil {
-			return fmt.Errorf("error decoding connection token: %+v", err)
-		}
-		logrus.Infof("decoded Token %v \n", tokenDecoded)
-		decodedClaims = tokenDecoded.Claims.(jwt.RegisteredClaims)
-		logrus.Infof("decoded Claims %v \n", decodedClaims)
-		logrus.Infof("Subject from the Claims %v", decodedClaims.Subject)
-		logrus.Infof("Audienct from the Claims %v", decodedClaims.Audience)
-	
+	p, ok := peer.FromContext(ctx)
+	var cert *x509.Certificate
+	if ok {
+		cert = opa.ParseX509Cert(p.AuthInfo)
 	}
-	source, err := workloadapi.NewX509Source(ctx)
-	if err != nil {
-		return fmt.Errorf("error getting x509 source: %+v", err)
+	var input MonitorOpaInput
+	var spiffeID spiffeid.ID
+	if cert != nil {
+		spiffeID, _ = x509svid.IDFromCert(cert)
 	}
-	svid, err := source.GetX509SVID()
-	if err != nil {
-		return fmt.Errorf("error getting x509 svid: %+v", err)
-	}
-	logrus.Infof("Service Own Spiffe ID %v", svid.ID)
+	simpleMap := make(map[string][]string)
+	a.spiffeIDConnectionMap.Range(
+		func(k string, v []string) bool {
+			simpleMap[k] = v
+			return true
+		},
+	)
 
+	input = MonitorOpaInput{
+		ServiceSpiffeID:       spiffeID.String(),
+		SpiffeIDConnectionMap: simpleMap,
+		PathSegments:          in.PathSegments,
+	}
 
-	// if _, ok := peer.FromContext(ctx); ok {
-	// 	if err := a.policies.check(ctx, svid); err != nil {
-	// 		return err
-	// 	}
-	// }
+	if err := a.policies.check(ctx, input); err != nil {
+		return err
+	}
+
 	return next.MonitorConnectionServer(ctx).MonitorConnections(in, srv)
 }

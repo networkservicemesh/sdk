@@ -14,31 +14,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package authorize
+package next_test
 
-import (
-	"context"
+import "context"
+
+type contextKeyType string
+
+const (
+	visitKey contextKeyType = "visitKey"
 )
 
-// Policy represents authorization policy for monitor connection.
-type Policy interface {
-	// Check checks authorization
-	Check(ctx context.Context, input interface{}) error
+func visit(ctx context.Context) context.Context {
+	if v, ok := ctx.Value(visitKey).(*int); ok {
+		*v++
+		return ctx
+	}
+	val := 0
+	return context.WithValue(ctx, visitKey, &val)
 }
 
-type policiesList []Policy
-
-func (l *policiesList) check(ctx context.Context, srv MonitorOpaInput) error {
-	if l == nil {
-		return nil
+func visitValue(ctx context.Context) int {
+	if v, ok := ctx.Value(visitKey).(*int); ok {
+		return *v
 	}
-	for _, policy := range *l {
-		if policy == nil {
-			continue
-		}
-		if err := policy.Check(ctx, srv); err != nil {
-			return err
-		}
-	}
-	return nil
+	return 0
 }

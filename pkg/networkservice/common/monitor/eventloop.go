@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -22,6 +22,8 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/monitor/next"
 )
 
 type eventLoop struct {
@@ -51,7 +53,8 @@ func newEventLoop(ctx context.Context, ec eventConsumer, cc grpc.ClientConnInter
 		},
 	}
 
-	client, err := networkservice.NewMonitorConnectionClient(cc).MonitorConnections(eventLoopCtx, selector)
+	client, err := next.NewMonitorConnectionClient(
+		networkservice.NewMonitorConnectionClient(cc)).MonitorConnections(eventLoopCtx, selector)
 	if err != nil {
 		eventLoopCancel()
 		return nil, errors.WithStack(err)
