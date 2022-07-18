@@ -21,11 +21,14 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/upstreamrefresh"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
 type vl3MtuClient struct {
@@ -59,7 +62,11 @@ func (v *vl3MtuClient) Request(ctx context.Context, request *networkservice.Netw
 	}
 
 	// Update MTU of the vl3
-	v.updateMinMTU(conn)
+	if v.updateMinMTU(conn) {
+		if ln, ok := upstreamrefresh.LoadLocalNotifier(ctx, metadata.IsClient(v)); ok {
+			ln.Notify(ctx, conn.GetId())
+		}
+	}
 
 	return conn, nil
 }
@@ -68,15 +75,17 @@ func (v *vl3MtuClient) Close(ctx context.Context, conn *networkservice.Connectio
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
-func (v *vl3MtuClient) updateMinMTU(conn *networkservice.Connection) {
+// updateMinMTU - returns true if mtu was updated
+func (v *vl3MtuClient) updateMinMTU(conn *networkservice.Connection) bool {
 	if atomic.LoadUint32(&v.minMtu) <= conn.GetContext().GetMTU() {
-		return
+		return false
 	}
 
 	v.m.Lock()
 	defer v.m.Unlock()
 	if atomic.LoadUint32(&v.minMtu) <= conn.GetContext().GetMTU() {
-		return
+		return false
 	}
 	atomic.StoreUint32(&v.minMtu, conn.GetContext().GetMTU())
+	return true
 }

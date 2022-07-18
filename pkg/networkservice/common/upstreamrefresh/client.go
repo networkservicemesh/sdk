@@ -27,6 +27,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 )
@@ -54,6 +55,11 @@ func (u *upstreamRefreshClient) Request(ctx context.Context, request *networkser
 	// Cancel any existing eventLoop
 	if cancelEventLoop, loaded := loadAndDelete(ctx); loaded {
 		cancelEventLoop()
+	}
+	u.localNotifier.unsubscribe(request.GetConnection().GetId())
+
+	if u.localNotifier != nil {
+		storeLocalNotifier(ctx, metadata.IsClient(u), u.localNotifier)
 	}
 
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)

@@ -23,6 +23,7 @@ import (
 )
 
 type key struct{}
+type keyNotifier struct{}
 
 // store sets the context.CancelFunc stored in per Connection.Id metadata.
 func store(ctx context.Context, cancel context.CancelFunc) {
@@ -37,5 +38,21 @@ func loadAndDelete(ctx context.Context) (value context.CancelFunc, ok bool) {
 		return
 	}
 	value, ok = rawValue.(context.CancelFunc)
+	return value, ok
+}
+
+// storeLocalNotifier sets the Notifier stored in per Connection.Id metadata.
+func storeLocalNotifier(ctx context.Context, isClient bool, notifier Notifier) {
+	metadata.Map(ctx, isClient).Store(keyNotifier{}, notifier)
+}
+
+// LoadLocalNotifier loads Notifier stored in per Connection.Id metadata.
+// The loaded result reports whether the key was present.
+func LoadLocalNotifier(ctx context.Context, isClient bool) (value Notifier, ok bool) {
+	rawValue, ok := metadata.Map(ctx, isClient).Load(keyNotifier{})
+	if !ok {
+		return
+	}
+	value, ok = rawValue.(Notifier)
 	return value, ok
 }
