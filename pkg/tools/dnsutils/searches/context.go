@@ -14,13 +14,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package vl3dns
+package searches
 
 import (
-	"sync"
+	"context"
 )
 
-//go:generate go-syncmap -output map.gen.go -type Map<string,*github.com/networkservicemesh/api/pkg/api/networkservice.DNSConfig>
+const (
+	searchDomainsKey contextKeyType = "SearchDomains"
+)
 
-// Map - sync.Map with key == string and value == networkservice.DNSConfig
-type Map sync.Map
+type contextKeyType string
+
+// WithSearchDomains wraps 'parent' in a new Context that has search domains
+func WithSearchDomains(parent context.Context, domains []string) context.Context {
+	if parent == nil {
+		panic("cannot create context from nil parent")
+	}
+	return context.WithValue(parent, searchDomainsKey, domains)
+}
+
+// SearchDomains returns search domains
+func SearchDomains(ctx context.Context) []string {
+	if rv, ok := ctx.Value(searchDomainsKey).([]string); ok {
+		return rv
+	}
+	return nil
+}

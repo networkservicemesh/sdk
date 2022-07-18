@@ -34,7 +34,7 @@ type memoryHandler struct {
 }
 
 func (f *memoryHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg *dns.Msg) {
-	if msg == nil || len(msg.Question) == 0 {
+	if len(msg.Question) == 0 {
 		next.Handler(ctx).ServeDNS(ctx, rw, msg)
 		return
 	}

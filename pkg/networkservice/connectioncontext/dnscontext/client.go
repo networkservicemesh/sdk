@@ -22,12 +22,6 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
-	"path"
-	"path/filepath"
-
-	"github.com/edwarnicke/serialize"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -35,7 +29,8 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
-	"github.com/networkservicemesh/sdk/pkg/tools/dnscontext"
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 const (
@@ -44,13 +39,11 @@ const (
 
 type dnsContextClient struct {
 	chainContext           context.Context
-	coreFilePath           string
 	resolveConfigPath      string
 	storedResolvConfigPath string
 	defaultNameServerIP    string
-	dnsConfigManager       dnscontext.Manager
-	updateCorefileQueue    serialize.Executor
 	resolvconfDNSConfig    *networkservice.DNSConfig
+	dnsConfigsMap          *dnsconfig.Map
 }
 
 // NewClient creates a new DNS client chain component. Setups all DNS traffic to the localhost. Monitors DNS configs from connections.
@@ -59,15 +52,14 @@ func NewClient(options ...DNSOption) networkservice.NetworkServiceClient {
 		chainContext:        context.Background(),
 		defaultNameServerIP: "127.0.0.1",
 		resolveConfigPath:   "/etc/resolv.conf",
-		coreFilePath:        "/etc/coredns/Corefile",
 	}
 	for _, o := range options {
 		o.apply(c)
 	}
 
-	var _, name = path.Split(c.resolveConfigPath)
-	c.storedResolvConfigPath = path.Join(path.Dir(c.coreFilePath), name+".restore")
+	c.storedResolvConfigPath = c.resolveConfigPath + ".restore"
 	c.initialize()
+
 	return c
 }
 
@@ -91,36 +83,19 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 	if err != nil {
 		return nil, err
 	}
-	var conifgs []*networkservice.DNSConfig
+
+	var configs []*networkservice.DNSConfig
 	if rv.GetContext().GetDnsContext() != nil {
-		conifgs = rv.GetContext().GetDnsContext().GetConfigs()
+		configs = rv.GetContext().GetDnsContext().GetConfigs()
 	}
-	if len(conifgs) > 0 {
-		c.dnsConfigManager.Store(rv.GetId(), conifgs...)
-		c.updateCorefileQueue.AsyncExec(c.updateCorefile)
-	}
+
+	c.dnsConfigsMap.Store(rv.Id, configs)
 
 	return rv, err
 }
 
-func (c *dnsContextClient) updateCorefile() {
-	dir := filepath.Dir(c.coreFilePath)
-	_ = os.MkdirAll(dir, os.ModePerm)
-	err := ioutil.WriteFile(c.coreFilePath, []byte(c.dnsConfigManager.String()), os.ModePerm)
-	if err != nil {
-		log.FromContext(c.chainContext).Errorf("An error during update corefile: %v", err.Error())
-	}
-}
-
 func (c *dnsContextClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	var conifgs []*networkservice.DNSConfig
-	if conn.GetContext().GetDnsContext() != nil {
-		conifgs = conn.GetContext().GetDnsContext().GetConfigs()
-	}
-	if len(conifgs) > 0 {
-		c.dnsConfigManager.Remove(conn.GetId())
-		c.updateCorefileQueue.AsyncExec(c.updateCorefile)
-	}
+	c.dnsConfigsMap.Delete(conn.Id)
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
@@ -146,7 +121,7 @@ func (c *dnsContextClient) storeOriginalResolvConf() {
 func (c *dnsContextClient) initialize() {
 	c.restoreResolvConf()
 
-	r, err := dnscontext.OpenResolveConfig(c.resolveConfigPath)
+	r, err := openResolveConfig(c.resolveConfigPath)
 	if err != nil {
 		log.FromContext(c.chainContext).Errorf("An error during open resolve config: %v", err.Error())
 		return
@@ -154,24 +129,21 @@ func (c *dnsContextClient) initialize() {
 
 	c.storeOriginalResolvConf()
 
-	nameserver := r.Value(dnscontext.NameserverProperty)
+	nameserver := r.Value(nameserverProperty)
 	if !containsNameserver(nameserver, c.defaultNameServerIP) {
 		c.resolvconfDNSConfig = &networkservice.DNSConfig{
-			SearchDomains: r.Value(dnscontext.AnyDomain),
+			SearchDomains: r.Value(searchProperty),
 			DnsServerIps:  nameserver,
 		}
 	}
 
-	c.dnsConfigManager.Store("", c.resolvconfDNSConfig)
-
-	r.SetValue(dnscontext.NameserverProperty, c.defaultNameServerIP)
+	r.SetValue(nameserverProperty, c.defaultNameServerIP)
+	r.SetValue(searchProperty, []string{}...)
 
 	if err = r.Save(); err != nil {
 		log.FromContext(c.chainContext).Errorf("An error during save resolve config: %v", err.Error())
 		return
 	}
-
-	c.updateCorefileQueue.AsyncExec(c.updateCorefile)
 }
 
 func containsNameserver(servers []string, value string) bool {

@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -13,26 +13,36 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package dnscontext_test
+
+package checkmsg_test
 
 import (
 	"testing"
+	"time"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/miekg/dns"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/net/context"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/dnscontext"
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/checkmsg"
 )
 
-func Test_DNSConfigsDecoder_ShouldBeParsedFromJson(t *testing.T) {
-	var expected = []*networkservice.DNSConfig{
-		{
-			SearchDomains: []string{"d1"},
-			DnsServerIps:  []string{"ip1", "ip2"},
-		},
-	}
-	var decoder dnscontext.Decoder
-	var err = decoder.Decode(`[{"dns_server_ips": ["ip1", "ip2"], "search_domains": ["d1"]}]`)
-	require.NoError(t, err)
-	require.Equal(t, expected, []*networkservice.DNSConfig(decoder))
+type responseWriter struct {
+	dns.ResponseWriter
+	Response *dns.Msg
+}
+
+func (r *responseWriter) WriteMsg(m *dns.Msg) error {
+	r.Response = m
+	return nil
+}
+
+func TestCheckMsgHandler(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	handler := checkmsg.NewDNSHandler()
+	rw := &responseWriter{}
+	handler.ServeDNS(ctx, rw, nil)
+	require.NotEqual(t, rw.Response.Rcode, dns.RcodeSuccess)
 }

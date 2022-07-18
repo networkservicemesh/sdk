@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2022 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,5 +14,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package dnscontext provides a DNS specific tools.
-package dnscontext
+// Package dnsconfig provides sync map like a Go map[string][]*DNSConfig but is safe for concurrent using
+package dnsconfig
+
+import "sync"
+
+//go:generate go-syncmap -output sync_map.gen.go -type Map<string,[]*github.com/networkservicemesh/api/pkg/api/networkservice.DNSConfig>
+
+// Map is like a Go map[string][]*DNSConfig but is safe for concurrent use
+// by multiple goroutines without additional locking or coordination
+type Map sync.Map

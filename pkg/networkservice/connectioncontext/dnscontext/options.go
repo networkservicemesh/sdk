@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +20,8 @@ package dnscontext
 
 import (
 	"context"
-	"net"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
 )
 
 // DNSOption is applying options for DNS client.
@@ -32,28 +35,28 @@ func (f applyFunc) apply(c *dnsContextClient) {
 	f(c)
 }
 
-// WithCorefilePath sets specific corefile path for DNS client.
-func WithCorefilePath(path string) DNSOption {
-	return applyFunc(func(c *dnsContextClient) {
-		c.coreFilePath = path
-	})
-}
-
-// WithResolveConfigPath sets specific resolve config file path for DNS client.
+// WithResolveConfigPath sets resolv.conf path for resonvConfigHandler.
 func WithResolveConfigPath(path string) DNSOption {
 	return applyFunc(func(c *dnsContextClient) {
 		c.resolveConfigPath = path
 	})
 }
 
-// WithDefaultNameServerIP sets specific IP address of default DNS server.
-func WithDefaultNameServerIP(ip net.IP) DNSOption {
+// WithDefaultNameServerIP sets default nameserver ip for resolvConfigHandler.
+func WithDefaultNameServerIP(ip string) DNSOption {
 	return applyFunc(func(c *dnsContextClient) {
-		c.defaultNameServerIP = ip.String()
+		c.defaultNameServerIP = ip
 	})
 }
 
-// WithChainContext sets chain context for DNS server.
+// WithDNSConfigsMap sets configs map for DNS client.
+func WithDNSConfigsMap(configsMap *dnsconfig.Map) DNSOption {
+	return applyFunc(func(c *dnsContextClient) {
+		c.dnsConfigsMap = configsMap
+	})
+}
+
+// WithChainContext sets chain context for DNS client.
 func WithChainContext(ctx context.Context) DNSOption {
 	return applyFunc(func(c *dnsContextClient) {
 		c.chainContext = ctx

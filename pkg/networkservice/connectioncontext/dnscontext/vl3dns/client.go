@@ -25,16 +25,17 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
 )
 
 type vl3DNSClient struct {
 	dnsServerIP net.IP
-	dnsConfigs  *Map
+	dnsConfigs  *dnsconfig.Map
 }
 
 // NewClient - returns a new null client that does nothing but call next.Client(ctx).{Request/Close} and return the result
 //             This is very useful in testing
-func NewClient(dnsServerIP net.IP, dnsConfigs *Map) networkservice.NetworkServiceClient {
+func NewClient(dnsServerIP net.IP, dnsConfigs *dnsconfig.Map) networkservice.NetworkServiceClient {
 	return &vl3DNSClient{
 		dnsServerIP: dnsServerIP,
 		dnsConfigs:  dnsConfigs,
@@ -60,6 +61,7 @@ func (n *vl3DNSClient) Request(ctx context.Context, request *networkservice.Netw
 	resp, err := next.Client(ctx).Request(ctx, request, opts...)
 
 	if err == nil {
+		configs := make([]*networkservice.DNSConfig, 0)
 		for _, config := range resp.GetContext().GetDnsContext().GetConfigs() {
 			var skip = false
 			for _, ip := range config.DnsServerIps {
@@ -71,8 +73,10 @@ func (n *vl3DNSClient) Request(ctx context.Context, request *networkservice.Netw
 			if skip {
 				continue
 			}
-			n.dnsConfigs.Store(resp.GetId(), config)
+			configs = append(configs, config)
 		}
+
+		n.dnsConfigs.Store(resp.GetId(), configs)
 	}
 
 	return resp, err

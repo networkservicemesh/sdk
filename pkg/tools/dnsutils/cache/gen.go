@@ -1,6 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
-//
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -16,20 +14,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dnscontext
+package cache
 
-const (
-	// SearchProperty means search list for host-name lookup
-	SearchProperty = "search"
-	// NameserverProperty means name server IP address
-	NameserverProperty = "nameserver"
-	// OptionsProperty  allows certain internal resolver variables to be modified
-	OptionsProperty = "options"
-	// AnyDomain means that allowed any host-name
-	AnyDomain           = "."
-	defaultPlugin       = "fanout"
-	serverBlockTemplate = `%v {
-	%v . %v
-	%v
-}`
-)
+import "sync"
+
+//go:generate go-syncmap -output sync_map.gen.go -type msgMap<string,*github.com/miekg/dns.Msg>
+
+// msgMap is like a Go map[string]*dns.Msg but is safe for concurrent use
+// by multiple goroutines without additional locking or coordination
+type msgMap sync.Map

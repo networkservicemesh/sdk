@@ -1,5 +1,3 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
-//
 // Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -16,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dnscontext_test
+package dnscontext
 
 import (
 	"io/ioutil"
@@ -27,8 +25,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/dnscontext"
 )
 
 func createSample(name, source string) (string, error) {
@@ -50,14 +46,14 @@ options ndots:5
 	defer func() {
 		_ = os.Remove(p)
 	}()
-	conf, err := dnscontext.OpenResolveConfig(p)
+	conf, err := openResolveConfig(p)
 	require.NotNil(t, conf)
 	require.Nil(t, err)
-	result := conf.Value(dnscontext.NameserverProperty)
+	result := conf.Value(nameserverProperty)
 	require.EqualValues(t, result, []string{"127.0.0.1"})
-	result = conf.Value(dnscontext.SearchProperty)
+	result = conf.Value(searchProperty)
 	require.EqualValues(t, result, []string{"default.svc.cluster.local", "svc.cluster.local", "cluster.local"})
-	result = conf.Value(dnscontext.OptionsProperty)
+	result = conf.Value(optionsProperty)
 	require.EqualValues(t, result, []string{"ndots:5"})
 }
 
@@ -70,11 +66,11 @@ options ndots:5`
 	defer func() {
 		_ = os.Remove(p)
 	}()
-	config, err := dnscontext.OpenResolveConfig(p)
+	config, err := openResolveConfig(p)
 	require.Nil(t, err)
-	config.SetValue(dnscontext.NameserverProperty, "127.0.0.1")
-	config.SetValue(dnscontext.SearchProperty, "default.svc.cluster.local", "svc.cluster.local", "cluster.local")
-	config.SetValue(dnscontext.OptionsProperty, "ndots:5")
+	config.SetValue(nameserverProperty, "127.0.0.1")
+	config.SetValue(searchProperty, "default.svc.cluster.local", "svc.cluster.local", "cluster.local")
+	config.SetValue(optionsProperty, "ndots:5")
 	config.SetValue("my_property")
 	err = config.Save()
 	require.Nil(t, err)

@@ -14,34 +14,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package noloop prevents loops
-package noloop
+// Package checkmsg checks if dns message is correct
+package checkmsg
 
 import (
 	"context"
-
-	"sync"
 
 	"github.com/miekg/dns"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-type noloopDNSHandler struct{ ids sync.Map }
+type checkMsgHandler struct {
+}
 
-func (n *noloopDNSHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter, m *dns.Msg) {
-	if _, loaded := n.ids.LoadOrStore(m.Id, struct{}{}); loaded {
-		log.FromContext(ctx).Errorf("loop is not allowed: query: %v", m.String())
-		dns.HandleFailed(rp, m)
+func (h *checkMsgHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter, m *dns.Msg) {
+	if m == nil {
+		dns.HandleFailed(rp, &dns.Msg{})
 		return
 	}
-	defer n.ids.Delete(m.Id)
 	next.Handler(ctx).ServeDNS(ctx, rp, m)
 }
 
-// NewDNSHandler creates a new dns handelr that prevents loops
+// NewDNSHandler creates a new dns handler that checks if dns message is correct
 func NewDNSHandler() dnsutils.Handler {
-	return new(noloopDNSHandler)
+	return new(checkMsgHandler)
 }
