@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"text/template"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 )
 
@@ -28,9 +29,9 @@ import (
 type Option func(*vl3DNSServer)
 
 // WithConfigs sets initial list to fanout queries
-func WithConfigs(m *Map) Option {
+func WithConfigs(m *dnsconfig.Map) Option {
 	return func(vd *vl3DNSServer) {
-		vd.configs = m
+		vd.dnsConfigs = m
 	}
 }
 

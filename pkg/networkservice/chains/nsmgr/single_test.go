@@ -19,11 +19,9 @@ package nsmgr_test
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -38,74 +36,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/point2pointipam"
 	"github.com/networkservicemesh/sdk/pkg/tools/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
-
-func Test_DNSUsecase(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*7)
-	defer cancel()
-
-	domain := sandbox.NewBuilder(ctx, t).
-		SetNodesCount(1).
-		SetNSMgrProxySupplier(nil).
-		SetRegistryProxySupplier(nil).
-		Build()
-
-	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
-
-	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
-	require.NoError(t, err)
-
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
-
-	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, dnscontext.NewServer(
-		&networkservice.DNSConfig{
-			DnsServerIps:  []string{"8.8.8.8"},
-			SearchDomains: []string{"my.domain1"},
-		},
-		&networkservice.DNSConfig{
-			DnsServerIps:  []string{"8.8.4.4"},
-			SearchDomains: []string{"my.domain1"},
-		},
-	))
-
-	corefilePath := filepath.Join(t.TempDir(), "corefile")
-	resolveConfigPath := filepath.Join(t.TempDir(), "resolv.conf")
-
-	err = ioutil.WriteFile(resolveConfigPath, []byte("nameserver 8.8.4.4\nsearch example.com\n"), os.ModePerm)
-	require.NoError(t, err)
-
-	const expectedCorefile = ". {\n\tfanout . 8.8.4.4\n\tlog\n\treload\n\tcache {\n\t\tdenial 0\n\t}\n}\nmy.domain1 {\n\tfanout . 8.8.4.4 8.8.8.8\n\tlog\n\tcache {\n\t\tdenial 0\n\t}\n}"
-
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(dnscontext.NewClient(
-		dnscontext.WithChainContext(ctx),
-		dnscontext.WithCorefilePath(corefilePath),
-		dnscontext.WithResolveConfigPath(resolveConfigPath),
-	)))
-
-	conn, err := nsc.Request(ctx, defaultRequest(nsReg.Name))
-	require.NoError(t, err)
-
-	require.Eventually(t, func() bool {
-		// #nosec
-		b, readFileErr := ioutil.ReadFile(corefilePath)
-		if readFileErr != nil {
-			return false
-		}
-		return string(b) == expectedCorefile
-	}, time.Second, time.Millisecond*100)
-
-	_, err = nsc.Close(ctx, conn)
-	require.NoError(t, err)
-
-	_, err = nse.Unregister(ctx, nseReg)
-	require.NoError(t, err)
-}
 
 func Test_AwareNSEs(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })

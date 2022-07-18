@@ -28,7 +28,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-// NewDNSHandler creates a new dnshandler that simply connects to the ednpoint by passed url
+// NewDNSHandler creates a new dnshandler that simply connects to the endpoint by passed url
 // connectTO is endpoint url
 func NewDNSHandler(connectTO *url.URL) dnsutils.Handler {
 	return &connectDNSHandler{connectTO: connectTO}

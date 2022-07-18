@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Cisco Systems, Inc.
+// Copyright (c) 2020-2022 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -25,7 +25,8 @@ import (
 )
 
 const (
-	clientURLKey contextKeyType = "ClientURL"
+	clientURLKey  contextKeyType = "ClientURL"
+	clientURLsKey contextKeyType = "ClientURLs"
 	// UnixURLScheme - scheme for unix urls
 	UnixURLScheme = "unix"
 )
@@ -47,6 +48,28 @@ func WithClientURL(parent context.Context, clientURL *url.URL) context.Context {
 func ClientURL(ctx context.Context) *url.URL {
 	if rv, ok := ctx.Value(clientURLKey).(*url.URL); ok {
 		return rv
+	}
+	return nil
+}
+
+// WithClientURLs -
+//    Wraps 'parent' in a new Context that has list of passed URLs
+func WithClientURLs(parent context.Context, urls []url.URL) context.Context {
+	if parent == nil {
+		panic("cannot create context from nil parent")
+	}
+	return context.WithValue(parent, clientURLsKey, urls)
+}
+
+// ClientURLs -
+//    Returns list of URLs
+func ClientURLs(ctx context.Context) []url.URL {
+	if rv, ok := ctx.Value(clientURLsKey).([]url.URL); ok {
+		return rv
+	}
+
+	if rv, ok := ctx.Value(clientURLKey).(url.URL); ok {
+		return []url.URL{rv}
 	}
 	return nil
 }

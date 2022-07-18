@@ -21,7 +21,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"net/url"
 	"strings"
 	"text/template"
 
@@ -30,7 +29,9 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/dnsconfigs"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/fanout"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/memory"
 	dnsnext "github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
@@ -41,8 +42,8 @@ import (
 
 type vl3DNSServer struct {
 	dnsServerRecords      memory.Map
+	dnsConfigs            *dnsconfig.Map
 	domainSchemeTemplates []*template.Template
-	configs               *Map
 	dnsPort               int
 	dnsServer             dnsutils.Handler
 	listenAndServeDNS     func(ctx context.Context, handler dnsutils.Handler, listenOn string)
@@ -61,7 +62,7 @@ func NewServer(chanCtx context.Context, getDNSServerIP func() net.IP, opts ...Op
 		dnsPort:           53,
 		listenAndServeDNS: dnsutils.ListenAndServe,
 		getDNSServerIP:    getDNSServerIP,
-		configs:           new(Map),
+		dnsConfigs:        new(dnsconfig.Map),
 	}
 
 	for _, opt := range opts {
@@ -70,10 +71,11 @@ func NewServer(chanCtx context.Context, getDNSServerIP func() net.IP, opts ...Op
 
 	if result.dnsServer == nil {
 		result.dnsServer = dnsnext.NewDNSHandler(
+			dnsconfigs.NewDNSHandler(result.dnsConfigs),
 			noloop.NewDNSHandler(),
 			norecursion.NewDNSHandler(),
 			memory.NewDNSHandler(&result.dnsServerRecords),
-			fanout.NewDNSHandler(result.getFanoutAddresses),
+			fanout.NewDNSHandler(fanout.WithDefaultDNSPort(uint16(result.dnsPort))),
 		)
 	}
 
@@ -124,6 +126,7 @@ func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.Netw
 	resp, err := next.Server(ctx).Request(ctx, request)
 
 	if err == nil {
+		configs := make([]*networkservice.DNSConfig, 0)
 		if srcRoutes := resp.GetContext().GetIpContext().GetSrcIPRoutes(); len(srcRoutes) > 0 {
 			var lastPrefix = srcRoutes[len(srcRoutes)-1].Prefix
 			for _, config := range clientsConfigs {
@@ -132,18 +135,18 @@ func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.Netw
 						continue
 					}
 					if withinPrefix(serverIP, lastPrefix) {
-						n.configs.Store(resp.GetId(), config)
+						configs = append(configs, config)
 					}
 				}
 			}
 		}
+		n.dnsConfigs.Store(resp.GetId(), configs)
 	}
-
 	return resp, err
 }
 
 func (n *vl3DNSServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	n.configs.Delete(conn.GetId())
+	n.dnsConfigs.Delete(conn.Id)
 
 	if v, ok := metadata.Map(ctx, false).LoadAndDelete(clientDNSNameKey{}); ok {
 		var names = v.([]string)
@@ -165,17 +168,6 @@ func (n *vl3DNSServer) buildSrcDNSRecords(c *networkservice.Connection) ([]strin
 		result = append(result, recordBuilder.String())
 	}
 	return result, nil
-}
-
-func (n *vl3DNSServer) getFanoutAddresses() []url.URL {
-	var result []url.URL
-	n.configs.Range(func(key string, value *networkservice.DNSConfig) bool {
-		for _, addr := range value.DnsServerIps {
-			result = append(result, url.URL{Scheme: "tcp", Host: fmt.Sprintf("%v:%v", addr, n.dnsPort)})
-		}
-		return true
-	})
-	return result
 }
 
 func compareStringSlices(a, b []string) bool {
