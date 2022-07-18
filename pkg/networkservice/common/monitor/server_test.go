@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc/credentials"
@@ -61,7 +60,7 @@ func TestMonitorServer(t *testing.T) {
 	// Put peer Certificate to context
 	block, _ := pem.Decode([]byte(certPem))
 	x509cert, err := x509.ParseCertificate(block.Bytes)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	authInfo := &credentials.TLSInfo{
 		State: tls.ConnectionState{
 			PeerCertificates: []*x509.Certificate{x509cert},

@@ -1,6 +1,6 @@
-// Copyright (c) 2020-2021 Cisco Systems, Inc.
+// Copyright (c) 2020-2022 Cisco Systems, Inc.
 //
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -41,6 +41,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
+	authMonitor "github.com/networkservicemesh/sdk/pkg/tools/monitor/authorize"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -62,6 +63,7 @@ type endpoint struct {
 type serverOptions struct {
 	name                    string
 	authorizeServer         networkservice.NetworkServiceServer
+	authMonitorOptions      []authMonitor.Option
 	additionalFunctionality []networkservice.NetworkServiceServer
 }
 
@@ -85,6 +87,13 @@ func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Op
 	}
 }
 
+// WithMonitorConnectionAuthorize sets authorization server chain element
+func WithMonitorConnectionAuthorize(opts ...authMonitor.Option) Option {
+	return func(o *serverOptions) {
+		o.authMonitorOptions = opts
+	}
+}
+
 // WithAdditionalFunctionality sets additional NetworkServiceServer chain elements to be included in the chain
 func WithAdditionalFunctionality(additionalFunctionality ...networkservice.NetworkServiceServer) Option {
 	return func(o *serverOptions) {
@@ -94,15 +103,19 @@ func WithAdditionalFunctionality(additionalFunctionality ...networkservice.Netwo
 
 // NewServer - returns a NetworkServiceMesh client as a chain of the standard Client pieces plus whatever
 func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...Option) Endpoint {
+	rv := &endpoint{}
 	opts := &serverOptions{
-		name:            "endpoint-" + uuid.New().String(),
-		authorizeServer: authorize.NewServer(authorize.Any()),
+		name:               "endpoint-" + uuid.New().String(),
+		authorizeServer:    authorize.NewServer(authorize.Any()),
+		authMonitorOptions: []authMonitor.Option{authMonitor.Any()},
 	}
 	for _, opt := range options {
 		opt(opts)
 	}
 
-	rv := &endpoint{}
+	for _, opt := range options {
+		opt(opts)
+	}
 	rv.NetworkServiceServer = chain.NewNetworkServiceServer(
 		append([]networkservice.NetworkServiceServer{
 			updatepath.NewServer(opts.name),
@@ -111,7 +124,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			opts.authorizeServer,
 			metadata.NewServer(),
 			timeout.NewServer(ctx),
-			monitor.NewServer(ctx, &rv.MonitorConnectionServer),
+			monitor.NewServer(ctx, &rv.MonitorConnectionServer, opts.authMonitorOptions...),
 			trimpath.NewServer(),
 		}, opts.additionalFunctionality...)...)
 

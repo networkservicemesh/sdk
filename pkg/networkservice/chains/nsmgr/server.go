@@ -58,6 +58,7 @@ import (
 	registryadapter "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
+	authMonitor "github.com/networkservicemesh/sdk/pkg/tools/monitor/authorize"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -75,6 +76,7 @@ type nsmgrServer struct {
 
 type serverOptions struct {
 	authorizeServer      networkservice.NetworkServiceServer
+	authMonitorOptions   []authMonitor.Option
 	dialOptions          []grpc.DialOption
 	dialTimeout          time.Duration
 	regURL               *url.URL
@@ -118,6 +120,13 @@ func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Op
 	}
 }
 
+// WithMonitorConnectionAuthorize sets authorization options for monitor connection chain element
+func WithMonitorConnectionAuthorize(opts ...authMonitor.Option) Option {
+	return func(o *serverOptions) {
+		o.authMonitorOptions = opts
+	}
+}
+
 // WithRegistry sets URL and dial options to reach the upstream registry, if not passed memory storage will be used.
 func WithRegistry(regURL *url.URL) Option {
 	return func(o *serverOptions) {
@@ -146,16 +155,17 @@ var _ Nsmgr = (*nsmgrServer)(nil)
 //           tokenGenerator - authorization token generator
 //			 options - a set of Nsmgr options.
 func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...Option) Nsmgr {
+	rv := &nsmgrServer{}
+
 	opts := &serverOptions{
 		authorizeServer:      authorize.NewServer(authorize.Any()),
+		authMonitorOptions:   []authMonitor.Option{authMonitor.Any()},
 		name:                 "nsmgr-" + uuid.New().String(),
 		forwarderServiceName: "forwarder",
 	}
 	for _, opt := range options {
 		opt(opts)
 	}
-
-	rv := &nsmgrServer{}
 
 	var nsRegistry = memory.NewNetworkServiceRegistryServer()
 	if opts.regURL != nil {
@@ -212,6 +222,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	rv.Endpoint = endpoint.NewServer(ctx, tokenGenerator,
 		endpoint.WithName(opts.name),
 		endpoint.WithAuthorizeServer(opts.authorizeServer),
+		endpoint.WithMonitorConnectionAuthorize(opts.authMonitorOptions...),
 		endpoint.WithAdditionalFunctionality(
 			adapters.NewClientToServer(clientinfo.NewClient()),
 			discoverforwarder.NewServer(

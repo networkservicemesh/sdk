@@ -61,14 +61,14 @@ type monitorServer struct {
 //                        networkservice.MonitorConnectionServer that can be used either standalone or in a
 //                        networkservice.MonitorConnectionServer chain
 //             chainCtx - context for lifecycle management
-func NewServer(chainCtx context.Context, monitorServerPtr *networkservice.MonitorConnectionServer) networkservice.NetworkServiceServer {
+func NewServer(chainCtx context.Context, monitorServerPtr *networkservice.MonitorConnectionServer, opts ...authMonitor.Option) networkservice.NetworkServiceServer {
 	spiffeIDConnectionMap := authMonitor.SpiffeIDConnectionMap{}
 	filters := make(map[string]*monitorFilter)
 	executor := serialize.Executor{}
 	connections := make(map[string]*networkservice.Connection)
 
 	*monitorServerPtr = nextMonitor.NewMonitorConnectionServer(
-		authMonitor.NewMonitorConnectionServer(&spiffeIDConnectionMap),
+		authMonitor.NewMonitorConnectionServer(&spiffeIDConnectionMap, opts...),
 		newMonitorConnectionServer(chainCtx, &executor, filters, connections),
 	)
 	return &monitorServer{
@@ -92,8 +92,7 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 	if err != nil {
 		return nil, err
 	}
-	spiffeID, err := getSpiffeID(ctx)
-	if err == nil {
+	if spiffeID, err := getSpiffeID(ctx); err == nil {
 		ids, _ := m.spiffeIDConnectionMap.Load(spiffeID)
 		m.spiffeIDConnectionMap.LoadOrStore(spiffeID, append(ids, conn.GetId()))
 	}
@@ -181,14 +180,18 @@ func (m *monitorServer) Send(event *networkservice.ConnectionEvent) (_ error) {
 func getSpiffeID(ctx context.Context) (string, error) {
 	p, ok := peer.FromContext(ctx)
 	var cert *x509.Certificate
-	if ok {
-		cert = opa.ParseX509Cert(p.AuthInfo)
+	if !ok {
+		return "", errors.New("fail to get peer from context")
 	}
-	spiffeID, err := x509svid.IDFromCert(cert)
-	if err == nil {
-		return spiffeID.String(), nil
+	cert = opa.ParseX509Cert(p.AuthInfo)
+	if cert != nil {
+		spiffeID, err := x509svid.IDFromCert(cert)
+		if err == nil {
+			return spiffeID.String(), nil
+		}
+		return "", errors.New("fail to get Spiffe ID from certificate")
 	}
-	return "", err
+	return "", errors.New("fail to get certificate from peer")
 }
 
 // EventConsumer - interface for monitor events sending
