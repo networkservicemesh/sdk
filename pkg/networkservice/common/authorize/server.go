@@ -21,23 +21,29 @@ package authorize
 
 import (
 	"context"
+	"crypto/x509"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
+	"github.com/spiffe/go-spiffe/v2/svid/x509svid"
 	"google.golang.org/grpc/peer"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
+	authmonitor "github.com/networkservicemesh/sdk/pkg/tools/monitor/authorize"
 )
 
 type authorizeServer struct {
 	policies policiesList
+	spiffeIDConnectionMap *authmonitor.SpiffeIDConnectionMap
+
 }
 
 // NewServer - returns a new authorization networkservicemesh.NetworkServiceServers
 // Authorize server checks left side of Path.
-func NewServer(opts ...Option) networkservice.NetworkServiceServer {
+func NewServer(spiffeIDConnectionMap *authmonitor.SpiffeIDConnectionMap, opts ...Option) networkservice.NetworkServiceServer {
 	var s = &authorizeServer{
 		policies: []Policy{
 			opa.WithTokensValidPolicy(),
@@ -45,6 +51,7 @@ func NewServer(opts ...Option) networkservice.NetworkServiceServer {
 			opa.WithTokensExpiredPolicy(),
 			opa.WithTokenChainPolicy(),
 		},
+		spiffeIDConnectionMap: spiffeIDConnectionMap,
 	}
 	for _, o := range opts {
 		o.apply(&s.policies)
@@ -53,10 +60,15 @@ func NewServer(opts ...Option) networkservice.NetworkServiceServer {
 }
 
 func (a *authorizeServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	var index = request.GetConnection().GetPath().GetIndex()
+	conn := request.GetConnection()
+	var index = conn.GetPath().GetIndex()
 	var leftSide = &networkservice.Path{
 		Index:        index,
-		PathSegments: request.GetConnection().GetPath().GetPathSegments()[:index+1],
+		PathSegments: conn.GetPath().GetPathSegments()[:index+1],
+	}
+	if spiffeID, err := getSpiffeID(ctx); err == nil {
+		ids, _ := a.spiffeIDConnectionMap.Load(spiffeID)
+		a.spiffeIDConnectionMap.LoadOrStore(spiffeID, append(ids, conn.GetId()))
 	}
 	if _, ok := peer.FromContext(ctx); ok {
 		if err := a.policies.check(ctx, leftSide); err != nil {
@@ -72,10 +84,31 @@ func (a *authorizeServer) Close(ctx context.Context, conn *networkservice.Connec
 		Index:        index,
 		PathSegments: conn.GetPath().GetPathSegments()[:index+1],
 	}
+	if spiffeID, err := getSpiffeID(ctx); err == nil {
+    	ids, _ := a.spiffeIDConnectionMap.Load(spiffeID)
+    	a.spiffeIDConnectionMap.LoadOrStore(spiffeID, append(ids, conn.GetId()))
+    }
 	if _, ok := peer.FromContext(ctx); ok {
 		if err := a.policies.check(ctx, leftSide); err != nil {
 			return nil, err
 		}
 	}
 	return next.Server(ctx).Close(ctx, conn)
+}
+
+func getSpiffeID(ctx context.Context) (string, error) {
+	p, ok := peer.FromContext(ctx)
+	var cert *x509.Certificate
+	if !ok {
+		return "", errors.New("fail to get peer from context")
+	}
+	cert = opa.ParseX509Cert(p.AuthInfo)
+	if cert != nil {
+		spiffeID, err := x509svid.IDFromCert(cert)
+		if err == nil {
+			return spiffeID.String(), nil
+		}
+		return "", errors.New("fail to get Spiffe ID from certificate")
+	}
+	return "", errors.New("fail to get certificate from peer")
 }

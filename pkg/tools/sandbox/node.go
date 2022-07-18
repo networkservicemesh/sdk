@@ -40,7 +40,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	authMonitor "github.com/networkservicemesh/sdk/pkg/tools/monitor/authorize"
+	authmonitor "github.com/networkservicemesh/sdk/pkg/tools/monitor/authorize"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -66,11 +66,12 @@ func (n *Node) NewNSMgr(
 	}
 
 	dialOptions := DialOptions(WithTokenGenerator(generatorFunc))
+	spiffeIDConnectionMap := authmonitor.SpiffeIDConnectionMap{}
 
 	options := []nsmgr.Option{
 		nsmgr.WithName(name),
-		nsmgr.WithAuthorizeServer(authorize.NewServer(authorize.Any())),
-		nsmgr.WithMonitorConnectionAuthorize(authMonitor.Any()),
+		nsmgr.WithAuthorizeServer(authorize.NewServer(&spiffeIDConnectionMap, authorize.Any())),
+		nsmgr.WithAdditionalMonitorFunctionality(authmonitor.NewMonitorConnectionServer(&spiffeIDConnectionMap, authmonitor.Any())),
 		nsmgr.WithDialOptions(dialOptions...),
 		nsmgr.WithDialTimeout(DialTimeout),
 	}

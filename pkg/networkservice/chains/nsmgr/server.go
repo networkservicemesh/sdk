@@ -58,8 +58,8 @@ import (
 	registryadapter "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
-	authMonitor "github.com/networkservicemesh/sdk/pkg/tools/monitor/authorize"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
+	authmonitor "github.com/networkservicemesh/sdk/pkg/tools/monitor/authorize" 
 )
 
 // Nsmgr - A simple combination of the Endpoint, registry.NetworkServiceRegistryServer, and registry.NetworkServiceDiscoveryServer interfaces
@@ -75,14 +75,14 @@ type nsmgrServer struct {
 }
 
 type serverOptions struct {
-	authorizeServer      networkservice.NetworkServiceServer
-	authMonitorOptions   []authMonitor.Option
-	dialOptions          []grpc.DialOption
-	dialTimeout          time.Duration
-	regURL               *url.URL
-	name                 string
-	url                  string
-	forwarderServiceName string
+	authorizeServer         networkservice.NetworkServiceServer
+	authorizeMonitorServer  networkservice.MonitorConnectionServer
+	dialOptions             []grpc.DialOption
+	dialTimeout             time.Duration
+	regURL                  *url.URL
+	name                    string
+	url                     string
+	forwarderServiceName    string
 }
 
 // Option modifies server option value
@@ -120,10 +120,10 @@ func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Op
 	}
 }
 
-// WithMonitorConnectionAuthorize sets authorization options for monitor connection chain element
-func WithMonitorConnectionAuthorize(opts ...authMonitor.Option) Option {
+// WithAdditionalMonitorFunctionality sets authorization server chain element
+func WithAdditionalMonitorFunctionality(authorizeMonitorServer networkservice.MonitorConnectionServer) Option {
 	return func(o *serverOptions) {
-		o.authMonitorOptions = opts
+		o.authorizeMonitorServer = authorizeMonitorServer
 	}
 }
 
@@ -156,10 +156,10 @@ var _ Nsmgr = (*nsmgrServer)(nil)
 //			 options - a set of Nsmgr options.
 func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...Option) Nsmgr {
 	rv := &nsmgrServer{}
-
+	spiffeIDConnectionMap := authmonitor.SpiffeIDConnectionMap{}
 	opts := &serverOptions{
-		authorizeServer:      authorize.NewServer(authorize.Any()),
-		authMonitorOptions:   []authMonitor.Option{authMonitor.Any()},
+		authorizeServer:      authorize.NewServer(&spiffeIDConnectionMap, authorize.Any()),
+		authorizeMonitorServer: authmonitor.NewMonitorConnectionServer(&spiffeIDConnectionMap, authmonitor.Any()),
 		name:                 "nsmgr-" + uuid.New().String(),
 		forwarderServiceName: "forwarder",
 	}
@@ -222,7 +222,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	rv.Endpoint = endpoint.NewServer(ctx, tokenGenerator,
 		endpoint.WithName(opts.name),
 		endpoint.WithAuthorizeServer(opts.authorizeServer),
-		endpoint.WithMonitorConnectionAuthorize(opts.authMonitorOptions...),
+		endpoint.WithAdditionalMonitorFunctionality(opts.authorizeMonitorServer),
 		endpoint.WithAdditionalFunctionality(
 			adapters.NewClientToServer(clientinfo.NewClient()),
 			discoverforwarder.NewServer(

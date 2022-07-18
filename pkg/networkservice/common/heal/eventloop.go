@@ -29,7 +29,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	"github.com/networkservicemesh/sdk/pkg/tools/monitor/next"
 )
 
 type eventLoop struct {
@@ -64,8 +63,7 @@ func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networ
 		},
 	}
 
-	mClient := next.NewMonitorConnectionClient(networkservice.NewMonitorConnectionClient(cc))
-	client, err := mClient.MonitorConnections(eventLoopCtx, selector)
+	client, err := networkservice.NewMonitorConnectionClient(cc).MonitorConnections(eventLoopCtx, selector)
 	if err != nil {
 		eventLoopCancel()
 		return nil, errors.WithStack(err)

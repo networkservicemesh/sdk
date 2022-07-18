@@ -41,7 +41,8 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
-	authMonitor "github.com/networkservicemesh/sdk/pkg/tools/monitor/authorize"
+	authmonitor "github.com/networkservicemesh/sdk/pkg/tools/monitor/authorize"
+	"github.com/networkservicemesh/sdk/pkg/tools/monitor/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -63,7 +64,8 @@ type endpoint struct {
 type serverOptions struct {
 	name                    string
 	authorizeServer         networkservice.NetworkServiceServer
-	authMonitorOptions      []authMonitor.Option
+	authorizeMonitorServer  networkservice.MonitorConnectionServer
+	authMonitorOptions      []authmonitor.Option
 	additionalFunctionality []networkservice.NetworkServiceServer
 }
 
@@ -87,10 +89,10 @@ func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Op
 	}
 }
 
-// WithMonitorConnectionAuthorize sets authorization server chain element
-func WithMonitorConnectionAuthorize(opts ...authMonitor.Option) Option {
+// WithAdditionalMonitorFunctionality sets authorization server chain element
+func WithAdditionalMonitorFunctionality(authorizeMonitorServer networkservice.MonitorConnectionServer) Option {
 	return func(o *serverOptions) {
-		o.authMonitorOptions = opts
+		o.authorizeMonitorServer = authorizeMonitorServer
 	}
 }
 
@@ -104,10 +106,11 @@ func WithAdditionalFunctionality(additionalFunctionality ...networkservice.Netwo
 // NewServer - returns a NetworkServiceMesh client as a chain of the standard Client pieces plus whatever
 func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...Option) Endpoint {
 	rv := &endpoint{}
+	spiffeIDConnectionMap := authmonitor.SpiffeIDConnectionMap{}
 	opts := &serverOptions{
 		name:               "endpoint-" + uuid.New().String(),
-		authorizeServer:    authorize.NewServer(authorize.Any()),
-		authMonitorOptions: []authMonitor.Option{authMonitor.Any()},
+		authorizeServer:    authorize.NewServer(&spiffeIDConnectionMap, authorize.Any()),
+		authMonitorOptions: []authmonitor.Option{authmonitor.Any()},
 	}
 	for _, opt := range options {
 		opt(opts)
@@ -116,6 +119,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	for _, opt := range options {
 		opt(opts)
 	}
+	monitorConnectionServer := next.NewMonitorConnectionServer(opts.authorizeMonitorServer, rv.MonitorConnectionServer)
 	rv.NetworkServiceServer = chain.NewNetworkServiceServer(
 		append([]networkservice.NetworkServiceServer{
 			updatepath.NewServer(opts.name),
@@ -124,7 +128,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			opts.authorizeServer,
 			metadata.NewServer(),
 			timeout.NewServer(ctx),
-			monitor.NewServer(ctx, &rv.MonitorConnectionServer, opts.authMonitorOptions...),
+			monitor.NewServer(ctx, &monitorConnectionServer),
 			trimpath.NewServer(),
 		}, opts.additionalFunctionality...)...)
 

@@ -22,30 +22,21 @@ package monitor
 
 import (
 	"context"
-	"crypto/x509"
-
 	"github.com/edwarnicke/serialize"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
-	"github.com/spiffe/go-spiffe/v2/svid/x509svid"
-	"google.golang.org/grpc/peer"
-
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
-	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 
-	authMonitor "github.com/networkservicemesh/sdk/pkg/tools/monitor/authorize"
-	nextMonitor "github.com/networkservicemesh/sdk/pkg/tools/monitor/next"
 )
 
 type monitorServer struct {
 	chainCtx              context.Context
-	spiffeIDConnectionMap *authMonitor.SpiffeIDConnectionMap
 	filters               map[string]*monitorFilter
 	executor              *serialize.Executor
 	connections           map[string]*networkservice.Connection
@@ -61,20 +52,15 @@ type monitorServer struct {
 //                        networkservice.MonitorConnectionServer that can be used either standalone or in a
 //                        networkservice.MonitorConnectionServer chain
 //             chainCtx - context for lifecycle management
-func NewServer(chainCtx context.Context, monitorServerPtr *networkservice.MonitorConnectionServer, opts ...authMonitor.Option) networkservice.NetworkServiceServer {
-	spiffeIDConnectionMap := authMonitor.SpiffeIDConnectionMap{}
+func NewServer(chainCtx context.Context, monitorServerPtr *networkservice.MonitorConnectionServer) networkservice.NetworkServiceServer {
 	filters := make(map[string]*monitorFilter)
 	executor := serialize.Executor{}
 	connections := make(map[string]*networkservice.Connection)
 
-	*monitorServerPtr = nextMonitor.NewMonitorConnectionServer(
-		authMonitor.NewMonitorConnectionServer(&spiffeIDConnectionMap, opts...),
-		newMonitorConnectionServer(chainCtx, &executor, filters, connections),
-	)
+	*monitorServerPtr = newMonitorConnectionServer(chainCtx, &executor, filters, connections)
 	return &monitorServer{
 		chainCtx:                chainCtx,
 		MonitorConnectionServer: *monitorServerPtr,
-		spiffeIDConnectionMap:   &spiffeIDConnectionMap,
 		filters:                 filters,
 		executor:                &executor,
 		connections:             connections,
@@ -92,10 +78,7 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 	if err != nil {
 		return nil, err
 	}
-	if spiffeID, err := getSpiffeID(ctx); err == nil {
-		ids, _ := m.spiffeIDConnectionMap.Load(spiffeID)
-		m.spiffeIDConnectionMap.LoadOrStore(spiffeID, append(ids, conn.GetId()))
-	}
+
 	_ = m.Send(&networkservice.ConnectionEvent{
 		Type:        networkservice.ConnectionEventType_UPDATE,
 		Connections: map[string]*networkservice.Connection{conn.GetId(): conn.Clone()},
@@ -122,11 +105,6 @@ func (m *monitorServer) Close(ctx context.Context, conn *networkservice.Connecti
 	// Cancel any existing eventLoop
 	if cancelEventLoop, loaded := loadAndDelete(ctx, metadata.IsClient(m)); loaded {
 		cancelEventLoop()
-	}
-	spiffeID, err := getSpiffeID(ctx)
-	if err == nil {
-		ids, _ := m.spiffeIDConnectionMap.Load(spiffeID)
-		m.spiffeIDConnectionMap.LoadOrStore(spiffeID, append(ids, conn.GetId()))
 	}
 
 	rv, err := next.Server(ctx).Close(ctx, conn)
@@ -175,23 +153,6 @@ func (m *monitorServer) Send(event *networkservice.ConnectionEvent) (_ error) {
 		}
 	})
 	return nil
-}
-
-func getSpiffeID(ctx context.Context) (string, error) {
-	p, ok := peer.FromContext(ctx)
-	var cert *x509.Certificate
-	if !ok {
-		return "", errors.New("fail to get peer from context")
-	}
-	cert = opa.ParseX509Cert(p.AuthInfo)
-	if cert != nil {
-		spiffeID, err := x509svid.IDFromCert(cert)
-		if err == nil {
-			return spiffeID.String(), nil
-		}
-		return "", errors.New("fail to get Spiffe ID from certificate")
-	}
-	return "", errors.New("fail to get certificate from peer")
 }
 
 // EventConsumer - interface for monitor events sending
