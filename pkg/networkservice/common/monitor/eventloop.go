@@ -22,8 +22,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/monitor/next"
 )
 
 type eventLoop struct {
@@ -53,8 +51,7 @@ func newEventLoop(ctx context.Context, ec EventConsumer, cc grpc.ClientConnInter
 		},
 	}
 
-	client, err := next.NewMonitorConnectionClient(
-		networkservice.NewMonitorConnectionClient(cc)).MonitorConnections(eventLoopCtx, selector)
+	client, err := networkservice.NewMonitorConnectionClient(cc).MonitorConnections(eventLoopCtx, selector)
 	if err != nil {
 		eventLoopCancel()
 		return nil, errors.WithStack(err)

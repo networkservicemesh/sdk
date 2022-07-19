@@ -220,7 +220,7 @@ func TestAuthorize_ShouldCorrectlyWorkWithHeal(t *testing.T) {
 	spiffeIDConnectionMap := spire.SpiffeIDConnectionMap{}
 	spiffeIDConnectionMap.Store(spiffeID1, []string{"conn1"})
 	err = authorize.NewMonitorConnectionServer(
-		authorize.Any()).MonitorConnections(
+		authorize.WithSpiffeIDConnectionMap(&spiffeIDConnectionMap)).MonitorConnections(
 		selector, &testEmptyMCMCServer{context: ctx})
 	require.NoError(t, err)
 }

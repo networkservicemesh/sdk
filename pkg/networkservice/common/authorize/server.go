@@ -88,9 +88,9 @@ func (a *authorizeServer) Close(ctx context.Context, conn *networkservice.Connec
 		PathSegments: conn.GetPath().GetPathSegments()[:index+1],
 	}
 	if spiffeID, err := getSpiffeID(ctx); err == nil {
-    	ids, _ := a.spiffeIDConnectionMap.Load(spiffeID)
-    	a.spiffeIDConnectionMap.LoadOrStore(spiffeID, append(ids, conn.GetId()))
-    }
+		ids, _ := a.spiffeIDConnectionMap.Load(spiffeID)
+		a.spiffeIDConnectionMap.LoadOrStore(spiffeID, append(ids, conn.GetId()))
+	}
 	if _, ok := peer.FromContext(ctx); ok {
 		if err := a.policies.check(ctx, leftSide); err != nil {
 			return nil, err

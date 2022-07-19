@@ -120,8 +120,11 @@ func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Op
 	}
 }
 
-// WithAuthorizeMonitorServer sets authorization server chain element
+// WithAuthorizeMonitorServer sets authorization MonitorConnectionServer chain element
 func WithAuthorizeMonitorServer(authorizeMonitorServer networkservice.MonitorConnectionServer) Option {
+	if authorizeMonitorServer == nil {
+		panic("authorizeMonitorServer cannot be nil")
+	}
 	return func(o *serverOptions) {
 		o.authorizeMonitorServer = authorizeMonitorServer
 	}
@@ -155,7 +158,6 @@ var _ Nsmgr = (*nsmgrServer)(nil)
 //           tokenGenerator - authorization token generator
 //			 options - a set of Nsmgr options.
 func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...Option) Nsmgr {
-	rv := &nsmgrServer{}
 	opts := &serverOptions{
 		authorizeServer:        authorize.NewServer(authorize.Any()),
 		authorizeMonitorServer: authmonitor.NewMonitorConnectionServer(authmonitor.Any()),
@@ -166,6 +168,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		opt(opts)
 	}
 
+	rv := &nsmgrServer{}
 	var nsRegistry = memory.NewNetworkServiceRegistryServer()
 	if opts.regURL != nil {
 		// Use remote registry

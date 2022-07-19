@@ -38,7 +38,7 @@ type authorizeMonitorConnectionsServer struct {
 // NewMonitorConnectionServer - returns a new authorization networkservicemesh.MonitorConnectionServer
 func NewMonitorConnectionServer(opts ...Option) networkservice.MonitorConnectionServer {
 	o := &options{
-		policies: policiesList{opa.WithServiceOwnConnectionPolicy()},
+		policies:              policiesList{opa.WithServiceOwnConnectionPolicy()},
 		spiffeIDConnectionMap: &spire.SpiffeIDConnectionMap{},
 	}
 	for _, opt := range opts {

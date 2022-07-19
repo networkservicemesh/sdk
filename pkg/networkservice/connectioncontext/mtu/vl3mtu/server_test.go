@@ -18,17 +18,12 @@ package vl3mtu_test
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
-	"encoding/pem"
 
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/peer"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
@@ -39,44 +34,15 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
-const (
-	// certPem is a X.509 certificate with spiffeId = "spiffe://test.com/workload"
-	certPem = `-----BEGIN CERTIFICATE-----
-MIIBvjCCAWWgAwIBAgIQbnFakUhzr52nHoLGltZDyDAKBggqhkjOPQQDAjAdMQsw
-CQYDVQQGEwJVUzEOMAwGA1UEChMFU1BJUkUwHhcNMjAwMTAxMDEwMTAxWhcNMzAw
-MTAxMDEwMTAxWjAdMQswCQYDVQQGEwJVUzEOMAwGA1UEChMFU1BJUkUwWTATBgcq
-hkjOPQIBBggqhkjOPQMBBwNCAASlFpbASv+NIyVdFwTp22JR5gx7D6LJ01Z8Wz0S
-ZiBneWRAcYUBBQY6zKwr/RQtCDxUcFfFyq4zEfUD29a5Phnoo4GGMIGDMA4GA1Ud
-DwEB/wQEAwIDqDAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwDAYDVR0T
-AQH/BAIwADAdBgNVHQ4EFgQUJJpYlJa1eNEcks+zJcwKClopSAowJQYDVR0RBB4w
-HIYac3BpZmZlOi8vdGVzdC5jb20vd29ya2xvYWQwCgYIKoZIzj0EAwIDRwAwRAIg
-Dk6tlURSF8ULhNbnyUxFQ33rDic2dX8jOIstV2dWErwCIDRH2yw0swTcUMQWYgHy
-aMp+T747AZGjOEfwHb9/w+7m
------END CERTIFICATE-----
-`
-)
-
-func getContextWithTLSCert(t *testing.T) (context.Context, context.CancelFunc) {
-	block, _ := pem.Decode([]byte(certPem))
-	x509cert, err := x509.ParseCertificate(block.Bytes)
-	require.NoError(t, err)
-
-	authInfo := &credentials.TLSInfo{
-		State: tls.ConnectionState{
-			PeerCertificates: []*x509.Certificate{x509cert},
-		},
-	}
-	return context.WithTimeout(peer.NewContext(context.Background(), &peer.Peer{AuthInfo: authInfo}), time.Second)
-}
-
 func Test_vl3MtuServer(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	// Put peer Certificate to context
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 
 	// Specify pathSegments to test
 	segmentNames := []string{"local-nsm", "remote-nsm"}
-	ctx, cancel := getContextWithTLSCert(t)
-	defer cancel()
+
 	// Create monitorServer
 	var monitorServer networkservice.MonitorConnectionServer
 	server := chain.NewNetworkServiceServer(
@@ -100,6 +66,7 @@ func Test_vl3MtuServer(t *testing.T) {
 			PathSegments: []*networkservice.PathSegment{{Name: segmentName}},
 		})
 		require.NoError(t, monitorErr)
+
 		event, err := receivers[segmentName].Recv()
 		require.NoError(t, err)
 

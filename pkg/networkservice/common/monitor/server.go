@@ -22,9 +22,11 @@ package monitor
 
 import (
 	"context"
+
 	"github.com/edwarnicke/serialize"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/postpone"

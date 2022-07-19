@@ -65,7 +65,6 @@ type serverOptions struct {
 	name                    string
 	authorizeServer         networkservice.NetworkServiceServer
 	authorizeMonitorServer  networkservice.MonitorConnectionServer
-	authMonitorOptions      []authmonitor.Option
 	additionalFunctionality []networkservice.NetworkServiceServer
 }
 
@@ -89,8 +88,11 @@ func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Op
 	}
 }
 
-// WithAuthorizeMonitorServer sets authorization server chain element
+// WithAuthorizeMonitorServer sets authorization MonitorConnectionServer chain element
 func WithAuthorizeMonitorServer(authorizeMonitorServer networkservice.MonitorConnectionServer) Option {
+	if authorizeMonitorServer == nil {
+		panic("authorizeMonitorServer cannot be nil")
+	}
 	return func(o *serverOptions) {
 		o.authorizeMonitorServer = authorizeMonitorServer
 	}
@@ -105,18 +107,17 @@ func WithAdditionalFunctionality(additionalFunctionality ...networkservice.Netwo
 
 // NewServer - returns a NetworkServiceMesh client as a chain of the standard Client pieces plus whatever
 func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...Option) Endpoint {
-	rv := &endpoint{}
 	opts := &serverOptions{
 		name:                   "endpoint-" + uuid.New().String(),
-		authorizeMonitorServer: authmonitor.NewMonitorConnectionServer(authmonitor.Any()),
 		authorizeServer:        authorize.NewServer(authorize.Any()),
-		authMonitorOptions:     []authmonitor.Option{authmonitor.Any()},
+		authorizeMonitorServer: authmonitor.NewMonitorConnectionServer(authmonitor.Any()),
 	}
 	for _, opt := range options {
 		opt(opts)
 	}
 	var mcsPtr networkservice.MonitorConnectionServer
 
+	rv := &endpoint{}
 	rv.NetworkServiceServer = chain.NewNetworkServiceServer(
 		append([]networkservice.NetworkServiceServer{
 			updatepath.NewServer(opts.name),
