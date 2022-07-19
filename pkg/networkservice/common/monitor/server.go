@@ -32,14 +32,13 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-
 )
 
 type monitorServer struct {
-	chainCtx              context.Context
-	filters               map[string]*monitorFilter
-	executor              *serialize.Executor
-	connections           map[string]*networkservice.Connection
+	chainCtx    context.Context
+	filters     map[string]*monitorFilter
+	executor    *serialize.Executor
+	connections map[string]*networkservice.Connection
 	networkservice.MonitorConnectionServer
 }
 

@@ -66,12 +66,11 @@ func (n *Node) NewNSMgr(
 	}
 
 	dialOptions := DialOptions(WithTokenGenerator(generatorFunc))
-	spiffeIDConnectionMap := authmonitor.SpiffeIDConnectionMap{}
 
 	options := []nsmgr.Option{
 		nsmgr.WithName(name),
-		nsmgr.WithAuthorizeServer(authorize.NewServer(&spiffeIDConnectionMap, authorize.Any())),
-		nsmgr.WithAdditionalMonitorFunctionality(authmonitor.NewMonitorConnectionServer(&spiffeIDConnectionMap, authmonitor.Any())),
+		nsmgr.WithAuthorizeServer(authorize.NewServer(authorize.Any())),
+		nsmgr.WithAuthorizeMonitorServer(authmonitor.NewMonitorConnectionServer(authmonitor.Any())),
 		nsmgr.WithDialOptions(dialOptions...),
 		nsmgr.WithDialTimeout(DialTimeout),
 	}

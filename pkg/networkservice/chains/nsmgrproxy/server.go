@@ -50,8 +50,8 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/fs"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	"github.com/networkservicemesh/sdk/pkg/tools/token"
 	authmonitor "github.com/networkservicemesh/sdk/pkg/tools/monitor/authorize"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 func (n *nsmgrProxyServer) Register(s *grpc.Server) {
@@ -119,8 +119,8 @@ func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Op
 	}
 }
 
-// WithAdditionalMonitorFunctionality sets authorization server chain element
-func WithAdditionalMonitorFunctionality(authorizeMonitorServer networkservice.MonitorConnectionServer) Option {
+// WithAuthorizeMonitorServer sets authorization server chain element
+func WithAuthorizeMonitorServer(authorizeMonitorServer networkservice.MonitorConnectionServer) Option {
 	return func(o *serverOptions) {
 		o.authorizeMonitorServer = authorizeMonitorServer
 	}
@@ -157,13 +157,12 @@ func WithDialTimeout(dialTimeout time.Duration) Option {
 // NewServer creates new proxy NSMgr
 func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator token.GeneratorFunc, options ...Option) nsmgr.Nsmgr {
 	rv := new(nsmgrProxyServer)
-	spiffeIDConnectionMap := authmonitor.SpiffeIDConnectionMap{}
 	opts := &serverOptions{
-		name:               "nsmgr-proxy-" + uuid.New().String(),
-		authorizeServer:      authorize.NewServer(&spiffeIDConnectionMap, authorize.Any()),
-		authorizeMonitorServer: authmonitor.NewMonitorConnectionServer(&spiffeIDConnectionMap, authmonitor.Any()),
-		listenOn:           &url.URL{Scheme: "unix", Host: "listen.on"},
-		mapipFilePath:      "map-ip.yaml",
+		name:                   "nsmgr-proxy-" + uuid.New().String(),
+		authorizeServer:        authorize.NewServer(authorize.Any()),
+		authorizeMonitorServer: authmonitor.NewMonitorConnectionServer(authmonitor.Any()),
+		listenOn:               &url.URL{Scheme: "unix", Host: "listen.on"},
+		mapipFilePath:          "map-ip.yaml",
 	}
 	for _, opt := range options {
 		opt(opts)
@@ -195,7 +194,7 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 	rv.Endpoint = endpoint.NewServer(ctx, tokenGenerator,
 		endpoint.WithName(opts.name),
 		endpoint.WithAuthorizeServer(opts.authorizeServer),
-		endpoint.WithAdditionalMonitorFunctionality(opts.authorizeMonitorServer),
+		endpoint.WithAuthorizeMonitorServer(opts.authorizeMonitorServer),
 		endpoint.WithAdditionalFunctionality(
 			interdomainbypass.NewServer(&interdomainBypassNSEServer, opts.listenOn),
 			discover.NewServer(nsClient, nseClient),

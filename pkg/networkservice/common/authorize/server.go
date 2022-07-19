@@ -1,6 +1,6 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2020-2021 Cisco Systems, Inc.
+// Copyright (c) 2020-2022 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -32,29 +32,32 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
-	authmonitor "github.com/networkservicemesh/sdk/pkg/tools/monitor/authorize"
+	"github.com/networkservicemesh/sdk/pkg/tools/spire"
 )
 
 type authorizeServer struct {
-	policies policiesList
-	spiffeIDConnectionMap *authmonitor.SpiffeIDConnectionMap
-
+	policies              policiesList
+	spiffeIDConnectionMap *spire.SpiffeIDConnectionMap
 }
 
 // NewServer - returns a new authorization networkservicemesh.NetworkServiceServers
 // Authorize server checks left side of Path.
-func NewServer(spiffeIDConnectionMap *authmonitor.SpiffeIDConnectionMap, opts ...Option) networkservice.NetworkServiceServer {
-	var s = &authorizeServer{
-		policies: []Policy{
+func NewServer(opts ...Option) networkservice.NetworkServiceServer {
+	o := &options{
+		policies: policiesList{
 			opa.WithTokensValidPolicy(),
 			opa.WithPrevTokenSignedPolicy(),
 			opa.WithTokensExpiredPolicy(),
 			opa.WithTokenChainPolicy(),
 		},
-		spiffeIDConnectionMap: spiffeIDConnectionMap,
+		spiffeIDConnectionMap: &spire.SpiffeIDConnectionMap{},
 	}
-	for _, o := range opts {
-		o.apply(&s.policies)
+	for _, opt := range opts {
+		opt(o)
+	}
+	var s = &authorizeServer{
+		policies:              o.policies,
+		spiffeIDConnectionMap: o.spiffeIDConnectionMap,
 	}
 	return s
 }
@@ -66,14 +69,14 @@ func (a *authorizeServer) Request(ctx context.Context, request *networkservice.N
 		Index:        index,
 		PathSegments: conn.GetPath().GetPathSegments()[:index+1],
 	}
-	if spiffeID, err := getSpiffeID(ctx); err == nil {
-		ids, _ := a.spiffeIDConnectionMap.Load(spiffeID)
-		a.spiffeIDConnectionMap.LoadOrStore(spiffeID, append(ids, conn.GetId()))
-	}
 	if _, ok := peer.FromContext(ctx); ok {
 		if err := a.policies.check(ctx, leftSide); err != nil {
 			return nil, err
 		}
+	}
+	if spiffeID, err := getSpiffeID(ctx); err == nil {
+		ids, _ := a.spiffeIDConnectionMap.Load(spiffeID)
+		a.spiffeIDConnectionMap.LoadOrStore(spiffeID, append(ids, conn.GetId()))
 	}
 	return next.Server(ctx).Request(ctx, request)
 }

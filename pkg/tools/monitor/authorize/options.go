@@ -1,5 +1,7 @@
 // Copyright (c) 2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,10 +18,15 @@
 
 package authorize
 
-// Option is authorization option for server
-type Option interface {
-	apply(*policiesList)
+import "github.com/networkservicemesh/sdk/pkg/tools/spire"
+
+type options struct {
+	policies              policiesList
+	spiffeIDConnectionMap *spire.SpiffeIDConnectionMap
 }
+
+// Option is authorization option for monitor connection server
+type Option func(*options)
 
 // Any authorizes any call of request/close
 func Any() Option {
@@ -28,13 +35,14 @@ func Any() Option {
 
 // WithPolicies sets custom policies
 func WithPolicies(p ...Policy) Option {
-	return optionFunc(func(l *policiesList) {
-		*l = p
-	})
+	return func(o *options) {
+		o.policies = p
+	}
 }
 
-type optionFunc func(*policiesList)
-
-func (f optionFunc) apply(a *policiesList) {
-	f(a)
+// WithSpiffeIDConnectionMap sets custom policies
+func WithSpiffeIDConnectionMap(s *spire.SpiffeIDConnectionMap) Option {
+	return func(o *options) {
+		o.spiffeIDConnectionMap = s
+	}
 }

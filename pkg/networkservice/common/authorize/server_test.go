@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
+	"github.com/networkservicemesh/sdk/pkg/tools/spire"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
@@ -30,7 +31,6 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
-	authmonitor "github.com/networkservicemesh/sdk/pkg/tools/monitor/authorize" 
 )
 
 func testPolicy() authorize.Policy {
@@ -74,12 +74,11 @@ func TestAuthorize_ShouldCorrectlyWorkWithHeal(t *testing.T) {
 	}
 
 	// simulate heal request
-	spiffeIDConnectionMap := authmonitor.SpiffeIDConnectionMap{}
-	conn, err := authorize.NewServer(&spiffeIDConnectionMap).Request(context.Background(), r)
+	conn, err := authorize.NewServer().Request(context.Background(), r)
 	require.NoError(t, err)
 
 	// simulate timeout close
-	_, err = authorize.NewServer(&spiffeIDConnectionMap).Close(context.Background(), conn)
+	_, err = authorize.NewServer().Close(context.Background(), conn)
 	require.NoError(t, err)
 }
 
@@ -105,11 +104,11 @@ func TestAuthzEndpoint(t *testing.T) {
 			denied:  true,
 		},
 	}
-	spiffeIDConnectionMap := authmonitor.SpiffeIDConnectionMap{}
+	spiffeIDConnectionMap := spire.SpiffeIDConnectionMap{}
 	for i := range suits {
 		s := suits[i]
 		t.Run(s.name, func(t *testing.T) {
-			srv := authorize.NewServer(&spiffeIDConnectionMap, authorize.WithPolicies(s.policy))
+			srv := authorize.NewServer(authorize.WithSpiffeIDConnectionMap(&spiffeIDConnectionMap), authorize.WithPolicies(s.policy))
 			checkResult := func(err error) {
 				if !s.denied {
 					require.Nil(t, err, "request expected to be not denied: ")

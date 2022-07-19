@@ -32,6 +32,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/tools/monitor/authorize"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
+	"github.com/networkservicemesh/sdk/pkg/tools/spire"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
@@ -174,14 +175,14 @@ func TestAuthzEndpoint(t *testing.T) {
 				baseCtx, err = getContextWithTLSCert()
 				require.NoError(t, err)
 			}
-			spiffeIDConnectionMap := authorize.SpiffeIDConnectionMap{}
+			spiffeIDConnectionMap := spire.SpiffeIDConnectionMap{}
 			for k, v := range s.spiffeIDConnMap {
 				spiffeIDConnectionMap.Store(k, v)
 			}
 			ctx, cancel := context.WithTimeout(baseCtx, time.Second)
 			defer cancel()
 			srv := authorize.NewMonitorConnectionServer(
-				&spiffeIDConnectionMap, authorize.WithPolicies(testPolicy()))
+				authorize.WithSpiffeIDConnectionMap(&spiffeIDConnectionMap), authorize.WithPolicies(testPolicy()))
 			checkResult := func(err error) {
 				if !s.denied {
 					require.Nil(t, err, "monitorConnections expected to be not denied: ")
@@ -207,15 +208,19 @@ func TestAuthorize_ShouldCorrectlyWorkWithHeal(t *testing.T) {
 	ctx, cancel := context.WithTimeout(peerCtx, time.Second)
 	defer cancel()
 
-	spiffeIDConnectionMap := authorize.SpiffeIDConnectionMap{}
-	spiffeIDConnectionMap.Store(spiffeID1, []string{"conn1"})
-
 	selector := &networkservice.MonitorScopeSelector{
 		PathSegments: []*networkservice.PathSegment{{Id: "conn1"}},
 	}
 	// simulate heal request
 	err = authorize.NewMonitorConnectionServer(
-		&spiffeIDConnectionMap).MonitorConnections(
+		authorize.Any()).MonitorConnections(
+		selector, &testEmptyMCMCServer{context: ctx})
+	require.NoError(t, err)
+
+	spiffeIDConnectionMap := spire.SpiffeIDConnectionMap{}
+	spiffeIDConnectionMap.Store(spiffeID1, []string{"conn1"})
+	err = authorize.NewMonitorConnectionServer(
+		authorize.Any()).MonitorConnections(
 		selector, &testEmptyMCMCServer{context: ctx})
 	require.NoError(t, err)
 }

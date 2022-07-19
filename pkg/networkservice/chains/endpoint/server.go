@@ -89,8 +89,8 @@ func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Op
 	}
 }
 
-// WithAdditionalMonitorFunctionality sets authorization server chain element
-func WithAdditionalMonitorFunctionality(authorizeMonitorServer networkservice.MonitorConnectionServer) Option {
+// WithAuthorizeMonitorServer sets authorization server chain element
+func WithAuthorizeMonitorServer(authorizeMonitorServer networkservice.MonitorConnectionServer) Option {
 	return func(o *serverOptions) {
 		o.authorizeMonitorServer = authorizeMonitorServer
 	}
@@ -106,20 +106,17 @@ func WithAdditionalFunctionality(additionalFunctionality ...networkservice.Netwo
 // NewServer - returns a NetworkServiceMesh client as a chain of the standard Client pieces plus whatever
 func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...Option) Endpoint {
 	rv := &endpoint{}
-	spiffeIDConnectionMap := authmonitor.SpiffeIDConnectionMap{}
 	opts := &serverOptions{
-		name:               "endpoint-" + uuid.New().String(),
-		authorizeServer:    authorize.NewServer(&spiffeIDConnectionMap, authorize.Any()),
-		authMonitorOptions: []authmonitor.Option{authmonitor.Any()},
+		name:                   "endpoint-" + uuid.New().String(),
+		authorizeMonitorServer: authmonitor.NewMonitorConnectionServer(authmonitor.Any()),
+		authorizeServer:        authorize.NewServer(authorize.Any()),
+		authMonitorOptions:     []authmonitor.Option{authmonitor.Any()},
 	}
 	for _, opt := range options {
 		opt(opts)
 	}
+	var mcsPtr networkservice.MonitorConnectionServer
 
-	for _, opt := range options {
-		opt(opts)
-	}
-	monitorConnectionServer := next.NewMonitorConnectionServer(opts.authorizeMonitorServer, rv.MonitorConnectionServer)
 	rv.NetworkServiceServer = chain.NewNetworkServiceServer(
 		append([]networkservice.NetworkServiceServer{
 			updatepath.NewServer(opts.name),
@@ -128,10 +125,10 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			opts.authorizeServer,
 			metadata.NewServer(),
 			timeout.NewServer(ctx),
-			monitor.NewServer(ctx, &monitorConnectionServer),
+			monitor.NewServer(ctx, &mcsPtr),
 			trimpath.NewServer(),
 		}, opts.additionalFunctionality...)...)
-
+	rv.MonitorConnectionServer = next.NewMonitorConnectionServer(opts.authorizeMonitorServer, mcsPtr)
 	return rv
 }
 

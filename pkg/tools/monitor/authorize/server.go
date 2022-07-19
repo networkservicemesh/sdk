@@ -27,23 +27,26 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/tools/monitor/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
+	"github.com/networkservicemesh/sdk/pkg/tools/spire"
 )
 
 type authorizeMonitorConnectionsServer struct {
 	policies              policiesList
-	spiffeIDConnectionMap *SpiffeIDConnectionMap
+	spiffeIDConnectionMap *spire.SpiffeIDConnectionMap
 }
 
 // NewMonitorConnectionServer - returns a new authorization networkservicemesh.MonitorConnectionServer
-func NewMonitorConnectionServer(spiffeIDConnectionMap *SpiffeIDConnectionMap, opts ...Option) networkservice.MonitorConnectionServer {
-	var s = &authorizeMonitorConnectionsServer{
-		policies: []Policy{
-			opa.WithServiceOwnConnectionPolicy(),
-		},
-		spiffeIDConnectionMap: spiffeIDConnectionMap,
+func NewMonitorConnectionServer(opts ...Option) networkservice.MonitorConnectionServer {
+	o := &options{
+		policies: policiesList{opa.WithServiceOwnConnectionPolicy()},
+		spiffeIDConnectionMap: &spire.SpiffeIDConnectionMap{},
 	}
-	for _, o := range opts {
-		o.apply(&s.policies)
+	for _, opt := range opts {
+		opt(o)
+	}
+	var s = &authorizeMonitorConnectionsServer{
+		policies:              o.policies,
+		spiffeIDConnectionMap: o.spiffeIDConnectionMap,
 	}
 	return s
 }
