@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package replacelabels sets connection labels
-package replacelabels
+// Package replacensename replaces NetworkServiceEndpointName if it was discovered before
+package replacensename
 
 import (
 	"context"
@@ -28,31 +28,29 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type replaceLabelsClient struct {
-	labels map[string]string
+type replaceNSEClient struct{}
+
+// NewClient creates new instance of NetworkServiceClient chain element, which replaces NetworkServiceEndpointName in the connection
+func NewClient() networkservice.NetworkServiceClient {
+	return &replaceNSEClient{}
 }
 
-// NewClient creates new instance of NetworkServiceClient chain element, which replaces labels in the connection
-func NewClient(labels map[string]string) networkservice.NetworkServiceClient {
-	return &replaceLabelsClient{
-		labels: labels,
-	}
-}
-
-func (s *replaceLabelsClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
-	prevConnLabels := request.Connection.Labels
-	request.Connection.Labels = s.labels
+func (s *replaceNSEClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
+	prevNseName := request.Connection.NetworkServiceEndpointName
+	request.Connection.NetworkServiceEndpointName, _ = load(ctx)
 
 	conn, err = next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
 		return nil, err
 	}
-	conn.Labels = prevConnLabels
+
+	store(ctx, conn.NetworkServiceEndpointName)
+	conn.NetworkServiceEndpointName = prevNseName
 
 	return conn, nil
 }
 
-func (s *replaceLabelsClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	conn.Labels = s.labels
+func (s *replaceNSEClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	conn.NetworkServiceEndpointName, _ = loadAndDelete(ctx)
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
