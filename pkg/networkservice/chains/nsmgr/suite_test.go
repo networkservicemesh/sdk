@@ -42,8 +42,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanismtranslation"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/replacelabels"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/replacensename"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/passthrough"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
@@ -795,8 +794,7 @@ func additionalFunctionalityChain(ctx context.Context, clientURL *url.URL, clien
 					client.WithName(fmt.Sprintf("endpoint-client-%v", clientName)),
 					client.WithAdditionalFunctionality(
 						mechanismtranslation.NewClient(),
-						replacelabels.NewClient(labels),
-						replacensename.NewClient(),
+						passthrough.NewClient(labels),
 						kernel.NewClient(),
 					),
 					client.WithDialOptions(sandbox.DialOptions()...),
