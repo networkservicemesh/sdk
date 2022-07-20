@@ -43,6 +43,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/metrics"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry"
+	registryauthorize "github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
 	registryclientinfo "github.com/networkservicemesh/sdk/pkg/registry/common/clientinfo"
@@ -214,6 +215,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 
 	var nseRegistry = chain.NewNetworkServiceEndpointRegistryServer(
 		begin.NewNetworkServiceEndpointRegistryServer(),
+		registryauthorize.NewNetworkServiceEndpointRegistryServer(),
 		registryclientinfo.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
 		registryrecvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
