@@ -44,7 +44,7 @@ func (h *dnsConfigsHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter,
 		for _, conf := range value {
 			ips := make([]url.URL, len(conf.DnsServerIps))
 			for i, ip := range conf.DnsServerIps {
-				ips[i] = url.URL{Scheme: "tcp", Host: ip}
+				ips[i] = url.URL{Scheme: "udp", Host: ip}
 			}
 
 			dnsIPs = append(dnsIPs, ips...)

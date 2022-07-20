@@ -39,7 +39,7 @@ func (h *dnsCacheHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m
 		if validateMsg(v) {
 			v.Id = m.Id
 			if err := rw.WriteMsg(v); err != nil {
-				log.FromContext(ctx).Warnf("got an error during write the message: %v", err.Error())
+				log.FromContext(ctx).WithField("dnsCacheHandler", "ServeDNS").Warnf("got an error during write the message: %v", err.Error())
 				dns.HandleFailed(rw, v)
 				return
 			}
