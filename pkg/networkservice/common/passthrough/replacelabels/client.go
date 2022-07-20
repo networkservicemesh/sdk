@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,45 +31,30 @@ import (
 )
 
 type replaceLabelsClient struct {
-	labels        map[string]string
-	oldConnLabels map[string]string
-	oldNseName    string
-}
-
-func (s *replaceLabelsClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
-	s.oldConnLabels = request.Connection.Labels
-	s.oldNseName = request.Connection.NetworkServiceEndpointName
-
-	request.Connection.Labels = s.labels
-	request.Connection.NetworkServiceEndpointName = ""
-
-	conn, err = next.Client(ctx).Request(ctx, request, opts...)
-	if err != nil {
-		return nil, err
-	}
-
-	conn.Labels = s.oldConnLabels
-	conn.NetworkServiceEndpointName = s.oldNseName
-
-	return conn, nil
-}
-
-func (s *replaceLabelsClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	s.oldConnLabels = conn.Labels
-	s.oldNseName = conn.NetworkServiceEndpointName
-
-	rv, err := next.Client(ctx).Close(ctx, conn, opts...)
-
-	conn.Labels = s.oldConnLabels
-	conn.NetworkServiceEndpointName = s.oldNseName
-
-	return rv, err
+	labels map[string]string
 }
 
 // NewClient creates new instance of NetworkServiceClient chain element, which replaces labels in the connection
 func NewClient(labels map[string]string) networkservice.NetworkServiceClient {
 	return &replaceLabelsClient{
-		labels:        labels,
-		oldConnLabels: make(map[string]string),
+		labels: labels,
 	}
+}
+
+func (s *replaceLabelsClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
+	prevConnLabels := request.Connection.Labels
+	request.Connection.Labels = s.labels
+
+	conn, err = next.Client(ctx).Request(ctx, request, opts...)
+	if err != nil {
+		return nil, err
+	}
+	conn.Labels = prevConnLabels
+
+	return conn, nil
+}
+
+func (s *replaceLabelsClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	conn.Labels = s.labels
+	return next.Client(ctx).Close(ctx, conn, opts...)
 }
