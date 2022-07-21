@@ -21,8 +21,6 @@ import (
 	"testing"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
-	"github.com/networkservicemesh/sdk/pkg/tools/spire"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
@@ -104,11 +102,10 @@ func TestAuthzEndpoint(t *testing.T) {
 			denied:  true,
 		},
 	}
-	spiffeIDConnectionMap := spire.SpiffeIDConnectionMap{}
 	for i := range suits {
 		s := suits[i]
 		t.Run(s.name, func(t *testing.T) {
-			srv := authorize.NewServer(authorize.WithSpiffeIDConnectionMap(&spiffeIDConnectionMap), authorize.WithPolicies(s.policy))
+			srv := authorize.NewServer(authorize.WithPolicies(s.policy))
 			checkResult := func(err error) {
 				if !s.denied {
 					require.Nil(t, err, "request expected to be not denied: ")

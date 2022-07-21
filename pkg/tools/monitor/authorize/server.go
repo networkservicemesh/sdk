@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Doc.ai and/or its affiliates.
+// Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -72,8 +72,15 @@ func (a *authorizeMonitorConnectionsServer) MonitorConnections(in *networkservic
 	}
 	simpleMap := make(map[string][]string)
 	a.spiffeIDConnectionMap.Range(
-		func(k string, v []string) bool {
-			simpleMap[k] = v
+		func(sid string, connIds spire.ConnectionMap) bool {
+			connIds.Range(
+				func(connId string, _ bool) bool {
+					ids := simpleMap[sid]
+					ids = append(ids, connId)
+					simpleMap[sid] = ids
+					return true
+				},
+			)
 			return true
 		},
 	)
@@ -83,7 +90,10 @@ func (a *authorizeMonitorConnectionsServer) MonitorConnections(in *networkservic
 		SpiffeIDConnectionMap: simpleMap,
 		PathSegments:          in.PathSegments,
 	}
-
+	var seg []string
+	for _, v := range in.PathSegments{
+		seg = append(seg, v.GetId())
+	}
 	if err := a.policies.check(ctx, input); err != nil {
 		return err
 	}

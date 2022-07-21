@@ -74,9 +74,19 @@ func (a *authorizeServer) Request(ctx context.Context, request *networkservice.N
 			return nil, err
 		}
 	}
+	
 	if spiffeID, err := getSpiffeID(ctx); err == nil {
-		ids, _ := a.spiffeIDConnectionMap.Load(spiffeID)
-		a.spiffeIDConnectionMap.LoadOrStore(spiffeID, append(ids, conn.GetId()))
+		connID := conn.GetPath().GetPathSegments()[index-1].GetId()
+		ids, ok := a.spiffeIDConnectionMap.Load(spiffeID)
+		if !ok {
+			ids = spire.ConnectionMap{}
+			ids.Store(connID, true)
+		}else {
+			if present, ok := ids.Load(connID); !present && !ok {
+				ids.Store(connID, true)
+			}
+		}
+		a.spiffeIDConnectionMap.Store(spiffeID, ids)
 	}
 	return next.Server(ctx).Request(ctx, request)
 }
@@ -88,8 +98,14 @@ func (a *authorizeServer) Close(ctx context.Context, conn *networkservice.Connec
 		PathSegments: conn.GetPath().GetPathSegments()[:index+1],
 	}
 	if spiffeID, err := getSpiffeID(ctx); err == nil {
-		ids, _ := a.spiffeIDConnectionMap.Load(spiffeID)
-		a.spiffeIDConnectionMap.LoadOrStore(spiffeID, append(ids, conn.GetId()))
+		connID := conn.GetPath().GetPathSegments()[index-1].GetId()
+		ids, ok := a.spiffeIDConnectionMap.Load(spiffeID)
+		if ok {
+			if present, ok := ids.Load(connID); present && ok {
+				ids.Delete(connID)
+			}
+		}
+		a.spiffeIDConnectionMap.Store(spiffeID, ids)
 	}
 	if _, ok := peer.FromContext(ctx); ok {
 		if err := a.policies.check(ctx, leftSide); err != nil {

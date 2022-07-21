@@ -18,17 +18,12 @@ package monitor_test
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
-	"encoding/pem"
 	"testing"
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/peer"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
@@ -37,39 +32,12 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 )
 
-const (
-	// certPem is a X.509 certificate with spiffeId = "spiffe://test.com/workload"
-	certPem = `-----BEGIN CERTIFICATE-----
-MIIBvjCCAWWgAwIBAgIQbnFakUhzr52nHoLGltZDyDAKBggqhkjOPQQDAjAdMQsw
-CQYDVQQGEwJVUzEOMAwGA1UEChMFU1BJUkUwHhcNMjAwMTAxMDEwMTAxWhcNMzAw
-MTAxMDEwMTAxWjAdMQswCQYDVQQGEwJVUzEOMAwGA1UEChMFU1BJUkUwWTATBgcq
-hkjOPQIBBggqhkjOPQMBBwNCAASlFpbASv+NIyVdFwTp22JR5gx7D6LJ01Z8Wz0S
-ZiBneWRAcYUBBQY6zKwr/RQtCDxUcFfFyq4zEfUD29a5Phnoo4GGMIGDMA4GA1Ud
-DwEB/wQEAwIDqDAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwDAYDVR0T
-AQH/BAIwADAdBgNVHQ4EFgQUJJpYlJa1eNEcks+zJcwKClopSAowJQYDVR0RBB4w
-HIYac3BpZmZlOi8vdGVzdC5jb20vd29ya2xvYWQwCgYIKoZIzj0EAwIDRwAwRAIg
-Dk6tlURSF8ULhNbnyUxFQ33rDic2dX8jOIstV2dWErwCIDRH2yw0swTcUMQWYgHy
-aMp+T747AZGjOEfwHb9/w+7m
------END CERTIFICATE-----
-`
-)
 
 func TestMonitorServer(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	// Put peer Certificate to context
-	block, _ := pem.Decode([]byte(certPem))
-	x509cert, err := x509.ParseCertificate(block.Bytes)
-	require.NoError(t, err)
-	authInfo := &credentials.TLSInfo{
-		State: tls.ConnectionState{
-			PeerCertificates: []*x509.Certificate{x509cert},
-		}}
-	ctx, cancel := context.WithTimeout(
-		peer.NewContext(
-			context.Background(), &peer.Peer{AuthInfo: authInfo}),
-		time.Second,
-	)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+
 	defer cancel()
 
 	// Specify pathSegments to test

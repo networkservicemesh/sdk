@@ -14,17 +14,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package next
+package spire
 
 import (
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"sync"
 )
 
-// tailMonitorConnectionsServer is a simple implementation of networkservice.MonitorConnectionServer that is called at the end of a chain
-// to insure that we never call a method on a nil object
+//go:generate go-syncmap -output connection_map.gen.go -type ConnectionMap<string,bool>
 
-type tailMonitorConnectionsServer struct{}
-
-func (t *tailMonitorConnectionsServer) MonitorConnections(in *networkservice.MonitorScopeSelector, sv networkservice.MonitorConnection_MonitorConnectionsServer) error {
-	return nil
-}
+// ConnectionMap - sync.Map with key == string and value == bool
+type ConnectionMap sync.Map

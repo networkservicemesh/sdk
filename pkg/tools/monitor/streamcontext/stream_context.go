@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Doc.ai and/or its affiliates.
+// Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package streamcontext provides API to extend context for authorize server
+// Package streamcontext provides API to extend context for authorize monitor connection server
 package streamcontext
 
 import (

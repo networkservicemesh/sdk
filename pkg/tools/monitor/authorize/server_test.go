@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Doc.ai and/or its affiliates.
+// Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -176,8 +176,14 @@ func TestAuthzEndpoint(t *testing.T) {
 				require.NoError(t, err)
 			}
 			spiffeIDConnectionMap := spire.SpiffeIDConnectionMap{}
-			for k, v := range s.spiffeIDConnMap {
-				spiffeIDConnectionMap.Store(k, v)
+
+			for spiffeID, connIds := range s.spiffeIDConnMap {
+				connIDMap := spire.ConnectionMap{}
+				for _, connID := range connIds {
+
+					connIDMap.Store(connID, true)
+				}
+				spiffeIDConnectionMap.Store(spiffeID, connIDMap)
 			}
 			ctx, cancel := context.WithTimeout(baseCtx, time.Second)
 			defer cancel()
@@ -218,7 +224,9 @@ func TestAuthorize_ShouldCorrectlyWorkWithHeal(t *testing.T) {
 	require.NoError(t, err)
 
 	spiffeIDConnectionMap := spire.SpiffeIDConnectionMap{}
-	spiffeIDConnectionMap.Store(spiffeID1, []string{"conn1"})
+	connMap := spire.ConnectionMap{}
+	connMap.Store("conn1", true)
+	spiffeIDConnectionMap.Store(spiffeID1, connMap)
 	err = authorize.NewMonitorConnectionServer(
 		authorize.WithSpiffeIDConnectionMap(&spiffeIDConnectionMap)).MonitorConnections(
 		selector, &testEmptyMCMCServer{context: ctx})
