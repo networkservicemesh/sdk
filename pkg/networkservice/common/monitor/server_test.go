@@ -32,7 +32,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 )
 
-
 func TestMonitorServer(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 

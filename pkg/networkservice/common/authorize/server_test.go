@@ -20,13 +20,14 @@ import (
 	"context"
 	"testing"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 )

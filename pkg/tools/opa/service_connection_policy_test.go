@@ -20,7 +20,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/monitor/authorize"
@@ -30,12 +29,7 @@ import (
 func TestWithServiceConnectionPolicy(t *testing.T) {
 	var p = opa.WithServiceOwnConnectionPolicy()
 	var input = authorize.MonitorOpaInput{
-		PathSegments: []*networkservice.PathSegment{
-			{},
-			{
-				Id: "conn1",
-			},
-		},
+		PathSegments: []string{"conn1"},
 		SpiffeIDConnectionMap: map[string][]string{
 			spiffeID: {"conn1"},
 		},

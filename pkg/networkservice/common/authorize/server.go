@@ -74,14 +74,14 @@ func (a *authorizeServer) Request(ctx context.Context, request *networkservice.N
 			return nil, err
 		}
 	}
-	
+
 	if spiffeID, err := getSpiffeID(ctx); err == nil {
 		connID := conn.GetPath().GetPathSegments()[index-1].GetId()
 		ids, ok := a.spiffeIDConnectionMap.Load(spiffeID)
 		if !ok {
-			ids = spire.ConnectionMap{}
+			ids = &spire.ConnectionMap{}
 			ids.Store(connID, true)
-		}else {
+		} else {
 			if present, ok := ids.Load(connID); !present && !ok {
 				ids.Store(connID, true)
 			}

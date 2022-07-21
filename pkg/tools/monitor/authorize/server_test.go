@@ -81,9 +81,10 @@ func testPolicy() authorize.Policy {
 		default allow = false
 	
 		allow {
-			conn_ids := {y | y = input.spiffe_id_connection_map[input.service_spiffe_id][_]}
-			path_conn_ids := {x | x = input.path_segments[_].id}
-			conn_ids == path_conn_ids
+			conn_ids := [y | y = input.spiffe_id_connection_map[input.service_spiffe_id][_]]
+			count(input.path_segments) > 0
+			count(conn_ids) > 0
+			conn_ids == input.path_segments
 		}
 `, "allow", opa.True)
 }
@@ -110,16 +111,16 @@ func TestAuthzEndpoint(t *testing.T) {
 		denied          bool
 	}{
 		{
-			name:         "simple positive test without peer context",
+			name:         "simple negative test without peer context",
 			baseCtx:      false,
 			pathSegments: make([]*networkservice.PathSegment, 0),
-			denied:       false,
+			denied:       true,
 		},
 		{
-			name:         "simple positive test with peer context",
-			baseCtx:      false,
+			name:         "simple negative test with peer context",
+			baseCtx:      true,
 			pathSegments: make([]*networkservice.PathSegment, 0),
-			denied:       false,
+			denied:       true,
 		},
 		{
 			name:            "positive test with nonempty objects",
@@ -176,14 +177,12 @@ func TestAuthzEndpoint(t *testing.T) {
 				require.NoError(t, err)
 			}
 			spiffeIDConnectionMap := spire.SpiffeIDConnectionMap{}
-
 			for spiffeID, connIds := range s.spiffeIDConnMap {
 				connIDMap := spire.ConnectionMap{}
 				for _, connID := range connIds {
-
 					connIDMap.Store(connID, true)
 				}
-				spiffeIDConnectionMap.Store(spiffeID, connIDMap)
+				spiffeIDConnectionMap.Store(spiffeID, &connIDMap)
 			}
 			ctx, cancel := context.WithTimeout(baseCtx, time.Second)
 			defer cancel()
@@ -226,7 +225,7 @@ func TestAuthorize_ShouldCorrectlyWorkWithHeal(t *testing.T) {
 	spiffeIDConnectionMap := spire.SpiffeIDConnectionMap{}
 	connMap := spire.ConnectionMap{}
 	connMap.Store("conn1", true)
-	spiffeIDConnectionMap.Store(spiffeID1, connMap)
+	spiffeIDConnectionMap.Store(spiffeID1, &connMap)
 	err = authorize.NewMonitorConnectionServer(
 		authorize.WithSpiffeIDConnectionMap(&spiffeIDConnectionMap)).MonitorConnections(
 		selector, &testEmptyMCMCServer{context: ctx})

@@ -53,9 +53,9 @@ func NewMonitorConnectionServer(opts ...Option) networkservice.MonitorConnection
 
 // MonitorOpaInput - used to pass complex structure to monitor policies
 type MonitorOpaInput struct {
-	SpiffeIDConnectionMap map[string][]string           `json:"spiffe_id_connection_map"`
-	PathSegments          []*networkservice.PathSegment `json:"path_segments"`
-	ServiceSpiffeID       string                        `json:"service_spiffe_id"`
+	SpiffeIDConnectionMap map[string][]string `json:"spiffe_id_connection_map"`
+	PathSegments          []string            `json:"path_segments"`
+	ServiceSpiffeID       string              `json:"service_spiffe_id"`
 }
 
 func (a *authorizeMonitorConnectionsServer) MonitorConnections(in *networkservice.MonitorScopeSelector, srv networkservice.MonitorConnection_MonitorConnectionsServer) error {
@@ -72,7 +72,7 @@ func (a *authorizeMonitorConnectionsServer) MonitorConnections(in *networkservic
 	}
 	simpleMap := make(map[string][]string)
 	a.spiffeIDConnectionMap.Range(
-		func(sid string, connIds spire.ConnectionMap) bool {
+		func(sid string, connIds *spire.ConnectionMap) bool {
 			connIds.Range(
 				func(connId string, _ bool) bool {
 					ids := simpleMap[sid]
@@ -85,14 +85,14 @@ func (a *authorizeMonitorConnectionsServer) MonitorConnections(in *networkservic
 		},
 	)
 
+	seg := make([]string, 0)
+	for _, v := range in.PathSegments {
+		seg = append(seg, v.GetId())
+	}
 	input = MonitorOpaInput{
 		ServiceSpiffeID:       spiffeID.String(),
 		SpiffeIDConnectionMap: simpleMap,
-		PathSegments:          in.PathSegments,
-	}
-	var seg []string
-	for _, v := range in.PathSegments{
-		seg = append(seg, v.GetId())
+		PathSegments:          seg,
 	}
 	if err := a.policies.check(ctx, input); err != nil {
 		return err
