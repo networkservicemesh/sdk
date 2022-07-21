@@ -42,12 +42,11 @@ func (h *dnsConfigsHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter,
 
 	h.configs.Range(func(key string, value []*networkservice.DNSConfig) bool {
 		for _, conf := range value {
-			ips := make([]url.URL, len(conf.DnsServerIps))
-			for i, ip := range conf.DnsServerIps {
-				ips[i] = url.URL{Scheme: "udp", Host: ip}
+			for _, ip := range conf.DnsServerIps {
+				dnsIPs = append(dnsIPs,
+					url.URL{Scheme: "udp", Host: ip},
+					url.URL{Scheme: "tcp", Host: ip})
 			}
-
-			dnsIPs = append(dnsIPs, ips...)
 			searchDomains = append(searchDomains, conf.SearchDomains...)
 		}
 
