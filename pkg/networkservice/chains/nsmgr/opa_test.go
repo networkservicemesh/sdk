@@ -55,18 +55,7 @@ aMp+T747AZGjOEfwHb9/w+7m
 func Test_RegisterRefersh(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	block, _ := pem.Decode([]byte(certPem))
-	x509cert, err := x509.ParseCertificate(block.Bytes)
-	require.NoError(t, err)
-
-	authInfo := &credentials.TLSInfo{
-		State: tls.ConnectionState{
-			PeerCertificates: []*x509.Certificate{x509cert},
-		},
-	}
-
-	ctx := peer.NewContext(context.Background(), &peer.Peer{AuthInfo: authInfo})
-	ctx, cancel := context.WithTimeout(ctx, time.Second*200)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*200)
 	defer cancel()
 
 	domain := sandbox.NewBuilder(ctx, t).
@@ -82,14 +71,26 @@ func Test_RegisterRefersh(t *testing.T) {
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 
+	block, _ := pem.Decode([]byte(certPem))
+	x509cert, err := x509.ParseCertificate(block.Bytes)
+	require.NoError(t, err)
+
+	authInfo := &credentials.TLSInfo{
+		State: tls.ConnectionState{
+			PeerCertificates: []*x509.Certificate{x509cert},
+		},
+	}
+
+	certCtx := peer.NewContext(context.Background(), &peer.Peer{AuthInfo: authInfo})
+
 	registryClient := registryclient.NewNetworkServiceEndpointRegistryClient(
-		ctx,
+		certCtx,
 		registryclient.WithClientURL(sandbox.CloneURL(domain.Nodes[0].NSMgr.URL)),
 		registryclient.WithDialOptions(sandbox.DialOptions(sandbox.WithTokenGenerator(sandbox.GenerateTestToken))...),
 		registryclient.WithNSEAdditionalFunctionality(sendfd.NewNetworkServiceEndpointRegistryClient()),
 	)
 
-	nseReg, err = registryClient.Register(ctx, nseReg)
+	nseReg, err = registryClient.Register(certCtx, nseReg)
 
 	_, err = registryClient.Unregister(ctx, nseReg)
 	require.NoError(t, err)

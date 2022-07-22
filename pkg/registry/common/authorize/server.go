@@ -23,6 +23,7 @@ import (
 	"context"
 	"crypto/x509"
 	"errors"
+	"fmt"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/spiffe/go-spiffe/v2/svid/x509svid"
@@ -35,19 +36,16 @@ import (
 )
 
 type authorizeNSEServer struct {
-	policies policiesList
+	policies        policiesList
+	spiffieIDNSEMap *spiffieIDNSEMap
 }
 
 // NewNetworkServiceEndpointRegistryServer - returns a new authorization registry.NetworkServiceEndpointRegistryServer
 // Authorize registry server checks spiffieID of NSE.
 func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkServiceEndpointRegistryServer {
 	var s = &authorizeNSEServer{
-		policies: []Policy{
-			opa.WithTokensValidPolicy(),
-			opa.WithPrevTokenSignedPolicy(),
-			opa.WithTokensExpiredPolicy(),
-			opa.WithTokenChainPolicy(),
-		},
+		policies:        policiesList{},
+		spiffieIDNSEMap: new(spiffieIDNSEMap),
 	}
 	for _, o := range opts {
 		o.apply(&s.policies)
@@ -56,12 +54,23 @@ func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkSer
 }
 
 func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	id, err := getSpiffeID(ctx)
+	spiffieID, err := getSpiffeID(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := s.policies.check(ctx, id); err != nil {
+	rawMap := make(map[string]string)
+	s.spiffieIDNSEMap.Range(func(key, value string) bool {
+		rawMap[key] = value
+		return true
+	})
+
+	input := RegistryOpaInput{
+		spiffieID:       spiffieID,
+		nseName:         nse.Name,
+		spiffieIDNSEMap: rawMap,
+	}
+	if err := s.policies.check(ctx, input); err != nil {
 		return nil, err
 	}
 
@@ -73,14 +82,14 @@ func (s *authorizeNSEServer) Find(query *registry.NetworkServiceEndpointQuery, s
 }
 
 func (s *authorizeNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	id, err := getSpiffeID(ctx)
-	if err != nil {
-		return nil, err
-	}
+	// id, err := getSpiffeID(ctx)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	if err := s.policies.check(ctx, id); err != nil {
-		return nil, err
-	}
+	// if err := s.policies.check(ctx, id); err != nil {
+	// 	return nil, err
+	// }
 
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }
@@ -88,6 +97,9 @@ func (s *authorizeNSEServer) Unregister(ctx context.Context, nse *registry.Netwo
 func getSpiffeID(ctx context.Context) (string, error) {
 	p, ok := peer.FromContext(ctx)
 	var cert *x509.Certificate
+
+	t := p.AuthInfo.AuthType()
+	fmt.Printf("t: %v\n", t)
 	if !ok {
 		return "", errors.New("fail to get peer from context")
 	}

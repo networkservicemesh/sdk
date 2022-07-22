@@ -20,6 +20,12 @@ import (
 	"context"
 )
 
+type RegistryOpaInput struct {
+	spiffieID       string
+	nseName         string
+	spiffieIDNSEMap map[string]string
+}
+
 // Policy represents authorization policy for network service.
 type Policy interface {
 	// Check checks authorization
@@ -28,7 +34,7 @@ type Policy interface {
 
 type policiesList []Policy
 
-func (l *policiesList) check(ctx context.Context, spiffieID string) error {
+func (l *policiesList) check(ctx context.Context, input RegistryOpaInput) error {
 	if l == nil {
 		return nil
 	}
@@ -36,7 +42,7 @@ func (l *policiesList) check(ctx context.Context, spiffieID string) error {
 		if policy == nil {
 			continue
 		}
-		if err := policy.Check(ctx, spiffieID); err != nil {
+		if err := policy.Check(ctx, input); err != nil {
 			return err
 		}
 	}
