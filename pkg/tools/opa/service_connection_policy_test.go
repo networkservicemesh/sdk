@@ -35,9 +35,19 @@ func TestWithServiceConnectionPolicy(t *testing.T) {
 		},
 		ServiceSpiffeID: spiffeID,
 	}
+	var invalidInput = authorize.MonitorOpaInput{
+		PathSegments: []string{"conn1"},
+		SpiffeIDConnectionMap: map[string][]string{
+			spiffeID: {"conn2"},
+		},
+		ServiceSpiffeID: spiffeID,
+	}
 
 	ctx := context.Background()
 
 	err := p.Check(ctx, input)
 	require.NoError(t, err)
+
+	err = p.Check(ctx, invalidInput)
+	require.Error(t, err)
 }

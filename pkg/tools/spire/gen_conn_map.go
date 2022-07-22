@@ -20,7 +20,7 @@ import (
 	"sync"
 )
 
-//go:generate go-syncmap -output connection_map.gen.go -type ConnectionMap<string,bool>
+//go:generate go-syncmap -output connection_id_set.gen.go -type ConnectionIDSet<string,bool>
 
-// ConnectionMap - sync.Map with key == string and value == bool
-type ConnectionMap sync.Map
+// ConnectionIDSet - sync.Map with key == string and value == bool
+type ConnectionIDSet sync.Map

@@ -79,7 +79,7 @@ func (a *authorizeServer) Request(ctx context.Context, request *networkservice.N
 		connID := conn.GetPath().GetPathSegments()[index-1].GetId()
 		ids, ok := a.spiffeIDConnectionMap.Load(spiffeID)
 		if !ok {
-			ids = &spire.ConnectionMap{}
+			ids = &spire.ConnectionIDSet{}
 			ids.Store(connID, true)
 		} else {
 			if present, ok := ids.Load(connID); !present && !ok {

@@ -72,7 +72,7 @@ func (a *authorizeMonitorConnectionsServer) MonitorConnections(in *networkservic
 	}
 	simpleMap := make(map[string][]string)
 	a.spiffeIDConnectionMap.Range(
-		func(sid string, connIds *spire.ConnectionMap) bool {
+		func(sid string, connIds *spire.ConnectionIDSet) bool {
 			connIds.Range(
 				func(connId string, _ bool) bool {
 					ids := simpleMap[sid]

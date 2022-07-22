@@ -39,7 +39,7 @@ import (
 type monitorServer struct {
 	chainCtx    context.Context
 	filters     map[string]*monitorFilter
-	executor    *serialize.Executor
+	executor    serialize.Executor
 	connections map[string]*networkservice.Connection
 	networkservice.MonitorConnectionServer
 }
@@ -54,18 +54,15 @@ type monitorServer struct {
 //                        networkservice.MonitorConnectionServer chain
 //             chainCtx - context for lifecycle management
 func NewServer(chainCtx context.Context, monitorServerPtr *networkservice.MonitorConnectionServer) networkservice.NetworkServiceServer {
-	filters := make(map[string]*monitorFilter)
-	executor := serialize.Executor{}
-	connections := make(map[string]*networkservice.Connection)
-
-	*monitorServerPtr = newMonitorConnectionServer(chainCtx, &executor, filters, connections)
-	return &monitorServer{
+	var rv = &monitorServer{
 		chainCtx:                chainCtx,
 		MonitorConnectionServer: *monitorServerPtr,
-		filters:                 filters,
-		executor:                &executor,
-		connections:             connections,
+		filters:                 make(map[string]*monitorFilter),
+		executor:                serialize.Executor{},
+		connections:             make(map[string]*networkservice.Connection),
 	}
+	rv.MonitorConnectionServer = newMonitorConnectionServer(rv.chainCtx, &rv.executor, rv.filters, rv.connections)
+	return rv
 }
 
 func (m *monitorServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {

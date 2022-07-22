@@ -178,7 +178,7 @@ func TestAuthzEndpoint(t *testing.T) {
 			}
 			spiffeIDConnectionMap := spire.SpiffeIDConnectionMap{}
 			for spiffeID, connIds := range s.spiffeIDConnMap {
-				connIDMap := spire.ConnectionMap{}
+				connIDMap := spire.ConnectionIDSet{}
 				for _, connID := range connIds {
 					connIDMap.Store(connID, true)
 				}
@@ -223,7 +223,7 @@ func TestAuthorize_ShouldCorrectlyWorkWithHeal(t *testing.T) {
 	require.NoError(t, err)
 
 	spiffeIDConnectionMap := spire.SpiffeIDConnectionMap{}
-	connMap := spire.ConnectionMap{}
+	connMap := spire.ConnectionIDSet{}
 	connMap.Store("conn1", true)
 	spiffeIDConnectionMap.Store(spiffeID1, &connMap)
 	err = authorize.NewMonitorConnectionServer(

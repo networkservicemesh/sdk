@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -20,14 +20,14 @@ import (
 	"context"
 	"testing"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/opa"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 )
@@ -103,6 +103,7 @@ func TestAuthzEndpoint(t *testing.T) {
 			denied:  true,
 		},
 	}
+
 	for i := range suits {
 		s := suits[i]
 		t.Run(s.name, func(t *testing.T) {

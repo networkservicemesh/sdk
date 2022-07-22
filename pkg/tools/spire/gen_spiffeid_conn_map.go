@@ -20,7 +20,7 @@ import (
 	"sync"
 )
 
-//go:generate go-syncmap -output spiffe_id_connection_map.gen.go -type SpiffeIDConnectionMap<string,*ConnectionMap>
+//go:generate go-syncmap -output spiffe_id_connection_map.gen.go -type SpiffeIDConnectionMap<string,*ConnectionIDSet>
 
-// SpiffeIDConnectionMap - sync.Map with key == string and value == *ConnectionMap
+// SpiffeIDConnectionMap - sync.Map with key == string and value == *ConnectionIDSet
 type SpiffeIDConnectionMap sync.Map
