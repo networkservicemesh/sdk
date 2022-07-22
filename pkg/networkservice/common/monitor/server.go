@@ -54,15 +54,15 @@ type monitorServer struct {
 //                        networkservice.MonitorConnectionServer chain
 //             chainCtx - context for lifecycle management
 func NewServer(chainCtx context.Context, monitorServerPtr *networkservice.MonitorConnectionServer) networkservice.NetworkServiceServer {
-	var rv = &monitorServer{
+	var rv = monitorServer{
 		chainCtx:                chainCtx,
 		MonitorConnectionServer: *monitorServerPtr,
 		filters:                 make(map[string]*monitorFilter),
 		executor:                serialize.Executor{},
 		connections:             make(map[string]*networkservice.Connection),
 	}
-	rv.MonitorConnectionServer = newMonitorConnectionServer(rv.chainCtx, &rv.executor, rv.filters, rv.connections)
-	return rv
+	*monitorServerPtr = newMonitorConnectionServer(rv.chainCtx, &rv.executor, rv.filters, rv.connections)
+	return &rv
 }
 
 func (m *monitorServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
