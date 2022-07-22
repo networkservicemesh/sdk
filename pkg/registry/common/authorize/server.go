@@ -66,13 +66,15 @@ func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.Network
 	})
 
 	input := RegistryOpaInput{
-		spiffieID:       spiffieID,
-		nseName:         nse.Name,
-		spiffieIDNSEMap: rawMap,
+		SpiffieID:       spiffieID,
+		NSEName:         nse.Name,
+		SpiffieIDNSEMap: rawMap,
 	}
 	if err := s.policies.check(ctx, input); err != nil {
 		return nil, err
 	}
+
+	s.spiffieIDNSEMap.Store(input.NSEName, input.SpiffieID)
 
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 }

@@ -21,9 +21,10 @@ import (
 )
 
 type RegistryOpaInput struct {
-	spiffieID       string
-	nseName         string
-	spiffieIDNSEMap map[string]string
+	// TODO: add json tags
+	SpiffieID       string
+	NSEName         string
+	SpiffieIDNSEMap map[string]string
 }
 
 // Policy represents authorization policy for network service.

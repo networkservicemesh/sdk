@@ -51,7 +51,10 @@ const (
 default refresh = false
 
 refresh {
-    not input.spiffieIDNSEMap[input.nseName] || input.spiffieIDNSEMap[input.nseName] == input.spiffieID
+	not input.SpiffieIDNSEMap[input.NSEName]
+}
+refresh {
+	input.SpiffieIDNSEMap[input.NSEName] == input.SpiffieID
 }
 `
 )
