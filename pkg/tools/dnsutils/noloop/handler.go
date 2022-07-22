@@ -33,7 +33,7 @@ type noloopDNSHandler struct{ ids sync.Map }
 
 func (n *noloopDNSHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter, m *dns.Msg) {
 	if _, loaded := n.ids.LoadOrStore(m.Id, struct{}{}); loaded {
-		log.FromContext(ctx).Errorf("loop is not allowed: query: %v", m.String())
+		log.FromContext(ctx).WithField("noloopDNSHandler", "ServeDNS").Errorf("loop is not allowed: query: %v", m.String())
 		dns.HandleFailed(rp, m)
 		return
 	}

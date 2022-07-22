@@ -44,13 +44,13 @@ func (c *connectDNSHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter,
 	var resp, _, err = client.Exchange(msg, c.connectTO.Host)
 
 	if err != nil {
-		log.FromContext(ctx).Warnf("got an error during exchanging: %v", err.Error())
+		log.FromContext(ctx).WithField("connectDNSHandler", "ServeDNS").Warnf("got an error during exchanging: %v", err.Error())
 		dns.HandleFailed(rp, msg)
 		return
 	}
 
 	if err = rp.WriteMsg(resp); err != nil {
-		log.FromContext(ctx).Warnf("got an error during write the message: %v", err.Error())
+		log.FromContext(ctx).WithField("connectDNSHandler", "ServeDNS").Warnf("got an error during write the message: %v", err.Error())
 		dns.HandleFailed(rp, msg)
 		return
 	}
