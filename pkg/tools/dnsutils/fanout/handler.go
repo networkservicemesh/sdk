@@ -43,7 +43,7 @@ func (h *fanoutHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 	timeout := time.Until(deadline)
 
 	if len(connectTO) == 0 {
-		log.FromContext(ctx).Error("no urls to fanout")
+		log.FromContext(ctx).WithField("fanoutHandler", "ServeDNS").Error("no urls to fanout")
 		dns.HandleFailed(rw, msg)
 		return
 	}
@@ -62,7 +62,7 @@ func (h *fanoutHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 
 			var resp, _, err = client.Exchange(msg, address)
 			if err != nil {
-				log.FromContext(ctx).Warnf("got an error during exchanging: %v", err.Error())
+				log.FromContext(ctx).WithField("fanoutHandler", "ServeDNS").Warnf("got an error during exchanging with address %v: %v", address, err.Error())
 				responseCh <- nil
 				return
 			}
@@ -79,7 +79,7 @@ func (h *fanoutHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 	}
 
 	if err := rw.WriteMsg(resp); err != nil {
-		log.FromContext(ctx).Warnf("got an error during write the message: %v", err.Error())
+		log.FromContext(ctx).WithField("fanoutHandler", "ServeDNS").Warnf("got an error during write the message: %v", err.Error())
 		dns.HandleFailed(rw, msg)
 		return
 	}

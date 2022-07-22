@@ -19,6 +19,7 @@ package cache
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/miekg/dns"
@@ -29,24 +30,27 @@ import (
 )
 
 type dnsCacheHandler struct {
-	cache         *msgMap
+	cache *msgMap
+
 	lastTTLUpdate time.Time
+	m             sync.Mutex
 }
 
 func (h *dnsCacheHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m *dns.Msg) {
 	h.updateTTL()
-	if v, ok := h.cache.Load(m.Question[0].Name); ok {
+	if val, ok := h.cache.Load(m.Question[0]); ok {
+		v := val.Copy()
 		if validateMsg(v) {
 			v.Id = m.Id
 			if err := rw.WriteMsg(v); err != nil {
-				log.FromContext(ctx).Warnf("got an error during write the message: %v", err.Error())
+				log.FromContext(ctx).WithField("dnsCacheHandler", "ServeDNS").Warnf("got an error during write the message: %v", err.Error())
 				dns.HandleFailed(rw, v)
 				return
 			}
 			return
 		}
 
-		h.cache.Delete(m.Question[0].Name)
+		h.cache.Delete(m.Question[0])
 	}
 
 	wrapper := responseWriterWrapper{
@@ -59,13 +63,15 @@ func (h *dnsCacheHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m
 
 func (h *dnsCacheHandler) updateTTL() {
 	now := time.Now()
+	h.m.Lock()
+	defer h.m.Unlock()
 
 	diff := uint32(now.Sub(h.lastTTLUpdate).Seconds())
 	if diff == 0 {
 		return
 	}
 
-	h.cache.Range(func(key string, value *dns.Msg) bool {
+	h.cache.Range(func(key dns.Question, value *dns.Msg) bool {
 		for i := range value.Answer {
 			if value.Answer[i].Header().Ttl < diff {
 				value.Answer[i].Header().Ttl = 0
