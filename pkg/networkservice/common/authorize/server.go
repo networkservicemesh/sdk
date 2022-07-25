@@ -78,7 +78,8 @@ func (a *authorizeServer) Request(ctx context.Context, request *networkservice.N
 		if !ok {
 			ids = &spire.ConnectionIDSet{}
 		}
-		ids.Store(connID, true)
+		var placer struct{}
+		ids.Store(connID, placer)
 		a.spiffeIDConnectionMap.Store(spiffeID, ids)
 	}
 	return next.Server(ctx).Request(ctx, request)
@@ -94,12 +95,12 @@ func (a *authorizeServer) Close(ctx context.Context, conn *networkservice.Connec
 		connID := conn.GetPath().GetPathSegments()[index-1].GetId()
 		ids, ok := a.spiffeIDConnectionMap.Load(spiffeID)
 		if ok {
-			if present, ok := ids.Load(connID); present && ok {
+			if _, ok := ids.Load(connID); ok {
 				ids.Delete(connID)
 			}
 		}
 		idsEmpty := true
-		ids.Range(func(_ string, _ bool) bool {
+		ids.Range(func(_ string, _ struct{}) bool {
 			idsEmpty = false
 			return true
 		})

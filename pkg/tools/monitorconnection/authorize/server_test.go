@@ -182,7 +182,8 @@ func TestAuthzEndpoint(t *testing.T) {
 			for spiffeIDstr, connIds := range s.spiffeIDConnMap {
 				connIDMap := spire.ConnectionIDSet{}
 				for _, connID := range connIds {
-					connIDMap.Store(connID, true)
+					var placer struct{}
+					connIDMap.Store(connID, placer)
 				}
 				var spiffeID spiffeid.ID
 				spiffeID, err = spiffeid.FromString(spiffeIDstr)
@@ -229,7 +230,8 @@ func TestAuthorize_ShouldCorrectlyWorkWithHeal(t *testing.T) {
 
 	spiffeIDConnectionMap := spire.SpiffeIDConnectionMap{}
 	connMap := spire.ConnectionIDSet{}
-	connMap.Store("conn1", true)
+	var placer struct{}
+	connMap.Store("conn1", placer)
 	var spiffeID spiffeid.ID
 	spiffeID, err = spiffeid.FromString(spiffeID1)
 	require.NoError(t, err)
