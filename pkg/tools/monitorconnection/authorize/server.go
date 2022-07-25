@@ -18,14 +18,9 @@
 package authorize
 
 import (
-	"crypto/x509"
-
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/spiffe/go-spiffe/v2/spiffeid"
-	"github.com/spiffe/go-spiffe/v2/svid/x509svid"
-	"google.golang.org/grpc/peer"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/monitor/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/monitorconnection/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/networkservicemesh/sdk/pkg/tools/spire"
 )
@@ -60,16 +55,6 @@ type MonitorOpaInput struct {
 
 func (a *authorizeMonitorConnectionsServer) MonitorConnections(in *networkservice.MonitorScopeSelector, srv networkservice.MonitorConnection_MonitorConnectionsServer) error {
 	ctx := srv.Context()
-	p, ok := peer.FromContext(ctx)
-	var cert *x509.Certificate
-	if ok {
-		cert = opa.ParseX509Cert(p.AuthInfo)
-	}
-	var input MonitorOpaInput
-	var spiffeID spiffeid.ID
-	if cert != nil {
-		spiffeID, _ = x509svid.IDFromCert(cert)
-	}
 	simpleMap := make(map[string][]string)
 	a.spiffeIDConnectionMap.Range(
 		func(sid string, connIds *spire.ConnectionIDSet) bool {
@@ -89,12 +74,13 @@ func (a *authorizeMonitorConnectionsServer) MonitorConnections(in *networkservic
 	for _, v := range in.PathSegments {
 		seg = append(seg, v.GetId())
 	}
-	input = MonitorOpaInput{
-		ServiceSpiffeID:       spiffeID.String(),
+	spiffeID, _ := spire.SpiffeIDFromContext(ctx)
+	err := a.policies.check(ctx, MonitorOpaInput{
+		ServiceSpiffeID:       spiffeID,
 		SpiffeIDConnectionMap: simpleMap,
 		PathSegments:          seg,
-	}
-	if err := a.policies.check(ctx, input); err != nil {
+	})
+	if err != nil {
 		return err
 	}
 

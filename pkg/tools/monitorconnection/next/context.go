@@ -28,7 +28,6 @@ type contextKeyType string
 
 const (
 	nextMonitorConnectionServerKey contextKeyType = "NextMonitorConnectionServer"
-	nextMonitorConnectionClientKey contextKeyType = "NextMonitorConnectionClient"
 )
 
 // withNextMonitorConnectionServer -
@@ -48,23 +47,4 @@ func MonitorConnectionServer(ctx context.Context) networkservice.MonitorConnecti
 		return rv
 	}
 	return &tailMonitorConnectionsServer{}
-}
-
-// withNextMonitorConnectionClient -
-//    Wraps 'parent' in a new Context that has the Client networkservice.MonitorConnectionClient to be called in the chain
-func withNextMonitorConnectionClient(parent context.Context, next networkservice.MonitorConnectionClient) context.Context {
-	if parent == nil {
-		panic("cannot create context from nil parent")
-	}
-	return context.WithValue(parent, nextMonitorConnectionClientKey, next)
-}
-
-// MonitorConnectionClient -
-//   Returns the networkservice.MonitorConnectionClient to be called in the chain from the context.Context
-func MonitorConnectionClient(ctx context.Context) networkservice.MonitorConnectionClient {
-	rv, ok := ctx.Value(nextMonitorConnectionClientKey).(networkservice.MonitorConnectionClient)
-	if ok && rv != nil {
-		return rv
-	}
-	return &tailMonitorConnectionClient{}
 }

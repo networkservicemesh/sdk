@@ -21,7 +21,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/monitor/streamcontext"
+	"github.com/networkservicemesh/sdk/pkg/tools/monitorconnection/streamcontext"
 )
 
 // MonitorConnectionsServerWrapper - a function that wraps around a networkservice.MonitorConnectionServer
