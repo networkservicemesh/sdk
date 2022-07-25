@@ -30,6 +30,8 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 
+	"github.com/spiffe/go-spiffe/v2/spiffeid"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/monitorconnection/authorize"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/networkservicemesh/sdk/pkg/tools/spire"
@@ -177,11 +179,14 @@ func TestAuthzEndpoint(t *testing.T) {
 				require.NoError(t, err)
 			}
 			spiffeIDConnectionMap := spire.SpiffeIDConnectionMap{}
-			for spiffeID, connIds := range s.spiffeIDConnMap {
+			for spiffeIDstr, connIds := range s.spiffeIDConnMap {
 				connIDMap := spire.ConnectionIDSet{}
 				for _, connID := range connIds {
 					connIDMap.Store(connID, true)
 				}
+				var spiffeID spiffeid.ID
+				spiffeID, err = spiffeid.FromString(spiffeIDstr)
+				require.NoError(t, err)
 				spiffeIDConnectionMap.Store(spiffeID, &connIDMap)
 			}
 			ctx, cancel := context.WithTimeout(baseCtx, time.Second)
@@ -225,7 +230,10 @@ func TestAuthorize_ShouldCorrectlyWorkWithHeal(t *testing.T) {
 	spiffeIDConnectionMap := spire.SpiffeIDConnectionMap{}
 	connMap := spire.ConnectionIDSet{}
 	connMap.Store("conn1", true)
-	spiffeIDConnectionMap.Store(spiffeID1, &connMap)
+	var spiffeID spiffeid.ID
+	spiffeID, err = spiffeid.FromString(spiffeID1)
+	require.NoError(t, err)
+	spiffeIDConnectionMap.Store(spiffeID, &connMap)
 	err = authorize.NewMonitorConnectionServer(
 		authorize.WithSpiffeIDConnectionMap(&spiffeIDConnectionMap)).MonitorConnections(
 		selector, &testEmptyMCMCServer{context: ctx})

@@ -19,6 +19,7 @@ package authorize
 
 import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/spiffe/go-spiffe/v2/spiffeid"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/monitorconnection/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
@@ -33,7 +34,7 @@ type authorizeMonitorConnectionsServer struct {
 // NewMonitorConnectionServer - returns a new authorization networkservicemesh.MonitorConnectionServer
 func NewMonitorConnectionServer(opts ...Option) networkservice.MonitorConnectionServer {
 	o := &options{
-		policies:              policiesList{opa.WithServiceOwnConnectionPolicy()},
+		policies:              policiesList{opa.WithMonitorConnectionServerPolicy()},
 		spiffeIDConnectionMap: &spire.SpiffeIDConnectionMap{},
 	}
 	for _, opt := range opts {
@@ -57,12 +58,12 @@ func (a *authorizeMonitorConnectionsServer) MonitorConnections(in *networkservic
 	ctx := srv.Context()
 	simpleMap := make(map[string][]string)
 	a.spiffeIDConnectionMap.Range(
-		func(sid string, connIds *spire.ConnectionIDSet) bool {
+		func(sid spiffeid.ID, connIds *spire.ConnectionIDSet) bool {
 			connIds.Range(
 				func(connId string, _ bool) bool {
-					ids := simpleMap[sid]
+					ids := simpleMap[sid.String()]
 					ids = append(ids, connId)
-					simpleMap[sid] = ids
+					simpleMap[sid.String()] = ids
 					return true
 				},
 			)
@@ -76,7 +77,7 @@ func (a *authorizeMonitorConnectionsServer) MonitorConnections(in *networkservic
 	}
 	spiffeID, _ := spire.SpiffeIDFromContext(ctx)
 	err := a.policies.check(ctx, MonitorOpaInput{
-		ServiceSpiffeID:       spiffeID,
+		ServiceSpiffeID:       spiffeID.String(),
 		SpiffeIDConnectionMap: simpleMap,
 		PathSegments:          seg,
 	})

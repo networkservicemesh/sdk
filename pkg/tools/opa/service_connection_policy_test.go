@@ -27,7 +27,7 @@ import (
 )
 
 func TestWithServiceConnectionPolicy(t *testing.T) {
-	var p = opa.WithServiceOwnConnectionPolicy()
+	var p = opa.WithMonitorConnectionServerPolicy()
 	var input = authorize.MonitorOpaInput{
 		PathSegments: []string{"conn1"},
 		SpiffeIDConnectionMap: map[string][]string{

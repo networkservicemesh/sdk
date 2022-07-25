@@ -35,6 +35,7 @@ import (
 
 	"github.com/edwarnicke/exechelper"
 	"github.com/sirupsen/logrus"
+	"github.com/spiffe/go-spiffe/v2/spiffeid"
 	"github.com/spiffe/go-spiffe/v2/svid/x509svid"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 	"google.golang.org/grpc/peer"
@@ -281,19 +282,19 @@ func execHealthCheck(ctx context.Context, cmdStr string, options ...*exechelper.
 }
 
 // SpiffeIDFromContext - returns spiffe ID of the service from the peer context
-func SpiffeIDFromContext(ctx context.Context) (string, error) {
+func SpiffeIDFromContext(ctx context.Context) (spiffeid.ID, error) {
 	p, ok := peer.FromContext(ctx)
 	var cert *x509.Certificate
 	if !ok {
-		return "", errors.New("fail to get peer from context")
+		return spiffeid.ID{}, errors.New("fail to get peer from context")
 	}
 	cert = opa.ParseX509Cert(p.AuthInfo)
 	if cert != nil {
 		spiffeID, err := x509svid.IDFromCert(cert)
 		if err == nil {
-			return spiffeID.String(), nil
+			return spiffeID, nil
 		}
-		return "", errors.New("fail to get Spiffe ID from certificate")
+		return spiffeid.ID{}, errors.New("fail to get Spiffe ID from certificate")
 	}
-	return "", errors.New("fail to get certificate from peer")
+	return spiffeid.ID{}, errors.New("fail to get certificate from peer")
 }

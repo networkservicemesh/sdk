@@ -81,7 +81,7 @@ func WithTokensExpiredPolicy() *AuthorizationPolicy {
 	}
 }
 
-func WithServiceOwnConnectionPolicy() *AuthorizationPolicy {
+func WithMonitorConnectionServerPolicy() *AuthorizationPolicy {
 	return &AuthorizationPolicy{
 		policySource: tokensServiceConnectionPolicySource,
 		query:        "service_connection",
