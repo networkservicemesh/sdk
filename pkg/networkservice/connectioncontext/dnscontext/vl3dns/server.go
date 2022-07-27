@@ -89,22 +89,13 @@ func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.Netw
 		request.Connection.Context.DnsContext = new(networkservice.DNSContext)
 	}
 
-	var dnsContext = request.GetConnection().GetContext().GetDnsContext()
-	var clientsConfigs = dnsContext.GetConfigs()
+	var clientsConfigs = request.GetConnection().GetContext().GetDnsContext().GetConfigs()
 
-	dnsContext.Configs = append(dnsContext.Configs, &networkservice.DNSConfig{
-		DnsServerIps: []string{n.getDNSServerIP().String()},
-	})
-
+	dnsServerIPStr, added := n.addDNSContext(request.GetConnection())
 	var recordNames, err = n.buildSrcDNSRecords(request.GetConnection())
 
 	if err != nil {
 		return nil, err
-	}
-
-	var ips []net.IP
-	for _, srcIPNet := range request.GetConnection().GetContext().GetIpContext().GetSrcIPNets() {
-		ips = append(ips, srcIPNet.IP)
 	}
 
 	if v, ok := metadata.Map(ctx, false).LoadAndDelete(clientDNSNameKey{}); ok {
@@ -115,6 +106,8 @@ func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.Netw
 			}
 		}
 	}
+
+	ips := getSrcIPs(request.GetConnection())
 	if len(ips) > 0 {
 		for _, recordName := range recordNames {
 			n.dnsServerRecords.Store(recordName, ips)
@@ -127,11 +120,11 @@ func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.Netw
 
 	if err == nil {
 		configs := make([]*networkservice.DNSConfig, 0)
-		if srcRoutes := resp.GetContext().GetIpContext().GetSrcIPRoutes(); len(srcRoutes) > 0 {
+		if srcRoutes := resp.GetContext().GetIpContext().GetSrcRoutes(); len(srcRoutes) > 0 {
 			var lastPrefix = srcRoutes[len(srcRoutes)-1].Prefix
 			for _, config := range clientsConfigs {
 				for _, serverIP := range config.DnsServerIps {
-					if serverIP == n.getDNSServerIP().String() {
+					if added && dnsServerIPStr == serverIP {
 						continue
 					}
 					if withinPrefix(serverIP, lastPrefix) {
@@ -156,6 +149,20 @@ func (n *vl3DNSServer) Close(ctx context.Context, conn *networkservice.Connectio
 	}
 
 	return next.Server(ctx).Close(ctx, conn)
+}
+
+func (n *vl3DNSServer) addDNSContext(c *networkservice.Connection) (added string, ok bool) {
+	if dnsServerIP := n.getDNSServerIP(); dnsServerIP != nil {
+		var dnsContext = c.GetContext().GetDnsContext()
+		configToAdd := &networkservice.DNSConfig{
+			DnsServerIps: []string{dnsServerIP.String()},
+		}
+		if !dnsutils.ContainsDNSConfig(dnsContext.Configs, configToAdd) {
+			dnsContext.Configs = append(dnsContext.Configs, configToAdd)
+		}
+		return dnsServerIP.String(), true
+	}
+	return "", false
 }
 
 func (n *vl3DNSServer) buildSrcDNSRecords(c *networkservice.Connection) ([]string, error) {
@@ -189,4 +196,12 @@ func withinPrefix(ipAddr, prefix string) bool {
 	}
 	var pool = ippool.NewWithNet(ipNet)
 	return pool.ContainsString(ipAddr)
+}
+
+func getSrcIPs(c *networkservice.Connection) []net.IP {
+	var ips []net.IP
+	for _, srcIPNet := range c.GetContext().GetIpContext().GetSrcIPNets() {
+		ips = append(ips, srcIPNet.IP)
+	}
+	return ips
 }

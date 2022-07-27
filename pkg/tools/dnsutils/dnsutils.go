@@ -23,6 +23,8 @@ import (
 
 	"github.com/miekg/dns"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
@@ -55,4 +57,36 @@ func ListenAndServe(ctx context.Context, handler Handler, listenOn string) {
 			}
 		}()
 	}
+}
+
+// ContainsDNSConfig returns true if array contains a specific dns config
+func ContainsDNSConfig(array []*networkservice.DNSConfig, value *networkservice.DNSConfig) bool {
+	for i := range array {
+		if equal(array[i].DnsServerIps, value.DnsServerIps) && equal(array[i].SearchDomains, value.SearchDomains) {
+			return true
+		}
+	}
+	return false
+}
+
+func equal(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	diff := make(map[string]int, len(a))
+	for _, v := range a {
+		diff[v]++
+	}
+
+	for _, v := range b {
+		if _, ok := diff[v]; !ok {
+			return false
+		}
+		diff[v]--
+		if diff[v] == 0 {
+			delete(diff, v)
+		}
+	}
+	return len(diff) == 0
 }
