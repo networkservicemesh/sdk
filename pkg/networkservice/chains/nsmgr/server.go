@@ -59,6 +59,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	authmonitor "github.com/networkservicemesh/sdk/pkg/tools/monitorconnection/authorize"
+	"github.com/networkservicemesh/sdk/pkg/tools/spire"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -158,9 +159,10 @@ var _ Nsmgr = (*nsmgrServer)(nil)
 //           tokenGenerator - authorization token generator
 //			 options - a set of Nsmgr options.
 func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...Option) Nsmgr {
+	spiffeIDConnMap := spire.SpiffeIDConnectionMap{}
 	opts := &serverOptions{
-		authorizeServer:        authorize.NewServer(authorize.Any()),
-		authorizeMonitorServer: authmonitor.NewMonitorConnectionServer(authmonitor.Any()),
+		authorizeServer:        authorize.NewServer(authorize.WithSpiffeIDConnectionMap(&spiffeIDConnMap)),
+		authorizeMonitorServer: authmonitor.NewMonitorConnectionServer(authmonitor.WithSpiffeIDConnectionMap(&spiffeIDConnMap)),
 		name:                   "nsmgr-" + uuid.New().String(),
 		forwarderServiceName:   "forwarder",
 	}

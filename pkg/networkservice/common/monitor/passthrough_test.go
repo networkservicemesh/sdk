@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -30,10 +30,12 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
+	authmonitor "github.com/networkservicemesh/sdk/pkg/tools/monitorconnection/authorize"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -116,7 +118,8 @@ func (m *MonitorPassThroughSuite) StartPassThroughEndpoints(connectTo *url.URL) 
 			passThroughCtx,
 			sandbox.GenerateExpiringToken(time.Second),
 			endpoint.WithName(name),
-			endpoint.WithAuthorizeServer(null.NewServer()),
+			endpoint.WithAuthorizeServer(authorize.NewServer(authorize.Any())),
+			endpoint.WithAuthorizeMonitorServer(authmonitor.NewMonitorConnectionServer(authmonitor.Any())),
 			endpoint.WithAdditionalFunctionality(
 				clienturl.NewServer(passThroughConnectToURL),
 				connect.NewServer(
@@ -155,7 +158,8 @@ func (m *MonitorPassThroughSuite) StartEndPoint() {
 		m.testCtx,
 		sandbox.GenerateExpiringToken(time.Second),
 		endpoint.WithName(name),
-		endpoint.WithAuthorizeServer(null.NewServer()),
+		endpoint.WithAuthorizeServer(authorize.NewServer(authorize.Any())),
+		endpoint.WithAuthorizeMonitorServer(authmonitor.NewMonitorConnectionServer(authmonitor.Any())),
 	)
 	m.Require().NoError(startEndpoint(m.endpointCtx, m.endpointURL, m.endpoint))
 }

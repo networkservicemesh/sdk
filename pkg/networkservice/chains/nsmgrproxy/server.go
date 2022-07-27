@@ -51,6 +51,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	authmonitor "github.com/networkservicemesh/sdk/pkg/tools/monitorconnection/authorize"
+	"github.com/networkservicemesh/sdk/pkg/tools/spire"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -160,10 +161,11 @@ func WithDialTimeout(dialTimeout time.Duration) Option {
 // NewServer creates new proxy NSMgr
 func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator token.GeneratorFunc, options ...Option) nsmgr.Nsmgr {
 	rv := new(nsmgrProxyServer)
+	spiffeIDConnMap := spire.SpiffeIDConnectionMap{}
 	opts := &serverOptions{
 		name:                   "nsmgr-proxy-" + uuid.New().String(),
-		authorizeServer:        authorize.NewServer(authorize.Any()),
-		authorizeMonitorServer: authmonitor.NewMonitorConnectionServer(authmonitor.Any()),
+		authorizeServer:        authorize.NewServer(authorize.WithSpiffeIDConnectionMap(&spiffeIDConnMap)),
+		authorizeMonitorServer: authmonitor.NewMonitorConnectionServer(authmonitor.WithSpiffeIDConnectionMap(&spiffeIDConnMap)),
 		listenOn:               &url.URL{Scheme: "unix", Host: "listen.on"},
 		mapipFilePath:          "map-ip.yaml",
 	}
