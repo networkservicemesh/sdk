@@ -31,13 +31,11 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgrproxy"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/proxydns"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	authmonitor "github.com/networkservicemesh/sdk/pkg/tools/monitorconnection/authorize"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -295,8 +293,6 @@ func (b *Builder) newNSMgrProxy() *NSMgrEntry {
 			nsmgrproxy.WithListenOn(entry.URL),
 			nsmgrproxy.WithName(entry.Name),
 			nsmgrproxy.WithDialOptions(dialOptions...),
-			nsmgrproxy.WithAuthorizeServer(authorize.NewServer(authorize.Any())),
-			nsmgrproxy.WithAuthorizeMonitorServer(authmonitor.NewMonitorConnectionServer(authmonitor.Any())),
 		)
 		serve(ctx, b.t, entry.URL, entry.Register)
 

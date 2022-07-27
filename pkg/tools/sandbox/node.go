@@ -156,8 +156,6 @@ func (n *Node) NewForwarder(
 					),
 				)...,
 			),
-			endpoint.WithAuthorizeServer(authorize.NewServer(authorize.Any())),
-			endpoint.WithAuthorizeMonitorServer(authmonitor.NewMonitorConnectionServer(authmonitor.Any())),
 		)
 		serve(ctx, n.t, entry.URL, entry.Endpoint.Register)
 
@@ -205,8 +203,6 @@ func (n *Node) NewEndpoint(
 		entry.Endpoint = endpoint.NewServer(ctx, generatorFunc,
 			endpoint.WithName(entry.Name),
 			endpoint.WithAdditionalFunctionality(additionalFunctionality...),
-			endpoint.WithAuthorizeServer(authorize.NewServer(authorize.Any())),
-			endpoint.WithAuthorizeMonitorServer(authmonitor.NewMonitorConnectionServer(authmonitor.Any())),
 		)
 
 		serve(ctx, n.t, entry.URL, entry.Endpoint.Register)

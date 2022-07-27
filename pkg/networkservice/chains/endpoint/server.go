@@ -43,7 +43,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	authmonitor "github.com/networkservicemesh/sdk/pkg/tools/monitorconnection/authorize"
 	"github.com/networkservicemesh/sdk/pkg/tools/monitorconnection/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/spire"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -108,11 +107,10 @@ func WithAdditionalFunctionality(additionalFunctionality ...networkservice.Netwo
 
 // NewServer - returns a NetworkServiceMesh client as a chain of the standard Client pieces plus whatever
 func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...Option) Endpoint {
-	spiffeIDConnMap := spire.SpiffeIDConnectionMap{}
 	opts := &serverOptions{
 		name:                   "endpoint-" + uuid.New().String(),
-		authorizeServer:        authorize.NewServer(authorize.WithSpiffeIDConnectionMap(&spiffeIDConnMap)),
-		authorizeMonitorServer: authmonitor.NewMonitorConnectionServer(authmonitor.WithSpiffeIDConnectionMap(&spiffeIDConnMap)),
+		authorizeServer:        authorize.NewServer(authorize.Any()),
+		authorizeMonitorServer: authmonitor.NewMonitorConnectionServer(authmonitor.Any()),
 	}
 	for _, opt := range options {
 		opt(opts)

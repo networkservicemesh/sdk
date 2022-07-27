@@ -38,7 +38,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
@@ -48,7 +47,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
-	authmonitor "github.com/networkservicemesh/sdk/pkg/tools/monitorconnection/authorize"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -173,10 +171,7 @@ func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 	// 2. Postpone endpoint start
 	time.AfterFunc(time.Second, func() {
 		serv := grpc.NewServer()
-		endpoint.NewServer(ctx, sandbox.GenerateTestToken,
-			endpoint.WithAuthorizeServer(authorize.NewServer(authorize.Any())),
-			endpoint.WithAuthorizeMonitorServer(authmonitor.NewMonitorConnectionServer(authmonitor.Any())),
-		).Register(serv)
+		endpoint.NewServer(ctx, sandbox.GenerateTestToken).Register(serv)
 		_ = serv.Serve(netListener)
 	})
 
