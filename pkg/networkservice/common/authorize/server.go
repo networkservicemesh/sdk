@@ -1,6 +1,6 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2020-2021 Cisco Systems, Inc.
+// Copyright (c) 2020-2022 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -29,39 +29,58 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
+	"github.com/networkservicemesh/sdk/pkg/tools/spire"
 )
 
 type authorizeServer struct {
-	policies policiesList
+	policies              policiesList
+	spiffeIDConnectionMap *spire.SpiffeIDConnectionMap
 }
 
 // NewServer - returns a new authorization networkservicemesh.NetworkServiceServers
 // Authorize server checks left side of Path.
 func NewServer(opts ...Option) networkservice.NetworkServiceServer {
-	var s = &authorizeServer{
-		policies: []Policy{
+	o := &options{
+		policies: policiesList{
 			opa.WithTokensValidPolicy(),
 			opa.WithPrevTokenSignedPolicy(),
 			opa.WithTokensExpiredPolicy(),
 			opa.WithTokenChainPolicy(),
 		},
+		spiffeIDConnectionMap: &spire.SpiffeIDConnectionMap{},
 	}
-	for _, o := range opts {
-		o.apply(&s.policies)
+	for _, opt := range opts {
+		opt(o)
+	}
+	var s = &authorizeServer{
+		policies:              o.policies,
+		spiffeIDConnectionMap: o.spiffeIDConnectionMap,
 	}
 	return s
 }
 
 func (a *authorizeServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	var index = request.GetConnection().GetPath().GetIndex()
+	conn := request.GetConnection()
+	var index = conn.GetPath().GetIndex()
 	var leftSide = &networkservice.Path{
 		Index:        index,
-		PathSegments: request.GetConnection().GetPath().GetPathSegments()[:index+1],
+		PathSegments: conn.GetPath().GetPathSegments()[:index+1],
 	}
 	if _, ok := peer.FromContext(ctx); ok {
 		if err := a.policies.check(ctx, leftSide); err != nil {
 			return nil, err
 		}
+	}
+
+	if spiffeID, err := spire.SpiffeIDFromContext(ctx); err == nil {
+		connID := conn.GetPath().GetPathSegments()[index-1].GetId()
+		ids, ok := a.spiffeIDConnectionMap.Load(spiffeID)
+		if !ok {
+			ids = &spire.ConnectionIDSet{}
+		}
+		var placer struct{}
+		ids.Store(connID, placer)
+		a.spiffeIDConnectionMap.Store(spiffeID, ids)
 	}
 	return next.Server(ctx).Request(ctx, request)
 }
@@ -71,6 +90,25 @@ func (a *authorizeServer) Close(ctx context.Context, conn *networkservice.Connec
 	var leftSide = &networkservice.Path{
 		Index:        index,
 		PathSegments: conn.GetPath().GetPathSegments()[:index+1],
+	}
+	if spiffeID, err := spire.SpiffeIDFromContext(ctx); err == nil {
+		connID := conn.GetPath().GetPathSegments()[index-1].GetId()
+		ids, ok := a.spiffeIDConnectionMap.Load(spiffeID)
+		if ok {
+			if _, ok := ids.Load(connID); ok {
+				ids.Delete(connID)
+			}
+		}
+		idsEmpty := true
+		ids.Range(func(_ string, _ struct{}) bool {
+			idsEmpty = false
+			return true
+		})
+		if idsEmpty {
+			a.spiffeIDConnectionMap.Delete(spiffeID)
+		} else {
+			a.spiffeIDConnectionMap.Store(spiffeID, ids)
+		}
 	}
 	if _, ok := peer.FromContext(ctx); ok {
 		if err := a.policies.check(ctx, leftSide); err != nil {

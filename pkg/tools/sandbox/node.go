@@ -40,6 +40,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	authmonitor "github.com/networkservicemesh/sdk/pkg/tools/monitorconnection/authorize"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -69,6 +70,7 @@ func (n *Node) NewNSMgr(
 	options := []nsmgr.Option{
 		nsmgr.WithName(name),
 		nsmgr.WithAuthorizeServer(authorize.NewServer(authorize.Any())),
+		nsmgr.WithAuthorizeMonitorServer(authmonitor.NewMonitorConnectionServer(authmonitor.Any())),
 		nsmgr.WithDialOptions(dialOptions...),
 		nsmgr.WithDialTimeout(DialTimeout),
 	}
