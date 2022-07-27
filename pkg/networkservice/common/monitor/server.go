@@ -23,7 +23,6 @@ package monitor
 import (
 	"context"
 
-	"github.com/edwarnicke/serialize"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 
@@ -37,10 +36,7 @@ import (
 )
 
 type monitorServer struct {
-	chainCtx    context.Context
-	filters     map[string]*monitorFilter
-	executor    serialize.Executor
-	connections map[string]*networkservice.Connection
+	chainCtx context.Context
 	networkservice.MonitorConnectionServer
 }
 
@@ -54,15 +50,11 @@ type monitorServer struct {
 //                        networkservice.MonitorConnectionServer chain
 //             chainCtx - context for lifecycle management
 func NewServer(chainCtx context.Context, monitorServerPtr *networkservice.MonitorConnectionServer) networkservice.NetworkServiceServer {
-	var rv = monitorServer{
+	*monitorServerPtr = newMonitorConnectionServer(chainCtx)
+	return &monitorServer{
 		chainCtx:                chainCtx,
 		MonitorConnectionServer: *monitorServerPtr,
-		filters:                 make(map[string]*monitorFilter),
-		executor:                serialize.Executor{},
-		connections:             make(map[string]*networkservice.Connection),
 	}
-	*monitorServerPtr = newMonitorConnectionServer(rv.chainCtx, &rv.executor, rv.filters, rv.connections)
-	return &rv
 }
 
 func (m *monitorServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
@@ -72,12 +64,13 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 		cancelEventLoop()
 	}
 
+	storeEventConsumer(ctx, metadata.IsClient(m), m.MonitorConnectionServer.(EventConsumer))
+
 	conn, err := next.Server(ctx).Request(ctx, request)
 	if err != nil {
 		return nil, err
 	}
-
-	_ = m.Send(&networkservice.ConnectionEvent{
+	_ = m.MonitorConnectionServer.(EventConsumer).Send(&networkservice.ConnectionEvent{
 		Type:        networkservice.ConnectionEventType_UPDATE,
 		Connections: map[string]*networkservice.Connection{conn.GetId(): conn.Clone()},
 	})
@@ -86,7 +79,7 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 	// events through from, so start an eventLoop
 	cc, ccLoaded := clientconn.Load(ctx)
 	if ccLoaded {
-		cancelEventLoop, eventLoopErr := newEventLoop(m.chainCtx, m, cc, conn)
+		cancelEventLoop, eventLoopErr := newEventLoop(m.chainCtx, m.MonitorConnectionServer.(EventConsumer), cc, conn)
 		if eventLoopErr != nil {
 			closeCtx, closeCancel := closeCtxFunc()
 			defer closeCancel()
@@ -104,56 +97,10 @@ func (m *monitorServer) Close(ctx context.Context, conn *networkservice.Connecti
 	if cancelEventLoop, loaded := loadAndDelete(ctx, metadata.IsClient(m)); loaded {
 		cancelEventLoop()
 	}
-
 	rv, err := next.Server(ctx).Close(ctx, conn)
-	_ = m.Send(&networkservice.ConnectionEvent{
+	_ = m.MonitorConnectionServer.(EventConsumer).Send(&networkservice.ConnectionEvent{
 		Type:        networkservice.ConnectionEventType_DELETE,
 		Connections: map[string]*networkservice.Connection{conn.GetId(): conn.Clone()},
 	})
 	return rv, err
-}
-
-func (m *monitorServer) Send(event *networkservice.ConnectionEvent) (_ error) {
-	m.executor.AsyncExec(func() {
-		if event.Type == networkservice.ConnectionEventType_UPDATE {
-			for _, conn := range event.GetConnections() {
-				m.connections[conn.GetId()] = conn.Clone()
-			}
-		}
-		if event.Type == networkservice.ConnectionEventType_DELETE {
-			for _, conn := range event.GetConnections() {
-				delete(m.connections, conn.GetId())
-			}
-		}
-		if event.Type == networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER {
-			// sending event with INIITIAL_STATE_TRANSFER not permitted
-			return
-		}
-		for id, filter := range m.filters {
-			id, filter := id, filter
-			e := event.Clone()
-			filter.executor.AsyncExec(func() {
-				var err error
-				select {
-				case <-filter.Context().Done():
-					m.executor.AsyncExec(func() {
-						delete(m.filters, id)
-					})
-				default:
-					err = filter.Send(e)
-				}
-				if err != nil {
-					m.executor.AsyncExec(func() {
-						delete(m.filters, id)
-					})
-				}
-			})
-		}
-	})
-	return nil
-}
-
-// EventConsumer - interface for monitor events sending
-type EventConsumer interface {
-	Send(event *networkservice.ConnectionEvent) (err error)
 }
