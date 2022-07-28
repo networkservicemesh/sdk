@@ -40,7 +40,7 @@ func WithPolicies(p ...Policy) Option {
 	}
 }
 
-// WithSpiffeIDConnectionMap sets map to keep spiffeIDConnectionMap to authorize connections with MonitorServer
+// WithSpiffeIDConnectionMap sets map to keep spiffeIDConnectionMap to authorize connections with MonitorConnectionServer
 func WithSpiffeIDConnectionMap(s *spire.SpiffeIDConnectionMap) Option {
 	return func(o *options) {
 		o.spiffeIDConnectionMap = s

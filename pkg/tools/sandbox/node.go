@@ -70,7 +70,7 @@ func (n *Node) NewNSMgr(
 	options := []nsmgr.Option{
 		nsmgr.WithName(name),
 		nsmgr.WithAuthorizeServer(authorize.NewServer(authorize.Any())),
-		nsmgr.WithAuthorizeMonitorServer(authmonitor.NewMonitorConnectionServer(authmonitor.Any())),
+		nsmgr.WithAuthorizeMonitorConnectionServer(authmonitor.NewMonitorConnectionServer(authmonitor.Any())),
 		nsmgr.WithDialOptions(dialOptions...),
 		nsmgr.WithDialTimeout(DialTimeout),
 	}

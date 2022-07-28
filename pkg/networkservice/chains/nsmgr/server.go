@@ -75,14 +75,14 @@ type nsmgrServer struct {
 }
 
 type serverOptions struct {
-	authorizeServer        networkservice.NetworkServiceServer
-	authorizeMonitorServer networkservice.MonitorConnectionServer
-	dialOptions            []grpc.DialOption
-	dialTimeout            time.Duration
-	regURL                 *url.URL
-	name                   string
-	url                    string
-	forwarderServiceName   string
+	authorizeServer                  networkservice.NetworkServiceServer
+	authorizeMonitorConnectionServer networkservice.MonitorConnectionServer
+	dialOptions                      []grpc.DialOption
+	dialTimeout                      time.Duration
+	regURL                           *url.URL
+	name                             string
+	url                              string
+	forwarderServiceName             string
 }
 
 // Option modifies server option value
@@ -120,13 +120,13 @@ func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Op
 	}
 }
 
-// WithAuthorizeMonitorServer sets authorization MonitorConnectionServer chain element
-func WithAuthorizeMonitorServer(authorizeMonitorServer networkservice.MonitorConnectionServer) Option {
-	if authorizeMonitorServer == nil {
-		panic("authorizeMonitorServer cannot be nil")
+// WithAuthorizeMonitorConnectionServer sets authorization MonitorConnectionServer chain element
+func WithAuthorizeMonitorConnectionServer(authorizeMonitorConnectionServer networkservice.MonitorConnectionServer) Option {
+	if authorizeMonitorConnectionServer == nil {
+		panic("authorizeMonitorConnectionServer cannot be nil")
 	}
 	return func(o *serverOptions) {
-		o.authorizeMonitorServer = authorizeMonitorServer
+		o.authorizeMonitorConnectionServer = authorizeMonitorConnectionServer
 	}
 }
 
@@ -159,10 +159,10 @@ var _ Nsmgr = (*nsmgrServer)(nil)
 //			 options - a set of Nsmgr options.
 func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...Option) Nsmgr {
 	opts := &serverOptions{
-		authorizeServer:        authorize.NewServer(authorize.Any()),
-		authorizeMonitorServer: authmonitor.NewMonitorConnectionServer(authmonitor.Any()),
-		name:                   "nsmgr-" + uuid.New().String(),
-		forwarderServiceName:   "forwarder",
+		authorizeServer:                  authorize.NewServer(authorize.Any()),
+		authorizeMonitorConnectionServer: authmonitor.NewMonitorConnectionServer(authmonitor.Any()),
+		name:                             "nsmgr-" + uuid.New().String(),
+		forwarderServiceName:             "forwarder",
 	}
 	for _, opt := range options {
 		opt(opts)
@@ -224,7 +224,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	rv.Endpoint = endpoint.NewServer(ctx, tokenGenerator,
 		endpoint.WithName(opts.name),
 		endpoint.WithAuthorizeServer(opts.authorizeServer),
-		endpoint.WithAuthorizeMonitorServer(opts.authorizeMonitorServer),
+		endpoint.WithAuthorizeMonitorConnectionServer(opts.authorizeMonitorConnectionServer),
 		endpoint.WithAdditionalFunctionality(
 			adapters.NewClientToServer(clientinfo.NewClient()),
 			discoverforwarder.NewServer(

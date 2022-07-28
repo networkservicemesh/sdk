@@ -62,10 +62,10 @@ type endpoint struct {
 }
 
 type serverOptions struct {
-	name                    string
-	authorizeServer         networkservice.NetworkServiceServer
-	authorizeMonitorServer  networkservice.MonitorConnectionServer
-	additionalFunctionality []networkservice.NetworkServiceServer
+	name                             string
+	authorizeServer                  networkservice.NetworkServiceServer
+	authorizeMonitorConnectionServer networkservice.MonitorConnectionServer
+	additionalFunctionality          []networkservice.NetworkServiceServer
 }
 
 // Option modifies server option value
@@ -88,13 +88,13 @@ func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Op
 	}
 }
 
-// WithAuthorizeMonitorServer sets authorization MonitorConnectionServer chain element
-func WithAuthorizeMonitorServer(authorizeMonitorServer networkservice.MonitorConnectionServer) Option {
-	if authorizeMonitorServer == nil {
-		panic("authorizeMonitorServer cannot be nil")
+// WithAuthorizeMonitorConnectionServer sets authorization MonitorConnectionServer chain element
+func WithAuthorizeMonitorConnectionServer(authorizeMonitorConnectionServer networkservice.MonitorConnectionServer) Option {
+	if authorizeMonitorConnectionServer == nil {
+		panic("authorizeMonitorConnectionServer cannot be nil")
 	}
 	return func(o *serverOptions) {
-		o.authorizeMonitorServer = authorizeMonitorServer
+		o.authorizeMonitorConnectionServer = authorizeMonitorConnectionServer
 	}
 }
 
@@ -108,9 +108,9 @@ func WithAdditionalFunctionality(additionalFunctionality ...networkservice.Netwo
 // NewServer - returns a NetworkServiceMesh client as a chain of the standard Client pieces plus whatever
 func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...Option) Endpoint {
 	opts := &serverOptions{
-		name:                   "endpoint-" + uuid.New().String(),
-		authorizeServer:        authorize.NewServer(authorize.Any()),
-		authorizeMonitorServer: authmonitor.NewMonitorConnectionServer(authmonitor.Any()),
+		name:                             "endpoint-" + uuid.New().String(),
+		authorizeServer:                  authorize.NewServer(authorize.Any()),
+		authorizeMonitorConnectionServer: authmonitor.NewMonitorConnectionServer(authmonitor.Any()),
 	}
 	for _, opt := range options {
 		opt(opts)
@@ -129,7 +129,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			monitor.NewServer(ctx, &mcsPtr),
 			trimpath.NewServer(),
 		}, opts.additionalFunctionality...)...)
-	rv.MonitorConnectionServer = next.NewMonitorConnectionServer(opts.authorizeMonitorServer, mcsPtr)
+	rv.MonitorConnectionServer = next.NewMonitorConnectionServer(opts.authorizeMonitorConnectionServer, mcsPtr)
 	return rv
 }
 
