@@ -19,8 +19,10 @@ package nsm
 default service_connection = false
 
 service_connection {
-   conn_ids := [y | y = input.spiffe_id_connection_map[input.service_spiffe_id][_]]
-   count(input.path_segments) > 0
+	conn_ids := {y | y = input.spiffe_id_connection_map[input.service_spiffe_id][_]}
+   path_conn_ids := {x | x = input.selector_connection_ids[_]}
+   count(path_conn_ids) > 0
    count(conn_ids) > 0
-   conn_ids == input.path_segments
+   inter := conn_ids & path_conn_ids
+   count(inter) > 0
 }

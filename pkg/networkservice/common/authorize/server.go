@@ -78,8 +78,7 @@ func (a *authorizeServer) Request(ctx context.Context, request *networkservice.N
 		if !ok {
 			ids = &spire.ConnectionIDSet{}
 		}
-		var placer struct{}
-		ids.Store(connID, placer)
+		ids.Store(connID, struct{}{})
 		a.spiffeIDConnectionMap.Store(spiffeID, ids)
 	}
 	return next.Server(ctx).Request(ctx, request)

@@ -29,14 +29,14 @@ import (
 func TestWithServiceConnectionPolicy(t *testing.T) {
 	var p = opa.WithMonitorConnectionServerPolicy()
 	var input = authorize.MonitorOpaInput{
-		PathSegments: []string{"conn1"},
+		SelectorConnectionIds: []string{"conn1"},
 		SpiffeIDConnectionMap: map[string][]string{
 			spiffeID: {"conn1"},
 		},
 		ServiceSpiffeID: spiffeID,
 	}
 	var invalidInput = authorize.MonitorOpaInput{
-		PathSegments: []string{"conn1"},
+		SelectorConnectionIds: []string{"conn1"},
 		SpiffeIDConnectionMap: map[string][]string{
 			spiffeID: {"conn2"},
 		},

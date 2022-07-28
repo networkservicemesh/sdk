@@ -83,10 +83,12 @@ func testPolicy() authorize.Policy {
 		default allow = false
 	
 		allow {
-			conn_ids := [y | y = input.spiffe_id_connection_map[input.service_spiffe_id][_]]
-			count(input.path_segments) > 0
+			conn_ids := {y | y = input.spiffe_id_connection_map[input.service_spiffe_id][_]}
+			path_conn_ids := {x | x = input.selector_connection_ids[_]}
+			count(path_conn_ids) > 0
 			count(conn_ids) > 0
-			conn_ids == input.path_segments
+			inter := conn_ids & path_conn_ids
+			count(inter) > 0
 		}
 `, "allow", opa.True)
 }
@@ -125,17 +127,24 @@ func TestAuthzEndpoint(t *testing.T) {
 			denied:       true,
 		},
 		{
-			name:            "positive test with nonempty objects",
-			baseCtx:         true,
-			pathSegments:    []*networkservice.PathSegment{{Id: "conn1"}},
-			spiffeIDConnMap: map[string][]string{spiffeID1: {"conn1"}},
-			denied:          false,
-		},
-		{
 			name:            "positive test with several spiffeIds objects",
 			baseCtx:         true,
 			pathSegments:    []*networkservice.PathSegment{{Id: "conn1"}},
 			spiffeIDConnMap: map[string][]string{spiffeID1: {"conn1"}, spiffeID2: {"conn2"}},
+			denied:          false,
+		},
+		{
+			name:            "positive test with several connection ids in the path",
+			baseCtx:         true,
+			pathSegments:    []*networkservice.PathSegment{{Id: "conn1"}, {Id: "conn2"}},
+			spiffeIDConnMap: map[string][]string{spiffeID1: {"conn1"}},
+			denied:          false,
+		},
+		{
+			name:            "positive test with several connection ids in the spiffeID map",
+			baseCtx:         true,
+			pathSegments:    []*networkservice.PathSegment{{Id: "conn1"}},
+			spiffeIDConnMap: map[string][]string{spiffeID1: {"conn1", "conn2"}},
 			denied:          false,
 		},
 		{
@@ -171,9 +180,8 @@ func TestAuthzEndpoint(t *testing.T) {
 	for i := range suits {
 		s := suits[i]
 		t.Run(s.name, func(t *testing.T) {
-			var baseCtx context.Context
 			var err error
-			baseCtx = context.Background()
+			baseCtx := context.Background()
 			if s.baseCtx {
 				baseCtx, err = getContextWithTLSCert()
 				require.NoError(t, err)
@@ -182,8 +190,7 @@ func TestAuthzEndpoint(t *testing.T) {
 			for spiffeIDstr, connIds := range s.spiffeIDConnMap {
 				connIDMap := spire.ConnectionIDSet{}
 				for _, connID := range connIds {
-					var placer struct{}
-					connIDMap.Store(connID, placer)
+					connIDMap.Store(connID, struct{}{})
 				}
 				var spiffeID spiffeid.ID
 				spiffeID, err = spiffeid.FromString(spiffeIDstr)
@@ -192,8 +199,7 @@ func TestAuthzEndpoint(t *testing.T) {
 			}
 			ctx, cancel := context.WithTimeout(baseCtx, time.Second)
 			defer cancel()
-			srv := authorize.NewMonitorConnectionServer(
-				authorize.WithSpiffeIDConnectionMap(&spiffeIDConnectionMap), authorize.WithPolicies(testPolicy()))
+			srv := authorize.NewMonitorConnectionServer(authorize.WithSpiffeIDConnectionMap(&spiffeIDConnectionMap), authorize.WithPolicies(testPolicy()))
 			checkResult := func(err error) {
 				if !s.denied {
 					require.Nil(t, err, "monitorConnections expected to be not denied: ")
@@ -204,9 +210,7 @@ func TestAuthzEndpoint(t *testing.T) {
 				require.True(t, ok, "error without error status code"+err.Error())
 				require.Equal(t, s.Code(), codes.PermissionDenied, "wrong error status code")
 			}
-
-			err = srv.MonitorConnections(
-				&networkservice.MonitorScopeSelector{PathSegments: s.pathSegments}, &testEmptyMCMCServer{context: ctx})
+			err = srv.MonitorConnections(&networkservice.MonitorScopeSelector{PathSegments: s.pathSegments}, &testEmptyMCMCServer{context: ctx})
 			checkResult(err)
 		})
 	}

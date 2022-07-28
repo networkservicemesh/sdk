@@ -50,7 +50,7 @@ func NewMonitorConnectionServer(opts ...Option) networkservice.MonitorConnection
 // MonitorOpaInput - used to pass complex structure to monitor policies
 type MonitorOpaInput struct {
 	SpiffeIDConnectionMap map[string][]string `json:"spiffe_id_connection_map"`
-	PathSegments          []string            `json:"path_segments"`
+	SelectorConnectionIds []string            `json:"selector_connection_ids"`
 	ServiceSpiffeID       string              `json:"service_spiffe_id"`
 }
 
@@ -71,15 +71,15 @@ func (a *authorizeMonitorConnectionsServer) MonitorConnections(in *networkservic
 		},
 	)
 
-	seg := make([]string, 0)
+	connIDs := make([]string, 0)
 	for _, v := range in.PathSegments {
-		seg = append(seg, v.GetId())
+		connIDs = append(connIDs, v.GetId())
 	}
 	spiffeID, _ := spire.SpiffeIDFromContext(ctx)
 	err := a.policies.check(ctx, MonitorOpaInput{
 		ServiceSpiffeID:       spiffeID.String(),
 		SpiffeIDConnectionMap: simpleMap,
-		PathSegments:          seg,
+		SelectorConnectionIds: connIDs,
 	})
 	if err != nil {
 		return err
