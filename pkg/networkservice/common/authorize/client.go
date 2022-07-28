@@ -1,6 +1,6 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2020-2021 Cisco Systems, Inc.
+// Copyright (c) 2020-2022 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -42,19 +42,20 @@ type authorizeClient struct {
 // NewClient - returns a new authorization networkservicemesh.NetworkServiceClient
 // Authorize client checks rigiht side of path.
 func NewClient(opts ...Option) networkservice.NetworkServiceClient {
-	var result = &authorizeClient{
-		policies: []Policy{
+	o := &options{
+		policies: policiesList{
 			opa.WithTokensValidPolicy(),
 			opa.WithNextTokenSignedPolicy(),
 			opa.WithTokensExpiredPolicy(),
 			opa.WithTokenChainPolicy(),
 		},
 	}
-
-	for _, o := range opts {
-		o.apply(&result.policies)
+	for _, opt := range opts {
+		opt(o)
 	}
-
+	var result = &authorizeClient{
+		policies: o.policies,
+	}
 	return result
 }
 

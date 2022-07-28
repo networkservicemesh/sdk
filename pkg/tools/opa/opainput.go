@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -23,7 +23,6 @@ import (
 	"encoding/pem"
 
 	"github.com/pkg/errors"
-
 	"google.golang.org/grpc/peer"
 
 	"google.golang.org/grpc/credentials"
@@ -38,7 +37,7 @@ func PreparedOpaInput(ctx context.Context, model interface{}) (map[string]interf
 	p, ok := peer.FromContext(ctx)
 	var cert *x509.Certificate
 	if ok {
-		cert = parseX509Cert(p.AuthInfo)
+		cert = ParseX509Cert(p.AuthInfo)
 	}
 	var pemcert string
 	if cert != nil {
@@ -55,7 +54,8 @@ func pemEncodingX509Cert(cert *x509.Certificate) string {
 	return string(certpem)
 }
 
-func parseX509Cert(authInfo credentials.AuthInfo) *x509.Certificate {
+// ParseX509Cert - parses x509 certificate from the passed credentials.AuthInfo
+func ParseX509Cert(authInfo credentials.AuthInfo) *x509.Certificate {
 	var peerCert *x509.Certificate
 
 	switch v := authInfo.(type) {

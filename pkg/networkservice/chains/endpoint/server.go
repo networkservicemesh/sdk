@@ -1,6 +1,6 @@
-// Copyright (c) 2020-2021 Cisco Systems, Inc.
+// Copyright (c) 2020-2022 Cisco Systems, Inc.
 //
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -41,6 +41,8 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
+	authmonitor "github.com/networkservicemesh/sdk/pkg/tools/monitorconnection/authorize"
+	"github.com/networkservicemesh/sdk/pkg/tools/monitorconnection/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -60,9 +62,10 @@ type endpoint struct {
 }
 
 type serverOptions struct {
-	name                    string
-	authorizeServer         networkservice.NetworkServiceServer
-	additionalFunctionality []networkservice.NetworkServiceServer
+	name                             string
+	authorizeServer                  networkservice.NetworkServiceServer
+	authorizeMonitorConnectionServer networkservice.MonitorConnectionServer
+	additionalFunctionality          []networkservice.NetworkServiceServer
 }
 
 // Option modifies server option value
@@ -85,6 +88,16 @@ func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Op
 	}
 }
 
+// WithAuthorizeMonitorConnectionServer sets authorization MonitorConnectionServer chain element
+func WithAuthorizeMonitorConnectionServer(authorizeMonitorConnectionServer networkservice.MonitorConnectionServer) Option {
+	if authorizeMonitorConnectionServer == nil {
+		panic("authorizeMonitorConnectionServer cannot be nil")
+	}
+	return func(o *serverOptions) {
+		o.authorizeMonitorConnectionServer = authorizeMonitorConnectionServer
+	}
+}
+
 // WithAdditionalFunctionality sets additional NetworkServiceServer chain elements to be included in the chain
 func WithAdditionalFunctionality(additionalFunctionality ...networkservice.NetworkServiceServer) Option {
 	return func(o *serverOptions) {
@@ -95,12 +108,14 @@ func WithAdditionalFunctionality(additionalFunctionality ...networkservice.Netwo
 // NewServer - returns a NetworkServiceMesh client as a chain of the standard Client pieces plus whatever
 func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...Option) Endpoint {
 	opts := &serverOptions{
-		name:            "endpoint-" + uuid.New().String(),
-		authorizeServer: authorize.NewServer(authorize.Any()),
+		name:                             "endpoint-" + uuid.New().String(),
+		authorizeServer:                  authorize.NewServer(authorize.Any()),
+		authorizeMonitorConnectionServer: authmonitor.NewMonitorConnectionServer(authmonitor.Any()),
 	}
 	for _, opt := range options {
 		opt(opts)
 	}
+	var mcsPtr networkservice.MonitorConnectionServer
 
 	rv := &endpoint{}
 	rv.NetworkServiceServer = chain.NewNetworkServiceServer(
@@ -111,10 +126,10 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			opts.authorizeServer,
 			metadata.NewServer(),
 			timeout.NewServer(ctx),
-			monitor.NewServer(ctx, &rv.MonitorConnectionServer),
+			monitor.NewServer(ctx, &mcsPtr),
 			trimpath.NewServer(),
 		}, opts.additionalFunctionality...)...)
-
+	rv.MonitorConnectionServer = next.NewMonitorConnectionServer(opts.authorizeMonitorConnectionServer, mcsPtr)
 	return rv
 }
 
