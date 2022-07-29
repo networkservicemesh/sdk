@@ -36,6 +36,9 @@ var tokensExpiredPolicySource string
 //go:embed policies/service_connection.rego
 var tokensServiceConnectionPolicySource string
 
+//go:embed policies/nse_register_valid.rego
+var nseRegisterValidPolicySource string
+
 // WithTokensValidPolicy returns default policy for checking that all tokens in the path can be decoded.
 func WithTokensValidPolicy() *AuthorizationPolicy {
 	return &AuthorizationPolicy{
@@ -86,5 +89,14 @@ func WithMonitorConnectionServerPolicy() *AuthorizationPolicy {
 		policySource: tokensServiceConnectionPolicySource,
 		query:        "service_connection",
 		checker:      True("service_connection"),
+	}
+}
+
+// WithNSERegisterValidPolicy returns policy for checking nse registration validity
+func WithNSERegisterValidPolicy() *AuthorizationPolicy {
+	return &AuthorizationPolicy{
+		policySource: nseRegisterValidPolicySource,
+		query:        "nse_register_allowed",
+		checker:      True("nse_register_allowed"),
 	}
 }

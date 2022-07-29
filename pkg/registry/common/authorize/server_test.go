@@ -40,26 +40,6 @@ import (
 	"go.uber.org/goleak"
 )
 
-// TODO(nikita): Move to OPA package
-const (
-	policy = `
-	package test
-
-	default allow = false
-	
-	# new NSE case
-	allow {
-			nses := { nse | nse := input.SpiffieIDNSEsMap[_][_]; nse == input.NSEName }
-			count(nses) == 0
-	}
-	
-	# refresh NSE case
-	allow {
-		input.SpiffieIDNSEsMap[input.SpiffieID][_] == input.NSEName
-	}
-`
-)
-
 func generateCert(u *url.URL) string {
 	ca := &x509.Certificate{
 		SerialNumber: big.NewInt(1653),
@@ -102,7 +82,7 @@ func withPeer(ctx context.Context, certPem string) (context.Context, error) {
 func TestAuthzEndpointRegistry(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	server := authorize.NewNetworkServiceEndpointRegistryServer(
-		authorize.WithPolicies(opa.WithPolicyFromSource(policy, "allow", opa.True)),
+		authorize.WithPolicies(opa.WithNSERegisterValidPolicy()),
 	)
 
 	nseReg := &registry.NetworkServiceEndpoint{Name: "nse-1"}
