@@ -19,24 +19,20 @@ package authorize_test
 import (
 	"context"
 	"crypto/ecdsa"
-	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"math/big"
 	"net/url"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
@@ -44,98 +40,48 @@ import (
 	"go.uber.org/goleak"
 )
 
+// TODO(nikita): Move to OPA package
 const (
 	policy = `
 	package test
 
-default refresh = false
-
-refresh {
-	not input.SpiffieIDNSEMap[input.NSEName]
-}
-refresh {
-	input.SpiffieIDNSEMap[input.NSEName] == input.SpiffieID
-}
+	default allow = false
+	
+	# new NSE case
+	allow {
+			nses := { nse | nse := input.SpiffieIDNSEsMap[_][_]; nse == input.NSEName }
+			count(nses) == 0
+	}
+	
+	# refresh NSE case
+	allow {
+		input.SpiffieIDNSEsMap[input.SpiffieID][_] == input.NSEName
+	}
 `
 )
 
-func publicKey(priv any) any {
-	switch k := priv.(type) {
-	case *rsa.PrivateKey:
-		return &k.PublicKey
-	case *ecdsa.PrivateKey:
-		return &k.PublicKey
-	case ed25519.PrivateKey:
-		return k.Public().(ed25519.PublicKey)
-	default:
-		return nil
-	}
-}
-
-func generateCert(host string, expirationTime time.Duration) (string, error) {
-	priv, err := ecdsa.GenerateKey(elliptic.P224(), rand.Reader)
-	if err != nil {
-		return "", errors.Errorf("Failed to generate private key: %v", err)
-	}
-
-	keyUsage := x509.KeyUsageDigitalSignature
-
-	notBefore := time.Now()
-	notAfter := notBefore.Add(expirationTime)
-
-	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
-	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
-	if err != nil {
-		return "", errors.Errorf("Failed to generate serial number: %v", err)
-	}
-
-	template := x509.Certificate{
-		SerialNumber: serialNumber,
+func generateCert(u *url.URL) string {
+	ca := &x509.Certificate{
+		SerialNumber: big.NewInt(1653),
 		Subject: pkix.Name{
-			Organization: []string{"NSM"},
+			Organization: []string{"ORGANIZATION_NAME"},
 		},
-		NotBefore: notBefore,
-		NotAfter:  notAfter,
-
-		KeyUsage:              keyUsage,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(10, 0, 0),
+		IsCA:                  true,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		SignatureAlgorithm:    x509.ECDSAWithSHA256,
 		BasicConstraintsValid: true,
+		URIs:                  []*url.URL{u},
 	}
 
-	u, err := url.Parse(host)
-	if err != nil {
-		return "", errors.Errorf("Failed to parse host: %v", err)
-	}
+	priv, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	pub := &priv.PublicKey
 
-	template.URIs = append(template.URIs, u)
-
-	template.IsCA = true
-	template.KeyUsage |= x509.KeyUsageCertSign
-
-	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, publicKey(priv), priv)
-	if err != nil {
-		return "", errors.Errorf("Failed to create certificate: %v", err)
-	}
-
-	sb := new(strings.Builder)
-
-	if err := pem.Encode(sb, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes}); err != nil {
-		return "", errors.Errorf("Failed to write data to cert.pem: %v", err)
-	}
-
-	return sb.String(), nil
-}
-
-func testPolicy() authorize.Policy {
-	return opa.WithPolicyFromSource(`
-		package test
-	
-		default allow = false
-	
-		allow {
-			 input.path_segments[_].token = "allowed"
-		}
-`, "allow", opa.True)
+	certBytes, _ := x509.CreateCertificate(rand.Reader, ca, ca, pub, priv)
+	certPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
+	return string(certPem)
 }
 
 func withPeer(ctx context.Context, certPem string) (context.Context, error) {
@@ -153,23 +99,27 @@ func withPeer(ctx context.Context, certPem string) (context.Context, error) {
 	return peer.NewContext(ctx, &peer.Peer{AuthInfo: authInfo}), nil
 }
 
-func TestAuthzEndpoint(t *testing.T) {
+func TestAuthzEndpointRegistry(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	server := authorize.NewNetworkServiceEndpointRegistryServer(authorize.WithPolicies(opa.WithPolicyFromSource(policy, "refresh", opa.True)))
+	server := authorize.NewNetworkServiceEndpointRegistryServer(
+		authorize.WithPolicies(opa.WithPolicyFromSource(policy, "allow", opa.True)),
+	)
 
-	nseReg := &registry.NetworkServiceEndpoint{
-		Name:                "nse-1",
-		NetworkServiceNames: []string{"ns-1"},
-	}
+	nseReg := &registry.NetworkServiceEndpoint{Name: "nse-1"}
 
-	cert1Pem, err := generateCert("spiffe://test.com/workload1", time.Hour)
-	cert2Pem, err := generateCert("spiffe://test.com/workload2", time.Hour)
-	cert1Ctx, _ := withPeer(context.Background(), cert1Pem)
-	cert2Ctx, _ := withPeer(context.Background(), cert2Pem)
+	u1, _ := url.Parse("spiffe://test.com/workload1")
+	u2, _ := url.Parse("spiffe://test.com/workload2")
+	cert1 := generateCert(u1)
+	cert2 := generateCert(u2)
+	cert1Ctx, _ := withPeer(context.Background(), cert1)
+	cert2Ctx, _ := withPeer(context.Background(), cert2)
 
-	_, err = server.Register(cert1Ctx, nseReg)
+	_, err := server.Register(cert1Ctx, nseReg)
 	require.NoError(t, err)
 
 	_, err = server.Register(cert2Ctx, nseReg)
 	require.Error(t, err)
+
+	_, err = server.Register(cert1Ctx, nseReg)
+	require.NoError(t, err)
 }

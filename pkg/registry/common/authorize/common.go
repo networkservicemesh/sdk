@@ -22,9 +22,9 @@ import (
 
 type RegistryOpaInput struct {
 	// TODO: add json tags
-	SpiffieID       string
-	NSEName         string
-	SpiffieIDNSEMap map[string]string
+	SpiffieID        string
+	NSEName          string
+	SpiffieIDNSEsMap map[string][]string
 }
 
 // Policy represents authorization policy for network service.

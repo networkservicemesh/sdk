@@ -20,7 +20,7 @@ import (
 	"sync"
 )
 
-//go:generate go-syncmap -output sync_map.gen.go -type spiffieIDNSEMap<string,string>
+//go:generate go-syncmap -output sync_map.gen.go -type spiffieIDNSEsMap<string,[]string>
 
-// spiffieIDNSEMap - sync.Map with key == string and value == string
-type spiffieIDNSEMap sync.Map
+// spiffieIDNSEsMap - sync.Map with key == spiffieID as string and value == list of NSEs assosiated with given spiffieID
+type spiffieIDNSEsMap sync.Map
