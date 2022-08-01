@@ -18,17 +18,39 @@
 
 package authorize
 
+type options struct {
+	registerPolicies   policiesList
+	unregisterPolicies policiesList
+	spiffeIDNSEsMap    *spiffeIDNSEsMap
+}
+
 // Option is authorization option for server
-type Option func(*authorizeNSEServer)
+type Option func(*options)
 
 // Any authorizes any call of request/close
 func Any() Option {
-	return WithRegisterPolicies(nil)
+	return func(o *options) {
+		o.registerPolicies = nil
+		o.unregisterPolicies = nil
+	}
 }
 
-// WithPolicies sets custom policies
+// WithRegisterPolicies sets custom policies for register check
 func WithRegisterPolicies(p ...Policy) Option {
-	return func(s *authorizeNSEServer) {
-		s.registerPolicies = p
+	return func(o *options) {
+		o.registerPolicies = p
+	}
+}
+
+// WithUnregisterPolicies sets custom policies for unregister check
+func WithUnregisterPolicies(p ...Policy) Option {
+	return func(o *options) {
+		o.unregisterPolicies = p
+	}
+}
+
+func WithSpiffeIDNSEsMap(m *spiffeIDNSEsMap) Option {
+	return func(o *options) {
+		o.spiffeIDNSEsMap = m
 	}
 }

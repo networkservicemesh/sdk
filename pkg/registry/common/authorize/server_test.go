@@ -23,8 +23,6 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
-	"crypto/x509/pkix"
-	"encoding/pem"
 	"math/big"
 	"net/url"
 	"testing"
@@ -40,33 +38,23 @@ import (
 	"go.uber.org/goleak"
 )
 
-func generateCert(u *url.URL) string {
+func generateCert(u *url.URL) []byte {
 	ca := &x509.Certificate{
 		SerialNumber: big.NewInt(1653),
-		Subject: pkix.Name{
-			Organization: []string{"ORGANIZATION_NAME"},
-		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(10, 0, 0),
-		IsCA:                  true,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
-		SignatureAlgorithm:    x509.ECDSAWithSHA256,
-		BasicConstraintsValid: true,
-		URIs:                  []*url.URL{u},
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().AddDate(10, 0, 0),
+		URIs:         []*url.URL{u},
 	}
 
 	priv, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	pub := &priv.PublicKey
 
 	certBytes, _ := x509.CreateCertificate(rand.Reader, ca, ca, pub, priv)
-	certPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
-	return string(certPem)
+	return certBytes
 }
 
-func withPeer(ctx context.Context, certPem string) (context.Context, error) {
-	block, _ := pem.Decode([]byte(certPem))
-	x509cert, err := x509.ParseCertificate(block.Bytes)
+func withPeer(ctx context.Context, certBytes []byte) (context.Context, error) {
+	x509cert, err := x509.ParseCertificate(certBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -83,6 +71,7 @@ func TestAuthzEndpointRegistry(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	server := authorize.NewNetworkServiceEndpointRegistryServer(
 		authorize.WithRegisterPolicies(opa.WithNSERegisterValidPolicy()),
+		authorize.WithUnregisterPolicies(opa.WithNSEUnregisterValidPolicy()),
 	)
 
 	nseReg := &registry.NetworkServiceEndpoint{Name: "nse-1"}
@@ -91,15 +80,23 @@ func TestAuthzEndpointRegistry(t *testing.T) {
 	u2, _ := url.Parse("spiffe://test.com/workload2")
 	cert1 := generateCert(u1)
 	cert2 := generateCert(u2)
-	cert1Ctx, _ := withPeer(context.Background(), cert1)
-	cert2Ctx, _ := withPeer(context.Background(), cert2)
+	cert1Ctx, err := withPeer(context.Background(), cert1)
+	require.NoError(t, err)
+	cert2Ctx, err := withPeer(context.Background(), cert2)
+	require.NoError(t, err)
 
-	_, err := server.Register(cert1Ctx, nseReg)
+	_, err = server.Register(cert1Ctx, nseReg)
 	require.NoError(t, err)
 
 	_, err = server.Register(cert2Ctx, nseReg)
 	require.Error(t, err)
 
 	_, err = server.Register(cert1Ctx, nseReg)
+	require.NoError(t, err)
+
+	_, err = server.Unregister(cert2Ctx, nseReg)
+	require.Error(t, err)
+
+	_, err = server.Unregister(cert1Ctx, nseReg)
 	require.NoError(t, err)
 }

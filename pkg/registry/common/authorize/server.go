@@ -34,24 +34,33 @@ import (
 type authorizeNSEServer struct {
 	registerPolicies   policiesList
 	unregisterPolicies policiesList
-	spiffeIDNSEsMap    *spiffeIDNSEsMap
+
+	// TODO(nikita): use stringset instead of []string in this map
+	spiffeIDNSEsMap *spiffeIDNSEsMap
 }
 
 // NewNetworkServiceEndpointRegistryServer - returns a new authorization registry.NetworkServiceEndpointRegistryServer
 // Authorize registry server checks spiffeID of NSE.
 func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkServiceEndpointRegistryServer {
-	var s = &authorizeNSEServer{
+	o := &options{
 		registerPolicies:   policiesList{},
 		unregisterPolicies: policiesList{},
 		spiffeIDNSEsMap:    new(spiffeIDNSEsMap),
 	}
-	for _, o := range opts {
-		o(s)
+
+	for _, opt := range opts {
+		opt(o)
 	}
-	return s
+
+	return &authorizeNSEServer{
+		registerPolicies:   o.registerPolicies,
+		unregisterPolicies: o.unregisterPolicies,
+		spiffeIDNSEsMap:    o.spiffeIDNSEsMap,
+	}
 }
 
 func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	// TODO(nikita): What if we don't have spiffeID ???
 	spiffeID, err := spire.SpiffeIDFromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -65,7 +74,7 @@ func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.Network
 
 	input := RegistryOpaInput{
 		SpiffeID:        spiffeID.String(),
-		NSEName:         nse.Name,
+		ResourceName:    nse.Name,
 		SpiffeIDNSEsMap: rawMap,
 	}
 	if err := s.registerPolicies.check(ctx, input); err != nil {
@@ -87,16 +96,37 @@ func (s *authorizeNSEServer) Find(query *registry.NetworkServiceEndpointQuery, s
 }
 
 func (s *authorizeNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	// id, err := getSpiffeID(ctx)
-	// if err != nil {
-	// 	return nil, err
-	// }
+	// TODO(nikita): What if we don't have spiffeID ???
+	spiffeID, err := spire.SpiffeIDFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 
-	// if err := s.policies.check(ctx, id); err != nil {
-	// 	return nil, err
-	// }
+	rawMap := make(map[string][]string)
+	s.spiffeIDNSEsMap.Range(func(key spiffeid.ID, value []string) bool {
+		rawMap[key.String()] = value
+		return true
+	})
 
-	// TODO(nikita): one endpoint can't delete another (add check)
+	input := RegistryOpaInput{
+		SpiffeID:        spiffeID.String(),
+		ResourceName:    nse.Name,
+		SpiffeIDNSEsMap: rawMap,
+	}
+	if err := s.unregisterPolicies.check(ctx, input); err != nil {
+		return nil, err
+	}
+
+	// TODO(nikita): What if we are trying to unregister nse that wasn't registered before?
+	nses, ok := s.spiffeIDNSEsMap.Load(spiffeID)
+	if ok {
+		for i, nseName := range nses {
+			if nseName == nse.Name {
+				nses = append(nses[:i], nses[i+1])
+				break
+			}
+		}
+	}
 
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }
