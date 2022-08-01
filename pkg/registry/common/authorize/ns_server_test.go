@@ -31,12 +31,12 @@ import (
 
 func TestAuthzNetworkServiceRegistry(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	server := authorize.NewNetworkServiceEndpointRegistryServer(
+	server := authorize.NewNetworkServiceRegistryServer(
 		authorize.WithRegisterPolicies(opa.WithRegisterValidPolicy()),
 		authorize.WithUnregisterPolicies(opa.WithUnregisterValidPolicy()),
 	)
 
-	nseReg := &registry.NetworkServiceEndpoint{Name: "nse-1"}
+	nsReg := &registry.NetworkService{Name: "ns-1"}
 
 	u1, _ := url.Parse("spiffe://test.com/workload1")
 	u2, _ := url.Parse("spiffe://test.com/workload2")
@@ -47,18 +47,18 @@ func TestAuthzNetworkServiceRegistry(t *testing.T) {
 	cert2Ctx, err := withPeer(context.Background(), cert2)
 	require.NoError(t, err)
 
-	_, err = server.Register(cert1Ctx, nseReg)
+	_, err = server.Register(cert1Ctx, nsReg)
 	require.NoError(t, err)
 
-	_, err = server.Register(cert2Ctx, nseReg)
+	_, err = server.Register(cert2Ctx, nsReg)
 	require.Error(t, err)
 
-	_, err = server.Register(cert1Ctx, nseReg)
+	_, err = server.Register(cert1Ctx, nsReg)
 	require.NoError(t, err)
 
-	_, err = server.Unregister(cert2Ctx, nseReg)
+	_, err = server.Unregister(cert2Ctx, nsReg)
 	require.Error(t, err)
 
-	_, err = server.Unregister(cert1Ctx, nseReg)
+	_, err = server.Unregister(cert1Ctx, nsReg)
 	require.NoError(t, err)
 }

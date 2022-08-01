@@ -36,7 +36,7 @@ type authorizeNSEServer struct {
 	unregisterPolicies policiesList
 
 	// TODO(nikita): use stringset instead of []string in this map
-	spiffeIDResourcesMap *spiffeIDResourcesMap
+	spiffeIDNSEsMap *spiffeIDResourcesMap
 }
 
 // NewNetworkServiceEndpointRegistryServer - returns a new authorization registry.NetworkServiceEndpointRegistryServer
@@ -53,9 +53,9 @@ func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkSer
 	}
 
 	return &authorizeNSEServer{
-		registerPolicies:     o.registerPolicies,
-		unregisterPolicies:   o.unregisterPolicies,
-		spiffeIDResourcesMap: o.spiffeIDResourcesMap,
+		registerPolicies:   o.registerPolicies,
+		unregisterPolicies: o.unregisterPolicies,
+		spiffeIDNSEsMap:    o.spiffeIDResourcesMap,
 	}
 }
 
@@ -67,7 +67,7 @@ func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.Network
 	}
 
 	rawMap := make(map[string][]string)
-	s.spiffeIDResourcesMap.Range(func(key spiffeid.ID, value []string) bool {
+	s.spiffeIDNSEsMap.Range(func(key spiffeid.ID, value []string) bool {
 		rawMap[key.String()] = value
 		return true
 	})
@@ -81,12 +81,12 @@ func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.Network
 		return nil, err
 	}
 
-	nses, ok := s.spiffeIDResourcesMap.Load(spiffeID)
+	nseList, ok := s.spiffeIDNSEsMap.Load(spiffeID)
 	if !ok {
-		nses = make([]string, 0)
+		nseList = make([]string, 0)
 	}
-	nses = append(nses, nse.Name)
-	s.spiffeIDResourcesMap.Store(spiffeID, nses)
+	nseList = append(nseList, nse.Name)
+	s.spiffeIDNSEsMap.Store(spiffeID, nseList)
 
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 }
@@ -103,7 +103,7 @@ func (s *authorizeNSEServer) Unregister(ctx context.Context, nse *registry.Netwo
 	}
 
 	rawMap := make(map[string][]string)
-	s.spiffeIDResourcesMap.Range(func(key spiffeid.ID, value []string) bool {
+	s.spiffeIDNSEsMap.Range(func(key spiffeid.ID, value []string) bool {
 		rawMap[key.String()] = value
 		return true
 	})
@@ -118,11 +118,11 @@ func (s *authorizeNSEServer) Unregister(ctx context.Context, nse *registry.Netwo
 	}
 
 	// TODO(nikita): What if we are trying to unregister nse that wasn't registered before?
-	nses, ok := s.spiffeIDResourcesMap.Load(spiffeID)
+	nseNames, ok := s.spiffeIDNSEsMap.Load(spiffeID)
 	if ok {
-		for i, nseName := range nses {
+		for i, nseName := range nseNames {
 			if nseName == nse.Name {
-				nses = append(nses[:i], nses[i+1])
+				nseNames = append(nseNames[:i], nseNames[i+1])
 				break
 			}
 		}
