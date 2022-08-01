@@ -31,35 +31,35 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/spire"
 )
 
-type authorizeNSEServer struct {
+type authorizeNSServer struct {
 	registerPolicies   policiesList
 	unregisterPolicies policiesList
 
 	// TODO(nikita): use stringset instead of []string in this map
-	spiffeIDNSEsMap *spiffeIDNSEsMap
+	spiffeIDResourcesMap *spiffeIDResourcesMap
 }
 
-// NewNetworkServiceEndpointRegistryServer - returns a new authorization registry.NetworkServiceEndpointRegistryServer
-// Authorize registry server checks spiffeID of NSE.
-func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkServiceEndpointRegistryServer {
+// NewNetworkServiceRegistryServer - returns a new authorization registry.NetworkServiceRegistryServer
+// Authorize registry server checks spiffeID of NS.
+func NewNetworkServiceRegistryServer(opts ...Option) registry.NetworkServiceRegistryServer {
 	o := &options{
-		registerPolicies:   policiesList{},
-		unregisterPolicies: policiesList{},
-		spiffeIDNSEsMap:    new(spiffeIDNSEsMap),
+		registerPolicies:     policiesList{},
+		unregisterPolicies:   policiesList{},
+		spiffeIDResourcesMap: new(spiffeIDResourcesMap),
 	}
 
 	for _, opt := range opts {
 		opt(o)
 	}
 
-	return &authorizeNSEServer{
-		registerPolicies:   o.registerPolicies,
-		unregisterPolicies: o.unregisterPolicies,
-		spiffeIDNSEsMap:    o.spiffeIDNSEsMap,
+	return &authorizeNSServer{
+		registerPolicies:     o.registerPolicies,
+		unregisterPolicies:   o.unregisterPolicies,
+		spiffeIDResourcesMap: o.spiffeIDResourcesMap,
 	}
 }
 
-func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+func (s *authorizeNSServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
 	// TODO(nikita): What if we don't have spiffeID ???
 	spiffeID, err := spire.SpiffeIDFromContext(ctx)
 	if err != nil {
@@ -67,35 +67,35 @@ func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.Network
 	}
 
 	rawMap := make(map[string][]string)
-	s.spiffeIDNSEsMap.Range(func(key spiffeid.ID, value []string) bool {
+	s.spiffeIDResourcesMap.Range(func(key spiffeid.ID, value []string) bool {
 		rawMap[key.String()] = value
 		return true
 	})
 
 	input := RegistryOpaInput{
-		SpiffeID:        spiffeID.String(),
-		ResourceName:    nse.Name,
-		SpiffeIDNSEsMap: rawMap,
+		SpiffeID:             spiffeID.String(),
+		ResourceName:         ns.Name,
+		SpiffeIDResourcesMap: rawMap,
 	}
 	if err := s.registerPolicies.check(ctx, input); err != nil {
 		return nil, err
 	}
 
-	nses, ok := s.spiffeIDNSEsMap.Load(spiffeID)
+	nses, ok := s.spiffeIDResourcesMap.Load(spiffeID)
 	if !ok {
 		nses = make([]string, 0)
 	}
-	nses = append(nses, nse.Name)
-	s.spiffeIDNSEsMap.Store(spiffeID, nses)
+	nses = append(nses, ns.Name)
+	s.spiffeIDResourcesMap.Store(spiffeID, nses)
 
-	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
+	return next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
 }
 
-func (s *authorizeNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
-	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
+func (s *authorizeNSServer) Find(query *registry.NetworkServiceQuery, server registry.NetworkServiceRegistry_FindServer) error {
+	return next.NetworkServiceRegistryServer(server.Context()).Find(query, server)
 }
 
-func (s *authorizeNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+func (s *authorizeNSServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
 	// TODO(nikita): What if we don't have spiffeID ???
 	spiffeID, err := spire.SpiffeIDFromContext(ctx)
 	if err != nil {
@@ -103,30 +103,30 @@ func (s *authorizeNSEServer) Unregister(ctx context.Context, nse *registry.Netwo
 	}
 
 	rawMap := make(map[string][]string)
-	s.spiffeIDNSEsMap.Range(func(key spiffeid.ID, value []string) bool {
+	s.spiffeIDResourcesMap.Range(func(key spiffeid.ID, value []string) bool {
 		rawMap[key.String()] = value
 		return true
 	})
 
 	input := RegistryOpaInput{
-		SpiffeID:        spiffeID.String(),
-		ResourceName:    nse.Name,
-		SpiffeIDNSEsMap: rawMap,
+		SpiffeID:             spiffeID.String(),
+		ResourceName:         ns.Name,
+		SpiffeIDResourcesMap: rawMap,
 	}
 	if err := s.unregisterPolicies.check(ctx, input); err != nil {
 		return nil, err
 	}
 
 	// TODO(nikita): What if we are trying to unregister nse that wasn't registered before?
-	nses, ok := s.spiffeIDNSEsMap.Load(spiffeID)
+	nses, ok := s.spiffeIDResourcesMap.Load(spiffeID)
 	if ok {
 		for i, nseName := range nses {
-			if nseName == nse.Name {
+			if nseName == ns.Name {
 				nses = append(nses[:i], nses[i+1])
 				break
 			}
 		}
 	}
 
-	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
+	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }

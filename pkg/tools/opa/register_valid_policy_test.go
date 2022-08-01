@@ -27,8 +27,8 @@ import (
 )
 
 func TestNSERegisterValidPolicy(t *testing.T) {
-	var p = opa.WithNSERegisterValidPolicy()
-	spiffeIDNSEsMap := map[string][]string{
+	var p = opa.WithRegisterValidPolicy()
+	spiffeIDResourcesMap := map[string][]string{
 		"id1": {"nse1", "nse2"},
 		"id2": {"nse3", "nse4"},
 	}
@@ -49,9 +49,9 @@ func TestNSERegisterValidPolicy(t *testing.T) {
 
 	for _, sample := range samples {
 		var input = authorize.RegistryOpaInput{
-			SpiffeIDNSEsMap: spiffeIDNSEsMap,
-			SpiffeID:        sample.spiffeID,
-			ResourceName:    sample.nseName,
+			SpiffeIDResourcesMap: spiffeIDResourcesMap,
+			SpiffeID:             sample.spiffeID,
+			ResourceName:         sample.nseName,
 		}
 
 		err := p.Check(ctx, input)

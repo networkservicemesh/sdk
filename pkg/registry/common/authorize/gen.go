@@ -20,7 +20,7 @@ import (
 	"sync"
 )
 
-//go:generate go-syncmap -output sync_map.gen.go -type spiffeIDNSEsMap<github.com/spiffe/go-spiffe/v2/spiffeid.ID,[]string>
+//go:generate go-syncmap -output sync_map.gen.go -type spiffeIDResourcesMap<github.com/spiffe/go-spiffe/v2/spiffeid.ID,[]string>
 
-// spiffeIDNSEsMap - sync.Map with key == spiffeID and value == list of NSEs assosiated with spiffeID
-type spiffeIDNSEsMap sync.Map
+// spiffeIDResourcesMap - sync.Map with key == spiffeID and value == list of NSEs assosiated with spiffeID
+type spiffeIDResourcesMap sync.Map

@@ -22,9 +22,9 @@ import (
 
 // RegistryOpaInput represents input for policies in authorizNSEServer and authorizeNSServer
 type RegistryOpaInput struct {
-	SpiffeID        string              `json:"spiffe_id"`
-	ResourceName    string              `json:"resource_name"`
-	SpiffeIDNSEsMap map[string][]string `json:"spiffe_id_nses_map"`
+	SpiffeID             string              `json:"spiffe_id"`
+	ResourceName         string              `json:"resource_name"`
+	SpiffeIDResourcesMap map[string][]string `json:"spiffe_id_resources_map"`
 }
 
 // Policy represents authorization policy for network service.

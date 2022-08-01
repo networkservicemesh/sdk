@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2021 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -25,17 +25,10 @@ import (
 	"crypto/x509"
 	"math/big"
 	"net/url"
-	"testing"
 	"time"
 
-	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
-	"github.com/networkservicemesh/sdk/pkg/tools/opa"
-	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
-
-	"go.uber.org/goleak"
 )
 
 func generateCert(u *url.URL) []byte {
@@ -65,38 +58,4 @@ func withPeer(ctx context.Context, certBytes []byte) (context.Context, error) {
 		},
 	}
 	return peer.NewContext(ctx, &peer.Peer{AuthInfo: authInfo}), nil
-}
-
-func TestAuthzEndpointRegistry(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-	server := authorize.NewNetworkServiceEndpointRegistryServer(
-		authorize.WithRegisterPolicies(opa.WithNSERegisterValidPolicy()),
-		authorize.WithUnregisterPolicies(opa.WithNSEUnregisterValidPolicy()),
-	)
-
-	nseReg := &registry.NetworkServiceEndpoint{Name: "nse-1"}
-
-	u1, _ := url.Parse("spiffe://test.com/workload1")
-	u2, _ := url.Parse("spiffe://test.com/workload2")
-	cert1 := generateCert(u1)
-	cert2 := generateCert(u2)
-	cert1Ctx, err := withPeer(context.Background(), cert1)
-	require.NoError(t, err)
-	cert2Ctx, err := withPeer(context.Background(), cert2)
-	require.NoError(t, err)
-
-	_, err = server.Register(cert1Ctx, nseReg)
-	require.NoError(t, err)
-
-	_, err = server.Register(cert2Ctx, nseReg)
-	require.Error(t, err)
-
-	_, err = server.Register(cert1Ctx, nseReg)
-	require.NoError(t, err)
-
-	_, err = server.Unregister(cert2Ctx, nseReg)
-	require.Error(t, err)
-
-	_, err = server.Unregister(cert1Ctx, nseReg)
-	require.NoError(t, err)
 }

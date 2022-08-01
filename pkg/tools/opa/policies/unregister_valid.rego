@@ -16,15 +16,8 @@
 
 package nsm
 
-default nse_register_allowed = false
-	
-# new NSE case
-nse_register_allowed {
-        nses := { nse | nse := input.spiffe_id_nses_map[_][_]; nse == input.resource_name }
-        count(nses) == 0
-}
-	
-# refresh NSE case
-nse_register_allowed {
-    input.spiffe_id_nses_map[input.spiffe_id][_] == input.resource_name
+default nse_unregister_allowed = false
+
+nse_unregister_allowed {
+    input.spiffe_id_resources_map[input.spiffe_id][_] == input.resource_name
 }

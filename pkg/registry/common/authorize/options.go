@@ -19,9 +19,9 @@
 package authorize
 
 type options struct {
-	registerPolicies   policiesList
-	unregisterPolicies policiesList
-	spiffeIDNSEsMap    *spiffeIDNSEsMap
+	registerPolicies     policiesList
+	unregisterPolicies   policiesList
+	spiffeIDResourcesMap *spiffeIDResourcesMap
 }
 
 // Option is authorization option for server
@@ -49,8 +49,8 @@ func WithUnregisterPolicies(p ...Policy) Option {
 	}
 }
 
-func WithSpiffeIDNSEsMap(m *spiffeIDNSEsMap) Option {
+func WithSpiffeIDNSEsMap(m *spiffeIDResourcesMap) Option {
 	return func(o *options) {
-		o.spiffeIDNSEsMap = m
+		o.spiffeIDResourcesMap = m
 	}
 }
