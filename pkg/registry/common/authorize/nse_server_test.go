@@ -22,9 +22,10 @@ import (
 	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/stretchr/testify/require"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
-	"github.com/stretchr/testify/require"
 
 	"go.uber.org/goleak"
 )

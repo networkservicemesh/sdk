@@ -47,7 +47,8 @@ func WithUnregisterPolicies(p ...Policy) Option {
 	}
 }
 
-func WithSpiffeIDNSEsMap(m *spiffeIDResourcesMap) Option {
+// WithSpiffeIDResourcesMap sets map to keep spiffeIDResourcesMap to authorize connections with Registry Authorize Chain Element
+func WithSpiffeIDResourcesMap(m *spiffeIDResourcesMap) Option {
 	return func(o *options) {
 		o.spiffeIDResourcesMap = m
 	}

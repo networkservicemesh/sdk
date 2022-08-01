@@ -97,7 +97,7 @@ func (s *authorizeNSServer) Unregister(ctx context.Context, ns *registry.Network
 	// TODO(nikita): What if we don't have spiffeID ???
 	spiffeID, err := spire.SpiffeIDFromContext(ctx)
 	if err != nil {
-		next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
+		return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 	}
 
 	rawMap := make(map[string][]string)

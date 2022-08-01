@@ -22,5 +22,5 @@ import (
 
 //go:generate go-syncmap -output sync_map.gen.go -type spiffeIDResourcesMap<github.com/spiffe/go-spiffe/v2/spiffeid.ID,[]string>
 
-// spiffeIDResourcesMap - sync.Map with key == spiffeID and value == list of NSEs assosiated with spiffeID
+// spiffeIDResourcesMap - sync.Map with key == spiffeID and value == list of NSEs associated with spiffeID
 type spiffeIDResourcesMap sync.Map

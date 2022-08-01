@@ -124,6 +124,11 @@ func (s *authorizeNSEServer) Unregister(ctx context.Context, nse *registry.Netwo
 				break
 			}
 		}
+		if len(nseNames) == 0 {
+			s.spiffeIDNSEsMap.Delete(spiffeID)
+		} else {
+			s.spiffeIDNSEsMap.Store(spiffeID, nseNames)
+		}
 	}
 
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
