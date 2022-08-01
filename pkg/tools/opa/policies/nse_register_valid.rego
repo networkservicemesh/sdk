@@ -20,11 +20,11 @@ default nse_register_allowed = false
 	
 # new NSE case
 nse_register_allowed {
-        nses := { nse | nse := input.SpiffieIDNSEsMap[_][_]; nse == input.NSEName }
+        nses := { nse | nse := input.spiffe_id_nses_map[_][_]; nse == input.nse_name }
         count(nses) == 0
 }
 	
 # refresh NSE case
 nse_register_allowed {
-    input.SpiffieIDNSEsMap[input.SpiffieID][_] == input.NSEName
+    input.spiffe_id_nses_map[input.spiffe_id][_] == input.nse_name
 }

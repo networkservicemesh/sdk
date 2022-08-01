@@ -29,6 +29,6 @@ func Any() Option {
 // WithPolicies sets custom policies
 func WithRegisterPolicies(p ...Policy) Option {
 	return func(s *authorizeNSEServer) {
-		s.policies = p
+		s.registerPolicies = p
 	}
 }

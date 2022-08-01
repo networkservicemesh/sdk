@@ -21,31 +21,29 @@ package authorize
 
 import (
 	"context"
-	"errors"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/spiffe/go-spiffe/v2/svid/x509svid"
-	"google.golang.org/grpc/peer"
+	"github.com/spiffe/go-spiffe/v2/spiffeid"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/opa"
+	"github.com/networkservicemesh/sdk/pkg/tools/spire"
 )
 
 type authorizeNSEServer struct {
 	registerPolicies   policiesList
 	unregisterPolicies policiesList
-	spiffieIDNSEsMap   *spiffieIDNSEsMap
+	spiffeIDNSEsMap    *spiffeIDNSEsMap
 }
 
 // NewNetworkServiceEndpointRegistryServer - returns a new authorization registry.NetworkServiceEndpointRegistryServer
-// Authorize registry server checks spiffieID of NSE.
+// Authorize registry server checks spiffeID of NSE.
 func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkServiceEndpointRegistryServer {
 	var s = &authorizeNSEServer{
 		registerPolicies:   policiesList{},
 		unregisterPolicies: policiesList{},
-		spiffieIDNSEsMap:   new(spiffieIDNSEsMap),
+		spiffeIDNSEsMap:    new(spiffeIDNSEsMap),
 	}
 	for _, o := range opts {
 		o(s)
@@ -54,32 +52,32 @@ func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkSer
 }
 
 func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	spiffieID, err := getSpiffeID(ctx)
+	spiffeID, err := spire.SpiffeIDFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	rawMap := make(map[string][]string)
-	s.spiffieIDNSEsMap.Range(func(key string, value []string) bool {
-		rawMap[key] = value
+	s.spiffeIDNSEsMap.Range(func(key spiffeid.ID, value []string) bool {
+		rawMap[key.String()] = value
 		return true
 	})
 
 	input := RegistryOpaInput{
-		SpiffieID:        spiffieID,
-		NSEName:          nse.Name,
-		SpiffieIDNSEsMap: rawMap,
+		SpiffeID:        spiffeID.String(),
+		NSEName:         nse.Name,
+		SpiffeIDNSEsMap: rawMap,
 	}
 	if err := s.registerPolicies.check(ctx, input); err != nil {
 		return nil, err
 	}
 
-	nses, ok := s.spiffieIDNSEsMap.Load(spiffieID)
+	nses, ok := s.spiffeIDNSEsMap.Load(spiffeID)
 	if !ok {
 		nses = make([]string, 0)
 	}
 	nses = append(nses, nse.Name)
-	s.spiffieIDNSEsMap.Store(spiffieID, nses)
+	s.spiffeIDNSEsMap.Store(spiffeID, nses)
 
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 }
@@ -101,21 +99,4 @@ func (s *authorizeNSEServer) Unregister(ctx context.Context, nse *registry.Netwo
 	// TODO(nikita): one endpoint can't delete another (add check)
 
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
-}
-
-func getSpiffeID(ctx context.Context) (string, error) {
-	p, ok := peer.FromContext(ctx)
-	if !ok {
-		return "", errors.New("fail to get peer from context")
-	}
-
-	cert := opa.ParseX509Cert(p.AuthInfo)
-	if cert != nil {
-		spiffeID, err := x509svid.IDFromCert(cert)
-		if err == nil {
-			return spiffeID.String(), nil
-		}
-		return "", errors.New("fail to get Spiffe ID from certificate")
-	}
-	return "", errors.New("fail to get certificate from peer")
 }

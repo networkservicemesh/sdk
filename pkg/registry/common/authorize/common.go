@@ -20,11 +20,11 @@ import (
 	"context"
 )
 
+// RegistryOpaInput represents input for policies in authorizeNSEServer
 type RegistryOpaInput struct {
-	// TODO: add json tags
-	SpiffieID        string
-	NSEName          string
-	SpiffieIDNSEsMap map[string][]string
+	SpiffeID        string              `json:"spiffe_id"`
+	NSEName         string              `json:"nse_name"`
+	SpiffeIDNSEsMap map[string][]string `json:"spiffe_id_nses_map"`
 }
 
 // Policy represents authorization policy for network service.

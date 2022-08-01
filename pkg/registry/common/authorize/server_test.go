@@ -82,7 +82,7 @@ func withPeer(ctx context.Context, certPem string) (context.Context, error) {
 func TestAuthzEndpointRegistry(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	server := authorize.NewNetworkServiceEndpointRegistryServer(
-		authorize.WithPolicies(opa.WithNSERegisterValidPolicy()),
+		authorize.WithRegisterPolicies(opa.WithNSERegisterValidPolicy()),
 	)
 
 	nseReg := &registry.NetworkServiceEndpoint{Name: "nse-1"}
