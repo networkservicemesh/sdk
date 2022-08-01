@@ -19,24 +19,16 @@
 package authorize
 
 // Option is authorization option for server
-type Option interface {
-	apply(*policiesList)
-}
+type Option func(*authorizeNSEServer)
 
 // Any authorizes any call of request/close
 func Any() Option {
-	return WithPolicies(nil)
+	return WithRegisterPolicies(nil)
 }
 
 // WithPolicies sets custom policies
-func WithPolicies(p ...Policy) Option {
-	return optionFunc(func(l *policiesList) {
-		*l = p
-	})
-}
-
-type optionFunc func(*policiesList)
-
-func (f optionFunc) apply(a *policiesList) {
-	f(a)
+func WithRegisterPolicies(p ...Policy) Option {
+	return func(s *authorizeNSEServer) {
+		s.policies = p
+	}
 }

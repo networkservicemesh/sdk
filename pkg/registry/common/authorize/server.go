@@ -34,19 +34,21 @@ import (
 )
 
 type authorizeNSEServer struct {
-	policies         policiesList
-	spiffieIDNSEsMap *spiffieIDNSEsMap
+	registerPolicies   policiesList
+	unregisterPolicies policiesList
+	spiffieIDNSEsMap   *spiffieIDNSEsMap
 }
 
 // NewNetworkServiceEndpointRegistryServer - returns a new authorization registry.NetworkServiceEndpointRegistryServer
 // Authorize registry server checks spiffieID of NSE.
 func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkServiceEndpointRegistryServer {
 	var s = &authorizeNSEServer{
-		policies:         policiesList{},
-		spiffieIDNSEsMap: new(spiffieIDNSEsMap),
+		registerPolicies:   policiesList{},
+		unregisterPolicies: policiesList{},
+		spiffieIDNSEsMap:   new(spiffieIDNSEsMap),
 	}
 	for _, o := range opts {
-		o.apply(&s.policies)
+		o(s)
 	}
 	return s
 }
@@ -68,7 +70,7 @@ func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.Network
 		NSEName:          nse.Name,
 		SpiffieIDNSEsMap: rawMap,
 	}
-	if err := s.policies.check(ctx, input); err != nil {
+	if err := s.registerPolicies.check(ctx, input); err != nil {
 		return nil, err
 	}
 
