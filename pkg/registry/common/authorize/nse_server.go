@@ -61,7 +61,7 @@ func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.Network
 	// TODO(nikita): What if we don't have spiffeID ???
 	spiffeID, err := spire.SpiffeIDFromContext(ctx)
 	if err != nil {
-		return nil, err
+		return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	}
 
 	rawMap := make(map[string][]string)
@@ -97,7 +97,7 @@ func (s *authorizeNSEServer) Unregister(ctx context.Context, nse *registry.Netwo
 	// TODO(nikita): What if we don't have spiffeID ???
 	spiffeID, err := spire.SpiffeIDFromContext(ctx)
 	if err != nil {
-		return nil, err
+		return ext.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 	}
 
 	rawMap := make(map[string][]string)
