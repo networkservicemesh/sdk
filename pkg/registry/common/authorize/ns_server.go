@@ -104,13 +104,13 @@ func (s *authorizeNSServer) Unregister(ctx context.Context, ns *registry.Network
 	nsNames, ok := s.spiffeIDNSsMap.Load(spiffeID)
 	if ok {
 		nsNames.Delete(ns.Name)
-		empty := true
+		namesEmpty := true
 		nsNames.Range(func(key string, value struct{}) bool {
-			empty = false
+			namesEmpty = false
 			return true
 		})
 
-		if empty {
+		if namesEmpty {
 			s.spiffeIDNSsMap.Delete(spiffeID)
 		} else {
 			s.spiffeIDNSsMap.Store(spiffeID, nsNames)

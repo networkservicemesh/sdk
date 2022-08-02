@@ -19,8 +19,9 @@ package authorize
 import (
 	"context"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/stringset"
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/stringset"
 )
 
 // RegistryOpaInput represents input for policies in authorizNSEServer and authorizeNSServer

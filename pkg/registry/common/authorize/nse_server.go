@@ -106,13 +106,13 @@ func (s *authorizeNSEServer) Unregister(ctx context.Context, nse *registry.Netwo
 	nseNames, ok := s.spiffeIDNSEsMap.Load(spiffeID)
 	if ok {
 		nseNames.Delete(nse.Name)
-		empty := true
+		namesEmpty := true
 		nseNames.Range(func(key string, value struct{}) bool {
-			empty = false
+			namesEmpty = false
 			return true
 		})
 
-		if empty {
+		if namesEmpty {
 			s.spiffeIDNSEsMap.Delete(spiffeID)
 		} else {
 			s.spiffeIDNSEsMap.Store(spiffeID, nseNames)
