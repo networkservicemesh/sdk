@@ -23,7 +23,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/edwarnicke/grpcfd"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
@@ -49,7 +48,7 @@ func startEndpoint(ctx context.Context, t *testing.T, e endpoint.Endpoint) *grpc
 
 	require.Empty(t, endpoint.Serve(ctx, listenOn, e))
 
-	cc, err := grpc.Dial(grpcutils.URLToTarget(listenOn), grpc.WithTransportCredentials(grpcfd.TransportCredentials(insecure.NewCredentials())))
+	cc, err := grpc.Dial(grpcutils.URLToTarget(listenOn), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 
 	return cc

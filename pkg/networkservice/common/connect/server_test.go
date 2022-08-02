@@ -25,7 +25,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/edwarnicke/grpcfd"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -70,7 +69,7 @@ func TestConnectServer_Request(t *testing.T) {
 				adapters.NewServerToClient(serverClient),
 				dial.NewClient(context.Background(),
 					dial.WithDialTimeout(time.Second),
-					dial.WithDialOptions(grpc.WithTransportCredentials(grpcfd.TransportCredentials(insecure.NewCredentials()))),
+					dial.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
 				),
 				connect.NewClient(),
 			),
@@ -199,7 +198,7 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 			next.NewNetworkServiceClient(
 				dial.NewClient(context.Background(),
 					dial.WithDialTimeout(time.Second),
-					dial.WithDialOptions(grpc.WithTransportCredentials(grpcfd.TransportCredentials(insecure.NewCredentials()))),
+					dial.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
 				),
 				serverClient,
 				connect.NewClient(),
@@ -299,7 +298,7 @@ func TestConnectServer_RequestFail(t *testing.T) {
 			next.NewNetworkServiceClient(
 				dial.NewClient(context.Background(),
 					dial.WithDialTimeout(time.Second),
-					dial.WithDialOptions(grpc.WithTransportCredentials(grpcfd.TransportCredentials(insecure.NewCredentials()))),
+					dial.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
 				),
 				injecterror.NewClient(),
 				connect.NewClient(),
@@ -349,7 +348,7 @@ func TestConnectServer_RequestNextServerError(t *testing.T) {
 			next.NewNetworkServiceClient(
 				dial.NewClient(context.Background(),
 					dial.WithDialTimeout(time.Second),
-					dial.WithDialOptions(grpc.WithTransportCredentials(grpcfd.TransportCredentials(insecure.NewCredentials()))),
+					dial.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
 				),
 				adapters.NewServerToClient(serverClient),
 				connect.NewClient(),
@@ -416,7 +415,7 @@ func TestConnectServer_RemoteRestarted(t *testing.T) {
 			next.NewNetworkServiceClient(
 				dial.NewClient(context.Background(),
 					dial.WithDialTimeout(time.Second),
-					dial.WithDialOptions(grpc.WithTransportCredentials(grpcfd.TransportCredentials(insecure.NewCredentials()))),
+					dial.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
 				),
 				connect.NewClient(),
 			),
@@ -503,7 +502,7 @@ func TestConnectServer_DialTimeout(t *testing.T) {
 			next.NewNetworkServiceClient(
 				dial.NewClient(context.Background(),
 					dial.WithDialTimeout(100*time.Millisecond),
-					dial.WithDialOptions(grpc.WithTransportCredentials(grpcfd.TransportCredentials(insecure.NewCredentials())), grpc.WithBlock()),
+					dial.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock()),
 				),
 				connect.NewClient(),
 			),
@@ -550,7 +549,7 @@ func TestConnectServer_ChangeURLWithExpiredContext(t *testing.T) {
 			next.NewNetworkServiceClient(
 				dial.NewClient(context.Background(),
 					dial.WithDialTimeout(time.Hour),
-					dial.WithDialOptions(grpc.WithTransportCredentials(grpcfd.TransportCredentials(insecure.NewCredentials()))),
+					dial.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
 				),
 				connect.NewClient(),
 			),

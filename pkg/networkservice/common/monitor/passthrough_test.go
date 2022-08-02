@@ -23,7 +23,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/edwarnicke/grpcfd"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -177,7 +176,7 @@ func (m *MonitorPassThroughSuite) StartClient(connectTo *url.URL) {
 
 func (m *MonitorPassThroughSuite) StartMonitor(connectTo *url.URL) {
 	target := grpcutils.URLToTarget(connectTo)
-	cc, err := grpc.DialContext(m.testCtx, target, grpc.WithBlock(), grpc.WithTransportCredentials(grpcfd.TransportCredentials(insecure.NewCredentials())))
+	cc, err := grpc.DialContext(m.testCtx, target, grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	m.Require().NoError(err)
 	m.Require().NotNil(cc)
 	go func(ctx context.Context, cc *grpc.ClientConn) {
