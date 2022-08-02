@@ -18,6 +18,9 @@ package authorize
 
 import (
 	"context"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/stringset"
+	"github.com/spiffe/go-spiffe/v2/spiffeid"
 )
 
 // RegistryOpaInput represents input for policies in authorizNSEServer and authorizeNSServer
@@ -48,4 +51,19 @@ func (l *policiesList) check(ctx context.Context, input RegistryOpaInput) error 
 		}
 	}
 	return nil
+}
+
+func getRawMap(m *spiffeIDResourcesMap) map[string][]string {
+	rawMap := make(map[string][]string)
+	m.Range(func(key spiffeid.ID, value *stringset.StringSet) bool {
+		id := key.String()
+		rawMap[id] = make([]string, 0)
+		value.Range(func(key string, value struct{}) bool {
+			rawMap[id] = append(rawMap[id], key)
+			return true
+		})
+		return true
+	})
+
+	return rawMap
 }

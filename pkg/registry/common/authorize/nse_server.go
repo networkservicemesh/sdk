@@ -21,28 +21,26 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/spiffe/go-spiffe/v2/spiffeid"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/spire"
+	"github.com/networkservicemesh/sdk/pkg/tools/stringset"
 )
 
 type authorizeNSEServer struct {
 	registerPolicies   policiesList
 	unregisterPolicies policiesList
-
-	// TODO(nikita): use stringset instead of []string in this map
-	spiffeIDNSEsMap *spiffeIDResourcesMap
+	spiffeIDNSEsMap    *spiffeIDResourcesMap
 }
 
 // NewNetworkServiceEndpointRegistryServer - returns a new authorization registry.NetworkServiceEndpointRegistryServer
 // Authorize registry server checks spiffeID of NSE.
 func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkServiceEndpointRegistryServer {
 	o := &options{
-		registerPolicies:     policiesList{},
-		unregisterPolicies:   policiesList{},
+		registerPolicies:     nil,
+		unregisterPolicies:   nil,
 		spiffeIDResourcesMap: new(spiffeIDResourcesMap),
 	}
 
@@ -59,17 +57,13 @@ func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkSer
 
 func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	// TODO(nikita): What if we don't have spiffeID ???
+	// Add check for nil policies. Look at insecure implementation in networkservice authorize chainelement. See usage in forwarder
 	spiffeID, err := spire.SpiffeIDFromContext(ctx)
-	if err != nil {
+	if err != nil && len(s.registerPolicies) == 0 {
 		return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	}
 
-	rawMap := make(map[string][]string)
-	s.spiffeIDNSEsMap.Range(func(key spiffeid.ID, value []string) bool {
-		rawMap[key.String()] = value
-		return true
-	})
-
+	rawMap := getRawMap(s.spiffeIDNSEsMap)
 	input := RegistryOpaInput{
 		SpiffeID:             spiffeID.String(),
 		ResourceName:         nse.Name,
@@ -79,12 +73,12 @@ func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.Network
 		return nil, err
 	}
 
-	nseList, ok := s.spiffeIDNSEsMap.Load(spiffeID)
+	nseNames, ok := s.spiffeIDNSEsMap.Load(spiffeID)
 	if !ok {
-		nseList = make([]string, 0)
+		nseNames = new(stringset.StringSet)
 	}
-	nseList = append(nseList, nse.Name)
-	s.spiffeIDNSEsMap.Store(spiffeID, nseList)
+	nseNames.LoadOrStore(nse.Name, struct{}{})
+	s.spiffeIDNSEsMap.Store(spiffeID, nseNames)
 
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 }
@@ -94,18 +88,12 @@ func (s *authorizeNSEServer) Find(query *registry.NetworkServiceEndpointQuery, s
 }
 
 func (s *authorizeNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	// TODO(nikita): What if we don't have spiffeID ???
 	spiffeID, err := spire.SpiffeIDFromContext(ctx)
-	if err != nil {
+	if err != nil && len(s.unregisterPolicies) == 0 {
 		return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 	}
 
-	rawMap := make(map[string][]string)
-	s.spiffeIDNSEsMap.Range(func(key spiffeid.ID, value []string) bool {
-		rawMap[key.String()] = value
-		return true
-	})
-
+	rawMap := getRawMap(s.spiffeIDNSEsMap)
 	input := RegistryOpaInput{
 		SpiffeID:             spiffeID.String(),
 		ResourceName:         nse.Name,
@@ -115,16 +103,16 @@ func (s *authorizeNSEServer) Unregister(ctx context.Context, nse *registry.Netwo
 		return nil, err
 	}
 
-	// TODO(nikita): What if we are trying to unregister nse that wasn't registered before?
 	nseNames, ok := s.spiffeIDNSEsMap.Load(spiffeID)
 	if ok {
-		for i, nseName := range nseNames {
-			if nseName == nse.Name {
-				nseNames = append(nseNames[:i], nseNames[i+1])
-				break
-			}
-		}
-		if len(nseNames) == 0 {
+		nseNames.Delete(nse.Name)
+		empty := true
+		nseNames.Range(func(key string, value struct{}) bool {
+			empty = false
+			return true
+		})
+
+		if empty {
 			s.spiffeIDNSEsMap.Delete(spiffeID)
 		} else {
 			s.spiffeIDNSEsMap.Store(spiffeID, nseNames)

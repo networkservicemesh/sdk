@@ -188,6 +188,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	}
 
 	nsRegistry = chain.NewNetworkServiceRegistryServer(
+		registryauthorize.NewNetworkServiceRegistryServer(),
 		nsRegistry,
 	)
 

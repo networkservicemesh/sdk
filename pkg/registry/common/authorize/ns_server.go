@@ -21,28 +21,26 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/spiffe/go-spiffe/v2/spiffeid"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/spire"
+	"github.com/networkservicemesh/sdk/pkg/tools/stringset"
 )
 
 type authorizeNSServer struct {
 	registerPolicies   policiesList
 	unregisterPolicies policiesList
-
-	// TODO(nikita): use stringset instead of []string in this map
-	spiffeIDNSsMap *spiffeIDResourcesMap
+	spiffeIDNSsMap     *spiffeIDResourcesMap
 }
 
 // NewNetworkServiceRegistryServer - returns a new authorization registry.NetworkServiceRegistryServer
 // Authorize registry server checks spiffeID of NS.
 func NewNetworkServiceRegistryServer(opts ...Option) registry.NetworkServiceRegistryServer {
 	o := &options{
-		registerPolicies:     policiesList{},
-		unregisterPolicies:   policiesList{},
+		registerPolicies:     nil,
+		unregisterPolicies:   nil,
 		spiffeIDResourcesMap: new(spiffeIDResourcesMap),
 	}
 
@@ -58,18 +56,12 @@ func NewNetworkServiceRegistryServer(opts ...Option) registry.NetworkServiceRegi
 }
 
 func (s *authorizeNSServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
-	// TODO(nikita): What if we don't have spiffeID ???
 	spiffeID, err := spire.SpiffeIDFromContext(ctx)
-	if err != nil {
+	if err != nil && len(s.registerPolicies) == 0 {
 		return next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
 	}
 
-	rawMap := make(map[string][]string)
-	s.spiffeIDNSsMap.Range(func(key spiffeid.ID, value []string) bool {
-		rawMap[key.String()] = value
-		return true
-	})
-
+	rawMap := getRawMap(s.spiffeIDNSsMap)
 	input := RegistryOpaInput{
 		SpiffeID:             spiffeID.String(),
 		ResourceName:         ns.Name,
@@ -81,9 +73,9 @@ func (s *authorizeNSServer) Register(ctx context.Context, ns *registry.NetworkSe
 
 	nsNames, ok := s.spiffeIDNSsMap.Load(spiffeID)
 	if !ok {
-		nsNames = make([]string, 0)
+		nsNames = new(stringset.StringSet)
 	}
-	nsNames = append(nsNames, ns.Name)
+	nsNames.Store(ns.Name, struct{}{})
 	s.spiffeIDNSsMap.Store(spiffeID, nsNames)
 
 	return next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
@@ -94,18 +86,12 @@ func (s *authorizeNSServer) Find(query *registry.NetworkServiceQuery, server reg
 }
 
 func (s *authorizeNSServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
-	// TODO(nikita): What if we don't have spiffeID ???
 	spiffeID, err := spire.SpiffeIDFromContext(ctx)
-	if err != nil {
+	if err != nil && len(s.unregisterPolicies) == 0 {
 		return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 	}
 
-	rawMap := make(map[string][]string)
-	s.spiffeIDNSsMap.Range(func(key spiffeid.ID, value []string) bool {
-		rawMap[key.String()] = value
-		return true
-	})
-
+	rawMap := getRawMap(s.spiffeIDNSsMap)
 	input := RegistryOpaInput{
 		SpiffeID:             spiffeID.String(),
 		ResourceName:         ns.Name,
@@ -115,17 +101,21 @@ func (s *authorizeNSServer) Unregister(ctx context.Context, ns *registry.Network
 		return nil, err
 	}
 
-	// TODO(nikita): What if we are trying to unregister nse that wasn't registered before?
 	nsNames, ok := s.spiffeIDNSsMap.Load(spiffeID)
 	if ok {
-		for i, nsName := range nsNames {
-			if nsName == ns.Name {
-				nsNames = append(nsNames[:i], nsNames[i+1])
-				break
-			}
+		nsNames.Delete(ns.Name)
+		empty := true
+		nsNames.Range(func(key string, value struct{}) bool {
+			empty = false
+			return true
+		})
+
+		if empty {
+			s.spiffeIDNSsMap.Delete(spiffeID)
+		} else {
+			s.spiffeIDNSsMap.Store(spiffeID, nsNames)
 		}
 	}
-	s.spiffeIDNSsMap.Store(spiffeID, nsNames)
 
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }
