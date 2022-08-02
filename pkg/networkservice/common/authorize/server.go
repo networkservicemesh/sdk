@@ -30,6 +30,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/networkservicemesh/sdk/pkg/tools/spire"
+	"github.com/networkservicemesh/sdk/pkg/tools/stringset"
 )
 
 type authorizeServer struct {
@@ -76,7 +77,7 @@ func (a *authorizeServer) Request(ctx context.Context, request *networkservice.N
 		connID := conn.GetPath().GetPathSegments()[index-1].GetId()
 		ids, ok := a.spiffeIDConnectionMap.Load(spiffeID)
 		if !ok {
-			ids = &spire.ConnectionIDSet{}
+			ids = new(stringset.StringSet)
 		}
 		ids.Store(connID, struct{}{})
 		a.spiffeIDConnectionMap.Store(spiffeID, ids)
