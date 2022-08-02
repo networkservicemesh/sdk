@@ -56,8 +56,6 @@ func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkSer
 }
 
 func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	// TODO(nikita): What if we don't have spiffeID ???
-	// Add check for nil policies. Look at insecure implementation in networkservice authorize chainelement. See usage in forwarder
 	spiffeID, err := spire.SpiffeIDFromContext(ctx)
 	if err != nil && len(s.registerPolicies) == 0 {
 		return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)

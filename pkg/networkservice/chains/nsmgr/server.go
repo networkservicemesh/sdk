@@ -188,7 +188,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	}
 
 	nsRegistry = chain.NewNetworkServiceRegistryServer(
-		registryauthorize.NewNetworkServiceRegistryServer(),
+		registryauthorize.NewNetworkServiceRegistryServer(registryauthorize.Any()),
 		nsRegistry,
 	)
 
@@ -216,7 +216,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 
 	var nseRegistry = chain.NewNetworkServiceEndpointRegistryServer(
 		begin.NewNetworkServiceEndpointRegistryServer(),
-		registryauthorize.NewNetworkServiceEndpointRegistryServer(),
+		registryauthorize.NewNetworkServiceEndpointRegistryServer(registryauthorize.Any()),
 		registryclientinfo.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
 		registryrecvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
