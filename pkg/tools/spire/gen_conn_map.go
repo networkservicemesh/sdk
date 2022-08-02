@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco Systems, Inc.
+// Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,12 +14,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cache
+package spire
 
-import "sync"
+import (
+	"sync"
+)
 
-//go:generate go-syncmap -output sync_map.gen.go -type msgMap<github.com/miekg/dns.Question,*github.com/miekg/dns.Msg>
+//go:generate go-syncmap -output connection_id_set.gen.go -type ConnectionIDSet<string,struct{}>
 
-// msgMap is like a Go map[dns.Question]*dns.Msg but is safe for concurrent use
-// by multiple goroutines without additional locking or coordination
-type msgMap sync.Map
+// ConnectionIDSet - sync.Map with key == string and value == bool
+type ConnectionIDSet sync.Map

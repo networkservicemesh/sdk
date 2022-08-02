@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020-2022 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -25,7 +25,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
-// tailServer is a simple implementation of networkservice.NetworkServiceServer that is called at the end of a chain
+// tailClient is a simple implementation of networkservice.NetworkServiceClient that is called at the end of a chain
 // to insure that we never call a method on a nil object
 type tailClient struct{}
 

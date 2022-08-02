@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco Systems, Inc.
+// Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,12 +14,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cache
+package next_test
 
-import "sync"
+import "context"
 
-//go:generate go-syncmap -output sync_map.gen.go -type msgMap<github.com/miekg/dns.Question,*github.com/miekg/dns.Msg>
+type contextKeyType string
 
-// msgMap is like a Go map[dns.Question]*dns.Msg but is safe for concurrent use
-// by multiple goroutines without additional locking or coordination
-type msgMap sync.Map
+const (
+	visitKey contextKeyType = "visitKey"
+)
+
+func visit(ctx context.Context) context.Context {
+	if v, ok := ctx.Value(visitKey).(*int); ok {
+		*v++
+		return ctx
+	}
+	val := 0
+	return context.WithValue(ctx, visitKey, &val)
+}
+
+func visitValue(ctx context.Context) int {
+	if v, ok := ctx.Value(visitKey).(*int); ok {
+		return *v
+	}
+	return 0
+}

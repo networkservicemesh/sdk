@@ -58,6 +58,7 @@ import (
 	registryadapter "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
+	authmonitor "github.com/networkservicemesh/sdk/pkg/tools/monitorconnection/authorize"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -74,13 +75,14 @@ type nsmgrServer struct {
 }
 
 type serverOptions struct {
-	authorizeServer      networkservice.NetworkServiceServer
-	dialOptions          []grpc.DialOption
-	dialTimeout          time.Duration
-	regURL               *url.URL
-	name                 string
-	url                  string
-	forwarderServiceName string
+	authorizeServer                  networkservice.NetworkServiceServer
+	authorizeMonitorConnectionServer networkservice.MonitorConnectionServer
+	dialOptions                      []grpc.DialOption
+	dialTimeout                      time.Duration
+	regURL                           *url.URL
+	name                             string
+	url                              string
+	forwarderServiceName             string
 }
 
 // Option modifies server option value
@@ -118,6 +120,16 @@ func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Op
 	}
 }
 
+// WithAuthorizeMonitorConnectionServer sets authorization MonitorConnectionServer chain element
+func WithAuthorizeMonitorConnectionServer(authorizeMonitorConnectionServer networkservice.MonitorConnectionServer) Option {
+	if authorizeMonitorConnectionServer == nil {
+		panic("authorizeMonitorConnectionServer cannot be nil")
+	}
+	return func(o *serverOptions) {
+		o.authorizeMonitorConnectionServer = authorizeMonitorConnectionServer
+	}
+}
+
 // WithRegistry sets URL and dial options to reach the upstream registry, if not passed memory storage will be used.
 func WithRegistry(regURL *url.URL) Option {
 	return func(o *serverOptions) {
@@ -147,16 +159,16 @@ var _ Nsmgr = (*nsmgrServer)(nil)
 //			 options - a set of Nsmgr options.
 func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...Option) Nsmgr {
 	opts := &serverOptions{
-		authorizeServer:      authorize.NewServer(authorize.Any()),
-		name:                 "nsmgr-" + uuid.New().String(),
-		forwarderServiceName: "forwarder",
+		authorizeServer:                  authorize.NewServer(authorize.Any()),
+		authorizeMonitorConnectionServer: authmonitor.NewMonitorConnectionServer(authmonitor.Any()),
+		name:                             "nsmgr-" + uuid.New().String(),
+		forwarderServiceName:             "forwarder",
 	}
 	for _, opt := range options {
 		opt(opts)
 	}
 
 	rv := &nsmgrServer{}
-
 	var nsRegistry = memory.NewNetworkServiceRegistryServer()
 	if opts.regURL != nil {
 		// Use remote registry
@@ -212,6 +224,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	rv.Endpoint = endpoint.NewServer(ctx, tokenGenerator,
 		endpoint.WithName(opts.name),
 		endpoint.WithAuthorizeServer(opts.authorizeServer),
+		endpoint.WithAuthorizeMonitorConnectionServer(opts.authorizeMonitorConnectionServer),
 		endpoint.WithAdditionalFunctionality(
 			adapters.NewClientToServer(clientinfo.NewClient()),
 			discoverforwarder.NewServer(

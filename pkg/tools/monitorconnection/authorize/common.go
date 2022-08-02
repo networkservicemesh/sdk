@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco Systems, Inc.
+// Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,12 +14,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cache
+package authorize
 
-import "sync"
+import (
+	"context"
+)
 
-//go:generate go-syncmap -output sync_map.gen.go -type msgMap<github.com/miekg/dns.Question,*github.com/miekg/dns.Msg>
+// Policy represents authorization policy for monitor connection.
+type Policy interface {
+	// Check checks authorization
+	Check(ctx context.Context, input interface{}) error
+}
 
-// msgMap is like a Go map[dns.Question]*dns.Msg but is safe for concurrent use
-// by multiple goroutines without additional locking or coordination
-type msgMap sync.Map
+type policiesList []Policy
+
+func (l *policiesList) check(ctx context.Context, srv MonitorOpaInput) error {
+	if l == nil {
+		return nil
+	}
+	for _, policy := range *l {
+		if policy == nil {
+			continue
+		}
+		if err := policy.Check(ctx, srv); err != nil {
+			return err
+		}
+	}
+	return nil
+}

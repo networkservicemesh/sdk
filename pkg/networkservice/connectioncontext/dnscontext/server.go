@@ -27,6 +27,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 )
 
 // GetDNSConfigsFunc gets dns configs
@@ -47,7 +48,7 @@ func (d *dnsContextServer) Request(ctx context.Context, request *networkservice.
 	}
 
 	for _, config := range d.configs {
-		if !contains(request.GetConnection().GetContext().GetDnsContext().Configs, config) {
+		if !dnsutils.ContainsDNSConfig(request.GetConnection().GetContext().GetDnsContext().Configs, config) {
 			request.GetConnection().GetContext().GetDnsContext().Configs = append(request.GetConnection().GetContext().GetDnsContext().Configs, config)
 		}
 	}
@@ -56,35 +57,4 @@ func (d *dnsContextServer) Request(ctx context.Context, request *networkservice.
 
 func (d *dnsContextServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	return next.Server(ctx).Close(ctx, conn)
-}
-
-func contains(array []*networkservice.DNSConfig, value *networkservice.DNSConfig) bool {
-	for i := range array {
-		if equal(array[i].DnsServerIps, value.DnsServerIps) && equal(array[i].SearchDomains, value.SearchDomains) {
-			return true
-		}
-	}
-	return false
-}
-
-func equal(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-	diff := make(map[string]int, len(a))
-	for _, v := range a {
-		diff[v]++
-	}
-
-	for _, v := range b {
-		if _, ok := diff[v]; !ok {
-			return false
-		}
-		diff[v]--
-		if diff[v] == 0 {
-			delete(diff, v)
-		}
-	}
-	return len(diff) == 0
 }

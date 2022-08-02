@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco Systems, Inc.
+// Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,12 +14,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cache
+package next
 
-import "sync"
+import (
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+)
 
-//go:generate go-syncmap -output sync_map.gen.go -type msgMap<github.com/miekg/dns.Question,*github.com/miekg/dns.Msg>
+// tailMonitorConnectionsServer is a simple implementation of networkservice.MonitorConnectionServer that is called at the end of a chain
+// to insure that we never call a method on a nil object
 
-// msgMap is like a Go map[dns.Question]*dns.Msg but is safe for concurrent use
-// by multiple goroutines without additional locking or coordination
-type msgMap sync.Map
+type tailMonitorConnectionsServer struct{}
+
+func (t *tailMonitorConnectionsServer) MonitorConnections(in *networkservice.MonitorScopeSelector, sv networkservice.MonitorConnection_MonitorConnectionsServer) error {
+	return nil
+}
