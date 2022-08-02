@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -23,10 +23,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/edwarnicke/grpcfd"
+	"google.golang.org/protobuf/proto"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
@@ -94,7 +98,7 @@ func (m *MonitorPassThroughSuite) SetupTest() {
 	expectedConn.GetPath().Index++
 	expectedConn.Id = expectedConn.GetCurrentPathSegment().GetId()
 	actualConn := event.GetConnections()[expectedConn.GetId()]
-	m.Require().Equal(expectedConn, actualConn)
+	m.Require().True(proto.Equal(expectedConn, actualConn))
 }
 
 func (m *MonitorPassThroughSuite) TearDownTest() {
@@ -173,7 +177,7 @@ func (m *MonitorPassThroughSuite) StartClient(connectTo *url.URL) {
 
 func (m *MonitorPassThroughSuite) StartMonitor(connectTo *url.URL) {
 	target := grpcutils.URLToTarget(connectTo)
-	cc, err := grpc.DialContext(m.testCtx, target, grpc.WithBlock(), grpc.WithInsecure())
+	cc, err := grpc.DialContext(m.testCtx, target, grpc.WithBlock(), grpc.WithTransportCredentials(grpcfd.TransportCredentials(insecure.NewCredentials())))
 	m.Require().NoError(err)
 	m.Require().NotNil(cc)
 	go func(ctx context.Context, cc *grpc.ClientConn) {

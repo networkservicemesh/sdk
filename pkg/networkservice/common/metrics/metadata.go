@@ -19,13 +19,13 @@ package metrics
 import (
 	"context"
 
-	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
 type keyType struct{}
-type metricsMap = map[string]metric.Int64Histogram
+type metricsMap = map[string]syncint64.Histogram
 
 func loadOrStore(ctx context.Context, metrics metricsMap) (value metricsMap, ok bool) {
 	rawValue, ok := metadata.Map(ctx, false).LoadOrStore(keyType{}, metrics)

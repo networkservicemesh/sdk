@@ -23,10 +23,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/edwarnicke/grpcfd"
 	"github.com/networkservicemesh/api/pkg/api/ipam"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/networkservicemesh/sdk/pkg/ipam/vl3ipam"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
@@ -44,7 +46,10 @@ func newVL3IPAMServer(ctx context.Context, t *testing.T, prefix string, initialS
 }
 
 func newVL3IPAMClient(ctx context.Context, t *testing.T, connectTO *url.URL) ipam.IPAMClient {
-	var cc, err = grpc.DialContext(ctx, grpcutils.URLToTarget(connectTO), grpc.WithInsecure())
+	var cc, err = grpc.DialContext(
+		ctx, grpcutils.URLToTarget(connectTO),
+		grpc.WithTransportCredentials(grpcfd.TransportCredentials(insecure.NewCredentials())),
+	)
 	require.NoError(t, err)
 
 	go func() {

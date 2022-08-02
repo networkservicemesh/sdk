@@ -22,9 +22,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/edwarnicke/grpcfd"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health/grpc_health_v1"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -62,7 +64,7 @@ func waitNSServerStarted(target *url.URL) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(target), grpc.WithBlock(), grpc.WithInsecure())
+	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(target), grpc.WithBlock(), grpc.WithTransportCredentials(grpcfd.TransportCredentials(insecure.NewCredentials())))
 	if err != nil {
 		return err
 	}
@@ -123,7 +125,7 @@ func TestConnectNSServer_AllUnregister(t *testing.T) {
 			begin.NewNetworkServiceRegistryClient(),
 			clientconn.NewNetworkServiceRegistryClient(),
 			dial.NewNetworkServiceRegistryClient(ctx,
-				dial.WithDialOptions(grpc.WithInsecure()),
+				dial.WithDialOptions(grpc.WithTransportCredentials(grpcfd.TransportCredentials(insecure.NewCredentials()))),
 				dial.WithDialTimeout(time.Second),
 			),
 			connect.NewNetworkServiceRegistryClient(),
@@ -171,7 +173,7 @@ func TestConnectNSServer_AllDead_Register(t *testing.T) {
 			begin.NewNetworkServiceRegistryClient(),
 			clientconn.NewNetworkServiceRegistryClient(),
 			dial.NewNetworkServiceRegistryClient(ctx,
-				dial.WithDialOptions(grpc.WithInsecure()),
+				dial.WithDialOptions(grpc.WithTransportCredentials(grpcfd.TransportCredentials(insecure.NewCredentials()))),
 				dial.WithDialTimeout(time.Second),
 			),
 			connect.NewNetworkServiceRegistryClient(),
@@ -202,7 +204,7 @@ func TestConnectNSServer_AllDead_WatchingFind(t *testing.T) {
 			begin.NewNetworkServiceRegistryClient(),
 			clientconn.NewNetworkServiceRegistryClient(),
 			dial.NewNetworkServiceRegistryClient(ctx,
-				dial.WithDialOptions(grpc.WithInsecure()),
+				dial.WithDialOptions(grpc.WithTransportCredentials(grpcfd.TransportCredentials(insecure.NewCredentials()))),
 				dial.WithDialTimeout(time.Second),
 			),
 			connect.NewNetworkServiceRegistryClient(),
@@ -283,7 +285,7 @@ func Test_NSConenctChain_Find(t *testing.T) {
 							begin.NewNetworkServiceRegistryClient(),
 							clientconn.NewNetworkServiceRegistryClient(),
 							dial.NewNetworkServiceRegistryClient(ctx,
-								dial.WithDialOptions(grpc.WithInsecure()),
+								dial.WithDialOptions(grpc.WithTransportCredentials(grpcfd.TransportCredentials(insecure.NewCredentials()))),
 								dial.WithDialTimeout(time.Second),
 							),
 							connect.NewNetworkServiceRegistryClient(),
