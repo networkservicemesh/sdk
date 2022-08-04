@@ -18,6 +18,8 @@ package searches
 
 import (
 	"context"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 const (
@@ -31,6 +33,7 @@ func WithSearchDomains(parent context.Context, domains []string) context.Context
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
+	log.FromContext(parent).Debugf("passed SearchDomains: %v", domains)
 	return context.WithValue(parent, searchDomainsKey, domains)
 }
 
