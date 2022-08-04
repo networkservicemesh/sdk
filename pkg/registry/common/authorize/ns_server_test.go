@@ -25,17 +25,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
-	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 
 	"go.uber.org/goleak"
 )
 
 func TestAuthzNetworkServiceRegistry(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	server := authorize.NewNetworkServiceRegistryServer(
-		authorize.WithRegisterPolicies(opa.WithRegisterValidPolicy()),
-		authorize.WithUnregisterPolicies(opa.WithUnregisterValidPolicy()),
-	)
+	server := authorize.NewNetworkServiceRegistryServer()
 
 	nsReg := &registry.NetworkService{Name: "ns-1"}
 

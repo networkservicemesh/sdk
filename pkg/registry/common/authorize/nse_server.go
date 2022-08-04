@@ -25,6 +25,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/networkservicemesh/sdk/pkg/tools/spire"
 	"github.com/networkservicemesh/sdk/pkg/tools/stringset"
 )
@@ -39,8 +40,8 @@ type authorizeNSEServer struct {
 // Authorize registry server checks spiffeID of NSE.
 func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkServiceEndpointRegistryServer {
 	o := &options{
-		registerPolicies:     nil,
-		unregisterPolicies:   nil,
+		registerPolicies:     policiesList{opa.WithRegisterValidPolicy()},
+		unregisterPolicies:   policiesList{opa.WithUnregisterValidPolicy()},
 		spiffeIDResourcesMap: new(spiffeIDResourcesMap),
 	}
 
