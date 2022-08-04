@@ -58,6 +58,7 @@ func WithClientURLs(parent context.Context, urls []url.URL) context.Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
+	log.FromContext(parent).Debugf("passed clientURLs: %v", urls)
 	return context.WithValue(parent, clientURLsKey, urls)
 }
 
