@@ -25,15 +25,27 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 )
 
-// NewDNSHandler creates a new chain of dns handlers
-func NewDNSHandler(handlers ...dnsutils.Handler) dnsutils.Handler {
-	return &nextDNSHandler{handlers: handlers}
-}
-
 type nextDNSHandler struct {
 	handlers   []dnsutils.Handler
 	index      int
 	nextParent dnsutils.Handler
+}
+
+// ServerWrapper - A function that wraps a dnsutils.Handler
+type ServerWrapper func(dnsutils.Handler) dnsutils.Handler
+
+// NewWrappedDNSHandler - chains together the servers provides with the wrapper wrapped around each one in turn.
+func NewWrappedDNSHandler(wrapper ServerWrapper, handlers ...dnsutils.Handler) dnsutils.Handler {
+	rv := &nextDNSHandler{handlers: make([]dnsutils.Handler, 0, len(handlers))}
+	for _, h := range handlers {
+		rv.handlers = append(rv.handlers, wrapper(h))
+	}
+	return rv
+}
+
+// NewDNSHandler creates a new chain of dns handlers
+func NewDNSHandler(handlers ...dnsutils.Handler) dnsutils.Handler {
+	return &nextDNSHandler{handlers: handlers}
 }
 
 func (n *nextDNSHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter, m *dns.Msg) {
