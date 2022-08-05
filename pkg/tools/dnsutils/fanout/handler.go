@@ -84,7 +84,7 @@ func (h *fanoutHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 		return
 	}
 
-	next.Handler(ctx).ServeDNS(ctx, rw, resp)
+	next.Handler(ctx).ServeDNS(ctx, rw, msg)
 }
 
 func (h *fanoutHandler) waitResponse(ctx context.Context, respCh <-chan *dns.Msg) *dns.Msg {
