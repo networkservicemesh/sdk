@@ -35,7 +35,8 @@ const (
 )
 
 type traceInfo struct {
-	Message *dns.Msg
+	RequestMsg  *dns.Msg
+	ResponseMsg *dns.Msg
 }
 
 func withLog(parent context.Context, operation, messageID string) (c context.Context, f func()) {

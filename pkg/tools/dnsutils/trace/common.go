@@ -18,45 +18,65 @@ package trace
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/miekg/dns"
+	"github.com/r3labs/diff"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 func logRequest(ctx context.Context, message *dns.Msg, prefixes ...string) {
 	msg := strings.Join(append(prefixes, "request"), "-")
-	logObjectTrace(ctx, msg, message)
+	// logObjectTrace(ctx, msg, message)
 
-	// diffMsg := strings.Join(append(prefixes, "diff"), "-")
+	diffMsg := strings.Join(append(prefixes, "request", "diff"), "-")
 
-	// messageInfo, ok := trace(ctx)
-	// if ok && !cmp.Equal(messageInfo.Message, message) {
-	// 	if messageInfo.Message != nil {
-	// 		messageDiff, _ := diff.Diff(messageInfo.Message, message)
-	// 		if len(messageDiff) > 0 {
-	// 			logObjectTrace(ctx, diffMsg, messageDiff)
-	// 		}
-	// 	} else {
-	// 		logObjectTrace(ctx, msg, message)
-	// 	}
-	// 	messageInfo.Message = message.Copy()
-	// 	return
-	// }
+	messageInfo, ok := trace(ctx)
+	if ok && !cmp.Equal(messageInfo.RequestMsg, message) {
+		if messageInfo.RequestMsg != nil {
+			messageDiff, _ := diff.Diff(messageInfo.RequestMsg, message)
+			if len(messageDiff) > 0 {
+				logObjectTrace(ctx, diffMsg, messageDiff)
+			}
+		} else {
+			logObjectTrace(ctx, msg, message)
+		}
+		messageInfo.RequestMsg = message.Copy()
+		return
+	}
 }
 
-func logResponse(ctx context.Context, rw dns.ResponseWriter, prefixes ...string) {
+func logResponse(ctx context.Context, message *dns.Msg, prefixes ...string) {
 	msg := strings.Join(append(prefixes, "response"), "-")
+	diffMsg := strings.Join(append(prefixes, "response", "diff"), "-")
 
-	traceRW, ok := rw.(*traceResponseWriter)
-	if ok {
-		logObjectTrace(ctx, msg, traceRW.responseMsg)
+	messageInfo, ok := trace(ctx)
+	if ok && !cmp.Equal(messageInfo.ResponseMsg, message) {
+		if messageInfo.ResponseMsg != nil {
+			messageDiff, _ := diff.Diff(messageInfo.ResponseMsg, message)
+			if len(messageDiff) > 0 {
+				logObjectTrace(ctx, diffMsg, messageDiff)
+			}
+		} else {
+			logObjectTrace(ctx, msg, message)
+		}
+		messageInfo.ResponseMsg = message.Copy()
+		return
 	}
 }
 
 func logObjectTrace(ctx context.Context, k, v interface{}) {
 	s := log.FromContext(ctx)
-	s.Tracef(fmt.Sprintf("%v=%#v", k, v))
+	msg := ""
+	cc, err := json.Marshal(v)
+	if err == nil {
+		msg = string(cc)
+	} else {
+		msg = fmt.Sprint(v)
+	}
+	s.Tracef("%v=%s", k, msg)
 }

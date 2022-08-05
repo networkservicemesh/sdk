@@ -47,37 +47,39 @@ func (t *beginTraceHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter,
 	defer finish()
 
 	logRequest(ctx, m, "message")
-	t.traced.ServeDNS(ctx, rw, m)
-	logResponse(ctx, rw, "message")
+
+	wrapper := responseWriterWrapper(rw)
+	t.traced.ServeDNS(ctx, wrapper, m)
+
+	logResponse(ctx, &wrapper.responseMsg, "message")
 }
 
 func (t *endTraceHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m *dns.Msg) {
 	logRequest(ctx, m, "message")
-	next.Handler(ctx).ServeDNS(ctx, rw, m)
-	logResponse(ctx, rw, "message")
+
+	wrapper := responseWriterWrapper(rw)
+	next.Handler(ctx).ServeDNS(ctx, wrapper, m)
+
+	logResponse(ctx, &wrapper.responseMsg, "message")
+}
+
+func responseWriterWrapper(rw dns.ResponseWriter) *traceResponseWriter {
+	wrapper, ok := rw.(*traceResponseWriter)
+	if !ok {
+		wrapper = &traceResponseWriter{
+			ResponseWriter: rw,
+		}
+	}
+
+	return wrapper
 }
 
 type traceResponseWriter struct {
 	dns.ResponseWriter
-	responseMsg *dns.Msg
+	responseMsg dns.Msg
 }
 
 func (rw *traceResponseWriter) WriteMsg(m *dns.Msg) error {
-	rw.responseMsg = m
+	rw.responseMsg = *m.Copy()
 	return rw.ResponseWriter.WriteMsg(m)
-}
-
-type responseWriterTraceWrapper struct {
-}
-
-func NewResponseWriterTraceWrapper() *responseWriterTraceWrapper {
-	return new(responseWriterTraceWrapper)
-}
-
-func (t *responseWriterTraceWrapper) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m *dns.Msg) {
-	traceRW := &traceResponseWriter{
-		ResponseWriter: rw,
-		responseMsg:    nil,
-	}
-	next.Handler(ctx).ServeDNS(ctx, traceRW, m)
 }

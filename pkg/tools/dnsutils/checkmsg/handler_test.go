@@ -75,6 +75,6 @@ func TestCheckMsgHandler(t *testing.T) {
 
 	rw := &responseWriter{}
 	m := &dns.Msg{}
-	m.SetQuestion(dns.Fqdn("example.com"), dns.TypeA)
+	m.SetQuestion(dns.Fqdn("example."), dns.TypeA)
 	handler.ServeDNS(ctx, rw, m)
 }
