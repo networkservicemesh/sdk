@@ -46,11 +46,38 @@ func (t *beginTraceHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter,
 	ctx, finish := withLog(ctx, operation, strconv.Itoa(int(m.Id)))
 	defer finish()
 
-	logMessage(ctx, m, "request", "message")
+	logRequest(ctx, m, "message")
 	t.traced.ServeDNS(ctx, rw, m)
+	logResponse(ctx, rw, "message")
 }
 
 func (t *endTraceHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m *dns.Msg) {
-	logMessage(ctx, m, "request", "message")
+	logRequest(ctx, m, "message")
 	next.Handler(ctx).ServeDNS(ctx, rw, m)
+	logResponse(ctx, rw, "message")
+}
+
+type traceResponseWriter struct {
+	dns.ResponseWriter
+	responseMsg *dns.Msg
+}
+
+func (rw *traceResponseWriter) WriteMsg(m *dns.Msg) error {
+	rw.responseMsg = m
+	return rw.ResponseWriter.WriteMsg(m)
+}
+
+type responseWriterTraceWrapper struct {
+}
+
+func NewResponseWriterTraceWrapper() *responseWriterTraceWrapper {
+	return new(responseWriterTraceWrapper)
+}
+
+func (t *responseWriterTraceWrapper) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m *dns.Msg) {
+	traceRW := &traceResponseWriter{
+		ResponseWriter: rw,
+		responseMsg:    nil,
+	}
+	next.Handler(ctx).ServeDNS(ctx, traceRW, m)
 }

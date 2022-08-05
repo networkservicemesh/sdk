@@ -26,6 +26,7 @@ import (
 // NewDNSHandler - chains together a list of dnsutils.Handler with tracing
 func NewDNSHandler(handlers ...dnsutils.Handler) dnsutils.Handler {
 	return next.NewDNSHandler(
+		trace.NewResponseWriterTraceWrapper(),
 		next.NewWrappedDNSHandler(trace.NewDNSHandler, handlers...),
 	)
 }
