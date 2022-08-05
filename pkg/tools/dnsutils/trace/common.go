@@ -23,8 +23,8 @@ import (
 	"strings"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/miekg/dns"
+	"github.com/r3labs/diff"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
@@ -54,14 +54,15 @@ func (r *DiffReporter) String() string {
 }
 
 func logMessage(ctx context.Context, message *dns.Msg, prefixes ...string) {
-	msg := strings.Join(append(prefixes, "response"), "-")
-	diffMsg := strings.Join(append(prefixes, "response", "diff"), "-")
+	msg := strings.Join(append(prefixes, "request"), "-")
+	diffMsg := strings.Join(append(prefixes, "request", "diff"), "-")
 
 	messageInfo, ok := trace(ctx)
 	if ok && !cmp.Equal(messageInfo.Message, message) {
 		if messageInfo.Message != nil {
-			messageDiff := cmp.Diff(messageInfo.Message, message, cmpopts.EquateEmpty())
-			if messageDiff != "" {
+			messageDiff, _ := diff.Diff(messageInfo.Message, message)
+			//messageDiff := cmp.Diff(messageInfo.Message, message, cmpopts.EquateEmpty())
+			if len(messageDiff) > 0 {
 				logObjectTrace(ctx, diffMsg, messageDiff)
 			}
 		} else {
