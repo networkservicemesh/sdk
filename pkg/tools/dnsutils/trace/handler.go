@@ -46,11 +46,11 @@ func (t *beginTraceHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter,
 	ctx, finish := withLog(ctx, operation, strconv.Itoa(int(m.Id)))
 	defer finish()
 
-	logMessage(ctx, m, "message")
+	logMessage(ctx, m, "request", "message")
 	t.traced.ServeDNS(ctx, rw, m)
 }
 
 func (t *endTraceHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m *dns.Msg) {
-	logMessage(ctx, m, "message")
+	logMessage(ctx, m, "request", "message")
 	next.Handler(ctx).ServeDNS(ctx, rw, m)
 }
