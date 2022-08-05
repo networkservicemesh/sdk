@@ -18,44 +18,45 @@ package trace
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/miekg/dns"
-	"github.com/r3labs/diff"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-func logMessage(ctx context.Context, message *dns.Msg, prefixes ...string) {
-	msg := strings.Join(prefixes, "-")
-	diffMsg := strings.Join(append(prefixes, "diff"), "-")
+func logRequest(ctx context.Context, message *dns.Msg, prefixes ...string) {
+	msg := strings.Join(append(prefixes, "request"), "-")
+	logObjectTrace(ctx, msg, message)
 
-	messageInfo, ok := trace(ctx)
-	if ok && !cmp.Equal(messageInfo.Message, message) {
-		if messageInfo.Message != nil {
-			messageDiff, _ := diff.Diff(messageInfo.Message, message)
-			if len(messageDiff) > 0 {
-				logObjectTrace(ctx, diffMsg, messageDiff)
-			}
-		} else {
-			logObjectTrace(ctx, msg, message)
-		}
-		messageInfo.Message = message.Copy()
-		return
+	// diffMsg := strings.Join(append(prefixes, "diff"), "-")
+
+	// messageInfo, ok := trace(ctx)
+	// if ok && !cmp.Equal(messageInfo.Message, message) {
+	// 	if messageInfo.Message != nil {
+	// 		messageDiff, _ := diff.Diff(messageInfo.Message, message)
+	// 		if len(messageDiff) > 0 {
+	// 			logObjectTrace(ctx, diffMsg, messageDiff)
+	// 		}
+	// 	} else {
+	// 		logObjectTrace(ctx, msg, message)
+	// 	}
+	// 	messageInfo.Message = message.Copy()
+	// 	return
+	// }
+}
+
+func logResponse(ctx context.Context, rw dns.ResponseWriter, prefixes ...string) {
+	msg := strings.Join(append(prefixes, "response"), "-")
+
+	traceRW, ok := rw.(*traceResponseWriter)
+	if ok {
+		logObjectTrace(ctx, msg, traceRW.responseMsg)
 	}
 }
 
 func logObjectTrace(ctx context.Context, k, v interface{}) {
 	s := log.FromContext(ctx)
-	msg := ""
-	cc, err := json.Marshal(v)
-	if err == nil {
-		msg = string(cc)
-	} else {
-		msg = fmt.Sprint(v)
-	}
-	s.Tracef("%v=%s", k, msg)
+	s.Tracef(fmt.Sprintf("%v=%#v", k, v))
 }
