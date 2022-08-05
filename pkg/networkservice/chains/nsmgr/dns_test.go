@@ -14,9 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build !windows
-// +build !windows
-
 package nsmgr_test
 
 import (
@@ -36,10 +33,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/cache"
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/dnsconfigs"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/fanout"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/memory"
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/noloop"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/norecursion"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/searches"
@@ -66,12 +63,10 @@ func Test_DNSUsecase(t *testing.T) {
 		Build()
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
-
 	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
-
 	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
 
 	dnsConfigsMap := new(dnsconfig.Map)
@@ -94,7 +89,7 @@ func Test_DNSUsecase(t *testing.T) {
 	dnsutils.ListenAndServe(ctx, memory.NewDNSHandler(dnsRecords), ":40053")
 
 	// DNS server on nsc side
-	clientDNSHandler := next.NewDNSHandler(
+	clientDNSHandler := chain.NewDNSHandler(
 		dnsconfigs.NewDNSHandler(dnsConfigsMap),
 		searches.NewDNSHandler(),
 		noloop.NewDNSHandler(),

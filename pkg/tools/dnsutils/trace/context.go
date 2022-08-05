@@ -20,11 +20,11 @@ package trace
 import (
 	"context"
 
+	"github.com/miekg/dns"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 	"github.com/networkservicemesh/sdk/pkg/tools/log/spanlogger"
-	"google.golang.org/protobuf/proto"
 )
 
 type contextKeyType string
@@ -35,8 +35,7 @@ const (
 )
 
 type traceInfo struct {
-	Request  proto.Message
-	Response proto.Message
+	Message *dns.Msg
 }
 
 func withLog(parent context.Context, operation, messageID string) (c context.Context, f func()) {
