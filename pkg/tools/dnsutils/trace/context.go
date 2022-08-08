@@ -21,6 +21,7 @@ import (
 	"context"
 
 	"github.com/miekg/dns"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"

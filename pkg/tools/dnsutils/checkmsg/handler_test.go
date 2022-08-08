@@ -21,20 +21,10 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
-	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/cache"
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/checkmsg"
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/dnsconfigs"
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/fanout"
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/noloop"
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/norecursion"
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/searches"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type responseWriter struct {
@@ -48,33 +38,11 @@ func (r *responseWriter) WriteMsg(m *dns.Msg) error {
 }
 
 func TestCheckMsgHandler(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 100000*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	logrus.SetLevel(logrus.TraceLevel)
-	log.EnableTracing(true)
-
-	dnsConfigsMap := new(dnsconfig.Map)
-	dnsConfigs := []*networkservice.DNSConfig{
-		{
-			DnsServerIps:  []string{"8.8.8.8"},
-			SearchDomains: []string{"com"},
-		},
-	}
-	dnsConfigsMap.Store("a", dnsConfigs)
-
-	handler := chain.NewDNSHandler(
-		checkmsg.NewDNSHandler(),
-		dnsconfigs.NewDNSHandler(dnsConfigsMap),
-		searches.NewDNSHandler(),
-		noloop.NewDNSHandler(),
-		norecursion.NewDNSHandler(),
-		cache.NewDNSHandler(),
-		fanout.NewDNSHandler(),
-	)
-
+	handler := checkmsg.NewDNSHandler()
 	rw := &responseWriter{}
-	m := &dns.Msg{}
-	m.SetQuestion(dns.Fqdn("example."), dns.TypeA)
-	handler.ServeDNS(ctx, rw, m)
+	handler.ServeDNS(ctx, rw, nil)
+	require.NotEqual(t, rw.Response.Rcode, dns.RcodeSuccess)
 }

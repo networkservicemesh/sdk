@@ -48,7 +48,7 @@ func (t *beginTraceHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter,
 
 	logRequest(ctx, m, "message")
 
-	wrapper := responseWriterWrapper(rw)
+	wrapper := wrapResponseWriter(rw)
 	t.traced.ServeDNS(ctx, wrapper, m)
 
 	logResponse(ctx, &wrapper.responseMsg, "message")
@@ -57,13 +57,13 @@ func (t *beginTraceHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter,
 func (t *endTraceHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m *dns.Msg) {
 	logRequest(ctx, m, "message")
 
-	wrapper := responseWriterWrapper(rw)
+	wrapper := wrapResponseWriter(rw)
 	next.Handler(ctx).ServeDNS(ctx, wrapper, m)
 
 	logResponse(ctx, &wrapper.responseMsg, "message")
 }
 
-func responseWriterWrapper(rw dns.ResponseWriter) *traceResponseWriter {
+func wrapResponseWriter(rw dns.ResponseWriter) *traceResponseWriter {
 	wrapper, ok := rw.(*traceResponseWriter)
 	if !ok {
 		wrapper = &traceResponseWriter{

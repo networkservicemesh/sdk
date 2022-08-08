@@ -31,8 +31,6 @@ import (
 
 func logRequest(ctx context.Context, message *dns.Msg, prefixes ...string) {
 	msg := strings.Join(append(prefixes, "request"), "-")
-	// logObjectTrace(ctx, msg, message)
-
 	diffMsg := strings.Join(append(prefixes, "request", "diff"), "-")
 
 	messageInfo, ok := trace(ctx)
