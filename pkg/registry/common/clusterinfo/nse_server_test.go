@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
@@ -36,12 +37,20 @@ func TestReadClusterName(t *testing.T) {
 	var path = filepath.Join(t.TempDir(), "clusterinfo.yaml")
 	require.NoError(t, ioutil.WriteFile(path, []byte("CLUSTER_NAME: my-cluster1"), os.ModePerm))
 
-	var s = clusterinfo.NewNetworkServiceEndpointRegistryServer(clusterinfo.WithConfigPath(path))
+	var ctx, cancel = context.WithCancel(context.Background())
+	defer cancel()
 
-	var resp, err = s.Register(context.Background(), &registry.NetworkServiceEndpoint{NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
-		"ns-1": {},
-	}})
-	require.NoError(t, err)
+	var s = clusterinfo.NewNetworkServiceEndpointRegistryServer(ctx, clusterinfo.WithConfigPath(path))
+
+	var resp *registry.NetworkServiceEndpoint
+
+	require.Eventually(t, func() bool {
+		var err error
+		resp, err = s.Register(context.Background(), &registry.NetworkServiceEndpoint{NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+			"ns-1": {},
+		}})
+		return err == nil && len(resp.NetworkServiceLabels) > 0
+	}, time.Second, time.Second/20)
 
 	require.Len(t, resp.GetNetworkServiceLabels(), 1)
 	require.Len(t, resp.GetNetworkServiceLabels()["ns-1"].GetLabels(), 1)
