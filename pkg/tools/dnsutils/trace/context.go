@@ -22,7 +22,6 @@ import (
 
 	"github.com/miekg/dns"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 	"github.com/networkservicemesh/sdk/pkg/tools/log/spanlogger"
@@ -44,8 +43,6 @@ func withLog(parent context.Context, operation, messageID string) (c context.Con
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
-
-	parent = grpcutils.PassTraceToOutgoing(parent)
 
 	if log.IsTracingEnabled() {
 		ctx, sLogger, span, sFinish := spanlogger.FromContext(parent, operation, map[string]interface{}{"type": loggedType, "id": messageID})
