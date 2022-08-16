@@ -28,13 +28,9 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
-)
-
-const (
-	dnsContextClientRefreshKey = "dnsContextClientRefreshKey"
 )
 
 type dnsContextClient struct {
@@ -76,8 +72,9 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 		request.Connection.Context.DnsContext = &networkservice.DNSContext{}
 	}
 
-	initialClientDNSConfigs, _ := metadata.Map(ctx, true).LoadOrStore(dnsContextClientRefreshKey, request.Connection.Context.DnsContext.Configs)
-	request.Connection.Context.DnsContext.Configs = append(initialClientDNSConfigs.([]*networkservice.DNSConfig), c.resolvconfDNSConfig)
+	if !dnsutils.ContainsDNSConfig(request.GetConnection().GetContext().GetDnsContext().Configs, c.resolvconfDNSConfig) {
+		request.GetConnection().GetContext().GetDnsContext().Configs = append(request.GetConnection().GetContext().GetDnsContext().Configs, c.resolvconfDNSConfig)
+	}
 
 	rv, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
