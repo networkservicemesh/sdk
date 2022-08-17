@@ -19,30 +19,28 @@
 package dnscontext
 
 import (
-	"os"
+	"io/ioutil"
 	"strings"
 )
 
 // resolveConfig provides API for editing / reading resolv.conf
 type resolveConfig struct {
-	path       string
 	properties map[string][]string
 }
 
 // openResolveConfig reads resolve config file from specific path
-func openResolveConfig(p string) (*resolveConfig, error) {
+func openResolveConfig(path string) (*resolveConfig, error) {
 	r := &resolveConfig{
-		path:       p,
 		properties: make(map[string][]string),
 	}
-	if err := r.readProperties(); err != nil {
+	if err := r.readProperties(path); err != nil {
 		return nil, err
 	}
 	return r, nil
 }
 
-func (r *resolveConfig) readProperties() error {
-	b, err := os.ReadFile(r.path)
+func (r *resolveConfig) readProperties(path string) error {
+	b, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
 	}
@@ -69,8 +67,8 @@ func (r *resolveConfig) SetValue(k string, values ...string) {
 	}
 }
 
-// Save saves resolve config file
-func (r *resolveConfig) Save() error {
+// Serialize serializes resolve config
+func (r *resolveConfig) Serialize() string {
 	var sb strings.Builder
 	var index int
 	for k, v := range r.properties {
@@ -80,7 +78,7 @@ func (r *resolveConfig) Save() error {
 			_, _ = sb.WriteRune('\n')
 		}
 	}
-	return os.WriteFile(r.path, []byte(sb.String()), os.ModePerm)
+	return sb.String()
 }
 
 const (

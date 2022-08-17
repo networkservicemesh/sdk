@@ -21,6 +21,7 @@ package dnscontext
 import (
 	"context"
 	"os"
+	"strings"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -32,13 +33,16 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
+const (
+	modifiedResolvConfKey = "# modified"
+)
+
 type dnsContextClient struct {
-	chainContext           context.Context
-	resolveConfigPath      string
-	storedResolvConfigPath string
-	defaultNameServerIP    string
-	resolvconfDNSConfig    *networkservice.DNSConfig
-	dnsConfigsMap          *dnsconfig.Map
+	chainContext        context.Context
+	resolveConfigPath   string
+	defaultNameServerIP string
+	resolvconfDNSConfig *networkservice.DNSConfig
+	dnsConfigsMap       *dnsconfig.Map
 }
 
 // NewClient creates a new DNS client chain component. Setups all DNS traffic to the localhost. Monitors DNS configs from connections.
@@ -52,7 +56,6 @@ func NewClient(options ...DNSOption) networkservice.NetworkServiceClient {
 		o.apply(c)
 	}
 
-	c.storedResolvConfigPath = c.resolveConfigPath + ".restore"
 	c.initialize()
 
 	return c
@@ -96,26 +99,62 @@ func (c *dnsContextClient) Close(ctx context.Context, conn *networkservice.Conne
 }
 
 func (c *dnsContextClient) restoreResolvConf() {
-	originalResolvConf, err := os.ReadFile(c.storedResolvConfigPath)
-	if err != nil || len(originalResolvConf) == 0 {
+	bytes, err := os.ReadFile(c.resolveConfigPath)
+	modifiedResolvConf := string(bytes)
+	if err != nil || len(modifiedResolvConf) == 0 {
 		return
 	}
-	_ = os.WriteFile(c.resolveConfigPath, originalResolvConf, os.ModePerm)
+
+	if !strings.HasPrefix(modifiedResolvConf, modifiedResolvConfKey) {
+		return
+	}
+
+	originalResolvConf := make([]string, 0)
+	for _, line := range strings.Split(modifiedResolvConf, "\n")[1:] {
+		if strings.HasPrefix(line, "#") {
+			originalResolvConf = append(originalResolvConf, line[1:])
+		}
+	}
+
+	_ = os.WriteFile(c.resolveConfigPath, []byte(strings.Join(originalResolvConf, "\n")), os.ModePerm)
 }
 
 func (c *dnsContextClient) storeOriginalResolvConf() {
-	if _, err := os.Stat(c.storedResolvConfigPath); err == nil {
-		return
-	}
-	originalResolvConf, err := os.ReadFile(c.resolveConfigPath)
+	bytes, err := os.ReadFile(c.resolveConfigPath)
+	originalResolvConfig := string(bytes)
 	if err != nil {
 		return
 	}
-	_ = os.WriteFile(c.storedResolvConfigPath, originalResolvConf, os.ModePerm)
+
+	lines := strings.Split(originalResolvConfig, "\n")
+	modifiedResolvConf := make([]string, len(lines)+1)
+	modifiedResolvConf[0] = modifiedResolvConfKey
+
+	for i, line := range lines {
+		modifiedResolvConf[i+1] = "#" + line
+	}
+
+	_ = os.WriteFile(c.resolveConfigPath, []byte(strings.Join(modifiedResolvConf, "\n")+"\n\n"), os.ModePerm)
+}
+
+func (c *dnsContextClient) appendResolvConf(resolvConf string) error {
+	resolvConfFile, err := os.OpenFile(c.resolveConfigPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+
+	if _, err := resolvConfFile.Write([]byte(resolvConf)); err != nil {
+		resolvConfFile.Close()
+		return err
+	}
+
+	return resolvConfFile.Close()
 }
 
 func (c *dnsContextClient) initialize() {
 	c.restoreResolvConf()
+	b, _ := os.ReadFile(c.resolveConfigPath)
+	log.FromContext(c.chainContext).Infof("RESOLVCONF: %s", string(b))
 
 	r, err := openResolveConfig(c.resolveConfigPath)
 	if err != nil {
@@ -136,8 +175,10 @@ func (c *dnsContextClient) initialize() {
 	r.SetValue(nameserverProperty, c.defaultNameServerIP)
 	r.SetValue(searchProperty, []string{}...)
 
-	if err = r.Save(); err != nil {
-		log.FromContext(c.chainContext).Errorf("An error during save resolve config: %v", err.Error())
+	c.appendResolvConf(r.Serialize())
+
+	if err = c.appendResolvConf(r.Serialize()); err != nil {
+		log.FromContext(c.chainContext).Errorf("An error during appending resolve config: %v", err.Error())
 		return
 	}
 }
