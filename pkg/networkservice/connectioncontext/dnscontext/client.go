@@ -153,8 +153,6 @@ func (c *dnsContextClient) appendResolvConf(resolvConf string) error {
 
 func (c *dnsContextClient) initialize() {
 	c.restoreResolvConf()
-	b, _ := os.ReadFile(c.resolveConfigPath)
-	log.FromContext(c.chainContext).Infof("RESOLVCONF: %s", string(b))
 
 	r, err := openResolveConfig(c.resolveConfigPath)
 	if err != nil {
@@ -174,8 +172,6 @@ func (c *dnsContextClient) initialize() {
 
 	r.SetValue(nameserverProperty, c.defaultNameServerIP)
 	r.SetValue(searchProperty, []string{}...)
-
-	c.appendResolvConf(r.Serialize())
 
 	if err = c.appendResolvConf(r.Serialize()); err != nil {
 		log.FromContext(c.chainContext).Errorf("An error during appending resolve config: %v", err.Error())
