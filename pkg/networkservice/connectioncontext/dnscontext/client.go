@@ -101,7 +101,7 @@ func (c *dnsContextClient) Close(ctx context.Context, conn *networkservice.Conne
 func (c *dnsContextClient) restoreResolvConf() {
 	bytes, err := os.ReadFile(c.resolveConfigPath)
 	modifiedResolvConf := string(bytes)
-	if err != nil || len(modifiedResolvConf) == 0 {
+	if err != nil || modifiedResolvConf == "" {
 		return
 	}
 
@@ -138,7 +138,7 @@ func (c *dnsContextClient) storeOriginalResolvConf() {
 }
 
 func (c *dnsContextClient) appendResolvConf(resolvConf string) error {
-	resolvConfFile, err := os.OpenFile(c.resolveConfigPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	resolvConfFile, err := os.OpenFile(c.resolveConfigPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
 	}

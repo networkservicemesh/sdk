@@ -25,22 +25,24 @@ import (
 
 // resolveConfig provides API for editing / reading resolv.conf
 type resolveConfig struct {
+	path       string
 	properties map[string][]string
 }
 
 // openResolveConfig reads resolve config file from specific path
-func openResolveConfig(path string) (*resolveConfig, error) {
+func openResolveConfig(p string) (*resolveConfig, error) {
 	r := &resolveConfig{
+		path:       p,
 		properties: make(map[string][]string),
 	}
-	if err := r.readProperties(path); err != nil {
+	if err := r.readProperties(); err != nil {
 		return nil, err
 	}
 	return r, nil
 }
 
-func (r *resolveConfig) readProperties(path string) error {
-	b, err := ioutil.ReadFile(path)
+func (r *resolveConfig) readProperties() error {
+	b, err := ioutil.ReadFile(r.path)
 	if err != nil {
 		return err
 	}
