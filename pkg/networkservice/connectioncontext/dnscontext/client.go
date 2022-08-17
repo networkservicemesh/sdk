@@ -138,7 +138,7 @@ func (c *dnsContextClient) storeOriginalResolvConf() {
 }
 
 func (c *dnsContextClient) appendResolvConf(resolvConf string) error {
-	resolvConfFile, err := os.OpenFile(c.resolveConfigPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	resolvConfFile, err := os.OpenFile(c.resolveConfigPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.ModeAppend)
 	if err != nil {
 		return err
 	}
