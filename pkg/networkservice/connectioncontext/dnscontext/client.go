@@ -144,7 +144,9 @@ func (c *dnsContextClient) appendResolvConf(resolvConf string) error {
 	}
 
 	if _, err := resolvConfFile.Write([]byte(resolvConf)); err != nil {
-		resolvConfFile.Close()
+		if closeErr := resolvConfFile.Close(); closeErr != nil {
+			log.FromContext(c.chainContext).Errorf("An error during closing resolve config file: %v", closeErr.Error())
+		}
 		return err
 	}
 
