@@ -32,11 +32,11 @@ import (
 
 type clusterinfoNSEServer struct {
 	configPath        string
-	clusterInfoSource atomic.Value
+	clusterInfoSource atomic.Pointer[map[string]string]
 }
 
 func (n *clusterinfoNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	var m = n.clusterInfoSource.Load().(map[string]string)
+	var m = *n.clusterInfoSource.Load()
 
 	for k, v := range m {
 		for _, labels := range nse.GetNetworkServiceLabels() {
@@ -62,7 +62,8 @@ func NewNetworkServiceEndpointRegistryServer(ctx context.Context, opts ...Option
 	var r = &clusterinfoNSEServer{
 		configPath: "/etc/clusterinfo/config.yaml",
 	}
-	r.clusterInfoSource.Store(make(map[string]string))
+
+	r.clusterInfoSource.Store(new(map[string]string))
 
 	for _, opt := range opts {
 		opt(r)
@@ -74,7 +75,7 @@ func NewNetworkServiceEndpointRegistryServer(ctx context.Context, opts ...Option
 			if err := yaml.Unmarshal(data, &m); err != nil {
 				log.FromContext(ctx).Warnf("an error during unmarshal file: %v, error: %v", r.configPath, err.Error())
 			}
-			r.clusterInfoSource.Store(m)
+			r.clusterInfoSource.Store(&m)
 		}
 	}()
 	return r

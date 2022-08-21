@@ -32,7 +32,7 @@ import (
 
 type clusterinfoServer struct {
 	configPath        string
-	clusterInfoSource atomic.Value
+	clusterInfoSource atomic.Pointer[map[string]string]
 }
 
 // NewServer - returns a new clusterinfo NetworkServiceServer that adds clusterinfo labels into request from the cluterinfo configuration.
@@ -41,7 +41,7 @@ func NewServer(ctx context.Context, opts ...Option) networkservice.NetworkServic
 		configPath: "/etc/clusterinfo/config.yaml",
 	}
 
-	r.clusterInfoSource.Store(make(map[string]string))
+	r.clusterInfoSource.Store(new(map[string]string))
 
 	for _, opt := range opts {
 		opt(r)
@@ -53,7 +53,7 @@ func NewServer(ctx context.Context, opts ...Option) networkservice.NetworkServic
 			if err := yaml.Unmarshal(data, &m); err != nil {
 				log.FromContext(ctx).Warnf("an error during unmarshal file: %v, error: %v", r.configPath, err.Error())
 			}
-			r.clusterInfoSource.Store(m)
+			r.clusterInfoSource.Store(&m)
 		}
 	}()
 	return r
@@ -64,7 +64,7 @@ func (n *clusterinfoServer) Request(ctx context.Context, request *networkservice
 		request.GetConnection().Labels = make(map[string]string)
 	}
 
-	var m = n.clusterInfoSource.Load().(map[string]string)
+	var m = *n.clusterInfoSource.Load()
 
 	for k, v := range m {
 		request.GetConnection().GetLabels()[k] = v
