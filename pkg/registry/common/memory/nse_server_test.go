@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -62,12 +62,12 @@ func TestNetworkServiceEndpointRegistryServer_RegisterAndFind(t *testing.T) {
 			Name: "a",
 		},
 	}, streamchannel.NewNetworkServiceEndpointFindServer(ctx, ch))
-
-	require.Equal(t, &registry.NetworkServiceEndpointResponse{
+	isResponseEqual := proto.Equal(<-ch, &registry.NetworkServiceEndpointResponse{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 			Name: "a",
 		},
-	}, <-ch)
+	})
+	require.True(t, isResponseEqual)
 }
 
 func TestNetworkServiceEndpointRegistryServer_RegisterAndFindWatch(t *testing.T) {
@@ -101,12 +101,12 @@ func TestNetworkServiceEndpointRegistryServer_RegisterAndFindWatch(t *testing.T)
 			},
 		}, streamchannel.NewNetworkServiceEndpointFindServer(ctx, ch))
 	}()
-
-	require.Equal(t, &registry.NetworkServiceEndpointResponse{
+	isResponseEqual := proto.Equal(<-ch, &registry.NetworkServiceEndpointResponse{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 			Name: "a",
 		},
-	}, <-ch)
+	})
+	require.True(t, isResponseEqual)
 
 	expected, err := s.Register(context.Background(), &registry.NetworkServiceEndpoint{
 		Name: "a",
@@ -179,7 +179,8 @@ func TestNetworkServiceEndpointRegistryServer_RegisterAndFindByLabelWatch(t *tes
 		}, streamchannel.NewNetworkServiceEndpointFindServer(ctx, ch))
 	}()
 
-	require.Equal(t, &registry.NetworkServiceEndpointResponse{NetworkServiceEndpoint: createLabeledNSE2()}, <-ch)
+	isResponseEqual := proto.Equal(<-ch, &registry.NetworkServiceEndpointResponse{NetworkServiceEndpoint: createLabeledNSE2()})
+	require.True(t, isResponseEqual)
 
 	expected, err := s.Register(context.Background(), createLabeledNSE2())
 	require.NoError(t, err)

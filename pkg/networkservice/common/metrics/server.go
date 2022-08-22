@@ -26,6 +26,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/global"
+	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
@@ -68,7 +69,7 @@ func (t *metricServer) writeMetrics(ctx context.Context, path *networkservice.Pa
 				continue
 			}
 
-			metrics, _ := loadOrStore(ctx, make(map[string]metric.Int64Histogram))
+			metrics, _ := loadOrStore(ctx, make(map[string]syncint64.Histogram))
 			for metricName, metricValue := range pathSegment.Metrics {
 				/* Works with integers only */
 				recVal, err := strconv.ParseInt(metricValue, 10, 64)
@@ -77,10 +78,17 @@ func (t *metricServer) writeMetrics(ctx context.Context, path *networkservice.Pa
 				}
 				_, ok := metrics[metricName]
 				if !ok {
-					metrics[metricName] = metric.Must(t.meter).NewInt64Histogram(
+					var hist syncint64.Histogram
+
+					hist, err = t.meter.SyncInt64().Histogram(
 						pathSegment.Name + "_" + metricName,
 					)
+					if err != nil {
+						continue
+					}
+					metrics[metricName] = hist
 				}
+
 				metrics[metricName].Record(ctx, recVal, attribute.String("connection", path.GetPathSegments()[0].Id))
 			}
 		}

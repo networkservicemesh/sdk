@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
@@ -74,7 +75,7 @@ func TestInterdomainNetworkServiceRegistry(t *testing.T) {
 	)
 	require.Nil(t, err)
 
-	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(domain1.Registry.URL), grpc.WithBlock(), grpc.WithInsecure())
+	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(domain1.Registry.URL), grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.Nil(t, err)
 	defer func() {
 		_ = cc.Close()
@@ -135,7 +136,7 @@ func TestLocalDomain_NetworkServiceRegistry(t *testing.T) {
 	require.Nil(t, err)
 	require.True(t, strings.Contains(expected.GetName(), "@"+domain1.Name))
 
-	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(domain1.Registry.URL), grpc.WithBlock(), grpc.WithInsecure())
+	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(domain1.Registry.URL), grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.Nil(t, err)
 	defer func() {
 		_ = cc.Close()
@@ -207,7 +208,7 @@ func TestInterdomainFloatingNetworkServiceRegistry(t *testing.T) {
 	)
 	require.Nil(t, err)
 
-	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(domain1.Registry.URL), grpc.WithBlock(), grpc.WithInsecure())
+	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(domain1.Registry.URL), grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.Nil(t, err)
 	defer func() {
 		_ = cc.Close()

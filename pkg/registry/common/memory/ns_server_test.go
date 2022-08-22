@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -105,12 +105,11 @@ func TestNetworkServiceRegistryServer_RegisterAndFindWatch(t *testing.T) {
 		}, streamchannel.NewNetworkServiceFindServer(ctx, ch))
 	}()
 
-	require.Equal(t, &registry.NetworkServiceResponse{
+	isResponseEqual := proto.Equal(<-ch, &registry.NetworkServiceResponse{
 		NetworkService: &registry.NetworkService{
 			Name: "a",
-		},
-	}, <-ch)
-
+		}})
+	require.True(t, isResponseEqual)
 	expected, err := s.Register(context.Background(), &registry.NetworkService{
 		Name: "a",
 	})
