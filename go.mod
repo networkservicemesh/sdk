@@ -21,8 +21,8 @@ require (
 	github.com/networkservicemesh/api v1.4.1-0.20220711153918-a59689088578
 	github.com/open-policy-agent/opa v0.43.0
 	github.com/pkg/errors v0.9.1
-	github.com/sirupsen/logrus v1.9.0
 	github.com/r3labs/diff v1.1.0
+	github.com/sirupsen/logrus v1.9.0
 	github.com/spiffe/go-spiffe/v2 v2.0.0
 	github.com/stretchr/testify v1.8.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.28.0
