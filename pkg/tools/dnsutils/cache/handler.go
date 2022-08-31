@@ -85,6 +85,9 @@ func (h *dnsCacheHandler) updateTTL() {
 }
 
 func validateMsg(m *dns.Msg) bool {
+	if len(m.Answer) == 0 {
+		return false
+	}
 	for _, answer := range m.Answer {
 		if answer.Header().Ttl <= 0 {
 			return false
