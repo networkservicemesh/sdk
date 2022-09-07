@@ -37,7 +37,7 @@ func ListenAndServe(ctx context.Context, handler Handler, listenOn string) {
 
 	for _, network := range networks {
 		var server = &dns.Server{Addr: listenOn, Net: network, Handler: dns.HandlerFunc(func(w dns.ResponseWriter, m *dns.Msg) {
-			var timeoutCtx, cancel = context.WithTimeout(context.Background(), time.Second)
+			var timeoutCtx, cancel = context.WithTimeout(context.Background(), time.Second*5)
 			defer cancel()
 
 			handler.ServeDNS(timeoutCtx, w, m)
