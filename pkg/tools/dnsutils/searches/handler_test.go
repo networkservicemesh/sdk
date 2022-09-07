@@ -21,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/goleak"
+
 	"github.com/miekg/dns"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
@@ -49,6 +51,24 @@ type checkHandler struct {
 
 func (h *checkHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m *dns.Msg) {
 	h.Count++
+	next.Handler(ctx).ServeDNS(ctx, rw, m)
+}
+
+type delayedExchangeHandler struct {
+	count int
+}
+
+func (h *delayedExchangeHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m *dns.Msg) {
+	h.count++
+
+	// The first request will be delayed
+	if h.count == 1 {
+		<-ctx.Done()
+	}
+
+	if ctx.Err() != nil {
+		return
+	}
 	next.Handler(ctx).ServeDNS(ctx, rw, m)
 }
 
@@ -81,6 +101,41 @@ func TestDomainSearches(t *testing.T) {
 
 	resp := rw.Response.Copy()
 	require.Equal(t, check.Count, 4)
+	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeSuccess)
+	require.NotNil(t, resp.Answer)
+	require.Equal(t, resp.Answer[0].(*dns.A).A.String(), "1.1.1.1")
+}
+
+func TestDomainSearches_Delay(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
+	defer cancel()
+
+	configs := new(dnsconfig.Map)
+
+	configs.Store("1", []*networkservice.DNSConfig{
+		{SearchDomains: []string{"com", "net", "org"}, DnsServerIps: []string{"8.8.4.4"}},
+	})
+
+	records := new(memory.Map)
+	records.Store("example.net.", []net.IP{net.ParseIP("1.1.1.1")})
+
+	exchange := &delayedExchangeHandler{}
+	handler := next.NewDNSHandler(
+		dnsconfigs.NewDNSHandler(configs),
+		searches.NewDNSHandler(),
+		exchange,
+		memory.NewDNSHandler(records),
+	)
+
+	m := &dns.Msg{}
+	m.SetQuestion(dns.Fqdn("example"), dns.TypeA)
+
+	rw := &responseWriter{}
+	handler.ServeDNS(ctx, rw, m)
+
+	resp := rw.Response.Copy()
 	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeSuccess)
 	require.NotNil(t, resp.Answer)
 	require.Equal(t, resp.Answer[0].(*dns.A).A.String(), "1.1.1.1")

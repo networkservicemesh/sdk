@@ -44,15 +44,28 @@ func (h *searchDomainsHandler) ServeDNS(ctx context.Context, rw dns.ResponseWrit
 		index:          0,
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
+	// We need to use a split timeout context, because a request to one of the domains
+	// may take all the available time, and it will not be possible to request the others.
+	timeoutPerRequest := timeout / time.Duration(len(domains)+1)
 
-	next.Handler(ctx).ServeDNS(ctx, r, m)
+	// If the context already has timeout
+	if deadline, ok := ctx.Deadline(); ok {
+		t := time.Until(deadline)
+		timeoutPerRequest = t / time.Duration(len(domains)+1)
+	}
 
-	for _, d := range SearchDomains(ctx) {
+	ctxPerRequest, cancelCtxPerRequest := context.WithTimeout(ctx, timeoutPerRequest)
+	next.Handler(ctx).ServeDNS(ctxPerRequest, r, m)
+	cancelCtxPerRequest()
+
+	for _, d := range domains {
+		ctxPerRequest, cancelCtxPerRequest = context.WithTimeout(ctx, timeoutPerRequest)
+
 		newMsg := m.Copy()
 		newMsg.Question[0].Name = dns.Fqdn(newMsg.Question[0].Name + d)
-		next.Handler(ctx).ServeDNS(ctx, r, newMsg)
+		next.Handler(ctx).ServeDNS(ctxPerRequest, r, newMsg)
+
+		cancelCtxPerRequest()
 	}
 
 	for _, resp := range r.Responses {
