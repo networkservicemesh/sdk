@@ -19,27 +19,43 @@ package clusterinfo
 
 import (
 	"context"
-	"io/ioutil"
+	"sync/atomic"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"gopkg.in/yaml.v2"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/fs"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type clusterinfoServer struct {
-	configPath string
+	configPath        string
+	clusterInfoSource atomic.Pointer[map[string]string]
 }
 
 // NewServer - returns a new clusterinfo NetworkServiceServer that adds clusterinfo labels into request from the cluterinfo configuration.
-func NewServer(opts ...Option) networkservice.NetworkServiceServer {
+func NewServer(ctx context.Context, opts ...Option) networkservice.NetworkServiceServer {
 	var r = &clusterinfoServer{
 		configPath: "/etc/clusterinfo/config.yaml",
 	}
+
+	r.clusterInfoSource.Store(new(map[string]string))
+
 	for _, opt := range opts {
 		opt(r)
 	}
+
+	go func() {
+		for data := range fs.WatchFile(ctx, r.configPath) {
+			var m = make(map[string]string)
+			if err := yaml.Unmarshal(data, &m); err != nil {
+				log.FromContext(ctx).Warnf("an error during unmarshal file: %v, error: %v", r.configPath, err.Error())
+			}
+			r.clusterInfoSource.Store(&m)
+		}
+	}()
 	return r
 }
 
@@ -48,11 +64,7 @@ func (n *clusterinfoServer) Request(ctx context.Context, request *networkservice
 		request.GetConnection().Labels = make(map[string]string)
 	}
 
-	var m = make(map[string]string)
-
-	if b, err := ioutil.ReadFile(n.configPath); err == nil {
-		_ = yaml.Unmarshal(b, &m)
-	}
+	var m = *n.clusterInfoSource.Load()
 
 	for k, v := range m {
 		request.GetConnection().GetLabels()[k] = v

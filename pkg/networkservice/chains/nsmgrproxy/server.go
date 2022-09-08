@@ -202,7 +202,7 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 			interdomainbypass.NewServer(&interdomainBypassNSEServer, opts.listenOn),
 			discover.NewServer(nsClient, nseClient),
 			swapip.NewServer(opts.openMapIPChannel(ctx)),
-			clusterinfo.NewServer(),
+			clusterinfo.NewServer(ctx),
 			connect.NewServer(
 				client.NewClient(
 					ctx,
@@ -235,7 +235,7 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 		clienturl.NewNetworkServiceEndpointRegistryServer(proxyURL),
 		interdomainBypassNSEServer,
 		registryswapip.NewNetworkServiceEndpointRegistryServer(opts.openMapIPChannel(ctx)),
-		registryclusterinfo.NewNetworkServiceEndpointRegistryServer(),
+		registryclusterinfo.NewNetworkServiceEndpointRegistryServer(ctx),
 		registryconnect.NewNetworkServiceEndpointRegistryServer(
 			chain.NewNetworkServiceEndpointRegistryClient(
 				clientconn.NewNetworkServiceEndpointRegistryClient(),

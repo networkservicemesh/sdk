@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
@@ -36,10 +37,17 @@ func TestReadClusterName(t *testing.T) {
 	var path = filepath.Join(t.TempDir(), "clusterinfo.yaml")
 	require.NoError(t, ioutil.WriteFile(path, []byte("CLUSTER_NAME: my-cluster1"), os.ModePerm))
 
-	var s = clusterinfo.NewServer(clusterinfo.WithConfigPath(path))
+	var ctx, cancel = context.WithCancel(context.Background())
+	defer cancel()
 
-	var resp, err = s.Request(context.Background(), &networkservice.NetworkServiceRequest{Connection: &networkservice.Connection{}})
-	require.NoError(t, err)
+	var s = clusterinfo.NewServer(ctx, clusterinfo.WithConfigPath(path))
+	var resp *networkservice.Connection
+
+	require.Eventually(t, func() bool {
+		var err error
+		resp, err = s.Request(context.Background(), &networkservice.NetworkServiceRequest{Connection: &networkservice.Connection{}})
+		return err == nil && len(resp.Labels) > 0
+	}, time.Second, time.Second/20)
 
 	require.Len(t, resp.Labels, 1)
 	require.Equal(t, "my-cluster1", resp.GetLabels()["CLUSTER_NAME"])

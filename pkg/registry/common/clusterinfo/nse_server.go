@@ -19,25 +19,24 @@ package clusterinfo
 
 import (
 	"context"
-	"io/ioutil"
+	"sync/atomic"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"gopkg.in/yaml.v2"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/fs"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type clusterinfoNSEServer struct {
-	configPath string
+	configPath        string
+	clusterInfoSource atomic.Pointer[map[string]string]
 }
 
 func (n *clusterinfoNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	var m = make(map[string]string)
-
-	if b, err := ioutil.ReadFile(n.configPath); err == nil {
-		_ = yaml.Unmarshal(b, &m)
-	}
+	var m = *n.clusterInfoSource.Load()
 
 	for k, v := range m {
 		for _, labels := range nse.GetNetworkServiceLabels() {
@@ -59,12 +58,25 @@ func (n *clusterinfoNSEServer) Unregister(ctx context.Context, nse *registry.Net
 }
 
 // NewNetworkServiceEndpointRegistryServer - returns a new clusterinfo server that adds clusterinfo labels into nse registration
-func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkServiceEndpointRegistryServer {
+func NewNetworkServiceEndpointRegistryServer(ctx context.Context, opts ...Option) registry.NetworkServiceEndpointRegistryServer {
 	var r = &clusterinfoNSEServer{
 		configPath: "/etc/clusterinfo/config.yaml",
 	}
+
+	r.clusterInfoSource.Store(new(map[string]string))
+
 	for _, opt := range opts {
 		opt(r)
 	}
+
+	go func() {
+		for data := range fs.WatchFile(ctx, r.configPath) {
+			var m = make(map[string]string)
+			if err := yaml.Unmarshal(data, &m); err != nil {
+				log.FromContext(ctx).Warnf("an error during unmarshal file: %v, error: %v", r.configPath, err.Error())
+			}
+			r.clusterInfoSource.Store(&m)
+		}
+	}()
 	return r
 }

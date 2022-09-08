@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -39,7 +41,7 @@ func WatchFile(ctx context.Context, filePath string) <-chan []byte {
 	watcher, err := fsnotify.NewWatcher()
 
 	if err != nil {
-		logger.Errorf("can not create node poller: %v", err.Error())
+		logger.Warnf("can not create node poller: %v", err.Error())
 		_ = watcher.Close()
 		close(result)
 		return result
@@ -50,7 +52,7 @@ func WatchFile(ctx context.Context, filePath string) <-chan []byte {
 		if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
 			err = os.MkdirAll(directoryPath, os.ModePerm)
 			if err != nil {
-				logger.Errorf("can not create directory: %v", err.Error())
+				logger.Warnf("can not create directory: %v", err.Error())
 				_ = watcher.Close()
 				close(result)
 				return result
@@ -59,7 +61,7 @@ func WatchFile(ctx context.Context, filePath string) <-chan []byte {
 	}
 
 	if err := watcher.Add(directoryPath); err != nil {
-		logger.Errorf("an error during add a directory \"%v\": %v", directoryPath, err.Error())
+		logger.Warnf("an error during add a directory \"%v\": %v", directoryPath, err.Error())
 		_ = watcher.Close()
 		close(result)
 		return result
