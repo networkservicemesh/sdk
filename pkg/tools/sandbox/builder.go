@@ -17,16 +17,21 @@
 package sandbox
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
 	"runtime"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
@@ -62,6 +67,8 @@ type Builder struct {
 	domain *Domain
 }
 
+var once sync.Once
+
 // NewBuilder creates new SandboxBuilder
 func NewBuilder(ctx context.Context, t *testing.T) *Builder {
 	b := &Builder{
@@ -81,6 +88,8 @@ func NewBuilder(ctx context.Context, t *testing.T) *Builder {
 	b.setupNode = func(ctx context.Context, node *Node, _ int) {
 		SetupDefaultNode(ctx, node, b.supplyNSMgr)
 	}
+
+	once.Do(func() { writeLogsIfTestFailed(ctx, t) })
 
 	return b
 }
@@ -328,4 +337,106 @@ func (b *Builder) buildDNSServer() {
 	if b.domain.NSMgrProxy != nil {
 		resolver.AddSRVEntry(b.name, dnsresolve.DefaultNsmgrProxyService, CloneURL(b.domain.NSMgrProxy.URL))
 	}
+}
+
+type threadSafeBuffer struct {
+	buffer bytes.Buffer
+	m      sync.Mutex
+}
+
+func (s *threadSafeBuffer) Write(p []byte) (n int, err error) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	return s.buffer.Write(p)
+}
+
+func (s *threadSafeBuffer) Bytes() []byte {
+	s.m.Lock()
+	defer s.m.Unlock()
+	return s.buffer.Bytes()
+}
+
+func (s *threadSafeBuffer) Reset() {
+	s.m.Lock()
+	defer s.m.Unlock()
+	s.buffer.Reset()
+}
+
+type threadSafeStringBuilder struct {
+	builder strings.Builder
+	m       sync.Mutex
+}
+
+func (s *threadSafeStringBuilder) Write(p []byte) (n int, err error) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	return s.builder.Write(p)
+}
+
+func (s *threadSafeStringBuilder) String() string {
+	s.m.Lock()
+	defer s.m.Unlock()
+	return s.builder.String()
+}
+
+func (s *threadSafeStringBuilder) Reset() {
+	s.m.Lock()
+	defer s.m.Unlock()
+	s.builder.Reset()
+}
+
+type threadSafeSlice struct {
+	slice [500000][]byte
+	index int
+	m     sync.Mutex
+}
+
+func (s *threadSafeSlice) Write(p []byte) (n int, err error) {
+	s.m.Lock()
+	defer s.m.Unlock()
+
+	s.slice[s.index] = p
+	s.index++
+
+	return len(p), nil
+}
+
+func (s *threadSafeSlice) String() string {
+	s.m.Lock()
+	defer s.m.Unlock()
+
+	var builder strings.Builder
+
+	for i := 0; i < s.index; i++ {
+		builder.Write(s.slice[i])
+	}
+
+	return builder.String()
+}
+
+func (s *threadSafeSlice) Reset() {
+	s.m.Lock()
+	defer s.m.Unlock()
+	s.index = 0
+}
+
+var stdoutMu sync.Mutex
+
+func writeLogsIfTestFailed(ctx context.Context, t *testing.T) {
+	var buffer = new(threadSafeSlice)
+
+	log.EnableTracing(true)
+	logrus.SetOutput(io.Discard)
+
+	t.Cleanup(func() {
+		if t.Failed() {
+			stdoutMu.Lock()
+			defer stdoutMu.Unlock()
+			_, err := os.Stdout.WriteString(buffer.String())
+			if err != nil {
+				log.FromContext(ctx).Error("Failed to print memory logs")
+			}
+		}
+		buffer.Reset()
+	})
 }
