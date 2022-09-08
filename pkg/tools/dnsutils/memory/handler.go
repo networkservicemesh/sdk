@@ -29,21 +29,41 @@ import (
 
 const defaultTTL = 3600
 
+// Since memory is supposed to be one of the targets that stores information, we have to keep track of whether something has been written to the writer.
+// We must write something into the writer, this is how the dns package works. Otherwise, we get a timeout error on the client side.
+
+type responseWriter struct {
+	dns.ResponseWriter
+	passed bool
+}
+
+func (r *responseWriter) WriteMsg(m *dns.Msg) error {
+	r.passed = true
+	return r.ResponseWriter.WriteMsg(m)
+}
+
 type memoryHandler struct {
-	recoreds *Map
+	records *Map
 }
 
 func (f *memoryHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg *dns.Msg) {
 	if len(msg.Question) == 0 {
-		next.Handler(ctx).ServeDNS(ctx, rw, msg)
+		dns.HandleFailed(rw, msg)
 		return
 	}
 
+	rwWrapper := &responseWriter{
+		ResponseWriter: rw,
+	}
+
 	var name = dns.Name(msg.Question[0].Name).String()
-	var records, ok = f.recoreds.Load(name)
+	var records, ok = f.records.Load(name)
 
 	if !ok {
-		next.Handler(ctx).ServeDNS(ctx, rw, msg)
+		next.Handler(ctx).ServeDNS(ctx, rwWrapper, msg)
+		if !rwWrapper.passed {
+			dns.HandleFailed(rw, msg)
+		}
 		return
 	}
 
@@ -59,7 +79,10 @@ func (f *memoryHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 	}
 
 	if len(resp.Answer) == 0 {
-		next.Handler(ctx).ServeDNS(ctx, rw, msg)
+		next.Handler(ctx).ServeDNS(ctx, rwWrapper, msg)
+		if !rwWrapper.passed {
+			dns.HandleFailed(rw, msg)
+		}
 		return
 	}
 
@@ -73,7 +96,7 @@ func NewDNSHandler(records *Map) dnsutils.Handler {
 	if records == nil {
 		panic("records cannot be nil")
 	}
-	return &memoryHandler{recoreds: records}
+	return &memoryHandler{records: records}
 }
 func a(domain string, ips []net.IP) []dns.RR {
 	answers := make([]dns.RR, len(ips))
