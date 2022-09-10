@@ -21,19 +21,18 @@ import (
 	"context"
 	"net/url"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/interdomainbypass"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
-	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 )
 
 type interdomainBypassServer struct {
-	m stringurl.Map
+	m genericsync.Map[string, *url.URL]
 }
 
 // NewServer - returns a new NetworkServiceServer that injects the URL to remote side into context on requesting resolved endpoint

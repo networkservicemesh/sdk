@@ -22,6 +22,7 @@ import (
 	"net"
 	"sync"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 
@@ -32,7 +33,7 @@ import (
 )
 
 type ipamServer struct {
-	Map
+	genericsync.Map[string, *connectionInfo]
 	ipPools  []*ippool.IPPool
 	prefixes []*net.IPNet
 	once     sync.Once

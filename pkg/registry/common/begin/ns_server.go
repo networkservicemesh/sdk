@@ -19,6 +19,7 @@ package begin
 import (
 	"context"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/pkg/errors"
@@ -29,7 +30,7 @@ import (
 )
 
 type beginNSServer struct {
-	nsServerMap
+	genericsync.Map[string, *eventNSFactoryServer]
 }
 
 func (b *beginNSServer) Register(ctx context.Context, in *registry.NetworkService) (*registry.NetworkService, error) {

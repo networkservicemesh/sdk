@@ -21,8 +21,8 @@ package vni
 import (
 	"context"
 	"net"
-	"sync"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -34,12 +34,17 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
+type vniKey struct {
+	srcIPString string
+	vni         uint32
+}
+
 type vniServer struct {
 	tunnelIP   net.IP
 	tunnelPort uint16
 
 	// This map stores all generated VNIs
-	sync.Map
+	genericsync.Map[vniKey, *vniKey]
 }
 
 // NewServer - set the DstIP *and* VNI for the vxlan mechanism

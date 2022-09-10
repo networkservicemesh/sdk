@@ -20,6 +20,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -34,7 +35,7 @@ import (
 type expireNSEServer struct {
 	nseExpiration time.Duration
 	ctx           context.Context
-	cancelsMap
+	genericsync.Map[string, context.CancelFunc]
 }
 
 // NewNetworkServiceEndpointRegistryServer creates a new NetworkServiceServer chain element that implements unregister
@@ -73,10 +74,10 @@ func (s *expireNSEServer) Register(ctx context.Context, nse *registry.NetworkSer
 	}
 
 	expireContext, cancel := context.WithCancel(s.ctx)
-	if v, ok := s.cancelsMap.LoadAndDelete(nse.GetName()); ok {
+	if v, ok := s.Map.LoadAndDelete(nse.GetName()); ok {
 		v()
 	}
-	s.cancelsMap.Store(nse.GetName(), cancel)
+	s.Map.Store(nse.GetName(), cancel)
 
 	expireCh := timeClock.After(timeClock.Until(expirationTime.Local()))
 

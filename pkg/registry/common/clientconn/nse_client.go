@@ -20,6 +20,7 @@ package clientconn
 import (
 	"context"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -29,21 +30,21 @@ import (
 )
 
 type clientConnNSEClient struct {
-	stringCCMap
+	genericsync.Map[string, grpc.ClientConnInterface]
 }
 
 func (c *clientConnNSEClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	ctx = withClientConnMetadata(ctx, &c.stringCCMap, in.GetName())
+	ctx = withClientConnMetadata(ctx, &c.Map, in.GetName())
 	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)
 }
 
 func (c *clientConnNSEClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
-	ctx = withClientConnMetadata(ctx, &c.stringCCMap, in.GetName())
+	ctx = withClientConnMetadata(ctx, &c.Map, in.GetName())
 	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in)
 }
 
 func (c *clientConnNSEClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	ctx = withClientConnMetadata(ctx, &c.stringCCMap, uuid.New().String())
+	ctx = withClientConnMetadata(ctx, &c.Map, uuid.New().String())
 	return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, in, opts...)
 }
 

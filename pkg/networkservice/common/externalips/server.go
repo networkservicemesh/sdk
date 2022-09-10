@@ -22,6 +22,7 @@ import (
 	"net"
 	"sync/atomic"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/ghodss/yaml"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -59,8 +60,8 @@ func NewServer(chainCtx context.Context, options ...Option) networkservice.Netwo
 	result := &externalIPsServer{
 		chainCtx: chainCtx,
 	}
-	result.externalToInternalMap.Store(new(stringMap))
-	result.internalToExternalMap.Store(new(stringMap))
+	result.externalToInternalMap.Store(new(genericsync.Map[string, string]))
+	result.internalToExternalMap.Store(new(genericsync.Map[string, string]))
 	for _, o := range options {
 		o(result)
 	}
@@ -86,7 +87,7 @@ func NewServer(chainCtx context.Context, options ...Option) networkservice.Netwo
 }
 
 func replaceFunc(v atomic.Value) func(ip net.IP) net.IP {
-	m := v.Load().(*stringMap)
+	m := v.Load().(*genericsync.Map[string, string])
 	return func(ip net.IP) net.IP {
 		key := ip.String()
 		value, _ := m.Load(key)
@@ -109,7 +110,7 @@ func (e *externalIPsServer) build(ips map[string]string) error {
 			return err
 		}
 	}
-	internalIPs, externalIPs := new(stringMap), new(stringMap)
+	internalIPs, externalIPs := new(genericsync.Map[string, string]), new(genericsync.Map[string, string])
 	for k, v := range ips {
 		internalIPs.Store(k, v)
 		externalIPs.Store(v, k)

@@ -21,14 +21,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 )
 
 type cache struct {
 	expireTimeout time.Duration
-	entries       cacheEntryMap
+	entries       genericsync.Map[string, *cacheEntry]
 	clockTime     clock.Clock
 }
 

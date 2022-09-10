@@ -19,6 +19,7 @@ package begin
 import (
 	"context"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -29,7 +30,7 @@ import (
 )
 
 type beginServer struct {
-	serverMap
+	genericsync.Map[string, *eventFactoryServer]
 }
 
 // NewServer - creates a new begin chain element

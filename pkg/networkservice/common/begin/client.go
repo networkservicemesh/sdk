@@ -19,6 +19,7 @@ package begin
 import (
 	"context"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -30,7 +31,7 @@ import (
 )
 
 type beginClient struct {
-	clientMap
+	genericsync.Map[string, *eventFactoryClient]
 }
 
 // NewClient - creates a new begin chain element
