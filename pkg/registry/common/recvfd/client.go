@@ -26,7 +26,9 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/edwarnicke/grpcfd"
+	"github.com/edwarnicke/serialize"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
@@ -34,8 +36,14 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
+type perEndpointFileMap struct {
+	executor           serialize.Executor
+	filesByInodeURL    map[string]*os.File
+	inodeURLbyFilename map[string]*url.URL
+}
+
 type recvfdNSEClient struct {
-	fileMaps perEndpointFileMapMap
+	fileMaps genericsync.Map[string, *perEndpointFileMap]
 }
 
 func (n *recvfdNSEClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
@@ -69,7 +77,7 @@ func NewNetworkServiceEndpointRegistryClient() registry.NetworkServiceEndpointRe
 type recvfdNSEFindClient struct {
 	registry.NetworkServiceEndpointRegistry_FindClient
 	transceiver grpcfd.FDTransceiver
-	fileMaps    *perEndpointFileMapMap
+	fileMaps    *genericsync.Map[string, *perEndpointFileMap]
 }
 
 func (x *recvfdNSEFindClient) Recv() (*registry.NetworkServiceEndpointResponse, error) {

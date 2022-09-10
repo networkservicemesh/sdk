@@ -24,16 +24,16 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/edwarnicke/genericsync"
+	"github.com/edwarnicke/grpcfd"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-
-	"github.com/edwarnicke/grpcfd"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
 type recvFDServer struct {
-	fileMaps perConnectionFileMapMap
+	fileMaps genericsync.Map[string, *perConnectionFileMap]
 }
 
 // NewServer - returns server chain element to recv FDs over the connection (if possible) for any Mechanism.Parameters[common.InodeURL]

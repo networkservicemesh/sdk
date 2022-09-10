@@ -21,6 +21,7 @@ package heal
 import (
 	"context"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
@@ -32,7 +33,7 @@ import (
 
 type healNSClient struct {
 	ctx context.Context
-	cancelsMap
+	genericsync.Map[string, context.CancelFunc]
 }
 
 // NewNetworkServiceRegistryClient returns a new NS registry client responsible for healing

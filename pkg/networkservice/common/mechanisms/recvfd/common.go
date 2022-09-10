@@ -25,9 +25,16 @@ import (
 	"os"
 
 	"github.com/edwarnicke/grpcfd"
+	"github.com/edwarnicke/serialize"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
 	"github.com/pkg/errors"
 )
+
+type perConnectionFileMap struct {
+	executor           serialize.Executor
+	filesByInodeURL    map[string]*os.File
+	inodeURLbyFilename map[string]*url.URL
+}
 
 func recvFDAndSwapInodeToFile(ctx context.Context, fileMap *perConnectionFileMap, parameters map[string]string, recv grpcfd.FDRecver) error {
 	// Get the inodeURL from  parameters

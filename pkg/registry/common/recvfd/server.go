@@ -27,6 +27,7 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 
@@ -38,7 +39,7 @@ import (
 )
 
 type recvfdNseServer struct {
-	fileMaps perEndpointFileMapMap
+	fileMaps genericsync.Map[string, *perEndpointFileMap]
 }
 
 // NewNetworkServiceEndpointRegistryServer - creates new NSE registry chain element that will:

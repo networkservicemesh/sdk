@@ -19,6 +19,7 @@ package begin
 import (
 	"context"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/pkg/errors"
@@ -30,7 +31,7 @@ import (
 )
 
 type beginNSEServer struct {
-	nseServerMap
+	genericsync.Map[string, *eventNSEFactoryServer]
 }
 
 func (b *beginNSEServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {

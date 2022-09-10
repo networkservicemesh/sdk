@@ -21,6 +21,7 @@ package metadata
 import (
 	"context"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -31,7 +32,7 @@ import (
 )
 
 type metaDataClient struct {
-	Map metaDataMap
+	Map genericsync.Map[string, *metaData]
 }
 
 // NewClient - Enable per Connection.Id metadata for the client
