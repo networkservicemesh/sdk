@@ -4,8 +4,9 @@ package spire
 import (
 	"sync" // Used by sync.Map.
 
-	"github.com/networkservicemesh/sdk/pkg/tools/stringset"
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/stringset"
 )
 
 // Generate code that will fail if the constants change value.
