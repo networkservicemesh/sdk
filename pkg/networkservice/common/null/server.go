@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -28,7 +28,8 @@ import (
 type nullServer struct{}
 
 // NewServer - returns a new null NetworkServiceServer that does nothing but call next.Server(ctx).{Request/Close}
-//             and return the response
+//
+//	and return the response
 func NewServer() networkservice.NetworkServiceServer {
 	return &nullServer{}
 }

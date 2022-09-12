@@ -20,7 +20,6 @@ package dnscontext
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -97,7 +96,7 @@ func (c *dnsContextClient) Close(ctx context.Context, conn *networkservice.Conne
 }
 
 func (c *dnsContextClient) restoreResolvConf() {
-	originalResolvConf, err := ioutil.ReadFile(c.storedResolvConfigPath)
+	originalResolvConf, err := os.ReadFile(c.storedResolvConfigPath)
 	if err != nil || len(originalResolvConf) == 0 {
 		return
 	}
@@ -108,11 +107,11 @@ func (c *dnsContextClient) storeOriginalResolvConf() {
 	if _, err := os.Stat(c.storedResolvConfigPath); err == nil {
 		return
 	}
-	originalResolvConf, err := ioutil.ReadFile(c.resolveConfigPath)
+	originalResolvConf, err := os.ReadFile(c.resolveConfigPath)
 	if err != nil {
 		return
 	}
-	_ = ioutil.WriteFile(c.storedResolvConfigPath, originalResolvConf, os.ModePerm)
+	_ = os.WriteFile(c.storedResolvConfigPath, originalResolvConf, os.ModePerm)
 }
 
 func (c *dnsContextClient) initialize() {

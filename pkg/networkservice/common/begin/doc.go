@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -19,24 +19,24 @@ Package begin provides a chain element that can be put at the beginning of the c
 but before any chain elements that would mutate the Connection on the return path.
 the begin.New{Client,Server}() guarantee:
 
-Scope
+# Scope
 
-All Request() or Close() events are scoped to a particular Connection, uniquely identified by its Connection.Id
+# All Request() or Close() events are scoped to a particular Connection, uniquely identified by its Connection.Id
 
-Exclusivity
+# Exclusivity
 
-Only one event is processed for a Connection.Id at a time
+# Only one event is processed for a Connection.Id at a time
 
-Order
+# Order
 
-Events for a given Connection.Id are processed in the order in which they are received
+# Events for a given Connection.Id are processed in the order in which they are received
 
-Close Correctness
+# Close Correctness
 
 When a Close(Connection) event is received, begin will replace the Connection provided with the last Connection
 successfully returned from the chain for Connection.Id
 
-Midchain Originated Events
+# Midchain Originated Events
 
 A midchain element may originate a Request() or Close() event to be processed
 from the beginning of the chain (Timeout, Refresh,Heal):
@@ -58,7 +58,7 @@ Optionally you may use the CancelContext(context.Context) option:
 If cancelContext is canceled prior to the processing of the event, the event processing will be skipped,
 and the errCh returned simply closed.
 
-Midchain Originated Request Event
+# Midchain Originated Request Event
 
 Example:
 
@@ -68,18 +68,19 @@ will use the networkservice.NetworkServiceRequest from the chain's last successf
 with networkservice.NetworkServiceRequest.Connection replaced with the Connection returned by the chain's last
 successfully completed Request() event
 
-Chain Placement
+# Chain Placement
 
 begin.New{Server/Client} should always proceed any chain element which:
 - Maintains state
 - Mutates the Connection object along the return path of processing a Request() event.
 
-Reasoning
+# Reasoning
 
 networkservice.NetworkService{Client,Server} processes two kinds of events:
   - Request()
   - Close()
-Each Request() or Close() event is scoped to a networkservice.Connection, which can be uniquely identified by its Connection.Id
+
+# Each Request() or Close() event is scoped to a networkservice.Connection, which can be uniquely identified by its Connection.Id
 
 For a given Connection.Id, at most one event can be processed at a time (exclusivity).
 For a given Connection.Id, events must be processed in the order they were received (order).
@@ -95,6 +96,7 @@ in the middle of the chain, but processed from the beginning of the chain.  Exam
   - A server timing out an expired Connection
   - A client refreshing a Connection so that it does not expire
   - A client healing from a lost Connection
+
 In all of these cases, the Request() or Close() event should be processed starting at the beginning of the chain, to ensure
 that all of the proper side effects occur within the chain.
 */

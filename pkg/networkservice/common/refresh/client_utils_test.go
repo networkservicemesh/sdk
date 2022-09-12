@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -93,11 +95,11 @@ func (c *countClient) GetLastRequest() *networkservice.NetworkServiceRequest {
 // request aren't too fast or too slow.
 //
 // Usage details:
-// * Each client Request() should be wrapped in beforeRequest()/afterRequest()
-//   calls. Same for Close() and beforeClose()/afterClose().
-// * Caveat: parallel client initiated requests aren't supported by this tester.
-// * To distinguish between different requests, the value of
-//   `Connection.Context.ExtraContext[connectionMarker]` is used as a marker.
+//   - Each client Request() should be wrapped in beforeRequest()/afterRequest()
+//     calls. Same for Close() and beforeClose()/afterClose().
+//   - Caveat: parallel client initiated requests aren't supported by this tester.
+//   - To distinguish between different requests, the value of
+//     `Connection.Context.ExtraContext[connectionMarker]` is used as a marker.
 type refreshTesterServer struct {
 	t           *testing.T
 	minDuration time.Duration

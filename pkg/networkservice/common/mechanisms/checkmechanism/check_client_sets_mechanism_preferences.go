@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -37,13 +37,14 @@ type checkClientSetsMechanismPreferences struct {
 }
 
 // CheckClientSetsMechanismPreferences - returns a NetworkServiceClient that will check to make sure that the
-//                                      clientUnderTest correctly sets the MechanismPreferences to include
-//                                      a mechanism of type mechanismType
-//                                      t - *testing.T for checking
-//                                      clientUnderTest - client we are testing
-//                                      mechanismType - Mechanism.Type implemented by clientUnderTest
-//                                      mechanismCheck - function to check for any parameters that should be present in
-//                                                       the MechanismPreference
+//
+//	clientUnderTest correctly sets the MechanismPreferences to include
+//	a mechanism of type mechanismType
+//	t - *testing.T for checking
+//	clientUnderTest - client we are testing
+//	mechanismType - Mechanism.Type implemented by clientUnderTest
+//	mechanismCheck - function to check for any parameters that should be present in
+//	                 the MechanismPreference
 func CheckClientSetsMechanismPreferences(t *testing.T, clientUnderTest networkservice.NetworkServiceClient, mechanismType string, mechanismCheck func(*testing.T, *networkservice.Mechanism)) networkservice.NetworkServiceClient {
 	rv := &checkClientSetsMechanismPreferences{}
 	rv.NetworkServiceClient = chain.NewNetworkServiceClient(

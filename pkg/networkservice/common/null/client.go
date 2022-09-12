@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
-//
 // Copyright (c) 2020 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2020-2022 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -34,7 +34,8 @@ import (
 type nullClient struct{}
 
 // NewClient - returns a new null client that does nothing but call next.Client(ctx).{Request/Close} and return the result
-//             This is very useful in testing
+//
+//	This is very useful in testing
 func NewClient() networkservice.NetworkServiceClient {
 	return &nullClient{}
 }

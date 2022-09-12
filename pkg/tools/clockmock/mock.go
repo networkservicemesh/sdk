@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -85,7 +87,8 @@ func (m *Mock) timeTick(
 
 // SetSpeed starts mock time to run with the given speed until Mock.ctx becomes done or speed becomes changed. While
 // time is running, current time for the mock will be the following:
-//   mock time := mock start time  +  (real time duration from the start) * speed  +  mock duration added with Set, Add
+//
+//	mock time := mock start time  +  (real time duration from the start) * speed  +  mock duration added with Set, Add
 func (m *Mock) SetSpeed(speed float64) {
 	m.speedCh <- speed
 }

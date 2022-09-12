@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -32,8 +32,9 @@ type checkRequestAfterServer struct {
 }
 
 // NewServer - returns NetworkServiceServer chain elements to check the request received from the previous element in the chain
-//             t - *testing.T for checks
-//             check - function to check the NetworkServiceRequest
+//
+//	t - *testing.T for checks
+//	check - function to check the NetworkServiceRequest
 func NewServer(t *testing.T, check func(*testing.T, *networkservice.NetworkServiceRequest)) networkservice.NetworkServiceServer {
 	return &checkRequestAfterServer{
 		T:     t,

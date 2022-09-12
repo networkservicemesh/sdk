@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Cisco and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,10 +19,10 @@
 // Package debug provides a very simple function that, if executed will replace the executable with
 // dlv running the executable and listening on the port specified by an environment variable.
 //
-//  Example:
-//  if err := debug.Self(); err != nil {
-//     fmt.Println(err)
-//  }
+//	Example:
+//	if err := debug.Self(); err != nil {
+//	   fmt.Println(err)
+//	}
 package debug
 
 import (
@@ -45,11 +47,12 @@ const (
 )
 
 // Self - replaces executable with dlv running the executable and listening on a port
-//        envVariableParts - variadic list of 'pieces' to be transformed into the
-//                           env variable indicating where dlv should listen.
-//                           Default: If no envVariableParts are provided, env variable
-//                                    defaults to []string{Dlv,Listen,path.Base(os.Args[0])}
-//                                    which is DLV_PORT_<name of executable>
+//
+//	envVariableParts - variadic list of 'pieces' to be transformed into the
+//	                   env variable indicating where dlv should listen.
+//	                   Default: If no envVariableParts are provided, env variable
+//	                            defaults to []string{Dlv,Listen,path.Base(os.Args[0])}
+//	                            which is DLV_PORT_<name of executable>
 func Self(envVariableParts ...string) error {
 	// Get the executable name.  Note: os.Args[0] may not be the absolute path of the executable, which is
 	// why we get it this way

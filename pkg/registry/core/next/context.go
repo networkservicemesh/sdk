@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
-//
 // Copyright (c) 2020 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2020-2022 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -36,7 +36,8 @@ const (
 )
 
 // withNextNSRegistryServer -
-//    Wraps 'parent' in a new Context that has the DiscoveryServer registry.NetworkServiceRegistryServer to be called in the chain
+//
+//	Wraps 'parent' in a new Context that has the DiscoveryServer registry.NetworkServiceRegistryServer to be called in the chain
 func withNextNSRegistryServer(parent context.Context, next registry.NetworkServiceRegistryServer) context.Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")
@@ -45,7 +46,8 @@ func withNextNSRegistryServer(parent context.Context, next registry.NetworkServi
 }
 
 // withNextNSRegistryClient -
-//    Wraps 'parent' in a new Context that has the NetworkServiceRegistryClient registry.NetworkServiceRegistryClientWrapper to be called in the chain
+//
+//	Wraps 'parent' in a new Context that has the NetworkServiceRegistryClient registry.NetworkServiceRegistryClientWrapper to be called in the chain
 func withNextNSRegistryClient(parent context.Context, next registry.NetworkServiceRegistryClient) context.Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")
@@ -54,7 +56,8 @@ func withNextNSRegistryClient(parent context.Context, next registry.NetworkServi
 }
 
 // NetworkServiceRegistryServer -
-//   Returns the NetworkServiceRegistryServer registry.NetworkServiceRegistryServer to be called in the chain from the context.Context
+//
+//	Returns the NetworkServiceRegistryServer registry.NetworkServiceRegistryServer to be called in the chain from the context.Context
 func NetworkServiceRegistryServer(ctx context.Context) registry.NetworkServiceRegistryServer {
 	rv, ok := ctx.Value(nextNSRegistryServerKey).(registry.NetworkServiceRegistryServer)
 	if ok && rv != nil {
@@ -64,7 +67,8 @@ func NetworkServiceRegistryServer(ctx context.Context) registry.NetworkServiceRe
 }
 
 // NetworkServiceRegistryClient -
-//   Returns the NetworkServiceRegistryClient registry.NetworkServiceRegistryClientWrapper to be called in the chain from the context.Context
+//
+//	Returns the NetworkServiceRegistryClient registry.NetworkServiceRegistryClientWrapper to be called in the chain from the context.Context
 func NetworkServiceRegistryClient(ctx context.Context) registry.NetworkServiceRegistryClient {
 	rv, ok := ctx.Value(nextNSRegistryClientKey).(registry.NetworkServiceRegistryClient)
 	if ok && rv != nil {
@@ -74,7 +78,8 @@ func NetworkServiceRegistryClient(ctx context.Context) registry.NetworkServiceRe
 }
 
 // withNextNSERegistryServer -
-//    Wraps 'parent' in a new Context that has the DiscoveryServer registry.NetworkServiceEndpointRegistryServer to be called in the chain
+//
+//	Wraps 'parent' in a new Context that has the DiscoveryServer registry.NetworkServiceEndpointRegistryServer to be called in the chain
 func withNextNSERegistryServer(parent context.Context, next registry.NetworkServiceEndpointRegistryServer) context.Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")
@@ -83,7 +88,8 @@ func withNextNSERegistryServer(parent context.Context, next registry.NetworkServ
 }
 
 // withNextNSERegistryClient -
-//    Wraps 'parent' in a new Context that has the NetworkServiceEndpointRegistryClient registry.NetworkServiceEndpointRegistryClientWrapper to be called in the chain
+//
+//	Wraps 'parent' in a new Context that has the NetworkServiceEndpointRegistryClient registry.NetworkServiceEndpointRegistryClientWrapper to be called in the chain
 func withNextNSERegistryClient(parent context.Context, next registry.NetworkServiceEndpointRegistryClient) context.Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")
@@ -92,7 +98,8 @@ func withNextNSERegistryClient(parent context.Context, next registry.NetworkServ
 }
 
 // NetworkServiceEndpointRegistryServer -
-//   Returns the NetworkServiceEndpointRegistryServer registry.NetworkServiceEndpointRegistryServer to be called in the chain from the context.Context
+//
+//	Returns the NetworkServiceEndpointRegistryServer registry.NetworkServiceEndpointRegistryServer to be called in the chain from the context.Context
 func NetworkServiceEndpointRegistryServer(ctx context.Context) registry.NetworkServiceEndpointRegistryServer {
 	rv, ok := ctx.Value(nextNSERegistryServerKey).(registry.NetworkServiceEndpointRegistryServer)
 	if ok && rv != nil {
@@ -102,7 +109,8 @@ func NetworkServiceEndpointRegistryServer(ctx context.Context) registry.NetworkS
 }
 
 // NetworkServiceEndpointRegistryClient -
-//   Returns the NetworkServiceEndpointRegistryClient registry.NetworkServiceEndpointRegistryClientWrapper to be called in the chain from the context.Context
+//
+//	Returns the NetworkServiceEndpointRegistryClient registry.NetworkServiceEndpointRegistryClientWrapper to be called in the chain from the context.Context
 func NetworkServiceEndpointRegistryClient(ctx context.Context) registry.NetworkServiceEndpointRegistryClient {
 	rv, ok := ctx.Value(nextNSERegistryClientKey).(registry.NetworkServiceEndpointRegistryClient)
 	if ok && rv != nil {

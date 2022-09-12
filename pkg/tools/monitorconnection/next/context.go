@@ -31,7 +31,8 @@ const (
 )
 
 // withNextMonitorConnectionServer -
-//    Wraps 'parent' in a new Context that has the Server networkservice.MonitorConnectionServer to be called in the chain
+//
+//	Wraps 'parent' in a new Context that has the Server networkservice.MonitorConnectionServer to be called in the chain
 func withNextMonitorConnectionServer(parent context.Context, next networkservice.MonitorConnectionServer) context.Context {
 	if parent == nil {
 		parent = context.Background()
@@ -40,7 +41,8 @@ func withNextMonitorConnectionServer(parent context.Context, next networkservice
 }
 
 // MonitorConnectionServer -
-//   Returns the networkservice.MonitorConnectionServer to be called in the chain from the context.Context
+//
+//	Returns the networkservice.MonitorConnectionServer to be called in the chain from the context.Context
 func MonitorConnectionServer(ctx context.Context) networkservice.MonitorConnectionServer {
 	rv, ok := ctx.Value(nextMonitorConnectionServerKey).(networkservice.MonitorConnectionServer)
 	if ok && rv != nil {

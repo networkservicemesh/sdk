@@ -34,8 +34,9 @@ type checkCloseClient struct {
 }
 
 // NewClient - returns NetworkServiceClient chain elements to check the Close received from the previous element in the chain
-//             t - *testing.T for checks
-//             check - function to check the Connection
+//
+//	t - *testing.T for checks
+//	check - function to check the Connection
 func NewClient(t *testing.T, check func(*testing.T, *networkservice.Connection)) networkservice.NetworkServiceClient {
 	return &checkCloseClient{
 		T:     t,

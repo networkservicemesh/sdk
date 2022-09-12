@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -43,14 +43,15 @@ type ServerSuite struct {
 }
 
 // NewServerSuite - returns a ServerSuite
-//                  serverUnderTest - the server being tested to make sure it correctly implements a Mechanism
-//                  configureContext - a function that is applied to context.Background to make sure anything
-//                                     needed by the serverUnderTest is present in the context.Context
-//                  mechanismType - Mechanism.Type implemented by the serverUnderTest
-//                  contextCheck - function to check that the serverUnderTest introduces all needed side effects to the context.Context
-//                                 before calling the next element in the chain
-//                  request - NetworkServiceRequest to be used for testing
-//                  connClose - Connection to be used for testing Close(...)
+//
+//	serverUnderTest - the server being tested to make sure it correctly implements a Mechanism
+//	configureContext - a function that is applied to context.Background to make sure anything
+//	                   needed by the serverUnderTest is present in the context.Context
+//	mechanismType - Mechanism.Type implemented by the serverUnderTest
+//	contextCheck - function to check that the serverUnderTest introduces all needed side effects to the context.Context
+//	               before calling the next element in the chain
+//	request - NetworkServiceRequest to be used for testing
+//	connClose - Connection to be used for testing Close(...)
 func NewServerSuite(
 	serverUnderTest networkservice.NetworkServiceServer,
 	configureContext func(ctx context.Context) context.Context,
@@ -94,7 +95,8 @@ func (m *ServerSuite) TestContextAfter() {
 }
 
 // TestMechanismAfter - test to make sure that any changes the server should have made to the Request.Connection.Mechanism
-//                      before calling the next chain element have been made
+//
+//	before calling the next chain element have been made
 func (m *ServerSuite) TestMechanismAfter() {
 	contract := chain.NewNetworkServiceServer(
 		mechanisms.NewServer(

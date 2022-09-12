@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +20,6 @@ package opa_test
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -45,7 +46,7 @@ func TestWithPolicyFromFile(t *testing.T) {
 	`
 
 	policyPath := filepath.Clean(path.Join(dir, "policy.rego"))
-	err = ioutil.WriteFile(policyPath, []byte(policy), os.ModePerm)
+	err = os.WriteFile(policyPath, []byte(policy), os.ModePerm)
 	require.Nil(t, err)
 
 	p := opa.WithPolicyFromFile(policyPath, "allow", opa.True)

@@ -1,6 +1,6 @@
 // Copyright (c) 2020 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020-2022 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -34,8 +34,9 @@ const (
 type contextKeyType string
 
 // withNextServer -
-//    Wraps 'parent' in a new Context that has the Server networkservice.NetworkServiceServer to be called in the chain
-//    Should only be set in CompositeEndpoint.Request/Close
+//
+//	Wraps 'parent' in a new Context that has the Server networkservice.NetworkServiceServer to be called in the chain
+//	Should only be set in CompositeEndpoint.Request/Close
 func withNextServer(parent context.Context, next networkservice.NetworkServiceServer) context.Context {
 	if parent == nil {
 		parent = context.Background()
@@ -44,7 +45,8 @@ func withNextServer(parent context.Context, next networkservice.NetworkServiceSe
 }
 
 // Server -
-//   Returns the Server networkservice.NetworkServiceServer to be called in the chain from the context.Context
+//
+//	Returns the Server networkservice.NetworkServiceServer to be called in the chain from the context.Context
 func Server(ctx context.Context) networkservice.NetworkServiceServer {
 	rv, ok := ctx.Value(nextServerKey).(networkservice.NetworkServiceServer)
 	if ok && rv != nil {
@@ -54,8 +56,9 @@ func Server(ctx context.Context) networkservice.NetworkServiceServer {
 }
 
 // withNextClient -
-//    Wraps 'parent' in a new Context that has the Server networkservice.NetworkServiceServer to be called in the chain
-//    Should only be set in CompositeEndpoint.Request/Close
+//
+//	Wraps 'parent' in a new Context that has the Server networkservice.NetworkServiceServer to be called in the chain
+//	Should only be set in CompositeEndpoint.Request/Close
 func withNextClient(parent context.Context, next networkservice.NetworkServiceClient) context.Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")
@@ -64,7 +67,8 @@ func withNextClient(parent context.Context, next networkservice.NetworkServiceCl
 }
 
 // Client -
-//   Returns the Client networkservice.NetworkServiceClient to be called in the chain from the context.Context
+//
+//	Returns the Client networkservice.NetworkServiceClient to be called in the chain from the context.Context
 func Client(ctx context.Context) networkservice.NetworkServiceClient {
 	rv, ok := ctx.Value(nextClientKey).(networkservice.NetworkServiceClient)
 	if ok && rv != nil {

@@ -155,8 +155,9 @@ func WithURL(u string) Option {
 var _ Nsmgr = (*nsmgrServer)(nil)
 
 // NewServer - Creates a new Nsmgr
-//           tokenGenerator - authorization token generator
-//			 options - a set of Nsmgr options.
+//
+//	          tokenGenerator - authorization token generator
+//				 options - a set of Nsmgr options.
 func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...Option) Nsmgr {
 	opts := &serverOptions{
 		authorizeServer:                  authorize.NewServer(authorize.Any()),

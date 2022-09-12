@@ -37,8 +37,9 @@ type checkResponseClient struct {
 }
 
 // NewClient - returns NetworkServiceClient chain elements to check the response received from the next element in the chain
-//             t - *testing.T for checks
-//             check - function to check the Connnection
+//
+//	t - *testing.T for checks
+//	check - function to check the Connnection
 func NewClient(t *testing.T, check func(*testing.T, *networkservice.Connection)) networkservice.NetworkServiceClient {
 	return &checkResponseClient{
 		T:     t,

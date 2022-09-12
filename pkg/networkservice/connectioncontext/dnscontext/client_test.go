@@ -20,7 +20,6 @@ package dnscontext_test
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -44,7 +43,7 @@ func Test_DNSContextClient_Usecases(t *testing.T) {
 
 	resolveConfigPath := filepath.Join(t.TempDir(), "resolv.conf")
 
-	err := ioutil.WriteFile(resolveConfigPath, []byte("nameserver 8.8.4.4\nsearch example.com\n"), os.ModePerm)
+	err := os.WriteFile(resolveConfigPath, []byte("nameserver 8.8.4.4\nsearch example.com\n"), os.ModePerm)
 	require.NoError(t, err)
 
 	client := chain.NewNetworkServiceClient(
@@ -79,7 +78,7 @@ func Test_DNSContextClient_Usecases(t *testing.T) {
 func requireFileChanged(ctx context.Context, t *testing.T, location, expected string) {
 	var r string
 	for ctx.Err() == nil {
-		b, err := ioutil.ReadFile(filepath.Clean(location))
+		b, err := os.ReadFile(filepath.Clean(location))
 		r = string(b)
 		if err == nil && r == expected {
 			return

@@ -26,7 +26,6 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -66,7 +65,8 @@ func logrusEntry(ctx context.Context) *logrus.Entry {
 }
 
 // AddEntry - adds an entry to the spire server for parentID, spiffeID, and selector
-//            parentID is usually the same as the agentID provided to Start()
+//
+//	parentID is usually the same as the agentID provided to Start()
 func AddEntry(ctx context.Context, parentID, spiffeID, selector, federatesWith string) error {
 	cmdStr := "spire-server entry create -parentID %s -spiffeID %s -selector %s"
 	cmdStr = fmt.Sprintf(cmdStr, parentID, spiffeID, selector)
@@ -82,7 +82,7 @@ func AddEntry(ctx context.Context, parentID, spiffeID, selector, federatesWith s
 // Start - start a spire-server and spire-agent with the given agentId
 func Start(options ...Option) <-chan error {
 	errCh := make(chan error, 4)
-	defaultRoot, err := ioutil.TempDir("", "spire")
+	defaultRoot, err := os.MkdirTemp("", "spire")
 	if err != nil {
 		errCh <- err
 		close(errCh)
@@ -254,7 +254,7 @@ func writeConfigFiles(ctx context.Context, agentConfig, serverConfig, spireRoot 
 			if err := os.MkdirAll(path.Dir(filename), 0o700); err != nil {
 				return err
 			}
-			if err := ioutil.WriteFile(filename, []byte(contents), 0o600); err != nil {
+			if err := os.WriteFile(filename, []byte(contents), 0o600); err != nil {
 				return err
 			}
 		}

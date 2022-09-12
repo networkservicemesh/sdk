@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -32,8 +32,9 @@ type checkContextAfterServer struct {
 }
 
 // NewServer - returns NetworkServiceServer that checks the context passed in from the previous Server in the chain
-//             t - *testing.T used for the check
-//             check - function that checks the context.Context
+//
+//	t - *testing.T used for the check
+//	check - function that checks the context.Context
 func NewServer(t *testing.T, check func(*testing.T, context.Context)) networkservice.NetworkServiceServer {
 	return &checkContextAfterServer{
 		T:     t,

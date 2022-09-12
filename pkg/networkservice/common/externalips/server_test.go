@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +20,6 @@ package externalips_test
 
 import (
 	"context"
-	"io/ioutil"
 	"net"
 	"os"
 	"path"
@@ -96,7 +97,7 @@ func TestExternalIPsServer_NoFile(t *testing.T) {
 	}))
 	_, err := checkChain.Request(context.Background(), &networkservice.NetworkServiceRequest{})
 	require.NoError(t, err)
-	err = ioutil.WriteFile(filePath, []byte(internalIP.String()+": "+externalIP.String()), os.ModePerm)
+	err = os.WriteFile(filePath, []byte(internalIP.String()+": "+externalIP.String()), os.ModePerm)
 	require.NoError(t, err)
 	require.Eventually(t, func() bool {
 		var result bool

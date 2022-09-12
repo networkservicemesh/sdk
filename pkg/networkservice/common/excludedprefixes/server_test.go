@@ -21,7 +21,6 @@ package excludedprefixes_test
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -50,7 +49,7 @@ func TestNewExcludedPrefixesService(t *testing.T) {
 	require.NoError(t, os.MkdirAll(dir, os.ModePerm))
 	testConfig := strings.Join(append([]string{"prefixes:"}, prefixes...), "\n- ")
 	configPath := filepath.Join(dir, defaultPrefixesFileName)
-	require.NoError(t, ioutil.WriteFile(configPath, []byte(testConfig), os.ModePerm))
+	require.NoError(t, os.WriteFile(configPath, []byte(testConfig), os.ModePerm))
 
 	server := chain.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)), checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
 		require.Equal(t, request.Connection.Context.IpContext.ExcludedPrefixes, prefixes)
@@ -70,14 +69,14 @@ func TestCheckReloadedPrefixes(t *testing.T) {
 
 	testConfig := strings.Join(append([]string{"prefixes:"}, prefixes...), "\n- ")
 	configPath := filepath.Join(dir, defaultPrefixesFileName)
-	require.NoError(t, ioutil.WriteFile(configPath, []byte(""), os.ModePerm))
+	require.NoError(t, os.WriteFile(configPath, []byte(""), os.ModePerm))
 
 	defer func() { _ = os.Remove(configPath) }()
 
 	server := chain.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)))
 	req := request()
 
-	err := ioutil.WriteFile(configPath, []byte(testConfig), 0o600)
+	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
 	require.Eventually(t, func() bool {
@@ -114,7 +113,7 @@ func TestUniqueRequestPrefixes(t *testing.T) {
 
 	testConfig := strings.Join(append([]string{"prefixes:"}, prefixes...), "\n- ")
 	configPath := filepath.Join(dir, defaultPrefixesFileName)
-	require.NoError(t, ioutil.WriteFile(configPath, []byte(testConfig), os.ModePerm))
+	require.NoError(t, os.WriteFile(configPath, []byte(testConfig), os.ModePerm))
 	defer func() { _ = os.Remove(configPath) }()
 
 	server := chain.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)), checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
@@ -146,7 +145,7 @@ func TestFilePrefixesChanged(t *testing.T) {
 
 	testConfig := strings.Join(append([]string{"prefixes:"}, filePrefixes...), "\n- ")
 	configPath := filepath.Join(dir, defaultPrefixesFileName)
-	require.NoError(t, ioutil.WriteFile(configPath, []byte(testConfig), os.ModePerm))
+	require.NoError(t, os.WriteFile(configPath, []byte(testConfig), os.ModePerm))
 	defer func() { _ = os.Remove(configPath) }()
 
 	var prefixesAfterServer []string
@@ -176,7 +175,7 @@ func TestFilePrefixesChanged(t *testing.T) {
 
 	_, err := server.Request(context.Background(), req)
 
-	require.NoError(t, ioutil.WriteFile(configPath, []byte(strings.Join(append([]string{"prefixes:"}, newFilePrefixes...), "\n- ")), os.ModePerm))
+	require.NoError(t, os.WriteFile(configPath, []byte(strings.Join(append([]string{"prefixes:"}, newFilePrefixes...), "\n- ")), os.ModePerm))
 
 	require.Eventually(t, func() bool {
 		_, err = server.Request(context.Background(), req)
@@ -204,7 +203,7 @@ func testWaitForFile(t *testing.T, filePath string) {
 	require.NoError(t, err)
 	require.Empty(t, req.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes())
 
-	require.NoError(t, ioutil.WriteFile(filePath, []byte(testConfig), os.ModePerm))
+	require.NoError(t, os.WriteFile(filePath, []byte(testConfig), os.ModePerm))
 
 	defer func() { _ = os.Remove(filePath) }()
 	require.Eventually(t, func() bool {

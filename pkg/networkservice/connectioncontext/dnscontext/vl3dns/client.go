@@ -34,7 +34,8 @@ type vl3DNSClient struct {
 }
 
 // NewClient - returns a new null client that does nothing but call next.Client(ctx).{Request/Close} and return the result
-//             This is very useful in testing
+//
+//	This is very useful in testing
 func NewClient(dnsServerIP net.IP, dnsConfigs *dnsconfig.Map) networkservice.NetworkServiceClient {
 	return &vl3DNSClient{
 		dnsServerIP: dnsServerIP,

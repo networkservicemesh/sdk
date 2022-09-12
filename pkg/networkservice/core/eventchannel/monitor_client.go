@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -15,10 +15,11 @@
 // limitations under the License.
 
 // Package eventchannel provides implementations based on event channels of:
-//    networkservice.MonitorConnectionClient
-//    networkservice.MonitorConnectionServer
-//    networkservice.MonitorConnection_MonitorConnectionsClient
-//    networkservice.MonitorConnection_MonitorConnectionsServer
+//
+//	networkservice.MonitorConnectionClient
+//	networkservice.MonitorConnectionServer
+//	networkservice.MonitorConnection_MonitorConnectionsClient
+//	networkservice.MonitorConnection_MonitorConnectionsServer
 package eventchannel
 
 import (
@@ -39,10 +40,11 @@ type monitorConnectionClient struct {
 }
 
 // NewMonitorConnectionClient - returns networkservice.MonitorConnectionClient
-//                              eventCh - channel that provides events to feed the Recv function
-//                                        when an event is sent on the eventCh, all networkservice.MonitorConnection_MonitorConnectionsClient
-//                                        returned from calling MonitorConnections receive the event.
-//                              Note: Does not perform filtering basedon MonitorScopeSelector
+//
+//	eventCh - channel that provides events to feed the Recv function
+//	          when an event is sent on the eventCh, all networkservice.MonitorConnection_MonitorConnectionsClient
+//	          returned from calling MonitorConnections receive the event.
+//	Note: Does not perform filtering basedon MonitorScopeSelector
 func NewMonitorConnectionClient(eventCh <-chan *networkservice.ConnectionEvent) networkservice.MonitorConnectionClient {
 	return &monitorConnectionClient{
 		eventCh: eventCh,

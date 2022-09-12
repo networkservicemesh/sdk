@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,8 +30,9 @@ import (
 )
 
 // NewNSEClient - returns NetworkServiceEndpointRegistryClient that checks the context passed in from the previous NSClient in the chain
-//             t - *testing.T used for the check
-//             check - function that checks the context.Context
+//
+//	t - *testing.T used for the check
+//	check - function that checks the context.Context
 func NewNSEClient(t *testing.T, check func(*testing.T, context.Context)) registry.NetworkServiceEndpointRegistryClient {
 	return &checkContextNSEClient{
 		T:     t,

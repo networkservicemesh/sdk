@@ -17,7 +17,6 @@
 package dnscontext
 
 import (
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -29,7 +28,7 @@ import (
 
 func createSample(name, source string) (string, error) {
 	tmpPath := path.Join(os.TempDir(), name)
-	err := ioutil.WriteFile(tmpPath, []byte(source), os.ModePerm)
+	err := os.WriteFile(tmpPath, []byte(source), os.ModePerm)
 	if err != nil {
 		return "", err
 	}
@@ -74,7 +73,7 @@ options ndots:5`
 	config.SetValue("my_property")
 	err = config.Save()
 	require.Nil(t, err)
-	bytes, err := ioutil.ReadFile(filepath.Clean(p))
+	bytes, err := os.ReadFile(filepath.Clean(p))
 	require.Nil(t, err)
 	actual := string(bytes)
 	require.Len(t, actual, len(sample))

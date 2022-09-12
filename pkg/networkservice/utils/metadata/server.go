@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
-//
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -34,7 +34,8 @@ type metadataServer struct {
 }
 
 // NewServer - Enable per Connection.Id metadata for the server
-//             Must come after updatepath.NewServer() in the chain
+//
+//	Must come after updatepath.NewServer() in the chain
 func NewServer() networkservice.NetworkServiceServer {
 	return &metadataServer{}
 }

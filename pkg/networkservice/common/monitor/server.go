@@ -41,14 +41,14 @@ type monitorServer struct {
 }
 
 // NewServer - creates a NetworkServiceServer chain element that will properly update a MonitorConnectionServer
-//             - monitorServerPtr - *networkservice.MonitorConnectionServer.  Since networkservice.MonitorConnectionServer is an interface
-//                        (and thus a pointer) *networkservice.MonitorConnectionServer is a double pointer.  Meaning it
-//                        points to a place that points to a place that implements networkservice.MonitorConnectionServer
-//                        This is done so that we can preserve the return of networkservice.NetworkServer and use
-//                        NewServer(...) as any other chain element constructor, but also get back a
-//                        networkservice.MonitorConnectionServer that can be used either standalone or in a
-//                        networkservice.MonitorConnectionServer chain
-//             chainCtx - context for lifecycle management
+//   - monitorServerPtr - *networkservice.MonitorConnectionServer.  Since networkservice.MonitorConnectionServer is an interface
+//     (and thus a pointer) *networkservice.MonitorConnectionServer is a double pointer.  Meaning it
+//     points to a place that points to a place that implements networkservice.MonitorConnectionServer
+//     This is done so that we can preserve the return of networkservice.NetworkServer and use
+//     NewServer(...) as any other chain element constructor, but also get back a
+//     networkservice.MonitorConnectionServer that can be used either standalone or in a
+//     networkservice.MonitorConnectionServer chain
+//     chainCtx - context for lifecycle management
 func NewServer(chainCtx context.Context, monitorServerPtr *networkservice.MonitorConnectionServer) networkservice.NetworkServiceServer {
 	*monitorServerPtr = newMonitorConnectionServer(chainCtx)
 	return &monitorServer{

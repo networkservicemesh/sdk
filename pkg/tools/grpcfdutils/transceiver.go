@@ -31,7 +31,8 @@ import (
 )
 
 // notifiableFDTransceiver - grpcfd.Transceiver wrapper checking that received FDs are closed
-//     onRecvFile - callback receiving inodeURL string and a file received by grpcfd
+//
+//	onRecvFile - callback receiving inodeURL string and a file received by grpcfd
 type notifiableFDTransceiver struct {
 	grpcfd.FDTransceiver
 	net.Addr

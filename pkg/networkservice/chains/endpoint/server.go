@@ -47,8 +47,8 @@ import (
 )
 
 // Endpoint - aggregates the APIs:
-//            - networkservice.NetworkServiceServer
-//            - networkservice.MonitorConnectionServer
+//   - networkservice.NetworkServiceServer
+//   - networkservice.MonitorConnectionServer
 type Endpoint interface {
 	networkservice.NetworkServiceServer
 	networkservice.MonitorConnectionServer

@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
-//
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -35,7 +35,8 @@ type metaDataClient struct {
 }
 
 // NewClient - Enable per Connection.Id metadata for the client
-//             Must come after updatepath.NewClient() in the chain
+//
+//	Must come after updatepath.NewClient() in the chain
 func NewClient() networkservice.NetworkServiceClient {
 	return &metaDataClient{}
 }

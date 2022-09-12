@@ -40,7 +40,8 @@ type discoverCandidatesServer struct {
 }
 
 // NewServer - creates a new NetworkServiceServer that can discover possible candidates for providing a requested
-//             Network Service and add it to the context.Context where it can be retrieved by Candidates(ctx)
+//
+//	Network Service and add it to the context.Context where it can be retrieved by Candidates(ctx)
 func NewServer(nsClient registry.NetworkServiceRegistryClient, nseClient registry.NetworkServiceEndpointRegistryClient) networkservice.NetworkServiceServer {
 	return &discoverCandidatesServer{
 		nseClient: nseClient,

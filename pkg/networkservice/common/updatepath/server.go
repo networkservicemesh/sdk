@@ -1,6 +1,6 @@
-// Copyright (c) 2020-2021 Cisco Systems, Inc.
-//
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2020-2022 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -34,7 +34,8 @@ type updatePathServer struct {
 }
 
 // NewServer - creates a new updatePath client to update connection path.
-//             name - name of the client
+//
+//	name - name of the client
 //
 // Workflow are documented in common.go
 func NewServer(name string) networkservice.NetworkServiceServer {

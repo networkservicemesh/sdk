@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -15,7 +15,8 @@
 // limitations under the License.
 
 // Package checkcontextonreturn - provides a NetworkServiceClient chain element for checking the state of the context.Context
-//                                after the next element in the chain has returned
+//
+//	after the next element in the chain has returned
 package checkcontextonreturn
 
 import (
@@ -35,9 +36,10 @@ type checkContextOnReturn struct {
 }
 
 // NewClient - returns a NetworkServiceClient chain element for checking the state of the context.Context
-//             after the next element in the chain has returned
-//             t - *testing.T for doing the checks
-//             check - function for checking the context.Context
+//
+//	after the next element in the chain has returned
+//	t - *testing.T for doing the checks
+//	check - function for checking the context.Context
 func NewClient(t *testing.T, check func(t *testing.T, ctx context.Context)) networkservice.NetworkServiceClient {
 	return &checkContextOnReturn{
 		T:     t,

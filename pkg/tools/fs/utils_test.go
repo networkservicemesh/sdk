@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +20,6 @@ package fs_test
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -56,7 +57,7 @@ func Test_WatchFile(t *testing.T) {
 
 	require.Nil(t, readEvent(), filePath) // Initial file read. nil because file doesn't exist yet
 
-	// We can't use things like ioutil.WriteFile here
+	// We can't use things like os.WriteFile here
 	// because MacOS doesn't support recursive directory watching: https://github.com/fsnotify/fsnotify/issues/11
 	// and without it event watching for "create and write" operations is not stable,
 	// we should have separate "create" and "write" events for consistent behavior.
@@ -86,7 +87,7 @@ func Test_WatchFile(t *testing.T) {
 		}, time.Millisecond*300, time.Millisecond*50)
 	}
 
-	err = ioutil.WriteFile(filePath, []byte("data"), os.ModePerm)
+	err = os.WriteFile(filePath, []byte("data"), os.ModePerm)
 	require.NoError(t, err)
 	require.NotNil(t, readEvent(), filePath) // file created
 }

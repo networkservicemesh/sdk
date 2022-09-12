@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,15 +26,15 @@ import (
 )
 
 /*
-	Logic for Update path:
+Logic for Update path:
 
-	0. if Index == 0, and there is no current segment will add one.
-	1. If current path segment.Name is equal to segmentName passed, it will just update current connection.Id and exit.
-	2. If current path segment.Name is not equal to segmentName:
-		2.0 if current path segment.Id is not equal to current connection.Id, will return error.
-		2.1 if path has next segment available, but next name is not equal to segmentName, will update both next name and connection.Id.
-		2.2 if no next path segment available, it will add one more path segment and generate new Id, update connection.Id.
-		2.3 if path has next segment available and next name is segmentName, take Id from next path segment.
+ 0. if Index == 0, and there is no current segment will add one.
+ 1. If current path segment.Name is equal to segmentName passed, it will just update current connection.Id and exit.
+ 2. If current path segment.Name is not equal to segmentName:
+    2.0 if current path segment.Id is not equal to current connection.Id, will return error.
+    2.1 if path has next segment available, but next name is not equal to segmentName, will update both next name and connection.Id.
+    2.2 if no next path segment available, it will add one more path segment and generate new Id, update connection.Id.
+    2.3 if path has next segment available and next name is segmentName, take Id from next path segment.
 */
 func updatePath(conn *networkservice.Connection, segmentName string) (*networkservice.Connection, uint32, error) {
 	if conn == nil {

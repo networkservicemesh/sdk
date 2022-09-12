@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -31,11 +31,12 @@ import (
 )
 
 // CheckClientContextOnReturn - returns a NetworkServiceClient that will check the state of the context.Context
-//                              after the clientUnderTest has returned
-//                              t - *testing.T for checks
-//                              clientUnderTest - client we are testing - presumed to implement a mechanism
-//                              mechanismType - Mechanism.Type implemented by the clientUnderTest
-//                              check - function to check the state of the context.Context after the clientUnderTest has returned
+//
+//	after the clientUnderTest has returned
+//	t - *testing.T for checks
+//	clientUnderTest - client we are testing - presumed to implement a mechanism
+//	mechanismType - Mechanism.Type implemented by the clientUnderTest
+//	check - function to check the state of the context.Context after the clientUnderTest has returned
 func CheckClientContextOnReturn(t *testing.T, clientUnderTest networkservice.NetworkServiceClient, mechanismType string, check func(*testing.T, context.Context)) networkservice.NetworkServiceClient {
 	return chain.NewNetworkServiceClient(
 		checkcontextonreturn.NewClient(t, check),
@@ -48,14 +49,15 @@ func CheckClientContextOnReturn(t *testing.T, clientUnderTest networkservice.Net
 }
 
 // CheckClientContextAfter - returns a NetworkServiceClient that will check the state of the context.Context after it has left
-//                           the clientUnderTest.  Note: it should almost always be the case that there are no side effects
-//                           related to implementing the Mechanism at this point, as the clientUnderTest can't know what to
-//                           do until after the elements after it have returned a fully complete Connection.
-//                           t - *testing.T for checks
-//                           clientUnderTest - client we are testing - presumed to implement a mechanism
-//                           mechanismType - Mechanism.Type implemented by the clientUnderTest
-//                           check - function to check that the clientUnderTest has not taken action to implement the Mechanism
-//                                   (as it cannot know what to do at this stage)
+//
+//	the clientUnderTest.  Note: it should almost always be the case that there are no side effects
+//	related to implementing the Mechanism at this point, as the clientUnderTest can't know what to
+//	do until after the elements after it have returned a fully complete Connection.
+//	t - *testing.T for checks
+//	clientUnderTest - client we are testing - presumed to implement a mechanism
+//	mechanismType - Mechanism.Type implemented by the clientUnderTest
+//	check - function to check that the clientUnderTest has not taken action to implement the Mechanism
+//	        (as it cannot know what to do at this stage)
 func CheckClientContextAfter(t *testing.T, client networkservice.NetworkServiceClient, mechanismType string, check func(*testing.T, context.Context)) networkservice.NetworkServiceClient {
 	return chain.NewNetworkServiceClient(
 		client,
@@ -68,12 +70,13 @@ func CheckClientContextAfter(t *testing.T, client networkservice.NetworkServiceC
 }
 
 // CheckContextAfterServer - returns a NetworkServiceServer that will check the state of the context.Context after it has
-//                           left the serverUnderTest.  At this time the context.Context should contain any side effects needed
-//                           to implement the Mechanism, as it should have a complete Connection to work with.
-//                           t - *testing.T for checks
-//                           serverUnderTest - server we are testing - presumed to implement a mechanism
-//                           mechanismType - Mechanism.Type implemented by the serverUnderTest
-//                           check - function to check that the serverUnderTest has taken action to implement the Mechanism
+//
+//	left the serverUnderTest.  At this time the context.Context should contain any side effects needed
+//	to implement the Mechanism, as it should have a complete Connection to work with.
+//	t - *testing.T for checks
+//	serverUnderTest - server we are testing - presumed to implement a mechanism
+//	mechanismType - Mechanism.Type implemented by the serverUnderTest
+//	check - function to check that the serverUnderTest has taken action to implement the Mechanism
 func CheckContextAfterServer(t *testing.T, serverUnderTest networkservice.NetworkServiceServer, mechanismType string, check func(*testing.T, context.Context)) networkservice.NetworkServiceServer {
 	return chain.NewNetworkServiceServer(
 		mechanisms.NewServer(

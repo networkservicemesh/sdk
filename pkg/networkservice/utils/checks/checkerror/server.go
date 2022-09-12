@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -34,9 +34,10 @@ type checkErrorServer struct {
 }
 
 // NewServer - returns NetworkServiceServer chain element that checks for an error being returned from the next element in the chain
-//             t - *testing.T for checking
-//             isNil - if true, check that error is nil, if false, check that err is not nil.
-//             errs - optional - if errs[0] is provided, will check to see if the error matches errs[0]
+//
+//	t - *testing.T for checking
+//	isNil - if true, check that error is nil, if false, check that err is not nil.
+//	errs - optional - if errs[0] is provided, will check to see if the error matches errs[0]
 func NewServer(t *testing.T, isNil bool, errs ...error) networkservice.NetworkServiceServer {
 	rv := &checkErrorServer{
 		T:     t,

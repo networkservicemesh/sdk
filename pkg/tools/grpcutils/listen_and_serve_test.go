@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +20,6 @@ package grpcutils_test
 
 import (
 	"context"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path"
@@ -33,7 +34,7 @@ import (
 
 func TestListenAndServe_NotExistsFolder(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	dir, err := ioutil.TempDir(os.TempDir(), t.Name())
+	dir, err := os.MkdirTemp(os.TempDir(), t.Name())
 	require.NoError(t, err)
 	defer func() {
 		_ = os.RemoveAll(dir)
@@ -50,13 +51,13 @@ func TestListenAndServe_NotExistsFolder(t *testing.T) {
 
 func TestListenAndServe_ExistSocket(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	dir, err := ioutil.TempDir(os.TempDir(), t.Name())
+	dir, err := os.MkdirTemp(os.TempDir(), t.Name())
 	require.NoError(t, err)
 	defer func() {
 		_ = os.RemoveAll(dir)
 	}()
 	socket := path.Join(dir, "test.sock")
-	err = ioutil.WriteFile(socket, []byte("..."), os.ModePerm)
+	err = os.WriteFile(socket, []byte("..."), os.ModePerm)
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	ch := grpcutils.ListenAndServe(ctx, &url.URL{Scheme: "unix", Path: socket}, grpc.NewServer())
