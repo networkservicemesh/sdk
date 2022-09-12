@@ -36,11 +36,8 @@ var tokensExpiredPolicySource string
 //go:embed policies/service_connection.rego
 var tokensServiceConnectionPolicySource string
 
-//go:embed policies/register_valid.rego
-var registerValidPolicySource string
-
-//go:embed policies/unregister_valid.rego
-var unregisterValidPolicySource string
+//go:embed policies/registry_client_allowed.rego
+var registryClientAllowedPolicySource string
 
 // WithTokensValidPolicy returns default policy for checking that all tokens in the path can be decoded.
 func WithTokensValidPolicy() *AuthorizationPolicy {
@@ -95,20 +92,11 @@ func WithMonitorConnectionServerPolicy() *AuthorizationPolicy {
 	}
 }
 
-// WithRegisterValidPolicy returns policy for checking resource (nse or ns) registration validity
-func WithRegisterValidPolicy() *AuthorizationPolicy {
+// WithRegistryClientAllowedPolicy returns policy for checking resource (nse or ns) registration/unregistration validity
+func WithRegistryClientAllowedPolicy() *AuthorizationPolicy {
 	return &AuthorizationPolicy{
-		policySource: registerValidPolicySource,
-		query:        "nse_register_allowed",
-		checker:      True("nse_register_allowed"),
-	}
-}
-
-// WithUnregisterValidPolicy returns policy for checking resource (nse or ns) unregistration validity
-func WithUnregisterValidPolicy() *AuthorizationPolicy {
-	return &AuthorizationPolicy{
-		policySource: unregisterValidPolicySource,
-		query:        "nse_unregister_allowed",
-		checker:      True("nse_unregister_allowed"),
+		policySource: registryClientAllowedPolicySource,
+		query:        "registry_client_allowed",
+		checker:      True("registry_client_allowed"),
 	}
 }

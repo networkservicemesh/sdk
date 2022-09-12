@@ -17,8 +17,7 @@
 package authorize
 
 type options struct {
-	registerPolicies     policiesList
-	unregisterPolicies   policiesList
+	policies             policiesList
 	spiffeIDResourcesMap *spiffeIDResourcesMap
 }
 
@@ -28,22 +27,14 @@ type Option func(*options)
 // Any authorizes any call of request/close
 func Any() Option {
 	return func(o *options) {
-		o.registerPolicies = nil
-		o.unregisterPolicies = nil
+		o.policies = nil
 	}
 }
 
-// WithRegisterPolicies sets custom policies for register check
-func WithRegisterPolicies(p ...Policy) Option {
+// WithPolicies sets custom policies for registry
+func WithRPolicies(p ...Policy) Option {
 	return func(o *options) {
-		o.registerPolicies = p
-	}
-}
-
-// WithUnregisterPolicies sets custom policies for unregister check
-func WithUnregisterPolicies(p ...Policy) Option {
-	return func(o *options) {
-		o.unregisterPolicies = p
+		o.policies = p
 	}
 }
 

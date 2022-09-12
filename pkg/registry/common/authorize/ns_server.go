@@ -31,17 +31,15 @@ import (
 )
 
 type authorizeNSServer struct {
-	registerPolicies   policiesList
-	unregisterPolicies policiesList
-	spiffeIDNSsMap     *spiffeIDResourcesMap
+	policies       policiesList
+	spiffeIDNSsMap *spiffeIDResourcesMap
 }
 
 // NewNetworkServiceRegistryServer - returns a new authorization registry.NetworkServiceRegistryServer
 // Authorize registry server checks spiffeID of NS.
 func NewNetworkServiceRegistryServer(opts ...Option) registry.NetworkServiceRegistryServer {
 	o := &options{
-		registerPolicies:     policiesList{opa.WithRegisterValidPolicy()},
-		unregisterPolicies:   policiesList{opa.WithUnregisterValidPolicy()},
+		policies:             policiesList{opa.WithRegistryClientAllowedPolicy()},
 		spiffeIDResourcesMap: new(spiffeIDResourcesMap),
 	}
 
@@ -50,15 +48,14 @@ func NewNetworkServiceRegistryServer(opts ...Option) registry.NetworkServiceRegi
 	}
 
 	return &authorizeNSServer{
-		registerPolicies:   o.registerPolicies,
-		unregisterPolicies: o.unregisterPolicies,
-		spiffeIDNSsMap:     o.spiffeIDResourcesMap,
+		policies:       o.policies,
+		spiffeIDNSsMap: o.spiffeIDResourcesMap,
 	}
 }
 
 func (s *authorizeNSServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
 	spiffeID, err := spire.SpiffeIDFromContext(ctx)
-	if err != nil && len(s.registerPolicies) == 0 {
+	if err != nil && len(s.policies) == 0 {
 		return next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
 	}
 
@@ -68,7 +65,7 @@ func (s *authorizeNSServer) Register(ctx context.Context, ns *registry.NetworkSe
 		ResourceName:         ns.Name,
 		SpiffeIDResourcesMap: rawMap,
 	}
-	if err := s.registerPolicies.check(ctx, input); err != nil {
+	if err := s.policies.check(ctx, input); err != nil {
 		return nil, err
 	}
 
@@ -88,7 +85,7 @@ func (s *authorizeNSServer) Find(query *registry.NetworkServiceQuery, server reg
 
 func (s *authorizeNSServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
 	spiffeID, err := spire.SpiffeIDFromContext(ctx)
-	if err != nil && len(s.unregisterPolicies) == 0 {
+	if err != nil && len(s.policies) == 0 {
 		return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 	}
 
@@ -98,7 +95,7 @@ func (s *authorizeNSServer) Unregister(ctx context.Context, ns *registry.Network
 		ResourceName:         ns.Name,
 		SpiffeIDResourcesMap: rawMap,
 	}
-	if err := s.unregisterPolicies.check(ctx, input); err != nil {
+	if err := s.policies.check(ctx, input); err != nil {
 		return nil, err
 	}
 

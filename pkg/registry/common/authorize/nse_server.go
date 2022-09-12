@@ -31,17 +31,15 @@ import (
 )
 
 type authorizeNSEServer struct {
-	registerPolicies   policiesList
-	unregisterPolicies policiesList
-	spiffeIDNSEsMap    *spiffeIDResourcesMap
+	policies        policiesList
+	spiffeIDNSEsMap *spiffeIDResourcesMap
 }
 
 // NewNetworkServiceEndpointRegistryServer - returns a new authorization registry.NetworkServiceEndpointRegistryServer
 // Authorize registry server checks spiffeID of NSE.
 func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkServiceEndpointRegistryServer {
 	o := &options{
-		registerPolicies:     policiesList{opa.WithRegisterValidPolicy()},
-		unregisterPolicies:   policiesList{opa.WithUnregisterValidPolicy()},
+		policies:             policiesList{opa.WithRegistryClientAllowedPolicy()},
 		spiffeIDResourcesMap: new(spiffeIDResourcesMap),
 	}
 
@@ -50,15 +48,14 @@ func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkSer
 	}
 
 	return &authorizeNSEServer{
-		registerPolicies:   o.registerPolicies,
-		unregisterPolicies: o.unregisterPolicies,
-		spiffeIDNSEsMap:    o.spiffeIDResourcesMap,
+		policies:        o.policies,
+		spiffeIDNSEsMap: o.spiffeIDResourcesMap,
 	}
 }
 
 func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	spiffeID, err := spire.SpiffeIDFromContext(ctx)
-	if err != nil && len(s.registerPolicies) == 0 {
+	if err != nil && len(s.policies) == 0 {
 		return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	}
 
@@ -68,7 +65,7 @@ func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.Network
 		ResourceName:         nse.Name,
 		SpiffeIDResourcesMap: rawMap,
 	}
-	if err := s.registerPolicies.check(ctx, input); err != nil {
+	if err := s.policies.check(ctx, input); err != nil {
 		return nil, err
 	}
 
@@ -88,7 +85,7 @@ func (s *authorizeNSEServer) Find(query *registry.NetworkServiceEndpointQuery, s
 
 func (s *authorizeNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
 	spiffeID, err := spire.SpiffeIDFromContext(ctx)
-	if err != nil && len(s.unregisterPolicies) == 0 {
+	if err != nil && len(s.policies) == 0 {
 		return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 	}
 
@@ -98,7 +95,7 @@ func (s *authorizeNSEServer) Unregister(ctx context.Context, nse *registry.Netwo
 		ResourceName:         nse.Name,
 		SpiffeIDResourcesMap: rawMap,
 	}
-	if err := s.unregisterPolicies.check(ctx, input); err != nil {
+	if err := s.policies.check(ctx, input); err != nil {
 		return nil, err
 	}
 
