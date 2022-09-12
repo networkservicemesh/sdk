@@ -32,7 +32,7 @@ func Any() Option {
 }
 
 // WithPolicies sets custom policies for registry
-func WithRPolicies(p ...Policy) Option {
+func WithPolicies(p ...Policy) Option {
 	return func(o *options) {
 		o.policies = p
 	}
