@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,9 +21,10 @@
 // The rough schema is
 // ${mechanism}://${network service name}[/${interface name}][{labels in URL query format}]
 // Examples:
-//   kernel://my-service@dc.example.com/ms1
-//   memif://my-vpp-service?A=1&B=2&C=3
-//   vfio://second-service?sriovToken=intel/10G
+//
+//	kernel://my-service@dc.example.com/ms1
+//	memif://my-vpp-service?A=1&B=2&C=3
+//	vfio://second-service?sriovToken=intel/10G
 package nsurl
 
 import (

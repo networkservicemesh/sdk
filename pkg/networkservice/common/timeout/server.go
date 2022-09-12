@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
-//
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2020-2022 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -42,7 +42,8 @@ type timeoutServer struct {
 }
 
 // NewServer - creates a new NetworkServiceServer chain element that implements timeout of expired connections
-//             for the subsequent chain elements.
+//
+//	for the subsequent chain elements.
 func NewServer(ctx context.Context) networkservice.NetworkServiceServer {
 	return &timeoutServer{
 		chainCtx: ctx,

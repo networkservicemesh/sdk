@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,8 +35,9 @@ type checkResponseServer struct {
 }
 
 // NewServer - returns NetworkServiceServer chain elements to check the response received from the next element in the chain
-//             t - *testing.T for checks
-//             check - function to check the Connnection
+//
+//	t - *testing.T for checks
+//	check - function to check the Connnection
 func NewServer(t *testing.T, check func(*testing.T, *networkservice.Connection)) networkservice.NetworkServiceServer {
 	return &checkResponseServer{
 		T:     t,

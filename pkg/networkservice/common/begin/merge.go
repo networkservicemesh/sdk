@@ -22,12 +22,13 @@ import (
 )
 
 // mergeConnection - preforms the three way merge of the returnedConnection, requestedConnection and connection
-//                   returnedConnection - the Connection last returned from the begin.Request(...)
-//                   requestedConnection - the Connection passed in to the begin.Request(...)
-//                   currentConnection - the last value for the Connection in EventFactory.  Since Refreshes, Heals, etc
-//                                can result in changes that have *not* been returned from begin.Request(...) because
-//                                they originated in events internal to the chain (instead of external via calls to
-//                                begin.Request(...)) it is possible that connection differs from returnedConnection
+//
+//	returnedConnection - the Connection last returned from the begin.Request(...)
+//	requestedConnection - the Connection passed in to the begin.Request(...)
+//	currentConnection - the last value for the Connection in EventFactory.  Since Refreshes, Heals, etc
+//	             can result in changes that have *not* been returned from begin.Request(...) because
+//	             they originated in events internal to the chain (instead of external via calls to
+//	             begin.Request(...)) it is possible that connection differs from returnedConnection
 func mergeConnection(returnedConnection, requestedConnection, currentConnection *networkservice.Connection) *networkservice.Connection {
 	if returnedConnection == nil || currentConnection == nil {
 		return requestedConnection

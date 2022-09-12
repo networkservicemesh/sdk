@@ -34,7 +34,8 @@ const (
 type contextKeyType string
 
 // WithClientURL -
-//    Wraps 'parent' in a new Context that has the ClientURL
+//
+//	Wraps 'parent' in a new Context that has the ClientURL
 func WithClientURL(parent context.Context, clientURL *url.URL) context.Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")
@@ -44,7 +45,8 @@ func WithClientURL(parent context.Context, clientURL *url.URL) context.Context {
 }
 
 // ClientURL -
-//   Returns the ClientURL
+//
+//	Returns the ClientURL
 func ClientURL(ctx context.Context) *url.URL {
 	if rv, ok := ctx.Value(clientURLKey).(*url.URL); ok {
 		return rv
@@ -53,7 +55,8 @@ func ClientURL(ctx context.Context) *url.URL {
 }
 
 // WithClientURLs -
-//    Wraps 'parent' in a new Context that has list of passed URLs
+//
+//	Wraps 'parent' in a new Context that has list of passed URLs
 func WithClientURLs(parent context.Context, urls []url.URL) context.Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")
@@ -63,7 +66,8 @@ func WithClientURLs(parent context.Context, urls []url.URL) context.Context {
 }
 
 // ClientURLs -
-//    Returns list of URLs
+//
+//	Returns list of URLs
 func ClientURLs(ctx context.Context) []url.URL {
 	if rv, ok := ctx.Value(clientURLsKey).([]url.URL); ok {
 		return rv

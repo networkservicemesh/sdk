@@ -19,7 +19,7 @@ package clusterinfo
 
 import (
 	"context"
-	"io/ioutil"
+	"os"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -50,7 +50,7 @@ func (n *clusterinfoServer) Request(ctx context.Context, request *networkservice
 
 	var m = make(map[string]string)
 
-	if b, err := ioutil.ReadFile(n.configPath); err == nil {
+	if b, err := os.ReadFile(n.configPath); err == nil {
 		_ = yaml.Unmarshal(b, &m)
 	}
 

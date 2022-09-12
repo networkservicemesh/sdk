@@ -46,7 +46,7 @@ import (
 
 // TestNSMGR_InterdomainUseCase covers simple interdomain scenario:
 //
-//  nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy2 -> nsmgr2 ->forwarder2 -> nsmgr2 -> nse3
+//	nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy2 -> nsmgr2 ->forwarder2 -> nsmgr2 -> nse3
 func TestNSMGR_InterdomainUseCase(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -246,8 +246,8 @@ func Test_NSEMovedFromInterdomainToFloatingUseCase(t *testing.T) {
 
 // TestNSMGR_Interdomain_TwoNodesNSEs covers scenarion with connection from the one client to two endpoints from diffrenret clusters.
 //
-//  nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy2 -> nsmgr2 ->forwarder2 -> nsmgr2 -> nse2
-//  nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy3 -> nsmgr3 ->forwarder3 -> nsmgr3 -> nse3
+//	nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy2 -> nsmgr2 ->forwarder2 -> nsmgr2 -> nse2
+//	nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy3 -> nsmgr3 ->forwarder3 -> nsmgr3 -> nse3
 func TestNSMGR_Interdomain_TwoNodesNSEs(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -351,7 +351,7 @@ func TestNSMGR_Interdomain_TwoNodesNSEs(t *testing.T) {
 
 // TestNSMGR_FloatingInterdomainUseCase covers simple interdomain scenario with resolving endpoint from floating registry:
 //
-//  nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy2 -> nsmgr2 ->forwarder2 -> nsmgr2 -> nse3
+//	nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy2 -> nsmgr2 ->forwarder2 -> nsmgr2 -> nse3
 func TestNSMGR_FloatingInterdomainUseCase(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -446,7 +446,7 @@ func TestNSMGR_FloatingInterdomainUseCase(t *testing.T) {
 //
 // registration: {"name": "nse@floating.domain", "networkservice_names": ["my-service-interdomain@floating.domain"]}
 //
-//  nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy2 -> nsmgr2 ->forwarder2 -> nsmgr2 -> nse3
+//	nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy2 -> nsmgr2 ->forwarder2 -> nsmgr2 -> nse3
 func TestNSMGR_FloatingInterdomainUseCase_FloatingNetworkServiceNameRegistration(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -528,8 +528,8 @@ func TestNSMGR_FloatingInterdomainUseCase_FloatingNetworkServiceNameRegistration
 // TestNSMGR_FloatingInterdomain_FourClusters covers scenarion with connection from the one client to two endpoints
 // from diffrenret clusters using floating registry for resolving endpoints.
 //
-//  nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy2 -> nsmgr2 ->forwarder2 -> nsmgr2 -> nse2
-//  nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy3 -> nsmgr3 ->forwarder3 -> nsmgr3 -> nse3
+//	nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy2 -> nsmgr2 ->forwarder2 -> nsmgr2 -> nse2
+//	nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy3 -> nsmgr3 ->forwarder3 -> nsmgr3 -> nse3
 func TestNSMGR_FloatingInterdomain_FourClusters(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 

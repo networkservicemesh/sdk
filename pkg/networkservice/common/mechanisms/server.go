@@ -1,6 +1,6 @@
-// Copyright (c) 2020-2021 Cisco and/or its affiliates.
-//
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -35,11 +35,12 @@ type mechanismsServer struct {
 }
 
 // NewServer - returns new NetworkServiceServer chain element that will attempt to meet the request.MechanismPreferences using
-//             the provided maps of MechanismType to NetworkServiceServer
-//             - mechanisms
-//                   key:    mechanismType
-//                   value:  NetworkServiceServer that only handles the work for the specified mechanismType
-//                           Note: Supplied NetworkServiceServer elements should not call next.Server(ctx).{Request,Close} themselves
+//
+//	the provided maps of MechanismType to NetworkServiceServer
+//	- mechanisms
+//	      key:    mechanismType
+//	      value:  NetworkServiceServer that only handles the work for the specified mechanismType
+//	              Note: Supplied NetworkServiceServer elements should not call next.Server(ctx).{Request,Close} themselves
 func NewServer(mechanisms map[string]networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
 	rv := &mechanismsServer{
 		mechanisms: make(map[string]networkservice.NetworkServiceServer),

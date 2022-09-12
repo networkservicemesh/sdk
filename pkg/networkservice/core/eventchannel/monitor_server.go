@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
-//
 // Copyright (c) 2020 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -36,8 +36,9 @@ type monitorConnectionServer struct {
 }
 
 // NewMonitorServer - returns a networkservice.MonitorConnectionServer
-//                    eventCh - when Send() is called on any of the NewMonitorConnection_MonitorConnectionsServers
-//                              returned by a call to MonitorConnections, it is inserted into eventCh
+//
+//	eventCh - when Send() is called on any of the NewMonitorConnection_MonitorConnectionsServers
+//	          returned by a call to MonitorConnections, it is inserted into eventCh
 func NewMonitorServer(eventCh <-chan *networkservice.ConnectionEvent, options ...MonitorConnectionServerOption) networkservice.MonitorConnectionServer {
 	rv := &monitorConnectionServer{
 		eventCh: eventCh,

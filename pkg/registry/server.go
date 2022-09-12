@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,8 +27,8 @@ import (
 )
 
 // Registry - aggregates the APIs:
-//            - registry.NetworkServiceRegistryServer
-//            - registry.NetworkServiceEndpointRegistryServer
+//   - registry.NetworkServiceRegistryServer
+//   - registry.NetworkServiceEndpointRegistryServer
 type Registry interface {
 	// NetworkServiceRegistryServer returns network service server
 	NetworkServiceRegistryServer() registry.NetworkServiceRegistryServer

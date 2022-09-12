@@ -40,8 +40,9 @@ type vl3Client struct {
 }
 
 // NewClient - returns a new vL3 client instance that manages connection.context.ipcontext for vL3 scenario.
-//			   Produces refresh on prefix update.
-//			   Requires begin and metdata chain elements.
+//
+//	Produces refresh on prefix update.
+//	Requires begin and metdata chain elements.
 func NewClient(chainContext context.Context, prefixCh <-chan *ipam.PrefixResponse) networkservice.NetworkServiceClient {
 	if chainContext == nil {
 		panic("chainContext can not be nil")

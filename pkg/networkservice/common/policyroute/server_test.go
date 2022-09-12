@@ -18,7 +18,6 @@ package policyroute_test
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync/atomic"
@@ -107,7 +106,7 @@ func TestCheckReloadedPolicies(t *testing.T) {
 	require.NoError(t, os.MkdirAll(dir, os.ModePerm))
 	configBytes, _ := yaml.Marshal(policies)
 	configPath := filepath.Join(dir, defaultPrefixesFileName)
-	require.NoError(t, ioutil.WriteFile(configPath, []byte(""), os.ModePerm))
+	require.NoError(t, os.WriteFile(configPath, []byte(""), os.ModePerm))
 
 	getter := newPolicyRoutesGetter(chainCtx, configPath)
 
@@ -116,7 +115,7 @@ func TestCheckReloadedPolicies(t *testing.T) {
 	)
 
 	// Write policies to file
-	require.NoError(t, ioutil.WriteFile(configPath, configBytes, os.ModePerm))
+	require.NoError(t, os.WriteFile(configPath, configBytes, os.ModePerm))
 
 	// Initial request already has source Ip address
 	srcIPAddr := "172.16.2.200/24"
@@ -140,7 +139,7 @@ func TestCheckReloadedPolicies(t *testing.T) {
 	// Update policies - remove the first one
 	policies = policies[1:]
 	configBytes, _ = yaml.Marshal(policies)
-	require.NoError(t, ioutil.WriteFile(configPath, configBytes, os.ModePerm))
+	require.NoError(t, os.WriteFile(configPath, configBytes, os.ModePerm))
 
 	require.Eventually(t, func() bool {
 		_, err := server.Request(context.Background(), req)

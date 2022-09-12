@@ -20,7 +20,6 @@ package swapip_test
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -48,10 +47,10 @@ func TestSwapIPServer_Request(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	err := ioutil.WriteFile(p1, []byte(`172.16.2.10: 172.16.1.10`), os.ModePerm)
+	err := os.WriteFile(p1, []byte(`172.16.2.10: 172.16.1.10`), os.ModePerm)
 	require.NoError(t, err)
 
-	err = ioutil.WriteFile(p2, []byte(`172.16.2.100: 172.16.1.100`), os.ModePerm)
+	err = os.WriteFile(p2, []byte(`172.16.2.100: 172.16.1.100`), os.ModePerm)
 	require.NoError(t, err)
 
 	ch1 := convertBytesChToMapCh(fs.WatchFile(ctx, p1))

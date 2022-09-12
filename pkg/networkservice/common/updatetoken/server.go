@@ -34,7 +34,7 @@ type updateTokenServer struct {
 }
 
 // NewServer - creates a NetworkServiceServer chain element to update the Connection token information
-//             - name - the name of the NetworkServiceServer of which the chain element is part
+//   - name - the name of the NetworkServiceServer of which the chain element is part
 func NewServer(tokenGenerator token.GeneratorFunc) networkservice.NetworkServiceServer {
 	return &updateTokenServer{
 		tokenGenerator: tokenGenerator,

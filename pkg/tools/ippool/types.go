@@ -106,11 +106,12 @@ func (b *ipRange) Compare(ip *ipAddress) int {
 }
 
 // CompareRange - compares ip ranges. Returns
-//		0 if crossing,
-//		-1 if ipR less than this and this range continues ipR range,
-//		-2 if ipR less than this and this range does not continues ipR range,
-//		1 if ipR bigger than this and ipR continues this range,
-//		2 if ipR bigger than this and ipR does not continues this range,
+//
+//	0 if crossing,
+//	-1 if ipR less than this and this range continues ipR range,
+//	-2 if ipR less than this and this range does not continues ipR range,
+//	1 if ipR bigger than this and ipR continues this range,
+//	2 if ipR bigger than this and ipR does not continues this range,
 func (b *ipRange) CompareRange(ipR *ipRange) int {
 	if b.Compare(ipR.start) < 0 && b.Compare(ipR.end) < 0 {
 		if !ipR.end.IsLast() && b.Compare(ipR.end.Next()) == 0 {

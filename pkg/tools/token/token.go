@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -24,5 +24,6 @@ import (
 )
 
 // GeneratorFunc - a function which takes the credentials.AuthInfo of the peer of the client or server
-//                 and returns a token as a string (example: JWT), a expireTime, and an error.
+//
+//	and returns a token as a string (example: JWT), a expireTime, and an error.
 type GeneratorFunc func(peerAuthInfo credentials.AuthInfo) (token string, expireTime time.Time, err error)

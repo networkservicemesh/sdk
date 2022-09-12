@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,20 +35,21 @@ import (
 )
 
 /*
-	TestInterdomainNetworkServiceEndpointRegistry covers the next scenario:
-		1. local registry from domain2 has entry "ns-1"
-		2. nsmgr from domain1 call find with query "ns-1@domain2"
-		3. local registry proxies query to nsmgr proxy registry
-		4. nsmgr proxy registry proxies query to proxy registry
-		5. proxy registry proxies query to local registry from domain2
-	Expected: nsmgr found ns
+TestInterdomainNetworkServiceEndpointRegistry covers the next scenario:
+ 1. local registry from domain2 has entry "ns-1"
+ 2. nsmgr from domain1 call find with query "ns-1@domain2"
+ 3. local registry proxies query to nsmgr proxy registry
+ 4. nsmgr proxy registry proxies query to proxy registry
+ 5. proxy registry proxies query to local registry from domain2
 
-	domain1:                                                           domain2:
-	------------------------------------------------------------       -------------------
-	|                                                           | Find |                 |
-	|  local registry -> nsmgr proxy registry -> proxy registry | ---> | local registry  |
-	|                                                           |      |                 |
-	------------------------------------------------------------       ------------------
+Expected: nsmgr found ns
+
+domain1:                                                           domain2:
+------------------------------------------------------------       -------------------
+|                                                           | Find |                 |
+|  local registry -> nsmgr proxy registry -> proxy registry | ---> | local registry  |
+|                                                           |      |                 |
+------------------------------------------------------------       ------------------
 */
 func TestInterdomainNetworkServiceRegistry(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
@@ -98,20 +101,21 @@ func TestInterdomainNetworkServiceRegistry(t *testing.T) {
 }
 
 /*
-	TestInterdomainNetworkServiceEndpointRegistry covers the next scenario:
-		1. local registry from domain2 has entry "ns-1"
-		2. nsmgr from domain1 call find with query "ns-1@domain2"
-		3. local registry proxies query to nsmgr proxy registry
-		4. nsmgr proxy registry proxies query to proxy registry
-		5. proxy registry proxies query to local registry from domain2
-	Expected: nsmgr found ns
+TestInterdomainNetworkServiceEndpointRegistry covers the next scenario:
+ 1. local registry from domain2 has entry "ns-1"
+ 2. nsmgr from domain1 call find with query "ns-1@domain2"
+ 3. local registry proxies query to nsmgr proxy registry
+ 4. nsmgr proxy registry proxies query to proxy registry
+ 5. proxy registry proxies query to local registry from domain2
 
-	domain1:                                                             domain2:
-	------------------------------------------------------------         -------------------              ------------------------------------------------------------
-	|                                                           | 2.Find |                 | 1. Register  |                                                           |
-	|  local registry -> nsmgr proxy registry -> proxy registry |  --->  | local registry  | <----------- |  local registry -> nsmgr proxy registry -> proxy registry |
-	|                                                           |        |                 |              |                                                           |
-	------------------------------------------------------------         ------------------               ------------------------------------------------------------
+Expected: nsmgr found ns
+
+domain1:                                                             domain2:
+------------------------------------------------------------         -------------------              ------------------------------------------------------------
+|                                                           | 2.Find |                 | 1. Register  |                                                           |
+|  local registry -> nsmgr proxy registry -> proxy registry |  --->  | local registry  | <----------- |  local registry -> nsmgr proxy registry -> proxy registry |
+|                                                           |        |                 |              |                                                           |
+------------------------------------------------------------         ------------------               ------------------------------------------------------------
 */
 func TestLocalDomain_NetworkServiceRegistry(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })

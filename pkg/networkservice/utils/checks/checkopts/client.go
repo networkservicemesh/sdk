@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -34,8 +34,9 @@ type checkOptsClient struct {
 }
 
 // NewClient - returns a NetworkServiceClient that checks for the specified opts... being passed into it
-//             t - *testing.T for checks
-//             opts... grpc.CallOptions expected at the end of the list of opts... passed to Request/Close
+//
+//	t - *testing.T for checks
+//	opts... grpc.CallOptions expected at the end of the list of opts... passed to Request/Close
 func NewClient(t *testing.T, opts ...grpc.CallOption) networkservice.NetworkServiceClient {
 	if len(opts) == 0 {
 		opts = append(opts, grpc.EmptyCallOption{})

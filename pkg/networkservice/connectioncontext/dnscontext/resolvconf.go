@@ -19,7 +19,6 @@
 package dnscontext
 
 import (
-	"io/ioutil"
 	"os"
 	"strings"
 )
@@ -43,7 +42,7 @@ func openResolveConfig(p string) (*resolveConfig, error) {
 }
 
 func (r *resolveConfig) readProperties() error {
-	b, err := ioutil.ReadFile(r.path)
+	b, err := os.ReadFile(r.path)
 	if err != nil {
 		return err
 	}
@@ -81,7 +80,7 @@ func (r *resolveConfig) Save() error {
 			_, _ = sb.WriteRune('\n')
 		}
 	}
-	return ioutil.WriteFile(r.path, []byte(sb.String()), os.ModePerm)
+	return os.WriteFile(r.path, []byte(sb.String()), os.ModePerm)
 }
 
 const (

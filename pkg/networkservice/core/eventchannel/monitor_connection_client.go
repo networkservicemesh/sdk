@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -31,9 +31,10 @@ type monitorConnectionMonitorConnectionsClient struct {
 }
 
 // NewMonitorConnectionMonitorConnectionsClient - returns a networkservice.MonitorConnection_MonitorConnectionsClient
-//                                                 ctx - context which if Done will cause Recv to return.
-//                                                 eventCh - when an event is sent on eventCh, it is returned by the
-//                                                 call to Recv on the networkservice.MonitorConnection_MonitorConnectionsClient
+//
+//	ctx - context which if Done will cause Recv to return.
+//	eventCh - when an event is sent on eventCh, it is returned by the
+//	call to Recv on the networkservice.MonitorConnection_MonitorConnectionsClient
 func NewMonitorConnectionMonitorConnectionsClient(ctx context.Context, eventCh <-chan *networkservice.ConnectionEvent) networkservice.MonitorConnection_MonitorConnectionsClient {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	return &monitorConnectionMonitorConnectionsClient{

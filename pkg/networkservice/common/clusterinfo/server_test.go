@@ -18,7 +18,6 @@ package clusterinfo_test
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -34,7 +33,7 @@ func TestReadClusterName(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	var path = filepath.Join(t.TempDir(), "clusterinfo.yaml")
-	require.NoError(t, ioutil.WriteFile(path, []byte("CLUSTER_NAME: my-cluster1"), os.ModePerm))
+	require.NoError(t, os.WriteFile(path, []byte("CLUSTER_NAME: my-cluster1"), os.ModePerm))
 
 	var s = clusterinfo.NewServer(clusterinfo.WithConfigPath(path))
 

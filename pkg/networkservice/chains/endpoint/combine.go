@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,8 +23,8 @@ import "github.com/networkservicemesh/api/pkg/api/networkservice"
 // Combine returns a new combined endpoint:
 // * networkservice.NetworkServiceServer created by combineFun(eps)
 // * networkservice.MonitorConnectionServer part is managed in the following way:
-//   * networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER is merged to single event from all endpoints
-//   * rest events just go with no changes from all endpoints
+//   - networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER is merged to single event from all endpoints
+//   - rest events just go with no changes from all endpoints
 func Combine(combineFun func(servers []networkservice.NetworkServiceServer) networkservice.NetworkServiceServer, eps ...Endpoint) Endpoint {
 	var servers []networkservice.NetworkServiceServer
 	monitorServers := make(map[networkservice.MonitorConnectionServer]int)

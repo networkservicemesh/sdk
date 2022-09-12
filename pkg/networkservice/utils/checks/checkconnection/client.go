@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -34,8 +34,9 @@ type checkConnectionOnReturn struct {
 }
 
 // NewClient - returns a NetworkServiceClient chain element that will check the connection returned by the next Client in the chain
-//             t - *testing.T for the check
-//             check - function to run on the Connection to check it is as it should be
+//
+//	t - *testing.T for the check
+//	check - function to run on the Connection to check it is as it should be
 func NewClient(t *testing.T, check func(t *testing.T, conn *networkservice.Connection)) networkservice.NetworkServiceClient {
 	return &checkConnectionOnReturn{
 		T:     t,

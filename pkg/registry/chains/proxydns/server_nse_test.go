@@ -35,20 +35,21 @@ import (
 )
 
 /*
-	TestInterdomainNetworkServiceEndpointRegistry covers the next scenario:
-		1. local registry from domain2 has entry "nse-1"
-		2. nsmgr from domain1 call find with query "nse-1@domain2"
-		3. local registry proxies query to nsmgr proxy registry
-		4. nsmgr proxy registry proxies query to proxy registry
-		5. proxy registry proxies query to local registry from domain2
-	Expected: nsmgr found nse
+TestInterdomainNetworkServiceEndpointRegistry covers the next scenario:
+ 1. local registry from domain2 has entry "nse-1"
+ 2. nsmgr from domain1 call find with query "nse-1@domain2"
+ 3. local registry proxies query to nsmgr proxy registry
+ 4. nsmgr proxy registry proxies query to proxy registry
+ 5. proxy registry proxies query to local registry from domain2
 
-	domain1:                                                           domain2:
-	------------------------------------------------------------       -------------------
-	|                                                           | Find |                 |
-	|  local registry -> nsmgr proxy registry -> proxy registry | ---> | local registry  |
-	|                                                           |      |                 |
-	------------------------------------------------------------       ------------------
+Expected: nsmgr found nse
+
+domain1:                                                           domain2:
+------------------------------------------------------------       -------------------
+|                                                           | Find |                 |
+|  local registry -> nsmgr proxy registry -> proxy registry | ---> | local registry  |
+|                                                           |      |                 |
+------------------------------------------------------------       ------------------
 */
 func TestInterdomainNetworkServiceEndpointRegistry(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
@@ -105,19 +106,20 @@ func TestInterdomainNetworkServiceEndpointRegistry(t *testing.T) {
 }
 
 /*
-	TestLocalDomain_NetworkServiceEndpointRegistry covers the next scenario:
-		1. nsmgr from domain1 calls find with query "nse-1@domain1"
-		2. local registry proxies query to nsmgr proxy registry
-		3. nsmgr proxy registry  proxies query to proxy registry
-		4. proxy registry proxies query to local registry
-	Expected: nsmgr found nse
+TestLocalDomain_NetworkServiceEndpointRegistry covers the next scenario:
+ 1. nsmgr from domain1 calls find with query "nse-1@domain1"
+ 2. local registry proxies query to nsmgr proxy registry
+ 3. nsmgr proxy registry  proxies query to proxy registry
+ 4. proxy registry proxies query to local registry
 
-	domain1:
-	-----------------------------------------------------------------------------------
-	|                                                                                 |
-	|    local registry -> nsmgr proxy registry -> proxy registry -> local registry   |
-	|                                                                                 |
-	-----------------------------------------------------------------------------------
+Expected: nsmgr found nse
+
+domain1:
+-----------------------------------------------------------------------------------
+|                                                                                 |
+|    local registry -> nsmgr proxy registry -> proxy registry -> local registry   |
+|                                                                                 |
+-----------------------------------------------------------------------------------
 */
 func TestLocalDomain_NetworkServiceEndpointRegistry(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
@@ -168,20 +170,21 @@ func TestLocalDomain_NetworkServiceEndpointRegistry(t *testing.T) {
 }
 
 /*
-	TestInterdomainNetworkServiceEndpointRegistry covers the next scenario:
-		1. local registry from domain2 has entry "nse-1"
-		2. nsmgr from domain1 call find with query "nse-1@domain2"
-		3. local registry proxies query to nsmgr proxy registry
-		4. nsmgr proxy registry proxies query to proxy registry
-		5. proxy registry proxies query to local registry from domain2
-	Expected: nsmgr found nse
+TestInterdomainNetworkServiceEndpointRegistry covers the next scenario:
+ 1. local registry from domain2 has entry "nse-1"
+ 2. nsmgr from domain1 call find with query "nse-1@domain2"
+ 3. local registry proxies query to nsmgr proxy registry
+ 4. nsmgr proxy registry proxies query to proxy registry
+ 5. proxy registry proxies query to local registry from domain2
 
-	domain1:                                                             domain2:
-	------------------------------------------------------------         -------------------              ------------------------------------------------------------
-	|                                                           | 2.Find |                 | 1. Register  |                                                           |
-	|  local registry -> nsmgr proxy registry -> proxy registry |  --->  | local registry  | <----------- |  local registry -> nsmgr proxy registry -> proxy registry |
-	|                                                           |        |                 |              |                                                           |
-	------------------------------------------------------------         ------------------               ------------------------------------------------------------
+Expected: nsmgr found nse
+
+domain1:                                                             domain2:
+------------------------------------------------------------         -------------------              ------------------------------------------------------------
+|                                                           | 2.Find |                 | 1. Register  |                                                           |
+|  local registry -> nsmgr proxy registry -> proxy registry |  --->  | local registry  | <----------- |  local registry -> nsmgr proxy registry -> proxy registry |
+|                                                           |        |                 |              |                                                           |
+------------------------------------------------------------         ------------------               ------------------------------------------------------------
 */
 func TestInterdomainFloatingNetworkServiceEndpointRegistry(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })

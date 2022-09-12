@@ -23,8 +23,9 @@ import (
 )
 
 // GetPublicURL - constructs an URL from an address accessible
-//  clusterwide and a given port
-// 	defaults to the given URL if no such address can be found
+//
+//	 clusterwide and a given port
+//		defaults to the given URL if no such address can be found
 func GetPublicURL(addrs []net.Addr, defaultURL *url.URL) *url.URL {
 	if defaultURL.Port() == "" || len(defaultURL.Host) != len(":")+len(defaultURL.Port()) {
 		return defaultURL

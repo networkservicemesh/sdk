@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -15,7 +15,8 @@
 // limitations under the License.
 
 // Package injectopts - injects grpc.CallOptions by appending them to the end of the opts... it receives before calling
-//                      the next client in the chain
+//
+//	the next client in the chain
 package injectopts
 
 import (
@@ -33,7 +34,8 @@ type injectOptsClient struct {
 }
 
 // NewClient - injects opts grpc.CallOptions by appending them to the end of the opts... it receives before calling
-//             the next client in the chain
+//
+//	the next client in the chain
 func NewClient(opts ...grpc.CallOption) networkservice.NetworkServiceClient {
 	if len(opts) == 0 {
 		opts = append(opts, grpc.EmptyCallOption{})

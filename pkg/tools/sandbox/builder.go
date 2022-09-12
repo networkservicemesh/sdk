@@ -19,7 +19,6 @@ package sandbox
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
@@ -173,7 +172,7 @@ func (b *Builder) Build() *Domain {
 		require.Nil(b.t, b.supplyRegistry, msg)
 		require.Nil(b.t, b.supplyRegistryProxy, msg)
 
-		sockPath, err := ioutil.TempDir(os.TempDir(), "nsm-domain-temp")
+		sockPath, err := os.MkdirTemp(os.TempDir(), "nsm-domain-temp")
 		require.NoError(b.t, err)
 
 		go func() {

@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
-//
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -33,7 +33,8 @@ type monitorServerToClient struct {
 }
 
 // NewMonitorServerToClient - returns a MonitorConnectionClient that is a wrapper around the MonitorConnectionServer
-//                            events sent to the MonitorConnectionServer are received byt the MonitorConnectionClient
+//
+//	events sent to the MonitorConnectionServer are received byt the MonitorConnectionClient
 func NewMonitorServerToClient(server networkservice.MonitorConnectionServer) networkservice.MonitorConnectionClient {
 	return &monitorServerToClient{server: server}
 }

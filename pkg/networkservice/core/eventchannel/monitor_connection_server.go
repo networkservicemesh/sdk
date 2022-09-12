@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
-//
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -32,8 +32,9 @@ type monitorConnectionMonitorConnectionsServer struct {
 }
 
 // NewMonitorConnectionMonitorConnectionsServer - returns a networkservice.MonitorConnection_MonitorConnectionsServer
-//                                                 eventCh - when an event is passed to the Send() method, it is inserted
-//                                                 into eventCh
+//
+//	eventCh - when an event is passed to the Send() method, it is inserted
+//	into eventCh
 func NewMonitorConnectionMonitorConnectionsServer(ctx context.Context, eventCh chan<- *networkservice.ConnectionEvent) networkservice.MonitorConnection_MonitorConnectionsServer {
 	rv := &monitorConnectionMonitorConnectionsServer{
 		ctx:     ctx,

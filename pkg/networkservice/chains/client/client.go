@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -37,7 +37,7 @@ import (
 )
 
 // NewClient - returns case NSM client.
-//             - ctx    - context for the lifecycle of the *Client* itself.  Cancel when discarding the client.
+//   - ctx    - context for the lifecycle of the *Client* itself.  Cancel when discarding the client.
 func NewClient(ctx context.Context, clientOpts ...Option) networkservice.NetworkServiceClient {
 	var opts = &clientOptions{
 		name:            "client-" + uuid.New().String(),

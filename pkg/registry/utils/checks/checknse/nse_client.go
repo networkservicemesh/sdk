@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -34,8 +36,9 @@ type checkNSEClient struct {
 }
 
 // NewClient - returns NetworkServiceEndpointRegistryClient that checks the NSE passed in from the previous NSClient in the chain
-//             t - *testing.T used for the check
-//             check - function that checks the *registry.NetworkServiceEndpoint
+//
+//	t - *testing.T used for the check
+//	check - function that checks the *registry.NetworkServiceEndpoint
 func NewClient(t *testing.T, check func(*testing.T, *registry.NetworkServiceEndpoint)) registry.NetworkServiceEndpointRegistryClient {
 	return &checkNSEClient{
 		T:     t,

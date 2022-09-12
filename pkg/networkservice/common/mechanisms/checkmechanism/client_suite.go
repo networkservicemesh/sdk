@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -42,17 +42,18 @@ type ClientSuite struct {
 }
 
 // NewClientSuite - returns a ClientTestSuite
-//                  clientUnderTest - the client we are testing to make sure it correctly implements a Mechanism
-//                  configureContext - a function that is applied to context.Background to make sure anything
-//                                     needed by the clientUnderTest is present in the context.Context
-//                  mechanismType - Mechanism.Type implemented by the clientUnderTest
-//                  mechanismCheck - function to check that the clientUnderTest has properly added Mechanism.Parameters
-//                                   to the Mechanism it has appended to MechanismPreferences
-//                  contextOnReturnCheck - function to check that the context.Context *after* clientUnderTest has returned are correct
-//                  contextCheck - function to check that the clientUnderTest introduces no side effects to the context.Context
-//                                 before calling the next element in the chain
-//                  request - NetworkServiceRequest to be used for testing
-//                  connClose - Connection to be used for testing Close(...)
+//
+//	clientUnderTest - the client we are testing to make sure it correctly implements a Mechanism
+//	configureContext - a function that is applied to context.Background to make sure anything
+//	                   needed by the clientUnderTest is present in the context.Context
+//	mechanismType - Mechanism.Type implemented by the clientUnderTest
+//	mechanismCheck - function to check that the clientUnderTest has properly added Mechanism.Parameters
+//	                 to the Mechanism it has appended to MechanismPreferences
+//	contextOnReturnCheck - function to check that the context.Context *after* clientUnderTest has returned are correct
+//	contextCheck - function to check that the clientUnderTest introduces no side effects to the context.Context
+//	               before calling the next element in the chain
+//	request - NetworkServiceRequest to be used for testing
+//	connClose - Connection to be used for testing Close(...)
 func NewClientSuite(
 	clientUnderTest networkservice.NetworkServiceClient,
 	configureContext func(ctx context.Context) context.Context,
@@ -95,7 +96,8 @@ func (m *ClientSuite) TestPropogatesOpts() {
 }
 
 // TestSetsMechanismPreference - test that the clientUnderTest correctly sets MechanismPreferences for the Mechanism it implements
-//                               before calling the next element in the chain
+//
+//	before calling the next element in the chain
 func (m *ClientSuite) TestSetsMechanismPreference() {
 	check := CheckClientSetsMechanismPreferences(m.T(),
 		m.clientUnderTest,

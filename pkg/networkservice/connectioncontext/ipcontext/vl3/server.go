@@ -32,8 +32,9 @@ type vl3Server struct {
 }
 
 // NewServer - returns a new vL3 server instance that manages connection.context.ipcontext for vL3 scenario.
-//			   Produces refresh on prefix update.
-//			   Requires begin and metdata chain elements.
+//
+//	Produces refresh on prefix update.
+//	Requires begin and metdata chain elements.
 func NewServer(ctx context.Context, prefixCh <-chan *ipam.PrefixResponse) networkservice.NetworkServiceServer {
 	var result = new(vl3Server)
 

@@ -1,6 +1,6 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2020-2021 Cisco Systems, Inc.
+// Copyright (c) 2020-2022 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,13 +18,14 @@
 
 // Package addressof provides convenient functions for converting implementations of an interface to
 // pointers to implementations of the interface. Tt turns a concrete struct which implements an interface iface cannot be converted to
-//          *iface - go complains about it.
-//          This does not work:
-//               impl := &interfaceImpl{}
-//               var ptr *iface = &cl
-//          This also doesn't work:
-//               impl := &interfaceImpl{}
-//               var ptr *iface = &(cl.(iface)
+//
+//	*iface - go complains about it.
+//	This does not work:
+//	     impl := &interfaceImpl{}
+//	     var ptr *iface = &cl
+//	This also doesn't work:
+//	     impl := &interfaceImpl{}
+//	     var ptr *iface = &(cl.(iface)
 package addressof
 
 import (
@@ -33,17 +34,18 @@ import (
 )
 
 // NetworkServiceClient - convenience function to help in converting things from networkservice.NetworkServiceClient to *networkservice.NetworkServiceClient
-//          it turns a concrete struct which implements networkservice.NetworkServiceClient cannot be converted to
-//          *networkservice.NetworkServiceClient - go complains about it.
-//          This does not work:
-//               impl := &clientImpl{}
-//               var onHeal *networkservice.NetworkServiceClient = &cl
-//          This also doesn't work:
-//               impl := &clientImpl{}
-//               var ptr *networkservice.NetworkServiceClient = &(cl.(networkservice.NetworkServiceClient)
-//          Using this function does:
-//               impl := &clientImpl{}
-//               var ptr *networkservice.NetworkServiceClient =NetworkServiceClient(cl)
+//
+//	it turns a concrete struct which implements networkservice.NetworkServiceClient cannot be converted to
+//	*networkservice.NetworkServiceClient - go complains about it.
+//	This does not work:
+//	     impl := &clientImpl{}
+//	     var onHeal *networkservice.NetworkServiceClient = &cl
+//	This also doesn't work:
+//	     impl := &clientImpl{}
+//	     var ptr *networkservice.NetworkServiceClient = &(cl.(networkservice.NetworkServiceClient)
+//	Using this function does:
+//	     impl := &clientImpl{}
+//	     var ptr *networkservice.NetworkServiceClient =NetworkServiceClient(cl)
 func NetworkServiceClient(client networkservice.NetworkServiceClient) *networkservice.NetworkServiceClient {
 	return &client
 }
