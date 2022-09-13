@@ -26,7 +26,10 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 	registryserver "github.com/networkservicemesh/sdk/pkg/registry"
+	registryauthorize "github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
@@ -41,10 +44,55 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
 )
 
+type serverOptions struct {
+	authorizeNSRegistryServer  registryapi.NetworkServiceRegistryServer
+	authorizeNSERegistryServer registryapi.NetworkServiceEndpointRegistryServer
+	dialOptions                []grpc.DialOption
+}
+
+// Option modifies server option value
+type Option func(o *serverOptions)
+
+// WithDialOptions sets grpc.DialOptions for the client
+func WithDialOptions(dialOptions ...grpc.DialOption) Option {
+	return func(o *serverOptions) {
+		o.dialOptions = dialOptions
+	}
+}
+
+// WithAuthorizeNSRegistryServer sets authorization NetworkServiceRegistry chain element
+func WithAuthorizeNSRegistryServer(authorizeNSRegistryServer registryapi.NetworkServiceRegistryServer) Option {
+	if authorizeNSRegistryServer == nil {
+		panic("authorizeNSRegistryServer cannot be nil")
+	}
+	return func(o *serverOptions) {
+		o.authorizeNSRegistryServer = authorizeNSRegistryServer
+	}
+}
+
+// WithAuthorizeNSERegistryServer sets authorization NetworkServiceEndpointRegistry chain element
+func WithAuthorizeNSERegistryServer(authorizeNSERegistryServer registryapi.NetworkServiceEndpointRegistryServer) Option {
+	if authorizeNSERegistryServer == nil {
+		panic("authorizeNSERegistryServer cannot be nil")
+	}
+	return func(o *serverOptions) {
+		o.authorizeNSERegistryServer = authorizeNSERegistryServer
+	}
+}
+
 // NewServer creates new registry server based on memory storage
-func NewServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryURL *url.URL, dialOptions ...grpc.DialOption) registryserver.Registry {
+func NewServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryURL *url.URL, options ...Option) registryserver.Registry {
+	opts := &serverOptions{
+		authorizeNSRegistryServer:  registryauthorize.NewNetworkServiceRegistryServer(registryauthorize.Any()),
+		authorizeNSERegistryServer: registryauthorize.NewNetworkServiceEndpointRegistryServer(registryauthorize.Any()),
+	}
+	for _, opt := range options {
+		opt(opts)
+	}
+
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
 		begin.NewNetworkServiceEndpointRegistryServer(),
+		opts.authorizeNSERegistryServer,
 		switchcase.NewNetworkServiceEndpointRegistryServer(switchcase.NSEServerCase{
 			Condition: func(c context.Context, nse *registry.NetworkServiceEndpoint) bool {
 				if interdomain.Is(nse.GetName()) {
@@ -64,7 +112,7 @@ func NewServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryU
 						clienturl.NewNetworkServiceEndpointRegistryClient(proxyRegistryURL),
 						clientconn.NewNetworkServiceEndpointRegistryClient(),
 						dial.NewNetworkServiceEndpointRegistryClient(ctx,
-							dial.WithDialOptions(dialOptions...),
+							dial.WithDialOptions(opts.dialOptions...),
 						),
 						connect.NewNetworkServiceEndpointRegistryClient(),
 					),
@@ -82,6 +130,7 @@ func NewServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryU
 		),
 	)
 	nsChain := chain.NewNetworkServiceRegistryServer(
+		opts.authorizeNSRegistryServer,
 		setpayload.NewNetworkServiceRegistryServer(),
 		switchcase.NewNetworkServiceRegistryServer(
 			switchcase.NSServerCase{
@@ -94,7 +143,7 @@ func NewServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryU
 						begin.NewNetworkServiceRegistryClient(),
 						clientconn.NewNetworkServiceRegistryClient(),
 						dial.NewNetworkServiceRegistryClient(ctx,
-							dial.WithDialOptions(dialOptions...),
+							dial.WithDialOptions(opts.dialOptions...),
 						),
 						connect.NewNetworkServiceRegistryClient(),
 					),
