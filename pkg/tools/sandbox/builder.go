@@ -264,7 +264,7 @@ func (b *Builder) newRegistry() *RegistryEntry {
 			ctx,
 			b.registryExpiryDuration,
 			nsmgrProxyURL,
-			DialOptions(WithTokenGenerator(b.generateTokenFunc))...,
+			memory.WithDialOptions(DialOptions(WithTokenGenerator(b.generateTokenFunc))...),
 		)
 		serve(ctx, b.t, entry.URL, entry.Register)
 

@@ -26,7 +26,6 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 	registryserver "github.com/networkservicemesh/sdk/pkg/registry"
 	registryauthorize "github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
 
@@ -45,8 +44,8 @@ import (
 )
 
 type serverOptions struct {
-	authorizeNSRegistryServer  registryapi.NetworkServiceRegistryServer
-	authorizeNSERegistryServer registryapi.NetworkServiceEndpointRegistryServer
+	authorizeNSRegistryServer  registry.NetworkServiceRegistryServer
+	authorizeNSERegistryServer registry.NetworkServiceEndpointRegistryServer
 	dialOptions                []grpc.DialOption
 }
 
@@ -61,7 +60,7 @@ func WithDialOptions(dialOptions ...grpc.DialOption) Option {
 }
 
 // WithAuthorizeNSRegistryServer sets authorization NetworkServiceRegistry chain element
-func WithAuthorizeNSRegistryServer(authorizeNSRegistryServer registryapi.NetworkServiceRegistryServer) Option {
+func WithAuthorizeNSRegistryServer(authorizeNSRegistryServer registry.NetworkServiceRegistryServer) Option {
 	if authorizeNSRegistryServer == nil {
 		panic("authorizeNSRegistryServer cannot be nil")
 	}
@@ -71,7 +70,7 @@ func WithAuthorizeNSRegistryServer(authorizeNSRegistryServer registryapi.Network
 }
 
 // WithAuthorizeNSERegistryServer sets authorization NetworkServiceEndpointRegistry chain element
-func WithAuthorizeNSERegistryServer(authorizeNSERegistryServer registryapi.NetworkServiceEndpointRegistryServer) Option {
+func WithAuthorizeNSERegistryServer(authorizeNSERegistryServer registry.NetworkServiceEndpointRegistryServer) Option {
 	if authorizeNSERegistryServer == nil {
 		panic("authorizeNSERegistryServer cannot be nil")
 	}
