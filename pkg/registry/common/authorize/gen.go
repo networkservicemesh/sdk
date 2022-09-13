@@ -14,13 +14,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package spire
+package authorize
 
 import (
 	"sync"
 )
 
-//go:generate go-syncmap -output connection_id_set.gen.go -type ConnectionIDSet<string,struct{}>
+//go:generate go-syncmap -output sync_map.gen.go -type spiffeIDResourcesMap<github.com/spiffe/go-spiffe/v2/spiffeid.ID,*github.com/networkservicemesh/sdk/pkg/tools/stringset.StringSet>
 
-// ConnectionIDSet - sync.Map with key == string and value == bool
-type ConnectionIDSet sync.Map
+// spiffeIDResourcesMap - sync.Map with key == spiffeID and value == list of NSEs associated with spiffeID
+type spiffeIDResourcesMap sync.Map

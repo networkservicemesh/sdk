@@ -36,6 +36,9 @@ var tokensExpiredPolicySource string
 //go:embed policies/service_connection.rego
 var tokensServiceConnectionPolicySource string
 
+//go:embed policies/registry_client_allowed.rego
+var registryClientAllowedPolicySource string
+
 // WithTokensValidPolicy returns default policy for checking that all tokens in the path can be decoded.
 func WithTokensValidPolicy() *AuthorizationPolicy {
 	return &AuthorizationPolicy{
@@ -86,5 +89,14 @@ func WithMonitorConnectionServerPolicy() *AuthorizationPolicy {
 		policySource: tokensServiceConnectionPolicySource,
 		query:        "service_connection",
 		checker:      True("service_connection"),
+	}
+}
+
+// WithRegistryClientAllowedPolicy returns policy for checking resource (nse or ns) registration/unregistration validity
+func WithRegistryClientAllowedPolicy() *AuthorizationPolicy {
+	return &AuthorizationPolicy{
+		policySource: registryClientAllowedPolicySource,
+		query:        "registry_client_allowed",
+		checker:      True("registry_client_allowed"),
 	}
 }

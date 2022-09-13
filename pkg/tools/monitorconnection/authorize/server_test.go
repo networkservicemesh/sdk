@@ -35,6 +35,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/monitorconnection/authorize"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/networkservicemesh/sdk/pkg/tools/spire"
+	"github.com/networkservicemesh/sdk/pkg/tools/stringset"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
@@ -188,7 +189,7 @@ func TestAuthzEndpoint(t *testing.T) {
 			}
 			spiffeIDConnectionMap := spire.SpiffeIDConnectionMap{}
 			for spiffeIDstr, connIds := range s.spiffeIDConnMap {
-				connIDMap := spire.ConnectionIDSet{}
+				connIDMap := stringset.StringSet{}
 				for _, connID := range connIds {
 					connIDMap.Store(connID, struct{}{})
 				}
@@ -233,7 +234,7 @@ func TestAuthorize_ShouldCorrectlyWorkWithHeal(t *testing.T) {
 	require.NoError(t, err)
 
 	spiffeIDConnectionMap := spire.SpiffeIDConnectionMap{}
-	connMap := spire.ConnectionIDSet{}
+	connMap := stringset.StringSet{}
 	var placer struct{}
 	connMap.Store("conn1", placer)
 	var spiffeID spiffeid.ID
