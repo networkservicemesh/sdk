@@ -25,11 +25,13 @@ import (
 
 // Groups allows parsing cidr groups.
 // Example: [v1, v2, v3], [v4], v5 =>
-//  [][]*net.IPNet{
-//		{v1, v2, v3},
-//		{v4},
-//		{v5},
-//	}
+//
+//	 [][]*net.IPNet{
+//			{v1, v2, v3},
+//			{v4},
+//			{v5},
+//		}
+//
 // Can be used for env configuration.
 // See at https://github.com/kelseyhightower/envconfig#custom-decoders
 type Groups [][]*net.IPNet
