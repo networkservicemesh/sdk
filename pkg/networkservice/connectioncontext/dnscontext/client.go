@@ -20,10 +20,12 @@ package dnscontext
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strings"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/miekg/dns"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
 
@@ -31,10 +33,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
-)
-
-const (
-	modifiedResolvConfKey = "# modified"
 )
 
 type dnsContextClient struct {
@@ -98,25 +96,40 @@ func (c *dnsContextClient) Close(ctx context.Context, conn *networkservice.Conne
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
-func (c *dnsContextClient) restoreResolvConf() {
+func (c *dnsContextClient) getResolvConfigComments() (string, error) {
 	bytes, err := os.ReadFile(c.resolveConfigPath)
-	modifiedResolvConf := string(bytes)
-	if err != nil || modifiedResolvConf == "" {
-		return
+	resolvConf := string(bytes)
+	if err != nil {
+		return "", err
 	}
 
-	if !strings.HasPrefix(modifiedResolvConf, modifiedResolvConfKey) {
-		return
+	if resolvConf == "" {
+		return "", errors.New("resolv.conf is empty")
 	}
 
-	originalResolvConf := make([]string, 0)
-	for _, line := range strings.Split(modifiedResolvConf, "\n")[1:] {
+	resolvConfComments := make([]string, 0)
+	for _, line := range strings.Split(resolvConf, "\n") {
 		if strings.HasPrefix(line, "#") {
-			originalResolvConf = append(originalResolvConf, line[1:])
+			resolvConfComments = append(resolvConfComments, line[1:])
 		}
 	}
 
-	_ = os.WriteFile(c.resolveConfigPath, []byte(strings.Join(originalResolvConf, "\n")), os.ModePerm)
+	return strings.Join(resolvConfComments, "\n"), nil
+}
+
+func (c *dnsContextClient) restoreResolvConf() {
+	commentedPart, err := c.getResolvConfigComments()
+	if err != nil {
+		log.FromContext(c.chainContext).Error(err.Error())
+		return
+	}
+	resolvConf, _ := dns.ClientConfigFromReader(strings.NewReader(commentedPart))
+
+	if len(resolvConf.Servers) == 0 {
+		return
+	}
+
+	_ = os.WriteFile(c.resolveConfigPath, []byte(commentedPart), os.ModePerm)
 }
 
 func (c *dnsContextClient) storeOriginalResolvConf() {
@@ -127,14 +140,11 @@ func (c *dnsContextClient) storeOriginalResolvConf() {
 	}
 
 	lines := strings.Split(originalResolvConfig, "\n")
-	modifiedResolvConf := make([]string, len(lines)+1)
-	modifiedResolvConf[0] = modifiedResolvConfKey
-
-	for i, line := range lines {
-		modifiedResolvConf[i+1] = "#" + line
+	for i := range lines {
+		lines[i] = "#" + lines[i]
 	}
 
-	_ = os.WriteFile(c.resolveConfigPath, []byte(strings.Join(modifiedResolvConf, "\n")+"\n\n"), os.ModePerm)
+	_ = os.WriteFile(c.resolveConfigPath, []byte(strings.Join(lines, "\n")+"\n\n"), os.ModePerm)
 }
 
 func (c *dnsContextClient) appendResolvConf(resolvConf string) error {

@@ -47,9 +47,11 @@ func (r *resolveConfig) readProperties() error {
 		return err
 	}
 	for _, l := range strings.Split(string(b), "\n") {
-		words := strings.Split(l, " ")
-		if len(words) > 1 {
-			r.properties[words[0]] = words[1:]
+		if !strings.HasPrefix(l, "#") {
+			words := strings.Split(l, " ")
+			if len(words) > 1 {
+				r.properties[words[0]] = words[1:]
+			}
 		}
 	}
 	return nil
