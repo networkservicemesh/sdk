@@ -46,18 +46,13 @@ import (
 type serverOptions struct {
 	authorizeNSRegistryServer  registry.NetworkServiceRegistryServer
 	authorizeNSERegistryServer registry.NetworkServiceEndpointRegistryServer
+	expireDuration             time.Duration
+	proxyRegistryURL           *url.URL
 	dialOptions                []grpc.DialOption
 }
 
 // Option modifies server option value
 type Option func(o *serverOptions)
-
-// WithDialOptions sets grpc.DialOptions for the client
-func WithDialOptions(dialOptions ...grpc.DialOption) Option {
-	return func(o *serverOptions) {
-		o.dialOptions = dialOptions
-	}
-}
 
 // WithAuthorizeNSRegistryServer sets authorization NetworkServiceRegistry chain element
 func WithAuthorizeNSRegistryServer(authorizeNSRegistryServer registry.NetworkServiceRegistryServer) Option {
@@ -79,11 +74,34 @@ func WithAuthorizeNSERegistryServer(authorizeNSERegistryServer registry.NetworkS
 	}
 }
 
+// WithExpireDuration sets expire duration for the server
+func WithExpireDuration(expireDuration time.Duration) Option {
+	return func(o *serverOptions) {
+		o.expireDuration = expireDuration
+	}
+}
+
+// WithProxyRegistryURL sets URL to reach the proxy registry
+func WithProxyRegistryURL(proxyRegistryURL *url.URL) Option {
+	return func(o *serverOptions) {
+		o.proxyRegistryURL = proxyRegistryURL
+	}
+}
+
+// WithDialOptions sets grpc.DialOptions for the server
+func WithDialOptions(dialOptions ...grpc.DialOption) Option {
+	return func(o *serverOptions) {
+		o.dialOptions = dialOptions
+	}
+}
+
 // NewServer creates new registry server based on memory storage
-func NewServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryURL *url.URL, options ...Option) registryserver.Registry {
+func NewServer(ctx context.Context, options ...Option) registryserver.Registry {
 	opts := &serverOptions{
 		authorizeNSRegistryServer:  registryauthorize.NewNetworkServiceRegistryServer(registryauthorize.Any()),
 		authorizeNSERegistryServer: registryauthorize.NewNetworkServiceEndpointRegistryServer(registryauthorize.Any()),
+		expireDuration:             time.Minute,
+		proxyRegistryURL:           nil,
 	}
 	for _, opt := range options {
 		opt(opts)
@@ -108,7 +126,7 @@ func NewServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryU
 				connect.NewNetworkServiceEndpointRegistryServer(
 					chain.NewNetworkServiceEndpointRegistryClient(
 						begin.NewNetworkServiceEndpointRegistryClient(),
-						clienturl.NewNetworkServiceEndpointRegistryClient(proxyRegistryURL),
+						clienturl.NewNetworkServiceEndpointRegistryClient(opts.proxyRegistryURL),
 						clientconn.NewNetworkServiceEndpointRegistryClient(),
 						dial.NewNetworkServiceEndpointRegistryClient(ctx,
 							dial.WithDialOptions(opts.dialOptions...),
@@ -122,7 +140,7 @@ func NewServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryU
 				Condition: func(c context.Context, nse *registry.NetworkServiceEndpoint) bool { return true },
 				Action: chain.NewNetworkServiceEndpointRegistryServer(
 					setregistrationtime.NewNetworkServiceEndpointRegistryServer(),
-					expire.NewNetworkServiceEndpointRegistryServer(ctx, expiryDuration),
+					expire.NewNetworkServiceEndpointRegistryServer(ctx, opts.expireDuration),
 					memory.NewNetworkServiceEndpointRegistryServer(),
 				),
 			},
@@ -138,7 +156,7 @@ func NewServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryU
 				},
 				Action: connect.NewNetworkServiceRegistryServer(
 					chain.NewNetworkServiceRegistryClient(
-						clienturl.NewNetworkServiceRegistryClient(proxyRegistryURL),
+						clienturl.NewNetworkServiceRegistryClient(opts.proxyRegistryURL),
 						begin.NewNetworkServiceRegistryClient(),
 						clientconn.NewNetworkServiceRegistryClient(),
 						dial.NewNetworkServiceRegistryClient(ctx,

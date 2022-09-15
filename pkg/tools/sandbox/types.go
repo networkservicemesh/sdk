@@ -19,7 +19,6 @@ package sandbox
 import (
 	"context"
 	"net/url"
-	"time"
 
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
@@ -41,7 +40,7 @@ type SupplyNSMgrProxyFunc func(ctx context.Context, regURL, proxyURL *url.URL, t
 type SupplyNSMgrFunc func(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...nsmgr.Option) nsmgr.Nsmgr
 
 // SupplyRegistryFunc supplies Registry
-type SupplyRegistryFunc func(ctx context.Context, expiryDuration time.Duration, proxyRegistryURL *url.URL, options ...memory.Option) registry.Registry
+type SupplyRegistryFunc func(ctx context.Context, options ...memory.Option) registry.Registry
 
 // SupplyRegistryProxyFunc supplies registry proxy
 type SupplyRegistryProxyFunc func(ctx context.Context, dnsResolver dnsresolve.Resolver, options ...grpc.DialOption) registry.Registry
