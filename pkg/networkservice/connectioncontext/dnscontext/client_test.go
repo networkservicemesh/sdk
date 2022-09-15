@@ -55,8 +55,7 @@ func Test_DNSContextClient_Usecases(t *testing.T) {
 		),
 	)
 
-	const expectedResolvconfFile = `# modified
-#nameserver 8.8.4.4
+	const expectedResolvconfFile = `#nameserver 8.8.4.4
 #search example.com
 #
 
