@@ -20,7 +20,6 @@ package dnscontext
 
 import (
 	"context"
-	"errors"
 	"os"
 	"strings"
 
@@ -96,36 +95,23 @@ func (c *dnsContextClient) Close(ctx context.Context, conn *networkservice.Conne
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
-func (c *dnsContextClient) getResolvConfigComments() (string, error) {
+func (c *dnsContextClient) restoreResolvConf() {
 	bytes, err := os.ReadFile(c.resolveConfigPath)
-	resolvConf := string(bytes)
 	if err != nil {
-		return "", err
+		return
 	}
 
-	if resolvConf == "" {
-		return "", errors.New("resolv.conf is empty")
-	}
-
-	resolvConfComments := make([]string, 0)
-	for _, line := range strings.Split(resolvConf, "\n") {
+	commentLines := make([]string, 0)
+	for _, line := range strings.Split(string(bytes), "\n") {
 		if strings.HasPrefix(line, "#") {
-			resolvConfComments = append(resolvConfComments, line[1:])
+			commentLines = append(commentLines, line[1:])
 		}
 	}
 
-	return strings.Join(resolvConfComments, "\n"), nil
-}
+	commentedPart := strings.Join(commentLines, "\n")
+	parsedConfig, _ := dns.ClientConfigFromReader(strings.NewReader(commentedPart))
 
-func (c *dnsContextClient) restoreResolvConf() {
-	commentedPart, err := c.getResolvConfigComments()
-	if err != nil {
-		log.FromContext(c.chainContext).Error(err.Error())
-		return
-	}
-	resolvConf, _ := dns.ClientConfigFromReader(strings.NewReader(commentedPart))
-
-	if len(resolvConf.Servers) == 0 {
+	if len(parsedConfig.Servers) == 0 {
 		return
 	}
 
@@ -148,19 +134,13 @@ func (c *dnsContextClient) storeOriginalResolvConf() {
 }
 
 func (c *dnsContextClient) appendResolvConf(resolvConf string) error {
-	resolvConfFile, err := os.OpenFile(c.resolveConfigPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.ModeAppend)
+	bytes, err := os.ReadFile(c.resolveConfigPath)
+	originalResolvConfig := string(bytes)
 	if err != nil {
 		return err
 	}
 
-	if _, err := resolvConfFile.Write([]byte(resolvConf)); err != nil {
-		if closeErr := resolvConfFile.Close(); closeErr != nil {
-			log.FromContext(c.chainContext).Errorf("An error during closing resolve config file: %v", closeErr.Error())
-		}
-		return err
-	}
-
-	return resolvConfFile.Close()
+	return os.WriteFile(c.resolveConfigPath, []byte(originalResolvConfig+resolvConf), os.ModePerm)
 }
 
 func (c *dnsContextClient) initialize() {
