@@ -262,9 +262,9 @@ func (b *Builder) newRegistry() *RegistryEntry {
 	entry.restartableServer = newRestartableServer(b.ctx, b.t, entry.URL, func(ctx context.Context) {
 		entry.Registry = b.supplyRegistry(
 			ctx,
-			b.registryExpiryDuration,
-			nsmgrProxyURL,
-			DialOptions(WithTokenGenerator(b.generateTokenFunc))...,
+			memory.WithExpireDuration(b.registryExpiryDuration),
+			memory.WithProxyRegistryURL(nsmgrProxyURL),
+			memory.WithDialOptions(DialOptions(WithTokenGenerator(b.generateTokenFunc))...),
 		)
 		serve(ctx, b.t, entry.URL, entry.Register)
 
