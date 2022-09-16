@@ -27,9 +27,11 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgrproxy"
+	"github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/proxydns"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
@@ -61,6 +63,14 @@ type Builder struct {
 	domain *Domain
 }
 
+func newRegistryMemoryServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryURL *url.URL, options ...grpc.DialOption) registry.Registry {
+	return memory.NewServer(
+		ctx,
+		memory.WithExpireDuration(expiryDuration),
+		memory.WithProxyRegistryURL(proxyRegistryURL),
+		memory.WithDialOptions(options...))
+}
+
 // NewBuilder creates new SandboxBuilder
 func NewBuilder(ctx context.Context, t *testing.T) *Builder {
 	b := &Builder{
@@ -69,7 +79,7 @@ func NewBuilder(ctx context.Context, t *testing.T) *Builder {
 		nodesCount:             1,
 		supplyNSMgr:            nsmgr.NewServer,
 		supplyNSMgrProxy:       nsmgrproxy.NewServer,
-		supplyRegistry:         memory.NewServer,
+		supplyRegistry:         newRegistryMemoryServer,
 		supplyRegistryProxy:    proxydns.NewServer,
 		name:                   "cluster.local",
 		dnsResolver:            new(FakeDNSResolver),
@@ -262,9 +272,9 @@ func (b *Builder) newRegistry() *RegistryEntry {
 	entry.restartableServer = newRestartableServer(b.ctx, b.t, entry.URL, func(ctx context.Context) {
 		entry.Registry = b.supplyRegistry(
 			ctx,
-			memory.WithExpireDuration(b.registryExpiryDuration),
-			memory.WithProxyRegistryURL(nsmgrProxyURL),
-			memory.WithDialOptions(DialOptions(WithTokenGenerator(b.generateTokenFunc))...),
+			b.registryExpiryDuration,
+			nsmgrProxyURL,
+			DialOptions(WithTokenGenerator(b.generateTokenFunc))...,
 		)
 		serve(ctx, b.t, entry.URL, entry.Register)
 
