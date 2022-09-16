@@ -63,7 +63,7 @@ type Builder struct {
 	domain *Domain
 }
 
-func registryNewServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryURL *url.URL, options ...grpc.DialOption) registry.Registry {
+func newRegistryMemoryServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryURL *url.URL, options ...grpc.DialOption) registry.Registry {
 	return memory.NewServer(
 		ctx,
 		memory.WithExpireDuration(expiryDuration),
@@ -79,7 +79,7 @@ func NewBuilder(ctx context.Context, t *testing.T) *Builder {
 		nodesCount:             1,
 		supplyNSMgr:            nsmgr.NewServer,
 		supplyNSMgrProxy:       nsmgrproxy.NewServer,
-		supplyRegistry:         registryNewServer,
+		supplyRegistry:         newRegistryMemoryServer,
 		supplyRegistryProxy:    proxydns.NewServer,
 		name:                   "cluster.local",
 		dnsResolver:            new(FakeDNSResolver),
