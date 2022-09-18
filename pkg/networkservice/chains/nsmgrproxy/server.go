@@ -39,6 +39,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/interdomainbypass"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/swapip"
 	"github.com/networkservicemesh/sdk/pkg/registry"
+	registryauthorize "github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
@@ -73,6 +74,8 @@ type serverOptions struct {
 	listenOn                         *url.URL
 	authorizeServer                  networkservice.NetworkServiceServer
 	authorizeMonitorConnectionServer networkservice.MonitorConnectionServer
+	authorizeNSRegistryServer        registryapi.NetworkServiceRegistryServer
+	authorizeNSERegistryServer       registryapi.NetworkServiceEndpointRegistryServer
 	dialOptions                      []grpc.DialOption
 	dialTimeout                      time.Duration
 }
@@ -129,6 +132,26 @@ func WithAuthorizeMonitorConnectionServer(authorizeMonitorConnectionServer netwo
 	}
 }
 
+// WithAuthorizeNSRegistryServer sets authorization NetworkServiceRegistry chain element
+func WithAuthorizeNSRegistryServer(authorizeNSRegistryServer registryapi.NetworkServiceRegistryServer) Option {
+	if authorizeNSRegistryServer == nil {
+		panic("authorizeNSRegistryServer cannot be nil")
+	}
+	return func(o *serverOptions) {
+		o.authorizeNSRegistryServer = authorizeNSRegistryServer
+	}
+}
+
+// WithAuthorizeNSERegistryServer sets authorization NetworkServiceEndpointRegistry chain element
+func WithAuthorizeNSERegistryServer(authorizeNSERegistryServer registryapi.NetworkServiceEndpointRegistryServer) Option {
+	if authorizeNSERegistryServer == nil {
+		panic("authorizeNSERegistryServer cannot be nil")
+	}
+	return func(o *serverOptions) {
+		o.authorizeNSERegistryServer = authorizeNSERegistryServer
+	}
+}
+
 // WithListenOn sets current listenOn url
 func WithListenOn(u *url.URL) Option {
 	return func(o *serverOptions) {
@@ -164,6 +187,8 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 		name:                             "nsmgr-proxy-" + uuid.New().String(),
 		authorizeServer:                  authorize.NewServer(authorize.Any()),
 		authorizeMonitorConnectionServer: authmonitor.NewMonitorConnectionServer(authmonitor.Any()),
+		authorizeNSRegistryServer:        registryauthorize.NewNetworkServiceRegistryServer(registryauthorize.Any()),
+		authorizeNSERegistryServer:       registryauthorize.NewNetworkServiceEndpointRegistryServer(registryauthorize.Any()),
 		listenOn:                         &url.URL{Scheme: "unix", Host: "listen.on"},
 		mapipFilePath:                    "map-ip.yaml",
 	}
@@ -230,8 +255,14 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 		),
 	)
 
+	nsServerChain = chain.NewNetworkServiceRegistryServer(
+		opts.authorizeNSRegistryServer,
+		nsServerChain,
+	)
+
 	var nseServerChain = chain.NewNetworkServiceEndpointRegistryServer(
 		begin.NewNetworkServiceEndpointRegistryServer(),
+		opts.authorizeNSERegistryServer,
 		clienturl.NewNetworkServiceEndpointRegistryServer(proxyURL),
 		interdomainBypassNSEServer,
 		registryswapip.NewNetworkServiceEndpointRegistryServer(opts.openMapIPChannel(ctx)),
