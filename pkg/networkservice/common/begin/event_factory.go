@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -60,7 +60,7 @@ func newEventFactoryClient(ctx context.Context, afterClose func(), opts ...grpc.
 		client: next.Client(ctx),
 		opts:   opts,
 	}
-	ctxFunc := postpone.Context(ctx)
+	ctxFunc := postpone.ContextWithValues(ctx)
 	f.ctxFunc = func() (context.Context, context.CancelFunc) {
 		eventCtx, cancel := ctxFunc()
 		return withEventFactory(eventCtx, f), cancel
@@ -155,7 +155,7 @@ func newEventFactoryServer(ctx context.Context, afterClose func()) *eventFactory
 	f := &eventFactoryServer{
 		server: next.Server(ctx),
 	}
-	ctxFunc := postpone.Context(ctx)
+	ctxFunc := postpone.ContextWithValues(ctx)
 	f.ctxFunc = func() (context.Context, context.CancelFunc) {
 		eventCtx, cancel := ctxFunc()
 		return withEventFactory(eventCtx, f), cancel
