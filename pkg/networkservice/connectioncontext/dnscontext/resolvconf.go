@@ -71,8 +71,8 @@ func (r *resolveConfig) SetValue(k string, values ...string) {
 	}
 }
 
-// Serialize serializes resolve config
-func (r *resolveConfig) Serialize() string {
+// String serializes resolve config
+func (r *resolveConfig) String() string {
 	var sb strings.Builder
 	var index int
 	for k, v := range r.properties {

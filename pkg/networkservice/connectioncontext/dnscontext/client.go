@@ -120,10 +120,10 @@ func (c *dnsContextClient) restoreResolvConf() {
 
 func (c *dnsContextClient) storeOriginalResolvConf() {
 	bytes, err := os.ReadFile(c.resolveConfigPath)
-	originalResolvConfig := string(bytes)
 	if err != nil {
 		return
 	}
+	originalResolvConfig := string(bytes)
 
 	lines := strings.Split(originalResolvConfig, "\n")
 	for i := range lines {
@@ -135,10 +135,10 @@ func (c *dnsContextClient) storeOriginalResolvConf() {
 
 func (c *dnsContextClient) appendResolvConf(resolvConf string) error {
 	bytes, err := os.ReadFile(c.resolveConfigPath)
-	originalResolvConfig := string(bytes)
 	if err != nil {
 		return err
 	}
+	originalResolvConfig := string(bytes)
 
 	return os.WriteFile(c.resolveConfigPath, []byte(originalResolvConfig+resolvConf), os.ModePerm)
 }
@@ -165,7 +165,7 @@ func (c *dnsContextClient) initialize() {
 	r.SetValue(nameserverProperty, c.defaultNameServerIP)
 	r.SetValue(searchProperty, []string{}...)
 
-	if err = c.appendResolvConf(r.Serialize()); err != nil {
+	if err = c.appendResolvConf(r.String()); err != nil {
 		log.FromContext(c.chainContext).Errorf("An error during appending resolve config: %v", err.Error())
 		return
 	}

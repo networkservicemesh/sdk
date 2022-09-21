@@ -70,8 +70,7 @@ options ndots:5`
 	config.SetValue(searchProperty, "default.svc.cluster.local", "svc.cluster.local", "cluster.local")
 	config.SetValue(optionsProperty, "ndots:5")
 	config.SetValue("my_property")
-	serialized := config.Serialize()
-	actual := serialized
+	actual := config.String()
 	require.Len(t, actual, len(sample))
 	for _, l := range strings.Split(actual, "\n") {
 		require.Contains(t, sample, l)
