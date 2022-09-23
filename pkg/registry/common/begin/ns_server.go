@@ -54,7 +54,7 @@ func (b *beginNSServer) Register(ctx context.Context, in *registry.NetworkServic
 	var err error
 
 	<-eventFactoryServer.executor.AsyncExec(func() {
-		currentEventFactoryServer, _ := b.LoadOrStore(id, eventFactoryServer)
+		currentEventFactoryServer, _ := b.Load(id)
 		if currentEventFactoryServer != eventFactoryServer {
 			log.FromContext(ctx).Debug("recalling begin.Request because currentEventFactoryServer != eventFactoryServer")
 			resp, err = b.Register(ctx, in)
@@ -96,7 +96,7 @@ func (b *beginNSServer) Unregister(ctx context.Context, in *registry.NetworkServ
 		if eventFactoryServer.state != established || eventFactoryServer.registration == nil {
 			return
 		}
-		currentServerClient, _ := b.LoadOrStore(id, eventFactoryServer)
+		currentServerClient, _ := b.Load(id)
 		if currentServerClient != eventFactoryServer {
 			return
 		}

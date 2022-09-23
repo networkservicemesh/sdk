@@ -55,7 +55,7 @@ func (b *beginNSClient) Register(ctx context.Context, in *registry.NetworkServic
 	<-eventFactoryClient.executor.AsyncExec(func() {
 		// If the eventFactory has changed, usually because the connection has been Closed and re-established
 		// go back to the beginning and try again.
-		currentEventFactoryClient, _ := b.LoadOrStore(id, eventFactoryClient)
+		currentEventFactoryClient, _ := b.Load(id)
 		if currentEventFactoryClient != eventFactoryClient {
 			log.FromContext(ctx).Debug("recalling begin.Request because currentEventFactoryClient != eventFactoryClient")
 			resp, err = b.Register(ctx, in, opts...)
@@ -101,7 +101,7 @@ func (b *beginNSClient) Unregister(ctx context.Context, in *registry.NetworkServ
 		}
 
 		// If this isn't the connection we started with, do nothing
-		currentEventFactoryClient, _ := b.LoadOrStore(id, eventFactoryClient)
+		currentEventFactoryClient, _ := b.Load(id)
 		if currentEventFactoryClient != eventFactoryClient {
 			return
 		}
