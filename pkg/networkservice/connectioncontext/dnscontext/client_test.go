@@ -55,7 +55,12 @@ func Test_DNSContextClient_Usecases(t *testing.T) {
 		),
 	)
 
-	const expectedResolvconfFile = `nameserver 127.0.0.1`
+	const expectedResolvconfFile = `#nameserver 8.8.4.4
+#search example.com
+#
+
+nameserver 127.0.0.1`
+
 	requireFileChanged(ctx, t, resolveConfigPath, expectedResolvconfFile)
 
 	request := &networkservice.NetworkServiceRequest{

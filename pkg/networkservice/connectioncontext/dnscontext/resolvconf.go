@@ -19,7 +19,7 @@
 package dnscontext
 
 import (
-	"os"
+	"io/ioutil"
 	"strings"
 )
 
@@ -42,14 +42,16 @@ func openResolveConfig(p string) (*resolveConfig, error) {
 }
 
 func (r *resolveConfig) readProperties() error {
-	b, err := os.ReadFile(r.path)
+	b, err := ioutil.ReadFile(r.path)
 	if err != nil {
 		return err
 	}
 	for _, l := range strings.Split(string(b), "\n") {
-		words := strings.Split(l, " ")
-		if len(words) > 1 {
-			r.properties[words[0]] = words[1:]
+		if !strings.HasPrefix(l, "#") {
+			words := strings.Split(l, " ")
+			if len(words) > 1 {
+				r.properties[words[0]] = words[1:]
+			}
 		}
 	}
 	return nil
@@ -69,8 +71,8 @@ func (r *resolveConfig) SetValue(k string, values ...string) {
 	}
 }
 
-// Save saves resolve config file
-func (r *resolveConfig) Save() error {
+// String serializes resolve config
+func (r *resolveConfig) String() string {
 	var sb strings.Builder
 	var index int
 	for k, v := range r.properties {
@@ -80,7 +82,7 @@ func (r *resolveConfig) Save() error {
 			_, _ = sb.WriteRune('\n')
 		}
 	}
-	return os.WriteFile(r.path, []byte(sb.String()), os.ModePerm)
+	return sb.String()
 }
 
 const (
