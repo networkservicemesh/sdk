@@ -197,6 +197,25 @@ func TestIPPoolTool_Pull(t *testing.T) {
 }
 
 //nolint:dupl
+func TestIPPoolTool_PullIP(t *testing.T) {
+	ipPool := NewWithNetString("192.0.0.0/8")
+	require.NotNil(t, ipPool)
+
+	ip, err := ipPool.PullIPString("192.0.0.10/32")
+	require.NoError(t, err)
+	require.Equal(t, ip.String(), "192.0.0.10/32")
+
+	ipPool.ExcludeString("192.0.0.0/24")
+	ip, err = ipPool.PullIPString("192.0.1.10/32")
+	require.NoError(t, err)
+	require.Equal(t, ip.String(), "192.0.1.10/32")
+
+	ipPool.ExcludeString("192.0.2.0/24")
+	_, err = ipPool.PullIPString("192.0.2.10/32")
+	require.Error(t, err)
+}
+
+//nolint:dupl
 func TestIPPoolTool_GetPrefixes(t *testing.T) {
 	ipPool := NewWithNetString("192.0.0.0/16")
 	require.NotNil(t, ipPool)
@@ -333,6 +352,25 @@ func TestIPPoolTool_IPv6Pull(t *testing.T) {
 
 	ipPool.ExcludeString("::/32")
 	_, err = ipPool.Pull()
+	require.Error(t, err)
+}
+
+//nolint:dupl
+func TestIPPoolTool_IPv6PullIP(t *testing.T) {
+	ipPool := NewWithNetString("::/32")
+	require.NotNil(t, ipPool)
+
+	ip, err := ipPool.PullIPString("::10/128")
+	require.NoError(t, err)
+	require.Equal(t, ip.String(), "::10/128")
+
+	ipPool.ExcludeString("::/120")
+	ip, err = ipPool.PullIPString("::1010/128")
+	require.NoError(t, err)
+	require.Equal(t, ip.String(), "::1010/128")
+
+	ipPool.ExcludeString("::2000/120")
+	_, err = ipPool.PullIPString("::2010/128")
 	require.Error(t, err)
 }
 

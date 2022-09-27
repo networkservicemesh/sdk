@@ -1,4 +1,6 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -29,6 +31,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type ipamServer struct {
@@ -102,8 +105,11 @@ func (s *ipamServer) Request(ctx context.Context, request *networkservice.Networ
 		s.free(connInfo)
 		loaded = false
 	}
+	// If not loaded, we are primarily trying to recover addresses from the IpContext. In case of an error, allocate new ones.
 	if !loaded {
-		if connInfo, err = s.getP2PAddrs(excludeIP4, excludeIP6); err != nil {
+		if connInfo, err = s.recoverAddrs(ipContext.GetSrcIpAddrs(), ipContext.GetDstIpAddrs(), excludeIP4, excludeIP6); err == nil {
+			log.FromContext(ctx).Infof("addresses have been recovered - srcIP: %v, dstIP: %v", connInfo.srcAddr, connInfo.dstAddr)
+		} else if connInfo, err = s.getP2PAddrs(excludeIP4, excludeIP6); err != nil {
 			return nil, err
 		}
 		s.Store(conn.GetId(), connInfo)
@@ -124,6 +130,34 @@ func (s *ipamServer) Request(ctx context.Context, request *networkservice.Networ
 	}
 
 	return conn, nil
+}
+
+func (s *ipamServer) recoverAddrs(srcAddrs, dstAddrs []string, excludeIP4, excludeIP6 *ippool.IPPool) (connInfo *connectionInfo, err error) {
+	if len(srcAddrs) == 0 || len(dstAddrs) == 0 {
+		return nil, errors.New("addresses cannot be empty for recovery")
+	}
+	for _, ipPool := range s.ipPools {
+		var srcAddr, dstAddr *net.IPNet
+		for _, addr := range srcAddrs {
+			if srcAddr, err = ipPool.PullIPString(addr, excludeIP4, excludeIP6); err == nil {
+				break
+			}
+		}
+		for _, addr := range dstAddrs {
+			if dstAddr, err = ipPool.PullIPString(addr, excludeIP4, excludeIP6); err == nil {
+				break
+			}
+		}
+		if srcAddr != nil && dstAddr != nil {
+			return &connectionInfo{
+				ipPool:  ipPool,
+				srcAddr: srcAddr.String(),
+				dstAddr: dstAddr.String(),
+			}, nil
+		}
+	}
+
+	return nil, errors.Errorf("unable to recover: %+v, %+v", srcAddrs, dstAddrs)
 }
 
 func (s *ipamServer) getP2PAddrs(excludeIP4, excludeIP6 *ippool.IPPool) (connInfo *connectionInfo, err error) {

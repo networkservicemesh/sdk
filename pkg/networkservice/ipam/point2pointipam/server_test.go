@@ -1,4 +1,6 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -422,4 +424,115 @@ func TestRefreshRequestMultiServer(t *testing.T) {
 	conn, err = srv.Request(context.Background(), req)
 	require.NoError(t, err)
 	validateConns(t, conn, []string{"192.168.0.4/32", "fe80::4/128"}, []string{"192.168.0.5/32", "fe80::5/128"})
+}
+
+//nolint:dupl
+func TestRecoveryServer(t *testing.T) {
+	_, ipNet, err := net.ParseCIDR("192.168.3.4/16")
+	require.NoError(t, err)
+
+	srv := newIpamServer(ipNet)
+
+	// Create requests with predefined addresses
+	request1 := newRequest()
+	request1.Connection.Context.IpContext.DstIpAddrs = []string{"192.168.10.0/32"}
+	request1.Connection.Context.IpContext.SrcRoutes = []*networkservice.Route{{Prefix: "192.168.10.0/32"}}
+	request1.Connection.Context.IpContext.SrcIpAddrs = []string{"192.168.10.1/32"}
+	request1.Connection.Context.IpContext.DstRoutes = []*networkservice.Route{{Prefix: "192.168.10.1/32"}}
+	request2 := request1.Clone()
+	request3 := request1.Clone()
+
+	// Recovery case
+	conn1, err := srv.Request(context.Background(), request1)
+	require.NoError(t, err)
+	validateConn(t, conn1, "192.168.10.0/32", "192.168.10.1/32")
+
+	// Recovery failed. Added new ones
+	conn2, err := srv.Request(context.Background(), request2)
+	require.NoError(t, err)
+	validateConns(t, conn2, []string{"192.168.10.0/32", "192.168.0.0/32"}, []string{"192.168.10.1/32", "192.168.0.1/32"})
+
+	// Close - addresses release
+	_, err = srv.Close(context.Background(), conn1)
+	require.NoError(t, err)
+
+	// Recovery for another request
+	conn3, err := srv.Request(context.Background(), request3)
+	require.NoError(t, err)
+	validateConn(t, conn3, "192.168.10.0/32", "192.168.10.1/32")
+}
+
+//nolint:dupl
+func TestRecoveryServerIPv6(t *testing.T) {
+	_, ipNet, err := net.ParseCIDR("fe80::/64")
+	require.NoError(t, err)
+
+	srv := newIpamServer(ipNet)
+
+	request1 := newRequest()
+	request1.Connection.Context.IpContext.DstIpAddrs = []string{"fe80::fa00/128"}
+	request1.Connection.Context.IpContext.SrcRoutes = []*networkservice.Route{{Prefix: "fe80::fa00/128"}}
+	request1.Connection.Context.IpContext.SrcIpAddrs = []string{"fe80::fa01/128"}
+	request1.Connection.Context.IpContext.DstRoutes = []*networkservice.Route{{Prefix: "fe80::fa01/128"}}
+	request2 := request1.Clone()
+	request3 := request1.Clone()
+
+	// Recovery case
+	conn1, err := srv.Request(context.Background(), request1)
+	require.NoError(t, err)
+	validateConn(t, conn1, "fe80::fa00/128", "fe80::fa01/128")
+
+	// Recovery failed. Added new ones
+	conn2, err := srv.Request(context.Background(), request2)
+	require.NoError(t, err)
+	validateConns(t, conn2, []string{"fe80::fa00/128", "fe80::/128"}, []string{"fe80::fa01/128", "fe80::1/128"})
+
+	// Close - addresses release
+	_, err = srv.Close(context.Background(), conn1)
+	require.NoError(t, err)
+
+	// Recovery for another request
+	conn3, err := srv.Request(context.Background(), request3)
+	require.NoError(t, err)
+	validateConn(t, conn3, "fe80::fa00/128", "fe80::fa01/128")
+}
+
+//nolint:dupl
+func TestRecoveryServers(t *testing.T) {
+	_, ipNet1, err := net.ParseCIDR("192.168.3.4/16")
+	require.NoError(t, err)
+	_, ipNet2, err := net.ParseCIDR("fe80::/64")
+	require.NoError(t, err)
+
+	srv := chain.NewNetworkServiceServer(
+		newIpamServer(ipNet1),
+		newIpamServer(ipNet2),
+	)
+
+	request1 := newRequest()
+	request1.Connection.Context.IpContext.DstIpAddrs = []string{"192.168.10.0/32", "fe80::fa00/128"}
+	request1.Connection.Context.IpContext.SrcRoutes = []*networkservice.Route{{Prefix: "192.168.10.0/32"}, {Prefix: "fe80::fa00/128"}}
+	request1.Connection.Context.IpContext.SrcIpAddrs = []string{"192.168.10.1/32", "fe80::fa01/128"}
+	request1.Connection.Context.IpContext.DstRoutes = []*networkservice.Route{{Prefix: "192.168.10.1/32"}, {Prefix: "fe80::fa01/128"}}
+	request2 := request1.Clone()
+	request3 := request1.Clone()
+
+	// Recovery case
+	conn1, err := srv.Request(context.Background(), request1)
+	require.NoError(t, err)
+	validateConns(t, conn1, []string{"192.168.10.0/32", "fe80::fa00/128"}, []string{"192.168.10.1/32", "fe80::fa01/128"})
+
+	// Recovery failed. Added new ones
+	conn2, err := srv.Request(context.Background(), request2)
+	require.NoError(t, err)
+	validateConns(t, conn2, []string{"192.168.10.0/32", "fe80::fa00/128", "192.168.0.0/32", "fe80::/128"}, []string{"192.168.10.1/32", "fe80::fa01/128", "192.168.0.1/32", "fe80::1/128"})
+
+	// Close - addresses release
+	_, err = srv.Close(context.Background(), conn1)
+	require.NoError(t, err)
+
+	// Recovery for another request
+	conn3, err := srv.Request(context.Background(), request3)
+	require.NoError(t, err)
+	validateConns(t, conn3, []string{"192.168.10.0/32", "fe80::fa00/128"}, []string{"192.168.10.1/32", "fe80::fa01/128"})
 }
