@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -44,13 +44,16 @@ func logError(ctx context.Context, err error, operation string) error {
 }
 
 func logObjectTrace(ctx context.Context, k, v interface{}) {
-	s := log.FromContext(ctx)
-	msg := ""
-	cc, err := json.Marshal(v)
-	if err == nil {
-		msg = string(cc)
-	} else {
-		msg = fmt.Sprint(v)
+	_, ok := trace(ctx)
+	if ok {
+		s := log.FromContext(ctx)
+		msg := ""
+		cc, err := json.Marshal(v)
+		if err == nil {
+			msg = string(cc)
+		} else {
+			msg = fmt.Sprint(v)
+		}
+		s.Tracef("%v=%s", k, msg)
 	}
-	s.Tracef("%v=%s", k, msg)
 }

@@ -21,15 +21,22 @@ package trace
 import (
 	"context"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 	"github.com/networkservicemesh/sdk/pkg/tools/log/spanlogger"
 )
 
+type contextKeyType string
+
 const (
-	loggedType = "registry"
+	traceInfoKey contextKeyType = "RegistryInfo"
+	loggedType   string         = "registry"
 )
+
+type traceInfo struct{}
 
 // withLog - provides corresponding logger in context
 func withLog(parent context.Context, operation string) (c context.Context, f func()) {
@@ -41,13 +48,31 @@ func withLog(parent context.Context, operation string) (c context.Context, f fun
 	parent = grpcutils.PassTraceToOutgoing(parent)
 
 	if grpcTraceState := grpcutils.TraceFromContext(parent); (grpcTraceState == grpcutils.TraceOn) ||
-		(grpcTraceState == grpcutils.TraceUndefined && log.IsTracingEnabled()) {
+		(grpcTraceState == grpcutils.TraceUndefined && logrus.GetLevel() == logrus.TraceLevel) {
 		ctx, sLogger, span, sFinish := spanlogger.FromContext(parent, operation, map[string]interface{}{"type": loggedType})
 		ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation, map[string]interface{}{"type": loggedType})
-		return log.WithLog(ctx, sLogger, lLogger), func() {
+		return withTrace(log.WithLog(ctx, sLogger, lLogger)), func() {
 			sFinish()
 			lFinish()
 		}
 	}
 	return log.WithLog(parent), func() {}
+}
+
+// withTrace - Provides a traceInfo in context
+func withTrace(parent context.Context) context.Context {
+	if parent == nil {
+		panic("cannot create context from nil parent")
+	}
+	if _, ok := trace(parent); ok {
+		// We already had registry info
+		return parent
+	}
+
+	return context.WithValue(parent, traceInfoKey, &traceInfo{})
+}
+
+func trace(ctx context.Context) (*traceInfo, bool) {
+	val, ok := ctx.Value(traceInfoKey).(*traceInfo)
+	return val, ok
 }
