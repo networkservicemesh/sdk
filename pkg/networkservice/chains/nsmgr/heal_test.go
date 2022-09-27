@@ -278,7 +278,7 @@ func TestNSMGRHealEndpoint_DatapathHealthy_CtrlPlaneBroken(t *testing.T) {
 	domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter)
 
 	// Should not connect to new NSE
-	require.Eventually(t, func() bool { return counter.UniqueRequests() == 1 }, timeout, tick)
+	require.Never(t, func() bool { return counter.UniqueRequests() > 1 }, time.Second*2, tick)
 	require.Equal(t, 1, counter.UniqueRequests())
 }
 

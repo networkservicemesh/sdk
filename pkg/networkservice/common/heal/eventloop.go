@@ -131,31 +131,29 @@ func (cev *eventLoop) eventLoop() {
 	reselect := false
 
 	ctrlPlaneCh := cev.monitorCtrlPlane()
+	dataPlaneCh := cev.monitorDataPlane()
 
-	livenessCheckCtx, livenessCheckCancel := context.WithCancel(context.Background())
-	defer livenessCheckCancel()
-	if cev.heal.livenessCheck != nil {
-		go func() {
-			cev.monitorDataPlane()
-			livenessCheckCancel()
-		}()
-	} else {
+	if dataPlaneCh == nil {
 		// Since we don't know about data path status - always use reselect
 		reselect = true
 	}
 
 	select {
 	case _, ok := <-ctrlPlaneCh:
-		cev.logger.Warnf("Control plane is down")
 		if ok {
 			// Connection closed
 			return
 		}
 		// Start healing
-	case <-livenessCheckCtx.Done():
+		cev.logger.Warnf("Control plane is down")
+	case _, ok := <-dataPlaneCh:
+		if ok {
+			// Connection closed
+			return
+		}
+		// Start healing
 		cev.logger.Warnf("Data plane is down")
 		reselect = true
-		// Start healing
 	case <-cev.chainCtx.Done():
 		return
 	case <-cev.eventLoopCtx.Done():
@@ -172,10 +170,17 @@ func (cev *eventLoop) eventLoop() {
 			if cev.chainCtx.Err() != nil {
 				return
 			}
-			if !reselect && livenessCheckCtx.Err() != nil {
-				cev.logger.Warnf("Data plane is down")
-				reselect = true
+
+			// We need to force check the DataPlane if a down event was received from the ControlPlane
+			if !reselect {
+				deadlineCtx, deadlineCancel := context.WithDeadline(cev.chainCtx, time.Now().Add(cev.heal.livenessCheckTimeout))
+				if !cev.heal.livenessCheck(deadlineCtx, cev.conn) {
+					cev.logger.Warnf("Data plane is down")
+					reselect = true
+				}
+				deadlineCancel()
 			}
+
 			if reselect {
 				cev.logger.Debugf("Reconnect with reselect")
 				options = append(options, begin.WithReselect())
@@ -187,21 +192,33 @@ func (cev *eventLoop) eventLoop() {
 	}
 }
 
-func (cev *eventLoop) monitorDataPlane() {
-	ticker := time.NewTicker(cev.heal.livenessCheckInterval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			deadlineCtx, deadlineCancel := context.WithDeadline(cev.chainCtx, time.Now().Add(cev.heal.livenessCheckTimeout))
-			alive := cev.heal.livenessCheck(deadlineCtx, cev.conn)
-			deadlineCancel()
+func (cev *eventLoop) monitorDataPlane() <-chan struct{} {
+	if cev.heal.livenessCheck == nil {
+		return nil
+	}
 
-			if !alive {
+	res := make(chan struct{}, 1)
+	go func() {
+		defer close(res)
+		ticker := time.NewTicker(cev.heal.livenessCheckInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				deadlineCtx, deadlineCancel := context.WithDeadline(cev.chainCtx, time.Now().Add(cev.heal.livenessCheckTimeout))
+				alive := cev.heal.livenessCheck(deadlineCtx, cev.conn)
+				deadlineCancel()
+				if !alive {
+					// Start healing
+					return
+				}
+			case <-cev.eventLoopCtx.Done():
+				// EventLoop was canceled. Stop monitoring
+				res <- struct{}{}
 				return
 			}
-		case <-cev.eventLoopCtx.Done():
-			return
 		}
-	}
+	}()
+
+	return res
 }
