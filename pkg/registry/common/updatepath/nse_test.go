@@ -24,7 +24,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checknse"
@@ -92,22 +91,6 @@ type sample struct {
 
 var samples = []*sample{
 	{
-		name: "NoPathNoID",
-		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryServer) {
-			t.Cleanup(func() {
-				goleak.VerifyNone(t)
-			})
-
-			server := newUpdatePathServer(nse1)
-
-			nse, err := server.Register(context.Background(), registerRequest(nil))
-			require.NoError(t, err)
-			require.NotNil(t, nse)
-
-			requirePathEqual(t, path(0, 1), nse.Path, 0)
-		},
-	},
-	{
 		name: "NoPath",
 		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryServer) {
 			t.Cleanup(func() {
@@ -121,12 +104,11 @@ var samples = []*sample{
 			require.NotNil(t, nse)
 
 			path := path(0, 1)
-			requirePathEqual(t, path, nse.Path)
+			requirePathEqual(t, path, nse.Path, 0)
 		},
 	},
 	{
-		// Do we need this test?
-		name: "SameNameDifferentID",
+		name: "SameName",
 		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryServer) {
 			t.Cleanup(func() {
 				goleak.VerifyNone(t)
@@ -142,7 +124,7 @@ var samples = []*sample{
 		},
 	},
 	{
-		name: "DifferentNameInvalidID",
+		name: "DifferentName",
 		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryServer) {
 			t.Cleanup(func() {
 				goleak.VerifyNone(t)
@@ -150,8 +132,9 @@ var samples = []*sample{
 
 			server := newUpdatePathServer(nse3)
 
-			_, err := server.Register(context.Background(), registerRequest(path(1, 2)))
-			require.Error(t, err)
+			nse, err := server.Register(context.Background(), registerRequest(path(1, 2)))
+			require.NoError(t, err)
+			requirePathEqual(t, path(1, 3), nse.Path, 2)
 		},
 	},
 	{
@@ -245,14 +228,6 @@ func TestUpdatePath(t *testing.T) {
 		sample := samples[i]
 		t.Run("TestNewServer_"+sample.name, func(t *testing.T) {
 			sample.test(t, updatepath.NewNetworkServiceEndpointRegistryServer)
-		})
-	}
-	for i := range samples {
-		sample := samples[i]
-		t.Run("TestNewClient_"+sample.name, func(t *testing.T) {
-			sample.test(t, func(name string) registry.NetworkServiceEndpointRegistryServer {
-				return adapters.NewClientToServer(updatepath.NewNetworkServiceEndpointRegistryClient(name))
-			})
 		})
 	}
 }
