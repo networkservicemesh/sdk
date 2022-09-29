@@ -230,6 +230,41 @@ func (tree *IPPool) Pull() (net.IP, error) {
 	return ipFromIPAddress(ip, tree.ipLength), nil
 }
 
+// PullIPString - returns requested IP address from the pool by string
+func (tree *IPPool) PullIPString(ipString string, exclude ...*IPPool) (*net.IPNet, error) {
+	ip, _, err := net.ParseCIDR(ipString)
+	if err != nil {
+		return nil, err
+	}
+
+	return tree.PullIP(ip, exclude...)
+}
+
+// PullIP - returns requested IP address from the pool
+func (tree *IPPool) PullIP(ip net.IP, exclude ...*IPPool) (*net.IPNet, error) {
+	tree.lock.Lock()
+	defer tree.lock.Unlock()
+
+	clone := tree.clone()
+	for _, pool := range exclude {
+		clone.excludePool(pool)
+	}
+
+	if clone.Contains(ip) {
+		tree.deleteRange(&ipRange{
+			start: ipAddressFromIP(ip),
+			end:   ipAddressFromIP(ip),
+		})
+	} else {
+		return nil, errors.New("IPPool doesn't contain required IP")
+	}
+
+	return &net.IPNet{
+		IP:   ip,
+		Mask: net.CIDRMask(tree.ipLength*8, tree.ipLength*8),
+	}, nil
+}
+
 // PullP2PAddrs - returns next IP addresses pair from pool for peer-to-peer connection
 func (tree *IPPool) PullP2PAddrs(exclude ...*IPPool) (srcNet, dstNet *net.IPNet, err error) {
 	tree.lock.Lock()
