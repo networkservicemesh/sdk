@@ -16,6 +16,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package updatepath provides a chain element that sets the id of an incoming or outgoing request
 package updatepath
 
 import (

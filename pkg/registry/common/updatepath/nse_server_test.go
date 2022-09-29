@@ -29,67 +29,12 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checknse"
 )
 
-const (
-	nse1           = "nse-1"
-	nse2           = "nse-2"
-	nse3           = "nse-3"
-	pathSegmentID1 = "36ce7f0c-9f6d-40a4-8b39-6b56ff07eea9"
-	pathSegmentID2 = "ece490ea-dfe8-4512-a3ca-5be7b39515c5"
-	pathSegmentID3 = "f9a83e55-0a4f-3647-144a-98a9ee8fb231"
-)
-
-func registerRequest(path *registry.Path) *registry.NetworkServiceEndpoint {
-	return &registry.NetworkServiceEndpoint{
-		Name: "nse",
-		Path: path,
-	}
-}
-
-func path(pathIndex uint32, pathSegments int) *registry.Path {
-	if pathSegments == 0 {
-		return nil
-	}
-
-	path := &registry.Path{
-		Index: pathIndex,
-	}
-	if pathSegments >= 1 {
-		path.PathSegments = append(path.PathSegments, &registry.PathSegment{
-			Name: nse1,
-			Id:   pathSegmentID1,
-		})
-	}
-	if pathSegments >= 2 {
-		path.PathSegments = append(path.PathSegments, &registry.PathSegment{
-			Name: nse2,
-			Id:   pathSegmentID2,
-		})
-	}
-	if pathSegments >= 3 {
-		path.PathSegments = append(path.PathSegments, &registry.PathSegment{
-			Name: nse3,
-			Id:   pathSegmentID3,
-		})
-	}
-	return path
-}
-
-func requirePathEqual(t *testing.T, expected, actual *registry.Path, unknownIDs ...int) {
-	expected = expected.Clone()
-	actual = actual.Clone()
-	for _, index := range unknownIDs {
-		expected.PathSegments[index].Id = ""
-		actual.PathSegments[index].Id = ""
-	}
-	require.Equal(t, expected.String(), actual.String())
-}
-
-type sample struct {
+type nse_server_sample struct {
 	name string
 	test func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryServer)
 }
 
-var samples = []*sample{
+var nse_server_samples = []*nse_server_sample{
 	{
 		name: "NoPath",
 		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryServer) {
@@ -99,7 +44,7 @@ var samples = []*sample{
 
 			server := newUpdatePathServer(nse1)
 
-			nse, err := server.Register(context.Background(), registerRequest(nil))
+			nse, err := server.Register(context.Background(), registerNSERequest(nil))
 			require.NoError(t, err)
 			require.NotNil(t, nse)
 
@@ -116,7 +61,7 @@ var samples = []*sample{
 
 			server := newUpdatePathServer(nse2)
 
-			nse, err := server.Register(context.Background(), registerRequest(path(1, 2)))
+			nse, err := server.Register(context.Background(), registerNSERequest(path(1, 2)))
 			require.NoError(t, err)
 			require.NotNil(t, nse)
 
@@ -132,7 +77,7 @@ var samples = []*sample{
 
 			server := newUpdatePathServer(nse3)
 
-			nse, err := server.Register(context.Background(), registerRequest(path(1, 2)))
+			nse, err := server.Register(context.Background(), registerNSERequest(path(1, 2)))
 			require.NoError(t, err)
 			requirePathEqual(t, path(1, 3), nse.Path, 2)
 		},
@@ -146,7 +91,7 @@ var samples = []*sample{
 
 			server := newUpdatePathServer(nse3)
 
-			_, err := server.Register(context.Background(), registerRequest(path(3, 2)))
+			_, err := server.Register(context.Background(), registerNSERequest(path(3, 2)))
 			require.Error(t, err)
 		},
 	},
@@ -168,7 +113,7 @@ var samples = []*sample{
 
 			requestPath := path(1, 3)
 			requestPath.PathSegments[2].Name = "different"
-			nse, err := server.Register(context.Background(), registerRequest(requestPath))
+			nse, err := server.Register(context.Background(), registerNSERequest(requestPath))
 			require.NoError(t, err)
 			require.NotNil(t, nse)
 
@@ -192,7 +137,7 @@ var samples = []*sample{
 				}),
 			)
 
-			nse, err := server.Register(context.Background(), registerRequest(path(1, 2)))
+			nse, err := server.Register(context.Background(), registerNSERequest(path(1, 2)))
 			require.NoError(t, err)
 			require.NotNil(t, nse)
 
@@ -214,7 +159,7 @@ var samples = []*sample{
 				}),
 			)
 
-			nse, err := server.Register(context.Background(), registerRequest(path(1, 3)))
+			nse, err := server.Register(context.Background(), registerNSERequest(path(1, 3)))
 			require.NoError(t, err)
 			require.NotNil(t, nse)
 
@@ -223,10 +168,10 @@ var samples = []*sample{
 	},
 }
 
-func TestUpdatePath(t *testing.T) {
-	for i := range samples {
-		sample := samples[i]
-		t.Run("TestNewServer_"+sample.name, func(t *testing.T) {
+func TestUpdatePathNSEServer(t *testing.T) {
+	for i := range nse_server_samples {
+		sample := nse_server_samples[i]
+		t.Run("TestNetworkServiceEndpointRegistryServer_"+sample.name, func(t *testing.T) {
 			sample.test(t, updatepath.NewNetworkServiceEndpointRegistryServer)
 		})
 	}

@@ -39,6 +39,10 @@ func NewNetworkServiceRegistryServer(name string) registry.NetworkServiceRegistr
 }
 
 func (s *updatePathNSServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
+	if ns.Path == nil {
+		ns.Path = &registry.Path{}
+	}
+
 	path, index, err := updatePath(ns.Path, s.name)
 	if err != nil {
 		return nil, err
