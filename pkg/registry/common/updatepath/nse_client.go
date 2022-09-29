@@ -32,35 +32,38 @@ type updatePathNSEClient struct {
 }
 
 // NewNetworkServiceEndpointRegistryClient - creates a new updatePath client to update NetworkServiceEndoint path.
-func NewNetworkServiceEndpointRegistryClient(name string) registry.NetworkServiceRegistryClient {
+func NewNetworkServiceEndpointRegistryClient(name string) registry.NetworkServiceEndpointRegistryClient {
 	return &updatePathNSEClient{
 		name: name,
 	}
 }
 
-func (s *updatePathNSEClient) Register(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
-	path, index, err := updatePath(in.Path, s.name)
+func (s *updatePathNSEClient) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+	if nse.Path == nil {
+		nse.Path = &registry.Path{}
+	}
+	path, index, err := updatePath(nse.Path, s.name)
 	if err != nil {
 		return nil, err
 	}
 
-	in.Path = path
-	in, err = next.NetworkServiceRegistryClient(ctx).Register(ctx, in, opts...)
+	nse.Path = path
+	nse, err = next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, nse, opts...)
 	path.Index = index
 
-	return in, err
+	return nse, err
 }
 
-func (s *updatePathNSEClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
-	return next.NetworkServiceRegistryClient(ctx).Find(ctx, in, opts...)
+func (s *updatePathNSEClient) Find(ctx context.Context, query *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
+	return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, query, opts...)
 }
 
-func (s *updatePathNSEClient) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
-	path, _, err := updatePath(in.Path, s.name)
+func (s *updatePathNSEClient) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
+	path, _, err := updatePath(nse.Path, s.name)
 	if err != nil {
 		return nil, err
 	}
-	in.Path = path
+	nse.Path = path
 
-	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, in)
+	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }

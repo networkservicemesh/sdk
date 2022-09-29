@@ -38,29 +38,33 @@ func NewNetworkServiceRegistryClient(name string) registry.NetworkServiceRegistr
 	}
 }
 
-func (s *updatePathNSClient) Register(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
-	path, index, err := updatePath(in.Path, s.name)
+func (s *updatePathNSClient) Register(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
+	if ns.Path == nil {
+		ns.Path = &registry.Path{}
+	}
+
+	path, index, err := updatePath(ns.Path, s.name)
 	if err != nil {
 		return nil, err
 	}
 
-	in.Path = path
-	in, err = next.NetworkServiceRegistryClient(ctx).Register(ctx, in, opts...)
+	ns.Path = path
+	ns, err = next.NetworkServiceRegistryClient(ctx).Register(ctx, ns, opts...)
 	path.Index = index
 
-	return in, err
+	return ns, err
 }
 
-func (s *updatePathNSClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
-	return next.NetworkServiceRegistryClient(ctx).Find(ctx, in, opts...)
+func (s *updatePathNSClient) Find(ctx context.Context, query *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
+	return next.NetworkServiceRegistryClient(ctx).Find(ctx, query, opts...)
 }
 
-func (s *updatePathNSClient) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
-	path, _, err := updatePath(in.Path, s.name)
+func (s *updatePathNSClient) Unregister(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
+	path, _, err := updatePath(ns.Path, s.name)
 	if err != nil {
 		return nil, err
 	}
-	in.Path = path
+	ns.Path = path
 
-	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, in)
+	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }
