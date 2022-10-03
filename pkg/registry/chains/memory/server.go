@@ -24,10 +24,13 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	registryserver "github.com/networkservicemesh/sdk/pkg/registry"
 	registryauthorize "github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/updatetoken"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
@@ -41,9 +44,11 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/registry/switchcase"
 	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 type serverOptions struct {
+	name                       string
 	authorizeNSRegistryServer  registry.NetworkServiceRegistryServer
 	authorizeNSERegistryServer registry.NetworkServiceEndpointRegistryServer
 	expireDuration             time.Duration
@@ -53,6 +58,13 @@ type serverOptions struct {
 
 // Option modifies server option value
 type Option func(o *serverOptions)
+
+// WithName sets name for the registry memory server
+func WithName(name string) Option {
+	return Option(func(c *serverOptions) {
+		c.name = name
+	})
+}
 
 // WithAuthorizeNSRegistryServer sets authorization NetworkServiceRegistry chain element
 func WithAuthorizeNSRegistryServer(authorizeNSRegistryServer registry.NetworkServiceRegistryServer) Option {
@@ -96,8 +108,9 @@ func WithDialOptions(dialOptions ...grpc.DialOption) Option {
 }
 
 // NewServer creates new registry server based on memory storage
-func NewServer(ctx context.Context, options ...Option) registryserver.Registry {
+func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...Option) registryserver.Registry {
 	opts := &serverOptions{
+		name:                       "registry-memory-" + uuid.New().String(),
 		authorizeNSRegistryServer:  registryauthorize.NewNetworkServiceRegistryServer(registryauthorize.Any()),
 		authorizeNSERegistryServer: registryauthorize.NewNetworkServiceEndpointRegistryServer(registryauthorize.Any()),
 		expireDuration:             time.Minute,
@@ -108,6 +121,8 @@ func NewServer(ctx context.Context, options ...Option) registryserver.Registry {
 	}
 
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
+		updatepath.NewNetworkServiceEndpointRegistryServer(opts.name),
+		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGenerator),
 		begin.NewNetworkServiceEndpointRegistryServer(),
 		opts.authorizeNSERegistryServer,
 		switchcase.NewNetworkServiceEndpointRegistryServer(switchcase.NSEServerCase{
@@ -147,6 +162,8 @@ func NewServer(ctx context.Context, options ...Option) registryserver.Registry {
 		),
 	)
 	nsChain := chain.NewNetworkServiceRegistryServer(
+		updatepath.NewNetworkServiceRegistryServer(opts.name),
+		updatetoken.NewNetworkServiceRegistryServer(tokenGenerator),
 		opts.authorizeNSRegistryServer,
 		setpayload.NewNetworkServiceRegistryServer(),
 		switchcase.NewNetworkServiceRegistryServer(

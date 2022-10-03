@@ -627,6 +627,7 @@ func (s *nsmgrSuite) Test_ShouldCleanAllClientAndEndpointGoroutines() {
 	//   3. NSE unregister
 	testNSEAndClient(ctx, t, s.domain, defaultRegistryEndpoint(nsReg.Name))
 }
+
 func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
 	t := s.T()
 

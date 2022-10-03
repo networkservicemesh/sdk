@@ -171,6 +171,29 @@ func Test_AwareNSEs(t *testing.T) {
 	}
 }
 
+func Test_UpdatePath(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*500000)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetRegistryProxySupplier(nil).
+		SetNSMgrProxySupplier(nil).
+		Build()
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg := defaultRegistryService(t.Name())
+
+	nsReg, err := nsRegistryClient.Register(ctx, nsReg)
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
+}
+
 func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -355,6 +378,7 @@ func Test_UsecasePoint2MultiPoint(t *testing.T) {
 	require.Equal(t, 4, len(conn.Path.PathSegments))
 	require.Equal(t, "p2p forwarder", conn.GetPath().GetPathSegments()[2].Name)
 }
+
 func Test_RemoteUsecase_Point2MultiPoint(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 

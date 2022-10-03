@@ -29,6 +29,13 @@ import (
 // Option is an option pattern for NewNetworkServiceRegistryClient, NewNetworkServiceEndpointRegistryClient
 type Option func(clientOpts *clientOptions)
 
+// WithName sets name for the registry client
+func WithName(name string) Option {
+	return Option(func(c *clientOptions) {
+		c.name = name
+	})
+}
+
 // WithClientURL sets client URL
 func WithClientURL(u *url.URL) Option {
 	return func(clientOpts *clientOptions) {
@@ -73,6 +80,7 @@ func WithDialOptions(dialOptions ...grpc.DialOption) Option {
 }
 
 type clientOptions struct {
+	name                       string
 	nsClientURLResolver        registry.NetworkServiceRegistryClient
 	nseClientURLResolver       registry.NetworkServiceEndpointRegistryClient
 	nsAdditionalFunctionality  []registry.NetworkServiceRegistryClient
