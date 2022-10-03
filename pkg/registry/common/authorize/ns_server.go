@@ -39,7 +39,12 @@ type authorizeNSServer struct {
 // Authorize registry server checks spiffeID of NS.
 func NewNetworkServiceRegistryServer(opts ...Option) registry.NetworkServiceRegistryServer {
 	o := &options{
-		policies:             policiesList{opa.WithRegistryClientAllowedPolicy()},
+		policies: policiesList{
+			opa.WithTokensValidPolicy(),
+			opa.WithPrevTokenSignedPolicy(),
+			opa.WithTokensExpiredPolicy(),
+			opa.WithTokenChainPolicy(),
+		},
 		spiffeIDResourcesMap: new(spiffeIDResourcesMap),
 	}
 
@@ -59,11 +64,19 @@ func (s *authorizeNSServer) Register(ctx context.Context, ns *registry.NetworkSe
 		return next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
 	}
 
+	index := ns.GetPath().GetIndex()
+	var leftSide = &registry.Path{
+		Index:        index,
+		PathSegments: ns.GetPath().GetPathSegments()[:index+1],
+	}
+
 	rawMap := getRawMap(s.spiffeIDNSsMap)
 	input := RegistryOpaInput{
 		SpiffeID:             spiffeID.String(),
 		ResourceName:         ns.Name,
 		SpiffeIDResourcesMap: rawMap,
+		PathSegments:         leftSide.PathSegments,
+		Index:                leftSide.Index,
 	}
 	if err := s.policies.check(ctx, input); err != nil {
 		return nil, err
