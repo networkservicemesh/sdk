@@ -40,7 +40,7 @@ type SupplyNSMgrProxyFunc func(ctx context.Context, regURL, proxyURL *url.URL, t
 type SupplyNSMgrFunc func(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...nsmgr.Option) nsmgr.Nsmgr
 
 // SupplyRegistryFunc supplies Registry
-type SupplyRegistryFunc func(ctx context.Context, expiryDuration time.Duration, proxyRegistryURL *url.URL, options ...grpc.DialOption) registry.Registry
+type SupplyRegistryFunc func(ctx context.Context, tokenGenerator token.GeneratorFunc, expiryDuration time.Duration, proxyRegistryURL *url.URL, options ...grpc.DialOption) registry.Registry
 
 // SupplyRegistryProxyFunc supplies registry proxy
 type SupplyRegistryProxyFunc func(ctx context.Context, dnsResolver dnsresolve.Resolver, options ...grpc.DialOption) registry.Registry

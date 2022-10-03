@@ -20,6 +20,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
@@ -29,12 +30,14 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/retry"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 )
 
 // NewNetworkServiceRegistryClient creates a new NewNetworkServiceRegistryClient that can be used for NS registration.
 func NewNetworkServiceRegistryClient(ctx context.Context, opts ...Option) registry.NetworkServiceRegistryClient {
 	clientOpts := &clientOptions{
+		name:                "registry-ns-client-" + uuid.New().String(),
 		nsClientURLResolver: null.NewNetworkServiceRegistryClient(),
 	}
 	for _, opt := range opts {
@@ -44,6 +47,7 @@ func NewNetworkServiceRegistryClient(ctx context.Context, opts ...Option) regist
 	return chain.NewNetworkServiceRegistryClient(
 		append(
 			[]registry.NetworkServiceRegistryClient{
+				updatepath.NewNetworkServiceRegistryClient(clientOpts.name),
 				begin.NewNetworkServiceRegistryClient(),
 				retry.NewNetworkServiceRegistryClient(ctx),
 				heal.NewNetworkServiceRegistryClient(ctx),

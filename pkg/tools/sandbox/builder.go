@@ -63,9 +63,10 @@ type Builder struct {
 	domain *Domain
 }
 
-func newRegistryMemoryServer(ctx context.Context, expiryDuration time.Duration, proxyRegistryURL *url.URL, options ...grpc.DialOption) registry.Registry {
+func newRegistryMemoryServer(ctx context.Context, tokenGenerator token.GeneratorFunc, expiryDuration time.Duration, proxyRegistryURL *url.URL, options ...grpc.DialOption) registry.Registry {
 	return memory.NewServer(
 		ctx,
+		tokenGenerator,
 		memory.WithExpireDuration(expiryDuration),
 		memory.WithProxyRegistryURL(proxyRegistryURL),
 		memory.WithDialOptions(options...))
@@ -272,6 +273,7 @@ func (b *Builder) newRegistry() *RegistryEntry {
 	entry.restartableServer = newRestartableServer(b.ctx, b.t, entry.URL, func(ctx context.Context) {
 		entry.Registry = b.supplyRegistry(
 			ctx,
+			b.generateTokenFunc,
 			b.registryExpiryDuration,
 			nsmgrProxyURL,
 			DialOptions(WithTokenGenerator(b.generateTokenFunc))...,
