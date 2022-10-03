@@ -39,7 +39,12 @@ type authorizeNSEServer struct {
 // Authorize registry server checks spiffeID of NSE.
 func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkServiceEndpointRegistryServer {
 	o := &options{
-		policies:             policiesList{opa.WithRegistryClientAllowedPolicy()},
+		policies: policiesList{
+			opa.WithTokensValidPolicy(),
+			opa.WithPrevTokenSignedPolicy(),
+			opa.WithTokensExpiredPolicy(),
+			opa.WithTokenChainPolicy(),
+		},
 		spiffeIDResourcesMap: new(spiffeIDResourcesMap),
 	}
 
@@ -59,11 +64,19 @@ func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.Network
 		return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	}
 
+	index := nse.GetPath().GetIndex()
+	var leftSide = &registry.Path{
+		Index:        index,
+		PathSegments: nse.GetPath().GetPathSegments()[:index+1],
+	}
+
 	rawMap := getRawMap(s.spiffeIDNSEsMap)
 	input := RegistryOpaInput{
 		SpiffeID:             spiffeID.String(),
 		ResourceName:         nse.Name,
 		SpiffeIDResourcesMap: rawMap,
+		PathSegments:         leftSide.PathSegments,
+		Index:                leftSide.Index,
 	}
 	if err := s.policies.check(ctx, input); err != nil {
 		return nil, err

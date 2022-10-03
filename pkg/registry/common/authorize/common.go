@@ -21,14 +21,17 @@ import (
 
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
 
+	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/networkservicemesh/sdk/pkg/tools/stringset"
 )
 
 // RegistryOpaInput represents input for policies in authorizNSEServer and authorizeNSServer
 type RegistryOpaInput struct {
-	SpiffeID             string              `json:"spiffe_id"`
-	ResourceName         string              `json:"resource_name"`
-	SpiffeIDResourcesMap map[string][]string `json:"spiffe_id_resources_map"`
+	SpiffeID             string                  `json:"spiffe_id"`
+	ResourceName         string                  `json:"resource_name"`
+	SpiffeIDResourcesMap map[string][]string     `json:"spiffe_id_resources_map"`
+	PathSegments         []*registry.PathSegment `json:"path_segments"`
+	Index                uint32                  `json:"index"`
 }
 
 // Policy represents authorization policy for network service.
