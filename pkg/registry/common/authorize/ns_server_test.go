@@ -18,97 +18,45 @@ package authorize_test
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"net/url"
 	"testing"
-	"time"
 
-	"github.com/golang-jwt/jwt/v4"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
-	"github.com/networkservicemesh/sdk/pkg/tools/token"
 
 	"go.uber.org/goleak"
 )
-
-func genJWTWithClaims(claims *jwt.RegisteredClaims) string {
-	t, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte("super secret"))
-	return t
-}
-
-func genTokenFunc(claims *jwt.RegisteredClaims) token.GeneratorFunc {
-	return func(_ credentials.AuthInfo) (string, time.Time, error) {
-		return genJWTWithClaims(claims), time.Time{}, nil
-	}
-}
 
 func TestAuthzNetworkServiceRegistry(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	server := authorize.NewNetworkServiceRegistryServer()
 
+	nsReg := &registry.NetworkService{Name: "ns-1"}
+
 	u1, _ := url.Parse("spiffe://test.com/workload1")
-	certBytes := generateCert(u1)
-	x509cert, _ := x509.ParseCertificate(certBytes)
+	u2, _ := url.Parse("spiffe://test.com/workload2")
+	cert1 := generateCert(u1)
+	cert2 := generateCert(u2)
+	cert1Ctx, err := withPeer(context.Background(), cert1)
+	require.NoError(t, err)
+	cert2Ctx, err := withPeer(context.Background(), cert2)
+	require.NoError(t, err)
 
-	authinfo := credentials.TLSInfo{
-		State: tls.ConnectionState{
-			PeerCertificates: []*x509.Certificate{
-				x509cert,
-			},
-		},
-	}
+	_, err = server.Register(cert1Ctx, nsReg)
+	require.NoError(t, err)
 
-	ctx := context.Background()
-	ctx, _ = withPeer(ctx, certBytes)
+	_, err = server.Register(cert2Ctx, nsReg)
+	require.Error(t, err)
 
-	tokenFunc1, expires1, err := genTokenFunc(&jwt.RegisteredClaims{
-		Subject:   "nsc",
-		Audience:  []string{"nsmgr"},
-		ExpiresAt: jwt.NewNumericDate(time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC)),
-	})(authinfo)
+	_, err = server.Register(cert1Ctx, nsReg)
+	require.NoError(t, err)
 
-	tokenFunc2, expires2, err := genTokenFunc(&jwt.RegisteredClaims{
-		Subject:   "nsmgr",
-		Audience:  []string{"registry"},
-		ExpiresAt: jwt.NewNumericDate(time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC)),
-	})(authinfo)
+	_, err = server.Unregister(cert2Ctx, nsReg)
+	require.Error(t, err)
 
-	tokenFunc3, expires3, err := genTokenFunc(&jwt.RegisteredClaims{
-		Subject:   "registry",
-		Audience:  []string{"registry"},
-		ExpiresAt: jwt.NewNumericDate(time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC)),
-	})(authinfo)
-
-	nsReg := &registry.NetworkService{
-		Name: "ns-1",
-		Path: &registry.Path{
-			Index: 2,
-			PathSegments: []*registry.PathSegment{
-				{
-					Name:    "nse",
-					Token:   tokenFunc1,
-					Expires: timestamppb.New(expires1),
-				},
-				{
-					Name:    "nsmgr",
-					Token:   tokenFunc2,
-					Expires: timestamppb.New(expires2),
-				},
-				{
-					Name:    "registry",
-					Token:   tokenFunc3,
-					Expires: timestamppb.New(expires3),
-				},
-			},
-		},
-	}
-
-	_, err = server.Register(ctx, nsReg)
+	_, err = server.Unregister(cert1Ctx, nsReg)
 	require.NoError(t, err)
 
 }
