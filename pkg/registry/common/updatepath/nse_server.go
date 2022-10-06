@@ -24,6 +24,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type updatePathNSEServer struct {
@@ -42,6 +43,8 @@ func (s *updatePathNSEServer) Register(ctx context.Context, nse *registry.Networ
 		nse.Path = &registry.Path{}
 	}
 
+	log.FromContext(ctx).Infof("UPDATEPATH [SERVER] INDEX BEFORE REQUEST: %d", nse.Path.Index)
+
 	path, index, err := updatePath(nse.Path, s.name)
 	if err != nil {
 		return nil, err
@@ -49,7 +52,9 @@ func (s *updatePathNSEServer) Register(ctx context.Context, nse *registry.Networ
 
 	nse.Path = path
 	nse, err = next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
-	path.Index = index
+	nse.Path.Index = index
+
+	log.FromContext(ctx).Infof("UPDATEPATH [SERVER] INDEX AFTER REQUEST: %d", path.Index)
 
 	return nse, err
 }

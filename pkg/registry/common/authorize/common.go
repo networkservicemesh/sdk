@@ -22,6 +22,7 @@ import (
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/stringset"
 )
 
@@ -46,13 +47,18 @@ func (l *policiesList) check(ctx context.Context, input RegistryOpaInput) error 
 	if l == nil {
 		return nil
 	}
+	logger := log.FromContext(ctx)
 	for _, policy := range *l {
 		if policy == nil {
 			continue
 		}
+
 		if err := policy.Check(ctx, input); err != nil {
+			logger.Infof("Policy: %v failed", policy)
 			return err
 		}
+
+		logger.Infof("Policy: %v passed", policy)
 	}
 	return nil
 }
@@ -70,4 +76,12 @@ func getRawMap(m *spiffeIDResourcesMap) map[string][]string {
 	})
 
 	return rawMap
+}
+
+func printPath(ctx context.Context, path *registry.Path) {
+	logger := log.FromContext(ctx)
+
+	for i, s := range path.PathSegments {
+		logger.Infof("Segment: %d, Value: %v", i, s)
+	}
 }

@@ -19,6 +19,7 @@ package updatetoken_test
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 	"testing"
 	"time"
 
@@ -39,8 +40,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	index = 0
+)
+
 func TokenGenerator(peerAuthInfo credentials.AuthInfo) (token string, expireTime time.Time, err error) {
-	return "TestToken", time.Date(3000, 1, 1, 1, 1, 1, 1, time.UTC), nil
+	return "TestToken" + strconv.Itoa(index), time.Date(3000, 1, 1, 1, 1, 1, 1, time.UTC), nil
 }
 
 type updateTokenServerSuite struct {

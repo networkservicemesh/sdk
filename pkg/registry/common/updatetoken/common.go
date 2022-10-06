@@ -27,6 +27,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -54,6 +55,9 @@ func updateToken(ctx context.Context, path *registry.Path, tokenGenerator token.
 			path.GetIndex(), len(path.GetPathSegments()))
 	}
 
+	log.FromContext(ctx).Infof("UPDATETOKEN: PATH BEFORE TOKEN UPDATE")
+	printPath(ctx, path)
+
 	// Extract the authInfo:
 	var authInfo credentials.AuthInfo
 	if p, exists := peer.FromContext(ctx); exists {
@@ -66,8 +70,21 @@ func updateToken(ctx context.Context, path *registry.Path, tokenGenerator token.
 		return errors.WithStack(err)
 	}
 
+	log.FromContext(ctx).Infof("Token generated for %s: %s", path.PathSegments[path.Index].Name, token)
+
 	// Update the PathSegment
 	path.GetPathSegments()[path.GetIndex()].Token = token
 	path.GetPathSegments()[path.GetIndex()].Expires = timestamppb.New(expireTime)
+
+	log.FromContext(ctx).Infof("UPDATETOKEN: PATH AFTER TOKEN UPDATE")
+	printPath(ctx, path)
 	return nil
+}
+
+func printPath(ctx context.Context, path *registry.Path) {
+	logger := log.FromContext(ctx)
+
+	for i, s := range path.PathSegments {
+		logger.Infof("Segment: %d, Value: %v", i, s)
+	}
 }

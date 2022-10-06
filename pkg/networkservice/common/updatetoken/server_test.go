@@ -19,6 +19,7 @@ package updatetoken_test
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 	"testing"
 	"time"
 
@@ -35,14 +36,20 @@ import (
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/assert"
 )
 
+var (
+	index = 0
+)
+
 func TokenGenerator(peerAuthInfo credentials.AuthInfo) (token string, expireTime time.Time, err error) {
-	return "TestToken", time.Date(3000, 1, 1, 1, 1, 1, 1, time.UTC), nil
+	index = index + 1
+	return "TestToken" + strconv.Itoa(index), time.Date(3000, 1, 1, 1, 1, 1, 1, time.UTC), nil
 }
 
 type updateTokenServerSuite struct {
@@ -199,19 +206,26 @@ func (f *updateTokenServerSuite) TestChain() {
 	}
 	elements := []networkservice.NetworkServiceServer{
 		adapters.NewClientToServer(updatepath.NewClient("nsc-1")),
+		updatepath.NewServer("nsmgr-1"),
 		updatetoken.NewServer(TokenGenerator),
-		updatepath.NewServer("local-nsm-1"),
+		updatepath.NewServer("registry-1"),
 		updatetoken.NewServer(TokenGenerator),
-		adapters.NewClientToServer(updatepath.NewClient("local-nsm-1")),
-		updatepath.NewServer("remote-nsm-1"),
-		updatetoken.NewServer(TokenGenerator),
-		adapters.NewClientToServer(updatepath.NewClient("remote-nsm-1")),
+		updatepath.NewServer("registry-2"),
 		updatetoken.NewServer(TokenGenerator),
 	}
 
 	server := next.NewNetworkServiceServer(elements...)
 
-	got, err := server.Request(context.Background(), request)
+	ctx := context.Background()
+	m := make(map[string]string)
+	token, expire, _ := TokenGenerator(nil)
+	m["nsm-client-token"] = token
+	m["nsm-client-token-expires"] = expire.String()
+
+	md := metadata.New(m)
+	ctx = metadata.NewIncomingContext(ctx, md)
+
+	got, err := server.Request(ctx, request)
 	require.Equal(t, 3, len(got.Path.PathSegments))
 	require.Equal(t, 0, int(got.Path.Index))
 	for i, s := range got.Path.PathSegments {
