@@ -122,8 +122,8 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
 		updatepath.NewNetworkServiceEndpointRegistryServer(opts.name),
-		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGenerator),
 		begin.NewNetworkServiceEndpointRegistryServer(),
+		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGenerator),
 		opts.authorizeNSERegistryServer,
 		switchcase.NewNetworkServiceEndpointRegistryServer(switchcase.NSEServerCase{
 			Condition: func(c context.Context, nse *registry.NetworkServiceEndpoint) bool {
