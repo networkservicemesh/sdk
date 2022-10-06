@@ -25,6 +25,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type updatePathNSClient struct {
@@ -39,6 +40,7 @@ func NewNetworkServiceRegistryClient(name string) registry.NetworkServiceRegistr
 }
 
 func (s *updatePathNSClient) Register(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
+	log.FromContext(ctx).Infof("updatepath opts: %v", opts)
 	if ns.Path == nil {
 		ns.Path = &registry.Path{}
 	}

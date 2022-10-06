@@ -18,27 +18,44 @@ package nsmgr_test
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
+	"math/big"
 	"net"
 	"net/url"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
+	"google.golang.org/grpc/credentials"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/point2pointipam"
+	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/tools/clientinfo"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 func Test_AwareNSEs(t *testing.T) {
@@ -171,10 +188,81 @@ func Test_AwareNSEs(t *testing.T) {
 	}
 }
 
+func genJWTWithClaims(claims *jwt.RegisteredClaims) string {
+	t, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte("super secret"))
+	return t
+}
+
+func genTokenFunc(claims *jwt.RegisteredClaims) token.GeneratorFunc {
+	return func(_ credentials.AuthInfo) (string, time.Time, error) {
+		return genJWTWithClaims(claims), time.Time{}, nil
+	}
+}
+
+func generateCert(u *url.URL) []byte {
+	ca := &x509.Certificate{
+		SerialNumber: big.NewInt(1653),
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().AddDate(10, 0, 0),
+		URIs:         []*url.URL{u},
+	}
+
+	priv, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	pub := &priv.PublicKey
+
+	certBytes, _ := x509.CreateCertificate(rand.Reader, ca, ca, pub, priv)
+	return certBytes
+}
+
+func generateCA() (tls.Certificate, error) {
+	ca := &x509.Certificate{
+		SerialNumber: big.NewInt(1653),
+		Subject: pkix.Name{
+			Organization:  []string{"ORGANIZATION_NAME"},
+			Country:       []string{"COUNTRY_CODE"},
+			Province:      []string{"PROVINCE"},
+			Locality:      []string{"CITY"},
+			StreetAddress: []string{"ADDRESS"},
+			PostalCode:    []string{"POSTAL_CODE"},
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(10, 0, 0),
+		IsCA:                  true,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		SignatureAlgorithm:    x509.ECDSAWithSHA256,
+		BasicConstraintsValid: true,
+	}
+
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+	pub := &priv.PublicKey
+
+	certBytes, err := x509.CreateCertificate(rand.Reader, ca, ca, pub, priv)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	certPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
+	keyBytes, err := x509.MarshalECPrivateKey(priv)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+	keyPem := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: keyBytes})
+	return tls.X509KeyPair(certPem, keyPem)
+}
+
 func Test_UpdatePath(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*500000)
+
+	ctx = log.WithLog(ctx, logruslogger.New(ctx))
+	logrus.SetLevel(logrus.TraceLevel)
+	log.EnableTracing(true)
+
 	defer cancel()
 
 	domain := sandbox.NewBuilder(ctx, t).
@@ -183,15 +271,22 @@ func Test_UpdatePath(t *testing.T) {
 		SetNSMgrProxySupplier(nil).
 		Build()
 
-	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+	registryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx,
+		registryclient.WithName("forwarder"),
+		registryclient.WithClientURL(sandbox.CloneURL(domain.Registry.URL)),
+		registryclient.WithDialOptions(sandbox.DialOptions()...),
+		registryclient.WithNSEAdditionalFunctionality(
+			sendfd.NewNetworkServiceEndpointRegistryClient(),
+		),
+	)
+	nse, _ := registryClient.Register(ctx, &registryapi.NetworkServiceEndpoint{
+		Name:                "forwarder",
+		NetworkServiceNames: []string{"forwarder-ns"},
+		Url:                 "tcp://127.0.0.1",
+	})
 
-	nsReg := defaultRegistryService(t.Name())
+	fmt.Printf("nse: %v\n", nse)
 
-	nsReg, err := nsRegistryClient.Register(ctx, nsReg)
-	require.NoError(t, err)
-
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
-	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
 }
 
 func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {

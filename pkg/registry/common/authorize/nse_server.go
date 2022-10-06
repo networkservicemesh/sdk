@@ -64,6 +64,8 @@ func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.Network
 		return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	}
 
+	printPath(ctx, nse.Path)
+
 	index := nse.GetPath().GetIndex()
 	var leftSide = &registry.Path{
 		Index:        index,
