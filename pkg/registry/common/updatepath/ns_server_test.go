@@ -29,12 +29,12 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checknse"
 )
 
-type ns_server_sample struct {
+type nsServerSample struct {
 	name string
 	test func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceRegistryServer)
 }
 
-var ns_server_samples = []*ns_server_sample{
+var nsServerSamples = []*nsServerSample{
 	{
 		name: "NoPath",
 		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceRegistryServer) {
@@ -169,8 +169,8 @@ var ns_server_samples = []*ns_server_sample{
 }
 
 func TestUpdatePathNSServer(t *testing.T) {
-	for i := range ns_server_samples {
-		sample := ns_server_samples[i]
+	for i := range nsServerSamples {
+		sample := nsServerSamples[i]
 		t.Run("TestNewServer_"+sample.name, func(t *testing.T) {
 			sample.test(t, updatepath.NewNetworkServiceRegistryServer)
 		})
