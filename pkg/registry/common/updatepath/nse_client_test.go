@@ -28,12 +28,12 @@ import (
 	"go.uber.org/goleak"
 )
 
-type nse_client_sample struct {
+type nseClientSample struct {
 	name string
 	test func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryClient)
 }
 
-var nse_client_samples = []*nse_client_sample{
+var nseClientSamples = []*nseClientSample{
 	{
 		name: "NoPath",
 		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryClient) {
@@ -168,8 +168,8 @@ var nse_client_samples = []*nse_client_sample{
 }
 
 func TestUpdatePath(t *testing.T) {
-	for i := range nse_client_samples {
-		sample := nse_client_samples[i]
+	for i := range nseClientSamples {
+		sample := nseClientSamples[i]
 		t.Run("TestNetworkServiceEndpointRegistryClient_"+sample.name, func(t *testing.T) {
 			sample.test(t, updatepath.NewNetworkServiceEndpointRegistryClient)
 		})

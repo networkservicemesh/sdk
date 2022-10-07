@@ -55,6 +55,9 @@ func (s *updatePathNSEClient) Register(ctx context.Context, nse *registry.Networ
 
 	nse.Path = path
 	nse, err = next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, nse, opts...)
+	if err != nil {
+		return nil, err
+	}
 	nse.Path.Index = index
 
 	log.FromContext(ctx).Infof("UPDATEPATH [CLIENT] INDEX AFTER REQUEST: %d", path.Index)

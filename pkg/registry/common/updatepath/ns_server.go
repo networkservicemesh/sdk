@@ -50,6 +50,9 @@ func (s *updatePathNSServer) Register(ctx context.Context, ns *registry.NetworkS
 
 	ns.Path = path
 	ns, err = next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
+	if err != nil {
+		return nil, err
+	}
 	path.Index = index
 
 	return ns, err

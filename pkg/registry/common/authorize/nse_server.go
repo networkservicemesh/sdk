@@ -25,6 +25,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/networkservicemesh/sdk/pkg/tools/spire"
 	"github.com/networkservicemesh/sdk/pkg/tools/stringset"
@@ -61,7 +62,12 @@ func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkSer
 func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	spiffeID, err := spire.SpiffeIDFromContext(ctx)
 	if err != nil && len(s.policies) == 0 {
-		return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
+		// time.Sleep(time.Second)
+		resp, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
+		if err != nil {
+			log.FromContext(ctx).Infof("ERROR: %s", err.Error())
+		}
+		return resp, err
 	}
 
 	printPath(ctx, nse.Path)

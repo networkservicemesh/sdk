@@ -61,7 +61,8 @@ func NewNetworkServiceRegistryServer(opts ...Option) registry.NetworkServiceRegi
 func (s *authorizeNSServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
 	spiffeID, err := spire.SpiffeIDFromContext(ctx)
 	if err != nil && len(s.policies) == 0 {
-		return next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
+		resp, err := next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
+		return resp, err
 	}
 
 	printPath(ctx, ns.Path)
