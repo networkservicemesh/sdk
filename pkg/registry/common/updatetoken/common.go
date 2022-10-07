@@ -65,15 +65,15 @@ func updateToken(ctx context.Context, path *registry.Path, tokenGenerator token.
 	}
 
 	// Generate the token
-	token, expireTime, err := tokenGenerator(authInfo)
+	tok, expireTime, err := tokenGenerator(authInfo)
 	if err != nil {
 		return errors.WithStack(err)
 	}
 
-	log.FromContext(ctx).Infof("Token generated for %s: %s", path.PathSegments[path.Index].Name, token)
+	log.FromContext(ctx).Infof("Token generated for %s: %s", path.PathSegments[path.Index].Name, tok)
 
 	// Update the PathSegment
-	path.GetPathSegments()[path.GetIndex()].Token = token
+	path.GetPathSegments()[path.GetIndex()].Token = tok
 	path.GetPathSegments()[path.GetIndex()].Expires = timestamppb.New(expireTime)
 
 	log.FromContext(ctx).Infof("UPDATETOKEN: PATH AFTER TOKEN UPDATE")

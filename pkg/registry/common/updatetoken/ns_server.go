@@ -42,14 +42,14 @@ func NewNetworkServiceRegistryServer(tokenGenerator token.GeneratorFunc) registr
 
 func (s *updateTokenNSServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
 	if prev := GetPrevPathSegment(ns.GetPath()); prev != nil {
-		var token, expireTime, err = token.FromContext(ctx)
+		var tok, expireTime, err = token.FromContext(ctx)
 
 		if err != nil {
 			log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", err)
 		} else {
 			expires := timestamppb.New(expireTime.Local())
 			prev.Expires = expires
-			prev.Token = token
+			prev.Token = tok
 		}
 	}
 	err := updateToken(ctx, ns.GetPath(), s.tokenGenerator)
@@ -66,7 +66,7 @@ func (s *updateTokenNSServer) Find(query *registry.NetworkServiceQuery, server r
 
 func (s *updateTokenNSServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
 	if prev := GetPrevPathSegment(ns.GetPath()); prev != nil {
-		var token, expireTime, err = token.FromContext(ctx)
+		var tok, expireTime, err = token.FromContext(ctx)
 
 		if err != nil {
 			log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", err)
@@ -74,7 +74,7 @@ func (s *updateTokenNSServer) Unregister(ctx context.Context, ns *registry.Netwo
 			expires := timestamppb.New(expireTime.Local())
 
 			prev.Expires = expires
-			prev.Token = token
+			prev.Token = tok
 		}
 	}
 	err := updateToken(ctx, ns.GetPath(), s.tokenGenerator)
