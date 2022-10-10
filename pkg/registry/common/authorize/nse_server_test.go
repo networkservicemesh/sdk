@@ -18,44 +18,44 @@ package authorize_test
 
 import (
 	"context"
-	"net/url"
 	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
+	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 
 	"go.uber.org/goleak"
 )
 
 func TestAuthzEndpointRegistry(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	server := authorize.NewNetworkServiceEndpointRegistryServer()
+	server := authorize.NewNetworkServiceEndpointRegistryServer(authorize.WithPolicies(opa.WithRegistryClientAllowedPolicy()))
+	ctx := context.Background()
 
-	nseReg := &registry.NetworkServiceEndpoint{Name: "nse-1"}
+	nse1 := &registry.NetworkServiceEndpoint{
+		Name: "ns-1",
+		Path: getPath(t, "spiffe://test.com/workload1"),
+	}
 
-	u1, _ := url.Parse("spiffe://test.com/workload1")
-	u2, _ := url.Parse("spiffe://test.com/workload2")
-	cert1 := generateCert(u1)
-	cert2 := generateCert(u2)
-	cert1Ctx, err := withPeer(context.Background(), cert1)
+	nse2 := &registry.NetworkServiceEndpoint{
+		Name: "ns-1",
+		Path: getPath(t, "spiffe://test.com/workload2"),
+	}
+
+	_, err := server.Register(ctx, nse1)
 	require.NoError(t, err)
-	cert2Ctx, err := withPeer(context.Background(), cert2)
-	require.NoError(t, err)
 
-	_, err = server.Register(cert1Ctx, nseReg)
-	require.NoError(t, err)
-
-	_, err = server.Register(cert2Ctx, nseReg)
+	_, err = server.Register(ctx, nse2)
 	require.Error(t, err)
 
-	_, err = server.Register(cert1Ctx, nseReg)
+	_, err = server.Register(ctx, nse1)
 	require.NoError(t, err)
 
-	_, err = server.Unregister(cert2Ctx, nseReg)
+	_, err = server.Unregister(ctx, nse2)
 	require.Error(t, err)
 
-	_, err = server.Unregister(cert1Ctx, nseReg)
+	_, err = server.Unregister(ctx, nse1)
 	require.NoError(t, err)
 }

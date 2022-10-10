@@ -17,7 +17,18 @@
 package nsm
 
 default registry_client_allowed = false
-	
+
+spiffe_id := payload(input.path_segments[0].token).sub
+
+return {
+	input.spiffe_id = spiffe_id
+}
+
+
+payload(token) = p {
+    [_, p, _] := io.jwt.decode(token)
+}
+
 # new NSE case
 registry_client_allowed {
         nses := { nse | nse := input.spiffe_id_resources_map[_][_]; nse == input.resource_name }
@@ -26,5 +37,5 @@ registry_client_allowed {
 	
 # refresh/unregister NSE case
 registry_client_allowed {
-    input.spiffe_id_resources_map[input.spiffe_id][_] == input.resource_name
+    input.spiffe_id_resources_map[spiffe_id][_] == input.resource_name
 }
