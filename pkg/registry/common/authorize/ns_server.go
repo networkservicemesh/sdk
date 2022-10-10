@@ -43,6 +43,7 @@ func NewNetworkServiceRegistryServer(opts ...Option) registry.NetworkServiceRegi
 			opa.WithPrevTokenSignedPolicy(),
 			opa.WithTokensExpiredPolicy(),
 			opa.WithTokenChainPolicy(),
+			opa.WithRegistryClientAllowedPolicy(),
 		},
 		spiffeIDResourcesMap: new(spiffeIDResourcesMap),
 	}
