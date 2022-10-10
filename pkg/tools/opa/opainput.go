@@ -49,7 +49,7 @@ func PreparedOpaInput(ctx context.Context, model interface{}) (map[string]interf
 	}
 
 	b, _ := json.Marshal(result)
-	fmt.Printf("result: %v\n", string(b))
+	fmt.Printf("input: %v\n", string(b))
 	return result, nil
 }
 

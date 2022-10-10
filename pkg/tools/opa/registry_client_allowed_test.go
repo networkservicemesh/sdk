@@ -20,12 +20,53 @@ import (
 	"context"
 	"testing"
 
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
+func getPath(t *testing.T, spiffeID string) *registry.Path {
+	var segments = []struct {
+		name           string
+		tokenGenerator token.GeneratorFunc
+	}{
+		{
+			name: spiffeID,
+			tokenGenerator: genTokenFunc(&jwt.RegisteredClaims{
+				Subject:  spiffeID,
+				Audience: []string{"nsmgr"},
+			}),
+		},
+		{
+			name: "nsmgr",
+			tokenGenerator: genTokenFunc(&jwt.RegisteredClaims{
+				Subject:  "nsmgr",
+				Audience: []string{"nse"},
+			}),
+		},
+	}
+
+	path := &registry.Path{
+		PathSegments: []*registry.PathSegment{},
+	}
+
+	for _, segment := range segments {
+		tok, expire, err := segment.tokenGenerator(nil)
+		require.NoError(t, err)
+		path.PathSegments = append(path.PathSegments, &registry.PathSegment{
+			Name:    segment.name,
+			Token:   tok,
+			Expires: timestamppb.New(expire),
+		})
+	}
+
+	return path
+}
 func TestRegistryClientAllowedPolicy(t *testing.T) {
 	var p = opa.WithRegistryClientAllowedPolicy()
 	spiffeIDResourcesMap := map[string][]string{
@@ -38,8 +79,8 @@ func TestRegistryClientAllowedPolicy(t *testing.T) {
 		spiffeID string
 		valid    bool
 	}{
-		{spiffeID: "id1", nseName: "nse1", valid: true},
 		{spiffeID: "id1", nseName: "nse3", valid: false},
+		{spiffeID: "id1", nseName: "nse1", valid: true},
 		{spiffeID: "id1", nseName: "nse5", valid: true},
 		{spiffeID: "id3", nseName: "nse5", valid: true},
 		{spiffeID: "id3", nseName: "nse2", valid: false},
@@ -48,10 +89,11 @@ func TestRegistryClientAllowedPolicy(t *testing.T) {
 	ctx := context.Background()
 
 	for _, sample := range samples {
+		path := getPath(t, sample.spiffeID)
 		var input = authorize.RegistryOpaInput{
 			SpiffeIDResourcesMap: spiffeIDResourcesMap,
-			SpiffeID:             sample.spiffeID,
 			ResourceName:         sample.nseName,
+			PathSegments:         path.PathSegments,
 		}
 
 		err := p.Check(ctx, input)

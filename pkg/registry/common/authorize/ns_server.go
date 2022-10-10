@@ -26,7 +26,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
-	"github.com/networkservicemesh/sdk/pkg/tools/spire"
 	"github.com/networkservicemesh/sdk/pkg/tools/stringset"
 )
 
@@ -59,10 +58,14 @@ func NewNetworkServiceRegistryServer(opts ...Option) registry.NetworkServiceRegi
 }
 
 func (s *authorizeNSServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
-	spiffeID, err := spire.SpiffeIDFromContext(ctx)
-	if err != nil && len(s.policies) == 0 {
+	if len(s.policies) == 0 {
 		resp, err := next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
 		return resp, err
+	}
+
+	spiffeID, err := getSpiffeIDFromPath(ns.Path)
+	if err != nil {
+		return nil, err
 	}
 
 	printPath(ctx, ns.Path)
@@ -74,7 +77,6 @@ func (s *authorizeNSServer) Register(ctx context.Context, ns *registry.NetworkSe
 
 	rawMap := getRawMap(s.spiffeIDNSsMap)
 	input := RegistryOpaInput{
-		SpiffeID:             spiffeID.String(),
 		ResourceName:         ns.Name,
 		SpiffeIDResourcesMap: rawMap,
 		PathSegments:         leftSide.PathSegments,
@@ -99,16 +101,27 @@ func (s *authorizeNSServer) Find(query *registry.NetworkServiceQuery, server reg
 }
 
 func (s *authorizeNSServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
-	spiffeID, err := spire.SpiffeIDFromContext(ctx)
-	if err != nil && len(s.policies) == 0 {
+	if len(s.policies) == 0 {
 		return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
+	}
+
+	spiffeID, err := getSpiffeIDFromPath(ns.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	index := ns.GetPath().GetIndex()
+	var leftSide = &registry.Path{
+		Index:        index,
+		PathSegments: ns.GetPath().GetPathSegments()[:index+1],
 	}
 
 	rawMap := getRawMap(s.spiffeIDNSsMap)
 	input := RegistryOpaInput{
-		SpiffeID:             spiffeID.String(),
 		ResourceName:         ns.Name,
 		SpiffeIDResourcesMap: rawMap,
+		PathSegments:         leftSide.PathSegments,
+		Index:                leftSide.Index,
 	}
 	if err := s.policies.check(ctx, input); err != nil {
 		return nil, err

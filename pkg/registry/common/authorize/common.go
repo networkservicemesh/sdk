@@ -18,7 +18,11 @@ package authorize
 
 import (
 	"context"
+	"encoding/json"
+	"strings"
 
+	"github.com/golang-jwt/jwt/v4"
+	"github.com/pkg/errors"
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -28,7 +32,6 @@ import (
 
 // RegistryOpaInput represents input for policies in authorizNSEServer and authorizeNSServer
 type RegistryOpaInput struct {
-	SpiffeID             string                  `json:"spiffe_id"`
 	ResourceName         string                  `json:"resource_name"`
 	SpiffeIDResourcesMap map[string][]string     `json:"spiffe_id_resources_map"`
 	PathSegments         []*registry.PathSegment `json:"path_segments"`
@@ -54,11 +57,11 @@ func (l *policiesList) check(ctx context.Context, input RegistryOpaInput) error 
 		}
 
 		if err := policy.Check(ctx, input); err != nil {
-			logger.Infof("Policy: %v failed", policy)
+			logger.Info("Policy failed")
 			return err
 		}
 
-		logger.Infof("Policy: %v passed", policy)
+		logger.Info("Policy passed")
 	}
 	return nil
 }
@@ -76,6 +79,26 @@ func getRawMap(m *spiffeIDResourcesMap) map[string][]string {
 	})
 
 	return rawMap
+}
+
+func getSpiffeIDFromPath(path *registry.Path) (spiffeid.ID, error) {
+	tokenString := path.PathSegments[0].Token
+
+	b, err := jwt.DecodeSegment(strings.Split(tokenString, ".")[1])
+	if err != nil {
+		return spiffeid.ID{}, errors.Errorf("failed to decode payload from jwt token: %s", err.Error())
+	}
+
+	var payload struct {
+		Sub string   `json:"sub"`
+		Aud []string `json:"aud"`
+	}
+	err = json.Unmarshal(b, &payload)
+	if err != nil {
+		return spiffeid.ID{}, errors.Errorf("failed to parse payload from json: %s", err.Error())
+	}
+
+	return spiffeid.FromString(payload.Sub)
 }
 
 func printPath(ctx context.Context, path *registry.Path) {
