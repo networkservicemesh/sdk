@@ -22,10 +22,11 @@ import (
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/networkservicemesh/sdk/pkg/tools/token"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 func genJWTWithClaims(claims *jwt.RegisteredClaims) string {

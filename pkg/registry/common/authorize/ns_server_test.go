@@ -59,5 +59,4 @@ func TestAuthzNetworkServiceRegistry(t *testing.T) {
 
 	_, err = server.Unregister(ctx, ns1)
 	require.NoError(t, err)
-
 }
