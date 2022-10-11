@@ -43,11 +43,7 @@ func newEventNSEFactoryClient(ctx context.Context, afterClose func(), opts ...gr
 		client: next.NetworkServiceEndpointRegistryClient(ctx),
 		opts:   opts,
 	}
-	ctxFunc := postpone.ContextWithValues(ctx)
-	f.ctxFunc = func() (context.Context, context.CancelFunc) {
-		eventCtx, cancel := ctxFunc()
-		return withEventFactory(eventCtx, f), cancel
-	}
+	f.updateContext(ctx)
 
 	f.afterCloseFunc = func() {
 		f.state = closed
@@ -56,6 +52,14 @@ func newEventNSEFactoryClient(ctx context.Context, afterClose func(), opts ...gr
 		}
 	}
 	return f
+}
+
+func (f *eventNSEFactoryClient) updateContext(ctx context.Context) {
+	ctxFunc := postpone.ContextWithValues(ctx)
+	f.ctxFunc = func() (context.Context, context.CancelFunc) {
+		eventCtx, cancel := ctxFunc()
+		return withEventFactory(eventCtx, f), cancel
+	}
 }
 
 func (f *eventNSEFactoryClient) Register(opts ...Option) <-chan error {
@@ -129,17 +133,21 @@ func newNSEEventFactoryServer(ctx context.Context, afterClose func()) *eventNSEF
 	f := &eventNSEFactoryServer{
 		server: next.NetworkServiceEndpointRegistryServer(ctx),
 	}
-	ctxFunc := postpone.ContextWithValues(ctx)
-	f.ctxFunc = func() (context.Context, context.CancelFunc) {
-		eventCtx, cancel := ctxFunc()
-		return withEventFactory(eventCtx, f), cancel
-	}
+	f.updateContext(ctx)
 
 	f.afterCloseFunc = func() {
 		f.state = closed
 		afterClose()
 	}
 	return f
+}
+
+func (f *eventNSEFactoryServer) updateContext(ctx context.Context) {
+	ctxFunc := postpone.ContextWithValues(ctx)
+	f.ctxFunc = func() (context.Context, context.CancelFunc) {
+		eventCtx, cancel := ctxFunc()
+		return withEventFactory(eventCtx, f), cancel
+	}
 }
 
 func (f *eventNSEFactoryServer) Register(opts ...Option) <-chan error {

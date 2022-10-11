@@ -32,6 +32,48 @@ import (
 	"go.uber.org/goleak"
 )
 
+// This test reproduces the situation when refresh changes the eventFactory context
+func TestRefresh_Server(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	syncChan := make(chan struct{})
+	checkCtxServ := &checkContextServer{t: t}
+	eventFactoryServ := &eventFactoryServer{ch: syncChan}
+	server := chain.NewNetworkServiceEndpointRegistryServer(
+		begin.NewNetworkServiceEndpointRegistryServer(),
+		checkCtxServ,
+		eventFactoryServ,
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Set any value to context
+	ctx = context.WithValue(ctx, contextKey{}, "value_1")
+	checkCtxServ.setExpectedValue("value_1")
+
+	// Do Register with this context
+	nse := &registry.NetworkServiceEndpoint{
+		Name: "1",
+	}
+	conn, err := server.Register(ctx, nse.Clone())
+	assert.NotNil(t, t, conn)
+	assert.NoError(t, err)
+
+	// Change context value before refresh
+	ctx = context.WithValue(ctx, contextKey{}, "value_2")
+	checkCtxServ.setExpectedValue("value_2")
+
+	// Call refresh
+	conn, err = server.Register(ctx, nse.Clone())
+	assert.NotNil(t, t, conn)
+	assert.NoError(t, err)
+
+	// Call refresh from eventFactory. We are expecting updated value in the context
+	eventFactoryServ.callRefresh()
+	<-syncChan
+}
+
 // This test reproduces the situation when Unregister and Register were called at the same time
 func TestRefreshDuringUnregister_Server(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })

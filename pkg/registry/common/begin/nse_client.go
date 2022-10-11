@@ -61,6 +61,7 @@ func (b *beginNSEClient) Register(ctx context.Context, in *registry.NetworkServi
 			resp, err = b.Register(ctx, in, opts...)
 			return
 		}
+		eventFactoryClient.updateContext(ctx)
 
 		ctx = withEventFactory(ctx, eventFactoryClient)
 		resp, err = next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)

@@ -33,6 +33,48 @@ import (
 	"google.golang.org/grpc"
 )
 
+// This test reproduces the situation when refresh changes the eventFactory context
+func TestRefresh_Client(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	syncChan := make(chan struct{})
+	checkCtxCl := &checkContextClient{t: t}
+	eventFactoryCl := &eventFactoryClient{ch: syncChan}
+	client := chain.NewNetworkServiceEndpointRegistryClient(
+		begin.NewNetworkServiceEndpointRegistryClient(),
+		checkCtxCl,
+		eventFactoryCl,
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Set any value to context
+	ctx = context.WithValue(ctx, contextKey{}, "value_1")
+	checkCtxCl.setExpectedValue("value_1")
+
+	// Do Register with this context
+	nse := &registry.NetworkServiceEndpoint{
+		Name: "1",
+	}
+	conn, err := client.Register(ctx, nse.Clone())
+	assert.NotNil(t, t, conn)
+	assert.NoError(t, err)
+
+	// Change context value before refresh
+	ctx = context.WithValue(ctx, contextKey{}, "value_2")
+	checkCtxCl.setExpectedValue("value_2")
+
+	// Call refresh
+	conn, err = client.Register(ctx, nse.Clone())
+	assert.NotNil(t, t, conn)
+	assert.NoError(t, err)
+
+	// Call refresh from eventFactory. We are expecting updated value in the context
+	eventFactoryCl.callRefresh()
+	<-syncChan
+}
+
 // This test reproduces the situation when Unregister and Register were called at the same time
 func TestRefreshDuringUnregister_Client(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })

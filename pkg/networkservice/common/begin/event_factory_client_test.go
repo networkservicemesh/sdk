@@ -33,6 +33,48 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
+// This test reproduces the situation when refresh changes the eventFactory context
+// nolint:dupl
+func TestRefresh_Client(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	syncChan := make(chan struct{})
+	checkCtxCl := &checkContextClient{t: t}
+	eventFactoryCl := &eventFactoryClient{ch: syncChan}
+	client := chain.NewNetworkServiceClient(
+		begin.NewClient(),
+		checkCtxCl,
+		eventFactoryCl,
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Set any value to context
+	ctx = context.WithValue(ctx, contextKey{}, "value_1")
+	checkCtxCl.setExpectedValue("value_1")
+
+	// Do Request with this context
+	request := testRequest("1")
+	conn, err := client.Request(ctx, request.Clone())
+	assert.NotNil(t, t, conn)
+	assert.NoError(t, err)
+
+	// Change context value before refresh Request
+	ctx = context.WithValue(ctx, contextKey{}, "value_2")
+	checkCtxCl.setExpectedValue("value_2")
+	request.Connection = conn.Clone()
+
+	// Call refresh
+	conn, err = client.Request(ctx, request.Clone())
+	assert.NotNil(t, t, conn)
+	assert.NoError(t, err)
+
+	// Call refresh from eventFactory. We are expecting updated value in the context
+	eventFactoryCl.callRefresh()
+	<-syncChan
+}
+
 // This test reproduces the situation when Close and Request were called at the same time
 // nolint:dupl
 func TestRefreshDuringClose_Client(t *testing.T) {

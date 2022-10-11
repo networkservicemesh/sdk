@@ -60,11 +60,7 @@ func newEventFactoryClient(ctx context.Context, afterClose func(), opts ...grpc.
 		client: next.Client(ctx),
 		opts:   opts,
 	}
-	ctxFunc := postpone.ContextWithValues(ctx)
-	f.ctxFunc = func() (context.Context, context.CancelFunc) {
-		eventCtx, cancel := ctxFunc()
-		return withEventFactory(eventCtx, f), cancel
-	}
+	f.updateContext(ctx)
 
 	f.afterCloseFunc = func() {
 		f.state = closed
@@ -73,6 +69,14 @@ func newEventFactoryClient(ctx context.Context, afterClose func(), opts ...grpc.
 		}
 	}
 	return f
+}
+
+func (f *eventFactoryClient) updateContext(ctx context.Context) {
+	ctxFunc := postpone.ContextWithValues(ctx)
+	f.ctxFunc = func() (context.Context, context.CancelFunc) {
+		eventCtx, cancel := ctxFunc()
+		return withEventFactory(eventCtx, f), cancel
+	}
 }
 
 func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
@@ -155,17 +159,21 @@ func newEventFactoryServer(ctx context.Context, afterClose func()) *eventFactory
 	f := &eventFactoryServer{
 		server: next.Server(ctx),
 	}
-	ctxFunc := postpone.ContextWithValues(ctx)
-	f.ctxFunc = func() (context.Context, context.CancelFunc) {
-		eventCtx, cancel := ctxFunc()
-		return withEventFactory(eventCtx, f), cancel
-	}
+	f.updateContext(ctx)
 
 	f.afterCloseFunc = func() {
 		f.state = closed
 		afterClose()
 	}
 	return f
+}
+
+func (f *eventFactoryServer) updateContext(ctx context.Context) {
+	ctxFunc := postpone.ContextWithValues(ctx)
+	f.ctxFunc = func() (context.Context, context.CancelFunc) {
+		eventCtx, cancel := ctxFunc()
+		return withEventFactory(eventCtx, f), cancel
+	}
 }
 
 func (f *eventFactoryServer) Request(opts ...Option) <-chan error {
