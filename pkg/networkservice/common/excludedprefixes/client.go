@@ -190,6 +190,10 @@ func (epc *excludedPrefixesClient) Close(ctx context.Context, conn *networkservi
 func getRoutePrefixes(routes []*networkservice.Route) []string {
 	var rv []string
 	for _, route := range routes {
+		var o, b = route.GetPrefixIPNet().Mask.Size()
+		if o != b {
+			continue
+		}
 		rv = append(rv, route.GetPrefix())
 	}
 

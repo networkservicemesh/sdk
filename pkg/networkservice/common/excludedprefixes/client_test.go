@@ -488,6 +488,52 @@ func TestExcludedPrefixesClient_Request_EndpointConflictCloseError(t *testing.T)
 	require.Contains(t, err.Error(), "connection closed")
 }
 
+func Test_ExcludePrefixClient_ShouldntExcludeRouteSubnets(t *testing.T) {
+	client := chain.NewNetworkServiceClient(
+		excludedprefixes.NewClient(),
+	)
+
+	var req = &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Context: &networkservice.ConnectionContext{
+				IpContext: &networkservice.IPContext{
+					SrcRoutes: []*networkservice.Route{
+						{
+							Prefix: "172.16.1.0/32",
+						},
+						{
+							Prefix: "172.16.1.0/24",
+						},
+						{
+							Prefix: "fe80::/128",
+						},
+						{
+							Prefix: "fe80::/32",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	_, err := client.Request(context.Background(), req)
+	require.NoError(t, err)
+
+	//Refresh
+	client = chain.NewNetworkServiceClient(
+		client,
+		checkrequest.NewClient(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
+			require.Equal(t, []string{"172.16.1.0/32", "fe80::/128"}, request.Connection.Context.IpContext.ExcludedPrefixes)
+		}),
+	)
+
+	// refresh
+	_, err = client.Request(context.Background(), req)
+
+	require.NoError(t, err)
+
+}
+
 func TestClient(t *testing.T) {
 	reqPrefixes := []string{"100.1.1.0/13", "10.32.0.0/12", "10.96.0.0/12"}
 
