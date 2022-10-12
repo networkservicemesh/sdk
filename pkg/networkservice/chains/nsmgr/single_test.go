@@ -468,3 +468,26 @@ func Test_RemoteUsecase_Point2MultiPoint(t *testing.T) {
 	require.Equal(t, "p2p forwarder-0", conn.GetPath().GetPathSegments()[2].Name)
 	require.Equal(t, "p2p forwarder-1", conn.GetPath().GetPathSegments()[4].Name)
 }
+
+func Test_FailedRegistryAuthorization(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		Build()
+
+	nsRegistryClient1 := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+	ns1 := defaultRegistryService("ns-1")
+	_, err := nsRegistryClient1.Register(ctx, ns1)
+	require.NoError(t, err)
+
+	nsRegistryClient2 := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+	ns2 := defaultRegistryService("ns-1")
+	_, err = nsRegistryClient2.Register(ctx, ns2)
+	require.Error(t, err)
+}

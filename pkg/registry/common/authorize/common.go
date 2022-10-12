@@ -85,7 +85,11 @@ func getRawMap(m *spiffeIDResourcesMap) map[string][]string {
 func getSpiffeIDFromPath(path *registry.Path) (spiffeid.ID, error) {
 	tokenString := path.PathSegments[0].Token
 
-	b, err := jwt.DecodeSegment(strings.Split(tokenString, ".")[1])
+	tokenSegments := strings.Split(tokenString, ".")
+	if len(tokenSegments) < 3 {
+		return spiffeid.ID{}, errors.New("token is invalid. Should have 3 segments separated by dot")
+	}
+	b, err := jwt.DecodeSegment(tokenSegments[1])
 	if err != nil {
 		return spiffeid.ID{}, errors.Errorf("failed to decode payload from jwt token: %s", err.Error())
 	}
