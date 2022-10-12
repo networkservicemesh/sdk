@@ -65,6 +65,7 @@ func (b *beginClient) Request(ctx context.Context, request *networkservice.Netwo
 			conn, err = b.Request(ctx, request, opts...)
 			return
 		}
+		eventFactoryClient.updateContext(ctx)
 
 		ctx = withEventFactory(ctx, eventFactoryClient)
 		request.Connection = mergeConnection(eventFactoryClient.returnedConnection, request.GetConnection(), eventFactoryClient.request.GetConnection())
