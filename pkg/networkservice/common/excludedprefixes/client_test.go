@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -486,6 +488,51 @@ func TestExcludedPrefixesClient_Request_EndpointConflictCloseError(t *testing.T)
 	_, err = chain.NewNetworkServiceClient(client, server2).Request(ctx, request.Clone())
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "connection closed")
+}
+
+func Test_ExcludePrefixClient_ShouldntExcludeRouteSubnets(t *testing.T) {
+	client := chain.NewNetworkServiceClient(
+		excludedprefixes.NewClient(),
+	)
+
+	var req = &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Context: &networkservice.ConnectionContext{
+				IpContext: &networkservice.IPContext{
+					SrcRoutes: []*networkservice.Route{
+						{
+							Prefix: "172.16.1.0/32",
+						},
+						{
+							Prefix: "172.16.1.0/24",
+						},
+						{
+							Prefix: "fe80::/128",
+						},
+						{
+							Prefix: "fe80::/32",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	_, err := client.Request(context.Background(), req)
+	require.NoError(t, err)
+
+	// Refresh
+	client = chain.NewNetworkServiceClient(
+		client,
+		checkrequest.NewClient(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
+			require.Equal(t, []string{"172.16.1.0/32", "fe80::/128"}, request.Connection.Context.IpContext.ExcludedPrefixes)
+		}),
+	)
+
+	// refresh
+	_, err = client.Request(context.Background(), req)
+
+	require.NoError(t, err)
 }
 
 func TestClient(t *testing.T) {
