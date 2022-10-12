@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -519,7 +521,7 @@ func Test_ExcludePrefixClient_ShouldntExcludeRouteSubnets(t *testing.T) {
 	_, err := client.Request(context.Background(), req)
 	require.NoError(t, err)
 
-	//Refresh
+	// Refresh
 	client = chain.NewNetworkServiceClient(
 		client,
 		checkrequest.NewClient(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
@@ -531,7 +533,6 @@ func Test_ExcludePrefixClient_ShouldntExcludeRouteSubnets(t *testing.T) {
 	_, err = client.Request(context.Background(), req)
 
 	require.NoError(t, err)
-
 }
 
 func TestClient(t *testing.T) {
