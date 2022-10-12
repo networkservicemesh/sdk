@@ -24,6 +24,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
@@ -39,16 +40,15 @@ func NewNetworkServiceRegistryServer(name string) registry.NetworkServiceRegistr
 }
 
 func (s *updatePathNSServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
-	if ns.Path == nil {
-		ns.Path = &registry.Path{}
+	path, err := grpcmetadata.PathFromContext(ctx)
+	if err != nil {
+		return nil, err
 	}
-
-	path, index, err := updatePath(ns.Path, s.name)
+	path, index, err := updatePath(path, s.name)
 	if err != nil {
 		return nil, err
 	}
 
-	ns.Path = path
 	ns, err = next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
 	if err != nil {
 		return nil, err
@@ -63,11 +63,5 @@ func (s *updatePathNSServer) Find(query *registry.NetworkServiceQuery, server re
 }
 
 func (s *updatePathNSServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
-	path, _, err := updatePath(ns.Path, s.name)
-	if err != nil {
-		return nil, err
-	}
-	ns.Path = path
-
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }

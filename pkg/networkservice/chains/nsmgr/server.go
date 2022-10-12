@@ -51,6 +51,7 @@ import (
 	registryconnect "github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	registryrecvfd "github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
@@ -205,6 +206,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 				clienturl.NewNetworkServiceRegistryClient(opts.regURL),
 				begin.NewNetworkServiceRegistryClient(),
 				clientconn.NewNetworkServiceRegistryClient(),
+				grpcmetadata.NewNetworkServiceRegistryClient(),
 				dial.NewNetworkServiceRegistryClient(ctx,
 					dial.WithDialOptions(opts.dialOptions...),
 				),
@@ -214,6 +216,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	}
 
 	nsRegistry = chain.NewNetworkServiceRegistryServer(
+		grpcmetadata.NewNetworkServiceRegistryServer(),
 		updatepath.NewNetworkServiceRegistryServer(opts.name),
 		updatetoken.NewNetworkServiceRegistryServer(tokenGenerator),
 		opts.authorizeNSRegistryServer,
@@ -227,6 +230,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 				begin.NewNetworkServiceEndpointRegistryClient(),
 				clienturl.NewNetworkServiceEndpointRegistryClient(opts.regURL),
 				clientconn.NewNetworkServiceEndpointRegistryClient(),
+				grpcmetadata.NewNetworkServiceEndpointRegistryClient(),
 				dial.NewNetworkServiceEndpointRegistryClient(ctx,
 					dial.WithDialOptions(opts.dialOptions...),
 				),
@@ -243,6 +247,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	}
 
 	var nseRegistry = chain.NewNetworkServiceEndpointRegistryServer(
+		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
 		updatepath.NewNetworkServiceEndpointRegistryServer(opts.name),
 		begin.NewNetworkServiceEndpointRegistryServer(),
 		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGenerator),

@@ -24,8 +24,8 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type updatePathNSClient struct {
@@ -40,17 +40,15 @@ func NewNetworkServiceRegistryClient(name string) registry.NetworkServiceRegistr
 }
 
 func (s *updatePathNSClient) Register(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
-	log.FromContext(ctx).Infof("updatepath opts: %v", opts)
-	if ns.Path == nil {
-		ns.Path = &registry.Path{}
-	}
+	path := &registry.Path{}
 
-	path, index, err := updatePath(ns.Path, s.name)
+	path, index, err := updatePath(path, s.name)
 	if err != nil {
 		return nil, err
 	}
 
-	ns.Path = path
+	ctx = grpcmetadata.PathWithContext(ctx, path)
+
 	ns, err = next.NetworkServiceRegistryClient(ctx).Register(ctx, ns, opts...)
 	if err != nil {
 		return nil, err
@@ -65,11 +63,15 @@ func (s *updatePathNSClient) Find(ctx context.Context, query *registry.NetworkSe
 }
 
 func (s *updatePathNSClient) Unregister(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
-	path, _, err := updatePath(ns.Path, s.name)
+	path, err := grpcmetadata.PathFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	ns.Path = path
+
+	_, _, err = updatePath(path, s.name)
+	if err != nil {
+		return nil, err
+	}
 
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }

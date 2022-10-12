@@ -18,6 +18,9 @@ package nsmgr_test
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"fmt"
 	"net"
 	"net/url"
@@ -25,20 +28,30 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
-	"github.com/networkservicemesh/api/pkg/api/registry"
+	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/point2pointipam"
+	"github.com/networkservicemesh/sdk/pkg/registry"
+	"github.com/networkservicemesh/sdk/pkg/registry/chains/memory"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/tools/clientinfo"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 func Test_AwareNSEs(t *testing.T) {
@@ -59,7 +72,7 @@ func Test_AwareNSEs(t *testing.T) {
 	require.NoError(t, err)
 
 	const count = 3
-	var nseRegs [count]*registry.NetworkServiceEndpoint
+	var nseRegs [count]*registryapi.NetworkServiceEndpoint
 	var nses [count]*sandbox.EndpointEntry
 	var requests [count]*networkservice.NetworkServiceRequest
 
@@ -73,7 +86,7 @@ func Test_AwareNSEs(t *testing.T) {
 	require.NoError(t, err)
 
 	nsInfo := [count]struct {
-		ns         *registry.NetworkService
+		ns         *registryapi.NetworkService
 		labelKey   string
 		labelValue string
 	}{
@@ -95,10 +108,10 @@ func Test_AwareNSEs(t *testing.T) {
 	}
 
 	for i := 0; i < count; i++ {
-		nseRegs[i] = &registry.NetworkServiceEndpoint{
+		nseRegs[i] = &registryapi.NetworkServiceEndpoint{
 			Name:                fmt.Sprintf("nse-%s", uuid.New().String()),
 			NetworkServiceNames: []string{nsInfo[i].ns.Name},
-			NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+			NetworkServiceLabels: map[string]*registryapi.NetworkServiceLabels{
 				nsInfo[i].ns.Name: {
 					Labels: map[string]string{
 						nsInfo[i].labelKey: nsInfo[i].labelValue,
@@ -122,9 +135,9 @@ func Test_AwareNSEs(t *testing.T) {
 		}
 
 		nsInfo[i].ns.Matches = append(nsInfo[i].ns.Matches,
-			&registry.Match{
+			&registryapi.Match{
 				SourceSelector: map[string]string{nsInfo[i].labelKey: nsInfo[i].labelValue},
-				Routes: []*registry.Destination{
+				Routes: []*registryapi.Destination{
 					{
 						DestinationSelector: map[string]string{nsInfo[i].labelKey: nsInfo[i].labelValue},
 					},
@@ -199,9 +212,9 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
 	nsReg := defaultRegistryService(t.Name())
-	nsReg.Matches = []*registry.Match{
+	nsReg.Matches = []*registryapi.Match{
 		{
-			Routes: []*registry.Destination{
+			Routes: []*registryapi.Destination{
 				{
 					DestinationSelector: map[string]string{
 						destinationTestKey: destinationTestTemplate,
@@ -215,7 +228,7 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
-	nseReg.NetworkServiceLabels = map[string]*registry.NetworkServiceLabels{nsReg.Name: {}}
+	nseReg.NetworkServiceLabels = map[string]*registryapi.NetworkServiceLabels{nsReg.Name: {}}
 
 	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
 
@@ -251,10 +264,10 @@ func Test_UsecasePoint2MultiPoint(t *testing.T) {
 		SetRegistryExpiryDuration(time.Second).
 		Build()
 
-	domain.Nodes[0].NewForwarder(ctx, &registry.NetworkServiceEndpoint{
+	domain.Nodes[0].NewForwarder(ctx, &registryapi.NetworkServiceEndpoint{
 		Name:                "p2mp forwarder",
 		NetworkServiceNames: []string{"forwarder"},
-		NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+		NetworkServiceLabels: map[string]*registryapi.NetworkServiceLabels{
 			"forwarder": {
 				Labels: map[string]string{
 					"p2mp": "true",
@@ -263,10 +276,10 @@ func Test_UsecasePoint2MultiPoint(t *testing.T) {
 		},
 	}, sandbox.GenerateTestToken)
 
-	domain.Nodes[0].NewForwarder(ctx, &registry.NetworkServiceEndpoint{
+	domain.Nodes[0].NewForwarder(ctx, &registryapi.NetworkServiceEndpoint{
 		Name:                "p2p forwarder",
 		NetworkServiceNames: []string{"forwarder"},
-		NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+		NetworkServiceLabels: map[string]*registryapi.NetworkServiceLabels{
 			"forwarder": {
 				Labels: map[string]string{
 					"p2p": "true",
@@ -275,10 +288,10 @@ func Test_UsecasePoint2MultiPoint(t *testing.T) {
 		},
 	}, sandbox.GenerateTestToken)
 
-	domain.Nodes[0].NewForwarder(ctx, &registry.NetworkServiceEndpoint{
+	domain.Nodes[0].NewForwarder(ctx, &registryapi.NetworkServiceEndpoint{
 		Name:                "special forwarder",
 		NetworkServiceNames: []string{"forwarder"},
-		NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+		NetworkServiceLabels: map[string]*registryapi.NetworkServiceLabels{
 			"forwarder": {
 				Labels: map[string]string{
 					"special": "true",
@@ -289,17 +302,17 @@ func Test_UsecasePoint2MultiPoint(t *testing.T) {
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	_, err := nsRegistryClient.Register(ctx, &registry.NetworkService{
+	_, err := nsRegistryClient.Register(ctx, &registryapi.NetworkService{
 		Name: "my-ns",
-		Matches: []*registry.Match{
+		Matches: []*registryapi.Match{
 			{
 				SourceSelector: map[string]string{},
-				Routes: []*registry.Destination{
+				Routes: []*registryapi.Destination{
 					{
 						DestinationSelector: map[string]string{},
 					},
 				},
-				Metadata: &registry.Metadata{
+				Metadata: &registryapi.Metadata{
 					Labels: map[string]string{
 						"p2mp": "true",
 					},
@@ -309,7 +322,7 @@ func Test_UsecasePoint2MultiPoint(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	nseReg := &registry.NetworkServiceEndpoint{
+	nseReg := &registryapi.NetworkServiceEndpoint{
 		Name:                "my-nse-1",
 		NetworkServiceNames: []string{"my-ns"},
 	}
@@ -326,17 +339,17 @@ func Test_UsecasePoint2MultiPoint(t *testing.T) {
 	require.Equal(t, 4, len(conn.Path.PathSegments))
 	require.Equal(t, "p2mp forwarder", conn.GetPath().GetPathSegments()[2].Name)
 
-	_, err = nsRegistryClient.Register(ctx, &registry.NetworkService{
+	_, err = nsRegistryClient.Register(ctx, &registryapi.NetworkService{
 		Name: "my-ns",
-		Matches: []*registry.Match{
+		Matches: []*registryapi.Match{
 			{
 				SourceSelector: map[string]string{},
-				Routes: []*registry.Destination{
+				Routes: []*registryapi.Destination{
 					{
 						DestinationSelector: map[string]string{},
 					},
 				},
-				Metadata: &registry.Metadata{
+				Metadata: &registryapi.Metadata{
 					Labels: map[string]string{
 						// no labels
 					},
@@ -374,10 +387,10 @@ func Test_RemoteUsecase_Point2MultiPoint(t *testing.T) {
 		Build()
 
 	for i := 0; i < nodeCount; i++ {
-		domain.Nodes[i].NewForwarder(ctx, &registry.NetworkServiceEndpoint{
+		domain.Nodes[i].NewForwarder(ctx, &registryapi.NetworkServiceEndpoint{
 			Name:                "p2mp forwarder-" + fmt.Sprint(i),
 			NetworkServiceNames: []string{"forwarder"},
-			NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+			NetworkServiceLabels: map[string]*registryapi.NetworkServiceLabels{
 				"forwarder": {
 					Labels: map[string]string{
 						"p2mp": "true",
@@ -386,10 +399,10 @@ func Test_RemoteUsecase_Point2MultiPoint(t *testing.T) {
 			},
 		}, sandbox.GenerateTestToken)
 
-		domain.Nodes[i].NewForwarder(ctx, &registry.NetworkServiceEndpoint{
+		domain.Nodes[i].NewForwarder(ctx, &registryapi.NetworkServiceEndpoint{
 			Name:                "p2p forwarder-" + fmt.Sprint(i),
 			NetworkServiceNames: []string{"forwarder"},
-			NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+			NetworkServiceLabels: map[string]*registryapi.NetworkServiceLabels{
 				"forwarder": {
 					Labels: map[string]string{
 						"p2p": "true",
@@ -398,10 +411,10 @@ func Test_RemoteUsecase_Point2MultiPoint(t *testing.T) {
 			},
 		}, sandbox.GenerateTestToken)
 
-		domain.Nodes[i].NewForwarder(ctx, &registry.NetworkServiceEndpoint{
+		domain.Nodes[i].NewForwarder(ctx, &registryapi.NetworkServiceEndpoint{
 			Name:                "special forwarder-" + fmt.Sprint(i),
 			NetworkServiceNames: []string{"forwarder"},
-			NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+			NetworkServiceLabels: map[string]*registryapi.NetworkServiceLabels{
 				"forwarder": {
 					Labels: map[string]string{
 						"special": "true",
@@ -412,11 +425,11 @@ func Test_RemoteUsecase_Point2MultiPoint(t *testing.T) {
 	}
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	_, err := nsRegistryClient.Register(ctx, &registry.NetworkService{
+	_, err := nsRegistryClient.Register(ctx, &registryapi.NetworkService{
 		Name: "my-ns",
-		Matches: []*registry.Match{
+		Matches: []*registryapi.Match{
 			{
-				Metadata: &registry.Metadata{
+				Metadata: &registryapi.Metadata{
 					Labels: map[string]string{
 						"p2mp": "true",
 					},
@@ -426,7 +439,7 @@ func Test_RemoteUsecase_Point2MultiPoint(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	nseReg := &registry.NetworkServiceEndpoint{
+	nseReg := &registryapi.NetworkServiceEndpoint{
 		Name:                "my-nse-1",
 		NetworkServiceNames: []string{"my-ns"},
 	}
@@ -444,11 +457,11 @@ func Test_RemoteUsecase_Point2MultiPoint(t *testing.T) {
 	require.Equal(t, "p2mp forwarder-0", conn.GetPath().GetPathSegments()[2].Name)
 	require.Equal(t, "p2mp forwarder-1", conn.GetPath().GetPathSegments()[4].Name)
 
-	_, err = nsRegistryClient.Register(ctx, &registry.NetworkService{
+	_, err = nsRegistryClient.Register(ctx, &registryapi.NetworkService{
 		Name: "my-ns",
-		Matches: []*registry.Match{
+		Matches: []*registryapi.Match{
 			{
-				Metadata: &registry.Metadata{
+				Metadata: &registryapi.Metadata{
 					Labels: map[string]string{
 						// no labels
 					},
@@ -469,24 +482,84 @@ func Test_RemoteUsecase_Point2MultiPoint(t *testing.T) {
 	require.Equal(t, "p2p forwarder-1", conn.GetPath().GetPathSegments()[4].Name)
 }
 
+// TokenGeneratorFunc - creates a token.TokenGeneratorFunc that creates spiffe JWT tokens from the cert returned by getCert()
+func TokenGeneratorFunc(spiffeID string) token.GeneratorFunc {
+	return func(authInfo credentials.AuthInfo) (string, time.Time, error) {
+		expireTime := time.Now().Add(time.Hour)
+		claims := jwt.RegisteredClaims{
+			Subject:   spiffeID,
+			ExpiresAt: jwt.NewNumericDate(expireTime),
+		}
+
+		priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			return "", time.Time{}, err
+		}
+		tok, err := jwt.NewWithClaims(jwt.SigningMethodES256, claims).SignedString(priv)
+		return tok, expireTime, err
+	}
+}
+
 func Test_FailedRegistryAuthorization(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	log.EnableTracing(true)
+	logrus.SetLevel(logrus.TraceLevel)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 	defer cancel()
 
+	nsmgrSuppier := func(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...nsmgr.Option) nsmgr.Nsmgr {
+		options = append(options,
+			nsmgr.WithAuthorizeNSERegistryServer(
+				authorize.NewNetworkServiceEndpointRegistryServer(authorize.WithPolicies(opa.WithRegistryClientAllowedPolicy()))),
+			nsmgr.WithAuthorizeNSRegistryServer(
+				authorize.NewNetworkServiceRegistryServer(authorize.WithPolicies(opa.WithRegistryClientAllowedPolicy()))),
+		)
+		return nsmgr.NewServer(ctx, tokenGenerator, options...)
+	}
+	registrySupplier := func(
+		ctx context.Context,
+		tokenGenerator token.GeneratorFunc,
+		expiryDuration time.Duration,
+		proxyRegistryURL *url.URL,
+		options ...grpc.DialOption) registry.Registry {
+		return memory.NewServer(
+			ctx,
+			tokenGenerator,
+			memory.WithExpireDuration(expiryDuration),
+			memory.WithProxyRegistryURL(proxyRegistryURL),
+			memory.WithDialOptions(options...),
+			memory.WithAuthorizeNSRegistryServer(
+				authorize.NewNetworkServiceRegistryServer(authorize.WithPolicies(opa.WithRegistryClientAllowedPolicy()))),
+		)
+	}
 	domain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
+		SetNSMgrSupplier(nsmgrSuppier).
+		SetRegistrySupplier(registrySupplier).
+		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, nodeNum int) {
+			nsmgrName := sandbox.UniqueName("nsmgr")
+			forwarderName := sandbox.UniqueName("forwarder")
+			node.NewNSMgr(ctx, nsmgrName, nil, TokenGeneratorFunc("spiffe://test.com/"+nsmgrName), nsmgrSuppier)
+			node.NewForwarder(ctx, &registryapi.NetworkServiceEndpoint{
+				Name:                forwarderName,
+				NetworkServiceNames: []string{"forwarder"},
+				NetworkServiceLabels: map[string]*registryapi.NetworkServiceLabels{
+					"forwarder": {
+						Labels: map[string]string{"p2p": "true"},
+					},
+				},
+			}, TokenGeneratorFunc("spiffe://test.com/"+forwarderName))
+		}).
 		SetNSMgrProxySupplier(nil).
 		SetRegistryProxySupplier(nil).
 		Build()
 
-	nsRegistryClient1 := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+	nsRegistryClient1 := domain.NewNSRegistryClient(ctx, TokenGeneratorFunc("spiffe://test.com/ns-1"))
 	ns1 := defaultRegistryService("ns-1")
 	_, err := nsRegistryClient1.Register(ctx, ns1)
 	require.NoError(t, err)
-
-	nsRegistryClient2 := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+	nsRegistryClient2 := domain.NewNSRegistryClient(ctx, TokenGeneratorFunc("spiffe://test.com/ns-2"))
 	ns2 := defaultRegistryService("ns-1")
 	_, err = nsRegistryClient2.Register(ctx, ns2)
 	require.Error(t, err)

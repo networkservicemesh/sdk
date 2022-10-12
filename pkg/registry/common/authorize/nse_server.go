@@ -24,6 +24,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/networkservicemesh/sdk/pkg/tools/stringset"
@@ -63,16 +64,21 @@ func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.Network
 		return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	}
 
-	spiffeID, err := getSpiffeIDFromPath(nse.Path)
+	path, err := grpcmetadata.PathFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	printPath(ctx, nse.Path)
 
-	index := nse.GetPath().GetIndex()
+	spiffeID, err := getSpiffeIDFromPath(path)
+	if err != nil {
+		return nil, err
+	}
+	printPath(ctx, path)
+
+	index := path.GetIndex()
 	var leftSide = &registry.Path{
 		Index:        index,
-		PathSegments: nse.GetPath().GetPathSegments()[:index+1],
+		PathSegments: path.GetPathSegments()[:index+1],
 	}
 
 	rawMap := getRawMap(s.spiffeIDNSEsMap)

@@ -24,6 +24,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
@@ -41,7 +42,12 @@ func NewNetworkServiceEndpointRegistryServer(tokenGenerator token.GeneratorFunc)
 }
 
 func (s *updateTokenNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	if prev := GetPrevPathSegment(nse.GetPath()); prev != nil {
+	path, err := grpcmetadata.PathFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if prev := GetPrevPathSegment(path); prev != nil {
 		var tok, expireTime, err = token.FromContext(ctx)
 
 		if err != nil {
@@ -52,7 +58,7 @@ func (s *updateTokenNSEServer) Register(ctx context.Context, nse *registry.Netwo
 			prev.Token = tok
 		}
 	}
-	err := updateToken(ctx, nse.GetPath(), s.tokenGenerator)
+	err = updateToken(ctx, path, s.tokenGenerator)
 	if err != nil {
 		return nil, err
 	}
@@ -64,22 +70,5 @@ func (s *updateTokenNSEServer) Find(query *registry.NetworkServiceEndpointQuery,
 }
 
 func (s *updateTokenNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	if prev := GetPrevPathSegment(nse.GetPath()); prev != nil {
-		var tok, expireTime, err = token.FromContext(ctx)
-
-		if err != nil {
-			log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", err)
-		} else {
-			expires := timestamppb.New(expireTime.Local())
-
-			prev.Expires = expires
-			prev.Token = tok
-		}
-	}
-	err := updateToken(ctx, nse.GetPath(), s.tokenGenerator)
-	if err != nil {
-		return nil, err
-	}
-
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }

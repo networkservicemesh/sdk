@@ -17,16 +17,9 @@
 package updatepath_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checknse"
 )
 
 type nseClientSample struct {
@@ -34,145 +27,145 @@ type nseClientSample struct {
 	test func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryClient)
 }
 
-var nseClientSamples = []*nseClientSample{
-	{
-		name: "NoPath",
-		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryClient) {
-			t.Cleanup(func() {
-				goleak.VerifyNone(t)
-			})
+// var nseClientSamples = []*nseClientSample{
+// 	{
+// 		name: "NoPath",
+// 		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryClient) {
+// 			t.Cleanup(func() {
+// 				goleak.VerifyNone(t)
+// 			})
 
-			server := newUpdatePathServer(nse1)
+// 			server := newUpdatePathServer(nse1)
 
-			nse, err := server.Register(context.Background(), registerNSERequest(nil))
-			require.NoError(t, err)
-			require.NotNil(t, nse)
+// 			nse, err := server.Register(context.Background(), registerNSERequest(nil))
+// 			require.NoError(t, err)
+// 			require.NotNil(t, nse)
 
-			path := path(0, 1)
-			requirePathEqual(t, path, nse.Path, 0)
-		},
-	},
-	{
-		name: "SameName",
-		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryClient) {
-			t.Cleanup(func() {
-				goleak.VerifyNone(t)
-			})
+// 			path := path(0, 1)
+// 			requirePathEqual(t, path, nse.Path, 0)
+// 		},
+// 	},
+// 	{
+// 		name: "SameName",
+// 		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryClient) {
+// 			t.Cleanup(func() {
+// 				goleak.VerifyNone(t)
+// 			})
 
-			server := newUpdatePathServer(nse2)
+// 			server := newUpdatePathServer(nse2)
 
-			nse, err := server.Register(context.Background(), registerNSERequest(path(1, 2)))
-			require.NoError(t, err)
-			require.NotNil(t, nse)
+// 			nse, err := server.Register(context.Background(), registerNSERequest(path(1, 2)))
+// 			require.NoError(t, err)
+// 			require.NotNil(t, nse)
 
-			requirePathEqual(t, path(1, 2), nse.Path)
-		},
-	},
-	{
-		name: "DifferentName",
-		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryClient) {
-			t.Cleanup(func() {
-				goleak.VerifyNone(t)
-			})
+// 			requirePathEqual(t, path(1, 2), nse.Path)
+// 		},
+// 	},
+// 	{
+// 		name: "DifferentName",
+// 		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryClient) {
+// 			t.Cleanup(func() {
+// 				goleak.VerifyNone(t)
+// 			})
 
-			server := newUpdatePathServer(nse3)
+// 			server := newUpdatePathServer(nse3)
 
-			nse, err := server.Register(context.Background(), registerNSERequest(path(1, 2)))
-			require.NoError(t, err)
-			requirePathEqual(t, path(1, 3), nse.Path, 2)
-		},
-	},
-	{
-		name: "InvalidIndex",
-		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryClient) {
-			t.Cleanup(func() {
-				goleak.VerifyNone(t)
-			})
+// 			nse, err := server.Register(context.Background(), registerNSERequest(path(1, 2)))
+// 			require.NoError(t, err)
+// 			requirePathEqual(t, path(1, 3), nse.Path, 2)
+// 		},
+// 	},
+// 	{
+// 		name: "InvalidIndex",
+// 		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryClient) {
+// 			t.Cleanup(func() {
+// 				goleak.VerifyNone(t)
+// 			})
 
-			server := newUpdatePathServer(nse3)
+// 			server := newUpdatePathServer(nse3)
 
-			_, err := server.Register(context.Background(), registerNSERequest(path(3, 2)))
-			require.Error(t, err)
-		},
-	},
-	{
-		name: "DifferentNextName",
-		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryClient) {
-			t.Cleanup(func() {
-				goleak.VerifyNone(t)
-			})
+// 			_, err := server.Register(context.Background(), registerNSERequest(path(3, 2)))
+// 			require.Error(t, err)
+// 		},
+// 	},
+// 	{
+// 		name: "DifferentNextName",
+// 		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryClient) {
+// 			t.Cleanup(func() {
+// 				goleak.VerifyNone(t)
+// 			})
 
-			var nsePath *registry.Path
-			server := next.NewNetworkServiceEndpointRegistryClient(
-				newUpdatePathServer(nse3),
-				checknse.NewClient(t, func(t *testing.T, nse *registry.NetworkServiceEndpoint) {
-					nsePath = nse.Path
-					requirePathEqual(t, path(2, 3), nsePath, 2)
-				}),
-			)
+// 			var nsePath *registry.Path
+// 			server := next.NewNetworkServiceEndpointRegistryClient(
+// 				newUpdatePathServer(nse3),
+// 				checknse.NewClient(t, func(t *testing.T, nse *registry.NetworkServiceEndpoint) {
+// 					nsePath = nse.Path
+// 					requirePathEqual(t, path(2, 3), nsePath, 2)
+// 				}),
+// 			)
 
-			requestPath := path(1, 3)
-			requestPath.PathSegments[2].Name = "different"
-			nse, err := server.Register(context.Background(), registerNSERequest(requestPath))
-			require.NoError(t, err)
-			require.NotNil(t, nse)
+// 			requestPath := path(1, 3)
+// 			requestPath.PathSegments[2].Name = "different"
+// 			nse, err := server.Register(context.Background(), registerNSERequest(requestPath))
+// 			require.NoError(t, err)
+// 			require.NotNil(t, nse)
 
-			nsePath.Index = 1
-			requirePathEqual(t, nsePath, nse.Path, 2)
-		},
-	},
-	{
-		name: "NoNextAvailable",
-		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryClient) {
-			t.Cleanup(func() {
-				goleak.VerifyNone(t)
-			})
+// 			nsePath.Index = 1
+// 			requirePathEqual(t, nsePath, nse.Path, 2)
+// 		},
+// 	},
+// 	{
+// 		name: "NoNextAvailable",
+// 		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryClient) {
+// 			t.Cleanup(func() {
+// 				goleak.VerifyNone(t)
+// 			})
 
-			var nsePath *registry.Path
-			server := next.NewNetworkServiceEndpointRegistryClient(
-				newUpdatePathServer(nse3),
-				checknse.NewClient(t, func(t *testing.T, nse *registry.NetworkServiceEndpoint) {
-					nsePath = nse.Path
-					requirePathEqual(t, path(2, 3), nsePath, 2)
-				}),
-			)
+// 			var nsePath *registry.Path
+// 			server := next.NewNetworkServiceEndpointRegistryClient(
+// 				newUpdatePathServer(nse3),
+// 				checknse.NewClient(t, func(t *testing.T, nse *registry.NetworkServiceEndpoint) {
+// 					nsePath = nse.Path
+// 					requirePathEqual(t, path(2, 3), nsePath, 2)
+// 				}),
+// 			)
 
-			nse, err := server.Register(context.Background(), registerNSERequest(path(1, 2)))
-			require.NoError(t, err)
-			require.NotNil(t, nse)
+// 			nse, err := server.Register(context.Background(), registerNSERequest(path(1, 2)))
+// 			require.NoError(t, err)
+// 			require.NotNil(t, nse)
 
-			nsePath.Index = 1
-			requirePathEqual(t, nsePath, nse.Path, 2)
-		},
-	},
-	{
-		name: "SameNextName",
-		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryClient) {
-			t.Cleanup(func() {
-				goleak.VerifyNone(t)
-			})
+// 			nsePath.Index = 1
+// 			requirePathEqual(t, nsePath, nse.Path, 2)
+// 		},
+// 	},
+// 	{
+// 		name: "SameNextName",
+// 		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryClient) {
+// 			t.Cleanup(func() {
+// 				goleak.VerifyNone(t)
+// 			})
 
-			server := next.NewNetworkServiceEndpointRegistryClient(
-				newUpdatePathServer(nse3),
-				checknse.NewClient(t, func(t *testing.T, nse *registry.NetworkServiceEndpoint) {
-					requirePathEqual(t, path(2, 3), nse.Path)
-				}),
-			)
+// 			server := next.NewNetworkServiceEndpointRegistryClient(
+// 				newUpdatePathServer(nse3),
+// 				checknse.NewClient(t, func(t *testing.T, nse *registry.NetworkServiceEndpoint) {
+// 					requirePathEqual(t, path(2, 3), nse.Path)
+// 				}),
+// 			)
 
-			nse, err := server.Register(context.Background(), registerNSERequest(path(1, 3)))
-			require.NoError(t, err)
-			require.NotNil(t, nse)
+// 			nse, err := server.Register(context.Background(), registerNSERequest(path(1, 3)))
+// 			require.NoError(t, err)
+// 			require.NotNil(t, nse)
 
-			requirePathEqual(t, path(1, 3), nse.Path)
-		},
-	},
-}
+// 			requirePathEqual(t, path(1, 3), nse.Path)
+// 		},
+// 	},
+// }
 
-func TestUpdatePath(t *testing.T) {
-	for i := range nseClientSamples {
-		sample := nseClientSamples[i]
-		t.Run("TestNetworkServiceEndpointRegistryClient_"+sample.name, func(t *testing.T) {
-			sample.test(t, updatepath.NewNetworkServiceEndpointRegistryClient)
-		})
-	}
-}
+// func TestUpdatePath(t *testing.T) {
+// 	for i := range nseClientSamples {
+// 		sample := nseClientSamples[i]
+// 		t.Run("TestNetworkServiceEndpointRegistryClient_"+sample.name, func(t *testing.T) {
+// 			sample.test(t, updatepath.NewNetworkServiceEndpointRegistryClient)
+// 		})
+// 	}
+// }

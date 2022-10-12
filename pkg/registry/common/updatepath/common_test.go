@@ -16,13 +16,6 @@
 
 package updatepath_test
 
-import (
-	"testing"
-
-	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/stretchr/testify/require"
-)
-
 const (
 	nse1           = "nse-1"
 	nse2           = "nse-2"
@@ -32,55 +25,55 @@ const (
 	pathSegmentID3 = "f9a83e55-0a4f-3647-144a-98a9ee8fb231"
 )
 
-func registerNSRequest(path *registry.Path) *registry.NetworkService {
-	return &registry.NetworkService{
-		Name: "nse",
-		Path: path,
-	}
-}
+// func registerNSRequest(path *registry.Path) *registry.NetworkService {
+// 	return &registry.NetworkService{
+// 		Name: "nse",
+// 		Path: path,
+// 	}
+// }
 
-func registerNSERequest(path *registry.Path) *registry.NetworkServiceEndpoint {
-	return &registry.NetworkServiceEndpoint{
-		Name: "nse",
-		Path: path,
-	}
-}
+// func registerNSERequest(path *registry.Path) *registry.NetworkServiceEndpoint {
+// 	return &registry.NetworkServiceEndpoint{
+// 		Name: "nse",
+// 		Path: path,
+// 	}
+// }
 
-func path(pathIndex uint32, pathSegments int) *registry.Path {
-	if pathSegments == 0 {
-		return nil
-	}
+// func path(pathIndex uint32, pathSegments int) *registry.Path {
+// 	if pathSegments == 0 {
+// 		return nil
+// 	}
 
-	path := &registry.Path{
-		Index: pathIndex,
-	}
-	if pathSegments >= 1 {
-		path.PathSegments = append(path.PathSegments, &registry.PathSegment{
-			Name: nse1,
-			Id:   pathSegmentID1,
-		})
-	}
-	if pathSegments >= 2 {
-		path.PathSegments = append(path.PathSegments, &registry.PathSegment{
-			Name: nse2,
-			Id:   pathSegmentID2,
-		})
-	}
-	if pathSegments >= 3 {
-		path.PathSegments = append(path.PathSegments, &registry.PathSegment{
-			Name: nse3,
-			Id:   pathSegmentID3,
-		})
-	}
-	return path
-}
+// 	path := &registry.Path{
+// 		Index: pathIndex,
+// 	}
+// 	if pathSegments >= 1 {
+// 		path.PathSegments = append(path.PathSegments, &registry.PathSegment{
+// 			Name: nse1,
+// 			Id:   pathSegmentID1,
+// 		})
+// 	}
+// 	if pathSegments >= 2 {
+// 		path.PathSegments = append(path.PathSegments, &registry.PathSegment{
+// 			Name: nse2,
+// 			Id:   pathSegmentID2,
+// 		})
+// 	}
+// 	if pathSegments >= 3 {
+// 		path.PathSegments = append(path.PathSegments, &registry.PathSegment{
+// 			Name: nse3,
+// 			Id:   pathSegmentID3,
+// 		})
+// 	}
+// 	return path
+// }
 
-func requirePathEqual(t *testing.T, expected, actual *registry.Path, unknownIDs ...int) {
-	expected = expected.Clone()
-	actual = actual.Clone()
-	for _, index := range unknownIDs {
-		expected.PathSegments[index].Id = ""
-		actual.PathSegments[index].Id = ""
-	}
-	require.Equal(t, expected.String(), actual.String())
-}
+// func requirePathEqual(t *testing.T, expected, actual *registry.Path, unknownIDs ...int) {
+// 	expected = expected.Clone()
+// 	actual = actual.Clone()
+// 	for _, index := range unknownIDs {
+// 		expected.PathSegments[index].Id = ""
+// 		actual.PathSegments[index].Id = ""
+// 	}
+// 	require.Equal(t, expected.String(), actual.String())
+// }
