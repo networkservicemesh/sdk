@@ -58,12 +58,20 @@ func (c *checkNSEContext) Unregister(ctx context.Context, ns *registry.NetworkSe
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, ns)
 }
 
-func Test_DNSResolve(t *testing.T) {
+func Test_DNSResolveV4(t *testing.T) {
+	assertDNSResolves(t, "tcp://127.0.0.1:80")
+}
+
+func Test_DNSResolveV6(t *testing.T) {
+	assertDNSResolves(t, "tcp://[::1]:80")
+}
+
+func assertDNSResolves(t *testing.T, registryURL string) {
 	const srv = "service1"
 
 	var resolver = sandbox.NewFakeResolver()
 
-	u, err := url.Parse("tcp://127.0.0.1:80")
+	u, err := url.Parse(registryURL)
 	require.NoError(t, err)
 
 	require.NoError(t, sandbox.AddSRVEntry(resolver, "domain1", srv, u))
