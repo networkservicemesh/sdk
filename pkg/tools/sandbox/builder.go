@@ -82,7 +82,7 @@ func NewBuilder(ctx context.Context, t *testing.T) *Builder {
 		supplyRegistry:         newRegistryMemoryServer,
 		supplyRegistryProxy:    proxydns.NewServer,
 		name:                   "cluster.local",
-		dnsResolver:            new(FakeDNSResolver),
+		dnsResolver:            NewFakeResolver(),
 		generateTokenFunc:      GenerateTestToken,
 		registryExpiryDuration: time.Minute,
 	}
@@ -326,15 +326,10 @@ func (b *Builder) newNode(nodeNum int) *Node {
 }
 
 func (b *Builder) buildDNSServer() {
-	resolver, ok := b.dnsResolver.(*FakeDNSResolver)
-	if !ok {
-		return
-	}
-
 	if b.domain.Registry != nil {
-		resolver.AddSRVEntry(b.name, dnsresolve.DefaultRegistryService, CloneURL(b.domain.Registry.URL))
+		require.NoError(b.t, AddSRVEntry(b.dnsResolver, b.name, dnsresolve.DefaultRegistryService, CloneURL(b.domain.Registry.URL)))
 	}
 	if b.domain.NSMgrProxy != nil {
-		resolver.AddSRVEntry(b.name, dnsresolve.DefaultNsmgrProxyService, CloneURL(b.domain.NSMgrProxy.URL))
+		require.NoError(b.t, AddSRVEntry(b.dnsResolver, b.name, dnsresolve.DefaultNsmgrProxyService, CloneURL(b.domain.NSMgrProxy.URL)))
 	}
 }

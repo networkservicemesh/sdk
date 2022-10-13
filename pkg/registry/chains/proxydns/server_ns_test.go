@@ -57,7 +57,7 @@ func TestInterdomainNetworkServiceRegistry(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	dnsServer := new(sandbox.FakeDNSResolver)
+	dnsServer := sandbox.NewFakeResolver()
 
 	domain1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(0).
@@ -123,7 +123,7 @@ func TestLocalDomain_NetworkServiceRegistry(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	dnsServer := new(sandbox.FakeDNSResolver)
+	dnsServer := sandbox.NewFakeResolver()
 
 	domain1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(0).
@@ -184,7 +184,7 @@ func TestInterdomainFloatingNetworkServiceRegistry(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	dnsServer := new(sandbox.FakeDNSResolver)
+	dnsServer := sandbox.NewFakeResolver()
 
 	domain1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(0).

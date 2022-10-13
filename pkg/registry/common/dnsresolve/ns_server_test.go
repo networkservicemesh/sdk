@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -54,12 +54,12 @@ func (c *checkNSContext) Unregister(ctx context.Context, ns *registry.NetworkSer
 func TestDNSResolve_CorrectUsecase(t *testing.T) {
 	const srv = "service1"
 
-	var resolver = new(sandbox.FakeDNSResolver)
+	var resolver = sandbox.NewFakeResolver()
 
 	u, err := url.Parse("tcp://127.0.0.1:80")
 	require.NoError(t, err)
 
-	resolver.AddSRVEntry("domain1", srv, u)
+	require.NoError(t, sandbox.AddSRVEntry(resolver, "domain1", srv, u))
 
 	s := dnsresolve.NewNetworkServiceRegistryServer(
 		dnsresolve.WithRegistryService(srv),
@@ -81,12 +81,12 @@ func TestDNSResolve_CorrectUsecase(t *testing.T) {
 func TestDNSResolve_LoopUsecase(t *testing.T) {
 	const srv = "service1"
 
-	var resolver = new(sandbox.FakeDNSResolver)
+	var resolver = sandbox.NewFakeResolver()
 
 	u, err := url.Parse("tcp://127.0.0.1:80")
 	require.NoError(t, err)
 
-	resolver.AddSRVEntry("domain1", srv, u)
+	require.NoError(t, sandbox.AddSRVEntry(resolver, "domain1", srv, u))
 
 	s := dnsresolve.NewNetworkServiceRegistryServer(
 		dnsresolve.WithRegistryService(srv),
