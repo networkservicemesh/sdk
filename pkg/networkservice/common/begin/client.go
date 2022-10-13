@@ -65,7 +65,6 @@ func (b *beginClient) Request(ctx context.Context, request *networkservice.Netwo
 			conn, err = b.Request(ctx, request, opts...)
 			return
 		}
-		eventFactoryClient.updateContext(ctx)
 
 		ctx = withEventFactory(ctx, eventFactoryClient)
 		request.Connection = mergeConnection(eventFactoryClient.returnedConnection, request.GetConnection(), eventFactoryClient.request.GetConnection())
@@ -83,6 +82,7 @@ func (b *beginClient) Request(ctx context.Context, request *networkservice.Netwo
 		eventFactoryClient.state = established
 
 		eventFactoryClient.returnedConnection = conn.Clone()
+		eventFactoryClient.updateContext(ctx)
 	})
 	return conn, err
 }
