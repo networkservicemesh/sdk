@@ -62,7 +62,9 @@ func (f *memoryHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 	if !ok {
 		next.Handler(ctx).ServeDNS(ctx, rwWrapper, msg)
 		if !rwWrapper.passed {
-			dns.HandleFailed(rw, msg)
+			// Send NXDomain because we didn't find anything
+			m := new(dns.Msg)
+			_ = rw.WriteMsg(m.SetRcode(msg, dns.RcodeNameError))
 		}
 		return
 	}
@@ -81,7 +83,9 @@ func (f *memoryHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 	if len(resp.Answer) == 0 {
 		next.Handler(ctx).ServeDNS(ctx, rwWrapper, msg)
 		if !rwWrapper.passed {
-			dns.HandleFailed(rw, msg)
+			// Send NXDomain because we didn't find anything
+			m := new(dns.Msg)
+			_ = rw.WriteMsg(m.SetRcode(msg, dns.RcodeNameError))
 		}
 		return
 	}
@@ -99,29 +103,29 @@ func NewDNSHandler(records *Map) dnsutils.Handler {
 	return &memoryHandler{records: records}
 }
 func a(domain string, ips []net.IP) []dns.RR {
-	answers := make([]dns.RR, len(ips))
-	for i, ip := range ips {
+	var answers []dns.RR
+	for _, ip := range ips {
 		if ip.To4() == nil {
 			continue
 		}
 		r := new(dns.A)
 		r.Hdr = dns.RR_Header{Name: domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: defaultTTL}
 		r.A = ip
-		answers[i] = r
+		answers = append(answers, r)
 	}
 	return answers
 }
 
 func aaaa(domain string, ips []net.IP) []dns.RR {
-	answers := make([]dns.RR, len(ips))
-	for i, ip := range ips {
-		if ip.To16() == nil {
+	var answers []dns.RR
+	for _, ip := range ips {
+		if ip.To4() != nil {
 			continue
 		}
 		r := new(dns.AAAA)
 		r.Hdr = dns.RR_Header{Name: domain, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: defaultTTL}
 		r.AAAA = ip
-		answers[i] = r
+		answers = append(answers, r)
 	}
 	return answers
 }
