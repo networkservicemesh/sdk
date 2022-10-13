@@ -65,12 +65,12 @@ func (f *fakeResolver) LookupSRV(ctx context.Context, service, proto, name strin
 	defer f.Unlock()
 
 	if v, ok := f.ports[name]; ok {
-		i, err := strconv.Atoi(v)
+		port, err := strconv.ParseUint(v, 10, 16)
 		if err != nil {
 			return "", nil, err
 		}
 		return fmt.Sprintf("_%v._%v.%v", service, proto, name), []*net.SRV{{
-			Port:   uint16(i),
+			Port:   uint16(port),
 			Target: name,
 		}}, nil
 	}
