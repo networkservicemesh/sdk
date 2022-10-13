@@ -21,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -37,13 +39,13 @@ import (
 func TestRefresh_Server(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	syncChan := make(chan struct{})
 	checkCtxServ := &checkContextServer{t: t}
-	eventFactoryServ := &eventFactoryServer{ch: syncChan}
+	eventFactoryServ := &eventFactoryServer{}
 	server := chain.NewNetworkServiceServer(
 		begin.NewServer(),
 		checkCtxServ,
 		eventFactoryServ,
+		&failedNSEServer{},
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -61,17 +63,27 @@ func TestRefresh_Server(t *testing.T) {
 
 	// Change context value before refresh Request
 	ctx = context.WithValue(ctx, contextKey{}, "value_2")
-	checkCtxServ.setExpectedValue("value_2")
-	request.Connection = conn.Clone()
 
-	// Call refresh
+	// Call refresh that will fail
+	request.Connection = conn.Clone()
+	request.Connection.NetworkServiceEndpointName = failedNSENameServer
+	checkCtxServ.setExpectedValue("value_2")
+	_, err = server.Request(ctx, request.Clone())
+	assert.Error(t, err)
+
+	// Call refresh from eventFactory. We are expecting the previous value in the context
+	checkCtxServ.setExpectedValue("value_1")
+	eventFactoryServ.callRefresh()
+
+	// Call refresh that will successful
+	request.Connection.NetworkServiceEndpointName = ""
+	checkCtxServ.setExpectedValue("value_2")
 	conn, err = server.Request(ctx, request.Clone())
 	assert.NotNil(t, t, conn)
 	assert.NoError(t, err)
 
 	// Call refresh from eventFactory. We are expecting updated value in the context
 	eventFactoryServ.callRefresh()
-	<-syncChan
 }
 
 // This test reproduces the situation when Close and Request were called at the same time
@@ -79,9 +91,8 @@ func TestRefresh_Server(t *testing.T) {
 func TestRefreshDuringClose_Server(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	syncChan := make(chan struct{})
 	checkCtxServ := &checkContextServer{t: t}
-	eventFactoryServ := &eventFactoryServer{ch: syncChan}
+	eventFactoryServ := &eventFactoryServer{}
 	server := chain.NewNetworkServiceServer(
 		begin.NewServer(),
 		checkCtxServ,
@@ -108,7 +119,6 @@ func TestRefreshDuringClose_Server(t *testing.T) {
 
 	// Call Close from eventFactory
 	eventFactoryServ.callClose()
-	<-syncChan
 
 	// Call refresh  (should be called at the same time as Close)
 	conn, err = server.Request(ctx, request.Clone())
@@ -117,12 +127,10 @@ func TestRefreshDuringClose_Server(t *testing.T) {
 
 	// Call refresh from eventFactory. We are expecting updated value in the context
 	eventFactoryServ.callRefresh()
-	<-syncChan
 }
 
 type eventFactoryServer struct {
 	ctx context.Context
-	ch  chan<- struct{}
 }
 
 func (e *eventFactoryServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
@@ -138,18 +146,12 @@ func (e *eventFactoryServer) Close(ctx context.Context, conn *networkservice.Con
 
 func (e *eventFactoryServer) callClose() {
 	eventFactory := begin.FromContext(e.ctx)
-	go func() {
-		e.ch <- struct{}{}
-		eventFactory.Close()
-	}()
+	eventFactory.Close()
 }
 
 func (e *eventFactoryServer) callRefresh() {
 	eventFactory := begin.FromContext(e.ctx)
-	go func() {
-		e.ch <- struct{}{}
-		eventFactory.Request()
-	}()
+	<-eventFactory.Request()
 }
 
 type checkContextServer struct {
@@ -168,4 +170,22 @@ func (c *checkContextServer) Close(ctx context.Context, conn *networkservice.Con
 
 func (c *checkContextServer) setExpectedValue(value string) {
 	c.expectedValue = value
+}
+
+const failedNSENameServer = "failedNSE"
+
+type failedNSEServer struct{}
+
+func (f *failedNSEServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	if request.GetConnection().NetworkServiceEndpointName == failedNSENameServer {
+		return nil, errors.New("failed")
+	}
+	return next.Server(ctx).Request(ctx, request)
+}
+
+func (f *failedNSEServer) Close(ctx context.Context, conn *networkservice.Connection) (*emptypb.Empty, error) {
+	if conn.NetworkServiceEndpointName == failedNSENameServer {
+		return nil, errors.New("failed")
+	}
+	return next.Server(ctx).Close(ctx, conn)
 }

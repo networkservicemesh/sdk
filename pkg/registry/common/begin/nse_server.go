@@ -60,7 +60,6 @@ func (b *beginNSEServer) Register(ctx context.Context, in *registry.NetworkServi
 			resp, err = b.Register(ctx, in)
 			return
 		}
-		eventFactoryServer.updateContext(ctx)
 
 		ctx = withEventFactory(ctx, eventFactoryServer)
 		resp, err = next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
@@ -74,6 +73,7 @@ func (b *beginNSEServer) Register(ctx context.Context, in *registry.NetworkServi
 		eventFactoryServer.registration = mergeNSE(in, resp)
 		eventFactoryServer.state = established
 		eventFactoryServer.response = resp
+		eventFactoryServer.updateContext(ctx)
 	})
 	return resp, err
 }

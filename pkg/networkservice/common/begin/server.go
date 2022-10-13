@@ -61,7 +61,6 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 			conn, err = b.Request(ctx, request)
 			return
 		}
-		eventFactoryServer.updateContext(ctx)
 
 		ctx = withEventFactory(ctx, eventFactoryServer)
 		conn, err = next.Server(ctx).Request(ctx, request)
@@ -77,6 +76,7 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 		eventFactoryServer.state = established
 
 		eventFactoryServer.returnedConnection = conn.Clone()
+		eventFactoryServer.updateContext(ctx)
 	})
 	return conn, err
 }
