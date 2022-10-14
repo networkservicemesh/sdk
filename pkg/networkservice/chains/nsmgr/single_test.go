@@ -21,12 +21,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/tls"
-	"crypto/x509"
-	"crypto/x509/pkix"
-	"encoding/pem"
 	"fmt"
-	"math/big"
 	"net"
 	"net/url"
 	"os"
@@ -39,7 +34,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
@@ -53,7 +47,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/tools/clientinfo"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
@@ -487,46 +480,6 @@ func Test_RemoteUsecase_Point2MultiPoint(t *testing.T) {
 	require.Equal(t, "p2p forwarder-1", conn.GetPath().GetPathSegments()[4].Name)
 }
 
-func generateCA() (tls.Certificate, error) {
-	ca := &x509.Certificate{
-		SerialNumber: big.NewInt(1653),
-		Subject: pkix.Name{
-			Organization:  []string{"ORGANIZATION_NAME"},
-			Country:       []string{"COUNTRY_CODE"},
-			Province:      []string{"PROVINCE"},
-			Locality:      []string{"CITY"},
-			StreetAddress: []string{"ADDRESS"},
-			PostalCode:    []string{"POSTAL_CODE"},
-		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(10, 0, 0),
-		IsCA:                  true,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
-		SignatureAlgorithm:    x509.ECDSAWithSHA256,
-		BasicConstraintsValid: true,
-	}
-
-	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return tls.Certificate{}, err
-	}
-	pub := &priv.PublicKey
-
-	certBytes, err := x509.CreateCertificate(rand.Reader, ca, ca, pub, priv)
-	if err != nil {
-		return tls.Certificate{}, err
-	}
-
-	certPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
-	keyBytes, err := x509.MarshalECPrivateKey(priv)
-	if err != nil {
-		return tls.Certificate{}, err
-	}
-	keyPem := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: keyBytes})
-	return tls.X509KeyPair(certPem, keyPem)
-}
-
 // TokenGeneratorFunc - creates a token.TokenGeneratorFunc that creates spiffe JWT tokens from the cert returned by getCert()
 func TokenGeneratorFunc(spiffeID string) token.GeneratorFunc {
 	return func(authInfo credentials.AuthInfo) (string, time.Time, error) {
@@ -536,8 +489,11 @@ func TokenGeneratorFunc(spiffeID string) token.GeneratorFunc {
 			ExpiresAt: jwt.NewNumericDate(expireTime),
 		}
 
-		ca, _ := generateCA()
-		tok, err := jwt.NewWithClaims(jwt.SigningMethodES256, claims).SignedString(ca.PrivateKey)
+		priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			return "", time.Time{}, err
+		}
+		tok, err := jwt.NewWithClaims(jwt.SigningMethodES256, claims).SignedString(priv)
 		return tok, expireTime, err
 	}
 }
@@ -545,9 +501,7 @@ func TokenGeneratorFunc(spiffeID string) token.GeneratorFunc {
 func Test_FailedRegistryAuthorization(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	log.EnableTracing(true)
-	logrus.SetLevel(logrus.TraceLevel)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	nsmgrSuppier := func(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...nsmgr.Option) nsmgr.Nsmgr {
