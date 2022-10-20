@@ -68,7 +68,7 @@ func (l *policiesList) check(ctx context.Context, input RegistryOpaInput) error 
 	return nil
 }
 
-func getRawMap(m *spiffeIDResourcesMap) map[string][]string {
+func getRawMap(m *ResourcePathMap) map[string][]string {
 	rawMap := make(map[string][]string)
 	m.Range(func(key string, value []string) bool {
 		rawMap[key] = value

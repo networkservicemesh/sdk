@@ -20,8 +20,8 @@ import (
 	"sync"
 )
 
-//go:generate go-syncmap -output sync_map.gen.go -type spiffeIDResourcesMap<string,[]string>
+//go:generate go-syncmap -output sync_map.gen.go -type ResourcePathMap<string,[]string>
 
 // TODO: change description
-// spiffeIDResourcesMap - sync.Map with key == spiffeID and value == list of NSEs associated with spiffeID
-type spiffeIDResourcesMap sync.Map
+// ResourcePathMap - sync.Map with key == resourceName and value == list of path ids assosiated with this resource
+type ResourcePathMap sync.Map
