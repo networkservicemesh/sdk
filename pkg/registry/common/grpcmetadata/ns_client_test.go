@@ -21,7 +21,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -145,11 +144,11 @@ func TestAuthzNetworkServiceRegistry(t *testing.T) {
 		registry.NewNetworkServiceRegistryClient(conn))
 
 	ns := &registry.NetworkService{Name: "ns"}
-	ns, err = client.Register(ctx, ns)
+	_, err = client.Register(ctx, ns)
 	require.NoError(t, err)
 
-	path, err := grpcmetadata.PathFromContext(ctx)
-	fmt.Printf("path: %v\n", path)
+	_, err = client.Register(ctx, ns)
+	require.NoError(t, err)
 
 	serverGRPCServer.Stop()
 	proxyGRPCServer.Stop()

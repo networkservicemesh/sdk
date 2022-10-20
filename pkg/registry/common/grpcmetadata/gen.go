@@ -14,14 +14,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package authorize
+package grpcmetadata
 
 import (
 	"sync"
 )
 
-//go:generate go-syncmap -output sync_map.gen.go -type spiffeIDResourcesMap<string,[]string>
+//go:generate go-syncmap -output sync_map.gen.go -type resourcePathMap<string,*github.com/networkservicemesh/api/pkg/api/registry.Path>
 
-// TODO: change description
-// spiffeIDResourcesMap - sync.Map with key == spiffeID and value == list of NSEs associated with spiffeID
-type spiffeIDResourcesMap sync.Map
+// resourcePathMap - sync.Map with key == rosource name and value == path assosiated with this resource
+type resourcePathMap sync.Map

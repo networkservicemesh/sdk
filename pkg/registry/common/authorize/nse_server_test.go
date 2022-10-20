@@ -16,46 +16,46 @@
 
 package authorize_test
 
-import (
-	"context"
-	"testing"
+// import (
+// 	"context"
+// 	"testing"
 
-	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/stretchr/testify/require"
+// 	"github.com/networkservicemesh/api/pkg/api/registry"
+// 	"github.com/stretchr/testify/require"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
-	"github.com/networkservicemesh/sdk/pkg/tools/opa"
+// 	"github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
+// 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 
-	"go.uber.org/goleak"
-)
+// 	"go.uber.org/goleak"
+// )
 
-func TestAuthzEndpointRegistry(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-	server := authorize.NewNetworkServiceEndpointRegistryServer(authorize.WithPolicies(opa.WithRegistryClientAllowedPolicy()))
-	ctx := context.Background()
+// func TestAuthzEndpointRegistry(t *testing.T) {
+// 	t.Cleanup(func() { goleak.VerifyNone(t) })
+// 	server := authorize.NewNetworkServiceEndpointRegistryServer(authorize.WithPolicies(opa.WithRegistryClientAllowedPolicy()))
+// 	ctx := context.Background()
 
-	nse1 := &registry.NetworkServiceEndpoint{
-		Name: "ns-1",
-		Path: getPath(t, "spiffe://test.com/workload1"),
-	}
+// 	nse1 := &registry.NetworkServiceEndpoint{
+// 		Name: "ns-1",
+// 		Path: getPath(t, "spiffe://test.com/workload1"),
+// 	}
 
-	nse2 := &registry.NetworkServiceEndpoint{
-		Name: "ns-1",
-		Path: getPath(t, "spiffe://test.com/workload2"),
-	}
+// 	nse2 := &registry.NetworkServiceEndpoint{
+// 		Name: "ns-1",
+// 		Path: getPath(t, "spiffe://test.com/workload2"),
+// 	}
 
-	_, err := server.Register(ctx, nse1)
-	require.NoError(t, err)
+// 	_, err := server.Register(ctx, nse1)
+// 	require.NoError(t, err)
 
-	_, err = server.Register(ctx, nse2)
-	require.Error(t, err)
+// 	_, err = server.Register(ctx, nse2)
+// 	require.Error(t, err)
 
-	_, err = server.Register(ctx, nse1)
-	require.NoError(t, err)
+// 	_, err = server.Register(ctx, nse1)
+// 	require.NoError(t, err)
 
-	_, err = server.Unregister(ctx, nse2)
-	require.Error(t, err)
+// 	_, err = server.Unregister(ctx, nse2)
+// 	require.Error(t, err)
 
-	_, err = server.Unregister(ctx, nse1)
-	require.NoError(t, err)
-}
+// 	_, err = server.Unregister(ctx, nse1)
+// 	require.NoError(t, err)
+// }

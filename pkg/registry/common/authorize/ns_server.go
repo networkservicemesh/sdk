@@ -27,12 +27,11 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
-	"github.com/networkservicemesh/sdk/pkg/tools/stringset"
 )
 
 type authorizeNSServer struct {
-	policies       policiesList
-	spiffeIDNSsMap *spiffeIDResourcesMap
+	policies  policiesList
+	nsPathMap *spiffeIDResourcesMap
 }
 
 // NewNetworkServiceRegistryServer - returns a new authorization registry.NetworkServiceRegistryServer
@@ -46,7 +45,7 @@ func NewNetworkServiceRegistryServer(opts ...Option) registry.NetworkServiceRegi
 			opa.WithTokenChainPolicy(),
 			opa.WithRegistryClientAllowedPolicy(),
 		},
-		spiffeIDResourcesMap: new(spiffeIDResourcesMap),
+		resourcePathMap: new(spiffeIDResourcesMap),
 	}
 
 	for _, opt := range opts {
@@ -54,8 +53,8 @@ func NewNetworkServiceRegistryServer(opts ...Option) registry.NetworkServiceRegi
 	}
 
 	return &authorizeNSServer{
-		policies:       o.policies,
-		spiffeIDNSsMap: o.spiffeIDResourcesMap,
+		policies:  o.policies,
+		nsPathMap: o.resourcePathMap,
 	}
 }
 
@@ -80,8 +79,9 @@ func (s *authorizeNSServer) Register(ctx context.Context, ns *registry.NetworkSe
 		PathSegments: path.GetPathSegments()[:index+1],
 	}
 
-	rawMap := getRawMap(s.spiffeIDNSsMap)
+	rawMap := getRawMap(s.nsPathMap)
 	input := RegistryOpaInput{
+		ResourceSpiffeID:     spiffeID.String(),
 		ResourceName:         ns.Name,
 		SpiffeIDResourcesMap: rawMap,
 		PathSegments:         leftSide.PathSegments,
@@ -91,12 +91,13 @@ func (s *authorizeNSServer) Register(ctx context.Context, ns *registry.NetworkSe
 		return nil, err
 	}
 
-	nsNames, ok := s.spiffeIDNSsMap.Load(spiffeID)
-	if !ok {
-		nsNames = new(stringset.StringSet)
-	}
-	nsNames.Store(ns.Name, struct{}{})
-	s.spiffeIDNSsMap.Store(spiffeID, nsNames)
+	s.nsPathMap.Store(ns.Name, ns.PathIds)
+	// nsNames, ok := s.spiffeIDNSsMap.Load(spiffeID)
+	// if !ok {
+	// 	nsNames = new(stringset.StringSet)
+	// }
+	// nsNames.Store(ns.Name, struct{}{})
+	// s.spiffeIDNSsMap.Store(spiffeID, nsNames)
 
 	return next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
 }
@@ -110,19 +111,24 @@ func (s *authorizeNSServer) Unregister(ctx context.Context, ns *registry.Network
 		return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 	}
 
-	spiffeID, err := getSpiffeIDFromPath(ns.Path)
+	path, err := grpcmetadata.PathFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	spiffeID, err := getSpiffeIDFromPath(path)
 	if err != nil {
 		return nil, err
 	}
 
-	index := ns.GetPath().GetIndex()
+	index := path.GetIndex()
 	var leftSide = &registry.Path{
 		Index:        index,
-		PathSegments: ns.GetPath().GetPathSegments()[:index+1],
+		PathSegments: path.GetPathSegments()[:index+1],
 	}
 
-	rawMap := getRawMap(s.spiffeIDNSsMap)
+	rawMap := getRawMap(s.nsPathMap)
 	input := RegistryOpaInput{
+		ResourceSpiffeID:     spiffeID.String(),
 		ResourceName:         ns.Name,
 		SpiffeIDResourcesMap: rawMap,
 		PathSegments:         leftSide.PathSegments,
@@ -132,21 +138,22 @@ func (s *authorizeNSServer) Unregister(ctx context.Context, ns *registry.Network
 		return nil, err
 	}
 
-	nsNames, ok := s.spiffeIDNSsMap.Load(spiffeID)
-	if ok {
-		nsNames.Delete(ns.Name)
-		namesEmpty := true
-		nsNames.Range(func(key string, value struct{}) bool {
-			namesEmpty = false
-			return true
-		})
+	s.nsPathMap.Delete(ns.Name)
+	// nsNames, ok := s.spiffeIDNSsMap.Load(spiffeID)
+	// if ok {
+	// 	nsNames.Delete(ns.Name)
+	// 	namesEmpty := true
+	// 	nsNames.Range(func(key string, value struct{}) bool {
+	// 		namesEmpty = false
+	// 		return true
+	// 	})
 
-		if namesEmpty {
-			s.spiffeIDNSsMap.Delete(spiffeID)
-		} else {
-			s.spiffeIDNSsMap.Store(spiffeID, nsNames)
-		}
-	}
+	// 	if namesEmpty {
+	// 		s.spiffeIDNSsMap.Delete(spiffeID)
+	// 	} else {
+	// 		s.spiffeIDNSsMap.Store(spiffeID, nsNames)
+	// 	}
+	// }
 
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }

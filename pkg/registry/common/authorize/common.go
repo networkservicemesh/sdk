@@ -28,11 +28,12 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	"github.com/networkservicemesh/sdk/pkg/tools/stringset"
 )
 
+// TODO: Rename ResourceSpiffeID field
 // RegistryOpaInput represents input for policies in authorizNSEServer and authorizeNSServer
 type RegistryOpaInput struct {
+	ResourceSpiffeID     string                  `json:"resource_spiffe_id"`
 	ResourceName         string                  `json:"resource_name"`
 	SpiffeIDResourcesMap map[string][]string     `json:"spiffe_id_resources_map"`
 	PathSegments         []*registry.PathSegment `json:"path_segments"`
@@ -69,13 +70,8 @@ func (l *policiesList) check(ctx context.Context, input RegistryOpaInput) error 
 
 func getRawMap(m *spiffeIDResourcesMap) map[string][]string {
 	rawMap := make(map[string][]string)
-	m.Range(func(key spiffeid.ID, value *stringset.StringSet) bool {
-		id := key.String()
-		rawMap[id] = make([]string, 0)
-		value.Range(func(key string, value struct{}) bool {
-			rawMap[id] = append(rawMap[id], key)
-			return true
-		})
+	m.Range(func(key string, value []string) bool {
+		rawMap[key] = value
 		return true
 	})
 

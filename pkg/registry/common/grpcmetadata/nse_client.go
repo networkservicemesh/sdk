@@ -30,18 +30,26 @@ import (
 )
 
 type grpcMetadataNSEClient struct {
+	nsePathMap *resourcePathMap
 }
 
 func NewNetworkServiceEndpointRegistryClient() registry.NetworkServiceEndpointRegistryClient {
-	return &grpcMetadataNSEClient{}
+	return &grpcMetadataNSEClient{
+		nsePathMap: new(resourcePathMap),
+	}
 }
 
-func (s *grpcMetadataNSEClient) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	path, err := PathFromContext(ctx)
-	if err != nil {
-		return nil, err
+func (c *grpcMetadataNSEClient) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+	path, loaded := c.nsePathMap.Load(nse.Name)
+	if !loaded {
+		ctxPath, err := PathFromContext(ctx)
+		if err != nil {
+			return nil, err
+		}
+		path = ctxPath
 	}
-	ctx, err = appendToMetadata(ctx, path)
+
+	ctx, err := appendToMetadata(ctx, path)
 	if err != nil {
 		return nil, err
 	}
@@ -61,13 +69,15 @@ func (s *grpcMetadataNSEClient) Register(ctx context.Context, nse *registry.Netw
 	path.Index = newpath.Index
 	path.PathSegments = newpath.PathSegments
 
+	c.nsePathMap.Store(nse.Name, path)
+
 	return resp, nil
 }
 
-func (s *grpcMetadataNSEClient) Find(ctx context.Context, query *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
+func (c *grpcMetadataNSEClient) Find(ctx context.Context, query *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
 	return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, query, opts...)
 }
 
-func (s *grpcMetadataNSEClient) Unregister(ctx context.Context, ns *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (c *grpcMetadataNSEClient) Unregister(ctx context.Context, ns *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
 	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, ns, opts...)
 }

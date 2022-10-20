@@ -233,7 +233,6 @@ func (n *Node) registerEndpoint(
 	nse.Name = reg.Name
 	nse.ExpirationTime = reg.ExpirationTime
 	nse.NetworkServiceLabels = reg.NetworkServiceLabels
-	nse.Path = reg.Path
 }
 
 // NewClient starts a new client and connects it to the node NSMgr

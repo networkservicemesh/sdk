@@ -16,9 +16,10 @@
 
 package authorize
 
+// TODO: rename map
 type options struct {
-	policies             policiesList
-	spiffeIDResourcesMap *spiffeIDResourcesMap
+	policies        policiesList
+	resourcePathMap *spiffeIDResourcesMap
 }
 
 // Option is authorization option for server
@@ -41,6 +42,6 @@ func WithPolicies(p ...Policy) Option {
 // WithSpiffeIDResourcesMap sets map to keep spiffeIDResourcesMap to authorize connections with Registry Authorize Chain Element
 func WithSpiffeIDResourcesMap(m *spiffeIDResourcesMap) Option {
 	return func(o *options) {
-		o.spiffeIDResourcesMap = m
+		o.resourcePathMap = m
 	}
 }

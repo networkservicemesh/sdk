@@ -30,18 +30,26 @@ import (
 )
 
 type grpcMetadataNSClient struct {
+	nsPathMap *resourcePathMap
 }
 
 func NewNetworkServiceRegistryClient() registry.NetworkServiceRegistryClient {
-	return &grpcMetadataNSClient{}
+	return &grpcMetadataNSClient{
+		nsPathMap: new(resourcePathMap),
+	}
 }
 
-func (s *grpcMetadataNSClient) Register(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
-	path, err := PathFromContext(ctx)
-	if err != nil {
-		return nil, err
+func (c *grpcMetadataNSClient) Register(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
+	path, loaded := c.nsPathMap.Load(ns.Name)
+	if !loaded {
+		ctxPath, err := PathFromContext(ctx)
+		if err != nil {
+			return nil, err
+		}
+		path = ctxPath
 	}
-	ctx, err = appendToMetadata(ctx, path)
+
+	ctx, err := appendToMetadata(ctx, path)
 	if err != nil {
 		return nil, err
 	}
@@ -61,13 +69,15 @@ func (s *grpcMetadataNSClient) Register(ctx context.Context, ns *registry.Networ
 	path.Index = newpath.Index
 	path.PathSegments = newpath.PathSegments
 
+	c.nsPathMap.Store(ns.Name, path)
+
 	return resp, nil
 }
 
-func (s *grpcMetadataNSClient) Find(ctx context.Context, query *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
+func (c *grpcMetadataNSClient) Find(ctx context.Context, query *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
 	return next.NetworkServiceRegistryClient(ctx).Find(ctx, query, opts...)
 }
 
-func (s *grpcMetadataNSClient) Unregister(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (c *grpcMetadataNSClient) Unregister(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
 	return next.NetworkServiceRegistryClient(ctx).Unregister(ctx, ns, opts...)
 }
