@@ -29,6 +29,11 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
+const (
+	spiffeid1 = "spiffe://test.com/workload1"
+	spiffeid2 = "spiffe://test.com/workload2"
+)
+
 func genJWTWithClaims(claims *jwt.RegisteredClaims) string {
 	t, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte("super secret"))
 	return t

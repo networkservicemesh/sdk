@@ -18,9 +18,6 @@ package nsmgr_test
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"fmt"
 	"net"
 	"net/url"
@@ -34,7 +31,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
@@ -48,7 +44,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/tools/clientinfo"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
@@ -483,19 +478,14 @@ func Test_RemoteUsecase_Point2MultiPoint(t *testing.T) {
 }
 
 // TokenGeneratorFunc - creates a token.TokenGeneratorFunc that creates spiffe JWT tokens from the cert returned by getCert()
-func TokenGeneratorFunc(spiffeID string) token.GeneratorFunc {
+func tokenGeneratorFunc(spiffeID string) token.GeneratorFunc {
 	return func(authInfo credentials.AuthInfo) (string, time.Time, error) {
 		expireTime := time.Now().Add(time.Hour)
 		claims := jwt.RegisteredClaims{
 			Subject:   spiffeID,
 			ExpiresAt: jwt.NewNumericDate(expireTime),
 		}
-
-		priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		if err != nil {
-			return "", time.Time{}, err
-		}
-		tok, err := jwt.NewWithClaims(jwt.SigningMethodES256, claims).SignedString(priv)
+		tok, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte("supersecret"))
 		return tok, expireTime, err
 	}
 }
@@ -503,9 +493,7 @@ func TokenGeneratorFunc(spiffeID string) token.GeneratorFunc {
 func Test_FailedRegistryAuthorization(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	log.EnableTracing(true)
-	logrus.SetLevel(logrus.TraceLevel)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	nsmgrSuppier := func(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...nsmgr.Option) nsmgr.Nsmgr {
@@ -517,15 +505,18 @@ func Test_FailedRegistryAuthorization(t *testing.T) {
 		)
 		return nsmgr.NewServer(ctx, tokenGenerator, options...)
 	}
+
 	registrySupplier := func(
 		ctx context.Context,
 		tokenGenerator token.GeneratorFunc,
 		expiryDuration time.Duration,
 		proxyRegistryURL *url.URL,
 		options ...grpc.DialOption) registry.Registry {
+		registryName := sandbox.UniqueName("registry-memory")
+
 		return memory.NewServer(
 			ctx,
-			tokenGenerator,
+			tokenGeneratorFunc("spiffe://test.com/"+registryName),
 			memory.WithExpireDuration(expiryDuration),
 			memory.WithProxyRegistryURL(proxyRegistryURL),
 			memory.WithDialOptions(options...),
@@ -540,7 +531,7 @@ func Test_FailedRegistryAuthorization(t *testing.T) {
 		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, nodeNum int) {
 			nsmgrName := sandbox.UniqueName("nsmgr")
 			forwarderName := sandbox.UniqueName("forwarder")
-			node.NewNSMgr(ctx, nsmgrName, nil, TokenGeneratorFunc("spiffe://test.com/"+nsmgrName), nsmgrSuppier)
+			node.NewNSMgr(ctx, nsmgrName, nil, tokenGeneratorFunc("spiffe://test.com/"+nsmgrName), nsmgrSuppier)
 			node.NewForwarder(ctx, &registryapi.NetworkServiceEndpoint{
 				Name:                forwarderName,
 				NetworkServiceNames: []string{"forwarder"},
@@ -549,17 +540,17 @@ func Test_FailedRegistryAuthorization(t *testing.T) {
 						Labels: map[string]string{"p2p": "true"},
 					},
 				},
-			}, TokenGeneratorFunc("spiffe://test.com/"+forwarderName))
+			}, tokenGeneratorFunc("spiffe://test.com/"+forwarderName))
 		}).
 		SetNSMgrProxySupplier(nil).
 		SetRegistryProxySupplier(nil).
 		Build()
 
-	nsRegistryClient1 := domain.NewNSRegistryClient(ctx, TokenGeneratorFunc("spiffe://test.com/ns-1"))
+	nsRegistryClient1 := domain.NewNSRegistryClient(ctx, tokenGeneratorFunc("spiffe://test.com/ns-1"))
 	ns1 := defaultRegistryService("ns-1")
 	_, err := nsRegistryClient1.Register(ctx, ns1)
 	require.NoError(t, err)
-	nsRegistryClient2 := domain.NewNSRegistryClient(ctx, TokenGeneratorFunc("spiffe://test.com/ns-2"))
+	nsRegistryClient2 := domain.NewNSRegistryClient(ctx, tokenGeneratorFunc("spiffe://test.com/ns-2"))
 	ns2 := defaultRegistryService("ns-1")
 	_, err = nsRegistryClient2.Register(ctx, ns2)
 	require.Error(t, err)

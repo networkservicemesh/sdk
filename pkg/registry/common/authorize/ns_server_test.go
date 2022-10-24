@@ -16,48 +16,48 @@
 
 package authorize_test
 
-// import (
-// 	"context"
-// 	"testing"
+import (
+	"context"
+	"testing"
 
-// 	"github.com/networkservicemesh/api/pkg/api/registry"
-// 	"github.com/stretchr/testify/require"
+	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/stretchr/testify/require"
 
-// 	"github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
-// 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
-// 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
+	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 
-// 	"go.uber.org/goleak"
-// )
+	"go.uber.org/goleak"
+)
 
-// func TestAuthzNetworkServiceRegistry(t *testing.T) {
-// 	t.Cleanup(func() { goleak.VerifyNone(t) })
-// 	server := authorize.NewNetworkServiceRegistryServer(authorize.WithPolicies(opa.WithRegistryClientAllowedPolicy()))
+func TestNetworkServiceRegistryAuthorization(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+	server := authorize.NewNetworkServiceRegistryServer(authorize.WithPolicies(opa.WithRegistryClientAllowedPolicy()))
 
-// 	ctx := context.Background()
+	ns := &registry.NetworkService{Name: "ns"}
+	path1 := getPath(t, spiffeid1)
+	ctx1 := grpcmetadata.PathWithContext(context.Background(), path1)
 
-// 	ns1 := &registry.NetworkService{
-// 		Name: "ns-1",
-// 		Path: getPath(t, "spiffe://test.com/workload1"),
-// 	}
+	path2 := getPath(t, spiffeid2)
+	ctx2 := grpcmetadata.PathWithContext(context.Background(), path2)
 
-// 	ns2 := &registry.NetworkService{
-// 		Name: "ns-1",
-// 		Path: getPath(t, "spiffe://test.com/workload2"),
-// 	}
+	ns.PathIds = []string{spiffeid1}
+	_, err := server.Register(ctx1, ns)
+	require.NoError(t, err)
 
-// 	_, err := server.Register(ctx, ns1)
-// 	require.NoError(t, err)
+	ns.PathIds = []string{spiffeid2}
+	_, err = server.Register(ctx2, ns)
+	require.Error(t, err)
 
-// 	_, err = server.Register(ctx, ns2)
-// 	require.Error(t, err)
+	ns.PathIds = []string{spiffeid1}
+	_, err = server.Register(ctx1, ns)
+	require.NoError(t, err)
 
-// 	_, err = server.Register(ctx, ns1)
-// 	require.NoError(t, err)
+	ns.PathIds = []string{spiffeid2}
+	_, err = server.Unregister(ctx2, ns)
+	require.Error(t, err)
 
-// 	_, err = server.Unregister(ctx, ns2)
-// 	require.Error(t, err)
-
-// 	_, err = server.Unregister(ctx, ns1)
-// 	require.NoError(t, err)
-// }
+	ns.PathIds = []string{spiffeid1}
+	_, err = server.Unregister(ctx1, ns)
+	require.NoError(t, err)
+}

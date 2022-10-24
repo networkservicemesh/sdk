@@ -30,8 +30,8 @@ import (
 )
 
 type authorizeNSEServer struct {
-	policies   policiesList
-	nsePathMap *ResourcePathMap
+	policies      policiesList
+	nsePathIdsMap *ResourcePathIdsMap
 }
 
 // NewNetworkServiceEndpointRegistryServer - returns a new authorization registry.NetworkServiceEndpointRegistryServer
@@ -45,7 +45,7 @@ func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkSer
 			opa.WithTokenChainPolicy(),
 			opa.WithRegistryClientAllowedPolicy(),
 		},
-		resourcePathMap: new(ResourcePathMap),
+		resourcePathIdsMap: new(ResourcePathIdsMap),
 	}
 
 	for _, opt := range opts {
@@ -53,8 +53,8 @@ func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkSer
 	}
 
 	return &authorizeNSEServer{
-		policies:   o.policies,
-		nsePathMap: o.resourcePathMap,
+		policies:      o.policies,
+		nsePathIdsMap: o.resourcePathIdsMap,
 	}
 }
 
@@ -79,20 +79,19 @@ func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.Network
 		PathSegments: path.GetPathSegments()[:index+1],
 	}
 
-	rawMap := getRawMap(s.nsePathMap)
+	rawMap := getRawMap(s.nsePathIdsMap)
 	input := RegistryOpaInput{
-		ResourceSpiffeID:     spiffeID.String(),
-		ResourceName:         nse.Name,
-		SpiffeIDResourcesMap: rawMap,
-		PathSegments:         leftSide.PathSegments,
-		Index:                leftSide.Index,
+		ResourceID:         spiffeID.String(),
+		ResourceName:       nse.Name,
+		ResourcePathIdsMap: rawMap,
+		PathSegments:       leftSide.PathSegments,
+		Index:              leftSide.Index,
 	}
 	if err := s.policies.check(ctx, input); err != nil {
 		return nil, err
 	}
 
-	s.nsePathMap.Store(nse.Name, nse.PathIds)
-
+	s.nsePathIdsMap.Store(nse.Name, nse.PathIds)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 }
 
@@ -120,20 +119,19 @@ func (s *authorizeNSEServer) Unregister(ctx context.Context, nse *registry.Netwo
 		PathSegments: path.GetPathSegments()[:index+1],
 	}
 
-	rawMap := getRawMap(s.nsePathMap)
+	rawMap := getRawMap(s.nsePathIdsMap)
 	input := RegistryOpaInput{
-		ResourceSpiffeID:     spiffeID.String(),
-		ResourceName:         nse.Name,
-		SpiffeIDResourcesMap: rawMap,
-		PathSegments:         leftSide.PathSegments,
-		Index:                leftSide.Index,
+		ResourceID:         spiffeID.String(),
+		ResourceName:       nse.Name,
+		ResourcePathIdsMap: rawMap,
+		PathSegments:       leftSide.PathSegments,
+		Index:              leftSide.Index,
 	}
 
 	if err := s.policies.check(ctx, input); err != nil {
 		return nil, err
 	}
 
-	s.nsePathMap.Delete(nse.Name)
-
+	s.nsePathIdsMap.Delete(nse.Name)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }

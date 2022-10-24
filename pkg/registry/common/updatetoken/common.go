@@ -22,8 +22,10 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/pkg/errors"
+	"github.com/spiffe/go-spiffe/v2/spiffeid"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
 
@@ -87,4 +89,32 @@ func printPath(ctx context.Context, path *registry.Path) {
 	for i, s := range path.PathSegments {
 		logger.Infof("Segment: %d, Value: %v", i, s)
 	}
+}
+
+func getIDFromToken(tokenString string) (spiffeid.ID, error) {
+	claims := jwt.MapClaims{}
+	_, _, err := jwt.NewParser().ParseUnverified(tokenString, &claims)
+	if err != nil {
+		return spiffeid.ID{}, errors.Errorf("failed to parse jwt token: %s", err.Error())
+	}
+
+	sub, ok := claims["sub"]
+	if !ok {
+		return spiffeid.ID{}, errors.New("failed to get field 'sub' from jwt token payload")
+	}
+	subString, ok := sub.(string)
+	if !ok {
+		return spiffeid.ID{}, errors.New("failed to convert field 'sub' from jwt token payload to string")
+	}
+	return spiffeid.FromString(subString)
+}
+
+func updatePathIds(pathIds []string, index int, id string) []string {
+	if int(index) >= len(pathIds) {
+		pathIds = append(pathIds, id)
+	} else {
+		pathIds[index] = id
+	}
+
+	return pathIds
 }

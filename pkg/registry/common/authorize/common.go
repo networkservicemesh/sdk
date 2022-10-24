@@ -18,8 +18,6 @@ package authorize
 
 import (
 	"context"
-	"encoding/json"
-	"strings"
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/pkg/errors"
@@ -30,14 +28,13 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-// TODO: Rename ResourceSpiffeID field
 // RegistryOpaInput represents input for policies in authorizNSEServer and authorizeNSServer
 type RegistryOpaInput struct {
-	ResourceSpiffeID     string                  `json:"resource_spiffe_id"`
-	ResourceName         string                  `json:"resource_name"`
-	SpiffeIDResourcesMap map[string][]string     `json:"spiffe_id_resources_map"`
-	PathSegments         []*registry.PathSegment `json:"path_segments"`
-	Index                uint32                  `json:"index"`
+	ResourceID         string                  `json:"resource_id"`
+	ResourceName       string                  `json:"resource_name"`
+	ResourcePathIdsMap map[string][]string     `json:"resource_path_ids_map"`
+	PathSegments       []*registry.PathSegment `json:"path_segments"`
+	Index              uint32                  `json:"index"`
 }
 
 // Policy represents authorization policy for network service.
@@ -68,7 +65,7 @@ func (l *policiesList) check(ctx context.Context, input RegistryOpaInput) error 
 	return nil
 }
 
-func getRawMap(m *ResourcePathMap) map[string][]string {
+func getRawMap(m *ResourcePathIdsMap) map[string][]string {
 	rawMap := make(map[string][]string)
 	m.Range(func(key string, value []string) bool {
 		rawMap[key] = value
@@ -81,25 +78,21 @@ func getRawMap(m *ResourcePathMap) map[string][]string {
 func getSpiffeIDFromPath(path *registry.Path) (spiffeid.ID, error) {
 	tokenString := path.PathSegments[0].Token
 
-	tokenSegments := strings.Split(tokenString, ".")
-	if len(tokenSegments) < 3 {
-		return spiffeid.ID{}, errors.New("token is invalid. Should have 3 segments separated by dot")
-	}
-	b, err := jwt.DecodeSegment(tokenSegments[1])
+	claims := jwt.MapClaims{}
+	_, _, err := jwt.NewParser().ParseUnverified(tokenString, &claims)
 	if err != nil {
-		return spiffeid.ID{}, errors.Errorf("failed to decode payload from jwt token: %s", err.Error())
+		return spiffeid.ID{}, errors.Errorf("failed to parse jwt token: %s", err.Error())
 	}
 
-	var payload struct {
-		Sub string   `json:"sub"`
-		Aud []string `json:"aud"`
+	sub, ok := claims["sub"]
+	if !ok {
+		return spiffeid.ID{}, errors.New("failed to get field 'sub' from jwt token payload")
 	}
-	err = json.Unmarshal(b, &payload)
-	if err != nil {
-		return spiffeid.ID{}, errors.Errorf("failed to parse payload from json: %s", err.Error())
+	subString, ok := sub.(string)
+	if !ok {
+		return spiffeid.ID{}, errors.New("failed to convert field 'sub' from jwt token payload to string")
 	}
-
-	return spiffeid.FromString(payload.Sub)
+	return spiffeid.FromString(subString)
 }
 
 func printPath(ctx context.Context, path *registry.Path) {

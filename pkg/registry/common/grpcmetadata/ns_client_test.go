@@ -18,9 +18,6 @@ package grpcmetadata_test
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"net"
 	"testing"
 	"time"
@@ -51,11 +48,7 @@ func tokenGenerator(spiffeID string) token.GeneratorFunc {
 			ExpiresAt: jwt.NewNumericDate(expireTime),
 		}
 
-		priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		if err != nil {
-			return "", time.Time{}, err
-		}
-		tok, err := jwt.NewWithClaims(jwt.SigningMethodES256, claims).SignedString(priv)
+		tok, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte("supersecret"))
 		return tok, expireTime, err
 	}
 }

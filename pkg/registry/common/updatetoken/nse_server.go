@@ -56,12 +56,23 @@ func (s *updateTokenNSEServer) Register(ctx context.Context, nse *registry.Netwo
 			expires := timestamppb.New(expireTime.Local())
 			prev.Expires = expires
 			prev.Token = tok
+			id, err := getIDFromToken(tok)
+			if err != nil {
+				return nil, err
+			}
+			nse.PathIds = updatePathIds(nse.PathIds, int(path.Index-1), id.String())
 		}
 	}
 	err = updateToken(ctx, path, s.tokenGenerator)
 	if err != nil {
 		return nil, err
 	}
+
+	id, err := getIDFromToken(path.PathSegments[path.Index].Token)
+	if err != nil {
+		return nil, err
+	}
+	nse.PathIds = updatePathIds(nse.PathIds, int(path.Index), id.String())
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 }
 
@@ -69,6 +80,7 @@ func (s *updateTokenNSEServer) Find(query *registry.NetworkServiceEndpointQuery,
 	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
 }
 
+// TODO: Impl this method. See ns_server.go
 func (s *updateTokenNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }

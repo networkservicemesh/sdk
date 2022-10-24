@@ -55,12 +55,24 @@ func (s *updateTokenNSServer) Register(ctx context.Context, ns *registry.Network
 			expires := timestamppb.New(expireTime.Local())
 			prev.Expires = expires
 			prev.Token = tok
+			id, err := getIDFromToken(tok)
+			if err != nil {
+				return nil, err
+			}
+			ns.PathIds = updatePathIds(ns.PathIds, int(path.Index-1), id.String())
+			log.FromContext(ctx).Infof("PATH IDS: %v", ns.PathIds)
 		}
 	}
 	err = updateToken(ctx, path, s.tokenGenerator)
 	if err != nil {
 		return nil, err
 	}
+
+	id, err := getIDFromToken(path.PathSegments[path.Index].Token)
+	if err != nil {
+		return nil, err
+	}
+	ns.PathIds = updatePathIds(ns.PathIds, int(path.Index), id.String())
 
 	return next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
 }
@@ -69,6 +81,7 @@ func (s *updateTokenNSServer) Find(query *registry.NetworkServiceQuery, server r
 	return next.NetworkServiceRegistryServer(server.Context()).Find(query, server)
 }
 
+// TODO: Finish this method. Append spiffeID of PathSegment to nse.PathIds
 func (s *updateTokenNSServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
 	path, err := grpcmetadata.PathFromContext(ctx)
 	if err != nil {
@@ -82,7 +95,6 @@ func (s *updateTokenNSServer) Unregister(ctx context.Context, ns *registry.Netwo
 			log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", err)
 		} else {
 			expires := timestamppb.New(expireTime.Local())
-
 			prev.Expires = expires
 			prev.Token = tok
 		}

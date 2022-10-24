@@ -27,6 +27,7 @@ type nsClientSample struct {
 	test func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceRegistryClient)
 }
 
+// TODO: Fix unit tests
 // var nsClientSamples = []*nsClientSample{
 // 	{
 // 		name: "NoPath",

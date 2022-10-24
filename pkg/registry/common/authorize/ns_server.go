@@ -30,8 +30,8 @@ import (
 )
 
 type authorizeNSServer struct {
-	policies  policiesList
-	nsPathMap *ResourcePathMap
+	policies     policiesList
+	nsPathIdsMap *ResourcePathIdsMap
 }
 
 // NewNetworkServiceRegistryServer - returns a new authorization registry.NetworkServiceRegistryServer
@@ -45,7 +45,7 @@ func NewNetworkServiceRegistryServer(opts ...Option) registry.NetworkServiceRegi
 			opa.WithTokenChainPolicy(),
 			opa.WithRegistryClientAllowedPolicy(),
 		},
-		resourcePathMap: new(ResourcePathMap),
+		resourcePathIdsMap: new(ResourcePathIdsMap),
 	}
 
 	for _, opt := range opts {
@@ -53,8 +53,8 @@ func NewNetworkServiceRegistryServer(opts ...Option) registry.NetworkServiceRegi
 	}
 
 	return &authorizeNSServer{
-		policies:  o.policies,
-		nsPathMap: o.resourcePathMap,
+		policies:     o.policies,
+		nsPathIdsMap: o.resourcePathIdsMap,
 	}
 }
 
@@ -79,26 +79,19 @@ func (s *authorizeNSServer) Register(ctx context.Context, ns *registry.NetworkSe
 		PathSegments: path.GetPathSegments()[:index+1],
 	}
 
-	rawMap := getRawMap(s.nsPathMap)
+	rawMap := getRawMap(s.nsPathIdsMap)
 	input := RegistryOpaInput{
-		ResourceSpiffeID:     spiffeID.String(),
-		ResourceName:         ns.Name,
-		SpiffeIDResourcesMap: rawMap,
-		PathSegments:         leftSide.PathSegments,
-		Index:                leftSide.Index,
+		ResourceID:         spiffeID.String(),
+		ResourceName:       ns.Name,
+		ResourcePathIdsMap: rawMap,
+		PathSegments:       leftSide.PathSegments,
+		Index:              leftSide.Index,
 	}
 	if err := s.policies.check(ctx, input); err != nil {
 		return nil, err
 	}
 
-	s.nsPathMap.Store(ns.Name, ns.PathIds)
-	// nsNames, ok := s.spiffeIDNSsMap.Load(spiffeID)
-	// if !ok {
-	// 	nsNames = new(stringset.StringSet)
-	// }
-	// nsNames.Store(ns.Name, struct{}{})
-	// s.spiffeIDNSsMap.Store(spiffeID, nsNames)
-
+	s.nsPathIdsMap.Store(ns.Name, ns.PathIds)
 	return next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
 }
 
@@ -126,34 +119,18 @@ func (s *authorizeNSServer) Unregister(ctx context.Context, ns *registry.Network
 		PathSegments: path.GetPathSegments()[:index+1],
 	}
 
-	rawMap := getRawMap(s.nsPathMap)
+	rawMap := getRawMap(s.nsPathIdsMap)
 	input := RegistryOpaInput{
-		ResourceSpiffeID:     spiffeID.String(),
-		ResourceName:         ns.Name,
-		SpiffeIDResourcesMap: rawMap,
-		PathSegments:         leftSide.PathSegments,
-		Index:                leftSide.Index,
+		ResourceID:         spiffeID.String(),
+		ResourceName:       ns.Name,
+		ResourcePathIdsMap: rawMap,
+		PathSegments:       leftSide.PathSegments,
+		Index:              leftSide.Index,
 	}
 	if err := s.policies.check(ctx, input); err != nil {
 		return nil, err
 	}
 
-	s.nsPathMap.Delete(ns.Name)
-	// nsNames, ok := s.spiffeIDNSsMap.Load(spiffeID)
-	// if ok {
-	// 	nsNames.Delete(ns.Name)
-	// 	namesEmpty := true
-	// 	nsNames.Range(func(key string, value struct{}) bool {
-	// 		namesEmpty = false
-	// 		return true
-	// 	})
-
-	// 	if namesEmpty {
-	// 		s.spiffeIDNSsMap.Delete(spiffeID)
-	// 	} else {
-	// 		s.spiffeIDNSsMap.Store(spiffeID, nsNames)
-	// 	}
-	// }
-
+	s.nsPathIdsMap.Delete(ns.Name)
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }
