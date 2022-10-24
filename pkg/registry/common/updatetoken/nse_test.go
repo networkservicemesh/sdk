@@ -48,7 +48,7 @@ const (
 	spiffeid = "spiffe://test.com/server"
 )
 
-func TokenGeneratorFunc(id string) token.GeneratorFunc {
+func tokenGeneratorFunc(id string) token.GeneratorFunc {
 	return func(peerAuthInfo credentials.AuthInfo) (string, time.Time, error) {
 		tok, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": id}).SignedString([]byte(key))
 		return tok, time.Date(3000, 1, 1, 1, 1, 1, 1, time.UTC), err
@@ -64,7 +64,7 @@ type updateTokenServerSuite struct {
 }
 
 func (f *updateTokenServerSuite) SetupSuite() {
-	f.Token, f.Expires, _ = TokenGeneratorFunc(spiffeid)(nil)
+	f.Token, f.Expires, _ = tokenGeneratorFunc(spiffeid)(nil)
 	f.ExpiresProto = timestamppb.New(f.Expires)
 }
 
@@ -73,10 +73,9 @@ func (f *updateTokenServerSuite) TestNewServer_EmptyPathInRequest() {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	server := next.NewNetworkServiceEndpointRegistryServer(
 		updatepath.NewNetworkServiceEndpointRegistryServer("nsc-1"),
-		updatetoken.NewNetworkServiceEndpointRegistryServer(TokenGeneratorFunc("spiffe://test.com/server")))
+		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc("spiffe://test.com/server")))
 
-	ctx := context.Background()
-	ctx = grpcmetadata.PathWithContext(ctx, &registry.Path{})
+	ctx := grpcmetadata.PathWithContext(context.Background(), &registry.Path{})
 
 	nse, err := server.Register(ctx, &registry.NetworkServiceEndpoint{})
 	// Note: Its up to authorization to decide that we won't accept requests without a Path from the client
@@ -90,7 +89,7 @@ func (f *updateTokenServerSuite) TestNewServer_IndexInLastPositionAddNewSegment(
 	nse := &registry.NetworkServiceEndpoint{}
 	server := next.NewNetworkServiceEndpointRegistryServer(
 		updatepath.NewNetworkServiceEndpointRegistryServer("nsc-2"),
-		updatetoken.NewNetworkServiceEndpointRegistryServer(TokenGeneratorFunc(spiffeid)))
+		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(spiffeid)))
 
 	path := &registry.Path{
 		Index: 1,
@@ -139,7 +138,7 @@ func (f *updateTokenServerSuite) TestNewServer_ValidIndexOverwriteValues() {
 
 	server := next.NewNetworkServiceEndpointRegistryServer(
 		updatepath.NewNetworkServiceEndpointRegistryServer("nsc-2"),
-		updatetoken.NewNetworkServiceEndpointRegistryServer(TokenGeneratorFunc(spiffeid)))
+		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(spiffeid)))
 	_, err := server.Register(ctx, &registry.NetworkServiceEndpoint{})
 
 	require.NoError(t, err)
@@ -157,7 +156,7 @@ func TestNewServer_IndexGreaterThanArrayLength(t *testing.T) {
 	}
 	ctx := context.Background()
 	ctx = grpcmetadata.PathWithContext(ctx, path)
-	server := updatetoken.NewNetworkServiceEndpointRegistryServer(TokenGeneratorFunc(spiffeid))
+	server := updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(spiffeid))
 	nse, err := server.Register(ctx, &registry.NetworkServiceEndpoint{})
 	assert.NotNil(t, err)
 	assert.Nil(t, nse)
@@ -194,14 +193,14 @@ func (f *updateTokenServerSuite) TestChain() {
 
 	elements := []registry.NetworkServiceEndpointRegistryServer{
 		updatepath.NewNetworkServiceEndpointRegistryServer("nsc-1"),
-		updatetoken.NewNetworkServiceEndpointRegistryServer(TokenGeneratorFunc(spiffeid)),
+		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(spiffeid)),
 		updatepath.NewNetworkServiceEndpointRegistryServer("local-nsm-1"),
-		updatetoken.NewNetworkServiceEndpointRegistryServer(TokenGeneratorFunc(spiffeid)),
+		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(spiffeid)),
 		updatepath.NewNetworkServiceEndpointRegistryServer("local-nsm-1"),
 		updatepath.NewNetworkServiceEndpointRegistryServer("remote-nsm-1"),
-		updatetoken.NewNetworkServiceEndpointRegistryServer(TokenGeneratorFunc(spiffeid)),
+		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(spiffeid)),
 		updatepath.NewNetworkServiceEndpointRegistryServer("remote-nsm-1"),
-		updatetoken.NewNetworkServiceEndpointRegistryServer(TokenGeneratorFunc(spiffeid)),
+		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(spiffeid)),
 	}
 
 	ctx := context.Background()

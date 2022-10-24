@@ -26,7 +26,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type updatePathNSEClient struct {
@@ -41,9 +40,11 @@ func NewNetworkServiceEndpointRegistryClient(name string) registry.NetworkServic
 }
 
 func (s *updatePathNSEClient) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	path := &registry.Path{}
-
-	log.FromContext(ctx).Infof("UPDATEPATH [CLIENT] INDEX BEFORE REQUEST: %d", path.Index)
+	path, err := grpcmetadata.PathFromContext(ctx)
+	if err != nil {
+		path := &registry.Path{}
+		ctx = grpcmetadata.PathWithContext(ctx, path)
+	}
 
 	path, index, err := updatePath(path, s.name)
 	if err != nil {
@@ -57,8 +58,6 @@ func (s *updatePathNSEClient) Register(ctx context.Context, nse *registry.Networ
 	}
 	path.Index = index
 
-	log.FromContext(ctx).Infof("UPDATEPATH [CLIENT] INDEX AFTER REQUEST: %d", path.Index)
-
 	return nse, err
 }
 
@@ -67,5 +66,17 @@ func (s *updatePathNSEClient) Find(ctx context.Context, query *registry.NetworkS
 }
 
 func (s *updatePathNSEClient) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
-	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, nse, opts...)
+	path, err := grpcmetadata.PathFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	path, index, err := updatePath(path, s.name)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, nse, opts...)
+	path.Index = index
+	return resp, err
 }

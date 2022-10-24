@@ -32,14 +32,14 @@ import (
 
 type checkNSEClient struct {
 	*testing.T
-	check func(*testing.T, *registry.NetworkServiceEndpoint)
+	check func(*testing.T, context.Context, *registry.NetworkServiceEndpoint)
 }
 
 // NewClient - returns NetworkServiceEndpointRegistryClient that checks the NSE passed in from the previous NSClient in the chain
 //
 //	t - *testing.T used for the check
 //	check - function that checks the *registry.NetworkServiceEndpoint
-func NewClient(t *testing.T, check func(*testing.T, *registry.NetworkServiceEndpoint)) registry.NetworkServiceEndpointRegistryClient {
+func NewClient(t *testing.T, check func(*testing.T, context.Context, *registry.NetworkServiceEndpoint)) registry.NetworkServiceEndpointRegistryClient {
 	return &checkNSEClient{
 		T:     t,
 		check: check,
@@ -47,7 +47,7 @@ func NewClient(t *testing.T, check func(*testing.T, *registry.NetworkServiceEndp
 }
 
 func (c *checkNSEClient) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	c.check(c.T, nse)
+	c.check(c.T, ctx, nse)
 	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, nse, opts...)
 }
 
@@ -56,6 +56,6 @@ func (c *checkNSEClient) Find(ctx context.Context, query *registry.NetworkServic
 }
 
 func (c *checkNSEClient) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
-	c.check(c.T, nse)
+	c.check(c.T, ctx, nse)
 	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, nse, opts...)
 }

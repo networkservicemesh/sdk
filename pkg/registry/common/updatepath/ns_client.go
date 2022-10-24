@@ -40,7 +40,11 @@ func NewNetworkServiceRegistryClient(name string) registry.NetworkServiceRegistr
 }
 
 func (s *updatePathNSClient) Register(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
-	path := &registry.Path{}
+	path, err := grpcmetadata.PathFromContext(ctx)
+	if err != nil {
+		path := &registry.Path{}
+		ctx = grpcmetadata.PathWithContext(ctx, path)
+	}
 
 	path, index, err := updatePath(path, s.name)
 	if err != nil {
@@ -68,10 +72,12 @@ func (s *updatePathNSClient) Unregister(ctx context.Context, ns *registry.Networ
 		return nil, err
 	}
 
-	_, _, err = updatePath(path, s.name)
+	path, index, err := updatePath(path, s.name)
 	if err != nil {
 		return nil, err
 	}
 
-	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
+	resp, err := next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
+	path.Index = index
+	return resp, err
 }

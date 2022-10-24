@@ -62,7 +62,18 @@ func (s *updatePathNSServer) Find(query *registry.NetworkServiceQuery, server re
 	return next.NetworkServiceRegistryServer(server.Context()).Find(query, server)
 }
 
-// TODO: finish this method
 func (s *updatePathNSServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
-	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
+	path, err := grpcmetadata.PathFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	path, index, err := updatePath(path, s.name)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
+	path.Index = index
+	return resp, err
 }
