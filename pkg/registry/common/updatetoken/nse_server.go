@@ -47,6 +47,10 @@ func (s *updateTokenNSEServer) Register(ctx context.Context, nse *registry.Netwo
 		return nil, err
 	}
 
+	log.FromContext(ctx).Info("UPDATETOKEN PREV PATH SEGMENT BEFORE UPDATE")
+	log.FromContext(ctx).Infof("INDEX: %v", path.Index)
+	printPath(ctx, path)
+
 	if prev := GetPrevPathSegment(path); prev != nil {
 		var tok, expireTime, err = token.FromContext(ctx)
 
@@ -63,6 +67,10 @@ func (s *updateTokenNSEServer) Register(ctx context.Context, nse *registry.Netwo
 			nse.PathIds = updatePathIds(nse.PathIds, int(path.Index-1), id.String())
 		}
 	}
+
+	log.FromContext(ctx).Info("UPDATETOKEN PREV PATH SEGMENT AFTER UPDATE")
+	printPath(ctx, path)
+
 	err = updateToken(ctx, path, s.tokenGenerator)
 	if err != nil {
 		return nil, err

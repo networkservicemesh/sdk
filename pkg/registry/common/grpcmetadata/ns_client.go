@@ -27,6 +27,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type grpcMetadataNSClient struct {
@@ -36,6 +37,14 @@ type grpcMetadataNSClient struct {
 func NewNetworkServiceRegistryClient() registry.NetworkServiceRegistryClient {
 	return &grpcMetadataNSClient{
 		nsPathMap: new(resourcePathMap),
+	}
+}
+
+func printPath(ctx context.Context, path *registry.Path) {
+	logger := log.FromContext(ctx)
+
+	for i, s := range path.PathSegments {
+		logger.Infof("Segment: %d, Value: %v", i, s)
 	}
 }
 
@@ -49,6 +58,8 @@ func (c *grpcMetadataNSClient) Register(ctx context.Context, ns *registry.Networ
 		path = ctxPath
 	}
 
+	log.FromContext(ctx).Infof("GRPCMETADATA CLIENT MAP")
+	printPath(ctx, path)
 	ctx, err := appendToMetadata(ctx, path)
 	if err != nil {
 		return nil, err

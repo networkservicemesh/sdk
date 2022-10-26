@@ -18,13 +18,13 @@ package updatetoken_test
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/stretchr/testify/require"
 
@@ -32,30 +32,13 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/updatetoken"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/token"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"go.uber.org/goleak"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
-const (
-	index    = 0
-	key      = "supersecret"
-	spiffeid = "spiffe://test.com/server"
-)
-
-func tokenGeneratorFunc(id string) token.GeneratorFunc {
-	return func(peerAuthInfo credentials.AuthInfo) (string, time.Time, error) {
-		tok, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": id}).SignedString([]byte(key))
-		return tok, time.Date(3000, 1, 1, 1, 1, 1, 1, time.UTC), err
-	}
-}
-
-type updateTokenServerSuite struct {
+type updateTokenNSServerSuite struct {
 	suite.Suite
 
 	Token        string
@@ -63,13 +46,13 @@ type updateTokenServerSuite struct {
 	ExpiresProto *timestamp.Timestamp
 }
 
-func (f *updateTokenServerSuite) SetupSuite() {
-	f.Token, f.Expires, _ = tokenGeneratorFunc(spiffeid)(nil)
-	f.ExpiresProto = timestamppb.New(f.Expires)
+func (s *updateTokenNSServerSuite) SetupSuite() {
+	s.Token, s.Expires, _ = tokenGeneratorFunc(spiffeid)(nil)
+	s.ExpiresProto = timestamppb.New(s.Expires)
 }
 
-func (f *updateTokenServerSuite) TestNewServer_EmptyPathInRequest() {
-	t := f.T()
+func (s *updateTokenNSServerSuite) Test_EmptyPathInRequest() {
+	t := s.T()
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	server := next.NewNetworkServiceEndpointRegistryServer(
 		updatepath.NewNetworkServiceEndpointRegistryServer("nsc-1"),
@@ -83,8 +66,8 @@ func (f *updateTokenServerSuite) TestNewServer_EmptyPathInRequest() {
 	require.NotNil(t, nse)
 }
 
-func (f *updateTokenServerSuite) TestNewServer_IndexInLastPositionAddNewSegment() {
-	t := f.T()
+func (s *updateTokenNSServerSuite) Test_IndexInLastPositionAddNewSegment() {
+	t := s.T()
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	nse := &registry.NetworkServiceEndpoint{}
 	server := next.NewNetworkServiceEndpointRegistryServer(
@@ -105,12 +88,12 @@ func (f *updateTokenServerSuite) TestNewServer_IndexInLastPositionAddNewSegment(
 	require.NoError(t, err)
 	require.Equal(t, 3, len(path.PathSegments))
 	require.Equal(t, "nsc-2", path.PathSegments[2].Name)
-	require.Equal(t, f.Token, path.PathSegments[2].Token)
-	equalJSON(t, f.ExpiresProto, path.PathSegments[2].Expires)
+	require.Equal(t, s.Token, path.PathSegments[2].Token)
+	equalJSON(t, s.ExpiresProto, path.PathSegments[2].Expires)
 }
 
-func (f *updateTokenServerSuite) TestNewServer_ValidIndexOverwriteValues() {
-	t := f.T()
+func (s *updateTokenNSServerSuite) TestNSServer_ValidIndexOverwriteValues() {
+	t := s.T()
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	path := &registry.Path{
@@ -130,8 +113,8 @@ func (f *updateTokenServerSuite) TestNewServer_ValidIndexOverwriteValues() {
 			{Name: "nsc-2", Id: "id-2"},
 		},
 	}
-	expected.PathSegments[2].Token = f.Token
-	expected.PathSegments[2].Expires = f.ExpiresProto
+	expected.PathSegments[2].Token = s.Token
+	expected.PathSegments[2].Expires = s.ExpiresProto
 
 	ctx := context.Background()
 	ctx = grpcmetadata.PathWithContext(ctx, path)
@@ -145,7 +128,8 @@ func (f *updateTokenServerSuite) TestNewServer_ValidIndexOverwriteValues() {
 	equalJSON(t, expected, path)
 }
 
-func TestNewServer_IndexGreaterThanArrayLength(t *testing.T) {
+func (s *updateTokenNSServerSuite) TestNSServer_IndexGreaterThanArrayLength() {
+	t := s.T()
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	path := &registry.Path{
 		Index: 2,
@@ -162,8 +146,8 @@ func TestNewServer_IndexGreaterThanArrayLength(t *testing.T) {
 	assert.Nil(t, nse)
 }
 
-func (f *updateTokenServerSuite) TestChain() {
-	t := f.T()
+func (s *updateTokenNSServerSuite) TestNSChain() {
+	t := s.T()
 	path := &registry.Path{
 		Index:        0,
 		PathSegments: []*registry.PathSegment{},
@@ -175,18 +159,18 @@ func (f *updateTokenServerSuite) TestChain() {
 			{
 				Name:    "nsc-1",
 				Id:      "id-2",
-				Token:   f.Token,
-				Expires: f.ExpiresProto,
+				Token:   s.Token,
+				Expires: s.ExpiresProto,
 			}, {
 				Name:    "local-nsm-1",
 				Id:      "id-2",
-				Token:   f.Token,
-				Expires: f.ExpiresProto,
+				Token:   s.Token,
+				Expires: s.ExpiresProto,
 			}, {
 				Name:    "remote-nsm-1",
 				Id:      "id-2",
-				Token:   f.Token,
-				Expires: f.ExpiresProto,
+				Token:   s.Token,
+				Expires: s.ExpiresProto,
 			},
 		},
 	}
@@ -220,15 +204,6 @@ func (f *updateTokenServerSuite) TestChain() {
 
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
-func TestUpdateTokenServerTestSuite(t *testing.T) {
-	suite.Run(t, new(updateTokenServerSuite))
-}
-
-func equalJSON(t require.TestingT, expected, actual interface{}) {
-	json1, err1 := json.MarshalIndent(expected, "", "\t")
-	require.NoError(t, err1)
-
-	json2, err2 := json.MarshalIndent(actual, "", "\t")
-	require.NoError(t, err2)
-	require.Equal(t, string(json1), string(json2))
+func TestNSServerSuite(t *testing.T) {
+	suite.Run(t, new(updateTokenNSServerSuite))
 }

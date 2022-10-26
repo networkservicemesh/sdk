@@ -27,6 +27,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type grpcMetadataNSEClient struct {
@@ -39,8 +40,28 @@ func NewNetworkServiceEndpointRegistryClient() registry.NetworkServiceEndpointRe
 	}
 }
 
+func clonePath(path *registry.Path) *registry.Path {
+	result := &registry.Path{
+		Index: path.Index,
+	}
+
+	for _, segment := range path.PathSegments {
+		result.PathSegments = append(result.PathSegments, &registry.PathSegment{
+			Id:      segment.Id,
+			Name:    segment.Name,
+			Token:   segment.Token,
+			Expires: segment.Expires,
+		})
+	}
+
+	return result
+}
+
 func (c *grpcMetadataNSEClient) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
 	path, loaded := c.nsePathMap.Load(nse.Name)
+	if loaded {
+		log.FromContext(ctx).Infof("LOADED")
+	}
 	if !loaded {
 		ctxPath, err := PathFromContext(ctx)
 		if err != nil {
@@ -49,6 +70,9 @@ func (c *grpcMetadataNSEClient) Register(ctx context.Context, nse *registry.Netw
 		path = ctxPath
 	}
 
+	log.FromContext(ctx).Infof("GRPCMETADATA CLIENT MAP")
+	log.FromContext(ctx).Infof("INDEX: %v", path.Index)
+	printPath(ctx, path)
 	ctx, err := appendToMetadata(ctx, path)
 	if err != nil {
 		return nil, err
@@ -66,10 +90,12 @@ func (c *grpcMetadataNSEClient) Register(ctx context.Context, nse *registry.Netw
 		return nil, err
 	}
 
+	log.FromContext(ctx).Infof("NEW PATH INDEX: %v", newpath.Index)
+	log.FromContext(ctx).Infof("PATH INDEX: %v", path.Index)
 	path.Index = newpath.Index
 	path.PathSegments = newpath.PathSegments
 
-	c.nsePathMap.Store(nse.Name, path)
+	c.nsePathMap.Store(nse.Name, clonePath(path))
 
 	return resp, nil
 }

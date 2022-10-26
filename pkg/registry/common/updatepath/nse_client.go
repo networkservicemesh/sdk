@@ -42,7 +42,7 @@ func NewNetworkServiceEndpointRegistryClient(name string) registry.NetworkServic
 func (s *updatePathNSEClient) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
 	path, err := grpcmetadata.PathFromContext(ctx)
 	if err != nil {
-		path := &registry.Path{}
+		path = &registry.Path{}
 		ctx = grpcmetadata.PathWithContext(ctx, path)
 	}
 
