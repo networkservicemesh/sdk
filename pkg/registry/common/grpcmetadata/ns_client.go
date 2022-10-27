@@ -19,6 +19,7 @@ package grpcmetadata
 
 import (
 	"context"
+	"errors"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
@@ -90,5 +91,25 @@ func (c *grpcMetadataNSClient) Find(ctx context.Context, query *registry.Network
 }
 
 func (c *grpcMetadataNSClient) Unregister(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
-	return next.NetworkServiceRegistryClient(ctx).Unregister(ctx, ns, opts...)
+	path, loaded := c.nsPathMap.Load(ns.Name)
+	if !loaded {
+		return nil, errors.New("failed to get path from nsPathMap")
+	}
+
+	log.FromContext(ctx).Infof("GRPCMETADATA CLIENT MAP")
+	log.FromContext(ctx).Infof("INDEX: %v", path.Index)
+	printPath(ctx, path)
+	ctx, err := appendToMetadata(ctx, path)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := next.NetworkServiceRegistryClient(ctx).Unregister(ctx, ns, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	c.nsPathMap.Delete(ns.Name)
+
+	return resp, nil
 }

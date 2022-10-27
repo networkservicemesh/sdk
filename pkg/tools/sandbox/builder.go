@@ -89,7 +89,7 @@ func NewBuilder(ctx context.Context, t *testing.T) *Builder {
 	}
 
 	b.setupNode = func(ctx context.Context, node *Node, _ int) {
-		SetupDefaultNode(ctx, node, b.supplyNSMgr)
+		SetupDefaultNode(ctx, b.generateTokenFunc, node, b.supplyNSMgr)
 	}
 
 	return b

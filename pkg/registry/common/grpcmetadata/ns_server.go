@@ -74,5 +74,30 @@ func (s *grpcMetadataNSServer) Find(query *registry.NetworkServiceQuery, server 
 }
 
 func (s *grpcMetadataNSServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
-	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
+	md, loaded := metadata.FromIncomingContext(ctx)
+	if !loaded {
+		return nil, errors.New("failed to load grpc metadata from context")
+	}
+	path, err := loadFromMetadata(md)
+	if err != nil {
+		return nil, err
+	}
+	ctx = PathWithContext(ctx, path)
+
+	resp, err := next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
+	if err != nil {
+		return nil, err
+	}
+
+	json, err := json.Marshal(path)
+	if err != nil {
+		return nil, err
+	}
+
+	header := metadata.Pairs("path", string(json))
+	err = grpc.SendHeader(ctx, header)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }

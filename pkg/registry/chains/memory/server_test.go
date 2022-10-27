@@ -22,20 +22,25 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
 func Test_RegistryMemory_ShouldSetDefaultPayload(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
+	log.EnableTracing(true)
+	logrus.SetLevel(logrus.TraceLevel)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
@@ -45,14 +50,10 @@ func Test_RegistryMemory_ShouldSetDefaultPayload(t *testing.T) {
 		SetNSMgrProxySupplier(nil).
 		Build()
 
-	// start grpc client connection and register it
-	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(domain.Registry.URL), sandbox.DialOptions()...)
-	require.NoError(t, err)
-	defer func() {
-		_ = cc.Close()
-	}()
+	nsrc := registryclient.NewNetworkServiceRegistryClient(ctx,
+		registryclient.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
+		registryclient.WithClientURL(domain.Registry.URL))
 
-	nsrc := registry.NewNetworkServiceRegistryClient(cc)
 	ns, err := nsrc.Register(ctx, &registry.NetworkService{
 		Name: "ns-1",
 	})

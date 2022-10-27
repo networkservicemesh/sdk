@@ -25,6 +25,7 @@ import (
 	"time"
 
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
+	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
@@ -70,23 +71,18 @@ func TestInterdomainNetworkServiceRegistry(t *testing.T) {
 		SetDNSDomainName("cluster.remote").
 		Build()
 
-	_, err := domain2.Registry.NetworkServiceRegistryServer().Register(
-		context.Background(),
-		&registryapi.NetworkService{
-			Name: "ns-1",
-		},
-	)
-	require.Nil(t, err)
+	client1 := registryclient.NewNetworkServiceRegistryClient(ctx,
+		registryclient.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
+		registryclient.WithClientURL(domain1.Registry.URL))
 
-	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(domain1.Registry.URL), grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials()))
-	require.Nil(t, err)
-	defer func() {
-		_ = cc.Close()
-	}()
+	client2 := registryclient.NewNetworkServiceRegistryClient(ctx,
+		registryclient.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
+		registryclient.WithClientURL(domain2.Registry.URL))
 
-	client := registryapi.NewNetworkServiceRegistryClient(cc)
+	_, err := client2.Register(context.Background(), &registryapi.NetworkService{Name: "ns-1"})
+	require.NoError(t, err)
 
-	stream, err := client.Find(ctx, &registryapi.NetworkServiceQuery{
+	stream, err := client1.Find(ctx, &registryapi.NetworkServiceQuery{
 		NetworkService: &registryapi.NetworkService{
 			Name: "ns-1@" + domain2.Name,
 		},

@@ -76,6 +76,34 @@ func (s *grpcMetadataNSEServer) Find(query *registry.NetworkServiceEndpointQuery
 }
 
 // TODO: Impl this method
-func (s *grpcMetadataNSEServer) Unregister(ctx context.Context, ns *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, ns)
+func (s *grpcMetadataNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	md, loaded := metadata.FromIncomingContext(ctx)
+	if !loaded {
+		return nil, errors.New("failed to load grpc metadata from context")
+	}
+	path, err := loadFromMetadata(md)
+	if err != nil {
+		return nil, err
+	}
+
+	log.FromContext(ctx).Infof("GRPCMETADATA NSE SERVER PATH")
+	printPath(ctx, path)
+	ctx = PathWithContext(ctx, path)
+
+	resp, err := next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
+	if err != nil {
+		return nil, err
+	}
+
+	json, err := json.Marshal(path)
+	if err != nil {
+		return nil, err
+	}
+
+	header := metadata.Pairs("path", string(json))
+	err = grpc.SendHeader(ctx, header)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }

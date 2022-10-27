@@ -65,18 +65,19 @@ func (s *updatePathNSEClient) Find(ctx context.Context, query *registry.NetworkS
 	return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, query, opts...)
 }
 
+// TODO: Check this method
 func (s *updatePathNSEClient) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
-	path, err := grpcmetadata.PathFromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
+	// path, err := grpcmetadata.PathFromContext(ctx)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	path, index, err := updatePath(path, s.name)
-	if err != nil {
-		return nil, err
-	}
+	// path, index, err := updatePath(path, s.name)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	resp, err := next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, nse, opts...)
-	path.Index = index
-	return resp, err
+	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, nse, opts...)
+	//path.Index = index
+	//return resp, err
 }
