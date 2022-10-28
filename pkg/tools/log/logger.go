@@ -31,7 +31,8 @@ const (
 )
 
 var (
-	isTracingEnabled int32 = 0
+	isTracingEnabled int32  = 0
+	globalLogger     Logger = Default()
 )
 
 // Logger - unified interface for logging
@@ -54,13 +55,24 @@ type Logger interface {
 	WithField(key, value interface{}) Logger
 }
 
+// L returns the global Logger
+func L() Logger {
+	return globalLogger
+}
+
+// SetGlobalLogger Set the global Logger. This should be called early
+// in main() only.
+func SetGlobalLogger(logger Logger) {
+	globalLogger = logger
+}
+
 // FromContext - returns logger from context
 func FromContext(ctx context.Context) Logger {
 	rv, ok := ctx.Value(logKey).(Logger)
 	if ok {
 		return rv
 	}
-	return Default()
+	return L()
 }
 
 // Join - concatenates new logger with existing loggers
