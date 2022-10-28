@@ -33,6 +33,99 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log/spanlogger"
 )
 
+type logrusLogger struct {
+	entry *logrus.Entry
+}
+
+func (s *logrusLogger) Info(v ...interface{}) {
+	s.entry.Info(v...)
+}
+
+func (s *logrusLogger) Infof(format string, v ...interface{}) {
+	s.entry.Infof(format, v...)
+}
+
+func (s *logrusLogger) Warn(v ...interface{}) {
+	s.entry.Warn(v...)
+}
+
+func (s *logrusLogger) Warnf(format string, v ...interface{}) {
+	s.entry.Warnf(format, v...)
+}
+
+func (s *logrusLogger) Error(v ...interface{}) {
+	s.entry.Error(v...)
+}
+
+func (s *logrusLogger) Errorf(format string, v ...interface{}) {
+	s.entry.Errorf(format, v...)
+}
+
+func (s *logrusLogger) Fatal(v ...interface{}) {
+	s.entry.Fatal(v...)
+}
+
+func (s *logrusLogger) Fatalf(format string, v ...interface{}) {
+	s.entry.Fatalf(format, v...)
+}
+
+func (s *logrusLogger) Debug(v ...interface{}) {
+	s.entry.Debug(v...)
+}
+
+func (s *logrusLogger) Debugf(format string, v ...interface{}) {
+	s.entry.Debugf(format, v...)
+}
+
+func (s *logrusLogger) Trace(v ...interface{}) {
+	s.entry.Trace(v...)
+}
+
+func (s *logrusLogger) Tracef(format string, v ...interface{}) {
+	s.entry.Tracef(format, v...)
+}
+
+func (s *logrusLogger) Object(k, v interface{}) {
+	msg := ""
+	cc, err := json.Marshal(v)
+	if err == nil {
+		msg = string(cc)
+	} else {
+		msg = fmt.Sprint(v)
+	}
+	s.Infof("%v=%s", k, msg)
+}
+
+func (s *logrusLogger) WithField(key, value interface{}) log.Logger {
+	newLog := s.entry.WithField(key.(string), value)
+	logger := &logrusLogger{
+		entry: newLog,
+	}
+	return logger
+}
+
+// New - create a logruslogger
+func New(ctx context.Context, fields ...logrus.Fields) log.Logger {
+	entry := logrus.NewEntry(logrus.StandardLogger())
+	for _, f := range fields {
+		entry = entry.WithFields(f)
+	}
+	entry.Logger.SetFormatter(newFormatter())
+
+	return &logrusLogger{
+		entry: entry,
+	}
+}
+
+// ----------------------------------------------------------------------
+
+type traceLogger struct {
+	logger    log.Logger
+	span      spanlogger.Span
+	info      *traceCtxInfo
+	operation string
+}
+
 type loggerKeyType string
 
 const (
@@ -48,6 +141,76 @@ type traceCtxInfo struct {
 	id         string
 }
 
+func (s *traceLogger) Info(v ...interface{}) {
+	s.logger.Info(s.format("%s", v...))
+}
+
+func (s *traceLogger) Infof(format string, v ...interface{}) {
+	s.logger.Infof(s.format(format, v...))
+}
+
+func (s *traceLogger) Warn(v ...interface{}) {
+	s.logger.Warn(s.format("%s", v...))
+}
+
+func (s *traceLogger) Warnf(format string, v ...interface{}) {
+	s.logger.Warnf(s.format(format, v...))
+}
+
+func (s *traceLogger) Error(v ...interface{}) {
+	s.logger.Error(s.format("%s", v...))
+}
+
+func (s *traceLogger) Errorf(format string, v ...interface{}) {
+	s.logger.Error(s.format(format, v...))
+}
+
+func (s *traceLogger) Fatal(v ...interface{}) {
+	s.logger.Fatal(s.format("%s", v...))
+}
+
+func (s *traceLogger) Fatalf(format string, v ...interface{}) {
+	s.logger.Fatal(s.format(format, v...))
+}
+
+func (s *traceLogger) Debug(v ...interface{}) {
+	s.logger.Debug(s.format("%s", v...))
+}
+
+func (s *traceLogger) Debugf(format string, v ...interface{}) {
+	s.logger.Debug(s.format(format, v...))
+}
+
+func (s *traceLogger) Trace(v ...interface{}) {
+	s.logger.Trace(s.format("%s", v...))
+}
+
+func (s *traceLogger) Tracef(format string, v ...interface{}) {
+	s.logger.Trace(s.format(format, v...))
+}
+
+func (s *traceLogger) Object(k, v interface{}) {
+	msg := ""
+	cc, err := json.Marshal(v)
+	if err == nil {
+		msg = string(cc)
+	} else {
+		msg = fmt.Sprint(v)
+	}
+	s.Infof("%v=%s", k, msg)
+}
+
+func (s *traceLogger) WithField(key, value interface{}) log.Logger {
+	newLog := s.logger.WithField(key.(string), value)
+	logger := &traceLogger{
+		logger:    newLog,
+		span:      s.span,
+		operation: s.operation,
+		info:      s.info,
+	}
+	return logger
+}
+
 func (i *traceCtxInfo) incInfo() string {
 	i.childCount++
 	if i.childCount > 1 {
@@ -57,19 +220,16 @@ func (i *traceCtxInfo) incInfo() string {
 }
 
 func withTraceInfo(parent context.Context) (context.Context, *traceCtxInfo) {
-	info := fromContext(parent)
-
 	newInfo := &traceCtxInfo{
 		level:      1,
 		childCount: 0,
 		id:         uuid.New().String(),
 	}
-	ctx := parent
-	if info != nil {
+
+	if info := fromContext(parent); info != nil {
 		newInfo.level = info.level + 1
 	}
-
-	ctx = metadata.AppendToOutgoingContext(ctx, "tracing-parent", newInfo.id)
+	ctx := metadata.AppendToOutgoingContext(parent, "tracing-parent", newInfo.id)
 	// Update
 	return context.WithValue(ctx, loggerTraceDepth, newInfo), newInfo
 }
@@ -91,14 +251,7 @@ func fromContext(ctx context.Context) *traceCtxInfo {
 	return nil
 }
 
-type logrusLogger struct {
-	entry     *logrus.Entry
-	span      spanlogger.Span
-	info      *traceCtxInfo
-	operation string
-}
-
-func (s *logrusLogger) getSpan() string {
+func (s *traceLogger) getSpan() string {
 	if s.span != nil {
 		spanStr := s.span.ToString()
 		if len(spanStr) > 0 && spanStr != "{}" {
@@ -108,109 +261,36 @@ func (s *logrusLogger) getSpan() string {
 	return ""
 }
 
-func (s *logrusLogger) getTraceInfo() string {
+func (s *traceLogger) getTraceInfo() string {
 	if s.info != nil {
 		return fmt.Sprintf("%v %v ", s.info.incInfo(), strings.Repeat(separator, s.info.level))
 	}
 	return ""
 }
 
-func (s *logrusLogger) Info(v ...interface{}) {
-	s.entry.Info(s.format("%s", v...))
-}
-
-func (s *logrusLogger) Infof(format string, v ...interface{}) {
-	s.entry.Info(s.format(format, v...))
-}
-
-func (s *logrusLogger) Warn(v ...interface{}) {
-	s.entry.Warn(s.format("%s", v...))
-}
-
-func (s *logrusLogger) Warnf(format string, v ...interface{}) {
-	s.entry.Warn(s.format(format, v...))
-}
-
-func (s *logrusLogger) Error(v ...interface{}) {
-	s.entry.Error(s.format("%s", v...))
-}
-
-func (s *logrusLogger) Errorf(format string, v ...interface{}) {
-	s.entry.Error(s.format(format, v...))
-}
-
-func (s *logrusLogger) Fatal(v ...interface{}) {
-	s.entry.Fatal(s.format("%s", v...))
-}
-
-func (s *logrusLogger) Fatalf(format string, v ...interface{}) {
-	s.entry.Fatal(s.format(format, v...))
-}
-
-func (s *logrusLogger) Debug(v ...interface{}) {
-	s.entry.Debug(s.format("%s", v...))
-}
-
-func (s *logrusLogger) Debugf(format string, v ...interface{}) {
-	s.entry.Debug(s.format(format, v...))
-}
-
-func (s *logrusLogger) Trace(v ...interface{}) {
-	s.entry.Trace(s.format("%s", v...))
-}
-
-func (s *logrusLogger) Tracef(format string, v ...interface{}) {
-	s.entry.Trace(s.format(format, v...))
-}
-
-func (s *logrusLogger) Object(k, v interface{}) {
-	msg := ""
-	cc, err := json.Marshal(v)
-	if err == nil {
-		msg = string(cc)
-	} else {
-		msg = fmt.Sprint(v)
-	}
-	s.Infof("%v=%s", k, msg)
-}
-
-func (s *logrusLogger) WithField(key, value interface{}) log.Logger {
-	newLog := s.entry.WithField(key.(string), value)
-	logger := &logrusLogger{
-		entry:     newLog,
-		span:      s.span,
-		operation: s.operation,
-		info:      s.info,
-	}
-	return logger
-}
-
-// New - creates a logruslogger and returns it
-func New(ctx context.Context, fields ...logrus.Fields) log.Logger {
-	entry := logrus.NewEntry(logrus.StandardLogger())
-	for _, f := range fields {
-		entry = entry.WithFields(f)
-	}
-	entry.Logger.SetFormatter(newFormatter())
-
-	newLog := &logrusLogger{
-		entry: entry,
-	}
-	return newLog
-}
-
 // FromSpan - creates a new logruslogger from context, operation and span
 // and returns context with it, logger, and a function to defer
-func FromSpan(ctx context.Context, span spanlogger.Span, operation string, fields map[string]interface{}) (context.Context, log.Logger, func()) {
-	entry := logrus.WithFields(fields)
-	entry.Logger.SetFormatter(newFormatter())
-
+func FromSpan(
+	ctx context.Context, span spanlogger.Span, operation string, fields map[string]interface{}) (context.Context, log.Logger, func()) {
 	var info *traceCtxInfo
 	ctx, info = withTraceInfo(ctx)
 	localTraceInfo.Store(info.id, info)
 
-	newLog := &logrusLogger{
-		entry:     entry,
+	logger := log.L()
+	if log.IsDefault(logger) {
+		entry := logrus.WithFields(fields)
+		entry.Logger.SetFormatter(newFormatter())
+		logger = &logrusLogger{
+			entry: entry,
+		}
+	} else {
+		for k, v := range fields {
+			logger = logger.WithField(k, v)
+		}
+	}
+
+	newLog := &traceLogger{
+		logger:    logger,
 		span:      span,
 		operation: operation,
 		info:      info,
@@ -220,11 +300,11 @@ func FromSpan(ctx context.Context, span spanlogger.Span, operation string, field
 	return ctx, newLog, func() { localTraceInfo.Delete(info.id) }
 }
 
-func (s *logrusLogger) printStart() {
+func (s *traceLogger) printStart() {
 	prefix := strings.Repeat(separator, s.info.level)
-	s.entry.Tracef("%v%s⎆ %v()%v", s.info.incInfo(), prefix, s.operation, s.getSpan())
+	s.logger.Tracef("%v%s⎆ %v()%v", s.info.incInfo(), prefix, s.operation, s.getSpan())
 }
 
-func (s *logrusLogger) format(format string, v ...interface{}) string {
+func (s *traceLogger) format(format string, v ...interface{}) string {
 	return fmt.Sprintf("%s%s%s", s.getTraceInfo(), fmt.Sprintf(format, v...), s.getSpan())
 }
