@@ -69,7 +69,8 @@ func (s *updatePathNSClient) Find(ctx context.Context, query *registry.NetworkSe
 func (s *updatePathNSClient) Unregister(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
 	path, err := grpcmetadata.PathFromContext(ctx)
 	if err != nil {
-		return nil, err
+		path = &registry.Path{}
+		ctx = grpcmetadata.PathWithContext(ctx, path)
 	}
 
 	path, index, err := updatePath(path, s.name)
