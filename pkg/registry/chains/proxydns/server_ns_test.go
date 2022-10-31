@@ -25,11 +25,12 @@ import (
 	"time"
 
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
-	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"

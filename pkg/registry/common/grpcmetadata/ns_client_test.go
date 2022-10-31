@@ -25,17 +25,18 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/updatetoken"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/metadata"
 
 	"go.uber.org/goleak"
 )
@@ -64,8 +65,8 @@ func NewNetworkServiceRegistryClient(tokenGenerator token.GeneratorFunc) registr
 }
 
 func (s *testTokenNSServer) Register(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
-	token, expire, _ := s.tokenGenerator(nil)
-	ctx = metadata.AppendToOutgoingContext(ctx, "nsm-client-token", token, "nsm-client-token-expires", expire.Format(time.RFC3339Nano))
+	tok, expire, _ := s.tokenGenerator(nil)
+	ctx = metadata.AppendToOutgoingContext(ctx, "nsm-client-token", tok, "nsm-client-token-expires", expire.Format(time.RFC3339Nano))
 
 	return next.NetworkServiceRegistryClient(ctx).Register(ctx, ns, opts...)
 }
@@ -96,8 +97,8 @@ func TestAuthzNetworkServiceRegistry(t *testing.T) {
 	serverGRPCServer := grpc.NewServer()
 	registry.RegisterNetworkServiceRegistryServer(serverGRPCServer, server)
 	go func() {
-		err := serverGRPCServer.Serve(serverLis)
-		require.NoError(t, err)
+		serveErr := serverGRPCServer.Serve(serverLis)
+		require.NoError(t, serveErr)
 	}()
 
 	proxyAddress := "localhost:45000"
@@ -106,7 +107,10 @@ func TestAuthzNetworkServiceRegistry(t *testing.T) {
 
 	serverConn, err := grpc.Dial(serverAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
-	defer serverConn.Close()
+	defer func() {
+		closeErr := serverConn.Close()
+		require.NoError(t, closeErr)
+	}()
 
 	proxyServer := next.NewNetworkServiceRegistryServer(
 		grpcmetadata.NewNetworkServiceRegistryServer(),
@@ -122,13 +126,16 @@ func TestAuthzNetworkServiceRegistry(t *testing.T) {
 	proxyGRPCServer := grpc.NewServer()
 	registry.RegisterNetworkServiceRegistryServer(proxyGRPCServer, proxyServer)
 	go func() {
-		err := proxyGRPCServer.Serve(proxyLis)
-		require.NoError(t, err)
+		serveErr := proxyGRPCServer.Serve(proxyLis)
+		require.NoError(t, serveErr)
 	}()
 
 	conn, err := grpc.Dial(proxyAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
-	defer conn.Close()
+	defer func() {
+		closeErr := conn.Close()
+		require.NoError(t, closeErr)
+	}()
 
 	client := next.NewNetworkServiceRegistryClient(
 		NewNetworkServiceRegistryClient(tokenGenerator("spiffe://test.com/client-token")),

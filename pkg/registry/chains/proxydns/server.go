@@ -23,6 +23,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/google/uuid"
+
 	"github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"

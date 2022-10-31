@@ -47,7 +47,7 @@ type updateTokenNSServerSuite struct {
 }
 
 func (s *updateTokenNSServerSuite) SetupSuite() {
-	s.Token, s.Expires, _ = tokenGeneratorFunc(spiffeid)(nil)
+	s.Token, s.Expires, _ = tokenGeneratorFunc()(nil)
 	s.ExpiresProto = timestamppb.New(s.Expires)
 }
 
@@ -56,7 +56,7 @@ func (s *updateTokenNSServerSuite) Test_EmptyPathInRequest() {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	server := next.NewNetworkServiceEndpointRegistryServer(
 		updatepath.NewNetworkServiceEndpointRegistryServer("nsc-1"),
-		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc("spiffe://test.com/server")))
+		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc()))
 
 	ctx := grpcmetadata.PathWithContext(context.Background(), &registry.Path{})
 
@@ -72,7 +72,7 @@ func (s *updateTokenNSServerSuite) Test_IndexInLastPositionAddNewSegment() {
 	nse := &registry.NetworkServiceEndpoint{}
 	server := next.NewNetworkServiceEndpointRegistryServer(
 		updatepath.NewNetworkServiceEndpointRegistryServer("nsc-2"),
-		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(spiffeid)))
+		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc()))
 
 	path := &registry.Path{
 		Index: 1,
@@ -121,7 +121,7 @@ func (s *updateTokenNSServerSuite) TestNSServer_ValidIndexOverwriteValues() {
 
 	server := next.NewNetworkServiceEndpointRegistryServer(
 		updatepath.NewNetworkServiceEndpointRegistryServer("nsc-2"),
-		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(spiffeid)))
+		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc()))
 	_, err := server.Register(ctx, &registry.NetworkServiceEndpoint{})
 
 	require.NoError(t, err)
@@ -140,7 +140,7 @@ func (s *updateTokenNSServerSuite) TestNSServer_IndexGreaterThanArrayLength() {
 	}
 	ctx := context.Background()
 	ctx = grpcmetadata.PathWithContext(ctx, path)
-	server := updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(spiffeid))
+	server := updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc())
 	nse, err := server.Register(ctx, &registry.NetworkServiceEndpoint{})
 	assert.NotNil(t, err)
 	assert.Nil(t, nse)
@@ -177,14 +177,14 @@ func (s *updateTokenNSServerSuite) TestNSChain() {
 
 	elements := []registry.NetworkServiceEndpointRegistryServer{
 		updatepath.NewNetworkServiceEndpointRegistryServer("nsc-1"),
-		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(spiffeid)),
+		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc()),
 		updatepath.NewNetworkServiceEndpointRegistryServer("local-nsm-1"),
-		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(spiffeid)),
+		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc()),
 		updatepath.NewNetworkServiceEndpointRegistryServer("local-nsm-1"),
 		updatepath.NewNetworkServiceEndpointRegistryServer("remote-nsm-1"),
-		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(spiffeid)),
+		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc()),
 		updatepath.NewNetworkServiceEndpointRegistryServer("remote-nsm-1"),
-		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(spiffeid)),
+		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc()),
 	}
 
 	ctx := context.Background()

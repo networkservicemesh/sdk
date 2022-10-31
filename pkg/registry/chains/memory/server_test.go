@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,6 +31,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"

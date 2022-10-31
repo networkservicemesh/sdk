@@ -47,17 +47,17 @@ func (s *updateTokenNSServer) Register(ctx context.Context, ns *registry.Network
 		return nil, err
 	}
 	if prev := GetPrevPathSegment(path); prev != nil {
-		tok, expireTime, err := token.FromContext(ctx)
+		tok, expireTime, tokenErr := token.FromContext(ctx)
 
-		if err != nil {
-			log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", err)
+		if tokenErr != nil {
+			log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", tokenErr)
 		} else {
 			expires := timestamppb.New(expireTime.Local())
 			prev.Expires = expires
 			prev.Token = tok
-			id, err := getIDFromToken(tok)
-			if err != nil {
-				return nil, err
+			id, idErr := getIDFromToken(tok)
+			if idErr != nil {
+				return nil, idErr
 			}
 			ns.PathIds = updatePathIds(ns.PathIds, int(path.Index-1), id.String())
 			log.FromContext(ctx).Infof("PATH IDS: %v", ns.PathIds)
@@ -89,18 +89,18 @@ func (s *updateTokenNSServer) Unregister(ctx context.Context, ns *registry.Netwo
 	}
 
 	if prev := GetPrevPathSegment(path); prev != nil {
-		tok, expireTime, err := token.FromContext(ctx)
+		tok, expireTime, tokenErr := token.FromContext(ctx)
 
-		if err != nil {
-			log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", err)
+		if tokenErr != nil {
+			log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", tokenErr)
 		} else {
 			expires := timestamppb.New(expireTime.Local())
 			prev.Expires = expires
 			prev.Token = tok
 
-			id, err := getIDFromToken(tok)
-			if err != nil {
-				return nil, err
+			id, idErr := getIDFromToken(tok)
+			if idErr != nil {
+				return nil, idErr
 			}
 			ns.PathIds = updatePathIds(ns.PathIds, int(path.Index-1), id.String())
 		}

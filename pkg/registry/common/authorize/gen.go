@@ -22,5 +22,5 @@ import (
 
 //go:generate go-syncmap -output sync_map.gen.go -type ResourcePathIdsMap<string,[]string>
 
-// ResourcePathIdsMap - sync.Map with key == resource name and value == list of path ids assosiated with this resource
+// ResourcePathIdsMap - sync.Map with key == resource name and value == list of path ids associated with this resource
 type ResourcePathIdsMap sync.Map

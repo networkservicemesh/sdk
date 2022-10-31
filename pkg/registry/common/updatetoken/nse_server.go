@@ -52,17 +52,17 @@ func (s *updateTokenNSEServer) Register(ctx context.Context, nse *registry.Netwo
 	printPath(ctx, path)
 
 	if prev := GetPrevPathSegment(path); prev != nil {
-		tok, expireTime, err := token.FromContext(ctx)
+		tok, expireTime, tokenErr := token.FromContext(ctx)
 
-		if err != nil {
-			log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", err)
+		if tokenErr != nil {
+			log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", tokenErr)
 		} else {
 			expires := timestamppb.New(expireTime.Local())
 			prev.Expires = expires
 			prev.Token = tok
-			id, err := getIDFromToken(tok)
-			if err != nil {
-				return nil, err
+			id, idErr := getIDFromToken(tok)
+			if idErr != nil {
+				return nil, idErr
 			}
 			nse.PathIds = updatePathIds(nse.PathIds, int(path.Index-1), id.String())
 		}
@@ -88,7 +88,6 @@ func (s *updateTokenNSEServer) Find(query *registry.NetworkServiceEndpointQuery,
 	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
 }
 
-// TODO: Impl this method. See ns_server.go
 func (s *updateTokenNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
 	path, err := grpcmetadata.PathFromContext(ctx)
 	if err != nil {
@@ -96,18 +95,18 @@ func (s *updateTokenNSEServer) Unregister(ctx context.Context, nse *registry.Net
 	}
 
 	if prev := GetPrevPathSegment(path); prev != nil {
-		tok, expireTime, err := token.FromContext(ctx)
+		tok, expireTime, tokenErr := token.FromContext(ctx)
 
-		if err != nil {
-			log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", err)
+		if tokenErr != nil {
+			log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", tokenErr)
 		} else {
 			expires := timestamppb.New(expireTime.Local())
 			prev.Expires = expires
 			prev.Token = tok
 
-			id, err := getIDFromToken(tok)
-			if err != nil {
-				return nil, err
+			id, idErr := getIDFromToken(tok)
+			if idErr != nil {
+				return nil, idErr
 			}
 			nse.PathIds = updatePathIds(nse.PathIds, int(path.Index-1), id.String())
 		}

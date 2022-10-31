@@ -232,9 +232,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 				opts.authorizeNSRegistryClient,
 				clientconn.NewNetworkServiceRegistryClient(),
 				grpcmetadata.NewNetworkServiceRegistryClient(),
-				dial.NewNetworkServiceRegistryClient(ctx,
-					dial.WithDialOptions(opts.dialOptions...),
-				),
+				dial.NewNetworkServiceRegistryClient(ctx, dial.WithDialOptions(opts.dialOptions...)),
 				registryconnect.NewNetworkServiceRegistryClient(),
 			),
 		)
@@ -257,9 +255,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 				clienturl.NewNetworkServiceEndpointRegistryClient(opts.regURL),
 				clientconn.NewNetworkServiceEndpointRegistryClient(),
 				grpcmetadata.NewNetworkServiceEndpointRegistryClient(),
-				dial.NewNetworkServiceEndpointRegistryClient(ctx,
-					dial.WithDialOptions(opts.dialOptions...),
-				),
+				dial.NewNetworkServiceEndpointRegistryClient(ctx, dial.WithDialOptions(opts.dialOptions...)),
 				registryconnect.NewNetworkServiceEndpointRegistryClient(),
 			),
 		),
@@ -305,10 +301,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 				client.NewClient(
 					ctx,
 					client.WithName(opts.name),
-					client.WithAdditionalFunctionality(
-						recvfd.NewClient(),
-						sendfd.NewClient(),
-					),
+					client.WithAdditionalFunctionality(recvfd.NewClient(), sendfd.NewClient()),
 					client.WithDialOptions(opts.dialOptions...),
 					client.WithDialTimeout(opts.dialTimeout),
 					client.WithoutRefresh(),

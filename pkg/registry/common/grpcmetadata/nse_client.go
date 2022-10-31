@@ -14,7 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package authorize provides authz checks for incoming or returning connections.
 package grpcmetadata
 
 import (
@@ -35,6 +34,7 @@ type grpcMetadataNSEClient struct {
 	nsePathMap *resourcePathMap
 }
 
+// NewNetworkServiceEndpointRegistryClient - returns grpcmetadata NSE client that sends metadata to server and receives it back
 func NewNetworkServiceEndpointRegistryClient() registry.NetworkServiceEndpointRegistryClient {
 	return &grpcMetadataNSEClient{
 		nsePathMap: new(resourcePathMap),

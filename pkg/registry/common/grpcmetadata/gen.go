@@ -22,5 +22,5 @@ import (
 
 //go:generate go-syncmap -output sync_map.gen.go -type resourcePathMap<string,*github.com/networkservicemesh/api/pkg/api/registry.Path>
 
-// resourcePathMap - sync.Map with key == rosource name and value == path assosiated with this resource
+// resourcePathMap - sync.Map with key == rosource name and value == path associated with this resource
 type resourcePathMap sync.Map

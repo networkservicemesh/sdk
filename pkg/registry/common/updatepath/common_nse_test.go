@@ -21,13 +21,14 @@ import (
 	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checknse"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 )
 
 type nseClientSample struct {
@@ -112,7 +113,7 @@ var nseClientSamples = []*nseClientSample{
 			)
 
 			path := makePath(1, 3)
-			path.PathSegments[2].Name = "different"
+			path.PathSegments[2].Name = different
 			nse, err := server.Register(grpcmetadata.PathWithContext(context.Background(), path), &registry.NetworkServiceEndpoint{})
 			require.NoError(t, err)
 			require.NotNil(t, nse)

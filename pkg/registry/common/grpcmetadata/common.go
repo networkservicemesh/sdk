@@ -31,6 +31,7 @@ const (
 	pathContextKey pathContextkey = "pathContextKey"
 )
 
+// PathFromContext returns registry.Path from context if it exists
 func PathFromContext(ctx context.Context) (*registry.Path, error) {
 	if value, ok := ctx.Value(pathContextKey).(*registry.Path); ok {
 		return value, nil
@@ -39,6 +40,7 @@ func PathFromContext(ctx context.Context) (*registry.Path, error) {
 	return nil, errors.New("failed to get registry.Path from context")
 }
 
+// PathWithContext puts registry.Path to context
 func PathWithContext(ctx context.Context, path *registry.Path) context.Context {
 	return context.WithValue(ctx, pathContextKey, path)
 }

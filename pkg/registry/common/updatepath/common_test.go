@@ -30,6 +30,7 @@ const (
 	pathSegmentID1 = "36ce7f0c-9f6d-40a4-8b39-6b56ff07eea9"
 	pathSegmentID2 = "ece490ea-dfe8-4512-a3ca-5be7b39515c5"
 	pathSegmentID3 = "f9a83e55-0a4f-3647-144a-98a9ee8fb231"
+	different      = "different"
 )
 
 func makePath(pathIndex uint32, pathSegments int) *registry.Path {

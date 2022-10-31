@@ -14,7 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package authorize provides authz checks for incoming or returning connections.
 package grpcmetadata
 
 import (
@@ -36,6 +35,7 @@ const pathKey = "path"
 type grpcMetadataNSServer struct {
 }
 
+// NewNetworkServiceRegistryServer - returns grpcmetadata NS server that receives metadata from client and sends it back
 func NewNetworkServiceRegistryServer() registry.NetworkServiceRegistryServer {
 	return &grpcMetadataNSServer{}
 }

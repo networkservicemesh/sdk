@@ -21,20 +21,20 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/networkservicemesh/sdk/pkg/tools/token"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/credentials"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 const (
-	index    = 0
 	key      = "supersecret"
 	spiffeid = "spiffe://test.com/server"
 )
 
-func tokenGeneratorFunc(id string) token.GeneratorFunc {
+func tokenGeneratorFunc() token.GeneratorFunc {
 	return func(peerAuthInfo credentials.AuthInfo) (string, time.Time, error) {
-		tok, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": id}).SignedString([]byte(key))
+		tok, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": spiffeid}).SignedString([]byte(key))
 		return tok, time.Date(3000, 1, 1, 1, 1, 1, 1, time.UTC), err
 	}
 }
