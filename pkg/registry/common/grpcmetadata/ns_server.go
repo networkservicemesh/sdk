@@ -56,12 +56,12 @@ func (s *grpcMetadataNSServer) Register(ctx context.Context, ns *registry.Networ
 		return nil, err
 	}
 
-	json, err := json.Marshal(path)
+	bytes, err := json.Marshal(path)
 	if err != nil {
 		return nil, err
 	}
 
-	header := metadata.Pairs("path", string(json))
+	header := metadata.Pairs("path", string(bytes))
 	err = grpc.SendHeader(ctx, header)
 	if err != nil {
 		return nil, err
@@ -89,12 +89,12 @@ func (s *grpcMetadataNSServer) Unregister(ctx context.Context, ns *registry.Netw
 		return nil, err
 	}
 
-	json, err := json.Marshal(path)
+	bytes, err := json.Marshal(path)
 	if err != nil {
 		return nil, err
 	}
 
-	header := metadata.Pairs("path", string(json))
+	header := metadata.Pairs("path", string(bytes))
 	err = grpc.SendHeader(ctx, header)
 	if err != nil {
 		return nil, err

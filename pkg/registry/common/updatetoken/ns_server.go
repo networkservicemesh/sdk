@@ -47,7 +47,7 @@ func (s *updateTokenNSServer) Register(ctx context.Context, ns *registry.Network
 		return nil, err
 	}
 	if prev := GetPrevPathSegment(path); prev != nil {
-		var tok, expireTime, err = token.FromContext(ctx)
+		tok, expireTime, err := token.FromContext(ctx)
 
 		if err != nil {
 			log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", err)
@@ -89,7 +89,7 @@ func (s *updateTokenNSServer) Unregister(ctx context.Context, ns *registry.Netwo
 	}
 
 	if prev := GetPrevPathSegment(path); prev != nil {
-		var tok, expireTime, err = token.FromContext(ctx)
+		tok, expireTime, err := token.FromContext(ctx)
 
 		if err != nil {
 			log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", err)
@@ -97,12 +97,24 @@ func (s *updateTokenNSServer) Unregister(ctx context.Context, ns *registry.Netwo
 			expires := timestamppb.New(expireTime.Local())
 			prev.Expires = expires
 			prev.Token = tok
+
+			id, err := getIDFromToken(tok)
+			if err != nil {
+				return nil, err
+			}
+			ns.PathIds = updatePathIds(ns.PathIds, int(path.Index-1), id.String())
 		}
 	}
 	err = updateToken(ctx, path, s.tokenGenerator)
 	if err != nil {
 		return nil, err
 	}
+
+	id, err := getIDFromToken(path.PathSegments[path.Index].Token)
+	if err != nil {
+		return nil, err
+	}
+	ns.PathIds = updatePathIds(ns.PathIds, int(path.Index), id.String())
 
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }

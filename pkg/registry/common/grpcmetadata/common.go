@@ -28,8 +28,7 @@ import (
 type pathContextkey string
 
 const (
-	pathContextKey  pathContextkey = "pathContextKey"
-	pathMetadataKey string         = "pathMetadataKey"
+	pathContextKey pathContextkey = "pathContextKey"
 )
 
 func PathFromContext(ctx context.Context) (*registry.Path, error) {
@@ -60,10 +59,10 @@ func loadFromMetadata(md metadata.MD) (*registry.Path, error) {
 }
 
 func appendToMetadata(ctx context.Context, path *registry.Path) (context.Context, error) {
-	json, err := json.Marshal(path)
+	bytes, err := json.Marshal(path)
 	if err != nil {
 		return nil, err
 	}
-	ctx = metadata.AppendToOutgoingContext(ctx, pathKey, string(json))
+	ctx = metadata.AppendToOutgoingContext(ctx, pathKey, string(bytes))
 	return ctx, nil
 }

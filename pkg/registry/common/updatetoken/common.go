@@ -33,8 +33,9 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-// TODO: move to API (path_helper functions)
+// GetPrevPathSegment returns path.Index - 1 segments if exists
 func GetPrevPathSegment(path *registry.Path) *registry.PathSegment {
+	// TODO: move to API (path_helper functions)
 	if path == nil {
 		return nil
 	}
@@ -110,7 +111,7 @@ func getIDFromToken(tokenString string) (spiffeid.ID, error) {
 }
 
 func updatePathIds(pathIds []string, index int, id string) []string {
-	if int(index) >= len(pathIds) {
+	if index >= len(pathIds) {
 		pathIds = append(pathIds, id)
 	} else {
 		pathIds[index] = id
