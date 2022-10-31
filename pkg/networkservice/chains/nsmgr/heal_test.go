@@ -689,7 +689,7 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 	require.Equal(t, expectedForwarderName, conn.GetPath().GetPathSegments()[pathSegmentCount-2].Name)
 
 	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx,
-		registryclient.WithClientURL(domain.Nodes[nodeNum].NSMgr.URL),
+		registryclient.WithClientURL(sandbox.CloneURL(domain.Nodes[nodeNum].NSMgr.URL)),
 		registryclient.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())))
 
 	for i := 0; i < 10; i++ {
