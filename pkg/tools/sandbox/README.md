@@ -119,7 +119,7 @@ Problem: setup NSMgrs, Forwarders, Registries to checking interdomain use-case v
 Solution:
 ```go
 	...
-	fakeServer := new(sandbox.FakeDNSResolver)
+	fakeServer := sandbox.NewFakeDNSResolver()
 	domain1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
 		SetDNSDomainName("domain1").

@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -58,15 +58,23 @@ func (c *checkNSEContext) Unregister(ctx context.Context, ns *registry.NetworkSe
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, ns)
 }
 
-func Test_DNSResolve(t *testing.T) {
+func Test_DNSResolveV4(t *testing.T) {
+	assertDNSResolves(t, "tcp://127.0.0.1:80")
+}
+
+func Test_DNSResolveV6(t *testing.T) {
+	assertDNSResolves(t, "tcp://[::1]:80")
+}
+
+func assertDNSResolves(t *testing.T, registryURL string) {
 	const srv = "service1"
 
-	var resolver = new(sandbox.FakeDNSResolver)
+	var resolver = sandbox.NewFakeResolver()
 
-	u, err := url.Parse("tcp://127.0.0.1:80")
+	u, err := url.Parse(registryURL)
 	require.NoError(t, err)
 
-	resolver.AddSRVEntry("domain1", srv, u)
+	require.NoError(t, sandbox.AddSRVEntry(resolver, "domain1", srv, u))
 
 	s := dnsresolve.NewNetworkServiceEndpointRegistryServer(
 		dnsresolve.WithRegistryService(srv),
@@ -120,15 +128,17 @@ func Test_DNSResolve_LookupNsmgrProxy(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	var resolver = new(sandbox.FakeDNSResolver)
+	var resolver = sandbox.NewFakeResolver()
 
 	regURL, err := url.Parse("tcp://127.0.0.1:80")
 	require.NoError(t, err)
-	resolver.AddSRVEntry(domain, regSrv, regURL)
+
+	require.NoError(t, sandbox.AddSRVEntry(resolver, domain, regSrv, regURL))
 
 	nsmgrProxyURL, err := url.Parse("tcp://127.0.0.1:81")
 	require.NoError(t, err)
-	resolver.AddSRVEntry(domain, nsmgrProxySrv, nsmgrProxyURL)
+
+	require.NoError(t, sandbox.AddSRVEntry(resolver, domain, nsmgrProxySrv, nsmgrProxyURL))
 
 	s := dnsresolve.NewNetworkServiceEndpointRegistryServer(
 		dnsresolve.WithRegistryService(regSrv),

@@ -53,7 +53,7 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	var dnsServer = new(sandbox.FakeDNSResolver)
+	var dnsServer = sandbox.NewFakeResolver()
 
 	cluster1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
@@ -129,7 +129,7 @@ func Test_NSEMovedFromInterdomainToFloatingUseCase(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	var dnsServer = new(sandbox.FakeDNSResolver)
+	var dnsServer = sandbox.NewFakeResolver()
 
 	cluster1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
@@ -254,7 +254,7 @@ func TestNSMGR_Interdomain_TwoNodesNSEs(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	var dnsServer = new(sandbox.FakeDNSResolver)
+	var dnsServer = sandbox.NewFakeResolver()
 
 	cluster1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
@@ -358,7 +358,7 @@ func TestNSMGR_FloatingInterdomainUseCase(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	var dnsServer = new(sandbox.FakeDNSResolver)
+	var dnsServer = sandbox.NewFakeResolver()
 
 	cluster1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
@@ -453,7 +453,7 @@ func TestNSMGR_FloatingInterdomainUseCase_FloatingNetworkServiceNameRegistration
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	var dnsServer = new(sandbox.FakeDNSResolver)
+	var dnsServer = sandbox.NewFakeResolver()
 
 	cluster1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
@@ -536,7 +536,7 @@ func TestNSMGR_FloatingInterdomain_FourClusters(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	var dnsServer = new(sandbox.FakeDNSResolver)
+	var dnsServer = sandbox.NewFakeResolver()
 
 	// setup clusters
 
@@ -699,7 +699,7 @@ func Test_Interdomain_PassThroughUsecase(t *testing.T) {
 
 	const clusterCount = 5
 
-	var dnsServer = new(sandbox.FakeDNSResolver)
+	var dnsServer = sandbox.NewFakeResolver()
 	var clusters = make([]*sandbox.Domain, clusterCount)
 
 	for i := 0; i < clusterCount; i++ {

@@ -22,6 +22,7 @@ import (
 	"net"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -64,7 +65,13 @@ func parseIPPort(domain string) (ip net.IP, port string) {
 	return ip, port
 }
 
-func resolveDomain(ctx context.Context, service, domain string, r Resolver) (*url.URL, error) {
+func resolveDomain(ctx context.Context, service, domain string, r Resolver) (u *url.URL, err error) {
+	defer func() {
+		if err == nil {
+			log.FromContext(ctx).Debugf("Resolved url: %v", u)
+		}
+	}()
+
 	ip, port := parseIPPort(domain)
 	if ip == nil || port == "" {
 		serviceDomain := fmt.Sprintf("%v.%v", service, domain)
@@ -88,13 +95,22 @@ func resolveDomain(ctx context.Context, service, domain string, r Resolver) (*ur
 		ip = ips[0].IP
 	}
 
-	u, err := url.Parse(fmt.Sprintf("tcp://%v:%v", ip, port))
-	if err != nil {
-		return nil, err
+	return formatURL(ip.String(), port)
+}
+
+// formatURL formats ip and port into a TCP URL. It accounts for IPV4
+// and IPV6 addresses. If error is non-nil then the URL pointer is
+// undefined.
+func formatURL(ip, port string) (*url.URL, error) {
+	// Assume the address is IPV4
+	urlStr := fmt.Sprintf("tcp://%s:%s", ip, port)
+
+	// If ip is IPV6 then wrap it in brackets.
+	if strings.Count(ip, ":") >= 2 {
+		urlStr = fmt.Sprintf("tcp://[%s]:%s", ip, port)
 	}
 
-	log.FromContext(ctx).Debugf("Resolved url: %v", u)
-	return u, nil
+	return url.Parse(urlStr)
 }
 
 var _ Resolver = (*net.Resolver)(nil)
