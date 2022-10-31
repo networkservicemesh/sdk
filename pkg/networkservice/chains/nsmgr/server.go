@@ -82,7 +82,9 @@ type serverOptions struct {
 	authorizeServer                  networkservice.NetworkServiceServer
 	authorizeMonitorConnectionServer networkservice.MonitorConnectionServer
 	authorizeNSRegistryServer        registryapi.NetworkServiceRegistryServer
+	authorizeNSRegistryClient        registryapi.NetworkServiceRegistryClient
 	authorizeNSERegistryServer       registryapi.NetworkServiceEndpointRegistryServer
+	authorizeNSERegistryClient       registryapi.NetworkServiceEndpointRegistryClient
 	dialOptions                      []grpc.DialOption
 	dialTimeout                      time.Duration
 	regURL                           *url.URL
@@ -156,6 +158,26 @@ func WithAuthorizeNSERegistryServer(authorizeNSERegistryServer registryapi.Netwo
 	}
 }
 
+// WithAuthorizeNSRegistryClient sets authorization NetworkServiceRegistry chain element
+func WithAuthorizeNSRegistryClient(authorizeNSRegistryClient registryapi.NetworkServiceRegistryClient) Option {
+	if authorizeNSRegistryClient == nil {
+		panic("authorizeNSRegistryClient cannot be nil")
+	}
+	return func(o *serverOptions) {
+		o.authorizeNSRegistryClient = authorizeNSRegistryClient
+	}
+}
+
+// WithAuthorizeNSERegistryClient sets authorization NetworkServiceEndpointRegistry chain element
+func WithAuthorizeNSERegistryClient(authorizeNSERegistryClient registryapi.NetworkServiceEndpointRegistryClient) Option {
+	if authorizeNSERegistryClient == nil {
+		panic("authorizeNSERegistryServer cannot be nil")
+	}
+	return func(o *serverOptions) {
+		o.authorizeNSERegistryClient = authorizeNSERegistryClient
+	}
+}
+
 // WithRegistry sets URL and dial options to reach the upstream registry, if not passed memory storage will be used.
 func WithRegistry(regURL *url.URL) Option {
 	return func(o *serverOptions) {
@@ -189,7 +211,9 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		authorizeServer:                  authorize.NewServer(authorize.Any()),
 		authorizeMonitorConnectionServer: authmonitor.NewMonitorConnectionServer(authmonitor.Any()),
 		authorizeNSRegistryServer:        registryauthorize.NewNetworkServiceRegistryServer(registryauthorize.Any()),
+		authorizeNSRegistryClient:        registryauthorize.NewNetworkServiceRegistryClient(registryauthorize.Any()),
 		authorizeNSERegistryServer:       registryauthorize.NewNetworkServiceEndpointRegistryServer(registryauthorize.Any()),
+		authorizeNSERegistryClient:       registryauthorize.NewNetworkServiceEndpointRegistryClient(registryauthorize.Any()),
 		name:                             "nsmgr-" + uuid.New().String(),
 		forwarderServiceName:             "forwarder",
 	}
@@ -205,6 +229,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			chain.NewNetworkServiceRegistryClient(
 				clienturl.NewNetworkServiceRegistryClient(opts.regURL),
 				begin.NewNetworkServiceRegistryClient(),
+				opts.authorizeNSRegistryClient,
 				clientconn.NewNetworkServiceRegistryClient(),
 				grpcmetadata.NewNetworkServiceRegistryClient(),
 				dial.NewNetworkServiceRegistryClient(ctx,
@@ -228,6 +253,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		registryconnect.NewNetworkServiceEndpointRegistryServer(
 			chain.NewNetworkServiceEndpointRegistryClient(
 				begin.NewNetworkServiceEndpointRegistryClient(),
+				opts.authorizeNSERegistryClient,
 				clienturl.NewNetworkServiceEndpointRegistryClient(opts.regURL),
 				clientconn.NewNetworkServiceEndpointRegistryClient(),
 				grpcmetadata.NewNetworkServiceEndpointRegistryClient(),

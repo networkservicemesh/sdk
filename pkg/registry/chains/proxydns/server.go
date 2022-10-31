@@ -22,38 +22,80 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/google/uuid"
 	"github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/updatetoken"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
+type serverOptions struct {
+	name        string
+	dialOptions []grpc.DialOption
+}
+
+// Option modifies server option value
+type Option func(o *serverOptions)
+
+// WithName sets name for the registry memory server
+func WithName(name string) Option {
+	return Option(func(c *serverOptions) {
+		c.name = name
+	})
+}
+
+// WithDialOptions sets grpc.DialOptions for the server
+func WithDialOptions(dialOptions ...grpc.DialOption) Option {
+	return func(o *serverOptions) {
+		o.dialOptions = dialOptions
+	}
+}
+
 // NewServer creates new stateless registry server that proxies queries to the second registries by DNS domains
-func NewServer(ctx context.Context, dnsResolver dnsresolve.Resolver, dialOptions ...grpc.DialOption) registry.Registry {
+func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, dnsResolver dnsresolve.Resolver, options ...Option) registry.Registry {
+	opts := &serverOptions{
+		name: "registry-proxy-" + uuid.New().String(),
+	}
+	for _, opt := range options {
+		opt(opts)
+	}
+
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
+		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
+		updatepath.NewNetworkServiceEndpointRegistryServer(opts.name),
 		begin.NewNetworkServiceEndpointRegistryServer(),
+		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGenerator),
 		dnsresolve.NewNetworkServiceEndpointRegistryServer(dnsresolve.WithResolver(dnsResolver)),
 		connect.NewNetworkServiceEndpointRegistryServer(
 			chain.NewNetworkServiceEndpointRegistryClient(
+				grpcmetadata.NewNetworkServiceEndpointRegistryClient(),
 				clientconn.NewNetworkServiceEndpointRegistryClient(),
 				dial.NewNetworkServiceEndpointRegistryClient(ctx,
-					dial.WithDialOptions(dialOptions...),
+					dial.WithDialOptions(opts.dialOptions...),
 				),
 				connect.NewNetworkServiceEndpointRegistryClient(),
 			),
 		))
 	nsChain := chain.NewNetworkServiceRegistryServer(
+		grpcmetadata.NewNetworkServiceRegistryServer(),
+		updatepath.NewNetworkServiceRegistryServer(opts.name),
 		begin.NewNetworkServiceRegistryServer(),
+		updatetoken.NewNetworkServiceRegistryServer(tokenGenerator),
 		dnsresolve.NewNetworkServiceRegistryServer(dnsresolve.WithResolver(dnsResolver)),
 		connect.NewNetworkServiceRegistryServer(
 			chain.NewNetworkServiceRegistryClient(
+				grpcmetadata.NewNetworkServiceRegistryClient(),
 				clientconn.NewNetworkServiceRegistryClient(),
 				dial.NewNetworkServiceRegistryClient(
 					ctx,
-					dial.WithDialOptions(dialOptions...),
+					dial.WithDialOptions(opts.dialOptions...),
 				),
 				connect.NewNetworkServiceRegistryClient(),
 			),

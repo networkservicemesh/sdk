@@ -58,6 +58,26 @@ func WithNSEClientURLResolver(c registry.NetworkServiceEndpointRegistryClient) O
 	}
 }
 
+// WithAuthorizeNSRegistryClient sets authorization NetworkServiceRegistry chain element
+func WithAuthorizeNSRegistryClient(authorizeNSRegistryClient registry.NetworkServiceRegistryClient) Option {
+	if authorizeNSRegistryClient == nil {
+		panic("authorizeNSRegistryClient cannot be nil")
+	}
+	return func(o *clientOptions) {
+		o.authorizeNSRegistryClient = authorizeNSRegistryClient
+	}
+}
+
+// WithAuthorizeNSERegistryClient sets authorization NetworkServiceEndpointRegistry chain element
+func WithAuthorizeNSERegistryClient(authorizeNSERegistryClient registry.NetworkServiceEndpointRegistryClient) Option {
+	if authorizeNSERegistryClient == nil {
+		panic("authorizeNSERegistryClient cannot be nil")
+	}
+	return func(o *clientOptions) {
+		o.authorizeNSERegistryClient = authorizeNSERegistryClient
+	}
+}
+
 // WithNSAdditionalFunctionality sets additional functionality
 func WithNSAdditionalFunctionality(additionalFunctionality ...registry.NetworkServiceRegistryClient) Option {
 	return func(clientOpts *clientOptions) {
@@ -83,6 +103,8 @@ type clientOptions struct {
 	name                       string
 	nsClientURLResolver        registry.NetworkServiceRegistryClient
 	nseClientURLResolver       registry.NetworkServiceEndpointRegistryClient
+	authorizeNSRegistryClient  registry.NetworkServiceRegistryClient
+	authorizeNSERegistryClient registry.NetworkServiceEndpointRegistryClient
 	nsAdditionalFunctionality  []registry.NetworkServiceRegistryClient
 	nseAdditionalFunctionality []registry.NetworkServiceEndpointRegistryClient
 	dialOptions                []grpc.DialOption

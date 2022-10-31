@@ -246,8 +246,9 @@ func (b *Builder) newRegistryProxy() *RegistryEntry {
 	entry.restartableServer = newRestartableServer(b.ctx, b.t, entry.URL, func(ctx context.Context) {
 		entry.Registry = b.supplyRegistryProxy(
 			ctx,
+			b.generateTokenFunc,
 			b.dnsResolver,
-			DialOptions(WithTokenGenerator(b.generateTokenFunc))...,
+			proxydns.WithDialOptions(DialOptions(WithTokenGenerator(b.generateTokenFunc))...),
 		)
 		serve(ctx, b.t, entry.URL, entry.Register)
 

@@ -29,6 +29,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgrproxy"
 	"github.com/networkservicemesh/sdk/pkg/registry"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/registry/chains/proxydns"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
@@ -43,7 +44,7 @@ type SupplyNSMgrFunc func(ctx context.Context, tokenGenerator token.GeneratorFun
 type SupplyRegistryFunc func(ctx context.Context, tokenGenerator token.GeneratorFunc, expiryDuration time.Duration, proxyRegistryURL *url.URL, options ...grpc.DialOption) registry.Registry
 
 // SupplyRegistryProxyFunc supplies registry proxy
-type SupplyRegistryProxyFunc func(ctx context.Context, dnsResolver dnsresolve.Resolver, options ...grpc.DialOption) registry.Registry
+type SupplyRegistryProxyFunc func(ctx context.Context, tokenGenerator token.GeneratorFunc, dnsResolver dnsresolve.Resolver, options ...proxydns.Option) registry.Registry
 
 // SetupNodeFunc setups each node on Builder.Build() stage
 type SetupNodeFunc func(ctx context.Context, node *Node, nodeNum int)
@@ -89,7 +90,7 @@ type Domain struct {
 }
 
 // NewNSRegistryClient creates new NS registry client for the domain
-func (d *Domain) NewNSRegistryClient(ctx context.Context, generatorFunc token.GeneratorFunc) registryapi.NetworkServiceRegistryClient {
+func (d *Domain) NewNSRegistryClient(ctx context.Context, generatorFunc token.GeneratorFunc, opts ...registryclient.Option) registryapi.NetworkServiceRegistryClient {
 	var registryURL *url.URL
 	switch {
 	case d.Registry != nil:
@@ -100,7 +101,9 @@ func (d *Domain) NewNSRegistryClient(ctx context.Context, generatorFunc token.Ge
 		return nil
 	}
 
-	return registryclient.NewNetworkServiceRegistryClient(ctx,
+	opts = append(opts,
 		registryclient.WithClientURL(registryURL),
 		registryclient.WithDialOptions(DialOptions(WithTokenGenerator(generatorFunc))...))
+
+	return registryclient.NewNetworkServiceRegistryClient(ctx, opts...)
 }

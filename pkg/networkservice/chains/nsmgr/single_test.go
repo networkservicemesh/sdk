@@ -31,6 +31,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
+	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
@@ -502,6 +503,10 @@ func Test_FailedRegistryAuthorization(t *testing.T) {
 				authorize.NewNetworkServiceEndpointRegistryServer(authorize.WithPolicies(opa.WithRegistryClientAllowedPolicy()))),
 			nsmgr.WithAuthorizeNSRegistryServer(
 				authorize.NewNetworkServiceRegistryServer(authorize.WithPolicies(opa.WithRegistryClientAllowedPolicy()))),
+			nsmgr.WithAuthorizeNSERegistryClient(
+				authorize.NewNetworkServiceEndpointRegistryClient(authorize.WithPolicies(opa.WithRegistryClientAllowedPolicy()))),
+			nsmgr.WithAuthorizeNSRegistryClient(
+				authorize.NewNetworkServiceRegistryClient(authorize.WithPolicies(opa.WithRegistryClientAllowedPolicy()))),
 		)
 		return nsmgr.NewServer(ctx, tokenGenerator, options...)
 	}
@@ -546,11 +551,18 @@ func Test_FailedRegistryAuthorization(t *testing.T) {
 		SetRegistryProxySupplier(nil).
 		Build()
 
-	nsRegistryClient1 := domain.NewNSRegistryClient(ctx, tokenGeneratorFunc("spiffe://test.com/ns-1"))
+	nsRegistryClient1 := domain.NewNSRegistryClient(ctx, tokenGeneratorFunc("spiffe://test.com/ns-1"),
+		registryclient.WithAuthorizeNSRegistryClient(
+			authorize.NewNetworkServiceRegistryClient(authorize.WithPolicies(opa.WithRegistryClientAllowedPolicy()))))
+
 	ns1 := defaultRegistryService("ns-1")
 	_, err := nsRegistryClient1.Register(ctx, ns1)
 	require.NoError(t, err)
-	nsRegistryClient2 := domain.NewNSRegistryClient(ctx, tokenGeneratorFunc("spiffe://test.com/ns-2"))
+
+	nsRegistryClient2 := domain.NewNSRegistryClient(ctx, tokenGeneratorFunc("spiffe://test.com/ns-2"),
+		registryclient.WithAuthorizeNSRegistryClient(
+			authorize.NewNetworkServiceRegistryClient(authorize.WithPolicies(opa.WithRegistryClientAllowedPolicy()))))
+
 	ns2 := defaultRegistryService("ns-1")
 	_, err = nsRegistryClient2.Register(ctx, ns2)
 	require.Error(t, err)

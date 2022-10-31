@@ -28,7 +28,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
@@ -44,7 +43,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/noloop"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/norecursion"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/searches"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -58,8 +56,6 @@ func requireIPv4Lookup(ctx context.Context, t *testing.T, r *net.Resolver, host,
 func Test_DNSUsecase(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	log.EnableTracing(true)
-	logrus.SetLevel(logrus.TraceLevel)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 

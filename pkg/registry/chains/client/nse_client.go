@@ -23,6 +23,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
@@ -39,8 +40,9 @@ import (
 // NewNetworkServiceEndpointRegistryClient creates a new NewNetworkServiceEndpointRegistryClient that can be used for NSE registration.
 func NewNetworkServiceEndpointRegistryClient(ctx context.Context, opts ...Option) registry.NetworkServiceEndpointRegistryClient {
 	clientOpts := &clientOptions{
-		name:                 "registry-nse-client-" + uuid.New().String(),
-		nseClientURLResolver: null.NewNetworkServiceEndpointRegistryClient(),
+		name:                       "registry-nse-client-" + uuid.New().String(),
+		nseClientURLResolver:       null.NewNetworkServiceEndpointRegistryClient(),
+		authorizeNSERegistryClient: authorize.NewNetworkServiceEndpointRegistryClient(authorize.Any()),
 	}
 	for _, opt := range opts {
 		opt(clientOpts)
@@ -54,6 +56,7 @@ func NewNetworkServiceEndpointRegistryClient(ctx context.Context, opts ...Option
 				retry.NewNetworkServiceEndpointRegistryClient(ctx),
 				heal.NewNetworkServiceEndpointRegistryClient(ctx),
 				refresh.NewNetworkServiceEndpointRegistryClient(ctx),
+				clientOpts.authorizeNSERegistryClient,
 				clientOpts.nseClientURLResolver,
 				clientconn.NewNetworkServiceEndpointRegistryClient(),
 				grpcmetadata.NewNetworkServiceEndpointRegistryClient(),

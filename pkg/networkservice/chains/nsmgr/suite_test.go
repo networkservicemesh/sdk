@@ -31,6 +31,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
@@ -353,8 +354,12 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	defer closeCancel()
 	_, _ = nsc.Close(closeCtx, conn)
 
+	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx,
+		registryclient.WithClientURL(s.domain.Nodes[0].NSMgr.URL),
+		registryclient.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
+	)
 	// Endpoint unregister
-	_, err = s.domain.Nodes[0].NSMgr.NetworkServiceEndpointRegistryServer().Unregister(ctx, nseReg)
+	_, err = nseRegistryClient.Unregister(ctx, nseReg)
 	require.NoError(t, err)
 }
 

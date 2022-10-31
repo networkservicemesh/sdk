@@ -106,7 +106,7 @@ TestInterdomainNetworkServiceEndpointRegistry covers the next scenario:
 
 Expected: nsmgr found ns
 
-domain1:                                                             domain2:
+domain1:                                                             domain1						  domain1
 ------------------------------------------------------------         -------------------              ------------------------------------------------------------
 |                                                           | 2.Find |                 | 1. Register  |                                                           |
 |  local registry -> nsmgr proxy registry -> proxy registry |  --->  | local registry  | <----------- |  local registry -> nsmgr proxy registry -> proxy registry |
@@ -116,7 +116,7 @@ domain1:                                                             domain2:
 func TestLocalDomain_NetworkServiceRegistry(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	dnsServer := sandbox.NewFakeResolver()
@@ -127,23 +127,22 @@ func TestLocalDomain_NetworkServiceRegistry(t *testing.T) {
 		SetDNSResolver(dnsServer).
 		Build()
 
-	expected, err := domain1.Registry.NetworkServiceRegistryServer().Register(
-		context.Background(),
-		&registryapi.NetworkService{
-			Name: "ns-1@" + domain1.Name,
-		},
-	)
+	client1 := registryclient.NewNetworkServiceRegistryClient(ctx,
+		registryclient.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
+		registryclient.WithClientURL(domain1.Registry.URL))
+
+	expected, err := client1.Register(context.Background(), &registryapi.NetworkService{
+		Name: "ns-1@" + domain1.Name,
+	})
+
 	require.Nil(t, err)
 	require.True(t, strings.Contains(expected.GetName(), "@"+domain1.Name))
 
-	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(domain1.Registry.URL), grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials()))
-	require.Nil(t, err)
-	defer func() {
-		_ = cc.Close()
-	}()
-	client := registryapi.NewNetworkServiceRegistryClient(cc)
+	client2 := registryclient.NewNetworkServiceRegistryClient(ctx,
+		registryclient.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
+		registryclient.WithClientURL(domain1.Registry.URL))
 
-	stream, err := client.Find(context.Background(), &registryapi.NetworkServiceQuery{
+	stream, err := client2.Find(context.Background(), &registryapi.NetworkServiceQuery{
 		NetworkService: &registryapi.NetworkService{
 			Name: expected.Name,
 		},
@@ -200,7 +199,11 @@ func TestInterdomainFloatingNetworkServiceRegistry(t *testing.T) {
 		SetDNSDomainName("floating.domain").
 		Build()
 
-	_, err := domain2.Registry.NetworkServiceRegistryServer().Register(
+	registryClient := registryclient.NewNetworkServiceRegistryClient(ctx,
+		registryclient.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
+		registryclient.WithClientURL(domain2.Registry.URL))
+
+	_, err := registryClient.Register(
 		ctx,
 		&registryapi.NetworkService{
 			Name: "ns-1@" + domain3.Name,

@@ -142,6 +142,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			Action: chain.NewNetworkServiceEndpointRegistryServer(
 				connect.NewNetworkServiceEndpointRegistryServer(
 					chain.NewNetworkServiceEndpointRegistryClient(
+						grpcmetadata.NewNetworkServiceEndpointRegistryClient(),
 						begin.NewNetworkServiceEndpointRegistryClient(),
 						clienturl.NewNetworkServiceEndpointRegistryClient(opts.proxyRegistryURL),
 						clientconn.NewNetworkServiceEndpointRegistryClient(),
@@ -176,6 +177,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 				},
 				Action: connect.NewNetworkServiceRegistryServer(
 					chain.NewNetworkServiceRegistryClient(
+						grpcmetadata.NewNetworkServiceRegistryClient(),
 						clienturl.NewNetworkServiceRegistryClient(opts.proxyRegistryURL),
 						begin.NewNetworkServiceRegistryClient(),
 						clientconn.NewNetworkServiceRegistryClient(),

@@ -25,6 +25,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -34,6 +36,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/client"
+	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -686,6 +689,10 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 	require.Equal(t, pathSegmentCount, len(conn.Path.PathSegments))
 	require.Equal(t, expectedForwarderName, conn.GetPath().GetPathSegments()[pathSegmentCount-2].Name)
 
+	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx,
+		registryclient.WithClientURL(domain.Nodes[nodeNum].NSMgr.URL),
+		registryclient.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())))
+
 	for i := 0; i < 10; i++ {
 		request.Connection = conn.Clone()
 		conn, err = nsc.Request(ctx, request.Clone())
@@ -695,14 +702,14 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 
 		domain.Nodes[nodeNum].NSMgr.Restart()
 
-		_, err = domain.Nodes[nodeNum].NSMgr.NetworkServiceEndpointRegistryServer().Register(ctx, &registry.NetworkServiceEndpoint{
+		_, err = nseRegistryClient.Register(ctx, &registry.NetworkServiceEndpoint{
 			Name:                nseReg.Name,
 			Url:                 nseEntry.URL.String(),
 			NetworkServiceNames: nseReg.NetworkServiceNames,
 		})
 		require.NoError(t, err)
 
-		_, err = domain.Nodes[nodeNum].NSMgr.NetworkServiceEndpointRegistryServer().Register(ctx, &registry.NetworkServiceEndpoint{
+		_, err = nseRegistryClient.Register(ctx, &registry.NetworkServiceEndpoint{
 			Name:                expectedForwarderName,
 			Url:                 domain.Nodes[nodeNum].Forwarders[expectedForwarderName].URL.String(),
 			NetworkServiceNames: []string{"forwarder"},

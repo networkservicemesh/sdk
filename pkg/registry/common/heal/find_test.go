@@ -31,7 +31,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
-//nolint:funlen
 func TestHealClient_FindTest(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -94,13 +93,12 @@ func TestHealClient_FindTest(t *testing.T) {
 
 	mgr = domain.Nodes[0].NewNSMgr(ctx, mgr.Name, mgr.URL, sandbox.GenerateTestToken, nsmgr.NewServer)
 
-	// 3. Register new NS, NSE
-	_, err = mgr.NetworkServiceRegistryServer().Register(ctx, &registry.NetworkService{
+	_, err = nsRegistryClient.Register(ctx, &registry.NetworkService{
 		Name: "ns",
 	})
 	require.NoError(t, err)
 
-	_, err = mgr.NetworkServiceEndpointRegistryServer().Register(ctx, &registry.NetworkServiceEndpoint{
+	_, err = nseRegistryClient.Register(ctx, &registry.NetworkServiceEndpoint{
 		Name: "nse",
 		Url:  "tcp://0.0.0.0",
 	})
