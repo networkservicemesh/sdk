@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -30,6 +30,12 @@ type defaultLogger struct {
 // Default - provides a default logger
 func Default() Logger {
 	return &defaultLogger{}
+}
+
+// IsDefault - true if the logger is a default logger
+func IsDefault(logger Logger) bool {
+	_, ok := logger.(*defaultLogger)
+	return ok
 }
 
 func (l *defaultLogger) Info(v ...interface{}) {
