@@ -57,7 +57,7 @@ domain1:                                                           domain2:
 func TestInterdomainNetworkServiceRegistry(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10000000)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
 	dnsServer := sandbox.NewFakeResolver()
