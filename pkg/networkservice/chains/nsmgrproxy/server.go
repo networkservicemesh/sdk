@@ -240,9 +240,7 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 		begin.NewNetworkServiceRegistryClient(),
 		clienturl.NewNetworkServiceRegistryClient(regURL),
 		clientconn.NewNetworkServiceRegistryClient(),
-		dial.NewNetworkServiceRegistryClient(ctx,
-			dial.WithDialOptions(opts.dialOptions...),
-		),
+		dial.NewNetworkServiceRegistryClient(ctx, dial.WithDialOptions(opts.dialOptions...)),
 		registryconnect.NewNetworkServiceRegistryClient(),
 	)
 
@@ -277,9 +275,7 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 			clienturl.NewNetworkServiceRegistryClient(proxyURL),
 			clientconn.NewNetworkServiceRegistryClient(),
 			opts.authorizeNSRegistryClient,
-			dial.NewNetworkServiceRegistryClient(ctx,
-				dial.WithDialOptions(opts.dialOptions...),
-			),
+			dial.NewNetworkServiceRegistryClient(ctx, dial.WithDialOptions(opts.dialOptions...)),
 			registryconnect.NewNetworkServiceRegistryClient(),
 		),
 	)

@@ -73,8 +73,6 @@ func (c *grpcMetadataNSClient) Register(ctx context.Context, ns *registry.Networ
 	path.Index = newpath.Index
 	path.PathSegments = newpath.PathSegments
 
-	// c.nsPathMap.Store(ns.Name, path)
-
 	return resp, nil
 }
 
