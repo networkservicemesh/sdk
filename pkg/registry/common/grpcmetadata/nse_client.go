@@ -18,7 +18,6 @@ package grpcmetadata
 
 import (
 	"context"
-	"errors"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
@@ -31,46 +30,14 @@ import (
 )
 
 type grpcMetadataNSEClient struct {
-	nsePathMap *resourcePathMap
 }
 
 // NewNetworkServiceEndpointRegistryClient - returns grpcmetadata NSE client that sends metadata to server and receives it back
 func NewNetworkServiceEndpointRegistryClient() registry.NetworkServiceEndpointRegistryClient {
-	return &grpcMetadataNSEClient{
-		nsePathMap: new(resourcePathMap),
-	}
-}
-
-func clonePath(path *registry.Path) *registry.Path {
-	result := &registry.Path{
-		Index: path.Index,
-	}
-
-	for _, segment := range path.PathSegments {
-		result.PathSegments = append(result.PathSegments, &registry.PathSegment{
-			Id:      segment.Id,
-			Name:    segment.Name,
-			Token:   segment.Token,
-			Expires: segment.Expires,
-		})
-	}
-
-	return result
+	return &grpcMetadataNSEClient{}
 }
 
 func (c *grpcMetadataNSEClient) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	// path, loaded := c.nsePathMap.Load(nse.Name)
-	// if loaded {
-	// 	log.FromContext(ctx).Infof("LOADED")
-	// }
-	// if !loaded {
-	// 	ctxPath, err := PathFromContext(ctx)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	path = ctxPath
-	// }
-
 	path, err := PathFromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -101,8 +68,6 @@ func (c *grpcMetadataNSEClient) Register(ctx context.Context, nse *registry.Netw
 	path.Index = newpath.Index
 	path.PathSegments = newpath.PathSegments
 
-	// c.nsePathMap.Store(nse.Name, clonePath(newpath))
-
 	return resp, nil
 }
 
@@ -111,15 +76,15 @@ func (c *grpcMetadataNSEClient) Find(ctx context.Context, query *registry.Networ
 }
 
 func (c *grpcMetadataNSEClient) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
-	path, loaded := c.nsePathMap.Load(nse.Name)
-	if !loaded {
-		return nil, errors.New("failed to get path from nsePathMap")
+	path, err := PathFromContext(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	log.FromContext(ctx).Infof("GRPCMETADATA CLIENT MAP")
 	log.FromContext(ctx).Infof("INDEX: %v", path.Index)
 	printPath(ctx, path)
-	ctx, err := appendToMetadata(ctx, path)
+	ctx, err = appendToMetadata(ctx, path)
 	if err != nil {
 		return nil, err
 	}
@@ -128,8 +93,6 @@ func (c *grpcMetadataNSEClient) Unregister(ctx context.Context, nse *registry.Ne
 	if err != nil {
 		return nil, err
 	}
-
-	c.nsePathMap.Delete(nse.Name)
 
 	return resp, nil
 }

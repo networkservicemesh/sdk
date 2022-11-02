@@ -19,7 +19,6 @@ package grpcmetadata
 
 import (
 	"context"
-	"errors"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
@@ -32,14 +31,11 @@ import (
 )
 
 type grpcMetadataNSClient struct {
-	nsPathMap *resourcePathMap
 }
 
 // NewNetworkServiceRegistryClient - returns grpcmetadata NS client that sends metadata to server and receives it back
 func NewNetworkServiceRegistryClient() registry.NetworkServiceRegistryClient {
-	return &grpcMetadataNSClient{
-		nsPathMap: new(resourcePathMap),
-	}
+	return &grpcMetadataNSClient{}
 }
 
 func printPath(ctx context.Context, path *registry.Path) {
@@ -51,15 +47,6 @@ func printPath(ctx context.Context, path *registry.Path) {
 }
 
 func (c *grpcMetadataNSClient) Register(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
-	// path, loaded := c.nsPathMap.Load(ns.Name)
-	// if !loaded {
-	// 	ctxPath, err := PathFromContext(ctx)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	path = ctxPath
-	// }
-
 	path, err := PathFromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -96,15 +83,15 @@ func (c *grpcMetadataNSClient) Find(ctx context.Context, query *registry.Network
 }
 
 func (c *grpcMetadataNSClient) Unregister(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
-	path, loaded := c.nsPathMap.Load(ns.Name)
-	if !loaded {
-		return nil, errors.New("failed to get path from nsPathMap")
+	path, err := PathFromContext(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	log.FromContext(ctx).Infof("GRPCMETADATA CLIENT MAP")
 	log.FromContext(ctx).Infof("INDEX: %v", path.Index)
 	printPath(ctx, path)
-	ctx, err := appendToMetadata(ctx, path)
+	ctx, err = appendToMetadata(ctx, path)
 	if err != nil {
 		return nil, err
 	}
@@ -113,8 +100,6 @@ func (c *grpcMetadataNSClient) Unregister(ctx context.Context, ns *registry.Netw
 	if err != nil {
 		return nil, err
 	}
-
-	c.nsPathMap.Delete(ns.Name)
 
 	return resp, nil
 }
