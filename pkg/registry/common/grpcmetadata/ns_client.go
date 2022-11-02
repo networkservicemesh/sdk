@@ -46,23 +46,27 @@ func printPath(ctx context.Context, path *registry.Path) {
 	logger := log.FromContext(ctx)
 
 	for i, s := range path.PathSegments {
-		logger.Infof("Segment: %d, Value: %v", i, s)
+		logger.Infof("Segment: %d, Expires: %v, Value: %v", i, s.Expires, s)
 	}
 }
 
 func (c *grpcMetadataNSClient) Register(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
-	path, loaded := c.nsPathMap.Load(ns.Name)
-	if !loaded {
-		ctxPath, err := PathFromContext(ctx)
-		if err != nil {
-			return nil, err
-		}
-		path = ctxPath
-	}
+	// path, loaded := c.nsPathMap.Load(ns.Name)
+	// if !loaded {
+	// 	ctxPath, err := PathFromContext(ctx)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	path = ctxPath
+	// }
 
+	path, err := PathFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	log.FromContext(ctx).Infof("GRPCMETADATA CLIENT MAP")
 	printPath(ctx, path)
-	ctx, err := appendToMetadata(ctx, path)
+	ctx, err = appendToMetadata(ctx, path)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +86,7 @@ func (c *grpcMetadataNSClient) Register(ctx context.Context, ns *registry.Networ
 	path.Index = newpath.Index
 	path.PathSegments = newpath.PathSegments
 
-	c.nsPathMap.Store(ns.Name, path)
+	// c.nsPathMap.Store(ns.Name, path)
 
 	return resp, nil
 }

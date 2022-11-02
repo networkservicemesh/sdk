@@ -52,6 +52,8 @@ type serverOptions struct {
 	name                       string
 	authorizeNSRegistryServer  registry.NetworkServiceRegistryServer
 	authorizeNSERegistryServer registry.NetworkServiceEndpointRegistryServer
+	authorizeNSRegistryClient  registry.NetworkServiceRegistryClient
+	authorizeNSERegistryClient registry.NetworkServiceEndpointRegistryClient
 	expireDuration             time.Duration
 	proxyRegistryURL           *url.URL
 	dialOptions                []grpc.DialOption
@@ -84,6 +86,26 @@ func WithAuthorizeNSERegistryServer(authorizeNSERegistryServer registry.NetworkS
 	}
 	return func(o *serverOptions) {
 		o.authorizeNSERegistryServer = authorizeNSERegistryServer
+	}
+}
+
+// WithAuthorizeNSRegistryClient sets authorization NetworkServiceRegistry chain element
+func WithAuthorizeNSRegistryClient(authorizeNSRegistryClient registry.NetworkServiceRegistryClient) Option {
+	if authorizeNSRegistryClient == nil {
+		panic("authorizeNSRegistryClient cannot be nil")
+	}
+	return func(o *serverOptions) {
+		o.authorizeNSRegistryClient = authorizeNSRegistryClient
+	}
+}
+
+// WithAuthorizeNSERegistryClient sets authorization NetworkServiceEndpointRegistry chain element
+func WithAuthorizeNSERegistryClient(authorizeNSERegistryClient registry.NetworkServiceEndpointRegistryClient) Option {
+	if authorizeNSERegistryClient == nil {
+		panic("authorizeNSERegistryClient cannot be nil")
+	}
+	return func(o *serverOptions) {
+		o.authorizeNSERegistryClient = authorizeNSERegistryClient
 	}
 }
 
@@ -146,6 +168,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 						begin.NewNetworkServiceEndpointRegistryClient(),
 						clienturl.NewNetworkServiceEndpointRegistryClient(opts.proxyRegistryURL),
 						clientconn.NewNetworkServiceEndpointRegistryClient(),
+						opts.authorizeNSERegistryClient,
 						dial.NewNetworkServiceEndpointRegistryClient(ctx,
 							dial.WithDialOptions(opts.dialOptions...),
 						),
@@ -181,6 +204,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 						clienturl.NewNetworkServiceRegistryClient(opts.proxyRegistryURL),
 						begin.NewNetworkServiceRegistryClient(),
 						clientconn.NewNetworkServiceRegistryClient(),
+						opts.authorizeNSRegistryClient,
 						dial.NewNetworkServiceRegistryClient(ctx,
 							dial.WithDialOptions(opts.dialOptions...),
 						),

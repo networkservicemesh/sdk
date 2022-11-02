@@ -99,6 +99,6 @@ func printPath(ctx context.Context, path *registry.Path) {
 	logger := log.FromContext(ctx)
 
 	for i, s := range path.PathSegments {
-		logger.Infof("Segment: %d, Value: %v", i, s)
+		logger.Infof("Segment: %d, Expires: %v, Value: %v", i, s.Expires, s)
 	}
 }

@@ -59,22 +59,27 @@ func clonePath(path *registry.Path) *registry.Path {
 }
 
 func (c *grpcMetadataNSEClient) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	path, loaded := c.nsePathMap.Load(nse.Name)
-	if loaded {
-		log.FromContext(ctx).Infof("LOADED")
-	}
-	if !loaded {
-		ctxPath, err := PathFromContext(ctx)
-		if err != nil {
-			return nil, err
-		}
-		path = ctxPath
+	// path, loaded := c.nsePathMap.Load(nse.Name)
+	// if loaded {
+	// 	log.FromContext(ctx).Infof("LOADED")
+	// }
+	// if !loaded {
+	// 	ctxPath, err := PathFromContext(ctx)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	path = ctxPath
+	// }
+
+	path, err := PathFromContext(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	log.FromContext(ctx).Infof("GRPCMETADATA CLIENT MAP")
 	log.FromContext(ctx).Infof("INDEX: %v", path.Index)
 	printPath(ctx, path)
-	ctx, err := appendToMetadata(ctx, path)
+	ctx, err = appendToMetadata(ctx, path)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +101,7 @@ func (c *grpcMetadataNSEClient) Register(ctx context.Context, nse *registry.Netw
 	path.Index = newpath.Index
 	path.PathSegments = newpath.PathSegments
 
-	c.nsePathMap.Store(nse.Name, clonePath(path))
+	// c.nsePathMap.Store(nse.Name, clonePath(newpath))
 
 	return resp, nil
 }

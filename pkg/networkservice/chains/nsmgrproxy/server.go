@@ -79,6 +79,8 @@ type serverOptions struct {
 	authorizeMonitorConnectionServer networkservice.MonitorConnectionServer
 	authorizeNSRegistryServer        registryapi.NetworkServiceRegistryServer
 	authorizeNSERegistryServer       registryapi.NetworkServiceEndpointRegistryServer
+	authorizeNSRegistryClient        registryapi.NetworkServiceRegistryClient
+	authorizeNSERegistryClient       registryapi.NetworkServiceEndpointRegistryClient
 	dialOptions                      []grpc.DialOption
 	dialTimeout                      time.Duration
 }
@@ -155,6 +157,26 @@ func WithAuthorizeNSERegistryServer(authorizeNSERegistryServer registryapi.Netwo
 	}
 }
 
+// WithAuthorizeNSRegistryClient sets authorization NetworkServiceRegistry chain element
+func WithAuthorizeNSRegistryClient(authorizeNSRegistryClient registryapi.NetworkServiceRegistryClient) Option {
+	if authorizeNSRegistryClient == nil {
+		panic("authorizeNSRegistryClient cannot be nil")
+	}
+	return func(o *serverOptions) {
+		o.authorizeNSRegistryClient = authorizeNSRegistryClient
+	}
+}
+
+// WithAuthorizeNSERegistryClient sets authorization NetworkServiceEndpointRegistry chain element
+func WithAuthorizeNSERegistryClient(authorizeNSERegistryClient registryapi.NetworkServiceEndpointRegistryClient) Option {
+	if authorizeNSERegistryClient == nil {
+		panic("authorizeNSERegistryClient cannot be nil")
+	}
+	return func(o *serverOptions) {
+		o.authorizeNSERegistryClient = authorizeNSERegistryClient
+	}
+}
+
 // WithListenOn sets current listenOn url
 func WithListenOn(u *url.URL) Option {
 	return func(o *serverOptions) {
@@ -192,6 +214,8 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 		authorizeMonitorConnectionServer: authmonitor.NewMonitorConnectionServer(authmonitor.Any()),
 		authorizeNSRegistryServer:        registryauthorize.NewNetworkServiceRegistryServer(registryauthorize.Any()),
 		authorizeNSERegistryServer:       registryauthorize.NewNetworkServiceEndpointRegistryServer(registryauthorize.Any()),
+		authorizeNSRegistryClient:        registryauthorize.NewNetworkServiceRegistryClient(registryauthorize.Any()),
+		authorizeNSERegistryClient:       registryauthorize.NewNetworkServiceEndpointRegistryClient(registryauthorize.Any()),
 		listenOn:                         &url.URL{Scheme: "unix", Host: "listen.on"},
 		mapipFilePath:                    "map-ip.yaml",
 	}
@@ -252,6 +276,7 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 			begin.NewNetworkServiceRegistryClient(),
 			clienturl.NewNetworkServiceRegistryClient(proxyURL),
 			clientconn.NewNetworkServiceRegistryClient(),
+			opts.authorizeNSRegistryClient,
 			dial.NewNetworkServiceRegistryClient(ctx,
 				dial.WithDialOptions(opts.dialOptions...),
 			),
@@ -281,6 +306,7 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 			chain.NewNetworkServiceEndpointRegistryClient(
 				grpcmetadata.NewNetworkServiceEndpointRegistryClient(),
 				clientconn.NewNetworkServiceEndpointRegistryClient(),
+				opts.authorizeNSERegistryClient,
 				dial.NewNetworkServiceEndpointRegistryClient(ctx,
 					dial.WithDialOptions(opts.dialOptions...),
 					dial.WithDialTimeout(opts.dialTimeout),
