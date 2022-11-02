@@ -18,7 +18,6 @@ package memory
 
 import (
 	"context"
-	"fmt"
 	"io"
 
 	"github.com/edwarnicke/serialize"
@@ -27,7 +26,6 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/matchutils"
 )
@@ -56,8 +54,6 @@ func (s *memoryNSEServer) setEventChannelSize(l int) {
 }
 
 func (s *memoryNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	path, _ := grpcmetadata.PathFromContext(ctx)
-	fmt.Printf("PAAAAAAAATHHHHHHHHHHHHH: %v\n", path)
 	r, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	if err != nil {
 		return nil, err
