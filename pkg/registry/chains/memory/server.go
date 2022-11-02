@@ -136,6 +136,8 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		name:                       "registry-memory-" + uuid.New().String(),
 		authorizeNSRegistryServer:  registryauthorize.NewNetworkServiceRegistryServer(registryauthorize.Any()),
 		authorizeNSERegistryServer: registryauthorize.NewNetworkServiceEndpointRegistryServer(registryauthorize.Any()),
+		authorizeNSRegistryClient:  registryauthorize.NewNetworkServiceRegistryClient(registryauthorize.Any()),
+		authorizeNSERegistryClient: registryauthorize.NewNetworkServiceEndpointRegistryClient(registryauthorize.Any()),
 		expireDuration:             time.Minute,
 		proxyRegistryURL:           nil,
 	}
