@@ -77,7 +77,9 @@ func (c *grpcMetadataNSClient) Register(ctx context.Context, ns *registry.Networ
 }
 
 func (c *grpcMetadataNSClient) Find(ctx context.Context, query *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
-	return next.NetworkServiceRegistryClient(ctx).Find(ctx, query, opts...)
+	resp, err := next.NetworkServiceRegistryClient(ctx).Find(ctx, query, opts...)
+
+	return resp, err
 }
 
 func (c *grpcMetadataNSClient) Unregister(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {

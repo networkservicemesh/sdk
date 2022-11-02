@@ -84,8 +84,7 @@ func TestAuthzNetworkServiceRegistry(t *testing.T) {
 
 	ctx := context.Background()
 
-	serverAddress := "localhost:44000"
-	serverLis, err := net.Listen("tcp", serverAddress)
+	serverLis, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
 	server := next.NewNetworkServiceRegistryServer(
@@ -101,11 +100,10 @@ func TestAuthzNetworkServiceRegistry(t *testing.T) {
 		require.NoError(t, serveErr)
 	}()
 
-	proxyAddress := "localhost:45000"
-	proxyLis, err := net.Listen("tcp", proxyAddress)
+	proxyLis, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
-	serverConn, err := grpc.Dial(serverAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	serverConn, err := grpc.Dial(serverLis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	defer func() {
 		closeErr := serverConn.Close()
@@ -130,7 +128,7 @@ func TestAuthzNetworkServiceRegistry(t *testing.T) {
 		require.NoError(t, serveErr)
 	}()
 
-	conn, err := grpc.Dial(proxyAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(proxyLis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	defer func() {
 		closeErr := conn.Close()
