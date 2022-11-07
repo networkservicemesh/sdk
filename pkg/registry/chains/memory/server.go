@@ -166,11 +166,11 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			Action: chain.NewNetworkServiceEndpointRegistryServer(
 				connect.NewNetworkServiceEndpointRegistryServer(
 					chain.NewNetworkServiceEndpointRegistryClient(
-						grpcmetadata.NewNetworkServiceEndpointRegistryClient(),
 						begin.NewNetworkServiceEndpointRegistryClient(),
 						clienturl.NewNetworkServiceEndpointRegistryClient(opts.proxyRegistryURL),
 						clientconn.NewNetworkServiceEndpointRegistryClient(),
 						opts.authorizeNSERegistryClient,
+						grpcmetadata.NewNetworkServiceEndpointRegistryClient(),
 						dial.NewNetworkServiceEndpointRegistryClient(ctx,
 							dial.WithDialOptions(opts.dialOptions...),
 						),
@@ -202,11 +202,11 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 				},
 				Action: connect.NewNetworkServiceRegistryServer(
 					chain.NewNetworkServiceRegistryClient(
-						grpcmetadata.NewNetworkServiceRegistryClient(),
 						clienturl.NewNetworkServiceRegistryClient(opts.proxyRegistryURL),
 						begin.NewNetworkServiceRegistryClient(),
 						clientconn.NewNetworkServiceRegistryClient(),
 						opts.authorizeNSRegistryClient,
+						grpcmetadata.NewNetworkServiceRegistryClient(),
 						dial.NewNetworkServiceRegistryClient(ctx,
 							dial.WithDialOptions(opts.dialOptions...),
 						),

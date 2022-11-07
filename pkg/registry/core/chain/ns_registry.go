@@ -22,14 +22,15 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/trace"
 )
 
 // NewNetworkServiceRegistryServer - creates a chain of servers
 func NewNetworkServiceRegistryServer(servers ...registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
-	return next.NewNetworkServiceRegistryServer(servers...)
+	return next.NewNetworkServiceRegistryServer(next.NewWrappedNetworkServiceRegistryServer(trace.NewNetworkServiceRegistryServer, servers...))
 }
 
 // NewNetworkServiceRegistryClient - creates a chain of clients
 func NewNetworkServiceRegistryClient(clients ...registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
-	return next.NewNetworkServiceRegistryClient(clients...)
+	return next.NewNetworkServiceRegistryClient(next.NewWrappedNetworkServiceRegistryClient(trace.NewNetworkServiceRegistryClient, clients...))
 }

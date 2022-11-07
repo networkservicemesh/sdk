@@ -129,9 +129,9 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, dnsResol
 		dnsresolve.NewNetworkServiceEndpointRegistryServer(dnsresolve.WithResolver(dnsResolver)),
 		connect.NewNetworkServiceEndpointRegistryServer(
 			chain.NewNetworkServiceEndpointRegistryClient(
-				grpcmetadata.NewNetworkServiceEndpointRegistryClient(),
 				clientconn.NewNetworkServiceEndpointRegistryClient(),
 				opts.authorizeNSERegistryClient,
+				grpcmetadata.NewNetworkServiceEndpointRegistryClient(),
 				dial.NewNetworkServiceEndpointRegistryClient(ctx,
 					dial.WithDialOptions(opts.dialOptions...),
 				),
@@ -147,9 +147,9 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, dnsResol
 		dnsresolve.NewNetworkServiceRegistryServer(dnsresolve.WithResolver(dnsResolver)),
 		connect.NewNetworkServiceRegistryServer(
 			chain.NewNetworkServiceRegistryClient(
-				grpcmetadata.NewNetworkServiceRegistryClient(),
 				clientconn.NewNetworkServiceRegistryClient(),
 				opts.authorizeNSRegistryClient,
+				grpcmetadata.NewNetworkServiceRegistryClient(),
 				dial.NewNetworkServiceRegistryClient(
 					ctx,
 					dial.WithDialOptions(opts.dialOptions...),

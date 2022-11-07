@@ -20,7 +20,6 @@ package proxydns_test
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -92,12 +91,10 @@ func TestInterdomainNetworkServiceRegistry(t *testing.T) {
 
 	require.Nil(t, err)
 
-	resp, err := stream.Recv()
-	// list := registryapi.ReadNetworkServiceList(stream)
+	list := registryapi.ReadNetworkServiceList(stream)
 
-	fmt.Printf("resp: %v\n", resp)
-	//require.Len(t, list, 1)
-	//require.Equal(t, "ns-1@"+domain2.Name, list[0].Name)
+	require.Len(t, list, 1)
+	require.Equal(t, "ns-1@"+domain2.Name, list[0].Name)
 }
 
 /*
