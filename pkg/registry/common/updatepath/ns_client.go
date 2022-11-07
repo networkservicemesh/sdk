@@ -78,7 +78,7 @@ func (s *updatePathNSClient) Unregister(ctx context.Context, ns *registry.Networ
 		return nil, err
 	}
 
-	resp, err := next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
+	resp, err := next.NetworkServiceRegistryClient(ctx).Unregister(ctx, ns, opts...)
 	path.Index = index
 	return resp, err
 }

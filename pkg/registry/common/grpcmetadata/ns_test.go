@@ -57,7 +57,6 @@ func TestGRPCMetadataNetworkService(t *testing.T) {
 			require.NoError(t, checkErr)
 
 			require.Equal(t, int(path.Index), 2)
-			require.Len(t, path.PathSegments, 3)
 			require.Equal(t, path.PathSegments[0].Name, clientName)
 			require.Equal(t, path.PathSegments[1].Name, proxyName)
 			require.Equal(t, path.PathSegments[2].Name, serverName)
@@ -89,7 +88,6 @@ func TestGRPCMetadataNetworkService(t *testing.T) {
 			require.NoError(t, checkErr)
 
 			require.Equal(t, int(path.Index), 1)
-			require.Len(t, path.PathSegments, 2)
 			require.Equal(t, path.PathSegments[0].Name, clientName)
 			require.Equal(t, path.PathSegments[1].Name, proxyName)
 		}),
@@ -120,7 +118,6 @@ func TestGRPCMetadataNetworkService(t *testing.T) {
 			require.NoError(t, checkErr)
 
 			require.Equal(t, int(path.Index), 0)
-			require.Len(t, path.PathSegments, 1)
 			require.Equal(t, path.PathSegments[0].Name, clientName)
 		}),
 		grpcmetadata.NewNetworkServiceRegistryClient(),

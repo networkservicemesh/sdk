@@ -234,7 +234,7 @@ func Test_RefreshNSEClient_SetsCorrectExpireTime(t *testing.T) {
 		begin.NewNetworkServiceEndpointRegistryClient(),
 		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
 		countClient,
-		checknse.NewClient(t, func(t *testing.T, ctx context.Context, nse *registry.NetworkServiceEndpoint) {
+		checknse.NewClient(t, func(t *testing.T, nse *registry.NetworkServiceEndpoint) {
 			nse.ExpirationTime = testNSE(clockMock).ExpirationTime
 		}),
 	)
