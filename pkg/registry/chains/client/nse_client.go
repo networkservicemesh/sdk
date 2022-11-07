@@ -19,6 +19,7 @@ package client
 
 import (
 	"context"
+	"net/url"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
@@ -34,10 +35,16 @@ import (
 )
 
 // NewNetworkServiceEndpointRegistryClient creates a new NewNetworkServiceEndpointRegistryClient that can be used for NSE registration.
-func NewNetworkServiceEndpointRegistryClient(ctx context.Context, opts ...Option) registry.NetworkServiceEndpointRegistryClient {
+func NewNetworkServiceEndpointRegistryClient(ctx context.Context, connectTo *url.URL, opts ...Option) registry.NetworkServiceEndpointRegistryClient {
 	clientOpts := &clientOptions{
 		nseClientURLResolver: null.NewNetworkServiceEndpointRegistryClient(),
 	}
+
+	// This is purely for backward compatibility with existing users of this API that are using connectTo
+	if connectTo != nil {
+		opts = append([]Option{WithClientURL(connectTo)}, opts...)
+	}
+
 	for _, opt := range opts {
 		opt(clientOpts)
 	}

@@ -18,6 +18,7 @@ package client
 
 import (
 	"context"
+	"net/url"
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -33,10 +34,16 @@ import (
 )
 
 // NewNetworkServiceRegistryClient creates a new NewNetworkServiceRegistryClient that can be used for NS registration.
-func NewNetworkServiceRegistryClient(ctx context.Context, opts ...Option) registry.NetworkServiceRegistryClient {
+func NewNetworkServiceRegistryClient(ctx context.Context, connectTo *url.URL, opts ...Option) registry.NetworkServiceRegistryClient {
 	clientOpts := &clientOptions{
 		nsClientURLResolver: null.NewNetworkServiceRegistryClient(),
 	}
+
+	// This is purely for backward compatibility with existing users of this API that are using connectTo
+	if connectTo != nil {
+		opts = append([]Option{WithClientURL(connectTo)}, opts...)
+	}
+
 	for _, opt := range opts {
 		opt(clientOpts)
 	}
