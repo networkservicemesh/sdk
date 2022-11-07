@@ -32,11 +32,13 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
+	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
 )
 
 // This test reproduces the situation when refresh changes the eventFactory context
 // nolint:dupl
-func TestRefresh_Server(t *testing.T) {
+func TestContextValues_Server(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	checkCtxServ := &checkContextServer{t: t}
@@ -129,6 +131,40 @@ func TestRefreshDuringClose_Server(t *testing.T) {
 	eventFactoryServ.callRefresh()
 }
 
+// This test checks if the timeout for the Request/Close called from the event factory is correct
+func TestContextTimeout_Server(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Add clockMock to the context
+	clockMock := clockmock.New(ctx)
+	ctx = clock.WithClock(ctx, clockMock)
+
+	ctx, cancel = context.WithDeadline(ctx, clockMock.Now().Add(time.Second*3))
+	defer cancel()
+
+	eventFactoryServ := &eventFactoryServer{}
+	server := chain.NewNetworkServiceServer(
+		begin.NewServer(),
+		eventFactoryServ,
+		&delayedNSEServer{t: t, clock: clockMock},
+	)
+
+	// Do Request
+	request := testRequest("1")
+	conn, err := server.Request(ctx, request.Clone())
+	assert.NotNil(t, t, conn)
+	assert.NoError(t, err)
+
+	// Check eventFactory Refresh. We are expecting the same timeout as for request
+	eventFactoryServ.callRefresh()
+
+	// Check eventFactory Close. We are expecting the same timeout as for request
+	eventFactoryServ.callClose()
+}
+
 type eventFactoryServer struct {
 	ctx context.Context
 }
@@ -187,5 +223,42 @@ func (f *failedNSEServer) Close(ctx context.Context, conn *networkservice.Connec
 	if conn.NetworkServiceEndpointName == failedNSENameServer {
 		return nil, errors.New("failed")
 	}
+	return next.Server(ctx).Close(ctx, conn)
+}
+
+type delayedNSEServer struct {
+	t              *testing.T
+	clock          *clockmock.Mock
+	initialTimeout time.Duration
+}
+
+func (d *delayedNSEServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	deadline, _ := ctx.Deadline()
+	clockTime := clock.FromContext(ctx)
+	timeout := clockTime.Until(deadline)
+
+	// Check that context timeout is greater than 0
+	assert.Greater(d.t, timeout, time.Duration(0))
+
+	// For the first request
+	if d.initialTimeout == 0 {
+		d.initialTimeout = timeout
+	}
+	// All requests timeout must be equal the first
+	assert.Equal(d.t, d.initialTimeout, timeout)
+
+	// Add delay
+	d.clock.Add(timeout / 2)
+	return next.Server(ctx).Request(ctx, request)
+}
+
+func (d *delayedNSEServer) Close(ctx context.Context, conn *networkservice.Connection) (*emptypb.Empty, error) {
+	assert.Greater(d.t, d.initialTimeout, time.Duration(0))
+
+	deadline, _ := ctx.Deadline()
+	clockTime := clock.FromContext(ctx)
+
+	assert.Equal(d.t, d.initialTimeout, clockTime.Until(deadline))
+
 	return next.Server(ctx).Close(ctx, conn)
 }

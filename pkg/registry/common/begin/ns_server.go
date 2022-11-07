@@ -61,8 +61,8 @@ func (b *beginNSServer) Register(ctx context.Context, in *registry.NetworkServic
 			return
 		}
 
-		ctx = withEventFactory(ctx, eventFactoryServer)
-		resp, err = next.NetworkServiceRegistryServer(ctx).Register(ctx, in)
+		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
+		resp, err = next.NetworkServiceRegistryServer(withEventFactoryCtx).Register(withEventFactoryCtx, in)
 		if err != nil {
 			if eventFactoryServer.state != established {
 				eventFactoryServer.state = closed
@@ -102,8 +102,8 @@ func (b *beginNSServer) Unregister(ctx context.Context, in *registry.NetworkServ
 		if currentServerClient != eventFactoryServer {
 			return
 		}
-		ctx = withEventFactory(ctx, eventFactoryServer)
-		_, err = next.NetworkServiceRegistryServer(ctx).Unregister(ctx, eventFactoryServer.registration)
+		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
+		_, err = next.NetworkServiceRegistryServer(withEventFactoryCtx).Unregister(withEventFactoryCtx, eventFactoryServer.registration)
 		eventFactoryServer.afterCloseFunc()
 	})
 	return &emptypb.Empty{}, err

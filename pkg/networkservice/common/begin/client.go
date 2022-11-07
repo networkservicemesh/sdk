@@ -66,9 +66,9 @@ func (b *beginClient) Request(ctx context.Context, request *networkservice.Netwo
 			return
 		}
 
-		ctx = withEventFactory(ctx, eventFactoryClient)
+		withEventFactoryCtx := withEventFactory(ctx, eventFactoryClient)
 		request.Connection = mergeConnection(eventFactoryClient.returnedConnection, request.GetConnection(), eventFactoryClient.request.GetConnection())
-		conn, err = next.Client(ctx).Request(ctx, request, opts...)
+		conn, err = next.Client(withEventFactoryCtx).Request(withEventFactoryCtx, request, opts...)
 		if err != nil {
 			if eventFactoryClient.state != established {
 				eventFactoryClient.state = closed
@@ -110,8 +110,8 @@ func (b *beginClient) Close(ctx context.Context, conn *networkservice.Connection
 		}
 		// Always close with the last valid Connection we got
 		conn = eventFactoryClient.request.Connection
-		ctx = withEventFactory(ctx, eventFactoryClient)
-		emp, err = next.Client(ctx).Close(ctx, conn, opts...)
+		withEventFactoryCtx := withEventFactory(ctx, eventFactoryClient)
+		emp, err = next.Client(withEventFactoryCtx).Close(withEventFactoryCtx, conn, opts...)
 		// afterCloseFunc() is used to cleanup things like the entry in the Map for EventFactories
 		eventFactoryClient.afterCloseFunc()
 	})

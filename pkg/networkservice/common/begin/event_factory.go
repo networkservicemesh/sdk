@@ -23,6 +23,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -47,6 +48,7 @@ type EventFactory interface {
 type eventFactoryClient struct {
 	state              connectionState
 	executor           serialize.Executor
+	initialCtxFunc     func() (context.Context, context.CancelFunc)
 	ctxFunc            func() (context.Context, context.CancelFunc)
 	request            *networkservice.NetworkServiceRequest
 	returnedConnection *networkservice.Connection
@@ -57,8 +59,9 @@ type eventFactoryClient struct {
 
 func newEventFactoryClient(ctx context.Context, afterClose func(), opts ...grpc.CallOption) *eventFactoryClient {
 	f := &eventFactoryClient{
-		client: next.Client(ctx),
-		opts:   opts,
+		client:         next.Client(ctx),
+		initialCtxFunc: postpone.Context(ctx),
+		opts:           opts,
 	}
 	f.updateContext(ctx)
 
@@ -71,10 +74,10 @@ func newEventFactoryClient(ctx context.Context, afterClose func(), opts ...grpc.
 	return f
 }
 
-func (f *eventFactoryClient) updateContext(ctx context.Context) {
-	ctxFunc := postpone.ContextWithValues(ctx)
+func (f *eventFactoryClient) updateContext(valueCtx context.Context) {
 	f.ctxFunc = func() (context.Context, context.CancelFunc) {
-		eventCtx, cancel := ctxFunc()
+		eventCtx, cancel := f.initialCtxFunc()
+		eventCtx = extend.WithValuesFromContext(eventCtx, valueCtx)
 		return withEventFactory(eventCtx, f), cancel
 	}
 }
@@ -148,6 +151,7 @@ var _ EventFactory = &eventFactoryClient{}
 type eventFactoryServer struct {
 	state              connectionState
 	executor           serialize.Executor
+	initialCtxFunc     func() (context.Context, context.CancelFunc)
 	ctxFunc            func() (context.Context, context.CancelFunc)
 	request            *networkservice.NetworkServiceRequest
 	returnedConnection *networkservice.Connection
@@ -157,7 +161,8 @@ type eventFactoryServer struct {
 
 func newEventFactoryServer(ctx context.Context, afterClose func()) *eventFactoryServer {
 	f := &eventFactoryServer{
-		server: next.Server(ctx),
+		server:         next.Server(ctx),
+		initialCtxFunc: postpone.Context(ctx),
 	}
 	f.updateContext(ctx)
 
@@ -168,10 +173,10 @@ func newEventFactoryServer(ctx context.Context, afterClose func()) *eventFactory
 	return f
 }
 
-func (f *eventFactoryServer) updateContext(ctx context.Context) {
-	ctxFunc := postpone.ContextWithValues(ctx)
+func (f *eventFactoryServer) updateContext(valueCtx context.Context) {
 	f.ctxFunc = func() (context.Context, context.CancelFunc) {
-		eventCtx, cancel := ctxFunc()
+		eventCtx, cancel := f.initialCtxFunc()
+		eventCtx = extend.WithValuesFromContext(eventCtx, valueCtx)
 		return withEventFactory(eventCtx, f), cancel
 	}
 }

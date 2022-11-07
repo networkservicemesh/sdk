@@ -24,12 +24,14 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 )
 
 type eventNSEFactoryClient struct {
 	state          connectionState
 	executor       serialize.Executor
+	initialCtxFunc func() (context.Context, context.CancelFunc)
 	ctxFunc        func() (context.Context, context.CancelFunc)
 	registration   *registry.NetworkServiceEndpoint
 	response       *registry.NetworkServiceEndpoint
@@ -40,8 +42,9 @@ type eventNSEFactoryClient struct {
 
 func newEventNSEFactoryClient(ctx context.Context, afterClose func(), opts ...grpc.CallOption) *eventNSEFactoryClient {
 	f := &eventNSEFactoryClient{
-		client: next.NetworkServiceEndpointRegistryClient(ctx),
-		opts:   opts,
+		client:         next.NetworkServiceEndpointRegistryClient(ctx),
+		initialCtxFunc: postpone.Context(ctx),
+		opts:           opts,
 	}
 	f.updateContext(ctx)
 
@@ -54,10 +57,10 @@ func newEventNSEFactoryClient(ctx context.Context, afterClose func(), opts ...gr
 	return f
 }
 
-func (f *eventNSEFactoryClient) updateContext(ctx context.Context) {
-	ctxFunc := postpone.ContextWithValues(ctx)
+func (f *eventNSEFactoryClient) updateContext(valueCtx context.Context) {
 	f.ctxFunc = func() (context.Context, context.CancelFunc) {
-		eventCtx, cancel := ctxFunc()
+		eventCtx, cancel := f.initialCtxFunc()
+		eventCtx = extend.WithValuesFromContext(eventCtx, valueCtx)
 		return withEventFactory(eventCtx, f), cancel
 	}
 }
@@ -122,6 +125,7 @@ var _ EventFactory = &eventNSEFactoryClient{}
 type eventNSEFactoryServer struct {
 	state          connectionState
 	executor       serialize.Executor
+	initialCtxFunc func() (context.Context, context.CancelFunc)
 	ctxFunc        func() (context.Context, context.CancelFunc)
 	registration   *registry.NetworkServiceEndpoint
 	response       *registry.NetworkServiceEndpoint
@@ -131,7 +135,8 @@ type eventNSEFactoryServer struct {
 
 func newNSEEventFactoryServer(ctx context.Context, afterClose func()) *eventNSEFactoryServer {
 	f := &eventNSEFactoryServer{
-		server: next.NetworkServiceEndpointRegistryServer(ctx),
+		server:         next.NetworkServiceEndpointRegistryServer(ctx),
+		initialCtxFunc: postpone.Context(ctx),
 	}
 	f.updateContext(ctx)
 
@@ -142,10 +147,10 @@ func newNSEEventFactoryServer(ctx context.Context, afterClose func()) *eventNSEF
 	return f
 }
 
-func (f *eventNSEFactoryServer) updateContext(ctx context.Context) {
-	ctxFunc := postpone.ContextWithValues(ctx)
+func (f *eventNSEFactoryServer) updateContext(valueCtx context.Context) {
 	f.ctxFunc = func() (context.Context, context.CancelFunc) {
-		eventCtx, cancel := ctxFunc()
+		eventCtx, cancel := f.initialCtxFunc()
+		eventCtx = extend.WithValuesFromContext(eventCtx, valueCtx)
 		return withEventFactory(eventCtx, f), cancel
 	}
 }
