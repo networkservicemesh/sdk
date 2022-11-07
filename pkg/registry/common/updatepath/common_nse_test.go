@@ -28,7 +28,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checknse"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checkcontext"
 )
 
 type nseClientSample struct {
@@ -106,7 +106,7 @@ var nseClientSamples = []*nseClientSample{
 			var nsePath *registry.Path
 			server := next.NewNetworkServiceEndpointRegistryClient(
 				newUpdatePathServer(nse3),
-				checknse.NewClient(t, func(t *testing.T, ctx context.Context, nse *registry.NetworkServiceEndpoint) {
+				checkcontext.NewNSEClient(t, func(t *testing.T, ctx context.Context) {
 					nsePath, _ = grpcmetadata.PathFromContext(ctx)
 					requirePathEqual(t, makePath(2, 3), nsePath, 2)
 				}),
@@ -132,7 +132,7 @@ var nseClientSamples = []*nseClientSample{
 			var nsePath *registry.Path
 			server := next.NewNetworkServiceEndpointRegistryClient(
 				newUpdatePathServer(nse3),
-				checknse.NewClient(t, func(t *testing.T, ctx context.Context, nse *registry.NetworkServiceEndpoint) {
+				checkcontext.NewNSEClient(t, func(t *testing.T, ctx context.Context) {
 					nsePath, _ = grpcmetadata.PathFromContext(ctx)
 					requirePathEqual(t, makePath(2, 3), nsePath, 2)
 				}),
@@ -156,7 +156,7 @@ var nseClientSamples = []*nseClientSample{
 
 			server := next.NewNetworkServiceEndpointRegistryClient(
 				newUpdatePathServer(nse3),
-				checknse.NewClient(t, func(t *testing.T, ctx context.Context, nse *registry.NetworkServiceEndpoint) {
+				checkcontext.NewNSEClient(t, func(t *testing.T, ctx context.Context) {
 					path, _ := grpcmetadata.PathFromContext(ctx)
 					requirePathEqual(t, path, makePath(2, 3))
 				}),

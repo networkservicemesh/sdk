@@ -28,7 +28,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checknse"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checkcontext"
 )
 
 type nsClientSample struct {
@@ -108,7 +108,7 @@ var nsClientSamples = []*nsClientSample{
 			var nsPath *registry.Path
 			server := next.NewNetworkServiceRegistryClient(
 				newUpdatePathClient(nse3),
-				checknse.NewNetworkServiceRegistryClient(t, func(t *testing.T, ctx context.Context, ns *registry.NetworkService) {
+				checkcontext.NewNSClient(t, func(t *testing.T, ctx context.Context) {
 					nsPath, _ = grpcmetadata.PathFromContext(ctx)
 					requirePathEqual(t, makePath(2, 3), nsPath, 2)
 				}),
@@ -134,7 +134,7 @@ var nsClientSamples = []*nsClientSample{
 			var nsPath *registry.Path
 			server := next.NewNetworkServiceRegistryClient(
 				newUpdatePathClient(nse3),
-				checknse.NewNetworkServiceRegistryClient(t, func(t *testing.T, ctx context.Context, ns *registry.NetworkService) {
+				checkcontext.NewNSClient(t, func(t *testing.T, ctx context.Context) {
 					nsPath, _ = grpcmetadata.PathFromContext(ctx)
 					requirePathEqual(t, makePath(2, 3), nsPath, 2)
 				}),
@@ -158,7 +158,7 @@ var nsClientSamples = []*nsClientSample{
 
 			server := next.NewNetworkServiceRegistryClient(
 				newUpdatePathClient(nse3),
-				checknse.NewNetworkServiceRegistryClient(t, func(t *testing.T, ctx context.Context, ns *registry.NetworkService) {
+				checkcontext.NewNSClient(t, func(t *testing.T, ctx context.Context) {
 					path, err := grpcmetadata.PathFromContext(ctx)
 					require.NoError(t, err)
 					requirePathEqual(t, makePath(2, 3), path)
