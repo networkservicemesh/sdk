@@ -26,7 +26,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type grpcMetadataNSEClient struct {
@@ -43,9 +42,6 @@ func (c *grpcMetadataNSEClient) Register(ctx context.Context, nse *registry.Netw
 		return nil, err
 	}
 
-	log.FromContext(ctx).Infof("GRPCMETADATA CLIENT MAP")
-	log.FromContext(ctx).Infof("INDEX: %v", path.Index)
-	printPath(ctx, path)
 	ctx, err = appendToMetadata(ctx, path)
 	if err != nil {
 		return nil, err
@@ -63,8 +59,6 @@ func (c *grpcMetadataNSEClient) Register(ctx context.Context, nse *registry.Netw
 		return nil, err
 	}
 
-	log.FromContext(ctx).Infof("NEW PATH INDEX: %v", newpath.Index)
-	log.FromContext(ctx).Infof("PATH INDEX: %v", path.Index)
 	path.Index = newpath.Index
 	path.PathSegments = newpath.PathSegments
 
@@ -81,9 +75,6 @@ func (c *grpcMetadataNSEClient) Unregister(ctx context.Context, nse *registry.Ne
 		return nil, err
 	}
 
-	log.FromContext(ctx).Infof("GRPCMETADATA CLIENT MAP")
-	log.FromContext(ctx).Infof("INDEX: %v", path.Index)
-	printPath(ctx, path)
 	ctx, err = appendToMetadata(ctx, path)
 	if err != nil {
 		return nil, err

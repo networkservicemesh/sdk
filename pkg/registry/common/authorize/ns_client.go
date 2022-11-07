@@ -30,7 +30,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 )
@@ -93,10 +92,6 @@ func (c *authorizeNSClient) Register(ctx context.Context, ns *registry.NetworkSe
 	if err != nil {
 		return nil, err
 	}
-
-	log.FromContext(ctx).Infof("AUTHORIZE NS CLIENT INDEX: %v", path.Index)
-	log.FromContext(ctx).Infof("SERVER PEER: %v", p)
-	printPath(ctx, path)
 
 	rawMap := getRawMap(c.nsPathIdsMap)
 	input := RegistryOpaInput{

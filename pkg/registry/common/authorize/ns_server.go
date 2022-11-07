@@ -72,7 +72,6 @@ func (s *authorizeNSServer) Register(ctx context.Context, ns *registry.NetworkSe
 		return nil, err
 	}
 
-	printPath(ctx, path)
 	index := path.GetIndex()
 	var leftSide = &registry.Path{
 		Index:        index,

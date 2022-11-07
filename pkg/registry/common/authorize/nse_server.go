@@ -19,7 +19,6 @@ package authorize
 
 import (
 	"context"
-	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 
@@ -27,7 +26,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 )
 
@@ -73,7 +71,6 @@ func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.Network
 	if err != nil {
 		return nil, err
 	}
-	printPath(ctx, path)
 
 	index := path.GetIndex()
 	var leftSide = &registry.Path{
@@ -90,11 +87,9 @@ func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.Network
 		Index:              leftSide.Index,
 	}
 
-	log.FromContext(ctx).Infof("Current time: %v", time.Now().Unix())
 	if err := s.policies.check(ctx, input); err != nil {
 		return nil, err
 	}
-	log.FromContext(ctx).Infof("Current time: %v", time.Now().Unix())
 
 	s.nsePathIdsMap.Store(nse.Name, nse.PathIds)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)

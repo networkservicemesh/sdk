@@ -28,7 +28,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type grpcMetadataNSEServer struct {
@@ -49,8 +48,6 @@ func (s *grpcMetadataNSEServer) Register(ctx context.Context, ns *registry.Netwo
 		return nil, err
 	}
 
-	log.FromContext(ctx).Infof("GRPCMETADATA NSE SERVER PATH")
-	printPath(ctx, path)
 	ctx = PathWithContext(ctx, path)
 
 	resp, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, ns)
@@ -86,8 +83,6 @@ func (s *grpcMetadataNSEServer) Unregister(ctx context.Context, nse *registry.Ne
 		return nil, err
 	}
 
-	log.FromContext(ctx).Infof("GRPCMETADATA NSE SERVER PATH")
-	printPath(ctx, path)
 	ctx = PathWithContext(ctx, path)
 
 	resp, err := next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)

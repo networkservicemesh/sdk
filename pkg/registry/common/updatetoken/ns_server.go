@@ -60,7 +60,6 @@ func (s *updateTokenNSServer) Register(ctx context.Context, ns *registry.Network
 				return nil, idErr
 			}
 			ns.PathIds = updatePathIds(ns.PathIds, int(path.Index-1), id.String())
-			log.FromContext(ctx).Infof("PATH IDS: %v", ns.PathIds)
 		}
 	}
 	err = updateToken(ctx, path, s.tokenGenerator)

@@ -27,7 +27,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type grpcMetadataNSClient struct {
@@ -38,21 +37,12 @@ func NewNetworkServiceRegistryClient() registry.NetworkServiceRegistryClient {
 	return &grpcMetadataNSClient{}
 }
 
-func printPath(ctx context.Context, path *registry.Path) {
-	logger := log.FromContext(ctx)
-
-	for i, s := range path.PathSegments {
-		logger.Infof("Segment: %d, Expires: %v, Value: %v", i, s.Expires, s)
-	}
-}
-
 func (c *grpcMetadataNSClient) Register(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
 	path, err := PathFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	log.FromContext(ctx).Infof("GRPCMETADATA CLIENT MAP")
-	printPath(ctx, path)
+
 	ctx, err = appendToMetadata(ctx, path)
 	if err != nil {
 		return nil, err
@@ -88,9 +78,6 @@ func (c *grpcMetadataNSClient) Unregister(ctx context.Context, ns *registry.Netw
 		return nil, err
 	}
 
-	log.FromContext(ctx).Infof("GRPCMETADATA CLIENT MAP")
-	log.FromContext(ctx).Infof("INDEX: %v", path.Index)
-	printPath(ctx, path)
 	ctx, err = appendToMetadata(ctx, path)
 	if err != nil {
 		return nil, err

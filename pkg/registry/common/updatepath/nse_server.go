@@ -25,7 +25,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type updatePathNSEServer struct {
@@ -39,31 +38,16 @@ func NewNetworkServiceEndpointRegistryServer(name string) registry.NetworkServic
 	}
 }
 
-func printPath(ctx context.Context, path *registry.Path) {
-	logger := log.FromContext(ctx)
-
-	for i, s := range path.PathSegments {
-		logger.Infof("Segment: %d, Expires: %v, Value: %v", i, s.Expires, s)
-	}
-}
-
 func (s *updatePathNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	path, err := grpcmetadata.PathFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	log.FromContext(ctx).Info("UPDATE PATH SERVER PATH BEFORE UPDATE")
-	log.FromContext(ctx).Infof("INDEX: %v", path.Index)
-	printPath(ctx, path)
 	path, index, err := updatePath(path, s.name)
 	if err != nil {
 		return nil, err
 	}
-
-	log.FromContext(ctx).Info("UPDATE PATH SERVER PATH AFTER UPDATE")
-	log.FromContext(ctx).Infof("INDEX: %v", path.Index)
-	printPath(ctx, path)
 
 	nse, err = next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	if err != nil {

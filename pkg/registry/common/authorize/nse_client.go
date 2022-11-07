@@ -30,7 +30,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 )
@@ -93,9 +92,6 @@ func (c *authorizeNSEClient) Register(ctx context.Context, nse *registry.Network
 	if err != nil {
 		return nil, err
 	}
-	log.FromContext(ctx).Infof("AUTHORIZE NSE CLIENT INDEX: %v", path.Index)
-	log.FromContext(ctx).Infof("SERVER PEER: %v", p)
-	printPath(ctx, path)
 
 	rawMap := getRawMap(c.nsePathIdsMap)
 	input := RegistryOpaInput{
@@ -117,8 +113,6 @@ func (c *authorizeNSEClient) Register(ctx context.Context, nse *registry.Network
 	}
 
 	c.nsePathIdsMap.Store(resp.Name, resp.PathIds)
-	rawMap = getRawMap(c.nsePathIdsMap)
-	log.FromContext(ctx).Infof("AUTHORIZE REGISTRY CLIENT RAW MAP AFTER RESPONSE: %v", rawMap)
 	return resp, nil
 }
 
