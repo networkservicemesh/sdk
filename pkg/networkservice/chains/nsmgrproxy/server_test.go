@@ -694,7 +694,7 @@ func (c *passThroughClient) Close(ctx context.Context, conn *networkservice.Conn
 // nse1 -> nsmgr1 ->  forwarder1 -> nsmg1 -> nsmgr-proxy1 -> nsmgr-proxy0 -> nsmgr0 -> forwarder0 -> nsmgr0 -> nse0
 
 func Test_Interdomain_PassThroughUsecase(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*50)
 	defer cancel()
 
 	const clusterCount = 5
