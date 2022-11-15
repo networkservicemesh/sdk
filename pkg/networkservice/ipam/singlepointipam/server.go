@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2022 Nordix and its affiliates.
+// Copyright (c) 2020-2023 Nordix and its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -33,12 +33,12 @@ import (
 
 type singlePIpam struct {
 	Map
-	ipPools  []*ippool.IPPool
-	prefixes []*net.IPNet
-	myIPs    []string
-	masks    []string
-	once     sync.Once
-	initErr  error
+	ipPools      []*ippool.IPPool
+	ipamNetworks []*IpamNet
+	myIPs        []string
+	masks        []string
+	once         sync.Once
+	initErr      error
 }
 
 type connectionInfo struct {
@@ -55,25 +55,32 @@ func (i *connectionInfo) shouldUpdate(exclude *ippool.IPPool) bool {
 }
 
 // NewServer - creates a new NetworkServiceServer chain element that implements IPAM service.
-func NewServer(prefixes ...*net.IPNet) networkservice.NetworkServiceServer {
+func NewServer(networks ...*IpamNet) networkservice.NetworkServiceServer {
 	return &singlePIpam{
-		prefixes: prefixes,
+		ipamNetworks: networks,
 	}
 }
+
 func (sipam *singlePIpam) init() {
-	if len(sipam.prefixes) == 0 {
-		sipam.initErr = errors.New("required one or more prefixes")
+	if len(sipam.ipamNetworks) == 0 {
+		sipam.initErr = errors.New("required one or more prefixes/ranges")
 		return
 	}
-	for _, prefix := range sipam.prefixes {
-		if prefix == nil {
-			sipam.initErr = errors.Errorf("prefix must not be nil: %+v", sipam.prefixes)
+	for _, ipamNetwork := range sipam.ipamNetworks {
+		if ipamNetwork.Network == nil {
+			sipam.initErr = errors.Errorf("prefix must not be nil: %+v", sipam.ipamNetworks)
 			return
 		}
+		prefix := ipamNetwork.Network
 		ones, _ := prefix.Mask.Size()
 		mask := fmt.Sprintf("/%d", ones)
 		sipam.masks = append(sipam.masks, mask)
-		ipPool := ippool.NewWithNet(prefix)
+		ipPool := ipamNetwork.Pool
+
+		if ipPool == nil { // simple cidr prefix
+			ipPool = ippool.NewWithNet(prefix)
+		}
+
 		sipam.ipPools = append(sipam.ipPools, ipPool)
 	}
 }
@@ -168,7 +175,7 @@ func (sipam *singlePIpam) setMyIP(i int) error {
 func (sipam *singlePIpam) getAddrs(excludeIP4, excludeIP6 *ippool.IPPool) (connInfo *connectionInfo, err error) {
 	var dstAddr, srcAddr net.IP
 
-	for i := 0; i < len(sipam.prefixes); i++ {
+	for i := 0; i < len(sipam.ipamNetworks); i++ {
 		// The NSE needs only one src address
 		dstSet := false
 		if i >= len(sipam.myIPs) {
