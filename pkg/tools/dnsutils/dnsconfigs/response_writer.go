@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package searches
+package dnsconfigs
 
 import (
 	"github.com/miekg/dns"
@@ -22,12 +22,10 @@ import (
 
 type responseWriter struct {
 	dns.ResponseWriter
-	Responses []*dns.Msg
-	Index     int
+	Response *dns.Msg
 }
 
 func (r *responseWriter) WriteMsg(m *dns.Msg) error {
-	r.Responses[r.Index] = m
-	r.Index++
+	r.Response = m
 	return nil
 }
