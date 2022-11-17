@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/miekg/dns"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
@@ -141,5 +142,113 @@ func Test_DNSUsecase(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = nse.Unregister(ctx, nseReg)
+	require.NoError(t, err)
+}
+
+type proxyDNSServer struct {
+	ListenOn  string
+	TCPServer *dns.Server
+	UDPServer *dns.Server
+}
+
+func (p *proxyDNSServer) listenAndServe(ctx context.Context, tcpHandler dns.Handler, udpHandler dns.Handler) {
+	p.TCPServer = &dns.Server{Addr: p.ListenOn, Net: "tcp", Handler: tcpHandler}
+	p.UDPServer = &dns.Server{Addr: p.ListenOn, Net: "udp", Handler: udpHandler}
+
+	go func() {
+		p.TCPServer.ListenAndServe()
+	}()
+
+	go func() {
+		p.UDPServer.ListenAndServe()
+	}()
+}
+
+func (p *proxyDNSServer) shutdown() error {
+	tcpErr := p.TCPServer.Shutdown()
+	udpErr := p.UDPServer.Shutdown()
+
+	if tcpErr != nil {
+		return tcpErr
+	}
+
+	if udpErr != nil {
+		return udpErr
+	}
+
+	return nil
+}
+
+type tcpHandler struct {
+}
+
+func (h *tcpHandler) ServeDNS(rw dns.ResponseWriter, m *dns.Msg) {
+	time.Sleep(time.Second * 2)
+	dns.HandleFailed(rw, m)
+}
+
+type udpHandler struct {
+}
+
+func (h *udpHandler) ServeDNS(rw dns.ResponseWriter, m *dns.Msg) {
+	if m.Question[0].Name == "my.domain." {
+		dns.HandleFailed(rw, m)
+		return
+	}
+
+	name := dns.Name(m.Question[0].Name).String()
+	rr := new(dns.A)
+	rr.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 3600}
+	rr.A = net.ParseIP("1.1.1.1")
+
+	resp := new(dns.Msg)
+	resp.SetReply(m)
+	resp.Authoritative = true
+	resp.Answer = append(resp.Answer, rr)
+
+	if err := rw.WriteMsg(resp); err != nil {
+		dns.HandleFailed(rw, m)
+	}
+}
+
+func Test_DNSFail(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	dnsConfigsMap := new(dnsconfig.Map)
+	dnsConfigs := []*networkservice.DNSConfig{
+		{
+			DnsServerIps:  []string{"127.0.0.1:40053"},
+			SearchDomains: []string{"com"},
+		},
+	}
+
+	dnsConfigsMap.Store("1", dnsConfigs)
+
+	proxy := &proxyDNSServer{ListenOn: "127.0.0.1:40053"}
+	proxy.listenAndServe(ctx, &tcpHandler{}, &udpHandler{})
+
+	// DNS server on nsc side
+	clientDNSHandler := next.NewDNSHandler(
+		dnsconfigs.NewDNSHandler(dnsConfigsMap),
+		searches.NewDNSHandler(),
+		noloop.NewDNSHandler(),
+		fanout.NewDNSHandler(),
+	)
+	dnsutils.ListenAndServe(ctx, clientDNSHandler, "127.0.0.1:50053")
+
+	resolver := net.Resolver{
+		PreferGo: true,
+		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+			var dialer net.Dialer
+			return dialer.DialContext(ctx, network, "127.0.0.1:50053")
+		},
+	}
+
+	requireIPv4Lookup(ctx, t, &resolver, "my.domain", "1.1.1.1")
+
+	err := proxy.shutdown()
 	require.NoError(t, err)
 }
