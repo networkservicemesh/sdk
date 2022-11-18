@@ -28,6 +28,9 @@ import (
 
 	"github.com/miekg/dns"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/dnsconfigs"
@@ -35,8 +38,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/noloop"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/searches"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 )
 
 func requireIPv4Lookup(ctx context.Context, t *testing.T, r *net.Resolver, host, expected string) {
