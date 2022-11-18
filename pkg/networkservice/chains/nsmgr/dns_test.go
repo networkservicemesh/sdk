@@ -21,6 +21,7 @@ package nsmgr_test
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -211,44 +212,63 @@ func (h *udpHandler) ServeDNS(rw dns.ResponseWriter, m *dns.Msg) {
 	}
 }
 
-func Test_DNSFail(t *testing.T) {
+func getFreePort() (int, error) {
+	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	if err != nil {
+		return 0, err
+	}
+
+	l, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		return 0, err
+	}
+	defer l.Close()
+	return l.Addr().(*net.TCPAddr).Port, nil
+}
+
+func Test_TCPDNSServerTimeout(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	dnsConfigsMap := new(dnsconfig.Map)
-	dnsConfigs := []*networkservice.DNSConfig{
-		{
-			DnsServerIps:  []string{"127.0.0.1:40053"},
-			SearchDomains: []string{"com"},
-		},
-	}
+	proxyPort, err := getFreePort()
+	require.NoError(t, err)
+	proxyAddr := fmt.Sprintf("127.0.0.1:%d", proxyPort)
 
-	dnsConfigsMap.Store("1", dnsConfigs)
-
-	proxy := &proxyDNSServer{ListenOn: "127.0.0.1:40053"}
+	proxy := &proxyDNSServer{ListenOn: proxyAddr}
 	proxy.listenAndServe(ctx, &tcpHandler{}, &udpHandler{})
 
-	// DNS server on nsc side
+	clientPort, err := getFreePort()
+	require.NoError(t, err)
+	clientAddr := fmt.Sprintf("127.0.0.1:%d", clientPort)
+
+	dnsConfigsMap := new(dnsconfig.Map)
+	dnsConfigsMap.Store("1", []*networkservice.DNSConfig{
+		{
+			DnsServerIps:  []string{proxyAddr},
+			SearchDomains: []string{"com"},
+		},
+	})
+
 	clientDNSHandler := next.NewDNSHandler(
 		dnsconfigs.NewDNSHandler(dnsConfigsMap),
 		searches.NewDNSHandler(),
 		noloop.NewDNSHandler(),
 		fanout.NewDNSHandler(),
 	)
-	dnsutils.ListenAndServe(ctx, clientDNSHandler, "127.0.0.1:50053")
+	dnsutils.ListenAndServe(ctx, clientDNSHandler, clientAddr)
 
 	resolver := net.Resolver{
 		PreferGo: true,
 		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
 			var dialer net.Dialer
-			return dialer.DialContext(ctx, network, "127.0.0.1:50053")
+			return dialer.DialContext(ctx, network, clientAddr)
 		},
 	}
 
 	requireIPv4Lookup(ctx, t, &resolver, "my.domain", "1.1.1.1")
 
-	err := proxy.shutdown()
+	err = proxy.shutdown()
 	require.NoError(t, err)
 }
