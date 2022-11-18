@@ -152,7 +152,7 @@ type proxyDNSServer struct {
 	UDPServer *dns.Server
 }
 
-func (p *proxyDNSServer) listenAndServe(t *testing.T, ctx context.Context, tcpHandler, udpHandler dns.Handler) {
+func (p *proxyDNSServer) listenAndServe(ctx context.Context, t *testing.T, tcpHandler, udpHandler dns.Handler) {
 	p.TCPServer = &dns.Server{Addr: p.ListenOn, Net: "tcp", Handler: tcpHandler}
 	p.UDPServer = &dns.Server{Addr: p.ListenOn, Net: "udp", Handler: udpHandler}
 
@@ -243,7 +243,7 @@ func Test_TCPDNSServerTimeout(t *testing.T) {
 	proxyAddr := fmt.Sprintf("127.0.0.1:%d", proxyPort)
 
 	proxy := &proxyDNSServer{ListenOn: proxyAddr}
-	proxy.listenAndServe(t, ctx, &tcpHandler{}, &udpHandler{})
+	proxy.listenAndServe(ctx, t, &tcpHandler{}, &udpHandler{})
 
 	clientPort, err := getFreePort()
 	require.NoError(t, err)
