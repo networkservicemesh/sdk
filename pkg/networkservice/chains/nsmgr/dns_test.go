@@ -186,7 +186,7 @@ type tcpHandler struct {
 }
 
 func (h *tcpHandler) ServeDNS(rw dns.ResponseWriter, m *dns.Msg) {
-	time.Sleep(time.Second * 3)
+	time.Sleep(time.Second * 5)
 	dns.HandleFailed(rw, m)
 }
 
