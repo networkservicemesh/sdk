@@ -186,7 +186,7 @@ type tcpHandler struct {
 }
 
 func (h *tcpHandler) ServeDNS(rw dns.ResponseWriter, m *dns.Msg) {
-	time.Sleep(time.Second * 5)
+	time.Sleep(time.Second * 3)
 	dns.HandleFailed(rw, m)
 }
 
@@ -273,7 +273,10 @@ func Test_TCPDNSServerTimeout(t *testing.T) {
 		},
 	}
 
-	requireIPv4Lookup(ctx, t, &resolver, "my.domain", "1.1.1.1")
+	resolveCtx, resolveCancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer resolveCancel()
+
+	requireIPv4Lookup(resolveCtx, t, &resolver, "my.domain", "1.1.1.1")
 
 	err = proxy.shutdown()
 	require.NoError(t, err)
