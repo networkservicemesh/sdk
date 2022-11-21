@@ -31,10 +31,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
+	dnschain "github.com/networkservicemesh/sdk/pkg/tools/dnsutils/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/dnsconfigs"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/fanout"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/memory"
-	dnsnext "github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/noloop"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/norecursion"
 	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
@@ -70,7 +70,7 @@ func NewServer(chanCtx context.Context, getDNSServerIP func() net.IP, opts ...Op
 	}
 
 	if result.dnsServer == nil {
-		result.dnsServer = dnsnext.NewDNSHandler(
+		result.dnsServer = dnschain.NewDNSHandler(
 			dnsconfigs.NewDNSHandler(result.dnsConfigs),
 			noloop.NewDNSHandler(),
 			norecursion.NewDNSHandler(),
