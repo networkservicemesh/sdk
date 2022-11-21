@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -31,27 +30,27 @@ const (
 	pathContextKey pathContextkey = "pathContextKey"
 )
 
-// PathFromContext returns registry.Path from context if it exists
-func PathFromContext(ctx context.Context) (*registry.Path, error) {
-	if value, ok := ctx.Value(pathContextKey).(*registry.Path); ok {
+// PathFromContext returns Path from context if it exists
+func PathFromContext(ctx context.Context) (*Path, error) {
+	if value, ok := ctx.Value(pathContextKey).(*Path); ok {
 		return value, nil
 	}
 
-	return nil, errors.New("failed to get registry.Path from context")
+	return nil, errors.New("failed to get grpcmetadata.Path from context")
 }
 
-// PathWithContext puts registry.Path to context
-func PathWithContext(ctx context.Context, path *registry.Path) context.Context {
+// PathWithContext puts Path to context
+func PathWithContext(ctx context.Context, path *Path) context.Context {
 	return context.WithValue(ctx, pathContextKey, path)
 }
 
-func loadFromMetadata(md metadata.MD) (*registry.Path, error) {
+func loadFromMetadata(md metadata.MD) (*Path, error) {
 	pathValue, loaded := md["path"]
 	if !loaded {
 		return nil, errors.New("failed to load path from grpc metadata")
 	}
 
-	path := &registry.Path{}
+	path := &Path{}
 	err := json.Unmarshal([]byte(pathValue[0]), path)
 	if err != nil {
 		return nil, err
@@ -60,7 +59,7 @@ func loadFromMetadata(md metadata.MD) (*registry.Path, error) {
 	return path, nil
 }
 
-func appendToMetadata(ctx context.Context, path *registry.Path) (context.Context, error) {
+func appendToMetadata(ctx context.Context, path *Path) (context.Context, error) {
 	bytes, err := json.Marshal(path)
 	if err != nil {
 		return nil, err

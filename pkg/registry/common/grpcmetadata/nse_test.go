@@ -117,7 +117,7 @@ func TestGRPCMetadataNetworkServiceEndpoint(t *testing.T) {
 		grpcmetadata.NewNetworkServiceEndpointRegistryClient(),
 		registry.NewNetworkServiceEndpointRegistryClient(conn))
 
-	path := registry.Path{}
+	path := grpcmetadata.Path{}
 	ctx = grpcmetadata.PathWithContext(ctx, &path)
 
 	nse := &registry.NetworkServiceEndpoint{Name: "nse"}

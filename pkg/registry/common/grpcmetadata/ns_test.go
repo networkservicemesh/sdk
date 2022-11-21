@@ -123,7 +123,7 @@ func TestGRPCMetadataNetworkService(t *testing.T) {
 		grpcmetadata.NewNetworkServiceRegistryClient(),
 		registry.NewNetworkServiceRegistryClient(conn))
 
-	path := registry.Path{}
+	path := grpcmetadata.Path{}
 	ctx = grpcmetadata.PathWithContext(ctx, &path)
 
 	ns := &registry.NetworkService{Name: "ns"}

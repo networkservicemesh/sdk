@@ -45,7 +45,7 @@ var nsClientSamples = []*nsClientSample{
 			})
 
 			server := newUpdatePathClient(nse1)
-			path := &registry.Path{}
+			path := &grpcmetadata.Path{}
 			_, err := server.Register(grpcmetadata.PathWithContext(context.Background(), path), &registry.NetworkService{})
 			require.NoError(t, err)
 
@@ -105,7 +105,7 @@ var nsClientSamples = []*nsClientSample{
 				goleak.VerifyNone(t)
 			})
 
-			var nsPath *registry.Path
+			var nsPath *grpcmetadata.Path
 			server := next.NewNetworkServiceRegistryClient(
 				newUpdatePathClient(nse3),
 				checkcontext.NewNSClient(t, func(t *testing.T, ctx context.Context) {
@@ -131,7 +131,7 @@ var nsClientSamples = []*nsClientSample{
 				goleak.VerifyNone(t)
 			})
 
-			var nsPath *registry.Path
+			var nsPath *grpcmetadata.Path
 			server := next.NewNetworkServiceRegistryClient(
 				newUpdatePathClient(nse3),
 				checkcontext.NewNSClient(t, func(t *testing.T, ctx context.Context) {

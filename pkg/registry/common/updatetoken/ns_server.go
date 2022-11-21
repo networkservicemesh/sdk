@@ -20,7 +20,6 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
@@ -46,13 +45,13 @@ func (s *updateTokenNSServer) Register(ctx context.Context, ns *registry.Network
 	if err != nil {
 		return nil, err
 	}
-	if prev := GetPrevPathSegment(path); prev != nil {
+	if prev := path.GetPrevPathSegment(); prev != nil {
 		tok, expireTime, tokenErr := token.FromContext(ctx)
 
 		if tokenErr != nil {
 			log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", tokenErr)
 		} else {
-			expires := timestamppb.New(expireTime.Local())
+			expires := expireTime.Local()
 			prev.Expires = expires
 			prev.Token = tok
 			id, idErr := getIDFromToken(tok)
@@ -87,13 +86,13 @@ func (s *updateTokenNSServer) Unregister(ctx context.Context, ns *registry.Netwo
 		return nil, err
 	}
 
-	if prev := GetPrevPathSegment(path); prev != nil {
+	if prev := path.GetPrevPathSegment(); prev != nil {
 		tok, expireTime, tokenErr := token.FromContext(ctx)
 
 		if tokenErr != nil {
 			log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", tokenErr)
 		} else {
-			expires := timestamppb.New(expireTime.Local())
+			expires := expireTime.Local()
 			prev.Expires = expires
 			prev.Token = tok
 

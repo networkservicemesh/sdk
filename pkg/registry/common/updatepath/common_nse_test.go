@@ -103,7 +103,7 @@ var nseClientSamples = []*nseClientSample{
 				goleak.VerifyNone(t)
 			})
 
-			var nsePath *registry.Path
+			var nsePath *grpcmetadata.Path
 			server := next.NewNetworkServiceEndpointRegistryClient(
 				newUpdatePathServer(nse3),
 				checkcontext.NewNSEClient(t, func(t *testing.T, ctx context.Context) {
@@ -129,7 +129,7 @@ var nseClientSamples = []*nseClientSample{
 				goleak.VerifyNone(t)
 			})
 
-			var nsePath *registry.Path
+			var nsePath *grpcmetadata.Path
 			server := next.NewNetworkServiceEndpointRegistryClient(
 				newUpdatePathServer(nse3),
 				checkcontext.NewNSEClient(t, func(t *testing.T, ctx context.Context) {

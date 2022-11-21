@@ -17,10 +17,12 @@
 package updatepath_test
 
 import (
+	"encoding/json"
 	"testing"
 
-	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 )
 
 const (
@@ -33,58 +35,46 @@ const (
 	different      = "different"
 )
 
-func makePath(pathIndex uint32, pathSegments int) *registry.Path {
+func makePath(pathIndex uint32, pathSegments int) *grpcmetadata.Path {
 	if pathSegments == 0 {
 		return nil
 	}
 
-	path := &registry.Path{
+	path := &grpcmetadata.Path{
 		Index: pathIndex,
 	}
 	if pathSegments >= 1 {
-		path.PathSegments = append(path.PathSegments, &registry.PathSegment{
+		path.PathSegments = append(path.PathSegments, &grpcmetadata.PathSegment{
 			Name: nse1,
-			Id:   pathSegmentID1,
+			ID:   pathSegmentID1,
 		})
 	}
 	if pathSegments >= 2 {
-		path.PathSegments = append(path.PathSegments, &registry.PathSegment{
+		path.PathSegments = append(path.PathSegments, &grpcmetadata.PathSegment{
 			Name: nse2,
-			Id:   pathSegmentID2,
+			ID:   pathSegmentID2,
 		})
 	}
 	if pathSegments >= 3 {
-		path.PathSegments = append(path.PathSegments, &registry.PathSegment{
+		path.PathSegments = append(path.PathSegments, &grpcmetadata.PathSegment{
 			Name: nse3,
-			Id:   pathSegmentID3,
+			ID:   pathSegmentID3,
 		})
 	}
 	return path
 }
 
-func clonePath(path *registry.Path) *registry.Path {
-	result := &registry.Path{
-		Index: path.Index,
-	}
-
-	for _, segment := range path.PathSegments {
-		result.PathSegments = append(result.PathSegments, &registry.PathSegment{
-			Id:      segment.Id,
-			Name:    segment.Name,
-			Token:   segment.Token,
-			Expires: segment.Expires,
-		})
-	}
-
-	return result
-}
-
-func requirePathEqual(t *testing.T, expected, actual *registry.Path, unknownIDs ...int) {
-	expected = clonePath(expected)
-	actual = clonePath(actual)
+func requirePathEqual(t *testing.T, expected, actual *grpcmetadata.Path, unknownIDs ...int) {
+	expected = expected.Clone()
+	actual = actual.Clone()
 	for _, index := range unknownIDs {
-		expected.PathSegments[index].Id = ""
-		actual.PathSegments[index].Id = ""
+		expected.PathSegments[index].ID = ""
+		actual.PathSegments[index].ID = ""
 	}
-	require.Equal(t, expected.String(), actual.String())
+
+	expectedString, err := json.Marshal(expected)
+	require.NoError(t, err)
+	actualString, err := json.Marshal(actual)
+	require.NoError(t, err)
+	require.Equal(t, string(expectedString), string(actualString))
 }

@@ -21,11 +21,10 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -45,7 +44,7 @@ func genTokenFunc(claims *jwt.RegisteredClaims) token.GeneratorFunc {
 	}
 }
 
-func getPath(t *testing.T, spiffeID string) *registry.Path {
+func getPath(t *testing.T, spiffeID string) *grpcmetadata.Path {
 	var segments = []struct {
 		name           string
 		tokenGenerator token.GeneratorFunc
@@ -73,17 +72,17 @@ func getPath(t *testing.T, spiffeID string) *registry.Path {
 		},
 	}
 
-	path := &registry.Path{
-		PathSegments: []*registry.PathSegment{},
+	path := &grpcmetadata.Path{
+		PathSegments: []*grpcmetadata.PathSegment{},
 	}
 
 	for _, segment := range segments {
 		tok, expire, err := segment.tokenGenerator(nil)
 		require.NoError(t, err)
-		path.PathSegments = append(path.PathSegments, &registry.PathSegment{
+		path.PathSegments = append(path.PathSegments, &grpcmetadata.PathSegment{
 			Name:    segment.name,
 			Token:   tok,
-			Expires: timestamppb.New(expire),
+			Expires: expire,
 		})
 	}
 

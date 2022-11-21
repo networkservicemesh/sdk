@@ -23,7 +23,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
-	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 )
 
 /*
@@ -37,17 +37,17 @@ Logic for Update path:
     2.2 if no next path segment available, it will add one more path segment and generate new Id, update connection.Id.
     2.3 if path has next segment available and next name is segmentName, take Id from next path segment.
 */
-func updatePath(path *registry.Path, segmentName string) (*registry.Path, uint32, error) {
+func updatePath(path *grpcmetadata.Path, segmentName string) (*grpcmetadata.Path, uint32, error) {
 	if path == nil {
 		return nil, 0, errors.New("updatePath cannot be called with a nil path")
 	}
-	if len(path.GetPathSegments()) == 0 {
+	if len(path.PathSegments) == 0 {
 		// 0. Index == 0, and there is no current segment
 		path.Index = 0
 		// Add current segment to list
-		path.PathSegments = append(path.PathSegments, &registry.PathSegment{
+		path.PathSegments = append(path.PathSegments, &grpcmetadata.PathSegment{
 			Name: segmentName,
-			Id:   uuid.New().String(),
+			ID:   uuid.New().String(),
 		})
 		return path, 0, nil
 	}
@@ -60,26 +60,26 @@ func updatePath(path *registry.Path, segmentName string) (*registry.Path, uint32
 
 	// We need to move to next item
 	nextIndex := int(path.Index) + 1
-	if nextIndex > len(path.GetPathSegments()) {
+	if nextIndex > len(path.PathSegments) {
 		// We have index > segments count
 		return nil, 0, errors.Errorf("Path.Index+1==%d should be less or equal len(Path.PathSegments)==%d",
-			nextIndex, len(path.GetPathSegments()))
+			nextIndex, len(path.PathSegments))
 	}
 
-	if nextIndex < len(path.GetPathSegments()) && path.GetPathSegments()[nextIndex].Name != segmentName {
+	if nextIndex < len(path.PathSegments) && path.PathSegments[nextIndex].Name != segmentName {
 		// 2.1 path has next segment available, but next name is not equal to segmentName
 		path.PathSegments[nextIndex].Name = segmentName
-		path.PathSegments[nextIndex].Id = uuid.New().String()
+		path.PathSegments[nextIndex].ID = uuid.New().String()
 	}
 
 	// Increment index to be accurate to current chain element
 	path.Index++
 
-	if int(path.Index) >= len(path.GetPathSegments()) {
+	if int(path.Index) >= len(path.PathSegments) {
 		// 2.2 no next path segment available
-		path.PathSegments = append(path.PathSegments, &registry.PathSegment{
+		path.PathSegments = append(path.PathSegments, &grpcmetadata.PathSegment{
 			Name: segmentName,
-			Id:   uuid.New().String(),
+			ID:   uuid.New().String(),
 		})
 	}
 

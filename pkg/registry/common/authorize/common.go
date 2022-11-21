@@ -23,18 +23,17 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
 
-	"github.com/networkservicemesh/api/pkg/api/registry"
-
+	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 // RegistryOpaInput represents input for policies in authorizNSEServer and authorizeNSServer
 type RegistryOpaInput struct {
-	ResourceID         string                  `json:"resource_id"`
-	ResourceName       string                  `json:"resource_name"`
-	ResourcePathIdsMap map[string][]string     `json:"resource_path_ids_map"`
-	PathSegments       []*registry.PathSegment `json:"path_segments"`
-	Index              uint32                  `json:"index"`
+	ResourceID         string                      `json:"resource_id"`
+	ResourceName       string                      `json:"resource_name"`
+	ResourcePathIdsMap map[string][]string         `json:"resource_path_ids_map"`
+	PathSegments       []*grpcmetadata.PathSegment `json:"path_segments"`
+	Index              uint32                      `json:"index"`
 }
 
 // Policy represents authorization policy for network service.
@@ -75,7 +74,7 @@ func getRawMap(m *ResourcePathIdsMap) map[string][]string {
 	return rawMap
 }
 
-func getSpiffeIDFromPath(path *registry.Path) (spiffeid.ID, error) {
+func getSpiffeIDFromPath(path *grpcmetadata.Path) (spiffeid.ID, error) {
 	tokenString := path.PathSegments[0].Token
 
 	claims := jwt.MapClaims{}

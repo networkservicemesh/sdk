@@ -21,10 +21,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/stretchr/testify/require"
 
@@ -41,14 +39,12 @@ import (
 type updateTokenNSEServerSuite struct {
 	suite.Suite
 
-	Token        string
-	Expires      time.Time
-	ExpiresProto *timestamp.Timestamp
+	Token   string
+	Expires time.Time
 }
 
 func (s *updateTokenNSEServerSuite) SetupSuite() {
 	s.Token, s.Expires, _ = tokenGeneratorFunc()(nil)
-	s.ExpiresProto = timestamppb.New(s.Expires)
 }
 
 func (s *updateTokenNSEServerSuite) Test_EmptyPathInRequest() {
@@ -58,7 +54,7 @@ func (s *updateTokenNSEServerSuite) Test_EmptyPathInRequest() {
 		updatepath.NewNetworkServiceEndpointRegistryServer("nsc-1"),
 		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc()))
 
-	ctx := grpcmetadata.PathWithContext(context.Background(), &registry.Path{})
+	ctx := grpcmetadata.PathWithContext(context.Background(), &grpcmetadata.Path{})
 
 	nse, err := server.Register(ctx, &registry.NetworkServiceEndpoint{})
 	// Note: Its up to authorization to decide that we won't accept requests without a Path from the client
@@ -74,11 +70,11 @@ func (s *updateTokenNSEServerSuite) Test_IndexInLastPositionAddNewSegment() {
 		updatepath.NewNetworkServiceEndpointRegistryServer("nsc-2"),
 		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc()))
 
-	path := &registry.Path{
+	path := &grpcmetadata.Path{
 		Index: 1,
-		PathSegments: []*registry.PathSegment{
-			{Name: "nsc-0", Id: "id-0"},
-			{Name: "nsc-1", Id: "id-1"},
+		PathSegments: []*grpcmetadata.PathSegment{
+			{Name: "nsc-0", ID: "id-0"},
+			{Name: "nsc-1", ID: "id-1"},
 		},
 	}
 
@@ -89,32 +85,32 @@ func (s *updateTokenNSEServerSuite) Test_IndexInLastPositionAddNewSegment() {
 	require.Equal(t, 3, len(path.PathSegments))
 	require.Equal(t, "nsc-2", path.PathSegments[2].Name)
 	require.Equal(t, s.Token, path.PathSegments[2].Token)
-	equalJSON(t, s.ExpiresProto, path.PathSegments[2].Expires)
+	equalJSON(t, s.Expires, path.PathSegments[2].Expires)
 }
 
 func (s *updateTokenNSEServerSuite) Test_ValidIndexOverwriteValues() {
 	t := s.T()
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	path := &registry.Path{
+	path := &grpcmetadata.Path{
 		Index: 1,
-		PathSegments: []*registry.PathSegment{
-			{Name: "nsc-0", Id: "id-0"},
-			{Name: "nsc-1", Id: "id-1"},
-			{Name: "nsc-2", Id: "id-2"},
+		PathSegments: []*grpcmetadata.PathSegment{
+			{Name: "nsc-0", ID: "id-0"},
+			{Name: "nsc-1", ID: "id-1"},
+			{Name: "nsc-2", ID: "id-2"},
 		},
 	}
 
-	expected := &registry.Path{
+	expected := &grpcmetadata.Path{
 		Index: 1,
-		PathSegments: []*registry.PathSegment{
-			{Name: "nsc-0", Id: "id-0"},
-			{Name: "nsc-1", Id: "id-1"},
-			{Name: "nsc-2", Id: "id-2"},
+		PathSegments: []*grpcmetadata.PathSegment{
+			{Name: "nsc-0", ID: "id-0"},
+			{Name: "nsc-1", ID: "id-1"},
+			{Name: "nsc-2", ID: "id-2"},
 		},
 	}
 	expected.PathSegments[2].Token = s.Token
-	expected.PathSegments[2].Expires = s.ExpiresProto
+	expected.PathSegments[2].Expires = s.Expires
 
 	ctx := context.Background()
 	ctx = grpcmetadata.PathWithContext(ctx, path)
@@ -131,11 +127,11 @@ func (s *updateTokenNSEServerSuite) Test_ValidIndexOverwriteValues() {
 func (s *updateTokenNSEServerSuite) Test_IndexGreaterThanArrayLength() {
 	t := s.T()
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	path := &registry.Path{
+	path := &grpcmetadata.Path{
 		Index: 2,
-		PathSegments: []*registry.PathSegment{
-			{Name: "nsc-0", Id: "id-0"},
-			{Name: "nsc-1", Id: "id-1"},
+		PathSegments: []*grpcmetadata.PathSegment{
+			{Name: "nsc-0", ID: "id-0"},
+			{Name: "nsc-1", ID: "id-1"},
 		},
 	}
 	ctx := context.Background()
@@ -148,29 +144,29 @@ func (s *updateTokenNSEServerSuite) Test_IndexGreaterThanArrayLength() {
 
 func (s *updateTokenNSEServerSuite) TestNSEChain() {
 	t := s.T()
-	path := &registry.Path{
+	path := &grpcmetadata.Path{
 		Index:        0,
-		PathSegments: []*registry.PathSegment{},
+		PathSegments: []*grpcmetadata.PathSegment{},
 	}
 
-	want := &registry.Path{
+	want := &grpcmetadata.Path{
 		Index: 2,
-		PathSegments: []*registry.PathSegment{
+		PathSegments: []*grpcmetadata.PathSegment{
 			{
 				Name:    "nsc-1",
-				Id:      "id-2",
+				ID:      "id-2",
 				Token:   s.Token,
-				Expires: s.ExpiresProto,
+				Expires: s.Expires,
 			}, {
 				Name:    "local-nsm-1",
-				Id:      "id-2",
+				ID:      "id-2",
 				Token:   s.Token,
-				Expires: s.ExpiresProto,
+				Expires: s.Expires,
 			}, {
 				Name:    "remote-nsm-1",
-				Id:      "id-2",
+				ID:      "id-2",
 				Token:   s.Token,
-				Expires: s.ExpiresProto,
+				Expires: s.Expires,
 			},
 		},
 	}

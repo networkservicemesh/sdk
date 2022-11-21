@@ -72,10 +72,10 @@ func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.Network
 		return nil, err
 	}
 
-	index := path.GetIndex()
-	var leftSide = &registry.Path{
+	index := path.Index
+	var leftSide = &grpcmetadata.Path{
 		Index:        index,
-		PathSegments: path.GetPathSegments()[:index+1],
+		PathSegments: path.PathSegments[:index+1],
 	}
 
 	rawMap := getRawMap(s.nsePathIdsMap)
@@ -113,10 +113,10 @@ func (s *authorizeNSEServer) Unregister(ctx context.Context, nse *registry.Netwo
 		return nil, err
 	}
 
-	index := path.GetIndex()
-	var leftSide = &registry.Path{
+	index := path.Index
+	var leftSide = &grpcmetadata.Path{
 		Index:        index,
-		PathSegments: path.GetPathSegments()[:index+1],
+		PathSegments: path.PathSegments[:index+1],
 	}
 
 	rawMap := getRawMap(s.nsePathIdsMap)

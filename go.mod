@@ -46,7 +46,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 )
 
-replace github.com/networkservicemesh/api => github.com/NikitaSkrynnik/api v1.0.1-0.20221020063652-bbb1a2db7c03
+replace github.com/networkservicemesh/api => github.com/NikitaSkrynnik/api v1.0.1-0.20221121074724-9608bf355179
 
 require (
 	github.com/OneOfOne/xxhash v1.2.8 // indirect
