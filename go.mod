@@ -18,7 +18,7 @@ require (
 	github.com/miekg/dns v1.1.50
 	github.com/nats-io/nats-streaming-server v0.24.6
 	github.com/nats-io/stan.go v0.10.3
-	github.com/networkservicemesh/api v1.6.2-0.20221108105251-f71f283feaa5
+	github.com/networkservicemesh/api v1.6.2-0.20221123101008-30ff0ca88ee8
 	github.com/open-policy-agent/opa v0.44.0
 	github.com/pkg/errors v0.9.1
 	github.com/r3labs/diff v1.1.0
@@ -45,8 +45,6 @@ require (
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/yaml.v2 v2.4.0
 )
-
-replace github.com/networkservicemesh/api => github.com/NikitaSkrynnik/api v1.0.1-0.20221121074724-9608bf355179
 
 require (
 	github.com/OneOfOne/xxhash v1.2.8 // indirect

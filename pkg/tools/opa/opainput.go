@@ -21,7 +21,6 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
-	"fmt"
 
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/peer"
@@ -48,8 +47,6 @@ func PreparedOpaInput(ctx context.Context, model interface{}) (map[string]interf
 		"certificate": pemcert,
 	}
 
-	b, _ := json.Marshal(result)
-	fmt.Printf("input: %v\n", string(b))
 	return result, nil
 }
 
