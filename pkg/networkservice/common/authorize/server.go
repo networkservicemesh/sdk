@@ -95,7 +95,7 @@ func (a *authorizeServer) Close(ctx context.Context, conn *networkservice.Connec
 		connID := conn.GetPath().GetPathSegments()[index-1].GetId()
 		ids, ok := a.spiffeIDConnectionMap.Load(spiffeID)
 		if ok {
-			if _, ok := ids.Load(connID); ok {
+			if _, loaded := ids.Load(connID); loaded {
 				ids.Delete(connID)
 			}
 		}
