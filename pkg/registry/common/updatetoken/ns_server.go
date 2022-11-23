@@ -79,7 +79,6 @@ func (s *updateTokenNSServer) Find(query *registry.NetworkServiceQuery, server r
 	return next.NetworkServiceRegistryServer(server.Context()).Find(query, server)
 }
 
-// TODO: Finish this method. Append spiffeID of PathSegment to nse.PathIds
 func (s *updateTokenNSServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
 	path, err := grpcmetadata.PathFromContext(ctx)
 	if err != nil {

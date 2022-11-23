@@ -30,12 +30,10 @@ import (
 Logic for Update path:
 
  0. if Index == 0, and there is no current segment will add one.
- 1. If current path segment.Name is equal to segmentName passed, it will just update current connection.Id and exit.
+ 1. If current path segment.Name is equal to segmentName, it will just exit.
  2. If current path segment.Name is not equal to segmentName:
-    2.0 if current path segment.Id is not equal to current connection.Id, will return error.
-    2.1 if path has next segment available, but next name is not equal to segmentName, will update both next name and connection.Id.
-    2.2 if no next path segment available, it will add one more path segment and generate new Id, update connection.Id.
-    2.3 if path has next segment available and next name is segmentName, take Id from next path segment.
+    2.0 if path has next segment available, but next name is not equal to segmentName, will update next name.
+    2.1 if no next path segment available, it will add one more path segment and generate new Id.
 */
 func updatePath(path *grpcmetadata.Path, segmentName string) (*grpcmetadata.Path, uint32, error) {
 	if path == nil {
@@ -52,6 +50,7 @@ func updatePath(path *grpcmetadata.Path, segmentName string) (*grpcmetadata.Path
 		return path, 0, nil
 	}
 
+	// 1. current path segment.Name is equal to segmentName
 	if int(path.Index) < len(path.PathSegments) && path.PathSegments[path.Index].Name == segmentName {
 		return path, path.Index, nil
 	}
@@ -67,7 +66,7 @@ func updatePath(path *grpcmetadata.Path, segmentName string) (*grpcmetadata.Path
 	}
 
 	if nextIndex < len(path.PathSegments) && path.PathSegments[nextIndex].Name != segmentName {
-		// 2.1 path has next segment available, but next name is not equal to segmentName
+		// 2.0 path has next segment available, but next name is not equal to segmentName
 		path.PathSegments[nextIndex].Name = segmentName
 		path.PathSegments[nextIndex].ID = uuid.New().String()
 	}
@@ -76,7 +75,7 @@ func updatePath(path *grpcmetadata.Path, segmentName string) (*grpcmetadata.Path
 	path.Index++
 
 	if int(path.Index) >= len(path.PathSegments) {
-		// 2.2 no next path segment available
+		// 2.1 no next path segment available
 		path.PathSegments = append(path.PathSegments, &grpcmetadata.PathSegment{
 			Name: segmentName,
 			ID:   uuid.New().String(),

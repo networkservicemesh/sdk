@@ -16,7 +16,6 @@
 
 package authorize
 
-// TODO: rename map
 type options struct {
 	policies           policiesList
 	resourcePathIdsMap *ResourcePathIdsMap

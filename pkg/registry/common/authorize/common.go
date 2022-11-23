@@ -24,7 +24,6 @@ import (
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 // RegistryOpaInput represents input for policies in authorizNSEServer and authorizeNSServer
@@ -48,18 +47,14 @@ func (l *policiesList) check(ctx context.Context, input RegistryOpaInput) error 
 	if l == nil {
 		return nil
 	}
-	logger := log.FromContext(ctx)
 	for _, policy := range *l {
 		if policy == nil {
 			continue
 		}
 
 		if err := policy.Check(ctx, input); err != nil {
-			logger.Info("Policy failed")
 			return err
 		}
-
-		logger.Info("Policy passed")
 	}
 	return nil
 }

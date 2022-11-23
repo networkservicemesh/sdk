@@ -72,7 +72,6 @@ func (s *grpcMetadataNSEServer) Find(query *registry.NetworkServiceEndpointQuery
 	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
 }
 
-// TODO: Impl this method
 func (s *grpcMetadataNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
 	md, loaded := metadata.FromIncomingContext(ctx)
 	if !loaded {

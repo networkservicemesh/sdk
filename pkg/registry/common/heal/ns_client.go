@@ -78,8 +78,7 @@ func (c *healNSClient) Register(ctx context.Context, ns *registry.NetworkService
 
 func (c *healNSClient) Find(ctx context.Context, query *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
 	if !query.Watch || isNSFindHealing(ctx) {
-		resp, err := next.NetworkServiceRegistryClient(ctx).Find(ctx, query, opts...)
-		return resp, err
+		return next.NetworkServiceRegistryClient(ctx).Find(ctx, query, opts...)
 	}
 
 	query = proto.Clone(query).(*registry.NetworkServiceQuery)

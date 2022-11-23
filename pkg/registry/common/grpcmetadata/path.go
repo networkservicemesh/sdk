@@ -36,7 +36,6 @@ type Path struct {
 
 // GetPrevPathSegment returns path.Index - 1 segments if it exists
 func (p *Path) GetPrevPathSegment() *PathSegment {
-	// TODO: move to API (path_helper functions)
 	if p == nil {
 		return nil
 	}
