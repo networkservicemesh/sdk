@@ -100,10 +100,13 @@ func (a *authorizeServer) Close(ctx context.Context, conn *networkservice.Connec
 			}
 		}
 		idsEmpty := true
-		ids.Range(func(_ string, _ struct{}) bool {
-			idsEmpty = false
-			return true
-		})
+		if ok {
+			ids.Range(func(_ string, _ struct{}) bool {
+				idsEmpty = false
+				return true
+			})
+		}
+
 		if idsEmpty {
 			a.spiffeIDConnectionMap.Delete(spiffeID)
 		} else {
