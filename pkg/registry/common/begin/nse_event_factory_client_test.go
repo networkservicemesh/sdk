@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 
@@ -61,8 +61,8 @@ func TestContextValues_Client(t *testing.T) {
 		Name: "1",
 	}
 	nse, err := client.Register(ctx, nse.Clone())
-	assert.NotNil(t, t, nse)
-	assert.NoError(t, err)
+	require.NotNil(t, t, nse)
+	require.NoError(t, err)
 
 	// Change context value before refresh
 	ctx = context.WithValue(ctx, contextKey{}, "value_2")
@@ -71,7 +71,7 @@ func TestContextValues_Client(t *testing.T) {
 	nse.Url = failedNSEURLClient
 	checkCtxCl.setExpectedValue("value_2")
 	_, err = client.Register(ctx, nse.Clone())
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	// Call refresh from eventFactory. We are expecting the previous value in the context
 	checkCtxCl.setExpectedValue("value_1")
@@ -81,8 +81,8 @@ func TestContextValues_Client(t *testing.T) {
 	nse.Url = ""
 	checkCtxCl.setExpectedValue("value_2")
 	nse, err = client.Register(ctx, nse.Clone())
-	assert.NotNil(t, t, nse)
-	assert.NoError(t, err)
+	require.NotNil(t, t, nse)
+	require.NoError(t, err)
 
 	// Call refresh from eventFactory. We are expecting updated value in the context
 	eventFactoryCl.callRefresh()
@@ -112,8 +112,8 @@ func TestRefreshDuringUnregister_Client(t *testing.T) {
 		Name: "1",
 	}
 	nse, err := client.Register(ctx, nse.Clone())
-	assert.NotNil(t, t, nse)
-	assert.NoError(t, err)
+	require.NotNil(t, t, nse)
+	require.NoError(t, err)
 
 	// Change context value before refresh
 	ctx = context.WithValue(ctx, contextKey{}, "value_2")
@@ -124,8 +124,8 @@ func TestRefreshDuringUnregister_Client(t *testing.T) {
 
 	// Call refresh (should be called at the same time as Unregister)
 	nse, err = client.Register(ctx, nse.Clone())
-	assert.NotNil(t, t, nse)
-	assert.NoError(t, err)
+	require.NotNil(t, t, nse)
+	require.NoError(t, err)
 
 	// Call refresh from eventFactory. We are expecting updated value in the context
 	eventFactoryCl.callRefresh()
@@ -157,8 +157,8 @@ func TestContextTimeout_Client(t *testing.T) {
 		Name: "1",
 	}
 	nse, err := client.Register(ctx, nse.Clone())
-	assert.NotNil(t, t, nse)
-	assert.NoError(t, err)
+	require.NotNil(t, t, nse)
+	require.NoError(t, err)
 
 	// Check eventFactory Refresh. We are expecting the same timeout as for register
 	eventFactoryCl.callRefresh()
@@ -202,7 +202,7 @@ type checkContextClient struct {
 }
 
 func (c *checkContextClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	assert.Equal(c.t, c.expectedValue, ctx.Value(contextKey{}))
+	require.Equal(c.t, c.expectedValue, ctx.Value(contextKey{}))
 	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)
 }
 
@@ -247,14 +247,14 @@ func (d *delayedNSEClient) Register(ctx context.Context, in *registry.NetworkSer
 	timeout := clockTime.Until(deadline)
 
 	// Check that context timeout is greater than 0
-	assert.Greater(d.t, timeout, time.Duration(0))
+	require.Greater(d.t, timeout, time.Duration(0))
 
 	// For the first request
 	if d.initialTimeout == 0 {
 		d.initialTimeout = timeout
 	}
 	// All requests timeout must be equal the first
-	assert.Equal(d.t, d.initialTimeout, timeout)
+	require.Equal(d.t, d.initialTimeout, timeout)
 
 	// Add delay
 	d.clock.Add(timeout / 2)
@@ -262,11 +262,11 @@ func (d *delayedNSEClient) Register(ctx context.Context, in *registry.NetworkSer
 }
 
 func (d *delayedNSEClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
-	assert.Greater(d.t, d.initialTimeout, time.Duration(0))
+	require.Greater(d.t, d.initialTimeout, time.Duration(0))
 
 	deadline, _ := ctx.Deadline()
 	clockTime := clock.FromContext(ctx)
 
-	assert.Equal(d.t, d.initialTimeout, clockTime.Until(deadline))
+	require.Equal(d.t, d.initialTimeout, clockTime.Until(deadline))
 	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
 }
