@@ -62,40 +62,57 @@ func TestPriorityMechanismsClient_Request(t *testing.T) {
 	}
 	samples := []struct {
 		Name           string
+		Request        *networkservice.NetworkServiceRequest
 		Priorities     []string
 		ExpectedResult []string
 	}{
 		{
+			Name:           "Nil mechanisms",
+			Request:        &networkservice.NetworkServiceRequest{},
+			ExpectedResult: nil,
+		},
+		{
+			Name:           "Empty mechanisms",
+			Request:        &networkservice.NetworkServiceRequest{MechanismPreferences: []*networkservice.Mechanism{}},
+			ExpectedResult: []string{},
+		},
+		{
 			Name:           "No priority",
+			Request:        request(),
 			ExpectedResult: []string{srv6.MECHANISM, vxlan.MECHANISM, wireguard.MECHANISM, kernel.MECHANISM, memif.MECHANISM},
 		},
 		{
 			Name:           "One priority",
+			Request:        request(),
 			Priorities:     []string{vxlan.MECHANISM},
 			ExpectedResult: []string{vxlan.MECHANISM, srv6.MECHANISM, wireguard.MECHANISM, kernel.MECHANISM, memif.MECHANISM},
 		},
 		{
 			Name:           "Multi priorities",
+			Request:        request(),
 			Priorities:     []string{kernel.MECHANISM, wireguard.MECHANISM, srv6.MECHANISM},
 			ExpectedResult: []string{kernel.MECHANISM, wireguard.MECHANISM, srv6.MECHANISM, vxlan.MECHANISM, memif.MECHANISM},
 		},
 		{
 			Name:           "Not supported mechanism in priority list",
+			Request:        request(),
 			Priorities:     []string{"NOT_SUPPORTED", vxlan.MECHANISM},
 			ExpectedResult: []string{vxlan.MECHANISM, srv6.MECHANISM, wireguard.MECHANISM, kernel.MECHANISM, memif.MECHANISM},
 		},
 	}
 
-	for _, sample := range samples {
-		c := prioritymechanisms.NewClient(sample.Priorities)
-		req := request()
-		_, err := c.Request(context.Background(), req)
-		require.NoError(t, err)
-		require.NotEmpty(t, req.MechanismPreferences)
+	for _, s := range samples {
+		sample := s
+		t.Run(sample.Name, func(t *testing.T) {
+			c := prioritymechanisms.NewClient(sample.Priorities...)
+			req := sample.Request
+			_, err := c.Request(context.Background(), req)
+			require.NoError(t, err)
 
-		require.Equal(t, len(sample.ExpectedResult), len(req.MechanismPreferences))
-		for i := range req.MechanismPreferences {
-			require.Equal(t, sample.ExpectedResult[i], req.MechanismPreferences[i].Type)
-		}
+			require.Equal(t, len(sample.ExpectedResult), len(req.MechanismPreferences))
+			for i := range req.MechanismPreferences {
+				require.Equal(t, sample.ExpectedResult[i], req.MechanismPreferences[i].Type)
+			}
+		})
 	}
 }

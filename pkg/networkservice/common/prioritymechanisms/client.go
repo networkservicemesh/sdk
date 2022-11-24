@@ -35,7 +35,7 @@ type priorityMechanismsClient struct {
 }
 
 // NewClient - returns a new client chain element that prioritize mechanisms according to the list
-func NewClient(priorities []string) networkservice.NetworkServiceClient {
+func NewClient(priorities ...string) networkservice.NetworkServiceClient {
 	c := &priorityMechanismsClient{
 		priorities: map[string]int{},
 	}
@@ -55,18 +55,23 @@ func (p *priorityMechanismsClient) Close(ctx context.Context, conn *networkservi
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
+// At the top of the list are the mechanisms to be sorted by priority. The tail contains mechanisms without priorities.
 func prioritizeMechanismsByType(mechanisms []*networkservice.Mechanism, priorities map[string]int) []*networkservice.Mechanism {
-	var head, tail []*networkservice.Mechanism
-	for _, mechanism := range mechanisms {
-		if _, ok := priorities[mechanism.GetType()]; ok {
-			head = append(head, mechanism)
+	tailIndex := 0
+	passedElements := 0
+	for ; passedElements < len(mechanisms); passedElements++ {
+		if _, ok := priorities[mechanisms[tailIndex].GetType()]; ok {
+			tailIndex++
 		} else {
-			tail = append(tail, mechanism)
+			value := mechanisms[tailIndex]
+			mechanisms = append(append(mechanisms[:tailIndex], mechanisms[tailIndex+1:]...), value)
 		}
 	}
-	sort.Slice(head, func(i, j int) bool {
-		return priorities[head[i].GetType()] < priorities[head[j].GetType()]
+
+	// Sort by priority
+	sort.SliceStable(mechanisms[:tailIndex], func(i, j int) bool {
+		return priorities[mechanisms[i].GetType()] < priorities[mechanisms[j].GetType()]
 	})
 
-	return append(head, tail...)
+	return mechanisms
 }
