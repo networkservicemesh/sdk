@@ -94,16 +94,18 @@ func (a *authorizeServer) Close(ctx context.Context, conn *networkservice.Connec
 	if spiffeID, err := spire.SpiffeIDFromContext(ctx); err == nil {
 		connID := conn.GetPath().GetPathSegments()[index-1].GetId()
 		ids, ok := a.spiffeIDConnectionMap.Load(spiffeID)
+		idsEmpty := true
 		if ok {
-			if _, ok := ids.Load(connID); ok {
+			if _, loaded := ids.Load(connID); loaded {
 				ids.Delete(connID)
 			}
+
+			ids.Range(func(_ string, _ struct{}) bool {
+				idsEmpty = false
+				return false
+			})
 		}
-		idsEmpty := true
-		ids.Range(func(_ string, _ struct{}) bool {
-			idsEmpty = false
-			return true
-		})
+
 		if idsEmpty {
 			a.spiffeIDConnectionMap.Delete(spiffeID)
 		} else {

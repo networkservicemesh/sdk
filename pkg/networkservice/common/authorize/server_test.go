@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +20,15 @@ package authorize_test
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"math/big"
+	"net/url"
 	"testing"
+	"time"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 
@@ -26,11 +36,41 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 )
+
+func generateCert(u *url.URL) []byte {
+	ca := &x509.Certificate{
+		SerialNumber: big.NewInt(1653),
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().AddDate(10, 0, 0),
+		URIs:         []*url.URL{u},
+	}
+
+	priv, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	pub := &priv.PublicKey
+
+	certBytes, _ := x509.CreateCertificate(rand.Reader, ca, ca, pub, priv)
+	return certBytes
+}
+
+func withPeer(ctx context.Context, certBytes []byte) (context.Context, error) {
+	x509cert, err := x509.ParseCertificate(certBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	authInfo := &credentials.TLSInfo{
+		State: tls.ConnectionState{
+			PeerCertificates: []*x509.Certificate{x509cert},
+		},
+	}
+	return peer.NewContext(ctx, &peer.Peer{AuthInfo: authInfo}), nil
+}
 
 func testPolicy() authorize.Policy {
 	return opa.WithPolicyFromSource(`
@@ -128,4 +168,28 @@ func TestAuthzEndpoint(t *testing.T) {
 			checkResult(err)
 		})
 	}
+}
+
+func TestAuthorize_EmptySpiffeIDConnectionMapOnClose(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	conn := &networkservice.Connection{
+		Id: "conn",
+		Path: &networkservice.Path{
+			Index: 1,
+			PathSegments: []*networkservice.PathSegment{
+				{Id: "id-1"},
+				{Id: "id-2"},
+			},
+		},
+	}
+
+	server := authorize.NewServer(authorize.Any())
+	certBytes := generateCert(&url.URL{Scheme: "spiffe", Host: "test.com", Path: "test"})
+
+	ctx, err := withPeer(context.Background(), certBytes)
+	require.NoError(t, err)
+
+	_, err = server.Close(ctx, conn)
+	require.NoError(t, err)
 }
