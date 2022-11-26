@@ -46,7 +46,6 @@ func PreparedOpaInput(ctx context.Context, model interface{}) (map[string]interf
 	result["auth_info"] = map[string]interface{}{
 		"certificate": pemcert,
 	}
-
 	return result, nil
 }
 
