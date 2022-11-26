@@ -26,6 +26,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/spire"
 )
 
 type updatePathNSServer struct {
@@ -44,7 +45,12 @@ func (s *updatePathNSServer) Register(ctx context.Context, ns *registry.NetworkS
 	if err != nil {
 		return nil, err
 	}
-	path, index, err := updatePath(path, s.name)
+
+	name := s.name
+	if spiffeID, err := spire.SpiffeIDFromContext(ctx); err == nil {
+		name = spiffeID.Path()
+	}
+	path, index, err := updatePath(path, name)
 	if err != nil {
 		return nil, err
 	}

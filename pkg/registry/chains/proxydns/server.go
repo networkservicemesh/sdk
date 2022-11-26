@@ -22,8 +22,6 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/google/uuid"
-
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry"
@@ -42,7 +40,6 @@ import (
 )
 
 type serverOptions struct {
-	name                       string
 	authorizeNSRegistryServer  registryapi.NetworkServiceRegistryServer
 	authorizeNSERegistryServer registryapi.NetworkServiceEndpointRegistryServer
 	authorizeNSRegistryClient  registryapi.NetworkServiceRegistryClient
@@ -52,13 +49,6 @@ type serverOptions struct {
 
 // Option modifies server option value
 type Option func(o *serverOptions)
-
-// WithName sets name for the registry memory server
-func WithName(name string) Option {
-	return Option(func(c *serverOptions) {
-		c.name = name
-	})
-}
 
 // WithAuthorizeNSRegistryServer sets authorization NetworkServiceRegistry chain element
 func WithAuthorizeNSRegistryServer(authorizeNSRegistryServer registryapi.NetworkServiceRegistryServer) Option {
@@ -110,7 +100,6 @@ func WithDialOptions(dialOptions ...grpc.DialOption) Option {
 // NewServer creates new stateless registry server that proxies queries to the second registries by DNS domains
 func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, dnsResolver dnsresolve.Resolver, options ...Option) registry.Registry {
 	opts := &serverOptions{
-		name:                       "registry-proxy-" + uuid.New().String(),
 		authorizeNSRegistryServer:  registryauthorize.NewNetworkServiceRegistryServer(registryauthorize.Any()),
 		authorizeNSERegistryServer: registryauthorize.NewNetworkServiceEndpointRegistryServer(registryauthorize.Any()),
 		authorizeNSRegistryClient:  registryauthorize.NewNetworkServiceRegistryClient(registryauthorize.Any()),
@@ -122,7 +111,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, dnsResol
 
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
 		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
-		updatepath.NewNetworkServiceEndpointRegistryServer(opts.name),
+		updatepath.NewNetworkServiceEndpointRegistryServer("proxy-dns"),
 		begin.NewNetworkServiceEndpointRegistryServer(),
 		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGenerator),
 		opts.authorizeNSERegistryServer,
@@ -140,7 +129,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, dnsResol
 		))
 	nsChain := chain.NewNetworkServiceRegistryServer(
 		grpcmetadata.NewNetworkServiceRegistryServer(),
-		updatepath.NewNetworkServiceRegistryServer(opts.name),
+		updatepath.NewNetworkServiceRegistryServer("proxy-dns"),
 		begin.NewNetworkServiceRegistryServer(),
 		updatetoken.NewNetworkServiceRegistryServer(tokenGenerator),
 		opts.authorizeNSRegistryServer,

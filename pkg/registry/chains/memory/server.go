@@ -24,7 +24,6 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	registryserver "github.com/networkservicemesh/sdk/pkg/registry"
@@ -49,7 +48,6 @@ import (
 )
 
 type serverOptions struct {
-	name                       string
 	authorizeNSRegistryServer  registry.NetworkServiceRegistryServer
 	authorizeNSERegistryServer registry.NetworkServiceEndpointRegistryServer
 	authorizeNSRegistryClient  registry.NetworkServiceRegistryClient
@@ -61,13 +59,6 @@ type serverOptions struct {
 
 // Option modifies server option value
 type Option func(o *serverOptions)
-
-// WithName sets name for the registry memory server
-func WithName(name string) Option {
-	return Option(func(c *serverOptions) {
-		c.name = name
-	})
-}
 
 // WithAuthorizeNSRegistryServer sets authorization NetworkServiceRegistry chain element
 func WithAuthorizeNSRegistryServer(authorizeNSRegistryServer registry.NetworkServiceRegistryServer) Option {
@@ -133,7 +124,6 @@ func WithDialOptions(dialOptions ...grpc.DialOption) Option {
 // NewServer creates new registry server based on memory storage
 func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...Option) registryserver.Registry {
 	opts := &serverOptions{
-		name:                       "registry-memory-" + uuid.New().String(),
 		authorizeNSRegistryServer:  registryauthorize.NewNetworkServiceRegistryServer(registryauthorize.Any()),
 		authorizeNSERegistryServer: registryauthorize.NewNetworkServiceEndpointRegistryServer(registryauthorize.Any()),
 		authorizeNSRegistryClient:  registryauthorize.NewNetworkServiceRegistryClient(registryauthorize.Any()),
@@ -147,7 +137,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
 		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
-		updatepath.NewNetworkServiceEndpointRegistryServer(opts.name),
+		updatepath.NewNetworkServiceEndpointRegistryServer("registry-memory"),
 		begin.NewNetworkServiceEndpointRegistryServer(),
 		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGenerator),
 		opts.authorizeNSERegistryServer,
@@ -191,7 +181,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	)
 	nsChain := chain.NewNetworkServiceRegistryServer(
 		grpcmetadata.NewNetworkServiceRegistryServer(),
-		updatepath.NewNetworkServiceRegistryServer(opts.name),
+		updatepath.NewNetworkServiceRegistryServer("registry-memory"),
 		updatetoken.NewNetworkServiceRegistryServer(tokenGenerator),
 		opts.authorizeNSRegistryServer,
 		setpayload.NewNetworkServiceRegistryServer(),
