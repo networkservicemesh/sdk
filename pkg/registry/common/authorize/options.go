@@ -18,7 +18,7 @@ package authorize
 
 type options struct {
 	policies           policiesList
-	resourcePathIdsMap *ResourcePathIdsMap
+	resourcePathIdsMap *PathIdsMap
 }
 
 // Option is authorization option for server
@@ -39,7 +39,7 @@ func WithPolicies(p ...Policy) Option {
 }
 
 // WithResourcePathIdsMap sets map to keep resourcePathIdsMap to authorize connections with Registry Authorize Chain Element
-func WithResourcePathIdsMap(m *ResourcePathIdsMap) Option {
+func WithResourcePathIdsMap(m *PathIdsMap) Option {
 	return func(o *options) {
 		o.resourcePathIdsMap = m
 	}

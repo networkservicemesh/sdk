@@ -25,6 +25,7 @@ import (
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
@@ -51,7 +52,7 @@ func updateToken(ctx context.Context, path *grpcmetadata.Path, tokenGenerator to
 
 	// Update the PathSegment
 	path.PathSegments[path.Index].Token = tok
-	path.PathSegments[path.Index].Expires = expireTime
+	path.PathSegments[path.Index].Expires = timestamppb.New(expireTime)
 
 	return nil
 }

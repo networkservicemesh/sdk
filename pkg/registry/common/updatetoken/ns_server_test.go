@@ -23,6 +23,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/stretchr/testify/require"
 
@@ -33,18 +34,21 @@ import (
 
 	"go.uber.org/goleak"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
 type updateTokenNSServerSuite struct {
 	suite.Suite
 
-	Token   string
-	Expires time.Time
+	Token        string
+	Expires      time.Time
+	ProtoExpires *timestamppb.Timestamp
 }
 
 func (s *updateTokenNSServerSuite) SetupSuite() {
 	s.Token, s.Expires, _ = tokenGeneratorFunc()(nil)
+	s.ProtoExpires = timestamppb.New(s.Expires)
 }
 
 func (s *updateTokenNSServerSuite) Test_EmptyPathInRequest() {
@@ -72,9 +76,9 @@ func (s *updateTokenNSServerSuite) Test_IndexInLastPositionAddNewSegment() {
 
 	path := &grpcmetadata.Path{
 		Index: 1,
-		PathSegments: []*grpcmetadata.PathSegment{
-			{Name: "nsc-0", ID: "id-0"},
-			{Name: "nsc-1", ID: "id-1"},
+		PathSegments: []*networkservice.PathSegment{
+			{Name: "nsc-0", Id: "id-0"},
+			{Name: "nsc-1", Id: "id-1"},
 		},
 	}
 
@@ -85,7 +89,7 @@ func (s *updateTokenNSServerSuite) Test_IndexInLastPositionAddNewSegment() {
 	require.Equal(t, 3, len(path.PathSegments))
 	require.Equal(t, "nsc-2", path.PathSegments[2].Name)
 	require.Equal(t, s.Token, path.PathSegments[2].Token)
-	equalJSON(t, s.Expires, path.PathSegments[2].Expires)
+	equalJSON(t, s.ProtoExpires, path.PathSegments[2].Expires)
 }
 
 func (s *updateTokenNSServerSuite) TestNSServer_ValidIndexOverwriteValues() {
@@ -94,23 +98,23 @@ func (s *updateTokenNSServerSuite) TestNSServer_ValidIndexOverwriteValues() {
 
 	path := &grpcmetadata.Path{
 		Index: 1,
-		PathSegments: []*grpcmetadata.PathSegment{
-			{Name: "nsc-0", ID: "id-0"},
-			{Name: "nsc-1", ID: "id-1"},
-			{Name: "nsc-2", ID: "id-2"},
+		PathSegments: []*networkservice.PathSegment{
+			{Name: "nsc-0", Id: "id-0"},
+			{Name: "nsc-1", Id: "id-1"},
+			{Name: "nsc-2", Id: "id-2"},
 		},
 	}
 
 	expected := &grpcmetadata.Path{
 		Index: 1,
-		PathSegments: []*grpcmetadata.PathSegment{
-			{Name: "nsc-0", ID: "id-0"},
-			{Name: "nsc-1", ID: "id-1"},
-			{Name: "nsc-2", ID: "id-2"},
+		PathSegments: []*networkservice.PathSegment{
+			{Name: "nsc-0", Id: "id-0"},
+			{Name: "nsc-1", Id: "id-1"},
+			{Name: "nsc-2", Id: "id-2"},
 		},
 	}
 	expected.PathSegments[2].Token = s.Token
-	expected.PathSegments[2].Expires = s.Expires
+	expected.PathSegments[2].Expires = s.ProtoExpires
 
 	ctx := context.Background()
 	ctx = grpcmetadata.PathWithContext(ctx, path)
@@ -129,9 +133,9 @@ func (s *updateTokenNSServerSuite) TestNSServer_IndexGreaterThanArrayLength() {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	path := &grpcmetadata.Path{
 		Index: 2,
-		PathSegments: []*grpcmetadata.PathSegment{
-			{Name: "nsc-0", ID: "id-0"},
-			{Name: "nsc-1", ID: "id-1"},
+		PathSegments: []*networkservice.PathSegment{
+			{Name: "nsc-0", Id: "id-0"},
+			{Name: "nsc-1", Id: "id-1"},
 		},
 	}
 	ctx := context.Background()
@@ -146,27 +150,27 @@ func (s *updateTokenNSServerSuite) TestNSChain() {
 	t := s.T()
 	path := &grpcmetadata.Path{
 		Index:        0,
-		PathSegments: []*grpcmetadata.PathSegment{},
+		PathSegments: []*networkservice.PathSegment{},
 	}
 
 	want := &grpcmetadata.Path{
 		Index: 2,
-		PathSegments: []*grpcmetadata.PathSegment{
+		PathSegments: []*networkservice.PathSegment{
 			{
 				Name:    "nsc-1",
-				ID:      "id-2",
+				Id:      "id-2",
 				Token:   s.Token,
-				Expires: s.Expires,
+				Expires: s.ProtoExpires,
 			}, {
 				Name:    "local-nsm-1",
-				ID:      "id-2",
+				Id:      "id-2",
 				Token:   s.Token,
-				Expires: s.Expires,
+				Expires: s.ProtoExpires,
 			}, {
 				Name:    "remote-nsm-1",
-				ID:      "id-2",
+				Id:      "id-2",
 				Token:   s.Token,
-				Expires: s.Expires,
+				Expires: s.ProtoExpires,
 			},
 		},
 	}
@@ -190,10 +194,10 @@ func (s *updateTokenNSServerSuite) TestNSChain() {
 	_, err := server.Register(ctx, &registry.NetworkServiceEndpoint{})
 	require.Equal(t, 3, len(path.PathSegments))
 	require.Equal(t, 0, int(path.Index))
-	for i, s := range path.PathSegments {
-		require.Equal(t, want.PathSegments[i].Name, s.Name)
-		require.Equal(t, want.PathSegments[i].Token, s.Token)
-		equalJSON(t, want.PathSegments[i].Expires, s.Expires)
+	for i, seg := range path.PathSegments {
+		require.Equal(t, want.PathSegments[i].Name, seg.Name)
+		require.Equal(t, want.PathSegments[i].Token, seg.Token)
+		equalJSON(t, want.PathSegments[i].Expires, s.ProtoExpires)
 	}
 	require.NoError(t, err)
 }

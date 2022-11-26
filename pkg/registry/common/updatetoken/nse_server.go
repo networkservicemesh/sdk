@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
@@ -53,7 +54,7 @@ func (s *updateTokenNSEServer) Register(ctx context.Context, nse *registry.Netwo
 			log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", tokenErr)
 		} else {
 			expires := expireTime.Local()
-			prev.Expires = expires
+			prev.Expires = timestamppb.New(expires)
 			prev.Token = tok
 			id, idErr := getIDFromToken(tok)
 			if idErr != nil {
@@ -93,7 +94,7 @@ func (s *updateTokenNSEServer) Unregister(ctx context.Context, nse *registry.Net
 			log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", tokenErr)
 		} else {
 			expires := expireTime.Local()
-			prev.Expires = expires
+			prev.Expires = timestamppb.New(expires)
 			prev.Token = tok
 
 			id, idErr := getIDFromToken(tok)

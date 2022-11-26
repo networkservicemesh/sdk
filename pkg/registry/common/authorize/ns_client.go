@@ -36,7 +36,7 @@ import (
 
 type authorizeNSClient struct {
 	policies     policiesList
-	nsPathIdsMap *ResourcePathIdsMap
+	nsPathIdsMap *PathIdsMap
 	serverPeer   atomic.Value
 }
 
@@ -51,7 +51,7 @@ func NewNetworkServiceRegistryClient(opts ...Option) registry.NetworkServiceRegi
 			opa.WithTokenChainPolicy(),
 			opa.WithRegistryClientAllowedPolicy(),
 		},
-		resourcePathIdsMap: new(ResourcePathIdsMap),
+		resourcePathIdsMap: new(PathIdsMap),
 	}
 
 	for _, opt := range opts {

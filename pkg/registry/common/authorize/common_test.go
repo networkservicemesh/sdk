@@ -23,7 +23,9 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
@@ -73,16 +75,16 @@ func getPath(t *testing.T, spiffeID string) *grpcmetadata.Path {
 	}
 
 	path := &grpcmetadata.Path{
-		PathSegments: []*grpcmetadata.PathSegment{},
+		PathSegments: []*networkservice.PathSegment{},
 	}
 
 	for _, segment := range segments {
 		tok, expire, err := segment.tokenGenerator(nil)
 		require.NoError(t, err)
-		path.PathSegments = append(path.PathSegments, &grpcmetadata.PathSegment{
+		path.PathSegments = append(path.PathSegments, &networkservice.PathSegment{
 			Name:    segment.name,
 			Token:   tok,
-			Expires: expire,
+			Expires: timestamppb.New(expire),
 		})
 	}
 

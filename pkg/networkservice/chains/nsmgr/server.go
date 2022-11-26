@@ -301,7 +301,10 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 				client.NewClient(
 					ctx,
 					client.WithName(opts.name),
-					client.WithAdditionalFunctionality(recvfd.NewClient(), sendfd.NewClient()),
+					client.WithAdditionalFunctionality(
+						recvfd.NewClient(),
+						sendfd.NewClient(),
+					),
 					client.WithDialOptions(opts.dialOptions...),
 					client.WithDialTimeout(opts.dialTimeout),
 					client.WithoutRefresh(),

@@ -17,25 +17,14 @@
 package grpcmetadata
 
 import (
-	"time"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
-// PathSegment represents one segment of private registry Path
-type PathSegment struct {
-	Name    string
-	ID      string
-	Token   string
-	Expires time.Time
-}
-
 // Path represents private path that is passed via grpcmetadata during NS and NSE registration
-type Path struct {
-	Index        uint32
-	PathSegments []*PathSegment
-}
+type Path networkservice.Path
 
 // GetPrevPathSegment returns path.Index - 1 segments if it exists
-func (p *Path) GetPrevPathSegment() *PathSegment {
+func (p *Path) GetPrevPathSegment() *networkservice.PathSegment {
 	if p == nil {
 		return nil
 	}
@@ -53,18 +42,6 @@ func (p *Path) GetPrevPathSegment() *PathSegment {
 
 // Clone clones Path
 func (p *Path) Clone() *Path {
-	result := &Path{
-		Index: p.Index,
-	}
-
-	for _, segment := range p.PathSegments {
-		result.PathSegments = append(result.PathSegments, &PathSegment{
-			ID:      segment.ID,
-			Name:    segment.Name,
-			Token:   segment.Token,
-			Expires: segment.Expires,
-		})
-	}
-
-	return result
+	path := (networkservice.Path)(*p)
+	return (*Path)(path.Clone())
 }

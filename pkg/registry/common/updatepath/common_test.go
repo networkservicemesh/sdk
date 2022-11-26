@@ -22,6 +22,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 )
 
@@ -44,21 +45,21 @@ func makePath(pathIndex uint32, pathSegments int) *grpcmetadata.Path {
 		Index: pathIndex,
 	}
 	if pathSegments >= 1 {
-		path.PathSegments = append(path.PathSegments, &grpcmetadata.PathSegment{
+		path.PathSegments = append(path.PathSegments, &networkservice.PathSegment{
 			Name: nse1,
-			ID:   pathSegmentID1,
+			Id:   pathSegmentID1,
 		})
 	}
 	if pathSegments >= 2 {
-		path.PathSegments = append(path.PathSegments, &grpcmetadata.PathSegment{
+		path.PathSegments = append(path.PathSegments, &networkservice.PathSegment{
 			Name: nse2,
-			ID:   pathSegmentID2,
+			Id:   pathSegmentID2,
 		})
 	}
 	if pathSegments >= 3 {
-		path.PathSegments = append(path.PathSegments, &grpcmetadata.PathSegment{
+		path.PathSegments = append(path.PathSegments, &networkservice.PathSegment{
 			Name: nse3,
-			ID:   pathSegmentID3,
+			Id:   pathSegmentID3,
 		})
 	}
 	return path
@@ -68,8 +69,8 @@ func requirePathEqual(t *testing.T, expected, actual *grpcmetadata.Path, unknown
 	expected = expected.Clone()
 	actual = actual.Clone()
 	for _, index := range unknownIDs {
-		expected.PathSegments[index].ID = ""
-		actual.PathSegments[index].ID = ""
+		expected.PathSegments[index].Id = ""
+		actual.PathSegments[index].Id = ""
 	}
 
 	expectedString, err := json.Marshal(expected)

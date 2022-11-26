@@ -23,6 +23,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 )
 
@@ -43,9 +44,9 @@ func updatePath(path *grpcmetadata.Path, segmentName string) (*grpcmetadata.Path
 		// 0. Index == 0, and there is no current segment
 		path.Index = 0
 		// Add current segment to list
-		path.PathSegments = append(path.PathSegments, &grpcmetadata.PathSegment{
+		path.PathSegments = append(path.PathSegments, &networkservice.PathSegment{
 			Name: segmentName,
-			ID:   uuid.New().String(),
+			Id:   uuid.New().String(),
 		})
 		return path, 0, nil
 	}
@@ -68,7 +69,7 @@ func updatePath(path *grpcmetadata.Path, segmentName string) (*grpcmetadata.Path
 	if nextIndex < len(path.PathSegments) && path.PathSegments[nextIndex].Name != segmentName {
 		// 2.0 path has next segment available, but next name is not equal to segmentName
 		path.PathSegments[nextIndex].Name = segmentName
-		path.PathSegments[nextIndex].ID = uuid.New().String()
+		path.PathSegments[nextIndex].Id = uuid.New().String()
 	}
 
 	// Increment index to be accurate to current chain element
@@ -76,9 +77,9 @@ func updatePath(path *grpcmetadata.Path, segmentName string) (*grpcmetadata.Path
 
 	if int(path.Index) >= len(path.PathSegments) {
 		// 2.1 no next path segment available
-		path.PathSegments = append(path.PathSegments, &grpcmetadata.PathSegment{
+		path.PathSegments = append(path.PathSegments, &networkservice.PathSegment{
 			Name: segmentName,
-			ID:   uuid.New().String(),
+			Id:   uuid.New().String(),
 		})
 	}
 
