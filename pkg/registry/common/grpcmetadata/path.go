@@ -42,6 +42,18 @@ func (p *Path) GetPrevPathSegment() *networkservice.PathSegment {
 
 // Clone clones Path
 func (p *Path) Clone() *Path {
-	path := networkservice.Path(*p)
-	return (*Path)(path.Clone())
+	result := &Path{
+		Index: p.Index,
+	}
+
+	for _, segment := range p.PathSegments {
+		result.PathSegments = append(result.PathSegments, &networkservice.PathSegment{
+			Id:      segment.Id,
+			Name:    segment.Name,
+			Token:   segment.Token,
+			Expires: segment.Expires,
+		})
+	}
+
+	return result
 }

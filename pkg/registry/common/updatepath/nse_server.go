@@ -46,7 +46,7 @@ func (s *updatePathNSEServer) Register(ctx context.Context, nse *registry.Networ
 	}
 
 	name := s.name
-	if spiffeID, err := spire.SpiffeIDFromContext(ctx); err == nil {
+	if spiffeID, idErr := spire.SpiffeIDFromContext(ctx); idErr == nil {
 		name = spiffeID.Path()
 	}
 	path, index, err := updatePath(path, name)
