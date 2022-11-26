@@ -26,6 +26,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )

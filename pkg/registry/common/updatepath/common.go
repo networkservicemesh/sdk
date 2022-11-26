@@ -24,6 +24,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 )
 

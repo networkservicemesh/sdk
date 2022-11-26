@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 )
 
