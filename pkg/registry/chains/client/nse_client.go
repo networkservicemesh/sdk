@@ -49,7 +49,7 @@ func NewNetworkServiceEndpointRegistryClient(ctx context.Context, opts ...Option
 	return chain.NewNetworkServiceEndpointRegistryClient(
 		append(
 			[]registry.NetworkServiceEndpointRegistryClient{
-				updatepath.NewNetworkServiceEndpointRegistryClient("registry-client"),
+				updatepath.NewNetworkServiceEndpointRegistryClient(),
 				begin.NewNetworkServiceEndpointRegistryClient(),
 				retry.NewNetworkServiceEndpointRegistryClient(ctx),
 				heal.NewNetworkServiceEndpointRegistryClient(ctx),

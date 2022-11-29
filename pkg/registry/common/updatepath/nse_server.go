@@ -29,14 +29,11 @@ import (
 )
 
 type updatePathNSEServer struct {
-	name string
 }
 
 // NewNetworkServiceEndpointRegistryServer - creates a new updatePath server to update NetworkServiceEndpoint path.
-func NewNetworkServiceEndpointRegistryServer(name string) registry.NetworkServiceEndpointRegistryServer {
-	return &updatePathNSEServer{
-		name: name,
-	}
+func NewNetworkServiceEndpointRegistryServer() registry.NetworkServiceEndpointRegistryServer {
+	return &updatePathNSEServer{}
 }
 
 func (s *updatePathNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
@@ -45,11 +42,11 @@ func (s *updatePathNSEServer) Register(ctx context.Context, nse *registry.Networ
 		return nil, err
 	}
 
-	name := s.name
-	if spiffeID, idErr := spire.SpiffeIDFromContext(ctx); idErr == nil {
-		name = spiffeID.Path()
+	spiffeID, err := spire.SpiffeIDFromContext(ctx)
+	if err != nil {
+		return nil, err
 	}
-	path, index, err := updatePath(path, name)
+	path, index, err := updatePath(path, spiffeID.Path()[1:])
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +69,11 @@ func (s *updatePathNSEServer) Unregister(ctx context.Context, nse *registry.Netw
 		return nil, err
 	}
 
-	path, index, err := updatePath(path, s.name)
+	spiffeID, err := spire.SpiffeIDFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	path, index, err := updatePath(path, spiffeID.Path()[1:])
 	if err != nil {
 		return nil, err
 	}

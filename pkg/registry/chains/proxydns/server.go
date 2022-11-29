@@ -111,7 +111,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, dnsResol
 
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
 		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
-		updatepath.NewNetworkServiceEndpointRegistryServer("proxy-dns"),
+		updatepath.NewNetworkServiceEndpointRegistryServer(),
 		begin.NewNetworkServiceEndpointRegistryServer(),
 		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGenerator),
 		opts.authorizeNSERegistryServer,
@@ -129,7 +129,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, dnsResol
 		))
 	nsChain := chain.NewNetworkServiceRegistryServer(
 		grpcmetadata.NewNetworkServiceRegistryServer(),
-		updatepath.NewNetworkServiceRegistryServer("proxy-dns"),
+		updatepath.NewNetworkServiceRegistryServer(),
 		begin.NewNetworkServiceRegistryServer(),
 		updatetoken.NewNetworkServiceRegistryServer(tokenGenerator),
 		opts.authorizeNSRegistryServer,

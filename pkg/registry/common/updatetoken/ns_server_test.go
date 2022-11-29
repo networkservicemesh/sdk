@@ -31,6 +31,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/updatetoken"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/inject/injectspiffeid"
 
 	"go.uber.org/goleak"
 
@@ -55,7 +56,8 @@ func (s *updateTokenNSServerSuite) Test_EmptyPathInRequest() {
 	t := s.T()
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	server := next.NewNetworkServiceEndpointRegistryServer(
-		updatepath.NewNetworkServiceEndpointRegistryServer("nsc-1"),
+		injectspiffeid.NewNetworkServiceEndpointRegistryServer("id"),
+		updatepath.NewNetworkServiceEndpointRegistryServer(),
 		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc()))
 
 	ctx := grpcmetadata.PathWithContext(context.Background(), &grpcmetadata.Path{})
@@ -71,7 +73,8 @@ func (s *updateTokenNSServerSuite) Test_IndexInLastPositionAddNewSegment() {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	nse := &registry.NetworkServiceEndpoint{}
 	server := next.NewNetworkServiceEndpointRegistryServer(
-		updatepath.NewNetworkServiceEndpointRegistryServer("nsc-2"),
+		injectspiffeid.NewNetworkServiceEndpointRegistryServer("nsc-2"),
+		updatepath.NewNetworkServiceEndpointRegistryServer(),
 		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc()))
 
 	path := &grpcmetadata.Path{
@@ -120,7 +123,8 @@ func (s *updateTokenNSServerSuite) TestNSServer_ValidIndexOverwriteValues() {
 	ctx = grpcmetadata.PathWithContext(ctx, path)
 
 	server := next.NewNetworkServiceEndpointRegistryServer(
-		updatepath.NewNetworkServiceEndpointRegistryServer("nsc-2"),
+		injectspiffeid.NewNetworkServiceEndpointRegistryServer("nsc-2"),
+		updatepath.NewNetworkServiceEndpointRegistryServer(),
 		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc()))
 	_, err := server.Register(ctx, &registry.NetworkServiceEndpoint{})
 
@@ -176,14 +180,19 @@ func (s *updateTokenNSServerSuite) TestNSChain() {
 	}
 
 	elements := []registry.NetworkServiceEndpointRegistryServer{
-		updatepath.NewNetworkServiceEndpointRegistryServer("nsc-1"),
+		injectspiffeid.NewNetworkServiceEndpointRegistryServer("nsc-1"),
+		updatepath.NewNetworkServiceEndpointRegistryServer(),
 		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc()),
-		updatepath.NewNetworkServiceEndpointRegistryServer("local-nsm-1"),
+		injectspiffeid.NewNetworkServiceEndpointRegistryServer("local-nsm-1"),
+		updatepath.NewNetworkServiceEndpointRegistryServer(),
 		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc()),
-		updatepath.NewNetworkServiceEndpointRegistryServer("local-nsm-1"),
-		updatepath.NewNetworkServiceEndpointRegistryServer("remote-nsm-1"),
+		injectspiffeid.NewNetworkServiceEndpointRegistryServer("local-nsm-1"),
+		updatepath.NewNetworkServiceEndpointRegistryServer(),
+		injectspiffeid.NewNetworkServiceEndpointRegistryServer("remote-nsm-1"),
+		updatepath.NewNetworkServiceEndpointRegistryServer(),
 		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc()),
-		updatepath.NewNetworkServiceEndpointRegistryServer("remote-nsm-1"),
+		injectspiffeid.NewNetworkServiceEndpointRegistryServer("remote-nsm-1"),
+		updatepath.NewNetworkServiceEndpointRegistryServer(),
 		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc()),
 	}
 

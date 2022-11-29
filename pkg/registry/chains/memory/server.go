@@ -137,7 +137,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
 		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
-		updatepath.NewNetworkServiceEndpointRegistryServer("registry-memory"),
+		updatepath.NewNetworkServiceEndpointRegistryServer(),
 		begin.NewNetworkServiceEndpointRegistryServer(),
 		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGenerator),
 		opts.authorizeNSERegistryServer,
@@ -181,7 +181,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	)
 	nsChain := chain.NewNetworkServiceRegistryServer(
 		grpcmetadata.NewNetworkServiceRegistryServer(),
-		updatepath.NewNetworkServiceRegistryServer("registry-memory"),
+		updatepath.NewNetworkServiceRegistryServer(),
 		updatetoken.NewNetworkServiceRegistryServer(tokenGenerator),
 		opts.authorizeNSRegistryServer,
 		setpayload.NewNetworkServiceRegistryServer(),

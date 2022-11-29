@@ -31,6 +31,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checkcontext"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/inject/injectspiffeid"
 
 	"go.uber.org/goleak"
 )
@@ -50,8 +51,9 @@ func TestGRPCMetadataNetworkService(t *testing.T) {
 	require.NoError(t, err)
 
 	server := next.NewNetworkServiceRegistryServer(
+		injectspiffeid.NewNetworkServiceRegistryServer(serverName),
 		grpcmetadata.NewNetworkServiceRegistryServer(),
-		updatepath.NewNetworkServiceRegistryServer(serverName),
+		updatepath.NewNetworkServiceRegistryServer(),
 		checkcontext.NewNSServer(t, func(t *testing.T, ctx context.Context) {
 			path, checkErr := grpcmetadata.PathFromContext(ctx)
 			require.NoError(t, checkErr)
@@ -81,8 +83,9 @@ func TestGRPCMetadataNetworkService(t *testing.T) {
 	}()
 
 	proxyServer := next.NewNetworkServiceRegistryServer(
+		injectspiffeid.NewNetworkServiceRegistryServer(proxyName),
 		grpcmetadata.NewNetworkServiceRegistryServer(),
-		updatepath.NewNetworkServiceRegistryServer(proxyName),
+		updatepath.NewNetworkServiceRegistryServer(),
 		checkcontext.NewNSServer(t, func(t *testing.T, ctx context.Context) {
 			path, checkErr := grpcmetadata.PathFromContext(ctx)
 			require.NoError(t, checkErr)
@@ -112,7 +115,8 @@ func TestGRPCMetadataNetworkService(t *testing.T) {
 	}()
 
 	client := next.NewNetworkServiceRegistryClient(
-		updatepath.NewNetworkServiceRegistryClient(clientName),
+		injectspiffeid.NewNetworkServiceRegistryClient(clientName),
+		updatepath.NewNetworkServiceRegistryClient(),
 		checkcontext.NewNSClient(t, func(t *testing.T, ctx context.Context) {
 			path, checkErr := grpcmetadata.PathFromContext(ctx)
 			require.NoError(t, checkErr)

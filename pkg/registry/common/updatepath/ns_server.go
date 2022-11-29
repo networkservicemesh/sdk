@@ -30,14 +30,11 @@ import (
 )
 
 type updatePathNSServer struct {
-	name string
 }
 
 // NewNetworkServiceRegistryServer - creates a new updatePath server to update NetworkService path.
-func NewNetworkServiceRegistryServer(name string) registry.NetworkServiceRegistryServer {
-	return &updatePathNSServer{
-		name: name,
-	}
+func NewNetworkServiceRegistryServer() registry.NetworkServiceRegistryServer {
+	return &updatePathNSServer{}
 }
 
 func (s *updatePathNSServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
@@ -46,11 +43,11 @@ func (s *updatePathNSServer) Register(ctx context.Context, ns *registry.NetworkS
 		return nil, err
 	}
 
-	name := s.name
-	if spiffeID, idErr := spire.SpiffeIDFromContext(ctx); idErr == nil {
-		name = spiffeID.Path()
+	spiffeID, err := spire.SpiffeIDFromContext(ctx)
+	if err != nil {
+		return nil, err
 	}
-	path, index, err := updatePath(path, name)
+	path, index, err := updatePath(path, spiffeID.Path()[1:])
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +71,11 @@ func (s *updatePathNSServer) Unregister(ctx context.Context, ns *registry.Networ
 		return nil, err
 	}
 
-	path, index, err := updatePath(path, s.name)
+	spiffeID, err := spire.SpiffeIDFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	path, index, err := updatePath(path, spiffeID.Path()[1:])
 	if err != nil {
 		return nil, err
 	}

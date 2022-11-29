@@ -30,14 +30,11 @@ import (
 )
 
 type updatePathNSClient struct {
-	name string
 }
 
 // NewNetworkServiceRegistryClient - creates a new updatePath client to update NetworkService path.
-func NewNetworkServiceRegistryClient(name string) registry.NetworkServiceRegistryClient {
-	return &updatePathNSClient{
-		name: name,
-	}
+func NewNetworkServiceRegistryClient() registry.NetworkServiceRegistryClient {
+	return &updatePathNSClient{}
 }
 
 func (s *updatePathNSClient) Register(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
@@ -47,11 +44,11 @@ func (s *updatePathNSClient) Register(ctx context.Context, ns *registry.NetworkS
 		ctx = grpcmetadata.PathWithContext(ctx, path)
 	}
 
-	name := s.name
-	if spiffeID, idErr := spire.SpiffeIDFromContext(ctx); idErr == nil {
-		name = spiffeID.Path()
+	spiffeID, err := spire.SpiffeIDFromContext(ctx)
+	if err != nil {
+		return nil, err
 	}
-	path, index, err := updatePath(path, name)
+	path, index, err := updatePath(path, spiffeID.Path()[1:])
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +75,11 @@ func (s *updatePathNSClient) Unregister(ctx context.Context, ns *registry.Networ
 		ctx = grpcmetadata.PathWithContext(ctx, path)
 	}
 
-	path, index, err := updatePath(path, s.name)
+	spiffeID, err := spire.SpiffeIDFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	path, index, err := updatePath(path, spiffeID.Path()[1:])
 	if err != nil {
 		return nil, err
 	}

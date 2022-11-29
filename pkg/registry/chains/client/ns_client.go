@@ -48,7 +48,7 @@ func NewNetworkServiceRegistryClient(ctx context.Context, opts ...Option) regist
 	return chain.NewNetworkServiceRegistryClient(
 		append(
 			[]registry.NetworkServiceRegistryClient{
-				updatepath.NewNetworkServiceRegistryClient("registry-client"),
+				updatepath.NewNetworkServiceRegistryClient(),
 				begin.NewNetworkServiceRegistryClient(),
 				retry.NewNetworkServiceRegistryClient(ctx),
 				clientOpts.authorizeNSRegistryClient,

@@ -29,22 +29,26 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checkcontext"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/inject/injectspiffeid"
 )
 
 type nseClientSample struct {
 	name string
-	test func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryClient)
+	test func(t *testing.T, newUpdatePathServer func() registry.NetworkServiceEndpointRegistryClient)
 }
 
 var nseClientSamples = []*nseClientSample{
 	{
 		name: "NoPath",
-		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryClient) {
+		test: func(t *testing.T, newUpdatePathServer func() registry.NetworkServiceEndpointRegistryClient) {
 			t.Cleanup(func() {
 				goleak.VerifyNone(t)
 			})
 
-			server := newUpdatePathServer(nse1)
+			server := next.NewNetworkServiceEndpointRegistryClient(
+				injectspiffeid.NewNetworkServiceEndpointRegistryClient(nse1),
+				newUpdatePathServer(),
+			)
 
 			path := makePath(0, 1)
 			_, err := server.Register(grpcmetadata.PathWithContext(context.Background(), path), &registry.NetworkServiceEndpoint{})
@@ -54,12 +58,15 @@ var nseClientSamples = []*nseClientSample{
 	},
 	{
 		name: "SameName",
-		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryClient) {
+		test: func(t *testing.T, newUpdatePathServer func() registry.NetworkServiceEndpointRegistryClient) {
 			t.Cleanup(func() {
 				goleak.VerifyNone(t)
 			})
 
-			server := newUpdatePathServer(nse2)
+			server := next.NewNetworkServiceEndpointRegistryClient(
+				injectspiffeid.NewNetworkServiceEndpointRegistryClient(nse2),
+				newUpdatePathServer(),
+			)
 
 			path := makePath(1, 2)
 			_, err := server.Register(grpcmetadata.PathWithContext(context.Background(), path), &registry.NetworkServiceEndpoint{})
@@ -69,12 +76,15 @@ var nseClientSamples = []*nseClientSample{
 	},
 	{
 		name: "DifferentName",
-		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryClient) {
+		test: func(t *testing.T, newUpdatePathServer func() registry.NetworkServiceEndpointRegistryClient) {
 			t.Cleanup(func() {
 				goleak.VerifyNone(t)
 			})
 
-			server := newUpdatePathServer(nse3)
+			server := next.NewNetworkServiceEndpointRegistryClient(
+				injectspiffeid.NewNetworkServiceEndpointRegistryClient(nse3),
+				newUpdatePathServer(),
+			)
 
 			path := makePath(1, 2)
 			_, err := server.Register(grpcmetadata.PathWithContext(context.Background(), path), &registry.NetworkServiceEndpoint{})
@@ -84,12 +94,15 @@ var nseClientSamples = []*nseClientSample{
 	},
 	{
 		name: "InvalidIndex",
-		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryClient) {
+		test: func(t *testing.T, newUpdatePathServer func() registry.NetworkServiceEndpointRegistryClient) {
 			t.Cleanup(func() {
 				goleak.VerifyNone(t)
 			})
 
-			server := newUpdatePathServer(nse3)
+			server := next.NewNetworkServiceEndpointRegistryClient(
+				injectspiffeid.NewNetworkServiceEndpointRegistryClient(nse3),
+				newUpdatePathServer(),
+			)
 
 			path := makePath(3, 2)
 			_, err := server.Register(grpcmetadata.PathWithContext(context.Background(), path), &registry.NetworkServiceEndpoint{})
@@ -98,14 +111,15 @@ var nseClientSamples = []*nseClientSample{
 	},
 	{
 		name: "DifferentNextName",
-		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryClient) {
+		test: func(t *testing.T, newUpdatePathServer func() registry.NetworkServiceEndpointRegistryClient) {
 			t.Cleanup(func() {
 				goleak.VerifyNone(t)
 			})
 
 			var nsePath *grpcmetadata.Path
 			server := next.NewNetworkServiceEndpointRegistryClient(
-				newUpdatePathServer(nse3),
+				injectspiffeid.NewNetworkServiceEndpointRegistryClient(nse3),
+				newUpdatePathServer(),
 				checkcontext.NewNSEClient(t, func(t *testing.T, ctx context.Context) {
 					nsePath, _ = grpcmetadata.PathFromContext(ctx)
 					requirePathEqual(t, makePath(2, 3), nsePath, 2)
@@ -124,14 +138,15 @@ var nseClientSamples = []*nseClientSample{
 	},
 	{
 		name: "NoNextAvailable",
-		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryClient) {
+		test: func(t *testing.T, newUpdatePathServer func() registry.NetworkServiceEndpointRegistryClient) {
 			t.Cleanup(func() {
 				goleak.VerifyNone(t)
 			})
 
 			var nsePath *grpcmetadata.Path
 			server := next.NewNetworkServiceEndpointRegistryClient(
-				newUpdatePathServer(nse3),
+				injectspiffeid.NewNetworkServiceEndpointRegistryClient(nse3),
+				newUpdatePathServer(),
 				checkcontext.NewNSEClient(t, func(t *testing.T, ctx context.Context) {
 					nsePath, _ = grpcmetadata.PathFromContext(ctx)
 					requirePathEqual(t, makePath(2, 3), nsePath, 2)
@@ -149,13 +164,14 @@ var nseClientSamples = []*nseClientSample{
 	},
 	{
 		name: "SameNextName",
-		test: func(t *testing.T, newUpdatePathServer func(name string) registry.NetworkServiceEndpointRegistryClient) {
+		test: func(t *testing.T, newUpdatePathServer func() registry.NetworkServiceEndpointRegistryClient) {
 			t.Cleanup(func() {
 				goleak.VerifyNone(t)
 			})
 
 			server := next.NewNetworkServiceEndpointRegistryClient(
-				newUpdatePathServer(nse3),
+				injectspiffeid.NewNetworkServiceEndpointRegistryClient(nse3),
+				newUpdatePathServer(),
 				checkcontext.NewNSEClient(t, func(t *testing.T, ctx context.Context) {
 					path, _ := grpcmetadata.PathFromContext(ctx)
 					requirePathEqual(t, path, makePath(2, 3))
@@ -183,8 +199,8 @@ func TestUpdatePath(t *testing.T) {
 	for i := range nseClientSamples {
 		sample := nseClientSamples[i]
 		t.Run("TestNetworkServiceRegistryServer_"+sample.name, func(t *testing.T) {
-			sample.test(t, func(name string) registry.NetworkServiceEndpointRegistryClient {
-				return adapters.NetworkServiceEndpointServerToClient(updatepath.NewNetworkServiceEndpointRegistryServer(name))
+			sample.test(t, func() registry.NetworkServiceEndpointRegistryClient {
+				return adapters.NetworkServiceEndpointServerToClient(updatepath.NewNetworkServiceEndpointRegistryServer())
 			})
 		})
 	}

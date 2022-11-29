@@ -29,22 +29,27 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checkcontext"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/inject/injectspiffeid"
 )
 
 type nsClientSample struct {
 	name string
-	test func(t *testing.T, newUpdatePathClient func(name string) registry.NetworkServiceRegistryClient)
+	test func(t *testing.T, newUpdatePathClient func() registry.NetworkServiceRegistryClient)
 }
 
 var nsClientSamples = []*nsClientSample{
 	{
 		name: "NoPath",
-		test: func(t *testing.T, newUpdatePathClient func(name string) registry.NetworkServiceRegistryClient) {
+		test: func(t *testing.T, newUpdatePathClient func() registry.NetworkServiceRegistryClient) {
 			t.Cleanup(func() {
 				goleak.VerifyNone(t)
 			})
 
-			server := newUpdatePathClient(nse1)
+			server := next.NewNetworkServiceRegistryClient(
+				injectspiffeid.NewNetworkServiceRegistryClient(nse1),
+				newUpdatePathClient(),
+			)
+
 			path := &grpcmetadata.Path{}
 			_, err := server.Register(grpcmetadata.PathWithContext(context.Background(), path), &registry.NetworkService{})
 			require.NoError(t, err)
@@ -55,12 +60,15 @@ var nsClientSamples = []*nsClientSample{
 	},
 	{
 		name: "SameName",
-		test: func(t *testing.T, newUpdatePathClient func(name string) registry.NetworkServiceRegistryClient) {
+		test: func(t *testing.T, newUpdatePathClient func() registry.NetworkServiceRegistryClient) {
 			t.Cleanup(func() {
 				goleak.VerifyNone(t)
 			})
 
-			server := newUpdatePathClient(nse2)
+			server := next.NewNetworkServiceRegistryClient(
+				injectspiffeid.NewNetworkServiceRegistryClient(nse2),
+				newUpdatePathClient(),
+			)
 
 			path := makePath(1, 2)
 			_, err := server.Register(grpcmetadata.PathWithContext(context.Background(), path), &registry.NetworkService{})
@@ -71,12 +79,15 @@ var nsClientSamples = []*nsClientSample{
 	},
 	{
 		name: "DifferentName",
-		test: func(t *testing.T, newUpdatePathClient func(name string) registry.NetworkServiceRegistryClient) {
+		test: func(t *testing.T, newUpdatePathClient func() registry.NetworkServiceRegistryClient) {
 			t.Cleanup(func() {
 				goleak.VerifyNone(t)
 			})
 
-			server := newUpdatePathClient(nse3)
+			server := next.NewNetworkServiceRegistryClient(
+				injectspiffeid.NewNetworkServiceRegistryClient(nse3),
+				newUpdatePathClient(),
+			)
 
 			path := makePath(1, 2)
 			_, err := server.Register(grpcmetadata.PathWithContext(context.Background(), path), &registry.NetworkService{})
@@ -86,12 +97,15 @@ var nsClientSamples = []*nsClientSample{
 	},
 	{
 		name: "InvalidIndex",
-		test: func(t *testing.T, newUpdatePathClient func(name string) registry.NetworkServiceRegistryClient) {
+		test: func(t *testing.T, newUpdatePathClient func() registry.NetworkServiceRegistryClient) {
 			t.Cleanup(func() {
 				goleak.VerifyNone(t)
 			})
 
-			server := newUpdatePathClient(nse3)
+			server := next.NewNetworkServiceRegistryClient(
+				injectspiffeid.NewNetworkServiceRegistryClient(nse3),
+				newUpdatePathClient(),
+			)
 
 			path := makePath(3, 2)
 			_, err := server.Register(grpcmetadata.PathWithContext(context.Background(), path), &registry.NetworkService{})
@@ -100,14 +114,15 @@ var nsClientSamples = []*nsClientSample{
 	},
 	{
 		name: "DifferentNextName",
-		test: func(t *testing.T, newUpdatePathClient func(name string) registry.NetworkServiceRegistryClient) {
+		test: func(t *testing.T, newUpdatePathClient func() registry.NetworkServiceRegistryClient) {
 			t.Cleanup(func() {
 				goleak.VerifyNone(t)
 			})
 
 			var nsPath *grpcmetadata.Path
 			server := next.NewNetworkServiceRegistryClient(
-				newUpdatePathClient(nse3),
+				injectspiffeid.NewNetworkServiceRegistryClient(nse3),
+				newUpdatePathClient(),
 				checkcontext.NewNSClient(t, func(t *testing.T, ctx context.Context) {
 					nsPath, _ = grpcmetadata.PathFromContext(ctx)
 					requirePathEqual(t, makePath(2, 3), nsPath, 2)
@@ -126,14 +141,15 @@ var nsClientSamples = []*nsClientSample{
 	},
 	{
 		name: "NoNextAvailable",
-		test: func(t *testing.T, newUpdatePathClient func(name string) registry.NetworkServiceRegistryClient) {
+		test: func(t *testing.T, newUpdatePathClient func() registry.NetworkServiceRegistryClient) {
 			t.Cleanup(func() {
 				goleak.VerifyNone(t)
 			})
 
 			var nsPath *grpcmetadata.Path
 			server := next.NewNetworkServiceRegistryClient(
-				newUpdatePathClient(nse3),
+				injectspiffeid.NewNetworkServiceRegistryClient(nse3),
+				newUpdatePathClient(),
 				checkcontext.NewNSClient(t, func(t *testing.T, ctx context.Context) {
 					nsPath, _ = grpcmetadata.PathFromContext(ctx)
 					requirePathEqual(t, makePath(2, 3), nsPath, 2)
@@ -151,13 +167,14 @@ var nsClientSamples = []*nsClientSample{
 	},
 	{
 		name: "SameNextName",
-		test: func(t *testing.T, newUpdatePathClient func(name string) registry.NetworkServiceRegistryClient) {
+		test: func(t *testing.T, newUpdatePathClient func() registry.NetworkServiceRegistryClient) {
 			t.Cleanup(func() {
 				goleak.VerifyNone(t)
 			})
 
 			server := next.NewNetworkServiceRegistryClient(
-				newUpdatePathClient(nse3),
+				injectspiffeid.NewNetworkServiceRegistryClient(nse3),
+				newUpdatePathClient(),
 				checkcontext.NewNSClient(t, func(t *testing.T, ctx context.Context) {
 					path, err := grpcmetadata.PathFromContext(ctx)
 					require.NoError(t, err)
@@ -186,8 +203,8 @@ func TestUpdatePathNSClient(t *testing.T) {
 	for i := range nsClientSamples {
 		sample := nsClientSamples[i]
 		t.Run("TestNetworkServiceRegistryServer_"+sample.name, func(t *testing.T) {
-			sample.test(t, func(name string) registry.NetworkServiceRegistryClient {
-				return adapters.NetworkServiceServerToClient(updatepath.NewNetworkServiceRegistryServer(name))
+			sample.test(t, func() registry.NetworkServiceRegistryClient {
+				return adapters.NetworkServiceServerToClient(updatepath.NewNetworkServiceRegistryServer())
 			})
 		})
 	}
