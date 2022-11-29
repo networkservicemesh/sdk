@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,11 +27,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
+	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -45,14 +49,10 @@ func Test_RegistryMemory_ShouldSetDefaultPayload(t *testing.T) {
 		SetNSMgrProxySupplier(nil).
 		Build()
 
-	// start grpc client connection and register it
-	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(domain.Registry.URL), sandbox.DialOptions()...)
-	require.NoError(t, err)
-	defer func() {
-		_ = cc.Close()
-	}()
+	nsrc := registryclient.NewNetworkServiceRegistryClient(ctx,
+		registryclient.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
+		registryclient.WithClientURL(domain.Registry.URL))
 
-	nsrc := registry.NewNetworkServiceRegistryClient(cc)
 	ns, err := nsrc.Register(ctx, &registry.NetworkService{
 		Name: "ns-1",
 	})

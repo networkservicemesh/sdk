@@ -17,45 +17,77 @@
 package authorize_test
 
 import (
-	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
-	"crypto/tls"
-	"crypto/x509"
-	"math/big"
-	"net/url"
+	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v4"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/peer"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-func generateCert(u *url.URL) []byte {
-	ca := &x509.Certificate{
-		SerialNumber: big.NewInt(1653),
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().AddDate(10, 0, 0),
-		URIs:         []*url.URL{u},
-	}
+const (
+	spiffeid1 = "spiffe://test.com/workload1"
+	spiffeid2 = "spiffe://test.com/workload2"
+)
 
-	priv, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	pub := &priv.PublicKey
-
-	certBytes, _ := x509.CreateCertificate(rand.Reader, ca, ca, pub, priv)
-	return certBytes
+func genJWTWithClaims(claims *jwt.RegisteredClaims) string {
+	t, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte("super secret"))
+	return t
 }
 
-func withPeer(ctx context.Context, certBytes []byte) (context.Context, error) {
-	x509cert, err := x509.ParseCertificate(certBytes)
-	if err != nil {
-		return nil, err
+func genTokenFunc(claims *jwt.RegisteredClaims) token.GeneratorFunc {
+	return func(_ credentials.AuthInfo) (string, time.Time, error) {
+		return genJWTWithClaims(claims), time.Time{}, nil
 	}
+}
 
-	authInfo := &credentials.TLSInfo{
-		State: tls.ConnectionState{
-			PeerCertificates: []*x509.Certificate{x509cert},
+func getPath(t *testing.T, spiffeID string) *grpcmetadata.Path {
+	var segments = []struct {
+		name           string
+		tokenGenerator token.GeneratorFunc
+	}{
+		{
+			name: spiffeID,
+			tokenGenerator: genTokenFunc(&jwt.RegisteredClaims{
+				Subject:  spiffeID,
+				Audience: []string{"nsmgr"},
+			}),
+		},
+		{
+			name: "nsmgr",
+			tokenGenerator: genTokenFunc(&jwt.RegisteredClaims{
+				Subject:  "nsmgr",
+				Audience: []string{"forwarder"},
+			}),
+		},
+		{
+			name: "forwarder",
+			tokenGenerator: genTokenFunc(&jwt.RegisteredClaims{
+				Subject:  "forwarder",
+				Audience: []string{"nse"},
+			}),
 		},
 	}
-	return peer.NewContext(ctx, &peer.Peer{AuthInfo: authInfo}), nil
+
+	path := &grpcmetadata.Path{
+		PathSegments: []*networkservice.PathSegment{},
+	}
+
+	for _, segment := range segments {
+		tok, expire, err := segment.tokenGenerator(nil)
+		require.NoError(t, err)
+		path.PathSegments = append(path.PathSegments, &networkservice.PathSegment{
+			Name:    segment.name,
+			Token:   tok,
+			Expires: timestamppb.New(expire),
+		})
+	}
+
+	return path
 }

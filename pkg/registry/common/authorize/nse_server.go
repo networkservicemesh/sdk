@@ -24,23 +24,28 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
-	"github.com/networkservicemesh/sdk/pkg/tools/spire"
-	"github.com/networkservicemesh/sdk/pkg/tools/stringset"
 )
 
 type authorizeNSEServer struct {
-	policies        policiesList
-	spiffeIDNSEsMap *spiffeIDResourcesMap
+	policies      policiesList
+	nsePathIdsMap *PathIdsMap
 }
 
 // NewNetworkServiceEndpointRegistryServer - returns a new authorization registry.NetworkServiceEndpointRegistryServer
 // Authorize registry server checks spiffeID of NSE.
 func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkServiceEndpointRegistryServer {
 	o := &options{
-		policies:             policiesList{opa.WithRegistryClientAllowedPolicy()},
-		spiffeIDResourcesMap: new(spiffeIDResourcesMap),
+		policies: policiesList{
+			opa.WithTokensValidPolicy(),
+			opa.WithPrevTokenSignedPolicy(),
+			opa.WithTokensExpiredPolicy(),
+			opa.WithTokenChainPolicy(),
+			opa.WithRegistryClientAllowedPolicy(),
+		},
+		resourcePathIdsMap: new(PathIdsMap),
 	}
 
 	for _, opt := range opts {
@@ -48,34 +53,45 @@ func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkSer
 	}
 
 	return &authorizeNSEServer{
-		policies:        o.policies,
-		spiffeIDNSEsMap: o.spiffeIDResourcesMap,
+		policies:      o.policies,
+		nsePathIdsMap: o.resourcePathIdsMap,
 	}
 }
 
 func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	spiffeID, err := spire.SpiffeIDFromContext(ctx)
-	if err != nil && len(s.policies) == 0 {
+	if len(s.policies) == 0 {
 		return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	}
 
-	rawMap := getRawMap(s.spiffeIDNSEsMap)
-	input := RegistryOpaInput{
-		SpiffeID:             spiffeID.String(),
-		ResourceName:         nse.Name,
-		SpiffeIDResourcesMap: rawMap,
+	path, err := grpcmetadata.PathFromContext(ctx)
+	if err != nil {
+		return nil, err
 	}
+	spiffeID, err := getSpiffeIDFromPath(path)
+	if err != nil {
+		return nil, err
+	}
+
+	index := path.Index
+	var leftSide = &grpcmetadata.Path{
+		Index:        index,
+		PathSegments: path.PathSegments[:index+1],
+	}
+
+	rawMap := getRawMap(s.nsePathIdsMap)
+	input := RegistryOpaInput{
+		ResourceID:         spiffeID.String(),
+		ResourceName:       nse.Name,
+		ResourcePathIdsMap: rawMap,
+		PathSegments:       leftSide.PathSegments,
+		Index:              leftSide.Index,
+	}
+
 	if err := s.policies.check(ctx, input); err != nil {
 		return nil, err
 	}
 
-	nseNames, ok := s.spiffeIDNSEsMap.Load(spiffeID)
-	if !ok {
-		nseNames = new(stringset.StringSet)
-	}
-	nseNames.LoadOrStore(nse.Name, struct{}{})
-	s.spiffeIDNSEsMap.Store(spiffeID, nseNames)
-
+	s.nsePathIdsMap.Store(nse.Name, nse.PathIds)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 }
 
@@ -84,36 +100,38 @@ func (s *authorizeNSEServer) Find(query *registry.NetworkServiceEndpointQuery, s
 }
 
 func (s *authorizeNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	spiffeID, err := spire.SpiffeIDFromContext(ctx)
-	if err != nil && len(s.policies) == 0 {
+	if len(s.policies) == 0 {
 		return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 	}
 
-	rawMap := getRawMap(s.spiffeIDNSEsMap)
-	input := RegistryOpaInput{
-		SpiffeID:             spiffeID.String(),
-		ResourceName:         nse.Name,
-		SpiffeIDResourcesMap: rawMap,
+	path, err := grpcmetadata.PathFromContext(ctx)
+	if err != nil {
+		return nil, err
 	}
+	spiffeID, err := getSpiffeIDFromPath(path)
+	if err != nil {
+		return nil, err
+	}
+
+	index := path.Index
+	var leftSide = &grpcmetadata.Path{
+		Index:        index,
+		PathSegments: path.PathSegments[:index+1],
+	}
+
+	rawMap := getRawMap(s.nsePathIdsMap)
+	input := RegistryOpaInput{
+		ResourceID:         spiffeID.String(),
+		ResourceName:       nse.Name,
+		ResourcePathIdsMap: rawMap,
+		PathSegments:       leftSide.PathSegments,
+		Index:              leftSide.Index,
+	}
+
 	if err := s.policies.check(ctx, input); err != nil {
 		return nil, err
 	}
 
-	nseNames, ok := s.spiffeIDNSEsMap.Load(spiffeID)
-	if ok {
-		nseNames.Delete(nse.Name)
-		namesEmpty := true
-		nseNames.Range(func(key string, value struct{}) bool {
-			namesEmpty = false
-			return true
-		})
-
-		if namesEmpty {
-			s.spiffeIDNSEsMap.Delete(spiffeID)
-		} else {
-			s.spiffeIDNSEsMap.Store(spiffeID, nseNames)
-		}
-	}
-
+	s.nsePathIdsMap.Delete(nse.Name)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }

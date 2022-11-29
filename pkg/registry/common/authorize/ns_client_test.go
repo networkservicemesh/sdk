@@ -30,34 +30,34 @@ import (
 	"go.uber.org/goleak"
 )
 
-func TestNetworkServiceEndpointRegistryAuthorization(t *testing.T) {
+func TestNSRegistryAuthorizeClient(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	server := authorize.NewNetworkServiceEndpointRegistryServer(authorize.WithPolicies(opa.WithRegistryClientAllowedPolicy()))
+	client := authorize.NewNetworkServiceRegistryClient(authorize.WithPolicies(opa.WithRegistryClientAllowedPolicy()))
 
-	nse := &registry.NetworkServiceEndpoint{Name: "nse"}
+	ns := &registry.NetworkService{Name: "ns"}
 	path1 := getPath(t, spiffeid1)
 	ctx1 := grpcmetadata.PathWithContext(context.Background(), path1)
 
 	path2 := getPath(t, spiffeid2)
 	ctx2 := grpcmetadata.PathWithContext(context.Background(), path2)
 
-	nse.PathIds = []string{spiffeid1}
-	_, err := server.Register(ctx1, nse)
+	ns.PathIds = []string{spiffeid1}
+	_, err := client.Register(ctx1, ns)
 	require.NoError(t, err)
 
-	nse.PathIds = []string{spiffeid2}
-	_, err = server.Register(ctx2, nse)
+	ns.PathIds = []string{spiffeid2}
+	_, err = client.Register(ctx2, ns)
 	require.Error(t, err)
 
-	nse.PathIds = []string{spiffeid1}
-	_, err = server.Register(ctx1, nse)
+	ns.PathIds = []string{spiffeid1}
+	_, err = client.Register(ctx1, ns)
 	require.NoError(t, err)
 
-	nse.PathIds = []string{spiffeid2}
-	_, err = server.Unregister(ctx2, nse)
+	ns.PathIds = []string{spiffeid2}
+	_, err = client.Unregister(ctx2, ns)
 	require.Error(t, err)
 
-	nse.PathIds = []string{spiffeid1}
-	_, err = server.Unregister(ctx1, nse)
+	ns.PathIds = []string{spiffeid1}
+	_, err = client.Unregister(ctx1, ns)
 	require.NoError(t, err)
 }

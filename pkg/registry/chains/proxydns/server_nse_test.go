@@ -30,6 +30,7 @@ import (
 
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 
+	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
@@ -72,7 +73,11 @@ func TestInterdomainNetworkServiceEndpointRegistry(t *testing.T) {
 
 	expirationTime := timestamppb.New(time.Now().Add(time.Hour))
 
-	reg, err := domain2.Registry.NetworkServiceEndpointRegistryServer().Register(
+	registryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx,
+		registryclient.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
+		registryclient.WithClientURL(domain2.Registry.URL))
+
+	reg, err := registryClient.Register(
 		context.Background(),
 		&registryapi.NetworkServiceEndpoint{
 			Name:           "nse-1",
@@ -137,7 +142,11 @@ func TestLocalDomain_NetworkServiceEndpointRegistry(t *testing.T) {
 
 	expirationTime := timestamppb.New(time.Now().Add(time.Hour))
 
-	reg, err := domain1.Registry.NetworkServiceEndpointRegistryServer().Register(
+	registryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx,
+		registryclient.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
+		registryclient.WithClientURL(domain1.Registry.URL))
+
+	reg, err := registryClient.Register(
 		context.Background(),
 		&registryapi.NetworkServiceEndpoint{
 			Name:           "nse-1",
@@ -214,7 +223,11 @@ func TestInterdomainFloatingNetworkServiceEndpointRegistry(t *testing.T) {
 
 	expirationTime := timestamppb.New(time.Now().Add(time.Hour))
 
-	reg, err := domain2.Registry.NetworkServiceEndpointRegistryServer().Register(
+	registryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx,
+		registryclient.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
+		registryclient.WithClientURL(domain2.Registry.URL))
+
+	reg, err := registryClient.Register(
 		context.Background(),
 		&registryapi.NetworkServiceEndpoint{
 			Name:           "nse-1@" + domain3.Name,

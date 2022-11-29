@@ -28,30 +28,27 @@ import (
 
 func TestRegistryClientAllowedPolicy(t *testing.T) {
 	var p = opa.WithRegistryClientAllowedPolicy()
-	spiffeIDResourcesMap := map[string][]string{
-		"id1": {"nse1", "nse2"},
-		"id2": {"nse3", "nse4"},
+	resourcePathIdsMap := map[string][]string{
+		"nse1": {"id1", "id2"},
 	}
 
 	samples := []struct {
-		nseName  string
-		spiffeID string
-		valid    bool
+		name  string
+		id    string
+		valid bool
 	}{
-		{spiffeID: "id1", nseName: "nse1", valid: true},
-		{spiffeID: "id1", nseName: "nse3", valid: false},
-		{spiffeID: "id1", nseName: "nse5", valid: true},
-		{spiffeID: "id3", nseName: "nse5", valid: true},
-		{spiffeID: "id3", nseName: "nse2", valid: false},
+		{id: "id1", name: "nse1", valid: true},
+		{id: "id3", name: "nse1", valid: false},
+		{id: "id1", name: "nse3", valid: true},
 	}
 
 	ctx := context.Background()
 
 	for _, sample := range samples {
 		var input = authorize.RegistryOpaInput{
-			SpiffeIDResourcesMap: spiffeIDResourcesMap,
-			SpiffeID:             sample.spiffeID,
-			ResourceName:         sample.nseName,
+			ResourcePathIdsMap: resourcePathIdsMap,
+			ResourceName:       sample.name,
+			ResourceID:         sample.id,
 		}
 
 		err := p.Check(ctx, input)

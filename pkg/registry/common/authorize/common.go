@@ -19,16 +19,22 @@ package authorize
 import (
 	"context"
 
+	"github.com/golang-jwt/jwt/v4"
+	"github.com/pkg/errors"
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/stringset"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 )
 
 // RegistryOpaInput represents input for policies in authorizNSEServer and authorizeNSServer
 type RegistryOpaInput struct {
-	SpiffeID             string              `json:"spiffe_id"`
-	ResourceName         string              `json:"resource_name"`
-	SpiffeIDResourcesMap map[string][]string `json:"spiffe_id_resources_map"`
+	ResourceID         string                        `json:"resource_id"`
+	ResourceName       string                        `json:"resource_name"`
+	ResourcePathIdsMap map[string][]string           `json:"resource_path_ids_map"`
+	PathSegments       []*networkservice.PathSegment `json:"path_segments"`
+	Index              uint32                        `json:"index"`
 }
 
 // Policy represents authorization policy for network service.
@@ -47,6 +53,7 @@ func (l *policiesList) check(ctx context.Context, input RegistryOpaInput) error 
 		if policy == nil {
 			continue
 		}
+
 		if err := policy.Check(ctx, input); err != nil {
 			return err
 		}
@@ -54,17 +61,32 @@ func (l *policiesList) check(ctx context.Context, input RegistryOpaInput) error 
 	return nil
 }
 
-func getRawMap(m *spiffeIDResourcesMap) map[string][]string {
+func getRawMap(m *PathIdsMap) map[string][]string {
 	rawMap := make(map[string][]string)
-	m.Range(func(key spiffeid.ID, value *stringset.StringSet) bool {
-		id := key.String()
-		rawMap[id] = make([]string, 0)
-		value.Range(func(key string, value struct{}) bool {
-			rawMap[id] = append(rawMap[id], key)
-			return true
-		})
+	m.Range(func(key string, value []string) bool {
+		rawMap[key] = value
 		return true
 	})
 
 	return rawMap
+}
+
+func getSpiffeIDFromPath(path *grpcmetadata.Path) (spiffeid.ID, error) {
+	tokenString := path.PathSegments[0].Token
+
+	claims := jwt.MapClaims{}
+	_, _, err := jwt.NewParser().ParseUnverified(tokenString, &claims)
+	if err != nil {
+		return spiffeid.ID{}, errors.Errorf("failed to parse jwt token: %s", err.Error())
+	}
+
+	sub, ok := claims["sub"]
+	if !ok {
+		return spiffeid.ID{}, errors.New("failed to get field 'sub' from jwt token payload")
+	}
+	subString, ok := sub.(string)
+	if !ok {
+		return spiffeid.ID{}, errors.New("failed to convert field 'sub' from jwt token payload to string")
+	}
+	return spiffeid.FromString(subString)
 }

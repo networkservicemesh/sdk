@@ -22,20 +22,24 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/retry"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 )
 
 // NewNetworkServiceRegistryClient creates a new NewNetworkServiceRegistryClient that can be used for NS registration.
 func NewNetworkServiceRegistryClient(ctx context.Context, opts ...Option) registry.NetworkServiceRegistryClient {
 	clientOpts := &clientOptions{
-		nsClientURLResolver: null.NewNetworkServiceRegistryClient(),
+		nsClientURLResolver:       null.NewNetworkServiceRegistryClient(),
+		authorizeNSRegistryClient: authorize.NewNetworkServiceRegistryClient(authorize.Any()),
 	}
 	for _, opt := range opts {
 		opt(clientOpts)
@@ -44,11 +48,14 @@ func NewNetworkServiceRegistryClient(ctx context.Context, opts ...Option) regist
 	return chain.NewNetworkServiceRegistryClient(
 		append(
 			[]registry.NetworkServiceRegistryClient{
+				updatepath.NewNetworkServiceRegistryClient("registry-client"),
 				begin.NewNetworkServiceRegistryClient(),
 				retry.NewNetworkServiceRegistryClient(ctx),
+				clientOpts.authorizeNSRegistryClient,
 				heal.NewNetworkServiceRegistryClient(ctx),
 				clientOpts.nsClientURLResolver,
 				clientconn.NewNetworkServiceRegistryClient(),
+				grpcmetadata.NewNetworkServiceRegistryClient(),
 				dial.NewNetworkServiceRegistryClient(ctx,
 					dial.WithDialOptions(clientOpts.dialOptions...),
 					dial.WithDialTimeout(time.Second),

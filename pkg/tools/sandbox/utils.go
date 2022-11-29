@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -70,15 +71,30 @@ func WithInsecureStreamRPCCredentials() grpc.DialOption {
 }
 
 // GenerateTestToken generates test token
-func GenerateTestToken(_ credentials.AuthInfo) (tokenValue string, expireTime time.Time, err error) {
-	return "TestToken", time.Now().Add(time.Hour).Local(), nil
+func GenerateTestToken(_ credentials.AuthInfo) (string, time.Time, error) {
+	expireTime := time.Now().Add(time.Hour)
+
+	claims := jwt.RegisteredClaims{
+		Subject:   "spiffe://test.com/subject",
+		ExpiresAt: jwt.NewNumericDate(expireTime),
+	}
+
+	tok, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte("supersecret"))
+	return tok, expireTime, err
 }
 
 // GenerateExpiringToken returns a token generator with the specified expiration duration.
 func GenerateExpiringToken(duration time.Duration) token.GeneratorFunc {
-	value := fmt.Sprintf("TestToken-%s", duration)
-	return func(_ credentials.AuthInfo) (tokenValue string, expireTime time.Time, err error) {
-		return value, time.Now().Add(duration).Local(), nil
+	return func(_ credentials.AuthInfo) (string, time.Time, error) {
+		expireTime := time.Now().Add(duration).Local()
+
+		claims := jwt.RegisteredClaims{
+			Subject:   "spiffe://test.com/subject",
+			ExpiresAt: jwt.NewNumericDate(expireTime),
+		}
+
+		tok, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte("supersecret"))
+		return tok, expireTime, err
 	}
 }
 
@@ -88,8 +104,8 @@ func UniqueName(prefix string) string {
 }
 
 // SetupDefaultNode setups NSMgr and default Forwarder on the given node
-func SetupDefaultNode(ctx context.Context, node *Node, supplyNSMgr SupplyNSMgrFunc) {
-	node.NewNSMgr(ctx, UniqueName("nsmgr"), nil, GenerateTestToken, supplyNSMgr)
+func SetupDefaultNode(ctx context.Context, tokenGenerator token.GeneratorFunc, node *Node, supplyNSMgr SupplyNSMgrFunc) {
+	node.NewNSMgr(ctx, UniqueName("nsmgr"), nil, tokenGenerator, supplyNSMgr)
 
 	node.NewForwarder(ctx, &registryapi.NetworkServiceEndpoint{
 		Name:                UniqueName("forwarder"),
@@ -101,5 +117,5 @@ func SetupDefaultNode(ctx context.Context, node *Node, supplyNSMgr SupplyNSMgrFu
 				},
 			},
 		},
-	}, GenerateTestToken)
+	}, tokenGenerator)
 }

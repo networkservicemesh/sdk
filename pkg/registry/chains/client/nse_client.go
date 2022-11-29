@@ -22,21 +22,25 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/retry"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 )
 
 // NewNetworkServiceEndpointRegistryClient creates a new NewNetworkServiceEndpointRegistryClient that can be used for NSE registration.
 func NewNetworkServiceEndpointRegistryClient(ctx context.Context, opts ...Option) registry.NetworkServiceEndpointRegistryClient {
 	clientOpts := &clientOptions{
-		nseClientURLResolver: null.NewNetworkServiceEndpointRegistryClient(),
+		nseClientURLResolver:       null.NewNetworkServiceEndpointRegistryClient(),
+		authorizeNSERegistryClient: authorize.NewNetworkServiceEndpointRegistryClient(authorize.Any()),
 	}
 	for _, opt := range opts {
 		opt(clientOpts)
@@ -45,12 +49,15 @@ func NewNetworkServiceEndpointRegistryClient(ctx context.Context, opts ...Option
 	return chain.NewNetworkServiceEndpointRegistryClient(
 		append(
 			[]registry.NetworkServiceEndpointRegistryClient{
+				updatepath.NewNetworkServiceEndpointRegistryClient("registry-client"),
 				begin.NewNetworkServiceEndpointRegistryClient(),
 				retry.NewNetworkServiceEndpointRegistryClient(ctx),
 				heal.NewNetworkServiceEndpointRegistryClient(ctx),
 				refresh.NewNetworkServiceEndpointRegistryClient(ctx),
+				clientOpts.authorizeNSERegistryClient,
 				clientOpts.nseClientURLResolver,
 				clientconn.NewNetworkServiceEndpointRegistryClient(),
+				grpcmetadata.NewNetworkServiceEndpointRegistryClient(),
 				dial.NewNetworkServiceEndpointRegistryClient(ctx,
 					dial.WithDialOptions(clientOpts.dialOptions...),
 				),

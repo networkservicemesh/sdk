@@ -17,14 +17,13 @@
 package nsm
 
 default registry_client_allowed = false
-	
+
 # new NSE case
 registry_client_allowed {
-        nses := { nse | nse := input.spiffe_id_resources_map[_][_]; nse == input.resource_name }
-        count(nses) == 0
+	not input.resource_path_ids_map[input.resource_name]
 }
 	
 # refresh/unregister NSE case
 registry_client_allowed {
-    input.spiffe_id_resources_map[input.spiffe_id][_] == input.resource_name
+    input.resource_path_ids_map[input.resource_name][0] == input.resource_id
 }

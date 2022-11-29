@@ -22,38 +22,126 @@ import (
 
 	"google.golang.org/grpc"
 
+	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
+
 	"github.com/networkservicemesh/sdk/pkg/registry"
+	registryauthorize "github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/updatetoken"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
+type serverOptions struct {
+	authorizeNSRegistryServer  registryapi.NetworkServiceRegistryServer
+	authorizeNSERegistryServer registryapi.NetworkServiceEndpointRegistryServer
+	authorizeNSRegistryClient  registryapi.NetworkServiceRegistryClient
+	authorizeNSERegistryClient registryapi.NetworkServiceEndpointRegistryClient
+	dialOptions                []grpc.DialOption
+}
+
+// Option modifies server option value
+type Option func(o *serverOptions)
+
+// WithAuthorizeNSRegistryServer sets authorization NetworkServiceRegistry chain element
+func WithAuthorizeNSRegistryServer(authorizeNSRegistryServer registryapi.NetworkServiceRegistryServer) Option {
+	if authorizeNSRegistryServer == nil {
+		panic("authorizeNSRegistryServer cannot be nil")
+	}
+	return func(o *serverOptions) {
+		o.authorizeNSRegistryServer = authorizeNSRegistryServer
+	}
+}
+
+// WithAuthorizeNSERegistryServer sets authorization NetworkServiceEndpointRegistry chain element
+func WithAuthorizeNSERegistryServer(authorizeNSERegistryServer registryapi.NetworkServiceEndpointRegistryServer) Option {
+	if authorizeNSERegistryServer == nil {
+		panic("authorizeNSERegistryServer cannot be nil")
+	}
+	return func(o *serverOptions) {
+		o.authorizeNSERegistryServer = authorizeNSERegistryServer
+	}
+}
+
+// WithAuthorizeNSRegistryClient sets authorization NetworkServiceRegistry chain element
+func WithAuthorizeNSRegistryClient(authorizeNSRegistryClient registryapi.NetworkServiceRegistryClient) Option {
+	if authorizeNSRegistryClient == nil {
+		panic("authorizeNSRegistryClient cannot be nil")
+	}
+	return func(o *serverOptions) {
+		o.authorizeNSRegistryClient = authorizeNSRegistryClient
+	}
+}
+
+// WithAuthorizeNSERegistryClient sets authorization NetworkServiceEndpointRegistry chain element
+func WithAuthorizeNSERegistryClient(authorizeNSERegistryClient registryapi.NetworkServiceEndpointRegistryClient) Option {
+	if authorizeNSERegistryClient == nil {
+		panic("authorizeNSERegistryClient cannot be nil")
+	}
+	return func(o *serverOptions) {
+		o.authorizeNSERegistryClient = authorizeNSERegistryClient
+	}
+}
+
+// WithDialOptions sets grpc.DialOptions for the server
+func WithDialOptions(dialOptions ...grpc.DialOption) Option {
+	return func(o *serverOptions) {
+		o.dialOptions = dialOptions
+	}
+}
+
 // NewServer creates new stateless registry server that proxies queries to the second registries by DNS domains
-func NewServer(ctx context.Context, dnsResolver dnsresolve.Resolver, dialOptions ...grpc.DialOption) registry.Registry {
+func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, dnsResolver dnsresolve.Resolver, options ...Option) registry.Registry {
+	opts := &serverOptions{
+		authorizeNSRegistryServer:  registryauthorize.NewNetworkServiceRegistryServer(registryauthorize.Any()),
+		authorizeNSERegistryServer: registryauthorize.NewNetworkServiceEndpointRegistryServer(registryauthorize.Any()),
+		authorizeNSRegistryClient:  registryauthorize.NewNetworkServiceRegistryClient(registryauthorize.Any()),
+		authorizeNSERegistryClient: registryauthorize.NewNetworkServiceEndpointRegistryClient(registryauthorize.Any()),
+	}
+	for _, opt := range options {
+		opt(opts)
+	}
+
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
+		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
+		updatepath.NewNetworkServiceEndpointRegistryServer("proxy-dns"),
 		begin.NewNetworkServiceEndpointRegistryServer(),
+		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGenerator),
+		opts.authorizeNSERegistryServer,
 		dnsresolve.NewNetworkServiceEndpointRegistryServer(dnsresolve.WithResolver(dnsResolver)),
 		connect.NewNetworkServiceEndpointRegistryServer(
 			chain.NewNetworkServiceEndpointRegistryClient(
 				clientconn.NewNetworkServiceEndpointRegistryClient(),
+				opts.authorizeNSERegistryClient,
+				grpcmetadata.NewNetworkServiceEndpointRegistryClient(),
 				dial.NewNetworkServiceEndpointRegistryClient(ctx,
-					dial.WithDialOptions(dialOptions...),
+					dial.WithDialOptions(opts.dialOptions...),
 				),
 				connect.NewNetworkServiceEndpointRegistryClient(),
 			),
 		))
 	nsChain := chain.NewNetworkServiceRegistryServer(
+		grpcmetadata.NewNetworkServiceRegistryServer(),
+		updatepath.NewNetworkServiceRegistryServer("proxy-dns"),
 		begin.NewNetworkServiceRegistryServer(),
+		updatetoken.NewNetworkServiceRegistryServer(tokenGenerator),
+		opts.authorizeNSRegistryServer,
 		dnsresolve.NewNetworkServiceRegistryServer(dnsresolve.WithResolver(dnsResolver)),
 		connect.NewNetworkServiceRegistryServer(
 			chain.NewNetworkServiceRegistryClient(
 				clientconn.NewNetworkServiceRegistryClient(),
+				opts.authorizeNSRegistryClient,
+				grpcmetadata.NewNetworkServiceRegistryClient(),
 				dial.NewNetworkServiceRegistryClient(
 					ctx,
-					dial.WithDialOptions(dialOptions...),
+					dial.WithDialOptions(opts.dialOptions...),
 				),
 				connect.NewNetworkServiceRegistryClient(),
 			),

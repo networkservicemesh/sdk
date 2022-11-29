@@ -30,9 +30,9 @@ import (
 	"go.uber.org/goleak"
 )
 
-func TestNetworkServiceEndpointRegistryAuthorization(t *testing.T) {
+func TestNSERegistryAuthorizeClient(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	server := authorize.NewNetworkServiceEndpointRegistryServer(authorize.WithPolicies(opa.WithRegistryClientAllowedPolicy()))
+	server := authorize.NewNetworkServiceEndpointRegistryClient(authorize.WithPolicies(opa.WithRegistryClientAllowedPolicy()))
 
 	nse := &registry.NetworkServiceEndpoint{Name: "nse"}
 	path1 := getPath(t, spiffeid1)
