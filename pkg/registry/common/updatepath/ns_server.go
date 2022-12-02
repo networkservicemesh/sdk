@@ -93,11 +93,6 @@ func (s *updatePathNSServer) Unregister(ctx context.Context, ns *registry.Networ
 		return nil, err
 	}
 
-	// TODO: Is it correct? Authorize server chain element check path, but maybe we should check it here too?
-	if len(path.PathSegments) == 0 {
-		return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
-	}
-
 	peerTok, _, tokenErr := token.FromContext(ctx)
 	if tokenErr != nil {
 		log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", tokenErr)

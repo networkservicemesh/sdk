@@ -47,7 +47,8 @@ func updatePath(ctx context.Context, path *grpcmetadata.Path, peerTok, tok strin
 		return nil, 0, errors.New("updatePath cannot be called with a nil path")
 	}
 
-	// First request, empty path came from client
+	// First request, empty path came from client.
+	// Create path segments for client and for current server
 	if len(path.PathSegments) == 0 {
 		path.PathSegments = append(path.PathSegments,
 			&grpcmetadata.PathSegment{Token: peerTok},
@@ -105,7 +106,6 @@ func generateToken(ctx context.Context, tokenGenerator token.GeneratorFunc) (str
 
 	// Generate the token
 	return tokenGenerator(authInfo)
-
 }
 
 func getIDFromToken(tokenString string) (spiffeid.ID, error) {
