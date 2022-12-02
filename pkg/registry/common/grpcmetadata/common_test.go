@@ -14,24 +14,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package updatepath_test
+package grpcmetadata_test
 
 import (
-	"encoding/json"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc/credentials"
-
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
+	"google.golang.org/grpc/credentials"
 )
 
 const (
-	key      = "supersecret"
-	clientID = "spiffe://test.com/client"
-	proxyID  = "spiffe://test.com/proxy"
-	serverID = "spiffe://test.com/server"
+	key = "supersecret"
 )
 
 func tokenGeneratorFunc(spiffeID string) token.GeneratorFunc {
@@ -39,13 +33,4 @@ func tokenGeneratorFunc(spiffeID string) token.GeneratorFunc {
 		tok, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": spiffeID}).SignedString([]byte(key))
 		return tok, time.Date(3000, 1, 1, 1, 1, 1, 1, time.UTC), err
 	}
-}
-
-func equalJSON(t require.TestingT, expected, actual interface{}) {
-	json1, err1 := json.MarshalIndent(expected, "", "\t")
-	require.NoError(t, err1)
-
-	json2, err2 := json.MarshalIndent(actual, "", "\t")
-	require.NoError(t, err2)
-	require.Equal(t, string(json1), string(json2))
 }

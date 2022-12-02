@@ -39,7 +39,7 @@ func NewNetworkServiceEndpointRegistryClient() registry.NetworkServiceEndpointRe
 func (c *grpcMetadataNSEClient) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
 	path, err := PathFromContext(ctx)
 	if err != nil {
-		return nil, err
+		path = &Path{}
 	}
 
 	ctx, err = appendToMetadata(ctx, path)

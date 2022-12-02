@@ -40,7 +40,7 @@ func NewNetworkServiceRegistryClient() registry.NetworkServiceRegistryClient {
 func (c *grpcMetadataNSClient) Register(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
 	path, err := PathFromContext(ctx)
 	if err != nil {
-		return nil, err
+		path = &Path{}
 	}
 
 	ctx, err = appendToMetadata(ctx, path)

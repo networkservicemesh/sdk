@@ -31,7 +31,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checkcontext"
-	"github.com/networkservicemesh/sdk/pkg/registry/utils/inject/injectspiffeid"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/inject/injectpeertoken"
 
 	"go.uber.org/goleak"
 )
@@ -41,13 +41,16 @@ func TestGRPCMetadataNetworkServiceEndpoint(t *testing.T) {
 
 	ctx := context.Background()
 
+	clientToken, _, _ := tokenGeneratorFunc(clientID)(nil)
+	proxyToken, _, _ := tokenGeneratorFunc(proxyID)(nil)
+
 	serverLis, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
 	server := next.NewNetworkServiceEndpointRegistryServer(
-		injectspiffeid.NewNetworkServiceEndpointRegistryServer(serverName),
+		injectpeertoken.NewNetworkServiceEndpointRegistryServer(proxyToken),
 		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
-		//updatepath.NewNetworkServiceEndpointRegistryServer(),
+		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(serverID)),
 		checkcontext.NewNSEServer(t, func(t *testing.T, ctx context.Context) {
 			path, checkErr := grpcmetadata.PathFromContext(ctx)
 			require.NoError(t, checkErr)
@@ -74,9 +77,9 @@ func TestGRPCMetadataNetworkServiceEndpoint(t *testing.T) {
 	}()
 
 	proxyServer := next.NewNetworkServiceEndpointRegistryServer(
-		injectspiffeid.NewNetworkServiceEndpointRegistryServer(proxyName),
+		injectpeertoken.NewNetworkServiceEndpointRegistryServer(clientToken),
 		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
-		//updatepath.NewNetworkServiceEndpointRegistryServer(),
+		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(proxyID)),
 		checkcontext.NewNSEServer(t, func(t *testing.T, ctx context.Context) {
 			path, checkErr := grpcmetadata.PathFromContext(ctx)
 			require.NoError(t, checkErr)
@@ -104,8 +107,6 @@ func TestGRPCMetadataNetworkServiceEndpoint(t *testing.T) {
 	}()
 
 	client := next.NewNetworkServiceEndpointRegistryClient(
-		injectspiffeid.NewNetworkServiceEndpointRegistryClient(clientName),
-		updatepath.NewNetworkServiceEndpointRegistryClient(),
 		checkcontext.NewNSEClient(t, func(t *testing.T, ctx context.Context) {
 			path, checkErr := grpcmetadata.PathFromContext(ctx)
 			require.NoError(t, checkErr)

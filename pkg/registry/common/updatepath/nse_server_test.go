@@ -41,19 +41,19 @@ var nseSamples = []*nseSample{
 		test: func(t *testing.T) {
 			t.Cleanup(func() { goleak.VerifyNone(t) })
 
-			peerToken, _, _ := tokenGeneratorFunc(peerID)(nil)
+			clientToken, _, _ := tokenGeneratorFunc(clientID)(nil)
 			serverToken, _, _ := tokenGeneratorFunc(serverID)(nil)
 
 			want := &grpcmetadata.Path{
 				Index: 0,
 				PathSegments: []*grpcmetadata.PathSegment{
-					{Token: peerToken},
+					{Token: clientToken},
 					{Token: serverToken},
 				},
 			}
 
 			server := next.NewNetworkServiceEndpointRegistryServer(
-				injectpeertoken.NewNetworkServiceEndpointRegistryServer(peerToken),
+				injectpeertoken.NewNetworkServiceEndpointRegistryServer(clientToken),
 				updatepath.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(serverID)),
 			)
 
@@ -65,7 +65,7 @@ var nseSamples = []*nseSample{
 			require.NotNil(t, nse)
 
 			equalJSON(t, want, path)
-			equalJSON(t, []string{peerID, serverID}, nse.PathIds)
+			equalJSON(t, []string{clientID, serverID}, nse.PathIds)
 		},
 	},
 	{
@@ -93,21 +93,21 @@ var nseSamples = []*nseSample{
 		test: func(t *testing.T) {
 			t.Cleanup(func() { goleak.VerifyNone(t) })
 
-			peerToken, _, _ := tokenGeneratorFunc(peerID)(nil)
+			clientToken, _, _ := tokenGeneratorFunc(clientID)(nil)
 			proxyToken, _, _ := tokenGeneratorFunc(proxyID)(nil)
 			serverToken, _, _ := tokenGeneratorFunc(serverID)(nil)
 
 			want := &grpcmetadata.Path{
 				Index: 0,
 				PathSegments: []*grpcmetadata.PathSegment{
-					{Token: peerToken},
+					{Token: clientToken},
 					{Token: proxyToken},
 					{Token: serverToken},
 				},
 			}
 
 			server := next.NewNetworkServiceEndpointRegistryServer(
-				injectpeertoken.NewNetworkServiceEndpointRegistryServer(peerToken),
+				injectpeertoken.NewNetworkServiceEndpointRegistryServer(clientToken),
 				updatepath.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(proxyID)),
 				injectpeertoken.NewNetworkServiceEndpointRegistryServer(proxyToken),
 				updatepath.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(serverID)),
@@ -121,7 +121,7 @@ var nseSamples = []*nseSample{
 			require.NotNil(t, nse)
 
 			equalJSON(t, want, path)
-			equalJSON(t, []string{peerID, proxyID, serverID}, nse.PathIds)
+			equalJSON(t, []string{clientID, proxyID, serverID}, nse.PathIds)
 		},
 	},
 	{
@@ -129,7 +129,7 @@ var nseSamples = []*nseSample{
 		test: func(t *testing.T) {
 			t.Cleanup(func() { goleak.VerifyNone(t) })
 
-			peerToken, _, _ := tokenGeneratorFunc(peerID)(nil)
+			clientToken, _, _ := tokenGeneratorFunc(clientID)(nil)
 			proxyToken, _, _ := tokenGeneratorFunc(proxyID)(nil)
 			serverToken, _, _ := tokenGeneratorFunc(serverID)(nil)
 
@@ -148,14 +148,14 @@ var nseSamples = []*nseSample{
 			want := &grpcmetadata.Path{
 				Index: 0,
 				PathSegments: []*grpcmetadata.PathSegment{
-					{Token: peerToken},
+					{Token: clientToken},
 					{Token: proxyToken},
 					{Token: serverToken},
 				},
 			}
 
 			server := next.NewNetworkServiceEndpointRegistryServer(
-				injectpeertoken.NewNetworkServiceEndpointRegistryServer(peerToken),
+				injectpeertoken.NewNetworkServiceEndpointRegistryServer(clientToken),
 				updatepath.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(proxyID)),
 				injectpeertoken.NewNetworkServiceEndpointRegistryServer(proxyToken),
 				updatepath.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(serverID)),
@@ -167,7 +167,7 @@ var nseSamples = []*nseSample{
 			require.NotNil(t, nse)
 
 			equalJSON(t, want, path)
-			equalJSON(t, []string{peerID, proxyID, serverID}, nse.PathIds)
+			equalJSON(t, []string{clientID, proxyID, serverID}, nse.PathIds)
 		},
 	},
 }

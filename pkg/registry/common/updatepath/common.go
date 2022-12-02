@@ -33,21 +33,12 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-/*
-Logic for Update path:
-
- 0. if Index == 0, and there is no current segment will add one.
- 1. If current path segment.Name is equal to segmentName, it will just exit.
- 2. If current path segment.Name is not equal to segmentName:
-    2.0 if path has next segment available, but next name is not equal to segmentName, will update next name.
-    2.1 if no next path segment available, it will add one more path segment and generate new Id.
-*/
 func updatePath(ctx context.Context, path *grpcmetadata.Path, peerTok, tok string) (*grpcmetadata.Path, uint32, error) {
 	if path == nil {
 		return nil, 0, errors.New("updatePath cannot be called with a nil path")
 	}
 
-	// First request, empty path came from client.
+	// Empty path from client means first request
 	// Create path segments for client and for current server
 	if len(path.PathSegments) == 0 {
 		path.PathSegments = append(path.PathSegments,
@@ -65,22 +56,13 @@ func updatePath(ctx context.Context, path *grpcmetadata.Path, peerTok, tok strin
 			currentIndex, len(path.PathSegments))
 	}
 
-	// Get previous PathSegment
+	// Get previous and current PathSegment
 	prev := path.GetCurrentPathSegment()
-
-	// Check if previous segment is the same as current one
-	if prev.Token == tok {
-		return path, path.Index - 1, nil
-	}
-
-	// Increment path.Index
 	path.Index++
-
-	// Get current PathSegment
 	curr := path.GetCurrentPathSegment()
 
-	// If we don't have current PathSegment, it means we're on first request
-	// Add current PathSegment and update token of previous one
+	// If we don't have current PathSegment, we're on first request
+	// Add current PathSegment and update token in previous segment
 	if curr == nil {
 		prev.Token = peerTok
 		path.PathSegments = append(path.PathSegments, &grpcmetadata.PathSegment{
@@ -90,7 +72,7 @@ func updatePath(ctx context.Context, path *grpcmetadata.Path, peerTok, tok strin
 		return path, path.Index - 1, nil
 	}
 
-	// Current PathSegment exists. It means we're on refresh
+	// Current PathSegment exists. It means refresh
 	// Update tokens in previous and current PathSegments
 	prev.Token = peerTok
 	curr.Token = tok

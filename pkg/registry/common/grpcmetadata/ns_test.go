@@ -31,15 +31,15 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checkcontext"
-	"github.com/networkservicemesh/sdk/pkg/registry/utils/inject/injectspiffeid"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/inject/injectpeertoken"
 
 	"go.uber.org/goleak"
 )
 
 const (
-	clientName = "client"
-	proxyName  = "proxy"
-	serverName = "server"
+	clientID = "spiffe://test.com/client"
+	proxyID  = "spiffe://test.com/proxy"
+	serverID = "spiffe://test.com/server"
 )
 
 func TestGRPCMetadataNetworkService(t *testing.T) {
@@ -47,13 +47,16 @@ func TestGRPCMetadataNetworkService(t *testing.T) {
 
 	ctx := context.Background()
 
+	clientToken, _, _ := tokenGeneratorFunc(clientID)(nil)
+	proxyToken, _, _ := tokenGeneratorFunc(proxyID)(nil)
+
 	serverLis, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
 	server := next.NewNetworkServiceRegistryServer(
-		injectspiffeid.NewNetworkServiceRegistryServer(serverName),
+		injectpeertoken.NewNetworkServiceRegistryServer(proxyToken),
 		grpcmetadata.NewNetworkServiceRegistryServer(),
-		//updatepath.NewNetworkServiceRegistryServer(),
+		updatepath.NewNetworkServiceRegistryServer(tokenGeneratorFunc(serverID)),
 		checkcontext.NewNSServer(t, func(t *testing.T, ctx context.Context) {
 			path, checkErr := grpcmetadata.PathFromContext(ctx)
 			require.NoError(t, checkErr)
@@ -80,9 +83,9 @@ func TestGRPCMetadataNetworkService(t *testing.T) {
 	}()
 
 	proxyServer := next.NewNetworkServiceRegistryServer(
-		injectspiffeid.NewNetworkServiceRegistryServer(proxyName),
+		injectpeertoken.NewNetworkServiceRegistryServer(clientToken),
 		grpcmetadata.NewNetworkServiceRegistryServer(),
-		//updatepath.NewNetworkServiceRegistryServer(),
+		updatepath.NewNetworkServiceRegistryServer(tokenGeneratorFunc(proxyID)),
 		checkcontext.NewNSServer(t, func(t *testing.T, ctx context.Context) {
 			path, checkErr := grpcmetadata.PathFromContext(ctx)
 			require.NoError(t, checkErr)
@@ -110,14 +113,6 @@ func TestGRPCMetadataNetworkService(t *testing.T) {
 	}()
 
 	client := next.NewNetworkServiceRegistryClient(
-		injectspiffeid.NewNetworkServiceRegistryClient(clientName),
-		updatepath.NewNetworkServiceRegistryClient(),
-		checkcontext.NewNSClient(t, func(t *testing.T, ctx context.Context) {
-			path, checkErr := grpcmetadata.PathFromContext(ctx)
-			require.NoError(t, checkErr)
-
-			require.Equal(t, int(path.Index), 0)
-		}),
 		grpcmetadata.NewNetworkServiceRegistryClient(),
 		registry.NewNetworkServiceRegistryClient(conn))
 
