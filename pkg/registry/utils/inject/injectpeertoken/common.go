@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package injectpeertoken provides chain elements that put peer token to gRPC metadata on Register and Unregister
 package injectpeertoken
 
 import (
@@ -24,6 +25,7 @@ import (
 )
 
 const (
+	/* #nosec */
 	tokenKey      = "nsm-client-token"
 	expireTimeKey = "nsm-client-token-expires"
 )

@@ -27,24 +27,7 @@ type PathSegment struct {
 	Token string
 }
 
-// GetPrevPathSegment returns path.Index - 1 segments if it exists
-func (p *Path) GetPrevPathSegment() *PathSegment {
-	if p == nil {
-		return nil
-	}
-	if len(p.PathSegments) == 0 {
-		return nil
-	}
-	if int(p.Index) == 0 {
-		return nil
-	}
-	if int(p.Index)-1 > len(p.PathSegments) {
-		return nil
-	}
-	return p.PathSegments[p.Index-1]
-}
-
-// GetPrevPathSegment returns path.Index - 1 segments if it exists
+// GetCurrentPathSegment returns path.Index segment if it exists
 func (p *Path) GetCurrentPathSegment() *PathSegment {
 	if p == nil {
 		return nil

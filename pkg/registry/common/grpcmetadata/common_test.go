@@ -20,8 +20,9 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/networkservicemesh/sdk/pkg/tools/token"
 	"google.golang.org/grpc/credentials"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 const (

@@ -57,7 +57,7 @@ func (s *updatePathNSServer) Register(ctx context.Context, ns *registry.NetworkS
 	if tokenErr != nil {
 		return nil, errors.Wrap(tokenErr, "an error during generating token")
 	}
-	path, index, err := updatePath(ctx, path, peerTok, tok)
+	path, index, err := updatePath(path, peerTok, tok)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func (s *updatePathNSServer) Unregister(ctx context.Context, ns *registry.Networ
 	if tokenErr != nil {
 		return nil, errors.Wrap(tokenErr, "an error during generating token")
 	}
-	path, index, err := updatePath(ctx, path, peerTok, tok)
+	path, index, err := updatePath(path, peerTok, tok)
 	if err != nil {
 		return nil, err
 	}

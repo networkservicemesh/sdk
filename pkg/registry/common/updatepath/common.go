@@ -33,7 +33,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-func updatePath(ctx context.Context, path *grpcmetadata.Path, peerTok, tok string) (*grpcmetadata.Path, uint32, error) {
+func updatePath(path *grpcmetadata.Path, peerTok, tok string) (*grpcmetadata.Path, uint32, error) {
 	if path == nil {
 		return nil, 0, errors.New("updatePath cannot be called with a nil path")
 	}
