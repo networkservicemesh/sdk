@@ -51,7 +51,7 @@ func (s *updatePathNSServer) Register(ctx context.Context, ns *registry.NetworkS
 	// Update path
 	peerTok, _, tokenErr := token.FromContext(ctx)
 	if tokenErr != nil {
-		log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", tokenErr)
+		log.FromContext(ctx).Warnf("an error during getting peer token from the context: %+v", tokenErr)
 	}
 	tok, _, tokenErr := generateToken(ctx, s.tokenGenerator)
 	if tokenErr != nil {
@@ -65,7 +65,7 @@ func (s *updatePathNSServer) Register(ctx context.Context, ns *registry.NetworkS
 	// Update path ids
 	peerID, idErr := getIDFromToken(peerTok)
 	if idErr != nil {
-		return nil, idErr
+		log.FromContext(ctx).Warnf("an error during parsing peer token: %+v", tokenErr)
 	}
 	id, idErr := getIDFromToken(tok)
 	if idErr != nil {
@@ -95,7 +95,7 @@ func (s *updatePathNSServer) Unregister(ctx context.Context, ns *registry.Networ
 
 	peerTok, _, tokenErr := token.FromContext(ctx)
 	if tokenErr != nil {
-		log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", tokenErr)
+		log.FromContext(ctx).Warnf("an error during getting peer token from the context: %+v", tokenErr)
 	}
 	tok, _, tokenErr := generateToken(ctx, s.tokenGenerator)
 	if tokenErr != nil {
@@ -109,7 +109,7 @@ func (s *updatePathNSServer) Unregister(ctx context.Context, ns *registry.Networ
 	// Update path ids
 	peerID, idErr := getIDFromToken(peerTok)
 	if idErr != nil {
-		return nil, idErr
+		log.FromContext(ctx).Warnf("an error during parsing peer token: %+v", tokenErr)
 	}
 	id, idErr := getIDFromToken(tok)
 	if idErr != nil {

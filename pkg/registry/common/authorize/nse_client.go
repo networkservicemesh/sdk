@@ -69,6 +69,12 @@ func (c *authorizeNSEClient) Register(ctx context.Context, nse *registry.Network
 		return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, nse, opts...)
 	}
 
+	path, err := grpcmetadata.PathFromContext(ctx)
+	if err != nil {
+		path = &grpcmetadata.Path{}
+	}
+	ctx = grpcmetadata.PathWithContext(ctx, path)
+
 	var p peer.Peer
 	opts = append(opts, grpc.Peer(&p))
 
@@ -84,7 +90,7 @@ func (c *authorizeNSEClient) Register(ctx context.Context, nse *registry.Network
 		ctx = peer.NewContext(ctx, &p)
 	}
 
-	path, err := grpcmetadata.PathFromContext(ctx)
+	path, err = grpcmetadata.PathFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -125,6 +131,12 @@ func (c *authorizeNSEClient) Unregister(ctx context.Context, nse *registry.Netwo
 		return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, nse, opts...)
 	}
 
+	path, err := grpcmetadata.PathFromContext(ctx)
+	if err != nil {
+		path = &grpcmetadata.Path{}
+	}
+	ctx = grpcmetadata.PathWithContext(ctx, path)
+
 	resp, err := next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, nse, opts...)
 	if err != nil {
 		return nil, err
@@ -135,7 +147,7 @@ func (c *authorizeNSEClient) Unregister(ctx context.Context, nse *registry.Netwo
 		ctx = peer.NewContext(ctx, p)
 	}
 
-	path, err := grpcmetadata.PathFromContext(ctx)
+	path, err = grpcmetadata.PathFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}

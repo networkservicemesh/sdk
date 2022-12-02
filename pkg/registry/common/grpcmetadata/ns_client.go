@@ -75,7 +75,7 @@ func (c *grpcMetadataNSClient) Find(ctx context.Context, query *registry.Network
 func (c *grpcMetadataNSClient) Unregister(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
 	path, err := PathFromContext(ctx)
 	if err != nil {
-		return nil, err
+		path = &Path{}
 	}
 
 	ctx, err = appendToMetadata(ctx, path)

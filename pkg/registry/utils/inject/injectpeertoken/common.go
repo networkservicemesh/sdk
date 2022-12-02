@@ -30,8 +30,11 @@ const (
 
 func withPeerToken(ctx context.Context, peerToken string) context.Context {
 	m, _ := metadata.FromIncomingContext(ctx)
-	m.Append(tokenKey, peerToken)
-	m.Append(expireTimeKey, time.Now().Add(time.Hour).Format(time.RFC3339Nano))
+	if m == nil {
+		m = metadata.New(make(map[string]string))
+	}
+	m[tokenKey] = []string{peerToken}
+	m[expireTimeKey] = []string{time.Now().Add(time.Hour).Format(time.RFC3339Nano)}
 	ctx = metadata.NewIncomingContext(ctx, m)
 	return ctx
 }
