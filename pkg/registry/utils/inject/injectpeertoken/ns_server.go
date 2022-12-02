@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package injectspiffeid
+package injectpeertoken
 
 import (
 	"context"
@@ -27,21 +27,18 @@ import (
 )
 
 type injectSpiffeIDNSServer struct {
-	cert []byte
+	peerToken string
 }
 
 // NewNetworkServiceRegistryServer returns a server chain element putting spiffeID to context on Register and Unregister
-func NewNetworkServiceRegistryServer(spiffeID string) registry.NetworkServiceRegistryServer {
+func NewNetworkServiceRegistryServer(peerToken string) registry.NetworkServiceRegistryServer {
 	return &injectSpiffeIDNSServer{
-		cert: generateCert(spiffeID),
+		peerToken: peerToken,
 	}
 }
 
 func (s *injectSpiffeIDNSServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
-	ctx, err := withPeer(ctx, s.cert)
-	if err != nil {
-		return nil, err
-	}
+	ctx = withPeerToken(ctx, s.peerToken)
 	return next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
 }
 
@@ -50,9 +47,6 @@ func (s *injectSpiffeIDNSServer) Find(query *registry.NetworkServiceQuery, serve
 }
 
 func (s *injectSpiffeIDNSServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*emptypb.Empty, error) {
-	ctx, err := withPeer(ctx, s.cert)
-	if err != nil {
-		return nil, err
-	}
+	ctx = withPeerToken(ctx, s.peerToken)
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }

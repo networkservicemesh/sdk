@@ -16,15 +16,19 @@
 
 package grpcmetadata
 
-import (
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-)
+// Path represents a private path that is passed via grpcmetadata during NS and NSE registration
+type Path struct {
+	Index        uint32
+	PathSegments []*PathSegment
+}
 
-// Path represents private path that is passed via grpcmetadata during NS and NSE registration
-type Path networkservice.Path
+// PathSegment represents segment of a private path
+type PathSegment struct {
+	Token string
+}
 
 // GetPrevPathSegment returns path.Index - 1 segments if it exists
-func (p *Path) GetPrevPathSegment() *networkservice.PathSegment {
+func (p *Path) GetPrevPathSegment() *PathSegment {
 	if p == nil {
 		return nil
 	}
@@ -40,8 +44,31 @@ func (p *Path) GetPrevPathSegment() *networkservice.PathSegment {
 	return p.PathSegments[p.Index-1]
 }
 
+// GetPrevPathSegment returns path.Index - 1 segments if it exists
+func (p *Path) GetCurrentPathSegment() *PathSegment {
+	if p == nil {
+		return nil
+	}
+	if len(p.PathSegments) == 0 {
+		return nil
+	}
+	if int(p.Index) >= len(p.PathSegments) {
+		return nil
+	}
+	return p.PathSegments[p.Index]
+}
+
 // Clone clones Path
 func (p *Path) Clone() *Path {
-	path := (*networkservice.Path)(p)
-	return (*Path)(path.Clone())
+	result := &Path{
+		Index: p.Index,
+	}
+
+	for _, s := range p.PathSegments {
+		result.PathSegments = append(result.PathSegments, &PathSegment{
+			Token: s.Token,
+		})
+	}
+
+	return result
 }

@@ -77,7 +77,7 @@ func (a *authorizeMonitorConnectionsServer) MonitorConnections(in *networkservic
 	for _, v := range in.PathSegments {
 		connIDs = append(connIDs, v.GetId())
 	}
-	spiffeID, _ := spire.SpiffeIDFromContext(ctx)
+	spiffeID, _ := spire.PeerSpiffeIDFromContext(ctx)
 	err := a.policies.check(ctx, MonitorOpaInput{
 		ServiceSpiffeID:       spiffeID.String(),
 		SpiffeIDConnectionMap: simpleMap,

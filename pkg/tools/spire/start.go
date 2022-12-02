@@ -281,8 +281,8 @@ func execHealthCheck(ctx context.Context, cmdStr string, options ...*exechelper.
 	}
 }
 
-// SpiffeIDFromContext - returns spiffe ID of the service from the peer context
-func SpiffeIDFromContext(ctx context.Context) (spiffeid.ID, error) {
+// PeerSpiffeIDFromContext - returns spiffe ID of the service from the peer context
+func PeerSpiffeIDFromContext(ctx context.Context) (spiffeid.ID, error) {
 	p, ok := peer.FromContext(ctx)
 	var cert *x509.Certificate
 	if !ok {

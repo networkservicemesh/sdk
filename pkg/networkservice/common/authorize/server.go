@@ -73,7 +73,7 @@ func (a *authorizeServer) Request(ctx context.Context, request *networkservice.N
 		}
 	}
 
-	if spiffeID, err := spire.SpiffeIDFromContext(ctx); err == nil {
+	if spiffeID, err := spire.PeerSpiffeIDFromContext(ctx); err == nil {
 		connID := conn.GetPath().GetPathSegments()[index-1].GetId()
 		ids, ok := a.spiffeIDConnectionMap.Load(spiffeID)
 		if !ok {
@@ -91,7 +91,7 @@ func (a *authorizeServer) Close(ctx context.Context, conn *networkservice.Connec
 		Index:        index,
 		PathSegments: conn.GetPath().GetPathSegments()[:index+1],
 	}
-	if spiffeID, err := spire.SpiffeIDFromContext(ctx); err == nil {
+	if spiffeID, err := spire.PeerSpiffeIDFromContext(ctx); err == nil {
 		connID := conn.GetPath().GetPathSegments()[index-1].GetId()
 		ids, ok := a.spiffeIDConnectionMap.Load(spiffeID)
 		idsEmpty := true

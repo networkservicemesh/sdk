@@ -21,20 +21,25 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/spire"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 type updatePathNSServer struct {
+	tokenGenerator token.GeneratorFunc
 }
 
 // NewNetworkServiceRegistryServer - creates a new updatePath server to update NetworkService path.
-func NewNetworkServiceRegistryServer() registry.NetworkServiceRegistryServer {
-	return &updatePathNSServer{}
+func NewNetworkServiceRegistryServer(tokenGenerator token.GeneratorFunc) registry.NetworkServiceRegistryServer {
+	return &updatePathNSServer{
+		tokenGenerator: tokenGenerator,
+	}
 }
 
 func (s *updatePathNSServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
@@ -43,14 +48,31 @@ func (s *updatePathNSServer) Register(ctx context.Context, ns *registry.NetworkS
 		return nil, err
 	}
 
-	spiffeID, err := spire.SpiffeIDFromContext(ctx)
+	// Update path
+	peerTok, _, tokenErr := token.FromContext(ctx)
+	if tokenErr != nil {
+		log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", tokenErr)
+	}
+	tok, _, tokenErr := generateToken(ctx, s.tokenGenerator)
+	if tokenErr != nil {
+		return nil, errors.Wrap(tokenErr, "an error during generating token")
+	}
+	path, index, err := updatePath(ctx, path, peerTok, tok)
 	if err != nil {
 		return nil, err
 	}
-	path, index, err := updatePath(path, spiffeID.Path()[1:])
-	if err != nil {
-		return nil, err
+
+	// Update path ids
+	peerID, idErr := getIDFromToken(peerTok)
+	if idErr != nil {
+		return nil, idErr
 	}
+	id, idErr := getIDFromToken(tok)
+	if idErr != nil {
+		return nil, idErr
+	}
+	ns.PathIds = updatePathIds(ns.PathIds, int(path.Index-1), peerID.String())
+	ns.PathIds = updatePathIds(ns.PathIds, int(path.Index), id.String())
 
 	ns, err = next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
 	if err != nil {
@@ -71,14 +93,35 @@ func (s *updatePathNSServer) Unregister(ctx context.Context, ns *registry.Networ
 		return nil, err
 	}
 
-	spiffeID, err := spire.SpiffeIDFromContext(ctx)
+	// TODO: Is it correct? Authorize server chain element check path, but maybe we should check it here too?
+	if len(path.PathSegments) == 0 {
+		return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
+	}
+
+	peerTok, _, tokenErr := token.FromContext(ctx)
+	if tokenErr != nil {
+		log.FromContext(ctx).Warnf("an error during getting token from the context: %+v", tokenErr)
+	}
+	tok, _, tokenErr := generateToken(ctx, s.tokenGenerator)
+	if tokenErr != nil {
+		return nil, errors.Wrap(tokenErr, "an error during generating token")
+	}
+	path, index, err := updatePath(ctx, path, peerTok, tok)
 	if err != nil {
 		return nil, err
 	}
-	path, index, err := updatePath(path, spiffeID.Path()[1:])
-	if err != nil {
-		return nil, err
+
+	// Update path ids
+	peerID, idErr := getIDFromToken(peerTok)
+	if idErr != nil {
+		return nil, idErr
 	}
+	id, idErr := getIDFromToken(tok)
+	if idErr != nil {
+		return nil, idErr
+	}
+	ns.PathIds = updatePathIds(ns.PathIds, int(path.Index-1), peerID.String())
+	ns.PathIds = updatePathIds(ns.PathIds, int(path.Index), id.String())
 
 	resp, err := next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 	path.Index = index
