@@ -24,9 +24,11 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/edwarnicke/serialize"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
@@ -38,6 +40,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/noloop"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/norecursion"
 	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type vl3DNSServer struct {
@@ -47,7 +50,10 @@ type vl3DNSServer struct {
 	dnsPort               int
 	dnsServer             dnsutils.Handler
 	listenAndServeDNS     func(ctx context.Context, handler dnsutils.Handler, listenOn string)
-	getDNSServerIP        func() net.IP
+	getDNSServerIP        chan net.IP
+	dnsServerIP           net.IP
+	connections           map[string]*networkservice.Connection
+	executor              serialize.Executor
 }
 
 type clientDNSNameKey struct{}
@@ -57,8 +63,8 @@ type clientDNSNameKey struct{}
 // By default is using fanout dns handler to connect to other vl3 nses.
 // chanCtx is using for signal to stop dns server.
 // opts confugre vl3dns networkservice instance with specific behavior.
-func NewServer(chanCtx context.Context, getDNSServerIP func() net.IP, opts ...Option) networkservice.NetworkServiceServer {
-	var result = &vl3DNSServer{
+func NewServer(chanCtx context.Context, getDNSServerIP chan net.IP, opts ...Option) networkservice.NetworkServiceServer {
+	var server = &vl3DNSServer{
 		dnsPort:           53,
 		listenAndServeDNS: dnsutils.ListenAndServe,
 		getDNSServerIP:    getDNSServerIP,
@@ -66,22 +72,48 @@ func NewServer(chanCtx context.Context, getDNSServerIP func() net.IP, opts ...Op
 	}
 
 	for _, opt := range opts {
-		opt(result)
+		opt(server)
 	}
 
-	if result.dnsServer == nil {
-		result.dnsServer = dnschain.NewDNSHandler(
-			dnsconfigs.NewDNSHandler(result.dnsConfigs),
+	if server.dnsServer == nil {
+		server.dnsServer = dnschain.NewDNSHandler(
+			dnsconfigs.NewDNSHandler(server.dnsConfigs),
 			noloop.NewDNSHandler(),
 			norecursion.NewDNSHandler(),
-			memory.NewDNSHandler(&result.dnsServerRecords),
-			fanout.NewDNSHandler(fanout.WithDefaultDNSPort(uint16(result.dnsPort))),
+			memory.NewDNSHandler(&server.dnsServerRecords),
+			fanout.NewDNSHandler(fanout.WithDefaultDNSPort(uint16(server.dnsPort))),
 		)
 	}
 
-	result.listenAndServeDNS(chanCtx, result.dnsServer, fmt.Sprintf(":%v", result.dnsPort))
+	server.listenAndServeDNS(chanCtx, server.dnsServer, fmt.Sprintf(":%v", server.dnsPort))
 
-	return result
+	go func() {
+		dnsServerIP := <-server.getDNSServerIP
+		log.FromContext(chanCtx).Info("GOT DNS SERVER IP FROM CHANNEL")
+		server.dnsServerIP = dnsServerIP
+
+		log.FromContext(chanCtx).Info("SEND UPDATE EVENT TO ALL CLIENTS")
+
+		server.executor.AsyncExec(func() {
+			logger := log.FromContext(chanCtx).WithField("vl3DNSServer", "Request")
+
+			connections := make(map[string]*networkservice.Connection)
+			for _, c := range server.connections {
+				connections[c.GetId()] = c.Clone()
+				connections[c.GetId()].State = networkservice.State_REFRESH_REQUESTED
+			}
+			if eventConsumer, ok := monitor.LoadEventConsumer(chanCtx, metadata.IsClient(server)); ok {
+				_ = eventConsumer.Send(&networkservice.ConnectionEvent{
+					Type:        networkservice.ConnectionEventType_UPDATE,
+					Connections: connections,
+				})
+			} else {
+				logger.Debug("eventConsumer is not presented")
+			}
+		})
+	}()
+
+	return server
 }
 
 func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
@@ -135,6 +167,8 @@ func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.Netw
 		}
 		n.dnsConfigs.Store(resp.GetId(), configs)
 	}
+
+	n.connections[resp.GetId()] = resp
 	return resp, err
 }
 
@@ -152,7 +186,7 @@ func (n *vl3DNSServer) Close(ctx context.Context, conn *networkservice.Connectio
 }
 
 func (n *vl3DNSServer) addDNSContext(c *networkservice.Connection) (added string, ok bool) {
-	if dnsServerIP := n.getDNSServerIP(); dnsServerIP != nil {
+	if dnsServerIP := n.dnsServerIP; dnsServerIP != nil {
 		var dnsContext = c.GetContext().GetDnsContext()
 		configToAdd := &networkservice.DNSConfig{
 			DnsServerIps: []string{dnsServerIP.String()},
