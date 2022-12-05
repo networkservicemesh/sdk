@@ -69,10 +69,7 @@ func (c *authorizeNSClient) Register(ctx context.Context, ns *registry.NetworkSe
 		return next.NetworkServiceRegistryClient(ctx).Register(ctx, ns, opts...)
 	}
 
-	path, err := grpcmetadata.PathFromContext(ctx)
-	if err != nil {
-		path = &grpcmetadata.Path{}
-	}
+	path := grpcmetadata.PathFromContext(ctx)
 	ctx = grpcmetadata.PathWithContext(ctx, path)
 
 	var p peer.Peer
@@ -90,10 +87,8 @@ func (c *authorizeNSClient) Register(ctx context.Context, ns *registry.NetworkSe
 		ctx = peer.NewContext(ctx, &p)
 	}
 
-	path, err = grpcmetadata.PathFromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
+	path = grpcmetadata.PathFromContext(ctx)
+
 	spiffeID, err := getSpiffeIDFromPath(path)
 	if err != nil {
 		return nil, err
@@ -131,10 +126,7 @@ func (c *authorizeNSClient) Unregister(ctx context.Context, ns *registry.Network
 		return next.NetworkServiceRegistryClient(ctx).Unregister(ctx, ns, opts...)
 	}
 
-	path, err := grpcmetadata.PathFromContext(ctx)
-	if err != nil {
-		path = &grpcmetadata.Path{}
-	}
+	path := grpcmetadata.PathFromContext(ctx)
 	ctx = grpcmetadata.PathWithContext(ctx, path)
 
 	resp, err := next.NetworkServiceRegistryClient(ctx).Unregister(ctx, ns, opts...)
@@ -142,10 +134,8 @@ func (c *authorizeNSClient) Unregister(ctx context.Context, ns *registry.Network
 		return nil, err
 	}
 
-	path, err = grpcmetadata.PathFromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
+	path = grpcmetadata.PathFromContext(ctx)
+
 	spiffeID, err := getSpiffeIDFromPath(path)
 	if err != nil {
 		return nil, err

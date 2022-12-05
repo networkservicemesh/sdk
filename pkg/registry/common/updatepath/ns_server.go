@@ -43,10 +43,7 @@ func NewNetworkServiceRegistryServer(tokenGenerator token.GeneratorFunc) registr
 }
 
 func (s *updatePathNSServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
-	path, err := grpcmetadata.PathFromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
+	path := grpcmetadata.PathFromContext(ctx)
 
 	// Update path
 	peerTok, _, tokenErr := token.FromContext(ctx)
@@ -88,10 +85,7 @@ func (s *updatePathNSServer) Find(query *registry.NetworkServiceQuery, server re
 }
 
 func (s *updatePathNSServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
-	path, err := grpcmetadata.PathFromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
+	path := grpcmetadata.PathFromContext(ctx)
 
 	peerTok, _, tokenErr := token.FromContext(ctx)
 	if tokenErr != nil {

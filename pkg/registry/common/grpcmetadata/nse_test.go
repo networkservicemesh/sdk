@@ -52,9 +52,7 @@ func TestGRPCMetadataNetworkServiceEndpoint(t *testing.T) {
 		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
 		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(serverID)),
 		checkcontext.NewNSEServer(t, func(t *testing.T, ctx context.Context) {
-			path, checkErr := grpcmetadata.PathFromContext(ctx)
-			require.NoError(t, checkErr)
-
+			path := grpcmetadata.PathFromContext(ctx)
 			require.Equal(t, int(path.Index), 2)
 		}),
 	)
@@ -81,9 +79,7 @@ func TestGRPCMetadataNetworkServiceEndpoint(t *testing.T) {
 		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
 		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(proxyID)),
 		checkcontext.NewNSEServer(t, func(t *testing.T, ctx context.Context) {
-			path, checkErr := grpcmetadata.PathFromContext(ctx)
-			require.NoError(t, checkErr)
-
+			path := grpcmetadata.PathFromContext(ctx)
 			require.Equal(t, int(path.Index), 1)
 		}),
 		adapters.NetworkServiceEndpointClientToServer(next.NewNetworkServiceEndpointRegistryClient(
@@ -108,9 +104,7 @@ func TestGRPCMetadataNetworkServiceEndpoint(t *testing.T) {
 
 	client := next.NewNetworkServiceEndpointRegistryClient(
 		checkcontext.NewNSEClient(t, func(t *testing.T, ctx context.Context) {
-			path, checkErr := grpcmetadata.PathFromContext(ctx)
-			require.NoError(t, checkErr)
-
+			path := grpcmetadata.PathFromContext(ctx)
 			require.Equal(t, int(path.Index), 0)
 		}),
 		grpcmetadata.NewNetworkServiceEndpointRegistryClient(),

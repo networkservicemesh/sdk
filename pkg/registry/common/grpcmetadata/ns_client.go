@@ -38,12 +38,9 @@ func NewNetworkServiceRegistryClient() registry.NetworkServiceRegistryClient {
 }
 
 func (c *grpcMetadataNSClient) Register(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
-	path, err := PathFromContext(ctx)
-	if err != nil {
-		path = &Path{}
-	}
+	path := PathFromContext(ctx)
 
-	ctx, err = appendToMetadata(ctx, path)
+	ctx, err := appendToMetadata(ctx, path)
 	if err != nil {
 		return nil, err
 	}
@@ -73,12 +70,9 @@ func (c *grpcMetadataNSClient) Find(ctx context.Context, query *registry.Network
 }
 
 func (c *grpcMetadataNSClient) Unregister(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
-	path, err := PathFromContext(ctx)
-	if err != nil {
-		path = &Path{}
-	}
+	path := PathFromContext(ctx)
 
-	ctx, err = appendToMetadata(ctx, path)
+	ctx, err := appendToMetadata(ctx, path)
 	if err != nil {
 		return nil, err
 	}
