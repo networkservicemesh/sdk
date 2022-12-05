@@ -30,13 +30,13 @@ const (
 	pathContextKey pathContextkey = "pathContextKey"
 )
 
-// PathFromContext returns Path from context if it exists
-func PathFromContext(ctx context.Context) (*Path, error) {
+// PathFromContext returns Path from context. If path doesn't exist fuction returns empty Path
+func PathFromContext(ctx context.Context) *Path {
 	if value, ok := ctx.Value(pathContextKey).(*Path); ok {
-		return value, nil
+		return value
 	}
 
-	return nil, errors.New("failed to get grpcmetadata.Path from context")
+	return &Path{}
 }
 
 // PathWithContext puts Path to context

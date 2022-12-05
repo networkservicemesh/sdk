@@ -30,7 +30,6 @@ import (
 	registryauthorize "github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/updatetoken"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
@@ -137,9 +136,8 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
 		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
-		updatepath.NewNetworkServiceEndpointRegistryServer("registry-memory"),
+		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGenerator),
 		begin.NewNetworkServiceEndpointRegistryServer(),
-		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGenerator),
 		opts.authorizeNSERegistryServer,
 		switchcase.NewNetworkServiceEndpointRegistryServer(switchcase.NSEServerCase{
 			Condition: func(c context.Context, nse *registry.NetworkServiceEndpoint) bool {
@@ -181,8 +179,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	)
 	nsChain := chain.NewNetworkServiceRegistryServer(
 		grpcmetadata.NewNetworkServiceRegistryServer(),
-		updatepath.NewNetworkServiceRegistryServer("registry-memory"),
-		updatetoken.NewNetworkServiceRegistryServer(tokenGenerator),
+		updatepath.NewNetworkServiceRegistryServer(tokenGenerator),
 		opts.authorizeNSRegistryServer,
 		setpayload.NewNetworkServiceRegistryServer(),
 		switchcase.NewNetworkServiceRegistryServer(

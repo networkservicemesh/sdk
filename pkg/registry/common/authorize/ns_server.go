@@ -63,10 +63,8 @@ func (s *authorizeNSServer) Register(ctx context.Context, ns *registry.NetworkSe
 		return next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
 	}
 
-	path, err := grpcmetadata.PathFromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
+	path := grpcmetadata.PathFromContext(ctx)
+
 	spiffeID, err := getSpiffeIDFromPath(path)
 	if err != nil {
 		return nil, err
@@ -103,10 +101,8 @@ func (s *authorizeNSServer) Unregister(ctx context.Context, ns *registry.Network
 		return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 	}
 
-	path, err := grpcmetadata.PathFromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
+	path := grpcmetadata.PathFromContext(ctx)
+
 	spiffeID, err := getSpiffeIDFromPath(path)
 	if err != nil {
 		return nil, err

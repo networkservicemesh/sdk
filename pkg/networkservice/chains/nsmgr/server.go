@@ -57,7 +57,6 @@ import (
 	registryrecvfd "github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
 	registrysendfd "github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/updatetoken"
 
 	registryadapter "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
@@ -242,8 +241,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 
 	nsRegistry = chain.NewNetworkServiceRegistryServer(
 		grpcmetadata.NewNetworkServiceRegistryServer(),
-		updatepath.NewNetworkServiceRegistryServer(opts.name),
-		updatetoken.NewNetworkServiceRegistryServer(tokenGenerator),
+		updatepath.NewNetworkServiceRegistryServer(tokenGenerator),
 		opts.authorizeNSRegistryServer,
 		nsRegistry,
 	)
@@ -274,9 +272,8 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 
 	var nseRegistry = chain.NewNetworkServiceEndpointRegistryServer(
 		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
-		updatepath.NewNetworkServiceEndpointRegistryServer(opts.name),
+		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGenerator),
 		begin.NewNetworkServiceEndpointRegistryServer(),
-		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGenerator),
 		opts.authorizeNSERegistryServer,
 		registryclientinfo.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),

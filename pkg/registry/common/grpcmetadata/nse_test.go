@@ -31,6 +31,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checkcontext"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/inject/injectpeertoken"
 
 	"go.uber.org/goleak"
 )
@@ -40,20 +41,19 @@ func TestGRPCMetadataNetworkServiceEndpoint(t *testing.T) {
 
 	ctx := context.Background()
 
+	clientToken, _, _ := tokenGeneratorFunc(clientID)(nil)
+	proxyToken, _, _ := tokenGeneratorFunc(proxyID)(nil)
+
 	serverLis, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
 	server := next.NewNetworkServiceEndpointRegistryServer(
+		injectpeertoken.NewNetworkServiceEndpointRegistryServer(proxyToken),
 		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
-		updatepath.NewNetworkServiceEndpointRegistryServer(serverName),
+		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(serverID)),
 		checkcontext.NewNSEServer(t, func(t *testing.T, ctx context.Context) {
-			path, checkErr := grpcmetadata.PathFromContext(ctx)
-			require.NoError(t, checkErr)
-
+			path := grpcmetadata.PathFromContext(ctx)
 			require.Equal(t, int(path.Index), 2)
-			require.Equal(t, path.PathSegments[0].Name, clientName)
-			require.Equal(t, path.PathSegments[1].Name, proxyName)
-			require.Equal(t, path.PathSegments[2].Name, serverName)
 		}),
 	)
 
@@ -75,15 +75,12 @@ func TestGRPCMetadataNetworkServiceEndpoint(t *testing.T) {
 	}()
 
 	proxyServer := next.NewNetworkServiceEndpointRegistryServer(
+		injectpeertoken.NewNetworkServiceEndpointRegistryServer(clientToken),
 		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
-		updatepath.NewNetworkServiceEndpointRegistryServer(proxyName),
+		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(proxyID)),
 		checkcontext.NewNSEServer(t, func(t *testing.T, ctx context.Context) {
-			path, checkErr := grpcmetadata.PathFromContext(ctx)
-			require.NoError(t, checkErr)
-
+			path := grpcmetadata.PathFromContext(ctx)
 			require.Equal(t, int(path.Index), 1)
-			require.Equal(t, path.PathSegments[0].Name, clientName)
-			require.Equal(t, path.PathSegments[1].Name, proxyName)
 		}),
 		adapters.NetworkServiceEndpointClientToServer(next.NewNetworkServiceEndpointRegistryClient(
 			grpcmetadata.NewNetworkServiceEndpointRegistryClient(),
@@ -106,13 +103,9 @@ func TestGRPCMetadataNetworkServiceEndpoint(t *testing.T) {
 	}()
 
 	client := next.NewNetworkServiceEndpointRegistryClient(
-		updatepath.NewNetworkServiceEndpointRegistryClient(clientName),
 		checkcontext.NewNSEClient(t, func(t *testing.T, ctx context.Context) {
-			path, checkErr := grpcmetadata.PathFromContext(ctx)
-			require.NoError(t, checkErr)
-
+			path := grpcmetadata.PathFromContext(ctx)
 			require.Equal(t, int(path.Index), 0)
-			require.Equal(t, path.PathSegments[0].Name, clientName)
 		}),
 		grpcmetadata.NewNetworkServiceEndpointRegistryClient(),
 		registry.NewNetworkServiceEndpointRegistryClient(conn))
@@ -126,9 +119,6 @@ func TestGRPCMetadataNetworkServiceEndpoint(t *testing.T) {
 
 	require.Equal(t, int(path.Index), 0)
 	require.Len(t, path.PathSegments, 3)
-	require.Equal(t, path.PathSegments[0].Name, clientName)
-	require.Equal(t, path.PathSegments[1].Name, proxyName)
-	require.Equal(t, path.PathSegments[2].Name, serverName)
 
 	_, err = client.Unregister(ctx, nse)
 	require.NoError(t, err)

@@ -34,7 +34,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/updatetoken"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
@@ -111,9 +110,8 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, dnsResol
 
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
 		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
-		updatepath.NewNetworkServiceEndpointRegistryServer("proxy-dns"),
+		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGenerator),
 		begin.NewNetworkServiceEndpointRegistryServer(),
-		updatetoken.NewNetworkServiceEndpointRegistryServer(tokenGenerator),
 		opts.authorizeNSERegistryServer,
 		dnsresolve.NewNetworkServiceEndpointRegistryServer(dnsresolve.WithResolver(dnsResolver)),
 		connect.NewNetworkServiceEndpointRegistryServer(
@@ -129,9 +127,8 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, dnsResol
 		))
 	nsChain := chain.NewNetworkServiceRegistryServer(
 		grpcmetadata.NewNetworkServiceRegistryServer(),
-		updatepath.NewNetworkServiceRegistryServer("proxy-dns"),
+		updatepath.NewNetworkServiceRegistryServer(tokenGenerator),
 		begin.NewNetworkServiceRegistryServer(),
-		updatetoken.NewNetworkServiceRegistryServer(tokenGenerator),
 		opts.authorizeNSRegistryServer,
 		dnsresolve.NewNetworkServiceRegistryServer(dnsresolve.WithResolver(dnsResolver)),
 		connect.NewNetworkServiceRegistryServer(

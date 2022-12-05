@@ -20,69 +20,100 @@
 package updatepath
 
 import (
-	"github.com/google/uuid"
-	"github.com/pkg/errors"
+	"context"
+	"time"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/golang-jwt/jwt/v4"
+	"github.com/pkg/errors"
+	"github.com/spiffe/go-spiffe/v2/spiffeid"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/peer"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-/*
-Logic for Update path:
-
- 0. if Index == 0, and there is no current segment will add one.
- 1. If current path segment.Name is equal to segmentName, it will just exit.
- 2. If current path segment.Name is not equal to segmentName:
-    2.0 if path has next segment available, but next name is not equal to segmentName, will update next name.
-    2.1 if no next path segment available, it will add one more path segment and generate new Id.
-*/
-func updatePath(path *grpcmetadata.Path, segmentName string) (*grpcmetadata.Path, uint32, error) {
+func updatePath(path *grpcmetadata.Path, peerTok, tok string) (*grpcmetadata.Path, uint32, error) {
 	if path == nil {
 		return nil, 0, errors.New("updatePath cannot be called with a nil path")
 	}
+
+	// Empty path from client means first request
+	// Create path segments for client and for current server
 	if len(path.PathSegments) == 0 {
-		// 0. Index == 0, and there is no current segment
-		path.Index = 0
-		// Add current segment to list
-		path.PathSegments = append(path.PathSegments, &networkservice.PathSegment{
-			Name: segmentName,
-			Id:   uuid.New().String(),
-		})
-		return path, 0, nil
+		path.PathSegments = append(path.PathSegments,
+			&grpcmetadata.PathSegment{Token: peerTok},
+			&grpcmetadata.PathSegment{Token: tok})
+		path.Index = 1
+
+		return path, path.Index - 1, nil
 	}
 
-	// 1. current path segment.Name is equal to segmentName
-	if int(path.Index) < len(path.PathSegments) && path.PathSegments[path.Index].Name == segmentName {
-		return path, path.Index, nil
-	}
-
-	// 2. current path segment.Name is not equal to segmentName
-
-	// We need to move to next item
-	nextIndex := int(path.Index) + 1
-	if nextIndex > len(path.PathSegments) {
-		// We have index > segments count
+	// Check if path.Index is correct
+	currentIndex := int(path.Index) + 1
+	if currentIndex > len(path.PathSegments) {
 		return nil, 0, errors.Errorf("Path.Index+1==%d should be less or equal len(Path.PathSegments)==%d",
-			nextIndex, len(path.PathSegments))
+			currentIndex, len(path.PathSegments))
 	}
 
-	if nextIndex < len(path.PathSegments) && path.PathSegments[nextIndex].Name != segmentName {
-		// 2.0 path has next segment available, but next name is not equal to segmentName
-		path.PathSegments[nextIndex].Name = segmentName
-		path.PathSegments[nextIndex].Id = uuid.New().String()
-	}
-
-	// Increment index to be accurate to current chain element
+	// Get previous and current PathSegment
+	prev := path.GetCurrentPathSegment()
 	path.Index++
+	curr := path.GetCurrentPathSegment()
 
-	if int(path.Index) >= len(path.PathSegments) {
-		// 2.1 no next path segment available
-		path.PathSegments = append(path.PathSegments, &networkservice.PathSegment{
-			Name: segmentName,
-			Id:   uuid.New().String(),
+	// If we don't have current PathSegment, we're on first request
+	// Add current PathSegment and update token in previous segment
+	if curr == nil {
+		prev.Token = peerTok
+		path.PathSegments = append(path.PathSegments, &grpcmetadata.PathSegment{
+			Token: tok,
 		})
+
+		return path, path.Index - 1, nil
 	}
 
+	// Current PathSegment exists. It means refresh
+	// Update tokens in previous and current PathSegments
+	prev.Token = peerTok
+	curr.Token = tok
 	return path, path.Index - 1, nil
+}
+
+func generateToken(ctx context.Context, tokenGenerator token.GeneratorFunc) (string, time.Time, error) {
+	// Extract the authInfo:
+	var authInfo credentials.AuthInfo
+	if p, exists := peer.FromContext(ctx); exists {
+		authInfo = p.AuthInfo
+	}
+
+	// Generate the token
+	return tokenGenerator(authInfo)
+}
+
+func getIDFromToken(tokenString string) (spiffeid.ID, error) {
+	claims := jwt.MapClaims{}
+	_, _, err := jwt.NewParser().ParseUnverified(tokenString, &claims)
+	if err != nil {
+		return spiffeid.ID{}, errors.Errorf("failed to parse jwt token: %s", err.Error())
+	}
+
+	sub, ok := claims["sub"]
+	if !ok {
+		return spiffeid.ID{}, errors.New("failed to get field 'sub' from jwt token payload")
+	}
+	subString, ok := sub.(string)
+	if !ok {
+		return spiffeid.ID{}, errors.New("failed to convert field 'sub' from jwt token payload to string")
+	}
+	return spiffeid.FromString(subString)
+}
+
+func updatePathIds(pathIds []string, index int, id string) []string {
+	if index >= len(pathIds) {
+		pathIds = append(pathIds, id)
+	} else {
+		pathIds[index] = id
+	}
+
+	return pathIds
 }

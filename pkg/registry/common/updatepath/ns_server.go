@@ -21,39 +21,55 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/spire"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 type updatePathNSServer struct {
-	name string
+	tokenGenerator token.GeneratorFunc
 }
 
 // NewNetworkServiceRegistryServer - creates a new updatePath server to update NetworkService path.
-func NewNetworkServiceRegistryServer(name string) registry.NetworkServiceRegistryServer {
+func NewNetworkServiceRegistryServer(tokenGenerator token.GeneratorFunc) registry.NetworkServiceRegistryServer {
 	return &updatePathNSServer{
-		name: name,
+		tokenGenerator: tokenGenerator,
 	}
 }
 
 func (s *updatePathNSServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
-	path, err := grpcmetadata.PathFromContext(ctx)
+	path := grpcmetadata.PathFromContext(ctx)
+
+	// Update path
+	peerTok, _, tokenErr := token.FromContext(ctx)
+	if tokenErr != nil {
+		log.FromContext(ctx).Warnf("an error during getting peer token from the context: %+v", tokenErr)
+	}
+	tok, _, tokenErr := generateToken(ctx, s.tokenGenerator)
+	if tokenErr != nil {
+		return nil, errors.Wrap(tokenErr, "an error during generating token")
+	}
+	path, index, err := updatePath(path, peerTok, tok)
 	if err != nil {
 		return nil, err
 	}
 
-	name := s.name
-	if spiffeID, idErr := spire.SpiffeIDFromContext(ctx); idErr == nil {
-		name = spiffeID.Path()
+	// Update path ids
+	peerID, idErr := getIDFromToken(peerTok)
+	if idErr != nil {
+		log.FromContext(ctx).Warnf("an error during parsing peer token: %+v", tokenErr)
 	}
-	path, index, err := updatePath(path, name)
-	if err != nil {
-		return nil, err
+	id, idErr := getIDFromToken(tok)
+	if idErr != nil {
+		return nil, idErr
 	}
+	ns.PathIds = updatePathIds(ns.PathIds, int(path.Index-1), peerID.String())
+	ns.PathIds = updatePathIds(ns.PathIds, int(path.Index), id.String())
 
 	ns, err = next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
 	if err != nil {
@@ -69,15 +85,32 @@ func (s *updatePathNSServer) Find(query *registry.NetworkServiceQuery, server re
 }
 
 func (s *updatePathNSServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
-	path, err := grpcmetadata.PathFromContext(ctx)
+	path := grpcmetadata.PathFromContext(ctx)
+
+	peerTok, _, tokenErr := token.FromContext(ctx)
+	if tokenErr != nil {
+		log.FromContext(ctx).Warnf("an error during getting peer token from the context: %+v", tokenErr)
+	}
+	tok, _, tokenErr := generateToken(ctx, s.tokenGenerator)
+	if tokenErr != nil {
+		return nil, errors.Wrap(tokenErr, "an error during generating token")
+	}
+	path, index, err := updatePath(path, peerTok, tok)
 	if err != nil {
 		return nil, err
 	}
 
-	path, index, err := updatePath(path, s.name)
-	if err != nil {
-		return nil, err
+	// Update path ids
+	peerID, idErr := getIDFromToken(peerTok)
+	if idErr != nil {
+		log.FromContext(ctx).Warnf("an error during parsing peer token: %+v", tokenErr)
 	}
+	id, idErr := getIDFromToken(tok)
+	if idErr != nil {
+		return nil, idErr
+	}
+	ns.PathIds = updatePathIds(ns.PathIds, int(path.Index-1), peerID.String())
+	ns.PathIds = updatePathIds(ns.PathIds, int(path.Index), id.String())
 
 	resp, err := next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 	path.Index = index

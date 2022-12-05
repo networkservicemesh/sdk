@@ -18,65 +18,34 @@ package updatepath_test
 
 import (
 	"encoding/json"
-	"testing"
+	"time"
 
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/credentials"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 const (
-	nse1           = "nse-1"
-	nse2           = "nse-2"
-	nse3           = "nse-3"
-	pathSegmentID1 = "36ce7f0c-9f6d-40a4-8b39-6b56ff07eea9"
-	pathSegmentID2 = "ece490ea-dfe8-4512-a3ca-5be7b39515c5"
-	pathSegmentID3 = "f9a83e55-0a4f-3647-144a-98a9ee8fb231"
-	different      = "different"
+	key      = "supersecret"
+	clientID = "spiffe://test.com/client"
+	proxyID  = "spiffe://test.com/proxy"
+	serverID = "spiffe://test.com/server"
 )
 
-func makePath(pathIndex uint32, pathSegments int) *grpcmetadata.Path {
-	if pathSegments == 0 {
-		return nil
+func tokenGeneratorFunc(spiffeID string) token.GeneratorFunc {
+	return func(peerAuthInfo credentials.AuthInfo) (string, time.Time, error) {
+		tok, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": spiffeID}).SignedString([]byte(key))
+		return tok, time.Date(3000, 1, 1, 1, 1, 1, 1, time.UTC), err
 	}
-
-	path := &grpcmetadata.Path{
-		Index: pathIndex,
-	}
-	if pathSegments >= 1 {
-		path.PathSegments = append(path.PathSegments, &networkservice.PathSegment{
-			Name: nse1,
-			Id:   pathSegmentID1,
-		})
-	}
-	if pathSegments >= 2 {
-		path.PathSegments = append(path.PathSegments, &networkservice.PathSegment{
-			Name: nse2,
-			Id:   pathSegmentID2,
-		})
-	}
-	if pathSegments >= 3 {
-		path.PathSegments = append(path.PathSegments, &networkservice.PathSegment{
-			Name: nse3,
-			Id:   pathSegmentID3,
-		})
-	}
-	return path
 }
 
-func requirePathEqual(t *testing.T, expected, actual *grpcmetadata.Path, unknownIDs ...int) {
-	expected = expected.Clone()
-	actual = actual.Clone()
-	for _, index := range unknownIDs {
-		expected.PathSegments[index].Id = ""
-		actual.PathSegments[index].Id = ""
-	}
+func equalJSON(t require.TestingT, expected, actual interface{}) {
+	json1, err1 := json.MarshalIndent(expected, "", "\t")
+	require.NoError(t, err1)
 
-	expectedString, err := json.Marshal(expected)
-	require.NoError(t, err)
-	actualString, err := json.Marshal(actual)
-	require.NoError(t, err)
-	require.Equal(t, string(expectedString), string(actualString))
+	json2, err2 := json.MarshalIndent(actual, "", "\t")
+	require.NoError(t, err2)
+	require.Equal(t, string(json1), string(json2))
 }

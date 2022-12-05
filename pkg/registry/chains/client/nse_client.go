@@ -32,7 +32,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/retry"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 )
 
@@ -49,7 +48,6 @@ func NewNetworkServiceEndpointRegistryClient(ctx context.Context, opts ...Option
 	return chain.NewNetworkServiceEndpointRegistryClient(
 		append(
 			[]registry.NetworkServiceEndpointRegistryClient{
-				updatepath.NewNetworkServiceEndpointRegistryClient("registry-client"),
 				begin.NewNetworkServiceEndpointRegistryClient(),
 				retry.NewNetworkServiceEndpointRegistryClient(ctx),
 				heal.NewNetworkServiceEndpointRegistryClient(ctx),
