@@ -24,7 +24,7 @@ type Path struct {
 
 // PathSegment represents segment of a private path
 type PathSegment struct {
-	Token string
+	Token string `json:"token"`
 }
 
 // GetCurrentPathSegment returns path.Index segment if it exists
