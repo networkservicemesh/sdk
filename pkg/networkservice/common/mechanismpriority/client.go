@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package prioritymechanisms prioritize mechanisms according to the list
-package prioritymechanisms
+// Package mechanismpriority prioritize mechanisms according to the list
+package mechanismpriority
 
 import (
 	"context"
@@ -30,13 +30,13 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-type priorityMechanismsClient struct {
+type mechanismPriorityClient struct {
 	priorities map[string]int
 }
 
 // NewClient - returns a new client chain element that prioritize mechanisms according to the list
 func NewClient(priorities ...string) networkservice.NetworkServiceClient {
-	c := &priorityMechanismsClient{
+	c := &mechanismPriorityClient{
 		priorities: map[string]int{},
 	}
 	for i, p := range priorities {
@@ -46,12 +46,12 @@ func NewClient(priorities ...string) networkservice.NetworkServiceClient {
 	return c
 }
 
-func (p *priorityMechanismsClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	request.MechanismPreferences = prioritizeMechanismsByType(request.GetMechanismPreferences(), p.priorities)
+func (m *mechanismPriorityClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	request.MechanismPreferences = prioritizeMechanismsByType(request.GetMechanismPreferences(), m.priorities)
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
 
-func (p *priorityMechanismsClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (m *mechanismPriorityClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 

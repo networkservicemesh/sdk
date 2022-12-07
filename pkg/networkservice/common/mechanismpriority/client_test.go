@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package prioritymechanisms_test
+package mechanismpriority_test
 
 import (
 	"context"
@@ -30,10 +30,10 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/vxlan"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/wireguard"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/prioritymechanisms"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanismpriority"
 )
 
-func TestPriorityMechanismsClient_Request(t *testing.T) {
+func TestMechanismPriorityClient_Request(t *testing.T) {
 	request := func() *networkservice.NetworkServiceRequest {
 		return &networkservice.NetworkServiceRequest{
 			MechanismPreferences: []*networkservice.Mechanism{
@@ -104,7 +104,7 @@ func TestPriorityMechanismsClient_Request(t *testing.T) {
 	for _, s := range samples {
 		sample := s
 		t.Run(sample.Name, func(t *testing.T) {
-			c := prioritymechanisms.NewClient(sample.Priorities...)
+			c := mechanismpriority.NewClient(sample.Priorities...)
 			req := sample.Request
 			_, err := c.Request(context.Background(), req)
 			require.NoError(t, err)
