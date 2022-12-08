@@ -19,17 +19,12 @@ package searches
 
 import (
 	"context"
-	"time"
 
 	"github.com/miekg/dns"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
-)
-
-const (
-	timeout = 5 * time.Second
 )
 
 type searchDomainsHandler struct {
@@ -41,11 +36,8 @@ func (h *searchDomainsHandler) ServeDNS(ctx context.Context, rw dns.ResponseWrit
 	r := &responseWriter{
 		ResponseWriter: rw,
 		Responses:      make([]*dns.Msg, len(domains)+1),
-		index:          0,
+		Index:          0,
 	}
-
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
 
 	next.Handler(ctx).ServeDNS(ctx, r, m)
 

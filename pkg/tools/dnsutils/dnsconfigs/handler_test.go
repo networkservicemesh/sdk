@@ -32,6 +32,16 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/searches"
 )
 
+type responseWriter struct {
+	dns.ResponseWriter
+	Response *dns.Msg
+}
+
+func (r *responseWriter) WriteMsg(m *dns.Msg) error {
+	r.Response = m
+	return nil
+}
+
 type checkHandler struct {
 	Domains []string
 	URLs    []string
@@ -77,7 +87,8 @@ func TestDNSConfigs(t *testing.T) {
 		check,
 	)
 
-	handler.ServeDNS(ctx, nil, new(dns.Msg))
+	r := &responseWriter{}
+	handler.ServeDNS(ctx, r, new(dns.Msg))
 
 	domains := check.Domains
 	require.Equal(t, len(domains), 3)
@@ -88,9 +99,9 @@ func TestDNSConfigs(t *testing.T) {
 	urls := check.URLs
 	require.Equal(t, len(urls), 6)
 	require.Contains(t, urls, "udp://7.7.7.7")
-	require.Contains(t, urls, "tcp://7.7.7.7")
 	require.Contains(t, urls, "udp://1.1.1.1")
-	require.Contains(t, urls, "tcp://1.1.1.1")
 	require.Contains(t, urls, "udp://9.9.9.9")
+	require.Contains(t, urls, "tcp://7.7.7.7")
+	require.Contains(t, urls, "tcp://1.1.1.1")
 	require.Contains(t, urls, "tcp://9.9.9.9")
 }

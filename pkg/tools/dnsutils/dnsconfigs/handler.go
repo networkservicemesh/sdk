@@ -30,22 +30,21 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/searches"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type dnsConfigsHandler struct {
 	configs *dnsconfig.Map
 }
 
-func (h *dnsConfigsHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter, m *dns.Msg) {
+func (h *dnsConfigsHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m *dns.Msg) {
 	dnsIPs := make([]url.URL, 0)
 	searchDomains := make([]string, 0)
 
 	h.configs.Range(func(key string, value []*networkservice.DNSConfig) bool {
 		for _, conf := range value {
 			for _, ip := range conf.DnsServerIps {
-				dnsIPs = append(dnsIPs,
-					url.URL{Scheme: "udp", Host: ip},
-					url.URL{Scheme: "tcp", Host: ip})
+				dnsIPs = append(dnsIPs, url.URL{Scheme: "udp", Host: ip})
 			}
 			searchDomains = append(searchDomains, conf.SearchDomains...)
 		}
@@ -55,7 +54,36 @@ func (h *dnsConfigsHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter,
 
 	ctx = clienturlctx.WithClientURLs(ctx, dnsIPs)
 	ctx = searches.WithSearchDomains(ctx, searchDomains)
-	next.Handler(ctx).ServeDNS(ctx, rp, m)
+
+	udpRW := &responseWriter{Response: nil}
+	next.Handler(ctx).ServeDNS(ctx, udpRW, m)
+
+	if resp := udpRW.Response; resp != nil {
+		if err := rw.WriteMsg(resp); err != nil {
+			log.FromContext(ctx).WithField("dnsConfigHandler", "ServeDNS").Warnf("got an error during writing the message: %v", err.Error())
+			dns.HandleFailed(rw, resp)
+			return
+		}
+		return
+	}
+
+	for i := range dnsIPs {
+		dnsIPs[i].Scheme = "tcp"
+	}
+
+	tcpRW := &responseWriter{Response: nil}
+	next.Handler(ctx).ServeDNS(ctx, tcpRW, m)
+
+	if resp := tcpRW.Response; resp != nil {
+		if err := rw.WriteMsg(resp); err != nil {
+			log.FromContext(ctx).WithField("dnsConfigHandler", "ServeDNS").Warnf("got an error during writing the message: %v", err.Error())
+			dns.HandleFailed(rw, resp)
+			return
+		}
+		return
+	}
+
+	dns.HandleFailed(rw, m)
 }
 
 // NewDNSHandler creates a new dns handler that stores DNS configs
