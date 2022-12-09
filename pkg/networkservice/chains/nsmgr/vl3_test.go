@@ -43,7 +43,7 @@ import (
 func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1500)
 	defer cancel()
 
 	domain := sandbox.NewBuilder(ctx, t).
@@ -63,6 +63,8 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 	defer close(serverPrefixCh)
 
 	serverPrefixCh <- &ipam.PrefixResponse{Prefix: "10.0.0.1/24"}
+	dnsServerIPCh := make(chan net.IP, 1)
+	dnsServerIPCh <- net.ParseIP("127.0.0.1")
 
 	_ = domain.Nodes[0].NewEndpoint(
 		ctx,
@@ -70,7 +72,7 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 		sandbox.GenerateTestToken,
 		vl3.NewServer(ctx, serverPrefixCh),
 		vl3dns.NewServer(ctx,
-			func() net.IP { return net.ParseIP("127.0.0.1") },
+			dnsServerIPCh,
 			vl3dns.WithDomainSchemes("{{ index .Labels \"podName\" }}.{{ .NetworkService }}."),
 			vl3dns.WithDNSPort(40053)),
 	)
@@ -86,7 +88,7 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-		reqCtx, reqClose := context.WithTimeout(ctx, time.Second)
+		reqCtx, reqClose := context.WithTimeout(ctx, time.Second*1000)
 		defer reqClose()
 
 		req := defaultRequest(nsReg.Name)
@@ -149,6 +151,8 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 	serverPrefixCh <- &ipam.PrefixResponse{Prefix: "10.0.0.1/24"}
 
 	var dnsConfigs = new(dnsconfig.Map)
+	dnsServerIPCh := make(chan net.IP, 1)
+	dnsServerIPCh <- net.ParseIP("0.0.0.0")
 
 	_ = domain.Nodes[0].NewEndpoint(
 		ctx,
@@ -156,7 +160,7 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 		sandbox.GenerateTestToken,
 		vl3.NewServer(ctx, serverPrefixCh),
 		vl3dns.NewServer(ctx,
-			func() net.IP { return net.ParseIP("0.0.0.0") },
+			dnsServerIPCh,
 			vl3dns.WithDomainSchemes("{{ index .Labels \"podName\" }}.{{ .NetworkService }}."),
 			vl3dns.WithDNSListenAndServeFunc(func(ctx context.Context, handler dnsutils.Handler, listenOn string) {
 				dnsutils.ListenAndServe(ctx, handler, ":50053")

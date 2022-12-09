@@ -69,6 +69,7 @@ func NewServer(chanCtx context.Context, getDNSServerIP chan net.IP, opts ...Opti
 		listenAndServeDNS: dnsutils.ListenAndServe,
 		getDNSServerIP:    getDNSServerIP,
 		dnsConfigs:        new(dnsconfig.Map),
+		connections:       make(map[string]*networkservice.Connection),
 	}
 
 	for _, opt := range opts {
@@ -87,36 +88,19 @@ func NewServer(chanCtx context.Context, getDNSServerIP chan net.IP, opts ...Opti
 
 	server.listenAndServeDNS(chanCtx, server.dnsServer, fmt.Sprintf(":%v", server.dnsPort))
 
-	go func() {
-		dnsServerIP := <-server.getDNSServerIP
-		log.FromContext(chanCtx).Info("GOT DNS SERVER IP FROM CHANNEL")
-		server.dnsServerIP = dnsServerIP
-
-		log.FromContext(chanCtx).Info("SEND UPDATE EVENT TO ALL CLIENTS")
-
-		server.executor.AsyncExec(func() {
-			logger := log.FromContext(chanCtx).WithField("vl3DNSServer", "Request")
-
-			connections := make(map[string]*networkservice.Connection)
-			for _, c := range server.connections {
-				connections[c.GetId()] = c.Clone()
-				connections[c.GetId()].State = networkservice.State_REFRESH_REQUESTED
-			}
-			if eventConsumer, ok := monitor.LoadEventConsumer(chanCtx, metadata.IsClient(server)); ok {
-				_ = eventConsumer.Send(&networkservice.ConnectionEvent{
-					Type:        networkservice.ConnectionEventType_UPDATE,
-					Connections: connections,
-				})
-			} else {
-				logger.Debug("eventConsumer is not presented")
-			}
-		})
-	}()
-
+	select {
+	case ip := <-getDNSServerIP:
+		server.dnsServerIP = ip
+	default:
+	}
 	return server
 }
 
 func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	if n.dnsServerIP == nil {
+		go n.waitForDNSServerIP(ctx)
+	}
+
 	if request.GetConnection().GetContext().GetDnsContext() == nil {
 		request.Connection.Context.DnsContext = new(networkservice.DNSContext)
 	}
@@ -141,11 +125,7 @@ func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.Netw
 
 	ips := getSrcIPs(request.GetConnection())
 	if len(ips) > 0 {
-		for _, recordName := range recordNames {
-			n.dnsServerRecords.Store(recordName, ips)
-		}
-
-		metadata.Map(ctx, false).Store(clientDNSNameKey{}, recordNames)
+		n.storeSrcIPs(ctx, recordNames, ips)
 	}
 
 	resp, err := next.Server(ctx).Request(ctx, request)
@@ -209,6 +189,36 @@ func (n *vl3DNSServer) buildSrcDNSRecords(c *networkservice.Connection) ([]strin
 		result = append(result, recordBuilder.String())
 	}
 	return result, nil
+}
+
+func (n *vl3DNSServer) waitForDNSServerIP(ctx context.Context) {
+	n.dnsServerIP = <-n.getDNSServerIP
+
+	n.executor.AsyncExec(func() {
+		logger := log.FromContext(ctx).WithField("vl3DNSServer", "Request")
+
+		connections := make(map[string]*networkservice.Connection)
+		for _, c := range n.connections {
+			connections[c.GetId()] = c.Clone()
+			connections[c.GetId()].State = networkservice.State_REFRESH_REQUESTED
+		}
+		if eventConsumer, ok := monitor.LoadEventConsumer(ctx, metadata.IsClient(n)); ok {
+			_ = eventConsumer.Send(&networkservice.ConnectionEvent{
+				Type:        networkservice.ConnectionEventType_UPDATE,
+				Connections: connections,
+			})
+		} else {
+			logger.Debug("eventConsumer is not presented")
+		}
+	})
+}
+
+func (n *vl3DNSServer) storeSrcIPs(ctx context.Context, recordNames []string, ips []net.IP) {
+	for _, recordName := range recordNames {
+		n.dnsServerRecords.Store(recordName, ips)
+	}
+
+	metadata.Map(ctx, false).Store(clientDNSNameKey{}, recordNames)
 }
 
 func compareStringSlices(a, b []string) bool {
