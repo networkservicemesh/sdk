@@ -43,7 +43,7 @@ import (
 func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1500)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
 
 	domain := sandbox.NewBuilder(ctx, t).
@@ -88,7 +88,7 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-		reqCtx, reqClose := context.WithTimeout(ctx, time.Second*1000)
+		reqCtx, reqClose := context.WithTimeout(ctx, time.Second)
 		defer reqClose()
 
 		req := defaultRequest(nsReg.Name)
