@@ -64,7 +64,7 @@ type clientDNSNameKey struct{}
 // chanCtx is using for signal to stop dns server.
 // opts confugre vl3dns networkservice instance with specific behavior.
 func NewServer(chanCtx context.Context, getDNSServerIP chan net.IP, opts ...Option) networkservice.NetworkServiceServer {
-	var server = &vl3DNSServer{
+	var result = &vl3DNSServer{
 		dnsPort:           53,
 		listenAndServeDNS: dnsutils.ListenAndServe,
 		getDNSServerIP:    getDNSServerIP,
@@ -73,27 +73,27 @@ func NewServer(chanCtx context.Context, getDNSServerIP chan net.IP, opts ...Opti
 	}
 
 	for _, opt := range opts {
-		opt(server)
+		opt(result)
 	}
 
-	if server.dnsServer == nil {
-		server.dnsServer = dnschain.NewDNSHandler(
-			dnsconfigs.NewDNSHandler(server.dnsConfigs),
+	if result.dnsServer == nil {
+		result.dnsServer = dnschain.NewDNSHandler(
+			dnsconfigs.NewDNSHandler(result.dnsConfigs),
 			noloop.NewDNSHandler(),
 			norecursion.NewDNSHandler(),
-			memory.NewDNSHandler(&server.dnsServerRecords),
-			fanout.NewDNSHandler(fanout.WithDefaultDNSPort(uint16(server.dnsPort))),
+			memory.NewDNSHandler(&result.dnsServerRecords),
+			fanout.NewDNSHandler(fanout.WithDefaultDNSPort(uint16(result.dnsPort))),
 		)
 	}
 
-	server.listenAndServeDNS(chanCtx, server.dnsServer, fmt.Sprintf(":%v", server.dnsPort))
+	result.listenAndServeDNS(chanCtx, result.dnsServer, fmt.Sprintf(":%v", result.dnsPort))
 
 	select {
 	case ip := <-getDNSServerIP:
-		server.dnsServerIP = ip
+		result.dnsServerIP = ip
 	default:
 	}
-	return server
+	return result
 }
 
 func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
