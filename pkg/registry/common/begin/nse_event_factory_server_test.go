@@ -22,6 +22,8 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -29,13 +31,12 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/goleak"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
+	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
 )
 
 // This test reproduces the situation when refresh changes the eventFactory context
-func TestRefresh_Server(t *testing.T) {
+func TestContextValues_Server(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	checkCtxServ := &checkContextServer{t: t}
@@ -59,8 +60,8 @@ func TestRefresh_Server(t *testing.T) {
 		Name: "1",
 	}
 	nse, err := server.Register(ctx, nse.Clone())
-	assert.NotNil(t, t, nse)
-	assert.NoError(t, err)
+	require.NotNil(t, t, nse)
+	require.NoError(t, err)
 
 	// Change context value before refresh
 	ctx = context.WithValue(ctx, contextKey{}, "value_2")
@@ -69,7 +70,7 @@ func TestRefresh_Server(t *testing.T) {
 	nse.Url = failedNSEURLServer
 	checkCtxServ.setExpectedValue("value_2")
 	_, err = server.Register(ctx, nse.Clone())
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	// Call refresh from eventFactory. We are expecting the previous value in the context
 	checkCtxServ.setExpectedValue("value_1")
@@ -79,8 +80,8 @@ func TestRefresh_Server(t *testing.T) {
 	nse.Url = ""
 	checkCtxServ.setExpectedValue("value_2")
 	nse, err = server.Register(ctx, nse.Clone())
-	assert.NotNil(t, t, nse)
-	assert.NoError(t, err)
+	require.NotNil(t, t, nse)
+	require.NoError(t, err)
 
 	// Call refresh from eventFactory. We are expecting updated value in the context
 	eventFactoryServ.callRefresh()
@@ -109,9 +110,9 @@ func TestRefreshDuringUnregister_Server(t *testing.T) {
 	nse := &registry.NetworkServiceEndpoint{
 		Name: "1",
 	}
-	conn, err := server.Register(ctx, nse.Clone())
-	assert.NotNil(t, t, conn)
-	assert.NoError(t, err)
+	nse, err := server.Register(ctx, nse.Clone())
+	require.NotNil(t, t, nse)
+	require.NoError(t, err)
 
 	// Change context value before refresh
 	ctx = context.WithValue(ctx, contextKey{}, "value_2")
@@ -121,12 +122,48 @@ func TestRefreshDuringUnregister_Server(t *testing.T) {
 	eventFactoryServ.callUnregister()
 
 	// Call refresh (should be called at the same time as Unregister)
-	conn, err = server.Register(ctx, nse.Clone())
-	assert.NotNil(t, t, conn)
-	assert.NoError(t, err)
+	nse, err = server.Register(ctx, nse.Clone())
+	require.NotNil(t, t, nse)
+	require.NoError(t, err)
 
 	// Call refresh from eventFactory. We are expecting updated value in the context
 	eventFactoryServ.callRefresh()
+}
+
+// This test checks if the timeout for the Register/Unregister called from the event factory is correct
+func TestContextTimeout_Server(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Add clockMock to the context
+	clockMock := clockmock.New(ctx)
+	ctx = clock.WithClock(ctx, clockMock)
+
+	ctx, cancel = context.WithDeadline(ctx, clockMock.Now().Add(time.Second*3))
+	defer cancel()
+
+	eventFactoryServ := &eventFactoryServer{}
+	server := chain.NewNetworkServiceEndpointRegistryServer(
+		begin.NewNetworkServiceEndpointRegistryServer(),
+		eventFactoryServ,
+		&delayedNSEServer{t: t, clock: clockMock},
+	)
+
+	// Do Register
+	nse := &registry.NetworkServiceEndpoint{
+		Name: "1",
+	}
+	nse, err := server.Register(ctx, nse.Clone())
+	require.NotNil(t, t, nse)
+	require.NoError(t, err)
+
+	// Check eventFactory Refresh. We are expecting the same timeout as for register
+	eventFactoryServ.callRefresh()
+
+	// Check eventFactory Unregister. We are expecting the same timeout as for register
+	eventFactoryServ.callUnregister()
 }
 
 type eventFactoryServer struct {
@@ -162,7 +199,7 @@ type checkContextServer struct {
 }
 
 func (c *checkContextServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	assert.Equal(c.t, c.expectedValue, ctx.Value(contextKey{}))
+	require.Equal(c.t, c.expectedValue, ctx.Value(contextKey{}))
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
 }
 
@@ -191,5 +228,42 @@ func (f *failedNSEServer) Unregister(ctx context.Context, in *registry.NetworkSe
 	if in.Url == failedNSEURLServer {
 		return nil, errors.New("failed")
 	}
+	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
+}
+
+type delayedNSEServer struct {
+	registry.NetworkServiceEndpointRegistryServer
+	t              *testing.T
+	clock          *clockmock.Mock
+	initialTimeout time.Duration
+}
+
+func (d *delayedNSEServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	deadline, _ := ctx.Deadline()
+	clockTime := clock.FromContext(ctx)
+	timeout := clockTime.Until(deadline)
+
+	// Check that context timeout is greater than 0
+	require.Greater(d.t, timeout, time.Duration(0))
+
+	// For the first request
+	if d.initialTimeout == 0 {
+		d.initialTimeout = timeout
+	}
+	// All requests timeout must be equal the first
+	require.Equal(d.t, d.initialTimeout, timeout)
+
+	// Add delay
+	d.clock.Add(timeout / 2)
+	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
+}
+
+func (d *delayedNSEServer) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint) (*emptypb.Empty, error) {
+	require.Greater(d.t, d.initialTimeout, time.Duration(0))
+
+	deadline, _ := ctx.Deadline()
+	clockTime := clock.FromContext(ctx)
+
+	require.Equal(d.t, d.initialTimeout, clockTime.Until(deadline))
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 }

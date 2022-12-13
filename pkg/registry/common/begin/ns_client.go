@@ -62,8 +62,8 @@ func (b *beginNSClient) Register(ctx context.Context, in *registry.NetworkServic
 			return
 		}
 
-		ctx = withEventFactory(ctx, eventFactoryClient)
-		resp, err = next.NetworkServiceRegistryClient(ctx).Register(ctx, in, opts...)
+		withEventFactoryCtx := withEventFactory(ctx, eventFactoryClient)
+		resp, err = next.NetworkServiceRegistryClient(withEventFactoryCtx).Register(withEventFactoryCtx, in, opts...)
 		if err != nil {
 			if eventFactoryClient.state != established {
 				eventFactoryClient.state = closed
@@ -107,8 +107,8 @@ func (b *beginNSClient) Unregister(ctx context.Context, in *registry.NetworkServ
 			return
 		}
 		// Always close with the last valid Connection we got
-		ctx = withEventFactory(ctx, eventFactoryClient)
-		emp, err = next.NetworkServiceRegistryClient(ctx).Unregister(ctx, eventFactoryClient.registration, opts...)
+		withEventFactoryCtx := withEventFactory(ctx, eventFactoryClient)
+		emp, err = next.NetworkServiceRegistryClient(withEventFactoryCtx).Unregister(withEventFactoryCtx, eventFactoryClient.registration, opts...)
 		// afterCloseFunc() is used to cleanup things like the entry in the Map for EventFactories
 		eventFactoryClient.afterCloseFunc()
 	})

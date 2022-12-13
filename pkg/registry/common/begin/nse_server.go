@@ -61,8 +61,8 @@ func (b *beginNSEServer) Register(ctx context.Context, in *registry.NetworkServi
 			return
 		}
 
-		ctx = withEventFactory(ctx, eventFactoryServer)
-		resp, err = next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
+		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
+		resp, err = next.NetworkServiceEndpointRegistryServer(withEventFactoryCtx).Register(withEventFactoryCtx, in)
 		if err != nil {
 			if eventFactoryServer.state != established {
 				eventFactoryServer.state = closed
@@ -102,8 +102,8 @@ func (b *beginNSEServer) Unregister(ctx context.Context, in *registry.NetworkSer
 		if currentServerClient != eventFactoryServer {
 			return
 		}
-		ctx = withEventFactory(ctx, eventFactoryServer)
-		_, err = next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, eventFactoryServer.registration)
+		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
+		_, err = next.NetworkServiceEndpointRegistryServer(withEventFactoryCtx).Unregister(withEventFactoryCtx, eventFactoryServer.registration)
 		eventFactoryServer.afterCloseFunc()
 	})
 	return &emptypb.Empty{}, err
