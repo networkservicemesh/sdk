@@ -20,9 +20,10 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
-	"github.com/stretchr/testify/require"
 )
 
 type testInput struct {
@@ -34,7 +35,7 @@ type testInput struct {
 }
 
 func TestRegistryClientAllowedPolicy(t *testing.T) {
-	p, err := opa.PolicyFromFile("policies/registry_client_allowed.rego")
+	p, err := opa.PolicyFromFile("etc/nsm/opa/registry_client_allowed.rego")
 	require.NoError(t, err)
 
 	resourcePathIdsMap := map[string][]string{

@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -61,7 +63,7 @@ func TestNoTokensExpiredPolicy(t *testing.T) {
 		},
 	}
 
-	p, err := opa.PolicyFromFile("policies/tokens_expired.rego")
+	p, err := opa.PolicyFromFile("etc/nsm/opa/tokens_expired.rego")
 	require.NoError(t, err)
 
 	for i := range suits {

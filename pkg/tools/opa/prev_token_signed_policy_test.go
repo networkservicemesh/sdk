@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -44,7 +46,7 @@ func Test_PrevTokenShouldBeSigned_Server(t *testing.T) {
 	validX509crt, err := x509.ParseCertificate(cert.Certificate[0])
 	require.Nil(t, err)
 
-	p, err := opa.PolicyFromFile("policies/prev_token_signed.rego")
+	p, err := opa.PolicyFromFile("etc/nsm/opa/prev_token_signed.rego")
 	require.NoError(t, err)
 
 	var sample = &networkservice.Path{

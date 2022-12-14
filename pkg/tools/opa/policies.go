@@ -22,18 +22,25 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/pkg/errors"
 )
 
-//go:embed policies/*.rego
-var policiesFS embed.FS
+const defaultPoliciesDir = "etc/nsm/opa"
 
-func PoliciesFromMasks(masks ...string) ([]*AuthorizationPolicy, error) {
+//go:embed policies/*.rego
+var embedFS embed.FS
+
+func PoliciesByFileMask(masks ...string) ([]*AuthorizationPolicy, error) {
 	var policies []*AuthorizationPolicy
 
+	if len(masks) == 0 {
+		return policies, nil
+	}
+
 	for _, mask := range masks {
-		files, err := readAllFilesFromMask(mask)
+		files, err := findFilesByPath(strings.ReplaceAll(mask, defaultPoliciesDir, "policies"))
 		if err != nil {
 			return nil, err
 		}
@@ -49,11 +56,12 @@ func PoliciesFromMasks(masks ...string) ([]*AuthorizationPolicy, error) {
 	return policies, nil
 }
 
-func PolicyFromFile(path string) (*AuthorizationPolicy, error) {
-	b, err := os.ReadFile(path)
+func PolicyFromFile(p string) (*AuthorizationPolicy, error) {
+	// #nosec
+	b, err := os.ReadFile(p)
 	if err != nil {
 		var embedErr error
-		b, embedErr = policiesFS.ReadFile(path)
+		b, embedErr = embedFS.ReadFile(strings.ReplaceAll(p, defaultPoliciesDir, "policies"))
 		if embedErr != nil {
 			return nil, errors.Wrap(err, embedErr.Error())
 		}
@@ -65,49 +73,47 @@ func PolicyFromFile(path string) (*AuthorizationPolicy, error) {
 	}, nil
 }
 
-func readAllFilesFromMask(mask string) ([]string, error) {
-	if fd, err := os.Open(mask); err != nil {
-		fileInfo, err := fd.Stat()
-
-		if err == nil {
-			if !fileInfo.IsDir() {
-				return []string{mask}, nil
-			}
+func findFilesByPath(mask string) ([]string, error) {
+	// #nosec
+	if f, err := os.Open(mask); err == nil {
+		if fileInfo, err := f.Stat(); err == nil && !fileInfo.IsDir() {
+			return []string{mask}, nil
 		}
 	}
 
 	var result []string
-	r, err := regexp.Compile("^" + mask + "$")
+	var set = make(map[string]struct{})
+	var r, err = regexp.Compile("^" + mask + "$")
+
 	if err != nil {
 		return nil, err
 	}
-	dir := filepath.Dir(mask)
 
-	localFS := os.DirFS(dir)
-	fs.WalkDir(localFS, ".", func(path string, d fs.DirEntry, err error) error {
-		if d.IsDir() {
+	var dir = filepath.Dir(mask)
+
+	var walkFS = func(dir string, fileSystem fs.FS) {
+		_ = fs.WalkDir(fileSystem, ".", func(p string, d fs.DirEntry, err error) error {
+			if d == nil {
+				return nil
+			}
+			if d.IsDir() {
+				return nil
+			}
+
+			p = filepath.Join(dir, p)
+
+			if _, ok := set[p]; !ok && r.MatchString(p) {
+				result = append(result, p)
+				set[p] = struct{}{}
+				return nil
+			}
+
 			return nil
-		}
+		})
+	}
 
-		completePath := filepath.Join(dir, path)
-		if r.MatchString(completePath) {
-			result = append(result, completePath)
-			return nil
-		}
-
-		return nil
-	})
-
-	fs.WalkDir(policiesFS, ".", func(path string, d fs.DirEntry, err error) error {
-		if d.IsDir() {
-			return nil
-		}
-
-		if r.MatchString(path) {
-			result = append(result, path)
-		}
-		return nil
-	})
+	walkFS(dir, os.DirFS(dir))
+	walkFS(".", embedFS)
 
 	return result, nil
 }

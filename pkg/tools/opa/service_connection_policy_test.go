@@ -27,7 +27,7 @@ import (
 )
 
 func TestWithServiceConnectionPolicy(t *testing.T) {
-	p, err := opa.PolicyFromFile("policies/service_connection.rego")
+	p, err := opa.PolicyFromFile("etc/nsm/opa/service_connection.rego")
 	require.NoError(t, err)
 
 	var input = authorize.MonitorOpaInput{

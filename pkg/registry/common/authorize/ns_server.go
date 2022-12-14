@@ -46,7 +46,7 @@ func NewNetworkServiceRegistryServer(opts ...Option) registry.NetworkServiceRegi
 		opt(o)
 	}
 
-	policies, err := opa.PoliciesFromMasks(o.policyPaths...)
+	policies, err := opa.PoliciesByFileMask(o.policyPaths...)
 	if err != nil {
 		panic(errors.Wrap(err, "failed to read policies in NetworkServiceRegistry authorize client").Error())
 	}

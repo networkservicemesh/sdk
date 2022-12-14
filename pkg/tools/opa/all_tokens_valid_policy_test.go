@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -56,7 +58,7 @@ func TestWithAllTokensValidPolicy(t *testing.T) {
 		},
 	}
 
-	p, err := opa.PolicyFromFile("policies/tokens_valid.rego")
+	p, err := opa.PolicyFromFile("etc/nsm/opa/tokens_valid.rego")
 	require.NoError(t, err)
 
 	err = p.Check(context.Background(), validPath)

@@ -19,45 +19,48 @@ package opa_test
 import (
 	"testing"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/stretchr/testify/require"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 )
 
 func TestDefaultPoliciesFromMask(t *testing.T) {
-	policies, err := opa.PoliciesFromMasks("policies/.*.rego")
+	policies, err := opa.PoliciesByFileMask("etc/nsm/opa/.*.rego")
 	require.NoError(t, err)
-	// TODO: Test fails, because we read default policies two times in readAllFilesFromMask function. Probably, it will work in cmd-repos
 	require.Len(t, policies, 7)
 }
 
 func TestCustomPolicies(t *testing.T) {
-	policies, err := opa.PoliciesFromMasks("mock_policies/.*.rego")
+	policies, err := opa.PoliciesByFileMask("sample_policies/.*.rego")
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 }
 
 func TestMaskForPolicyFiles(t *testing.T) {
-	policies, err := opa.PoliciesFromMasks("policies/tokens_.*.rego")
-	// TODO: This test also fails, because we read matched policies two times in readAllFilesFromMask function
+	policies, err := opa.PoliciesByFileMask("etc/nsm/opa/tokens_.*.rego")
 	require.NoError(t, err)
 	require.Len(t, policies, 3)
 }
 
 func TestReadOnePolicy(t *testing.T) {
-	policies, err := opa.PoliciesFromMasks("mock_policies/custom_policy.rego")
+	policies, err := opa.PoliciesByFileMask("sample_policies/custom_policy.rego")
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 }
 
 func TestDefaultAndCustomPolicies(t *testing.T) {
-	policies, err := opa.PoliciesFromMasks("policies/.*.rego", "mock_policies/.*.rego")
+	policies, err := opa.PoliciesByFileMask("policies/.*.rego", "sample_policies/.*.rego")
 	require.NoError(t, err)
 	require.Len(t, policies, 9)
 }
 
-// TODO: How is this supposed to work?
 func TestOverriddenPolicy(t *testing.T) {
-	policies, err := opa.PoliciesFromMasks("policies/.*.rego", "mock_policies/next_token_signed.rego")
+	policies, err := opa.PoliciesByFileMask("policies/.*.rego", "sample_policies/next_token_signed.rego")
 	require.NoError(t, err)
-	require.Len(t, policies, 7)
+	require.Len(t, policies, 8)
+}
+func Test_NoPoliciesPassed(t *testing.T) {
+	policies, err := opa.PoliciesByFileMask()
+	require.NoError(t, err)
+	require.Len(t, policies, 0)
 }
