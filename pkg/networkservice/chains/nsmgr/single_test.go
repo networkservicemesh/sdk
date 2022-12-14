@@ -498,16 +498,19 @@ func Test_FailedRegistryAuthorization(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
+	p, err := opa.PolicyPath("policies/registry_client_allowed.rego").Read()
+	require.NoError(t, err)
+
 	nsmgrSuppier := func(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...nsmgr.Option) nsmgr.Nsmgr {
 		options = append(options,
 			nsmgr.WithAuthorizeNSERegistryServer(
-				authorize.NewNetworkServiceEndpointRegistryServer(authorize.WithPolicies(opa.WithRegistryClientAllowedPolicy()))),
+				authorize.NewNetworkServiceEndpointRegistryServer(authorize.WithPolicies(p))),
 			nsmgr.WithAuthorizeNSRegistryServer(
-				authorize.NewNetworkServiceRegistryServer(authorize.WithPolicies(opa.WithRegistryClientAllowedPolicy()))),
+				authorize.NewNetworkServiceRegistryServer(authorize.WithPolicies(p))),
 			nsmgr.WithAuthorizeNSERegistryClient(
-				authorize.NewNetworkServiceEndpointRegistryClient(authorize.WithPolicies(opa.WithRegistryClientAllowedPolicy()))),
+				authorize.NewNetworkServiceEndpointRegistryClient(authorize.WithPolicies(p))),
 			nsmgr.WithAuthorizeNSRegistryClient(
-				authorize.NewNetworkServiceRegistryClient(authorize.WithPolicies(opa.WithRegistryClientAllowedPolicy()))),
+				authorize.NewNetworkServiceRegistryClient(authorize.WithPolicies(p))),
 		)
 		return nsmgr.NewServer(ctx, tokenGenerator, options...)
 	}
@@ -527,7 +530,7 @@ func Test_FailedRegistryAuthorization(t *testing.T) {
 			memory.WithProxyRegistryURL(proxyRegistryURL),
 			memory.WithDialOptions(options...),
 			memory.WithAuthorizeNSRegistryServer(
-				authorize.NewNetworkServiceRegistryServer(authorize.WithPolicies(opa.WithRegistryClientAllowedPolicy()))),
+				authorize.NewNetworkServiceRegistryServer(authorize.WithPolicies(p))),
 		)
 	}
 	domain := sandbox.NewBuilder(ctx, t).
@@ -554,15 +557,15 @@ func Test_FailedRegistryAuthorization(t *testing.T) {
 
 	nsRegistryClient1 := domain.NewNSRegistryClient(ctx, tokenGeneratorFunc("spiffe://test.com/ns-1"),
 		registryclient.WithAuthorizeNSRegistryClient(
-			authorize.NewNetworkServiceRegistryClient(authorize.WithPolicies(opa.WithRegistryClientAllowedPolicy()))))
+			authorize.NewNetworkServiceRegistryClient(authorize.WithPolicies(p))))
 
 	ns1 := defaultRegistryService("ns-1")
-	_, err := nsRegistryClient1.Register(ctx, ns1)
+	_, err = nsRegistryClient1.Register(ctx, ns1)
 	require.NoError(t, err)
 
 	nsRegistryClient2 := domain.NewNSRegistryClient(ctx, tokenGeneratorFunc("spiffe://test.com/ns-2"),
 		registryclient.WithAuthorizeNSRegistryClient(
-			authorize.NewNetworkServiceRegistryClient(authorize.WithPolicies(opa.WithRegistryClientAllowedPolicy()))))
+			authorize.NewNetworkServiceRegistryClient(authorize.WithPolicies(p))))
 
 	ns2 := defaultRegistryService("ns-1")
 	_, err = nsRegistryClient2.Register(ctx, ns2)

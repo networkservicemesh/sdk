@@ -32,7 +32,11 @@ import (
 
 func TestNetworkServiceEndpointRegistryAuthorization(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	server := authorize.NewNetworkServiceEndpointRegistryServer(authorize.WithPolicies(opa.WithRegistryClientAllowedPolicy()))
+
+	p, err := opa.PolicyPath("policies/registry_client_allowed.rego").Read()
+	require.NoError(t, err)
+
+	server := authorize.NewNetworkServiceEndpointRegistryServer(authorize.WithPolicies(p))
 
 	nse := &registry.NetworkServiceEndpoint{Name: "nse"}
 	path1 := getPath(t, spiffeid1)
@@ -42,7 +46,7 @@ func TestNetworkServiceEndpointRegistryAuthorization(t *testing.T) {
 	ctx2 := grpcmetadata.PathWithContext(context.Background(), path2)
 
 	nse.PathIds = []string{spiffeid1}
-	_, err := server.Register(ctx1, nse)
+	_, err = server.Register(ctx1, nse)
 	require.NoError(t, err)
 
 	nse.PathIds = []string{spiffeid2}

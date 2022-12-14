@@ -30,7 +30,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 )
 
@@ -44,13 +43,6 @@ type authorizeNSClient struct {
 // Authorize registry client checks spiffeID of NS.
 func NewNetworkServiceRegistryClient(opts ...Option) registry.NetworkServiceRegistryClient {
 	o := &options{
-		policies: policiesList{
-			opa.WithTokensValidPolicy(),
-			opa.WithNextTokenSignedPolicy(),
-			opa.WithTokensExpiredPolicy(),
-			opa.WithTokenChainPolicy(),
-			opa.WithRegistryClientAllowedPolicy(),
-		},
 		resourcePathIdsMap: new(PathIdsMap),
 	}
 

@@ -26,7 +26,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 )
 
 type authorizeNSServer struct {
@@ -38,13 +37,6 @@ type authorizeNSServer struct {
 // Authorize registry server checks spiffeID of NS.
 func NewNetworkServiceRegistryServer(opts ...Option) registry.NetworkServiceRegistryServer {
 	o := &options{
-		policies: policiesList{
-			opa.WithTokensValidPolicy(),
-			opa.WithPrevTokenSignedPolicy(),
-			opa.WithTokensExpiredPolicy(),
-			opa.WithTokenChainPolicy(),
-			opa.WithRegistryClientAllowedPolicy(),
-		},
 		resourcePathIdsMap: new(PathIdsMap),
 	}
 

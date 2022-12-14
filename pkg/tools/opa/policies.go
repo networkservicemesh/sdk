@@ -18,7 +18,6 @@ package opa
 
 import (
 	"embed"
-	_ "embed"
 	"os"
 
 	"github.com/pkg/errors"
@@ -39,6 +38,7 @@ func (p PolicyPath) Read() (*AuthorizationPolicy, error) {
 			return nil, errors.Wrap(err, embdedErr.Error())
 		}
 	}
+
 	return &AuthorizationPolicy{
 		policySource: string(b),
 		query:        "valid",
