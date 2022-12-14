@@ -39,7 +39,7 @@ import (
 func NewNetworkServiceEndpointRegistryClient(ctx context.Context, opts ...Option) registry.NetworkServiceEndpointRegistryClient {
 	clientOpts := &clientOptions{
 		nseClientURLResolver:       null.NewNetworkServiceEndpointRegistryClient(),
-		authorizeNSERegistryClient: authorize.NewNetworkServiceEndpointRegistryClient(authorize.Any()),
+		authorizeNSERegistryClient: authorize.NewNetworkServiceEndpointRegistryClient(ctx, authorize.Any()),
 	}
 	for _, opt := range opts {
 		opt(clientOpts)

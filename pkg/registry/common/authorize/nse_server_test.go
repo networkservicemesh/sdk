@@ -25,7 +25,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
-	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 
 	"go.uber.org/goleak"
 )
@@ -33,10 +32,10 @@ import (
 func TestNetworkServiceEndpointRegistryAuthorization(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	p, err := opa.PolicyPath("policies/registry_client_allowed.rego").Read()
-	require.NoError(t, err)
+	ctx := context.Background()
 
-	server := authorize.NewNetworkServiceEndpointRegistryServer(authorize.WithPolicies(p))
+	server := authorize.NewNetworkServiceEndpointRegistryServer(ctx, authorize.WithPolicies("policies/registry_client_allowed.rego"))
+	require.NotNil(t, server)
 
 	nse := &registry.NetworkServiceEndpoint{Name: "nse"}
 	path1 := getPath(t, spiffeid1)
@@ -46,7 +45,7 @@ func TestNetworkServiceEndpointRegistryAuthorization(t *testing.T) {
 	ctx2 := grpcmetadata.PathWithContext(context.Background(), path2)
 
 	nse.PathIds = []string{spiffeid1}
-	_, err = server.Register(ctx1, nse)
+	_, err := server.Register(ctx1, nse)
 	require.NoError(t, err)
 
 	nse.PathIds = []string{spiffeid2}

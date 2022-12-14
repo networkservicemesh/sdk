@@ -107,7 +107,7 @@ func getSamples() []chainSample {
 }
 
 func TestWithTokensPathValidPolicy(t *testing.T) {
-	p, err := opa.PolicyPath("policies/tokens_chained.rego").Read()
+	p, err := opa.Read("policies/tokens_chained.rego")
 	require.NoError(t, err)
 
 	samples := getSamples()
@@ -130,9 +130,9 @@ func TestWithTokensPathValidPolicy(t *testing.T) {
 		}
 
 		if sample.isValidChain {
-			require.NoError(t, p.Check(context.Background(), conn.GetPath()), sample.name)
+			require.NoError(t, p[0].Check(context.Background(), conn.GetPath()), sample.name)
 		} else {
-			require.Error(t, p.Check(context.Background(), conn.GetPath()), sample.name)
+			require.Error(t, p[0].Check(context.Background(), conn.GetPath()), sample.name)
 		}
 	}
 }

@@ -21,11 +21,14 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 )
 
 type authorizeNSEServer struct {
@@ -35,7 +38,7 @@ type authorizeNSEServer struct {
 
 // NewNetworkServiceEndpointRegistryServer - returns a new authorization registry.NetworkServiceEndpointRegistryServer
 // Authorize registry server checks spiffeID of NSE.
-func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkServiceEndpointRegistryServer {
+func NewNetworkServiceEndpointRegistryServer(ctx context.Context, opts ...Option) registry.NetworkServiceEndpointRegistryServer {
 	o := &options{
 		resourcePathIdsMap: new(PathIdsMap),
 	}
@@ -44,8 +47,19 @@ func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkSer
 		opt(o)
 	}
 
+	policies, err := opa.Read(o.policyPaths...)
+	if err != nil {
+		log.FromContext(ctx).Info(errors.Wrap(err, "failed to read policies in NetworkServiceRegistry authorize client"))
+		return nil
+	}
+
+	var policyList policiesList
+	for _, p := range policies {
+		policyList = append(policyList, p)
+	}
+
 	return &authorizeNSEServer{
-		policies:      o.policies,
+		policies:      policyList,
 		nsePathIdsMap: o.resourcePathIdsMap,
 	}
 }

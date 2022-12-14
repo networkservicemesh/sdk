@@ -99,10 +99,10 @@ func WithDialOptions(dialOptions ...grpc.DialOption) Option {
 // NewServer creates new stateless registry server that proxies queries to the second registries by DNS domains
 func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, dnsResolver dnsresolve.Resolver, options ...Option) registry.Registry {
 	opts := &serverOptions{
-		authorizeNSRegistryServer:  registryauthorize.NewNetworkServiceRegistryServer(registryauthorize.Any()),
-		authorizeNSERegistryServer: registryauthorize.NewNetworkServiceEndpointRegistryServer(registryauthorize.Any()),
-		authorizeNSRegistryClient:  registryauthorize.NewNetworkServiceRegistryClient(registryauthorize.Any()),
-		authorizeNSERegistryClient: registryauthorize.NewNetworkServiceEndpointRegistryClient(registryauthorize.Any()),
+		authorizeNSRegistryServer:  registryauthorize.NewNetworkServiceRegistryServer(ctx, registryauthorize.Any()),
+		authorizeNSERegistryServer: registryauthorize.NewNetworkServiceEndpointRegistryServer(ctx, registryauthorize.Any()),
+		authorizeNSRegistryClient:  registryauthorize.NewNetworkServiceRegistryClient(ctx, registryauthorize.Any()),
+		authorizeNSERegistryClient: registryauthorize.NewNetworkServiceEndpointRegistryClient(ctx, registryauthorize.Any()),
 	}
 	for _, opt := range options {
 		opt(opts)

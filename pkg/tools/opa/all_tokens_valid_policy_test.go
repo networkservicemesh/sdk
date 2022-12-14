@@ -56,11 +56,11 @@ func TestWithAllTokensValidPolicy(t *testing.T) {
 		},
 	}
 
-	p, err := opa.PolicyPath("policies/tokens_valid.rego").Read()
+	p, err := opa.Read("policies/tokens_valid.rego")
 	require.NoError(t, err)
 
-	err = p.Check(context.Background(), validPath)
+	err = p[0].Check(context.Background(), validPath)
 	require.Nil(t, err)
-	err = p.Check(context.Background(), invalidPath)
+	err = p[0].Check(context.Background(), invalidPath)
 	require.NotNil(t, err)
 }

@@ -44,7 +44,7 @@ func Test_PrevTokenShouldBeSigned_Server(t *testing.T) {
 	validX509crt, err := x509.ParseCertificate(cert.Certificate[0])
 	require.Nil(t, err)
 
-	p, err := opa.PolicyPath("policies/prev_token_signed.rego").Read()
+	p, err := opa.Read("policies/prev_token_signed.rego")
 	require.NoError(t, err)
 
 	var sample = &networkservice.Path{
@@ -71,7 +71,7 @@ func Test_PrevTokenShouldBeSigned_Server(t *testing.T) {
 
 	peerAuth.AuthInfo.(*credentials.TLSInfo).State.PeerCertificates[0] = validX509crt
 
-	err = p.Check(ctx, sample)
+	err = p[0].Check(ctx, sample)
 	require.NoError(t, err)
 
 	invalidX509crt, err := x509.ParseCertificate(ca.Certificate[0])
@@ -79,6 +79,6 @@ func Test_PrevTokenShouldBeSigned_Server(t *testing.T) {
 
 	peerAuth.AuthInfo.(*credentials.TLSInfo).State.PeerCertificates[0] = invalidX509crt
 
-	err = p.Check(ctx, sample)
+	err = p[0].Check(ctx, sample)
 	require.Error(t, err)
 }

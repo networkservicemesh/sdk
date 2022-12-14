@@ -17,7 +17,7 @@
 package authorize
 
 type options struct {
-	policies           policiesList
+	policyPaths        []string
 	resourcePathIdsMap *PathIdsMap
 }
 
@@ -27,14 +27,15 @@ type Option func(*options)
 // Any authorizes any call of request/close
 func Any() Option {
 	return func(o *options) {
-		o.policies = nil
+		o.policyPaths = nil
 	}
 }
 
-// WithPolicies sets custom policies for registry
-func WithPolicies(p ...Policy) Option {
+// WithPolicies sets custom policies for registry.
+// policyPaths can be combination of both policy files and dirs with policies
+func WithPolicies(policyPaths ...string) Option {
 	return func(o *options) {
-		o.policies = p
+		o.policyPaths = policyPaths
 	}
 }
 

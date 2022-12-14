@@ -30,6 +30,8 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 )
 
@@ -41,7 +43,7 @@ type authorizeNSEClient struct {
 
 // NewNetworkServiceEndpointRegistryClient - returns a new authorization registry.NetworkServiceEndpointRegistryClient
 // Authorize registry client checks path of NSE.
-func NewNetworkServiceEndpointRegistryClient(opts ...Option) registry.NetworkServiceEndpointRegistryClient {
+func NewNetworkServiceEndpointRegistryClient(ctx context.Context, opts ...Option) registry.NetworkServiceEndpointRegistryClient {
 	o := &options{
 		resourcePathIdsMap: new(PathIdsMap),
 	}
@@ -50,8 +52,19 @@ func NewNetworkServiceEndpointRegistryClient(opts ...Option) registry.NetworkSer
 		opt(o)
 	}
 
+	policies, err := opa.Read(o.policyPaths...)
+	if err != nil {
+		log.FromContext(ctx).Info(errors.Wrap(err, "failed to read policies in NetworkServiceRegistry authorize client"))
+		return nil
+	}
+
+	var policyList policiesList
+	for _, p := range policies {
+		policyList = append(policyList, p)
+	}
+
 	return &authorizeNSEClient{
-		policies:      o.policies,
+		policies:      policyList,
 		nsePathIdsMap: o.resourcePathIdsMap,
 	}
 }

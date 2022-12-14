@@ -123,10 +123,10 @@ func WithDialOptions(dialOptions ...grpc.DialOption) Option {
 // NewServer creates new registry server based on memory storage
 func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...Option) registryserver.Registry {
 	opts := &serverOptions{
-		authorizeNSRegistryServer:  registryauthorize.NewNetworkServiceRegistryServer(registryauthorize.Any()),
-		authorizeNSERegistryServer: registryauthorize.NewNetworkServiceEndpointRegistryServer(registryauthorize.Any()),
-		authorizeNSRegistryClient:  registryauthorize.NewNetworkServiceRegistryClient(registryauthorize.Any()),
-		authorizeNSERegistryClient: registryauthorize.NewNetworkServiceEndpointRegistryClient(registryauthorize.Any()),
+		authorizeNSRegistryServer:  registryauthorize.NewNetworkServiceRegistryServer(ctx, registryauthorize.Any()),
+		authorizeNSERegistryServer: registryauthorize.NewNetworkServiceEndpointRegistryServer(ctx, registryauthorize.Any()),
+		authorizeNSRegistryClient:  registryauthorize.NewNetworkServiceRegistryClient(ctx, registryauthorize.Any()),
+		authorizeNSERegistryClient: registryauthorize.NewNetworkServiceEndpointRegistryClient(ctx, registryauthorize.Any()),
 		expireDuration:             time.Minute,
 		proxyRegistryURL:           nil,
 	}
