@@ -15,13 +15,13 @@
 # limitations under the License.
 package nsm
 
-default tokens_chained = false
+default valid = false
 
-tokens_chained {
+valid {
 	count(input.path_segments) < 2
 }
 
-tokens_chained {
+valid {
 	pair_count := count({x | input.path_segments[x]; pair_valid(input.path_segments[x].token, input.path_segments[x+1].token)})
 	pair_count == count(input.path_segments) - 1
 }

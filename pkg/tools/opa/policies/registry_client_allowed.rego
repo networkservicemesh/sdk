@@ -16,14 +16,14 @@
 
 package nsm
 
-default registry_client_allowed = false
+default valid = false
 
 # new NSE case
-registry_client_allowed {
+valid {
 	not input.resource_path_ids_map[input.resource_name]
 }
 	
 # refresh/unregister NSE case
-registry_client_allowed {
+valid {
     input.resource_path_ids_map[input.resource_name][0] == input.resource_id
 }

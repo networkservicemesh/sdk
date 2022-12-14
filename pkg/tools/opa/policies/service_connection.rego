@@ -16,9 +16,9 @@
 
 package nsm
 
-default service_connection = false
+default valid = false
 
-service_connection {
+valid {
 	conn_ids := {y | y = input.spiffe_id_connection_map[input.service_spiffe_id][_]}
    path_conn_ids := {x | x = input.selector_connection_ids[_]}
    count(path_conn_ids) > 0

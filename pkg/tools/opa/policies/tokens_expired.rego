@@ -16,15 +16,19 @@
 
 package nsm
 
-default tokens_expired = false
+default valid = false
 
-tokens_expired {
-    token := input.path_segments[_].token
-    [_, payload, _] := io.jwt.decode(token)
-    now > payload.exp
+valid {
+	count({x | input.path_segments[x]; token_expired(input.path_segments[x].token)}) == count(input.path_segments)
+}
+
+token_expired(token) {
+	print(token)
+	[_, payload, _] := io.jwt.decode(token)
+	now < payload.exp
 }
 
 now = t {
-	 ns := time.now_ns()
-     t := ns / 1e9
+	ns := time.now_ns()
+	t := ns / 1e9
 }

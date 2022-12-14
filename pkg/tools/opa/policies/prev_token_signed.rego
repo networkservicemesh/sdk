@@ -16,12 +16,12 @@
 
 package nsm
 
-default prev_token_signed = false
+default valid = false
 default index = 0
 
 index = input.index
 
-prev_token_signed {
+valid {
 	prev_index := index - 1
 	prev_index >= 0
 	token := input.path_segments[prev_index].token	

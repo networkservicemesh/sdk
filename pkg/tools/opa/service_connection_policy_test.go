@@ -27,7 +27,9 @@ import (
 )
 
 func TestWithServiceConnectionPolicy(t *testing.T) {
-	var p = opa.WithMonitorConnectionServerPolicy()
+	p, err := opa.PolicyPath("policies/service_connection.rego").Read()
+	require.NoError(t, err)
+
 	var input = authorize.MonitorOpaInput{
 		SelectorConnectionIds: []string{"conn1"},
 		SpiffeIDConnectionMap: map[string][]string{
@@ -45,7 +47,7 @@ func TestWithServiceConnectionPolicy(t *testing.T) {
 
 	ctx := context.Background()
 
-	err := p.Check(ctx, input)
+	err = p.Check(ctx, input)
 	require.NoError(t, err)
 
 	err = p.Check(ctx, invalidInput)

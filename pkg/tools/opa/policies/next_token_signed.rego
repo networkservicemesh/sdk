@@ -16,12 +16,12 @@
 
 package nsm
 
-default next_token_signed = false
+default valid = false
 default index = 1
 
 index = input.index + 1
 
-next_token_signed {
+valid {
 	count(input.path_segments) > index
 	token := input.path_segments[index].token	
 	cert := input.auth_info.certificate	

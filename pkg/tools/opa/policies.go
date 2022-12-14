@@ -16,87 +16,32 @@
 
 package opa
 
-import _ "embed"
+import (
+	"embed"
+	_ "embed"
+	"os"
 
-//go:embed policies/tokens_valid.rego
-var tokensValidPolicySource string
+	"github.com/pkg/errors"
+)
 
-//go:embed policies/prev_token_signed.rego
-var prevTokenSignedPolicySource string
+//go:embed policies/*.rego
+var policiesFS embed.FS
 
-//go:embed policies/next_token_signed.rego
-var currTokenSignedPolicySource string
+// PolicyPath path to the policy source file
+type PolicyPath string
 
-//go:embed policies/tokens_chained.rego
-var tokensChainedPolicySource string
-
-//go:embed policies/tokens_expired.rego
-var tokensExpiredPolicySource string
-
-//go:embed policies/service_connection.rego
-var tokensServiceConnectionPolicySource string
-
-//go:embed policies/registry_client_allowed.rego
-var registryClientAllowedPolicySource string
-
-// WithTokensValidPolicy returns default policy for checking that all tokens in the path can be decoded.
-func WithTokensValidPolicy() *AuthorizationPolicy {
-	return &AuthorizationPolicy{
-		policySource: tokensValidPolicySource,
-		query:        "tokens_valid",
-		checker:      True("tokens_valid"),
+func (p PolicyPath) Read() (*AuthorizationPolicy, error) {
+	b, err := os.ReadFile(string(p))
+	if err != nil {
+		var embdedErr error
+		b, embdedErr = policiesFS.ReadFile(string(p))
+		if embdedErr != nil {
+			return nil, errors.Wrap(err, embdedErr.Error())
+		}
 	}
-}
-
-// WithNextTokenSignedPolicy returns default policy for checking that last token in path is signed.
-func WithNextTokenSignedPolicy() *AuthorizationPolicy {
 	return &AuthorizationPolicy{
-		policySource: currTokenSignedPolicySource,
-		query:        "next_token_signed",
-		checker:      True("next_token_signed"),
-	}
-}
-
-// WithPrevTokenSignedPolicy returns default policy for checking that last token in path is signed.
-func WithPrevTokenSignedPolicy() *AuthorizationPolicy {
-	return &AuthorizationPolicy{
-		policySource: prevTokenSignedPolicySource,
-		query:        "prev_token_signed",
-		checker:      True("prev_token_signed"),
-	}
-}
-
-// WithTokenChainPolicy returns default policy for checking tokens chain in path
-func WithTokenChainPolicy() *AuthorizationPolicy {
-	return &AuthorizationPolicy{
-		policySource: tokensChainedPolicySource,
-		query:        "tokens_chained",
-		checker:      True("tokens_chained"),
-	}
-}
-
-// WithTokensExpiredPolicy returns default policy for checking tokens expiration
-func WithTokensExpiredPolicy() *AuthorizationPolicy {
-	return &AuthorizationPolicy{
-		policySource: tokensExpiredPolicySource,
-		query:        "tokens_expired",
-		checker:      False("tokens_expired"),
-	}
-}
-
-func WithMonitorConnectionServerPolicy() *AuthorizationPolicy {
-	return &AuthorizationPolicy{
-		policySource: tokensServiceConnectionPolicySource,
-		query:        "service_connection",
-		checker:      True("service_connection"),
-	}
-}
-
-// WithRegistryClientAllowedPolicy returns policy for checking resource (nse or ns) registration/unregistration validity
-func WithRegistryClientAllowedPolicy() *AuthorizationPolicy {
-	return &AuthorizationPolicy{
-		policySource: registryClientAllowedPolicySource,
-		query:        "registry_client_allowed",
-		checker:      True("registry_client_allowed"),
-	}
+		policySource: string(b),
+		query:        "valid",
+		checker:      True("valid"),
+	}, nil
 }

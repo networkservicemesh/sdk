@@ -20,14 +20,23 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
+	"github.com/stretchr/testify/require"
 )
 
+type testInput struct {
+	ResourceID         string                      `json:"resource_id"`
+	ResourceName       string                      `json:"resource_name"`
+	ResourcePathIdsMap map[string][]string         `json:"resource_path_ids_map"`
+	PathSegments       []*grpcmetadata.PathSegment `json:"path_segments"`
+	Index              uint32                      `json:"index"`
+}
+
 func TestRegistryClientAllowedPolicy(t *testing.T) {
-	var p = opa.WithRegistryClientAllowedPolicy()
+	p, err := opa.PolicyPath("policies/registry_client_allowed.rego").Read()
+	require.NoError(t, err)
+
 	resourcePathIdsMap := map[string][]string{
 		"nse1": {"id1", "id2"},
 	}
@@ -45,7 +54,7 @@ func TestRegistryClientAllowedPolicy(t *testing.T) {
 	ctx := context.Background()
 
 	for _, sample := range samples {
-		var input = authorize.RegistryOpaInput{
+		var input = testInput{
 			ResourcePathIdsMap: resourcePathIdsMap,
 			ResourceName:       sample.name,
 			ResourceID:         sample.id,

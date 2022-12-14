@@ -22,7 +22,6 @@ import (
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/monitorconnection/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/networkservicemesh/sdk/pkg/tools/spire"
 	"github.com/networkservicemesh/sdk/pkg/tools/stringset"
 )
@@ -35,7 +34,7 @@ type authorizeMonitorConnectionsServer struct {
 // NewMonitorConnectionServer - returns a new authorization networkservicemesh.MonitorConnectionServer
 func NewMonitorConnectionServer(opts ...Option) networkservice.MonitorConnectionServer {
 	o := &options{
-		policies:              policiesList{opa.WithMonitorConnectionServerPolicy()},
+		//	policies:              policiesList{opa.WithMonitorConnectionServerPolicy()},
 		spiffeIDConnectionMap: &spire.SpiffeIDConnectionMap{},
 	}
 	for _, opt := range opts {

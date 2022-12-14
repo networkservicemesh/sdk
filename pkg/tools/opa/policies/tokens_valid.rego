@@ -16,13 +16,13 @@
 
 package nsm
 
-default tokens_valid = false
+default valid = false
 
-tokens_valid {
+valid {
 	count(input.path_segments) == 0
 }
 
-tokens_valid {
+valid {
 	c := count({x | input.path_segments[x]; token_valid(input.path_segments[x].token)})
 	c == count(input.path_segments)
 }

@@ -28,7 +28,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/networkservicemesh/sdk/pkg/tools/spire"
 	"github.com/networkservicemesh/sdk/pkg/tools/stringset"
 )
@@ -42,12 +41,6 @@ type authorizeServer struct {
 // Authorize server checks left side of Path.
 func NewServer(opts ...Option) networkservice.NetworkServiceServer {
 	o := &options{
-		policies: policiesList{
-			opa.WithTokensValidPolicy(),
-			opa.WithPrevTokenSignedPolicy(),
-			opa.WithTokensExpiredPolicy(),
-			opa.WithTokenChainPolicy(),
-		},
 		spiffeIDConnectionMap: &spire.SpiffeIDConnectionMap{},
 	}
 	for _, opt := range opts {
