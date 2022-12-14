@@ -18,8 +18,10 @@ package opa
 
 import (
 	"embed"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"github.com/pkg/errors"
 )
@@ -27,32 +29,16 @@ import (
 //go:embed policies/*.rego
 var policiesFS embed.FS
 
-// PolicyPath path to the policy source file
-type PolicyPath string
+func PoliciesFromMasks(masks ...string) ([]*AuthorizationPolicy, error) {
+	var policies []*AuthorizationPolicy
 
-func Read(paths ...string) ([]*AuthorizationPolicy, error) {
-	policies := make([]*AuthorizationPolicy, 0)
-
-	for _, path := range paths {
-		embeddedPolicy, err := readEmbeddedPolicyFile(path)
-		if err == nil {
-			policies = append(policies, embeddedPolicy)
-			continue
-		}
-
-		fileInfo, err := os.Stat(path)
+	for _, mask := range masks {
+		files, err := readAllFilesFromMask(mask)
 		if err != nil {
 			return nil, err
 		}
-
-		if fileInfo.IsDir() {
-			dirPolicies, err := readPolicyDir(path)
-			if err != nil {
-				return nil, err
-			}
-			policies = append(policies, dirPolicies...)
-		} else {
-			policy, err := readPolicyFile(path)
+		for _, file := range files {
+			policy, err := PolicyFromFile(file)
 			if err != nil {
 				return nil, err
 			}
@@ -63,47 +49,65 @@ func Read(paths ...string) ([]*AuthorizationPolicy, error) {
 	return policies, nil
 }
 
-func readPolicyDir(path string) ([]*AuthorizationPolicy, error) {
-	policies := make([]*AuthorizationPolicy, 0)
-
-	files, err := os.ReadDir(path)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, file := range files {
-		policy, err := readPolicyFile(filepath.Join(path, file.Name()))
-		if err != nil {
-			return nil, err
-		}
-		policies = append(policies, policy)
-	}
-
-	return policies, nil
-}
-
-func readEmbeddedPolicyFile(path string) (*AuthorizationPolicy, error) {
-	b, err := policiesFS.ReadFile(path)
-	if err != nil {
-		return nil, errors.Wrap(err, err.Error())
-	}
-
-	return &AuthorizationPolicy{
-		policySource: string(b),
-		query:        "valid",
-		checker:      True("valid"),
-	}, nil
-}
-
-func readPolicyFile(path string) (*AuthorizationPolicy, error) {
+func PolicyFromFile(path string) (*AuthorizationPolicy, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		var embedErr error
+		b, embedErr = policiesFS.ReadFile(path)
+		if embedErr != nil {
+			return nil, errors.Wrap(err, embedErr.Error())
+		}
 	}
-
 	return &AuthorizationPolicy{
 		policySource: string(b),
 		query:        "valid",
 		checker:      True("valid"),
 	}, nil
+}
+
+func readAllFilesFromMask(mask string) ([]string, error) {
+	if fd, err := os.Open(mask); err != nil {
+		fileInfo, err := fd.Stat()
+
+		if err == nil {
+			if !fileInfo.IsDir() {
+				return []string{mask}, nil
+			}
+		}
+	}
+
+	var result []string
+	r, err := regexp.Compile("^" + mask + "$")
+	if err != nil {
+		return nil, err
+	}
+	dir := filepath.Dir(mask)
+
+	localFS := os.DirFS(dir)
+	fs.WalkDir(localFS, ".", func(path string, d fs.DirEntry, err error) error {
+		if d.IsDir() {
+			return nil
+		}
+
+		completePath := filepath.Join(dir, path)
+		if r.MatchString(completePath) {
+			result = append(result, completePath)
+			return nil
+		}
+
+		return nil
+	})
+
+	fs.WalkDir(policiesFS, ".", func(path string, d fs.DirEntry, err error) error {
+		if d.IsDir() {
+			return nil
+		}
+
+		if r.MatchString(path) {
+			result = append(result, path)
+		}
+		return nil
+	})
+
+	return result, nil
 }

@@ -39,17 +39,18 @@ func TestWithPolicyFromFile(t *testing.T) {
 	err := os.MkdirAll(dir, os.ModePerm)
 	require.Nil(t, err)
 
-	const policy = `		
-		package test
+	const policy = `
+package test
 
-		default allow = true
-	`
+default valid = true
+`
 
 	policyPath := filepath.Clean(path.Join(dir, "policy.rego"))
 	err = os.WriteFile(policyPath, []byte(policy), os.ModePerm)
 	require.Nil(t, err)
 
-	p := opa.WithPolicyFromFile(policyPath, "allow", opa.True)
+	p, err := opa.PolicyFromFile(policyPath)
+	require.NoError(t, err)
 
 	err = p.Check(context.Background(), nil)
 	require.Nil(t, err)

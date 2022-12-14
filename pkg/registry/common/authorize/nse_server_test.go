@@ -32,9 +32,7 @@ import (
 func TestNetworkServiceEndpointRegistryAuthorization(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx := context.Background()
-
-	server := authorize.NewNetworkServiceEndpointRegistryServer(ctx, authorize.WithPolicies("policies/registry_client_allowed.rego"))
+	server := authorize.NewNetworkServiceEndpointRegistryServer(authorize.WithPolicies("policies/registry_client_allowed.rego"))
 	require.NotNil(t, server)
 
 	nse := &registry.NetworkServiceEndpoint{Name: "nse"}

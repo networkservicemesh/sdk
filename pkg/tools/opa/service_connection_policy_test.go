@@ -27,7 +27,7 @@ import (
 )
 
 func TestWithServiceConnectionPolicy(t *testing.T) {
-	p, err := opa.Read("policies/service_connection.rego")
+	p, err := opa.PolicyFromFile("policies/service_connection.rego")
 	require.NoError(t, err)
 
 	var input = authorize.MonitorOpaInput{
@@ -47,9 +47,9 @@ func TestWithServiceConnectionPolicy(t *testing.T) {
 
 	ctx := context.Background()
 
-	err = p[0].Check(ctx, input)
+	err = p.Check(ctx, input)
 	require.NoError(t, err)
 
-	err = p[0].Check(ctx, invalidInput)
+	err = p.Check(ctx, invalidInput)
 	require.Error(t, err)
 }

@@ -61,7 +61,7 @@ func TestNoTokensExpiredPolicy(t *testing.T) {
 		},
 	}
 
-	p, err := opa.Read("policies/tokens_expired.rego")
+	p, err := opa.PolicyFromFile("policies/tokens_expired.rego")
 	require.NoError(t, err)
 
 	for i := range suits {
@@ -79,7 +79,7 @@ func TestNoTokensExpiredPolicy(t *testing.T) {
 				}
 				require.Nil(t, err)
 			}
-			checkResult(p[0].Check(context.Background(), conn.GetPath()))
+			checkResult(p.Check(context.Background(), conn.GetPath()))
 		})
 	}
 }

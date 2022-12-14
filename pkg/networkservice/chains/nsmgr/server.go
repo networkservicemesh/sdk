@@ -209,10 +209,10 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	opts := &serverOptions{
 		authorizeServer:                  authorize.NewServer(authorize.Any()),
 		authorizeMonitorConnectionServer: authmonitor.NewMonitorConnectionServer(authmonitor.Any()),
-		authorizeNSRegistryServer:        registryauthorize.NewNetworkServiceRegistryServer(ctx, registryauthorize.Any()),
-		authorizeNSRegistryClient:        registryauthorize.NewNetworkServiceRegistryClient(ctx, registryauthorize.Any()),
-		authorizeNSERegistryServer:       registryauthorize.NewNetworkServiceEndpointRegistryServer(ctx, registryauthorize.Any()),
-		authorizeNSERegistryClient:       registryauthorize.NewNetworkServiceEndpointRegistryClient(ctx, registryauthorize.Any()),
+		authorizeNSRegistryServer:        registryauthorize.NewNetworkServiceRegistryServer(registryauthorize.Any()),
+		authorizeNSRegistryClient:        registryauthorize.NewNetworkServiceRegistryClient(registryauthorize.Any()),
+		authorizeNSERegistryServer:       registryauthorize.NewNetworkServiceEndpointRegistryServer(registryauthorize.Any()),
+		authorizeNSERegistryClient:       registryauthorize.NewNetworkServiceEndpointRegistryClient(registryauthorize.Any()),
 		name:                             "nsmgr-" + uuid.New().String(),
 		forwarderServiceName:             "forwarder",
 	}
