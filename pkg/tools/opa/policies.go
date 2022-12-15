@@ -20,6 +20,7 @@ import (
 	"embed"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -100,7 +101,7 @@ func findFilesByPath(mask string) ([]string, error) {
 				return nil
 			}
 
-			p = filepath.Join(dir, p)
+			p = path.Join(dir, p)
 
 			if _, ok := set[p]; !ok && r.MatchString(p) {
 				result = append(result, p)
