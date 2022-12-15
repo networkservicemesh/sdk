@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/miekg/dns"
@@ -53,6 +54,11 @@ func (h *fanoutHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 			var client = dns.Client{
 				Net:     u.Scheme,
 				Timeout: timeout,
+			}
+
+			// If u.Host is IPv6 then wrap it in brackets
+			if strings.Count(u.Host, ":") >= 2 && !strings.HasPrefix(u.Host, "[") && !strings.Contains(u.Host, "]") {
+				u.Host = fmt.Sprintf("[%s]", u.Host)
 			}
 
 			address := u.Host
