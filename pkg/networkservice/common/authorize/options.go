@@ -21,7 +21,6 @@ package authorize
 import "github.com/networkservicemesh/sdk/pkg/tools/spire"
 
 type options struct {
-	policies              policiesList
 	policyPaths           []string
 	spiffeIDConnectionMap *spire.SpiffeIDConnectionMap
 }
@@ -39,12 +38,6 @@ func Any() Option {
 func WithPolicies(policyPaths ...string) Option {
 	return func(o *options) {
 		o.policyPaths = policyPaths
-	}
-}
-
-func WithPolicyList(policies ...Policy) Option {
-	return func(o *options) {
-		o.policies = policies
 	}
 }
 
