@@ -30,7 +30,7 @@ import (
 
 const defaultPoliciesDir = "etc/nsm/opa"
 
-//go:embed policies/*.rego
+//go:embed policies/**/*.rego
 var embedFS embed.FS
 
 func PoliciesByFileMask(masks ...string) ([]*AuthorizationPolicy, error) {

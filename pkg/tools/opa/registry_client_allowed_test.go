@@ -35,7 +35,7 @@ type testInput struct {
 }
 
 func TestRegistryClientAllowedPolicy(t *testing.T) {
-	p, err := opa.PolicyFromFile("etc/nsm/opa/registry_client_allowed.rego")
+	p, err := opa.PolicyFromFile("etc/nsm/opa/registry/client_allowed.rego")
 	require.NoError(t, err)
 
 	resourcePathIdsMap := map[string][]string{

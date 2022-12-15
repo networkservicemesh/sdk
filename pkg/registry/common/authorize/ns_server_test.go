@@ -32,7 +32,7 @@ import (
 func TestNetworkServiceRegistryAuthorization(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	server := authorize.NewNetworkServiceRegistryServer(authorize.WithPolicies("etc/nsm/opa/registry_client_allowed.rego"))
+	server := authorize.NewNetworkServiceRegistryServer(authorize.WithPolicies("etc/nsm/opa/registry/client_allowed.rego"))
 	require.NotNil(t, server)
 
 	ns := &registry.NetworkService{Name: "ns"}

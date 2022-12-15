@@ -58,7 +58,7 @@ func TestWithAllTokensValidPolicy(t *testing.T) {
 		},
 	}
 
-	p, err := opa.PolicyFromFile("etc/nsm/opa/tokens_valid.rego")
+	p, err := opa.PolicyFromFile("etc/nsm/opa/common/tokens_valid.rego")
 	require.NoError(t, err)
 
 	err = p.Check(context.Background(), validPath)

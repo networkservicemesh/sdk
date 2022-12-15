@@ -37,7 +37,7 @@ func TestCustomPolicies(t *testing.T) {
 }
 
 func TestMaskForPolicyFiles(t *testing.T) {
-	policies, err := opa.PoliciesByFileMask("etc/nsm/opa/tokens_.*.rego")
+	policies, err := opa.PoliciesByFileMask("etc/nsm/opa/common/tokens_.*.rego")
 	require.NoError(t, err)
 	require.Len(t, policies, 3)
 }

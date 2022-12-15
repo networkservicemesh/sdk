@@ -46,7 +46,7 @@ func Test_PrevTokenShouldBeSigned_Server(t *testing.T) {
 	validX509crt, err := x509.ParseCertificate(cert.Certificate[0])
 	require.Nil(t, err)
 
-	p, err := opa.PolicyFromFile("etc/nsm/opa/prev_token_signed.rego")
+	p, err := opa.PolicyFromFile("etc/nsm/opa/server/prev_token_signed.rego")
 	require.NoError(t, err)
 
 	var sample = &networkservice.Path{
