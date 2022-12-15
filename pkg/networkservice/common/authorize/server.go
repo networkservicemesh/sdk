@@ -23,11 +23,13 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc/peer"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/networkservicemesh/sdk/pkg/tools/spire"
 	"github.com/networkservicemesh/sdk/pkg/tools/stringset"
 )
@@ -41,13 +43,27 @@ type authorizeServer struct {
 // Authorize server checks left side of Path.
 func NewServer(opts ...Option) networkservice.NetworkServiceServer {
 	o := &options{
+		policyPaths: []string{
+			"etc/nsm/opa/common/.*.rego",
+			"etc/nsm/opa/server/.*.rego",
+		},
 		spiffeIDConnectionMap: &spire.SpiffeIDConnectionMap{},
 	}
 	for _, opt := range opts {
 		opt(o)
 	}
+
+	policies, err := opa.PoliciesByFileMask(o.policyPaths...)
+	if err != nil {
+		panic(errors.Wrap(err, "failed to read policies in NetworkService authorize client").Error())
+	}
+	var policyList policiesList
+	for _, p := range policies {
+		policyList = append(policyList, p)
+	}
+
 	var s = &authorizeServer{
-		policies:              o.policies,
+		policies:              policyList,
 		spiffeIDConnectionMap: o.spiffeIDConnectionMap,
 	}
 	return s
