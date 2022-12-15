@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
 	"text/template"
 
 	"github.com/edwarnicke/serialize"
@@ -44,6 +45,7 @@ import (
 )
 
 type vl3DNSServer struct {
+	chanCtx               context.Context
 	dnsServerRecords      memory.Map
 	dnsConfigs            *dnsconfig.Map
 	domainSchemeTemplates []*template.Template
@@ -51,8 +53,10 @@ type vl3DNSServer struct {
 	dnsServer             dnsutils.Handler
 	listenAndServeDNS     func(ctx context.Context, handler dnsutils.Handler, listenOn string)
 	dnsServerIP           net.IP
+	serverAddressCh       <-chan net.IP
 	connections           map[string]*networkservice.Connection
 	executor              serialize.Executor
+	once                  sync.Once
 }
 
 type clientDNSNameKey struct{}
@@ -64,10 +68,12 @@ type clientDNSNameKey struct{}
 // opts confugre vl3dns networkservice instance with specific behavior.
 func NewServer(chanCtx context.Context, serverAddressCh <-chan net.IP, opts ...Option) networkservice.NetworkServiceServer {
 	var result = &vl3DNSServer{
+		chanCtx:           chanCtx,
 		dnsPort:           53,
 		listenAndServeDNS: dnsutils.ListenAndServe,
 		dnsConfigs:        new(dnsconfig.Map),
 		connections:       make(map[string]*networkservice.Connection),
+		serverAddressCh:   serverAddressCh,
 	}
 
 	for _, opt := range opts {
@@ -86,24 +92,13 @@ func NewServer(chanCtx context.Context, serverAddressCh <-chan net.IP, opts ...O
 
 	result.listenAndServeDNS(chanCtx, result.dnsServer, fmt.Sprintf(":%v", result.dnsPort))
 
-	go func() {
-		for {
-			select {
-			case <-chanCtx.Done():
-				return
-			case addr, ok := <-serverAddressCh:
-				if !ok {
-					return
-				}
-
-				result.updateServerAddress(chanCtx, addr)
-			}
-		}
-	}()
 	return result
 }
 
 func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	n.once.Do(func() {
+		go n.checkServerAddressUpdates(ctx)
+	})
 
 	if request.GetConnection().GetContext().GetDnsContext() == nil {
 		request.Connection.Context.DnsContext = new(networkservice.DNSContext)
@@ -155,7 +150,7 @@ func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.Netw
 	}
 
 	<-n.executor.AsyncExec(func() {
-		n.connections[resp.GetId()] = resp
+		n.connections[resp.GetId()] = resp.Clone()
 	})
 	return resp, err
 }
@@ -199,8 +194,23 @@ func (n *vl3DNSServer) buildSrcDNSRecords(c *networkservice.Connection) ([]strin
 	return result, nil
 }
 
+func (n *vl3DNSServer) checkServerAddressUpdates(ctx context.Context) {
+	for {
+		select {
+		case <-n.chanCtx.Done():
+			return
+		case addr, ok := <-n.serverAddressCh:
+			if !ok {
+				return
+			}
+
+			n.updateServerAddress(ctx, addr)
+		}
+	}
+}
+
 func (n *vl3DNSServer) updateServerAddress(ctx context.Context, address net.IP) {
-	n.executor.AsyncExec(func() {
+	<-n.executor.AsyncExec(func() {
 		n.dnsServerIP = address
 		logger := log.FromContext(ctx).WithField("vl3DNSServer", "Request")
 
