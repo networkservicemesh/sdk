@@ -13,21 +13,25 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 package nsm
 
-default tokens_valid = false
+default valid = false
 
-tokens_valid {
-	count(input.path_segments) == 0
+valid {
+	count(input.path_segments) < 2
 }
 
-tokens_valid {
-	c := count({x | input.path_segments[x]; token_valid(input.path_segments[x].token)})
-	c == count(input.path_segments)
+valid {
+	pair_count := count({x | input.path_segments[x]; pair_valid(input.path_segments[x].token, input.path_segments[x+1].token)})
+	pair_count == count(input.path_segments) - 1
 }
 
-token_valid(token) = r {
-    [_, _, _] := io.jwt.decode(token)
-	r := true
+pair_valid(token1, token2) = r { 
+	p1 := payload(token1)
+	p2 := payload(token2)
+	r := p1.aud[_] == p2.sub
+}
+
+payload(token) = p {
+    [_, p, _] := io.jwt.decode(token)
 }

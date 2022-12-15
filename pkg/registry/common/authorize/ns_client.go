@@ -44,13 +44,6 @@ type authorizeNSClient struct {
 // Authorize registry client checks spiffeID of NS.
 func NewNetworkServiceRegistryClient(opts ...Option) registry.NetworkServiceRegistryClient {
 	o := &options{
-		policies: policiesList{
-			opa.WithTokensValidPolicy(),
-			opa.WithNextTokenSignedPolicy(),
-			opa.WithTokensExpiredPolicy(),
-			opa.WithTokenChainPolicy(),
-			opa.WithRegistryClientAllowedPolicy(),
-		},
 		resourcePathIdsMap: new(PathIdsMap),
 	}
 
@@ -58,8 +51,18 @@ func NewNetworkServiceRegistryClient(opts ...Option) registry.NetworkServiceRegi
 		opt(o)
 	}
 
+	policies, err := opa.PoliciesByFileMask(o.policyPaths...)
+	if err != nil {
+		panic(errors.Wrap(err, "failed to read policies in NetworkServiceRegistry authorize client").Error())
+	}
+
+	var policyList policiesList
+	for _, p := range policies {
+		policyList = append(policyList, p)
+	}
+
 	return &authorizeNSClient{
-		policies:     o.policies,
+		policies:     policyList,
 		nsPathIdsMap: o.resourcePathIdsMap,
 	}
 }

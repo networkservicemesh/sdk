@@ -13,25 +13,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 package nsm
 
-default tokens_chained = false
+default valid = false
 
-tokens_chained {
-	count(input.path_segments) < 2
-}
-
-tokens_chained {
-	pair_count := count({x | input.path_segments[x]; pair_valid(input.path_segments[x].token, input.path_segments[x+1].token)})
-	pair_count == count(input.path_segments) - 1
-}
-
-pair_valid(token1, token2) = r { 
-	p1 := payload(token1)
-	p2 := payload(token2)
-	r := p1.aud[_] == p2.sub
-}
-
-payload(token) = p {
-    [_, p, _] := io.jwt.decode(token)
+valid {
+	conn_ids := {y | y = input.spiffe_id_connection_map[input.service_spiffe_id][_]}
+   path_conn_ids := {x | x = input.selector_connection_ids[_]}
+   count(path_conn_ids) > 0
+   count(conn_ids) > 0
+   inter := conn_ids & path_conn_ids
+   count(inter) > 0
 }

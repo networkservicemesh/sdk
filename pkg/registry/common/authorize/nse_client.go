@@ -44,13 +44,6 @@ type authorizeNSEClient struct {
 // Authorize registry client checks path of NSE.
 func NewNetworkServiceEndpointRegistryClient(opts ...Option) registry.NetworkServiceEndpointRegistryClient {
 	o := &options{
-		policies: policiesList{
-			opa.WithTokensValidPolicy(),
-			opa.WithNextTokenSignedPolicy(),
-			opa.WithTokensExpiredPolicy(),
-			opa.WithTokenChainPolicy(),
-			opa.WithRegistryClientAllowedPolicy(),
-		},
 		resourcePathIdsMap: new(PathIdsMap),
 	}
 
@@ -58,8 +51,18 @@ func NewNetworkServiceEndpointRegistryClient(opts ...Option) registry.NetworkSer
 		opt(o)
 	}
 
+	policies, err := opa.PoliciesByFileMask(o.policyPaths...)
+	if err != nil {
+		panic(errors.Wrap(err, "failed to read policies in NetworkServiceRegistry authorize client").Error())
+	}
+
+	var policyList policiesList
+	for _, p := range policies {
+		policyList = append(policyList, p)
+	}
+
 	return &authorizeNSEClient{
-		policies:      o.policies,
+		policies:      policyList,
 		nsePathIdsMap: o.resourcePathIdsMap,
 	}
 }

@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Cisco and/or its affiliates.
+# Copyright (c) 2020 Cisco and/or its affiliates.
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -16,14 +16,18 @@
 
 package nsm
 
-default registry_client_allowed = false
+default valid = false
 
-# new NSE case
-registry_client_allowed {
-	not input.resource_path_ids_map[input.resource_name]
+valid {
+	count(input.path_segments) == 0
 }
-	
-# refresh/unregister NSE case
-registry_client_allowed {
-    input.resource_path_ids_map[input.resource_name][0] == input.resource_id
+
+valid {
+	c := count({x | input.path_segments[x]; token_valid(input.path_segments[x].token)})
+	c == count(input.path_segments)
+}
+
+token_valid(token) = r {
+    [_, _, _] := io.jwt.decode(token)
+	r := true
 }

@@ -27,10 +27,11 @@ import (
 	"crypto/x509"
 	"math/big"
 	"net/url"
+	"os"
+	"path"
+	"path/filepath"
 	"testing"
 	"time"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
@@ -72,16 +73,16 @@ func withPeer(ctx context.Context, certBytes []byte) (context.Context, error) {
 	return peer.NewContext(ctx, &peer.Peer{AuthInfo: authInfo}), nil
 }
 
-func testPolicy() authorize.Policy {
-	return opa.WithPolicyFromSource(`
-		package test
+func testPolicy() string {
+	return `
+package test
 	
-		default allow = false
-	
-		allow {
-			 input.path_segments[_].token = "allowed"
-		}
-`, "allow", opa.True)
+default valid = false
+
+valid {
+		input.path_segments[_].token = "allowed"
+}
+`
 }
 
 func requestWithToken(token string) *networkservice.NetworkServiceRequest {
@@ -123,31 +124,44 @@ func TestAuthorize_ShouldCorrectlyWorkWithHeal(t *testing.T) {
 
 func TestAuthzEndpoint(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	dir := filepath.Clean(path.Join(os.TempDir(), t.Name()))
+	defer func() {
+		_ = os.RemoveAll(dir)
+	}()
+
+	err := os.MkdirAll(dir, os.ModePerm)
+	require.Nil(t, err)
+
+	policyPath := filepath.Clean(path.Join(dir, "policy.rego"))
+	err = os.WriteFile(policyPath, []byte(testPolicy()), os.ModePerm)
+	require.Nil(t, err)
+
 	suits := []struct {
-		name     string
-		policy   authorize.Policy
-		request  *networkservice.NetworkServiceRequest
-		response *networkservice.Connection
-		denied   bool
+		name       string
+		policyPath string
+		request    *networkservice.NetworkServiceRequest
+		response   *networkservice.Connection
+		denied     bool
 	}{
 		{
-			name:    "simple positive test",
-			policy:  testPolicy(),
-			request: requestWithToken("allowed"),
-			denied:  false,
+			name:       "simple positive test",
+			policyPath: policyPath,
+			request:    requestWithToken("allowed"),
+			denied:     false,
 		},
 		{
-			name:    "simple negative test",
-			policy:  testPolicy(),
-			request: requestWithToken("not_allowed"),
-			denied:  true,
+			name:       "simple negative test",
+			policyPath: policyPath,
+			request:    requestWithToken("not_allowed"),
+			denied:     true,
 		},
 	}
 
 	for i := range suits {
 		s := suits[i]
 		t.Run(s.name, func(t *testing.T) {
-			srv := authorize.NewServer(authorize.WithPolicies(s.policy))
+			srv := authorize.NewServer(authorize.WithPolicies(s.policyPath))
 			checkResult := func(err error) {
 				if !s.denied {
 					require.Nil(t, err, "request expected to be not denied: ")

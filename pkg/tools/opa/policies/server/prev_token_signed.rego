@@ -16,14 +16,15 @@
 
 package nsm
 
-default next_token_signed = false
-default index = 1
+default valid = false
+default index = 0
 
-index = input.index + 1
+index = input.index
 
-next_token_signed {
-	count(input.path_segments) > index
-	token := input.path_segments[index].token	
+valid {
+	prev_index := index - 1
+	prev_index >= 0
+	token := input.path_segments[prev_index].token	
 	cert := input.auth_info.certificate	
 	io.jwt.verify_es256(token, cert) = true
 }

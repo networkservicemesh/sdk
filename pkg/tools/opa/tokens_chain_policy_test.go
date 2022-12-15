@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2022 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -107,7 +109,9 @@ func getSamples() []chainSample {
 }
 
 func TestWithTokensPathValidPolicy(t *testing.T) {
-	p := opa.WithTokenChainPolicy()
+	p, err := opa.PolicyFromFile("etc/nsm/opa/common/tokens_chained.rego")
+	require.NoError(t, err)
+
 	samples := getSamples()
 
 	for i := 0; i < len(samples); i++ {

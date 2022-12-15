@@ -53,33 +53,12 @@ func True(query string) CheckAccessFunc {
 	}
 }
 
-// False is default access checker, returns true if in the result set of rego exist query and it has false value
-func False(query string) CheckAccessFunc {
-	t := True(query)
-	return func(result rego.ResultSet) (bool, error) {
-		b, err := t(result)
-		if err == nil {
-			return !b, nil
-		}
-		return b, err
-	}
-}
-
 // WithPolicyFromSource creates custom policy based on rego source code
 func WithPolicyFromSource(source, query string, checkQuery CheckQueryFunc) *AuthorizationPolicy {
 	return &AuthorizationPolicy{
 		policySource: strings.TrimSpace(source),
 		query:        query,
 		checker:      checkQuery(query),
-	}
-}
-
-// WithPolicyFromFile creates custom policy based on rego source file
-func WithPolicyFromFile(path, query string, checkQuery CheckQueryFunc) *AuthorizationPolicy {
-	return &AuthorizationPolicy{
-		policyFilePath: path,
-		query:          query,
-		checker:        checkQuery(query),
 	}
 }
 

@@ -16,87 +16,105 @@
 
 package opa
 
-import _ "embed"
+import (
+	"embed"
+	"io/fs"
+	"os"
+	"path"
+	"path/filepath"
+	"regexp"
+	"strings"
 
-//go:embed policies/tokens_valid.rego
-var tokensValidPolicySource string
+	"github.com/pkg/errors"
+)
 
-//go:embed policies/prev_token_signed.rego
-var prevTokenSignedPolicySource string
+const defaultPoliciesDir = "etc/nsm/opa"
 
-//go:embed policies/next_token_signed.rego
-var currTokenSignedPolicySource string
+//go:embed policies/**/*.rego
+var embedFS embed.FS
 
-//go:embed policies/tokens_chained.rego
-var tokensChainedPolicySource string
+func PoliciesByFileMask(masks ...string) ([]*AuthorizationPolicy, error) {
+	var policies []*AuthorizationPolicy
 
-//go:embed policies/tokens_expired.rego
-var tokensExpiredPolicySource string
-
-//go:embed policies/service_connection.rego
-var tokensServiceConnectionPolicySource string
-
-//go:embed policies/registry_client_allowed.rego
-var registryClientAllowedPolicySource string
-
-// WithTokensValidPolicy returns default policy for checking that all tokens in the path can be decoded.
-func WithTokensValidPolicy() *AuthorizationPolicy {
-	return &AuthorizationPolicy{
-		policySource: tokensValidPolicySource,
-		query:        "tokens_valid",
-		checker:      True("tokens_valid"),
+	if len(masks) == 0 {
+		return policies, nil
 	}
+
+	for _, mask := range masks {
+		files, err := findFilesByPath(strings.ReplaceAll(mask, defaultPoliciesDir, "policies"))
+		if err != nil {
+			return nil, err
+		}
+		for _, file := range files {
+			policy, err := PolicyFromFile(file)
+			if err != nil {
+				return nil, err
+			}
+			policies = append(policies, policy)
+		}
+	}
+
+	return policies, nil
 }
 
-// WithNextTokenSignedPolicy returns default policy for checking that last token in path is signed.
-func WithNextTokenSignedPolicy() *AuthorizationPolicy {
-	return &AuthorizationPolicy{
-		policySource: currTokenSignedPolicySource,
-		query:        "next_token_signed",
-		checker:      True("next_token_signed"),
+func PolicyFromFile(p string) (*AuthorizationPolicy, error) {
+	// #nosec
+	b, err := os.ReadFile(p)
+	if err != nil {
+		var embedErr error
+		b, embedErr = embedFS.ReadFile(strings.ReplaceAll(p, defaultPoliciesDir, "policies"))
+		if embedErr != nil {
+			return nil, errors.Wrap(err, embedErr.Error())
+		}
 	}
+	return &AuthorizationPolicy{
+		policySource: string(b),
+		query:        "valid",
+		checker:      True("valid"),
+	}, nil
 }
 
-// WithPrevTokenSignedPolicy returns default policy for checking that last token in path is signed.
-func WithPrevTokenSignedPolicy() *AuthorizationPolicy {
-	return &AuthorizationPolicy{
-		policySource: prevTokenSignedPolicySource,
-		query:        "prev_token_signed",
-		checker:      True("prev_token_signed"),
+func findFilesByPath(mask string) ([]string, error) {
+	// #nosec
+	if f, err := os.Open(mask); err == nil {
+		if fileInfo, err := f.Stat(); err == nil && !fileInfo.IsDir() {
+			return []string{mask}, nil
+		}
 	}
-}
 
-// WithTokenChainPolicy returns default policy for checking tokens chain in path
-func WithTokenChainPolicy() *AuthorizationPolicy {
-	return &AuthorizationPolicy{
-		policySource: tokensChainedPolicySource,
-		query:        "tokens_chained",
-		checker:      True("tokens_chained"),
-	}
-}
+	var result []string
+	var set = make(map[string]struct{})
+	var r, err = regexp.Compile("^" + mask + "$")
 
-// WithTokensExpiredPolicy returns default policy for checking tokens expiration
-func WithTokensExpiredPolicy() *AuthorizationPolicy {
-	return &AuthorizationPolicy{
-		policySource: tokensExpiredPolicySource,
-		query:        "tokens_expired",
-		checker:      False("tokens_expired"),
+	if err != nil {
+		return nil, err
 	}
-}
 
-func WithMonitorConnectionServerPolicy() *AuthorizationPolicy {
-	return &AuthorizationPolicy{
-		policySource: tokensServiceConnectionPolicySource,
-		query:        "service_connection",
-		checker:      True("service_connection"),
-	}
-}
+	var dir = filepath.Dir(mask)
 
-// WithRegistryClientAllowedPolicy returns policy for checking resource (nse or ns) registration/unregistration validity
-func WithRegistryClientAllowedPolicy() *AuthorizationPolicy {
-	return &AuthorizationPolicy{
-		policySource: registryClientAllowedPolicySource,
-		query:        "registry_client_allowed",
-		checker:      True("registry_client_allowed"),
+	var walkFS = func(dir string, fileSystem fs.FS) {
+		_ = fs.WalkDir(fileSystem, ".", func(p string, d fs.DirEntry, err error) error {
+			if d == nil {
+				return nil
+			}
+			if d.IsDir() {
+				return nil
+			}
+
+			p = path.Join(dir, p)
+
+			if _, ok := set[p]; !ok && r.MatchString(p) {
+				result = append(result, p)
+				set[p] = struct{}{}
+				return nil
+			}
+
+			return nil
+		})
 	}
+
+	walkFS(dir, os.DirFS(dir))
+	walkFS(".", embedFS)
+
+	return result, nil
 }

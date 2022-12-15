@@ -1,4 +1,4 @@
-# Copyright (c) 2020 Cisco and/or its affiliates.
+# Copyright (c) 2022 Cisco and/or its affiliates.
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -16,15 +16,14 @@
 
 package nsm
 
-default prev_token_signed = false
-default index = 0
+default valid = false
 
-index = input.index
-
-prev_token_signed {
-	prev_index := index - 1
-	prev_index >= 0
-	token := input.path_segments[prev_index].token	
-	cert := input.auth_info.certificate	
-	io.jwt.verify_es256(token, cert) = true
+# new NSE case
+valid {
+	not input.resource_path_ids_map[input.resource_name]
+}
+	
+# refresh/unregister NSE case
+valid {
+    input.resource_path_ids_map[input.resource_name][0] == input.resource_id
 }

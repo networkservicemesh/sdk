@@ -16,13 +16,14 @@
 
 package nsm
 
-default service_connection = false
+default valid = false
+default index = 1
 
-service_connection {
-	conn_ids := {y | y = input.spiffe_id_connection_map[input.service_spiffe_id][_]}
-   path_conn_ids := {x | x = input.selector_connection_ids[_]}
-   count(path_conn_ids) > 0
-   count(conn_ids) > 0
-   inter := conn_ids & path_conn_ids
-   count(inter) > 0
+index = input.index + 1
+
+valid {
+	count(input.path_segments) > index
+	token := input.path_segments[index].token	
+	cert := input.auth_info.certificate	
+	io.jwt.verify_es256(token, cert) = true
 }

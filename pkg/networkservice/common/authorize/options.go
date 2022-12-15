@@ -21,7 +21,7 @@ package authorize
 import "github.com/networkservicemesh/sdk/pkg/tools/spire"
 
 type options struct {
-	policies              policiesList
+	policyPaths           []string
 	spiffeIDConnectionMap *spire.SpiffeIDConnectionMap
 }
 
@@ -30,13 +30,14 @@ type Option func(*options)
 
 // Any authorizes any call of request/close
 func Any() Option {
-	return WithPolicies(nil)
+	return WithPolicies([]string{}...)
 }
 
-// WithPolicies sets custom policies
-func WithPolicies(p ...Policy) Option {
+// WithPolicies sets custom policies for networkservice.
+// policyPaths can be combination of both policy files and dirs with policies
+func WithPolicies(policyPaths ...string) Option {
 	return func(o *options) {
-		o.policies = p
+		o.policyPaths = policyPaths
 	}
 }
 

@@ -43,18 +43,26 @@ type authorizeClient struct {
 // Authorize client checks rigiht side of path.
 func NewClient(opts ...Option) networkservice.NetworkServiceClient {
 	o := &options{
-		policies: policiesList{
-			opa.WithTokensValidPolicy(),
-			opa.WithNextTokenSignedPolicy(),
-			opa.WithTokensExpiredPolicy(),
-			opa.WithTokenChainPolicy(),
+		policyPaths: []string{
+			"etc/nsm/opa/common/.*.rego",
+			"etc/nsm/opa/client/.*.rego",
 		},
 	}
 	for _, opt := range opts {
 		opt(o)
 	}
+
+	policies, err := opa.PoliciesByFileMask(o.policyPaths...)
+	if err != nil {
+		panic(errors.Wrap(err, "failed to read policies in NetworkService authorize client").Error())
+	}
+	var policyList policiesList
+	for _, p := range policies {
+		policyList = append(policyList, p)
+	}
+
 	var result = &authorizeClient{
-		policies: o.policies,
+		policies: policyList,
 	}
 	return result
 }
