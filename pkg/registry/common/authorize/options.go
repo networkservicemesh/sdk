@@ -17,8 +17,9 @@
 package authorize
 
 import (
-	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/pkg/errors"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 )
 
 type options struct {
