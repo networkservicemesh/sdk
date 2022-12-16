@@ -18,16 +18,13 @@ package grpcmetadata
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type grpcMetadataNSEServer struct {
@@ -38,34 +35,24 @@ func NewNetworkServiceEndpointRegistryServer() registry.NetworkServiceEndpointRe
 	return &grpcMetadataNSEServer{}
 }
 
-func (s *grpcMetadataNSEServer) Register(ctx context.Context, ns *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	md, loaded := metadata.FromIncomingContext(ctx)
-	if !loaded {
-		return nil, errors.New("failed to load grpc metadata from context")
-	}
-	path, err := loadFromMetadata(md)
+func (s *grpcMetadataNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	path, err := fromContext(ctx)
+
 	if err != nil {
-		return nil, err
+		log.FromContext(ctx).Warnf("Register: failed to load grpc metadata from context: %v", err.Error())
+		return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	}
 
 	ctx = PathWithContext(ctx, path)
 
-	resp, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, ns)
+	resp, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	if err != nil {
 		return nil, err
 	}
 
-	bytes, err := json.Marshal(path)
-	if err != nil {
-		return nil, err
-	}
+	err = sendPath(ctx, path)
 
-	header := metadata.Pairs("path", string(bytes))
-	err = grpc.SendHeader(ctx, header)
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
+	return resp, err
 }
 
 func (s *grpcMetadataNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
@@ -73,13 +60,11 @@ func (s *grpcMetadataNSEServer) Find(query *registry.NetworkServiceEndpointQuery
 }
 
 func (s *grpcMetadataNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	md, loaded := metadata.FromIncomingContext(ctx)
-	if !loaded {
-		return nil, errors.New("failed to load grpc metadata from context")
-	}
-	path, err := loadFromMetadata(md)
+	path, err := fromContext(ctx)
+
 	if err != nil {
-		return nil, err
+		log.FromContext(ctx).Warnf("Unegister: failed to load grpc metadata from context: %v", err.Error())
+		return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 	}
 
 	ctx = PathWithContext(ctx, path)
@@ -89,15 +74,7 @@ func (s *grpcMetadataNSEServer) Unregister(ctx context.Context, nse *registry.Ne
 		return nil, err
 	}
 
-	bytes, err := json.Marshal(path)
-	if err != nil {
-		return nil, err
-	}
+	err = sendPath(ctx, path)
 
-	header := metadata.Pairs("path", string(bytes))
-	err = grpc.SendHeader(ctx, header)
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
+	return resp, err
 }

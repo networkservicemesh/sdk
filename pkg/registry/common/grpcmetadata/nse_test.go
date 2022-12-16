@@ -20,6 +20,7 @@ import (
 	"context"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
@@ -125,4 +126,86 @@ func TestGRPCMetadataNetworkServiceEndpoint(t *testing.T) {
 
 	serverGRPCServer.Stop()
 	proxyGRPCServer.Stop()
+}
+
+func TestGRPCMetadataNetworkServiceEndpoint_BackwardCompatibility(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cacncel := context.WithTimeout(context.Background(), time.Second)
+	defer cacncel()
+
+	clientToken, _, _ := tokenGeneratorFunc(clientID)(nil)
+
+	serverLis, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+
+	server := next.NewNetworkServiceEndpointRegistryServer()
+
+	serverGRPCServer := grpc.NewServer()
+	defer func() {
+		serverGRPCServer.Stop()
+	}()
+	registry.RegisterNetworkServiceEndpointRegistryServer(serverGRPCServer, server)
+	go func() {
+		serveErr := serverGRPCServer.Serve(serverLis)
+		require.NoError(t, serveErr)
+	}()
+
+	proxyLis, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+
+	serverConn, err := grpc.Dial(serverLis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	defer func() {
+		closeErr := serverConn.Close()
+		require.NoError(t, closeErr)
+	}()
+
+	proxyServer := next.NewNetworkServiceEndpointRegistryServer(
+		injectpeertoken.NewNetworkServiceEndpointRegistryServer(clientToken),
+		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
+		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(proxyID)),
+		checkcontext.NewNSEServer(t, func(t *testing.T, ctx context.Context) {
+			path := grpcmetadata.PathFromContext(ctx)
+			require.Equal(t, int(path.Index), 1)
+		}),
+		adapters.NetworkServiceEndpointClientToServer(next.NewNetworkServiceEndpointRegistryClient(
+			grpcmetadata.NewNetworkServiceEndpointRegistryClient(),
+			registry.NewNetworkServiceEndpointRegistryClient(serverConn),
+		)),
+	)
+
+	proxyGRPCServer := grpc.NewServer()
+	defer func() {
+		proxyGRPCServer.Stop()
+	}()
+	registry.RegisterNetworkServiceEndpointRegistryServer(proxyGRPCServer, proxyServer)
+	go func() {
+		serveErr := proxyGRPCServer.Serve(proxyLis)
+		require.NoError(t, serveErr)
+	}()
+
+	conn, err := grpc.Dial(proxyLis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	defer func() {
+		closeErr := conn.Close()
+		require.NoError(t, closeErr)
+	}()
+
+	client := next.NewNetworkServiceEndpointRegistryClient(
+		grpcmetadata.NewNetworkServiceEndpointRegistryClient(),
+		registry.NewNetworkServiceEndpointRegistryClient(conn))
+
+	path := grpcmetadata.Path{}
+	ctx = grpcmetadata.PathWithContext(ctx, &path)
+
+	ns := &registry.NetworkServiceEndpoint{Name: "ns"}
+	_, err = client.Register(ctx, ns)
+	require.NoError(t, err)
+
+	require.Equal(t, int(path.Index), 0)
+	require.Len(t, path.PathSegments, 2)
+
+	_, err = client.Unregister(ctx, ns)
+	require.NoError(t, err)
 }

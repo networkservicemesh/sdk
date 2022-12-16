@@ -51,13 +51,12 @@ func (c *grpcMetadataNSEClient) Register(ctx context.Context, nse *registry.Netw
 		return nil, err
 	}
 
-	newpath, err := loadFromMetadata(header)
-	if err != nil {
-		return nil, err
-	}
+	newpath, err := fromMD(header)
 
-	path.Index = newpath.Index
-	path.PathSegments = newpath.PathSegments
+	if err == nil {
+		path.Index = newpath.Index
+		path.PathSegments = newpath.PathSegments
+	}
 
 	return resp, nil
 }
@@ -74,10 +73,5 @@ func (c *grpcMetadataNSEClient) Unregister(ctx context.Context, nse *registry.Ne
 		return nil, err
 	}
 
-	resp, err := next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, nse, opts...)
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
+	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, nse, opts...)
 }

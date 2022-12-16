@@ -30,7 +30,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 )
 
@@ -51,18 +50,8 @@ func NewNetworkServiceRegistryClient(opts ...Option) registry.NetworkServiceRegi
 		opt(o)
 	}
 
-	policies, err := opa.PoliciesByFileMask(o.policyPaths...)
-	if err != nil {
-		panic(errors.Wrap(err, "failed to read policies in NetworkServiceRegistry authorize client").Error())
-	}
-
-	var policyList policiesList
-	for _, p := range policies {
-		policyList = append(policyList, p)
-	}
-
 	return &authorizeNSClient{
-		policies:     policyList,
+		policies:     o.policies,
 		nsPathIdsMap: o.resourcePathIdsMap,
 	}
 }

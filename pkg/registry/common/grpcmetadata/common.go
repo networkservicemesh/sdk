@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -44,19 +45,33 @@ func PathWithContext(ctx context.Context, path *Path) context.Context {
 	return context.WithValue(ctx, pathContextKey, path)
 }
 
-func loadFromMetadata(md metadata.MD) (*Path, error) {
-	pathValue, loaded := md["path"]
+func fromMD(md metadata.MD) (*Path, error) {
+	pathValue, loaded := md[pathKey]
+
 	if !loaded {
 		return nil, errors.New("failed to load path from grpc metadata")
 	}
 
 	path := &Path{}
-	err := json.Unmarshal([]byte(pathValue[0]), path)
-	if err != nil {
-		return nil, err
+
+	if len(pathValue) > 0 {
+		err := json.Unmarshal([]byte(pathValue[len(pathValue)-1]), path)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return path, nil
+}
+
+func fromContext(ctx context.Context) (*Path, error) {
+	md, loaded := metadata.FromIncomingContext(ctx)
+
+	if !loaded {
+		return nil, errors.New("failed to load grpc metadata from context")
+	}
+
+	return fromMD(md)
 }
 
 func appendToMetadata(ctx context.Context, path *Path) (context.Context, error) {
@@ -66,4 +81,14 @@ func appendToMetadata(ctx context.Context, path *Path) (context.Context, error) 
 	}
 	ctx = metadata.AppendToOutgoingContext(ctx, pathKey, string(bytes))
 	return ctx, nil
+}
+
+func sendPath(ctx context.Context, path *Path) error {
+	bytes, err := json.Marshal(path)
+	if err != nil {
+		return err
+	}
+
+	header := metadata.Pairs(pathKey, string(bytes))
+	return grpc.SendHeader(ctx, header)
 }

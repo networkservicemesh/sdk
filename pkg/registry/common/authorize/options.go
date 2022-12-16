@@ -16,8 +16,14 @@
 
 package authorize
 
+import (
+	"github.com/pkg/errors"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/opa"
+)
+
 type options struct {
-	policyPaths        []string
+	policies           policiesList
 	resourcePathIdsMap *PathIdsMap
 }
 
@@ -27,7 +33,7 @@ type Option func(*options)
 // Any authorizes any call of request/close
 func Any() Option {
 	return func(o *options) {
-		o.policyPaths = nil
+		o.policies = nil
 	}
 }
 
@@ -35,7 +41,14 @@ func Any() Option {
 // policyPaths can be combination of both policy files and dirs with policies
 func WithPolicies(policyPaths ...string) Option {
 	return func(o *options) {
-		o.policyPaths = policyPaths
+		policies, err := opa.PoliciesByFileMask(policyPaths...)
+		if err != nil {
+			panic(errors.Wrap(err, "failed to read policies in NetworkServiceRegistry authorize client").Error())
+		}
+
+		for _, p := range policies {
+			o.policies = append(o.policies, Policy(p))
+		}
 	}
 }
 
