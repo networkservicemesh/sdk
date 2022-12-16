@@ -21,13 +21,11 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 )
 
 type authorizeNSEServer struct {
@@ -46,18 +44,8 @@ func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkSer
 		opt(o)
 	}
 
-	policies, err := opa.PoliciesByFileMask(o.policyPaths...)
-	if err != nil {
-		panic(errors.Wrap(err, "failed to read policies in NetworkServiceRegistry authorize client").Error())
-	}
-
-	var policyList policiesList
-	for _, p := range policies {
-		policyList = append(policyList, p)
-	}
-
 	return &authorizeNSEServer{
-		policies:      policyList,
+		policies:      o.policies,
 		nsePathIdsMap: o.resourcePathIdsMap,
 	}
 }

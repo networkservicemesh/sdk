@@ -47,26 +47,24 @@ func (c *grpcMetadataNSClient) Register(ctx context.Context, ns *registry.Networ
 
 	var header metadata.MD
 	opts = append(opts, grpc.Header(&header))
+
 	resp, err := next.NetworkServiceRegistryClient(ctx).Register(ctx, ns, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	newpath, err := loadFromMetadata(header)
-	if err != nil {
-		return nil, err
-	}
+	newpath, err := fromMD(header)
 
-	path.Index = newpath.Index
-	path.PathSegments = newpath.PathSegments
+	if err == nil {
+		path.Index = newpath.Index
+		path.PathSegments = newpath.PathSegments
+	}
 
 	return resp, nil
 }
 
 func (c *grpcMetadataNSClient) Find(ctx context.Context, query *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
-	resp, err := next.NetworkServiceRegistryClient(ctx).Find(ctx, query, opts...)
-
-	return resp, err
+	return next.NetworkServiceRegistryClient(ctx).Find(ctx, query, opts...)
 }
 
 func (c *grpcMetadataNSClient) Unregister(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
@@ -77,10 +75,5 @@ func (c *grpcMetadataNSClient) Unregister(ctx context.Context, ns *registry.Netw
 		return nil, err
 	}
 
-	resp, err := next.NetworkServiceRegistryClient(ctx).Unregister(ctx, ns, opts...)
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
+	return next.NetworkServiceRegistryClient(ctx).Unregister(ctx, ns, opts...)
 }
