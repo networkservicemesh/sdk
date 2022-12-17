@@ -92,6 +92,9 @@ func NewServer(chanCtx context.Context, serverAddressCh <-chan net.IP, opts ...O
 
 	result.listenAndServeDNS(chanCtx, result.dnsServer, fmt.Sprintf(":%v", result.dnsPort))
 
+	if len(serverAddressCh) > 0 {
+		result.dnsServerIP = <-serverAddressCh
+	}
 	return result
 }
 

@@ -102,6 +102,8 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 		require.NoError(t, err)
 
 		req.Connection = resp.Clone()
+		require.Len(t, resp.GetContext().GetDnsContext().GetConfigs(), 1)
+		require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].DnsServerIps, 1)
 
 		requireIPv4Lookup(ctx, t, &resolver, "nsc"+fmt.Sprint(i)+".vl3", "10.0.0.1")
 
