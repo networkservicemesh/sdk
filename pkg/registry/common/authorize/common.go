@@ -75,6 +75,7 @@ func getRawMap(m *PathIdsMap) map[string][]string {
 func getSpiffeIDFromPath(ctx context.Context, path *grpcmetadata.Path) spiffeid.ID {
 	if len(path.PathSegments) == 0 {
 		log.FromContext(ctx).Warn("can't get spiffe id from empty path")
+		return spiffeid.ID{}
 	}
 	tokenString := path.PathSegments[0].Token
 
