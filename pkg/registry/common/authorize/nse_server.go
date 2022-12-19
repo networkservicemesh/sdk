@@ -57,12 +57,7 @@ func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.Network
 
 	path := grpcmetadata.PathFromContext(ctx)
 	spiffeID := getSpiffeIDFromPath(ctx, path)
-
-	index := path.Index
-	var leftSide = &grpcmetadata.Path{
-		Index:        index,
-		PathSegments: path.PathSegments[:index+1],
-	}
+	leftSide := getLeftSideOfPath(path)
 
 	rawMap := getRawMap(s.nsePathIdsMap)
 	input := RegistryOpaInput{
@@ -92,12 +87,7 @@ func (s *authorizeNSEServer) Unregister(ctx context.Context, nse *registry.Netwo
 
 	path := grpcmetadata.PathFromContext(ctx)
 	spiffeID := getSpiffeIDFromPath(ctx, path)
-
-	index := path.Index
-	var leftSide = &grpcmetadata.Path{
-		Index:        index,
-		PathSegments: path.PathSegments[:index+1],
-	}
+	leftSide := getLeftSideOfPath(path)
 
 	rawMap := getRawMap(s.nsePathIdsMap)
 	input := RegistryOpaInput{
