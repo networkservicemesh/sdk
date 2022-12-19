@@ -104,3 +104,16 @@ func getSpiffeIDFromPath(ctx context.Context, path *grpcmetadata.Path) spiffeid.
 	}
 	return id
 }
+
+func getLeftSideOfPath(path *grpcmetadata.Path) *grpcmetadata.Path {
+	if len(path.PathSegments) == 0 {
+		return &grpcmetadata.Path{
+			Index:        0,
+			PathSegments: []*grpcmetadata.PathSegment{},
+		}
+	}
+	return &grpcmetadata.Path{
+		Index:        path.Index,
+		PathSegments: path.PathSegments[:path.Index+1],
+	}
+}
