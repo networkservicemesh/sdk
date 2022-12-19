@@ -45,7 +45,7 @@ import (
 func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15000)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
 
 	domain := sandbox.NewBuilder(ctx, t).
@@ -90,7 +90,7 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-		reqCtx, reqClose := context.WithTimeout(ctx, time.Second*100)
+		reqCtx, reqClose := context.WithTimeout(ctx, time.Second*1)
 		defer reqClose()
 
 		req := defaultRequest(nsReg.Name)
@@ -123,7 +123,7 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*150000)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
 
 	domain := sandbox.NewBuilder(ctx, t).
@@ -219,5 +219,78 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 	require.Error(t, err)
 
 	_, err = resolver.LookupIP(ctx, "ip4", "nsc1.vl3")
+	require.Error(t, err)
+}
+
+func Test_NSC_GetsVl3DnsAddressAfterRefresh(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		Build()
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService("vl3"))
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
+
+	var serverPrefixCh = make(chan *ipam.PrefixResponse, 1)
+	defer close(serverPrefixCh)
+
+	serverPrefixCh <- &ipam.PrefixResponse{Prefix: "10.0.0.1/24"}
+	dnsServerIPCh := make(chan net.IP, 1)
+
+	_ = domain.Nodes[0].NewEndpoint(
+		ctx,
+		nseReg,
+		sandbox.GenerateTestToken,
+		vl3.NewServer(ctx, serverPrefixCh),
+		vl3dns.NewServer(ctx,
+			dnsServerIPCh,
+			vl3dns.WithDomainSchemes("{{ index .Labels \"podName\" }}.{{ .NetworkService }}."),
+			vl3dns.WithDNSPort(40053)),
+	)
+
+	resolver := net.Resolver{
+		PreferGo: true,
+		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+			var dialer net.Dialer
+			return dialer.DialContext(ctx, network, "127.0.0.1:40053")
+		},
+	}
+
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	reqCtx, reqClose := context.WithTimeout(ctx, time.Second*10)
+	defer reqClose()
+
+	req := defaultRequest(nsReg.Name)
+	req.Connection.Labels["podName"] = "nsc"
+
+	resp, err := nsc.Request(reqCtx, req)
+	require.NoError(t, err)
+	req.Connection = resp.Clone()
+	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs(), 0)
+
+	dnsServerIPCh <- net.ParseIP("127.0.0.1")
+
+	respAfterRefresh, err := nsc.Request(reqCtx, req)
+	require.NoError(t, err)
+	require.Len(t, respAfterRefresh.GetContext().GetDnsContext().GetConfigs(), 1)
+	require.Len(t, respAfterRefresh.GetContext().GetDnsContext().GetConfigs()[0].DnsServerIps, 1)
+
+	requireIPv4Lookup(ctx, t, &resolver, "nsc.vl3", "10.0.0.1")
+
+	_, err = nsc.Close(reqCtx, resp)
+	require.NoError(t, err)
+
+	_, err = resolver.LookupIP(reqCtx, "ip4", "nsc.vl3")
 	require.Error(t, err)
 }
