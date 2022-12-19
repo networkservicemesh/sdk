@@ -24,6 +24,7 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
@@ -73,7 +74,7 @@ func (b *beginNSEServer) Register(ctx context.Context, in *registry.NetworkServi
 		eventFactoryServer.registration = mergeNSE(in, resp)
 		eventFactoryServer.state = established
 		eventFactoryServer.response = resp
-		eventFactoryServer.updateContext(ctx)
+		eventFactoryServer.updateContext(grpcmetadata.PathWithContext(ctx, grpcmetadata.PathFromContext(ctx).Clone()))
 	})
 	return resp, err
 }

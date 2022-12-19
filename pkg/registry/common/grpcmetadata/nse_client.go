@@ -73,5 +73,18 @@ func (c *grpcMetadataNSEClient) Unregister(ctx context.Context, nse *registry.Ne
 		return nil, err
 	}
 
-	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, nse, opts...)
+	var header metadata.MD
+	opts = append(opts, grpc.Header(&header))
+
+	resp, err := next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, nse, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	newpath, err := fromMD(header)
+	if err == nil {
+		path.Index = newpath.Index
+		path.PathSegments = newpath.PathSegments
+	}
+	return resp, nil
 }

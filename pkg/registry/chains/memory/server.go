@@ -136,9 +136,9 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
 		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
-		begin.NewNetworkServiceEndpointRegistryServer(),
 		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGenerator),
 		opts.authorizeNSERegistryServer,
+		begin.NewNetworkServiceEndpointRegistryServer(),
 		switchcase.NewNetworkServiceEndpointRegistryServer(switchcase.NSEServerCase{
 			Condition: func(c context.Context, nse *registry.NetworkServiceEndpoint) bool {
 				if interdomain.Is(nse.GetName()) {

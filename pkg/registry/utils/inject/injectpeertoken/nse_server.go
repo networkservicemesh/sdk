@@ -24,21 +24,23 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 type injectSpiffeIDNSEServer struct {
-	peerToken string
+	tokenGenerator token.GeneratorFunc
 }
 
-// NewNetworkServiceEndpointRegistryServer returns a server chain element putting spiffeID to context on Register and Unregister
-func NewNetworkServiceEndpointRegistryServer(peerToken string) registry.NetworkServiceEndpointRegistryServer {
+// NewNetworkServiceEndpointRegistryServer returns a server chain element putting peer token to context on Register and Unregister
+func NewNetworkServiceEndpointRegistryServer(tokenGenerator token.GeneratorFunc) registry.NetworkServiceEndpointRegistryServer {
 	return &injectSpiffeIDNSEServer{
-		peerToken: peerToken,
+		tokenGenerator: tokenGenerator,
 	}
 }
 
 func (s *injectSpiffeIDNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	ctx = withPeerToken(ctx, s.peerToken)
+	peerToken, _, _ := s.tokenGenerator(nil)
+	ctx = withPeerToken(ctx, peerToken)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 }
 
@@ -47,6 +49,7 @@ func (s *injectSpiffeIDNSEServer) Find(query *registry.NetworkServiceEndpointQue
 }
 
 func (s *injectSpiffeIDNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	ctx = withPeerToken(ctx, s.peerToken)
+	peerToken, _, _ := s.tokenGenerator(nil)
+	ctx = withPeerToken(ctx, peerToken)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }

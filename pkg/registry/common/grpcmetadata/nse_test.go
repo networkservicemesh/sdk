@@ -22,10 +22,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
@@ -33,25 +36,72 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checkcontext"
 	"github.com/networkservicemesh/sdk/pkg/registry/utils/inject/injectpeertoken"
-
-	"go.uber.org/goleak"
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
+	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
 )
 
+type pathCheckerNSEClient struct {
+	funcBefore func(ctx context.Context) *grpcmetadata.Path
+	funcAfter  func(ctx context.Context, pBefore *grpcmetadata.Path)
+}
+
+func newPathCheckerNSEClient(t *testing.T, expectedPathIndex int) registry.NetworkServiceEndpointRegistryClient {
+	client := &pathCheckerNSEClient{}
+
+	client.funcBefore = func(ctx context.Context) *grpcmetadata.Path {
+		p := grpcmetadata.PathFromContext(ctx).Clone()
+		require.Equal(t, int(p.Index), expectedPathIndex)
+
+		return p
+	}
+	client.funcAfter = func(ctx context.Context, pBefore *grpcmetadata.Path) {
+		pAfter := grpcmetadata.PathFromContext(ctx).Clone()
+		require.Equal(t, int(pAfter.Index), expectedPathIndex)
+		for i := expectedPathIndex; i < len(pBefore.PathSegments); i++ {
+			require.NotEqual(t, pBefore.PathSegments[i].Token, pAfter.PathSegments[i].Token)
+		}
+	}
+	return client
+}
+
+func (p *pathCheckerNSEClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+	pBefore := p.funcBefore(ctx)
+	r, e := next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)
+	p.funcAfter(ctx, pBefore)
+	return r, e
+}
+
+func (p *pathCheckerNSEClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
+	return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, in, opts...)
+}
+
+func (p *pathCheckerNSEClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
+	pBefore := p.funcBefore(ctx)
+	r, e := next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
+	p.funcAfter(ctx, pBefore)
+	return r, e
+}
+
+// This test checks that registry Path is correctly updated and passed through grpc metadata
+// Test scheme: client ---> proxyServer ---> server
 func TestGRPCMetadataNetworkServiceEndpoint(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 
-	clientToken, _, _ := tokenGeneratorFunc(clientID)(nil)
-	proxyToken, _, _ := tokenGeneratorFunc(proxyID)(nil)
+	// Add clockMock to the context
+	clockMock := clockmock.New(ctx)
+	ctx = clock.WithClock(ctx, clockMock)
 
 	serverLis, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
+	// tokenGeneratorFunc generates new tokens automatically
 	server := next.NewNetworkServiceEndpointRegistryServer(
-		injectpeertoken.NewNetworkServiceEndpointRegistryServer(proxyToken),
+		injectpeertoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(clockMock, proxyID)),
 		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
-		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(serverID)),
+		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(clockMock, serverID)),
 		checkcontext.NewNSEServer(t, func(t *testing.T, ctx context.Context) {
 			path := grpcmetadata.PathFromContext(ctx)
 			require.Equal(t, int(path.Index), 2)
@@ -76,14 +126,15 @@ func TestGRPCMetadataNetworkServiceEndpoint(t *testing.T) {
 	}()
 
 	proxyServer := next.NewNetworkServiceEndpointRegistryServer(
-		injectpeertoken.NewNetworkServiceEndpointRegistryServer(clientToken),
+		injectpeertoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(clockMock, clientID)),
 		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
-		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(proxyID)),
+		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(clockMock, proxyID)),
 		checkcontext.NewNSEServer(t, func(t *testing.T, ctx context.Context) {
 			path := grpcmetadata.PathFromContext(ctx)
 			require.Equal(t, int(path.Index), 1)
 		}),
 		adapters.NetworkServiceEndpointClientToServer(next.NewNetworkServiceEndpointRegistryClient(
+			newPathCheckerNSEClient(t, 1),
 			grpcmetadata.NewNetworkServiceEndpointRegistryClient(),
 			registry.NewNetworkServiceEndpointRegistryClient(serverConn),
 		)),
@@ -104,10 +155,7 @@ func TestGRPCMetadataNetworkServiceEndpoint(t *testing.T) {
 	}()
 
 	client := next.NewNetworkServiceEndpointRegistryClient(
-		checkcontext.NewNSEClient(t, func(t *testing.T, ctx context.Context) {
-			path := grpcmetadata.PathFromContext(ctx)
-			require.Equal(t, int(path.Index), 0)
-		}),
+		newPathCheckerNSEClient(t, 0),
 		grpcmetadata.NewNetworkServiceEndpointRegistryClient(),
 		registry.NewNetworkServiceEndpointRegistryClient(conn))
 
@@ -121,6 +169,10 @@ func TestGRPCMetadataNetworkServiceEndpoint(t *testing.T) {
 	require.Equal(t, int(path.Index), 0)
 	require.Len(t, path.PathSegments, 3)
 
+	// Simulate refresh
+	_, err = client.Register(ctx, nse)
+	require.NoError(t, err)
+
 	_, err = client.Unregister(ctx, nse)
 	require.NoError(t, err)
 
@@ -131,10 +183,12 @@ func TestGRPCMetadataNetworkServiceEndpoint(t *testing.T) {
 func TestGRPCMetadataNetworkServiceEndpoint_BackwardCompatibility(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cacncel := context.WithTimeout(context.Background(), time.Second)
-	defer cacncel()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 
-	clientToken, _, _ := tokenGeneratorFunc(clientID)(nil)
+	// Add clockMock to the context
+	clockMock := clockmock.New(ctx)
+	ctx = clock.WithClock(ctx, clockMock)
 
 	serverLis, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -162,9 +216,9 @@ func TestGRPCMetadataNetworkServiceEndpoint_BackwardCompatibility(t *testing.T) 
 	}()
 
 	proxyServer := next.NewNetworkServiceEndpointRegistryServer(
-		injectpeertoken.NewNetworkServiceEndpointRegistryServer(clientToken),
+		injectpeertoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(clockMock, clientID)),
 		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
-		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(proxyID)),
+		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(clockMock, proxyID)),
 		checkcontext.NewNSEServer(t, func(t *testing.T, ctx context.Context) {
 			path := grpcmetadata.PathFromContext(ctx)
 			require.Equal(t, int(path.Index), 1)
@@ -193,19 +247,24 @@ func TestGRPCMetadataNetworkServiceEndpoint_BackwardCompatibility(t *testing.T) 
 	}()
 
 	client := next.NewNetworkServiceEndpointRegistryClient(
+		newPathCheckerNSEClient(t, 0),
 		grpcmetadata.NewNetworkServiceEndpointRegistryClient(),
 		registry.NewNetworkServiceEndpointRegistryClient(conn))
 
 	path := grpcmetadata.Path{}
 	ctx = grpcmetadata.PathWithContext(ctx, &path)
 
-	ns := &registry.NetworkServiceEndpoint{Name: "ns"}
-	_, err = client.Register(ctx, ns)
+	nse := &registry.NetworkServiceEndpoint{Name: "ns"}
+	_, err = client.Register(ctx, nse)
 	require.NoError(t, err)
 
 	require.Equal(t, int(path.Index), 0)
 	require.Len(t, path.PathSegments, 2)
 
-	_, err = client.Unregister(ctx, ns)
+	// Simulate refresh
+	_, err = client.Register(ctx, nse)
+	require.NoError(t, err)
+
+	_, err = client.Unregister(ctx, nse)
 	require.NoError(t, err)
 }

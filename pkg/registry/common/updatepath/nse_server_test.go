@@ -53,7 +53,7 @@ var nseSamples = []*nseSample{
 			}
 
 			server := next.NewNetworkServiceEndpointRegistryServer(
-				injectpeertoken.NewNetworkServiceEndpointRegistryServer(clientToken),
+				injectpeertoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(clientID)),
 				updatepath.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(serverID)),
 			)
 
@@ -107,9 +107,9 @@ var nseSamples = []*nseSample{
 			}
 
 			server := next.NewNetworkServiceEndpointRegistryServer(
-				injectpeertoken.NewNetworkServiceEndpointRegistryServer(clientToken),
+				injectpeertoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(clientID)),
 				updatepath.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(proxyID)),
-				injectpeertoken.NewNetworkServiceEndpointRegistryServer(proxyToken),
+				injectpeertoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(proxyID)),
 				updatepath.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(serverID)),
 			)
 
@@ -155,9 +155,9 @@ var nseSamples = []*nseSample{
 			}
 
 			server := next.NewNetworkServiceEndpointRegistryServer(
-				injectpeertoken.NewNetworkServiceEndpointRegistryServer(clientToken),
+				injectpeertoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(clientID)),
 				updatepath.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(proxyID)),
-				injectpeertoken.NewNetworkServiceEndpointRegistryServer(proxyToken),
+				injectpeertoken.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(proxyID)),
 				updatepath.NewNetworkServiceEndpointRegistryServer(tokenGeneratorFunc(serverID)),
 			)
 

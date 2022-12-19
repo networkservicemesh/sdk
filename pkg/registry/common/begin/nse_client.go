@@ -24,6 +24,7 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
@@ -75,7 +76,7 @@ func (b *beginNSEClient) Register(ctx context.Context, in *registry.NetworkServi
 		eventFactoryClient.state = established
 		eventFactoryClient.registration = mergeNSE(in, resp.Clone())
 		eventFactoryClient.response = resp.Clone()
-		eventFactoryClient.updateContext(ctx)
+		eventFactoryClient.updateContext(grpcmetadata.PathWithContext(ctx, grpcmetadata.PathFromContext(ctx).Clone()))
 	})
 	return resp, err
 }

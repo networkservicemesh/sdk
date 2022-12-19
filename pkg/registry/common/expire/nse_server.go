@@ -32,35 +32,38 @@ import (
 )
 
 type expireNSEServer struct {
-	nseExpiration time.Duration
-	ctx           context.Context
+	defaultNseExpiration time.Duration
+	ctx                  context.Context
 	cancelsMap
 }
 
 // NewNetworkServiceEndpointRegistryServer creates a new NetworkServiceServer chain element that implements unregister
 // of expired connections for the subsequent chain elements.
-func NewNetworkServiceEndpointRegistryServer(ctx context.Context, nseExpiration time.Duration) registry.NetworkServiceEndpointRegistryServer {
+func NewNetworkServiceEndpointRegistryServer(ctx context.Context, defaultNseExpiration time.Duration) registry.NetworkServiceEndpointRegistryServer {
 	return &expireNSEServer{
-		nseExpiration: nseExpiration,
-		ctx:           ctx,
+		defaultNseExpiration: defaultNseExpiration,
+		ctx:                  ctx,
 	}
 }
 
 func (s *expireNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	factory := begin.FromContext(ctx)
 	timeClock := clock.FromContext(ctx)
-	expirationTime := timeClock.Now().Add(s.nseExpiration).Local()
 
 	logger := log.FromContext(ctx).WithField("expireNSEServer", "Register")
 
-	if nse.GetExpirationTime() != nil {
-		if nseExpirationTime := nse.GetExpirationTime().AsTime().Local(); nseExpirationTime.Before(expirationTime) {
-			expirationTime = nseExpirationTime
-			logger.Infof("selected expiration time %v for %v", expirationTime, nse.GetName())
-		}
+	deadline, ok := ctx.Deadline()
+	requestTimeout := timeClock.Until(deadline)
+	if !ok {
+		requestTimeout = 0
 	}
 
-	nse.ExpirationTime = timestamppb.New(expirationTime)
+	expirationTime := nse.GetExpirationTime().AsTime()
+	if nse.GetExpirationTime() == nil {
+		expirationTime = timeClock.Now().Add(s.defaultNseExpiration).Local()
+		nse.ExpirationTime = timestamppb.New(expirationTime)
+		logger.Infof("selected expiration time %v for %v", expirationTime, nse.GetName())
+	}
 
 	resp, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	if err != nil {
@@ -78,7 +81,7 @@ func (s *expireNSEServer) Register(ctx context.Context, nse *registry.NetworkSer
 	}
 	s.cancelsMap.Store(nse.GetName(), cancel)
 
-	expireCh := timeClock.After(timeClock.Until(expirationTime.Local()))
+	expireCh := timeClock.After(timeClock.Until(expirationTime.Local()) - requestTimeout)
 
 	go func() {
 		select {
