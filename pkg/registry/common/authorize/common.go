@@ -20,7 +20,6 @@ import (
 	"context"
 
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/pkg/errors"
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
@@ -73,22 +72,34 @@ func getRawMap(m *PathIdsMap) map[string][]string {
 	return rawMap
 }
 
-func getSpiffeIDFromPath(path *grpcmetadata.Path) (spiffeid.ID, error) {
+func getSpiffeIDFromPath(ctx context.Context, path *grpcmetadata.Path) spiffeid.ID {
+	if len(path.PathSegments) == 0 {
+		log.FromContext(ctx).Warn("can't get spiffe id from empty path")
+	}
 	tokenString := path.PathSegments[0].Token
 
 	claims := jwt.MapClaims{}
 	_, _, err := jwt.NewParser().ParseUnverified(tokenString, &claims)
 	if err != nil {
-		return spiffeid.ID{}, errors.Errorf("failed to parse jwt token: %s", err.Error())
+		log.FromContext(ctx).Warnf("failed to parse jwt token: %s", err.Error())
+		return spiffeid.ID{}
 	}
 
 	sub, ok := claims["sub"]
 	if !ok {
-		return spiffeid.ID{}, errors.New("failed to get field 'sub' from jwt token payload")
+		log.FromContext(ctx).Warn("failed to get field 'sub' from jwt token payload")
+		return spiffeid.ID{}
 	}
 	subString, ok := sub.(string)
 	if !ok {
-		return spiffeid.ID{}, errors.New("failed to convert field 'sub' from jwt token payload to string")
+		log.FromContext(ctx).Warn("failed to convert field 'sub' from jwt token payload to string")
+		return spiffeid.ID{}
 	}
-	return spiffeid.FromString(subString)
+
+	id, err := spiffeid.FromString(subString)
+	if err != nil {
+		log.FromContext(ctx).Warn("failed to parse spiffeid from string: %s", err.Error())
+		return spiffeid.ID{}
+	}
+	return id
 }

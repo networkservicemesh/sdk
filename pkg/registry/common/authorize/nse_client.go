@@ -81,11 +81,7 @@ func (c *authorizeNSEClient) Register(ctx context.Context, nse *registry.Network
 	}
 
 	path = grpcmetadata.PathFromContext(ctx)
-
-	spiffeID, err := getSpiffeIDFromPath(path)
-	if err != nil {
-		return nil, err
-	}
+	spiffeID := getSpiffeIDFromPath(ctx, path)
 
 	rawMap := getRawMap(c.nsePathIdsMap)
 	input := RegistryOpaInput{
@@ -134,11 +130,7 @@ func (c *authorizeNSEClient) Unregister(ctx context.Context, nse *registry.Netwo
 	}
 
 	path = grpcmetadata.PathFromContext(ctx)
-
-	spiffeID, err := getSpiffeIDFromPath(path)
-	if err != nil {
-		return nil, err
-	}
+	spiffeID := getSpiffeIDFromPath(ctx, path)
 
 	rawMap := getRawMap(c.nsePathIdsMap)
 	input := RegistryOpaInput{

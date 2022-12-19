@@ -56,11 +56,7 @@ func (s *authorizeNSServer) Register(ctx context.Context, ns *registry.NetworkSe
 	}
 
 	path := grpcmetadata.PathFromContext(ctx)
-
-	spiffeID, err := getSpiffeIDFromPath(path)
-	if err != nil {
-		return nil, err
-	}
+	spiffeID := getSpiffeIDFromPath(ctx, path)
 
 	index := path.Index
 	var leftSide = &grpcmetadata.Path{
@@ -94,11 +90,7 @@ func (s *authorizeNSServer) Unregister(ctx context.Context, ns *registry.Network
 	}
 
 	path := grpcmetadata.PathFromContext(ctx)
-
-	spiffeID, err := getSpiffeIDFromPath(path)
-	if err != nil {
-		return nil, err
-	}
+	spiffeID := getSpiffeIDFromPath(ctx, path)
 
 	index := path.Index
 	var leftSide = &grpcmetadata.Path{
