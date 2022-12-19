@@ -42,6 +42,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
+const (
+	nscName = "nsc"
+)
+
 func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -96,7 +100,7 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 		req := defaultRequest(nsReg.Name)
 		req.Connection.Id = uuid.New().String()
 
-		req.Connection.Labels["podName"] = "nsc" + fmt.Sprint(i)
+		req.Connection.Labels["podName"] = nscName + fmt.Sprint(i)
 
 		resp, err := nsc.Request(reqCtx, req)
 		require.NoError(t, err)
@@ -105,17 +109,17 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 		require.Len(t, resp.GetContext().GetDnsContext().GetConfigs(), 1)
 		require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].DnsServerIps, 1)
 
-		requireIPv4Lookup(ctx, t, &resolver, "nsc"+fmt.Sprint(i)+".vl3", "10.0.0.1")
+		requireIPv4Lookup(ctx, t, &resolver, nscName+fmt.Sprint(i)+".vl3", "10.0.0.1")
 
 		resp, err = nsc.Request(reqCtx, req)
 		require.NoError(t, err)
 
-		requireIPv4Lookup(ctx, t, &resolver, "nsc"+fmt.Sprint(i)+".vl3", "10.0.0.1")
+		requireIPv4Lookup(ctx, t, &resolver, nscName+fmt.Sprint(i)+".vl3", "10.0.0.1")
 
 		_, err = nsc.Close(reqCtx, resp)
 		require.NoError(t, err)
 
-		_, err = resolver.LookupIP(reqCtx, "ip4", "nsc"+fmt.Sprint(i)+".vl3")
+		_, err = resolver.LookupIP(reqCtx, "ip4", nscName+fmt.Sprint(i)+".vl3")
 		require.Error(t, err)
 	}
 }
@@ -188,7 +192,7 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 	req := defaultRequest(nsReg.Name)
 	req.Connection.Id = uuid.New().String()
 
-	req.Connection.Labels["podName"] = "nsc"
+	req.Connection.Labels["podName"] = nscName
 
 	resp, err := nsc.Request(ctx, req)
 	require.NoError(t, err)
@@ -272,7 +276,7 @@ func Test_NSC_GetsVl3DnsAddressAfterRefresh(t *testing.T) {
 	defer reqClose()
 
 	req := defaultRequest(nsReg.Name)
-	req.Connection.Labels["podName"] = "nsc"
+	req.Connection.Labels["podName"] = nscName
 
 	resp, err := nsc.Request(reqCtx, req)
 	require.NoError(t, err)
