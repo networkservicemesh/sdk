@@ -99,7 +99,7 @@ func getSpiffeIDFromPath(ctx context.Context, path *grpcmetadata.Path) spiffeid.
 
 	id, err := spiffeid.FromString(subString)
 	if err != nil {
-		log.FromContext(ctx).Warn("failed to parse spiffeid from string: %s", err.Error())
+		log.FromContext(ctx).Warnf("failed to parse spiffeid from string: %s", err.Error())
 		return spiffeid.ID{}
 	}
 	return id
