@@ -24,7 +24,6 @@ import (
 	"os"
 	"runtime"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -53,21 +52,19 @@ type Builder struct {
 	supplyRegistryProxy SupplyRegistryProxyFunc
 	setupNode           SetupNodeFunc
 
-	name                   string
-	dnsResolver            dnsresolve.Resolver
-	generateTokenFunc      token.GeneratorFunc
-	registryExpiryDuration time.Duration
+	name              string
+	dnsResolver       dnsresolve.Resolver
+	generateTokenFunc token.GeneratorFunc
 
 	useUnixSockets bool
 
 	domain *Domain
 }
 
-func newRegistryMemoryServer(ctx context.Context, tokenGenerator token.GeneratorFunc, expiryDuration time.Duration, proxyRegistryURL *url.URL, options ...grpc.DialOption) registry.Registry {
+func newRegistryMemoryServer(ctx context.Context, tokenGenerator token.GeneratorFunc, proxyRegistryURL *url.URL, options ...grpc.DialOption) registry.Registry {
 	return memory.NewServer(
 		ctx,
 		tokenGenerator,
-		memory.WithExpireDuration(expiryDuration),
 		memory.WithProxyRegistryURL(proxyRegistryURL),
 		memory.WithDialOptions(options...))
 }
@@ -75,17 +72,16 @@ func newRegistryMemoryServer(ctx context.Context, tokenGenerator token.Generator
 // NewBuilder creates new SandboxBuilder
 func NewBuilder(ctx context.Context, t *testing.T) *Builder {
 	b := &Builder{
-		t:                      t,
-		ctx:                    ctx,
-		nodesCount:             1,
-		supplyNSMgr:            nsmgr.NewServer,
-		supplyNSMgrProxy:       nsmgrproxy.NewServer,
-		supplyRegistry:         newRegistryMemoryServer,
-		supplyRegistryProxy:    proxydns.NewServer,
-		name:                   "cluster.local",
-		dnsResolver:            NewFakeResolver(),
-		generateTokenFunc:      GenerateTestToken,
-		registryExpiryDuration: time.Minute,
+		t:                   t,
+		ctx:                 ctx,
+		nodesCount:          1,
+		supplyNSMgr:         nsmgr.NewServer,
+		supplyNSMgrProxy:    nsmgrproxy.NewServer,
+		supplyRegistry:      newRegistryMemoryServer,
+		supplyRegistryProxy: proxydns.NewServer,
+		name:                "cluster.local",
+		dnsResolver:         NewFakeResolver(),
+		generateTokenFunc:   GenerateTestToken,
 	}
 
 	b.setupNode = func(ctx context.Context, node *Node, _ int) {
@@ -148,12 +144,6 @@ func (b *Builder) SetDNSResolver(d dnsresolve.Resolver) *Builder {
 // SetTokenGenerateFunc sets function for the token generation
 func (b *Builder) SetTokenGenerateFunc(f token.GeneratorFunc) *Builder {
 	b.generateTokenFunc = f
-	return b
-}
-
-// SetRegistryExpiryDuration replaces registry expiry duration to custom
-func (b *Builder) SetRegistryExpiryDuration(registryExpiryDuration time.Duration) *Builder {
-	b.registryExpiryDuration = registryExpiryDuration
 	return b
 }
 
@@ -275,7 +265,6 @@ func (b *Builder) newRegistry() *RegistryEntry {
 		entry.Registry = b.supplyRegistry(
 			ctx,
 			b.generateTokenFunc,
-			b.registryExpiryDuration,
 			nsmgrProxyURL,
 			DialOptions(WithTokenGenerator(b.generateTokenFunc))...,
 		)

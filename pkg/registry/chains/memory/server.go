@@ -20,7 +20,6 @@ package memory
 import (
 	"context"
 	"net/url"
-	"time"
 
 	"google.golang.org/grpc"
 
@@ -51,7 +50,6 @@ type serverOptions struct {
 	authorizeNSERegistryServer registry.NetworkServiceEndpointRegistryServer
 	authorizeNSRegistryClient  registry.NetworkServiceRegistryClient
 	authorizeNSERegistryClient registry.NetworkServiceEndpointRegistryClient
-	expireDuration             time.Duration
 	proxyRegistryURL           *url.URL
 	dialOptions                []grpc.DialOption
 }
@@ -99,13 +97,6 @@ func WithAuthorizeNSERegistryClient(authorizeNSERegistryClient registry.NetworkS
 	}
 }
 
-// WithExpireDuration sets expire duration for the server
-func WithExpireDuration(expireDuration time.Duration) Option {
-	return func(o *serverOptions) {
-		o.expireDuration = expireDuration
-	}
-}
-
 // WithProxyRegistryURL sets URL to reach the proxy registry
 func WithProxyRegistryURL(proxyRegistryURL *url.URL) Option {
 	return func(o *serverOptions) {
@@ -127,7 +118,6 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		authorizeNSERegistryServer: registryauthorize.NewNetworkServiceEndpointRegistryServer(registryauthorize.Any()),
 		authorizeNSRegistryClient:  registryauthorize.NewNetworkServiceRegistryClient(registryauthorize.Any()),
 		authorizeNSERegistryClient: registryauthorize.NewNetworkServiceEndpointRegistryClient(registryauthorize.Any()),
-		expireDuration:             time.Minute,
 		proxyRegistryURL:           nil,
 	}
 	for _, opt := range options {
@@ -171,7 +161,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 				Condition: func(c context.Context, nse *registry.NetworkServiceEndpoint) bool { return true },
 				Action: chain.NewNetworkServiceEndpointRegistryServer(
 					setregistrationtime.NewNetworkServiceEndpointRegistryServer(),
-					expire.NewNetworkServiceEndpointRegistryServer(ctx, opts.expireDuration),
+					expire.NewNetworkServiceEndpointRegistryServer(ctx),
 					memory.NewNetworkServiceEndpointRegistryServer(),
 				),
 			},

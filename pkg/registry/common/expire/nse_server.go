@@ -18,11 +18,8 @@ package expire
 
 import (
 	"context"
-	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"google.golang.org/protobuf/types/known/timestamppb"
-
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
@@ -32,17 +29,15 @@ import (
 )
 
 type expireNSEServer struct {
-	defaultNseExpiration time.Duration
-	ctx                  context.Context
+	ctx context.Context
 	cancelsMap
 }
 
 // NewNetworkServiceEndpointRegistryServer creates a new NetworkServiceServer chain element that implements unregister
 // of expired connections for the subsequent chain elements.
-func NewNetworkServiceEndpointRegistryServer(ctx context.Context, defaultNseExpiration time.Duration) registry.NetworkServiceEndpointRegistryServer {
+func NewNetworkServiceEndpointRegistryServer(ctx context.Context) registry.NetworkServiceEndpointRegistryServer {
 	return &expireNSEServer{
-		defaultNseExpiration: defaultNseExpiration,
-		ctx:                  ctx,
+		ctx: ctx,
 	}
 }
 
@@ -59,12 +54,6 @@ func (s *expireNSEServer) Register(ctx context.Context, nse *registry.NetworkSer
 	}
 
 	expirationTime := nse.GetExpirationTime().AsTime()
-	if nse.GetExpirationTime() == nil {
-		expirationTime = timeClock.Now().Add(s.defaultNseExpiration).Local()
-		nse.ExpirationTime = timestamppb.New(expirationTime)
-		logger.Infof("selected expiration time %v for %v", expirationTime, nse.GetName())
-	}
-
 	resp, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	if err != nil {
 		return nil, err

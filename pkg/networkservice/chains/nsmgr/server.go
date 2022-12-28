@@ -276,7 +276,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		opts.authorizeNSERegistryServer,
 		begin.NewNetworkServiceEndpointRegistryServer(),
 		registryclientinfo.NewNetworkServiceEndpointRegistryServer(),
-		expire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
+		expire.NewNetworkServiceEndpointRegistryServer(ctx),
 		registryrecvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
 		registrysendfd.NewNetworkServiceEndpointRegistryServer(),
 		remoteOrLocalRegistry,

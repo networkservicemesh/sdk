@@ -264,7 +264,6 @@ func Test_UsecasePoint2MultiPoint(t *testing.T) {
 		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, _ int) {
 			node.NewNSMgr(ctx, "nsmgr", nil, sandbox.GenerateTestToken, nsmgr.NewServer)
 		}).
-		SetRegistryExpiryDuration(time.Second).
 		Build()
 
 	domain.Nodes[0].NewForwarder(ctx, &registryapi.NetworkServiceEndpoint{
@@ -386,7 +385,6 @@ func Test_RemoteUsecase_Point2MultiPoint(t *testing.T) {
 		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, _ int) {
 			node.NewNSMgr(ctx, "nsmgr", nil, sandbox.GenerateTestToken, nsmgr.NewServer)
 		}).
-		SetRegistryExpiryDuration(time.Second).
 		Build()
 
 	for i := 0; i < nodeCount; i++ {
@@ -521,7 +519,6 @@ func Test_FailedRegistryAuthorization(t *testing.T) {
 	registrySupplier := func(
 		ctx context.Context,
 		tokenGenerator token.GeneratorFunc,
-		expiryDuration time.Duration,
 		proxyRegistryURL *url.URL,
 		options ...grpc.DialOption) registry.Registry {
 		registryName := sandbox.UniqueName("registry-memory")
@@ -529,7 +526,6 @@ func Test_FailedRegistryAuthorization(t *testing.T) {
 		return memory.NewServer(
 			ctx,
 			tokenGeneratorFunc("spiffe://test.com/"+registryName),
-			memory.WithExpireDuration(expiryDuration),
 			memory.WithProxyRegistryURL(proxyRegistryURL),
 			memory.WithDialOptions(options...),
 			memory.WithAuthorizeNSRegistryServer(
@@ -692,13 +688,11 @@ func Test_Expire(t *testing.T) {
 	registrySupplier := func(
 		ctx context.Context,
 		tokenGenerator token.GeneratorFunc,
-		expiryDuration time.Duration,
 		proxyRegistryURL *url.URL,
 		options ...grpc.DialOption) registry.Registry {
 		return memory.NewServer(
 			ctx,
 			tokenGenerator,
-			memory.WithExpireDuration(expiryDuration),
 			memory.WithProxyRegistryURL(proxyRegistryURL),
 			memory.WithDialOptions(options...),
 			memory.WithAuthorizeNSRegistryServer(
