@@ -260,7 +260,7 @@ func Test_NSC_GetsVl3DnsAddressAfterRefresh(t *testing.T) {
 			vl3dns.WithDNSPort(40053)))
 
 	refresh := false
-	refreshPassed := false
+	refreshCh := make(chan struct{}, 1)
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
 		client.WithAdditionalFunctionality(
 			upstreamrefresh.NewClient(ctx),
@@ -272,7 +272,7 @@ func Test_NSC_GetsVl3DnsAddressAfterRefresh(t *testing.T) {
 					require.Len(t, conn.GetContext().GetDnsContext().GetConfigs(), 1)
 					require.Len(t, conn.GetContext().GetDnsContext().GetConfigs()[0].DnsServerIps, 1)
 					require.Equal(t, conn.GetContext().GetDnsContext().GetConfigs()[0].DnsServerIps[0], "127.0.0.1")
-					refreshPassed = true
+					refreshCh <- struct{}{}
 				}
 			}),
 		))
@@ -286,5 +286,5 @@ func Test_NSC_GetsVl3DnsAddressAfterRefresh(t *testing.T) {
 
 	dnsServerIPCh <- net.ParseIP("127.0.0.1")
 
-	require.Eventually(t, func() bool { return refreshPassed == true }, time.Millisecond*500, time.Millisecond*100)
+	<-refreshCh
 }
