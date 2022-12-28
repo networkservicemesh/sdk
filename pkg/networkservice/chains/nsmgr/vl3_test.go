@@ -28,13 +28,16 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/ipam"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/upstreamrefresh"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext/vl3dns"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/ipcontext/vl3"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkconnection"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/memory"
@@ -259,42 +262,34 @@ func Test_NSC_GetsVl3DnsAddressAfterRefresh(t *testing.T) {
 		vl3dns.NewServer(ctx,
 			dnsServerIPCh,
 			vl3dns.WithDomainSchemes("{{ index .Labels \"podName\" }}.{{ .NetworkService }}."),
-			vl3dns.WithDNSPort(40053)),
-	)
+			vl3dns.WithDNSPort(40053)))
 
-	resolver := net.Resolver{
-		PreferGo: true,
-		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
-			var dialer net.Dialer
-			return dialer.DialContext(ctx, network, "127.0.0.1:40053")
-		},
-	}
-
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+	refresh := false
+	refreshPassed := false
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
+		client.WithAdditionalFunctionality(
+			upstreamrefresh.NewClient(ctx),
+			checkconnection.NewClient(t, func(t *testing.T, conn *networkservice.Connection) {
+				if !refresh {
+					refresh = true
+					require.Len(t, conn.GetContext().GetDnsContext().GetConfigs(), 0)
+				} else {
+					require.Len(t, conn.GetContext().GetDnsContext().GetConfigs(), 1)
+					require.Len(t, conn.GetContext().GetDnsContext().GetConfigs()[0].DnsServerIps, 1)
+					require.Equal(t, conn.GetContext().GetDnsContext().GetConfigs()[0].DnsServerIps[0], "127.0.0.1")
+					refreshPassed = true
+				}
+			}),
+		))
 
 	reqCtx, reqClose := context.WithTimeout(ctx, time.Second*10)
 	defer reqClose()
 
 	req := defaultRequest(nsReg.Name)
-	req.Connection.Labels["podName"] = nscName
-
-	resp, err := nsc.Request(reqCtx, req)
+	_, err = nsc.Request(reqCtx, req)
 	require.NoError(t, err)
-	req.Connection = resp.Clone()
-	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs(), 0)
 
 	dnsServerIPCh <- net.ParseIP("127.0.0.1")
 
-	respAfterRefresh, err := nsc.Request(reqCtx, req)
-	require.NoError(t, err)
-	require.Len(t, respAfterRefresh.GetContext().GetDnsContext().GetConfigs(), 1)
-	require.Len(t, respAfterRefresh.GetContext().GetDnsContext().GetConfigs()[0].DnsServerIps, 1)
-
-	requireIPv4Lookup(ctx, t, &resolver, "nsc.vl3", "10.0.0.1")
-
-	_, err = nsc.Close(reqCtx, resp)
-	require.NoError(t, err)
-
-	_, err = resolver.LookupIP(reqCtx, "ip4", "nsc.vl3")
-	require.Error(t, err)
+	require.Eventually(t, func() bool { return refreshPassed == true }, time.Millisecond*500, time.Millisecond*100)
 }
