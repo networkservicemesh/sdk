@@ -29,7 +29,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/ipam"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
@@ -41,7 +40,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/memory"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -206,9 +204,6 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 	req.Connection = resp.Clone()
 
 	requireIPv4Lookup(ctx, t, &resolver, "nsc.vl3", "127.0.0.1")
-
-	log.EnableTracing(true)
-	logrus.SetLevel(logrus.TraceLevel)
 
 	requireIPv4Lookup(ctx, t, &resolver, "nsc1.vl3", "1.1.1.1") // we can lookup this ip address only and only if fanout is working
 
