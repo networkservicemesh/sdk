@@ -148,6 +148,26 @@ func TestExpireNSEServer_ShouldUseLessExpirationTimeFromInput_AndWork(t *testing
 	}, testWait, testTick)
 }
 
+func TestExpireNSEServer_ShouldSetDefaultExpiration(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	clockMock := clockmock.New(ctx)
+	ctx = clock.WithClock(ctx, clockMock)
+
+	s := next.NewNetworkServiceEndpointRegistryServer(
+		begin.NewNetworkServiceEndpointRegistryServer(),
+		expire.NewNetworkServiceEndpointRegistryServer(ctx, expire.WithDefaultExpiration(expireTimeout)),
+	)
+
+	resp, err := s.Register(ctx, &registry.NetworkServiceEndpoint{Name: "nse-1"})
+	require.NoError(t, err)
+
+	require.Equal(t, expireTimeout, clockMock.Until(resp.ExpirationTime.AsTime()))
+}
+
 func TestExpireNSEServer_ShouldUseLessExpirationTimeFromResponse(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 

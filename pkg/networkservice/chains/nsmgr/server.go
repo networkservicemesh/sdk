@@ -84,6 +84,7 @@ type serverOptions struct {
 	authorizeNSRegistryClient        registryapi.NetworkServiceRegistryClient
 	authorizeNSERegistryServer       registryapi.NetworkServiceEndpointRegistryServer
 	authorizeNSERegistryClient       registryapi.NetworkServiceEndpointRegistryClient
+	defaultExpiration                time.Duration
 	dialOptions                      []grpc.DialOption
 	dialTimeout                      time.Duration
 	regURL                           *url.URL
@@ -107,6 +108,13 @@ func WithDialOptions(dialOptions ...grpc.DialOption) Option {
 func WithForwarderServiceName(forwarderServiceName string) Option {
 	return func(o *serverOptions) {
 		o.forwarderServiceName = forwarderServiceName
+	}
+}
+
+// WithDefaultExpiration sets the default expiration for endpoints
+func WithDefaultExpiration(d time.Duration) Option {
+	return func(o *serverOptions) {
+		o.defaultExpiration = d
 	}
 }
 
@@ -213,6 +221,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		authorizeNSRegistryClient:        registryauthorize.NewNetworkServiceRegistryClient(registryauthorize.Any()),
 		authorizeNSERegistryServer:       registryauthorize.NewNetworkServiceEndpointRegistryServer(registryauthorize.Any()),
 		authorizeNSERegistryClient:       registryauthorize.NewNetworkServiceEndpointRegistryClient(registryauthorize.Any()),
+		defaultExpiration:                time.Minute,
 		name:                             "nsmgr-" + uuid.New().String(),
 		forwarderServiceName:             "forwarder",
 	}
@@ -276,7 +285,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		opts.authorizeNSERegistryServer,
 		begin.NewNetworkServiceEndpointRegistryServer(),
 		registryclientinfo.NewNetworkServiceEndpointRegistryServer(),
-		expire.NewNetworkServiceEndpointRegistryServer(ctx),
+		expire.NewNetworkServiceEndpointRegistryServer(ctx, expire.WithDefaultExpiration(opts.defaultExpiration)),
 		registryrecvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
 		registrysendfd.NewNetworkServiceEndpointRegistryServer(),
 		remoteOrLocalRegistry,
