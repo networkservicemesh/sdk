@@ -19,6 +19,8 @@ package injectpeertoken
 import (
 	"context"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
+
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -27,18 +29,19 @@ import (
 )
 
 type injectSpiffeIDNSServer struct {
-	peerToken string
+	tokenGenerator token.GeneratorFunc
 }
 
 // NewNetworkServiceRegistryServer returns a server chain element putting spiffeID to context on Register and Unregister
-func NewNetworkServiceRegistryServer(peerToken string) registry.NetworkServiceRegistryServer {
+func NewNetworkServiceRegistryServer(tokenGenerator token.GeneratorFunc) registry.NetworkServiceRegistryServer {
 	return &injectSpiffeIDNSServer{
-		peerToken: peerToken,
+		tokenGenerator: tokenGenerator,
 	}
 }
 
 func (s *injectSpiffeIDNSServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
-	ctx = withPeerToken(ctx, s.peerToken)
+	peerToken, _, _ := s.tokenGenerator(nil)
+	ctx = withPeerToken(ctx, peerToken)
 	return next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
 }
 
@@ -47,6 +50,7 @@ func (s *injectSpiffeIDNSServer) Find(query *registry.NetworkServiceQuery, serve
 }
 
 func (s *injectSpiffeIDNSServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*emptypb.Empty, error) {
-	ctx = withPeerToken(ctx, s.peerToken)
+	peerToken, _, _ := s.tokenGenerator(nil)
+	ctx = withPeerToken(ctx, peerToken)
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }

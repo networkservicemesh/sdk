@@ -19,7 +19,6 @@ package authorize
 
 import (
 	"context"
-	"sync/atomic"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
@@ -36,7 +35,6 @@ import (
 type authorizeNSClient struct {
 	policies     policiesList
 	nsPathIdsMap *PathIdsMap
-	serverPeer   atomic.Value
 }
 
 // NewNetworkServiceRegistryClient - returns a new authorization registry.NetworkServiceRegistryClient
@@ -75,7 +73,6 @@ func (c *authorizeNSClient) Register(ctx context.Context, ns *registry.NetworkSe
 	}
 
 	if p != (peer.Peer{}) {
-		c.serverPeer.Store(&p)
 		ctx = peer.NewContext(ctx, &p)
 	}
 
@@ -117,12 +114,18 @@ func (c *authorizeNSClient) Unregister(ctx context.Context, ns *registry.Network
 	path := grpcmetadata.PathFromContext(ctx)
 	ctx = grpcmetadata.PathWithContext(ctx, path)
 
+	var p peer.Peer
+	opts = append(opts, grpc.Peer(&p))
+
 	resp, err := next.NetworkServiceRegistryClient(ctx).Unregister(ctx, ns, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	path = grpcmetadata.PathFromContext(ctx)
+	if p != (peer.Peer{}) {
+		ctx = peer.NewContext(ctx, &p)
+	}
+
 	spiffeID := getSpiffeIDFromPath(ctx, path)
 	rawMap := getRawMap(c.nsPathIdsMap)
 

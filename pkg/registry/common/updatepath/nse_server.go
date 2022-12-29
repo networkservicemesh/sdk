@@ -21,6 +21,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
@@ -45,11 +46,11 @@ func (s *updatePathNSEServer) Register(ctx context.Context, nse *registry.Networ
 	path := grpcmetadata.PathFromContext(ctx)
 
 	// Update path
-	peerTok, _, tokenErr := token.FromContext(ctx)
-	if tokenErr != nil {
-		log.FromContext(ctx).Warnf("an error during getting peer token from the context: %+v", tokenErr)
+	peerTok, peerExpirationTime, peerTokenErr := token.FromContext(ctx)
+	if peerTokenErr != nil {
+		log.FromContext(ctx).Warnf("an error during getting peer token from the context: %+v", peerTokenErr)
 	}
-	tok, _, tokenErr := generateToken(ctx, s.tokenGenerator)
+	tok, expirationTime, tokenErr := generateToken(ctx, s.tokenGenerator)
 	if tokenErr != nil {
 		return nil, errors.Wrap(tokenErr, "an error during generating token")
 	}
@@ -69,6 +70,13 @@ func (s *updatePathNSEServer) Register(ctx context.Context, nse *registry.Networ
 	}
 	nse.PathIds = updatePathIds(nse.PathIds, int(path.Index-1), peerID.String())
 	nse.PathIds = updatePathIds(nse.PathIds, int(path.Index), id.String())
+
+	if nse.GetExpirationTime() == nil || expirationTime.Before(nse.GetExpirationTime().AsTime().Local()) {
+		nse.ExpirationTime = timestamppb.New(expirationTime)
+	}
+	if peerTokenErr == nil && peerExpirationTime.Before(nse.GetExpirationTime().AsTime().Local()) {
+		nse.ExpirationTime = timestamppb.New(peerExpirationTime)
+	}
 
 	nse, err = next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	if err != nil {

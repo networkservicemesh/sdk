@@ -23,9 +23,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -36,11 +38,14 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/utils/inject/injecterror"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/inject/injectpeertoken"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 const (
@@ -70,6 +75,20 @@ func find(ctx context.Context, c registry.NetworkServiceEndpointRegistryClient) 
 	return nses, nil
 }
 
+func generateTestToken(ctx context.Context, duration time.Duration) token.GeneratorFunc {
+	return func(_ credentials.AuthInfo) (string, time.Time, error) {
+		expireTime := clock.FromContext(ctx).Now().Add(duration).Local()
+
+		claims := jwt.RegisteredClaims{
+			Subject:   "spiffe://test.com/subject",
+			ExpiresAt: jwt.NewNumericDate(expireTime),
+		}
+
+		tok, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte("supersecret"))
+		return tok, expireTime, err
+	}
+}
+
 func TestExpireNSEServer_ShouldCorrectlySetExpirationTime_InRemoteCase(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -80,8 +99,10 @@ func TestExpireNSEServer_ShouldCorrectlySetExpirationTime_InRemoteCase(t *testin
 	ctx = clock.WithClock(ctx, clockMock)
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
+		injectpeertoken.NewNetworkServiceEndpointRegistryServer(generateTestToken(ctx, expireTimeout)),
+		updatepath.NewNetworkServiceEndpointRegistryServer(generateTestToken(ctx, expireTimeout)),
 		begin.NewNetworkServiceEndpointRegistryServer(),
-		expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
+		expire.NewNetworkServiceEndpointRegistryServer(ctx),
 		new(remoteNSEServer),
 	)
 
@@ -105,8 +126,10 @@ func TestExpireNSEServer_ShouldUseLessExpirationTimeFromInput_AndWork(t *testing
 	mem := memory.NewNetworkServiceEndpointRegistryServer()
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
+		injectpeertoken.NewNetworkServiceEndpointRegistryServer(generateTestToken(ctx, expireTimeout)),
+		updatepath.NewNetworkServiceEndpointRegistryServer(generateTestToken(ctx, expireTimeout)),
 		begin.NewNetworkServiceEndpointRegistryServer(),
-		expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
+		expire.NewNetworkServiceEndpointRegistryServer(ctx),
 		mem,
 	)
 
@@ -136,10 +159,12 @@ func TestExpireNSEServer_ShouldUseLessExpirationTimeFromResponse(t *testing.T) {
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
 		begin.NewNetworkServiceEndpointRegistryServer(),
-		expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
+		injectpeertoken.NewNetworkServiceEndpointRegistryServer(generateTestToken(ctx, expireTimeout)),
+		updatepath.NewNetworkServiceEndpointRegistryServer(generateTestToken(ctx, expireTimeout)),
+		expire.NewNetworkServiceEndpointRegistryServer(ctx),
 		new(remoteNSEServer), // <-- GRPC invocation
 		begin.NewNetworkServiceEndpointRegistryServer(),
-		expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout/2),
+		updatepath.NewNetworkServiceEndpointRegistryServer(generateTestToken(ctx, expireTimeout/2)),
 	)
 
 	resp, err := s.Register(ctx, &registry.NetworkServiceEndpoint{Name: "nse-1"})
@@ -161,7 +186,9 @@ func TestExpireNSEServer_ShouldRemoveNSEAfterExpirationTime(t *testing.T) {
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
 		begin.NewNetworkServiceEndpointRegistryServer(),
-		expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
+		injectpeertoken.NewNetworkServiceEndpointRegistryServer(generateTestToken(ctx, expireTimeout)),
+		updatepath.NewNetworkServiceEndpointRegistryServer(generateTestToken(ctx, expireTimeout)),
+		expire.NewNetworkServiceEndpointRegistryServer(ctx),
 		new(remoteNSEServer), // <-- GRPC invocation
 		mem,
 	)
@@ -195,7 +222,7 @@ func TestExpireNSEServer_DataRace(t *testing.T) {
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
 		begin.NewNetworkServiceEndpointRegistryServer(),
-		expire.NewNetworkServiceEndpointRegistryServer(ctx, 0),
+		expire.NewNetworkServiceEndpointRegistryServer(ctx),
 		localbypass.NewNetworkServiceEndpointRegistryServer("tcp://0.0.0.0"),
 		mem,
 	)
@@ -228,8 +255,10 @@ func TestExpireNSEServer_RefreshFailure(t *testing.T) {
 		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
 		adapters.NetworkServiceEndpointServerToClient(next.NewNetworkServiceEndpointRegistryServer(
 			new(remoteNSEServer), // <-- GRPC invocation
+			injectpeertoken.NewNetworkServiceEndpointRegistryServer(generateTestToken(ctx, expireTimeout)),
+			updatepath.NewNetworkServiceEndpointRegistryServer(generateTestToken(ctx, expireTimeout)),
 			begin.NewNetworkServiceEndpointRegistryServer(),
-			expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
+			expire.NewNetworkServiceEndpointRegistryServer(ctx),
 			injecterror.NewNetworkServiceEndpointRegistryServer(
 				injecterror.WithRegisterErrorTimes(1, -1),
 				injecterror.WithFindErrorTimes(),
@@ -261,14 +290,16 @@ func TestExpireNSEServer_UnregisterFailure(t *testing.T) {
 	mem := memory.NewNetworkServiceEndpointRegistryServer()
 
 	s := next.NewNetworkServiceEndpointRegistryServer(
+		injectpeertoken.NewNetworkServiceEndpointRegistryServer(generateTestToken(ctx, expireTimeout)),
+		updatepath.NewNetworkServiceEndpointRegistryServer(generateTestToken(ctx, expireTimeout)),
 		begin.NewNetworkServiceEndpointRegistryServer(),
-		expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
+		expire.NewNetworkServiceEndpointRegistryServer(ctx),
 		injecterror.NewNetworkServiceEndpointRegistryServer(
 			injecterror.WithRegisterErrorTimes(),
 			injecterror.WithFindErrorTimes(),
 			injecterror.WithUnregisterErrorTimes(0),
 		),
-		expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
+		expire.NewNetworkServiceEndpointRegistryServer(ctx),
 		mem,
 	)
 
@@ -312,7 +343,9 @@ func TestExpireNSEServer_RefreshKeepsNoUnregister(t *testing.T) {
 			next.NewNetworkServiceEndpointRegistryServer(
 				// NSMgr chain
 				new(remoteNSEServer), // <-- GRPC invocation
-				expire.NewNetworkServiceEndpointRegistryServer(ctx, expireTimeout),
+				injectpeertoken.NewNetworkServiceEndpointRegistryServer(generateTestToken(ctx, expireTimeout)),
+				updatepath.NewNetworkServiceEndpointRegistryServer(generateTestToken(ctx, expireTimeout)),
+				expire.NewNetworkServiceEndpointRegistryServer(ctx),
 				unregisterServer,
 			)),
 	)

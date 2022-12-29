@@ -19,7 +19,6 @@ package authorize
 
 import (
 	"context"
-	"sync/atomic"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
@@ -36,7 +35,6 @@ import (
 type authorizeNSEClient struct {
 	policies      policiesList
 	nsePathIdsMap *PathIdsMap
-	serverPeer    atomic.Value
 }
 
 // NewNetworkServiceEndpointRegistryClient - returns a new authorization registry.NetworkServiceEndpointRegistryClient
@@ -76,13 +74,10 @@ func (c *authorizeNSEClient) Register(ctx context.Context, nse *registry.Network
 	}
 
 	if p != (peer.Peer{}) {
-		c.serverPeer.Store(&p)
 		ctx = peer.NewContext(ctx, &p)
 	}
 
-	path = grpcmetadata.PathFromContext(ctx)
 	spiffeID := getSpiffeIDFromPath(ctx, path)
-
 	rawMap := getRawMap(c.nsePathIdsMap)
 	input := RegistryOpaInput{
 		ResourceID:         spiffeID.String(),
@@ -116,22 +111,21 @@ func (c *authorizeNSEClient) Unregister(ctx context.Context, nse *registry.Netwo
 	}
 
 	path := grpcmetadata.PathFromContext(ctx)
-
 	ctx = grpcmetadata.PathWithContext(ctx, path)
+
+	var p peer.Peer
+	opts = append(opts, grpc.Peer(&p))
 
 	resp, err := next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, nse, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	p, ok := c.serverPeer.Load().(*peer.Peer)
-	if ok && p != nil {
-		ctx = peer.NewContext(ctx, p)
+	if p != (peer.Peer{}) {
+		ctx = peer.NewContext(ctx, &p)
 	}
 
-	path = grpcmetadata.PathFromContext(ctx)
 	spiffeID := getSpiffeIDFromPath(ctx, path)
-
 	rawMap := getRawMap(c.nsePathIdsMap)
 	input := RegistryOpaInput{
 		ResourceID:         spiffeID.String(),

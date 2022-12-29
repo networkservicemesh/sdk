@@ -19,6 +19,8 @@ package grpcmetadata_test
 import (
 	"time"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
+
 	"github.com/golang-jwt/jwt/v4"
 	"google.golang.org/grpc/credentials"
 
@@ -29,9 +31,16 @@ const (
 	key = "supersecret"
 )
 
-func tokenGeneratorFunc(spiffeID string) token.GeneratorFunc {
+// tokenGeneratorFunc generates new tokens automatically (based on time change).
+// time.Second + smth - the time tick for jwt is a second.
+func tokenGeneratorFunc(clock *clockmock.Mock, spiffeID string) token.GeneratorFunc {
 	return func(peerAuthInfo credentials.AuthInfo) (string, time.Time, error) {
-		tok, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": spiffeID}).SignedString([]byte(key))
-		return tok, time.Date(3000, 1, 1, 1, 1, 1, 1, time.UTC), err
+		clock.Add(time.Second + time.Millisecond*10)
+		tok, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+			"sub": spiffeID,
+			"exp": jwt.NewNumericDate(clock.Now().Add(time.Hour)),
+		},
+		).SignedString([]byte(key))
+		return tok, clock.Now(), err
 	}
 }

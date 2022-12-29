@@ -538,10 +538,6 @@ func testNSMGRCloseHeal(t *testing.T, withNSEExpiration bool) {
 		SetNSMgrProxySupplier(nil).
 		SetRegistryProxySupplier(nil)
 
-	if withNSEExpiration {
-		builder = builder.SetRegistryExpiryDuration(time.Second / 2)
-	}
-
 	domain := builder.Build()
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
@@ -549,9 +545,13 @@ func testNSMGRCloseHeal(t *testing.T, withNSEExpiration bool) {
 	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
-	nseCtx, nseCtxCancel := context.WithCancel(ctx)
-
-	domain.Nodes[0].NewEndpoint(nseCtx, defaultRegistryEndpoint(nsReg.Name), sandbox.GenerateTestToken)
+	nseCtx, nseCtxCancel := context.WithTimeout(ctx, time.Second/2)
+	if withNSEExpiration {
+		// NSE will be unregistered after (tokenTimeout - registerTimeout)
+		domain.Nodes[0].NewEndpoint(nseCtx, defaultRegistryEndpoint(nsReg.Name), sandbox.GenerateExpiringToken(time.Second))
+	} else {
+		domain.Nodes[0].NewEndpoint(nseCtx, defaultRegistryEndpoint(nsReg.Name), sandbox.GenerateTestToken)
+	}
 
 	request := defaultRequest(nsReg.Name)
 
@@ -600,10 +600,6 @@ func testNSMGRCloseHeal(t *testing.T, withNSEExpiration bool) {
 	_, _ = nsc.Close(nscCtx, conn.Clone())
 
 	nscCtxCancel()
-
-	for _, fwd := range domain.Nodes[0].Forwarders {
-		fwd.Cancel()
-	}
 
 	require.Eventually(t, func() bool {
 		logrus.Error(goleak.Find())

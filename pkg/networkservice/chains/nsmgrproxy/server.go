@@ -292,9 +292,9 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 
 	var nseServerChain = chain.NewNetworkServiceEndpointRegistryServer(
 		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
-		begin.NewNetworkServiceEndpointRegistryServer(),
 		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGenerator),
 		opts.authorizeNSERegistryServer,
+		begin.NewNetworkServiceEndpointRegistryServer(),
 		clienturl.NewNetworkServiceEndpointRegistryServer(proxyURL),
 		interdomainBypassNSEServer,
 		registryswapip.NewNetworkServiceEndpointRegistryServer(opts.openMapIPChannel(ctx)),

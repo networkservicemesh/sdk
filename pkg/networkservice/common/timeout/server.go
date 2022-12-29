@@ -51,6 +51,14 @@ func NewServer(ctx context.Context) networkservice.NetworkServiceServer {
 }
 
 func (s *timeoutServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (conn *networkservice.Connection, err error) {
+	timeClock := clock.FromContext(ctx)
+
+	deadline, ok := ctx.Deadline()
+	requestTimeout := timeClock.Until(deadline)
+	if !ok {
+		requestTimeout = 0
+	}
+
 	conn, err = next.Server(ctx).Request(ctx, request)
 	if err != nil {
 		return nil, err
@@ -67,8 +75,8 @@ func (s *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 	}
 	store(ctx, metadata.IsClient(s), cancel)
 	eventFactory := begin.FromContext(ctx)
-	timeClock := clock.FromContext(ctx)
-	afterCh := timeClock.After(timeClock.Until(expirationTime))
+	afterCh := timeClock.After(timeClock.Until(expirationTime) - requestTimeout)
+
 	go func(cancelCtx context.Context, afterCh <-chan time.Time) {
 		select {
 		case <-cancelCtx.Done():

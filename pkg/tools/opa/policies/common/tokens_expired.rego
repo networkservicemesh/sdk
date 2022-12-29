@@ -1,4 +1,4 @@
-# Copyright (c) 2020 Cisco and/or its affiliates.
+# Copyright (c) 2020-2022 Cisco and/or its affiliates.
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -19,11 +19,11 @@ package nsm
 default valid = false
 
 valid {
-	count({x | input.path_segments[x]; token_expired(input.path_segments[x].token)}) == count(input.path_segments)
+	count({x | input.path_segments[x]; token_alive(input.path_segments[x].token)}) == count(input.path_segments)
 }
 
-token_expired(token) {
-	print(token)
+# alive means not expired
+token_alive(token) {
 	[_, payload, _] := io.jwt.decode(token)
 	now < payload.exp
 }
