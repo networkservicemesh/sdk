@@ -49,6 +49,7 @@ import (
 	registryclientinfo "github.com/networkservicemesh/sdk/pkg/registry/common/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 	registryconnect "github.com/networkservicemesh/sdk/pkg/registry/common/connect"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/defaultexpire"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
@@ -276,6 +277,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		opts.authorizeNSERegistryServer,
 		begin.NewNetworkServiceEndpointRegistryServer(),
 		registryclientinfo.NewNetworkServiceEndpointRegistryServer(),
+		defaultexpire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx),
 		registryrecvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
 		registrysendfd.NewNetworkServiceEndpointRegistryServer(),

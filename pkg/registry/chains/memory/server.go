@@ -20,6 +20,7 @@ package memory
 import (
 	"context"
 	"net/url"
+	"time"
 
 	"google.golang.org/grpc"
 
@@ -34,6 +35,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/defaultexpire"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
@@ -50,6 +52,7 @@ type serverOptions struct {
 	authorizeNSERegistryServer registry.NetworkServiceEndpointRegistryServer
 	authorizeNSRegistryClient  registry.NetworkServiceRegistryClient
 	authorizeNSERegistryClient registry.NetworkServiceEndpointRegistryClient
+	defaultExpireDuration      time.Duration
 	proxyRegistryURL           *url.URL
 	dialOptions                []grpc.DialOption
 }
@@ -97,6 +100,13 @@ func WithAuthorizeNSERegistryClient(authorizeNSERegistryClient registry.NetworkS
 	}
 }
 
+// WithDefaultExpireDuration sets a default expire duration for the server
+func WithDefaultExpireDuration(expireDuration time.Duration) Option {
+	return func(o *serverOptions) {
+		o.defaultExpireDuration = expireDuration
+	}
+}
+
 // WithProxyRegistryURL sets URL to reach the proxy registry
 func WithProxyRegistryURL(proxyRegistryURL *url.URL) Option {
 	return func(o *serverOptions) {
@@ -118,6 +128,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		authorizeNSERegistryServer: registryauthorize.NewNetworkServiceEndpointRegistryServer(registryauthorize.Any()),
 		authorizeNSRegistryClient:  registryauthorize.NewNetworkServiceRegistryClient(registryauthorize.Any()),
 		authorizeNSERegistryClient: registryauthorize.NewNetworkServiceEndpointRegistryClient(registryauthorize.Any()),
+		defaultExpireDuration:      time.Minute,
 		proxyRegistryURL:           nil,
 	}
 	for _, opt := range options {
@@ -161,6 +172,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 				Condition: func(c context.Context, nse *registry.NetworkServiceEndpoint) bool { return true },
 				Action: chain.NewNetworkServiceEndpointRegistryServer(
 					setregistrationtime.NewNetworkServiceEndpointRegistryServer(),
+					defaultexpire.NewNetworkServiceEndpointRegistryServer(ctx, time.Minute),
 					expire.NewNetworkServiceEndpointRegistryServer(ctx),
 					memory.NewNetworkServiceEndpointRegistryServer(),
 				),

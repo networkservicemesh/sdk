@@ -519,6 +519,7 @@ func Test_FailedRegistryAuthorization(t *testing.T) {
 	registrySupplier := func(
 		ctx context.Context,
 		tokenGenerator token.GeneratorFunc,
+		expiryDuration time.Duration,
 		proxyRegistryURL *url.URL,
 		options ...grpc.DialOption) registry.Registry {
 		registryName := sandbox.UniqueName("registry-memory")
@@ -688,6 +689,7 @@ func Test_Expire(t *testing.T) {
 	registrySupplier := func(
 		ctx context.Context,
 		tokenGenerator token.GeneratorFunc,
+		expiryDuration time.Duration,
 		proxyRegistryURL *url.URL,
 		options ...grpc.DialOption) registry.Registry {
 		return memory.NewServer(
