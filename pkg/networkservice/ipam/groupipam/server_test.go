@@ -22,12 +22,13 @@ import (
 	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/stretchr/testify/require"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/groupipam"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/singlepointipam"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
-	"github.com/stretchr/testify/require"
 )
 
 func Test_NewServer_ShouldFailIfOptionIsNil(t *testing.T) {

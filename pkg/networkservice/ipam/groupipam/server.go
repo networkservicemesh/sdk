@@ -16,13 +16,14 @@
 
 // Package groupipam provides a networkservice.NetworkServiceServer chain element to handle a group of []*net.IPNet.
 // The chain element should be used when the endpoint should assign a few addresses for the connection.
-// By default `groupipam`` uses `point2pointipam` to handle *net.IPNet.
+// By default `groupipam` uses `point2pointipam` to handle *net.IPNet.
 package groupipam
 
 import (
 	"net"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/point2pointipam"
 )
