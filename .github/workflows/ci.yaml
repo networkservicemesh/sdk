@@ -38,7 +38,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: ${{ fromJson(inputs.os) }}
+        os: ["ubuntu-latest", "macos-latest"]
     steps:
       - name: Check out code
         uses: actions/checkout@v2
@@ -47,6 +47,6 @@ jobs:
         with:
           go-version: 1.18.1
       - run: |
-          go test -coverprofile=cover.out -covermode=atomic -race ./...; [ -f cover.out ] && cat cover.out > ../coverage.txt
+          go test -coverprofile=coverage-${{ matrix.os }}.txt -covermode=atomic -race ./...
       - name: Upload coverage reports to Codecov with GitHub Action
         uses: codecov/codecov-action@v3
