@@ -33,20 +33,3 @@ jobs:
 
   exclude-replace:
     uses: networkservicemesh/.github/.github/workflows/exclude-replace.yaml@main
-
-  # code-cov:
-  #   runs-on: ${{ matrix.os }}
-  #   strategy:
-  #     matrix:
-  #       os: ${{ fromJson(inputs.os) }}
-  #   steps:
-  #     - name: Check out code
-  #       uses: actions/checkout@v2
-  #     - name: Setup Go
-  #       uses: actions/setup-go@v1
-  #       with:
-  #         go-version: 1.18.1
-  #     - run: |
-  #         go test -coverprofile=cover.out -covermode=atomic -race ./...; [ -f cover.out ] && cat cover.out > ../coverage.txt
-  #     - name: Upload coverage reports to Codecov with GitHub Action
-  #       uses: codecov/codecov-action@v3
