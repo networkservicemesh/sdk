@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2022 Cisco and/or its affiliates.
+// Copyright (c) 2021-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -106,7 +106,14 @@ func (m *monitorConnectionServer) Send(event *networkservice.ConnectionEvent) (_
 }
 
 func (m *monitorConnectionServer) GetConnections() map[string]*networkservice.Connection {
-	return m.connections
+	connections := make(map[string]*networkservice.Connection)
+
+	<-m.executor.AsyncExec(func() {
+		for k, v := range m.connections {
+			connections[k] = v
+		}
+	})
+	return connections
 }
 
 // EventConsumer - interface for monitor events sending
