@@ -54,7 +54,6 @@ type vl3DNSServer struct {
 	listenAndServeDNS     func(ctx context.Context, handler dnsutils.Handler, listenOn string)
 	dnsServerIP           net.IP
 	serverAddressCh       <-chan net.IP
-	connections           map[string]*networkservice.Connection
 	executor              serialize.Executor
 	once                  sync.Once
 }
@@ -72,7 +71,6 @@ func NewServer(chanCtx context.Context, serverAddressCh <-chan net.IP, opts ...O
 		dnsPort:           53,
 		listenAndServeDNS: dnsutils.ListenAndServe,
 		dnsConfigs:        new(dnsconfig.Map),
-		connections:       make(map[string]*networkservice.Connection),
 		serverAddressCh:   serverAddressCh,
 	}
 
@@ -152,9 +150,6 @@ func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.Netw
 		n.dnsConfigs.Store(resp.GetId(), configs)
 	}
 
-	<-n.executor.AsyncExec(func() {
-		n.connections[resp.GetId()] = resp.Clone()
-	})
 	return resp, err
 }
 
@@ -217,15 +212,10 @@ func (n *vl3DNSServer) updateServerAddress(ctx context.Context, address net.IP) 
 		n.dnsServerIP = address
 		logger := log.FromContext(ctx).WithField("vl3DNSServer", "Request")
 
-		connections := make(map[string]*networkservice.Connection)
-		for _, c := range n.connections {
-			connections[c.GetId()] = c.Clone()
-			connections[c.GetId()].State = networkservice.State_REFRESH_REQUESTED
-		}
 		if eventConsumer, ok := monitor.LoadEventConsumer(ctx, metadata.IsClient(n)); ok {
 			_ = eventConsumer.Send(&networkservice.ConnectionEvent{
 				Type:        networkservice.ConnectionEventType_UPDATE,
-				Connections: connections,
+				Connections: eventConsumer.GetConnections(),
 			})
 		} else {
 			logger.Debug("eventConsumer is not presented")
