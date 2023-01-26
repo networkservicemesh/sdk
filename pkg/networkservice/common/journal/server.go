@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,13 +24,13 @@ package journal
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"strings"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	stan "github.com/nats-io/stan.go"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
@@ -101,12 +103,12 @@ func (srv *journalServer) Close(ctx context.Context, connection *networkservice.
 func (srv *journalServer) publish(entry *Entry) error {
 	js, err := json.Marshal(entry)
 	if err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
 	err = srv.nats.Publish(srv.journalID, js)
 	if err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 	return nil
 }

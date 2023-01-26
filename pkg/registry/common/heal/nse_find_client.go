@@ -1,5 +1,7 @@
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,6 +22,7 @@ import (
 	"context"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/pkg/errors"
 )
 
 type healNSEFindClient struct {
@@ -32,7 +35,7 @@ type healNSEFindClient struct {
 
 func (c *healNSEFindClient) Recv() (*registry.NetworkServiceEndpointResponse, error) {
 	if c.err != nil {
-		return nil, c.err
+		return nil, errors.WithStack(c.err)
 	}
 
 	nseResp, err := c.NetworkServiceEndpointRegistry_FindClient.Recv()
@@ -41,13 +44,13 @@ func (c *healNSEFindClient) Recv() (*registry.NetworkServiceEndpointResponse, er
 		for ; err != nil; c.NetworkServiceEndpointRegistry_FindClient, err = c.createStream() {
 			if c.ctx.Err() != nil {
 				c.err = c.ctx.Err()
-				return nil, c.err
+				return nil, errors.WithStack(c.err)
 			}
 		}
 
 		if c.ctx.Err() != nil {
 			c.err = c.ctx.Err()
-			return nil, c.err
+			return nil, errors.WithStack(c.err)
 		}
 	}
 

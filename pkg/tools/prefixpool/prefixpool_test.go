@@ -2,6 +2,8 @@
 //
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,6 +24,7 @@ import (
 	"net"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -238,6 +241,7 @@ func TestPrefixPoolValidation(t *testing.T) {
 	require.Nil(t, err)
 	_, err = prefixpool.New("10.20.0.0/56")
 	if assert.Error(t, err) {
-		require.Equal(t, &net.ParseError{Type: "CIDR address", Text: "10.20.0.0/56"}, err)
+		expectedErr := errors.WithStack(&net.ParseError{Type: "CIDR address", Text: "10.20.0.0/56"})
+		require.Equal(t, expectedErr.Error(), err.Error())
 	}
 }

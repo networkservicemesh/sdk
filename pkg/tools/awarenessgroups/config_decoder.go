@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -49,7 +49,7 @@ func (d *Decoder) Decode(value string) error {
 			}
 			nsurl, err := url.Parse(item)
 			if err != nil {
-				return err
+				return errors.WithStack(err)
 			}
 			awarenessGroups[i] = append(awarenessGroups[i], nsurl)
 		}
@@ -95,7 +95,7 @@ func validateParentheses(value string) error {
 	}
 
 	if parenthesesCounter != 0 {
-		return errors.New("parenteses are not balanced")
+		return errors.WithStack(errors.New("parenteses are not balanced"))
 	}
 	return nil
 }

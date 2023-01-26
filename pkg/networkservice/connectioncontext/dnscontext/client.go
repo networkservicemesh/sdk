@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -26,6 +26,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/miekg/dns"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -87,7 +88,7 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 
 	c.dnsConfigsMap.Store(rv.Id, configs)
 
-	return rv, err
+	return rv, nil
 }
 
 func (c *dnsContextClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
@@ -136,11 +137,11 @@ func (c *dnsContextClient) storeOriginalResolvConf() {
 func (c *dnsContextClient) appendResolvConf(resolvConf string) error {
 	bytes, err := os.ReadFile(c.resolveConfigPath)
 	if err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 	originalResolvConfig := string(bytes)
 
-	return os.WriteFile(c.resolveConfigPath, []byte(originalResolvConfig+resolvConf), os.ModePerm)
+	return errors.WithStack(os.WriteFile(c.resolveConfigPath, []byte(originalResolvConfig+resolvConf), os.ModePerm))
 }
 
 func (c *dnsContextClient) initialize() {

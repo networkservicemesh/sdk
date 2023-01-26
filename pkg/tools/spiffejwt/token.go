@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Cisco and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -62,6 +64,6 @@ func TokenGeneratorFunc(source x509svid.Source, maxTokenLifeTime time.Duration) 
 			}
 		}
 		tok, err := jwt.NewWithClaims(jwt.SigningMethodES256, claims).SignedString(ownSVID.PrivateKey)
-		return tok, expireTime, err
+		return tok, expireTime, errors.WithStack(err)
 	}
 }

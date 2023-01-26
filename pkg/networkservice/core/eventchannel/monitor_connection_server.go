@@ -1,6 +1,6 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -46,7 +46,7 @@ func NewMonitorConnectionMonitorConnectionsServer(ctx context.Context, eventCh c
 func (m *monitorConnectionMonitorConnectionsServer) Send(event *networkservice.ConnectionEvent) error {
 	select {
 	case <-m.ctx.Done():
-		return m.ctx.Err()
+		return errors.WithStack(m.ctx.Err())
 	case m.eventCh <- event:
 		return nil
 	}

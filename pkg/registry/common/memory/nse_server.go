@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,6 +25,7 @@ import (
 	"github.com/edwarnicke/serialize"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
@@ -63,7 +66,7 @@ func (s *memoryNSEServer) Register(ctx context.Context, nse *registry.NetworkSer
 
 	s.sendEvent(&registry.NetworkServiceEndpointResponse{NetworkServiceEndpoint: r})
 
-	return r, err
+	return r, nil
 }
 
 func (s *memoryNSEServer) sendEvent(event *registry.NetworkServiceEndpointResponse) {
@@ -106,7 +109,7 @@ func (s *memoryNSEServer) Find(query *registry.NetworkServiceEndpointQuery, serv
 	var err error
 	for ; err == nil; err = s.receiveEvent(query, server, eventCh) {
 	}
-	if err != io.EOF {
+	if err.Error() != io.EOF.Error() {
 		return err
 	}
 	return nil
@@ -146,12 +149,12 @@ func (s *memoryNSEServer) receiveEvent(
 ) error {
 	select {
 	case <-server.Context().Done():
-		return io.EOF
+		return errors.WithStack(io.EOF)
 	case event := <-eventCh:
 		if matchutils.MatchNetworkServiceEndpoints(query.NetworkServiceEndpoint, event.NetworkServiceEndpoint) {
 			if err := server.Send(event); err != nil {
 				if server.Context().Err() != nil {
-					return io.EOF
+					return errors.WithStack(io.EOF)
 				}
 				return err
 			}

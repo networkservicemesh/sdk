@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -26,6 +26,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
@@ -93,7 +94,6 @@ func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.Netw
 
 	dnsServerIPStr, added := n.addDNSContext(request.GetConnection())
 	var recordNames, err = n.buildSrcDNSRecords(request.GetConnection())
-
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,6 @@ func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.Netw
 	}
 
 	resp, err := next.Server(ctx).Request(ctx, request)
-
 	if err == nil {
 		configs := make([]*networkservice.DNSConfig, 0)
 		if srcRoutes := resp.GetContext().GetIpContext().GetSrcRoutes(); len(srcRoutes) > 0 {
@@ -170,7 +169,7 @@ func (n *vl3DNSServer) buildSrcDNSRecords(c *networkservice.Connection) ([]strin
 	for _, templ := range n.domainSchemeTemplates {
 		var recordBuilder = new(strings.Builder)
 		if err := templ.Execute(recordBuilder, c); err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "error occurred executing the template or writing its output")
 		}
 		result = append(result, recordBuilder.String())
 	}

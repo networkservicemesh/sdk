@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -53,7 +55,7 @@ func (m *combineMonitorServer) MonitorConnections(selector *networkservice.Monit
 	if rv := monitorErr.Load(); rv != nil {
 		err = rv.(error)
 	}
-	return err
+	return errors.WithStack(err)
 }
 
 func startMonitorConnectionsServer(
@@ -130,10 +132,10 @@ func (m *combineMonitorConnectionsServer) Send(event *networkservice.ConnectionE
 			m.initCh <- event
 			err = <-m.errCh
 		})
-		return err
+		return errors.WithStack(err)
 	default:
 		m.initWg.Wait()
-		return m.MonitorConnection_MonitorConnectionsServer.Send(event)
+		return errors.WithStack(m.MonitorConnection_MonitorConnectionsServer.Send(event))
 	}
 }
 

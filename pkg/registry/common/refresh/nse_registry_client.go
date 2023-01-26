@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -74,7 +74,7 @@ func (c *refreshNSEClient) Register(ctx context.Context, nse *registry.NetworkSe
 		}()
 	}
 
-	return resp, err
+	return resp, nil
 }
 
 func (c *refreshNSEClient) Find(ctx context.Context, query *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {

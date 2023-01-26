@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2022 Cisco and/or its affiliates.
+// Copyright (c) 2021-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
@@ -67,9 +68,9 @@ func (r *retryNSClient) Register(ctx context.Context, in *registry.NetworkServic
 
 			select {
 			case <-r.chainCtx.Done():
-				return nil, r.chainCtx.Err()
+				return nil, errors.WithStack(r.chainCtx.Err())
 			case <-ctx.Done():
-				return nil, ctx.Err()
+				return nil, errors.WithStack(ctx.Err())
 			case <-c.After(r.interval):
 				continue
 			}
@@ -79,10 +80,10 @@ func (r *retryNSClient) Register(ctx context.Context, in *registry.NetworkServic
 	}
 
 	if r.chainCtx.Err() != nil {
-		return nil, r.chainCtx.Err()
+		return nil, errors.WithStack(r.chainCtx.Err())
 	}
 
-	return nil, ctx.Err()
+	return nil, errors.WithStack(ctx.Err())
 }
 
 func (r *retryNSClient) Find(ctx context.Context, query *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
@@ -102,10 +103,10 @@ func (r *retryNSClient) Find(ctx context.Context, query *registry.NetworkService
 	}
 
 	if r.chainCtx.Err() != nil {
-		return nil, r.chainCtx.Err()
+		return nil, errors.WithStack(r.chainCtx.Err())
 	}
 
-	return nil, ctx.Err()
+	return nil, errors.WithStack(ctx.Err())
 }
 
 func (r *retryNSClient) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*emptypb.Empty, error) {
@@ -122,9 +123,9 @@ func (r *retryNSClient) Unregister(ctx context.Context, in *registry.NetworkServ
 
 			select {
 			case <-r.chainCtx.Done():
-				return nil, r.chainCtx.Err()
+				return nil, errors.WithStack(r.chainCtx.Err())
 			case <-ctx.Done():
-				return nil, ctx.Err()
+				return nil, errors.WithStack(ctx.Err())
 			case <-c.After(r.interval):
 				continue
 			}
@@ -133,8 +134,8 @@ func (r *retryNSClient) Unregister(ctx context.Context, in *registry.NetworkServ
 		return resp, err
 	}
 	if r.chainCtx.Err() != nil {
-		return nil, r.chainCtx.Err()
+		return nil, errors.WithStack(r.chainCtx.Err())
 	}
 
-	return nil, ctx.Err()
+	return nil, errors.WithStack(ctx.Err())
 }

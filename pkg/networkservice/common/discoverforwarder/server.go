@@ -1,5 +1,7 @@
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -81,14 +83,12 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 				Url: d.nsmgrURL,
 			},
 		})
-
 		if err != nil {
 			logger.Errorf("can not open registry nse stream by networkservice. Error: %v", err.Error())
-			return nil, errors.WithStack(err)
+			return nil, err
 		}
 
 		nses := d.matchForwarders(request.Connection.GetLabels(), ns, registry.ReadNetworkServiceEndpointList(stream))
-
 		if len(nses) == 0 {
 			return nil, errors.New("no candidates found")
 		}
@@ -110,14 +110,12 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 		// https://github.com/networkservicemesh/sdk/issues/790
 		for i, candidate := range nses {
 			u, err := url.Parse(candidate.Url)
-
 			if err != nil {
 				logger.Errorf("can not parse forwarder=%v url=%v error=%v", candidate.Name, candidate.Url, err.Error())
 				continue
 			}
 
 			resp, err := next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request.Clone())
-
 			if err == nil {
 				storeForwarderName(ctx, candidate.Name)
 				return resp, nil
@@ -128,27 +126,25 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 
 		return nil, candidatesErr
 	}
+
 	stream, err := d.nseClient.Find(ctx, &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 			Name: forwarderName,
 			Url:  d.nsmgrURL,
 		},
 	})
-
 	if err != nil {
 		logger.Errorf("can not open registry nse stream by forwarder name. Error: %v", err.Error())
-		return nil, errors.WithStack(err)
+		return nil, err
 	}
 
 	nses := registry.ReadNetworkServiceEndpointList(stream)
-
 	if len(nses) == 0 {
 		storeForwarderName(ctx, "")
 		return nil, errors.New("forwarder not found")
 	}
 
 	u, err := url.Parse(nses[0].Url)
-
 	if err != nil {
 		logger.Errorf("can not parse forwarder=%v url=%v error=%v", nses[0].Name, u, err.Error())
 		return nil, errors.WithStack(err)
@@ -164,7 +160,6 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 func (d *discoverForwarderServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	var forwarderName = loadForwarderName(ctx)
 	var logger = log.FromContext(ctx).WithField("discoverForwarderServer", "request")
-
 	if forwarderName == "" {
 		return nil, errors.New("forwarder is not selected")
 	}
@@ -175,20 +170,17 @@ func (d *discoverForwarderServer) Close(ctx context.Context, conn *networkservic
 			Url:  d.nsmgrURL,
 		},
 	})
-
 	if err != nil {
 		logger.Errorf("can not open registry nse stream by forwarder name. Error: %v", err.Error())
-		return nil, errors.WithStack(err)
+		return nil, err
 	}
 
 	nses := registry.ReadNetworkServiceEndpointList(stream)
-
 	if len(nses) == 0 {
 		return nil, errors.New("forwarder not found")
 	}
 
 	u, err := url.Parse(nses[0].Url)
-
 	if err != nil {
 		logger.Errorf("can not parse forwarder url %v", err.Error())
 		return nil, errors.WithStack(err)
@@ -211,7 +203,6 @@ func (d *discoverForwarderServer) matchForwarders(nsLabels map[string]string, ns
 		}
 
 		var matchLabels = match.GetMetadata().GetLabels()
-
 		if matchLabels == nil {
 			matchLabels = map[string]string{
 				"p2p": "true",
@@ -247,10 +238,10 @@ func (d *discoverForwarderServer) discoverNetworkService(ctx context.Context, na
 
 	nsRespStream, err := d.nsClient.Find(ctx, query)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, err
 	}
-	nsList := registry.ReadNetworkServiceList(nsRespStream)
 
+	nsList := registry.ReadNetworkServiceList(nsRespStream)
 	for _, ns := range nsList {
 		if ns.Name == name {
 			return ns, nil

@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2022 Cisco and/or its affiliates.
+// Copyright (c) 2021-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
@@ -67,9 +68,9 @@ func (r *retryNSEClient) Register(ctx context.Context, nse *registry.NetworkServ
 
 			select {
 			case <-r.chainCtx.Done():
-				return nil, err
+				return nil, errors.WithStack(err)
 			case <-ctx.Done():
-				return nil, ctx.Err()
+				return nil, errors.WithStack(ctx.Err())
 			case <-c.After(r.interval):
 				continue
 			}
@@ -78,7 +79,7 @@ func (r *retryNSEClient) Register(ctx context.Context, nse *registry.NetworkServ
 		return resp, err
 	}
 
-	return nil, ctx.Err()
+	return nil, errors.WithStack(ctx.Err())
 }
 
 func (r *retryNSEClient) Find(ctx context.Context, query *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {

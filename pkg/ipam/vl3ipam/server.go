@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -123,5 +123,5 @@ func (s *vl3IPAMServer) ManagePrefixes(prefixServer ipam.IPAM_ManagePrefixesServ
 		return nil
 	}
 
-	return err
+	return errors.WithStack(err)
 }

@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +18,11 @@
 
 package ippool
 
-import "net"
+import (
+	"net"
+
+	"github.com/pkg/errors"
+)
 
 // PrefixPool - keeps prefixes for both IPv4 and IPv6 addresses
 type PrefixPool struct {
@@ -42,7 +48,7 @@ func (pool *PrefixPool) AddPrefixes(prefixes ...string) error {
 	for _, prefix := range prefixes {
 		_, ipNet, err := net.ParseCIDR(prefix)
 		if err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 		pool.ip4.AddNet(ipNet)
 		pool.ip6.AddNet(ipNet)
@@ -55,7 +61,7 @@ func (pool *PrefixPool) ExcludePrefixes(prefixes ...string) error {
 	for _, prefix := range prefixes {
 		_, ipNet, err := net.ParseCIDR(prefix)
 		if err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 		pool.ip4.Exclude(ipNet)
 		pool.ip6.Exclude(ipNet)

@@ -1,6 +1,6 @@
-// Copyright (c) 2020-2022 Cisco and/or its affiliates.
-//
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2020-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -55,7 +55,7 @@ func New(prefixes ...string) (*PrefixPool, error) {
 	for _, prefix := range prefixes {
 		_, _, err := net.ParseCIDR(prefix)
 		if err != nil {
-			return nil, err
+			return nil, errors.WithStack(err)
 		}
 	}
 	return &PrefixPool{
@@ -145,7 +145,7 @@ func (impl *PrefixPool) ExcludePrefixes(excludedPrefixes []string) (removedPrefi
 	/* Raise an error, if there aren't any available prefixes left after excluding */
 	if len(copyPrefixes) == 0 {
 		err := errors.New("IPAM: The available address pool is empty, probably intersected by excludedPrefix")
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 	/* Everything should be fine, update the available prefixes with what's left */
 	impl.prefixes = copyPrefixes
@@ -206,7 +206,7 @@ func (impl *PrefixPool) Extract(connectionID string, family networkservice.IpFam
 
 	ip, ipNet, err := net.ParseCIDR(result[0])
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, errors.WithStack(err)
 	}
 
 	src, err := incrementIP(ip, ipNet)
@@ -300,7 +300,7 @@ func (impl *PrefixPool) GetConnectionInformation(connectionID string) (ipNet str
 func (impl *PrefixPool) Intersect(prefix string) (intersection bool, err error) {
 	_, subnet, err := net.ParseCIDR(prefix)
 	if err != nil {
-		return false, err
+		return false, errors.WithStack(err)
 	}
 
 	for _, p := range impl.prefixes {
@@ -334,7 +334,7 @@ func ExtractPrefixes(prefixes []string, requests ...*networkservice.ExtraPrefixR
 	for _, request := range requests {
 		err := request.IsValid()
 		if err != nil {
-			return nil, prefixes, err
+			return nil, prefixes, errors.WithStack(err)
 		}
 	}
 

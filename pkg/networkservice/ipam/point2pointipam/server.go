@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -80,7 +80,7 @@ func (s *ipamServer) init() {
 func (s *ipamServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	s.once.Do(s.init)
 	if s.initErr != nil {
-		return nil, s.initErr
+		return nil, errors.Wrap(s.initErr, "failed to init IPAM server")
 	}
 
 	conn := request.GetConnection()

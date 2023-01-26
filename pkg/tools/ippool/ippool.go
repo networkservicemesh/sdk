@@ -1,6 +1,6 @@
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -20,10 +20,11 @@
 package ippool
 
 import (
-	"errors"
 	"math"
 	"net"
 	"sync"
+
+	"github.com/pkg/errors"
 )
 
 type color bool
@@ -234,7 +235,7 @@ func (tree *IPPool) Pull() (net.IP, error) {
 func (tree *IPPool) PullIPString(ipString string, exclude ...*IPPool) (*net.IPNet, error) {
 	ip, _, err := net.ParseCIDR(ipString)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	return tree.PullIP(ip, exclude...)

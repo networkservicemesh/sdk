@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Cisco and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -39,8 +41,7 @@ func (c *connectClient) Request(ctx context.Context, request *networkservice.Net
 	if !loaded {
 		return nil, errors.New("no grpc.ClientConnInterface provided")
 	}
-	conn, err := networkservice.NewNetworkServiceClient(cc).Request(ctx, request, opts...)
-	return conn, err
+	return networkservice.NewNetworkServiceClient(cc).Request(ctx, request, opts...)
 }
 
 func (c *connectClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {

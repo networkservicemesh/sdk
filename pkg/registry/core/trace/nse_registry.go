@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,13 +20,13 @@ package trace
 
 import (
 	"context"
-	"errors"
 	"io"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamcontext"
 	"github.com/networkservicemesh/sdk/pkg/tools/typeutils"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -51,15 +53,15 @@ func (t *traceNetworkServiceEndpointRegistryFindClient) Recv() (*registry.Networ
 
 	if err != nil {
 		if errors.Is(err, io.EOF) {
-			return nil, err
+			return nil, errors.WithStack(err)
 		}
 		if status.Code(err) == codes.Canceled {
-			return nil, err
+			return nil, errors.WithStack(err)
 		}
 		return nil, logError(ctx, err, operation)
 	}
 	logObjectTrace(ctx, "recv-response", rv)
-	return rv, err
+	return rv, nil
 }
 
 func (t *traceNetworkServiceEndpointRegistryClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
@@ -73,7 +75,7 @@ func (t *traceNetworkServiceEndpointRegistryClient) Register(ctx context.Context
 		return nil, logError(ctx, err, operation)
 	}
 	logObjectTrace(ctx, "register-response", rv)
-	return rv, err
+	return rv, nil
 }
 func (t *traceNetworkServiceEndpointRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
 	operation := typeutils.GetFuncName(t.traced, "Find")
@@ -105,7 +107,7 @@ func (t *traceNetworkServiceEndpointRegistryClient) Unregister(ctx context.Conte
 		return nil, logError(ctx, err, operation)
 	}
 	logObjectTrace(ctx, "unregister-response", rv)
-	return rv, err
+	return rv, nil
 }
 
 // NewNetworkServiceEndpointRegistryClient - wraps registry.NetworkServiceEndpointRegistryClient with tracing
@@ -129,7 +131,7 @@ func (t *traceNetworkServiceEndpointRegistryServer) Register(ctx context.Context
 		return nil, logError(ctx, err, operation)
 	}
 	logObjectTrace(ctx, "register-response", rv)
-	return rv, err
+	return rv, nil
 }
 
 func (t *traceNetworkServiceEndpointRegistryServer) Find(in *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
@@ -165,7 +167,7 @@ func (t *traceNetworkServiceEndpointRegistryServer) Unregister(ctx context.Conte
 		return nil, logError(ctx, err, operation)
 	}
 	logObjectTrace(ctx, "unregister-response", rv)
-	return rv, err
+	return rv, nil
 }
 
 // NewNetworkServiceEndpointRegistryServer - wraps registry.NetworkServiceEndpointRegistryServer with tracing
@@ -188,5 +190,5 @@ func (t *traceNetworkServiceEndpointRegistryFindServer) Send(nseResp *registry.N
 	if err != nil {
 		return logError(ctx, err, operation)
 	}
-	return err
+	return nil
 }

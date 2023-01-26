@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -92,7 +92,7 @@ func (v *vl3MtuServer) Request(ctx context.Context, request *networkservice.Netw
 		v.connections[conn.GetId()] = conn
 	})
 
-	return conn, err
+	return conn, nil
 }
 
 func (v *vl3MtuServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {

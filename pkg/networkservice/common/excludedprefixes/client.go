@@ -1,5 +1,7 @@
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -158,7 +160,7 @@ func (epc *excludedPrefixesClient) Request(ctx context.Context, request *network
 
 	ipCtx.ExcludedPrefixes = oldExcludedPrefixes
 
-	return resp, err
+	return resp, nil
 }
 
 func (epc *excludedPrefixesClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
@@ -207,7 +209,7 @@ func validateIPs(ipContext *networkservice.IPContext, excludedPrefixes []string)
 	for _, prefix := range excludedPrefixes {
 		_, ipNet, err := net.ParseCIDR(prefix)
 		if err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 		// TODO: Think about validating routes with prefixes size less than /32 and /128
 		if prefixLen, maxLen := ipNet.Mask.Size(); prefixLen != maxLen {
@@ -225,7 +227,7 @@ func validateIPs(ipContext *networkservice.IPContext, excludedPrefixes []string)
 	for _, prefix := range prefixes {
 		ip, _, err := net.ParseCIDR(prefix)
 		if err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 
 		if ip4Pool.Contains(ip) || ip6Pool.Contains(ip) {

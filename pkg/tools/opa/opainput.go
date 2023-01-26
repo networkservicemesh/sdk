@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -80,11 +82,11 @@ func ParseX509Cert(authInfo credentials.AuthInfo) *x509.Certificate {
 func convertToMap(model interface{}) (map[string]interface{}, error) {
 	jsonConn, err := json.Marshal(model)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 	var rv map[string]interface{}
 	if err := json.Unmarshal(jsonConn, &rv); err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 	if rv == nil {
 		rv = make(map[string]interface{})
