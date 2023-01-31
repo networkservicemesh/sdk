@@ -84,7 +84,7 @@ func (sipam *singlePIpam) init() {
 func (sipam *singlePIpam) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	sipam.once.Do(sipam.init)
 	if sipam.initErr != nil {
-		return nil, errors.Wrap(sipam.initErr, "failed to init IPAM server")
+		return nil, errors.Wrap(sipam.initErr, "failed to init IPAM server during request")
 	}
 
 	conn := request.GetConnection()
@@ -132,7 +132,7 @@ func (sipam *singlePIpam) Close(
 	ctx context.Context, conn *networkservice.Connection) (_ *empty.Empty, err error) {
 	sipam.once.Do(sipam.init)
 	if sipam.initErr != nil {
-		return nil, errors.Wrap(sipam.initErr, "failed to init IPAM server")
+		return nil, errors.Wrap(sipam.initErr, "failed to init IPAM server during close")
 	}
 
 	if connInfo, ok := sipam.Load(conn.GetId()); ok {

@@ -80,7 +80,7 @@ func (s *ipamServer) init() {
 func (s *ipamServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	s.once.Do(s.init)
 	if s.initErr != nil {
-		return nil, errors.Wrap(s.initErr, "failed to init IPAM server")
+		return nil, errors.Wrap(s.initErr, "failed to init IPAM server during request")
 	}
 
 	conn := request.GetConnection()
@@ -215,7 +215,7 @@ func addAddr(addrs *[]string, addr string) {
 func (s *ipamServer) Close(ctx context.Context, conn *networkservice.Connection) (_ *empty.Empty, err error) {
 	s.once.Do(s.init)
 	if s.initErr != nil {
-		return nil, s.initErr
+		return nil, errors.Wrap(s.initErr, "failed to init IPAM server during close")
 	}
 
 	if connInfo, ok := s.Load(conn.GetId()); ok {

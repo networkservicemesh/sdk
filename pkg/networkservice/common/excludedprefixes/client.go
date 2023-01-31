@@ -209,7 +209,7 @@ func validateIPs(ipContext *networkservice.IPContext, excludedPrefixes []string)
 	for _, prefix := range excludedPrefixes {
 		_, ipNet, err := net.ParseCIDR(prefix)
 		if err != nil {
-			return errors.WithStack(err)
+			return errors.Wrapf(err, "failed to parse %s as CIDR", prefix)
 		}
 		// TODO: Think about validating routes with prefixes size less than /32 and /128
 		if prefixLen, maxLen := ipNet.Mask.Size(); prefixLen != maxLen {
@@ -227,7 +227,7 @@ func validateIPs(ipContext *networkservice.IPContext, excludedPrefixes []string)
 	for _, prefix := range prefixes {
 		ip, _, err := net.ParseCIDR(prefix)
 		if err != nil {
-			return errors.WithStack(err)
+			return errors.Wrapf(err, "failed to parse %s as CIDR", prefix)
 		}
 
 		if ip4Pool.Contains(ip) || ip6Pool.Contains(ip) {

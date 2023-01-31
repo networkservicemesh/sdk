@@ -85,7 +85,7 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 		})
 		if err != nil {
 			logger.Errorf("can not open registry nse stream by networkservice. Error: %v", err.Error())
-			return nil, err
+			return nil, errors.Wrapf(err, "failed to find %s on %s", d.forwarderServiceName, d.nsmgrURL)
 		}
 
 		nses := d.matchForwarders(request.Connection.GetLabels(), ns, registry.ReadNetworkServiceEndpointList(stream))
@@ -135,7 +135,7 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 	})
 	if err != nil {
 		logger.Errorf("can not open registry nse stream by forwarder name. Error: %v", err.Error())
-		return nil, err
+		return nil, errors.Wrapf(err, "failed to find %s on %s", forwarderName, d.nsmgrURL)
 	}
 
 	nses := registry.ReadNetworkServiceEndpointList(stream)
@@ -147,7 +147,7 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 	u, err := url.Parse(nses[0].Url)
 	if err != nil {
 		logger.Errorf("can not parse forwarder=%v url=%v error=%v", nses[0].Name, u, err.Error())
-		return nil, errors.WithStack(err)
+		return nil, errors.Wrapf(err, "failed to parse url %s", nses[0].Url)
 	}
 
 	conn, err := next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request)
@@ -172,7 +172,7 @@ func (d *discoverForwarderServer) Close(ctx context.Context, conn *networkservic
 	})
 	if err != nil {
 		logger.Errorf("can not open registry nse stream by forwarder name. Error: %v", err.Error())
-		return nil, err
+		return nil, errors.Wrapf(err, "failed to find %s on %s", forwarderName, d.nsmgrURL)
 	}
 
 	nses := registry.ReadNetworkServiceEndpointList(stream)
@@ -183,7 +183,7 @@ func (d *discoverForwarderServer) Close(ctx context.Context, conn *networkservic
 	u, err := url.Parse(nses[0].Url)
 	if err != nil {
 		logger.Errorf("can not parse forwarder url %v", err.Error())
-		return nil, errors.WithStack(err)
+		return nil, errors.Wrapf(err, "failed to parse url %s", nses[0].Url)
 	}
 
 	ctx = clienturlctx.WithClientURL(ctx, u)
@@ -238,7 +238,7 @@ func (d *discoverForwarderServer) discoverNetworkService(ctx context.Context, na
 
 	nsRespStream, err := d.nsClient.Find(ctx, query)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "failed to find %s", query.String())
 	}
 
 	nsList := registry.ReadNetworkServiceList(nsRespStream)

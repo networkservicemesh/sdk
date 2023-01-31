@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2022 Cisco and/or its affiliates.
+// Copyright (c) 2021-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -54,14 +54,14 @@ func newEventLoop(ctx context.Context, ec EventConsumer, cc grpc.ClientConnInter
 	client, err := networkservice.NewMonitorConnectionClient(cc).MonitorConnections(eventLoopCtx, selector)
 	if err != nil {
 		eventLoopCancel()
-		return nil, errors.WithStack(err)
+		return nil, errors.Wrap(err, "failed to get a MonitorConnections client")
 	}
 
 	// get the initial state transfer and use it to detect whether we have a real connection or not
 	_, err = client.Recv()
 	if err != nil {
 		eventLoopCancel()
-		return nil, errors.WithStack(err)
+		return nil, errors.Wrap(err, "failed to get the initial state transfer")
 	}
 
 	cev := &eventLoop{

@@ -2,6 +2,8 @@
 //
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,6 +23,7 @@ package monitor
 import (
 	"github.com/edwarnicke/serialize"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/pkg/errors"
 )
 
 type monitorFilter struct {
@@ -44,7 +47,9 @@ func (m *monitorFilter) Send(event *networkservice.ConnectionEvent) error {
 		Connections: networkservice.FilterMapOnManagerScopeSelector(event.GetConnections(), m.selector),
 	}
 	if rv.Type == networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER || len(rv.GetConnections()) > 0 {
-		return m.MonitorConnection_MonitorConnectionsServer.Send(rv)
+		if err := m.MonitorConnection_MonitorConnectionsServer.Send(event); err != nil {
+			return errors.Wrapf(err, "MonitorConnections server failed to send an event %s", event.String())
+		}
 	}
 	return nil
 }

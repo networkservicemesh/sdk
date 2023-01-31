@@ -137,11 +137,14 @@ func (c *dnsContextClient) storeOriginalResolvConf() {
 func (c *dnsContextClient) appendResolvConf(resolvConf string) error {
 	bytes, err := os.ReadFile(c.resolveConfigPath)
 	if err != nil {
-		return errors.WithStack(err)
+		return errors.Wrapf(err, "failed to read a resolvconf %s", c.resolveConfigPath)
 	}
 	originalResolvConfig := string(bytes)
 
-	return errors.WithStack(os.WriteFile(c.resolveConfigPath, []byte(originalResolvConfig+resolvConf), os.ModePerm))
+	if err := os.WriteFile(c.resolveConfigPath, []byte(originalResolvConfig+resolvConf), os.ModePerm); err != nil {
+		return errors.Wrapf(err, "failed to write a resolvconf %s", c.resolveConfigPath)
+	}
+	return nil
 }
 
 func (c *dnsContextClient) initialize() {

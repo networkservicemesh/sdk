@@ -53,9 +53,9 @@ func (m *combineMonitorServer) MonitorConnections(selector *networkservice.Monit
 
 	var err error
 	if rv := monitorErr.Load(); rv != nil {
-		err = rv.(error)
+		err = errors.Wrap(rv.(error), "an error occurred during monitor connections")
 	}
-	return errors.WithStack(err)
+	return err
 }
 
 func startMonitorConnectionsServer(
@@ -135,7 +135,10 @@ func (m *combineMonitorConnectionsServer) Send(event *networkservice.ConnectionE
 		return errors.WithStack(err)
 	default:
 		m.initWg.Wait()
-		return errors.WithStack(m.MonitorConnection_MonitorConnectionsServer.Send(event))
+		if err := m.MonitorConnection_MonitorConnectionsServer.Send(event); err != nil {
+			return errors.Wrapf(err, "MonitorConnections server failed to send an event %s", event.String())
+		}
+		return nil
 	}
 }
 

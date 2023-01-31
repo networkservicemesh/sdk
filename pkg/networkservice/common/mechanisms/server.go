@@ -1,6 +1,6 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2020-2022 Cisco and/or its affiliates.
+// Copyright (c) 2020-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -59,7 +59,7 @@ func (ms *mechanismsServer) Request(ctx context.Context, request *networkservice
 		if ok {
 			return srv.Request(ctx, request)
 		}
-		return nil, errUnsupportedMech
+		return nil, errors.WithStack(errUnsupportedMech)
 	}
 	var err = errCannotSupportMech
 	for _, mechanism := range request.GetMechanismPreferences() {

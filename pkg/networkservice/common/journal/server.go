@@ -103,12 +103,12 @@ func (srv *journalServer) Close(ctx context.Context, connection *networkservice.
 func (srv *journalServer) publish(entry *Entry) error {
 	js, err := json.Marshal(entry)
 	if err != nil {
-		return errors.WithStack(err)
+		return errors.Wrapf(err, "failed to get JSON of %s", entry)
 	}
 
 	err = srv.nats.Publish(srv.journalID, js)
 	if err != nil {
-		return errors.WithStack(err)
+		return errors.Wrapf(err, "failed to publish %s to the cluster %s", js, srv.journalID)
 	}
 	return nil
 }

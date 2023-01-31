@@ -1,6 +1,6 @@
-// Copyright (c) 2020-2022 Cisco Systems, Inc.
-//
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2020-2023 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -60,7 +60,7 @@ func (s *selectEndpointServer) Request(ctx context.Context, request *networkserv
 		}
 		u, err := url.Parse(endpoint.Url)
 		if err != nil {
-			return nil, errors.WithStack(err)
+			return nil, errors.Wrapf(err, "failed to parse url %s", endpoint.Url)
 		}
 		ctx = clienturlctx.WithClientURL(ctx, u)
 		request.GetConnection().NetworkServiceEndpointName = endpoint.Name

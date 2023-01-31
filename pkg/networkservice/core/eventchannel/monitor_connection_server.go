@@ -68,7 +68,10 @@ func (m *monitorConnectionMonitorConnectionsServer) SetTrailer(metadata.MD) {}
 
 func (m *monitorConnectionMonitorConnectionsServer) SendMsg(msg interface{}) error {
 	if event, ok := msg.(*networkservice.ConnectionEvent); ok {
-		return m.Send(event)
+		if err := m.Send(event); err != nil {
+			return errors.Wrapf(err, "MonitorConnections server failed to send an event %s", event.String())
+		}
+		return nil
 	}
 	return errors.Errorf("Not type networkservice.ConnectionEvent -  msg (%+v)", msg)
 }

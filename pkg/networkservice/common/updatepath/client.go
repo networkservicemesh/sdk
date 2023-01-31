@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2022 Cisco Systems, Inc.
+// Copyright (c) 2020-2023 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -59,7 +59,7 @@ func (i *updatePathClient) Request(ctx context.Context, request *networkservice.
 	conn.Id = conn.Path.PathSegments[index].Id
 	conn.Path.Index = index
 
-	return conn, err
+	return conn, nil
 }
 
 func (i *updatePathClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (_ *empty.Empty, err error) {

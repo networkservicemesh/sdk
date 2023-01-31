@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2022 Cisco and/or its affiliates.
+// Copyright (c) 2020-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -47,7 +47,7 @@ func updateToken(ctx context.Context, conn *networkservice.Connection, tokenGene
 	// Generate the tok
 	tok, expireTime, err := tokenGenerator(authInfo)
 	if err != nil {
-		return errors.WithStack(err)
+		return errors.Wrap(err, "failed to generate a token")
 	}
 
 	// Update the PathSegment
