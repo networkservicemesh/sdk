@@ -2,6 +2,8 @@
 //
 // Copyright (c) 2022 Cisco and/or its affiliates.
 //
+// Copyright (c) 2023 Nordix and its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -145,6 +147,14 @@ func (tree *IPPool) AddNetString(ipNetString string) {
 	}
 
 	tree.AddNet(ipNet)
+}
+
+// AddRange - adds ip addresses from ip range to the pool
+func (tree *IPPool) AddRange(start, end net.IP) {
+	tree.lock.Lock()
+	defer tree.lock.Unlock()
+
+	tree.addRange(&ipRange{start: ipAddressFromIP(start), end: ipAddressFromIP(end)})
 }
 
 // ContainsNetString parses ipNetRaw string and checks that pool contains whole ipNet
