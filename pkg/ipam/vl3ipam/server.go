@@ -123,5 +123,5 @@ func (s *vl3IPAMServer) ManagePrefixes(prefixServer ipam.IPAM_ManagePrefixesServ
 		return nil
 	}
 
-	return errors.WithStack(err)
+	return errors.Wrap(err, "failed to manage prefixes")
 }
