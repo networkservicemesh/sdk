@@ -82,11 +82,11 @@ func ParseX509Cert(authInfo credentials.AuthInfo) *x509.Certificate {
 func convertToMap(model interface{}) (map[string]interface{}, error) {
 	jsonConn, err := json.Marshal(model)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, errors.Wrap(err, "failed to convert a provided model into JSON")
 	}
 	var rv map[string]interface{}
 	if err := json.Unmarshal(jsonConn, &rv); err != nil {
-		return nil, errors.WithStack(err)
+		return nil, errors.Wrap(err, "failed to parse a JSON-encoded data and store the result")
 	}
 	if rv == nil {
 		rv = make(map[string]interface{})

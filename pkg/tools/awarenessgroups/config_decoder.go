@@ -49,7 +49,7 @@ func (d *Decoder) Decode(value string) error {
 			}
 			nsurl, err := url.Parse(item)
 			if err != nil {
-				return errors.WithStack(err)
+				return errors.Wrapf(err, "failed to parse url %s", item)
 			}
 			awarenessGroups[i] = append(awarenessGroups[i], nsurl)
 		}
@@ -95,7 +95,7 @@ func validateParentheses(value string) error {
 	}
 
 	if parenthesesCounter != 0 {
-		return errors.WithStack(errors.New("parenteses are not balanced"))
+		return errors.New("parenteses are not balanced")
 	}
 	return nil
 }

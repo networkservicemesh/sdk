@@ -47,7 +47,7 @@ func (creds *perRPCCredentials) GetRequestMetadata(ctx context.Context, _ ...str
 	tok, expire, err := creds.genTokenFunc(authInfo)
 
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, errors.Wrap(err, "failed to generate a token")
 	}
 
 	return map[string]string{

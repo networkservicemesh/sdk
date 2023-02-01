@@ -48,7 +48,7 @@ func (pool *PrefixPool) AddPrefixes(prefixes ...string) error {
 	for _, prefix := range prefixes {
 		_, ipNet, err := net.ParseCIDR(prefix)
 		if err != nil {
-			return errors.WithStack(err)
+			return errors.Wrapf(err, "failed to parse %s as CIDR", prefix)
 		}
 		pool.ip4.AddNet(ipNet)
 		pool.ip6.AddNet(ipNet)
@@ -61,7 +61,7 @@ func (pool *PrefixPool) ExcludePrefixes(prefixes ...string) error {
 	for _, prefix := range prefixes {
 		_, ipNet, err := net.ParseCIDR(prefix)
 		if err != nil {
-			return errors.WithStack(err)
+			return errors.Wrapf(err, "failed to parse %s as CIDR", prefix)
 		}
 		pool.ip4.Exclude(ipNet)
 		pool.ip6.Exclude(ipNet)

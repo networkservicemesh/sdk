@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -30,6 +30,7 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 
+	"github.com/pkg/errors"
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/monitorconnection/authorize"
@@ -207,7 +208,7 @@ func TestAuthzEndpoint(t *testing.T) {
 					return
 				}
 				require.NotNil(t, err, "monitorConnections expected to be denied")
-				s, ok := status.FromError(err)
+				s, ok := status.FromError(errors.Cause(err))
 				require.True(t, ok, "error without error status code"+err.Error())
 				require.Equal(t, s.Code(), codes.PermissionDenied, "wrong error status code")
 			}

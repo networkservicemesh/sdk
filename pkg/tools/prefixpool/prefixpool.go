@@ -55,7 +55,7 @@ func New(prefixes ...string) (*PrefixPool, error) {
 	for _, prefix := range prefixes {
 		_, _, err := net.ParseCIDR(prefix)
 		if err != nil {
-			return nil, errors.WithStack(err)
+			return nil, errors.Wrapf(err, "failed to parse %s as CIDR", prefix)
 		}
 	}
 	return &PrefixPool{
@@ -144,8 +144,7 @@ func (impl *PrefixPool) ExcludePrefixes(excludedPrefixes []string) (removedPrefi
 	}
 	/* Raise an error, if there aren't any available prefixes left after excluding */
 	if len(copyPrefixes) == 0 {
-		err := errors.New("IPAM: The available address pool is empty, probably intersected by excludedPrefix")
-		return nil, errors.WithStack(err)
+		return nil, errors.New("IPAM: The available address pool is empty, probably intersected by excludedPrefix")
 	}
 	/* Everything should be fine, update the available prefixes with what's left */
 	impl.prefixes = copyPrefixes
@@ -206,7 +205,7 @@ func (impl *PrefixPool) Extract(connectionID string, family networkservice.IpFam
 
 	ip, ipNet, err := net.ParseCIDR(result[0])
 	if err != nil {
-		return nil, nil, nil, errors.WithStack(err)
+		return nil, nil, nil, errors.Wrapf(err, "failed to parse %s as CIDR", result[0])
 	}
 
 	src, err := incrementIP(ip, ipNet)
@@ -300,7 +299,7 @@ func (impl *PrefixPool) GetConnectionInformation(connectionID string) (ipNet str
 func (impl *PrefixPool) Intersect(prefix string) (intersection bool, err error) {
 	_, subnet, err := net.ParseCIDR(prefix)
 	if err != nil {
-		return false, errors.WithStack(err)
+		return false, errors.Wrapf(err, "failed to parse %s as CIDR", prefix)
 	}
 
 	for _, p := range impl.prefixes {
@@ -334,7 +333,7 @@ func ExtractPrefixes(prefixes []string, requests ...*networkservice.ExtraPrefixR
 	for _, request := range requests {
 		err := request.IsValid()
 		if err != nil {
-			return nil, prefixes, errors.WithStack(err)
+			return nil, prefixes, errors.Wrapf(err, "request %s is not valid", request.String())
 		}
 	}
 
@@ -535,7 +534,7 @@ func getSubnets(prefixes []string) (map[string]*net.IPNet, error) {
 	for _, prefix := range prefixes {
 		_, subnet, err := net.ParseCIDR(prefix)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Wrong CIDR: %v", prefix)
+			return nil, errors.Wrapf(err, "failed to parse %s as CIDR", prefix)
 		}
 		subnets[prefix] = subnet
 	}

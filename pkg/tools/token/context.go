@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -53,7 +55,7 @@ func FromContext(ctx context.Context) (string, time.Time, error) {
 	expireTime, err := time.Parse(time.RFC3339Nano, rawExpiration)
 
 	if err != nil {
-		return "", time.Time{}, errors.WithStack(err)
+		return "", time.Time{}, errors.Wrapf(err, "failed to parse time, layout %s, value %s", time.RFC3339Nano, rawExpiration)
 	}
 
 	return token, expireTime, nil

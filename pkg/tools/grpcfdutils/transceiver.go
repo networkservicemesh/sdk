@@ -46,7 +46,7 @@ type notifiableFDTransceiver struct {
 func (w *notifiableFDTransceiver) RecvFileByURL(urlStr string) (<-chan *os.File, error) {
 	recv, err := w.FDTransceiver.RecvFileByURL(urlStr)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, errors.Wrapf(err, "failed to receive file by url %s", urlStr)
 	}
 
 	var fileCh = make(chan *os.File)

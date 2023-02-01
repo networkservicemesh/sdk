@@ -54,7 +54,7 @@ func TokenGeneratorFunc(source x509svid.Source, maxTokenLifeTime time.Duration) 
 					peerCert := tlsInfo.State.PeerCertificates[0]
 					peerSpiffeID, err2 := x509svid.IDFromCert(peerCert)
 					if err2 != nil {
-						return "", time.Time{}, err2
+						return "", time.Time{}, errors.Wrap(err2, "failed to extract the SPIFFE ID from the URI SAN of the provided peer certificate")
 					}
 					if peerCert.NotAfter.Before(expireTime) {
 						expireTime = peerCert.NotAfter
@@ -64,6 +64,6 @@ func TokenGeneratorFunc(source x509svid.Source, maxTokenLifeTime time.Duration) 
 			}
 		}
 		tok, err := jwt.NewWithClaims(jwt.SigningMethodES256, claims).SignedString(ownSVID.PrivateKey)
-		return tok, expireTime, errors.WithStack(err)
+		return tok, expireTime, errors.Wrapf(err, "failed to create a new Token, method %s, subject %s", jwt.SigningMethodHS256.Name, claims.Subject)
 	}
 }

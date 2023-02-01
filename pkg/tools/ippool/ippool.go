@@ -235,7 +235,7 @@ func (tree *IPPool) Pull() (net.IP, error) {
 func (tree *IPPool) PullIPString(ipString string, exclude ...*IPPool) (*net.IPNet, error) {
 	ip, _, err := net.ParseCIDR(ipString)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, errors.Wrapf(err, "failed to parse %s as a CIDR", ipString)
 	}
 
 	return tree.PullIP(ip, exclude...)

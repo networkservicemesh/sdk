@@ -241,7 +241,8 @@ func TestPrefixPoolValidation(t *testing.T) {
 	require.Nil(t, err)
 	_, err = prefixpool.New("10.20.0.0/56")
 	if assert.Error(t, err) {
-		expectedErr := errors.WithStack(&net.ParseError{Type: "CIDR address", Text: "10.20.0.0/56"})
-		require.Equal(t, expectedErr.Error(), err.Error())
+		expectedErr := &net.ParseError{Type: "CIDR address", Text: "10.20.0.0/56"}
+		withStachErr := errors.Wrapf(expectedErr, "failed to parse %s as CIDR", "10.20.0.0/56")
+		require.Equal(t, withStachErr.Error(), err.Error())
 	}
 }

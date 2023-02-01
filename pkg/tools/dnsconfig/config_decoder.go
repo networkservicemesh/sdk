@@ -33,7 +33,7 @@ type Decoder []*networkservice.DNSConfig
 func (d *Decoder) Decode(v string) error {
 	var c []*networkservice.DNSConfig
 	if err := json.Unmarshal([]byte(v), &c); err != nil {
-		return errors.WithStack(err)
+		return errors.Wrap(err, "failed to parse a JSON-encoded data and store the result")
 	}
 	*d = Decoder(c)
 	return nil
