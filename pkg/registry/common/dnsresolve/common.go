@@ -80,7 +80,7 @@ func resolveDomain(ctx context.Context, service, domain string, r Resolver) (u *
 
 		_, records, err := r.LookupSRV(ctx, "", "", serviceDomain)
 		if err != nil {
-			return nil, errors.WithStack(err)
+			return nil, errors.Wrapf(err, "failed to resolve a SRV query for a %s", serviceDomain)
 		}
 		if len(records) == 0 {
 			return nil, errors.New("resolver.LookupSERV return empty result")
@@ -89,7 +89,7 @@ func resolveDomain(ctx context.Context, service, domain string, r Resolver) (u *
 
 		ips, err := r.LookupIPAddr(ctx, serviceDomain)
 		if err != nil {
-			return nil, errors.WithStack(err)
+			return nil, errors.Wrapf(err, "failed to look up a host using a local resolver for a %s", serviceDomain)
 		}
 		if len(ips) == 0 {
 			return nil, errors.New("resolver.LookupIPAddr return empty result")
@@ -114,7 +114,7 @@ func formatURL(ip, port string) (*url.URL, error) {
 
 	parsedURL, err := url.Parse(urlStr)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, errors.Wrapf(err, "failed to parse url %s", urlStr)
 	}
 	return parsedURL, nil
 }

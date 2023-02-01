@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2022 Cisco and/or its affiliates.
+// Copyright (c) 2021-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,6 +21,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
@@ -31,7 +32,7 @@ type connectNSClient struct{}
 func (n *connectNSClient) Register(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
 	cc, loaded := clientconn.Load(ctx)
 	if !loaded {
-		return nil, errNoCCProvided
+		return nil, errors.New(errNoCCProvidedMsg)
 	}
 	return registry.NewNetworkServiceRegistryClient(cc).Register(ctx, in, opts...)
 }
@@ -39,7 +40,7 @@ func (n *connectNSClient) Register(ctx context.Context, in *registry.NetworkServ
 func (n *connectNSClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
 	cc, loaded := clientconn.Load(ctx)
 	if !loaded {
-		return nil, errNoCCProvided
+		return nil, errors.New(errNoCCProvidedMsg)
 	}
 	return registry.NewNetworkServiceRegistryClient(cc).Find(ctx, in, opts...)
 }
@@ -47,7 +48,7 @@ func (n *connectNSClient) Find(ctx context.Context, in *registry.NetworkServiceQ
 func (n *connectNSClient) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
 	cc, loaded := clientconn.Load(ctx)
 	if !loaded {
-		return nil, errNoCCProvided
+		return nil, errors.New(errNoCCProvidedMsg)
 	}
 	return registry.NewNetworkServiceRegistryClient(cc).Unregister(ctx, in, opts...)
 }

@@ -68,7 +68,7 @@ func (r *retryNSEClient) Register(ctx context.Context, nse *registry.NetworkServ
 
 			select {
 			case <-r.chainCtx.Done():
-				return nil, errors.WithStack(err)
+				return nil, err
 			case <-ctx.Done():
 				return nil, errors.WithStack(ctx.Err())
 			case <-c.After(r.interval):
@@ -103,10 +103,10 @@ func (r *retryNSEClient) Find(ctx context.Context, query *registry.NetworkServic
 	}
 
 	if r.chainCtx.Err() != nil {
-		return nil, r.chainCtx.Err()
+		return nil, errors.WithStack(r.chainCtx.Err())
 	}
 
-	return nil, ctx.Err()
+	return nil, errors.WithStack(ctx.Err())
 }
 
 func (r *retryNSEClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*emptypb.Empty, error) {
@@ -125,7 +125,7 @@ func (r *retryNSEClient) Unregister(ctx context.Context, in *registry.NetworkSer
 			case <-r.chainCtx.Done():
 				return nil, err
 			case <-ctx.Done():
-				return nil, ctx.Err()
+				return nil, errors.WithStack(ctx.Err())
 			case <-c.After(r.interval):
 				continue
 			}
@@ -134,5 +134,5 @@ func (r *retryNSEClient) Unregister(ctx context.Context, in *registry.NetworkSer
 		return resp, err
 	}
 
-	return nil, ctx.Err()
+	return nil, errors.WithStack(ctx.Err())
 }

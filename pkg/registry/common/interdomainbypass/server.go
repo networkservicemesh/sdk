@@ -87,9 +87,10 @@ func NewNetworkServiceEndpointRegistryServer(m *stringurl.Map, u *url.URL) regis
 }
 
 func (s *interdomainBypassNSEFindServer) Send(nseResp *registry.NetworkServiceEndpointResponse) error {
-	u, err := url.Parse(nseResp.GetNetworkServiceEndpoint().GetUrl())
+	nseURL := nseResp.GetNetworkServiceEndpoint().GetUrl()
+	u, err := url.Parse(nseURL)
 	if err != nil {
-		return errors.WithStack(err)
+		return errors.Wrapf(err, "failed to parse url %s", nseURL)
 	}
 	s.m.LoadOrStore(nseResp.NetworkServiceEndpoint.GetName(), u)
 	nseResp.GetNetworkServiceEndpoint().Url = s.u.String()

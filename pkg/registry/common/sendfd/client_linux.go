@@ -1,6 +1,6 @@
-// Copyright (c) 2020-2022 Cisco and/or its affiliates.
-//
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2020-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -99,7 +99,7 @@ func sendFDAndSwapFileToInode(sender grpcfd.FDSender, endpoint *registry.Network
 	// Transform string to URL for correctness checking and ease of use
 	unixURL, err := url.Parse(endpoint.Url)
 	if err != nil {
-		return errors.WithStack(err)
+		return errors.Wrapf(err, "failed to parse url %s", endpoint.Url)
 	}
 
 	// Is it a file?
@@ -109,14 +109,14 @@ func sendFDAndSwapFileToInode(sender grpcfd.FDSender, endpoint *registry.Network
 	// Translate the file to an inodeURL of the form inode://${dev}/${ino}
 	inodeURL, err := grpcfd.FilenameToURL(unixURL.Path)
 	if err != nil {
-		return errors.WithStack(err)
+		return errors.Wrapf(err, "failed to convert filename %s to url", unixURL.Path)
 	}
 	// Send the file
 	errCh := sender.SendFilename(unixURL.Path)
 	select {
 	case err := <-errCh:
 		// If we immediately return an error... the file probably doesn't exist
-		return errors.WithStack(err)
+		return errors.Wrapf(err, "failed to send a file %s, the file probably doesn't exist", unixURL.Path)
 	default:
 		// But don't wait for any subsequent errors... they won't arrive till after we've sent the GRPC message
 	}

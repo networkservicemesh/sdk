@@ -85,7 +85,7 @@ func (s *memoryNSEServer) Find(query *registry.NetworkServiceEndpointQuery, serv
 				NetworkServiceEndpoint: nse,
 			}
 			if err := server.Send(nseResp); err != nil {
-				return err
+				return errors.Wrapf(err, "NetworkServiceRegistry find server failed to send a response %s", nseResp.String())
 			}
 		}
 		return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
@@ -156,7 +156,7 @@ func (s *memoryNSEServer) receiveEvent(
 				if server.Context().Err() != nil {
 					return errors.WithStack(io.EOF)
 				}
-				return err
+				return errors.Wrapf(err, "NetworkServiceRegistry find server failed to send a response %s", event.String())
 			}
 		}
 		return nil

@@ -111,11 +111,11 @@ func nsFindClientToServer(client registry.NetworkServiceRegistry_FindClient, ser
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			return err
+			return errors.Wrap(err, "NetworkServiceRegistry find client failed to get a message")
 		}
 		err = server.Send(msg)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "NetworkServiceRegistry find server failed to send a message %s", msg)
 		}
 	}
 	return nil
@@ -132,7 +132,7 @@ func nsFindServerToClient(ctx context.Context, server registry.NetworkServiceReg
 	} else {
 		defer close(ch)
 		if err := server.Find(in, s); err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "NetworkServiceRegistry find server failed to find a query")
 		}
 	}
 	return streamchannel.NewNetworkServiceFindClient(ctx, ch), nil

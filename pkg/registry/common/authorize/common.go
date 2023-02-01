@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/pkg/errors"
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
@@ -54,7 +55,7 @@ func (l *policiesList) check(ctx context.Context, input RegistryOpaInput) error 
 
 		if err := policy.Check(ctx, input); err != nil {
 			log.FromContext(ctx).Infof("policy failed %v", policy)
-			return err
+			return errors.Wrap(err, "an error occurred during authorization policy check")
 		}
 
 		log.FromContext(ctx).Infof("policy passed")

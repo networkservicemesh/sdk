@@ -57,7 +57,7 @@ func fromMD(md metadata.MD) (*Path, error) {
 	if len(pathValue) > 0 {
 		err := json.Unmarshal([]byte(pathValue[len(pathValue)-1]), path)
 		if err != nil {
-			return nil, errors.WithStack(err)
+			return nil, errors.Wrap(err, "failed to parse a JSON-encoded data and store the result")
 		}
 	}
 
@@ -77,7 +77,7 @@ func fromContext(ctx context.Context) (*Path, error) {
 func appendToMetadata(ctx context.Context, path *Path) (context.Context, error) {
 	bytes, err := json.Marshal(path)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, errors.Wrap(err, "failed to convert a provided path into JSON")
 	}
 	ctx = metadata.AppendToOutgoingContext(ctx, pathKey, string(bytes))
 	return ctx, nil
@@ -86,7 +86,7 @@ func appendToMetadata(ctx context.Context, path *Path) (context.Context, error) 
 func sendPath(ctx context.Context, path *Path) error {
 	bytes, err := json.Marshal(path)
 	if err != nil {
-		return errors.WithStack(err)
+		return errors.Wrap(err, "failed to convert a provided path into JSON")
 	}
 
 	header := metadata.Pairs(pathKey, string(bytes))

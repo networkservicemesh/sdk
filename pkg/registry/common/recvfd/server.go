@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2022 Cisco and/or its affiliates.
+// Copyright (c) 2020-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -139,7 +139,7 @@ func (r *recvfdNseServer) Unregister(ctx context.Context, endpoint *registry.Net
 func recvFDAndSwapInodeToUnix(ctx context.Context, fileMap *perEndpointFileMap, endpoint *registry.NetworkServiceEndpoint, recv grpcfd.FDRecver) error {
 	inodeURL, err := url.Parse(endpoint.GetUrl())
 	if err != nil {
-		return errors.WithStack(err)
+		return errors.Wrapf(err, "failed to parse url %s", endpoint.GetUrl())
 	}
 
 	// Is it an inode?
@@ -154,13 +154,13 @@ func recvFDAndSwapInodeToUnix(ctx context.Context, fileMap *perEndpointFileMap, 
 			var fileCh <-chan *os.File
 			fileCh, err = recv.RecvFileByURL(endpoint.GetUrl())
 			if err != nil {
-				err = errors.WithStack(err)
+				err = errors.Wrapf(err, "failed to receive file by url %s", endpoint.GetUrl())
 				return
 			}
 			// Wait for the file to arrive on the fileCh or the context to expire
 			select {
 			case <-ctx.Done():
-				err = ctx.Err()
+				err = errors.WithStack(ctx.Err())
 				return
 			case file = <-fileCh:
 				// If we get the file, remember it in the fileMap so we can reuse it later
@@ -185,7 +185,7 @@ func swapFileToInode(fileMap *perEndpointFileMap, endpoint *registry.NetworkServ
 	// Transform string to URL for correctness checking and ease of use
 	unixURL, err := url.Parse(endpoint.GetUrl())
 	if err != nil {
-		return errors.WithStack(err)
+		return errors.Wrapf(err, "failed to parse url %s", endpoint.GetUrl())
 	}
 
 	// Is it a file?
