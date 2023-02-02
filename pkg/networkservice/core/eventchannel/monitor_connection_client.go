@@ -47,7 +47,7 @@ func NewMonitorConnectionMonitorConnectionsClient(ctx context.Context, eventCh <
 func (m *monitorConnectionMonitorConnectionsClient) Recv() (*networkservice.ConnectionEvent, error) {
 	select {
 	case <-m.ctx.Done():
-		return nil, errors.WithStack(m.ctx.Err())
+		return nil, errors.Wrap(m.ctx.Err(), "application context is done")
 	case event, ok := <-m.eventCh:
 		if !ok {
 			m.cancelFunc()

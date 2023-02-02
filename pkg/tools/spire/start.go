@@ -273,7 +273,7 @@ func execHealthCheck(ctx context.Context, cmdStr string, options ...*exechelper.
 	for {
 		select {
 		case <-ctx.Done():
-			return errors.WithStack(ctx.Err())
+			return errors.Wrap(ctx.Err(), "health check context is done")
 		default:
 			if err := exechelper.Run(cmdStr, options...); err == nil {
 				return nil

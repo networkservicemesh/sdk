@@ -68,9 +68,9 @@ func (r *retryNSClient) Register(ctx context.Context, in *registry.NetworkServic
 
 			select {
 			case <-r.chainCtx.Done():
-				return nil, errors.WithStack(r.chainCtx.Err())
+				return nil, errors.Wrap(r.chainCtx.Err(), "application context is done")
 			case <-ctx.Done():
-				return nil, errors.WithStack(ctx.Err())
+				return nil, errors.Wrap(ctx.Err(), "register context is done")
 			case <-c.After(r.interval):
 				continue
 			}
@@ -80,10 +80,10 @@ func (r *retryNSClient) Register(ctx context.Context, in *registry.NetworkServic
 	}
 
 	if r.chainCtx.Err() != nil {
-		return nil, errors.WithStack(r.chainCtx.Err())
+		return nil, errors.Wrap(r.chainCtx.Err(), "application context has an error")
 	}
 
-	return nil, errors.WithStack(ctx.Err())
+	return nil, errors.Wrap(ctx.Err(), "register context has an error")
 }
 
 func (r *retryNSClient) Find(ctx context.Context, query *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
@@ -103,10 +103,10 @@ func (r *retryNSClient) Find(ctx context.Context, query *registry.NetworkService
 	}
 
 	if r.chainCtx.Err() != nil {
-		return nil, errors.WithStack(r.chainCtx.Err())
+		return nil, errors.Wrap(r.chainCtx.Err(), "application context has an error")
 	}
 
-	return nil, errors.WithStack(ctx.Err())
+	return nil, errors.Wrap(ctx.Err(), "find context has an error")
 }
 
 func (r *retryNSClient) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*emptypb.Empty, error) {
@@ -123,9 +123,9 @@ func (r *retryNSClient) Unregister(ctx context.Context, in *registry.NetworkServ
 
 			select {
 			case <-r.chainCtx.Done():
-				return nil, errors.WithStack(r.chainCtx.Err())
+				return nil, errors.Wrap(r.chainCtx.Err(), "application context is done")
 			case <-ctx.Done():
-				return nil, errors.WithStack(ctx.Err())
+				return nil, errors.Wrap(ctx.Err(), "unregister context is done")
 			case <-c.After(r.interval):
 				continue
 			}
@@ -134,8 +134,8 @@ func (r *retryNSClient) Unregister(ctx context.Context, in *registry.NetworkServ
 		return resp, err
 	}
 	if r.chainCtx.Err() != nil {
-		return nil, errors.WithStack(r.chainCtx.Err())
+		return nil, errors.Wrap(r.chainCtx.Err(), "application context has an error")
 	}
 
-	return nil, errors.WithStack(ctx.Err())
+	return nil, errors.Wrap(ctx.Err(), "unregister context has an error")
 }

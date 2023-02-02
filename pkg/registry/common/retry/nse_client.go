@@ -68,9 +68,9 @@ func (r *retryNSEClient) Register(ctx context.Context, nse *registry.NetworkServ
 
 			select {
 			case <-r.chainCtx.Done():
-				return nil, err
+				return nil, errors.Wrap(r.chainCtx.Err(), "application context is done")
 			case <-ctx.Done():
-				return nil, errors.WithStack(ctx.Err())
+				return nil, errors.Wrap(ctx.Err(), "register context is done")
 			case <-c.After(r.interval):
 				continue
 			}
@@ -79,7 +79,7 @@ func (r *retryNSEClient) Register(ctx context.Context, nse *registry.NetworkServ
 		return resp, err
 	}
 
-	return nil, errors.WithStack(ctx.Err())
+	return nil, errors.Wrap(ctx.Err(), "register context has an error")
 }
 
 func (r *retryNSEClient) Find(ctx context.Context, query *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
@@ -103,10 +103,10 @@ func (r *retryNSEClient) Find(ctx context.Context, query *registry.NetworkServic
 	}
 
 	if r.chainCtx.Err() != nil {
-		return nil, errors.WithStack(r.chainCtx.Err())
+		return nil, errors.Wrap(r.chainCtx.Err(), "application context has an error")
 	}
 
-	return nil, errors.WithStack(ctx.Err())
+	return nil, errors.Wrap(ctx.Err(), "find context has an error")
 }
 
 func (r *retryNSEClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*emptypb.Empty, error) {
@@ -123,9 +123,9 @@ func (r *retryNSEClient) Unregister(ctx context.Context, in *registry.NetworkSer
 
 			select {
 			case <-r.chainCtx.Done():
-				return nil, err
+				return nil, errors.Wrap(r.chainCtx.Err(), "application context is done")
 			case <-ctx.Done():
-				return nil, errors.WithStack(ctx.Err())
+				return nil, errors.Wrap(ctx.Err(), "unregister context is done")
 			case <-c.After(r.interval):
 				continue
 			}
@@ -134,5 +134,5 @@ func (r *retryNSEClient) Unregister(ctx context.Context, in *registry.NetworkSer
 		return resp, err
 	}
 
-	return nil, errors.WithStack(ctx.Err())
+	return nil, errors.Wrap(ctx.Err(), "unregister context has an error")
 }

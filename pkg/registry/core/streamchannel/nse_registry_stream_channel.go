@@ -79,7 +79,7 @@ type networkServiceEndpointRegistryFindServer struct {
 func (s *networkServiceEndpointRegistryFindServer) Send(nseResp *registry.NetworkServiceEndpointResponse) error {
 	select {
 	case <-s.ctx.Done():
-		return errors.WithStack(s.ctx.Err())
+		return errors.Wrap(s.ctx.Err(), "application context is done")
 	case s.sendCh <- nseResp:
 		return nil
 	}

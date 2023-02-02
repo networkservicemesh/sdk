@@ -160,7 +160,7 @@ func recvFDAndSwapInodeToUnix(ctx context.Context, fileMap *perEndpointFileMap, 
 			// Wait for the file to arrive on the fileCh or the context to expire
 			select {
 			case <-ctx.Done():
-				err = errors.WithStack(ctx.Err())
+				err = errors.Wrap(ctx.Err(), "recvFDAndSwapInodeToUnix context is done")
 				return
 			case file = <-fileCh:
 				// If we get the file, remember it in the fileMap so we can reuse it later
