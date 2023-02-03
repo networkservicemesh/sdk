@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -277,14 +277,16 @@ func Test_NSC_GetsVl3DnsAddressAfterRefresh(t *testing.T) {
 			}),
 		))
 
-	reqCtx, reqClose := context.WithTimeout(ctx, time.Second*10)
-	defer reqClose()
-
 	req := defaultRequest(nsReg.Name)
-	_, err = nsc.Request(reqCtx, req)
+	req.Connection.Labels["podName"] = nscName
+	_, err = nsc.Request(ctx, req)
 	require.NoError(t, err)
 
 	dnsServerIPCh <- net.ParseIP("127.0.0.1")
 
-	<-refreshCompletedCh
+	select {
+	case <-ctx.Done():
+	case <-refreshCompletedCh:
+	}
+	require.NoError(t, ctx.Err())
 }
