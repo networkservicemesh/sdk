@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -22,11 +22,14 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"text/template"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
@@ -38,16 +41,21 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/noloop"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/norecursion"
 	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type vl3DNSServer struct {
+	chainCtx              context.Context
 	dnsServerRecords      memory.Map
 	dnsConfigs            *dnsconfig.Map
 	domainSchemeTemplates []*template.Template
 	dnsPort               int
 	dnsServer             dnsutils.Handler
 	listenAndServeDNS     func(ctx context.Context, handler dnsutils.Handler, listenOn string)
-	getDNSServerIP        func() net.IP
+	dnsServerIP           atomic.Value
+	dnsServerIPCh         <-chan net.IP
+	monitorEventConsumer  monitor.EventConsumer
+	once                  sync.Once
 }
 
 type clientDNSNameKey struct{}
@@ -55,14 +63,15 @@ type clientDNSNameKey struct{}
 // NewServer creates a new vl3dns netwrokservice server.
 // It starts dns server on the passed port/url. By default listens ":53".
 // By default is using fanout dns handler to connect to other vl3 nses.
-// chanCtx is using for signal to stop dns server.
-// opts confugre vl3dns networkservice instance with specific behavior.
-func NewServer(chanCtx context.Context, getDNSServerIP func() net.IP, opts ...Option) networkservice.NetworkServiceServer {
+// chainCtx is using for signal to stop dns server.
+// opts configure vl3dns networkservice instance with specific behavior.
+func NewServer(chainCtx context.Context, dnsServerIPCh <-chan net.IP, opts ...Option) networkservice.NetworkServiceServer {
 	var result = &vl3DNSServer{
+		chainCtx:          chainCtx,
 		dnsPort:           53,
 		listenAndServeDNS: dnsutils.ListenAndServe,
-		getDNSServerIP:    getDNSServerIP,
 		dnsConfigs:        new(dnsconfig.Map),
+		dnsServerIPCh:     dnsServerIPCh,
 	}
 
 	for _, opt := range opts {
@@ -79,12 +88,21 @@ func NewServer(chanCtx context.Context, getDNSServerIP func() net.IP, opts ...Op
 		)
 	}
 
-	result.listenAndServeDNS(chanCtx, result.dnsServer, fmt.Sprintf(":%v", result.dnsPort))
+	result.listenAndServeDNS(chainCtx, result.dnsServer, fmt.Sprintf(":%v", result.dnsPort))
 
+	if len(dnsServerIPCh) > 0 {
+		result.dnsServerIP.Store(<-dnsServerIPCh)
+	}
 	return result
 }
 
 func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	n.once.Do(func() {
+		// We assume here that the monitorEventConsumer is the same for all connections.
+		// We need the context of any request to pull it out.
+		go n.checkServerAddressUpdates(ctx)
+	})
+
 	if request.GetConnection().GetContext().GetDnsContext() == nil {
 		request.Connection.Context.DnsContext = new(networkservice.DNSContext)
 	}
@@ -152,7 +170,8 @@ func (n *vl3DNSServer) Close(ctx context.Context, conn *networkservice.Connectio
 }
 
 func (n *vl3DNSServer) addDNSContext(c *networkservice.Connection) (added string, ok bool) {
-	if dnsServerIP := n.getDNSServerIP(); dnsServerIP != nil {
+	if ip := n.dnsServerIP.Load(); ip != nil {
+		dnsServerIP := ip.(net.IP)
 		var dnsContext = c.GetContext().GetDnsContext()
 		configToAdd := &networkservice.DNSConfig{
 			DnsServerIps: []string{dnsServerIP.String()},
@@ -175,6 +194,40 @@ func (n *vl3DNSServer) buildSrcDNSRecords(c *networkservice.Connection) ([]strin
 		result = append(result, recordBuilder.String())
 	}
 	return result, nil
+}
+
+func (n *vl3DNSServer) checkServerAddressUpdates(ctx context.Context) {
+	n.monitorEventConsumer, _ = monitor.LoadEventConsumer(ctx, metadata.IsClient(n))
+	for {
+		select {
+		case <-n.chainCtx.Done():
+			return
+		case addr, ok := <-n.dnsServerIPCh:
+			if !ok {
+				return
+			}
+
+			n.updateServerAddress(addr)
+		}
+	}
+}
+
+func (n *vl3DNSServer) updateServerAddress(address net.IP) {
+	n.dnsServerIP.Store(address)
+
+	if n.monitorEventConsumer != nil {
+		conns := n.monitorEventConsumer.GetConnections()
+		for _, c := range conns {
+			c.State = networkservice.State_REFRESH_REQUESTED
+		}
+		_ = n.monitorEventConsumer.Send(&networkservice.ConnectionEvent{
+			Type:        networkservice.ConnectionEventType_UPDATE,
+			Connections: conns,
+		})
+	} else {
+		log.FromContext(n.chainCtx).WithField("vl3DNSServer", "updateServerAddress").
+			Debug("eventConsumer is not presented")
+	}
 }
 
 func compareStringSlices(a, b []string) bool {

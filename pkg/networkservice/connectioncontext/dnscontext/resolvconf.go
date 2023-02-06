@@ -1,6 +1,6 @@
 // Copyright (c) 2020 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -19,7 +19,7 @@
 package dnscontext
 
 import (
-	"io/ioutil"
+	"os"
 	"strings"
 )
 
@@ -42,7 +42,7 @@ func openResolveConfig(p string) (*resolveConfig, error) {
 }
 
 func (r *resolveConfig) readProperties() error {
-	b, err := ioutil.ReadFile(r.path)
+	b, err := os.ReadFile(r.path)
 	if err != nil {
 		return err
 	}
