@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -22,12 +22,10 @@ import (
 
 type responseWriter struct {
 	dns.ResponseWriter
-	Responses []*dns.Msg
-	Index     int
+	Response *dns.Msg
 }
 
 func (r *responseWriter) WriteMsg(m *dns.Msg) error {
-	r.Responses[r.Index] = m
-	r.Index++
+	r.Response = m
 	return nil
 }
