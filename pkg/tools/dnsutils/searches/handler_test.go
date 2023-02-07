@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -80,7 +80,7 @@ func TestDomainSearches(t *testing.T) {
 	handler.ServeDNS(ctx, rw, m)
 
 	resp := rw.Response.Copy()
-	require.Equal(t, check.Count, 4)
+	require.Equal(t, check.Count, 2)
 	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeSuccess)
 	require.NotNil(t, resp.Answer)
 	require.Equal(t, resp.Answer[0].(*dns.A).A.String(), "1.1.1.1")

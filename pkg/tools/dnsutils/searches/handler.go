@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -31,28 +31,20 @@ type searchDomainsHandler struct {
 }
 
 func (h *searchDomainsHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m *dns.Msg) {
-	domains := SearchDomains(ctx)
+	for _, d := range append([]string{""}, SearchDomains(ctx)...) {
+		r := &responseWriter{
+			ResponseWriter: rw,
+		}
 
-	r := &responseWriter{
-		ResponseWriter: rw,
-		Responses:      make([]*dns.Msg, len(domains)+1),
-		Index:          0,
-	}
-
-	next.Handler(ctx).ServeDNS(ctx, r, m)
-
-	for _, d := range SearchDomains(ctx) {
 		newMsg := m.Copy()
 		newMsg.Question[0].Name = dns.Fqdn(newMsg.Question[0].Name + d)
 		next.Handler(ctx).ServeDNS(ctx, r, newMsg)
-	}
 
-	for _, resp := range r.Responses {
-		if resp != nil && resp.Rcode == dns.RcodeSuccess {
-			resp.Question = m.Question
-			if err := rw.WriteMsg(resp); err != nil {
+		if r.Response != nil && r.Response.Rcode == dns.RcodeSuccess {
+			r.Response.Question = m.Question
+			if err := rw.WriteMsg(r.Response); err != nil {
 				log.FromContext(ctx).WithField("searchDomainsHandler", "ServeDNS").Warnf("got an error during write the message: %v", err.Error())
-				dns.HandleFailed(rw, resp)
+				dns.HandleFailed(rw, r.Response)
 				return
 			}
 			return
