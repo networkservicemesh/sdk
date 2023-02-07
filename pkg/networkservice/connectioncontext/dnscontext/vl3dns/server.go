@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"regexp"
 	"strings"
 	"sync/atomic"
 	"text/template"
@@ -196,7 +197,7 @@ func (n *vl3DNSServer) buildSrcDNSRecords(c *networkservice.Connection) ([]strin
 		if err := templ.Execute(recordBuilder, c); err != nil {
 			return nil, errors.Wrap(err, "error occurred executing the template or writing its output")
 		}
-		result = append(result, recordBuilder.String())
+		result = append(result, removeDupDots(recordBuilder.String()))
 	}
 	return result, nil
 }
@@ -228,4 +229,10 @@ func getSrcIPs(c *networkservice.Connection) []net.IP {
 		ips = append(ips, srcIPNet.IP)
 	}
 	return ips
+}
+
+var regexDot = regexp.MustCompile(`\.+`)
+
+func removeDupDots(str string) string {
+	return regexDot.ReplaceAllString(str, ".")
 }
