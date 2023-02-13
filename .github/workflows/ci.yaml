@@ -18,7 +18,7 @@ jobs:
     uses: networkservicemesh/.github/.github/workflows/golangci-lint.yaml@main
     with:
       linter-version: v1.51.1
-      
+
   exclude-fmt-errorf:
     uses: networkservicemesh/.github/.github/workflows/exclude-fmt-errorf.yaml@main
 
