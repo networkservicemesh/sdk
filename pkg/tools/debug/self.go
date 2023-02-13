@@ -1,6 +1,6 @@
 // Copyright (c) 2020 Cisco and/or its affiliates.
 //
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -112,7 +112,10 @@ func Self(envVariableParts ...string) error {
 	// Make the syscall.Exec
 	logrus.Infof("About to exec: \"%s %s\"", dlv, strings.Join(args[1:], " "))
 	// About to debug this not working at host rather than container level
-	return syscall.Exec(dlv, args, envv)
+	if err = syscall.Exec(dlv, args, envv); err != nil {
+		return errors.Wrapf(err, "failed to exec: \"%s %s\"", dlv, strings.Join(args[1:], " "))
+	}
+	return nil
 }
 
 // envVariable - convert the envVariableParts to a proper env variable

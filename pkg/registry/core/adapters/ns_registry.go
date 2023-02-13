@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Cisco Systems, Inc.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,11 +21,11 @@ package adapters
 
 import (
 	"context"
-	"errors"
 	"io"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
@@ -109,11 +111,11 @@ func nsFindClientToServer(client registry.NetworkServiceRegistry_FindClient, ser
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			return err
+			return errors.Wrap(err, "NetworkServiceRegistry find client failed to get a message")
 		}
 		err = server.Send(msg)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "NetworkServiceRegistry find server failed to send a message %s", msg)
 		}
 	}
 	return nil
@@ -130,7 +132,7 @@ func nsFindServerToClient(ctx context.Context, server registry.NetworkServiceReg
 	} else {
 		defer close(ch)
 		if err := server.Find(in, s); err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "NetworkServiceRegistry find server failed to find a query")
 		}
 	}
 	return streamchannel.NewNetworkServiceFindClient(ctx, ch), nil

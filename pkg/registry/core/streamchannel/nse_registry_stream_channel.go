@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -51,7 +53,7 @@ func (c *networkServiceEndpointRegistryFindClient) Recv() (*registry.NetworkServ
 		}
 		return res, errors.Wrap(c.err, err.Error())
 	}
-	return res, c.err
+	return res, errors.WithStack(c.err)
 }
 
 func (c *networkServiceEndpointRegistryFindClient) Context() context.Context {
@@ -77,7 +79,7 @@ type networkServiceEndpointRegistryFindServer struct {
 func (s *networkServiceEndpointRegistryFindServer) Send(nseResp *registry.NetworkServiceEndpointResponse) error {
 	select {
 	case <-s.ctx.Done():
-		return s.ctx.Err()
+		return errors.Wrap(s.ctx.Err(), "application context is done")
 	case s.sendCh <- nseResp:
 		return nil
 	}

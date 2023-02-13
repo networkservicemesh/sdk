@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -77,7 +77,7 @@ func (s *updatePathNSServer) Register(ctx context.Context, ns *registry.NetworkS
 	}
 	path.Index = index
 
-	return ns, err
+	return ns, nil
 }
 
 func (s *updatePathNSServer) Find(query *registry.NetworkServiceQuery, server registry.NetworkServiceRegistry_FindServer) error {

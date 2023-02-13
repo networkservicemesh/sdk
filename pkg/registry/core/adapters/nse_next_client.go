@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,6 +23,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/pkg/errors"
 )
 
 type callNextNSEClient struct {
@@ -34,7 +37,7 @@ func (c *callNextNSEClient) Register(ctx context.Context, in *registry.NetworkSe
 func (c *callNextNSEClient) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
 	client, err := c.client.Find(server.Context(), query)
 	if client == nil || err != nil {
-		return err
+		return errors.Wrapf(err, "failed to find %s", query.String())
 	}
 	return nseFindClientToServer(client, server)
 }

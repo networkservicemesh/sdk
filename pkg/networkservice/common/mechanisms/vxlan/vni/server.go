@@ -2,6 +2,8 @@
 //
 // Copyright (c) 2021 Nordix Foundation.
 //
+// Copyright (c) 2023 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,6 +28,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/vxlan"
@@ -102,7 +105,7 @@ func (v *vniServer) Request(ctx context.Context, request *networkservice.Network
 			var err error
 			k.vni, err = mechanism.GenerateRandomVNI()
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "failed to generate a random VNI")
 			}
 			// If its not one already in use, set it and we are good to go
 			if _, ok := v.Map.LoadOrStore(k, &k); !ok {

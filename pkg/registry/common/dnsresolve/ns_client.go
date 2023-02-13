@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco Systems, Inc.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,10 +18,10 @@ package dnsresolve
 
 import (
 	"context"
-	"errors"
 	"net"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -71,7 +71,7 @@ func (d *dnsNSResolveClient) Register(ctx context.Context, ns *registry.NetworkS
 
 	resp.Name = interdomain.Join(resp.Name, domain)
 
-	return resp, err
+	return resp, nil
 }
 
 type dnsNSResolveFindClient struct {
@@ -86,7 +86,7 @@ func (c *dnsNSResolveFindClient) Recv() (*registry.NetworkServiceResponse, error
 	}
 	resp.NetworkService.Name = interdomain.Join(resp.NetworkService.Name, c.domain)
 
-	return resp, err
+	return resp, nil
 }
 
 func (d *dnsNSResolveClient) Find(ctx context.Context, q *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {

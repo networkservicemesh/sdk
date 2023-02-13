@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2022 Cisco and/or its affiliates.
+// Copyright (c) 2020-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -47,7 +47,7 @@ func NewMonitorConnectionMonitorConnectionsClient(ctx context.Context, eventCh <
 func (m *monitorConnectionMonitorConnectionsClient) Recv() (*networkservice.ConnectionEvent, error) {
 	select {
 	case <-m.ctx.Done():
-		return nil, m.ctx.Err()
+		return nil, errors.Wrap(m.ctx.Err(), "application context is done")
 	case event, ok := <-m.eventCh:
 		if !ok {
 			m.cancelFunc()

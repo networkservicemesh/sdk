@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,6 +27,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
@@ -38,7 +41,10 @@ type swapIPFindNSEServer struct {
 
 func (s *swapIPFindNSEServer) Send(nseResp *registry.NetworkServiceEndpointResponse) error {
 	trySwapIP(s.ctx, nseResp.NetworkServiceEndpoint, s.m)
-	return s.NetworkServiceEndpointRegistry_FindServer.Send(nseResp)
+	if err := s.NetworkServiceEndpointRegistry_FindServer.Send(nseResp); err != nil {
+		return errors.Wrapf(err, "NetworkServiceEndpointRegistry find server failed to send a response %s", nseResp.String())
+	}
+	return nil
 }
 
 type swapIPNSEServer struct {

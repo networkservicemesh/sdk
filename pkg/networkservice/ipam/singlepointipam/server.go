@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Nordix and its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,6 +16,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package singlepointipam defines a chain element that implements IPAM service
 package singlepointipam
 
 import (
@@ -81,7 +84,7 @@ func (sipam *singlePIpam) init() {
 func (sipam *singlePIpam) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	sipam.once.Do(sipam.init)
 	if sipam.initErr != nil {
-		return nil, sipam.initErr
+		return nil, errors.Wrap(sipam.initErr, "failed to init IPAM server during request")
 	}
 
 	conn := request.GetConnection()
@@ -129,7 +132,7 @@ func (sipam *singlePIpam) Close(
 	ctx context.Context, conn *networkservice.Connection) (_ *empty.Empty, err error) {
 	sipam.once.Do(sipam.init)
 	if sipam.initErr != nil {
-		return nil, sipam.initErr
+		return nil, errors.Wrap(sipam.initErr, "failed to init IPAM server during close")
 	}
 
 	if connInfo, ok := sipam.Load(conn.GetId()); ok {

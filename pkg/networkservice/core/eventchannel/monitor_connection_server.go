@@ -1,6 +1,6 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -46,7 +46,7 @@ func NewMonitorConnectionMonitorConnectionsServer(ctx context.Context, eventCh c
 func (m *monitorConnectionMonitorConnectionsServer) Send(event *networkservice.ConnectionEvent) error {
 	select {
 	case <-m.ctx.Done():
-		return m.ctx.Err()
+		return errors.Wrap(m.ctx.Err(), "application context is done")
 	case m.eventCh <- event:
 		return nil
 	}
@@ -68,7 +68,10 @@ func (m *monitorConnectionMonitorConnectionsServer) SetTrailer(metadata.MD) {}
 
 func (m *monitorConnectionMonitorConnectionsServer) SendMsg(msg interface{}) error {
 	if event, ok := msg.(*networkservice.ConnectionEvent); ok {
-		return m.Send(event)
+		if err := m.Send(event); err != nil {
+			return errors.Wrapf(err, "MonitorConnections server failed to send an event %s", event.String())
+		}
+		return nil
 	}
 	return errors.Errorf("Not type networkservice.ConnectionEvent -  msg (%+v)", msg)
 }

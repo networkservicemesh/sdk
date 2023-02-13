@@ -1,6 +1,6 @@
-// Copyright (c) 2020-2022 Cisco and/or its affiliates.
-//
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2020-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -24,7 +24,6 @@ package spire
 import (
 	"context"
 	"crypto/x509"
-	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -32,14 +31,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/opa"
+
 	"github.com/edwarnicke/exechelper"
 	"github.com/sirupsen/logrus"
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
 	"github.com/spiffe/go-spiffe/v2/svid/x509svid"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
-	"google.golang.org/grpc/peer"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/opa"
+	"github.com/pkg/errors"
+	"google.golang.org/grpc/peer"
 )
 
 type contextKeyType string
@@ -252,10 +253,10 @@ func writeConfigFiles(ctx context.Context, agentConfig, serverConfig, spireRoot 
 		if _, err := os.Stat(filename); os.IsNotExist(err) {
 			logrusEntry(ctx).Infof("Configuration file: %q not found, using defaults", filename)
 			if err := os.MkdirAll(path.Dir(filename), 0o700); err != nil {
-				return err
+				return errors.Wrapf(err, "failed to create folders: %s", path.Dir(filename))
 			}
 			if err := os.WriteFile(filename, []byte(contents), 0o600); err != nil {
-				return err
+				return errors.Wrapf(err, "failed to write to a %s", path.Dir(filename))
 			}
 		}
 	}
@@ -272,7 +273,7 @@ func execHealthCheck(ctx context.Context, cmdStr string, options ...*exechelper.
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return errors.Wrap(ctx.Err(), "health check context is done")
 		default:
 			if err := exechelper.Run(cmdStr, options...); err == nil {
 				return nil

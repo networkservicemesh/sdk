@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2022 Cisco and/or its affiliates.
+// Copyright (c) 2021-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -61,7 +61,7 @@ func (c *connectNSEServer) Find(query *registry.NetworkServiceEndpointQuery, ser
 
 	for resp := range registry.ReadNetworkServiceEndpointChannel(clientResp) {
 		if err := server.Send(resp); err != nil {
-			return err
+			return errors.Wrapf(err, "NetworkServiceEndpointRegistry find server failed to send a response %s", resp.String())
 		}
 	}
 

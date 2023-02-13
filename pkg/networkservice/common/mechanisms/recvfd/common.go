@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2022 Cisco and/or its affiliates.
+// Copyright (c) 2020-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -39,7 +39,7 @@ func recvFDAndSwapInodeToFile(ctx context.Context, fileMap *perConnectionFileMap
 	// Transform string to URL for correctness checking and ease of use
 	inodeURL, err := url.Parse(inodeURLStr)
 	if err != nil {
-		return errors.WithStack(err)
+		return errors.Wrapf(err, "failed to parse url %s", inodeURLStr)
 	}
 
 	// Is it an inode?
@@ -55,7 +55,7 @@ func recvFDAndSwapInodeToFile(ctx context.Context, fileMap *perConnectionFileMap
 			var fileCh <-chan *os.File
 			fileCh, err = recv.RecvFileByURL(inodeURLStr)
 			if err != nil {
-				err = errors.WithStack(err)
+				err = errors.Wrapf(err, "failed to receive file by url %s", inodeURLStr)
 				return
 			}
 			// Wait for the file to arrive on the fileCh or the context to expire
@@ -97,7 +97,7 @@ func swapFileToInode(fileMap *perConnectionFileMap, parameters map[string]string
 	// Transform string to URL for correctness checking and ease of use
 	fileURL, err := url.Parse(fileURLStr)
 	if err != nil {
-		return errors.WithStack(err)
+		return errors.Wrapf(err, "failed to parse url %s", fileURLStr)
 	}
 
 	// Is it a file?

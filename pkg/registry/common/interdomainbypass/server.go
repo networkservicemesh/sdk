@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -23,6 +23,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
@@ -55,7 +56,7 @@ func (n *interdomainBypassNSEServer) Register(ctx context.Context, service *regi
 
 	resp.Url = originalURL
 
-	return resp, err
+	return resp, nil
 }
 
 func (n *interdomainBypassNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
@@ -86,9 +87,10 @@ func NewNetworkServiceEndpointRegistryServer(m *stringurl.Map, u *url.URL) regis
 }
 
 func (s *interdomainBypassNSEFindServer) Send(nseResp *registry.NetworkServiceEndpointResponse) error {
-	u, err := url.Parse(nseResp.GetNetworkServiceEndpoint().GetUrl())
+	nseURL := nseResp.GetNetworkServiceEndpoint().GetUrl()
+	u, err := url.Parse(nseURL)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to parse url %s", nseURL)
 	}
 	s.m.LoadOrStore(nseResp.NetworkServiceEndpoint.GetName(), u)
 	nseResp.GetNetworkServiceEndpoint().Url = s.u.String()

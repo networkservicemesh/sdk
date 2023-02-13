@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,6 +22,7 @@ import (
 	"context"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/pkg/errors"
 )
 
 // Policy represents authorization policy for network service.
@@ -39,7 +42,7 @@ func (l *policiesList) check(ctx context.Context, p *networkservice.Path) error 
 			continue
 		}
 		if err := policy.Check(ctx, p); err != nil {
-			return err
+			return errors.Wrap(err, "an error occurred during authorization policy check")
 		}
 	}
 	return nil

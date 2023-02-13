@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2022 Cisco and/or its affiliates.
+// Copyright (c) 2020-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,6 +18,7 @@ package adapters
 
 import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/pkg/errors"
 )
 
 type monitorClientToServer struct {
@@ -36,16 +37,16 @@ func NewMonitorClientToServer(client networkservice.MonitorConnectionClient) net
 func (m monitorClientToServer) MonitorConnections(selector *networkservice.MonitorScopeSelector, srv networkservice.MonitorConnection_MonitorConnectionsServer) error {
 	cl, err := m.client.MonitorConnections(srv.Context(), selector)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to get a monitor connections client")
 	}
 	for {
 		event, err := cl.Recv()
 		if err != nil {
-			return err
+			return errors.Wrap(err, "failed to receive a monitor connections event")
 		}
 		err = srv.Send(event)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "failed to send a monitor connections event")
 		}
 	}
 }

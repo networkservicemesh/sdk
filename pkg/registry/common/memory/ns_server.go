@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,6 +25,7 @@ import (
 	"github.com/edwarnicke/serialize"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
@@ -83,7 +86,7 @@ func (s *memoryNSServer) Find(query *registry.NetworkServiceQuery, server regist
 			}
 
 			if err := server.Send(nsResp); err != nil {
-				return err
+				return errors.Wrapf(err, "NetworkServiceRegistry find server failed to send a response %s", nsResp.String())
 			}
 		}
 		return next.NetworkServiceRegistryServer(server.Context()).Find(query, server)
@@ -103,7 +106,7 @@ func (s *memoryNSServer) Find(query *registry.NetworkServiceQuery, server regist
 	var err error
 	for ; err == nil; err = s.receiveEvent(query, server, eventCh) {
 	}
-	if err != io.EOF {
+	if !errors.Is(err, io.EOF) {
 		return err
 	}
 	return next.NetworkServiceRegistryServer(server.Context()).Find(query, server)
@@ -143,7 +146,7 @@ func (s *memoryNSServer) receiveEvent(
 ) error {
 	select {
 	case <-server.Context().Done():
-		return io.EOF
+		return errors.WithStack(io.EOF)
 	case event := <-eventCh:
 		if matchutils.MatchNetworkServices(query.NetworkService, event) {
 			nse := &registry.NetworkServiceResponse{
@@ -152,9 +155,9 @@ func (s *memoryNSServer) receiveEvent(
 
 			if err := server.Send(nse); err != nil {
 				if server.Context().Err() != nil {
-					return io.EOF
+					return errors.WithStack(io.EOF)
 				}
-				return err
+				return errors.Wrapf(err, "NetworkServiceRegistry find server failed to send a response %s", nse.String())
 			}
 		}
 		return nil

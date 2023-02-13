@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -105,7 +105,7 @@ func (c *cleanupClient) Request(ctx context.Context, request *networkservice.Net
 			atomic.AddInt32(&c.activeConns, -1)
 		}
 	}()
-	return conn, err
+	return conn, nil
 }
 
 func (c *cleanupClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {

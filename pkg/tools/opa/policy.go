@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -133,7 +135,7 @@ func (d *AuthorizationPolicy) loadSource() error {
 	var b []byte
 	b, err := os.ReadFile(d.policyFilePath)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to read a policy file: %s", d.policyFilePath)
 	}
 	d.policySource = strings.TrimSpace(string(b))
 	return nil

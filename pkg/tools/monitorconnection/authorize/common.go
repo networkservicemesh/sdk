@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,6 +18,8 @@ package authorize
 
 import (
 	"context"
+
+	"github.com/pkg/errors"
 )
 
 // Policy represents authorization policy for monitor connection.
@@ -37,7 +39,7 @@ func (l *policiesList) check(ctx context.Context, srv MonitorOpaInput) error {
 			continue
 		}
 		if err := policy.Check(ctx, srv); err != nil {
-			return err
+			return errors.Wrap(err, "an error occurred during authorization policy check")
 		}
 	}
 	return nil

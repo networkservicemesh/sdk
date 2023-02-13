@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco Systems, Inc.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -77,7 +77,7 @@ func (d *dnsNSEResolveClient) Register(ctx context.Context, nse *registry.Networ
 		return interdomain.Join(s, domain)
 	})
 
-	return resp, err
+	return resp, nil
 }
 
 type dnsNSEResolveFindClient struct {
@@ -95,7 +95,7 @@ func (c *dnsNSEResolveFindClient) Recv() (*registry.NetworkServiceEndpointRespon
 		return interdomain.Join(str, c.domain)
 	})
 
-	return resp, err
+	return resp, nil
 }
 
 func (d *dnsNSEResolveClient) Find(ctx context.Context, q *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {

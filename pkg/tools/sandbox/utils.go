@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,6 +25,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
@@ -80,7 +83,7 @@ func GenerateTestToken(_ credentials.AuthInfo) (string, time.Time, error) {
 	}
 
 	tok, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte("supersecret"))
-	return tok, expireTime, err
+	return tok, expireTime, errors.Wrapf(err, "failed to create a new Token, method %s, subject %s", jwt.SigningMethodHS256.Name, claims.Subject)
 }
 
 // GenerateExpiringToken returns a token generator with the specified expiration duration.
@@ -94,7 +97,7 @@ func GenerateExpiringToken(duration time.Duration) token.GeneratorFunc {
 		}
 
 		tok, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte("supersecret"))
-		return tok, expireTime, err
+		return tok, expireTime, errors.Wrapf(err, "failed to create a new Token, method %s, subject %s", jwt.SigningMethodHS256.Name, claims.Subject)
 	}
 }
 

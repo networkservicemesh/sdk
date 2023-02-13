@@ -21,6 +21,8 @@ package dnscontext
 import (
 	"os"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 // resolveConfig provides API for editing / reading resolv.conf
@@ -44,7 +46,7 @@ func openResolveConfig(p string) (*resolveConfig, error) {
 func (r *resolveConfig) readProperties() error {
 	b, err := os.ReadFile(r.path)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to read resolv.conf file: %s", r.path)
 	}
 	for _, l := range strings.Split(string(b), "\n") {
 		if !strings.HasPrefix(l, "#") {

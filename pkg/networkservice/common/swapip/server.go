@@ -1,6 +1,6 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
-//
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -74,7 +74,7 @@ func (i *swapIPServer) Request(ctx context.Context, request *networkservice.Netw
 		}
 	}
 
-	return resp, err
+	return resp, nil
 }
 
 func (i *swapIPServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {

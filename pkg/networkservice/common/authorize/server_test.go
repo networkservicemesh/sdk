@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -34,6 +34,7 @@ import (
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc/codes"
@@ -168,7 +169,7 @@ func TestAuthzEndpoint(t *testing.T) {
 					return
 				}
 				require.NotNil(t, err, "request expected to be denied")
-				s, ok := status.FromError(err)
+				s, ok := status.FromError(errors.Cause(err))
 				require.True(t, ok, "error without error status code"+err.Error())
 				require.Equal(t, s.Code(), codes.PermissionDenied, "wrong error status code")
 			}

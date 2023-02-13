@@ -1,6 +1,6 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/pkg/errors"
 )
 
 // Decoder allows to parse []*networkservice.DNSConfig from json string. Can be used for env configuration.
@@ -32,7 +33,7 @@ type Decoder []*networkservice.DNSConfig
 func (d *Decoder) Decode(v string) error {
 	var c []*networkservice.DNSConfig
 	if err := json.Unmarshal([]byte(v), &c); err != nil {
-		return err
+		return errors.Wrap(err, "failed to parse a JSON-encoded data and store the result")
 	}
 	*d = Decoder(c)
 	return nil

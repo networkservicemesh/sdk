@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Cisco and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +20,7 @@ package monitor
 
 import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/pkg/errors"
 )
 
 type clientFilter struct {
@@ -36,7 +39,7 @@ func (c *clientFilter) Recv() (*networkservice.ConnectionEvent, error) {
 	for {
 		eventIn, err := c.MonitorConnection_MonitorConnectionsClient.Recv()
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "MonitorConnections client failed to receive an event")
 		}
 		eventOut := &networkservice.ConnectionEvent{
 			Type:        networkservice.ConnectionEventType_UPDATE,

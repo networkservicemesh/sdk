@@ -1,5 +1,7 @@
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -44,7 +46,7 @@ type notifiableFDTransceiver struct {
 func (w *notifiableFDTransceiver) RecvFileByURL(urlStr string) (<-chan *os.File, error) {
 	recv, err := w.FDTransceiver.RecvFileByURL(urlStr)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "failed to receive file by url %s", urlStr)
 	}
 
 	var fileCh = make(chan *os.File)

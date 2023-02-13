@@ -1,6 +1,6 @@
-// Copyright (c) 2020-2022 Cisco Systems, Inc.
-//
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2020-2023 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -62,7 +62,7 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 		}
 		u, err := url.Parse(nse.Url)
 		if err != nil {
-			return nil, errors.WithStack(err)
+			return nil, errors.Wrapf(err, "failed to parse url %s", nse.Url)
 		}
 		return next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request)
 	}
@@ -98,7 +98,7 @@ func (d *discoverCandidatesServer) Close(ctx context.Context, conn *networkservi
 	if nse, err := d.discoverNetworkServiceEndpoint(ctx, nseName); err == nil {
 		u, err = url.Parse(nse.Url)
 		if err != nil {
-			return nil, errors.WithStack(err)
+			return nil, errors.Wrapf(err, "failed to parse url %s", nse.Url)
 		}
 	} else {
 		logger.Errorf("no endpoint found for Close: %v", conn)
@@ -116,7 +116,7 @@ func (d *discoverCandidatesServer) discoverNetworkServiceEndpoint(ctx context.Co
 
 	nseRespStream, err := d.nseClient.Find(ctx, query)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, errors.Wrapf(err, "failed to find %s", query.String())
 	}
 	nseList := registry.ReadNetworkServiceEndpointList(nseRespStream)
 
@@ -140,7 +140,7 @@ func (d *discoverCandidatesServer) discoverNetworkServiceEndpoints(ctx context.C
 
 	nseRespStream, err := d.nseClient.Find(ctx, query)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, errors.Wrapf(err, "failed to find %s", query.String())
 	}
 	nseList := registry.ReadNetworkServiceEndpointList(nseRespStream)
 
@@ -162,7 +162,7 @@ func (d *discoverCandidatesServer) discoverNetworkService(ctx context.Context, n
 
 	nsRespStream, err := d.nsClient.Find(ctx, query)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, errors.Wrapf(err, "failed to find %s", query.String())
 	}
 	nsList := registry.ReadNetworkServiceList(nsRespStream)
 

@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2022 Cisco Systems, Inc.
+// Copyright (c) 2022-2023 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -123,7 +123,7 @@ func (d *dnsNSEResolveServer) Register(ctx context.Context, nse *registry.Networ
 		return interdomain.Join(s, domain)
 	})
 
-	return resp, err
+	return resp, nil
 }
 
 type dnsFindNSEServer struct {

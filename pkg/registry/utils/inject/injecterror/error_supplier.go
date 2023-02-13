@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,6 +17,8 @@
 // limitations under the License.
 
 package injecterror
+
+import "github.com/pkg/errors"
 
 type errorSupplier struct {
 	err        error
@@ -34,7 +38,7 @@ func (e *errorSupplier) supply() error {
 			break
 		}
 		if errorTime == e.count || errorTime == -1 {
-			return e.err
+			return errors.WithStack(e.err)
 		}
 	}
 
