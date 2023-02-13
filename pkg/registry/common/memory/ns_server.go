@@ -106,7 +106,7 @@ func (s *memoryNSServer) Find(query *registry.NetworkServiceQuery, server regist
 	var err error
 	for ; err == nil; err = s.receiveEvent(query, server, eventCh) {
 	}
-	if errors.Cause(err).Error() != io.EOF.Error() {
+	if !errors.Is(err, io.EOF) {
 		return err
 	}
 	return next.NetworkServiceRegistryServer(server.Context()).Find(query, server)
@@ -146,7 +146,7 @@ func (s *memoryNSServer) receiveEvent(
 ) error {
 	select {
 	case <-server.Context().Done():
-		return errors.Wrap(io.EOF, "find context is done")
+		return errors.WithStack(io.EOF)
 	case event := <-eventCh:
 		if matchutils.MatchNetworkServices(query.NetworkService, event) {
 			nse := &registry.NetworkServiceResponse{
@@ -155,7 +155,7 @@ func (s *memoryNSServer) receiveEvent(
 
 			if err := server.Send(nse); err != nil {
 				if server.Context().Err() != nil {
-					return errors.Wrapf(io.EOF, "find context has a error %s", server.Context().Err().Error())
+					return errors.WithStack(io.EOF)
 				}
 				return errors.Wrapf(err, "NetworkServiceRegistry find server failed to send a response %s", nse.String())
 			}
