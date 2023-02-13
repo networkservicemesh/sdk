@@ -25,6 +25,7 @@ import (
 	"net"
 
 	"github.com/edwarnicke/genericsync"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"github.com/golang/protobuf/ptypes/empty"
