@@ -22,6 +22,7 @@ import (
 	"context"
 	"io"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/edwarnicke/serialize"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
@@ -34,7 +35,7 @@ import (
 )
 
 type memoryNSServer struct {
-	networkServices  NetworkServiceSyncMap
+	networkServices  genericsync.Map[string, *registry.NetworkService]
 	executor         serialize.Executor
 	eventChannels    map[string]chan *registry.NetworkService
 	eventChannelSize int

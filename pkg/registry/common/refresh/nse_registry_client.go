@@ -19,6 +19,7 @@ package refresh
 import (
 	"context"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 
@@ -31,7 +32,7 @@ import (
 
 type refreshNSEClient struct {
 	ctx context.Context
-	cancelsMap
+	genericsync.Map[string, context.CancelFunc]
 }
 
 // NewNetworkServiceEndpointRegistryClient creates new NetworkServiceEndpointRegistryClient that will refresh expiration

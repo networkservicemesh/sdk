@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,13 +24,13 @@ import (
 	"context"
 	"net/url"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 )
 
 type localBypassNSEFindServer struct {
@@ -50,7 +52,7 @@ func (s *localBypassNSEFindServer) Send(nseResp *registry.NetworkServiceEndpoint
 
 type localBypassNSEServer struct {
 	nsmgrURL string
-	nseURLs  stringurl.Map
+	nseURLs  genericsync.Map[string, *url.URL]
 }
 
 // NewNetworkServiceEndpointRegistryServer creates new instance of NetworkServiceEndpointRegistryServer which sets

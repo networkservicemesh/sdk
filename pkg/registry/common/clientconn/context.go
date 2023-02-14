@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -19,6 +19,7 @@ package clientconn
 import (
 	"context"
 
+	"github.com/edwarnicke/genericsync"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
@@ -27,7 +28,7 @@ import (
 type mapKey struct{}
 type nameKey struct{}
 
-func withClientConnMetadata(ctx context.Context, m *stringCCMap, key string) context.Context {
+func withClientConnMetadata(ctx context.Context, m *genericsync.Map[string, grpc.ClientConnInterface], key string) context.Context {
 	ctx = context.WithValue(ctx, nameKey{}, key)
 	ctx = context.WithValue(ctx, mapKey{}, m)
 	return ctx
@@ -48,7 +49,7 @@ func nameFromContext(ctx context.Context) string {
 func LoadAndDelete(ctx context.Context) (grpc.ClientConnInterface, bool) {
 	k := nameFromContext(ctx)
 
-	if v, ok := ctx.Value(mapKey{}).(*stringCCMap); ok && k != "" {
+	if v, ok := ctx.Value(mapKey{}).(*genericsync.Map[string, grpc.ClientConnInterface]); ok && k != "" {
 		return v.LoadAndDelete(k)
 	}
 
@@ -59,7 +60,7 @@ func LoadAndDelete(ctx context.Context) (grpc.ClientConnInterface, bool) {
 func Store(ctx context.Context, cc grpc.ClientConnInterface) {
 	k := nameFromContext(ctx)
 
-	if v, ok := ctx.Value(mapKey{}).(*stringCCMap); ok && k != "" {
+	if v, ok := ctx.Value(mapKey{}).(*genericsync.Map[string, grpc.ClientConnInterface]); ok && k != "" {
 		v.Store(k, cc)
 	}
 }
@@ -68,7 +69,7 @@ func Store(ctx context.Context, cc grpc.ClientConnInterface) {
 func Delete(ctx context.Context) {
 	k := nameFromContext(ctx)
 
-	if v, ok := ctx.Value(mapKey{}).(*stringCCMap); ok && k != "" {
+	if v, ok := ctx.Value(mapKey{}).(*genericsync.Map[string, grpc.ClientConnInterface]); ok && k != "" {
 		v.Delete(k)
 	}
 }
@@ -79,7 +80,7 @@ func Delete(ctx context.Context) {
 func Load(ctx context.Context) (grpc.ClientConnInterface, bool) {
 	k := nameFromContext(ctx)
 
-	if v, ok := ctx.Value(mapKey{}).(*stringCCMap); ok && k != "" {
+	if v, ok := ctx.Value(mapKey{}).(*genericsync.Map[string, grpc.ClientConnInterface]); ok && k != "" {
 		return v.Load(k)
 	}
 
@@ -92,7 +93,7 @@ func Load(ctx context.Context) (grpc.ClientConnInterface, bool) {
 func LoadOrStore(ctx context.Context, cc grpc.ClientConnInterface) (grpc.ClientConnInterface, bool) {
 	k := nameFromContext(ctx)
 
-	if v, ok := ctx.Value(mapKey{}).(*stringCCMap); ok && k != "" {
+	if v, ok := ctx.Value(mapKey{}).(*genericsync.Map[string, grpc.ClientConnInterface]); ok && k != "" {
 		return v.LoadOrStore(k, cc)
 	}
 

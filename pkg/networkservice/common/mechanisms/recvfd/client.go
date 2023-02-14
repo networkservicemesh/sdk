@@ -1,6 +1,6 @@
-// Copyright (c) 2020-2022 Cisco and/or its affiliates.
-//
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2020-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -26,6 +26,7 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
@@ -37,7 +38,7 @@ import (
 )
 
 type recvFDClient struct {
-	fileMaps perConnectionFileMapMap
+	fileMaps genericsync.Map[string, *perConnectionFileMap]
 }
 
 // NewClient - returns client chain element to recv FDs over the connection (if possible) for any Mechanism.Parameters[common.InodeURL]

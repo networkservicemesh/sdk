@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
@@ -28,7 +31,7 @@ import (
 
 type cache struct {
 	expireTimeout time.Duration
-	entries       cacheEntryMap
+	entries       genericsync.Map[string, *cacheEntry]
 	clockTime     clock.Clock
 }
 

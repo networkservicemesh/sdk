@@ -21,21 +21,21 @@ import (
 	"context"
 	"net/url"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/stringurl"
 )
 
 type interdomainBypassNSEServer struct {
-	m *stringurl.Map
+	m *genericsync.Map[string, *url.URL]
 	u *url.URL
 }
 
 type interdomainBypassNSEFindServer struct {
-	m *stringurl.Map
+	m *genericsync.Map[string, *url.URL]
 	u *url.URL
 	registry.NetworkServiceEndpointRegistry_FindServer
 }
@@ -76,7 +76,7 @@ func (n *interdomainBypassNSEServer) Unregister(ctx context.Context, service *re
 // NewNetworkServiceEndpointRegistryServer creates new instance of interdomainbypass NSE server.
 // It simply stores into passed stringurl.Map all incoming nse.Name:nse.URL entries.
 // And sets passed URL for outgoing NSEs.
-func NewNetworkServiceEndpointRegistryServer(m *stringurl.Map, u *url.URL) registry.NetworkServiceEndpointRegistryServer {
+func NewNetworkServiceEndpointRegistryServer(m *genericsync.Map[string, *url.URL], u *url.URL) registry.NetworkServiceEndpointRegistryServer {
 	if m == nil {
 		panic("m can not be nil")
 	}

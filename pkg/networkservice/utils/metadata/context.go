@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
-//
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2020-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -22,12 +22,18 @@ import (
 	"context"
 	"sync"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
 type metaDataKey struct{}
 
-func store(parent context.Context, id string, mdMap *metaDataMap) context.Context {
+type metaData struct {
+	client sync.Map
+	server sync.Map
+}
+
+func store(parent context.Context, id string, mdMap *genericsync.Map[string, *metaData]) context.Context {
 	if _, ok := parent.Value(metaDataKey{}).(*metaData); !ok {
 		md, _ := mdMap.LoadOrStore(id, &metaData{})
 		return context.WithValue(parent, metaDataKey{}, md)
@@ -35,7 +41,7 @@ func store(parent context.Context, id string, mdMap *metaDataMap) context.Contex
 	return parent
 }
 
-func del(parent context.Context, id string, mdMap *metaDataMap) context.Context {
+func del(parent context.Context, id string, mdMap *genericsync.Map[string, *metaData]) context.Context {
 	if _, ok := parent.Value(metaDataKey{}).(*metaData); !ok {
 		if md, ok := mdMap.LoadAndDelete(id); ok {
 			return context.WithValue(parent, metaDataKey{}, md)

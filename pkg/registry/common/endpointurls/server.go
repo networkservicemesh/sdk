@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,6 +23,7 @@ import (
 	"context"
 	"net/url"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
@@ -28,7 +31,7 @@ import (
 )
 
 type endpointURLsServer struct {
-	nses *Map
+	nses *genericsync.Map[url.URL, string]
 }
 
 func (e *endpointURLsServer) Register(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
@@ -50,6 +53,6 @@ func (e *endpointURLsServer) Unregister(ctx context.Context, endpoint *registry.
 }
 
 // NewNetworkServiceEndpointRegistryServer returns new registry.NetworkServiceEndpointRegistryServer with injected endpoint urls nses
-func NewNetworkServiceEndpointRegistryServer(m *Map) registry.NetworkServiceEndpointRegistryServer {
+func NewNetworkServiceEndpointRegistryServer(m *genericsync.Map[url.URL, string]) registry.NetworkServiceEndpointRegistryServer {
 	return &endpointURLsServer{nses: m}
 }
