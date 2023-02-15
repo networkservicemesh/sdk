@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -17,12 +17,13 @@
 package cache
 
 import (
+	"github.com/edwarnicke/genericsync"
 	"github.com/miekg/dns"
 )
 
 type responseWriterWrapper struct {
 	dns.ResponseWriter
-	cache *msgMap
+	cache *genericsync.Map[dns.Question, *dns.Msg]
 }
 
 func (r *responseWriterWrapper) WriteMsg(m *dns.Msg) error {

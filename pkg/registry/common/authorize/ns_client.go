@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -20,6 +20,7 @@ package authorize
 import (
 	"context"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -34,14 +35,14 @@ import (
 
 type authorizeNSClient struct {
 	policies     policiesList
-	nsPathIdsMap *PathIdsMap
+	nsPathIdsMap *genericsync.Map[string, []string]
 }
 
 // NewNetworkServiceRegistryClient - returns a new authorization registry.NetworkServiceRegistryClient
 // Authorize registry client checks spiffeID of NS.
 func NewNetworkServiceRegistryClient(opts ...Option) registry.NetworkServiceRegistryClient {
 	o := &options{
-		resourcePathIdsMap: new(PathIdsMap),
+		resourcePathIdsMap: new(genericsync.Map[string, []string]),
 	}
 
 	for _, opt := range opts {

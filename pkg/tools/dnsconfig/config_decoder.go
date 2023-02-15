@@ -16,6 +16,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package dnsconfig provides tools for handeling DNS configs
 package dnsconfig
 
 import (

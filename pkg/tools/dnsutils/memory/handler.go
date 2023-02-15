@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco Systems, Inc.
+// Copyright (c) 2022-2023 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,6 +21,7 @@ import (
 	"context"
 	"net"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/miekg/dns"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
@@ -43,7 +44,7 @@ func (r *responseWriter) WriteMsg(m *dns.Msg) error {
 }
 
 type memoryHandler struct {
-	records *Map
+	records *genericsync.Map[string, []net.IP]
 }
 
 func (f *memoryHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg *dns.Msg) {
@@ -96,7 +97,7 @@ func (f *memoryHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 }
 
 // NewDNSHandler creates a new dns handler instance that stores a/aaaa answers
-func NewDNSHandler(records *Map) dnsutils.Handler {
+func NewDNSHandler(records *genericsync.Map[string, []net.IP]) dnsutils.Handler {
 	if records == nil {
 		panic("records cannot be nil")
 	}

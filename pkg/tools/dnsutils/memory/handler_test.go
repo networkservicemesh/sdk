@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/require"
 
@@ -44,7 +45,7 @@ func TestDomainSearches(t *testing.T) {
 	defer cancel()
 
 	// Store two entries for IPv4 and IPv6
-	records := new(memory.Map)
+	records := new(genericsync.Map[string, []net.IP])
 	records.Store("example.com.", []net.IP{net.ParseIP("1.1.1.1")})
 	records.Store("example.net.", []net.IP{net.ParseIP("2001:db8::68")})
 

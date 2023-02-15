@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -26,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
@@ -33,7 +34,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
 )
 
 func Test_DNSContextClient_Usecases(t *testing.T) {
@@ -51,7 +51,7 @@ func Test_DNSContextClient_Usecases(t *testing.T) {
 		dnscontext.NewClient(
 			dnscontext.WithChainContext(ctx),
 			dnscontext.WithResolveConfigPath(resolveConfigPath),
-			dnscontext.WithDNSConfigsMap(new(dnsconfig.Map)),
+			dnscontext.WithDNSConfigsMap(new(genericsync.Map[string, []*networkservice.DNSConfig])),
 		),
 	)
 

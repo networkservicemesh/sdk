@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -26,12 +26,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/miekg/dns"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/dnsconfigs"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/fanout"
@@ -150,7 +150,7 @@ func Test_TCPDNSServerTimeout(t *testing.T) {
 	require.NoError(t, err)
 	clientAddr := fmt.Sprintf("127.0.0.1:%d", clientPort)
 
-	dnsConfigsMap := new(dnsconfig.Map)
+	dnsConfigsMap := new(genericsync.Map[string, []*networkservice.DNSConfig])
 	dnsConfigsMap.Store("1", []*networkservice.DNSConfig{
 		{
 			DnsServerIps:  []string{proxyAddr},

@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2020-2022 Cisco Systems, Inc.
+// Copyright (c) 2020-2023 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -22,8 +22,10 @@ package authorize
 import (
 	"context"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
+	"github.com/spiffe/go-spiffe/v2/spiffeid"
 	"google.golang.org/grpc/peer"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -31,12 +33,11 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/networkservicemesh/sdk/pkg/tools/spire"
-	"github.com/networkservicemesh/sdk/pkg/tools/stringset"
 )
 
 type authorizeServer struct {
 	policies              policiesList
-	spiffeIDConnectionMap *spire.SpiffeIDConnectionMap
+	spiffeIDConnectionMap *genericsync.Map[spiffeid.ID, *genericsync.Map[string, struct{}]]
 }
 
 // NewServer - returns a new authorization networkservicemesh.NetworkServiceServers
@@ -47,7 +48,7 @@ func NewServer(opts ...Option) networkservice.NetworkServiceServer {
 			"etc/nsm/opa/common/.*.rego",
 			"etc/nsm/opa/server/.*.rego",
 		},
-		spiffeIDConnectionMap: &spire.SpiffeIDConnectionMap{},
+		spiffeIDConnectionMap: &genericsync.Map[spiffeid.ID, *genericsync.Map[string, struct{}]]{},
 	}
 	for _, opt := range opts {
 		opt(o)
@@ -86,7 +87,7 @@ func (a *authorizeServer) Request(ctx context.Context, request *networkservice.N
 		connID := conn.GetPath().GetPathSegments()[index-1].GetId()
 		ids, ok := a.spiffeIDConnectionMap.Load(spiffeID)
 		if !ok {
-			ids = new(stringset.StringSet)
+			ids = new(genericsync.Map[string, struct{}])
 		}
 		ids.Store(connID, struct{}{})
 		a.spiffeIDConnectionMap.Store(spiffeID, ids)

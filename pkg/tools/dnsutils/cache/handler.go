@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -22,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/miekg/dns"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
@@ -30,7 +31,7 @@ import (
 )
 
 type dnsCacheHandler struct {
-	cache *msgMap
+	cache *genericsync.Map[dns.Question, *dns.Msg]
 
 	lastTTLUpdate time.Time
 	m             sync.Mutex
@@ -100,7 +101,7 @@ func validateMsg(m *dns.Msg) bool {
 // NewDNSHandler creates a new dns handler that stores successful requests to DNS server
 func NewDNSHandler() dnsutils.Handler {
 	return &dnsCacheHandler{
-		cache:         new(msgMap),
+		cache:         new(genericsync.Map[dns.Question, *dns.Msg]),
 		lastTTLUpdate: time.Now(),
 	}
 }

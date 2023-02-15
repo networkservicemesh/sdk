@@ -19,6 +19,7 @@ package authorize
 import (
 	"context"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/pkg/errors"
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
@@ -63,7 +64,7 @@ func (l *policiesList) check(ctx context.Context, input RegistryOpaInput) error 
 	return nil
 }
 
-func getRawMap(m *PathIdsMap) map[string][]string {
+func getRawMap(m *genericsync.Map[string, []string]) map[string][]string {
 	rawMap := make(map[string][]string)
 	m.Range(func(key string, value []string) bool {
 		rawMap[key] = value

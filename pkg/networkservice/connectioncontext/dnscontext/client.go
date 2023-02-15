@@ -23,6 +23,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/miekg/dns"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -30,7 +31,6 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
@@ -40,7 +40,7 @@ type dnsContextClient struct {
 	resolveConfigPath   string
 	defaultNameServerIP string
 	resolvconfDNSConfig *networkservice.DNSConfig
-	dnsConfigsMap       *dnsconfig.Map
+	dnsConfigsMap       *genericsync.Map[string, []*networkservice.DNSConfig]
 }
 
 // NewClient creates a new DNS client chain component. Setups all DNS traffic to the localhost. Monitors DNS configs from connections.

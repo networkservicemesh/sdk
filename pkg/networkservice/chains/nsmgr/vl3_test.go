@@ -26,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/ipam"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -37,7 +38,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext/vl3dns"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/ipcontext/vl3"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkconnection"
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/memory"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
@@ -137,7 +137,7 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 		SetRegistryProxySupplier(nil).
 		Build()
 
-	var records memory.Map
+	var records genericsync.Map[string, []net.IP]
 	var dnsServer = memory.NewDNSHandler(&records)
 
 	records.Store("nsc1.vl3.", []net.IP{net.ParseIP("1.1.1.1")})
@@ -156,7 +156,7 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 
 	serverPrefixCh <- &ipam.PrefixResponse{Prefix: "10.0.0.1/24"}
 
-	var dnsConfigs = new(dnsconfig.Map)
+	var dnsConfigs = new(genericsync.Map[string, []*networkservice.DNSConfig])
 	dnsServerIPCh := make(chan net.IP, 1)
 	dnsServerIPCh <- net.ParseIP("0.0.0.0")
 
