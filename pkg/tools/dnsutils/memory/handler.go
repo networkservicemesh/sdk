@@ -20,6 +20,7 @@ package memory
 import (
 	"context"
 	"net"
+	"strings"
 
 	"github.com/edwarnicke/genericsync"
 	"github.com/miekg/dns"
@@ -58,27 +59,17 @@ func (f *memoryHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 	}
 
 	var name = dns.Name(msg.Question[0].Name).String()
-	var records, ok = f.records.Load(name)
-
-	if !ok {
-		next.Handler(ctx).ServeDNS(ctx, rwWrapper, msg)
-		if !rwWrapper.passed {
-			// Send NXDomain because we didn't find anything
-			m := new(dns.Msg)
-			_ = rw.WriteMsg(m.SetRcode(msg, dns.RcodeNameError))
-		}
-		return
-	}
-
 	var resp = new(dns.Msg)
 	resp.SetReply(msg)
 	resp.Authoritative = true
 
 	switch msg.Question[0].Qtype {
 	case dns.TypeAAAA:
-		resp.Answer = append(resp.Answer, aaaa(name, records)...)
+		resp.Answer = append(resp.Answer, f.aaaa(name)...)
 	case dns.TypeA:
-		resp.Answer = append(resp.Answer, a(name, records)...)
+		resp.Answer = append(resp.Answer, f.a(name)...)
+	case dns.TypePTR:
+		resp.Answer = append(resp.Answer, f.ptr(name)...)
 	}
 
 	if len(resp.Answer) == 0 {
@@ -103,7 +94,8 @@ func NewDNSHandler(records *genericsync.Map[string, []net.IP]) dnsutils.Handler 
 	}
 	return &memoryHandler{records: records}
 }
-func a(domain string, ips []net.IP) []dns.RR {
+func (f *memoryHandler) a(domain string) []dns.RR {
+	var ips, _ = f.records.Load(domain)
 	var answers []dns.RR
 	for _, ip := range ips {
 		if ip.To4() == nil {
@@ -117,7 +109,8 @@ func a(domain string, ips []net.IP) []dns.RR {
 	return answers
 }
 
-func aaaa(domain string, ips []net.IP) []dns.RR {
+func (f *memoryHandler) aaaa(domain string) []dns.RR {
+	var ips, _ = f.records.Load(domain)
 	var answers []dns.RR
 	for _, ip := range ips {
 		if ip.To4() != nil {
@@ -129,4 +122,59 @@ func aaaa(domain string, ips []net.IP) []dns.RR {
 		answers = append(answers, r)
 	}
 	return answers
+}
+
+func (f *memoryHandler) ptr(domain string) []dns.RR {
+	var answers []dns.RR
+	var ipArrayStr []string
+	if strings.HasSuffix(domain, ".in-addr.arpa.") {
+		// IPv4
+		ipArrayStr = strings.Split(domain, ".")[:4]
+	} else if strings.HasSuffix(domain, ".ip6.arpa.") {
+		// IPv6
+		ipArrayStr = strings.Split(domain, ".")[:32]
+	}
+
+	if len(ipArrayStr) != 0 {
+		ipArrayStr = reverse(ipArrayStr)
+		requestedIP := net.ParseIP(strings.Join(ipArrayStr, "."))
+		if len(ipArrayStr) > 4 {
+			// join IPv6 address in groups of 4
+			sb := strings.Builder{}
+			for i := 0; i < len(ipArrayStr); i++ {
+				if i%4 == 0 && i != 0 {
+					sb.WriteByte(':')
+				}
+				sb.WriteString(ipArrayStr[i])
+			}
+			requestedIP = net.ParseIP(sb.String())
+		}
+
+		var recordNames []string
+		f.records.Range(func(key string, value []net.IP) bool {
+			for _, v := range value {
+				if v.Equal(requestedIP) {
+					recordNames = append(recordNames, key)
+					return true
+				}
+			}
+			return true
+		})
+
+		for _, recordName := range recordNames {
+			r := new(dns.PTR)
+			r.Hdr = dns.RR_Header{Name: domain, Rrtype: dns.TypePTR, Class: dns.ClassINET, Ttl: defaultTTL}
+			r.Ptr = recordName
+			answers = append(answers, r)
+		}
+	}
+	return answers
+}
+
+func reverse(ss []string) []string {
+	last := len(ss) - 1
+	for i := 0; i < len(ss)/2; i++ {
+		ss[i], ss[last-i] = ss[last-i], ss[i]
+	}
+	return ss
 }
