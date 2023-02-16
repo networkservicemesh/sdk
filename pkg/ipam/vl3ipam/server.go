@@ -21,10 +21,13 @@ import (
 	"net"
 	"sync"
 
+	"github.com/google/uuid"
+
 	"github.com/networkservicemesh/api/pkg/api/ipam"
 	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 // ErrUndefined means that operation is not supported
@@ -51,11 +54,10 @@ func NewIPAMServer(prefix string, initialNSEPrefixSize uint8) ipam.IPAMServer {
 var _ ipam.IPAMServer = (*vl3IPAMServer)(nil)
 
 func (s *vl3IPAMServer) ManagePrefixes(prefixServer ipam.IPAM_ManagePrefixesServer) error {
-	var pool = s.pool
-	var mutex = &s.poolMutex
 	var clientsPrefixes []string
 	var err error
 
+	logger := log.Default().WithField("ID", uuid.New().String())
 	for err == nil {
 		var r *ipam.PrefixRequest
 
@@ -64,50 +66,29 @@ func (s *vl3IPAMServer) ManagePrefixes(prefixServer ipam.IPAM_ManagePrefixesServ
 			break
 		}
 
+		logger.Debugf("PrefixRequest: %v", r.String())
 		switch r.Type {
 		case ipam.Type_UNDEFINED:
 			return ErrUndefined
 
 		case ipam.Type_ALLOCATE:
-			var resp ipam.PrefixResponse
-			mutex.Lock()
-			for _, excludePrefix := range r.ExcludePrefixes {
-				pool.ExcludeString(excludePrefix)
+			var resp *ipam.PrefixResponse
+			resp, err = s.allocate(r)
+			if err != nil {
+				break
 			}
-			resp.Prefix = r.Prefix
-			if resp.Prefix == "" || !pool.ContainsNetString(resp.Prefix) {
-				var ip net.IP
-				ip, err = pool.Pull()
-				if err != nil {
-					mutex.Unlock()
-					break
-				}
-				ipNet := &net.IPNet{
-					IP: ip,
-					Mask: net.CIDRMask(
-						int(s.initalSize),
-						len(ip)*8,
-					),
-				}
-				resp.Prefix = ipNet.String()
-			}
-			s.excludedPrefixes = append(s.excludedPrefixes, r.Prefix)
 			clientsPrefixes = append(clientsPrefixes, resp.Prefix)
-			pool.ExcludeString(resp.Prefix)
-			mutex.Unlock()
-			resp.ExcludePrefixes = r.ExcludePrefixes
-			resp.ExcludePrefixes = append(resp.ExcludePrefixes, s.excludedPrefixes...)
-			err = prefixServer.Send(&resp)
+			err = prefixServer.Send(resp)
+			logger.Debugf("Allocated: %v", resp.String())
 
 		case ipam.Type_DELETE:
 			for i, p := range clientsPrefixes {
 				if p != r.Prefix {
 					continue
 				}
-				mutex.Lock()
-				pool.AddNetString(p)
-				mutex.Unlock()
+				s.delete(r)
 				clientsPrefixes = append(clientsPrefixes[:i], clientsPrefixes[i+1:]...)
+				logger.Debugf("Deleted: %v", r.Prefix)
 				break
 			}
 		}
@@ -115,13 +96,53 @@ func (s *vl3IPAMServer) ManagePrefixes(prefixServer ipam.IPAM_ManagePrefixesServ
 
 	s.poolMutex.Lock()
 	for _, prefix := range clientsPrefixes {
-		pool.AddNetString(prefix)
+		s.pool.AddNetString(prefix)
 	}
 	s.poolMutex.Unlock()
+	logger.Debugf("Disconnected. Error: %v", err.Error())
+	logger.Debugf("Deleted: %v", clientsPrefixes)
 
 	if prefixServer.Context().Err() != nil {
 		return nil
 	}
 
 	return errors.Wrap(err, "failed to manage prefixes")
+}
+
+func (s *vl3IPAMServer) allocate(r *ipam.PrefixRequest) (*ipam.PrefixResponse, error) {
+	s.poolMutex.Lock()
+	// We don't need to exclude prefixes which were indicated in the PrefixRequest from the main pool
+	pool := s.pool.Clone()
+	for _, excludePrefix := range r.ExcludePrefixes {
+		pool.ExcludeString(excludePrefix)
+	}
+	resp := &ipam.PrefixResponse{
+		Prefix: r.Prefix,
+	}
+	if resp.Prefix == "" || !s.pool.ContainsNetString(resp.Prefix) {
+		ip, err := pool.Pull()
+		if err != nil {
+			s.poolMutex.Unlock()
+			return nil, err
+		}
+		ipNet := &net.IPNet{
+			IP: ip,
+			Mask: net.CIDRMask(
+				int(s.initalSize),
+				len(ip)*8,
+			),
+		}
+		resp.Prefix = ipNet.String()
+	}
+	s.pool.ExcludeString(resp.Prefix)
+	s.poolMutex.Unlock()
+	resp.ExcludePrefixes = r.ExcludePrefixes
+	resp.ExcludePrefixes = append(resp.ExcludePrefixes, s.excludedPrefixes...)
+	return resp, nil
+}
+
+func (s *vl3IPAMServer) delete(r *ipam.PrefixRequest) {
+	s.poolMutex.Lock()
+	s.pool.AddNetString(r.Prefix)
+	s.poolMutex.Unlock()
 }
