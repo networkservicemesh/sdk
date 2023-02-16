@@ -30,13 +30,12 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/pkg/errors"
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/monitorconnection/authorize"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
-	"github.com/networkservicemesh/sdk/pkg/tools/spire"
-	"github.com/networkservicemesh/sdk/pkg/tools/stringset"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
@@ -188,9 +187,9 @@ func TestAuthzEndpoint(t *testing.T) {
 				baseCtx, err = getContextWithTLSCert()
 				require.NoError(t, err)
 			}
-			spiffeIDConnectionMap := spire.SpiffeIDConnectionMap{}
+			var spiffeIDConnectionMap genericsync.Map[spiffeid.ID, *genericsync.Map[string, struct{}]]
 			for spiffeIDstr, connIds := range s.spiffeIDConnMap {
-				connIDMap := stringset.StringSet{}
+				connIDMap := genericsync.Map[string, struct{}]{}
 				for _, connID := range connIds {
 					connIDMap.Store(connID, struct{}{})
 				}
@@ -234,8 +233,8 @@ func TestAuthorize_ShouldCorrectlyWorkWithHeal(t *testing.T) {
 		selector, &testEmptyMCMCServer{context: ctx})
 	require.NoError(t, err)
 
-	spiffeIDConnectionMap := spire.SpiffeIDConnectionMap{}
-	connMap := stringset.StringSet{}
+	spiffeIDConnectionMap := genericsync.Map[spiffeid.ID, *genericsync.Map[string, struct{}]]{}
+	connMap := genericsync.Map[string, struct{}]{}
 	var placer struct{}
 	connMap.Store("conn1", placer)
 	var spiffeID spiffeid.ID

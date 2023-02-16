@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -20,23 +20,23 @@ import (
 	"context"
 	"net"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
 )
 
 type vl3DNSClient struct {
 	dnsServerIP net.IP
-	dnsConfigs  *dnsconfig.Map
+	dnsConfigs  *genericsync.Map[string, []*networkservice.DNSConfig]
 }
 
 // NewClient - returns a new null client that does nothing but call next.Client(ctx).{Request/Close} and return the result
 //
 //	This is very useful in testing
-func NewClient(dnsServerIP net.IP, dnsConfigs *dnsconfig.Map) networkservice.NetworkServiceClient {
+func NewClient(dnsServerIP net.IP, dnsConfigs *genericsync.Map[string, []*networkservice.DNSConfig]) networkservice.NetworkServiceClient {
 	return &vl3DNSClient{
 		dnsServerIP: dnsServerIP,
 		dnsConfigs:  dnsConfigs,

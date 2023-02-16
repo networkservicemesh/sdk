@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -16,11 +16,14 @@
 
 package authorize
 
-import "github.com/networkservicemesh/sdk/pkg/tools/spire"
+import (
+	"github.com/edwarnicke/genericsync"
+	"github.com/spiffe/go-spiffe/v2/spiffeid"
+)
 
 type options struct {
 	policies              policiesList
-	spiffeIDConnectionMap *spire.SpiffeIDConnectionMap
+	spiffeIDConnectionMap *genericsync.Map[spiffeid.ID, *genericsync.Map[string, struct{}]]
 }
 
 // Option is authorization option for monitor connection server
@@ -39,7 +42,7 @@ func WithPolicies(p ...Policy) Option {
 }
 
 // WithSpiffeIDConnectionMap sets map to keep spiffeIDConnectionMap to authorize connections with MonitorServer
-func WithSpiffeIDConnectionMap(s *spire.SpiffeIDConnectionMap) Option {
+func WithSpiffeIDConnectionMap(s *genericsync.Map[spiffeid.ID, *genericsync.Map[string, struct{}]]) Option {
 	return func(o *options) {
 		o.spiffeIDConnectionMap = s
 	}

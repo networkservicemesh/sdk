@@ -26,6 +26,7 @@ import (
 	"sync/atomic"
 	"text/template"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
@@ -33,7 +34,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	dnschain "github.com/networkservicemesh/sdk/pkg/tools/dnsutils/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/dnsconfigs"
@@ -47,8 +47,8 @@ import (
 
 type vl3DNSServer struct {
 	chainCtx              context.Context
-	dnsServerRecords      memory.Map
-	dnsConfigs            *dnsconfig.Map
+	dnsServerRecords      genericsync.Map[string, []net.IP]
+	dnsConfigs            *genericsync.Map[string, []*networkservice.DNSConfig]
 	domainSchemeTemplates []*template.Template
 	dnsPort               int
 	dnsServer             dnsutils.Handler
@@ -71,7 +71,7 @@ func NewServer(chainCtx context.Context, dnsServerIPCh <-chan net.IP, opts ...Op
 		chainCtx:          chainCtx,
 		dnsPort:           53,
 		listenAndServeDNS: dnsutils.ListenAndServe,
-		dnsConfigs:        new(dnsconfig.Map),
+		dnsConfigs:        new(genericsync.Map[string, []*networkservice.DNSConfig]),
 		dnsServerIPCh:     dnsServerIPCh,
 	}
 

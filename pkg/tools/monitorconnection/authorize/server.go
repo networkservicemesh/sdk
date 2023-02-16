@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,24 +18,24 @@
 package authorize
 
 import (
+	"github.com/edwarnicke/genericsync"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/monitorconnection/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/spire"
-	"github.com/networkservicemesh/sdk/pkg/tools/stringset"
 )
 
 type authorizeMonitorConnectionsServer struct {
 	policies              policiesList
-	spiffeIDConnectionMap *spire.SpiffeIDConnectionMap
+	spiffeIDConnectionMap *genericsync.Map[spiffeid.ID, *genericsync.Map[string, struct{}]]
 }
 
 // NewMonitorConnectionServer - returns a new authorization networkservicemesh.MonitorConnectionServer
 func NewMonitorConnectionServer(opts ...Option) networkservice.MonitorConnectionServer {
 	o := &options{
 		//	policies:              policiesList{opa.WithMonitorConnectionServerPolicy()},
-		spiffeIDConnectionMap: &spire.SpiffeIDConnectionMap{},
+		spiffeIDConnectionMap: &genericsync.Map[spiffeid.ID, *genericsync.Map[string, struct{}]]{},
 	}
 	for _, opt := range opts {
 		opt(o)
@@ -59,7 +59,7 @@ func (a *authorizeMonitorConnectionsServer) MonitorConnections(in *networkservic
 	simpleMap := make(map[string][]string)
 
 	a.spiffeIDConnectionMap.Range(
-		func(sid spiffeid.ID, connIds *stringset.StringSet) bool {
+		func(sid spiffeid.ID, connIds *genericsync.Map[string, struct{}]) bool {
 			connIds.Range(
 				func(connId string, _ struct{}) bool {
 					ids := simpleMap[sid.String()]

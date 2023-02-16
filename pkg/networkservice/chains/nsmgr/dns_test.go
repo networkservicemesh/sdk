@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
@@ -33,7 +36,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/cache"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/dnsconfigs"
@@ -74,7 +76,7 @@ func Test_DNSUsecase(t *testing.T) {
 
 	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
 
-	dnsConfigsMap := new(dnsconfig.Map)
+	dnsConfigsMap := new(genericsync.Map[string, []*networkservice.DNSConfig])
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(dnscontext.NewClient(
 		dnscontext.WithChainContext(ctx),
 		dnscontext.WithDNSConfigsMap(dnsConfigsMap),
@@ -88,7 +90,7 @@ func Test_DNSUsecase(t *testing.T) {
 	}
 
 	// DNS server on nse side
-	dnsRecords := new(memory.Map)
+	dnsRecords := new(genericsync.Map[string, []net.IP])
 	dnsRecords.Store("my.domain.", []net.IP{net.ParseIP("4.4.4.4")})
 	dnsRecords.Store("my.domain.com.", []net.IP{net.ParseIP("5.5.5.5")})
 	dnsutils.ListenAndServe(ctx, memory.NewDNSHandler(dnsRecords), ":40053")

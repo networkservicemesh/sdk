@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,7 +21,8 @@ package dnscontext
 import (
 	"context"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
+	"github.com/edwarnicke/genericsync"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
 
 // DNSOption is applying options for DNS client.
@@ -50,7 +51,7 @@ func WithDefaultNameServerIP(ip string) DNSOption {
 }
 
 // WithDNSConfigsMap sets configs map for DNS client.
-func WithDNSConfigsMap(configsMap *dnsconfig.Map) DNSOption {
+func WithDNSConfigsMap(configsMap *genericsync.Map[string, []*networkservice.DNSConfig]) DNSOption {
 	return applyFunc(func(c *dnsContextClient) {
 		c.dnsConfigsMap = configsMap
 	})

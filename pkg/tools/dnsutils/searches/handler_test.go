@@ -21,12 +21,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/miekg/dns"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/dnsconfigs"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/memory"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
@@ -56,13 +56,13 @@ func TestDomainSearches(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	configs := new(dnsconfig.Map)
+	configs := new(genericsync.Map[string, []*networkservice.DNSConfig])
 
 	configs.Store("1", []*networkservice.DNSConfig{
 		{SearchDomains: []string{"com", "net", "org"}, DnsServerIps: []string{"8.8.4.4"}},
 	})
 
-	records := new(memory.Map)
+	records := new(genericsync.Map[string, []net.IP])
 	records.Store("example.com.", []net.IP{net.ParseIP("1.1.1.1")})
 
 	check := &checkHandler{}

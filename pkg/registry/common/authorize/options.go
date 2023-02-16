@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -17,6 +17,7 @@
 package authorize
 
 import (
+	"github.com/edwarnicke/genericsync"
 	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
@@ -24,7 +25,7 @@ import (
 
 type options struct {
 	policies           policiesList
-	resourcePathIdsMap *PathIdsMap
+	resourcePathIdsMap *genericsync.Map[string, []string]
 }
 
 // Option is authorization option for server
@@ -53,7 +54,7 @@ func WithPolicies(policyPaths ...string) Option {
 }
 
 // WithResourcePathIdsMap sets map to keep resourcePathIdsMap to authorize connections with Registry Authorize Chain Element
-func WithResourcePathIdsMap(m *PathIdsMap) Option {
+func WithResourcePathIdsMap(m *genericsync.Map[string, []string]) Option {
 	return func(o *options) {
 		o.resourcePathIdsMap = m
 	}

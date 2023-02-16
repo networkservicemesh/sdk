@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -20,6 +20,7 @@ package authorize
 import (
 	"context"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -34,14 +35,14 @@ import (
 
 type authorizeNSEClient struct {
 	policies      policiesList
-	nsePathIdsMap *PathIdsMap
+	nsePathIdsMap *genericsync.Map[string, []string]
 }
 
 // NewNetworkServiceEndpointRegistryClient - returns a new authorization registry.NetworkServiceEndpointRegistryClient
 // Authorize registry client checks path of NSE.
 func NewNetworkServiceEndpointRegistryClient(opts ...Option) registry.NetworkServiceEndpointRegistryClient {
 	o := &options{
-		resourcePathIdsMap: new(PathIdsMap),
+		resourcePathIdsMap: new(genericsync.Map[string, []string]),
 	}
 
 	for _, opt := range opts {

@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,12 +21,12 @@ import (
 	"context"
 	"net/url"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/miekg/dns"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsconfig"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/searches"
@@ -34,7 +34,7 @@ import (
 )
 
 type dnsConfigsHandler struct {
-	configs *dnsconfig.Map
+	configs *genericsync.Map[string, []*networkservice.DNSConfig]
 }
 
 func (h *dnsConfigsHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m *dns.Msg) {
@@ -87,7 +87,7 @@ func (h *dnsConfigsHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter,
 }
 
 // NewDNSHandler creates a new dns handler that stores DNS configs
-func NewDNSHandler(configs *dnsconfig.Map) dnsutils.Handler {
+func NewDNSHandler(configs *genericsync.Map[string, []*networkservice.DNSConfig]) dnsutils.Handler {
 	return &dnsConfigsHandler{
 		configs: configs,
 	}
