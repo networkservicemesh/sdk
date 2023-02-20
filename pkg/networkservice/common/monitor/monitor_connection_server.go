@@ -105,21 +105,9 @@ func (m *monitorConnectionServer) Send(event *networkservice.ConnectionEvent) (_
 	return nil
 }
 
-func (m *monitorConnectionServer) GetConnections() map[string]*networkservice.Connection {
-	connections := make(map[string]*networkservice.Connection)
-
-	<-m.executor.AsyncExec(func() {
-		for k, v := range m.connections {
-			connections[k] = v
-		}
-	})
-	return connections
-}
-
 // EventConsumer - interface for monitor events sending
 type EventConsumer interface {
 	Send(event *networkservice.ConnectionEvent) (err error)
-	GetConnections() map[string]*networkservice.Connection
 }
 
 var _ EventConsumer = &monitorConnectionServer{}
