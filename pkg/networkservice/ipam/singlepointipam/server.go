@@ -32,6 +32,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/cidr"
 	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
 )
 
@@ -78,6 +79,13 @@ func (sipam *singlePIpam) init() {
 		mask := fmt.Sprintf("/%d", ones)
 		sipam.masks = append(sipam.masks, mask)
 		ipPool := ippool.NewWithNet(prefix)
+		if prefix.IP.To4() != nil {
+			// Remove the broadcast address from the pool
+			_, sipam.initErr = ipPool.PullIP(cidr.BroadcastAddress(prefix))
+			if sipam.initErr != nil {
+				return
+			}
+		}
 		sipam.ipPools = append(sipam.ipPools, ipPool)
 	}
 }
