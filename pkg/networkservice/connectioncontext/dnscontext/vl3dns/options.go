@@ -26,6 +26,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
+	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
 )
 
 // Option configures vl3DNSServer
@@ -50,7 +51,13 @@ func WithDomainSchemes(domainSchemes ...string) Option {
 	return func(vd *vl3DNSServer) {
 		vd.domainSchemeTemplates = nil
 		for i, domainScheme := range domainSchemes {
-			vd.domainSchemeTemplates = append(vd.domainSchemeTemplates, template.Must(template.New(fmt.Sprintf("dnsScheme%d", i)).Parse(domainScheme)))
+			vd.domainSchemeTemplates = append(vd.domainSchemeTemplates,
+				template.Must(template.New(fmt.Sprintf("dnsScheme%d", i)).
+					Funcs(template.FuncMap{
+						"target": interdomain.Target,
+						"domain": interdomain.Domain,
+					}).
+					Parse(domainScheme)))
 		}
 	}
 }

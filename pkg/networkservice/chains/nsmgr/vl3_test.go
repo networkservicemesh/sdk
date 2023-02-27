@@ -28,17 +28,23 @@ import (
 
 	"github.com/edwarnicke/genericsync"
 	"github.com/google/uuid"
-	"github.com/networkservicemesh/api/pkg/api/ipam"
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
+
+	"github.com/networkservicemesh/api/pkg/api/ipam"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext/vl3dns"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/ipcontext/vl3"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/memory"
+	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -311,4 +317,188 @@ func Test_vl3NSE_ConnectsTo_Itself(t *testing.T) {
 
 	_, err = nsc.Request(ctx, req)
 	require.NoError(t, err)
+}
+
+func Test_Interdomain_vl3_dns(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	defer cancel()
+
+	var dnsServer = sandbox.NewFakeResolver()
+
+	cluster1 := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetDNSResolver(dnsServer).
+		SetDNSDomainName("cluster1").
+		Build()
+
+	cluster2 := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetDNSDomainName("cluster2").
+		SetDNSResolver(dnsServer).
+		Build()
+
+	nsRegistryClient := cluster2.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService("vl3"))
+	require.NoError(t, err)
+
+	nseReg := &registry.NetworkServiceEndpoint{
+		Name:                "final-endpoint",
+		NetworkServiceNames: []string{nsReg.Name},
+	}
+
+	var serverPrefixCh = make(chan *ipam.PrefixResponse, 1)
+	defer close(serverPrefixCh)
+
+	serverPrefixCh <- &ipam.PrefixResponse{Prefix: "10.0.0.1/24"}
+	dnsServerIPCh := make(chan net.IP, 1)
+	dnsServerIPCh <- net.ParseIP("127.0.0.1")
+
+	cluster2.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken,
+		vl3.NewServer(ctx, serverPrefixCh),
+		vl3dns.NewServer(ctx,
+			dnsServerIPCh,
+			vl3dns.WithDomainSchemes("{{ index .Labels \"podName\" }}.{{ target .NetworkService }}.{{ domain .NetworkService }}."),
+			vl3dns.WithDNSPort(40053)),
+		checkrequest.NewServer(t, func(t *testing.T, nsr *networkservice.NetworkServiceRequest) {
+			require.False(t, interdomain.Is(nsr.GetConnection().GetNetworkService()))
+		},
+		),
+	)
+
+	resolver := net.Resolver{
+		PreferGo: true,
+		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+			var dialer net.Dialer
+			return dialer.DialContext(ctx, network, "127.0.0.1:40053")
+		},
+	}
+
+	nsc := cluster1.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+	req := &networkservice.NetworkServiceRequest{
+		MechanismPreferences: []*networkservice.Mechanism{
+			{Cls: cls.LOCAL, Type: kernel.MECHANISM},
+		},
+		Connection: &networkservice.Connection{
+			Id:             uuid.New().String(),
+			NetworkService: fmt.Sprint(nsReg.Name, "@", cluster2.Name),
+			Labels:         map[string]string{"podName": nscName},
+		},
+	}
+
+	resp, err := nsc.Request(ctx, req)
+	require.NoError(t, err)
+
+	req.Connection = resp.Clone()
+	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs(), 1)
+	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].DnsServerIps, 1)
+
+	requireIPv4Lookup(ctx, t, &resolver, nscName+".vl3", "10.0.0.1")
+
+	resp, err = nsc.Request(ctx, req)
+	require.NoError(t, err)
+
+	requireIPv4Lookup(ctx, t, &resolver, nscName+".vl3", "10.0.0.1")
+
+	_, err = nsc.Close(ctx, resp)
+	require.NoError(t, err)
+
+	_, err = resolver.LookupIP(ctx, "ip4", nscName+".vl3")
+	require.Error(t, err)
+}
+
+func Test_FloatingInterdomain_vl3_dns(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	defer cancel()
+
+	var dnsServer = sandbox.NewFakeResolver()
+
+	cluster1 := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetDNSResolver(dnsServer).
+		SetDNSDomainName("cluster1").
+		Build()
+
+	cluster2 := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetDNSDomainName("cluster2").
+		SetDNSResolver(dnsServer).
+		Build()
+
+	floating := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(0).
+		SetDNSDomainName("floating.domain").
+		SetDNSResolver(dnsServer).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		Build()
+
+	nsRegistryClient := cluster2.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService("vl3@"+floating.Name))
+	require.NoError(t, err)
+
+	nseReg := &registry.NetworkServiceEndpoint{
+		Name:                "final-endpoint@" + floating.Name,
+		NetworkServiceNames: []string{"vl3"},
+	}
+
+	var serverPrefixCh = make(chan *ipam.PrefixResponse, 1)
+	defer close(serverPrefixCh)
+
+	serverPrefixCh <- &ipam.PrefixResponse{Prefix: "10.0.0.1/24"}
+	dnsServerIPCh := make(chan net.IP, 1)
+	dnsServerIPCh <- net.ParseIP("127.0.0.1")
+
+	cluster2.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken,
+		vl3.NewServer(ctx, serverPrefixCh),
+		vl3dns.NewServer(ctx,
+			dnsServerIPCh,
+			vl3dns.WithDomainSchemes("{{ index .Labels \"podName\" }}.{{ target .NetworkService }}.{{ domain .NetworkService }}."),
+			vl3dns.WithDNSPort(40053)),
+	)
+
+	resolver := net.Resolver{
+		PreferGo: true,
+		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+			var dialer net.Dialer
+			return dialer.DialContext(ctx, network, "127.0.0.1:40053")
+		},
+	}
+
+	nsc := cluster1.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+	req := &networkservice.NetworkServiceRequest{
+		MechanismPreferences: []*networkservice.Mechanism{
+			{Cls: cls.LOCAL, Type: kernel.MECHANISM},
+		},
+		Connection: &networkservice.Connection{
+			Id:             uuid.New().String(),
+			NetworkService: fmt.Sprint(nsReg.Name),
+			Labels:         map[string]string{"podName": nscName},
+		},
+	}
+
+	resp, err := nsc.Request(ctx, req)
+	require.NoError(t, err)
+
+	req.Connection = resp.Clone()
+	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs(), 1)
+	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].DnsServerIps, 1)
+
+	requireIPv4Lookup(ctx, t, &resolver, nscName+".vl3."+floating.Name, "10.0.0.1")
+
+	resp, err = nsc.Request(ctx, req)
+	require.NoError(t, err)
+
+	requireIPv4Lookup(ctx, t, &resolver, nscName+".vl3."+floating.Name, "10.0.0.1")
+
+	_, err = nsc.Close(ctx, resp)
+	require.NoError(t, err)
+
+	_, err = resolver.LookupIP(ctx, "ip4", nscName+".vl3."+floating.Name)
+	require.Error(t, err)
 }
