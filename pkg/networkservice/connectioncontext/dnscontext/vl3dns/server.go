@@ -128,17 +128,16 @@ func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.Netw
 		}
 	}
 
-	ips := getSrcIPs(request.GetConnection())
-	if len(ips) > 0 {
-		for _, recordName := range recordNames {
-			n.dnsServerRecords.Store(recordName, ips)
-		}
-
-		metadata.Map(ctx, false).Store(clientDNSNameKey{}, recordNames)
-	}
-
 	resp, err := next.Server(ctx).Request(ctx, request)
 	if err == nil {
+		ips := getSrcIPs(resp)
+		if len(ips) > 0 {
+			for _, recordName := range recordNames {
+				n.dnsServerRecords.Store(recordName, ips)
+			}
+
+			metadata.Map(ctx, false).Store(clientDNSNameKey{}, recordNames)
+		}
 		configs := make([]*networkservice.DNSConfig, 0)
 		if srcRoutes := resp.GetContext().GetIpContext().GetSrcRoutes(); len(srcRoutes) > 0 {
 			var lastPrefix = srcRoutes[len(srcRoutes)-1].Prefix

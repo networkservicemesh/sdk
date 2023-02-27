@@ -76,11 +76,11 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 		ctx,
 		nseReg,
 		sandbox.GenerateTestToken,
-		vl3.NewServer(ctx, serverPrefixCh),
 		vl3dns.NewServer(ctx,
 			dnsServerIPCh,
 			vl3dns.WithDomainSchemes("{{ index .Labels \"podName\" }}.{{ .NetworkService }}."),
 			vl3dns.WithDNSPort(40053)),
+		vl3.NewServer(ctx, serverPrefixCh),
 	)
 
 	resolver := net.Resolver{
@@ -163,7 +163,6 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 		ctx,
 		nseReg,
 		sandbox.GenerateTestToken,
-		vl3.NewServer(ctx, serverPrefixCh),
 		vl3dns.NewServer(ctx,
 			dnsServerIPCh,
 			vl3dns.WithDomainSchemes("{{ index .Labels \"podName\" }}.{{ .NetworkService }}."),
@@ -173,6 +172,7 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 			vl3dns.WithConfigs(dnsConfigs),
 			vl3dns.WithDNSPort(40053),
 		),
+		vl3.NewServer(ctx, serverPrefixCh),
 	)
 
 	resolver := net.Resolver{
@@ -252,11 +252,11 @@ func Test_NSC_GetsVl3DnsAddressDelay(t *testing.T) {
 		ctx,
 		nseReg,
 		sandbox.GenerateTestToken,
-		vl3.NewServer(ctx, serverPrefixCh),
 		vl3dns.NewServer(ctx,
 			dnsServerIPCh,
 			vl3dns.WithDomainSchemes("{{ index .Labels \"podName\" }}.{{ .NetworkService }}."),
-			vl3dns.WithDNSPort(40053)))
+			vl3dns.WithDNSPort(40053)),
+		vl3.NewServer(ctx, serverPrefixCh))
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -300,10 +300,10 @@ func Test_vl3NSE_ConnectsTo_Itself(t *testing.T) {
 		ctx,
 		nseReg,
 		sandbox.GenerateTestToken,
-		vl3.NewServer(ctx, serverPrefixCh),
 		vl3dns.NewServer(ctx,
 			dnsServerIPCh,
-			vl3dns.WithDNSPort(40053)))
+			vl3dns.WithDNSPort(40053)),
+		vl3.NewServer(ctx, serverPrefixCh))
 
 	// Connection to itself. This allows us to assign a dns address to ourselves.
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithName(nseReg.Name))
