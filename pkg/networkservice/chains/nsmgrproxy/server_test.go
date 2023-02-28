@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -764,6 +766,120 @@ func Test_Interdomain_PassThroughUsecase(t *testing.T) {
 	// Path length to first endpoint is 4
 	// Path length from NSE client to other remote endpoint is 8
 	require.Equal(t, 8*(clusterCount-1)+4, len(conn.Path.PathSegments))
+
+	// Close
+	_, err = nsc.Close(ctx, conn)
+	require.NoError(t, err)
+}
+
+// TestNSMGR_InterdomainRemoteAfterLocalUsecase covers interdomain scenario where we try to request after local interdomain request fails:
+//
+//	nsc2 -> nsmgr2 ->  forwarder2 -> nsmgr2 -> nsmgr-proxy2 -> nsmg-proxy2
+//	nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy2 -> nsmgr2 ->forwarder2 -> nsmgr2 -> nse3
+func TestNSMGR_InterdomainRemoteAfterLocalUsecase(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	var dnsServer = sandbox.NewFakeResolver()
+
+	cluster1 := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetDNSResolver(dnsServer).
+		SetDNSDomainName("cluster1").
+		Build()
+
+	cluster2 := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetDNSDomainName("cluster2").
+		SetDNSResolver(dnsServer).
+		Build()
+
+	nsRegistryClient := cluster2.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg := &registry.NetworkService{
+		Name: "my-service-interdomain",
+	}
+
+	_, err := nsRegistryClient.Register(ctx, nsReg)
+	require.NoError(t, err)
+
+	nseReg := &registry.NetworkServiceEndpoint{
+		Name:                "final-endpoint",
+		NetworkServiceNames: []string{nsReg.Name},
+	}
+
+	cluster2.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, checkrequest.NewServer(t, func(t *testing.T, nsr *networkservice.NetworkServiceRequest) {
+		require.False(t, interdomain.Is(nsr.GetConnection().GetNetworkService()))
+	}))
+
+	nsc := cluster1.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	request1 := &networkservice.NetworkServiceRequest{
+		MechanismPreferences: []*networkservice.Mechanism{
+			{Cls: cls.LOCAL, Type: kernel.MECHANISM},
+		},
+		Connection: &networkservice.Connection{
+			Id:             "1",
+			NetworkService: fmt.Sprint(nsReg.Name, "@", cluster2.Name),
+			Context:        &networkservice.ConnectionContext{},
+		},
+	}
+
+	request2 := &networkservice.NetworkServiceRequest{
+		MechanismPreferences: []*networkservice.Mechanism{
+			{Cls: cls.LOCAL, Type: kernel.MECHANISM},
+		},
+		Connection: &networkservice.Connection{
+			Id:             "2",
+			NetworkService: fmt.Sprint(nsReg.Name, "@", cluster2.Name),
+			Context:        &networkservice.ConnectionContext{},
+		},
+	}
+
+	request3 := &networkservice.NetworkServiceRequest{
+		MechanismPreferences: []*networkservice.Mechanism{
+			{Cls: cls.LOCAL, Type: kernel.MECHANISM},
+		},
+		Connection: &networkservice.Connection{
+			Id:             "3",
+			NetworkService: fmt.Sprint(nsReg.Name, "@", cluster2.Name),
+			Context:        &networkservice.ConnectionContext{},
+		},
+	}
+
+	nsc2 := cluster2.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	// Should fail to access service through local interdomain
+	ctx1, cancel1 := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel1()
+	_, _ = nsc2.Request(ctx1, request1)
+
+	// Should fail to access service through remote interdomain
+	// and clean interdomainbypass registry map
+	ctx2, cancel2 := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel2()
+	_, _ = nsc.Request(ctx2, request2)
+
+	// Must be success
+	ctx3, cancel3 := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel3()
+	conn, err := nsc.Request(ctx3, request3)
+
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+
+	require.Equal(t, 8, len(conn.Path.PathSegments))
+
+	// Simulate refresh from client.
+	refreshRequest := request3.Clone()
+	refreshRequest.Connection = conn.Clone()
+
+	conn, err = nsc.Request(ctx, refreshRequest)
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+	require.Equal(t, 8, len(conn.Path.PathSegments))
 
 	// Close
 	_, err = nsc.Close(ctx, conn)
