@@ -1,5 +1,5 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
-// Copyright (c) 2020-2022 Nordix and its affiliates.
+// Copyright (c) 2020-2023 Nordix and its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -201,6 +201,34 @@ func TestExclude128PrefixIPv6(t *testing.T) {
 	validateConn(t, conn3, "fe80::1:6/112")
 }
 
+func TestBroadCastIP(t *testing.T) {
+	_, ipNet, err := net.ParseCIDR("10.143.248.96/28")
+	require.NoError(t, err)
+
+	srv := newIpamServer(ipNet)
+
+	conn1, err := srv.Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn1, "10.143.248.97/28")
+
+	conn2, err := srv.Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn2, "10.143.248.98/28")
+
+	for i := 0; i < 11; i++ {
+		_, err = srv.Request(context.Background(), newRequest())
+		require.NoError(t, err)
+	}
+
+	conn3, err := srv.Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn3, "10.143.248.110/28")
+
+	// Broadcast
+	_, err = srv.Request(context.Background(), newRequest())
+	require.EqualError(t, err, "IPPool is empty")
+}
+
 func TestOutOfIPs(t *testing.T) {
 	_, ipNet, err := net.ParseCIDR("192.168.1.2/31")
 	require.NoError(t, err)
@@ -208,13 +236,8 @@ func TestOutOfIPs(t *testing.T) {
 	srv := newIpamServer(ipNet)
 
 	req1 := newRequest()
-	conn1, err := srv.Request(context.Background(), req1)
-	require.NoError(t, err)
-	validateConn(t, conn1, "192.168.1.3/31")
-
-	req2 := newRequest()
-	_, err = srv.Request(context.Background(), req2)
-	require.Error(t, err)
+	_, err = srv.Request(context.Background(), req1)
+	require.EqualError(t, err, "IPPool is empty")
 }
 
 func TestOutOfIPsIPv6(t *testing.T) {
@@ -230,7 +253,7 @@ func TestOutOfIPsIPv6(t *testing.T) {
 
 	req2 := newRequest()
 	_, err = srv.Request(context.Background(), req2)
-	require.Error(t, err)
+	require.EqualError(t, err, "IPPool is empty")
 }
 
 func TestAllIPsExcluded(t *testing.T) {
@@ -243,7 +266,7 @@ func TestAllIPsExcluded(t *testing.T) {
 	req1.Connection.Context.IpContext.ExcludedPrefixes = []string{"192.168.1.2/30"}
 	conn1, err := srv.Request(context.Background(), req1)
 	require.Nil(t, conn1)
-	require.Error(t, err)
+	require.EqualError(t, err, "IPPool is empty")
 }
 
 func TestAllIPsExcludedIPv6(t *testing.T) {
@@ -256,7 +279,7 @@ func TestAllIPsExcludedIPv6(t *testing.T) {
 	req1.Connection.Context.IpContext.ExcludedPrefixes = []string{"fe80::1:2/126"}
 	conn1, err := srv.Request(context.Background(), req1)
 	require.Nil(t, conn1)
-	require.Error(t, err)
+	require.EqualError(t, err, "IPPool is empty")
 }
 
 //nolint:dupl
