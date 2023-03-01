@@ -207,7 +207,7 @@ func logError(ctx context.Context, err error, operation string) error {
 		log.FromContext(ctx).Errorf("%+v", err)
 		return err
 	}
-	log.FromContext(ctx).Errorf("%v", err)
+	log.FromContext(ctx).Errorf("%+v", err)
 	return err
 }
 
