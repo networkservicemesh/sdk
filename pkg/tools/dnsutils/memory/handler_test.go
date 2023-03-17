@@ -40,7 +40,7 @@ func (r *responseWriter) WriteMsg(m *dns.Msg) error {
 	return nil
 }
 
-func TestDomainSearches(t *testing.T) {
+func Test_A_AAAA(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
@@ -86,4 +86,52 @@ func TestDomainSearches(t *testing.T) {
 	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeSuccess)
 	require.NotNil(t, resp.Answer)
 	require.Equal(t, resp.Answer[0].(*dns.AAAA).AAAA.String(), "2001:db8::68")
+}
+
+func Test_PTR(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	// Store two entries for IPv4 and IPv6
+	records := new(genericsync.Map[string, []net.IP])
+	records.Store("example.com.", []net.IP{net.ParseIP("1.1.1.2")})
+	records.Store("example.net.", []net.IP{net.ParseIP("2001:db8::68")})
+
+	handler := next.NewDNSHandler(
+		memory.NewDNSHandler(records),
+	)
+	rw := &responseWriter{}
+	m := &dns.Msg{}
+
+	// PTR IPv4. Expect success
+	m.SetQuestion(dns.Fqdn("2.1.1.1.in-addr.arpa"), dns.TypePTR)
+	handler.ServeDNS(ctx, rw, m)
+
+	resp := rw.Response.Copy()
+	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeSuccess)
+	require.NotNil(t, resp.Answer)
+	require.Equal(t, resp.Answer[0].(*dns.PTR).Ptr, "example.com.")
+
+	// PTR IPv6. Expect success
+	m.SetQuestion(dns.Fqdn("8.6.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa."), dns.TypePTR)
+	handler.ServeDNS(ctx, rw, m)
+
+	resp = rw.Response.Copy()
+	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeSuccess)
+	require.NotNil(t, resp.Answer)
+	require.Equal(t, resp.Answer[0].(*dns.PTR).Ptr, "example.net.")
+
+	// PTR IPv4. Expect fail
+	m.SetQuestion(dns.Fqdn("3.1.1.1.in-addr.arpa"), dns.TypePTR)
+	handler.ServeDNS(ctx, rw, m)
+
+	resp = rw.Response.Copy()
+	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeNameError)
+
+	// PTR IPv6. Expect fail
+	m.SetQuestion(dns.Fqdn("9.6.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa."), dns.TypePTR)
+	handler.ServeDNS(ctx, rw, m)
+
+	resp = rw.Response.Copy()
+	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeNameError)
 }
