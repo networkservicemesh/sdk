@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,16 +24,21 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
-type selectedForworderKey struct{}
+type selectedForwarderKey struct{}
 
-func loadForwarderName(ctx context.Context) string {
-	v, ok := metadata.Map(ctx, false).Load(selectedForworderKey{})
-	if !ok {
-		return ""
-	}
-	return v.(string)
+type selectedForwarderVal struct {
+	name   string
+	active bool
 }
 
-func storeForwarderName(ctx context.Context, v string) {
-	metadata.Map(ctx, false).Store(selectedForworderKey{}, v)
+func loadForwarder(ctx context.Context) *selectedForwarderVal {
+	v, ok := metadata.Map(ctx, false).Load(selectedForwarderKey{})
+	if !ok {
+		return nil
+	}
+	return v.(*selectedForwarderVal)
+}
+
+func storeForwarder(ctx context.Context, v *selectedForwarderVal) {
+	metadata.Map(ctx, false).Store(selectedForwarderKey{}, v)
 }
