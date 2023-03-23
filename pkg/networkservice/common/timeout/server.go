@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2020-2022 Cisco Systems, Inc.
+// Copyright (c) 2020-2023 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -26,11 +26,11 @@ import (
 	iserror "errors"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
@@ -64,18 +64,13 @@ func (s *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 		return nil, err
 	}
 
-	expirationTimestamp := conn.GetPrevPathSegment().GetExpires()
-	if expirationTimestamp == nil {
-		return nil, errors.Errorf("expiration for the previous path segment cannot be nil: %+v", conn)
-	}
-	expirationTime := expirationTimestamp.AsTime()
 	cancelCtx, cancel := context.WithCancel(s.chainCtx)
 	if oldCancel, loaded := loadAndDelete(ctx, metadata.IsClient(s)); loaded {
 		oldCancel()
 	}
 	store(ctx, metadata.IsClient(s), cancel)
 	eventFactory := begin.FromContext(ctx)
-	afterCh := timeClock.After(timeClock.Until(expirationTime) - requestTimeout)
+	afterCh := timeClock.After(after(ctx, conn) - requestTimeout)
 
 	go func(cancelCtx context.Context, afterCh <-chan time.Time) {
 		select {
@@ -96,4 +91,35 @@ func (s *timeoutServer) Close(ctx context.Context, conn *networkservice.Connecti
 		}
 	}
 	return &empty.Empty{}, err
+}
+
+func after(ctx context.Context, conn *networkservice.Connection) time.Duration {
+	clockTime := clock.FromContext(ctx)
+
+	var minTimeout *time.Duration
+	var expireTime time.Time
+	for _, segment := range conn.GetPath().GetPathSegments() {
+		if segment.GetExpires() == nil {
+			continue
+		}
+		expTime := segment.GetExpires().AsTime()
+
+		timeout := clockTime.Until(expTime)
+
+		if minTimeout == nil || timeout < *minTimeout {
+			if minTimeout == nil {
+				minTimeout = new(time.Duration)
+			}
+
+			*minTimeout = timeout
+			expireTime = expTime
+		}
+	}
+
+	if minTimeout == nil || *minTimeout <= 0 {
+		return 1
+	}
+	log.FromContext(ctx).Infof("expiration after %s at %s", minTimeout.String(), expireTime.UTC())
+
+	return *minTimeout
 }
