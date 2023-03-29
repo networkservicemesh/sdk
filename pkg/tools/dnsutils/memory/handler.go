@@ -54,10 +54,6 @@ func (f *memoryHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 		return
 	}
 
-	rwWrapper := &responseWriter{
-		ResponseWriter: rw,
-	}
-
 	var name = dns.Name(msg.Question[0].Name).String()
 	var resp = new(dns.Msg)
 	resp.SetReply(msg)
@@ -72,18 +68,23 @@ func (f *memoryHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 		resp.Answer = append(resp.Answer, f.ptr(name)...)
 	}
 
-	if len(resp.Answer) == 0 {
-		next.Handler(ctx).ServeDNS(ctx, rwWrapper, msg)
-		if !rwWrapper.passed {
-			// Send NXDomain because we didn't find anything
-			m := new(dns.Msg)
-			_ = rw.WriteMsg(m.SetRcode(msg, dns.RcodeNameError))
+	if len(resp.Answer) != 0 {
+		if err := rw.WriteMsg(resp); err != nil {
+			dns.HandleFailed(rw, msg)
 		}
 		return
 	}
 
-	if err := rw.WriteMsg(resp); err != nil {
-		dns.HandleFailed(rw, msg)
+	if _, ok := f.records.Load(name); ok {
+		m := new(dns.Msg)
+		_ = rw.WriteMsg(m.SetRcode(msg, dns.RcodeSuccess))
+	} else {
+		rwWrapper := &responseWriter{ResponseWriter: rw}
+		next.Handler(ctx).ServeDNS(ctx, rwWrapper, msg)
+
+		if !rwWrapper.passed {
+			dns.HandleFailed(rw, msg)
+		}
 	}
 }
 

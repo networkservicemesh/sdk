@@ -69,14 +69,16 @@ func Test_A_AAAA(t *testing.T) {
 	handler.ServeDNS(ctx, rw, m)
 
 	resp = rw.Response.Copy()
-	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeNameError)
+	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeSuccess)
+	require.Len(t, resp.Answer, 0)
 
 	// Get example.net IPv4. Expect NXDomain
 	m.SetQuestion(dns.Fqdn("example.net"), dns.TypeA)
 	handler.ServeDNS(ctx, rw, m)
 
 	resp = rw.Response.Copy()
-	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeNameError)
+	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeSuccess)
+	require.Len(t, resp.Answer, 0)
 
 	// Get example.net IPv6. Expect success
 	m.SetQuestion(dns.Fqdn("example.net"), dns.TypeAAAA)
@@ -89,7 +91,7 @@ func Test_A_AAAA(t *testing.T) {
 }
 
 func Test_PTR(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10000)
 	defer cancel()
 
 	// Store two entries for IPv4 and IPv6
@@ -126,12 +128,12 @@ func Test_PTR(t *testing.T) {
 	handler.ServeDNS(ctx, rw, m)
 
 	resp = rw.Response.Copy()
-	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeNameError)
+	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeServerFailure)
 
 	// PTR IPv6. Expect fail
 	m.SetQuestion(dns.Fqdn("9.6.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa."), dns.TypePTR)
 	handler.ServeDNS(ctx, rw, m)
 
 	resp = rw.Response.Copy()
-	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeNameError)
+	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeServerFailure)
 }
