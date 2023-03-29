@@ -91,7 +91,7 @@ func Test_A_AAAA(t *testing.T) {
 }
 
 func Test_PTR(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10000)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	// Store two entries for IPv4 and IPv6
