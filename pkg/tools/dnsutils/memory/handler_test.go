@@ -69,14 +69,16 @@ func Test_A_AAAA(t *testing.T) {
 	handler.ServeDNS(ctx, rw, m)
 
 	resp = rw.Response.Copy()
-	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeNameError)
+	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeSuccess)
+	require.Len(t, resp.Answer, 0)
 
 	// Get example.net IPv4. Expect NXDomain
 	m.SetQuestion(dns.Fqdn("example.net"), dns.TypeA)
 	handler.ServeDNS(ctx, rw, m)
 
 	resp = rw.Response.Copy()
-	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeNameError)
+	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeSuccess)
+	require.Len(t, resp.Answer, 0)
 
 	// Get example.net IPv6. Expect success
 	m.SetQuestion(dns.Fqdn("example.net"), dns.TypeAAAA)
@@ -126,12 +128,80 @@ func Test_PTR(t *testing.T) {
 	handler.ServeDNS(ctx, rw, m)
 
 	resp = rw.Response.Copy()
-	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeNameError)
+	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeServerFailure)
 
 	// PTR IPv6. Expect fail
 	m.SetQuestion(dns.Fqdn("9.6.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa."), dns.TypePTR)
 	handler.ServeDNS(ctx, rw, m)
 
 	resp = rw.Response.Copy()
-	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeNameError)
+	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeServerFailure)
+}
+
+func Test_ProperHandlingOfNonexistentRecordTypes(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	// Store two entries for IPv4 and IPv6
+	records := new(genericsync.Map[string, []net.IP])
+	records.Store("example.com.", []net.IP{net.ParseIP("1.1.1.1")})
+	records.Store("example.net.", []net.IP{net.ParseIP("2001:db8::68")})
+
+	handler := next.NewDNSHandler(
+		memory.NewDNSHandler(records),
+	)
+	rw := &responseWriter{}
+	m := &dns.Msg{}
+
+	// Get example.com IPv4. Expect success
+	m.SetQuestion(dns.Fqdn("example.com"), dns.TypeA)
+	handler.ServeDNS(ctx, rw, m)
+
+	resp := rw.Response.Copy()
+	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeSuccess)
+	require.NotNil(t, resp.Answer)
+	require.Equal(t, resp.Answer[0].(*dns.A).A.String(), "1.1.1.1")
+
+	// Get example.com IPv6. Expect success
+	m.SetQuestion(dns.Fqdn("example.com"), dns.TypeAAAA)
+	handler.ServeDNS(ctx, rw, m)
+
+	resp = rw.Response.Copy()
+	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeSuccess)
+	require.Len(t, resp.Answer, 0)
+
+	// Get example.net IPv4. Expect success
+	m.SetQuestion(dns.Fqdn("example.net"), dns.TypeA)
+	handler.ServeDNS(ctx, rw, m)
+
+	resp = rw.Response.Copy()
+	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeSuccess)
+	require.Len(t, resp.Answer, 0)
+
+	// Get example.net IPv6. Expect success
+	m.SetQuestion(dns.Fqdn("example.net"), dns.TypeAAAA)
+	handler.ServeDNS(ctx, rw, m)
+
+	resp = rw.Response.Copy()
+	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeSuccess)
+	require.NotNil(t, resp.Answer)
+	require.Equal(t, resp.Answer[0].(*dns.AAAA).AAAA.String(), "2001:db8::68")
+
+	// Get example.dev IPv4. Expect server failure
+	m.SetQuestion(dns.Fqdn("example.dev"), dns.TypeA)
+	handler.ServeDNS(ctx, rw, m)
+
+	resp = rw.Response.Copy()
+	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeServerFailure)
+	require.NotNil(t, resp.Answer)
+	require.Len(t, resp.Answer, 0)
+
+	// Get example.dev IPv6. Expect server failure
+	m.SetQuestion(dns.Fqdn("example.dev"), dns.TypeAAAA)
+	handler.ServeDNS(ctx, rw, m)
+
+	resp = rw.Response.Copy()
+	require.Equal(t, resp.MsgHdr.Rcode, dns.RcodeServerFailure)
+	require.NotNil(t, resp.Answer)
+	require.Len(t, resp.Answer, 0)
 }
