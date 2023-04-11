@@ -32,6 +32,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	nsclient "github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
@@ -778,4 +779,71 @@ func TestNSMGR_CloseAfterError(t *testing.T) {
 	_, err = nsc.Close(closeCtx, conn.Clone())
 	require.NoError(t, err)
 	require.Equal(t, 1, counter.UniqueCloses())
+}
+
+func TestNSMGR_KeepForwarderOnSingleError(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+
+	defer cancel()
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, _ int) {
+			node.NewNSMgr(ctx, "nsmgr", nil, sandbox.GenerateTestToken, nsmgr.NewServer)
+		}).
+		Build()
+
+	const fwdCount = 10
+	for i := 0; i < fwdCount; i++ {
+		domain.Nodes[0].NewForwarder(ctx, &registry.NetworkServiceEndpoint{
+			Name:                sandbox.UniqueName("forwarder-" + fmt.Sprint(i)),
+			NetworkServiceNames: []string{"forwarder"},
+		}, sandbox.GenerateTestToken)
+	}
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg := defaultRegistryService(t.Name())
+	nsReg, err := nsRegistryClient.Register(ctx, nsReg)
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
+
+	counter := new(count.Server)
+	// skip half of the available forwarders
+	// then allow one successful request
+	// then return one more error (to trigger storeForwarderName(<empty>) in discoverforwarder)
+	// then continue operating without errors
+	errors := []int{}
+	skipCount := fwdCount / 2
+	for i := 0; i < skipCount; i++ {
+		errors = append(errors, i)
+	}
+	errors = append(errors, errors[len(errors)-1]+2)
+	inject := injecterror.NewServer(injecterror.WithCloseErrorTimes(), injecterror.WithRequestErrorTimes(errors...))
+	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter, inject)
+	_ = nse
+
+	request := defaultRequest(nsReg.Name)
+
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	conn, err := nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.Equal(t, skipCount+1, counter.UniqueRequests())
+	require.Equal(t, skipCount+1, counter.Requests())
+
+	connFwd1 := conn.GetPath().GetPathSegments()[2].Name
+
+	request.Connection = conn
+	conn2, err := nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.Equal(t, skipCount+1, counter.UniqueRequests())
+	require.Equal(t, skipCount+3, counter.Requests())
+
+	connFwd2 := conn2.GetPath().GetPathSegments()[2].Name
+
+	require.Equal(t, connFwd1, connFwd2)
 }
