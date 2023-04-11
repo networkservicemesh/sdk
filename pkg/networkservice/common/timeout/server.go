@@ -70,7 +70,7 @@ func (s *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 	}
 	store(ctx, metadata.IsClient(s), cancel)
 	eventFactory := begin.FromContext(ctx)
-	afterCh := timeClock.After(after(ctx, conn) - requestTimeout)
+	afterCh := timeClock.After(minTokenTimeout(ctx, conn) - requestTimeout)
 
 	go func(cancelCtx context.Context, afterCh <-chan time.Time) {
 		select {
@@ -93,33 +93,20 @@ func (s *timeoutServer) Close(ctx context.Context, conn *networkservice.Connecti
 	return &empty.Empty{}, err
 }
 
-func after(ctx context.Context, conn *networkservice.Connection) time.Duration {
+func minTokenTimeout(ctx context.Context, conn *networkservice.Connection) time.Duration {
 	clockTime := clock.FromContext(ctx)
-
-	var minTimeout *time.Duration
-	var expireTime time.Time
+	var minTimeout time.Duration = 0
 	for _, segment := range conn.GetPath().GetPathSegments() {
 		if segment.GetExpires() == nil {
 			continue
 		}
-		expTime := segment.GetExpires().AsTime()
+		timeout := clockTime.Until(segment.GetExpires().AsTime())
 
-		timeout := clockTime.Until(expTime)
-
-		if minTimeout == nil || timeout < *minTimeout {
-			if minTimeout == nil {
-				minTimeout = new(time.Duration)
-			}
-
-			*minTimeout = timeout
-			expireTime = expTime
+		if timeout < minTimeout || minTimeout == 0 {
+			minTimeout = timeout
 		}
 	}
+	log.FromContext(ctx).Infof("expiration after %s", minTimeout.String())
 
-	if minTimeout == nil || *minTimeout <= 0 {
-		return 1
-	}
-	log.FromContext(ctx).Infof("expiration after %s at %s", minTimeout.String(), expireTime.UTC())
-
-	return *minTimeout
+	return minTimeout
 }
