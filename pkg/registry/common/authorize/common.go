@@ -39,6 +39,8 @@ type RegistryOpaInput struct {
 
 // Policy represents authorization policy for network service.
 type Policy interface {
+	// Name returns policy name
+	Name() string
 	// Check checks authorization
 	Check(ctx context.Context, input interface{}) error
 }
@@ -55,8 +57,8 @@ func (l *policiesList) check(ctx context.Context, input RegistryOpaInput) error 
 		}
 
 		if err := policy.Check(ctx, input); err != nil {
-			log.FromContext(ctx).Infof("policy failed %v", policy)
-			return errors.Wrap(err, "an error occurred during authorization policy check")
+			log.FromContext(ctx).Errorf("policy failed: %v", policy.Name())
+			return errors.Wrap(err, "registry: an error occurred during authorization policy check")
 		}
 
 		log.FromContext(ctx).Infof("policy passed")

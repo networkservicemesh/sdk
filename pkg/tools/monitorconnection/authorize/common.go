@@ -20,10 +20,14 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 // Policy represents authorization policy for monitor connection.
 type Policy interface {
+	// Name returns policy name
+	Name() string
 	// Check checks authorization
 	Check(ctx context.Context, input interface{}) error
 }
@@ -39,7 +43,8 @@ func (l *policiesList) check(ctx context.Context, srv MonitorOpaInput) error {
 			continue
 		}
 		if err := policy.Check(ctx, srv); err != nil {
-			return errors.Wrap(err, "an error occurred during authorization policy check")
+			log.FromContext(ctx).Errorf("policy failed: %v", policy.Name())
+			return errors.Wrapf(err, "monitor: an error occurred during authorization policy check")
 		}
 	}
 	return nil
