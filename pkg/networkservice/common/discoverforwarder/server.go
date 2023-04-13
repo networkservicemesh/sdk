@@ -28,10 +28,10 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/matchutils"
 )
@@ -99,7 +99,7 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 	}
 
 	conn, err := next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request)
-	if err != nil && status.Code(err) == codes.Unavailable {
+	if err != nil && grpcutils.UnwrapCode(err) == codes.Unavailable {
 		storeForwarderName(ctx, "")
 	}
 	return conn, err

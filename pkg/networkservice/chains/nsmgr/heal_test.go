@@ -930,7 +930,7 @@ func TestNSMGR_ChangeForwarderOnDeath(t *testing.T) {
 	conn, err = nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.Equal(t, 1, counter.UniqueRequests())
-	require.Equal(t, 3, counter.Requests())
+	require.Equal(t, 2, counter.Requests())
 	require.NotEqual(t, selectedFwd, conn.GetPath().GetPathSegments()[2].Name)
 }
 
