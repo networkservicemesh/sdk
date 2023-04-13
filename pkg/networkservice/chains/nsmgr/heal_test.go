@@ -18,6 +18,7 @@ package nsmgr_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -754,9 +755,9 @@ func TestNSMGR_CloseAfterError(t *testing.T) {
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 
 	counter := new(count.Server)
+	// allow only one successful request
 	inject := injecterror.NewServer(injecterror.WithCloseErrorTimes(), injecterror.WithRequestErrorTimes(1, -1))
-	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter, inject)
-	_ = nse
+	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter, inject)
 
 	request := defaultRequest(nsReg.Name)
 
@@ -764,24 +765,119 @@ func TestNSMGR_CloseAfterError(t *testing.T) {
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
-	require.Equal(t, 1, counter.UniqueRequests())
 	require.Equal(t, 1, counter.Requests())
-	require.Equal(t, 0, counter.UniqueCloses())
 
+	// fail a request
 	request.Connection = conn
 	refreshCtx, refreshCancel := context.WithTimeout(ctx, time.Second)
 	defer refreshCancel()
 	_, err = nsc.Request(refreshCtx, request.Clone())
 	require.Error(t, err)
 
-	closeCtx, closeCancel := context.WithTimeout(ctx, time.Second)
-	defer closeCancel()
-	_, err = nsc.Close(closeCtx, conn.Clone())
+	// check that closes still reach the NSE
+	require.Equal(t, 0, counter.Closes())
+	_, err = nsc.Close(ctx, conn.Clone())
 	require.NoError(t, err)
-	require.Equal(t, 1, counter.UniqueCloses())
+	require.Equal(t, 1, counter.Closes())
 }
 
-func TestNSMGR_KeepForwarderOnSingleError(t *testing.T) {
+func TestNSMGR_KeepForwarderOnErrors(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+
+	defer cancel()
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, _ int) {
+			node.NewNSMgr(ctx, "nsmgr", nil, sandbox.GenerateTestToken, nsmgr.NewServer)
+		}).
+		Build()
+
+	const fwdCount = 10
+	for i := 0; i < fwdCount; i++ {
+		domain.Nodes[0].NewForwarder(ctx, &registry.NetworkServiceEndpoint{
+			Name:                sandbox.UniqueName("forwarder-" + fmt.Sprint(i)),
+			NetworkServiceNames: []string{"forwarder"},
+		}, sandbox.GenerateTestToken)
+	}
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg := defaultRegistryService(t.Name())
+	nsReg, err := nsRegistryClient.Register(ctx, nsReg)
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
+
+	errorIndices := []int{}
+	// skip half of the available forwarders
+	skipCount := fwdCount / 2
+	for i := 0; i < skipCount; i++ {
+		errorIndices = append(errorIndices, i)
+	}
+	// then allow one successful request, then one error
+	errorIndices = append(errorIndices, errorIndices[len(errorIndices)-1]+2)
+	// then allow one successful request, then two errors
+	errorIndices = append(errorIndices, errorIndices[len(errorIndices)-1]+2, errorIndices[len(errorIndices)-1]+3)
+	inject := injecterror.NewServer(injecterror.WithCloseErrorTimes(), injecterror.WithRequestErrorTimes(errorIndices...))
+	counter := new(count.Server)
+	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter, inject)
+
+	request := defaultRequest(nsReg.Name)
+
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	conn, err := nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.Equal(t, skipCount+1, counter.UniqueRequests())
+	require.Equal(t, skipCount+1, counter.Requests())
+
+	selectedFwd := conn.GetPath().GetPathSegments()[2].Name
+
+	// check forwarder doesn't change after 1 error
+	request.Connection = conn
+	conn, err = nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.Equal(t, skipCount+1, counter.UniqueRequests())
+	require.Equal(t, skipCount+3, counter.Requests())
+	require.Equal(t, selectedFwd, conn.GetPath().GetPathSegments()[2].Name)
+
+	// check forwarder doesn't change after 2 consecutive errors
+	request.Connection = conn
+	conn, err = nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.Equal(t, skipCount+1, counter.UniqueRequests())
+	require.Equal(t, skipCount+6, counter.Requests())
+	require.Equal(t, selectedFwd, conn.GetPath().GetPathSegments()[2].Name)
+
+	nse.Cancel()
+
+	// fail request on timeout
+	failRefreshCtx, failRefreshCancel := context.WithTimeout(ctx, time.Second)
+	defer failRefreshCancel()
+	request.Connection = conn
+	_, err = nsc.Request(failRefreshCtx, request.Clone())
+	require.Error(t, err)
+	require.True(t, errors.Is(err, context.DeadlineExceeded))
+
+	// Create the second NSE.
+	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
+	nseReg2.Name += "-2"
+	regEntry2 := domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter)
+
+	// check forwarder doesn't change after NSE re-selction
+	request.Connection = conn
+	conn, err = nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.Equal(t, skipCount+2, counter.UniqueRequests())
+	require.Equal(t, skipCount+8, counter.Requests())
+	require.Equal(t, regEntry2.Name, conn.GetPath().GetPathSegments()[3].Name)
+	require.Equal(t, selectedFwd, conn.GetPath().GetPathSegments()[2].Name)
+}
+
+func TestNSMGR_ChangeForwarderOnDeath(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
@@ -812,19 +908,81 @@ func TestNSMGR_KeepForwarderOnSingleError(t *testing.T) {
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 
 	counter := new(count.Server)
+	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
+
+	request := defaultRequest(nsReg.Name)
+
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	conn, err := nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.Equal(t, 1, counter.UniqueRequests())
+	require.Equal(t, 1, counter.Requests())
+
+	selectedFwd := conn.GetPath().GetPathSegments()[2].Name
+
+	domain.Nodes[0].Forwarders[selectedFwd].Cancel()
+
+	// check different forwarder selected
+	request.Connection = conn
+	conn, err = nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.Equal(t, 1, counter.UniqueRequests())
+	require.Equal(t, 3, counter.Requests())
+	require.NotEqual(t, selectedFwd, conn.GetPath().GetPathSegments()[2].Name)
+}
+
+func TestNSMGR_ChangeForwarderOnClose(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+
+	defer cancel()
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, _ int) {
+			node.NewNSMgr(ctx, "nsmgr", nil, sandbox.GenerateTestToken, nsmgr.NewServer)
+		}).
+		Build()
+
+	const fwdCount = 10
+	for i := 0; i < fwdCount; i++ {
+		domain.Nodes[0].NewForwarder(ctx, &registry.NetworkServiceEndpoint{
+			Name:                sandbox.UniqueName("forwarder-" + fmt.Sprint(i)),
+			NetworkServiceNames: []string{"forwarder"},
+		}, sandbox.GenerateTestToken)
+	}
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg := defaultRegistryService(t.Name())
+	nsReg, err := nsRegistryClient.Register(ctx, nsReg)
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
+
+	// forwarder selection is stochastic
+	// it's possible to get the same forwarder after close by pure luck
+	// so we try re-selecting it several times
+	const reselectCount = 10
+
+	errorIndices := []int{}
 	// skip half of the available forwarders
-	// then allow one successful request
-	// then return one more error (to trigger storeForwarderName(<empty>) in discoverforwarder)
-	// then continue operating without errors
-	errors := []int{}
 	skipCount := fwdCount / 2
 	for i := 0; i < skipCount; i++ {
-		errors = append(errors, i)
+		errorIndices = append(errorIndices, i)
 	}
-	errors = append(errors, errors[len(errors)-1]+2)
-	inject := injecterror.NewServer(injecterror.WithCloseErrorTimes(), injecterror.WithRequestErrorTimes(errors...))
-	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter, inject)
-	_ = nse
+	// same pattern for each re-selection attempt
+	for i := 0; i < reselectCount; i++ {
+		// allow one successful request, then two errors
+		errorIndices = append(errorIndices, errorIndices[len(errorIndices)-1]+2, errorIndices[len(errorIndices)-1]+3)
+	}
+	// then allow one successful request, then two errors
+	// errorIndices = append(errorIndices, errorIndices[len(errorIndices)-1]+2, errorIndices[len(errorIndices)-1]+3)
+	inject := injecterror.NewServer(injecterror.WithCloseErrorTimes(), injecterror.WithRequestErrorTimes(errorIndices...))
+	counter := new(count.Server)
+	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter, inject)
 
 	request := defaultRequest(nsReg.Name)
 
@@ -835,15 +993,24 @@ func TestNSMGR_KeepForwarderOnSingleError(t *testing.T) {
 	require.Equal(t, skipCount+1, counter.UniqueRequests())
 	require.Equal(t, skipCount+1, counter.Requests())
 
-	connFwd1 := conn.GetPath().GetPathSegments()[2].Name
+	selectedFwd := conn.GetPath().GetPathSegments()[2].Name
 
-	request.Connection = conn
-	conn2, err := nsc.Request(ctx, request.Clone())
-	require.NoError(t, err)
-	require.Equal(t, skipCount+1, counter.UniqueRequests())
-	require.Equal(t, skipCount+3, counter.Requests())
+	requestsCount := counter.Requests()
+	for i := 0; i < reselectCount; i++ {
+		_, err = nsc.Close(ctx, conn)
+		require.NoError(t, err)
 
-	connFwd2 := conn2.GetPath().GetPathSegments()[2].Name
-
-	require.Equal(t, connFwd1, connFwd2)
+		// check that we select a different forwarder
+		selectedFwd = conn.GetPath().GetPathSegments()[2].Name
+		request.Connection = conn
+		conn, err = nsc.Request(ctx, request.Clone())
+		require.NoError(t, err)
+		require.Equal(t, skipCount+1, counter.UniqueRequests())
+		require.Equal(t, requestsCount+3, counter.Requests())
+		requestsCount = counter.Requests()
+		if selectedFwd != conn.GetPath().GetPathSegments()[2].Name {
+			break
+		}
+	}
+	require.NotEqual(t, selectedFwd, conn.GetPath().GetPathSegments()[2].Name)
 }
