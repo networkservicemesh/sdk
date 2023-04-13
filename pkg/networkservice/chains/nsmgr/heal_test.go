@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -818,7 +820,7 @@ func TestNSMGR_KeepForwarderOnErrors(t *testing.T) {
 		errorIndices = append(errorIndices, i)
 	}
 	// then allow one successful request, then one error
-	errorIndices = append(errorIndices, errorIndices[len(errorIndices)-1]+2)
+	errorIndices = append(errorIndices, errorIndices[len(errorIndices)-1]+2) //nolint:appendCombine
 	// then allow one successful request, then two errors
 	errorIndices = append(errorIndices, errorIndices[len(errorIndices)-1]+2, errorIndices[len(errorIndices)-1]+3)
 	inject := injecterror.NewServer(injecterror.WithCloseErrorTimes(), injecterror.WithRequestErrorTimes(errorIndices...))
