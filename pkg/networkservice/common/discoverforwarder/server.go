@@ -27,6 +27,8 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/pkg/errors"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
@@ -151,7 +153,7 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 	}
 
 	conn, err := next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request)
-	if err != nil {
+	if err != nil && status.Code(err) == codes.Unavailable {
 		storeForwarderName(ctx, "")
 	}
 	return conn, err
