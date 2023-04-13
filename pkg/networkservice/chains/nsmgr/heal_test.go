@@ -820,7 +820,7 @@ func TestNSMGR_KeepForwarderOnErrors(t *testing.T) {
 		errorIndices = append(errorIndices, i)
 	}
 	// then allow one successful request, then one error
-	errorIndices = append(errorIndices, errorIndices[len(errorIndices)-1]+2) //nolint:appendCombine
+	errorIndices = append(errorIndices, errorIndices[len(errorIndices)-1]+2) //nolint:gocritic
 	// then allow one successful request, then two errors
 	errorIndices = append(errorIndices, errorIndices[len(errorIndices)-1]+2, errorIndices[len(errorIndices)-1]+3)
 	inject := injecterror.NewServer(injecterror.WithCloseErrorTimes(), injecterror.WithRequestErrorTimes(errorIndices...))
