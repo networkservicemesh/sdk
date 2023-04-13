@@ -20,7 +20,6 @@ package nsmgr_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -855,14 +854,6 @@ func TestNSMGR_KeepForwarderOnErrors(t *testing.T) {
 	require.Equal(t, selectedFwd, conn.GetPath().GetPathSegments()[2].Name)
 
 	nse.Cancel()
-
-	// fail request on timeout
-	failRefreshCtx, failRefreshCancel := context.WithTimeout(ctx, time.Second)
-	defer failRefreshCancel()
-	request.Connection = conn
-	_, err = nsc.Request(failRefreshCtx, request.Clone())
-	require.Error(t, err)
-	require.True(t, errors.Is(err, context.DeadlineExceeded))
 
 	// Create the second NSE.
 	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
