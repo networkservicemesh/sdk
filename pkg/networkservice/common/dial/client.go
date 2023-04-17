@@ -25,6 +25,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
@@ -94,6 +95,10 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
+		connState := di.ClientConn.GetState()
+		if connState == connectivity.TransientFailure || connState == connectivity.Shutdown {
+			clientconn.Delete(ctx)
+		}
 		_ = di.Close()
 		return nil, err
 	}
