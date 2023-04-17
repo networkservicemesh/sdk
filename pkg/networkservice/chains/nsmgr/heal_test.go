@@ -33,7 +33,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	nsclient "github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
@@ -894,7 +893,7 @@ func TestNSMGR_KeepForwarderOnNSEDeath_NoHeal(t *testing.T) {
 
 	request := defaultRequest(nsReg.Name)
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithHealClient(null.NewClient()))
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, nsclient.WithHealClient(null.NewClient()))
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -966,7 +965,7 @@ func TestNSMGR_ChangeForwarderOnDeath_NoHeal(t *testing.T) {
 
 	request := defaultRequest(nsReg.Name)
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithHealClient(null.NewClient()))
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, nsclient.WithHealClient(null.NewClient()))
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
