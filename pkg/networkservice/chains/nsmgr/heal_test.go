@@ -931,7 +931,7 @@ func TestNSMGR_KeepForwarderOnNSEDeath_NoHeal(t *testing.T) {
 	require.Equal(t, selectedFwd, conn.GetPath().GetPathSegments()[2].Name)
 }
 
-func TestNSMGR_ChangeForwarderOnDeath(t *testing.T) {
+func TestNSMGR_ChangeForwarderOnDeath_NoHeal(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
@@ -966,7 +966,7 @@ func TestNSMGR_ChangeForwarderOnDeath(t *testing.T) {
 
 	request := defaultRequest(nsReg.Name)
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithHealClient(null.NewClient()))
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
