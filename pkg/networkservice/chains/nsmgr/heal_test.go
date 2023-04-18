@@ -902,6 +902,7 @@ func TestNSMGR_KeepForwarderOnNSEDeath_NoHeal(t *testing.T) {
 
 	selectedFwd := conn.GetPath().GetPathSegments()[2].Name
 
+	fmt.Println("nacskq: root cancel nse")
 	nse.Cancel()
 
 	// fail a refresh on connection timeout
@@ -911,21 +912,25 @@ func TestNSMGR_KeepForwarderOnNSEDeath_NoHeal(t *testing.T) {
 	_, err = nsc.Request(refreshCtx, request.Clone())
 	require.Error(t, err)
 
+	fmt.Println("nacskq: root after failed request")
+
 	// create a new NSE
 	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
 	nseReg2.Name += "-2"
 	counter2 := new(count.Server)
 	// inject 1 error to make sure that don't go the "first try forwarder in path" route
-	inject2 := injecterror.NewServer(injecterror.WithCloseErrorTimes(), injecterror.WithRequestErrorTimes(0))
+	inject2 := injecterror.NewServer(injecterror.WithCloseErrorTimes(), injecterror.WithRequestErrorTimes(0, 1))
 	regEntry2 := domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter2, inject2)
+
+	fmt.Println("nacskq: root new request")
 
 	// check that forwarder doesn't change after NSE re-selction
 	request.Connection = conn
 	request.Connection.NetworkServiceEndpointName = ""
 	conn, err = nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
-	require.Equal(t, 2, counter2.UniqueRequests())
-	require.Equal(t, 2, counter2.Requests())
+	require.Equal(t, 3, counter2.UniqueRequests())
+	require.Equal(t, 3, counter2.Requests())
 	require.Equal(t, regEntry2.Name, conn.GetPath().GetPathSegments()[3].Name)
 	require.Equal(t, selectedFwd, conn.GetPath().GetPathSegments()[2].Name)
 }
@@ -974,8 +979,10 @@ func TestNSMGR_ChangeForwarderOnDeath_NoHeal(t *testing.T) {
 
 	selectedFwd := conn.GetPath().GetPathSegments()[2].Name
 
+	fmt.Println("nacskq: root cancel fwd")
 	domain.Nodes[0].Forwarders[selectedFwd].Cancel()
 
+	fmt.Println("nacskq: root request different fwd")
 	// check different forwarder selected
 	request.Connection = conn
 	conn, err = nsc.Request(ctx, request.Clone())

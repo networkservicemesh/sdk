@@ -23,6 +23,7 @@ package dial
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -82,6 +83,10 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 		err := di.Dial(closeCtx, di.clientURL)
 		if err != nil {
 			log.FromContext(ctx).Errorf("can not redial to %v, err %v. Deleting clientconn...", grpcutils.URLToTarget(di.clientURL), err)
+			pathSegment := request.GetConnection().GetCurrentPathSegment()
+			if pathSegment != nil {
+				fmt.Println("nacskq: dialClient delete di on redial in", pathSegment.Name)
+			}
 			clientconn.Delete(ctx)
 			return nil, err
 		}
@@ -91,6 +96,10 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 	err := di.Dial(ctx, clientURL)
 	if err != nil {
 		log.FromContext(ctx).Errorf("can not dial to %v, err %v. Deleting clientconn...", grpcutils.URLToTarget(clientURL), err)
+		pathSegment := request.GetConnection().GetCurrentPathSegment()
+		if pathSegment != nil {
+			fmt.Println("nacskq: dialClient delete di on dial in", pathSegment.Name)
+		}
 		clientconn.Delete(ctx)
 		return nil, err
 	}
@@ -99,6 +108,10 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 	if err != nil {
 		connState := di.ClientConn.GetState()
 		if connState == connectivity.TransientFailure || connState == connectivity.Shutdown {
+			pathSegment := request.GetConnection().GetCurrentPathSegment()
+			if pathSegment != nil {
+				fmt.Println("nacskq: dialClient delete di on err in", pathSegment.Name)
+			}
 			clientconn.Delete(ctx)
 		}
 		_ = di.Close()
@@ -123,6 +136,10 @@ func (d *dialClient) Close(ctx context.Context, conn *networkservice.Connection,
 	}
 	defer func() {
 		_ = di.Close()
+		pathSegment := conn.GetCurrentPathSegment()
+		if pathSegment != nil {
+			fmt.Println("nacskq: dialClient delete di on close in", pathSegment.Name)
+		}
 		clientconn.Delete(ctx)
 	}()
 	_ = di.Dial(ctx, clientURL)

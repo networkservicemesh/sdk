@@ -21,6 +21,7 @@ package discoverforwarder
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -71,8 +72,10 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 	var logger = log.FromContext(ctx).WithField("discoverForwarderServer", "request")
 
 	if forwarderName == "" {
+		fmt.Println("nacskq: discoverForwarderServer selectNewForwarder")
 		return d.selectNewForwarder(ctx, request)
 	}
+	fmt.Println("nacskq: discoverForwarderServer reuse fwd")
 
 	stream, err := d.nseClient.Find(ctx, &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
@@ -100,6 +103,7 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 	conn, err := next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request)
 	_, dialerOk := clientconn.Load(ctx)
 	if err != nil && !dialerOk {
+		fmt.Println("nacskq: discoverForwarderServer clear fws on error")
 		storeForwarderName(ctx, "")
 	}
 	return conn, err
@@ -107,6 +111,7 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 
 func (d *discoverForwarderServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	var forwarderName = loadForwarderName(ctx)
+	fmt.Println("nacskq: discoverForwarderServer Close", forwarderName)
 	var logger = log.FromContext(ctx).WithField("discoverForwarderServer", "request")
 	if forwarderName == "" {
 		return nil, errors.New("forwarder is not selected")
@@ -250,6 +255,7 @@ func (d *discoverForwarderServer) selectNewForwarder(ctx context.Context, reques
 		resp, err := next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request.Clone())
 		if err == nil {
 			storeForwarderName(ctx, candidate.Name)
+			fmt.Println("nacskq: discoverForwarderServer selected new", candidate.Name)
 			return resp, nil
 		}
 		logger.Errorf("forwarder=%v url=%v returned error=%v", candidate.Name, candidate.Url, err.Error())
