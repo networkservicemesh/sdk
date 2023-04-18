@@ -78,7 +78,7 @@ func getContextWithTLSCert() (context.Context, error) {
 }
 
 func testPolicy() authorize.Policy {
-	return opa.WithPolicyFromSource(`
+	return opa.WithNamedPolicyFromSource("testPolicy", `
 		package test
 	
 		default allow = false

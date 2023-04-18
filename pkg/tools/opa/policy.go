@@ -58,6 +58,17 @@ func True(query string) CheckAccessFunc {
 // WithPolicyFromSource creates custom policy based on rego source code
 func WithPolicyFromSource(source, query string, checkQuery CheckQueryFunc) *AuthorizationPolicy {
 	return &AuthorizationPolicy{
+		name:         "fromSource",
+		policySource: strings.TrimSpace(source),
+		query:        query,
+		checker:      checkQuery(query),
+	}
+}
+
+// WithNamedPolicyFromSource creates named custom policy based on rego source code
+func WithNamedPolicyFromSource(name, source, query string, checkQuery CheckQueryFunc) *AuthorizationPolicy {
+	return &AuthorizationPolicy{
+		name:         name,
 		policySource: strings.TrimSpace(source),
 		query:        query,
 		checker:      checkQuery(query),
@@ -67,6 +78,7 @@ func WithPolicyFromSource(source, query string, checkQuery CheckQueryFunc) *Auth
 // AuthorizationPolicy checks that passed tokens are valid
 type AuthorizationPolicy struct {
 	initErr        error
+	name           string
 	policyFilePath string
 	policySource   string
 	pkg            string
@@ -74,6 +86,11 @@ type AuthorizationPolicy struct {
 	evalQuery      *rego.PreparedEvalQuery
 	checker        CheckAccessFunc
 	once           sync.Once
+}
+
+// Name returns AuthorizationPolicy name
+func (d *AuthorizationPolicy) Name() string {
+	return d.name
 }
 
 // Check returns nil if passed tokens are valid

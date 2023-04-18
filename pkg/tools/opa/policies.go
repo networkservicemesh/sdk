@@ -70,6 +70,7 @@ func PolicyFromFile(p string) (*AuthorizationPolicy, error) {
 		}
 	}
 	return &AuthorizationPolicy{
+		name:         p,
 		policySource: string(b),
 		query:        "valid",
 		checker:      True("valid"),
