@@ -100,6 +100,7 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 		if pathSegment != nil {
 			fmt.Println("nacskq: dialClient delete di on dial in", pathSegment.Name, err)
 		}
+		// if it just so happens that context deadline was exceeded, then it is bad to remove it
 		clientconn.Delete(ctx)
 		return nil, err
 	}
