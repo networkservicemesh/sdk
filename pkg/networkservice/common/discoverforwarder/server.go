@@ -106,7 +106,7 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 	// _, dialerOk := clientconn.Load(ctx)
 	// if err != nil && !dialerOk {
 	if err != nil && grpcutils.UnwrapCode(err) == codes.Unavailable {
-		fmt.Println("nacskq: discoverForwarderServer clear fwd on codes.Unavailable:", err)
+		fmt.Println("nacskq: discoverForwarderServer clear fwd on codes.Unavailable", err)
 		storeForwarderName(ctx, "")
 	}
 	return conn, err
