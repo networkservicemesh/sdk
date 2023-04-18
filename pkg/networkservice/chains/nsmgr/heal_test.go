@@ -768,6 +768,7 @@ func TestNSMGR_fwd_CloseAfterError(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, counter.Requests())
 
+	fmt.Println("nacskq: root request with fail")
 	// fail a request
 	request.Connection = conn
 	refreshCtx, refreshCancel := context.WithTimeout(ctx, time.Second)
@@ -775,6 +776,7 @@ func TestNSMGR_fwd_CloseAfterError(t *testing.T) {
 	_, err = nsc.Request(refreshCtx, request.Clone())
 	require.Error(t, err)
 
+	fmt.Println("nacskq: root close")
 	// check that closes still reach the NSE
 	require.Equal(t, 0, counter.Closes())
 	_, err = nsc.Close(ctx, conn.Clone())

@@ -98,7 +98,7 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 		log.FromContext(ctx).Errorf("can not dial to %v, err %v. Deleting clientconn...", grpcutils.URLToTarget(clientURL), err)
 		pathSegment := request.GetConnection().GetCurrentPathSegment()
 		if pathSegment != nil {
-			fmt.Println("nacskq: dialClient delete di on dial in", pathSegment.Name)
+			fmt.Println("nacskq: dialClient delete di on dial in", pathSegment.Name, err)
 		}
 		clientconn.Delete(ctx)
 		return nil, err
@@ -110,7 +110,7 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 		if connState == connectivity.TransientFailure || connState == connectivity.Shutdown {
 			pathSegment := request.GetConnection().GetCurrentPathSegment()
 			if pathSegment != nil {
-				fmt.Println("nacskq: dialClient delete di on err in", pathSegment.Name)
+				fmt.Println("nacskq: dialClient delete di on err in", pathSegment.Name, err)
 			}
 			clientconn.Delete(ctx)
 		}

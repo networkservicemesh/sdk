@@ -72,10 +72,10 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 	var logger = log.FromContext(ctx).WithField("discoverForwarderServer", "request")
 
 	if forwarderName == "" {
-		fmt.Println("nacskq: discoverForwarderServer selectNewForwarder")
+		fmt.Println("nacskq: discoverForwarderServer selectNewForwarder for", request.GetConnection().GetId())
 		return d.selectNewForwarder(ctx, request)
 	}
-	fmt.Println("nacskq: discoverForwarderServer reuse fwd")
+	fmt.Println("nacskq: discoverForwarderServer reuse fwd for", request.GetConnection().GetId())
 
 	stream, err := d.nseClient.Find(ctx, &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
@@ -90,6 +90,7 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 
 	nses := registry.ReadNetworkServiceEndpointList(stream)
 	if len(nses) == 0 {
+		fmt.Println("nacskq: discoverForwarderServer clear fwd: not found", err)
 		storeForwarderName(ctx, "")
 		return nil, errors.New("forwarder not found")
 	}
@@ -103,7 +104,7 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 	conn, err := next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request)
 	_, dialerOk := clientconn.Load(ctx)
 	if err != nil && !dialerOk {
-		fmt.Println("nacskq: discoverForwarderServer clear fws on error")
+		fmt.Println("nacskq: discoverForwarderServer clear fwd on error", err)
 		storeForwarderName(ctx, "")
 	}
 	return conn, err
