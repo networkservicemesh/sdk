@@ -1,5 +1,3 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
-//
 // Copyright (c) 2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
