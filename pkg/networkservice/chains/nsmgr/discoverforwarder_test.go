@@ -232,7 +232,6 @@ func Test_DiscoverForwarder_KeepForwarderOnNSEDeath_LostHeal(t *testing.T) {
 
 	// check that forwarder doesn't change after NSE re-selction
 	request.Connection = conn
-	// request.Connection.NetworkServiceEndpointName = ""
 	conn, err = nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.Equal(t, 3, counter2.UniqueRequests())
