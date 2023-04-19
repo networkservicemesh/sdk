@@ -103,8 +103,6 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 	}
 
 	conn, err := next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request)
-	// _, dialerOk := clientconn.Load(ctx)
-	// if err != nil && !dialerOk {
 	if err != nil && grpcutils.UnwrapCode(err) == codes.Unavailable {
 		storeForwarderName(ctx, "")
 	}
