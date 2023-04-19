@@ -89,9 +89,13 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 		return nil, errors.Wrapf(err, "failed to find %s on %s", forwarderName, d.nsmgrURL)
 	}
 
+	// TODO change ReadNetworkServiceEndpointList to return error
 	nses := registry.ReadNetworkServiceEndpointList(stream)
 	if len(nses) == 0 {
 		fmt.Println("nacskq: discoverForwarderServer clear fwd: not found", err)
+		if ctx.Err() != nil {
+			return nil, errors.Wrap(ctx.Err(), "forwarder not found")
+		}
 		storeForwarderName(ctx, "")
 		return nil, errors.New("forwarder not found")
 	}
