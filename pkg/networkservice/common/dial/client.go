@@ -119,9 +119,6 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 			clientconn.Delete(ctx)
 			_ = di.Close()
 		}
-		// connState := di.ClientConn.GetState()
-		// if connState == connectivity.TransientFailure {
-		// }
 		return nil, err
 	}
 	return conn, nil
