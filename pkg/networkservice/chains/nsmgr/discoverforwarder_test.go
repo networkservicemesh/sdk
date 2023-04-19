@@ -158,7 +158,8 @@ func Test_DiscoverForwarder_KeepForwarderOnErrors(t *testing.T) {
 
 func Test_DiscoverForwarder_KeepForwarderOnNSEDeath_LostHeal(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	// on Windows systems this test takes 15+ seconds for some reason
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 
 	defer cancel()
 	domain := sandbox.NewBuilder(ctx, t).
