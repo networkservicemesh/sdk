@@ -29,7 +29,6 @@ import (
 
 	nsclient "github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
@@ -157,9 +156,9 @@ func Test_DiscoverForwarder_KeepForwarderOnErrors(t *testing.T) {
 	require.Equal(t, selectedFwd, conn.GetPath().GetPathSegments()[2].Name)
 }
 
-func Test_DiscoverForwarder_KeepForwarderOnNSEDeath_NoHeal(t *testing.T) {
+func Test_DiscoverForwarder_KeepForwarderOnNSEDeath_LostHeal(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	ctx, cancel := context.WithTimeout(context.Background(), timeout*1000)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
 	defer cancel()
 	domain := sandbox.NewBuilder(ctx, t).
@@ -192,7 +191,12 @@ func Test_DiscoverForwarder_KeepForwarderOnNSEDeath_NoHeal(t *testing.T) {
 
 	request := defaultRequest(nsReg.Name)
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, nsclient.WithHealClient(null.NewClient()))
+	clientCounter := new(count.Client)
+	// make sure that Close from heal doesn't clear the forwarder name
+	// we want to clear it automatically in discoverforwarder element on Request
+	clientInject := injecterror.NewClient(injecterror.WithRequestErrorTimes(), injecterror.WithCloseErrorTimes(-1))
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
+		nsclient.WithAdditionalFunctionality(clientCounter, clientInject))
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -203,12 +207,20 @@ func Test_DiscoverForwarder_KeepForwarderOnNSEDeath_NoHeal(t *testing.T) {
 
 	nse.Cancel()
 
+	require.Eventually(t, func() bool { return clientCounter.Closes() == 1 }, timeout, tick)
+	require.Equal(t, 0, counter.Closes())
+	require.Equal(t, 1, counter.UniqueRequests())
+	require.Equal(t, 1, counter.Requests())
+
 	// fail a refresh on connection timeout
 	refreshCtx, refreshCancel := context.WithTimeout(ctx, time.Second)
 	defer refreshCancel()
 	request.Connection = conn
 	_, err = nsc.Request(refreshCtx, request.Clone())
 	require.Error(t, err)
+	require.Equal(t, 1, counter.UniqueRequests())
+	require.Equal(t, 1, counter.Requests())
+	require.Equal(t, 0, counter.Closes())
 
 	// create a new NSE
 	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
@@ -220,11 +232,11 @@ func Test_DiscoverForwarder_KeepForwarderOnNSEDeath_NoHeal(t *testing.T) {
 
 	// check that forwarder doesn't change after NSE re-selction
 	request.Connection = conn
-	request.Connection.NetworkServiceEndpointName = ""
+	// request.Connection.NetworkServiceEndpointName = ""
 	conn, err = nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.Equal(t, 3, counter2.UniqueRequests())
-	require.Equal(t, 3, counter2.Requests())
+	require.Equal(t, 4, counter2.Requests())
 	require.Equal(t, regEntry2.Name, conn.GetPath().GetPathSegments()[3].Name)
 	require.Equal(t, selectedFwd, conn.GetPath().GetPathSegments()[2].Name)
 }
