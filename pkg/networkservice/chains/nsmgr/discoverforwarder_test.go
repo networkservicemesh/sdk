@@ -67,7 +67,6 @@ func Test_DiscoverForwarder_CloseAfterError(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, counter.Requests())
 
-	fmt.Println("nacskq: root request with fail")
 	// fail a request
 	request.Connection = conn
 	refreshCtx, refreshCancel := context.WithTimeout(ctx, time.Second)
@@ -75,7 +74,6 @@ func Test_DiscoverForwarder_CloseAfterError(t *testing.T) {
 	_, err = nsc.Request(refreshCtx, request.Clone())
 	require.Error(t, err)
 
-	fmt.Println("nacskq: root close")
 	// check that closes still reach the NSE
 	require.Equal(t, 0, counter.Closes())
 	_, err = nsc.Close(ctx, conn.Clone())
@@ -203,7 +201,6 @@ func Test_DiscoverForwarder_KeepForwarderOnNSEDeath_NoHeal(t *testing.T) {
 
 	selectedFwd := conn.GetPath().GetPathSegments()[2].Name
 
-	fmt.Println("nacskq: root cancel nse")
 	nse.Cancel()
 
 	// fail a refresh on connection timeout
@@ -213,8 +210,6 @@ func Test_DiscoverForwarder_KeepForwarderOnNSEDeath_NoHeal(t *testing.T) {
 	_, err = nsc.Request(refreshCtx, request.Clone())
 	require.Error(t, err)
 
-	fmt.Println("nacskq: root after failed request")
-
 	// create a new NSE
 	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
 	nseReg2.Name += "-2"
@@ -222,8 +217,6 @@ func Test_DiscoverForwarder_KeepForwarderOnNSEDeath_NoHeal(t *testing.T) {
 	// inject 1 error to make sure that don't go the "first try forwarder in path" route
 	inject2 := injecterror.NewServer(injecterror.WithCloseErrorTimes(), injecterror.WithRequestErrorTimes(0, 1))
 	regEntry2 := domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter2, inject2)
-
-	fmt.Println("nacskq: root new request")
 
 	// check that forwarder doesn't change after NSE re-selction
 	request.Connection = conn
@@ -285,13 +278,11 @@ func Test_DiscoverForwarder_ChangeForwarderOnDeath_LostHeal(t *testing.T) {
 
 	selectedFwd := conn.GetPath().GetPathSegments()[2].Name
 
-	fmt.Println("nacskq: root cancel fwd")
 	domain.Nodes[0].Forwarders[selectedFwd].Cancel()
 
 	require.Eventually(t, func() bool { return clientCounter.Closes() == 1 }, timeout, tick)
 	require.Equal(t, 0, counter.Closes())
 
-	fmt.Println("nacskq: root request different fwd")
 	// check different forwarder selected
 	request.Connection = conn
 	conn, err = nsc.Request(ctx, request.Clone())

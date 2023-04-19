@@ -21,7 +21,6 @@ package dial
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -75,16 +74,11 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 
 	// If our existing dialer has a different URL close down the chain
 	if di.clientURL != nil && di.clientURL.String() != clientURL.String() {
-		fmt.Println("nacskq: dialClient redial because", di.clientURL, "!=", clientURL)
 		closeCtx, closeCancel := closeContextFunc()
 		defer closeCancel()
 		err := di.Dial(closeCtx, di.clientURL)
 		if err != nil {
 			log.FromContext(ctx).Errorf("can not redial to %v, err %v. Deleting clientconn...", grpcutils.URLToTarget(di.clientURL), err)
-			pathSegment := request.GetConnection().GetCurrentPathSegment()
-			if pathSegment != nil {
-				fmt.Println("nacskq: dialClient delete di on redial in", pathSegment.Name)
-			}
 			clientconn.Delete(ctx)
 			return nil, err
 		}
@@ -97,11 +91,6 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 		if !diLoaded {
 			log.FromContext(ctx).Errorf("can not dial to %v, err %v. Deleting clientconn...", grpcutils.URLToTarget(clientURL), err)
 			clientconn.Delete(ctx)
-			pathSegment := request.GetConnection().GetCurrentPathSegment()
-			if pathSegment != nil && di.ClientConn != nil {
-				connState := di.ClientConn.GetState()
-				fmt.Println("nacskq: dialClient delete di on dial with", connState, "in", pathSegment.Name, err)
-			}
 		}
 		return nil, err
 	}
@@ -110,10 +99,6 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 	if err != nil {
 		// we shouldn't delete dialer on failed refreshes
 		if !diLoaded {
-			pathSegment := request.GetConnection().GetCurrentPathSegment()
-			if pathSegment != nil {
-				fmt.Println("nacskq: dialClient delete di on err in", pathSegment.Name, err)
-			}
 			clientconn.Delete(ctx)
 			_ = di.Close()
 		}
@@ -138,10 +123,6 @@ func (d *dialClient) Close(ctx context.Context, conn *networkservice.Connection,
 	}
 	defer func() {
 		_ = di.Close()
-		pathSegment := conn.GetCurrentPathSegment()
-		if pathSegment != nil {
-			fmt.Println("nacskq: dialClient delete di on close in:", pathSegment.Name)
-		}
 		clientconn.Delete(ctx)
 	}()
 	_ = di.Dial(ctx, clientURL)
