@@ -98,7 +98,7 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 			log.FromContext(ctx).Errorf("can not dial to %v, err %v. Deleting clientconn...", grpcutils.URLToTarget(clientURL), err)
 			clientconn.Delete(ctx)
 			pathSegment := request.GetConnection().GetCurrentPathSegment()
-			if pathSegment != nil {
+			if pathSegment != nil && di.ClientConn != nil {
 				connState := di.ClientConn.GetState()
 				fmt.Println("nacskq: dialClient delete di on dial with", connState, "in", pathSegment.Name, err)
 			}

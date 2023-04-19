@@ -236,7 +236,7 @@ func Test_DiscoverForwarder_KeepForwarderOnNSEDeath_NoHeal(t *testing.T) {
 	require.Equal(t, selectedFwd, conn.GetPath().GetPathSegments()[2].Name)
 }
 
-func Test_DiscoverForwarder_ChangeForwarderOnDeath_NoHeal(t *testing.T) {
+func Test_DiscoverForwarder_ChangeForwarderOnDeath_LostHeal(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
@@ -271,7 +271,12 @@ func Test_DiscoverForwarder_ChangeForwarderOnDeath_NoHeal(t *testing.T) {
 
 	request := defaultRequest(nsReg.Name)
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, nsclient.WithHealClient(null.NewClient()))
+	clientCounter := new(count.Client)
+	// make sure that Close from heal doesn't clear the forwarder name
+	// we want to clear it automatically in discoverforwarder element on Request
+	clientInject := injecterror.NewClient(injecterror.WithRequestErrorTimes(), injecterror.WithCloseErrorTimes(0))
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
+		nsclient.WithAdditionalFunctionality(clientCounter, clientInject))
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -282,6 +287,9 @@ func Test_DiscoverForwarder_ChangeForwarderOnDeath_NoHeal(t *testing.T) {
 
 	fmt.Println("nacskq: root cancel fwd")
 	domain.Nodes[0].Forwarders[selectedFwd].Cancel()
+
+	require.Eventually(t, func() bool { return clientCounter.Closes() == 1 }, timeout, tick)
+	require.Equal(t, 0, counter.Closes())
 
 	fmt.Println("nacskq: root request different fwd")
 	// check different forwarder selected
