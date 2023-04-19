@@ -98,7 +98,8 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 		log.FromContext(ctx).Errorf("can not dial to %v, err %v. Deleting clientconn...", grpcutils.URLToTarget(clientURL), err)
 		pathSegment := request.GetConnection().GetCurrentPathSegment()
 		if pathSegment != nil {
-			fmt.Println("nacskq: dialClient delete di on dial in", pathSegment.Name, err)
+			connState := di.ClientConn.GetState()
+			fmt.Println("nacskq: dialClient delete di on dial with", connState, "in", pathSegment.Name, err)
 		}
 		// if it just so happens that context deadline was exceeded, then it is bad to remove it
 		clientconn.Delete(ctx)
