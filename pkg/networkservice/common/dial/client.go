@@ -140,7 +140,7 @@ func (d *dialClient) Close(ctx context.Context, conn *networkservice.Connection,
 		_ = di.Close()
 		pathSegment := conn.GetCurrentPathSegment()
 		if pathSegment != nil {
-			fmt.Println("nacskq: dialClient delete di on close in", pathSegment.Name)
+			fmt.Println("nacskq: dialClient delete di on close in:", pathSegment.Name)
 		}
 		clientconn.Delete(ctx)
 	}()
