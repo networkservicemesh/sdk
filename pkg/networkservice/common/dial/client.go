@@ -28,7 +28,6 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
@@ -68,7 +67,7 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 		return next.Client(ctx).Request(ctx, request, opts...)
 	}
 
-	cc, _ := clientconn.LoadOrStore(ctx, newDialer(d.chainCtx, d.dialTimeout, d.dialOptions...))
+	cc, diLoaded := clientconn.LoadOrStore(ctx, newDialer(d.chainCtx, d.dialTimeout, d.dialOptions...))
 
 	// If there's an existing grpc.ClientConnInterface and it's not ours, call the next in the chain
 	di, ok := cc.(*dialer)
@@ -78,6 +77,7 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 
 	// If our existing dialer has a different URL close down the chain
 	if di.clientURL != nil && di.clientURL.String() != clientURL.String() {
+		fmt.Println("nacskq: dialClient redial because", di.clientURL, "!=", clientURL)
 		closeCtx, closeCancel := closeContextFunc()
 		defer closeCancel()
 		err := di.Dial(closeCtx, di.clientURL)
@@ -95,28 +95,33 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 
 	err := di.Dial(ctx, clientURL)
 	if err != nil {
-		log.FromContext(ctx).Errorf("can not dial to %v, err %v. Deleting clientconn...", grpcutils.URLToTarget(clientURL), err)
-		pathSegment := request.GetConnection().GetCurrentPathSegment()
-		if pathSegment != nil {
-			connState := di.ClientConn.GetState()
-			fmt.Println("nacskq: dialClient delete di on dial with", connState, "in", pathSegment.Name, err)
+		// we shouldn't delete dialer on failed refreshes
+		if !diLoaded {
+			log.FromContext(ctx).Errorf("can not dial to %v, err %v. Deleting clientconn...", grpcutils.URLToTarget(clientURL), err)
+			clientconn.Delete(ctx)
+			pathSegment := request.GetConnection().GetCurrentPathSegment()
+			if pathSegment != nil {
+				connState := di.ClientConn.GetState()
+				fmt.Println("nacskq: dialClient delete di on dial with", connState, "in", pathSegment.Name, err)
+			}
 		}
-		// if it just so happens that context deadline was exceeded, then it is bad to remove it
-		clientconn.Delete(ctx)
 		return nil, err
 	}
 
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
-		connState := di.ClientConn.GetState()
-		if connState == connectivity.TransientFailure || connState == connectivity.Shutdown {
+		// we shouldn't delete dialer on failed refreshes
+		if !diLoaded {
 			pathSegment := request.GetConnection().GetCurrentPathSegment()
 			if pathSegment != nil {
 				fmt.Println("nacskq: dialClient delete di on err in", pathSegment.Name, err)
 			}
 			clientconn.Delete(ctx)
+			_ = di.Close()
 		}
-		_ = di.Close()
+		// connState := di.ClientConn.GetState()
+		// if connState == connectivity.TransientFailure {
+		// }
 		return nil, err
 	}
 	return conn, nil
@@ -130,7 +135,7 @@ func (d *dialClient) Close(ctx context.Context, conn *networkservice.Connection,
 		return next.Client(ctx).Close(ctx, conn, opts...)
 	}
 
-	cc, _ := clientconn.Load(ctx)
+	cc, _ := clientconn.LoadOrStore(ctx, newDialer(d.chainCtx, d.dialTimeout, d.dialOptions...))
 
 	di, ok := cc.(*dialer)
 	if !ok {
