@@ -73,7 +73,7 @@ func Test_DiscoverForwarder_CloseAfterError(t *testing.T) {
 	_, err = nsc.Request(refreshCtx, request.Clone())
 	require.Error(t, err)
 
-	// check that closes still reach the NSE
+	// check that Close call can still reach the NSE
 	require.Equal(t, 0, counter.Closes())
 	_, err = nsc.Close(ctx, conn.Clone())
 	require.NoError(t, err)
@@ -279,7 +279,7 @@ func Test_DiscoverForwarder_ChangeForwarderOnDeath_LostHeal(t *testing.T) {
 	clientCounter := new(count.Client)
 	// make sure that Close from heal doesn't clear the forwarder name
 	// we want to clear it automatically in discoverforwarder element on Request
-	clientInject := injecterror.NewClient(injecterror.WithRequestErrorTimes(), injecterror.WithCloseErrorTimes(0))
+	clientInject := injecterror.NewClient(injecterror.WithRequestErrorTimes(), injecterror.WithCloseErrorTimes(-1))
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
 		nsclient.WithAdditionalFunctionality(clientCounter, clientInject))
 
@@ -292,15 +292,13 @@ func Test_DiscoverForwarder_ChangeForwarderOnDeath_LostHeal(t *testing.T) {
 
 	domain.Nodes[0].Forwarders[selectedFwd].Cancel()
 
-	require.Eventually(t, func() bool { return clientCounter.Closes() == 1 }, timeout, tick)
-	require.Equal(t, 0, counter.Closes())
-
 	// check different forwarder selected
 	request.Connection = conn
 	conn, err = nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.Equal(t, 1, counter.UniqueRequests())
 	require.Equal(t, 2, counter.Requests())
+	require.Equal(t, 0, counter.Closes())
 	require.NotEqual(t, selectedFwd, conn.GetPath().GetPathSegments()[2].Name)
 }
 

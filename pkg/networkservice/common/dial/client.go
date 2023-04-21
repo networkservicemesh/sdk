@@ -25,6 +25,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
@@ -87,6 +88,7 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 
 	err := di.Dial(ctx, clientURL)
 	if err != nil {
+		err = wrapDialError(ctx, err)
 		// we shouldn't delete dialer on failed refreshes
 		if !diLoaded {
 			log.FromContext(ctx).Errorf("can not dial to %v, err %v. Deleting clientconn...", grpcutils.URLToTarget(clientURL), err)
@@ -97,6 +99,9 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
+		if di.GetState() == connectivity.TransientFailure {
+			err = &dialError{err: err}
+		}
 		// we shouldn't delete dialer on failed refreshes
 		if !diLoaded {
 			clientconn.Delete(ctx)

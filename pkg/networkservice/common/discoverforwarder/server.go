@@ -27,11 +27,10 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/pkg/errors"
-	"google.golang.org/grpc/codes"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/matchutils"
 )
@@ -103,7 +102,7 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 	}
 
 	conn, err := next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request)
-	if err != nil && grpcutils.UnwrapCode(err) == codes.Unavailable {
+	if err != nil && dial.IsDialError(err) {
 		storeForwarderName(ctx, "")
 	}
 	return conn, err
