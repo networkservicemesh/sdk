@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,14 +26,11 @@ import (
 
 type selectedForworderKey struct{}
 
-func loadForwarderName(ctx context.Context) string {
-	v, ok := metadata.Map(ctx, false).Load(selectedForworderKey{})
-	if !ok {
-		return ""
-	}
-	return v.(string)
+func isForwarderSelected(ctx context.Context) bool {
+	_, ok := metadata.Map(ctx, false).Load(selectedForworderKey{})
+	return ok
 }
 
-func storeForwarderName(ctx context.Context, v string) {
-	metadata.Map(ctx, false).Store(selectedForworderKey{}, v)
+func selectForwarder(ctx context.Context) {
+	metadata.Map(ctx, false).Store(selectedForworderKey{}, struct{}{})
 }
