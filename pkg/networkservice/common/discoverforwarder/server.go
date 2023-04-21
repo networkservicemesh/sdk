@@ -103,9 +103,8 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 
 		segments := request.Connection.GetPath().GetPathSegments()
 		if pathIndex := int(request.Connection.GetPath().Index); len(segments) > pathIndex+1 {
-			datapathForwarder := segments[pathIndex+1].Name
 			for i, candidate := range nses {
-				if candidate.Name == datapathForwarder {
+				if candidate.Name == forwarderName {
 					nses[0], nses[i] = nses[i], nses[0]
 					break
 				}
@@ -157,11 +156,7 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 		return nil, errors.Wrapf(err, "failed to parse url %s", nses[0].Url)
 	}
 
-	conn, err := next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request)
-	if err != nil {
-		selectForwarder(ctx)
-	}
-	return conn, err
+	return next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request)
 }
 
 func (d *discoverForwarderServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
