@@ -21,6 +21,7 @@ package discoverforwarder
 
 import (
 	"context"
+	"io"
 	"net/url"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -85,14 +86,13 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 		return nil, errors.Wrapf(err, "failed to find %s on %s", forwarderName, d.nsmgrURL)
 	}
 
-	// TODO change ReadNetworkServiceEndpointList to return error
-	nses := registry.ReadNetworkServiceEndpointList(stream)
+	nses, err := readForwardersFromStream(stream)
+	if err != nil {
+		return nil, errors.Wrap(err, "error while reading forwarder list")
+	}
 	if len(nses) == 0 {
-		if ctx.Err() != nil {
-			return nil, errors.Wrap(ctx.Err(), "forwarder not found")
-		}
 		storeForwarderName(ctx, "")
-		return nil, errors.New("forwarder not found")
+		return nil, errors.New("previously selected forwarder is not found in registry")
 	}
 
 	u, err := url.Parse(nses[0].Url)
@@ -106,6 +106,21 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 		storeForwarderName(ctx, "")
 	}
 	return conn, err
+}
+
+func readForwardersFromStream(stream registry.NetworkServiceEndpointRegistry_FindClient) ([]*registry.NetworkServiceEndpoint, error) {
+	var result []*registry.NetworkServiceEndpoint
+	var err error
+	var msg *registry.NetworkServiceEndpointResponse
+	for msg, err = stream.Recv(); err == nil; msg, err = stream.Recv() {
+		if !msg.Deleted {
+			result = append(result, msg.NetworkServiceEndpoint)
+		}
+	}
+	if err != io.EOF {
+		return nil, err
+	}
+	return result, nil
 }
 
 func (d *discoverForwarderServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
@@ -126,9 +141,13 @@ func (d *discoverForwarderServer) Close(ctx context.Context, conn *networkservic
 		return nil, errors.Wrapf(err, "failed to find %s on %s", forwarderName, d.nsmgrURL)
 	}
 
-	nses := registry.ReadNetworkServiceEndpointList(stream)
+	nses, err := readForwardersFromStream(stream)
+	if err != nil {
+		return nil, errors.Wrap(err, "error while reading forwarder list")
+	}
 	if len(nses) == 0 {
-		return nil, errors.New("forwarder not found")
+		storeForwarderName(ctx, "")
+		return nil, errors.New("previously selected forwarder is not found in registry")
 	}
 
 	u, err := url.Parse(nses[0].Url)
@@ -223,7 +242,11 @@ func (d *discoverForwarderServer) selectNewForwarder(ctx context.Context, reques
 		return nil, errors.Wrapf(err, "failed to find %s on %s", d.forwarderServiceName, d.nsmgrURL)
 	}
 
-	nses := d.matchForwarders(request.Connection.GetLabels(), ns, registry.ReadNetworkServiceEndpointList(stream))
+	allForwarders, err := readForwardersFromStream(stream)
+	if err != nil {
+		return nil, errors.Wrap(err, "error while reading forwarder list")
+	}
+	nses := d.matchForwarders(request.Connection.GetLabels(), ns, allForwarders)
 	if len(nses) == 0 {
 		return nil, errors.New("no candidates found")
 	}
