@@ -2,6 +2,8 @@
 //
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -207,7 +209,7 @@ func logError(ctx context.Context, err error, operation string) error {
 		log.FromContext(ctx).Errorf("%+v", err)
 		return err
 	}
-	log.FromContext(ctx).Errorf("%v", err)
+	log.FromContext(ctx).Errorf("%+v", err)
 	return err
 }
 
