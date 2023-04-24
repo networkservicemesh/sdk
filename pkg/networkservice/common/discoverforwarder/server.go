@@ -77,7 +77,7 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 	var forwarderName = d.forwarderName(request.GetConnection())
 	var logger = log.FromContext(ctx).WithField("discoverForwarderServer", "request")
 
-	if forwarderName == "" || !isForwarderSelected(ctx) {
+	if forwarderName == "" || request.GetConnection().GetMechanism() == nil {
 		ns, err := d.discoverNetworkService(ctx, request.GetConnection().GetNetworkService(), request.GetConnection().GetPayload())
 		if err != nil {
 			return nil, err
@@ -124,7 +124,6 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 
 			resp, err := next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request.Clone())
 			if err == nil {
-				selectForwarder(ctx)
 				return resp, nil
 			}
 			logger.Errorf("forwarder=%v url=%v returned error=%v", candidate.Name, candidate.Url, err.Error())
