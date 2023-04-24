@@ -65,11 +65,19 @@ func NewServer(nsClient registry.NetworkServiceRegistryClient, nseClient registr
 	return result
 }
 
+func (d *discoverForwarderServer) forwarderName(conn *networkservice.Connection) string {
+	var segments = conn.GetPath().GetPathSegments()
+	if pathIndex := int(conn.GetPath().Index); len(conn.GetPath().PathSegments) > pathIndex+1 {
+		return segments[pathIndex+1].Name
+	}
+	return ""
+}
+
 func (d *discoverForwarderServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	var forwarderName = loadForwarderName(ctx)
+	var forwarderName = d.forwarderName(request.GetConnection())
 	var logger = log.FromContext(ctx).WithField("discoverForwarderServer", "request")
 
-	if forwarderName == "" {
+	if forwarderName == "" || request.GetConnection().GetMechanism() == nil {
 		ns, err := d.discoverNetworkService(ctx, request.GetConnection().GetNetworkService(), request.GetConnection().GetPayload())
 		if err != nil {
 			return nil, err
@@ -95,9 +103,8 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 
 		segments := request.Connection.GetPath().GetPathSegments()
 		if pathIndex := int(request.Connection.GetPath().Index); len(segments) > pathIndex+1 {
-			datapathForwarder := segments[pathIndex+1].Name
 			for i, candidate := range nses {
-				if candidate.Name == datapathForwarder {
+				if candidate.Name == forwarderName {
 					nses[0], nses[i] = nses[i], nses[0]
 					break
 				}
@@ -117,7 +124,6 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 
 			resp, err := next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request.Clone())
 			if err == nil {
-				storeForwarderName(ctx, candidate.Name)
 				return resp, nil
 			}
 			logger.Errorf("forwarder=%v url=%v returned error=%v", candidate.Name, candidate.Url, err.Error())
@@ -140,7 +146,6 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 
 	nses := registry.ReadNetworkServiceEndpointList(stream)
 	if len(nses) == 0 {
-		storeForwarderName(ctx, "")
 		return nil, errors.New("forwarder not found")
 	}
 
@@ -150,15 +155,11 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 		return nil, errors.Wrapf(err, "failed to parse url %s", nses[0].Url)
 	}
 
-	conn, err := next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request)
-	if err != nil {
-		storeForwarderName(ctx, "")
-	}
-	return conn, err
+	return next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request)
 }
 
 func (d *discoverForwarderServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	var forwarderName = loadForwarderName(ctx)
+	var forwarderName = d.forwarderName(conn)
 	var logger = log.FromContext(ctx).WithField("discoverForwarderServer", "request")
 	if forwarderName == "" {
 		return nil, errors.New("forwarder is not selected")
