@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2022 Cisco Systems, Inc.
+// Copyright (c) 2020-2023 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -39,14 +39,16 @@ type traceInfo struct {
 	ResponseMsg *dns.Msg
 }
 
-func withLog(parent context.Context, operation, messageID string) (c context.Context, f func()) {
+func withLog(parent context.Context, operation, methodName, messageID string) (c context.Context, f func()) {
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
 
 	if log.IsTracingEnabled() {
-		ctx, sLogger, span, sFinish := spanlogger.FromContext(parent, operation, map[string]interface{}{"type": loggedType, "id": messageID})
-		ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation, map[string]interface{}{"type": loggedType, "id": messageID})
+		fields := []*log.Field{log.NewField("type", loggedType), log.NewField("id", messageID)}
+
+		ctx, sLogger, span, sFinish := spanlogger.FromContext(parent, operation, methodName, fields)
+		ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation, fields)
 		return withTrace(log.WithLog(ctx, sLogger, lLogger)), func() {
 			sFinish()
 			lFinish()

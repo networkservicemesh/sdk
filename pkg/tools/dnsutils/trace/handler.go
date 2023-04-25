@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco Systems, Inc.
+// Copyright (c) 2022-2023 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -42,8 +42,9 @@ func NewDNSHandler(traced dnsutils.Handler) dnsutils.Handler {
 }
 
 func (t *beginTraceHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m *dns.Msg) {
-	operation := typeutils.GetFuncName(t.traced, "ServeDNS")
-	ctx, finish := withLog(ctx, operation, strconv.Itoa(int(m.Id)))
+	methodName := "ServeDNS"
+	operation := typeutils.GetFuncName(t.traced, methodName)
+	ctx, finish := withLog(ctx, operation, methodName, strconv.Itoa(int(m.Id)))
 	defer finish()
 
 	logRequest(ctx, m, "message")

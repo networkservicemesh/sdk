@@ -1,5 +1,7 @@
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,6 +25,8 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	opentelemetry "go.opentelemetry.io/otel/trace"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 // Span - unified interface for opentelemetry spans
@@ -37,6 +41,7 @@ type Span interface {
 
 // Opentelemetry span
 type otelSpan struct {
+	rootSpan      opentelemetry.Span
 	span          opentelemetry.Span
 	operationName string
 }
@@ -74,17 +79,32 @@ func (otelsp *otelSpan) ToString() string {
 
 func (otelsp *otelSpan) Finish() {
 	otelsp.span.End()
+	if otelsp.rootSpan != nil {
+		otelsp.rootSpan.End()
+	}
 }
 
-func newOTELSpan(ctx context.Context, operationName string, additionalFields map[string]interface{}) (c context.Context, s Span) {
-	var add []attribute.KeyValue
+func newOpentelemetrySpan(ctx context.Context, operationName, methodName string, additionalFields []*log.Field) (c context.Context, s Span) {
+	var attributes []attribute.KeyValue
 
-	for k, v := range additionalFields {
-		add = append(add, attribute.String(k, fmt.Sprint(v)))
+	for _, field := range additionalFields {
+		attributes = append(attributes, attribute.String(field.Key(), fmt.Sprint(field.Val())))
 	}
 
+	// Check if the current span is active
+	// If not (missing) - add a new root
+	var rootSpan opentelemetry.Span
+	if !opentelemetry.SpanFromContext(ctx).IsRecording() {
+		var rootSpanName string
+		for _, field := range additionalFields {
+			rootSpanName += fmt.Sprintf("[%s: %s] ", field.Key(), fmt.Sprint(field.Val()))
+		}
+		rootSpanName += fmt.Sprintf("[%s: %s]", "method", methodName)
+		ctx, rootSpan = otel.Tracer("").Start(ctx, rootSpanName, opentelemetry.WithNewRoot())
+		rootSpan.SetAttributes(attributes...)
+	}
 	ctx, span := otel.Tracer("").Start(ctx, operationName)
-	span.SetAttributes(add...)
+	span.SetAttributes(attributes...)
 
-	return ctx, &otelSpan{span: span, operationName: operationName}
+	return ctx, &otelSpan{rootSpan: rootSpan, span: span, operationName: operationName}
 }

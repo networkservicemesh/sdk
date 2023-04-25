@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020-2023 Cisco Systems, Inc.
 //
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2023 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -45,8 +45,8 @@ func NewNetworkServiceServer(traced networkservice.NetworkServiceServer) network
 
 func (t *beginTraceServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	// Create a new logger
-	operation := typeutils.GetFuncName(t.traced, "Request")
-	ctx, finish := withLog(ctx, operation, request.GetConnection().GetId())
+	operation := typeutils.GetFuncName(t.traced, methodNameRequest)
+	ctx, finish := withLog(ctx, operation, methodNameRequest, request.GetConnection().GetId())
 	defer finish()
 
 	logRequest(ctx, request, "request")
@@ -61,8 +61,8 @@ func (t *beginTraceServer) Request(ctx context.Context, request *networkservice.
 
 func (t *beginTraceServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	// Create a new logger
-	operation := typeutils.GetFuncName(t.traced, "Close")
-	ctx, finish := withLog(ctx, operation, conn.GetId())
+	operation := typeutils.GetFuncName(t.traced, methodNameClose)
+	ctx, finish := withLog(ctx, operation, methodNameClose, conn.GetId())
 	defer finish()
 
 	logRequest(ctx, conn, "close")

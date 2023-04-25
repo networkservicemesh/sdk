@@ -1,5 +1,7 @@
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -128,10 +130,10 @@ func (s *spanLogger) logf(level, format string, v ...interface{}) {
 }
 
 // FromContext - creates a new spanLogger from context and operation
-func FromContext(ctx context.Context, operation string, fields map[string]interface{}) (context.Context, log.Logger, Span, func()) {
+func FromContext(ctx context.Context, operation, methodName string, fields []*log.Field) (context.Context, log.Logger, Span, func()) {
 	var span Span
 	if opentelemetry.IsEnabled() {
-		ctx, span = newOTELSpan(ctx, operation, fields)
+		ctx, span = newOpentelemetrySpan(ctx, operation, methodName, fields)
 	}
 	newLog := &spanLogger{
 		span: span,
