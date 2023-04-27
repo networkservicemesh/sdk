@@ -43,9 +43,8 @@ type traceNetworkServiceEndpointRegistryFindClient struct {
 }
 
 func (t *traceNetworkServiceEndpointRegistryFindClient) Recv() (*registry.NetworkServiceEndpointResponse, error) {
-	operation := typeutils.GetFuncName(t.NetworkServiceEndpointRegistry_FindClient, "Recv")
-
-	ctx, finish := withLog(t.Context(), operation)
+	operation := typeutils.GetFuncName(t.NetworkServiceEndpointRegistry_FindClient, methodNameRecv)
+	ctx, finish := withLog(t.Context(), operation, methodNameRecv)
 	defer finish()
 
 	s := streamcontext.NetworkServiceEndpointRegistryFindClient(ctx, t.NetworkServiceEndpointRegistry_FindClient)
@@ -65,8 +64,8 @@ func (t *traceNetworkServiceEndpointRegistryFindClient) Recv() (*registry.Networ
 }
 
 func (t *traceNetworkServiceEndpointRegistryClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	operation := typeutils.GetFuncName(t.traced, "Register")
-	ctx, finish := withLog(ctx, operation)
+	operation := typeutils.GetFuncName(t.traced, methodNameRegister)
+	ctx, finish := withLog(ctx, operation, methodNameRegister)
 	defer finish()
 
 	logObjectTrace(ctx, "register", in)
@@ -78,8 +77,8 @@ func (t *traceNetworkServiceEndpointRegistryClient) Register(ctx context.Context
 	return rv, nil
 }
 func (t *traceNetworkServiceEndpointRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	operation := typeutils.GetFuncName(t.traced, "Find")
-	ctx, finish := withLog(ctx, operation)
+	operation := typeutils.GetFuncName(t.traced, methodNameFind)
+	ctx, finish := withLog(ctx, operation, methodNameFind)
 	defer finish()
 
 	logObjectTrace(ctx, "find", in)
@@ -95,8 +94,8 @@ func (t *traceNetworkServiceEndpointRegistryClient) Find(ctx context.Context, in
 }
 
 func (t *traceNetworkServiceEndpointRegistryClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
-	operation := typeutils.GetFuncName(t.traced, "Unregister")
-	ctx, finish := withLog(ctx, operation)
+	operation := typeutils.GetFuncName(t.traced, methodNameUnregister)
+	ctx, finish := withLog(ctx, operation, methodNameUnregister)
 	defer finish()
 
 	logObjectTrace(ctx, "unregister", in)
@@ -120,8 +119,8 @@ type traceNetworkServiceEndpointRegistryServer struct {
 }
 
 func (t *traceNetworkServiceEndpointRegistryServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	operation := typeutils.GetFuncName(t.traced, "Register")
-	ctx, finish := withLog(ctx, operation)
+	operation := typeutils.GetFuncName(t.traced, methodNameRegister)
+	ctx, finish := withLog(ctx, operation, methodNameRegister)
 	defer finish()
 
 	logObjectTrace(ctx, "register", in)
@@ -135,8 +134,8 @@ func (t *traceNetworkServiceEndpointRegistryServer) Register(ctx context.Context
 }
 
 func (t *traceNetworkServiceEndpointRegistryServer) Find(in *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
-	operation := typeutils.GetFuncName(t.traced, "Find")
-	ctx, finish := withLog(s.Context(), operation)
+	operation := typeutils.GetFuncName(t.traced, methodNameFind)
+	ctx, finish := withLog(s.Context(), operation, methodNameFind)
 	defer finish()
 
 	s = &traceNetworkServiceEndpointRegistryFindServer{
@@ -155,8 +154,8 @@ func (t *traceNetworkServiceEndpointRegistryServer) Find(in *registry.NetworkSer
 }
 
 func (t *traceNetworkServiceEndpointRegistryServer) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	operation := typeutils.GetFuncName(t.traced, "Unregister")
-	ctx, finish := withLog(ctx, operation)
+	operation := typeutils.GetFuncName(t.traced, methodNameUnregister)
+	ctx, finish := withLog(ctx, operation, methodNameUnregister)
 	defer finish()
 
 	logObjectTrace(ctx, "unregister", in)
@@ -180,8 +179,8 @@ type traceNetworkServiceEndpointRegistryFindServer struct {
 }
 
 func (t *traceNetworkServiceEndpointRegistryFindServer) Send(nseResp *registry.NetworkServiceEndpointResponse) error {
-	operation := typeutils.GetFuncName(t.NetworkServiceEndpointRegistry_FindServer, "Send")
-	ctx, finish := withLog(t.Context(), operation)
+	operation := typeutils.GetFuncName(t.NetworkServiceEndpointRegistry_FindServer, methodNameSend)
+	ctx, finish := withLog(t.Context(), operation, methodNameSend)
 	defer finish()
 
 	logObjectTrace(ctx, "network service endpoint", nseResp.NetworkServiceEndpoint)

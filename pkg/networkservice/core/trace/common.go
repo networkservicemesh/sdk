@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020-2023 Cisco Systems, Inc.
 //
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2023 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -31,6 +31,11 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
+)
+
+const (
+	methodNameRequest = "Request"
+	methodNameClose   = "Close"
 )
 
 func logRequest(ctx context.Context, request proto.Message, prefixes ...string) {

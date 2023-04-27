@@ -1,6 +1,6 @@
-// Copyright (c) 2020-2022 Cisco Systems, Inc.
+// Copyright (c) 2020-2023 Cisco Systems, Inc.
 //
-// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2023 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -46,7 +46,7 @@ type traceInfo struct {
 }
 
 // withLog - provides corresponding logger in context
-func withLog(parent context.Context, operation, connectionID string) (c context.Context, f func()) {
+func withLog(parent context.Context, operation, methodName, connectionID string) (c context.Context, f func()) {
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
@@ -56,8 +56,10 @@ func withLog(parent context.Context, operation, connectionID string) (c context.
 
 	if grpcTraceState := grpcutils.TraceFromContext(parent); (grpcTraceState == grpcutils.TraceOn) ||
 		(grpcTraceState == grpcutils.TraceUndefined && log.IsTracingEnabled()) {
-		ctx, sLogger, span, sFinish := spanlogger.FromContext(parent, operation, map[string]interface{}{"type": loggedType, "id": connectionID})
-		ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation, map[string]interface{}{"type": loggedType, "id": connectionID})
+		fields := []*log.Field{log.NewField("id", connectionID), log.NewField("type", loggedType)}
+
+		ctx, sLogger, span, sFinish := spanlogger.FromContext(parent, operation, methodName, fields)
+		ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation, fields)
 		return withTrace(log.WithLog(ctx, sLogger, lLogger)), func() {
 			sFinish()
 			lFinish()

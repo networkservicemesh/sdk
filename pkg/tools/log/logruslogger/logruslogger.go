@@ -1,5 +1,7 @@
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -271,21 +273,25 @@ func (s *traceLogger) getTraceInfo() string {
 // FromSpan - creates a new logruslogger from context, operation and span
 // and returns context with it, logger, and a function to defer
 func FromSpan(
-	ctx context.Context, span spanlogger.Span, operation string, fields map[string]interface{}) (context.Context, log.Logger, func()) {
+	ctx context.Context, span spanlogger.Span, operation string, fields []*log.Field) (context.Context, log.Logger, func()) {
 	var info *traceCtxInfo
 	ctx, info = withTraceInfo(ctx)
 	localTraceInfo.Store(info.id, info)
 
 	logger := log.L()
 	if log.IsDefault(logger) {
-		entry := logrus.WithFields(fields)
+		fieldsMap := make(map[string]interface{}, len(fields))
+		for _, field := range fields {
+			fieldsMap[field.Key()] = field.Val()
+		}
+		entry := logrus.WithFields(fieldsMap)
 		entry.Logger.SetFormatter(newFormatter())
 		logger = &logrusLogger{
 			entry: entry,
 		}
 	} else {
-		for k, v := range fields {
-			logger = logger.WithField(k, v)
+		for _, field := range fields {
+			logger = logger.WithField(field.Key(), field.Val())
 		}
 	}
 
