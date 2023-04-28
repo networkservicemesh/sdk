@@ -77,85 +77,59 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 	var forwarderName = d.forwarderName(request.GetConnection())
 	var logger = log.FromContext(ctx).WithField("discoverForwarderServer", "request")
 
-	if forwarderName == "" || request.GetConnection().GetMechanism() == nil {
-		ns, err := d.discoverNetworkService(ctx, request.GetConnection().GetNetworkService(), request.GetConnection().GetPayload())
-		if err != nil {
-			return nil, err
-		}
-
-		stream, err := d.nseClient.Find(ctx, &registry.NetworkServiceEndpointQuery{
-			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-				NetworkServiceNames: []string{
-					d.forwarderServiceName,
-				},
-				Url: d.nsmgrURL,
-			},
-		})
-		if err != nil {
-			logger.Errorf("can not open registry nse stream by networkservice. Error: %v", err.Error())
-			return nil, errors.Wrapf(err, "failed to find %s on %s", d.forwarderServiceName, d.nsmgrURL)
-		}
-
-		nses := d.matchForwarders(request.Connection.GetLabels(), ns, registry.ReadNetworkServiceEndpointList(stream))
-		if len(nses) == 0 {
-			return nil, errors.New("no candidates found")
-		}
-
-		segments := request.Connection.GetPath().GetPathSegments()
-		if pathIndex := int(request.Connection.GetPath().Index); len(segments) > pathIndex+1 {
-			for i, candidate := range nses {
-				if candidate.Name == forwarderName {
-					nses[0], nses[i] = nses[i], nses[0]
-					break
-				}
-			}
-		}
-
-		var candidatesErr = errors.New("all forwarders have failed")
-
-		// TODO: Should we consider about load balancing?
-		// https://github.com/networkservicemesh/sdk/issues/790
-		for i, candidate := range nses {
-			u, err := url.Parse(candidate.Url)
-			if err != nil {
-				logger.Errorf("can not parse forwarder=%v url=%v error=%v", candidate.Name, candidate.Url, err.Error())
-				continue
-			}
-
-			resp, err := next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request.Clone())
-			if err == nil {
-				return resp, nil
-			}
-			logger.Errorf("forwarder=%v url=%v returned error=%v", candidate.Name, candidate.Url, err.Error())
-			candidatesErr = errors.Wrapf(candidatesErr, "%v. An error during select forwawrder %v --> %v", i, candidate.Name, err.Error())
-		}
-
-		return nil, candidatesErr
+	ns, err := d.discoverNetworkService(ctx, request.GetConnection().GetNetworkService(), request.GetConnection().GetPayload())
+	if err != nil {
+		return nil, err
 	}
 
 	stream, err := d.nseClient.Find(ctx, &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-			Name: forwarderName,
-			Url:  d.nsmgrURL,
+			NetworkServiceNames: []string{
+				d.forwarderServiceName,
+			},
+			Url: d.nsmgrURL,
 		},
 	})
 	if err != nil {
-		logger.Errorf("can not open registry nse stream by forwarder name. Error: %v", err.Error())
-		return nil, errors.Wrapf(err, "failed to find %s on %s", forwarderName, d.nsmgrURL)
+		logger.Errorf("can not open registry nse stream by networkservice. Error: %v", err.Error())
+		return nil, errors.Wrapf(err, "failed to find %s on %s", d.forwarderServiceName, d.nsmgrURL)
 	}
 
-	nses := registry.ReadNetworkServiceEndpointList(stream)
+	nses := d.matchForwarders(request.Connection.GetLabels(), ns, registry.ReadNetworkServiceEndpointList(stream))
 	if len(nses) == 0 {
-		return nil, errors.New("forwarder not found")
+		return nil, errors.New("no candidates found")
 	}
 
-	u, err := url.Parse(nses[0].Url)
-	if err != nil {
-		logger.Errorf("can not parse forwarder=%v url=%v error=%v", nses[0].Name, u, err.Error())
-		return nil, errors.Wrapf(err, "failed to parse url %s", nses[0].Url)
+	segments := request.Connection.GetPath().GetPathSegments()
+	if pathIndex := int(request.Connection.GetPath().Index); len(segments) > pathIndex+1 {
+		for i, candidate := range nses {
+			if candidate.Name == forwarderName {
+				nses[0], nses[i] = nses[i], nses[0]
+				break
+			}
+		}
 	}
 
-	return next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request)
+	var candidatesErr = errors.New("all forwarders have failed")
+
+	// TODO: Should we consider about load balancing?
+	// https://github.com/networkservicemesh/sdk/issues/790
+	for i, candidate := range nses {
+		u, err := url.Parse(candidate.Url)
+		if err != nil {
+			logger.Errorf("can not parse forwarder=%v url=%v error=%v", candidate.Name, candidate.Url, err.Error())
+			continue
+		}
+
+		resp, err := next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request.Clone())
+		if err == nil {
+			return resp, nil
+		}
+		logger.Errorf("forwarder=%v url=%v returned error=%v", candidate.Name, candidate.Url, err.Error())
+		candidatesErr = errors.Wrapf(candidatesErr, "%v. An error during select forwawrder %v --> %v", i, candidate.Name, err.Error())
+	}
+
+	return nil, candidatesErr
 }
 
 func (d *discoverForwarderServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
