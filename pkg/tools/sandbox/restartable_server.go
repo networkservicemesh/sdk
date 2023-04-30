@@ -29,7 +29,8 @@ type restartableServer struct {
 	ctx, currentCtx context.Context
 	cancelCurrent   context.CancelFunc
 
-	startFunction func(context.Context)
+	startFunction  func(context.Context)
+	cancelFunction func()
 }
 
 func newRestartableServer(
@@ -37,10 +38,16 @@ func newRestartableServer(
 	t *testing.T,
 	serveURL *url.URL,
 	startFunction func(ctx context.Context),
+	cancelFunction func(),
 ) *restartableServer {
+	cancelFunc := func() {}
+	if cancelFunction != nil {
+		cancelFunc = cancelFunction
+	}
 	r := &restartableServer{
-		ctx:           ctx,
-		cancelCurrent: func() {},
+		ctx:            ctx,
+		cancelCurrent:  func() {},
+		cancelFunction: cancelFunc,
 		startFunction: func(ctx context.Context) {
 			if !CheckURLFree(serveURL) {
 				var timeout time.Duration
@@ -64,12 +71,13 @@ func newRestartableServer(
 }
 
 func (r *restartableServer) Restart() {
-	r.cancelCurrent()
+	r.Cancel()
 
 	r.currentCtx, r.cancelCurrent = context.WithCancel(r.ctx)
 	r.startFunction(r.currentCtx)
 }
 
 func (r *restartableServer) Cancel() {
+	r.cancelFunction()
 	r.cancelCurrent()
 }
