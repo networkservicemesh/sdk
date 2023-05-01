@@ -223,3 +223,72 @@ func Test_DiscoverForwarder_ChangeForwarderOnDeath_LostHeal(t *testing.T) {
 	require.Equal(t, 0, counter.Closes())
 	require.NotEqual(t, selectedFwd, conn.GetPath().GetPathSegments()[2].Name)
 }
+
+func Test_DiscoverForwarder_ChangeRemoteForwarderOnDeath(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+
+	defer cancel()
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(2).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, _ int) {
+			node.NewNSMgr(ctx, "nsmgr", nil, sandbox.GenerateTestToken, nsmgr.NewServer)
+		}).
+		Build()
+
+	domain.Nodes[0].NewForwarder(ctx, &registry.NetworkServiceEndpoint{
+		Name:                sandbox.UniqueName("forwarder-local"),
+		NetworkServiceNames: []string{"forwarder"},
+	}, sandbox.GenerateTestToken)
+
+	const fwdCount = 10
+	for i := 0; i < fwdCount; i++ {
+		domain.Nodes[1].NewForwarder(ctx, &registry.NetworkServiceEndpoint{
+			Name:                sandbox.UniqueName("forwarder-" + fmt.Sprint(i)),
+			NetworkServiceNames: []string{"forwarder"},
+		}, sandbox.GenerateTestToken)
+	}
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg := defaultRegistryService(t.Name())
+	nsReg, err := nsRegistryClient.Register(ctx, nsReg)
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
+
+	counter := new(count.Server)
+	domain.Nodes[1].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
+
+	request := defaultRequest(nsReg.Name)
+
+	clientCounter := new(count.Client)
+	// make sure that Close from heal doesn't clear the forwarder name
+	// we want to clear it automatically in discoverforwarder element on Request
+	clientInject := injecterror.NewClient(injecterror.WithRequestErrorTimes(), injecterror.WithCloseErrorTimes(-1))
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
+		nsclient.WithAdditionalFunctionality(clientCounter, clientInject))
+
+	conn, err := nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.Equal(t, 1, counter.UniqueRequests())
+	require.Equal(t, 1, counter.Requests())
+
+	selectedFwd := conn.GetPath().GetPathSegments()[4].Name
+
+	domain.Nodes[1].Forwarders[selectedFwd].Cancel()
+
+	domain.Registry.Restart()
+	time.Sleep(time.Second)
+
+	// check different forwarder selected
+	request.Connection = conn
+	conn, err = nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.Equal(t, 1, counter.UniqueRequests())
+	require.Equal(t, 3, counter.Requests())
+	require.Equal(t, 0, counter.Closes())
+	require.NotEqual(t, selectedFwd, conn.GetPath().GetPathSegments()[4].Name)
+}
