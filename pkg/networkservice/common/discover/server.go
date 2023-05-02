@@ -20,6 +20,7 @@ package discover
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -71,6 +72,13 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 		return nil, err
 	}
 	nses, err := d.discoverNetworkServiceEndpoints(ctx, ns, request.GetConnection().GetLabels())
+
+	fmt.Printf("NSEs count: %v\n", len(nses))
+	for _, nse := range nses {
+		if nse.Name == "my-nse-special" {
+			fmt.Println("my-nse-special found")
+		}
+	}
 	if err != nil {
 		return nil, err
 	}

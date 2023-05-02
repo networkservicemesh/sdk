@@ -21,6 +21,7 @@ package dial
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -48,9 +49,12 @@ func NewClient(chainCtx context.Context, opts ...Option) networkservice.NetworkS
 	for _, opt := range opts {
 		opt(o)
 	}
+
+	dialOptions := []grpc.DialOption{grpc.WithDisableRetry()}
+
 	return &dialClient{
 		chainCtx:    chainCtx,
-		dialOptions: o.dialOptions,
+		dialOptions: append(dialOptions, o.dialOptions...),
 		dialTimeout: o.dialTimeout,
 	}
 }
@@ -91,6 +95,13 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 		clientconn.Delete(ctx)
 		return nil, err
 	}
+
+	target := di.ClientConn.Target()
+	fmt.Printf("target: %v\n", target)
+	//opts = append(opts, grpc.WaitForReady(false))
+
+	fmt.Printf("DialOptions: %v\n", d.dialOptions)
+	fmt.Printf("CallOptions: %v\n", opts)
 
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {

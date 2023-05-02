@@ -31,6 +31,7 @@ import (
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
@@ -748,4 +749,74 @@ func Test_Expire(t *testing.T) {
 
 	// Eventually expire will call Unregister
 	require.Len(t, registryapi.ReadNetworkServiceEndpointList(stream), 0)
+}
+
+// go test -count 3 -v -run Test_100NSEs
+
+func Test_100NSEs(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		Build()
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	ns := defaultRegistryService("ns")
+
+	_, err := nsRegistryClient.Register(ctx, ns)
+	require.NoError(t, err)
+
+	tmp := t.TempDir()
+
+	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx,
+		registryclient.WithClientURL(sandbox.CloneURL(domain.Nodes[0].NSMgr.URL)),
+		registryclient.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())))
+
+	// Create 100 unreachable NSEs
+	nseCount := 100
+	for i := 0; i < nseCount; i++ {
+		path := tmp + fmt.Sprintf("/nse_server_%v.sock", i)
+		_, err = net.Listen("unix", path)
+		require.NoError(t, err)
+
+		nseReg := &registryapi.NetworkServiceEndpoint{
+			Name:                fmt.Sprintf("my-nse-%v", i),
+			NetworkServiceNames: []string{ns.Name},
+			Url:                 "unix://" + path,
+		}
+
+		nseRegistryClient.Register(ctx, nseReg)
+	}
+
+	// Create reachable NSE
+	nseReg := &registryapi.NetworkServiceEndpoint{
+		Name:                "my-nse-special",
+		NetworkServiceNames: []string{ns.Name},
+	}
+	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
+
+	// Create NSC
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	// Request
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id:             "1",
+			NetworkService: ns.Name,
+			Context:        &networkservice.ConnectionContext{},
+			Mechanism:      &networkservice.Mechanism{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
+		},
+	}
+
+	conn, err := nsc.Request(ctx, request)
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+
+	fmt.Printf("conn: %v\n", conn)
 }

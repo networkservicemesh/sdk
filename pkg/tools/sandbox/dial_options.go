@@ -17,7 +17,6 @@
 package sandbox
 
 import (
-	"github.com/edwarnicke/grpcfd"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -58,8 +57,6 @@ func DialOptions(options ...DialOption) []grpc.DialOption {
 		grpc.WithDefaultCallOptions(
 			grpc.PerRPCCredentials(token.NewPerRPCCredentials(opts.tokenGenerator)),
 		),
-		grpcfd.WithChainStreamInterceptor(),
-		grpcfd.WithChainUnaryInterceptor(),
 		WithInsecureRPCCredentials(),
 		WithInsecureStreamRPCCredentials(),
 	}, tracing.WithTracingDial()...)

@@ -20,7 +20,9 @@ package roundrobin
 
 import (
 	"context"
+	"fmt"
 	"net/url"
+	"strconv"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 
@@ -63,12 +65,25 @@ func (s *selectEndpointServer) Request(ctx context.Context, request *networkserv
 			return nil, errors.Wrapf(err, "failed to parse url %s", endpoint.Url)
 		}
 		ctx = clienturlctx.WithClientURL(ctx, u)
-		request.GetConnection().NetworkServiceEndpointName = endpoint.Name
-		resp, err := next.Server(ctx).Request(ctx, request.Clone())
-		if err == nil {
-			return resp, nil
+
+		nsenum, _ := strconv.Atoi(endpoint.Name[7:])
+		fmt.Printf("nsenum: %v\n", nsenum)
+		if endpoint.Name == "my-nse-special" || nsenum < 50 {
+			fmt.Printf("Connect to endpoint: %v\n", endpoint.Name)
+			request.GetConnection().NetworkServiceEndpointName = endpoint.Name
+			resp, err := next.Server(ctx).Request(ctx, request.Clone())
+
+			if err != nil {
+				fmt.Printf("Connect to endpoint: %v failed. Error: %s\n", endpoint.Name, err.Error())
+			}
+			if endpoint.Name == "my-nse-special" {
+				fmt.Println("L")
+			}
+			if err == nil {
+				return resp, nil
+			}
+			candidatesErr = errors.Wrapf(candidatesErr, "%v. An error during select endpoint %v --> %v", i, endpoint.Name, err.Error())
 		}
-		candidatesErr = errors.Wrapf(candidatesErr, "%v. An error during select endpoint %v --> %v", i, endpoint.Name, err.Error())
 	}
 	return nil, candidatesErr
 }
