@@ -19,9 +19,11 @@ package nsmgr_test
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"net"
 	"net/url"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -778,10 +780,15 @@ func Test_100NSEs(t *testing.T) {
 		registryclient.WithClientURL(sandbox.CloneURL(domain.Nodes[0].NSMgr.URL)),
 		registryclient.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())))
 
+	// path := tmp + "/" + strconv.Itoa(rand.Int())
+	// _, err = net.Listen("unix", path)
+	// require.NoError(t, err)
+
 	// Create 100 unreachable NSEs
 	nseCount := 100
 	for i := 0; i < nseCount; i++ {
-		path := tmp + fmt.Sprintf("/nse_server_%v.sock", i)
+		path := tmp + "/" + strconv.Itoa(rand.Int())
+		//path := "127.0.0.1:" + strconv.Itoa(5000+rand.Intn(20000))
 		_, err = net.Listen("unix", path)
 		require.NoError(t, err)
 
