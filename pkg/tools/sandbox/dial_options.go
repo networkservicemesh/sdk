@@ -20,6 +20,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/edwarnicke/grpcfd"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 	"github.com/networkservicemesh/sdk/pkg/tools/tracing"
 )
@@ -57,6 +58,8 @@ func DialOptions(options ...DialOption) []grpc.DialOption {
 		grpc.WithDefaultCallOptions(
 			grpc.PerRPCCredentials(token.NewPerRPCCredentials(opts.tokenGenerator)),
 		),
+		grpcfd.WithChainStreamInterceptor(),
+		grpcfd.WithChainUnaryInterceptor(),
 		WithInsecureRPCCredentials(),
 		WithInsecureStreamRPCCredentials(),
 	}, tracing.WithTracingDial()...)

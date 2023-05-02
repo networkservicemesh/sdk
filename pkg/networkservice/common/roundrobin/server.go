@@ -68,7 +68,8 @@ func (s *selectEndpointServer) Request(ctx context.Context, request *networkserv
 
 		nsenum, _ := strconv.Atoi(endpoint.Name[7:])
 		fmt.Printf("nsenum: %v\n", nsenum)
-		if endpoint.Name == "my-nse-special" || nsenum < 50 {
+		if endpoint.Name == "my-nse-special" || nsenum < 3500 {
+
 			fmt.Printf("Connect to endpoint: %v\n", endpoint.Name)
 			request.GetConnection().NetworkServiceEndpointName = endpoint.Name
 			resp, err := next.Server(ctx).Request(ctx, request.Clone())
