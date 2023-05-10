@@ -25,7 +25,6 @@ const (
     data_dir = "%[1]s/data"
     log_level = "WARN"
     ca_key_type = "rsa-2048"
-    default_svid_ttl = "1h"
     ca_subject = {
         country = ["US"],
         organization = ["SPIFFE"],
