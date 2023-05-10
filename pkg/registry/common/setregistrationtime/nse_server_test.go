@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -65,8 +67,17 @@ func TestRegTimeServer_Register(t *testing.T) {
 	require.Len(t, nses, 1)
 	require.True(t, proto.Equal(nses[0].InitialRegistrationTime, registeredNse.InitialRegistrationTime))
 
-	// 3. Refresh
+	// 3.1 Refresh
 	reg, err = s.Register(ctx, reg.Clone())
+	require.NoError(t, err)
+	require.NotNil(t, reg.InitialRegistrationTime)
+	require.True(t, proto.Equal(reg.InitialRegistrationTime, registeredNse.InitialRegistrationTime))
+
+	// 3.2 Refresh with empty field
+	regClone := reg.Clone()
+	regClone.InitialRegistrationTime = nil
+	clockMock.Add(time.Second)
+	reg, err = s.Register(ctx, regClone)
 	require.NoError(t, err)
 	require.NotNil(t, reg.InitialRegistrationTime)
 	require.True(t, proto.Equal(reg.InitialRegistrationTime, registeredNse.InitialRegistrationTime))
