@@ -31,7 +31,6 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
@@ -72,22 +71,12 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 		request.Connection.Context.DnsContext = &networkservice.DNSContext{}
 	}
 
-	if !dnsutils.ContainsDNSConfig(request.GetConnection().GetContext().GetDnsContext().Configs, c.resolvconfDNSConfig) {
-		request.GetConnection().GetContext().GetDnsContext().Configs = append(request.GetConnection().GetContext().GetDnsContext().Configs, c.resolvconfDNSConfig)
-	}
-
 	rv, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	var configs []*networkservice.DNSConfig
-	if rv.GetContext().GetDnsContext() != nil {
-		configs = rv.GetContext().GetDnsContext().GetConfigs()
-	}
-
-	c.dnsConfigsMap.Store(rv.Id, configs)
-
+	c.dnsConfigsMap.Store(rv.Id, append(rv.GetContext().GetDnsContext().Configs, c.resolvconfDNSConfig))
 	return rv, nil
 }
 

@@ -46,12 +46,13 @@ func Test_DNSContextClient_Usecases(t *testing.T) {
 	err := os.WriteFile(resolveConfigPath, []byte("nameserver 8.8.4.4\nsearch example.com\n"), os.ModePerm)
 	require.NoError(t, err)
 
+	dnsConfigMap := new(genericsync.Map[string, []*networkservice.DNSConfig])
 	client := chain.NewNetworkServiceClient(
 		metadata.NewClient(),
 		dnscontext.NewClient(
 			dnscontext.WithChainContext(ctx),
 			dnscontext.WithResolveConfigPath(resolveConfigPath),
-			dnscontext.WithDNSConfigsMap(new(genericsync.Map[string, []*networkservice.DNSConfig])),
+			dnscontext.WithDNSConfigsMap(dnsConfigMap),
 		),
 	)
 
@@ -73,9 +74,12 @@ nameserver 127.0.0.1`
 	resp, err := client.Request(ctx, request)
 	require.NoError(t, err)
 	require.NotNil(t, resp.GetContext().GetDnsContext())
-	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs(), len(request.GetConnection().Context.DnsContext.GetConfigs()))
-	require.Contains(t, resp.Context.DnsContext.Configs[0].DnsServerIps, "8.8.4.4")
-	require.Contains(t, resp.Context.DnsContext.Configs[0].SearchDomains, "example.com")
+	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs(), 0)
+	// Check updated dnsConfigMap
+	loadedDNSConfig, ok := dnsConfigMap.Load(resp.Id)
+	require.True(t, ok)
+	require.Contains(t, loadedDNSConfig[0].DnsServerIps, "8.8.4.4")
+	require.Contains(t, loadedDNSConfig[0].SearchDomains, "example.com")
 	_, err = client.Close(ctx, resp)
 	require.NoError(t, err)
 }

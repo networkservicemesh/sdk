@@ -109,13 +109,7 @@ func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.Netw
 
 	var clientsConfigs = request.GetConnection().GetContext().GetDnsContext().GetConfigs()
 
-	dnsServerIPStr, err := n.addDNSContext(request.GetConnection())
-	if err != nil {
-		return nil, err
-	}
-
-	var recordNames []string
-	recordNames, err = n.buildSrcDNSRecords(request.GetConnection())
+	recordNames, err := n.buildSrcDNSRecords(request.GetConnection())
 	if err != nil {
 		return nil, err
 	}
@@ -127,6 +121,11 @@ func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.Netw
 				n.dnsServerRecords.Delete(prevName)
 			}
 		}
+	}
+
+	dnsServerIPStr, err := n.addDNSContext(request.GetConnection(), recordNames)
+	if err != nil {
+		return nil, err
 	}
 
 	resp, err := next.Server(ctx).Request(ctx, request)
@@ -171,12 +170,26 @@ func (n *vl3DNSServer) Close(ctx context.Context, conn *networkservice.Connectio
 	return next.Server(ctx).Close(ctx, conn)
 }
 
-func (n *vl3DNSServer) addDNSContext(c *networkservice.Connection) (added string, err error) {
+func (n *vl3DNSServer) addDNSContext(c *networkservice.Connection, dnsRecords []string) (serverIP string, err error) {
 	if ip := n.dnsServerIP.Load(); ip != nil {
 		dnsServerIP := ip.(net.IP)
+
+		// Construct searchDomains for a client
+		// Example: dnsRecord = "target.d1.d2.d3." ---> searchDomain = ["d1.d2.d3", "d2.d3", "d3"]
+		var searchDomains []string
+		for _, dnsRecord := range dnsRecords {
+			var ok bool
+			searchDomain := dnsRecord
+			for _, searchDomain, ok = strings.Cut(strings.Trim(searchDomain, "."), "."); ok; _, searchDomain, ok = strings.Cut(searchDomain, ".") {
+				searchDomains = append(searchDomains, searchDomain)
+			}
+		}
+
+		// Add dnsConfig to the connection
 		var dnsContext = c.GetContext().GetDnsContext()
 		configToAdd := &networkservice.DNSConfig{
-			DnsServerIps: []string{dnsServerIP.String()},
+			DnsServerIps:  []string{dnsServerIP.String()},
+			SearchDomains: searchDomains,
 		}
 		if !dnsutils.ContainsDNSConfig(dnsContext.Configs, configToAdd) {
 			dnsContext.Configs = append(dnsContext.Configs, configToAdd)
