@@ -360,8 +360,9 @@ func Test_Interdomain_vl3_dns(t *testing.T) {
 		vl3.NewServer(ctx, serverPrefixCh),
 		vl3dns.NewServer(ctx,
 			dnsServerIPCh,
+			vl3dns.WithDNSPort(40053),
 			vl3dns.WithDomainSchemes("{{ index .Labels \"podName\" }}.{{ target .NetworkService }}.{{ domain .NetworkService }}."),
-			vl3dns.WithDNSPort(40053)),
+		),
 		checkrequest.NewServer(t, func(t *testing.T, nsr *networkservice.NetworkServiceRequest) {
 			require.False(t, interdomain.Is(nsr.GetConnection().GetNetworkService()))
 		},
@@ -394,18 +395,20 @@ func Test_Interdomain_vl3_dns(t *testing.T) {
 	req.Connection = resp.Clone()
 	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs(), 1)
 	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].DnsServerIps, 1)
+	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].SearchDomains, 1)
 
-	requireIPv4Lookup(ctx, t, &resolver, nscName+".vl3", "10.0.0.1")
+	searchDomain := resp.GetContext().GetDnsContext().GetConfigs()[0].SearchDomains[0]
+	requireIPv4Lookup(ctx, t, &resolver, fmt.Sprintf("%s.%s", nscName, searchDomain), "10.0.0.1")
 
 	resp, err = nsc.Request(ctx, req)
 	require.NoError(t, err)
 
-	requireIPv4Lookup(ctx, t, &resolver, nscName+".vl3", "10.0.0.1")
+	requireIPv4Lookup(ctx, t, &resolver, fmt.Sprintf("%s.%s", nscName, searchDomain), "10.0.0.1")
 
 	_, err = nsc.Close(ctx, resp)
 	require.NoError(t, err)
 
-	_, err = resolver.LookupIP(ctx, "ip4", nscName+".vl3")
+	_, err = resolver.LookupIP(ctx, "ip4", fmt.Sprintf("%s.%s", nscName, searchDomain))
 	require.Error(t, err)
 }
 
@@ -458,8 +461,9 @@ func Test_FloatingInterdomain_vl3_dns(t *testing.T) {
 		vl3.NewServer(ctx, serverPrefixCh),
 		vl3dns.NewServer(ctx,
 			dnsServerIPCh,
+			vl3dns.WithDNSPort(40053),
 			vl3dns.WithDomainSchemes("{{ index .Labels \"podName\" }}.{{ target .NetworkService }}.{{ domain .NetworkService }}."),
-			vl3dns.WithDNSPort(40053)),
+		),
 	)
 
 	resolver := net.Resolver{
@@ -488,17 +492,20 @@ func Test_FloatingInterdomain_vl3_dns(t *testing.T) {
 	req.Connection = resp.Clone()
 	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs(), 1)
 	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].DnsServerIps, 1)
+	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].SearchDomains, 3)
 
-	requireIPv4Lookup(ctx, t, &resolver, nscName+".vl3."+floating.Name, "10.0.0.1")
+	searchDomain := resp.GetContext().GetDnsContext().GetConfigs()[0].SearchDomains[0]
+
+	requireIPv4Lookup(ctx, t, &resolver, fmt.Sprintf("%s.%s", nscName, searchDomain), "10.0.0.1")
 
 	resp, err = nsc.Request(ctx, req)
 	require.NoError(t, err)
 
-	requireIPv4Lookup(ctx, t, &resolver, nscName+".vl3."+floating.Name, "10.0.0.1")
+	requireIPv4Lookup(ctx, t, &resolver, fmt.Sprintf("%s.%s", nscName, searchDomain), "10.0.0.1")
 
 	_, err = nsc.Close(ctx, resp)
 	require.NoError(t, err)
 
-	_, err = resolver.LookupIP(ctx, "ip4", nscName+".vl3."+floating.Name)
+	_, err = resolver.LookupIP(ctx, "ip4", fmt.Sprintf("%s.%s", nscName, searchDomain))
 	require.Error(t, err)
 }
