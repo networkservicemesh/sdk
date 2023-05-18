@@ -42,6 +42,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setregistrationtime"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/registry/switchcase"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
@@ -139,6 +140,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGenerator),
 		opts.authorizeNSERegistryServer,
 		begin.NewNetworkServiceEndpointRegistryServer(),
+		metadata.NewNetworkServiceEndpointServer(),
 		switchcase.NewNetworkServiceEndpointRegistryServer(switchcase.NSEServerCase{
 			Condition: func(c context.Context, nse *registry.NetworkServiceEndpoint) bool {
 				if interdomain.Is(nse.GetName()) {
@@ -181,6 +183,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		grpcmetadata.NewNetworkServiceRegistryServer(),
 		updatepath.NewNetworkServiceRegistryServer(tokenGenerator),
 		opts.authorizeNSRegistryServer,
+		metadata.NewNetworkServiceServer(),
 		setpayload.NewNetworkServiceRegistryServer(),
 		switchcase.NewNetworkServiceRegistryServer(
 			switchcase.NSServerCase{

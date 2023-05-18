@@ -33,6 +33,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/retry"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/metadata"
 )
 
 // NewNetworkServiceEndpointRegistryClient creates a new NewNetworkServiceEndpointRegistryClient that can be used for NSE registration.
@@ -49,6 +50,7 @@ func NewNetworkServiceEndpointRegistryClient(ctx context.Context, opts ...Option
 		append(
 			[]registry.NetworkServiceEndpointRegistryClient{
 				begin.NewNetworkServiceEndpointRegistryClient(),
+				metadata.NewNetworkServiceEndpointClient(),
 				retry.NewNetworkServiceEndpointRegistryClient(ctx),
 				heal.NewNetworkServiceEndpointRegistryClient(ctx),
 				refresh.NewNetworkServiceEndpointRegistryClient(ctx),
