@@ -21,10 +21,8 @@ package setregistrationtime
 import (
 	"context"
 
-	"github.com/edwarnicke/genericsync"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
@@ -32,7 +30,6 @@ import (
 )
 
 type setregtimeNSEServer struct {
-	genericsync.Map[string, *timestamppb.Timestamp]
 }
 
 // NewNetworkServiceEndpointRegistryServer creates a new NetworkServiceServer chain element that sets initial
@@ -42,13 +39,13 @@ func NewNetworkServiceEndpointRegistryServer() registry.NetworkServiceEndpointRe
 }
 
 func (r *setregtimeNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	if v, ok := r.Load(nse.GetName()); ok {
+	if v, ok := load(ctx); ok {
 		nse.InitialRegistrationTime = v
 	} else {
 		if nse.InitialRegistrationTime == nil {
 			nse.InitialRegistrationTime = timestamppb.New(clock.FromContext(ctx).Now())
 		}
-		r.Store(nse.GetName(), proto.Clone(nse.InitialRegistrationTime).(*timestamppb.Timestamp))
+		store(ctx, nse.InitialRegistrationTime)
 	}
 
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
@@ -59,6 +56,6 @@ func (r *setregtimeNSEServer) Find(q *registry.NetworkServiceEndpointQuery, s re
 }
 
 func (r *setregtimeNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	r.Delete(nse.GetName())
+	deleteTime(ctx)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }

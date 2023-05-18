@@ -34,6 +34,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/setregistrationtime"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/metadata"
 )
 
 func testNSE() *registry.NetworkServiceEndpoint {
@@ -45,6 +46,7 @@ func testNSE() *registry.NetworkServiceEndpoint {
 
 func TestRegTimeServer_Register(t *testing.T) {
 	s := next.NewNetworkServiceEndpointRegistryServer(
+		metadata.NewNetworkServiceEndpointServer(),
 		setregistrationtime.NewNetworkServiceEndpointRegistryServer(),
 		memory.NewNetworkServiceEndpointRegistryServer(),
 	)
