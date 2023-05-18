@@ -1,5 +1,7 @@
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,6 +34,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/retry"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/metadata"
 )
 
 // NewNetworkServiceRegistryClient creates a new NewNetworkServiceRegistryClient that can be used for NS registration.
@@ -48,6 +51,7 @@ func NewNetworkServiceRegistryClient(ctx context.Context, opts ...Option) regist
 		append(
 			[]registry.NetworkServiceRegistryClient{
 				begin.NewNetworkServiceRegistryClient(),
+				metadata.NewNetworkServiceClient(),
 				retry.NewNetworkServiceRegistryClient(ctx),
 				clientOpts.authorizeNSRegistryClient,
 				heal.NewNetworkServiceRegistryClient(ctx),

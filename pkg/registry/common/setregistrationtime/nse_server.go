@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +29,8 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 )
 
-type setregtimeNSEServer struct{}
+type setregtimeNSEServer struct {
+}
 
 // NewNetworkServiceEndpointRegistryServer creates a new NetworkServiceServer chain element that sets initial
 // registration time.
@@ -36,8 +39,13 @@ func NewNetworkServiceEndpointRegistryServer() registry.NetworkServiceEndpointRe
 }
 
 func (r *setregtimeNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	if nse.InitialRegistrationTime == nil {
-		nse.InitialRegistrationTime = timestamppb.New(clock.FromContext(ctx).Now())
+	if v, ok := load(ctx); ok {
+		nse.InitialRegistrationTime = v
+	} else {
+		if nse.InitialRegistrationTime == nil {
+			nse.InitialRegistrationTime = timestamppb.New(clock.FromContext(ctx).Now())
+		}
+		store(ctx, nse.InitialRegistrationTime)
 	}
 
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
@@ -48,5 +56,6 @@ func (r *setregtimeNSEServer) Find(q *registry.NetworkServiceEndpointQuery, s re
 }
 
 func (r *setregtimeNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	deleteTime(ctx)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }
