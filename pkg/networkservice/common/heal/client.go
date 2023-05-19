@@ -58,7 +58,8 @@ func NewClient(chainCtx context.Context, opts ...Option) networkservice.NetworkS
 func (h *healClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	closeCtxFunc := postpone.ContextWithValues(ctx)
 	// Cancel any existing eventLoop
-	if cancelEventLoop, loaded := loadAndDelete(ctx); loaded {
+	cancelEventLoop, loaded := loadAndDelete(ctx)
+	if loaded {
 		cancelEventLoop()
 		logrus.Error("reiogna: healClient cancel old loop")
 	} else {
@@ -69,7 +70,7 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 	if err != nil {
 		logrus.Error("reiogna: healClient exit on error, err flag is ", getPendingErrorFlag(ctx))
 		logrus.Error("reiogna: healClient exit on error, err flag is ", getPendingErrorFlag(ctx))
-		if h.livenessCheck != nil && !getPendingErrorFlag(ctx) {
+		if loaded && h.livenessCheck != nil && !getPendingErrorFlag(ctx) {
 			logrus.Error("reiogna: healClient start new datapath loop, err flag is ", getPendingErrorFlag(ctx))
 			setPendingErrorFlag(ctx, true)
 			cancelEventLoop, eventLoopErr := newDataPlaneEventLoop(
