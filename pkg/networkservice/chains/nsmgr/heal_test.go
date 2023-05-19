@@ -819,3 +819,90 @@ func TestNSMGR_RefreshRetry(t *testing.T) {
 	_, err = nsc.Close(ctx, conn.Clone())
 	require.NoError(t, err)
 }
+
+func TestNSMGR_RefreshFailed_DataPlaneBroken(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	// log.EnableTracing(true)
+	// logrus.SetLevel(logrus.TraceLevel)
+
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		Build()
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg := defaultRegistryService(t.Name())
+	nsReg, err := nsRegistryClient.Register(ctx, nsReg)
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
+
+	counter := new(count.Server)
+	// allow only one successful request
+	inject := injecterror.NewServer(injecterror.WithCloseErrorTimes(), injecterror.WithRequestErrorTimes(1, -1))
+	nse1 := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, inject, counter)
+	_ = nse1
+
+	request := defaultRequest(nsReg.Name)
+
+	clientCounter := new(count.Client)
+	tokenDuration := time.Minute * 15
+	clk := clockmock.New(ctx)
+	clk.Set(time.Now())
+	refreshClient := next.NewNetworkServiceClient(
+		injectclock.NewClient(clk),
+		refresh.NewClient(ctx),
+	)
+
+	isDataplaneHealthy := func() bool { return true }
+	livenessCheck := func(ctx context.Context, conn *networkservice.Connection) bool {
+		return isDataplaneHealthy()
+	}
+
+	nsc := domain.Nodes[0].NewClient(ctx,
+		// sandbox.GenerateTestToken,
+		sandbox.GenerateExpiringToken(tokenDuration),
+		nsclient.WithAdditionalFunctionality(clientCounter),
+		client.WithRefresh(refreshClient),
+		nsclient.WithHealClient(heal.NewClient(ctx,
+			heal.WithLivenessCheck(livenessCheck),
+			heal.WithLivenessCheckInterval(time.Millisecond*10),
+		)),
+	)
+
+	requestCtx, requestCalcel := context.WithTimeout(ctx, time.Second)
+	defer requestCalcel()
+	conn, err := nsc.Request(requestCtx, request.Clone())
+	require.NoError(t, err)
+	require.Equal(t, 1, clientCounter.Requests())
+	require.Equal(t, 1, counter.Requests())
+
+	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
+	nseReg2.Name += "-2"
+
+	logrus.Error("reiogna: ======================== root new endpoint")
+	domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter)
+
+	clk.Add(time.Minute * 5)
+
+	logrus.Error("reiogna: ======================== root waiting 1")
+	require.Eventually(t, func() bool {
+		return clientCounter.Requests() > 1
+	}, timeout, tick)
+	logrus.Error("reiogna: ======================== root got 2 requests")
+
+	isDataplaneHealthy = func() bool { return counter.Requests() > 1 }
+	// logrus.Error("reiogna: ======================== root cancel")
+	// nse1.Cancel()
+
+	require.Eventually(t, checkSecondRequestsReceived(counter.Requests), timeout, tick)
+	require.Equal(t, 2, counter.UniqueRequests())
+	require.Equal(t, 2, counter.Requests())
+
+	_, err = nsc.Close(ctx, conn.Clone())
+	require.NoError(t, err)
+}
