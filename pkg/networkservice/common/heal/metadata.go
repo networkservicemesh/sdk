@@ -22,17 +22,34 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
-type key struct{}
+type cancelKey struct{}
+type pendingErrorKey struct{}
 
-// store sets the context.CancelFunc stored in per Connection.Id metadata.
-func store(ctx context.Context, cancel context.CancelFunc) {
-	metadata.Map(ctx, true).Store(key{}, cancel)
+func setPendingErrorFlag(ctx context.Context, value bool) {
+	metadata.Map(ctx, true).Store(pendingErrorKey{}, value)
+}
+
+func getPendingErrorFlag(ctx context.Context) bool {
+	rawValue, ok := metadata.Map(ctx, true).Load(pendingErrorKey{})
+	if !ok {
+		return false
+	}
+	value, ok := rawValue.(bool)
+	if !ok {
+		return false
+	}
+	return value
+}
+
+// storeCancel sets the context.CancelFunc stored in per Connection.Id metadata.
+func storeCancel(ctx context.Context, cancel context.CancelFunc) {
+	metadata.Map(ctx, true).Store(cancelKey{}, cancel)
 }
 
 // loadAndDelete deletes the context.CancelFunc stored in per Connection.Id metadata,
 // returning the previous value if any. The loaded result reports whether the key was present.
 func loadAndDelete(ctx context.Context) (value context.CancelFunc, ok bool) {
-	rawValue, ok := metadata.Map(ctx, true).LoadAndDelete(key{})
+	rawValue, ok := metadata.Map(ctx, true).LoadAndDelete(cancelKey{})
 	if !ok {
 		return
 	}

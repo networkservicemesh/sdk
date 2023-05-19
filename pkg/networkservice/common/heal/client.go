@@ -68,10 +68,25 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
-		logrus.Error("reiogna: healClient exit on error")
+		logrus.Error("reiogna: healClient exit on error, err flag is ", getPendingErrorFlag(ctx))
+		logrus.Error("reiogna: healClient exit on error, err flag is ", getPendingErrorFlag(ctx))
+		if h.livenessCheck != nil && !getPendingErrorFlag(ctx) {
+			logrus.Error("reiogna: healClient start new datapath loop, err flag is ", getPendingErrorFlag(ctx))
+			setPendingErrorFlag(ctx, true)
+			cancelEventLoop, eventLoopErr := newDataPlaneEventLoop(
+				extend.WithValuesFromContext(h.chainCtx, ctx), request.Connection, h)
+			if eventLoopErr != nil {
+				closeCtx, closeCancel := closeCtxFunc()
+				defer closeCancel()
+				_, _ = next.Client(closeCtx).Close(closeCtx, conn)
+				return nil, errors.Wrap(eventLoopErr, "unable to monitor")
+			}
+			storeCancel(ctx, cancelEventLoop)
+		}
 		return nil, err
 	}
-	logrus.Error("reiogna: healClient success")
+	logrus.Error("reiogna: healClient success, reset err flag")
+	setPendingErrorFlag(ctx, false)
 	cc, ccLoaded := clientconn.Load(ctx)
 	if ccLoaded {
 		logrus.Error("reiogna: healClient start new loop")
@@ -83,7 +98,7 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 			_, _ = next.Client(closeCtx).Close(closeCtx, conn)
 			return nil, errors.Wrap(eventLoopErr, "unable to monitor")
 		}
-		store(ctx, cancelEventLoop)
+		storeCancel(ctx, cancelEventLoop)
 	}
 	return conn, nil
 }

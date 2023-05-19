@@ -93,7 +93,43 @@ func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networ
 	return eventLoopCancel, nil
 }
 
+func newDataPlaneEventLoop(ctx context.Context, conn *networkservice.Connection, heal *healClient) (context.CancelFunc, error) {
+	conn = conn.Clone()
+
+	ev := begin.FromContext(ctx)
+	// Is another chain element asking for events?  If not, no need to monitor
+	if ev == nil {
+		return func() {}, nil
+	}
+
+	if heal.livenessCheck == nil {
+		return nil, errors.Errorf("liveness check is missing")
+	}
+
+	// Create new eventLoopCtx and store its eventLoopCancel
+	eventLoopCtx, eventLoopCancel := context.WithCancel(ctx)
+
+	logger := log.FromContext(ctx).WithField("heal", "eventLoop")
+	cev := &eventLoop{
+		heal:         heal,
+		eventLoopCtx: eventLoopCtx,
+		chainCtx:     ctx,
+		conn:         conn,
+		eventFactory: ev,
+		client:       nil,
+		logger:       logger,
+	}
+
+	// Start the eventLoop
+	go cev.eventLoop()
+	return eventLoopCancel, nil
+}
+
 func (cev *eventLoop) monitorCtrlPlane() <-chan struct{} {
+	if cev.client == nil {
+		logrus.Error("reiogna: event loop: monitor ctrl plane: nil")
+		return nil
+	}
 	res := make(chan struct{}, 1)
 
 	go func() {
@@ -139,8 +175,9 @@ func (cev *eventLoop) eventLoop() {
 	ctrlPlaneCh := cev.monitorCtrlPlane()
 	dataPlaneCh := cev.monitorDataPlane()
 
-	if dataPlaneCh == nil {
-		// Since we don't know about data path status - always use reselect
+	if dataPlaneCh == nil || ctrlPlaneCh == nil {
+		// If we don't know data plane status - use reselect for safety
+		// If we can't monitor control plane, then the only way to get an error is from data plane
 		reselect = true
 	}
 
