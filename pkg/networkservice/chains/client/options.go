@@ -34,6 +34,7 @@ type clientOptions struct {
 	authorizeClient         networkservice.NetworkServiceClient
 	refreshClient           networkservice.NetworkServiceClient
 	healClient              networkservice.NetworkServiceClient
+	retryClient             networkservice.NetworkServiceClient
 	dialOptions             []grpc.DialOption
 	dialTimeout             time.Duration
 }
@@ -89,6 +90,16 @@ func WithHealClient(healClient networkservice.NetworkServiceClient) Option {
 	})
 }
 
+// WithRetryClient sets retryClient for the client chain.
+func WithRetryClient(retryClient networkservice.NetworkServiceClient) Option {
+	if retryClient == nil {
+		panic("retryClient cannot be nil")
+	}
+	return Option(func(c *clientOptions) {
+		c.retryClient = retryClient
+	})
+}
+
 // WithDialOptions sets dial options
 func WithDialOptions(dialOptions ...grpc.DialOption) Option {
 	return Option(func(c *clientOptions) {
@@ -108,4 +119,14 @@ func WithoutRefresh() Option {
 	return func(c *clientOptions) {
 		c.refreshClient = null.NewClient()
 	}
+}
+
+// WithRefresh sets a custom refreshClient for the client chain
+func WithRefresh(refreshClient networkservice.NetworkServiceClient) Option {
+	if refreshClient == nil {
+		panic("refreshClient cannot be nil")
+	}
+	return Option(func(c *clientOptions) {
+		c.refreshClient = refreshClient
+	})
 }

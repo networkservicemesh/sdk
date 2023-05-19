@@ -33,7 +33,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/discover"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanismtranslation"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/retry"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/retry2"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/roundrobin"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
@@ -247,11 +247,12 @@ func (n *Node) NewClient(
 		client.WithAuthorizeClient(authorize.NewClient(authorize.Any())),
 		client.WithHealClient(heal.NewClient(ctx)),
 		client.WithDialTimeout(DialTimeout),
+		client.WithRetryClient(retry2.NewClient()),
 	}
 
 	opts = append(opts, additionalOpts...)
-	return retry.NewClient(client.NewClient(
+	return client.NewClient(
 		ctx,
 		opts...,
-	))
+	)
 }
