@@ -247,7 +247,7 @@ func (n *Node) NewClient(
 		client.WithAuthorizeClient(authorize.NewClient(authorize.Any())),
 		client.WithHealClient(heal.NewClient(ctx)),
 		client.WithDialTimeout(DialTimeout),
-		client.WithRetryClient(retry2.NewClient()),
+		client.WithRetryClient(retry2.NewClient(ctx)),
 	}
 
 	opts = append(opts, additionalOpts...)

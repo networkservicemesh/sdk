@@ -14,7 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package retry provides a networkservice.NetworksrviceClient wrapper that allows to retries requests and closes.
+// Package retry provides a chain element
+// that will repeatedly call Request down the chain
+// until it succeeds, or until chain or request context is cancelled.
 package retry2
 
 import (
@@ -32,6 +34,7 @@ import (
 )
 
 type retryClient struct {
+	chainCtx   context.Context
 	interval   time.Duration
 	tryTimeout time.Duration
 }
@@ -53,9 +56,10 @@ func WithInterval(interval time.Duration) Option {
 	}
 }
 
-// NewClient - returns a connect chain element
-func NewClient(opts ...Option) networkservice.NetworkServiceClient {
+// NewClient - returns a retry client chain element.
+func NewClient(chainCtx context.Context, opts ...Option) networkservice.NetworkServiceClient {
 	var result = &retryClient{
+		chainCtx:   chainCtx,
 		interval:   time.Millisecond * 200,
 		tryTimeout: time.Second * 15,
 	}
@@ -85,6 +89,9 @@ func (r *retryClient) Request(ctx context.Context, request *networkservice.Netwo
 			// cancel()
 
 			select {
+			case <-r.chainCtx.Done():
+				logrus.Error("reiogna: retry2Client chainCtx cancel")
+				return nil, r.chainCtx.Err()
 			case <-ctx.Done():
 				logrus.Error("reiogna: retry2Client cancel")
 				return nil, ctx.Err()

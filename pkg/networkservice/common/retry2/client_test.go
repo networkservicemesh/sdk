@@ -69,6 +69,7 @@ func Test_RetryClient_Request(t *testing.T) {
 
 	var client = chain.NewNetworkServiceClient(
 		retry2.NewClient(
+			context.Background(),
 			retry2.WithInterval(time.Millisecond*10),
 			retry2.WithTryTimeout(time.Second/30),
 		),
@@ -99,7 +100,7 @@ func Test_RetryClient_Request_ContextHasCorrectDeadline(t *testing.T) {
 	expectedDeadline := clockMock.Now().Add(time.Hour)
 
 	var client = chain.NewNetworkServiceClient(
-		retry2.NewClient(retry2.WithTryTimeout(time.Hour)),
+		retry2.NewClient(context.Background(), retry2.WithTryTimeout(time.Hour)),
 		checkcontext.NewClient(t, func(t *testing.T, c context.Context) {
 			v, ok := c.Deadline()
 			require.True(t, ok)
