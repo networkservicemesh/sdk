@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -79,7 +78,7 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 				closeCtx, closeCancel := closeCtxFunc()
 				defer closeCancel()
 				_, _ = next.Client(closeCtx).Close(closeCtx, conn)
-				return nil, errors.Wrap(eventLoopErr, "unable to monitor")
+				return nil, eventLoopErr
 			}
 			storeCancel(ctx, cancelEventLoop)
 		}
@@ -96,7 +95,7 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 			closeCtx, closeCancel := closeCtxFunc()
 			defer closeCancel()
 			_, _ = next.Client(closeCtx).Close(closeCtx, conn)
-			return nil, errors.Wrap(eventLoopErr, "unable to monitor")
+			return nil, eventLoopErr
 		}
 		storeCancel(ctx, cancelEventLoop)
 	}
