@@ -22,6 +22,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
@@ -60,14 +61,20 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 	// Cancel any existing eventLoop
 	if cancelEventLoop, loaded := loadAndDelete(ctx); loaded {
 		cancelEventLoop()
+		logrus.Error("reiogna: healClient cancel old loop")
+	} else {
+		logrus.Error("reiogna: healClient ctx doesn't have loop")
 	}
 
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
+		logrus.Error("reiogna: healClient exit on error")
 		return nil, err
 	}
+	logrus.Error("reiogna: healClient success")
 	cc, ccLoaded := clientconn.Load(ctx)
 	if ccLoaded {
+		logrus.Error("reiogna: healClient start new loop")
 		cancelEventLoop, eventLoopErr := newEventLoop(
 			extend.WithValuesFromContext(h.chainCtx, ctx), cc, conn, h)
 		if eventLoopErr != nil {
