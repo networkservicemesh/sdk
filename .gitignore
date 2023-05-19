@@ -16,3 +16,6 @@
 
 .idea/
 junit/
+
+# local debugging with VSCode
+.vscode
