@@ -46,3 +46,21 @@ func fromContext(ctx context.Context) EventFactory {
 	}
 	return nil
 }
+
+type asyncRetryKey struct{}
+
+func WithAsyncRetry(parent context.Context) context.Context {
+	if parent.Value(asyncRetryKey{}) != nil {
+		return parent
+	}
+	ctx := context.WithValue(parent, asyncRetryKey{}, true)
+	return ctx
+}
+
+func IsRetryAsync(ctx context.Context) bool {
+	value, ok := ctx.Value(asyncRetryKey{}).(bool)
+	if !ok {
+		return false
+	}
+	return value
+}

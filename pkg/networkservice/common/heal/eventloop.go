@@ -240,6 +240,7 @@ func (cev *eventLoop) eventLoop() {
 			}
 			logrus.Error("reiogna: event loop: Request end")
 			// healCancel()
+			return
 		}
 	}
 }

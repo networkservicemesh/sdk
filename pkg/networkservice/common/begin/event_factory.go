@@ -106,12 +106,14 @@ func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
 				defer cancel()
 				logrus.Error("reiogna: eventFactoryClient action: reselect close")
 				_, _ = f.client.Close(ctx, request.GetConnection(), f.opts...)
-				if request.GetConnection() != nil {
-					request.GetConnection().Mechanism = nil
-					request.GetConnection().NetworkServiceEndpointName = ""
+				if f.request.GetConnection() != nil {
+					f.request.GetConnection().Mechanism = nil
+					f.request.GetConnection().NetworkServiceEndpointName = ""
 				}
+				request = f.request.Clone()
 			}
 			ctx, cancel := f.ctxFunc()
+			ctx = WithAsyncRetry(ctx)
 			defer cancel()
 			logrus.Error("reiogna: eventFactoryClient action: request")
 			conn, err := f.client.Request(ctx, request, f.opts...)

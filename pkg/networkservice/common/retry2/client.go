@@ -28,6 +28,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
@@ -88,6 +89,7 @@ func (r *retryClient) Request(ctx context.Context, request *networkservice.Netwo
 			// _, _ = next.Client(ctx).Close(closeCtx, conn.Clone(), opts...)
 			// cancel()
 
+			logrus.Error("reiogna: retry2Client waiting on timer")
 			select {
 			case <-r.chainCtx.Done():
 				logrus.Error("reiogna: retry2Client chainCtx cancel")
@@ -96,7 +98,17 @@ func (r *retryClient) Request(ctx context.Context, request *networkservice.Netwo
 				logrus.Error("reiogna: retry2Client cancel")
 				return nil, ctx.Err()
 			case <-c.After(r.interval):
-				logrus.Error("reiogna: retry2Client on timer")
+				logrus.Error("reiogna: retry2Client react on timer")
+				if begin.IsRetryAsync(ctx) {
+					logrus.Error("reiogna: retry2Client async")
+					ev := begin.FromContext(ctx)
+					if ev != nil {
+						ev.Request()
+					}
+					return nil, err
+				} else {
+					logrus.Error("reiogna: retry2Client sync")
+				}
 				continue
 			}
 		}
