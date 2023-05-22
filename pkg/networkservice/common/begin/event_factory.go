@@ -113,6 +113,7 @@ func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
 				request = f.request.Clone()
 			}
 			ctx, cancel := f.ctxFunc()
+			logrus.Error("reiogna: eventFactoryClient action: with async retry")
 			ctx = WithAsyncRetry(ctx)
 			defer cancel()
 			logrus.Error("reiogna: eventFactoryClient action: request")

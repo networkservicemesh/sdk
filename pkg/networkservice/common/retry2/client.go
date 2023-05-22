@@ -109,7 +109,7 @@ func (r *retryClient) Request(ctx context.Context, request *networkservice.Netwo
 				} else {
 					logrus.Error("reiogna: retry2Client sync")
 				}
-				continue
+				return nil, err
 			}
 		}
 
