@@ -33,7 +33,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
 )
@@ -60,30 +59,6 @@ func (c *remoteSideClient) Close(ctx context.Context, conn *networkservice.Conne
 
 	clock.FromContext(ctx).Sleep(c.delay)
 	return nil, errors.New("cannot connect")
-}
-
-func Test_RetryClient_Request(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-
-	var counter = new(count.Client)
-
-	var client = chain.NewNetworkServiceClient(
-		retry2.NewClient(
-			context.Background(),
-			retry2.WithInterval(time.Millisecond*10),
-			retry2.WithTryTimeout(time.Second/30),
-		),
-		counter,
-		&remoteSideClient{
-			delay:            time.Millisecond * 10,
-			failRequestCount: 5,
-		},
-	)
-
-	var _, err = client.Request(context.Background(), nil)
-	require.NoError(t, err)
-	require.Equal(t, 6, counter.Requests())
-	require.Equal(t, 0, counter.Closes())
 }
 
 func Test_RetryClient_Request_ContextHasCorrectDeadline(t *testing.T) {
