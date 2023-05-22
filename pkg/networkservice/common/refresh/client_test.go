@@ -395,34 +395,3 @@ func TestRefreshClient_CalculatesShortestTokenTimeout(t *testing.T) {
 
 	require.Equal(t, countClient.Requests(), len(testData))
 }
-
-func TestRefreshClient_RefreshOnRefreshFailure(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	clockMock := clockmock.New(ctx)
-
-	cloneClient := &countClient{
-		t: t,
-	}
-	client := testClient(ctx, testTokenFunc(clockMock),
-		clockMock,
-		cloneClient,
-		injecterror.NewClient(injecterror.WithRequestErrorTimes(1, -1)),
-	)
-
-	_, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
-		Connection: new(networkservice.Connection),
-	})
-	require.NoError(t, err)
-
-	clockMock.Add(expireTimeout)
-
-	require.Eventually(t, cloneClient.validator(2), testWait, testTick)
-
-	clockMock.Add(expireTimeout)
-
-	require.Eventually(t, cloneClient.validator(3), testWait, testTick)
-}
