@@ -68,7 +68,7 @@ func Test_RetryClient_Request(t *testing.T) {
 
 	var counter = new(count.Client)
 
-	var client = retry.NewClient(
+	var client = retry.NewClient(context.Background(),
 		chain.NewNetworkServiceClient(
 			counter,
 			&remoteSideClient{
@@ -99,13 +99,15 @@ func Test_RetryClient_Request_ContextHasCorrectDeadline(t *testing.T) {
 
 	expectedDeadline := clockMock.Now().Add(time.Hour)
 
-	var client = retry.NewClient(chain.NewNetworkServiceClient(
-		checkcontext.NewClient(t, func(t *testing.T, c context.Context) {
-			v, ok := c.Deadline()
-			require.True(t, ok)
-			require.Equal(t, expectedDeadline, v)
-		}),
-	), retry.WithTryTimeout(time.Hour))
+	var client = retry.NewClient(context.Background(),
+		chain.NewNetworkServiceClient(
+			checkcontext.NewClient(t, func(t *testing.T, c context.Context) {
+				v, ok := c.Deadline()
+				require.True(t, ok)
+				require.Equal(t, expectedDeadline, v)
+			}),
+		), retry.WithTryTimeout(time.Hour),
+	)
 
 	var _, err = client.Request(ctx, nil)
 	require.NoError(t, err)
@@ -124,13 +126,15 @@ func Test_RetryClient_Close_ContextHasCorrectDeadline(t *testing.T) {
 
 	expectedDeadline := clockMock.Now().Add(time.Hour)
 
-	var client = retry.NewClient(chain.NewNetworkServiceClient(
-		checkcontext.NewClient(t, func(t *testing.T, c context.Context) {
-			v, ok := c.Deadline()
-			require.True(t, ok)
-			require.Equal(t, expectedDeadline, v)
-		}),
-	), retry.WithTryTimeout(time.Hour))
+	var client = retry.NewClient(context.Background(),
+		chain.NewNetworkServiceClient(
+			checkcontext.NewClient(t, func(t *testing.T, c context.Context) {
+				v, ok := c.Deadline()
+				require.True(t, ok)
+				require.Equal(t, expectedDeadline, v)
+			}),
+		), retry.WithTryTimeout(time.Hour),
+	)
 
 	var _, err = client.Close(ctx, nil)
 	require.NoError(t, err)
@@ -141,7 +145,7 @@ func Test_RetryClient_Close(t *testing.T) {
 
 	var counter = new(count.Client)
 
-	var client = retry.NewClient(
+	var client = retry.NewClient(context.Background(),
 		chain.NewNetworkServiceClient(
 			counter,
 			&remoteSideClient{

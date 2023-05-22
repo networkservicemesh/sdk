@@ -31,6 +31,7 @@ import (
 )
 
 type retryClient struct {
+	chainCtx   context.Context
 	interval   time.Duration
 	tryTimeout time.Duration
 	client     networkservice.NetworkServiceClient
@@ -54,8 +55,9 @@ func WithInterval(interval time.Duration) Option {
 }
 
 // NewClient - returns a connect chain element
-func NewClient(client networkservice.NetworkServiceClient, opts ...Option) networkservice.NetworkServiceClient {
+func NewClient(chainCtx context.Context, client networkservice.NetworkServiceClient, opts ...Option) networkservice.NetworkServiceClient {
 	var result = &retryClient{
+		chainCtx:   chainCtx,
 		interval:   time.Millisecond * 200,
 		tryTimeout: time.Second * 15,
 		client:     client,
@@ -109,6 +111,8 @@ func (r *retryClient) Close(ctx context.Context, conn *networkservice.Connection
 			logger.Errorf("try attempt has failed: %v", err.Error())
 
 			select {
+			case <-r.chainCtx.Done():
+				return nil, r.chainCtx.Err()
 			case <-ctx.Done():
 				return nil, ctx.Err()
 			case <-c.After(r.interval):

@@ -252,7 +252,7 @@ func (n *Node) NewClient(
 	}
 
 	opts = append(opts, additionalOpts...)
-	return retry.NewClient(client.NewClient(
+	return retry.NewClient(ctx, client.NewClient(
 		ctx,
 		opts...,
 	))
