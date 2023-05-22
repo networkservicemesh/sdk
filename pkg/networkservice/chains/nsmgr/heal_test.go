@@ -19,6 +19,7 @@ package nsmgr_test
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -37,6 +38,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkresponse"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injectclock"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
@@ -844,7 +846,13 @@ func TestNSMGR_RefreshFailed_DataPlaneBroken(t *testing.T) {
 	counter := new(count.Server)
 	// allow only one successful request
 	inject := injecterror.NewServer(injecterror.WithCloseErrorTimes(), injecterror.WithRequestErrorTimes(1, -1))
-	nse1 := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, inject, counter)
+	isDataplaneHealthy := atomic.Bool{}
+	dataPlaneNotifier := checkresponse.NewServer(t, func(t *testing.T, c *networkservice.Connection) {
+		if c != nil {
+			isDataplaneHealthy.Store(true)
+		}
+	})
+	nse1 := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, inject, dataPlaneNotifier, counter)
 	_ = nse1
 
 	request := defaultRequest(nsReg.Name)
@@ -858,18 +866,15 @@ func TestNSMGR_RefreshFailed_DataPlaneBroken(t *testing.T) {
 		refresh.NewClient(ctx),
 	)
 
-	isDataplaneHealthy := func() bool { return true }
-	livenessCheck := func(ctx context.Context, conn *networkservice.Connection) bool {
-		return isDataplaneHealthy()
-	}
-
 	nsc := domain.Nodes[0].NewClient(ctx,
 		// sandbox.GenerateTestToken,
 		sandbox.GenerateExpiringToken(tokenDuration),
 		nsclient.WithAdditionalFunctionality(clientCounter),
 		client.WithRefresh(refreshClient),
 		nsclient.WithHealClient(heal.NewClient(ctx,
-			heal.WithLivenessCheck(livenessCheck),
+			heal.WithLivenessCheck(func(ctx context.Context, conn *networkservice.Connection) bool {
+				return isDataplaneHealthy.Load()
+			}),
 			heal.WithLivenessCheckInterval(time.Millisecond*10),
 		)),
 	)
@@ -895,7 +900,8 @@ func TestNSMGR_RefreshFailed_DataPlaneBroken(t *testing.T) {
 	}, timeout, tick)
 	logrus.Error("reiogna: ======================== root got 2 requests")
 
-	isDataplaneHealthy = func() bool { return counter.Requests() > 1 }
+	isDataplaneHealthy.Store(false)
+	// isDataplaneHealthy = func() bool { return counter.Requests() > 1 }
 	// logrus.Error("reiogna: ======================== root cancel")
 	// nse1.Cancel()
 
