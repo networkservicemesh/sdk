@@ -86,7 +86,7 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 				if err := <-eventFactory.Request(begin.CancelContext(cancelCtx)); err != nil {
 					logrus.Error("reiogna: refreshClient error")
 					logger.Warnf("refresh failed: %s", err.Error())
-					continue
+					return
 				}
 				logrus.Error("reiogna: refreshClient success")
 				return
