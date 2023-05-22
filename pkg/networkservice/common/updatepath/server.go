@@ -44,7 +44,7 @@ func NewServer(name string) networkservice.NetworkServiceServer {
 }
 
 func (i *updatePathServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (conn *networkservice.Connection, err error) {
-	logrus.Error("reiogna: updatePathServer enter", request.GetConnection().GetCurrentPathSegment().Name)
+	// logrus.Error("reiogna: updatePathServer enter", request.GetConnection().GetCurrentPathSegment().Name)
 	if request.Connection == nil {
 		request.Connection = &networkservice.Connection{}
 	}
