@@ -74,17 +74,15 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 	afterTicker := clockTime.Ticker(refreshAfter)
 	go func() {
 		defer afterTicker.Stop()
-		for {
-			select {
-			case <-cancelCtx.Done():
-				return
-			case <-afterTicker.C():
-				if err := <-eventFactory.Request(begin.CancelContext(cancelCtx)); err != nil {
-					logger.Warnf("refresh failed: %s", err.Error())
-					return
-				}
+		select {
+		case <-cancelCtx.Done():
+			return
+		case <-afterTicker.C():
+			if err := <-eventFactory.Request(begin.CancelContext(cancelCtx)); err != nil {
+				logger.Warnf("refresh failed: %s", err.Error())
 				return
 			}
+			return
 		}
 	}()
 

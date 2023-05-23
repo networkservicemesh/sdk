@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,9 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package retry provides a chain element
-// that will repeatedly call Request down the chain
-// until it succeeds, or until chain or request context is cancelled.
+// Package retry2 provides a chain element
+// that will asyncronously retry requests from event factory if previous request failed.
+// Doesn't affect requests from user.
 package retry2
 
 import (
@@ -82,16 +82,14 @@ func (r *retryClient) Request(ctx context.Context, request *networkservice.Netwo
 	if err != nil {
 		logger.Errorf("try attempt has failed: %v", err.Error())
 
-		if begin.IsRetryAsync(ctx) {
+		ev := begin.FromContext(ctx)
+		if ev != nil && begin.IsRetryAsync(ctx) {
 			go func() {
 				select {
 				case <-r.chainCtx.Done():
 					return
 				case <-c.After(r.interval):
-					ev := begin.FromContext(ctx)
-					if ev != nil {
-						ev.Request()
-					}
+					ev.Request()
 					return
 				}
 			}()

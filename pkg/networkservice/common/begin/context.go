@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -49,6 +49,7 @@ func fromContext(ctx context.Context) EventFactory {
 
 type asyncRetryKey struct{}
 
+// WithAsyncRetry enables async retry
 func WithAsyncRetry(parent context.Context) context.Context {
 	if parent.Value(asyncRetryKey{}) != nil {
 		return parent
@@ -57,6 +58,7 @@ func WithAsyncRetry(parent context.Context) context.Context {
 	return ctx
 }
 
+// IsRetryAsync checks is async retry was requested
 func IsRetryAsync(ctx context.Context) bool {
 	value, ok := ctx.Value(asyncRetryKey{}).(bool)
 	if !ok {

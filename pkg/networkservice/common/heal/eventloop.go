@@ -147,7 +147,6 @@ func (cev *eventLoop) monitorCtrlPlane() <-chan struct{} {
 				// This condition means, that the client closed the connection. Stop healing
 				if s.Code() == codes.Canceled {
 					res <- struct{}{}
-				} else {
 				}
 				// Otherwise - Start healing
 				return
