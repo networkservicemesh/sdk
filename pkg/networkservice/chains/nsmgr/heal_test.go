@@ -32,7 +32,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	nsclient "github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
@@ -775,7 +774,7 @@ func TestNSMGR_RefreshRetry(t *testing.T) {
 	)
 	nsc := domain.Nodes[0].NewClient(ctx,
 		sandbox.GenerateExpiringToken(tokenDuration),
-		client.WithRefresh(refreshClient),
+		nsclient.WithRefresh(refreshClient),
 	)
 
 	requestCtx, requestCalcel := context.WithTimeout(ctx, time.Second)
@@ -840,8 +839,8 @@ func TestNSMGR_RefreshFailed_DataPlaneBroken(t *testing.T) {
 
 	nsc := domain.Nodes[0].NewClient(ctx,
 		sandbox.GenerateExpiringToken(tokenDuration),
-		client.WithRefresh(refreshClient),
-		client.WithRetryClient(retryClient),
+		nsclient.WithRefresh(refreshClient),
+		nsclient.WithRetryClient(retryClient),
 		nsclient.WithHealClient(heal.NewClient(ctx,
 			heal.WithLivenessCheck(func(ctx context.Context, conn *networkservice.Connection) bool {
 				return isDataplaneHealthy.Load()

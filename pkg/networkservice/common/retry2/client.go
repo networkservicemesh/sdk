@@ -56,7 +56,7 @@ func WithInterval(interval time.Duration) Option {
 	}
 }
 
-// NewClient - returns a retry client chain element.
+// NewClient - returns a retry chain element.
 func NewClient(chainCtx context.Context, opts ...Option) networkservice.NetworkServiceClient {
 	var result = &retryClient{
 		chainCtx:   chainCtx,
@@ -77,35 +77,29 @@ func (r *retryClient) Request(ctx context.Context, request *networkservice.Netwo
 
 	requestCtx, cancel := c.WithTimeout(ctx, r.tryTimeout)
 	conn, err := next.Client(ctx).Request(requestCtx, request.Clone(), opts...)
-	// conn, err := next.Client(ctx).Request(ctx, request, opts...)
 	cancel()
 
 	if err != nil {
 		logger.Errorf("try attempt has failed: %v", err.Error())
-		// closeCtx, cancel := c.WithTimeout(ctx, r.tryTimeout)
-		// _, _ = next.Client(ctx).Close(closeCtx, conn.Clone(), opts...)
-		// cancel()
 
-		go func() {
-			select {
-			case <-r.chainCtx.Done():
-				return
-			case <-c.After(r.interval):
-				if begin.IsRetryAsync(ctx) {
+		if begin.IsRetryAsync(ctx) {
+			go func() {
+				select {
+				case <-r.chainCtx.Done():
+					return
+				case <-c.After(r.interval):
 					ev := begin.FromContext(ctx)
 					if ev != nil {
 						ev.Request()
 					}
 					return
-				} else {
 				}
-				return
-			}
-		}()
+			}()
+		}
 		return nil, err
 	}
 
-	return conn, err
+	return conn, nil
 }
 
 func (r *retryClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {

@@ -169,9 +169,8 @@ func (cev *eventLoop) eventLoop() {
 	ctrlPlaneCh := cev.monitorCtrlPlane()
 	dataPlaneCh := cev.monitorDataPlane()
 
-	if dataPlaneCh == nil || ctrlPlaneCh == nil {
-		// If we don't know data plane status - use reselect for safety
-		// If we can't monitor control plane, then the only way to get an error is from data plane
+	if dataPlaneCh == nil {
+		// If we don't know data plane status, use reselect for safety
 		reselect = true
 	}
 
@@ -198,39 +197,30 @@ func (cev *eventLoop) eventLoop() {
 	}
 
 	/* Attempts to heal the connection */
-	for {
-		select {
-		case <-cev.chainCtx.Done():
-			return
-		default:
-			var options []begin.Option
-			if cev.chainCtx.Err() != nil {
-				return
-			}
-
-			// We need to force check the DataPlane if a down event was received from the ControlPlane
-			if !reselect {
-				deadlineCtx, deadlineCancel := context.WithDeadline(cev.chainCtx, time.Now().Add(cev.heal.livenessCheckTimeout))
-				if !cev.heal.livenessCheck(deadlineCtx, cev.conn) {
-					cev.logger.Warnf("Data plane is down")
-					reselect = true
-				}
-				deadlineCancel()
-			}
-
-			if reselect {
-				cev.logger.Debugf("Reconnect with reselect")
-				options = append(options, begin.WithReselect())
-			}
-			// healCtx, healCancel := context.WithTimeout(cev.chainCtx, time.Millisecond*500)
-			// options = append(options, begin.CancelContext(healCtx))
-			// defer healCancel()
-			if err := <-cev.eventFactory.Request(options...); err == nil {
-				return
-			}
-			// healCancel()
+	select {
+	case <-cev.chainCtx.Done():
+		return
+	default:
+		if cev.chainCtx.Err() != nil {
 			return
 		}
+
+		// We need to force check the DataPlane if a down event was received from the ControlPlane
+		if !reselect {
+			deadlineCtx, deadlineCancel := context.WithDeadline(cev.chainCtx, time.Now().Add(cev.heal.livenessCheckTimeout))
+			if !cev.heal.livenessCheck(deadlineCtx, cev.conn) {
+				cev.logger.Warnf("Data plane is down")
+				reselect = true
+			}
+			deadlineCancel()
+		}
+
+		var options []begin.Option
+		if reselect {
+			cev.logger.Debugf("Reconnect with reselect")
+			options = append(options, begin.WithReselect())
+		}
+		cev.eventFactory.Request(options...)
 	}
 }
 

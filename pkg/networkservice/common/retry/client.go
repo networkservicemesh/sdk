@@ -53,7 +53,7 @@ func WithInterval(interval time.Duration) Option {
 	}
 }
 
-// NewClient - returns a connect chain element
+// NewClient - returns a retry chain element
 func NewClient(chainCtx context.Context, client networkservice.NetworkServiceClient, opts ...Option) networkservice.NetworkServiceClient {
 	var result = &retryClient{
 		chainCtx:   chainCtx,
