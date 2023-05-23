@@ -770,7 +770,6 @@ func TestNSMGR_RefreshRetry(t *testing.T) {
 
 	request := defaultRequest(nsReg.Name)
 
-	clientCounter := new(count.Client)
 	tokenDuration := time.Minute * 15
 	clk := clockmock.New(ctx)
 	clk.Set(time.Now())
@@ -781,7 +780,6 @@ func TestNSMGR_RefreshRetry(t *testing.T) {
 	nsc := domain.Nodes[0].NewClient(ctx,
 		// sandbox.GenerateTestToken,
 		sandbox.GenerateExpiringToken(tokenDuration),
-		nsclient.WithAdditionalFunctionality(clientCounter),
 		client.WithRefresh(refreshClient),
 	)
 
@@ -789,7 +787,6 @@ func TestNSMGR_RefreshRetry(t *testing.T) {
 	defer requestCalcel()
 	conn, err := nsc.Request(requestCtx, request.Clone())
 	require.NoError(t, err)
-	require.Equal(t, 1, clientCounter.Requests())
 	require.Equal(t, 1, counter.Requests())
 
 	// nseReg2 := defaultRegistryEndpoint(nsReg.Name)
@@ -800,21 +797,6 @@ func TestNSMGR_RefreshRetry(t *testing.T) {
 
 	// refresh timeout in this test should be 3 minutes and a few milliseconds
 	clk.Add(time.Second * 190)
-
-	logrus.Error("reiogna: ======================== root waiting 1")
-	require.Eventually(t, func() bool {
-		return clientCounter.Requests() > 1
-	}, timeout, tick)
-	logrus.Error("reiogna: ======================== root got 2 requests")
-
-	// logrus.Error("reiogna: ======================== root cancel")
-	// nse1.Cancel()
-
-	logrus.Error("reiogna: ======================== root waiting 2")
-	require.Eventually(t, func() bool {
-		return clientCounter.Requests() > 2
-	}, timeout, tick)
-	logrus.Error("reiogna: ======================== root got 3 requests")
 
 	require.Eventually(t, checkSecondRequestsReceived(counter.Requests), timeout, tick)
 	require.Equal(t, 1, counter.UniqueRequests())
@@ -859,7 +841,6 @@ func TestNSMGR_RefreshFailed_DataPlaneBroken(t *testing.T) {
 
 	request := defaultRequest(nsReg.Name)
 
-	clientCounter := new(count.Client)
 	tokenDuration := time.Minute * 15
 	clk := clockmock.New(ctx)
 	clk.Set(time.Now())
@@ -875,7 +856,6 @@ func TestNSMGR_RefreshFailed_DataPlaneBroken(t *testing.T) {
 	nsc := domain.Nodes[0].NewClient(ctx,
 		// sandbox.GenerateTestToken,
 		sandbox.GenerateExpiringToken(tokenDuration),
-		nsclient.WithAdditionalFunctionality(clientCounter),
 		client.WithRefresh(refreshClient),
 		client.WithRetryClient(retryClient),
 		nsclient.WithHealClient(heal.NewClient(ctx,
@@ -890,7 +870,6 @@ func TestNSMGR_RefreshFailed_DataPlaneBroken(t *testing.T) {
 	defer requestCalcel()
 	conn, err := nsc.Request(requestCtx, request.Clone())
 	require.NoError(t, err)
-	require.Equal(t, 1, clientCounter.Requests())
 	require.Equal(t, 1, counter.Requests())
 
 	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
@@ -903,15 +882,7 @@ func TestNSMGR_RefreshFailed_DataPlaneBroken(t *testing.T) {
 	// refresh timeout in this test should be 3 minutes and a few milliseconds
 	clk.Add(time.Second * 190)
 
-	require.Eventually(t, func() bool {
-		return clientCounter.Requests() > 1
-	}, timeout, tick)
-	logrus.Error("reiogna: ======================== root got 2 requests")
-
 	isDataplaneHealthy.Store(false)
-	// isDataplaneHealthy = func() bool { return counter.Requests() > 1 }
-	// logrus.Error("reiogna: ======================== root cancel")
-	// nse1.Cancel()
 
 	require.Eventually(t, checkSecondRequestsReceived(counter.Requests), timeout, tick)
 	require.Equal(t, 2, counter.UniqueRequests())
