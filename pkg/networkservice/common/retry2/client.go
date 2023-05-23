@@ -76,27 +76,24 @@ func (r *retryClient) Request(ctx context.Context, request *networkservice.Netwo
 	logger := log.FromContext(ctx).WithField("retry2Client", "Request")
 	c := clock.FromContext(ctx)
 
-	for ctx.Err() == nil {
-		logrus.Error("reiogna: retry2Client attempt")
-		requestCtx, cancel := c.WithTimeout(ctx, r.tryTimeout)
-		conn, err := next.Client(ctx).Request(requestCtx, request.Clone(), opts...)
-		// conn, err := next.Client(ctx).Request(ctx, request, opts...)
-		cancel()
+	requestCtx, cancel := c.WithTimeout(ctx, r.tryTimeout)
+	conn, err := next.Client(ctx).Request(requestCtx, request.Clone(), opts...)
+	// conn, err := next.Client(ctx).Request(ctx, request, opts...)
+	cancel()
 
-		if err != nil {
-			logger.Errorf("try attempt has failed: %v", err.Error())
-			// closeCtx, cancel := c.WithTimeout(ctx, r.tryTimeout)
-			// _, _ = next.Client(ctx).Close(closeCtx, conn.Clone(), opts...)
-			// cancel()
+	if err != nil {
+		logger.Errorf("try attempt has failed: %v", err.Error())
+		// closeCtx, cancel := c.WithTimeout(ctx, r.tryTimeout)
+		// _, _ = next.Client(ctx).Close(closeCtx, conn.Clone(), opts...)
+		// cancel()
 
+		logrus.Error("reiogna: retry2Client create goroutine")
+		go func() {
 			logrus.Error("reiogna: retry2Client waiting on timer")
 			select {
 			case <-r.chainCtx.Done():
 				logrus.Error("reiogna: retry2Client chainCtx cancel")
-				return nil, r.chainCtx.Err()
-			case <-ctx.Done():
-				logrus.Error("reiogna: retry2Client cancel")
-				return nil, ctx.Err()
+				return
 			case <-c.After(r.interval):
 				logrus.Error("reiogna: retry2Client react on timer")
 				if begin.IsRetryAsync(ctx) {
@@ -105,18 +102,17 @@ func (r *retryClient) Request(ctx context.Context, request *networkservice.Netwo
 					if ev != nil {
 						ev.Request()
 					}
-					return nil, err
+					return
 				} else {
 					logrus.Error("reiogna: retry2Client sync")
 				}
-				return nil, err
+				return
 			}
-		}
-
-		return conn, err
+		}()
+		return nil, err
 	}
 
-	return nil, ctx.Err()
+	return conn, err
 }
 
 func (r *retryClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
