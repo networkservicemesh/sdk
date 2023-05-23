@@ -22,34 +22,34 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
-type cancelKey struct{}
-type pendingErrorKey struct{}
+type cancelFullKey struct{}
+type cancelDataKey struct{}
 
-func setPendingErrorFlag(ctx context.Context, value bool) {
-	metadata.Map(ctx, true).Store(pendingErrorKey{}, value)
+// storeCancelFull sets the context.CancelFunc stored in per Connection.Id metadata.
+func storeCancelFull(ctx context.Context, cancel context.CancelFunc) {
+	metadata.Map(ctx, true).Store(cancelFullKey{}, cancel)
 }
 
-func getPendingErrorFlag(ctx context.Context) bool {
-	rawValue, ok := metadata.Map(ctx, true).Load(pendingErrorKey{})
-	if !ok {
-		return false
-	}
-	value, ok := rawValue.(bool)
-	if !ok {
-		return false
-	}
-	return value
-}
-
-// storeCancel sets the context.CancelFunc stored in per Connection.Id metadata.
-func storeCancel(ctx context.Context, cancel context.CancelFunc) {
-	metadata.Map(ctx, true).Store(cancelKey{}, cancel)
-}
-
-// loadAndDelete deletes the context.CancelFunc stored in per Connection.Id metadata,
+// loadAndDeleteFull deletes the context.CancelFunc stored in per Connection.Id metadata,
 // returning the previous value if any. The loaded result reports whether the key was present.
-func loadAndDelete(ctx context.Context) (value context.CancelFunc, ok bool) {
-	rawValue, ok := metadata.Map(ctx, true).LoadAndDelete(cancelKey{})
+func loadAndDeleteFull(ctx context.Context) (value context.CancelFunc, ok bool) {
+	rawValue, ok := metadata.Map(ctx, true).LoadAndDelete(cancelFullKey{})
+	if !ok {
+		return
+	}
+	value, ok = rawValue.(context.CancelFunc)
+	return value, ok
+}
+
+// storeCancelFull sets the context.CancelFunc stored in per Connection.Id metadata.
+func storeCancelData(ctx context.Context, cancel context.CancelFunc) {
+	metadata.Map(ctx, true).Store(cancelDataKey{}, cancel)
+}
+
+// loadAndDeleteFull deletes the context.CancelFunc stored in per Connection.Id metadata,
+// returning the previous value if any. The loaded result reports whether the key was present.
+func loadAndDeleteData(ctx context.Context) (value context.CancelFunc, ok bool) {
+	rawValue, ok := metadata.Map(ctx, true).LoadAndDelete(cancelDataKey{})
 	if !ok {
 		return
 	}
