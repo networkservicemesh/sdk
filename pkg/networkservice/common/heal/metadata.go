@@ -25,28 +25,28 @@ import (
 type cancelFullKey struct{}
 type cancelDataKey struct{}
 
-// storeCancelFull sets the context.CancelFunc stored in per Connection.Id metadata.
+// storeCancelFull saves CancelFunc for the full (control plane + data plane) monitoring
 func storeCancelFull(ctx context.Context, cancel context.CancelFunc) {
 	metadata.Map(ctx, true).Store(cancelFullKey{}, cancel)
 }
 
-// loadAndDeleteFull deletes the context.CancelFunc stored in per Connection.Id metadata,
+// loadAndDeleteFull deletes CancelFunc for the full (control plane + data plane) monitoring,
 // returning the previous value if any. The loaded result reports whether the key was present.
-func loadAndDeleteFull(ctx context.Context) (value context.CancelFunc, ok bool) {
-	rawValue, ok := metadata.Map(ctx, true).LoadAndDelete(cancelFullKey{})
-	if !ok {
+func loadAndDeleteFull(ctx context.Context) (value context.CancelFunc, loaded bool) {
+	rawValue, loaded := metadata.Map(ctx, true).LoadAndDelete(cancelFullKey{})
+	if !loaded {
 		return
 	}
-	value, ok = rawValue.(context.CancelFunc)
-	return value, ok
+	value, loaded = rawValue.(context.CancelFunc)
+	return value, loaded
 }
 
-// storeCancelFull sets the context.CancelFunc stored in per Connection.Id metadata.
+// storeCancelFull saves CancelFunc for the data-plane-only monitoring
 func storeCancelData(ctx context.Context, cancel context.CancelFunc) {
 	metadata.Map(ctx, true).Store(cancelDataKey{}, cancel)
 }
 
-// loadAndDeleteFull deletes the context.CancelFunc stored in per Connection.Id metadata,
+// loadAndDeleteFull deletes CancelFunc for the data-plane-only monitoring,
 // returning the previous value if any. The loaded result reports whether the key was present.
 func loadAndDeleteData(ctx context.Context) (value context.CancelFunc, ok bool) {
 	rawValue, ok := metadata.Map(ctx, true).LoadAndDelete(cancelDataKey{})

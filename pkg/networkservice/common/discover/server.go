@@ -74,8 +74,6 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 	if err != nil {
 		return nil, err
 	}
-	for i := 0; i < len(nses); i++ {
-	}
 
 	request.GetConnection().Payload = ns.Payload
 

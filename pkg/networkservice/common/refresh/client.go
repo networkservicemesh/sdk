@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020-2023 Cisco and/or its affiliates.
 //
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //

@@ -60,7 +60,6 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 	cancelEventLoop, loaded := loadAndDeleteFull(ctx)
 	if loaded {
 		cancelEventLoop()
-	} else {
 	}
 
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
@@ -81,7 +80,6 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 	cancelDataEventLoop, loaded := loadAndDeleteData(ctx)
 	if loaded {
 		cancelDataEventLoop()
-	} else {
 	}
 	cc, ccLoaded := clientconn.Load(ctx)
 	if ccLoaded {
