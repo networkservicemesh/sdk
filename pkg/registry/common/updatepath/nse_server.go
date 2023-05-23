@@ -21,7 +21,6 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -45,7 +44,6 @@ func NewNetworkServiceEndpointRegistryServer(tokenGenerator token.GeneratorFunc)
 
 func (s *updatePathNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	path := grpcmetadata.PathFromContext(ctx)
-	logrus.Error("reiogna: updatePathNSEServer register", nse.Name)
 
 	// Update path
 	peerTok, peerExpirationTime, peerTokenErr := token.FromContext(ctx)

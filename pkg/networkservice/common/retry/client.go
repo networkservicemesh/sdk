@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
@@ -75,7 +74,6 @@ func (r *retryClient) Request(ctx context.Context, request *networkservice.Netwo
 	c := clock.FromContext(ctx)
 
 	for ctx.Err() == nil {
-		logrus.Error("reiogna: retryClient attempt")
 		requestCtx, cancel := c.WithTimeout(ctx, r.tryTimeout)
 		resp, err := r.client.Request(requestCtx, request.Clone(), opts...)
 		cancel()

@@ -23,7 +23,6 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/sirupsen/logrus"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
@@ -44,7 +43,6 @@ func NewServer(name string) networkservice.NetworkServiceServer {
 }
 
 func (i *updatePathServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (conn *networkservice.Connection, err error) {
-	// logrus.Error("reiogna: updatePathServer enter", request.GetConnection().GetCurrentPathSegment().Name)
 	if request.Connection == nil {
 		request.Connection = &networkservice.Connection{}
 	}
@@ -57,7 +55,6 @@ func (i *updatePathServer) Request(ctx context.Context, request *networkservice.
 
 	conn, err = next.Server(ctx).Request(ctx, request)
 	if err != nil {
-		logrus.Error("reiogna: updatePathServer err", request.GetConnection().GetCurrentPathSegment().Name, err)
 		return nil, err
 	}
 

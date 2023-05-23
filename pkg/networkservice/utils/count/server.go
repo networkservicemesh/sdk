@@ -22,7 +22,6 @@ import (
 	"sync/atomic"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/sirupsen/logrus"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
@@ -38,7 +37,6 @@ type Server struct {
 
 // Request performs request and increments requests count
 func (s *Server) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	logrus.Error("reiogna: counter request enter")
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

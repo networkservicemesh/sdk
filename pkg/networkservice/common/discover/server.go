@@ -24,7 +24,6 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -57,20 +56,16 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 
 	nseName := request.GetConnection().GetNetworkServiceEndpointName()
 	if nseName != "" {
-		logrus.Error("reiogna: discoverCandidatesServer reusing nse name", nseName)
 		nse, err := d.discoverNetworkServiceEndpoint(ctx, nseName)
 		if err != nil {
-			logrus.Error("reiogna: discoverCandidatesServer nse not found")
 			return nil, err
 		}
-		logrus.Error("reiogna: discoverCandidatesServer found ", nse.Name)
 		u, err := url.Parse(nse.Url)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to parse url %s", nse.Url)
 		}
 		return next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request)
 	}
-	logrus.Error("reiogna: discoverCandidatesServer searching for new nse")
 	ns, err := d.discoverNetworkService(ctx, request.GetConnection().GetNetworkService(), request.GetConnection().GetPayload())
 	if err != nil {
 		return nil, err
@@ -80,7 +75,6 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 		return nil, err
 	}
 	for i := 0; i < len(nses); i++ {
-		logrus.Error("reiogna: discoverCandidatesServer found nse ", nses[i].Name)
 	}
 
 	request.GetConnection().Payload = ns.Payload

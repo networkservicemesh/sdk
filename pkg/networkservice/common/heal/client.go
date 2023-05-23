@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
@@ -61,20 +60,15 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 	cancelEventLoop, loaded := loadAndDeleteFull(ctx)
 	if loaded {
 		cancelEventLoop()
-		logrus.Error("reiogna: healClient cancel old loop")
 	} else {
-		logrus.Error("reiogna: healClient ctx doesn't have loop")
 	}
 
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
-		logrus.Error("reiogna: healClient exit on error")
 		if loaded && h.livenessCheck != nil {
-			logrus.Error("reiogna: healClient start new datapath loop")
 			cancelEventLoop, eventLoopErr := newDataPlaneEventLoop(
 				extend.WithValuesFromContext(h.chainCtx, ctx), request.Connection, h)
 			if eventLoopErr != nil {
-				logrus.Error("reiogna: healClient datapath loop error ", eventLoopErr)
 				closeCtx, closeCancel := closeCtxFunc()
 				defer closeCancel()
 				_, _ = next.Client(closeCtx).Close(closeCtx, conn)
@@ -84,17 +78,13 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 		}
 		return nil, err
 	}
-	logrus.Error("reiogna: healClient success, reset dp loop")
 	cancelDataEventLoop, loaded := loadAndDeleteData(ctx)
 	if loaded {
 		cancelDataEventLoop()
-		logrus.Error("reiogna: healClient cancel data loop")
 	} else {
-		logrus.Error("reiogna: healClient ctx doesn't have data loop")
 	}
 	cc, ccLoaded := clientconn.Load(ctx)
 	if ccLoaded {
-		logrus.Error("reiogna: healClient start new loop")
 		cancelEventLoop, eventLoopErr := newEventLoop(
 			extend.WithValuesFromContext(h.chainCtx, ctx), cc, conn, h)
 		if eventLoopErr != nil {

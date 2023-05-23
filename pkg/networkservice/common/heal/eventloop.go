@@ -25,7 +25,6 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
@@ -127,7 +126,6 @@ func newDataPlaneEventLoop(ctx context.Context, conn *networkservice.Connection,
 
 func (cev *eventLoop) monitorCtrlPlane() <-chan struct{} {
 	if cev.client == nil {
-		logrus.Error("reiogna: event loop: monitor ctrl plane: nil")
 		return nil
 	}
 	res := make(chan struct{}, 1)
@@ -140,7 +138,6 @@ func (cev *eventLoop) monitorCtrlPlane() <-chan struct{} {
 
 			if cev.chainCtx.Err() != nil || cev.eventLoopCtx.Err() != nil {
 				res <- struct{}{}
-				logrus.Error("reiogna: event loop: monitor ctrl plane: ctx err")
 				return
 			}
 
@@ -149,10 +146,8 @@ func (cev *eventLoop) monitorCtrlPlane() <-chan struct{} {
 				s, _ := status.FromError(err)
 				// This condition means, that the client closed the connection. Stop healing
 				if s.Code() == codes.Canceled {
-					logrus.Error("reiogna: event loop: monitor ctrl plane: cancelled err")
 					res <- struct{}{}
 				} else {
-					logrus.Error("reiogna: event loop: monitor ctrl plane: other err")
 				}
 				// Otherwise - Start healing
 				return
@@ -160,7 +155,6 @@ func (cev *eventLoop) monitorCtrlPlane() <-chan struct{} {
 
 			// Handle event. Start healing
 			if eventIn.GetConnections()[cev.conn.GetId()].GetState() == networkservice.State_DOWN {
-				logrus.Error("reiogna: event loop: monitor ctrl plane: send down event")
 				return
 			}
 		}
@@ -205,10 +199,8 @@ func (cev *eventLoop) eventLoop() {
 
 	/* Attempts to heal the connection */
 	for {
-		logrus.Error("reiogna: event loop: attempt")
 		select {
 		case <-cev.chainCtx.Done():
-			logrus.Error("reiogna: event loop: chainCtx done")
 			return
 		default:
 			var options []begin.Option
@@ -233,12 +225,9 @@ func (cev *eventLoop) eventLoop() {
 			// healCtx, healCancel := context.WithTimeout(cev.chainCtx, time.Millisecond*500)
 			// options = append(options, begin.CancelContext(healCtx))
 			// defer healCancel()
-			logrus.Error("reiogna: event loop: Request start")
 			if err := <-cev.eventFactory.Request(options...); err == nil {
-				logrus.Error("reiogna: event loop: Request success")
 				return
 			}
-			logrus.Error("reiogna: event loop: Request end")
 			// healCancel()
 			return
 		}
@@ -247,7 +236,6 @@ func (cev *eventLoop) eventLoop() {
 
 func (cev *eventLoop) monitorDataPlane() <-chan struct{} {
 	if cev.heal.livenessCheck == nil {
-		logrus.Error("reiogna: event loop: monitor data plane: nil")
 		return nil
 	}
 
@@ -264,13 +252,11 @@ func (cev *eventLoop) monitorDataPlane() <-chan struct{} {
 				deadlineCancel()
 				if !alive {
 					// Start healing
-					logrus.Error("reiogna: event loop: monitor data plane: down")
 					return
 				}
 			case <-cev.eventLoopCtx.Done():
 				// EventLoop was canceled. Stop monitoring
 				res <- struct{}{}
-				logrus.Error("reiogna: event loop: monitor data plane: ctx err")
 				return
 			}
 		}

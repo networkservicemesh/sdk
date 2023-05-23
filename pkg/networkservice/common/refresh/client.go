@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -59,7 +58,6 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 
 	// Compute refreshAfter
 	refreshAfter := after(ctx, conn)
-	logrus.Error("reiogna: refreshClient refreshAfter ", refreshAfter)
 
 	// Create a cancel context.
 	cancelCtx, cancel := context.WithCancel(t.chainCtx)
@@ -79,16 +77,12 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 		for {
 			select {
 			case <-cancelCtx.Done():
-				logrus.Error("reiogna: refreshClient cancelCtx done")
 				return
 			case <-afterTicker.C():
-				logrus.Error("reiogna: refreshClient on timer")
 				if err := <-eventFactory.Request(begin.CancelContext(cancelCtx)); err != nil {
-					logrus.Error("reiogna: refreshClient error")
 					logger.Warnf("refresh failed: %s", err.Error())
 					return
 				}
-				logrus.Error("reiogna: refreshClient success")
 				return
 			}
 		}

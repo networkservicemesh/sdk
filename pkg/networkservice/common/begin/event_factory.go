@@ -21,7 +21,6 @@ import (
 
 	"github.com/edwarnicke/serialize"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
@@ -84,7 +83,6 @@ func (f *eventFactoryClient) updateContext(valueCtx context.Context) {
 }
 
 func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
-	logrus.Error("reiogna: eventFactoryClient request")
 	o := &option{
 		cancelCtx: context.Background(),
 	}
@@ -104,7 +102,6 @@ func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
 			if o.reselect {
 				ctx, cancel := f.ctxFunc()
 				defer cancel()
-				logrus.Error("reiogna: eventFactoryClient action: reselect close")
 				_, _ = f.client.Close(ctx, request.GetConnection(), f.opts...)
 				if f.request.GetConnection() != nil {
 					f.request.GetConnection().Mechanism = nil
@@ -113,10 +110,8 @@ func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
 				request = f.request.Clone()
 			}
 			ctx, cancel := f.ctxFunc()
-			logrus.Error("reiogna: eventFactoryClient action: with async retry")
 			ctx = WithAsyncRetry(ctx)
 			defer cancel()
-			logrus.Error("reiogna: eventFactoryClient action: request")
 			conn, err := f.client.Request(ctx, request, f.opts...)
 			if err == nil && f.request != nil {
 				f.request.Connection = conn
@@ -128,7 +123,6 @@ func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
 }
 
 func (f *eventFactoryClient) Close(opts ...Option) <-chan error {
-	logrus.Error("reiogna: eventFactoryClient close")
 	o := &option{
 		cancelCtx: context.Background(),
 	}
