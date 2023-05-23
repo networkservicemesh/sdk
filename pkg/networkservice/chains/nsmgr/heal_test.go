@@ -747,9 +747,6 @@ func TestNSMGR_RefreshRetry(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	// log.EnableTracing(true)
-	// logrus.SetLevel(logrus.TraceLevel)
-
 	domain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
 		Build()
@@ -765,8 +762,7 @@ func TestNSMGR_RefreshRetry(t *testing.T) {
 	counter := new(count.Server)
 	// allow only one successful request
 	inject := injecterror.NewServer(injecterror.WithCloseErrorTimes(), injecterror.WithRequestErrorTimes(1))
-	nse1 := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, inject, counter)
-	_ = nse1
+	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, inject, counter)
 
 	request := defaultRequest(nsReg.Name)
 
@@ -778,7 +774,6 @@ func TestNSMGR_RefreshRetry(t *testing.T) {
 		refresh.NewClient(ctx),
 	)
 	nsc := domain.Nodes[0].NewClient(ctx,
-		// sandbox.GenerateTestToken,
 		sandbox.GenerateExpiringToken(tokenDuration),
 		client.WithRefresh(refreshClient),
 	)
@@ -788,12 +783,6 @@ func TestNSMGR_RefreshRetry(t *testing.T) {
 	conn, err := nsc.Request(requestCtx, request.Clone())
 	require.NoError(t, err)
 	require.Equal(t, 1, counter.Requests())
-
-	// nseReg2 := defaultRegistryEndpoint(nsReg.Name)
-	// nseReg2.Name += "-2"
-
-	// logrus.Error("reiogna: ======================== root new endpoint")
-	// domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter)
 
 	// refresh timeout in this test should be 3 minutes and a few milliseconds
 	clk.Add(time.Second * 190)
@@ -811,9 +800,6 @@ func TestNSMGR_RefreshFailed_DataPlaneBroken(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-
-	// log.EnableTracing(true)
-	// logrus.SetLevel(logrus.TraceLevel)
 
 	domain := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
@@ -836,8 +822,7 @@ func TestNSMGR_RefreshFailed_DataPlaneBroken(t *testing.T) {
 			isDataplaneHealthy.Store(true)
 		}
 	})
-	nse1 := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, inject, dataPlaneNotifier, counter)
-	_ = nse1
+	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, inject, counter)
 
 	request := defaultRequest(nsReg.Name)
 
@@ -854,7 +839,6 @@ func TestNSMGR_RefreshFailed_DataPlaneBroken(t *testing.T) {
 	)
 
 	nsc := domain.Nodes[0].NewClient(ctx,
-		// sandbox.GenerateTestToken,
 		sandbox.GenerateExpiringToken(tokenDuration),
 		client.WithRefresh(refreshClient),
 		client.WithRetryClient(retryClient),
@@ -875,10 +859,8 @@ func TestNSMGR_RefreshFailed_DataPlaneBroken(t *testing.T) {
 	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
 	nseReg2.Name += "-2"
 
-	logrus.Error("reiogna: ======================== root new endpoint")
-	domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter)
+	domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, dataPlaneNotifier, counter)
 
-	logrus.Error("reiogna: ======================== root waiting 1")
 	// refresh timeout in this test should be 3 minutes and a few milliseconds
 	clk.Add(time.Second * 190)
 
