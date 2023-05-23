@@ -103,5 +103,8 @@ func (h *healClient) Close(ctx context.Context, conn *networkservice.Connection,
 	if cancelEventLoop, loaded := loadAndDeleteFull(ctx); loaded {
 		cancelEventLoop()
 	}
+	if cancelEventLoop, loaded := loadAndDeleteData(ctx); loaded {
+		cancelEventLoop()
+	}
 	return next.Client(ctx).Close(ctx, conn)
 }
