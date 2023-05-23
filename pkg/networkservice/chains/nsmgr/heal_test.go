@@ -37,6 +37,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/retry2"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkresponse"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
@@ -797,7 +798,8 @@ func TestNSMGR_RefreshRetry(t *testing.T) {
 	// logrus.Error("reiogna: ======================== root new endpoint")
 	// domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter)
 
-	clk.Add(time.Minute * 5)
+	// refresh timeout in this test should be 3 minutes and a few milliseconds
+	clk.Add(time.Second * 190)
 
 	logrus.Error("reiogna: ======================== root waiting 1")
 	require.Eventually(t, func() bool {
@@ -865,12 +867,17 @@ func TestNSMGR_RefreshFailed_DataPlaneBroken(t *testing.T) {
 		injectclock.NewClient(clk),
 		refresh.NewClient(ctx),
 	)
+	retryClient := next.NewNetworkServiceClient(
+		injectclock.NewClient(clk),
+		retry2.NewClient(ctx),
+	)
 
 	nsc := domain.Nodes[0].NewClient(ctx,
 		// sandbox.GenerateTestToken,
 		sandbox.GenerateExpiringToken(tokenDuration),
 		nsclient.WithAdditionalFunctionality(clientCounter),
 		client.WithRefresh(refreshClient),
+		client.WithRetryClient(retryClient),
 		nsclient.WithHealClient(heal.NewClient(ctx,
 			heal.WithLivenessCheck(func(ctx context.Context, conn *networkservice.Connection) bool {
 				return isDataplaneHealthy.Load()
@@ -892,9 +899,10 @@ func TestNSMGR_RefreshFailed_DataPlaneBroken(t *testing.T) {
 	logrus.Error("reiogna: ======================== root new endpoint")
 	domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter)
 
-	clk.Add(time.Minute * 5)
-
 	logrus.Error("reiogna: ======================== root waiting 1")
+	// refresh timeout in this test should be 3 minutes and a few milliseconds
+	clk.Add(time.Second * 190)
+
 	require.Eventually(t, func() bool {
 		return clientCounter.Requests() > 1
 	}, timeout, tick)
