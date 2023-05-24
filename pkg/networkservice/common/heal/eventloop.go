@@ -40,19 +40,17 @@ type eventLoop struct {
 	conn         *networkservice.Connection
 	eventFactory begin.EventFactory
 	client       networkservice.MonitorConnection_MonitorConnectionsClient
-	reselectFlag atomic.Bool
+	reselectFlag *atomic.Bool
 	logger       log.Logger
 }
 
-type checkReselect func() bool
-
-func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networkservice.Connection, heal *healClient) (context.CancelFunc, checkReselect, error) {
+func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networkservice.Connection, heal *healClient, reselectFlag *atomic.Bool) (context.CancelFunc, error) {
 	conn = conn.Clone()
 
 	ev := begin.FromContext(ctx)
 	// Is another chain element asking for events?  If not, no need to monitor
 	if ev == nil {
-		return func() {}, nil, nil
+		return func() {}, nil
 	}
 
 	// Create new eventLoopCtx and store its eventLoopCancel
@@ -71,14 +69,14 @@ func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networ
 	client, err := networkservice.NewMonitorConnectionClient(cc).MonitorConnections(eventLoopCtx, selector)
 	if err != nil {
 		eventLoopCancel()
-		return nil, nil, errors.Wrap(err, "failed get MonitorConnections client")
+		return nil, errors.Wrap(err, "failed get MonitorConnections client")
 	}
 
 	// get the initial state transfer and use it to detect whether we have a real connection or not
 	_, err = client.Recv()
 	if err != nil {
 		eventLoopCancel()
-		return nil, nil, errors.Wrap(err, "failed to get the initial state transfer")
+		return nil, errors.Wrap(err, "failed to get the initial state transfer")
 	}
 
 	logger := log.FromContext(ctx).WithField("heal", "eventLoop")
@@ -89,26 +87,26 @@ func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networ
 		conn:         conn,
 		eventFactory: ev,
 		client:       newClientFilter(client, conn, logger),
-		reselectFlag: atomic.Bool{},
+		reselectFlag: reselectFlag,
 		logger:       logger,
 	}
 
 	// Start the eventLoop
 	go cev.eventLoop()
-	return eventLoopCancel, func() bool { return cev.reselectFlag.Load() }, nil
+	return eventLoopCancel, nil
 }
 
-func newDataPlaneEventLoop(ctx context.Context, conn *networkservice.Connection, heal *healClient) (context.CancelFunc, checkReselect, error) {
+func newDataPlaneEventLoop(ctx context.Context, conn *networkservice.Connection, heal *healClient, reselectFlag *atomic.Bool) (context.CancelFunc, error) {
 	conn = conn.Clone()
 
 	ev := begin.FromContext(ctx)
 	// Is another chain element asking for events?  If not, no need to monitor
 	if ev == nil {
-		return func() {}, nil, nil
+		return func() {}, nil
 	}
 
 	if heal.livenessCheck == nil {
-		return nil, nil, errors.Errorf("liveness check is missing")
+		return nil, errors.Errorf("liveness check is missing")
 	}
 
 	// Create new eventLoopCtx and store its eventLoopCancel
@@ -122,13 +120,13 @@ func newDataPlaneEventLoop(ctx context.Context, conn *networkservice.Connection,
 		conn:         conn,
 		eventFactory: ev,
 		client:       nil,
-		reselectFlag: atomic.Bool{},
+		reselectFlag: reselectFlag,
 		logger:       logger,
 	}
 
 	// Start the eventLoop
 	go cev.eventLoop()
-	return eventLoopCancel, func() bool { return cev.reselectFlag.Load() }, nil
+	return eventLoopCancel, nil
 }
 
 func (cev *eventLoop) monitorCtrlPlane() <-chan struct{} {
@@ -240,14 +238,6 @@ func (cev *eventLoop) monitorDataPlane() <-chan struct{} {
 	res := make(chan struct{}, 1)
 	go func() {
 		defer close(res)
-		deadlineCtx, deadlineCancel := context.WithDeadline(cev.chainCtx, time.Now().Add(cev.heal.livenessCheckTimeout))
-		alive := cev.heal.livenessCheck(deadlineCtx, cev.conn)
-		deadlineCancel()
-		if !alive {
-			// Start healing
-			logrus.Error("reiogna: dp mon loop: initial check failed")
-			return
-		}
 		ticker := time.NewTicker(cev.heal.livenessCheckInterval)
 		defer ticker.Stop()
 		for {

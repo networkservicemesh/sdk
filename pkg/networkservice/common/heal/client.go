@@ -22,9 +22,11 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/sirupsen/logrus"
+	"go.uber.org/atomic"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
@@ -67,22 +69,34 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
 		logrus.Error("reiogna: healClient exit on error")
+		reselectFlag, loadedReselectFlag := loadReselectFlag(ctx)
+		if !loadedReselectFlag {
+			reselectFlag = atomic.NewBool(false)
+			storeReselectFlag(ctx, reselectFlag)
+		}
+		if reselectFlag.Load() {
+			// we already triggered reselect
+			// retry will repeat it
+			logrus.Error("reiogna: healClient reselect already called")
+			return nil, err
+		}
+		logrus.Error("reiogna: healClient no reselect found called")
 		if loaded && h.livenessCheck != nil {
-			oldReselectCheck, loadedReselectCheck := loadReselectCheck(ctx)
-			if loadedReselectCheck {
-				logrus.Error("reiogna: healClient oldReselectCheck ", oldReselectCheck())
-			} else {
-				logrus.Error("reiogna: healClient oldReselectCheck not found")
-			}
-			if loadedReselectCheck && oldReselectCheck() {
-				// if monitor already triggered reselect
-				// no need to create a new monitor until reselect suucceeds
-				logrus.Error("reiogna: healClient reselect already called")
+			deadlineCtx, deadlineCancel := context.WithDeadline(h.chainCtx, time.Now().Add(h.livenessCheckTimeout))
+			alive := h.livenessCheck(deadlineCtx, request.Connection)
+			deadlineCancel()
+			if !alive {
+				// Start healing
+				logrus.Error("reiogna: healClient: error: initial check failed")
+				if ev := begin.FromContext(ctx); ev != nil {
+					reselectFlag.Store(true)
+					ev.Request(begin.WithReselect())
+				}
 				return nil, err
 			}
 			logrus.Error("reiogna: healClient creating dp mon loop")
-			cancelEventLoop, reselectCheck, eventLoopErr := newDataPlaneEventLoop(
-				extend.WithValuesFromContext(h.chainCtx, ctx), request.Connection, h)
+			cancelEventLoop, eventLoopErr := newDataPlaneEventLoop(
+				extend.WithValuesFromContext(h.chainCtx, ctx), request.Connection, h, reselectFlag)
 			if eventLoopErr != nil {
 				logrus.Error("reiogna: healClient creating dp mon loop: error ", eventLoopErr)
 				closeCtx, closeCancel := closeCtxFunc()
@@ -91,16 +105,20 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 				return nil, err
 			}
 			storeCancel(ctx, cancelEventLoop)
-			storeReselectCheck(ctx, reselectCheck)
 		}
 		return nil, err
 	}
 	logrus.Error("reiogna: healClient success")
-	_, _ = loadAndDeleteReselectCheck(ctx)
+	reselectFlag, loadedReselectFlag := loadReselectFlag(ctx)
+	if !loadedReselectFlag {
+		reselectFlag = atomic.NewBool(false)
+		storeReselectFlag(ctx, reselectFlag)
+	}
+	reselectFlag.Store(false)
 	cc, ccLoaded := clientconn.Load(ctx)
 	if ccLoaded {
-		cancelEventLoop, reselectChan, eventLoopErr := newEventLoop(
-			extend.WithValuesFromContext(h.chainCtx, ctx), cc, conn, h)
+		cancelEventLoop, eventLoopErr := newEventLoop(
+			extend.WithValuesFromContext(h.chainCtx, ctx), cc, conn, h, reselectFlag)
 		if eventLoopErr != nil {
 			closeCtx, closeCancel := closeCtxFunc()
 			defer closeCancel()
@@ -108,12 +126,12 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 			return nil, eventLoopErr
 		}
 		storeCancel(ctx, cancelEventLoop)
-		storeReselectCheck(ctx, reselectChan)
 	}
 	return conn, nil
 }
 
 func (h *healClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	logrus.Error("reiogna: healClient Close")
 	// Cancel any existing eventLoop
 	if cancelEventLoop, loaded := loadAndDeleteCancel(ctx); loaded {
 		cancelEventLoop()
