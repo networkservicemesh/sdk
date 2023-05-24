@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/sirupsen/logrus"
 	"go.uber.org/atomic"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -62,13 +61,11 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 	// Cancel any existing eventLoop
 	cancelEventLoop, loaded := loadAndDeleteCancel(ctx)
 	if loaded {
-		logrus.Error("reiogna: healClient cancel event loop")
 		cancelEventLoop()
 	}
 
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
-		logrus.Error("reiogna: healClient exit on error")
 		reselectFlag, loadedReselectFlag := loadReselectFlag(ctx)
 		if !loadedReselectFlag {
 			reselectFlag = atomic.NewBool(false)
@@ -77,28 +74,23 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 		if reselectFlag.Load() {
 			// we already triggered reselect
 			// retry will repeat it
-			logrus.Error("reiogna: healClient reselect already called")
 			return nil, err
 		}
-		logrus.Error("reiogna: healClient no reselect found called")
 		if loaded && h.livenessCheck != nil {
 			deadlineCtx, deadlineCancel := context.WithDeadline(h.chainCtx, time.Now().Add(h.livenessCheckTimeout))
 			alive := h.livenessCheck(deadlineCtx, request.Connection)
 			deadlineCancel()
 			if !alive {
 				// Start healing
-				logrus.Error("reiogna: healClient: error: initial check failed")
 				if ev := begin.FromContext(ctx); ev != nil {
 					reselectFlag.Store(true)
 					ev.Request(begin.WithReselect())
 				}
 				return nil, err
 			}
-			logrus.Error("reiogna: healClient creating dp mon loop")
 			cancelEventLoop, eventLoopErr := newDataPlaneEventLoop(
 				extend.WithValuesFromContext(h.chainCtx, ctx), request.Connection, h, reselectFlag)
 			if eventLoopErr != nil {
-				logrus.Error("reiogna: healClient creating dp mon loop: error ", eventLoopErr)
 				closeCtx, closeCancel := closeCtxFunc()
 				defer closeCancel()
 				_, _ = next.Client(closeCtx).Close(closeCtx, conn)
@@ -108,7 +100,6 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 		}
 		return nil, err
 	}
-	logrus.Error("reiogna: healClient success")
 	reselectFlag, loadedReselectFlag := loadReselectFlag(ctx)
 	if !loadedReselectFlag {
 		reselectFlag = atomic.NewBool(false)
@@ -131,7 +122,6 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 }
 
 func (h *healClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	logrus.Error("reiogna: healClient Close")
 	// Cancel any existing eventLoop
 	if cancelEventLoop, loaded := loadAndDeleteCancel(ctx); loaded {
 		cancelEventLoop()

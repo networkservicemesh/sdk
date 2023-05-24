@@ -26,7 +26,6 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
@@ -197,14 +196,11 @@ func (cev *eventLoop) eventLoop() {
 	case <-cev.chainCtx.Done():
 		return
 	case <-cev.eventLoopCtx.Done():
-		logrus.Error("reiogna: event loop: ctx err")
 		return
 	}
 	if cev.chainCtx.Err() != nil {
 		return
 	}
-
-	logrus.Error("reiogna: event loop: starting healing")
 
 	if reselect {
 		cev.reselectFlag.Store(true)
@@ -220,7 +216,6 @@ func (cev *eventLoop) eventLoop() {
 		}
 		deadlineCancel()
 	}
-	logrus.Error("reiogna: event loop: reselect ", cev.reselectFlag.Load())
 
 	var options []begin.Option
 	if reselect {
@@ -248,13 +243,11 @@ func (cev *eventLoop) monitorDataPlane() <-chan struct{} {
 				deadlineCancel()
 				if !alive {
 					// Start healing
-					logrus.Error("reiogna: dp mon loop: loop check failed")
 					return
 				}
 			case <-cev.eventLoopCtx.Done():
 				// EventLoop was canceled. Stop monitoring
 				res <- struct{}{}
-				logrus.Error("reiogna: dp mon loop: cancel on context")
 				return
 			}
 		}
