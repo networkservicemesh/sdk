@@ -19,8 +19,9 @@ package heal
 import (
 	"context"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"go.uber.org/atomic"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
 type cancelFullKey struct{}
@@ -45,15 +46,6 @@ func storeReselectFlag(ctx context.Context, c *atomic.Bool) {
 
 func loadReselectFlag(ctx context.Context) (c *atomic.Bool, ok bool) {
 	rawValue, ok := metadata.Map(ctx, true).Load(cancelDataKey{})
-	if !ok {
-		return
-	}
-	c, ok = rawValue.(*atomic.Bool)
-	return c, ok
-}
-
-func loadAndDeleteReselectFlag(ctx context.Context) (c *atomic.Bool, ok bool) {
-	rawValue, ok := metadata.Map(ctx, true).LoadAndDelete(cancelDataKey{})
 	if !ok {
 		return
 	}
