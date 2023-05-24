@@ -57,7 +57,7 @@ func NewClient(chainCtx context.Context, opts ...Option) networkservice.NetworkS
 func (h *healClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	closeCtxFunc := postpone.ContextWithValues(ctx)
 	// Cancel any existing eventLoop
-	cancelEventLoop, loaded := loadAndDeleteFull(ctx)
+	cancelEventLoop, loaded := loadAndDeleteCancel(ctx)
 	if loaded {
 		cancelEventLoop()
 	}
@@ -65,7 +65,13 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
 		if loaded && h.livenessCheck != nil {
-			cancelEventLoop, eventLoopErr := newDataPlaneEventLoop(
+			oldReselectCheck, loadedReselectCheck := loadReselectCheck(ctx)
+			if loadedReselectCheck && oldReselectCheck() {
+				// if monitor already triggered reselect
+				// no need to create a new monitor until reselect suucceeds
+				return nil, err
+			}
+			cancelEventLoop, reselectCheck, eventLoopErr := newDataPlaneEventLoop(
 				extend.WithValuesFromContext(h.chainCtx, ctx), request.Connection, h)
 			if eventLoopErr != nil {
 				closeCtx, closeCancel := closeCtxFunc()
@@ -73,17 +79,15 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 				_, _ = next.Client(closeCtx).Close(closeCtx, conn)
 				return nil, err
 			}
-			storeCancelData(ctx, cancelEventLoop)
+			storeCancel(ctx, cancelEventLoop)
+			storeReselectCheck(ctx, reselectCheck)
 		}
 		return nil, err
 	}
-	cancelDataEventLoop, loaded := loadAndDeleteData(ctx)
-	if loaded {
-		cancelDataEventLoop()
-	}
+	_, _ = loadAndDeleteReselectCheck(ctx)
 	cc, ccLoaded := clientconn.Load(ctx)
 	if ccLoaded {
-		cancelEventLoop, eventLoopErr := newEventLoop(
+		cancelEventLoop, reselectChan, eventLoopErr := newEventLoop(
 			extend.WithValuesFromContext(h.chainCtx, ctx), cc, conn, h)
 		if eventLoopErr != nil {
 			closeCtx, closeCancel := closeCtxFunc()
@@ -91,17 +95,15 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 			_, _ = next.Client(closeCtx).Close(closeCtx, conn)
 			return nil, eventLoopErr
 		}
-		storeCancelFull(ctx, cancelEventLoop)
+		storeCancel(ctx, cancelEventLoop)
+		storeReselectCheck(ctx, reselectChan)
 	}
 	return conn, nil
 }
 
 func (h *healClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	// Cancel any existing eventLoop
-	if cancelEventLoop, loaded := loadAndDeleteFull(ctx); loaded {
-		cancelEventLoop()
-	}
-	if cancelEventLoop, loaded := loadAndDeleteData(ctx); loaded {
+	if cancelEventLoop, loaded := loadAndDeleteCancel(ctx); loaded {
 		cancelEventLoop()
 	}
 	return next.Client(ctx).Close(ctx, conn)

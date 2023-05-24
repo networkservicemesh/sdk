@@ -25,14 +25,11 @@ import (
 type cancelFullKey struct{}
 type cancelDataKey struct{}
 
-// storeCancelFull saves CancelFunc for the full (control plane + data plane) monitoring
-func storeCancelFull(ctx context.Context, cancel context.CancelFunc) {
+func storeCancel(ctx context.Context, cancel context.CancelFunc) {
 	metadata.Map(ctx, true).Store(cancelFullKey{}, cancel)
 }
 
-// loadAndDeleteFull deletes CancelFunc for the full (control plane + data plane) monitoring,
-// returning the previous value if any. The loaded result reports whether the key was present.
-func loadAndDeleteFull(ctx context.Context) (value context.CancelFunc, loaded bool) {
+func loadAndDeleteCancel(ctx context.Context) (value context.CancelFunc, loaded bool) {
 	rawValue, loaded := metadata.Map(ctx, true).LoadAndDelete(cancelFullKey{})
 	if !loaded {
 		return
@@ -41,18 +38,24 @@ func loadAndDeleteFull(ctx context.Context) (value context.CancelFunc, loaded bo
 	return value, loaded
 }
 
-// storeCancelFull saves CancelFunc for the data-plane-only monitoring
-func storeCancelData(ctx context.Context, cancel context.CancelFunc) {
-	metadata.Map(ctx, true).Store(cancelDataKey{}, cancel)
+func storeReselectCheck(ctx context.Context, c checkReselect) {
+	metadata.Map(ctx, true).Store(cancelDataKey{}, c)
 }
 
-// loadAndDeleteFull deletes CancelFunc for the data-plane-only monitoring,
-// returning the previous value if any. The loaded result reports whether the key was present.
-func loadAndDeleteData(ctx context.Context) (value context.CancelFunc, ok bool) {
+func loadReselectCheck(ctx context.Context) (c checkReselect, ok bool) {
+	rawValue, ok := metadata.Map(ctx, true).Load(cancelDataKey{})
+	if !ok {
+		return
+	}
+	c, ok = rawValue.(checkReselect)
+	return c, ok
+}
+
+func loadAndDeleteReselectCheck(ctx context.Context) (c checkReselect, ok bool) {
 	rawValue, ok := metadata.Map(ctx, true).LoadAndDelete(cancelDataKey{})
 	if !ok {
 		return
 	}
-	value, ok = rawValue.(context.CancelFunc)
-	return value, ok
+	c, ok = rawValue.(checkReselect)
+	return c, ok
 }

@@ -20,6 +20,7 @@ import (
 	"context"
 	"time"
 
+	"go.uber.org/atomic"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -38,16 +39,19 @@ type eventLoop struct {
 	conn         *networkservice.Connection
 	eventFactory begin.EventFactory
 	client       networkservice.MonitorConnection_MonitorConnectionsClient
+	reselectFlag atomic.Bool
 	logger       log.Logger
 }
 
-func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networkservice.Connection, heal *healClient) (context.CancelFunc, error) {
+type checkReselect func() bool
+
+func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networkservice.Connection, heal *healClient) (context.CancelFunc, checkReselect, error) {
 	conn = conn.Clone()
 
 	ev := begin.FromContext(ctx)
 	// Is another chain element asking for events?  If not, no need to monitor
 	if ev == nil {
-		return func() {}, nil
+		return func() {}, nil, nil
 	}
 
 	// Create new eventLoopCtx and store its eventLoopCancel
@@ -66,14 +70,14 @@ func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networ
 	client, err := networkservice.NewMonitorConnectionClient(cc).MonitorConnections(eventLoopCtx, selector)
 	if err != nil {
 		eventLoopCancel()
-		return nil, errors.Wrap(err, "failed get MonitorConnections client")
+		return nil, nil, errors.Wrap(err, "failed get MonitorConnections client")
 	}
 
 	// get the initial state transfer and use it to detect whether we have a real connection or not
 	_, err = client.Recv()
 	if err != nil {
 		eventLoopCancel()
-		return nil, errors.Wrap(err, "failed to get the initial state transfer")
+		return nil, nil, errors.Wrap(err, "failed to get the initial state transfer")
 	}
 
 	logger := log.FromContext(ctx).WithField("heal", "eventLoop")
@@ -84,25 +88,26 @@ func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networ
 		conn:         conn,
 		eventFactory: ev,
 		client:       newClientFilter(client, conn, logger),
+		reselectFlag: atomic.Bool{},
 		logger:       logger,
 	}
 
 	// Start the eventLoop
 	go cev.eventLoop()
-	return eventLoopCancel, nil
+	return eventLoopCancel, func() bool { return cev.reselectFlag.Load() }, nil
 }
 
-func newDataPlaneEventLoop(ctx context.Context, conn *networkservice.Connection, heal *healClient) (context.CancelFunc, error) {
+func newDataPlaneEventLoop(ctx context.Context, conn *networkservice.Connection, heal *healClient) (context.CancelFunc, checkReselect, error) {
 	conn = conn.Clone()
 
 	ev := begin.FromContext(ctx)
 	// Is another chain element asking for events?  If not, no need to monitor
 	if ev == nil {
-		return func() {}, nil
+		return func() {}, nil, nil
 	}
 
 	if heal.livenessCheck == nil {
-		return nil, errors.Errorf("liveness check is missing")
+		return nil, nil, errors.Errorf("liveness check is missing")
 	}
 
 	// Create new eventLoopCtx and store its eventLoopCancel
@@ -116,12 +121,13 @@ func newDataPlaneEventLoop(ctx context.Context, conn *networkservice.Connection,
 		conn:         conn,
 		eventFactory: ev,
 		client:       nil,
+		reselectFlag: atomic.Bool{},
 		logger:       logger,
 	}
 
 	// Start the eventLoop
 	go cev.eventLoop()
-	return eventLoopCancel, nil
+	return eventLoopCancel, func() bool { return cev.reselectFlag.Load() }, nil
 }
 
 func (cev *eventLoop) monitorCtrlPlane() <-chan struct{} {
@@ -194,33 +200,31 @@ func (cev *eventLoop) eventLoop() {
 	case <-cev.eventLoopCtx.Done():
 		return
 	}
-
-	/* Attempts to heal the connection */
-	select {
-	case <-cev.chainCtx.Done():
+	if cev.chainCtx.Err() != nil {
 		return
-	default:
-		if cev.chainCtx.Err() != nil {
-			return
-		}
-
-		// We need to force check the DataPlane if a down event was received from the ControlPlane
-		if !reselect {
-			deadlineCtx, deadlineCancel := context.WithDeadline(cev.chainCtx, time.Now().Add(cev.heal.livenessCheckTimeout))
-			if !cev.heal.livenessCheck(deadlineCtx, cev.conn) {
-				cev.logger.Warnf("Data plane is down")
-				reselect = true
-			}
-			deadlineCancel()
-		}
-
-		var options []begin.Option
-		if reselect {
-			cev.logger.Debugf("Reconnect with reselect")
-			options = append(options, begin.WithReselect())
-		}
-		cev.eventFactory.Request(options...)
 	}
+
+	if reselect {
+		cev.reselectFlag.Store(true)
+	}
+
+	// We need to force check the DataPlane if a down event was received from the ControlPlane
+	if !reselect {
+		deadlineCtx, deadlineCancel := context.WithDeadline(cev.chainCtx, time.Now().Add(cev.heal.livenessCheckTimeout))
+		if !cev.heal.livenessCheck(deadlineCtx, cev.conn) {
+			cev.logger.Warnf("Data plane is down")
+			reselect = true
+			cev.reselectFlag.Store(true)
+		}
+		deadlineCancel()
+	}
+
+	var options []begin.Option
+	if reselect {
+		cev.logger.Debugf("Reconnect with reselect")
+		options = append(options, begin.WithReselect())
+	}
+	cev.eventFactory.Request(options...)
 }
 
 func (cev *eventLoop) monitorDataPlane() <-chan struct{} {
