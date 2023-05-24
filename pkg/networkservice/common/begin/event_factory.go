@@ -21,6 +21,7 @@ import (
 
 	"github.com/edwarnicke/serialize"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
@@ -99,6 +100,7 @@ func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
 		case <-o.cancelCtx.Done():
 		default:
 			request := f.request.Clone()
+			logrus.Error("reiogna: event factory: reselect ", o.reselect)
 			if o.reselect {
 				ctx, cancel := f.ctxFunc()
 				defer cancel()

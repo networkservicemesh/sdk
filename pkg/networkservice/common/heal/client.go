@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
@@ -59,21 +60,31 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 	// Cancel any existing eventLoop
 	cancelEventLoop, loaded := loadAndDeleteCancel(ctx)
 	if loaded {
+		logrus.Error("reiogna: healClient cancel event loop")
 		cancelEventLoop()
 	}
 
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
+		logrus.Error("reiogna: healClient exit on error")
 		if loaded && h.livenessCheck != nil {
 			oldReselectCheck, loadedReselectCheck := loadReselectCheck(ctx)
+			if loadedReselectCheck {
+				logrus.Error("reiogna: healClient oldReselectCheck ", oldReselectCheck())
+			} else {
+				logrus.Error("reiogna: healClient oldReselectCheck not found")
+			}
 			if loadedReselectCheck && oldReselectCheck() {
 				// if monitor already triggered reselect
 				// no need to create a new monitor until reselect suucceeds
+				logrus.Error("reiogna: healClient reselect already called")
 				return nil, err
 			}
+			logrus.Error("reiogna: healClient creating dp mon loop")
 			cancelEventLoop, reselectCheck, eventLoopErr := newDataPlaneEventLoop(
 				extend.WithValuesFromContext(h.chainCtx, ctx), request.Connection, h)
 			if eventLoopErr != nil {
+				logrus.Error("reiogna: healClient creating dp mon loop: error ", eventLoopErr)
 				closeCtx, closeCancel := closeCtxFunc()
 				defer closeCancel()
 				_, _ = next.Client(closeCtx).Close(closeCtx, conn)
@@ -84,6 +95,7 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 		}
 		return nil, err
 	}
+	logrus.Error("reiogna: healClient success")
 	_, _ = loadAndDeleteReselectCheck(ctx)
 	cc, ccLoaded := clientconn.Load(ctx)
 	if ccLoaded {
