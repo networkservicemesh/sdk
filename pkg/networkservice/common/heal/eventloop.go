@@ -235,6 +235,13 @@ func (cev *eventLoop) monitorDataPlane() <-chan struct{} {
 	res := make(chan struct{}, 1)
 	go func() {
 		defer close(res)
+		deadlineCtx, deadlineCancel := context.WithDeadline(cev.chainCtx, time.Now().Add(cev.heal.livenessCheckTimeout))
+		alive := cev.heal.livenessCheck(deadlineCtx, cev.conn)
+		deadlineCancel()
+		if !alive {
+			// Start healing
+			return
+		}
 		ticker := time.NewTicker(cev.heal.livenessCheckInterval)
 		defer ticker.Stop()
 		for {
