@@ -64,7 +64,7 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 		return next.Client(ctx).Request(ctx, request, opts...)
 	}
 
-	cc, _ := clientconn.LoadOrStore(ctx, newDialer(d.chainCtx, d.dialTimeout, d.dialOptions...))
+	cc, loaded := clientconn.LoadOrStore(ctx, newDialer(d.chainCtx, d.dialTimeout, d.dialOptions...))
 
 	// If there's an existing grpc.ClientConnInterface and it's not ours, call the next in the chain
 	di, ok := cc.(*dialer)
@@ -87,14 +87,21 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 
 	err := di.Dial(ctx, clientURL)
 	if err != nil {
-		log.FromContext(ctx).Errorf("can not dial to %v, err %v. Deleting clientconn...", grpcutils.URLToTarget(clientURL), err)
-		clientconn.Delete(ctx)
+		log.FromContext(ctx).Errorf("Can not dial to %v", grpcutils.URLToTarget(clientURL))
+		if !loaded {
+			log.FromContext(ctx).Errorf("Deleting clientconn...")
+			_ = di.Close()
+			clientconn.Delete(ctx)
+		}
 		return nil, err
 	}
 
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
-		_ = di.Close()
+		if !loaded {
+			_ = di.Close()
+			clientconn.Delete(ctx)
+		}
 		return nil, err
 	}
 	return conn, nil
