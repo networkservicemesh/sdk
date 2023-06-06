@@ -60,6 +60,10 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 	// Cancel any existing eventLoop
 	if loopHandle, loaded := loadAndDelete(ctx); loaded {
 		loopHandle.cancel()
+		if !loopHandle.healingStarted {
+			started, ok := <-loopHandle.monitorFinishedCh
+			loopHandle.healingStarted = ok && started
+		}
 	}
 
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)

@@ -94,6 +94,80 @@ func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networ
 	return eventLoopCancel, cev.monitorFinishedCh, nil
 }
 
+func (cev *eventLoop) eventLoop() {
+	needToHeal, reselect := cev.waitForEvents()
+
+	if !needToHeal {
+		return
+	}
+
+	for {
+		select {
+		case <-cev.chainCtx.Done():
+			return
+		default:
+			if cev.chainCtx.Err() != nil {
+				return
+			}
+
+			// We need to force check the DataPlane if a down event was received from the ControlPlane
+			if !reselect {
+				deadlineCtx, deadlineCancel := context.WithDeadline(cev.chainCtx, time.Now().Add(cev.heal.livenessCheckTimeout))
+				if !cev.heal.livenessCheck(deadlineCtx, cev.conn) {
+					cev.logger.Warnf("Data plane is down")
+					reselect = true
+				}
+				deadlineCancel()
+			}
+
+			var options []begin.Option
+			if reselect {
+				cev.logger.Debugf("Reconnect with reselect")
+				options = append(options, begin.WithReselect())
+			}
+			err := <-cev.eventFactory.Request(options...)
+			if err == nil {
+				return
+			}
+		}
+	}
+}
+
+func (cev *eventLoop) waitForEvents() (needToHeal bool, reselect bool) {
+	defer close(cev.monitorFinishedCh)
+
+	ctrlPlaneCh := cev.monitorCtrlPlane()
+	dataPlaneCh := cev.monitorDataPlane()
+
+	if dataPlaneCh == nil {
+		// Since we don't know about data path status - always use reselect
+		reselect = true
+	}
+
+	select {
+	case _, ok := <-ctrlPlaneCh:
+		if ok {
+			// Connection closed
+			return
+		}
+		cev.logger.Warnf("Control plane is down")
+		needToHeal = true
+		cev.monitorFinishedCh <- needToHeal
+	case _, ok := <-dataPlaneCh:
+		if ok {
+			// Connection closed
+			return
+		}
+		cev.logger.Warnf("Data plane is down")
+		reselect = true
+		needToHeal = true
+		cev.monitorFinishedCh <- needToHeal
+	case <-cev.chainCtx.Done():
+	case <-cev.eventLoopCtx.Done():
+	}
+	return
+}
+
 func (cev *eventLoop) monitorCtrlPlane() <-chan struct{} {
 	res := make(chan struct{}, 1)
 
@@ -127,71 +201,6 @@ func (cev *eventLoop) monitorCtrlPlane() <-chan struct{} {
 	}()
 
 	return res
-}
-
-func (cev *eventLoop) eventLoop() {
-	reselect := false
-
-	ctrlPlaneCh := cev.monitorCtrlPlane()
-	dataPlaneCh := cev.monitorDataPlane()
-
-	if dataPlaneCh == nil {
-		// Since we don't know about data path status - always use reselect
-		reselect = true
-	}
-
-	select {
-	case _, ok := <-ctrlPlaneCh:
-		if ok {
-			// Connection closed
-			return
-		}
-		// Start healing
-		cev.logger.Warnf("Control plane is down")
-	case _, ok := <-dataPlaneCh:
-		if ok {
-			// Connection closed
-			return
-		}
-		// Start healing
-		cev.logger.Warnf("Data plane is down")
-		reselect = true
-	case <-cev.chainCtx.Done():
-		return
-	case <-cev.eventLoopCtx.Done():
-		return
-	}
-
-	/* Attempts to heal the connection */
-	for {
-		select {
-		case <-cev.chainCtx.Done():
-			return
-		default:
-			var options []begin.Option
-			if cev.chainCtx.Err() != nil {
-				return
-			}
-
-			// We need to force check the DataPlane if a down event was received from the ControlPlane
-			if !reselect {
-				deadlineCtx, deadlineCancel := context.WithDeadline(cev.chainCtx, time.Now().Add(cev.heal.livenessCheckTimeout))
-				if !cev.heal.livenessCheck(deadlineCtx, cev.conn) {
-					cev.logger.Warnf("Data plane is down")
-					reselect = true
-				}
-				deadlineCancel()
-			}
-
-			if reselect {
-				cev.logger.Debugf("Reconnect with reselect")
-				options = append(options, begin.WithReselect())
-			}
-			if err := <-cev.eventFactory.Request(options...); err == nil {
-				return
-			}
-		}
-	}
 }
 
 func (cev *eventLoop) monitorDataPlane() <-chan struct{} {

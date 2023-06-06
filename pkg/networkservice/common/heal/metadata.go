@@ -27,7 +27,7 @@ type key struct{}
 type eventLoopHandle struct {
 	cancel            context.CancelFunc
 	monitorFinishedCh <-chan bool
-	started           bool
+	healingStarted    bool
 }
 
 // store sets the eventLoopHandle stored in per Connection.Id metadata.
