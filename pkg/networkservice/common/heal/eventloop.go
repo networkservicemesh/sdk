@@ -133,7 +133,7 @@ func (cev *eventLoop) eventLoop() {
 	}
 }
 
-func (cev *eventLoop) waitForEvents() (needToHeal bool, reselect bool) {
+func (cev *eventLoop) waitForEvents() (needToHeal, reselect bool) {
 	defer close(cev.monitorFinishedCh)
 
 	ctrlPlaneCh := cev.monitorCtrlPlane()
@@ -148,7 +148,7 @@ func (cev *eventLoop) waitForEvents() (needToHeal bool, reselect bool) {
 	case _, ok := <-ctrlPlaneCh:
 		if ok {
 			// Connection closed
-			return
+			return needToHeal, reselect
 		}
 		cev.logger.Warnf("Control plane is down")
 		needToHeal = true
@@ -156,7 +156,7 @@ func (cev *eventLoop) waitForEvents() (needToHeal bool, reselect bool) {
 	case _, ok := <-dataPlaneCh:
 		if ok {
 			// Connection closed
-			return
+			return needToHeal, reselect
 		}
 		cev.logger.Warnf("Data plane is down")
 		reselect = true
@@ -165,7 +165,7 @@ func (cev *eventLoop) waitForEvents() (needToHeal bool, reselect bool) {
 	case <-cev.chainCtx.Done():
 	case <-cev.eventLoopCtx.Done():
 	}
-	return
+	return needToHeal, reselect
 }
 
 func (cev *eventLoop) monitorCtrlPlane() <-chan struct{} {
