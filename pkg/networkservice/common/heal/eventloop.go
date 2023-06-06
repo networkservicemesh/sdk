@@ -32,22 +32,23 @@ import (
 )
 
 type eventLoop struct {
-	heal         *healClient
-	eventLoopCtx context.Context
-	chainCtx     context.Context
-	conn         *networkservice.Connection
-	eventFactory begin.EventFactory
-	client       networkservice.MonitorConnection_MonitorConnectionsClient
-	logger       log.Logger
+	heal              *healClient
+	eventLoopCtx      context.Context
+	chainCtx          context.Context
+	conn              *networkservice.Connection
+	eventFactory      begin.EventFactory
+	client            networkservice.MonitorConnection_MonitorConnectionsClient
+	logger            log.Logger
+	monitorFinishedCh chan bool
 }
 
-func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networkservice.Connection, heal *healClient) (context.CancelFunc, error) {
+func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networkservice.Connection, heal *healClient) (context.CancelFunc, <-chan bool, error) {
 	conn = conn.Clone()
 
 	ev := begin.FromContext(ctx)
 	// Is another chain element asking for events?  If not, no need to monitor
 	if ev == nil {
-		return func() {}, nil
+		return func() {}, nil, nil
 	}
 
 	// Create new eventLoopCtx and store its eventLoopCancel
@@ -66,30 +67,31 @@ func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networ
 	client, err := networkservice.NewMonitorConnectionClient(cc).MonitorConnections(eventLoopCtx, selector)
 	if err != nil {
 		eventLoopCancel()
-		return nil, errors.Wrap(err, "failed get MonitorConnections client")
+		return nil, nil, errors.Wrap(err, "failed get MonitorConnections client")
 	}
 
 	// get the initial state transfer and use it to detect whether we have a real connection or not
 	_, err = client.Recv()
 	if err != nil {
 		eventLoopCancel()
-		return nil, errors.Wrap(err, "failed to get the initial state transfer")
+		return nil, nil, errors.Wrap(err, "failed to get the initial state transfer")
 	}
 
 	logger := log.FromContext(ctx).WithField("heal", "eventLoop")
 	cev := &eventLoop{
-		heal:         heal,
-		eventLoopCtx: eventLoopCtx,
-		chainCtx:     ctx,
-		conn:         conn,
-		eventFactory: ev,
-		client:       newClientFilter(client, conn, logger),
-		logger:       logger,
+		heal:              heal,
+		eventLoopCtx:      eventLoopCtx,
+		chainCtx:          ctx,
+		conn:              conn,
+		eventFactory:      ev,
+		client:            newClientFilter(client, conn, logger),
+		logger:            logger,
+		monitorFinishedCh: make(chan bool, 1),
 	}
 
 	// Start the eventLoop
 	go cev.eventLoop()
-	return eventLoopCancel, nil
+	return eventLoopCancel, cev.monitorFinishedCh, nil
 }
 
 func (cev *eventLoop) monitorCtrlPlane() <-chan struct{} {

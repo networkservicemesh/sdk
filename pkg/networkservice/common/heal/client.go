@@ -58,8 +58,8 @@ func NewClient(chainCtx context.Context, opts ...Option) networkservice.NetworkS
 func (h *healClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	closeCtxFunc := postpone.ContextWithValues(ctx)
 	// Cancel any existing eventLoop
-	if cancelEventLoop, loaded := loadAndDelete(ctx); loaded {
-		cancelEventLoop()
+	if loopHandle, loaded := loadAndDelete(ctx); loaded {
+		loopHandle.cancel()
 	}
 
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
@@ -68,7 +68,7 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 	}
 	cc, ccLoaded := clientconn.Load(ctx)
 	if ccLoaded {
-		cancelEventLoop, eventLoopErr := newEventLoop(
+		cancelEventLoop, monitorFinishedCh, eventLoopErr := newEventLoop(
 			extend.WithValuesFromContext(h.chainCtx, ctx), cc, conn, h)
 		if eventLoopErr != nil {
 			closeCtx, closeCancel := closeCtxFunc()
@@ -76,15 +76,18 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 			_, _ = next.Client(closeCtx).Close(closeCtx, conn)
 			return nil, errors.Wrap(eventLoopErr, "unable to monitor")
 		}
-		store(ctx, cancelEventLoop)
+		store(ctx, eventLoopHandle{
+			cancel:            cancelEventLoop,
+			monitorFinishedCh: monitorFinishedCh,
+		})
 	}
 	return conn, nil
 }
 
 func (h *healClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	// Cancel any existing eventLoop
-	if cancelEventLoop, loaded := loadAndDelete(ctx); loaded {
-		cancelEventLoop()
+	if loopHandle, loaded := loadAndDelete(ctx); loaded {
+		loopHandle.cancel()
 	}
 	return next.Client(ctx).Close(ctx, conn)
 }
