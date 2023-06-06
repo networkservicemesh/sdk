@@ -109,3 +109,13 @@ func WithoutRefresh() Option {
 		c.refreshClient = null.NewClient()
 	}
 }
+
+// WithRefresh sets a custom refreshClient for the client chain
+func WithRefresh(refreshClient networkservice.NetworkServiceClient) Option {
+	if refreshClient == nil {
+		panic("refreshClient cannot be nil")
+	}
+	return Option(func(c *clientOptions) {
+		c.refreshClient = refreshClient
+	})
+}

@@ -24,6 +24,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/atomic"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -34,8 +35,14 @@ import (
 	nsclient "github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkresponse"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injectclock"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -730,4 +737,138 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 			},
 		}, sandbox.GenerateTestToken)
 	}
+}
+
+func TestNSMGR_RefreshFailed_DataPlaneHealthy(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		Build()
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg := defaultRegistryService(t.Name())
+	nsReg, err := nsRegistryClient.Register(ctx, nsReg)
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
+
+	counter := new(count.Server)
+	// allow only one successful request
+	inject := injecterror.NewServer(injecterror.WithCloseErrorTimes(), injecterror.WithRequestErrorTimes(1))
+	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, inject, counter)
+
+	request := defaultRequest(nsReg.Name)
+
+	tokenDuration := time.Minute * 15
+	clk := clockmock.New(ctx)
+	clk.Set(time.Now())
+	refreshClient := next.NewNetworkServiceClient(
+		injectclock.NewClient(clk),
+		refresh.NewClient(ctx),
+	)
+	nsc := domain.Nodes[0].NewClient(ctx,
+		sandbox.GenerateExpiringToken(tokenDuration),
+		nsclient.WithRefresh(refreshClient),
+		nsclient.WithHealClient(heal.NewClient(ctx,
+			heal.WithLivenessCheck(func(ctx context.Context, conn *networkservice.Connection) bool {
+				return true
+			}),
+			heal.WithLivenessCheckInterval(time.Millisecond*10),
+		)),
+	)
+
+	requestCtx, requestCalcel := context.WithTimeout(ctx, time.Second)
+	defer requestCalcel()
+	conn, err := nsc.Request(requestCtx, request.Clone())
+	require.NoError(t, err)
+	require.Equal(t, 1, counter.Requests())
+
+	// refresh interval in this test is expected to be 3 minutes and a few milliseconds
+	clk.Add(time.Second * 190)
+
+	require.Eventually(t, checkSecondRequestsReceived(counter.Requests), timeout, tick)
+	require.Equal(t, 1, counter.UniqueRequests())
+	require.Equal(t, 2, counter.Requests())
+
+	_, err = nsc.Close(ctx, conn.Clone())
+	require.NoError(t, err)
+}
+
+func TestNSMGR_RefreshFailed_DataPlaneBroken(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		Build()
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg := defaultRegistryService(t.Name())
+	nsReg, err := nsRegistryClient.Register(ctx, nsReg)
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
+
+	counter := new(count.Server)
+	// allow only one successful request
+	inject := injecterror.NewServer(injecterror.WithCloseErrorTimes(), injecterror.WithRequestErrorTimes(1, -1))
+	isDataplaneHealthy := atomic.Bool{}
+	dataPlaneNotifier := checkresponse.NewServer(t, func(t *testing.T, c *networkservice.Connection) {
+		if c != nil {
+			isDataplaneHealthy.Store(true)
+		}
+	})
+	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, inject, counter)
+
+	request := defaultRequest(nsReg.Name)
+
+	tokenDuration := time.Minute * 15
+	clk := clockmock.New(ctx)
+	clk.Set(time.Now())
+	refreshClient := next.NewNetworkServiceClient(
+		injectclock.NewClient(clk),
+		refresh.NewClient(ctx),
+	)
+
+	nsc := domain.Nodes[0].NewClient(ctx,
+		sandbox.GenerateExpiringToken(tokenDuration),
+		nsclient.WithRefresh(refreshClient),
+		nsclient.WithHealClient(heal.NewClient(ctx,
+			heal.WithLivenessCheck(func(ctx context.Context, conn *networkservice.Connection) bool {
+				return isDataplaneHealthy.Load()
+			}),
+			heal.WithLivenessCheckInterval(time.Millisecond*10),
+		)),
+	)
+
+	requestCtx, requestCalcel := context.WithTimeout(ctx, time.Second)
+	defer requestCalcel()
+	conn, err := nsc.Request(requestCtx, request.Clone())
+	require.NoError(t, err)
+	require.Equal(t, 1, counter.Requests())
+
+	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
+	nseReg2.Name += "-2"
+
+	domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, dataPlaneNotifier, counter)
+
+	// refresh interval in this test is expected to be 3 minutes and a few milliseconds
+	clk.Add(time.Second * 190)
+
+	isDataplaneHealthy.Store(false)
+
+	require.Eventually(t, checkSecondRequestsReceived(counter.Requests), timeout, tick)
+	require.Equal(t, 2, counter.UniqueRequests())
+	require.Equal(t, 2, counter.Requests())
+
+	_, err = nsc.Close(ctx, conn.Clone())
+	require.NoError(t, err)
 }
