@@ -21,13 +21,13 @@ import (
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 )
 
@@ -58,32 +58,33 @@ func NewClient(chainCtx context.Context, opts ...Option) networkservice.NetworkS
 func (h *healClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	closeCtxFunc := postpone.ContextWithValues(ctx)
 	// Cancel any existing eventLoop
-	if loopHandle, loaded := loadAndDelete(ctx); loaded {
+	loopHandle, loaded := loadAndDelete(ctx)
+	if loaded {
 		loopHandle.cancel()
-		if !loopHandle.healingStarted {
-			started, ok := <-loopHandle.monitorFinishedCh
-			loopHandle.healingStarted = ok && started
+		if started, ok := <-loopHandle.monitorFinishedCh; ok {
+			loopHandle.healingStarted = started
 		}
 	}
 
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
+		if loaded && !loopHandle.healingStarted {
+			eventLoopErr := h.startEventLoop(ctx, request.GetConnection())
+			if eventLoopErr != nil {
+				closeCtx, closeCancel := closeCtxFunc()
+				defer closeCancel()
+				_, _ = next.Client(closeCtx).Close(closeCtx, request.GetConnection())
+				log.FromContext(ctx).Errorf("can't start monitoring after a failed refresh: %v", eventLoopErr)
+			}
+		}
 		return nil, err
 	}
-	cc, ccLoaded := clientconn.Load(ctx)
-	if ccLoaded {
-		cancelEventLoop, monitorFinishedCh, eventLoopErr := newEventLoop(
-			extend.WithValuesFromContext(h.chainCtx, ctx), cc, conn, h)
-		if eventLoopErr != nil {
-			closeCtx, closeCancel := closeCtxFunc()
-			defer closeCancel()
-			_, _ = next.Client(closeCtx).Close(closeCtx, conn)
-			return nil, errors.Wrap(eventLoopErr, "unable to monitor")
-		}
-		store(ctx, eventLoopHandle{
-			cancel:            cancelEventLoop,
-			monitorFinishedCh: monitorFinishedCh,
-		})
+	eventLoopErr := h.startEventLoop(ctx, conn)
+	if eventLoopErr != nil {
+		closeCtx, closeCancel := closeCtxFunc()
+		defer closeCancel()
+		_, _ = next.Client(closeCtx).Close(closeCtx, conn)
+		return nil, eventLoopErr
 	}
 	return conn, nil
 }
@@ -94,4 +95,20 @@ func (h *healClient) Close(ctx context.Context, conn *networkservice.Connection,
 		loopHandle.cancel()
 	}
 	return next.Client(ctx).Close(ctx, conn)
+}
+
+func (h *healClient) startEventLoop(ctx context.Context, conn *networkservice.Connection) error {
+	cc, ccLoaded := clientconn.Load(ctx)
+	if !ccLoaded {
+		return nil
+	}
+	cancel, monitorFinishedCh, err := newEventLoop(extend.WithValuesFromContext(h.chainCtx, ctx), cc, conn, h)
+	if err != nil {
+		return err
+	}
+	store(ctx, eventLoopHandle{
+		cancel:            cancel,
+		monitorFinishedCh: monitorFinishedCh,
+	})
+	return nil
 }
