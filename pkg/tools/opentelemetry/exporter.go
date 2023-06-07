@@ -1,4 +1,5 @@
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
+// Copyright (c) 2023 Nordix Foundation.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -20,12 +21,13 @@ package opentelemetry
 import (
 	"context"
 
-	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
@@ -51,20 +53,25 @@ func InitSpanExporter(ctx context.Context, exporterURL string) trace.SpanExporte
 }
 
 // InitMetricExporter - returns an instance of OpenTelemetry Metric Exporter.
-func InitMetricExporter(ctx context.Context, exporterURL string) *otlpmetric.Exporter {
+func InitMetricExporter(ctx context.Context, exporterURL string) *sdkmetric.Exporter {
 	if !IsEnabled() {
 		return nil
 	}
-
-	client := otlpmetricgrpc.NewClient(
-		otlpmetricgrpc.WithInsecure(),
-		otlpmetricgrpc.WithEndpoint(exporterURL),
+	conn, err := grpc.DialContext(
+		ctx,
+		exporterURL,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithBlock(),
 	)
-	exporter, err := otlpmetric.New(ctx, client)
+	if err != nil {
+		log.FromContext(ctx).Errorf("%v", err)
+		return nil
+	}
+	exporter, err := otlpmetricgrpc.New(ctx, otlpmetricgrpc.WithGRPCConn(conn))
 	if err != nil {
 		log.FromContext(ctx).Errorf("%v", err)
 		return nil
 	}
 
-	return exporter
+	return &exporter
 }

@@ -696,7 +696,7 @@ func (node *treeNode) getPrefixes(ipLength int) (result []string) {
 						Mask: net.CIDRMask(0, ipLength*8),
 					}
 					result = append(result, ipNet.String())
-					return
+					return result
 				}
 				z--
 			}
@@ -733,7 +733,7 @@ func (node *treeNode) getPrefixes(ipLength int) (result []string) {
 					Mask: net.CIDRMask(ipLength*8-64, ipLength*8),
 				}
 				result = append(result, ipNet.String())
-				return
+				return result
 			}
 			z--
 		}
