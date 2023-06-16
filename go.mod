@@ -1,6 +1,6 @@
 module github.com/networkservicemesh/sdk
 
-go 1.18
+go 1.20
 
 require (
 	github.com/RoaringBitmap/roaring v0.9.4
