@@ -34,6 +34,7 @@ import (
 type eventLoop struct {
 	heal              *healClient
 	eventLoopCtx      context.Context
+	eventLoopCancel   context.CancelFunc
 	chainCtx          context.Context
 	conn              *networkservice.Connection
 	eventFactory      begin.EventFactory
@@ -81,6 +82,7 @@ func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networ
 	cev := &eventLoop{
 		heal:              heal,
 		eventLoopCtx:      eventLoopCtx,
+		eventLoopCancel:   eventLoopCancel,
 		chainCtx:          ctx,
 		conn:              conn,
 		eventFactory:      ev,
@@ -136,6 +138,8 @@ func (cev *eventLoop) eventLoop() {
 
 func (cev *eventLoop) waitForEvents() (needToHeal, reselect bool) {
 	defer close(cev.monitorFinishedCh)
+	// make sure we stop all monitors
+	defer cev.eventLoopCancel()
 
 	ctrlPlaneCh := cev.monitorCtrlPlane()
 	dataPlaneCh := cev.monitorDataPlane()
