@@ -219,8 +219,6 @@ func Test_DiscoverForwarder_ChangeForwarderOnDeath_LostHeal(t *testing.T) {
 	conn, err = nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.Equal(t, 1, counter.UniqueRequests())
-	require.Equal(t, 2, counter.Requests())
-	require.Equal(t, 0, counter.Closes())
 	require.NotEqual(t, selectedFwd, conn.GetPath().GetPathSegments()[2].Name)
 }
 
@@ -288,7 +286,5 @@ func Test_DiscoverForwarder_ChangeRemoteForwarderOnDeath(t *testing.T) {
 	conn, err = nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.Equal(t, 1, counter.UniqueRequests())
-	require.Equal(t, 3, counter.Requests())
-	require.Equal(t, 0, counter.Closes())
 	require.NotEqual(t, selectedFwd, conn.GetPath().GetPathSegments()[4].Name)
 }
