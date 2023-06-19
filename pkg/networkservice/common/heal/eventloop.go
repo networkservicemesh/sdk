@@ -127,6 +127,7 @@ func (cev *eventLoop) eventLoop() {
 			}
 			err := <-cev.eventFactory.Request(options...)
 			if err == nil {
+				cev.logger.Info("Heal success")
 				return
 			}
 		}
