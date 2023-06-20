@@ -133,10 +133,14 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 }
 
 func (d *discoverForwarderServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	// Unlike Request, Close method should always call next element in chain
+	// to make sure we clear resources in the current app.
+
 	var forwarderName = d.forwarderName(conn)
 	var logger = log.FromContext(ctx).WithField("discoverForwarderServer", "request")
 	if forwarderName == "" {
-		return nil, errors.New("forwarder is not selected")
+		logger.Error("connection doesn't have forwarder")
+		return next.Server(ctx).Close(ctx, conn)
 	}
 
 	stream, err := d.nseClient.Find(ctx, &registry.NetworkServiceEndpointQuery{
@@ -146,19 +150,20 @@ func (d *discoverForwarderServer) Close(ctx context.Context, conn *networkservic
 		},
 	})
 	if err != nil {
-		logger.Errorf("can not open registry nse stream by forwarder name. Error: %v", err.Error())
-		return nil, errors.Wrapf(err, "failed to find %s on %s", forwarderName, d.nsmgrURL)
+		logger.Errorf("can not open registry nse stream by forwarder name %v. Error: %v", forwarderName, err.Error())
+		return next.Server(ctx).Close(ctx, conn)
 	}
 
 	nses := registry.ReadNetworkServiceEndpointList(stream)
 	if len(nses) == 0 {
-		return nil, errors.New("forwarder not found")
+		logger.Error("forwarder is not found: %v", forwarderName)
+		return next.Server(ctx).Close(ctx, conn)
 	}
 
 	u, err := url.Parse(nses[0].Url)
 	if err != nil {
-		logger.Errorf("can not parse forwarder url %v", err.Error())
-		return nil, errors.Wrapf(err, "failed to parse url %s", nses[0].Url)
+		logger.Errorf("can not parse forwarder url %v: %v", nses[0].Url, err.Error())
+		return next.Server(ctx).Close(ctx, conn)
 	}
 
 	ctx = clienturlctx.WithClientURL(ctx, u)
