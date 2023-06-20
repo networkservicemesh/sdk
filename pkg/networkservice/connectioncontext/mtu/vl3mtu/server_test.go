@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -45,9 +45,10 @@ func Test_vl3MtuServer(t *testing.T) {
 
 	// Create monitorServer
 	var monitorServer networkservice.MonitorConnectionServer
+	var connectionProvider monitor.ConnectionProvider
 	server := chain.NewNetworkServiceServer(
 		metadata.NewServer(),
-		monitor.NewServer(ctx, &monitorServer),
+		monitor.NewServer(ctx, &monitorServer, &connectionProvider),
 		vl3mtu.NewServer(),
 	)
 	monitorClient := adapters.NewMonitorServerToClient(monitorServer)

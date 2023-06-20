@@ -1,6 +1,6 @@
-// Copyright (c) 2020-2022 Cisco Systems, Inc.
-//
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2020-2023 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -49,8 +49,13 @@ type monitorServer struct {
 //     networkservice.MonitorConnectionServer that can be used either standalone or in a
 //     networkservice.MonitorConnectionServer chain
 //     chainCtx - context for lifecycle management
-func NewServer(chainCtx context.Context, monitorServerPtr *networkservice.MonitorConnectionServer) networkservice.NetworkServiceServer {
-	*monitorServerPtr = newMonitorConnectionServer(chainCtx)
+//   - connectionProvider - allows you to get monitor.ConnectionProvider,
+//     that will give you a way to get connections locally,
+//     without having to connect to monitor server via loopback.
+func NewServer(chainCtx context.Context, monitorServerPtr *networkservice.MonitorConnectionServer, connectionProvider *ConnectionProvider) networkservice.NetworkServiceServer {
+	connectionsServer := newMonitorConnectionServer(chainCtx)
+	*monitorServerPtr = connectionsServer
+	*connectionProvider = connectionsServer
 	return &monitorServer{
 		chainCtx:                chainCtx,
 		MonitorConnectionServer: *monitorServerPtr,

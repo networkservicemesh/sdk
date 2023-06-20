@@ -31,7 +31,7 @@ type monitorConnectionServer struct {
 	executor    serialize.Executor
 }
 
-func newMonitorConnectionServer(chainCtx context.Context) networkservice.MonitorConnectionServer {
+func newMonitorConnectionServer(chainCtx context.Context) *monitorConnectionServer {
 	return &monitorConnectionServer{
 		chainCtx:    chainCtx,
 		connections: make(map[string]*networkservice.Connection),
@@ -105,9 +105,27 @@ func (m *monitorConnectionServer) Send(event *networkservice.ConnectionEvent) (_
 	return nil
 }
 
+func (m *monitorConnectionServer) Find(selector *networkservice.MonitorScopeSelector) (connections map[string]*networkservice.Connection, err error) {
+	rv := make(map[string]*networkservice.Connection)
+	<-m.executor.AsyncExec(func() {
+		connections = networkservice.FilterMapOnManagerScopeSelector(m.connections, selector)
+		for k, v := range connections {
+			rv[k] = v.Clone()
+		}
+	})
+	return rv, nil
+}
+
 // EventConsumer - interface for monitor events sending
 type EventConsumer interface {
 	Send(event *networkservice.ConnectionEvent) (err error)
 }
 
 var _ EventConsumer = &monitorConnectionServer{}
+
+// ConnectionProvider - interface for providing connections locally
+type ConnectionProvider interface {
+	Find(selector *networkservice.MonitorScopeSelector) (connections map[string]*networkservice.Connection, err error)
+}
+
+var _ ConnectionProvider = &monitorConnectionServer{}

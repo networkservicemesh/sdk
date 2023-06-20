@@ -1,6 +1,6 @@
-// Copyright (c) 2020-2022 Cisco Systems, Inc.
-//
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2020-2023 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -25,6 +25,7 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/reselectcleanup"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/trimpath"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
@@ -116,6 +117,8 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		opt(opts)
 	}
 	var mcsPtr networkservice.MonitorConnectionServer
+	var connectionProvider monitor.ConnectionProvider
+	monitorServer := monitor.NewServer(ctx, &mcsPtr, &connectionProvider)
 
 	rv := &endpoint{}
 	rv.NetworkServiceServer = chain.NewNetworkServiceServer(
@@ -124,9 +127,10 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			begin.NewServer(),
 			updatetoken.NewServer(tokenGenerator),
 			opts.authorizeServer,
+			reselectcleanup.NewServer(connectionProvider),
 			metadata.NewServer(),
 			timeout.NewServer(ctx),
-			monitor.NewServer(ctx, &mcsPtr),
+			monitorServer,
 			trimpath.NewServer(),
 		}, opts.additionalFunctionality...)...)
 	rv.MonitorConnectionServer = next.NewMonitorConnectionServer(opts.authorizeMonitorConnectionServer, mcsPtr)
