@@ -802,7 +802,7 @@ func TestNSMGR_RefreshFailed_DataPlaneBroken(t *testing.T) {
 	// refresh interval in this test is expected to be 3 minutes and a few milliseconds
 	clk.Add(time.Second * 190)
 
-	// wait till refresh reached NSE, to make sure that initial heal monitor is cancelled
+	// wait till refresh reached NSE, to make sure that initial heal monitor is canceled
 	require.Eventually(t, checkSecondRequestsReceived(counter1.Requests), timeout, tick)
 
 	isDataplaneHealthy.Store(false)

@@ -133,7 +133,7 @@ func (cev *eventLoop) monitorCtrlPlane() <-chan struct{} {
 
 func (cev *eventLoop) waitForEvents() (needToHeal, reselect bool) {
 	defer close(cev.monitorFinishedCh)
-	// make sure we stop all monitors if chain context was cancelled
+	// make sure we stop all monitors if chain context was canceled
 	defer cev.eventLoopCancel()
 
 	ctrlPlaneCh := cev.monitorCtrlPlane()
