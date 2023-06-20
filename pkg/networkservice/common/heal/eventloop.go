@@ -32,15 +32,15 @@ import (
 )
 
 type eventLoop struct {
-	heal              *healClient
-	eventLoopCtx      context.Context
-	eventLoopCancel   context.CancelFunc
-	chainCtx          context.Context
-	conn              *networkservice.Connection
-	eventFactory      begin.EventFactory
-	client            networkservice.MonitorConnection_MonitorConnectionsClient
-	logger            log.Logger
-	monitorFinishedCh chan bool
+	heal             *healClient
+	eventLoopCtx     context.Context
+	eventLoopCancel  context.CancelFunc
+	chainCtx         context.Context
+	conn             *networkservice.Connection
+	eventFactory     begin.EventFactory
+	client           networkservice.MonitorConnection_MonitorConnectionsClient
+	logger           log.Logger
+	healingStartedCh chan bool
 }
 
 func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networkservice.Connection, heal *healClient) (context.CancelFunc, <-chan bool, error) {
@@ -80,20 +80,20 @@ func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networ
 
 	logger := log.FromContext(ctx).WithField("heal", "eventLoop")
 	cev := &eventLoop{
-		heal:              heal,
-		eventLoopCtx:      eventLoopCtx,
-		eventLoopCancel:   eventLoopCancel,
-		chainCtx:          ctx,
-		conn:              conn,
-		eventFactory:      ev,
-		client:            newClientFilter(client, conn, logger),
-		logger:            logger,
-		monitorFinishedCh: make(chan bool, 1),
+		heal:             heal,
+		eventLoopCtx:     eventLoopCtx,
+		eventLoopCancel:  eventLoopCancel,
+		chainCtx:         ctx,
+		conn:             conn,
+		eventFactory:     ev,
+		client:           newClientFilter(client, conn, logger),
+		logger:           logger,
+		healingStartedCh: make(chan bool, 1),
 	}
 
 	// Start the eventLoop
 	go cev.eventLoop()
-	return eventLoopCancel, cev.monitorFinishedCh, nil
+	return eventLoopCancel, cev.healingStartedCh, nil
 }
 
 func (cev *eventLoop) monitorCtrlPlane() <-chan struct{} {
@@ -131,8 +131,8 @@ func (cev *eventLoop) monitorCtrlPlane() <-chan struct{} {
 	return res
 }
 
-func (cev *eventLoop) waitForEvents() (needToHeal, reselect bool) {
-	defer close(cev.monitorFinishedCh)
+func (cev *eventLoop) waitForEvents() (canceled, reselect bool) {
+	defer close(cev.healingStartedCh)
 	// make sure we stop all monitors if chain context was canceled
 	defer cev.eventLoopCancel()
 
@@ -143,31 +143,31 @@ func (cev *eventLoop) waitForEvents() (needToHeal, reselect bool) {
 	case _, ok := <-ctrlPlaneCh:
 		if ok {
 			// Connection closed
-			return false, false
+			return true, false
 		}
 		cev.logger.Warnf("Control plane is down")
-		cev.monitorFinishedCh <- true
+		cev.healingStartedCh <- true
 		// use reselect if data plane monitoring isn't available
-		return true, dataPlaneCh == nil
+		return false, dataPlaneCh == nil
 	case _, ok := <-dataPlaneCh:
 		if ok {
 			// Connection closed
-			return false, false
+			return true, false
 		}
 		cev.logger.Warnf("Data plane is down")
 		reselect = true
-		cev.monitorFinishedCh <- true
-		return true, true
+		cev.healingStartedCh <- true
+		return false, true
 	case <-cev.chainCtx.Done():
 	case <-cev.eventLoopCtx.Done():
 	}
-	return false, false
+	return true, false
 }
 
 func (cev *eventLoop) eventLoop() {
-	needToHeal, reselect := cev.waitForEvents()
+	canceled, reselect := cev.waitForEvents()
 
-	if !needToHeal {
+	if canceled {
 		return
 	}
 

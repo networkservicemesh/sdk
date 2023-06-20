@@ -61,7 +61,7 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 	loopHandle, loaded := loadAndDelete(ctx)
 	if loaded {
 		loopHandle.cancel()
-		if started, ok := <-loopHandle.monitorFinishedCh; ok {
+		if started, ok := <-loopHandle.healingStartedCh; ok {
 			loopHandle.healingStarted = started
 		}
 	}
@@ -102,13 +102,13 @@ func (h *healClient) startEventLoop(ctx context.Context, conn *networkservice.Co
 	if !ccLoaded {
 		return nil
 	}
-	cancel, monitorFinishedCh, err := newEventLoop(extend.WithValuesFromContext(h.chainCtx, ctx), cc, conn, h)
+	cancel, healingStartedCh, err := newEventLoop(extend.WithValuesFromContext(h.chainCtx, ctx), cc, conn, h)
 	if err != nil {
 		return err
 	}
 	store(ctx, eventLoopHandle{
-		cancel:            cancel,
-		monitorFinishedCh: monitorFinishedCh,
+		cancel:           cancel,
+		healingStartedCh: healingStartedCh,
 	})
 	return nil
 }
