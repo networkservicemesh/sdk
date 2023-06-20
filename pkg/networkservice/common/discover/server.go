@@ -81,6 +81,9 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 }
 
 func (d *discoverCandidatesServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	// Unlike Request, Close method should always call next element in chain
+	// to make sure we clear resources in the current app.
+
 	logger := log.FromContext(ctx).WithField("discoverCandidatesServer", "Close")
 
 	if clienturlctx.ClientURL(ctx) != nil {
@@ -89,19 +92,20 @@ func (d *discoverCandidatesServer) Close(ctx context.Context, conn *networkservi
 
 	nseName := conn.GetNetworkServiceEndpointName()
 	if nseName == "" {
-		// If it's an existing connection, the NSE name should be set. Otherwise, it's probably an API misuse.
-		return nil, errors.Errorf("network_service_endpoint_name is not set")
+		logger.Error("network_service_endpoint_name is not set")
+		return next.Server(ctx).Close(ctx, conn)
 	}
 
-	var u *url.URL
+	nse, err := d.discoverNetworkServiceEndpoint(ctx, nseName)
+	if err != nil {
+		logger.Errorf("endpoint is not found: %v: %v", nseName, err)
+		return next.Server(ctx).Close(ctx, conn)
+	}
 
-	if nse, err := d.discoverNetworkServiceEndpoint(ctx, nseName); err == nil {
-		u, err = url.Parse(nse.Url)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to parse url %s", nse.Url)
-		}
-	} else {
-		logger.Errorf("no endpoint found for Close: %v", conn)
+	u, err := url.Parse(nse.Url)
+	if err != nil {
+		logger.Errorf("failed to parse url: %s: %v", nse.Url, err)
+		return next.Server(ctx).Close(ctx, conn)
 	}
 
 	return next.Server(ctx).Close(clienturlctx.WithClientURL(ctx, u), conn)
