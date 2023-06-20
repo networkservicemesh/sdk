@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2023 Cisco and/or its affiliates.
+// Copyright (c) 2021 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -108,14 +108,4 @@ func WithoutRefresh() Option {
 	return func(c *clientOptions) {
 		c.refreshClient = null.NewClient()
 	}
-}
-
-// WithRefresh sets a custom refreshClient for the client chain
-func WithRefresh(refreshClient networkservice.NetworkServiceClient) Option {
-	if refreshClient == nil {
-		panic("refreshClient cannot be nil")
-	}
-	return Option(func(c *clientOptions) {
-		c.refreshClient = refreshClient
-	})
 }
