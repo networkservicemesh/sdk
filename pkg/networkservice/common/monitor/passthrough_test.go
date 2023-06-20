@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2022 Cisco and/or its affiliates.
+// Copyright (c) 2021-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -249,6 +249,7 @@ func (m *MonitorPassThroughSuite) TestServerUpdate() {
 	expectedConn := endpointConn.Clone()
 	expectedConn.GetPath().Index = m.conn.GetPath().GetIndex()
 	expectedConn.Id = expectedConn.GetCurrentPathSegment().GetId()
+	expectedConn.State = networkservice.State_DOWN
 	m.ValidateEvent(networkservice.ConnectionEventType_UPDATE, expectedConn)
 }
 

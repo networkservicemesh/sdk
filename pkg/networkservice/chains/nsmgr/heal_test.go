@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -452,7 +454,7 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 
 	if restored {
 		require.Equal(t, 3, counter.Requests())
-		require.Equal(t, 1, counter.Closes())
+		require.Equal(t, 2, counter.Closes())
 	} else {
 		require.Equal(t, 2, counter.UniqueRequests())
 		require.Equal(t, closes+1, counter.UniqueCloses())

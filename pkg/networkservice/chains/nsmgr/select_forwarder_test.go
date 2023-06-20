@@ -289,6 +289,6 @@ func Test_DiscoverForwarder_ChangeRemoteForwarderOnDeath(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, counter.UniqueRequests())
 	require.Equal(t, 3, counter.Requests())
-	require.Equal(t, 0, counter.Closes())
+	require.Equal(t, 1, counter.Closes())
 	require.NotEqual(t, selectedFwd, conn.GetPath().GetPathSegments()[4].Name)
 }
