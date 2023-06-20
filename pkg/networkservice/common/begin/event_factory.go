@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2022 Cisco and/or its affiliates.
+// Copyright (c) 2021-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -106,6 +106,7 @@ func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
 				if request.GetConnection() != nil {
 					request.GetConnection().Mechanism = nil
 					request.GetConnection().NetworkServiceEndpointName = ""
+					request.GetConnection().State = networkservice.State_RESELECT_REQUESTED
 				}
 			}
 			ctx, cancel := f.ctxFunc()
@@ -113,6 +114,7 @@ func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
 			conn, err := f.client.Request(ctx, request, f.opts...)
 			if err == nil && f.request != nil {
 				f.request.Connection = conn
+				f.request.Connection.State = networkservice.State_UP
 			}
 			ch <- err
 		}
