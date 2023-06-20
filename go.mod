@@ -2,6 +2,8 @@ module github.com/networkservicemesh/sdk
 
 go 1.18
 
+replace github.com/networkservicemesh/api => github.com/d-uzlov/api v0.0.0-20230616082206-da35f22b2940
+
 require (
 	github.com/RoaringBitmap/roaring v0.9.4
 	github.com/antonfisher/nested-logrus-formatter v1.3.1
