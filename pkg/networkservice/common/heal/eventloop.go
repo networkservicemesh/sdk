@@ -131,6 +131,39 @@ func (cev *eventLoop) monitorCtrlPlane() <-chan struct{} {
 	return res
 }
 
+func (cev *eventLoop) waitForEvents() (needToHeal, reselect bool) {
+	defer close(cev.monitorFinishedCh)
+	// make sure we stop all monitors if chain context was cancelled
+	defer cev.eventLoopCancel()
+
+	ctrlPlaneCh := cev.monitorCtrlPlane()
+	dataPlaneCh := cev.monitorDataPlane()
+
+	select {
+	case _, ok := <-ctrlPlaneCh:
+		if ok {
+			// Connection closed
+			return false, false
+		}
+		cev.logger.Warnf("Control plane is down")
+		cev.monitorFinishedCh <- true
+		// use reselect if data plane monitoring isn't available
+		return true, dataPlaneCh == nil
+	case _, ok := <-dataPlaneCh:
+		if ok {
+			// Connection closed
+			return false, false
+		}
+		cev.logger.Warnf("Data plane is down")
+		reselect = true
+		cev.monitorFinishedCh <- true
+		return true, true
+	case <-cev.chainCtx.Done():
+	case <-cev.eventLoopCtx.Done():
+	}
+	return false, false
+}
+
 func (cev *eventLoop) eventLoop() {
 	needToHeal, reselect := cev.waitForEvents()
 
@@ -169,43 +202,6 @@ func (cev *eventLoop) eventLoop() {
 			}
 		}
 	}
-}
-
-func (cev *eventLoop) waitForEvents() (needToHeal, reselect bool) {
-	defer close(cev.monitorFinishedCh)
-	// make sure we stop all monitors
-	defer cev.eventLoopCancel()
-
-	ctrlPlaneCh := cev.monitorCtrlPlane()
-	dataPlaneCh := cev.monitorDataPlane()
-
-	if dataPlaneCh == nil {
-		// Since we don't know about data path status - always use reselect
-		reselect = true
-	}
-
-	select {
-	case _, ok := <-ctrlPlaneCh:
-		if ok {
-			// Connection closed
-			return needToHeal, reselect
-		}
-		cev.logger.Warnf("Control plane is down")
-		needToHeal = true
-		cev.monitorFinishedCh <- needToHeal
-	case _, ok := <-dataPlaneCh:
-		if ok {
-			// Connection closed
-			return needToHeal, reselect
-		}
-		cev.logger.Warnf("Data plane is down")
-		reselect = true
-		needToHeal = true
-		cev.monitorFinishedCh <- needToHeal
-	case <-cev.chainCtx.Done():
-	case <-cev.eventLoopCtx.Done():
-	}
-	return needToHeal, reselect
 }
 
 func (cev *eventLoop) monitorDataPlane() <-chan struct{} {
