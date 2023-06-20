@@ -96,6 +96,41 @@ func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networ
 	return eventLoopCancel, cev.monitorFinishedCh, nil
 }
 
+func (cev *eventLoop) monitorCtrlPlane() <-chan struct{} {
+	res := make(chan struct{}, 1)
+
+	go func() {
+		defer close(res)
+
+		for {
+			eventIn, err := cev.client.Recv()
+
+			if cev.chainCtx.Err() != nil || cev.eventLoopCtx.Err() != nil {
+				res <- struct{}{}
+				return
+			}
+
+			// Handle error
+			if err != nil {
+				s, _ := status.FromError(err)
+				// This condition means, that the client closed the connection. Stop healing
+				if s.Code() == codes.Canceled {
+					res <- struct{}{}
+				}
+				// Otherwise - Start healing
+				return
+			}
+
+			// Handle event. Start healing
+			if eventIn.GetConnections()[cev.conn.GetId()].GetState() == networkservice.State_DOWN {
+				return
+			}
+		}
+	}()
+
+	return res
+}
+
 func (cev *eventLoop) eventLoop() {
 	needToHeal, reselect := cev.waitForEvents()
 
@@ -171,41 +206,6 @@ func (cev *eventLoop) waitForEvents() (needToHeal, reselect bool) {
 	case <-cev.eventLoopCtx.Done():
 	}
 	return needToHeal, reselect
-}
-
-func (cev *eventLoop) monitorCtrlPlane() <-chan struct{} {
-	res := make(chan struct{}, 1)
-
-	go func() {
-		defer close(res)
-
-		for {
-			eventIn, err := cev.client.Recv()
-
-			if cev.chainCtx.Err() != nil || cev.eventLoopCtx.Err() != nil {
-				res <- struct{}{}
-				return
-			}
-
-			// Handle error
-			if err != nil {
-				s, _ := status.FromError(err)
-				// This condition means, that the client closed the connection. Stop healing
-				if s.Code() == codes.Canceled {
-					res <- struct{}{}
-				}
-				// Otherwise - Start healing
-				return
-			}
-
-			// Handle event. Start healing
-			if eventIn.GetConnections()[cev.conn.GetId()].GetState() == networkservice.State_DOWN {
-				return
-			}
-		}
-	}()
-
-	return res
 }
 
 func (cev *eventLoop) monitorDataPlane() <-chan struct{} {
