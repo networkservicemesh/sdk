@@ -32,22 +32,24 @@ import (
 )
 
 type eventLoop struct {
-	heal         *healClient
-	eventLoopCtx context.Context
-	chainCtx     context.Context
-	conn         *networkservice.Connection
-	eventFactory begin.EventFactory
-	client       networkservice.MonitorConnection_MonitorConnectionsClient
-	logger       log.Logger
+	heal             *healClient
+	eventLoopCtx     context.Context
+	eventLoopCancel  context.CancelFunc
+	chainCtx         context.Context
+	conn             *networkservice.Connection
+	eventFactory     begin.EventFactory
+	client           networkservice.MonitorConnection_MonitorConnectionsClient
+	logger           log.Logger
+	healingStartedCh chan bool
 }
 
-func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networkservice.Connection, heal *healClient) (context.CancelFunc, error) {
+func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networkservice.Connection, heal *healClient) (context.CancelFunc, <-chan bool, error) {
 	conn = conn.Clone()
 
 	ev := begin.FromContext(ctx)
 	// Is another chain element asking for events?  If not, no need to monitor
 	if ev == nil {
-		return func() {}, nil
+		return func() {}, nil, nil
 	}
 
 	// Create new eventLoopCtx and store its eventLoopCancel
@@ -66,30 +68,32 @@ func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networ
 	client, err := networkservice.NewMonitorConnectionClient(cc).MonitorConnections(eventLoopCtx, selector)
 	if err != nil {
 		eventLoopCancel()
-		return nil, errors.Wrap(err, "failed get MonitorConnections client")
+		return nil, nil, errors.Wrap(err, "failed get MonitorConnections client")
 	}
 
 	// get the initial state transfer and use it to detect whether we have a real connection or not
 	_, err = client.Recv()
 	if err != nil {
 		eventLoopCancel()
-		return nil, errors.Wrap(err, "failed to get the initial state transfer")
+		return nil, nil, errors.Wrap(err, "failed to get the initial state transfer")
 	}
 
 	logger := log.FromContext(ctx).WithField("heal", "eventLoop")
 	cev := &eventLoop{
-		heal:         heal,
-		eventLoopCtx: eventLoopCtx,
-		chainCtx:     ctx,
-		conn:         conn,
-		eventFactory: ev,
-		client:       newClientFilter(client, conn, logger),
-		logger:       logger,
+		heal:             heal,
+		eventLoopCtx:     eventLoopCtx,
+		eventLoopCancel:  eventLoopCancel,
+		chainCtx:         ctx,
+		conn:             conn,
+		eventFactory:     ev,
+		client:           newClientFilter(client, conn, logger),
+		logger:           logger,
+		healingStartedCh: make(chan bool, 1),
 	}
 
 	// Start the eventLoop
 	go cev.eventLoop()
-	return eventLoopCancel, nil
+	return eventLoopCancel, cev.healingStartedCh, nil
 }
 
 func (cev *eventLoop) monitorCtrlPlane() <-chan struct{} {
@@ -127,46 +131,51 @@ func (cev *eventLoop) monitorCtrlPlane() <-chan struct{} {
 	return res
 }
 
-func (cev *eventLoop) eventLoop() {
-	reselect := false
+func (cev *eventLoop) waitForEvents() (canceled, reselect bool) {
+	defer close(cev.healingStartedCh)
+	// make sure we stop all monitors if chain context was canceled
+	defer cev.eventLoopCancel()
 
 	ctrlPlaneCh := cev.monitorCtrlPlane()
 	dataPlaneCh := cev.monitorDataPlane()
-
-	if dataPlaneCh == nil {
-		// Since we don't know about data path status - always use reselect
-		reselect = true
-	}
 
 	select {
 	case _, ok := <-ctrlPlaneCh:
 		if ok {
 			// Connection closed
-			return
+			return true, false
 		}
-		// Start healing
 		cev.logger.Warnf("Control plane is down")
+		cev.healingStartedCh <- true
+		// use reselect if data plane monitoring isn't available
+		return false, dataPlaneCh == nil
 	case _, ok := <-dataPlaneCh:
 		if ok {
 			// Connection closed
-			return
+			return true, false
 		}
-		// Start healing
 		cev.logger.Warnf("Data plane is down")
 		reselect = true
+		cev.healingStartedCh <- true
+		return false, true
 	case <-cev.chainCtx.Done():
-		return
 	case <-cev.eventLoopCtx.Done():
+	}
+	return true, false
+}
+
+func (cev *eventLoop) eventLoop() {
+	canceled, reselect := cev.waitForEvents()
+
+	if canceled {
 		return
 	}
 
-	/* Attempts to heal the connection */
 	for {
 		select {
 		case <-cev.chainCtx.Done():
 			return
 		default:
-			var options []begin.Option
 			if cev.chainCtx.Err() != nil {
 				return
 			}
@@ -181,11 +190,14 @@ func (cev *eventLoop) eventLoop() {
 				deadlineCancel()
 			}
 
+			var options []begin.Option
 			if reselect {
 				cev.logger.Debugf("Reconnect with reselect")
 				options = append(options, begin.WithReselect())
 			}
-			if err := <-cev.eventFactory.Request(options...); err == nil {
+			err := <-cev.eventFactory.Request(options...)
+			if err == nil {
+				cev.logger.Info("Heal success")
 				return
 			}
 		}
