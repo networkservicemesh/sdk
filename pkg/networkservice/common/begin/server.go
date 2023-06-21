@@ -72,6 +72,7 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 				if closeErr != nil {
 					log.FromContext(ctx).Errorf("Can't close old connection: %v", closeErr)
 				}
+				eventFactoryServer.state = closed
 			}
 		}
 		conn, err = next.Server(withEventFactoryCtx).Request(withEventFactoryCtx, request)
