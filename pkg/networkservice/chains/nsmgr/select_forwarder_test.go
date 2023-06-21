@@ -283,14 +283,14 @@ func Test_DiscoverForwarder_ChangeRemoteForwarderOnDeath(t *testing.T) {
 
 	selectedFwd := conn.GetPath().GetPathSegments()[4].Name
 
-	domain.Nodes[1].Forwarders[selectedFwd].Cancel()
-
 	domain.Registry.Restart()
+
+	domain.Nodes[1].Forwarders[selectedFwd].Cancel()
 
 	require.Eventually(t, checkSecondRequestsReceived(counter.Requests), timeout, tick)
 	require.Equal(t, 1, counter.UniqueRequests())
 	require.Equal(t, 2, counter.Requests())
-	require.Equal(t, 0, counter.Closes())
+	require.Equal(t, 1, counter.Closes())
 
 	// check different forwarder selected
 	request.Connection = conn
