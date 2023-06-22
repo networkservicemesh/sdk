@@ -160,7 +160,7 @@ func testReselectWithNsmgrRestart(t *testing.T, nodeNum int, restartLocal, resta
 }
 
 // Even if Local forwarder has restarted,
-// we expect that all other apps should get a Close call
+// we expect that all other apps should get a Close call.
 func TestReselect_LocalForwarderRestart(t *testing.T) {
 	var samples = []struct {
 		name    string
