@@ -31,33 +31,46 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
-// even if local NSMgr has restarted,
-// we expect that all apps after it should get a Close call
-// and treat new request as reselect request
-func TestReselect_LocalNsmgrRestart(t *testing.T) {
+// Even if NSMgr has restarted,
+// we expect that all other apps should get a Close call
+func TestReselect_NsmgrRestart(t *testing.T) {
 	var samples = []struct {
-		name    string
-		nodeNum int
+		name          string
+		nodeNum       int
+		restartLocal  bool
+		restartRemote bool
 	}{
 		{
 			name:    "Local",
 			nodeNum: 1,
 		},
 		{
-			name:    "Remote",
-			nodeNum: 2,
+			name:         "Remote_RestartLocal",
+			nodeNum:      2,
+			restartLocal: true,
+		},
+		{
+			name:          "Remote_RestartRemote",
+			nodeNum:       2,
+			restartRemote: true,
+		},
+		{
+			name:          "Remote_RestartBoth",
+			nodeNum:       2,
+			restartLocal:  true,
+			restartRemote: true,
 		},
 	}
 
 	for _, sample := range samples {
 		t.Run(sample.name, func(t *testing.T) {
 			// nolint:scopelint
-			testReselectWithLocalNsmgrRestart(t, sample.nodeNum)
+			testReselectWithNsmgrRestart(t, sample.nodeNum, sample.restartLocal, sample.restartRemote)
 		})
 	}
 }
 
-func testReselectWithLocalNsmgrRestart(t *testing.T, nodeNum int) {
+func testReselectWithNsmgrRestart(t *testing.T, nodeNum int, restartLocal, restartRemote bool) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
@@ -101,7 +114,12 @@ func testReselectWithLocalNsmgrRestart(t *testing.T, nodeNum int) {
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 
-	domain.Nodes[0].NSMgr.Restart()
+	if restartLocal {
+		domain.Nodes[0].NSMgr.Restart()
+	}
+	if restartRemote {
+		domain.Nodes[1].NSMgr.Restart()
+	}
 
 	nse.Cancel()
 
@@ -113,7 +131,7 @@ func testReselectWithLocalNsmgrRestart(t *testing.T, nodeNum int) {
 	require.Eventually(t, checkSecondRequestsReceived(counterNse.UniqueRequests), timeout, tick)
 	// Client should try to close connection before reselect
 	require.Equal(t, 1, counterClient.UniqueCloses())
-	// Forwarder should get a Close, even though NSMgr restarted and didn't pass the Close
+	// Forwarder(s) should get a Close, even though NSMgr(s) restarted and didn't pass the Close
 	for i := 0; i < nodeNum; i++ {
 		require.Equal(t, 1, counterFwd[i].Closes())
 	}
@@ -140,6 +158,9 @@ func testReselectWithLocalNsmgrRestart(t *testing.T, nodeNum int) {
 		require.Equal(t, 2, counterFwd[i].Closes(), i)
 	}
 }
+
+// Even if Local forwarder has restarted,
+// we expect that all other apps should get a Close call
 func TestReselect_LocalForwarderRestart(t *testing.T) {
 	var samples = []struct {
 		name    string
@@ -162,6 +183,7 @@ func TestReselect_LocalForwarderRestart(t *testing.T) {
 		})
 	}
 }
+
 func testReselectWithLocalForwarderRestart(t *testing.T, nodeNum int) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -250,7 +272,7 @@ func testReselectWithLocalForwarderRestart(t *testing.T, nodeNum int) {
 	}
 }
 
-// If registry died, discover and discoverForwarder elements
+// If registry died, NSMgr and Forwarder
 // will not be able to query it to get URLs to next app
 // but we still expect Close call to finish successfully
 func TestReselect_Close_RegistryDied(t *testing.T) {
