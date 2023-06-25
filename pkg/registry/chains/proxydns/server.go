@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -43,6 +45,7 @@ type serverOptions struct {
 	authorizeNSERegistryServer registryapi.NetworkServiceEndpointRegistryServer
 	authorizeNSRegistryClient  registryapi.NetworkServiceRegistryClient
 	authorizeNSERegistryClient registryapi.NetworkServiceEndpointRegistryClient
+	dnsresolveOptions          []dnsresolve.Option
 	dialOptions                []grpc.DialOption
 }
 
@@ -89,6 +92,13 @@ func WithAuthorizeNSERegistryClient(authorizeNSERegistryClient registryapi.Netwo
 	}
 }
 
+// WithDNSResolveOptions overrides default dns resolve options
+func WithDNSResolveOptions(opts ...dnsresolve.Option) Option {
+	return func(o *serverOptions) {
+		o.dnsresolveOptions = opts
+	}
+}
+
 // WithDialOptions sets grpc.DialOptions for the server
 func WithDialOptions(dialOptions ...grpc.DialOption) Option {
 	return func(o *serverOptions) {
@@ -103,6 +113,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, dnsResol
 		authorizeNSERegistryServer: registryauthorize.NewNetworkServiceEndpointRegistryServer(registryauthorize.Any()),
 		authorizeNSRegistryClient:  registryauthorize.NewNetworkServiceRegistryClient(registryauthorize.Any()),
 		authorizeNSERegistryClient: registryauthorize.NewNetworkServiceEndpointRegistryClient(registryauthorize.Any()),
+		dnsresolveOptions:          []dnsresolve.Option{dnsresolve.WithResolver(dnsResolver)},
 	}
 	for _, opt := range options {
 		opt(opts)
@@ -113,7 +124,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, dnsResol
 		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGenerator),
 		opts.authorizeNSERegistryServer,
 		begin.NewNetworkServiceEndpointRegistryServer(),
-		dnsresolve.NewNetworkServiceEndpointRegistryServer(dnsresolve.WithResolver(dnsResolver)),
+		dnsresolve.NewNetworkServiceEndpointRegistryServer(opts.dnsresolveOptions...),
 		connect.NewNetworkServiceEndpointRegistryServer(
 			chain.NewNetworkServiceEndpointRegistryClient(
 				clientconn.NewNetworkServiceEndpointRegistryClient(),
@@ -130,7 +141,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, dnsResol
 		updatepath.NewNetworkServiceRegistryServer(tokenGenerator),
 		begin.NewNetworkServiceRegistryServer(),
 		opts.authorizeNSRegistryServer,
-		dnsresolve.NewNetworkServiceRegistryServer(dnsresolve.WithResolver(dnsResolver)),
+		dnsresolve.NewNetworkServiceRegistryServer(opts.dnsresolveOptions...),
 		connect.NewNetworkServiceRegistryServer(
 			chain.NewNetworkServiceRegistryClient(
 				clientconn.NewNetworkServiceRegistryClient(),

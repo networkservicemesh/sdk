@@ -1,5 +1,7 @@
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -59,7 +61,7 @@ func TestDNSResolve_CorrectUsecase(t *testing.T) {
 	u, err := url.Parse("tcp://127.0.0.1:80")
 	require.NoError(t, err)
 
-	require.NoError(t, sandbox.AddSRVEntry(resolver, "domain1", srv, u))
+	require.NoError(t, resolver.AddSRVEntry("domain1", srv, u))
 
 	s := dnsresolve.NewNetworkServiceRegistryServer(
 		dnsresolve.WithRegistryService(srv),

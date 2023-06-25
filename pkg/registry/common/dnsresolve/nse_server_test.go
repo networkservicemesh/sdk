@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -74,7 +76,7 @@ func assertDNSResolves(t *testing.T, registryURL string) {
 	u, err := url.Parse(registryURL)
 	require.NoError(t, err)
 
-	require.NoError(t, sandbox.AddSRVEntry(resolver, "domain1", srv, u))
+	require.NoError(t, resolver.AddSRVEntry("domain1", srv, u))
 
 	s := dnsresolve.NewNetworkServiceEndpointRegistryServer(
 		dnsresolve.WithRegistryService(srv),
@@ -133,12 +135,12 @@ func Test_DNSResolve_LookupNsmgrProxy(t *testing.T) {
 	regURL, err := url.Parse("tcp://127.0.0.1:80")
 	require.NoError(t, err)
 
-	require.NoError(t, sandbox.AddSRVEntry(resolver, domain, regSrv, regURL))
+	require.NoError(t, resolver.AddSRVEntry(domain, regSrv, regURL))
 
 	nsmgrProxyURL, err := url.Parse("tcp://127.0.0.1:81")
 	require.NoError(t, err)
 
-	require.NoError(t, sandbox.AddSRVEntry(resolver, domain, nsmgrProxySrv, nsmgrProxyURL))
+	require.NoError(t, resolver.AddSRVEntry(domain, nsmgrProxySrv, nsmgrProxyURL))
 
 	s := dnsresolve.NewNetworkServiceEndpointRegistryServer(
 		dnsresolve.WithRegistryService(regSrv),

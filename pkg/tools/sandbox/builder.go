@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -54,7 +56,7 @@ type Builder struct {
 	setupNode           SetupNodeFunc
 
 	name                      string
-	dnsResolver               dnsresolve.Resolver
+	dnsResolver               TestingResolver
 	generateTokenFunc         token.GeneratorFunc
 	registryDefaultExpiration time.Duration
 
@@ -140,7 +142,7 @@ func (b *Builder) SetDNSDomainName(name string) *Builder {
 }
 
 // SetDNSResolver sets DNS resolver for proxy registries
-func (b *Builder) SetDNSResolver(d dnsresolve.Resolver) *Builder {
+func (b *Builder) SetDNSResolver(d TestingResolver) *Builder {
 	b.dnsResolver = d
 	return b
 }
@@ -330,9 +332,9 @@ func (b *Builder) newNode(nodeNum int) *Node {
 
 func (b *Builder) buildDNSServer() {
 	if b.domain.Registry != nil {
-		require.NoError(b.t, AddSRVEntry(b.dnsResolver, b.name, dnsresolve.DefaultRegistryService, CloneURL(b.domain.Registry.URL)))
+		require.NoError(b.t, b.dnsResolver.AddSRVEntry(b.name, dnsresolve.DefaultRegistryService, CloneURL(b.domain.Registry.URL)))
 	}
 	if b.domain.NSMgrProxy != nil {
-		require.NoError(b.t, AddSRVEntry(b.dnsResolver, b.name, dnsresolve.DefaultNsmgrProxyService, CloneURL(b.domain.NSMgrProxy.URL)))
+		require.NoError(b.t, b.dnsResolver.AddSRVEntry(b.name, dnsresolve.DefaultNsmgrProxyService, CloneURL(b.domain.NSMgrProxy.URL)))
 	}
 }
