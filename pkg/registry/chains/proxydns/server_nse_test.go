@@ -94,8 +94,8 @@ func TestInterdomainNetworkServiceEndpointRegistryWithDifferentDNSScheme(t *test
 	dnsServer.DeleteSRVEntry(dnsresolve.DefaultNsmgrProxyService, domain2.Name)
 	dnsServer.DeleteSRVEntry(dnsresolve.DefaultRegistryService, domain2.Name)
 
-	dnsServer.AddSRVEntry("example.com", "nsmgr-proxy2", domain2.NSMgrProxy.URL)
-	dnsServer.AddSRVEntry("example.com", "registry2", domain2.Registry.URL)
+	require.NoError(t, dnsServer.AddSRVEntry("example.com", "nsmgr-proxy2", domain2.NSMgrProxy.URL))
+	require.NoError(t, dnsServer.AddSRVEntry("example.com", "registry2", domain2.Registry.URL))
 
 	expirationTime := timestamppb.New(time.Now().Add(time.Hour))
 

@@ -88,7 +88,7 @@ func TestDNSResolve_LoopUsecase(t *testing.T) {
 	u, err := url.Parse("tcp://127.0.0.1:80")
 	require.NoError(t, err)
 
-	require.NoError(t, sandbox.AddSRVEntry(resolver, "domain1", srv, u))
+	require.NoError(t, resolver.AddSRVEntry("domain1", srv, u))
 
 	s := dnsresolve.NewNetworkServiceRegistryServer(
 		dnsresolve.WithRegistryService(srv),

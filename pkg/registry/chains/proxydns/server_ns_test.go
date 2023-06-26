@@ -93,8 +93,8 @@ func TestInterdomainNetworkServiceRegistryWithDifferentDNSScheme(t *testing.T) {
 	dnsServer.DeleteSRVEntry(dnsresolve.DefaultNsmgrProxyService, domain2.Name)
 	dnsServer.DeleteSRVEntry(dnsresolve.DefaultRegistryService, domain2.Name)
 
-	dnsServer.AddSRVEntry("example.com", "nsmgr-proxy2", domain2.NSMgrProxy.URL)
-	dnsServer.AddSRVEntry("example.com", "registry2", domain2.Registry.URL)
+	require.NoError(t, dnsServer.AddSRVEntry("example.com", "nsmgr-proxy2", domain2.NSMgrProxy.URL))
+	require.NoError(t, dnsServer.AddSRVEntry("example.com", "registry2", domain2.Registry.URL))
 
 	client1 := registryclient.NewNetworkServiceRegistryClient(ctx,
 		registryclient.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),

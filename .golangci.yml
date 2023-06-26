@@ -120,7 +120,6 @@ linters-settings:
       - unnamedResult
       - unnecessaryBlock
       - underef
-      - unlambda
       - unslice
       - valSwap
       - weakCond
@@ -302,6 +301,3 @@ issues:
       linters:
         - interfacer
       text: "`rawSrv` can be `github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor.EventConsumer`"
-    - path: pkg/registry/chains/proxydns/.*_test.go
-      linters:
-        - unlambda
