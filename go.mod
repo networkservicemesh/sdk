@@ -19,7 +19,7 @@ require (
 	github.com/miekg/dns v1.1.50
 	github.com/nats-io/nats-streaming-server v0.24.6
 	github.com/nats-io/stan.go v0.10.3
-	github.com/networkservicemesh/api v1.7.2-0.20230123083145-4a6c3ec589e1
+	github.com/networkservicemesh/api v1.9.1-0.20230626194628-f70362f19423
 	github.com/open-policy-agent/opa v0.44.0
 	github.com/pkg/errors v0.9.1
 	github.com/r3labs/diff v1.1.0
@@ -39,7 +39,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.16.0
 	go.uber.org/atomic v1.7.0
 	go.uber.org/goleak v1.2.1
-	golang.org/x/net v0.10.0
+	golang.org/x/net v0.11.0
 	gonum.org/v1/gonum v0.6.2
 	google.golang.org/grpc v1.55.0
 	google.golang.org/protobuf v1.30.0
@@ -90,10 +90,10 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.16.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric v0.39.0 // indirect
 	go.opentelemetry.io/proto/otlp v0.19.0 // indirect
-	golang.org/x/crypto v0.0.0-20221010152910-d6f0a8c073c2 // indirect
+	golang.org/x/crypto v0.10.0 // indirect
 	golang.org/x/mod v0.8.0 // indirect
-	golang.org/x/sys v0.8.0 // indirect
-	golang.org/x/text v0.9.0 // indirect
+	golang.org/x/sys v0.9.0 // indirect
+	golang.org/x/text v0.10.0 // indirect
 	golang.org/x/time v0.0.0-20211116232009-f0f3c7e86c11 // indirect
 	golang.org/x/tools v0.6.0 // indirect
 	google.golang.org/genproto v0.0.0-20230306155012-7f2fa6fef1f4 // indirect
