@@ -20,8 +20,6 @@ package log
 import (
 	"context"
 	"sync/atomic"
-
-	"github.com/sirupsen/logrus"
 )
 
 type contextKeyType string
@@ -92,7 +90,7 @@ func WithLog(ctx context.Context, log ...Logger) context.Context {
 // IsTracingEnabled - checks if it is allowed to use traces
 func IsTracingEnabled() bool {
 	// TODO: Rework this within https://github.com/networkservicemesh/sdk/issues/1272
-	return atomic.LoadInt32(&isTracingEnabled) != 0 && logrus.GetLevel() == logrus.TraceLevel
+	return atomic.LoadInt32(&isTracingEnabled) != 0
 }
 
 // EnableTracing - enable/disable traces
