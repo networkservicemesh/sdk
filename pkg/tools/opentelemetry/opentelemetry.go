@@ -27,12 +27,8 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric"
-	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/propagation"
-	controller "go.opentelemetry.io/otel/sdk/metric/controller/basic"
-	processor "go.opentelemetry.io/otel/sdk/metric/processor/basic"
-	"go.opentelemetry.io/otel/sdk/metric/selector/simple"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
@@ -59,8 +55,8 @@ type opentelemetry struct {
 	/* Traces */
 	tracerProvider *sdktrace.TracerProvider
 	/* Metrics */
-	metricController *controller.Controller
-	metricExporter   *otlpmetric.Exporter
+	metricController *sdkmetric.MeterProvider
+	metricExporter   *sdkmetric.Exporter
 }
 
 func (o *opentelemetry) Close() error {
@@ -70,20 +66,15 @@ func (o *opentelemetry) Close() error {
 		}
 	}
 	if o.metricController != nil {
-		if err := o.metricController.Stop(o.ctx); err != nil {
+		if err := o.metricController.Shutdown(o.ctx); err != nil {
 			log.FromContext(o.ctx).Errorf("failed to shutdown controller: %v", err)
-		}
-	}
-	if o.metricExporter != nil {
-		if err := o.metricExporter.Shutdown(o.ctx); err != nil {
-			log.FromContext(o.ctx).Errorf("failed to stop exporter: %v", err)
 		}
 	}
 	return nil
 }
 
 // Init - creates opentelemetry tracer and meter providers
-func Init(ctx context.Context, spanExporter sdktrace.SpanExporter, metricExporter *otlpmetric.Exporter, service string) io.Closer {
+func Init(ctx context.Context, spanExporter sdktrace.SpanExporter, metricExporter *sdkmetric.Exporter, service string) io.Closer {
 	o := &opentelemetry{
 		ctx: ctx,
 	}
@@ -120,21 +111,17 @@ func Init(ctx context.Context, spanExporter sdktrace.SpanExporter, metricExporte
 
 	o.metricExporter = metricExporter
 
-	metricController := controller.New(
-		processor.NewFactory(
-			simple.NewWithHistogramDistribution(),
-			metricExporter,
+	meterProvider := sdkmetric.NewMeterProvider(
+		sdkmetric.WithResource(res),
+		sdkmetric.WithReader(
+			sdkmetric.NewPeriodicReader(*metricExporter,
+				sdkmetric.WithInterval(10*time.Second),
+			),
 		),
-		controller.WithExporter(metricExporter),
-		controller.WithCollectPeriod(2*time.Second),
 	)
 
-	if err := metricController.Start(ctx); err != nil {
-		log.FromContext(ctx).Errorf("%v", err)
-		return o
-	}
-	global.SetMeterProvider(metricController)
-	o.metricController = metricController
+	otel.SetMeterProvider(meterProvider)
+	o.metricController = meterProvider
 
 	return o
 }

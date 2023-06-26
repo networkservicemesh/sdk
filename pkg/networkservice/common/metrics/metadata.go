@@ -1,4 +1,5 @@
 // Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2023 Nordix Foundation.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -19,13 +20,13 @@ package metrics
 import (
 	"context"
 
-	"go.opentelemetry.io/otel/metric/instrument/syncint64"
+	"go.opentelemetry.io/otel/metric"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
 type keyType struct{}
-type metricsMap = map[string]syncint64.Histogram
+type metricsMap = map[string]metric.Int64Counter
 
 func loadOrStore(ctx context.Context, metrics metricsMap) (value metricsMap, ok bool) {
 	rawValue, ok := metadata.Map(ctx, false).LoadOrStore(keyType{}, metrics)
