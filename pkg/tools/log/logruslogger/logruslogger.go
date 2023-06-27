@@ -29,6 +29,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"go.uber.org/atomic"
 	"google.golang.org/grpc/metadata"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
@@ -139,7 +140,7 @@ var localTraceInfo sync.Map
 
 type traceCtxInfo struct {
 	level      int
-	childCount int
+	childCount atomic.Int32
 	id         string
 }
 
@@ -214,9 +215,9 @@ func (s *traceLogger) WithField(key, value interface{}) log.Logger {
 }
 
 func (i *traceCtxInfo) incInfo() string {
-	i.childCount++
-	if i.childCount > 1 {
-		return fmt.Sprintf("(%d.%d)", i.level, i.childCount-1)
+	newValue := i.childCount.Inc()
+	if newValue > 1 {
+		return fmt.Sprintf("(%d.%d)", i.level, newValue-1)
 	}
 	return fmt.Sprintf("(%d)", i.level)
 }
@@ -224,7 +225,7 @@ func (i *traceCtxInfo) incInfo() string {
 func withTraceInfo(parent context.Context) (context.Context, *traceCtxInfo) {
 	newInfo := &traceCtxInfo{
 		level:      1,
-		childCount: 0,
+		childCount: atomic.Int32{},
 		id:         uuid.New().String(),
 	}
 
