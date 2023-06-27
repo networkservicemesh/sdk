@@ -43,7 +43,7 @@ import (
 func TestInterdomainNetworkServiceRegistryWithDifferentDNSScheme(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Hour*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	dnsServer := sandbox.NewFakeResolver()

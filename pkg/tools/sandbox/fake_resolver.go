@@ -46,9 +46,7 @@ func NewFakeResolver() TestingResolver {
 	}
 }
 
-// AddSRVEntry adds a DNS record to r using name and service as the
-// key, and the host and port in u as the values. r must be a Resolver
-// that was created by NewFakeDNSResolver.
+// AddSRVEntry adds a SRV entry from the mock dns resolver
 func (f *fakeResolver) AddSRVEntry(name, service string, u *url.URL) (err error) {
 	f.Lock()
 	defer f.Unlock()
@@ -59,7 +57,7 @@ func (f *fakeResolver) AddSRVEntry(name, service string, u *url.URL) (err error)
 	return
 }
 
-// DeleteSRVEntry deletes a DNS srv entry from the mock dns server
+// DeleteSRVEntry deletes a DNS srv entry from the mock dns resolver
 func (f *fakeResolver) DeleteSRVEntry(name, service string) {
 	f.Lock()
 	defer f.Unlock()
