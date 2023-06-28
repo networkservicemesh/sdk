@@ -1,4 +1,5 @@
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
+// Copyright (c) 2023 Nordix Foundation.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -19,26 +20,28 @@ package metrics
 
 import (
 	"context"
+	"fmt"
 	"strconv"
+	"sync"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-	"go.opentelemetry.io/otel/metric/global"
-	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
 type metricServer struct {
-	meter metric.Meter
+	meter           metric.Meter
+	previousMetrics sync.Map
 }
 
 // NewServer returns a new metric server chain element
 func NewServer() networkservice.NetworkServiceServer {
 	return &metricServer{
-		meter: global.Meter(""),
+		meter: otel.Meter(""),
 	}
 }
 
@@ -69,27 +72,43 @@ func (t *metricServer) writeMetrics(ctx context.Context, path *networkservice.Pa
 				continue
 			}
 
-			metrics, _ := loadOrStore(ctx, make(map[string]syncint64.Histogram))
+			metrics, _ := loadOrStore(ctx, make(map[string]metric.Int64Counter))
 			for metricName, metricValue := range pathSegment.Metrics {
 				/* Works with integers only */
 				recVal, err := strconv.ParseInt(metricValue, 10, 64)
 				if err != nil {
 					continue
 				}
+
+				counterName := fmt.Sprintf("%s_%s", pathSegment.Name, metricName)
 				_, ok := metrics[metricName]
 				if !ok {
-					var hist syncint64.Histogram
+					var counter metric.Int64Counter
 
-					hist, err = t.meter.SyncInt64().Histogram(
-						pathSegment.Name + "_" + metricName,
-					)
+					counter, err = t.meter.Int64Counter(counterName)
 					if err != nil {
 						continue
 					}
-					metrics[metricName] = hist
+					metrics[metricName] = counter
 				}
 
-				metrics[metricName].Record(ctx, recVal, attribute.String("connection", path.GetPathSegments()[0].Id))
+				previousValueKey := fmt.Sprintf(
+					"%s.%s",
+					counterName,
+					path.GetPathSegments()[0].Id,
+				)
+				var previousValueInt int64
+				previousValue, ok := t.previousMetrics.Load(previousValueKey)
+				if ok {
+					previousValueInt, _ = strconv.ParseInt(previousValue.(string), 10, 64)
+				}
+
+				metrics[metricName].Add(
+					ctx,
+					recVal-previousValueInt,
+					metric.WithAttributes(attribute.String("connection", path.GetPathSegments()[0].Id)),
+				)
+				t.previousMetrics.Store(previousValueKey, metricValue)
 			}
 		}
 	}

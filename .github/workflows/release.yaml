@@ -49,6 +49,7 @@ jobs:
         "cmd-registry-memory",
         "cmd-registry-proxy-dns",
         "cmd-nse-remote-vlan",
+        "cmd-cluster-info-k8s",
         "cmd-nse-vfio",
         "cmd-nsc-init",
         "cmd-ipam-vl3",
