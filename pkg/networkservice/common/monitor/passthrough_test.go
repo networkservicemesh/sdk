@@ -242,14 +242,13 @@ func (m *MonitorPassThroughSuite) TestServerUpdate() {
 		ExtraContext: map[string]string{"mark": "true"},
 	}
 	_, err := m.endpoint.Request(m.testCtx, &networkservice.NetworkServiceRequest{
-		Connection: endpointConn,
+		Connection: endpointConn.Clone(),
 	})
 	m.Require().NoError(err)
 
 	expectedConn := endpointConn.Clone()
 	expectedConn.GetPath().Index = m.conn.GetPath().GetIndex()
 	expectedConn.Id = expectedConn.GetCurrentPathSegment().GetId()
-	expectedConn.State = networkservice.State_DOWN
 	m.ValidateEvent(networkservice.ConnectionEventType_UPDATE, expectedConn)
 }
 
