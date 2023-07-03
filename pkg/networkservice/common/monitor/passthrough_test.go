@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2022 Cisco and/or its affiliates.
+// Copyright (c) 2021-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -242,7 +242,7 @@ func (m *MonitorPassThroughSuite) TestServerUpdate() {
 		ExtraContext: map[string]string{"mark": "true"},
 	}
 	_, err := m.endpoint.Request(m.testCtx, &networkservice.NetworkServiceRequest{
-		Connection: endpointConn,
+		Connection: endpointConn.Clone(),
 	})
 	m.Require().NoError(err)
 

@@ -459,7 +459,7 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 
 	if restored {
 		require.Equal(t, 3, counter.Requests())
-		require.Equal(t, 1, counter.Closes())
+		require.Equal(t, 2, counter.Closes())
 	} else {
 		require.Equal(t, 2, counter.UniqueRequests())
 		require.Equal(t, closes+1, counter.UniqueCloses())

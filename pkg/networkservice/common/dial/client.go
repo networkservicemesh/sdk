@@ -108,24 +108,31 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 }
 
 func (d *dialClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	// If no clientURL, we have no work to do
-	// call the next in the chain
-	clientURL := clienturlctx.ClientURL(ctx)
-	if clientURL == nil {
-		return next.Client(ctx).Close(ctx, conn, opts...)
-	}
-
 	cc, _ := clientconn.Load(ctx)
-
 	di, ok := cc.(*dialer)
 	if !ok {
 		return next.Client(ctx).Close(ctx, conn, opts...)
 	}
 	defer func() {
-		_ = di.Close()
+		err := di.Close()
+		if err != nil {
+			log.FromContext(ctx).Errorf("dialer close failed: %v", err)
+		}
 		clientconn.Delete(ctx)
 	}()
-	_ = di.Dial(ctx, clientURL)
 
+	clientURL := clienturlctx.ClientURL(ctx)
+	if clientURL == nil {
+		log.FromContext(ctx).Info("closing the connection using the old url")
+		clientURL = di.clientURL
+	}
+	err := di.Dial(ctx, clientURL)
+	if err != nil {
+		log.FromContext(ctx).Errorf("dial failed: %v", err)
+	}
+
+	// Call next regardless of connection state.
+	// Even if there is something wrong with connection,
+	// we need to clear resources in the current app.
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
