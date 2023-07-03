@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,20 +30,24 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 )
 
+// TestingResolver provides API for editing dns entries in unit tests
+type TestingResolver interface {
+	dnsresolve.Resolver
+	AddSRVEntry(name, service string, u *url.URL) error
+	DeleteSRVEntry(name, service string)
+}
+
 // NewFakeResolver returns a fake Resolver that can have records added
 // to it using AddSRVEntry.
-func NewFakeResolver() dnsresolve.Resolver {
+func NewFakeResolver() TestingResolver {
 	return &fakeResolver{
 		ports:     map[string]string{},
 		addresses: map[string]string{},
 	}
 }
 
-// AddSRVEntry adds a DNS record to r using name and service as the
-// key, and the host and port in u as the values. r must be a Resolver
-// that was created by NewFakeDNSResolver.
-func AddSRVEntry(r dnsresolve.Resolver, name, service string, u *url.URL) (err error) {
-	f := r.(*fakeResolver)
+// AddSRVEntry adds a SRV entry from the mock dns resolver
+func (f *fakeResolver) AddSRVEntry(name, service string, u *url.URL) (err error) {
 	f.Lock()
 	defer f.Unlock()
 
@@ -49,6 +55,17 @@ func AddSRVEntry(r dnsresolve.Resolver, name, service string, u *url.URL) (err e
 	f.addresses[key], f.ports[key], err = net.SplitHostPort(u.Host)
 
 	return
+}
+
+// DeleteSRVEntry deletes a DNS srv entry from the mock dns resolver
+func (f *fakeResolver) DeleteSRVEntry(name, service string) {
+	f.Lock()
+	defer f.Unlock()
+
+	key := fmt.Sprintf("%v.%v", service, name)
+
+	delete(f.addresses, key)
+	delete(f.ports, key)
 }
 
 // fakeResolver implements the dnsresolve.Resolver interface and can

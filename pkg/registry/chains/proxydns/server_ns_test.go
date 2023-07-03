@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2022 Cisco Systems, Inc.
+// Copyright (c) 2022-2023 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -30,11 +30,96 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/networkservicemesh/sdk/pkg/registry"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/registry/chains/proxydns"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
+
+func TestInterdomainNetworkServiceRegistryWithDifferentDNSScheme(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	dnsServer := sandbox.NewFakeResolver()
+
+	domain1 := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(0).
+		SetDNSResolver(dnsServer).
+		SetRegistryProxySupplier(func(ctx context.Context, tokenGenerator token.GeneratorFunc, dnsResolver dnsresolve.Resolver, options ...proxydns.Option) registry.Registry {
+			return proxydns.NewServer(
+				ctx,
+				tokenGenerator,
+				dnsResolver,
+				append(options,
+					proxydns.WithDNSResolveOptions(
+						dnsresolve.WithNSMgrProxyService("nsmgr-proxy2"),
+						dnsresolve.WithRegistryService("registry2"),
+						dnsresolve.WithResolver(dnsResolver),
+					))...,
+			)
+		}).
+		Build()
+
+	dnsServer.DeleteSRVEntry(dnsresolve.DefaultNsmgrProxyService, domain1.Name)
+	dnsServer.DeleteSRVEntry(dnsresolve.DefaultRegistryService, domain1.Name)
+
+	require.NoError(t, dnsServer.AddSRVEntry("example.com", "nsmgr-proxy1", domain1.NSMgrProxy.URL))
+	require.NoError(t, dnsServer.AddSRVEntry("example.com", "registry1", domain1.Registry.URL))
+
+	domain2 := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(0).
+		SetDNSResolver(dnsServer).
+		SetRegistryProxySupplier(func(ctx context.Context, tokenGenerator token.GeneratorFunc, dnsResolver dnsresolve.Resolver, options ...proxydns.Option) registry.Registry {
+			return proxydns.NewServer(
+				ctx,
+				tokenGenerator,
+				dnsResolver,
+				append(options,
+					proxydns.WithDNSResolveOptions(
+						dnsresolve.WithNSMgrProxyService("nsmgr-proxy1"),
+						dnsresolve.WithRegistryService("registry1"),
+						dnsresolve.WithResolver(dnsResolver),
+					))...,
+			)
+		}).
+		Build()
+
+	dnsServer.DeleteSRVEntry(dnsresolve.DefaultNsmgrProxyService, domain2.Name)
+	dnsServer.DeleteSRVEntry(dnsresolve.DefaultRegistryService, domain2.Name)
+
+	require.NoError(t, dnsServer.AddSRVEntry("example.com", "nsmgr-proxy2", domain2.NSMgrProxy.URL))
+	require.NoError(t, dnsServer.AddSRVEntry("example.com", "registry2", domain2.Registry.URL))
+
+	client1 := registryclient.NewNetworkServiceRegistryClient(ctx,
+		registryclient.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
+		registryclient.WithClientURL(domain1.Registry.URL))
+
+	client2 := registryclient.NewNetworkServiceRegistryClient(ctx,
+		registryclient.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
+		registryclient.WithClientURL(domain2.Registry.URL))
+
+	_, err := client2.Register(context.Background(), &registryapi.NetworkService{Name: "ns-1"})
+	require.NoError(t, err)
+
+	stream, err := client1.Find(ctx, &registryapi.NetworkServiceQuery{
+		NetworkService: &registryapi.NetworkService{
+			Name: "ns-1@" + "example.com",
+		},
+	})
+
+	require.Nil(t, err)
+
+	list := registryapi.ReadNetworkServiceList(stream)
+
+	require.Len(t, list, 1)
+	require.Equal(t, "ns-1@"+"example.com", list[0].Name)
+}
 
 /*
 TestInterdomainNetworkServiceEndpointRegistry covers the next scenario:

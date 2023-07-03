@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,10 +32,109 @@ import (
 
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/registry"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/registry/chains/proxydns"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
+
+func TestInterdomainNetworkServiceEndpointRegistryWithDifferentDNSScheme(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	dnsServer := sandbox.NewFakeResolver()
+
+	domain1 := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(0).
+		SetDNSResolver(dnsServer).
+		SetRegistryProxySupplier(func(ctx context.Context, tokenGenerator token.GeneratorFunc, dnsResolver dnsresolve.Resolver, options ...proxydns.Option) registry.Registry {
+			return proxydns.NewServer(
+				ctx,
+				tokenGenerator,
+				dnsResolver,
+				append(options,
+					proxydns.WithDNSResolveOptions(
+						dnsresolve.WithNSMgrProxyService("nsmgr-proxy2"),
+						dnsresolve.WithRegistryService("registry2"),
+						dnsresolve.WithResolver(dnsResolver),
+					))...,
+			)
+		}).
+		Build()
+
+	dnsServer.DeleteSRVEntry(dnsresolve.DefaultNsmgrProxyService, domain1.Name)
+	dnsServer.DeleteSRVEntry(dnsresolve.DefaultRegistryService, domain1.Name)
+
+	require.NoError(t, dnsServer.AddSRVEntry("example.com", "nsmgr-proxy1", domain1.NSMgrProxy.URL))
+	require.NoError(t, dnsServer.AddSRVEntry("example.com", "registry1", domain1.Registry.URL))
+
+	domain2 := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(0).
+		SetDNSResolver(dnsServer).
+		SetRegistryProxySupplier(func(ctx context.Context, tokenGenerator token.GeneratorFunc, dnsResolver dnsresolve.Resolver, options ...proxydns.Option) registry.Registry {
+			return proxydns.NewServer(
+				ctx,
+				tokenGenerator,
+				dnsResolver,
+				append(options,
+					proxydns.WithDNSResolveOptions(
+						dnsresolve.WithNSMgrProxyService("nsmgr-proxy1"),
+						dnsresolve.WithRegistryService("registry1"),
+						dnsresolve.WithResolver(dnsResolver),
+					))...,
+			)
+		}).
+		Build()
+
+	dnsServer.DeleteSRVEntry(dnsresolve.DefaultNsmgrProxyService, domain2.Name)
+	dnsServer.DeleteSRVEntry(dnsresolve.DefaultRegistryService, domain2.Name)
+
+	require.NoError(t, dnsServer.AddSRVEntry("example.com", "nsmgr-proxy2", domain2.NSMgrProxy.URL))
+	require.NoError(t, dnsServer.AddSRVEntry("example.com", "registry2", domain2.Registry.URL))
+
+	expirationTime := timestamppb.New(time.Now().Add(time.Hour))
+
+	registryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx,
+		registryclient.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
+		registryclient.WithClientURL(domain2.Registry.URL))
+
+	reg, err := registryClient.Register(
+		context.Background(),
+		&registryapi.NetworkServiceEndpoint{
+			Name:           "nse-1",
+			Url:            "nsmgr-url",
+			ExpirationTime: expirationTime,
+		},
+	)
+	require.Nil(t, err)
+
+	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(domain1.Registry.URL), grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.Nil(t, err)
+
+	defer func() {
+		_ = cc.Close()
+	}()
+
+	client := registryapi.NewNetworkServiceEndpointRegistryClient(cc)
+
+	stream, err := client.Find(ctx, &registryapi.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: &registryapi.NetworkServiceEndpoint{
+			Name: reg.Name + "@" + "example.com",
+		},
+	})
+
+	require.Nil(t, err)
+
+	list := registryapi.ReadNetworkServiceEndpointList(stream)
+
+	require.Len(t, list, 1)
+	require.Equal(t, reg.Name+"@"+"example.com", list[0].Name)
+}
 
 /*
 TestInterdomainNetworkServiceEndpointRegistry covers the next scenario:

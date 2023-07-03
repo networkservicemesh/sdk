@@ -120,7 +120,6 @@ linters-settings:
       - unnamedResult
       - unnecessaryBlock
       - underef
-      - unlambda
       - unslice
       - valSwap
       - weakCond
