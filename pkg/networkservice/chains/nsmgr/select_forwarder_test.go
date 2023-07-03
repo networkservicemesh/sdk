@@ -19,16 +19,19 @@ package nsmgr_test
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	nsclient "github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
@@ -141,7 +144,7 @@ func Test_DiscoverForwarder_ChangeForwarderOnClose(t *testing.T) {
 	require.Equal(t, skipCount+1, counter.UniqueRequests())
 	require.Equal(t, skipCount+1, counter.Requests())
 
-	selectedFwd := conn.GetPath().GetPathSegments()[2].Name
+	selectedForwarder := conn.GetPath().GetPathSegments()[2].Name
 
 	requestsCount := counter.Requests()
 	for i := 0; i < reselectCount; i++ {
@@ -149,18 +152,18 @@ func Test_DiscoverForwarder_ChangeForwarderOnClose(t *testing.T) {
 		require.NoError(t, err)
 
 		// check that we select a different forwarder
-		selectedFwd = conn.GetPath().GetPathSegments()[2].Name
+		selectedForwarder = conn.GetPath().GetPathSegments()[2].Name
 		request.Connection = conn
 		conn, err = nsc.Request(ctx, request.Clone())
 		require.NoError(t, err)
 		require.Equal(t, skipCount+1, counter.UniqueRequests())
 		require.Equal(t, requestsCount+3, counter.Requests())
 		requestsCount = counter.Requests()
-		if selectedFwd != conn.GetPath().GetPathSegments()[2].Name {
+		if selectedForwarder != conn.GetPath().GetPathSegments()[2].Name {
 			break
 		}
 	}
-	require.NotEqual(t, selectedFwd, conn.GetPath().GetPathSegments()[2].Name)
+	require.NotEqual(t, selectedForwarder, conn.GetPath().GetPathSegments()[2].Name)
 }
 
 func Test_DiscoverForwarder_ChangeForwarderOnDeath_LostHeal(t *testing.T) {
@@ -210,9 +213,9 @@ func Test_DiscoverForwarder_ChangeForwarderOnDeath_LostHeal(t *testing.T) {
 	require.Equal(t, 1, counter.UniqueRequests())
 	require.Equal(t, 1, counter.Requests())
 
-	selectedFwd := conn.GetPath().GetPathSegments()[2].Name
+	selectedForwarder := conn.GetPath().GetPathSegments()[2].Name
 
-	domain.Nodes[0].Forwarders[selectedFwd].Cancel()
+	domain.Nodes[0].Forwarders[selectedForwarder].Cancel()
 
 	require.Eventually(t, checkSecondRequestsReceived(counter.Requests), timeout, tick)
 	require.Equal(t, 1, counter.UniqueRequests())
@@ -226,7 +229,7 @@ func Test_DiscoverForwarder_ChangeForwarderOnDeath_LostHeal(t *testing.T) {
 	require.Equal(t, 1, counter.UniqueRequests())
 	require.Equal(t, 3, counter.Requests())
 	require.Equal(t, 1, counter.Closes())
-	require.NotEqual(t, selectedFwd, conn.GetPath().GetPathSegments()[2].Name)
+	require.NotEqual(t, selectedForwarder, conn.GetPath().GetPathSegments()[2].Name)
 }
 
 func Test_DiscoverForwarder_ChangeRemoteForwarderOnDeath(t *testing.T) {
@@ -281,11 +284,11 @@ func Test_DiscoverForwarder_ChangeRemoteForwarderOnDeath(t *testing.T) {
 	require.Equal(t, 1, counter.UniqueRequests())
 	require.Equal(t, 1, counter.Requests())
 
-	selectedFwd := conn.GetPath().GetPathSegments()[4].Name
+	selectedForwarder := conn.GetPath().GetPathSegments()[4].Name
 
 	domain.Registry.Restart()
 
-	domain.Nodes[1].Forwarders[selectedFwd].Cancel()
+	domain.Nodes[1].Forwarders[selectedForwarder].Cancel()
 
 	require.Eventually(t, checkSecondRequestsReceived(counter.Requests), timeout, tick)
 	require.Equal(t, 1, counter.UniqueRequests())
@@ -299,5 +302,92 @@ func Test_DiscoverForwarder_ChangeRemoteForwarderOnDeath(t *testing.T) {
 	require.Equal(t, 1, counter.UniqueRequests())
 	require.Equal(t, 3, counter.Requests())
 	require.Equal(t, 1, counter.Closes())
-	require.NotEqual(t, selectedFwd, conn.GetPath().GetPathSegments()[4].Name)
+	require.NotEqual(t, selectedForwarder, conn.GetPath().GetPathSegments()[4].Name)
+}
+
+func Test_DiscoverForwarder_Should_KeepSelectedForwarderWhileConnectionIsFine(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+
+	defer cancel()
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		SetNodeSetup(func(ctx context.Context, node *sandbox.Node, _ int) {
+			node.NewNSMgr(ctx, "nsmgr", nil, sandbox.GenerateTestToken, nsmgr.NewServer)
+		}).
+		Build()
+
+	const fwdCount = 10
+	for i := 0; i < fwdCount; i++ {
+		domain.Nodes[0].NewForwarder(ctx, &registry.NetworkServiceEndpoint{
+			Name:                sandbox.UniqueName("forwarder-" + fmt.Sprint(i)),
+			NetworkServiceNames: []string{"forwarder"},
+		}, sandbox.GenerateTestToken)
+	}
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg := defaultRegistryService(t.Name())
+	nsReg, err := nsRegistryClient.Register(ctx, nsReg)
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
+
+	counter := new(count.Server)
+	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
+
+	request := defaultRequest(nsReg.Name)
+
+	var livenessValue atomic.Value
+	livenessValue.Store(true)
+
+	var selectedForwarder string
+
+	var livenessChecker = func(deadlineCtx context.Context, conn *networkservice.Connection) bool {
+		if v := livenessValue.Load().(bool); !v {
+			return conn.GetPath().GetPathSegments()[2].Name != selectedForwarder
+		}
+		return true
+	}
+
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
+		nsclient.WithHealClient(heal.NewClient(ctx,
+			heal.WithLivenessCheck(livenessChecker))))
+
+	conn, err := nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.Equal(t, 1, counter.UniqueRequests())
+	require.Equal(t, 1, counter.Requests())
+
+	selectedForwarder = conn.GetPath().GetPathSegments()[2].Name
+
+	domain.Registry.Restart()
+
+	domain.Nodes[0].NSMgr.Restart()
+
+	require.Eventually(t, checkSecondRequestsReceived(counter.Requests), timeout, tick)
+	require.Equal(t, 1, counter.UniqueRequests())
+	require.Equal(t, 2, counter.Requests())
+	require.Equal(t, 0, counter.Closes())
+
+	request.Connection = conn
+	conn, err = nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.Equal(t, 1, counter.UniqueRequests())
+	require.Equal(t, 0, counter.Closes())
+	require.Equal(t, selectedForwarder, conn.GetPath().GetPathSegments()[2].Name)
+
+	// datapath is down
+	livenessValue.Store(false)
+	domain.Nodes[0].Forwarders[selectedForwarder].Cancel()
+
+	request.Connection = conn
+	conn, err = nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+	require.Equal(t, 1, counter.UniqueRequests())
+	require.Greater(t, counter.Closes(), 0)
+	require.NotEqual(t, selectedForwarder, conn.GetPath().GetPathSegments()[2].Name)
+
 }

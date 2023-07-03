@@ -155,7 +155,6 @@ func (cev *eventLoop) waitForEvents() (canceled, reselect bool) {
 			return true, false
 		}
 		cev.logger.Warnf("Data plane is down")
-		reselect = true
 		cev.healingStartedCh <- true
 		return false, true
 	case <-cev.chainCtx.Done():
