@@ -389,5 +389,4 @@ func Test_DiscoverForwarder_Should_KeepSelectedForwarderWhileConnectionIsFine(t 
 	require.Equal(t, 1, counter.UniqueRequests())
 	require.Greater(t, counter.Closes(), 0)
 	require.NotEqual(t, selectedForwarder, conn.GetPath().GetPathSegments()[2].Name)
-
 }
