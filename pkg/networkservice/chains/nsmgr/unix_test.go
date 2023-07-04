@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -108,7 +110,7 @@ func Test_MultiForwarderSendfd(t *testing.T) {
 						},
 					},
 				},
-			}, sandbox.GenerateTestToken, errorServer, recvfd.NewServer())
+			}, sandbox.GenerateTestToken, sandbox.WithForwarderAdditionalFunctionalityServer(errorServer, recvfd.NewServer()))
 			node.NewForwarder(ctx, &registry.NetworkServiceEndpoint{
 				Name:                "forwarder-2",
 				NetworkServiceNames: []string{"forwarder"},
@@ -119,7 +121,7 @@ func Test_MultiForwarderSendfd(t *testing.T) {
 						},
 					},
 				},
-			}, sandbox.GenerateTestToken, errorServer, recvfd.NewServer())
+			}, sandbox.GenerateTestToken, sandbox.WithForwarderAdditionalFunctionalityServer(errorServer, recvfd.NewServer()))
 		}).
 		Build()
 

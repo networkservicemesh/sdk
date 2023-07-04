@@ -77,9 +77,9 @@ func testReselectWithNsmgrRestart(t *testing.T, nodeNum int, restartLocal, resta
 	// in this test we add counters to apps in chain
 	// to make sure that in each app Close call goes through the whole chain,
 	// without stopping on an error mid-chain
-	var counterFwd []*count.Server
+	var counterFwd []*count.Client
 	for i := 0; i < nodeNum; i++ {
-		counterFwd = append(counterFwd, new(count.Server))
+		counterFwd = append(counterFwd, new(count.Client))
 	}
 
 	defer cancel()
@@ -92,7 +92,7 @@ func testReselectWithNsmgrRestart(t *testing.T, nodeNum int, restartLocal, resta
 			node.NewForwarder(ctx, &registry.NetworkServiceEndpoint{
 				Name:                sandbox.UniqueName("forwarder"),
 				NetworkServiceNames: []string{"forwarder"},
-			}, sandbox.GenerateTestToken, counterFwd[i])
+			}, sandbox.GenerateTestToken, sandbox.WithForwarderAdditionalFunctionalityClient(counterFwd[i]))
 		}).
 		Build()
 
@@ -191,9 +191,9 @@ func testReselectWithLocalForwarderRestart(t *testing.T, nodeNum int) {
 	// in this test we add counters to apps in chain
 	// to make sure that in each app Close call goes through the whole chain,
 	// without stopping on an error mid-chain
-	var counterFwd []*count.Server
+	var counterFwd []*count.Client
 	for i := 0; i < nodeNum; i++ {
-		counterFwd = append(counterFwd, new(count.Server))
+		counterFwd = append(counterFwd, new(count.Client))
 	}
 
 	defer cancel()
@@ -206,7 +206,7 @@ func testReselectWithLocalForwarderRestart(t *testing.T, nodeNum int) {
 			node.NewForwarder(ctx, &registry.NetworkServiceEndpoint{
 				Name:                sandbox.UniqueName("forwarder"),
 				NetworkServiceNames: []string{"forwarder"},
-			}, sandbox.GenerateTestToken, counterFwd[i])
+			}, sandbox.GenerateTestToken, sandbox.WithForwarderAdditionalFunctionalityClient(counterFwd[i]))
 		}).
 		Build()
 
@@ -228,15 +228,20 @@ func testReselectWithLocalForwarderRestart(t *testing.T, nodeNum int) {
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 
+	// Kill a local forwarder and NSE
 	for _, fwd := range domain.Nodes[0].Forwarders {
-		fwd.Restart()
+		fwd.Cancel()
 	}
-
 	nse.Cancel()
 
+	// Restart NSE and local forwarder
 	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
 	nseReg2.Name += "-2"
 	domain.Nodes[nodeNum-1].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counterNse)
+
+	for _, fwd := range domain.Nodes[0].Forwarders {
+		fwd.Restart()
+	}
 
 	// Wait for heal to finish successfully
 	require.Eventually(t, checkSecondRequestsReceived(counterNse.UniqueRequests), timeout, tick)
@@ -282,7 +287,7 @@ func TestReselect_Close_RegistryDied(t *testing.T) {
 	// in this test we add counters to apps in chain
 	// to make sure that in each app Close call goes through the whole chain,
 	// without stopping on an error mid-chain
-	counterFwd := new(count.Server)
+	counterFwd := new(count.Client)
 
 	defer cancel()
 	domain := sandbox.NewBuilder(ctx, t).
@@ -294,7 +299,7 @@ func TestReselect_Close_RegistryDied(t *testing.T) {
 			node.NewForwarder(ctx, &registry.NetworkServiceEndpoint{
 				Name:                sandbox.UniqueName("forwarder"),
 				NetworkServiceNames: []string{"forwarder"},
-			}, sandbox.GenerateTestToken, counterFwd)
+			}, sandbox.GenerateTestToken, sandbox.WithForwarderAdditionalFunctionalityClient(counterFwd))
 		}).
 		Build()
 
