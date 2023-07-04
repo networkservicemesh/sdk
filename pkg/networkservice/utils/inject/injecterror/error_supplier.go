@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,9 +18,11 @@
 
 package injecterror
 
+import "go.uber.org/atomic"
+
 type errorSupplier struct {
 	err        error
-	count      int
+	count      atomic.Int32
 	errorTimes []int
 }
 
@@ -27,13 +31,14 @@ type errorSupplier struct {
 // * [-1] - will return an error on all requests
 // * [1, 4, -1] - will return an error on 0 time and on all times starting from 4
 func (e *errorSupplier) supply() error {
-	defer func() { e.count++ }()
+	defer func() { e.count.Inc() }()
 
+	count := int(e.count.Load())
 	for _, errorTime := range e.errorTimes {
-		if errorTime > e.count {
+		if errorTime > count {
 			break
 		}
-		if errorTime == e.count || errorTime == -1 {
+		if errorTime == count || errorTime == -1 {
 			return e.err
 		}
 	}

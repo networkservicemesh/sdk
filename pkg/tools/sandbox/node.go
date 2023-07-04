@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -104,7 +106,7 @@ func (n *Node) NewForwarder(
 	ctx context.Context,
 	nse *registryapi.NetworkServiceEndpoint,
 	generatorFunc token.GeneratorFunc,
-	additionalFunctionality ...networkservice.NetworkServiceServer,
+	opts ...ForwarderOption,
 ) *EndpointEntry {
 	var serveURL *url.URL
 	var err error
@@ -114,6 +116,11 @@ func (n *Node) NewForwarder(
 	} else {
 		serveURL, err = url.Parse(nse.Url)
 		require.NoError(n.t, err)
+	}
+
+	var serverOptions = &forwarderOptions{}
+	for _, opt := range opts {
+		opt(serverOptions)
 	}
 
 	nseClone := nse.Clone()
@@ -141,13 +148,15 @@ func (n *Node) NewForwarder(
 					append([]networkservice.NetworkServiceServer{
 						discover.NewServer(nsClient, nseClient),
 						roundrobin.NewServer(),
-					}, additionalFunctionality...),
+					}, serverOptions.additionalFunctionalityServer...),
 					connect.NewServer(
 						client.NewClient(
 							ctx,
 							client.WithName(entry.Name),
 							client.WithAdditionalFunctionality(
-								mechanismtranslation.NewClient(),
+								append([]networkservice.NetworkServiceClient{
+									mechanismtranslation.NewClient(),
+								}, serverOptions.additionalFunctionalityClient...)...,
 							),
 							client.WithDialOptions(dialOptions...),
 							client.WithDialTimeout(DialTimeout),
