@@ -111,6 +111,9 @@ func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
 			}
 			ctx, cancel := f.ctxFunc()
 			defer cancel()
+			if o.reselect && f.request.GetConnection().State != networkservice.State_RESELECT_REQUESTED {
+				panic("reselect requested doesnt work")
+			}
 			conn, err := f.client.Request(ctx, request, f.opts...)
 			if err == nil && f.request != nil {
 				f.request.Connection = conn
