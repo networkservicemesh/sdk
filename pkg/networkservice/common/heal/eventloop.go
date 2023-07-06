@@ -71,13 +71,6 @@ func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networ
 		return nil, nil, errors.Wrap(err, "failed get MonitorConnections client")
 	}
 
-	// get the initial state transfer and use it to detect whether we have a real connection or not
-	_, err = client.Recv()
-	if err != nil {
-		eventLoopCancel()
-		return nil, nil, errors.Wrap(err, "failed to get the initial state transfer")
-	}
-
 	logger := log.FromContext(ctx).WithField("heal", "eventLoop")
 	cev := &eventLoop{
 		heal:             heal,
