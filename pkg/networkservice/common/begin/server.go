@@ -63,18 +63,21 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 			return
 		}
 
-		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
-
 		if eventFactoryServer.state == established &&
 			request.GetConnection().GetState() == networkservice.State_RESELECT_REQUESTED &&
 			eventFactoryServer.request != nil && eventFactoryServer.request.Connection != nil {
 			log.FromContext(ctx).Info("Closing connection due to RESELECT_REQUESTED state")
-			_, closeErr := next.Server(withEventFactoryCtx).Close(withEventFactoryCtx, eventFactoryServer.request.Connection)
+
+			eventFactoryCtx, eventFactoryCtxCancel := eventFactoryServer.ctxFunc()
+			_, closeErr := next.Server(eventFactoryCtx).Close(eventFactoryCtx, eventFactoryServer.request.Connection)
 			if closeErr != nil {
 				log.FromContext(ctx).Errorf("Can't close old connection: %v", closeErr)
 			}
 			eventFactoryServer.state = closed
+			eventFactoryCtxCancel()
 		}
+
+		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
 		conn, err = next.Server(withEventFactoryCtx).Request(withEventFactoryCtx, request)
 		if err != nil {
 			if eventFactoryServer.state != established {
