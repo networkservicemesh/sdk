@@ -19,7 +19,7 @@ require (
 	github.com/miekg/dns v1.1.50
 	github.com/nats-io/nats-streaming-server v0.24.6
 	github.com/nats-io/stan.go v0.10.3
-	github.com/networkservicemesh/api v1.9.1-0.20230627143611-9785eacf9687
+	github.com/networkservicemesh/api v1.10.0-rc.1
 	github.com/open-policy-agent/opa v0.44.0
 	github.com/pkg/errors v0.9.1
 	github.com/r3labs/diff v1.1.0
