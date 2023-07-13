@@ -18,12 +18,13 @@ package sandbox
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"net/url"
 	"strconv"
 	"sync"
+
+	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 )

@@ -22,8 +22,9 @@ package vlan
 
 import (
 	"context"
-	"errors"
 	"sync"
+
+	"github.com/pkg/errors"
 
 	"github.com/RoaringBitmap/roaring"
 	"github.com/golang/protobuf/ptypes/empty"

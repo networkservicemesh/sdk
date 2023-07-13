@@ -23,7 +23,7 @@ import (
 	"context"
 	"time"
 
-	iserror "errors"
+	iserror "github.com/pkg/errors"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
