@@ -54,18 +54,21 @@ func withLog(parent context.Context, operation, methodName, connectionID string)
 	// Update outgoing grpc context
 	parent = grpcutils.PassTraceToOutgoing(parent)
 
+	fields := []*log.Field{log.NewField("id", connectionID), log.NewField("type", loggedType)}
+
+	ctx, sLogger, span, sFinish := spanlogger.FromContext(parent, operation, methodName, fields)
+	ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation, fields)
+
+	ctx = log.WithLog(ctx, sLogger, lLogger)
+
 	if grpcTraceState := grpcutils.TraceFromContext(parent); (grpcTraceState == grpcutils.TraceOn) ||
 		(grpcTraceState == grpcutils.TraceUndefined && log.IsTracingEnabled()) {
-		fields := []*log.Field{log.NewField("id", connectionID), log.NewField("type", loggedType)}
-
-		ctx, sLogger, span, sFinish := spanlogger.FromContext(parent, operation, methodName, fields)
-		ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation, fields)
-		return withTrace(log.WithLog(ctx, sLogger, lLogger)), func() {
-			sFinish()
-			lFinish()
-		}
+		ctx = withTrace(ctx)
 	}
-	return log.WithLog(parent), func() {}
+	return ctx, func() {
+		sFinish()
+		lFinish()
+	}
 }
 
 // withConnectionInfo - Provides a traceInfo in context
@@ -81,7 +84,7 @@ func withTrace(parent context.Context) context.Context {
 	return context.WithValue(parent, traceInfoKey, &traceInfo{})
 }
 
-// ConnectionInfo - return traceInfo from context
+// trace - return traceInfo from context
 func trace(ctx context.Context) (*traceInfo, bool) {
 	val, ok := ctx.Value(traceInfoKey).(*traceInfo)
 	return val, ok

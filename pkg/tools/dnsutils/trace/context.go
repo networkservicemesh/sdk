@@ -44,17 +44,20 @@ func withLog(parent context.Context, operation, methodName, messageID string) (c
 		panic("cannot create context from nil parent")
 	}
 
-	if log.IsTracingEnabled() {
-		fields := []*log.Field{log.NewField("type", loggedType), log.NewField("id", messageID)}
+	fields := []*log.Field{log.NewField("type", loggedType), log.NewField("id", messageID)}
 
-		ctx, sLogger, span, sFinish := spanlogger.FromContext(parent, operation, methodName, fields)
-		ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation, fields)
-		return withTrace(log.WithLog(ctx, sLogger, lLogger)), func() {
-			sFinish()
-			lFinish()
-		}
+	ctx, sLogger, span, sFinish := spanlogger.FromContext(parent, operation, methodName, fields)
+	ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation, fields)
+
+	ctx = log.WithLog(ctx, sLogger, lLogger)
+
+	if log.IsTracingEnabled() {
+		ctx = withTrace(ctx)
 	}
-	return log.WithLog(parent), func() {}
+	return ctx, func() {
+		sFinish()
+		lFinish()
+	}
 }
 
 func withTrace(parent context.Context) context.Context {
