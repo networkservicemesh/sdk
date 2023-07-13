@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2020-2022 Cisco Systems, Inc.
+// Copyright (c) 2020-2023 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -23,10 +23,9 @@ import (
 	"context"
 	"time"
 
-	iserror "github.com/pkg/errors"
+	"github.com/pkg/errors"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
@@ -90,7 +89,7 @@ func (s *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 
 func (s *timeoutServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	_, err := next.Server(ctx).Close(ctx, conn)
-	if !(iserror.Is(err, context.DeadlineExceeded) || iserror.Is(err, context.Canceled)) {
+	if !(errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled)) {
 		if oldCancel, loaded := loadAndDelete(ctx, metadata.IsClient(s)); loaded {
 			oldCancel()
 		}
