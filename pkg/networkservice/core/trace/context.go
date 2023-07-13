@@ -84,7 +84,7 @@ func withTrace(parent context.Context) context.Context {
 	return context.WithValue(parent, traceInfoKey, &traceInfo{})
 }
 
-// ConnectionInfo - return traceInfo from context
+// trace - return traceInfo from context
 func trace(ctx context.Context) (*traceInfo, bool) {
 	val, ok := ctx.Value(traceInfoKey).(*traceInfo)
 	return val, ok

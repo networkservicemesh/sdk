@@ -27,9 +27,15 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log/spanlogger"
 )
 
+type contextKeyType string
+
 const (
-	loggedType = "registry"
+	traceInfoKey contextKeyType = "ConnectionInfoRegistry"
+	loggedType   string         = "registry"
 )
+
+// ConnectionInfo - struct is used for tracing.
+type traceInfo struct{}
 
 // withLog - provides corresponding logger in context
 func withLog(parent context.Context, operation, methodName string) (c context.Context, f func()) {
@@ -40,16 +46,38 @@ func withLog(parent context.Context, operation, methodName string) (c context.Co
 	// Update outgoing grpc context
 	parent = grpcutils.PassTraceToOutgoing(parent)
 
+	fields := []*log.Field{log.NewField("type", loggedType)}
+
+	ctx, sLogger, span, sFinish := spanlogger.FromContext(parent, operation, methodName, fields)
+	ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation, fields)
+
+	ctx = log.WithLog(ctx, sLogger, lLogger)
+
 	if grpcTraceState := grpcutils.TraceFromContext(parent); (grpcTraceState == grpcutils.TraceOn) ||
 		(grpcTraceState == grpcutils.TraceUndefined && log.IsTracingEnabled()) {
-		fields := []*log.Field{log.NewField("type", loggedType)}
-
-		ctx, sLogger, span, sFinish := spanlogger.FromContext(parent, operation, methodName, fields)
-		ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation, fields)
-		return log.WithLog(ctx, sLogger, lLogger), func() {
-			sFinish()
-			lFinish()
-		}
+		ctx = withTrace(ctx)
 	}
-	return log.WithLog(parent), func() {}
+	return ctx, func() {
+		sFinish()
+		lFinish()
+	}
+}
+
+// withConnectionInfo - Provides a traceInfo in context
+func withTrace(parent context.Context) context.Context {
+	if parent == nil {
+		panic("cannot create context from nil parent")
+	}
+	if ok := trace(parent); ok {
+		// We already had connection info
+		return parent
+	}
+
+	return context.WithValue(parent, traceInfoKey, &traceInfo{})
+}
+
+// trace - return traceInfo from context
+func trace(ctx context.Context) bool {
+	_, ok := ctx.Value(traceInfoKey).(*traceInfo)
+	return ok
 }

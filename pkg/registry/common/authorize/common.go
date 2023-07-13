@@ -60,8 +60,6 @@ func (l *policiesList) check(ctx context.Context, input RegistryOpaInput) error 
 			log.FromContext(ctx).Errorf("policy failed: %v", policy.Name())
 			return errors.Wrap(err, "registry: an error occurred during authorization policy check")
 		}
-
-		log.FromContext(ctx).Infof("policy passed")
 	}
 	return nil
 }

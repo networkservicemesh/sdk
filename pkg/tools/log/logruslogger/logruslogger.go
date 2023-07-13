@@ -276,8 +276,12 @@ func (s *traceLogger) getTraceInfo() string {
 func FromSpan(
 	ctx context.Context, span spanlogger.Span, operation string, fields []*log.Field) (context.Context, log.Logger, func()) {
 	var info *traceCtxInfo
-	ctx, info = withTraceInfo(ctx)
-	localTraceInfo.Store(info.id, info)
+	deleteFunc := func() {}
+	if log.IsTracingEnabled() {
+		ctx, info = withTraceInfo(ctx)
+		localTraceInfo.Store(info.id, info)
+		deleteFunc = func() { localTraceInfo.Delete(info.id) }
+	}
 
 	logger := log.L()
 	if log.IsDefault(logger) {
@@ -304,12 +308,14 @@ func FromSpan(
 	}
 
 	newLog.printStart()
-	return ctx, newLog, func() { localTraceInfo.Delete(info.id) }
+	return ctx, newLog, deleteFunc
 }
 
 func (s *traceLogger) printStart() {
-	prefix := strings.Repeat(separator, s.info.level)
-	s.logger.Tracef("%v%s⎆ %v()%v", s.info.incInfo(), prefix, s.operation, s.getSpan())
+	if s.info != nil {
+		prefix := strings.Repeat(separator, s.info.level)
+		s.logger.Tracef("%v%s⎆ %v()%v", s.info.incInfo(), prefix, s.operation, s.getSpan())
+	}
 }
 
 func (s *traceLogger) format(format string, v ...interface{}) string {
