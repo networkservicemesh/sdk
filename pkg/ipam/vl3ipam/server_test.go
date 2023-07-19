@@ -62,6 +62,7 @@ func newVL3IPAMClient(ctx context.Context, t *testing.T, connectTO *url.URL) ipa
 }
 
 func Test_vl3_IPAM_Allocate(t *testing.T) {
+	// test 1
 	t.Cleanup(func() {
 		goleak.VerifyNone(t)
 	})
