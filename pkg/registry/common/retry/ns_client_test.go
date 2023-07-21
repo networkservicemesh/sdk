@@ -34,7 +34,8 @@ import (
 )
 
 func TestNSRetryClient_Register(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	var callCounter = &count.CallCounter{}
 	var counter = count.NewNetworkServiceRegistryClient(callCounter)
@@ -54,7 +55,8 @@ func TestNSRetryClient_Register(t *testing.T) {
 }
 
 func TestNSRetryClient_Register_ContextHasCorrectDeadline(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -79,7 +81,8 @@ func TestNSRetryClient_Register_ContextHasCorrectDeadline(t *testing.T) {
 }
 
 func TestNSRetryClient_Unregister_ContextHasCorrectDeadline(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -104,7 +107,8 @@ func TestNSRetryClient_Unregister_ContextHasCorrectDeadline(t *testing.T) {
 }
 
 func TestNSRetryClient_Unregister(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	var callCounter = &count.CallCounter{}
 	var counter = count.NewNetworkServiceRegistryClient(callCounter)
@@ -124,7 +128,8 @@ func TestNSRetryClient_Unregister(t *testing.T) {
 }
 
 func TestNSRetryClient_Find(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	var callCounter = &count.CallCounter{}
 	var counter = count.NewNetworkServiceRegistryClient(callCounter)
@@ -144,7 +149,8 @@ func TestNSRetryClient_Find(t *testing.T) {
 }
 
 func TestNSRetryClient_RegisterCompletesOnParentContextTimeout(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	var callCounter = &count.CallCounter{}
 	var counter = count.NewNetworkServiceRegistryClient(callCounter)
@@ -167,7 +173,8 @@ func TestNSRetryClient_RegisterCompletesOnParentContextTimeout(t *testing.T) {
 }
 
 func TestNSRetryClient_UnregisterCompletesOnParentContextTimeout(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	var callCounter = &count.CallCounter{}
 	var counter = count.NewNetworkServiceRegistryClient(callCounter)
@@ -190,7 +197,8 @@ func TestNSRetryClient_UnregisterCompletesOnParentContextTimeout(t *testing.T) {
 }
 
 func TestNSRetryClient_FindCompletesOnParentContextTimeout(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	var callCounter = &count.CallCounter{}
 	var counter = count.NewNetworkServiceRegistryClient(callCounter)

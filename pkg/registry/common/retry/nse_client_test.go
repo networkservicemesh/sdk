@@ -34,7 +34,8 @@ import (
 )
 
 func TestNSERetryClient_Register(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	var callCounter = &count.CallCounter{}
 	var counter = count.NewNetworkServiceEndpointRegistryClient(callCounter)
@@ -54,7 +55,8 @@ func TestNSERetryClient_Register(t *testing.T) {
 }
 
 func TestNSERetryClient_Register_ContextHasCorrectDeadline(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -79,7 +81,8 @@ func TestNSERetryClient_Register_ContextHasCorrectDeadline(t *testing.T) {
 }
 
 func TestNSERetryClient_Unregister_ContextHasCorrectDeadline(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -104,7 +107,8 @@ func TestNSERetryClient_Unregister_ContextHasCorrectDeadline(t *testing.T) {
 }
 
 func TestNSERetryClient_Unregister(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	var callCounter = &count.CallCounter{}
 	var counter = count.NewNetworkServiceEndpointRegistryClient(callCounter)
@@ -124,7 +128,8 @@ func TestNSERetryClient_Unregister(t *testing.T) {
 }
 
 func TestNSERetryClient_Find(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	var callCounter = &count.CallCounter{}
 	var counter = count.NewNetworkServiceEndpointRegistryClient(callCounter)
@@ -144,7 +149,8 @@ func TestNSERetryClient_Find(t *testing.T) {
 }
 
 func TestNSERetryClient_RegisterCompletesOnParentContextTimeout(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	var callCounter = &count.CallCounter{}
 	var counter = count.NewNetworkServiceEndpointRegistryClient(callCounter)
@@ -167,7 +173,8 @@ func TestNSERetryClient_RegisterCompletesOnParentContextTimeout(t *testing.T) {
 }
 
 func TestNSERetryClient_UnregisterCompletesOnParentContextTimeout(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	var callCounter = &count.CallCounter{}
 	var counter = count.NewNetworkServiceEndpointRegistryClient(callCounter)
@@ -190,7 +197,8 @@ func TestNSERetryClient_UnregisterCompletesOnParentContextTimeout(t *testing.T) 
 }
 
 func TestNSERetryClient_FindCompletesOnParentContextTimeout(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	var callCounter = &count.CallCounter{}
 	var counter = count.NewNetworkServiceEndpointRegistryClient(callCounter)
