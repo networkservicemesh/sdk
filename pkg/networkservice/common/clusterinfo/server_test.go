@@ -30,7 +30,8 @@ import (
 )
 
 func TestReadClusterName(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	var path = filepath.Join(t.TempDir(), "clusterinfo.yaml")
 	require.NoError(t, os.WriteFile(path, []byte("CLUSTER_NAME: my-cluster1"), os.ModePerm))
