@@ -34,6 +34,7 @@ import (
 )
 
 func TestIPPoolTool_Add(t *testing.T) {
+	t.Parallel()
 	ipPool := New(net.IPv4len)
 
 	ipPool.AddString("192.168.1.255")
@@ -50,6 +51,7 @@ func TestIPPoolTool_Add(t *testing.T) {
 }
 
 func TestIPPoolTool_AddRange(t *testing.T) {
+	t.Parallel()
 	ipPool := New(net.IPv4len)
 
 	ipPool.AddNetString("192.168.1.0/31")
@@ -66,12 +68,14 @@ func TestIPPoolTool_AddRange(t *testing.T) {
 }
 
 func TestGlobalCIDR(t *testing.T) {
+	t.Parallel()
 	ipPool := NewWithNetString("192.168.0.0/16")
 	require.True(t, ipPool.ContainsNetString("192.168.0.1/32"))
 	require.False(t, ipPool.ContainsNetString("193.169.0.1/32"))
 }
 
 func TestIsItWorkCorrect(t *testing.T) {
+	t.Parallel()
 	ipPool := NewWithNetString("192.168.0.0/16")
 	ipPool.ExcludeString("192.168.0.0/30")
 	p, err := ipPool.Pull()
@@ -87,6 +91,7 @@ func TestIsItWorkCorrect(t *testing.T) {
 }
 
 func TestIPPool_ExcludeRange(t *testing.T) {
+	t.Parallel()
 	ipPool := NewWithNetString("192.168.0.0/16")
 
 	for i := 0; i < 3; i++ {
@@ -103,6 +108,7 @@ func TestIPPool_ExcludeRange(t *testing.T) {
 }
 
 func Test_IPPoolContains(t *testing.T) {
+	t.Parallel()
 	ipPool := NewWithNetString("10.10.0.0/16")
 
 	for i := 1; i <= 255; i++ {
@@ -127,6 +133,7 @@ func Test_IPPoolContains(t *testing.T) {
 }
 
 func TestIPPoolTool_Contains(t *testing.T) {
+	t.Parallel()
 	ipPool := NewWithNetString("192.168.0.0/16")
 
 	require.True(t, ipPool.ContainsString("192.168.0.1"))
@@ -135,6 +142,7 @@ func TestIPPoolTool_Contains(t *testing.T) {
 }
 
 func TestIPPoolTool_Exclude(t *testing.T) {
+	t.Parallel()
 	_, ipNet, err := net.ParseCIDR("192.0.0.0/8")
 	require.NoError(t, err)
 	ipPool := NewWithNet(ipNet)
@@ -163,6 +171,7 @@ func TestIPPoolTool_Exclude(t *testing.T) {
 
 //nolint:dupl
 func TestIPPoolTool_Pull(t *testing.T) {
+	t.Parallel()
 	ipPool := NewWithNetString("192.0.0.0/8")
 	require.NotNil(t, ipPool)
 
@@ -198,6 +207,7 @@ func TestIPPoolTool_Pull(t *testing.T) {
 
 //nolint:dupl
 func TestIPPoolTool_PullIP(t *testing.T) {
+	t.Parallel()
 	ipPool := NewWithNetString("192.0.0.0/8")
 	require.NotNil(t, ipPool)
 
@@ -217,6 +227,7 @@ func TestIPPoolTool_PullIP(t *testing.T) {
 
 //nolint:dupl
 func TestIPPoolTool_GetPrefixes(t *testing.T) {
+	t.Parallel()
 	ipPool := NewWithNetString("192.0.0.0/16")
 	require.NotNil(t, ipPool)
 
@@ -245,6 +256,7 @@ func TestIPPoolTool_GetPrefixes(t *testing.T) {
 
 //nolint:dupl
 func TestIPPoolTool_PullP2PAddrs(t *testing.T) {
+	t.Parallel()
 	ipPool := NewWithNetString("192.0.0.0/8")
 	require.NotNil(t, ipPool)
 
@@ -273,6 +285,7 @@ func TestIPPoolTool_PullP2PAddrs(t *testing.T) {
 }
 
 func TestIPPoolTool_IPv6Add(t *testing.T) {
+	t.Parallel()
 	ipPool := New(net.IPv6len)
 
 	ipPool.Add(net.ParseIP("::1:ffff"))
@@ -289,6 +302,7 @@ func TestIPPoolTool_IPv6Add(t *testing.T) {
 }
 
 func TestIPPoolTool_IPv6AddRange(t *testing.T) {
+	t.Parallel()
 	ipPool := New(net.IPv6len)
 
 	ipPool.AddNetString("::1:0/127")
@@ -305,6 +319,7 @@ func TestIPPoolTool_IPv6AddRange(t *testing.T) {
 }
 
 func TestIPPoolTool_IPv6Contains(t *testing.T) {
+	t.Parallel()
 	ipPool := NewWithNetString("::/64")
 
 	require.True(t, ipPool.ContainsString("::0:1"))
@@ -312,6 +327,7 @@ func TestIPPoolTool_IPv6Contains(t *testing.T) {
 }
 
 func TestIPPoolTool_IPv6Exclude(t *testing.T) {
+	t.Parallel()
 	ipPool := NewWithNetString("::/32")
 	require.Equal(t, ipPool.size, uint64(1))
 
@@ -327,6 +343,7 @@ func TestIPPoolTool_IPv6Exclude(t *testing.T) {
 
 //nolint:dupl
 func TestIPPoolTool_IPv6Pull(t *testing.T) {
+	t.Parallel()
 	ipPool := NewWithNetString("::/32")
 	require.NotNil(t, ipPool)
 
@@ -357,6 +374,7 @@ func TestIPPoolTool_IPv6Pull(t *testing.T) {
 
 //nolint:dupl
 func TestIPPoolTool_IPv6PullIP(t *testing.T) {
+	t.Parallel()
 	ipPool := NewWithNetString("::/32")
 	require.NotNil(t, ipPool)
 
@@ -376,6 +394,7 @@ func TestIPPoolTool_IPv6PullIP(t *testing.T) {
 
 //nolint:dupl
 func TestIPPoolTool_IPv6PullP2PAddrs(t *testing.T) {
+	t.Parallel()
 	ipPool := NewWithNetString("::/32")
 	require.NotNil(t, ipPool)
 
@@ -398,6 +417,7 @@ func TestIPPoolTool_IPv6PullP2PAddrs(t *testing.T) {
 
 //nolint:dupl
 func TestIPPoolTool_IPv6GetPrefixes(t *testing.T) {
+	t.Parallel()
 	ipPool := NewWithNetString("fe80::/112")
 	require.NotNil(t, ipPool)
 
