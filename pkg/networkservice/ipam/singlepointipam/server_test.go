@@ -65,6 +65,7 @@ func validateConns(t *testing.T, conn *networkservice.Connection, srcs []string)
 
 //nolint:dupl
 func TestServer(t *testing.T) {
+	t.Parallel()
 	_, ipNet, err := net.ParseCIDR("192.168.3.4/16")
 	require.NoError(t, err)
 
@@ -92,6 +93,7 @@ func TestServer(t *testing.T) {
 
 //nolint:dupl
 func TestServerIPv6(t *testing.T) {
+	t.Parallel()
 	_, ipNet, err := net.ParseCIDR("fe80::/64")
 	require.NoError(t, err)
 
@@ -118,6 +120,7 @@ func TestServerIPv6(t *testing.T) {
 }
 
 func TestNilPrefixes(t *testing.T) {
+	t.Parallel()
 	srv := newIpamServer()
 	_, err := srv.Request(context.Background(), newRequest())
 	require.Error(t, err)
@@ -131,6 +134,7 @@ func TestNilPrefixes(t *testing.T) {
 }
 
 func TestNilPrefixesIPv6(t *testing.T) {
+	t.Parallel()
 	srv := newIpamServer()
 	_, err := srv.Request(context.Background(), newRequest())
 	require.Error(t, err)
@@ -145,6 +149,7 @@ func TestNilPrefixesIPv6(t *testing.T) {
 
 //nolint:dupl
 func TestExclude32Prefix(t *testing.T) {
+	t.Parallel()
 	_, ipNet, err := net.ParseCIDR("192.168.1.0/24")
 	require.NoError(t, err)
 
@@ -174,6 +179,7 @@ func TestExclude32Prefix(t *testing.T) {
 
 //nolint:dupl
 func TestExclude128PrefixIPv6(t *testing.T) {
+	t.Parallel()
 	_, ipNet, err := net.ParseCIDR("fe80::1:0/112")
 	require.NoError(t, err)
 
@@ -202,6 +208,7 @@ func TestExclude128PrefixIPv6(t *testing.T) {
 }
 
 func TestBroadCastIP(t *testing.T) {
+	t.Parallel()
 	_, ipNet, err := net.ParseCIDR("10.143.248.96/28")
 	require.NoError(t, err)
 
@@ -230,6 +237,7 @@ func TestBroadCastIP(t *testing.T) {
 }
 
 func TestOutOfIPs(t *testing.T) {
+	t.Parallel()
 	_, ipNet, err := net.ParseCIDR("192.168.1.2/31")
 	require.NoError(t, err)
 
@@ -241,6 +249,7 @@ func TestOutOfIPs(t *testing.T) {
 }
 
 func TestOutOfIPsIPv6(t *testing.T) {
+	t.Parallel()
 	_, ipNet, err := net.ParseCIDR("fe80::1:2/127")
 	require.NoError(t, err)
 
@@ -257,6 +266,7 @@ func TestOutOfIPsIPv6(t *testing.T) {
 }
 
 func TestAllIPsExcluded(t *testing.T) {
+	t.Parallel()
 	_, ipNet, err := net.ParseCIDR("192.168.1.0/30")
 	require.NoError(t, err)
 
@@ -270,6 +280,7 @@ func TestAllIPsExcluded(t *testing.T) {
 }
 
 func TestAllIPsExcludedIPv6(t *testing.T) {
+	t.Parallel()
 	_, ipNet, err := net.ParseCIDR("fe80::1:0/126")
 	require.NoError(t, err)
 
@@ -284,6 +295,7 @@ func TestAllIPsExcludedIPv6(t *testing.T) {
 
 //nolint:dupl
 func TestRefreshRequest(t *testing.T) {
+	t.Parallel()
 	_, ipNet, err := net.ParseCIDR("192.168.3.4/16")
 	require.NoError(t, err)
 
@@ -310,6 +322,7 @@ func TestRefreshRequest(t *testing.T) {
 
 //nolint:dupl
 func TestRefreshRequestIPv6(t *testing.T) {
+	t.Parallel()
 	_, ipNet, err := net.ParseCIDR("fe80::/64")
 	require.NoError(t, err)
 
@@ -335,6 +348,7 @@ func TestRefreshRequestIPv6(t *testing.T) {
 }
 
 func TestNextError(t *testing.T) {
+	t.Parallel()
 	_, ipNet, err := net.ParseCIDR("192.168.3.4/16")
 	require.NoError(t, err)
 
@@ -349,6 +363,7 @@ func TestNextError(t *testing.T) {
 }
 
 func TestRefreshNextError(t *testing.T) {
+	t.Parallel()
 	_, ipNet, err := net.ParseCIDR("192.168.3.4/16")
 	require.NoError(t, err)
 
@@ -370,6 +385,7 @@ func TestRefreshNextError(t *testing.T) {
 
 //nolint:dupl
 func TestServers(t *testing.T) {
+	t.Parallel()
 	_, ipNet1, err := net.ParseCIDR("192.168.3.4/16")
 	require.NoError(t, err)
 	_, ipNet2, err := net.ParseCIDR("fd00::/8")
@@ -402,6 +418,7 @@ func TestServers(t *testing.T) {
 
 //nolint:dupl
 func TestRefreshRequestMultiServer(t *testing.T) {
+	t.Parallel()
 	_, ipNet1, err := net.ParseCIDR("192.168.3.4/16")
 	require.NoError(t, err)
 	_, ipNet2, err := net.ParseCIDR("fe80::/64")
