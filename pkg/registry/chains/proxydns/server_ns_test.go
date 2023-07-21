@@ -54,7 +54,8 @@ domain1:                                                           domain2:
 ------------------------------------------------------------       ------------------
 */
 func TestInterdomainNetworkServiceRegistry(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
@@ -115,7 +116,8 @@ domain1:                                                             domain1				
 ------------------------------------------------------------         ------------------               ------------------------------------------------------------
 */
 func TestLocalDomain_NetworkServiceRegistry(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -175,7 +177,8 @@ func TestLocalDomain_NetworkServiceRegistry(t *testing.T) {
 */
 
 func TestInterdomainFloatingNetworkServiceRegistry(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
