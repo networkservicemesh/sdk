@@ -34,7 +34,8 @@ import (
 )
 
 func TestVNIServer(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{},
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -79,7 +80,8 @@ func TestVNIServer(t *testing.T) {
 }
 
 func TestVNIServerNonVxLAN(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{},
 		MechanismPreferences: []*networkservice.Mechanism{

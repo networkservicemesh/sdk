@@ -32,7 +32,8 @@ import (
 )
 
 func TestVNIClient(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{},
 		MechanismPreferences: []*networkservice.Mechanism{
