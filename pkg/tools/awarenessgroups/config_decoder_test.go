@@ -25,6 +25,7 @@ import (
 )
 
 func Test_AwarenessGroupsDecoder_EmptyInput(t *testing.T) {
+	t.Parallel()
 	var expected [][]*url.URL
 	var decoder Decoder
 	err := decoder.Decode(``)
@@ -33,6 +34,7 @@ func Test_AwarenessGroupsDecoder_EmptyInput(t *testing.T) {
 }
 
 func Test_AwarenessGroupsDecoder_CorrectInput(t *testing.T) {
+	t.Parallel()
 	url1, err := url.Parse("kernel://ns-1/nsm-1?color=red")
 	require.NoError(t, err)
 	url2, err := url.Parse("kernel://ns-2/nsm-2?color=blue")
@@ -54,6 +56,7 @@ func Test_AwarenessGroupsDecoder_CorrectInput(t *testing.T) {
 }
 
 func Test_AwarenessGroupsDecoder_WrongInput(t *testing.T) {
+	t.Parallel()
 	var decoder Decoder
 	err := decoder.Decode("[a, b], [[c],,[d]")
 	require.Error(t, err)
