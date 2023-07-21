@@ -64,7 +64,8 @@ func (c *remoteSideClient) Close(ctx context.Context, conn *networkservice.Conne
 }
 
 func Test_RetryClient_Request(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	var counter = new(count.Client)
 
@@ -87,7 +88,8 @@ func Test_RetryClient_Request(t *testing.T) {
 }
 
 func Test_RetryClient_Request_ContextHasCorrectDeadline(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -112,7 +114,8 @@ func Test_RetryClient_Request_ContextHasCorrectDeadline(t *testing.T) {
 }
 
 func Test_RetryClient_Close_ContextHasCorrectDeadline(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -137,7 +140,8 @@ func Test_RetryClient_Close_ContextHasCorrectDeadline(t *testing.T) {
 }
 
 func Test_RetryClient_Close(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	var counter = new(count.Client)
 
