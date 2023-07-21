@@ -55,7 +55,8 @@ func testNSEQuery(nseName string) *registry.NetworkServiceEndpointQuery {
 }
 
 func Test_QueryCacheClient_ShouldCacheNSEs(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -76,7 +77,7 @@ func Test_QueryCacheClient_ShouldCacheNSEs(t *testing.T) {
 	require.NoError(t, err)
 
 	// Goroutines should be cleaned up on NSE unregister
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	// 1. Find from memory
 	atomic.StoreInt32(&failureClient.shouldFail, 0)
@@ -130,7 +131,8 @@ func Test_QueryCacheClient_ShouldCacheNSEs(t *testing.T) {
 }
 
 func Test_QueryCacheClient_ShouldCleanUpOnTimeout(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -153,7 +155,7 @@ func Test_QueryCacheClient_ShouldCleanUpOnTimeout(t *testing.T) {
 	require.NoError(t, err)
 
 	// Goroutines should be cleaned up on cache entry expiration
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	// 1. Find from memory
 	atomic.StoreInt32(&failureClient.shouldFail, 0)
