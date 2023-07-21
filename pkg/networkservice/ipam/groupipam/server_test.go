@@ -32,12 +32,14 @@ import (
 )
 
 func Test_NewServer_ShouldFailIfOptionIsNil(t *testing.T) {
+	t.Parallel()
 	require.Panics(t, func() {
 		groupipam.NewServer([][]*net.IPNet{}, groupipam.WithCustomIPAMServer(nil))
 	})
 }
 
 func Test_NewServer_UsesPoint2pointIPAMByDefault(t *testing.T) {
+	t.Parallel()
 	requireConns := func(t *testing.T, conn *networkservice.Connection, dsts, srcs []string) {
 		for i, dst := range dsts {
 			require.Equal(t, conn.Context.IpContext.DstIpAddrs[i], dst)
@@ -82,6 +84,7 @@ func Test_NewServer_UsesPoint2pointIPAMByDefault(t *testing.T) {
 }
 
 func Test_NewServer_GroupOfCustomIPAMServers(t *testing.T) {
+	t.Parallel()
 	requireConns := func(t *testing.T, conn *networkservice.Connection, srcs []string) {
 		require.Equal(t, len(srcs), len(conn.Context.IpContext.SrcIpAddrs))
 		for i, src := range srcs {
