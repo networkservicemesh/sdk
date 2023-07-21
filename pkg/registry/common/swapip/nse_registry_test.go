@@ -33,7 +33,8 @@ import (
 )
 
 func TestSwapIPNSERegistryServer_Register(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	t.Parallel()
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -64,7 +65,8 @@ func TestSwapIPNSERegistryServer_Register(t *testing.T) {
 }
 
 func TestSwapIPNSERegistryServer_Unregister(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	t.Parallel()
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -94,7 +96,8 @@ func TestSwapIPNSERegistryServer_Unregister(t *testing.T) {
 }
 
 func TestSwapIPNSERegistryServer_Find(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	t.Parallel()
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
