@@ -38,7 +38,8 @@ import (
 
 // This test reproduces the situation when refresh changes the eventFactory context
 func TestContextValues_Client(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	checkCtxCl := &checkContextClient{t: t}
 	eventFactoryCl := &eventFactoryClient{}
@@ -90,7 +91,8 @@ func TestContextValues_Client(t *testing.T) {
 
 // This test reproduces the situation when Unregister and Register were called at the same time
 func TestRefreshDuringUnregister_Client(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	checkCtxCl := &checkContextClient{t: t}
 	eventFactoryCl := &eventFactoryClient{}
@@ -133,7 +135,8 @@ func TestRefreshDuringUnregister_Client(t *testing.T) {
 
 // This test checks if the timeout for the Register/Unregister called from the event factory is correct
 func TestContextTimeout_Client(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
