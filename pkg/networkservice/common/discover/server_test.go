@@ -158,7 +158,8 @@ func testServers(
 }
 
 func TestDiscoverCandidatesServer_MatchEmptySourceSelector(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), testWait)
 	defer cancel()
@@ -194,7 +195,8 @@ func TestDiscoverCandidatesServer_MatchEmptySourceSelector(t *testing.T) {
 }
 
 func TestDiscoverCandidatesServer_MatchNonEmptySourceSelector(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), testWait)
 	defer cancel()
@@ -232,7 +234,8 @@ func TestDiscoverCandidatesServer_MatchNonEmptySourceSelector(t *testing.T) {
 }
 
 func TestDiscoverCandidatesServer_MatchEmptySourceSelectorGoingFirst(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), testWait)
 	defer cancel()
@@ -271,7 +274,8 @@ func TestDiscoverCandidatesServer_MatchEmptySourceSelectorGoingFirst(t *testing.
 
 func TestDiscoverCandidatesServer_MatchNothing(t *testing.T) {
 	t.Skip()
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), testWait)
 	defer cancel()
@@ -304,7 +308,8 @@ func TestDiscoverCandidatesServer_MatchNothing(t *testing.T) {
 }
 
 func TestDiscoverCandidatesServer_MatchSelectedNSE(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), testWait)
 	defer cancel()
@@ -334,7 +339,8 @@ func TestDiscoverCandidatesServer_MatchSelectedNSE(t *testing.T) {
 }
 
 func TestDiscoverCandidatesServer_NoMatchServiceFound(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	nsName := networkServiceName()
 
@@ -371,7 +377,8 @@ func TestDiscoverCandidatesServer_NoMatchServiceFound(t *testing.T) {
 }
 
 func TestDiscoverCandidatesServer_NoMatchServiceEndpointFound(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	nsName := networkServiceName()
 
@@ -407,7 +414,8 @@ func TestDiscoverCandidatesServer_NoMatchServiceEndpointFound(t *testing.T) {
 }
 
 func TestDiscoverCandidatesServer_MatchExactService(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	nsServer, nseServer := testServers(t, "", []*registry.NetworkServiceEndpoint{})
 
@@ -468,7 +476,8 @@ func TestDiscoverCandidatesServer_MatchExactService(t *testing.T) {
 }
 
 func TestDiscoverCandidatesServer_MatchExactEndpoint(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -518,7 +527,8 @@ func TestDiscoverCandidatesServer_MatchExactEndpoint(t *testing.T) {
 }
 
 func TestDiscoverCandidatesServer_NoEndpointOnClose(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
