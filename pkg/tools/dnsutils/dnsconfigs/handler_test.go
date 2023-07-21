@@ -58,6 +58,7 @@ func (h *checkHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m *d
 }
 
 func TestDNSConfigs(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
