@@ -29,6 +29,7 @@ import (
 )
 
 func TestNewNetworkServiceClientShouldNotPanic(t *testing.T) {
+	t.Parallel()
 	assert.NotPanics(t, func() {
 		_, _ = next.NewNetworkServiceClient().Request(context.Background(), nil)
 		_, _ = next.NewWrappedNetworkServiceClient(func(client networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
@@ -38,6 +39,7 @@ func TestNewNetworkServiceClientShouldNotPanic(t *testing.T) {
 }
 
 func TestClientBranches(t *testing.T) {
+	t.Parallel()
 	samples := [][]networkservice.NetworkServiceClient{
 		{visitClient()},
 		{visitClient(), visitClient()},
