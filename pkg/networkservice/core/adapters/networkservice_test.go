@@ -102,6 +102,7 @@ func (e *errorServer) Close(_ context.Context, _ *networkservice.Connection) (*e
 }
 
 func TestNetworkService_Simple(t *testing.T) {
+	t.Parallel()
 	checkOrderClient(t,
 		next.NewNetworkServiceClient(
 			adapters.NewServerToClient(appendServer("foo")),
@@ -120,6 +121,7 @@ func TestNetworkService_Simple(t *testing.T) {
 }
 
 func TestNetworkService_Nested(t *testing.T) {
+	t.Parallel()
 	checkOrderClient(t,
 		next.NewNetworkServiceClient(
 			appendClient("a"),
@@ -156,6 +158,7 @@ func TestNetworkService_Nested(t *testing.T) {
 }
 
 func TestNetworkService_DeepNested(t *testing.T) {
+	t.Parallel()
 	checkOrderClient(t,
 		next.NewNetworkServiceClient(
 			appendClient("1"),
@@ -216,6 +219,7 @@ func TestNetworkService_DeepNested(t *testing.T) {
 }
 
 func TestNetworkService_DeepNestedError(t *testing.T) {
+	t.Parallel()
 	checkOrderClient(t,
 		next.NewNetworkServiceClient(
 			appendClient("1"),
