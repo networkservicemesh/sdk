@@ -27,6 +27,7 @@ import (
 )
 
 func Test_CidrGroupsDecoder_EmptyInput(t *testing.T) {
+	t.Parallel()
 	var expected [][]*net.IPNet
 	var groups cidr.Groups
 	err := groups.Decode(``)
@@ -35,6 +36,7 @@ func Test_CidrGroupsDecoder_EmptyInput(t *testing.T) {
 }
 
 func Test_CidrGroupsDecoder_CorrectInput(t *testing.T) {
+	t.Parallel()
 	_, cidr1, err := net.ParseCIDR("172.168.1.0/24")
 	require.NoError(t, err)
 	_, cidr2, err := net.ParseCIDR("172.168.2.0/24")
@@ -59,6 +61,7 @@ func Test_CidrGroupsDecoder_CorrectInput(t *testing.T) {
 }
 
 func Test_CidrGroupsDecoder_WrongInput(t *testing.T) {
+	t.Parallel()
 	cidr1 := "172.168.1.0/24"
 	var groups cidr.Groups
 	err := groups.Decode(fmt.Sprintf("[%[1]v, %[1]v], [[%[1]v],,[%[1]v]", cidr1))
