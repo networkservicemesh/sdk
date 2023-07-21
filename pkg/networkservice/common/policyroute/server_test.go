@@ -83,7 +83,8 @@ type policyRoutesGetter struct {
 }
 
 func TestCheckReloadedPolicies(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	chainCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
