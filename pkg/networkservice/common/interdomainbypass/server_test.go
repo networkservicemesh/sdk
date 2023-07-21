@@ -37,7 +37,8 @@ import (
 )
 
 func Test_StoreUrlNSEServer(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	t.Parallel()
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 
