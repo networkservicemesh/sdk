@@ -32,7 +32,8 @@ import (
 )
 
 func Test_DNSContextServer_Request(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	r := &networkservice.NetworkServiceRequest{
@@ -64,7 +65,8 @@ func Test_DNSContextServer_Request(t *testing.T) {
 	require.Equal(t, resp.GetContext().GetDnsContext().Configs, expected)
 }
 func Test_DNSContextServer_Close(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	_, err := dnscontext.NewServer().Close(ctx, new(networkservice.Connection))

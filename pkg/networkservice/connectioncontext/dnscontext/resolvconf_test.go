@@ -35,6 +35,7 @@ func createSample(name, source string) (string, error) {
 }
 
 func TestResolveConfig_ReadProperties(t *testing.T) {
+	t.Parallel()
 	sample := `nameserver 127.0.0.1
 search default.svc.cluster.local svc.cluster.local cluster.local
 options ndots:5
@@ -56,6 +57,7 @@ options ndots:5
 }
 
 func TestResolveConfig_WriteProperties(t *testing.T) {
+	t.Parallel()
 	sample := `nameserver 127.0.0.1
 search default.svc.cluster.local svc.cluster.local cluster.local
 options ndots:5`
