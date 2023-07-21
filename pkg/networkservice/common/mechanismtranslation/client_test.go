@@ -52,6 +52,7 @@ func kernelMechanism() *networkservice.Mechanism {
 }
 
 func TestMechanismTranslationClient(t *testing.T) {
+	t.Parallel()
 	capture := new(captureClient)
 
 	client := next.NewNetworkServiceClient(
@@ -116,6 +117,7 @@ func TestMechanismTranslationClient(t *testing.T) {
 }
 
 func TestMechanismTranslationClient_CloseOnError(t *testing.T) {
+	t.Parallel()
 	count := 0
 	client := next.NewNetworkServiceClient(
 		metadata.NewClient(),
