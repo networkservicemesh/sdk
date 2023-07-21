@@ -64,7 +64,8 @@ func testNSE(clockTime clock.Clock) *registry.NetworkServiceEndpoint {
 }
 
 func Test_NetworkServiceEndpointRefreshClient_ShouldWorkCorrectlyWithFloatingScenario(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -104,7 +105,8 @@ func Test_NetworkServiceEndpointRefreshClient_ShouldWorkCorrectlyWithFloatingSce
 }
 
 func TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -132,7 +134,8 @@ func TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {
 }
 
 func Test_RefreshNSEClient_CalledRegisterTwice(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -163,12 +166,13 @@ func Test_RefreshNSEClient_CalledRegisterTwice(t *testing.T) {
 }
 
 func Test_RefreshNSEClient_StopsRefreshOnUnregister(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	goleak.VerifyNone(t)
+	goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	clockMock := clockmock.New(ctx)
 	ctx = clock.WithClock(ctx, clockMock)
@@ -221,7 +225,8 @@ func Test_RefreshNSEClient_StopsRefreshOnUnregister(t *testing.T) {
 }
 
 func Test_RefreshNSEClient_SetsCorrectExpireTime(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -261,7 +266,8 @@ func Test_RefreshNSEClient_SetsCorrectExpireTime(t *testing.T) {
 }
 
 func Test_RefreshNSEClient_CorrectInitialRegTime(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
