@@ -36,6 +36,7 @@ import (
 )
 
 func TestConnect(t *testing.T) {
+	t.Parallel()
 	streamingServer, err := stand.RunServer("test_journal")
 	assert.NoError(t, err)
 	defer streamingServer.Shutdown()
