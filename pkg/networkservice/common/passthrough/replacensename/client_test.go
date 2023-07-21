@@ -37,7 +37,8 @@ import (
 )
 
 func TestClient(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	client := chain.NewNetworkServiceClient(
 		metadata.NewClient(),
