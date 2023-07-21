@@ -41,6 +41,7 @@ func (r *responseWriter) WriteMsg(m *dns.Msg) error {
 }
 
 func Test_A_AAAA(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
@@ -91,6 +92,7 @@ func Test_A_AAAA(t *testing.T) {
 }
 
 func Test_PTR(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
@@ -139,6 +141,7 @@ func Test_PTR(t *testing.T) {
 }
 
 func Test_ProperHandlingOfNonexistentRecordTypes(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
