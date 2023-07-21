@@ -33,7 +33,8 @@ import (
 )
 
 func TestListenAndServe_NotExistsFolder(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	dir, err := os.MkdirTemp(os.TempDir(), t.Name())
 	require.NoError(t, err)
 	defer func() {
@@ -50,7 +51,8 @@ func TestListenAndServe_NotExistsFolder(t *testing.T) {
 }
 
 func TestListenAndServe_ExistSocket(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	dir, err := os.MkdirTemp(os.TempDir(), t.Name())
 	require.NoError(t, err)
 	defer func() {
