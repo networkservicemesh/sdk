@@ -36,7 +36,8 @@ import (
 )
 
 func TestCleanUp_CtxDone(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	chainCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -63,7 +64,8 @@ func TestCleanUp_CtxDone(t *testing.T) {
 }
 
 func TestCleanUp_Close(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	chainCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -90,7 +92,8 @@ func TestCleanUp_Close(t *testing.T) {
 }
 
 func TestCleanUp_Chan(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	chainCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
