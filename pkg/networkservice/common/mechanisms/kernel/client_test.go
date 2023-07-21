@@ -32,6 +32,7 @@ import (
 var netNSURL = (&url.URL{Scheme: "file", Path: "/proc/thread-self/ns/net"}).String()
 
 func TestKernelMechanismClient_ShouldSetInterfaceName(t *testing.T) {
+	t.Parallel()
 	var expectedIfaceName string
 	for i := 0; i < kernelmech.LinuxIfMaxLength; i++ {
 		expectedIfaceName += "a"
@@ -48,6 +49,7 @@ func TestKernelMechanismClient_ShouldSetInterfaceName(t *testing.T) {
 }
 
 func TestKernelMechanismClient_ShouldNotDoublingMechanisms(t *testing.T) {
+	t.Parallel()
 	c := kernel.NewClient()
 
 	req := &networkservice.NetworkServiceRequest{}
@@ -60,6 +62,7 @@ func TestKernelMechanismClient_ShouldNotDoublingMechanisms(t *testing.T) {
 }
 
 func TestKernelMechanismClient_ShouldSetValidNetNSURL(t *testing.T) {
+	t.Parallel()
 	c := kernel.NewClient()
 
 	req := &networkservice.NetworkServiceRequest{
