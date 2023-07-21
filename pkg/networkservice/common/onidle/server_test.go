@@ -40,7 +40,8 @@ const (
 )
 
 func TestIdleNotifier_Disable(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -57,7 +58,8 @@ func TestIdleNotifier_Disable(t *testing.T) {
 }
 
 func TestIdleNotifier_NoRequests(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -78,7 +80,8 @@ func TestIdleNotifier_NoRequests(t *testing.T) {
 }
 
 func TestIdleNotifier_Refresh(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -106,7 +109,8 @@ func TestIdleNotifier_Refresh(t *testing.T) {
 }
 
 func TestIdleNotifier_HoldingActiveRequest(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -144,7 +148,8 @@ func TestIdleNotifier_HoldingActiveRequest(t *testing.T) {
 }
 
 func TestIdleNotifier_FailedRequest(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -173,7 +178,8 @@ func TestIdleNotifier_FailedRequest(t *testing.T) {
 }
 
 func TestIdleNotifier_ContextCancel(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -195,7 +201,8 @@ func TestIdleNotifier_ContextCancel(t *testing.T) {
 }
 
 func TestIdleNotifier_RequestAfterExpire(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
