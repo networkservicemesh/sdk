@@ -33,6 +33,7 @@ import (
 )
 
 func TestCheckErrorServer_Nil(t *testing.T) {
+	t.Parallel()
 	request := &networkservice.NetworkServiceRequest{}
 	server := chain.NewNetworkServiceServer(
 		checkerror.NewServer(t, true),
@@ -44,6 +45,7 @@ func TestCheckErrorServer_Nil(t *testing.T) {
 }
 
 func TestCheckErrorServer_NotNil(t *testing.T) {
+	t.Parallel()
 	request := &networkservice.NetworkServiceRequest{}
 	server := chain.NewNetworkServiceServer(
 		checkerror.NewServer(t, false),
@@ -55,6 +57,7 @@ func TestCheckErrorServer_NotNil(t *testing.T) {
 }
 
 func TestCheckErrorServer_SpecificError(t *testing.T) {
+	t.Parallel()
 	request := &networkservice.NetworkServiceRequest{}
 	err := errors.New("testerror")
 	server := chain.NewNetworkServiceServer(
