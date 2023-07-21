@@ -37,7 +37,8 @@ import (
 
 // nolint:goconst
 func TestSwapIPClient_Request(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	t.Parallel()
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	p1 := filepath.Join(t.TempDir(), "map-ip-1.yaml")
 	p2 := filepath.Join(t.TempDir(), "map-ip-2.yaml")
