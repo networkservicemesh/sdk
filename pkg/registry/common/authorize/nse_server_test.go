@@ -30,7 +30,8 @@ import (
 )
 
 func TestNetworkServiceEndpointRegistryAuthorization(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	server := authorize.NewNetworkServiceEndpointRegistryServer(authorize.WithPolicies("etc/nsm/opa/registry/client_allowed.rego"))
 	require.NotNil(t, server)
