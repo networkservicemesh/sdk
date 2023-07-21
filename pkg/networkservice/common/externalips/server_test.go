@@ -37,7 +37,8 @@ import (
 )
 
 func TestExternalIPsServer_SourceModifying(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	timeout := time.After(time.Second)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -79,7 +80,8 @@ func TestExternalIPsServer_SourceModifying(t *testing.T) {
 }
 
 func TestExternalIPsServer_NoFile(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	tmpPath := path.Join(os.TempDir(), t.Name())
