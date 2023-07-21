@@ -31,6 +31,7 @@ import (
 )
 
 func TestWithPolicyFromFile(t *testing.T) {
+	t.Parallel()
 	dir := filepath.Clean(path.Join(os.TempDir(), t.Name()))
 	defer func() {
 		_ = os.RemoveAll(dir)

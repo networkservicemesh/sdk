@@ -35,6 +35,7 @@ type testInput struct {
 }
 
 func TestRegistryClientAllowedPolicy(t *testing.T) {
+	t.Parallel()
 	p, err := opa.PolicyFromFile("etc/nsm/opa/registry/client_allowed.rego")
 	require.NoError(t, err)
 

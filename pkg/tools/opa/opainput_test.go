@@ -66,6 +66,7 @@ func getConnectionWithToken(token string) *networkservice.Connection {
 }
 
 func TestPreparedOpaInput(t *testing.T) {
+	t.Parallel()
 	block, _ := pem.Decode([]byte(certPem))
 	x509cert, err := x509.ParseCertificate(block.Bytes)
 	assert.Nil(t, err)

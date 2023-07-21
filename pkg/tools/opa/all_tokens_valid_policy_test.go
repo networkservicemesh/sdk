@@ -30,6 +30,7 @@ import (
 )
 
 func TestWithAllTokensValidPolicy(t *testing.T) {
+	t.Parallel()
 	validPath := &networkservice.Path{
 		PathSegments: []*networkservice.PathSegment{
 			{

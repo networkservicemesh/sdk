@@ -27,6 +27,7 @@ import (
 )
 
 func TestWithServiceConnectionPolicy(t *testing.T) {
+	t.Parallel()
 	p, err := opa.PolicyFromFile("etc/nsm/opa/monitor/service_connection.rego")
 	require.NoError(t, err)
 

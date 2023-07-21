@@ -25,41 +25,48 @@ import (
 )
 
 func TestDefaultPoliciesFromMask(t *testing.T) {
+	t.Parallel()
 	policies, err := opa.PoliciesByFileMask("etc/nsm/opa/.*.rego")
 	require.NoError(t, err)
 	require.Len(t, policies, 7)
 }
 
 func TestCustomPolicies(t *testing.T) {
+	t.Parallel()
 	policies, err := opa.PoliciesByFileMask("sample_policies/.*.rego")
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 }
 
 func TestMaskForPolicyFiles(t *testing.T) {
+	t.Parallel()
 	policies, err := opa.PoliciesByFileMask("etc/nsm/opa/common/tokens_.*.rego")
 	require.NoError(t, err)
 	require.Len(t, policies, 3)
 }
 
 func TestReadOnePolicy(t *testing.T) {
+	t.Parallel()
 	policies, err := opa.PoliciesByFileMask("sample_policies/custom_policy.rego")
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 }
 
 func TestDefaultAndCustomPolicies(t *testing.T) {
+	t.Parallel()
 	policies, err := opa.PoliciesByFileMask("policies/.*.rego", "sample_policies/.*.rego")
 	require.NoError(t, err)
 	require.Len(t, policies, 9)
 }
 
 func TestOverriddenPolicy(t *testing.T) {
+	t.Parallel()
 	policies, err := opa.PoliciesByFileMask("policies/.*.rego", "sample_policies/next_token_signed.rego")
 	require.NoError(t, err)
 	require.Len(t, policies, 8)
 }
 func Test_NoPoliciesPassed(t *testing.T) {
+	t.Parallel()
 	policies, err := opa.PoliciesByFileMask()
 	require.NoError(t, err)
 	require.Len(t, policies, 0)

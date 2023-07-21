@@ -109,6 +109,7 @@ func getSamples() []chainSample {
 }
 
 func TestWithTokensPathValidPolicy(t *testing.T) {
+	t.Parallel()
 	p, err := opa.PolicyFromFile("etc/nsm/opa/common/tokens_chained.rego")
 	require.NoError(t, err)
 

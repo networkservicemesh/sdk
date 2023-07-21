@@ -34,6 +34,7 @@ import (
 )
 
 func Test_PrevTokenShouldBeSigned_Server(t *testing.T) {
+	t.Parallel()
 	ca, err := generateCA()
 	require.Nil(t, err)
 

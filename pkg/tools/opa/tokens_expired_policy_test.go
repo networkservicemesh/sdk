@@ -31,6 +31,7 @@ import (
 )
 
 func TestNoTokensExpiredPolicy(t *testing.T) {
+	t.Parallel()
 	nextYear := time.Now().Year() + 1
 	lastYear := time.Now().Year() - 1
 	suits := []struct {
