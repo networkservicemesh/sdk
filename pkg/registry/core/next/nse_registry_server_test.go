@@ -74,6 +74,7 @@ func emptyNSERegistryServer() registry.NetworkServiceEndpointRegistryServer {
 }
 
 func TestNewNetworkServiceEndpointRegistryServerShouldNotPanic(t *testing.T) {
+	t.Parallel()
 	assert.NotPanics(t, func() {
 		_, _ = next.NewNetworkServiceEndpointRegistryServer().Register(context.Background(), nil)
 		_, _ = next.NewWrappedNetworkServiceEndpointRegistryServer(func(server registry.NetworkServiceEndpointRegistryServer) registry.NetworkServiceEndpointRegistryServer {
@@ -83,6 +84,7 @@ func TestNewNetworkServiceEndpointRegistryServerShouldNotPanic(t *testing.T) {
 }
 
 func TestNSEServerBranches(t *testing.T) {
+	t.Parallel()
 	servers := [][]registry.NetworkServiceEndpointRegistryServer{
 		{visitNSERegistryServer()},
 		{visitNSERegistryServer(), visitNSERegistryServer()},
@@ -168,6 +170,7 @@ func emptyNSERegistryClient() registry.NetworkServiceEndpointRegistryClient {
 }
 
 func TestNewNetworkServiceEndpointRegistryClientShouldNotPanic(t *testing.T) {
+	t.Parallel()
 	assert.NotPanics(t, func() {
 		_, _ = next.NewNetworkServiceEndpointRegistryClient().Register(context.Background(), nil)
 		_, _ = next.NewWrappedNetworkServiceEndpointRegistryClient(func(client registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceEndpointRegistryClient {
@@ -177,6 +180,7 @@ func TestNewNetworkServiceEndpointRegistryClientShouldNotPanic(t *testing.T) {
 }
 
 func TestNetworkServiceEndpointRegistryClientBranches(t *testing.T) {
+	t.Parallel()
 	samples := [][]registry.NetworkServiceEndpointRegistryClient{
 		{visitNSERegistryClient()},
 		{visitNSERegistryClient(), visitNSERegistryClient()},
@@ -213,6 +217,7 @@ func TestNetworkServiceEndpointRegistryClientBranches(t *testing.T) {
 }
 
 func TestDataRaceNetworkServiceEndpointServer(t *testing.T) {
+	t.Parallel()
 	s := next.NewNetworkServiceEndpointRegistryServer(emptyNSERegistryServer())
 	wg := sync.WaitGroup{}
 	for i := 0; i < 10; i++ {
@@ -235,6 +240,7 @@ func TestDataRaceNetworkServiceEndpointServer(t *testing.T) {
 	wg.Wait()
 }
 func TestDataRaceNetworkServiceEndpointClient(t *testing.T) {
+	t.Parallel()
 	c := next.NewNetworkServiceEndpointRegistryClient(emptyNSERegistryClient())
 	wg := sync.WaitGroup{}
 	for i := 0; i < 10; i++ {

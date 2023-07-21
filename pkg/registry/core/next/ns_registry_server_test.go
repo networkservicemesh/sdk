@@ -74,6 +74,7 @@ func emptyNSRegistryServer() registry.NetworkServiceRegistryServer {
 }
 
 func TestNewNetworkServiceRegistryServerShouldNotPanic(t *testing.T) {
+	t.Parallel()
 	assert.NotPanics(t, func() {
 		_, _ = next.NewNetworkServiceRegistryServer().Register(context.Background(), nil)
 		_, _ = next.NewWrappedNetworkServiceRegistryServer(func(server registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
@@ -83,6 +84,7 @@ func TestNewNetworkServiceRegistryServerShouldNotPanic(t *testing.T) {
 }
 
 func TestNSServerBranches(t *testing.T) {
+	t.Parallel()
 	servers := [][]registry.NetworkServiceRegistryServer{
 		{visitNSRegistryServer()},
 		{visitNSRegistryServer(), visitNSRegistryServer()},
@@ -168,6 +170,7 @@ func emptyNSRegistryClient() registry.NetworkServiceRegistryClient {
 }
 
 func TestNewNetworkServiceRegistryClientShouldNotPanic(t *testing.T) {
+	t.Parallel()
 	assert.NotPanics(t, func() {
 		_, _ = next.NewNetworkServiceRegistryClient().Register(context.Background(), nil)
 		_, _ = next.NewWrappedNetworkServiceRegistryClient(func(client registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
@@ -177,6 +180,7 @@ func TestNewNetworkServiceRegistryClientShouldNotPanic(t *testing.T) {
 }
 
 func TestDataRaceNetworkServiceServer(t *testing.T) {
+	t.Parallel()
 	s := next.NewNetworkServiceRegistryServer(emptyNSRegistryServer())
 	wg := sync.WaitGroup{}
 	for i := 0; i < 10; i++ {
@@ -199,6 +203,7 @@ func TestDataRaceNetworkServiceServer(t *testing.T) {
 	wg.Wait()
 }
 func TestDataRaceNetworkServiceClient(t *testing.T) {
+	t.Parallel()
 	c := next.NewNetworkServiceRegistryClient(emptyNSRegistryClient())
 	wg := sync.WaitGroup{}
 	for i := 0; i < 10; i++ {
@@ -222,6 +227,7 @@ func TestDataRaceNetworkServiceClient(t *testing.T) {
 }
 
 func TestNetworkServiceRegistryClientBranches(t *testing.T) {
+	t.Parallel()
 	samples := [][]registry.NetworkServiceRegistryClient{
 		{visitNSRegistryClient()},
 		{visitNSRegistryClient(), visitNSRegistryClient()},
