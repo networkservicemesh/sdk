@@ -45,6 +45,7 @@ func testNSE() *registry.NetworkServiceEndpoint {
 }
 
 func TestRegTimeServer_Register(t *testing.T) {
+	t.Parallel()
 	s := next.NewNetworkServiceEndpointRegistryServer(
 		metadata.NewNetworkServiceEndpointServer(),
 		setregistrationtime.NewNetworkServiceEndpointRegistryServer(),
