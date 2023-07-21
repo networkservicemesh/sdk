@@ -88,7 +88,8 @@ func (p *pathCheckerNSClient) Unregister(ctx context.Context, in *registry.Netwo
 }
 
 func TestGRPCMetadataNetworkService(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -182,7 +183,8 @@ func TestGRPCMetadataNetworkService(t *testing.T) {
 }
 
 func TestGRPCMetadataNetworkService_BackwardCompatibility(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()

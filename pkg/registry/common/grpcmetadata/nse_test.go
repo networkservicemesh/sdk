@@ -85,7 +85,8 @@ func (p *pathCheckerNSEClient) Unregister(ctx context.Context, in *registry.Netw
 // This test checks that registry Path is correctly updated and passed through grpc metadata
 // Test scheme: client ---> proxyServer ---> server
 func TestGRPCMetadataNetworkServiceEndpoint(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -181,7 +182,8 @@ func TestGRPCMetadataNetworkServiceEndpoint(t *testing.T) {
 }
 
 func TestGRPCMetadataNetworkServiceEndpoint_BackwardCompatibility(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
