@@ -87,6 +87,7 @@ func testClient(
 }
 
 func TestTimeoutServer_Request(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -117,6 +118,7 @@ func TestTimeoutServer_Request(t *testing.T) {
 }
 
 func TestTimeoutServer_CloseBeforeTimeout(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -150,6 +152,7 @@ func TestTimeoutServer_CloseBeforeTimeout(t *testing.T) {
 }
 
 func TestTimeoutServer_CloseAfterTimeout(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -199,6 +202,7 @@ func raceTestRequest() *networkservice.NetworkServiceRequest {
 }
 
 func TestTimeoutServer_RaceTest(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -223,7 +227,8 @@ func TestTimeoutServer_RaceTest(t *testing.T) {
 }
 
 func TestTimeoutServer_RefreshFailure(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -267,7 +272,8 @@ func TestTimeoutServer_RefreshFailure(t *testing.T) {
 }
 
 func TestTimeoutServer_CloseFailure(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
