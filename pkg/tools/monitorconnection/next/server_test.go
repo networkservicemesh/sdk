@@ -65,6 +65,7 @@ func visitMCServer() networkservice.MonitorConnectionServer {
 }
 
 func TestNewMonitorConnectionsServerShouldNotPanic(t *testing.T) {
+	t.Parallel()
 	assert.NotPanics(t, func() {
 		_ = next.NewMonitorConnectionServer().MonitorConnections(
 			nil, &testEmptyMCMCServer{context: context.Background()})
@@ -75,6 +76,7 @@ func TestNewMonitorConnectionsServerShouldNotPanic(t *testing.T) {
 }
 
 func TestNSServerBranches(t *testing.T) {
+	t.Parallel()
 	servers := [][]networkservice.MonitorConnectionServer{
 		{visitMCServer()},
 		{visitMCServer(), visitMCServer()},
@@ -94,6 +96,7 @@ func TestNSServerBranches(t *testing.T) {
 	}
 }
 func TestDataRaceMonitorConnectionServer(t *testing.T) {
+	t.Parallel()
 	s := next.NewMonitorConnectionServer(emptyMCServer())
 	wg := sync.WaitGroup{}
 	for i := 0; i < 10; i++ {
