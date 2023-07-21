@@ -34,7 +34,8 @@ import (
 )
 
 func TestClient(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	chainLabels := map[string]string{"1": "A", "2": "B"}
 	client := chain.NewNetworkServiceClient(
