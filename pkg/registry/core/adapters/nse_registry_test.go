@@ -82,6 +82,7 @@ func (*ignoreNSEFindServer) Context() context.Context {
 }
 
 func TestNetworkServiceEndpointClientToServer_Register(t *testing.T) {
+	t.Parallel()
 	expected := &registry.NetworkServiceEndpoint{
 		Name: "echo",
 	}
@@ -94,6 +95,7 @@ func TestNetworkServiceEndpointClientToServer_Register(t *testing.T) {
 }
 
 func TestNetworkServiceEndpointClientToServer_Unregister(t *testing.T) {
+	t.Parallel()
 	expected := &registry.NetworkServiceEndpoint{
 		Name: "echo",
 	}
@@ -105,6 +107,7 @@ func TestNetworkServiceEndpointClientToServer_Unregister(t *testing.T) {
 }
 
 func TestNetworkServiceEndpointFind(t *testing.T) {
+	t.Parallel()
 	for i := 1; i < adaptCountPerTest; i++ {
 		server := adaptNetworkServiceEndpointClientToServerFewTimes(i, &echoNetworkServiceEndpointClient{})
 		ch := make(chan *registry.NetworkServiceEndpointResponse, 1)
@@ -149,6 +152,7 @@ func (w *writeNSEServer) Unregister(ctx context.Context, service *registry.Netwo
 }
 
 func TestNSEClientPassingContext(t *testing.T) {
+	t.Parallel()
 	n := next.NewNetworkServiceEndpointRegistryClient(adapters.NetworkServiceEndpointServerToClient(&writeNSEServer{}), checkcontext.NewNSEClient(t, func(t *testing.T, ctx context.Context) {
 		if _, ok := ctx.Value(testKey).(bool); !ok {
 			t.Error("Context ignored")
@@ -184,6 +188,7 @@ func (s *writeNSEClient) Unregister(ctx context.Context, in *registry.NetworkSer
 }
 
 func TestNSEPassingContext(t *testing.T) {
+	t.Parallel()
 	n := next.NewNetworkServiceEndpointRegistryServer(adapters.NetworkServiceEndpointClientToServer(&writeNSEClient{}), checkcontext.NewNSEServer(t, func(t *testing.T, ctx context.Context) {
 		if _, ok := ctx.Value(testKey).(bool); !ok {
 			t.Error("Context ignored")
