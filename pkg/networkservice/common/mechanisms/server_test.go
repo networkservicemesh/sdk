@@ -97,7 +97,8 @@ func permuteOverMechanismPreferenceOrder(request *networkservice.NetworkServiceR
 }
 
 func TestSelectMechanism(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	server := server()
 	for _, request := range permuteOverMechanismPreferenceOrder(request()) {
 		assert.Nil(t, request.GetConnection().GetMechanism(), "SelectMechanismContract requires request.GetConnection().GetMechanism() nil")
@@ -114,7 +115,8 @@ func TestSelectMechanism(t *testing.T) {
 }
 
 func TestDontSelectMechanismIfSet(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	server := server()
 	for _, request := range permuteOverMechanismPreferenceOrder(request()) {
 		request.Connection = &networkservice.Connection{Mechanism: request.GetMechanismPreferences()[len(request.GetMechanismPreferences())-1]}
@@ -128,7 +130,8 @@ func TestDontSelectMechanismIfSet(t *testing.T) {
 }
 
 func TestUnsupportedMechanismPreference(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	request := request()
 	request.MechanismPreferences = []*networkservice.Mechanism{
 		{Cls: "NOT_A_CLS", Type: "NOT_A_TYPE"},
@@ -141,7 +144,8 @@ func TestUnsupportedMechanismPreference(t *testing.T) {
 }
 
 func TestUnsupportedMechanism(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	request := request()
 	request.GetConnection().Mechanism = &networkservice.Mechanism{
 		Cls:  "NOT_A_CLS",
@@ -155,7 +159,8 @@ func TestUnsupportedMechanism(t *testing.T) {
 }
 
 func TestDownstreamError(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	request := request()
 	request.GetConnection().Mechanism = &networkservice.Mechanism{
 		Cls:  cls.LOCAL,
@@ -172,7 +177,8 @@ func TestDownstreamError(t *testing.T) {
 }
 
 func TestFewWrongMechanisms(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	var unsupportedErr = errors.New("unsupported")
 
@@ -210,7 +216,8 @@ func TestFewWrongMechanisms(t *testing.T) {
 }
 
 func TestDontCallNextByItself(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ch := make(chan struct{}, 10)
 	server := next.NewNetworkServiceServer(

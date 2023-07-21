@@ -54,7 +54,8 @@ func client() networkservice.NetworkServiceClient {
 }
 
 func Test_Client_DontSelectMechanismIfSet(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	c := client()
 	for _, request := range permuteOverMechanismPreferenceOrder(request()) {
 		request.Connection = &networkservice.Connection{Mechanism: request.GetMechanismPreferences()[len(request.GetMechanismPreferences())-1]}
@@ -67,7 +68,8 @@ func Test_Client_DontSelectMechanismIfSet(t *testing.T) {
 }
 
 func Test_Client_UnsupportedMechanismPreference(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	request := request()
 	request.MechanismPreferences = []*networkservice.Mechanism{
 		{Cls: "NOT_A_CLS", Type: "NOT_A_TYPE"},
@@ -80,7 +82,8 @@ func Test_Client_UnsupportedMechanismPreference(t *testing.T) {
 }
 
 func Test_Client_UnsupportedMechanism(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	request := request()
 	request.GetConnection().Mechanism = &networkservice.Mechanism{
 		Cls:  "NOT_A_CLS",
@@ -94,7 +97,8 @@ func Test_Client_UnsupportedMechanism(t *testing.T) {
 }
 
 func Test_Client_DownstreamError(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	request := request()
 	request.GetConnection().Mechanism = &networkservice.Mechanism{
 		Cls:  cls.LOCAL,
@@ -111,7 +115,8 @@ func Test_Client_DownstreamError(t *testing.T) {
 }
 
 func Test_Client_FewWrongMechanisms(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	var unsupportedErr = errors.New("unsupported")
 
@@ -152,7 +157,8 @@ func Test_Client_FewWrongMechanisms(t *testing.T) {
 }
 
 func Test_Client_DontCallNextByItself(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ch := make(chan struct{}, 10)
 	c := next.NewNetworkServiceClient(
