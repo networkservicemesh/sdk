@@ -28,6 +28,7 @@ import (
 )
 
 func TestNewMonitorConnectionClient_MonitorConnections(t *testing.T) {
+	t.Parallel()
 	maxReceivers := 10
 	receivers := make([]networkservice.MonitorConnection_MonitorConnectionsClient, maxReceivers)
 	cancelFuncs := make([]context.CancelFunc, maxReceivers)

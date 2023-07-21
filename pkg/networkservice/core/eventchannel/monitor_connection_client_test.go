@@ -28,6 +28,7 @@ import (
 )
 
 func TestMonitorConnection_MonitorConnectionsClient_Recv(t *testing.T) {
+	t.Parallel()
 	numEvents := 50
 	eventCh := make(chan *networkservice.ConnectionEvent, numEvents)
 	mcc := eventchannel.NewMonitorConnectionMonitorConnectionsClient(context.Background(), eventCh)
@@ -59,6 +60,7 @@ func TestMonitorConnection_MonitorConnectionsClient_Recv(t *testing.T) {
 }
 
 func TestMonitorConnection_MonitorConnectionsClient_RecvMsg(t *testing.T) {
+	t.Parallel()
 	eventCh := make(chan *networkservice.ConnectionEvent, 100)
 	mcc := eventchannel.NewMonitorConnectionMonitorConnectionsClient(context.Background(), eventCh)
 
@@ -91,12 +93,14 @@ func TestMonitorConnection_MonitorConnectionsClient_RecvMsg(t *testing.T) {
 }
 
 func TestMonitorConnection_MonitorConnectionsClient_CloseSend(t *testing.T) {
+	t.Parallel()
 	eventCh := make(chan *networkservice.ConnectionEvent)
 	mcc := eventchannel.NewMonitorConnectionMonitorConnectionsClient(context.Background(), eventCh)
 	assert.Nil(t, mcc.CloseSend())
 }
 
 func TestMonitorConnection_MonitorConnectionsClient_Header(t *testing.T) {
+	t.Parallel()
 	eventCh := make(chan *networkservice.ConnectionEvent)
 	mcc := eventchannel.NewMonitorConnectionMonitorConnectionsClient(context.Background(), eventCh)
 	header, err := mcc.Header()
@@ -105,12 +109,14 @@ func TestMonitorConnection_MonitorConnectionsClient_Header(t *testing.T) {
 }
 
 func TestMonitorConnection_MonitorConnectionsClient_SendMsg(t *testing.T) {
+	t.Parallel()
 	eventCh := make(chan *networkservice.ConnectionEvent)
 	mcc := eventchannel.NewMonitorConnectionMonitorConnectionsClient(context.Background(), eventCh)
 	assert.Nil(t, mcc.SendMsg(nil))
 }
 
 func TestMonitorConnection_MonitorConnectionsClient_Trailer(t *testing.T) {
+	t.Parallel()
 	eventCh := make(chan *networkservice.ConnectionEvent)
 	mcc := eventchannel.NewMonitorConnectionMonitorConnectionsClient(context.Background(), eventCh)
 	assert.NotNil(t, mcc.Trailer())

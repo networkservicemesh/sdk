@@ -28,6 +28,7 @@ import (
 )
 
 func TestMonitorConnection_MonitorConnectionsServer_Send(t *testing.T) {
+	t.Parallel()
 	eventCh := make(chan *networkservice.ConnectionEvent, 100)
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	mcs := eventchannel.NewMonitorConnectionMonitorConnectionsServer(ctx, eventCh)
@@ -46,6 +47,7 @@ func TestMonitorConnection_MonitorConnectionsServer_Send(t *testing.T) {
 }
 
 func TestMonitorConnection_MonitorConnectionsServer_SendMsg(t *testing.T) {
+	t.Parallel()
 	numEvents := 50
 	eventCh := make(chan *networkservice.ConnectionEvent, numEvents)
 	ctx := context.Background()
@@ -70,6 +72,7 @@ func TestMonitorConnection_MonitorConnectionsServer_SendMsg(t *testing.T) {
 }
 
 func TestMonitorConnection_MonitorConnectionsServer_RecvMsg(t *testing.T) {
+	t.Parallel()
 	eventCh := make(chan *networkservice.ConnectionEvent, 100)
 	ctx := context.Background()
 	mcs := eventchannel.NewMonitorConnectionMonitorConnectionsServer(ctx, eventCh)
@@ -78,6 +81,7 @@ func TestMonitorConnection_MonitorConnectionsServer_RecvMsg(t *testing.T) {
 }
 
 func TestMonitorConnection_MonitorConnectionsServer_Context(t *testing.T) {
+	t.Parallel()
 	eventCh := make(chan *networkservice.ConnectionEvent, 100)
 	ctxIn, cancelFunc := context.WithCancel(context.Background())
 	mcs := eventchannel.NewMonitorConnectionMonitorConnectionsServer(ctxIn, eventCh)
@@ -91,6 +95,7 @@ func TestMonitorConnection_MonitorConnectionsServer_Context(t *testing.T) {
 }
 
 func TestMonitorConnection_MonitorConnectionsServer_SendHeader(t *testing.T) {
+	t.Parallel()
 	eventCh := make(chan *networkservice.ConnectionEvent, 100)
 	ctx := context.Background()
 	mcs := eventchannel.NewMonitorConnectionMonitorConnectionsServer(ctx, eventCh)
@@ -98,6 +103,7 @@ func TestMonitorConnection_MonitorConnectionsServer_SendHeader(t *testing.T) {
 }
 
 func TestMonitorConnection_MonitorConnectionsServer_SetHeader(t *testing.T) {
+	t.Parallel()
 	eventCh := make(chan *networkservice.ConnectionEvent, 100)
 	ctx := context.Background()
 	mcs := eventchannel.NewMonitorConnectionMonitorConnectionsServer(ctx, eventCh)
@@ -105,6 +111,7 @@ func TestMonitorConnection_MonitorConnectionsServer_SetHeader(t *testing.T) {
 }
 
 func TestMonitorConnection_MonitorConnectionsServer_SetTrailer(t *testing.T) {
+	t.Parallel()
 	eventCh := make(chan *networkservice.ConnectionEvent, 100)
 	ctx := context.Background()
 	mcs := eventchannel.NewMonitorConnectionMonitorConnectionsServer(ctx, eventCh)

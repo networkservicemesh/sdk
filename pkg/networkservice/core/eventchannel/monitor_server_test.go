@@ -38,6 +38,7 @@ const (
 )
 
 func TestMonitorConnectionMonitorConnectionsServer_Send(t *testing.T) {
+	t.Parallel()
 	testSend := func() {
 		eventsCh := make(chan *networkservice.ConnectionEvent, numEvents)
 		senderCtx, cancel := context.WithCancel(context.Background())
