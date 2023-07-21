@@ -36,6 +36,7 @@ import (
 // corresponding to each incoming event to the server that shares the same PathSegment
 
 func TestDontTrimPath(t *testing.T) {
+	t.Parallel()
 	name := "dontTrim"
 	server := chain.NewNetworkServiceServer(
 		updatepath.NewServer(name),
@@ -66,6 +67,7 @@ func TestDontTrimPath(t *testing.T) {
 }
 
 func TestTrimPath(t *testing.T) {
+	t.Parallel()
 	name := "trim"
 	server := chain.NewNetworkServiceServer(
 		updatepath.NewServer(name),
