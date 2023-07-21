@@ -28,6 +28,7 @@ import (
 )
 
 func Test_DNSConfigsDecoder_ShouldBeParsedFromJson(t *testing.T) {
+	t.Parallel()
 	var expected = []*networkservice.DNSConfig{
 		{
 			SearchDomains: []string{"d1"},
