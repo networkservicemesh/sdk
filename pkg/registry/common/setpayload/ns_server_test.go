@@ -29,6 +29,7 @@ import (
 )
 
 func TestSetPayload_Empty(t *testing.T) {
+	t.Parallel()
 	server := setpayload.NewNetworkServiceRegistryServer()
 	ns := &registry.NetworkService{}
 
@@ -42,6 +43,7 @@ func TestSetPayload_Empty(t *testing.T) {
 }
 
 func TestSetPayload_Ethernet(t *testing.T) {
+	t.Parallel()
 	server := setpayload.NewNetworkServiceRegistryServer()
 	ns := &registry.NetworkService{Payload: payload.Ethernet}
 
@@ -55,6 +57,7 @@ func TestSetPayload_Ethernet(t *testing.T) {
 }
 
 func TestSetPayload_WithCustomPayload(t *testing.T) {
+	t.Parallel()
 	testPayload := "some payload"
 
 	server := setpayload.NewNetworkServiceRegistryServer(setpayload.WithPayload(testPayload))
