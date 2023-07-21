@@ -33,7 +33,8 @@ import (
 )
 
 func Test_WatchFile(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	root := t.TempDir()
 
