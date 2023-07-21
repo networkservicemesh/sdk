@@ -39,7 +39,8 @@ import (
 // This test reproduces the situation when refresh changes the eventFactory context
 // nolint:dupl
 func TestContextValues_Server(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	checkCtxServ := &checkContextServer{t: t}
 	eventFactoryServ := &eventFactoryServer{}
@@ -91,7 +92,8 @@ func TestContextValues_Server(t *testing.T) {
 // This test reproduces the situation when Close and Request were called at the same time
 // nolint:dupl
 func TestRefreshDuringClose_Server(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	checkCtxServ := &checkContextServer{t: t}
 	eventFactoryServ := &eventFactoryServer{}
@@ -133,7 +135,8 @@ func TestRefreshDuringClose_Server(t *testing.T) {
 
 // This test checks if the timeout for the Request/Close called from the event factory is correct
 func TestContextTimeout_Server(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
