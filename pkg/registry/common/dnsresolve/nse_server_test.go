@@ -59,10 +59,12 @@ func (c *checkNSEContext) Unregister(ctx context.Context, ns *registry.NetworkSe
 }
 
 func Test_DNSResolveV4(t *testing.T) {
+	t.Parallel()
 	assertDNSResolves(t, "tcp://127.0.0.1:80")
 }
 
 func Test_DNSResolveV6(t *testing.T) {
+	t.Parallel()
 	assertDNSResolves(t, "tcp://[::1]:80")
 }
 
@@ -117,7 +119,8 @@ func assertDNSResolves(t *testing.T, registryURL string) {
 }
 
 func Test_DNSResolve_LookupNsmgrProxy(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	t.Parallel()
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	const (
 		regSrv        = "service1"
