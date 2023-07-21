@@ -52,6 +52,7 @@ func (c *checkNSContext) Unregister(ctx context.Context, ns *registry.NetworkSer
 }
 
 func TestDNSResolve_CorrectUsecase(t *testing.T) {
+	t.Parallel()
 	const srv = "service1"
 
 	var resolver = sandbox.NewFakeResolver()
@@ -79,6 +80,7 @@ func TestDNSResolve_CorrectUsecase(t *testing.T) {
 }
 
 func TestDNSResolve_LoopUsecase(t *testing.T) {
+	t.Parallel()
 	const srv = "service1"
 
 	var resolver = sandbox.NewFakeResolver()
