@@ -78,19 +78,23 @@ func TestFilterMechanismsClient_Request(t *testing.T) {
 	}
 
 	for _, sample := range samples {
-		s := filtermechanisms.NewClient()
-		ctx := clienturlctx.WithClientURL(context.Background(), sample.ClientURL)
-		req := request()
-		_, err := s.Request(ctx, req)
-		require.NoError(t, err)
-		require.NotEmpty(t, req.MechanismPreferences)
+		sample := sample
+		t.Run(sample.Name, func(t *testing.T) {
+			t.Parallel()
+			s := filtermechanisms.NewClient()
+			ctx := clienturlctx.WithClientURL(context.Background(), sample.ClientURL)
+			req := request()
+			_, err := s.Request(ctx, req)
+			require.NoError(t, err)
+			require.NotEmpty(t, req.MechanismPreferences)
 
-		if sample.ClsResult != "" {
-			for _, m := range req.MechanismPreferences {
-				require.Equal(t, sample.ClsResult, m.Cls, "filtermechanisms chain element should properly filter mechanisms")
+			if sample.ClsResult != "" {
+				for _, m := range req.MechanismPreferences {
+					require.Equal(t, sample.ClsResult, m.Cls, "filtermechanisms chain element should properly filter mechanisms")
+				}
+			} else {
+				require.Equal(t, request().String(), req.String())
 			}
-		} else {
-			require.Equal(t, request().String(), req.String())
-		}
+		})
 	}
 }
