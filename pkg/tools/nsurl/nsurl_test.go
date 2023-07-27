@@ -83,6 +83,7 @@ func Test_NSURL(t *testing.T) {
 	for _, sample := range samples {
 		sample := sample
 		t.Run(sample.name, func(t *testing.T) {
+			t.Parallel()
 			require.Equal(t, cls.LOCAL, (*nsurl.NSURL)(sample.u).Mechanism().Cls)
 			require.Equal(t, sample.mechanism, (*nsurl.NSURL)(sample.u).Mechanism().Type)
 			require.Equal(t, sample.networkService, (*nsurl.NSURL)(sample.u).NetworkService())
