@@ -190,6 +190,7 @@ func TestMetaDataNSEServer(t *testing.T) {
 	for i := range nseSamples {
 		sample := nseSamples[i]
 		t.Run(sample.name, func(t *testing.T) {
+			t.Parallel()
 			sample.test(t, metadata.NewNetworkServiceEndpointServer(), false)
 		})
 	}
@@ -199,6 +200,7 @@ func TestMetaDataNSEClient(t *testing.T) {
 	for i := range nseSamples {
 		sample := nseSamples[i]
 		t.Run(sample.name, func(t *testing.T) {
+			t.Parallel()
 			sample.test(t, adapters.NetworkServiceEndpointClientToServer(metadata.NewNetworkServiceEndpointClient()), true)
 		})
 	}
