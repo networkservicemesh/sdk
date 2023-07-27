@@ -60,7 +60,8 @@ func (f *updateTokenServerSuite) SetupSuite() {
 
 func (f *updateTokenServerSuite) TestNewServer_EmptyPathInRequest() {
 	t := f.T()
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	server := next.NewNetworkServiceServer(updatepath.NewServer("nsc-1"), updatetoken.NewServer(TokenGenerator))
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -75,7 +76,8 @@ func (f *updateTokenServerSuite) TestNewServer_EmptyPathInRequest() {
 
 func (f *updateTokenServerSuite) TestNewServer_IndexInLastPositionAddNewSegment() {
 	t := f.T()
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "conn-1",
@@ -104,7 +106,8 @@ func (f *updateTokenServerSuite) TestNewServer_IndexInLastPositionAddNewSegment(
 
 func (f *updateTokenServerSuite) TestNewServer_ValidIndexOverwriteValues() {
 	t := f.T()
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -138,7 +141,8 @@ func (f *updateTokenServerSuite) TestNewServer_ValidIndexOverwriteValues() {
 }
 
 func TestNewServer_IndexGreaterThanArrayLength(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "conn-1",
@@ -164,6 +168,7 @@ func TestNewServer_IndexGreaterThanArrayLength(t *testing.T) {
 
 func (f *updateTokenServerSuite) TestChain() {
 	t := f.T()
+	t.Parallel()
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "conn-2",
