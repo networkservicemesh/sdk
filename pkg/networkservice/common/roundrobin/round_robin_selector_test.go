@@ -226,7 +226,8 @@ var tests = []rrtests{
 }
 
 func Test_roundRobinSelector_SelectEndpoint(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	rr := newRoundRobinSelector()
 	for _, tt := range tests {
 		if got := rr.selectEndpoint(tt.args.ns, tt.args.networkServiceEndpoints); !proto.Equal(got, tt.want) {

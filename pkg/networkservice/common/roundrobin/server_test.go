@@ -41,7 +41,8 @@ const (
 )
 
 func TestSelectEndpointServer_CleanRequest(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	var hasBeenRequested bool
 	s := next.NewNetworkServiceServer(
