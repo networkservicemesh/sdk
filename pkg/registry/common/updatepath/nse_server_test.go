@@ -173,6 +173,7 @@ var nseSamples = []*nseSample{
 }
 
 func TestNSEUpdatePathServer(t *testing.T) {
+	t.Parallel()
 	for i := range nseSamples {
 		sample := nseSamples[i]
 		t.Run("TestNSEServer_"+sample.name, func(t *testing.T) {

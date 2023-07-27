@@ -39,7 +39,8 @@ import (
 )
 
 func TestMetrics_Concurrency(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	server := chain.NewNetworkServiceServer(
 		begin.NewServer(),

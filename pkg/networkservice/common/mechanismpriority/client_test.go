@@ -34,6 +34,7 @@ import (
 )
 
 func TestMechanismPriorityClient_Request(t *testing.T) {
+	t.Parallel()
 	request := func() *networkservice.NetworkServiceRequest {
 		return &networkservice.NetworkServiceRequest{
 			MechanismPreferences: []*networkservice.Mechanism{

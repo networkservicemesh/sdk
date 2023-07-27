@@ -30,7 +30,8 @@ import (
 )
 
 func TestLabelsClient(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	for _, tc := range positiveTestCases {
 		tc := tc
@@ -42,7 +43,8 @@ func TestLabelsClient(t *testing.T) {
 }
 
 func TestClientWithNoEnvs(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	for _, tc := range negativeTestCases {
 		tc := tc

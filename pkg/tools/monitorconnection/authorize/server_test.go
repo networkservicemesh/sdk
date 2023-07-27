@@ -107,7 +107,8 @@ func (t *testEmptyMCMCServer) Context() context.Context {
 	return t.context
 }
 func TestAuthzEndpoint(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	suits := []struct {
 		name            string
 		baseCtx         bool

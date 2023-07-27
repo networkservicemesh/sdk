@@ -115,7 +115,8 @@ var positiveTestCases = []testCase{
 }
 
 func TestLabelsServer(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	for _, tc := range positiveTestCases {
 		tc := tc
@@ -128,7 +129,8 @@ func TestLabelsServer(t *testing.T) {
 }
 
 func TestServerWithNoEnvs(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	for _, tc := range negativeTestCases {
 		tc := tc

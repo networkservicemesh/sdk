@@ -36,6 +36,7 @@ func must(u *url.URL, err error) *url.URL {
 	return u
 }
 func Test_NSURL(t *testing.T) {
+	t.Parallel()
 	var samples = []struct {
 		name           string
 		u              *url.URL

@@ -55,6 +55,7 @@ func startEndpoint(ctx context.Context, t *testing.T, e endpoint.Endpoint) *grpc
 }
 
 func TestCombine(t *testing.T) {
+	t.Parallel()
 	var samples = []struct {
 		name      string
 		mechanism *networkservice.Mechanism

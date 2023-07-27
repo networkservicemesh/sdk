@@ -186,6 +186,7 @@ var nsSamples = []*nsSample{
 }
 
 func TestMetaDataServer(t *testing.T) {
+	t.Parallel()
 	for i := range nsSamples {
 		sample := nsSamples[i]
 		t.Run(sample.name, func(t *testing.T) {
@@ -196,6 +197,7 @@ func TestMetaDataServer(t *testing.T) {
 }
 
 func TestMetaDataClient(t *testing.T) {
+	t.Parallel()
 	for i := range nsSamples {
 		sample := nsSamples[i]
 		t.Run(sample.name, func(t *testing.T) {

@@ -28,6 +28,7 @@ import (
 )
 
 func TestNSMatch(t *testing.T) {
+	t.Parallel()
 	referenceService := &registry.NetworkService{
 		Name:    "ns-1-substring-match",
 		Payload: payload.IP,
@@ -143,6 +144,7 @@ func TestNSMatch(t *testing.T) {
 }
 
 func TestNSEMatch(t *testing.T) {
+	t.Parallel()
 	referenceEndpoint := &registry.NetworkServiceEndpoint{
 		Name:                "nse-1-substring-match",
 		NetworkServiceNames: []string{"nse-service-1", "nse-service-2"},
@@ -303,6 +305,7 @@ func TestNSEMatch(t *testing.T) {
 }
 
 func TestLabelsContains(t *testing.T) {
+	t.Parallel()
 	referenceLabels := map[string]*registry.NetworkServiceLabels{
 		"Service1": {
 			Labels: map[string]string{

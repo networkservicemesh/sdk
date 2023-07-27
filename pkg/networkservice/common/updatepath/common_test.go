@@ -261,7 +261,8 @@ var samples = []*sample{
 	},
 }
 
-func TestUpdatePath(t *testing.T) {
+func TestUpdatePathServer(t *testing.T) {
+	t.Parallel()
 	for i := range samples {
 		sample := samples[i]
 		t.Run("TestNewServer_"+sample.name, func(t *testing.T) {
@@ -269,6 +270,10 @@ func TestUpdatePath(t *testing.T) {
 			sample.test(t, updatepath.NewServer)
 		})
 	}
+}
+
+func TestUpdatePathClient(t *testing.T) {
+	t.Parallel()
 	for i := range samples {
 		sample := samples[i]
 		t.Run("TestNewClient_"+sample.name, func(t *testing.T) {

@@ -25,6 +25,7 @@ import (
 )
 
 func TestGetPublicURL(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		u    *url.URL

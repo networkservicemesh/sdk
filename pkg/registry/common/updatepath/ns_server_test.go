@@ -173,6 +173,7 @@ var nsSamples = []*nsSample{
 }
 
 func TestNSUpdatePathServer(t *testing.T) {
+	t.Parallel()
 	for i := range nsSamples {
 		sample := nsSamples[i]
 		t.Run("TestNSServer_"+sample.name, func(t *testing.T) {

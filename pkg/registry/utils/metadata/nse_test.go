@@ -187,6 +187,7 @@ var nseSamples = []*nseSample{
 }
 
 func TestMetaDataNSEServer(t *testing.T) {
+	t.Parallel()
 	for i := range nseSamples {
 		sample := nseSamples[i]
 		t.Run(sample.name, func(t *testing.T) {
@@ -197,6 +198,7 @@ func TestMetaDataNSEServer(t *testing.T) {
 }
 
 func TestMetaDataNSEClient(t *testing.T) {
+	t.Parallel()
 	for i := range nseSamples {
 		sample := nseSamples[i]
 		t.Run(sample.name, func(t *testing.T) {
