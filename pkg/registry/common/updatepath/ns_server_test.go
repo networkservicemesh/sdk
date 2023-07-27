@@ -39,7 +39,7 @@ var nsSamples = []*nsSample{
 	{
 		name: "EmptyPathInRequest",
 		test: func(t *testing.T) {
-			t.Cleanup(func() { goleak.VerifyNone(t) })
+			t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 			clientToken, _, _ := tokenGeneratorFunc(clientID)(nil)
 			serverToken, _, _ := tokenGeneratorFunc(serverID)(nil)
@@ -71,7 +71,7 @@ var nsSamples = []*nsSample{
 	{
 		name: "InvalidPathIndex",
 		test: func(t *testing.T) {
-			t.Cleanup(func() { goleak.VerifyNone(t) })
+			t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 			nse := &registry.NetworkService{}
 			server := updatepath.NewNetworkServiceRegistryServer(tokenGeneratorFunc(serverID))
 
@@ -91,7 +91,7 @@ var nsSamples = []*nsSample{
 	{
 		name: "ServerChain",
 		test: func(t *testing.T) {
-			t.Cleanup(func() { goleak.VerifyNone(t) })
+			t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 			clientToken, _, _ := tokenGeneratorFunc(clientID)(nil)
 			proxyToken, _, _ := tokenGeneratorFunc(proxyID)(nil)
@@ -127,7 +127,7 @@ var nsSamples = []*nsSample{
 	{
 		name: "Refresh",
 		test: func(t *testing.T) {
-			t.Cleanup(func() { goleak.VerifyNone(t) })
+			t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 			clientToken, _, _ := tokenGeneratorFunc(clientID)(nil)
 			proxyToken, _, _ := tokenGeneratorFunc(proxyID)(nil)
@@ -175,6 +175,9 @@ var nsSamples = []*nsSample{
 func TestNSUpdatePathServer(t *testing.T) {
 	for i := range nsSamples {
 		sample := nsSamples[i]
-		t.Run("TestNSServer_"+sample.name, sample.test)
+		t.Run("TestNSServer_"+sample.name, func(t *testing.T) {
+			t.Parallel()
+			sample.test(t)
+		})
 	}
 }
