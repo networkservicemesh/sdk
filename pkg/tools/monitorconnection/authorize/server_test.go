@@ -181,6 +181,7 @@ func TestAuthzEndpoint(t *testing.T) {
 	for i := range suits {
 		s := suits[i]
 		t.Run(s.name, func(t *testing.T) {
+			t.Parallel()
 			var err error
 			baseCtx := context.Background()
 			if s.baseCtx {
@@ -218,7 +219,8 @@ func TestAuthzEndpoint(t *testing.T) {
 }
 
 func TestAuthorize_ShouldCorrectlyWorkWithHeal(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	peerCtx, err := getContextWithTLSCert()
 	require.NoError(t, err)
 	ctx, cancel := context.WithTimeout(peerCtx, time.Second)
