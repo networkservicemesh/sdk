@@ -25,12 +25,14 @@ import (
 )
 
 func TestGetPublicURL(t *testing.T) {
-	test := []struct {
-		u   *url.URL
-		ips []net.Addr
-		exp string
+	tests := []struct {
+		name string
+		u    *url.URL
+		ips  []net.Addr
+		exp  string
 	}{
 		{
+			name: "Test file path",
 			u: &url.URL{
 				Scheme: "file",
 				Host:   "",
@@ -40,6 +42,7 @@ func TestGetPublicURL(t *testing.T) {
 			},
 			exp: "file:///local-path",
 		}, {
+			name: "Test IPv4",
 			u: &url.URL{
 				Scheme: "tcp",
 				Host:   "172.17.11.1:5009",
@@ -49,6 +52,7 @@ func TestGetPublicURL(t *testing.T) {
 			},
 			exp: "tcp://172.17.11.1:5009",
 		}, {
+			name: "Test IPv4 without host",
 			u: &url.URL{
 				Scheme: "tcp",
 				Host:   ":5009",
@@ -58,6 +62,7 @@ func TestGetPublicURL(t *testing.T) {
 			},
 			exp: "tcp://10.244.2.13:5009",
 		}, {
+			name: "Test IPv4 localhost",
 			u: &url.URL{
 				Scheme: "tcp",
 				Host:   ":5009",
@@ -67,6 +72,7 @@ func TestGetPublicURL(t *testing.T) {
 			},
 			exp: "tcp://:5009",
 		}, {
+			name: "Test IPv4 several ips",
 			u: &url.URL{
 				Scheme: "tcp",
 				Host:   ":5009",
@@ -79,6 +85,7 @@ func TestGetPublicURL(t *testing.T) {
 			},
 			exp: "tcp://10.244.2.13:5009",
 		}, {
+			name: "Test IPv4-v6",
 			u: &url.URL{
 				Scheme: "tcp",
 				Host:   ":5009",
@@ -90,6 +97,7 @@ func TestGetPublicURL(t *testing.T) {
 			},
 			exp: "tcp://10.244.2.13:5009",
 		}, {
+			name: "Test IPv6",
 			u: &url.URL{
 				Scheme: "tcp",
 				Host:   ":5009",
@@ -99,6 +107,7 @@ func TestGetPublicURL(t *testing.T) {
 			},
 			exp: "tcp://[fd00:10:244:1::9]:5009",
 		}, {
+			name: "Test IPv6 several ips",
 			u: &url.URL{
 				Scheme: "tcp",
 				Host:   ":5009",
@@ -109,6 +118,7 @@ func TestGetPublicURL(t *testing.T) {
 			},
 			exp: "tcp://[2001:db8::1]:5009",
 		}, {
+			name: "Test short IPv6",
 			u: &url.URL{
 				Scheme: "tcp",
 				Host:   ":5009",
@@ -120,10 +130,14 @@ func TestGetPublicURL(t *testing.T) {
 		},
 	}
 
-	for _, tt := range test {
-		actual := listenonurl.GetPublicURL(tt.ips, tt.u)
-		if tt.exp != actual.String() {
-			t.Errorf("GetPublicURL(%q, %q) = %q, want %q", tt.ips, tt.u, actual, tt.exp)
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			actual := listenonurl.GetPublicURL(test.ips, test.u)
+			if test.exp != actual.String() {
+				t.Errorf("GetPublicURL(%q, %q) = %q, want %q", test.ips, test.u, actual, test.exp)
+			}
+		})
 	}
 }
