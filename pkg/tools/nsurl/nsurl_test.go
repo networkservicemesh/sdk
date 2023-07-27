@@ -37,6 +37,7 @@ func must(u *url.URL, err error) *url.URL {
 }
 func Test_NSURL(t *testing.T) {
 	var samples = []struct {
+		name           string
 		u              *url.URL
 		interfaceName  string
 		networkService string
@@ -44,12 +45,14 @@ func Test_NSURL(t *testing.T) {
 		labels         map[string]string
 	}{
 		{
+			name:           "Test vfio",
 			u:              must(url.Parse("vfio://my-service/nsm-1")),
 			interfaceName:  "nsm-1",
 			networkService: "my-service",
 			mechanism:      vfio.MECHANISM,
 		},
 		{
+			name:           "Test vfio with token",
 			u:              must(url.Parse("vfio://second-service?sriovToken=intel/10G")),
 			networkService: "second-service",
 			mechanism:      vfio.MECHANISM,
@@ -58,6 +61,7 @@ func Test_NSURL(t *testing.T) {
 			},
 		},
 		{
+			name:           "Test memif",
 			u:              must(url.Parse("memif://my-vpp-service?A=1&B=2&C=3")),
 			networkService: "my-vpp-service",
 			mechanism:      memif.MECHANISM,
@@ -68,6 +72,7 @@ func Test_NSURL(t *testing.T) {
 			},
 		},
 		{
+			name:           "Test kernel",
 			u:              must(url.Parse("kernel://my-service@dc.example.com/ms1")),
 			networkService: "my-service@dc.example.com",
 			mechanism:      kernel.MECHANISM,
@@ -76,12 +81,15 @@ func Test_NSURL(t *testing.T) {
 	}
 
 	for _, sample := range samples {
-		require.Equal(t, cls.LOCAL, (*nsurl.NSURL)(sample.u).Mechanism().Cls)
-		require.Equal(t, sample.mechanism, (*nsurl.NSURL)(sample.u).Mechanism().Type)
-		require.Equal(t, sample.networkService, (*nsurl.NSURL)(sample.u).NetworkService())
-		require.Len(t, (*nsurl.NSURL)(sample.u).Labels(), len(sample.labels))
-		if len(sample.labels) > 0 {
-			require.Equal(t, sample.labels, (*nsurl.NSURL)(sample.u).Labels())
-		}
+		sample := sample
+		t.Run(sample.name, func(t *testing.T) {
+			require.Equal(t, cls.LOCAL, (*nsurl.NSURL)(sample.u).Mechanism().Cls)
+			require.Equal(t, sample.mechanism, (*nsurl.NSURL)(sample.u).Mechanism().Type)
+			require.Equal(t, sample.networkService, (*nsurl.NSURL)(sample.u).NetworkService())
+			require.Len(t, (*nsurl.NSURL)(sample.u).Labels(), len(sample.labels))
+			if len(sample.labels) > 0 {
+				require.Equal(t, sample.labels, (*nsurl.NSURL)(sample.u).Labels())
+			}
+		})
 	}
 }
