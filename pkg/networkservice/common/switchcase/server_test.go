@@ -31,8 +31,10 @@ import (
 )
 
 func TestSwitchServer(t *testing.T) {
-	for _, s := range testSamples() {
+	for _, sample := range testSamples() {
+		s := sample
 		t.Run(s.name, func(t *testing.T) {
+			t.Parallel()
 			// nolint:scopelint
 			testSwitchServer(t, s.conditions, s.result)
 		})
