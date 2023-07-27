@@ -104,6 +104,7 @@ func TestMechanismPriorityClient_Request(t *testing.T) {
 	for _, s := range samples {
 		sample := s
 		t.Run(sample.Name, func(t *testing.T) {
+			t.Parallel()
 			c := mechanismpriority.NewClient(sample.Priorities...)
 			req := sample.Request
 			_, err := c.Request(context.Background(), req)
