@@ -102,7 +102,8 @@ func requestWithToken(token string) *networkservice.NetworkServiceRequest {
 }
 
 func TestAuthorize_ShouldCorrectlyWorkWithHeal(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	r := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -124,7 +125,8 @@ func TestAuthorize_ShouldCorrectlyWorkWithHeal(t *testing.T) {
 }
 
 func TestAuthzEndpoint(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	dir := filepath.Clean(path.Join(os.TempDir(), t.Name()))
 	defer func() {
@@ -186,7 +188,8 @@ func TestAuthzEndpoint(t *testing.T) {
 }
 
 func TestAuthorize_EmptySpiffeIDConnectionMapOnClose(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	conn := &networkservice.Connection{
 		Id: "conn",
