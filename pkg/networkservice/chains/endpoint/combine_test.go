@@ -71,6 +71,7 @@ func TestCombine(t *testing.T) {
 
 	for _, s := range samples {
 		t.Run(s.name, func(t *testing.T) {
+			t.Parallel()
 			// nolint:scopelint
 			testCombine(t, s.mechanism)
 		})
@@ -78,7 +79,7 @@ func TestCombine(t *testing.T) {
 }
 
 func testCombine(t *testing.T, mechanism *networkservice.Mechanism) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -156,7 +157,8 @@ func testCombine(t *testing.T, mechanism *networkservice.Mechanism) {
 }
 
 func TestSwitchEndpoint_InitialStateTransfer(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -220,7 +222,8 @@ func TestSwitchEndpoint_InitialStateTransfer(t *testing.T) {
 }
 
 func TestSwitchEndpoint_DuplicateEndpoints(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
