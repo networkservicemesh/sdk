@@ -49,13 +49,17 @@ func TestMetrics_Concurrency(t *testing.T) {
 		metrics.NewServer(),
 	)
 	for i := 0; i < 100; i++ {
-		go func(i int) {
-			req := &networkservice.NetworkServiceRequest{
-				Connection: &networkservice.Connection{Id: "nsc-" + strconv.Itoa(i)},
-			}
-			_, err := server.Request(context.Background(), req)
-			require.NoError(t, err)
-		}(i)
+		count := i
+		t.Run("Metrics test: "+strconv.Itoa(count), func(t *testing.T) {
+			t.Parallel()
+			go func(count int) {
+				req := &networkservice.NetworkServiceRequest{
+					Connection: &networkservice.Connection{Id: "nsc-" + strconv.Itoa(count)},
+				}
+				_, err := server.Request(context.Background(), req)
+				require.NoError(t, err)
+			}(count)
+		})
 	}
 }
 
