@@ -204,6 +204,7 @@ func TestMetaDataServer(t *testing.T) {
 	for i := range samples {
 		sample := samples[i]
 		t.Run(sample.name, func(t *testing.T) {
+			t.Parallel()
 			sample.test(t, metadata.NewServer(), false)
 		})
 	}
@@ -213,6 +214,7 @@ func TestMetaDataClient(t *testing.T) {
 	for i := range samples {
 		sample := samples[i]
 		t.Run(sample.name, func(t *testing.T) {
+			t.Parallel()
 			sample.test(t, adapters.NewClientToServer(metadata.NewClient()), true)
 		})
 	}
