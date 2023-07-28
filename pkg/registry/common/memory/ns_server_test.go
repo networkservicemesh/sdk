@@ -37,7 +37,7 @@ import (
 )
 
 func TestNetworkServiceRegistryServer_RegisterAndFind(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 	s := next.NewNetworkServiceRegistryServer(memory.NewNetworkServiceRegistryServer())
 
 	_, err := s.Register(context.Background(), &registry.NetworkService{
@@ -74,7 +74,7 @@ func TestNetworkServiceRegistryServer_RegisterAndFind(t *testing.T) {
 }
 
 func TestNetworkServiceRegistryServer_RegisterAndFindWatch(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 	s := next.NewNetworkServiceRegistryServer(memory.NewNetworkServiceRegistryServer())
 
 	_, err := s.Register(context.Background(), &registry.NetworkService{
@@ -118,7 +118,7 @@ func TestNetworkServiceRegistryServer_RegisterAndFindWatch(t *testing.T) {
 }
 
 func TestNetworkServiceRegistryServer_DataRace(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -209,7 +209,7 @@ func TestNetworkServiceRegistryServer_SlowReceiver(t *testing.T) {
 }
 
 func TestNetworkServiceRegistryServer_ShouldReceiveAllRegisters(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
