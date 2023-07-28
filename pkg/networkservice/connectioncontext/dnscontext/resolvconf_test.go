@@ -40,7 +40,7 @@ func TestResolveConfig_ReadProperties(t *testing.T) {
 search default.svc.cluster.local svc.cluster.local cluster.local
 options ndots:5
 `
-	p, err := createSample("resolv.conf.tmp.test.file", sample)
+	p, err := createSample("resolv.conf.tmp.test.read.file", sample)
 	require.Nil(t, err)
 	defer func() {
 		_ = os.Remove(p)
@@ -61,7 +61,7 @@ func TestResolveConfig_WriteProperties(t *testing.T) {
 	sample := `nameserver 127.0.0.1
 search default.svc.cluster.local svc.cluster.local cluster.local
 options ndots:5`
-	p, err := createSample("resolv.conf.tmp.test.file", "")
+	p, err := createSample("resolv.conf.tmp.test.write.file", "")
 	require.Nil(t, err)
 	defer func() {
 		_ = os.Remove(p)
