@@ -30,28 +30,12 @@ import (
 )
 
 func TestLabelsClient(t *testing.T) {
-	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	for _, tc := range positiveTestCases {
-		tc := tc
+	for _, tc := range testCases {
 		// nolint:scopelint
 		t.Run(tc.name, func(t *testing.T) {
-			testLabelsClient(t, defaultEnvs, tc.expected, tc.input)
-		})
-	}
-}
-
-func TestClientWithNoEnvs(t *testing.T) {
-	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
-
-	for _, tc := range negativeTestCases {
-		tc := tc
-		// nolint:scopelint
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			testLabelsClient(t, notEnoughEnvs, tc.expected, tc.input)
+			testLabelsClient(t, tc.envs, tc.expected, tc.input)
 		})
 	}
 }

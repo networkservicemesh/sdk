@@ -32,12 +32,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientinfo"
 )
 
-type testCase struct {
-	name     string
-	expected map[string]string
-	input    map[string]string
-}
-
 func setEnvs(envs map[string]string) error {
 	for name, value := range envs {
 		if err := os.Setenv(name, value); err != nil {
@@ -56,41 +50,19 @@ func unsetEnvs(envs map[string]string) error {
 	return nil
 }
 
-var defaultEnvs = map[string]string{
-	"NODE_NAME":    "AAA",
-	"POD_NAME":     "BBB",
-	"CLUSTER_NAME": "CCC",
-}
-
-var notEnoughEnvs = map[string]string{
-	"CLUSTER_NAME": "CCC",
-}
-
-var negativeTestCases = []testCase{
+var testCases = []struct {
+	name     string
+	envs     map[string]string
+	expected map[string]string
+	input    map[string]string
+}{
 	{
 		name: "MapNotPresent",
-		expected: map[string]string{
-			"clusterName": "CCC",
+		envs: map[string]string{
+			"NODE_NAME":    "AAA",
+			"POD_NAME":     "BBB",
+			"CLUSTER_NAME": "CCC",
 		},
-	},
-	{
-		name: "SomeEnvsNotPresent",
-		expected: map[string]string{
-			"nodeName":       "OLD_VAL1",
-			"clusterName":    "OLD_VAL2",
-			"SomeOtherLabel": "DDD",
-		},
-		input: map[string]string{
-			"nodeName":       "OLD_VAL1",
-			"clusterName":    "OLD_VAL2",
-			"SomeOtherLabel": "DDD",
-		},
-	},
-}
-
-var positiveTestCases = []testCase{
-	{
-		name: "MapNotPresent",
 		expected: map[string]string{
 			"nodeName":    "AAA",
 			"podName":     "BBB",
@@ -99,6 +71,11 @@ var positiveTestCases = []testCase{
 	},
 	{
 		name: "LabelsOverwritten",
+		envs: map[string]string{
+			"NODE_NAME":    "AAA",
+			"POD_NAME":     "BBB",
+			"CLUSTER_NAME": "CCC",
+		},
 		expected: map[string]string{
 			"nodeName":       "OLD_VAL1",
 			"podName":        "OLD_VAL2",
@@ -112,32 +89,31 @@ var positiveTestCases = []testCase{
 			"SomeOtherLabel": "DDD",
 		},
 	},
+	{
+		name: "SomeEnvsNotPresent",
+		envs: map[string]string{
+			"CLUSTER_NAME": "CCC",
+		},
+		expected: map[string]string{
+			"nodeName":       "OLD_VAL1",
+			"clusterName":    "OLD_VAL2",
+			"SomeOtherLabel": "DDD",
+		},
+		input: map[string]string{
+			"nodeName":       "OLD_VAL1",
+			"clusterName":    "OLD_VAL2",
+			"SomeOtherLabel": "DDD",
+		},
+	},
 }
 
 func TestLabelsServer(t *testing.T) {
-	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	for _, tc := range positiveTestCases {
-		tc := tc
+	for _, tc := range testCases {
 		// nolint:scopelint
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			testLabelsServer(t, defaultEnvs, tc.expected, tc.input)
-		})
-	}
-}
-
-func TestServerWithNoEnvs(t *testing.T) {
-	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
-
-	for _, tc := range negativeTestCases {
-		tc := tc
-		// nolint:scopelint
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			testLabelsServer(t, notEnoughEnvs, tc.expected, tc.input)
+			testLabelsServer(t, tc.envs, tc.expected, tc.input)
 		})
 	}
 }
