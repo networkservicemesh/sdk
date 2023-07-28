@@ -162,6 +162,7 @@ func TestConnectNSServer_AllUnregister(t *testing.T) {
 }
 
 func TestConnectNSServer_AllDead_Register(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -193,6 +194,7 @@ func TestConnectNSServer_AllDead_Register(t *testing.T) {
 }
 
 func TestConnectNSServer_AllDead_WatchingFind(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -243,6 +245,7 @@ func TestConnectNSServer_AllDead_WatchingFind(t *testing.T) {
 }
 
 func Test_NSConenctChain_Find(t *testing.T) {
+	t.Parallel()
 	for depth := 2; depth < 11; depth++ {
 		for killIndex := 1; killIndex < depth; killIndex++ {
 			var ctx, cancel = context.WithTimeout(context.Background(), time.Second)
