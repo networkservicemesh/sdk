@@ -33,12 +33,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
 )
 
-type testCase struct {
-	name      string
-	oldLabels map[string]string
-	want      map[string]string
-}
-
 func setEnvs(envs map[string]string) error {
 	for name, value := range envs {
 		if err := os.Setenv(name, value); err != nil {
@@ -58,15 +52,23 @@ func unsetEnvs(envs map[string]string) error {
 }
 
 func TestClientInfo(t *testing.T) {
-	testEnvs := map[string]string{
-		"NODE_NAME":    "AAA",
-		"POD_NAME":     "BBB",
-		"CLUSTER_NAME": "CCC",
-	}
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 
-	tests := []testCase{
+	tests := []struct {
+		name      string
+		envs      map[string]string
+		oldLabels map[string]string
+		want      map[string]string
+	}{
 		{
-			name:      "LabelsMapNotPresent",
+			name: "LabelsMapNotPresent",
+			envs: map[string]string{
+				"NODE_NAME":    "AAA",
+				"POD_NAME":     "BBB",
+				"CLUSTER_NAME": "CCC",
+			},
 			oldLabels: nil,
 			want: map[string]string{
 				"nodeName":    "AAA",
@@ -76,6 +78,11 @@ func TestClientInfo(t *testing.T) {
 		},
 		{
 			name: "LabelsAlreadySet",
+			envs: map[string]string{
+				"NODE_NAME":    "AAA",
+				"POD_NAME":     "BBB",
+				"CLUSTER_NAME": "CCC",
+			},
 			oldLabels: map[string]string{
 				"nodeName":       "OLD_VAL1",
 				"podName":        "OLD_VAL2",
@@ -85,36 +92,16 @@ func TestClientInfo(t *testing.T) {
 			want: map[string]string{
 				"nodeName":       "OLD_VAL1",
 				"podName":        "OLD_VAL2",
-				"clusterName":    "OLD_VAL3",
-				"SomeOtherLabel": "DDD",
-			},
-		},
-	}
-
-	testWithEnvs(t, testEnvs, tests)
-}
-
-func TestMissingEnvs(t *testing.T) {
-	testEnvs := map[string]string{
-		"POD_NAME":     "BBB",
-		"CLUSTER_NAME": "CCC",
-	}
-
-	tests := []testCase{
-		{
-			name: "SomeEnvsAndLabelsNotPresent",
-			oldLabels: map[string]string{
-				"clusterName":    "OLD_VAL3",
-				"SomeOtherLabel": "DDD",
-			},
-			want: map[string]string{
-				"podName":        "BBB",
 				"clusterName":    "OLD_VAL3",
 				"SomeOtherLabel": "DDD",
 			},
 		},
 		{
 			name: "SomeEnvsNotPresent",
+			envs: map[string]string{
+				"POD_NAME":     "BBB",
+				"CLUSTER_NAME": "CCC",
+			},
 			oldLabels: map[string]string{
 				"nodeName":       "OLD_VAL1",
 				"clusterName":    "OLD_VAL3",
@@ -127,22 +114,28 @@ func TestMissingEnvs(t *testing.T) {
 				"SomeOtherLabel": "DDD",
 			},
 		},
+		{
+			name: "SomeEnvsAndLabelsNotPresent",
+			envs: map[string]string{
+				"POD_NAME":     "BBB",
+				"CLUSTER_NAME": "CCC",
+			},
+			oldLabels: map[string]string{
+				"clusterName":    "OLD_VAL3",
+				"SomeOtherLabel": "DDD",
+			},
+			want: map[string]string{
+				"podName":        "BBB",
+				"clusterName":    "OLD_VAL3",
+				"SomeOtherLabel": "DDD",
+			},
+		},
 	}
-
-	testWithEnvs(t, testEnvs, tests)
-}
-
-func testWithEnvs(t *testing.T, testEnvs map[string]string, tests []testCase) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
 
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			err := setEnvs(testEnvs)
+			err := setEnvs(tc.envs)
 			require.NoError(t, err)
 
 			client := next.NewNetworkServiceClient(
@@ -159,7 +152,7 @@ func testWithEnvs(t *testing.T, testEnvs map[string]string, tests []testCase) {
 			require.NoError(t, err)
 			require.NotNil(t, conn)
 
-			err = unsetEnvs(testEnvs)
+			err = unsetEnvs(tc.envs)
 			require.NoError(t, err)
 		})
 	}
