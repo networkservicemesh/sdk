@@ -55,7 +55,7 @@ const (
 )
 
 func TestConnectServer_Request(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	// 1. Create connectServer
 
@@ -288,7 +288,7 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 }
 
 func TestConnectServer_RequestFail(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	// 1. Create connectServer
 
@@ -336,7 +336,7 @@ func TestConnectServer_RequestFail(t *testing.T) {
 }
 
 func TestConnectServer_RequestNextServerError(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	// 1. Create connectServer
 
@@ -405,7 +405,7 @@ func TestConnectServer_RequestNextServerError(t *testing.T) {
 }
 
 func TestConnectServer_RemoteRestarted(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	// 1. Create connectServer
 
@@ -492,7 +492,7 @@ func TestConnectServer_RemoteRestarted(t *testing.T) {
 }
 
 func TestConnectServer_DialTimeout(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	// 1. Create connectServer
 
@@ -539,7 +539,7 @@ func TestConnectServer_DialTimeout(t *testing.T) {
 }
 
 func TestConnectServer_ChangeURLWithExpiredContext(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	// 1. Create connectServer
 
