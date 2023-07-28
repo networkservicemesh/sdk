@@ -41,6 +41,7 @@ import (
 )
 
 func TestDiffMechanism(t *testing.T) {
+	t.Parallel()
 	c1 := newConnection()
 	c2 := newConnection()
 	c2.MechanismPreferences[1].Type = "MEMIF"
@@ -51,6 +52,7 @@ func TestDiffMechanism(t *testing.T) {
 }
 
 func TestDiffLabels(t *testing.T) {
+	t.Parallel()
 	c1 := newConnection()
 	c2 := newConnection()
 	c2.MechanismPreferences[1].Parameters = map[string]string{
@@ -64,6 +66,7 @@ func TestDiffLabels(t *testing.T) {
 }
 
 func TestDiffPath(t *testing.T) {
+	t.Parallel()
 	c1 := newConnection()
 	c2 := newConnection()
 
@@ -81,6 +84,7 @@ func TestDiffPath(t *testing.T) {
 }
 
 func TestDiffPathAdd(t *testing.T) {
+	t.Parallel()
 	c1 := newConnection()
 	c2 := newConnection()
 
