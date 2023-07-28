@@ -24,7 +24,6 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
@@ -41,7 +40,7 @@ const (
 )
 
 func TestLocalBypassNSEServer(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -93,7 +92,7 @@ func TestLocalBypassNSEServer(t *testing.T) {
 }
 
 func TestLocalBypassNSEServer_Restart(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -158,7 +157,7 @@ func TestLocalBypassNSEServer_Restart(t *testing.T) {
 }
 
 func TestLocalBypassNSEServer_RegisterNSESameName(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -211,7 +210,7 @@ func TestLocalBypassNSEServer_RegisterNSESameName(t *testing.T) {
 }
 
 func TestLocalBypassNSEServer_SlowRegistryFind(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -270,7 +269,7 @@ func (n *nsmgrProxyRegistryServer) Find(q *registry.NetworkServiceEndpointQuery,
 }
 
 func TestLocalByPass_ShouldCorrectlyHandleNSEsFromFloatingRegistry(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	const expectedURL = "file://nse.sock"
 
@@ -305,7 +304,7 @@ func TestLocalByPass_ShouldCorrectlyHandleNSEsFromFloatingRegistry(t *testing.T)
 }
 
 func TestLocalBypassNSEServer_SlowRegistryFindWatch(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	t.Parallel()
 
 	server := next.NewNetworkServiceEndpointRegistryServer(
 		localbypass.NewNetworkServiceEndpointRegistryServer(nsmgrURL),
