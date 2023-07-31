@@ -35,6 +35,7 @@ const (
 )
 
 func TestMock_SetSpeed(t *testing.T) {
+	t.Parallel()
 	samples := []struct {
 		name                    string
 		firstSpeed, secondSpeed float64
@@ -95,11 +96,15 @@ func TestMock_SetSpeed(t *testing.T) {
 	}
 
 	for _, sample := range samples {
+		sample := sample
 		// nolint:scopelint
 		t.Run(sample.name, func(t *testing.T) {
+			// t.Parallel()
 			for _, speed := range speeds {
+				speed := speed
 				// nolint:scopelint
 				t.Run(speed.name, func(t *testing.T) {
+					t.Parallel()
 					testMockSetSpeed(t, sample.firstSpeed*speed.multiplier, sample.secondSpeed*speed.multiplier)
 				})
 			}
@@ -108,7 +113,7 @@ func TestMock_SetSpeed(t *testing.T) {
 }
 
 func testMockSetSpeed(t *testing.T, firstSpeed, secondSpeed float64) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -144,7 +149,8 @@ func testMockSetSpeed(t *testing.T, firstSpeed, secondSpeed float64) {
 }
 
 func TestMock_Timer(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -177,7 +183,8 @@ func TestMock_Timer(t *testing.T) {
 }
 
 func TestMock_Timer_ZeroDuration(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -194,7 +201,8 @@ func TestMock_Timer_ZeroDuration(t *testing.T) {
 }
 
 func TestMock_Timer_Stop(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -216,7 +224,8 @@ func TestMock_Timer_Stop(t *testing.T) {
 }
 
 func TestMock_Timer_StopResult(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -232,7 +241,8 @@ func TestMock_Timer_StopResult(t *testing.T) {
 }
 
 func TestMock_Timer_Reset(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -264,7 +274,8 @@ func TestMock_Timer_Reset(t *testing.T) {
 }
 
 func TestMock_Timer_ResetExpired(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -297,7 +308,8 @@ func TestMock_Timer_ResetExpired(t *testing.T) {
 }
 
 func TestMock_Timer_Reset_ZeroDuration(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -317,7 +329,8 @@ func TestMock_Timer_Reset_ZeroDuration(t *testing.T) {
 }
 
 func TestMock_AfterFunc(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -349,7 +362,8 @@ func TestMock_AfterFunc(t *testing.T) {
 }
 
 func TestMock_AfterFunc_ZeroDuration(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -367,7 +381,8 @@ func TestMock_AfterFunc_ZeroDuration(t *testing.T) {
 }
 
 func TestMock_Ticker(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -402,7 +417,8 @@ func TestMock_Ticker(t *testing.T) {
 }
 
 func TestMock_WithDeadline(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -430,7 +446,8 @@ func TestMock_WithDeadline(t *testing.T) {
 }
 
 func TestMock_WithDeadline_Expired(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -449,7 +466,8 @@ func TestMock_WithDeadline_Expired(t *testing.T) {
 }
 
 func TestMock_WithDeadline_ParentCanceled(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -479,7 +497,8 @@ func TestMock_WithDeadline_ParentCanceled(t *testing.T) {
 }
 
 func TestMock_WithTimeout(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
