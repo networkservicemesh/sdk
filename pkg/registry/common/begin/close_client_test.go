@@ -37,8 +37,7 @@ const (
 )
 
 func TestCloseClient(t *testing.T) {
-	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 	client := chain.NewNetworkServiceEndpointRegistryClient(
 		begin.NewNetworkServiceEndpointRegistryClient(),
 		&markClient{t: t},
@@ -88,8 +87,7 @@ func (m *markClient) Unregister(ctx context.Context, in *registry.NetworkService
 }
 
 func TestDoubleCloseClient(t *testing.T) {
-	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 	client := chain.NewNetworkServiceEndpointRegistryClient(
 		begin.NewNetworkServiceEndpointRegistryClient(),
 		&doubleCloseClient{t: t},

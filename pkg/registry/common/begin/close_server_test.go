@@ -35,8 +35,7 @@ import (
 )
 
 func TestCloseServer(t *testing.T) {
-	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 	server := chain.NewNetworkServiceEndpointRegistryServer(
 		begin.NewNetworkServiceEndpointRegistryServer(),
 		adapters.NetworkServiceEndpointClientToServer(&markClient{t: t}),
@@ -58,8 +57,7 @@ func TestCloseServer(t *testing.T) {
 }
 
 func TestDoubleCloseServer(t *testing.T) {
-	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 	server := chain.NewNetworkServiceEndpointRegistryServer(
 		begin.NewNetworkServiceEndpointRegistryServer(),
 		&doubleCloseServer{t: t, NetworkServiceEndpointRegistryServer: null.NewNetworkServiceEndpointRegistryServer()},
