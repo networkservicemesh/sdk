@@ -36,8 +36,7 @@ import (
 )
 
 func Test_Client_ConnectsToVl3NSE(t *testing.T) {
-	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -91,8 +90,7 @@ func Test_Client_ConnectsToVl3NSE(t *testing.T) {
 }
 
 func Test_VL3NSE_ConnectsToVl3NSE(t *testing.T) {
-	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -150,8 +148,7 @@ func Test_VL3NSE_ConnectsToVl3NSE(t *testing.T) {
 }
 
 func Test_VL3NSE_ConnectsToVl3NSE_ChangePrefix(t *testing.T) {
-	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -214,8 +211,7 @@ func Test_VL3NSE_ConnectsToVl3NSE_ChangePrefix(t *testing.T) {
 }
 
 func Test_VL3NSE_ConnectsToVl3NSE_Close(t *testing.T) {
-	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()

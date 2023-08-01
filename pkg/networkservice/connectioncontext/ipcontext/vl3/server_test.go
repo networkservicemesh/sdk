@@ -34,8 +34,7 @@ import (
 )
 
 func Test_NSC_ConnectsToVl3NSE(t *testing.T) {
-	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	var prefixCh = make(chan *ipam.PrefixResponse, 1)
 	defer close(prefixCh)
@@ -77,8 +76,7 @@ func Test_NSC_ConnectsToVl3NSE(t *testing.T) {
 }
 
 func Test_NSC_ConnectsToVl3NSE_PrefixHasChanged(t *testing.T) {
-	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	var prefixCh = make(chan *ipam.PrefixResponse, 1)
 	defer close(prefixCh)
@@ -124,8 +122,7 @@ func Test_NSC_ConnectsToVl3NSE_PrefixHasChanged(t *testing.T) {
 }
 
 func Test_NSC_ConnectsToVl3NSE_Close(t *testing.T) {
-	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	var prefixCh = make(chan *ipam.PrefixResponse, 1)
 	defer close(prefixCh)
