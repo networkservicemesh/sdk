@@ -134,6 +134,7 @@ func TestRefreshDuringClose_Client(t *testing.T) {
 
 // This test checks if the timeout for the Request/Close called from the event factory is correct
 func TestContextTimeout_Client(t *testing.T) {
+	// trigger tests
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
