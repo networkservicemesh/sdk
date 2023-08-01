@@ -56,6 +56,7 @@ func requireIPv4Lookup(ctx context.Context, t *testing.T, r *net.Resolver, host,
 }
 
 func Test_DNSUsecase(t *testing.T) {
+	// trigger tests
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*200)
