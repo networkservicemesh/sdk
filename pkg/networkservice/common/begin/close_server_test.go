@@ -33,7 +33,6 @@ import (
 
 func TestCloseServer(t *testing.T) {
 	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	server := chain.NewNetworkServiceServer(
 		begin.NewServer(),
 		&markServer{t: t},
@@ -76,8 +75,7 @@ func (m *markServer) Close(ctx context.Context, conn *networkservice.Connection)
 var _ networkservice.NetworkServiceServer = &markServer{}
 
 func TestDoubleCloseServer(t *testing.T) {
-	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 	server := chain.NewNetworkServiceServer(
 		begin.NewServer(),
 		&doubleCloseServer{t: t},

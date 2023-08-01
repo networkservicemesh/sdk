@@ -64,8 +64,7 @@ func testNSE(clockTime clock.Clock) *registry.NetworkServiceEndpoint {
 }
 
 func Test_NetworkServiceEndpointRefreshClient_ShouldWorkCorrectlyWithFloatingScenario(t *testing.T) {
-	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -105,8 +104,7 @@ func Test_NetworkServiceEndpointRefreshClient_ShouldWorkCorrectlyWithFloatingSce
 }
 
 func TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {
-	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -134,8 +132,7 @@ func TestNewNetworkServiceEndpointRegistryClient(t *testing.T) {
 }
 
 func Test_RefreshNSEClient_CalledRegisterTwice(t *testing.T) {
-	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -166,8 +163,7 @@ func Test_RefreshNSEClient_CalledRegisterTwice(t *testing.T) {
 }
 
 func Test_RefreshNSEClient_StopsRefreshOnUnregister(t *testing.T) {
-	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -225,8 +221,7 @@ func Test_RefreshNSEClient_StopsRefreshOnUnregister(t *testing.T) {
 }
 
 func Test_RefreshNSEClient_SetsCorrectExpireTime(t *testing.T) {
-	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -266,8 +261,7 @@ func Test_RefreshNSEClient_SetsCorrectExpireTime(t *testing.T) {
 }
 
 func Test_RefreshNSEClient_CorrectInitialRegTime(t *testing.T) {
-	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()

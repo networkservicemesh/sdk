@@ -38,7 +38,6 @@ const (
 
 func TestCloseClient(t *testing.T) {
 	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 	client := chain.NewNetworkServiceClient(
 		begin.NewClient(),
 		&markClient{t: t},
@@ -81,8 +80,7 @@ func (m *markClient) Close(ctx context.Context, conn *networkservice.Connection,
 var _ networkservice.NetworkServiceClient = &markClient{}
 
 func TestDoubleCloseClient(t *testing.T) {
-	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 	client := chain.NewNetworkServiceClient(
 		begin.NewClient(),
 		&doubleCloseClient{t: t},

@@ -244,8 +244,7 @@ func TestConnectNSEServer_AllDead_WatchingFind(t *testing.T) {
 	}
 }
 
-func Test_ConenctNSEChain_Find(t *testing.T) {
-	t.Parallel()
+func Test_ConnectNSEChain_Find(t *testing.T) {
 	for depth := 2; depth < 11; depth++ {
 		for killIndex := 1; killIndex < depth; killIndex++ {
 			var ctx, cancel = context.WithTimeout(context.Background(), time.Second)

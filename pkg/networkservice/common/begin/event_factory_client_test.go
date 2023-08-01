@@ -22,9 +22,9 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"go.uber.org/goleak"
 
 	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
@@ -40,8 +40,7 @@ import (
 // This test reproduces the situation when refresh changes the eventFactory context
 // nolint:dupl
 func TestContextValues_Client(t *testing.T) {
-	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
+	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	checkCtxCl := &checkContextClient{t: t}
 	eventFactoryCl := &eventFactoryClient{}
@@ -94,7 +93,6 @@ func TestContextValues_Client(t *testing.T) {
 // nolint:dupl
 func TestRefreshDuringClose_Client(t *testing.T) {
 	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	checkCtxCl := &checkContextClient{t: t}
 	eventFactoryCl := &eventFactoryClient{}
@@ -137,7 +135,6 @@ func TestRefreshDuringClose_Client(t *testing.T) {
 // This test checks if the timeout for the Request/Close called from the event factory is correct
 func TestContextTimeout_Client(t *testing.T) {
 	t.Parallel()
-	t.Cleanup(func() { goleak.VerifyNone(t, goleak.IgnoreCurrent()) })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
