@@ -112,7 +112,7 @@ func TestMain(m *testing.M) {
 
 func TestRefreshClient_ValidRefresh(t *testing.T) {
 	t.Parallel()
-	refresh.GetLeak()
+	// refresh.GetLeak()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
