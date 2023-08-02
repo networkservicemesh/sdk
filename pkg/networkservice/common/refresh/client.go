@@ -98,6 +98,13 @@ func (t *refreshClient) Close(ctx context.Context, conn *networkservice.Connecti
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
+func GetLeak() {
+	var ch chan struct{}
+	go func() {
+		<-ch
+	}()
+}
+
 func after(ctx context.Context, conn *networkservice.Connection) time.Duration {
 	clockTime := clock.FromContext(ctx)
 

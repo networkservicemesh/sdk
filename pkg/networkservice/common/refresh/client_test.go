@@ -106,8 +106,13 @@ func testClient(
 	)
 }
 
+func TestMain(m *testing.M) {
+	goleak.VerifyTestMain(m)
+}
+
 func TestRefreshClient_ValidRefresh(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
+	refresh.GetLeak()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -144,7 +149,7 @@ func TestRefreshClient_ValidRefresh(t *testing.T) {
 }
 
 func TestRefreshClient_StopRefreshAtClose(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -185,7 +190,7 @@ func TestRefreshClient_StopRefreshAtClose(t *testing.T) {
 }
 
 func TestRefreshClient_RestartsRefreshAtAnotherRequest(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -232,7 +237,7 @@ type stressTestConfig struct {
 }
 
 func TestRefreshClient_CheckRaceConditions(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	conf := &stressTestConfig{
 		name:          "RaceConditions",
@@ -256,7 +261,7 @@ func TestRefreshClient_CheckRaceConditions(t *testing.T) {
 func TestRefreshClient_Sandbox(t *testing.T) {
 	t.Skip("https://github.com/networkservicemesh/sdk/issues/839")
 
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), sandboxTotalTimeout)
 	defer cancel()
@@ -299,7 +304,7 @@ func TestRefreshClient_Sandbox(t *testing.T) {
 }
 
 func TestRefreshClient_NoRefreshOnFailure(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -326,7 +331,7 @@ func TestRefreshClient_NoRefreshOnFailure(t *testing.T) {
 }
 
 func TestRefreshClient_CalculatesShortestTokenTimeout(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
@@ -397,7 +402,7 @@ func TestRefreshClient_CalculatesShortestTokenTimeout(t *testing.T) {
 }
 
 func TestRefreshClient_RefreshOnRefreshFailure(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
