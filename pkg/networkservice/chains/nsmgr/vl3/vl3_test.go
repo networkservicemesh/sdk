@@ -49,6 +49,11 @@ import (
 )
 
 const (
+	tick    = 10 * time.Millisecond
+	timeout = 10 * time.Second
+)
+
+const (
 	nscName = "nsc"
 )
 
