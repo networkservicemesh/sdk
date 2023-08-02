@@ -27,7 +27,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
