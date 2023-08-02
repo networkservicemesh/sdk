@@ -44,11 +44,15 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
+func TestMain(m *testing.M) {
+	goleak.VerifyTestMain(m)
+}
+
 // TestNSMGR_InterdomainUseCase covers simple interdomain scenario:
 //
 //	nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy2 -> nsmgr2 ->forwarder2 -> nsmgr2 -> nse3
 func TestNSMGR_InterdomainUseCase(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -124,7 +128,7 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 // request1: nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy2 -> nsmgr2 ->forwarder2 -> nsmgr2 -> final-endpoint via cluster2
 // request2: nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy2 -> nsmgr2 ->forwarder2 -> nsmgr2 -> final-endpoint via floating registry
 func Test_NSEMovedFromInterdomainToFloatingUseCase(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -249,7 +253,7 @@ func Test_NSEMovedFromInterdomainToFloatingUseCase(t *testing.T) {
 //	nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy2 -> nsmgr2 ->forwarder2 -> nsmgr2 -> nse2
 //	nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy3 -> nsmgr3 ->forwarder3 -> nsmgr3 -> nse3
 func TestNSMGR_Interdomain_TwoNodesNSEs(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -353,7 +357,7 @@ func TestNSMGR_Interdomain_TwoNodesNSEs(t *testing.T) {
 //
 //	nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy2 -> nsmgr2 ->forwarder2 -> nsmgr2 -> nse3
 func TestNSMGR_FloatingInterdomainUseCase(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -448,7 +452,7 @@ func TestNSMGR_FloatingInterdomainUseCase(t *testing.T) {
 //
 //	nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy2 -> nsmgr2 ->forwarder2 -> nsmgr2 -> nse3
 func TestNSMGR_FloatingInterdomainUseCase_FloatingNetworkServiceNameRegistration(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -531,7 +535,7 @@ func TestNSMGR_FloatingInterdomainUseCase_FloatingNetworkServiceNameRegistration
 //	nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy2 -> nsmgr2 ->forwarder2 -> nsmgr2 -> nse2
 //	nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy3 -> nsmgr3 ->forwarder3 -> nsmgr3 -> nse3
 func TestNSMGR_FloatingInterdomain_FourClusters(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -694,6 +698,7 @@ func (c *passThroughClient) Close(ctx context.Context, conn *networkservice.Conn
 // nse1 -> nsmgr1 ->  forwarder1 -> nsmg1 -> nsmgr-proxy1 -> nsmgr-proxy0 -> nsmgr0 -> forwarder0 -> nsmgr0 -> nse0
 
 func Test_Interdomain_PassThroughUsecase(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
