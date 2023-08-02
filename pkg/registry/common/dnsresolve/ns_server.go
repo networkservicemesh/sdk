@@ -20,8 +20,9 @@ package dnsresolve
 
 import (
 	"context"
-	"errors"
 	"net"
+
+	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 

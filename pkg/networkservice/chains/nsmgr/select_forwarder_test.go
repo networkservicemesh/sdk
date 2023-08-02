@@ -305,9 +305,8 @@ func Test_DiscoverForwarder_ChangeRemoteForwarderOnDeath(t *testing.T) {
 }
 
 func Test_DiscoverForwarder_Should_KeepSelectedForwarderWhileConnectionIsFine(t *testing.T) {
-	t.Skip("this test is unstable")
+  t.Parallel()
 
-	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
 	defer cancel()
@@ -366,7 +365,7 @@ func Test_DiscoverForwarder_Should_KeepSelectedForwarderWhileConnectionIsFine(t 
 
 	domain.Registry.Restart()
 
-	domain.Nodes[0].NSMgr.Restart()
+	domain.Nodes[0].Forwarders[selectedForwarder].Restart()
 
 	require.Eventually(t, checkSecondRequestsReceived(counter.Requests), timeout, tick)
 	require.Equal(t, 1, counter.UniqueRequests())
