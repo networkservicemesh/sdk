@@ -69,7 +69,6 @@ func TestNSMGR_HealEndpoint(t *testing.T) {
 	for _, sample := range samples {
 		sample := sample
 		t.Run(sample.name, func(t *testing.T) {
-			// nolint:scopelint
 			t.Parallel()
 			testNSMGRHealEndpoint(t, sample.nodeNum)
 		})
