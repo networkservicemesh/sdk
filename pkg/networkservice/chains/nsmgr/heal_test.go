@@ -67,15 +67,16 @@ func TestNSMGR_HealEndpoint(t *testing.T) {
 	}
 
 	for _, sample := range samples {
+		sample := sample
 		t.Run(sample.name, func(t *testing.T) {
 			// nolint:scopelint
+			t.Parallel()
 			testNSMGRHealEndpoint(t, sample.nodeNum)
 		})
 	}
 }
 
 func testNSMGRHealEndpoint(t *testing.T, nodeNum int) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
 	defer cancel()
@@ -131,7 +132,7 @@ func TestNSMGRHealEndpoint_DataPlaneBroken_CtrlPlaneBroken(t *testing.T) {
 	// This the same test as above but here we explicitly provided livenessCheck function
 	// The above test is for nil livenessCheck
 
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
 	defer cancel()
@@ -193,7 +194,7 @@ func TestNSMGRHealEndpoint_DataPlaneBroken_CtrlPlaneHealthy(t *testing.T) {
 	// This the same test as above but here we explicitly provided livenessCheck function
 	// The above test is for nil livenessCheck
 
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
 	defer cancel()
@@ -248,7 +249,7 @@ func TestNSMGRHealEndpoint_DataPlaneBroken_CtrlPlaneHealthy(t *testing.T) {
 }
 
 func TestNSMGRHealEndpoint_DatapathHealthy_CtrlPlaneBroken(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
 	defer cancel()
@@ -307,16 +308,16 @@ func TestNSMGR_HealForwarder(t *testing.T) {
 	}
 
 	for _, sample := range samples {
+		sample := sample
 		t.Run(sample.name, func(t *testing.T) {
 			// nolint:scopelint
+			t.Parallel()
 			testNSMGRHealForwarder(t, sample.nodeNum)
 		})
 	}
 }
 
 func testNSMGRHealForwarder(t *testing.T, nodeNum int) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
@@ -389,16 +390,16 @@ func TestNSMGR_HealNSMgr(t *testing.T) {
 	}
 
 	for _, sample := range samples {
+		sample := sample
 		t.Run(sample.name, func(t *testing.T) {
 			// nolint:scopelint
+			t.Parallel()
 			testNSMGRHealNSMgr(t, sample.nodeNum, sample.restored)
 		})
 	}
 }
 
 func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
@@ -467,7 +468,7 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 }
 
 func TestNSMGR_HealRegistry(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -527,16 +528,16 @@ func TestNSMGR_CloseHeal(t *testing.T) {
 	}
 
 	for _, sample := range samples {
+		sample := sample
 		t.Run(sample.name, func(t *testing.T) {
 			// nolint:scopelint
+			t.Parallel()
 			testNSMGRCloseHeal(t, sample.withNSEExpiration)
 		})
 	}
 }
 
 func testNSMGRCloseHeal(t *testing.T, withNSEExpiration bool) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
@@ -641,16 +642,16 @@ func Test_ForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T) {
 	}
 
 	for _, sample := range samples {
+		sample := sample
 		t.Run(sample.name, func(t *testing.T) {
 			// nolint:scopelint
+			t.Parallel()
 			testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t, sample.nodeNum, sample.pathSegmentCount)
 		})
 	}
 }
 
 func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum, pathSegmentCount int) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	defer cancel()
 
@@ -740,7 +741,7 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 }
 
 func TestNSMGR_RefreshFailed_DataPlaneBroken(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()

@@ -25,7 +25,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/atomic"
-	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -36,7 +35,7 @@ import (
 )
 
 func TestCreateEndpointDuringRequest(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 

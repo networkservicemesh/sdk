@@ -32,7 +32,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
@@ -56,7 +55,7 @@ func requireIPv4Lookup(ctx context.Context, t *testing.T, r *net.Resolver, host,
 }
 
 func Test_DNSUsecase(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*200)
 	defer cancel()

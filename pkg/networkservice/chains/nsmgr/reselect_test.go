@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
@@ -63,15 +62,16 @@ func TestReselect_NsmgrRestart(t *testing.T) {
 	}
 
 	for _, sample := range samples {
+		sample := sample
 		t.Run(sample.name, func(t *testing.T) {
 			// nolint:scopelint
+			t.Parallel()
 			testReselectWithNsmgrRestart(t, sample.nodeNum, sample.restartLocal, sample.restartRemote)
 		})
 	}
 }
 
 func testReselectWithNsmgrRestart(t *testing.T, nodeNum int, restartLocal, restartRemote bool) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
 	// in this test we add counters to apps in chain
@@ -177,15 +177,16 @@ func TestReselect_LocalForwarderRestart(t *testing.T) {
 	}
 
 	for _, sample := range samples {
+		sample := sample
 		t.Run(sample.name, func(t *testing.T) {
 			// nolint:scopelint
+			t.Parallel()
 			testReselectWithLocalForwarderRestart(t, sample.nodeNum)
 		})
 	}
 }
 
 func testReselectWithLocalForwarderRestart(t *testing.T, nodeNum int) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
 	// in this test we add counters to apps in chain
@@ -281,7 +282,7 @@ func testReselectWithLocalForwarderRestart(t *testing.T, nodeNum int) {
 // will not be able to query it to get URLs to next app
 // but we still expect Close call to finish successfully
 func TestReselect_Close_RegistryDied(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
 	// in this test we add counters to apps in chain

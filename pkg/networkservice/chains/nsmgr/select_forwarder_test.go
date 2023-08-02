@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -38,7 +37,7 @@ import (
 )
 
 func Test_DiscoverForwarder_CloseAfterError(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
 	defer cancel()
@@ -84,7 +83,7 @@ func Test_DiscoverForwarder_CloseAfterError(t *testing.T) {
 }
 
 func Test_DiscoverForwarder_ChangeForwarderOnClose(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
 	defer cancel()
@@ -167,7 +166,7 @@ func Test_DiscoverForwarder_ChangeForwarderOnClose(t *testing.T) {
 }
 
 func Test_DiscoverForwarder_ChangeForwarderOnDeath_LostHeal(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
 	defer cancel()
@@ -233,7 +232,7 @@ func Test_DiscoverForwarder_ChangeForwarderOnDeath_LostHeal(t *testing.T) {
 }
 
 func Test_DiscoverForwarder_ChangeRemoteForwarderOnDeath(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
 	defer cancel()
@@ -308,7 +307,7 @@ func Test_DiscoverForwarder_ChangeRemoteForwarderOnDeath(t *testing.T) {
 func Test_DiscoverForwarder_Should_KeepSelectedForwarderWhileConnectionIsFine(t *testing.T) {
 	t.Skip("this test is unstable")
 
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
 	defer cancel()

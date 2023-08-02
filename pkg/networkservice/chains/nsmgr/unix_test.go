@@ -42,7 +42,7 @@ import (
 )
 
 func Test_Local_NoURLUsecase(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -87,7 +87,7 @@ func Test_Local_NoURLUsecase(t *testing.T) {
 }
 
 func Test_MultiForwarderSendfd(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()

@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
@@ -29,6 +30,10 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
+
+func TestMain(m *testing.M) {
+	goleak.VerifyTestMain(m)
+}
 
 func defaultRegistryService(name string) *registry.NetworkService {
 	return &registry.NetworkService{

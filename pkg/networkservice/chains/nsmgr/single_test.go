@@ -28,7 +28,6 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
@@ -58,7 +57,7 @@ import (
 )
 
 func Test_AwareNSEs(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -188,7 +187,7 @@ func Test_AwareNSEs(t *testing.T) {
 }
 
 func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -253,7 +252,7 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 }
 
 func Test_UsecasePoint2MultiPoint(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -372,7 +371,7 @@ func Test_UsecasePoint2MultiPoint(t *testing.T) {
 }
 
 func Test_RemoteUsecase_Point2MultiPoint(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -497,7 +496,7 @@ func tokenGeneratorFunc(spiffeID string) token.GeneratorFunc {
 }
 
 func Test_FailedRegistryAuthorization(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -607,7 +606,7 @@ func createAuthorizedEndpoint(ctx context.Context, t *testing.T, ns string, nsmg
 // This test checks timeout on sandbox
 // We run nsmgr and NSE with networkservice authorize chain element (tokens_expired.rego)
 func Test_Timeout(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	// timeout chain element will call Close() after (tokenTimeout - requestTimeout)
 	// to be sure that token is not expired
@@ -668,7 +667,7 @@ func Test_Timeout(t *testing.T) {
 // This test checks registry expire on sandbox
 // We run nsmgr and registry with registry authorize chain element (tokens_expired.rego)
 func Test_Expire(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
+	t.Parallel()
 
 	// expire chain element will call Unregister() after (tokenTimeout - registerTimeout)
 	// to be sure that token is not expired
