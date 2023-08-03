@@ -53,11 +53,11 @@ func Test_Local_NoURLUsecase(t *testing.T) {
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
+	nsReg, err := nsRegistryClient.Register(ctx, sandbox.DefaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
-	request := defaultRequest(nsReg.Name)
+	nseReg := sandbox.DefaultRegistryEndpoint(nsReg.Name)
+	request := sandbox.DefaultRequest(nsReg.Name)
 	counter := new(count.Server)
 
 	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
@@ -127,17 +127,17 @@ func Test_MultiForwarderSendfd(t *testing.T) {
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
+	nsReg, err := nsRegistryClient.Register(ctx, sandbox.DefaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := sandbox.DefaultRegistryEndpoint(nsReg.Name)
 	counter := new(count.Server)
 
 	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(kernel.NewClient(), sendfd.NewClient()))
 
-	request := defaultRequest(nsReg.Name)
+	request := sandbox.DefaultRequest(nsReg.Name)
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
