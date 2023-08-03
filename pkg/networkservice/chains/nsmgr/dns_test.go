@@ -49,7 +49,7 @@ import (
 )
 
 func requireIPv4Lookup(ctx context.Context, t *testing.T, r *net.Resolver, host, expected string) {
-	// to trigger
+	// to trigger build
 	addrs, err := r.LookupIP(ctx, "ip4", host)
 	require.NoError(t, err)
 	require.Len(t, addrs, 1)
