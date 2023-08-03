@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2023 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -630,7 +630,7 @@ func (s *nsmgrSuite) Test_ShouldCleanAllClientAndEndpointGoroutines() {
 	//   1. GRPC request context cancel
 	//   2. NSC connection close
 	//   3. NSE unregister
-	sandbox.TestNSEAndClient(ctx, t, s.domain, sandbox.DefaultRegistryEndpoint(nsReg.Name))
+	testNSEAndClient(ctx, t, s.domain, sandbox.DefaultRegistryEndpoint(nsReg.Name))
 }
 
 func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
@@ -840,4 +840,29 @@ func newPassThroughEndpoint(
 	}
 
 	return nseReg, node.NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, additionalFunctionality...)
+}
+
+func testNSEAndClient(
+	ctx context.Context,
+	t *testing.T,
+	domain *sandbox.Domain,
+	nseReg *registry.NetworkServiceEndpoint,
+) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
+
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	request := sandbox.DefaultRequest(nseReg.NetworkServiceNames[0])
+
+	conn, err := nsc.Request(ctx, request)
+	require.NoError(t, err)
+
+	_, err = nsc.Close(ctx, conn)
+	require.NoError(t, err)
+
+	_, err = nse.Unregister(ctx, nseReg)
+	require.NoError(t, err)
 }

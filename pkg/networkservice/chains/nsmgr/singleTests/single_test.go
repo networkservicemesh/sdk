@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2023 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -57,6 +57,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
+// nolint:funlen
 func Test_AwareNSEs(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 

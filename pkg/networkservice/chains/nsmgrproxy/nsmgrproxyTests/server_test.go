@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2023 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -530,6 +530,8 @@ func TestNSMGR_FloatingInterdomainUseCase_FloatingNetworkServiceNameRegistration
 //
 //	nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy2 -> nsmgr2 ->forwarder2 -> nsmgr2 -> nse2
 //	nsc -> nsmgr1 ->  forwarder1 -> nsmgr1 -> nsmgr-proxy1 -> nsmg-proxy3 -> nsmgr3 ->forwarder3 -> nsmgr3 -> nse3
+//
+// nolint:funlen
 func TestNSMGR_FloatingInterdomain_FourClusters(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 

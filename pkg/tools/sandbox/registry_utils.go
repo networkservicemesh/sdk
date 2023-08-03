@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2023 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -31,16 +31,20 @@ import (
 )
 
 const (
-	Tick    = 10 * time.Millisecond
+	// Tick is a default tick for the sandbox tests
+	Tick = 10 * time.Millisecond
+	// Timeout is a default timeout for the sandbox tests
 	Timeout = 10 * time.Second
 )
 
+// CheckSecondRequestsReceived makes checking multiple requests for the sandbox tests
 func CheckSecondRequestsReceived(requestsDone func() int) func() bool {
 	return func() bool {
 		return requestsDone() >= 2
 	}
 }
 
+// RequireIPv4Lookup makes IPv4 lookup for the sandbox tests
 func RequireIPv4Lookup(ctx context.Context, t *testing.T, r *net.Resolver, host, expected string) {
 	addrs, err := r.LookupIP(ctx, "ip4", host)
 	require.NoError(t, err)
@@ -48,12 +52,14 @@ func RequireIPv4Lookup(ctx context.Context, t *testing.T, r *net.Resolver, host,
 	require.Equal(t, expected, addrs[0].String())
 }
 
+// DefaultRegistryService is a default registry service for the sandbox tests
 func DefaultRegistryService(name string) *registry.NetworkService {
 	return &registry.NetworkService{
 		Name: name,
 	}
 }
 
+// DefaultRegistryEndpoint returns a default registry endpoint for the sandbox tests
 func DefaultRegistryEndpoint(nsName string) *registry.NetworkServiceEndpoint {
 	return &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint",
@@ -61,6 +67,7 @@ func DefaultRegistryEndpoint(nsName string) *registry.NetworkServiceEndpoint {
 	}
 }
 
+// DefaultRequest returns a default request to Network Service for the sandbox tests
 func DefaultRequest(nsName string) *networkservice.NetworkServiceRequest {
 	return &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -73,29 +80,4 @@ func DefaultRequest(nsName string) *networkservice.NetworkServiceRequest {
 			Labels:         make(map[string]string),
 		},
 	}
-}
-
-func TestNSEAndClient(
-	ctx context.Context,
-	t *testing.T,
-	domain *Domain,
-	nseReg *registry.NetworkServiceEndpoint,
-) {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, GenerateTestToken)
-
-	nsc := domain.Nodes[0].NewClient(ctx, GenerateTestToken)
-
-	request := DefaultRequest(nseReg.NetworkServiceNames[0])
-
-	conn, err := nsc.Request(ctx, request)
-	require.NoError(t, err)
-
-	_, err = nsc.Close(ctx, conn)
-	require.NoError(t, err)
-
-	_, err = nse.Unregister(ctx, nseReg)
-	require.NoError(t, err)
 }

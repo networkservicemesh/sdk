@@ -294,9 +294,9 @@ func waitNetworkServiceReady(target *url.URL) error {
 		Service: networkservice.ServiceNames(null.NewServer())[0],
 	}
 
-	client := grpc_health_v1.NewHealthClient(cc)
+	healthClient := grpc_health_v1.NewHealthClient(cc)
 	for ctx.Err() == nil {
-		response, err := client.Check(ctx, healthCheckRequest)
+		response, err := healthClient.Check(ctx, healthCheckRequest)
 		if err != nil {
 			return err
 		}
