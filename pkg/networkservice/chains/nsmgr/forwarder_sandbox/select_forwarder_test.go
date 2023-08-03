@@ -39,7 +39,7 @@ import (
 
 func Test_DiscoverForwarder_CloseAfterError(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), sandbox.Timeout)
 
 	defer cancel()
 	domain := sandbox.NewBuilder(ctx, t).
@@ -50,18 +50,18 @@ func Test_DiscoverForwarder_CloseAfterError(t *testing.T) {
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg := defaultRegistryService(t.Name())
+	nsReg := sandbox.DefaultRegistryService(t.Name())
 	nsReg, err := nsRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := sandbox.DefaultRegistryEndpoint(nsReg.Name)
 
 	counter := new(count.Server)
 	// allow only one successful request
 	inject := injecterror.NewServer(injecterror.WithCloseErrorTimes(), injecterror.WithRequestErrorTimes(1, -1))
 	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter, inject)
 
-	request := defaultRequest(nsReg.Name)
+	request := sandbox.DefaultRequest(nsReg.Name)
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -85,7 +85,7 @@ func Test_DiscoverForwarder_CloseAfterError(t *testing.T) {
 
 func Test_DiscoverForwarder_ChangeForwarderOnClose(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), sandbox.Timeout)
 
 	defer cancel()
 	domain := sandbox.NewBuilder(ctx, t).
@@ -107,11 +107,11 @@ func Test_DiscoverForwarder_ChangeForwarderOnClose(t *testing.T) {
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg := defaultRegistryService(t.Name())
+	nsReg := sandbox.DefaultRegistryService(t.Name())
 	nsReg, err := nsRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := sandbox.DefaultRegistryEndpoint(nsReg.Name)
 
 	// forwarder selection is stochastic
 	// it's possible to get the same forwarder after close by pure luck
@@ -135,7 +135,7 @@ func Test_DiscoverForwarder_ChangeForwarderOnClose(t *testing.T) {
 	counter := new(count.Server)
 	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter, inject)
 
-	request := defaultRequest(nsReg.Name)
+	request := sandbox.DefaultRequest(nsReg.Name)
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -168,7 +168,7 @@ func Test_DiscoverForwarder_ChangeForwarderOnClose(t *testing.T) {
 
 func Test_DiscoverForwarder_ChangeForwarderOnDeath_LostHeal(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), sandbox.Timeout)
 
 	defer cancel()
 	domain := sandbox.NewBuilder(ctx, t).
@@ -190,16 +190,16 @@ func Test_DiscoverForwarder_ChangeForwarderOnDeath_LostHeal(t *testing.T) {
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg := defaultRegistryService(t.Name())
+	nsReg := sandbox.DefaultRegistryService(t.Name())
 	nsReg, err := nsRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := sandbox.DefaultRegistryEndpoint(nsReg.Name)
 
 	counter := new(count.Server)
 	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
-	request := defaultRequest(nsReg.Name)
+	request := sandbox.DefaultRequest(nsReg.Name)
 
 	clientCounter := new(count.Client)
 	// make sure that Close from heal doesn't clear the forwarder name
@@ -217,7 +217,7 @@ func Test_DiscoverForwarder_ChangeForwarderOnDeath_LostHeal(t *testing.T) {
 
 	domain.Nodes[0].Forwarders[selectedForwarder].Cancel()
 
-	require.Eventually(t, checkSecondRequestsReceived(counter.Requests), timeout, tick)
+	require.Eventually(t, sandbox.CheckSecondRequestsReceived(counter.Requests), sandbox.Timeout, sandbox.Tick)
 	require.Equal(t, 1, counter.UniqueRequests())
 	require.Equal(t, 2, counter.Requests())
 	require.Equal(t, 1, counter.Closes())
@@ -234,7 +234,7 @@ func Test_DiscoverForwarder_ChangeForwarderOnDeath_LostHeal(t *testing.T) {
 
 func Test_DiscoverForwarder_ChangeRemoteForwarderOnDeath(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), sandbox.Timeout)
 
 	defer cancel()
 	domain := sandbox.NewBuilder(ctx, t).
@@ -261,16 +261,16 @@ func Test_DiscoverForwarder_ChangeRemoteForwarderOnDeath(t *testing.T) {
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg := defaultRegistryService(t.Name())
+	nsReg := sandbox.DefaultRegistryService(t.Name())
 	nsReg, err := nsRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := sandbox.DefaultRegistryEndpoint(nsReg.Name)
 
 	counter := new(count.Server)
 	domain.Nodes[1].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
-	request := defaultRequest(nsReg.Name)
+	request := sandbox.DefaultRequest(nsReg.Name)
 
 	clientCounter := new(count.Client)
 	// make sure that Close from heal doesn't clear the forwarder name
@@ -290,7 +290,7 @@ func Test_DiscoverForwarder_ChangeRemoteForwarderOnDeath(t *testing.T) {
 
 	domain.Nodes[1].Forwarders[selectedForwarder].Cancel()
 
-	require.Eventually(t, checkSecondRequestsReceived(counter.Requests), timeout, tick)
+	require.Eventually(t, sandbox.CheckSecondRequestsReceived(counter.Requests), sandbox.Timeout, sandbox.Tick)
 	require.Equal(t, 1, counter.UniqueRequests())
 	require.Equal(t, 2, counter.Requests())
 	require.Equal(t, 1, counter.Closes())
@@ -307,7 +307,7 @@ func Test_DiscoverForwarder_ChangeRemoteForwarderOnDeath(t *testing.T) {
 
 func Test_DiscoverForwarder_Should_KeepSelectedForwarderWhileConnectionIsFine(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), sandbox.Timeout)
 
 	defer cancel()
 	domain := sandbox.NewBuilder(ctx, t).
@@ -329,16 +329,16 @@ func Test_DiscoverForwarder_Should_KeepSelectedForwarderWhileConnectionIsFine(t 
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg := defaultRegistryService(t.Name())
+	nsReg := sandbox.DefaultRegistryService(t.Name())
 	nsReg, err := nsRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := sandbox.DefaultRegistryEndpoint(nsReg.Name)
 
 	counter := new(count.Server)
 	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
-	request := defaultRequest(nsReg.Name)
+	request := sandbox.DefaultRequest(nsReg.Name)
 
 	var livenessValue atomic.Value
 	livenessValue.Store(true)
@@ -367,7 +367,7 @@ func Test_DiscoverForwarder_Should_KeepSelectedForwarderWhileConnectionIsFine(t 
 
 	domain.Nodes[0].Forwarders[selectedForwarder].Restart()
 
-	require.Eventually(t, checkSecondRequestsReceived(counter.Requests), timeout, tick)
+	require.Eventually(t, sandbox.CheckSecondRequestsReceived(counter.Requests), sandbox.Timeout, sandbox.Tick)
 	require.Equal(t, 1, counter.UniqueRequests())
 	require.Equal(t, 2, counter.Requests())
 	require.Equal(t, 0, counter.Closes())

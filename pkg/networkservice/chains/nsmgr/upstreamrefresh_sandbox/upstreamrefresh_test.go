@@ -51,10 +51,10 @@ func Test_UpstreamRefreshClient(t *testing.T) {
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService("my-service"))
+	nsReg, err := nsRegistryClient.Register(ctx, sandbox.DefaultRegistryService("my-service"))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := sandbox.DefaultRegistryEndpoint(nsReg.Name)
 
 	// This NSE will send REFRESH_REQUESTED events if mtu will be changed
 	counter := new(count.Server)
@@ -71,7 +71,7 @@ func Test_UpstreamRefreshClient(t *testing.T) {
 	reqCtx, reqClose := context.WithTimeout(ctx, time.Second)
 	defer reqClose()
 
-	req := defaultRequest(nsReg.Name)
+	req := sandbox.DefaultRequest(nsReg.Name)
 	req.Connection.Id = uuid.New().String()
 	req.GetConnection().GetContext().MTU = defaultMtu
 
@@ -85,7 +85,7 @@ func Test_UpstreamRefreshClient(t *testing.T) {
 	defer reqClose2()
 
 	// Change MTU for the second client
-	req2 := defaultRequest(nsReg.Name)
+	req2 := sandbox.DefaultRequest(nsReg.Name)
 	req2.Connection.Id = uuid.New().String()
 	req2.GetConnection().GetContext().MTU = 1000
 
@@ -94,7 +94,7 @@ func Test_UpstreamRefreshClient(t *testing.T) {
 	require.Equal(t, 2, counter.UniqueRequests())
 
 	// The request from the second client should trigger refresh on the first one
-	require.Eventually(t, func() bool { return counter.Requests() == 3 }, timeout, tick)
+	require.Eventually(t, func() bool { return counter.Requests() == 3 }, sandbox.Timeout, sandbox.Tick)
 
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
@@ -116,7 +116,7 @@ func Test_UpstreamRefreshClient_LocalNotifications(t *testing.T) {
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService("my-service"))
+	nsReg, err := nsRegistryClient.Register(ctx, sandbox.DefaultRegistryService("my-service"))
 	require.NoError(t, err)
 
 	// Create the first NSE
@@ -154,7 +154,7 @@ func Test_UpstreamRefreshClient_LocalNotifications(t *testing.T) {
 	reqCtx, reqClose := context.WithTimeout(ctx, time.Second)
 	defer reqClose()
 
-	req := defaultRequest(nsReg.Name)
+	req := sandbox.DefaultRequest(nsReg.Name)
 	req.Connection.Id = "1"
 	req.GetConnection().NetworkServiceEndpointName = nseReg.Name
 	req.GetConnection().GetContext().MTU = defaultMtu
@@ -167,7 +167,7 @@ func Test_UpstreamRefreshClient_LocalNotifications(t *testing.T) {
 	reqCtx2, reqClose2 := context.WithTimeout(ctx, time.Second)
 	defer reqClose2()
 
-	req2 := defaultRequest(nsReg.Name)
+	req2 := sandbox.DefaultRequest(nsReg.Name)
 	req2.Connection.Id = "2"
 	req2.GetConnection().NetworkServiceEndpointName = nseReg2.Name
 	req2.GetConnection().GetContext().MTU = defaultMtu
@@ -180,7 +180,7 @@ func Test_UpstreamRefreshClient_LocalNotifications(t *testing.T) {
 	reqCtx3, reqClose3 := context.WithTimeout(ctx, time.Second)
 	defer reqClose3()
 
-	req3 := defaultRequest(nsReg.Name)
+	req3 := sandbox.DefaultRequest(nsReg.Name)
 	req3.Connection.Id = "3"
 	req3.GetConnection().NetworkServiceEndpointName = nseReg.Name
 	req3.GetConnection().GetContext().MTU = 1000
@@ -190,7 +190,7 @@ func Test_UpstreamRefreshClient_LocalNotifications(t *testing.T) {
 	require.Equal(t, 2, counter1.UniqueRequests())
 
 	// Third request should trigger the first and the second to refresh their connections even if they connected to different endpoints
-	require.Eventually(t, func() bool { return counter2.Requests() == 2 }, timeout, tick)
+	require.Eventually(t, func() bool { return counter2.Requests() == 2 }, sandbox.Timeout, sandbox.Tick)
 	require.Equal(t, 1, counter2.UniqueRequests())
 
 	_, err = nsc.Close(ctx, conn)

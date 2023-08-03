@@ -72,7 +72,7 @@ func TestReselect_NsmgrRestart(t *testing.T) {
 
 func testReselectWithNsmgrRestart(t *testing.T, nodeNum int, restartLocal, restartRemote bool) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), sandbox.Timeout)
 
 	// in this test we add counters to apps in chain
 	// to make sure that in each app Close call goes through the whole chain,
@@ -98,15 +98,15 @@ func testReselectWithNsmgrRestart(t *testing.T, nodeNum int, restartLocal, resta
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
+	nsReg, err := nsRegistryClient.Register(ctx, sandbox.DefaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := sandbox.DefaultRegistryEndpoint(nsReg.Name)
 
 	counterNse := new(count.Server)
 	nse := domain.Nodes[nodeNum-1].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counterNse)
 
-	request := defaultRequest(nsReg.Name)
+	request := sandbox.DefaultRequest(nsReg.Name)
 
 	counterClient := new(count.Client)
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(counterClient))
@@ -123,12 +123,12 @@ func testReselectWithNsmgrRestart(t *testing.T, nodeNum int, restartLocal, resta
 
 	nse.Cancel()
 
-	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
+	nseReg2 := sandbox.DefaultRegistryEndpoint(nsReg.Name)
 	nseReg2.Name += "-2"
 	domain.Nodes[nodeNum-1].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counterNse)
 
 	// Wait for heal to finish successfully
-	require.Eventually(t, checkSecondRequestsReceived(counterNse.UniqueRequests), timeout, tick)
+	require.Eventually(t, sandbox.CheckSecondRequestsReceived(counterNse.UniqueRequests), sandbox.Timeout, sandbox.Tick)
 	// Client should try to close connection before reselect
 	require.Equal(t, 1, counterClient.UniqueCloses())
 	// Forwarder(s) should get a Close, even though NSMgr(s) restarted and didn't pass the Close
@@ -186,7 +186,7 @@ func TestReselect_LocalForwarderRestart(t *testing.T) {
 
 func testReselectWithLocalForwarderRestart(t *testing.T, nodeNum int) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), sandbox.Timeout)
 
 	// in this test we add counters to apps in chain
 	// to make sure that in each app Close call goes through the whole chain,
@@ -212,15 +212,15 @@ func testReselectWithLocalForwarderRestart(t *testing.T, nodeNum int) {
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
+	nsReg, err := nsRegistryClient.Register(ctx, sandbox.DefaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := sandbox.DefaultRegistryEndpoint(nsReg.Name)
 
 	counterNse := new(count.Server)
 	nse := domain.Nodes[nodeNum-1].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counterNse)
 
-	request := defaultRequest(nsReg.Name)
+	request := sandbox.DefaultRequest(nsReg.Name)
 
 	counterClient := new(count.Client)
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(counterClient))
@@ -235,7 +235,7 @@ func testReselectWithLocalForwarderRestart(t *testing.T, nodeNum int) {
 	nse.Cancel()
 
 	// Restart NSE and local forwarder
-	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
+	nseReg2 := sandbox.DefaultRegistryEndpoint(nsReg.Name)
 	nseReg2.Name += "-2"
 	domain.Nodes[nodeNum-1].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counterNse)
 
@@ -244,7 +244,7 @@ func testReselectWithLocalForwarderRestart(t *testing.T, nodeNum int) {
 	}
 
 	// Wait for heal to finish successfully
-	require.Eventually(t, checkSecondRequestsReceived(counterNse.UniqueRequests), timeout, tick)
+	require.Eventually(t, sandbox.CheckSecondRequestsReceived(counterNse.UniqueRequests), sandbox.Timeout, sandbox.Tick)
 	// Client should try to close connection before reselect
 	require.Equal(t, 1, counterClient.UniqueCloses())
 	// local Forwarder has restarted, new forwarder should not get a Close call
@@ -282,7 +282,7 @@ func testReselectWithLocalForwarderRestart(t *testing.T, nodeNum int) {
 // but we still expect Close call to finish successfully
 func TestReselect_Close_RegistryDied(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), sandbox.Timeout)
 
 	// in this test we add counters to apps in chain
 	// to make sure that in each app Close call goes through the whole chain,
@@ -305,15 +305,15 @@ func TestReselect_Close_RegistryDied(t *testing.T) {
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
+	nsReg, err := nsRegistryClient.Register(ctx, sandbox.DefaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := sandbox.DefaultRegistryEndpoint(nsReg.Name)
 
 	counterNse := new(count.Server)
 	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counterNse)
 
-	request := defaultRequest(nsReg.Name)
+	request := sandbox.DefaultRequest(nsReg.Name)
 
 	counterClient := new(count.Client)
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(counterClient))

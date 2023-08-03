@@ -14,11 +14,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package nsmgr_test
+package sandbox
 
 import (
 	"context"
+	"net"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -26,24 +28,40 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
-func defaultRegistryService(name string) *registry.NetworkService {
+const (
+	Tick    = 10 * time.Millisecond
+	Timeout = 10 * time.Second
+)
+
+func CheckSecondRequestsReceived(requestsDone func() int) func() bool {
+	return func() bool {
+		return requestsDone() >= 2
+	}
+}
+
+func RequireIPv4Lookup(ctx context.Context, t *testing.T, r *net.Resolver, host, expected string) {
+	addrs, err := r.LookupIP(ctx, "ip4", host)
+	require.NoError(t, err)
+	require.Len(t, addrs, 1)
+	require.Equal(t, expected, addrs[0].String())
+}
+
+func DefaultRegistryService(name string) *registry.NetworkService {
 	return &registry.NetworkService{
 		Name: name,
 	}
 }
 
-func defaultRegistryEndpoint(nsName string) *registry.NetworkServiceEndpoint {
+func DefaultRegistryEndpoint(nsName string) *registry.NetworkServiceEndpoint {
 	return &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint",
 		NetworkServiceNames: []string{nsName},
 	}
 }
 
-func defaultRequest(nsName string) *networkservice.NetworkServiceRequest {
+func DefaultRequest(nsName string) *networkservice.NetworkServiceRequest {
 	return &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
 			{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
@@ -57,20 +75,20 @@ func defaultRequest(nsName string) *networkservice.NetworkServiceRequest {
 	}
 }
 
-func testNSEAndClient(
+func TestNSEAndClient(
 	ctx context.Context,
 	t *testing.T,
-	domain *sandbox.Domain,
+	domain *Domain,
 	nseReg *registry.NetworkServiceEndpoint,
 ) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
+	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, GenerateTestToken)
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+	nsc := domain.Nodes[0].NewClient(ctx, GenerateTestToken)
 
-	request := defaultRequest(nseReg.NetworkServiceNames[0])
+	request := DefaultRequest(nseReg.NetworkServiceNames[0])
 
 	conn, err := nsc.Request(ctx, request)
 	require.NoError(t, err)

@@ -66,10 +66,10 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService("vl3"))
+	nsReg, err := nsRegistryClient.Register(ctx, sandbox.DefaultRegistryService("vl3"))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := sandbox.DefaultRegistryEndpoint(nsReg.Name)
 
 	var serverPrefixCh = make(chan *ipam.PrefixResponse, 1)
 	defer close(serverPrefixCh)
@@ -103,7 +103,7 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 		reqCtx, reqClose := context.WithTimeout(ctx, time.Second*1)
 		defer reqClose()
 
-		req := defaultRequest(nsReg.Name)
+		req := sandbox.DefaultRequest(nsReg.Name)
 		req.Connection.Id = uuid.New().String()
 
 		req.Connection.Labels["podName"] = nscName + fmt.Sprint(i)
@@ -115,12 +115,12 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 		require.Len(t, resp.GetContext().GetDnsContext().GetConfigs(), 1)
 		require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].DnsServerIps, 1)
 
-		requireIPv4Lookup(ctx, t, &resolver, nscName+fmt.Sprint(i)+".vl3", "10.0.0.1")
+		sandbox.RequireIPv4Lookup(ctx, t, &resolver, nscName+fmt.Sprint(i)+".vl3", "10.0.0.1")
 
 		resp, err = nsc.Request(reqCtx, req)
 		require.NoError(t, err)
 
-		requireIPv4Lookup(ctx, t, &resolver, nscName+fmt.Sprint(i)+".vl3", "10.0.0.1")
+		sandbox.RequireIPv4Lookup(ctx, t, &resolver, nscName+fmt.Sprint(i)+".vl3", "10.0.0.1")
 
 		_, err = nsc.Close(reqCtx, resp)
 		require.NoError(t, err)
@@ -151,10 +151,10 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService("vl3"))
+	nsReg, err := nsRegistryClient.Register(ctx, sandbox.DefaultRegistryService("vl3"))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := sandbox.DefaultRegistryEndpoint(nsReg.Name)
 
 	var serverPrefixCh = make(chan *ipam.PrefixResponse, 1)
 	defer close(serverPrefixCh)
@@ -195,7 +195,7 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 	clientPrefixCh <- &ipam.PrefixResponse{Prefix: "127.0.0.1/32"}
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(vl3dns.NewClient(net.ParseIP("127.0.0.1"), dnsConfigs), vl3.NewClient(ctx, clientPrefixCh)))
 
-	req := defaultRequest(nsReg.Name)
+	req := sandbox.DefaultRequest(nsReg.Name)
 	req.Connection.Id = uuid.New().String()
 
 	req.Connection.Labels["podName"] = nscName
@@ -208,16 +208,16 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 	require.Equal(t, "127.0.0.1/32", resp.GetContext().GetIpContext().GetSrcIpAddrs()[0])
 	req.Connection = resp.Clone()
 
-	requireIPv4Lookup(ctx, t, &resolver, "nsc.vl3", "127.0.0.1")
+	sandbox.RequireIPv4Lookup(ctx, t, &resolver, "nsc.vl3", "127.0.0.1")
 
-	requireIPv4Lookup(ctx, t, &resolver, "nsc1.vl3", "1.1.1.1") // we can lookup this ip address only and only if fanout is working
+	sandbox.RequireIPv4Lookup(ctx, t, &resolver, "nsc1.vl3", "1.1.1.1") // we can lookup this ip address only and only if fanout is working
 
 	resp, err = nsc.Request(ctx, req)
 	require.NoError(t, err)
 
-	requireIPv4Lookup(ctx, t, &resolver, "nsc.vl3", "127.0.0.1")
+	sandbox.RequireIPv4Lookup(ctx, t, &resolver, "nsc.vl3", "127.0.0.1")
 
-	requireIPv4Lookup(ctx, t, &resolver, "nsc1.vl3", "1.1.1.1") // we can lookup this ip address only and only if fanout is working
+	sandbox.RequireIPv4Lookup(ctx, t, &resolver, "nsc1.vl3", "1.1.1.1") // we can lookup this ip address only and only if fanout is working
 
 	_, err = nsc.Close(ctx, resp)
 	require.NoError(t, err)
@@ -243,10 +243,10 @@ func Test_NSC_GetsVl3DnsAddressDelay(t *testing.T) {
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService("vl3"))
+	nsReg, err := nsRegistryClient.Register(ctx, sandbox.DefaultRegistryService("vl3"))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := sandbox.DefaultRegistryEndpoint(nsReg.Name)
 
 	var serverPrefixCh = make(chan *ipam.PrefixResponse, 1)
 	defer close(serverPrefixCh)
@@ -266,7 +266,7 @@ func Test_NSC_GetsVl3DnsAddressDelay(t *testing.T) {
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-	req := defaultRequest(nsReg.Name)
+	req := sandbox.DefaultRequest(nsReg.Name)
 	req.Connection.Labels["podName"] = nscName
 	go func() {
 		// Add a delay
@@ -291,10 +291,10 @@ func Test_vl3NSE_ConnectsTo_Itself(t *testing.T) {
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService("vl3"))
+	nsReg, err := nsRegistryClient.Register(ctx, sandbox.DefaultRegistryService("vl3"))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := sandbox.DefaultRegistryEndpoint(nsReg.Name)
 
 	var serverPrefixCh = make(chan *ipam.PrefixResponse, 1)
 	defer close(serverPrefixCh)
@@ -313,7 +313,7 @@ func Test_vl3NSE_ConnectsTo_Itself(t *testing.T) {
 
 	// Connection to itself. This allows us to assign a dns address to ourselves.
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithName(nseReg.Name))
-	req := defaultRequest(nsReg.Name)
+	req := sandbox.DefaultRequest(nsReg.Name)
 
 	_, err = nsc.Request(ctx, req)
 	require.NoError(t, err)
@@ -341,7 +341,7 @@ func Test_Interdomain_vl3_dns(t *testing.T) {
 
 	nsRegistryClient := cluster2.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService("vl3"))
+	nsReg, err := nsRegistryClient.Register(ctx, sandbox.DefaultRegistryService("vl3"))
 	require.NoError(t, err)
 
 	nseReg := &registry.NetworkServiceEndpoint{
@@ -398,12 +398,12 @@ func Test_Interdomain_vl3_dns(t *testing.T) {
 	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].SearchDomains, 1)
 
 	searchDomain := resp.GetContext().GetDnsContext().GetConfigs()[0].SearchDomains[0]
-	requireIPv4Lookup(ctx, t, &resolver, fmt.Sprintf("%s.%s", nscName, searchDomain), "10.0.0.1")
+	sandbox.RequireIPv4Lookup(ctx, t, &resolver, fmt.Sprintf("%s.%s", nscName, searchDomain), "10.0.0.1")
 
 	resp, err = nsc.Request(ctx, req)
 	require.NoError(t, err)
 
-	requireIPv4Lookup(ctx, t, &resolver, fmt.Sprintf("%s.%s", nscName, searchDomain), "10.0.0.1")
+	sandbox.RequireIPv4Lookup(ctx, t, &resolver, fmt.Sprintf("%s.%s", nscName, searchDomain), "10.0.0.1")
 
 	_, err = nsc.Close(ctx, resp)
 	require.NoError(t, err)
@@ -442,7 +442,7 @@ func Test_FloatingInterdomain_vl3_dns(t *testing.T) {
 
 	nsRegistryClient := cluster2.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService("vl3@"+floating.Name))
+	nsReg, err := nsRegistryClient.Register(ctx, sandbox.DefaultRegistryService("vl3@"+floating.Name))
 	require.NoError(t, err)
 
 	nseReg := &registry.NetworkServiceEndpoint{
@@ -496,12 +496,12 @@ func Test_FloatingInterdomain_vl3_dns(t *testing.T) {
 
 	searchDomain := resp.GetContext().GetDnsContext().GetConfigs()[0].SearchDomains[0]
 
-	requireIPv4Lookup(ctx, t, &resolver, fmt.Sprintf("%s.%s", nscName, searchDomain), "10.0.0.1")
+	sandbox.RequireIPv4Lookup(ctx, t, &resolver, fmt.Sprintf("%s.%s", nscName, searchDomain), "10.0.0.1")
 
 	resp, err = nsc.Request(ctx, req)
 	require.NoError(t, err)
 
-	requireIPv4Lookup(ctx, t, &resolver, fmt.Sprintf("%s.%s", nscName, searchDomain), "10.0.0.1")
+	sandbox.RequireIPv4Lookup(ctx, t, &resolver, fmt.Sprintf("%s.%s", nscName, searchDomain), "10.0.0.1")
 
 	_, err = nsc.Close(ctx, resp)
 	require.NoError(t, err)

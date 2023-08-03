@@ -30,6 +30,7 @@ import (
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/health/grpc_health_v1"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
@@ -261,4 +262,65 @@ func (m *MonitorPassThroughSuite) TestDeleteOnClientClose() {
 
 func TestPassThrough(t *testing.T) {
 	suite.Run(t, &MonitorPassThroughSuite{})
+}
+
+func startEndpoint(ctx context.Context, listenOn *url.URL, server endpoint.Endpoint) error {
+	grpcServer := grpc.NewServer()
+	server.Register(grpcServer)
+
+	errCh := grpcutils.ListenAndServe(ctx, listenOn, grpcServer)
+	select {
+	case err := <-errCh:
+		return err
+	default:
+	}
+
+	return waitNetworkServiceReady(listenOn)
+}
+
+func waitNetworkServiceReady(target *url.URL) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(target), grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = cc.Close()
+	}()
+
+	healthCheckRequest := &grpc_health_v1.HealthCheckRequest{
+		Service: networkservice.ServiceNames(null.NewServer())[0],
+	}
+
+	client := grpc_health_v1.NewHealthClient(cc)
+	for ctx.Err() == nil {
+		response, err := client.Check(ctx, healthCheckRequest)
+		if err != nil {
+			return err
+		}
+		if response.Status == grpc_health_v1.HealthCheckResponse_SERVING {
+			return nil
+		}
+	}
+	return ctx.Err()
+}
+
+func waitServerStopped(target *url.URL) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	var err error
+	for err == nil && ctx.Err() == nil {
+		dialCtx, dialCancel := context.WithTimeout(ctx, 10*time.Millisecond)
+
+		var cc *grpc.ClientConn
+		if cc, err = grpc.DialContext(dialCtx, grpcutils.URLToTarget(target), grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials())); err == nil {
+			_ = cc.Close()
+		}
+
+		dialCancel()
+	}
+	return ctx.Err()
 }

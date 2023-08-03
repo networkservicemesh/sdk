@@ -48,13 +48,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
-func requireIPv4Lookup(ctx context.Context, t *testing.T, r *net.Resolver, host, expected string) {
-	addrs, err := r.LookupIP(ctx, "ip4", host)
-	require.NoError(t, err)
-	require.Len(t, addrs, 1)
-	require.Equal(t, expected, addrs[0].String())
-}
-
 func Test_DNSUsecase(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -69,10 +62,10 @@ func Test_DNSUsecase(t *testing.T) {
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
+	nsReg, err := nsRegistryClient.Register(ctx, sandbox.DefaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := sandbox.DefaultRegistryEndpoint(nsReg.Name)
 
 	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
 
@@ -136,8 +129,8 @@ func Test_DNSUsecase(t *testing.T) {
 	conn, err := nsc.Request(ctx, request)
 	require.NoError(t, err)
 
-	requireIPv4Lookup(ctx, t, &resolver, "my.domain", "4.4.4.4")
-	requireIPv4Lookup(ctx, t, &resolver, "my.domain.com", "5.5.5.5")
+	sandbox.RequireIPv4Lookup(ctx, t, &resolver, "my.domain", "4.4.4.4")
+	sandbox.RequireIPv4Lookup(ctx, t, &resolver, "my.domain.com", "5.5.5.5")
 
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)

@@ -79,8 +79,8 @@ func Test_AwareNSEs(t *testing.T) {
 	var nses [count]*sandbox.EndpointEntry
 	var requests [count]*networkservice.NetworkServiceRequest
 
-	ns1 := defaultRegistryService("my-ns-1")
-	ns2 := defaultRegistryService("my-ns-2")
+	ns1 := sandbox.DefaultRegistryService("my-ns-1")
+	ns2 := sandbox.DefaultRegistryService("my-ns-2")
 
 	nsurl1, err := url.Parse(fmt.Sprintf("kernel://%s?%s=%s", ns1.Name, "color", "red"))
 	require.NoError(t, err)
@@ -214,7 +214,7 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
-	nsReg := defaultRegistryService(t.Name())
+	nsReg := sandbox.DefaultRegistryService(t.Name())
 	nsReg.Matches = []*registryapi.Match{
 		{
 			Routes: []*registryapi.Destination{
@@ -230,7 +230,7 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 	nsReg, err = nsRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := sandbox.DefaultRegistryEndpoint(nsReg.Name)
 	nseReg.NetworkServiceLabels = map[string]*registryapi.NetworkServiceLabels{nsReg.Name: {}}
 
 	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
@@ -238,7 +238,7 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 	require.NoError(t, err)
 
-	req := defaultRequest(nsReg.Name)
+	req := sandbox.DefaultRequest(nsReg.Name)
 
 	conn, err := nsc.Request(ctx, req)
 	require.NoError(t, err)
@@ -333,7 +333,7 @@ func Test_UsecasePoint2MultiPoint(t *testing.T) {
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-	request := defaultRequest("my-ns")
+	request := sandbox.DefaultRequest("my-ns")
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -449,7 +449,7 @@ func Test_RemoteUsecase_Point2MultiPoint(t *testing.T) {
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-	request := defaultRequest("my-ns")
+	request := sandbox.DefaultRequest("my-ns")
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
@@ -560,7 +560,7 @@ func Test_FailedRegistryAuthorization(t *testing.T) {
 		registryclient.WithAuthorizeNSRegistryClient(
 			authorizeregistry.NewNetworkServiceRegistryClient(authorizeregistry.WithPolicies("etc/nsm/opa/registry/client_allowed.rego"))))
 
-	ns1 := defaultRegistryService("ns-1")
+	ns1 := sandbox.DefaultRegistryService("ns-1")
 	_, err := nsRegistryClient1.Register(ctx, ns1)
 	require.NoError(t, err)
 
@@ -568,13 +568,13 @@ func Test_FailedRegistryAuthorization(t *testing.T) {
 		registryclient.WithAuthorizeNSRegistryClient(
 			authorizeregistry.NewNetworkServiceRegistryClient(authorizeregistry.WithPolicies("etc/nsm/opa/registry/client_allowed.rego"))))
 
-	ns2 := defaultRegistryService("ns-1")
+	ns2 := sandbox.DefaultRegistryService("ns-1")
 	_, err = nsRegistryClient2.Register(ctx, ns2)
 	require.Error(t, err)
 }
 
 func createAuthorizedEndpoint(ctx context.Context, t *testing.T, ns string, nsmgrURL *url.URL, counter networkservice.NetworkServiceServer) {
-	nseReg := defaultRegistryEndpoint(ns)
+	nseReg := sandbox.DefaultRegistryEndpoint(ns)
 
 	nse := endpoint.NewServer(ctx, sandbox.GenerateTestToken,
 		endpoint.WithName("final-endpoint"),
@@ -631,7 +631,7 @@ func Test_Timeout(t *testing.T) {
 		Build()
 
 	nsRegistryClient := domain.NewNSRegistryClient(chainCtx, sandbox.GenerateTestToken)
-	ns := defaultRegistryService("ns")
+	ns := sandbox.DefaultRegistryService("ns")
 
 	nsReg, err := nsRegistryClient.Register(chainCtx, ns)
 	require.NoError(t, err)
@@ -650,7 +650,7 @@ func Test_Timeout(t *testing.T) {
 		),
 	)
 
-	request := defaultRequest(nsReg.Name)
+	request := sandbox.DefaultRequest(nsReg.Name)
 	requestCtx, requestCtxCancel := context.WithTimeout(context.Background(), requestTimeout)
 	defer requestCtxCancel()
 
@@ -711,7 +711,7 @@ func Test_Expire(t *testing.T) {
 		Build()
 
 	nsRegistryClient := domain.NewNSRegistryClient(chainCtx, sandbox.GenerateTestToken)
-	ns := defaultRegistryService("ns")
+	ns := sandbox.DefaultRegistryService("ns")
 
 	nsReg, err := nsRegistryClient.Register(chainCtx, ns)
 	require.NoError(t, err)
