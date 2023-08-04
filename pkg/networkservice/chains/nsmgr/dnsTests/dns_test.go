@@ -48,7 +48,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
-// to trigger build 1
+// to trigger build 2
 func Test_DNSUsecase(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
