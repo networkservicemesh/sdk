@@ -10,7 +10,7 @@ jobs:
     uses: networkservicemesh/.github/.github/workflows/yamllint.yaml@main
 
   build-and-test:
-    uses: networkservicemesh/.github/.github/workflows/build-and-test.yaml@main
+    uses: dualBreath/.github/.github/workflows/build-and-test.yaml@task/40/reduce_time_for_permissions_tests
     with:
       os: '["ubuntu-latest", "macos-latest", "windows-latest"]'
 
