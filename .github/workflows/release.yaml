@@ -30,8 +30,6 @@ jobs:
     name: Create release
     needs: get-tag
     uses: networkservicemesh/.github/.github/workflows/release.yaml@main
-    with:
-      tag: ${{ needs.get-tag.outputs.tag }}
     secrets:
       token: ${{ secrets.NSM_BOT_GITHUB_TOKEN }}
 
