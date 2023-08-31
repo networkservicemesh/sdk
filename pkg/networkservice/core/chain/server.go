@@ -1,6 +1,6 @@
 // Copyright (c) 2020 Cisco Systems, Inc.
 //
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2023 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -23,13 +23,19 @@ package chain
 import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/debug"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-// NewNetworkServiceServer - chains together a list of networkservice.Servers with tracing
+// NewNetworkServiceServer - chains together a list of networkservice.Servers with tracing or debugging
 func NewNetworkServiceServer(servers ...networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
+	server := debug.NewNetworkServiceServer
+	if log.IsLogLevelDebug() {
+		server = debug.NewNetworkServiceServer
+	}
+
 	return next.NewNetworkServiceServer(
-		next.NewWrappedNetworkServiceServer(trace.NewNetworkServiceServer, servers...),
+		next.NewWrappedNetworkServiceServer(server, servers...),
 	)
 }

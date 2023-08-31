@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2022 Cisco Systems, Inc.
 //
-// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2023 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -120,11 +120,11 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	rv := &endpoint{}
 	rv.NetworkServiceServer = chain.NewNetworkServiceServer(
 		append([]networkservice.NetworkServiceServer{
+			metadata.NewServer(),
 			updatepath.NewServer(opts.name),
 			begin.NewServer(),
 			updatetoken.NewServer(tokenGenerator),
 			opts.authorizeServer,
-			metadata.NewServer(),
 			timeout.NewServer(ctx),
 			monitor.NewServer(ctx, &mcsPtr),
 			trimpath.NewServer(),

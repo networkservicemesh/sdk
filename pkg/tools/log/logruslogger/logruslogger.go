@@ -120,6 +120,27 @@ func New(ctx context.Context, fields ...logrus.Fields) log.Logger {
 	}
 }
 
+// LoggerWithFields - creates a new logruslogger with fields
+func LoggerWithFields(fields []*log.Field) log.Logger {
+	logger := log.L()
+	if log.IsDefault(logger) {
+		fieldsMap := make(map[string]interface{}, len(fields))
+		for _, field := range fields {
+			fieldsMap[field.Key()] = field.Val()
+		}
+		entry := logrus.WithFields(fieldsMap)
+		entry.Logger.SetFormatter(newFormatter())
+		logger = &logrusLogger{
+			entry: entry,
+		}
+	} else {
+		for _, field := range fields {
+			logger = logger.WithField(field.Key(), field.Val())
+		}
+	}
+	return logger
+}
+
 // ----------------------------------------------------------------------
 
 type traceLogger struct {

@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2022 Cisco and/or its affiliates.
+// Copyright (c) 2020-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -30,6 +30,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
 type checkClientSetsMechanismPreferences struct {
@@ -48,6 +49,7 @@ type checkClientSetsMechanismPreferences struct {
 func CheckClientSetsMechanismPreferences(t *testing.T, clientUnderTest networkservice.NetworkServiceClient, mechanismType string, mechanismCheck func(*testing.T, *networkservice.Mechanism)) networkservice.NetworkServiceClient {
 	rv := &checkClientSetsMechanismPreferences{}
 	rv.NetworkServiceClient = chain.NewNetworkServiceClient(
+		metadata.NewClient(),
 		clientUnderTest,
 		// Check after the clientUnderTest under test is run to make sure we have the right MechanismPreferences set
 		checkrequest.NewClient(t,

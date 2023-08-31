@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -23,11 +23,13 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/passthrough/replacelabels"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/passthrough/replacensename"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
 // NewClient returns a combination for passthrough cases
 func NewClient(labels map[string]string) networkservice.NetworkServiceClient {
 	return chain.NewNetworkServiceClient(
+		metadata.NewClient(),
 		replacelabels.NewClient(labels),
 		replacensename.NewClient(),
 	)

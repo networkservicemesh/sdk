@@ -37,6 +37,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
@@ -117,6 +118,7 @@ func TestTraceOutput(t *testing.T) {
 
 	// Create a chain with modifying elements
 	ch := chain.NewNetworkServiceServer(
+		metadata.NewServer(),
 		&labelChangerFirstServer{},
 		&labelChangerSecondServer{},
 	)
