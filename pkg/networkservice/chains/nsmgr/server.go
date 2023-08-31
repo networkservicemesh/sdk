@@ -58,6 +58,7 @@ import (
 	registryrecvfd "github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
 	registrysendfd "github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/metadata"
 
 	registryadapter "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
@@ -236,6 +237,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		// Use remote registry
 		nsRegistry = registryconnect.NewNetworkServiceRegistryServer(
 			chain.NewNetworkServiceRegistryClient(
+				metadata.NewNetworkServiceClient(),
 				clienturl.NewNetworkServiceRegistryClient(opts.regURL),
 				begin.NewNetworkServiceRegistryClient(),
 				clientconn.NewNetworkServiceRegistryClient(),
@@ -252,14 +254,17 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	nsRegistry = chain.NewNetworkServiceRegistryServer(
 		grpcmetadata.NewNetworkServiceRegistryServer(),
 		updatepath.NewNetworkServiceRegistryServer(tokenGenerator),
+		metadata.NewNetworkServiceServer(),
 		opts.authorizeNSRegistryServer,
 		nsRegistry,
 	)
 
 	var remoteOrLocalRegistry = chain.NewNetworkServiceEndpointRegistryServer(
+		metadata.NewNetworkServiceEndpointServer(),
 		localbypass.NewNetworkServiceEndpointRegistryServer(opts.url),
 		registryconnect.NewNetworkServiceEndpointRegistryServer(
 			chain.NewNetworkServiceEndpointRegistryClient(
+				metadata.NewNetworkServiceEndpointClient(),
 				begin.NewNetworkServiceEndpointRegistryClient(),
 				clienturl.NewNetworkServiceEndpointRegistryClient(opts.regURL),
 				clientconn.NewNetworkServiceEndpointRegistryClient(),
@@ -275,6 +280,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 
 	if opts.regURL == nil {
 		remoteOrLocalRegistry = chain.NewNetworkServiceEndpointRegistryServer(
+			metadata.NewNetworkServiceEndpointServer(),
 			memory.NewNetworkServiceEndpointRegistryServer(),
 			localbypass.NewNetworkServiceEndpointRegistryServer(opts.url),
 		)
@@ -283,6 +289,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	var nseRegistry = chain.NewNetworkServiceEndpointRegistryServer(
 		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
 		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGenerator),
+		metadata.NewNetworkServiceEndpointServer(),
 		opts.authorizeNSERegistryServer,
 		begin.NewNetworkServiceEndpointRegistryServer(),
 		registryclientinfo.NewNetworkServiceEndpointRegistryServer(),
@@ -331,7 +338,6 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		nsRegistry,
 		nseRegistry,
 	)
-
 	return rv
 }
 

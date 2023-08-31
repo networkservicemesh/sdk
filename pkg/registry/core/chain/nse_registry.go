@@ -1,6 +1,6 @@
 // Copyright (c) 2020 Cisco Systems, Inc.
 //
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2023 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,17 +21,29 @@ package chain
 
 import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/sirupsen/logrus"
 
+	"github.com/networkservicemesh/sdk/pkg/registry/core/debug"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/trace"
 )
 
 // NewNetworkServiceEndpointRegistryServer - creates a chain of servers
 func NewNetworkServiceEndpointRegistryServer(servers ...registry.NetworkServiceEndpointRegistryServer) registry.NetworkServiceEndpointRegistryServer {
-	return next.NewWrappedNetworkServiceEndpointRegistryServer(trace.NewNetworkServiceEndpointRegistryServer, servers...)
+	server := trace.NewNetworkServiceEndpointRegistryServer
+	if logrus.GetLevel() == logrus.DebugLevel {
+		server = debug.NewNetworkServiceEndpointRegistryServer
+	}
+
+	return next.NewWrappedNetworkServiceEndpointRegistryServer(server, servers...)
 }
 
 // NewNetworkServiceEndpointRegistryClient - creates a chain of clients
 func NewNetworkServiceEndpointRegistryClient(clients ...registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceEndpointRegistryClient {
-	return next.NewNetworkServiceEndpointRegistryClient(next.NewWrappedNetworkServiceEndpointRegistryClient(trace.NewNetworkServiceEndpointRegistryClient, clients...))
+	client := trace.NewNetworkServiceEndpointRegistryClient
+	if logrus.GetLevel() == logrus.DebugLevel {
+		client = debug.NewNetworkServiceEndpointRegistryClient
+	}
+
+	return next.NewNetworkServiceEndpointRegistryClient(next.NewWrappedNetworkServiceEndpointRegistryClient(client, clients...))
 }

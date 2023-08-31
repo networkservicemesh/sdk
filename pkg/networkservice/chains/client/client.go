@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2022 Cisco and/or its affiliates.
+// Copyright (c) 2021-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -53,8 +53,8 @@ func NewClient(ctx context.Context, clientOpts ...Option) networkservice.Network
 		append(
 			[]networkservice.NetworkServiceClient{
 				updatepath.NewClient(opts.name),
-				begin.NewClient(),
 				metadata.NewClient(),
+				begin.NewClient(),
 				opts.refreshClient,
 				clienturl.NewClient(opts.clientURL),
 				clientconn.NewClient(opts.cc),

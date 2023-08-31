@@ -26,6 +26,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/point2pointipam"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
 type options struct {
@@ -51,6 +52,8 @@ func WithCustomIPAMServer(f func(...*net.IPNet) networkservice.NetworkServiceSer
 // Options can be passed optionally
 func NewServer(groups [][]*net.IPNet, opts ...Option) networkservice.NetworkServiceServer {
 	var ipamServers []networkservice.NetworkServiceServer
+	ipamServers = append(ipamServers, metadata.NewServer())
+
 	var o = options{
 		newIPAMServerFn: point2pointipam.NewServer,
 	}

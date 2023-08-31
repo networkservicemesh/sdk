@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2023 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -32,6 +32,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/metadata"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
@@ -111,11 +112,13 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, dnsResol
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
 		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
 		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGenerator),
+		metadata.NewNetworkServiceEndpointServer(),
 		opts.authorizeNSERegistryServer,
 		begin.NewNetworkServiceEndpointRegistryServer(),
 		dnsresolve.NewNetworkServiceEndpointRegistryServer(dnsresolve.WithResolver(dnsResolver)),
 		connect.NewNetworkServiceEndpointRegistryServer(
 			chain.NewNetworkServiceEndpointRegistryClient(
+				metadata.NewNetworkServiceEndpointClient(),
 				clientconn.NewNetworkServiceEndpointRegistryClient(),
 				opts.authorizeNSERegistryClient,
 				grpcmetadata.NewNetworkServiceEndpointRegistryClient(),
@@ -128,11 +131,13 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, dnsResol
 	nsChain := chain.NewNetworkServiceRegistryServer(
 		grpcmetadata.NewNetworkServiceRegistryServer(),
 		updatepath.NewNetworkServiceRegistryServer(tokenGenerator),
+		metadata.NewNetworkServiceServer(),
 		begin.NewNetworkServiceRegistryServer(),
 		opts.authorizeNSRegistryServer,
 		dnsresolve.NewNetworkServiceRegistryServer(dnsresolve.WithResolver(dnsResolver)),
 		connect.NewNetworkServiceRegistryServer(
 			chain.NewNetworkServiceRegistryClient(
+				metadata.NewNetworkServiceClient(),
 				clientconn.NewNetworkServiceRegistryClient(),
 				opts.authorizeNSRegistryClient,
 				grpcmetadata.NewNetworkServiceRegistryClient(),

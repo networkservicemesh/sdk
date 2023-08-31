@@ -1,6 +1,6 @@
 // Copyright (c) 2020 Cisco Systems, Inc.
 //
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2023 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -20,14 +20,21 @@ package chain
 
 import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/sirupsen/logrus"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/debug"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
 )
 
-// NewNetworkServiceClient - chains together a list of networkservice.NetworkServiceClient with tracing
+// NewNetworkServiceClient - chains together a list of networkservice.NetworkServiceClient with tracing or debugging
 func NewNetworkServiceClient(clients ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
+	client := trace.NewNetworkServiceClient
+	if logrus.GetLevel() == logrus.DebugLevel {
+		client = debug.NewNetworkServiceClient
+	}
+
 	return next.NewNetworkServiceClient(
-		next.NewWrappedNetworkServiceClient(trace.NewNetworkServiceClient, clients...),
+		next.NewWrappedNetworkServiceClient(client, clients...),
 	)
 }
