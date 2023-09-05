@@ -30,6 +30,8 @@ import (
 const (
 	methodNameRequest = "Request"
 	methodNameClose   = "Close"
+	closePrefix       = "close"
+	requestPrefix     = "request"
 )
 
 type stackTracer interface {

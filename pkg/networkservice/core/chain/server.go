@@ -25,12 +25,13 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/debug"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 // NewNetworkServiceServer - chains together a list of networkservice.Servers with tracing or debugging
 func NewNetworkServiceServer(servers ...networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
-	server := debug.NewNetworkServiceServer
+	server := trace.NewNetworkServiceServer
 	if log.IsLogLevelDebug() {
 		server = debug.NewNetworkServiceServer
 	}

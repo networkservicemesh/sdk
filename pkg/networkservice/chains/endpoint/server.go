@@ -120,8 +120,8 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	rv := &endpoint{}
 	rv.NetworkServiceServer = chain.NewNetworkServiceServer(
 		append([]networkservice.NetworkServiceServer{
-			metadata.NewServer(),
 			updatepath.NewServer(opts.name),
+			metadata.NewServer(),
 			begin.NewServer(),
 			updatetoken.NewServer(tokenGenerator),
 			opts.authorizeServer,

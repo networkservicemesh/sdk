@@ -52,8 +52,8 @@ func NewClient(ctx context.Context, clientOpts ...Option) networkservice.Network
 	return chain.NewNetworkServiceClient(
 		append(
 			[]networkservice.NetworkServiceClient{
-				metadata.NewClient(),
 				updatepath.NewClient(opts.name),
+				metadata.NewClient(),
 				begin.NewClient(),
 				opts.refreshClient,
 				clienturl.NewClient(opts.clientURL),

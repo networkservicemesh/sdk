@@ -36,12 +36,12 @@ const (
 	loggedType                string         = "networkService"
 )
 
-func withLog(parent context.Context, operation, connectionID string) (c context.Context) {
+func withLog(parent context.Context, connectionID string) (c context.Context) {
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
 
-	fields := []*log.Field{log.NewField("id", connectionID), log.NewField("type", loggedType), log.NewField("operation", loggedType)}
+	fields := []*log.Field{log.NewField("id", connectionID), log.NewField("type", loggedType)}
 	lLogger := logruslogger.LoggerWithFields(fields)
 
 	return log.WithLog(parent, lLogger)
@@ -97,4 +97,14 @@ func clientCloseTail(ctx context.Context) (client *networkservice.NetworkService
 	}
 	value, ok := rawValue.(*networkservice.NetworkServiceClient)
 	return value, ok
+}
+
+func isReadyForLogging(ctx context.Context, isClient bool) (isReady bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			isReady = false
+		}
+	}()
+	metadata.Map(ctx, false)
+	return true
 }

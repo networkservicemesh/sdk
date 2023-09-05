@@ -37,6 +37,7 @@ type endDebugClient struct{}
 const (
 	clientRequestLoggedKey contextKeyType = "clientRequestLoggedKey"
 	clientCloseLoggedKey   contextKeyType = "clientCloseLoggedKey"
+	clientPrefix                          = "client"
 )
 
 // NewNetworkServiceClient - wraps tracing around the supplied networkservice.NetworkServiceClient
@@ -50,11 +51,11 @@ func NewNetworkServiceClient(debugged networkservice.NetworkServiceClient) netwo
 func (t *beginDebugClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	// Create a new logger
 	operation := typeutils.GetFuncName(t.debugged, methodNameRequest)
-	updatedContext := withLog(ctx, operation, request.GetConnection().GetId())
+	updatedContext := withLog(ctx, request.GetConnection().GetId())
 
-	if updatedContext.Value(clientRequestLoggedKey) == nil {
+	if updatedContext.Value(clientRequestLoggedKey) == nil && isReadyForLogging(ctx, true) {
 		updatedContext = context.WithValue(updatedContext, clientRequestLoggedKey, true)
-		logRequest(updatedContext, request, "client-request")
+		logRequest(updatedContext, request, clientPrefix, requestPrefix)
 	}
 
 	// Actually call the next
@@ -63,18 +64,17 @@ func (t *beginDebugClient) Request(ctx context.Context, request *networkservice.
 		return nil, logError(updatedContext, err, operation)
 	}
 
-	//logResponse(ctx, rv, "request")
 	return rv, err
 }
 
 func (t *beginDebugClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	// Create a new logger
 	operation := typeutils.GetFuncName(t.debugged, methodNameClose)
-	updatedContext := withLog(ctx, operation, conn.GetId())
+	updatedContext := withLog(ctx, conn.GetId())
 
-	if updatedContext.Value(clientCloseLoggedKey) == nil {
+	if updatedContext.Value(clientCloseLoggedKey) == nil && isReadyForLogging(ctx, true) {
 		updatedContext = context.WithValue(updatedContext, clientCloseLoggedKey, true)
-		logRequest(updatedContext, conn, "client-close")
+		logRequest(updatedContext, conn, clientPrefix, closePrefix)
 	}
 
 	// Actually call the next
@@ -82,39 +82,42 @@ func (t *beginDebugClient) Close(ctx context.Context, conn *networkservice.Conne
 	if err != nil {
 		return nil, logError(updatedContext, err, operation)
 	}
-	// logResponse(ctx, conn, "close")
 
 	return rv, err
 }
 
 func (t *endDebugClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	//logRequest(ctx, request, "request")
+	if isReadyForLogging(ctx, true) {
+		nextClient := next.Client(ctx)
+		withClientRequestTail(ctx, &nextClient)
 
-	nextClient := next.Client(ctx)
-	withClientRequestTail(ctx, &nextClient)
+		conn, err := nextClient.Request(ctx, request, opts...)
 
-	conn, err := nextClient.Request(ctx, request, opts...)
+		tail, ok := clientRequestTail(ctx)
+		if ok && &nextClient == tail {
+			logResponse(ctx, conn, clientPrefix, requestPrefix)
+		}
 
-	tail, ok := clientRequestTail(ctx)
-	if ok && &nextClient == tail {
-		logResponse(ctx, conn, "client-request")
+		return conn, err
+	} else {
+		return next.Client(ctx).Request(ctx, request, opts...)
 	}
-
-	return conn, err
 }
 
 func (t *endDebugClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	//logRequest(ctx, conn, "close")
+	if isReadyForLogging(ctx, true) {
+		nextClient := next.Client(ctx)
+		withClientCloseTail(ctx, &nextClient)
 
-	nextClient := next.Client(ctx)
-	withClientCloseTail(ctx, &nextClient)
+		r, err := nextClient.Close(ctx, conn, opts...)
 
-	r, err := nextClient.Close(ctx, conn, opts...)
+		tail, ok := clientCloseTail(ctx)
+		if ok && &nextClient == tail {
+			logResponse(ctx, conn, clientPrefix, closePrefix)
+		}
 
-	tail, ok := clientCloseTail(ctx)
-	if ok && &nextClient == tail {
-		logResponse(ctx, conn, "client-close")
+		return r, err
+	} else {
+		return next.Client(ctx).Close(ctx, conn, opts...)
 	}
-
-	return r, err
 }

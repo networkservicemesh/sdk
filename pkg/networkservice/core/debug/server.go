@@ -36,6 +36,7 @@ type endDebugServer struct{}
 const (
 	serverRequestLoggedKey contextKeyType = "serverRequestLoggedKey"
 	serverCloseLoggedKey   contextKeyType = "serverCloseLoggedKey"
+	serverPrefix                          = "server"
 )
 
 // NewNetworkServiceServer - wraps tracing around the supplied traced
@@ -49,11 +50,11 @@ func NewNetworkServiceServer(debugged networkservice.NetworkServiceServer) netwo
 func (t *beginDebugServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	// Create a new logger
 	operation := typeutils.GetFuncName(t.debugged, methodNameRequest)
-	updatedContext := withLog(ctx, operation, request.GetConnection().GetId())
+	updatedContext := withLog(ctx, request.GetConnection().GetId())
 
-	if updatedContext.Value(serverRequestLoggedKey) == nil {
+	if updatedContext.Value(serverRequestLoggedKey) == nil && isReadyForLogging(updatedContext, false) {
 		updatedContext = context.WithValue(updatedContext, serverRequestLoggedKey, true)
-		logRequest(updatedContext, request, "server-request")
+		logRequest(updatedContext, request, serverPrefix, requestPrefix)
 	}
 
 	// Actually call the next
@@ -61,18 +62,18 @@ func (t *beginDebugServer) Request(ctx context.Context, request *networkservice.
 	if err != nil {
 		return nil, logError(updatedContext, err, operation)
 	}
-	// logResponse(ctx, rv, "request")
+
 	return rv, err
 }
 
 func (t *beginDebugServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	// Create a new logger
 	operation := typeutils.GetFuncName(t.debugged, methodNameClose)
-	updatedContext := withLog(ctx, operation, conn.GetId())
+	updatedContext := withLog(ctx, conn.GetId())
 
-	if updatedContext.Value(serverCloseLoggedKey) == nil {
+	if updatedContext.Value(serverCloseLoggedKey) == nil && isReadyForLogging(updatedContext, false) {
 		updatedContext = context.WithValue(updatedContext, serverCloseLoggedKey, true)
-		logRequest(updatedContext, conn, "server-close")
+		logRequest(updatedContext, conn, serverPrefix, closePrefix)
 	}
 
 	// Actually call the next
@@ -80,38 +81,42 @@ func (t *beginDebugServer) Close(ctx context.Context, conn *networkservice.Conne
 	if err != nil {
 		return nil, logError(updatedContext, err, operation)
 	}
-	// logResponse(ctx, conn, "close")
+
 	return rv, err
 }
 
 func (t *endDebugServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	// logRequest(ctx, request, "request")
+	if isReadyForLogging(ctx, false) {
+		nextServer := next.Server(ctx)
+		withServerRequestTail(ctx, &nextServer)
 
-	nextServer := next.Server(ctx)
-	withServerRequestTail(ctx, &nextServer)
+		conn, err := nextServer.Request(ctx, request)
 
-	conn, err := nextServer.Request(ctx, request)
+		tail, ok := serverRequestTail(ctx)
+		if ok && &nextServer == tail {
+			logResponse(ctx, conn, serverPrefix, requestPrefix)
+		}
 
-	tail, ok := serverRequestTail(ctx)
-	if ok && &nextServer == tail {
-		logResponse(ctx, conn, "server-request")
+		return conn, err
+	} else {
+		return next.Server(ctx).Request(ctx, request)
 	}
-
-	return conn, err
 }
 
 func (t *endDebugServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	// logRequest(ctx, conn, "close")
+	if isReadyForLogging(ctx, false) {
+		nextServer := next.Server(ctx)
+		withServerCloseTail(ctx, &nextServer)
 
-	nextServer := next.Server(ctx)
-	withServerCloseTail(ctx, &nextServer)
+		r, err := nextServer.Close(ctx, conn)
 
-	r, err := nextServer.Close(ctx, conn)
+		tail, ok := serverCloseTail(ctx)
+		if ok && &nextServer == tail {
+			logResponse(ctx, conn, serverPrefix, closePrefix)
+		}
 
-	tail, ok := serverCloseTail(ctx)
-	if ok && &nextServer == tail {
-		logResponse(ctx, conn, "server-close")
+		return r, err
+	} else {
+		return next.Server(ctx).Close(ctx, conn)
 	}
-
-	return r, err
 }
