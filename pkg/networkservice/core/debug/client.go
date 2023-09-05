@@ -37,6 +37,7 @@ type endDebugClient struct{}
 const (
 	clientRequestLoggedKey contextKeyType = "clientRequestLoggedKey"
 	clientCloseLoggedKey   contextKeyType = "clientCloseLoggedKey"
+	lastClientErrorKey     contextKeyType = "lastClientErrorKey"
 	clientPrefix                          = "client"
 )
 
@@ -61,7 +62,11 @@ func (t *beginDebugClient) Request(ctx context.Context, request *networkservice.
 	// Actually call the next
 	rv, err := t.debugged.Request(updatedContext, request, opts...)
 	if err != nil {
-		return nil, logError(updatedContext, err, operation)
+		lastError := updatedContext.Value(lastClientErrorKey)
+		if lastError == nil || err.Error() != lastError {
+			updatedContext = context.WithValue(updatedContext, lastServerErrorKey, err.Error())
+			return nil, logError(updatedContext, err, operation)
+		}
 	}
 
 	return rv, err
@@ -80,7 +85,11 @@ func (t *beginDebugClient) Close(ctx context.Context, conn *networkservice.Conne
 	// Actually call the next
 	rv, err := t.debugged.Close(updatedContext, conn, opts...)
 	if err != nil {
-		return nil, logError(updatedContext, err, operation)
+		lastError := updatedContext.Value(lastClientErrorKey)
+		if lastError == nil || err.Error() != lastError {
+			updatedContext = context.WithValue(updatedContext, lastServerErrorKey, err.Error())
+			return nil, logError(updatedContext, err, operation)
+		}
 	}
 
 	return rv, err
