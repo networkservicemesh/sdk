@@ -20,17 +20,17 @@ package chain
 
 import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/sirupsen/logrus"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/debug"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 // NewNetworkServiceClient - chains together a list of networkservice.NetworkServiceClient with tracing or debugging
 func NewNetworkServiceClient(clients ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	client := trace.NewNetworkServiceClient
-	if log.IsLogLevelDebug() {
+	if logrus.GetLevel() == logrus.DebugLevel {
 		client = debug.NewNetworkServiceClient
 	}
 
