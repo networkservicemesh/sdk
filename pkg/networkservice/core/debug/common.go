@@ -34,10 +34,6 @@ const (
 	requestPrefix     = "request"
 )
 
-type stackTracer interface {
-	StackTrace() errors.StackTrace
-}
-
 func logRequest(ctx context.Context, request any, prefixes ...string) {
 	msg := strings.Join(prefixes, "-")
 	logObjectDebug(ctx, msg, request)
@@ -49,15 +45,7 @@ func logResponse(ctx context.Context, response any, prefixes ...string) {
 }
 
 func logError(ctx context.Context, err error, operation string) error {
-	if _, ok := err.(stackTracer); !ok {
-		if err == error(nil) {
-			return nil
-		}
-		err = errors.Wrapf(err, "Error returned from %s", operation)
-		log.FromContext(ctx).Errorf("%+v", err)
-		return err
-	}
-	log.FromContext(ctx).Errorf("%v", err)
+	log.FromContext(ctx).Errorf("%v", errors.Wrapf(err, "Error returned from %s", operation))
 	return err
 }
 

@@ -31,6 +31,10 @@ type contextKeyType string
 const (
 	serverChainRequestTailKey contextKeyType = "serverChainRequestTailKey"
 	serverChainCloseTailKey   contextKeyType = "serverChainCloseTailKey"
+	serverRequestErrorKey     contextKeyType = "serverRequestErrorKey"
+	serverCloseErrorKey       contextKeyType = "serverCloseErrorKey"
+	clientRequestErrorKey     contextKeyType = "clientRequestErrorKey"
+	clientCloseErrorKey       contextKeyType = "clientCloseErrorKey"
 	clientChainRequestTailKey contextKeyType = "clientChainRequestTailKey"
 	clientChainCloseTailKey   contextKeyType = "clientChainCloseTailKey"
 	loggedType                string         = "networkService"
@@ -73,6 +77,38 @@ func serverCloseTail(ctx context.Context) (server *networkservice.NetworkService
 	return value, ok
 }
 
+func storeServerRequestError(ctx context.Context, err *error) {
+	metadata.Map(ctx, false).Store(serverRequestErrorKey, err)
+}
+
+func getServerRequestError(ctx context.Context) (err *error, ok bool) {
+	return getError(ctx, false, serverRequestErrorKey)
+}
+
+func storeServerCloseError(ctx context.Context, err *error) {
+	metadata.Map(ctx, false).Store(serverCloseErrorKey, err)
+}
+
+func getServerCloseError(ctx context.Context) (err *error, ok bool) {
+	return getError(ctx, false, serverCloseErrorKey)
+}
+
+func storeClientRequestError(ctx context.Context, err *error) {
+	metadata.Map(ctx, true).Store(clientRequestErrorKey, err)
+}
+
+func getClientRequestError(ctx context.Context) (err *error, ok bool) {
+	return getError(ctx, true, clientRequestErrorKey)
+}
+
+func storeClientCloseError(ctx context.Context, err *error) {
+	metadata.Map(ctx, true).Store(clientCloseErrorKey, err)
+}
+
+func getClientCloseError(ctx context.Context) (err *error, ok bool) {
+	return getError(ctx, true, clientCloseErrorKey)
+}
+
 func withClientRequestTail(ctx context.Context, client *networkservice.NetworkServiceClient) {
 	metadata.Map(ctx, true).Store(clientChainRequestTailKey, client)
 }
@@ -107,4 +143,13 @@ func isReadyForLogging(ctx context.Context, isClient bool) (isReady bool) {
 	}()
 	metadata.Map(ctx, false)
 	return true
+}
+
+func getError(ctx context.Context, isClient bool, key contextKeyType) (err *error, ok bool) {
+	rawValue, ok := metadata.Map(ctx, isClient).Load(key)
+	if !ok {
+		return
+	}
+	value, ok := rawValue.(*error)
+	return value, ok
 }

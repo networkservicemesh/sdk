@@ -60,10 +60,10 @@ func (t *beginDebugServer) Request(ctx context.Context, request *networkservice.
 
 	// Actually call the next
 	rv, err := t.debugged.Request(updatedContext, request)
-	if err != nil {
-		lastError := updatedContext.Value(lastServerErrorKey)
-		if lastError == nil || err.Error() != lastError {
-			updatedContext = context.WithValue(updatedContext, lastServerErrorKey, err.Error())
+	if err != nil && isReadyForLogging(ctx, false) {
+		lastError, ok := getServerRequestError(ctx)
+		if !ok || lastError == nil || err.Error() != (*lastError).Error() {
+			storeServerRequestError(ctx, &err)
 			return nil, logError(updatedContext, err, operation)
 		}
 	}
@@ -83,10 +83,10 @@ func (t *beginDebugServer) Close(ctx context.Context, conn *networkservice.Conne
 
 	// Actually call the next
 	rv, err := t.debugged.Close(updatedContext, conn)
-	if err != nil {
-		lastError := updatedContext.Value(lastServerErrorKey)
-		if lastError == nil || err.Error() != lastError {
-			updatedContext = context.WithValue(updatedContext, lastServerErrorKey, err.Error())
+	if err != nil && isReadyForLogging(ctx, false) {
+		lastError, ok := getServerCloseError(ctx)
+		if !ok || lastError == nil || err.Error() != (*lastError).Error() {
+			storeServerCloseError(ctx, &err)
 			return nil, logError(updatedContext, err, operation)
 		}
 	}
