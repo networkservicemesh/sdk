@@ -37,7 +37,6 @@ type endDebugClient struct{}
 const (
 	clientRequestLoggedKey contextKeyType = "clientRequestLoggedKey"
 	clientCloseLoggedKey   contextKeyType = "clientCloseLoggedKey"
-	lastClientErrorKey     contextKeyType = "lastClientErrorKey"
 	clientPrefix                          = "client"
 )
 
@@ -112,9 +111,8 @@ func (t *endDebugClient) Request(ctx context.Context, request *networkservice.Ne
 		}
 
 		return conn, err
-	} else {
-		return next.Client(ctx).Request(ctx, request, opts...)
 	}
+	return next.Client(ctx).Request(ctx, request, opts...)
 }
 
 func (t *endDebugClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
@@ -130,7 +128,6 @@ func (t *endDebugClient) Close(ctx context.Context, conn *networkservice.Connect
 		}
 
 		return r, err
-	} else {
-		return next.Client(ctx).Close(ctx, conn, opts...)
 	}
+	return next.Client(ctx).Close(ctx, conn, opts...)
 }

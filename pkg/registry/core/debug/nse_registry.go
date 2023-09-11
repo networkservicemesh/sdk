@@ -44,7 +44,6 @@ const (
 	nseClientRegisterLoggedKey   contextKeyType = "nseClientRegisterLoggedKey"
 	nseClientFindLoggedKey       contextKeyType = "nseClientFindLoggedKey"
 	nseClientUnregisterLoggedKey contextKeyType = "nseClientUnregisterLoggedKey"
-	nseServerRecvLoggedKey       contextKeyType = "nseServerRecvLoggedKey"
 	nseServerRegisterLoggedKey   contextKeyType = "nseServerRegisterLoggedKey"
 	nseServerFindLoggedKey       contextKeyType = "nseServerFindLoggedKey"
 	nseServerUnregisterLoggedKey contextKeyType = "nseServerUnregisterLoggedKey"
@@ -65,14 +64,14 @@ func (t *debugNetworkServiceEndpointRegistryFindClient) Recv() (*registry.Networ
 			return nil, errors.WithStack(err)
 		}
 
-		if isReadyForLogging(updatedContext, false) && storeNSEClientRecvErrorLogged(updatedContext) {
+		if isReadyForLogging(updatedContext, true) && storeNSEClientRecvErrorLogged(updatedContext) {
 			return nil, logError(updatedContext, err, operation)
 		}
 
 		return nil, err
 	}
 
-	if isReadyForLogging(updatedContext, false) && storeNSEClientRecvLogged(updatedContext) {
+	if isReadyForLogging(updatedContext, true) && storeNSEClientRecvLogged(updatedContext) {
 		logObjectDebug(updatedContext, "nse-recv-response", rv)
 	}
 

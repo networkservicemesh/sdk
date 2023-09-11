@@ -45,7 +45,6 @@ const (
 	nsClientRegisterLoggedKey   contextKeyType = "nsClientRegisterLoggedKey"
 	nsClientFindLoggedKey       contextKeyType = "nsClientFindLoggedKey"
 	nsClientUnregisterLoggedKey contextKeyType = "nsClientUnregisterLoggedKey"
-	nsServerRecvLoggedKey       contextKeyType = "nsServerRecvLoggedKey"
 	nsServerRegisterLoggedKey   contextKeyType = "nsServerRegisterLoggedKey"
 	nsServerFindLoggedKey       contextKeyType = "nsServerFindLoggedKey"
 	nsServerUnregisterLoggedKey contextKeyType = "nsServerUnregisterLoggedKey"
@@ -66,14 +65,14 @@ func (t *debugNetworkServiceRegistryFindClient) Recv() (*registry.NetworkService
 			return nil, errors.WithStack(err)
 		}
 
-		if isReadyForLogging(updatedContext, false) && storeNSClientRecvErrorLogged(updatedContext) {
+		if isReadyForLogging(updatedContext, true) && storeNSClientRecvErrorLogged(updatedContext) {
 			return nil, logError(updatedContext, err, operation)
 		}
 
 		return nil, err
 	}
 
-	if isReadyForLogging(updatedContext, false) && storeNSClientRecvLogged(updatedContext) {
+	if isReadyForLogging(updatedContext, true) && storeNSClientRecvLogged(updatedContext) {
 		logObjectDebug(updatedContext, "ns-recv-response", rv.NetworkService)
 	}
 

@@ -29,7 +29,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/test_util"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/testutil"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
@@ -46,11 +46,11 @@ func TestDebugOutput(t *testing.T) {
 	// Create a chain with modifying elements
 	ch := chain.NewNetworkServiceServer(
 		metadata.NewServer(),
-		&test_util.LabelChangerFirstServer{},
-		&test_util.LabelChangerSecondServer{},
+		&testutil.LabelChangerFirstServer{},
+		&testutil.LabelChangerSecondServer{},
 	)
 
-	request := test_util.NewConnection()
+	request := testutil.NewConnection()
 
 	conn, err := ch.Request(context.Background(), request)
 	require.NoError(t, err)
@@ -72,7 +72,7 @@ func TestDebugOutput(t *testing.T) {
 			"\n\x1b[37m [DEBU] [id:conn-1] [type:networkService] \x1b[0mserver-close-response={\"id\":\"conn-1\",\"context\":" +
 			"{\"ip_context\":{\"src_ip_required\":true}},\"labels\":{\"Label\":\"X\"}}\n"
 
-	result := test_util.TrimLogTime(buff)
+	result := testutil.TrimLogTime(buff)
 	require.Equal(t, expectedOutput, result)
 }
 
@@ -90,12 +90,12 @@ func TestErrorOutput(t *testing.T) {
 	// Create a chain with modifying elements
 	ch := chain.NewNetworkServiceServer(
 		metadata.NewServer(),
-		&test_util.LabelChangerFirstServer{},
-		&test_util.LabelChangerSecondServer{},
-		&test_util.ErrorServer{},
+		&testutil.LabelChangerFirstServer{},
+		&testutil.LabelChangerSecondServer{},
+		&testutil.ErrorServer{},
 	)
 
-	request := test_util.NewConnection()
+	request := testutil.NewConnection()
 
 	conn, err := ch.Request(context.Background(), request)
 	require.Error(t, err)
@@ -107,7 +107,7 @@ func TestErrorOutput(t *testing.T) {
 			"[{\"cls\":\"LOCAL\",\"type\":\"KERNEL\"},{\"cls\":\"LOCAL\",\"type\":\"KERNEL\",\"parameters\":{\"label\":\"v2\"}}]}\n" +
 			"\x1b[37m [DEBU] [id:conn-1] [type:networkService] \x1b[0mserver-request-response={\"id\":\"conn-1\",\"context\":" +
 			"{\"ip_context\":{\"src_ip_required\":true}},\"labels\":{\"Label\":\"B\"}}\n" +
-			"\x1b[31m [ERRO] [id:conn-1] [type:networkService] \x1b[0mError returned from sdk/pkg/networkservice/core/test_util/ErrorServer.Request:" +
+			"\x1b[31m [ERRO] [id:conn-1] [type:networkService] \x1b[0mError returned from sdk/pkg/networkservice/core/testutil/ErrorServer.Request:" +
 			" Error returned from api/pkg/api/networkservice/networkServiceClient.Close;" +
 			"\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*beginTraceClient).Close;" +
 			"\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:85;" +
@@ -121,6 +121,6 @@ func TestErrorOutput(t *testing.T) {
 			"\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\t\n" +
 			"\x1b[37m [DEBU] [id:conn-1] [connID:conn-1] [metadata:server] [type:networkService] \x1b[0mmetadata deleted\n"
 
-	result := test_util.TrimLogTime(buff)
+	result := testutil.TrimLogTime(buff)
 	require.Equal(t, expectedOutput, result)
 }

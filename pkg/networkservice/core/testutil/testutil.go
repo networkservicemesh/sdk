@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package common_test has few util functions
-package test_util
+// Package testutil has few util functions for testing
+package testutil
 
 import (
 	"bytes"
@@ -31,6 +31,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
+// NewConnection - create connection for testing
 func NewConnection() *networkservice.NetworkServiceRequest {
 	return &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -57,8 +58,10 @@ func NewConnection() *networkservice.NetworkServiceRequest {
 	}
 }
 
+// LabelChangerFirstServer - common server for testing
 type LabelChangerFirstServer struct{}
 
+// Request - test request
 func (c *LabelChangerFirstServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	request.Connection.Labels = map[string]string{
 		"Label": "A",
@@ -73,6 +76,7 @@ func (c *LabelChangerFirstServer) Request(ctx context.Context, request *networks
 	return rv, err
 }
 
+// Close - test request
 func (c *LabelChangerFirstServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
 	connection.Labels = map[string]string{
 		"Label": "W",
@@ -84,8 +88,10 @@ func (c *LabelChangerFirstServer) Close(ctx context.Context, connection *network
 	return r, err
 }
 
+// LabelChangerSecondServer - common server for testing
 type LabelChangerSecondServer struct{}
 
+// Request - test request
 func (c *LabelChangerSecondServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	request.Connection.Labels = map[string]string{
 		"Label": "B",
@@ -100,6 +106,7 @@ func (c *LabelChangerSecondServer) Request(ctx context.Context, request *network
 	return rv, err
 }
 
+// Close - test request
 func (c *LabelChangerSecondServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
 	connection.Labels = map[string]string{
 		"Label": "X",
@@ -111,8 +118,10 @@ func (c *LabelChangerSecondServer) Close(ctx context.Context, connection *networ
 	return r, err
 }
 
+// CustomError - custom error for testing
 type CustomError struct{}
 
+// Error - error message example
 func (*CustomError) Error() string {
 	return `Error returned from api/pkg/api/networkservice/networkServiceClient.Close
 github.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*beginTraceClient).Close
@@ -127,12 +136,15 @@ github.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Clo
 	/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65`
 }
 
+// StackTrace - testing errors utility
 func (*CustomError) StackTrace() errors.StackTrace {
 	return []errors.Frame{}
 }
 
+// ErrorServer - error server for testing
 type ErrorServer struct{}
 
+// Request - test request
 func (c *ErrorServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	request.Connection.Labels = map[string]string{
 		"Label": "B",
@@ -143,10 +155,12 @@ func (c *ErrorServer) Request(ctx context.Context, request *networkservice.Netwo
 	return nil, &CustomError{}
 }
 
+// Close - test request
 func (c *ErrorServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
 	return next.Server(ctx).Close(ctx, connection)
 }
 
+// TrimLogTime - to format logs
 func TrimLogTime(buff bytes.Buffer) string {
 	// Logger created by the trace chain element uses custom formatter, which prints date and time info in each line
 	// To check if output matches our expectations, we need to somehow get rid of this info.

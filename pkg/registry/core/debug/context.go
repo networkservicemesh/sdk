@@ -67,17 +67,17 @@ func storeNSClientRecvErrorLogged(ctx context.Context) (stored bool) {
 }
 
 func storeNSServerSendLogged(ctx context.Context) (stored bool) {
-	_, ok := metadata.Map(ctx, true).Load(nsServerSendLoggedKey)
+	_, ok := metadata.Map(ctx, false).Load(nsServerSendLoggedKey)
 	if !ok {
-		metadata.Map(ctx, true).Store(nsServerSendLoggedKey, true)
+		metadata.Map(ctx, false).Store(nsServerSendLoggedKey, true)
 	}
 	return !ok
 }
 
 func storeNSServerSendErrorLogged(ctx context.Context) (stored bool) {
-	_, ok := metadata.Map(ctx, true).Load(nsServerSendErrorLoggedKey)
+	_, ok := metadata.Map(ctx, false).Load(nsServerSendErrorLoggedKey)
 	if !ok {
-		metadata.Map(ctx, true).Store(nsServerSendErrorLoggedKey, true)
+		metadata.Map(ctx, false).Store(nsServerSendErrorLoggedKey, true)
 	}
 	return !ok
 }
@@ -99,17 +99,17 @@ func storeNSEClientRecvErrorLogged(ctx context.Context) (stored bool) {
 }
 
 func storeNSEServerSendLogged(ctx context.Context) (stored bool) {
-	_, ok := metadata.Map(ctx, true).Load(nseServerSendLoggedKey)
+	_, ok := metadata.Map(ctx, false).Load(nseServerSendLoggedKey)
 	if !ok {
-		metadata.Map(ctx, true).Store(nseServerSendLoggedKey, true)
+		metadata.Map(ctx, false).Store(nseServerSendLoggedKey, true)
 	}
 	return !ok
 }
 
 func storeNSEServerSendErrorLogged(ctx context.Context) (stored bool) {
-	_, ok := metadata.Map(ctx, true).Load(nseServerSendErrorLoggedKey)
+	_, ok := metadata.Map(ctx, false).Load(nseServerSendErrorLoggedKey)
 	if !ok {
-		metadata.Map(ctx, true).Store(nseServerSendErrorLoggedKey, true)
+		metadata.Map(ctx, false).Store(nseServerSendErrorLoggedKey, true)
 	}
 	return !ok
 }
@@ -120,6 +120,6 @@ func isReadyForLogging(ctx context.Context, isClient bool) (isReady bool) {
 			isReady = false
 		}
 	}()
-	metadata.Map(ctx, false)
+	metadata.Map(ctx, isClient)
 	return true
 }

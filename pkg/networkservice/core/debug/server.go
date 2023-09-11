@@ -36,7 +36,6 @@ type endDebugServer struct{}
 const (
 	serverRequestLoggedKey contextKeyType = "serverRequestLoggedKey"
 	serverCloseLoggedKey   contextKeyType = "serverCloseLoggedKey"
-	lastServerErrorKey     contextKeyType = "lastServerErrorKey"
 	serverPrefix                          = "server"
 )
 
@@ -107,9 +106,8 @@ func (t *endDebugServer) Request(ctx context.Context, request *networkservice.Ne
 		}
 
 		return conn, err
-	} else {
-		return next.Server(ctx).Request(ctx, request)
 	}
+	return next.Server(ctx).Request(ctx, request)
 }
 
 func (t *endDebugServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
@@ -125,7 +123,6 @@ func (t *endDebugServer) Close(ctx context.Context, conn *networkservice.Connect
 		}
 
 		return r, err
-	} else {
-		return next.Server(ctx).Close(ctx, conn)
 	}
+	return next.Server(ctx).Close(ctx, conn)
 }

@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package trace provides a wrapper for tracing around a networkservice.NetworkServiceClient
+// Package debug provides a wrapper for logging around a networkservice.NetworkServiceClient
 package debug
 
 import (
@@ -141,7 +141,7 @@ func isReadyForLogging(ctx context.Context, isClient bool) (isReady bool) {
 			isReady = false
 		}
 	}()
-	metadata.Map(ctx, false)
+	metadata.Map(ctx, isClient)
 	return true
 }
 
