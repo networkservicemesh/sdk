@@ -151,7 +151,7 @@ func TestTraceOutput(t *testing.T) {
 			"\x1b[37m [TRAC] [id:conn-1] [type:networkService] \x1b[0m(2.3)    close-response-diff={\"labels\":{\"Label\":\"Y\"}}\n" +
 			"\x1b[37m [TRAC] [id:conn-1] [type:networkService] \x1b[0m(1.3)   close-response-diff={\"labels\":{\"Label\":\"Z\"}}\n"
 
-	result := testutil.TrimLogTime(buff)
+	result := testutil.TrimLogTime(&buff)
 	require.Equal(t, expectedOutput, result)
 }
 
@@ -195,6 +195,6 @@ func TestErrorOutput(t *testing.T) {
 			"\x1b[31m [ERRO] [id:conn-1] [type:networkService] \x1b[0m(2.3)    Error returned from api/pkg/api/networkservice/networkServiceClient.Close;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*beginTraceClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:85;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*endTraceClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:106;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\t\n" +
 			"\x1b[31m [ERRO] [id:conn-1] [type:networkService] \x1b[0m(1.3)   Error returned from api/pkg/api/networkservice/networkServiceClient.Close;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*beginTraceClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:85;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*endTraceClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:106;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\t\n"
 
-	result := testutil.TrimLogTime(buff)
+	result := testutil.TrimLogTime(&buff)
 	require.Equal(t, expectedOutput, result)
 }

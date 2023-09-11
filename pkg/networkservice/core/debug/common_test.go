@@ -72,7 +72,7 @@ func TestDebugOutput(t *testing.T) {
 			"\n\x1b[37m [DEBU] [id:conn-1] [type:networkService] \x1b[0mserver-close-response={\"id\":\"conn-1\",\"context\":" +
 			"{\"ip_context\":{\"src_ip_required\":true}},\"labels\":{\"Label\":\"X\"}}\n"
 
-	result := testutil.TrimLogTime(buff)
+	result := testutil.TrimLogTime(&buff)
 	require.Equal(t, expectedOutput, result)
 }
 
@@ -121,6 +121,6 @@ func TestErrorOutput(t *testing.T) {
 			"\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\t\n" +
 			"\x1b[37m [DEBU] [id:conn-1] [connID:conn-1] [metadata:server] [type:networkService] \x1b[0mmetadata deleted\n"
 
-	result := testutil.TrimLogTime(buff)
+	result := testutil.TrimLogTime(&buff)
 	require.Equal(t, expectedOutput, result)
 }

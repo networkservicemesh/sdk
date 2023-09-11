@@ -18,8 +18,8 @@
 package testutil
 
 import (
-	"bytes"
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -161,7 +161,7 @@ func (c *ErrorServer) Close(ctx context.Context, connection *networkservice.Conn
 }
 
 // TrimLogTime - to format logs
-func TrimLogTime(buff bytes.Buffer) string {
+func TrimLogTime(buff fmt.Stringer) string {
 	// Logger created by the trace chain element uses custom formatter, which prints date and time info in each line
 	// To check if output matches our expectations, we need to somehow get rid of this info.
 	// We have the following options:
