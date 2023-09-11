@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2023 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -50,6 +50,7 @@ import (
 	registryswapip "github.com/networkservicemesh/sdk/pkg/registry/common/swapip"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/fs"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
@@ -225,6 +226,7 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 	var interdomainBypassNSEServer registryapi.NetworkServiceEndpointRegistryServer
 
 	nseClient := chain.NewNetworkServiceEndpointRegistryClient(
+		metadata.NewNetworkServiceEndpointClient(),
 		begin.NewNetworkServiceEndpointRegistryClient(),
 		clienturl.NewNetworkServiceEndpointRegistryClient(regURL),
 		clientconn.NewNetworkServiceEndpointRegistryClient(),
@@ -236,6 +238,7 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 	)
 
 	nsClient := chain.NewNetworkServiceRegistryClient(
+		metadata.NewNetworkServiceClient(),
 		begin.NewNetworkServiceRegistryClient(),
 		clienturl.NewNetworkServiceRegistryClient(regURL),
 		clientconn.NewNetworkServiceRegistryClient(),
@@ -271,6 +274,7 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 
 	var nsServerChain = registryconnect.NewNetworkServiceRegistryServer(
 		chain.NewNetworkServiceRegistryClient(
+			metadata.NewNetworkServiceClient(),
 			begin.NewNetworkServiceRegistryClient(),
 			clienturl.NewNetworkServiceRegistryClient(proxyURL),
 			clientconn.NewNetworkServiceRegistryClient(),
@@ -286,6 +290,7 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 	nsServerChain = chain.NewNetworkServiceRegistryServer(
 		grpcmetadata.NewNetworkServiceRegistryServer(),
 		updatepath.NewNetworkServiceRegistryServer(tokenGenerator),
+		metadata.NewNetworkServiceServer(),
 		opts.authorizeNSRegistryServer,
 		nsServerChain,
 	)
@@ -293,6 +298,7 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 	var nseServerChain = chain.NewNetworkServiceEndpointRegistryServer(
 		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
 		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGenerator),
+		metadata.NewNetworkServiceEndpointServer(),
 		opts.authorizeNSERegistryServer,
 		begin.NewNetworkServiceEndpointRegistryServer(),
 		clienturl.NewNetworkServiceEndpointRegistryServer(proxyURL),
@@ -301,6 +307,7 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 		registryclusterinfo.NewNetworkServiceEndpointRegistryServer(),
 		registryconnect.NewNetworkServiceEndpointRegistryServer(
 			chain.NewNetworkServiceEndpointRegistryClient(
+				metadata.NewNetworkServiceEndpointClient(),
 				clientconn.NewNetworkServiceEndpointRegistryClient(),
 				opts.authorizeNSERegistryClient,
 				grpcmetadata.NewNetworkServiceEndpointRegistryClient(),
