@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -139,4 +139,86 @@ func Test_vl3MtuServer(t *testing.T) {
 		require.Len(t, event.GetConnections()[segmentName].GetPath().GetPathSegments(), 1)
 		require.Equal(t, segmentName, event.GetConnections()[segmentName].GetPath().GetPathSegments()[0].GetName())
 	}
+}
+
+func Test_vl3MtuServer_SpoiledConnection(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	const (
+		id1       = "id1"
+		id2       = "id2"
+		invalidID = "invalidId"
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	segmentName := "local-nsm"
+
+	// Create monitorServer
+	var monitorServer networkservice.MonitorConnectionServer
+	server := chain.NewNetworkServiceServer(
+		metadata.NewServer(),
+		monitor.NewServer(ctx, &monitorServer),
+		vl3mtu.NewServer(),
+	)
+	monitorClient := adapters.NewMonitorServerToClient(monitorServer)
+	monitorCtx, cancelMonitor := context.WithCancel(ctx)
+	defer cancelMonitor()
+
+	receiver, monitorErr := monitorClient.MonitorConnections(monitorCtx, &networkservice.MonitorScopeSelector{
+		PathSegments: []*networkservice.PathSegment{{Name: segmentName}},
+	})
+	require.NoError(t, monitorErr)
+
+	// Get Empty initial state transfer
+	event, err := receiver.Recv()
+	require.NoError(t, err)
+	require.NotNil(t, event)
+	require.Equal(t, networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER, event.GetType())
+
+	// Send the first request
+	connection1, err := server.Request(ctx, &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: id1,
+			Path: &networkservice.Path{
+				PathSegments: []*networkservice.PathSegment{{Name: segmentName}},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	// Get an update that was triggered by the first request and insure we've properly filtered by segmentName
+	_, err = receiver.Recv()
+	require.NoError(t, err)
+
+	// Spoil the connectionId of the first connection
+	connection1.Id = invalidID
+
+	// Send the second request
+	_, err = server.Request(ctx, &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: id2,
+			Path: &networkservice.Path{
+				PathSegments: []*networkservice.PathSegment{{Name: segmentName}},
+			},
+			Context: &networkservice.ConnectionContext{MTU: 1500},
+		},
+	})
+	require.NoError(t, err)
+
+	// Get an update that was triggered by the second request and insure we've properly filtered by segmentName
+	_, err = receiver.Recv()
+	require.NoError(t, err)
+
+	// We should get the event that contains only the proper connection
+	event, err = receiver.Recv()
+	require.NotNil(t, event)
+	require.NoError(t, err)
+	eventConn, ok := event.GetConnections()[id1]
+	require.True(t, ok)
+	require.Equal(t, networkservice.State_REFRESH_REQUESTED, eventConn.State)
+
+	_, ok = event.GetConnections()[invalidID]
+	require.False(t, ok)
 }
