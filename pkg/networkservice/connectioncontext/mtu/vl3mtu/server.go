@@ -59,11 +59,12 @@ func (v *vl3MtuServer) Request(ctx context.Context, request *networkservice.Netw
 		}
 	})
 
-	conn, err := next.Server(ctx).Request(ctx, request)
+	ret, err := next.Server(ctx).Request(ctx, request)
 	if err != nil {
-		return conn, err
+		return ret, err
 	}
 
+	conn := ret.Clone()
 	v.executor.AsyncExec(func() {
 		// We need to update minimum mtu of the vl3 network and send notifications to the already connected clients.
 		logger := log.FromContext(ctx).WithField("vl3MtuServer", "Request")
@@ -92,7 +93,7 @@ func (v *vl3MtuServer) Request(ctx context.Context, request *networkservice.Netw
 		v.connections[conn.GetId()] = conn
 	})
 
-	return conn, nil
+	return ret, nil
 }
 
 func (v *vl3MtuServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
