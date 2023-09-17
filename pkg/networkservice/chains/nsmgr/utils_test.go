@@ -20,6 +20,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -49,7 +50,7 @@ func defaultRequest(nsName string) *networkservice.NetworkServiceRequest {
 			{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
 		},
 		Connection: &networkservice.Connection{
-			Id:             "1",
+			Id:             uuid.NewString(),
 			NetworkService: nsName,
 			Context:        &networkservice.ConnectionContext{},
 			Labels:         make(map[string]string),

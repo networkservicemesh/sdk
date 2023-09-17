@@ -22,46 +22,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
-	"github.com/networkservicemesh/sdk/pkg/tools/matchutils"
 )
-
-func matchEndpoint(clockTime clock.Clock, nsLabels map[string]string, ns *registry.NetworkService, nses ...*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
-	validNetworkServiceEndpoints := validateExpirationTime(clockTime, nses)
-	// Iterate through the matches
-	for _, match := range ns.GetMatches() {
-		// All match source selector labels should be present in the requested labels map
-		if !matchutils.IsSubset(nsLabels, match.GetSourceSelector(), nsLabels) {
-			continue
-		}
-		nseCandidates := make([]*registry.NetworkServiceEndpoint, 0)
-		// Check all Destinations in that match
-		for _, destination := range match.GetRoutes() {
-			// Each NSE should be matched against that destination
-			for _, nse := range validNetworkServiceEndpoints {
-				var candidateNetworkServiceLabels = nse.GetNetworkServiceLabels()[ns.GetName()]
-				var labels map[string]string
-				if candidateNetworkServiceLabels != nil {
-					labels = candidateNetworkServiceLabels.Labels
-				}
-				if matchutils.IsSubset(labels, destination.GetDestinationSelector(), nsLabels) {
-					nseCandidates = append(nseCandidates, nse)
-				}
-			}
-		}
-
-		if match.Fallthrough && len(nseCandidates) == 0 {
-			continue
-		}
-
-		if match.GetMetadata() != nil && len(match.Routes) == 0 && len(nseCandidates) == 0 {
-			break
-		}
-
-		return nseCandidates
-	}
-
-	return validNetworkServiceEndpoints
-}
 
 func validateExpirationTime(clockTime clock.Clock, nses []*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
 	var validNetworkServiceEndpoints []*registry.NetworkServiceEndpoint

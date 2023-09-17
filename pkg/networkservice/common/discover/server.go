@@ -32,6 +32,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/matchutils"
 )
 
 type discoverCandidatesServer struct {
@@ -148,7 +149,7 @@ func (d *discoverCandidatesServer) discoverNetworkServiceEndpoints(ctx context.C
 	}
 	nseList := registry.ReadNetworkServiceEndpointList(nseRespStream)
 
-	result := matchEndpoint(clockTime, nsLabels, ns, nseList...)
+	result := matchutils.MatchEndpoint(nsLabels, ns, validateExpirationTime(clockTime, nseList)...)
 	if len(result) != 0 {
 		return result, nil
 	}
