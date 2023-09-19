@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,6 +30,44 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 )
+
+// MatchEndpoint filters input nses by network service configuration.
+// Returns the same nses list if no matches are declared in the network service.
+func MatchEndpoint(nsLabels map[string]string, ns *registry.NetworkService, nses ...*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
+	for _, match := range ns.GetMatches() {
+		// All match source selector labels should be present in the requested labels map
+		if !IsSubset(nsLabels, match.GetSourceSelector(), nsLabels) {
+			continue
+		}
+		nseCandidates := make([]*registry.NetworkServiceEndpoint, 0)
+		// Check all Destinations in that match
+		for _, destination := range match.GetRoutes() {
+			// Each NSE should be matched against that destination
+			for _, nse := range nses {
+				var candidateNetworkServiceLabels = nse.GetNetworkServiceLabels()[ns.GetName()]
+				var labels map[string]string
+				if candidateNetworkServiceLabels != nil {
+					labels = candidateNetworkServiceLabels.Labels
+				}
+				if IsSubset(labels, destination.GetDestinationSelector(), nsLabels) {
+					nseCandidates = append(nseCandidates, nse)
+				}
+			}
+		}
+
+		if match.Fallthrough && len(nseCandidates) == 0 {
+			continue
+		}
+
+		if match.GetMetadata() != nil && len(match.Routes) == 0 && len(nseCandidates) == 0 {
+			break
+		}
+
+		return nseCandidates
+	}
+
+	return nses
+}
 
 // MatchNetworkServices returns true if two network services are matched
 func MatchNetworkServices(left, right *registry.NetworkService) bool {

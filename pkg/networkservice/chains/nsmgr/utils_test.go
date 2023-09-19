@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,6 +22,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -49,7 +52,7 @@ func defaultRequest(nsName string) *networkservice.NetworkServiceRequest {
 			{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
 		},
 		Connection: &networkservice.Connection{
-			Id:             "1",
+			Id:             uuid.NewString(),
 			NetworkService: nsName,
 			Context:        &networkservice.ConnectionContext{},
 			Labels:         make(map[string]string),

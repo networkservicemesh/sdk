@@ -1,6 +1,6 @@
-// Copyright (c) 2020-2022 Cisco and/or its affiliates.
+// Copyright (c) 2020-2023 Cisco and/or its affiliates.
 //
-// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2023 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -41,6 +41,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/metrics"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/netsvcmonitor"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry"
 	registryauthorize "github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
@@ -290,7 +291,6 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		registrysendfd.NewNetworkServiceEndpointRegistryServer(),
 		remoteOrLocalRegistry,
 	)
-
 	// Construct Endpoint
 	rv.Endpoint = endpoint.NewServer(ctx, tokenGenerator,
 		endpoint.WithName(opts.name),
@@ -303,6 +303,10 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 				registryadapter.NetworkServiceEndpointServerToClient(remoteOrLocalRegistry),
 				discoverforwarder.WithForwarderServiceName(opts.forwarderServiceName),
 				discoverforwarder.WithNSMgrURL(opts.url),
+			),
+			netsvcmonitor.NewServer(ctx,
+				registryadapter.NetworkServiceServerToClient(nsRegistry),
+				registryadapter.NetworkServiceEndpointServerToClient(remoteOrLocalRegistry),
 			),
 			excludedprefixes.NewServer(ctx),
 			recvfd.NewServer(), // Receive any files passed
