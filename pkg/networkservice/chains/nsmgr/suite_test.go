@@ -199,7 +199,7 @@ func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 func (s *nsmgrSuite) Test_ReselectEndpointWhenNetSvcHasChanged() {
 	t := s.T()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
