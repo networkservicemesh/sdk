@@ -1,6 +1,6 @@
-# Debug chain element
+# Traceconcise chain element
 
-The purpose of `debug` is to log server-client chain the following way:
+The purpose of `traceconcise` is to log server-client chain the following way:
 
 1. log server request
 2. log client request

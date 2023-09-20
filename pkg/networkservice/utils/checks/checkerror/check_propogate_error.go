@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2023 Cisco and/or its affiliates.
+// Copyright (c) 2020 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -24,13 +24,11 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
 // CheckPropagatesErrorClient - NetworkServiceClient that will check to see if the clientUnderTest correctly propagates error
 func CheckPropagatesErrorClient(t *testing.T, clientUnderTest networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	return chain.NewNetworkServiceClient(
-		metadata.NewClient(),
 		NewClient(t, false),
 		clientUnderTest,
 		injecterror.NewClient(),
@@ -40,7 +38,6 @@ func CheckPropagatesErrorClient(t *testing.T, clientUnderTest networkservice.Net
 // CheckPropogatesErrorServer - NetworkServiceServer that will check to see if the serverUnderTest correctly propagates error
 func CheckPropogatesErrorServer(t *testing.T, serverUnderTest networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
 	return chain.NewNetworkServiceServer(
-		metadata.NewServer(),
 		NewServer(t, false),
 		serverUnderTest,
 		injecterror.NewServer(),

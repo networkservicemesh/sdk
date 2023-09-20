@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Doc.ai and/or its affiliates.
+// Copyright (c) 2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package debug
+package traceconcise
 
 import (
 	"context"
@@ -36,20 +36,25 @@ const (
 
 func logRequest(ctx context.Context, request any, prefixes ...string) {
 	msg := strings.Join(prefixes, "-")
-	logObjectDebug(ctx, msg, request)
+	logObject(ctx, msg, request)
 }
 
 func logResponse(ctx context.Context, response any, prefixes ...string) {
 	msg := strings.Join(append(prefixes, "response"), "-")
-	logObjectDebug(ctx, msg, response)
+	logObject(ctx, msg, response)
 }
 
 func logError(ctx context.Context, err error, operation string) error {
-	log.FromContext(ctx).Errorf("%v", errors.Wrapf(err, "Error returned from %s", operation))
+	if log.IsTracingEnabled() {
+		log.FromContext(ctx).Errorf("%v", errors.Wrapf(err, "Error returned from %s", operation))
+	}
 	return err
 }
 
-func logObjectDebug(ctx context.Context, k, v interface{}) {
+func logObject(ctx context.Context, k, v interface{}) {
+	if !log.IsTracingEnabled() {
+		return
+	}
 	s := log.FromContext(ctx)
 	msg := ""
 	cc, err := json.Marshal(v)
@@ -58,5 +63,5 @@ func logObjectDebug(ctx context.Context, k, v interface{}) {
 	} else {
 		msg = fmt.Sprint(v)
 	}
-	s.Debugf("%v=%s", k, msg)
+	s.Infof("%v=%s", k, msg)
 }

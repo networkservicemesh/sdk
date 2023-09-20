@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2023 Cisco and/or its affiliates.
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -28,7 +28,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkerror"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
 // ServerSuite - test suite to check that a NetworkServiceServer implementing a Mechanism meets basic contracts
@@ -100,7 +99,6 @@ func (m *ServerSuite) TestContextAfter() {
 //	before calling the next chain element have been made
 func (m *ServerSuite) TestMechanismAfter() {
 	contract := chain.NewNetworkServiceServer(
-		metadata.NewServer(),
 		mechanisms.NewServer(
 			map[string]networkservice.NetworkServiceServer{
 				m.mechanismType: m.serverUnderTest,

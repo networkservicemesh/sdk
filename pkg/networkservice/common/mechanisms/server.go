@@ -28,7 +28,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
 type mechanismsServer struct {
@@ -49,7 +48,7 @@ func NewServer(mechanisms map[string]networkservice.NetworkServiceServer) networ
 	for mechanismType, server := range mechanisms {
 		// We wrap in a chain here to make sure that if the 'server' is calling next.Server(ctx) it doesn't
 		// skips past returning here.
-		rv.mechanisms[mechanismType] = chain.NewNetworkServiceServer(metadata.NewServer(), server)
+		rv.mechanisms[mechanismType] = chain.NewNetworkServiceServer(server)
 	}
 	return rv
 }

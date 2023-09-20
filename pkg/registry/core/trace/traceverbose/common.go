@@ -1,4 +1,6 @@
-// Copyright (c) 2023 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,7 +16,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package debug
+package traceverbose
 
 import (
 	"context"
@@ -34,12 +36,28 @@ const (
 	methodNameRecv       = "Recv"
 )
 
+type stackTracer interface {
+	StackTrace() errors.StackTrace
+}
+
 func logError(ctx context.Context, err error, operation string) error {
-	log.FromContext(ctx).Errorf("%v", errors.Wrapf(err, "Error returned from %s", operation))
+	if _, ok := err.(stackTracer); !ok {
+		if err == error(nil) {
+			return nil
+		}
+		err = errors.Wrapf(err, "Error returned from %s", operation)
+		log.FromContext(ctx).Errorf("%+v", err)
+		return err
+	}
+	log.FromContext(ctx).Errorf("%v", err)
 	return err
 }
 
-func logObjectDebug(ctx context.Context, k, v interface{}) {
+func logObjectTrace(ctx context.Context, k, v interface{}) {
+	if ok := trace(ctx); !ok {
+		return
+	}
+
 	s := log.FromContext(ctx)
 	msg := ""
 	cc, err := json.Marshal(v)
@@ -48,5 +66,5 @@ func logObjectDebug(ctx context.Context, k, v interface{}) {
 	} else {
 		msg = fmt.Sprint(v)
 	}
-	s.Debugf("%v=%s", k, msg)
+	s.Tracef("%v=%s", k, msg)
 }

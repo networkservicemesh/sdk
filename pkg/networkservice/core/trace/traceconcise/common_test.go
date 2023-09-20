@@ -1,6 +1,4 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
-//
-// Copyright (c) 2021-2023 Doc.ai and/or its affiliates.
+// Copyright (c) 2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -16,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package debug_test has few tests for logs in debug mode
-package debug_test
+// Package traceconcise_test has few tests for logs in concise mode
+package traceconcise_test
 
 import (
 	"bytes"
@@ -29,11 +27,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/testutil"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace/testutil"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-func TestDebugOutput(t *testing.T) {
+func TestOutput(t *testing.T) {
 	// Configure logging
 	// Set output to buffer
 	var buff bytes.Buffer
@@ -41,11 +39,11 @@ func TestDebugOutput(t *testing.T) {
 	logrus.SetFormatter(&logrus.TextFormatter{
 		DisableTimestamp: true,
 	})
-	logrus.SetLevel(logrus.DebugLevel)
+	log.EnableTracing(true)
+	logrus.SetLevel(logrus.InfoLevel)
 
 	// Create a chain with modifying elements
 	ch := chain.NewNetworkServiceServer(
-		metadata.NewServer(),
 		&testutil.LabelChangerFirstServer{},
 		&testutil.LabelChangerSecondServer{},
 	)
@@ -61,15 +59,14 @@ func TestDebugOutput(t *testing.T) {
 	require.NotNil(t, e)
 
 	expectedOutput :=
-		"\x1b[37m [DEBU] [id:conn-1] [type:networkService] \x1b[0mserver-request={\"connection\":" +
+		"\x1b[36m [INFO] [id:conn-1] [type:networkService] \x1b[0mserver-request={\"connection\":" +
 			"{\"id\":\"conn-1\",\"context\":{\"ip_context\":{\"src_ip_required\":true}}},\"mechanism_preferences\":" +
 			"[{\"cls\":\"LOCAL\",\"type\":\"KERNEL\"},{\"cls\":\"LOCAL\",\"type\":\"KERNEL\",\"parameters\":{\"label\":\"v2\"}}]}" +
-			"\n\x1b[37m [DEBU] [id:conn-1] [type:networkService] \x1b[0mserver-request-response={\"id\":\"conn-1\",\"context\":" +
+			"\n\x1b[36m [INFO] [id:conn-1] [type:networkService] \x1b[0mserver-request-response={\"id\":\"conn-1\",\"context\":" +
 			"{\"ip_context\":{\"src_ip_required\":true}},\"labels\":{\"Label\":\"B\"}}" +
-			"\n\x1b[37m [DEBU] [id:conn-1] [connID:conn-1] [metadata:server] [type:networkService] \x1b[0mmetadata deleted" +
-			"\n\x1b[37m [DEBU] [id:conn-1] [type:networkService] \x1b[0mserver-close={\"id\":\"conn-1\",\"context\":{\"ip_context\":" +
+			"\n\x1b[36m [INFO] [id:conn-1] [type:networkService] \x1b[0mserver-close={\"id\":\"conn-1\",\"context\":{\"ip_context\":" +
 			"{\"src_ip_required\":true}},\"labels\":{\"Label\":\"D\"}}" +
-			"\n\x1b[37m [DEBU] [id:conn-1] [type:networkService] \x1b[0mserver-close-response={\"id\":\"conn-1\",\"context\":" +
+			"\n\x1b[36m [INFO] [id:conn-1] [type:networkService] \x1b[0mserver-close-response={\"id\":\"conn-1\",\"context\":" +
 			"{\"ip_context\":{\"src_ip_required\":true}},\"labels\":{\"Label\":\"X\"}}\n"
 
 	result := testutil.TrimLogTime(&buff)
@@ -85,11 +82,11 @@ func TestErrorOutput(t *testing.T) {
 	logrus.SetFormatter(&logrus.TextFormatter{
 		DisableTimestamp: true,
 	})
-	logrus.SetLevel(logrus.DebugLevel)
+	log.EnableTracing(true)
+	logrus.SetLevel(logrus.InfoLevel)
 
 	// Create a chain with modifying elements
 	ch := chain.NewNetworkServiceServer(
-		metadata.NewServer(),
 		&testutil.LabelChangerFirstServer{},
 		&testutil.LabelChangerSecondServer{},
 		&testutil.ErrorServer{},
@@ -102,12 +99,12 @@ func TestErrorOutput(t *testing.T) {
 	require.Nil(t, conn)
 
 	expectedOutput :=
-		"\x1b[37m [DEBU] [id:conn-1] [type:networkService] \x1b[0mserver-request={\"connection\":" +
+		"\x1b[36m [INFO] [id:conn-1] [type:networkService] \x1b[0mserver-request={\"connection\":" +
 			"{\"id\":\"conn-1\",\"context\":{\"ip_context\":{\"src_ip_required\":true}}},\"mechanism_preferences\":" +
 			"[{\"cls\":\"LOCAL\",\"type\":\"KERNEL\"},{\"cls\":\"LOCAL\",\"type\":\"KERNEL\",\"parameters\":{\"label\":\"v2\"}}]}\n" +
-			"\x1b[37m [DEBU] [id:conn-1] [type:networkService] \x1b[0mserver-request-response={\"id\":\"conn-1\",\"context\":" +
+			"\x1b[36m [INFO] [id:conn-1] [type:networkService] \x1b[0mserver-request-response={\"id\":\"conn-1\",\"context\":" +
 			"{\"ip_context\":{\"src_ip_required\":true}},\"labels\":{\"Label\":\"B\"}}\n" +
-			"\x1b[31m [ERRO] [id:conn-1] [type:networkService] \x1b[0mError returned from sdk/pkg/networkservice/core/testutil/ErrorServer.Request:" +
+			"\x1b[31m [ERRO] [id:conn-1] [type:networkService] \x1b[0mError returned from sdk/pkg/networkservice/core/trace/testutil/ErrorServer.Request:" +
 			" Error returned from api/pkg/api/networkservice/networkServiceClient.Close;" +
 			"\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*beginTraceClient).Close;" +
 			"\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:85;" +
@@ -118,8 +115,7 @@ func TestErrorOutput(t *testing.T) {
 			"\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*endTraceClient).Close;" +
 			"\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:106;" +
 			"\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;" +
-			"\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\t\n" +
-			"\x1b[37m [DEBU] [id:conn-1] [connID:conn-1] [metadata:server] [type:networkService] \x1b[0mmetadata deleted\n"
+			"\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\t\n"
 
 	result := testutil.TrimLogTime(&buff)
 	require.Equal(t, expectedOutput, result)

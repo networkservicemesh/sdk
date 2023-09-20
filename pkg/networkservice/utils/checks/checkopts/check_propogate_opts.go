@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2023 Cisco and/or its affiliates.
+// Copyright (c) 2020 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -24,13 +24,11 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injectopts"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
 // CheckPropogateOptsClient - returns NetworkServiceClient that checks to make sure the clientUnderTest is passing through the grpc.CallOptions
 func CheckPropogateOptsClient(t *testing.T, clientUnderTest networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	return chain.NewNetworkServiceClient(
-		metadata.NewClient(),
 		injectopts.NewClient(),
 		clientUnderTest,
 		NewClient(t),

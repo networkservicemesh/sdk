@@ -140,7 +140,6 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	nseChain := chain.NewNetworkServiceEndpointRegistryServer(
 		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
 		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGenerator),
-		metadata.NewNetworkServiceEndpointServer(),
 		opts.authorizeNSERegistryServer,
 		begin.NewNetworkServiceEndpointRegistryServer(),
 		metadata.NewNetworkServiceEndpointServer(),
@@ -157,10 +156,8 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 				return false
 			},
 			Action: chain.NewNetworkServiceEndpointRegistryServer(
-				metadata.NewNetworkServiceEndpointServer(),
 				connect.NewNetworkServiceEndpointRegistryServer(
 					chain.NewNetworkServiceEndpointRegistryClient(
-						metadata.NewNetworkServiceEndpointClient(),
 						begin.NewNetworkServiceEndpointRegistryClient(),
 						clienturl.NewNetworkServiceEndpointRegistryClient(opts.proxyRegistryURL),
 						clientconn.NewNetworkServiceEndpointRegistryClient(),
@@ -177,7 +174,6 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			switchcase.NSEServerCase{
 				Condition: func(c context.Context, nse *registry.NetworkServiceEndpoint) bool { return true },
 				Action: chain.NewNetworkServiceEndpointRegistryServer(
-					metadata.NewNetworkServiceEndpointServer(),
 					setregistrationtime.NewNetworkServiceEndpointRegistryServer(),
 					expire.NewNetworkServiceEndpointRegistryServer(ctx, expire.WithDefaultExpiration(opts.defaultExpiration)),
 					memory.NewNetworkServiceEndpointRegistryServer(),
@@ -198,7 +194,6 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 				},
 				Action: connect.NewNetworkServiceRegistryServer(
 					chain.NewNetworkServiceRegistryClient(
-						metadata.NewNetworkServiceClient(),
 						clienturl.NewNetworkServiceRegistryClient(opts.proxyRegistryURL),
 						begin.NewNetworkServiceRegistryClient(),
 						clientconn.NewNetworkServiceRegistryClient(),

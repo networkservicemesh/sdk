@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2023 Doc.ai and/or its affiliates.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -25,7 +25,6 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
 type mechanismsClient struct {
@@ -38,7 +37,7 @@ func NewClient(mechanisms map[string]networkservice.NetworkServiceClient) networ
 		mechanisms: make(map[string]networkservice.NetworkServiceClient),
 	}
 	for m, c := range mechanisms {
-		result.mechanisms[m] = chain.NewNetworkServiceClient(metadata.NewClient(), c)
+		result.mechanisms[m] = chain.NewNetworkServiceClient(c)
 	}
 
 	return result

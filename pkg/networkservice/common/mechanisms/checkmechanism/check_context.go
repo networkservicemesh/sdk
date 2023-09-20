@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2023 Cisco and/or its affiliates.
+// Copyright (c) 2020-2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -28,7 +28,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontextonreturn"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
 // CheckClientContextOnReturn - returns a NetworkServiceClient that will check the state of the context.Context
@@ -40,7 +39,6 @@ import (
 //	check - function to check the state of the context.Context after the clientUnderTest has returned
 func CheckClientContextOnReturn(t *testing.T, clientUnderTest networkservice.NetworkServiceClient, mechanismType string, check func(*testing.T, context.Context)) networkservice.NetworkServiceClient {
 	return chain.NewNetworkServiceClient(
-		metadata.NewClient(),
 		checkcontextonreturn.NewClient(t, check),
 		clientUnderTest,
 		adapters.NewServerToClient(mechanisms.NewServer(
@@ -62,7 +60,6 @@ func CheckClientContextOnReturn(t *testing.T, clientUnderTest networkservice.Net
 //	        (as it cannot know what to do at this stage)
 func CheckClientContextAfter(t *testing.T, client networkservice.NetworkServiceClient, mechanismType string, check func(*testing.T, context.Context)) networkservice.NetworkServiceClient {
 	return chain.NewNetworkServiceClient(
-		metadata.NewClient(),
 		client,
 		checkcontext.NewClient(t, check),
 		adapters.NewServerToClient(mechanisms.NewServer(
@@ -82,7 +79,6 @@ func CheckClientContextAfter(t *testing.T, client networkservice.NetworkServiceC
 //	check - function to check that the serverUnderTest has taken action to implement the Mechanism
 func CheckContextAfterServer(t *testing.T, serverUnderTest networkservice.NetworkServiceServer, mechanismType string, check func(*testing.T, context.Context)) networkservice.NetworkServiceServer {
 	return chain.NewNetworkServiceServer(
-		metadata.NewServer(),
 		mechanisms.NewServer(
 			map[string]networkservice.NetworkServiceServer{
 				mechanismType: serverUnderTest,
