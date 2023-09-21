@@ -55,7 +55,7 @@ func InitSpanExporter(ctx context.Context, exporterURL string) trace.SpanExporte
 }
 
 // InitOPTLMetricExporter - returns an instance of OpenTelemetry Metric Exporter.
-func InitOPTLMetricExporter(ctx context.Context, exporterURL string) sdkmetric.Reader {
+func InitOPTLMetricExporter(ctx context.Context, exporterURL string, exportInterval time.Duration) sdkmetric.Reader {
 	if !IsEnabled() {
 		return nil
 	}
@@ -77,7 +77,7 @@ func InitOPTLMetricExporter(ctx context.Context, exporterURL string) sdkmetric.R
 
 	return sdkmetric.NewPeriodicReader(
 		exporter,
-		sdkmetric.WithInterval(10*time.Second),
+		sdkmetric.WithInterval(exportInterval),
 	)
 }
 
