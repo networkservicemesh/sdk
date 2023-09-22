@@ -20,10 +20,12 @@ package opentelemetry
 
 import (
 	"context"
+	"time"
 
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/exporters/prometheus"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
@@ -52,8 +54,8 @@ func InitSpanExporter(ctx context.Context, exporterURL string) trace.SpanExporte
 	return exporter
 }
 
-// InitMetricExporter - returns an instance of OpenTelemetry Metric Exporter.
-func InitMetricExporter(ctx context.Context, exporterURL string) *sdkmetric.Exporter {
+// InitOPTLMetricExporter - returns an instance of OpenTelemetry Metric Exporter.
+func InitOPTLMetricExporter(ctx context.Context, exporterURL string, exportInterval time.Duration) sdkmetric.Reader {
 	if !IsEnabled() {
 		return nil
 	}
@@ -73,5 +75,22 @@ func InitMetricExporter(ctx context.Context, exporterURL string) *sdkmetric.Expo
 		return nil
 	}
 
-	return &exporter
+	return sdkmetric.NewPeriodicReader(
+		exporter,
+		sdkmetric.WithInterval(exportInterval),
+	)
+}
+
+// InitPrometheusMetricExporter - returns an instance of Prometheus Metric Exporter.
+func InitPrometheusMetricExporter(ctx context.Context) sdkmetric.Reader {
+	if !IsEnabled() {
+		return nil
+	}
+	exporter, err := prometheus.New()
+	if err != nil {
+		log.FromContext(ctx).Errorf("%v", err)
+		return nil
+	}
+
+	return exporter
 }

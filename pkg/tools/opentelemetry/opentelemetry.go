@@ -24,7 +24,6 @@ import (
 	"io"
 	"os"
 	"strconv"
-	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
@@ -56,7 +55,6 @@ type opentelemetry struct {
 	tracerProvider *sdktrace.TracerProvider
 	/* Metrics */
 	metricController *sdkmetric.MeterProvider
-	metricExporter   *sdkmetric.Exporter
 }
 
 func (o *opentelemetry) Close() error {
@@ -74,7 +72,7 @@ func (o *opentelemetry) Close() error {
 }
 
 // Init - creates opentelemetry tracer and meter providers
-func Init(ctx context.Context, spanExporter sdktrace.SpanExporter, metricExporter *sdkmetric.Exporter, service string) io.Closer {
+func Init(ctx context.Context, spanExporter sdktrace.SpanExporter, metricReader sdkmetric.Reader, service string) io.Closer {
 	o := &opentelemetry{
 		ctx: ctx,
 	}
@@ -82,7 +80,7 @@ func Init(ctx context.Context, spanExporter sdktrace.SpanExporter, metricExporte
 		return o
 	}
 
-	// Create resourses
+	// Create resources
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
 			// the service name used to display traces in backends
@@ -94,34 +92,32 @@ func Init(ctx context.Context, spanExporter sdktrace.SpanExporter, metricExporte
 		return o
 	}
 
-	// Register the trace exporter with a TracerProvider, using a batch
-	// span processor to aggregate spans before export.
-	bsp := sdktrace.NewBatchSpanProcessor(spanExporter)
-	tracerProvider := sdktrace.NewTracerProvider(
-		sdktrace.WithSampler(sdktrace.AlwaysSample()),
-		sdktrace.WithResource(res),
-		sdktrace.WithSpanProcessor(bsp),
-	)
+	// Create trace provider
+	if spanExporter != nil {
+		// Register the trace exporter with a TracerProvider, using a batch
+		// span processor to aggregate spans before export.
+		bsp := sdktrace.NewBatchSpanProcessor(spanExporter)
+		tracerProvider := sdktrace.NewTracerProvider(
+			sdktrace.WithSampler(sdktrace.AlwaysSample()),
+			sdktrace.WithResource(res),
+			sdktrace.WithSpanProcessor(bsp),
+		)
 
-	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}))
-	otel.SetTracerProvider(tracerProvider)
-	o.tracerProvider = tracerProvider
+		otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}))
+		otel.SetTracerProvider(tracerProvider)
+		o.tracerProvider = tracerProvider
+	}
 
 	// Create meter provider
+	if metricReader != nil {
+		meterProvider := sdkmetric.NewMeterProvider(
+			sdkmetric.WithResource(res),
+			sdkmetric.WithReader(metricReader),
+		)
 
-	o.metricExporter = metricExporter
-
-	meterProvider := sdkmetric.NewMeterProvider(
-		sdkmetric.WithResource(res),
-		sdkmetric.WithReader(
-			sdkmetric.NewPeriodicReader(*metricExporter,
-				sdkmetric.WithInterval(10*time.Second),
-			),
-		),
-	)
-
-	otel.SetMeterProvider(meterProvider)
-	o.metricController = meterProvider
+		otel.SetMeterProvider(meterProvider)
+		o.metricController = meterProvider
+	}
 
 	return o
 }
