@@ -57,7 +57,7 @@ func (t *conciseNetworkServiceRegistryFindClient) Recv() (*registry.NetworkServi
 		}
 
 		lastError := loadAndStoreNsClientRecvError(ctx, err)
-		if lastError == nil || err.Error() != (lastError).Error() {
+		if lastError == nil || err.Error() != lastError.Error() {
 			return nil, logError(ctx, err, t.operation)
 		}
 		return nil, err
@@ -89,7 +89,7 @@ func (t *conciseNetworkServiceRegistryClient) Register(ctx context.Context, in *
 	rv, err := t.traced.Register(ctx, in, opts...)
 	if err != nil {
 		lastError := loadAndStoreNsClientRegisterError(ctx, err)
-		if lastError == nil || err.Error() != (lastError).Error() {
+		if lastError == nil || err.Error() != lastError.Error() {
 			operation := typeutils.GetFuncName(t.traced, methodNameRegister)
 			return nil, logError(ctx, err, operation)
 		}
@@ -122,7 +122,7 @@ func (t *conciseNetworkServiceRegistryClient) Find(ctx context.Context, in *regi
 	rv, err := t.traced.Find(ctx, in, opts...)
 	if err != nil {
 		lastError := loadAndStoreNsClientFindError(ctx, err)
-		if lastError == nil || err.Error() != (lastError).Error() {
+		if lastError == nil || err.Error() != lastError.Error() {
 			operation := typeutils.GetFuncName(t.traced, methodNameFind)
 			return nil, logError(ctx, err, operation)
 		}
@@ -153,7 +153,7 @@ func (t *conciseNetworkServiceRegistryClient) Unregister(ctx context.Context, in
 	rv, err := t.traced.Unregister(ctx, in, opts...)
 	if err != nil {
 		lastError := loadAndStoreNsClientUnregisterError(ctx, err)
-		if lastError == nil || err.Error() != (lastError).Error() {
+		if lastError == nil || err.Error() != lastError.Error() {
 			operation := typeutils.GetFuncName(t.traced, methodNameUnregister)
 			return nil, logError(ctx, err, operation)
 		}
@@ -190,7 +190,7 @@ func (t *conciseNetworkServiceRegistryServer) Register(ctx context.Context, in *
 	rv, err := t.traced.Register(ctx, in)
 	if err != nil {
 		lastError := loadAndStoreNsServerRegisterError(ctx, err)
-		if lastError == nil || err.Error() != (lastError).Error() {
+		if lastError == nil || err.Error() != lastError.Error() {
 			operation := typeutils.GetFuncName(t.traced, methodNameRegister)
 			return nil, logError(ctx, err, operation)
 		}
@@ -224,7 +224,7 @@ func (t *conciseNetworkServiceRegistryServer) Find(in *registry.NetworkServiceQu
 	err := t.traced.Find(in, conciseFindServer)
 	if err != nil {
 		lastError := loadAndStoreNsServerFindError(ctx, err)
-		if lastError == nil || err.Error() != (lastError).Error() {
+		if lastError == nil || err.Error() != lastError.Error() {
 			operation := typeutils.GetFuncName(t.traced, methodNameFind)
 			return logError(ctx, err, operation)
 		}
@@ -253,7 +253,7 @@ func (t *conciseNetworkServiceRegistryServer) Unregister(ctx context.Context, in
 	rv, err := t.traced.Unregister(ctx, in)
 	if err != nil {
 		lastError := loadAndStoreNsServerUnregisterError(ctx, err)
-		if lastError == nil || err.Error() != (lastError).Error() {
+		if lastError == nil || err.Error() != lastError.Error() {
 			operation := typeutils.GetFuncName(t.traced, methodNameUnregister)
 			return nil, logError(ctx, err, operation)
 		}
@@ -290,7 +290,7 @@ func (t *conciseNetworkServiceRegistryFindServer) Send(nsResp *registry.NetworkS
 	err := s.Send(nsResp)
 	if err != nil {
 		lastError := loadAndStoreNsServerSendError(ctx, err)
-		if lastError == nil || err.Error() != (lastError).Error() {
+		if lastError == nil || err.Error() != lastError.Error() {
 			return logError(ctx, err, t.operation)
 		}
 	}

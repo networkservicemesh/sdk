@@ -19,6 +19,7 @@ package traceconcise
 
 import (
 	"context"
+	"sync"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log/spanlogger"
@@ -32,21 +33,21 @@ import (
 type contextKeyType string
 
 const (
-	conciseInfoKey contextKeyType = "conciseInfoLogNetworkservice"
-	loggedType     string         = "networkService"
+	conciseMapKey contextKeyType = "conciseMapLogNetworkservice"
+	loggedType    string         = "networkService"
+
+	serverRequestTailKey = "serverRequestTail"
+	serverCloseTailKey   = "serverCloseTail"
+	clientRequestTailKey = "clientRequestTail"
+	clientCloseTailKey   = "clientCloseTail"
+
+	serverRequestErrorKey = "serverRequestError"
+	serverCloseErrorKey   = "serverCloseError"
+	clientRequestErrorKey = "clientRequestError"
+	clientCloseErrorKey   = "clientCloseError"
 )
 
-type conciseInfo struct {
-	serverRequestTail *networkservice.NetworkServiceServer
-	serverCloseTail   *networkservice.NetworkServiceServer
-	clientRequestTail *networkservice.NetworkServiceClient
-	clientCloseTail   *networkservice.NetworkServiceClient
-
-	serverRequestError *error
-	serverCloseError   *error
-	clientRequestError *error
-	clientCloseError   *error
-}
+type conciseMap = sync.Map
 
 func withLog(parent context.Context, connectionID, methodName string) (c context.Context, f func()) {
 	if parent == nil {
@@ -68,87 +69,115 @@ func withLog(parent context.Context, connectionID, methodName string) (c context
 	}
 }
 
-func conciseInfoFromCtx(ctx context.Context) (context.Context, *conciseInfo) {
+func conciseMapFromCtx(ctx context.Context) (context.Context, *conciseMap) {
 	if ctx == nil {
 		panic("cannot create context from nil parent")
 	}
 
-	v, ok := ctx.Value(conciseInfoKey).(*conciseInfo)
+	v, ok := ctx.Value(conciseMapKey).(*conciseMap)
 	if ok {
 		return ctx, v
 	}
-	v = new(conciseInfo)
-	return context.WithValue(ctx, conciseInfoKey, v), v
+	v = new(conciseMap)
+	return context.WithValue(ctx, conciseMapKey, v), v
 }
 
-func withServerRequestTail(ctx context.Context, server *networkservice.NetworkServiceServer) context.Context {
-	c, d := conciseInfoFromCtx(ctx)
-	d.serverRequestTail = server
+func withServerRequestTail(ctx context.Context, server networkservice.NetworkServiceServer) context.Context {
+	c, d := conciseMapFromCtx(ctx)
+	d.Store(serverRequestTailKey, server)
 	return c
 }
 
-func serverRequestTail(ctx context.Context) (context.Context, *networkservice.NetworkServiceServer) {
-	c, d := conciseInfoFromCtx(ctx)
-	return c, d.serverRequestTail
+func serverRequestTail(ctx context.Context) (context.Context, networkservice.NetworkServiceServer) {
+	c, d := conciseMapFromCtx(ctx)
+	if v, ok := d.Load(serverRequestTailKey); ok {
+		return c, v.(networkservice.NetworkServiceServer)
+	}
+	return c, nil
 }
 
-func withServerCloseTail(ctx context.Context, server *networkservice.NetworkServiceServer) context.Context {
-	c, d := conciseInfoFromCtx(ctx)
-	d.serverCloseTail = server
+func withServerCloseTail(ctx context.Context, server networkservice.NetworkServiceServer) context.Context {
+	c, d := conciseMapFromCtx(ctx)
+	d.Store(serverCloseTailKey, server)
 	return c
 }
 
-func serverCloseTail(ctx context.Context) (context.Context, *networkservice.NetworkServiceServer) {
-	c, d := conciseInfoFromCtx(ctx)
-	return c, d.serverCloseTail
+func serverCloseTail(ctx context.Context) (context.Context, networkservice.NetworkServiceServer) {
+	c, d := conciseMapFromCtx(ctx)
+	if v, ok := d.Load(serverCloseTailKey); ok {
+		return c, v.(networkservice.NetworkServiceServer)
+	}
+	return c, nil
 }
 
-func withClientRequestTail(ctx context.Context, client *networkservice.NetworkServiceClient) context.Context {
-	c, d := conciseInfoFromCtx(ctx)
-	d.clientRequestTail = client
+func withClientRequestTail(ctx context.Context, client networkservice.NetworkServiceClient) context.Context {
+	c, d := conciseMapFromCtx(ctx)
+	d.Store(clientRequestTailKey, client)
 	return c
 }
 
-func clientRequestTail(ctx context.Context) (context.Context, *networkservice.NetworkServiceClient) {
-	c, d := conciseInfoFromCtx(ctx)
-	return c, d.clientRequestTail
+func clientRequestTail(ctx context.Context) (context.Context, networkservice.NetworkServiceClient) {
+	c, d := conciseMapFromCtx(ctx)
+	if v, ok := d.Load(clientRequestTailKey); ok {
+		return c, v.(networkservice.NetworkServiceClient)
+	}
+	return c, nil
 }
 
-func withClientCloseTail(ctx context.Context, client *networkservice.NetworkServiceClient) context.Context {
-	c, d := conciseInfoFromCtx(ctx)
-	d.clientCloseTail = client
+func withClientCloseTail(ctx context.Context, client networkservice.NetworkServiceClient) context.Context {
+	c, d := conciseMapFromCtx(ctx)
+	d.Store(clientCloseTailKey, client)
 	return c
 }
 
-func clientCloseTail(ctx context.Context) (context.Context, *networkservice.NetworkServiceClient) {
-	c, d := conciseInfoFromCtx(ctx)
-	return c, d.clientCloseTail
+func clientCloseTail(ctx context.Context) (context.Context, networkservice.NetworkServiceClient) {
+	c, d := conciseMapFromCtx(ctx)
+	if v, ok := d.Load(clientCloseTailKey); ok {
+		return c, v.(networkservice.NetworkServiceClient)
+	}
+	return c, nil
 }
 
-func loadAndStoreServerRequestError(ctx context.Context, err *error) (prevErr *error) {
-	_, d := conciseInfoFromCtx(ctx)
-	prevErr = d.serverRequestError
-	d.serverRequestError = err
-	return prevErr
+func loadAndStoreServerRequestError(ctx context.Context, err error) error {
+	_, d := conciseMapFromCtx(ctx)
+
+	prevErr, ok := d.Load(serverRequestErrorKey)
+	d.Store(serverRequestErrorKey, err)
+	if ok {
+		return prevErr.(error)
+	}
+	return nil
 }
 
-func loadAndStoreServerCloseError(ctx context.Context, err *error) (prevErr *error) {
-	_, d := conciseInfoFromCtx(ctx)
-	prevErr = d.serverCloseError
-	d.serverCloseError = err
-	return prevErr
+func loadAndStoreServerCloseError(ctx context.Context, err error) error {
+	_, d := conciseMapFromCtx(ctx)
+
+	prevErr, ok := d.Load(serverCloseErrorKey)
+	d.Store(serverCloseErrorKey, err)
+	if ok {
+		return prevErr.(error)
+	}
+	return nil
 }
 
-func loadAndStoreClientRequestError(ctx context.Context, err *error) (prevErr *error) {
-	_, d := conciseInfoFromCtx(ctx)
-	prevErr = d.clientRequestError
-	d.clientRequestError = err
-	return prevErr
+func loadAndStoreClientRequestError(ctx context.Context, err error) error {
+	_, d := conciseMapFromCtx(ctx)
+
+	prevErr, ok := d.Load(clientRequestErrorKey)
+	d.Store(clientRequestErrorKey, err)
+	if ok {
+		return prevErr.(error)
+	}
+	return nil
 }
 
-func loadAndStoreClientCloseError(ctx context.Context, err *error) (prevErr *error) {
-	_, d := conciseInfoFromCtx(ctx)
-	prevErr = d.clientCloseError
-	d.clientCloseError = err
-	return prevErr
+func loadAndStoreClientCloseError(ctx context.Context, err error) error {
+	_, d := conciseMapFromCtx(ctx)
+
+	prevErr, ok := d.Load(clientCloseErrorKey)
+	d.Store(clientCloseErrorKey, err)
+	if ok {
+		return prevErr.(error)
+	}
+	return nil
 }

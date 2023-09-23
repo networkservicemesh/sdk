@@ -23,184 +23,238 @@ import (
 )
 
 const (
-	conciseNseInfoKey contextKeyType = "conciseNseInfoLogRegistry"
+	conciseMapNseKey contextKeyType = "conciseMapNseLogRegistry"
+
+	nseClientRegisterTailKey   = "nseClientRegisterTailKey"
+	nseClientFindHeadKey       = "nseClientFindHeadKey"
+	nseClientFindTailKey       = "nseClientFindTailKey"
+	nseClientUnregisterTailKey = "nseClientUnregisterTailKey"
+
+	nseClientRegisterErrorKey   = "nseClientRegisterError"
+	nseClientFindErrorKey       = "nseClientFindError"
+	nseClientUnregisterErrorKey = "nseClientUnregisterError"
+	nseClientRecvErrorKey       = "nseClientRecvError"
+
+	nseServerRegisterTailKey   = "nseServerRegisterTail"
+	nseServerFindHeadKey       = "nseServerFindHead"
+	nseServerFindTailKey       = "nseServerFindTail"
+	nseServerUnregisterTailKey = "nseServerUnregisterTail"
+
+	nseServerRegisterErrorKey   = "nseServerRegisterError"
+	nseServerFindErrorKey       = "nseServerFindError"
+	nseServerUnregisterErrorKey = "nseServerUnregisterError"
+	nseServerSendErrorKey       = "nseServerSendError"
 )
 
-type conciseNseInfo struct {
-	nseClientRegisterTail   registry.NetworkServiceEndpointRegistryClient
-	nseClientFindHead       registry.NetworkServiceEndpointRegistry_FindClient
-	nseClientFindTail       registry.NetworkServiceEndpointRegistry_FindClient
-	nseClientUnregisterTail registry.NetworkServiceEndpointRegistryClient
-
-	nseClientRegisterError   error
-	nseClientFindError       error
-	nseClientUnregisterError error
-	nseClientRecvError       error
-
-	nseServerRegisterTail   registry.NetworkServiceEndpointRegistryServer
-	nseServerFindHead       registry.NetworkServiceEndpointRegistry_FindServer
-	nseServerFindTail       registry.NetworkServiceEndpointRegistry_FindServer
-	nseServerUnregisterTail registry.NetworkServiceEndpointRegistryServer
-
-	nseServerRegisterError   error
-	nseServerFindError       error
-	nseServerUnregisterError error
-	nseServerSendError       error
-}
-
-func conciseNseInfoFromCtx(ctx context.Context) (context.Context, *conciseNseInfo) {
+func conciseMapNseFromCtx(ctx context.Context) (context.Context, *conciseMap) {
 	if ctx == nil {
 		panic("cannot create context from nil parent")
 	}
 
-	v, ok := ctx.Value(conciseNseInfoKey).(*conciseNseInfo)
+	v, ok := ctx.Value(conciseMapNseKey).(*conciseMap)
 	if ok {
 		return ctx, v
 	}
-	v = new(conciseNseInfo)
-	return context.WithValue(ctx, conciseNseInfoKey, v), v
+	v = new(conciseMap)
+	return context.WithValue(ctx, conciseMapNseKey, v), v
 }
 
 func withNseClientRegisterTail(ctx context.Context, client registry.NetworkServiceEndpointRegistryClient) context.Context {
-	c, d := conciseNseInfoFromCtx(ctx)
-	d.nseClientRegisterTail = client
+	c, d := conciseMapNseFromCtx(ctx)
+	d.Store(nseClientRegisterTailKey, client)
 	return c
 }
 
 func nseClientRegisterTail(ctx context.Context) (context.Context, registry.NetworkServiceEndpointRegistryClient) {
-	c, d := conciseNseInfoFromCtx(ctx)
-	return c, d.nseClientRegisterTail
+	c, d := conciseMapNseFromCtx(ctx)
+	if v, ok := d.Load(nseClientRegisterTailKey); ok {
+		return c, v.(registry.NetworkServiceEndpointRegistryClient)
+	}
+	return c, nil
 }
 
-func loadAndStoreNseClientRegisterError(ctx context.Context, err error) (prevErr error) {
-	_, d := conciseNseInfoFromCtx(ctx)
-	prevErr = d.nseClientRegisterError
-	d.nseClientRegisterError = err
-	return prevErr
+func loadAndStoreNseClientRegisterError(ctx context.Context, err error) error {
+	_, d := conciseMapNseFromCtx(ctx)
+
+	prevErr, ok := d.Load(nseClientRegisterErrorKey)
+	d.Store(nseClientRegisterErrorKey, err)
+	if ok {
+		return prevErr.(error)
+	}
+	return nil
 }
 
 func withNseClientFindHead(ctx context.Context, client registry.NetworkServiceEndpointRegistry_FindClient) context.Context {
-	c, d := conciseNseInfoFromCtx(ctx)
-	d.nseClientFindHead = client
+	c, d := conciseMapNseFromCtx(ctx)
+	d.Store(nseClientFindHeadKey, client)
 	return c
 }
 
 func nseClientFindHead(ctx context.Context) (context.Context, registry.NetworkServiceEndpointRegistry_FindClient) {
-	c, d := conciseNseInfoFromCtx(ctx)
-	return c, d.nseClientFindHead
+	c, d := conciseMapNseFromCtx(ctx)
+	if v, ok := d.Load(nseClientFindHeadKey); ok {
+		return c, v.(registry.NetworkServiceEndpointRegistry_FindClient)
+	}
+	return c, nil
 }
 
 func withNseClientFindTail(ctx context.Context, client registry.NetworkServiceEndpointRegistry_FindClient) context.Context {
-	c, d := conciseNseInfoFromCtx(ctx)
-	d.nseClientFindTail = client
+	c, d := conciseMapNseFromCtx(ctx)
+	d.Store(nseClientFindTailKey, client)
 	return c
 }
 
 func nseClientFindTail(ctx context.Context) (context.Context, registry.NetworkServiceEndpointRegistry_FindClient) {
-	c, d := conciseNseInfoFromCtx(ctx)
-	return c, d.nseClientFindTail
+	c, d := conciseMapNseFromCtx(ctx)
+	if v, ok := d.Load(nseClientFindTailKey); ok {
+		return c, v.(registry.NetworkServiceEndpointRegistry_FindClient)
+	}
+	return c, nil
 }
 
-func loadAndStoreNseClientFindError(ctx context.Context, err error) (prevErr error) {
-	_, d := conciseNseInfoFromCtx(ctx)
-	prevErr = d.nseClientFindError
-	d.nseClientFindError = err
-	return prevErr
+func loadAndStoreNseClientFindError(ctx context.Context, err error) error {
+	_, d := conciseMapNseFromCtx(ctx)
+
+	prevErr, ok := d.Load(nseClientFindErrorKey)
+	d.Store(nseClientFindErrorKey, err)
+	if ok {
+		return prevErr.(error)
+	}
+	return nil
 }
 
 func withNseClientUnregisterTail(ctx context.Context, client registry.NetworkServiceEndpointRegistryClient) context.Context {
-	c, d := conciseNseInfoFromCtx(ctx)
-	d.nseClientUnregisterTail = client
+	c, d := conciseMapNseFromCtx(ctx)
+	d.Store(nseClientUnregisterTailKey, client)
 	return c
 }
 
 func nseClientUnregisterTail(ctx context.Context) (context.Context, registry.NetworkServiceEndpointRegistryClient) {
-	c, d := conciseNseInfoFromCtx(ctx)
-	return c, d.nseClientUnregisterTail
+	c, d := conciseMapNseFromCtx(ctx)
+	if v, ok := d.Load(nseClientUnregisterTailKey); ok {
+		return c, v.(registry.NetworkServiceEndpointRegistryClient)
+	}
+	return c, nil
 }
 
-func loadAndStoreNseClientUnregisterError(ctx context.Context, err error) (prevErr error) {
-	_, d := conciseNseInfoFromCtx(ctx)
-	prevErr = d.nseClientUnregisterError
-	d.nseClientUnregisterError = err
-	return prevErr
+func loadAndStoreNseClientUnregisterError(ctx context.Context, err error) error {
+	_, d := conciseMapNseFromCtx(ctx)
+
+	prevErr, ok := d.Load(nseClientUnregisterErrorKey)
+	d.Store(nseClientUnregisterErrorKey, err)
+	if ok {
+		return prevErr.(error)
+	}
+	return nil
 }
 
-func loadAndStoreNseClientRecvError(ctx context.Context, err error) (prevErr error) {
-	_, d := conciseNseInfoFromCtx(ctx)
-	prevErr = d.nseClientRecvError
-	d.nseClientRecvError = err
-	return prevErr
+func loadAndStoreNseClientRecvError(ctx context.Context, err error) error {
+	_, d := conciseMapNseFromCtx(ctx)
+
+	prevErr, ok := d.Load(nseClientRecvErrorKey)
+	d.Store(nseClientRecvErrorKey, err)
+	if ok {
+		return prevErr.(error)
+	}
+	return nil
 }
 
 func withNseServerRegisterTail(ctx context.Context, server registry.NetworkServiceEndpointRegistryServer) context.Context {
-	c, d := conciseNseInfoFromCtx(ctx)
-	d.nseServerRegisterTail = server
+	c, d := conciseMapNseFromCtx(ctx)
+	d.Store(nseServerRegisterTailKey, server)
 	return c
 }
 
 func nseServerRegisterTail(ctx context.Context) (context.Context, registry.NetworkServiceEndpointRegistryServer) {
-	c, d := conciseNseInfoFromCtx(ctx)
-	return c, d.nseServerRegisterTail
+	c, d := conciseMapNseFromCtx(ctx)
+	if v, ok := d.Load(nseServerRegisterTailKey); ok {
+		return c, v.(registry.NetworkServiceEndpointRegistryServer)
+	}
+	return c, nil
 }
 
-func loadAndStoreNseServerRegisterError(ctx context.Context, err error) (prevErr error) {
-	_, d := conciseNseInfoFromCtx(ctx)
-	prevErr = d.nseServerRegisterError
-	d.nseServerRegisterError = err
-	return prevErr
+func loadAndStoreNseServerRegisterError(ctx context.Context, err error) error {
+	_, d := conciseMapNseFromCtx(ctx)
+
+	prevErr, ok := d.Load(nseServerRegisterErrorKey)
+	d.Store(nseServerRegisterErrorKey, err)
+	if ok {
+		return prevErr.(error)
+	}
+	return nil
 }
 
 func withNseServerFindHead(ctx context.Context, server registry.NetworkServiceEndpointRegistry_FindServer) context.Context {
-	c, d := conciseNseInfoFromCtx(ctx)
-	d.nseServerFindHead = server
+	c, d := conciseMapNseFromCtx(ctx)
+	d.Store(nseServerFindHeadKey, server)
 	return c
 }
 
 func nseServerFindHead(ctx context.Context) (context.Context, registry.NetworkServiceEndpointRegistry_FindServer) {
-	c, d := conciseNseInfoFromCtx(ctx)
-	return c, d.nseServerFindHead
+	c, d := conciseMapNseFromCtx(ctx)
+	if v, ok := d.Load(nseServerFindHeadKey); ok {
+		return c, v.(registry.NetworkServiceEndpointRegistry_FindServer)
+	}
+	return c, nil
 }
 
 func withNseServerFindTail(ctx context.Context, server registry.NetworkServiceEndpointRegistry_FindServer) context.Context {
-	c, d := conciseNseInfoFromCtx(ctx)
-	d.nseServerFindTail = server
+	c, d := conciseMapNseFromCtx(ctx)
+	d.Store(nseServerFindTailKey, server)
 	return c
 }
 
 func nseServerFindTail(ctx context.Context) (context.Context, registry.NetworkServiceEndpointRegistry_FindServer) {
-	c, d := conciseNseInfoFromCtx(ctx)
-	return c, d.nseServerFindTail
+	c, d := conciseMapNseFromCtx(ctx)
+	if v, ok := d.Load(nseServerFindTailKey); ok {
+		return c, v.(registry.NetworkServiceEndpointRegistry_FindServer)
+	}
+	return c, nil
 }
 
-func loadAndStoreNseServerFindError(ctx context.Context, err error) (prevErr error) {
-	_, d := conciseNseInfoFromCtx(ctx)
-	prevErr = d.nseServerFindError
-	d.nseServerFindError = err
-	return prevErr
+func loadAndStoreNseServerFindError(ctx context.Context, err error) error {
+	_, d := conciseMapNseFromCtx(ctx)
+
+	prevErr, ok := d.Load(nseServerFindErrorKey)
+	d.Store(nseServerFindErrorKey, err)
+	if ok {
+		return prevErr.(error)
+	}
+	return nil
 }
 
 func withNseServerUnregisterTail(ctx context.Context, server registry.NetworkServiceEndpointRegistryServer) context.Context {
-	c, d := conciseNseInfoFromCtx(ctx)
-	d.nseServerUnregisterTail = server
+	c, d := conciseMapNseFromCtx(ctx)
+	d.Store(nseServerUnregisterTailKey, server)
 	return c
 }
 
 func nseServerUnregisterTail(ctx context.Context) (context.Context, registry.NetworkServiceEndpointRegistryServer) {
-	c, d := conciseNseInfoFromCtx(ctx)
-	return c, d.nseServerUnregisterTail
+	c, d := conciseMapNseFromCtx(ctx)
+	if v, ok := d.Load(nseServerUnregisterTailKey); ok {
+		return c, v.(registry.NetworkServiceEndpointRegistryServer)
+	}
+	return c, nil
 }
 
-func loadAndStoreNseServerUnregisterError(ctx context.Context, err error) (prevErr error) {
-	_, d := conciseNseInfoFromCtx(ctx)
-	prevErr = d.nseServerUnregisterError
-	d.nseServerUnregisterError = err
-	return prevErr
+func loadAndStoreNseServerUnregisterError(ctx context.Context, err error) error {
+	_, d := conciseMapNseFromCtx(ctx)
+
+	prevErr, ok := d.Load(nseServerUnregisterErrorKey)
+	d.Store(nseServerUnregisterErrorKey, err)
+	if ok {
+		return prevErr.(error)
+	}
+	return nil
 }
 
-func loadAndStoreNseServerSendError(ctx context.Context, err error) (prevErr error) {
-	_, d := conciseNseInfoFromCtx(ctx)
-	prevErr = d.nseServerSendError
-	d.nseServerSendError = err
-	return prevErr
+func loadAndStoreNseServerSendError(ctx context.Context, err error) error {
+	_, d := conciseMapNseFromCtx(ctx)
+
+	prevErr, ok := d.Load(nseServerSendErrorKey)
+	d.Store(nseServerSendErrorKey, err)
+	if ok {
+		return prevErr.(error)
+	}
+	return nil
 }

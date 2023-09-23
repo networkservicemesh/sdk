@@ -53,7 +53,7 @@ func (t *beginConciseClient) Request(ctx context.Context, request *networkservic
 		connID = request.GetConnection().GetPath().GetPathSegments()[0].GetId()
 	}
 
-	var tail *networkservice.NetworkServiceClient
+	var tail networkservice.NetworkServiceClient
 	if ctx, tail = clientRequestTail(ctx); tail == nil {
 		var finish func()
 		ctx, finish = withLog(ctx, connID, methodNameRequest)
@@ -64,8 +64,8 @@ func (t *beginConciseClient) Request(ctx context.Context, request *networkservic
 	// Actually call the next
 	rv, err := t.traced.Request(ctx, request, opts...)
 	if err != nil {
-		lastError := loadAndStoreClientRequestError(ctx, &err)
-		if lastError == nil || err.Error() != (*lastError).Error() {
+		lastError := loadAndStoreClientRequestError(ctx, err)
+		if lastError == nil || err.Error() != lastError.Error() {
 			operation := typeutils.GetFuncName(t.traced, methodNameRequest)
 			return nil, logError(ctx, err, operation)
 		}
@@ -81,7 +81,7 @@ func (t *beginConciseClient) Close(ctx context.Context, conn *networkservice.Con
 		connID = conn.GetPath().GetPathSegments()[0].GetId()
 	}
 
-	var tail *networkservice.NetworkServiceClient
+	var tail networkservice.NetworkServiceClient
 	if ctx, tail = clientCloseTail(ctx); tail == nil {
 		var finish func()
 		ctx, finish = withLog(ctx, connID, methodNameClose)
@@ -92,8 +92,8 @@ func (t *beginConciseClient) Close(ctx context.Context, conn *networkservice.Con
 	// Actually call the next
 	rv, err := t.traced.Close(ctx, conn, opts...)
 	if err != nil {
-		lastError := loadAndStoreClientCloseError(ctx, &err)
-		if lastError == nil || err.Error() != (*lastError).Error() {
+		lastError := loadAndStoreClientCloseError(ctx, err)
+		if lastError == nil || err.Error() != lastError.Error() {
 			operation := typeutils.GetFuncName(t.traced, methodNameClose)
 			return nil, logError(ctx, err, operation)
 		}
@@ -104,12 +104,12 @@ func (t *beginConciseClient) Close(ctx context.Context, conn *networkservice.Con
 
 func (t *endConciseClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	nextClient := next.Client(ctx)
-	ctx = withClientRequestTail(ctx, &nextClient)
+	ctx = withClientRequestTail(ctx, nextClient)
 
 	conn, err := nextClient.Request(ctx, request, opts...)
 
-	var tail *networkservice.NetworkServiceClient
-	if ctx, tail = clientRequestTail(ctx); tail == &nextClient {
+	var tail networkservice.NetworkServiceClient
+	if ctx, tail = clientRequestTail(ctx); tail == nextClient {
 		logResponse(ctx, conn, clientPrefix, requestPrefix)
 	}
 	return conn, err
@@ -117,12 +117,12 @@ func (t *endConciseClient) Request(ctx context.Context, request *networkservice.
 
 func (t *endConciseClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	nextClient := next.Client(ctx)
-	ctx = withClientCloseTail(ctx, &nextClient)
+	ctx = withClientCloseTail(ctx, nextClient)
 
 	r, err := nextClient.Close(ctx, conn, opts...)
 
-	var tail *networkservice.NetworkServiceClient
-	if ctx, tail = clientCloseTail(ctx); tail == &nextClient {
+	var tail networkservice.NetworkServiceClient
+	if ctx, tail = clientCloseTail(ctx); tail == nextClient {
 		logResponse(ctx, conn, clientPrefix, closePrefix)
 	}
 	return r, err
