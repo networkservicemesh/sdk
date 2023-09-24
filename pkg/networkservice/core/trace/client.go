@@ -60,7 +60,7 @@ func (t *traceClient) Close(ctx context.Context, conn *networkservice.Connection
 	case logrus.TraceLevel:
 		return t.verbose.Close(ctx, conn, opts...)
 	case logrus.InfoLevel, logrus.DebugLevel:
-		return t.verbose.Close(ctx, conn, opts...)
+		return t.concise.Close(ctx, conn, opts...)
 	}
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }

@@ -27,11 +27,11 @@ import (
 	"github.com/sirupsen/logrus"
 	"go.uber.org/goleak"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace/testutil"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/trace/testutil"
 	"github.com/networkservicemesh/sdk/pkg/registry/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
