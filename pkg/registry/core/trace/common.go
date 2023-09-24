@@ -45,7 +45,7 @@ func logError(ctx context.Context, err error, operation string) error {
 		if err == error(nil) {
 			return nil
 		}
-		err = errors.Wrapf(err, "Error returned from %s", operation)
+		err = errors.Wrapf(err, "Err returned from %s", operation)
 		log.FromContext(ctx).Errorf("%+v", err)
 		return err
 	}
