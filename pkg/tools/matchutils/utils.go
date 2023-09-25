@@ -34,6 +34,9 @@ import (
 // MatchEndpoint filters input nses by network service configuration.
 // Returns the same nses list if no matches are declared in the network service.
 func MatchEndpoint(nsLabels map[string]string, ns *registry.NetworkService, nses ...*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
+	if len(ns.Matches) == 0 {
+		return nses
+	}
 	for _, match := range ns.GetMatches() {
 		// All match source selector labels should be present in the requested labels map
 		if !IsSubset(nsLabels, match.GetSourceSelector(), nsLabels) {
@@ -60,13 +63,13 @@ func MatchEndpoint(nsLabels map[string]string, ns *registry.NetworkService, nses
 		}
 
 		if match.GetMetadata() != nil && len(match.Routes) == 0 && len(nseCandidates) == 0 {
-			break
+			return nses
 		}
 
 		return nseCandidates
 	}
 
-	return nses
+	return nil
 }
 
 // MatchNetworkServices returns true if two network services are matched

@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,6 +38,7 @@ import (
 	registryadapters "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	registrynext "github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
+	"github.com/networkservicemesh/sdk/pkg/tools/matchutils"
 )
 
 const (
@@ -542,4 +545,99 @@ func TestDiscoverCandidatesServer_NoEndpointOnClose(t *testing.T) {
 	require.NoError(t, err)
 
 	require.True(t, closed)
+}
+
+func Test_Discover_Scale_FromZero_vL3(t *testing.T) {
+	var ns = &registry.NetworkService{
+		Name:    "ns-1",
+		Payload: "IP",
+		Matches: []*registry.Match{
+			{
+				Fallthrough: true,
+				Routes: []*registry.Destination{
+					{
+						DestinationSelector: map[string]string{
+							"app":      "nse-vl3-vpp",
+							"nodeName": "{{.nodeName}}",
+						},
+					},
+				},
+			},
+			{
+				Fallthrough: true,
+				SourceSelector: map[string]string{
+					"capability": "vl3",
+				},
+				Routes: []*registry.Destination{
+					{
+						DestinationSelector: map[string]string{
+							"capability": "vl3",
+						},
+					},
+				},
+			},
+			{
+				Fallthrough: true,
+				Routes: []*registry.Destination{
+					{
+						DestinationSelector: map[string]string{
+							"app": "nse-autoscaler",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	var nseA = &registry.NetworkServiceEndpoint{
+		Name: "nse-A",
+		NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+			"ns-1": {Labels: map[string]string{
+				"capability": "vl3",
+				"nodeName":   "node-1",
+				"app":        "nse-vl3-vpp",
+			}},
+		},
+	}
+
+	var nseB = &registry.NetworkServiceEndpoint{
+		Name: "nse-B",
+		NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+			"ns-1": {Labels: map[string]string{
+				"capability": "vl3",
+				"nodeName":   "node-2",
+				"app":        "nse-vl3-vpp",
+			}},
+		},
+	}
+
+	var nseC = &registry.NetworkServiceEndpoint{
+		Name: "nse-C",
+		NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+			"ns-1": {Labels: map[string]string{
+				"app": "nse-autoscaler",
+			}},
+		},
+	}
+
+	var nseD = &registry.NetworkServiceEndpoint{
+		Name: "nse-D",
+		NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+			"ns-1": {Labels: map[string]string{
+				"app": "unknown",
+			}},
+		},
+	}
+
+	require.Empty(t, matchutils.MatchEndpoint(map[string]string{}, ns, nseD), "there are no matches for nse-D")
+	require.Empty(t, matchutils.MatchEndpoint(map[string]string{"app": "nse-autoscaler"}, ns, nseD), "there are no matches for nse-D")
+
+	require.Equal(t, []*registry.NetworkServiceEndpoint{nseC}, matchutils.MatchEndpoint(map[string]string{}, ns, nseC, nseD), "by match №3")
+	require.Equal(t, []*registry.NetworkServiceEndpoint{nseC}, matchutils.MatchEndpoint(map[string]string{"app": "nse-autoscaler"}, ns, nseC, nseD), "by match №3")
+
+	require.Equal(t, []*registry.NetworkServiceEndpoint{nseB}, matchutils.MatchEndpoint(map[string]string{"app": "nse-vl3-vpp", "nodeName": "node-2"}, ns, nseC, nseA, nseB, nseD), "by match №1")
+	require.Equal(t, []*registry.NetworkServiceEndpoint{nseA}, matchutils.MatchEndpoint(map[string]string{"app": "nse-vl3-vpp", "nodeName": "node-1"}, ns, nseC, nseA, nseD, nseB), "by match №1")
+
+	require.Equal(t, []*registry.NetworkServiceEndpoint{nseA}, matchutils.MatchEndpoint(map[string]string{"capability": "vl3", "app": "nse-vl3-vpp", "nodeName": "node-2"}, ns, nseC, nseA, nseD), "by match №2")
+	require.Equal(t, []*registry.NetworkServiceEndpoint{nseB}, matchutils.MatchEndpoint(map[string]string{"capability": "vl3", "app": "nse-vl3-vpp", "nodeName": "node-1"}, ns, nseC, nseD, nseB), "by match №2")
 }
