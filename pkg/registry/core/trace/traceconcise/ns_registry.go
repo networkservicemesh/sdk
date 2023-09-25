@@ -43,8 +43,7 @@ type conciseNetworkServiceRegistryFindClient struct {
 }
 
 func (t *conciseNetworkServiceRegistryFindClient) Recv() (*registry.NetworkServiceResponse, error) {
-	ctx, finish := withLog(t.Context(), methodNameRecv)
-	defer finish()
+	ctx := t.Context()
 
 	s := streamcontext.NetworkServiceRegistryFindClient(ctx, t.NetworkServiceRegistry_FindClient)
 	rv, err := s.Recv()
@@ -76,12 +75,11 @@ func (t *conciseNetworkServiceRegistryFindClient) Recv() (*registry.NetworkServi
 }
 
 func (t *conciseNetworkServiceRegistryClient) Register(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
-	var finish func()
-	ctx, finish = withLog(ctx, methodNameRegister)
-	defer finish()
-
 	ctx, tail := nsClientRegisterTail(ctx)
 	if tail == nil {
+		var finish func()
+		ctx, finish = withLog(ctx, methodNameRegister)
+		defer finish()
 		logObject(ctx, "ns-client-register", in)
 	}
 	ctx = withNsClientRegisterTail(ctx, t.traced)
@@ -104,15 +102,15 @@ func (t *conciseNetworkServiceRegistryClient) Register(ctx context.Context, in *
 }
 
 func (t *conciseNetworkServiceRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
-	var finish func()
-	ctx, finish = withLog(ctx, methodNameFind)
-	defer finish()
 	conciseFindClient := &conciseNetworkServiceRegistryFindClient{
 		operation: typeutils.GetFuncName(t.traced, methodNameRecv),
 	}
 
 	ctx, tail := nsClientFindTail(ctx)
 	if tail == nil {
+		var finish func()
+		ctx, finish = withLog(ctx, methodNameFind)
+		defer finish()
 		logObject(ctx, "ns-client-find", in)
 		ctx = withNsClientFindHead(ctx, conciseFindClient)
 	}
@@ -139,12 +137,11 @@ func (t *conciseNetworkServiceRegistryClient) Find(ctx context.Context, in *regi
 }
 
 func (t *conciseNetworkServiceRegistryClient) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
-	var finish func()
-	ctx, finish = withLog(ctx, methodNameUnregister)
-	defer finish()
-
 	ctx, tail := nsClientUnregisterTail(ctx)
 	if tail == nil {
+		var finish func()
+		ctx, finish = withLog(ctx, methodNameUnregister)
+		defer finish()
 		logObject(ctx, "ns-client-unregister", in)
 	}
 	ctx = withNsClientUnregisterTail(ctx, t.traced)
@@ -177,12 +174,11 @@ type conciseNetworkServiceRegistryServer struct {
 }
 
 func (t *conciseNetworkServiceRegistryServer) Register(ctx context.Context, in *registry.NetworkService) (*registry.NetworkService, error) {
-	var finish func()
-	ctx, finish = withLog(ctx, methodNameRegister)
-	defer finish()
-
 	ctx, tail := nsServerRegisterTail(ctx)
 	if tail == nil {
+		var finish func()
+		ctx, finish = withLog(ctx, methodNameRegister)
+		defer finish()
 		logObject(ctx, "ns-server-register", in)
 	}
 	ctx = withNsServerRegisterTail(ctx, t.traced)
@@ -205,14 +201,15 @@ func (t *conciseNetworkServiceRegistryServer) Register(ctx context.Context, in *
 }
 
 func (t *conciseNetworkServiceRegistryServer) Find(in *registry.NetworkServiceQuery, s registry.NetworkServiceRegistry_FindServer) error {
-	ctx, finish := withLog(s.Context(), methodNameFind)
-	defer finish()
 	conciseFindServer := &conciseNetworkServiceRegistryFindServer{
 		operation: typeutils.GetFuncName(t.traced, methodNameSend),
 	}
 
-	ctx, tail := nsServerFindTail(ctx)
+	ctx, tail := nsServerFindTail(s.Context())
 	if tail == nil {
+		var finish func()
+		ctx, finish = withLog(ctx, methodNameFind)
+		defer finish()
 		logObject(ctx, "ns-server-find", in)
 		ctx = withNsServerFindHead(ctx, conciseFindServer)
 	}
@@ -239,12 +236,11 @@ func (t *conciseNetworkServiceRegistryServer) Find(in *registry.NetworkServiceQu
 }
 
 func (t *conciseNetworkServiceRegistryServer) Unregister(ctx context.Context, in *registry.NetworkService) (*empty.Empty, error) {
-	var finish func()
-	ctx, finish = withLog(ctx, methodNameUnregister)
-	defer finish()
-
 	ctx, tail := nsServerUnregisterTail(ctx)
 	if tail == nil {
+		var finish func()
+		ctx, finish = withLog(ctx, methodNameUnregister)
+		defer finish()
 		logObject(ctx, "ns-server-unregister", in)
 	}
 	ctx = withNsServerUnregisterTail(ctx, t.traced)
@@ -278,10 +274,7 @@ type conciseNetworkServiceRegistryFindServer struct {
 }
 
 func (t *conciseNetworkServiceRegistryFindServer) Send(nsResp *registry.NetworkServiceResponse) error {
-	ctx, finish := withLog(t.Context(), methodNameSend)
-	defer finish()
-
-	ctx, tail := nsServerFindTail(ctx)
+	ctx, tail := nsServerFindTail(t.Context())
 	if tail == t {
 		logObject(ctx, "ns-server-send", nsResp)
 	}
