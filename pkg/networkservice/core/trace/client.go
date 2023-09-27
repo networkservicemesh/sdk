@@ -27,7 +27,6 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace/traceconcise"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace/traceverbose"
 )
@@ -46,21 +45,15 @@ func NewNetworkServiceClient(traced networkservice.NetworkServiceClient) network
 }
 
 func (t *traceClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	switch logrus.GetLevel() {
-	case logrus.TraceLevel:
+	if logrus.GetLevel() == logrus.TraceLevel {
 		return t.verbose.Request(ctx, request, opts...)
-	case logrus.InfoLevel, logrus.DebugLevel:
-		return t.concise.Request(ctx, request, opts...)
 	}
-	return next.Client(ctx).Request(ctx, request, opts...)
+	return t.concise.Request(ctx, request, opts...)
 }
 
 func (t *traceClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	switch logrus.GetLevel() {
-	case logrus.TraceLevel:
+	if logrus.GetLevel() == logrus.TraceLevel {
 		return t.verbose.Close(ctx, conn, opts...)
-	case logrus.InfoLevel, logrus.DebugLevel:
-		return t.concise.Close(ctx, conn, opts...)
 	}
-	return next.Client(ctx).Close(ctx, conn, opts...)
+	return t.concise.Close(ctx, conn, opts...)
 }

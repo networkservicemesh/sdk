@@ -27,8 +27,6 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
 type traceServer struct {
@@ -45,21 +43,15 @@ func NewNetworkServiceServer(traced networkservice.NetworkServiceServer) network
 }
 
 func (t *traceServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	switch logrus.GetLevel() {
-	case logrus.TraceLevel:
+	if logrus.GetLevel() == logrus.TraceLevel {
 		return t.verbose.Request(ctx, request)
-	case logrus.InfoLevel, logrus.DebugLevel:
-		return t.concise.Request(ctx, request)
 	}
-	return next.Server(ctx).Request(ctx, request)
+	return t.concise.Request(ctx, request)
 }
 
 func (t *traceServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	switch logrus.GetLevel() {
-	case logrus.TraceLevel:
+	if logrus.GetLevel() == logrus.TraceLevel {
 		return t.verbose.Close(ctx, conn)
-	case logrus.InfoLevel, logrus.DebugLevel:
-		return t.concise.Close(ctx, conn)
 	}
-	return next.Server(ctx).Close(ctx, conn)
+	return t.concise.Close(ctx, conn)
 }

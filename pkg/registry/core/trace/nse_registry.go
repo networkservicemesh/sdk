@@ -20,14 +20,13 @@ import (
 	"context"
 
 	"github.com/sirupsen/logrus"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/trace/traceconcise"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/trace/traceverbose"
+	"google.golang.org/grpc"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/core/trace/traceconcise"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/trace/traceverbose"
 )
 
 type traceNetworkServiceEndpointRegistryClient struct {
@@ -44,32 +43,23 @@ func NewNetworkServiceEndpointRegistryClient(traced registry.NetworkServiceEndpo
 }
 
 func (t *traceNetworkServiceEndpointRegistryClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	switch logrus.GetLevel() {
-	case logrus.TraceLevel:
+	if logrus.GetLevel() == logrus.TraceLevel {
 		return t.verbose.Register(ctx, in, opts...)
-	case logrus.InfoLevel, logrus.DebugLevel:
-		return t.concise.Register(ctx, in, opts...)
 	}
-	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)
+	return t.concise.Register(ctx, in, opts...)
 }
 func (t *traceNetworkServiceEndpointRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	switch logrus.GetLevel() {
-	case logrus.TraceLevel:
+	if logrus.GetLevel() == logrus.TraceLevel {
 		return t.verbose.Find(ctx, in, opts...)
-	case logrus.InfoLevel, logrus.DebugLevel:
-		return t.concise.Find(ctx, in, opts...)
 	}
-	return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, in, opts...)
+	return t.concise.Find(ctx, in, opts...)
 }
 
 func (t *traceNetworkServiceEndpointRegistryClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
-	switch logrus.GetLevel() {
-	case logrus.TraceLevel:
+	if logrus.GetLevel() == logrus.TraceLevel {
 		return t.verbose.Unregister(ctx, in, opts...)
-	case logrus.InfoLevel, logrus.DebugLevel:
-		return t.concise.Unregister(ctx, in, opts...)
 	}
-	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
+	return t.concise.Unregister(ctx, in, opts...)
 }
 
 type traceNetworkServiceEndpointRegistryServer struct {
@@ -86,31 +76,22 @@ func NewNetworkServiceEndpointRegistryServer(traced registry.NetworkServiceEndpo
 }
 
 func (t *traceNetworkServiceEndpointRegistryServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	switch logrus.GetLevel() {
-	case logrus.TraceLevel:
+	if logrus.GetLevel() == logrus.TraceLevel {
 		return t.verbose.Register(ctx, in)
-	case logrus.InfoLevel, logrus.DebugLevel:
-		return t.concise.Register(ctx, in)
 	}
-	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
+	return t.concise.Register(ctx, in)
 }
 
 func (t *traceNetworkServiceEndpointRegistryServer) Find(in *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
-	switch logrus.GetLevel() {
-	case logrus.TraceLevel:
+	if logrus.GetLevel() == logrus.TraceLevel {
 		return t.verbose.Find(in, s)
-	case logrus.InfoLevel, logrus.DebugLevel:
-		return t.concise.Find(in, s)
 	}
-	return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(in, s)
+	return t.concise.Find(in, s)
 }
 
 func (t *traceNetworkServiceEndpointRegistryServer) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	switch logrus.GetLevel() {
-	case logrus.TraceLevel:
+	if logrus.GetLevel() == logrus.TraceLevel {
 		return t.verbose.Unregister(ctx, in)
-	case logrus.InfoLevel, logrus.DebugLevel:
-		return t.concise.Unregister(ctx, in)
 	}
-	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
+	return t.concise.Unregister(ctx, in)
 }
