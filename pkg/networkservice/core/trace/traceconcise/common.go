@@ -45,14 +45,14 @@ func logResponse(ctx context.Context, response any, prefixes ...string) {
 }
 
 func logError(ctx context.Context, err error, operation string) error {
-	if log.IsTracingEnabled() {
+	if trace(ctx) {
 		log.FromContext(ctx).Errorf("%v", errors.Wrapf(err, "Error returned from %s", operation))
 	}
 	return err
 }
 
 func logObject(ctx context.Context, k, v interface{}) {
-	if !log.IsTracingEnabled() {
+	if !trace(ctx) {
 		return
 	}
 	s := log.FromContext(ctx)

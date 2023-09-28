@@ -34,6 +34,7 @@ type contextKeyType string
 
 const (
 	conciseMapKey contextKeyType = "conciseMapLogNetworkservice"
+	traceInfoKey  contextKeyType = "traceInfoKeyNetworkservice"
 	loggedType    string         = "networkService"
 
 	serverRequestTailKey = "serverRequestTail"
@@ -63,10 +64,33 @@ func withLog(parent context.Context, connectionID, methodName string) (c context
 	ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, "", fields)
 	ctx = log.WithLog(ctx, sLogger, lLogger)
 
+	if grpcTraceState := grpcutils.TraceFromContext(parent); (grpcTraceState == grpcutils.TraceOn) ||
+		(grpcTraceState == grpcutils.TraceUndefined && log.IsTracingEnabled()) {
+		ctx = withTrace(ctx)
+	}
+
 	return ctx, func() {
 		sFinish()
 		lFinish()
 	}
+}
+
+// withConnectionInfo - Provides a traceInfo in context
+func withTrace(parent context.Context) context.Context {
+	if parent == nil {
+		panic("cannot create context from nil parent")
+	}
+	if ok := trace(parent); ok {
+		// We already had connection info
+		return parent
+	}
+
+	return context.WithValue(parent, traceInfoKey, &struct{}{})
+}
+
+// trace - return traceInfo from context
+func trace(ctx context.Context) bool {
+	return ctx.Value(traceInfoKey) != nil
 }
 
 func conciseMapFromCtx(ctx context.Context) (context.Context, *conciseMap) {
