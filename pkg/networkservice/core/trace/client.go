@@ -1,6 +1,4 @@
-// Copyright (c) 2020-2023 Cisco Systems, Inc.
-//
-// Copyright (c) 2021-2023 Doc.ai and/or its affiliates.
+// Copyright (c) 2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -16,76 +14,46 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package trace provides wrappers for tracing around a networkservice.NetworkServiceClient
 package trace
 
 import (
 	"context"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/typeutils"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace/traceconcise"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace/traceverbose"
 )
 
-type beginTraceClient struct {
-	traced networkservice.NetworkServiceClient
+type traceClient struct {
+	verbose networkservice.NetworkServiceClient
+	concise networkservice.NetworkServiceClient
 }
-
-type endTraceClient struct{}
 
 // NewNetworkServiceClient - wraps tracing around the supplied networkservice.NetworkServiceClient
 func NewNetworkServiceClient(traced networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
-	return next.NewNetworkServiceClient(
-		&beginTraceClient{traced: traced},
-		&endTraceClient{},
-	)
-}
-
-func (t *beginTraceClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	// Create a new logger
-	operation := typeutils.GetFuncName(t.traced, methodNameRequest)
-	ctx, finish := withLog(ctx, operation, methodNameRequest, request.GetConnection().GetId())
-	defer finish()
-
-	logRequest(ctx, request, "request")
-	// Actually call the next
-	rv, err := t.traced.Request(ctx, request, opts...)
-	if err != nil {
-		return nil, logError(ctx, err, operation)
+	return &traceClient{
+		verbose: traceverbose.NewNetworkServiceClient(traced),
+		concise: traceconcise.NewNetworkServiceClient(traced),
 	}
-	logResponse(ctx, rv, "request")
-	return rv, err
 }
 
-func (t *beginTraceClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	// Create a new logger
-	operation := typeutils.GetFuncName(t.traced, methodNameClose)
-	ctx, finish := withLog(ctx, operation, methodNameClose, conn.GetId())
-	defer finish()
-
-	logRequest(ctx, conn, "close")
-	rv, err := t.traced.Close(ctx, conn, opts...)
-	if err != nil {
-		return nil, logError(ctx, err, operation)
+func (t *traceClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	if logrus.GetLevel() == logrus.TraceLevel {
+		return t.verbose.Request(ctx, request, opts...)
 	}
-	logResponse(ctx, conn, "close")
-
-	return rv, err
+	return t.concise.Request(ctx, request, opts...)
 }
 
-func (t *endTraceClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	logRequest(ctx, request, "request")
-	conn, err := next.Client(ctx).Request(ctx, request, opts...)
-	logResponse(ctx, conn, "request")
-	return conn, err
-}
-
-func (t *endTraceClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	logRequest(ctx, conn, "close")
-	r, err := next.Client(ctx).Close(ctx, conn, opts...)
-	logResponse(ctx, conn, "close")
-	return r, err
+func (t *traceClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	if logrus.GetLevel() == logrus.TraceLevel {
+		return t.verbose.Close(ctx, conn, opts...)
+	}
+	return t.concise.Close(ctx, conn, opts...)
 }

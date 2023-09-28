@@ -16,10 +16,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trace
+// Package traceverbose provides a wrapper for tracing around a networkservice.NetworkServiceClient
+package traceverbose
 
 import (
 	"context"
+
+	"google.golang.org/protobuf/proto"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
@@ -30,15 +33,20 @@ import (
 type contextKeyType string
 
 const (
-	traceInfoKey contextKeyType = "ConnectionInfoRegistry"
-	loggedType   string         = "registry"
+	traceInfoKey contextKeyType = "ConnectionInfo"
+	loggedType   string         = "networkService"
 )
 
-// ConnectionInfo - struct is used for tracing.
-type traceInfo struct{}
+// ConnectionInfo - struct, containing string representations of request and response, used for tracing.
+type traceInfo struct {
+	// Request is last request of NetworkService{Client, Server}
+	Request proto.Message
+	// Response is last response of NetworkService{Client, Server}
+	Response proto.Message
+}
 
 // withLog - provides corresponding logger in context
-func withLog(parent context.Context, operation, methodName string) (c context.Context, f func()) {
+func withLog(parent context.Context, operation, methodName, connectionID string) (c context.Context, f func()) {
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
@@ -46,7 +54,7 @@ func withLog(parent context.Context, operation, methodName string) (c context.Co
 	// Update outgoing grpc context
 	parent = grpcutils.PassTraceToOutgoing(parent)
 
-	fields := []*log.Field{log.NewField("type", loggedType)}
+	fields := []*log.Field{log.NewField("id", connectionID), log.NewField("type", loggedType)}
 
 	ctx, sLogger, span, sFinish := spanlogger.FromContext(parent, operation, methodName, fields)
 	ctx, lLogger, lFinish := logruslogger.FromSpan(ctx, span, operation, fields)
@@ -68,7 +76,7 @@ func withTrace(parent context.Context) context.Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
-	if ok := trace(parent); ok {
+	if _, ok := trace(parent); ok {
 		// We already had connection info
 		return parent
 	}
@@ -77,7 +85,7 @@ func withTrace(parent context.Context) context.Context {
 }
 
 // trace - return traceInfo from context
-func trace(ctx context.Context) bool {
-	_, ok := ctx.Value(traceInfoKey).(*traceInfo)
-	return ok
+func trace(ctx context.Context) (*traceInfo, bool) {
+	val, ok := ctx.Value(traceInfoKey).(*traceInfo)
+	return val, ok
 }

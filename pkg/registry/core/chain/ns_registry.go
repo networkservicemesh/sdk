@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020-2023 Cisco Systems, Inc.
 //
-// Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2023 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -27,10 +27,10 @@ import (
 
 // NewNetworkServiceRegistryServer - creates a chain of servers
 func NewNetworkServiceRegistryServer(servers ...registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
-	return next.NewNetworkServiceRegistryServer(next.NewWrappedNetworkServiceRegistryServer(trace.NewNetworkServiceRegistryServer, servers...))
+	return next.NewWrappedNetworkServiceRegistryServer(trace.NewNetworkServiceRegistryServer, servers...)
 }
 
 // NewNetworkServiceRegistryClient - creates a chain of clients
 func NewNetworkServiceRegistryClient(clients ...registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
-	return next.NewNetworkServiceRegistryClient(next.NewWrappedNetworkServiceRegistryClient(trace.NewNetworkServiceRegistryClient, clients...))
+	return next.NewWrappedNetworkServiceRegistryClient(trace.NewNetworkServiceRegistryClient, clients...)
 }

@@ -277,7 +277,7 @@ func FromSpan(
 	ctx context.Context, span spanlogger.Span, operation string, fields []*log.Field) (context.Context, log.Logger, func()) {
 	var info *traceCtxInfo
 	deleteFunc := func() {}
-	if log.IsTracingEnabled() {
+	if log.IsTracingEnabled() && logrus.GetLevel() == logrus.TraceLevel {
 		ctx, info = withTraceInfo(ctx)
 		localTraceInfo.Store(info.id, info)
 		deleteFunc = func() { localTraceInfo.Delete(info.id) }

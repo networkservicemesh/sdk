@@ -376,12 +376,17 @@ func Test_DiscoverForwarder_Should_KeepSelectedForwarderWhileConnectionIsFine(t 
 	conn, err = nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.Equal(t, 1, counter.UniqueRequests())
+	require.Equal(t, 3, counter.Requests())
 	require.Equal(t, 0, counter.Closes())
 	require.Equal(t, selectedForwarder, conn.GetPath().GetPathSegments()[2].Name)
 
 	// datapath is down
 	livenessValue.Store(false)
 	domain.Nodes[0].Forwarders[selectedForwarder].Cancel()
+	// waiting for healing
+	require.Eventually(t, func() bool {
+		return counter.Requests() >= 4
+	}, timeout, tick)
 
 	request.Connection = conn
 	conn, err = nsc.Request(ctx, request.Clone())
