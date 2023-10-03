@@ -67,7 +67,7 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 	cc, loaded := clientconn.LoadOrStore(ctx, newDialer(d.chainCtx, d.dialTimeout, d.dialOptions...))
 
 	// If there's an existing grpc.ClientConnInterface and it's not ours, call the next in the chain
-	di, ok := cc.(*dialer)
+	di, ok := cc.(*Dialer)
 	if !ok {
 		return next.Client(ctx).Request(ctx, request, opts...)
 	}
@@ -109,7 +109,7 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 
 func (d *dialClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cc, _ := clientconn.Load(ctx)
-	di, ok := cc.(*dialer)
+	di, ok := cc.(*Dialer)
 	if !ok {
 		return next.Client(ctx).Close(ctx, conn, opts...)
 	}

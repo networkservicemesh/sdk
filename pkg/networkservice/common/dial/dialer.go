@@ -29,7 +29,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
-type dialer struct {
+type Dialer struct {
 	ctx            context.Context
 	cleanupContext context.Context
 	clientURL      *url.URL
@@ -39,17 +39,17 @@ type dialer struct {
 	dialTimeout time.Duration
 }
 
-func newDialer(ctx context.Context, dialTimeout time.Duration, dialOptions ...grpc.DialOption) *dialer {
-	return &dialer{
+func newDialer(ctx context.Context, dialTimeout time.Duration, dialOptions ...grpc.DialOption) *Dialer {
+	return &Dialer{
 		ctx:         ctx,
 		dialOptions: dialOptions,
 		dialTimeout: dialTimeout,
 	}
 }
 
-func (di *dialer) Dial(ctx context.Context, clientURL *url.URL) error {
+func (di *Dialer) Dial(ctx context.Context, clientURL *url.URL) error {
 	if di == nil {
-		return errors.New("cannot call dialer.Dial on  nil dialer")
+		return errors.New("cannot call Dialer.Dial on  nil Dialer")
 	}
 	// Cleanup any previous grpc.ClientConn
 	if di.cleanupCancel != nil {
@@ -85,7 +85,7 @@ func (di *dialer) Dial(ctx context.Context, clientURL *url.URL) error {
 	return nil
 }
 
-func (di *dialer) Close() error {
+func (di *Dialer) Close() error {
 	if di != nil && di.cleanupCancel != nil {
 		di.cleanupCancel()
 		runtime.Gosched()
@@ -93,14 +93,14 @@ func (di *dialer) Close() error {
 	return nil
 }
 
-func (di *dialer) Invoke(ctx context.Context, method string, args, reply interface{}, opts ...grpc.CallOption) error {
+func (di *Dialer) Invoke(ctx context.Context, method string, args, reply interface{}, opts ...grpc.CallOption) error {
 	if di.ClientConn == nil {
-		return errors.New("no dialer.ClientConn found")
+		return errors.New("no Dialer.ClientConn found")
 	}
 	return di.ClientConn.Invoke(ctx, method, args, reply, opts...)
 }
 
-func (di *dialer) NewStream(ctx context.Context, desc *grpc.StreamDesc, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+func (di *Dialer) NewStream(ctx context.Context, desc *grpc.StreamDesc, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
 	if di.ClientConn == nil {
 		return nil, errors.New("no dialer.ClientConn found")
 	}

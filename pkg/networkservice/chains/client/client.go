@@ -68,7 +68,7 @@ func NewClient(ctx context.Context, clientOpts ...Option) networkservice.Network
 				opts.additionalFunctionality,
 				opts.authorizeClient,
 				trimpath.NewClient(),
-				connect.NewClient(),
+				connect.NewClient(opts.dialTimeout),
 			)...,
 		)...,
 	)
