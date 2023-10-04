@@ -50,7 +50,7 @@ func waitServerStarted(target *url.URL) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(target), grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(target), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func waitServerStopped(target *url.URL) error {
 		dialCtx, dialCancel := context.WithTimeout(ctx, 10*time.Millisecond)
 
 		var cc *grpc.ClientConn
-		if cc, err = grpc.DialContext(dialCtx, grpcutils.URLToTarget(target), grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials())); err == nil {
+		if cc, err = grpc.DialContext(dialCtx, grpcutils.URLToTarget(target), grpc.WithTransportCredentials(insecure.NewCredentials())); err == nil {
 			_ = cc.Close()
 		}
 

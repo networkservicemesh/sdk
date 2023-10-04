@@ -502,7 +502,7 @@ func TestConnectServer_DialTimeout(t *testing.T) {
 			next.NewNetworkServiceClient(
 				dial.NewClient(context.Background(),
 					dial.WithDialTimeout(100*time.Millisecond),
-					dial.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock()),
+					dial.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
 				),
 				connect.NewClient(),
 			),
