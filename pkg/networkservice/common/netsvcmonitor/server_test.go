@@ -24,6 +24,8 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/stretchr/testify/require"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/netsvcmonitor"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
@@ -31,7 +33,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
-	"github.com/stretchr/testify/require"
 )
 
 func Test_Netsvcmonitor_And_GroupOfSimilarNetworkServices(t *testing.T) {
