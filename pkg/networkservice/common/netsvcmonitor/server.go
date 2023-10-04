@@ -91,6 +91,12 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 						netsvcStreamIsAlive = false
 						break
 					}
+
+					// TODO: Remove this condition when https://github.com/networkservicemesh/api/issues/51 will be done
+					if netsvc.GetNetworkService().GetName() != conn.GetNetworkService() {
+						continue
+					}
+
 					nseStream, err := m.nseClient.Find(monitorCtx, &registry.NetworkServiceEndpointQuery{
 						NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
 							Name: conn.GetNetworkServiceEndpointName(),
