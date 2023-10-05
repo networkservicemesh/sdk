@@ -68,10 +68,9 @@ func TestConnectServer_Request(t *testing.T) {
 			next.NewNetworkServiceClient(
 				adapters.NewServerToClient(serverClient),
 				dial.NewClient(context.Background(),
-					dial.WithDialTimeout(time.Second),
 					dial.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
 				),
-				connect.NewClient(),
+				connect.NewClient(connect.WithDialTimeout(time.Second)),
 			),
 		),
 		serverNext,
@@ -197,11 +196,10 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 		connect.NewServer(
 			next.NewNetworkServiceClient(
 				dial.NewClient(context.Background(),
-					dial.WithDialTimeout(time.Second),
 					dial.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
 				),
 				serverClient,
-				connect.NewClient(),
+				connect.NewClient(connect.WithDialTimeout(time.Second)),
 			),
 		),
 		serverNext,
@@ -297,11 +295,10 @@ func TestConnectServer_RequestFail(t *testing.T) {
 		connect.NewServer(
 			next.NewNetworkServiceClient(
 				dial.NewClient(context.Background(),
-					dial.WithDialTimeout(time.Second),
 					dial.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
 				),
 				injecterror.NewClient(),
-				connect.NewClient(),
+				connect.NewClient(connect.WithDialTimeout(time.Second)),
 			),
 		),
 	)
@@ -347,11 +344,10 @@ func TestConnectServer_RequestNextServerError(t *testing.T) {
 		connect.NewServer(
 			next.NewNetworkServiceClient(
 				dial.NewClient(context.Background(),
-					dial.WithDialTimeout(time.Second),
 					dial.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
 				),
 				adapters.NewServerToClient(serverClient),
-				connect.NewClient(),
+				connect.NewClient(connect.WithDialTimeout(time.Second)),
 			),
 		),
 		injecterror.NewServer(),
@@ -414,10 +410,9 @@ func TestConnectServer_RemoteRestarted(t *testing.T) {
 		connect.NewServer(
 			next.NewNetworkServiceClient(
 				dial.NewClient(context.Background(),
-					dial.WithDialTimeout(time.Second),
 					dial.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
 				),
-				connect.NewClient(),
+				connect.NewClient(connect.WithDialTimeout(time.Second)),
 			),
 		),
 	)
@@ -501,10 +496,9 @@ func TestConnectServer_DialTimeout(t *testing.T) {
 		connect.NewServer(
 			next.NewNetworkServiceClient(
 				dial.NewClient(context.Background(),
-					dial.WithDialTimeout(100*time.Millisecond),
-					dial.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock()),
+					dial.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
 				),
-				connect.NewClient(),
+				connect.NewClient(connect.WithDialTimeout(100*time.Millisecond)),
 			),
 		),
 	)
@@ -548,10 +542,9 @@ func TestConnectServer_ChangeURLWithExpiredContext(t *testing.T) {
 		connect.NewServer(
 			next.NewNetworkServiceClient(
 				dial.NewClient(context.Background(),
-					dial.WithDialTimeout(time.Hour),
 					dial.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
 				),
-				connect.NewClient(),
+				connect.NewClient(connect.WithDialTimeout(time.Second)),
 			),
 		),
 	)

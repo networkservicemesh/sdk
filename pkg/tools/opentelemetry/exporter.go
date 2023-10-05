@@ -63,7 +63,6 @@ func InitOPTLMetricExporter(ctx context.Context, exporterURL string, exportInter
 		ctx,
 		exporterURL,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithBlock(),
 	)
 	if err != nil {
 		log.FromContext(ctx).Errorf("%v", err)

@@ -33,18 +33,40 @@ import (
 )
 
 const (
-	initialTimeout    = time.Millisecond * 20
-	timeoutMultiplier = 2
+	defaultDialTimeout = time.Millisecond * 100
+	initialTimeout     = time.Millisecond * 20
+	timeoutMultiplier  = 2
 )
+
+type option struct {
+	dialTimeout time.Duration
+}
+
+// Option - options for the dial chain element
+type Option func(*option)
+
+// WithDialTimeout - dialTimeout for use by dial chain element.
+func WithDialTimeout(dialTimeout time.Duration) Option {
+	return func(o *option) {
+		o.dialTimeout = dialTimeout
+	}
+}
 
 type connectClient struct {
 	dialTimeout time.Duration
 }
 
 // NewClient - returns a connect chain element
-func NewClient(dialTimeout time.Duration) networkservice.NetworkServiceClient {
+func NewClient(opts ...Option) networkservice.NetworkServiceClient {
+	o := &option{
+		dialTimeout: defaultDialTimeout,
+	}
+	for _, opt := range opts {
+		opt(o)
+	}
+
 	return &connectClient{
-		dialTimeout: dialTimeout,
+		dialTimeout: o.dialTimeout,
 	}
 }
 
