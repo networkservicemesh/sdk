@@ -19,7 +19,7 @@ require (
 	github.com/miekg/dns v1.1.50
 	github.com/nats-io/nats-streaming-server v0.24.6
 	github.com/nats-io/stan.go v0.10.3
-	github.com/networkservicemesh/api v1.10.1-0.20230822145124-c4a3ece88804
+	github.com/networkservicemesh/api v1.11.0
 	github.com/open-policy-agent/opa v0.44.0
 	github.com/pkg/errors v0.9.1
 	github.com/r3labs/diff v1.1.0
@@ -47,7 +47,6 @@ require (
 )
 
 require (
-	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	github.com/OneOfOne/xxhash v1.2.8 // indirect
 	github.com/agnivade/levenshtein v1.1.1 // indirect
 	github.com/armon/go-metrics v0.0.0-20190430140413-ec5e00d3c878 // indirect
