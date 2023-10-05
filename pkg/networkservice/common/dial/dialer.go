@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -29,6 +29,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
+// Dialer contains grpc.ClientConn and all things related to it
 type Dialer struct {
 	ctx            context.Context
 	cleanupContext context.Context
@@ -47,6 +48,7 @@ func newDialer(ctx context.Context, dialTimeout time.Duration, dialOptions ...gr
 	}
 }
 
+// Dial creates a connection to a clientURL
 func (di *Dialer) Dial(ctx context.Context, clientURL *url.URL) error {
 	if di == nil {
 		return errors.New("cannot call Dialer.Dial on  nil Dialer")
@@ -85,6 +87,7 @@ func (di *Dialer) Dial(ctx context.Context, clientURL *url.URL) error {
 	return nil
 }
 
+// Close closes grpc.ClientConn
 func (di *Dialer) Close() error {
 	if di != nil && di.cleanupCancel != nil {
 		di.cleanupCancel()
@@ -93,6 +96,7 @@ func (di *Dialer) Close() error {
 	return nil
 }
 
+// Invoke sends the RPC request
 func (di *Dialer) Invoke(ctx context.Context, method string, args, reply interface{}, opts ...grpc.CallOption) error {
 	if di.ClientConn == nil {
 		return errors.New("no Dialer.ClientConn found")
@@ -100,6 +104,7 @@ func (di *Dialer) Invoke(ctx context.Context, method string, args, reply interfa
 	return di.ClientConn.Invoke(ctx, method, args, reply, opts...)
 }
 
+// NewStream creates a new Stream for the client side
 func (di *Dialer) NewStream(ctx context.Context, desc *grpc.StreamDesc, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
 	if di.ClientConn == nil {
 		return nil, errors.New("no dialer.ClientConn found")
