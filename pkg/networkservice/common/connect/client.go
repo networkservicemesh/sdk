@@ -30,6 +30,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/dial"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 const (
@@ -79,7 +80,7 @@ func (c *connectClient) Request(ctx context.Context, request *networkservice.Net
 	if dialer, ok := cc.(*dial.Dialer); ok {
 		grpcClientConn := dialer.ClientConn
 
-		ready := waitForReady(grpcClientConn, c.dialTimeout)
+		ready := waitForReady(ctx, grpcClientConn, c.dialTimeout)
 		if !ready {
 			return nil, errors.New("dial error")
 		}
@@ -96,18 +97,26 @@ func (c *connectClient) Close(ctx context.Context, conn *networkservice.Connecti
 	return networkservice.NewNetworkServiceClient(cc).Close(ctx, conn, opts...)
 }
 
-func waitForReady(conn *grpc.ClientConn, timeout time.Duration) bool {
+func waitForReady(ctx context.Context, conn *grpc.ClientConn, timeout time.Duration) bool {
 	deadline := time.Now().Add(timeout)
 
 	currentTimeout := initialTimeout
-	for time.Now().Before(deadline) {
-		time.Sleep(currentTimeout)
-		if conn.GetState() == connectivity.Ready || conn.GetState() == connectivity.Idle {
-			return true
+
+	for time.Now().Add(currentTimeout).Before(deadline) {
+		after := time.After(currentTimeout)
+		select {
+		case <-after:
+			if conn.GetState() == connectivity.Ready || conn.GetState() == connectivity.Idle {
+				return true
+			}
+		case <-ctx.Done():
+			return false
 		}
-
 		currentTimeout *= timeoutMultiplier
+		if time.Now().Add(currentTimeout).After(deadline) {
+			currentTimeout = time.Until(deadline)
+		}
+		log.FromContext(ctx).Infof("currentTimeout: %v", currentTimeout.Milliseconds())
 	}
-
 	return false
 }
