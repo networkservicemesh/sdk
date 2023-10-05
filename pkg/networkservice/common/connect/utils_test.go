@@ -84,7 +84,7 @@ func waitServerStopped(target *url.URL) error {
 		dialCtx, dialCancel := context.WithTimeout(ctx, 10*time.Millisecond)
 
 		var cc *grpc.ClientConn
-		if cc, err = grpc.DialContext(dialCtx, grpcutils.URLToTarget(target), grpc.WithTransportCredentials(insecure.NewCredentials())); err == nil {
+		if cc, err = grpc.DialContext(dialCtx, grpcutils.URLToTarget(target), grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials())); err == nil {
 			_ = cc.Close()
 		}
 

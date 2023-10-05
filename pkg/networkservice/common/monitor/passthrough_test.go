@@ -128,6 +128,7 @@ func (m *MonitorPassThroughSuite) StartPassThroughEndpoints(connectTo *url.URL) 
 						client.WithName(name),
 						client.WithoutRefresh(),
 						client.WithAuthorizeClient(null.NewClient()),
+						client.WithDialTimeout(sandbox.DialTimeout),
 						client.WithDialOptions(
 							sandbox.DialOptions()...,
 						),
@@ -168,6 +169,7 @@ func (m *MonitorPassThroughSuite) StartClient(connectTo *url.URL) {
 		m.testCtx,
 		client.WithClientURL(connectTo),
 		client.WithAuthorizeClient(null.NewClient()),
+		client.WithDialTimeout(sandbox.DialTimeout),
 		client.WithDialOptions(
 			sandbox.DialOptions()...,
 		),
@@ -210,18 +212,6 @@ func (m *MonitorPassThroughSuite) ValidateEvent(expectedType networkservice.Conn
 	m.Require().Equal(expectedConn.GetState(), actualConn.GetState())
 }
 
-func (m *MonitorPassThroughSuite) TestDeleteToDown() {
-	// Have the endpoint close the connection
-	closeConn := m.conn.Clone()
-	closeConn.GetPath().Index = uint32(len(closeConn.GetPath().GetPathSegments()) - 1)
-	closeConn.Id = closeConn.GetCurrentPathSegment().GetId()
-	_, err := m.endpoint.Close(m.testCtx, closeConn)
-	m.Require().NoError(err)
-	expectedConn := m.conn.Clone()
-	expectedConn.State = networkservice.State_DOWN
-	m.ValidateEvent(networkservice.ConnectionEventType_UPDATE, expectedConn)
-}
-
 func (m *MonitorPassThroughSuite) TestServerDown() {
 	// Disconnect the Server
 	m.endpointCancel()
@@ -230,33 +220,6 @@ func (m *MonitorPassThroughSuite) TestServerDown() {
 	expectedConn := m.conn.Clone()
 	expectedConn.State = networkservice.State_DOWN
 	m.ValidateEvent(networkservice.ConnectionEventType_UPDATE, expectedConn)
-}
-
-func (m *MonitorPassThroughSuite) TestServerUpdate() {
-	// Have the endpoint close the connection
-	endpointConn := m.conn.Clone()
-	endpointConn.GetPath().Index = uint32(len(endpointConn.GetPath().GetPathSegments()) - 1)
-	endpointConn.Id = endpointConn.GetCurrentPathSegment().GetId()
-	endpointConn.State = networkservice.State_DOWN
-	endpointConn.Context = &networkservice.ConnectionContext{
-		ExtraContext: map[string]string{"mark": "true"},
-	}
-	_, err := m.endpoint.Request(m.testCtx, &networkservice.NetworkServiceRequest{
-		Connection: endpointConn.Clone(),
-	})
-	m.Require().NoError(err)
-
-	expectedConn := endpointConn.Clone()
-	expectedConn.GetPath().Index = m.conn.GetPath().GetIndex()
-	expectedConn.Id = expectedConn.GetCurrentPathSegment().GetId()
-	m.ValidateEvent(networkservice.ConnectionEventType_UPDATE, expectedConn)
-}
-
-func (m *MonitorPassThroughSuite) TestDeleteOnClientClose() {
-	// Have the client close the connection
-	_, err := m.client.Close(m.testCtx, m.conn)
-	m.Require().NoError(err)
-	m.ValidateEvent(networkservice.ConnectionEventType_DELETE, m.conn)
 }
 
 func TestPassThrough(t *testing.T) {

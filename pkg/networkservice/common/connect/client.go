@@ -66,6 +66,9 @@ func NewClient(opts ...Option) networkservice.NetworkServiceClient {
 		opt(o)
 	}
 
+	if o.dialTimeout == time.Duration(0) {
+		panic("dial timeout in connectClient can't be equal to zero")
+	}
 	return &connectClient{
 		dialTimeout: o.dialTimeout,
 	}

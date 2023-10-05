@@ -304,6 +304,7 @@ func (b *Builder) newNSMgrProxy() *NSMgrEntry {
 			b.generateTokenFunc,
 			nsmgrproxy.WithListenOn(entry.URL),
 			nsmgrproxy.WithName(entry.Name),
+			nsmgrproxy.WithDialTimeout(DialTimeout),
 			nsmgrproxy.WithDialOptions(dialOptions...),
 		)
 		serve(ctx, b.t, entry.URL, entry.Register)
