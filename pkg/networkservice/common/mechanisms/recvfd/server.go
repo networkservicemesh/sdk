@@ -30,6 +30,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type recvFDServer struct {
@@ -80,7 +81,7 @@ func (r *recvFDServer) Request(ctx context.Context, request *networkservice.Netw
 
 func (r *recvFDServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	// Clean up the fileMap no matter what happens
-	defer r.closeFiles(conn)
+	defer r.closeFiles(ctx, conn)
 
 	// Get the grpcfd.FDRecver
 	recv, ok := grpcfd.FromContext(ctx)
@@ -111,7 +112,7 @@ func (r *recvFDServer) Close(ctx context.Context, conn *networkservice.Connectio
 	return &empty.Empty{}, err
 }
 
-func (r *recvFDServer) closeFiles(conn *networkservice.Connection) {
+func (r *recvFDServer) closeFiles(ctx context.Context, conn *networkservice.Connection) {
 	defer r.fileMaps.Delete(conn.GetId())
 
 	fileMap, _ := r.fileMaps.LoadOrStore(conn.GetId(), &perConnectionFileMap{
@@ -119,6 +120,7 @@ func (r *recvFDServer) closeFiles(conn *networkservice.Connection) {
 		inodeURLbyFilename: make(map[string]*url.URL),
 	})
 
+	log.FromContext(ctx).Infof("Starting deleting files")
 	for inodeURLStr, file := range fileMap.filesByInodeURL {
 		delete(fileMap.filesByInodeURL, inodeURLStr)
 		_ = file.Close()
