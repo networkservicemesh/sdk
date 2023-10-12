@@ -40,6 +40,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
@@ -77,6 +78,7 @@ func (s *checkRecvfdTestSuite) SetupTest() {
 	serveURL := &url.URL{Scheme: "unix", Path: sock.Name()}
 
 	testChain := chain.NewNetworkServiceServer(
+		begin.NewServer(),
 		checkcontext.NewServer(t, func(t *testing.T, c context.Context) {
 			injectErr := grpcfdutils.InjectOnFileReceivedCallback(c, func(fileName string, file *os.File) {
 				runtime.SetFinalizer(file, func(file *os.File) {
