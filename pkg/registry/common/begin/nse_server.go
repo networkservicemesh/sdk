@@ -92,8 +92,7 @@ func (b *beginNSEServer) Unregister(ctx context.Context, in *registry.NetworkSer
 	}
 	eventFactoryServer, ok := b.Load(id)
 	if !ok {
-		// If we don't have a connection to Close, just let it be
-		return &emptypb.Empty{}, nil
+		return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 	}
 	var err error
 	<-eventFactoryServer.executor.AsyncExec(func() {
