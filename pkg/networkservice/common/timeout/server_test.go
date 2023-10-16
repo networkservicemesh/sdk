@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
-	"google.golang.org/grpc/credentials"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
@@ -39,7 +41,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/timeout"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatetoken"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injectclock"
@@ -61,7 +62,8 @@ func testClient(
 	ctx context.Context,
 	client networkservice.NetworkServiceClient,
 	server networkservice.NetworkServiceServer,
-	duration time.Duration,
+	clientDuration time.Duration,
+	serverDuration time.Duration,
 	clk clock.Clock,
 ) networkservice.NetworkServiceClient {
 	return next.NewNetworkServiceClient(
@@ -72,13 +74,11 @@ func testClient(
 		client,
 		adapters.NewServerToClient(
 			next.NewNetworkServiceServer(
-				updatetoken.NewServer(func(_ credentials.AuthInfo) (string, time.Time, error) {
-					return "token", clock.FromContext(ctx).Now().Add(duration), nil
-				}),
-				begin.NewServer(),
-				metadata.NewServer(),
 				new(remoteServer), // <-- GRPC invocation
 				updatepath.NewServer(serverName),
+				begin.NewServer(),
+				newInjectExpirationServer(clientDuration, serverDuration),
+				metadata.NewServer(),
 				timeout.NewServer(ctx),
 				server,
 			),
@@ -100,6 +100,38 @@ func TestTimeoutServer_Request(t *testing.T) {
 		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
 			kernelmech.MECHANISM: connServer,
 		}),
+		tokenTimeout,
+		tokenTimeout,
+		clockMock,
+	)
+
+	_, err := client.Request(ctx, &networkservice.NetworkServiceRequest{})
+	require.NoError(t, err)
+
+	require.Eventually(t, connServer.validator(1, 0), testWait, testTick)
+
+	clockMock.Add(tokenTimeout / 2)
+	require.Never(t, connServer.validator(0, 1), testWait, testTick)
+
+	clockMock.Add(tokenTimeout / 2)
+	require.Eventually(t, connServer.validator(0, 1), testWait, testTick)
+}
+
+func TestTimeoutServer_DifferentTimeouts(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	clockMock := clockmock.New(ctx)
+	ctx = clock.WithClock(ctx, clockMock)
+
+	connServer := newConnectionsServer(t)
+
+	client := testClient(ctx,
+		kernel.NewClient(),
+		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
+			kernelmech.MECHANISM: connServer,
+		}),
+		tokenTimeout*2,
 		tokenTimeout,
 		clockMock,
 	)
@@ -130,6 +162,7 @@ func TestTimeoutServer_CloseBeforeTimeout(t *testing.T) {
 		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
 			kernelmech.MECHANISM: connServer,
 		}),
+		tokenTimeout,
 		tokenTimeout,
 		clockMock,
 	)
@@ -163,6 +196,7 @@ func TestTimeoutServer_CloseAfterTimeout(t *testing.T) {
 		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
 			kernelmech.MECHANISM: connServer,
 		}),
+		tokenTimeout,
 		tokenTimeout,
 		clockMock,
 	)
@@ -204,7 +238,7 @@ func TestTimeoutServer_RaceTest(t *testing.T) {
 
 	connServer := newConnectionsServer(t)
 
-	client := testClient(ctx, null.NewClient(), connServer, 0, clock.FromContext(ctx))
+	client := testClient(ctx, null.NewClient(), connServer, 0, 0, clock.FromContext(ctx))
 
 	var wg sync.WaitGroup
 	for i := 0; i < 1000; i++ {
@@ -235,21 +269,15 @@ func TestTimeoutServer_RefreshFailure(t *testing.T) {
 
 	client := testClient(
 		ctx,
-		next.NewNetworkServiceClient(
-			begin.NewClient(),
-			metadata.NewClient(),
-			refresh.NewClient(ctx),
-		),
+		refresh.NewClient(ctx),
 		next.NewNetworkServiceServer(
 			injecterror.NewServer(
 				injecterror.WithRequestErrorTimes(1, -1),
 				injecterror.WithCloseErrorTimes(),
 			),
-			updatetoken.NewServer(func(_ credentials.AuthInfo) (string, time.Time, error) {
-				return "test", clock.FromContext(ctx).Now().Add(tokenTimeout), nil
-			}),
 			connServer,
 		),
+		tokenTimeout,
 		tokenTimeout,
 		clockMock,
 	)
@@ -288,6 +316,7 @@ func TestTimeoutServer_CloseFailure(t *testing.T) {
 
 			connServer,
 		),
+		tokenTimeout,
 		tokenTimeout,
 		clockMock,
 	)
@@ -369,5 +398,32 @@ func (s *connectionsServer) Close(ctx context.Context, conn *networkservice.Conn
 
 	s.lock.Unlock()
 
+	return next.Server(ctx).Close(ctx, conn)
+}
+
+// injectExpirationServer sets an expiration time for previous and current path segments
+type injectExpirationServer struct {
+	clientTimeout time.Duration
+	serverTimeout time.Duration
+}
+
+func newInjectExpirationServer(clientTimeout, serverTimeout time.Duration) *injectExpirationServer {
+	return &injectExpirationServer{
+		clientTimeout: clientTimeout,
+		serverTimeout: serverTimeout,
+	}
+}
+
+func (s *injectExpirationServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	if prev := request.GetConnection().GetPrevPathSegment(); prev != nil {
+		prev.Expires = timestamppb.New(clock.FromContext(ctx).Now().Add(s.clientTimeout).Local())
+	}
+	if curr := request.GetConnection().GetCurrentPathSegment(); curr != nil {
+		curr.Expires = timestamppb.New(clock.FromContext(ctx).Now().Add(s.serverTimeout).Local())
+	}
+	return next.Server(ctx).Request(ctx, request)
+}
+
+func (s *injectExpirationServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	return next.Server(ctx).Close(ctx, conn)
 }

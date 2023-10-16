@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020-2023 Cisco Systems, Inc.
 //
-// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2023 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -58,6 +58,7 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 
 	// Compute refreshAfter
 	refreshAfter := after(ctx, conn)
+	log.FromContext(ctx).Infof("refresh after %s", refreshAfter.String())
 
 	// Create a cancel context.
 	cancelCtx, cancel := context.WithCancel(t.chainCtx)
@@ -102,8 +103,10 @@ func after(ctx context.Context, conn *networkservice.Connection) time.Duration {
 	clockTime := clock.FromContext(ctx)
 
 	var minTimeout *time.Duration
-	var expireTime time.Time
 	for _, segment := range conn.GetPath().GetPathSegments() {
+		if segment.GetExpires() == nil {
+			continue
+		}
 		expTime := segment.GetExpires().AsTime()
 
 		timeout := clockTime.Until(expTime)
@@ -114,12 +117,7 @@ func after(ctx context.Context, conn *networkservice.Connection) time.Duration {
 			}
 
 			*minTimeout = timeout
-			expireTime = expTime
 		}
-	}
-
-	if minTimeout != nil {
-		log.FromContext(ctx).Infof("expiration after %s at %s", minTimeout.String(), expireTime.UTC())
 	}
 
 	if minTimeout == nil || *minTimeout <= 0 {

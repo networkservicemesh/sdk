@@ -30,6 +30,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
@@ -63,18 +64,13 @@ func (s *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 		return nil, err
 	}
 
-	expirationTimestamp := conn.GetPrevPathSegment().GetExpires()
-	if expirationTimestamp == nil {
-		return nil, errors.Errorf("expiration for the previous path segment cannot be nil: %+v", conn)
-	}
-	expirationTime := expirationTimestamp.AsTime()
 	cancelCtx, cancel := context.WithCancel(s.chainCtx)
 	if oldCancel, loaded := loadAndDelete(ctx, metadata.IsClient(s)); loaded {
 		oldCancel()
 	}
 	store(ctx, metadata.IsClient(s), cancel)
 	eventFactory := begin.FromContext(ctx)
-	afterCh := timeClock.After(timeClock.Until(expirationTime) - requestTimeout)
+	afterCh := timeClock.After(minTokenTimeout(ctx, conn) - requestTimeout)
 
 	go func(cancelCtx context.Context, afterCh <-chan time.Time) {
 		select {
@@ -95,4 +91,22 @@ func (s *timeoutServer) Close(ctx context.Context, conn *networkservice.Connecti
 		}
 	}
 	return &empty.Empty{}, err
+}
+
+func minTokenTimeout(ctx context.Context, conn *networkservice.Connection) time.Duration {
+	clockTime := clock.FromContext(ctx)
+	var minTimeout time.Duration = 0
+	for _, segment := range conn.GetPath().GetPathSegments() {
+		if segment.GetExpires() == nil {
+			continue
+		}
+		timeout := clockTime.Until(segment.GetExpires().AsTime())
+
+		if timeout < minTimeout || minTimeout == 0 {
+			minTimeout = timeout
+		}
+	}
+	log.FromContext(ctx).Infof("expiration after %s", minTimeout.String())
+
+	return minTimeout
 }
