@@ -101,13 +101,13 @@ func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
 			request := f.request.Clone()
 			if o.reselect {
 				ctx, cancel := f.ctxFunc()
-				defer cancel()
 				_, _ = f.client.Close(ctx, request.GetConnection(), f.opts...)
 				if request.GetConnection() != nil {
 					request.GetConnection().Mechanism = nil
 					request.GetConnection().NetworkServiceEndpointName = ""
 					request.GetConnection().State = networkservice.State_RESELECT_REQUESTED
 				}
+				cancel()
 			}
 			ctx, cancel := f.ctxFunc()
 			defer cancel()
