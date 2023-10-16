@@ -18,6 +18,7 @@ package begin
 
 import (
 	"context"
+	"sync/atomic"
 
 	"github.com/edwarnicke/genericsync"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -30,8 +31,14 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
+type queue struct {
+	eventCount *atomic.Int64
+	queueChan  chan func()
+}
+
 type beginNSEServer struct {
 	genericsync.Map[string, *eventNSEFactoryServer]
+	queueMap genericsync.Map[string, *queue]
 }
 
 func (b *beginNSEServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
@@ -92,7 +99,35 @@ func (b *beginNSEServer) Unregister(ctx context.Context, in *registry.NetworkSer
 	}
 	eventFactoryServer, ok := b.Load(id)
 	if !ok {
-		return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
+		q, loaded := b.queueMap.LoadOrStore(id, &queue{eventCount: &atomic.Int64{}, queueChan: make(chan func())})
+		if !loaded {
+			log.FromContext(ctx).Infof("Haven't found a queue. Starting a new one: %v", q)
+			go func() {
+				for event := range q.queueChan {
+					log.FromContext(ctx).Infof("Got a new event")
+					q.eventCount.Add(-1)
+					event()
+
+					if q.eventCount.Load() == int64(0) {
+						log.FromContext(ctx).Infof("All events have been processed. Closing event factory...")
+						b.queueMap.Delete(id)
+						close(q.queueChan)
+						return
+					}
+				}
+			}()
+		}
+
+		q.eventCount.Add(1)
+		waitCtx, cancel := context.WithCancel(ctx)
+		var err error
+		q.queueChan <- func() {
+			_, err = next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
+			cancel()
+		}
+
+		<-waitCtx.Done()
+		return &emptypb.Empty{}, err
 	}
 	var err error
 	<-eventFactoryServer.executor.AsyncExec(func() {
