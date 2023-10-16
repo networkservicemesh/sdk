@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -68,13 +70,6 @@ func TestNSMatch(t *testing.T) {
 			name: "matchName",
 			svc: &registry.NetworkService{
 				Name: referenceService.Name,
-			},
-			want: true,
-		},
-		{
-			name: "matchNameSubstring",
-			svc: &registry.NetworkService{
-				Name: "substring-match",
 			},
 			want: true,
 		},
@@ -182,13 +177,6 @@ func TestNSEMatch(t *testing.T) {
 			name: "matchName",
 			endpoint: &registry.NetworkServiceEndpoint{
 				Name: referenceEndpoint.Name,
-			},
-			want: true,
-		},
-		{
-			name: "matchNameSubstring",
-			endpoint: &registry.NetworkServiceEndpoint{
-				Name: "substring-match",
 			},
 			want: true,
 		},

@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -110,7 +112,7 @@ func startTestNSEServers(ctx context.Context, t *testing.T) (url1, url2 *url.URL
 func TestConnectNSEServer_AllUnregister(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
 	url1, url2, cancel1, cancel2 := startTestNSEServers(ctx, t)
@@ -147,7 +149,7 @@ func TestConnectNSEServer_AllUnregister(t *testing.T) {
 
 	findSrv = streamchannel.NewNetworkServiceEndpointFindServer(clienturlctx.WithClientURL(ctx, url2), ch)
 	err = s.Find(&registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-		Name: "nse-1",
+		Name: "nse-1-1",
 	}}, findSrv)
 	require.NoError(t, err)
 	require.Equal(t, (<-ch).NetworkServiceEndpoint.Name, "nse-1-1")

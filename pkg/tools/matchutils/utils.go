@@ -74,14 +74,14 @@ func MatchEndpoint(nsLabels map[string]string, ns *registry.NetworkService, nses
 
 // MatchNetworkServices returns true if two network services are matched
 func MatchNetworkServices(left, right *registry.NetworkService) bool {
-	return (left.Name == "" || strings.Contains(right.Name, left.Name)) &&
+	return (left.Name == "" || right.Name == left.Name) &&
 		(left.Payload == "" || left.Payload == right.Payload) &&
 		(left.Matches == nil || cmp.Equal(left.Matches, right.Matches, cmp.Comparer(proto.Equal)))
 }
 
 // MatchNetworkServiceEndpoints  returns true if two network service endpoints are matched
 func MatchNetworkServiceEndpoints(left, right *registry.NetworkServiceEndpoint) bool {
-	return (left.Name == "" || strings.Contains(right.Name, left.Name)) &&
+	return (left.Name == "" || right.Name == left.Name) &&
 		(left.NetworkServiceLabels == nil || labelsContains(right.NetworkServiceLabels, left.NetworkServiceLabels)) &&
 		(left.ExpirationTime == nil || left.ExpirationTime.Seconds == right.ExpirationTime.Seconds) &&
 		(left.NetworkServiceNames == nil || contains(right.NetworkServiceNames, left.NetworkServiceNames)) &&

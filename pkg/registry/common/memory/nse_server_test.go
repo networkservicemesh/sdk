@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -212,7 +214,7 @@ func TestNetworkServiceEndpointRegistryServer_DataRace(t *testing.T) {
 			go func() {
 				defer close(ch)
 				findErr := s.Find(&registry.NetworkServiceEndpointQuery{
-					NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: "nse"},
+					NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{},
 					Watch:                  true,
 				}, streamchannel.NewNetworkServiceEndpointFindServer(findCtx, ch))
 				assert.NoError(t, findErr)
@@ -255,7 +257,7 @@ func TestNetworkServiceEndpointRegistryServer_SlowReceiver(t *testing.T) {
 	go func() {
 		defer close(ch)
 		findErr := s.Find(&registry.NetworkServiceEndpointQuery{
-			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: "nse"},
+			NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{},
 			Watch:                  true,
 		}, streamchannel.NewNetworkServiceEndpointFindServer(findCtx, ch))
 		require.NoError(t, findErr)

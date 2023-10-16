@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -110,7 +112,7 @@ func startTestNSServers(ctx context.Context, t *testing.T) (url1, url2 *url.URL,
 func TestConnectNSServer_AllUnregister(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
 	url1, url2, cancel1, cancel2 := startTestNSServers(ctx, t)
@@ -147,7 +149,7 @@ func TestConnectNSServer_AllUnregister(t *testing.T) {
 
 	findSrv = streamchannel.NewNetworkServiceFindServer(clienturlctx.WithClientURL(ctx, url2), ch)
 	err = s.Find(&registry.NetworkServiceQuery{NetworkService: &registry.NetworkService{
-		Name: "ns-1",
+		Name: "ns-1-1",
 	}}, findSrv)
 	require.NoError(t, err)
 	require.Equal(t, (<-ch).NetworkService.Name, "ns-1-1")
