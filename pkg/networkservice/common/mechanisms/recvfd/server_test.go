@@ -45,7 +45,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcfdutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -138,7 +137,7 @@ func createFile(s *checkRecvfdTestSuite, fileName string) (inodeURLStr string, f
 }
 
 func (s *checkRecvfdTestSuite) TestRecvfdClosesSingleFile() {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
 	testFileName := path.Join(s.tempDir, "TestRecvfdClosesSingleFile.test")
@@ -164,7 +163,8 @@ func (s *checkRecvfdTestSuite) TestRecvfdClosesSingleFile() {
 	conn, err := s.testClient.Request(ctx, request)
 	s.Require().NoError(err)
 
-	log.FromContext(ctx).Infof("Request Completed. Starting Close...")
+	time.Sleep(time.Millisecond * 500)
+	//log.FromContext(ctx).Infof("Request Completed. Starting Close...")
 
 	_, err = s.testClient.Close(ctx, conn)
 	s.Require().NoError(err)

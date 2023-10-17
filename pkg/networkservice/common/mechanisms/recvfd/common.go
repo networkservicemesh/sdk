@@ -27,7 +27,6 @@ import (
 	"github.com/edwarnicke/grpcfd"
 	"github.com/edwarnicke/serialize"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/pkg/errors"
 )
 
@@ -95,7 +94,7 @@ func recvFDAndSwapInodeToFile(ctx context.Context, fileMap *perConnectionFileMap
 		fileMap.inodeURLbyFilename[file.Name()] = inodeURL
 	})
 
-	log.FromContext(ctx).Infof("Completed AsyncExec for assinging")
+	//log.FromContext(ctx).Infof("Completed AsyncExec for assinging")
 	return err
 }
 
