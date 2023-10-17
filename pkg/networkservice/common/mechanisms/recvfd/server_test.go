@@ -45,6 +45,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcfdutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -163,7 +164,7 @@ func (s *checkRecvfdTestSuite) TestRecvfdClosesSingleFile() {
 	conn, err := s.testClient.Request(ctx, request)
 	s.Require().NoError(err)
 
-	//log.FromContext(ctx).Infof("Request Completed. Starting Close...")
+	log.FromContext(ctx).Infof("Request Completed. Starting Close...")
 
 	_, err = s.testClient.Close(ctx, conn)
 	s.Require().NoError(err)
