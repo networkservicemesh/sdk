@@ -143,7 +143,7 @@ func createFile(s *checkRecvfdTestSuite, fileName string) (inodeURLStr string, f
 }
 
 func (s *checkRecvfdTestSuite) TestRecvfdClosesSingleFile() {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	testFileName := path.Join(s.tempDir, "TestRecvfdClosesSingleFile.test")
