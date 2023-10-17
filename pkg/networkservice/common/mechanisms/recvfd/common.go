@@ -27,6 +27,7 @@ import (
 	"github.com/edwarnicke/grpcfd"
 	"github.com/edwarnicke/serialize"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/pkg/errors"
 )
 
@@ -54,6 +55,7 @@ func recvFDAndSwapInodeToFile(ctx context.Context, fileMap *perConnectionFileMap
 		return nil
 	}
 
+	log.FromContext(ctx).Infof("Staring AsyncExec for assinging a file...")
 	<-fileMap.executor.AsyncExec(func() {
 		// Look to see if we already have a file for that inode
 		file, ok := fileMap.filesByInodeURL[inodeURLStr]
@@ -92,6 +94,8 @@ func recvFDAndSwapInodeToFile(ctx context.Context, fileMap *perConnectionFileMap
 		// Remember the swap so we can undo it later
 		fileMap.inodeURLbyFilename[file.Name()] = inodeURL
 	})
+
+	log.FromContext(ctx).Infof("Completed AsyncExec for assinging")
 	return err
 }
 
