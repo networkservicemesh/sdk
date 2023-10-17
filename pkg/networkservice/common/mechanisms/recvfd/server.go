@@ -119,8 +119,11 @@ func (r *recvFDServer) closeFiles(ctx context.Context, conn *networkservice.Conn
 		inodeURLbyFilename: make(map[string]*url.URL),
 	})
 
-	for inodeURLStr, file := range fileMap.filesByInodeURL {
-		delete(fileMap.filesByInodeURL, inodeURLStr)
-		_ = file.Close()
-	}
+	<-fileMap.executor.AsyncExec(func() {
+
+		for inodeURLStr, file := range fileMap.filesByInodeURL {
+			delete(fileMap.filesByInodeURL, inodeURLStr)
+			_ = file.Close()
+		}
+	})
 }
