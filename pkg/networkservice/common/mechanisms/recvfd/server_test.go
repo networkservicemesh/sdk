@@ -43,8 +43,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcfdutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -63,7 +65,10 @@ func (s *checkRecvfdTestSuite) SetupTest() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	counter := &count.Server{}
+
 	t.Cleanup(func() {
+		log.FromContext(ctx).Infof("Requests in total: %v", counter.Requests())
 		cancel()
 		goleak.VerifyNone(t)
 	})
@@ -77,6 +82,7 @@ func (s *checkRecvfdTestSuite) SetupTest() {
 
 	testChain := chain.NewNetworkServiceServer(
 		//begin.NewServer(),
+		counter,
 		checkcontext.NewServer(t, func(t *testing.T, c context.Context) {
 			injectErr := grpcfdutils.InjectOnFileReceivedCallback(c, func(fileName string, file *os.File) {
 				runtime.SetFinalizer(file, func(file *os.File) {
@@ -162,9 +168,6 @@ func (s *checkRecvfdTestSuite) TestRecvfdClosesSingleFile() {
 
 	conn, err := s.testClient.Request(ctx, request)
 	s.Require().NoError(err)
-
-	time.Sleep(time.Millisecond * 500)
-	//log.FromContext(ctx).Infof("Request Completed. Starting Close...")
 
 	_, err = s.testClient.Close(ctx, conn)
 	s.Require().NoError(err)
