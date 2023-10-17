@@ -106,9 +106,8 @@ func (b *beginNSEServer) Unregister(ctx context.Context, in *registry.NetworkSer
 
 			if !loaded {
 				b.queueMap.Store(id, q)
-			} else {
-				q.eventCount++
 			}
+			q.eventCount++
 			q.Unlock()
 		}
 
