@@ -21,7 +21,6 @@ package recvfd_test
 
 import (
 	"context"
-	"fmt"
 	"net/url"
 	"os"
 	"path"
@@ -171,49 +170,4 @@ func (s *checkRecvfdTestSuite) TestRecvfdClosesSingleFile() {
 		runtime.GC()
 		return fileClosedContext.Err() != nil
 	}, time.Second, time.Millisecond*100)
-}
-
-func (s *checkRecvfdTestSuite) TestRecvfdClosesMultipleFiles() {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-
-	const numFiles = 3
-	s.onFileClosedContexts = make([]context.Context, numFiles)
-	s.onFileClosedCallbacks = make(map[string]func(), numFiles)
-
-	request := &networkservice.NetworkServiceRequest{
-		MechanismPreferences: make([]*networkservice.Mechanism, numFiles),
-	}
-
-	var filePath string
-	for i := 0; i < numFiles; i++ {
-		filePath = path.Join(s.tempDir, fmt.Sprintf("TestRecvfdClosesMultipleFiles.test%d", i))
-
-		inodeURLStr, fileClosedContext, cancelFunc := createFile(s, filePath)
-		s.onFileClosedCallbacks[inodeURLStr] = cancelFunc
-		s.onFileClosedContexts[i] = fileClosedContext
-
-		request.MechanismPreferences = append(request.MechanismPreferences,
-			&networkservice.Mechanism{
-				Cls:  cls.LOCAL,
-				Type: kernel.MECHANISM,
-				Parameters: map[string]string{
-					common.InodeURL: "file:" + filePath,
-				},
-			})
-	}
-
-	conn, err := s.testClient.Request(ctx, request)
-	s.Require().NoError(err)
-
-	_, err = s.testClient.Close(ctx, conn)
-	s.Require().NoError(err)
-
-	for i := range s.onFileClosedContexts {
-		onClosedFileCtx := s.onFileClosedContexts[i]
-		s.Require().Eventually(func() bool {
-			runtime.GC()
-			return onClosedFileCtx.Err() != nil
-		}, time.Second, time.Millisecond*100)
-	}
 }

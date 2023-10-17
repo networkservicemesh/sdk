@@ -30,7 +30,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type recvFDServer struct {
@@ -120,7 +119,6 @@ func (r *recvFDServer) closeFiles(ctx context.Context, conn *networkservice.Conn
 		inodeURLbyFilename: make(map[string]*url.URL),
 	})
 
-	log.FromContext(ctx).Infof("Starting deleting files")
 	for inodeURLStr, file := range fileMap.filesByInodeURL {
 		delete(fileMap.filesByInodeURL, inodeURLStr)
 		_ = file.Close()

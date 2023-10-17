@@ -27,7 +27,6 @@ import (
 	"github.com/edwarnicke/grpcfd"
 	"github.com/edwarnicke/serialize"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/pkg/errors"
 )
 
@@ -82,7 +81,6 @@ func recvFDAndSwapInodeToFile(ctx context.Context, fileMap *perConnectionFileMap
 					return
 				}
 
-				log.FromContext(ctx).Infof("Assign file")
 				fileMap.filesByInodeURL[inodeURL.String()] = file
 			}
 		}
