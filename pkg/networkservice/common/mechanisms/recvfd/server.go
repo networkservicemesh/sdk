@@ -30,7 +30,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type recvFDServer struct {
@@ -115,7 +114,7 @@ func (r *recvFDServer) Close(ctx context.Context, conn *networkservice.Connectio
 func (r *recvFDServer) closeFiles(ctx context.Context, conn *networkservice.Connection) {
 	defer r.fileMaps.Delete(conn.GetId())
 
-	log.FromContext(ctx).Infof("Getting a fileMap...")
+	//log.FromContext(ctx).Infof("Getting a fileMap...")
 
 	fileMap, _ := r.fileMaps.LoadOrStore(conn.GetId(), &perConnectionFileMap{
 		filesByInodeURL:    make(map[string]*os.File),
