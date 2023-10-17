@@ -42,7 +42,6 @@ type dataRaceServer struct {
 
 func (s *dataRaceServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
-
 }
 
 func (s *dataRaceServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
@@ -50,7 +49,7 @@ func (s *dataRaceServer) Find(query *registry.NetworkServiceEndpointQuery, serve
 }
 
 func (s *dataRaceServer) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	s.count = s.count + 1
+	s.count++
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 }
 
@@ -75,12 +74,12 @@ func TestServerDataRaceOnUnregister(t *testing.T) {
 
 	for i := 0; i < eventCount; i++ {
 		go func() {
-			server.Unregister(ctx, nse)
+			_, err := server.Unregister(ctx, nse)
+			require.NoError(t, err)
 			wg.Done()
 		}()
 	}
 
 	wg.Wait()
-
 	require.Equal(t, datarace.count, eventCount)
 }
