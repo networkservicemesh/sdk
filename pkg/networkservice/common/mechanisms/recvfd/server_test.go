@@ -94,8 +94,9 @@ func (s *checkRecvfdTestSuite) SetupTest() {
 
 			s.Require().NoError(injectErr)
 		}),
+		counter,
 		recvfd.NewServer(),
-		counter)
+	)
 
 	startServer(ctx, s, &testChain, serveURL)
 	s.testClient = createClient(ctx, serveURL)
