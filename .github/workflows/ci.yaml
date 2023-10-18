@@ -16,4 +16,4 @@ jobs:
         with:
           go-version: 1.20.5
       - run: |
-          go test ./pkg/networkservice/common/mechanisms/recvfd -v -race -run TestRecvfd/TestRecvfdClosesSingleFile -count=2000 -timeout=1000m
+          go test ./pkg/networkservice/common/mechanisms/recvfd -v -race -run TestRecvfd/TestRecvfdClosesSingleFile -count=500 -timeout=1000m

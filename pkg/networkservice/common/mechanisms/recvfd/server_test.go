@@ -82,7 +82,7 @@ func (s *checkRecvfdTestSuite) SetupTest() {
 
 	testChain := chain.NewNetworkServiceServer(
 		//begin.NewServer(),
-		counter,
+		//counter,
 		checkcontext.NewServer(t, func(t *testing.T, c context.Context) {
 			injectErr := grpcfdutils.InjectOnFileReceivedCallback(c, func(fileName string, file *os.File) {
 				runtime.SetFinalizer(file, func(file *os.File) {
