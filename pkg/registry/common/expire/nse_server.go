@@ -31,6 +31,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
+	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
@@ -97,7 +98,7 @@ func (s *expireNSEServer) Register(ctx context.Context, nse *registry.NetworkSer
 		case <-expireContext.Done():
 			return
 		case <-expireCh:
-			factory.Unregister(begin.CancelContext(expireContext))
+			factory.Unregister(begin.CancelContext(extend.WithValuesFromContext(expireContext, ctx)))
 		}
 	}()
 
