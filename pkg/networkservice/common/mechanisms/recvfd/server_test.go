@@ -82,7 +82,6 @@ func (s *checkRecvfdTestSuite) SetupTest() {
 
 	testChain := chain.NewNetworkServiceServer(
 		//begin.NewServer(),
-		//counter,
 		checkcontext.NewServer(t, func(t *testing.T, c context.Context) {
 			injectErr := grpcfdutils.InjectOnFileReceivedCallback(c, func(fileName string, file *os.File) {
 				runtime.SetFinalizer(file, func(file *os.File) {
@@ -95,7 +94,8 @@ func (s *checkRecvfdTestSuite) SetupTest() {
 
 			s.Require().NoError(injectErr)
 		}),
-		recvfd.NewServer())
+		recvfd.NewServer(),
+		counter)
 
 	startServer(ctx, s, &testChain, serveURL)
 	s.testClient = createClient(ctx, serveURL)
