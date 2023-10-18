@@ -20,6 +20,7 @@ import (
 	"context"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -33,7 +34,7 @@ import (
 )
 
 const (
-	eventCount = 10
+	eventCount = 100
 )
 
 type dataRaceServer struct {
@@ -61,20 +62,14 @@ func TestServerDataRaceOnUnregister(t *testing.T) {
 		begin.NewNetworkServiceEndpointRegistryServer(),
 		datarace,
 	)
-	id := "1"
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-
-	nse := &registry.NetworkServiceEndpoint{
-		Name: id,
-	}
 
 	var wg sync.WaitGroup
 	wg.Add(eventCount)
-
 	for i := 0; i < eventCount; i++ {
 		go func() {
-			_, err := server.Unregister(ctx, nse)
+			_, err := server.Unregister(ctx, &registry.NetworkServiceEndpoint{Name: "1"})
 			require.NoError(t, err)
 			wg.Done()
 		}()

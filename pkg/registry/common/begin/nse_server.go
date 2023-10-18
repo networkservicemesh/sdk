@@ -99,16 +99,27 @@ func (b *beginNSEServer) Unregister(ctx context.Context, in *registry.NetworkSer
 	}
 	eventFactoryServer, ok := b.Load(id)
 	if !ok {
-		q, loaded := b.queueMap.LoadOrStore(id, &queue{eventCount: 1})
-		if loaded {
-			q.Lock()
-			_, loaded := b.queueMap.Load(id)
+		var q *queue
+		for {
+			var eventCount int
+			var loaded bool
+			q, loaded = b.queueMap.LoadOrStore(id, &queue{eventCount: 1})
+			if loaded {
+				q.Lock()
+				eventCount = q.eventCount
 
-			if !loaded {
-				b.queueMap.Store(id, q)
+				if eventCount <= 0 {
+					q.Unlock()
+					continue
+				}
+
+				q.eventCount++
+				q.Unlock()
 			}
-			q.eventCount++
-			q.Unlock()
+
+			if eventCount > 0 || !loaded {
+				break
+			}
 		}
 
 		q.Lock()
