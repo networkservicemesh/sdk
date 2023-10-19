@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -35,6 +35,7 @@ func CancelContext(cancelCtx context.Context) Option {
 	}
 }
 
+// ExtendContext - optionally provides a context which extends factory's context with its values
 func ExtendContext(extendCountext context.Context) Option {
 	return func(o *option) {
 		o.extendContext = extendCountext
