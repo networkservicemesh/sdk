@@ -17,7 +17,9 @@
 // Package extend allows you to extend a context with values from another context
 package extend
 
-import "context"
+import (
+	"context"
+)
 
 type extendedContext struct {
 	context.Context
@@ -25,7 +27,11 @@ type extendedContext struct {
 }
 
 func (ec *extendedContext) Value(key interface{}) interface{} {
-	return ec.valuesContext.Value(key)
+	val := ec.valuesContext.Value(key)
+	if val != nil {
+		return val
+	}
+	return ec.Context.Value(key)
 }
 
 // WithValuesFromContext - creates a child context with the Values from valuesContext rather than the parent
