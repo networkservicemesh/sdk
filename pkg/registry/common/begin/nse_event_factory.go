@@ -185,7 +185,8 @@ func (f *eventNSEFactoryServer) Register(opts ...Option) <-chan error {
 
 func (f *eventNSEFactoryServer) Unregister(opts ...Option) <-chan error {
 	o := &option{
-		cancelCtx: context.Background(),
+		cancelCtx:     context.Background(),
+		extendContext: context.Background(),
 	}
 	for _, opt := range opts {
 		opt(o)
@@ -201,7 +202,7 @@ func (f *eventNSEFactoryServer) Unregister(opts ...Option) <-chan error {
 		default:
 			ctx, cancel := f.ctxFunc()
 			defer cancel()
-			_, err := f.server.Unregister(ctx, f.registration)
+			_, err := f.server.Unregister(extend.WithValuesFromContext(ctx, o.extendContext), f.registration)
 			f.afterCloseFunc()
 			ch <- err
 		}

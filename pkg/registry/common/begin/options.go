@@ -21,7 +21,8 @@ import (
 )
 
 type option struct {
-	cancelCtx context.Context
+	cancelCtx     context.Context
+	extendContext context.Context
 }
 
 // Option - event option
@@ -31,5 +32,11 @@ type Option func(*option)
 func CancelContext(cancelCtx context.Context) Option {
 	return func(o *option) {
 		o.cancelCtx = cancelCtx
+	}
+}
+
+func ExtendContext(extendCountext context.Context) Option {
+	return func(o *option) {
+		o.extendContext = extendCountext
 	}
 }

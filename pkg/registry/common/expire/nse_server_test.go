@@ -424,3 +424,54 @@ func (s *unregisterNSEServer) Unregister(ctx context.Context, nse *registry.Netw
 	atomic.AddInt32(&s.unregisterCount, 1)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }
+
+type key string
+
+const (
+	ctxValue     = "ctxValue"
+	valueKey key = "ctxKey"
+)
+
+type extendCtxNSEServer struct {
+	ctxValue string
+	counter  atomic.Bool
+}
+
+func (s *extendCtxNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	ctx = context.WithValue(ctx, valueKey, ctxValue)
+	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
+}
+
+func (s *extendCtxNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
+	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
+}
+
+func (s *extendCtxNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*emptypb.Empty, error) {
+	var ok bool
+	s.ctxValue, ok = ctx.Value(valueKey).(string)
+	if ok {
+		s.counter.Store(true)
+	}
+	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
+}
+
+func TestExpireNSEServer_ExtendedContext(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	extendCtxNSEServer := &extendCtxNSEServer{}
+	server := next.NewNetworkServiceEndpointRegistryServer(
+		begin.NewNetworkServiceEndpointRegistryServer(),
+		extendCtxNSEServer,
+		expire.NewNetworkServiceEndpointRegistryServer(ctx),
+	)
+	_, err := server.Register(ctx, &registry.NetworkServiceEndpoint{Name: nseName})
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool {
+		val := extendCtxNSEServer.counter.Load()
+		return val == true
+	}, time.Second, time.Millisecond*200)
+}
