@@ -31,7 +31,11 @@ func (ec *extendedContext) Value(key interface{}) interface{} {
 	if val != nil {
 		return val
 	}
-	return ec.Context.Value(key)
+	if _, ok := ec.Context.(*extendedContext); !ok {
+		return ec.Context.Value(key)
+	}
+
+	return nil
 }
 
 // WithValuesFromContext - creates a child context with the Values from valuesContext rather than the parent
