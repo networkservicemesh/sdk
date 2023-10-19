@@ -174,6 +174,9 @@ func TestGRPCMetadataNetworkService(t *testing.T) {
 	_, err = client.Register(ctx, ns)
 	require.NoError(t, err)
 
+	_, err = client.Find(ctx, &registry.NetworkServiceQuery{NetworkService: &registry.NetworkService{Name: "ns"}})
+	require.NoError(t, err)
+
 	_, err = client.Unregister(ctx, ns)
 	require.NoError(t, err)
 
@@ -267,4 +270,62 @@ func TestGRPCMetadataNetworkService_BackwardCompatibility(t *testing.T) {
 
 	_, err = client.Unregister(ctx, ns)
 	require.NoError(t, err)
+}
+
+func TestGRPCMetadataNetworkServiceFind(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10000)
+	defer cancel()
+
+	clockMock := clockmock.New(ctx)
+	ctx = clock.WithClock(ctx, clockMock)
+
+	serverLis, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	serverGRPCServer := grpc.NewServer()
+	go func() {
+		serveErr := serverGRPCServer.Serve(serverLis)
+		require.NoError(t, serveErr)
+	}()
+
+	server := next.NewNetworkServiceRegistryServer(
+		injectpeertoken.NewNetworkServiceRegistryServer(tokenGeneratorFunc(clockMock, proxyID)),
+		grpcmetadata.NewNetworkServiceRegistryServer(),
+		updatepath.NewNetworkServiceRegistryServer(tokenGeneratorFunc(clockMock, serverID)),
+		checkcontext.NewNSServer(t, func(t *testing.T, ctx context.Context) {
+			path := grpcmetadata.PathFromContext(ctx)
+			require.Equal(t, int(path.Index), 1)
+		}),
+	)
+	registry.RegisterNetworkServiceRegistryServer(serverGRPCServer, server)
+
+	conn, err := grpc.Dial(serverLis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	require.NoError(t, err)
+	defer func() {
+		closeErr := conn.Close()
+		require.NoError(t, closeErr)
+	}()
+
+	client := next.NewNetworkServiceRegistryClient(
+		newPathCheckerNSClient(t, 0),
+		grpcmetadata.NewNetworkServiceRegistryClient(),
+		registry.NewNetworkServiceRegistryClient(conn))
+
+	path := &grpcmetadata.Path{}
+	ctx = grpcmetadata.PathWithContext(ctx, path)
+
+	query := &registry.NetworkServiceQuery{NetworkService: &registry.NetworkService{Name: "ns"}}
+
+	_, err = client.Find(ctx, query)
+	require.NoError(t, err)
+
+	require.Len(t, query.NetworkService.PathIds, 2)
+
+	path = grpcmetadata.PathFromContext(ctx)
+
+	require.Equal(t, int(path.Index), 0)
+	require.Len(t, path.PathSegments, 2)
+
+	serverGRPCServer.Stop()
 }

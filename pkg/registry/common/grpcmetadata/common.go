@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -91,4 +92,14 @@ func sendPath(ctx context.Context, path *Path) error {
 
 	header := metadata.Pairs(pathKey, string(bytes))
 	return grpc.SendHeader(ctx, header)
+}
+
+func nsFindServerSendPath(server registry.NetworkServiceRegistry_FindServer, path *Path) error {
+	bytes, err := json.Marshal(path)
+	if err != nil {
+		return errors.Wrap(err, "failed to convert a provided path into JSON")
+	}
+
+	header := metadata.Pairs(pathKey, string(bytes))
+	return server.SendHeader(header)
 }

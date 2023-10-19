@@ -26,6 +26,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/streamcontext"
 )
 
 type injectSpiffeIDNSServer struct {
@@ -46,7 +47,10 @@ func (s *injectSpiffeIDNSServer) Register(ctx context.Context, ns *registry.Netw
 }
 
 func (s *injectSpiffeIDNSServer) Find(query *registry.NetworkServiceQuery, server registry.NetworkServiceRegistry_FindServer) error {
-	return next.NetworkServiceRegistryServer(server.Context()).Find(query, server)
+	peerToken, _, _ := s.tokenGenerator(nil)
+	ctx := withPeerToken(server.Context(), peerToken)
+
+	return next.NetworkServiceRegistryServer(ctx).Find(query, streamcontext.NetworkServiceRegistryFindServer(ctx, server))
 }
 
 func (s *injectSpiffeIDNSServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*emptypb.Empty, error) {
