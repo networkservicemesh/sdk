@@ -72,7 +72,11 @@ func (p *pathCheckerNSEClient) Register(ctx context.Context, in *registry.Networ
 }
 
 func (p *pathCheckerNSEClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, in, opts...)
+	pBefore := p.funcBefore(ctx)
+	c, e := next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, in, opts...)
+	p.funcAfter(ctx, pBefore)
+
+	return c, e
 }
 
 func (p *pathCheckerNSEClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
@@ -163,15 +167,24 @@ func TestGRPCMetadataNetworkServiceEndpoint(t *testing.T) {
 	ctx = grpcmetadata.PathWithContext(ctx, &path)
 
 	nse := &registry.NetworkServiceEndpoint{Name: "nse"}
-	_, err = client.Register(ctx, nse)
+	nse, err = client.Register(ctx, nse)
 	require.NoError(t, err)
-
 	require.Equal(t, int(path.Index), 0)
 	require.Len(t, path.PathSegments, 3)
+	require.Len(t, nse.PathIds, 3)
 
 	// Simulate refresh
 	_, err = client.Register(ctx, nse)
 	require.NoError(t, err)
+
+	query := &registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: nse}
+	path = grpcmetadata.Path{}
+	ctx = grpcmetadata.PathWithContext(ctx, &path)
+	_, err = client.Find(ctx, query)
+	require.NoError(t, err)
+	require.Equal(t, int(path.Index), 0)
+	require.Len(t, path.PathSegments, 3)
+	//require.Len(t, query.NetworkService.PathIds, 3)
 
 	_, err = client.Unregister(ctx, nse)
 	require.NoError(t, err)
@@ -255,11 +268,20 @@ func TestGRPCMetadataNetworkServiceEndpoint_BackwardCompatibility(t *testing.T) 
 	ctx = grpcmetadata.PathWithContext(ctx, &path)
 
 	nse := &registry.NetworkServiceEndpoint{Name: "ns"}
-	_, err = client.Register(ctx, nse)
+	nse, err = client.Register(ctx, nse)
 	require.NoError(t, err)
-
 	require.Equal(t, int(path.Index), 0)
 	require.Len(t, path.PathSegments, 2)
+	require.Len(t, nse.PathIds, 2)
+
+	query := &registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: nse}
+	path = grpcmetadata.Path{}
+	ctx = grpcmetadata.PathWithContext(ctx, &path)
+	_, err = client.Find(ctx, query)
+	require.NoError(t, err)
+	require.Equal(t, int(path.Index), 0)
+	require.Len(t, path.PathSegments, 2)
+	//require.Len(t, query.NetworkService.PathIds, 3)
 
 	// Simulate refresh
 	_, err = client.Register(ctx, nse)

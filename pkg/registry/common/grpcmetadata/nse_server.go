@@ -24,6 +24,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/streamcontext"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
@@ -56,7 +57,22 @@ func (s *grpcMetadataNSEServer) Register(ctx context.Context, nse *registry.Netw
 }
 
 func (s *grpcMetadataNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
-	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
+	ctx := server.Context()
+	path, err := fromContext(ctx)
+	if err != nil {
+		log.FromContext(ctx).Warnf("Unregister: failed to load grpc metadata from context: %v", err.Error())
+		return next.NetworkServiceEndpointRegistryServer(ctx).Find(query, server)
+	}
+
+	ctx = PathWithContext(ctx, path)
+	err = next.NetworkServiceEndpointRegistryServer(server.Context()).Find(
+		query, streamcontext.NetworkServiceEndpointRegistryFindServer(ctx, server))
+	if err != nil {
+		return err
+	}
+
+	err = nseFindServerSendPath(server, path)
+	return err
 }
 
 func (s *grpcMetadataNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {

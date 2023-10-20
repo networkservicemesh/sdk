@@ -116,7 +116,6 @@ func (s *updatePathNSServer) Find(query *registry.NetworkServiceQuery, server re
 		return err
 	}
 	path.Index = index
-
 	return nil
 }
 

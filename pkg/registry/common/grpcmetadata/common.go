@@ -103,3 +103,13 @@ func nsFindServerSendPath(server registry.NetworkServiceRegistry_FindServer, pat
 	header := metadata.Pairs(pathKey, string(bytes))
 	return server.SendHeader(header)
 }
+
+func nseFindServerSendPath(server registry.NetworkServiceEndpointRegistry_FindServer, path *Path) error {
+	bytes, err := json.Marshal(path)
+	if err != nil {
+		return errors.Wrap(err, "failed to convert a provided path into JSON")
+	}
+
+	header := metadata.Pairs(pathKey, string(bytes))
+	return server.SendHeader(header)
+}

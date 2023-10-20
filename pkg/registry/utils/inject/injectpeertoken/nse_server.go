@@ -24,6 +24,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/streamcontext"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -45,7 +46,12 @@ func (s *injectSpiffeIDNSEServer) Register(ctx context.Context, nse *registry.Ne
 }
 
 func (s *injectSpiffeIDNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
-	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
+	peerToken, _, _ := s.tokenGenerator(nil)
+	ctx := withPeerToken(server.Context(), peerToken)
+
+	err := next.NetworkServiceEndpointRegistryServer(server.Context()).Find(
+		query, streamcontext.NetworkServiceEndpointRegistryFindServer(ctx, server))
+	return err
 }
 
 func (s *injectSpiffeIDNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {

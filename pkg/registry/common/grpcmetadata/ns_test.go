@@ -80,7 +80,6 @@ func (p *pathCheckerNSClient) Find(ctx context.Context, query *registry.NetworkS
 	pBefore := p.funcBefore(ctx)
 	c, e := next.NetworkServiceRegistryClient(ctx).Find(ctx, query, opts...)
 	p.funcAfter(ctx, pBefore)
-
 	return c, e
 }
 
@@ -268,15 +267,24 @@ func TestGRPCMetadataNetworkService_BackwardCompatibility(t *testing.T) {
 	ctx = grpcmetadata.PathWithContext(ctx, &path)
 
 	ns := &registry.NetworkService{Name: "ns"}
-	_, err = client.Register(ctx, ns)
+	ns, err = client.Register(ctx, ns)
 	require.NoError(t, err)
-
 	require.Equal(t, int(path.Index), 0)
 	require.Len(t, path.PathSegments, 2)
+	require.Len(t, ns.PathIds, 2)
 
 	// Simulate refresh
 	_, err = client.Register(ctx, ns)
 	require.NoError(t, err)
+
+	query := &registry.NetworkServiceQuery{NetworkService: ns}
+	path = grpcmetadata.Path{}
+	ctx = grpcmetadata.PathWithContext(ctx, &path)
+	_, err = client.Find(ctx, query)
+	require.NoError(t, err)
+	require.Equal(t, int(path.Index), 0)
+	require.Len(t, path.PathSegments, 2)
+	//require.Len(t, query.NetworkService.PathIds, 2)
 
 	_, err = client.Unregister(ctx, ns)
 	require.NoError(t, err)

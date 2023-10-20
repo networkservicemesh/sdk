@@ -87,7 +87,42 @@ func (s *updatePathNSEServer) Register(ctx context.Context, nse *registry.Networ
 }
 
 func (s *updatePathNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
-	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
+	ctx := server.Context()
+	path := grpcmetadata.PathFromContext(ctx)
+
+	// Update path
+	peerTok, _, tokenErr := token.FromContext(ctx)
+	if tokenErr != nil {
+		log.FromContext(ctx).Warnf("an error during getting peer token from the context: %+v", tokenErr)
+	}
+	tok, _, tokenErr := generateToken(ctx, s.tokenGenerator)
+	if tokenErr != nil {
+		return errors.Wrap(tokenErr, "an error during generating token")
+	}
+	path, index, err := updatePath(path, peerTok, tok)
+	if err != nil {
+		return err
+	}
+
+	// Update path ids
+	peerID, idErr := getIDFromToken(peerTok)
+	if idErr != nil {
+		log.FromContext(ctx).Warnf("an error during parsing peer token: %+v", tokenErr)
+	}
+	id, idErr := getIDFromToken(tok)
+	if idErr != nil {
+		return idErr
+	}
+	ns := query.NetworkServiceEndpoint
+	ns.PathIds = updatePathIds(ns.PathIds, int(path.Index-1), peerID.String())
+	ns.PathIds = updatePathIds(ns.PathIds, int(path.Index), id.String())
+
+	err = next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
+	if err != nil {
+		return err
+	}
+	path.Index = index
+	return nil
 }
 
 func (s *updatePathNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
