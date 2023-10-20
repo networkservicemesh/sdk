@@ -72,8 +72,7 @@ func (s *grpcMetadataNSServer) Find(query *registry.NetworkServiceQuery, server 
 		return err
 	}
 
-	err = nsFindServerSendPath(server, path)
-	return err
+	return nsFindServerSendPath(server, path)
 }
 
 func (s *grpcMetadataNSServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {

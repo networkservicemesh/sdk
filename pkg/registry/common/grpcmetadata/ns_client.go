@@ -19,6 +19,7 @@ package grpcmetadata
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
@@ -88,6 +89,8 @@ func (c *grpcMetadataNSClient) Find(ctx context.Context, query *registry.Network
 		path.Index = newpath.Index
 		path.PathSegments = newpath.PathSegments
 	}
+
+	fmt.Printf("newpath: %v\n", newpath)
 
 	return resp, nil
 }

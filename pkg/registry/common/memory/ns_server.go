@@ -31,6 +31,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/matchutils"
 )
 
@@ -98,7 +99,10 @@ func (s *memoryNSServer) Find(query *registry.NetworkServiceQuery, server regist
 
 	s.executor.AsyncExec(func() {
 		s.eventChannels[id] = eventCh
-		for _, entity := range s.allMatches(query) {
+		log.FromContext(server.Context()).Infof("Getting matches...")
+		matches := s.allMatches(query)
+		for _, entity := range matches {
+			log.FromContext(server.Context()).Infof("entity: %v goes to eventCh", entity)
 			eventCh <- entity
 		}
 	})
@@ -147,6 +151,7 @@ func (s *memoryNSServer) receiveEvent(
 ) error {
 	select {
 	case <-server.Context().Done():
+		log.FromContext(server.Context()).Info("Got server.Context().Done()")
 		return errors.WithStack(io.EOF)
 	case event := <-eventCh:
 		if matchutils.MatchNetworkServices(query.NetworkService, event) {
