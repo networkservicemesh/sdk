@@ -18,8 +18,6 @@ package count
 
 import (
 	"context"
-	"sync"
-	"sync/atomic"
 
 	"github.com/golang/protobuf/ptypes/empty"
 
@@ -30,67 +28,22 @@ import (
 
 // Server is a server type for counting Requests/Closes
 type Server struct {
-	totalRequests, TotalCloses int32
-	requests, closes           map[string]int32
-	mu                         sync.Mutex
+	totalRequests int
 }
 
 // Request performs request and increments requests count
 func (s *Server) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 
-	atomic.AddInt32(&s.totalRequests, 1)
-	if s.requests == nil {
-		s.requests = make(map[string]int32)
-	}
-	s.requests[request.GetConnection().GetId()]++
-
+	s.totalRequests++
 	return next.Server(ctx).Request(ctx, request)
 }
 
 // Close performs close and increments closes count
 func (s *Server) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	atomic.AddInt32(&s.TotalCloses, 1)
-	if s.closes == nil {
-		s.closes = make(map[string]int32)
-	}
-	s.closes[connection.GetId()]++
-
 	return next.Server(ctx).Close(ctx, connection)
 }
 
 // Requests returns requests count
 func (s *Server) Requests() int {
-	return int(atomic.LoadInt32(&s.totalRequests))
-}
-
-// Closes returns closes count
-func (s *Server) Closes() int {
-	return int(atomic.LoadInt32(&s.TotalCloses))
-}
-
-// UniqueRequests returns unique requests count
-func (s *Server) UniqueRequests() int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.requests == nil {
-		return 0
-	}
-	return len(s.requests)
-}
-
-// UniqueCloses returns unique closes count
-func (s *Server) UniqueCloses() int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.closes == nil {
-		return 0
-	}
-	return len(s.closes)
+	return s.totalRequests
 }
