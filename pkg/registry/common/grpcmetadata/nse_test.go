@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -86,6 +86,7 @@ func (p *pathCheckerNSEClient) Unregister(ctx context.Context, in *registry.Netw
 	return r, e
 }
 
+// nolint: funlen
 // This test checks that registry Path is correctly updated and passed through grpc metadata
 // Test scheme: client ---> proxyServer ---> server
 func TestGRPCMetadataNetworkServiceEndpoint(t *testing.T) {
@@ -193,6 +194,7 @@ func TestGRPCMetadataNetworkServiceEndpoint(t *testing.T) {
 	proxyGRPCServer.Stop()
 }
 
+// nolint: funlen
 func TestGRPCMetadataNetworkServiceEndpoint_BackwardCompatibility(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 

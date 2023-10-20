@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -90,6 +90,7 @@ func (p *pathCheckerNSClient) Unregister(ctx context.Context, in *registry.Netwo
 	return r, e
 }
 
+// nolint: funlen
 func TestGRPCMetadataNetworkService(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -193,6 +194,7 @@ func TestGRPCMetadataNetworkService(t *testing.T) {
 	proxyGRPCServer.Stop()
 }
 
+// nolint: funlen
 func TestGRPCMetadataNetworkService_BackwardCompatibility(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
