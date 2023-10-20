@@ -50,7 +50,8 @@ func (s *injectSpiffeIDNSServer) Find(query *registry.NetworkServiceQuery, serve
 	peerToken, _, _ := s.tokenGenerator(nil)
 	ctx := withPeerToken(server.Context(), peerToken)
 
-	return next.NetworkServiceRegistryServer(ctx).Find(query, streamcontext.NetworkServiceRegistryFindServer(ctx, server))
+	err := next.NetworkServiceRegistryServer(ctx).Find(query, streamcontext.NetworkServiceRegistryFindServer(ctx, server))
+	return err
 }
 
 func (s *injectSpiffeIDNSServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*emptypb.Empty, error) {
