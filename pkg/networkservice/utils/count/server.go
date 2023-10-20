@@ -18,6 +18,7 @@ package count
 
 import (
 	"context"
+	"sync/atomic"
 
 	"github.com/golang/protobuf/ptypes/empty"
 
@@ -28,22 +29,23 @@ import (
 
 // Server is a server type for counting Requests/Closes
 type Server struct {
-	totalRequests int
+	totalRequests int32
 }
 
 // Request performs request and increments requests count
 func (s *Server) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 
-	s.totalRequests++
+	atomic.AddInt32(&s.totalRequests, 1)
 	return next.Server(ctx).Request(ctx, request)
 }
 
 // Close performs close and increments closes count
 func (s *Server) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
+
 	return next.Server(ctx).Close(ctx, connection)
 }
 
 // Requests returns requests count
 func (s *Server) Requests() int {
-	return s.totalRequests
+	return int(atomic.LoadInt32(&s.totalRequests))
 }
