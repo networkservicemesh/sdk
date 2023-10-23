@@ -52,42 +52,36 @@ func (b *beginNSEServer) Register(ctx context.Context, in *registry.NetworkServi
 	if fromContext(ctx) != nil {
 		return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
 	}
-	eventFactoryServer, _ := b.LoadOrStore(id,
-		newNSEEventFactoryServer(
-			ctx,
-			1,
-			func() {
-				b.Delete(id)
-			},
-		),
-	)
-
+	eventFactoryServer, loaded := b.LoadOrStore(id, newNSEEventFactoryServer(ctx, 1, func() {}))
 	var resp *registry.NetworkServiceEndpoint
 	var err error
 
-	<-eventFactoryServer.executor.AsyncExec(func() {
-		currentEventFactoryServer, _ := b.Load(id)
-		if currentEventFactoryServer != eventFactoryServer {
-			log.FromContext(ctx).Debug("recalling begin.Request because currentEventFactoryServer != eventFactoryServer")
-			resp, err = b.Register(ctx, in)
-			return
+	if loaded {
+		done := false
+		<-eventFactoryServer.executor.AsyncExec(func() {
+			currentEventFactoryServer, _ := b.Load(id)
+			if currentEventFactoryServer != eventFactoryServer {
+				log.FromContext(ctx).Debug("recalling begin.Request because currentEventFactoryServer != eventFactoryServer")
+				resp, err = b.Register(ctx, in)
+				done = true
+				return
+			}
+			currentEventFactoryServer.eventCount++
+		})
+
+		if done {
+			return resp, err
 		}
-	})
+	}
 
 	<-eventFactoryServer.executor.AsyncExec(func() {
 		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
 		resp, err = next.NetworkServiceEndpointRegistryServer(withEventFactoryCtx).Register(withEventFactoryCtx, in)
-		if err != nil {
-			if eventFactoryServer.state != established {
-				eventFactoryServer.state = closed
-				b.Delete(id)
-			}
-			return
-		}
 		eventFactoryServer.registration = mergeNSE(in, resp)
 		eventFactoryServer.state = established
 		eventFactoryServer.response = resp
 		eventFactoryServer.updateContext(grpcmetadata.PathWithContext(ctx, grpcmetadata.PathFromContext(ctx).Clone()))
+		eventFactoryServer.eventCount--
 	})
 	return resp, err
 }

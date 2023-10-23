@@ -42,6 +42,7 @@ type dataRaceServer struct {
 }
 
 func (s *dataRaceServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	s.count++
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
 }
 
@@ -50,11 +51,11 @@ func (s *dataRaceServer) Find(query *registry.NetworkServiceEndpointQuery, serve
 }
 
 func (s *dataRaceServer) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	s.count++
+	s.count--
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 }
 
-func TestServerDataRaceOnUnregister(t *testing.T) {
+func TestServer_ConcurrentUnregister(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	datarace := &dataRaceServer{count: 0}
@@ -77,5 +78,72 @@ func TestServerDataRaceOnUnregister(t *testing.T) {
 	}
 
 	wg.Wait()
-	require.Equal(t, datarace.count, eventCount)
+	require.Equal(t, -eventCount, datarace.count)
+}
+
+func TestServer_ConcurrentRegister(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	datarace := &dataRaceServer{count: 0}
+	server := chain.NewNetworkServiceEndpointRegistryServer(
+		begin.NewNetworkServiceEndpointRegistryServer(),
+		datarace,
+	)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	var wg sync.WaitGroup
+	wg.Add(eventCount)
+
+	for i := 0; i < eventCount; i++ {
+		local := i
+		go func() {
+			_, err := server.Register(begin.WithID(ctx, local), &registry.NetworkServiceEndpoint{Name: "1"})
+			require.NoError(t, err)
+			wg.Done()
+		}()
+	}
+
+	wg.Wait()
+	require.Equal(t, eventCount, datarace.count)
+}
+
+func TestServer_ConcurrentRegisterUnregister(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	datarace := &dataRaceServer{count: 0}
+	server := chain.NewNetworkServiceEndpointRegistryServer(
+		begin.NewNetworkServiceEndpointRegistryServer(),
+		datarace,
+	)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	var wg sync.WaitGroup
+	wg.Add(2 * eventCount)
+
+	go func() {
+		for i := 0; i < eventCount; i++ {
+			local := i
+			go func() {
+				_, err := server.Register(begin.WithID(ctx, local), &registry.NetworkServiceEndpoint{Name: "1"})
+				require.NoError(t, err)
+				wg.Done()
+			}()
+		}
+	}()
+
+	go func() {
+		for i := 0; i < eventCount; i++ {
+			local := i
+			go func() {
+				_, err := server.Unregister(begin.WithID(ctx, local), &registry.NetworkServiceEndpoint{Name: "1"})
+				require.NoError(t, err)
+				wg.Done()
+			}()
+		}
+	}()
+
+	wg.Wait()
+	require.Equal(t, 0, datarace.count)
 }
