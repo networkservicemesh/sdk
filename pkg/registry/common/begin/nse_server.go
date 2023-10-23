@@ -103,30 +103,18 @@ func (b *beginNSEServer) Unregister(ctx context.Context, in *registry.NetworkSer
 		return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 	}
 
-	thread := GetID(ctx)
-
 	var err error
 	eventFactoryServer, loaded := b.LoadOrStore(id, newNSEEventFactoryServer(ctx, 1, func() {}))
-
-	if !loaded {
-		log.FromContext(ctx).Infof("Thread [%v] created a new eventFactory: %p", thread, eventFactoryServer)
-	}
 	if loaded {
 		done := false
 		<-eventFactoryServer.executor.AsyncExec(func() {
-			log.FromContext(ctx).Infof("Thread [%v] loaded an existing eventFactory: %p Count: %v", thread, eventFactoryServer, eventFactoryServer.eventCount)
 			currentEventFactoryServer, _ := b.Load(id)
 			if eventFactoryServer != currentEventFactoryServer {
-				if eventFactoryServer != currentEventFactoryServer {
-					log.FromContext(ctx).Infof("Thread [%v] got invalid factory. Not Equal", thread)
-				}
-
 				log.FromContext(ctx).Debug("recalling begin.Request because currentEventFactoryServer != eventFactoryServer")
 				_, err = b.Unregister(ctx, in)
 				done = true
 				return
 			}
-			log.FromContext(ctx).Infof("Thread [%v] loaded again: %p Count: %v", thread, eventFactoryServer, eventFactoryServer.eventCount)
 			currentEventFactoryServer.eventCount++
 		})
 
@@ -136,14 +124,11 @@ func (b *beginNSEServer) Unregister(ctx context.Context, in *registry.NetworkSer
 	}
 
 	<-eventFactoryServer.executor.AsyncExec(func() {
-		log.FromContext(ctx).Infof("Thread [%v] executes next. Factory: %p Count: %v", thread, eventFactoryServer, eventFactoryServer.eventCount)
 		_, err = next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 		eventFactoryServer.eventCount--
 		if eventFactoryServer.eventCount == 0 {
-			log.FromContext(ctx).Infof("Thread [%v] deletes factory: %p", thread, eventFactoryServer)
 			b.Delete(id)
 		}
-		log.FromContext(ctx).Infof("Thread [%v] finished executing. Factory: %p Count: %v", thread, eventFactoryServer, eventFactoryServer.eventCount)
 	})
 	return &emptypb.Empty{}, err
 }
