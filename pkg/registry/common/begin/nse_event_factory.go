@@ -131,12 +131,14 @@ type eventNSEFactoryServer struct {
 	response       *registry.NetworkServiceEndpoint
 	afterCloseFunc func()
 	server         registry.NetworkServiceEndpointRegistryServer
+	eventCount     int
 }
 
-func newNSEEventFactoryServer(ctx context.Context, afterClose func()) *eventNSEFactoryServer {
+func newNSEEventFactoryServer(ctx context.Context, eventCount int, afterClose func()) *eventNSEFactoryServer {
 	f := &eventNSEFactoryServer{
 		server:         next.NetworkServiceEndpointRegistryServer(ctx),
 		initialCtxFunc: postpone.Context(ctx),
+		eventCount:     eventCount,
 	}
 	f.updateContext(ctx)
 

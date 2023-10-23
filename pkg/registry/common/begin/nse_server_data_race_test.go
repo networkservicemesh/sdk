@@ -68,8 +68,9 @@ func TestServerDataRaceOnUnregister(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(eventCount)
 	for i := 0; i < eventCount; i++ {
+		local := i
 		go func() {
-			_, err := server.Unregister(ctx, &registry.NetworkServiceEndpoint{Name: "1"})
+			_, err := server.Unregister(begin.WithID(ctx, local), &registry.NetworkServiceEndpoint{Name: "1"})
 			require.NoError(t, err)
 			wg.Done()
 		}()

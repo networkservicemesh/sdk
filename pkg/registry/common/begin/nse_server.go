@@ -18,7 +18,6 @@ package begin
 
 import (
 	"context"
-	"sync"
 
 	"github.com/edwarnicke/genericsync"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -31,14 +30,17 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-type queue struct {
-	eventCount int
-	sync.Mutex
+func WithID(ctx context.Context, id int) context.Context {
+	return context.WithValue(ctx, "index", id)
+}
+
+func GetID(ctx context.Context) int {
+	id, _ := ctx.Value("index").(int)
+	return id
 }
 
 type beginNSEServer struct {
 	genericsync.Map[string, *eventNSEFactoryServer]
-	queueMap genericsync.Map[string, *queue]
 }
 
 func (b *beginNSEServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
@@ -53,6 +55,7 @@ func (b *beginNSEServer) Register(ctx context.Context, in *registry.NetworkServi
 	eventFactoryServer, _ := b.LoadOrStore(id,
 		newNSEEventFactoryServer(
 			ctx,
+			1,
 			func() {
 				b.Delete(id)
 			},
@@ -69,7 +72,9 @@ func (b *beginNSEServer) Register(ctx context.Context, in *registry.NetworkServi
 			resp, err = b.Register(ctx, in)
 			return
 		}
+	})
 
+	<-eventFactoryServer.executor.AsyncExec(func() {
 		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
 		resp, err = next.NetworkServiceEndpointRegistryServer(withEventFactoryCtx).Register(withEventFactoryCtx, in)
 		if err != nil {
@@ -97,52 +102,48 @@ func (b *beginNSEServer) Unregister(ctx context.Context, in *registry.NetworkSer
 	if fromContext(ctx) != nil {
 		return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 	}
-	eventFactoryServer, ok := b.Load(id)
-	if !ok {
-		var q *queue
-		for {
-			var eventCount int
-			var loaded bool
-			q, loaded = b.queueMap.LoadOrStore(id, &queue{eventCount: 1})
-			if loaded {
-				q.Lock()
-				eventCount = q.eventCount
 
-				if eventCount <= 0 {
-					q.Unlock()
-					continue
+	thread := GetID(ctx)
+
+	var err error
+	eventFactoryServer, loaded := b.LoadOrStore(id, newNSEEventFactoryServer(ctx, 1, func() {}))
+
+	if !loaded {
+		log.FromContext(ctx).Infof("Thread [%v] created a new eventFactory: %p", thread, eventFactoryServer)
+	}
+	if loaded {
+		done := false
+		<-eventFactoryServer.executor.AsyncExec(func() {
+			log.FromContext(ctx).Infof("Thread [%v] loaded an existing eventFactory: %p Count: %v", thread, eventFactoryServer, eventFactoryServer.eventCount)
+			currentEventFactoryServer, _ := b.Load(id)
+			if eventFactoryServer != currentEventFactoryServer {
+				if eventFactoryServer != currentEventFactoryServer {
+					log.FromContext(ctx).Infof("Thread [%v] got invalid factory. Not Equal", thread)
 				}
 
-				q.eventCount++
-				q.Unlock()
+				log.FromContext(ctx).Debug("recalling begin.Request because currentEventFactoryServer != eventFactoryServer")
+				_, err = b.Unregister(ctx, in)
+				done = true
+				return
 			}
+			log.FromContext(ctx).Infof("Thread [%v] loaded again: %p Count: %v", thread, eventFactoryServer, eventFactoryServer.eventCount)
+			currentEventFactoryServer.eventCount++
+		})
 
-			if eventCount > 0 || !loaded {
-				break
-			}
+		if done {
+			return &emptypb.Empty{}, err
 		}
-
-		q.Lock()
-		_, err := next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
-		q.eventCount--
-		if q.eventCount == 0 {
-			b.queueMap.Delete(id)
-		}
-		q.Unlock()
-		return &emptypb.Empty{}, err
 	}
-	var err error
+
 	<-eventFactoryServer.executor.AsyncExec(func() {
-		if eventFactoryServer.state != established || eventFactoryServer.registration == nil {
-			return
+		log.FromContext(ctx).Infof("Thread [%v] executes next. Factory: %p Count: %v", thread, eventFactoryServer, eventFactoryServer.eventCount)
+		_, err = next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
+		eventFactoryServer.eventCount--
+		if eventFactoryServer.eventCount == 0 {
+			log.FromContext(ctx).Infof("Thread [%v] deletes factory: %p", thread, eventFactoryServer)
+			b.Delete(id)
 		}
-		currentServerClient, _ := b.Load(id)
-		if currentServerClient != eventFactoryServer {
-			return
-		}
-		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
-		_, err = next.NetworkServiceEndpointRegistryServer(withEventFactoryCtx).Unregister(withEventFactoryCtx, eventFactoryServer.registration)
-		eventFactoryServer.afterCloseFunc()
+		log.FromContext(ctx).Infof("Thread [%v] finished executing. Factory: %p Count: %v", thread, eventFactoryServer, eventFactoryServer.eventCount)
 	})
 	return &emptypb.Empty{}, err
 }
