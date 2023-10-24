@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package begin_test
+package beginloop_test
 
 import (
 	"context"
@@ -24,7 +24,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/beginloop"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
@@ -47,9 +47,9 @@ func (s *dataRaceServer) Unregister(ctx context.Context, in *registry.NetworkSer
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 }
 
-func BenchmarkBegin_RegisterSameIDs(b *testing.B) {
+func BenchmarkBeginloop_RegisterSameIDs(b *testing.B) {
 	server := chain.NewNetworkServiceEndpointRegistryServer(
-		begin.NewNetworkServiceEndpointRegistryServer(),
+		beginloop.NewNetworkServiceEndpointRegistryServer(),
 		&dataRaceServer{count: 0},
 	)
 
@@ -62,12 +62,13 @@ func BenchmarkBegin_RegisterSameIDs(b *testing.B) {
 			wg.Done()
 		}()
 	}
+
 	wg.Wait()
 }
 
-func BenchmarkBegin_UnregisterSameIDs(b *testing.B) {
+func BenchmarkBeginloop_UnregisterSameIDs(b *testing.B) {
 	server := chain.NewNetworkServiceEndpointRegistryServer(
-		begin.NewNetworkServiceEndpointRegistryServer(),
+		beginloop.NewNetworkServiceEndpointRegistryServer(),
 		&dataRaceServer{count: 0},
 	)
 
@@ -83,9 +84,9 @@ func BenchmarkBegin_UnregisterSameIDs(b *testing.B) {
 	wg.Wait()
 }
 
-func BenchmarkBegin_RegisterUnregisterSameIDs(b *testing.B) {
+func BenchmarkBeginloop_RegisterUnregisterSameIDs(b *testing.B) {
 	server := chain.NewNetworkServiceEndpointRegistryServer(
-		begin.NewNetworkServiceEndpointRegistryServer(),
+		beginloop.NewNetworkServiceEndpointRegistryServer(),
 		&dataRaceServer{count: 0},
 	)
 
@@ -113,9 +114,9 @@ func BenchmarkBegin_RegisterUnregisterSameIDs(b *testing.B) {
 	wg.Wait()
 }
 
-func BenchmarkBegin_RegisterDifferentIDs(b *testing.B) {
+func BenchmarkBeginloop_RegisterDifferentIDs(b *testing.B) {
 	server := chain.NewNetworkServiceEndpointRegistryServer(
-		begin.NewNetworkServiceEndpointRegistryServer(),
+		beginloop.NewNetworkServiceEndpointRegistryServer(),
 		&dataRaceServer{count: 0},
 	)
 
@@ -132,9 +133,9 @@ func BenchmarkBegin_RegisterDifferentIDs(b *testing.B) {
 	wg.Wait()
 }
 
-func BenchmarkBegin_UnregisterDifferentIDs(b *testing.B) {
+func BenchmarkBeginloop_UnregisterDifferentIDs(b *testing.B) {
 	server := chain.NewNetworkServiceEndpointRegistryServer(
-		begin.NewNetworkServiceEndpointRegistryServer(),
+		beginloop.NewNetworkServiceEndpointRegistryServer(),
 		&dataRaceServer{count: 0},
 	)
 
@@ -151,9 +152,9 @@ func BenchmarkBegin_UnregisterDifferentIDs(b *testing.B) {
 	wg.Wait()
 }
 
-func BenchmarkBegin_RegisterUnregisterDifferentIDs(b *testing.B) {
+func BenchmarkBeginloop_RegisterUnregisterDifferentIDs(b *testing.B) {
 	server := chain.NewNetworkServiceEndpointRegistryServer(
-		begin.NewNetworkServiceEndpointRegistryServer(),
+		beginloop.NewNetworkServiceEndpointRegistryServer(),
 		&dataRaceServer{count: 0},
 	)
 
