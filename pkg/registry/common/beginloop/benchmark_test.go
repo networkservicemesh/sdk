@@ -29,6 +29,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
+const (
+	count = 1000
+)
+
 type dataRaceServer struct {
 	count int
 }
@@ -47,16 +51,16 @@ func (s *dataRaceServer) Unregister(ctx context.Context, in *registry.NetworkSer
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 }
 
-func BenchmarkBeginloop_RegisterSameIDs(b *testing.B) {
+func BenchmarkBegin_RegisterSameIDs(b *testing.B) {
 	server := chain.NewNetworkServiceEndpointRegistryServer(
 		beginloop.NewNetworkServiceEndpointRegistryServer(),
 		&dataRaceServer{count: 0},
 	)
 
 	var wg sync.WaitGroup
-	wg.Add(b.N)
+	wg.Add(count)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := 0; i < count; i++ {
 		go func() {
 			server.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: "1"})
 			wg.Done()
@@ -66,16 +70,16 @@ func BenchmarkBeginloop_RegisterSameIDs(b *testing.B) {
 	wg.Wait()
 }
 
-func BenchmarkBeginloop_UnregisterSameIDs(b *testing.B) {
+func BenchmarkBegin_UnregisterSameIDs(b *testing.B) {
 	server := chain.NewNetworkServiceEndpointRegistryServer(
 		beginloop.NewNetworkServiceEndpointRegistryServer(),
 		&dataRaceServer{count: 0},
 	)
 
 	var wg sync.WaitGroup
-	wg.Add(b.N)
+	wg.Add(count)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := 0; i < count; i++ {
 		go func() {
 			server.Unregister(context.Background(), &registry.NetworkServiceEndpoint{Name: "1"})
 			wg.Done()
@@ -84,17 +88,17 @@ func BenchmarkBeginloop_UnregisterSameIDs(b *testing.B) {
 	wg.Wait()
 }
 
-func BenchmarkBeginloop_RegisterUnregisterSameIDs(b *testing.B) {
+func BenchmarkBegin_RegisterUnregisterSameIDs(b *testing.B) {
 	server := chain.NewNetworkServiceEndpointRegistryServer(
 		beginloop.NewNetworkServiceEndpointRegistryServer(),
 		&dataRaceServer{count: 0},
 	)
 
 	var wg sync.WaitGroup
-	wg.Add(2 * b.N)
+	wg.Add(2 * count)
 	b.ResetTimer()
 	go func() {
-		for i := 0; i < b.N; i++ {
+		for i := 0; i < count; i++ {
 			go func() {
 				server.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: "1"})
 				wg.Done()
@@ -103,7 +107,7 @@ func BenchmarkBeginloop_RegisterUnregisterSameIDs(b *testing.B) {
 	}()
 
 	go func() {
-		for i := 0; i < b.N; i++ {
+		for i := 0; i < count; i++ {
 			go func() {
 				server.Unregister(context.Background(), &registry.NetworkServiceEndpoint{Name: "1"})
 				wg.Done()
@@ -114,16 +118,16 @@ func BenchmarkBeginloop_RegisterUnregisterSameIDs(b *testing.B) {
 	wg.Wait()
 }
 
-func BenchmarkBeginloop_RegisterDifferentIDs(b *testing.B) {
+func BenchmarkBegin_RegisterDifferentIDs(b *testing.B) {
 	server := chain.NewNetworkServiceEndpointRegistryServer(
 		beginloop.NewNetworkServiceEndpointRegistryServer(),
 		&dataRaceServer{count: 0},
 	)
 
 	var wg sync.WaitGroup
-	wg.Add(b.N)
+	wg.Add(count)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := 0; i < count; i++ {
 		local := i
 		go func() {
 			server.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: fmt.Sprint(local)})
@@ -133,16 +137,16 @@ func BenchmarkBeginloop_RegisterDifferentIDs(b *testing.B) {
 	wg.Wait()
 }
 
-func BenchmarkBeginloop_UnregisterDifferentIDs(b *testing.B) {
+func BenchmarkBegin_UnregisterDifferentIDs(b *testing.B) {
 	server := chain.NewNetworkServiceEndpointRegistryServer(
 		beginloop.NewNetworkServiceEndpointRegistryServer(),
 		&dataRaceServer{count: 0},
 	)
 
 	var wg sync.WaitGroup
-	wg.Add(b.N)
+	wg.Add(count)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := 0; i < count; i++ {
 		local := i
 		go func() {
 			server.Unregister(context.Background(), &registry.NetworkServiceEndpoint{Name: fmt.Sprint(local)})
@@ -152,17 +156,17 @@ func BenchmarkBeginloop_UnregisterDifferentIDs(b *testing.B) {
 	wg.Wait()
 }
 
-func BenchmarkBeginloop_RegisterUnregisterDifferentIDs(b *testing.B) {
+func BenchmarkBegin_RegisterUnregisterDifferentIDs(b *testing.B) {
 	server := chain.NewNetworkServiceEndpointRegistryServer(
 		beginloop.NewNetworkServiceEndpointRegistryServer(),
 		&dataRaceServer{count: 0},
 	)
 
 	var wg sync.WaitGroup
-	wg.Add(2 * b.N)
+	wg.Add(2 * count)
 	b.ResetTimer()
 	go func() {
-		for i := 0; i < b.N; i++ {
+		for i := 0; i < count; i++ {
 			local := i
 			go func() {
 				server.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: fmt.Sprint(local)})
@@ -172,7 +176,7 @@ func BenchmarkBeginloop_RegisterUnregisterDifferentIDs(b *testing.B) {
 	}()
 
 	go func() {
-		for i := 0; i < b.N; i++ {
+		for i := 0; i < count; i++ {
 			local := i
 			go func() {
 				server.Unregister(context.Background(), &registry.NetworkServiceEndpoint{Name: fmt.Sprint(local)})

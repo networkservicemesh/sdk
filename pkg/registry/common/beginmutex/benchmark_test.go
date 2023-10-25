@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package beginrecursive_test
+package beginmutex_test
 
 import (
 	"context"
@@ -24,12 +24,12 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/beginrecursive"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/beginmutex"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
-var (
+const (
 	count = 1000
 )
 
@@ -53,7 +53,7 @@ func (s *dataRaceServer) Unregister(ctx context.Context, in *registry.NetworkSer
 
 func BenchmarkBegin_RegisterSameIDs(b *testing.B) {
 	server := chain.NewNetworkServiceEndpointRegistryServer(
-		beginrecursive.NewNetworkServiceEndpointRegistryServer(),
+		beginmutex.NewNetworkServiceEndpointRegistryServer(),
 		&dataRaceServer{count: 0},
 	)
 
@@ -66,12 +66,13 @@ func BenchmarkBegin_RegisterSameIDs(b *testing.B) {
 			wg.Done()
 		}()
 	}
+
 	wg.Wait()
 }
 
 func BenchmarkBegin_UnregisterSameIDs(b *testing.B) {
 	server := chain.NewNetworkServiceEndpointRegistryServer(
-		beginrecursive.NewNetworkServiceEndpointRegistryServer(),
+		beginmutex.NewNetworkServiceEndpointRegistryServer(),
 		&dataRaceServer{count: 0},
 	)
 
@@ -89,7 +90,7 @@ func BenchmarkBegin_UnregisterSameIDs(b *testing.B) {
 
 func BenchmarkBegin_RegisterUnregisterSameIDs(b *testing.B) {
 	server := chain.NewNetworkServiceEndpointRegistryServer(
-		beginrecursive.NewNetworkServiceEndpointRegistryServer(),
+		beginmutex.NewNetworkServiceEndpointRegistryServer(),
 		&dataRaceServer{count: 0},
 	)
 
@@ -119,7 +120,7 @@ func BenchmarkBegin_RegisterUnregisterSameIDs(b *testing.B) {
 
 func BenchmarkBegin_RegisterDifferentIDs(b *testing.B) {
 	server := chain.NewNetworkServiceEndpointRegistryServer(
-		beginrecursive.NewNetworkServiceEndpointRegistryServer(),
+		beginmutex.NewNetworkServiceEndpointRegistryServer(),
 		&dataRaceServer{count: 0},
 	)
 
@@ -138,7 +139,7 @@ func BenchmarkBegin_RegisterDifferentIDs(b *testing.B) {
 
 func BenchmarkBegin_UnregisterDifferentIDs(b *testing.B) {
 	server := chain.NewNetworkServiceEndpointRegistryServer(
-		beginrecursive.NewNetworkServiceEndpointRegistryServer(),
+		beginmutex.NewNetworkServiceEndpointRegistryServer(),
 		&dataRaceServer{count: 0},
 	)
 
@@ -157,7 +158,7 @@ func BenchmarkBegin_UnregisterDifferentIDs(b *testing.B) {
 
 func BenchmarkBegin_RegisterUnregisterDifferentIDs(b *testing.B) {
 	server := chain.NewNetworkServiceEndpointRegistryServer(
-		beginrecursive.NewNetworkServiceEndpointRegistryServer(),
+		beginmutex.NewNetworkServiceEndpointRegistryServer(),
 		&dataRaceServer{count: 0},
 	)
 

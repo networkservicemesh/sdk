@@ -18,7 +18,6 @@ package beginloop
 
 import (
 	"context"
-	"sync"
 
 	"github.com/edwarnicke/genericsync"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -40,19 +39,15 @@ func GetID(ctx context.Context) int {
 }
 
 type customFactory struct {
-	sync.Mutex
 	*eventNSEFactoryServer
+	ch chan struct{}
 }
 
 type beginNSEServer struct {
 	genericsync.Map[string, *customFactory]
-
-	channel chan struct{}
 }
 
 func (b *beginNSEServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	// th := begin.GetID(ctx)
-	// log.FromContext(ctx).Infof("ThreadID: %v", th)
 	id := in.GetName()
 	if id == "" {
 		return nil, errors.New("NetworkServiceEndpoint.Name can not be zero valued")
@@ -67,19 +62,20 @@ func (b *beginNSEServer) Register(ctx context.Context, in *registry.NetworkServi
 		var eventCount int
 		var loaded bool
 		eventFactoryServer, loaded = b.LoadOrStore(id, &customFactory{
-			eventNSEFactoryServer: newNSEEventFactoryServer(ctx, 1, nil)})
+			eventNSEFactoryServer: newNSEEventFactoryServer(ctx, 1, nil),
+			ch:                    make(chan struct{}, 1)})
 
 		if loaded {
-			eventFactoryServer.Lock()
+			eventFactoryServer.ch <- struct{}{}
 			currentEventFactoryServer, _ := b.Load(id)
 			if eventFactoryServer != currentEventFactoryServer {
-				eventFactoryServer.Unlock()
+				<-eventFactoryServer.ch
 				continue
 			}
 
 			eventFactoryServer.eventCount++
 			eventCount = eventFactoryServer.eventCount
-			eventFactoryServer.Unlock()
+			<-eventFactoryServer.ch
 		}
 
 		if eventCount > 0 || !loaded {
@@ -87,21 +83,19 @@ func (b *beginNSEServer) Register(ctx context.Context, in *registry.NetworkServi
 		}
 	}
 
-	eventFactoryServer.Lock()
-	//b.channel <- struct{}{}
+	eventFactoryServer.ch <- struct{}{}
 	withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
 	resp, err := next.NetworkServiceEndpointRegistryServer(withEventFactoryCtx).Register(withEventFactoryCtx, in)
 	eventFactoryServer.eventCount--
 	if err != nil {
-		eventFactoryServer.Unlock()
+		<-eventFactoryServer.ch
 		return nil, err
 	}
 	eventFactoryServer.registration = mergeNSE(in, resp)
 	eventFactoryServer.state = established
 	eventFactoryServer.response = resp
 	eventFactoryServer.updateContext(grpcmetadata.PathWithContext(ctx, grpcmetadata.PathFromContext(ctx).Clone()))
-	//<-b.channel
-	eventFactoryServer.Unlock()
+	<-eventFactoryServer.ch
 	return resp, err
 }
 
@@ -121,18 +115,19 @@ func (b *beginNSEServer) Unregister(ctx context.Context, in *registry.NetworkSer
 		var eventCount int
 		var loaded bool
 		eventFactoryServer, loaded = b.LoadOrStore(id, &customFactory{
-			eventNSEFactoryServer: newNSEEventFactoryServer(ctx, 1, nil)})
+			eventNSEFactoryServer: newNSEEventFactoryServer(ctx, 1, nil),
+			ch:                    make(chan struct{}, 1)})
 
 		if loaded {
-			eventFactoryServer.Lock()
+			eventFactoryServer.ch <- struct{}{}
 			currentEventFactoryServer, _ := b.Load(id)
 			if eventFactoryServer != currentEventFactoryServer {
-				eventFactoryServer.Unlock()
+				<-eventFactoryServer.ch
 				continue
 			}
 
 			eventFactoryServer.eventCount++
-			eventFactoryServer.Unlock()
+			<-eventFactoryServer.ch
 			break
 		}
 
@@ -141,21 +136,17 @@ func (b *beginNSEServer) Unregister(ctx context.Context, in *registry.NetworkSer
 		}
 	}
 
-	eventFactoryServer.Lock()
+	eventFactoryServer.ch <- struct{}{}
 	_, err := next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 	eventFactoryServer.eventCount--
 	if eventFactoryServer.eventCount == 0 {
 		b.Delete(id)
 	}
-	eventFactoryServer.Unlock()
+	<-eventFactoryServer.ch
 	return &emptypb.Empty{}, err
 }
 
 // NewNetworkServiceEndpointRegistryServer - returns a new null server that does nothing but call next.NetworkServiceEndpointRegistryServer(ctx).
 func NewNetworkServiceEndpointRegistryServer() registry.NetworkServiceEndpointRegistryServer {
-	s := &beginNSEServer{
-		channel: make(chan struct{}, 1),
-	}
-
-	return s
+	return new(beginNSEServer)
 }

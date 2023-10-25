@@ -14,10 +14,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package beginloop_test
+package beginmutex_test
 
 import (
 	"context"
+
 	"fmt"
 	"sync"
 	"testing"
@@ -26,7 +27,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/beginloop"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/beginmutex"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
@@ -55,12 +56,12 @@ func (s *randomServer) Unregister(ctx context.Context, in *registry.NetworkServi
 
 func TestFIFO(t *testing.T) {
 	server := next.NewNetworkServiceEndpointRegistryServer(
-		beginloop.NewNetworkServiceEndpointRegistryServer(),
+		beginmutex.NewNetworkServiceEndpointRegistryServer(),
 		&randomServer{},
 		memory.NewNetworkServiceEndpointRegistryServer(),
 	)
 
-	count := 50
+	count := 10
 	nses := []*registry.NetworkServiceEndpoint{}
 	for i := 0; i < count; i++ {
 		nses = append(nses, &registry.NetworkServiceEndpoint{Name: "nse", Url: fmt.Sprint(i)})

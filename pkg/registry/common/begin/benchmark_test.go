@@ -29,6 +29,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
+var (
+	count = 1000
+)
+
 type dataRaceServer struct {
 	count int
 }
@@ -54,9 +58,9 @@ func BenchmarkBegin_RegisterSameIDs(b *testing.B) {
 	)
 
 	var wg sync.WaitGroup
-	wg.Add(b.N)
+	wg.Add(count)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := 0; i < count; i++ {
 		go func() {
 			server.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: "1"})
 			wg.Done()
@@ -72,9 +76,9 @@ func BenchmarkBegin_UnregisterSameIDs(b *testing.B) {
 	)
 
 	var wg sync.WaitGroup
-	wg.Add(b.N)
+	wg.Add(count)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := 0; i < count; i++ {
 		go func() {
 			server.Unregister(context.Background(), &registry.NetworkServiceEndpoint{Name: "1"})
 			wg.Done()
@@ -90,10 +94,10 @@ func BenchmarkBegin_RegisterUnregisterSameIDs(b *testing.B) {
 	)
 
 	var wg sync.WaitGroup
-	wg.Add(2 * b.N)
+	wg.Add(2 * count)
 	b.ResetTimer()
 	go func() {
-		for i := 0; i < b.N; i++ {
+		for i := 0; i < count; i++ {
 			go func() {
 				server.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: "1"})
 				wg.Done()
@@ -102,7 +106,7 @@ func BenchmarkBegin_RegisterUnregisterSameIDs(b *testing.B) {
 	}()
 
 	go func() {
-		for i := 0; i < b.N; i++ {
+		for i := 0; i < count; i++ {
 			go func() {
 				server.Unregister(context.Background(), &registry.NetworkServiceEndpoint{Name: "1"})
 				wg.Done()
@@ -120,9 +124,9 @@ func BenchmarkBegin_RegisterDifferentIDs(b *testing.B) {
 	)
 
 	var wg sync.WaitGroup
-	wg.Add(b.N)
+	wg.Add(count)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := 0; i < count; i++ {
 		local := i
 		go func() {
 			server.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: fmt.Sprint(local)})
@@ -139,9 +143,9 @@ func BenchmarkBegin_UnregisterDifferentIDs(b *testing.B) {
 	)
 
 	var wg sync.WaitGroup
-	wg.Add(b.N)
+	wg.Add(count)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := 0; i < count; i++ {
 		local := i
 		go func() {
 			server.Unregister(context.Background(), &registry.NetworkServiceEndpoint{Name: fmt.Sprint(local)})
@@ -158,10 +162,10 @@ func BenchmarkBegin_RegisterUnregisterDifferentIDs(b *testing.B) {
 	)
 
 	var wg sync.WaitGroup
-	wg.Add(2 * b.N)
+	wg.Add(2 * count)
 	b.ResetTimer()
 	go func() {
-		for i := 0; i < b.N; i++ {
+		for i := 0; i < count; i++ {
 			local := i
 			go func() {
 				server.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: fmt.Sprint(local)})
@@ -171,7 +175,7 @@ func BenchmarkBegin_RegisterUnregisterDifferentIDs(b *testing.B) {
 	}()
 
 	go func() {
-		for i := 0; i < b.N; i++ {
+		for i := 0; i < count; i++ {
 			local := i
 			go func() {
 				server.Unregister(context.Background(), &registry.NetworkServiceEndpoint{Name: fmt.Sprint(local)})
