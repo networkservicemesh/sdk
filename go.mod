@@ -41,7 +41,7 @@ require (
 	go.uber.org/goleak v1.2.1
 	golang.org/x/net v0.12.0
 	gonum.org/v1/gonum v0.6.2
-	google.golang.org/grpc v1.58.0
+	google.golang.org/grpc v1.58.3
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/yaml.v2 v2.4.0
 )
