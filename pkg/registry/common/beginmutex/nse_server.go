@@ -28,7 +28,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 func WithID(ctx context.Context, id int) context.Context {
@@ -84,9 +83,7 @@ func (b *beginNSEServer) Register(ctx context.Context, in *registry.NetworkServi
 		}
 	}
 
-	log.FromContext(ctx).Infof("Thread %v is waiting for a mutex", GetID(ctx))
 	eventFactoryServer.Lock()
-	log.FromContext(ctx).Infof("Thread %v aqcuired the mutex", GetID(ctx))
 	withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
 	resp, err := next.NetworkServiceEndpointRegistryServer(withEventFactoryCtx).Register(withEventFactoryCtx, in)
 	eventFactoryServer.eventCount--

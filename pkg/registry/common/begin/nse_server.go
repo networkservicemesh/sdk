@@ -64,7 +64,6 @@ func (b *beginNSEServer) Register(ctx context.Context, in *registry.NetworkServi
 	var resp *registry.NetworkServiceEndpoint
 	var err error
 	<-eventFactoryServer.executor.AsyncExec(func() {
-		log.FromContext(ctx).Infof("Thread %v has started executing a func", GetID(ctx))
 		currentEventFactoryServer, _ := b.Load(id)
 		if currentEventFactoryServer != eventFactoryServer {
 			log.FromContext(ctx).Debug("recalling begin.Request because currentEventFactoryServer != eventFactoryServer")

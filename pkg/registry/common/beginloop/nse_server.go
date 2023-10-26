@@ -27,6 +27,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 func WithID(ctx context.Context, id int) context.Context {
@@ -53,9 +54,9 @@ func (b *beginNSEServer) Register(ctx context.Context, in *registry.NetworkServi
 		return nil, errors.New("NetworkServiceEndpoint.Name can not be zero valued")
 	}
 	// If some other EventFactory is already in the ctx... we are already running in an executor, and can just execute normally
-	if fromContext(ctx) != nil {
-		return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
-	}
+	// if fromContext(ctx) != nil {
+	// 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
+	// }
 
 	var eventFactoryServer *customFactory
 	for {
@@ -67,23 +68,30 @@ func (b *beginNSEServer) Register(ctx context.Context, in *registry.NetworkServi
 
 		if loaded {
 			eventFactoryServer.ch <- struct{}{}
+			log.FromContext(ctx).Infof("Thread [%v] loaded factory", in.Url)
+
 			currentEventFactoryServer, _ := b.Load(id)
 			if eventFactoryServer != currentEventFactoryServer {
+				log.FromContext(ctx).Infof("Thread [%v] is doing continue", in.Url)
 				<-eventFactoryServer.ch
 				continue
 			}
 
 			eventFactoryServer.eventCount++
 			eventCount = eventFactoryServer.eventCount
+			log.FromContext(ctx).Infof("Thread [%v] finished to execute", in.Url)
 			<-eventFactoryServer.ch
 		}
 
 		if eventCount > 0 || !loaded {
+			log.FromContext(ctx).Infof("Thread [%v] exited loop", in.Url)
 			break
 		}
 	}
 
+	log.FromContext(ctx).Infof("Thread [%v] is trying to Lock channel", in.Url)
 	eventFactoryServer.ch <- struct{}{}
+	log.FromContext(ctx).Infof("Thread [%v] started main NEXT", in.Url)
 	withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
 	resp, err := next.NetworkServiceEndpointRegistryServer(withEventFactoryCtx).Register(withEventFactoryCtx, in)
 	eventFactoryServer.eventCount--

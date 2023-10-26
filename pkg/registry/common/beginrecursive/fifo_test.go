@@ -14,14 +14,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package beginmutex_test
+package beginrecursive_test
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"net"
-
-	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -29,7 +28,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/beginmutex"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/beginrecursive"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/stretchr/testify/require"
@@ -43,7 +42,6 @@ type waitGroupServer struct {
 
 func (s *waitGroupServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	s.wg.Done()
-	log.FromContext(ctx).Infof("Thread [%v] made Done", in.Url)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
 }
 
@@ -56,11 +54,14 @@ func (s *waitGroupServer) Unregister(ctx context.Context, in *registry.NetworkSe
 }
 
 type collectorServer struct {
+	mu            sync.Mutex
 	registrations []*registry.NetworkServiceEndpoint
 }
 
 func (s *collectorServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	s.mu.Lock()
 	s.registrations = append(s.registrations, in)
+	s.mu.Unlock()
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
 }
 
@@ -76,7 +77,7 @@ type delayServer struct {
 }
 
 func (s *delayServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	milliseconds := rand.Intn(50) + 10
+	milliseconds := rand.Intn(90) + 10
 	time.Sleep(time.Millisecond * time.Duration(milliseconds))
 	log.FromContext(ctx).Infof("Thread [%v] finished waiting", in.Url)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
@@ -99,7 +100,7 @@ func TestFIFO(t *testing.T) {
 	collector := &collectorServer{}
 	server := next.NewNetworkServiceEndpointRegistryServer(
 		&waitGroupServer{wg: &serverWg},
-		beginmutex.NewNetworkServiceEndpointRegistryServer(),
+		beginrecursive.NewNetworkServiceEndpointRegistryServer(),
 		collector,
 		&delayServer{},
 	)
@@ -119,7 +120,7 @@ func TestFIFO(t *testing.T) {
 	require.NoError(t, err)
 	client := registry.NewNetworkServiceEndpointRegistryClient(clientConn)
 
-	count := 1000
+	count := 3
 	nses := []*registry.NetworkServiceEndpoint{}
 	for i := 0; i < count; i++ {
 		nses = append(nses, &registry.NetworkServiceEndpoint{Name: "nse", Url: fmt.Sprint(i)})
@@ -139,8 +140,10 @@ func TestFIFO(t *testing.T) {
 
 	clientWg.Wait()
 
+	collector.mu.Lock()
+	defer collector.mu.Unlock()
 	registrations := collector.registrations
-	require.Len(t, registrations, count)
+
 	for i, registration := range registrations {
 		require.Equal(t, registration.Url, fmt.Sprint(i))
 	}

@@ -46,6 +46,8 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 )
 
+replace github.com/edwarnicke/serialize => ./local/serialize
+
 require (
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	github.com/OneOfOne/xxhash v1.2.8 // indirect

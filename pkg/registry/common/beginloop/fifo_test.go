@@ -19,6 +19,8 @@ package beginloop_test
 import (
 	"context"
 	"fmt"
+	"math/rand"
+	"net"
 	"sync"
 	"testing"
 	"time"
@@ -27,72 +29,123 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/beginloop"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
-type randomServer struct {
-	once sync.Once
+type waitGroupServer struct {
+	wg *sync.WaitGroup
 }
 
-func (s *randomServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	s.once.Do(func() { time.Sleep(time.Second) })
-	resp, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
-	return resp, err
+func (s *waitGroupServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	s.wg.Done()
+	log.FromContext(ctx).Infof("Thread [%v] made Done", in.Url)
+	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
 }
 
-func (s *randomServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
+func (s *waitGroupServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
 	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
 }
 
-func (s *randomServer) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	_, err := next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
-	return &emptypb.Empty{}, err
+func (s *waitGroupServer) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
+}
+
+type collectorServer struct {
+	mu            sync.Mutex
+	registrations []*registry.NetworkServiceEndpoint
+}
+
+func (s *collectorServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	s.mu.Lock()
+	s.registrations = append(s.registrations, in)
+	s.mu.Unlock()
+	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
+}
+
+func (s *collectorServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
+	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
+}
+
+func (s *collectorServer) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
+}
+
+type delayServer struct {
+}
+
+func (s *delayServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	milliseconds := rand.Intn(90) + 10
+	time.Sleep(time.Millisecond * time.Duration(milliseconds))
+	log.FromContext(ctx).Infof("Thread [%v] finished waiting", in.Url)
+	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
+}
+
+func (s *delayServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
+	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
+}
+
+func (s *delayServer) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 }
 
 func TestFIFO(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var serverWg sync.WaitGroup
+	var clientWg sync.WaitGroup
+	collector := &collectorServer{}
 	server := next.NewNetworkServiceEndpointRegistryServer(
+		&waitGroupServer{wg: &serverWg},
 		beginloop.NewNetworkServiceEndpointRegistryServer(),
-		&randomServer{},
-		memory.NewNetworkServiceEndpointRegistryServer(),
+		collector,
+		&delayServer{},
 	)
 
-	count := 50
+	serverLis, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+
+	grpcServer := grpc.NewServer()
+	registry.RegisterNetworkServiceEndpointRegistryServer(grpcServer, server)
+
+	go func() {
+		serveErr := grpcServer.Serve(serverLis)
+		require.NoError(t, serveErr)
+	}()
+
+	clientConn, err := grpc.Dial(serverLis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	client := registry.NewNetworkServiceEndpointRegistryClient(clientConn)
+
+	count := 3
 	nses := []*registry.NetworkServiceEndpoint{}
 	for i := 0; i < count; i++ {
 		nses = append(nses, &registry.NetworkServiceEndpoint{Name: "nse", Url: fmt.Sprint(i)})
 	}
 
-	go server.Register(begin.WithID(context.Background(), 0), nses[0])
-
-	time.Sleep(time.Millisecond * 300)
-
-	var wg sync.WaitGroup
-	wg.Add(count - 1)
-	for i := 1; i < count; i++ {
+	clientWg.Add(count)
+	for i := 0; i < count; i++ {
 		local := i
+		serverWg.Add(1)
 		go func() {
-			_, err := server.Register(begin.WithID(context.Background(), local), nses[local])
+			_, err := client.Register(begin.WithID(ctx, local), nses[local])
 			require.NoError(t, err)
-			wg.Done()
+			clientWg.Done()
 		}()
-		time.Sleep(time.Millisecond * 5)
+		serverWg.Wait()
 	}
 
-	wg.Wait()
+	clientWg.Wait()
 
-	query := &registry.NetworkServiceEndpointQuery{
-		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-			Name: "nse",
-		},
+	collector.mu.Lock()
+	defer collector.mu.Unlock()
+	registrations := collector.registrations
+
+	for i, registration := range registrations {
+		require.Equal(t, registration.Url, fmt.Sprint(i))
 	}
-	stream, err := adapters.NetworkServiceEndpointServerToClient(server).Find(context.Background(), query)
-	require.NoError(t, err)
-
-	nses = registry.ReadNetworkServiceEndpointList(stream)
-	require.Len(t, nses, 1)
-	require.Equal(t, fmt.Sprint(count-1), nses[0].Url)
 }

@@ -167,7 +167,7 @@ func (f *eventNSEFactoryServer) Register(opts ...Option) <-chan error {
 		opt(o)
 	}
 	ch := make(chan error, 1)
-	f.executor.AsyncExec(func() {
+	go func() {
 		defer close(ch)
 		if f.state != established {
 			return
@@ -183,7 +183,7 @@ func (f *eventNSEFactoryServer) Register(opts ...Option) <-chan error {
 			}
 			ch <- err
 		}
-	})
+	}()
 	return ch
 }
 

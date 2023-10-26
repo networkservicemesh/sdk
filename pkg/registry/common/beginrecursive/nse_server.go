@@ -58,23 +58,29 @@ func (b *beginNSEServer) Register(ctx context.Context, in *registry.NetworkServi
 
 	if loaded {
 		done := false
-		<-eventFactoryServer.executor.AsyncExec(func() {
+		<-eventFactoryServer.executor.AsyncExecContext(ctx, in.Url, func() {
+			log.FromContext(ctx).Infof("Thread [%v] loaded factory", in.Url)
 			currentEventFactoryServer, _ := b.Load(id)
 			if currentEventFactoryServer != eventFactoryServer {
+				log.FromContext(ctx).Infof("Thread [%v] is doing recalling", in.Url)
 				log.FromContext(ctx).Debug("recalling begin.Request because currentEventFactoryServer != eventFactoryServer")
 				resp, err = b.Register(ctx, in)
 				done = true
 				return
 			}
 			currentEventFactoryServer.eventCount++
+			log.FromContext(ctx).Infof("Thread [%v] finished to execute", in.Url)
 		})
+		log.FromContext(ctx).Infof("Thread [%v] exited executor", in.Url)
 
 		if done {
 			return resp, err
 		}
 	}
 
-	<-eventFactoryServer.executor.AsyncExec(func() {
+	log.FromContext(ctx).Infof("Thread [%v] is trying to Lock executor", in.Url)
+	<-eventFactoryServer.executor.AsyncExecContext(ctx, in.Url, func() {
+		log.FromContext(ctx).Infof("Thread [%v] started main AsyncExec", in.Url)
 		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
 		resp, err = next.NetworkServiceEndpointRegistryServer(withEventFactoryCtx).Register(withEventFactoryCtx, in)
 		eventFactoryServer.registration = mergeNSE(in, resp)
