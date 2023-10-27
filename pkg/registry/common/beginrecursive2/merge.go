@@ -14,22 +14,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package beginrecursive
+package beginrecursive2
 
-import (
-	"context"
-)
+import "github.com/networkservicemesh/api/pkg/api/registry"
 
-type option struct {
-	cancelCtx context.Context
+func mergeNSE(left, right *registry.NetworkServiceEndpoint) *registry.NetworkServiceEndpoint {
+	if left == nil || right == nil {
+		return left
+	}
+
+	var result = right.Clone()
+
+	result.Name = left.Name
+
+	result.ExpirationTime = nil
+
+	return result
 }
 
-// Option - event option
-type Option func(*option)
-
-// CancelContext - optionally provide a context that, when canceled will preclude the event from running
-func CancelContext(cancelCtx context.Context) Option {
-	return func(o *option) {
-		o.cancelCtx = cancelCtx
+func mergeNS(left, right *registry.NetworkService) *registry.NetworkService {
+	if left == nil || right == nil {
+		return left
 	}
+
+	var result = right.Clone()
+
+	result.Name = left.Name
+
+	return result
 }

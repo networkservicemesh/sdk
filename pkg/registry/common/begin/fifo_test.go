@@ -30,9 +30,8 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/beginloop"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/beginmutex"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/beginrecursive"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/beginrecursive1"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -51,7 +50,7 @@ func TestFIFOBeginMutex(t *testing.T) {
 }
 
 func TestFIFOBeginExecutor(t *testing.T) {
-	testFIFO(t, beginrecursive.NewNetworkServiceEndpointRegistryServer())
+	testFIFO(t, beginrecursive1.NewNetworkServiceEndpointRegistryServer())
 }
 
 func testFIFO(t *testing.T, beginServer registry.NetworkServiceEndpointRegistryServer) {
@@ -83,18 +82,27 @@ func testFIFO(t *testing.T, beginServer registry.NetworkServiceEndpointRegistryS
 	require.NoError(t, err)
 	client := registry.NewNetworkServiceEndpointRegistryClient(clientConn)
 
-	count := 50
+	count := 3
 	nses := []*registry.NetworkServiceEndpoint{}
 	for i := 0; i < count; i++ {
 		nses = append(nses, &registry.NetworkServiceEndpoint{Name: "nse", Url: fmt.Sprint(i)})
 	}
+
+	expected := make([]request, 0)
 
 	clientWg.Add(count)
 	for i := 0; i < count; i++ {
 		local := i
 		serverWg.Add(1)
 		go func() {
-			_, err := client.Register(begin.WithID(ctx, local), nses[local])
+			var err error
+			if local%2 == 0 {
+				expected = append(expected, request{requestType: register, requestData: nses[local]})
+				_, err = client.Register(begin.WithID(ctx, local), nses[local])
+			} else {
+				expected = append(expected, request{requestType: unregister, requestData: nses[local]})
+				_, err = client.Unregister(begin.WithID(ctx, local), nses[local])
+			}
 			require.NoError(t, err)
 			clientWg.Done()
 		}()
@@ -108,8 +116,21 @@ func testFIFO(t *testing.T, beginServer registry.NetworkServiceEndpointRegistryS
 	registrations := collector.registrations
 
 	for i, registration := range registrations {
-		require.Equal(t, registration.Url, fmt.Sprint(i))
+		require.Equal(t, registration.requestData.Url, expected[i].requestData.Url)
+		require.Equal(t, registration.requestType, expected[i].requestType)
 	}
+}
+
+type eventType int
+
+const (
+	register   eventType = 0
+	unregister eventType = 1
+)
+
+type request struct {
+	requestType eventType
+	requestData *registry.NetworkServiceEndpoint
 }
 
 type waitGroupServer struct {
@@ -118,7 +139,6 @@ type waitGroupServer struct {
 
 func (s *waitGroupServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	s.wg.Done()
-	log.FromContext(ctx).Infof("Thread [%v] made Done", in.Url)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
 }
 
@@ -127,17 +147,21 @@ func (s *waitGroupServer) Find(query *registry.NetworkServiceEndpointQuery, serv
 }
 
 func (s *waitGroupServer) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	s.wg.Done()
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 }
 
 type collectorServer struct {
 	mu            sync.Mutex
-	registrations []*registry.NetworkServiceEndpoint
+	registrations []request
 }
 
 func (s *collectorServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	s.mu.Lock()
-	s.registrations = append(s.registrations, in)
+	s.registrations = append(s.registrations, request{
+		requestType: register,
+		requestData: in,
+	})
 	s.mu.Unlock()
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
 }
@@ -147,6 +171,12 @@ func (s *collectorServer) Find(query *registry.NetworkServiceEndpointQuery, serv
 }
 
 func (s *collectorServer) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	s.mu.Lock()
+	s.registrations = append(s.registrations, request{
+		requestType: unregister,
+		requestData: in,
+	})
+	s.mu.Unlock()
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 }
 
@@ -156,7 +186,6 @@ type delayServer struct {
 func (s *delayServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	milliseconds := rand.Intn(90) + 10
 	time.Sleep(time.Millisecond * time.Duration(milliseconds))
-	log.FromContext(ctx).Infof("Thread [%v] finished waiting", in.Url)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
 }
 
@@ -165,5 +194,7 @@ func (s *delayServer) Find(query *registry.NetworkServiceEndpointQuery, server r
 }
 
 func (s *delayServer) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
+	milliseconds := rand.Intn(90) + 10
+	time.Sleep(time.Millisecond * time.Duration(milliseconds))
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 }

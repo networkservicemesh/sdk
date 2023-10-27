@@ -23,8 +23,6 @@ import (
 	"context"
 	"sync"
 	"sync/atomic"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type job struct {
@@ -88,7 +86,6 @@ func (e *Executor) AsyncExecContext(ctx context.Context, threadID string, f func
 
 	// queue up the job in the buffer (note: buffer order itself does not guarantee order, job.ticket does)
 	e.mu.Lock()
-	log.FromContext(ctx).Infof("Thread[%v] Adding a new job with ticket: %v", threadID, ticket)
 	e.buffer = append(e.buffer, jb)
 	e.mu.Unlock()
 	return jb.done
@@ -96,7 +93,6 @@ func (e *Executor) AsyncExecContext(ctx context.Context, threadID string, f func
 
 func (e *Executor) process(ctx context.Context, threadID string, jb *job) {
 	// Run the first job inline with processing.  This is a performance optimization
-	log.FromContext(ctx).Infof("Executor started executing a job with ticket %v", 1)
 	jb.f()
 	close(jb.done)
 	// If there are no more jobs, exit
@@ -116,10 +112,8 @@ func (e *Executor) process(ctx context.Context, threadID string, jb *job) {
 		// Sort the buffer
 		for i := 0; i < len(buf); {
 			if buf[i].ticket == ticket {
-				log.FromContext(ctx).Infof("Executor started executing a job with ticket %v. i: %v", ticket, i)
 				buf[i].f()
 				close(buf[i].done)
-				log.FromContext(ctx).Infof("Executor closes done channel for a job with ticket %v. i: %v", ticket, i)
 				if atomic.CompareAndSwapUintptr(&e.ticket, ticket, 0) {
 					return
 				}

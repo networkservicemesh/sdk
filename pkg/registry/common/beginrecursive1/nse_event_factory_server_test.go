@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package beginrecursive_test
+package beginrecursive1_test
 
 import (
 	"context"
@@ -24,10 +24,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
-	"google.golang.org/grpc"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
@@ -37,16 +36,16 @@ import (
 )
 
 // This test reproduces the situation when refresh changes the eventFactory context
-func TestContextValues_Client(t *testing.T) {
+func TestContextValues_Server(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	checkCtxCl := &checkContextClient{t: t}
-	eventFactoryCl := &eventFactoryClient{}
-	client := chain.NewNetworkServiceEndpointRegistryClient(
-		begin.NewNetworkServiceEndpointRegistryClient(),
-		checkCtxCl,
-		eventFactoryCl,
-		&failedNSEClient{},
+	checkCtxServ := &checkContextServer{t: t}
+	eventFactoryServ := &eventFactoryServer{}
+	server := chain.NewNetworkServiceEndpointRegistryServer(
+		begin.NewNetworkServiceEndpointRegistryServer(),
+		checkCtxServ,
+		eventFactoryServ,
+		&failedNSEServer{},
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -54,13 +53,13 @@ func TestContextValues_Client(t *testing.T) {
 
 	// Set any value to context
 	ctx = context.WithValue(ctx, contextKey{}, "value_1")
-	checkCtxCl.setExpectedValue("value_1")
+	checkCtxServ.setExpectedValue("value_1")
 
 	// Do Register with this context
 	nse := &registry.NetworkServiceEndpoint{
 		Name: "1",
 	}
-	nse, err := client.Register(ctx, nse.Clone())
+	nse, err := server.Register(ctx, nse.Clone())
 	require.NotNil(t, t, nse)
 	require.NoError(t, err)
 
@@ -68,36 +67,36 @@ func TestContextValues_Client(t *testing.T) {
 	ctx = context.WithValue(ctx, contextKey{}, "value_2")
 
 	// Call refresh that will fail
-	nse.Url = failedNSEURLClient
-	checkCtxCl.setExpectedValue("value_2")
-	_, err = client.Register(ctx, nse.Clone())
+	nse.Url = failedNSEURLServer
+	checkCtxServ.setExpectedValue("value_2")
+	_, err = server.Register(ctx, nse.Clone())
 	require.Error(t, err)
 
 	// Call refresh from eventFactory. We are expecting the previous value in the context
-	checkCtxCl.setExpectedValue("value_1")
-	eventFactoryCl.callRefresh()
+	checkCtxServ.setExpectedValue("value_1")
+	eventFactoryServ.callRefresh()
 
 	// Call refresh that will successful
 	nse.Url = ""
-	checkCtxCl.setExpectedValue("value_2")
-	nse, err = client.Register(ctx, nse.Clone())
+	checkCtxServ.setExpectedValue("value_2")
+	nse, err = server.Register(ctx, nse.Clone())
 	require.NotNil(t, t, nse)
 	require.NoError(t, err)
 
 	// Call refresh from eventFactory. We are expecting updated value in the context
-	eventFactoryCl.callRefresh()
+	eventFactoryServ.callRefresh()
 }
 
 // This test reproduces the situation when Unregister and Register were called at the same time
-func TestRefreshDuringUnregister_Client(t *testing.T) {
+func TestRefreshDuringUnregister_Server(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	checkCtxCl := &checkContextClient{t: t}
-	eventFactoryCl := &eventFactoryClient{}
-	client := chain.NewNetworkServiceEndpointRegistryClient(
-		begin.NewNetworkServiceEndpointRegistryClient(),
-		checkCtxCl,
-		eventFactoryCl,
+	checkCtxServ := &checkContextServer{t: t}
+	eventFactoryServ := &eventFactoryServer{}
+	server := chain.NewNetworkServiceEndpointRegistryServer(
+		begin.NewNetworkServiceEndpointRegistryServer(),
+		checkCtxServ,
+		eventFactoryServ,
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -105,34 +104,34 @@ func TestRefreshDuringUnregister_Client(t *testing.T) {
 
 	// Set any value to context
 	ctx = context.WithValue(ctx, contextKey{}, "value_1")
-	checkCtxCl.setExpectedValue("value_1")
+	checkCtxServ.setExpectedValue("value_1")
 
 	// Do Register with this context
 	nse := &registry.NetworkServiceEndpoint{
 		Name: "1",
 	}
-	nse, err := client.Register(ctx, nse.Clone())
+	nse, err := server.Register(ctx, nse.Clone())
 	require.NotNil(t, t, nse)
 	require.NoError(t, err)
 
 	// Change context value before refresh
 	ctx = context.WithValue(ctx, contextKey{}, "value_2")
-	checkCtxCl.setExpectedValue("value_2")
+	checkCtxServ.setExpectedValue("value_2")
 
 	// Call Unregister from eventFactory
-	eventFactoryCl.callUnregister()
+	eventFactoryServ.callUnregister()
 
 	// Call refresh (should be called at the same time as Unregister)
-	nse, err = client.Register(ctx, nse.Clone())
+	nse, err = server.Register(ctx, nse.Clone())
 	require.NotNil(t, t, nse)
 	require.NoError(t, err)
 
 	// Call refresh from eventFactory. We are expecting updated value in the context
-	eventFactoryCl.callRefresh()
+	eventFactoryServ.callRefresh()
 }
 
 // This test checks if the timeout for the Register/Unregister called from the event factory is correct
-func TestContextTimeout_Client(t *testing.T) {
+func TestContextTimeout_Server(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -145,103 +144,101 @@ func TestContextTimeout_Client(t *testing.T) {
 	ctx, cancel = context.WithDeadline(ctx, clockMock.Now().Add(time.Second*3))
 	defer cancel()
 
-	eventFactoryCl := &eventFactoryClient{}
-	client := chain.NewNetworkServiceEndpointRegistryClient(
-		begin.NewNetworkServiceEndpointRegistryClient(),
-		eventFactoryCl,
-		&delayedNSEClient{t: t, clock: clockMock},
+	eventFactoryServ := &eventFactoryServer{}
+	server := chain.NewNetworkServiceEndpointRegistryServer(
+		begin.NewNetworkServiceEndpointRegistryServer(),
+		eventFactoryServ,
+		&delayedNSEServer{t: t, clock: clockMock},
 	)
 
 	// Do Register
 	nse := &registry.NetworkServiceEndpoint{
 		Name: "1",
 	}
-	nse, err := client.Register(ctx, nse.Clone())
+	nse, err := server.Register(ctx, nse.Clone())
 	require.NotNil(t, t, nse)
 	require.NoError(t, err)
 
 	// Check eventFactory Refresh. We are expecting the same timeout as for register
-	eventFactoryCl.callRefresh()
+	eventFactoryServ.callRefresh()
 
 	// Check eventFactory Unregister. We are expecting the same timeout as for register
-	eventFactoryCl.callUnregister()
+	eventFactoryServ.callUnregister()
 }
 
-type eventFactoryClient struct {
-	registry.NetworkServiceEndpointRegistryClient
+type eventFactoryServer struct {
+	registry.NetworkServiceEndpointRegistryServer
 	ctx context.Context
 }
 
-func (e *eventFactoryClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+func (e *eventFactoryServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	e.ctx = ctx
-	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)
+	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
 }
 
-func (e *eventFactoryClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (e *eventFactoryServer) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint) (*emptypb.Empty, error) {
 	// Wait to be sure that reregister was called
 	time.Sleep(time.Millisecond * 100)
-	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
+	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 }
 
-func (e *eventFactoryClient) callUnregister() {
+func (e *eventFactoryServer) callUnregister() {
 	eventFactory := begin.FromContext(e.ctx)
 	eventFactory.Unregister()
 }
 
-func (e *eventFactoryClient) callRefresh() {
+func (e *eventFactoryServer) callRefresh() {
 	eventFactory := begin.FromContext(e.ctx)
 	<-eventFactory.Register()
 }
 
-type contextKey struct{}
-
-type checkContextClient struct {
-	registry.NetworkServiceEndpointRegistryClient
+type checkContextServer struct {
+	registry.NetworkServiceEndpointRegistryServer
 	t             *testing.T
 	expectedValue string
 }
 
-func (c *checkContextClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+func (c *checkContextServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	require.Equal(c.t, c.expectedValue, ctx.Value(contextKey{}))
-	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)
+	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
 }
 
-func (c *checkContextClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
-	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
+func (c *checkContextServer) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint) (*emptypb.Empty, error) {
+	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 }
 
-func (c *checkContextClient) setExpectedValue(value string) {
+func (c *checkContextServer) setExpectedValue(value string) {
 	c.expectedValue = value
 }
 
-const failedNSEURLClient = "failedNSE"
+const failedNSEURLServer = "failedNSE"
 
-type failedNSEClient struct {
-	registry.NetworkServiceEndpointRegistryClient
+type failedNSEServer struct {
+	registry.NetworkServiceEndpointRegistryServer
 }
 
-func (f *failedNSEClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	if in.Url == failedNSEURLClient {
+func (f *failedNSEServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	if in.Url == failedNSEURLServer {
 		return nil, errors.New("failed")
 	}
-	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)
+	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
 }
 
-func (f *failedNSEClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
-	if in.Url == failedNSEURLClient {
+func (f *failedNSEServer) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint) (*emptypb.Empty, error) {
+	if in.Url == failedNSEURLServer {
 		return nil, errors.New("failed")
 	}
-	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
+	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 }
 
-type delayedNSEClient struct {
-	registry.NetworkServiceEndpointRegistryClient
+type delayedNSEServer struct {
+	registry.NetworkServiceEndpointRegistryServer
 	t              *testing.T
 	clock          *clockmock.Mock
 	initialTimeout time.Duration
 }
 
-func (d *delayedNSEClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
+func (d *delayedNSEServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	deadline, _ := ctx.Deadline()
 	clockTime := clock.FromContext(ctx)
 	timeout := clockTime.Until(deadline)
@@ -258,15 +255,15 @@ func (d *delayedNSEClient) Register(ctx context.Context, in *registry.NetworkSer
 
 	// Add delay
 	d.clock.Add(timeout / 2)
-	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)
+	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
 }
 
-func (d *delayedNSEClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (d *delayedNSEServer) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint) (*emptypb.Empty, error) {
 	require.Greater(d.t, d.initialTimeout, time.Duration(0))
 
 	deadline, _ := ctx.Deadline()
 	clockTime := clock.FromContext(ctx)
 
 	require.Equal(d.t, d.initialTimeout, clockTime.Until(deadline))
-	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
+	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 }

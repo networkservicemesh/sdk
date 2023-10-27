@@ -1,4 +1,4 @@
-// Copyright (c) 2022-2023 Cisco and/or its affiliates.
+// Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,40 +14,53 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package beginrecursive_test
+package beginrecursive1_test
 
 import (
 	"context"
+	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/goleak"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
-
-	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 )
 
-func TestCloseServer(t *testing.T) {
+func TestSerializeBoth_StressTest(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	server := chain.NewNetworkServiceEndpointRegistryServer(
-		begin.NewNetworkServiceEndpointRegistryServer(),
-		adapters.NetworkServiceEndpointClientToServer(&markClient{t: t}),
-	)
-	id := "1"
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	conn, err := server.Register(ctx, &registry.NetworkServiceEndpoint{
-		Name: id,
-	})
-	require.NotNil(t, conn)
-	require.NoError(t, err)
-	require.Equal(t, conn.GetNetworkServiceLabels()[mark].Labels[mark], mark)
-	conn = conn.Clone()
-	delete(conn.GetNetworkServiceLabels()[mark].Labels, mark)
-	require.Zero(t, conn.GetNetworkServiceLabels()[mark].Labels[mark])
-	_, err = server.Unregister(ctx, conn)
-	require.NoError(t, err)
+
+	server := chain.NewNetworkServiceEndpointRegistryServer(
+		begin.NewNetworkServiceEndpointRegistryServer(),
+		newParallelServer(t),
+		adapters.NetworkServiceEndpointClientToServer(chain.NewNetworkServiceEndpointRegistryClient(
+			begin.NewNetworkServiceEndpointRegistryClient(),
+			newParallelClient(t),
+		),
+		),
+	)
+
+	wg := new(sync.WaitGroup)
+	wg.Add(parallelCount)
+	for i := 0; i < parallelCount; i++ {
+		go func(id string) {
+			defer wg.Done()
+
+			resp, err := server.Register(ctx, &registry.NetworkServiceEndpoint{
+				Name: id,
+			})
+			assert.NoError(t, err)
+
+			_, err = server.Unregister(ctx, resp)
+			assert.NoError(t, err)
+		}(fmt.Sprint(i % 20))
+	}
+	wg.Wait()
 }

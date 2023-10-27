@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package beginrecursive_test
+package beginrecursive2_test
 
 import (
 	"context"

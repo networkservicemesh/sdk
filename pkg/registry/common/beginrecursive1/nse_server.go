@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package beginloop
+package beginrecursive1
 
 import (
 	"context"
@@ -27,6 +27,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 func WithID(ctx context.Context, id int) context.Context {
@@ -38,13 +39,8 @@ func GetID(ctx context.Context) int {
 	return id
 }
 
-type customFactory struct {
-	*eventNSEFactoryServer
-	ch chan struct{}
-}
-
 type beginNSEServer struct {
-	genericsync.Map[string, *customFactory]
+	genericsync.Map[string, *eventNSEFactoryServer]
 }
 
 func (b *beginNSEServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
@@ -53,50 +49,31 @@ func (b *beginNSEServer) Register(ctx context.Context, in *registry.NetworkServi
 		return nil, errors.New("NetworkServiceEndpoint.Name can not be zero valued")
 	}
 	// If some other EventFactory is already in the ctx... we are already running in an executor, and can just execute normally
-	// if fromContext(ctx) != nil {
-	// 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
-	// }
-
-	var eventFactoryServer *customFactory
-	for {
-		var eventCount int
-		var loaded bool
-		eventFactoryServer, loaded = b.LoadOrStore(id, &customFactory{
-			eventNSEFactoryServer: newNSEEventFactoryServer(ctx, 1, nil),
-			ch:                    make(chan struct{}, 1)})
-
-		if loaded {
-			eventFactoryServer.ch <- struct{}{}
-			currentEventFactoryServer, _ := b.Load(id)
-			if eventFactoryServer != currentEventFactoryServer {
-				<-eventFactoryServer.ch
-				continue
-			}
-
-			eventFactoryServer.eventCount++
-			eventCount = eventFactoryServer.eventCount
-			<-eventFactoryServer.ch
-		}
-
-		if eventCount > 0 || !loaded {
-			break
-		}
+	if fromContext(ctx) != nil {
+		return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
 	}
+	eventFactoryServer, _ := b.LoadOrStore(id, newNSEEventFactoryServer(ctx, 1, func() {}))
+	var resp *registry.NetworkServiceEndpoint
+	var err error
 
-	eventFactoryServer.ch <- struct{}{}
-	withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
-	resp, err := next.NetworkServiceEndpointRegistryServer(withEventFactoryCtx).Register(withEventFactoryCtx, in)
-	eventFactoryServer.eventCount--
-	if err != nil {
-		<-eventFactoryServer.ch
-		return nil, err
-	}
-	eventFactoryServer.registration = mergeNSE(in, resp)
-	eventFactoryServer.state = established
-	eventFactoryServer.response = resp
-	eventFactoryServer.updateContext(grpcmetadata.PathWithContext(ctx, grpcmetadata.PathFromContext(ctx).Clone()))
-	<-eventFactoryServer.ch
+	<-eventFactoryServer.executor.AsyncExec(func() {
+		log.FromContext(ctx).Infof("Thread [%v] started executing Register.AsyncExec", in.Url)
+		currentEventFactoryServer, _ := b.Load(id)
+		if currentEventFactoryServer != eventFactoryServer {
+			log.FromContext(ctx).Debug("recalling begin.Request because currentEventFactoryServer != eventFactoryServer")
+			resp, err = b.Register(ctx, in)
+			return
+		}
+		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
+		resp, err = next.NetworkServiceEndpointRegistryServer(withEventFactoryCtx).Register(withEventFactoryCtx, in)
+		eventFactoryServer.registration = mergeNSE(in, resp)
+		eventFactoryServer.state = established
+		eventFactoryServer.response = resp
+		eventFactoryServer.updateContext(grpcmetadata.PathWithContext(ctx, grpcmetadata.PathFromContext(ctx).Clone()))
+	})
+
 	return resp, err
+
 }
 
 func (b *beginNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
@@ -110,39 +87,34 @@ func (b *beginNSEServer) Unregister(ctx context.Context, in *registry.NetworkSer
 		return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 	}
 
-	var eventFactoryServer *customFactory
-	for {
-		var eventCount int
-		var loaded bool
-		eventFactoryServer, loaded = b.LoadOrStore(id, &customFactory{
-			eventNSEFactoryServer: newNSEEventFactoryServer(ctx, 1, nil),
-			ch:                    make(chan struct{}, 1)})
-
-		if loaded {
-			eventFactoryServer.ch <- struct{}{}
+	var err error
+	eventFactoryServer, loaded := b.LoadOrStore(id, newNSEEventFactoryServer(ctx, 1, func() {}))
+	if loaded {
+		done := false
+		<-eventFactoryServer.executor.AsyncExec(func() {
+			log.FromContext(ctx).Infof("Thread [%v] started executing Unregister.AsyncExec[0]", in.Url)
 			currentEventFactoryServer, _ := b.Load(id)
 			if eventFactoryServer != currentEventFactoryServer {
-				<-eventFactoryServer.ch
-				continue
+				log.FromContext(ctx).Debug("recalling begin.Request because currentEventFactoryServer != eventFactoryServer")
+				_, err = b.Unregister(ctx, in)
+				done = true
+				return
 			}
+		})
 
-			eventFactoryServer.eventCount++
-			<-eventFactoryServer.ch
-			break
-		}
-
-		if eventCount > 0 || !loaded {
-			break
+		if done {
+			return &emptypb.Empty{}, err
 		}
 	}
 
-	eventFactoryServer.ch <- struct{}{}
-	_, err := next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
-	eventFactoryServer.eventCount--
-	if eventFactoryServer.eventCount == 0 {
-		b.Delete(id)
-	}
-	<-eventFactoryServer.ch
+	<-eventFactoryServer.executor.AsyncExec(func() {
+		log.FromContext(ctx).Infof("Thread [%v] started executing Unregister.AsyncExec[1]", in.Url)
+		_, err = next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
+		eventFactoryServer.eventCount--
+		if eventFactoryServer.eventCount == 0 {
+			b.Delete(id)
+		}
+	})
 	return &emptypb.Empty{}, err
 }
 

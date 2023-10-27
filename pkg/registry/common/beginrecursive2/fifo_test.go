@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package beginrecursive_test
+package beginrecursive2_test
 
 import (
 	"context"
@@ -28,9 +28,8 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/beginrecursive"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/beginrecursive2"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -79,7 +78,7 @@ type delayServer struct {
 func (s *delayServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	milliseconds := rand.Intn(90) + 10
 	time.Sleep(time.Millisecond * time.Duration(milliseconds))
-	log.FromContext(ctx).Infof("Thread [%v] finished waiting", in.Url)
+	//log.FromContext(ctx).Infof("Thread [%v] finished waiting", in.Url)
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
 }
 
@@ -100,7 +99,7 @@ func TestFIFO(t *testing.T) {
 	collector := &collectorServer{}
 	server := next.NewNetworkServiceEndpointRegistryServer(
 		&waitGroupServer{wg: &serverWg},
-		beginrecursive.NewNetworkServiceEndpointRegistryServer(),
+		beginrecursive2.NewNetworkServiceEndpointRegistryServer(),
 		collector,
 		&delayServer{},
 	)
