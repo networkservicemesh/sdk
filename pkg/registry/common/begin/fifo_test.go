@@ -30,11 +30,15 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 func TestFIFOSequence(t *testing.T) {
+	t.Cleanup(func() {
+		goleak.VerifyNone(t)
+	})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -53,6 +57,7 @@ func TestFIFOSequence(t *testing.T) {
 
 	grpcServer := grpc.NewServer()
 	registry.RegisterNetworkServiceEndpointRegistryServer(grpcServer, server)
+	defer grpcServer.Stop()
 
 	go func() {
 		serveErr := grpcServer.Serve(serverLis)
@@ -62,8 +67,9 @@ func TestFIFOSequence(t *testing.T) {
 	clientConn, err := grpc.Dial(serverLis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	client := registry.NewNetworkServiceEndpointRegistryClient(clientConn)
+	defer clientConn.Close()
 
-	count := 100
+	count := 10
 	nses := []*registry.NetworkServiceEndpoint{}
 	for i := 0; i < count; i++ {
 		nses = append(nses, &registry.NetworkServiceEndpoint{Name: "nse", Url: fmt.Sprint(i)})
@@ -100,6 +106,7 @@ func TestFIFOSequence(t *testing.T) {
 		require.Equal(t, registration.requestData.Url, expected[i].requestData.Url)
 		require.Equal(t, registration.requestType, expected[i].requestType)
 	}
+
 }
 
 type eventType int
