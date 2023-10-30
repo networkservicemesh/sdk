@@ -90,18 +90,14 @@ func (b *beginNSEServer) Unregister(ctx context.Context, in *registry.NetworkSer
 	if fromContext(ctx) != nil {
 		return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 	}
-	eventFactoryServer, ok := b.Load(id)
-	if !ok {
-		// If we don't have a connection to Close, just let it be
-		return &emptypb.Empty{}, nil
-	}
+	eventFactoryServer, _ := b.LoadOrStore(id, newNSEEventFactoryServer(ctx, func() {
+		b.Delete(id)
+	}))
 	var err error
 	<-eventFactoryServer.executor.AsyncExec(func() {
-		if eventFactoryServer.state != established || eventFactoryServer.registration == nil {
-			return
-		}
 		currentServerClient, _ := b.Load(id)
 		if currentServerClient != eventFactoryServer {
+			_, err = b.Unregister(ctx, in)
 			return
 		}
 		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
