@@ -30,7 +30,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/beginloop"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/beginmutex"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/beginrecursive1"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/beginrecursive2"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -50,7 +50,7 @@ func TestFIFOBeginMutex(t *testing.T) {
 }
 
 func TestFIFOBeginExecutor(t *testing.T) {
-	testFIFO(t, beginrecursive1.NewNetworkServiceEndpointRegistryServer())
+	testFIFO(t, beginrecursive2.NewNetworkServiceEndpointRegistryServer())
 }
 
 func testFIFO(t *testing.T, beginServer registry.NetworkServiceEndpointRegistryServer) {
@@ -82,7 +82,7 @@ func testFIFO(t *testing.T, beginServer registry.NetworkServiceEndpointRegistryS
 	require.NoError(t, err)
 	client := registry.NewNetworkServiceEndpointRegistryClient(clientConn)
 
-	count := 3
+	count := 1000
 	nses := []*registry.NetworkServiceEndpoint{}
 	for i := 0; i < count; i++ {
 		nses = append(nses, &registry.NetworkServiceEndpoint{Name: "nse", Url: fmt.Sprint(i)})

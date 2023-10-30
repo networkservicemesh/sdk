@@ -56,10 +56,8 @@ func (b *beginNSEServer) Register(ctx context.Context, in *registry.NetworkServi
 	var err error
 
 	<-eventFactoryServer.executor.AsyncExec(func() {
-		//	log.FromContext(ctx).Infof("Thread [%v] started executing Register.AsyncExec", in.Url)
 		currentEventFactoryServer, _ := b.Load(id)
 		if currentEventFactoryServer != eventFactoryServer {
-			//	log.FromContext(ctx).Debug("recalling begin.Request because currentEventFactoryServer != eventFactoryServer")
 			resp, err = b.Register(ctx, in)
 			return
 		}
@@ -89,15 +87,12 @@ func (b *beginNSEServer) Unregister(ctx context.Context, in *registry.NetworkSer
 	eventFactoryServer, _ := b.LoadOrStore(id, newNSEEventFactoryServer(ctx, 1, func() {}))
 	var err error
 	<-eventFactoryServer.executor.AsyncExec(func() {
-		//log.FromContext(ctx).Infof("Thread [%v] started executing Unregister.AsyncExec[0]", in.Url)
 		currentEventFactoryServer, _ := b.Load(id)
 		if eventFactoryServer != currentEventFactoryServer {
-			//	log.FromContext(ctx).Debug("recalling begin.Request because currentEventFactoryServer != eventFactoryServer")
 			_, err = b.Unregister(ctx, in)
 			return
 		}
 
-		//log.FromContext(ctx).Infof("Thread [%v] started executing Unregister.AsyncExec[1]", in.Url)
 		_, err = next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 		b.Delete(id)
 	})
