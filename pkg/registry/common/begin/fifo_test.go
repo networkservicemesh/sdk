@@ -18,8 +18,9 @@ package begin_test
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
-	"math/rand"
+	"math/big"
 	"net"
 	"sync"
 	"testing"
@@ -27,12 +28,13 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
 func TestFIFOSequence(t *testing.T) {
@@ -67,7 +69,10 @@ func TestFIFOSequence(t *testing.T) {
 	clientConn, err := grpc.Dial(serverLis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	client := registry.NewNetworkServiceEndpointRegistryClient(clientConn)
-	defer clientConn.Close()
+	defer func() {
+		closeErr := clientConn.Close()
+		require.NoError(t, closeErr)
+	}()
 
 	count := 10
 	nses := []*registry.NetworkServiceEndpoint{}
@@ -106,7 +111,6 @@ func TestFIFOSequence(t *testing.T) {
 		require.Equal(t, registration.requestData.Url, expected[i].requestData.Url)
 		require.Equal(t, registration.requestType, expected[i].requestType)
 	}
-
 }
 
 type eventType int
@@ -172,7 +176,8 @@ type delayServer struct {
 }
 
 func (s *delayServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	milliseconds := rand.Intn(90) + 10
+	n, _ := rand.Int(rand.Reader, big.NewInt(90))
+	milliseconds := n.Int64() + 10
 	time.Sleep(time.Millisecond * time.Duration(milliseconds))
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
 }
@@ -182,7 +187,8 @@ func (s *delayServer) Find(query *registry.NetworkServiceEndpointQuery, server r
 }
 
 func (s *delayServer) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	milliseconds := rand.Intn(90) + 10
+	n, _ := rand.Int(rand.Reader, big.NewInt(90))
+	milliseconds := n.Int64() + 10
 	time.Sleep(time.Millisecond * time.Duration(milliseconds))
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 }

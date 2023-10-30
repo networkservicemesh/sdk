@@ -24,6 +24,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
@@ -62,6 +63,7 @@ func BenchmarkBegin_RegisterSameIDs(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < count; i++ {
 		go func() {
+			// nolint: errcheck, gosec
 			server.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: "1"})
 			wg.Done()
 		}()
@@ -80,6 +82,7 @@ func BenchmarkBegin_UnregisterSameIDs(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < count; i++ {
 		go func() {
+			// nolint: errcheck, gosec
 			server.Unregister(context.Background(), &registry.NetworkServiceEndpoint{Name: "1"})
 			wg.Done()
 		}()
@@ -99,6 +102,7 @@ func BenchmarkBegin_RegisterUnregisterSameIDs(b *testing.B) {
 	go func() {
 		for i := 0; i < count; i++ {
 			go func() {
+				// nolint: errcheck, gosec
 				server.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: "1"})
 				wg.Done()
 			}()
@@ -108,6 +112,7 @@ func BenchmarkBegin_RegisterUnregisterSameIDs(b *testing.B) {
 	go func() {
 		for i := 0; i < count; i++ {
 			go func() {
+				// nolint: errcheck, gosec
 				server.Unregister(context.Background(), &registry.NetworkServiceEndpoint{Name: "1"})
 				wg.Done()
 			}()
@@ -129,6 +134,7 @@ func BenchmarkBegin_RegisterDifferentIDs(b *testing.B) {
 	for i := 0; i < count; i++ {
 		local := i
 		go func() {
+			// nolint: errcheck, gosec
 			server.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: fmt.Sprint(local)})
 			wg.Done()
 		}()
@@ -148,6 +154,7 @@ func BenchmarkBegin_UnregisterDifferentIDs(b *testing.B) {
 	for i := 0; i < count; i++ {
 		local := i
 		go func() {
+			// nolint: errcheck, gosec
 			server.Unregister(context.Background(), &registry.NetworkServiceEndpoint{Name: fmt.Sprint(local)})
 			wg.Done()
 		}()
@@ -168,6 +175,7 @@ func BenchmarkBegin_RegisterUnregisterDifferentIDs(b *testing.B) {
 		for i := 0; i < count; i++ {
 			local := i
 			go func() {
+				// nolint: errcheck, gosec
 				server.Register(context.Background(), &registry.NetworkServiceEndpoint{Name: fmt.Sprint(local)})
 				wg.Done()
 			}()
@@ -178,6 +186,7 @@ func BenchmarkBegin_RegisterUnregisterDifferentIDs(b *testing.B) {
 		for i := 0; i < count; i++ {
 			local := i
 			go func() {
+				// nolint: errcheck, gosec
 				server.Unregister(context.Background(), &registry.NetworkServiceEndpoint{Name: fmt.Sprint(local)})
 				wg.Done()
 			}()
