@@ -125,7 +125,6 @@ func BenchmarkBegin_RegisterUnregisterSameIDs(b *testing.B) {
 func BenchmarkBegin_RegisterDifferentIDs(b *testing.B) {
 	server := chain.NewNetworkServiceEndpointRegistryServer(
 		begin.NewNetworkServiceEndpointRegistryServer(),
-		&dataRaceServer{count: 0},
 	)
 
 	var wg sync.WaitGroup
@@ -145,7 +144,6 @@ func BenchmarkBegin_RegisterDifferentIDs(b *testing.B) {
 func BenchmarkBegin_UnregisterDifferentIDs(b *testing.B) {
 	server := chain.NewNetworkServiceEndpointRegistryServer(
 		begin.NewNetworkServiceEndpointRegistryServer(),
-		&dataRaceServer{count: 0},
 	)
 
 	var wg sync.WaitGroup
@@ -165,7 +163,6 @@ func BenchmarkBegin_UnregisterDifferentIDs(b *testing.B) {
 func BenchmarkBegin_RegisterUnregisterDifferentIDs(b *testing.B) {
 	server := chain.NewNetworkServiceEndpointRegistryServer(
 		begin.NewNetworkServiceEndpointRegistryServer(),
-		&dataRaceServer{count: 0},
 	)
 
 	var wg sync.WaitGroup

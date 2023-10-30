@@ -75,17 +75,15 @@ func newParallelServer(t *testing.T) *parallelServer {
 type parallelServer struct {
 	t      *testing.T
 	states sync.Map
-	mu     sync.Mutex
 }
 
 func (s *parallelServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	raw, _ := s.states.LoadOrStore(in.GetName(), new(int32))
 	statePtr := raw.(*int32)
 
-	s.mu.Lock()
 	state := atomic.LoadInt32(statePtr)
 	assert.True(s.t, atomic.CompareAndSwapInt32(statePtr, state, state+1), "[Register] state has been changed for connection %s expected %d actual %d", in.GetName(), state, atomic.LoadInt32(statePtr))
-	s.mu.Unlock()
+
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
 }
 
@@ -97,9 +95,8 @@ func (s *parallelServer) Unregister(ctx context.Context, in *registry.NetworkSer
 	raw, _ := s.states.LoadOrStore(in.GetName(), new(int32))
 	statePtr := raw.(*int32)
 
-	s.mu.Lock()
 	state := atomic.LoadInt32(statePtr)
 	assert.True(s.t, atomic.CompareAndSwapInt32(statePtr, state, state+1), "[Unregister] state has been changed for connection %s expected %d actual %d", in.GetName(), state, atomic.LoadInt32(statePtr))
-	s.mu.Unlock()
+
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 }

@@ -92,14 +92,17 @@ func (b *beginNSEServer) Unregister(ctx context.Context, in *registry.NetworkSer
 	}
 	eventFactoryServer, _ := b.LoadOrStore(id, newNSEEventFactoryServer(ctx, func() {
 		b.Delete(id)
+
 	}))
+
 	var err error
 	<-eventFactoryServer.executor.AsyncExec(func() {
-		currentServerClient, _ := b.Load(id)
-		if currentServerClient != eventFactoryServer {
+		currentEventFactoryServer, _ := b.Load(id)
+		if currentEventFactoryServer != eventFactoryServer {
 			_, err = b.Unregister(ctx, in)
 			return
 		}
+
 		registration := in
 		if eventFactoryServer.registration != nil {
 			registration = eventFactoryServer.registration
