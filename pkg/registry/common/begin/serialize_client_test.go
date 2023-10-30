@@ -66,6 +66,7 @@ func TestSerializeClient_StressTest(t *testing.T) {
 type parallelClient struct {
 	t      *testing.T
 	states sync.Map
+	mu     sync.Mutex
 }
 
 func newParallelClient(t *testing.T) *parallelClient {
@@ -78,10 +79,12 @@ func (s *parallelClient) Register(ctx context.Context, in *registry.NetworkServi
 	raw, _ := s.states.LoadOrStore(in.GetName(), new(int32))
 	statePtr := raw.(*int32)
 
+	s.mu.Lock()
 	state := atomic.LoadInt32(statePtr)
 	if !atomic.CompareAndSwapInt32(statePtr, state, state+1) {
 		assert.Failf(s.t, "", "state has been changed for connection %s expected %d actual %d", in.GetName(), state, atomic.LoadInt32(statePtr))
 	}
+	s.mu.Unlock()
 
 	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)
 }
@@ -94,10 +97,12 @@ func (s *parallelClient) Unregister(ctx context.Context, in *registry.NetworkSer
 	raw, _ := s.states.LoadOrStore(in.GetName(), new(int32))
 	statePtr := raw.(*int32)
 
+	s.mu.Lock()
 	state := atomic.LoadInt32(statePtr)
 	if !atomic.CompareAndSwapInt32(statePtr, state, state+1) {
 		assert.Failf(s.t, "", "state has been changed for connection %s expected %d actual %d", in.GetName(), state, atomic.LoadInt32(statePtr))
 	}
+	s.mu.Unlock()
 
 	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
 }

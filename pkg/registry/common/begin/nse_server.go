@@ -100,8 +100,12 @@ func (b *beginNSEServer) Unregister(ctx context.Context, in *registry.NetworkSer
 			_, err = b.Unregister(ctx, in)
 			return
 		}
+		registration := in
+		if eventFactoryServer.registration != nil {
+			registration = eventFactoryServer.registration
+		}
 		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
-		_, err = next.NetworkServiceEndpointRegistryServer(withEventFactoryCtx).Unregister(withEventFactoryCtx, eventFactoryServer.registration)
+		_, err = next.NetworkServiceEndpointRegistryServer(withEventFactoryCtx).Unregister(withEventFactoryCtx, registration)
 		eventFactoryServer.afterCloseFunc()
 	})
 	return &emptypb.Empty{}, err
