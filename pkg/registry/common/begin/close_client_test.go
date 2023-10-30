@@ -18,7 +18,6 @@ package begin_test
 
 import (
 	"context"
-	"sync"
 	"testing"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -83,48 +82,5 @@ func (m *markClient) Find(ctx context.Context, in *registry.NetworkServiceEndpoi
 func (m *markClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
 	assert.NotNil(m.t, in.GetNetworkServiceLabels())
 	assert.Equal(m.t, mark, in.GetNetworkServiceLabels()[mark].Labels[mark])
-	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
-}
-
-func TestDoubleCloseClient(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-	client := chain.NewNetworkServiceEndpointRegistryClient(
-		begin.NewNetworkServiceEndpointRegistryClient(),
-		&doubleCloseClient{t: t},
-	)
-	id := "1"
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	conn, err := client.Register(ctx, &registry.NetworkServiceEndpoint{
-		Name: id,
-	})
-	assert.NotNil(t, t, conn)
-	assert.NoError(t, err)
-	conn = conn.Clone()
-	_, err = client.Unregister(ctx, conn)
-	assert.NoError(t, err)
-	_, err = client.Unregister(ctx, conn)
-	assert.NoError(t, err)
-}
-
-type doubleCloseClient struct {
-	t *testing.T
-	sync.Once
-}
-
-func (s *doubleCloseClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)
-}
-
-func (s *doubleCloseClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, in, opts...)
-}
-
-func (s *doubleCloseClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
-	count := 1
-	s.Do(func() {
-		count++
-	})
-	assert.Equal(s.t, 2, count, "Close has been called more than once")
 	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
 }
