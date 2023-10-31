@@ -1,4 +1,4 @@
-// Copyright (c) 2022-2023 Cisco and/or its affiliates.
+// Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -82,7 +82,7 @@ func (s *parallelServer) Register(ctx context.Context, in *registry.NetworkServi
 	statePtr := raw.(*int32)
 
 	state := atomic.LoadInt32(statePtr)
-	assert.True(s.t, atomic.CompareAndSwapInt32(statePtr, state, state+1), "[Register] state has been changed for connection %s expected %d actual %d", in.GetName(), state, atomic.LoadInt32(statePtr))
+	assert.True(s.t, atomic.CompareAndSwapInt32(statePtr, state, state+1), "state has been changed for connection %s expected %d actual %d", in.GetName(), state, atomic.LoadInt32(statePtr))
 
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
 }
@@ -96,7 +96,7 @@ func (s *parallelServer) Unregister(ctx context.Context, in *registry.NetworkSer
 	statePtr := raw.(*int32)
 
 	state := atomic.LoadInt32(statePtr)
-	assert.True(s.t, atomic.CompareAndSwapInt32(statePtr, state, state+1), "[Unregister] state has been changed for connection %s expected %d actual %d", in.GetName(), state, atomic.LoadInt32(statePtr))
+	assert.True(s.t, atomic.CompareAndSwapInt32(statePtr, state, state+1), "state has been changed for connection %s expected %d actual %d", in.GetName(), state, atomic.LoadInt32(statePtr))
 
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 }
