@@ -93,7 +93,7 @@ func TestFIFOSequence(t *testing.T) {
 				expected = append(expected, request{requestType: register, requestData: nses[local]})
 				_, err = client.Register(ctx, nses[local])
 			} else {
-				expected = append(expected, request{requestType: unregister, requestData: nses[local]})
+				expected = append(expected, request{requestType: unregister, requestData: nses[local-1]})
 				_, err = client.Unregister(ctx, nses[local])
 			}
 			require.NoError(t, err)
