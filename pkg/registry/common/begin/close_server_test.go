@@ -30,7 +30,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func ghjgTestCloseServer(t *testing.T) {
+func TestCloseServer(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	server := chain.NewNetworkServiceEndpointRegistryServer(
 		begin.NewNetworkServiceEndpointRegistryServer(),
