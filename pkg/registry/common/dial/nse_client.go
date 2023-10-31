@@ -26,6 +26,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
@@ -94,19 +95,34 @@ func (c *dialNSEClient) Unregister(ctx context.Context, in *registry.NetworkServ
 		return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
 	}
 
-	cc, _ := clientconn.Load(ctx)
+	cc, loaded := clientconn.LoadOrStore(ctx, newDialer(c.chainCtx, c.dialTimeout, c.dialOptions...))
 
 	di, ok := cc.(*dialer)
 	if !ok {
 		return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
 	}
+
+	if loaded {
+		defer func() {
+			_ = di.Close()
+			clientconn.Delete(ctx)
+		}()
+		return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
+	}
+
+	err := di.Dial(ctx, clientURL)
+	if err != nil {
+		log.FromContext(ctx).Errorf("can not dial to %v, err %v. Deleting clientconn...", grpcutils.URLToTarget(clientURL), err)
+		clientconn.Delete(ctx)
+		return &emptypb.Empty{}, err
+	}
+
 	defer func() {
 		_ = di.Close()
 		clientconn.Delete(ctx)
 	}()
-	_ = di.Dial(ctx, clientURL)
-
-	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
+	_, err = next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
+	return &emptypb.Empty{}, err
 }
 
 type dialNSEFindClient struct {
