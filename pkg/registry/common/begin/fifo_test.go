@@ -74,7 +74,7 @@ func TestFIFOSequence(t *testing.T) {
 		require.NoError(t, closeErr)
 	}()
 
-	count := 50
+	count := 1000
 	nses := []*registry.NetworkServiceEndpoint{}
 	for i := 0; i < count; i++ {
 		nses = append(nses, &registry.NetworkServiceEndpoint{Name: "nse", Url: fmt.Sprint(i)})
