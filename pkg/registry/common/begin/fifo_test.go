@@ -37,7 +37,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
-func kjljlTestFIFOSequence(t *testing.T) {
+func TestFIFOSequence(t *testing.T) {
 	t.Cleanup(func() {
 		goleak.VerifyNone(t)
 	})

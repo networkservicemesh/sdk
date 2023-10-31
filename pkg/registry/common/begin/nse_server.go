@@ -92,7 +92,6 @@ func (b *beginNSEServer) Unregister(ctx context.Context, in *registry.NetworkSer
 	}
 	eventFactoryServer, _ := b.LoadOrStore(id, newNSEEventFactoryServer(ctx, func() {
 		b.Delete(id)
-
 	}))
 
 	var err error
