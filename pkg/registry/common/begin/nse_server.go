@@ -27,7 +27,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type beginNSEServer struct {
@@ -58,7 +57,6 @@ func (b *beginNSEServer) Register(ctx context.Context, in *registry.NetworkServi
 	<-eventFactoryServer.executor.AsyncExec(func() {
 		currentEventFactoryServer, _ := b.Load(id)
 		if currentEventFactoryServer != eventFactoryServer {
-			log.FromContext(ctx).Debug("recalling begin.Request because currentEventFactoryServer != eventFactoryServer")
 			resp, err = b.Register(ctx, in)
 			return
 		}
