@@ -101,9 +101,9 @@ func (b *beginNSEClient) Unregister(ctx context.Context, in *registry.NetworkSer
 			_, err = b.Unregister(ctx, in, opts...)
 			return
 		}
-		registration := in
-		if eventFactoryClient.registration != nil {
-			registration = eventFactoryClient.registration
+		registration := eventFactoryClient.registration
+		if registration == nil {
+			registration = in.Clone()
 		}
 		// Always close with the last valid Connection we got
 		withEventFactoryCtx := withEventFactory(ctx, eventFactoryClient)
