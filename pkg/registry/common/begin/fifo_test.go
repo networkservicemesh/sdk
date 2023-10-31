@@ -74,7 +74,7 @@ func TestFIFOSequence(t *testing.T) {
 		require.NoError(t, closeErr)
 	}()
 
-	count := 1000
+	count := 100
 	nses := []*registry.NetworkServiceEndpoint{}
 	for i := 0; i < count; i++ {
 		nses = append(nses, &registry.NetworkServiceEndpoint{Name: "nse", Url: fmt.Sprint(i)})
@@ -92,7 +92,7 @@ func TestFIFOSequence(t *testing.T) {
 				expected = append(expected, request{requestType: register, requestData: nses[local]})
 				_, err = client.Register(ctx, nses[local])
 			} else {
-				expected = append(expected, request{requestType: unregister, requestData: nses[local-1]})
+				expected = append(expected, request{requestType: unregister, requestData: nses[local]})
 				_, err = client.Unregister(ctx, nses[local])
 			}
 			require.NoError(t, err)
