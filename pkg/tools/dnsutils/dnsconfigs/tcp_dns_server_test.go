@@ -35,9 +35,15 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/dnsconfigs"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/fanout"
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/health"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/noloop"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/searches"
+)
+
+const (
+	resolvedIP      = "1.1.1.1"
+	healthCheckHost = "health.check.only"
 )
 
 func requireIPv4Lookup(ctx context.Context, t *testing.T, r *net.Resolver, host, expected string) {
@@ -95,24 +101,39 @@ type udpHandler struct {
 }
 
 func (h *udpHandler) ServeDNS(rw dns.ResponseWriter, m *dns.Msg) {
-	if m.Question[0].Name == "my.domain." {
+	name := m.Question[0].Name
+
+	if name == health.ToWildcardPath(healthCheckHost) {
+		resp := prepareIPResponse(name, resolvedIP, m)
+		if err := rw.WriteMsg(resp); err != nil {
+			dns.HandleFailed(rw, m)
+		}
+		return
+	}
+
+	if name == "my.domain." {
 		dns.HandleFailed(rw, m)
 		return
 	}
 
-	name := dns.Name(m.Question[0].Name).String()
+	resp := prepareIPResponse(name, resolvedIP, m)
+	if err := rw.WriteMsg(resp); err != nil {
+		dns.HandleFailed(rw, m)
+	}
+}
+
+func prepareIPResponse(name, ip string, m *dns.Msg) *dns.Msg {
+	dnsName := dns.Name(name).String()
 	rr := new(dns.A)
-	rr.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 3600}
-	rr.A = net.ParseIP("1.1.1.1")
+	rr.Hdr = dns.RR_Header{Name: dnsName, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 3600}
+	rr.A = net.ParseIP(ip)
 
 	resp := new(dns.Msg)
 	resp.SetReply(m)
 	resp.Authoritative = true
 	resp.Answer = append(resp.Answer, rr)
 
-	if err := rw.WriteMsg(resp); err != nil {
-		dns.HandleFailed(rw, m)
-	}
+	return resp
 }
 
 func getFreePort() (int, error) {
@@ -158,7 +179,14 @@ func Test_TCPDNSServerTimeout(t *testing.T) {
 		},
 	})
 
+	healthCheckParams := &health.Params{
+		DNSServerIP: proxyAddr,
+		HealthHost:  healthCheckHost,
+		Scheme:      "udp",
+	}
+
 	clientDNSHandler := next.NewDNSHandler(
+		health.NewDNSHandler(*healthCheckParams, []health.Option{}...),
 		dnsconfigs.NewDNSHandler(dnsConfigsMap),
 		searches.NewDNSHandler(),
 		noloop.NewDNSHandler(),
@@ -174,10 +202,16 @@ func Test_TCPDNSServerTimeout(t *testing.T) {
 		},
 	}
 
+	healthCheck := func() bool {
+		addrs, e := resolver.LookupIP(ctx, "ip4", healthCheckHost)
+		return e == nil && len(addrs) == 1 && addrs[0].String() == resolvedIP
+	}
+	require.Eventually(t, healthCheck, time.Second, 10*time.Millisecond)
+
 	resolveCtx, resolveCancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer resolveCancel()
 
-	requireIPv4Lookup(resolveCtx, t, &resolver, "my.domain", "1.1.1.1")
+	requireIPv4Lookup(resolveCtx, t, &resolver, "my.domain", resolvedIP)
 
 	err = proxy.shutdown()
 	require.NoError(t, err)
