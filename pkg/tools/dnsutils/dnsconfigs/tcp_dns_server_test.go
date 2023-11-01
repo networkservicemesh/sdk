@@ -41,11 +41,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/searches"
 )
 
-const (
-	resolvedIP      = "1.1.1.1"
-	healthCheckHost = "health.check.only"
-)
-
 func requireIPv4Lookup(ctx context.Context, t *testing.T, r *net.Resolver, host, expected string) {
 	addrs, err := r.LookupIP(ctx, "ip4", host)
 	require.NoError(t, err)
@@ -109,7 +104,7 @@ func (h *udpHandler) ServeDNS(rw dns.ResponseWriter, m *dns.Msg) {
 	name := dns.Name(m.Question[0].Name).String()
 	rr := new(dns.A)
 	rr.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 3600}
-	rr.A = net.ParseIP(resolvedIP)
+	rr.A = net.ParseIP("1.1.1.1")
 
 	resp := new(dns.Msg)
 	resp.SetReply(m)
@@ -165,7 +160,7 @@ func Test_TCPDNSServerTimeout(t *testing.T) {
 	})
 
 	dnsServerRecords := new(genericsync.Map[string, []net.IP])
-	dnsServerRecords.Store(healthCheckHost, []net.IP{net.ParseIP(resolvedIP)})
+	dnsServerRecords.Store("health.check.only.", []net.IP{net.ParseIP("1.0.0.1")})
 
 	clientDNSHandler := next.NewDNSHandler(
 		memory.NewDNSHandler(dnsServerRecords),
@@ -185,15 +180,15 @@ func Test_TCPDNSServerTimeout(t *testing.T) {
 	}
 
 	healthCheck := func() bool {
-		addrs, e := resolver.LookupIP(ctx, "ip4", healthCheckHost)
-		return e == nil && len(addrs) == 1 && addrs[0].String() == resolvedIP
+		addrs, e := resolver.LookupIP(ctx, "ip4", "health.check.only")
+		return e == nil && len(addrs) == 1 && addrs[0].String() == "1.0.0.1"
 	}
 	require.Eventually(t, healthCheck, time.Second, 10*time.Millisecond)
 
 	resolveCtx, resolveCancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer resolveCancel()
 
-	requireIPv4Lookup(resolveCtx, t, &resolver, "my.domain", resolvedIP)
+	requireIPv4Lookup(resolveCtx, t, &resolver, "my.domain", "1.1.1.1")
 
 	err = proxy.shutdown()
 	require.NoError(t, err)
