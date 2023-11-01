@@ -45,14 +45,8 @@ func (b *beginNSEClient) Register(ctx context.Context, in *registry.NetworkServi
 		return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)
 	}
 	eventFactoryClient, _ := b.LoadOrStore(id,
-		newEventNSEFactoryClient(
-			ctx,
-			func() {
-				b.Delete(id)
-			},
-			opts...,
-		),
-	)
+		newEventNSEFactoryClient(ctx, func() { b.Delete(id) }, opts...))
+
 	var resp *registry.NetworkServiceEndpoint
 	var err error
 	<-eventFactoryClient.executor.AsyncExec(func() {

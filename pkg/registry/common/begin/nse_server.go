@@ -27,7 +27,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type beginNSEServer struct {
@@ -43,19 +42,11 @@ func (b *beginNSEServer) Register(ctx context.Context, in *registry.NetworkServi
 	if fromContext(ctx) != nil {
 		return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, in)
 	}
-	eventFactoryServer, _ := b.LoadOrStore(id,
-		newNSEEventFactoryServer(
-			ctx,
-			func() {
-				b.Delete(id)
-			},
-		),
-	)
+	eventFactoryServer, _ := b.LoadOrStore(id, newNSEEventFactoryServer(ctx, func() { b.Delete(id) }))
 
 	var resp *registry.NetworkServiceEndpoint
 	var err error
 
-	log.FromContext(ctx).Infof("[Register] thread %v reached AsyncExec", in.Url)
 	<-eventFactoryServer.executor.AsyncExec(func() {
 		currentEventFactoryServer, _ := b.Load(id)
 		if currentEventFactoryServer != eventFactoryServer {
@@ -63,7 +54,6 @@ func (b *beginNSEServer) Register(ctx context.Context, in *registry.NetworkServi
 			return
 		}
 
-		log.FromContext(ctx).Infof("[Register] executing AsyncExec for thread %v", in.Url)
 		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
 		resp, err = next.NetworkServiceEndpointRegistryServer(withEventFactoryCtx).Register(withEventFactoryCtx, in)
 		if err != nil {
@@ -91,12 +81,9 @@ func (b *beginNSEServer) Unregister(ctx context.Context, in *registry.NetworkSer
 	if fromContext(ctx) != nil {
 		return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 	}
-	eventFactoryServer, _ := b.LoadOrStore(id, newNSEEventFactoryServer(ctx, func() {
-		b.Delete(id)
-	}))
+	eventFactoryServer, _ := b.LoadOrStore(id, newNSEEventFactoryServer(ctx, func() { b.Delete(id) }))
 
 	var err error
-	log.FromContext(ctx).Infof("[Unregister] thread %v reached AsyncExec", in.Url)
 	<-eventFactoryServer.executor.AsyncExec(func() {
 		currentEventFactoryServer, _ := b.Load(id)
 		if currentEventFactoryServer != eventFactoryServer {
@@ -108,7 +95,6 @@ func (b *beginNSEServer) Unregister(ctx context.Context, in *registry.NetworkSer
 		if registration == nil {
 			registration = in.Clone()
 		}
-		log.FromContext(ctx).Infof("[Unregister] executing AsyncExec for thread %v", in.Url)
 		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
 		_, err = next.NetworkServiceEndpointRegistryServer(withEventFactoryCtx).Unregister(withEventFactoryCtx, registration)
 		eventFactoryServer.afterCloseFunc()
