@@ -35,7 +35,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 func TestFIFOSequence(t *testing.T) {
@@ -107,12 +106,8 @@ func TestFIFOSequence(t *testing.T) {
 
 	collector.mu.Lock()
 	defer collector.mu.Unlock()
+
 	registrations := collector.registrations
-
-	for i, registration := range registrations {
-		log.FromContext(ctx).Infof("i: %v, type: %v, registration: %v", i, registration.requestType, registration.requestData)
-	}
-
 	for i, registration := range registrations {
 		require.Equal(t, registration.requestData.Url, expected[i].requestData.Url)
 		require.Equal(t, registration.requestType, expected[i].requestType)
