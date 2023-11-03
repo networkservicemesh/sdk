@@ -121,8 +121,7 @@ func (c *dialNSEClient) Unregister(ctx context.Context, in *registry.NetworkServ
 		_ = di.Close()
 		clientconn.Delete(ctx)
 	}()
-	_, err = next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
-	return &emptypb.Empty{}, err
+	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
 }
 
 type dialNSEFindClient struct {
