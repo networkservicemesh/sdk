@@ -107,6 +107,7 @@ func (c *dialNSEClient) Unregister(ctx context.Context, in *registry.NetworkServ
 			_ = di.Close()
 			clientconn.Delete(ctx)
 		}()
+		_ = di.Dial(ctx, clientURL)
 		return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
 	}
 
