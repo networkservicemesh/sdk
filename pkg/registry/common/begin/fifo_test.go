@@ -38,7 +38,6 @@ import (
 )
 
 func TestFIFOSequence(t *testing.T) {
-	t.Skip()
 	t.Cleanup(func() {
 		goleak.VerifyNone(t)
 	})
@@ -75,7 +74,7 @@ func TestFIFOSequence(t *testing.T) {
 		require.NoError(t, closeErr)
 	}()
 
-	count := 10
+	count := 100
 	nses := []*registry.NetworkServiceEndpoint{}
 	for i := 0; i < count; i++ {
 		nses = append(nses, &registry.NetworkServiceEndpoint{Name: "nse", Url: fmt.Sprint(i)})
