@@ -27,6 +27,27 @@ linters-settings:
           - (github.com/sirupsen/logrus.FieldLogger).Fatalf
   revive:
     confidence: 0.8
+    rules:
+      - name: exported
+      - name: blank-imports
+      - name: context-as-argument
+      - name: context-keys-type
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: error-naming
+      - name: exported
+      - name: increment-decrement
+      - name: var-naming
+      - name: package-comments
+      - name: range
+      - name: receiver-naming
+      - name: time-naming
+      - name: unexported-return
+      - name: indent-error-flow
+      - name: errorf
+      - name: superfluous-else
+      - name: unreachable-code
   goimports:
     local-prefixes: github.com/networkservicemesh/sdk
   gocyclo:
@@ -278,3 +299,9 @@ issues:
     - path: pkg/tools/ippool/ippool.go
       linters:
         - unused
+    - path: pkg/networkservice/common/switchcase/common_test.go
+      linters:
+        - revive
+    - path: pkg/tools/opa/policies.go
+      linters:
+        - revive

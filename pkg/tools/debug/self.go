@@ -69,7 +69,7 @@ func Self(envVariableParts ...string) error {
 	// Do we have that env variable?
 	listen, exists := os.LookupEnv(dlvPortEnvVariable)
 	if !exists {
-		return errors.Errorf("setting env variable %s to a valid dlv '--listen' value will cause the dlv debugger to execute this binary and listen as directed.", dlvPortEnvVariable)
+		return errors.Errorf("setting env variable %s to a valid dlv '--listen' value will cause the dlv debugger to execute this binary and listen as directed", dlvPortEnvVariable)
 	}
 
 	// Is it a valid listen?
