@@ -94,7 +94,7 @@ func (h *healClient) Close(ctx context.Context, conn *networkservice.Connection,
 	if loopHandle, loaded := loadAndDelete(ctx); loaded {
 		loopHandle.cancel()
 	}
-	return next.Client(ctx).Close(ctx, conn)
+	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
 func (h *healClient) startEventLoop(ctx context.Context, conn *networkservice.Connection) error {

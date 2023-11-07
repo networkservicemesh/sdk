@@ -181,15 +181,3 @@ func (d *dnsNSEResolveServer) Unregister(ctx context.Context, nse *registry.Netw
 
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }
-
-func (d *dnsNSEResolveServer) setResolver(r Resolver) {
-	d.resolver = r
-}
-
-func (d *dnsNSEResolveServer) setNSMgrProxyService(service string) {
-	d.nsmgrProxyService = service
-}
-
-func (d *dnsNSEResolveServer) setRegistryService(service string) {
-	d.registryService = service
-}

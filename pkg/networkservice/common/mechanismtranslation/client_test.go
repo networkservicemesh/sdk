@@ -189,16 +189,16 @@ type afterErrorClient struct {
 func (c *afterErrorClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	c.success = !c.success
 
-	conn, err := next.Client(ctx).Request(ctx, request)
+	conn, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil || c.success {
 		return conn, err
 	}
 
-	_, _ = next.Client(ctx).Close(ctx, conn)
+	_, _ = next.Client(ctx).Close(ctx, conn, opts...)
 
 	return nil, errors.New("error")
 }
 
 func (c *afterErrorClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	return next.Client(ctx).Close(ctx, conn)
+	return next.Client(ctx).Close(ctx, conn, opts...)
 }
