@@ -78,5 +78,5 @@ func (m *checkClientSetsMechanismPreferences) Request(ctx context.Context, reque
 	request = request.Clone()
 	// Make sure no MechanismPreferences are set
 	request.MechanismPreferences = nil
-	return m.NetworkServiceClient.Request(ctx, request)
+	return m.NetworkServiceClient.Request(ctx, request, opts...)
 }
