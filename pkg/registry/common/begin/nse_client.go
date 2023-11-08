@@ -24,6 +24,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
@@ -44,14 +45,8 @@ func (b *beginNSEClient) Register(ctx context.Context, in *registry.NetworkServi
 		return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)
 	}
 	eventFactoryClient, _ := b.LoadOrStore(id,
-		newEventNSEFactoryClient(
-			ctx,
-			func() {
-				b.Delete(id)
-			},
-			opts...,
-		),
-	)
+		newEventNSEFactoryClient(ctx, func() { b.Delete(id) }, opts...))
+
 	var resp *registry.NetworkServiceEndpoint
 	var err error
 	<-eventFactoryClient.executor.AsyncExec(func() {
@@ -91,30 +86,26 @@ func (b *beginNSEClient) Unregister(ctx context.Context, in *registry.NetworkSer
 	if fromContext(ctx) != nil {
 		return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
 	}
-	eventFactoryClient, ok := b.Load(id)
-	if !ok {
-		return new(empty.Empty), nil
-	}
-	var emp *empty.Empty
+	eventFactoryClient, _ := b.LoadOrStore(id, newEventNSEFactoryClient(ctx, func() { b.Delete(id) }))
 	var err error
 	<-eventFactoryClient.executor.AsyncExec(func() {
-		// If the connection is not established, don't do anything
-		if eventFactoryClient.state != established || eventFactoryClient.client == nil || eventFactoryClient.registration == nil {
-			return
-		}
-
 		// If this isn't the connection we started with, do nothing
 		currentEventFactoryClient, _ := b.Load(id)
 		if currentEventFactoryClient != eventFactoryClient {
+			_, err = b.Unregister(ctx, in, opts...)
 			return
+		}
+		registration := eventFactoryClient.registration
+		if registration == nil {
+			registration = in.Clone()
 		}
 		// Always close with the last valid Connection we got
 		withEventFactoryCtx := withEventFactory(ctx, eventFactoryClient)
-		emp, err = next.NetworkServiceEndpointRegistryClient(withEventFactoryCtx).Unregister(withEventFactoryCtx, eventFactoryClient.registration, opts...)
+		_, err = next.NetworkServiceEndpointRegistryClient(withEventFactoryCtx).Unregister(withEventFactoryCtx, registration, opts...)
 		// afterCloseFunc() is used to cleanup things like the entry in the Map for EventFactories
 		eventFactoryClient.afterCloseFunc()
 	})
-	return emp, err
+	return &emptypb.Empty{}, err
 }
 
 // NewNetworkServiceEndpointRegistryClient - returns a new null client that does nothing but call next.NetworkServiceEndpointRegistryClient(ctx).

@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2022 Cisco and/or its affiliates.
+// Copyright (c) 2021-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -26,6 +26,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
@@ -94,18 +95,23 @@ func (c *dialNSEClient) Unregister(ctx context.Context, in *registry.NetworkServ
 		return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
 	}
 
-	cc, _ := clientconn.Load(ctx)
+	cc, loaded := clientconn.LoadOrStore(ctx, newDialer(c.chainCtx, c.dialTimeout, c.dialOptions...))
 
 	di, ok := cc.(*dialer)
 	if !ok {
 		return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
 	}
+
+	err := di.Dial(ctx, clientURL)
 	defer func() {
 		_ = di.Close()
 		clientconn.Delete(ctx)
 	}()
-	_ = di.Dial(ctx, clientURL)
 
+	if err != nil && !loaded {
+		log.FromContext(ctx).Errorf("can not dial to %v, err %v", grpcutils.URLToTarget(clientURL), err)
+		return &emptypb.Empty{}, err
+	}
 	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
 }
 
