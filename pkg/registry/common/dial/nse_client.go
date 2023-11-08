@@ -107,7 +107,6 @@ func (c *dialNSEClient) Unregister(ctx context.Context, in *registry.NetworkServ
 		_ = di.Close()
 		clientconn.Delete(ctx)
 	}()
-	_ = di.Dial(ctx, clientURL)
 
 	if err != nil && !loaded {
 		log.FromContext(ctx).Errorf("can not dial to %v, err %v", grpcutils.URLToTarget(clientURL), err)
