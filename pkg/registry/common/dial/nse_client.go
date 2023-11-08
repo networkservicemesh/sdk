@@ -102,26 +102,18 @@ func (c *dialNSEClient) Unregister(ctx context.Context, in *registry.NetworkServ
 		return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
 	}
 
-	if loaded {
-		defer func() {
-			_ = di.Close()
-			clientconn.Delete(ctx)
-		}()
-		_ = di.Dial(ctx, clientURL)
-		return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
-	}
-
 	err := di.Dial(ctx, clientURL)
-	if err != nil {
-		log.FromContext(ctx).Errorf("can not dial to %v, err %v. Deleting clientconn...", grpcutils.URLToTarget(clientURL), err)
-		clientconn.Delete(ctx)
-		return &emptypb.Empty{}, err
-	}
-
 	defer func() {
 		_ = di.Close()
 		clientconn.Delete(ctx)
 	}()
+	_ = di.Dial(ctx, clientURL)
+
+	if err != nil && !loaded {
+		log.FromContext(ctx).Errorf("can not dial to %v, err %v", grpcutils.URLToTarget(clientURL), err)
+		clientconn.Delete(ctx)
+		return &emptypb.Empty{}, err
+	}
 	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
 }
 
