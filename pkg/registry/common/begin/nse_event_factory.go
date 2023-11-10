@@ -202,7 +202,7 @@ func (f *eventNSEFactoryServer) Unregister(opts ...Option) <-chan error {
 		default:
 			ctx, cancel := f.ctxFunc()
 			defer cancel()
-			_, err := f.server.Unregister(extend.WithValuesFromContext(ctx, o.extendContext), f.registration)
+			_, err := f.server.Unregister(extend.WithJoinedValues(ctx, o.extendContext), f.registration)
 			f.afterCloseFunc()
 			ch <- err
 		}
