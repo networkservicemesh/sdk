@@ -44,7 +44,7 @@ func (ec *joinedValuesContext) Value(key interface{}) interface{} {
 }
 
 // WithValuesFromContext - creates a child context with the Values from valuesContext rather than the parent
-func WithValuesFromContext(parent context.Context, valuesContext context.Context) context.Context {
+func WithValuesFromContext(parent, valuesContext context.Context) context.Context {
 	return &extendedContext{
 		Context:       parent,
 		valuesContext: valuesContext,
@@ -52,7 +52,7 @@ func WithValuesFromContext(parent context.Context, valuesContext context.Context
 }
 
 // WithJoinedValues - creates a child context with the Values from both parent and values Contexts
-func WithJoinedValues(parent context.Context, valuesContext context.Context) context.Context {
+func WithJoinedValues(parent, valuesContext context.Context) context.Context {
 	return &joinedValuesContext{
 		Context:       parent,
 		valuesContext: valuesContext,
