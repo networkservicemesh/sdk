@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020-2023 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -17,7 +17,9 @@
 // Package extend allows you to extend a context with values from another context
 package extend
 
-import "context"
+import (
+	"context"
+)
 
 type extendedContext struct {
 	context.Context
@@ -28,9 +30,30 @@ func (ec *extendedContext) Value(key interface{}) interface{} {
 	return ec.valuesContext.Value(key)
 }
 
+type joinedValuesContext struct {
+	context.Context
+	valuesContext context.Context
+}
+
+func (ec *joinedValuesContext) Value(key interface{}) interface{} {
+	val := ec.valuesContext.Value(key)
+	if val != nil {
+		return val
+	}
+	return ec.Context.Value(key)
+}
+
 // WithValuesFromContext - creates a child context with the Values from valuesContext rather than the parent
 func WithValuesFromContext(parent, valuesContext context.Context) context.Context {
 	return &extendedContext{
+		Context:       parent,
+		valuesContext: valuesContext,
+	}
+}
+
+// WithJoinedValues - creates a child context with the Values from both parent and values Contexts
+func WithJoinedValues(parent, valuesContext context.Context) context.Context {
+	return &joinedValuesContext{
 		Context:       parent,
 		valuesContext: valuesContext,
 	}
