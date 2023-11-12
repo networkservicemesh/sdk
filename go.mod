@@ -14,7 +14,7 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang-jwt/jwt/v4 v4.2.0
 	github.com/golang/protobuf v1.5.3
-	github.com/google/go-cmp v0.5.9
+	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.3.1
 	github.com/miekg/dns v1.1.50
 	github.com/nats-io/nats-streaming-server v0.24.6
@@ -26,17 +26,17 @@ require (
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spiffe/go-spiffe/v2 v2.0.0
 	github.com/stretchr/testify v1.8.4
-	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.42.0
-	go.opentelemetry.io/otel v1.19.0-rc.1
+	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.46.0
+	go.opentelemetry.io/otel v1.20.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v0.42.0-rc.1
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.19.0-rc.1
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.19.0-rc.1
 	go.opentelemetry.io/otel/exporters/prometheus v0.42.0-rc.1
 	go.opentelemetry.io/otel/exporters/zipkin v1.19.0-rc.1
-	go.opentelemetry.io/otel/metric v1.19.0-rc.1
+	go.opentelemetry.io/otel/metric v1.20.0
 	go.opentelemetry.io/otel/sdk v1.19.0-rc.1
 	go.opentelemetry.io/otel/sdk/metric v1.19.0-rc.1
-	go.opentelemetry.io/otel/trace v1.19.0-rc.1
+	go.opentelemetry.io/otel/trace v1.20.0
 	go.uber.org/atomic v1.7.0
 	go.uber.org/goleak v1.2.1
 	golang.org/x/net v0.17.0
@@ -58,7 +58,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fatih/color v1.7.0 // indirect
-	github.com/go-logr/logr v1.2.4 // indirect
+	github.com/go-logr/logr v1.3.0 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
