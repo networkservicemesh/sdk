@@ -297,3 +297,7 @@ issues:
       linters:
         - interfacer
       text: "`rawSrv` can be `github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor.EventConsumer`"
+    - path: pkg/tools/tracing/grpcoptions.go
+      linters:
+        - staticcheck
+      text: "SA1019: otelgrpc.*"

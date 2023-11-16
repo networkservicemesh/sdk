@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -185,7 +185,8 @@ func (f *eventNSEFactoryServer) Register(opts ...Option) <-chan error {
 
 func (f *eventNSEFactoryServer) Unregister(opts ...Option) <-chan error {
 	o := &option{
-		cancelCtx: context.Background(),
+		cancelCtx:     context.Background(),
+		extendContext: context.Background(),
 	}
 	for _, opt := range opts {
 		opt(o)
@@ -201,7 +202,7 @@ func (f *eventNSEFactoryServer) Unregister(opts ...Option) <-chan error {
 		default:
 			ctx, cancel := f.ctxFunc()
 			defer cancel()
-			_, err := f.server.Unregister(ctx, f.registration)
+			_, err := f.server.Unregister(extend.WithJoinedValues(ctx, o.extendContext), f.registration)
 			f.afterCloseFunc()
 			ch <- err
 		}

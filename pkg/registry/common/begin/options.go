@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,7 +21,8 @@ import (
 )
 
 type option struct {
-	cancelCtx context.Context
+	cancelCtx     context.Context
+	extendContext context.Context
 }
 
 // Option - event option
@@ -31,5 +32,12 @@ type Option func(*option)
 func CancelContext(cancelCtx context.Context) Option {
 	return func(o *option) {
 		o.cancelCtx = cancelCtx
+	}
+}
+
+// ExtendContext - optionally provides a context which extends factory's context with its values
+func ExtendContext(extendCountext context.Context) Option {
+	return func(o *option) {
+		o.extendContext = extendCountext
 	}
 }

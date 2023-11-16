@@ -97,7 +97,7 @@ func (s *expireNSEServer) Register(ctx context.Context, nse *registry.NetworkSer
 		case <-expireContext.Done():
 			return
 		case <-expireCh:
-			factory.Unregister(begin.CancelContext(expireContext))
+			factory.Unregister(begin.CancelContext(expireContext), begin.ExtendContext(ctx))
 		}
 	}()
 
