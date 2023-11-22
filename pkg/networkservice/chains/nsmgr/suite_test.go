@@ -47,6 +47,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanismtranslation"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/passthrough"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/point2pointipam"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
@@ -205,7 +206,7 @@ func (s *nsmgrSuite) Test_ReselectEndpointWhenNetSvcHasChanged() {
 	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
-	var deployNSE = func(name, ns string, labels map[string]string) {
+	var deployNSE = func(name, ns string, labels map[string]string, ipNet *net.IPNet) {
 		nseReg := defaultRegistryEndpoint(ns)
 		nseReg.Name = name
 
@@ -238,12 +239,16 @@ func (s *nsmgrSuite) Test_ReselectEndpointWhenNetSvcHasChanged() {
 			}()
 
 			serv := grpc.NewServer()
-			endpoint.NewServer(ctx, sandbox.GenerateTestToken).Register(serv)
+			endpoint.NewServer(ctx, sandbox.GenerateTestToken, endpoint.WithAdditionalFunctionality(
+				point2pointipam.NewServer(ipNet),
+			)).Register(serv)
 			_ = serv.Serve(netListener)
 		}()
 	}
 
-	deployNSE("nse-1", nsReg.Name, map[string]string{})
+	_, ipNet1, _ := net.ParseCIDR("100.100.100.100/30")
+	_, ipNet2, _ := net.ParseCIDR("200.200.200.200/30")
+	deployNSE("nse-1", nsReg.Name, map[string]string{}, ipNet1)
 	// 3. Create client and request endpoint
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -253,6 +258,8 @@ func (s *nsmgrSuite) Test_ReselectEndpointWhenNetSvcHasChanged() {
 	require.Equal(t, 4, len(conn.Path.PathSegments))
 	require.Equal(t, "nse-1", conn.GetNetworkServiceEndpointName())
 	require.NoError(t, ctx.Err())
+	require.Equal(t, "100.100.100.101/32", conn.Context.GetIpContext().GetSrcIpAddrs()[0])
+	require.Equal(t, "100.100.100.100/32", conn.Context.GetIpContext().GetDstIpAddrs()[0])
 
 	// update netsvc
 	nsReg.Matches = append(nsReg.Matches, &registry.Match{
@@ -270,7 +277,7 @@ func (s *nsmgrSuite) Test_ReselectEndpointWhenNetSvcHasChanged() {
 	// deploye nse-2 that matches with updated svc
 	deployNSE("nse-2", nsReg.Name, map[string]string{
 		"experimental": "true",
-	})
+	}, ipNet2)
 	// simulate idle
 	time.Sleep(time.Second / 2)
 	// in some moment nsc refresh connection
@@ -279,8 +286,11 @@ func (s *nsmgrSuite) Test_ReselectEndpointWhenNetSvcHasChanged() {
 	require.NotNil(t, conn)
 	require.Equal(t, 4, len(conn.Path.PathSegments))
 	require.Equal(t, "nse-2", conn.GetNetworkServiceEndpointName())
-
+	require.NotEmpty(t, conn.Context.GetIpContext().GetSrcIpAddrs())
+	require.NotEmpty(t, conn.Context.GetIpContext().GetDstIpAddrs())
 	require.NoError(t, ctx.Err())
+	require.Equal(t, "200.200.200.201/32", conn.Context.GetIpContext().GetSrcIpAddrs()[0])
+	require.Equal(t, "200.200.200.200/32", conn.Context.GetIpContext().GetDstIpAddrs()[0])
 
 	// Close
 	_, err = nsc.Close(ctx, conn)
