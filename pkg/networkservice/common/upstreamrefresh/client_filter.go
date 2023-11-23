@@ -50,7 +50,8 @@ func (c *clientFilter) Recv() (*networkservice.ConnectionEvent, error) {
 			Connections: make(map[string]*networkservice.Connection),
 		}
 		for _, connIn := range eventIn.GetConnections() {
-			if eventIn.GetType() != networkservice.ConnectionEventType_UPDATE {
+			if eventIn.GetType() != networkservice.ConnectionEventType_UPDATE &&
+				eventIn.GetType() != networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER {
 				continue
 			}
 
