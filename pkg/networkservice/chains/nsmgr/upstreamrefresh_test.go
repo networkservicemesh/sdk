@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,8 +21,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/edwarnicke/genericsync"
 	"github.com/google/uuid"
 	"go.uber.org/goleak"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -62,7 +64,7 @@ func Test_UpstreamRefreshClient(t *testing.T) {
 		ctx,
 		nseReg,
 		sandbox.GenerateTestToken,
-		newRefreshSenderServer(),
+		newRefreshMTUSenderServer(),
 		counter,
 	)
 
@@ -129,7 +131,7 @@ func Test_UpstreamRefreshClient_LocalNotifications(t *testing.T) {
 		ctx,
 		nseReg,
 		sandbox.GenerateTestToken,
-		newRefreshSenderServer(),
+		newRefreshMTUSenderServer(),
 		counter1,
 	)
 
@@ -143,7 +145,7 @@ func Test_UpstreamRefreshClient_LocalNotifications(t *testing.T) {
 		ctx,
 		nseReg2,
 		sandbox.GenerateTestToken,
-		newRefreshSenderServer(),
+		newRefreshMTUSenderServer(),
 		counter2,
 	)
 
@@ -201,17 +203,119 @@ func Test_UpstreamRefreshClient_LocalNotifications(t *testing.T) {
 	require.NoError(t, err)
 }
 
-type refreshSenderServer struct {
-	m   map[string]*networkservice.Connection
+// This test shows a case when the event monitor is faster than the backward request
+func Test_UpstreamRefreshClientDelay(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		Build()
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService("my-service"))
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
+
+	// This NSE will send REFRESH_REQUESTED events
+	// Channels coordinate the test to send the event at the right time
+	counter := new(count.Server)
+	ch1 := make(chan struct{}, 1)
+	ch2 := make(chan struct{}, 1)
+	_ = domain.Nodes[0].NewEndpoint(
+		ctx,
+		nseReg,
+		sandbox.GenerateTestToken,
+		newRefreshSenderServer(ch1, ch2),
+		counter,
+	)
+
+	// Create the client that has slow request processing
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(
+		upstreamrefresh.NewClient(ctx),
+		newSlowHandlerClient(ch1, ch2)),
+	)
+
+	reqCtx, reqClose := context.WithTimeout(ctx, time.Second)
+	defer reqClose()
+
+	req := defaultRequest(nsReg.Name)
+	req.Connection.Id = uuid.New().String()
+
+	conn, err := nsc.Request(reqCtx, req)
+	require.NoError(t, err)
+	require.Equal(t, 1, counter.UniqueRequests())
+
+	// Eventually we should see a refresh
+	require.Eventually(t, func() bool { return counter.Requests() == 2 }, timeout, tick)
+
+	_, err = nsc.Close(ctx, conn)
+	require.NoError(t, err)
+}
+
+type refreshMTUSenderServer struct {
+	m   *genericsync.Map[string, *networkservice.Connection]
 	mtu uint32
 }
 
 const defaultMtu = 9000
 
-func newRefreshSenderServer() *refreshSenderServer {
-	return &refreshSenderServer{
-		m:   make(map[string]*networkservice.Connection),
+func newRefreshMTUSenderServer() *refreshMTUSenderServer {
+	return &refreshMTUSenderServer{
+		m:   new(genericsync.Map[string, *networkservice.Connection]),
 		mtu: defaultMtu,
+	}
+}
+
+func (r *refreshMTUSenderServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	conn, err := next.Server(ctx).Request(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	if conn.GetContext().GetMTU() != r.mtu {
+		if _, ok := r.m.Load(conn.Id); ok {
+			return conn, err
+		}
+		ec, _ := monitor.LoadEventConsumer(ctx, false)
+
+		connectionsToSend := make(map[string]*networkservice.Connection)
+		r.m.Range(func(k string, v *networkservice.Connection) bool {
+			connectionsToSend[k] = v.Clone()
+			connectionsToSend[k].State = networkservice.State_REFRESH_REQUESTED
+			return true
+		})
+
+		_ = ec.Send(&networkservice.ConnectionEvent{
+			Type:        networkservice.ConnectionEventType_UPDATE,
+			Connections: connectionsToSend,
+		})
+	}
+	r.m.Store(conn.GetId(), conn.Clone())
+
+	return conn, err
+}
+
+func (r *refreshMTUSenderServer) Close(ctx context.Context, conn *networkservice.Connection) (*emptypb.Empty, error) {
+	return next.Server(ctx).Close(ctx, conn)
+}
+
+type refreshSenderServer struct {
+	waitSignalCh <-chan struct{}
+	eventSentCh  chan<- struct{}
+
+	eventWasSent bool
+}
+
+func newRefreshSenderServer(waitSignalCh <-chan struct{}, eventSentCh chan<- struct{}) *refreshSenderServer {
+	return &refreshSenderServer{
+		waitSignalCh: waitSignalCh,
+		eventSentCh:  eventSentCh,
 	}
 }
 
@@ -220,27 +324,52 @@ func (r *refreshSenderServer) Request(ctx context.Context, request *networkservi
 	if err != nil {
 		return nil, err
 	}
-	if conn.GetContext().GetMTU() != r.mtu {
-		if _, ok := r.m[conn.Id]; ok {
-			return conn, err
-		}
+
+	if !r.eventWasSent {
 		ec, _ := monitor.LoadEventConsumer(ctx, false)
 
-		connectionsToSend := make(map[string]*networkservice.Connection)
-		for k, v := range r.m {
-			connectionsToSend[k] = v.Clone()
-			connectionsToSend[k].State = networkservice.State_REFRESH_REQUESTED
-		}
-		_ = ec.Send(&networkservice.ConnectionEvent{
-			Type:        networkservice.ConnectionEventType_UPDATE,
-			Connections: connectionsToSend,
-		})
-	}
-	r.m[conn.Id] = conn
+		c := conn.Clone()
+		c.State = networkservice.State_REFRESH_REQUESTED
 
+		go func() {
+			<-r.waitSignalCh
+			_ = ec.Send(&networkservice.ConnectionEvent{
+				Type:        networkservice.ConnectionEventType_UPDATE,
+				Connections: map[string]*networkservice.Connection{c.Id: c},
+			})
+			time.Sleep(time.Millisecond * 100)
+			r.eventWasSent = true
+			r.eventSentCh <- struct{}{}
+		}()
+	} else {
+		r.eventSentCh <- struct{}{}
+	}
 	return conn, err
 }
 
 func (r *refreshSenderServer) Close(ctx context.Context, conn *networkservice.Connection) (*emptypb.Empty, error) {
 	return next.Server(ctx).Close(ctx, conn)
+}
+
+type slowHandlerClient struct {
+	startSlowHandlingCh  chan<- struct{}
+	finishSlowHandlingCh <-chan struct{}
+}
+
+func newSlowHandlerClient(startSlowHandlingCh chan<- struct{}, finishSlowHandlingCh <-chan struct{}) networkservice.NetworkServiceClient {
+	return &slowHandlerClient{
+		startSlowHandlingCh:  startSlowHandlingCh,
+		finishSlowHandlingCh: finishSlowHandlingCh,
+	}
+}
+
+func (s *slowHandlerClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	conn, err := next.Client(ctx).Request(ctx, request, opts...)
+	s.startSlowHandlingCh <- struct{}{}
+	<-s.finishSlowHandlingCh
+	return conn, err
+}
+
+func (s *slowHandlerClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	return next.Client(ctx).Close(ctx, conn, opts...)
 }

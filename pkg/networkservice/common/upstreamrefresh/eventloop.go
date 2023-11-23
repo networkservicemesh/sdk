@@ -64,13 +64,6 @@ func newEventLoop(ctx context.Context, cc grpc.ClientConnInterface, conn *networ
 		return nil, errors.Wrap(err, "failed to get a MonitorConnection client")
 	}
 
-	// get the initial state transfer and use it to detect whether we have a real connection or not
-	_, err = client.Recv()
-	if err != nil {
-		eventLoopCancel()
-		return nil, errors.Wrap(err, "failed to get the initial state transfer")
-	}
-
 	logger := log.FromContext(ctx).WithField("upstreamrefresh", "eventLoop")
 	cev := &eventLoop{
 		eventLoopCtx:  eventLoopCtx,

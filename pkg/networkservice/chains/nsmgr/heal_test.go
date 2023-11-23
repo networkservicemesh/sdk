@@ -37,6 +37,7 @@ import (
 	nsclient "github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkresponse"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
@@ -813,4 +814,83 @@ func TestNSMGR_RefreshFailed_DataPlaneBroken(t *testing.T) {
 
 	_, err = nsc.Close(ctx, conn.Clone())
 	require.NoError(t, err)
+}
+
+// This test shows that healing successfully restores the connection if one of the components is killed during the Request
+func TestNSMGR_RefreshFailed_ControlPlaneBroken(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		Build()
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg := defaultRegistryService(t.Name())
+	nsReg, err := nsRegistryClient.Register(ctx, nsReg)
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
+
+	counter := new(count.Server)
+	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
+
+	request := defaultRequest(nsReg.Name)
+
+	tokenDuration := time.Minute * 15
+	clk := clockmock.New(ctx)
+	clk.Set(time.Now())
+
+	// syncCh is used to catch the situation when the forwarder dies during the Request (after the heal chain element)
+	syncCh := make(chan struct{}, 1)
+
+	nsc := domain.Nodes[0].NewClient(ctx,
+		sandbox.GenerateExpiringToken(tokenDuration),
+		nsclient.WithHealClient(heal.NewClient(ctx)),
+		nsclient.WithAdditionalFunctionality(
+			checkrequest.NewClient(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
+				<-syncCh
+			}),
+		),
+	)
+
+	requestCtx, requestCalcel := context.WithTimeout(ctx, time.Second)
+	requestCtx = clock.WithClock(requestCtx, clk)
+	defer requestCalcel()
+
+	// allow the first Request
+	syncCh <- struct{}{}
+	conn, err := nsc.Request(requestCtx, request.Clone())
+	require.NoError(t, err)
+	require.Equal(t, 1, counter.Requests())
+
+	// refresh interval in this test is expected to be 3 minutes and a few milliseconds
+	clk.Add(time.Second * 190)
+
+	// kill the forwarder during the healing Request (it is stopped by syncCh). Then continue - the healing process will fail.
+	for _, forwarder := range domain.Nodes[0].Forwarders {
+		forwarder.Cancel()
+		break
+	}
+	syncCh <- struct{}{}
+
+	// create a new forwarder and allow the healing Request
+	forwarderReg := &registry.NetworkServiceEndpoint{
+		Name:                sandbox.UniqueName("forwarder-2"),
+		NetworkServiceNames: []string{"forwarder"},
+	}
+	domain.Nodes[0].NewForwarder(ctx, forwarderReg, sandbox.GenerateTestToken)
+	syncCh <- struct{}{}
+
+	// wait till Request reached NSE
+	require.Eventually(t, func() bool {
+		return counter.Requests() == 2
+	}, timeout, tick)
+
+	_, err = nsc.Close(ctx, conn.Clone())
+	require.NoError(t, err)
+	require.Equal(t, 2, counter.Requests())
 }
