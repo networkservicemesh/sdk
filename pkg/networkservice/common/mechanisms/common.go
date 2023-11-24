@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2023 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -16,7 +16,67 @@
 
 package mechanisms
 
-import "github.com/pkg/errors"
+import (
+	"fmt"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/pkg/errors"
+)
 
 var errCannotSupportMech = errors.New("cannot support any of the requested mechanism")
 var errUnsupportedMech = errors.New("unsupported mechanism")
+
+const (
+	clientMetricKey = "client_interface"
+	serverMetricKey = "server_interface"
+	nameKey         = "name"
+	unresolvedName  = "unknown"
+)
+
+type interfacesInfo struct {
+	interfaceName string
+	interfaceType string
+}
+
+func (i *interfacesInfo) getInterfaceDetails() string {
+	return fmt.Sprintf("%s/%s", i.interfaceType, i.interfaceName)
+}
+
+// Save interface details in Path
+func storeMetrics(conn *networkservice.Connection, mechanism *networkservice.Mechanism, isClient bool) {
+	path := conn.GetPath()
+	if path == nil {
+		return
+	}
+
+	segments := path.GetPathSegments()
+	if segments == nil {
+		return
+	}
+
+	segment := segments[path.Index]
+	params := mechanism.GetParameters()
+
+	name := unresolvedName
+	if params != nil {
+		name = params[nameKey]
+	}
+
+	info := &interfacesInfo{
+		interfaceName: name,
+		interfaceType: mechanism.GetType(),
+	}
+
+	if segment.Metrics == nil {
+		segment.Metrics = make(map[string]string)
+	}
+
+	metricKey := clientMetricKey
+	if !isClient {
+		metricKey = serverMetricKey
+	}
+
+	if _, ok := segment.Metrics[metricKey]; !ok {
+		segment.Metrics[metricKey] = info.getInterfaceDetails()
+	}
+}

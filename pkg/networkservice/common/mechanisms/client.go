@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2023 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -28,13 +28,24 @@ import (
 )
 
 type mechanismsClient struct {
-	mechanisms map[string]networkservice.NetworkServiceClient
+	mechanisms  map[string]networkservice.NetworkServiceClient
+	withMetrics bool
 }
 
 // NewClient - returns a new mechanisms networkservicemesh.NetworkServiceClient
 func NewClient(mechanisms map[string]networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
+	return newClient(mechanisms, false)
+}
+
+// NewClientWithMetrics - same as NewClient, but will also print the interface type/name metric to Path
+func NewClientWithMetrics(mechanisms map[string]networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
+	return newClient(mechanisms, true)
+}
+
+func newClient(mechanisms map[string]networkservice.NetworkServiceClient, withMetrics bool) networkservice.NetworkServiceClient {
 	result := &mechanismsClient{
-		mechanisms: make(map[string]networkservice.NetworkServiceClient),
+		mechanisms:  make(map[string]networkservice.NetworkServiceClient),
+		withMetrics: withMetrics,
 	}
 	for m, c := range mechanisms {
 		result.mechanisms[m] = chain.NewNetworkServiceClient(c)
@@ -44,9 +55,13 @@ func NewClient(mechanisms map[string]networkservice.NetworkServiceClient) networ
 }
 
 func (mc *mechanismsClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	if request.GetConnection().GetMechanism() != nil {
-		srv, ok := mc.mechanisms[request.GetConnection().GetMechanism().GetType()]
+	mech := request.GetConnection().GetMechanism()
+	if mech != nil {
+		srv, ok := mc.mechanisms[mech.GetType()]
 		if ok {
+			if mc.withMetrics {
+				storeMetrics(request.GetConnection(), mech, true)
+			}
 			return srv.Request(ctx, request, opts...)
 		}
 		return nil, errUnsupportedMech
@@ -57,6 +72,11 @@ func (mc *mechanismsClient) Request(ctx context.Context, request *networkservice
 		if ok {
 			req := request.Clone()
 			var resp *networkservice.Connection
+
+			if mc.withMetrics {
+				storeMetrics(req.GetConnection(), mechanism, true)
+			}
+
 			resp, respErr := cm.Request(ctx, req, opts...)
 			if respErr == nil {
 				return resp, nil
@@ -70,6 +90,9 @@ func (mc *mechanismsClient) Request(ctx context.Context, request *networkservice
 func (mc *mechanismsClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	c, ok := mc.mechanisms[conn.GetMechanism().GetType()]
 	if ok {
+		if mc.withMetrics {
+			storeMetrics(conn, conn.GetMechanism(), true)
+		}
 		return c.Close(ctx, conn)
 	}
 	return nil, errCannotSupportMech
