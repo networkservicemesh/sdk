@@ -35,6 +35,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/dnsconfigs"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/fanout"
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/memory"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/noloop"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/searches"
@@ -158,7 +159,11 @@ func Test_TCPDNSServerTimeout(t *testing.T) {
 		},
 	})
 
+	dnsServerRecords := new(genericsync.Map[string, []net.IP])
+	dnsServerRecords.Store("health.check.only.", []net.IP{net.ParseIP("1.0.0.1")})
+
 	clientDNSHandler := next.NewDNSHandler(
+		memory.NewDNSHandler(dnsServerRecords),
 		dnsconfigs.NewDNSHandler(dnsConfigsMap),
 		searches.NewDNSHandler(),
 		noloop.NewDNSHandler(),
@@ -173,6 +178,12 @@ func Test_TCPDNSServerTimeout(t *testing.T) {
 			return dialer.DialContext(ctx, network, clientAddr)
 		},
 	}
+
+	healthCheck := func() bool {
+		addrs, e := resolver.LookupIP(ctx, "ip4", "health.check.only")
+		return e == nil && len(addrs) == 1 && addrs[0].String() == "1.0.0.1"
+	}
+	require.Eventually(t, healthCheck, time.Second, 10*time.Millisecond)
 
 	resolveCtx, resolveCancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer resolveCancel()
