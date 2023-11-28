@@ -136,6 +136,13 @@ func Test_DNSUsecase(t *testing.T) {
 	conn, err := nsc.Request(ctx, request)
 	require.NoError(t, err)
 
+	healthCheck := func() bool {
+		_, e := resolver.LookupIP(ctx, "ip4", "my.domain")
+		return e == nil
+	}
+	// To ensure that DNS records sent with nsc.Request are ready
+	require.Eventually(t, healthCheck, time.Second, 10*time.Millisecond)
+
 	requireIPv4Lookup(ctx, t, &resolver, "my.domain", "4.4.4.4")
 	requireIPv4Lookup(ctx, t, &resolver, "my.domain.com", "5.5.5.5")
 
