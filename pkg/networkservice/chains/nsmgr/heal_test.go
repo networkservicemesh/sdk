@@ -870,10 +870,14 @@ func TestNSMGR_RefreshFailed_ControlPlaneBroken(t *testing.T) {
 	// refresh interval in this test is expected to be 3 minutes and a few milliseconds
 	clk.Add(time.Second * 190)
 
-	// kill the forwarder during the healing Request (it is stopped by syncCh). Then continue - the healing process will fail.
-	for _, forwarder := range domain.Nodes[0].Forwarders {
+	// kill the forwarder during the refresh (it is stopped by syncCh). Then continue - the refresh will fail.
+	for idx := range domain.Nodes[0].Forwarders {
+		forwarder := domain.Nodes[0].Forwarders[idx]
 		forwarder.Cancel()
-		break
+		// wait until the forwarder dies
+		require.Eventually(t, func() bool {
+			return sandbox.CheckURLFree(forwarder.URL)
+		}, timeout, tick)
 	}
 	syncCh <- struct{}{}
 
