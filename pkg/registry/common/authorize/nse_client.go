@@ -88,11 +88,13 @@ func (c *authorizeNSEClient) Register(ctx context.Context, nse *registry.Network
 		Index:              path.Index,
 	}
 	if err := c.policies.check(ctx, input); err != nil {
-		unregisterCtx, cancelUnregister := postponeCtxFunc()
-		defer cancelUnregister()
+		if _, load := c.nsePathIdsMap.Load(resp.Name); !load {
+			unregisterCtx, cancelUnregister := postponeCtxFunc()
+			defer cancelUnregister()
 
-		if _, unregisterErr := next.NetworkServiceEndpointRegistryClient(ctx).Unregister(unregisterCtx, resp, opts...); unregisterErr != nil {
-			err = errors.Wrapf(err, "nse unregistered with error: %s", unregisterErr.Error())
+			if _, unregisterErr := next.NetworkServiceEndpointRegistryClient(ctx).Unregister(unregisterCtx, resp, opts...); unregisterErr != nil {
+				err = errors.Wrapf(err, "nse unregistered with error: %s", unregisterErr.Error())
+			}
 		}
 
 		return nil, err
