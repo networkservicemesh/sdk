@@ -41,9 +41,6 @@ func TokenGeneratorFunc(source x509svid.Source, maxTokenLifeTime time.Duration) 
 		if ownSVID.Certificates[0].NotAfter.Before(expireTime) {
 			expireTime = ownSVID.Certificates[0].NotAfter
 		}
-		if err != nil {
-			return "", time.Time{}, errors.Wrap(err, "Error creating Token")
-		}
 		claims := jwt.RegisteredClaims{
 			Subject:   ownSVID.ID.String(),
 			ExpiresAt: jwt.NewNumericDate(expireTime),

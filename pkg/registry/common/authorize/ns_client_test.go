@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -25,6 +25,8 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/count"
 
 	"go.uber.org/goleak"
 )
@@ -32,8 +34,11 @@ import (
 func TestNSRegistryAuthorizeClient(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	client := authorize.NewNetworkServiceRegistryClient(authorize.WithPolicies("etc/nsm/opa/registry/client_allowed.rego"))
-	require.NotNil(t, client)
+	var callCounter = &count.CallCounter{}
+	client := chain.NewNetworkServiceRegistryClient(
+		authorize.NewNetworkServiceRegistryClient(authorize.WithPolicies("etc/nsm/opa/registry/client_allowed.rego")),
+		count.NewNetworkServiceRegistryClient(callCounter),
+	)
 
 	ns := &registry.NetworkService{Name: "ns"}
 	path1 := getPath(t, spiffeid1)
@@ -45,20 +50,27 @@ func TestNSRegistryAuthorizeClient(t *testing.T) {
 	ns.PathIds = []string{spiffeid1}
 	_, err := client.Register(ctx1, ns)
 	require.NoError(t, err)
+	require.Equal(t, callCounter.Registers(), 1)
 
 	ns.PathIds = []string{spiffeid2}
 	_, err = client.Register(ctx2, ns)
 	require.Error(t, err)
+	require.Equal(t, callCounter.Registers(), 2)
+	require.Equal(t, callCounter.Unregisters(), 0)
 
 	ns.PathIds = []string{spiffeid1}
 	_, err = client.Register(ctx1, ns)
 	require.NoError(t, err)
+	require.Equal(t, callCounter.Registers(), 3)
+	require.Equal(t, callCounter.Unregisters(), 0)
 
 	ns.PathIds = []string{spiffeid2}
 	_, err = client.Unregister(ctx2, ns)
 	require.Error(t, err)
+	require.Equal(t, callCounter.Unregisters(), 1)
 
 	ns.PathIds = []string{spiffeid1}
 	_, err = client.Unregister(ctx1, ns)
 	require.NoError(t, err)
+	require.Equal(t, callCounter.Unregisters(), 2)
 }

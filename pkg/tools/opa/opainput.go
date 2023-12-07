@@ -71,11 +71,6 @@ func ParseX509Cert(authInfo credentials.AuthInfo) *x509.Certificate {
 		}
 	}
 
-	if tlsInfo, ok := authInfo.(*credentials.TLSInfo); ok {
-		if len(tlsInfo.State.PeerCertificates) > 0 {
-			peerCert = tlsInfo.State.PeerCertificates[0]
-		}
-	}
 	return peerCert
 }
 

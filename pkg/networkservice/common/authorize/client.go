@@ -30,6 +30,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 )
@@ -84,16 +85,18 @@ func (a *authorizeClient) Request(ctx context.Context, request *networkservice.N
 	}
 
 	if err = a.policies.check(ctx, conn.GetPath()); err != nil {
-		closeCtx, cancelClose := postponeCtxFunc()
-		defer cancelClose()
+		if !load(ctx, metadata.IsClient(a)) {
+			closeCtx, cancelClose := postponeCtxFunc()
+			defer cancelClose()
 
-		if _, closeErr := next.Client(ctx).Close(closeCtx, conn, opts...); closeErr != nil {
-			err = errors.Wrapf(err, "connection closed with error: %s", closeErr.Error())
+			if _, closeErr := next.Client(ctx).Close(closeCtx, conn, opts...); closeErr != nil {
+				err = errors.Wrapf(err, "connection closed with error: %s", closeErr.Error())
+			}
 		}
-
 		return nil, err
 	}
 
+	store(ctx, metadata.IsClient(a))
 	return conn, nil
 }
 
@@ -102,6 +105,8 @@ func (a *authorizeClient) Close(ctx context.Context, conn *networkservice.Connec
 	if ok && p != nil {
 		ctx = peer.NewContext(ctx, p)
 	}
+	del(ctx, metadata.IsClient(a))
+
 	if err := a.policies.check(ctx, conn.GetPath()); err != nil {
 		return nil, err
 	}
