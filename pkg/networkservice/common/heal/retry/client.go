@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package retry provies a chain elemen that manages retries for failed requests
 package retry
 
 import (
@@ -38,7 +39,7 @@ type retryClient struct {
 	contextMap genericsync.Map[string, *cancelableContext]
 }
 
-// NewClient: returns a new client that retries the request in case the previous attempt failed.
+// NewClient returns a new client that retries the request in case the previous attempt failed.
 func NewClient(ctx context.Context) networkservice.NetworkServiceClient {
 	return &retryClient{
 		chainCtx: ctx,
@@ -54,12 +55,14 @@ func (n *retryClient) Request(ctx context.Context, request *networkservice.Netwo
 	if err != nil {
 		var opts []begin.Option
 		opts = append(opts, begin.CancelContext(cancelableCtx.Context))
-		if request.GetConnection().GetNetworkServiceEndpointName() != "" {
+		if request.GetConnection().GetNetworkServiceEndpointName() != "" && request.GetConnection().GetState() != networkservice.State_RESELECT_REQUESTED {
 			opts = append(opts, begin.WithReselect())
 		}
 		factory.Request(opts...)
 	} else {
-		n.contextMap.Delete(request.GetConnection().GetId())
+		if v, ok := n.contextMap.LoadAndDelete(request.GetConnection().GetId()); ok {
+			v.cancel()
+		}
 	}
 	return resp, err
 }
@@ -67,7 +70,9 @@ func (n *retryClient) Request(ctx context.Context, request *networkservice.Netwo
 func (n *retryClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	resp, err := next.Client(ctx).Close(ctx, conn, opts...)
 	if err == nil {
-		n.contextMap.Delete(conn.GetId())
+		if v, ok := n.contextMap.LoadAndDelete(conn.GetId()); ok {
+			v.cancel()
+		}
 	}
 	return resp, err
 }

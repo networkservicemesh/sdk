@@ -41,6 +41,7 @@ type options struct {
 // Option - option for heal.NewClient() chain element
 type Option func(o *options)
 
+// WithoutRetry disables retry on failed refreshes
 func WithoutRetry() Option {
 	return func(o *options) {
 		o.retryOnRequestFail = false
