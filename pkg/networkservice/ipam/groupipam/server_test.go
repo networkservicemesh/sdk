@@ -156,10 +156,12 @@ func TestOutOfIPs(t *testing.T) {
 		conn1, err := srv1.Request(context.Background(), req1)
 		require.NoError(t, err)
 		requireConns(t, conn1, "192.168.1.2/32", "192.168.1.3/32")
+		req1.Connection = conn1
 
 		conn2, err := srv2.Request(context.Background(), req2)
 		require.NoError(t, err)
 		requireConns(t, conn2, "192.168.1.2/32", "192.168.1.3/32")
+		req2.Connection = conn2
 
 		_, err = srv1.Request(context.Background(), req2)
 		require.Error(t, err)
@@ -167,9 +169,10 @@ func TestOutOfIPs(t *testing.T) {
 		_, err = srv2.Request(context.Background(), req1)
 		require.Error(t, err)
 
-		srv2.Close(context.Background(), req2.GetConnection())
-		srv1.Close(context.Background(), req1.GetConnection())
-
+		_, err = srv2.Close(context.Background(), req2.GetConnection())
+		require.NoError(t, err)
+		_, err = srv1.Close(context.Background(), req1.GetConnection())
+		require.NoError(t, err)
 	}
 
 }

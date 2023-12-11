@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2022-2023 Cisco and/or its affiliates.
+// Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -23,7 +23,6 @@ import (
 	"net"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
@@ -48,7 +47,6 @@ func newIpamServer(prefixes ...*net.IPNet) networkservice.NetworkServiceServer {
 func newRequest() *networkservice.NetworkServiceRequest {
 	return &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
-			Id: uuid.NewString(),
 			Context: &networkservice.ConnectionContext{
 				IpContext: new(networkservice.IPContext),
 			},
@@ -225,21 +223,15 @@ func TestOutOfIPs(t *testing.T) {
 	_, ipNet, err := net.ParseCIDR("192.168.1.2/31")
 	require.NoError(t, err)
 
-	srv1 := newIpamServer(ipNet)
-	srv2 := newIpamServer(ipNet)
+	srv := newIpamServer(ipNet)
 
 	req1 := newRequest()
-	conn1, err := srv1.Request(context.Background(), req1)
+	conn1, err := srv.Request(context.Background(), req1)
 	require.NoError(t, err)
 	validateConn(t, conn1, "192.168.1.2/32", "192.168.1.3/32")
 
 	req2 := newRequest()
-	req2.Connection.Context = conn1.Context
-	conn2, err := srv2.Request(context.Background(), req2)
-	require.NoError(t, err)
-	validateConn(t, conn2, "192.168.1.2/32", "192.168.1.3/32")
-
-	_, err = srv1.Request(context.Background(), req2)
+	_, err = srv.Request(context.Background(), req2)
 	require.Error(t, err)
 }
 
