@@ -219,7 +219,7 @@ func (s *ipamServer) Close(ctx context.Context, conn *networkservice.Connection)
 		return nil, errors.Wrap(s.initErr, "failed to init IPAM server during close")
 	}
 
-	if connInfo, ok := s.Load(conn.GetId()); ok {
+	if connInfo, ok := s.LoadAndDelete(conn.GetId()); ok {
 		s.free(connInfo)
 	}
 
