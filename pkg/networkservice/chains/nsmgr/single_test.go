@@ -22,9 +22,12 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/edwarnicke/serialize"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -41,8 +44,14 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/point2pointipam"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkresponse"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	countutils "github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/registry"
@@ -602,6 +611,79 @@ func createAuthorizedEndpoint(ctx context.Context, t *testing.T, ns string, nsmg
 	nseReg.Url = nseURL.String()
 	_, err := nseRegistryClient.Register(ctx, nseReg.Clone())
 	require.NoError(t, err)
+}
+
+func Test_RestartDuringRefresh(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+	var ctx, cancel = context.WithTimeout(context.Background(), time.Hour*15)
+	defer cancel()
+	var domain = sandbox.NewBuilder(ctx, t).SetNodesCount(1).Build()
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+	_, err := nsRegistryClient.Register(ctx, defaultRegistryService("ns"))
+	require.NoError(t, err)
+
+	var countServer count.Server
+	var countClint count.Client
+	var m sync.Once
+	var clientFactory begin.EventFactory
+	var destroyFwd atomic.Bool
+	var e serialize.Executor
+
+	domain.Nodes[0].NewEndpoint(ctx, &registryapi.NetworkServiceEndpoint{
+		Name:                "nse-1",
+		NetworkServiceNames: []string{"ns"},
+	}, sandbox.GenerateTestToken, &countServer, checkrequest.NewServer(t, func(t *testing.T, nsr *networkservice.NetworkServiceRequest) {
+		if destroyFwd.Load() {
+			e.AsyncExec(func() {
+				for _, fwd := range domain.Nodes[0].Forwarders {
+					fwd.Cancel()
+				}
+			})
+		}
+	}))
+
+	var client = domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(
+		&countClint,
+		checkcontext.NewClient(t, func(t *testing.T, ctx context.Context) {
+			m.Do(func() {
+				clientFactory = begin.FromContext(ctx)
+			})
+		}),
+		checkresponse.NewClient(t, func(t *testing.T, nsr *networkservice.Connection) {
+			if destroyFwd.Load() {
+				e.AsyncExec(func() {
+					for _, fwd := range domain.Nodes[0].Forwarders {
+						fwd.Restart()
+					}
+				})
+
+			}
+		}),
+		heal.NewClient(ctx),
+	))
+
+	_, err = client.Request(ctx, &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id:             uuid.NewString(),
+			NetworkService: "ns",
+		},
+	})
+	require.NoError(t, err)
+	_ = <-clientFactory.Request()
+	require.Equal(t, 2, countServer.Requests())
+	require.Never(t, func() bool { return countServer.Requests() > 2 }, time.Second/2, time.Second/20)
+	destroyFwd.Store(true)
+	for i := 0; i < 15; i++ {
+		var cs = countServer.Requests()
+		destroyFwd.Store(true)
+		err = <-clientFactory.Request()
+		require.Error(t, err)
+		destroyFwd.Store(false)
+		var cc = countClint.Requests()
+		require.Eventually(t, func() bool { return cs < countServer.Requests() }, time.Hour*2, time.Second/20)
+		require.Eventually(t, func() bool { return cc < countClint.Requests() }, time.Hour*2, time.Second/20)
+	}
 }
 
 // This test checks timeout on sandbox
