@@ -174,7 +174,6 @@ func TestOutOfIPs(t *testing.T) {
 		_, err = srv1.Close(context.Background(), req1.GetConnection())
 		require.NoError(t, err)
 	}
-
 }
 
 func requireConns(t *testing.T, conn *networkservice.Connection, dstAddr, srcAddr string) {
