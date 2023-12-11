@@ -21,6 +21,7 @@ import (
 	"net"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
 
@@ -125,4 +126,59 @@ func Test_NewServer_GroupOfCustomIPAMServers(t *testing.T) {
 	conn4, err := srv.Request(context.Background(), req.Clone())
 	require.NoError(t, err)
 	requireConns(t, conn4, []string{"172.92.0.3/16", "fd00::3/8"})
+}
+
+func TestOutOfIPs(t *testing.T) {
+	_, ipNet, err := net.ParseCIDR("192.168.1.2/31")
+	require.NoError(t, err)
+
+	srv1 := groupipam.NewServer([][]*net.IPNet{{ipNet}})
+	srv2 := groupipam.NewServer([][]*net.IPNet{{ipNet}})
+
+	req1 := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: uuid.NewString(),
+			Context: &networkservice.ConnectionContext{
+				IpContext: new(networkservice.IPContext),
+			},
+		},
+	}
+
+	req2 := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: uuid.NewString(),
+			Context: &networkservice.ConnectionContext{
+				IpContext: new(networkservice.IPContext),
+			},
+		},
+	}
+	for i := 0; i < 100; i++ {
+		conn1, err := srv1.Request(context.Background(), req1)
+		require.NoError(t, err)
+		requireConns(t, conn1, "192.168.1.2/32", "192.168.1.3/32")
+
+		conn2, err := srv2.Request(context.Background(), req2)
+		require.NoError(t, err)
+		requireConns(t, conn2, "192.168.1.2/32", "192.168.1.3/32")
+
+		_, err = srv1.Request(context.Background(), req2)
+		require.Error(t, err)
+
+		_, err = srv2.Request(context.Background(), req1)
+		require.Error(t, err)
+
+		srv2.Close(context.Background(), req2.GetConnection())
+		srv1.Close(context.Background(), req1.GetConnection())
+
+	}
+
+}
+
+func requireConns(t *testing.T, conn *networkservice.Connection, dstAddr, srcAddr string) {
+	for i, src := range conn.GetContext().GetIpContext().GetSrcIpAddrs() {
+		require.Equal(t, srcAddr, src, i)
+	}
+	for i, dst := range conn.GetContext().GetIpContext().GetDstIpAddrs() {
+		require.Equal(t, dstAddr, dst, i)
+	}
 }
