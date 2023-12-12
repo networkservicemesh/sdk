@@ -510,7 +510,9 @@ func TestNSMGR_HealRegistry(t *testing.T) {
 	_, err = nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 
-	require.Equal(t, 3, counter.Requests())
+	require.Eventually(t, func() bool {
+		return counter.Requests() >= 3
+	}, timeout, tick)
 }
 
 func TestNSMGR_CloseHeal(t *testing.T) {

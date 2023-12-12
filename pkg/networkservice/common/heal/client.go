@@ -24,7 +24,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
@@ -69,10 +68,6 @@ func (h *healClient) Request(ctx context.Context, request *networkservice.Networ
 
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
-		if len(request.GetConnection().GetPath().GetPathSegments()) > 1 && h.livenessCheck == nil && !loopHandle.healingStarted {
-			_ = begin.FromContext(ctx).Request(begin.WithReselect())
-			return nil, err
-		}
 		if loaded && !loopHandle.healingStarted {
 			eventLoopErr := h.startEventLoop(ctx, request.GetConnection())
 			if eventLoopErr != nil {
