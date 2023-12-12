@@ -76,8 +76,10 @@ func Test_DiscoverForwarder_CloseAfterError(t *testing.T) {
 	_, err = nsc.Request(refreshCtx, request.Clone())
 	require.Error(t, err)
 
-	// check that Close call can still reach the NSE
-	require.Equal(t, 0, counter.Closes())
+	// Close will reach the endpoint from healing
+	require.Eventually(t, func() bool {
+		return counter.Closes() == 1
+	}, timeout, tick)
 	_, err = nsc.Close(ctx, conn.Clone())
 	require.NoError(t, err)
 	require.Equal(t, 1, counter.Closes())
