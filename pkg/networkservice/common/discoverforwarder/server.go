@@ -169,7 +169,7 @@ func (d *discoverForwarderServer) Close(ctx context.Context, conn *networkservic
 
 	nses := registry.ReadNetworkServiceEndpointList(stream)
 	if len(nses) == 0 {
-		logger.Error("forwarder is not found: %v", forwarderName)
+		logger.Errorf("forwarder is not found: %v", forwarderName)
 		return next.Server(ctx).Close(ctx, conn)
 	}
 
