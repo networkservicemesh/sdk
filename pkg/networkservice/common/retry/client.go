@@ -25,6 +25,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
@@ -53,11 +54,10 @@ func WithInterval(interval time.Duration) Option {
 }
 
 // NewClient - returns a connect chain element
-func NewClient(client networkservice.NetworkServiceClient, opts ...Option) networkservice.NetworkServiceClient {
+func NewClient(opts ...Option) networkservice.NetworkServiceClient {
 	var result = &retryClient{
 		interval:   time.Millisecond * 200,
 		tryTimeout: time.Second * 15,
-		client:     client,
 	}
 
 	for _, opt := range opts {
@@ -73,7 +73,7 @@ func (r *retryClient) Request(ctx context.Context, request *networkservice.Netwo
 
 	for ctx.Err() == nil {
 		requestCtx, cancel := c.WithTimeout(ctx, r.tryTimeout)
-		resp, err := r.client.Request(requestCtx, request.Clone(), opts...)
+		resp, err := next.Client(ctx).Request(requestCtx, request.Clone(), opts...)
 		cancel()
 
 		if err != nil {
@@ -100,7 +100,7 @@ func (r *retryClient) Close(ctx context.Context, conn *networkservice.Connection
 	for ctx.Err() == nil {
 		closeCtx, cancel := c.WithTimeout(ctx, r.tryTimeout)
 
-		resp, err := r.client.Close(closeCtx, conn.Clone(), opts...)
+		resp, err := next.Client(ctx).Close(closeCtx, conn.Clone(), opts...)
 		cancel()
 
 		if err != nil {
