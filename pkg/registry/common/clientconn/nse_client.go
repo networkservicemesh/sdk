@@ -40,7 +40,7 @@ func (c *clientConnNSEClient) Register(ctx context.Context, in *registry.Network
 
 func (c *clientConnNSEClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
 	ctx = withClientConnMetadata(ctx, &c.Map, in.GetName())
-	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in)
+	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
 }
 
 func (c *clientConnNSEClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {

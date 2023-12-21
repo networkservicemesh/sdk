@@ -104,8 +104,9 @@ func (s *localBypassNSEServer) Unregister(ctx context.Context, nse *registry.Net
 		nse.Url = s.nsmgrURL
 
 		_, err = next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
-
-		s.nseURLs.Delete(nse.Name)
+		if err == nil {
+			s.nseURLs.Delete(nse.Name)
+		}
 	}
 	return new(empty.Empty), err
 }
