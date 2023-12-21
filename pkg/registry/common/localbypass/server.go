@@ -27,7 +27,6 @@ import (
 	"github.com/edwarnicke/genericsync"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
-	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
@@ -105,11 +104,9 @@ func (s *localBypassNSEServer) Unregister(ctx context.Context, nse *registry.Net
 		nse.Url = s.nsmgrURL
 
 		_, err = next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
-		if err != nil {
-			return &emptypb.Empty{}, err
+		if err == nil {
+			s.nseURLs.Delete(nse.Name)
 		}
-
-		s.nseURLs.Delete(nse.Name)
 	}
 	return new(empty.Empty), err
 }
