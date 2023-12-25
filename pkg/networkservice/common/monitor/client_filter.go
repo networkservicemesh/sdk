@@ -46,10 +46,6 @@ func (c *clientFilter) Recv() (*networkservice.ConnectionEvent, error) {
 			Connections: make(map[string]*networkservice.Connection),
 		}
 		for _, connIn := range eventIn.GetConnections() {
-			if eventIn.GetType() == networkservice.ConnectionEventType_DELETE {
-				connIn = connIn.Clone()
-				connIn.State = networkservice.State_DOWN
-			}
 			// If we don't have enough PathSegments connIn doesn't match e.conn
 			if len(connIn.GetPath().GetPathSegments()) < int(c.conn.GetPath().GetIndex()+1) {
 				continue
@@ -60,6 +56,11 @@ func (c *clientFilter) Recv() (*networkservice.ConnectionEvent, error) {
 			}
 			// If the current index isn't the index of e.conn or what comes after it connIn doesn't match e.conn
 			if !(connIn.GetPath().GetIndex() == c.conn.GetPath().GetIndex() || connIn.GetPath().GetIndex() == c.conn.GetPath().GetIndex()+1) {
+				continue
+			}
+
+			if eventIn.GetType() == networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER &&
+				connIn.GetState() == c.conn.GetState() {
 				continue
 			}
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2022 Cisco and/or its affiliates.
+// Copyright (c) 2021-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -50,10 +50,6 @@ func (c *clientFilter) Recv() (*networkservice.ConnectionEvent, error) {
 			Connections: make(map[string]*networkservice.Connection),
 		}
 		for _, connIn := range eventIn.GetConnections() {
-			if eventIn.GetType() == networkservice.ConnectionEventType_DELETE {
-				connIn = connIn.Clone()
-				connIn.State = networkservice.State_DOWN
-			}
 			// If we don't have enough PathSegments connIn doesn't match e.conn
 			if len(connIn.GetPath().GetPathSegments()) < int(c.conn.GetPath().GetIndex()+1) {
 				continue
