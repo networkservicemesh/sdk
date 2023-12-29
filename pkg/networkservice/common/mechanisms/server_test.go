@@ -22,6 +22,7 @@ package mechanisms_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -62,20 +63,24 @@ func request() *networkservice.NetworkServiceRequest {
 		Connection: &networkservice.Connection{},
 		MechanismPreferences: []*networkservice.Mechanism{
 			{
-				Cls:  cls.LOCAL,
-				Type: memif.MECHANISM,
+				Cls:        cls.LOCAL,
+				Type:       memif.MECHANISM,
+				Parameters: make(map[string]string),
 			},
 			{
-				Cls:  cls.LOCAL,
-				Type: kernel.MECHANISM,
+				Cls:        cls.LOCAL,
+				Type:       kernel.MECHANISM,
+				Parameters: make(map[string]string),
 			},
 			{
-				Cls:  cls.REMOTE,
-				Type: srv6.MECHANISM,
+				Cls:        cls.REMOTE,
+				Type:       srv6.MECHANISM,
+				Parameters: make(map[string]string),
 			},
 			{
-				Cls:  cls.REMOTE,
-				Type: vxlan.MECHANISM,
+				Cls:        cls.REMOTE,
+				Type:       vxlan.MECHANISM,
+				Parameters: make(map[string]string),
 			},
 		},
 	}
@@ -238,4 +243,28 @@ func TestDontCallNextByItself(t *testing.T) {
 	_, err = server.Close(context.Background(), conn)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(ch))
+}
+
+func TestMetrics(t *testing.T) {
+	s := server()
+
+	metricsKey := "server_interface"
+	ifnameKey := "name"
+	ifname := "nsm-1"
+
+	for _, request := range permuteOverMechanismPreferenceOrder(request()) {
+		request.MechanismPreferences[0].Parameters[ifnameKey] = ifname
+		request.Connection.Path = &networkservice.Path{
+			PathSegments: make([]*networkservice.PathSegment, 1),
+			Index:        0,
+		}
+
+		conn, err := s.Request(context.Background(), request)
+		require.NoError(t, err)
+		require.NotNil(t, conn.Path)
+		require.Len(t, conn.Path.PathSegments, 1)
+		require.NotNil(t, conn.Path.PathSegments[0].Metrics)
+
+		require.Equal(t, fmt.Sprintf("%s/%s", request.MechanismPreferences[0].Type, ifname), conn.Path.PathSegments[0].Metrics[metricsKey])
+	}
 }

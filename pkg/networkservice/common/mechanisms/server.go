@@ -31,8 +31,7 @@ import (
 )
 
 type mechanismsServer struct {
-	mechanisms  map[string]networkservice.NetworkServiceServer // key is Mechanism.Type
-	withMetrics bool
+	mechanisms map[string]networkservice.NetworkServiceServer // key is Mechanism.Type
 }
 
 // NewServer - returns new NetworkServiceServer chain element that will attempt to meet the request.MechanismPreferences using
@@ -43,18 +42,8 @@ type mechanismsServer struct {
 //	      value:  NetworkServiceServer that only handles the work for the specified mechanismType
 //	              Note: Supplied NetworkServiceServer elements should not call next.Server(ctx).{Request,Close} themselves
 func NewServer(mechanisms map[string]networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
-	return newServer(mechanisms, false)
-}
-
-// NewServerWithMetrics - same as NewServer, but will also print the interface type/name metric to Path
-func NewServerWithMetrics(mechanisms map[string]networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
-	return newServer(mechanisms, true)
-}
-
-func newServer(mechanisms map[string]networkservice.NetworkServiceServer, withMetrics bool) networkservice.NetworkServiceServer {
 	rv := &mechanismsServer{
-		mechanisms:  make(map[string]networkservice.NetworkServiceServer),
-		withMetrics: withMetrics,
+		mechanisms: make(map[string]networkservice.NetworkServiceServer),
 	}
 	for mechanismType, server := range mechanisms {
 		// We wrap in a chain here to make sure that if the 'server' is calling next.Server(ctx) it doesn't
@@ -69,9 +58,7 @@ func (ms *mechanismsServer) Request(ctx context.Context, request *networkservice
 	if mech != nil {
 		srv, ok := ms.mechanisms[mech.GetType()]
 		if ok {
-			if ms.withMetrics {
-				storeMetrics(request.GetConnection(), mech, false)
-			}
+			storeMetrics(request.GetConnection(), mech, false)
 			return srv.Request(ctx, request)
 		}
 		return nil, errors.WithStack(errUnsupportedMech)
@@ -85,9 +72,7 @@ func (ms *mechanismsServer) Request(ctx context.Context, request *networkservice
 			var resp *networkservice.Connection
 			resp, respErr := srv.Request(ctx, req)
 			if respErr == nil {
-				if ms.withMetrics {
-					storeMetrics(resp, resp.GetMechanism(), false)
-				}
+				storeMetrics(resp, resp.GetMechanism(), false)
 				return resp, nil
 			}
 			err = errors.Wrap(err, respErr.Error())
@@ -99,9 +84,7 @@ func (ms *mechanismsServer) Request(ctx context.Context, request *networkservice
 func (ms *mechanismsServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	srv, ok := ms.mechanisms[conn.GetMechanism().GetType()]
 	if ok {
-		if ms.withMetrics {
-			storeMetrics(conn, conn.GetMechanism(), false)
-		}
+		storeMetrics(conn, conn.GetMechanism(), false)
 		return srv.Close(ctx, conn)
 	}
 	return nil, errCannotSupportMech
