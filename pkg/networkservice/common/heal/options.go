@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2022 Cisco and/or its affiliates.
+// Copyright (c) 2021-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -35,10 +35,18 @@ type options struct {
 	livenessCheck         LivenessCheck
 	livenessCheckInterval time.Duration
 	livenessCheckTimeout  time.Duration
+	retryOnRequestFail    bool
 }
 
 // Option - option for heal.NewClient() chain element
 type Option func(o *options)
+
+// WithoutRetry disables retry on failed refreshes
+func WithoutRetry() Option {
+	return func(o *options) {
+		o.retryOnRequestFail = false
+	}
+}
 
 // WithLivenessCheck - sets the data plane liveness checker
 func WithLivenessCheck(livenessCheck LivenessCheck) Option {

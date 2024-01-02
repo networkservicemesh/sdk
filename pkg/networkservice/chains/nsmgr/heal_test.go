@@ -275,6 +275,7 @@ func TestNSMGRHealEndpoint_DatapathHealthy_CtrlPlaneBroken(t *testing.T) {
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
 		nsclient.WithHealClient(heal.NewClient(ctx,
+			heal.WithoutRetry(),
 			heal.WithLivenessCheck(livenessCheck))))
 
 	_, err = nsc.Request(ctx, request.Clone())

@@ -254,7 +254,7 @@ func (n *Node) NewClient(
 		client.WithClientURL(CloneURL(n.NSMgr.URL)),
 		client.WithDialOptions(DialOptions(WithTokenGenerator(generatorFunc))...),
 		client.WithAuthorizeClient(authorize.NewClient(authorize.Any())),
-		client.WithHealClient(heal.NewClient(ctx)),
+		client.WithHealClient(heal.NewClient(ctx, heal.WithoutRetry())),
 		client.WithDialTimeout(DialTimeout),
 	}
 

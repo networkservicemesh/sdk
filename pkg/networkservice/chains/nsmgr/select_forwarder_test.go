@@ -356,6 +356,7 @@ func Test_DiscoverForwarder_Should_KeepSelectedForwarderWhileConnectionIsFine(t 
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
 		nsclient.WithHealClient(heal.NewClient(ctx,
+			heal.WithoutRetry(),
 			heal.WithLivenessCheck(livenessChecker))))
 
 	conn, err := nsc.Request(ctx, request.Clone())

@@ -25,6 +25,8 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientconn"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal/retry"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
@@ -43,16 +45,28 @@ func NewClient(chainCtx context.Context, opts ...Option) networkservice.NetworkS
 	o := &options{
 		livenessCheckInterval: livenessCheckInterval,
 		livenessCheckTimeout:  livenessCheckTimeout,
+		retryOnRequestFail:    true,
 	}
 	for _, opt := range opts {
 		opt(o)
 	}
-	return &healClient{
+
+	var result networkservice.NetworkServiceClient = &healClient{
 		chainCtx:              chainCtx,
 		livenessCheck:         o.livenessCheck,
 		livenessCheckInterval: o.livenessCheckInterval,
 		livenessCheckTimeout:  o.livenessCheckTimeout,
 	}
+
+	// TODO: rework within https://github.com/networkservicemesh/sdk/issues/1565
+	if o.retryOnRequestFail {
+		result = chain.NewNetworkServiceClient(
+			retry.NewClient(chainCtx),
+			result,
+		)
+	}
+
+	return result
 }
 
 func (h *healClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
