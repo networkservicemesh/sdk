@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2024 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -180,12 +182,14 @@ func Test_Client_DontCallNextByItself(t *testing.T) {
 	assert.Equal(t, 2, len(ch))
 }
 
+const (
+	metricsKey = "server_interface"
+	ifnameKey  = "name"
+	ifname     = "nsm-1"
+)
+
 func Test_Client_Metrics(t *testing.T) {
 	c := client()
-
-	metricsKey := "client_interface"
-	ifnameKey := "name"
-	ifname := "nsm-1"
 
 	for _, request := range permuteOverMechanismPreferenceOrder(request()) {
 		request.MechanismPreferences[0].Parameters[ifnameKey] = ifname

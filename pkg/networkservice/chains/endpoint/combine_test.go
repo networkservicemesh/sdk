@@ -1,5 +1,7 @@
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2024 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -334,7 +336,7 @@ type testEndpoint struct {
 	networkservice.MonitorConnectionServer
 }
 
-func newTestEndpoint(ctx context.Context, name string) *testEndpoint {
+func newTestEndpoint(name string) *testEndpoint {
 	e := new(testEndpoint)
 	e.NetworkServiceServer = next.NewNetworkServiceServer(
 		updatepath.NewServer(name),

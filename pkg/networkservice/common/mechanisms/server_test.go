@@ -2,7 +2,7 @@
 //
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -247,10 +247,6 @@ func TestDontCallNextByItself(t *testing.T) {
 
 func TestMetrics(t *testing.T) {
 	s := server()
-
-	metricsKey := "server_interface"
-	ifnameKey := "name"
-	ifname := "nsm-1"
 
 	for _, request := range permuteOverMechanismPreferenceOrder(request()) {
 		request.MechanismPreferences[0].Parameters[ifnameKey] = ifname
