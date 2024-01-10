@@ -247,6 +247,7 @@ func TestDontCallNextByItself(t *testing.T) {
 
 func TestMetrics(t *testing.T) {
 	s := server()
+	metricsKey := "server_interface"
 
 	for _, request := range permuteOverMechanismPreferenceOrder(request()) {
 		request.MechanismPreferences[0].Parameters[ifnameKey] = ifname

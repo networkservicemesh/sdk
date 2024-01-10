@@ -93,7 +93,7 @@ func testCombine(t *testing.T, mechanism *networkservice.Mechanism) {
 				kernel.MECHANISM: servers[0],
 				memif.MECHANISM:  servers[1],
 			}))
-	}, newTestEndpoint(ctx, kernel.MECHANISM), newTestEndpoint(ctx, memif.MECHANISM))
+	}, newTestEndpoint(kernel.MECHANISM), newTestEndpoint(memif.MECHANISM))
 
 	combined := &testEndpoint{
 		NetworkServiceServer:    e,
@@ -180,7 +180,7 @@ func TestSwitchEndpoint_InitialStateTransfer(t *testing.T) {
 				kernel.MECHANISM: servers[0],
 				memif.MECHANISM:  servers[1],
 			}))
-	}, newTestEndpoint(ctx, kernel.MECHANISM), newTestEndpoint(ctx, memif.MECHANISM))
+	}, newTestEndpoint(kernel.MECHANISM), newTestEndpoint(memif.MECHANISM))
 
 	combined := &testEndpoint{
 		NetworkServiceServer:    e,
@@ -246,13 +246,13 @@ func TestSwitchEndpoint_DuplicateEndpoints(t *testing.T) {
 
 	monitorCtx, cancelMonitor := context.WithCancel(ctx)
 
-	duplicate := newTestEndpoint(monitorCtx, "duplicate")
+	duplicate := newTestEndpoint("duplicate")
 	var m networkservice.MonitorConnectionServer
 	e := endpoint.Combine(func(servers []networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
 		return next.NewNetworkServiceServer(
 			begin.NewServer(),
 			metadata.NewServer(),
-			monitor.NewServer(ctx, &m),
+			monitor.NewServer(monitorCtx, &m),
 			mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
 				kernel.MECHANISM: servers[0],
 				memif.MECHANISM:  servers[1],

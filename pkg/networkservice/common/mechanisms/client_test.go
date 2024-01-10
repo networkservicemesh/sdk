@@ -183,13 +183,13 @@ func Test_Client_DontCallNextByItself(t *testing.T) {
 }
 
 const (
-	metricsKey = "server_interface"
-	ifnameKey  = "name"
-	ifname     = "nsm-1"
+	ifnameKey = "name"
+	ifname    = "nsm-1"
 )
 
 func Test_Client_Metrics(t *testing.T) {
 	c := client()
+	metricsKey := "client_interface"
 
 	for _, request := range permuteOverMechanismPreferenceOrder(request()) {
 		request.MechanismPreferences[0].Parameters[ifnameKey] = ifname
