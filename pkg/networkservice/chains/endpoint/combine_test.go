@@ -20,6 +20,7 @@ package endpoint_test
 
 import (
 	"context"
+	"io"
 	"net/url"
 	"testing"
 	"time"
@@ -28,6 +29,8 @@ import (
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
@@ -39,7 +42,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 )
 
@@ -83,23 +85,14 @@ func testCombine(t *testing.T, mechanism *networkservice.Mechanism) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	var m networkservice.MonitorConnectionServer
 	e := endpoint.Combine(func(servers []networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
-		return next.NewNetworkServiceServer(
-			begin.NewServer(),
-			metadata.NewServer(),
-			monitor.NewServer(ctx, &m),
-			mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
-				kernel.MECHANISM: servers[0],
-				memif.MECHANISM:  servers[1],
-			}))
-	}, newTestEndpoint(kernel.MECHANISM), newTestEndpoint(memif.MECHANISM))
+		return mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
+			kernel.MECHANISM: servers[0],
+			memif.MECHANISM:  servers[1],
+		})
+	}, newTestEndpoint(ctx, kernel.MECHANISM), newTestEndpoint(ctx, memif.MECHANISM))
 
-	combined := &testEndpoint{
-		NetworkServiceServer:    e,
-		MonitorConnectionServer: m,
-	}
-	cc := startEndpoint(ctx, t, combined)
+	cc := startEndpoint(ctx, t, e)
 	defer func() { _ = cc.Close() }()
 
 	c := next.NewNetworkServiceClient(
@@ -132,11 +125,11 @@ func testCombine(t *testing.T, mechanism *networkservice.Mechanism) {
 	require.Equal(t, (&networkservice.ConnectionEvent{
 		Type: networkservice.ConnectionEventType_UPDATE,
 		Connections: map[string]*networkservice.Connection{
-			conn.GetCurrentPathSegment().GetId(): {
-				Id:        conn.GetCurrentPathSegment().GetId(),
+			conn.GetNextPathSegment().GetId(): {
+				Id:        conn.GetNextPathSegment().GetId(),
 				Mechanism: conn.GetMechanism(),
 				Path: &networkservice.Path{
-					Index:        0,
+					Index:        1,
 					PathSegments: conn.GetPath().GetPathSegments(),
 				},
 			},
@@ -170,24 +163,14 @@ func TestSwitchEndpoint_InitialStateTransfer(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	var m networkservice.MonitorConnectionServer
 	e := endpoint.Combine(func(servers []networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
-		return next.NewNetworkServiceServer(
-			begin.NewServer(),
-			metadata.NewServer(),
-			monitor.NewServer(ctx, &m),
-			mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
-				kernel.MECHANISM: servers[0],
-				memif.MECHANISM:  servers[1],
-			}))
-	}, newTestEndpoint(kernel.MECHANISM), newTestEndpoint(memif.MECHANISM))
+		return mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
+			kernel.MECHANISM: servers[0],
+			memif.MECHANISM:  servers[1],
+		})
+	}, newTestEndpoint(ctx, kernel.MECHANISM), newTestEndpoint(ctx, memif.MECHANISM))
 
-	combined := &testEndpoint{
-		NetworkServiceServer:    e,
-		MonitorConnectionServer: m,
-	}
-
-	cc := startEndpoint(ctx, t, combined)
+	cc := startEndpoint(ctx, t, e)
 	defer func() { _ = cc.Close() }()
 
 	c := next.NewNetworkServiceClient(
@@ -214,11 +197,11 @@ func TestSwitchEndpoint_InitialStateTransfer(t *testing.T) {
 		Connections: make(map[string]*networkservice.Connection),
 	}
 	for _, conn := range conns {
-		expectedEvent.Connections[conn.GetCurrentPathSegment().GetId()] = &networkservice.Connection{
-			Id:        conn.GetCurrentPathSegment().GetId(),
+		expectedEvent.Connections[conn.GetNextPathSegment().GetId()] = &networkservice.Connection{
+			Id:        conn.GetNextPathSegment().GetId(),
 			Mechanism: conn.GetMechanism(),
 			Path: &networkservice.Path{
-				Index:        0,
+				Index:        1,
 				PathSegments: conn.GetPath().GetPathSegments(),
 			},
 		}
@@ -246,25 +229,15 @@ func TestSwitchEndpoint_DuplicateEndpoints(t *testing.T) {
 
 	monitorCtx, cancelMonitor := context.WithCancel(ctx)
 
-	duplicate := newTestEndpoint("duplicate")
-	var m networkservice.MonitorConnectionServer
+	duplicate := newTestEndpoint(monitorCtx, "duplicate")
 	e := endpoint.Combine(func(servers []networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
-		return next.NewNetworkServiceServer(
-			begin.NewServer(),
-			metadata.NewServer(),
-			monitor.NewServer(monitorCtx, &m),
-			mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
-				kernel.MECHANISM: servers[0],
-				memif.MECHANISM:  servers[1],
-			}))
+		return mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
+			kernel.MECHANISM: servers[0],
+			memif.MECHANISM:  servers[1],
+		})
 	}, duplicate, duplicate)
 
-	combined := &testEndpoint{
-		NetworkServiceServer:    e,
-		MonitorConnectionServer: m,
-	}
-
-	cc := startEndpoint(ctx, t, combined)
+	cc := startEndpoint(ctx, t, e)
 	defer func() { _ = cc.Close() }()
 
 	c := next.NewNetworkServiceClient(
@@ -295,11 +268,11 @@ func TestSwitchEndpoint_DuplicateEndpoints(t *testing.T) {
 		require.Equal(t, (&networkservice.ConnectionEvent{
 			Type: networkservice.ConnectionEventType_UPDATE,
 			Connections: map[string]*networkservice.Connection{
-				conn.GetCurrentPathSegment().GetId(): {
-					Id:        conn.GetCurrentPathSegment().GetId(),
+				conn.GetNextPathSegment().GetId(): {
+					Id:        conn.GetNextPathSegment().GetId(),
 					Mechanism: conn.GetMechanism(),
 					Path: &networkservice.Path{
-						Index:        0,
+						Index:        1,
 						PathSegments: conn.GetPath().GetPathSegments(),
 					},
 				},
@@ -329,6 +302,9 @@ func TestSwitchEndpoint_DuplicateEndpoints(t *testing.T) {
 	}
 
 	cancelMonitor()
+
+	_, err = stream.Recv()
+	require.ErrorIs(t, err, io.EOF)
 }
 
 type testEndpoint struct {
@@ -340,6 +316,9 @@ func newTestEndpoint(name string) *testEndpoint {
 	e := new(testEndpoint)
 	e.NetworkServiceServer = next.NewNetworkServiceServer(
 		updatepath.NewServer(name),
+		begin.NewServer(),
+		metadata.NewServer(),
+		monitor.NewServer(ctx, &e.MonitorConnectionServer),
 	)
 	return e
 }
