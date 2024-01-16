@@ -54,9 +54,11 @@ func NewServer(mechanisms map[string]networkservice.NetworkServiceServer) networ
 }
 
 func (ms *mechanismsServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if request.GetConnection().GetMechanism() != nil {
-		srv, ok := ms.mechanisms[request.GetConnection().GetMechanism().GetType()]
+	mech := request.GetConnection().GetMechanism()
+	if mech != nil {
+		srv, ok := ms.mechanisms[mech.GetType()]
 		if ok {
+			storeMetrics(request.GetConnection(), mech, false)
 			return srv.Request(ctx, request)
 		}
 		return nil, errors.WithStack(errUnsupportedMech)
@@ -70,6 +72,7 @@ func (ms *mechanismsServer) Request(ctx context.Context, request *networkservice
 			var resp *networkservice.Connection
 			resp, respErr := srv.Request(ctx, req)
 			if respErr == nil {
+				storeMetrics(resp, resp.GetMechanism(), false)
 				return resp, nil
 			}
 			err = errors.Wrap(err, respErr.Error())
@@ -81,6 +84,7 @@ func (ms *mechanismsServer) Request(ctx context.Context, request *networkservice
 func (ms *mechanismsServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	srv, ok := ms.mechanisms[conn.GetMechanism().GetType()]
 	if ok {
+		storeMetrics(conn, conn.GetMechanism(), false)
 		return srv.Close(ctx, conn)
 	}
 	return nil, errCannotSupportMech

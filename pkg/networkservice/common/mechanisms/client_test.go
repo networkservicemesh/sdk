@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2024 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +20,7 @@ package mechanisms_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -177,4 +180,29 @@ func Test_Client_DontCallNextByItself(t *testing.T) {
 	_, err = c.Close(context.Background(), conn, grpc.WaitForReady(true))
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(ch))
+}
+
+const (
+	ifnameKey = "name"
+	ifname    = "nsm-1"
+)
+
+func Test_Client_Metrics(t *testing.T) {
+	c := client()
+	metricsKey := "client_interface"
+
+	for _, request := range permuteOverMechanismPreferenceOrder(request()) {
+		request.MechanismPreferences[0].Parameters[ifnameKey] = ifname
+		request.Connection.Path = &networkservice.Path{
+			PathSegments: make([]*networkservice.PathSegment, 1),
+			Index:        0,
+		}
+
+		conn, err := c.Request(context.Background(), request)
+		require.NoError(t, err)
+		require.NotNil(t, conn.Path)
+		require.Len(t, conn.Path.PathSegments, 1)
+		require.NotNil(t, conn.Path.PathSegments[0].Metrics)
+		require.Equal(t, fmt.Sprintf("%s/%s", request.MechanismPreferences[0].Type, ifname), conn.Path.PathSegments[0].Metrics[metricsKey])
+	}
 }
