@@ -1,6 +1,6 @@
-// Copyright (c) 2020-2022 Cisco Systems, Inc.
+// Copyright (c) 2020-2023 Cisco Systems, Inc.
 //
-// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2023 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -60,14 +60,23 @@ func NewServer(chainCtx context.Context, monitorServerPtr *networkservice.Monito
 func (m *monitorServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	closeCtxFunc := postpone.ContextWithValues(ctx)
 	// Cancel any existing eventLoop
-	if cancelEventLoop, loaded := loadAndDelete(ctx, metadata.IsClient(m)); loaded {
+	cancelEventLoop, loaded := loadAndDelete(ctx, metadata.IsClient(m))
+	if loaded {
 		cancelEventLoop()
 	}
 
 	storeEventConsumer(ctx, metadata.IsClient(m), m.MonitorConnectionServer.(EventConsumer))
+	clonedConn := request.GetConnection().Clone()
 
 	conn, err := next.Server(ctx).Request(ctx, request)
 	if err != nil {
+		if loaded {
+			clonedConn.State = networkservice.State_DOWN
+			_ = m.MonitorConnectionServer.(EventConsumer).Send(&networkservice.ConnectionEvent{
+				Type:        networkservice.ConnectionEventType_UPDATE,
+				Connections: map[string]*networkservice.Connection{clonedConn.GetId(): clonedConn},
+			})
+		}
 		return nil, err
 	}
 	_ = m.MonitorConnectionServer.(EventConsumer).Send(&networkservice.ConnectionEvent{

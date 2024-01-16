@@ -69,6 +69,10 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 	var forwarderName = loadForwarderName(ctx)
 	var logger = log.FromContext(ctx).WithField("discoverForwarderServer", "request")
 
+	if request.GetConnection().State == networkservice.State_RESELECT_REQUESTED {
+		forwarderName = ""
+	}
+
 	ns, err := d.discoverNetworkService(ctx, request.GetConnection().GetNetworkService(), request.GetConnection().GetPayload())
 	if err != nil {
 		return nil, err
@@ -96,7 +100,7 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 		return nil, errors.New("no candidates found")
 	}
 
-	if forwarderName == "" {
+	if forwarderName == "" && request.GetConnection().GetState() != networkservice.State_RESELECT_REQUESTED {
 		segments := request.Connection.GetPath().GetPathSegments()
 		if pathIndex := int(request.Connection.GetPath().Index); len(segments) > pathIndex+1 {
 			for i, candidate := range nses {
@@ -165,7 +169,7 @@ func (d *discoverForwarderServer) Close(ctx context.Context, conn *networkservic
 
 	nses := registry.ReadNetworkServiceEndpointList(stream)
 	if len(nses) == 0 {
-		logger.Error("forwarder is not found: %v", forwarderName)
+		logger.Errorf("forwarder is not found: %v", forwarderName)
 		return next.Server(ctx).Close(ctx, conn)
 	}
 

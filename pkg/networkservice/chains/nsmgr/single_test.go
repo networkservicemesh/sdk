@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2024 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -24,9 +24,12 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/edwarnicke/serialize"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -43,9 +46,14 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/point2pointipam"
-	countutils "github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkresponse"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/registry"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
@@ -76,10 +84,10 @@ func Test_AwareNSEs(t *testing.T) {
 	_, ipNet, err := net.ParseCIDR("172.16.0.96/29")
 	require.NoError(t, err)
 
-	const count = 3
-	var nseRegs [count]*registryapi.NetworkServiceEndpoint
-	var nses [count]*sandbox.EndpointEntry
-	var requests [count]*networkservice.NetworkServiceRequest
+	const nseCount = 3
+	var nseRegs [nseCount]*registryapi.NetworkServiceEndpoint
+	var nses [nseCount]*sandbox.EndpointEntry
+	var requests [nseCount]*networkservice.NetworkServiceRequest
 
 	ns1 := defaultRegistryService("my-ns-1")
 	ns2 := defaultRegistryService("my-ns-2")
@@ -90,7 +98,7 @@ func Test_AwareNSEs(t *testing.T) {
 	nsurl2, err := url.Parse(fmt.Sprintf("kernel://%s?%s=%s", ns2.Name, "color", "red"))
 	require.NoError(t, err)
 
-	nsInfo := [count]struct {
+	nsInfo := [nseCount]struct {
 		ns         *registryapi.NetworkService
 		labelKey   string
 		labelValue string
@@ -112,7 +120,7 @@ func Test_AwareNSEs(t *testing.T) {
 		},
 	}
 
-	for i := 0; i < count; i++ {
+	for i := 0; i < nseCount; i++ {
 		nseRegs[i] = &registryapi.NetworkServiceEndpoint{
 			Name:                fmt.Sprintf("nse-%s", uuid.New().String()),
 			NetworkServiceNames: []string{nsInfo[i].ns.Name},
@@ -163,8 +171,8 @@ func Test_AwareNSEs(t *testing.T) {
 			},
 		))))
 
-	var conns [count]*networkservice.Connection
-	for i := 0; i < count; i++ {
+	var conns [nseCount]*networkservice.Connection
+	for i := 0; i < nseCount; i++ {
 		conns[i], err = nsc.Request(ctx, requests[i])
 		require.NoError(t, err)
 		require.Equal(t, conns[0].NetworkServiceEndpointName, nses[0].Name)
@@ -178,12 +186,12 @@ func Test_AwareNSEs(t *testing.T) {
 	require.NotEqual(t, srcIP1[0], srcIP3[0])
 	require.NotEqual(t, srcIP2[0], srcIP3[0])
 
-	for i := 0; i < count; i++ {
+	for i := 0; i < nseCount; i++ {
 		_, err = nsc.Close(ctx, conns[i])
 		require.NoError(t, err)
 	}
 
-	for i := 0; i < count; i++ {
+	for i := 0; i < nseCount; i++ {
 		_, err = nses[i].Unregister(ctx, nseRegs[i])
 		require.NoError(t, err)
 	}
@@ -608,6 +616,78 @@ func createAuthorizedEndpoint(ctx context.Context, t *testing.T, ns string, nsmg
 	require.NoError(t, err)
 }
 
+func Test_RestartDuringRefresh(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+	var ctx, cancel = context.WithTimeout(context.Background(), time.Second*15)
+	defer cancel()
+	var domain = sandbox.NewBuilder(ctx, t).SetNodesCount(1).Build()
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+	_, err := nsRegistryClient.Register(ctx, defaultRegistryService("ns"))
+	require.NoError(t, err)
+
+	var countServer count.Server
+	var countClint count.Client
+	var m sync.Once
+	var clientFactory begin.EventFactory
+	var destroyFwd atomic.Bool
+	var e serialize.Executor
+
+	domain.Nodes[0].NewEndpoint(ctx, &registryapi.NetworkServiceEndpoint{
+		Name:                "nse-1",
+		NetworkServiceNames: []string{"ns"},
+	}, sandbox.GenerateTestToken, &countServer, checkrequest.NewServer(t, func(t *testing.T, nsr *networkservice.NetworkServiceRequest) {
+		if destroyFwd.Load() {
+			e.AsyncExec(func() {
+				for _, fwd := range domain.Nodes[0].Forwarders {
+					fwd.Cancel()
+				}
+			})
+		}
+	}))
+
+	var nsc = domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(
+		&countClint,
+		checkcontext.NewClient(t, func(t *testing.T, ctx context.Context) {
+			m.Do(func() {
+				clientFactory = begin.FromContext(ctx)
+			})
+		}),
+		checkresponse.NewClient(t, func(t *testing.T, nsr *networkservice.Connection) {
+			if destroyFwd.Load() {
+				e.AsyncExec(func() {
+					for _, fwd := range domain.Nodes[0].Forwarders {
+						fwd.Restart()
+					}
+				})
+			}
+		}),
+		heal.NewClient(ctx),
+	))
+
+	_, err = nsc.Request(ctx, &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id:             uuid.NewString(),
+			NetworkService: "ns",
+		},
+	})
+	require.NoError(t, err)
+	<-clientFactory.Request()
+	require.Equal(t, 2, countServer.Requests())
+	require.Never(t, func() bool { return countServer.Requests() > 2 }, time.Second/2, time.Second/20)
+	destroyFwd.Store(true)
+	for i := 0; i < 15; i++ {
+		var cs = countServer.Requests()
+		destroyFwd.Store(true)
+		err = <-clientFactory.Request()
+		require.Error(t, err)
+		destroyFwd.Store(false)
+		var cc = countClint.Requests()
+		require.Eventually(t, func() bool { return cs < countServer.Requests() }, time.Second*2, time.Second/20)
+		require.Eventually(t, func() bool { return cc < countClint.Requests() }, time.Second*2, time.Second/20)
+	}
+}
+
 // This test checks timeout on sandbox
 // We run nsmgr and NSE with networkservice authorize chain element (tokens_expired.rego)
 func Test_Timeout(t *testing.T) {
@@ -640,7 +720,7 @@ func Test_Timeout(t *testing.T) {
 	nsReg, err := nsRegistryClient.Register(chainCtx, ns)
 	require.NoError(t, err)
 
-	counter := new(countutils.Server)
+	counter := new(count.Server)
 
 	createAuthorizedEndpoint(chainCtx, t, ns.Name, domain.Nodes[0].NSMgr.URL, counter)
 

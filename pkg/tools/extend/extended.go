@@ -51,8 +51,8 @@ func WithValuesFromContext(parent, valuesContext context.Context) context.Contex
 	}
 }
 
-// WithJoinedValues - creates a child context with the Values from both parent and values Contexts
-func WithJoinedValues(parent, valuesContext context.Context) context.Context {
+// WithBothValuesFromContext - creates a child context with the Values from both parent and values Contexts
+func WithBothValuesFromContext(parent, valuesContext context.Context) context.Context {
 	return &joinedValuesContext{
 		Context:       parent,
 		valuesContext: valuesContext,
