@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -31,11 +31,17 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-// DefaultNsmgrProxyService default NSM nsmgr proxy service name for SRV lookup
-const DefaultNsmgrProxyService = "nsmgr-proxy.nsm-system"
+// DefaultRegistryProxyService default NSM registry proxy service name for SRV lookup
+const DefaultRegistryProxyService = "registry-proxy"
 
 // DefaultRegistryService default NSM registry service name for SRV lookup
-const DefaultRegistryService = "registry.nsm-system"
+const DefaultRegistryService = "registry"
+
+// DefaultNSMgrProxyService default NSM registry service name for SRV lookup
+const DefaultNSMgrProxyService = "nsmgr-proxy"
+
+// DefaultExternalDNSService default NSM dns service name for SRV lookup
+const DefaultExternalDNSService = "external-dns"
 
 // Resolver is DNS resolver
 type Resolver interface {

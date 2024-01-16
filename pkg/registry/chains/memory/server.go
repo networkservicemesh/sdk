@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -31,6 +31,7 @@ import (
 	registryserver "github.com/networkservicemesh/sdk/pkg/registry"
 	registryauthorize "github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/replaceurl"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
@@ -50,13 +51,13 @@ import (
 )
 
 type serverOptions struct {
-	authorizeNSRegistryServer  registry.NetworkServiceRegistryServer
-	authorizeNSERegistryServer registry.NetworkServiceEndpointRegistryServer
-	authorizeNSRegistryClient  registry.NetworkServiceRegistryClient
-	authorizeNSERegistryClient registry.NetworkServiceEndpointRegistryClient
-	defaultExpiration          time.Duration
-	proxyRegistryURL           *url.URL
-	dialOptions                []grpc.DialOption
+	authorizeNSRegistryServer       registry.NetworkServiceRegistryServer
+	authorizeNSERegistryServer      registry.NetworkServiceEndpointRegistryServer
+	authorizeNSRegistryClient       registry.NetworkServiceRegistryClient
+	authorizeNSERegistryClient      registry.NetworkServiceEndpointRegistryClient
+	defaultExpiration               time.Duration
+	nsmgrProxyURL, proxyRegistryURL *url.URL
+	dialOptions                     []grpc.DialOption
 }
 
 // Option modifies server option value
@@ -109,6 +110,13 @@ func WithDefaultExpiration(d time.Duration) Option {
 	}
 }
 
+// WithNSMgrProxyURL sets url to the NSMgr proxy
+func WithNSMgrProxyURL(u *url.URL) Option {
+	return func(o *serverOptions) {
+		o.nsmgrProxyURL = u
+	}
+}
+
 // WithProxyRegistryURL sets URL to reach the proxy registry
 func WithProxyRegistryURL(proxyRegistryURL *url.URL) Option {
 	return func(o *serverOptions) {
@@ -131,8 +139,8 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		authorizeNSRegistryClient:  registryauthorize.NewNetworkServiceRegistryClient(registryauthorize.Any()),
 		authorizeNSERegistryClient: registryauthorize.NewNetworkServiceEndpointRegistryClient(registryauthorize.Any()),
 		defaultExpiration:          time.Minute,
-		proxyRegistryURL:           nil,
 	}
+
 	for _, opt := range options {
 		opt(opts)
 	}
@@ -145,6 +153,9 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		metadata.NewNetworkServiceEndpointServer(),
 		switchcase.NewNetworkServiceEndpointRegistryServer(switchcase.NSEServerCase{
 			Condition: func(c context.Context, nse *registry.NetworkServiceEndpoint) bool {
+				if opts.nsmgrProxyURL == nil {
+					return false
+				}
 				if interdomain.Is(nse.GetName()) {
 					return true
 				}
@@ -156,6 +167,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 				return false
 			},
 			Action: chain.NewNetworkServiceEndpointRegistryServer(
+				replaceurl.NewNetworkServiceEndpointRegistryServer(opts.nsmgrProxyURL),
 				connect.NewNetworkServiceEndpointRegistryServer(
 					chain.NewNetworkServiceEndpointRegistryClient(
 						begin.NewNetworkServiceEndpointRegistryClient(),
@@ -172,7 +184,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			),
 		},
 			switchcase.NSEServerCase{
-				Condition: func(c context.Context, nse *registry.NetworkServiceEndpoint) bool { return true },
+				Condition: switchcase.Otherwise[*registry.NetworkServiceEndpoint],
 				Action: chain.NewNetworkServiceEndpointRegistryServer(
 					setregistrationtime.NewNetworkServiceEndpointRegistryServer(),
 					expire.NewNetworkServiceEndpointRegistryServer(ctx, expire.WithDefaultExpiration(opts.defaultExpiration)),

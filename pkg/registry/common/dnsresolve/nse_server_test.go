@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2024 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -156,7 +158,7 @@ func Test_DNSResolve_LookupNsmgrProxy(t *testing.T) {
 
 	r, err := resp.Recv()
 	require.NoError(t, err)
-	require.Equal(t, nsmgrProxyURL.String(), r.NetworkServiceEndpoint.Url)
+	require.Contains(t, r.NetworkServiceEndpoint.Url, "dns:")
 
 	_, err = s.Unregister(ctx, &registry.NetworkServiceEndpoint{Name: "nse-1@" + domain})
 	require.NoError(t, err)

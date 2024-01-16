@@ -1,4 +1,4 @@
-// Copyright (c) 2022-2023 Cisco Systems, Inc.
+// Copyright (c) 2022-2024 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -45,7 +45,8 @@ func (r *responseWriter) WriteMsg(m *dns.Msg) error {
 }
 
 type memoryHandler struct {
-	records *genericsync.Map[string, []net.IP]
+	ipRecords  *genericsync.Map[string, []net.IP]
+	srvRecords *genericsync.Map[string, []*net.TCPAddr]
 }
 
 func (f *memoryHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg *dns.Msg) {
@@ -66,6 +67,8 @@ func (f *memoryHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 		resp.Answer = append(resp.Answer, f.a(name)...)
 	case dns.TypePTR:
 		resp.Answer = append(resp.Answer, f.ptr(name)...)
+	case dns.TypeSRV:
+		resp.Answer = append(resp.Answer, f.srv(name)...)
 	}
 
 	if len(resp.Answer) != 0 {
@@ -75,7 +78,7 @@ func (f *memoryHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 		return
 	}
 
-	if _, ok := f.records.Load(name); ok {
+	if _, ok := f.ipRecords.Load(name); ok {
 		m := new(dns.Msg)
 		_ = rw.WriteMsg(m.SetRcode(msg, dns.RcodeSuccess))
 	} else {
@@ -93,10 +96,36 @@ func NewDNSHandler(records *genericsync.Map[string, []net.IP]) dnsutils.Handler 
 	if records == nil {
 		panic("records cannot be nil")
 	}
-	return &memoryHandler{records: records}
+	return &memoryHandler{ipRecords: records}
+}
+
+// NewDNSHandlerWithOptions creates a new dnsutils.Handler with specific options
+func NewDNSHandlerWithOptions(opts ...Option) dnsutils.Handler {
+	var r = new(memoryHandler)
+	for _, opt := range opts {
+		opt(r)
+	}
+	return r
+}
+
+func (f *memoryHandler) srv(domain string) []dns.RR {
+	v, ok := f.srvRecords.Load(domain)
+	if !ok {
+		return nil
+	}
+	var result []dns.RR
+	for _, record := range v {
+		result = append(result, &dns.SRV{
+			Port:   uint16(record.Port),
+			Target: domain,
+			Hdr:    dns.RR_Header{Name: domain, Rrtype: dns.TypeSRV, Class: dns.ClassINET, Ttl: defaultTTL},
+		})
+	}
+
+	return result
 }
 func (f *memoryHandler) a(domain string) []dns.RR {
-	var ips, _ = f.records.Load(domain)
+	var ips, _ = f.ipRecords.Load(domain)
 	var answers []dns.RR
 	for _, ip := range ips {
 		if ip.To4() == nil {
@@ -111,7 +140,7 @@ func (f *memoryHandler) a(domain string) []dns.RR {
 }
 
 func (f *memoryHandler) aaaa(domain string) []dns.RR {
-	var ips, _ = f.records.Load(domain)
+	var ips, _ = f.ipRecords.Load(domain)
 	var answers []dns.RR
 	for _, ip := range ips {
 		if ip.To4() != nil {
@@ -152,7 +181,7 @@ func (f *memoryHandler) ptr(domain string) []dns.RR {
 		}
 
 		var recordNames []string
-		f.records.Range(func(key string, value []net.IP) bool {
+		f.ipRecords.Range(func(key string, value []net.IP) bool {
 			for _, v := range value {
 				if v.Equal(requestedIP) {
 					recordNames = append(recordNames, key)

@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2024 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -520,6 +522,7 @@ func Test_FailedRegistryAuthorization(t *testing.T) {
 		ctx context.Context,
 		tokenGenerator token.GeneratorFunc,
 		expiryDuration time.Duration,
+		nsmgrProxyURL *url.URL,
 		proxyRegistryURL *url.URL,
 		options ...grpc.DialOption) registry.Registry {
 		registryName := sandbox.UniqueName("registry-memory")
@@ -527,6 +530,7 @@ func Test_FailedRegistryAuthorization(t *testing.T) {
 		return memory.NewServer(
 			ctx,
 			tokenGeneratorFunc("spiffe://test.com/"+registryName),
+			memory.WithNSMgrProxyURL(nsmgrProxyURL),
 			memory.WithProxyRegistryURL(proxyRegistryURL),
 			memory.WithDefaultExpiration(expiryDuration),
 			memory.WithDialOptions(options...),
@@ -691,12 +695,14 @@ func Test_Expire(t *testing.T) {
 		ctx context.Context,
 		tokenGenerator token.GeneratorFunc,
 		expiryDuration time.Duration,
+		nsmgrProxyURL *url.URL,
 		proxyRegistryURL *url.URL,
 		options ...grpc.DialOption) registry.Registry {
 		return memory.NewServer(
 			ctx,
 			tokenGenerator,
 			memory.WithProxyRegistryURL(proxyRegistryURL),
+			memory.WithNSMgrProxyURL(nsmgrProxyURL),
 			memory.WithDefaultExpiration(expiryDuration),
 			memory.WithDialOptions(options...),
 			memory.WithAuthorizeNSRegistryServer(
