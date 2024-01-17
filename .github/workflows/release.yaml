@@ -53,6 +53,7 @@ jobs:
         "cmd-map-ip-k8s",
         "cmd-admission-webhook-k8s",
         "cmd-cluster-info-k8s",
-        "cmd-csi-driver"]
+        "cmd-csi-driver",
+        "cmd-dashboard-backend"]
     secrets:
       token: ${{ secrets.NSM_BOT_GITHUB_TOKEN }}
