@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2023 Cisco and/or its affiliates.
+// Copyright (c) 2021-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -50,50 +50,27 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 	eventFactoryServer, _ := b.LoadOrStore(request.GetConnection().GetId(),
 		newEventFactoryServer(
 			ctx,
+			func() *eventFactoryServer {
+				currentEventFactoryServer, _ := b.Load(request.GetConnection().GetId())
+				return currentEventFactoryServer
+			},
 			func() {
 				b.Delete(request.GetRequestConnection().GetId())
 			},
 		),
 	)
-	<-eventFactoryServer.executor.AsyncExec(func() {
-		currentEventFactoryServer, _ := b.Load(request.GetConnection().GetId())
-		if currentEventFactoryServer != eventFactoryServer {
+	err = <-eventFactoryServer.Request(
+		withContext(ctx),
+		withUserRequest(request),
+		withConnectionToReturn(&conn),
+	)
+	if err != nil {
+		if errors.Is(err, &errorEventFactoryInconsistency{}) {
 			log.FromContext(ctx).Debug("recalling begin.Request because currentEventFactoryServer != eventFactoryServer")
 			conn, err = b.Request(ctx, request)
-			return
 		}
+	}
 
-		if eventFactoryServer.state == established &&
-			request.GetConnection().GetState() == networkservice.State_RESELECT_REQUESTED &&
-			eventFactoryServer.request != nil && eventFactoryServer.request.Connection != nil {
-			log.FromContext(ctx).Info("Closing connection due to RESELECT_REQUESTED state")
-
-			eventFactoryCtx, eventFactoryCtxCancel := eventFactoryServer.ctxFunc()
-			_, closeErr := next.Server(eventFactoryCtx).Close(eventFactoryCtx, eventFactoryServer.request.Connection)
-			if closeErr != nil {
-				log.FromContext(ctx).Errorf("Can't close old connection: %v", closeErr)
-			}
-			eventFactoryServer.state = closed
-			eventFactoryCtxCancel()
-		}
-
-		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
-		conn, err = next.Server(withEventFactoryCtx).Request(withEventFactoryCtx, request)
-		if err != nil {
-			if eventFactoryServer.state != established {
-				eventFactoryServer.state = closed
-				b.Delete(request.GetConnection().GetId())
-			}
-			return
-		}
-		conn.State = networkservice.State_UP
-		eventFactoryServer.request = request.Clone()
-		eventFactoryServer.request.Connection = conn.Clone()
-		eventFactoryServer.state = established
-
-		eventFactoryServer.returnedConnection = conn.Clone()
-		eventFactoryServer.updateContext(ctx)
-	})
 	return conn, err
 }
 
@@ -107,19 +84,6 @@ func (b *beginServer) Close(ctx context.Context, conn *networkservice.Connection
 		// If we don't have a connection to Close, just let it be
 		return &emptypb.Empty{}, nil
 	}
-	<-eventFactoryServer.executor.AsyncExec(func() {
-		if eventFactoryServer.state != established || eventFactoryServer.request == nil {
-			return
-		}
-		currentServerClient, _ := b.Load(conn.GetId())
-		if currentServerClient != eventFactoryServer {
-			return
-		}
-		// Always close with the last valid EventFactory we got
-		conn = eventFactoryServer.request.Connection
-		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
-		emp, err = next.Server(withEventFactoryCtx).Close(withEventFactoryCtx, conn)
-		eventFactoryServer.afterCloseFunc()
-	})
+	err = <-eventFactoryServer.Close()
 	return &emptypb.Empty{}, err
 }

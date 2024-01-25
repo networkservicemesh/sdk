@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,11 +18,19 @@ package begin
 
 import (
 	"context"
+
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"google.golang.org/grpc"
 )
 
 type option struct {
 	cancelCtx context.Context
 	reselect  bool
+
+	ctx                context.Context
+	userRequest        *networkservice.NetworkServiceRequest
+	grpcOpts           []grpc.CallOption
+	connectionToReturn **networkservice.Connection
 }
 
 // Option - event option
@@ -39,5 +47,33 @@ func CancelContext(cancelCtx context.Context) Option {
 func WithReselect() Option {
 	return func(o *option) {
 		o.reselect = true
+	}
+}
+
+// withUserRequest - optionally clear Mechanism and NetworkServiceName to force reselect
+func withContext(ctx context.Context) Option {
+	return func(o *option) {
+		o.ctx = ctx
+	}
+}
+
+// withUserRequest - optionally clear Mechanism and NetworkServiceName to force reselect
+func withUserRequest(r *networkservice.NetworkServiceRequest) Option {
+	return func(o *option) {
+		o.userRequest = r
+	}
+}
+
+// withOpts - optionally clear Mechanism and NetworkServiceName to force reselect
+func withGRPCOpts(opts []grpc.CallOption) Option {
+	return func(o *option) {
+		o.grpcOpts = opts
+	}
+}
+
+// withConnectionToReturn - optionally clear Mechanism and NetworkServiceName to force reselect
+func withConnectionToReturn(conn **networkservice.Connection) Option {
+	return func(o *option) {
+		o.connectionToReturn = conn
 	}
 }
