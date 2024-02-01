@@ -23,6 +23,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -30,6 +31,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
+	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/ipam"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -38,8 +40,11 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/nsemonitor"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext/vl3dns"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/ipcontext/vl3"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkclose"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
@@ -508,4 +513,57 @@ func Test_FloatingInterdomain_vl3_dns(t *testing.T) {
 
 	_, err = resolver.LookupIP(ctx, "ip4", fmt.Sprintf("%s.%s", nscName, searchDomain))
 	require.Error(t, err)
+}
+
+func Test_vl3NSE_dies(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	counter := new(atomic.Int32)
+	counter.Store(0)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		Build()
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService("vl3"))
+	require.NoError(t, err)
+
+	cc, err := grpc.DialContext(ctx, domain.Registry.URL.String()[6:], sandbox.DialOptions()...)
+	require.NoError(t, err)
+	defer cc.Close()
+
+	nseRegistryClient := registry.NewNetworkServiceEndpointRegistryClient(cc)
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
+
+	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
+	nsc := domain.Nodes[0].NewClient(
+		ctx,
+		sandbox.GenerateTestToken,
+		client.WithHealClient(null.NewClient()),
+		client.WithAdditionalFunctionality(
+			nsemonitor.NewClient(ctx, nseRegistryClient),
+			checkclose.NewClient(t, func(t *testing.T, c *networkservice.Connection) {
+				counter.Store(1)
+			}),
+		))
+
+	req := defaultRequest(nsReg.Name)
+	req.Connection.Id = uuid.New().String()
+
+	_, err = nsc.Request(ctx, req)
+	require.NoError(t, err)
+
+	_, err = nseRegistryClient.Unregister(ctx, nseReg)
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool {
+		v := counter.Load()
+		return v == 1
+	}, time.Second*1, time.Millisecond*200)
 }
