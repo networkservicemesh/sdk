@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -48,7 +48,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/point2pointipam"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
@@ -625,7 +624,7 @@ func Test_RestartDuringRefresh(t *testing.T) {
 	require.NoError(t, err)
 
 	var countServer count.Server
-	var countClint count.Client
+	var countClientBack count.ClientBackward
 	var m sync.Once
 	var clientFactory begin.EventFactory
 	var destroyFwd atomic.Bool
@@ -636,16 +635,21 @@ func Test_RestartDuringRefresh(t *testing.T) {
 		NetworkServiceNames: []string{"ns"},
 	}, sandbox.GenerateTestToken, &countServer, checkrequest.NewServer(t, func(t *testing.T, nsr *networkservice.NetworkServiceRequest) {
 		if destroyFwd.Load() {
-			e.AsyncExec(func() {
-				for _, fwd := range domain.Nodes[0].Forwarders {
-					fwd.Cancel()
+			<-e.AsyncExec(func() {
+				for idx := range domain.Nodes[0].Forwarders {
+					forwarder := domain.Nodes[0].Forwarders[idx]
+					forwarder.Cancel()
+					// wait until the forwarder dies
+					require.Eventually(t, func() bool {
+						return sandbox.CheckURLFree(forwarder.URL)
+					}, timeout, tick)
 				}
 			})
 		}
 	}))
 
 	var nsc = domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(
-		&countClint,
+		&countClientBack,
 		checkcontext.NewClient(t, func(t *testing.T, ctx context.Context) {
 			m.Do(func() {
 				clientFactory = begin.FromContext(ctx)
@@ -660,7 +664,6 @@ func Test_RestartDuringRefresh(t *testing.T) {
 				})
 			}
 		}),
-		heal.NewClient(ctx),
 	))
 
 	_, err = nsc.Request(ctx, &networkservice.NetworkServiceRequest{
@@ -673,16 +676,14 @@ func Test_RestartDuringRefresh(t *testing.T) {
 	<-clientFactory.Request()
 	require.Equal(t, 2, countServer.Requests())
 	require.Never(t, func() bool { return countServer.Requests() > 2 }, time.Second/2, time.Second/20)
-	destroyFwd.Store(true)
 	for i := 0; i < 15; i++ {
-		var cs = countServer.Requests()
 		destroyFwd.Store(true)
 		err = <-clientFactory.Request()
 		require.Error(t, err)
+		var cc = countClientBack.Requests()
 		destroyFwd.Store(false)
-		var cc = countClint.Requests()
-		require.Eventually(t, func() bool { return cs < countServer.Requests() }, time.Second*2, time.Second/20)
-		require.Eventually(t, func() bool { return cc < countClint.Requests() }, time.Second*2, time.Second/20)
+		// Heal must be successful eventually
+		require.Eventually(t, func() bool { return cc < countClientBack.Requests() }, time.Second*2, time.Second/20)
 	}
 }
 

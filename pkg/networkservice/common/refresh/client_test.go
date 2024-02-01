@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2024 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -48,6 +50,7 @@ import (
 
 const (
 	expireTimeout = 15 * time.Minute
+	retryTimeout  = 200 * time.Millisecond
 	testWait      = 100 * time.Millisecond
 	testTick      = testWait / 100
 
@@ -69,19 +72,19 @@ func testTokenFuncWithTimeout(clockTime clock.Clock, timeout time.Duration) toke
 	}
 }
 
-type captureTickerDuration struct {
+type captureAfterDuration struct {
 	*clockmock.Mock
 
-	tickerDuration time.Duration
+	afterDuration time.Duration
 }
 
-func (m *captureTickerDuration) Ticker(d time.Duration) clock.Ticker {
-	m.tickerDuration = d
-	return m.Mock.Ticker(d)
+func (m *captureAfterDuration) After(d time.Duration) <-chan time.Time {
+	m.afterDuration = d
+	return m.Mock.After(d)
 }
 
-func (m *captureTickerDuration) Reset(t time.Time) {
-	m.tickerDuration = 0
+func (m *captureAfterDuration) Reset(t time.Time) {
+	m.afterDuration = 0
 	m.Set(t)
 }
 
@@ -355,7 +358,7 @@ func TestRefreshClient_CalculatesShortestTokenTimeout(t *testing.T) {
 
 	timeNow := time.Date(2009, 11, 10, 23, 0, 0, 0, time.Local)
 
-	clockMock := captureTickerDuration{
+	clockMock := captureAfterDuration{
 		Mock: clockmock.New(ctx),
 	}
 
@@ -389,14 +392,14 @@ func TestRefreshClient_CalculatesShortestTokenTimeout(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		require.Less(t, clockMock.tickerDuration, testDataElement.ExpectedRefreshTimeout+timeoutDelta)
-		require.Greater(t, clockMock.tickerDuration, testDataElement.ExpectedRefreshTimeout-timeoutDelta)
+		require.Less(t, clockMock.afterDuration, testDataElement.ExpectedRefreshTimeout+timeoutDelta)
+		require.Greater(t, clockMock.afterDuration, testDataElement.ExpectedRefreshTimeout-timeoutDelta)
 	}
 
 	require.Equal(t, countClient.Requests(), len(testData))
 }
 
-func TestRefreshClient_RefreshOnRefreshFailure(t *testing.T) {
+func TestRefreshClient_RetryOnRefreshFailure(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -422,7 +425,37 @@ func TestRefreshClient_RefreshOnRefreshFailure(t *testing.T) {
 
 	require.Eventually(t, cloneClient.validator(2), testWait, testTick)
 
-	clockMock.Add(expireTimeout)
+	clockMock.Add(retryTimeout)
 
 	require.Eventually(t, cloneClient.validator(3), testWait, testTick)
+}
+
+func TestRefreshClient_NoRetryOnRefreshSuccess(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	clockMock := clockmock.New(ctx)
+
+	cloneClient := &countClient{
+		t: t,
+	}
+	client := testClient(ctx, testTokenFunc(clockMock),
+		clockMock,
+		cloneClient,
+	)
+
+	_, err := client.Request(ctx, &networkservice.NetworkServiceRequest{
+		Connection: new(networkservice.Connection),
+	})
+	require.NoError(t, err)
+
+	clockMock.Add(expireTimeout)
+
+	require.Eventually(t, cloneClient.validator(2), testWait, testTick)
+
+	clockMock.Add(retryTimeout)
+
+	require.Never(t, cloneClient.validator(3), testWait, testTick)
 }

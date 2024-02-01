@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -859,9 +859,8 @@ func TestNSMGR_RefreshFailed_ControlPlaneBroken(t *testing.T) {
 		),
 	)
 
-	requestCtx, requestCalcel := context.WithTimeout(ctx, time.Second)
-	requestCtx = clock.WithClock(requestCtx, clk)
-	defer requestCalcel()
+	requestCtx, requestCancel := context.WithTimeout(ctx, time.Second)
+	defer requestCancel()
 
 	// allow the first Request
 	syncCh <- struct{}{}
@@ -871,13 +870,30 @@ func TestNSMGR_RefreshFailed_ControlPlaneBroken(t *testing.T) {
 
 	// refresh interval in this test is expected to be 3 minutes and a few milliseconds
 	clk.Add(time.Second * 190)
+	// start goroutine that will update mock clock every 50 ms. It is needed for retry refresh
+	go func() {
+		tickerDuration := time.Millisecond * 50
+		tickCh := time.Tick(tickerDuration)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-tickCh:
+				clk.Add(tickerDuration)
+			}
+		}
+	}()
 
-	// kill the forwarder during the healing Request (it is stopped by syncCh). Then continue - the healing process will fail.
-	for _, forwarder := range domain.Nodes[0].Forwarders {
+	// kill the forwarder during the refresh (it is stopped by syncCh). Then continue - the refresh will fail.
+	for idx := range domain.Nodes[0].Forwarders {
+		forwarder := domain.Nodes[0].Forwarders[idx]
 		forwarder.Cancel()
-		break
+		// wait until the forwarder dies
+		require.Eventually(t, func() bool {
+			return sandbox.CheckURLFree(forwarder.URL)
+		}, timeout, tick)
 	}
-	syncCh <- struct{}{}
+	close(syncCh)
 
 	// create a new forwarder and allow the healing Request
 	forwarderReg := &registry.NetworkServiceEndpoint{
@@ -885,7 +901,6 @@ func TestNSMGR_RefreshFailed_ControlPlaneBroken(t *testing.T) {
 		NetworkServiceNames: []string{"forwarder"},
 	}
 	domain.Nodes[0].NewForwarder(ctx, forwarderReg, sandbox.GenerateTestToken)
-	syncCh <- struct{}{}
 
 	// wait till Request reached NSE
 	require.Eventually(t, func() bool {
