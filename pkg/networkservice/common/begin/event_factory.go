@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2023 Cisco and/or its affiliates.
+// Copyright (c) 2021-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -105,7 +105,6 @@ func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
 				if request.GetConnection() != nil {
 					request.GetConnection().Mechanism = nil
 					request.GetConnection().NetworkServiceEndpointName = ""
-					request.GetConnection().Context = nil
 					request.GetConnection().State = networkservice.State_RESELECT_REQUESTED
 				}
 				cancel()

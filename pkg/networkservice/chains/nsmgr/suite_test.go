@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -48,6 +48,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/passthrough"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/point2pointipam"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/strictipam"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
@@ -240,7 +241,7 @@ func (s *nsmgrSuite) Test_ReselectEndpointWhenNetSvcHasChanged() {
 
 			serv := grpc.NewServer()
 			endpoint.NewServer(ctx, sandbox.GenerateTestToken, endpoint.WithAdditionalFunctionality(
-				point2pointipam.NewServer(ipNet),
+				strictipam.NewServer(point2pointipam.NewServer, ipNet),
 			)).Register(serv)
 			_ = serv.Serve(netListener)
 		}()
