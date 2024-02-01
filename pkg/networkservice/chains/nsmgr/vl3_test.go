@@ -1,4 +1,4 @@
-// Copyright (c) 2022-2023 Cisco and/or its affiliates.
+// Copyright (c) 2022-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -536,7 +536,10 @@ func Test_vl3NSE_dies(t *testing.T) {
 
 	cc, err := grpc.DialContext(ctx, domain.Registry.URL.String()[6:], sandbox.DialOptions()...)
 	require.NoError(t, err)
-	defer cc.Close()
+	defer func() {
+		closeErr := cc.Close()
+		require.NoError(t, closeErr)
+	}()
 
 	nseRegistryClient := registry.NewNetworkServiceEndpointRegistryClient(cc)
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
