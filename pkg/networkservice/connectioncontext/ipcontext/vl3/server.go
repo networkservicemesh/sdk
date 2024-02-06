@@ -1,4 +1,4 @@
-// Copyright (c) 2022-2023 Cisco and/or its affiliates.
+// Copyright (c) 2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -25,11 +25,17 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/ipam"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
+	"github.com/edwarnicke/genericsync"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type vl3Server struct {
-	pool vl3IPAM
+	pool      vl3IPAM
+	subnetMap genericsync.Map[string, string] // Map connectionId:subnet
 }
 
 // NewServer - returns a new vL3 server instance that manages connection.context.ipcontext for vL3 scenario.
@@ -41,11 +47,24 @@ func NewServer(ctx context.Context, prefixCh <-chan *ipam.PrefixResponse) networ
 
 	go func() {
 		for resp := range prefixCh {
-			result.pool.reset(ctx, resp.GetPrefix(), resp.GetExcludePrefixes())
+			var prefix = resp.GetPrefix()
+			result.pool.reset(ctx, prefix, resp.GetExcludePrefixes())
+			log.FromContext(ctx).Infof("NewServer. Extracted prefix: %s", prefix)
 		}
 	}()
 
 	return result
+}
+
+// NewDualstackServer - returns a chain of new vL3 server instance that manages connection.context.ipcontext for vL3 scenario.
+func NewDualstackServer(ctx context.Context, prefixChs []chan *ipam.PrefixResponse) networkservice.NetworkServiceServer {
+	var servers []networkservice.NetworkServiceServer
+
+	for _, prefixCh := range prefixChs {
+		servers = append(servers, NewServer(ctx, prefixCh))
+	}
+
+	return chain.NewNetworkServiceServer(servers...)
 }
 
 func (v *vl3Server) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
@@ -63,26 +82,28 @@ func (v *vl3Server) Request(ctx context.Context, request *networkservice.Network
 		conn.GetContext().IpContext = new(networkservice.IPContext)
 	}
 
-	var ipContext = &networkservice.IPContext{
-		SrcIpAddrs:       request.GetConnection().Context.GetIpContext().GetSrcIpAddrs(),
-		DstRoutes:        request.GetConnection().Context.GetIpContext().GetDstRoutes(),
-		ExcludedPrefixes: request.GetConnection().Context.GetIpContext().GetExcludedPrefixes(),
-	}
+	var ipContext = conn.GetContext().GetIpContext()
 
-	shouldAllocate := len(ipContext.SrcIpAddrs) == 0
-
-	if prevAddress, ok := loadAddress(ctx); ok && !shouldAllocate {
-		shouldAllocate = !v.pool.isExcluded(prevAddress)
-	}
-
-	if shouldAllocate {
+	if prevAddress, ok := v.subnetMap.Load(conn.GetId()); ok {
+		// Remove previous prefix from IP Context if a current server prefix has changed
+		if v.pool.globalIPNet().String() != prevAddress {
+			srcNet, err := v.pool.allocate()
+			log.FromContext(ctx).Infof("Server Request. Allocated net: %+v for connection: %+v", srcNet.String(), conn.GetId())
+			if err != nil {
+				return nil, err
+			}
+			removePreviousPrefixFromIPContext(ipContext, prevAddress)
+			ipContext.SrcIpAddrs = append(ipContext.SrcIpAddrs, srcNet.String())
+			v.subnetMap.Store(conn.GetId(), v.pool.globalIPNet().String())
+		}
+	} else {
 		srcNet, err := v.pool.allocate()
+		log.FromContext(ctx).Infof("Server Request. Allocated initial net: %+v for connection: %+v", srcNet.String(), conn.GetId())
 		if err != nil {
 			return nil, err
 		}
-		ipContext.DstRoutes = nil
-		ipContext.SrcIpAddrs = append([]string(nil), srcNet.String())
-		storeAddress(ctx, srcNet.String())
+		ipContext.SrcIpAddrs = append(ipContext.SrcIpAddrs, srcNet.String())
+		v.subnetMap.Store(conn.GetId(), v.pool.globalIPNet().String())
 	}
 
 	addRoute(&ipContext.SrcRoutes, v.pool.selfAddress().String(), v.pool.selfAddress().IP.String())
@@ -91,8 +112,6 @@ func (v *vl3Server) Request(ctx context.Context, request *networkservice.Network
 		addRoute(&ipContext.DstRoutes, srcAddr, "")
 	}
 	addAddr(&ipContext.DstIpAddrs, v.pool.selfAddress().String())
-
-	conn.GetContext().IpContext = ipContext
 
 	resp, err := next.Server(ctx).Request(ctx, request)
 	if err == nil {
@@ -105,6 +124,7 @@ func (v *vl3Server) Close(ctx context.Context, conn *networkservice.Connection) 
 	for _, srcAddr := range conn.GetContext().GetIpContext().GetSrcIpAddrs() {
 		v.pool.freeIfAllocated(srcAddr)
 	}
+	v.subnetMap.Delete(conn.GetId())
 	return next.Server(ctx).Close(ctx, conn)
 }
 
@@ -127,4 +147,40 @@ func addAddr(addrs *[]string, addr string) {
 		}
 	}
 	*addrs = append(*addrs, addr)
+}
+
+func removePreviousPrefixFromIPContext(ipContext *networkservice.IPContext, prevAddress string) {
+	prevIPPool := ippool.NewWithNetString(prevAddress)
+
+	var srcIPAddrs []string
+	for _, ip := range ipContext.SrcIpAddrs {
+		if !prevIPPool.ContainsNetString(ip) {
+			srcIPAddrs = append(srcIPAddrs, ip)
+		}
+	}
+	ipContext.SrcIpAddrs = srcIPAddrs
+
+	var dstIPAddrs []string
+	for _, ip := range ipContext.DstIpAddrs {
+		if !prevIPPool.ContainsNetString(ip) {
+			dstIPAddrs = append(dstIPAddrs, ip)
+		}
+	}
+	ipContext.DstIpAddrs = dstIPAddrs
+
+	var srcRoutes []*networkservice.Route
+	for _, r := range ipContext.SrcRoutes {
+		if !prevIPPool.ContainsNetString(r.Prefix) {
+			srcRoutes = append(srcRoutes, r)
+		}
+	}
+	ipContext.SrcRoutes = srcRoutes
+
+	var dstRoutes []*networkservice.Route
+	for _, r := range ipContext.DstRoutes {
+		if !prevIPPool.ContainsNetString(r.Prefix) {
+			dstRoutes = append(dstRoutes, r)
+		}
+	}
+	ipContext.DstRoutes = dstRoutes
 }

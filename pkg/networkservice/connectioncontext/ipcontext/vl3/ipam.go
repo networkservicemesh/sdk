@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -109,7 +109,7 @@ func (p *vl3IPAM) isExcluded(ipNet string) bool {
 	return r
 }
 
-func (p *vl3IPAM) reset(ctx context.Context, prefix string, excludePrefies []string) {
+func (p *vl3IPAM) reset(ctx context.Context, prefix string, excludePrefixes []string) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -136,7 +136,7 @@ func (p *vl3IPAM) reset(ctx context.Context, prefix string, excludePrefies []str
 	p.excludedPrefixes[selfAddress.String()] = struct{}{}
 	p.ipPool.Exclude(selfAddress)
 
-	for _, excludePrefix := range excludePrefies {
+	for _, excludePrefix := range excludePrefixes {
 		p.ipPool.ExcludeString(excludePrefix)
 		p.excludedPrefixes[excludePrefix] = struct{}{}
 	}

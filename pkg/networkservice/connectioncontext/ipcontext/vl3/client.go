@@ -1,4 +1,4 @@
-// Copyright (c) 2022-2023 Cisco and/or its affiliates.
+// Copyright (c) 2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -30,7 +30,9 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type vl3Client struct {
@@ -43,7 +45,7 @@ type vl3Client struct {
 // NewClient - returns a new vL3 client instance that manages connection.context.ipcontext for vL3 scenario.
 //
 //	Produces refresh on prefix update.
-//	Requires begin and metdata chain elements.
+//	Requires begin and metadata chain elements.
 func NewClient(chainContext context.Context, prefixCh <-chan *ipam.PrefixResponse) networkservice.NetworkServiceClient {
 	if chainContext == nil {
 		panic("chainContext can not be nil")
@@ -59,7 +61,9 @@ func NewClient(chainContext context.Context, prefixCh <-chan *ipam.PrefixRespons
 		for update := range prefixCh {
 			prefixResp := update
 			r.executor.AsyncExec(func() {
-				r.pool.reset(chainContext, prefixResp.GetPrefix(), prefixResp.GetExcludePrefixes())
+				var prefix = prefixResp.GetPrefix()
+				r.pool.reset(chainContext, prefix, prefixResp.GetExcludePrefixes())
+				log.FromContext(chainContext).Infof("NewClient. Extracted prefix: %s", prefix)
 				for _, sub := range r.subscriptions {
 					sub <- struct{}{}
 				}
@@ -68,6 +72,17 @@ func NewClient(chainContext context.Context, prefixCh <-chan *ipam.PrefixRespons
 	}()
 
 	return r
+}
+
+// NewDualstackClient - returns a chain of new vL3 client instances that manages connection.context.ipcontext for vL3 scenario.
+func NewDualstackClient(ctx context.Context, prefixChs []chan *ipam.PrefixResponse) networkservice.NetworkServiceClient {
+	var clients []networkservice.NetworkServiceClient
+
+	for _, prefixCh := range prefixChs {
+		clients = append(clients, NewClient(ctx, prefixCh))
+	}
+
+	return chain.NewNetworkServiceClient(clients...)
 }
 
 func (n *vl3Client) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
