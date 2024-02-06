@@ -624,7 +624,7 @@ func Test_RestartDuringRefresh(t *testing.T) {
 	require.NoError(t, err)
 
 	var countServer count.Server
-	var countClientBack count.ClientBackward
+	var countClient count.Client
 	var m sync.Once
 	var clientFactory begin.EventFactory
 	var destroyFwd atomic.Bool
@@ -649,7 +649,7 @@ func Test_RestartDuringRefresh(t *testing.T) {
 	}))
 
 	var nsc = domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(
-		&countClientBack,
+		&countClient,
 		checkcontext.NewClient(t, func(t *testing.T, ctx context.Context) {
 			m.Do(func() {
 				clientFactory = begin.FromContext(ctx)
@@ -680,10 +680,10 @@ func Test_RestartDuringRefresh(t *testing.T) {
 		destroyFwd.Store(true)
 		err = <-clientFactory.Request()
 		require.Error(t, err)
-		var cc = countClientBack.Requests()
+		var cc = countClient.BackwardRequests()
 		destroyFwd.Store(false)
 		// Heal must be successful eventually
-		require.Eventually(t, func() bool { return cc < countClientBack.Requests() }, time.Second*2, time.Second/20)
+		require.Eventually(t, func() bool { return cc < countClient.BackwardRequests() }, time.Second*2, time.Second/20)
 	}
 }
 
