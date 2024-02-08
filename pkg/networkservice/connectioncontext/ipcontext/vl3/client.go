@@ -143,17 +143,9 @@ func (n *vl3Client) Request(ctx context.Context, request *networkservice.Network
 
 	var address, prefix = n.pool.selfAddress().String(), n.pool.selfPrefix().String()
 
-	conn.GetContext().GetIpContext().SrcIpAddrs = []string{address}
-	conn.GetContext().GetIpContext().DstRoutes = []*networkservice.Route{
-		{
-			Prefix:  address,
-			NextHop: n.pool.selfAddress().IP.String(),
-		},
-		{
-			Prefix:  prefix,
-			NextHop: n.pool.selfAddress().IP.String(),
-		},
-	}
+	addAddr(&conn.GetContext().GetIpContext().SrcIpAddrs, address)
+	addRoute(&conn.GetContext().GetIpContext().DstRoutes, address, n.pool.selfAddress().IP.String())
+	addRoute(&conn.GetContext().GetIpContext().DstRoutes, prefix, n.pool.selfAddress().IP.String())
 
 	return next.Client(ctx).Request(ctx, request, opts...)
 }

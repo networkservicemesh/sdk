@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -151,6 +151,100 @@ func Test_VL3NSE_ConnectsToVl3NSE(t *testing.T) {
 	require.Equal(t, "10.0.1.0/24", resp.GetContext().GetIpContext().GetDstRoutes()[1].GetPrefix())
 }
 
+func Test_VL3NSE_ConnectsToVl3NSE_DualStack(t *testing.T) {
+	t.Cleanup(func() {
+		goleak.VerifyNone(t)
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	var serverPrefixCh1 = make(chan *ipam.PrefixResponse, 1)
+	var serverPrefixCh2 = make(chan *ipam.PrefixResponse, 1)
+	defer close(serverPrefixCh1)
+	defer close(serverPrefixCh2)
+
+	serverPrefixCh1 <- &ipam.PrefixResponse{Prefix: "10.0.0.1/24"}
+	serverPrefixCh2 <- &ipam.PrefixResponse{Prefix: "2001:db8::/112"}
+
+	var clientPrefixCh1 = make(chan *ipam.PrefixResponse, 1)
+	var clientPrefixCh2 = make(chan *ipam.PrefixResponse, 1)
+	defer close(clientPrefixCh1)
+	defer close(clientPrefixCh2)
+
+	clientPrefixCh1 <- &ipam.PrefixResponse{Prefix: "10.0.0.1/24"}
+	clientPrefixCh2 <- &ipam.PrefixResponse{Prefix: "2001:db8::/112"}
+
+	var server = next.NewNetworkServiceServer(
+		adapters.NewClientToServer(
+			next.NewNetworkServiceClient(
+				begin.NewClient(),
+				metadata.NewClient(),
+				vl3.NewDualstackClient(ctx, []chan *ipam.PrefixResponse{clientPrefixCh1, clientPrefixCh2}),
+			),
+		),
+		metadata.NewServer(),
+		vl3.NewDualstackServer(ctx, []chan *ipam.PrefixResponse{serverPrefixCh1, serverPrefixCh2}),
+	)
+
+	require.Eventually(t, func() bool {
+		return len(serverPrefixCh1) == 0 && len(clientPrefixCh1) == 0 && len(serverPrefixCh2) == 0 && len(clientPrefixCh2) == 0
+	}, time.Second, time.Millisecond*100)
+
+	resp, err := server.Request(ctx, &networkservice.NetworkServiceRequest{Connection: &networkservice.Connection{Id: t.Name()}})
+
+	require.NoError(t, err)
+
+	require.Equal(t, "10.0.0.0/32", resp.GetContext().GetIpContext().GetSrcIpAddrs()[0])
+	require.Equal(t, "2001:db8::/128", resp.GetContext().GetIpContext().GetSrcIpAddrs()[1])
+	require.Equal(t, "10.0.0.1/32", resp.GetContext().GetIpContext().GetSrcIpAddrs()[2])
+	require.Equal(t, "2001:db8::1/128", resp.GetContext().GetIpContext().GetSrcIpAddrs()[3])
+
+	require.Equal(t, "10.0.0.0/32", resp.GetContext().GetIpContext().GetDstIpAddrs()[0])
+	require.Equal(t, "2001:db8::/128", resp.GetContext().GetIpContext().GetDstIpAddrs()[1])
+
+	require.Equal(t, "10.0.0.0/32", resp.GetContext().GetIpContext().GetSrcRoutes()[0].GetPrefix())
+	require.Equal(t, "10.0.0.0/24", resp.GetContext().GetIpContext().GetSrcRoutes()[1].GetPrefix())
+	require.Equal(t, "10.0.0.0/16", resp.GetContext().GetIpContext().GetSrcRoutes()[5].GetPrefix())
+	require.Equal(t, "2001:db8::/128", resp.GetContext().GetIpContext().GetSrcRoutes()[2].GetPrefix())
+	require.Equal(t, "2001:db8::/112", resp.GetContext().GetIpContext().GetSrcRoutes()[3].GetPrefix())
+	require.Equal(t, "2001:db8::/64", resp.GetContext().GetIpContext().GetSrcRoutes()[4].GetPrefix())
+
+	require.Equal(t, "10.0.0.0/32", resp.GetContext().GetIpContext().GetDstRoutes()[0].GetPrefix())
+	require.Equal(t, "10.0.0.0/24", resp.GetContext().GetIpContext().GetDstRoutes()[1].GetPrefix())
+	require.Equal(t, "2001:db8::/128", resp.GetContext().GetIpContext().GetDstRoutes()[2].GetPrefix())
+	require.Equal(t, "2001:db8::/112", resp.GetContext().GetIpContext().GetDstRoutes()[3].GetPrefix())
+	require.Equal(t, "10.0.0.1/32", resp.GetContext().GetIpContext().GetDstRoutes()[4].GetPrefix())
+	require.Equal(t, "2001:db8::1/128", resp.GetContext().GetIpContext().GetDstRoutes()[5].GetPrefix())
+
+	// refresh
+	resp, err = server.Request(ctx, &networkservice.NetworkServiceRequest{Connection: resp})
+
+	require.NoError(t, err)
+
+	require.Equal(t, "10.0.0.0/32", resp.GetContext().GetIpContext().GetSrcIpAddrs()[0])
+	require.Equal(t, "2001:db8::/128", resp.GetContext().GetIpContext().GetSrcIpAddrs()[1])
+	require.Equal(t, "10.0.0.1/32", resp.GetContext().GetIpContext().GetSrcIpAddrs()[2])
+	require.Equal(t, "2001:db8::1/128", resp.GetContext().GetIpContext().GetSrcIpAddrs()[3])
+
+	require.Equal(t, "10.0.0.0/32", resp.GetContext().GetIpContext().GetDstIpAddrs()[0])
+	require.Equal(t, "2001:db8::/128", resp.GetContext().GetIpContext().GetDstIpAddrs()[1])
+
+	require.Equal(t, "10.0.0.0/32", resp.GetContext().GetIpContext().GetSrcRoutes()[0].GetPrefix())
+	require.Equal(t, "10.0.0.0/24", resp.GetContext().GetIpContext().GetSrcRoutes()[1].GetPrefix())
+	require.Equal(t, "10.0.0.0/16", resp.GetContext().GetIpContext().GetSrcRoutes()[5].GetPrefix())
+	require.Equal(t, "2001:db8::/128", resp.GetContext().GetIpContext().GetSrcRoutes()[2].GetPrefix())
+	require.Equal(t, "2001:db8::/112", resp.GetContext().GetIpContext().GetSrcRoutes()[3].GetPrefix())
+	require.Equal(t, "2001:db8::/64", resp.GetContext().GetIpContext().GetSrcRoutes()[4].GetPrefix())
+
+	require.Equal(t, "10.0.0.0/32", resp.GetContext().GetIpContext().GetDstRoutes()[0].GetPrefix())
+	require.Equal(t, "10.0.0.0/24", resp.GetContext().GetIpContext().GetDstRoutes()[1].GetPrefix())
+	require.Equal(t, "2001:db8::/128", resp.GetContext().GetIpContext().GetDstRoutes()[2].GetPrefix())
+	require.Equal(t, "2001:db8::/112", resp.GetContext().GetIpContext().GetDstRoutes()[3].GetPrefix())
+	require.Equal(t, "10.0.0.1/32", resp.GetContext().GetIpContext().GetDstRoutes()[4].GetPrefix())
+	require.Equal(t, "2001:db8::1/128", resp.GetContext().GetIpContext().GetDstRoutes()[5].GetPrefix())
+}
+
 func Test_VL3NSE_ConnectsToVl3NSE_ChangePrefix(t *testing.T) {
 	t.Cleanup(func() {
 		goleak.VerifyNone(t)
@@ -205,14 +299,14 @@ func Test_VL3NSE_ConnectsToVl3NSE_ChangePrefix(t *testing.T) {
 
 		require.NoError(t, err)
 
-		require.Equal(t, "10.0.5.0/32", resp.GetContext().GetIpContext().GetSrcIpAddrs()[0])
+		require.Equal(t, "10.0.5.0/32", resp.GetContext().GetIpContext().GetSrcIpAddrs()[2])
 		require.Equal(t, "10.0.0.0/32", resp.GetContext().GetIpContext().GetDstIpAddrs()[0])
 
 		require.Equal(t, "10.0.0.0/32", resp.GetContext().GetIpContext().GetSrcRoutes()[0].GetPrefix())
 		require.Equal(t, "10.0.0.0/24", resp.GetContext().GetIpContext().GetSrcRoutes()[1].GetPrefix())
 		require.Equal(t, "10.0.0.0/16", resp.GetContext().GetIpContext().GetSrcRoutes()[2].GetPrefix())
-		require.Equal(t, "10.0.5.0/32", resp.GetContext().GetIpContext().GetDstRoutes()[0].GetPrefix())
-		require.Equal(t, "10.0.5.0/24", resp.GetContext().GetIpContext().GetDstRoutes()[1].GetPrefix())
+		require.Equal(t, "10.0.5.0/32", resp.GetContext().GetIpContext().GetDstRoutes()[3].GetPrefix())
+		require.Equal(t, "10.0.5.0/24", resp.GetContext().GetIpContext().GetDstRoutes()[4].GetPrefix())
 	}
 }
 
