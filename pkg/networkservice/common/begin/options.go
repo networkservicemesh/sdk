@@ -21,8 +21,9 @@ import (
 )
 
 type option struct {
-	cancelCtx context.Context
-	reselect  bool
+	cancelCtx    context.Context
+	reselect     bool
+	reselectFunc ReselectFunc
 }
 
 // Option - event option
@@ -39,5 +40,11 @@ func CancelContext(cancelCtx context.Context) Option {
 func WithReselect() Option {
 	return func(o *option) {
 		o.reselect = true
+	}
+}
+
+func WithReselectFunc(reselectFunc ReselectFunc) Option {
+	return func(o *option) {
+		o.reselectFunc = reselectFunc
 	}
 }
