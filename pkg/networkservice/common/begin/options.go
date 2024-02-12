@@ -25,6 +25,7 @@ type option struct {
 	cancelCtx      context.Context
 	reselect       bool
 	contextTimeout time.Duration
+	reselectFunc   ReselectFunc
 }
 
 // Option - event option
@@ -48,5 +49,11 @@ func WithReselect() Option {
 func WithContextTimeout(timeout time.Duration) Option {
 	return func(o *option) {
 		o.contextTimeout = timeout
+	}
+}
+
+func WithReselectFunc(reselectFunc ReselectFunc) Option {
+	return func(o *option) {
+		o.reselectFunc = reselectFunc
 	}
 }
