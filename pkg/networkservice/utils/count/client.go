@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2024 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,67 +33,131 @@ import (
 
 // Client is a client type for counting Requests/Closes
 type Client struct {
-	totalRequests, totalCloses int32
-	requests, closes           map[string]int32
-	mu                         sync.Mutex
+	totalForwardRequests, totalForwardCloses   int32
+	totalBackwardRequests, totalBackwardCloses int32
+	forwardRequests, forwardCloses             map[string]int32
+	backwardRequests, backwardCloses           map[string]int32
+	forwardMu, backwardMu                      sync.Mutex
 }
 
 // Request performs request and increments requests count
 func (c *Client) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	atomic.AddInt32(&c.totalRequests, 1)
-	if c.requests == nil {
-		c.requests = make(map[string]int32)
+	/* Forward pass*/
+	c.forwardMu.Lock()
+	atomic.AddInt32(&c.totalForwardRequests, 1)
+	if c.forwardRequests == nil {
+		c.forwardRequests = make(map[string]int32)
 	}
-	c.requests[request.GetConnection().GetId()]++
+	c.forwardRequests[request.GetConnection().GetId()]++
+	c.forwardMu.Unlock()
 
-	return next.Client(ctx).Request(ctx, request, opts...)
+	/* Request */
+	conn, err := next.Client(ctx).Request(ctx, request, opts...)
+	if err != nil {
+		return conn, err
+	}
+
+	/* Backward pass*/
+	c.backwardMu.Lock()
+	atomic.AddInt32(&c.totalBackwardRequests, 1)
+	if c.backwardRequests == nil {
+		c.backwardRequests = make(map[string]int32)
+	}
+	c.backwardRequests[conn.GetId()]++
+	c.backwardMu.Unlock()
+
+	return conn, err
 }
 
 // Close performs close and increments closes count
 func (c *Client) Close(ctx context.Context, connection *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	atomic.AddInt32(&c.totalCloses, 1)
-	if c.closes == nil {
-		c.closes = make(map[string]int32)
+	/* Forward pass*/
+	c.forwardMu.Lock()
+	atomic.AddInt32(&c.totalForwardCloses, 1)
+	if c.forwardCloses == nil {
+		c.forwardCloses = make(map[string]int32)
 	}
-	c.closes[connection.GetId()]++
+	c.forwardCloses[connection.GetId()]++
+	c.forwardMu.Unlock()
 
-	return next.Client(ctx).Close(ctx, connection, opts...)
+	/* Close */
+	r, err := next.Client(ctx).Close(ctx, connection, opts...)
+	if err != nil {
+		return r, err
+	}
+
+	/* Backward pass*/
+	c.backwardMu.Lock()
+	atomic.AddInt32(&c.totalBackwardCloses, 1)
+	if c.backwardCloses == nil {
+		c.backwardCloses = make(map[string]int32)
+	}
+	c.backwardCloses[connection.GetId()]++
+	c.backwardMu.Unlock()
+
+	return r, err
 }
 
-// Requests returns requests count
+// Requests returns forward requests count
 func (c *Client) Requests() int {
-	return int(atomic.LoadInt32(&c.totalRequests))
+	return int(atomic.LoadInt32(&c.totalForwardRequests))
 }
 
-// Closes returns closes count
+// Closes returns forward closes count
 func (c *Client) Closes() int {
-	return int(atomic.LoadInt32(&c.totalCloses))
+	return int(atomic.LoadInt32(&c.totalForwardCloses))
 }
 
-// UniqueRequests returns unique requests count
+// BackwardRequests returns backward requests count
+func (c *Client) BackwardRequests() int {
+	return int(atomic.LoadInt32(&c.totalBackwardRequests))
+}
+
+// BackwardCloses returns backward closes count
+func (c *Client) BackwardCloses() int {
+	return int(atomic.LoadInt32(&c.totalBackwardCloses))
+}
+
+// UniqueRequests returns unique forward requests count
 func (c *Client) UniqueRequests() int {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.forwardMu.Lock()
+	defer c.forwardMu.Unlock()
 
-	if c.requests == nil {
+	if c.forwardRequests == nil {
 		return 0
 	}
-	return len(c.requests)
+	return len(c.forwardRequests)
 }
 
-// UniqueCloses returns unique closes count
+// UniqueCloses returns unique forward closes count
 func (c *Client) UniqueCloses() int {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.forwardMu.Lock()
+	defer c.forwardMu.Unlock()
 
-	if c.closes == nil {
+	if c.forwardCloses == nil {
 		return 0
 	}
-	return len(c.closes)
+	return len(c.forwardCloses)
+}
+
+// UniqueBackwardRequests returns unique backward requests count
+func (c *Client) UniqueBackwardRequests() int {
+	c.backwardMu.Lock()
+	defer c.backwardMu.Unlock()
+
+	if c.backwardRequests == nil {
+		return 0
+	}
+	return len(c.backwardRequests)
+}
+
+// UniqueBackwardCloses returns unique backward closes count
+func (c *Client) UniqueBackwardCloses() int {
+	c.backwardMu.Lock()
+	defer c.backwardMu.Unlock()
+
+	if c.backwardCloses == nil {
+		return 0
+	}
+	return len(c.backwardCloses)
 }

@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2024 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,13 +40,13 @@ type Server struct {
 // Request performs request and increments requests count
 func (s *Server) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	atomic.AddInt32(&s.totalRequests, 1)
 	if s.requests == nil {
 		s.requests = make(map[string]int32)
 	}
 	s.requests[request.GetConnection().GetId()]++
+	s.mu.Unlock()
 
 	return next.Server(ctx).Request(ctx, request)
 }
@@ -52,13 +54,13 @@ func (s *Server) Request(ctx context.Context, request *networkservice.NetworkSer
 // Close performs close and increments closes count
 func (s *Server) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	atomic.AddInt32(&s.TotalCloses, 1)
 	if s.closes == nil {
 		s.closes = make(map[string]int32)
 	}
 	s.closes[connection.GetId()]++
+	s.mu.Unlock()
 
 	return next.Server(ctx).Close(ctx, connection)
 }

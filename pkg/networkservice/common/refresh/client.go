@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Cisco Systems, Inc.
+// Copyright (c) 2020-2024 Cisco Systems, Inc.
 //
-// Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2024 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -68,18 +68,17 @@ func (t *refreshClient) Request(ctx context.Context, request *networkservice.Net
 	store(ctx, metadata.IsClient(t), cancel)
 
 	eventFactory := begin.FromContext(ctx)
-	clockTime := clock.FromContext(ctx)
 	// Create the afterCh *outside* the go routine.  This must be done to avoid picking up a later 'now'
 	// from mockClock in testing
-	afterTicker := clockTime.Ticker(refreshAfter)
+	afterCh := clock.FromContext(ctx).After(refreshAfter)
 	go func() {
-		defer afterTicker.Stop()
 		for {
 			select {
 			case <-cancelCtx.Done():
 				return
-			case <-afterTicker.C():
+			case <-afterCh:
 				if err := <-eventFactory.Request(begin.CancelContext(cancelCtx)); err != nil {
+					afterCh = clock.FromContext(ctx).After(time.Millisecond * 200)
 					logger.Warnf("refresh failed: %s", err.Error())
 					continue
 				}
