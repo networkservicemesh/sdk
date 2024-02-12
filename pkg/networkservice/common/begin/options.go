@@ -18,11 +18,14 @@ package begin
 
 import (
 	"context"
+	"time"
 )
 
 type option struct {
-	cancelCtx context.Context
-	reselect  bool
+	cancelCtx      context.Context
+	reselect       bool
+	contextTimeout time.Duration
+	reselectFunc   ReselectFunc
 }
 
 // Option - event option
@@ -39,5 +42,18 @@ func CancelContext(cancelCtx context.Context) Option {
 func WithReselect() Option {
 	return func(o *option) {
 		o.reselect = true
+	}
+}
+
+// WithContextTimeout - set a custom timeout for a context in begin.Close
+func WithContextTimeout(timeout time.Duration) Option {
+	return func(o *option) {
+		o.contextTimeout = timeout
+	}
+}
+
+func WithReselectFunc(reselectFunc ReselectFunc) Option {
+	return func(o *option) {
+		o.reselectFunc = reselectFunc
 	}
 }

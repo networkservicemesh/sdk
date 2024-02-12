@@ -24,6 +24,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
@@ -36,6 +37,7 @@ type healClient struct {
 	livenessCheck         LivenessCheck
 	livenessCheckInterval time.Duration
 	livenessCheckTimeout  time.Duration
+	reselectFunc          begin.ReselectFunc
 }
 
 // NewClient - returns a new heal client chain element
@@ -43,6 +45,7 @@ func NewClient(chainCtx context.Context, opts ...Option) networkservice.NetworkS
 	o := &options{
 		livenessCheckInterval: livenessCheckInterval,
 		livenessCheckTimeout:  livenessCheckTimeout,
+		reselectFunc:          begin.DefaultReselectFunc,
 	}
 	for _, opt := range opts {
 		opt(o)
@@ -52,6 +55,7 @@ func NewClient(chainCtx context.Context, opts ...Option) networkservice.NetworkS
 		livenessCheck:         o.livenessCheck,
 		livenessCheckInterval: o.livenessCheckInterval,
 		livenessCheckTimeout:  o.livenessCheckTimeout,
+		reselectFunc:          o.reselectFunc,
 	}
 }
 
