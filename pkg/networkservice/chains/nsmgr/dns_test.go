@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -24,6 +24,7 @@ package nsmgr_test
 import (
 	"context"
 	"net"
+	"net/url"
 	"testing"
 	"time"
 
@@ -31,6 +32,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
@@ -53,6 +55,53 @@ func requireIPv4Lookup(ctx context.Context, t *testing.T, r *net.Resolver, host,
 	require.NoError(t, err)
 	require.Len(t, addrs, 1)
 	require.Equal(t, expected, addrs[0].String())
+}
+
+func Test_LocalUsecase_DNSTarget(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		SetupDefaultDNSServer().
+		Build()
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
+
+	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
+
+	var addr, _ = url.Parse("dns://" + domain.DNSServer.URL.Host + "/nsmgr-0.cluster.local:" + domain.Nodes[0].NSMgr.URL.Port())
+	logrus.Error(addr)
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithClientURL(addr))
+
+	request := &networkservice.NetworkServiceRequest{
+		MechanismPreferences: []*networkservice.Mechanism{
+			{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
+		},
+		Connection: &networkservice.Connection{
+			Id:             "1",
+			NetworkService: nsReg.Name,
+			Labels:         make(map[string]string),
+		},
+	}
+
+	conn, err := nsc.Request(ctx, request)
+	require.NoError(t, err)
+
+	_, err = nsc.Close(ctx, conn)
+	require.NoError(t, err)
+
+	_, err = nse.Unregister(ctx, nseReg)
+	require.NoError(t, err)
 }
 
 func Test_DNSUsecase(t *testing.T) {

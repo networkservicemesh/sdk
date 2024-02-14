@@ -1,4 +1,4 @@
-// Copyright (c) 2022-2023 Cisco and/or its affiliates.
+// Copyright (c) 2022-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -56,7 +56,7 @@ func NewNetworkServiceEndpointRegistryClient(opts ...Option) registry.NetworkSer
 }
 
 func (d *dnsNSEResolveClient) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	var domain = resolveNSE(nse)
+	var domain = findDomainFromNSE(nse)
 	var u, err = resolveDomain(ctx, d.registryService, domain, d.resolver)
 
 	if err != nil {
@@ -99,7 +99,7 @@ func (c *dnsNSEResolveFindClient) Recv() (*registry.NetworkServiceEndpointRespon
 }
 
 func (d *dnsNSEResolveClient) Find(ctx context.Context, q *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	var domain = resolveNSE(q.NetworkServiceEndpoint)
+	var domain = findDomainFromNSE(q.NetworkServiceEndpoint)
 	var nsmgrProxyURL, err = resolveDomain(ctx, d.registryService, domain, d.resolver)
 
 	if err != nil {
@@ -121,7 +121,7 @@ func (d *dnsNSEResolveClient) Find(ctx context.Context, q *registry.NetworkServi
 }
 
 func (d *dnsNSEResolveClient) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
-	var domain = resolveNSE(nse)
+	var domain = findDomainFromNSE(nse)
 	var u, err = resolveDomain(ctx, d.registryService, domain, d.resolver)
 
 	if err != nil {

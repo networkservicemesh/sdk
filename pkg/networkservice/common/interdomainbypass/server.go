@@ -1,6 +1,6 @@
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,38 +21,22 @@ package interdomainbypass
 
 import (
 	"context"
-	"net/url"
 
-	"github.com/edwarnicke/genericsync"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/interdomainbypass"
-	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
 )
 
-type interdomainBypassServer struct {
-	m genericsync.Map[string, *url.URL]
-}
+type interdomainBypassServer struct{}
 
 // NewServer - returns a new NetworkServiceServer that injects the URL to remote side into context on requesting resolved endpoint
-func NewServer(rs *registry.NetworkServiceEndpointRegistryServer, listenOn *url.URL) networkservice.NetworkServiceServer {
-	var rv = new(interdomainBypassServer)
-	*rs = interdomainbypass.NewNetworkServiceEndpointRegistryServer(&rv.m, listenOn)
-	return rv
+func NewServer() networkservice.NetworkServiceServer {
+	return new(interdomainBypassServer)
 }
 
 func (n *interdomainBypassServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	u, ok := n.m.Load(request.Connection.NetworkServiceEndpointName)
-	// Always true when we are on local nsmgr proxy side.
-	// True on theremote nsmgr proxy side when it is floating interdomain usecase.
-	if ok {
-		ctx = clienturlctx.WithClientURL(ctx, u)
-		return next.Server(ctx).Request(ctx, request)
-	}
 	originalNSEName := request.GetConnection().NetworkServiceEndpointName
 	originalNS := request.GetConnection().NetworkService
 	request.GetConnection().NetworkServiceEndpointName = interdomain.Target(originalNSEName)
@@ -67,13 +51,6 @@ func (n *interdomainBypassServer) Request(ctx context.Context, request *networks
 }
 
 func (n *interdomainBypassServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	u, ok := n.m.Load(conn.NetworkServiceEndpointName)
-	// Always true when we are on local nsmgr proxy side.
-	// True on theremote nsmgr proxy side when it is floating interdomain usecase.
-	if ok {
-		ctx = clienturlctx.WithClientURL(ctx, u)
-		return next.Server(ctx).Close(ctx, conn)
-	}
 	originalNSEName := conn.GetNetworkServiceEndpointName()
 	originalNS := conn.GetNetworkService()
 	conn.NetworkServiceEndpointName = interdomain.Target(originalNSEName)

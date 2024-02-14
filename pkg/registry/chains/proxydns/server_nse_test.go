@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2024 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +20,7 @@ package proxydns_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -55,27 +58,26 @@ domain1:                                                           domain2:
 func TestInterdomainNetworkServiceEndpointRegistry(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	var ctx, cancel = context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	dnsServer := sandbox.NewFakeResolver()
-
-	domain1 := sandbox.NewBuilder(ctx, t).
-		SetNodesCount(0).
-		SetDNSResolver(dnsServer).
-		Build()
-
-	domain2 := sandbox.NewBuilder(ctx, t).
-		SetNodesCount(0).
-		SetDNSResolver(dnsServer).
-		SetDNSDomainName("domain2").
-		Build()
+	var domains = sandbox.
+		NewInterdomainBuilder(ctx, t).
+		BuildDomain(
+			func(b *sandbox.Builder) *sandbox.Builder {
+				return b.SetNodesCount(0).SetName("domain1")
+			},
+		).BuildDomain(
+		func(b *sandbox.Builder) *sandbox.Builder {
+			return b.SetNodesCount(0).SetName("domain2")
+		},
+	).Build()
 
 	expirationTime := timestamppb.New(time.Now().Add(time.Hour))
 
 	registryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx,
 		registryclient.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
-		registryclient.WithClientURL(domain2.Registry.URL))
+		registryclient.WithClientURL(domains[1].Registry.URL))
 
 	reg, err := registryClient.Register(
 		context.Background(),
@@ -87,18 +89,13 @@ func TestInterdomainNetworkServiceEndpointRegistry(t *testing.T) {
 	)
 	require.Nil(t, err)
 
-	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(domain1.Registry.URL), grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials()))
-	require.Nil(t, err)
-
-	defer func() {
-		_ = cc.Close()
-	}()
-
-	client := registryapi.NewNetworkServiceEndpointRegistryClient(cc)
+	client := registryclient.NewNetworkServiceEndpointRegistryClient(ctx,
+		registryclient.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
+		registryclient.WithClientURL(domains[0].Registry.URL))
 
 	stream, err := client.Find(ctx, &registryapi.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registryapi.NetworkServiceEndpoint{
-			Name: reg.Name + "@" + domain2.Name,
+			Name: reg.Name + "@" + domains[1].Name,
 		},
 	})
 
@@ -107,37 +104,49 @@ func TestInterdomainNetworkServiceEndpointRegistry(t *testing.T) {
 	list := registryapi.ReadNetworkServiceEndpointList(stream)
 
 	require.Len(t, list, 1)
-	require.Equal(t, reg.Name+"@"+domain2.Name, list[0].Name)
+	require.Equal(t, reg.Name+"@"+domains[1].Name, list[0].Name)
+
+	client = registryclient.NewNetworkServiceEndpointRegistryClient(ctx,
+		registryclient.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
+		registryclient.WithClientURL(domains[0].RegistryProxy.URL))
+
+	stream, err = client.Find(ctx, &registryapi.NetworkServiceEndpointQuery{
+		NetworkServiceEndpoint: &registryapi.NetworkServiceEndpoint{
+			Name: reg.Name + "@" + domains[1].Name,
+		},
+	})
+
+	require.Nil(t, err)
+
+	list = registryapi.ReadNetworkServiceEndpointList(stream)
+	require.Len(t, list, 1)
 }
 
 /*
 TestLocalDomain_NetworkServiceEndpointRegistry covers the next scenario:
  1. nsmgr from domain1 calls find with query "nse-1@domain1"
- 2. local registry proxies query to nsmgr proxy registry
- 3. nsmgr proxy registry  proxies query to proxy registry
- 4. proxy registry proxies query to local registry
+ 2. local registry proxies query to proxy registry
+ 3. proxy registry proxies query to local registry
 
 Expected: nsmgr found nse
 
 domain1:
 -----------------------------------------------------------------------------------
 |                                                                                 |
-|    local registry -> nsmgr proxy registry -> proxy registry -> local registry   |
+|    local registry -> proxy registry -> local registry   |
 |                                                                                 |
 -----------------------------------------------------------------------------------
 */
 func TestLocalDomain_NetworkServiceEndpointRegistry(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
-
-	dnsServer := sandbox.NewFakeResolver()
 
 	domain1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(0).
-		SetDNSDomainName("cluster.local").
-		SetDNSResolver(dnsServer).
+		SetName("cluster.local").
+		EnableInterdomain().
 		Build()
 
 	expirationTime := timestamppb.New(time.Now().Add(time.Hour))
@@ -198,39 +207,36 @@ domain1:                                                             domain2:
 func TestInterdomainFloatingNetworkServiceEndpointRegistry(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	dnsServer := sandbox.NewFakeResolver()
-
-	domain1 := sandbox.NewBuilder(ctx, t).
-		SetNodesCount(0).
-		SetDNSResolver(dnsServer).
-		Build()
-
-	domain2 := sandbox.NewBuilder(ctx, t).
-		SetNodesCount(0).
-		SetDNSResolver(dnsServer).
-		Build()
-
-	domain3 := sandbox.NewBuilder(ctx, t).
-		SetNodesCount(0).
-		SetDNSResolver(dnsServer).
-		SetNSMgrProxySupplier(nil).
-		SetRegistryProxySupplier(nil).
-		SetDNSDomainName("floating.domain").
+	var domains = sandbox.
+		NewInterdomainBuilder(ctx, t).
+		BuildDomain(
+			func(b *sandbox.Builder) *sandbox.Builder {
+				return b.SetNodesCount(0).SetName("domain1")
+			},
+		).
+		BuildDomain(
+			func(b *sandbox.Builder) *sandbox.Builder {
+				return b.SetNodesCount(0).SetName("domain2")
+			},
+		).
+		BuildDomain(func(b *sandbox.Builder) *sandbox.Builder {
+			return b.SetNodesCount(0).SetName("domain3")
+		}).
 		Build()
 
 	expirationTime := timestamppb.New(time.Now().Add(time.Hour))
 
 	registryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx,
 		registryclient.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
-		registryclient.WithClientURL(domain2.Registry.URL))
+		registryclient.WithClientURL(domains[1].Registry.URL))
 
 	reg, err := registryClient.Register(
 		context.Background(),
 		&registryapi.NetworkServiceEndpoint{
-			Name:           "nse-1@" + domain3.Name,
+			Name:           "nse-1@" + domains[2].Name,
 			Url:            "test://publicNSMGRurl",
 			ExpirationTime: expirationTime,
 		},
@@ -239,7 +245,7 @@ func TestInterdomainFloatingNetworkServiceEndpointRegistry(t *testing.T) {
 
 	name := strings.Split(reg.Name, "@")[0]
 
-	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(domain1.Registry.URL), grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(domains[0].Registry.URL), grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.Nil(t, err)
 	defer func() {
 		_ = cc.Close()
@@ -249,7 +255,7 @@ func TestInterdomainFloatingNetworkServiceEndpointRegistry(t *testing.T) {
 
 	stream, err := client.Find(ctx, &registryapi.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registryapi.NetworkServiceEndpoint{
-			Name: name + "@" + domain3.Name,
+			Name: name + "@" + domains[2].Name,
 		},
 	})
 
@@ -258,5 +264,29 @@ func TestInterdomainFloatingNetworkServiceEndpointRegistry(t *testing.T) {
 	list := registryapi.ReadNetworkServiceEndpointList(stream)
 
 	require.Len(t, list, 1)
-	require.Equal(t, name+"@"+domain3.Name, list[0].Name)
+	require.Equal(t, name+"@"+domains[2].Name, list[0].Name)
+}
+
+func TestXX(t *testing.T) {
+	var list = &ListNode{5, &ListNode{Val: 10, Next: &ListNode{Val: 15}}}
+	list = reverseList(list)
+	for list != nil {
+		fmt.Println(list.Val)
+		list = list.Next
+	}
+}
+
+type ListNode struct {
+	Val  int
+	Next *ListNode
+}
+
+func reverseList(head *ListNode) *ListNode {
+	if head != nil && head.Next != nil {
+		var result = reverseList(head.Next)
+		head.Next.Next = head
+		head.Next = nil
+		return result
+	}
+	return head
 }

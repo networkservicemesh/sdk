@@ -529,6 +529,7 @@ func Test_FailedRegistryAuthorization(t *testing.T) {
 		ctx context.Context,
 		tokenGenerator token.GeneratorFunc,
 		expiryDuration time.Duration,
+		nsmgrProxyURL *url.URL,
 		proxyRegistryURL *url.URL,
 		options ...grpc.DialOption) registry.Registry {
 		registryName := sandbox.UniqueName("registry-memory")
@@ -536,6 +537,7 @@ func Test_FailedRegistryAuthorization(t *testing.T) {
 		return memory.NewServer(
 			ctx,
 			tokenGeneratorFunc("spiffe://test.com/"+registryName),
+			memory.WithNSMgrProxyURL(nsmgrProxyURL),
 			memory.WithProxyRegistryURL(proxyRegistryURL),
 			memory.WithDefaultExpiration(expiryDuration),
 			memory.WithDialOptions(options...),
@@ -774,12 +776,14 @@ func Test_Expire(t *testing.T) {
 		ctx context.Context,
 		tokenGenerator token.GeneratorFunc,
 		expiryDuration time.Duration,
+		nsmgrProxyURL *url.URL,
 		proxyRegistryURL *url.URL,
 		options ...grpc.DialOption) registry.Registry {
 		return memory.NewServer(
 			ctx,
 			tokenGenerator,
 			memory.WithProxyRegistryURL(proxyRegistryURL),
+			memory.WithNSMgrProxyURL(nsmgrProxyURL),
 			memory.WithDefaultExpiration(expiryDuration),
 			memory.WithDialOptions(options...),
 			memory.WithAuthorizeNSRegistryServer(
