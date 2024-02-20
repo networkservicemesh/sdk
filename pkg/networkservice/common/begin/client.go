@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2023 Cisco and/or its affiliates.
+// Copyright (c) 2021-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -51,40 +51,28 @@ func (b *beginClient) Request(ctx context.Context, request *networkservice.Netwo
 	eventFactoryClient, _ := b.LoadOrStore(request.GetConnection().GetId(),
 		newEventFactoryClient(
 			ctx,
+			func() *eventFactoryClient {
+				currentEventFactoryClient, _ := b.Load(request.GetConnection().GetId())
+				return currentEventFactoryClient
+			},
 			func() {
 				b.Delete(request.GetRequestConnection().GetId())
 			},
-			opts...,
 		),
 	)
-	<-eventFactoryClient.executor.AsyncExec(func() {
-		// If the eventFactory has changed, usually because the connection has been Closed and re-established
-		// go back to the beginning and try again.
-		currentEventFactoryClient, _ := b.Load(request.GetConnection().GetId())
-		if currentEventFactoryClient != eventFactoryClient {
+	err = <-eventFactoryClient.Request(
+		withContext(ctx),
+		withUserRequest(request),
+		withGRPCOpts(opts),
+		withConnectionToReturn(&conn),
+	)
+	if err != nil {
+		if errors.Is(err, &errorEventFactoryInconsistency{}) {
 			log.FromContext(ctx).Debug("recalling begin.Request because currentEventFactoryClient != eventFactoryClient")
 			conn, err = b.Request(ctx, request, opts...)
-			return
 		}
+	}
 
-		withEventFactoryCtx := withEventFactory(ctx, eventFactoryClient)
-		request.Connection = mergeConnection(eventFactoryClient.returnedConnection, request.GetConnection(), eventFactoryClient.request.GetConnection())
-		conn, err = next.Client(withEventFactoryCtx).Request(withEventFactoryCtx, request, opts...)
-		if err != nil {
-			if eventFactoryClient.state != established {
-				eventFactoryClient.state = closed
-				b.Delete(request.GetConnection().GetId())
-			}
-			return
-		}
-		eventFactoryClient.request = request.Clone()
-		eventFactoryClient.request.Connection = conn.Clone()
-		eventFactoryClient.opts = opts
-		eventFactoryClient.state = established
-
-		eventFactoryClient.returnedConnection = conn.Clone()
-		eventFactoryClient.updateContext(ctx)
-	})
 	return conn, err
 }
 
@@ -98,23 +86,9 @@ func (b *beginClient) Close(ctx context.Context, conn *networkservice.Connection
 		// If we don't have a connection to Close, just let it be
 		return
 	}
-	<-eventFactoryClient.executor.AsyncExec(func() {
-		// If the connection is not established, don't do anything
-		if eventFactoryClient.state != established || eventFactoryClient.client == nil || eventFactoryClient.request == nil {
-			return
-		}
+	err = <-eventFactoryClient.Close(
+		withGRPCOpts(opts),
+	)
 
-		// If this isn't the connection we started with, do nothing
-		currentEventFactoryClient, _ := b.Load(conn.GetId())
-		if currentEventFactoryClient != eventFactoryClient {
-			return
-		}
-		// Always close with the last valid Connection we got
-		conn = eventFactoryClient.request.Connection
-		withEventFactoryCtx := withEventFactory(ctx, eventFactoryClient)
-		emp, err = next.Client(withEventFactoryCtx).Close(withEventFactoryCtx, conn, opts...)
-		// afterCloseFunc() is used to cleanup things like the entry in the Map for EventFactories
-		eventFactoryClient.afterCloseFunc()
-	})
 	return emp, err
 }
