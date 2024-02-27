@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package strictipam provides a networkservice.NetworkService Server chain element for building an IPAM server that prevents IP context configuration out of the settings scope
-package strictipam
+// Package strictvl3ipam provides a networkservice.NetworkService Server chain element that resets IP context configuration out of the settings scope
+package strictvl3ipam
 
 import (
 	"context"
@@ -30,7 +30,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
 )
 
-type strictIPAMServer struct {
+type strictVl3IPAMServer struct {
 	ipPool *ippool.IPPool
 	m      sync.Mutex
 }
@@ -39,7 +39,7 @@ type strictIPAMServer struct {
 func NewServer(ctx context.Context, prefixCh <-chan *ipam.PrefixResponse) networkservice.NetworkServiceServer {
 	var ipPool = ippool.New(net.IPv4len)
 
-	s := &strictIPAMServer{ipPool: ipPool}
+	s := &strictVl3IPAMServer{ipPool: ipPool}
 	go func() {
 		for prefix := range prefixCh {
 			s.m.Lock()
@@ -51,7 +51,7 @@ func NewServer(ctx context.Context, prefixCh <-chan *ipam.PrefixResponse) networ
 	return s
 }
 
-func (n *strictIPAMServer) areAddressesValid(addresses []string) bool {
+func (n *strictVl3IPAMServer) areAddressesValid(addresses []string) bool {
 	n.m.Lock()
 	defer n.m.Unlock()
 
@@ -63,7 +63,7 @@ func (n *strictIPAMServer) areAddressesValid(addresses []string) bool {
 	return true
 }
 
-func (n *strictIPAMServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+func (n *strictVl3IPAMServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	srcAddrs := request.GetConnection().GetContext().GetIpContext().GetSrcIpAddrs()
 	dstAddrs := request.GetConnection().GetContext().GetIpContext().GetDstIpAddrs()
 
@@ -73,6 +73,6 @@ func (n *strictIPAMServer) Request(ctx context.Context, request *networkservice.
 	return next.Server(ctx).Request(ctx, request)
 }
 
-func (n *strictIPAMServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+func (n *strictVl3IPAMServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	return next.Server(ctx).Close(ctx, conn)
 }

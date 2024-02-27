@@ -37,7 +37,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
-	"github.com/networkservicemesh/sdk/pkg/ipam/strictipam"
+	"github.com/networkservicemesh/sdk/pkg/ipam/strictvl3ipam"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext/vl3dns"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/ipcontext/vl3"
@@ -546,7 +546,7 @@ func Test_NSC_ConnectsTo_vl3NSE_With_Invalid_IpContext(t *testing.T) {
 		ctx,
 		nseReg,
 		sandbox.GenerateTestToken,
-		strictipam.NewServer(ctx, strictIpamPrefixCh),
+		strictvl3ipam.NewServer(ctx, strictIpamPrefixCh),
 		vl3.NewServer(ctx, serverPrefixCh),
 	)
 
