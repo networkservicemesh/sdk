@@ -37,6 +37,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
+	"github.com/networkservicemesh/sdk/pkg/ipam/strictipam"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext/vl3dns"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/ipcontext/vl3"
@@ -45,6 +46,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/memory"
 	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
+	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -508,4 +510,70 @@ func Test_FloatingInterdomain_vl3_dns(t *testing.T) {
 
 	_, err = resolver.LookupIP(ctx, "ip4", fmt.Sprintf("%s.%s", nscName, searchDomain))
 	require.Error(t, err)
+}
+
+func Test_NSC_ConnectsTo_vl3NSE_With_Invalid_IpContext(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*150)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		Build()
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService("vl3"))
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
+
+	var serverPrefixCh = make(chan *ipam.PrefixResponse, 1)
+	var strictIpamPrefixCh = make(chan *ipam.PrefixResponse, 1)
+	defer close(serverPrefixCh)
+	defer close(strictIpamPrefixCh)
+
+	prefix1 := "10.0.0.1/24"
+	prefix2 := "10.10.0.1/24"
+
+	serverPrefixCh <- &ipam.PrefixResponse{Prefix: prefix1}
+	strictIpamPrefixCh <- &ipam.PrefixResponse{Prefix: prefix1}
+
+	_ = domain.Nodes[0].NewEndpoint(
+		ctx,
+		nseReg,
+		sandbox.GenerateTestToken,
+		strictipam.NewServer(ctx, strictIpamPrefixCh),
+		vl3.NewServer(ctx, serverPrefixCh),
+	)
+
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
+
+	req := defaultRequest(nsReg.Name)
+	conn, err := nsc.Request(ctx, req)
+	require.NoError(t, err)
+
+	require.True(t, checkIPContext(conn.Context.IpContext, prefix1))
+
+	serverPrefixCh <- &ipam.PrefixResponse{Prefix: prefix2}
+	strictIpamPrefixCh <- &ipam.PrefixResponse{Prefix: prefix2}
+
+	conn, err = nsc.Request(ctx, req)
+	require.NoError(t, err)
+
+	require.False(t, checkIPContext(conn.Context.IpContext, prefix1))
+	require.True(t, checkIPContext(conn.Context.IpContext, prefix2))
+}
+
+func checkIPContext(ipContext *networkservice.IPContext, prefix string) bool {
+	pool := ippool.NewWithNetString(prefix)
+	for _, addr := range ipContext.SrcIpAddrs {
+		if !pool.ContainsNetString(addr) {
+			return false
+		}
+	}
+	return true
 }
