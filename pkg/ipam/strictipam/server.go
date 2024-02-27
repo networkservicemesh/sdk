@@ -20,7 +20,6 @@ package strictipam
 import (
 	"context"
 	"net"
-	"strings"
 	"sync"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -29,7 +28,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type strictIPAMServer struct {
@@ -66,13 +64,10 @@ func (n *strictIPAMServer) areAddressesValid(addresses []string) bool {
 }
 
 func (n *strictIPAMServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if strings.HasPrefix(request.Connection.Path.PathSegments[0].Name, "nse") {
-		log.FromContext(ctx).Infof("THIS IS NOT A REGULAR CLIENT. SKIPPING...")
-		return next.Server(ctx).Request(ctx, request)
-	}
-	dstAddrs := request.GetConnection().GetContext().GetIpContext().GetDstIpAddrs()
 	srcAddrs := request.GetConnection().GetContext().GetIpContext().GetSrcIpAddrs()
-	if !n.areAddressesValid(srcAddrs) || !n.areAddressesValid(dstAddrs) {
+	dstAddrs := request.GetConnection().GetContext().GetIpContext().GetDstIpAddrs()
+
+	if !n.areAddressesValid(srcAddrs) && !n.areAddressesValid(dstAddrs) {
 		request.Connection.Context.IpContext = &networkservice.IPContext{}
 	}
 	return next.Server(ctx).Request(ctx, request)

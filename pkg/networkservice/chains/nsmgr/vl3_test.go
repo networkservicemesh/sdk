@@ -536,8 +536,8 @@ func Test_NSC_ConnectsTo_vl3NSE_With_Invalid_IpContext(t *testing.T) {
 	defer close(serverPrefixCh)
 	defer close(strictIpamPrefixCh)
 
-	prefix1 := "10.0.0.1/24"
-	prefix2 := "10.10.0.1/24"
+	prefix1 := "10.0.0.0/24"
+	prefix2 := "10.10.0.0/24"
 
 	serverPrefixCh <- &ipam.PrefixResponse{Prefix: prefix1}
 	strictIpamPrefixCh <- &ipam.PrefixResponse{Prefix: prefix1}
@@ -561,6 +561,7 @@ func Test_NSC_ConnectsTo_vl3NSE_With_Invalid_IpContext(t *testing.T) {
 	serverPrefixCh <- &ipam.PrefixResponse{Prefix: prefix2}
 	strictIpamPrefixCh <- &ipam.PrefixResponse{Prefix: prefix2}
 
+	req.Connection = conn
 	conn, err = nsc.Request(ctx, req)
 	require.NoError(t, err)
 
@@ -571,6 +572,11 @@ func Test_NSC_ConnectsTo_vl3NSE_With_Invalid_IpContext(t *testing.T) {
 func checkIPContext(ipContext *networkservice.IPContext, prefix string) bool {
 	pool := ippool.NewWithNetString(prefix)
 	for _, addr := range ipContext.SrcIpAddrs {
+		if !pool.ContainsNetString(addr) {
+			return false
+		}
+	}
+	for _, addr := range ipContext.DstIpAddrs {
 		if !pool.ContainsNetString(addr) {
 			return false
 		}
