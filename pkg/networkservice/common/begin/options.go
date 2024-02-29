@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -43,6 +43,7 @@ func WithReselect() Option {
 	}
 }
 
+// WithReselectFunc - sets a function for changing request parameters on reselect
 func WithReselectFunc(reselectFunc ReselectFunc) Option {
 	return func(o *option) {
 		o.reselectFunc = reselectFunc

@@ -39,8 +39,10 @@ const (
 
 var _ connectionState = zero
 
+// ReselectFunc - function for changing request parameters on reselect
 type ReselectFunc func(request *networkservice.NetworkServiceRequest)
 
+// DefaultReselectFunc - default ReselectFunc
 var DefaultReselectFunc ReselectFunc = func(request *networkservice.NetworkServiceRequest) {
 	if request.GetConnection() != nil {
 		request.GetConnection().Mechanism = nil
