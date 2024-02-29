@@ -52,6 +52,7 @@ func WithContextTimeout(timeout time.Duration) Option {
 	}
 }
 
+// WithReselectFunc - sets a function for changing request parameters on reselect
 func WithReselectFunc(reselectFunc ReselectFunc) Option {
 	return func(o *option) {
 		o.reselectFunc = reselectFunc
