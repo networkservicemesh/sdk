@@ -515,7 +515,7 @@ func Test_FloatingInterdomain_vl3_dns(t *testing.T) {
 func Test_NSC_ConnectsTo_vl3NSE_With_Invalid_IpContext(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*150)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	domain := sandbox.NewBuilder(ctx, t).
@@ -532,22 +532,18 @@ func Test_NSC_ConnectsTo_vl3NSE_With_Invalid_IpContext(t *testing.T) {
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 
 	var serverPrefixCh = make(chan *ipam.PrefixResponse, 1)
-	var strictIpamPrefixCh = make(chan *ipam.PrefixResponse, 1)
 	defer close(serverPrefixCh)
-	defer close(strictIpamPrefixCh)
 
 	prefix1 := "10.0.0.0/24"
 	prefix2 := "10.10.0.0/24"
 
 	serverPrefixCh <- &ipam.PrefixResponse{Prefix: prefix1}
-	strictIpamPrefixCh <- &ipam.PrefixResponse{Prefix: prefix1}
 
 	_ = domain.Nodes[0].NewEndpoint(
 		ctx,
 		nseReg,
 		sandbox.GenerateTestToken,
-		strictvl3ipam.NewServer(ctx, strictIpamPrefixCh),
-		vl3.NewServer(ctx, serverPrefixCh),
+		strictvl3ipam.NewServer(ctx, vl3.NewServer, serverPrefixCh),
 	)
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
@@ -559,7 +555,6 @@ func Test_NSC_ConnectsTo_vl3NSE_With_Invalid_IpContext(t *testing.T) {
 	require.True(t, checkIPContext(conn.Context.IpContext, prefix1))
 
 	serverPrefixCh <- &ipam.PrefixResponse{Prefix: prefix2}
-	strictIpamPrefixCh <- &ipam.PrefixResponse{Prefix: prefix2}
 
 	req.Connection = conn
 	conn, err = nsc.Request(ctx, req)

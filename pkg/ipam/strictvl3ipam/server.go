@@ -36,43 +36,53 @@ type strictVl3IPAMServer struct {
 }
 
 // NewServer - returns a new ipam networkservice.NetworkServiceServer that validates the incoming IP context parameters and resets them based on the validation result.
-func NewServer(ctx context.Context, prefixCh <-chan *ipam.PrefixResponse) networkservice.NetworkServiceServer {
-	var ipPool = ippool.New(net.IPv4len)
+func NewServer(ctx context.Context, newVl3IPAMServer func(ctx context.Context, prefixCh <-chan *ipam.PrefixResponse) networkservice.NetworkServiceServer, prefixCh <-chan *ipam.PrefixResponse) networkservice.NetworkServiceServer {
+	var ipPool = ippool.New(net.IPv6len)
 
-	s := &strictVl3IPAMServer{ipPool: ipPool}
+	vl3IPAMPrefixCh := make(chan *ipam.PrefixResponse, 1)
+	server := &strictVl3IPAMServer{ipPool: ipPool}
 	go func() {
+		defer close(vl3IPAMPrefixCh)
 		for prefix := range prefixCh {
-			s.m.Lock()
-			s.ipPool = ippool.NewWithNetString(prefix.Prefix)
-			s.m.Unlock()
+			vl3IPAMPrefixCh <- prefix
+			server.m.Lock()
+			server.ipPool.Clear()
+			server.ipPool.AddNetString(prefix.Prefix)
+			server.m.Unlock()
 		}
 	}()
 
-	return s
+	return next.NewNetworkServiceServer(
+		server,
+		newVl3IPAMServer(ctx, vl3IPAMPrefixCh))
 }
 
-func (n *strictVl3IPAMServer) areAddressesValid(addresses []string) bool {
-	n.m.Lock()
-	defer n.m.Unlock()
+func (s *strictVl3IPAMServer) areAddressesValid(addresses []string) bool {
+	s.m.Lock()
+	defer s.m.Unlock()
+
+	if len(addresses) == 0 {
+		return true
+	}
 
 	for _, addr := range addresses {
-		if !n.ipPool.ContainsNetString(addr) {
-			return false
+		if s.ipPool.ContainsNetString(addr) {
+			return true
 		}
 	}
-	return true
+	return false
 }
 
-func (n *strictVl3IPAMServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+func (s *strictVl3IPAMServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	srcAddrs := request.GetConnection().GetContext().GetIpContext().GetSrcIpAddrs()
 	dstAddrs := request.GetConnection().GetContext().GetIpContext().GetDstIpAddrs()
 
-	if !n.areAddressesValid(srcAddrs) && !n.areAddressesValid(dstAddrs) {
+	if !s.areAddressesValid(srcAddrs) || !s.areAddressesValid(dstAddrs) {
 		request.Connection.Context.IpContext = &networkservice.IPContext{}
 	}
 	return next.Server(ctx).Request(ctx, request)
 }
 
-func (n *strictVl3IPAMServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+func (s *strictVl3IPAMServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	return next.Server(ctx).Close(ctx, conn)
 }
