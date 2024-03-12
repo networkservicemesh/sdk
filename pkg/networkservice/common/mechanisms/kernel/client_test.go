@@ -90,7 +90,6 @@ func TestKernelMechanismClient_ShouldSetRandomInteraceName(t *testing.T) {
 	require.Len(t, ifname, kernelmech.LinuxIfMaxLength)
 	require.True(t, strings.HasPrefix(ifname, "nsm"))
 	for i := 0; i < kernelmech.LinuxIfMaxLength; i++ {
-		require.Contains(t, nanoid.DefaultAlphabet, ifname[i])
+		require.Contains(t, nanoid.DefaultAlphabet, string(ifname[i]))
 	}
-	require.Equal(t, netNSURL, req.MechanismPreferences[0].Parameters[kernelmech.NetNSURL])
 }

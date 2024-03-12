@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package nanoid is a tiny, unique string ID generator
+// Package nanoid is a tiny, unique string ID generator. Original JavaScript implementation: https://github.com/ai/nanoid
 package nanoid
 
 import (

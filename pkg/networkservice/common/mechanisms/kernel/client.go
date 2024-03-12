@@ -53,7 +53,7 @@ func (k *kernelMechanismClient) Request(ctx context.Context, request *networkser
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to update mechanism preferences")
 	}
-	if updated {
+	if !updated {
 		mechanism := kernelmech.ToMechanism(kernelmech.New(netNSURL))
 		if k.interfaceName != "" {
 			mechanism.SetInterfaceName(k.interfaceName)

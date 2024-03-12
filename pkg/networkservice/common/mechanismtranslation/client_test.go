@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2024 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -41,13 +43,17 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
+const (
+	clientIfName = "nsm1"
+)
+
 func kernelMechanism() *networkservice.Mechanism {
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id: "id",
 		},
 	}
-	_, _ = kernel.NewClient().Request(context.Background(), request)
+	_, _ = kernel.NewClient(kernel.WithInterfaceName(clientIfName)).Request(context.Background(), request)
 	return request.MechanismPreferences[0]
 }
 
@@ -58,7 +64,7 @@ func TestMechanismTranslationClient(t *testing.T) {
 		metadata.NewClient(),
 		mechanismtranslation.NewClient(),
 		capture,
-		kernel.NewClient(),
+		kernel.NewClient(kernel.WithInterfaceName(clientIfName)),
 		adapters.NewServerToClient(
 			mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
 				kernelmech.MECHANISM: null.NewServer(),
@@ -130,7 +136,7 @@ func TestMechanismTranslationClient_CloseOnError(t *testing.T) {
 			}
 			count++
 		}),
-		kernel.NewClient(),
+		kernel.NewClient(kernel.WithInterfaceName(clientIfName)),
 		adapters.NewServerToClient(
 			mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
 				kernelmech.MECHANISM: null.NewServer(),
