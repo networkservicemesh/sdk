@@ -51,7 +51,7 @@ func (k *kernelMechanismClient) Request(ctx context.Context, request *networkser
 		if k.interfaceName != "" {
 			mechanism.SetInterfaceName(k.interfaceName)
 		} else {
-			mechanism.SetInterfaceName(getNameFromConnection(request.GetConnection()))
+			mechanism.SetInterfaceName(generateInterfaceName())
 		}
 		request.MechanismPreferences = append(request.GetMechanismPreferences(), mechanism.Mechanism)
 	}
@@ -72,7 +72,7 @@ func (k *kernelMechanismClient) updateMechanismPreferences(request *networkservi
 				if k.interfaceName != "" {
 					mechanism.SetInterfaceName(k.interfaceName)
 				} else {
-					mechanism.SetInterfaceName(getNameFromConnection(request.GetConnection()))
+					mechanism.SetInterfaceName(generateInterfaceName())
 				}
 			}
 			mechanism.SetNetNSURL(netNSURL)

@@ -19,6 +19,7 @@ package kernel_test
 import (
 	"context"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -70,5 +71,22 @@ func TestKernelMechanismClient_ShouldSetValidNetNSURL(t *testing.T) {
 
 	_, err := c.Request(context.Background(), req)
 	require.NoError(t, err)
+	require.Equal(t, netNSURL, req.MechanismPreferences[0].Parameters[kernelmech.NetNSURL])
+}
+
+func TestKernelMechanismClient_ShouldSetRandomInteraceName(t *testing.T) {
+	c := kernel.NewClient()
+	req := &networkservice.NetworkServiceRequest{}
+
+	_, err := c.Request(context.Background(), req)
+	require.NoError(t, err)
+
+	ifname := req.MechanismPreferences[0].Parameters[kernelmech.InterfaceNameKey]
+
+	require.Len(t, ifname, kernelmech.LinuxIfMaxLength)
+	require.True(t, strings.HasPrefix(ifname, "nsm"))
+	for i := 0; i < kernelmech.LinuxIfMaxLength; i++ {
+		require.Contains(t, kernel.Alphabet, ifname[i])
+	}
 	require.Equal(t, netNSURL, req.MechanismPreferences[0].Parameters[kernelmech.NetNSURL])
 }

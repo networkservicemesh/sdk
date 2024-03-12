@@ -49,7 +49,7 @@ func (m *kernelMechanismServer) Request(ctx context.Context, request *networkser
 		if m.interfaceName != "" {
 			mechanism.SetInterfaceName(m.interfaceName)
 		} else {
-			mechanism.SetInterfaceName(getNameFromConnection(request.GetConnection()))
+			mechanism.SetInterfaceName(generateInterfaceName())
 		}
 	}
 	return next.Server(ctx).Request(ctx, request)
