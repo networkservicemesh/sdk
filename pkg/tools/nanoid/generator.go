@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package nanoid is a tiny, unique string ID generator. Original JavaScript implementation: https://github.com/ai/nanoid
+// Package nanoid is a tiny, unique string ID generator
 package nanoid
 
 import (
@@ -51,6 +51,7 @@ func generateRandomBuffer(step int) ([]byte, error) {
 }
 
 // RandomString generates a random string based on size.
+// Original JavaScript implementation: https://github.com/ai/nanoid/blob/main/README.md
 func RandomString(size int, opt ...Option) (string, error) {
 	opts := &generatorOpts{
 		alphabet: DefaultAlphabet,
