@@ -19,11 +19,8 @@ package strictvl3ipam
 
 import (
 	"context"
-	"net"
-	"sync"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/ipam"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -32,34 +29,19 @@ import (
 
 type strictVl3IPAMServer struct {
 	ipPool *ippool.IPPool
-	m      sync.Mutex
 }
 
 // NewServer - returns a new ipam networkservice.NetworkServiceServer that validates the incoming IP context parameters and resets them based on the validation result.
-func NewServer(ctx context.Context, newVl3IPAMServer func(ctx context.Context, prefixCh <-chan *ipam.PrefixResponse) networkservice.NetworkServiceServer, prefixCh <-chan *ipam.PrefixResponse) networkservice.NetworkServiceServer {
-	var ipPool = ippool.New(net.IPv6len)
-
-	vl3IPAMPrefixCh := make(chan *ipam.PrefixResponse, 1)
-	server := &strictVl3IPAMServer{ipPool: ipPool}
-	go func() {
-		defer close(vl3IPAMPrefixCh)
-		for prefix := range prefixCh {
-			vl3IPAMPrefixCh <- prefix
-			server.m.Lock()
-			server.ipPool.Clear()
-			server.ipPool.AddNetString(prefix.Prefix)
-			server.m.Unlock()
-		}
-	}()
-
+func NewServer(ctx context.Context, vl3IPAMServer networkservice.NetworkServiceServer, ipPool *ippool.IPPool) networkservice.NetworkServiceServer {
 	return next.NewNetworkServiceServer(
-		server,
-		newVl3IPAMServer(ctx, vl3IPAMPrefixCh))
+		&strictVl3IPAMServer{ipPool: ipPool},
+		vl3IPAMServer,
+	)
 }
 
 func (s *strictVl3IPAMServer) areAddressesValid(addresses []string) bool {
-	s.m.Lock()
-	defer s.m.Unlock()
+	s.ipPool.Lock()
+	defer s.ipPool.Unlock()
 
 	if len(addresses) == 0 {
 		return true

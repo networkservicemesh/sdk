@@ -538,12 +538,13 @@ func Test_NSC_ConnectsTo_vl3NSE_With_Invalid_IpContext(t *testing.T) {
 	prefix2 := "10.10.0.0/24"
 
 	serverPrefixCh <- &ipam.PrefixResponse{Prefix: prefix1}
+	strictIPPool := ippool.NewWithNetString(prefix1)
 
 	_ = domain.Nodes[0].NewEndpoint(
 		ctx,
 		nseReg,
 		sandbox.GenerateTestToken,
-		strictvl3ipam.NewServer(ctx, vl3.NewServer, serverPrefixCh),
+		strictvl3ipam.NewServer(ctx, vl3.NewServer(ctx, serverPrefixCh), strictIPPool),
 	)
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
@@ -555,6 +556,8 @@ func Test_NSC_ConnectsTo_vl3NSE_With_Invalid_IpContext(t *testing.T) {
 	require.True(t, checkIPContext(conn.Context.IpContext, prefix1))
 
 	serverPrefixCh <- &ipam.PrefixResponse{Prefix: prefix2}
+	strictIPPool.Clear()
+	strictIPPool.AddNetString(prefix2)
 
 	req.Connection = conn
 	conn, err = nsc.Request(ctx, req)

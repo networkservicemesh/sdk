@@ -1,6 +1,6 @@
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2022-2023 Cisco and/or its affiliates.
+// Copyright (c) 2022-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -36,8 +36,8 @@ const (
 
 // IPPool holds available ip addresses in the structure of red-black tree
 type IPPool struct {
+	sync.Mutex
 	root     *treeNode
-	lock     sync.Mutex
 	size     uint64
 	ipLength int
 }
@@ -83,8 +83,8 @@ func NewWithNetString(ipNetString string) *IPPool {
 
 // Clone - make a clone of the pool
 func (tree *IPPool) Clone() *IPPool {
-	tree.lock.Lock()
-	defer tree.lock.Unlock()
+	tree.Lock()
+	defer tree.Unlock()
 
 	return tree.clone()
 }
@@ -111,8 +111,8 @@ func (tree *IPPool) Add(ip net.IP) {
 		return
 	}
 
-	tree.lock.Lock()
-	defer tree.lock.Unlock()
+	tree.Lock()
+	defer tree.Unlock()
 
 	tree.add(ipAddressFromIP(ip))
 }
@@ -132,8 +132,8 @@ func (tree *IPPool) AddNet(ipNet *net.IPNet) {
 		return
 	}
 
-	tree.lock.Lock()
-	defer tree.lock.Unlock()
+	tree.Lock()
+	defer tree.Unlock()
 
 	tree.addRange(ipRangeFromIPNet(ipNet))
 }
@@ -203,8 +203,8 @@ func (tree *IPPool) Exclude(ipNet *net.IPNet) {
 		return
 	}
 
-	tree.lock.Lock()
-	defer tree.lock.Unlock()
+	tree.Lock()
+	defer tree.Unlock()
 
 	tree.deleteRange(ipRangeFromIPNet(ipNet))
 }
@@ -221,8 +221,8 @@ func (tree *IPPool) ExcludeString(ipNetString string) {
 
 // Pull - returns next IP address from pool
 func (tree *IPPool) Pull() (net.IP, error) {
-	tree.lock.Lock()
-	defer tree.lock.Unlock()
+	tree.Lock()
+	defer tree.Unlock()
 
 	ip := tree.pull()
 	if ip == nil {
@@ -243,8 +243,8 @@ func (tree *IPPool) PullIPString(ipString string, exclude ...*IPPool) (*net.IPNe
 
 // PullIP - returns requested IP address from the pool
 func (tree *IPPool) PullIP(ip net.IP, exclude ...*IPPool) (*net.IPNet, error) {
-	tree.lock.Lock()
-	defer tree.lock.Unlock()
+	tree.Lock()
+	defer tree.Unlock()
 
 	clone := tree.clone()
 	for _, pool := range exclude {
@@ -268,8 +268,8 @@ func (tree *IPPool) PullIP(ip net.IP, exclude ...*IPPool) (*net.IPNet, error) {
 
 // PullP2PAddrs - returns next IP addresses pair from pool for peer-to-peer connection
 func (tree *IPPool) PullP2PAddrs(exclude ...*IPPool) (srcNet, dstNet *net.IPNet, err error) {
-	tree.lock.Lock()
-	defer tree.lock.Unlock()
+	tree.Lock()
+	defer tree.Unlock()
 
 	clone := tree.clone()
 
@@ -311,9 +311,9 @@ func (tree *IPPool) PullP2PAddrs(exclude ...*IPPool) (srcNet, dstNet *net.IPNet,
 
 // GetPrefixes returns the list of saved prefixes
 func (tree *IPPool) GetPrefixes() []string {
-	tree.lock.Lock()
+	tree.Lock()
 	clone := tree.clone()
-	tree.lock.Unlock()
+	tree.Unlock()
 
 	if clone.root == nil {
 		return nil
