@@ -2,6 +2,8 @@
 //
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2024 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,6 +24,7 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -46,12 +49,20 @@ func NewClient(opts ...Option) networkservice.NetworkServiceClient {
 }
 
 func (k *kernelMechanismClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	if !k.updateMechanismPreferences(request) {
+	updated, err := k.updateMechanismPreferences(request)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to update mechanism preferences")
+	}
+	if updated {
 		mechanism := kernelmech.ToMechanism(kernelmech.New(netNSURL))
 		if k.interfaceName != "" {
 			mechanism.SetInterfaceName(k.interfaceName)
 		} else {
-			mechanism.SetInterfaceName(generateInterfaceName())
+			ifname, err := generateInterfaceName()
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to generate kernel interface name")
+			}
+			mechanism.SetInterfaceName(ifname)
 		}
 		request.MechanismPreferences = append(request.GetMechanismPreferences(), mechanism.Mechanism)
 	}
@@ -63,7 +74,7 @@ func (k *kernelMechanismClient) Close(ctx context.Context, conn *networkservice.
 }
 
 // updateMechanismPreferences returns true if MechanismPreferences has updated
-func (k *kernelMechanismClient) updateMechanismPreferences(request *networkservice.NetworkServiceRequest) bool {
+func (k *kernelMechanismClient) updateMechanismPreferences(request *networkservice.NetworkServiceRequest) (bool, error) {
 	var updated = false
 
 	for _, m := range request.GetRequestMechanismPreferences() {
@@ -72,7 +83,11 @@ func (k *kernelMechanismClient) updateMechanismPreferences(request *networkservi
 				if k.interfaceName != "" {
 					mechanism.SetInterfaceName(k.interfaceName)
 				} else {
-					mechanism.SetInterfaceName(generateInterfaceName())
+					ifname, err := generateInterfaceName()
+					if err != nil {
+						return false, errors.Wrap(err, "Failed to generate kernel interface name")
+					}
+					mechanism.SetInterfaceName(ifname)
 				}
 			}
 			mechanism.SetNetNSURL(netNSURL)
@@ -81,5 +96,5 @@ func (k *kernelMechanismClient) updateMechanismPreferences(request *networkservi
 		}
 	}
 
-	return updated
+	return updated, nil
 }

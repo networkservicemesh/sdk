@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2024 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,6 +30,8 @@ import (
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/nanoid"
 )
 
 var netNSURL = (&url.URL{Scheme: "file", Path: "/proc/thread-self/ns/net"}).String()
@@ -86,7 +90,7 @@ func TestKernelMechanismClient_ShouldSetRandomInteraceName(t *testing.T) {
 	require.Len(t, ifname, kernelmech.LinuxIfMaxLength)
 	require.True(t, strings.HasPrefix(ifname, "nsm"))
 	for i := 0; i < kernelmech.LinuxIfMaxLength; i++ {
-		require.Contains(t, kernel.Alphabet, ifname[i])
+		require.Contains(t, nanoid.DefaultAlphabet, ifname[i])
 	}
 	require.Equal(t, netNSURL, req.MechanismPreferences[0].Parameters[kernelmech.NetNSURL])
 }

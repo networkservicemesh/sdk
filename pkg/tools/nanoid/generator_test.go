@@ -14,14 +14,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package kernel_test
+package nanoid_test
 
 import (
 	"math"
 	"testing"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/stretchr/testify/require"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/nanoid"
 )
 
 const (
@@ -31,7 +32,7 @@ const (
 func TestNoCollisions(t *testing.T) {
 	used := make(map[string]bool)
 	for i := 0; i < 50*1000; i++ {
-		id, err := kernel.GenerateRandomString(idLen)
+		id, err := nanoid.RandomString(idLen)
 		require.NoError(t, err)
 		_, ok := used[id]
 		require.False(t, ok, "Collision detected for id: %s", id)
@@ -44,19 +45,19 @@ func TestFlatDistribution(t *testing.T) {
 
 	chars := make(map[rune]int)
 	for i := 0; i < count; i++ {
-		id, err := kernel.GenerateRandomString(idLen)
+		id, err := nanoid.RandomString(idLen)
 		require.NoError(t, err, "Error generating nanoid")
 		for _, char := range id {
 			chars[char]++
 		}
 	}
 
-	require.Equal(t, len(chars), len(kernel.Alphabet), "Unexpected number of unique characters")
+	require.Equal(t, len(chars), len(nanoid.DefaultAlphabet), "Unexpected number of unique characters")
 
 	max := 0.0
 	min := math.MaxFloat64
 	for _, count := range chars {
-		distribution := float64(count*len(kernel.Alphabet)) / float64(count*idLen)
+		distribution := float64(count*len(nanoid.DefaultAlphabet)) / float64(count*idLen)
 		if distribution > max {
 			max = distribution
 		}
@@ -66,4 +67,14 @@ func TestFlatDistribution(t *testing.T) {
 	}
 
 	require.True(t, max-min <= 0.05, "Distribution is not flat")
+}
+
+func TestCustomAlphabet(t *testing.T) {
+	alphabet := "abcd"
+	id, err := nanoid.RandomString(idLen, nanoid.WithAlphabet(alphabet))
+	require.NoError(t, err)
+
+	for _, c := range id {
+		require.Contains(t, alphabet, string(c))
+	}
 }

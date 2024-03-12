@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2024 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,6 +23,7 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
@@ -49,7 +52,11 @@ func (m *kernelMechanismServer) Request(ctx context.Context, request *networkser
 		if m.interfaceName != "" {
 			mechanism.SetInterfaceName(m.interfaceName)
 		} else {
-			mechanism.SetInterfaceName(generateInterfaceName())
+			ifname, err := generateInterfaceName()
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to generate kernel interface name")
+			}
+			mechanism.SetInterfaceName(ifname)
 		}
 	}
 	return next.Server(ctx).Request(ctx, request)
