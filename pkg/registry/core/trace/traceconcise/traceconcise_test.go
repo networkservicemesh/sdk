@@ -1,4 +1,6 @@
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
+//
+// Copyright (c) 2024 Nordix Foundation.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -73,14 +75,14 @@ func TestOutput(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedOutput :=
-		"\x1b[36m [INFO] [type:registry] \x1b[0mnse-server-register={\"name\":\"a\"}\n" +
-			"\x1b[36m [INFO] [type:registry] \x1b[0mnse-server-register-response={\"name\":\"a\"}\n" +
-			"\x1b[36m [INFO] [type:registry] \x1b[0mnse-server-find={\"network_service_endpoint\":{\"name\":\"a\"}}\n" +
-			"\x1b[36m [INFO] [type:registry] \x1b[0mnse-server-send={\"network_service_endpoint\":{\"name\":\"a\"}}\n" +
-			"\x1b[36m [INFO] [type:registry] \x1b[0mnse-server-send-response={\"network_service_endpoint\":{\"name\":\"a\"}}\n" +
-			"\x1b[36m [INFO] [type:registry] \x1b[0mnse-server-find-response={\"network_service_endpoint\":{\"name\":\"a\"}}\n" +
-			"\x1b[36m [INFO] [type:registry] \x1b[0mnse-server-unregister={\"name\":\"a\"}\n" +
-			"\x1b[36m [INFO] [type:registry] \x1b[0mnse-server-unregister-response={\"name\":\"a\"}\n"
+		" [INFO] [type:registry] nse-server-register={\"name\":\"a\"}\n" +
+			" [INFO] [type:registry] nse-server-register-response={\"name\":\"a\"}\n" +
+			" [INFO] [type:registry] nse-server-find={\"network_service_endpoint\":{\"name\":\"a\"}}\n" +
+			" [INFO] [type:registry] nse-server-send={\"network_service_endpoint\":{\"name\":\"a\"}}\n" +
+			" [INFO] [type:registry] nse-server-send-response={\"network_service_endpoint\":{\"name\":\"a\"}}\n" +
+			" [INFO] [type:registry] nse-server-find-response={\"network_service_endpoint\":{\"name\":\"a\"}}\n" +
+			" [INFO] [type:registry] nse-server-unregister={\"name\":\"a\"}\n" +
+			" [INFO] [type:registry] nse-server-unregister-response={\"name\":\"a\"}\n"
 
 	result := testutil.TrimLogTime(&buff)
 	require.Equal(t, expectedOutput, result)
@@ -127,12 +129,12 @@ func TestErrorOutput(t *testing.T) {
 	require.Error(t, err)
 
 	expectedOutput :=
-		"\x1b[36m [INFO] [type:registry] \x1b[0mnse-server-register={\"name\":\"a\"}\n" +
-			"\x1b[31m [ERRO] [type:registry] \x1b[0mError returned from sdk/pkg/registry/utils/inject/injecterror/injectErrorNSEServer.Register: test error\n" +
-			"\x1b[36m [INFO] [type:registry] \x1b[0mnse-server-find={\"network_service_endpoint\":{\"name\":\"a\"}}\n" +
-			"\x1b[31m [ERRO] [type:registry] \x1b[0mError returned from sdk/pkg/registry/utils/inject/injecterror/injectErrorNSEServer.Find: test error\n" +
-			"\x1b[36m [INFO] [type:registry] \x1b[0mnse-server-unregister=null\n" +
-			"\x1b[31m [ERRO] [type:registry] \x1b[0mError returned from sdk/pkg/registry/utils/inject/injecterror/injectErrorNSEServer.Unregister: test error\n"
+		" [INFO] [type:registry] nse-server-register={\"name\":\"a\"}\n" +
+			" [ERRO] [type:registry] Error returned from sdk/pkg/registry/utils/inject/injecterror/injectErrorNSEServer.Register: test error\n" +
+			" [INFO] [type:registry] nse-server-find={\"network_service_endpoint\":{\"name\":\"a\"}}\n" +
+			" [ERRO] [type:registry] Error returned from sdk/pkg/registry/utils/inject/injecterror/injectErrorNSEServer.Find: test error\n" +
+			" [INFO] [type:registry] nse-server-unregister=null\n" +
+			" [ERRO] [type:registry] Error returned from sdk/pkg/registry/utils/inject/injecterror/injectErrorNSEServer.Unregister: test error\n"
 
 	result := testutil.TrimLogTime(&buff)
 	require.Equal(t, expectedOutput, result)

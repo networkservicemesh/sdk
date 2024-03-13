@@ -1,4 +1,6 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2024 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2024 Nordix Foundation.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -33,6 +35,7 @@ type formatter struct {
 func newFormatter() *formatter {
 	f := formatter{}
 	f.nf.FieldsOrder = []string{"id", "name"}
+	f.nf.NoColors = true
 	return &f
 }
 
@@ -52,11 +55,8 @@ func (f *formatter) Format(entry *logrus.Entry) ([]byte, error) {
 	// output buffer
 	bb := &bytes.Buffer{}
 
-	split := strings.SplitN(bytesString, "\x1b[0m", 2)
-	prefix := split[0] + "\x1b[0m"
-	split[1] = split[1][:len(split[1])-1] // remove trailing \n
-	bb.WriteString(prefix)
-	for _, line := range strings.Split(split[1], "\n") {
+	bytesString = bytesString[:len(bytesString)-1] // remove trailing \n
+	for _, line := range strings.Split(bytesString, "\n") {
 		bb.WriteString(line)
 		bb.WriteString(";\t")
 	}

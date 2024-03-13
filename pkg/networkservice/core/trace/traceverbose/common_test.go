@@ -1,6 +1,8 @@
-// Copyright (c) 2020-2023 Cisco Systems, Inc.
+// Copyright (c) 2020-2024 Cisco Systems, Inc.
 //
-// Copyright (c) 2021-2023 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2024 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2024 Nordix Foundation.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -129,28 +131,28 @@ func TestTraceOutput(t *testing.T) {
 	require.NotNil(t, e)
 
 	expectedOutput :=
-		"\x1b[37m [TRAC] [id:conn-1] [type:networkService] \x1b[0m(1) ⎆ sdk/pkg/networkservice/core/trace/testutil/LabelChangerFirstServer.Request()\n" +
-			"\x1b[37m [TRAC] [id:conn-1] [type:networkService] \x1b[0m(1.1)   request={\"connection\":{\"id\":\"conn-1\",\"context\":" +
+		" [TRAC] [id:conn-1] [type:networkService] (1) ⎆ sdk/pkg/networkservice/core/trace/testutil/LabelChangerFirstServer.Request()\n" +
+			" [TRAC] [id:conn-1] [type:networkService] (1.1)   request={\"connection\":{\"id\":\"conn-1\",\"context\":" +
 			"{\"ip_context\":{\"src_ip_required\":true}}},\"mechanism_preferences\":[{\"cls\":\"LOCAL\"," +
 			"\"type\":\"KERNEL\"},{\"cls\":\"LOCAL\",\"type\":\"KERNEL\",\"parameters\":{\"label\"" +
 			":\"v2\"}}]}\n" +
-			"\x1b[37m [TRAC] [id:conn-1] [type:networkService] \x1b[0m(1.2)   request-diff={\"connection\":{\"labels\":{\"+Label\":\"A\"}}}\n" +
-			"\x1b[37m [TRAC] [id:conn-1] [type:networkService] \x1b[0m(2)  ⎆ sdk/pkg/networkservice/core/trace/testutil/LabelChangerSecondServer.Request()\n" +
-			"\x1b[37m [TRAC] [id:conn-1] [type:networkService] \x1b[0m(2.1)    request-diff={\"connection\":{\"labels\":{\"Label\":\"B\"}}}\n" +
-			"\x1b[37m [TRAC] [id:conn-1] [type:networkService] \x1b[0m(2.2)    request-response={\"id\":\"conn-1\",\"context\":{\"ip_context\":{\"src_ip_required\":true}}," +
+			" [TRAC] [id:conn-1] [type:networkService] (1.2)   request-diff={\"connection\":{\"labels\":{\"+Label\":\"A\"}}}\n" +
+			" [TRAC] [id:conn-1] [type:networkService] (2)  ⎆ sdk/pkg/networkservice/core/trace/testutil/LabelChangerSecondServer.Request()\n" +
+			" [TRAC] [id:conn-1] [type:networkService] (2.1)    request-diff={\"connection\":{\"labels\":{\"Label\":\"B\"}}}\n" +
+			" [TRAC] [id:conn-1] [type:networkService] (2.2)    request-response={\"id\":\"conn-1\",\"context\":{\"ip_context\":{\"src_ip_required\":true}}," +
 			"\"labels\":{\"Label\":\"B\"}}\n" +
-			"\x1b[37m [TRAC] [id:conn-1] [type:networkService] \x1b[0m(2.3)    request-response-diff={\"labels\":{\"Label\":\"C\"}}\n" +
-			"\x1b[37m [TRAC] [id:conn-1] [type:networkService] \x1b[0m(1.3)   request-response-diff={\"labels\":{\"Label\":\"D\"}}\n" +
-			"\x1b[37m [TRAC] [id:conn-1] [type:networkService] \x1b[0m(1) ⎆ sdk/pkg/networkservice/core/trace/testutil/LabelChangerFirstServer.Close()\n" +
-			"\x1b[37m [TRAC] [id:conn-1] [type:networkService] \x1b[0m(1.1)   close={\"id\":\"conn-1\",\"context\":{\"ip_context\":{\"src_ip_required\":true}}," +
+			" [TRAC] [id:conn-1] [type:networkService] (2.3)    request-response-diff={\"labels\":{\"Label\":\"C\"}}\n" +
+			" [TRAC] [id:conn-1] [type:networkService] (1.3)   request-response-diff={\"labels\":{\"Label\":\"D\"}}\n" +
+			" [TRAC] [id:conn-1] [type:networkService] (1) ⎆ sdk/pkg/networkservice/core/trace/testutil/LabelChangerFirstServer.Close()\n" +
+			" [TRAC] [id:conn-1] [type:networkService] (1.1)   close={\"id\":\"conn-1\",\"context\":{\"ip_context\":{\"src_ip_required\":true}}," +
 			"\"labels\":{\"Label\":\"D\"}}\n" +
-			"\x1b[37m [TRAC] [id:conn-1] [type:networkService] \x1b[0m(1.2)   close-diff={\"labels\":{\"Label\":\"W\"}}\n" +
-			"\x1b[37m [TRAC] [id:conn-1] [type:networkService] \x1b[0m(2)  ⎆ sdk/pkg/networkservice/core/trace/testutil/LabelChangerSecondServer.Close()\n" +
-			"\x1b[37m [TRAC] [id:conn-1] [type:networkService] \x1b[0m(2.1)    close-diff={\"labels\":{\"Label\":\"X\"}}\n" +
-			"\x1b[37m [TRAC] [id:conn-1] [type:networkService] \x1b[0m(2.2)    close-response={\"id\":\"conn-1\",\"context\":{\"ip_context\":{\"src_ip_required\"" +
+			" [TRAC] [id:conn-1] [type:networkService] (1.2)   close-diff={\"labels\":{\"Label\":\"W\"}}\n" +
+			" [TRAC] [id:conn-1] [type:networkService] (2)  ⎆ sdk/pkg/networkservice/core/trace/testutil/LabelChangerSecondServer.Close()\n" +
+			" [TRAC] [id:conn-1] [type:networkService] (2.1)    close-diff={\"labels\":{\"Label\":\"X\"}}\n" +
+			" [TRAC] [id:conn-1] [type:networkService] (2.2)    close-response={\"id\":\"conn-1\",\"context\":{\"ip_context\":{\"src_ip_required\"" +
 			":true}},\"labels\":{\"Label\":\"X\"}}\n" +
-			"\x1b[37m [TRAC] [id:conn-1] [type:networkService] \x1b[0m(2.3)    close-response-diff={\"labels\":{\"Label\":\"Y\"}}\n" +
-			"\x1b[37m [TRAC] [id:conn-1] [type:networkService] \x1b[0m(1.3)   close-response-diff={\"labels\":{\"Label\":\"Z\"}}\n"
+			" [TRAC] [id:conn-1] [type:networkService] (2.3)    close-response-diff={\"labels\":{\"Label\":\"Y\"}}\n" +
+			" [TRAC] [id:conn-1] [type:networkService] (1.3)   close-response-diff={\"labels\":{\"Label\":\"Z\"}}\n"
 
 	result := testutil.TrimLogTime(&buff)
 	require.Equal(t, expectedOutput, result)
@@ -181,20 +183,20 @@ func TestErrorOutput(t *testing.T) {
 	require.Nil(t, conn)
 
 	expectedOutput :=
-		"\x1b[37m [TRAC] [id:conn-1] [type:networkService] \x1b[0m(1) ⎆ sdk/pkg/networkservice/core/trace/testutil/LabelChangerFirstServer.Request()\n" +
-			"\x1b[37m [TRAC] [id:conn-1] [type:networkService] \x1b[0m(1.1)   request={\"connection\":{\"id\":\"conn-1\",\"context\":" +
+		" [TRAC] [id:conn-1] [type:networkService] (1) ⎆ sdk/pkg/networkservice/core/trace/testutil/LabelChangerFirstServer.Request()\n" +
+			" [TRAC] [id:conn-1] [type:networkService] (1.1)   request={\"connection\":{\"id\":\"conn-1\",\"context\":" +
 			"{\"ip_context\":{\"src_ip_required\":true}}},\"mechanism_preferences\":[{\"cls\":\"LOCAL\"," +
 			"\"type\":\"KERNEL\"},{\"cls\":\"LOCAL\",\"type\":\"KERNEL\",\"parameters\":{\"label\"" +
 			":\"v2\"}}]}\n" +
-			"\x1b[37m [TRAC] [id:conn-1] [type:networkService] \x1b[0m(1.2)   request-diff={\"connection\":{\"labels\":{\"+Label\":\"A\"}}}\n" +
-			"\x1b[37m [TRAC] [id:conn-1] [type:networkService] \x1b[0m(2)  ⎆ sdk/pkg/networkservice/core/trace/testutil/LabelChangerSecondServer.Request()\n" +
-			"\x1b[37m [TRAC] [id:conn-1] [type:networkService] \x1b[0m(2.1)    request-diff={\"connection\":{\"labels\":{\"Label\":\"B\"}}}\n" +
-			"\x1b[37m [TRAC] [id:conn-1] [type:networkService] \x1b[0m(3)   ⎆ sdk/pkg/networkservice/core/trace/testutil/ErrorServer.Request()\n" +
-			"\x1b[37m [TRAC] [id:conn-1] [type:networkService] \x1b[0m(3.1)     request-response={\"id\":\"conn-1\",\"context\":{\"ip_context\":{\"src_ip_required\":true}},\"labels\":{\"Label\":\"B\"}}\n" +
-			"\x1b[31m [ERRO] [id:conn-1] [type:networkService] \x1b[0m(3.2)     Error returned from api/pkg/api/networkservice/networkServiceClient.Close;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*beginTraceClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:85;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*endTraceClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:106;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\t\n" +
-			"\x1b[37m [TRAC] [id:conn-1] [type:networkService] \x1b[0m(2.2)    request-response-diff={\"context\":{\"ip_context\":{\"src_ip_required\":false}},\"id\":\"\",\"labels\":{\"-Label\":\"B\"}}\n" +
-			"\x1b[31m [ERRO] [id:conn-1] [type:networkService] \x1b[0m(2.3)    Error returned from api/pkg/api/networkservice/networkServiceClient.Close;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*beginTraceClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:85;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*endTraceClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:106;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\t\n" +
-			"\x1b[31m [ERRO] [id:conn-1] [type:networkService] \x1b[0m(1.3)   Error returned from api/pkg/api/networkservice/networkServiceClient.Close;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*beginTraceClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:85;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*endTraceClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:106;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\t\n"
+			" [TRAC] [id:conn-1] [type:networkService] (1.2)   request-diff={\"connection\":{\"labels\":{\"+Label\":\"A\"}}}\n" +
+			" [TRAC] [id:conn-1] [type:networkService] (2)  ⎆ sdk/pkg/networkservice/core/trace/testutil/LabelChangerSecondServer.Request()\n" +
+			" [TRAC] [id:conn-1] [type:networkService] (2.1)    request-diff={\"connection\":{\"labels\":{\"Label\":\"B\"}}}\n" +
+			" [TRAC] [id:conn-1] [type:networkService] (3)   ⎆ sdk/pkg/networkservice/core/trace/testutil/ErrorServer.Request()\n" +
+			" [TRAC] [id:conn-1] [type:networkService] (3.1)     request-response={\"id\":\"conn-1\",\"context\":{\"ip_context\":{\"src_ip_required\":true}},\"labels\":{\"Label\":\"B\"}}\n" +
+			" [ERRO] [id:conn-1] [type:networkService] (3.2)     Error returned from api/pkg/api/networkservice/networkServiceClient.Close;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*beginTraceClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:85;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*endTraceClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:106;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\t\n" +
+			" [TRAC] [id:conn-1] [type:networkService] (2.2)    request-response-diff={\"context\":{\"ip_context\":{\"src_ip_required\":false}},\"id\":\"\",\"labels\":{\"-Label\":\"B\"}}\n" +
+			" [ERRO] [id:conn-1] [type:networkService] (2.3)    Error returned from api/pkg/api/networkservice/networkServiceClient.Close;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*beginTraceClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:85;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*endTraceClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:106;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\t\n" +
+			" [ERRO] [id:conn-1] [type:networkService] (1.3)   Error returned from api/pkg/api/networkservice/networkServiceClient.Close;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*beginTraceClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:85;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*endTraceClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:106;\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\t\n"
 
 	result := testutil.TrimLogTime(&buff)
 	require.Equal(t, expectedOutput, result)
