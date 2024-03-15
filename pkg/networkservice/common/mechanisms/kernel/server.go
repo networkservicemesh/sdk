@@ -29,20 +29,25 @@ import (
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/nanoid"
 )
 
 type kernelMechanismServer struct {
-	interfaceName string
+	interfaceName          string
+	interfaceNameGenerator func(int) (string, error)
 }
 
 // NewServer - creates a NetworkServiceServer that requests a kernel interface and populates the netns inode
 func NewServer(opts ...Option) networkservice.NetworkServiceServer {
-	o := &options{}
+	o := &options{
+		interfaceNameGenerator: nanoid.New(),
+	}
 	for _, opt := range opts {
 		opt(o)
 	}
 	return &kernelMechanismServer{
-		interfaceName: o.interfaceName,
+		interfaceName:          o.interfaceName,
+		interfaceNameGenerator: o.interfaceNameGenerator,
 	}
 }
 
@@ -52,7 +57,7 @@ func (m *kernelMechanismServer) Request(ctx context.Context, request *networkser
 		if m.interfaceName != "" {
 			mechanism.SetInterfaceName(m.interfaceName)
 		} else {
-			ifname, err := generateInterfaceName()
+			ifname, err := generateInterfaceName(m.interfaceNameGenerator)
 			if err != nil {
 				return nil, errors.Wrap(err, "Failed to generate kernel interface name")
 			}

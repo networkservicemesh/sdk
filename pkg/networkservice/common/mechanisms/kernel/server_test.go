@@ -1,5 +1,3 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
-//
 // Copyright (c) 2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -20,8 +18,6 @@ package kernel_test
 
 import (
 	"context"
-	"errors"
-	"net/url"
 	"strings"
 	"testing"
 
@@ -35,9 +31,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/nanoid"
 )
 
-var netNSURL = (&url.URL{Scheme: "file", Path: "/proc/thread-self/ns/net"}).String()
-
-func TestKernelMechanismClient_ShouldSetInterfaceName(t *testing.T) {
+func TestKernelMechanismServer_ShouldSetInterfaceName(t *testing.T) {
 	var expectedIfaceName string
 	for i := 0; i < kernelmech.LinuxIfMaxLength; i++ {
 		expectedIfaceName += "a"
@@ -53,19 +47,7 @@ func TestKernelMechanismClient_ShouldSetInterfaceName(t *testing.T) {
 	require.Equal(t, expectedIfaceName, req.MechanismPreferences[0].Parameters[kernelmech.InterfaceNameKey])
 }
 
-func TestKernelMechanismClient_ShouldNotDoublingMechanisms(t *testing.T) {
-	c := kernel.NewClient()
-
-	req := &networkservice.NetworkServiceRequest{}
-
-	for i := 0; i < 10; i++ {
-		_, err := c.Request(context.Background(), req)
-		require.NoError(t, err)
-		require.Len(t, req.MechanismPreferences, 1)
-	}
-}
-
-func TestKernelMechanismClient_ShouldSetValidNetNSURL(t *testing.T) {
+func TestKernelMechanismServer_ShouldSetValidNetNSURL(t *testing.T) {
 	c := kernel.NewClient()
 
 	req := &networkservice.NetworkServiceRequest{
@@ -79,7 +61,7 @@ func TestKernelMechanismClient_ShouldSetValidNetNSURL(t *testing.T) {
 	require.Equal(t, netNSURL, req.MechanismPreferences[0].Parameters[kernelmech.NetNSURL])
 }
 
-func TestKernelMechanismClient_ShouldSetRandomInteraceName(t *testing.T) {
+func TestKernelMechanismServer_ShouldSetRandomInteraceName(t *testing.T) {
 	c := kernel.NewClient()
 	req := &networkservice.NetworkServiceRequest{}
 
@@ -95,14 +77,7 @@ func TestKernelMechanismClient_ShouldSetRandomInteraceName(t *testing.T) {
 	}
 }
 
-type brokenByteGenerator struct {
-}
-
-func (g *brokenByteGenerator) Read(buffer []byte) (int, error) {
-	return 0, errors.New("failed to generate bytes")
-}
-
-func TestKernelMechanismClient_FailedToGenerateRandomName(t *testing.T) {
+func TestKernelMechanismServer_FailedToGenerateRandomName(t *testing.T) {
 	c := kernel.NewClient(kernel.WithInterfaceNameGenerator(nanoid.New(nanoid.WithRandomByteGenerator(&brokenByteGenerator{}))))
 	req := &networkservice.NetworkServiceRequest{}
 

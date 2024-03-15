@@ -19,6 +19,7 @@ package nanoid
 
 import (
 	"crypto/rand"
+	"io"
 	"math"
 	"math/bits"
 )
@@ -29,7 +30,8 @@ const (
 )
 
 type generatorOpts struct {
-	alphabet string
+	alphabet            string
+	randomByteGenerator io.Reader
 }
 
 // Option represents options for the string generator
@@ -42,19 +44,32 @@ func WithAlphabet(alphabet string) Option {
 	}
 }
 
-func generateRandomBuffer(step int) ([]byte, error) {
+func WithRandomByteGenerator(generator io.Reader) Option {
+	return func(o *generatorOpts) {
+		o.randomByteGenerator = generator
+	}
+}
+
+func generateRandomBuffer(generator io.Reader, step int) ([]byte, error) {
 	buffer := make([]byte, step)
-	if _, err := rand.Read(buffer); err != nil {
+	if _, err := generator.Read(buffer); err != nil {
 		return nil, err
 	}
 	return buffer, nil
+}
+
+func New(opt ...Option) func(int) (string, error) {
+	return func(size int) (string, error) {
+		return RandomString(size, opt...)
+	}
 }
 
 // RandomString generates a random string based on size.
 // Original JavaScript implementation: https://github.com/ai/nanoid/blob/main/README.md
 func RandomString(size int, opt ...Option) (string, error) {
 	opts := &generatorOpts{
-		alphabet: DefaultAlphabet,
+		alphabet:            DefaultAlphabet,
+		randomByteGenerator: rand.Reader,
 	}
 
 	for _, o := range opt {
@@ -67,7 +82,7 @@ func RandomString(size int, opt ...Option) (string, error) {
 	id := make([]byte, size)
 
 	for {
-		randomBuffer, err := generateRandomBuffer(step)
+		randomBuffer, err := generateRandomBuffer(opts.randomByteGenerator, step)
 		if err != nil {
 			return "", err
 		}

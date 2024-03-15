@@ -23,8 +23,6 @@ import (
 	"net/url"
 
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
-
-	"github.com/networkservicemesh/sdk/pkg/tools/nanoid"
 )
 
 const (
@@ -34,9 +32,10 @@ const (
 var netNSURL = (&url.URL{Scheme: "file", Path: "/proc/thread-self/ns/net"}).String()
 
 // generateInterfaceName - returns a random interface name with "nsm" prefix
-func generateInterfaceName() (string, error) {
+// to achieve a 1% chance of name collision, you need to generate approximately 68 billon names
+func generateInterfaceName(generator func(int) (string, error)) (string, error) {
 	ifIDLen := kernelmech.LinuxIfMaxLength - len(ifPrefix)
-	id, err := nanoid.RandomString(ifIDLen)
+	id, err := generator(ifIDLen)
 	if err != nil {
 		return "", err
 	}
