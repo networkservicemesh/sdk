@@ -20,11 +20,11 @@ package kernel_test
 
 import (
 	"context"
-	"errors"
 	"net/url"
 	"strings"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"

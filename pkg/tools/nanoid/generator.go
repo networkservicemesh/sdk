@@ -37,13 +37,14 @@ type generatorOpts struct {
 // Option represents options for the string generator
 type Option func(o *generatorOpts)
 
-// WithAlphabet sets a custom alphabet for the  generator
+// WithAlphabet sets a custom alphabet for the generator
 func WithAlphabet(alphabet string) Option {
 	return func(o *generatorOpts) {
 		o.alphabet = alphabet
 	}
 }
 
+// WithRandomByteGenerator sets a generator for random bytes generation
 func WithRandomByteGenerator(generator io.Reader) Option {
 	return func(o *generatorOpts) {
 		o.randomByteGenerator = generator
@@ -58,6 +59,7 @@ func generateRandomBuffer(generator io.Reader, step int) ([]byte, error) {
 	return buffer, nil
 }
 
+// New creates a new nanoid generator with specified options
 func New(opt ...Option) func(int) (string, error) {
 	return func(size int) (string, error) {
 		return RandomString(size, opt...)

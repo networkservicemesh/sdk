@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2024 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,6 +33,7 @@ func WithInterfaceName(interfaceName string) Option {
 	}
 }
 
+// WithInterfaceNameGenerator sets a generator for generating random interface names
 func WithInterfaceNameGenerator(generator func(int) (string, error)) Option {
 	return func(o *options) {
 		o.interfaceNameGenerator = generator

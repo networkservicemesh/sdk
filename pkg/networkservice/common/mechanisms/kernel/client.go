@@ -28,7 +28,6 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -92,7 +91,7 @@ func (k *kernelMechanismClient) manageMechanismPreferences(request *networkservi
 	return nil
 }
 
-func (k *kernelMechanismClient) updateMechanism(mechanism *kernel.Mechanism) error {
+func (k *kernelMechanismClient) updateMechanism(mechanism *kernelmech.Mechanism) error {
 	if mechanism.GetInterfaceName() == "" {
 		if k.interfaceName != "" {
 			mechanism.SetInterfaceName(k.interfaceName)
