@@ -150,6 +150,9 @@ func (tree *IPPool) AddNetString(ipNetString string) {
 
 // ContainsNetString parses ipNetRaw string and checks that pool contains whole ipNet
 func (tree *IPPool) ContainsNetString(ipNetRaw string) bool {
+	tree.Lock()
+	defer tree.Unlock()
+
 	_, ipNet, err := net.ParseCIDR(ipNetRaw)
 	if err != nil {
 		return false

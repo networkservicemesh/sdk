@@ -544,7 +544,7 @@ func Test_NSC_ConnectsTo_vl3NSE_With_Invalid_IpContext(t *testing.T) {
 		ctx,
 		nseReg,
 		sandbox.GenerateTestToken,
-		strictvl3ipam.NewServer(ctx, vl3.NewServer(ctx, serverPrefixCh), strictIPPool),
+		strictvl3ipam.NewServer(ctx, vl3.NewServer, serverPrefixCh, strictIPPool),
 	)
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)

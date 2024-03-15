@@ -21,6 +21,7 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/networkservicemesh/api/pkg/api/ipam"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -32,17 +33,14 @@ type strictVl3IPAMServer struct {
 }
 
 // NewServer - returns a new ipam networkservice.NetworkServiceServer that validates the incoming IP context parameters and resets them based on the validation result.
-func NewServer(ctx context.Context, vl3IPAMServer networkservice.NetworkServiceServer, ipPool *ippool.IPPool) networkservice.NetworkServiceServer {
+func NewServer(ctx context.Context, newVl3IPAMServer func(context.Context, <-chan *ipam.PrefixResponse) networkservice.NetworkServiceServer, prefixCh <-chan *ipam.PrefixResponse, ipPool *ippool.IPPool) networkservice.NetworkServiceServer {
 	return next.NewNetworkServiceServer(
 		&strictVl3IPAMServer{ipPool: ipPool},
-		vl3IPAMServer,
+		newVl3IPAMServer(ctx, prefixCh),
 	)
 }
 
 func (s *strictVl3IPAMServer) areAddressesValid(addresses []string) bool {
-	s.ipPool.Lock()
-	defer s.ipPool.Unlock()
-
 	if len(addresses) == 0 {
 		return true
 	}
@@ -56,10 +54,7 @@ func (s *strictVl3IPAMServer) areAddressesValid(addresses []string) bool {
 }
 
 func (s *strictVl3IPAMServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	srcAddrs := request.GetConnection().GetContext().GetIpContext().GetSrcIpAddrs()
-	dstAddrs := request.GetConnection().GetContext().GetIpContext().GetDstIpAddrs()
-
-	if !s.areAddressesValid(srcAddrs) || !s.areAddressesValid(dstAddrs) {
+	if !s.areAddressesValid(request.GetConnection().GetContext().GetIpContext().GetDstIpAddrs()) {
 		request.Connection.Context.IpContext = &networkservice.IPContext{}
 	}
 	return next.Server(ctx).Request(ctx, request)
