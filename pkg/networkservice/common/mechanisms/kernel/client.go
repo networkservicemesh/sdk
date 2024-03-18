@@ -65,7 +65,7 @@ func (k *kernelMechanismClient) Close(ctx context.Context, conn *networkservice.
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
-// updateMechanismPreferences returns true if MechanismPreferences has updated
+// manageMechanismPreferences updates mechanism preferences. Adds kernel mechanism if they doesn't have one
 func (k *kernelMechanismClient) manageMechanismPreferences(request *networkservice.NetworkServiceRequest) error {
 	var updated = false
 	for _, m := range request.GetRequestMechanismPreferences() {
