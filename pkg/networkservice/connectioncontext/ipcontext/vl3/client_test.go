@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -220,8 +220,6 @@ func Test_VL3NSE_ConnectsToVl3NSE_Close(t *testing.T) {
 		metadata.NewServer(),
 		vl3.NewServer(ctx, &serverIpamPool),
 	)
-
-	//require.Eventually(t, func() bool { return len(serverPrefixCh) == 0 && len(clientPrefixCh) == 0 }, time.Second, time.Millisecond*100)
 
 	resp, err := server.Request(ctx, &networkservice.NetworkServiceRequest{Connection: &networkservice.Connection{Id: uuid.New().String()}})
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -25,6 +25,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
+// IPAM manages vl3 prefixes
 type IPAM struct {
 	sync.Mutex
 	self             net.IPNet
@@ -109,6 +110,7 @@ func (p *IPAM) isExcluded(ipNet string) bool {
 	return r
 }
 
+// Reset resets IPAM's ippol by setting new prefix
 func (p *IPAM) Reset(ctx context.Context, prefix string, excludePrefies []string) {
 	p.Lock()
 	defer p.Unlock()
@@ -142,6 +144,7 @@ func (p *IPAM) Reset(ctx context.Context, prefix string, excludePrefies []string
 	}
 }
 
-func (p *IPAM) ContainsNetString(net string) bool {
-	return p.ipPool.ContainsNetString(net)
+// ContainsNetString checks if ippool contains net
+func (p *IPAM) ContainsNetString(ipNet string) bool {
+	return p.ipPool.ContainsNetString(ipNet)
 }
