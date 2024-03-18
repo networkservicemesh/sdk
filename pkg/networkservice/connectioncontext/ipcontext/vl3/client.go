@@ -25,7 +25,6 @@ import (
 
 	"github.com/edwarnicke/serialize"
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/ipam"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
 
@@ -34,7 +33,7 @@ import (
 )
 
 type vl3Client struct {
-	pool          vl3IPAM
+	pool          *IPAM
 	chainContext  context.Context
 	executor      serialize.Executor
 	subscriptions []chan struct{}
@@ -44,28 +43,17 @@ type vl3Client struct {
 //
 //	Produces refresh on prefix update.
 //	Requires begin and metdata chain elements.
-func NewClient(chainContext context.Context, prefixCh <-chan *ipam.PrefixResponse) networkservice.NetworkServiceClient {
+func NewClient(chainContext context.Context, pool *IPAM) networkservice.NetworkServiceClient {
 	if chainContext == nil {
 		panic("chainContext can not be nil")
 	}
-	if prefixCh == nil {
-		panic("prefixCh can not be nil")
+	if pool == nil {
+		panic("vl3IPAM pool can not be nil")
 	}
 	var r = &vl3Client{
 		chainContext: chainContext,
+		pool:         pool,
 	}
-
-	go func() {
-		for update := range prefixCh {
-			prefixResp := update
-			r.executor.AsyncExec(func() {
-				r.pool.reset(chainContext, prefixResp.GetPrefix(), prefixResp.GetExcludePrefixes())
-				for _, sub := range r.subscriptions {
-					sub <- struct{}{}
-				}
-			})
-		}
-	}()
 
 	return r
 }

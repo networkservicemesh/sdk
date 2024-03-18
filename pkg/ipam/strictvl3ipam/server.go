@@ -21,23 +21,23 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/ipam"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/ipcontext/vl3"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
 )
 
 type strictVl3IPAMServer struct {
-	ipPool *ippool.IPPool
+	vl3IPAMs []*vl3.IPAM
 }
 
 // NewServer - returns a new ipam networkservice.NetworkServiceServer that validates the incoming IP context parameters and resets them based on the validation result.
-func NewServer(ctx context.Context, newVl3IPAMServer func(context.Context, <-chan *ipam.PrefixResponse) networkservice.NetworkServiceServer, prefixCh <-chan *ipam.PrefixResponse, ipPool *ippool.IPPool) networkservice.NetworkServiceServer {
-	return next.NewNetworkServiceServer(
-		&strictVl3IPAMServer{ipPool: ipPool},
-		newVl3IPAMServer(ctx, prefixCh),
-	)
+func NewServer(ctx context.Context, newVl3IPAMServer func(context.Context, *vl3.IPAM) networkservice.NetworkServiceServer, vl3IPAMs ...*vl3.IPAM) networkservice.NetworkServiceServer {
+	elements := []networkservice.NetworkServiceServer{&strictVl3IPAMServer{vl3IPAMs: vl3IPAMs}}
+	for _, ipam := range vl3IPAMs {
+		elements = append(elements, newVl3IPAMServer(ctx, ipam))
+	}
+	return next.NewNetworkServiceServer(elements...)
 }
 
 func (s *strictVl3IPAMServer) areAddressesValid(addresses []string) bool {
@@ -46,8 +46,10 @@ func (s *strictVl3IPAMServer) areAddressesValid(addresses []string) bool {
 	}
 
 	for _, addr := range addresses {
-		if s.ipPool.ContainsNetString(addr) {
-			return true
+		for _, ipam := range s.vl3IPAMs {
+			if ipam.ContainsNetString(addr) {
+				return true
+			}
 		}
 	}
 	return false

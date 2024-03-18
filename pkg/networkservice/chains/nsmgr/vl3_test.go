@@ -31,7 +31,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
-	"github.com/networkservicemesh/api/pkg/api/ipam"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
@@ -73,12 +72,11 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 
-	var serverPrefixCh = make(chan *ipam.PrefixResponse, 1)
-	defer close(serverPrefixCh)
-
-	serverPrefixCh <- &ipam.PrefixResponse{Prefix: "10.0.0.1/24"}
 	dnsServerIPCh := make(chan net.IP, 1)
 	dnsServerIPCh <- net.ParseIP("127.0.0.1")
+
+	var ipam vl3.IPAM
+	ipam.Reset(ctx, "10.0.0.1/24", []string{})
 
 	_ = domain.Nodes[0].NewEndpoint(
 		ctx,
@@ -88,7 +86,7 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 			dnsServerIPCh,
 			vl3dns.WithDomainSchemes("{{ index .Labels \"podName\" }}.{{ .NetworkService }}."),
 			vl3dns.WithDNSPort(40053)),
-		vl3.NewServer(ctx, serverPrefixCh),
+		vl3.NewServer(ctx, &ipam),
 	)
 
 	resolver := net.Resolver{
@@ -157,15 +155,12 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
-
-	var serverPrefixCh = make(chan *ipam.PrefixResponse, 1)
-	defer close(serverPrefixCh)
-
-	serverPrefixCh <- &ipam.PrefixResponse{Prefix: "10.0.0.1/24"}
-
 	var dnsConfigs = new(genericsync.Map[string, []*networkservice.DNSConfig])
 	dnsServerIPCh := make(chan net.IP, 1)
 	dnsServerIPCh <- net.ParseIP("0.0.0.0")
+
+	var serverIpam vl3.IPAM
+	serverIpam.Reset(ctx, "10.0.0.1/24", []string{})
 
 	_ = domain.Nodes[0].NewEndpoint(
 		ctx,
@@ -180,7 +175,7 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 			vl3dns.WithConfigs(dnsConfigs),
 			vl3dns.WithDNSPort(40053),
 		),
-		vl3.NewServer(ctx, serverPrefixCh),
+		vl3.NewServer(ctx, &serverIpam),
 	)
 
 	resolver := net.Resolver{
@@ -191,11 +186,9 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 		},
 	}
 
-	var clientPrefixCh = make(chan *ipam.PrefixResponse, 1)
-	defer close(clientPrefixCh)
-
-	clientPrefixCh <- &ipam.PrefixResponse{Prefix: "127.0.0.1/32"}
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(vl3dns.NewClient(net.ParseIP("127.0.0.1"), dnsConfigs), vl3.NewClient(ctx, clientPrefixCh)))
+	var clientIpam vl3.IPAM
+	clientIpam.Reset(ctx, "127.0.0.1/32", []string{})
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(vl3dns.NewClient(net.ParseIP("127.0.0.1"), dnsConfigs), vl3.NewClient(ctx, &clientIpam)))
 
 	req := defaultRequest(nsReg.Name)
 	req.Connection.Id = uuid.New().String()
@@ -249,12 +242,10 @@ func Test_NSC_GetsVl3DnsAddressDelay(t *testing.T) {
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
-
-	var serverPrefixCh = make(chan *ipam.PrefixResponse, 1)
-	defer close(serverPrefixCh)
-
-	serverPrefixCh <- &ipam.PrefixResponse{Prefix: "10.0.0.1/24"}
 	dnsServerIPCh := make(chan net.IP, 1)
+
+	var ipam vl3.IPAM
+	ipam.Reset(ctx, "10.0.0.1/24", []string{})
 
 	_ = domain.Nodes[0].NewEndpoint(
 		ctx,
@@ -264,7 +255,7 @@ func Test_NSC_GetsVl3DnsAddressDelay(t *testing.T) {
 			dnsServerIPCh,
 			vl3dns.WithDomainSchemes("{{ index .Labels \"podName\" }}.{{ .NetworkService }}."),
 			vl3dns.WithDNSPort(40053)),
-		vl3.NewServer(ctx, serverPrefixCh))
+		vl3.NewServer(ctx, &ipam))
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -297,12 +288,10 @@ func Test_vl3NSE_ConnectsTo_Itself(t *testing.T) {
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
-
-	var serverPrefixCh = make(chan *ipam.PrefixResponse, 1)
-	defer close(serverPrefixCh)
-
-	serverPrefixCh <- &ipam.PrefixResponse{Prefix: "10.0.0.1/24"}
 	dnsServerIPCh := make(chan net.IP, 1)
+
+	var ipam vl3.IPAM
+	ipam.Reset(ctx, "10.0.0.1/24", []string{})
 
 	_ = domain.Nodes[0].NewEndpoint(
 		ctx,
@@ -311,7 +300,7 @@ func Test_vl3NSE_ConnectsTo_Itself(t *testing.T) {
 		vl3dns.NewServer(ctx,
 			dnsServerIPCh,
 			vl3dns.WithDNSPort(40053)),
-		vl3.NewServer(ctx, serverPrefixCh))
+		vl3.NewServer(ctx, &ipam))
 
 	// Connection to itself. This allows us to assign a dns address to ourselves.
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithName(nseReg.Name))
@@ -351,15 +340,14 @@ func Test_Interdomain_vl3_dns(t *testing.T) {
 		NetworkServiceNames: []string{nsReg.Name},
 	}
 
-	var serverPrefixCh = make(chan *ipam.PrefixResponse, 1)
-	defer close(serverPrefixCh)
-
-	serverPrefixCh <- &ipam.PrefixResponse{Prefix: "10.0.0.1/24"}
 	dnsServerIPCh := make(chan net.IP, 1)
 	dnsServerIPCh <- net.ParseIP("127.0.0.1")
 
+	var ipam vl3.IPAM
+	ipam.Reset(ctx, "10.0.0.1/24", []string{})
+
 	cluster2.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken,
-		vl3.NewServer(ctx, serverPrefixCh),
+		vl3.NewServer(ctx, &ipam),
 		vl3dns.NewServer(ctx,
 			dnsServerIPCh,
 			vl3dns.WithDNSPort(40053),
@@ -452,15 +440,14 @@ func Test_FloatingInterdomain_vl3_dns(t *testing.T) {
 		NetworkServiceNames: []string{"vl3"},
 	}
 
-	var serverPrefixCh = make(chan *ipam.PrefixResponse, 1)
-	defer close(serverPrefixCh)
-
-	serverPrefixCh <- &ipam.PrefixResponse{Prefix: "10.0.0.1/24"}
 	dnsServerIPCh := make(chan net.IP, 1)
 	dnsServerIPCh <- net.ParseIP("127.0.0.1")
 
+	var ipam vl3.IPAM
+	ipam.Reset(ctx, "10.0.0.1/24", []string{})
+
 	cluster2.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken,
-		vl3.NewServer(ctx, serverPrefixCh),
+		vl3.NewServer(ctx, &ipam),
 		vl3dns.NewServer(ctx,
 			dnsServerIPCh,
 			vl3dns.WithDNSPort(40053),
@@ -531,20 +518,17 @@ func Test_NSC_ConnectsTo_vl3NSE_With_Invalid_IpContext(t *testing.T) {
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 
-	var serverPrefixCh = make(chan *ipam.PrefixResponse, 1)
-	defer close(serverPrefixCh)
-
 	prefix1 := "10.0.0.0/24"
 	prefix2 := "10.10.0.0/24"
 
-	serverPrefixCh <- &ipam.PrefixResponse{Prefix: prefix1}
-	strictIPPool := ippool.NewWithNetString(prefix1)
+	var serverIpam vl3.IPAM
+	serverIpam.Reset(ctx, prefix1, []string{})
 
 	_ = domain.Nodes[0].NewEndpoint(
 		ctx,
 		nseReg,
 		sandbox.GenerateTestToken,
-		strictvl3ipam.NewServer(ctx, vl3.NewServer, serverPrefixCh, strictIPPool),
+		strictvl3ipam.NewServer(ctx, vl3.NewServer, &serverIpam),
 	)
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
@@ -555,9 +539,7 @@ func Test_NSC_ConnectsTo_vl3NSE_With_Invalid_IpContext(t *testing.T) {
 
 	require.True(t, checkIPContext(conn.Context.IpContext, prefix1))
 
-	serverPrefixCh <- &ipam.PrefixResponse{Prefix: prefix2}
-	strictIPPool.Clear()
-	strictIPPool.AddNetString(prefix2)
+	serverIpam.Reset(ctx, prefix2, []string{})
 
 	req.Connection = conn
 	conn, err = nsc.Request(ctx, req)

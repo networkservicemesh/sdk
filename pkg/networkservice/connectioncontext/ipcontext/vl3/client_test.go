@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/networkservicemesh/api/pkg/api/ipam"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
@@ -43,13 +42,8 @@ func Test_Client_ConnectsToVl3NSE(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	var serverPrefixCh = make(chan *ipam.PrefixResponse, 1)
-	defer close(serverPrefixCh)
-
-	serverPrefixCh <- &ipam.PrefixResponse{Prefix: "10.0.0.1/24"}
-
-	var clientPrefixCh = make(chan *ipam.PrefixResponse, 1)
-	defer close(clientPrefixCh)
+	var ipamPool vl3.IPAM
+	ipamPool.Reset(ctx, "10.0.0.1/24", []string{})
 
 	var server = next.NewNetworkServiceServer(
 		adapters.NewClientToServer(
@@ -60,10 +54,8 @@ func Test_Client_ConnectsToVl3NSE(t *testing.T) {
 			),
 		),
 		metadata.NewServer(),
-		vl3.NewServer(ctx, serverPrefixCh),
+		vl3.NewServer(ctx, &ipamPool),
 	)
-
-	require.Eventually(t, func() bool { return len(serverPrefixCh) == 0 && len(clientPrefixCh) == 0 }, time.Second, time.Millisecond*100)
 
 	resp, err := server.Request(ctx, &networkservice.NetworkServiceRequest{Connection: &networkservice.Connection{Id: t.Name()}})
 
@@ -99,29 +91,23 @@ func Test_VL3NSE_ConnectsToVl3NSE(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	var serverPrefixCh = make(chan *ipam.PrefixResponse, 1)
-	defer close(serverPrefixCh)
+	var clientIpamPool vl3.IPAM
+	var serverIpamPool vl3.IPAM
 
-	serverPrefixCh <- &ipam.PrefixResponse{Prefix: "10.0.0.1/24"}
-
-	var clientPrefixCh = make(chan *ipam.PrefixResponse, 1)
-	defer close(clientPrefixCh)
-
-	clientPrefixCh <- &ipam.PrefixResponse{Prefix: "10.0.1.0/24"}
+	clientIpamPool.Reset(ctx, "10.0.1.0/24", []string{})
+	serverIpamPool.Reset(ctx, "10.0.0.1/24", []string{})
 
 	var server = next.NewNetworkServiceServer(
 		adapters.NewClientToServer(
 			next.NewNetworkServiceClient(
 				begin.NewClient(),
 				metadata.NewClient(),
-				vl3.NewClient(ctx, clientPrefixCh),
+				vl3.NewClient(ctx, &clientIpamPool),
 			),
 		),
 		metadata.NewServer(),
-		vl3.NewServer(ctx, serverPrefixCh),
+		vl3.NewServer(ctx, &serverIpamPool),
 	)
-
-	require.Eventually(t, func() bool { return len(serverPrefixCh) == 0 && len(clientPrefixCh) == 0 }, time.Second, time.Millisecond*100)
 
 	resp, err := server.Request(ctx, &networkservice.NetworkServiceRequest{Connection: &networkservice.Connection{Id: t.Name()}})
 
@@ -159,29 +145,23 @@ func Test_VL3NSE_ConnectsToVl3NSE_ChangePrefix(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	var serverPrefixCh = make(chan *ipam.PrefixResponse, 1)
-	defer close(serverPrefixCh)
+	var clientIpamPool vl3.IPAM
+	var serverIpamPool vl3.IPAM
 
-	serverPrefixCh <- &ipam.PrefixResponse{Prefix: "10.0.0.1/24"}
-
-	var clientPrefixCh = make(chan *ipam.PrefixResponse, 1)
-	defer close(clientPrefixCh)
-
-	clientPrefixCh <- &ipam.PrefixResponse{Prefix: "10.0.1.0/24"}
+	clientIpamPool.Reset(ctx, "10.0.1.0/24", []string{})
+	serverIpamPool.Reset(ctx, "10.0.0.1/24", []string{})
 
 	var server = next.NewNetworkServiceServer(
 		adapters.NewClientToServer(
 			next.NewNetworkServiceClient(
 				begin.NewClient(),
 				metadata.NewClient(),
-				vl3.NewClient(ctx, clientPrefixCh),
+				vl3.NewClient(ctx, &clientIpamPool),
 			),
 		),
 		metadata.NewServer(),
-		vl3.NewServer(ctx, serverPrefixCh),
+		vl3.NewServer(ctx, &serverIpamPool),
 	)
-
-	require.Eventually(t, func() bool { return len(serverPrefixCh) == 0 && len(clientPrefixCh) == 0 }, time.Second, time.Millisecond*100)
 
 	resp, err := server.Request(ctx, &networkservice.NetworkServiceRequest{Connection: &networkservice.Connection{Id: t.Name()}})
 
@@ -196,8 +176,7 @@ func Test_VL3NSE_ConnectsToVl3NSE_ChangePrefix(t *testing.T) {
 	require.Equal(t, "10.0.1.0/32", resp.GetContext().GetIpContext().GetDstRoutes()[0].GetPrefix())
 	require.Equal(t, "10.0.1.0/24", resp.GetContext().GetIpContext().GetDstRoutes()[1].GetPrefix())
 
-	clientPrefixCh <- &ipam.PrefixResponse{Prefix: "10.0.5.0/24"}
-	require.Eventually(t, func() bool { return len(serverPrefixCh) == 0 && len(clientPrefixCh) == 0 }, time.Second, time.Millisecond*100)
+	clientIpamPool.Reset(ctx, "10.0.5.0/24", []string{})
 
 	// refresh
 	for i := 0; i < 10; i++ {
@@ -224,29 +203,25 @@ func Test_VL3NSE_ConnectsToVl3NSE_Close(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	var serverPrefixCh = make(chan *ipam.PrefixResponse, 1)
-	defer close(serverPrefixCh)
+	var clientIpamPool vl3.IPAM
+	var serverIpamPool vl3.IPAM
 
-	serverPrefixCh <- &ipam.PrefixResponse{Prefix: "10.0.0.1/24"}
-
-	var clientPrefixCh = make(chan *ipam.PrefixResponse, 1)
-	defer close(clientPrefixCh)
-
-	clientPrefixCh <- &ipam.PrefixResponse{Prefix: "10.0.1.0/24"}
+	clientIpamPool.Reset(ctx, "10.0.1.0/24", []string{})
+	serverIpamPool.Reset(ctx, "10.0.0.1/24", []string{})
 
 	var server = next.NewNetworkServiceServer(
 		adapters.NewClientToServer(
 			next.NewNetworkServiceClient(
 				begin.NewClient(),
 				metadata.NewClient(),
-				vl3.NewClient(ctx, clientPrefixCh),
+				vl3.NewClient(ctx, &clientIpamPool),
 			),
 		),
 		metadata.NewServer(),
-		vl3.NewServer(ctx, serverPrefixCh),
+		vl3.NewServer(ctx, &serverIpamPool),
 	)
 
-	require.Eventually(t, func() bool { return len(serverPrefixCh) == 0 && len(clientPrefixCh) == 0 }, time.Second, time.Millisecond*100)
+	//require.Eventually(t, func() bool { return len(serverPrefixCh) == 0 && len(clientPrefixCh) == 0 }, time.Second, time.Millisecond*100)
 
 	resp, err := server.Request(ctx, &networkservice.NetworkServiceRequest{Connection: &networkservice.Connection{Id: uuid.New().String()}})
 
