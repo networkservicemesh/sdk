@@ -146,5 +146,7 @@ func (p *IPAM) Reset(ctx context.Context, prefix string, excludePrefies []string
 
 // ContainsNetString checks if ippool contains net
 func (p *IPAM) ContainsNetString(ipNet string) bool {
+	p.Lock()
+	defer p.Unlock()
 	return p.ipPool.ContainsNetString(ipNet)
 }
