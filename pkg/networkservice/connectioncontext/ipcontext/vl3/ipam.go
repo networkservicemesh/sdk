@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -25,7 +25,8 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-type vl3IPAM struct {
+// IPAM manages vl3 prefixes
+type IPAM struct {
 	sync.Mutex
 	self             net.IPNet
 	ipPool           *ippool.IPPool
@@ -33,14 +34,14 @@ type vl3IPAM struct {
 	clientMask       uint8
 }
 
-func (p *vl3IPAM) isInitialized() bool {
+func (p *IPAM) isInitialized() bool {
 	p.Lock()
 	defer p.Unlock()
 
 	return p.ipPool != nil
 }
 
-func (p *vl3IPAM) selfAddress() *net.IPNet {
+func (p *IPAM) selfAddress() *net.IPNet {
 	p.Lock()
 	defer p.Unlock()
 	return &net.IPNet{
@@ -52,13 +53,13 @@ func (p *vl3IPAM) selfAddress() *net.IPNet {
 	}
 }
 
-func (p *vl3IPAM) selfPrefix() *net.IPNet {
+func (p *IPAM) selfPrefix() *net.IPNet {
 	p.Lock()
 	defer p.Unlock()
 	r := p.self
 	return &r
 }
-func (p *vl3IPAM) globalIPNet() *net.IPNet {
+func (p *IPAM) globalIPNet() *net.IPNet {
 	p.Lock()
 	defer p.Unlock()
 	return &net.IPNet{
@@ -70,7 +71,7 @@ func (p *vl3IPAM) globalIPNet() *net.IPNet {
 	}
 }
 
-func (p *vl3IPAM) allocate() (*net.IPNet, error) {
+func (p *IPAM) allocate() (*net.IPNet, error) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -91,7 +92,7 @@ func (p *vl3IPAM) allocate() (*net.IPNet, error) {
 	return r, nil
 }
 
-func (p *vl3IPAM) freeIfAllocated(ipNet string) {
+func (p *IPAM) freeIfAllocated(ipNet string) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -101,7 +102,7 @@ func (p *vl3IPAM) freeIfAllocated(ipNet string) {
 	}
 }
 
-func (p *vl3IPAM) isExcluded(ipNet string) bool {
+func (p *IPAM) isExcluded(ipNet string) bool {
 	p.Lock()
 	defer p.Unlock()
 
@@ -109,7 +110,8 @@ func (p *vl3IPAM) isExcluded(ipNet string) bool {
 	return r
 }
 
-func (p *vl3IPAM) reset(ctx context.Context, prefix string, excludePrefies []string) {
+// Reset resets IPAM's ippol by setting new prefix
+func (p *IPAM) Reset(ctx context.Context, prefix string, excludePrefies []string) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -140,4 +142,11 @@ func (p *vl3IPAM) reset(ctx context.Context, prefix string, excludePrefies []str
 		p.ipPool.ExcludeString(excludePrefix)
 		p.excludedPrefixes[excludePrefix] = struct{}{}
 	}
+}
+
+// ContainsNetString checks if ippool contains net
+func (p *IPAM) ContainsNetString(ipNet string) bool {
+	p.Lock()
+	defer p.Unlock()
+	return p.ipPool.ContainsNetString(ipNet)
 }

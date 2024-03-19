@@ -1,4 +1,4 @@
-// Copyright (c) 2022-2023 Cisco and/or its affiliates.
+// Copyright (c) 2022-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -22,30 +22,21 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/ipam"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
 type vl3Server struct {
-	pool vl3IPAM
+	pool *IPAM
 }
 
 // NewServer - returns a new vL3 server instance that manages connection.context.ipcontext for vL3 scenario.
 //
 //	Produces refresh on prefix update.
 //	Requires begin and metdata chain elements.
-func NewServer(ctx context.Context, prefixCh <-chan *ipam.PrefixResponse) networkservice.NetworkServiceServer {
-	var result = new(vl3Server)
-
-	go func() {
-		for resp := range prefixCh {
-			result.pool.reset(ctx, resp.GetPrefix(), resp.GetExcludePrefixes())
-		}
-	}()
-
-	return result
+func NewServer(ctx context.Context, pool *IPAM) networkservice.NetworkServiceServer {
+	return &vl3Server{pool: pool}
 }
 
 func (v *vl3Server) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
