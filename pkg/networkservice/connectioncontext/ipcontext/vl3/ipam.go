@@ -34,6 +34,7 @@ type IPAM struct {
 	clientMask       uint8
 }
 
+// NewIPAM creates a new vl3 ipam with specified prefix and excluded prefixes
 func NewIPAM(ctx context.Context, prefix string, excludedPrefixes []string) *IPAM {
 	ipam := new(IPAM)
 	ipam.Reset(ctx, prefix, excludedPrefixes)
