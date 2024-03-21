@@ -34,6 +34,12 @@ type IPAM struct {
 	clientMask       uint8
 }
 
+func New(ctx context.Context, prefix string, excludedPrefixes []string) *IPAM {
+	ipam := new(IPAM)
+	ipam.Reset(ctx, prefix, excludedPrefixes)
+	return ipam
+}
+
 func (p *IPAM) isInitialized() bool {
 	p.Lock()
 	defer p.Unlock()
@@ -59,6 +65,7 @@ func (p *IPAM) selfPrefix() *net.IPNet {
 	r := p.self
 	return &r
 }
+
 func (p *IPAM) globalIPNet() *net.IPNet {
 	p.Lock()
 	defer p.Unlock()
