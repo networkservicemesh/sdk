@@ -19,11 +19,10 @@ package vl3_test
 import (
 	"context"
 	"testing"
-	"time"
 
-	"github.com/networkservicemesh/api/pkg/api/ipam"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
+	"github.com/networkservicemesh/sdk/pkg/ipam/strictvl3ipam"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/ipcontext/vl3"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 
@@ -173,21 +172,19 @@ func Test_NSC_ConnectsToVl3NSE_DualStack(t *testing.T) {
 		goleak.VerifyNone(t)
 	})
 
-	var prefixCh1 = make(chan *ipam.PrefixResponse, 1)
-	defer close(prefixCh1)
+	var ipams []*vl3.IPAM
+	var ipam1 vl3.IPAM
+	ipam1.Reset(context.Background(), "10.0.0.1/24", []string{})
+	ipams = append(ipams, &ipam1)
 
-	prefixCh1 <- &ipam.PrefixResponse{Prefix: "10.0.0.1/24"}
-	var prefixCh2 = make(chan *ipam.PrefixResponse, 1)
-	defer close(prefixCh2)
+	var ipam2 vl3.IPAM
+	ipam2.Reset(context.Background(), "2001:db8::/112", []string{})
+	ipams = append(ipams, &ipam2)
 
-	prefixCh2 <- &ipam.PrefixResponse{Prefix: "2001:db8::/112"}
 	var server = next.NewNetworkServiceServer(
 		metadata.NewServer(),
-		vl3.NewDualstackServer(context.Background(), []chan *ipam.PrefixResponse{prefixCh1, prefixCh2}),
+		strictvl3ipam.NewServer(context.Background(), vl3.NewServer, ipams...),
 	)
-
-	require.Eventually(t, func() bool { return len(prefixCh1) == 0 }, time.Second, time.Millisecond*200)
-	require.Eventually(t, func() bool { return len(prefixCh2) == 0 }, time.Second, time.Millisecond*200)
 
 	resp, err := server.Request(context.Background(), new(networkservice.NetworkServiceRequest))
 	require.NoError(t, err)

@@ -22,15 +22,16 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/networkservicemesh/api/pkg/api/ipam"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
+	"github.com/networkservicemesh/sdk/pkg/ipam/strictvl3ipam"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/excludedprefixes"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/ipcontext/vl3"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
@@ -146,37 +147,31 @@ func Test_VL3NSE_ConnectsToVl3NSE_DualStack(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	var serverPrefixCh1 = make(chan *ipam.PrefixResponse, 1)
-	var serverPrefixCh2 = make(chan *ipam.PrefixResponse, 1)
-	defer close(serverPrefixCh1)
-	defer close(serverPrefixCh2)
+	var ipams []*vl3.IPAM
+	var ipam1 vl3.IPAM
+	ipam1.Reset(context.Background(), "10.0.0.1/24", []string{})
+	ipams = append(ipams, &ipam1)
 
-	serverPrefixCh1 <- &ipam.PrefixResponse{Prefix: "10.0.0.1/24"}
-	serverPrefixCh2 <- &ipam.PrefixResponse{Prefix: "2001:db8::/112"}
+	var ipam2 vl3.IPAM
+	ipam2.Reset(context.Background(), "2001:db8::/112", []string{})
+	ipams = append(ipams, &ipam2)
 
-	var clientPrefixCh1 = make(chan *ipam.PrefixResponse, 1)
-	var clientPrefixCh2 = make(chan *ipam.PrefixResponse, 1)
-	defer close(clientPrefixCh1)
-	defer close(clientPrefixCh2)
-
-	clientPrefixCh1 <- &ipam.PrefixResponse{Prefix: "10.0.0.1/24"}
-	clientPrefixCh2 <- &ipam.PrefixResponse{Prefix: "2001:db8::/112"}
+	var clients []networkservice.NetworkServiceClient
+	for _, ipam := range ipams {
+		clients = append(clients, vl3.NewClient(ctx, ipam))
+	}
 
 	var server = next.NewNetworkServiceServer(
 		adapters.NewClientToServer(
 			next.NewNetworkServiceClient(
 				begin.NewClient(),
 				metadata.NewClient(),
-				vl3.NewDualstackClient(ctx, []chan *ipam.PrefixResponse{clientPrefixCh1, clientPrefixCh2}),
+				chain.NewNetworkServiceClient(clients...),
 			),
 		),
 		metadata.NewServer(),
-		vl3.NewDualstackServer(ctx, []chan *ipam.PrefixResponse{serverPrefixCh1, serverPrefixCh2}),
+		strictvl3ipam.NewServer(ctx, vl3.NewServer, ipams...),
 	)
-
-	require.Eventually(t, func() bool {
-		return len(serverPrefixCh1) == 0 && len(clientPrefixCh1) == 0 && len(serverPrefixCh2) == 0 && len(clientPrefixCh2) == 0
-	}, time.Second, time.Millisecond*100)
 
 	resp, err := server.Request(ctx, &networkservice.NetworkServiceRequest{Connection: &networkservice.Connection{Id: t.Name()}})
 
