@@ -34,7 +34,7 @@ type IPAM struct {
 	clientMask       uint8
 }
 
-func New(ctx context.Context, prefix string, excludedPrefixes []string) *IPAM {
+func NewIPAM(ctx context.Context, prefix string, excludedPrefixes []string) *IPAM {
 	ipam := new(IPAM)
 	ipam.Reset(ctx, prefix, excludedPrefixes)
 	return ipam

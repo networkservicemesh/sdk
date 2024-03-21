@@ -35,12 +35,11 @@ func Test_NSC_ConnectsToVl3NSE(t *testing.T) {
 	t.Cleanup(func() {
 		goleak.VerifyNone(t)
 	})
-	var ipam vl3.IPAM
-	ipam.Reset(context.Background(), "10.0.0.1/24", []string{})
+	ipam := vl3.NewIPAM(context.Background(), "10.0.0.1/24", nil)
 
 	var server = next.NewNetworkServiceServer(
 		metadata.NewServer(),
-		vl3.NewServer(context.Background(), &ipam),
+		vl3.NewServer(context.Background(), ipam),
 	)
 
 	resp, err := server.Request(context.Background(), new(networkservice.NetworkServiceRequest))
@@ -75,12 +74,11 @@ func Test_NSC_ConnectsToVl3NSE_PrefixHasChanged(t *testing.T) {
 		goleak.VerifyNone(t)
 	})
 
-	var ipam vl3.IPAM
-	ipam.Reset(context.Background(), "12.0.0.1/24", []string{})
+	ipam := vl3.NewIPAM(context.Background(), "12.0.0.1/24", nil)
 
 	var server = next.NewNetworkServiceServer(
 		metadata.NewServer(),
-		vl3.NewServer(context.Background(), &ipam),
+		vl3.NewServer(context.Background(), ipam),
 	)
 
 	resp, err := server.Request(context.Background(), new(networkservice.NetworkServiceRequest))
@@ -118,12 +116,11 @@ func Test_NSC_ConnectsToVl3NSE_Close(t *testing.T) {
 		goleak.VerifyNone(t)
 	})
 
-	var ipam vl3.IPAM
-	ipam.Reset(context.Background(), "10.0.0.1/24", []string{})
+	ipam := vl3.NewIPAM(context.Background(), "10.0.0.1/24", nil)
 
 	var server = next.NewNetworkServiceServer(
 		metadata.NewServer(),
-		vl3.NewServer(context.Background(), &ipam),
+		vl3.NewServer(context.Background(), ipam),
 	)
 
 	for i := 0; i < 10; i++ {
