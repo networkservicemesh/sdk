@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2024 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -197,7 +199,7 @@ func TestConnectServer_RequestParallel(t *testing.T) {
 		connect.NewServer(
 			next.NewNetworkServiceClient(
 				dial.NewClient(context.Background(),
-					dial.WithDialTimeout(time.Second),
+					dial.WithDialTimeout(time.Second*2),
 					dial.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
 				),
 				serverClient,

@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Cisco and/or its affiliates.
+// Copyright (c) 2022-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -22,19 +22,17 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/networkservicemesh/api/pkg/api/ipam"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/edwarnicke/genericsync"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type vl3Server struct {
-	pool      vl3IPAM
+	pool      *IPAM
 	subnetMap genericsync.Map[string, string] // Map connectionId:subnet
 }
 
@@ -42,29 +40,8 @@ type vl3Server struct {
 //
 //	Produces refresh on prefix update.
 //	Requires begin and metdata chain elements.
-func NewServer(ctx context.Context, prefixCh <-chan *ipam.PrefixResponse) networkservice.NetworkServiceServer {
-	var result = new(vl3Server)
-
-	go func() {
-		for resp := range prefixCh {
-			var prefix = resp.GetPrefix()
-			result.pool.reset(ctx, prefix, resp.GetExcludePrefixes())
-			log.FromContext(ctx).Infof("NewServer. Extracted prefix: %s", prefix)
-		}
-	}()
-
-	return result
-}
-
-// NewDualstackServer - returns a chain of new vL3 server instance that manages connection.context.ipcontext for vL3 scenario.
-func NewDualstackServer(ctx context.Context, prefixChs []chan *ipam.PrefixResponse) networkservice.NetworkServiceServer {
-	var servers []networkservice.NetworkServiceServer
-
-	for _, prefixCh := range prefixChs {
-		servers = append(servers, NewServer(ctx, prefixCh))
-	}
-
-	return chain.NewNetworkServiceServer(servers...)
+func NewServer(ctx context.Context, pool *IPAM) networkservice.NetworkServiceServer {
+	return &vl3Server{pool: pool}
 }
 
 func (v *vl3Server) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
