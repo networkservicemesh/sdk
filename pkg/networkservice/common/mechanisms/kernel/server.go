@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2024 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,25 +23,31 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/nanoid"
 )
 
 type kernelMechanismServer struct {
-	interfaceName string
+	interfaceName          string
+	interfaceNameGenerator func(int) (string, error)
 }
 
 // NewServer - creates a NetworkServiceServer that requests a kernel interface and populates the netns inode
 func NewServer(opts ...Option) networkservice.NetworkServiceServer {
-	o := &options{}
+	o := &options{
+		interfaceNameGenerator: nanoid.New(),
+	}
 	for _, opt := range opts {
 		opt(o)
 	}
 	return &kernelMechanismServer{
-		interfaceName: o.interfaceName,
+		interfaceName:          o.interfaceName,
+		interfaceNameGenerator: o.interfaceNameGenerator,
 	}
 }
 
@@ -49,7 +57,11 @@ func (m *kernelMechanismServer) Request(ctx context.Context, request *networkser
 		if m.interfaceName != "" {
 			mechanism.SetInterfaceName(m.interfaceName)
 		} else {
-			mechanism.SetInterfaceName(getNameFromConnection(request.GetConnection()))
+			ifname, err := generateInterfaceName(m.interfaceNameGenerator)
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to generate kernel interface name")
+			}
+			mechanism.SetInterfaceName(ifname)
 		}
 	}
 	return next.Server(ctx).Request(ctx, request)

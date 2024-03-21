@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2024 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,21 +22,26 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
+)
+
+const (
+	ifPrefix = "nsm"
 )
 
 var netNSURL = (&url.URL{Scheme: "file", Path: "/proc/thread-self/ns/net"}).String()
 
-// getNameFromConnection - returns a name computed from networkservice.Connection 'conn'
-func getNameFromConnection(conn *networkservice.Connection) string {
-	ns := conn.GetNetworkService()
-	nsMaxLength := kernelmech.LinuxIfMaxLength - 5
-	if len(ns) > nsMaxLength {
-		ns = ns[:nsMaxLength]
+// generateInterfaceName - returns a random interface name with "nsm" prefix
+// to achieve a 1% chance of name collision, you need to generate approximately 68 billon names
+func generateInterfaceName(generator func(int) (string, error)) (string, error) {
+	ifIDLen := kernelmech.LinuxIfMaxLength - len(ifPrefix)
+	id, err := generator(ifIDLen)
+	if err != nil {
+		return "", err
 	}
-	name := fmt.Sprintf("%s-%s", ns, conn.GetId())
-	return limitName(name)
+	name := fmt.Sprintf("%s%s", ifPrefix, id)
+
+	return limitName(name), nil
 }
 
 func limitName(name string) string {
