@@ -33,10 +33,9 @@ import (
 )
 
 type vl3Client struct {
-	pool          *IPAM
-	chainContext  context.Context
-	executor      serialize.Executor
-	subscriptions []chan struct{}
+	pool         *IPAM
+	chainContext context.Context
+	executor     serialize.Executor
 }
 
 // NewClient - returns a new vL3 client instance that manages connection.context.ipcontext for vL3 scenario.
@@ -77,19 +76,14 @@ func (n *vl3Client) Request(ctx context.Context, request *networkservice.Network
 	notifyCh := make(chan struct{})
 
 	n.executor.AsyncExec(func() {
-		n.subscriptions = append(n.subscriptions, notifyCh)
+		n.pool.Subscribe(notifyCh)
 	})
 
 	go func() {
 		defer func() {
 			n.executor.AsyncExec(func() {
-				for i, sub := range n.subscriptions {
-					if sub == notifyCh {
-						n.subscriptions = append(n.subscriptions[:i], n.subscriptions[i+1:]...)
-						close(notifyCh)
-						return
-					}
-				}
+				n.pool.Unsubscribe(notifyCh)
+				close(notifyCh)
 			})
 		}()
 

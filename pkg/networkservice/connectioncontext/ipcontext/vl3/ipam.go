@@ -32,6 +32,33 @@ type IPAM struct {
 	ipPool           *ippool.IPPool
 	excludedPrefixes map[string]struct{}
 	clientMask       uint8
+	subscriptions    []chan<- struct{}
+}
+
+// NewIPAM creates a new vl3 ipam with specified prefix and excluded prefixes
+func NewIPAM(ctx context.Context, prefix string, excludedPrefixes []string) *IPAM {
+	ipam := new(IPAM)
+	ipam.Reset(ctx, prefix, excludedPrefixes)
+	return ipam
+}
+
+func (p *IPAM) Subscribe(ch chan<- struct{}) {
+	p.subscriptions = append(p.subscriptions, ch)
+}
+
+func (p *IPAM) Unsubscribe(ch chan<- struct{}) {
+	for i, sub := range p.subscriptions {
+		if sub == ch {
+			p.subscriptions = append(p.subscriptions[:i], p.subscriptions[i+1:]...)
+			return
+		}
+	}
+}
+
+func (p *IPAM) Notify() {
+	for _, sub := range p.subscriptions {
+		sub <- struct{}{}
+	}
 }
 
 func (p *IPAM) isInitialized() bool {
