@@ -17,12 +17,10 @@
 package vl3
 
 import (
-	"context"
 	"net"
 	"sync"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 // IPAM manages vl3 prefixes
@@ -35,9 +33,12 @@ type IPAM struct {
 }
 
 // NewIPAM creates a new vl3 ipam with specified prefix and excluded prefixes
-func NewIPAM(ctx context.Context, prefix string, excludedPrefixes []string) *IPAM {
+func NewIPAM(prefix string, excludedPrefixes ...string) *IPAM {
 	ipam := new(IPAM)
-	ipam.Reset(ctx, prefix, excludedPrefixes)
+	err := ipam.Reset(prefix, excludedPrefixes...)
+	if err != nil {
+		panic(err)
+	}
 	return ipam
 }
 
@@ -119,14 +120,13 @@ func (p *IPAM) isExcluded(ipNet string) bool {
 }
 
 // Reset resets IPAM's ippol by setting new prefix
-func (p *IPAM) Reset(ctx context.Context, prefix string, excludePrefies []string) {
+func (p *IPAM) Reset(prefix string, excludePrefies ...string) error {
 	p.Lock()
 	defer p.Unlock()
 
 	_, ipNet, err := net.ParseCIDR(prefix)
 	if err != nil {
-		log.FromContext(ctx).Error(err.Error())
-		return
+		return err
 	}
 
 	p.self = *ipNet
@@ -150,6 +150,8 @@ func (p *IPAM) Reset(ctx context.Context, prefix string, excludePrefies []string
 		p.ipPool.ExcludeString(excludePrefix)
 		p.excludedPrefixes[excludePrefix] = struct{}{}
 	}
+
+	return nil
 }
 
 // ContainsNetString checks if ippool contains net

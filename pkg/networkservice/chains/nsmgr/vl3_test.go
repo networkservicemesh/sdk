@@ -75,7 +75,7 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 	dnsServerIPCh := make(chan net.IP, 1)
 	dnsServerIPCh <- net.ParseIP("127.0.0.1")
 
-	ipam := vl3.NewIPAM(ctx, "10.0.0.1/24", nil)
+	ipam := vl3.NewIPAM("10.0.0.1/24")
 
 	_ = domain.Nodes[0].NewEndpoint(
 		ctx,
@@ -158,7 +158,7 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 	dnsServerIPCh := make(chan net.IP, 1)
 	dnsServerIPCh <- net.ParseIP("0.0.0.0")
 
-	serverIpam := vl3.NewIPAM(ctx, "10.0.0.1/24", nil)
+	serverIpam := vl3.NewIPAM("10.0.0.1/24")
 
 	_ = domain.Nodes[0].NewEndpoint(
 		ctx,
@@ -184,7 +184,7 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 		},
 	}
 
-	clientIpam := vl3.NewIPAM(ctx, "127.0.0.1/32", nil)
+	clientIpam := vl3.NewIPAM("127.0.0.1/32")
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(vl3dns.NewClient(net.ParseIP("127.0.0.1"), dnsConfigs), vl3.NewClient(ctx, clientIpam)))
 
 	req := defaultRequest(nsReg.Name)
@@ -241,7 +241,7 @@ func Test_NSC_GetsVl3DnsAddressDelay(t *testing.T) {
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	dnsServerIPCh := make(chan net.IP, 1)
 
-	ipam := vl3.NewIPAM(ctx, "10.0.0.1/24", nil)
+	ipam := vl3.NewIPAM("10.0.0.1/24")
 
 	_ = domain.Nodes[0].NewEndpoint(
 		ctx,
@@ -286,7 +286,7 @@ func Test_vl3NSE_ConnectsTo_Itself(t *testing.T) {
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	dnsServerIPCh := make(chan net.IP, 1)
 
-	ipam := vl3.NewIPAM(ctx, "10.0.0.1/24", nil)
+	ipam := vl3.NewIPAM("10.0.0.1/24")
 
 	_ = domain.Nodes[0].NewEndpoint(
 		ctx,
@@ -338,7 +338,7 @@ func Test_Interdomain_vl3_dns(t *testing.T) {
 	dnsServerIPCh := make(chan net.IP, 1)
 	dnsServerIPCh <- net.ParseIP("127.0.0.1")
 
-	ipam := vl3.NewIPAM(ctx, "10.0.0.1/24", nil)
+	ipam := vl3.NewIPAM("10.0.0.1/24")
 
 	cluster2.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken,
 		vl3.NewServer(ctx, ipam),
@@ -437,7 +437,7 @@ func Test_FloatingInterdomain_vl3_dns(t *testing.T) {
 	dnsServerIPCh := make(chan net.IP, 1)
 	dnsServerIPCh <- net.ParseIP("127.0.0.1")
 
-	ipam := vl3.NewIPAM(ctx, "10.0.0.1/24", nil)
+	ipam := vl3.NewIPAM("10.0.0.1/24")
 
 	cluster2.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken,
 		vl3.NewServer(ctx, ipam),
@@ -514,7 +514,7 @@ func Test_NSC_ConnectsTo_vl3NSE_With_Invalid_IpContext(t *testing.T) {
 	prefix1 := "10.0.0.0/24"
 	prefix2 := "10.10.0.0/24"
 
-	serverIpam := vl3.NewIPAM(ctx, prefix1, nil)
+	serverIpam := vl3.NewIPAM(prefix1)
 
 	_ = domain.Nodes[0].NewEndpoint(
 		ctx,
@@ -531,7 +531,8 @@ func Test_NSC_ConnectsTo_vl3NSE_With_Invalid_IpContext(t *testing.T) {
 
 	require.True(t, checkIPContext(conn.Context.IpContext, prefix1))
 
-	serverIpam.Reset(ctx, prefix2, nil)
+	err = serverIpam.Reset(prefix2)
+	require.NoError(t, err)
 
 	req.Connection = conn
 	conn, err = nsc.Request(ctx, req)
