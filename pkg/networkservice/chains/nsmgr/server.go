@@ -1,6 +1,6 @@
-// Copyright (c) 2020-2023 Cisco and/or its affiliates.
+// Copyright (c) 2020-2024 Cisco and/or its affiliates.
 //
-// Copyright (c) 2020-2023 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2024 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -242,6 +242,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 				opts.authorizeNSRegistryClient,
 				grpcmetadata.NewNetworkServiceRegistryClient(),
 				dial.NewNetworkServiceRegistryClient(ctx,
+					dial.WithDialTimeout(opts.dialTimeout),
 					dial.WithDialOptions(opts.dialOptions...),
 				),
 				registryconnect.NewNetworkServiceRegistryClient(),
@@ -266,6 +267,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 				opts.authorizeNSERegistryClient,
 				grpcmetadata.NewNetworkServiceEndpointRegistryClient(),
 				dial.NewNetworkServiceEndpointRegistryClient(ctx,
+					dial.WithDialTimeout(opts.dialTimeout),
 					dial.WithDialOptions(opts.dialOptions...),
 				),
 				registryconnect.NewNetworkServiceEndpointRegistryClient(),
