@@ -42,10 +42,12 @@ func NewIPAM(ctx context.Context, prefix string, excludedPrefixes []string) *IPA
 	return ipam
 }
 
+// Subscribe creates a subscription for receiving events about changed prefixes
 func (p *IPAM) Subscribe(ch chan<- struct{}) {
 	p.subscriptions = append(p.subscriptions, ch)
 }
 
+// Unsubscribe deletes a subscription for receiving events about changed prefixes
 func (p *IPAM) Unsubscribe(ch chan<- struct{}) {
 	for i, sub := range p.subscriptions {
 		if sub == ch {
@@ -55,7 +57,7 @@ func (p *IPAM) Unsubscribe(ch chan<- struct{}) {
 	}
 }
 
-func (p *IPAM) Notify() {
+func (p *IPAM) notify() {
 	for _, sub := range p.subscriptions {
 		sub <- struct{}{}
 	}
@@ -169,6 +171,7 @@ func (p *IPAM) Reset(ctx context.Context, prefix string, excludePrefies []string
 		p.ipPool.ExcludeString(excludePrefix)
 		p.excludedPrefixes[excludePrefix] = struct{}{}
 	}
+	p.notify()
 }
 
 // ContainsNetString checks if ippool contains net
