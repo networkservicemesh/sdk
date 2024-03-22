@@ -23,7 +23,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/edwarnicke/serialize"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
@@ -35,7 +34,6 @@ import (
 type vl3Client struct {
 	pool         *IPAM
 	chainContext context.Context
-	executor     serialize.Executor
 }
 
 // NewClient - returns a new vL3 client instance that manages connection.context.ipcontext for vL3 scenario.
@@ -74,17 +72,12 @@ func (n *vl3Client) Request(ctx context.Context, request *networkservice.Network
 	storeCancel(ctx, cancel)
 
 	notifyCh := make(chan struct{})
-
-	n.executor.AsyncExec(func() {
-		n.pool.Subscribe(notifyCh)
-	})
+	n.pool.Subscribe(notifyCh)
 
 	go func() {
 		defer func() {
-			n.executor.AsyncExec(func() {
-				n.pool.Unsubscribe(notifyCh)
-				close(notifyCh)
-			})
+			n.pool.Unsubscribe(notifyCh)
+			close(notifyCh)
 		}()
 
 		select {

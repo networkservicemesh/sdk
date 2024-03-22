@@ -44,11 +44,15 @@ func NewIPAM(ctx context.Context, prefix string, excludedPrefixes []string) *IPA
 
 // Subscribe creates a subscription for receiving events about changed prefixes
 func (p *IPAM) Subscribe(ch chan<- struct{}) {
+	p.Lock()
+	defer p.Unlock()
 	p.subscriptions = append(p.subscriptions, ch)
 }
 
 // Unsubscribe deletes a subscription for receiving events about changed prefixes
 func (p *IPAM) Unsubscribe(ch chan<- struct{}) {
+	p.Lock()
+	defer p.Unlock()
 	for i, sub := range p.subscriptions {
 		if sub == ch {
 			p.subscriptions = append(p.subscriptions[:i], p.subscriptions[i+1:]...)
