@@ -24,6 +24,39 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
 )
 
+type list struct {
+	head *node
+}
+
+type node struct {
+	next   *node
+	action func()
+}
+
+func newNode(action func()) *node {
+	n := new(node)
+	n.next = nil
+	n.action = action
+	return n
+}
+
+// returns previous element 'prev] so that prev.next == n
+func (l *list) append(n *node) *node {
+	ptr := l.head
+	if ptr == nil {
+		l.head = newNode(func() {})
+		l.head.next = n
+		return l.head
+	}
+
+	for ptr.next != nil {
+		ptr = ptr.next
+	}
+
+	ptr.next = n
+	return ptr
+}
+
 // IPAM manages vl3 prefixes
 type IPAM struct {
 	sync.Mutex
@@ -31,39 +64,7 @@ type IPAM struct {
 	ipPool           *ippool.IPPool
 	excludedPrefixes map[string]struct{}
 	clientMask       uint8
-	subscriptions    []chan<- struct{}
-}
-
-// NewIPAM creates a new vl3 ipam with specified prefix and excluded prefixes
-func NewIPAM(ctx context.Context, prefix string, excludedPrefixes []string) *IPAM {
-	ipam := new(IPAM)
-	ipam.Reset(ctx, prefix, excludedPrefixes)
-	return ipam
-}
-
-// Subscribe creates a subscription for receiving events about changed prefixes
-func (p *IPAM) Subscribe(ch chan<- struct{}) {
-	p.Lock()
-	defer p.Unlock()
-	p.subscriptions = append(p.subscriptions, ch)
-}
-
-// Unsubscribe deletes a subscription for receiving events about changed prefixes
-func (p *IPAM) Unsubscribe(ch chan<- struct{}) {
-	p.Lock()
-	defer p.Unlock()
-	for i, sub := range p.subscriptions {
-		if sub == ch {
-			p.subscriptions = append(p.subscriptions[:i], p.subscriptions[i+1:]...)
-			return
-		}
-	}
-}
-
-func (p *IPAM) notify() {
-	for _, sub := range p.subscriptions {
-		sub <- struct{}{}
-	}
+	subscriptions    list
 }
 
 // NewIPAM creates a new vl3 ipam with specified prefix and excluded prefixes
@@ -74,6 +75,30 @@ func NewIPAM(prefix string, excludedPrefixes ...string) *IPAM {
 		panic(err)
 	}
 	return ipam
+}
+
+// Subscribe creates a subscription for receiving events about changed prefixes
+func (p *IPAM) Subscribe(action func()) context.CancelFunc {
+	defer p.Unlock()
+	p.Lock()
+
+	node := newNode(action)
+	prev := p.subscriptions.append(node)
+
+	return func() {
+		p.Lock()
+		defer p.Unlock()
+
+		prev.next = prev.next.next
+	}
+}
+
+func (p *IPAM) notify() {
+	ptr := p.subscriptions.head
+	for ptr != nil {
+		ptr.action()
+		ptr = ptr.next
+	}
 }
 
 func (p *IPAM) isInitialized() bool {
@@ -159,10 +184,10 @@ func (p *IPAM) Reset(prefix string, excludePrefies ...string) error {
 	defer p.Unlock()
 
 	_, ipNet, err := net.ParseCIDR(prefix)
+
 	if err != nil {
 		return err
 	}
-
 	p.self = *ipNet
 	p.ipPool = ippool.NewWithNet(ipNet)
 	p.excludedPrefixes = make(map[string]struct{})

@@ -71,22 +71,19 @@ func (n *vl3Client) Request(ctx context.Context, request *networkservice.Network
 
 	storeCancel(ctx, cancel)
 
-	notifyCh := make(chan struct{})
-	n.pool.Subscribe(notifyCh)
+	unsubscribe := n.pool.Subscribe(func() {
+		eventFactory.Request(begin.CancelContext(cancelCtx))
+	})
 
 	go func() {
 		defer func() {
-			n.pool.Unsubscribe(notifyCh)
-			close(notifyCh)
+			unsubscribe()
 		}()
 
 		select {
 		case <-n.chainContext.Done():
-			return
 		case <-cancelCtx.Done():
 			return
-		case <-notifyCh:
-			eventFactory.Request(begin.CancelContext(cancelCtx))
 		}
 	}()
 
