@@ -65,7 +65,6 @@ func (p *IPAM) notify() {
 		if action, ok := node.Value.(func()); ok {
 			action()
 		}
-
 	}
 }
 
