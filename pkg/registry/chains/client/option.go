@@ -1,5 +1,7 @@
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2024 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +20,7 @@ package client
 
 import (
 	"net/url"
+	"time"
 
 	"google.golang.org/grpc"
 
@@ -92,6 +95,13 @@ func WithDialOptions(dialOptions ...grpc.DialOption) Option {
 	}
 }
 
+// WithDialTimeout sets grpc dial timeout
+func WithDialTimeout(dialTimeout time.Duration) Option {
+	return func(clientOpts *clientOptions) {
+		clientOpts.dialTimeout = dialTimeout
+	}
+}
+
 type clientOptions struct {
 	nsClientURLResolver        registry.NetworkServiceRegistryClient
 	nseClientURLResolver       registry.NetworkServiceEndpointRegistryClient
@@ -100,4 +110,5 @@ type clientOptions struct {
 	nsAdditionalFunctionality  []registry.NetworkServiceRegistryClient
 	nseAdditionalFunctionality []registry.NetworkServiceEndpointRegistryClient
 	dialOptions                []grpc.DialOption
+	dialTimeout                time.Duration
 }
