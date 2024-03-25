@@ -19,28 +19,32 @@ package vl3_test
 import (
 	"testing"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/ipcontext/vl3"
 	"github.com/stretchr/testify/require"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/ipcontext/vl3"
 )
 
 func TestSubscribtions(t *testing.T) {
 	counter := 0
 	ipam := new(vl3.IPAM)
 	unsub1 := ipam.Subscribe(func() {
-		counter += 1
+		counter++
 	})
 	unsub2 := ipam.Subscribe(func() {
 		counter += 2
 	})
 
-	ipam.Reset("10.0.0.1/24")
+	err := ipam.Reset("10.0.0.1/24")
+	require.NoError(t, err)
 	require.Equal(t, counter, 3)
 
 	unsub2()
-	ipam.Reset("10.0.0.1/24")
+	err = ipam.Reset("10.0.0.1/24")
+	require.NoError(t, err)
 	require.Equal(t, counter, 4)
-
 	unsub1()
-	ipam.Reset("10.0.0.1/24")
+
+	err = ipam.Reset("10.0.0.1/24")
+	require.NoError(t, err)
 	require.Equal(t, counter, 4)
 }
