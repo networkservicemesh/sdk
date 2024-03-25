@@ -42,8 +42,7 @@ func Test_Client_ConnectsToVl3NSE(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	var ipamPool vl3.IPAM
-	ipamPool.Reset(ctx, "10.0.0.1/24", []string{})
+	ipam := vl3.NewIPAM("10.0.0.1/24")
 
 	var server = next.NewNetworkServiceServer(
 		adapters.NewClientToServer(
@@ -54,7 +53,7 @@ func Test_Client_ConnectsToVl3NSE(t *testing.T) {
 			),
 		),
 		metadata.NewServer(),
-		vl3.NewServer(ctx, &ipamPool),
+		vl3.NewServer(ctx, ipam),
 	)
 
 	resp, err := server.Request(ctx, &networkservice.NetworkServiceRequest{Connection: &networkservice.Connection{Id: t.Name()}})
@@ -91,22 +90,19 @@ func Test_VL3NSE_ConnectsToVl3NSE(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	var clientIpamPool vl3.IPAM
-	var serverIpamPool vl3.IPAM
-
-	clientIpamPool.Reset(ctx, "10.0.1.0/24", []string{})
-	serverIpamPool.Reset(ctx, "10.0.0.1/24", []string{})
+	clientIpam := vl3.NewIPAM("10.0.1.0/24")
+	serverIpam := vl3.NewIPAM("10.0.0.1/24")
 
 	var server = next.NewNetworkServiceServer(
 		adapters.NewClientToServer(
 			next.NewNetworkServiceClient(
 				begin.NewClient(),
 				metadata.NewClient(),
-				vl3.NewClient(ctx, &clientIpamPool),
+				vl3.NewClient(ctx, clientIpam),
 			),
 		),
 		metadata.NewServer(),
-		vl3.NewServer(ctx, &serverIpamPool),
+		vl3.NewServer(ctx, serverIpam),
 	)
 
 	resp, err := server.Request(ctx, &networkservice.NetworkServiceRequest{Connection: &networkservice.Connection{Id: t.Name()}})
@@ -145,22 +141,19 @@ func Test_VL3NSE_ConnectsToVl3NSE_ChangePrefix(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	var clientIpamPool vl3.IPAM
-	var serverIpamPool vl3.IPAM
-
-	clientIpamPool.Reset(ctx, "10.0.1.0/24", []string{})
-	serverIpamPool.Reset(ctx, "10.0.0.1/24", []string{})
+	clientIpam := vl3.NewIPAM("10.0.1.0/24")
+	serverIpam := vl3.NewIPAM("10.0.0.1/24")
 
 	var server = next.NewNetworkServiceServer(
 		adapters.NewClientToServer(
 			next.NewNetworkServiceClient(
 				begin.NewClient(),
 				metadata.NewClient(),
-				vl3.NewClient(ctx, &clientIpamPool),
+				vl3.NewClient(ctx, clientIpam),
 			),
 		),
 		metadata.NewServer(),
-		vl3.NewServer(ctx, &serverIpamPool),
+		vl3.NewServer(ctx, serverIpam),
 	)
 
 	resp, err := server.Request(ctx, &networkservice.NetworkServiceRequest{Connection: &networkservice.Connection{Id: t.Name()}})
@@ -176,7 +169,8 @@ func Test_VL3NSE_ConnectsToVl3NSE_ChangePrefix(t *testing.T) {
 	require.Equal(t, "10.0.1.0/32", resp.GetContext().GetIpContext().GetDstRoutes()[0].GetPrefix())
 	require.Equal(t, "10.0.1.0/24", resp.GetContext().GetIpContext().GetDstRoutes()[1].GetPrefix())
 
-	clientIpamPool.Reset(ctx, "10.0.5.0/24", []string{})
+	err = clientIpam.Reset("10.0.5.0/24")
+	require.NoError(t, err)
 
 	// refresh
 	for i := 0; i < 10; i++ {
@@ -203,22 +197,19 @@ func Test_VL3NSE_ConnectsToVl3NSE_Close(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	var clientIpamPool vl3.IPAM
-	var serverIpamPool vl3.IPAM
-
-	clientIpamPool.Reset(ctx, "10.0.1.0/24", []string{})
-	serverIpamPool.Reset(ctx, "10.0.0.1/24", []string{})
+	clientIpam := vl3.NewIPAM("10.0.1.0/24")
+	serverIpam := vl3.NewIPAM("10.0.0.1/24")
 
 	var server = next.NewNetworkServiceServer(
 		adapters.NewClientToServer(
 			next.NewNetworkServiceClient(
 				begin.NewClient(),
 				metadata.NewClient(),
-				vl3.NewClient(ctx, &clientIpamPool),
+				vl3.NewClient(ctx, clientIpam),
 			),
 		),
 		metadata.NewServer(),
-		vl3.NewServer(ctx, &serverIpamPool),
+		vl3.NewServer(ctx, serverIpam),
 	)
 
 	resp, err := server.Request(ctx, &networkservice.NetworkServiceRequest{Connection: &networkservice.Connection{Id: uuid.New().String()}})

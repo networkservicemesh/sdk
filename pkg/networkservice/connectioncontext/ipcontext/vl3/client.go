@@ -23,7 +23,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/edwarnicke/serialize"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
@@ -33,10 +32,8 @@ import (
 )
 
 type vl3Client struct {
-	pool          *IPAM
-	chainContext  context.Context
-	executor      serialize.Executor
-	subscriptions []chan struct{}
+	pool         *IPAM
+	chainContext context.Context
 }
 
 // NewClient - returns a new vL3 client instance that manages connection.context.ipcontext for vL3 scenario.
@@ -74,32 +71,16 @@ func (n *vl3Client) Request(ctx context.Context, request *networkservice.Network
 
 	storeCancel(ctx, cancel)
 
-	notifyCh := make(chan struct{})
-
-	n.executor.AsyncExec(func() {
-		n.subscriptions = append(n.subscriptions, notifyCh)
+	unsubscribe := n.pool.Subscribe(func() {
+		eventFactory.Request(begin.CancelContext(cancelCtx))
 	})
 
 	go func() {
-		defer func() {
-			n.executor.AsyncExec(func() {
-				for i, sub := range n.subscriptions {
-					if sub == notifyCh {
-						n.subscriptions = append(n.subscriptions[:i], n.subscriptions[i+1:]...)
-						close(notifyCh)
-						return
-					}
-				}
-			})
-		}()
+		defer unsubscribe()
 
 		select {
 		case <-n.chainContext.Done():
-			return
 		case <-cancelCtx.Done():
-			return
-		case <-notifyCh:
-			eventFactory.Request(begin.CancelContext(cancelCtx))
 		}
 	}()
 

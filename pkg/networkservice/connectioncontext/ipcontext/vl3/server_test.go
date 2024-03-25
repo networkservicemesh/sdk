@@ -35,12 +35,11 @@ func Test_NSC_ConnectsToVl3NSE(t *testing.T) {
 	t.Cleanup(func() {
 		goleak.VerifyNone(t)
 	})
-	var ipam vl3.IPAM
-	ipam.Reset(context.Background(), "10.0.0.1/24", []string{})
+	ipam := vl3.NewIPAM("10.0.0.1/24")
 
 	var server = next.NewNetworkServiceServer(
 		metadata.NewServer(),
-		vl3.NewServer(context.Background(), &ipam),
+		vl3.NewServer(context.Background(), ipam),
 	)
 
 	resp, err := server.Request(context.Background(), new(networkservice.NetworkServiceRequest))
@@ -75,12 +74,11 @@ func Test_NSC_ConnectsToVl3NSE_PrefixHasChanged(t *testing.T) {
 		goleak.VerifyNone(t)
 	})
 
-	var ipam vl3.IPAM
-	ipam.Reset(context.Background(), "12.0.0.1/24", []string{})
+	ipam := vl3.NewIPAM("12.0.0.1/24")
 
 	var server = next.NewNetworkServiceServer(
 		metadata.NewServer(),
-		vl3.NewServer(context.Background(), &ipam),
+		vl3.NewServer(context.Background(), ipam),
 	)
 
 	resp, err := server.Request(context.Background(), new(networkservice.NetworkServiceRequest))
@@ -95,7 +93,8 @@ func Test_NSC_ConnectsToVl3NSE_PrefixHasChanged(t *testing.T) {
 	require.Equal(t, "12.0.0.0/16", resp.GetContext().GetIpContext().GetSrcRoutes()[2].GetPrefix())
 	require.Equal(t, "12.0.0.1/32", resp.GetContext().GetIpContext().GetDstRoutes()[0].GetPrefix())
 
-	ipam.Reset(context.Background(), "11.0.0.1/24", []string{})
+	err = ipam.Reset("11.0.0.1/24")
+	require.NoError(t, err)
 
 	// refresh
 	for i := 0; i < 10; i++ {
@@ -118,12 +117,11 @@ func Test_NSC_ConnectsToVl3NSE_Close(t *testing.T) {
 		goleak.VerifyNone(t)
 	})
 
-	var ipam vl3.IPAM
-	ipam.Reset(context.Background(), "10.0.0.1/24", []string{})
+	ipam := vl3.NewIPAM("10.0.0.1/24")
 
 	var server = next.NewNetworkServiceServer(
 		metadata.NewServer(),
-		vl3.NewServer(context.Background(), &ipam),
+		vl3.NewServer(context.Background(), ipam),
 	)
 
 	for i := 0; i < 10; i++ {
