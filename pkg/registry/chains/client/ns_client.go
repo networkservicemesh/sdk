@@ -20,6 +20,7 @@ package client
 
 import (
 	"context"
+	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
@@ -41,6 +42,7 @@ func NewNetworkServiceRegistryClient(ctx context.Context, opts ...Option) regist
 	clientOpts := &clientOptions{
 		nsClientURLResolver:       null.NewNetworkServiceRegistryClient(),
 		authorizeNSRegistryClient: authorize.NewNetworkServiceRegistryClient(authorize.Any()),
+		dialTimeout:               time.Millisecond * 300,
 	}
 	for _, opt := range opts {
 		opt(clientOpts)
