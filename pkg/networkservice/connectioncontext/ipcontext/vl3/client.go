@@ -76,10 +76,11 @@ func (n *vl3Client) Request(ctx context.Context, request *networkservice.Network
 	})
 
 	go func() {
+		defer unsubscribe()
+
 		select {
 		case <-n.chainContext.Done():
 		case <-cancelCtx.Done():
-			unsubscribe()
 		}
 	}()
 

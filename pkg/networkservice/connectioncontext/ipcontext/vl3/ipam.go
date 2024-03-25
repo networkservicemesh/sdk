@@ -17,45 +17,13 @@
 package vl3
 
 import (
+	"container/list"
 	"context"
 	"net"
 	"sync"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
 )
-
-type list struct {
-	head *node
-}
-
-type node struct {
-	next   *node
-	action func()
-}
-
-func newNode(action func()) *node {
-	n := new(node)
-	n.next = nil
-	n.action = action
-	return n
-}
-
-// returns previous element 'prev] so that prev.next == n
-func (l *list) append(n *node) *node {
-	ptr := l.head
-	if ptr == nil {
-		l.head = newNode(func() {})
-		l.head.next = n
-		return l.head
-	}
-
-	for ptr.next != nil {
-		ptr = ptr.next
-	}
-
-	ptr.next = n
-	return ptr
-}
 
 // IPAM manages vl3 prefixes
 type IPAM struct {
@@ -64,7 +32,7 @@ type IPAM struct {
 	ipPool           *ippool.IPPool
 	excludedPrefixes map[string]struct{}
 	clientMask       uint8
-	subscriptions    list
+	subscriptions    list.List
 }
 
 // NewIPAM creates a new vl3 ipam with specified prefix and excluded prefixes
@@ -82,22 +50,22 @@ func (p *IPAM) Subscribe(action func()) context.CancelFunc {
 	defer p.Unlock()
 	p.Lock()
 
-	node := newNode(action)
-	prev := p.subscriptions.append(node)
+	node := p.subscriptions.PushBack(action)
 
 	return func() {
 		p.Lock()
 		defer p.Unlock()
 
-		prev.next = prev.next.next
+		p.subscriptions.Remove(node)
 	}
 }
 
 func (p *IPAM) notify() {
-	ptr := p.subscriptions.head
-	for ptr != nil {
-		ptr.action()
-		ptr = ptr.next
+	for node := p.subscriptions.Front(); node != nil; node = node.Next() {
+		if action, ok := node.Value.(func()); ok {
+			action()
+		}
+
 	}
 }
 
