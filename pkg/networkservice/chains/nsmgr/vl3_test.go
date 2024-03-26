@@ -40,6 +40,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext/vl3dns"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/ipcontext/vl3"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
@@ -516,11 +517,24 @@ func Test_NSC_ConnectsTo_vl3NSE_With_Invalid_IpContext(t *testing.T) {
 
 	serverIpam := vl3.NewIPAM(prefix1)
 
+	refresh := false
+	checker := checkrequest.NewServer(t, func(t *testing.T, nsr *networkservice.NetworkServiceRequest) {
+		if !refresh {
+			require.Len(t, nsr.Connection.Context.IpContext.DstIpAddrs, 0)
+		}
+		if refresh {
+			require.Len(t, nsr.Connection.Context.IpContext.DstIpAddrs, 1)
+			require.Equal(t, nsr.Connection.Context.IpContext.DstIpAddrs[0], "10.0.0.0/32")
+		}
+	})
+
 	_ = domain.Nodes[0].NewEndpoint(
 		ctx,
 		nseReg,
 		sandbox.GenerateTestToken,
-		strictvl3ipam.NewServer(ctx, vl3.NewServer, serverIpam),
+		strictvl3ipam.NewServer(ctx, func(ctx context.Context, i *vl3.IPAM) networkservice.NetworkServiceServer {
+			return next.NewNetworkServiceServer(checker, vl3.NewServer(ctx, i))
+		}, serverIpam),
 	)
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
@@ -531,10 +545,18 @@ func Test_NSC_ConnectsTo_vl3NSE_With_Invalid_IpContext(t *testing.T) {
 
 	require.True(t, checkIPContext(conn.Context.IpContext, prefix1))
 
+	// Refresh
+	refresh = true
+	req.Connection = conn.Clone()
+	_, err = nsc.Request(ctx, req)
+	require.NoError(t, err)
+
+	// New prefix
+	refresh = false
 	err = serverIpam.Reset(prefix2)
 	require.NoError(t, err)
 
-	req.Connection = conn
+	req.Connection = conn.Clone()
 	conn, err = nsc.Request(ctx, req)
 	require.NoError(t, err)
 

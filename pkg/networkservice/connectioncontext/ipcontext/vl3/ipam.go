@@ -186,8 +186,10 @@ func (p *IPAM) ContainsNetString(ipNet string) bool {
 	p.Lock()
 	defer p.Unlock()
 
-	if p.self.String() == ipNet {
-		return true
+	for k := range p.excludedPrefixes {
+		if k == ipNet {
+			return true
+		}
 	}
 	return p.ipPool.ContainsNetString(ipNet)
 }
