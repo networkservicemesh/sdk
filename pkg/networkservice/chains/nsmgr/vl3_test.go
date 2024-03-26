@@ -30,6 +30,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
@@ -528,9 +529,17 @@ func Test_NSC_ConnectsTo_vl3NSE_With_Invalid_IpContext(t *testing.T) {
 	req := defaultRequest(nsReg.Name)
 	conn, err := nsc.Request(ctx, req)
 	require.NoError(t, err)
-
 	require.True(t, checkIPContext(conn.Context.IpContext, prefix1))
 
+	// Refresh
+	clonedConn := conn.Clone()
+	req.Connection = conn
+	conn, err = nsc.Request(ctx, req)
+	require.NoError(t, err)
+	require.True(t, checkIPContext(conn.Context.IpContext, prefix1))
+	require.True(t, proto.Equal(clonedConn.GetContext().IpContext, conn.GetContext().IpContext))
+
+	// Reset ipam with a new prefix
 	err = serverIpam.Reset(prefix2)
 	require.NoError(t, err)
 
@@ -540,6 +549,14 @@ func Test_NSC_ConnectsTo_vl3NSE_With_Invalid_IpContext(t *testing.T) {
 
 	require.False(t, checkIPContext(conn.Context.IpContext, prefix1))
 	require.True(t, checkIPContext(conn.Context.IpContext, prefix2))
+
+	// Refresh
+	clonedConn = conn.Clone()
+	req.Connection = conn
+	conn, err = nsc.Request(ctx, req)
+	require.NoError(t, err)
+	require.True(t, checkIPContext(conn.Context.IpContext, prefix2))
+	require.True(t, proto.Equal(clonedConn.GetContext().IpContext, conn.GetContext().IpContext))
 }
 
 func checkIPContext(ipContext *networkservice.IPContext, prefix string) bool {
