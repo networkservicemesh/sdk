@@ -185,5 +185,12 @@ func (p *IPAM) Reset(prefix string, excludePrefixes ...string) error {
 func (p *IPAM) ContainsNetString(ipNet string) bool {
 	p.Lock()
 	defer p.Unlock()
-	return p.ipPool.ContainsNetString(ipNet)
+	selfAddress := &net.IPNet{
+		IP: p.self.IP,
+		Mask: net.CIDRMask(
+			int(p.clientMask),
+			int(p.clientMask),
+		),
+	}
+	return p.ipPool.ContainsNetString(ipNet) || selfAddress.String() == ipNet
 }
