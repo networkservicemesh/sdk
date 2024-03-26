@@ -911,3 +911,46 @@ func TestNSMGR_RefreshFailed_ControlPlaneBroken(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 2, counter.Requests())
 }
+
+func TestNSMGRHealEndpoint_CustomReselectFunc(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+
+	defer cancel()
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		Build()
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
+
+	request := defaultRequest(nsReg.Name)
+
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
+		nsclient.WithHealClient(heal.NewClient(ctx, heal.WithReselectFunc(func(request *networkservice.NetworkServiceRequest) {
+			request.Connection.Labels = make(map[string]string)
+			request.Connection.Labels["key"] = "value"
+			request.Connection.NetworkServiceEndpointName = ""
+		}))))
+
+	_, err = nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+
+	nse.Cancel()
+
+	checker := checkrequest.NewServer(t, func(t *testing.T, nsr *networkservice.NetworkServiceRequest) {
+		require.Contains(t, nsr.Connection.Labels, "key")
+	})
+	counter := new(count.Server)
+	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
+	nseReg2.Name += "-2"
+	domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter, checker)
+
+	require.Eventually(t, func() bool { return counter.UniqueRequests() > 0 }, timeout, tick)
+}
