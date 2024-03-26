@@ -36,12 +36,11 @@ func Test_NSC_ConnectsToVl3NSE(t *testing.T) {
 	t.Cleanup(func() {
 		goleak.VerifyNone(t)
 	})
-	var ipam vl3.IPAM
-	ipam.Reset(context.Background(), "10.0.0.1/24", []string{})
+	ipam := vl3.NewIPAM("10.0.0.1/24")
 
 	var server = next.NewNetworkServiceServer(
 		metadata.NewServer(),
-		vl3.NewServer(context.Background(), &ipam),
+		vl3.NewServer(context.Background(), ipam),
 	)
 
 	resp, err := server.Request(context.Background(), new(networkservice.NetworkServiceRequest))
@@ -76,12 +75,11 @@ func Test_NSC_ConnectsToVl3NSE_PrefixHasChanged(t *testing.T) {
 		goleak.VerifyNone(t)
 	})
 
-	var ipam vl3.IPAM
-	ipam.Reset(context.Background(), "12.0.0.1/24", []string{})
+	ipam := vl3.NewIPAM("12.0.0.1/24")
 
 	var server = next.NewNetworkServiceServer(
 		metadata.NewServer(),
-		vl3.NewServer(context.Background(), &ipam),
+		vl3.NewServer(context.Background(), ipam),
 	)
 
 	resp, err := server.Request(context.Background(), new(networkservice.NetworkServiceRequest))
@@ -96,7 +94,8 @@ func Test_NSC_ConnectsToVl3NSE_PrefixHasChanged(t *testing.T) {
 	require.Equal(t, "12.0.0.0/16", resp.GetContext().GetIpContext().GetSrcRoutes()[2].GetPrefix())
 	require.Equal(t, "12.0.0.1/32", resp.GetContext().GetIpContext().GetDstRoutes()[0].GetPrefix())
 
-	ipam.Reset(context.Background(), "11.0.0.1/24", []string{})
+	err = ipam.Reset("11.0.0.1/24")
+	require.NoError(t, err)
 
 	// refresh
 	for i := 0; i < 10; i++ {
@@ -119,12 +118,11 @@ func Test_NSC_ConnectsToVl3NSE_Close(t *testing.T) {
 		goleak.VerifyNone(t)
 	})
 
-	var ipam vl3.IPAM
-	ipam.Reset(context.Background(), "10.0.0.1/24", []string{})
+	ipam := vl3.NewIPAM("10.0.0.1/24")
 
 	var server = next.NewNetworkServiceServer(
 		metadata.NewServer(),
-		vl3.NewServer(context.Background(), &ipam),
+		vl3.NewServer(context.Background(), ipam),
 	)
 
 	for i := 0; i < 10; i++ {
@@ -173,13 +171,10 @@ func Test_NSC_ConnectsToVl3NSE_DualStack(t *testing.T) {
 	})
 
 	var ipams []*vl3.IPAM
-	var ipam1 vl3.IPAM
-	ipam1.Reset(context.Background(), "10.0.0.1/24", []string{})
-	ipams = append(ipams, &ipam1)
-
-	var ipam2 vl3.IPAM
-	ipam2.Reset(context.Background(), "2001:db8::/112", []string{})
-	ipams = append(ipams, &ipam2)
+	ipam1 := vl3.NewIPAM("10.0.0.1/24")
+	ipams = append(ipams, ipam1)
+	ipam2 := vl3.NewIPAM("2001:db8::/112")
+	ipams = append(ipams, ipam2)
 
 	var server = next.NewNetworkServiceServer(
 		metadata.NewServer(),

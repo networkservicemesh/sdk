@@ -1,6 +1,6 @@
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,6 +21,7 @@ package client
 
 import (
 	"context"
+	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
@@ -43,6 +44,7 @@ func NewNetworkServiceEndpointRegistryClient(ctx context.Context, opts ...Option
 	clientOpts := &clientOptions{
 		nseClientURLResolver:       null.NewNetworkServiceEndpointRegistryClient(),
 		authorizeNSERegistryClient: authorize.NewNetworkServiceEndpointRegistryClient(authorize.Any()),
+		dialTimeout:                time.Millisecond * 300,
 	}
 	for _, opt := range opts {
 		opt(clientOpts)
@@ -61,6 +63,7 @@ func NewNetworkServiceEndpointRegistryClient(ctx context.Context, opts ...Option
 				clientconn.NewNetworkServiceEndpointRegistryClient(),
 				grpcmetadata.NewNetworkServiceEndpointRegistryClient(),
 				dial.NewNetworkServiceEndpointRegistryClient(ctx,
+					dial.WithDialTimeout(clientOpts.dialTimeout),
 					dial.WithDialOptions(clientOpts.dialOptions...),
 				),
 			},

@@ -1,6 +1,6 @@
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -42,6 +42,7 @@ func NewNetworkServiceRegistryClient(ctx context.Context, opts ...Option) regist
 	clientOpts := &clientOptions{
 		nsClientURLResolver:       null.NewNetworkServiceRegistryClient(),
 		authorizeNSRegistryClient: authorize.NewNetworkServiceRegistryClient(authorize.Any()),
+		dialTimeout:               time.Millisecond * 300,
 	}
 	for _, opt := range opts {
 		opt(clientOpts)
@@ -59,8 +60,8 @@ func NewNetworkServiceRegistryClient(ctx context.Context, opts ...Option) regist
 				clientconn.NewNetworkServiceRegistryClient(),
 				grpcmetadata.NewNetworkServiceRegistryClient(),
 				dial.NewNetworkServiceRegistryClient(ctx,
+					dial.WithDialTimeout(clientOpts.dialTimeout),
 					dial.WithDialOptions(clientOpts.dialOptions...),
-					dial.WithDialTimeout(time.Second),
 				),
 			},
 			append(
