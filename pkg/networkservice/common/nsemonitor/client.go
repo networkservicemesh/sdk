@@ -63,10 +63,8 @@ func (s *nseMonitorClient) Request(ctx context.Context, request *networkservice.
 
 	watchCtx, cancel := context.WithCancel(s.chainCtx)
 	query := &registry.NetworkServiceEndpointQuery{
-		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-			Name: request.Connection.NetworkServiceEndpointName,
-		},
-		Watch: true,
+		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: nseName},
+		Watch:                  true,
 	}
 	stream, streamErr := s.registryConn.Find(watchCtx, query, opts...)
 	if streamErr != nil {
