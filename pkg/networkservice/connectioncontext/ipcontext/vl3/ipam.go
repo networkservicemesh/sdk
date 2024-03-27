@@ -146,7 +146,7 @@ func (p *IPAM) isExcluded(ipNet string) bool {
 }
 
 // Reset resets IPAM's ippol by setting new prefix
-func (p *IPAM) Reset(prefix string, excludePrefies ...string) error {
+func (p *IPAM) Reset(prefix string, excludePrefixes ...string) error {
 	p.Lock()
 	defer p.Unlock()
 
@@ -172,7 +172,7 @@ func (p *IPAM) Reset(prefix string, excludePrefies ...string) error {
 	p.excludedPrefixes[selfAddress.String()] = struct{}{}
 	p.ipPool.Exclude(selfAddress)
 
-	for _, excludePrefix := range excludePrefies {
+	for _, excludePrefix := range excludePrefixes {
 		p.ipPool.ExcludeString(excludePrefix)
 		p.excludedPrefixes[excludePrefix] = struct{}{}
 	}
