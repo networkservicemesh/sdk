@@ -37,50 +37,77 @@ func TestKernelMechanismServer_ShouldSetInterfaceName(t *testing.T) {
 		expectedIfaceName += "a"
 	}
 
-	c := kernel.NewClient(kernel.WithInterfaceName(expectedIfaceName + "long-suffix"))
+	s := kernel.NewServer(kernel.WithInterfaceName(expectedIfaceName + "long-suffix"))
 
-	req := &networkservice.NetworkServiceRequest{}
-	_, err := c.Request(context.Background(), req)
+	req := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Mechanism: kernelmech.New(""),
+		},
+	}
+	conn, err := s.Request(context.Background(), req)
 	require.NoError(t, err)
+	require.Equal(t, expectedIfaceName, conn.Mechanism.Parameters[kernelmech.InterfaceNameKey])
 
-	require.Len(t, req.MechanismPreferences, 1)
-	require.Equal(t, expectedIfaceName, req.MechanismPreferences[0].Parameters[kernelmech.InterfaceNameKey])
+	// Refresh
+	req.Connection = conn.Clone()
+	conn, err = s.Request(context.Background(), req)
+	require.NoError(t, err)
+	require.Equal(t, expectedIfaceName, conn.Mechanism.Parameters[kernelmech.InterfaceNameKey])
 }
 
 func TestKernelMechanismServer_ShouldSetValidNetNSURL(t *testing.T) {
-	c := kernel.NewClient()
+	s := kernel.NewServer()
 
 	req := &networkservice.NetworkServiceRequest{
-		MechanismPreferences: []*networkservice.Mechanism{
-			kernelmech.New("invalid-url"),
+		Connection: &networkservice.Connection{
+			Mechanism: kernelmech.New("invalid-url"),
 		},
 	}
 
-	_, err := c.Request(context.Background(), req)
+	conn, err := s.Request(context.Background(), req)
 	require.NoError(t, err)
-	require.Equal(t, netNSURL, req.MechanismPreferences[0].Parameters[kernelmech.NetNSURL])
+	require.Equal(t, netNSURL, conn.Mechanism.Parameters[kernelmech.NetNSURL])
+
+	// Refresh
+	req.Connection = conn.Clone()
+	conn, err = s.Request(context.Background(), req)
+	require.NoError(t, err)
+	require.Equal(t, netNSURL, conn.Mechanism.Parameters[kernelmech.NetNSURL])
 }
 
 func TestKernelMechanismServer_ShouldSetRandomInteraceName(t *testing.T) {
-	c := kernel.NewClient()
-	req := &networkservice.NetworkServiceRequest{}
+	s := kernel.NewServer()
+	req := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Mechanism: kernelmech.New(""),
+		},
+	}
 
-	_, err := c.Request(context.Background(), req)
+	conn, err := s.Request(context.Background(), req)
 	require.NoError(t, err)
-
-	ifname := req.MechanismPreferences[0].Parameters[kernelmech.InterfaceNameKey]
+	ifname := conn.Mechanism.Parameters[kernelmech.InterfaceNameKey]
 
 	require.Len(t, ifname, kernelmech.LinuxIfMaxLength)
 	require.True(t, strings.HasPrefix(ifname, "nsm"))
 	for i := 0; i < kernelmech.LinuxIfMaxLength; i++ {
 		require.Contains(t, nanoid.DefaultAlphabet, string(ifname[i]))
 	}
+
+	// Refresh
+	req.Connection = conn.Clone()
+	conn, err = s.Request(context.Background(), req)
+	require.NoError(t, err)
+	require.Equal(t, ifname, conn.Mechanism.Parameters[kernelmech.InterfaceNameKey])
 }
 
 func TestKernelMechanismServer_FailedToGenerateRandomName(t *testing.T) {
-	c := kernel.NewClient(kernel.WithInterfaceNameGenerator(nanoid.New(nanoid.WithRandomByteGenerator(&brokenByteGenerator{}))))
-	req := &networkservice.NetworkServiceRequest{}
+	s := kernel.NewServer(kernel.WithInterfaceNameGenerator(nanoid.New(nanoid.WithRandomByteGenerator(&brokenByteGenerator{}))))
+	req := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Mechanism: kernelmech.New(""),
+		},
+	}
 
-	_, err := c.Request(context.Background(), req)
+	_, err := s.Request(context.Background(), req)
 	require.Error(t, err)
 }

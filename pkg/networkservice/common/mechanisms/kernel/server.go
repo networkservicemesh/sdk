@@ -54,14 +54,16 @@ func NewServer(opts ...Option) networkservice.NetworkServiceServer {
 func (m *kernelMechanismServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	if mechanism := kernelmech.ToMechanism(request.GetConnection().GetMechanism()); mechanism != nil {
 		mechanism.SetNetNSURL(netNSURL)
-		if m.interfaceName != "" {
-			mechanism.SetInterfaceName(m.interfaceName)
-		} else {
-			ifname, err := generateInterfaceName(m.interfaceNameGenerator)
-			if err != nil {
-				return nil, errors.Wrap(err, "Failed to generate kernel interface name")
+		if mechanism.GetInterfaceName() == "" {
+			if m.interfaceName != "" {
+				mechanism.SetInterfaceName(m.interfaceName)
+			} else {
+				ifname, err := generateInterfaceName(m.interfaceNameGenerator)
+				if err != nil {
+					return nil, errors.Wrap(err, "Failed to generate kernel interface name")
+				}
+				mechanism.SetInterfaceName(ifname)
 			}
-			mechanism.SetInterfaceName(ifname)
 		}
 	}
 	return next.Server(ctx).Request(ctx, request)
