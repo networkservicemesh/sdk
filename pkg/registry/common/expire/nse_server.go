@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -67,9 +67,13 @@ func (s *expireNSEServer) Register(ctx context.Context, nse *registry.NetworkSer
 		requestTimeout = 0
 	}
 
-	expirationTime := nse.GetExpirationTime().AsTime()
-	if nse.GetExpirationTime() == nil {
-		expirationTime = timeClock.Now().Add(s.defaultExpiration).Local()
+	expirationTime := nse.GetExpirationTime().AsTime().Local()
+	defaultExpirationTime := expirationTime
+	if s.defaultExpiration != 0 {
+		defaultExpirationTime = timeClock.Now().Add(s.defaultExpiration).Local()
+	}
+	if nse.GetExpirationTime() == nil || expirationTime.After(defaultExpirationTime) {
+		expirationTime = defaultExpirationTime
 		nse.ExpirationTime = timestamppb.New(expirationTime)
 		logger.Infof("selected expiration time %v for %v", expirationTime, nse.GetName())
 	}
