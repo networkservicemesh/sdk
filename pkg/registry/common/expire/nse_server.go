@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -29,9 +29,11 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 type expireNSEServer struct {
@@ -67,9 +69,11 @@ func (s *expireNSEServer) Register(ctx context.Context, nse *registry.NetworkSer
 		requestTimeout = 0
 	}
 
-	expirationTime := nse.GetExpirationTime().AsTime()
-	if nse.GetExpirationTime() == nil {
-		expirationTime = timeClock.Now().Add(s.defaultExpiration).Local()
+	// Select the min(tokenExpirationTime, peerExpirationTime, defaultExpirationTime)
+	expirationTime, expirationTimeSelected := s.selectMinExpirationTime(ctx)
+
+	// Update nse ExpirationTime if expirationTime is before
+	if expirationTimeSelected && (nse.GetExpirationTime() == nil || expirationTime.Before(nse.GetExpirationTime().AsTime().Local())) {
 		nse.ExpirationTime = timestamppb.New(expirationTime)
 		logger.Infof("selected expiration time %v for %v", expirationTime, nse.GetName())
 	}
@@ -79,7 +83,7 @@ func (s *expireNSEServer) Register(ctx context.Context, nse *registry.NetworkSer
 		return nil, err
 	}
 
-	if nseExpirationTime := resp.GetExpirationTime().AsTime().Local(); nseExpirationTime.Before(expirationTime) {
+	if nseExpirationTime := resp.GetExpirationTime().AsTime().Local(); expirationTimeSelected && nseExpirationTime.Before(expirationTime) {
 		expirationTime = nseExpirationTime
 		logger.Infof("selected expiration time %v for %v", expirationTime, resp.GetName())
 	}
@@ -113,4 +117,35 @@ func (s *expireNSEServer) Unregister(ctx context.Context, nse *registry.NetworkS
 		oldCancel()
 	}
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
+}
+
+func (s *expireNSEServer) selectMinExpirationTime(ctx context.Context) (time.Time, bool) {
+	timeClock := clock.FromContext(ctx)
+
+	var expirationTime *time.Time
+	if tokenExpirationTime := updatepath.ExpirationTimeFromContext(ctx); tokenExpirationTime != nil {
+		expirationTime = tokenExpirationTime
+	} else {
+		log.FromContext(ctx).Warn("error during getting token expiration time from the context")
+	}
+
+	if _, peerExpirationTime, peerTokenErr := token.FromContext(ctx); peerTokenErr == nil {
+		if expirationTime == nil || peerExpirationTime.Before(*expirationTime) {
+			expirationTime = &peerExpirationTime
+		}
+	} else {
+		log.FromContext(ctx).Warnf("error during getting peer expiration time from the context: %v", peerTokenErr)
+	}
+
+	if s.defaultExpiration != 0 {
+		defaultExpirationTime := timeClock.Now().Add(s.defaultExpiration).Local()
+		if expirationTime == nil || defaultExpirationTime.Before(*expirationTime) {
+			expirationTime = &defaultExpirationTime
+		}
+	}
+	if expirationTime == nil {
+		return time.Time{}, false
+	}
+
+	return *expirationTime, true
 }

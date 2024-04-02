@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -170,6 +170,28 @@ func TestExpireNSEServer_ShouldSetDefaultExpiration(t *testing.T) {
 	require.Equal(t, expireTimeout, clockMock.Until(resp.ExpirationTime.AsTime()))
 }
 
+func TestExpireNSEServer_ShouldUseLessExpirationTime_DefaultExpireTimeout(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	clockMock := clockmock.New(ctx)
+	ctx = clock.WithClock(ctx, clockMock)
+
+	s := next.NewNetworkServiceEndpointRegistryServer(
+		injectpeertoken.NewNetworkServiceEndpointRegistryServer(generateTestToken(ctx, expireTimeout)),
+		updatepath.NewNetworkServiceEndpointRegistryServer(generateTestToken(ctx, expireTimeout)),
+		begin.NewNetworkServiceEndpointRegistryServer(),
+		expire.NewNetworkServiceEndpointRegistryServer(ctx, expire.WithDefaultExpiration(expireTimeout/2)),
+	)
+
+	resp, err := s.Register(ctx, &registry.NetworkServiceEndpoint{Name: "nse-1"})
+	require.NoError(t, err)
+
+	require.Equal(t, expireTimeout/2, clockMock.Until(resp.ExpirationTime.AsTime()))
+}
+
 func TestExpireNSEServer_ShouldUseLessExpirationTimeFromResponse(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -187,6 +209,7 @@ func TestExpireNSEServer_ShouldUseLessExpirationTimeFromResponse(t *testing.T) {
 		new(remoteNSEServer), // <-- GRPC invocation
 		begin.NewNetworkServiceEndpointRegistryServer(),
 		updatepath.NewNetworkServiceEndpointRegistryServer(generateTestToken(ctx, expireTimeout/2)),
+		expire.NewNetworkServiceEndpointRegistryServer(ctx),
 	)
 
 	resp, err := s.Register(ctx, &registry.NetworkServiceEndpoint{Name: "nse-1"})
