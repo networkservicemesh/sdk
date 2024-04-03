@@ -31,9 +31,9 @@ const (
 
 var netNSURL = (&url.URL{Scheme: "file", Path: "/proc/thread-self/ns/net"}).String()
 
-// generateInterfaceName - returns a random interface name with "nsm" prefix
+// GenerateInterfaceName - returns a random interface name with "nsm" prefix
 // to achieve a 1% chance of name collision, you need to generate approximately 68 billon names
-func generateInterfaceName(generator func(int) (string, error)) (string, error) {
+func GenerateInterfaceName(generator func(int) (string, error)) (string, error) {
 	ifIDLen := kernelmech.LinuxIfMaxLength - len(ifPrefix)
 	id, err := generator(ifIDLen)
 	if err != nil {
