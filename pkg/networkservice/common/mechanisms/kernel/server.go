@@ -58,7 +58,7 @@ func (m *kernelMechanismServer) Request(ctx context.Context, request *networkser
 			if m.interfaceName != "" {
 				mechanism.SetInterfaceName(m.interfaceName)
 			} else {
-				ifname, err := GenerateInterfaceName(m.interfaceNameGenerator)
+				ifname, err := nanoid.GenerateLinuxInterfaceName(m.interfaceNameGenerator)
 				if err != nil {
 					return nil, errors.Wrap(err, "Failed to generate kernel interface name")
 				}

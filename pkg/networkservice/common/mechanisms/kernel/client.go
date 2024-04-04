@@ -96,7 +96,7 @@ func (k *kernelMechanismClient) updateMechanism(mechanism *kernelmech.Mechanism)
 		if k.interfaceName != "" {
 			mechanism.SetInterfaceName(k.interfaceName)
 		} else {
-			ifname, err := GenerateInterfaceName(k.interfaceNameGenerator)
+			ifname, err := nanoid.GenerateLinuxInterfaceName(k.interfaceNameGenerator)
 			if err != nil {
 				return errors.Wrap(err, "Failed to generate kernel interface name")
 			}

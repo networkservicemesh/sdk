@@ -1,5 +1,3 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
-//
 // Copyright (c) 2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -16,19 +14,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package kernel
+package nanoid
 
 import (
-	"net/url"
+	"fmt"
 
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 )
 
-var netNSURL = (&url.URL{Scheme: "file", Path: "/proc/thread-self/ns/net"}).String()
+const (
+	ifPrefix = "nsm"
+)
 
-func limitName(name string) string {
-	if len(name) > kernelmech.LinuxIfMaxLength {
-		return name[:kernelmech.LinuxIfMaxLength]
+// GenerateLinuxInterfaceName - returns a random interface name with "nsm" prefix
+// to achieve a 1% chance of name collision, you need to generate approximately 68 billon names
+func GenerateLinuxInterfaceName(generator func(int) (string, error)) (string, error) {
+	ifIDLen := kernelmech.LinuxIfMaxLength - len(ifPrefix)
+	id, err := generator(ifIDLen)
+	if err != nil {
+		return "", err
 	}
-	return name
+	name := fmt.Sprintf("%s%s", ifPrefix, id)
+
+	return name, nil
 }
