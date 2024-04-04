@@ -6,6 +6,8 @@ on:
       - completed
     workflows:
       - "ci"
+    branches:
+      - release/*
 jobs:
   print-debug-info:
     name: Print debug info for Release workflow
