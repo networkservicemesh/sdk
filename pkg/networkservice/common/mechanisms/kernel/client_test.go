@@ -95,15 +95,10 @@ func TestKernelMechanismClient_ShouldSetRandomInteraceName(t *testing.T) {
 	}
 }
 
-type brokenByteGenerator struct {
-}
-
-func (g *brokenByteGenerator) Read(buffer []byte) (int, error) {
-	return 0, errors.New("failed to generate bytes")
-}
-
 func TestKernelMechanismClient_FailedToGenerateRandomName(t *testing.T) {
-	c := kernel.NewClient(kernel.WithInterfaceNameGenerator(nanoid.New(nanoid.WithRandomByteGenerator(&brokenByteGenerator{}))))
+	c := kernel.NewClient(kernel.WithInterfaceNameGenerator(func() (string, error) {
+		return "", errors.New("failed to generate bytes")
+	}))
 	req := &networkservice.NetworkServiceRequest{}
 
 	_, err := c.Request(context.Background(), req)

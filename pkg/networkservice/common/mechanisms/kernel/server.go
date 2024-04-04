@@ -34,13 +34,13 @@ import (
 
 type kernelMechanismServer struct {
 	interfaceName          string
-	interfaceNameGenerator func(int) (string, error)
+	interfaceNameGenerator func() (string, error)
 }
 
 // NewServer - creates a NetworkServiceServer that requests a kernel interface and populates the netns inode
 func NewServer(opts ...Option) networkservice.NetworkServiceServer {
 	o := &options{
-		interfaceNameGenerator: nanoid.New(),
+		interfaceNameGenerator: nanoid.LinuxInterfaceNameGenerator,
 	}
 	for _, opt := range opts {
 		opt(o)
@@ -58,7 +58,7 @@ func (m *kernelMechanismServer) Request(ctx context.Context, request *networkser
 			if m.interfaceName != "" {
 				mechanism.SetInterfaceName(m.interfaceName)
 			} else {
-				ifname, err := nanoid.GenerateLinuxInterfaceName(m.interfaceNameGenerator)
+				ifname, err := m.interfaceNameGenerator()
 				if err != nil {
 					return nil, errors.Wrap(err, "Failed to generate kernel interface name")
 				}

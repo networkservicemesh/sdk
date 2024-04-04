@@ -21,6 +21,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -101,7 +102,9 @@ func TestKernelMechanismServer_ShouldSetRandomInteraceName(t *testing.T) {
 }
 
 func TestKernelMechanismServer_FailedToGenerateRandomName(t *testing.T) {
-	s := kernel.NewServer(kernel.WithInterfaceNameGenerator(nanoid.New(nanoid.WithRandomByteGenerator(&brokenByteGenerator{}))))
+	s := kernel.NewServer(kernel.WithInterfaceNameGenerator(func() (string, error) {
+		return "", errors.New("failed to generate bytes")
+	}))
 	req := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Mechanism: kernelmech.New(""),

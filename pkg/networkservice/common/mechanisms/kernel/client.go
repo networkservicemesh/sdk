@@ -36,13 +36,13 @@ import (
 
 type kernelMechanismClient struct {
 	interfaceName          string
-	interfaceNameGenerator func(int) (string, error)
+	interfaceNameGenerator func() (string, error)
 }
 
 // NewClient - returns client that sets kernel preferred mechanism
 func NewClient(opts ...Option) networkservice.NetworkServiceClient {
 	o := &options{
-		interfaceNameGenerator: nanoid.New(),
+		interfaceNameGenerator: nanoid.LinuxInterfaceNameGenerator,
 	}
 	for _, opt := range opts {
 		opt(o)
@@ -96,7 +96,7 @@ func (k *kernelMechanismClient) updateMechanism(mechanism *kernelmech.Mechanism)
 		if k.interfaceName != "" {
 			mechanism.SetInterfaceName(k.interfaceName)
 		} else {
-			ifname, err := nanoid.GenerateLinuxInterfaceName(k.interfaceNameGenerator)
+			ifname, err := k.interfaceNameGenerator()
 			if err != nil {
 				return errors.Wrap(err, "Failed to generate kernel interface name")
 			}
