@@ -32,7 +32,7 @@ const (
 func TestNoCollisions(t *testing.T) {
 	used := make(map[string]bool)
 	for i := 0; i < 50*1000; i++ {
-		id, err := nanoid.RandomString(idLen)
+		id, err := nanoid.GenerateString(idLen)
 		require.NoError(t, err)
 		_, ok := used[id]
 		require.False(t, ok, "Collision detected for id: %s", id)
@@ -45,7 +45,7 @@ func TestFlatDistribution(t *testing.T) {
 
 	chars := make(map[rune]int)
 	for i := 0; i < count; i++ {
-		id, err := nanoid.RandomString(idLen)
+		id, err := nanoid.GenerateString(idLen)
 		require.NoError(t, err, "Error generating nanoid")
 		for _, char := range id {
 			chars[char]++
@@ -71,7 +71,7 @@ func TestFlatDistribution(t *testing.T) {
 
 func TestCustomAlphabet(t *testing.T) {
 	alphabet := "abcd"
-	id, err := nanoid.RandomString(idLen, nanoid.WithAlphabet(alphabet))
+	id, err := nanoid.GenerateString(idLen, nanoid.WithAlphabet(alphabet))
 	require.NoError(t, err)
 
 	for _, c := range id {

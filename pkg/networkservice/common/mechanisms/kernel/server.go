@@ -40,7 +40,7 @@ type kernelMechanismServer struct {
 // NewServer - creates a NetworkServiceServer that requests a kernel interface and populates the netns inode
 func NewServer(opts ...Option) networkservice.NetworkServiceServer {
 	o := &options{
-		interfaceNameGenerator: nanoid.LinuxInterfaceNameGenerator,
+		interfaceNameGenerator: nanoid.GenerateLinuxInterfaceName,
 	}
 	for _, opt := range opts {
 		opt(o)

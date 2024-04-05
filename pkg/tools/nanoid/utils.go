@@ -26,11 +26,11 @@ const (
 	ifPrefix = "nsm"
 )
 
-// LinuxInterfaceNameGenerator - returns a random interface name with "nsm" prefix
+// GenerateLinuxInterfaceName - returns a random interface name with "nsm" prefix
 // to achieve a 1% chance of name collision, you need to generate approximately 68 billon names
-func LinuxInterfaceNameGenerator() (string, error) {
+func GenerateLinuxInterfaceName() (string, error) {
 	ifIDLen := kernelmech.LinuxIfMaxLength - len(ifPrefix)
-	id, err := RandomString(ifIDLen)
+	id, err := GenerateString(ifIDLen)
 	if err != nil {
 		return "", err
 	}
