@@ -42,7 +42,7 @@ type kernelMechanismClient struct {
 // NewClient - returns client that sets kernel preferred mechanism
 func NewClient(opts ...Option) networkservice.NetworkServiceClient {
 	o := &options{
-		interfaceNameGenerator: nanoid.LinuxInterfaceNameGenerator,
+		interfaceNameGenerator: nanoid.GenerateLinuxInterfaceName,
 	}
 	for _, opt := range opts {
 		opt(o)
