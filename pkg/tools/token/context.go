@@ -1,6 +1,6 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -37,7 +37,7 @@ func FromContext(ctx context.Context) (string, time.Time, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 
 	if !ok {
-		return "", time.Time{}, errors.New("metadata is missed in ctx")
+		return "", time.Time{}, errors.New("grpc metadata is missed in ctx")
 	}
 
 	token, err := getSingleValue(md, tokenKey)

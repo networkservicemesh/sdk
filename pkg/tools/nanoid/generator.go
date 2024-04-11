@@ -59,16 +59,9 @@ func generateRandomBuffer(generator io.Reader, step int) ([]byte, error) {
 	return buffer, nil
 }
 
-// New creates a new nanoid generator with specified options
-func New(opt ...Option) func(int) (string, error) {
-	return func(size int) (string, error) {
-		return RandomString(size, opt...)
-	}
-}
-
-// RandomString generates a random string based on size.
+// GenerateString generates a random string based on size.
 // Original JavaScript implementation: https://github.com/ai/nanoid/blob/main/README.md
-func RandomString(size int, opt ...Option) (string, error) {
+func GenerateString(size int, opt ...Option) (string, error) {
 	opts := &generatorOpts{
 		alphabet:            DefaultAlphabet,
 		randomByteGenerator: rand.Reader,

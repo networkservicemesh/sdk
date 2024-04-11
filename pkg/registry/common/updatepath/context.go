@@ -1,5 +1,3 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
-//
 // Copyright (c) 2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -16,19 +14,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package kernel
+package updatepath
 
 import (
-	"net/url"
-
-	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
+	"context"
+	"time"
 )
 
-var netNSURL = (&url.URL{Scheme: "file", Path: "/proc/thread-self/ns/net"}).String()
+type key struct{}
 
-func limitName(name string) string {
-	if len(name) > kernelmech.LinuxIfMaxLength {
-		return name[:kernelmech.LinuxIfMaxLength]
+// ExpirationTimeFromContext returns the expiration time stored in context
+func ExpirationTimeFromContext(ctx context.Context) *time.Time {
+	if value, ok := ctx.Value(key{}).(*time.Time); ok {
+		return value
 	}
-	return name
+	return nil
+}
+
+// withExpirationTime sets the expiration time stored in context
+func withExpirationTime(ctx context.Context, t *time.Time) context.Context {
+	return context.WithValue(ctx, key{}, t)
 }
