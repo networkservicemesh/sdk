@@ -200,4 +200,25 @@ func Test_NSC_ConnectsToVl3NSE_DualStack(t *testing.T) {
 
 	require.Equal(t, "10.0.0.1/32", ipContext.GetDstRoutes()[0].GetPrefix())
 	require.Equal(t, "2001:db8::1/128", ipContext.GetDstRoutes()[1].GetPrefix())
+
+	// refresh
+	resp, err = server.Request(context.Background(), &networkservice.NetworkServiceRequest{Connection: resp})
+	require.NoError(t, err)
+	ipContext = resp.GetContext().GetIpContext()
+
+	require.Equal(t, "10.0.0.1/32", ipContext.GetSrcIpAddrs()[0])
+	require.Equal(t, "2001:db8::1/128", ipContext.GetSrcIpAddrs()[1])
+
+	require.Equal(t, "10.0.0.0/32", ipContext.GetDstIpAddrs()[0])
+	require.Equal(t, "2001:db8::/128", ipContext.GetDstIpAddrs()[1])
+
+	require.Equal(t, "10.0.0.0/32", ipContext.GetSrcRoutes()[0].GetPrefix())
+	require.Equal(t, "10.0.0.0/24", ipContext.GetSrcRoutes()[1].GetPrefix())
+	require.Equal(t, "10.0.0.0/16", ipContext.GetSrcRoutes()[5].GetPrefix())
+	require.Equal(t, "2001:db8::/128", ipContext.GetSrcRoutes()[2].GetPrefix())
+	require.Equal(t, "2001:db8::/112", ipContext.GetSrcRoutes()[3].GetPrefix())
+	require.Equal(t, "2001:db8::/64", ipContext.GetSrcRoutes()[4].GetPrefix())
+
+	require.Equal(t, "10.0.0.1/32", ipContext.GetDstRoutes()[0].GetPrefix())
+	require.Equal(t, "2001:db8::1/128", ipContext.GetDstRoutes()[1].GetPrefix())
 }

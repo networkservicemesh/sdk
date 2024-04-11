@@ -18,6 +18,7 @@ package vl3
 
 import (
 	"context"
+	"net"
 
 	"github.com/pkg/errors"
 
@@ -73,7 +74,7 @@ func (v *vl3Server) Request(ctx context.Context, request *networkservice.Network
 			ipContext.SrcIpAddrs = append(ipContext.SrcIpAddrs, srcNet.String())
 			v.subnetMap.Store(conn.GetId(), v.pool.globalIPNet().String())
 		}
-	} else {
+	} else if len(request.GetConnection().GetContext().GetDnsContext().GetConfigs()) == 0 || countTheSameVersionSrcIps(request, len(v.pool.self.IP)) == 0 { // TODO Consider a better option to determine vL3NSE-to-vL3NSE server case
 		srcNet, err := v.pool.allocate()
 		log.FromContext(ctx).Infof("Server Request. Allocated initial net: %+v for connection: %+v", srcNet.String(), conn.GetId())
 		if err != nil {
@@ -160,4 +161,16 @@ func removePreviousPrefixFromIPContext(ipContext *networkservice.IPContext, prev
 		}
 	}
 	ipContext.DstRoutes = dstRoutes
+}
+
+func countTheSameVersionSrcIps(request *networkservice.NetworkServiceRequest, selfIPLen int) int {
+	srcAddrs := request.GetConnection().GetContext().GetIpContext().GetSrcIpAddrs()
+	count := 0
+	for _, ip := range srcAddrs {
+		_, ipNet, err := net.ParseCIDR(ip)
+		if err == nil && len(ipNet.IP) == selfIPLen {
+			count++
+		}
+	}
+	return count
 }
