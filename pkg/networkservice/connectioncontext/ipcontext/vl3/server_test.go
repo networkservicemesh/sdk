@@ -22,6 +22,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
+	"github.com/networkservicemesh/sdk/pkg/ipam/strictvl3ipam"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/ipcontext/vl3"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 
@@ -125,7 +126,11 @@ func Test_NSC_ConnectsToVl3NSE_Close(t *testing.T) {
 	)
 
 	for i := 0; i < 10; i++ {
-		resp, err := server.Request(context.Background(), new(networkservice.NetworkServiceRequest))
+		resp, err := server.Request(context.Background(), &networkservice.NetworkServiceRequest{
+			Connection: &networkservice.Connection{
+				Id: "1",
+			},
+		})
 
 		require.NoError(t, err)
 
@@ -137,7 +142,11 @@ func Test_NSC_ConnectsToVl3NSE_Close(t *testing.T) {
 		require.Equal(t, "10.0.0.0/16", resp.GetContext().GetIpContext().GetSrcRoutes()[2].GetPrefix(), i)
 		require.Equal(t, "10.0.0.1/32", resp.GetContext().GetIpContext().GetDstRoutes()[0].GetPrefix(), i)
 
-		resp1, err1 := server.Request(context.Background(), new(networkservice.NetworkServiceRequest))
+		resp1, err1 := server.Request(context.Background(), &networkservice.NetworkServiceRequest{
+			Connection: &networkservice.Connection{
+				Id: "2",
+			},
+		})
 
 		require.NoError(t, err1)
 
@@ -154,4 +163,62 @@ func Test_NSC_ConnectsToVl3NSE_Close(t *testing.T) {
 		_, err = server.Close(context.Background(), resp)
 		require.NoError(t, err, i)
 	}
+}
+
+func Test_NSC_ConnectsToVl3NSE_DualStack(t *testing.T) {
+	t.Cleanup(func() {
+		goleak.VerifyNone(t)
+	})
+
+	var ipams []*vl3.IPAM
+	ipam1 := vl3.NewIPAM("10.0.0.1/24")
+	ipams = append(ipams, ipam1)
+	ipam2 := vl3.NewIPAM("2001:db8::/112")
+	ipams = append(ipams, ipam2)
+
+	var server = next.NewNetworkServiceServer(
+		metadata.NewServer(),
+		strictvl3ipam.NewServer(context.Background(), vl3.NewServer, ipams...),
+	)
+
+	resp, err := server.Request(context.Background(), new(networkservice.NetworkServiceRequest))
+	require.NoError(t, err)
+	ipContext := resp.GetContext().GetIpContext()
+
+	require.Equal(t, "10.0.0.1/32", ipContext.GetSrcIpAddrs()[0])
+	require.Equal(t, "2001:db8::1/128", ipContext.GetSrcIpAddrs()[1])
+
+	require.Equal(t, "10.0.0.0/32", ipContext.GetDstIpAddrs()[0])
+	require.Equal(t, "2001:db8::/128", ipContext.GetDstIpAddrs()[1])
+
+	require.Equal(t, "10.0.0.0/32", ipContext.GetSrcRoutes()[0].GetPrefix())
+	require.Equal(t, "10.0.0.0/24", ipContext.GetSrcRoutes()[1].GetPrefix())
+	require.Equal(t, "10.0.0.0/16", ipContext.GetSrcRoutes()[5].GetPrefix())
+	require.Equal(t, "2001:db8::/128", ipContext.GetSrcRoutes()[2].GetPrefix())
+	require.Equal(t, "2001:db8::/112", ipContext.GetSrcRoutes()[3].GetPrefix())
+	require.Equal(t, "2001:db8::/64", ipContext.GetSrcRoutes()[4].GetPrefix())
+
+	require.Equal(t, "10.0.0.1/32", ipContext.GetDstRoutes()[0].GetPrefix())
+	require.Equal(t, "2001:db8::1/128", ipContext.GetDstRoutes()[1].GetPrefix())
+
+	// refresh
+	resp, err = server.Request(context.Background(), &networkservice.NetworkServiceRequest{Connection: resp})
+	require.NoError(t, err)
+	ipContext = resp.GetContext().GetIpContext()
+
+	require.Equal(t, "10.0.0.1/32", ipContext.GetSrcIpAddrs()[0])
+	require.Equal(t, "2001:db8::1/128", ipContext.GetSrcIpAddrs()[1])
+
+	require.Equal(t, "10.0.0.0/32", ipContext.GetDstIpAddrs()[0])
+	require.Equal(t, "2001:db8::/128", ipContext.GetDstIpAddrs()[1])
+
+	require.Equal(t, "10.0.0.0/32", ipContext.GetSrcRoutes()[0].GetPrefix())
+	require.Equal(t, "10.0.0.0/24", ipContext.GetSrcRoutes()[1].GetPrefix())
+	require.Equal(t, "10.0.0.0/16", ipContext.GetSrcRoutes()[5].GetPrefix())
+	require.Equal(t, "2001:db8::/128", ipContext.GetSrcRoutes()[2].GetPrefix())
+	require.Equal(t, "2001:db8::/112", ipContext.GetSrcRoutes()[3].GetPrefix())
+	require.Equal(t, "2001:db8::/64", ipContext.GetSrcRoutes()[4].GetPrefix())
+
+	require.Equal(t, "10.0.0.1/32", ipContext.GetDstRoutes()[0].GetPrefix())
+	require.Equal(t, "2001:db8::1/128", ipContext.GetDstRoutes()[1].GetPrefix())
 }

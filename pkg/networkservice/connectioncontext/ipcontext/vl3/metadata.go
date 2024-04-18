@@ -22,21 +22,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
-type addressKey struct{}
-
-func loadAddress(ctx context.Context) (string, bool) {
-	v, ok := metadata.Map(ctx, false).Load(addressKey{})
-	if ok {
-		return v.(string), true
-	}
-
-	return "", false
-}
-
-func storeAddress(ctx context.Context, address string) {
-	metadata.Map(ctx, false).Store(addressKey{}, address)
-}
-
 type cancelKey struct{}
 
 func storeCancel(ctx context.Context, cancel context.CancelFunc) {
