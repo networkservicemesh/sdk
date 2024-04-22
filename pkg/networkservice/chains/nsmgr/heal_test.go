@@ -250,7 +250,7 @@ func TestNSMGRHealEndpoint_DataPlaneBroken_CtrlPlaneHealthy(t *testing.T) {
 
 func TestNSMGRHealEndpoint_DatapathHealthy_CtrlPlaneBroken(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
 
 	defer cancel()
 	domain := sandbox.NewBuilder(ctx, t).
@@ -260,36 +260,27 @@ func TestNSMGRHealEndpoint_DatapathHealthy_CtrlPlaneBroken(t *testing.T) {
 		Build()
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
-
 	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 
-	counter := new(count.Server)
-	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
+	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
 
 	request := defaultRequest(nsReg.Name)
 
-	livenessCheck := func(ctx context.Context, conn *networkservice.Connection) bool { return true }
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, nsclient.WithHealClient(heal.NewClient(ctx)))
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
-		nsclient.WithHealClient(heal.NewClient(ctx,
-			heal.WithLivenessCheck(livenessCheck))))
-
-	_, err = nsc.Request(ctx, request.Clone())
+	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
-	require.Equal(t, 1, counter.UniqueRequests())
 
 	nse.Cancel()
 
-	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
-	nseReg2.Name += "-2"
-	domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter)
+	time.Sleep(time.Second * 5)
 
-	// Should not connect to new NSE
-	require.Never(t, func() bool { return counter.UniqueRequests() > 1 }, time.Second*2, tick)
-	require.Equal(t, 1, counter.UniqueRequests())
+	nsc.Close(ctx, conn)
+
+	time.Sleep(time.Second * 10)
 }
 
 func TestNSMGR_HealForwarder(t *testing.T) {

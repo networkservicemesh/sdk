@@ -172,6 +172,8 @@ func (cev *eventLoop) eventLoop() {
 				return
 			}
 
+			cev.logger.Infof("LOOPING")
+
 			// We need to force check the DataPlane if a down event was received from the ControlPlane
 			if !reselect {
 				deadlineCtx, deadlineCancel := context.WithDeadline(cev.chainCtx, time.Now().Add(cev.heal.livenessCheckTimeout))

@@ -24,6 +24,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -92,15 +93,18 @@ func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
 	ch := make(chan error, 1)
 	f.executor.AsyncExec(func() {
 		defer close(ch)
+		ctx, cancel := f.ctxFunc()
+
+		log.FromContext(ctx).Infof("CHECK STATE: %s ====================================================", f.state)
 		if f.state != established {
 			return
 		}
+		log.FromContext(ctx).Infof("SELECT ====================================================")
 		select {
 		case <-o.cancelCtx.Done():
 		default:
 			request := f.request.Clone()
 			if o.reselect {
-				ctx, cancel := f.ctxFunc()
 				_, _ = f.client.Close(ctx, request.GetConnection(), f.opts...)
 				if request.GetConnection() != nil {
 					request.GetConnection().Mechanism = nil
@@ -111,6 +115,7 @@ func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
 			}
 			ctx, cancel := f.ctxFunc()
 			defer cancel()
+			log.FromContext(ctx).Infof("REQUEST ====================================================")
 			conn, err := f.client.Request(ctx, request, f.opts...)
 			if err == nil && f.request != nil {
 				f.request.Connection = conn
