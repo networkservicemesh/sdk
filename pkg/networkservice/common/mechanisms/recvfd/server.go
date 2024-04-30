@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2023 Cisco and/or its affiliates.
 //
+// Copyright (c) 2024  Xored Software Inc and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -59,6 +61,7 @@ func (r *recvFDServer) Request(ctx context.Context, request *networkservice.Netw
 	for _, mechanism := range append(request.GetMechanismPreferences(), request.GetConnection().GetMechanism()) {
 		err := recvFDAndSwapInodeToFile(ctx, fileMap, mechanism.GetParameters(), recv)
 		if err != nil {
+			closeFiles(request.GetConnection(), &r.fileMaps)
 			return nil, err
 		}
 	}
@@ -66,12 +69,14 @@ func (r *recvFDServer) Request(ctx context.Context, request *networkservice.Netw
 	// Call the next server in the chain
 	conn, err := next.Server(ctx).Request(ctx, request)
 	if err != nil {
+		closeFiles(request.GetConnection(), &r.fileMaps)
 		return nil, err
 	}
 
 	// Swap back from File to Inode in the InodeURL in the Parameters
 	err = swapFileToInode(fileMap, conn.GetMechanism().GetParameters())
 	if err != nil {
+		closeFiles(request.GetConnection(), &r.fileMaps)
 		return nil, err
 	}
 
@@ -80,7 +85,7 @@ func (r *recvFDServer) Request(ctx context.Context, request *networkservice.Netw
 
 func (r *recvFDServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	// Clean up the fileMap no matter what happens
-	defer r.closeFiles(conn)
+	defer closeFiles(conn, &r.fileMaps)
 
 	// Get the grpcfd.FDRecver
 	recv, ok := grpcfd.FromContext(ctx)
@@ -111,16 +116,14 @@ func (r *recvFDServer) Close(ctx context.Context, conn *networkservice.Connectio
 	return &empty.Empty{}, err
 }
 
-func (r *recvFDServer) closeFiles(conn *networkservice.Connection) {
-	defer r.fileMaps.Delete(conn.GetId())
-
-	fileMap, _ := r.fileMaps.LoadOrStore(conn.GetId(), &perConnectionFileMap{
-		filesByInodeURL:    make(map[string]*os.File),
-		inodeURLbyFilename: make(map[string]*url.URL),
-	})
-
+func closeFiles(conn *networkservice.Connection, fileMaps *genericsync.Map[string, *perConnectionFileMap]) {
+	fileMap, loaded := fileMaps.LoadAndDelete(conn.GetId())
+	if !loaded {
+		return
+	}
 	for inodeURLStr, file := range fileMap.filesByInodeURL {
 		delete(fileMap.filesByInodeURL, inodeURLStr)
 		_ = file.Close()
+		_ = os.Remove(file.Name())
 	}
 }

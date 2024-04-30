@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2023 Cisco and/or its affiliates.
 //
+// Copyright (c) 2024  Xored Software Inc and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -70,12 +72,14 @@ func (r *recvfdNseServer) Register(ctx context.Context, endpoint *registry.Netwo
 	endpoint = endpoint.Clone()
 	err := recvFDAndSwapInodeToUnix(ctx, fileMap, endpoint, recv)
 	if err != nil {
+		closeFiles(endpoint, &r.fileMaps)
 		return nil, err
 	}
 
 	// Call the next server in the chain
 	returnedEndpoint, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, endpoint)
 	if err != nil {
+		closeFiles(endpoint, &r.fileMaps)
 		return nil, err
 	}
 	returnedEndpoint = returnedEndpoint.Clone()
@@ -87,6 +91,7 @@ func (r *recvfdNseServer) Register(ctx context.Context, endpoint *registry.Netwo
 	// Swap back from File to Inode in the InodeURL in the Parameters
 	err = swapFileToInode(fileMap, returnedEndpoint)
 	if err != nil {
+		closeFiles(endpoint, &r.fileMaps)
 		return nil, err
 	}
 	return returnedEndpoint, nil
@@ -102,7 +107,7 @@ func (r *recvfdNseServer) Unregister(ctx context.Context, endpoint *registry.Net
 	}
 
 	// Clean up the fileMap no matter what happens
-	defer r.closeFiles(endpoint)
+	defer closeFiles(endpoint, &r.fileMaps)
 
 	// Get the grpcfd.FDRecver
 	recv, ok := grpcfd.FromContext(ctx)
@@ -214,16 +219,17 @@ func swapFileToInode(fileMap *perEndpointFileMap, endpoint *registry.NetworkServ
 	return nil
 }
 
-func (r *recvfdNseServer) closeFiles(endpoint *registry.NetworkServiceEndpoint) {
-	defer r.fileMaps.Delete(endpoint.GetName())
+func closeFiles(endpoint *registry.NetworkServiceEndpoint, fileMaps *genericsync.Map[string, *perEndpointFileMap]) {
+	defer fileMaps.Delete(endpoint.GetName())
 
-	fileMap, _ := r.fileMaps.LoadOrStore(endpoint.GetName(), &perEndpointFileMap{
-		filesByInodeURL:    make(map[string]*os.File),
-		inodeURLbyFilename: make(map[string]*url.URL),
-	})
+	fileMap, loaded := fileMaps.LoadAndDelete(endpoint.GetName())
+	if !loaded {
+		return
+	}
 
 	for inodeURLStr, file := range fileMap.filesByInodeURL {
 		delete(fileMap.filesByInodeURL, inodeURLStr)
 		_ = file.Close()
+		_ = os.Remove(file.Name())
 	}
 }
