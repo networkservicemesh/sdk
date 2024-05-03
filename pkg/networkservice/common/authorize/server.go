@@ -2,6 +2,8 @@
 //
 // Copyright (c) 2020-2023 Cisco Systems, Inc.
 //
+// Copyright (c) 2024  Xored Software Inc and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -146,5 +148,4 @@ func (a *authorizeServer) deleteConnectionBySpiffieID(ctx context.Context) {
 		return
 	}
 	a.spiffeIDConnectionMap.Delete(spiffeID)
-
 }
